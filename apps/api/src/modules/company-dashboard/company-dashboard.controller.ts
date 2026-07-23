@@ -30,8 +30,9 @@ export class CompanyDashboardController {
   satisAktivite(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ) {
-    return this.service.satisAktivite(user, Number(limit) || 8);
+    return this.service.satisAktivite(user, Number(limit) || 8, Number(page) || 1);
   }
 
   @Get("satinalma/tasarruf")

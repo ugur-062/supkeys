@@ -3,7 +3,7 @@
 import type { TasarrufTabData } from "@/components/dashboard/tasarruf-tab";
 import type { TedarikciTabData } from "@/components/dashboard/tedarikci-tab";
 import { companyApi } from "@/lib/company-auth/api";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 export interface OpenTenderRow {
   id: string;
@@ -118,15 +118,24 @@ export function useSatisStats() {
   });
 }
 
-export function useSatisActivity(limit = 8) {
-  return useQuery<SatisActivityRow[]>({
-    queryKey: ["company-dashboard", "satis", "aktivite", limit],
+export interface SatisActivityPage {
+  rows: SatisActivityRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export function useSatisActivity(limit = 8, page = 1) {
+  return useQuery<SatisActivityPage>({
+    queryKey: ["company-dashboard", "satis", "aktivite", limit, page],
     queryFn: async () => {
-      const { data } = await companyApi.get<SatisActivityRow[]>(
-        `/company/dashboard/satis/aktivite?limit=${limit}`,
+      const { data } = await companyApi.get<SatisActivityPage>(
+        `/company/dashboard/satis/aktivite?limit=${limit}&page=${page}`,
       );
       return data;
     },
+    // Sayfa geçişinde önceki sayfa görünür kalsın (liste zıplamasın).
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 }

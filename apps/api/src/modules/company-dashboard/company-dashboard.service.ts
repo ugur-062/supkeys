@@ -283,44 +283,64 @@ export class CompanyDashboardService {
 
   /**
    * Satış panosu — son aktiviteler (davet + teklif + sipariş birleşik akışı).
+   * Sayfalı: her kaynaktan offset+pageSize satır çekilir, birleşik sıralamadan
+   * ilgili dilim döner. Pano beslemesi arşiv değildir — derinlik MAX_FEED ile
+   * sınırlı (tam listeler kendi sayfalarında).
    */
-  async satisAktivite(user: AuthenticatedCompanyUser, limit = 8) {
+  async satisAktivite(user: AuthenticatedCompanyUser, limit = 8, page = 1) {
     const companyId = user.companyId;
-    const take = Math.min(Math.max(limit, 1), 20);
+    const MAX_FEED = 100;
+    const pageSize = Math.min(Math.max(limit, 1), 20);
+    const maxPage = Math.ceil(MAX_FEED / pageSize);
+    const safePage = Math.min(Math.max(page, 1), maxPage);
+    const offset = (safePage - 1) * pageSize;
+    // Birleşik sıralamada ilk offset+pageSize satır, en kötü durumda tek
+    // kaynaktan gelebilir → her kaynaktan o kadar çekmek zorundayız.
+    const take = Math.min(offset + pageSize, MAX_FEED);
 
-    const [invitations, bids, orders] = await Promise.all([
-      this.prisma.listingInvitation.findMany({
-        where: { invitedCompanyId: companyId },
-        orderBy: { createdAt: "desc" },
-        take,
-        select: {
-          createdAt: true,
-          listing: { select: { id: true, number: true, title: true } },
-        },
-      }),
-      this.prisma.listingBid.findMany({
-        where: { bidderCompanyId: companyId },
-        orderBy: { createdAt: "desc" },
-        take,
-        select: {
-          createdAt: true,
-          submittedAt: true,
-          version: true,
-          listing: { select: { id: true, number: true, title: true } },
-        },
-      }),
-      this.prisma.companyOrder.findMany({
-        where: { sellerCompanyId: companyId },
-        orderBy: { createdAt: "desc" },
-        take,
-        select: {
-          id: true,
-          number: true,
-          createdAt: true,
-          listing: { select: { title: true } },
-        },
-      }),
-    ]);
+    const [invitations, bids, orders, invCount, bidCount, orderCount] =
+      await Promise.all([
+        this.prisma.listingInvitation.findMany({
+          where: { invitedCompanyId: companyId },
+          orderBy: { createdAt: "desc" },
+          take,
+          select: {
+            createdAt: true,
+            listing: { select: { id: true, number: true, title: true } },
+          },
+        }),
+        this.prisma.listingBid.findMany({
+          where: { bidderCompanyId: companyId },
+          orderBy: { createdAt: "desc" },
+          take,
+          select: {
+            createdAt: true,
+            submittedAt: true,
+            version: true,
+            listing: { select: { id: true, number: true, title: true } },
+          },
+        }),
+        this.prisma.companyOrder.findMany({
+          where: { sellerCompanyId: companyId },
+          orderBy: { createdAt: "desc" },
+          take,
+          select: {
+            id: true,
+            number: true,
+            createdAt: true,
+            listing: { select: { title: true } },
+          },
+        }),
+        this.prisma.listingInvitation.count({
+          where: { invitedCompanyId: companyId },
+        }),
+        this.prisma.listingBid.count({
+          where: { bidderCompanyId: companyId },
+        }),
+        this.prisma.companyOrder.count({
+          where: { sellerCompanyId: companyId },
+        }),
+      ]);
 
     type ActivityRow = {
       type: "invitation" | "bid" | "order";
@@ -353,7 +373,13 @@ export class CompanyDashboardService {
       })),
     ];
     rows.sort((a, b) => b.at.getTime() - a.at.getTime());
-    return rows.slice(0, take);
+    return {
+      rows: rows.slice(offset, offset + pageSize),
+      // Servis edilebilir derinlikle hizalı toplam — sayfa sayısı bundan türer.
+      total: Math.min(invCount + bidCount + orderCount, MAX_FEED),
+      page: safePage,
+      pageSize,
+    };
   }
 
   /**

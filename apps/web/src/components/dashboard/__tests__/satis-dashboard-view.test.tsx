@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   stats: undefined as unknown,
   statsLoading: false,
   activity: [] as unknown[],
+  activityTotal: undefined as number | undefined,
+  activityCalls: [] as [number, number][],
 }));
 
 vi.mock("@/hooks/use-company-auth", () => ({
@@ -16,7 +18,18 @@ vi.mock("@/hooks/use-company-auth", () => ({
 }));
 vi.mock("@/hooks/use-company-dashboard", () => ({
   useSatisStats: () => ({ data: h.stats, isLoading: h.statsLoading }),
-  useSatisActivity: () => ({ data: h.activity }),
+  useSatisActivity: (limit = 8, page = 1) => {
+    h.activityCalls.push([limit, page]);
+    return {
+      data: {
+        rows: h.activity,
+        total: h.activityTotal ?? h.activity.length,
+        page,
+        pageSize: limit,
+      },
+      isPlaceholderData: false,
+    };
+  },
 }));
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesWidget: () => <div data-testid="tcmb" />,
@@ -57,6 +70,8 @@ beforeEach(() => {
   h.stats = undefined;
   h.statsLoading = false;
   h.activity = [];
+  h.activityTotal = undefined;
+  h.activityCalls = [];
 });
 
 describe("SatisDashboardView", () => {
@@ -112,6 +127,34 @@ describe("SatisDashboardView", () => {
     render(<SatisDashboardView />);
     expect(screen.getByText("Çelik Alımı")).toBeInTheDocument();
     expect(screen.getByText(/İhale daveti · ROT-2026-0001/)).toBeInTheDocument();
+  });
+
+  it("aktivite sayfalama: tek sayfada çubuk yok; çok sayfada Sonraki → 2. sayfa istenir", () => {
+    h.stats = fullStats();
+    h.activity = [
+      {
+        type: "bid",
+        title: "Teklif A",
+        subtitle: "Teklif · ROT-2026-0002 · v1",
+        at: new Date().toISOString(),
+        href: "/company/ilan/l2",
+      },
+    ];
+    // total ≤ pageSize → çubuk görünmez.
+    const { unmount } = render(<SatisDashboardView />);
+    expect(screen.queryByText(/Sayfa 1/)).not.toBeInTheDocument();
+    unmount();
+
+    // total 20 / pageSize 8 → 3 sayfa; Önceki 1. sayfada pasif.
+    h.activityTotal = 20;
+    render(<SatisDashboardView />);
+    expect(screen.getByText("Sayfa 1 / 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Önceki/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Sonraki/ }));
+    expect(screen.getByText("Sayfa 2 / 3")).toBeInTheDocument();
+    // Hook 2. sayfayla yeniden çağrılır.
+    expect(h.activityCalls.at(-1)).toEqual([8, 2]);
   });
 
   it("yüklenirken KPI'lar '…' gösterir", () => {

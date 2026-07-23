@@ -184,19 +184,41 @@ describe("satisAktivite", () => {
       },
     });
 
-    const rows = await svc.satisAktivite(seller.auth, 8);
-    expect(rows.length).toBe(3);
-    const types = rows.map((r) => r.type).sort();
+    const res = await svc.satisAktivite(seller.auth, 8);
+    expect(res.rows.length).toBe(3);
+    expect(res.total).toBe(3);
+    expect(res.page).toBe(1);
+    expect(res.pageSize).toBe(8);
+    const types = res.rows.map((r) => r.type).sort();
     expect(types).toEqual(["bid", "invitation", "order"]);
     // En yeni önce sıralı.
-    for (let i = 1; i < rows.length; i++) {
-      expect(rows[i - 1].at.getTime()).toBeGreaterThanOrEqual(
-        rows[i].at.getTime(),
+    for (let i = 1; i < res.rows.length; i++) {
+      expect(res.rows[i - 1].at.getTime()).toBeGreaterThanOrEqual(
+        res.rows[i].at.getTime(),
       );
     }
     // Limit uygulanır.
     const limited = await svc.satisAktivite(seller.auth, 2);
-    expect(limited.length).toBe(2);
+    expect(limited.rows.length).toBe(2);
+    expect(limited.total).toBe(3);
+
+    // Sayfalama: 2'lik sayfalarla 2. sayfa kalan 1 satırı verir; sayfalar
+    // birleşik sıralamada kesişmez ve toplamı tüm akışı kapsar.
+    const p2 = await svc.satisAktivite(seller.auth, 2, 2);
+    expect(p2.page).toBe(2);
+    expect(p2.rows.length).toBe(1);
+    const key = (r: { type: string; href: string; at: Date }) =>
+      `${r.type}:${r.href}:${r.at.getTime()}`;
+    const all = [...limited.rows, ...p2.rows];
+    expect(new Set(all.map(key)).size).toBe(3);
+    // Sayfa sınırında da sıralama korunur (1. sayfanın sonu ≥ 2. sayfanın başı).
+    expect(
+      limited.rows[limited.rows.length - 1].at.getTime(),
+    ).toBeGreaterThanOrEqual(p2.rows[0].at.getTime());
+
+    // Aralık dışı sayfa kelepçelenir (patlamaz, boş uydurmaz).
+    const far = await svc.satisAktivite(seller.auth, 8, 999);
+    expect(far.page).toBeGreaterThanOrEqual(1);
   });
 });
 

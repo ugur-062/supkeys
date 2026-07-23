@@ -17,6 +17,8 @@ import {
   Activity,
   ArrowRight,
   Briefcase,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Package,
   TrendingDown,
@@ -135,6 +137,46 @@ function ActivityFeed({ rows }: { rows: SatisActivityRow[] }) {
   );
 }
 
+/** Aktivite akışı sayfalama çubuğu — tek sayfa varsa hiç görünmez. */
+function ActivityPager({
+  page,
+  totalPages,
+  onPage,
+}: {
+  page: number;
+  totalPages: number;
+  onPage: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  const btn =
+    "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40";
+  return (
+    <div className="mt-2 flex items-center justify-between border-t border-zinc-100 pt-3">
+      <button
+        type="button"
+        onClick={() => onPage(page - 1)}
+        disabled={page <= 1}
+        className={btn}
+      >
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        Önceki
+      </button>
+      <span className="text-xs text-zinc-400 tabular-nums">
+        Sayfa {page} / {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onPage(page + 1)}
+        disabled={page >= totalPages}
+        className={btn}
+      >
+        Sonraki
+        <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 function QuickLink({
   href,
   icon: Icon,
@@ -164,7 +206,12 @@ function QuickLink({
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
   const stats = useSatisStats();
-  const activity = useSatisActivity(8);
+  const [activityPage, setActivityPage] = useState(1);
+  const activity = useSatisActivity(8, activityPage);
+  const activityTotalPages = Math.max(
+    1,
+    Math.ceil((activity.data?.total ?? 0) / (activity.data?.pageSize ?? 8)),
+  );
 
   // Hydration-safe tarih (sunucu/istemci farkı olmasın).
   const [todayLabel, setTodayLabel] = useState("");
@@ -299,7 +346,15 @@ export function SatisDashboardView() {
             title="Son Aktiviteler"
             subtitle="Davetler, teklifler ve siparişlerden"
           >
-            <ActivityFeed rows={activity.data ?? []} />
+            {/* Sayfa geçişinde placeholderData önceki sayfayı tutar — soluk göster. */}
+            <div className={activity.isPlaceholderData ? "opacity-60" : undefined}>
+              <ActivityFeed rows={activity.data?.rows ?? []} />
+            </div>
+            <ActivityPager
+              page={activityPage}
+              totalPages={activityTotalPages}
+              onPage={setActivityPage}
+            />
           </PanelCard>
         </div>
 
