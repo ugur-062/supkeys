@@ -555,15 +555,19 @@ function EditUserModal({
     setPerms(m);
   };
 
-  // Faz R kombo kuralları: YONETICI/ONAYLAYICI münhasırlığı KALKTI — her rol
-  // birleşebilir. Tek kısıt: SAHIP (etiket) yalnız SA/ST ile birleşir (yönetim/
-  // onay yetkisini zaten kapsar) ve buradan düşürülemez (yalnız devirle).
+  // Kombo kuralları: SAHIP yalnız SA/ST ile birleşir; YONETICI+ONAYLAYICI
+  // birleşemez (Yönetici zaten onay verebilir — backend assertValidRoleCombo
+  // ile birebir). SA/ST + ONAYLAYICI serbest (satın alma müdürü deseni).
   // Rol değişince izinler yeni kümenin varsayılanına SIFIRLANIR.
   const toggleRole = (r: CompanyRole) => {
     const hasSahip = roles.includes("SAHIP");
     let next: CompanyRole[] = roles.includes(r)
       ? roles.filter((x) => x !== r)
       : [...roles, r];
+    // YONETICI seçilirse ONAYLAYICI düşer (Yönetici onayı zaten kapsar).
+    if (r === "YONETICI" && next.includes("YONETICI")) {
+      next = next.filter((x) => x !== "ONAYLAYICI");
+    }
     if (hasSahip) {
       next = [
         "SAHIP",
@@ -701,22 +705,28 @@ function EditUserModal({
               : ROLES.filter((r) => r.key !== "YONETICI" || viewerIsOwner)
             ).map((r) => {
               const on = roles.includes(r.key);
+              // YONETICI seçiliyken ONAYLAYICI anlamsız (onayı zaten kapsar).
+              const onayLocked =
+                r.key === "ONAYLAYICI" && roles.includes("YONETICI");
               return (
                 <label
                   key={r.key}
-                  className={`flex cursor-pointer items-start gap-3 rounded-lg p-2.5 text-sm ring-1 transition ${
+                  className={`flex items-start gap-3 rounded-lg p-2.5 text-sm ring-1 transition ${
                     on ? "bg-zinc-50 ring-2 ring-zinc-900" : "bg-white ring-zinc-950/10"
-                  }`}
+                  } ${onayLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                 >
                   <Checkbox
                     checked={on}
+                    disabled={onayLocked}
                     onChange={() => toggleRole(r.key)}
                     className="mt-0.5"
                   />
                   <span>
                     <span className="font-semibold text-zinc-900">{r.label}</span>
                     <span className="mt-0.5 block text-xs text-zinc-500">
-                      {r.desc}
+                      {onayLocked
+                        ? "Yönetici zaten onay verebilir — ayrıca gerekmez"
+                        : r.desc}
                     </span>
                   </span>
                 </label>

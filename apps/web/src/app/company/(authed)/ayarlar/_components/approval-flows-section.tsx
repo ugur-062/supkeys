@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -730,8 +731,8 @@ function FlowWizard({
             ) : null}
             {approvers.length === 0 ? (
               <p className="mt-3 text-center text-xs text-amber-600">
-                Onaycı olabilecek aktif Yönetici/Onaylayıcı yok — önce
-                Ayarlar → Kullanıcılar'dan ekleyin.
+                Onaycı olabilecek aktif kullanıcı yok — Ayarlar →
+                Kullanıcılar&apos;dan bir kullanıcıya Onaylayıcı rolü verin.
               </p>
             ) : null}
           </div>
@@ -759,9 +760,9 @@ function FlowWizard({
             <InfoNote>
               <p className="font-semibold">Kimler onaycı olabilir?</p>
               <p>
-                Yalnızca <strong>Yönetici</strong> ve{" "}
-                <strong>Onaylayıcı</strong> rolündeki aktif kullanıcılar. Satın
-                almacı/satışçı onaycı olamaz.
+                Yalnızca <strong>Kurucu, Yönetici veya Onaylayıcı</strong>{" "}
+                rolündeki aktif kullanıcılar. Başka birini onaycı yapmak için
+                Ayarlar → Kullanıcılar&apos;dan Onaylayıcı rolü verin.
               </p>
             </InfoNote>
           </div>
@@ -937,20 +938,46 @@ function StepEditorDialog({
       <DialogBody className="space-y-4">
         <Field>
           <Label>Onaycı</Label>
-          <Select
-            value={approverUserId}
-            onChange={(e) => setApproverUserId(e.target.value)}
-          >
-            <option value="">— onaycı seç —</option>
-            {approvers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.roles.map((r) => ROLE_LABEL[r]).join(", ")})
-              </option>
-            ))}
-          </Select>
+          {approvers.length === 0 ? (
+            /* Keşfedilebilirlik: asıl kafa karışıklığı bu boş durumda oluşuyor —
+               kural "sistem izin vermiyor" değil, "önce rol ver". */
+            <div className="mt-1 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-amber-500" aria-hidden />
+              <span>
+                Onaycı olabilecek aktif kullanıcı yok.{" "}
+                <Link
+                  href="/company/ayarlar/kullanicilar"
+                  className="font-semibold underline"
+                >
+                  Ayarlar → Kullanıcılar
+                </Link>
+                &apos;dan bir kullanıcıya <strong>Onaylayıcı</strong> rolü verin.
+              </span>
+            </div>
+          ) : (
+            <Select
+              value={approverUserId}
+              onChange={(e) => setApproverUserId(e.target.value)}
+            >
+              <option value="">— onaycı seç —</option>
+              {approvers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.roles.map((r) => ROLE_LABEL[r]).join(", ")})
+                </option>
+              ))}
+            </Select>
+          )}
           <Text className="mt-1 text-xs text-zinc-400">
             Bu kişi, sırası geldiğinde kazandırmayı Onaylar sayfasından onaylar
-            ya da reddeder.
+            ya da reddeder. Yalnız <strong>Kurucu, Yönetici veya Onaylayıcı</strong>{" "}
+            rolündeki aktif kullanıcılar listelenir; başka birini eklemek için{" "}
+            <Link
+              href="/company/ayarlar/kullanicilar"
+              className="underline hover:text-zinc-600"
+            >
+              Ayarlar → Kullanıcılar
+            </Link>
+            &apos;dan Onaylayıcı rolü verin.
           </Text>
           {isSelfApprover ? (
             <div className="mt-2 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">

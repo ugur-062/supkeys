@@ -51,9 +51,15 @@ export function InviteUserDialog({
     (r) => r.key !== "YONETICI" || !!viewer?.isOwner,
   );
   const toggle = (r: CompanyRole) =>
-    setRoles((cur) =>
-      cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r],
-    );
+    setRoles((cur) => {
+      const next = cur.includes(r)
+        ? cur.filter((x) => x !== r)
+        : [...cur, r];
+      // YONETICI + ONAYLAYICI birleşemez — Yönetici zaten onay verebilir.
+      return r === "YONETICI" && next.includes("YONETICI")
+        ? next.filter((x) => x !== "ONAYLAYICI")
+        : next;
+    });
 
   const canSave = email.includes("@") && roles.length > 0;
 
@@ -104,20 +110,24 @@ export function InviteUserDialog({
                 seatsFull &&
                 !on &&
                 (r.key === "SATIN_ALMACI" || r.key === "SATISCI");
+              const onayLocked =
+                r.key === "ONAYLAYICI" && roles.includes("YONETICI");
               return (
                 <button
                   key={r.key}
                   type="button"
-                  disabled={seatLocked}
+                  disabled={seatLocked || onayLocked}
                   onClick={() => toggle(r.key)}
                   className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                     on
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
-                  } ${seatLocked ? "cursor-not-allowed opacity-40" : ""}`}
+                  } ${seatLocked || onayLocked ? "cursor-not-allowed opacity-40" : ""}`}
                 >
                   <div className="font-semibold">{r.label}</div>
-                  <div className="mt-0.5 text-[11px] opacity-70">{r.hint}</div>
+                  <div className="mt-0.5 text-[11px] opacity-70">
+                    {onayLocked ? "Yönetici zaten onay verebilir" : r.hint}
+                  </div>
                 </button>
               );
             })}
