@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   Dialog,
   DialogActions,
@@ -416,6 +417,9 @@ export function GroupTemplatesView({
   basePath: string;
 }) {
   const partyWord = type === "ALIM" ? "Tedarikçi" : "Alıcı";
+  // F7: şablon yazma templates:manage ister (Kurucu/Yönetici) — izinsiz
+  // üye listeleri salt-okunur görür.
+  const canManageTpl = useHasCompanyPermission("templates:manage");
   const groups = useSupplierTemplates();
   const deleteGroup = useDeleteSupplierTemplate();
   const del = useDeleteWithConfirm();
@@ -429,10 +433,12 @@ export function GroupTemplatesView({
         title={`${partyWord} Grupları`}
         description="Birlikte davet ettiğiniz firmaları gruplayın — sihirbazın davet adımında tek tıkla ekleyin."
         action={
-          <Button onClick={() => setDialog({ editId: null })}>
-            <Plus data-slot="icon" />
-            Yeni Grup
-          </Button>
+          canManageTpl ? (
+            <Button onClick={() => setDialog({ editId: null })}>
+              <Plus data-slot="icon" />
+              Yeni Grup
+            </Button>
+          ) : undefined
         }
       >
         {groups.isLoading ? (
@@ -458,6 +464,7 @@ export function GroupTemplatesView({
                     })}
                   </p>
                 </div>
+                {canManageTpl ? (
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     plain
@@ -476,6 +483,7 @@ export function GroupTemplatesView({
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
                 </div>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -494,6 +502,9 @@ export function GroupTemplatesView({
 
 /** Soru Setleri — bağımsız alt sayfa (iki portalda ortak veri). */
 export function QuestionTemplatesView({ basePath }: { basePath: string }) {
+  // F7: şablon yazma templates:manage ister (Kurucu/Yönetici) — izinsiz
+  // üye listeleri salt-okunur görür.
+  const canManageTpl = useHasCompanyPermission("templates:manage");
   const questionTpls = useQuestionTemplates();
   const deleteQuestion = useDeleteQuestionTemplate();
   const del = useDeleteWithConfirm();
@@ -507,10 +518,12 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
         title="Soru Setleri"
         description="Kalem sorularını set olarak kaydedin — sihirbazın kalem adımında yeniden kullanın."
         action={
-          <Button onClick={() => setDialog(true)}>
-            <Plus data-slot="icon" />
-            Yeni Set
-          </Button>
+          canManageTpl ? (
+            <Button onClick={() => setDialog(true)}>
+              <Plus data-slot="icon" />
+              Yeni Set
+            </Button>
+          ) : undefined
         }
       >
         {questionTpls.isLoading ? (
@@ -533,6 +546,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                     {t.itemCount} soru
                   </p>
                 </div>
+                {canManageTpl ? (
                 <Button
                   plain
                   aria-label={`${t.name} setini sil`}
@@ -544,6 +558,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -565,6 +580,8 @@ export function ListingTemplatesView({
   basePath: string;
 }) {
   const isAlim = type === "ALIM";
+  // F7: şablon silme templates:manage ister.
+  const canManageTpl = useHasCompanyPermission("templates:manage");
   const listingTpls = useListingTemplates();
   const deleteListingTpl = useDeleteTemplate();
   const del = useDeleteWithConfirm();
@@ -619,6 +636,7 @@ export function ListingTemplatesView({
                       {p.title ? ` · ${p.title}` : ""}
                     </p>
                   </div>
+                  {canManageTpl ? (
                   <Button
                     plain
                     aria-label={`${t.name} şablonunu sil`}
@@ -630,6 +648,7 @@ export function ListingTemplatesView({
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
+                  ) : null}
                 </li>
               );
             })}

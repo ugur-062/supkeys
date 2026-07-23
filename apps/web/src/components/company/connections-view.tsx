@@ -36,7 +36,10 @@ import {
   useRespondInvite,
   type ConnectionOrigin,
 } from "@/hooks/use-company-connections";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
 import { useFileComplaint } from "@/hooks/use-company-complaints";
 import {
   useCompanySearch,
@@ -148,6 +151,8 @@ function ConnectionRow({
 }) {
   const disconnect = useDisconnect();
   const block = useBlockCompany();
+  // F7: kaldır/engelle/şikayet connections:manage ister.
+  const canManageConn = useHasCompanyPermission("connections:manage");
   const complaint = useFileComplaint();
   const confirmDialog = useConfirm();
   const [complaintOpen, setComplaintOpen] = useState(false);
@@ -219,6 +224,7 @@ function ConnectionRow({
         </div>
         {badge ? <Badge color={badge.color}>{badge.label}</Badge> : null}
       </Link>
+      {canManageConn ? (
       <Dropdown>
         <DropdownButton plain aria-label="Daha fazla">
           <MoreVertical className="h-5 w-5" />
@@ -244,6 +250,7 @@ function ConnectionRow({
           </DropdownItem>
         </DropdownMenu>
       </Dropdown>
+      ) : null}
       <ReasonDialog
         open={complaintOpen}
         onClose={() => setComplaintOpen(false)}
@@ -278,6 +285,9 @@ export function ConnectionsView() {
   // bağlantılarını görür ve gelen daveti kabul edip tedarikçi olabilir.
   const { company } = useCompanyAuth();
   const isPaid = tierAtLeast(company?.tier ?? "STANDART", "BRONZ");
+  // F7: bağlantı mutasyonları connections:manage ister (Kurucu/Yönetici) —
+  // izinsiz üye listeleri salt-okunur görür, davet/karar butonları gizli.
+  const canManageConn = useHasCompanyPermission("connections:manage");
   // Keşfet premium — STANDARD'da o sekme yok; URL'den gelse de Bağlantılarım'a düş.
   const shownTab: TabKey = !isPaid && tab === "discover" ? "mine" : tab;
   const [q, setQ] = useState("");
@@ -405,7 +415,7 @@ export function ConnectionsView() {
             </Button>
           </div>
         </div>
-        {isPaid ? (
+        {isPaid && canManageConn ? (
         <div className="sm:border-l sm:border-zinc-950/10 sm:pl-5">
           <Subheading className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-zinc-400" />
@@ -633,6 +643,7 @@ export function ConnectionsView() {
                         rothernId={inv.company.rothernId}
                         name={inv.company.name}
                       />
+                      {canManageConn ? (
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handleRespond(inv.connectionId, "accept")}
@@ -648,6 +659,7 @@ export function ConnectionsView() {
                           Reddet
                         </Button>
                       </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -682,6 +694,7 @@ export function ConnectionsView() {
                         rothernId={inv.company.rothernId}
                         name={inv.company.name}
                       />
+                      {canManageConn ? (
                       <Button
                         plain
                         onClick={async () => {
@@ -698,6 +711,7 @@ export function ConnectionsView() {
                       >
                         Geri Çek
                       </Button>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -728,6 +742,7 @@ export function ConnectionsView() {
                           Kayıt olunca otomatik bağlanır
                         </div>
                       </div>
+                      {canManageConn ? (
                       <Button
                         plain
                         onClick={async () => {
@@ -744,6 +759,7 @@ export function ConnectionsView() {
                       >
                         İptal Et
                       </Button>
+                      ) : null}
                     </div>
                   );
                 })}
