@@ -574,6 +574,9 @@ export function Step1Info({
   } = useFormContext<TenderFormData>();
 
   const paymentCategory = watch("paymentCategory");
+  const selectedPaymentHint = PAYMENT_CATEGORY_OPTIONS.find(
+    (o) => o.value === paymentCategory,
+  )?.hint;
   const advancePercent = watch("advancePercent");
   const lcType = watch("lcType");
   const billingSameAsDelivery = watch("billingSameAsDelivery");
@@ -1331,27 +1334,28 @@ export function Step1Info({
         />
         <div className="space-y-4">
           <Field error={errors.paymentCategory?.message}>
-            <Label required>Ödeme Şekli</Label>
+            <Label htmlFor="paymentCategory" required>
+              Ödeme Şekli
+            </Label>
             <p className="mb-2 text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
-            <FormRadioGroup
-              name="paymentCategory"
-              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {PAYMENT_CATEGORY_OPTIONS.map((o) => (
-                <div
-                  key={o.value}
-                  className="flex items-start gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50"
-                >
-                  <Radio value={o.value} aria-label={o.label} className="mt-0.5" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-zinc-900">
-                      {o.label}
-                    </span>
-                    <span className="block text-xs text-zinc-500">{o.hint}</span>
-                  </span>
-                </div>
-              ))}
-            </FormRadioGroup>
+            <div className="sm:max-w-xs">
+              <Select
+                id="paymentCategory"
+                invalid={!!errors.paymentCategory}
+                {...register("paymentCategory")}
+              >
+                {PAYMENT_CATEGORY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {selectedPaymentHint ? (
+              <p className="mt-1.5 text-xs text-zinc-500">
+                {selectedPaymentHint}
+              </p>
+            ) : null}
           </Field>
 
           {/* PEŞİN — oran; kısmi peşin YALNIZ yurtiçi (uluslararasında %100). */}
