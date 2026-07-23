@@ -207,3 +207,55 @@ describe("Sahiplik devri (updateRoles)", () => {
     ).rejects.toThrow(/devret/i);
   });
 });
+
+describe("Onay-netliği: YONETICI+ONAYLAYICI kombo engeli", () => {
+  it("YONETICI+ONAYLAYICI ataması reddedilir (Yönetici zaten onay verebilir)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [
+      CompanyRole.ONAYLAYICI,
+    ]);
+    await expect(
+      svc.updateRoles(owner.auth, member.id, {
+        roles: [CompanyRole.YONETICI, CompanyRole.ONAYLAYICI],
+      } as never),
+    ).rejects.toThrow(/zaten onay verebilir/);
+  });
+
+  it("SAHIP+ONAYLAYICI da reddedilir (mevcut SAHIP-dal kanıtı)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATISCI,
+    ]);
+    await expect(
+      svc.updateUser(owner.auth, member.id, {
+        roles: [CompanyRole.SAHIP, CompanyRole.ONAYLAYICI],
+      } as never),
+    ).rejects.toThrow(/birleştirilemez/);
+  });
+
+  it("REGRESYON NÖBETÇİSİ: SATIN_ALMACI+ONAYLAYICI GEÇER (satın alma müdürü deseni); salt ONAYLAYICI geçer", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATISCI,
+    ]);
+    await svc.updateRoles(owner.auth, member.id, {
+      roles: [CompanyRole.SATIN_ALMACI, CompanyRole.ONAYLAYICI],
+    } as never);
+    const after = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: member.id },
+    });
+    expect(after.roles.sort()).toEqual(
+      [CompanyRole.ONAYLAYICI, CompanyRole.SATIN_ALMACI].sort(),
+    );
+    await svc.updateRoles(owner.auth, member.id, {
+      roles: [CompanyRole.ONAYLAYICI],
+    } as never);
+    const solo = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: member.id },
+    });
+    expect(solo.roles).toEqual([CompanyRole.ONAYLAYICI]);
+  });
+});

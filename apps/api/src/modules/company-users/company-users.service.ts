@@ -773,10 +773,13 @@ export class CompanyUsersService {
    * Faz R kombo kuralları — etiket/rol modeli:
    * - SAHIP (etiket) YONETICI/ONAYLAYICI ile birleşemez (yönetim+onay yetkisini
    *   zaten kapsar); SA/ST ile BİRLEŞEBİLİR (Kurucu işlem için kendine op-rol
-   *   ekler — koltuk Faz K'da buna sayılır). Firmada tek Kurucu + davetle
-   *   verilemez + devirle geçer kuralları ayrı yerlerde korunur.
-   * - SAHIP yoksa tüm kombinasyonlar serbest (eski YONETICI/ONAYLAYICI
-   *   münhasırlığı KALKTI: Yönetici/Onaylayıcı da op-rol alabilir).
+   *   ekler — koltuk Faz K buna sayar). Firmada tek Kurucu + davetle verilemez
+   *   + devirle geçer kuralları ayrı yerlerde korunur.
+   * - YONETICI + ONAYLAYICI birleşemez: Yönetici zaten approval:act taşır ve
+   *   onaycı havuzuna dahildir (assertApproversValid) — ek rol yetki katmaz,
+   *   yalnız kafa karıştırır.
+   * - Bunlar dışındaki kombinasyonlar serbest — özellikle SA/ST + ONAYLAYICI
+   *   GEÇERLİ (satın alma müdürü deseni: kendi alım yapar, astlarını onaylar).
    */
   private assertValidRoleCombo(roles: CompanyRole[]) {
     if (roles.length === 0) {
@@ -788,6 +791,11 @@ export class CompanyUsersService {
     ) {
       throw new BadRequestException(
         "Kurucu, Yönetici/Onaylayıcı ile birleştirilemez (yetkilerini zaten kapsar); işlem için Satın Almacı/Satışçı ekleyin",
+      );
+    }
+    if (roles.includes("YONETICI") && roles.includes("ONAYLAYICI")) {
+      throw new BadRequestException(
+        "Kurucu ve Yönetici zaten onay verebilir; ayrıca Onaylayıcı rolü gerekmez.",
       );
     }
   }
