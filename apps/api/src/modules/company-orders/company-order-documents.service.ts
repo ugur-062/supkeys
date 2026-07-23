@@ -125,6 +125,15 @@ export class CompanyOrderDocumentsService {
     if (doc.uploadedByCompanyId !== user.companyId) {
       throw new ForbiddenException("Bu belgeyi silemezsiniz");
     }
+    // Rol kapısı — yüklemeyle SİMETRİK (assertUploadRole aynı kapı): satıcı
+    // yanı SATISCI, alıcı yanı SATIN_ALMACI ister. Eskiden silme yalnız
+    // firma-eşitliğine bakıyordu (rolsüz/etiket-only üye operatörün yüklediği
+    // belgeyi silebiliyordu — salt-okunur garanti açığı #3).
+    const order = await this.requireParty(user, orderId);
+    this.assertUploadRole(
+      user,
+      order.sellerCompanyId === user.companyId ? "seller" : "buyer",
+    );
     // Teminat mektubu onaydan sonra silinemez: teslimat garantisi (alıcı
     // koruması) onay ANINDA count>0 kapısıyla doğrulanıyor; sonrasında
     // silinebilseydi garanti sessizce kaybolurdu. Yükleme kapısının aynası
@@ -133,16 +142,10 @@ export class CompanyOrderDocumentsService {
     // sayımı+geçişi arasında dar bir yarış var (satıcı teminatı silerken kendi
     // siparişini accept ederse). Tam kapatma accept'i FOR UPDATE + teminat +
     // geçiş atomik yapmayı gerektirir; self-inflicted/dar olduğu için ayrı iş.
-    if (doc.type === "TEMINAT") {
-      const order = await this.prisma.companyOrder.findUnique({
-        where: { id: orderId },
-        select: { status: true },
-      });
-      if (order && order.status !== "PENDING") {
-        throw new BadRequestException(
-          "Teminat mektubu, sipariş onaylandıktan sonra silinemez",
-        );
-      }
+    if (doc.type === "TEMINAT" && order.status !== "PENDING") {
+      throw new BadRequestException(
+        "Teminat mektubu, sipariş onaylandıktan sonra silinemez",
+      );
     }
     await this.storage.deleteObject("private", doc.key).catch(() => undefined);
     await this.prisma.companyOrderDocument.delete({ where: { id: docId } });
@@ -323,7 +326,7 @@ export class CompanyOrderDocumentsService {
     }
   }
 
-  /** Sipariş belgesi yükleme rolü (sipariş geçişleriyle aynı; Faz R: SAHIP muaf değil). */
+  /** Sipariş belgesi yükleme/silme rolü (sipariş geçişleriyle aynı; Faz R: SAHIP muaf değil). */
   private assertUploadRole(
     user: AuthenticatedCompanyUser,
     side: "seller" | "buyer",
@@ -333,8 +336,8 @@ export class CompanyOrderDocumentsService {
     if (!user.roles.includes(needed)) {
       throw new ForbiddenException(
         side === "seller"
-          ? "Belge yüklemek için Satışçı rolü gerekir"
-          : "Belge yüklemek için Satın Almacı rolü gerekir",
+          ? "Sipariş belgeleri için Satışçı rolü gerekir"
+          : "Sipariş belgeleri için Satın Almacı rolü gerekir",
       );
     }
   }

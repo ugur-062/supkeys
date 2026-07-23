@@ -632,3 +632,90 @@ describe("sipariş belgesi — adım bazlı yükleme kilidi", () => {
     ).rejects.toThrow(/akreditifli değil/i);
   });
 });
+
+describe("sipariş belgesi SİLME — yüklemeyle simetrik rol kapısı (salt-okunur garanti #3)", () => {
+  function makeDocsRig() {
+    const storage = {
+      generatePresignedPut: jest.fn().mockResolvedValue("https://r2/put"),
+      generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
+      checkExists: jest.fn().mockResolvedValue({ exists: true, size: 2048 }),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
+    };
+    return new CompanyOrderDocumentsService(prisma as never, storage as never);
+  }
+
+  it("etiket-only/rolsüz üye satıcı belgesini silemez; Satışçı siler (yükleme kapısıyla aynı)", async () => {
+    const docs = makeDocsRig();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "ACCEPTED",
+      },
+    });
+    const doc = await prisma.companyOrderDocument.create({
+      data: {
+        orderId: order.id,
+        type: "DELIVERY",
+        key: `company-orders/${order.id}/delivery/irsaliye.pdf`,
+        fileName: "irsaliye.pdf",
+        mimeType: "application/pdf",
+        uploadedByCompanyId: seller.company.id,
+      },
+    });
+
+    const personas = [
+      { roles: ["SAHIP"], isOwner: true },
+      { roles: ["YONETICI"], isOwner: false },
+      { roles: ["ONAYLAYICI"], isOwner: false },
+      { roles: [], isOwner: false },
+    ];
+    for (const p of personas) {
+      await expect(
+        docs.remove(
+          { ...seller.auth, ...p } as typeof seller.auth,
+          order.id,
+          doc.id,
+        ),
+      ).rejects.toThrow(/Sipariş belgeleri için Satışçı rolü gerekir/);
+    }
+    // Alıcı yanının rolü de satıcı belgesini silemez (yükleyen-firma kapısı).
+    await expect(docs.remove(buyer.auth, order.id, doc.id)).rejects.toThrow(
+      /silemezsiniz/,
+    );
+    // Satışçı rolü taşıyan üye (factory kurucu SA+ST) siler.
+    await expect(
+      docs.remove(seller.auth, order.id, doc.id),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  it("TEMINAT PENDING-sonrası silinemez kuralı korunur (regresyon)", async () => {
+    const docs = makeDocsRig();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "ACCEPTED",
+      },
+    });
+    const teminat = await prisma.companyOrderDocument.create({
+      data: {
+        orderId: order.id,
+        type: "TEMINAT",
+        key: `company-orders/${order.id}/teminat/t.pdf`,
+        fileName: "t.pdf",
+        mimeType: "application/pdf",
+        uploadedByCompanyId: seller.company.id,
+      },
+    });
+    await expect(
+      docs.remove(seller.auth, order.id, teminat.id),
+    ).rejects.toThrow(/onaylandıktan sonra silinemez/);
+  });
+});
