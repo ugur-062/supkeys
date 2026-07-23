@@ -1,5 +1,6 @@
 "use client";
 
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSendMessage,
   useThreadMessages,
@@ -55,6 +56,12 @@ export function CompanyMessageThread({
 }: Props) {
   const { data, isLoading } = useThreadMessages(portal, otherPartyId);
   const sendMutation = useSendMessage(portal, otherPartyId);
+  // F7: gönderme portal-yönlü işlem rolü ister (backend send() birebir:
+  // satinalma→Satın Almacı, satis→Satışçı) — rolsüz okur, composer gizli.
+  const { user } = useCompanyAuth();
+  const canSend = (user?.roles ?? []).includes(
+    portal === "satis" ? "SATISCI" : "SATIN_ALMACI",
+  );
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -124,7 +131,13 @@ export function CompanyMessageThread({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input — yalnız portal-yönlü işlem rolüne görünür */}
+      {!canSend ? (
+        <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+          Mesaj göndermek {portal === "satis" ? "Satışçı" : "Satın Almacı"}{" "}
+          rolü gerektirir — konuşmayı görüntülüyorsunuz.
+        </div>
+      ) : (
       <div className="border-t border-zinc-200 bg-white px-3 py-3">
         <div className="flex items-end gap-2">
           <div className="flex-1">
@@ -152,6 +165,7 @@ export function CompanyMessageThread({
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

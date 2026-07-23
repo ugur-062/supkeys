@@ -13,6 +13,10 @@ const h = vi.hoisted(() => ({
   mutate: vi.fn(),
 }));
 
+const authRoles = vi.hoisted(() => ({
+  current: ["SATIN_ALMACI", "SATISCI"] as string[],
+}));
+
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "o1" }),
 }));
@@ -22,6 +26,11 @@ vi.mock("@/lib/realtime", () => ({
 }));
 vi.mock("@/hooks/use-company-bank-accounts", () => ({
   useBankAccounts: () => ({ data: [] }),
+}));
+// F7: aksiyonlar rol-kapılı (canActOnOrder) — varsayılan tam-rollü kurucu
+// paritesi; persona testi rolleri daraltır.
+vi.mock("@/hooks/use-company-auth", () => ({
+  useCompanyAuth: () => ({ user: { roles: authRoles.current } }),
 }));
 
 // Ağır alt bileşenleri sadeleştir — durum makinesi/aksiyon UI'sine odaklan.
@@ -127,6 +136,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.order = undefined;
   h.isLoading = false;
+  authRoles.current = ["SATIN_ALMACI", "SATISCI"];
 });
 
 describe("OrderDetailPage — yükleme/bulunamadı", () => {
@@ -265,5 +275,41 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     expect(
       await screen.findByText("Siparişi Onayla"),
     ).toBeInTheDocument();
+  });
+});
+
+
+describe("OrderDetailPage — F7 rol kapısı (etiket-only salt-okunur)", () => {
+  const PERSONAS: [string, string[]][] = [
+    ["salt-SAHIP", ["SAHIP"]],
+    ["salt-YONETICI", ["YONETICI"]],
+    ["salt-ONAYLAYICI", ["ONAYLAYICI"]],
+    ["rolsüz", []],
+  ];
+  for (const [name, roles] of PERSONAS) {
+    it(`${name}: PENDING satıcı görünümünde Kabul/Reddet GİZLİ, sayfa görünür`, () => {
+      authRoles.current = roles;
+      h.order = order("PENDING", "seller");
+      render(<OrderDetailPage />);
+      // Sayfa/veri görünür (salt-okunur gözetim regresyonu).
+      expect(screen.getByText("Satış siparişi")).toBeInTheDocument();
+      // Aksiyonlar gizli, açıklayıcı not var.
+      expect(
+        screen.queryByRole("button", { name: "Kabul Et" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Reddet" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/rolü gerektirir/)).toBeInTheDocument();
+    });
+  }
+
+  it("yön uyuşmayan rol: alıcı görünümünde yalnız-Satışçı 'Teslim Aldım' GÖRMEZ", () => {
+    authRoles.current = ["SATISCI"];
+    h.order = order("IN_DELIVERY", "buyer");
+    render(<OrderDetailPage />);
+    expect(
+      screen.queryByRole("button", { name: "Teslim Aldım" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+
+// F7 gating: bu suite izinli-kullanıcı davranışını test eder — izinsiz
+// varyant owner-tender-list-gating.test.tsx'te.
+vi.mock("@/hooks/use-company-auth", () => ({
+  useHasCompanyPermission: () => true,
+  useCompanyAuth: () => ({ user: { id: "u1", roles: ["SATIN_ALMACI"] } }),
+}));
 import { OwnerTenderList } from "../owner-tender-cards";
 import { LISTING_STATUS_LABELS } from "../status-badge";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
