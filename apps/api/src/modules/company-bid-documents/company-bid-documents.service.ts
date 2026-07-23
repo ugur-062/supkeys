@@ -5,9 +5,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import * as crypto from "node:crypto";
-import { ListingBidDocKind } from "@rothern/db";
+import { ListingBidDocKind, type ListingType } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { bidderOpRole } from "../company-listings/bidder-op-role";
 import { StorageService } from "../storage/storage.service";
 import {
   assertReportedSize,
@@ -35,12 +36,32 @@ export class CompanyBidDocumentsService {
   private async assertListingOpen(listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { status: true },
+      select: { status: true, type: true },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
         "İhale teklife kapalı — belge eklenemez/silinemez",
+      );
+    }
+    return listing;
+  }
+
+  /**
+   * Teklif belgeleri teklifin İÇERİĞİDİR → placeBid ile AYNI op-rol kapısı
+   * (bidderOpRole tek kaynak; Faz R: SAHIP muafiyeti yok — rolsüz/etiket-only
+   * üye bağlayıcı teklife belge ekleyemez/silemez).
+   */
+  private assertBidderRole(
+    user: AuthenticatedCompanyUser,
+    listingType: ListingType,
+  ) {
+    const needed = bidderOpRole(listingType);
+    if (!user.roles.includes(needed)) {
+      throw new ForbiddenException(
+        listingType === "ALIM"
+          ? "Teklif belgeleri için Satışçı rolü gerekir"
+          : "Teklif belgeleri için Satın Almacı rolü gerekir",
       );
     }
   }
@@ -75,7 +96,8 @@ export class CompanyBidDocumentsService {
     }
     assertSafeFileName(input.fileName);
     assertReportedSize(input.fileSize);
-    await this.assertListingOpen(listingId);
+    const listing = await this.assertListingOpen(listingId);
+    this.assertBidderRole(user, listing.type);
     await this.requireOwnBid(user, listingId);
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `listing-bids/${listingId}/${user.companyId}/${crypto.randomUUID()}-${safe}`;
@@ -103,7 +125,8 @@ export class CompanyBidDocumentsService {
     }
     assertSafeFileName(input.fileName);
     await assertUploadedObjectValid(this.storage, "private", input.key);
-    await this.assertListingOpen(listingId);
+    const listing = await this.assertListingOpen(listingId);
+    this.assertBidderRole(user, listing.type);
     const bid = await this.requireOwnBid(user, listingId);
     const doc = await this.prisma.listingBidDocument.create({
       data: {
@@ -164,7 +187,8 @@ export class CompanyBidDocumentsService {
     if (doc.uploadedByCompanyId !== user.companyId) {
       throw new ForbiddenException("Bu belgeyi silemezsiniz");
     }
-    await this.assertListingOpen(listingId);
+    const listing = await this.assertListingOpen(listingId);
+    this.assertBidderRole(user, listing.type);
     await this.storage.deleteObject("private", doc.key).catch(() => undefined);
     await this.prisma.listingBidDocument.delete({ where: { id: docId } });
     return { ok: true };

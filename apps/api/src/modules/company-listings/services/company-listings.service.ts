@@ -26,6 +26,7 @@ import {
 import { OnEvent } from "@nestjs/event-emitter";
 import { derivePaymentTiming, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { bidderOpRole } from "../bidder-op-role";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import {
   MAX_MONEY,
@@ -3003,8 +3004,7 @@ export class CompanyListingsService {
 
     // Rol (işleme göre): ALIM ilanı → teklifçi SATAR → Satışçı; SATIS → ALIR → Satın Almacı.
     // Faz R: SAHIP muafiyeti yok — Kurucu teklif için op-rol taşımalı.
-    const neededRole =
-      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
+    const neededRole = bidderOpRole(listing.type);
     if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException(
         listing.type === "ALIM"
@@ -5465,8 +5465,7 @@ export class CompanyListingsService {
     // Teklif-yanı op-rol kapısı — placeBid ile AYNI (Faz R: SAHIP muafiyeti
     // yok; Kurucu ihalede salt-gözlemcidir). Uzatma bağlayıcı taahhüdü
     // sürdürür, DRAFT-canlandırma fiilen yeniden gönderimdir.
-    const neededRole =
-      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
+    const neededRole = bidderOpRole(listing.type);
     if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException(
         listing.type === "ALIM"
