@@ -6,7 +6,6 @@ describe("canManageListing (F7: assertListingManageRole birebir)", () => {
     expect(
       canManageListing({
         hasManagePermission: false,
-        isOwner: false,
         createdById: "u1",
         userId: "u1",
       }),
@@ -16,29 +15,33 @@ describe("canManageListing (F7: assertListingManageRole birebir)", () => {
     expect(
       canManageListing({
         hasManagePermission: true,
-        isOwner: false,
         createdById: "u1",
         userId: "u1",
       }),
     ).toBe(true);
   });
-  it("izinli + SAHİP (oluşturan değil) → true", () => {
+  it("izinli ama oluşturan-değil → false (SAHİP istisnası YOK — Kurucu salt-gözlemci)", () => {
     expect(
       canManageListing({
         hasManagePermission: true,
-        isOwner: true,
         createdById: "u1",
         userId: "u2",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
-  it("izinli ama oluşturan-değil ve SAHİP-değil → false (backend 403 verirdi)", () => {
+  it("createdById/userId eksikse güvenli taraf: false", () => {
     expect(
       canManageListing({
         hasManagePermission: true,
-        isOwner: false,
-        createdById: "u1",
+        createdById: null,
         userId: "u2",
+      }),
+    ).toBe(false);
+    expect(
+      canManageListing({
+        hasManagePermission: true,
+        createdById: "u1",
+        userId: null,
       }),
     ).toBe(false);
   });

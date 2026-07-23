@@ -5421,7 +5421,14 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, status: true, closesAt: true, currentRound: true },
+      select: {
+        id: true,
+        type: true,
+        number: true,
+        status: true,
+        closesAt: true,
+        currentRound: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     // Uzatma sonuçlanmamış her aşamada serbest — değerlendirme uzarken
@@ -5455,6 +5462,18 @@ export class CompanyListingsService {
       },
     });
     if (!bid) throw new NotFoundException("Bu ilanda teklifiniz yok");
+    // Teklif-yanı op-rol kapısı — placeBid ile AYNI (Faz R: SAHIP muafiyeti
+    // yok; Kurucu ihalede salt-gözlemcidir). Uzatma bağlayıcı taahhüdü
+    // sürdürür, DRAFT-canlandırma fiilen yeniden gönderimdir.
+    const neededRole =
+      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
+    if (!user.roles.includes(neededRole)) {
+      throw new ForbiddenException(
+        listing.type === "ALIM"
+          ? "Teklif geçerliliğini uzatmak için Satışçı rolü gerekir"
+          : "Teklif geçerliliğini uzatmak için Satın Almacı rolü gerekir",
+      );
+    }
     if (bid.status !== "SUBMITTED" && bid.status !== "DRAFT") {
       throw new BadRequestException(
         "Bu teklifin geçerlilik süresi uzatılamaz",
@@ -5488,6 +5507,26 @@ export class CompanyListingsService {
       data: {
         validityDays: newValidityDays,
         ...(revived ? { status: "SUBMITTED" } : {}),
+      },
+    });
+    // INV-AUDIT-1: bağlayıcı teklifin ömrünü uzatan ticari işlem iz bırakır;
+    // canlandırma SUBMITTED durum geçişidir → critical.
+    await this.audit.log({
+      action: "company.bid.validity_extended",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing_bid",
+      entityId: bid.id,
+      critical: revived,
+      metadata: {
+        listingId,
+        listingNumber: listing.number ?? null,
+        additionalDays,
+        validityDays: newValidityDays,
+        validUntil: validUntil.toISOString(),
+        revived,
       },
     });
     this.realtime?.pingListing(listingId);
@@ -6202,9 +6241,10 @@ export class CompanyListingsService {
    * İzin verilir ancak ve ancak:
    *  (a) ilanın tarafına göre buy:listing:manage (ALIM) VEYA sell:listing:manage
    *      (SATIS) izni VAR, VE
-   *  (b) ilanı bu kişi açmış (createdById === userId) VEYA kişi firma sahibi
-   *      (isOwner — son çare emniyet supabı).
-   * SAHİP her iki koşulu da sağlar (tüm izinler + isOwner).
+   *  (b) ilanı bu kişi açmış (createdById === userId).
+   * SAHİP İSTİSNASI YOK: Kurucu ihaleler üzerinde salt-gözlemcidir (ürün
+   * kararı, 2026-07-23); op-rol taşısa bile yalnız KENDİ açtığı ilanı yönetir.
+   * Oluşturanı ayrılan ilan için destek kanalı (admin) devreye girer.
    */
   /**
    * Faz O — owner-dal OKUMA kapısı (INV-VIS ailesi): FULL_READ (etiketler +
@@ -6253,9 +6293,8 @@ export class CompanyListingsService {
       needed,
       user.permissionsOverride,
     );
-    const isCreatorOrOwner =
-      listing.createdById === user.userId || user.isOwner;
-    if (!hasPerm || !isCreatorOrOwner) {
+    const isCreator = listing.createdById === user.userId;
+    if (!hasPerm || !isCreator) {
       // INV-AUDIT-1 (denial): engellenmiş ilan-yönetim denemesi iz bırakır —
       // insider'ın DENEDİĞİ, başardığı kadar değerli. State değişmez → sinyal.
       // Guard sync + 13 çağrı yeri → bilinçli await'siz (log() fail-safe).
@@ -6273,11 +6312,11 @@ export class CompanyListingsService {
         metadata: {
           needed,
           listingType: listing.type,
-          reason: hasPerm ? "not_creator_or_owner" : "missing_permission",
+          reason: hasPerm ? "not_creator" : "missing_permission",
         },
       });
       throw new ForbiddenException(
-        "Bu ilanı yönetme yetkiniz yok — ilanı açan operatör veya firma sahibi olmalısınız",
+        "Bu ilanı yönetme yetkiniz yok — yalnız ilanı açan operatör yönetebilir",
       );
     }
   }

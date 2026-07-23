@@ -193,6 +193,61 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     expect(Number(b.amount)).toBe(900);
   });
 
+  it("op-rol kapısı: ALIM ilanında Satışçı rolü olmayan üye (SAHIP-only Kurucu dahil) uzatamaz", async () => {
+    const { service, owner, valid, listing } = await closedRfq();
+    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+    // Aynı firmadan rolsüz-Kurucu (yalnız SAHIP etiketi) → salt-gözlemci.
+    const labelOnlyOwner: typeof valid.auth = {
+      ...valid.auth,
+      roles: ["SAHIP"],
+    } as typeof valid.auth;
+    await expect(
+      service.extendBidValidity(labelOnlyOwner, listing.id, 30),
+    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    // ONAYLAYICI-only üye de uzatamaz.
+    const approver: typeof valid.auth = {
+      ...valid.auth,
+      roles: ["ONAYLAYICI"],
+      isOwner: false,
+    } as typeof valid.auth;
+    await expect(
+      service.extendBidValidity(approver, listing.id, 30),
+    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    // Satışçı rolü taşıyan aynı üye geçer.
+    const res = await service.extendBidValidity(valid.auth, listing.id, 30);
+    expect(res.ok).toBe(true);
+  });
+
+  it("uzatma audit izi bırakır (düz uzatma + canlandırma metadata'sı)", async () => {
+    const { service, owner, valid, expired, listing } = await closedRfq();
+    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+    await service.extendBidValidity(valid.auth, listing.id, 30);
+    const plain = await prisma.auditLog.findFirst({
+      where: {
+        action: "company.bid.validity_extended",
+        tenantId: valid.company.id,
+      },
+    });
+    expect(plain).toBeTruthy();
+    expect(plain!.actorId).toBe(valid.user.id);
+    expect(plain!.metadata).toMatchObject({
+      listingId: listing.id,
+      additionalDays: 30,
+      revived: false,
+    });
+    // Taslağa düşmüş teklifin canlandırılması (SUBMITTED geçişi) da izli;
+    // critical bayrağı persist edilmez, yalnız kayıp-alarm semantiğidir.
+    await service.extendBidValidity(expired.auth, listing.id, 60);
+    const revive = await prisma.auditLog.findFirst({
+      where: {
+        action: "company.bid.validity_extended",
+        tenantId: expired.company.id,
+      },
+    });
+    expect(revive).toBeTruthy();
+    expect(revive!.metadata).toMatchObject({ revived: true });
+  });
+
   it("yetersiz uzatma (son gün hâlâ geçmişte) reddedilir", async () => {
     const { service, owner, expired, listing } = await closedRfq();
     await service.createNextRound(owner.auth, listing.id, nextRoundDto());

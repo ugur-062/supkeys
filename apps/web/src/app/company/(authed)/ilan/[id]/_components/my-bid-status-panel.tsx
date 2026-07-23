@@ -21,6 +21,7 @@ import {
   useExtendBidValidity,
   type ListingDetail,
 } from "@/hooks/use-company-listings";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const extend = useExtendBidValidity(l.id);
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState("30");
+  const { user } = useCompanyAuth();
   if (!bid) return null;
   const symbol = bid.currency === "TRY" || !bid.currency ? "₺" : bid.currency;
   const itemName = new Map(
@@ -113,8 +115,12 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       : null;
   // Uzatma backend'le aynı pencerede serbest: OPEN (kapanış geçmemişse) +
   // değerlendirme aşamaları — alıcı karar veremezken teklifin dolmaması
-  // tam da bu akışın amacı (extendBidValidity ile birebir).
+  // tam da bu akışın amacı (extendBidValidity ile birebir). Rol kapısı da
+  // birebir: teklif-yanı op-rol şart (ALIM→Satışçı, SATIS→Satın Almacı);
+  // SAHIP muafiyeti yok — Kurucu ihalede salt-gözlemci.
+  const extendRole = l.type === "ALIM" ? "SATISCI" : "SATIN_ALMACI";
   const canExtend =
+    (user?.roles ?? []).includes(extendRole) &&
     validUntil != null &&
     (bid.status === "SUBMITTED" || bid.status === "DRAFT") &&
     (l.status === "OPEN"

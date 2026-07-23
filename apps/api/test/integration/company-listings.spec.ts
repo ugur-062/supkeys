@@ -1027,11 +1027,12 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       await expect(service.updateListing(auth, listing.id, {} as never)).rejects.toThrow(DENY);
     });
 
-    it("SAHİP, başkasının açtığı ilanı yönetebilir (owner istisnası)", async () => {
+    it("SAHİP başkasının açtığı ilanı YÖNETEMEZ — Kurucu salt-gözlemci (owner istisnası söküldü)", async () => {
       const { service, ownerAuth, listing } = await setup("ALIM");
-      expect(
-        await errOf(service.updateListing(ownerAuth, listing.id, {} as never)),
-      ).not.toMatch(DENY);
+      // ownerAuth op-rolleri (SA+ST) taşır → izin var; ama oluşturan değil.
+      await expect(
+        service.updateListing(ownerAuth, listing.id, {} as never),
+      ).rejects.toThrow(DENY);
     });
 
     it("kişi-bazlı izin override ile verilen yetki tanınır", async () => {
@@ -1118,11 +1119,11 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       await expect(service.award(auth, listing.id, bid.id)).rejects.toThrow(DENY);
     });
 
-    it("award: SAHİP başkasının açtığı ihaleyi kazandırabilir", async () => {
+    it("award: SAHİP başkasının açtığı ihaleyi KAZANDIRAMAZ (Kurucu salt-gözlemci)", async () => {
       const { service, ownerAuth, listing, bid } = await withBid("ALIM");
-      await service.award(ownerAuth, listing.id, bid.id);
+      await expect(service.award(ownerAuth, listing.id, bid.id)).rejects.toThrow(DENY);
       const after = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
-      expect(after.status).toBe("AWARDED");
+      expect(after.status).toBe("OPEN");
     });
 
     it("awardByItem: oluşturmayan operatör REDDEDİLİR, açan operatör geçer", async () => {

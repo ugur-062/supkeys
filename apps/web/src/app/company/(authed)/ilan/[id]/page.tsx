@@ -569,7 +569,6 @@ export default function ListingDetailPage() {
   // F7: durum uygun OLSA da yalnız izinli-yönetici kazandırma/eleme yapabilir.
   const canManage = canManageListing({
     hasManagePermission,
-    isOwner: !!user?.isOwner,
     createdById: l.createdById,
     userId: user?.id,
   });
