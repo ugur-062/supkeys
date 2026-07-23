@@ -2,7 +2,7 @@
 
 import { tierAtLeast } from "@rothern/shared";
 import { PremiumGate } from "@/components/company-shell/premium-gate";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { accessiblePortals, PORTALS, type PortalKey } from "@/lib/company/portals";
 import { Lock } from "lucide-react";
@@ -71,6 +71,8 @@ function PortalAccessDenied({
 }) {
   const label = PORTALS[portal].label;
   const requiredRole = PORTAL_REQUIRED_ROLE[portal];
+  // Onaylayıcı kendi işine yönlensin (panel-dönüş linki yoksa asıl hedefi).
+  const canAct = useHasCompanyPermission("approval:act");
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
@@ -91,6 +93,13 @@ function PortalAccessDenied({
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
           >
             {PORTALS[fallback].label} paneline dön
+          </Link>
+        ) : canAct ? (
+          <Link
+            href="/company/onaylar"
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          >
+            Onaylar&apos;a Git
           </Link>
         ) : null}
         <Link

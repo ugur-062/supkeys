@@ -73,7 +73,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         >
           <div className="flex h-14 items-center justify-between border-b border-zinc-100 px-4">
             <span className="text-sm font-semibold text-zinc-900">
-              {PORTALS[activePortal].label}
+              {available.length === 0 ? "Menü" : PORTALS[activePortal].label}
             </span>
             <Headless.CloseButton
               aria-label="Menüyü kapat"

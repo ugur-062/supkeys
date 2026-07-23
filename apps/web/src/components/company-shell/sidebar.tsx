@@ -162,8 +162,15 @@ export function CompanySidebarContent({
     available[0] ??
     "satis";
   const portal = PORTALS[active];
+  // Minimal kabuk modu: hiç portal erişimi olmayan üye (ONAYLAYICI-only /
+  // rolsüz) yalnız Onaylar + Ayarlar görür — panel nav'ı duvara götürür.
+  // YONETICI/SAHIP etiketi accessiblePortals'ın manager dalıyla panel aldığı
+  // için salt-okunur gözetim (Faz R) DEĞİŞMEZ.
+  const minimal = available.length === 0;
   // Profilim öğesi (portal-özel href) — ayraç altında ayrı render edilir.
-  const profilItem = portal.nav.find((i) => i.href.endsWith("/profilim"));
+  const profilItem = minimal
+    ? undefined
+    : portal.nav.find((i) => i.href.endsWith("/profilim"));
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -199,7 +206,7 @@ export function CompanySidebarContent({
       {/* Nav — Profilim ayraç altına alınır; Onaylar onun eski (liste-içi) yerine
           gelir (kullanıcı isteği: Onaylar ↔ Profil yer değişimi). */}
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">
-        {portal.nav
+        {(minimal ? [] : portal.nav)
           .filter((item) => !item.href.endsWith("/profilim"))
           .map((item) => (
             <RailItem
