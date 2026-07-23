@@ -1660,12 +1660,14 @@ export default function ListingDetailPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">{header}</div>
             <div className="flex shrink-0 items-center gap-2">
-              {l.canPublish ? (
+              {/* F7: yayınla/onay-iptal da yönetim aksiyonudur — canManage kapısı
+                  (backend publishListing→assertListingManageRole birebir). */}
+              {canManage && l.canPublish ? (
                 <Button onClick={handlePublish} disabled={publish.isPending}>
                   Yayınla
                 </Button>
               ) : null}
-              {l.pendingApprovalId ? (
+              {canManage && l.pendingApprovalId ? (
                 <Button
                   outline
                   onClick={handleCancelApproval}
@@ -1676,7 +1678,10 @@ export default function ListingDetailPage() {
               ) : null}
             </div>
           </div>
-          {/* İşlemler — görünür buton çubuğu (kutu içinde) */}
+          {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
+              tamamı backend'de assertListingManageRole ister → menü yalnız
+              canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}
+          {canManage ? (
           <div className="mt-4 border-t border-zinc-950/5 pt-4">
             <TenderActionsMenu
               id={l.id}
@@ -1699,6 +1704,7 @@ export default function ListingDetailPage() {
               autoExtendByMinutes={l.autoExtendByMinutes}
             />
           </div>
+          ) : null}
         </div>
 
         {/* Onay bekliyor bandı */}
