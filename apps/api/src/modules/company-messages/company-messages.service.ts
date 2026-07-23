@@ -1,12 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Prisma } from "@rothern/db";
+import { CompanyRole, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -237,6 +238,20 @@ export class CompanyMessagesService {
     body: string,
   ) {
     const portal = this.assertPortal(portalRaw);
+    // Ticari müzakere kapısı (salt-okunur garanti #4): mesaj karşı FİRMAYA
+    // gider, e-posta tetikler, taahhüt izlenimi yaratır → yalnız işlem rolü
+    // gönderebilir; portal tarafı rolü belirler (satinalma=alıcı→Satın Almacı,
+    // satis=satıcı→Satışçı — portal erişim kuralıyla aynı yön). Etiket-only
+    // (Kurucu/Yönetici) ve Onaylayıcı gönderemez; okuma uçları serbest.
+    const neededRole =
+      portal === "satinalma" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
+    if (!user.roles.includes(neededRole)) {
+      throw new ForbiddenException(
+        portal === "satinalma"
+          ? "Mesaj göndermek için Satın Almacı rolü gerekir"
+          : "Mesaj göndermek için Satışçı rolü gerekir",
+      );
+    }
     if (otherCompanyId === user.companyId) {
       throw new BadRequestException("Kendine mesaj gönderemezsin");
     }

@@ -12,11 +12,15 @@ import {
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyMessagesService } from "./company-messages.service";
 import { SendMessageDto } from "./dto/send-message.dto";
 
+// PermissionsGuard sınıfta OLMALI: yoksa @RequireCompanyPermission dekoratörü
+// eklense bile çalışmaz (salt-okunur denetiminde yakalanan mimari tuzak).
+// Dekoratörsüz GET uçları için no-op — okuma serbest kalır.
 @Controller("company/messages")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyMessagesController {
   constructor(private readonly service: CompanyMessagesService) {}
 

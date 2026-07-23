@@ -81,3 +81,56 @@ describe("mesaj blok zorlaması (okuma + inbox)", () => {
     expect(threads.find((t) => t.otherPartyId === b.company.id)).toBeUndefined();
   });
 });
+
+describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
+  function makeMsgService() {
+    const blocks = new CompanyBlocksService(
+      prisma as never,
+      new AuditService(prisma as never),
+    );
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    return new CompanyMessagesService(
+      prisma as never,
+      blocks,
+      email as never,
+      config as never,
+    );
+  }
+
+  it("etiket-only/onaylayıcı/rolsüz üye gönderemez; portal-yönlü rol geçer, okuma serbest", async () => {
+    const svc = makeMsgService();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+
+    const withRoles = (roles: string[], isOwner = false) =>
+      ({ ...a.auth, roles, isOwner }) as typeof a.auth;
+
+    for (const p of [
+      withRoles(["SAHIP"], true),
+      withRoles(["YONETICI"]),
+      withRoles(["ONAYLAYICI"]),
+      withRoles([]),
+    ]) {
+      await expect(
+        svc.send(p, "satinalma", b.company.id, "merhaba"),
+      ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+    }
+    // Portal-yönlü: satinalma'da yalnız-Satışçı da gönderemez (yön uyuşmaz).
+    await expect(
+      svc.send(withRoles(["SATISCI"]), "satinalma", b.company.id, "m"),
+    ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+    await expect(
+      svc.send(withRoles(["SATIN_ALMACI"]), "satis", b.company.id, "m"),
+    ).rejects.toThrow(/Satışçı rolü gerekir/);
+
+    // Doğru yön geçer; okuma (thread) rolsüz üyeye açık kalır.
+    await svc.send(withRoles(["SATIN_ALMACI"]), "satinalma", b.company.id, "merhaba");
+    const read = await svc.getThread(
+      withRoles([]),
+      "satinalma",
+      b.company.id,
+    );
+    expect(read.thread).not.toBeNull();
+  });
+});
