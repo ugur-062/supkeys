@@ -18,6 +18,7 @@ import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AdminCompaniesModule } from "./modules/admin-companies/admin-companies.module";
 import { AdminSystemModule } from "./modules/admin-system/admin-system.module";
 import { CronRegistryModule } from "./common/cron/cron-registry.module";
+import { AiModule } from "./modules/ai/ai.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
@@ -168,6 +169,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CurrencyModule,
     CompanyQuestionTemplatesModule,
     PublicProfileModule,
+    // Faz AI-0 — AI altyapısı (sağlayıcı adapteri + bütçe + kullanım ekranı)
+    AiModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.

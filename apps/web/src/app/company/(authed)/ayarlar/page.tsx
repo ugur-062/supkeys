@@ -4,7 +4,7 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
-import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 interface SettingsCard {
@@ -91,6 +91,14 @@ const GROUPS: SettingsGroup[] = [
         title: "Aktivite Logu",
         description: "Firmanızda kim ne yaptı — eylem kayıtları",
         managerOnly: true,
+      },
+      {
+        // Faz AI-0 — AI kullanım ekranı (Silver+). managerOnly DEĞİL: SA/ST
+        // kendi kullanımını görür; K+Y firma kırılımını görür.
+        href: "/company/ayarlar/ai-kullanim",
+        icon: Sparkles,
+        title: "AI Kullanımı",
+        description: "Aylık AI bütçe kullanımınız — yüzde bazında",
       },
       {
         // Onay akışları artık Onaylar sayfasından yönetiliyor — kısayol.

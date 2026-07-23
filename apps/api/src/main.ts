@@ -19,6 +19,8 @@ import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
+import { checkAiKey } from "./common/config/ai-config";
+import { reportToSentry } from "./instrument";
 import { translateValidatorMessage } from "./common/error-messages";
 
 async function bootstrap() {
@@ -73,6 +75,29 @@ async function bootstrap() {
   // frontend rk_csrf'i okuyamaz → mutasyonlar 403. Sessiz runtime 403 yerine
   // boot'ta yakala (bkz. common/config/prod-config-sanity.ts).
   assertProdConfigSanity(config);
+
+  // Faz AI-0 — AI anahtar sağlığı: placeholder/bozuk anahtar prod'da BOOT
+  // ETMEZ (bozuk anahtarla "AI açık" sanılıp runtime'da her çağrının 502
+  // dönmesi sessiz kırıktır). Anahtar YOKSA boot devam eder ama AI kapalıdır
+  // (fail-closed) ve prod'da GÜRÜLTÜLÜ: warn log + Sentry uyarısı — sessiz
+  // no-op değil (bkz. common/config/ai-config.ts).
+  const aiKeyStatus = checkAiKey(config.get<string>("GEMINI_API_KEY"));
+  if (nodeEnv === "production") {
+    if (aiKeyStatus === "placeholder") {
+      throw new Error(
+        "🚨 GEMINI_API_KEY placeholder/bozuk görünüyor — ya geçerli anahtar ver ya da tamamen boş bırak (AI kapalı).",
+      );
+    }
+    if (aiKeyStatus === "missing") {
+      const bootLogger = new Logger("Bootstrap");
+      bootLogger.warn(
+        "GEMINI_API_KEY yok — AI özellikleri KAPALI (503). Bilinçli değilse anahtarı ekleyin.",
+      );
+      reportToSentry("AI kapalı: GEMINI_API_KEY eksik (prod)", "warning", {
+        tags: { ai: "disabled-missing-key" },
+      });
+    }
+  }
 
   // Security audit Y-3 — Body parser limit 25MB → 5MB (saldırı yüzeyi
   // düşürüldü). Vergi levhası ve doc upload'ları için 5MB makul — TR

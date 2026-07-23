@@ -253,6 +253,45 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ============================================================
+// Faz AI-0 — AI kullanım sayacı (append-only, AuditLog deseni).
+// Bakiye TÜRETİLİR: SUM(costUsd) — stored bakiye/flag YOK (X7-drift önlemi).
+// costUsd yazım anında fiyat-SNAPSHOT'ıdır (config fiyatı değişse geçmiş
+// bozulmaz — award FX-damga deseniyle aynı). userEmail denormalize: kullanıcı
+// silinse de kırılım okunabilir (actorEmail deseni). RLS policy BİLİNÇLİ yok
+// (INV-MT-5 backstop listesine eklendi; reaper cron bypass gerektirirdi).
+// ============================================================
+
+enum AiUsageStatus {
+  RESERVED // bütçeden tahmini tutar ayrıldı, sağlayıcı çağrısı sürüyor
+  SETTLED // gerçek usage ile kapatıldı (costUsd = gerçek maliyet)
+  FAILED // sağlayıcı hatası: costUsd=0 (token harcanmadı) veya tahmin (timeout, fail-closed)
+}
+
+model AiUsage {
+  id               String        @id @default(cuid())
+  companyId        String
+  userId           String
+  userEmail        String?
+  feature          String // "test" | AI-1+: "pdf_form", "bid_compare", ...
+  model            String
+  status           AiUsageStatus @default(RESERVED)
+  inputTokens      Int           @default(0)
+  outputTokens     Int           @default(0)
+  cacheReadTokens  Int           @default(0)
+  cacheWriteTokens Int           @default(0)
+  costUsd          Decimal       @db.Decimal(12, 6)
+  errorCode        String?
+  createdAt        DateTime      @default(now())
+  settledAt        DateTime?
+
+  @@index([companyId, createdAt])
+  @@index([companyId, userId, createdAt])
+  // Reaper: eski RESERVED taraması.
+  @@index([status, createdAt])
+  @@map("ai_usage")
+}
+
 enum CompanyRole {
   SAHIP // firma sahibi — Yönetici ⊇ + billing/silme/devir. Firmada TEK kişi.
   YONETICI // hesap yönetimi: kullanıcı/rol, ayarlar, bağlantılar
