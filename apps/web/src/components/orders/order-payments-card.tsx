@@ -7,6 +7,8 @@ import {
   type OrderPayment,
 } from "@/hooks/use-company-orders";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
 import {
@@ -55,6 +57,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     "₺";
   const isBuyer = order.role === "buyer";
   const isSeller = order.role === "seller";
+  // F7: ödeme kaydet/onayla tarafın işlem rolünü ister (assertOrderRole aynası).
+  const { user } = useCompanyAuth();
+  const canAct = canActOnOrder(order.role, user?.roles);
   const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);
@@ -138,7 +143,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           </p>
           <p className="mt-0.5 text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
         </div>
-        {isBuyer && order.paymentOpen ? (
+        {canAct && isBuyer && order.paymentOpen ? (
           <button
             type="button"
             onClick={() => (open ? resetForm() : openForm())}
@@ -267,7 +272,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   >
                     {st.label}
                   </span>
-                  {isSeller && p.status === "AWAITING_CONFIRMATION" ? (
+                  {canAct && isSeller && p.status === "AWAITING_CONFIRMATION" ? (
                     <>
                       <button
                         type="button"

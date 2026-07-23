@@ -8,6 +8,8 @@ import {
   useUploadOrderDoc,
   type OrderDocType,
 } from "@/hooks/use-order-documents";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   ArrowDownTrayIcon,
@@ -128,6 +130,10 @@ export function OrderDocumentsSection({
 }) {
   const orderId = order.id;
   const isSeller = order.role === "seller";
+  // F7: belge yükleme tarafın işlem rolünü ister (assertUploadRole aynası) —
+  // etiket-only üye belgeleri görüntüler ama yükleyemez.
+  const { user } = useCompanyAuth();
+  const canAct = canActOnOrder(order.role, user?.roles);
   const isBuyer = order.role === "buyer";
   const status = order.status;
   const terminal = status === "REJECTED" || status === "CANCELLED";
@@ -149,27 +155,27 @@ export function OrderDocumentsSection({
 
   // ── Adım bazlı yükleme pencereleri (backend assertCanUpload ile birebir) ──
   // Teminat: yalnız onay öncesi (PENDING), satıcı. Onaydan sonra salt-okunur.
-  const canUploadTeminat = isSeller && status === "PENDING" && !terminal;
+  const canUploadTeminat = canAct && isSeller && status === "PENDING" && !terminal;
   // Teslim belgesi: satıcı gönderirken → onaydan teslime kadar.
   const deliveryOpen =
     status === "ACCEPTED" ||
     status === "CREATED" ||
     status === "IN_DELIVERY" ||
     status === "DELIVERED";
-  const canUploadDelivery = isSeller && deliveryOpen && !terminal;
+  const canUploadDelivery = canAct && isSeller && deliveryOpen && !terminal;
   // Ödeme dekontu: ödeme penceresi (paymentOpen) açıkken, alıcı. Akreditifte
   // ödeme banka kanalından — dekont kutusu hiç gösterilmez.
-  const canUploadPayment = isBuyer && order.paymentOpen && !terminal;
+  const canUploadPayment = canAct && isBuyer && order.paymentOpen && !terminal;
   // Akreditif belgesi (küşat mektubu): alıcı, onaydan gönderime kadar.
   const lcOpen = status === "ACCEPTED" || status === "IN_DELIVERY";
-  const canUploadLc = isBuyer && isLc && lcOpen && !terminal;
+  const canUploadLc = canAct && isBuyer && isLc && lcOpen && !terminal;
   const lcLockHint =
     isBuyer && isLc && !lcOpen && !terminal
       ? "Sipariş onaylandıktan sonra açılır."
       : null;
   // Fatura belgesi: satıcı, onaydan itibaren (PENDING hariç), sonlanana kadar.
   const invoiceOpen = status !== "PENDING" && !terminal;
-  const canUploadInvoice = isSeller && invoiceOpen;
+  const canUploadInvoice = canAct && isSeller && invoiceOpen;
   const invoiceLockHint =
     isSeller && !invoiceOpen && !terminal
       ? "Sipariş onaylandıktan sonra açılır."
@@ -177,13 +183,13 @@ export function OrderDocumentsSection({
   // Proforma fatura: satıcı, onaydan itibaren (PENDING hariç), sonlanana kadar.
   // Alıcı akreditif açmak / peşin ödemek için kullanır.
   const proformaOpen = status !== "PENDING" && !terminal;
-  const canUploadProforma = isSeller && proformaOpen;
+  const canUploadProforma = canAct && isSeller && proformaOpen;
   const proformaLockHint =
     isSeller && !proformaOpen && !terminal
       ? "Sipariş onaylandıktan sonra açılır."
       : null;
   // Diğer belgeler (tek kutu): her iki taraf, sipariş sonlanmadıkça.
-  const canUploadOther = !terminal;
+  const canUploadOther = canAct && !terminal;
 
   // Kilit ipuçları — sadece o belgeyi yüklemesi gereken taraf için.
   const deliveryLockHint =

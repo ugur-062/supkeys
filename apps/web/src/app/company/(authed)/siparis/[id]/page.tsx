@@ -25,6 +25,8 @@ import {
   useShipOrder,
   type CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
@@ -124,6 +126,7 @@ function MetaItem({
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const { user } = useCompanyAuth();
   const { data: o, isLoading } = useOrder(id);
   const ship = useShipOrder(id);
   const receive = useReceiveOrder(id);
@@ -161,6 +164,9 @@ export default function OrderDetailPage() {
     return <Text className="text-sm text-zinc-500">Sipariş bulunamadı.</Text>;
 
   const isSeller = o.role === "seller";
+  // F7: aksiyon butonları tarafın işlem rolünü ister (assertOrderRole aynası) —
+  // etiket-only Kurucu/Yönetici sayfayı SALT-OKUNUR görür (Faz R gözetimi).
+  const canAct = canActOnOrder(o.role, user?.roles);
   const curSym =
     CURRENCY_SYMBOL[(o.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";
@@ -321,7 +327,8 @@ export default function OrderDetailPage() {
         <div className="flex items-center gap-2">
           {/* A2: onaylı ödeme varken iptal backend'de zaten engelli (CO cancel
               CONFIRMED guard) → buton görünüp 400 vermesin; gizle + not göster. */}
-          {!isSeller &&
+          {canAct &&
+          !isSeller &&
           (o.status === "PENDING" ||
             o.status === "ACCEPTED" ||
             o.status === "CREATED") ? (
@@ -341,7 +348,7 @@ export default function OrderDetailPage() {
           ) : null}
           {/* A1: satıcı ACCEPTED siparişte iptal TALEBİ açar (açık talep yoksa).
               Alıcı onaylar → CANCELLED, reddeder → DISPUTED. */}
-          {isSeller && o.status === "ACCEPTED" && !pendingCancelRequest ? (
+          {canAct && isSeller && o.status === "ACCEPTED" && !pendingCancelRequest ? (
             <Button
               plain
               onClick={() => setModal("cancelRequest")}
@@ -351,7 +358,7 @@ export default function OrderDetailPage() {
             </Button>
           ) : null}
           {/* TTK 23: alıcı, teslimden 8 gün içinde ayıp ihbar edebilir. */}
-          {canRaiseDefect ? (
+          {canAct && canRaiseDefect ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-400">
                 Muayene süresi: {defectDaysLeft} gün
@@ -677,9 +684,15 @@ export default function OrderDetailPage() {
       {/* Sipariş geçmişi */}
       <OrderTimeline order={o} />
 
-      {/* Aksiyon */}
+      {/* Aksiyon — işlem rolü yoksa (etiket-only gözetim) butonlar yerine
+          salt-okunur not; veri ve geçmiş yukarıda aynen görünür. */}
       <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
-        {o.status === "PENDING" && isSeller ? (
+        {!canAct ? (
+          <Text className="text-sm text-zinc-500">
+            Bu adımlar {isSeller ? "Satışçı" : "Satın Almacı"} rolü gerektirir —
+            salt görüntüleme modundasınız.
+          </Text>
+        ) : o.status === "PENDING" && isSeller ? (
           <div className="space-y-3">
             {/* İlan teminat şartlıysa: teminat yüklenmeden onay backend'de reddedilir. */}
             {o.requireGuaranteeLetter ? (
@@ -810,7 +823,7 @@ export default function OrderDetailPage() {
       <OrderDocumentsSection order={o} />
 
       {/* Değerlendirme — ÇİFT YÖNLÜ: alıcı satıcıyı, satıcı alıcıyı puanlar */}
-      {o.status === "COMPLETED" ? (
+      {o.status === "COMPLETED" && canAct ? (
         <OrderReviewCard
           orderId={id}
           targetName={o.counterparty}

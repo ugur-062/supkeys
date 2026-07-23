@@ -15,6 +15,8 @@ import {
   useWithdrawCancelRequest,
   type CompanyOrderDetail,
 } from "@/hooks/use-company-orders";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { AlertTriangle } from "lucide-react";
@@ -35,6 +37,10 @@ export function OrderCancelRequestPanel({
   order: CompanyOrderDetail;
 }) {
   const isSeller = order.role === "seller";
+  // F7: karar/geri-çekme butonları tarafın işlem rolünü ister (assertOrderRole
+  // aynası) — etiket-only üye paneli salt-okunur görür.
+  const { user } = useCompanyAuth();
+  const canAct = canActOnOrder(order.role, user?.roles);
   const pending = order.status === "ACCEPTED" && !!order.cancelRequestedAt;
   // A1 (satıcı iptal talebi) DISPUTED'ı — ayıp ihbarı DISPUTED'ını (defectNotifiedAt
   // dolu) DIŞLA; onun kendi paneli (OrderDefectPanel) var.
@@ -110,14 +116,14 @@ export function OrderCancelRequestPanel({
 
           <div className="mt-3 flex flex-wrap gap-2">
             {/* SATICI — açık talebi geri çek (yalnız pending). */}
-            {isSeller && pending ? (
+            {canAct && isSeller && pending ? (
               <Button plain onClick={doWithdraw} disabled={withdraw.isPending}>
                 İptal Talebini Geri Çek
               </Button>
             ) : null}
 
             {/* ALICI — onayla (→CANCELLED) / reddet (→DISPUTED). DISPUTED'da yalnız onayla. */}
-            {!isSeller ? (
+            {canAct && !isSeller ? (
               <>
                 <Button
                   onClick={() => setApproveOpen(true)}

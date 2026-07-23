@@ -17,6 +17,8 @@ import {
   type CompanyOrderDetail,
   type OrderRevisionRow,
 } from "@/hooks/use-company-orders";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { format } from "date-fns";
@@ -61,6 +63,10 @@ function fmtDate(v: string | null) {
 export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
   const id = order.id;
   const isSeller = order.role === "seller";
+  // F7: aksiyonlar tarafın işlem rolünü ister (assertOrderRole aynası) —
+  // etiket-only üye paneli salt-okunur görür.
+  const { user } = useCompanyAuth();
+  const canAct = canActOnOrder(order.role, user?.roles);
   const curSym =
     CURRENCY_SYMBOL[(order.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";
@@ -81,6 +87,7 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
   const lcBlocked =
     order.paymentCategory === "LETTER_OF_CREDIT" && !!order.lcOpenedAt;
   const canPropose =
+    canAct &&
     isSeller &&
     order.status === "ACCEPTED" &&
     !pending &&
@@ -287,7 +294,7 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
             </span>
           </div>
           <div className="mt-3 flex justify-end gap-2">
-            {isSeller ? (
+            {!canAct ? null : isSeller ? (
               <Button
                 plain
                 onClick={() => doCancel(pending.id)}

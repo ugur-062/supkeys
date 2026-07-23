@@ -5,6 +5,8 @@ import {
   useWithdrawDefectNotice,
   type CompanyOrderDetail,
 } from "@/hooks/use-company-orders";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -19,6 +21,9 @@ import { toast } from "sonner";
  */
 export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
   const isSeller = order.role === "seller";
+  // F7: geri-çekme tarafın işlem rolünü ister (assertOrderRole aynası).
+  const { user } = useCompanyAuth();
+  const canAct = canActOnOrder(order.role, user?.roles);
   const active = order.status === "DISPUTED" && !!order.defectNotifiedAt;
   const withdraw = useWithdrawDefectNotice(order.id);
 
@@ -59,7 +64,7 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
               ? "Alıcı teslim aldığı malda ayıp ihbar etti. Çözüm (onarım, değişim, bedel indirimi, iade/dönme) taraflar arasındadır — platform hakem değildir, ihbarı kaydeder."
               : "İhbarınız kaydedildi (uyuşmazlıkta delil). Çözüm satıcıyla aranızdadır. Sorun çözülürse ihbarı geri çekebilirsiniz."}
           </p>
-          {!isSeller ? (
+          {canAct && !isSeller ? (
             <div className="mt-3">
               <Button
                 plain

@@ -6,6 +6,8 @@ import {
   useLcStep,
   type CompanyOrderDetail,
 } from "@/hooks/use-company-orders";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatPaymentPlan } from "@/lib/tenders/labels";
 import { Landmark } from "lucide-react";
@@ -20,6 +22,9 @@ import { toast } from "sonner";
 export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   const id = order.id;
   const isSeller = order.role === "seller";
+  // F7: LC adımları tarafın işlem rolünü ister (assertOrderRole aynası).
+  const { user } = useCompanyAuth();
+  const canAct = canActOnOrder(order.role, user?.roles);
   const opened = useLcStep(id, "opened");
   const accept = useLcStep(id, "accept");
   const paid = useLcStep(id, "paid");
@@ -135,7 +140,7 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Text className="max-w-xl text-sm text-zinc-600">{step.text}</Text>
-        {"button" in step && step.button ? (
+        {canAct && "button" in step && step.button ? (
           <Button
             onClick={step.button.onClick}
             disabled={step.button.pending}
