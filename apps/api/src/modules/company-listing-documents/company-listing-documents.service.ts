@@ -11,6 +11,10 @@ import { ListingDocKind } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
+import {
+  LISTING_MANAGE_DENY_MESSAGE,
+  listingManageDenial,
+} from "../company-listings/listing-manage-access";
 import { StorageService } from "../storage/storage.service";
 import {
   assertReportedSize,
@@ -109,11 +113,17 @@ export class CompanyListingDocumentsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true },
+      select: { id: true, companyId: true, type: true, createdById: true },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi dosya ekleyebilir");
+    }
+    // Belgeler ilanın İÇERİĞİDİR → updateListing ile AYNI yönetim kapısı
+    // (listingManageDenial tek kaynak): izin ∧ oluşturan; SAHİP istisnası yok.
+    // Rolsüz/etiket-only üye şartname/çizim ekleyemez-silemez.
+    if (listingManageDenial(user, listing)) {
+      throw new ForbiddenException(LISTING_MANAGE_DENY_MESSAGE);
     }
     return listing;
   }

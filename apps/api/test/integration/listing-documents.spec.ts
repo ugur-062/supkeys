@@ -291,6 +291,58 @@ describe("remove", () => {
   });
 });
 
+describe("yönetim kapısı — updateListing ile birebir (listingManageDenial tek kaynak)", () => {
+  const DENY = /yönetme yetkiniz yok/;
+
+  it("etiket-only/rolsüz personalar upload-url + remove'da 403 (SAHİP istisnası yok)", async () => {
+    const { service } = makeDocsService();
+    const { owner, listing } = await ownerListing();
+    const doc = await seedDoc(listing.id, owner.company.id);
+    const personas = [
+      { ...owner.auth, roles: ["SAHIP"], isOwner: true },
+      { ...owner.auth, roles: ["YONETICI"], isOwner: false },
+      { ...owner.auth, roles: ["ONAYLAYICI"], isOwner: false },
+      { ...owner.auth, roles: [], isOwner: false },
+    ] as (typeof owner.auth)[];
+    for (const auth of personas) {
+      await expect(
+        service.requestUploadUrl(auth, listing.id, {
+          fileName: "sartname.pdf",
+          mimeType: PDF,
+        }),
+      ).rejects.toThrow(DENY);
+      await expect(service.remove(auth, listing.id, doc.id)).rejects.toThrow(
+        DENY,
+      );
+    }
+  });
+
+  it("kardeş simetrisi: izinli ama OLUŞTURMAYAN operatör de 403 (updateListing kuralı)", async () => {
+    const { service } = makeDocsService();
+    const { owner, listing } = await ownerListing();
+    // Aynı firmadan Satın Almacı ama ilanı açan değil → updateListing gibi red.
+    const nonCreator = {
+      ...owner.auth,
+      userId: "someone-else",
+      roles: ["SATIN_ALMACI"],
+      isOwner: false,
+    } as typeof owner.auth;
+    await expect(
+      service.requestUploadUrl(nonCreator, listing.id, {
+        fileName: "a.pdf",
+        mimeType: PDF,
+      }),
+    ).rejects.toThrow(DENY);
+    // İlanı açan operatör (factory kurucu = creator + SA) geçer.
+    await expect(
+      service.requestUploadUrl(owner.auth, listing.id, {
+        fileName: "a.pdf",
+        mimeType: PDF,
+      }),
+    ).resolves.toHaveProperty("key");
+  });
+});
+
 describe("yükleme doğrulaması (boyut/uzantı/hayalet)", () => {
   it("çalıştırılabilir uzantı upload-url'de reddedilir", async () => {
     const { service } = makeDocsService();

@@ -27,6 +27,10 @@ import { OnEvent } from "@nestjs/event-emitter";
 import { derivePaymentTiming, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { bidderOpRole } from "../bidder-op-role";
+import {
+  LISTING_MANAGE_DENY_MESSAGE,
+  listingManageDenial,
+} from "../listing-manage-access";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import {
   MAX_MONEY,
@@ -6284,16 +6288,10 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listing: { id: string; type: ListingType; createdById: string },
   ): void {
-    const needed =
-      listing.type === "ALIM" ? "buy:listing:manage" : "sell:listing:manage";
-    const hasPerm = hasCompanyPermission(
-      user.roles,
-      user.isOwner,
-      needed,
-      user.permissionsOverride,
-    );
-    const isCreator = listing.createdById === user.userId;
-    if (!hasPerm || !isCreator) {
+    // Kural TEK KAYNAK: listing-manage-access.ts (belge servisi de aynı
+    // karardan okur — drift imkânsız).
+    const denial = listingManageDenial(user, listing);
+    if (denial) {
       // INV-AUDIT-1 (denial): engellenmiş ilan-yönetim denemesi iz bırakır —
       // insider'ın DENEDİĞİ, başardığı kadar değerli. State değişmez → sinyal.
       // Guard sync + 13 çağrı yeri → bilinçli await'siz (log() fail-safe).
@@ -6309,14 +6307,12 @@ export class CompanyListingsService {
         entityId: listing.id,
         critical: false,
         metadata: {
-          needed,
+          needed: denial.needed,
           listingType: listing.type,
-          reason: hasPerm ? "not_creator" : "missing_permission",
+          reason: denial.reason,
         },
       });
-      throw new ForbiddenException(
-        "Bu ilanı yönetme yetkiniz yok — yalnız ilanı açan operatör yönetebilir",
-      );
+      throw new ForbiddenException(LISTING_MANAGE_DENY_MESSAGE);
     }
   }
 
