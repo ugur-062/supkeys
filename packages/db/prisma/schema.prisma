@@ -318,6 +318,9 @@ model AiChatSession {
   summarizedThroughSeq Int             @default(0)
   /** Kullanıcı turu sayısı (tur sınırı önerisi + seq üretimi). */
   turnCount            Int             @default(0)
+  /** Faz AI-3 — oturum boyunca biriken ihale taslağı (AiTenderDraft JSON);
+   *  belge + konuşma birleşiminin tek kaynağı. Kullanıcı wizard'a taşıyınca kullanılır. */
+  tenderDraft          Json?
   createdAt            DateTime        @default(now())
   lastMessageAt        DateTime        @default(now())
   archivedAt           DateTime?

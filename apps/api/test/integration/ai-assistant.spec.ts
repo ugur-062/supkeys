@@ -12,6 +12,7 @@ import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai
 import { AiService } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
 import { AssistantService } from "../../src/modules/ai/assistant/assistant.service";
+import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import { toolDefsForUser, allowedPortals } from "../../src/modules/ai/assistant/assistant-tools";
 import { ASSISTANT_SYSTEM_PROMPT } from "../../src/modules/ai/assistant/assistant.prompts";
 import {
@@ -83,6 +84,8 @@ function build(cfg: AiConfig, provider: FakeProvider) {
   const connections = new FakeConnections();
   const budget = new AiBudgetService(prisma as never, cfg);
   const ai = new AiService(cfg, provider, budget, prisma as never, undefined);
+  // Belge (fileKeys) senaryosu bu suite'te yok — storage stub yeterli.
+  const tenderExtract = new TenderExtractService(ai, {} as never, cfg);
   const svc = new AssistantService(
     cfg,
     provider,
@@ -92,6 +95,7 @@ function build(cfg: AiConfig, provider: FakeProvider) {
     listings,
     orders as never,
     connections as never,
+    tenderExtract,
   );
   return { svc, listings, orders, connections };
 }
@@ -173,13 +177,18 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
 });
 
 describe("Faz AI-2 — araç kümesi (bağlayıcı yazma YOK)", () => {
-  it("araç listesinde create/bid/award YOK; yalnız okuma araçları", () => {
+  it("araç listesinde create/bid/award/publish YOK; okuma + non-binding taslak", () => {
     const defs = toolDefsForUser(allowedPortals([CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI]));
     const names = defs.map((d) => d.name);
-    expect(names).not.toEqual(expect.arrayContaining(["place_bid", "create_tender", "award"]));
+    // BAĞLAYICI YAZMA yok: ihale açma/teklif/kazandırma aracı asla sunulmaz.
+    expect(names).not.toEqual(
+      expect.arrayContaining(["place_bid", "create_tender", "publish_tender", "award"]),
+    );
+    // İzinli: okuma araçları + propose_tender_draft (taslak toplar, ihale AÇMAZ).
     for (const n of names) {
-      expect(n).toMatch(/^(list_|search_|get_)/); // hepsi okuma
+      expect(n).toMatch(/^(list_|search_|get_|propose_)/);
     }
+    expect(names).toContain("propose_tender_draft");
   });
 
   it("model olmayan bir yazma aracı isterse → unavailable (beyaz-liste dışı)", async () => {
@@ -366,5 +375,87 @@ describe("Faz AI-2 — injection + nötr hata + oturum", () => {
     const guards = (Reflect.getMetadata("__guards__", AssistantController) ??
       []) as unknown[];
     expect(guards).toContain(CompanyPaidTierGuard);
+  });
+});
+
+describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
+  it("propose_tender_draft → yanıtta tenderDraft + eksikler; ihale AÇILMAZ, oturuma yazılır", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [
+      {
+        toolCalls: [
+          {
+            name: "propose_tender_draft",
+            args: {
+              title: "500 adet çelik boru alımı",
+              items: [{ name: "Çelik boru DN50", quantity: 500, unit: "adet" }],
+            },
+          },
+        ],
+      },
+      { text: "Taslağı hazırladım. Teslim şekli ve kapanış tarihini söyler misiniz?" },
+    ];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "GOLD",
+      roles: [CompanyRole.SATIN_ALMACI],
+    });
+    const auth = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]);
+
+    const reply = await svc.message(auth, {
+      message: "500 adet çelik boru için ihale açmak istiyorum",
+    });
+
+    expect(reply.tenderDraft).toBeDefined();
+    expect(reply.tenderDraft!.draft.title).toBe("500 adet çelik boru alımı");
+    expect(reply.tenderDraft!.draft.items[0]!.name).toBe("Çelik boru DN50");
+    expect(reply.tenderDraft!.draft.items[0]!.quantity).toBe(500);
+    // Eksik zorunlular sorulacak (teslim/ödeme/kapanış).
+    expect(reply.tenderDraft!.missingRequired.join(" ")).toMatch(/Teslim|Kapanış|Ödeme/i);
+    // İHALE AÇILMADI — hiçbir listing oluşmadı (BAĞLAYICI-YAZMA-YOK).
+    expect(await prisma.listing.count()).toBe(0);
+    // Taslak oturuma yazıldı (belge + konuşma birleşiminin kaynağı).
+    const s = await prisma.aiChatSession.findFirstOrThrow();
+    expect(s.tenderDraft).toBeTruthy();
+    expect((s.tenderDraft as { title?: string }).title).toBe("500 adet çelik boru alımı");
+  });
+
+  it("sanitize: geçersiz değer taslakta null'a düşer (quantity 0.0001)", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [
+      {
+        toolCalls: [
+          {
+            name: "propose_tender_draft",
+            args: {
+              title: "Test ihalesi",
+              primaryCurrency: "XYZ", // enum dışı → null + flag
+              items: [{ name: "Kalem", quantity: 0.0001, unit: "adet" }], // < MIN → null
+            },
+          },
+        ],
+      },
+      { text: "devam" },
+    ];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "GOLD",
+      roles: [CompanyRole.SATIN_ALMACI],
+    });
+    const reply = await svc.message(
+      authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]),
+      { message: "ihale aç" },
+    );
+    expect(reply.tenderDraft!.draft.primaryCurrency).toBeNull();
+    expect(reply.tenderDraft!.draft.items[0]!.quantity).toBeNull();
+    expect(reply.tenderDraft!.flags.some((f) => f.reason === "validation_failed")).toBe(true);
+  });
+
+  it("propose_tender_draft yalnız SA/ST portallı kullanıcıya sunulur", () => {
+    const withSeat = toolDefsForUser(allowedPortals([CompanyRole.SATIN_ALMACI])).map((d) => d.name);
+    expect(withSeat).toContain("propose_tender_draft");
+    // Portal yok (etiket-only — pratikte AI erişimi de yok) → taslak aracı da yok.
+    const noSeat = toolDefsForUser(allowedPortals([])).map((d) => d.name);
+    expect(noSeat).not.toContain("propose_tender_draft");
   });
 });

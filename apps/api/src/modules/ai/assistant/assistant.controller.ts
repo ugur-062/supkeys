@@ -7,7 +7,13 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -18,7 +24,13 @@ import { AssistantService } from "./assistant.service";
 
 class AssistantMessageDto {
   @IsOptional() @IsString() sessionId?: string;
-  @IsString() @MaxLength(4000) message!: string;
+  @IsOptional() @IsString() @MaxLength(4000) message?: string;
+  /** AI-3 — ihale belgesi anahtarları (asistan içinden belge yükleme). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  fileKeys?: string[];
 }
 
 /**
@@ -36,7 +48,7 @@ export class AssistantController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: AssistantMessageDto,
   ) {
-    return this.service.message(user, dto);
+    return this.service.message(user, { ...dto, message: dto.message ?? "" });
   }
 
   @Get("sessions")

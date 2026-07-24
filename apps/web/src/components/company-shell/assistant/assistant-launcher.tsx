@@ -37,11 +37,12 @@ export function AssistantLauncher() {
         aria-label="AI Asistan"
         onClick={() => setOpen(true)}
         className={cn(
-          "fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full",
-          "bg-zinc-900 text-white shadow-lg transition hover:bg-zinc-700 hover:shadow-xl",
+          "fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-white/20",
+          "transition hover:-translate-y-0.5 hover:shadow-xl",
         )}
       >
-        <Sparkles className="h-5 w-5" />
+        <Sparkles className="h-6 w-6" />
       </button>
 
       <Dialog open={open} onClose={setOpen} className="relative z-50">

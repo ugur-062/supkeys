@@ -40,13 +40,39 @@ export function useAssistantSession(sessionId: string | null) {
   });
 }
 
+/** Faz AI-3 — asistan içinden belge yükleme: presigned PUT + fileKeys döner. */
+async function uploadTenderFile(file: File): Promise<string> {
+  const { data: presigned } = await companyApi.post<{ url: string; key: string }>(
+    "/company/ai/uploads/url",
+    { fileName: file.name, mimeType: file.type, fileSize: file.size },
+  );
+  const put = await fetch(presigned.url, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  if (!put.ok) throw new Error("Dosya yüklenemedi — lütfen tekrar deneyin");
+  return presigned.key;
+}
+
 export function useSendAssistantMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { sessionId?: string; message: string }) => {
+    mutationFn: async (input: {
+      sessionId?: string;
+      message: string;
+      files?: File[];
+    }) => {
+      // AI-3: dosyalar varsa önce presigned yükle → fileKeys.
+      const fileKeys: string[] = [];
+      for (const f of input.files ?? []) fileKeys.push(await uploadTenderFile(f));
       const { data } = await companyApi.post<AiAssistantReply>(
         "/company/ai/assistant/message",
-        input,
+        {
+          sessionId: input.sessionId,
+          message: input.message,
+          ...(fileKeys.length > 0 ? { fileKeys } : {}),
+        },
       );
       return data;
     },

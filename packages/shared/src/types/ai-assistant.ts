@@ -37,4 +37,10 @@ export interface AiAssistantReply {
   warned: boolean;
   /** Bu turda çağrılan araç adları (gösterim/teşhis; sonuç içeriği DEĞİL). */
   toolsUsed: string[];
+  /**
+   * Faz AI-3 — asistan konuşarak/belgeden ihale taslağı topladıysa güncel
+   * taslak (aynı AiTenderExtractResult şekli — mapAiDraftToForm ile wizard'a
+   * taşınır). BAĞLAYICI DEĞİL: ihale yine kullanıcı onayıyla wizard'dan açılır.
+   */
+  tenderDraft?: import("./ai-tender-draft").AiTenderExtractResult;
 }

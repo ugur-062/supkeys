@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 import { Text } from "@/components/catalyst/text";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { TenderWizard } from "@/components/tenders/wizard/tender-wizard";
@@ -10,24 +10,35 @@ import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
 import type { AiTenderExtractResult } from "@rothern/shared";
 import { Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
- * Yeni SATIŞ ihalesi — satınalma sihirbazının satışa uyarlanmış hâli:
- * format adımı yok, taban + hemen-al fiyat var, davetliler alıcı firmalar.
+ * Yeni SATIŞ ihalesi — satınalma sihirbazının satışa uyarlanmış hâli.
  */
 export default function YeniSatisIhalesiPage() {
   const params = useSearchParams();
   const fromId = params.get("from") ?? "";
+  const fromAi = params.get("ai") === "1";
   const { data: source, isLoading } = useListingDetail(fromId);
-  // Faz AI-1 — "Belgeden Doldur" (bkz. satınalma yeni sayfası).
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResult, setAiResult] = useState<AiTenderExtractResult | null>(null);
+
+  useEffect(() => {
+    if (!fromAi) return;
+    const raw = sessionStorage.getItem("ai-tender-draft");
+    if (raw) {
+      try {
+        setAiResult(JSON.parse(raw) as AiTenderExtractResult);
+      } catch {
+        /* bozuk payload — yok say */
+      }
+      sessionStorage.removeItem("ai-tender-draft");
+    }
+  }, [fromAi]);
 
   if (fromId && isLoading) {
     return <Text className="text-sm text-zinc-500">Kopyalanıyor…</Text>;
   }
-  // Kopya yalnız KENDİ SATIS ihalenden (?from paramına güvenilmez).
   if (fromId && source && source.isOwner && source.type === "SATIS") {
     return (
       <TenderWizard
@@ -50,12 +61,22 @@ export default function YeniSatisIhalesiPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button outline onClick={() => setAiOpen(true)}>
+      <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-zinc-900">Belgeden otomatik doldur</p>
+          <p className="text-xs text-zinc-500">
+            Ürün listesi, katalog veya fotoğraf yükleyin — AI ilanı sizin için doldursun.
+          </p>
+        </div>
+        <Button variant="primary" onClick={() => setAiOpen(true)}>
           <Sparkles className="h-4 w-4" />
-          Belgeden Doldur (AI)
+          Belgeden Doldur
         </Button>
       </div>
+
       <TenderWizard listingType="SATIS" />
       <AiImportDialog
         open={aiOpen}

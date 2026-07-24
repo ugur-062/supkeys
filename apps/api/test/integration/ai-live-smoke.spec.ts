@@ -52,7 +52,7 @@ d("Faz AI-1 — canlı Gemini duman testi", () => {
 
   it("metinli PDF → gerçek extract: taslak dolu, usage SETTLED, gerçek maliyet > 0", async () => {
     const cfg = loadAiConfig({ get: (k: string) => process.env[k] });
-    const provider = new GeminiProvider(cfg.apiKey!);
+    const provider = cfg.vertex ? new GeminiProvider({ vertex: cfg.vertex }) : new GeminiProvider({ apiKey: cfg.apiKey! });
     const budget = new AiBudgetService(prisma as never, cfg);
     const ai = new AiService(cfg, provider, budget, prisma as never, undefined);
     const storage = new FakeStorage();

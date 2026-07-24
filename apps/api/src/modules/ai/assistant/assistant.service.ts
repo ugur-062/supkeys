@@ -11,6 +11,8 @@ import type {
   AiAssistantReply,
   AiChatSessionDetailDto,
   AiChatSessionSummaryDto,
+  AiTenderDraft,
+  AiTenderExtractResult,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -29,6 +31,7 @@ import {
 import {
   ASSISTANT_SYSTEM_PROMPT,
   SUMMARY_SYSTEM_PROMPT,
+  buildDraftContext,
   buildSummaryPrompt,
 } from "./assistant.prompts";
 import {
@@ -41,6 +44,8 @@ import {
   trimList,
   type Portal,
 } from "./assistant-tools";
+import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
+import { TenderExtractService } from "../tender-extract/tender-extract.service";
 import { SUGGEST_NEW_CHAT_AFTER, planWindow, type StoredMessage } from "./window";
 
 const MAX_TOOL_ITERATIONS = 4;
@@ -63,16 +68,19 @@ export class AssistantService {
     private readonly listings: CompanyListingsService,
     private readonly orders: CompanyOrdersService,
     private readonly connections: CompanyConnectionsService,
+    private readonly tenderExtract: TenderExtractService,
   ) {}
 
   async message(
     user: AuthenticatedCompanyUser,
-    dto: { sessionId?: string; message: string },
+    dto: { sessionId?: string; message: string; fileKeys?: string[] },
   ): Promise<AiAssistantReply> {
     this.ai.assertAiAccess(user); // AI-0 kapısı: SA/ST + Silver+
     const provider = this.provider!;
     const text = (dto.message ?? "").trim().slice(0, MAX_TURN_MESSAGE_LEN);
-    if (!text) throw new ForbiddenException("Mesaj boş olamaz");
+    if (!text && !(dto.fileKeys && dto.fileKeys.length > 0)) {
+      throw new ForbiddenException("Mesaj boş olamaz");
+    }
 
     const session = dto.sessionId
       ? await this.loadOwnSession(user, dto.sessionId)
@@ -80,15 +88,40 @@ export class AssistantService {
           data: {
             companyId: user.companyId,
             userId: user.userId,
-            title: text.slice(0, 60),
+            title: (text || "İhale taslağı").slice(0, 60),
           },
         });
+
+    // AI-3: oturumda biriken taslak (belge + konuşma birleşiminin kaynağı).
+    let draft: AiTenderExtractResult | null = this.reviveDraft(session.tenderDraft);
+    let draftTouched = false;
+
+    // Belge yüklendiyse ihale çıkarımı yap, mevcut taslakla birleştir.
+    if (dto.fileKeys && dto.fileKeys.length > 0) {
+      const listingType: "ALIM" | "SATIS" = allowedPortals(user.roles).has("satinalma")
+        ? "ALIM"
+        : "SATIS";
+      const extracted = await this.tenderExtract.extract(user, {
+        fileKeys: dto.fileKeys,
+        listingType,
+      });
+      draft = draft ? this.mergeDrafts(draft, extracted) : extracted;
+      draftTouched = true;
+    }
 
     const stored = await this.loadMessages(session.id);
     const plan = planWindow(stored, session.summary, session.summarizedThroughSeq);
 
     const portals = allowedPortals(user.roles);
     const toolDefs = toolDefsForUser(portals);
+
+    // AI-3: taslak varsa modele context ver (system prompt'a eklenir).
+    const systemPrompt = draft
+      ? `${ASSISTANT_SYSTEM_PROMPT}\n\n${buildDraftContext(
+          JSON.stringify(draft.draft),
+          draft.missingRequired,
+        )}`
+      : ASSISTANT_SYSTEM_PROMPT;
 
     // Bütçe rezervasyonu ÇAĞRIDAN ÖNCE (fail-closed worst-case tahmin: araç
     // döngüsü + çıktı). Gerçek maliyet settle'da düzeltilir.
@@ -126,9 +159,12 @@ export class AssistantService {
     // Araç döngüsü — usage'ları topla, tek settle. Kullanıcı mesajı history'nin
     // SONUNA user turu olarak eklenir (prompt boş) → contents daima user turuyla
     // başlar ve fnResponse sonrası model devam eder (Gemini tur-sıra kuralı).
+    const effectiveText =
+      text ||
+      "Yüklediğim belgeden ihale taslağı hazırla; eksik zorunlu alanları sırayla sor.";
     const history: AiHistoryTurn[] = [
       ...plan.history,
-      { role: "user", parts: [{ text }] },
+      { role: "user", parts: [{ text: effectiveText }] },
     ];
     const totalUsage: AiTokenUsage = {
       inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0,
@@ -140,7 +176,7 @@ export class AssistantService {
       for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
         const result = await provider.complete({
           model: this.config.models.default,
-          system: ASSISTANT_SYSTEM_PROMPT,
+          system: systemPrompt,
           prompt: "",
           history,
           tools: toolDefs,
@@ -166,6 +202,25 @@ export class AssistantService {
         const responseParts = [];
         for (const call of result.toolCalls) {
           toolsUsed.push(call.name);
+          // AI-3: taslak toplama aracı — yürütme YOK, argümanlar sanitize edilip
+          // taslağa dönüşür (BAĞLAYICI DEĞİL; ihale açılmaz).
+          if (call.name === TOOL_NAMES.proposeTenderDraft) {
+            const s = sanitizeAiDraft(call.args, "refine");
+            draft = {
+              ...s,
+              route: "text",
+              downgraded: false,
+              warned: false,
+            };
+            draftTouched = true;
+            responseParts.push({
+              functionResponse: {
+                name: call.name,
+                response: { status: "ok", missingRequired: s.missingRequired },
+              },
+            });
+            continue;
+          }
           const toolResult = await this.runTool(user, portals, call);
           responseParts.push({
             functionResponse: { name: call.name, response: toolResult },
@@ -178,7 +233,7 @@ export class AssistantService {
           // Son tur: araçsız bir kapanış çağrısı (aksi halde reply boş kalır).
           const closing = await provider.complete({
             model: this.config.models.default,
-            system: ASSISTANT_SYSTEM_PROMPT,
+            system: systemPrompt,
             prompt: "",
             history,
             maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -197,12 +252,8 @@ export class AssistantService {
       this.logger.warn(`Asistan sağlayıcı hatası: ${raw}`);
       // Gemini durum kodunu kullanıcıya-güvenli biçimde yansıt (anahtar/gövde
       // sızmaz): 503/429 = yoğunluk (tekrar dene), diğer = model/config sorunu.
-      const code = /"code":\s*(\d+)/.exec(raw)?.[1];
-      const gmMsg = /"message":\s*"([^"]+)"/.exec(raw)?.[1] ?? "";
       throw new ServiceUnavailableException(
-        code === "503" || code === "429"
-          ? "AI servisi şu an yoğun — birkaç saniye sonra tekrar deneyin."
-          : `Asistan şu an yanıt veremedi (model=${this.config.models.default}${code ? `, AI ${code}` : ""})${gmMsg ? `: ${gmMsg.slice(0, 140)}` : ""}`,
+        "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
       );
     }
 
@@ -211,11 +262,13 @@ export class AssistantService {
       reply = "Şu an bu isteğe yanıt oluşturamadım. Farklı bir şekilde sorabilir misiniz?";
     }
 
-    // Mesajları kaydet + pencere taşıyorsa özetle + tur sayacı.
+    // Mesajları kaydet + pencere taşıyorsa özetle + tur sayacı + AI-3 taslak.
     const nextSeq = stored.length > 0 ? stored[stored.length - 1]!.seq : 0;
+    const userContent =
+      text || (dto.fileKeys && dto.fileKeys.length > 0 ? "[belge yüklendi]" : "");
     await this.prisma.$transaction([
       this.prisma.aiChatMessage.create({
-        data: { sessionId: session.id, seq: nextSeq + 1, role: "USER", content: text },
+        data: { sessionId: session.id, seq: nextSeq + 1, role: "USER", content: userContent },
       }),
       this.prisma.aiChatMessage.create({
         data: {
@@ -231,7 +284,14 @@ export class AssistantService {
       }),
       this.prisma.aiChatSession.update({
         where: { id: session.id },
-        data: { turnCount: { increment: 1 }, lastMessageAt: new Date() },
+        data: {
+          turnCount: { increment: 1 },
+          lastMessageAt: new Date(),
+          // AI-3: taslak bu turda değiştiyse oturuma yaz (belge/konuşma birleşimi).
+          ...(draftTouched && draft
+            ? { tenderDraft: draft.draft as unknown as Prisma.InputJsonValue }
+            : {}),
+        },
       }),
     ]);
 
@@ -249,6 +309,53 @@ export class AssistantService {
       suggestNewChat: turnCount >= SUGGEST_NEW_CHAT_AFTER,
       warned: settled.warned,
       toolsUsed: [...new Set(toolsUsed)],
+      // AI-3: taslak toplandıysa yanıta koy (frontend kart + "formu aç" için).
+      ...(draft ? { tenderDraft: draft } : {}),
+    };
+  }
+
+  /** Oturumdaki ham taslak JSON'unu AiTenderExtractResult'a diriltir. */
+  private reviveDraft(raw: unknown): AiTenderExtractResult | null {
+    if (raw == null || typeof raw !== "object") return null;
+    // Saklanan sanitize edilmiş AiTenderDraft — flags/missingRequired yeniden türetilir.
+    const s = sanitizeAiDraft(raw, "refine");
+    return { ...s, route: "text", downgraded: false, warned: false };
+  }
+
+  /** Belge taslağını mevcut taslakla birleştir — yeni dolu alanlar öncelik. */
+  private mergeDrafts(
+    base: AiTenderExtractResult,
+    incoming: AiTenderExtractResult,
+  ): AiTenderExtractResult {
+    const b = base.draft;
+    const n = incoming.draft;
+    const pick = <K extends keyof AiTenderDraft>(k: K): AiTenderDraft[K] =>
+      (n[k] ?? b[k]) as AiTenderDraft[K];
+    const merged: AiTenderDraft = {
+      title: pick("title"),
+      description: pick("description"),
+      primaryCurrency: pick("primaryCurrency"),
+      deliveryTerm: pick("deliveryTerm"),
+      paymentCategory: pick("paymentCategory"),
+      paymentDays: pick("paymentDays"),
+      advancePercent: pick("advancePercent"),
+      bidsCloseAt: pick("bidsCloseAt"),
+      keywords: n.keywords.length > 0 ? n.keywords : b.keywords,
+      isInternational: pick("isInternational"),
+      termsAndConditions: pick("termsAndConditions"),
+      items: n.items.length > 0 ? n.items : b.items,
+      pricesIncludeVat: pick("pricesIncludeVat"),
+      pageSummaries: n.pageSummaries.length > 0 ? n.pageSummaries : b.pageSummaries,
+    };
+    // missingRequired'ı birleşik taslaktan yeniden hesapla (sanitize üzerinden).
+    const re = sanitizeAiDraft(merged, "refine");
+    return {
+      draft: merged,
+      flags: re.flags,
+      missingRequired: re.missingRequired,
+      route: incoming.route,
+      downgraded: incoming.downgraded,
+      warned: incoming.warned,
     };
   }
 

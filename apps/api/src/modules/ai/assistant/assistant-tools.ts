@@ -49,6 +49,54 @@ export const TOOL_NAMES = {
   listMyOrders: "list_my_orders",
   getOrderDetail: "get_order_detail",
   listMyConnections: "list_my_connections",
+  /** AI-3 — konuşarak ihale taslağı toplama (BAĞLAYICI DEĞİL; ihale açmaz). */
+  proposeTenderDraft: "propose_tender_draft",
+} as const;
+
+/** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). */
+const CURRENCY_ENUM = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"];
+const DELIVERY_ENUM = [
+  "DOMESTIC_DELIVERED", "DOMESTIC_PICKUP", "DOMESTIC_CARRIER_COLLECT",
+  "DOMESTIC_ON_VEHICLE", "EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP",
+  "FAS", "FOB", "CFR", "CIF",
+];
+const PAYMENT_ENUM = [
+  "ADVANCE", "DEFERRED", "OPEN_ACCOUNT", "MAL_MUKABILI", "CHEQUE", "SENET",
+  "LETTER_OF_CREDIT", "CASH_AGAINST_DOCS", "CUSTOM",
+];
+
+/** propose_tender_draft parametreleri = AiTenderDraft alanları (JSON Schema). */
+const TENDER_DRAFT_PARAMS = {
+  type: "object",
+  properties: {
+    title: { type: "string", description: "İhale başlığı (3-200 karakter)" },
+    description: { type: "string" },
+    primaryCurrency: { type: "string", enum: CURRENCY_ENUM },
+    deliveryTerm: { type: "string", enum: DELIVERY_ENUM, description: "Teslim şekli" },
+    paymentCategory: { type: "string", enum: PAYMENT_ENUM, description: "Ödeme şekli" },
+    paymentDays: { type: "number", description: "Vade günü (1-365) — vadeli/çek/senet/usance" },
+    advancePercent: { type: "number", description: "Peşin yüzdesi (1-100) — yalnız ADVANCE" },
+    bidsCloseAt: { type: "string", description: "Teklif kapanış tarihi (ISO, gelecekte)" },
+    isInternational: { type: "boolean" },
+    termsAndConditions: { type: "string" },
+    keywords: { type: "array", items: { type: "string" } },
+    items: {
+      type: "array",
+      description: "İhale kalemleri (en az 1)",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          description: { type: "string" },
+          quantity: { type: "number" },
+          unit: { type: "string", description: "adet, kg, m, paket…" },
+          materialCode: { type: "string" },
+          requiredByDate: { type: "string" },
+          targetUnitPrice: { type: "number" },
+        },
+      },
+    },
+  },
 } as const;
 
 /**
@@ -117,6 +165,16 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       name: TOOL_NAMES.listMyBids,
       description: "Firmanızın başka ihalelere verdiği teklifleri listeler.",
       parameters: { type: "object", properties: {} },
+    });
+  }
+  // AI-3: kullanıcı ihale açmak isterse taslak toplama (yalnız SA/ST portalında
+  // anlamlı; oluşturma DEĞİL — kullanıcı formda tamamlar).
+  if (portals.size > 0) {
+    defs.push({
+      name: TOOL_NAMES.proposeTenderDraft,
+      description:
+        "Kullanıcı yeni bir ihale/ilan açmak istediğinde, o ana kadar topladığın TÜM alanları buraya ver (her çağrıda tam taslak — önceki + yeni). İhaleyi OLUŞTURMAZ; yalnız taslağı kaydeder. Kategori ve adres SORMA (kullanıcı formda seçer).",
+      parameters: TENDER_DRAFT_PARAMS as unknown as object,
     });
   }
   return defs;
