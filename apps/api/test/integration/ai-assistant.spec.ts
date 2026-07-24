@@ -31,6 +31,7 @@ function makeCfg(over: { budgets?: Partial<Record<string, number>> } = {}): AiCo
   return {
     enabled: true,
     provider: "gemini",
+    vertex: null,
     apiKey: "test-key",
     models: { default: FLASH, vision: FLASH, premium: PRO },
     pricing: {

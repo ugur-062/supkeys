@@ -24,11 +24,27 @@ export interface AiModelPricing {
   cacheReadPerMTok: number;
 }
 
+/**
+ * Vertex AI modu (2026-07-24): `generativelanguage.googleapis.com` (AI Studio
+ * API) datacenter IP'lerini "User location not supported" ile reddediyor —
+ * Render'dan Gemini çağrısı bu yüzden 400 alıyordu. Vertex AI, konumu sunucu
+ * IP'sinden DEĞİL proje-bölgesinden belirler → IP kısıtı yok. Service account
+ * (JSON) ile kimlik doğrular.
+ */
+export interface AiVertexConfig {
+  project: string;
+  location: string;
+  /** Service account JSON (parse edilmiş) — googleAuthOptions.credentials. */
+  credentials: Record<string, unknown>;
+}
+
 export interface AiConfig {
-  /** Anahtar yoksa false — endpoint'ler 503 (fail-closed, sessiz no-op değil). */
+  /** Anahtar/Vertex yoksa false — endpoint'ler 503 (fail-closed). */
   enabled: boolean;
   provider: string;
   apiKey: string | null;
+  /** Set ise Gemini çağrıları Vertex AI üzerinden yapılır (apiKey yerine). */
+  vertex: AiVertexConfig | null;
   models: {
     /** Ucuz varsayılan — metin (Flash sınıfı) */
     default: string;
@@ -111,6 +127,34 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
   };
 
   const apiKey = g("GEMINI_API_KEY") ?? null;
+
+  // Vertex AI modu: service account JSON verilirse Gemini çağrıları Vertex
+  // üzerinden (IP-konum kısıtı yok). Proje id JSON'dan okunur; location default
+  // "global" (en geniş model erişimi + tek endpoint).
+  let vertex: AiVertexConfig | null = null;
+  const saJsonRaw = g("GEMINI_SERVICE_ACCOUNT_JSON");
+  if (saJsonRaw) {
+    let cred: Record<string, unknown>;
+    try {
+      cred = JSON.parse(saJsonRaw) as Record<string, unknown>;
+    } catch {
+      throw new Error(
+        "GEMINI_SERVICE_ACCOUNT_JSON geçersiz JSON — service account anahtar dosyasının TAM içeriğini yapıştırın.",
+      );
+    }
+    const project = g("GEMINI_VERTEX_PROJECT") ?? (cred.project_id as string | undefined);
+    if (!project) {
+      throw new Error(
+        "Vertex projesi bulunamadı — GEMINI_VERTEX_PROJECT verin veya JSON'da project_id olsun.",
+      );
+    }
+    vertex = {
+      project,
+      location: g("GEMINI_VERTEX_LOCATION") ?? "global",
+      credentials: cred,
+    };
+  }
+
   const models = {
     default: g("AI_MODEL_DEFAULT") ?? "gemini-flash-latest",
     vision: g("AI_MODEL_VISION") ?? "gemini-flash-latest",
@@ -118,9 +162,10 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
   };
 
   const cfg: AiConfig = {
-    enabled: apiKey != null,
+    enabled: apiKey != null || vertex != null,
     provider: g("AI_PROVIDER") ?? "gemini",
     apiKey,
+    vertex,
     models,
     pricing: DEFAULT_PRICING,
     monthlyBudgetUsd: { SILVER: 6, GOLD: 25 },

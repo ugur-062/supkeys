@@ -96,6 +96,13 @@ services:
       # (fiyat/model değişince güncelle); default'lar koda da gömülü.
       - key: GEMINI_API_KEY
         sync: false
+      # VERTEX AI (Render datacenter'ından çağrıda "User location not supported"
+      # sorunu için). Service account JSON'un TAM içeriği → çağrılar Vertex'ten
+      # gider (IP-konum kısıtı yok). GEMINI_API_KEY yerine bu kullanılır.
+      - key: GEMINI_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GEMINI_VERTEX_LOCATION
+        value: global
       - key: AI_PROVIDER
         value: gemini
       - key: AI_MODEL_DEFAULT

@@ -82,7 +82,9 @@ async function bootstrap() {
   // (fail-closed) ve prod'da GÜRÜLTÜLÜ: warn log + Sentry uyarısı — sessiz
   // no-op değil (bkz. common/config/ai-config.ts).
   const aiKeyStatus = checkAiKey(config.get<string>("GEMINI_API_KEY"));
-  if (nodeEnv === "production") {
+  // Vertex modu (service account) varsa GEMINI_API_KEY şart değil — AI Vertex'ten çalışır.
+  const hasVertex = !!config.get<string>("GEMINI_SERVICE_ACCOUNT_JSON");
+  if (nodeEnv === "production" && !hasVertex) {
     if (aiKeyStatus === "placeholder") {
       throw new Error(
         "🚨 GEMINI_API_KEY placeholder/bozuk görünüyor — ya geçerli anahtar ver ya da tamamen boş bırak (AI kapalı).",

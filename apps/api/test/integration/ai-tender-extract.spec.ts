@@ -38,6 +38,7 @@ function makeCfg(over: {
   return {
     enabled: true,
     provider: "gemini",
+    vertex: null,
     apiKey: "test-key",
     models: { default: FLASH, vision: FLASH, premium: PRO },
     pricing: {

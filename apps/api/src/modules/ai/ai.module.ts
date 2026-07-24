@@ -46,7 +46,15 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
       provide: AI_PROVIDER_TOKEN,
       inject: [AI_CONFIG],
       useFactory: (cfg: AiConfig): BaseAiProvider | null => {
-        if (!cfg.enabled || !cfg.apiKey) return null;
+        if (!cfg.enabled) return null;
+        // Vertex AI önceliklidir (IP-konum kısıtı olmadığından prod'da tercih).
+        if (cfg.vertex) {
+          new Logger("AiModule").log(
+            `AI sağlayıcı: Vertex AI (project=${cfg.vertex.project}, location=${cfg.vertex.location})`,
+          );
+          return new GeminiProvider({ vertex: cfg.vertex });
+        }
+        if (!cfg.apiKey) return null;
         if (checkAiKey(cfg.apiKey) !== "ok") {
           // Prod'da main.ts boot'u zaten keser; dev'de net uyarı + kapalı.
           new Logger("AiModule").warn(
@@ -54,7 +62,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
           );
           return null;
         }
-        return new GeminiProvider(cfg.apiKey);
+        return new GeminiProvider({ apiKey: cfg.apiKey });
       },
     },
     AiBudgetService,

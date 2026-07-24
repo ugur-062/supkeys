@@ -41,13 +41,35 @@ function historyToContents(history: AiHistoryTurn[]): Content[] {
  * - `thoughtsTokenCount` (reasoning) çıktı fiyatından faturalanır → output'a eklenir.
  * - Gemini implicit cache'te ayrı yazım ücreti yok → cacheWriteTokens=0.
  */
+/** API-key modu ya da Vertex AI modu (service account). */
+export type GeminiProviderInit =
+  | { apiKey: string }
+  | {
+      vertex: {
+        project: string;
+        location: string;
+        credentials: Record<string, unknown>;
+      };
+    };
+
 export class GeminiProvider extends BaseAiProvider {
   readonly name = "gemini";
   private readonly client: GoogleGenAI;
 
-  constructor(apiKey: string) {
+  constructor(init: GeminiProviderInit) {
     super();
-    this.client = new GoogleGenAI({ apiKey });
+    if ("vertex" in init) {
+      // Vertex AI: konum proje-bölgesinden gelir (IP kısıtı yok). Service
+      // account ile kimlik (googleAuthOptions.credentials).
+      this.client = new GoogleGenAI({
+        vertexai: true,
+        project: init.vertex.project,
+        location: init.vertex.location,
+        googleAuthOptions: { credentials: init.vertex.credentials },
+      });
+    } else {
+      this.client = new GoogleGenAI({ apiKey: init.apiKey });
+    }
   }
 
   /** Geçici Gemini hataları (yük/kapasite) — kısa backoff'la retry edilir.
