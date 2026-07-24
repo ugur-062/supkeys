@@ -42,9 +42,14 @@ describe("loadAiConfig", () => {
       }),
     );
     expect(on.enabled).toBe(true);
-    expect(on.models.default).toBe("gemini-2.5-flash");
+    expect(on.models.default).toBe("gemini-2.5-flash"); // env override çalışıyor
     expect(on.monthlyBudgetUsd.SILVER).toBe(6);
     expect(on.monthlyBudgetUsd.GOLD).toBe(25);
+
+    // Env verilmezse stabil -latest alias default (404/dalgalı-preview değil).
+    const def = loadAiConfig(envSource({ GEMINI_API_KEY: "test-gecerli-uzun-anahtar-fixture" }));
+    expect(def.models.default).toBe("gemini-flash-latest");
+    expect(def.models.premium).toBe("gemini-pro-latest");
   });
 
   it("fiyat tanımı olmayan model → fail-closed (throw)", () => {

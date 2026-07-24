@@ -68,34 +68,35 @@ export interface AiConfig {
 
 /**
  * Varsayılan fiyat tablosu (USD / 1M token). Cache-read ~0.1× girdi.
- * NOT (2026-07-24 canlı doğrulama): gemini-2.5-flash YENİ hesaplara üretime
- * kapalı ("no longer available to new users") — güncel flash sınıfı
- * gemini-3.5-flash, pro sınıfı gemini-3.1-pro-preview (models endpoint'inden
- * teyitli). Fiyatlar sınıf-bazlı config değerleridir; Google fiyat değiştirirse
- * yalnız bu tablo güncellenir (satırlar costUsd snapshot'ı sayesinde bozulmaz).
+ *
+ * NOT (2026-07-24 canlı doğrulama): bu API anahtarı YENİ hesap → GA 2.0 modelleri
+ * 404 (kapalı), sürüm-preview'lar (gemini-3.5-flash / 3-flash-preview) free
+ * tier'da sürekli 503 "high demand" (dalgalı). TEK STABİL: `-latest` ALIAS'ları
+ * (flash 3/3, pro 2/2, lite 2/2 canlı test) — Google güncel stabil modeli
+ * gösterir, 404 riski yok. Fiyatlar SINIF-bazlı config değerleridir (flash /
+ * pro); alias hangi sürümü gösterirse göstersin costUsd snapshot'ı bozulmaz.
  */
 const DEFAULT_PRICING: Record<string, AiModelPricing> = {
-  "gemini-3.5-flash": {
+  "gemini-flash-latest": {
     inputPerMTok: 0.3,
     outputPerMTok: 2.5,
     cacheReadPerMTok: 0.03,
   },
-  "gemini-3.1-pro-preview": {
+  "gemini-flash-lite-latest": {
+    inputPerMTok: 0.1,
+    outputPerMTok: 0.4,
+    cacheReadPerMTok: 0.01,
+  },
+  "gemini-pro-latest": {
     inputPerMTok: 2,
     outputPerMTok: 12,
     cacheReadPerMTok: 0.2,
   },
-  // Eski hesaplar env ile pinlerse diye korunuyor:
-  "gemini-2.5-flash": {
-    inputPerMTok: 0.3,
-    outputPerMTok: 2.5,
-    cacheReadPerMTok: 0.03,
-  },
-  "gemini-3.1-pro": {
-    inputPerMTok: 2,
-    outputPerMTok: 12,
-    cacheReadPerMTok: 0.2,
-  },
+  // Sürüm-pinli id'ler (env ile açıkça pinlenirse) — fiyat sınıfı korunur:
+  "gemini-3.5-flash": { inputPerMTok: 0.3, outputPerMTok: 2.5, cacheReadPerMTok: 0.03 },
+  "gemini-3.1-pro-preview": { inputPerMTok: 2, outputPerMTok: 12, cacheReadPerMTok: 0.2 },
+  "gemini-2.5-flash": { inputPerMTok: 0.3, outputPerMTok: 2.5, cacheReadPerMTok: 0.03 },
+  "gemini-3.1-pro": { inputPerMTok: 2, outputPerMTok: 12, cacheReadPerMTok: 0.2 },
 };
 
 /** Env erişimini soyutlar — ConfigService veya düz kayıt (testler) alır. */
@@ -111,9 +112,9 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
 
   const apiKey = g("GEMINI_API_KEY") ?? null;
   const models = {
-    default: g("AI_MODEL_DEFAULT") ?? "gemini-3.5-flash",
-    vision: g("AI_MODEL_VISION") ?? "gemini-3.5-flash",
-    premium: g("AI_MODEL_PREMIUM") ?? "gemini-3.1-pro-preview",
+    default: g("AI_MODEL_DEFAULT") ?? "gemini-flash-latest",
+    vision: g("AI_MODEL_VISION") ?? "gemini-flash-latest",
+    premium: g("AI_MODEL_PREMIUM") ?? "gemini-pro-latest",
   };
 
   const cfg: AiConfig = {

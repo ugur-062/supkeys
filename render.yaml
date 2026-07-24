@@ -99,10 +99,10 @@ services:
       - key: AI_PROVIDER
         value: gemini
       - key: AI_MODEL_DEFAULT
-        value: gemini-3.5-flash
+        value: gemini-flash-latest
       - key: AI_MODEL_VISION
-        value: gemini-3.5-flash
+        value: gemini-flash-latest
       - key: AI_MODEL_PREMIUM
-        value: gemini-3.1-pro-preview
+        value: gemini-pro-latest
       - key: AI_MAX_PAGES
         value: "20"

@@ -50,7 +50,47 @@ export class GeminiProvider extends BaseAiProvider {
     this.client = new GoogleGenAI({ apiKey });
   }
 
+  /** Geçici Gemini hataları (yük/kapasite) — kısa backoff'la retry edilir.
+   *  Preview/free-tier modeller sık 503 "high demand" verir; tek denemede
+   *  düşmek asistanı "yanıt veremedi"ye çevirir. Timeout/4xx retry EDİLMEZ. */
+  private static readonly MAX_RETRIES = 2;
+  private static readonly RETRY_BACKOFF_MS = [600, 1500];
+
+  private static isTransient(err: unknown): boolean {
+    const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    return (
+      m.includes('"code":503') ||
+      m.includes('"code":429') ||
+      m.includes("unavailable") ||
+      m.includes("overloaded") ||
+      m.includes("high demand") ||
+      m.includes("resource_exhausted")
+    );
+  }
+
   async complete(req: AiCompletionRequest): Promise<AiCompletionResult> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.completeOnce(req);
+      } catch (err) {
+        // Timeout kullanıcıyı bekletmesin; geçici olmayan hata da anında düşer.
+        if (
+          err instanceof AiProviderTimeoutError ||
+          !GeminiProvider.isTransient(err) ||
+          attempt >= GeminiProvider.MAX_RETRIES
+        ) {
+          throw err;
+        }
+        await new Promise((r) =>
+          setTimeout(r, GeminiProvider.RETRY_BACKOFF_MS[attempt] ?? 1500),
+        );
+      }
+    }
+  }
+
+  private async completeOnce(
+    req: AiCompletionRequest,
+  ): Promise<AiCompletionResult> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), req.timeoutMs);
     try {
