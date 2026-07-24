@@ -66,8 +66,26 @@ export interface AiConfig {
   maxPages: number;
 }
 
-/** Varsayılan fiyat tablosu (USD / 1M token). Cache-read ~0.1× girdi. */
+/**
+ * Varsayılan fiyat tablosu (USD / 1M token). Cache-read ~0.1× girdi.
+ * NOT (2026-07-24 canlı doğrulama): gemini-2.5-flash YENİ hesaplara üretime
+ * kapalı ("no longer available to new users") — güncel flash sınıfı
+ * gemini-3.5-flash, pro sınıfı gemini-3.1-pro-preview (models endpoint'inden
+ * teyitli). Fiyatlar sınıf-bazlı config değerleridir; Google fiyat değiştirirse
+ * yalnız bu tablo güncellenir (satırlar costUsd snapshot'ı sayesinde bozulmaz).
+ */
 const DEFAULT_PRICING: Record<string, AiModelPricing> = {
+  "gemini-3.5-flash": {
+    inputPerMTok: 0.3,
+    outputPerMTok: 2.5,
+    cacheReadPerMTok: 0.03,
+  },
+  "gemini-3.1-pro-preview": {
+    inputPerMTok: 2,
+    outputPerMTok: 12,
+    cacheReadPerMTok: 0.2,
+  },
+  // Eski hesaplar env ile pinlerse diye korunuyor:
   "gemini-2.5-flash": {
     inputPerMTok: 0.3,
     outputPerMTok: 2.5,
@@ -93,9 +111,9 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
 
   const apiKey = g("GEMINI_API_KEY") ?? null;
   const models = {
-    default: g("AI_MODEL_DEFAULT") ?? "gemini-2.5-flash",
-    vision: g("AI_MODEL_VISION") ?? "gemini-2.5-flash",
-    premium: g("AI_MODEL_PREMIUM") ?? "gemini-3.1-pro",
+    default: g("AI_MODEL_DEFAULT") ?? "gemini-3.5-flash",
+    vision: g("AI_MODEL_VISION") ?? "gemini-3.5-flash",
+    premium: g("AI_MODEL_PREMIUM") ?? "gemini-3.1-pro-preview",
   };
 
   const cfg: AiConfig = {
