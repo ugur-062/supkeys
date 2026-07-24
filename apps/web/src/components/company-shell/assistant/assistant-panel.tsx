@@ -69,9 +69,14 @@ export function AssistantPanel() {
   const [files, setFiles] = useState<File[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [suggestNew, setSuggestNew] = useState(false);
+  // GEÇMİŞTEN yükleme flag'i: sadece kullanıcı bir sohbeti geçmişten SEÇİNCE
+  // mesajları backend'den doldur. Aktif sohbette (yeni mesaj) optimistic akışı
+  // EZME — aksi halde her mesaj sonrası oturum yeniden yüklenip mesajlar
+  // karışıyor/kayboluyordu.
+  const [loadHistoryId, setLoadHistoryId] = useState<string | null>(null);
 
   const sessions = useAssistantSessions(true);
-  const loaded = useAssistantSession(sessionId);
+  const loaded = useAssistantSession(loadHistoryId);
   const send = useSendAssistantMessage();
   const del = useDeleteAssistantSession();
   const usage = useAiUsage();
@@ -79,7 +84,8 @@ export function AssistantPanel() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (loaded.data) {
+    if (loaded.data && loaded.data.id === loadHistoryId) {
+      setSessionId(loaded.data.id);
       setMessages(
         loaded.data.messages.map((m: AiChatMessageDto) => ({
           id: m.id,
@@ -88,18 +94,27 @@ export function AssistantPanel() {
           at: m.createdAt,
         })),
       );
+      setLoadHistoryId(null); // yüklendi — bir daha ezme
     }
-  }, [loaded.data]);
+  }, [loaded.data, loadHistoryId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, send.isPending]);
 
+  // Kullanım UYARISI (yüzde GÖSTERİLMEZ) — yalnız sınıra yaklaşınca/dolunca.
+  const nearLimit = usage.data?.enabled !== false && usage.data?.warning === true;
   const quotaFull =
     usage.data?.enabled === false ? false : (usage.data?.percentUsed ?? 0) >= 100;
 
+  const openHistory = (id: string) => {
+    setLoadHistoryId(id);
+    setShowHistory(false);
+  };
+
   const startNew = () => {
     setSessionId(null);
+    setLoadHistoryId(null);
     setMessages([]);
     setFiles([]);
     setSuggestNew(false);
@@ -175,15 +190,18 @@ export function AssistantPanel() {
           <Plus className="h-4 w-4" /> Yeni
         </button>
         <div className="flex items-center gap-1">
-          {usage.data && usage.data.enabled !== false ? (
-            <span className="mr-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-              AI %{usage.data.percentUsed.toLocaleString("tr-TR")}
+          {nearLimit ? (
+            <span
+              className="mr-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+              title="Aylık AI kullanımınız sınıra yaklaştı"
+            >
+              Kullanım yüksek
             </span>
           ) : null}
           <button
             type="button"
             onClick={() => setShowHistory((s) => !s)}
-            aria-label="Geçmiş"
+            aria-label="Geçmiş sohbetler"
             className={cn(
               "flex items-center gap-1 rounded-lg px-2 py-1 text-sm hover:bg-zinc-100",
               showHistory ? "text-brand-700" : "text-zinc-500",
@@ -200,14 +218,22 @@ export function AssistantPanel() {
             <p className="px-4 py-3 text-sm text-zinc-400">Kayıtlı sohbet yok</p>
           ) : (
             (sessions.data ?? []).map((s) => (
-              <div key={s.id} className="flex items-center gap-2 px-3 py-2 hover:bg-white">
+              <div
+                key={s.id}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 hover:bg-white",
+                  sessionId === s.id ? "bg-white" : "",
+                )}
+              >
                 <button
                   type="button"
-                  onClick={() => {
-                    setSessionId(s.id);
-                    setShowHistory(false);
-                  }}
-                  className="min-w-0 flex-1 truncate text-left text-sm text-zinc-700"
+                  onClick={() => openHistory(s.id)}
+                  className={cn(
+                    "min-w-0 flex-1 truncate text-left text-sm",
+                    sessionId === s.id
+                      ? "font-medium text-brand-700"
+                      : "text-zinc-700",
+                  )}
                 >
                   {s.title ?? "Sohbet"}
                 </button>
