@@ -11,5 +11,7 @@ import { CompanyConnectionsService } from "./services/company-connections.servic
   imports: [CompanyAuthModule, CompanyBlocksModule, EmailModule, NotificationModule],
   controllers: [CompanyConnectionsController, CompanyDirectoryController],
   providers: [CompanyConnectionsService],
+  // Faz AI-2: asistan araçları bu servisi kullanıcı kimliğiyle çağırır.
+  exports: [CompanyConnectionsService],
 })
 export class CompanyConnectionsModule {}

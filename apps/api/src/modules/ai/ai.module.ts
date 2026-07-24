@@ -12,6 +12,11 @@ import { GeminiProvider } from "./providers/gemini.provider";
 import type { BaseAiProvider } from "./providers/ai-provider.interface";
 import { TenderExtractController } from "./tender-extract/tender-extract.controller";
 import { TenderExtractService } from "./tender-extract/tender-extract.service";
+import { AssistantController } from "./assistant/assistant.controller";
+import { AssistantService } from "./assistant/assistant.service";
+import { CompanyListingsModule } from "../company-listings/company-listings.module";
+import { CompanyOrdersModule } from "../company-orders/company-orders.module";
+import { CompanyConnectionsModule } from "../company-connections/company-connections.module";
 
 /**
  * Faz AI-0 — AI altyapısı: sağlayıcı adapteri + maliyet ölçümü + firma bütçesi
@@ -23,8 +28,14 @@ import { TenderExtractService } from "./tender-extract/tender-extract.service";
  * AI kapalı (503), boot engellenmez (prod gürültüsü main.ts'te).
  */
 @Module({
-  imports: [CompanyAuthModule, NotificationModule],
-  controllers: [AiUsageController, TenderExtractController],
+  imports: [
+    CompanyAuthModule,
+    NotificationModule,
+    CompanyListingsModule,
+    CompanyOrdersModule,
+    CompanyConnectionsModule,
+  ],
+  controllers: [AiUsageController, TenderExtractController, AssistantController],
   providers: [
     {
       provide: AI_CONFIG,
@@ -50,6 +61,7 @@ import { TenderExtractService } from "./tender-extract/tender-extract.service";
     AiService,
     AiScheduler,
     TenderExtractService,
+    AssistantService,
   ],
   exports: [AiService, AiBudgetService],
 })

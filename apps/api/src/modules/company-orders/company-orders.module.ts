@@ -13,5 +13,7 @@ import { OrderScheduler } from "./schedulers/order.scheduler";
   imports: [CompanyAuthModule, StorageModule, EmailModule, NotificationModule],
   controllers: [CompanyOrdersController, CompanyOrderDocumentsController],
   providers: [CompanyOrdersService, CompanyOrderDocumentsService, OrderScheduler],
+  // Faz AI-2: asistan araçları bu servisi kullanıcı kimliğiyle çağırır.
+  exports: [CompanyOrdersService],
 })
 export class CompanyOrdersModule {}

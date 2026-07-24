@@ -9,3 +9,4 @@ export * from "./data/countries";
 export * from "./data/phone-codes";
 export * from "./helpers/tier";
 export * from "./types/ai-tender-draft";
+export * from "./types/ai-assistant";

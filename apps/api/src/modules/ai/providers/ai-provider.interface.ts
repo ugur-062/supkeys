@@ -23,6 +23,37 @@ export interface AiInlinePart {
   data: string;
 }
 
+/** AI-2 — araç (function) tanımı. `parameters` JSON Schema (OpenAPI-benzeri). */
+export interface AiToolDef {
+  name: string;
+  description: string;
+  parameters: object;
+}
+
+/** AI-2 — geçmiş konuşma parçası (metin / model'in araç çağrısı / araç sonucu).
+ *  `signature`: sağlayıcı-opak imza (Gemini 3 thought signature) — modelin
+ *  ürettiği functionCall part'ıyla birlikte geri gönderilmezse API reddeder. */
+export type AiHistoryPart =
+  | { text: string }
+  | {
+      functionCall: { name: string; args: Record<string, unknown> };
+      signature?: string;
+    }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+
+export interface AiHistoryTurn {
+  role: "user" | "model";
+  parts: AiHistoryPart[];
+}
+
+/** AI-2 — modelin talep ettiği araç çağrısı. */
+export interface AiToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  /** Sağlayıcı-opak imza (Gemini thought signature) — geri beslemede korunur. */
+  signature?: string;
+}
+
 export interface AiCompletionRequest {
   model: string;
   system?: string;
@@ -38,6 +69,10 @@ export interface AiCompletionRequest {
    * çalışır; yanıt metni şemaya uyan JSON string'idir.
    */
   responseSchema?: object;
+  /** AI-2 — araç tanımları (function-calling). Prompt'un önünde sabit prefix. */
+  tools?: AiToolDef[];
+  /** AI-2 — önceki konuşma + araç turları (prompt'tan ÖNCE gelir). */
+  history?: AiHistoryTurn[];
   maxOutputTokens: number;
   timeoutMs: number;
 }
@@ -45,6 +80,8 @@ export interface AiCompletionRequest {
 export interface AiCompletionResult {
   text: string;
   usage: AiTokenUsage;
+  /** AI-2 — modelin bu turda talep ettiği araç çağrıları (varsa). */
+  toolCalls?: AiToolCall[];
 }
 
 /**

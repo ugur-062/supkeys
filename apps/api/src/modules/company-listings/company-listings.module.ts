@@ -18,5 +18,7 @@ import { CompanyListingsService } from "./services/company-listings.service";
   ],
   controllers: [CompanyListingsController],
   providers: [CompanyListingsService, ListingScheduler],
+  // Faz AI-2: asistan araçları bu servisi kullanıcı kimliğiyle çağırır.
+  exports: [CompanyListingsService],
 })
 export class CompanyListingsModule {}

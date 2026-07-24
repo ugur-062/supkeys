@@ -1,12 +1,37 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type Content } from "@google/genai";
 import {
   AiProviderError,
   AiProviderTimeoutError,
   BaseAiProvider,
   type AiCompletionRequest,
   type AiCompletionResult,
+  type AiHistoryTurn,
   type AiTokenUsage,
+  type AiToolCall,
 } from "./ai-provider.interface";
+
+/** AiHistoryTurn[] → Gemini Content[] (metin / functionCall / functionResponse). */
+function historyToContents(history: AiHistoryTurn[]): Content[] {
+  return history.map((turn) => ({
+    role: turn.role,
+    parts: turn.parts.map((p) => {
+      if ("text" in p) return { text: p.text };
+      if ("functionCall" in p) {
+        // Gemini 3 thought signature'ı functionCall part'ıyla birlikte geri gider.
+        return {
+          functionCall: { name: p.functionCall.name, args: p.functionCall.args },
+          ...(p.signature ? { thoughtSignature: p.signature } : {}),
+        };
+      }
+      return {
+        functionResponse: {
+          name: p.functionResponse.name,
+          response: p.functionResponse.response,
+        },
+      };
+    }),
+  }));
+}
 
 /**
  * Faz AI-0 — Gemini adapter'ı (@google/genai). Usage normalizasyonu:
@@ -29,22 +54,23 @@ export class GeminiProvider extends BaseAiProvider {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), req.timeoutMs);
     try {
-      // AI-1: vision part'ları (inlineData) + metin TEK içerikte; structured
-      // output istenmişse JSON modu (responseSchema).
-      const contents =
-        req.parts && req.parts.length > 0
-          ? [
-              {
-                role: "user",
-                parts: [
-                  ...req.parts.map((p) => ({
-                    inlineData: { mimeType: p.mimeType, data: p.data },
-                  })),
-                  { text: req.prompt },
-                ],
-              },
-            ]
-          : req.prompt;
+      // Son kullanıcı turu: metin + (AI-1) vision part'ları. AI-2 araç
+      // döngüsünde prompt BOŞ olabilir — history functionResponse ile biter ve
+      // model devam eder; boş user turu EKLENMEZ (Gemini iki ardışık user
+      // turunu / fnResponse sonrası boş user turunu reddeder).
+      const userParts: object[] = [
+        ...(req.parts ?? []).map((p) => ({
+          inlineData: { mimeType: p.mimeType, data: p.data },
+        })),
+        ...(req.prompt ? [{ text: req.prompt }] : []),
+      ];
+      // AI-2: geçmiş turlar (metin + araç çağrı/sonuçları) prompt'tan ÖNCE.
+      const contents: Content[] = [
+        ...(req.history ? historyToContents(req.history) : []),
+        ...(userParts.length > 0
+          ? [{ role: "user", parts: userParts as Content["parts"] }]
+          : []),
+      ];
       const resp = await this.client.models.generateContent({
         model: req.model,
         contents,
@@ -56,6 +82,20 @@ export class GeminiProvider extends BaseAiProvider {
             ? {
                 responseMimeType: "application/json",
                 responseSchema: req.responseSchema,
+              }
+            : {}),
+          // AI-2: araç tanımları (function-calling).
+          ...(req.tools && req.tools.length > 0
+            ? {
+                tools: [
+                  {
+                    functionDeclarations: req.tools.map((t) => ({
+                      name: t.name,
+                      description: t.description,
+                      parametersJsonSchema: t.parameters,
+                    })),
+                  },
+                ],
               }
             : {}),
         },
@@ -70,7 +110,24 @@ export class GeminiProvider extends BaseAiProvider {
         cacheReadTokens: cached,
         cacheWriteTokens: 0,
       };
-      return { text: resp.text ?? "", usage };
+      // functionCall + thoughtSignature aynı Part'ta — ham parts'tan eşleştir
+      // (resp.functionCalls düzleştirilmişi imzayı taşımaz).
+      const respParts = resp.candidates?.[0]?.content?.parts ?? [];
+      const toolCalls: AiToolCall[] = [];
+      for (const p of respParts) {
+        if (p.functionCall?.name) {
+          toolCalls.push({
+            name: p.functionCall.name,
+            args: (p.functionCall.args ?? {}) as Record<string, unknown>,
+            ...(p.thoughtSignature ? { signature: p.thoughtSignature } : {}),
+          });
+        }
+      }
+      return {
+        text: resp.text ?? "",
+        usage,
+        ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+      };
     } catch (err) {
       if (controller.signal.aborted) {
         throw new AiProviderTimeoutError(

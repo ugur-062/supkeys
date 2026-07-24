@@ -17,6 +17,9 @@ const STALE_RESERVATION_MS = 10 * 60 * 1000;
  */
 const EXTRACT_FILE_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** AI-2 — dokunulmayan sohbet ömrü: 90 gün (araç sonuçları karşı-taraf içeriği taşır). */
+const CHAT_SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
 /**
  * Faz AI-0 — rezervasyon reaper'ı: settle/fail hiç çalışmadıysa (process crash,
  * elektrik kesintisi) RESERVED satırlar sonsuza dek bütçede asılı kalırdı.
@@ -44,6 +47,11 @@ export class AiScheduler implements OnModuleInit {
       "ai.cleanupExtractFiles",
       "24 saatten eski geçici AI belge yüklemelerini sil (KVKK/depolama)",
       "günlük 04:00",
+    );
+    this.cronRegistry?.register(
+      "ai.cleanupChatSessions",
+      "90 gün dokunulmamış asistan sohbetlerini sil (KVKK)",
+      "günlük 04:10",
     );
   }
 
@@ -80,6 +88,24 @@ export class AiScheduler implements OnModuleInit {
     }
     if (deleted > 0) {
       this.logger.log(`${deleted} geçici AI belge dosyası silindi (24h TTL)`);
+    }
+  }
+
+  /** AI-2 — 90 gün dokunulmamış sohbetleri sil (mesajlar cascade). */
+  @Cron("10 4 * * *", { timeZone: "Europe/Istanbul" })
+  async cleanupChatSessions(): Promise<void> {
+    return trackCronRun(this.cronRegistry, "ai.cleanupChatSessions", () =>
+      this.doCleanupChatSessions(),
+    );
+  }
+
+  private async doCleanupChatSessions(): Promise<void> {
+    const cutoff = new Date(Date.now() - CHAT_SESSION_TTL_MS);
+    const { count } = await this.prisma.aiChatSession.deleteMany({
+      where: { lastMessageAt: { lt: cutoff } },
+    });
+    if (count > 0) {
+      this.logger.log(`${count} eski asistan sohbeti silindi (90 gün TTL)`);
     }
   }
 

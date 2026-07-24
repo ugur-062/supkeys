@@ -13,6 +13,7 @@ import * as Headless from "@headlessui/react";
 import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { AssistantLauncher } from "./assistant/assistant-launcher";
 import { CompanySidebarContent } from "./sidebar";
 import { CompanyTopbar } from "./topbar";
 
@@ -107,6 +108,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </main>
+
+      {/* Faz AI-2 — asistan (Silver+ ∧ SA/ST'de görünür; kapı içeride) */}
+      <AssistantLauncher />
     </div>
   );
 }

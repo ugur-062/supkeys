@@ -295,6 +295,54 @@ model AiUsage {
   @@map("ai_usage")
 }
 
+// ============================================================
+// Faz AI-2 — Asistan sohbeti (kalıcı, kullanıcıya scope'lu). Sohbet KVKK gereği
+// 90 gün dokunulmazsa AiScheduler cron'u siler. RLS BİLİNÇLİ yok (userId+
+// companyId scope servis içinde). Asistan araçları DB'ye DEĞİL sistemin okuma
+// SERVİSLERİNE (kullanıcı kimliğiyle) gider → yetki katmanı bedava çalışır.
+// ============================================================
+
+enum AiChatRole {
+  USER
+  ASSISTANT
+}
+
+model AiChatSession {
+  id                   String          @id @default(cuid())
+  companyId            String
+  userId               String
+  title                String?
+  /** Kayan pencere taşınca üretilen tek özet (maliyet kontrolü). */
+  summary              String?
+  /** Özetin hangi mesaj seq'ine kadar kapsadığı (tekrar özetleme önlenir). */
+  summarizedThroughSeq Int             @default(0)
+  /** Kullanıcı turu sayısı (tur sınırı önerisi + seq üretimi). */
+  turnCount            Int             @default(0)
+  createdAt            DateTime        @default(now())
+  lastMessageAt        DateTime        @default(now())
+  archivedAt           DateTime?
+  messages             AiChatMessage[]
+
+  @@index([companyId, userId, lastMessageAt])
+  @@map("ai_chat_sessions")
+}
+
+model AiChatMessage {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /** Oturum içi sıra (1'den artan). */
+  seq       Int
+  role      AiChatRole
+  content   String
+  /** Asistan turunda kullanılan araç izleri (ad + özet) — teşhis/gösterim. */
+  toolTrace Json?
+  createdAt DateTime      @default(now())
+
+  @@index([sessionId, seq])
+  @@map("ai_chat_messages")
+}
+
 enum CompanyRole {
   SAHIP // firma sahibi — Yönetici ⊇ + billing/silme/devir. Firmada TEK kişi.
   YONETICI // hesap yönetimi: kullanıcı/rol, ayarlar, bağlantılar
