@@ -19,7 +19,7 @@ Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + laci
 ## Repo Yapısı
 ```
 apps/api      NestJS         port 4000  api.rothern.com
-apps/web      Next.js        port 3000  app.rothern.com  (tenant + supplier rotaları)
+apps/web      Next.js        port 3000  www.rothern.com  (tenant + supplier rotaları)
 apps/admin    Next.js        port 3001  admin.rothern.com
 packages/db       @rothern/db        Prisma schema + migrations + seed + scripts
 packages/shared   @rothern/shared    Zod + types + helpers (slug, short-code, tender-number)
