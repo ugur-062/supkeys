@@ -450,9 +450,19 @@ export class StorageService implements OnModuleInit {
 
   /** Idempotent — istenen config zaten kuruluysa skip, değilse PutBucketCors. */
   private async ensureCorsPolicy(bucketName: string): Promise<void> {
+    const current = await this.rawCors(bucketName);
+    // PAYLAŞILAN BUCKET: dev ve prod AYNI bucket'lara koşar ve her ortam yalnız
+    // KENDİ CORS_ORIGINS'ini bilir. Replace, diğer ortamın origin'lerini siler
+    // (prod deploy localhost'u, lokal boot www.rothern.com'u düşürür → o ortamın
+    // tarayıcı PUT'ları kırılır). Bu yüzden mevcut origin'lerle UNION'lanır;
+    // origin'ler yalnız birikir, env'den silmek bucket CORS'undan silmez.
+    // Güvenlik sınırı CORS değil presigned imzadır (bkz. buildAllowedOrigins).
+    const currentOrigins = current.flatMap((r) => r.AllowedOrigins ?? []);
     const desired: CORSRule[] = [
       {
-        AllowedOrigins: this.buildAllowedOrigins(),
+        AllowedOrigins: [
+          ...new Set([...this.buildAllowedOrigins(), ...currentOrigins]),
+        ].sort(),
         AllowedMethods: CORS_ALLOWED_METHODS,
         AllowedHeaders: CORS_ALLOWED_HEADERS,
         ExposeHeaders: CORS_EXPOSE_HEADERS,
@@ -460,7 +470,6 @@ export class StorageService implements OnModuleInit {
       },
     ];
 
-    const current = await this.rawCors(bucketName);
     if (this.corsRulesEqual(current, desired)) {
       this.logger.log(
         `R2 bucket "${bucketName}" CORS policy güncel (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
