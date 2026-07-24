@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import type {
@@ -192,11 +193,15 @@ export class AssistantService {
         errorCode: "provider_error",
         usage: sumHasTokens(totalUsage) ? totalUsage : undefined,
       });
-      this.logger.warn(
-        `Asistan sağlayıcı hatası: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      throw new ForbiddenException(
-        "Asistan şu anda yanıt veremedi — lütfen tekrar deneyin.",
+      const raw = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Asistan sağlayıcı hatası: ${raw}`);
+      // Gemini durum kodunu kullanıcıya-güvenli biçimde yansıt (anahtar/gövde
+      // sızmaz): 503/429 = yoğunluk (tekrar dene), diğer = model/config sorunu.
+      const code = /"code":\s*(\d+)/.exec(raw)?.[1];
+      throw new ServiceUnavailableException(
+        code === "503" || code === "429"
+          ? "AI servisi şu an yoğun — birkaç saniye sonra tekrar deneyin."
+          : `Asistan şu an yanıt veremedi${code ? ` (AI ${code})` : ""} — lütfen tekrar deneyin.`,
       );
     }
 
