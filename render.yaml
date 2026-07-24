@@ -90,3 +90,19 @@ services:
         value: Rothern
       - key: INITIAL_ADMIN_LAST_NAME
         value: Admin
+      # ── AI (Faz AI-0/1/2 — Gemini) ──
+      # GEMINI_API_KEY dashboard'da doldurulur (secret). YOKSA tüm AI özellikleri
+      # KAPALI (asistan/belge-doldurma/kullanım 503). Model id'leri sabit değer
+      # (fiyat/model değişince güncelle); default'lar koda da gömülü.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL_DEFAULT
+        value: gemini-3.5-flash
+      - key: AI_MODEL_VISION
+        value: gemini-3.5-flash
+      - key: AI_MODEL_PREMIUM
+        value: gemini-3.1-pro-preview
+      - key: AI_MAX_PAGES
+        value: "20"
