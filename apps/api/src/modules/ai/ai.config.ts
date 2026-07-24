@@ -62,6 +62,8 @@ export interface AiConfig {
   /** Tek istekte üretilebilecek azami çıktı token'ı (tahmin de bunu kullanır). */
   maxOutputTokens: number;
   timeoutMs: number;
+  /** AI-1 — belge başına sayfa/görüntü tavanı (aşarsa "ilgili bölümü seçin"). */
+  maxPages: number;
 }
 
 /** Varsayılan fiyat tablosu (USD / 1M token). Cache-read ~0.1× girdi. */
@@ -119,6 +121,7 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
     },
     maxOutputTokens: Number(g("AI_MAX_OUTPUT_TOKENS") ?? 8192),
     timeoutMs: Number(g("AI_TIMEOUT_MS") ?? 60_000),
+    maxPages: Number(g("AI_MAX_PAGES") ?? 20),
   };
 
   // Fail-closed: seçili modellerin fiyatı yoksa maliyet hesaplanamaz →

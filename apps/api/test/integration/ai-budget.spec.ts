@@ -61,6 +61,7 @@ function makeCfg(over: {
     },
     maxOutputTokens: over.maxOutputTokens ?? 1000,
     timeoutMs: 5000,
+    maxPages: 20,
   };
 }
 

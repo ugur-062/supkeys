@@ -16,11 +16,28 @@ export interface AiTokenUsage {
   cacheWriteTokens: number;
 }
 
+/** AI-1 — vision içerik parçası (görüntü veya PDF, base64). */
+export interface AiInlinePart {
+  mimeType: string;
+  /** base64 kodlu içerik */
+  data: string;
+}
+
 export interface AiCompletionRequest {
   model: string;
   system?: string;
-  /** AI-0: düz metin. AI-1 vision part'larını (image/pdf) ekleyecek. */
   prompt: string;
+  /**
+   * AI-1 — vision part'ları (küçültülmüş görüntüler veya doğrudan PDF).
+   * Çoklu part TEK çağrıda gider (4 sayfa = 1 istek): sabit prompt bir kez
+   * ödenir, sayfalar-arası bölünen tablolarda doğruluk artar.
+   */
+  parts?: AiInlinePart[];
+  /**
+   * AI-1 — structured output: verilirse sağlayıcı JSON modunda (responseSchema)
+   * çalışır; yanıt metni şemaya uyan JSON string'idir.
+   */
+  responseSchema?: object;
   maxOutputTokens: number;
   timeoutMs: number;
 }

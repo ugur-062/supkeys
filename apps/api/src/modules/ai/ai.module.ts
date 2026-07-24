@@ -10,6 +10,8 @@ import { AiService } from "./ai.service";
 import { AiUsageController } from "./ai-usage.controller";
 import { GeminiProvider } from "./providers/gemini.provider";
 import type { BaseAiProvider } from "./providers/ai-provider.interface";
+import { TenderExtractController } from "./tender-extract/tender-extract.controller";
+import { TenderExtractService } from "./tender-extract/tender-extract.service";
 
 /**
  * Faz AI-0 — AI altyapısı: sağlayıcı adapteri + maliyet ölçümü + firma bütçesi
@@ -22,7 +24,7 @@ import type { BaseAiProvider } from "./providers/ai-provider.interface";
  */
 @Module({
   imports: [CompanyAuthModule, NotificationModule],
-  controllers: [AiUsageController],
+  controllers: [AiUsageController, TenderExtractController],
   providers: [
     {
       provide: AI_CONFIG,
@@ -47,6 +49,7 @@ import type { BaseAiProvider } from "./providers/ai-provider.interface";
     AiBudgetService,
     AiService,
     AiScheduler,
+    TenderExtractService,
   ],
   exports: [AiService, AiBudgetService],
 })

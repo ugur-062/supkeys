@@ -34,6 +34,8 @@ import {
 } from "./publish-confirm-dialog";
 import { SaveTemplateDialog } from "./save-template-dialog";
 import type { StagedListingDoc } from "./staged-documents";
+import type { AiTenderExtractResult } from "@rothern/shared";
+import { AiFlagsBanner } from "../ai-import/ai-flags-banner";
 import { Step0TypeScope } from "./step-0-type-scope";
 import { Step1Info } from "./step-1-info";
 import { Step2Items } from "./step-2-items";
@@ -208,12 +210,15 @@ export function TenderWizard({
   listingId,
   initialValues,
   listingType = "ALIM",
+  aiImport,
 }: {
   mode?: "create" | "edit";
   listingId?: string;
   initialValues?: TenderFormData;
   /** SATIS: satış ihalesi — format adımı yok, taban/hemen-al fiyat var. */
   listingType?: "ALIM" | "SATIS";
+  /** Faz AI-1 — form AI ile belgeden doldurulduysa çıkarım sonucu (bant + refine). */
+  aiImport?: AiTenderExtractResult;
 } = {}) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -224,6 +229,10 @@ export function TenderWizard({
   // (edit modunda FilesTab doğrudan yükler, staging gerekmez).
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [docsUploading, setDocsUploading] = useState(false);
+  // Faz AI-1 — refine sonrası güncel çıkarım sonucu (bant içeriği).
+  const [aiResult, setAiResult] = useState<AiTenderExtractResult | undefined>(
+    aiImport,
+  );
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
@@ -459,6 +468,11 @@ export function TenderWizard({
 
         {/* Üstte adım göstergesi */}
         <WizardSteps current={step} onStepClick={setStep} meta={stepMeta(isSatis)} />
+
+        {/* Faz AI-1 — AI doldurma bandı (işaretli alanlar + refine) */}
+        {aiResult ? (
+          <AiFlagsBanner result={aiResult} onResult={setAiResult} />
+        ) : null}
 
         {/* İçerik */}
         <div className="min-w-0 pt-2">

@@ -12,6 +12,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
@@ -293,6 +294,51 @@ export class StorageService implements OnModuleInit {
       }
       throw err;
     }
+  }
+
+  /**
+   * Sunucu-içi okuma (Faz AI-1) — nesne içeriğini Buffer olarak döner. AI
+   * belge işleme gibi backend'in dosyayı KENDİSİNİN tüketmesi gereken akışlar
+   * için; kullanıcıya indirme her zaman presigned GET ile.
+   */
+  async getObject(bucket: BucketKind, key: string): Promise<Buffer> {
+    this.assertKeyBucket(bucket, key);
+    const result = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucketName(bucket), Key: key }),
+    );
+    const bytes = await result.Body?.transformToByteArray();
+    if (!bytes) {
+      throw new InternalServerErrorException("Dosya içeriği okunamadı");
+    }
+    return Buffer.from(bytes);
+  }
+
+  /**
+   * Prefix altındaki nesneleri listeler (Faz AI-1 — geçici ai-extract/
+   * dosyalarının TTL temizliği). Sayfalamayı içeride tüketir; anahtar +
+   * lastModified döner.
+   */
+  async listObjects(
+    bucket: BucketKind,
+    prefix: string,
+  ): Promise<{ key: string; lastModified?: Date }[]> {
+    this.assertKeyBucket(bucket, prefix);
+    const out: { key: string; lastModified?: Date }[] = [];
+    let token: string | undefined;
+    do {
+      const result = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucketName(bucket),
+          Prefix: prefix,
+          ContinuationToken: token,
+        }),
+      );
+      for (const o of result.Contents ?? []) {
+        if (o.Key) out.push({ key: o.Key, lastModified: o.LastModified });
+      }
+      token = result.IsTruncated ? result.NextContinuationToken : undefined;
+    } while (token);
+    return out;
   }
 
   async deleteObject(bucket: BucketKind, key: string): Promise<void> {

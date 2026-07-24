@@ -282,6 +282,9 @@ model AiUsage {
   cacheWriteTokens Int           @default(0)
   costUsd          Decimal       @db.Decimal(12, 6)
   errorCode        String?
+  // AI-1+: özellik bağlamı (route: text|pdf_vision|image_vision, sayfa sayısı
+  // vb.) — ölçüm/kalibrasyon için; PII/belge içeriği YAZILMAZ.
+  metadata         Json?
   createdAt        DateTime      @default(now())
   settledAt        DateTime?
 

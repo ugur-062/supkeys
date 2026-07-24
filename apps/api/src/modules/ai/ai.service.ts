@@ -18,6 +18,7 @@ import {
   AiProviderError,
   AiProviderTimeoutError,
   BaseAiProvider,
+  type AiInlinePart,
 } from "./providers/ai-provider.interface";
 
 /**
@@ -42,6 +43,17 @@ export interface AiCallOptions {
    * veya kullanıcı "tekrar dene" dedi → bu deneme premium adayıyla başlar.
    */
   premiumRetry?: boolean;
+  /** AI-1 — vision part'ları (küçültülmüş görüntü / doğrudan PDF), tek çağrıda. */
+  parts?: AiInlinePart[];
+  /** AI-1 — structured output şeması (Gemini responseSchema). */
+  responseSchema?: object;
+  /**
+   * AI-1 — metin-dışı girdinin token tahmini (PDF ~300/sayfa, görüntü ~1300).
+   * Bütçe rezervasyonu ve premium eşiği doğru çalışsın diye tahmine eklenir.
+   */
+  extraInputTokenEstimate?: number;
+  /** AiUsage.metadata'ya yazılacak özellik bağlamı (route, sayfa sayısı vb.). */
+  metadata?: Record<string, unknown>;
 }
 
 export interface AiCallResult {
@@ -99,12 +111,12 @@ export class AiService {
     const provider = this.provider!;
     const { models, upgrade } = this.config;
 
-    // Tahmin (fail-closed): girdi ~4 karakter/token; çıktı maxOutputTokens
-    // tavanından — gerçek maliyet tahmini aşamaz, bütçe taşması yapısal olarak
-    // kapalı kalır.
-    const estInputTokens = Math.ceil(
-      (options.prompt.length + (options.system?.length ?? 0)) / 4,
-    );
+    // Tahmin (fail-closed): girdi ~4 karakter/token + metin-dışı part tahmini
+    // (AI-1); çıktı maxOutputTokens tavanından — gerçek maliyet tahmini aşamaz,
+    // bütçe taşması yapısal olarak kapalı kalır.
+    const estInputTokens =
+      Math.ceil((options.prompt.length + (options.system?.length ?? 0)) / 4) +
+      (options.extraInputTokenEstimate ?? 0);
 
     // YÜKSELTME KURALLARI — kod kararı, AI değil (config eşikleri):
     // 1) girdi eşiğini aşan belge  2+3) çağıran özelliğin premiumRetry sinyali
@@ -154,6 +166,7 @@ export class AiService {
       userId: user.userId,
       userEmail: user.email,
       feature: options.feature,
+      metadata: options.metadata,
       candidates,
     });
 
@@ -162,6 +175,8 @@ export class AiService {
         model: reservation.model,
         prompt: options.prompt,
         system: options.system,
+        parts: options.parts,
+        responseSchema: options.responseSchema,
         maxOutputTokens: this.config.maxOutputTokens,
         timeoutMs: this.config.timeoutMs,
       });

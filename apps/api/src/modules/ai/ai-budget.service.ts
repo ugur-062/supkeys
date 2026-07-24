@@ -130,6 +130,8 @@ export class AiBudgetService {
     userId: string;
     userEmail?: string | null;
     feature: string;
+    /** Özellik bağlamı (route/sayfa sayısı) — ölçüm; PII/belge içeriği YAZILMAZ. */
+    metadata?: Record<string, unknown>;
     candidates: ReserveCandidate[];
   }): Promise<ReserveResult> {
     const { caps } = this.config;
@@ -186,6 +188,8 @@ export class AiBudgetService {
               model: cand.model,
               status: "RESERVED",
               costUsd: est,
+              metadata:
+                (args.metadata as Prisma.InputJsonValue | undefined) ?? undefined,
             },
             select: { id: true },
           });

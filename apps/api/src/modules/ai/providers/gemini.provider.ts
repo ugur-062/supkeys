@@ -29,13 +29,35 @@ export class GeminiProvider extends BaseAiProvider {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), req.timeoutMs);
     try {
+      // AI-1: vision part'ları (inlineData) + metin TEK içerikte; structured
+      // output istenmişse JSON modu (responseSchema).
+      const contents =
+        req.parts && req.parts.length > 0
+          ? [
+              {
+                role: "user",
+                parts: [
+                  ...req.parts.map((p) => ({
+                    inlineData: { mimeType: p.mimeType, data: p.data },
+                  })),
+                  { text: req.prompt },
+                ],
+              },
+            ]
+          : req.prompt;
       const resp = await this.client.models.generateContent({
         model: req.model,
-        contents: req.prompt,
+        contents,
         config: {
           maxOutputTokens: req.maxOutputTokens,
           abortSignal: controller.signal,
           ...(req.system ? { systemInstruction: req.system } : {}),
+          ...(req.responseSchema
+            ? {
+                responseMimeType: "application/json",
+                responseSchema: req.responseSchema,
+              }
+            : {}),
         },
       });
       const meta = resp.usageMetadata;
