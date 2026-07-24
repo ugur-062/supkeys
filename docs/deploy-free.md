@@ -1,5 +1,11 @@
 # Ücretsiz Yayın — Vercel (web+admin) + Render (API) + Supabase (DB)
 
+> **GÜNCEL DURUM (2026-07-25):** Canlı yayın BU stack'te ve custom domain'lere
+> taşındı: web `www.rothern.com` + admin `admin.rothern.com` (Vercel), api
+> `api.rothern.com` (Render, Cloudflare proxy). Aşağıdaki ham `*.vercel.app` /
+> `onrender.com` adresleri İLK kurulum adımlarıdır; canlı env/CSRF sırası için
+> `docs/launch-checklist.md` esastır. (`app.rothern.com` diye bir domain YOK.)
+
 Demo/ilk yayın için ücretsiz stack. Sıra önemli: **Supabase → Render (API) → Vercel (frontend) → CORS geri-bağla**.
 
 ## 0. Ön koşul
@@ -52,12 +58,14 @@ CORS_ORIGINS yine de doldurulmalı — custom domain'e geçince tek kaynak o.)
 - **`NODE_ENV=production`** set mi? (Render otomatik VERMEZ.) Cookie
   `Secure/SameSite=None`, CSRF modu ve R2 `prod/` prefix'i buna bakar —
   yoksa cross-domain'de login çalışmaz.
-- **`COOKIE_SAMESITE` GİRME** (boş bırak): prod varsayılanı `none` —
-  Vercel↔Render cross-domain için doğru olan bu.
-- **`COOKIE_DOMAIN` GİRME**: API kendi sahibi olmadığı domain'e cookie
-  yazamaz, tarayıcı düşürür → auth komple çöker.
+- **`COOKIE_SAMESITE=lax` + `COOKIE_DOMAIN=.rothern.com` ZORUNLU** (custom-domain
+  same-site kurulum). 2026-07-19'dan beri boot guard'lı: `assertProdConfigSanity`
+  prod'da `none`/unset'i VE `COOKIE_DOMAIN`'siz `lax`'ı REDDEDER → deploy fail.
+  (Eski cross-site fazının "SameSite=None + COOKIE_DOMAIN girme" tavsiyesi artık
+  GEÇERSİZ ve boot'u kırar; ham `*.vercel.app` adresleriyle deneme yapılacaksa
+  `NODE_ENV=production` kullanma.)
 - Doğrulama: login yanıtının `Set-Cookie` header'ında
-  `rk_company=...; HttpOnly; Secure; SameSite=None` görülmeli.
+  `rk_company=...; HttpOnly; Secure; SameSite=Lax; Domain=.rothern.com` görülmeli.
 
 ## 5. Resend domain (gerçek e-posta için)
 - resend.com → Domains → domain ekle + SPF/DKIM/DMARC doğrula.

@@ -29,7 +29,7 @@ export function assertProdWebUrl(config: ConfigService): void {
   }
   if (/localhost|127\.0\.0\.1/i.test(url)) {
     throw new Error(
-      `WEB_URL prod'da localhost olamaz (aldı: "${url}") — e-posta linkleri erişilemez olur. Gerçek domain'i verin (ör. https://app.rothern.com).`,
+      `WEB_URL prod'da localhost olamaz (aldı: "${url}") — e-posta linkleri erişilemez olur. Gerçek domain'i verin (ör. https://www.rothern.com).`,
     );
   }
 }

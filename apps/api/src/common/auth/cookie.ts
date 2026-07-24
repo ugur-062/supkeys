@@ -49,7 +49,7 @@ function baseOptions(config: ConfigService, persistent: boolean) {
   // SameSite kuralı: "none" tarayıcıda Secure gerektirir → aşağıda secure zorlanır.
   // Prod VARSAYILANI "none" — Vercel+Render gibi cross-domain kurulumlar
   // out-of-the-box çalışsın (auth cookie'si cross-site XHR'de gönderilir).
-  // Same-site prod (app.rothern.com + api.rothern.com, COOKIE_DOMAIN) isteyen
+  // Same-site prod (www.rothern.com + api.rothern.com, COOKIE_DOMAIN) isteyen
   // COOKIE_SAMESITE=lax ile geri alır. Dev'de (localhost, HTTP) "lax".
   const configuredSameSite = (config.get<string>("COOKIE_SAMESITE") || "")
     .toLowerCase();

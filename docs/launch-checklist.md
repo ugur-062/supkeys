@@ -114,33 +114,26 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
 (`csrf.guard.ts:70`) → CSRF koruması yalnız CORS'a kalıyor. Bu yüzden aşağıdaki
 **SIRALI BAĞIMLILIK** izlenmeli — ters sıra girişi kırar:
 
-- [ ] **1) Custom domain'leri bağla:** API → `api.rothern.com` (Render), web →
-      `app.rothern.com`, admin → `admin.rothern.com` (Vercel). Hepsi `rothern.com`
-      altında = **same-site**.
-- [ ] **2) DOĞRULA:** üç domain de HTTPS'te açılıyor + `NEXT_PUBLIC_API_URL=https://api.rothern.com/api`
+- [x] **1) Custom domain'leri bağla:** API → `api.rothern.com` (Render, Cloudflare
+      proxy), web → `www.rothern.com`, admin → `admin.rothern.com` (Vercel). Hepsi
+      `rothern.com` altında = **same-site**. *(2026-07-25 canlıda doğrulandı; apex
+      `rothern.com` → www'ye 308. DİKKAT: eski taslaklardaki `app.rothern.com` HİÇ
+      kurulmadı — web'in gerçek domain'i `www`.)*
+- [x] **2) DOĞRULA:** üç domain de HTTPS'te açılıyor + `NEXT_PUBLIC_API_URL=https://api.rothern.com/api`
       + `COOKIE_DOMAIN=.rothern.com` + `CORS_ORIGINS` yalnız gerçek domain'ler.
-- [ ] **3) SONRA `COOKIE_SAMESITE=lax` set et** → CsrfGuard double-submit'i (header
-      eksik/boş → 403) VE tarayıcı SameSite backstop'u AÇILIR. Doğrula: giriş çalışıyor +
-      header'sız mutating istek 403.
+      *(2026-07-25: üç domain HTTPS'te 200 doğrulandı.)*
+- [x] **3) SONRA `COOKIE_SAMESITE=lax` set et** → CsrfGuard double-submit'i (header
+      eksik/boş → 403) VE tarayıcı SameSite backstop'u AÇILIR. *(Artık boot guard'lı:
+      `assertProdConfigSanity` prod'da `none`/unset'i VE `COOKIE_DOMAIN`'siz `lax`'ı
+      REDDEDER — yanlış kombinasyon deploy'da patlar; api canlıda ayakta ⇒ set edilmiş.)*
 - [ ] **4) `CORS_ALLOW_VERCEL` prod'da boş/`false`** (kod default false) — `*.vercel.app`
-      joker origin'i kapalı kalsın.
+      joker origin'i kapalı kalsın. (Render env'inden gözle doğrula.)
 
-> ⚠️ **GEÇİŞ (şimdi geçerli):** `*.vercel.app` jokeri artık VARSAYILAN KAPALI. Demo
-> hâlâ `supkeys-web.vercel.app`'te olduğundan, custom domain bağlanana kadar CORS
-> onu REDDEDER → frontend API'ye ulaşamaz. Çözüm (tercih sırası): **(a)** demo'nun
-> tam origin'ini `CORS_ORIGINS`'e ekle (`https://supkeys-web.vercel.app` — strict,
-> önerilen); **(b)** rotating preview URL'leri varsa `CORS_ALLOW_VERCEL=true`
-> (TÜM vercel.app'i açar — yalnız demo/preview, prod'da ASLA).
-
-> ⚠️ **Şu an ham provider domain'lerindeyiz** (`rothern-api.onrender.com` +
-> `supkeys-web.vercel.app`) = **CROSS-SITE**. Bu topolojide `COOKIE_SAMESITE=lax`
-> cookie'yi cross-site göndermez → **GİRİŞ ÇALIŞMAZ**. Sırayı (1→2→3) tamamlamadan
-> `lax` set ETME.
->
-> **Cross-site kalınacaksa** (custom domain bağlanmayacaksa): `none` zorunlu →
-> double-submit çalışamaz → CSRF'i **strict origin/referer allowlist guard'ıyla**
-> sağla (vercel-wildcard OLMADAN). Bu ayrı iş (item 4) — cross-site prod'a geçmeden
-> ÖNCE yapılmalı.
+> ✅ **GEÇİŞ TAMAMLANDI (2026-07-25):** ham provider domain'leri
+> (`supkeys-web.vercel.app` + `rothern-api.onrender.com`, cross-site) fazı geride —
+> custom domain'ler bağlı, same-site kurulum aktif. O faza özgü uyarılar (lax'ın
+> cross-site'ta girişi kırması, demo vercel-origin'inin CORS'a eklenmesi) kaldırıldı;
+> gerekirse git geçmişinde. Prod artık cross-site'a DÖNEMEZ: boot guard `none`'u reddeder.
 
 ---
 

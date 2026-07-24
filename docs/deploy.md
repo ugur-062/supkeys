@@ -1,12 +1,17 @@
 # Rothern — Üretim Dağıtımı (Coolify + Hetzner)
 
+> **⚠️ GELECEK PLAN — ŞU AN CANLI DEĞİL:** Bugünkü canlı yayın **Vercel (web+admin,
+> `www.rothern.com`/`admin.rothern.com`) + Render (api, `api.rothern.com`)** — bkz.
+> `docs/deploy-free.md` (ilk kurulum) + `docs/launch-checklist.md` (canlı env).
+> Bu doküman backlog'daki Coolify+Hetzner hedef kurulumunu anlatır.
+
 Bu repo **3 stateless container** olarak dağıtılır. Tüm stateful/yan servisler
 managed'dir → sunucuda DB/Redis/S3 YOK.
 
 | Uygulama | Dockerfile | Port | Domain |
 |----------|-----------|------|--------|
 | API (NestJS) | `apps/api/Dockerfile` | 4000 | `api.rothern.com` |
-| Web (Next) | `apps/web/Dockerfile` | 3000 | `app.rothern.com` |
+| Web (Next) | `apps/web/Dockerfile` | 3000 | `www.rothern.com` |
 | Admin (Next) | `apps/admin/Dockerfile` | 3001 | `admin.rothern.com` |
 
 Yan servisler (Supabase Postgres/Auth, Resend, Cloudflare R2) dışarıda kalır;
@@ -41,7 +46,7 @@ aynı repoyu gösterir, **Build Pack = Dockerfile**:
 
 Her uygulamaya **Domain** ata (Coolify Traefik + Let's Encrypt TLS'i otomatik yönetir):
 - api → `https://api.rothern.com`
-- web → `https://app.rothern.com`
+- web → `https://www.rothern.com`
 - admin → `https://admin.rothern.com`
 
 **Health check path** (Coolify → Health Checks):
@@ -67,7 +72,7 @@ Her uygulamaya **Domain** ata (Coolify Traefik + Let's Encrypt TLS'i otomatik y�
 
 `NEXT_PUBLIC_API_URL=https://api.rothern.com/api`,
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-`NEXT_PUBLIC_SITE_URL` (web→app.rothern.com, admin→admin.rothern.com).
+`NEXT_PUBLIC_SITE_URL` (web→www.rothern.com, admin→admin.rothern.com).
 Runtime env olarak yalnız `PORT` (web=3000, admin=3001) yeterli.
 
 ---
@@ -82,7 +87,7 @@ Runtime env olarak yalnız `PORT` (web=3000, admin=3001) yeterli.
 3. **`RUN_SEED`'i `false` yap** (veya sil) ve api'yi tekrar deploy et — seed tek seferlik.
 4. **`rothern-web` + `rothern-admin`'i deploy et.** (Build args set olmalı.)
 5. Uçtan uca doğrula:
-   - `app.rothern.com/login` → tenant giriş → cookie `rk_company` (HttpOnly, Secure, Domain=.rothern.com)
+   - `www.rothern.com/login` → tenant giriş → cookie `rk_company` (HttpOnly, Secure, Domain=.rothern.com)
    - `admin.rothern.com/admin/login` → `INITIAL_ADMIN_*` ile giriş
    - CSRF: mutation'da `X-CSRF-Token` (double-submit) çalışıyor mu (frontend otomatik yollar)
 
