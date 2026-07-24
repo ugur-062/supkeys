@@ -124,6 +124,11 @@ export class GeminiProvider extends BaseAiProvider {
                 responseSchema: req.responseSchema,
               }
             : {}),
+          // AI-2 asistan: thinking kapalı → thought_signature üretilmez →
+          // çok-turlu araç döngüsünde 400 INVALID_ARGUMENT yapısal olarak biter.
+          ...(req.disableThinking
+            ? { thinkingConfig: { thinkingBudget: 0 } }
+            : {}),
           // AI-2: araç tanımları (function-calling).
           ...(req.tools && req.tools.length > 0
             ? {

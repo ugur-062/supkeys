@@ -73,6 +73,13 @@ export interface AiCompletionRequest {
   tools?: AiToolDef[];
   /** AI-2 — önceki konuşma + araç turları (prompt'tan ÖNCE gelir). */
   history?: AiHistoryTurn[];
+  /**
+   * AI-2 — thinking'i kapat (thinkingBudget=0). Düşünen Gemini-3 modelleri araç
+   * çağrısında thought_signature üretir; çok-turlu araç döngüsünde bu imza
+   * kaybolursa 400 INVALID_ARGUMENT. Asistan basit okuma+yanıt yapar, thinking
+   * gereksiz → kapatınca signature derdi YAPISAL olarak biter + ucuz/hızlı.
+   */
+  disableThinking?: boolean;
   maxOutputTokens: number;
   timeoutMs: number;
 }

@@ -198,10 +198,11 @@ export class AssistantService {
       // Gemini durum kodunu kullanıcıya-güvenli biçimde yansıt (anahtar/gövde
       // sızmaz): 503/429 = yoğunluk (tekrar dene), diğer = model/config sorunu.
       const code = /"code":\s*(\d+)/.exec(raw)?.[1];
+      const gmMsg = /"message":\s*"([^"]+)"/.exec(raw)?.[1] ?? "";
       throw new ServiceUnavailableException(
         code === "503" || code === "429"
           ? "AI servisi şu an yoğun — birkaç saniye sonra tekrar deneyin."
-          : `Asistan şu an yanıt veremedi${code ? ` (AI ${code})` : ""} — lütfen tekrar deneyin.`,
+          : `Asistan şu an yanıt veremedi (model=${this.config.models.default}${code ? `, AI ${code}` : ""})${gmMsg ? `: ${gmMsg.slice(0, 140)}` : ""}`,
       );
     }
 
