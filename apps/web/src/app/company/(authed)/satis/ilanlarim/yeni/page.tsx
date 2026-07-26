@@ -61,23 +61,30 @@ export default function YeniSatisIhalesiPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-zinc-900">Belgeden otomatik doldur</p>
-          <p className="text-xs text-zinc-500">
-            Ürün listesi, katalog veya fotoğraf yükleyin — AI ilanı sizin için doldursun.
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setAiOpen(true)}>
-          <Sparkles className="h-4 w-4" />
-          Belgeden Doldur
-        </Button>
-      </div>
-
-      <TenderWizard listingType="SATIS" />
+      <TenderWizard
+        listingType="SATIS"
+        belowStepsSlot={
+          /* AI-1 — belgeden doldurma girişi (adım göstergesinin hemen altında) */
+          <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-zinc-900">
+                Belgeden otomatik doldur
+              </p>
+              <p className="text-xs text-zinc-500">
+                Ürün listesi, katalog veya fotoğraf yükleyin — AI ilanı sizin
+                için doldursun.
+              </p>
+            </div>
+            <Button variant="primary" onClick={() => setAiOpen(true)}>
+              <Sparkles className="h-4 w-4" />
+              Belgeden Doldur
+            </Button>
+          </div>
+        }
+      />
       <AiImportDialog
         open={aiOpen}
         onClose={() => setAiOpen(false)}

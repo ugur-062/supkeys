@@ -211,6 +211,7 @@ export function TenderWizard({
   initialValues,
   listingType = "ALIM",
   aiImport,
+  belowStepsSlot,
 }: {
   mode?: "create" | "edit";
   listingId?: string;
@@ -219,6 +220,8 @@ export function TenderWizard({
   listingType?: "ALIM" | "SATIS";
   /** Faz AI-1 — form AI ile belgeden doldurulduysa çıkarım sonucu (bant + refine). */
   aiImport?: AiTenderExtractResult;
+  /** Adım göstergesinin hemen altında render edilir (örn. "Belgeden Doldur" kartı). */
+  belowStepsSlot?: React.ReactNode;
 } = {}) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -472,6 +475,9 @@ export function TenderWizard({
 
         {/* Üstte adım göstergesi */}
         <WizardSteps current={step} onStepClick={setStep} meta={stepMeta(isSatis)} />
+
+        {/* Sayfaya özel band (örn. AI "Belgeden Doldur" kartı) */}
+        {belowStepsSlot}
 
         {/* Faz AI-1 — AI doldurma bandı (işaretli alanlar + refine) */}
         {aiResult ? (
