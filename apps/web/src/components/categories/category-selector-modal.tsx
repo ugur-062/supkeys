@@ -282,6 +282,7 @@ export function CategorySelectorModal({
               <SearchResults
                 loading={searchLoading}
                 segments={searchTree?.segments ?? []}
+                truncated={searchTree?.truncated}
                 query={debouncedSearch.trim()}
                 selected={draftIds}
                 mode={mode}
@@ -370,14 +371,15 @@ function SegmentList({
     );
   }
 
-  // UNSPSC standardı: 70-89 arası segment kodları hizmettir, diğerleri
-  // mal/ürün/ekipman. Roots'u 2 grup olarak render ediyoruz.
-  const malSegments = roots.filter(
-    (s) => s.code[0] !== "7" && s.code[0] !== "8",
-  );
-  const hizmetSegments = roots.filter(
-    (s) => s.code[0] === "7" || s.code[0] === "8",
-  );
+  // UNSPSC standardı: 70-94 arası segment kodları hizmettir, diğerleri
+  // mal/ürün/ekipman. (Eski `7|8` ilk-hane kontrolü 90+ hizmet segmentlerini
+  // yanlışlıkla "Mal" grubuna koyuyordu.)
+  const isService = (s: CategoryNode) => {
+    const n = Number(s.code.slice(0, 2));
+    return n >= 70 && n <= 94;
+  };
+  const malSegments = roots.filter((s) => !isService(s));
+  const hizmetSegments = roots.filter(isService);
 
   const renderSegment = (segment: CategoryNode) => {
     const isExpanded = expandedSegments.has(segment.id);
@@ -715,6 +717,8 @@ function CommodityList({
 interface SearchResultsProps {
   loading: boolean;
   segments: SearchTreeSegment[];
+  /** Backend 200 sonuç tavanına takıldı — "aramayı daraltın" notu gösterilir. */
+  truncated?: boolean;
   query: string;
   selected: string[];
   mode: "single" | "multi";
@@ -730,6 +734,7 @@ interface SearchResultsProps {
 function SearchResults({
   loading,
   segments,
+  truncated,
   query,
   selected,
   mode,
@@ -752,18 +757,25 @@ function SearchResults({
   }
 
   return (
-    <ul className="space-y-3">
-      {segments.map((seg) => (
-        <SearchSegmentBlock
-          key={seg.id}
-          segment={seg}
-          query={query}
-          selected={selected}
-          onToggle={onToggle}
-          mode={mode}
-        />
-      ))}
-    </ul>
+    <>
+      {truncated ? (
+        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Çok fazla sonuç var — tümü gösterilemiyor. Aramanızı daraltın.
+        </p>
+      ) : null}
+      <ul className="space-y-3">
+        {segments.map((seg) => (
+          <SearchSegmentBlock
+            key={seg.id}
+            segment={seg}
+            query={query}
+            selected={selected}
+            onToggle={onToggle}
+            mode={mode}
+          />
+        ))}
+      </ul>
+    </>
   );
 }
 

@@ -12,7 +12,7 @@ import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import {
   useCompanyAuth,
   useHasCompanyPermission,
@@ -76,8 +76,14 @@ export function CompanyProfileSection() {
         kepAddress: profile.kepAddress ?? "",
         iban: profile.iban ?? "",
         ibanHolder: profile.ibanHolder ?? "",
-        buyerCategoryIds: profile.buyerCategoryIds ?? [],
-        sellerCategoryIds: profile.sellerCategoryIds ?? [],
+        // Yalnız segment (XX000000) kodları — eski hatalı UI alt seviye
+        // yazabiliyordu; backend artık exactLevel:1 doğruladığından temizle.
+        buyerCategoryIds: (profile.buyerCategoryIds ?? []).filter((id) =>
+          /^\d{2}000000$/.test(id),
+        ),
+        sellerCategoryIds: (profile.sellerCategoryIds ?? []).filter((id) =>
+          /^\d{2}000000$/.test(id),
+        ),
       });
     }
   }, [profile]);
@@ -336,9 +342,11 @@ export function CompanyProfileSection() {
               </span>
               {canEdit ? (
                 <div className="mt-2">
-                  <CategorySelectorButton
+                  <SegmentOnlyPicker
                     value={form.buyerCategoryIds}
                     onChange={(ids) => set({ buyerCategoryIds: ids })}
+                    title="Alış Faaliyet Alanları"
+                    description="Satın aldığınız ana kategorileri seçin — ihale eşleşmesi ve öneriler bu seçime göre yapılır."
                   />
                 </div>
               ) : (
@@ -353,9 +361,11 @@ export function CompanyProfileSection() {
               </span>
               {canEdit ? (
                 <div className="mt-2">
-                  <CategorySelectorButton
+                  <SegmentOnlyPicker
                     value={form.sellerCategoryIds}
                     onChange={(ids) => set({ sellerCategoryIds: ids })}
+                    title="Satış Faaliyet Alanları"
+                    description="Tedarik edebileceğiniz ana kategorileri seçin — açık ihale önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
                   />
                 </div>
               ) : (

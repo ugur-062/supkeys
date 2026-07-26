@@ -147,7 +147,16 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
   - V2-3: Multi-currency + TCMB cron integration
   - V2-4: 1-on-1 messaging (Messenger-style)
   - V2-5: Tedarikçi paneli redesign
-  - V2-6: UNSPSC kategori sistemi (2-seviye foundation, 8 segment + 392 family)
+  - V2-6: UNSPSC kategori sistemi — güncel durum (2026-07-26): **4 seviye**
+    (Segment/Family/Class/Commodity), `packages/db/src/seeds/unspsc.tsv` (13.305
+    satır) + platform-özel endüstriyel ekler `categories-custom.tsv` (x99xxxxx
+    kod aralığı: iskele/kalıp, elektrik pano, çelik konstrüksiyon, KKD, rigging,
+    MRO — 118 satır). `cleanup-categories -- --apply` KOBİ-dışı 20 segmenti
+    gizler → 38 aktif segment / ~8.2k aktif satır. İhale kategorisi min L3;
+    firma ana kategorileri exactLevel L1 (segment). AI önerisi 2 aşamalı → L3.
+    Seed: `pnpm --filter @rothern/db seed-categories` sonra `cleanup-categories
+    -- --apply`. NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor —
+    tek koşum ikisine de yansır (Category.id = UNSPSC kodu, rebuild güvenli).
 - **Polish:** Liste sayfaları UX, admin paneli + KPI, form hata TR, mobile, e-posta QA.
 
 ---

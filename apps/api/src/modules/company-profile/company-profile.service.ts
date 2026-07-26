@@ -235,15 +235,16 @@ export class CompanyProfileService {
       data.certificateImages = dto.certificateImages
         .map((s) => s.trim())
         .filter(Boolean);
-    // Kategori id'leri var-olan + aktif olmalı (eskiden doğrudan yazılıyordu →
-    // geçersiz/ölü kod veya aşırı-geniş eşleşme mümkündü). minLevel:1 = herhangi
-    // aktif kategori seviyesi kabul, yalnız var-olma/aktiflik zorlanır.
+    // Ana kategori alanları SEGMENT (level 1) olmalı — eşleşme mantığı
+    // (yayın bildirimi, keşfet, açık ihale sıralaması) bu dizileri segment
+    // kodu varsayar; alt seviye yazılırsa firma eşleşme sinyalini sessizce
+    // kaybediyordu (onboarding zaten L1 yazar, ayarlar UI'ı da artık öyle).
     if (dto.buyerCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.buyerCategoryIds, { minLevel: 1 });
+      await this.categories.validateIds(dto.buyerCategoryIds, { exactLevel: 1 });
       data.buyerCategoryIds = dto.buyerCategoryIds;
     }
     if (dto.sellerCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.sellerCategoryIds, { minLevel: 1 });
+      await this.categories.validateIds(dto.sellerCategoryIds, { exactLevel: 1 });
       data.sellerCategoryIds = dto.sellerCategoryIds;
     }
 

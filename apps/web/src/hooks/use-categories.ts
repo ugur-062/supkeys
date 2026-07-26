@@ -155,7 +155,7 @@ export interface SearchTreeSegment {
  */
 export function useCategorySearchTree(query: string) {
   const trimmed = query.trim();
-  return useQuery<{ segments: SearchTreeSegment[] }>({
+  return useQuery<{ segments: SearchTreeSegment[]; truncated?: boolean }>({
     queryKey: ["category-search-tree", trimmed],
     queryFn: () =>
       api

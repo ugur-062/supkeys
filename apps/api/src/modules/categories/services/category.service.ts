@@ -199,9 +199,11 @@ export class CategoryService {
         }>;
       }>;
     }>;
+    /** 200 sonuç tavanına takıldı — kullanıcıya "aramayı daraltın" gösterilir. */
+    truncated: boolean;
   }> {
     const q = query?.trim() ?? "";
-    if (q.length < 2) return { segments: [] };
+    if (q.length < 2) return { segments: [], truncated: false };
 
     const matched = await this.prisma.category.findMany({
       where: {
@@ -224,7 +226,29 @@ export class CategoryService {
       orderBy: [{ level: "desc" }, { sortOrder: "asc" }],
     });
 
-    if (matched.length === 0) return { segments: [] };
+    // Family (L2) adıyla arama da bulsun: eşleşen family'lerin TÜM Class'ları
+    // sonuç ağacına eklenir — "Pano ve dağıtım sistemleri" yazan kullanıcı
+    // altındaki seçilebilir detayları görür (Class/Commodity adı eşleşmese de).
+    const famMatches = await this.prisma.category.findMany({
+      where: {
+        isActive: true,
+        level: 2,
+        nameTr: { contains: q, mode: "insensitive" },
+      },
+      include: {
+        parent: true,
+        children: {
+          where: { isActive: true, level: 3 },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      take: 20,
+      orderBy: { sortOrder: "asc" },
+    });
+
+    if (matched.length === 0 && famMatches.length === 0) {
+      return { segments: [], truncated: false };
+    }
 
     interface ClassAcc {
       id: string;
@@ -342,6 +366,51 @@ export class CategoryService {
       }
     }
 
+    // Family eşleşmeleri: segment→family bloğu kur, Class çocuklarını ekle
+    // (isMatch=false — vurgu yalnız ada eşleşen düğümde kalır).
+    for (const fam of famMatches) {
+      const segment = fam.parent;
+      if (!segment) continue;
+      let segAcc = segmentMap.get(segment.id);
+      if (!segAcc) {
+        segAcc = {
+          id: segment.id,
+          code: segment.code,
+          nameTr: segment.nameTr,
+          level: segment.level,
+          segmentLetter: segment.segmentLetter,
+          sortOrder: segment.sortOrder,
+          families: new Map(),
+        };
+        segmentMap.set(segment.id, segAcc);
+      }
+      let famAcc = segAcc.families.get(fam.id);
+      if (!famAcc) {
+        famAcc = {
+          id: fam.id,
+          code: fam.code,
+          nameTr: fam.nameTr,
+          level: fam.level,
+          sortOrder: fam.sortOrder,
+          classes: new Map(),
+        };
+        segAcc.families.set(fam.id, famAcc);
+      }
+      for (const cls of fam.children) {
+        if (!famAcc.classes.has(cls.id)) {
+          famAcc.classes.set(cls.id, {
+            id: cls.id,
+            code: cls.code,
+            nameTr: cls.nameTr,
+            level: cls.level,
+            sortOrder: cls.sortOrder,
+            isMatch: false,
+            commodities: new Map(),
+          });
+        }
+      }
+    }
+
     const sortByOrder = <T extends { sortOrder: number }>(a: T, b: T) =>
       a.sortOrder - b.sortOrder;
 
@@ -381,7 +450,8 @@ export class CategoryService {
           })),
       }));
 
-    return { segments };
+    // 200 tavanına çarptıysak kullanıcı bilsin — sessiz kırpma yanıltıcı.
+    return { segments, truncated: matched.length >= 200 };
   }
 
   /**

@@ -1,0 +1,118 @@
+30990000	2	30000000		İskele, kalıp ve şantiye sistemleri
+30991500	3	30990000		İskele sistemleri
+30991501	4	30991500		Cephe iskelesi (modüler)
+30991502	4	30991500		İç iskele / kalıp altı iskele
+30991503	4	30991500		Asma iskele
+30991504	4	30991500		Mobil iskele kuleleri
+30991505	4	30991500		İskele dirseği, boru ve klemens
+30991506	4	30991500		İskele platform tahtası ve kalas
+30991507	4	30991500		Güvenlik ağı ve kenar koruma
+30991600	3	30990000		Kalıp sistemleri
+30991601	4	30991600		Panel kalıp
+30991602	4	30991600		Çelik kalıp
+30991603	4	30991600		Tünel kalıp
+30991604	4	30991600		Kalıp aksesuarları (tij, kelepçe, konik)
+30991605	4	30991600		Plywood ve kalıp plakası
+30991700	3	30990000		Çelik konstrüksiyon
+30991701	4	30991700		Çelik profil (IPE, HEA, HEB, NPU)
+30991702	4	30991700		Çelik levha ve sac
+30991703	4	30991700		Kaynaklı çelik konstrüksiyon imalatı
+30991704	4	30991700		Uzay kafes sistemleri
+30991705	4	30991700		Sandviç panel
+30991706	4	30991700		Trapez sac ve çatı kaplama
+30991800	3	30990000		Yangın güvenliği malzemeleri
+30991801	4	30991800		Yangın söndürme tüpü
+30991802	4	30991800		Yangın dolabı ve hortumu
+30991803	4	30991800		Sprinkler sistemleri
+30991804	4	30991800		Yangın algılama ve alarm sistemleri
+30991805	4	30991800		Yangın kapısı
+30991806	4	30991800		Yangın durdurucu ve yalıtım malzemeleri
+30991900	3	30990000		Kişisel koruyucu donanım (KKD)
+30991901	4	30991900		Baret ve kafa koruma
+30991902	4	30991900		İş eldiveni
+30991903	4	30991900		Emniyet kemeri ve lanyard
+30991904	4	30991900		İş ayakkabısı ve bot
+30991905	4	30991900		Koruyucu gözlük ve yüz siperi
+30991906	4	30991900		Toz maskesi ve solunum koruyucu
+30991907	4	30991900		Yüksekte çalışma ekipmanları
+30991908	4	30991900		Reflektif yelek ve iş kıyafeti
+39990000	2	39000000		Pano ve dağıtım sistemleri
+39991500	3	39990000		Pano gövdeleri
+39991501	4	39991500		AG (alçak gerilim) pano gövdesi
+39991502	4	39991500		OG (orta gerilim) pano gövdesi
+39991503	4	39991500		MCC (motor kontrol merkezi) pano gövdesi
+39991504	4	39991500		Sayaç panosu
+39991505	4	39991500		Dış ortam panosu (IP65+)
+39991506	4	39991500		Pano klima ve havalandırma
+39991600	3	39990000		Şalt ve koruma elemanları
+39991601	4	39991600		Kompakt güç şalteri (MCCB)
+39991602	4	39991600		Minyatür devre kesici (MCB)
+39991603	4	39991600		Kaçak akım koruma rölesi
+39991604	4	39991600		Kontaktör
+39991605	4	39991600		Termik röle
+39991606	4	39991600		Faz koruma ve motor koruma rölesi
+39991607	4	39991600		Sigorta ve sigorta altlığı
+39991608	4	39991600		Parafudr ve aşırı gerilim koruma
+39991700	3	39990000		Endüstriyel otomasyon ve kontrol
+39991701	4	39991700		PLC modülü
+39991702	4	39991700		HMI operatör paneli
+39991703	4	39991700		Servo ve step motor sürücü
+39991704	4	39991700		Frekans invertörü (sürücü)
+39991705	4	39991700		Zaman rölesi ve sayıcı
+39991706	4	39991700		Sensör ve enkoder
+39991707	4	39991700		Endüstriyel haberleşme ekipmanı
+39991800	3	39990000		Kompanzasyon ve güç kalitesi
+39991801	4	39991800		Reaktif güç kontrol rölesi
+39991802	4	39991800		Şönt kapasitör
+39991803	4	39991800		Harmonik filtre
+39991804	4	39991800		Kompanzasyon kontaktörü
+39991900	3	39990000		Ölçü ve izleme
+39991901	4	39991900		Akım transformatörü
+39991902	4	39991900		Gerilim transformatörü
+39991903	4	39991900		Enerji analizörü
+39991904	4	39991900		Pano tipi multimetre
+39991905	4	39991900		Enerji izleme sistemi
+22990000	2	22000000		Beton, kazı ve kaldırma ekipmanları
+22991500	3	22990000		Beton ekipmanları
+22991501	4	22991500		Beton santrali
+22991502	4	22991500		Transmikser
+22991503	4	22991500		Beton pompası
+22991504	4	22991500		Beton vibratörü
+22991505	4	22991500		Perdah ve mala makinesi
+22991600	3	22990000		Kompakt iş makineleri
+22991601	4	22991600		Mini ekskavatör
+22991602	4	22991600		Kazıcı yükleyici (beko loder)
+22991603	4	22991600		Mini yükleyici
+22991604	4	22991600		Teleskopik yükleyici (telehandler)
+22991700	3	22990000		Vinç ve kaldırma platformları
+22991701	4	22991700		Kule vinç
+22991702	4	22991700		Mobil vinç
+22991703	4	22991700		Paletli vinç
+22991704	4	22991700		Cephe platformu ve makaslı platform
+23990000	2	23000000		Takım, aparat ve endüstriyel bakım
+23991500	3	23990000		Takım ve bağlama aparatları
+23991501	4	23991500		Takım tutucu
+23991502	4	23991500		Kesici uç (insert)
+23991503	4	23991500		Ayna ve bağlama aparatı
+23991504	4	23991500		Mengene ve fikstür
+23991600	3	23990000		Endüstriyel bakım ekipmanları
+23991601	4	23991600		Gres ve yağlama ekipmanı
+23991602	4	23991600		Rulman ısıtıcı ve çektirme
+23991603	4	23991600		Lazer hizalama cihazı
+23991604	4	23991600		Titreşim analiz cihazı
+24990000	2	24000000		Kaldırma ve bağlama ekipmanları (rigging)
+24991500	3	24990000		Sapan ve bağlama elemanları
+24991501	4	24991500		Çelik halat sapan
+24991502	4	24991500		Zincir sapan
+24991503	4	24991500		Polyester sapan
+24991504	4	24991500		Kilit ve karabina (shackle)
+24991505	4	24991500		Caraskal ve el vinci
+24991506	4	24991500		Halat ve makara sistemleri
+73990000	2	73000000		Endüstriyel bakım ve destek hizmetleri (MRO)
+73991500	3	73990000		Bakım, onarım ve kontrol hizmetleri
+73991501	4	73991500		Makine bakım ve onarım hizmeti
+73991502	4	73991500		Elektrik pano bakım hizmeti
+73991503	4	73991500		Vinç ve kaldırma ekipmanı periyodik kontrol
+73991504	4	73991500		Kalibrasyon hizmeti
+73991505	4	73991500		Endüstriyel temizlik hizmeti
+73991506	4	73991500		Yalıtım ve izolasyon uygulama hizmeti

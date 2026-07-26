@@ -1,6 +1,10 @@
 /**
- * UNSPSC 4-seviye Türkçe kategori seed (UNGM kaynağı).
- * Kaynak: packages/db/src/seeds/unspsc.tsv
+ * UNSPSC 4-seviye Türkçe kategori seed (UNGM kaynağı) + platform-özel ekler.
+ * Kaynaklar:
+ *   - packages/db/src/seeds/unspsc.tsv            (standart UNSPSC, 13k+)
+ *   - packages/db/src/seeds/categories-custom.tsv (KOBİ endüstriyel boşluklar:
+ *     iskele/kalıp, elektrik pano, çelik konstrüksiyon, KKD, rigging, MRO…
+ *     x99xxxxx kod aralığı — UNSPSC ile çakışmaz, parent'ları UNSPSC'de var)
  *   sütunlar: <code> ⇥ <level> ⇥ <parentCode> ⇥ <segmentLetter> ⇥ <nameTr>
  *
  * Hiyerarşi 8-haneli UNSPSC kodundan türetilir (segment=XX000000, family=XXXX0000,
@@ -33,13 +37,21 @@ async function main() {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Dosya bulunamadı: ${filePath}`);
   }
+  // Platform-özel ekler opsiyonel — dosya yoksa yalnız standart set yüklenir.
+  const customPath = path.resolve(
+    __dirname,
+    "../../src/seeds/categories-custom.tsv",
+  );
 
-  const lines = fs
-    .readFileSync(filePath, "utf-8")
-    .split("\n")
-    .filter((l) => l.trim());
+  const lines = [
+    ...fs.readFileSync(filePath, "utf-8").split("\n"),
+    ...(fs.existsSync(customPath)
+      ? fs.readFileSync(customPath, "utf-8").split("\n")
+      : []),
+  ].filter((l) => l.trim());
 
   const cats: Cat[] = [];
+  const seen = new Set<string>();
   for (const line of lines) {
     const [code, levelStr, parentCode, segmentLetter, nameTr] =
       line.split("\t");
@@ -48,6 +60,12 @@ async function main() {
       console.warn(`⚠️  Atlanan satır: ${line.slice(0, 40)}`);
       continue;
     }
+    // Kod çakışması (custom ↔ UNSPSC) sessiz duplicate insert'e dönmesin.
+    if (seen.has(code)) {
+      console.warn(`⚠️  Yinelenen kod atlandı: ${code} (${nameTr.slice(0, 30)})`);
+      continue;
+    }
+    seen.add(code);
     cats.push({
       code,
       level,
@@ -55,6 +73,15 @@ async function main() {
       segmentLetter: segmentLetter || null,
       nameTr: nameTr.trim(),
     });
+  }
+
+  // Custom satırların parent'ları da sette olmalı — kırık hiyerarşi baştan yakalanır.
+  for (const c of cats) {
+    if (c.parentCode && !seen.has(c.parentCode)) {
+      throw new Error(
+        `Kırık hiyerarşi: ${c.code} (${c.nameTr}) parent'ı ${c.parentCode} sette yok`,
+      );
+    }
   }
 
   // segmentLetter: her segmente benzersiz sıralı harf (A..Z, AA..) — kod sırasına
