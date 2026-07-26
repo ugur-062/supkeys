@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AssistantMarkdown } from "./assistant-markdown";
 
 interface LocalMsg {
   id: string;
@@ -175,7 +176,11 @@ export function AssistantPanel() {
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
-    setFiles((f) => [...f, ...Array.from(list)].slice(0, 10));
+    // FileList CANLI referanstır: onChange sonrası input.value="" onu boşaltır.
+    // setState updater'ı handler bittikten SONRA koştuğu için diziyi burada,
+    // senkron materialize etmek şart — aksi halde hep 0 dosya eklenir.
+    const picked = Array.from(list);
+    setFiles((f) => [...f, ...picked].slice(0, 10));
   };
 
   return (
@@ -304,13 +309,17 @@ export function AssistantPanel() {
                 </div>
                 <div
                   className={cn(
-                    "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm",
+                    "max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm",
                     m.role === "USER"
-                      ? "rounded-br-sm bg-brand-600 text-white"
+                      ? "whitespace-pre-wrap rounded-br-sm bg-brand-600 text-white"
                       : "rounded-bl-sm bg-zinc-100 text-zinc-900",
                   )}
                 >
-                  {m.content}
+                  {m.role === "USER" ? (
+                    m.content
+                  ) : (
+                    <AssistantMarkdown text={m.content} />
+                  )}
                 </div>
               </div>
 
