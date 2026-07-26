@@ -206,6 +206,11 @@ model Category {
   code   String @unique
   nameTr String
   /**
+   * TR-katlanmış arama metni (foldSearchText(nameTr)) — 'İ'/aksan sorunsuz
+   * substring arama için. Seed yazar; sorgu tarafı da aynı fold'dan geçer.
+   */
+  searchText String @default("")
+  /**
    * 1=Segment, 2=Family, 3=Class, 4=Commodity
    */
   level  Int

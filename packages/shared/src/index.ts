@@ -8,5 +8,6 @@ export * from "./data/turkey-locations";
 export * from "./data/countries";
 export * from "./data/phone-codes";
 export * from "./helpers/tier";
+export * from "./helpers/search-fold";
 export * from "./types/ai-tender-draft";
 export * from "./types/ai-assistant";

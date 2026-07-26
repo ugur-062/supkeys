@@ -935,25 +935,63 @@ function SearchClassBlock({
   );
 }
 
-/** Eşleşen substring'i bold/highlight ile vurgular (case-insensitive). */
+/**
+ * Uzunluk-koruyan TR katlama — vurgu konumu için karakter-karakter eşleme.
+ * (shared `foldSearchText` boşluk tekilleştirdiğinden index kayar; burada
+ * her karakter tek karaktere katlanır ki katlanmış index = orijinal index.)
+ */
+const HIGHLIGHT_FOLD: Record<string, string> = {
+  ç: "c", Ç: "c", ş: "s", Ş: "s", ğ: "g", Ğ: "g", ü: "u", Ü: "u",
+  ö: "o", Ö: "o", ı: "i", İ: "i", â: "a", Â: "a", î: "i", Î: "i",
+  û: "u", Û: "u",
+};
+function foldForHighlight(s: string): string {
+  return Array.from(s)
+    .map((ch) => HIGHLIGHT_FOLD[ch] ?? ch.toLowerCase())
+    .join("");
+}
+
+/**
+ * Eşleşen substring'i vurgular — TR-katlanmış karşılaştırma: "iskele" sorgusu
+ * "İskele sistemleri"ni, "jenerator" "jeneratör"ü vurgular (backend araması da
+ * aynı katlamayla eşleştiğinden vurgu sonuçla tutarlı).
+ */
 function HighlightMatch({ text, query }: { text: string; query: string }) {
   const trimmed = query.trim();
   if (!trimmed) return <>{text}</>;
-  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = text.split(new RegExp(`(${escaped})`, "i"));
-  const lower = trimmed.toLowerCase();
+  const foldedText = foldForHighlight(text);
+  const foldedQuery = foldForHighlight(trimmed);
+  if (!foldedQuery) return <>{text}</>;
+
+  const chars = Array.from(text);
+  const parts: Array<{ str: string; hit: boolean }> = [];
+  let cursor = 0;
+  let idx = foldedText.indexOf(foldedQuery);
+  while (idx !== -1) {
+    if (idx > cursor) {
+      parts.push({ str: chars.slice(cursor, idx).join(""), hit: false });
+    }
+    const end = idx + Array.from(foldedQuery).length;
+    parts.push({ str: chars.slice(idx, end).join(""), hit: true });
+    cursor = end;
+    idx = foldedText.indexOf(foldedQuery, end);
+  }
+  if (cursor < chars.length) {
+    parts.push({ str: chars.slice(cursor).join(""), hit: false });
+  }
+
   return (
     <>
       {parts.map((part, i) =>
-        part.toLowerCase() === lower ? (
+        part.hit ? (
           <mark
             key={i}
             className="rounded bg-amber-100 px-0.5 font-semibold text-amber-900"
           >
-            {part}
+            {part.str}
           </mark>
         ) : (
-          <span key={i}>{part}</span>
+          <span key={i}>{part.str}</span>
         ),
       )}
     </>

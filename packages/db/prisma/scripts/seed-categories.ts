@@ -14,6 +14,7 @@
  * Çalıştırma: `pnpm --filter @rothern/db seed-categories`
  */
 import { PrismaClient } from "@prisma/client";
+import { foldSearchText } from "@rothern/shared";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -127,6 +128,7 @@ async function main() {
           id: c.code,
           code: c.code,
           nameTr: c.nameTr,
+          searchText: foldSearchText(c.nameTr),
           level: c.level,
           parentId: c.parentCode,
           segmentLetter: c.segmentLetter,

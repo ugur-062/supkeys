@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { foldSearchText } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 /**
@@ -205,11 +206,22 @@ export class CategoryService {
     const q = query?.trim() ?? "";
     if (q.length < 2) return { segments: [], truncated: false };
 
+    // TR-katlanmış arama: 'İ' (PG lower → i+combining dot) ve aksansız yazım
+    // ("jenerator") ham ILIKE'ta eşleşmez — searchText + katlanmış sorgu esas
+    // yol, nameTr ILIKE searchText'i boş kalmış satırlar için yedek.
+    const folded = foldSearchText(q);
+    const nameFilter = {
+      OR: [
+        { searchText: { contains: folded } },
+        { nameTr: { contains: q, mode: "insensitive" as const } },
+      ],
+    };
+
     const matched = await this.prisma.category.findMany({
       where: {
         isActive: true,
         level: { in: [3, 4] },
-        nameTr: { contains: q, mode: "insensitive" },
+        ...nameFilter,
       },
       include: {
         parent: {
@@ -233,7 +245,7 @@ export class CategoryService {
       where: {
         isActive: true,
         level: 2,
-        nameTr: { contains: q, mode: "insensitive" },
+        ...nameFilter,
       },
       include: {
         parent: true,

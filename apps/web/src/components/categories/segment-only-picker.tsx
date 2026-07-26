@@ -1,5 +1,6 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { Input, InputGroup } from "@/components/catalyst/input";
 import { Button } from "@/components/ui/button";
 import { useRoots } from "@/hooks/use-categories";
@@ -196,10 +197,11 @@ function SegmentOnlyModal({
   }, [isOpen, onClose]);
 
   const filteredSegments = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase("tr-TR");
+    // TR-katlanmış karşılaştırma — "insaat" da "İnşaat"ı bulur.
+    const q = foldSearchText(search);
     if (!q) return segments ?? [];
     return (segments ?? []).filter((s) =>
-      s.nameTr.toLocaleLowerCase("tr-TR").includes(q),
+      foldSearchText(s.nameTr).includes(q),
     );
   }, [segments, search]);
 
