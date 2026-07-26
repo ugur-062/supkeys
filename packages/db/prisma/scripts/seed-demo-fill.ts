@@ -1,5 +1,5 @@
 /**
- * Demo doluluk — 12 firma (STANDARD/PAKET karışık), aralarında ACTIVE
+ * Demo doluluk — 12 firma (STANDART/GOLD karışık), aralarında ACTIVE
  * bağlantılar, kalemli ihaleler (çoğu PUBLIC/herkese açık ALIM), birkaç teklif.
  * Owner'lar gerçek Supabase auth ile açılır → giriş yapılabilir (Demo1234!).
  *
@@ -129,7 +129,7 @@ const LISTINGS: L[] = [
   // PRIVATE — yalnız davetli
   { owner: "metal", type: "ALIM", visibility: "PRIVATE", closesInDays: 11, title: "Özel CNC talaşlı imalat hizmeti", invite: ["demir"],
     items: [{ name: "CNC frezeleme", quantity: 200, unit: "saat" }, { name: "Talaşlı imalat parçası", quantity: 150, unit: "adet" }] },
-  // SATIS (herkese açık satış) — PAKET firmalar
+  // SATIS (herkese açık satış) — GOLD firmalar
   { owner: "ege", type: "SATIS", visibility: "PUBLIC", closesInDays: 16, title: "Parti sonu kumaş satışı", minPrice: 80000, buyNowPrice: 120000,
     items: [{ name: "Pamuklu kumaş topu", quantity: 200, unit: "top" }, { name: "Polyester astar", quantity: 500, unit: "m" }] },
   { owner: "marmara", type: "SATIS", visibility: "PUBLIC", closesInDays: 13, title: "Toptan konserve gıda satışı", minPrice: 150000,
@@ -273,7 +273,7 @@ async function main() {
   console.log(`  💰 ${bidCount} teklif`);
 
   console.log("\n✅ Demo doluluk tamam. Giriş: şifre hepsi 'Demo1234!'");
-  console.log("   Sahip (tam yetki): anadolu@demofill.local (PAKET), yildiz@demofill.local (STANDARD)");
+  console.log("   Sahip (tam yetki): anadolu@demofill.local (GOLD), yildiz@demofill.local (STANDART)");
   console.log("   Rol testi kullanıcıları (her firmada aynı desen):");
   for (const key of TEAM_KEYS) {
     const tier = COMPANIES.find((c) => c.key === key)!.tier;
