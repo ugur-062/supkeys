@@ -174,6 +174,13 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
+
+  // İmleç sohbette KALIR: panel açılınca ve her yanıt sonrasında (gönderim
+  // sırasında textarea disabled olup odağı düşürüyor) giriş yeniden odaklanır —
+  // kullanıcı her mesajdan sonra tekrar tıklamak zorunda kalmaz.
+  useEffect(() => {
+    if (!send.isPending) inputRef.current?.focus();
+  }, [send.isPending]);
   // Daktilo efekti sırasında balon büyüdükçe alta kaydır (smooth değil —
   // her karede smooth scroll titreşim yapar).
   const scrollToEnd = useCallback(() => {
