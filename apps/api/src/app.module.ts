@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { JwtModule } from "@nestjs/jwt";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -96,6 +97,17 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
             (req.url ?? "").startsWith("/api/health"),
         },
       },
+    }),
+    // Kayan oturum: AuthCookieInterceptor (root) token doğrulama/yeniden
+    // imzalama için JwtService ister — realm modülleriyle AYNI secret + TTL.
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.getOrThrow<string>("JWT_SECRET"),
+        signOptions: {
+          expiresIn: config.get<string>("JWT_EXPIRES_IN", "1h"),
+        },
+      }),
     }),
     // Sentry (hata izleme) — Sentry.init instrument.ts'te; DSN yoksa no-op.
     SentryModule.forRoot(),

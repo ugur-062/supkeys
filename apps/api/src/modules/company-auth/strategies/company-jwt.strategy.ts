@@ -20,6 +20,12 @@ export interface CompanyJwtPayload {
   companyId: string;
   /** Oturum sürümü — parola değişince artar; eski token'lar geçersizleşir. */
   tv?: number;
+  /**
+   * "Oturumumu açık bırak" — kayan yenilemede cookie tipini belirler
+   * (true/eksik → 30g kalıcı, false → tarayıcı-kapanınca-biten session).
+   * AuthCookieInterceptor login'de yazar, slide'da okur.
+   */
+  persistent?: boolean;
 }
 
 export interface AuthenticatedCompanyUser {

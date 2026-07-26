@@ -87,6 +87,46 @@ export function setAuthCookies(
   });
 }
 
+/**
+ * Kayan oturum (sliding session) eşiği — token ömrünün YARISI geçtiyse
+ * yenile. Aktif kullanıcı hiç düşmez; son yenilemeden sonra tam TTL boyunca
+ * hiç istek atmayan düşer. iat/exp saniye cinsinden (JWT standardı).
+ */
+export function shouldSlide(
+  iat: number | undefined,
+  exp: number | undefined,
+  nowSec = Math.floor(Date.now() / 1000),
+): boolean {
+  if (typeof iat !== "number" || typeof exp !== "number") return false;
+  const ttl = exp - iat;
+  if (ttl <= 0) return false;
+  return exp - nowSec < ttl / 2;
+}
+
+/**
+ * Kayan yenileme: yalnız oturum cookie'sini yeni token'la değiştirir; CSRF
+ * cookie'sinin DEĞERİ korunur (değişirse uçuştaki isteklerin header'ı eski
+ * değeri taşır → 403), sadece ömrü uzatılır. Değer yoksa (bozuk kavanoz)
+ * yenisi üretilir.
+ */
+export function slideAuthCookies(
+  req: Request,
+  res: Response,
+  realm: Realm,
+  token: string,
+  config: ConfigService,
+  persistent: boolean,
+): void {
+  const base = baseOptions(config, persistent);
+  res.cookie(AUTH_COOKIE[realm], token, { ...base, httpOnly: true });
+  const existingCsrf = parseCookies(req.headers.cookie)[CSRF_COOKIE[realm]];
+  res.cookie(
+    CSRF_COOKIE[realm],
+    existingCsrf || randomBytes(32).toString("hex"),
+    { ...base, httpOnly: false },
+  );
+}
+
 /** Oturum + CSRF cookie'lerini temizler (logout). */
 export function clearAuthCookies(
   res: Response,

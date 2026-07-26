@@ -23,7 +23,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  // "Beni hatırla" — varsayılan işaretli; işaretsiz → tarayıcı kapanınca çıkış.
+  // "Oturumumu açık bırak" — varsayılan işaretli; işaretsiz → tarayıcı kapanınca çıkış.
   const [remember, setRemember] = useState(true);
   // 2FA — API "2FA_REQUIRED" dönerse kod alanı açılır, istek kodla tekrarlanır.
   const [needsCode, setNeedsCode] = useState(false);
@@ -146,7 +146,7 @@ export function AdminLoginForm() {
           onChange={(e) => setRemember(e.target.checked)}
           className="h-4 w-4 rounded border-admin-border"
         />
-        Beni hatırla
+        Oturumumu açık bırak
       </label>
 
       <div className="pt-1">

@@ -10,6 +10,8 @@ export interface AdminJwtPayload {
   email: string;
   role: string;
   type: "admin";
+  /** "Oturumumu açık bırak" — kayan yenilemede cookie tipi (bkz. company). */
+  persistent?: boolean;
 }
 
 @Injectable()

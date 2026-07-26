@@ -45,8 +45,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
-  // "Beni hatırla" — varsayılan işaretli (standart). İşaretsiz → oturum
-  // tarayıcı kapanınca biter (session cookie + sessionStorage).
+  // "Oturumumu açık bırak" — varsayılan işaretli; işaretliyken kayan 30g
+  // oturum (aktifken hiç düşmez), işaretsiz → tarayıcı kapanınca biter.
   const [remember, setRemember] = useState(true);
 
   useEffect(() => {
@@ -234,7 +234,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
             onChange={(e) => setRemember(e.target.checked)}
             className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
           />
-          Beni hatırla
+          Oturumumu açık bırak
         </label>
         <Link href="/company/sifremi-unuttum" className="text-xs font-medium text-zinc-500 hover:text-zinc-900">
           Şifremi unuttum?
