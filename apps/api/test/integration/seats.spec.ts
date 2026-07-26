@@ -1,6 +1,6 @@
 /**
  * Faz K — Koltuk sistemi: koltuk = SA/ST taşıyan AKTİF kişi (SA+ST = 1);
- * limit BRONZ 2 / SILVER 4 / GOLD 12 / STANDART limitsiz. Kapılar: davet
+ * limit BRONZ 2 / SILVER 4 / GOLD 8 / STANDART limitsiz. Kapılar: davet
  * (bekleyenler dahil), kabul (tx + FOR UPDATE — TOCTOU), rol atama,
  * reaktivasyon. Aşkın durum TÜRETİLİR (flag yok).
  */

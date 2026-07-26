@@ -24,10 +24,11 @@ const stats = [
 
 /**
  * Paket kartları — yetenekler tier.ts tek-kaynağıyla hizalı:
- * BRONZ = dizin + davet + PUBLIC teklif (2 koltuk); SILVER = + satınalma
- * paneli/ihale açma/rapor/şablon/onay akışı/AI (4 koltuk); GOLD = + rozet,
- * genişletilmiş AI, 12 koltuk. Fiyatlar YILLIK ödemede aylık gösterim;
- * ayrıca 6 aylık dönem seçeneği var (aylık faturalama yok).
+ * BRONZ = dizin + davet + PUBLIC teklif (2 Satışçı koltuğu); SILVER = +
+ * satınalma paneli/ihale açma/rapor/şablon/onay akışı/AI (4 koltuk); GOLD =
+ * + rozet, yükseltilmiş AI, 8 koltuk. Fiyatlar YILLIK ödemede aylık
+ * gösterim; ayrıca 6 aylık dönem seçeneği var (aylık faturalama yok).
+ * accent: pakete hafif renk kimliği — kart gövdesi monokrom kalır.
  */
 const pricingTiers = [
   {
@@ -36,52 +37,69 @@ const pricingTiers = [
     tagline: "Ağına bağlan, çevren içinde al-sat.",
     features: [
       "Firma hesabı, sınırsız kullanıcı ve rol",
-      "Davet edildiğin ihalelere teklif ver",
+      "Davet edildiğin ihalelere teklif verme",
       "Bağlantılı firmalarla al-sat ve mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
     ],
     cta: "Ücretsiz Başla",
-    highlight: false,
+    accent: {
+      top: "border-t-zinc-200",
+      pill: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+      check: "text-zinc-400",
+    },
   },
   {
     name: "Bronz",
     price: 70,
-    tagline: "Satış tarafını büyüt: görün, davet et, teklif ver.",
+    tagline: "Satış tarafını büyüt: görün, davet al, teklif ver.",
     features: [
       "Firma dizininde görünürlük & herkese açık profil",
       "Bağlantı daveti gönderme",
       "Herkese açık ihalelere sınırsız teklif",
-      "2 işlem koltuğu (Satın Almacı / Satışçı)",
+      "Sipariş, teslim & ödeme adımı takibi",
+      "2 kullanıcı koltuğu (Satışçı)",
     ],
     cta: "Bronz'a Başla",
-    highlight: false,
+    accent: {
+      top: "border-t-amber-600/70",
+      pill: "bg-amber-50 text-amber-800 ring-amber-200",
+      check: "text-amber-700",
+    },
   },
   {
     name: "Silver",
     price: 160,
-    tagline: "Tam satın alma gücü: ihale aç, süreci yönet.",
+    tagline: "Tam alış & satış gücü: ihale aç, süreci yönet.",
     features: [
-      "Bronz'daki her şey",
       "İhale açma — teklif toplama (RFQ) & pazarlık/eksiltme",
+      "Dizinde görünürlük, davet ve herkese açık ihalelere teklif",
       "Raporlar, şablonlar & onay akışları",
-      "AI: belgeden ihale, asistan, kategori önerisi",
-      "4 işlem koltuğu",
+      "Yapay zekâ: belge veya fotoğraftan ihale taslağı, sohbetle ihale hazırlayan asistan, otomatik kategori & anahtar kelime",
+      "4 kullanıcı koltuğu (Satın Almacı & Satışçı)",
     ],
     cta: "Silver'a Başla",
-    highlight: true,
+    accent: {
+      top: "border-t-slate-400",
+      pill: "bg-slate-100 text-slate-700 ring-slate-300",
+      check: "text-slate-500",
+    },
   },
   {
     name: "Gold",
     price: 230,
-    tagline: "Yüksek hacim için: geniş ekip, geniş AI.",
+    tagline: "Yüksek hacim ve geniş ekipler için.",
     features: [
-      "Silver'daki her şey",
-      "Genişletilmiş AI kullanım limiti",
-      "“Gold Üye” rozeti — profil ve tekliflerde",
-      "12 işlem koltuğu",
+      "Tüm alış & satış yetkileri: ihale açma, teklif, dizin, raporlar, onay akışları",
+      "Yapay zekâ araçlarında yükseltilmiş kullanım limiti",
+      "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
+      "8 kullanıcı koltuğu (Satın Almacı & Satışçı)",
     ],
     cta: "Gold'a Başla",
-    highlight: false,
+    accent: {
+      top: "border-t-yellow-500/80",
+      pill: "bg-yellow-50 text-yellow-800 ring-yellow-300",
+      check: "text-yellow-600",
+    },
   },
 ];
 
@@ -1231,79 +1249,40 @@ export default function HomePage() {
           {pricingTiers.map((tier) => (
             <div
               key={tier.name}
-              className={
-                tier.highlight
-                  ? "relative flex flex-col rounded-3xl bg-[#0A0A0A] p-8 shadow-2xl ring-1 ring-zinc-950 transition hover:-translate-y-1"
-                  : "flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl"
-              }
+              className={`flex flex-col rounded-3xl border-t-4 bg-white p-8 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl ${tier.accent.top}`}
             >
-              {tier.highlight ? (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-950 shadow">
-                  Önerilen
-                </div>
-              ) : null}
-              <h3
-                className={`text-base/7 font-semibold ${
-                  tier.highlight ? "text-zinc-300" : "text-zinc-700"
-                }`}
+              <span
+                className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tier.accent.pill}`}
               >
                 {tier.name}
-              </h3>
-              <p className="mt-4 flex items-baseline gap-x-1.5">
+              </span>
+              <p className="mt-5 flex items-baseline gap-x-1.5">
                 {tier.price === null ? (
-                  <span
-                    className={`text-4xl font-semibold tracking-tight ${
-                      tier.highlight ? "text-white" : "text-zinc-950"
-                    }`}
-                  >
+                  <span className="text-4xl font-semibold tracking-tight text-zinc-950">
                     Ücretsiz
                   </span>
                 ) : (
                   <>
-                    <span
-                      className={`text-4xl font-semibold tracking-tight ${
-                        tier.highlight ? "text-white" : "text-zinc-950"
-                      }`}
-                    >
+                    <span className="text-4xl font-semibold tracking-tight text-zinc-950">
                       ${tier.price}
                     </span>
-                    <span
-                      className={`text-sm ${
-                        tier.highlight ? "text-zinc-400" : "text-zinc-500"
-                      }`}
-                    >
-                      /ay
-                    </span>
+                    <span className="text-sm text-zinc-500">/ay</span>
                   </>
                 )}
               </p>
-              <p
-                className={`mt-1 text-xs ${
-                  tier.highlight ? "text-zinc-500" : "text-zinc-400"
-                }`}
-              >
+              <p className="mt-1 text-xs text-zinc-400">
                 {tier.price === null ? "sonsuza dek" : "yıllık ödemede"}
               </p>
-              <p
-                className={`mt-4 text-sm/6 ${
-                  tier.highlight ? "text-zinc-300" : "text-zinc-600"
-                }`}
-              >
-                {tier.tagline}
-              </p>
+              <p className="mt-4 text-sm/6 text-zinc-600">{tier.tagline}</p>
               <ul
                 role="list"
-                className={`mt-6 flex-1 space-y-3 text-sm/6 ${
-                  tier.highlight ? "text-zinc-200" : "text-zinc-600"
-                }`}
+                className="mt-6 flex-1 space-y-3 text-sm/6 text-zinc-600"
               >
                 {tier.features.map((f) => (
                   <li key={f} className="flex gap-x-3">
                     <CheckIcon
                       aria-hidden="true"
-                      className={`h-6 w-5 flex-none ${
-                        tier.highlight ? "text-emerald-400" : "text-zinc-900"
-                      }`}
+                      className={`h-6 w-5 flex-none ${tier.accent.check}`}
                     />
                     <span>{f}</span>
                   </li>
@@ -1312,9 +1291,9 @@ export default function HomePage() {
               <Link
                 href="/company/kayit"
                 className={
-                  tier.highlight
-                    ? "mt-8 block rounded-lg bg-white px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
-                    : "mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
+                  tier.price === null
+                    ? "mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
+                    : "mt-8 block rounded-lg bg-zinc-950 px-3.5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
                 }
               >
                 {tier.cta}

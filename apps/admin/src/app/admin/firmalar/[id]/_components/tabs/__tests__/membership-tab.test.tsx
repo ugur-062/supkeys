@@ -11,6 +11,11 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
+// F7 rol kapısı: butonlar canAdminDo(role) ardında — SUPER_ADMIN mock'u
+// olmadan hiç render olmuyor (bu mock eksik kaldığı için suite kırılmıştı).
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: { role: "SUPER_ADMIN" } }),
+}));
 vi.mock("@/hooks/use-admin-companies", () => ({
   useSetCompanyTier: () => ({ mutate: h.tierMutate, isPending: false }),
   useExtendMembership: () => ({ mutate: h.extendMutate, isPending: false }),
@@ -67,12 +72,10 @@ describe("MembershipTab — üyelik yönetimi", () => {
     expect(h.extendMutate).not.toHaveBeenCalled();
   });
 
-  it("Premium'u Kaldır → gerekçeyle STANDARD mutate", async () => {
+  it("Paketi Kaldır → gerekçeyle STANDART mutate", async () => {
     const user = userEvent.setup();
     render(<MembershipTab companyId="c1" data={paketDetail()} />);
-    await user.click(
-      screen.getByRole("button", { name: "Premium'u Kaldır" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Paketi Kaldır" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Gerekçe/), "iade");
     await user.click(within(dialog).getByRole("button", { name: "Kaldır" }));

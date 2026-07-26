@@ -39,5 +39,5 @@ export const SEAT_LIMITS: Record<TierName, number | null> = {
   STANDART: null,
   BRONZ: 2,
   SILVER: 4,
-  GOLD: 12,
+  GOLD: 8,
 };
