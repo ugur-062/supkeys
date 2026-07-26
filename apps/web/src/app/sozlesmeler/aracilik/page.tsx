@@ -1,4 +1,5 @@
 import { LegalDoc } from "@/components/marketing/legal-doc";
+import { OPERATOR } from "@/lib/company-info";
 
 export const metadata = { title: "Aracılık ve Kullanım Sözleşmesi — Rothern" };
 
@@ -11,7 +12,7 @@ export default function Page() {
         {
           heading: "1. Konu ve Platformun Rolü",
           paragraphs: [
-            "İşbu Sözleşme; Rothern'in (\"Platform\"), alıcı ve satıcı firmalar arasında ihale (RFQ), teklif toplama, açık eksiltme/artırma, kazandırma ve sipariş süreçlerine elektronik ortamda aracılık etmesinin koşullarını düzenler.",
+            `İşbu Sözleşme; Rothern platformunun işletmecisi ${OPERATOR.legalName}'nin ("Platform"), alıcı ve satıcı firmalar arasında ihale (RFQ), teklif toplama, açık eksiltme/artırma, kazandırma ve sipariş süreçlerine elektronik ortamda aracılık etmesinin koşullarını düzenler.`,
             "Platform yalnızca aracıdır: taraflar arasında kurulan alım-satım ilişkisinin tarafı, temsilcisi, komisyoncusu veya garantörü değildir. Malın/hizmetin mevzuata ve ihale şartlarına uygunluğu, ayıptan sorumluluk, teslimat, fatura ve ödeme yükümlülükleri münhasıran alıcı ile satıcı arasındadır.",
           ],
         },

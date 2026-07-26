@@ -1,4 +1,5 @@
 import { LegalDoc } from "@/components/marketing/legal-doc";
+import { OPERATOR } from "@/lib/company-info";
 
 export const metadata = { title: "Kullanıcı Sözleşmesi — Rothern" };
 
@@ -11,7 +12,7 @@ export default function Page() {
         {
           heading: "1. Taraflar ve Konu",
           paragraphs: [
-            "İşbu Kullanıcı Sözleşmesi (\"Sözleşme\"), Rothern (\"Platform\") ile www.rothern.com üzerinde hesap oluşturan gerçek veya tüzel kişi (\"Kullanıcı\") arasında, hesabın elektronik ortamda onaylandığı anda kurulmuş ve yürürlüğe girmiş sayılır.",
+            `İşbu Kullanıcı Sözleşmesi ("Sözleşme"), Rothern platformunun işletmecisi ${OPERATOR.legalName} ("Platform") ile www.rothern.com üzerinde hesap oluşturan gerçek veya tüzel kişi ("Kullanıcı") arasında, hesabın elektronik ortamda onaylandığı anda kurulmuş ve yürürlüğe girmiş sayılır.`,
             "Sözleşme'nin konusu; Kullanıcı'nın Platform'da sunulan B2B e-tedarik ve e-ihale hizmetlerinden yararlanmasına ilişkin tarafların hak ve yükümlülüklerinin belirlenmesidir. Platform üzerinden yürütülen alım-satım süreçlerine ilişkin özel hükümler, ayrıca kabul edilen Platform Aracılık ve Kullanım Sözleşmesi'nde düzenlenir.",
           ],
         },
@@ -88,7 +89,7 @@ export default function Page() {
         {
           heading: "12. Uygulanacak Hukuk ve Yetki",
           paragraphs: [
-            "İşbu Sözleşme Türkiye Cumhuriyeti hukukuna tabidir. Sözleşme'den doğan uyuşmazlıklarda Platform kayıtları (veritabanı, log ve denetim kayıtları dâhil) HMK m. 193 anlamında delil teşkil eder; uyuşmazlıkların çözümünde Rothern'in merkezinin bulunduğu yer mahkemeleri ve icra daireleri yetkilidir.",
+            `İşbu Sözleşme Türkiye Cumhuriyeti hukukuna tabidir. Sözleşme'den doğan uyuşmazlıklarda Platform kayıtları (veritabanı, log ve denetim kayıtları dâhil) HMK m. 193 anlamında delil teşkil eder; uyuşmazlıkların çözümünde ${OPERATOR.jurisdiction} yetkilidir.`,
             "Sorular ve bildirimler için: destek@rothern.com",
           ],
         },

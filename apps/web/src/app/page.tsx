@@ -123,6 +123,9 @@ const footerNav = {
     { name: "Kullanıcı Sözleşmesi", href: "/sozlesmeler/kullanici" },
     { name: "Aracılık Sözleşmesi", href: "/sozlesmeler/aracilik" },
     { name: "KVKK Aydınlatma Metni", href: "/sozlesmeler/kvkk" },
+    { name: "Mesafeli Satış Sözleşmesi", href: "/sozlesmeler/mesafeli-satis" },
+    { name: "İptal ve İade Koşulları", href: "/sozlesmeler/iade" },
+    { name: "İletişim ve Künye", href: "/iletisim" },
   ],
 };
 

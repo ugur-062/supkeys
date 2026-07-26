@@ -1,4 +1,5 @@
 import { LegalDoc } from "@/components/marketing/legal-doc";
+import { OPERATOR } from "@/lib/company-info";
 
 export const metadata = { title: "KVKK Aydınlatma Metni — Rothern" };
 
@@ -10,7 +11,7 @@ export default function Page() {
       sections={[
         {
           paragraphs: [
-            "İşbu Aydınlatma Metni, 6698 sayılı Kişisel Verilerin Korunması Kanunu (\"KVKK\") uyarınca, veri sorumlusu sıfatıyla Rothern (\"Platform\") tarafından, www.rothern.com adresinde sunulan B2B e-tedarik ve e-ihale platformunun kullanımı kapsamında kişisel verilerinizin işlenmesine ilişkin olarak sizleri bilgilendirmek amacıyla hazırlanmıştır.",
+            `İşbu Aydınlatma Metni, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, veri sorumlusu sıfatıyla ${OPERATOR.legalName} ("Rothern" markasıyla, "Platform") tarafından, www.rothern.com adresinde sunulan B2B e-tedarik ve e-ihale platformunun kullanımı kapsamında kişisel verilerinizin işlenmesine ilişkin olarak sizleri bilgilendirmek amacıyla hazırlanmıştır. Veri sorumlusunun adresi: ${OPERATOR.address}.`,
             "Platform, firmalar (tüzel ve gerçek kişi tacirler) arasında satın alma ve satış süreçlerine aracılık eden bir iş uygulamasıdır; kişisel veriler ağırlıklı olarak firma yetkilisi ve firma çalışanı sıfatıyla hareket eden gerçek kişilere aittir.",
           ],
         },
