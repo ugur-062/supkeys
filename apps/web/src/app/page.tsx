@@ -1238,7 +1238,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
           <h2 className="text-base/7 font-semibold text-zinc-500">Fiyatlar</h2>
           <p className="mt-2 text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-            Ücretsiz başla, hazır olduğunda yükselt
+            Her ölçeğe uygun paket
           </p>
         </div>
         <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-6 px-6 sm:mt-20 lg:max-w-7xl lg:grid-cols-4 lg:px-8">
