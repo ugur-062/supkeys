@@ -20,6 +20,7 @@ import {
   Gavel,
   History,
   Info,
+  MessageSquareText,
   Package,
   Paperclip,
   Plus,
@@ -42,6 +43,8 @@ interface LocalMsg {
   draft?: AiTenderExtractResult;
   /** Canlı gelen yanıt — daktilo efektiyle yazılır (geçmişten yüklenen yazılmaz). */
   typed?: boolean;
+  /** Kullanıcının bu mesajla gönderdiği belge adları — balonda chip olarak kalır. */
+  files?: string[];
 }
 
 /** Bekleme sırasında dönüşümlü durum metinleri — asistan "canlı" hissettirsin. */
@@ -139,7 +142,7 @@ function initials(first?: string, last?: string): string {
 }
 
 /** Faz AI-2/3 — asistan sohbet gövdesi (modern balonlar + belge + taslak kartı). */
-export function AssistantPanel() {
+export function AssistantPanel({ onClose }: { onClose?: () => void }) {
   const { user } = useCompanyAuth();
   const router = useRouter();
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -211,10 +214,17 @@ export function AssistantPanel() {
     setInput("");
     const sentFiles = files;
     setFiles([]);
-    const userLabel = text || `📎 ${sentFiles.map((f) => f.name).join(", ")}`;
     setMessages((m) => [
       ...m,
-      { id: `u-${m.length}`, role: "USER", content: userLabel },
+      {
+        id: `u-${m.length}`,
+        role: "USER",
+        content: text,
+        // Belgeler balonda chip olarak görünür kalır (yalnız görsel — akış aynı).
+        ...(sentFiles.length > 0
+          ? { files: sentFiles.map((f) => f.name) }
+          : {}),
+      },
     ]);
     try {
       const reply = await send.mutateAsync({
@@ -270,84 +280,152 @@ export function AssistantPanel() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      {/* Üst bar — kimlik launcher başlığında ("Asistan"), burada yalnız aksiyonlar */}
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-2">
-        <button
-          type="button"
-          onClick={startNew}
-          className="flex items-center gap-1 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
-        >
-          <Plus className="h-3.5 w-3.5" /> Yeni sohbet
-        </button>
-        <div className="flex items-center gap-1.5">
-          {nearLimit ? (
-            <span
-              className="rounded-full bg-warning-50 px-2 py-0.5 text-xs font-medium text-warning-600 ring-1 ring-warning-500/20"
-              title="Aylık AI kullanımınız sınıra yaklaştı"
+      {/* Başlık — markalı kimlik solda, aksiyonlar sağda (tek satır) */}
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="relative shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            {/* Çevrimiçi durum noktası */}
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-success-500" />
+          </div>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-sm font-semibold text-zinc-900">
+              Rothern Asistanı
+            </p>
+            <p
+              className={cn(
+                "truncate text-[11px]",
+                nearLimit ? "font-medium text-warning-600" : "text-zinc-400",
+              )}
+              title={nearLimit ? "Aylık AI kullanımınız sınıra yaklaştı" : undefined}
             >
-              Kullanım yüksek
-            </span>
-          ) : null}
+              {nearLimit ? "Kullanım sınıra yakın" : "Çevrimiçi — hazır"}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={startNew}
+            className="flex items-center gap-1 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            <Plus className="h-3.5 w-3.5" /> Yeni sohbet
+          </button>
           <button
             type="button"
             onClick={() => setShowHistory((s) => !s)}
             aria-label="Geçmiş sohbetler"
+            title="Geçmiş sohbetler"
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-zinc-100 hover:text-zinc-900",
+              "flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-zinc-100 hover:text-zinc-900",
               showHistory ? "bg-zinc-100 text-brand-700" : "text-zinc-500",
             )}
           >
             <History className="h-4 w-4" />
           </button>
+          {onClose ? (
+            <>
+              <span className="mx-0.5 h-5 w-px bg-zinc-950/10" />
+              <button
+                type="button"
+                aria-label="Kapat"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
 
       {showHistory ? (
-        <div className="rt-fade-in max-h-56 overflow-y-auto border-b border-zinc-950/10 bg-surface-subtle">
+        <div className="rt-fade-in border-b border-zinc-950/10 bg-surface-subtle">
+          <div className="flex items-center justify-between px-4 pb-1 pt-2.5">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+              Geçmiş sohbetler
+            </p>
+            {(sessions.data ?? []).length > 0 ? (
+              <span className="text-[11px] tabular-nums text-zinc-400">
+                {(sessions.data ?? []).length}
+              </span>
+            ) : null}
+          </div>
           {(sessions.data ?? []).length === 0 ? (
-            <p className="px-4 py-3 text-sm text-zinc-400">Kayıtlı sohbet yok</p>
+            <div className="flex flex-col items-center gap-1.5 px-4 pb-4 pt-2 text-center">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-zinc-300 ring-1 ring-zinc-950/5">
+                <MessageSquareText className="h-4 w-4" />
+              </span>
+              <p className="text-xs text-zinc-400">
+                Henüz kayıtlı sohbet yok — ilk mesajınızla oluşur.
+              </p>
+            </div>
           ) : (
-            (sessions.data ?? []).map((s) => (
-              <div
-                key={s.id}
-                className={cn(
-                  "group flex items-center gap-2 border-l-2 px-3 py-2 transition-colors hover:bg-white",
-                  sessionId === s.id
-                    ? "border-l-brand-600 bg-white"
-                    : "border-l-transparent",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => openHistory(s.id)}
+            <div className="max-h-60 overflow-y-auto pb-1.5">
+              {(sessions.data ?? []).map((s) => (
+                <div
+                  key={s.id}
                   className={cn(
-                    "min-w-0 flex-1 truncate text-left text-sm",
+                    "group flex items-center gap-2.5 border-l-2 px-3.5 py-2 transition-colors hover:bg-white",
                     sessionId === s.id
-                      ? "font-medium text-brand-700"
-                      : "text-zinc-700",
+                      ? "border-l-brand-600 bg-white"
+                      : "border-l-transparent",
                   )}
                 >
-                  {s.title ?? "Sohbet"}
-                </button>
-                <button
-                  type="button"
-                  aria-label="Sil"
-                  onClick={() => {
-                    void del.mutateAsync(s.id);
-                    if (sessionId === s.id) startNew();
-                  }}
-                  className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))
+                  <span
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-zinc-950/5",
+                      sessionId === s.id ? "text-brand-700" : "text-zinc-400",
+                    )}
+                  >
+                    <MessageSquareText className="h-3.5 w-3.5" />
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openHistory(s.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <p
+                      className={cn(
+                        "truncate text-sm",
+                        sessionId === s.id
+                          ? "font-medium text-brand-700"
+                          : "text-zinc-700",
+                      )}
+                    >
+                      {s.title ?? "Sohbet"}
+                    </p>
+                    <p className="truncate text-[11px] text-zinc-400">
+                      {format(new Date(s.lastMessageAt), "d MMM yyyy HH:mm", {
+                        locale: tr,
+                      })}
+                      {" · "}
+                      {s.turnCount} yazışma
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Sil"
+                    onClick={() => {
+                      void del.mutateAsync(s.id);
+                      if (sessionId === s.id) startNew();
+                    }}
+                    className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       ) : null}
 
-      {/* Balonlar */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
+      {/* Balonlar — scrollbar gizli (daktilo yazarken çubuk belirip kaymasın);
+          tekerlek/dokunmatik kaydırma çalışmaya devam eder. */}
+      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {messages.length === 0 ? (
           <div className="rt-fade-in flex h-full flex-col items-center justify-center px-2 text-center">
             <div className="relative">
@@ -424,7 +502,27 @@ export function AssistantPanel() {
                   )}
                 >
                   {m.role === "USER" ? (
-                    m.content
+                    <>
+                      {m.content}
+                      {m.files && m.files.length > 0 ? (
+                        <span
+                          className={cn(
+                            "flex flex-wrap gap-1.5",
+                            m.content ? "mt-1.5" : "",
+                          )}
+                        >
+                          {m.files.map((name, i) => (
+                            <span
+                              key={`${name}-${i}`}
+                              className="inline-flex max-w-full items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-xs text-white ring-1 ring-white/20"
+                            >
+                              <FileText className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{name}</span>
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                    </>
                   ) : m.typed ? (
                     <TypewriterMarkdown text={m.content} onProgress={scrollToEnd} />
                   ) : (

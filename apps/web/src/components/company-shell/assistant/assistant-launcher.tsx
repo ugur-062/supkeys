@@ -125,21 +125,9 @@ export function AssistantLauncher() {
             transition
             className="flex w-screen max-w-md transform flex-col bg-white shadow-xl transition duration-200 ease-out data-closed:translate-x-full"
           >
-            <div className="flex items-center justify-between border-b border-zinc-950/10 px-4 py-3">
-              <span className="flex items-center gap-2 font-semibold text-zinc-950">
-                <Sparkles className="h-5 w-5" /> Asistan
-              </span>
-              <button
-                type="button"
-                aria-label="Kapat"
-                onClick={() => setOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            {/* Başlık paneldedir (markalı kimlik + aksiyonlar tek satırda) */}
             <div className="min-h-0 flex-1">
-              <AssistantPanel />
+              <AssistantPanel onClose={() => setOpen(false)} />
             </div>
           </DialogPanel>
         </div>
