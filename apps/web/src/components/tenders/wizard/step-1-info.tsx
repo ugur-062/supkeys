@@ -3,7 +3,6 @@
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Select } from "@/components/catalyst/select";
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { FilesTab } from "@/components/tenders/files-tab";
 import {
   StagedDocuments,
@@ -17,7 +16,6 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import { DELIVERY_TERM_LABELS, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
 import type {
@@ -37,7 +35,6 @@ import {
   Info,
   MapPin,
   Star,
-  Tag,
   Truck,
   Wallet,
 } from "lucide-react";
@@ -316,7 +313,8 @@ function SectionHeader({
 
 // UNSPSC Segment 78 = "Nakliye, Depolama ve Posta Hizmetleri" (lojistik).
 // Bu segment altındaki tüm kategori kodları "78" ile başlar.
-function isLogisticsCategoryCode(code: string): boolean {
+// (Kalemler adımında kategoriden isLogistics türetmek için export.)
+export function isLogisticsCategoryCode(code: string): boolean {
   return code.startsWith("78");
 }
 
@@ -331,7 +329,10 @@ const TRANSPORT_MODE_OPTIONS = [
 const asOptionalNumber = (v: unknown) =>
   v === "" || v === undefined || v === null ? undefined : Number(v);
 
-function LogisticsSection() {
+// Kategoriler Kalemler adımına taşındı (kategori→lojistik türetmesiyle
+// birlikte); bu bileşen orada render edilir, tanımı ortak yardımcılarla
+// (SectionHeader/FormRadioGroup/FormCheckbox) aynı dosyada kalır.
+export function LogisticsSection() {
   const {
     register,
     formState: { errors },
@@ -583,7 +584,6 @@ export function Step1Info({
   const primaryCurrency = watch("primaryCurrency");
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
   const tenderType = watch("type");
-  const isLogistics = watch("isLogistics");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
   const isSatis = watch("listingType") === "SATIS";
@@ -652,20 +652,6 @@ export function Step1Info({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInternational, paymentCategory, advancePercent]);
-
-  const categoryIds = watch("categoryIds") ?? [];
-
-  // Lojistik — seçilen kategorilerden biri Nakliye/Depolama/Posta segmentinde
-  // (UNSPSC kod 78…) ise ihale otomatik "lojistik" olur ve taşıma alanları açılır.
-  const selectedCategories = useCategoriesByIds(categoryIds);
-  const categoriesAreLogistics = (selectedCategories.data ?? []).some((c) =>
-    isLogisticsCategoryCode(c.code),
-  );
-  useEffect(() => {
-    if (categoriesAreLogistics !== isLogistics) {
-      setValue("isLogistics", categoriesAreLogistics, { shouldValidate: true });
-    }
-  }, [categoriesAreLogistics, isLogistics, setValue]);
 
   return (
     <div className="space-y-8">
@@ -749,29 +735,6 @@ export function Step1Info({
             </FormRadioGroup>
           </Field>
         </div>
-      </section>
-
-      {/* V2-6 — SECTION: Kategoriler */}
-      <section>
-        <SectionHeader
-          icon={Tag}
-          title="Kategoriler"
-          description={`İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
-        />
-        <Field error={errors.categoryIds?.message as string | undefined}>
-          <Label required>Kategoriler</Label>
-          <CategorySelectorButton
-            value={categoryIds}
-            onChange={(ids) =>
-              setValue("categoryIds", ids, { shouldValidate: true })
-            }
-            mode="multi"
-            maxSelection={10}
-            placeholder="İhale kategorilerini seçin"
-            modalTitle="İhale Kategorileri Seç"
-            error={errors.categoryIds?.message as string | undefined}
-          />
-        </Field>
       </section>
 
       {/* SATIS — Satış Fiyatları: kapsam (TOPLU/KALEM) + toplu alanlar */}
@@ -860,9 +823,6 @@ export function Step1Info({
           )}
         </section>
       ) : null}
-
-      {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}
-      {isLogistics ? <LogisticsSection /> : null}
 
       {/* V2-7 — SECTION: Teklif ve Sıralama Görünürlüğü (sadece İngiliz Usulü) */}
       {isAuction ? (

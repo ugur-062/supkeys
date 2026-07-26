@@ -47,8 +47,8 @@ function stepMeta(isSatis: boolean) {
     isSatis
       ? { title: "Tür & Kapsam", desc: "Satış ihalesi türü ve kapsamı" }
       : { title: "Tür & Kapsam", desc: "İhale türü ve kapsamı" },
-    { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
-    { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
+    { title: "Genel Bilgi", desc: "Kurallar, teslimat, ödeme" },
+    { title: "Kalemler", desc: "Ürün / hizmet kalemleri ve kategori" },
     isSatis
       ? { title: "Alıcılar", desc: "Davet edilecekler" }
       : { title: "Tedarikçiler", desc: "Davet edilecekler" },

@@ -1,4 +1,5 @@
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -9,6 +10,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from "class-validator";
 import {
   CurrentCompanyUser,
@@ -16,6 +18,7 @@ import {
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
+import { CategorySuggestService } from "./category-suggest.service";
 import { TenderExtractService } from "./tender-extract.service";
 
 class AiUploadUrlDto {
@@ -40,6 +43,20 @@ class TenderRefineDto {
   @IsString() @MaxLength(2000) message!: string;
 }
 
+class CategorySuggestItemDto {
+  @IsString() @MaxLength(300) name!: string;
+  @IsOptional() @IsString() @MaxLength(500) description?: string;
+}
+
+class CategorySuggestDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => CategorySuggestItemDto)
+  items!: CategorySuggestItemDto[];
+}
+
 /**
  * Faz AI-1 — belge → ihale formu. Guard zinciri AI-0 kullanım ekranıyla aynı
  * (JWT + Silver+); SA/ST koltuk kapısı serviste (assertAiAccess — tek kapı).
@@ -49,7 +66,23 @@ class TenderRefineDto {
 @Controller("company/ai")
 @UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
 export class TenderExtractController {
-  constructor(private readonly service: TenderExtractService) {}
+  constructor(
+    private readonly service: TenderExtractService,
+    private readonly categorySuggest: CategorySuggestService,
+  ) {}
+
+  /**
+   * Wizard "kalemlerden otomatik kategori" — kullanıcının yazdığı kalem
+   * adlarından ≤3 doğrulanmış L3 kategori önerir. Bağlayıcı değil; hata/bütçe
+   * durumunda boş liste döner, form akışı bozulmaz.
+   */
+  @Post("tender-extract/category-suggest")
+  categorySuggestForItems(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: CategorySuggestDto,
+  ) {
+    return this.categorySuggest.suggestForItems(user, dto.items);
+  }
 
   @Post("uploads/url")
   uploadUrl(

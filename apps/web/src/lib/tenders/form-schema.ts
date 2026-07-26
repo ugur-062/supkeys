@@ -409,14 +409,11 @@ export type TenderFormData = z.infer<typeof tenderFormSchema>;
 export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
   // Faz 1 — yalnızca tür + kapsam
   1: ["type", "isInternational", "targetCountries"],
-  // Faz 2 — genel bilgi, kategori, kurallar, teslimat, ödeme, zamanlama
+  // Faz 2 — genel bilgi, kurallar, teslimat, ödeme, zamanlama
   2: [
-    "categoryIds",
     "title",
     "description",
     "keywords",
-    "isLogistics",
-    "logistics",
     "isSealedBid",
     "requireAllItems",
     "requireBidDocument",
@@ -445,7 +442,9 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "autoExtendThresholdMin",
     "autoExtendByMinutes",
   ],
-  3: ["items"],
+  // Faz 3 — kalemler + (kalemlerden AI-önerili) kategori; lojistik bayrağı
+  // kategoriden türediği için lojistik alanları da bu adımda doğrulanır.
+  3: ["items", "categoryIds", "isLogistics", "logistics"],
   4: ["invitedSupplierIds"],
 };
 

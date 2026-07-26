@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { AiTenderDraftItem } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService } from "../ai.service";
@@ -15,6 +14,15 @@ import { AiService } from "../ai.service";
  * Öneri BAĞLAYICI DEĞİL: formda ön-seçim, son karar kullanıcının.
  * Hata/parse sorunu taslağı düşürmez — boş öneriyle devam edilir.
  */
+
+/**
+ * Öneri yalnız ad+açıklama okur — hem tam AiTenderDraftItem (belge/asistan
+ * akışı) hem wizard'ın küçük DTO'su yapısal olarak uyar.
+ */
+export type SuggestItem = {
+  name: string | null;
+  description?: string | null;
+};
 
 const MAX_SUGGESTIONS = 3;
 const MAX_ITEMS_IN_PROMPT = 40;
@@ -77,12 +85,27 @@ export class CategorySuggestService {
   ) {}
 
   /**
+   * Wizard'ın "kalemlerden otomatik kategori" ucu — suggest()'ten farkı:
+   * erişim kapısı (Silver+ ∧ SA/ST koltuk, AI yapılandırılmış) AÇIKÇA burada
+   * fırlatılır (403/503). suggest() tüm hataları [] olarak yuttuğundan,
+   * yetkisiz çağrı sessiz 200 yerine net hata alsın diye kapı try dışında.
+   * Kapıdan geçen kullanıcıda model/bütçe hataları yine boş öneriye düşer.
+   */
+  async suggestForItems(
+    user: AuthenticatedCompanyUser,
+    items: SuggestItem[],
+  ): Promise<{ categoryIds: string[] }> {
+    this.ai.assertAiAccess(user);
+    return { categoryIds: await this.suggest(user, items) };
+  }
+
+  /**
    * Kalem adlarından en fazla 3 doğrulanmış CLASS (level=3) id'si önerir.
    * Boş dizi = öneri yok (hata dahil) — çağıran akış aynen devam eder.
    */
   async suggest(
     user: AuthenticatedCompanyUser,
-    items: AiTenderDraftItem[],
+    items: SuggestItem[],
   ): Promise<string[]> {
     const named = items.filter((i) => i.name).slice(0, MAX_ITEMS_IN_PROMPT);
     if (named.length === 0) return [];
