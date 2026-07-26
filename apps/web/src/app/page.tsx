@@ -860,7 +860,7 @@ export default function HomePage() {
       </section>
 
       {/* Özellikler — 2 sıra bento (2.sırada 3 sütun) */}
-      <section id="ozellikler" className="py-24 sm:py-32">
+      <section id="ozellikler" className="scroll-mt-24 py-24 sm:py-32">
         <div className="mx-auto max-w-2xl px-6 lg:max-w-7xl lg:px-8">
           <h2 className="text-base/7 font-semibold text-zinc-500">
             Eksiksiz ticaret
@@ -949,7 +949,7 @@ export default function HomePage() {
       {/* Tek panelde her şey — ekip & ağ */}
       <section
         id="nasil"
-        className="border-y border-zinc-200 bg-zinc-50 py-24 sm:py-32"
+        className="scroll-mt-24 border-y border-zinc-200 bg-zinc-50 py-24 sm:py-32"
       >
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:mx-0">
@@ -1234,7 +1234,7 @@ export default function HomePage() {
       </section>
 
       {/* Üyelik */}
-      <section id="fiyatlar" className="py-24 sm:py-32">
+      <section id="fiyatlar" className="scroll-mt-24 py-24 sm:py-32">
         <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
           <h2 className="text-base/7 font-semibold text-zinc-500">Fiyatlar</h2>
           <p className="mt-2 text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
@@ -1305,7 +1305,7 @@ export default function HomePage() {
       </section>
 
       {/* SSS — ortalı başlık + çok kolonlu Q&A kartları */}
-      <section id="sss" className="border-t border-zinc-200 bg-white py-24 sm:py-32">
+      <section id="sss" className="scroll-mt-24 border-t border-zinc-200 bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 const navigation = [
   { name: "Özellikler", href: "/#ozellikler" },
   { name: "Nasıl Çalışır", href: "/#nasil" },
-  { name: "Üyelik", href: "/#uyelik" },
+  { name: "Fiyatlar", href: "/#fiyatlar" },
   { name: "SSS", href: "/#sss" },
 ];
 
