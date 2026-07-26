@@ -644,7 +644,7 @@ export function Step1Info({
       );
       const ids = r.data?.categoryIds;
       if (Array.isArray(ids) && ids.length > 0) {
-        setValue("categoryIds", ids.slice(0, 10), {
+        setValue("categoryIds", ids.slice(0, 3), {
           shouldValidate: true,
           shouldDirty: true,
         });
@@ -808,7 +808,7 @@ export function Step1Info({
         <SectionHeader
           icon={Tag}
           title="Kategoriler"
-          description={`İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
+          description={`İhalenizin ana konusunu tanımlayan kategoriyi seçin (gerekiyorsa en fazla 3). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
         />
         <Field error={errors.categoryIds?.message as string | undefined}>
           <div className="flex flex-wrap items-center gap-2">
@@ -844,7 +844,7 @@ export function Step1Info({
                 setValue("categoryIds", ids, { shouldValidate: true });
               }}
               mode="multi"
-              maxSelection={10}
+              maxSelection={3}
               placeholder="İhale kategorilerini seçin"
               modalTitle="İhale Kategorileri Seç"
               error={errors.categoryIds?.message as string | undefined}

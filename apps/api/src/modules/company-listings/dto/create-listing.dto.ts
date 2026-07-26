@@ -359,10 +359,13 @@ export class CreateListingDto {
   @ArrayMaxSize(200)
   invitations?: string[];
 
+  // İhale kategorisi ana konuyu tanımlar (detay kalemlerde) — AI önerisi
+  // tavanıyla hizalı: en fazla 3. Fazla kategori PUBLIC ihalede alakasız
+  // firmalara kategori-eşleşme bildirimi saçar.
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(3)
   categoryIds?: string[];
 
   @IsOptional()

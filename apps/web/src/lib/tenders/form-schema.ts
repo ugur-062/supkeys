@@ -168,7 +168,7 @@ const baseTenderSchema = z.object({
   categoryIds: z
     .array(z.string().min(1))
     .min(1, "En az 1 kategori seçmelisiniz")
-    .max(10, "En fazla 10 kategori seçebilirsiniz"),
+    .max(3, "En fazla 3 kategori seçebilirsiniz"),
   title: z
     .string()
     .min(3, "İhale adı en az 3 karakter olmalı")
