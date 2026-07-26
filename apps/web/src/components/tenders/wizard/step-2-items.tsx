@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   FileText,
   HelpCircle,
-  Info,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -62,16 +61,6 @@ export function Step2Items() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-50/40 border border-brand-100 text-xs text-slate-600">
-        <Info className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" />
-        <p>
-          Kalemleri tek tek ekleyin. Excel toplu yükleme V2&apos;de gelecek.
-          Her kalem için &ldquo;Detay Ekle&rdquo; (açıklama / tarih / hedef
-          fiyat) ve &ldquo;Soru Ekle&rdquo; (teklif verenin cevaplaması zorunlu
-          teknik soru) butonlarını kullanabilirsiniz.
-        </p>
-      </div>
-
       {isSatisStep ? (
         <Field className="rounded-xl border border-slate-200 p-4">
           <Label required>Fiyatlandırma</Label>
