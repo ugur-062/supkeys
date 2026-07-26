@@ -107,7 +107,7 @@ async function main() {
     );
   } else {
     const company = await prisma.company.create({
-      data: { name: companyName, tier: "STANDARD", rothernId: await uniqueRothernId() },
+      data: { name: companyName, tier: "STANDART", rothernId: await uniqueRothernId() },
     });
     const user = await prisma.companyUser.create({
       data: {

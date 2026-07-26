@@ -64,18 +64,18 @@ async function ensureAuthUser(email: string): Promise<string> {
 // ── Firma tanımları ──
 type Def = { key: string; name: string; tier: CompanyTier };
 const COMPANIES: Def[] = [
-  { key: "anadolu", name: "Anadolu İnşaat A.Ş.", tier: "PAKET" },
-  { key: "ege", name: "Ege Tekstil San. Tic. A.Ş.", tier: "PAKET" },
-  { key: "marmara", name: "Marmara Gıda Ltd. Şti.", tier: "PAKET" },
-  { key: "toros", name: "Toros Kimya A.Ş.", tier: "PAKET" },
-  { key: "karadeniz", name: "Karadeniz Enerji A.Ş.", tier: "PAKET" },
-  { key: "baskent", name: "Başkent Medikal Ltd. Şti.", tier: "PAKET" },
-  { key: "akdeniz", name: "Akdeniz Lojistik A.Ş.", tier: "PAKET" },
-  { key: "metal", name: "İç Anadolu Metal San. A.Ş.", tier: "PAKET" },
-  { key: "yildiz", name: "Yıldız Ofis Malzemeleri", tier: "STANDARD" },
-  { key: "demir", name: "Demir Hırdavat Ltd.", tier: "STANDARD" },
-  { key: "gunes", name: "Güneş Temizlik Hizmetleri", tier: "STANDARD" },
-  { key: "mavi", name: "Mavi Bilişim Çözümleri", tier: "STANDARD" },
+  { key: "anadolu", name: "Anadolu İnşaat A.Ş.", tier: "GOLD" },
+  { key: "ege", name: "Ege Tekstil San. Tic. A.Ş.", tier: "GOLD" },
+  { key: "marmara", name: "Marmara Gıda Ltd. Şti.", tier: "GOLD" },
+  { key: "toros", name: "Toros Kimya A.Ş.", tier: "GOLD" },
+  { key: "karadeniz", name: "Karadeniz Enerji A.Ş.", tier: "GOLD" },
+  { key: "baskent", name: "Başkent Medikal Ltd. Şti.", tier: "GOLD" },
+  { key: "akdeniz", name: "Akdeniz Lojistik A.Ş.", tier: "GOLD" },
+  { key: "metal", name: "İç Anadolu Metal San. A.Ş.", tier: "GOLD" },
+  { key: "yildiz", name: "Yıldız Ofis Malzemeleri", tier: "STANDART" },
+  { key: "demir", name: "Demir Hırdavat Ltd.", tier: "STANDART" },
+  { key: "gunes", name: "Güneş Temizlik Hizmetleri", tier: "STANDART" },
+  { key: "mavi", name: "Mavi Bilişim Çözümleri", tier: "STANDART" },
 ];
 
 const CONNECTIONS: [string, string][] = [
@@ -180,7 +180,7 @@ async function main() {
     const company = await prisma.company.create({
       data: {
         name: d.name, rothernId: code, tier: d.tier, country: "TR",
-        website: d.tier === "PAKET" ? `https://${d.key}.example.com` : null,
+        website: d.tier === "GOLD" ? `https://${d.key}.example.com` : null,
         buyerCategoryIds: buyerCats, sellerCategoryIds: sellerCats,
         onboardingCompletedAt: new Date(),
       },
