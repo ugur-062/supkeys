@@ -17,7 +17,6 @@ import {
   ArrowRight,
   FileText,
   History,
-  Loader2,
   Paperclip,
   Plus,
   Send,
@@ -26,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AssistantMarkdown } from "./assistant-markdown";
 
 interface LocalMsg {
@@ -36,6 +35,76 @@ interface LocalMsg {
   at?: string;
   tools?: string[];
   draft?: AiTenderExtractResult;
+  /** Canlı gelen yanıt — daktilo efektiyle yazılır (geçmişten yüklenen yazılmaz). */
+  typed?: boolean;
+}
+
+/** Bekleme sırasında dönüşümlü durum metinleri — asistan "canlı" hissettirsin. */
+const THINKING_PHRASES = [
+  "Düşünüyorum…",
+  "Bilgilere bakıyorum…",
+  "Yanıtı hazırlıyorum…",
+];
+
+/** Yanıt beklerken üç zıplayan nokta + dönüşümlü durum metni. */
+function ThinkingBubble() {
+  const [phrase, setPhrase] = useState(0);
+  useEffect(() => {
+    const t = setInterval(
+      () => setPhrase((p) => (p + 1) % THINKING_PHRASES.length),
+      2200,
+    );
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="flex items-end gap-2">
+      <div className="flex h-7 w-7 shrink-0 animate-pulse items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+        <Sparkles className="h-3.5 w-3.5" />
+      </div>
+      <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-zinc-100 px-3.5 py-2.5">
+        <span className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-500"
+              style={{ animationDelay: `${i * 150}ms` }}
+            />
+          ))}
+        </span>
+        <span className="text-xs text-zinc-400">{THINKING_PHRASES[phrase]}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Daktilo efekti — canlı gelen asistan yanıtını harf harf yazar (~2sn'de
+ *  tamamlanır; uzun metinde adım büyür, animasyon uzamaz). */
+function TypewriterMarkdown({
+  text,
+  onProgress,
+}: {
+  text: string;
+  onProgress?: () => void;
+}) {
+  const [len, setLen] = useState(0);
+  useEffect(() => {
+    if (len >= text.length) return;
+    const step = Math.max(2, Math.ceil(text.length / 120));
+    const t = setTimeout(() => {
+      setLen((l) => Math.min(text.length, l + step));
+      onProgress?.();
+    }, 16);
+    return () => clearTimeout(t);
+  }, [len, text, onProgress]);
+  const done = len >= text.length;
+  return (
+    <span>
+      <AssistantMarkdown text={text.slice(0, len)} />
+      {!done ? (
+        <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-brand-500 align-middle" />
+      ) : null}
+    </span>
+  );
 }
 
 const SEAT = { buy: "SATIN_ALMACI", sell: "SATISCI" };
@@ -83,6 +152,11 @@ export function AssistantPanel() {
   const usage = useAiUsage();
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Daktilo efekti sırasında balon büyüdükçe alta kaydır (smooth değil —
+  // her karede smooth scroll titreşim yapar).
+  const scrollToEnd = useCallback(() => {
+    endRef.current?.scrollIntoView({ behavior: "auto" });
+  }, []);
 
   useEffect(() => {
     if (loaded.data && loaded.data.id === loadHistoryId) {
@@ -149,6 +223,7 @@ export function AssistantPanel() {
           content: reply.reply,
           tools: reply.toolsUsed,
           draft: reply.tenderDraft,
+          typed: true,
         },
       ]);
     } catch (err) {
@@ -158,6 +233,7 @@ export function AssistantPanel() {
           id: `err-${m.length}`,
           role: "ASSISTANT",
           content: extractErrorMessage(err, "Şu an yanıt veremedim — lütfen tekrar deneyin."),
+          typed: true,
         },
       ]);
     }
@@ -317,6 +393,8 @@ export function AssistantPanel() {
                 >
                   {m.role === "USER" ? (
                     m.content
+                  ) : m.typed ? (
+                    <TypewriterMarkdown text={m.content} onProgress={scrollToEnd} />
                   ) : (
                     <AssistantMarkdown text={m.content} />
                   )}
@@ -366,11 +444,7 @@ export function AssistantPanel() {
             </div>
           ))
         )}
-        {send.isPending ? (
-          <div className="flex items-center gap-2 pl-9 text-sm text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" /> Düşünüyorum…
-          </div>
-        ) : null}
+        {send.isPending ? <ThinkingBubble /> : null}
         <div ref={endRef} />
       </div>
 

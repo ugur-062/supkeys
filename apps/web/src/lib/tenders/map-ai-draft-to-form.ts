@@ -46,6 +46,10 @@ export function mapAiDraftToForm(
     title: draft.title ?? "",
     description: draft.description ?? "",
     keywords: draft.keywords.slice(0, 10),
+    // Backend'in DB'ye karşı doğruladığı kategori önerisi — ön-seçim olarak
+    // gelir, kullanıcı 2. adımda değiştirebilir. (?? []: eski oturum taslakları
+    // bu alanı taşımayabilir.)
+    categoryIds: (draft.suggestedCategoryIds ?? []).slice(0, 10),
     isInternational: draft.isInternational ?? false,
     primaryCurrency:
       (currency as TenderFormData["primaryCurrency"] | null) ??

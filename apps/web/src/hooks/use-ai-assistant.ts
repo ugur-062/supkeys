@@ -73,6 +73,9 @@ export function useSendAssistantMessage() {
           message: input.message,
           ...(fileKeys.length > 0 ? { fileKeys } : {}),
         },
+        // Araç döngüsü + belge çıkarımı global 45sn'yi aşabilir; backend tur
+        // deadline'ı (90sn) her durumda bundan önce yanıt verir.
+        { timeout: 180_000 },
       );
       return data;
     },

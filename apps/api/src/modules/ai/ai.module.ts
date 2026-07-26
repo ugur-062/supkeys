@@ -10,6 +10,7 @@ import { AiService } from "./ai.service";
 import { AiUsageController } from "./ai-usage.controller";
 import { GeminiProvider } from "./providers/gemini.provider";
 import type { BaseAiProvider } from "./providers/ai-provider.interface";
+import { CategorySuggestService } from "./tender-extract/category-suggest.service";
 import { TenderExtractController } from "./tender-extract/tender-extract.controller";
 import { TenderExtractService } from "./tender-extract/tender-extract.service";
 import { AssistantController } from "./assistant/assistant.controller";
@@ -69,6 +70,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     AiService,
     AiScheduler,
     TenderExtractService,
+    CategorySuggestService,
     AssistantService,
   ],
   exports: [AiService, AiBudgetService],

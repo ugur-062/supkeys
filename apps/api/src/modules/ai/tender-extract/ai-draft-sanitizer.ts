@@ -184,6 +184,16 @@ export function sanitizeAiDraft(
       .filter((s): s is string => typeof s === "string")
       .map((s) => s.slice(0, 500))
       .slice(0, 50),
+    // Backend'in DB'ye karşı doğruladığı öneri — revive/refine döngülerinde
+    // kaybolmasın diye taşınır; model bu alanı üretMEZ (üretse de yalnız
+    // string id biçimi geçer, servis DB'de yeniden doğrular).
+    suggestedCategoryIds: (Array.isArray(r.suggestedCategoryIds)
+      ? r.suggestedCategoryIds
+      : []
+    )
+      .filter((c): c is string => typeof c === "string" && c.trim() !== "")
+      .map((c) => c.trim().slice(0, 64))
+      .slice(0, 10),
   };
 
   // Model güven bildirimi (beyaz-liste süzgeçli).
@@ -213,8 +223,11 @@ export function sanitizeAiDraft(
   }
   if (!draft.deliveryTerm) missingRequired.push("Teslim şekli");
   if (!draft.bidsCloseAt) missingRequired.push("Teklif kapanış tarihi");
-  // Platform-içi kimlikler AI'dan istenmez — kullanıcı seçer.
-  missingRequired.push("Kategori seçimi (platformdan)");
+  // Kategori: AI önerisi varsa formda ön-dolu gelir (kullanıcı kontrol eder);
+  // yoksa kullanıcının seçmesi gereken zorunlu alan olarak bildirilir.
+  if (draft.suggestedCategoryIds.length === 0) {
+    missingRequired.push("Kategori seçimi (platformdan)");
+  }
 
   return { draft, flags, missingRequired };
 }

@@ -45,10 +45,15 @@ import {
   type Portal,
 } from "./assistant-tools";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
+import { CategorySuggestService } from "../tender-extract/category-suggest.service";
 import { TenderExtractService } from "../tender-extract/tender-extract.service";
 import { SUGGEST_NEW_CHAT_AFTER, planWindow, type StoredMessage } from "./window";
 
 const MAX_TOOL_ITERATIONS = 4;
+/** Tur-geneli süre bütçesi — araç döngüsündeki TÜM Gemini çağrılarının toplamı.
+ *  Frontend'in asistan timeout'undan (180sn) belirgin küçük olmalı ki hata
+ *  durumunda kullanıcı backend'in Türkçe mesajını görsün, axios düşmesin. */
+const TURN_DEADLINE_MS = 90_000;
 const MAX_TURN_MESSAGE_LEN = 4000;
 const MAX_TOOL_RESULT_CHARS = 8000;
 const MAX_OUTPUT_TOKENS = 1024;
@@ -69,6 +74,7 @@ export class AssistantService {
     private readonly orders: CompanyOrdersService,
     private readonly connections: CompanyConnectionsService,
     private readonly tenderExtract: TenderExtractService,
+    private readonly categorySuggest: CategorySuggestService,
   ) {}
 
   async message(
@@ -171,6 +177,7 @@ export class AssistantService {
     };
     const toolsUsed: string[] = [];
     let reply = "";
+    const deadlineAt = Date.now() + TURN_DEADLINE_MS;
 
     try {
       for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -182,6 +189,7 @@ export class AssistantService {
           tools: toolDefs,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           timeoutMs: this.config.timeoutMs,
+          deadlineAt,
         });
         accumulate(totalUsage, result.usage);
 
@@ -238,6 +246,7 @@ export class AssistantService {
             history,
             maxOutputTokens: MAX_OUTPUT_TOKENS,
             timeoutMs: this.config.timeoutMs,
+            deadlineAt,
           });
           accumulate(totalUsage, closing.usage);
           reply = closing.text;
@@ -255,6 +264,27 @@ export class AssistantService {
       throw new ServiceUnavailableException(
         "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
       );
+    }
+
+    // Konuşmayla toplanan taslakta kalem var ama kategori önerisi yoksa üret
+    // (belge yolu extract() içinde zaten önerir). suggest() hata yutar — turu
+    // asla düşürmez.
+    if (
+      draftTouched &&
+      draft &&
+      draft.draft.suggestedCategoryIds.length === 0 &&
+      draft.draft.items.some((i) => i.name)
+    ) {
+      const ids = await this.categorySuggest.suggest(user, draft.draft.items);
+      if (ids.length > 0) {
+        draft = {
+          ...draft,
+          draft: { ...draft.draft, suggestedCategoryIds: ids },
+          missingRequired: draft.missingRequired.filter(
+            (m) => !m.startsWith("Kategori"),
+          ),
+        };
+      }
     }
 
     const settled = await this.budget.settle(reservation.id, totalUsage);
@@ -346,6 +376,10 @@ export class AssistantService {
       items: n.items.length > 0 ? n.items : b.items,
       pricesIncludeVat: pick("pricesIncludeVat"),
       pageSummaries: n.pageSummaries.length > 0 ? n.pageSummaries : b.pageSummaries,
+      suggestedCategoryIds:
+        n.suggestedCategoryIds.length > 0
+          ? n.suggestedCategoryIds
+          : b.suggestedCategoryIds,
     };
     // missingRequired'ı birleşik taslaktan yeniden hesapla (sanitize üzerinden).
     const re = sanitizeAiDraft(merged, "refine");

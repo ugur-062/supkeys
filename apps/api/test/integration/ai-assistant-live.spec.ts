@@ -12,6 +12,7 @@ import { AiBudgetService } from "../../src/modules/ai/ai-budget.service";
 import { AiService } from "../../src/modules/ai/ai.service";
 import { loadAiConfig } from "../../src/modules/ai/ai.config";
 import { GeminiProvider } from "../../src/modules/ai/providers/gemini.provider";
+import { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import { AssistantService } from "../../src/modules/ai/assistant/assistant.service";
 import { prisma, truncateAll } from "./test-db";
@@ -47,11 +48,14 @@ d("Faz AI-2 — canlı asistan duman testi", () => {
     const budget = new AiBudgetService(prisma as never, cfg);
     const ai = new AiService(cfg, provider, budget, prisma as never, undefined);
     const listings = makeService().service;
-    const tenderExtract = new TenderExtractService(ai, {} as never, cfg);
+    const categorySuggest = new CategorySuggestService(ai, prisma as never);
+    const tenderExtract = new TenderExtractService(
+      ai, {} as never, categorySuggest, cfg,
+    );
     const svc = new AssistantService(
       cfg, provider, ai, budget, prisma as never,
       listings, new FakeOrders() as never, new FakeConnections() as never,
-      tenderExtract,
+      tenderExtract, categorySuggest,
     );
 
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });

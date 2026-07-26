@@ -12,6 +12,7 @@ import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai
 import { AiService } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
 import { AssistantService } from "../../src/modules/ai/assistant/assistant.service";
+import type { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import { toolDefsForUser, allowedPortals } from "../../src/modules/ai/assistant/assistant-tools";
 import { ASSISTANT_SYSTEM_PROMPT } from "../../src/modules/ai/assistant/assistant.prompts";
@@ -85,7 +86,16 @@ function build(cfg: AiConfig, provider: FakeProvider) {
   const budget = new AiBudgetService(prisma as never, cfg);
   const ai = new AiService(cfg, provider, budget, prisma as never, undefined);
   // Belge (fileKeys) senaryosu bu suite'te yok — storage stub yeterli.
-  const tenderExtract = new TenderExtractService(ai, {} as never, cfg);
+  // Kategori önerisi stub: öneri yok (senaryolar deterministik kalır).
+  const categorySuggest = {
+    suggest: async () => [] as string[],
+  } as unknown as CategorySuggestService;
+  const tenderExtract = new TenderExtractService(
+    ai,
+    {} as never,
+    categorySuggest,
+    cfg,
+  );
   const svc = new AssistantService(
     cfg,
     provider,
@@ -96,6 +106,7 @@ function build(cfg: AiConfig, provider: FakeProvider) {
     orders as never,
     connections as never,
     tenderExtract,
+    categorySuggest,
   );
   return { svc, listings, orders, connections };
 }

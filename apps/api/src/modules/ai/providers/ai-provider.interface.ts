@@ -82,6 +82,12 @@ export interface AiCompletionRequest {
   disableThinking?: boolean;
   maxOutputTokens: number;
   timeoutMs: number;
+  /**
+   * Tur-geneli mutlak son tarih (epoch ms). Çok-çağrılı akışlarda (asistan araç
+   * döngüsü) toplam süreyi sınırlar: her deneme kalan süreyle yarışır, süre
+   * bittiyse retry yapılmaz. Verilmezse yalnız timeoutMs geçerlidir.
+   */
+  deadlineAt?: number;
 }
 
 export interface AiCompletionResult {

@@ -62,6 +62,8 @@ function filledSummary(d: AiTenderDraft): string[] {
   // yurtiçi kalır ama özete yazılmaz; kullanıcı 1. adımda kendisi seçer).
   if (d.isInternational !== null)
     out.push(d.isInternational ? "kapsam (uluslararası)" : "kapsam (yurtiçi)");
+  const catCount = (d.suggestedCategoryIds ?? []).length;
+  if (catCount > 0) out.push(`${catCount} kategori önerisi`);
   return out;
 }
 
@@ -118,10 +120,22 @@ export function AiFlagsBanner({
         </p>
       ) : null}
 
-      <p className="text-sm text-zinc-700">
-        <span className="font-medium">Kategori ve teslimat adresi belgeden doldurulmaz</span>{" "}
-        — bunları bu formda siz seçersiniz.
-      </p>
+      {(result.draft.suggestedCategoryIds ?? []).length > 0 ? (
+        <p className="text-sm text-zinc-700">
+          <span className="font-medium">
+            Kategoriler kalemlere göre AI tarafından önerildi
+          </span>{" "}
+          — &quot;Genel Bilgi&quot; adımında kontrol edin. Teslimat adresini bu
+          formda siz seçersiniz.
+        </p>
+      ) : (
+        <p className="text-sm text-zinc-700">
+          <span className="font-medium">
+            Kategori ve teslimat adresi belgeden doldurulmaz
+          </span>{" "}
+          — bunları bu formda siz seçersiniz.
+        </p>
+      )}
 
       {result.downgraded ? (
         <p className="text-sm text-zinc-700">

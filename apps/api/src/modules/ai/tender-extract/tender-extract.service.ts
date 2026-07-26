@@ -15,7 +15,8 @@ import { AiService, type AiCallResult } from "../ai.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
 import { buildAiExtractKey, isOwnAiExtractKey } from "./ai-extract-keys";
 import { routeExtractInput, type RoutedInput } from "./ai-extract-router";
-import { sanitizeAiDraft } from "./ai-draft-sanitizer";
+import { sanitizeAiDraft, type SanitizedDraft } from "./ai-draft-sanitizer";
+import { CategorySuggestService } from "./category-suggest.service";
 import {
   EXTRACT_RESPONSE_SCHEMA,
   EXTRACT_SYSTEM_PROMPT,
@@ -50,8 +51,27 @@ export class TenderExtractService {
   constructor(
     private readonly ai: AiService,
     private readonly storage: StorageService,
+    private readonly categorySuggest: CategorySuggestService,
     @Inject(AI_CONFIG) private readonly config: AiConfig,
   ) {}
+
+  /** Kalemlerden kategori önerisi ekle — öneri geldiyse "Kategori" artık eksik
+   *  zorunlu değil (formda ön-dolu gelir, kullanıcı kontrol eder). */
+  private async withCategorySuggestions(
+    user: AuthenticatedCompanyUser,
+    sanitized: SanitizedDraft,
+  ): Promise<SanitizedDraft> {
+    if (sanitized.draft.suggestedCategoryIds.length > 0) return sanitized;
+    const ids = await this.categorySuggest.suggest(user, sanitized.draft.items);
+    if (ids.length === 0) return sanitized;
+    return {
+      ...sanitized,
+      draft: { ...sanitized.draft, suggestedCategoryIds: ids },
+      missingRequired: sanitized.missingRequired.filter(
+        (m) => !m.startsWith("Kategori"),
+      ),
+    };
+  }
 
   /** Presigned PUT — geçici AI belge alanına (24h TTL, private bucket). */
   async uploadUrl(
@@ -155,7 +175,10 @@ export class TenderExtractService {
       };
     }
 
-    const sanitized = sanitizeAiDraft(parsed, routed.route);
+    const sanitized = await this.withCategorySuggestions(
+      user,
+      sanitizeAiDraft(parsed, routed.route),
+    );
     return {
       ...sanitized,
       route: routed.route,
@@ -187,7 +210,25 @@ export class TenderExtractService {
     });
 
     const parsed = this.tryParse(result.text);
-    const sanitized = sanitizeAiDraft(parsed ?? incoming.draft, "refine");
+    let sanitized = sanitizeAiDraft(parsed ?? incoming.draft, "refine");
+    // Refine modeli suggestedCategoryIds üretmez — gelen taslaktaki öneri
+    // korunur; hiç yoksa (eski taslak) kalemlerden yeniden önerilir.
+    if (
+      sanitized.draft.suggestedCategoryIds.length === 0 &&
+      incoming.draft.suggestedCategoryIds.length > 0
+    ) {
+      sanitized = {
+        ...sanitized,
+        draft: {
+          ...sanitized.draft,
+          suggestedCategoryIds: incoming.draft.suggestedCategoryIds,
+        },
+        missingRequired: sanitized.missingRequired.filter(
+          (m) => !m.startsWith("Kategori"),
+        ),
+      };
+    }
+    sanitized = await this.withCategorySuggestions(user, sanitized);
     return {
       ...sanitized,
       route: "text",

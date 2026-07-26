@@ -92,8 +92,21 @@ export class GeminiProvider extends BaseAiProvider {
 
   async complete(req: AiCompletionRequest): Promise<AiCompletionResult> {
     for (let attempt = 0; ; attempt++) {
+      // Tur deadline'ı: her deneme kalan süreyle sınırlanır — çok-çağrılı
+      // akışlarda toplam süre timeoutMs × deneme sayısına ŞİŞMEZ.
+      const remaining = req.deadlineAt
+        ? req.deadlineAt - Date.now()
+        : Number.POSITIVE_INFINITY;
+      if (remaining <= 1_000) {
+        throw new AiProviderTimeoutError(
+          "AI tur süresi doldu — yanıt tamamlanamadı",
+        );
+      }
       try {
-        return await this.completeOnce(req);
+        return await this.completeOnce({
+          ...req,
+          timeoutMs: Math.min(req.timeoutMs, remaining),
+        });
       } catch (err) {
         // Timeout kullanıcıyı bekletmesin; geçici olmayan hata da anında düşer.
         if (

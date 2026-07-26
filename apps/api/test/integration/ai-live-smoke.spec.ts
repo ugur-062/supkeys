@@ -14,6 +14,7 @@ import { AiBudgetService } from "../../src/modules/ai/ai-budget.service";
 import { AiService } from "../../src/modules/ai/ai.service";
 import { loadAiConfig } from "../../src/modules/ai/ai.config";
 import { GeminiProvider } from "../../src/modules/ai/providers/gemini.provider";
+import { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import type { StorageService } from "../../src/modules/storage/storage.service";
 import { prisma, truncateAll } from "./test-db";
@@ -59,6 +60,7 @@ d("Faz AI-1 — canlı Gemini duman testi", () => {
     const svc = new TenderExtractService(
       ai,
       storage as unknown as StorageService,
+      new CategorySuggestService(ai, prisma as never),
       cfg,
     );
 

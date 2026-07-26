@@ -3,9 +3,10 @@
  *
  * İhale formuyla BİREBİR değil: AI'ın belgeden güvenilir çıkarabileceği çekirdek
  * alanlar + alan-başına güven + sayfa özetleri (refine, belgeyi yeniden okumadan
- * JSON üstünden konuşur). Kategori (UNSPSC id) ve adres (CompanyAddress id) gibi
- * platform-içi kimlikler AI'dan İSTENMEZ — kullanıcı seçer (missingRequired'da
- * bildirilir).
+ * JSON üstünden konuşur). Adres (CompanyAddress id) gibi platform-içi kimlikler
+ * AI'dan İSTENMEZ — kullanıcı seçer (missingRequired'da bildirilir). Kategori de
+ * belge modelinden istenmez; backend kalemlerden AYRI bir öneri çağrısıyla
+ * doğrulanmış id üretir (suggestedCategoryIds).
  */
 
 /** Alan işaretleme sebepleri (kullanıcıya gösterilir). */
@@ -64,6 +65,12 @@ export interface AiTenderDraft {
   pricesIncludeVat: boolean | null;
   /** Refine için sayfa başına 1-2 cümlelik özet (belge yeniden okunmaz). */
   pageSummaries: string[];
+  /**
+   * Platform kategori id'leri (UNSPSC family) — modelden İSTENMEZ; backend
+   * kalemlerden ayrı bir öneri çağrısıyla üretir ve DB'ye karşı doğrular.
+   * Formda ön-seçim olarak gelir, son karar kullanıcının.
+   */
+  suggestedCategoryIds: string[];
 }
 
 /** Extract/refine endpoint yanıtı (api → web sözleşmesi). */

@@ -22,6 +22,7 @@ import {
   type AiCompletionRequest,
   type AiCompletionResult,
 } from "../../src/modules/ai/providers/ai-provider.interface";
+import type { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import { EXTRACT_SYSTEM_PROMPT } from "../../src/modules/ai/tender-extract/tender-extract.prompts";
 import type { StorageService } from "../../src/modules/storage/storage.service";
@@ -107,12 +108,23 @@ class FakeStorage {
   }
 }
 
-function makeService(cfg: AiConfig, provider: FakeProvider, storage: FakeStorage) {
+function makeService(
+  cfg: AiConfig,
+  provider: FakeProvider,
+  storage: FakeStorage,
+  // Kategori önerisi ayrı çağrı — bu suite'in sözleşmeleri için stub yeterli
+  // (varsayılan: öneri yok; senaryolar deterministik kalır).
+  suggestIds: string[] = [],
+) {
   const budget = new AiBudgetService(prisma as never, cfg);
   const ai = new AiService(cfg, provider, budget, prisma as never, undefined);
+  const categorySuggest = {
+    suggest: async () => suggestIds,
+  } as unknown as CategorySuggestService;
   return new TenderExtractService(
     ai,
     storage as unknown as StorageService,
+    categorySuggest,
     cfg,
   );
 }
@@ -363,6 +375,48 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     expect(reasons).toContain("primaryCurrency:validation_failed");
     expect(reasons).toContain("items.0.quantity:validation_failed");
     expect(result.missingRequired).toContain("İhale başlığı");
+  });
+
+  it("kategori önerisi: öneri geldiyse taslağa girer ve 'Kategori' eksik listesinden düşer; gelmezse eksik kalır", async () => {
+    const draftJson = JSON.stringify({
+      title: "Vana Alımı",
+      deliveryTerm: "DOMESTIC_DELIVERED",
+      bidsCloseAt: futureIso(30),
+      items: [{ name: "Vana", quantity: 10, unit: "adet" }],
+      pageSummaries: [],
+      lowConfidencePaths: [],
+    });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+
+    // Öneri VAR — stub 2 id döndürür.
+    let provider = new FakeProvider();
+    provider.responses = [draftJson];
+    let storage = new FakeStorage();
+    let key = keyFor(co.company.id, "doc.pdf");
+    storage.files.set(key, makeSimplePdf([LONG_TEXT]));
+    const withCats = await makeService(makeCfg(), provider, storage, [
+      "cat-1",
+      "cat-2",
+    ]).extract(co.auth, { fileKeys: [key], listingType: "ALIM" });
+    expect(withCats.draft.suggestedCategoryIds).toEqual(["cat-1", "cat-2"]);
+    expect(
+      withCats.missingRequired.some((m) => m.startsWith("Kategori")),
+    ).toBe(false);
+
+    // Öneri YOK — kategori eksik zorunlu olarak bildirilir.
+    provider = new FakeProvider();
+    provider.responses = [draftJson];
+    storage = new FakeStorage();
+    key = keyFor(co.company.id, "doc2.pdf");
+    storage.files.set(key, makeSimplePdf([LONG_TEXT]));
+    const noCats = await makeService(makeCfg(), provider, storage).extract(
+      co.auth,
+      { fileKeys: [key], listingType: "ALIM" },
+    );
+    expect(noCats.draft.suggestedCategoryIds).toEqual([]);
+    expect(
+      noCats.missingRequired.some((m) => m.startsWith("Kategori")),
+    ).toBe(true);
   });
 
   it("vision yolunda kritik alanlar (miktar/birim/tarih/para birimi) VARSAYILAN işaretli", async () => {

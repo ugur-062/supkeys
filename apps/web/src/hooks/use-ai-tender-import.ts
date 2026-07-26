@@ -38,6 +38,8 @@ export function useAiTenderExtract() {
       const { data } = await companyApi.post<AiTenderExtractResult>(
         "/company/ai/tender-extract",
         { fileKeys, listingType },
+        // Vision çıkarımı (çok sayfalı PDF) global 45sn'yi aşabilir.
+        { timeout: 180_000 },
       );
       return data;
     },
@@ -56,6 +58,7 @@ export function useAiTenderRefine() {
       const { data } = await companyApi.post<AiTenderExtractResult>(
         "/company/ai/tender-refine",
         { draft, message },
+        { timeout: 180_000 },
       );
       return data;
     },
