@@ -15,10 +15,15 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   ArrowRight,
+  Check,
   FileText,
+  Gavel,
   History,
+  Info,
+  Package,
   Paperclip,
   Plus,
+  Search,
   Send,
   Sparkles,
   Trash2,
@@ -57,21 +62,24 @@ function ThinkingBubble() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="flex items-end gap-2">
-      <div className="flex h-7 w-7 shrink-0 animate-pulse items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+    <div className="rt-fade-in flex items-end gap-2">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-zinc-950/10">
         <Sparkles className="h-3.5 w-3.5" />
       </div>
-      <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-zinc-100 px-3.5 py-2.5">
+      <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-surface-subtle px-4 py-2.5 ring-1 ring-zinc-950/5">
         <span className="flex gap-1">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-500"
+              className="rt-dot h-1.5 w-1.5 rounded-full bg-brand-500"
               style={{ animationDelay: `${i * 150}ms` }}
             />
           ))}
         </span>
-        <span className="text-xs text-zinc-400">{THINKING_PHRASES[phrase]}</span>
+        {/* key remount → rt-fade-in ile yumuşak metin geçişi */}
+        <span key={phrase} className="rt-fade-in text-xs text-zinc-500">
+          {THINKING_PHRASES[phrase]}
+        </span>
       </div>
     </div>
   );
@@ -101,19 +109,20 @@ function TypewriterMarkdown({
     <span>
       <AssistantMarkdown text={text.slice(0, len)} />
       {!done ? (
-        <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-brand-500 align-middle" />
+        <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse rounded-full bg-brand-600 align-middle" />
       ) : null}
     </span>
   );
 }
 
 const SEAT = { buy: "SATIN_ALMACI", sell: "SATISCI" };
+// Metinler aynen korunur (submit'e aynı string gider) — yalnız ikon eşleşir.
 const SUGGESTIONS = [
-  "İhalelerimi göster",
-  "Yeni ihale açmak istiyorum",
-  "Son siparişlerim",
-  "Açık ihaleleri ara",
-];
+  { label: "İhalelerimi göster", icon: Gavel },
+  { label: "Yeni ihale açmak istiyorum", icon: Plus },
+  { label: "Son siparişlerim", icon: Package },
+  { label: "Açık ihaleleri ara", icon: Search },
+] as const;
 const TOOL_LABEL: Record<string, string> = {
   list_my_tenders: "İhalelerinize baktım",
   search_open_tenders: "Açık ihaleleri aradım",
@@ -261,19 +270,19 @@ export function AssistantPanel() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      {/* Üst bar */}
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-2.5">
+      {/* Üst bar — kimlik launcher başlığında ("Asistan"), burada yalnız aksiyonlar */}
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-2">
         <button
           type="button"
           onClick={startNew}
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+          className="flex items-center gap-1 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
         >
-          <Plus className="h-4 w-4" /> Yeni
+          <Plus className="h-3.5 w-3.5" /> Yeni sohbet
         </button>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {nearLimit ? (
             <span
-              className="mr-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+              className="rounded-full bg-warning-50 px-2 py-0.5 text-xs font-medium text-warning-600 ring-1 ring-warning-500/20"
               title="Aylık AI kullanımınız sınıra yaklaştı"
             >
               Kullanım yüksek
@@ -284,8 +293,8 @@ export function AssistantPanel() {
             onClick={() => setShowHistory((s) => !s)}
             aria-label="Geçmiş sohbetler"
             className={cn(
-              "flex items-center gap-1 rounded-lg px-2 py-1 text-sm hover:bg-zinc-100",
-              showHistory ? "text-brand-700" : "text-zinc-500",
+              "flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-zinc-100 hover:text-zinc-900",
+              showHistory ? "bg-zinc-100 text-brand-700" : "text-zinc-500",
             )}
           >
             <History className="h-4 w-4" />
@@ -294,7 +303,7 @@ export function AssistantPanel() {
       </div>
 
       {showHistory ? (
-        <div className="max-h-52 overflow-y-auto border-b border-zinc-950/10 bg-zinc-50/60">
+        <div className="rt-fade-in max-h-56 overflow-y-auto border-b border-zinc-950/10 bg-surface-subtle">
           {(sessions.data ?? []).length === 0 ? (
             <p className="px-4 py-3 text-sm text-zinc-400">Kayıtlı sohbet yok</p>
           ) : (
@@ -302,8 +311,10 @@ export function AssistantPanel() {
               <div
                 key={s.id}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 hover:bg-white",
-                  sessionId === s.id ? "bg-white" : "",
+                  "group flex items-center gap-2 border-l-2 px-3 py-2 transition-colors hover:bg-white",
+                  sessionId === s.id
+                    ? "border-l-brand-600 bg-white"
+                    : "border-l-transparent",
                 )}
               >
                 <button
@@ -325,7 +336,7 @@ export function AssistantPanel() {
                     void del.mutateAsync(s.id);
                     if (sessionId === s.id) startNew();
                   }}
-                  className="text-zinc-300 hover:text-red-600"
+                  className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -336,33 +347,54 @@ export function AssistantPanel() {
       ) : null}
 
       {/* Balonlar */}
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center px-2 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
-              <Sparkles className="h-6 w-6" />
+          <div className="rt-fade-in flex h-full flex-col items-center justify-center px-2 text-center">
+            <div className="relative">
+              {/* Yumuşak monokrom hale — nefes alır (reduced-motion'da durur) */}
+              <div
+                aria-hidden
+                className="rt-breathe absolute -inset-5 rounded-full bg-gradient-to-br from-zinc-300/50 via-zinc-100/40 to-transparent blur-xl"
+              />
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-zinc-950/10">
+                <Sparkles className="h-6 w-6" />
+              </div>
             </div>
-            <p className="mt-3 font-semibold text-zinc-900">Rothern Asistanı</p>
-            <p className="mt-1 max-w-xs text-sm text-zinc-500">
-              İhalelerinizi sorun, belge yükleyin ya da yeni bir ihale açmak için
-              konuşun — gerekli bilgileri birlikte toplayalım.
+            <p className="mt-3 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
+              Rothern Asistanı
             </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <p className="mt-1 text-base font-semibold tracking-tight text-zinc-900">
+              Size nasıl yardımcı olabilirim?
+            </p>
+            <p className="mt-1 max-w-xs text-sm text-zinc-500">
+              İhalelerinizi sorun, belge yükleyin ya da konuşarak yeni ihale
+              açın.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
-                  key={s}
+                  key={s.label}
                   type="button"
-                  onClick={() => void submit(s)}
-                  className="rounded-full border border-zinc-950/10 bg-white px-3 py-1.5 text-xs text-zinc-700 transition hover:border-brand-400 hover:text-brand-700"
+                  onClick={() => void submit(s.label)}
+                  className="group flex items-center gap-1.5 rounded-full border border-zinc-950/10 bg-surface-subtle px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 hover:shadow-md active:translate-y-0 active:shadow-sm"
                 >
-                  {s}
+                  <s.icon className="h-3.5 w-3.5 text-zinc-400 transition-colors group-hover:text-brand-600" />
+                  {s.label}
                 </button>
               ))}
             </div>
           </div>
         ) : (
           messages.map((m) => (
-            <div key={m.id} className="space-y-1.5">
+            <div
+              key={m.id}
+              className={cn(
+                "space-y-1.5",
+                // Giriş animasyonu yalnız CANLI mesajlarda — geçmiş yüklemesi
+                // topluca animasyonlanmasın (typed geçmişte set edilmez).
+                (m.typed || m.role === "USER") && !m.at ? "rt-fade-in" : "",
+              )}
+            >
               <div
                 className={cn(
                   "flex items-end gap-2",
@@ -371,10 +403,10 @@ export function AssistantPanel() {
               >
                 <div
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-1 ring-zinc-950/10",
                     m.role === "USER"
-                      ? "bg-zinc-200 text-zinc-600"
-                      : "bg-gradient-to-br from-brand-500 to-brand-700 text-white",
+                      ? "bg-zinc-100 text-zinc-600"
+                      : "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm",
                   )}
                 >
                   {m.role === "USER" ? (
@@ -385,10 +417,10 @@ export function AssistantPanel() {
                 </div>
                 <div
                   className={cn(
-                    "max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm",
+                    "max-w-[80%] break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                     m.role === "USER"
-                      ? "whitespace-pre-wrap rounded-br-sm bg-brand-600 text-white"
-                      : "rounded-bl-sm bg-zinc-100 text-zinc-900",
+                      ? "whitespace-pre-wrap rounded-br-sm bg-brand-600 text-white shadow-sm"
+                      : "rounded-bl-sm bg-surface-subtle text-zinc-900 shadow-sm ring-1 ring-zinc-950/5",
                   )}
                 >
                   {m.role === "USER" ? (
@@ -401,43 +433,85 @@ export function AssistantPanel() {
                 </div>
               </div>
 
-              {/* Araç rozeti */}
+              {/* Araç rozetleri — mini chip'ler, yeşil onay noktası */}
               {m.tools && m.tools.length > 0 ? (
-                <p className="pl-9 text-xs text-zinc-400">
-                  {m.tools.map((t) => TOOL_LABEL[t] ?? t).join(" · ")}
-                </p>
+                <div className="flex flex-wrap gap-1 pl-9">
+                  {m.tools.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-zinc-500 ring-1 ring-zinc-950/5"
+                    >
+                      <Check className="h-3 w-3 text-success-500" />
+                      {TOOL_LABEL[t] ?? t}
+                    </span>
+                  ))}
+                </div>
               ) : null}
 
-              {/* AI-3 taslak kartı */}
+              {/* AI-3 taslak kartı — kart diline hizalı */}
               {m.draft ? (
-                <div className="ml-9 rounded-xl border border-brand-200 bg-brand-50/60 p-3">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-900">
-                    <FileText className="h-4 w-4" /> İhale Taslağı
+                <div className="rt-fade-in ml-9 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-sm">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                      <FileText className="h-3.5 w-3.5" />
+                    </span>
+                    İhale Taslağı
                   </p>
-                  <ul className="mt-1.5 space-y-0.5 text-xs text-zinc-700">
-                    {m.draft.draft.title ? <li>• Başlık: {m.draft.draft.title}</li> : null}
-                    {m.draft.draft.items.filter((i) => i.name).length > 0 ? (
-                      <li>• {m.draft.draft.items.filter((i) => i.name).length} kalem</li>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {m.draft.draft.title ? (
+                      <li className="flex items-start gap-1.5">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                        <span className="text-zinc-500">
+                          Başlık:{" "}
+                          <span className="font-medium text-zinc-800">
+                            {m.draft.draft.title}
+                          </span>
+                        </span>
+                      </li>
                     ) : null}
-                    {m.draft.draft.deliveryTerm ? <li>• Teslim: {m.draft.draft.deliveryTerm}</li> : null}
+                    {m.draft.draft.items.filter((i) => i.name).length > 0 ? (
+                      <li className="flex items-start gap-1.5">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                        <span className="font-medium text-zinc-800">
+                          {m.draft.draft.items.filter((i) => i.name).length} kalem
+                        </span>
+                      </li>
+                    ) : null}
+                    {m.draft.draft.deliveryTerm ? (
+                      <li className="flex items-start gap-1.5">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                        <span className="text-zinc-500">
+                          Teslim:{" "}
+                          <span className="font-medium text-zinc-800">
+                            {m.draft.draft.deliveryTerm}
+                          </span>
+                        </span>
+                      </li>
+                    ) : null}
                     {m.draft.draft.bidsCloseAt ? (
-                      <li>
-                        • Kapanış:{" "}
-                        {format(new Date(m.draft.draft.bidsCloseAt), "d MMM yyyy", { locale: tr })}
+                      <li className="flex items-start gap-1.5">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                        <span className="text-zinc-500">
+                          Kapanış:{" "}
+                          <span className="font-medium text-zinc-800">
+                            {format(new Date(m.draft.draft.bidsCloseAt), "d MMM yyyy", { locale: tr })}
+                          </span>
+                        </span>
                       </li>
                     ) : null}
                   </ul>
                   {m.draft.missingRequired.length > 0 ? (
-                    <p className="mt-1.5 text-xs text-zinc-500">
+                    <p className="mt-2 rounded-lg bg-warning-50 px-2 py-1.5 text-xs text-warning-600">
                       Eksik: {m.draft.missingRequired.join(", ")}
                     </p>
                   ) : null}
                   <button
                     type="button"
                     onClick={() => openTenderForm(m.draft!)}
-                    className="mt-2 flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
+                    className="group mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
                   >
-                    İhale formunu aç <ArrowRight className="h-3.5 w-3.5" />
+                    İhale formunu aç
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </div>
               ) : null}
@@ -449,15 +523,17 @@ export function AssistantPanel() {
       </div>
 
       {suggestNew ? (
-        <p className="border-t border-zinc-950/10 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+        <p className="flex items-center gap-2 border-t border-warning-500/20 bg-warning-50 px-4 py-2 text-xs text-warning-600">
+          <Info className="h-3.5 w-3.5 shrink-0" />
           Bu sohbet uzadı — daha iyi sonuç için yeni bir sohbet başlatabilirsiniz.
         </p>
       ) : null}
 
-      {/* Composer */}
-      <div className="border-t border-zinc-950/10 p-3">
+      {/* Composer — entegre pill: ataç + input + gönder tek konteynerde */}
+      <div className="border-t border-zinc-950/10 bg-white p-3">
         {quotaFull ? (
-          <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-600">
+          <p className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-surface-subtle px-3 py-2.5 text-sm text-zinc-600">
+            <Info className="h-4 w-4 shrink-0 text-zinc-400" />
             Aylık AI bütçeniz doldu — ay sonunda yenilenir.
           </p>
         ) : (
@@ -467,7 +543,7 @@ export function AssistantPanel() {
                 {files.map((f, i) => (
                   <span
                     key={`${f.name}-${i}`}
-                    className="flex items-center gap-1 rounded-lg border border-zinc-950/10 bg-zinc-50 px-2 py-1 text-xs text-zinc-600"
+                    className="rt-fade-in flex items-center gap-1.5 rounded-lg border border-zinc-950/10 bg-white px-2 py-1 text-xs text-zinc-600 shadow-sm"
                   >
                     <FileText className="h-3 w-3" />
                     <span className="max-w-[120px] truncate">{f.name}</span>
@@ -475,14 +551,15 @@ export function AssistantPanel() {
                       type="button"
                       onClick={() => setFiles(files.filter((_, j) => j !== i))}
                       aria-label="Kaldır"
+                      className="text-zinc-400 transition-colors hover:text-danger-500"
                     >
-                      <X className="h-3 w-3 hover:text-red-600" />
+                      <X className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
               </div>
             ) : null}
-            <div className="flex items-end gap-1.5">
+            <div className="flex items-end gap-1 rounded-2xl border border-zinc-950/10 bg-surface-subtle p-1.5 transition-colors focus-within:border-brand-400 focus-within:bg-white focus-within:ring-1 focus-within:ring-brand-400">
               <input
                 ref={fileRef}
                 type="file"
@@ -500,7 +577,7 @@ export function AssistantPanel() {
                 disabled={send.isPending}
                 aria-label="Belge ekle"
                 title="İhale belgesi ekle"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
               >
                 <Paperclip className="h-4 w-4" />
               </button>
@@ -516,14 +593,14 @@ export function AssistantPanel() {
                 rows={1}
                 placeholder="Bir şey sorun veya ihale açın…"
                 disabled={send.isPending}
-                className="max-h-32 flex-1 resize-none rounded-xl border border-zinc-950/10 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => void submit()}
                 disabled={send.isPending || (!input.trim() && files.length === 0)}
                 aria-label="Gönder"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white transition hover:bg-brand-700 disabled:opacity-40"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm transition-all duration-200 hover:bg-brand-700 enabled:hover:shadow-md disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none"
               >
                 <Send className="h-4 w-4" />
               </button>

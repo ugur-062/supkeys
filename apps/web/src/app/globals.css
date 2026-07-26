@@ -207,3 +207,23 @@
 @media (prefers-reduced-motion: reduce) {
   .rt-marquee { animation: none; }
 }
+
+/* Asistan — boş durum halesi: yumuşak nefes */
+@keyframes rt-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.06); }
+}
+.rt-breathe { animation: rt-breathe 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-breathe { animation: none; }
+}
+
+/* Asistan — düşünme noktaları (animate-bounce'tan yumuşak) */
+@keyframes rt-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+.rt-dot { animation: rt-dot 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-dot { animation: none; opacity: 0.6; }
+}
