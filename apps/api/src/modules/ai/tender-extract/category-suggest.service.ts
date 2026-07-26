@@ -44,7 +44,10 @@ const RESPONSE_SCHEMA = {
 const SYSTEM_PROMPT = [
   "Bir B2B satınalma platformu için kategori eşleştirme yaparsın.",
   "Sana ihale kalemleri ve platformun UNSPSC kategori listesi verilir.",
-  "Kalemlerin TAMAMINI en iyi kapsayan en fazla 3 kategori KODU seç.",
+  "Kalemlerin TAMAMINI kapsayan EN AZ SAYIDA kategori KODU seç —",
+  "tek kategori yeterliyse YALNIZ onu döndür (en fazla 3).",
+  "Fazladan 'ilgili olabilir' kategorisi EKLEME; her kategori en az bir",
+  "kalemi doğrudan kapsamalı.",
   "YALNIZ verilen listedeki kodları kullan; emin olmadığın kodu yazma.",
   "Hiçbiri uymuyorsa boş dizi döndür.",
 ].join(" ");
@@ -119,10 +122,13 @@ export class CategorySuggestService {
         .join("\n");
 
       // Aşama 1 — family daralt (452 satırlık geniş liste, ucuz tek çağrı).
+      // Sabit tavan YOK (yalnız MAX_SUGGESTIONS): "en az sayıda" kararı
+      // modelde — tek kategori kalemleri kapsıyorsa fazladan eklememesi
+      // system prompt'ta açıkça istenir.
       const familyCodes = await this.pickCodes(user, {
         itemLines,
         rows: families,
-        ask: `Bu kalemler için en uygun en fazla ${MAX_SUGGESTIONS} ÜST kategori kodunu seç.`,
+        ask: `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) ÜST kategori kodunu seç.`,
         stage: "family",
       });
       if (familyCodes.length === 0) return [];
@@ -141,7 +147,7 @@ export class CategorySuggestService {
       const classCodes = await this.pickCodes(user, {
         itemLines,
         rows: classes,
-        ask: `Bu kalemler için en uygun en fazla ${MAX_SUGGESTIONS} DETAY kategori kodunu seç.`,
+        ask: `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) DETAY kategori kodunu seç.`,
         stage: "class",
       });
       return classCodes;
