@@ -22,18 +22,67 @@ const stats = [
   { text: "∞", l: "Firmayla tek panelde buluş" },
 ];
 
-const standartFeatures = [
-  "Yalnızca bağlantılı firmalara teklif ver",
-  "Sipariş, teslim & ödeme takibi",
-];
-
-const premiumFeatures = [
-  "Kendi ilanını aç — teklif toplama, açık eksiltme, satış",
-  "Herkese açık ilanlara tam erişim & teklif",
-  "Kategori eşleşmeli firma keşfi & dizin",
-  "Herkese açık firma profili",
-  "Raporlar, şablonlar & soru setleri",
-  "Öncelikli destek",
+/**
+ * Paket kartları — yetenekler tier.ts tek-kaynağıyla hizalı:
+ * BRONZ = dizin + davet + PUBLIC teklif (2 koltuk); SILVER = + satınalma
+ * paneli/ihale açma/rapor/şablon/onay akışı/AI (4 koltuk); GOLD = + rozet,
+ * genişletilmiş AI, 12 koltuk. Fiyatlar YILLIK ödemede aylık gösterim;
+ * ayrıca 6 aylık dönem seçeneği var (aylık faturalama yok).
+ */
+const pricingTiers = [
+  {
+    name: "Standart",
+    price: null,
+    tagline: "Ağına bağlan, çevren içinde al-sat.",
+    features: [
+      "Firma hesabı, sınırsız kullanıcı ve rol",
+      "Davet edildiğin ihalelere teklif ver",
+      "Bağlantılı firmalarla al-sat ve mesajlaşma",
+      "Sipariş, teslim & ödeme adımı takibi",
+    ],
+    cta: "Ücretsiz Başla",
+    highlight: false,
+  },
+  {
+    name: "Bronz",
+    price: 70,
+    tagline: "Satış tarafını büyüt: görün, davet et, teklif ver.",
+    features: [
+      "Firma dizininde görünürlük & herkese açık profil",
+      "Bağlantı daveti gönderme",
+      "Herkese açık ihalelere sınırsız teklif",
+      "2 işlem koltuğu (Satın Almacı / Satışçı)",
+    ],
+    cta: "Bronz'a Başla",
+    highlight: false,
+  },
+  {
+    name: "Silver",
+    price: 160,
+    tagline: "Tam satın alma gücü: ihale aç, süreci yönet.",
+    features: [
+      "Bronz'daki her şey",
+      "İhale açma — teklif toplama (RFQ) & pazarlık/eksiltme",
+      "Raporlar, şablonlar & onay akışları",
+      "AI: belgeden ihale, asistan, kategori önerisi",
+      "4 işlem koltuğu",
+    ],
+    cta: "Silver'a Başla",
+    highlight: true,
+  },
+  {
+    name: "Gold",
+    price: 230,
+    tagline: "Yüksek hacim için: geniş ekip, geniş AI.",
+    features: [
+      "Silver'daki her şey",
+      "Genişletilmiş AI kullanım limiti",
+      "“Gold Üye” rozeti — profil ve tekliflerde",
+      "12 işlem koltuğu",
+    ],
+    cta: "Gold'a Başla",
+    highlight: false,
+  },
 ];
 
 const faqs = [
@@ -63,7 +112,7 @@ const footerNav = {
   urun: [
     { name: "Özellikler", href: "#ozellikler" },
     { name: "Nasıl Çalışır", href: "#nasil" },
-    { name: "Üyelik", href: "#uyelik" },
+    { name: "Fiyatlar", href: "#fiyatlar" },
     { name: "SSS", href: "#sss" },
   ],
   hesap: [
@@ -1162,85 +1211,119 @@ export default function HomePage() {
       </section>
 
       {/* Üyelik */}
-      <section id="uyelik" className="py-24 sm:py-32">
+      <section id="fiyatlar" className="py-24 sm:py-32">
         <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
-          <h2 className="text-base/7 font-semibold text-zinc-500">Üyelik</h2>
+          <h2 className="text-base/7 font-semibold text-zinc-500">Fiyatlar</h2>
           <p className="mt-2 text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-            Koltuk başına ödeme yok
+            İşine göre paket seç
           </p>
           <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-zinc-600">
-            Standart üyelik ücretsiz, sınırsız kullanıcı ve rol. Kendi ilanını
-            açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek için
-            Premium&apos;a yükselt.
+            Standart üyelik ücretsiz. Satış tarafında görünürlük için Bronz,
+            ihale açıp satın almayı yönetmek için Silver, yüksek hacim için
+            Gold. Fiyatlar yıllık ödemede aylık tutardır; 6 aylık dönem
+            seçeneği de vardır.
           </p>
         </div>
-        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-8 px-6 sm:mt-20 lg:max-w-4xl lg:grid-cols-2 lg:px-8">
-          {/* Standart */}
-          <div className="flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl sm:p-10">
-            <h3 className="text-base/7 font-semibold text-zinc-700">Standart</h3>
-            <p className="mt-4 flex items-baseline gap-x-2">
-              <span className="text-4xl font-semibold tracking-tight text-zinc-950">
-                Ücretsiz
-              </span>
-              <span className="text-sm text-zinc-500">sonsuza dek</span>
-            </p>
-            <p className="mt-4 text-base/7 text-zinc-600">
-              Ağına bağlan, çevren içinde al-sat.
-            </p>
-            <ul role="list" className="mt-8 flex-1 space-y-3 text-sm/6 text-zinc-600">
-              {standartFeatures.map((f) => (
-                <li key={f} className="flex gap-x-3">
-                  <CheckIcon
-                    aria-hidden="true"
-                    className="h-6 w-5 flex-none text-zinc-900"
-                  />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/company/kayit"
-              className="mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
+        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-6 px-6 sm:mt-20 lg:max-w-7xl lg:grid-cols-4 lg:px-8">
+          {pricingTiers.map((tier) => (
+            <div
+              key={tier.name}
+              className={
+                tier.highlight
+                  ? "relative flex flex-col rounded-3xl bg-[#0A0A0A] p-8 shadow-2xl ring-1 ring-zinc-950 transition hover:-translate-y-1"
+                  : "flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl"
+              }
             >
-              Ücretsiz Başla
-            </Link>
-          </div>
-          {/* Premium — vurgulu */}
-          <div className="relative flex flex-col rounded-3xl bg-[#0A0A0A] p-8 shadow-2xl ring-1 ring-zinc-950 transition hover:-translate-y-1 sm:p-10">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-950 shadow">
-              Önerilen
+              {tier.highlight ? (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-950 shadow">
+                  Önerilen
+                </div>
+              ) : null}
+              <h3
+                className={`text-base/7 font-semibold ${
+                  tier.highlight ? "text-zinc-300" : "text-zinc-700"
+                }`}
+              >
+                {tier.name}
+              </h3>
+              <p className="mt-4 flex items-baseline gap-x-1.5">
+                {tier.price === null ? (
+                  <span
+                    className={`text-4xl font-semibold tracking-tight ${
+                      tier.highlight ? "text-white" : "text-zinc-950"
+                    }`}
+                  >
+                    Ücretsiz
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className={`text-4xl font-semibold tracking-tight ${
+                        tier.highlight ? "text-white" : "text-zinc-950"
+                      }`}
+                    >
+                      ${tier.price}
+                    </span>
+                    <span
+                      className={`text-sm ${
+                        tier.highlight ? "text-zinc-400" : "text-zinc-500"
+                      }`}
+                    >
+                      /ay
+                    </span>
+                  </>
+                )}
+              </p>
+              <p
+                className={`mt-1 text-xs ${
+                  tier.highlight ? "text-zinc-500" : "text-zinc-400"
+                }`}
+              >
+                {tier.price === null ? "sonsuza dek" : "yıllık ödemede"}
+              </p>
+              <p
+                className={`mt-4 text-sm/6 ${
+                  tier.highlight ? "text-zinc-300" : "text-zinc-600"
+                }`}
+              >
+                {tier.tagline}
+              </p>
+              <ul
+                role="list"
+                className={`mt-6 flex-1 space-y-3 text-sm/6 ${
+                  tier.highlight ? "text-zinc-200" : "text-zinc-600"
+                }`}
+              >
+                {tier.features.map((f) => (
+                  <li key={f} className="flex gap-x-3">
+                    <CheckIcon
+                      aria-hidden="true"
+                      className={`h-6 w-5 flex-none ${
+                        tier.highlight ? "text-emerald-400" : "text-zinc-900"
+                      }`}
+                    />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/company/kayit"
+                className={
+                  tier.highlight
+                    ? "mt-8 block rounded-lg bg-white px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
+                    : "mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
+                }
+              >
+                {tier.cta}
+              </Link>
             </div>
-            <h3 className="text-base/7 font-semibold text-zinc-300">
-              Premium
-            </h3>
-            <p className="mt-4 flex items-baseline gap-x-2">
-              <span className="text-4xl font-semibold tracking-tight text-white">
-                Premium
-              </span>
-              <span className="text-sm text-zinc-400">tam erişim</span>
-            </p>
-            <p className="mt-4 text-base/7 text-zinc-300">
-              Aç, keşfet, teklif ver — sınır yok.
-            </p>
-            <ul role="list" className="mt-8 flex-1 space-y-3 text-sm/6 text-zinc-200">
-              {premiumFeatures.map((f) => (
-                <li key={f} className="flex gap-x-3">
-                  <CheckIcon
-                    aria-hidden="true"
-                    className="h-6 w-5 flex-none text-emerald-400"
-                  />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/company/kayit"
-              className="mt-8 block rounded-lg bg-white px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
-            >
-              Kaydol
-            </Link>
-          </div>
+          ))}
         </div>
+        <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-400">
+          Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık
+          dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde
+          aylık tutar farklıdır.
+        </p>
       </section>
 
       {/* SSS — ortalı başlık + çok kolonlu Q&A kartları */}
