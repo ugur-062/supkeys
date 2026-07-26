@@ -164,6 +164,16 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
   const usage = useAiUsage();
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Composer otomatik büyür: yazdıkça yükseklik içeriğe uyar (scroll yerine),
+  // tavana (max-h) dayanınca kaydırmaya döner. Gönderim sonrası tek satıra iner.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
   // Daktilo efekti sırasında balon büyüdükçe alta kaydır (smooth değil —
   // her karede smooth scroll titreşim yapar).
   const scrollToEnd = useCallback(() => {
@@ -680,6 +690,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                 <Paperclip className="h-4 w-4" />
               </button>
               <textarea
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -691,7 +702,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                 rows={1}
                 placeholder="Bir şey sorun veya ihale açın…"
                 disabled={send.isPending}
-                className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
+                className="max-h-56 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
               />
               <button
                 type="button"
