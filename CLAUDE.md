@@ -70,7 +70,7 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 - `<RequireAuth>` / `<RequireAdminAuth>` / `<RequireSupplierAuth>` boundary
 - Component yolu: `@/components/{ui,brand,providers,dashboard,tenders,orders}/*`
 - API çağrıları: `useMutation` / `useQuery` (TanStack Query) + axios instance
-- **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ; XSS'e kapalı). Zustand persist YALNIZ UI snapshot'ı tutar (`user`/`company`), token DEĞİL — persist key'leri `rothern-company-auth` (web) + `rothern-admin-auth` (admin); remember→localStorage, aksi→sessionStorage. Kimlik `/me` ile doğrulanır. Mutating isteklerde CSRF double-submit (`rk_csrf`/`rk_admin_csrf` → `X-CSRF-Token`).
+- **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ; XSS'e kapalı). Zustand persist YALNIZ UI snapshot'ı tutar (`user`/`company`), token DEĞİL — persist key'leri `rothern-company-auth` (web) + `rothern-admin-auth` (admin); remember→localStorage, aksi→sessionStorage. Kimlik `/me` ile doğrulanır. Mutating isteklerde CSRF double-submit (`rk_csrf`/`rk_admin_csrf` → `X-CSRF-Token`). **Kayan oturum:** AuthCookieInterceptor her istekte token ömrünün yarısı geçtiyse taze token basar (CSRF değeri korunur) — aktif kullanıcı düşmez, `JWT_EXPIRES_IN` (prod: 7d olmalı) kadar inaktif kalan düşer; "Oturumumu açık bırak" `persistent` claim'iyle taşınır.
 
 ## Geliştirme Notları
 - **NestJS CLI watch modu WSL'de bozuk.** `apps/api/package.json` `dev` script'i `concurrently` + `tsc -w` + `nodemon` kullanır. `nest start --watch` KULLANMAYIN.
