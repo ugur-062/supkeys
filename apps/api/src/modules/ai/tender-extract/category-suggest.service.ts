@@ -41,6 +41,25 @@ const RESPONSE_SCHEMA = {
   required: ["codes"],
 } as const;
 
+/** Son aşama (class) — kategori kodlarına ek arama anahtar kelimeleri. */
+const MAX_KEYWORDS = 8;
+const RESPONSE_SCHEMA_WITH_KEYWORDS = {
+  type: "object",
+  properties: {
+    codes: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: MAX_SUGGESTIONS,
+    },
+    keywords: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: MAX_KEYWORDS,
+    },
+  },
+  required: ["codes", "keywords"],
+} as const;
+
 const SYSTEM_PROMPT = [
   "Bir B2B satınalma platformu için kategori eşleştirme yaparsın.",
   "Sana ihale kalemleri ve platformun UNSPSC kategori listesi verilir.",
@@ -97,25 +116,34 @@ export class CategorySuggestService {
   async suggestForItems(
     user: AuthenticatedCompanyUser,
     items: SuggestItem[],
-  ): Promise<{ categoryIds: string[] }> {
+  ): Promise<{ categoryIds: string[]; keywords: string[] }> {
     this.ai.assertAiAccess(user);
-    return { categoryIds: await this.suggest(user, items) };
+    return this.suggestFull(user, items);
   }
 
   /**
    * Kalem adlarından en fazla 3 doğrulanmış CLASS (level=3) id'si önerir.
    * Boş dizi = öneri yok (hata dahil) — çağıran akış aynen devam eder.
+   * (Belge/asistan akışı yalnız kategori ister; keywords wizard ucuna özel.)
    */
   async suggest(
     user: AuthenticatedCompanyUser,
     items: SuggestItem[],
   ): Promise<string[]> {
+    return (await this.suggestFull(user, items)).categoryIds;
+  }
+
+  private async suggestFull(
+    user: AuthenticatedCompanyUser,
+    items: SuggestItem[],
+  ): Promise<{ categoryIds: string[]; keywords: string[] }> {
+    const empty = { categoryIds: [], keywords: [] };
     const named = items.filter((i) => i.name).slice(0, MAX_ITEMS_IN_PROMPT);
-    if (named.length === 0) return [];
+    if (named.length === 0) return empty;
 
     try {
       const families = await this.loadFamilies();
-      if (families.length === 0) return [];
+      if (families.length === 0) return empty;
 
       const itemLines = named
         .map((i) => `- ${i.name}${i.description ? ` (${i.description.slice(0, 120)})` : ""}`)
@@ -125,13 +153,13 @@ export class CategorySuggestService {
       // Sabit tavan YOK (yalnız MAX_SUGGESTIONS): "en az sayıda" kararı
       // modelde — tek kategori kalemleri kapsıyorsa fazladan eklememesi
       // system prompt'ta açıkça istenir.
-      const familyCodes = await this.pickCodes(user, {
+      const { ids: familyCodes } = await this.pickCodes(user, {
         itemLines,
         rows: families,
         ask: `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) ÜST kategori kodunu seç.`,
         stage: "family",
       });
-      if (familyCodes.length === 0) return [];
+      if (familyCodes.length === 0) return empty;
 
       // Aşama 2 — yalnız seçilen family'lerin Class (L3) çocuklarından seç.
       const classes = await this.prisma.category.findMany({
@@ -143,24 +171,32 @@ export class CategorySuggestService {
         orderBy: { sortOrder: "asc" },
         select: { id: true, code: true, nameTr: true },
       });
-      if (classes.length === 0) return [];
-      const classCodes = await this.pickCodes(user, {
+      if (classes.length === 0) return empty;
+      const { ids: classCodes, keywords } = await this.pickCodes(user, {
         itemLines,
         rows: classes,
-        ask: `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) DETAY kategori kodunu seç.`,
+        ask: [
+          `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) DETAY kategori kodunu seç.`,
+          `Ayrıca kalemlerden, ihale aramasında kullanılacak ${MAX_KEYWORDS} adede kadar kısa Türkçe anahtar kelime üret (ürün/hizmet adları; marka ve genel sözcük yazma).`,
+        ].join(" "),
         stage: "class",
+        collectKeywords: true,
       });
-      return classCodes;
+      return { categoryIds: classCodes, keywords };
     } catch (err) {
       // Öneri "nice-to-have" — başarısızlık çıkarımı/asistan turunu düşürmez.
       this.logger.warn(
         `Kategori önerisi başarısız: ${err instanceof Error ? err.message : String(err)}`,
       );
-      return [];
+      return empty;
     }
   }
 
-  /** Tek aşama: verilen kod listesinden modele seçim yaptır, DB'ye karşı doğrula. */
+  /**
+   * Tek aşama: verilen kod listesinden modele seçim yaptır, DB'ye karşı
+   * doğrula. collectKeywords ile son aşamada arama anahtar kelimeleri de
+   * aynı çağrıda toplanır (ekstra AI çağrısı yok).
+   */
   private async pickCodes(
     user: AuthenticatedCompanyUser,
     opts: {
@@ -168,8 +204,9 @@ export class CategorySuggestService {
       rows: FamilyRow[];
       ask: string;
       stage: "family" | "class";
+      collectKeywords?: boolean;
     },
-  ): Promise<string[]> {
+  ): Promise<{ ids: string[]; keywords: string[] }> {
     const categoryLines = opts.rows
       .map((r) => `${r.code} ${r.nameTr}`)
       .join("\n");
@@ -177,7 +214,9 @@ export class CategorySuggestService {
       feature: "tender_extract",
       prompt: buildPrompt(opts.itemLines, categoryLines, opts.ask),
       system: SYSTEM_PROMPT,
-      responseSchema: RESPONSE_SCHEMA as unknown as object,
+      responseSchema: (opts.collectKeywords
+        ? RESPONSE_SCHEMA_WITH_KEYWORDS
+        : RESPONSE_SCHEMA) as unknown as object,
       metadata: { route: "category_suggest", stage: opts.stage },
     });
     const parsed: unknown = JSON.parse(result.text);
@@ -191,7 +230,22 @@ export class CategorySuggestService {
       if (id && !ids.includes(id)) ids.push(id);
       if (ids.length >= MAX_SUGGESTIONS) break;
     }
-    return ids;
+
+    // Anahtar kelimeler: string olmayanlar/boşlar elenir, 50 karaktere
+    // kırpılır, tekilleştirilir (ihale keywords alanının kuralları).
+    const rawKw = opts.collectKeywords
+      ? (parsed as { keywords?: unknown })?.keywords
+      : undefined;
+    const keywords: string[] = [];
+    if (Array.isArray(rawKw)) {
+      for (const k of rawKw) {
+        if (typeof k !== "string") continue;
+        const t = k.trim().slice(0, 50);
+        if (t && !keywords.includes(t)) keywords.push(t);
+        if (keywords.length >= MAX_KEYWORDS) break;
+      }
+    }
+    return { ids, keywords };
   }
 
   private async loadFamilies(): Promise<FamilyRow[]> {

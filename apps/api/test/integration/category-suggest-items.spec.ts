@@ -74,11 +74,15 @@ describe("CategorySuggestService.suggestForItems", () => {
     expect(ai.callAi).not.toHaveBeenCalled();
   });
 
-  it("iki aşamalı akış: family → L3 class, doğrulanmış id döner", async () => {
+  it("iki aşamalı akış: family → L3 class + anahtar kelimeler döner", async () => {
     await seedTree();
     const ai = makeAiStub([
       JSON.stringify({ codes: ["40150000"] }), // aşama 1: family
-      JSON.stringify({ codes: ["40151600", "99999999"] }), // aşama 2: class (+uydurma)
+      // aşama 2: class (+uydurma kod) + keywords (boş/yinelenen dahil)
+      JSON.stringify({
+        codes: ["40151600", "99999999"],
+        keywords: ["vidalı kompresör", "  ", "hava kompresörü", "vidalı kompresör", 42],
+      }),
     ]);
     const svc = makeService(ai);
 
@@ -86,8 +90,12 @@ describe("CategorySuggestService.suggestForItems", () => {
       { name: "Vidalı kompresör 22kW", description: "hava hattı için" },
     ]);
 
-    // Uydurma kod (99999999) DB doğrulamasından geçemez, elenir.
-    expect(res).toEqual({ categoryIds: ["40151600"] });
+    // Uydurma kod (99999999) DB doğrulamasından geçemez, elenir; keywords
+    // string-dışı/boş/yinelenen girdilerden arındırılır.
+    expect(res).toEqual({
+      categoryIds: ["40151600"],
+      keywords: ["vidalı kompresör", "hava kompresörü"],
+    });
     expect(ai.callAi).toHaveBeenCalledTimes(2);
   });
 
@@ -98,7 +106,7 @@ describe("CategorySuggestService.suggestForItems", () => {
     const svc = makeService(ai);
 
     const res = await svc.suggestForItems(USER, [{ name: "Pompa" }]);
-    expect(res).toEqual({ categoryIds: [] });
+    expect(res).toEqual({ categoryIds: [], keywords: [] });
   });
 
   it("adsız kalemler elenir; hiç ad yoksa AI çağrısı yapılmaz", async () => {
@@ -106,7 +114,7 @@ describe("CategorySuggestService.suggestForItems", () => {
     const svc = makeService(ai);
 
     const res = await svc.suggestForItems(USER, [{ name: "" }]);
-    expect(res).toEqual({ categoryIds: [] });
+    expect(res).toEqual({ categoryIds: [], keywords: [] });
     expect(ai.callAi).not.toHaveBeenCalled();
   });
 });

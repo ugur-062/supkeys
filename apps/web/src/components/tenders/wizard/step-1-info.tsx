@@ -638,16 +638,25 @@ export function Step1Info({
     }
     setAiLoading(true);
     try {
-      const r = await companyApi.post<{ categoryIds: string[] }>(
-        "/company/ai/tender-extract/category-suggest",
-        { items: named },
-      );
+      const r = await companyApi.post<{
+        categoryIds: string[];
+        keywords?: string[];
+      }>("/company/ai/tender-extract/category-suggest", { items: named });
       const ids = r.data?.categoryIds;
       if (Array.isArray(ids) && ids.length > 0) {
         setValue("categoryIds", ids.slice(0, 3), {
           shouldValidate: true,
           shouldDirty: true,
         });
+        // Anahtar kelimeler: kullanıcı elle yazdıysa ÜZERİNE YAZMA — yalnız
+        // alan boşken AI üretimiyle doldur.
+        const kw = (r.data?.keywords ?? [])
+          .filter((k): k is string => typeof k === "string" && !!k.trim())
+          .map((k) => k.trim().slice(0, 50))
+          .slice(0, 10);
+        if (kw.length > 0 && (watch("keywords") ?? []).length === 0) {
+          setValue("keywords", kw, { shouldValidate: true, shouldDirty: true });
+        }
         setAiApplied(true);
       } else {
         toast.info("AI kalemlerinize uygun bir kategori bulamadı — listeden seçin");
@@ -810,7 +819,9 @@ export function Step1Info({
           title="Kategoriler"
           description={`İhalenizin ana konusunu tanımlayan kategoriyi seçin (gerekiyorsa en fazla 3). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
         />
-        <Field error={errors.categoryIds?.message as string | undefined}>
+        {/* Hata metnini yalnız CategorySelectorButton basar (Field'a da
+            verilirse aynı mesaj iki kez görünüyordu). */}
+        <Field>
           <div className="flex flex-wrap items-center gap-2">
             <Label required>Kategoriler</Label>
             {!aiHidden ? (
