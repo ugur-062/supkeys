@@ -71,9 +71,9 @@ const footerNav = {
     { name: "Kaydol", href: "/company/kayit" },
   ],
   yasal: [
-    { name: "Kullanım Şartları", href: "#" },
-    { name: "Gizlilik Politikası", href: "#" },
-    { name: "KVKK", href: "#" },
+    { name: "Kullanıcı Sözleşmesi", href: "/sozlesmeler/kullanici" },
+    { name: "Aracılık Sözleşmesi", href: "/sozlesmeler/aracilik" },
+    { name: "KVKK Aydınlatma Metni", href: "/sozlesmeler/kvkk" },
   ],
 };
 
