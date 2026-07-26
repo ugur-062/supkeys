@@ -20,6 +20,7 @@ import {
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
+import { AssistantActionsService } from "./assistant-actions.service";
 import { AssistantService } from "./assistant.service";
 
 class AssistantMessageDto {
@@ -41,7 +42,32 @@ class AssistantMessageDto {
 @Controller("company/ai/assistant")
 @UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
 export class AssistantController {
-  constructor(private readonly service: AssistantService) {}
+  constructor(
+    private readonly service: AssistantService,
+    private readonly actions: AssistantActionsService,
+  ) {}
+
+  /**
+   * AI-4 — onay bekleyen aksiyonu YÜRÜT. Model bu endpoint'i çağıramaz;
+   * yalnız kullanıcı jesti (CSRF'li mutasyon) tetikler. Tek kullanımlık.
+   */
+  @Post("sessions/:id/actions/:actionId/confirm")
+  confirmAction(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Param("actionId") actionId: string,
+  ) {
+    return this.actions.confirm(user, id, actionId);
+  }
+
+  @Post("sessions/:id/actions/:actionId/reject")
+  rejectAction(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Param("actionId") actionId: string,
+  ) {
+    return this.actions.reject(user, id, actionId);
+  }
 
   @Post("message")
   message(

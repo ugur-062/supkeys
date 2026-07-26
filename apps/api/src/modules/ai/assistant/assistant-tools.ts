@@ -51,6 +51,12 @@ export const TOOL_NAMES = {
   listMyConnections: "list_my_connections",
   /** AI-3 — konuşarak ihale taslağı toplama (BAĞLAYICI DEĞİL; ihale açmaz). */
   proposeTenderDraft: "propose_tender_draft",
+  /**
+   * AI-4 — AKSİYON ÖNERİLERİ: yürütmez, yalnız kullanıcıya onay kartı çıkarır.
+   * Gerçek yürütme kullanıcının confirm endpoint'ine basmasıyla olur.
+   */
+  requestSendInvites: "request_send_invites",
+  requestPublishTender: "request_publish_tender",
 } as const;
 
 /** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). */
@@ -175,6 +181,38 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       description:
         "Kullanıcı yeni bir ihale/ilan açmak istediğinde, o ana kadar topladığın TÜM alanları buraya ver (her çağrıda tam taslak — önceki + yeni). İhaleyi OLUŞTURMAZ; yalnız taslağı kaydeder. Kategori ve adres SORMA (kullanıcı formda seçer).",
       parameters: TENDER_DRAFT_PARAMS as unknown as object,
+    });
+    // AI-4: aksiyon önerileri — kullanıcı AÇIKÇA isteyince çağrılır; yürütmez,
+    // onay kartı üretir. Onayı kullanıcı verir; sen verildiğini VARSAYAMAZSIN.
+    defs.push({
+      name: TOOL_NAMES.requestSendInvites,
+      description:
+        "Kullanıcı kendi ihalesine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi ihalesi; rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
+      parameters: {
+        type: "object",
+        properties: {
+          listingId: { type: "string" },
+          rothernIds: { type: "array", items: { type: "string" } },
+        },
+        required: ["listingId", "rothernIds"],
+      },
+    });
+    defs.push({
+      name: TOOL_NAMES.requestPublishTender,
+      description:
+        "Kullanıcı, bu sohbette biriken ihale taslağını YAYINLAMAK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: doğrulanmış özetle onay kartı çıkarır; ihale ancak kullanıcı onaylarsa yayınlanır. Davetli (kapalı) yayınlanır: davet edilecek en az bir BAĞLANTILI firmanın Rothern kodu gerekir — kullanıcıya kimleri davet edeceğini sor (bağlantı listesinden bulabilirsin). Taslakta eksik zorunlu alan varsa araç sana eksikleri söyler — önce onları tamamla.",
+      parameters: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["ALIM", "SATIS"], description: "İhale yönü" },
+          rothernIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Davet edilecek bağlantılı firmaların Rothern kodları (en az 1)",
+          },
+        },
+        required: ["type", "rothernIds"],
+      },
     });
   }
   return defs;

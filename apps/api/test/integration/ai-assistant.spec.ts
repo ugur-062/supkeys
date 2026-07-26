@@ -107,6 +107,11 @@ function build(cfg: AiConfig, provider: FakeProvider) {
     connections as never,
     tenderExtract,
     categorySuggest,
+    // AI-4 aksiyon servisi — bu spec'ler propose akışını KULLANMAZ; stub yeterli.
+    {
+      proposeSendInvites: async () => ({ ok: false, problem: "stub" }),
+      proposePublishTender: async () => ({ ok: false, problem: "stub" }),
+    } as never,
   );
   return { svc, listings, orders, connections };
 }
@@ -188,18 +193,21 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
 });
 
 describe("Faz AI-2 — araç kümesi (bağlayıcı yazma YOK)", () => {
-  it("araç listesinde create/bid/award/publish YOK; okuma + non-binding taslak", () => {
+  it("DOĞRUDAN yazma aracı YOK; yazma yalnız onay-kartılı request_* önerileriyle", () => {
     const defs = toolDefsForUser(allowedPortals([CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI]));
     const names = defs.map((d) => d.name);
-    // BAĞLAYICI YAZMA yok: ihale açma/teklif/kazandırma aracı asla sunulmaz.
+    // AI-4 sonrası da değişmez: model hiçbir işlemi doğrudan yürütemez —
+    // place_bid/create/award gibi araçlar asla sunulmaz. request_* araçları
+    // yalnız pendingAction (kullanıcı onayı) üretir, yürütmez.
     expect(names).not.toEqual(
-      expect.arrayContaining(["place_bid", "create_tender", "publish_tender", "award"]),
+      expect.arrayContaining(["place_bid", "create_tender", "award"]),
     );
-    // İzinli: okuma araçları + propose_tender_draft (taslak toplar, ihale AÇMAZ).
     for (const n of names) {
-      expect(n).toMatch(/^(list_|search_|get_|propose_)/);
+      expect(n).toMatch(/^(list_|search_|get_|propose_|request_)/);
     }
     expect(names).toContain("propose_tender_draft");
+    expect(names).toContain("request_publish_tender");
+    expect(names).toContain("request_send_invites");
   });
 
   it("model olmayan bir yazma aracı isterse → unavailable (beyaz-liste dışı)", async () => {

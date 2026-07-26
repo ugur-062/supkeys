@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import type {
+  AiActionResult,
   AiAssistantReply,
   AiChatSessionDetailDto,
   AiChatSessionSummaryDto,
@@ -82,6 +83,33 @@ export function useSendAssistantMessage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ai-assistant-sessions"] });
       qc.invalidateQueries({ queryKey: ["company-ai-usage"] });
+    },
+  });
+}
+
+/**
+ * AI-4 — onay kartı: yürütme YALNIZ bu kullanıcı-jesti mutasyonuyla olur
+ * (model onaylayamaz). decision=confirm → işlem gerçekleşir; reject → iptal.
+ */
+export function useAssistantAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      sessionId: string;
+      actionId: string;
+      decision: "confirm" | "reject";
+    }) => {
+      const { data } = await companyApi.post<AiActionResult>(
+        `/company/ai/assistant/sessions/${input.sessionId}/actions/${input.actionId}/${input.decision}`,
+        {},
+        { timeout: 60_000 },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      // Yayınlanan ihale / gönderilen davet listelerde görünsün.
+      qc.invalidateQueries({ queryKey: ["company-listings"] });
+      qc.invalidateQueries({ queryKey: ["ai-assistant-sessions"] });
     },
   });
 }

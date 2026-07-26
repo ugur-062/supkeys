@@ -14,6 +14,8 @@ import { CategorySuggestService } from "./tender-extract/category-suggest.servic
 import { TenderExtractController } from "./tender-extract/tender-extract.controller";
 import { TenderExtractService } from "./tender-extract/tender-extract.service";
 import { AssistantController } from "./assistant/assistant.controller";
+import { AuditModule } from "../audit/audit.module";
+import { AssistantActionsService } from "./assistant/assistant-actions.service";
 import { AssistantService } from "./assistant/assistant.service";
 import { CompanyListingsModule } from "../company-listings/company-listings.module";
 import { CompanyOrdersModule } from "../company-orders/company-orders.module";
@@ -30,6 +32,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
  */
 @Module({
   imports: [
+    AuditModule,
     CompanyAuthModule,
     NotificationModule,
     CompanyListingsModule,
@@ -72,6 +75,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     TenderExtractService,
     CategorySuggestService,
     AssistantService,
+    AssistantActionsService,
   ],
   exports: [AiService, AiBudgetService],
 })

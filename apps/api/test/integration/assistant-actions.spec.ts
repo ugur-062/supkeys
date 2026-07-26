@@ -1,0 +1,351 @@
+/**
+ * Faz AI-4 — asistan aksiyon çerçevesi sözleşmesi:
+ *  - propose: doğrulanmış özet + oturuma pendingAction; sahiplik dışı/eksik
+ *    girdi → ok:false problem (kart çıkmaz).
+ *  - confirm: TEK kullanımlık (ikinci confirm reddedilir), süre dolunca
+ *    reddedilir, yürütme MEVCUT servis kapılarından geçer (kullanıcı kimliği).
+ *  - publish_tender: eksik zorunlulu taslak ÖNERİLEMEZ; tam taslak onayla
+ *    gerçek ilana dönüşür ve oturum taslağı temizlenir.
+ */
+import { Prisma } from "@rothern/db";
+import { AssistantActionsService } from "../../src/modules/ai/assistant/assistant-actions.service";
+import type { PrismaService } from "../../src/common/prisma/prisma.service";
+import type { AuditService } from "../../src/modules/audit/audit.service";
+import { prisma, truncateAll } from "./test-db";
+import { makeCompanyWithUser, makeListing } from "./factories";
+import { makeService } from "./make-service";
+
+const auditStub = { log: jest.fn().mockResolvedValue(undefined) };
+
+let codeSeq = 0;
+/** Firma kısa kodu ata (factory üretmez) — SHORT_CODE formatında. */
+async function giveCode(companyId: string): Promise<string> {
+  const code = `TEST-${String(1000 + codeSeq++).slice(-4)}`;
+  await prisma.company.update({ where: { id: companyId }, data: { rothernId: code } });
+  return code;
+}
+
+function makeActions() {
+  const { service: listings } = makeService();
+  return new AssistantActionsService(
+    prisma as unknown as PrismaService,
+    listings,
+    auditStub as unknown as AuditService,
+  );
+}
+
+async function makeSession(userId: string, companyId: string, draft?: object) {
+  return prisma.aiChatSession.create({
+    data: {
+      userId,
+      companyId,
+      title: "test",
+      ...(draft ? { tenderDraft: draft as Prisma.InputJsonValue } : {}),
+    },
+  });
+}
+
+/** Zorunluları tam bir konuşma taslağı (sanitizer'dan geçecek şekilde). */
+function fullDraft(overrides: Record<string, unknown> = {}) {
+  return {
+    title: "500 adet baret alımı",
+    description: "Şantiye için",
+    primaryCurrency: "TRY",
+    deliveryTerm: "DOMESTIC_DELIVERED",
+    paymentCategory: "OPEN_ACCOUNT",
+    bidsCloseAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    keywords: ["baret"],
+    items: [{ name: "Baret", quantity: 500, unit: "adet" }],
+    suggestedCategoryIds: ["30991900"],
+    ...overrides,
+  };
+}
+
+/** Aktif bağlantılı + kodlu davetli firma kurar (publish/invite akışları için). */
+async function makeConnectedInvitee(ownerCompanyId: string, ownerUserId: string, name = "Davetli AŞ") {
+  const invitee = await makeCompanyWithUser(prisma, { name });
+  const code = await giveCode(invitee.company.id);
+  await prisma.companyConnection.create({
+    data: {
+      inviterCompanyId: ownerCompanyId,
+      inviteeCompanyId: invitee.company.id,
+      invitedById: ownerUserId,
+      status: "ACTIVE",
+      origin: "PREMIUM",
+    },
+  });
+  return { invitee, code };
+}
+
+async function seedCategory(code = "30991900") {
+  await prisma.category.create({
+    data: {
+      id: code,
+      code,
+      nameTr: "Kişisel koruyucu donanım (KKD)",
+      level: 3,
+      isActive: true,
+      sortOrder: 0,
+    },
+  });
+}
+
+afterAll(async () => {
+  await truncateAll();
+  await prisma.$disconnect();
+});
+beforeEach(async () => {
+  jest.clearAllMocks();
+  await truncateAll();
+});
+
+describe("proposeSendInvites", () => {
+  it("sahip olunmayan ihale için ok:false döner (kart çıkmaz)", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const other = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: other.company.id,
+      createdById: other.user.id,
+      type: "ALIM",
+    });
+    const session = await makeSession(owner.user.id, owner.company.id);
+
+    const otherCode = await giveCode(other.company.id);
+    const out = await actions.proposeSendInvites(owner.auth, session.id, {
+      listingId: listing.id,
+      rothernIds: [otherCode],
+    });
+    expect(out.ok).toBe(false);
+    const s = await prisma.aiChatSession.findUnique({ where: { id: session.id } });
+    expect(s?.pendingAction).toBeNull();
+  });
+
+  it("geçerli öneri: pendingAction yazılır, özet firma adını içerir", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const invitee = await makeCompanyWithUser(prisma, { name: "Davetli AŞ" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+    });
+    const session = await makeSession(owner.user.id, owner.company.id);
+
+    const inviteeCode = await giveCode(invitee.company.id);
+    const out = await actions.proposeSendInvites(owner.auth, session.id, {
+      listingId: listing.id,
+      rothernIds: [inviteeCode],
+    });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.severity).toBe("normal");
+    expect(out.pending!.summary.join(" ")).toContain("Davetli AŞ");
+  });
+
+  it("confirm: bağlantılı firmaya davet oluşur; İKİNCİ confirm reddedilir", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const invitee = await makeCompanyWithUser(prisma);
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: owner.company.id,
+        inviteeCompanyId: invitee.company.id,
+        invitedById: owner.user.id,
+        status: "ACTIVE",
+        origin: "PREMIUM",
+      },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+    });
+    const session = await makeSession(owner.user.id, owner.company.id);
+    const inviteeCode = await giveCode(invitee.company.id);
+    const out = await actions.proposeSendInvites(owner.auth, session.id, {
+      listingId: listing.id,
+      rothernIds: [inviteeCode],
+    });
+    expect(out.ok).toBe(true);
+
+    const res = await actions.confirm(owner.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("executed");
+    const inv = await prisma.listingInvitation.findFirst({
+      where: { listingId: listing.id, invitedCompanyId: invitee.company.id },
+    });
+    expect(inv).not.toBeNull();
+    expect(auditStub.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "ai.action_executed" }),
+    );
+
+    // Tek kullanım: aynı onay tekrar yürütülemez.
+    await expect(
+      actions.confirm(owner.auth, session.id, out.pending!.id),
+    ).rejects.toThrow();
+  });
+
+  it("süresi dolmuş onay reddedilir", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const invitee = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+    });
+    const session = await makeSession(owner.user.id, owner.company.id);
+    const inviteeCode = await giveCode(invitee.company.id);
+    const out = await actions.proposeSendInvites(owner.auth, session.id, {
+      listingId: listing.id,
+      rothernIds: [inviteeCode],
+    });
+    // Süreyi geçmişe çek (kayıt üstünde).
+    const s = await prisma.aiChatSession.findUnique({ where: { id: session.id } });
+    const action = s!.pendingAction as Record<string, unknown>;
+    await prisma.aiChatSession.update({
+      where: { id: session.id },
+      data: {
+        pendingAction: {
+          ...action,
+          expiresAt: new Date(Date.now() - 1000).toISOString(),
+        } as Prisma.InputJsonValue,
+      },
+    });
+    await expect(
+      actions.confirm(owner.auth, session.id, out.pending!.id),
+    ).rejects.toThrow(/süresi doldu/i);
+  });
+
+  it("başka kullanıcının oturumundaki onayı confirm EDEMEZ", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const attacker = await makeCompanyWithUser(prisma);
+    const invitee = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+    });
+    const session = await makeSession(owner.user.id, owner.company.id);
+    const inviteeCode = await giveCode(invitee.company.id);
+    const out = await actions.proposeSendInvites(owner.auth, session.id, {
+      listingId: listing.id,
+      rothernIds: [inviteeCode],
+    });
+    await expect(
+      actions.confirm(attacker.auth, session.id, out.pending!.id),
+    ).rejects.toThrow();
+  });
+});
+
+describe("proposePublishTender", () => {
+  it("davetli firma verilmeden yayın önerilemez", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await actions.proposePublishTender(owner.auth, session.id, {
+      type: "ALIM",
+      rothernIds: [],
+    });
+    expect(out.ok).toBe(false);
+    expect(out.problem).toMatch(/davet/i);
+  });
+
+  it("eksik zorunlulu taslak önerilemez (ok:false + eksik listesi)", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(
+      owner.user.id,
+      owner.company.id,
+      fullDraft({ bidsCloseAt: null, deliveryTerm: null }),
+    );
+    const out = await actions.proposePublishTender(owner.auth, session.id, {
+      type: "ALIM",
+      rothernIds: [code],
+    });
+    expect(out.ok).toBe(false);
+    expect(out.problem).toMatch(/eksik/i);
+  });
+
+  it("teslimat adresi olmayan firma için ok:false (adres yönlendirmesi)", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await actions.proposePublishTender(owner.auth, session.id, {
+      type: "ALIM",
+      rothernIds: [code],
+    });
+    expect(out.ok).toBe(false);
+    expect(out.problem).toMatch(/adres/i);
+  });
+
+  it("tam taslak: kritik onay kartı; confirm → ilan OPEN + taslak temizlenir", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: {
+        companyId: owner.company.id,
+        type: "TESLIMAT",
+        title: "Depo",
+        addressLine: "Test Mah. 1",
+        city: "İstanbul",
+      },
+    });
+    const { invitee, code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+
+    const out = await actions.proposePublishTender(owner.auth, session.id, {
+      type: "ALIM",
+      rothernIds: [code],
+    });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.severity).toBe("critical");
+    expect(out.pending!.summary.join(" ")).toContain("500 adet baret alımı");
+    expect(out.pending!.summary.join(" ")).toContain("Davetli AŞ");
+
+    const res = await actions.confirm(owner.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("executed");
+    const listing = await prisma.listing.findFirst({
+      where: { companyId: owner.company.id, title: "500 adet baret alımı" },
+    });
+    expect(listing?.status).toBe("OPEN");
+    expect(listing?.categoryIds).toEqual(["30991900"]);
+    const invRows = await prisma.listingInvitation.count({
+      where: { listingId: listing!.id, invitedCompanyId: invitee.company.id },
+    });
+    expect(invRows).toBe(1);
+    const s = await prisma.aiChatSession.findUnique({ where: { id: session.id } });
+    expect(s?.tenderDraft).toBeNull();
+    expect(s?.pendingAction).toBeNull();
+  });
+
+  it("reject: hiçbir şey yürütülmez, pendingAction temizlenir", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: {
+        companyId: owner.company.id,
+        type: "TESLIMAT",
+        title: "Depo",
+        addressLine: "Test Mah. 1",
+        city: "İstanbul",
+      },
+    });
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await actions.proposePublishTender(owner.auth, session.id, {
+      type: "ALIM",
+      rothernIds: [code],
+    });
+    const res = await actions.reject(owner.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("rejected");
+    expect(
+      await prisma.listing.count({ where: { companyId: owner.company.id } }),
+    ).toBe(0);
+  });
+});

@@ -47,6 +47,7 @@ import {
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 import { CategorySuggestService } from "../tender-extract/category-suggest.service";
 import { TenderExtractService } from "../tender-extract/tender-extract.service";
+import { AssistantActionsService } from "./assistant-actions.service";
 import { SUGGEST_NEW_CHAT_AFTER, planWindow, type StoredMessage } from "./window";
 
 const MAX_TOOL_ITERATIONS = 4;
@@ -75,6 +76,7 @@ export class AssistantService {
     private readonly connections: CompanyConnectionsService,
     private readonly tenderExtract: TenderExtractService,
     private readonly categorySuggest: CategorySuggestService,
+    private readonly actions: AssistantActionsService,
   ) {}
 
   async message(
@@ -177,6 +179,8 @@ export class AssistantService {
     };
     const toolsUsed: string[] = [];
     let reply = "";
+    // AI-4: bu turda üretilen onay kartı (en fazla 1 — sonuncusu kazanır).
+    let pendingAction: AiAssistantReply["pendingAction"];
     const deadlineAt = Date.now() + TURN_DEADLINE_MS;
 
     try {
@@ -225,6 +229,30 @@ export class AssistantService {
               functionResponse: {
                 name: call.name,
                 response: { status: "ok", missingRequired: s.missingRequired },
+              },
+            });
+            continue;
+          }
+          // AI-4: aksiyon önerisi — YÜRÜTMEZ; doğrulanmış onay kartı üretir.
+          if (
+            call.name === TOOL_NAMES.requestSendInvites ||
+            call.name === TOOL_NAMES.requestPublishTender
+          ) {
+            const outcome =
+              call.name === TOOL_NAMES.requestSendInvites
+                ? await this.actions
+                    .proposeSendInvites(user, session.id, call.args)
+                    .catch(() => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }))
+                : await this.actions
+                    .proposePublishTender(user, session.id, call.args)
+                    .catch(() => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }));
+            if (outcome.ok && outcome.pending) pendingAction = outcome.pending;
+            responseParts.push({
+              functionResponse: {
+                name: call.name,
+                response: outcome.ok
+                  ? { status: "pending_confirmation", note: "Onay kartı kullanıcıya gösterildi; onayı KULLANICI verir." }
+                  : { status: "blocked", problem: outcome.problem },
               },
             });
             continue;
@@ -341,6 +369,8 @@ export class AssistantService {
       toolsUsed: [...new Set(toolsUsed)],
       // AI-3: taslak toplandıysa yanıta koy (frontend kart + "formu aç" için).
       ...(draft ? { tenderDraft: draft } : {}),
+      // AI-4: onay bekleyen aksiyon — frontend onay kartı çizer.
+      ...(pendingAction ? { pendingAction } : {}),
     };
   }
 

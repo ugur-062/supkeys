@@ -189,6 +189,18 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - `@rothern/email` değişince `pnpm --filter @rothern/email build` şart — CI'da otomatikleşmeli.
 
 **AI katmanı**
+- ✅ **Faz AI-4 (2026-07-27): Asistan AKSİYON çerçevesi (Faz 1) BİTTİ** —
+  "rol bazında her şey, ciddi işlerde onay" modeli. Model ASLA doğrudan
+  yazamaz: `request_*` araçları yalnız DOĞRULANMIŞ `pendingAction` üretir
+  (AiChatSession.pendingAction, tek kullanımlık, 10 dk TTL); yürütme YALNIZ
+  kullanıcının confirm endpoint'iyle (`POST .../actions/:id/confirm`, CSRF'li)
+  — prompt-injection zinciri yapısal kırık. Yetki = kullanıcı yetkisi (execute
+  mevcut servisleri kullanıcı kimliğiyle çağırır; rol/tier/KYC kapıları aynen).
+  Onay kartı içeriği backend özeti (model metni değil); critical'da vurgulu UI.
+  Pilot aksiyonlar: `request_send_invites` (normal) + `request_publish_tender`
+  (critical; davetli-kapalı yayın → en az 1 bağlantılı davetli kodu zorunlu,
+  varsayılan teslimat adresi otomatik). Audit: `ai.action_executed` via
+  metadata'lı. KALAN Faz 2/3: eleme/kazandırma/sipariş adımı; teklif verme.
 - ✅ **Faz AI-3 (2026-07-24): Asistan yenileme BİTTİ** — (1) belge yükleme yeni-ihale sayfasında belirgin kart + asistan composer'ında 📎 (asistan içinden belge→taslak); (2) asistan UI modernize (marka gradient, avatar/timestamp, araç rozeti, öneri chip'leri, taslak kartı); (3) **konuşarak ihale açma**: `propose_tender_draft` non-binding araç — model çekirdek alanları toplar, eksik zorunluları sırayla sorar; taslak `AiChatSession.tenderDraft`'ta birikir (belge+konuşma birleşimi, `mergeDrafts`); yanıtta `tenderDraft` payload → "İhale formunu aç" → `sessionStorage["ai-tender-draft"]` + `yeni?ai=1` → wizard prefilled. İHALE AÇILMAZ (kategori AI seçemez; kullanıcı formda seçip Yayınla — BAĞLAYICI-YAZMA-YOK korunur). Vertex prod'da çalışıyor; teşhis mesajı sadeleştirildi.
 - ✅ **Faz AI-2 (2026-07-24): Asistan sohbeti BİTTİ** — `POST /company/ai/assistant/message` (+sessions CRUD); asistan sistemin OKUMA servislerini kullanıcı kimliğiyle IN-PROCESS çağırır (ham DB YOK) → yetki katmanı (rol/tier/görünürlük/kapalı-zarf/Faz O) bedava çalışır. 6-7 okuma aracı (Gemini function-calling), BAĞLAYICI YAZMA YOK (sayfaya yönlendirir). Portal-yönlü kısıt (SA satış/ST alım verisi göremez), araç hatası → nötr `unavailable` (bilgi sızmaz), kayan pencere (son 8 tur + tek özet), 90 gün TTL cron, kullanıcıya-scope'lu kalıcı oturum. Frontend: sağ-alt floating launcher + slide-over (Silver+ ∧ SA/ST). GOTCHA: Gemini 3 function-calling **thought signature** ZORUNLU — modelin functionCall part'ındaki `thoughtSignature` geri beslemede korunmazsa 400; ayrıca fnResponse turundan sonra boş user turu EKLEME (mesajı history'ye koy, prompt="").
 - ✅ **Faz AI-1 (2026-07-24): Belge/fotoğraf → ihale formu BİTTİ** — `POST /company/ai/tender-extract` (+uploads/url, +tender-refine); girdi yönlendirici (metinli PDF→TEXT bedava çıkarım; taranmış/karışık PDF→Gemini'ye DOĞRUDAN inlineData ~258 tok/sayfa; foto→sharp ≤1500px, HEIC destekli); sayfa tavanı `AI_MAX_PAGES=20`; "bir kez oku, JSON'la konuş" (refine belgeyi yeniden okumaz); AI çıktısı shared-limits sanitizer'dan geçer (geçmeyen null+flag), vision'da miktar/birim/tarih/para birimi varsayılan işaretli; KDV-dahil uyarısı; prompt-injection sınırı (<belge> VERİ + şema-kısıtlı çıktı); wizard'a giriş noktası "Belgeden Doldur (AI)" + AiFlagsBanner + refine kutusu. AI ihale AÇMAZ — oluşturma normal kapılardan. NOT: `pnpm test` artık `NODE_OPTIONS=--experimental-vm-modules` ile koşar (pdfjs fake-worker dynamic import); tek spec koşarken de bu env gerekli: `NODE_OPTIONS=--experimental-vm-modules npx jest <spec>`.

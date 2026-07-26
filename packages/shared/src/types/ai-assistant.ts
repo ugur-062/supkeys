@@ -43,4 +43,31 @@ export interface AiAssistantReply {
    * taşınır). BAĞLAYICI DEĞİL: ihale yine kullanıcı onayıyla wizard'dan açılır.
    */
   tenderDraft?: import("./ai-tender-draft").AiTenderExtractResult;
+  /**
+   * Faz AI-4 — modelin ÖNERDİĞİ, kullanıcı onayı bekleyen aksiyon. Model asla
+   * doğrudan yazamaz: kart içeriği backend'in DOĞRULANMIŞ özetidir; işlem
+   * yalnız kullanıcının confirm endpoint'ine (CSRF'li) basmasıyla gerçekleşir.
+   */
+  pendingAction?: AiPendingAction;
+}
+
+/** Onay bekleyen asistan aksiyonu — tek seferlik ve süreli. */
+export interface AiPendingAction {
+  id: string;
+  type: "send_invites" | "publish_tender";
+  /** normal = tek tık; critical = vurgulu uyarı (bağlayıcı/geri alınamaz). */
+  severity: "normal" | "critical";
+  /** Backend'in ürettiği doğrulanmış özet satırları (model metni DEĞİL). */
+  summary: string[];
+  /** ISO — süre dolunca kart pasifleşir, onay reddedilir. */
+  expiresAt: string;
+}
+
+/** Confirm/reject yanıtı. */
+export interface AiActionResult {
+  status: "executed" | "rejected";
+  /** Kullanıcıya gösterilecek sonuç mesajı (Türkçe). */
+  message: string;
+  /** Oluşan kaynağın linki için (örn. yayınlanan ihale id'si). */
+  resourceId?: string;
 }

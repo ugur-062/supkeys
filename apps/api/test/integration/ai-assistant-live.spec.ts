@@ -14,6 +14,7 @@ import { loadAiConfig } from "../../src/modules/ai/ai.config";
 import { GeminiProvider } from "../../src/modules/ai/providers/gemini.provider";
 import { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
+import { AssistantActionsService } from "../../src/modules/ai/assistant/assistant-actions.service";
 import { AssistantService } from "../../src/modules/ai/assistant/assistant.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeService } from "./make-service";
@@ -56,6 +57,7 @@ d("Faz AI-2 — canlı asistan duman testi", () => {
       cfg, provider, ai, budget, prisma as never,
       listings, new FakeOrders() as never, new FakeConnections() as never,
       tenderExtract, categorySuggest,
+      new AssistantActionsService(prisma as never, listings, { log: async () => undefined } as never),
     );
 
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });

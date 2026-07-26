@@ -2,6 +2,7 @@
 
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import {
+  useAssistantAction,
   useAssistantSession,
   useAssistantSessions,
   useDeleteAssistantSession,
@@ -10,10 +11,15 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import type { AiChatMessageDto, AiTenderExtractResult } from "@rothern/shared";
+import type {
+  AiChatMessageDto,
+  AiPendingAction,
+  AiTenderExtractResult,
+} from "@rothern/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
   FileText,
@@ -41,6 +47,10 @@ interface LocalMsg {
   at?: string;
   tools?: string[];
   draft?: AiTenderExtractResult;
+  /** AI-4 — onay bekleyen aksiyon kartı (backend'in doğrulanmış özeti). */
+  pending?: AiPendingAction;
+  /** Kart karara bağlandı: executed/rejected — butonlar gizlenir. */
+  pendingResolved?: "executed" | "rejected";
   /** Canlı gelen yanıt — daktilo efektiyle yazılır (geçmişten yüklenen yazılmaz). */
   typed?: boolean;
   /** Kullanıcının bu mesajla gönderdiği belge adları — balonda chip olarak kalır. */
@@ -135,6 +145,8 @@ const TOOL_LABEL: Record<string, string> = {
   list_my_connections: "Bağlantılarınıza baktım",
   list_my_bids: "Tekliflerinize baktım",
   propose_tender_draft: "İhale taslağını hazırladım",
+  request_send_invites: "Davet önerisi hazırladım",
+  request_publish_tender: "Yayınlama önerisi hazırladım",
 };
 
 function initials(first?: string, last?: string): string {
@@ -259,6 +271,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
           content: reply.reply,
           tools: reply.toolsUsed,
           draft: reply.tenderDraft,
+          pending: reply.pendingAction,
           typed: true,
         },
       ]);
@@ -269,6 +282,46 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
           id: `err-${m.length}`,
           role: "ASSISTANT",
           content: extractErrorMessage(err, "Şu an yanıt veremedim — lütfen tekrar deneyin."),
+          typed: true,
+        },
+      ]);
+    }
+  };
+
+  // AI-4: onay kartı kararı — yürütme YALNIZ bu kullanıcı jestiyle olur.
+  const action = useAssistantAction();
+  const decideAction = async (
+    msgId: string,
+    pending: AiPendingAction,
+    decision: "confirm" | "reject",
+  ) => {
+    if (!sessionId || action.isPending) return;
+    try {
+      const result = await action.mutateAsync({
+        sessionId,
+        actionId: pending.id,
+        decision,
+      });
+      setMessages((m) => [
+        ...m.map((x) =>
+          x.id === msgId ? { ...x, pendingResolved: result.status } : x,
+        ),
+        {
+          id: `act-${m.length}`,
+          role: "ASSISTANT" as const,
+          content: result.message,
+          typed: true,
+        },
+      ]);
+    } catch (err) {
+      setMessages((m) => [
+        ...m.map((x) =>
+          x.id === msgId ? { ...x, pendingResolved: "rejected" as const } : x,
+        ),
+        {
+          id: `act-err-${m.length}`,
+          role: "ASSISTANT" as const,
+          content: extractErrorMessage(err, "İşlem gerçekleştirilemedi."),
           typed: true,
         },
       ]);
@@ -629,6 +682,76 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                     İhale formunu aç
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </button>
+                </div>
+              ) : null}
+
+              {/* AI-4 onay kartı — içerik backend'in DOĞRULANMIŞ özeti; işlem
+                  yalnız buradaki Onayla butonuyla (kullanıcı jesti) gerçekleşir. */}
+              {m.pending ? (
+                <div
+                  className={cn(
+                    "rt-fade-in ml-9 rounded-xl border bg-white p-3.5 shadow-sm",
+                    m.pending.severity === "critical"
+                      ? "border-warning-500/40"
+                      : "border-zinc-950/10",
+                  )}
+                >
+                  <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                    <span
+                      className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-md text-white",
+                        m.pending.severity === "critical"
+                          ? "bg-warning-500"
+                          : "bg-gradient-to-br from-brand-500 to-brand-700",
+                      )}
+                    >
+                      {m.pending.severity === "critical" ? (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                    </span>
+                    Onayınız gerekiyor
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {m.pending.summary.map((line, i) => (
+                      <li key={i} className="flex items-start gap-1.5">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                        <span className="text-zinc-700">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {m.pendingResolved ? (
+                    <p className="mt-3 rounded-lg bg-surface-subtle px-2 py-1.5 text-xs text-zinc-500">
+                      {m.pendingResolved === "executed"
+                        ? "✓ Onaylandı ve gerçekleştirildi"
+                        : "İptal edildi"}
+                    </p>
+                  ) : (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={action.isPending}
+                        onClick={() => decideAction(m.id, m.pending!, "confirm")}
+                        className={cn(
+                          "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60",
+                          m.pending.severity === "critical"
+                            ? "bg-warning-500 hover:bg-warning-600"
+                            : "bg-brand-600 hover:bg-brand-700",
+                        )}
+                      >
+                        {action.isPending ? "Yürütülüyor…" : "Onayla"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={action.isPending}
+                        onClick={() => decideAction(m.id, m.pending!, "reject")}
+                        className="flex-1 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50 disabled:opacity-60"
+                      >
+                        Vazgeç
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

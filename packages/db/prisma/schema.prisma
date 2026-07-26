@@ -332,6 +332,11 @@ model AiChatSession {
   /** Faz AI-3 — oturum boyunca biriken ihale taslağı (AiTenderDraft JSON);
    *  belge + konuşma birleşiminin tek kaynağı. Kullanıcı wizard'a taşıyınca kullanılır. */
   tenderDraft          Json?
+  /**
+   * Faz AI-4 — onay bekleyen aksiyon (tek kayıt; {id,type,params,summary,
+   * severity,expiresAt}). Confirm/reject sonrası null'lanır.
+   */
+  pendingAction        Json?
   createdAt            DateTime        @default(now())
   lastMessageAt        DateTime        @default(now())
   archivedAt           DateTime?
