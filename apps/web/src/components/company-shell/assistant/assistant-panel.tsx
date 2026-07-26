@@ -311,15 +311,16 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
             <p className="truncate text-sm font-semibold text-zinc-900">
               Rothern Asistanı
             </p>
-            <p
-              className={cn(
-                "truncate text-[11px]",
-                nearLimit ? "font-medium text-warning-600" : "text-zinc-400",
-              )}
-              title={nearLimit ? "Aylık AI kullanımınız sınıra yaklaştı" : undefined}
-            >
-              {nearLimit ? "Kullanım sınıra yakın" : "Çevrimiçi — hazır"}
-            </p>
+            {/* Alt satır yalnız kullanım uyarısında görünür (yeşil nokta zaten
+                çevrimiçi durumunu anlatıyor). */}
+            {nearLimit ? (
+              <p
+                className="truncate text-[11px] font-medium text-warning-600"
+                title="Aylık AI kullanımınız sınıra yaklaştı"
+              >
+                Kullanım sınıra yakın
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
