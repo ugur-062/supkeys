@@ -79,9 +79,10 @@ export default function Page() {
           ],
         },
         {
-          heading: "11. Değişiklikler",
+          heading: "11. Değişiklikler ve Devir",
           paragraphs: [
             "Platform, işbu Sözleşme'yi güncelleyebilir. Güncel sürüm bu sayfada yayımlanır; esaslı değişiklikler Kullanıcı'ya bildirilir. Değişiklik sonrasında Platform'un kullanılmaya devam edilmesi, güncel Sözleşme'nin kabulü anlamına gelir.",
+            "Platform; işbu Sözleşme'den doğan hak ve yükümlülüklerini, hizmetin işletilmesini ve aktif üyelikleri, Kullanıcı'nın kazanılmış hakları korunmak kaydıyla, Rothern markası altında hizmet verecek başka bir tüzel kişiye (grup şirketi veya işletme devri kapsamındaki devralan dâhil) devredebilir. Devir, Kullanıcı'ya bildirilir; ödenmiş üyelik dönemleri devralan nezdinde aynen geçerliliğini korur.",
           ],
         },
         {
