@@ -316,7 +316,7 @@ export function Step3Suppliers() {
               </div>
             </div>
 
-            {/* Görünürlük bağlamı (Adım 2'de seçilir) */}
+            {/* Görünürlük bağlamı (Genel Bilgi adımında seçilir) */}
             <div
               className={cn(
                 "flex items-start gap-3 rounded-xl border p-4",
@@ -339,8 +339,8 @@ export function Step3Suppliers() {
                 ) : (
                   <>
                     Bu ihale <strong>Davetli (Kapalı)</strong>: yalnızca aşağıdan
-                    seçtiğin firmalar görüp teklif verebilir. Görünürlüğü Adım
-                    2'den değiştirebilirsin.
+                    seçtiğin firmalar görüp teklif verebilir. Görünürlüğü Genel Bilgi
+                    adımından değiştirebilirsin.
                   </>
                 )}
               </p>

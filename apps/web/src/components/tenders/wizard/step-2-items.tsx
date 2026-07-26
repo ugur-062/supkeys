@@ -1,12 +1,10 @@
 "use client";
 
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useCategoriesByIds } from "@/hooks/use-categories";
-import { api } from "@/lib/api";
 import {
   MAX_LISTING_ITEMS,
   type TenderFormData,
@@ -17,100 +15,22 @@ import {
   FileText,
   HelpCircle,
   Info,
-  Loader2,
   Plus,
-  Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { useState } from "react";
+import {
+  Controller,
+  useFieldArray,
+  useFormContext,
+  useWatch,
+} from "react-hook-form";
 import { ItemDetailModal } from "./item-detail-modal";
 import { ItemQuestionModal } from "./item-question-modal";
-import { LogisticsSection, isLogisticsCategoryCode } from "./step-1-info";
-
-/**
- * Kalemlerden otomatik AI kategori önerisi. Kullanıcı kalem girmeyi bıraktıktan
- * kısa süre sonra (debounce) mevcut kalem adları öneri ucuna gönderilir; dönen
- * ≤3 doğrulanmış L3 kategorisi YALNIZ alan boşsa uygulanır ("AI önerisi"
- * rozetiyle). Kurallar:
- *  - Elle seçilmiş / düzenleme-belge akışından dolu gelmiş alanın üzerine
- *    ASLA yazılmaz (categoryIds boş değilse çağrı bile yapılmaz).
- *  - Aynı kalem kümesi için tek çağrı (hash set'i) — yazım sırasında AI
- *    çağrısı birikmez, bütçe korunur.
- *  - 403/503 (paket/AI kapalı) kalıcı olarak devre dışı bırakır; diğer
- *    hatalar sessizce yutulur — manuel seçici her durumda çalışır.
- */
-function useCategoryAutoSuggest(
-  setCategoryIds: (ids: string[]) => void,
-  categoryIds: string[],
-) {
-  const { control } = useFormContext<TenderFormData>();
-  const items = useWatch({ control, name: "items" });
-  const [loading, setLoading] = useState(false);
-  const [applied, setApplied] = useState(false);
-  const triedRef = useRef<Set<string>>(new Set());
-  const disabledRef = useRef(false);
-
-  // Async yanıt anında alanın hâlâ boş olduğunu ref'ten doğrula (yarış).
-  const categoryIdsRef = useRef(categoryIds);
-  categoryIdsRef.current = categoryIds;
-
-  const named = useMemo(
-    () =>
-      (items ?? [])
-        .map((i) => ({
-          name: (i?.name ?? "").trim().slice(0, 300),
-          description:
-            (i?.description ?? "").trim().slice(0, 500) || undefined,
-        }))
-        .filter((i) => i.name.length >= 3),
-    [items],
-  );
-  const itemsKey = useMemo(
-    () => JSON.stringify(named.map((i) => [i.name, i.description ?? ""])),
-    [named],
-  );
-
-  useEffect(() => {
-    if (named.length === 0 || categoryIds.length > 0) return;
-    if (triedRef.current.has(itemsKey) || disabledRef.current) return;
-    const t = setTimeout(async () => {
-      if (triedRef.current.has(itemsKey) || disabledRef.current) return;
-      triedRef.current.add(itemsKey);
-      setLoading(true);
-      try {
-        const r = await api.post<{ categoryIds: string[] }>(
-          "/company/ai/tender-extract/category-suggest",
-          { items: named },
-        );
-        const ids = r.data?.categoryIds;
-        if (
-          Array.isArray(ids) &&
-          ids.length > 0 &&
-          categoryIdsRef.current.length === 0
-        ) {
-          setCategoryIds(ids.slice(0, 10));
-          setApplied(true);
-        }
-      } catch (err) {
-        const status = (err as { response?: { status?: number } })?.response
-          ?.status;
-        if (status === 403 || status === 503) disabledRef.current = true;
-      } finally {
-        setLoading(false);
-      }
-    }, 1500);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsKey, categoryIds.length]);
-
-  return { loading, applied, clearApplied: () => setApplied(false) };
-}
 
 export function Step2Items() {
   const {
     control,
-    setValue,
     formState: { errors },
   } = useFormContext<TenderFormData>();
   const { fields, append, remove } = useFieldArray({
@@ -120,27 +40,10 @@ export function Step2Items() {
 
   const itemsArrayError = errors.items?.message ?? errors.items?.root?.message;
 
-  const categoryIds = useWatch({ control, name: "categoryIds" }) ?? [];
-  const isLogistics = useWatch({ control, name: "isLogistics" });
-  const listingTypeForRol = useWatch({ control, name: "listingType" });
-  const rol = listingTypeForRol === "SATIS" ? "alıcı" : "tedarikçi";
-
-  const setCategoryIds = (ids: string[]) =>
-    setValue("categoryIds", ids, { shouldValidate: true, shouldDirty: true });
-
-  const ai = useCategoryAutoSuggest(setCategoryIds, categoryIds);
-
-  // Lojistik — seçilen kategorilerden biri Nakliye/Depolama/Posta segmentinde
-  // (UNSPSC kod 78…) ise ihale otomatik "lojistik" olur ve taşıma alanları açılır.
-  const selectedCategories = useCategoriesByIds(categoryIds);
-  const categoriesAreLogistics = (selectedCategories.data ?? []).some((c) =>
-    isLogisticsCategoryCode(c.code),
-  );
-  useEffect(() => {
-    if (categoriesAreLogistics !== isLogistics) {
-      setValue("isLogistics", categoriesAreLogistics, { shouldValidate: true });
-    }
-  }, [categoriesAreLogistics, isLogistics, setValue]);
+  // SATIS: fiyatlandırma kapsamı (TOPLU/KALEM) kalemlerle birlikte seçilir —
+  // KALEM seçilirse her kalem satırında taban/hemen-al girişleri açılır.
+  const stepListingType = useWatch({ control, name: "listingType" });
+  const isSatisStep = stepListingType === "SATIS";
 
   const handleAdd = () => {
     if (fields.length >= MAX_LISTING_ITEMS) return;
@@ -168,6 +71,52 @@ export function Step2Items() {
           teknik soru) butonlarını kullanabilirsiniz.
         </p>
       </div>
+
+      {isSatisStep ? (
+        <Field className="rounded-xl border border-slate-200 p-4">
+          <Label required>Fiyatlandırma</Label>
+          <p className="mb-3 mt-0.5 text-xs text-slate-500">
+            Kalem Bazlı seçerseniz her kalemin üzerinde taban / hemen-al birim
+            fiyatı girersiniz; Toplu&apos;da ihale geneli tek fiyat Genel Bilgi
+            adımında sorulur.
+          </p>
+          <Controller
+            control={control}
+            name="priceScope"
+            render={({ field }) => (
+              <RadioGroup
+                value={field.value ?? "TOPLU"}
+                onChange={field.onChange}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
+                <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
+                  <Radio value="TOPLU" aria-label="Toplu fiyat" className="mt-0.5" />
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Toplu
+                    <span className="block text-xs font-normal text-zinc-500">
+                      İhale geneli tek taban + tek hemen-al fiyatı.
+                    </span>
+                  </p>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
+                  <Radio
+                    value="KALEM"
+                    aria-label="Kalem bazlı fiyat"
+                    className="mt-0.5"
+                  />
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Kalem Bazlı
+                    <span className="block text-xs font-normal text-zinc-500">
+                      Her kaleme ayrı taban + hemen-al birim fiyatı (aşağıda
+                      girilir).
+                    </span>
+                  </p>
+                </div>
+              </RadioGroup>
+            )}
+          />
+        </Field>
+      ) : null}
 
       {itemsArrayError ? (
         <p className="text-sm text-danger-600">{itemsArrayError}</p>
@@ -200,47 +149,6 @@ export function Step2Items() {
           Yeni Kalem Ekle
         </Button>
       </div>
-
-      {/* V2-6 — Kategoriler: kalemlerden SONRA seçilir; kalem adlarından AI
-          otomatik önerir (bağlayıcı değil, alan boşken tek sefer). */}
-      <section className="border-t border-slate-200 pt-6">
-        <Field error={errors.categoryIds?.message as string | undefined}>
-          <div className="flex flex-wrap items-center gap-2">
-            <Label required>Kategoriler</Label>
-            {ai.loading ? (
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-700">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                AI kalemlerinize göre kategori öneriyor…
-              </span>
-            ) : ai.applied ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-200">
-                <Sparkles className="h-3 w-3" />
-                AI önerisi — kontrol edin
-              </span>
-            ) : null}
-          </div>
-          <p className="mb-2 mt-1 text-xs text-slate-500">
-            İhalenizin ürün/hizmet kategorileri {rol} eşleştirmesi ve
-            raporlama için kullanılır. Kalemlerinize göre otomatik önerilir —
-            dilediğiniz gibi değiştirebilirsiniz (en fazla 10).
-          </p>
-          <CategorySelectorButton
-            value={categoryIds}
-            onChange={(ids) => {
-              ai.clearApplied();
-              setCategoryIds(ids);
-            }}
-            mode="multi"
-            maxSelection={10}
-            placeholder="İhale kategorilerini seçin"
-            modalTitle="İhale Kategorileri Seç"
-            error={errors.categoryIds?.message as string | undefined}
-          />
-        </Field>
-      </section>
-
-      {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}
-      {isLogistics ? <LogisticsSection /> : null}
     </div>
   );
 }

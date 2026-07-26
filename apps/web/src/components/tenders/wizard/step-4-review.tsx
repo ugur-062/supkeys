@@ -44,7 +44,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
 
   return (
     <div className="space-y-5">
-      <Section title="Genel Bilgi" onEdit={() => onEditStep(1)}>
+      <Section title="Genel Bilgi" onEdit={() => onEditStep(2)}>
         <Row label="İhale Adı" value={d.title || "—"} />
         <Row
           label="Tip"
@@ -138,7 +138,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         />
       ) : null}
 
-      <Section title={`Kalemler (${d.items?.length ?? 0})`} onEdit={() => onEditStep(2)}>
+      <Section title={`Kalemler (${d.items?.length ?? 0})`} onEdit={() => onEditStep(1)}>
         <div className="overflow-x-auto rounded-lg border border-zinc-950/10">
           <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-zinc-50 text-xs text-zinc-500">

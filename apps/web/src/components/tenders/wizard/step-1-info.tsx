@@ -3,12 +3,15 @@
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Select } from "@/components/catalyst/select";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { FilesTab } from "@/components/tenders/files-tab";
 import {
   StagedDocuments,
   type StagedListingDoc,
 } from "./staged-documents";
 import { useAddresses } from "@/hooks/use-company-addresses";
+import { useCategoriesByIds } from "@/hooks/use-categories";
+import { api } from "@/lib/api";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/date-time-input";
@@ -33,13 +36,17 @@ import {
   FileText,
   Gavel,
   Info,
+  Loader2,
   MapPin,
+  Sparkles,
   Star,
+  Tag,
   Truck,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { toast } from "sonner";
+import { useEffect, useRef, useState } from "react";
 import {
   Controller,
   useFormContext,
@@ -313,8 +320,7 @@ function SectionHeader({
 
 // UNSPSC Segment 78 = "Nakliye, Depolama ve Posta Hizmetleri" (lojistik).
 // Bu segment altındaki tüm kategori kodları "78" ile başlar.
-// (Kalemler adımında kategoriden isLogistics türetmek için export.)
-export function isLogisticsCategoryCode(code: string): boolean {
+function isLogisticsCategoryCode(code: string): boolean {
   return code.startsWith("78");
 }
 
@@ -329,10 +335,7 @@ const TRANSPORT_MODE_OPTIONS = [
 const asOptionalNumber = (v: unknown) =>
   v === "" || v === undefined || v === null ? undefined : Number(v);
 
-// Kategoriler Kalemler adımına taşındı (kategori→lojistik türetmesiyle
-// birlikte); bu bileşen orada render edilir, tanımı ortak yardımcılarla
-// (SectionHeader/FormRadioGroup/FormCheckbox) aynı dosyada kalır.
-export function LogisticsSection() {
+function LogisticsSection() {
   const {
     register,
     formState: { errors },
@@ -598,6 +601,69 @@ export function Step1Info({
   const RolPlGen = isSatis ? "Alıcıların" : "Tedarikçilerin";
   const auctionName = isSatis ? "artırma" : "eksiltme";
   const isInternational = watch("isInternational");
+
+  const categoryIds = watch("categoryIds") ?? [];
+  const isLogistics = watch("isLogistics");
+
+  // Lojistik — seçilen kategorilerden biri Nakliye/Depolama/Posta segmentinde
+  // (UNSPSC kod 78…) ise ihale otomatik "lojistik" olur ve taşıma alanları açılır.
+  const selectedCategories = useCategoriesByIds(categoryIds);
+  const categoriesAreLogistics = (selectedCategories.data ?? []).some((c) =>
+    isLogisticsCategoryCode(c.code),
+  );
+  useEffect(() => {
+    if (categoriesAreLogistics !== isLogistics) {
+      setValue("isLogistics", categoriesAreLogistics, { shouldValidate: true });
+    }
+  }, [categoriesAreLogistics, isLogistics, setValue]);
+
+  // "AI ile bul" — bir önceki adımda girilen kalem adlarından ≤3 doğrulanmış
+  // L3 kategori önerisi. Açık kullanıcı eylemi olduğundan mevcut seçimin
+  // ÜZERİNE yazar; bağlayıcı değil, kullanıcı dilediğince değiştirir.
+  // 403/503 (paket/AI kapalı) butonu kalıcı gizler — manuel seçici hep durur.
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiApplied, setAiApplied] = useState(false);
+  const [aiHidden, setAiHidden] = useState(false);
+  const suggestCategories = async () => {
+    if (aiLoading) return;
+    const named = (watch("items") ?? [])
+      .map((i) => ({
+        name: (i?.name ?? "").trim().slice(0, 300),
+        description: (i?.description ?? "").trim().slice(0, 500) || undefined,
+      }))
+      .filter((i) => i.name.length >= 2);
+    if (named.length === 0) {
+      toast.error("Önce Kalemler adımında en az bir kalem adı girin");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const r = await api.post<{ categoryIds: string[] }>(
+        "/company/ai/tender-extract/category-suggest",
+        { items: named },
+      );
+      const ids = r.data?.categoryIds;
+      if (Array.isArray(ids) && ids.length > 0) {
+        setValue("categoryIds", ids.slice(0, 10), {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+        setAiApplied(true);
+      } else {
+        toast.info("AI kalemlerinize uygun bir kategori bulamadı — listeden seçin");
+      }
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 403 || status === 503) {
+        setAiHidden(true);
+      } else {
+        toast.error("Kategori önerisi alınamadı — listeden seçebilirsiniz");
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
   // datetime-local "min" — geçmiş tarih seçimini anında engeller (yerel saat).
   const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
     .toISOString()
@@ -737,7 +803,60 @@ export function Step1Info({
         </div>
       </section>
 
-      {/* SATIS — Satış Fiyatları: kapsam (TOPLU/KALEM) + toplu alanlar */}
+      {/* V2-6 — SECTION: Kategoriler (+ "AI ile bul": girdi = önceki adımın kalemleri) */}
+      <section>
+        <SectionHeader
+          icon={Tag}
+          title="Kategoriler"
+          description={`İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
+        />
+        <Field error={errors.categoryIds?.message as string | undefined}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Label required>Kategoriler</Label>
+            {!aiHidden ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={suggestCategories}
+                disabled={aiLoading}
+              >
+                {aiLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {aiLoading ? "AI kategorileri buluyor…" : "AI ile bul"}
+              </Button>
+            ) : null}
+            {aiApplied ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-200">
+                <Sparkles className="h-3 w-3" />
+                AI önerisi — kontrol edin
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-2">
+            <CategorySelectorButton
+              value={categoryIds}
+              onChange={(ids) => {
+                setAiApplied(false);
+                setValue("categoryIds", ids, { shouldValidate: true });
+              }}
+              mode="multi"
+              maxSelection={10}
+              placeholder="İhale kategorilerini seçin"
+              modalTitle="İhale Kategorileri Seç"
+              error={errors.categoryIds?.message as string | undefined}
+            />
+          </div>
+        </Field>
+      </section>
+
+      {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}
+      {isLogistics ? <LogisticsSection /> : null}
+
+      {/* SATIS — Satış Fiyatları: toplu alanlar (kapsam Kalemler adımında seçildi) */}
       {isSatis ? (
         <section>
           <SectionHeader
@@ -745,42 +864,11 @@ export function Step1Info({
             title="Satış Fiyatları"
             description="Taban fiyatın altındaki teklifler kabul edilmez. Hemen-al fiyatı verirseniz alıcı o fiyattan anında teklif oluşturabilir (onayınızla sipariş olur)."
           />
-          <Field className="mb-4">
-            <Label required>Fiyatlandırma</Label>
-            <FormRadioGroup
-              name="priceScope"
-              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-            >
-              <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
-                <Radio value="TOPLU" aria-label="Toplu fiyat" className="mt-0.5" />
-                <p className="text-sm font-semibold text-zinc-900">
-                  Toplu
-                  <span className="block text-xs font-normal text-zinc-500">
-                    İhale geneli tek taban + tek hemen-al fiyatı.
-                  </span>
-                </p>
-              </div>
-              <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
-                <Radio
-                  value="KALEM"
-                  aria-label="Kalem bazlı fiyat"
-                  className="mt-0.5"
-                />
-                <p className="text-sm font-semibold text-zinc-900">
-                  Kalem Bazlı
-                  <span className="block text-xs font-normal text-zinc-500">
-                    Her kaleme ayrı taban + hemen-al birim fiyatı (Kalemler
-                    adımında girilir).
-                  </span>
-                </p>
-              </div>
-            </FormRadioGroup>
-          </Field>
           {watch("priceScope") === "KALEM" ? (
             <div className="rounded-lg border border-brand-100 bg-brand-50/30 p-3 text-xs text-slate-700">
-              Kalem taban ve hemen-al birim fiyatlarını{" "}
-              <strong>Kalemler adımında</strong> her kalemin üzerinde
-              gireceksiniz.
+              Kalem Bazlı fiyatlandırma seçtiniz — taban ve hemen-al birim
+              fiyatları <strong>Kalemler adımında</strong> kalem üzerinde
+              girilir.
             </div>
           ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

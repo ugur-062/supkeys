@@ -47,8 +47,8 @@ function stepMeta(isSatis: boolean) {
     isSatis
       ? { title: "Tür & Kapsam", desc: "Satış ihalesi türü ve kapsamı" }
       : { title: "Tür & Kapsam", desc: "İhale türü ve kapsamı" },
-    { title: "Genel Bilgi", desc: "Kurallar, teslimat, ödeme" },
-    { title: "Kalemler", desc: "Ürün / hizmet kalemleri ve kategori" },
+    { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
+    { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
     isSatis
       ? { title: "Alıcılar", desc: "Davet edilecekler" }
       : { title: "Tedarikçiler", desc: "Davet edilecekler" },
@@ -481,14 +481,16 @@ export function TenderWizard({
         {/* İçerik */}
         <div className="min-w-0 pt-2">
           {step === 0 ? <Step0TypeScope /> : null}
-          {step === 1 ? (
+          {/* Sıra: önce Kalemler, sonra Genel Bilgi — kategori "AI ile bul"
+              butonu kalemleri girdi olarak kullandığından kalemler önde. */}
+          {step === 1 ? <Step2Items /> : null}
+          {step === 2 ? (
             <Step1Info
               listingId={listingId}
               stagedDocs={stagedDocs}
               onStagedDocsChange={setStagedDocs}
             />
           ) : null}
-          {step === 2 ? <Step2Items /> : null}
           {step === 3 ? <Step3Suppliers /> : null}
           {step === 4 ? (
             <Step4Review
