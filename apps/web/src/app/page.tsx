@@ -1240,12 +1240,6 @@ export default function HomePage() {
           <p className="mt-2 text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
             İşine göre paket seç
           </p>
-          <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-zinc-600">
-            Standart üyelik ücretsiz. Satış tarafında görünürlük için Bronz,
-            ihale açıp satın almayı yönetmek için Silver, yüksek hacim için
-            Gold. Fiyatlar yıllık ödemede aylık tutardır; 6 aylık dönem
-            seçeneği de vardır.
-          </p>
         </div>
         <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-6 px-6 sm:mt-20 lg:max-w-7xl lg:grid-cols-4 lg:px-8">
           {pricingTiers.map((tier) => (
