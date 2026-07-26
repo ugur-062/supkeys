@@ -222,10 +222,11 @@ export function TenderWizard({
 } = {}) {
   const router = useRouter();
   const isEdit = mode === "edit";
-  // Faz AI-1 UX: form belgeden doldurulduysa "Tür & Kapsam" atlanır — kullanıcı
-  // doğrudan 2. adıma (Genel Bilgi: kategori/teslimat/ödeme) düşer; tür zaten
-  // dolu, kategori ise AI'ın DOLDURAMADIĞI ilk zorunlu alan.
-  const [step, setStep] = useState(aiImport ? 1 : 0);
+  // Faz AI-1 UX: AI doldurma sonrasında da 1. adımdan ("Tür & Kapsam")
+  // başlanır — yurtiçi/uluslararası seçimi bilinçli bir kullanıcı kararı,
+  // belgeden her zaman güvenilir çıkarılamaz; adım atlanırsa sessizce
+  // "yurtiçi" varsayılmış olur.
+  const [step, setStep] = useState(0);
   const [publishOpen, setPublishOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   // Create modunda seçilen ihale dökümanları — ilan kaydedilince yüklenir

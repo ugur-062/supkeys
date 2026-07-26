@@ -58,6 +58,10 @@ function filledSummary(d: AiTenderDraft): string[] {
   if (d.primaryCurrency) out.push("para birimi");
   if (d.description) out.push("açıklama");
   if (d.termsAndConditions) out.push("şartlar");
+  // Kapsam yalnız belge NET gösteriyorsa gelir (null = bilinmiyor → varsayılan
+  // yurtiçi kalır ama özete yazılmaz; kullanıcı 1. adımda kendisi seçer).
+  if (d.isInternational !== null)
+    out.push(d.isInternational ? "kapsam (uluslararası)" : "kapsam (yurtiçi)");
   return out;
 }
 
