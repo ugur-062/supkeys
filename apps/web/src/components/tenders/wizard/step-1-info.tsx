@@ -11,7 +11,7 @@ import {
 } from "./staged-documents";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { api } from "@/lib/api";
+import { companyApi } from "@/lib/company-auth/api";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/date-time-input";
@@ -638,7 +638,7 @@ export function Step1Info({
     }
     setAiLoading(true);
     try {
-      const r = await api.post<{ categoryIds: string[] }>(
+      const r = await companyApi.post<{ categoryIds: string[] }>(
         "/company/ai/tender-extract/category-suggest",
         { items: named },
       );
