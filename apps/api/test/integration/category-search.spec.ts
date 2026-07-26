@@ -18,13 +18,17 @@ async function makeCategory(opts: {
   nameTr: string;
   level: number;
   parentId?: string | null;
+  keywords?: string;
 }) {
+  // searchText kurulumu seed/apply-category-keywords ile birebir aynı:
+  // fold(nameTr + " " + keywords).
   return prisma.category.create({
     data: {
       id: opts.code,
       code: opts.code,
       nameTr: opts.nameTr,
-      searchText: foldSearchText(opts.nameTr),
+      keywords: opts.keywords ?? "",
+      searchText: foldSearchText(`${opts.nameTr} ${opts.keywords ?? ""}`),
       level: opts.level,
       parentId: opts.parentId ?? null,
       isActive: true,
@@ -125,6 +129,32 @@ describe("CategoryService.searchTree — TR fold", () => {
       s.families.flatMap((f) => f.classes),
     );
     expect(classes.map((c) => c.nameTr)).toContain("Paslanmaz sac");
+  });
+
+  it("eşanlamlı (keywords) sorgusu kategori adında geçmese de bulur", async () => {
+    await makeCategory({ code: "22000000", nameTr: "İnşaat makineleri", level: 1 });
+    await makeCategory({
+      code: "22990000",
+      nameTr: "Şantiye ekipmanları",
+      level: 2,
+      parentId: "22000000",
+    });
+    await makeCategory({
+      code: "22991700",
+      nameTr: "Vinç ve kaldırma platformları",
+      level: 3,
+      parentId: "22990000",
+      keywords: "telfer caraskal manlift",
+    });
+
+    const res = await service().searchHierarchical("telfer");
+
+    const classes = res.segments.flatMap((s) =>
+      s.families.flatMap((f) => f.classes),
+    );
+    expect(classes.map((c) => c.nameTr)).toContain(
+      "Vinç ve kaldırma platformları",
+    );
   });
 
   it("2 karakterden kısa sorgu boş döner", async () => {

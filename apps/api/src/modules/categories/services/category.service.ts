@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { foldSearchText } from "@rothern/shared";
@@ -42,6 +43,7 @@ export class CategoryService {
    */
   private allCategoriesById: Map<string, CategoryNode> | null = null;
   private allCategoriesExpiresAt = 0;
+  private readonly logger = new Logger(CategoryService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -259,6 +261,9 @@ export class CategoryService {
     });
 
     if (matched.length === 0 && famMatches.length === 0) {
+      // Sonuçsuz aramalar keywords/taksonomi kürasyonunun ham girdisi —
+      // log drain'de "Kategori araması sonuçsuz" ile toplanır.
+      this.logger.log(`Kategori araması sonuçsuz: "${q.slice(0, 80)}"`);
       return { segments: [], truncated: false };
     }
 

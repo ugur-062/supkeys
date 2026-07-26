@@ -211,6 +211,12 @@ model Category {
    */
   searchText String @default("")
   /**
+   * Küratörlü eşanlamlı/jargon listesi (ör. "telfer caraskal" → vinç) —
+   * kaynak: packages/db/src/seeds/category-keywords.tsv. searchText'e
+   * katlanarak dahil edilir; arama yalnız searchText'ten yapılır.
+   */
+  keywords String @default("")
+  /**
    * 1=Segment, 2=Family, 3=Class, 4=Commodity
    */
   level  Int

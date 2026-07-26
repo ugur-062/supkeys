@@ -157,6 +157,11 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
     Seed: `pnpm --filter @rothern/db seed-categories` sonra `cleanup-categories
     -- --apply`. NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor —
     tek koşum ikisine de yansır (Category.id = UNSPSC kodu, rebuild güvenli).
+    Arama TR-katlanmış `searchText` kolonundan (`foldSearchText`, shared) —
+    'İ'/aksan sorunu yok; eşanlamlı jargon `category-keywords.tsv` →
+    `keywords` kolonu, canlıya reseed'siz `apply-category-keywords` ile.
+    Sonuçsuz aramalar API loglarında "Kategori araması sonuçsuz" (kürasyon
+    girdisi).
 - **Polish:** Liste sayfaları UX, admin paneli + KPI, form hata TR, mobile, e-posta QA.
 
 ---

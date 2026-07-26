@@ -43,6 +43,18 @@ async function main() {
     __dirname,
     "../../src/seeds/categories-custom.tsv",
   );
+  // Küratörlü eşanlamlılar (code ⇥ keywords) — searchText'e katlanarak girer.
+  const keywordsPath = path.resolve(
+    __dirname,
+    "../../src/seeds/category-keywords.tsv",
+  );
+  const keywordsByCode = new Map<string, string>();
+  if (fs.existsSync(keywordsPath)) {
+    for (const line of fs.readFileSync(keywordsPath, "utf-8").split("\n")) {
+      const [code, kw] = line.split("\t");
+      if (code?.trim() && kw?.trim()) keywordsByCode.set(code.trim(), kw.trim());
+    }
+  }
 
   const lines = [
     ...fs.readFileSync(filePath, "utf-8").split("\n"),
@@ -128,7 +140,10 @@ async function main() {
           id: c.code,
           code: c.code,
           nameTr: c.nameTr,
-          searchText: foldSearchText(c.nameTr),
+          keywords: keywordsByCode.get(c.code) ?? "",
+          searchText: foldSearchText(
+            `${c.nameTr} ${keywordsByCode.get(c.code) ?? ""}`,
+          ),
           level: c.level,
           parentId: c.parentCode,
           segmentLetter: c.segmentLetter,

@@ -240,6 +240,7 @@ export function CategorySelectorModal({
                         <Badge
                           color="zinc"
                           className={`gap-1 ${missing ? "italic" : ""}`}
+                          title={info?.breadcrumb}
                         >
                           <span className="max-w-[260px] truncate">
                             {info?.nameTr ??
@@ -262,11 +263,17 @@ export function CategorySelectorModal({
             </div>
           ) : draftIds.length > 0 ? (
             <div className="border-b border-zinc-950/5 bg-zinc-50/60 px-6 py-2.5">
-              <span className="text-xs font-semibold text-zinc-700">
+              <span className="block text-xs font-semibold text-zinc-700">
                 ✓ Seçili:{" "}
                 {selectedInfo?.[0]?.nameTr ??
                   (selectedInfo === undefined ? "…" : "(silinmiş kategori)")}
               </span>
+              {/* Tam yol — "Aksesuarlar" gibi bağlamsız yaprak adları için. */}
+              {selectedInfo?.[0]?.breadcrumb ? (
+                <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
+                  {selectedInfo[0].breadcrumb}
+                </span>
+              ) : null}
             </div>
           ) : null}
 
@@ -383,6 +390,11 @@ function SegmentList({
 
   const renderSegment = (segment: CategoryNode) => {
     const isExpanded = expandedSegments.has(segment.id);
+    // Kategori id = 8-haneli kod → segment aidiyeti ilk 2 haneden okunur;
+    // kapalı başlıkta "bu dalda n seçim var" rozeti ekstra fetch istemez.
+    const selCount = selected.filter((id) =>
+      id.startsWith(segment.code.slice(0, 2)),
+    ).length;
     return (
       <li key={segment.id}>
         <button
@@ -396,6 +408,14 @@ function SegmentList({
           <span className="flex-1 text-sm font-semibold text-zinc-900">
             {segment.nameTr}
           </span>
+          {selCount > 0 ? (
+            <span
+              className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-bold text-white"
+              title={`Bu dalda ${selCount} seçim`}
+            >
+              {selCount}
+            </span>
+          ) : null}
         </button>
 
         {isExpanded ? (
@@ -492,6 +512,9 @@ function FamilyList({
       {(families ?? []).map((family) => {
         const isExpanded = expandedFamilies.has(family.id);
         const childCount = family._count?.children ?? 0;
+        const famSelCount = selected.filter((id) =>
+          id.startsWith(family.code.slice(0, 4)),
+        ).length;
         return (
           <li key={family.id}>
             <button
@@ -505,6 +528,14 @@ function FamilyList({
               <span className="flex-1 text-sm font-medium text-zinc-800">
                 {family.nameTr}
               </span>
+              {famSelCount > 0 ? (
+                <span
+                  className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  title={`Bu dalda ${famSelCount} seçim`}
+                >
+                  {famSelCount}
+                </span>
+              ) : null}
               {childCount > 0 ? (
                 <span className="text-xs tabular-nums text-zinc-400">
                   {childCount}
@@ -750,8 +781,14 @@ function SearchResults({
 
   if (segments.length === 0) {
     return (
-      <div className="py-12 text-center text-sm text-zinc-500">
-        Sonuç bulunamadı
+      <div className="py-12 text-center">
+        <p className="text-sm font-medium text-zinc-700">
+          &ldquo;{query}&rdquo; için sonuç bulunamadı
+        </p>
+        <p className="mt-1.5 text-xs text-zinc-500">
+          Daha genel bir terim deneyin (örn. marka yerine ürün adı) veya
+          aramayı temizleyip listeye göz atın.
+        </p>
       </div>
     );
   }
