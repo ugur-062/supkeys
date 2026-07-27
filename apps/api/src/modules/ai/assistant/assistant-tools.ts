@@ -59,6 +59,8 @@ export const TOOL_NAMES = {
   requestPublishTender: "request_publish_tender",
   requestEliminateBid: "request_eliminate_bid",
   requestAwardTender: "request_award_tender",
+  requestPlaceBid: "request_place_bid",
+  requestMarkOrderReceived: "request_mark_order_received",
 } as const;
 
 /** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). */
@@ -214,6 +216,56 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
           },
         },
         required: ["type", "rothernIds"],
+      },
+    });
+  }
+  if (portals.has("satis")) {
+    // Faz 3 — satış tarafı: teklif verme (kritik; kapalı zarf, geri çekilemez).
+    defs.push({
+      name: TOOL_NAMES.requestPlaceBid,
+      description:
+        "Kullanıcı bir açık ihaleye TEKLİF VERMEK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: kritik onay kartı çıkarır — gönderilen teklif GERİ ÇEKİLEMEZ. TÜM kalemler için birim fiyatı kullanıcıdan iste (itemId'leri get_tender_detail'den al). Belge veya zorunlu soru isteyen ihalede araç seni sayfaya yönlendirmeni söyler. Fiyatları SEN UYDURAMAZSIN; yalnız kullanıcının verdiği fiyatlar.",
+      parameters: {
+        type: "object",
+        properties: {
+          listingId: { type: "string" },
+          currency: { type: "string", description: "Boşsa ihalenin ana para birimi" },
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                itemId: { type: "string" },
+                unitPrice: { type: "number" },
+              },
+              required: ["itemId", "unitPrice"],
+            },
+            description: "HER kalem için birim fiyat",
+          },
+          deliveryDate: {
+            type: "string",
+            description: "Taahhüt edilen teslim tarihi (ISO, gelecekte) — ZORUNLU, kullanıcıya sor",
+          },
+          note: { type: "string" },
+          validityDays: { type: "number", description: "Teklif geçerlilik günü (ops.)" },
+        },
+        required: ["listingId", "items", "deliveryDate"],
+      },
+    });
+  }
+  if (portals.has("satinalma")) {
+    // Faz 3 — alıcı tarafı: teslim alındı işareti (IN_DELIVERY→DELIVERED).
+    defs.push({
+      name: TOOL_NAMES.requestMarkOrderReceived,
+      description:
+        "Kullanıcı, alıcısı olduğu YOLDAKİ bir siparişi TESLİM ALDIĞINI söylediğinde çağır. Yürütmez: onay kartı çıkarır. Diğer sipariş adımları (gönderim, ödeme işaretleme, tamamlama, iptal) için Siparişler sayfasına yönlendir.",
+      parameters: {
+        type: "object",
+        properties: {
+          orderId: { type: "string" },
+          note: { type: "string", description: "Opsiyonel teslim notu" },
+        },
+        required: ["orderId"],
       },
     });
   }

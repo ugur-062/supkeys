@@ -149,6 +149,8 @@ const TOOL_LABEL: Record<string, string> = {
   request_publish_tender: "Yayınlama önerisi hazırladım",
   request_eliminate_bid: "Eleme önerisi hazırladım",
   request_award_tender: "Kazandırma önerisi hazırladım",
+  request_place_bid: "Teklif önerisi hazırladım",
+  request_mark_order_received: "Teslim alma önerisi hazırladım",
 };
 
 function initials(first?: string, last?: string): string {

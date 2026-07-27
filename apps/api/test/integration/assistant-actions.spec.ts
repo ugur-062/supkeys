@@ -10,7 +10,9 @@
 import { Prisma } from "@rothern/db";
 import { AssistantActionsService } from "../../src/modules/ai/assistant/assistant-actions.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
-import type { AuditService } from "../../src/modules/audit/audit.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
+import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
+import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -25,11 +27,25 @@ async function giveCode(companyId: string): Promise<string> {
   return code;
 }
 
+function makeOrdersService() {
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+  return new CompanyOrdersService(
+    prisma as never,
+    email as never,
+    config as never,
+    new NotificationService(prisma as never),
+    new AuditService(prisma as never),
+    prisma as never,
+  );
+}
+
 function makeActions() {
   const { service: listings } = makeService();
   return new AssistantActionsService(
     prisma as unknown as PrismaService,
     listings,
+    makeOrdersService(),
     auditStub as unknown as AuditService,
   );
 }
@@ -429,6 +445,140 @@ describe("Faz 2 — eleme + toplu kazandırma", () => {
     const out = await actions.proposeAwardTender(owner.auth, session.id, {
       listingId: listing.id,
       bidId: bid.id,
+    });
+    expect(out.ok).toBe(false);
+  });
+});
+
+describe("Faz 3 — teklif verme + teslim alma", () => {
+  it("place_bid: tüm kalemler fiyatlı → kritik kart (toplam doğru); confirm → SUBMITTED bid", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      title: "Kablo alımı",
+      primaryCurrency: "TRY",
+      allowedCurrencies: ["TRY"],
+    });
+    const item = await makeItem(prisma, listing.id, {
+      quantity: new Prisma.Decimal(10),
+      name: "NYM kablo",
+    });
+    const session = await makeSession(bidder.user.id, bidder.company.id);
+
+    const out = await actions.proposePlaceBid(bidder.auth, session.id, {
+      listingId: listing.id,
+      items: [{ itemId: item.id, unitPrice: 50 }],
+      deliveryDate: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+      validityDays: 30,
+    });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.severity).toBe("critical");
+    expect(out.pending!.summary.join(" ")).toContain("TOPLAM: 500 TRY");
+    expect(out.pending!.summary.join(" ")).toMatch(/GERİ ÇEKİLEMEZ/);
+
+    const res = await actions.confirm(bidder.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("executed");
+    const bid = await prisma.listingBid.findFirst({
+      where: { listingId: listing.id, bidderCompanyId: bidder.company.id },
+    });
+    expect(bid?.status).toBe("SUBMITTED");
+    expect(bid?.amount.toString()).toBe("500");
+  });
+
+  it("place_bid: eksik kalem fiyatı → ok:false, kalem adı söylenir", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+    });
+    await makeItem(prisma, listing.id, { name: "Fiyatsız kalem" });
+    const session = await makeSession(bidder.user.id, bidder.company.id);
+    const out = await actions.proposePlaceBid(bidder.auth, session.id, {
+      listingId: listing.id,
+      items: [],
+    });
+    expect(out.ok).toBe(false);
+    expect(out.problem).toContain("Fiyatsız kalem");
+  });
+
+  it("place_bid: belge zorunlu ihale sayfaya yönlendirilir", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      requireBidDocument: true,
+    });
+    await makeItem(prisma, listing.id, {});
+    const session = await makeSession(bidder.user.id, bidder.company.id);
+    const out = await actions.proposePlaceBid(bidder.auth, session.id, {
+      listingId: listing.id,
+      items: [],
+    });
+    expect(out.ok).toBe(false);
+    expect(out.problem).toMatch(/belge/i);
+  });
+
+  it("mark_order_received: IN_DELIVERY sipariş → kart; confirm → DELIVERED", async () => {
+    const actions = makeActions();
+    const seller = await makeCompanyWithUser(prisma, { name: "Satıcı AŞ" });
+    const buyer = await makeCompanyWithUser(prisma);
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "IN_DELIVERY",
+        paymentTiming: "AFTER_DELIVERY",
+      } as never,
+    });
+    const session = await makeSession(buyer.user.id, buyer.company.id);
+    const out = await actions.proposeMarkOrderReceived(buyer.auth, session.id, {
+      orderId: order.id,
+    });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary.join(" ")).toContain("Satıcı AŞ");
+
+    const res = await actions.confirm(buyer.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("executed");
+    const updated = await prisma.companyOrder.findUnique({ where: { id: order.id } });
+    expect(updated?.status).toBe("DELIVERED");
+  });
+
+  it("mark_order_received: satıcı taraf öneremez (alıcı-scope)", async () => {
+    const actions = makeActions();
+    const seller = await makeCompanyWithUser(prisma);
+    const buyer = await makeCompanyWithUser(prisma);
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "IN_DELIVERY",
+        paymentTiming: "AFTER_DELIVERY",
+      } as never,
+    });
+    const session = await makeSession(seller.user.id, seller.company.id);
+    const out = await actions.proposeMarkOrderReceived(seller.auth, session.id, {
+      orderId: order.id,
     });
     expect(out.ok).toBe(false);
   });

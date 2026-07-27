@@ -12,7 +12,9 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type { CreateListingDto } from "../../company-listings/dto/create-listing.dto";
+import type { PlaceBidDto } from "../../company-listings/dto/place-bid.dto";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
+import { CompanyOrdersService } from "../../company-orders/services/company-orders.service";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 
 /**
@@ -34,7 +36,9 @@ export type PendingActionType =
   | "send_invites"
   | "publish_tender"
   | "eliminate_bid"
-  | "award_tender";
+  | "award_tender"
+  | "place_bid"
+  | "mark_order_received";
 
 interface StoredPendingAction {
   id: string;
@@ -61,6 +65,7 @@ export class AssistantActionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly listings: CompanyListingsService,
+    private readonly orders: CompanyOrdersService,
     private readonly audit: AuditService,
   ) {}
 
@@ -237,6 +242,169 @@ export class AssistantActionsService {
     });
   }
 
+  /**
+   * TEKLİF VERME önerisi (Faz 3 — kritik: SUBMITTED teklif geri çekilemez).
+   * Görünürlük listings.getOne üzerinden doğrulanır (gizli ihale sızmaz).
+   * Belge/zorunlu-soru gerektiren ihaleler sayfaya yönlendirilir (kapsam dışı).
+   */
+  async proposePlaceBid(
+    user: AuthenticatedCompanyUser,
+    sessionId: string,
+    args: Record<string, unknown>,
+  ): Promise<ProposeOutcome> {
+    const listingId = String(args.listingId ?? "").trim();
+    if (!listingId) return { ok: false, problem: "İhale id gerekli." };
+    let detail: Record<string, unknown>;
+    try {
+      detail = (await this.listings.getOne(user, listingId)) as Record<string, unknown>;
+    } catch {
+      return { ok: false, problem: "İhale bulunamadı veya erişiminiz yok." };
+    }
+    if (detail.isOwner === true) {
+      return { ok: false, problem: "Kendi ihalenize teklif veremezsiniz." };
+    }
+    if (detail.status !== "OPEN") {
+      return { ok: false, problem: "Bu ihale teklife açık değil." };
+    }
+    if (detail.requireBidDocument === true) {
+      return {
+        ok: false,
+        problem: "Bu ihale teklif belgesi istiyor — teklifi ihale sayfasından belge yükleyerek verin.",
+      };
+    }
+    const items = (detail.items ?? []) as Array<{
+      id: string;
+      name: string;
+      quantity: unknown;
+      unit: string;
+      questions?: Array<{ required?: boolean }>;
+    }>;
+    if (items.length === 0) {
+      return { ok: false, problem: "İhale kalemleri okunamadı — sayfadan teklif verin." };
+    }
+    if (items.some((i) => (i.questions ?? []).some((q) => q.required))) {
+      return {
+        ok: false,
+        problem: "Bu ihalede cevaplanması zorunlu teknik sorular var — teklifi ihale sayfasından verin.",
+      };
+    }
+    const myBid = detail.myBid as { status?: string } | null | undefined;
+    if (myBid?.status === "SUBMITTED") {
+      return { ok: false, problem: "Bu ihalede zaten gönderilmiş aktif bir teklifiniz var (geri çekilemez)." };
+    }
+
+    // Kalem fiyatları: TÜM kalemler fiyatlanmalı (kısmi teklif sayfaya).
+    const argItems = Array.isArray(args.items)
+      ? (args.items as Array<{ itemId?: unknown; unitPrice?: unknown }>)
+      : [];
+    const priceById = new Map<string, number>();
+    for (const it of argItems) {
+      const id = String(it.itemId ?? "");
+      const p = Number(it.unitPrice);
+      if (id && Number.isFinite(p) && p > 0) priceById.set(id, p);
+    }
+    const missing = items.filter((i) => !priceById.has(i.id));
+    if (missing.length > 0) {
+      return {
+        ok: false,
+        problem: `Şu kalemler için birim fiyat eksik: ${missing.map((m) => m.name).join(", ")}. Her kalem için birim fiyat isteyin (kısmi teklif için sayfayı kullanın).`,
+      };
+    }
+
+    const currency = String(args.currency ?? detail.primaryCurrency ?? "TRY");
+    const allowed = (detail.allowedCurrencies ?? []) as string[];
+    if (allowed.length > 0 && !allowed.includes(currency)) {
+      return { ok: false, problem: `Bu ihalede geçerli para birimleri: ${allowed.join(", ")}.` };
+    }
+
+    // amount = Σ(birim × miktar) — award nöbetçisiyle (bid.amount ≡ Σ) uyumlu.
+    let amount = new Prisma.Decimal(0);
+    const lines: string[] = [];
+    for (const i of items) {
+      const price = priceById.get(i.id)!;
+      const qty = new Prisma.Decimal(String(i.quantity ?? 1));
+      const sub = qty.mul(new Prisma.Decimal(String(price)));
+      amount = amount.add(sub);
+      lines.push(`${i.name}: ${String(i.quantity)} ${i.unit} × ${price} = ${sub.toString()} ${currency}`);
+    }
+    const note = typeof args.note === "string" ? args.note.slice(0, 1000) : undefined;
+    const validityDays =
+      Number.isFinite(Number(args.validityDays)) && Number(args.validityDays) > 0
+        ? Math.min(365, Math.floor(Number(args.validityDays)))
+        : undefined;
+    // Teslim tarihi zorunlu (placeBid kuralı) — kullanıcıdan istenir.
+    const deliveryDate = String(args.deliveryDate ?? "").trim();
+    if (!deliveryDate || Number.isNaN(Date.parse(deliveryDate))) {
+      return { ok: false, problem: "Taahhüt edilen teslim tarihi gerekli (örn. 2026-08-15) — kullanıcıya sorun." };
+    }
+    if (Date.parse(deliveryDate) < Date.now()) {
+      return { ok: false, problem: "Teslim tarihi geçmişte olamaz." };
+    }
+
+    const dto: PlaceBidDto = {
+      amount: Number(amount.toString()),
+      currency: currency as PlaceBidDto["currency"],
+      items: items.map((i) => ({ itemId: i.id, unitPrice: priceById.get(i.id)! })),
+      deliveryDate,
+      ...(note ? { note } : {}),
+      ...(validityDays ? { validityDays } : {}),
+    } as PlaceBidDto;
+
+    return this.storePending(user, sessionId, {
+      type: "place_bid",
+      severity: "critical",
+      params: { listingId, dto: dto as unknown as Record<string, unknown> },
+      summary: [
+        `TEKLİF VERİLECEK: ${String(detail.title)} (${String(detail.number ?? listingId)})`,
+        ...lines.slice(0, 6),
+        ...(lines.length > 6 ? [`… ve ${lines.length - 6} kalem daha`] : []),
+        `TOPLAM: ${amount.toString()} ${currency} · Teslim: ${deliveryDate.slice(0, 10)}${validityDays ? ` · Geçerlilik: ${validityDays} gün` : ""}`,
+        "Gönderilen teklif GERİ ÇEKİLEMEZ ve değiştirilemez (kapalı zarf).",
+      ],
+    });
+  }
+
+  /**
+   * Sipariş TESLİM ALINDI önerisi (Faz 3 — alıcı tarafı; IN_DELIVERY→DELIVERED,
+   * adım geri alınamaz; kusur bildirimi ayrı mekanizmadır).
+   */
+  async proposeMarkOrderReceived(
+    user: AuthenticatedCompanyUser,
+    sessionId: string,
+    args: Record<string, unknown>,
+  ): Promise<ProposeOutcome> {
+    const orderId = String(args.orderId ?? "").trim();
+    if (!orderId) return { ok: false, problem: "Sipariş id gerekli." };
+    const order = await this.prisma.companyOrder.findFirst({
+      where: { id: orderId, buyerCompanyId: user.companyId },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        amount: true,
+        currency: true,
+        seller: { select: { name: true } },
+      },
+    });
+    if (!order) {
+      return { ok: false, problem: "Bu id ile firmanızın alıcı olduğu bir sipariş bulunamadı." };
+    }
+    if (order.status !== "IN_DELIVERY") {
+      return { ok: false, problem: "Yalnız yoldaki (gönderilmiş) sipariş teslim alındı olarak işaretlenebilir." };
+    }
+    const note = typeof args.note === "string" ? args.note.slice(0, 500) : undefined;
+    return this.storePending(user, sessionId, {
+      type: "mark_order_received",
+      severity: "normal",
+      params: { orderId, note },
+      summary: [
+        `Sipariş TESLİM ALINDI işaretlenecek: ${order.number ?? order.id}`,
+        `Satıcı: ${order.seller?.name ?? "-"} · Tutar: ${order.amount} ${order.currency ?? ""}`,
+        "Satıcıya bildirim gider; sorun varsa teslim sonrası kusur bildirimi ayrıca yapılabilir.",
+      ],
+    });
+  }
+
   /** İhale + teklif referansını SAHİPLİK doğrulamasıyla yükler (özet verisiyle). */
   private async loadOwnedBid(
     user: AuthenticatedCompanyUser,
@@ -401,6 +569,20 @@ export class AssistantActionsService {
           message = r?.orderId
             ? "Kazandırma tamamlandı — sipariş oluşturuldu."
             : "Kazandırma başlatıldı — firmanızın onay akışına iletildi.";
+          break;
+        }
+        case "place_bid": {
+          const p = action.params as { listingId: string; dto: PlaceBidDto };
+          await this.listings.placeBid(user, p.listingId, p.dto);
+          message = "Teklifiniz gönderildi (kapalı zarf — yalnız ihale sahibi görür).";
+          resourceId = p.listingId;
+          break;
+        }
+        case "mark_order_received": {
+          const p = action.params as { orderId: string; note?: string };
+          await this.orders.receive(user, p.orderId, { note: p.note } as never);
+          message = "Sipariş teslim alındı olarak işaretlendi — satıcıya bildirim gitti.";
+          resourceId = p.orderId;
           break;
         }
         case "publish_tender": {

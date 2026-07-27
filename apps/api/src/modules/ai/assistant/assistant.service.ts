@@ -388,6 +388,10 @@ export class AssistantService {
         return (u, s, a) => this.actions.proposeEliminateBid(u, s, a);
       case TOOL_NAMES.requestAwardTender:
         return (u, s, a) => this.actions.proposeAwardTender(u, s, a);
+      case TOOL_NAMES.requestPlaceBid:
+        return (u, s, a) => this.actions.proposePlaceBid(u, s, a);
+      case TOOL_NAMES.requestMarkOrderReceived:
+        return (u, s, a) => this.actions.proposeMarkOrderReceived(u, s, a);
       default:
         return null;
     }

@@ -57,7 +57,7 @@ d("Faz AI-2 — canlı asistan duman testi", () => {
       cfg, provider, ai, budget, prisma as never,
       listings, new FakeOrders() as never, new FakeConnections() as never,
       tenderExtract, categorySuggest,
-      new AssistantActionsService(prisma as never, listings, { log: async () => undefined } as never),
+      new AssistantActionsService(prisma as never, listings, {} as never, { log: async () => undefined } as never),
     );
 
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
