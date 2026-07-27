@@ -16,34 +16,75 @@ import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
-/** Alan yolu → TR etiket ("items.2.quantity" → "Kalem 3: Miktar"). */
-function labelFor(path: string): string {
-  const TOP: Record<string, string> = {
-    title: "İhale başlığı",
-    description: "Açıklama",
-    primaryCurrency: "Para birimi",
-    deliveryTerm: "Teslim şekli",
-    paymentCategory: "Ödeme şekli",
-    paymentDays: "Vade günü",
-    advancePercent: "Peşin yüzdesi",
-    bidsCloseAt: "Kapanış tarihi",
-    termsAndConditions: "Şartlar",
-    prices: "Fiyatlar",
-  };
-  const m = /^items\.(\d+)\.(\w+)$/.exec(path);
-  if (m) {
-    const FIELD: Record<string, string> = {
-      name: "Ad",
-      quantity: "Miktar",
-      unit: "Birim",
-      requiredByDate: "Termin tarihi",
-      targetUnitPrice: "Hedef fiyat",
-      materialCode: "Malzeme kodu",
-      description: "Açıklama",
-    };
-    return `Kalem ${Number(m[1]) + 1}: ${FIELD[m[2]!] ?? m[2]}`;
+const TOP_LABELS: Record<string, string> = {
+  title: "İhale başlığı",
+  description: "Açıklama",
+  primaryCurrency: "Para birimi",
+  deliveryTerm: "Teslim şekli",
+  paymentCategory: "Ödeme şekli",
+  paymentDays: "Vade günü",
+  advancePercent: "Peşin yüzdesi",
+  bidsCloseAt: "Kapanış tarihi",
+  termsAndConditions: "Şartlar",
+  prices: "Fiyatlar",
+  isInternational: "Kapsam (yurtiçi/uluslararası)",
+};
+const ITEM_FIELD_LABELS: Record<string, string> = {
+  name: "ad",
+  quantity: "miktar",
+  unit: "birim",
+  requiredByDate: "termin tarihi",
+  targetUnitPrice: "hedef fiyat",
+  materialCode: "malzeme kodu",
+  description: "açıklama",
+};
+/** Kalem alanlarının doğal sırası — satırlar hep aynı düzende okunur. */
+const ITEM_FIELD_ORDER = Object.keys(ITEM_FIELD_LABELS);
+
+/**
+ * İşaretli alanları okunur satırlara indirger:
+ *  - üst-düzey alanlar TEKİLLEŞTİRİLİR (aynı alan birden çok gerekçeyle
+ *    işaretlenebiliyor — "Para birimi" 3 kez yazılmasın),
+ *  - kalem alanları gruplanır: tüm kalemler aynı setse tek satır
+ *    ("Tüm kalemlerde: miktar, birim…"), değilse kalem başına bir satır.
+ */
+function formatCheckFlags(flags: AiFieldFlag[]): string[] {
+  const top = new Set<string>();
+  const byItem = new Map<number, Set<string>>();
+  for (const f of flags) {
+    const m = /^items\.(\d+)\.(\w+)$/.exec(f.path);
+    if (m) {
+      const idx = Number(m[1]);
+      if (!byItem.has(idx)) byItem.set(idx, new Set());
+      byItem.get(idx)!.add(m[2]!);
+    } else {
+      top.add(TOP_LABELS[f.path] ?? f.path);
+    }
   }
-  return TOP[path] ?? path;
+  const lines = [...top];
+
+  if (byItem.size > 0) {
+    const fieldLabels = (fields: Set<string>) =>
+      ITEM_FIELD_ORDER.filter((k) => fields.has(k))
+        .map((k) => ITEM_FIELD_LABELS[k])
+        .join(", ");
+    const signatures = new Set(
+      [...byItem.values()].map((s) => [...s].sort().join("|")),
+    );
+    if (signatures.size === 1) {
+      const label = fieldLabels([...byItem.values()][0]!);
+      lines.push(
+        byItem.size === 1
+          ? `Kalem ${[...byItem.keys()][0]! + 1}: ${label}`
+          : `Tüm kalemlerde (${byItem.size} kalem): ${label}`,
+      );
+    } else {
+      for (const [idx, fields] of [...byItem.entries()].sort((a, b) => a[0] - b[0])) {
+        lines.push(`Kalem ${idx + 1}: ${fieldLabels(fields)}`);
+      }
+    }
+  }
+  return lines;
 }
 
 /** Belgeden fiilen doldurulan alanların TR özeti — kullanıcı ne geldiğini görsün. */
@@ -145,17 +186,31 @@ export function AiFlagsBanner({
       ) : null}
 
       {checkFlags.length > 0 ? (
-        <p className="text-sm text-zinc-700">
-          <span className="font-medium">AI şu alanlardan emin değil, kontrol edin:</span>{" "}
-          {checkFlags.map((f) => labelFor(f.path)).join(", ")}
-        </p>
+        <div className="text-sm text-zinc-700">
+          <p className="font-medium">Kontrol etmenizi önerdiğimiz alanlar (AI emin değil):</p>
+          <ul className="mt-1 space-y-0.5">
+            {formatCheckFlags(checkFlags).map((line) => (
+              <li key={line} className="flex items-start gap-1.5">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-zinc-400" />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {result.missingRequired.length > 0 ? (
-        <p className="text-sm text-zinc-700">
-          <span className="font-medium">Tamamlamanız gerekenler:</span>{" "}
-          {result.missingRequired.join(", ")}
-        </p>
+        <div className="text-sm text-zinc-700">
+          <p className="font-medium">Yayınlamadan önce tamamlamanız gerekenler:</p>
+          <ul className="mt-1 space-y-0.5">
+            {result.missingRequired.map((line) => (
+              <li key={line} className="flex items-start gap-1.5">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {vatWarned ? (
