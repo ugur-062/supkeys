@@ -164,8 +164,10 @@ export class GeminiProvider extends BaseAiProvider {
           ...(req.disableThinking
             ? { thinkingConfig: { thinkingBudget: 0 } }
             : {}),
+          // Dış keşif: Google Search grounding (function-calling ile birleşmez).
+          ...(req.webSearch ? { tools: [{ googleSearch: {} }] } : {}),
           // AI-2: araç tanımları (function-calling).
-          ...(req.tools && req.tools.length > 0
+          ...(!req.webSearch && req.tools && req.tools.length > 0
             ? {
                 tools: [
                   {

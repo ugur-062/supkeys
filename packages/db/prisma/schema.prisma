@@ -687,6 +687,11 @@ model CompanyReferralInvite {
   status            ReferralInviteStatus @default(PENDING)
   acceptedCompanyId String?
   acceptedAt        DateTime?
+  /**
+   * Dış davet ihale bağlamı: davet "X sizi Y ihalesine davet etti" olarak
+   * gider; kayıt token'la tamamlanınca bağlantıya EK bu ihaleye davet yazılır.
+   */
+  listingId         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -694,6 +699,17 @@ model CompanyReferralInvite {
   @@unique([inviterCompanyId, email])
   @@index([email])
   @@map("company_referral_invites")
+}
+
+/**
+ * Dış davet opt-out — bu adrese bir daha davet e-postası GÖNDERİLMEZ
+ * (e-postadaki tek tık linkiyle beslenir; ETK/İYS hijyeni + itibar koruması).
+ */
+model ReferralOptOut {
+  email     String   @id
+  createdAt DateTime @default(now())
+
+  @@map("referral_opt_outs")
 }
 
 model CompanyBlock {

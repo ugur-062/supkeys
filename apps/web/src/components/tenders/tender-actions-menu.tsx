@@ -35,6 +35,7 @@ import {
   useStartEvaluation,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
+import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { closesAtError } from "@/lib/tenders/closes-at";
 import { useRouter } from "next/navigation";
@@ -186,6 +187,7 @@ export function TenderActionsMenu({
   );
   const [aeBy, setAeBy] = useState(String(autoExtendByMinutes ?? 2));
 
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
   // Davet ekleme form durumu
   const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
   const [inviteSearch, setInviteSearch] = useState("");
@@ -399,6 +401,11 @@ export function TenderActionsMenu({
                 </DropdownLabel>
               </DropdownItem>
             ) : null}
+            {canInvite ? (
+              <DropdownItem onClick={() => setDiscoveryOpen(true)}>
+                <DropdownLabel>AI ile Daha Fazla Eriş</DropdownLabel>
+              </DropdownItem>
+            ) : null}
             <DropdownItem onClick={() => setNotesOpen(true)}>
               <DropdownLabel>İç Notlar</DropdownLabel>
             </DropdownItem>
@@ -458,6 +465,13 @@ export function TenderActionsMenu({
       </div>
 
       {/* Kapanış zamanını değiştir */}
+      <SupplierDiscoveryModal
+        isOpen={discoveryOpen}
+        onClose={() => setDiscoveryOpen(false)}
+        type={isSatis ? "SATIS" : "ALIM"}
+        categoryIds={[]}
+        listingId={id}
+      />
       <Dialog open={closingOpen} onClose={() => setClosingOpen(false)}>
         <DialogTitle>Kapanış Zamanını Değiştir</DialogTitle>
         <DialogDescription>

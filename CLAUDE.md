@@ -171,6 +171,17 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 > **Sürüm/faz ayrımı YOK.** V1.5/V2/V2.7/V3 gibi kademeler kaldırıldı — her şey tek backlog, sıraya göre yapılır. Aşağıdaki gruplar yalnızca konuya göredir, öncelik/erteleme değil.
 
 **Ürün özellikleri**
+- ✅ **Tedarikçi keşfi + dış davet (2026-07-27):** "AI ile daha fazla eriş" —
+  (A) dizin keşfi: kategori-eşleşmeli bağlantısız BRONZ+ firmalar → bağlantı
+  daveti (`/company/ai/supplier-discovery`); (B) web keşfi: Gemini **Google
+  Search grounding** (`webSearch` flag; grounding+responseSchema BİRLEŞMEZ →
+  2 aşama: araştırma metni → şemalı JSON; e-posta yalnız açıkça yayınlanmışsa,
+  kullanıcı doğrular); (C) dış davet e-postası: referral altyapısı + `listingId`
+  bağlamı ("X sizi Y ihalesine davet etti", tender_external_invite şablonu) —
+  frenler: günlük 20/firma, adrese ömür boyu 1, opt-out (`referral_opt_outs` +
+  `/davet-kapat` + public GET endpoint), kayıtlı-adres skip; kayıt token'la
+  tamamlanınca bağlantı ACTIVE + ihaleye otomatik davet (acceptReferralInvites).
+  Giriş noktaları: wizard Davetliler adımı + ihale detay ⋮ menüsü.
 - **Yurtdışı şirket kaydı — ÇEKİRDEK BİTTİ (Faz 1-3):** ülke seçimi (COUNTRIES, 98 ülke) + ülke-farkında vergi/adres doğrulama (TR strict VKN/TCKN, yabancı gevşek) + onboarding UI (alıcı+tedarikçi). Şema: Tenant/Supplier.country+stateRegion. KALAN: (a) i18n — UI hâlâ Türkçe (next-intl greenfield, ayrı büyük iş); (b) VIES — AB VAT ücretsiz oto-doğrulama; (c) yabancı belge/KYB kontrolü = mevcut admin onayı + belge (ödeme sağlayıcısı KYB yapmaz çünkü sanal POS düşünülüyor).
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
 - Açık ihale (PUBLIC) + tedarikçi başvuru sistemi

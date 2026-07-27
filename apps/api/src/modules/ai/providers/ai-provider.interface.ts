@@ -71,6 +71,12 @@ export interface AiCompletionRequest {
   responseSchema?: object;
   /** AI-2 — araç tanımları (function-calling). Prompt'un önünde sabit prefix. */
   tools?: AiToolDef[];
+  /**
+   * Dış keşif — Google Search grounding. function-calling araçları ve
+   * responseSchema ile BİRLİKTE kullanılamaz (Gemini kısıtı); çağıran iki
+   * aşamalı desenle (grounding'li metin → şemalı JSON) çalışır.
+   */
+  webSearch?: boolean;
   /** AI-2 — önceki konuşma + araç turları (prompt'tan ÖNCE gelir). */
   history?: AiHistoryTurn[];
   /**

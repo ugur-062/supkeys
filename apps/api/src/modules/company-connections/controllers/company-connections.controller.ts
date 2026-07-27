@@ -15,7 +15,7 @@ import { RequireCompanyPermission } from "../../company-auth/decorators/require-
 import { Throttle } from "@nestjs/throttler";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
-import {
+import { ExternalTenderInviteDto,
   InviteByEmailBatchDto,
   InviteByEmailDto,
 } from "../dto/invite-by-email.dto";
@@ -74,6 +74,17 @@ export class CompanyConnectionsController {
     @Body() dto: InviteConnectionDto,
   ) {
     return this.service.invite(user, dto.rothernId);
+  }
+
+  /** Faz C — dış ihale daveti (limitli; frenler serviste). */
+  @Post("external-tender-invite")
+  @RequireCompanyPermission("connections:manage")
+  @Throttle({ auth: { limit: 3, ttl: 60_000 } })
+  externalTenderInvite(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ExternalTenderInviteDto,
+  ) {
+    return this.service.inviteExternalForListing(user, dto.listingId, dto.emails);
   }
 
   @Post("invite-by-email")

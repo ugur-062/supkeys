@@ -1,9 +1,44 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { AiService } from "../ai.service";
 
 const MAX_CANDIDATES = 12;
+const MAX_EXTERNAL = 10;
+
+export interface ExternalCandidate {
+  name: string;
+  city: string | null;
+  website: string | null;
+  /** Web'de AÇIKÇA yayınlanmış adres; yoksa null — model uyduramaz, kullanıcı doğrular. */
+  email: string | null;
+  reason: string;
+}
+
+const EXTERNAL_SCHEMA = {
+  type: "object",
+  properties: {
+    companies: {
+      type: "array",
+      maxItems: MAX_EXTERNAL,
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          city: { type: "string", nullable: true },
+          website: { type: "string", nullable: true },
+          email: { type: "string", nullable: true },
+          reason: { type: "string" },
+        },
+        required: ["name", "reason"],
+      },
+    },
+  },
+  required: ["companies"],
+} as const;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export interface DiscoveryCandidate {
   companyId: string;
@@ -28,7 +63,87 @@ export interface DiscoveryCandidate {
  */
 @Injectable()
 export class SupplierDiscoveryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+  ) {}
+
+  /**
+   * Faz B — DIŞ keşif: Google Search grounding ile web'de aday firma araması.
+   * İki aşama (Gemini kısıtı: grounding + responseSchema birleşmez):
+   *   1) grounding'li serbest-metin araştırma  2) ucuz şemalı JSON'a çevirme.
+   * E-posta YALNIZ web'de açıkça yayınlanmışsa döner (uydurma yasak — prompt +
+   * regex süzgeci); gönderim öncesi kullanıcı doğrular (Faz C).
+   */
+  async discoverExternal(
+    user: AuthenticatedCompanyUser,
+    input: {
+      type: "ALIM" | "SATIS";
+      categoryIds: string[];
+      itemNames?: string[];
+      region?: string;
+    },
+  ): Promise<{ companies: ExternalCandidate[] }> {
+    this.ai.assertAiAccess(user);
+    const catNames = (
+      await this.prisma.category.findMany({
+        where: { id: { in: input.categoryIds.slice(0, 10) } },
+        select: { nameTr: true },
+      })
+    ).map((c) => c.nameTr);
+    if (catNames.length === 0) return { companies: [] };
+    const items = (input.itemNames ?? []).filter(Boolean).slice(0, 15);
+    const role = input.type === "ALIM" ? "tedarikçi/üretici" : "kurumsal alıcı";
+    const region = (input.region ?? "").trim().slice(0, 60);
+
+    const research = await this.ai.callAi(user, {
+      feature: "supplier_discovery",
+      webSearch: true,
+      system:
+        "Bir B2B tedarik platformu için firma araştırması yaparsın. YALNIZ web aramasında gerçekten bulduğun firmaları listelersin; e-posta adresini yalnız sitede/aramada AÇIKÇA görünüyorsa yazarsın, asla tahmin etmezsin.",
+      prompt: [
+        `Türkiye'de${region ? ` (öncelik: ${region})` : ""} şu alanda faaliyet gösteren ${role} firmaları web'de araştır:`,
+        `Kategoriler: ${catNames.join(", ")}`,
+        ...(items.length > 0 ? [`İlgili ürün/kalemler: ${items.join(", ")}`] : []),
+        "",
+        `En fazla ${MAX_EXTERNAL} gerçek firma bul. Her biri için şu bilgileri yaz: firma adı, şehir, web sitesi, (varsa açıkça yayınlanmış iletişim e-postası), bu ihale için neden uygun olduğuna dair TEK cümle.`,
+      ].join("\n"),
+      metadata: { route: "external_discovery", stage: "research" },
+    });
+
+    const parsed = await this.ai.callAi(user, {
+      feature: "supplier_discovery",
+      responseSchema: EXTERNAL_SCHEMA as unknown as object,
+      system:
+        "Sana verilen araştırma metnini şemaya uygun JSON'a dönüştürürsün. Metinde açıkça yazmayan alanları null bırakırsın; firma/e-posta EKLEMEZ, uydurmazsın.",
+      prompt: `<arastirma>\n${research.text.slice(0, 12000)}\n</arastirma>\n\nMetindeki firmaları JSON'a dönüştür.`,
+      metadata: { route: "external_discovery", stage: "parse" },
+    });
+
+    try {
+      const json = JSON.parse(parsed.text) as { companies?: unknown[] };
+      const companies: ExternalCandidate[] = (json.companies ?? [])
+        .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
+        .slice(0, MAX_EXTERNAL)
+        .map((c) => {
+          const email = typeof c.email === "string" ? c.email.trim().toLowerCase() : "";
+          const website = typeof c.website === "string" ? c.website.trim() : "";
+          return {
+            name: String(c.name ?? "").slice(0, 150),
+            city: typeof c.city === "string" && c.city.trim() ? c.city.trim().slice(0, 60) : null,
+            website: website ? website.slice(0, 200) : null,
+            email: EMAIL_RE.test(email) ? email : null,
+            reason: String(c.reason ?? "").slice(0, 200),
+          };
+        })
+        .filter((c) => c.name);
+      return { companies };
+    } catch {
+      throw new ServiceUnavailableException(
+        "Dış arama sonuçları işlenemedi — lütfen tekrar deneyin.",
+      );
+    }
+  }
 
   async discoverRegistered(
     user: AuthenticatedCompanyUser,

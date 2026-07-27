@@ -47,6 +47,8 @@ export interface AiCallOptions {
   parts?: AiInlinePart[];
   /** AI-1 — structured output şeması (Gemini responseSchema). */
   responseSchema?: object;
+  /** Dış keşif — Google Search grounding (responseSchema ile birlikte verme). */
+  webSearch?: boolean;
   /**
    * AI-1 — metin-dışı girdinin token tahmini (PDF ~300/sayfa, görüntü ~1300).
    * Bütçe rezervasyonu ve premium eşiği doğru çalışsın diye tahmine eklenir.
@@ -177,6 +179,7 @@ export class AiService {
         system: options.system,
         parts: options.parts,
         responseSchema: options.responseSchema,
+        webSearch: options.webSearch,
         maxOutputTokens: this.config.maxOutputTokens,
         timeoutMs: this.config.timeoutMs,
       });

@@ -1,6 +1,7 @@
 export type EmailTemplate =
   | "password_reset"
   | "referral_invite"
+  | "tender_external_invite"
   | "notification";
 
 export type EmailProviderName = "resend";
@@ -31,6 +32,16 @@ export interface ReferralInviteData {
   registerUrl: string;
 }
 
+/** Faz C — dış ihale daveti (kapalı zarf: yalnız başlık/kategori/kapanış). */
+export interface TenderExternalInviteData {
+  inviterName: string;
+  tenderTitle: string;
+  categories: string;
+  closesAt: string | null;
+  registerUrl: string;
+  optOutUrl: string;
+}
+
 /**
  * Genel işlemsel bildirim — ihale daveti, kapanış hatırlatma, kategori
  * eşleşmesi, teklif eleme, kazandırma, onay isteği vb. hepsi bunu kullanır.
@@ -59,6 +70,10 @@ export type EmailTemplateData =
   | {
       template: "referral_invite";
       data: ReferralInviteData;
+    }
+  | {
+      template: "tender_external_invite";
+      data: TenderExternalInviteData;
     }
   | {
       template: "notification";

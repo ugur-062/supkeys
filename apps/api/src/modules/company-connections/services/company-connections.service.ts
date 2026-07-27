@@ -180,6 +180,169 @@ export class CompanyConnectionsService {
    *  - skipped  → gönderilmedi (zaten bağlı / zaten istekli / kendi firması /
    *               pasif firma / engelli) — reason ile
    */
+  /**
+   * Faz C — DIŞ ihale daveti: "X sizi 'Y' ihalesine davet etti" e-postası.
+   * İtibar/ETK frenleri:
+   *  - günlük firma tavanı (ihale-bağlamlı davet, UTC gün): 20
+   *  - aynı adrese (bu firmadan) ömür boyu TEK davet (mevcut referral = skip)
+   *  - opt-out listesi + kayıtlı-kullanıcı adresi = skip (dizinden davet edilir)
+   * Kayıt token'la tamamlanınca: bağlantı ACTIVE + bu ihaleye otomatik davet
+   * (acceptReferralInvites). Kapalı zarf: e-postada yalnız başlık/kategori/kapanış.
+   */
+  async inviteExternalForListing(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    emailsRaw: string[],
+  ) {
+    if (!tierAtLeast(user.tier, "BRONZ")) {
+      throw new ForbiddenException(
+        "Davet göndermek için bir paket (Bronz+) gerekir.",
+      );
+    }
+    const listing = await this.prisma.listing.findFirst({
+      where: { id: listingId, companyId: user.companyId },
+      select: { id: true, title: true, status: true, closesAt: true, categoryIds: true },
+    });
+    if (!listing) throw new NotFoundException("İhale bulunamadı");
+    if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
+      throw new BadRequestException("Yalnız taslak/açık ihale için dış davet gönderilebilir");
+    }
+
+    const DAILY_CAP = 20;
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const sentToday = await this.prisma.companyReferralInvite.count({
+      where: {
+        inviterCompanyId: user.companyId,
+        listingId: { not: null },
+        createdAt: { gte: dayStart },
+      },
+    });
+
+    const emails = [...new Set(
+      (emailsRaw ?? [])
+        .map((e) => (e ?? "").trim().toLowerCase())
+        .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)),
+    )].slice(0, DAILY_CAP);
+    if (emails.length === 0) {
+      throw new BadRequestException("Geçerli e-posta adresi verilmedi");
+    }
+
+    const [optOuts, existing, registered, me, cats] = await Promise.all([
+      this.prisma.referralOptOut.findMany({
+        where: { email: { in: emails } },
+        select: { email: true },
+      }),
+      this.prisma.companyReferralInvite.findMany({
+        where: { inviterCompanyId: user.companyId, email: { in: emails } },
+        select: { email: true },
+      }),
+      this.prisma.companyUser.findMany({
+        where: { email: { in: emails }, deletedAt: null },
+        select: { email: true },
+      }),
+      this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { name: true },
+      }),
+      this.prisma.category.findMany({
+        where: { id: { in: listing.categoryIds.slice(0, 3) } },
+        select: { nameTr: true },
+      }),
+    ]);
+    const optOutSet = new Set(optOuts.map((o) => o.email));
+    const existingSet = new Set(existing.map((e) => e.email));
+    const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
+
+    const baseUrl = resolveWebUrl(this.config);
+    const categories = cats.map((c) => c.nameTr).join(", ") || "-";
+    const closesAt = listing.closesAt
+      ? listing.closesAt.toISOString().slice(0, 10)
+      : null;
+
+    const results: Array<{ email: string; status: "SENT" | "SKIPPED"; reason?: string }> = [];
+    let budget = DAILY_CAP - sentToday;
+    for (const email of emails) {
+      if (budget <= 0) {
+        results.push({ email, status: "SKIPPED", reason: "Günlük dış davet limitine ulaşıldı (20)" });
+        continue;
+      }
+      if (optOutSet.has(email)) {
+        results.push({ email, status: "SKIPPED", reason: "Bu adres davet almak istemiyor" });
+        continue;
+      }
+      if (registeredSet.has(email)) {
+        results.push({ email, status: "SKIPPED", reason: "Bu adres zaten Rothern'de kayıtlı — dizinden bağlantı daveti gönderin" });
+        continue;
+      }
+      if (existingSet.has(email)) {
+        results.push({ email, status: "SKIPPED", reason: "Bu adrese daha önce davet gönderilmiş" });
+        continue;
+      }
+      const inv = await this.prisma.companyReferralInvite.create({
+        data: {
+          inviterCompanyId: user.companyId,
+          email,
+          invitedById: user.userId,
+          listingId: listing.id,
+        },
+      });
+      budget--;
+      this.email
+        .send({
+          to: { email },
+          templateData: {
+            template: "tender_external_invite",
+            data: {
+              inviterName: me?.name ?? "Bir firma",
+              tenderTitle: listing.title,
+              categories,
+              closesAt,
+              registerUrl: `${baseUrl}/company/kayit?ref=${inv.token}`,
+              optOutUrl: `${baseUrl}/davet-kapat?token=${inv.token}`,
+            },
+          },
+          context: { type: "tender_external_invite", id: inv.id },
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            `Dış davet e-postası gönderilemedi (${email}): ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+      results.push({ email, status: "SENT" });
+    }
+
+    void this.audit.log({
+      action: "connection.external_tender_invite",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listing.id,
+      metadata: {
+        sent: results.filter((r) => r.status === "SENT").length,
+        skipped: results.filter((r) => r.status === "SKIPPED").length,
+      },
+    });
+    return { results };
+  }
+
+  /** Opt-out (public): davet token'ındaki adrese bir daha davet gönderilmez. */
+  async markReferralOptOut(token: string) {
+    const inv = await this.prisma.companyReferralInvite.findUnique({
+      where: { token },
+      select: { email: true },
+    });
+    if (!inv) throw new NotFoundException("Geçersiz bağlantı");
+    await this.prisma.referralOptOut.upsert({
+      where: { email: inv.email },
+      create: { email: inv.email },
+      update: {},
+    });
+    return { ok: true };
+  }
+
   async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
     if (!tierAtLeast(user.tier, "BRONZ")) {
       throw new ForbiddenException(

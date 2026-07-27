@@ -11,6 +11,11 @@ import {
   renderReferralInviteText,
 } from "./templates/referral-invite";
 import {
+  TenderExternalInviteEmail,
+  makeTenderExternalInviteSubject,
+  renderTenderExternalInviteText,
+} from "./templates/tender-external-invite";
+import {
   makeNotificationSubject,
   NotificationEmail,
   renderNotificationText,
@@ -29,6 +34,16 @@ export async function renderEmail(
         subject: makePasswordResetSubject(),
         html,
         text: renderPasswordResetText(spec.data),
+      };
+    }
+    case "tender_external_invite": {
+      const html = await render(
+        React.createElement(TenderExternalInviteEmail, spec.data),
+      );
+      return {
+        subject: makeTenderExternalInviteSubject(spec.data),
+        html,
+        text: renderTenderExternalInviteText(spec.data),
       };
     }
     case "referral_invite": {

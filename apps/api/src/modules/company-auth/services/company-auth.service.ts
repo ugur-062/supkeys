@@ -510,6 +510,7 @@ export class CompanyAuthService {
         inviterCompanyId: true,
         invitedById: true,
         token: true,
+        listingId: true,
       },
     });
     if (invites.length === 0) return;
@@ -541,6 +542,35 @@ export class CompanyAuthService {
         },
         update: {},
       });
+      // Faz C: davet ihale bağlamlıysa ve link KULLANILDIYSA — ihale hâlâ
+      // davete açıksa yeni firmayı ihaleye otomatik davet et (kapalı zarf
+      // etkisi yok; firma paneline girince ihaleyi davetlilerinde görür).
+      if (isUsed && inv.listingId) {
+        const listing = await this.bypass.listing.findUnique({
+          where: { id: inv.listingId },
+          select: { id: true, status: true, companyId: true },
+        });
+        if (
+          listing &&
+          listing.companyId === inv.inviterCompanyId &&
+          (listing.status === "DRAFT" || listing.status === "OPEN")
+        ) {
+          await this.bypass.listingInvitation.upsert({
+            where: {
+              listingId_invitedCompanyId: {
+                listingId: listing.id,
+                invitedCompanyId: newCompanyId,
+              },
+            },
+            create: {
+              listingId: listing.id,
+              invitedCompanyId: newCompanyId,
+              invitedById: inv.invitedById,
+            },
+            update: {},
+          });
+        }
+      }
       await this.bypass.companyReferralInvite.update({
         where: { id: inv.id },
         data: {
