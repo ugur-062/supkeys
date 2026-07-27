@@ -195,16 +195,23 @@ describe("Sahiplik devri (updateRoles)", () => {
     ).rejects.toThrow(/mevcut Kurucu/i);
   });
 
-  it("sahip, devretmeden SAHIP rolünü bırakamaz", async () => {
+  it("sahip SAHIP'siz küme gönderse de etiket korunur (bırakma yalnız devirle)", async () => {
     const svc = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);
     // Başka bir aktif Yönetici olsun ki son-yönetici kuralına takılmasın.
     await makeUser(prisma, owner.company.id, [CompanyRole.YONETICI]);
-    await expect(
-      svc.updateRoles(owner.auth, owner.user.id, {
-        roles: [CompanyRole.SATIN_ALMACI],
-      } as never),
-    ).rejects.toThrow(/devret/i);
+    // Sahiplik normalizasyonu (2026-07-27): red yerine SAHIP sessizce korunur;
+    // bırakmanın tek yolu devir akışı.
+    await svc.updateRoles(owner.auth, owner.user.id, {
+      roles: [CompanyRole.SATIN_ALMACI],
+    } as never);
+    const kept = await prisma.companyUser.findUnique({
+      where: { id: owner.user.id },
+      select: { roles: true },
+    });
+    expect(kept?.roles).toEqual(
+      expect.arrayContaining(["SAHIP", "SATIN_ALMACI"]),
+    );
   });
 });
 

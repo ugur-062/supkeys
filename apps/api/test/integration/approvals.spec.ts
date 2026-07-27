@@ -590,12 +590,18 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       roles: ["SATIN_ALMACI", "SATISCI"],
     } as never);
 
-    // Sahip, sahipliğini devretmeden bırakamaz (SAHIP rolü tek taraflı düşmez).
-    await expect(
-      svc.updateRoles(owner.auth, owner.user.id, {
-        roles: ["SATIN_ALMACI"],
-      } as never),
-    ).rejects.toThrow(/devret/);
+    // Sahiplik normalizasyonu (2026-07-27): SAHIP'siz küme gönderilse bile
+    // etiket SESSİZCE korunur (reddetmek yerine) — bırakmanın tek yolu devir.
+    await svc.updateRoles(owner.auth, owner.user.id, {
+      roles: ["SATIN_ALMACI"],
+    } as never);
+    const kept = await prisma.companyUser.findUnique({
+      where: { id: owner.user.id },
+      select: { roles: true },
+    });
+    expect(kept?.roles).toEqual(
+      expect.arrayContaining(["SAHIP", "SATIN_ALMACI"]),
+    );
 
     // Sahip pasifleştirilemez / çıkarılamaz.
     await expect(
