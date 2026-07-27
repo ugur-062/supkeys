@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@/components/catalyst/button";
-import { Input } from "@/components/catalyst/input";
 import { useAiTenderRefine } from "@/hooks/use-ai-tender-import";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -11,8 +9,8 @@ import type {
   AiTenderDraft,
   AiTenderExtractResult,
 } from "@rothern/shared";
-import { Sparkles } from "lucide-react";
-import { useState } from "react";
+import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -123,6 +121,7 @@ export function AiFlagsBanner({
   const form = useFormContext<TenderFormData>();
   const refine = useAiTenderRefine();
   const [message, setMessage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const vatWarned = result.flags.some((f) => f.reason === "vat_warning");
   const checkFlags = result.flags.filter(
@@ -220,26 +219,63 @@ export function AiFlagsBanner({
         </p>
       ) : null}
 
-      <div className="flex gap-2">
-        <Input
-          value={message}
-          disabled={refine.isPending}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="AI'ya sorun: örn. 'vade 60 gün olsun', 'kapanışı 15 Ağustos yap'"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void ask();
-            }
-          }}
-        />
-        <Button
-          outline
-          disabled={refine.isPending || !message.trim()}
-          onClick={() => void ask()}
-        >
-          {refine.isPending ? "Yanıtlıyor…" : "Gönder"}
-        </Button>
+      {/* AI düzeltme composer'ı — sohbet dili: markalı hap girişi + öneri
+          chip'leri (chip metni doldurur, kullanıcı sayıyı/tarihi düzeltip yollar). */}
+      <div className="rounded-xl border border-brand-100 bg-white p-3">
+        <p className="text-xs font-medium text-zinc-500">
+          Taslakta bir şeyi değiştirmek mi istiyorsunuz? Yazın, AI formu
+          güncellesin:
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[
+            "Vadeyi 60 gün yap",
+            "Kapanışı 1 hafta uzat",
+            "Para birimini USD yap",
+          ].map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={refine.isPending}
+              onClick={() => {
+                setMessage(s);
+                inputRef.current?.focus();
+              }}
+              className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2 rounded-full border border-brand-200 bg-white py-1 pl-3 pr-1.5 transition-shadow focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/20">
+          <Sparkles className="h-4 w-4 shrink-0 text-brand-600" />
+          <input
+            ref={inputRef}
+            value={message}
+            disabled={refine.isPending}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Örn. vadeyi 60 gün yap, kapanışı 15 Ağustos'a al…"
+            className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder:text-zinc-400"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void ask();
+              }
+            }}
+          />
+          <button
+            type="button"
+            aria-label="AI'ya gönder"
+            disabled={refine.isPending || !message.trim()}
+            onClick={() => void ask()}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition-colors hover:bg-brand-700 disabled:bg-zinc-200 disabled:text-zinc-400"
+          >
+            {refine.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUp className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
