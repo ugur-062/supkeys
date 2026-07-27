@@ -20,7 +20,7 @@ function TileOption({
   value: string;
   icon: typeof Info;
   title: string;
-  desc: string;
+  desc?: string;
   badge?: string;
 }) {
   return (
@@ -51,9 +51,11 @@ function TileOption({
             </span>
           ) : null}
         </span>
-        <span className="mt-1.5 block text-sm leading-relaxed text-zinc-500">
-          {desc}
-        </span>
+        {desc ? (
+          <span className="mt-1.5 block text-sm leading-relaxed text-zinc-500">
+            {desc}
+          </span>
+        ) : null}
       </span>
     </Radio>
   );
@@ -148,26 +150,8 @@ export function Step0TypeScope() {
               title="Kapsam"
               hint="Teslim şekli seçenekleri kapsama göre uyarlanır."
             >
-              <TileOption
-                value="dom"
-                icon={MapPin}
-                title="Yurtiçi"
-                desc={
-                  isSatis
-                    ? "Yurtiçi satış. Yurtiçi teslim şekilleri (depodan teslim, adrese teslim)."
-                    : "Yurtiçi tedarik. Yurtiçi teslim şekilleri (fabrika/depo teslim, adrese teslim)."
-                }
-              />
-              <TileOption
-                value="intl"
-                icon={Globe}
-                title="Uluslararası"
-                desc={
-                  isSatis
-                    ? "Sınır ötesi satış. Incoterms 2020 teslim şekilleri (FOB, CIF, DDP…)."
-                    : "Sınır ötesi tedarik. Incoterms 2020 teslim şekilleri (FOB, CIF, DDP…)."
-                }
-              />
+              <TileOption value="dom" icon={MapPin} title="Yurtiçi" />
+              <TileOption value="intl" icon={Globe} title="Uluslararası" />
             </StepGroup>
           </RadioGroup>
         )}
