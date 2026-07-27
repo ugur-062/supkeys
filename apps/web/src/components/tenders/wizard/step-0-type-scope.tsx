@@ -161,9 +161,16 @@ export function Step0TypeScope() {
         /* Ülke hedefleme KALDIRILDI (ürün kararı 2026-07-27): uluslararası
            ihale TÜM yabancı ülkelerdeki firmalara açıktır (backend'de boş
            targetCountries zaten "tümü" demek; alan formda [] kalır). */
-        <p className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-          Uluslararası ihaleniz, {isSatis ? "yurt dışındaki tüm alıcılara" : "yurt dışındaki tüm tedarikçilere"} açık olur.
-        </p>
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Uluslararası ihaleniz{" "}
+            {isSatis ? "yurt dışındaki tüm alıcılara" : "yurt dışındaki tüm tedarikçilere"}{" "}
+            açık olur; <strong>kendi ülkenizdeki firmalara görünmez</strong>.
+            Yurtiçinden de teklif almak istiyorsanız ayrı bir yurtiçi ihale
+            açabilirsiniz. (Doğrudan davet ettiğiniz firmalar her durumda görür.)
+          </p>
+        </div>
       ) : null}
     </div>
   );
