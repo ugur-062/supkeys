@@ -18,7 +18,8 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Lock, X } from "lucide-react";
+import { companyApi } from "@/lib/company-auth/api";
+import { ExternalLink, Loader2, Lock, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -68,6 +69,39 @@ export function PublicProfileForm() {
   const set = (patch: Partial<typeof form>) =>
     setForm((f) => ({ ...f, ...patch }));
 
+  // "Web sitemden AI ile doldur" — taslak döner, forma UYGULANIR (kaydetmez;
+  // kullanıcı gözden geçirip Kaydet'e basar). BRONZ+ (backend kapısı).
+  const [enriching, setEnriching] = useState(false);
+  const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
+  const enrichFromWebsite = async () => {
+    if (enriching) return;
+    setEnriching(true);
+    try {
+      const { data } = await companyApi.post<{
+        aboutText: string;
+        services: string[];
+        city: string | null;
+        foundedYear: number | null;
+        linkedinUrl: string | null;
+        instagramUrl: string | null;
+        logoCandidateUrl: string | null;
+      }>("/company/ai/profile-enrich", {}, { timeout: 90_000 });
+      set({
+        aboutText: data.aboutText,
+        ...(data.services.length > 0 ? { services: data.services } : {}),
+        ...(data.foundedYear ? { foundedYear: String(data.foundedYear) } : {}),
+        ...(data.linkedinUrl ? { linkedinUrl: data.linkedinUrl } : {}),
+        ...(data.instagramUrl ? { instagramUrl: data.instagramUrl } : {}),
+      });
+      setLogoCandidate(data.logoCandidateUrl);
+      toast.success("Profil taslağı hazır — kontrol edip Kaydet'e basın");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "AI profil oluşturamadı — web sitenizi kontrol edin"));
+    } finally {
+      setEnriching(false);
+    }
+  };
+
   const handleSave = async () => {
     const { foundedYear, linkedinUrl, instagramUrl, ...rest } = form;
     // Güvenlik (defense-in-depth): javascript:/data: gibi URL'leri KAYDETME;
@@ -112,6 +146,17 @@ export function PublicProfileForm() {
 
   return (
     <div className="space-y-6">
+      {logoCandidate && !form.logoUrl ? (
+        <div className="flex items-center gap-3 rounded-xl border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm text-zinc-700">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoCandidate} alt="Sitenizde bulunan görsel" className="h-10 w-10 rounded object-contain bg-white ring-1 ring-zinc-200" />
+          <span>
+            Sitenizde bir logo/görsel bulduk — beğendiyseniz indirip aşağıdan
+            logo olarak yükleyebilirsiniz.
+          </span>
+        </div>
+      ) : null}
+
       {/* Üst başlık + görüntüle */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -120,6 +165,17 @@ export function PublicProfileForm() {
             Bu bilgiler firma profilinde ve Google&apos;da görünür.
           </Text>
         </div>
+        <div className="flex items-center gap-2">
+          {canEdit ? (
+            <Button outline onClick={enrichFromWebsite} disabled={enriching}>
+              {enriching ? (
+                <Loader2 data-slot="icon" className="animate-spin" />
+              ) : (
+                <Sparkles data-slot="icon" />
+              )}
+              {enriching ? "Siteniz okunuyor…" : "Web sitemden AI ile doldur"}
+            </Button>
+          ) : null}
         {form.publicEnabled && profile.slug ? (
           <a
             href={`/firma/${profile.slug}`}
@@ -131,6 +187,7 @@ export function PublicProfileForm() {
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         ) : null}
+        </div>
       </div>
 
       {/* Yayın anahtarı */}

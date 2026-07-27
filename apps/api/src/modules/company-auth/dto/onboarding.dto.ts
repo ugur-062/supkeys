@@ -46,6 +46,16 @@ export class CompleteOnboardingDto {
   @MaxLength(60)
   taxOffice?: string;
 
+  /**
+   * Firma web sitesi — STANDART'ta OPSİYONEL; ücretli paketlerde zorunlu
+   * (Rothern profili + AI zenginleştirme bu siteden beslenir). Zorunluluk
+   * paket akışında/profil oluşturmada uygulanır, onboarding'de dayatılmaz.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  website?: string;
+
   // Fatura adresi
   @IsString()
   @Length(2, 80)

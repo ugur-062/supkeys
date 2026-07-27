@@ -130,11 +130,25 @@ export default async function PublicCompanyProfile({
     ...(sameAs.length ? { sameAs } : {}),
   };
 
+  // GEO/SEO — breadcrumb şeması (arama sonuçlarında yol gösterimi).
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Rothern", item: siteUrl() },
+      { "@type": "ListItem", position: 2, name: p.name, item: url },
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-zinc-50">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbLd) }}
       />
 
       {/* Marka çubuğu — açık */}

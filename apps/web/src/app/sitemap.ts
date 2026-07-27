@@ -44,6 +44,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1.0,
     },
+    // Kurumsal/yasal sayfalar — güven sinyali + marka aramaları için indekste.
+    ...[
+      "/hakkimizda",
+      "/iletisim",
+      "/sozlesmeler/kullanici",
+      "/sozlesmeler/aracilik",
+      "/sozlesmeler/gizlilik",
+      "/sozlesmeler/kvkk",
+      "/sozlesmeler/mesafeli-satis",
+      "/sozlesmeler/iade",
+    ].map((path) => ({
+      url: `${siteUrl}${path}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    })),
   ];
 
   const companyRoutes: MetadataRoute.Sitemap = entries

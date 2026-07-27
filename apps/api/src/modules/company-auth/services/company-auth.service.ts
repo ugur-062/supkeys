@@ -434,6 +434,7 @@ export class CompanyAuthService {
           country,
           taxNumber: dto.taxNumber.trim(),
           taxOffice: dto.taxOffice?.trim() || null,
+          website: normalizeWebsite(dto.website),
           city: dto.city.trim(),
           district: dto.district?.trim() || null,
           stateRegion: dto.stateRegion?.trim() || null,
@@ -1405,4 +1406,12 @@ export class CompanyAuthService {
       },
     };
   }
+}
+
+
+/** Web sitesi normalizasyonu: boş → null; şemasızsa https:// öne eklenir. */
+function normalizeWebsite(raw?: string): string | null {
+  const w = (raw ?? "").trim();
+  if (!w) return null;
+  return /^https?:\/\//i.test(w) ? w.slice(0, 200) : `https://${w}`.slice(0, 200);
 }
