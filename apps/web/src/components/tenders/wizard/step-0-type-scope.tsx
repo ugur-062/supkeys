@@ -1,124 +1,14 @@
 "use client";
 
-import { useCompanyAuth } from "@/hooks/use-company-auth";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { COUNTRIES } from "@rothern/shared";
 import { Check, FileText, Gavel, Globe, Info, MapPin, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 
 /** Sınır ötesi hedef ülke seçici (çoklu). Boş = tüm yabancı ülkeler.
  *  Firmanın kendi ülkesi seçilemez (yurtiçi tedarikçiler zaten görür). */
-function TargetCountryPicker({
-  value,
-  onChange,
-  excludeCode,
-  rolPl = "tedarikçiler",
-}: {
-  value: string[];
-  onChange: (next: string[]) => void;
-  excludeCode?: string;
-  /** Karşı taraf çoğul adı — ALIM'da tedarikçiler, SATIS'ta alıcılar. */
-  rolPl?: string;
-}) {
-  const [query, setQuery] = useState("");
-  const selectable = useMemo(
-    () => COUNTRIES.filter((c) => c.code !== excludeCode),
-    [excludeCode],
-  );
-  const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase("tr");
-    return selectable.filter(
-      (c) =>
-        !q ||
-        c.name.toLocaleLowerCase("tr").includes(q) ||
-        c.code.toLowerCase().includes(q),
-    );
-  }, [query, selectable]);
-  const toggle = (code: string) =>
-    onChange(
-      value.includes(code)
-        ? value.filter((c) => c !== code)
-        : [...value, code],
-    );
-  const nameOf = (code: string) =>
-    COUNTRIES.find((c) => c.code === code)?.name ?? code;
-
-  return (
-    <div className="mt-5 rounded-2xl border border-zinc-950/10 bg-white p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-zinc-900">
-          Hedef Ülkeler
-        </h3>
-        <span className="text-xs font-medium text-zinc-500">
-          {value.length === 0
-            ? "Tüm ülkeler (sınırlama yok)"
-            : `${value.length} ülke seçili`}
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-zinc-500">
-        İhalenin açılacağı ülkeleri seçin. Boş bırakırsanız{" "}
-        <strong>tüm yabancı ülkelerdeki</strong> {rolPl === "alıcılar" ? "alıcılara" : "tedarikçilere"} açılır.
-        Uluslararası ihale olduğu için <strong>yurtiçi {rolPl} görmez</strong>.
-      </p>
-
-      {value.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {value.map((code) => (
-            <span
-              key={code}
-              className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700"
-            >
-              {nameOf(code)}
-              <button
-                type="button"
-                onClick={() => toggle(code)}
-                aria-label={`${nameOf(code)} ülkesini kaldır`}
-                className="text-brand-400 hover:text-brand-700"
-              >
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Ülke ara…"
-        aria-label="Hedef ülke ara"
-        className="mt-3 w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-      />
-      <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-zinc-100">
-        {filtered.map((c) => {
-          const checked = value.includes(c.code);
-          return (
-            <label
-              key={c.code}
-              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-zinc-50"
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggle(c.code)}
-                className="h-4 w-4 rounded border-zinc-300"
-              />
-              <span className="text-zinc-700">{c.name}</span>
-              <span className="ml-auto text-xs text-zinc-400">{c.code}</span>
-            </label>
-          );
-        })}
-        {filtered.length === 0 ? (
-          <div className="px-3 py-3 text-sm text-zinc-400">Sonuç yok</div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 /** Büyük, tam tıklanabilir seçim kutucuğu (İhale Türü + Kapsam). */
 function TileOption({
   value,
@@ -198,7 +88,6 @@ export function Step0TypeScope() {
   // teklif toplama (en yüksek kazanır), pazarlık = canlı AÇIK ARTIRMA.
   const isSatis = watch("listingType") === "SATIS";
   const isAuction = watch("type") === "ENGLISH_AUCTION";
-  const { company } = useCompanyAuth();
 
   return (
     <div className="space-y-12">
@@ -285,18 +174,12 @@ export function Step0TypeScope() {
       />
 
       {isInternational ? (
-        <Controller
-          control={control}
-          name="targetCountries"
-          render={({ field }) => (
-            <TargetCountryPicker
-              value={field.value ?? []}
-              onChange={field.onChange}
-              excludeCode={company?.country}
-              rolPl={isSatis ? "alıcılar" : "tedarikçiler"}
-            />
-          )}
-        />
+        /* Ülke hedefleme KALDIRILDI (ürün kararı 2026-07-27): uluslararası
+           ihale TÜM yabancı ülkelerdeki firmalara açıktır (backend'de boş
+           targetCountries zaten "tümü" demek; alan formda [] kalır). */
+        <p className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+          Uluslararası ihaleniz, {isSatis ? "yurt dışındaki tüm alıcılara" : "yurt dışındaki tüm tedarikçilere"} açık olur.
+        </p>
       ) : null}
     </div>
   );

@@ -408,7 +408,7 @@ export type TenderFormData = z.infer<typeof tenderFormSchema>;
 
 export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
   // Faz 1 — yalnızca tür + kapsam
-  1: ["type", "isInternational", "targetCountries"],
+  1: ["type", "isInternational"],
   // Faz 2 — kalemler + SATIS fiyatlandırma kapsamı (TOPLU/KALEM; kalem-bazlı
   // fiyat girişleri kalem satırlarında olduğundan kapsam kararı bu adımda).
   2: ["items", "priceScope"],
