@@ -57,6 +57,8 @@ export const TOOL_NAMES = {
    */
   requestSendInvites: "request_send_invites",
   requestPublishTender: "request_publish_tender",
+  requestEliminateBid: "request_eliminate_bid",
+  requestAwardTender: "request_award_tender",
 } as const;
 
 /** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). */
@@ -212,6 +214,37 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
           },
         },
         required: ["type", "rothernIds"],
+      },
+    });
+  }
+  if (portals.size > 0) {
+    // Faz 2 — ihale sahibi tarafı: eleme (normal) + toplu kazandırma (kritik).
+    defs.push({
+      name: TOOL_NAMES.requestEliminateBid,
+      description:
+        "Kullanıcı kendi ihalesindeki bir teklifi ELEMEK istediğinde çağır. Yürütmez: onay kartı çıkarır. bidId'yi get_tender_detail sonucundan al; kullanıcı tedarikçi adıyla söylediyse önce detaydan eşleştir. Elenen tedarikçi yeniden teklif verebilir.",
+      parameters: {
+        type: "object",
+        properties: {
+          listingId: { type: "string" },
+          bidId: { type: "string" },
+          reason: { type: "string", description: "Opsiyonel eleme gerekçesi (tedarikçi görür)" },
+        },
+        required: ["listingId", "bidId"],
+      },
+    });
+    defs.push({
+      name: TOOL_NAMES.requestAwardTender,
+      description:
+        "Kullanıcı kendi ihalesini bir teklife (TOPLU — tüm kalemler tek tedarikçi) KAZANDIRMAK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: kritik onay kartı çıkarır; işlem GERİ ALINAMAZ (sipariş oluşur). KARARI SEN VERME: hangi teklifin kazanacağını kullanıcı söyler; sen ancak istenirse teklifleri karşılaştırıp bilgi verirsin. Kalem-bazlı (her kaleme ayrı tedarikçi) kazandırma için ihale sayfasına yönlendir.",
+      parameters: {
+        type: "object",
+        properties: {
+          listingId: { type: "string" },
+          bidId: { type: "string" },
+          note: { type: "string", description: "Opsiyonel not (onay akışı varsa onaycılara iletilir)" },
+        },
+        required: ["listingId", "bidId"],
       },
     });
   }

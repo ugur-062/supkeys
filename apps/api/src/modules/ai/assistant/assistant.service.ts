@@ -234,18 +234,13 @@ export class AssistantService {
             continue;
           }
           // AI-4: aksiyon önerisi — YÜRÜTMEZ; doğrulanmış onay kartı üretir.
-          if (
-            call.name === TOOL_NAMES.requestSendInvites ||
-            call.name === TOOL_NAMES.requestPublishTender
-          ) {
-            const outcome =
-              call.name === TOOL_NAMES.requestSendInvites
-                ? await this.actions
-                    .proposeSendInvites(user, session.id, call.args)
-                    .catch(() => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }))
-                : await this.actions
-                    .proposePublishTender(user, session.id, call.args)
-                    .catch(() => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }));
+          // Tembel eşleme: metod referansı ÇAĞRI ANINDA çözülür (map kurarken
+          // .bind patlaması olmasın — test stub'ları kısmi olabilir).
+          const proposeFn = this.resolveProposeFn(call.name);
+          if (proposeFn) {
+            const outcome = await proposeFn(user, session.id, call.args).catch(
+              () => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }),
+            );
             if (outcome.ok && outcome.pending) pendingAction = outcome.pending;
             responseParts.push({
               functionResponse: {
@@ -372,6 +367,30 @@ export class AssistantService {
       // AI-4: onay bekleyen aksiyon — frontend onay kartı çizer.
       ...(pendingAction ? { pendingAction } : {}),
     };
+  }
+
+  /** AI-4: araç adı → aksiyon önerici (yoksa null → normal araç akışı). */
+  private resolveProposeFn(
+    name: string,
+  ):
+    | ((
+        u: AuthenticatedCompanyUser,
+        sessionId: string,
+        args: Record<string, unknown>,
+      ) => ReturnType<AssistantActionsService["proposeSendInvites"]>)
+    | null {
+    switch (name) {
+      case TOOL_NAMES.requestSendInvites:
+        return (u, s, a) => this.actions.proposeSendInvites(u, s, a);
+      case TOOL_NAMES.requestPublishTender:
+        return (u, s, a) => this.actions.proposePublishTender(u, s, a);
+      case TOOL_NAMES.requestEliminateBid:
+        return (u, s, a) => this.actions.proposeEliminateBid(u, s, a);
+      case TOOL_NAMES.requestAwardTender:
+        return (u, s, a) => this.actions.proposeAwardTender(u, s, a);
+      default:
+        return null;
+    }
   }
 
   /** Oturumdaki ham taslak JSON'unu AiTenderExtractResult'a diriltir. */

@@ -30,7 +30,11 @@ import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 
 const ACTION_TTL_MS = 10 * 60 * 1000; // onay kartı 10 dk geçerli
 
-export type PendingActionType = "send_invites" | "publish_tender";
+export type PendingActionType =
+  | "send_invites"
+  | "publish_tender"
+  | "eliminate_bid"
+  | "award_tender";
 
 interface StoredPendingAction {
   id: string;
@@ -172,6 +176,105 @@ export class AssistantActionsService {
     });
   }
 
+  /**
+   * Teklif ELEME önerisi (Faz 2). Eleme kalıcı-yıkıcı değildir: elenen
+   * tedarikçi yeniden teklif verebilir — severity normal; yine de dışa dönük
+   * (bildirim gider), o yüzden onay kartından geçer.
+   */
+  async proposeEliminateBid(
+    user: AuthenticatedCompanyUser,
+    sessionId: string,
+    args: Record<string, unknown>,
+  ): Promise<ProposeOutcome> {
+    const ref = await this.loadOwnedBid(user, args);
+    if (typeof ref === "string") return { ok: false, problem: ref };
+    const reason = typeof args.reason === "string" ? args.reason.slice(0, 500) : undefined;
+    if (ref.bid.status !== "SUBMITTED") {
+      return { ok: false, problem: "Yalnız gönderilmiş (aktif) teklif elenebilir." };
+    }
+    return this.storePending(user, sessionId, {
+      type: "eliminate_bid",
+      severity: "normal",
+      params: { listingId: ref.listing.id, bidId: ref.bid.id, reason },
+      summary: [
+        `İhale: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
+        `Elenecek teklif: ${ref.supplierName} — ${ref.bid.amount} ${ref.bid.currency}`,
+        ...(reason ? [`Gerekçe: ${reason}`] : []),
+        "Tedarikçiye eleme bildirimi gider; dilerse yeniden teklif verebilir.",
+      ],
+    });
+  }
+
+  /**
+   * TOPLU kazandırma önerisi (Faz 2 — kritik, GERİ ALINAMAZ). Kalem-bazlı
+   * kazandırma kapsam dışı (sayfaya yönlendirilir). Onay akışı devredeyse
+   * kullanıcı onayından SONRA şirket onay zinciri de aynen çalışır.
+   */
+  async proposeAwardTender(
+    user: AuthenticatedCompanyUser,
+    sessionId: string,
+    args: Record<string, unknown>,
+  ): Promise<ProposeOutcome> {
+    const ref = await this.loadOwnedBid(user, args);
+    if (typeof ref === "string") return { ok: false, problem: ref };
+    if (!["OPEN", "IN_AWARD", "CLOSED"].includes(ref.listing.status)) {
+      return { ok: false, problem: "Bu ihale kazandırmaya uygun durumda değil." };
+    }
+    if (!["SUBMITTED"].includes(ref.bid.status)) {
+      return { ok: false, problem: "Yalnız gönderilmiş (aktif) bir teklif kazandırılabilir." };
+    }
+    const note = typeof args.note === "string" ? args.note.slice(0, 1000) : undefined;
+    return this.storePending(user, sessionId, {
+      type: "award_tender",
+      severity: "critical",
+      params: { listingId: ref.listing.id, bidId: ref.bid.id, note },
+      summary: [
+        `İhale KAZANDIRILACAK: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
+        `Kazanan: ${ref.supplierName} — ${ref.bid.amount} ${ref.bid.currency} (tüm kalemler)`,
+        "Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder, sipariş oluşturulur.",
+        "Firmanızda onay akışı tanımlıysa işlem önce şirket onayına düşer.",
+      ],
+    });
+  }
+
+  /** İhale + teklif referansını SAHİPLİK doğrulamasıyla yükler (özet verisiyle). */
+  private async loadOwnedBid(
+    user: AuthenticatedCompanyUser,
+    args: Record<string, unknown>,
+  ): Promise<
+    | {
+        listing: { id: string; title: string; number: string | null; status: string };
+        bid: { id: string; amount: unknown; currency: string; status: string };
+        supplierName: string;
+      }
+    | string
+  > {
+    const listingId = String(args.listingId ?? "").trim();
+    const bidId = String(args.bidId ?? "").trim();
+    if (!listingId || !bidId) return "İhale id ve teklif id gerekli.";
+    const listing = await this.prisma.listing.findFirst({
+      where: { id: listingId, companyId: user.companyId },
+      select: { id: true, title: true, number: true, status: true },
+    });
+    if (!listing) return "Bu id ile firmanıza ait bir ihale bulunamadı.";
+    const bid = await this.prisma.listingBid.findFirst({
+      where: { id: bidId, listingId },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        status: true,
+        bidderCompany: { select: { name: true } },
+      },
+    });
+    if (!bid) return "Bu ihalede böyle bir teklif bulunamadı.";
+    return {
+      listing,
+      bid: { id: bid.id, amount: bid.amount, currency: bid.currency, status: bid.status },
+      supplierName: bid.bidderCompany?.name ?? "-",
+    };
+  }
+
   /** Kodları YALNIZ aktif-bağlantılı firmalara çözer (ad + kod, özet için). */
   private async connectedCompaniesByCode(companyId: string, codes: string[]) {
     const targets = await this.prisma.company.findMany({
@@ -279,6 +382,25 @@ export class AssistantActionsService {
           await this.listings.addInvitations(user, p.listingId, p.rothernIds);
           message = "Davetler gönderildi (yalnız bağlantılı firmalara).";
           resourceId = p.listingId;
+          break;
+        }
+        case "eliminate_bid": {
+          const p = action.params as { listingId: string; bidId: string; reason?: string };
+          await this.listings.eliminate(user, p.listingId, p.bidId, p.reason);
+          message = "Teklif elendi — tedarikçiye bildirim gönderildi.";
+          resourceId = p.listingId;
+          break;
+        }
+        case "award_tender": {
+          const p = action.params as { listingId: string; bidId: string; note?: string };
+          const r = (await this.listings.award(user, p.listingId, p.bidId, p.note)) as {
+            orderId?: string;
+            approvalPending?: boolean;
+          };
+          resourceId = r?.orderId ?? p.listingId;
+          message = r?.orderId
+            ? "Kazandırma tamamlandı — sipariş oluşturuldu."
+            : "Kazandırma başlatıldı — firmanızın onay akışına iletildi.";
           break;
         }
         case "publish_tender": {

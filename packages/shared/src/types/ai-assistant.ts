@@ -54,7 +54,7 @@ export interface AiAssistantReply {
 /** Onay bekleyen asistan aksiyonu — tek seferlik ve süreli. */
 export interface AiPendingAction {
   id: string;
-  type: "send_invites" | "publish_tender";
+  type: "send_invites" | "publish_tender" | "eliminate_bid" | "award_tender";
   /** normal = tek tık; critical = vurgulu uyarı (bağlayıcı/geri alınamaz). */
   severity: "normal" | "critical";
   /** Backend'in ürettiği doğrulanmış özet satırları (model metni DEĞİL). */
