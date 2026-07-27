@@ -17,7 +17,7 @@ import {
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
-import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
+import { hasCompanyPermission, hasManagementRole } from "../company-auth/permissions/company-permissions.constants";
 import {
   CompanyReportsService,
   type BidComparisonInput,
@@ -38,6 +38,10 @@ function parseType(type?: string): ListingType {
 }
 
 function assertTypeAllowed(user: AuthenticatedCompanyUser, type: ListingType) {
+  // Gözetim muafiyeti (ürün kararı 2026-07-27): Kurucu ve Yönetici, işlem
+  // rolü taşımasa da raporları görebilir — raporlar SALT-OKUNUR yönetim
+  // çıktısıdır (kapalı-zarf/işlem yetkisi gerektiren bir eylem içermez).
+  if (user.isOwner || hasManagementRole(user.roles)) return;
   const needed = type === "ALIM" ? "buy:bid:review" : "sell:listing:manage";
   if (
     !hasCompanyPermission(

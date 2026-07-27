@@ -1,6 +1,7 @@
 "use client";
 
 import { RothernLogo } from "@/components/brand/logo";
+import { OPERATOR } from "@/lib/company-info";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import {
   Disclosure,
@@ -140,11 +141,13 @@ const footerNav = {
     { name: "Kaydol", href: "/company/kayit" },
   ],
   yasal: [
+    { name: "Hakkımızda", href: "/hakkimizda" },
     { name: "Kullanıcı Sözleşmesi", href: "/sozlesmeler/kullanici" },
     { name: "Aracılık Sözleşmesi", href: "/sozlesmeler/aracilik" },
+    { name: "Gizlilik Politikası", href: "/sozlesmeler/gizlilik" },
     { name: "KVKK Aydınlatma Metni", href: "/sozlesmeler/kvkk" },
     { name: "Mesafeli Satış Sözleşmesi", href: "/sozlesmeler/mesafeli-satis" },
-    { name: "İptal ve İade Koşulları", href: "/sozlesmeler/iade" },
+    { name: "Teslimat, İptal ve İade", href: "/sozlesmeler/iade" },
     { name: "İletişim ve Künye", href: "/iletisim" },
   ],
 };
@@ -1457,10 +1460,19 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div className="mt-16 border-t border-white/10 pt-8">
+          <div className="mt-16 flex flex-col gap-4 border-t border-white/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm/6 text-zinc-400">
-              © 2026 Rothern · B2B ticaret platformu
+              © 2026 Rothern · B2B ticaret platformu ·{" "}
+              {OPERATOR.legalName}
             </p>
+            {/* iyzico ile Öde bandı — Visa/Mastercard/Troy logoları dahil
+                (iyzico resmi logo paketi; ödeme sayfası isterleri). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/iyzico/logo_band_white.svg"
+              alt="iyzico ile Öde — Visa, Mastercard, Troy ile güvenli ödeme"
+              className="h-7 w-auto"
+            />
           </div>
         </div>
       </footer>

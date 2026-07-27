@@ -93,17 +93,26 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // EFEKTİF tier — INV-TIER-1 TEK KAYNAK (effectiveTier): üyelik süresi
     // geçmişse istek boyunca STANDARD, 03:00 cron'unu BEKLEMEZ. Kalıcı downgrade
     // + davet iptali + e-posta scheduler'ın işi (boot catch-up dahil).
+    // SAHİPLİK NORMALİZASYONU (tek kaynak: company.ownerUserId): eski/tutarsız
+    // veride firma sahibi SAHIP etiketini taşımayabiliyordu (rol dizisi ayrı
+    // yazılmış) — bu, portal erişimi/rol düzenleme/etiketleri sessizce
+    // kırıyordu. Sahipse SAHIP etiketi HER ZAMAN efektif rollerde bulunur.
+    const isOwner = user.company.ownerUserId === user.id;
+    const effectiveRoles =
+      isOwner && !user.roles.includes("SAHIP")
+        ? (["SAHIP", ...user.roles] as typeof user.roles)
+        : user.roles;
     return {
       userId: user.id,
       companyId: user.companyId,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      roles: user.roles,
+      roles: effectiveRoles,
       tier: effectiveTier(user.company.tier, user.company.membershipEndAt),
       companyVerificationStatus: user.company.companyVerificationStatus,
       country: user.company.country,
-      isOwner: user.company.ownerUserId === user.id,
+      isOwner,
       permissionsOverride:
         (user.permissionsOverride as CompanyPermissionOverride | null) ?? null,
     };

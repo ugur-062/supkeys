@@ -422,7 +422,17 @@ export class CompanyUsersService {
       where: { id: actor.companyId },
       select: { ownerUserId: true },
     });
-    const roles = dto.roles as CompanyRole[];
+    // Sahiplik normalizasyonu: hedef firma SAHİBİYSE gelen kümede SAHIP
+    // etiketi eksik olsa bile OTOMATİK korunur (eski istemci/tutarsız veri
+    // "kuruculuğu bırakıyorsun" reddine dönüşmesin). SAHIP'i bırakmanın tek
+    // yolu DEVİR akışıdır (resolveOwnership).
+    let roles = dto.roles as CompanyRole[];
+    if (
+      company?.ownerUserId === targetId &&
+      !roles.includes(CompanyRole.SAHIP)
+    ) {
+      roles = [CompanyRole.SAHIP, ...roles];
+    }
     this.assertValidRoleCombo(roles);
     // #8 — mevcut admin hedefini yalnız admin düşürebilir. (Faz R: grant-kapısından
     // ÖNCE koşar — admin-hedef denial'ı kendi audit iziyle [not_admin] düşsün.)
@@ -511,7 +521,15 @@ export class CompanyUsersService {
       where: { id: actor.companyId },
       select: { ownerUserId: true },
     });
-    const roles = dto.roles as CompanyRole[] | undefined;
+    let roles = dto.roles as CompanyRole[] | undefined;
+    if (
+      roles &&
+      company?.ownerUserId === targetId &&
+      !roles.includes(CompanyRole.SAHIP)
+    ) {
+      // Sahiplik normalizasyonu — bkz. updateRoles.
+      roles = [CompanyRole.SAHIP, ...roles];
+    }
     if (roles) {
       this.assertValidRoleCombo(roles);
       // #8 — mevcut admin hedefini yalnız admin düşürebilir (updateRoles ile

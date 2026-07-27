@@ -274,3 +274,44 @@ describe("Faz Y — addresses:manage izin yüzeyi", () => {
     ).toBe(false);
   });
 });
+
+describe("Sahiplik normalizasyonu — SAHIP etiketi tek kaynaktan (ownerUserId)", () => {
+  it("kurucu kendine SA eklerken SAHIP'i göndermese de etiket KORUNUR (devret hatası yok)", async () => {
+    const users = makeUsersService();
+    const co = await makeCompanyWithUser(prisma);
+    // Tutarsız eski veri simülasyonu: sahip ama SAHIP etiketi yok.
+    await prisma.companyUser.update({
+      where: { id: co.user.id },
+      data: { roles: [CompanyRole.SATIN_ALMACI] },
+    });
+
+    await users.updateRoles(co.auth, co.user.id, {
+      roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI],
+    } as never);
+
+    const after = await prisma.companyUser.findUnique({
+      where: { id: co.user.id },
+      select: { roles: true },
+    });
+    expect(after?.roles).toEqual(
+      expect.arrayContaining(["SAHIP", "SATIN_ALMACI", "SATISCI"]),
+    );
+  });
+
+  it("devir akışı normalizasyondan ETKİLENMEZ: hedef başkası + SAHIP → devir çalışır", async () => {
+    const users = makeUsersService();
+    const co = await makeCompanyWithUser(prisma);
+    const other = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+
+    await users.updateRoles(co.auth, other.id, {
+      roles: [CompanyRole.SAHIP],
+      previousOwnerRoles: [CompanyRole.YONETICI],
+    } as never);
+
+    const company = await prisma.company.findUnique({
+      where: { id: co.company.id },
+      select: { ownerUserId: true },
+    });
+    expect(company?.ownerUserId).toBe(other.id);
+  });
+});

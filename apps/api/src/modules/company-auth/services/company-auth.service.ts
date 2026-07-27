@@ -1341,8 +1341,15 @@ export class CompanyAuthService {
     // katalogdan çıktı ama SA/ST rolü taşıyanın /me'sinde görünmeye devam etmeli.
     const override =
       (user.permissionsOverride as CompanyPermissionOverride | null) ?? null;
+    // Sahiplik normalizasyonu (strategy ile aynı kural): sahibin efektif rol
+    // kümesi HER ZAMAN SAHIP etiketini içerir — eski/tutarsız veri UI'da
+    // portal/rol ekranlarını kırmasın.
+    const roles =
+      isOwner && !user.roles.includes("SAHIP")
+        ? (["SAHIP", ...user.roles] as typeof user.roles)
+        : user.roles;
     const permissions = ALL_KNOWN_PERMISSIONS.filter((p) =>
-      hasCompanyPermission(user.roles, isOwner, p, override),
+      hasCompanyPermission(roles, isOwner, p, override),
     );
     return {
       id: user.id,
@@ -1350,7 +1357,7 @@ export class CompanyAuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       phone: user.phone,
-      roles: user.roles,
+      roles,
       isOwner,
       permissions,
       twoFactorEnabled: user.twoFactorEnabled,

@@ -15,6 +15,7 @@
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "cleanup-categories": "tsx prisma/scripts/cleanup-categories.ts",
     "apply-category-keywords": "tsx prisma/scripts/apply-category-keywords.ts",
+    "repair-owner-labels": "tsx prisma/scripts/repair-owner-labels.ts",
     "format": "prisma format",
     "typecheck": "tsc --noEmit"
   },
