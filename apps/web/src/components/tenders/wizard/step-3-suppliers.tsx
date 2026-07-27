@@ -29,6 +29,7 @@ import {
   CheckSquare,
   Info,
   LayoutTemplate,
+  Sparkles,
   Save,
   Search,
   Trash2,
@@ -39,6 +40,7 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
 
@@ -209,6 +211,8 @@ export function Step3Suppliers() {
   const RoleWord = isSatis ? "Alıcı" : "Tedarikçi";
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const wizCategoryIds = useWatch({ control, name: "categoryIds" }) ?? [];
   const [saveOpen, setSaveOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -385,6 +389,10 @@ export function Step3Suppliers() {
               <Button onClick={() => setInviteOpen(true)}>
                 <UserPlus2 data-slot="icon" />
                 {`Yeni ${RoleWord} Davet Et`}
+              </Button>
+              <Button outline onClick={() => setDiscoveryOpen(true)}>
+                <Sparkles data-slot="icon" />
+                AI ile daha fazla eriş
               </Button>
               {isPublic && !showConnections ? (
                 <Button outline onClick={() => setShowConnections(true)}>
@@ -662,6 +670,12 @@ export function Step3Suppliers() {
               </p>
             </div>
 
+            <SupplierDiscoveryModal
+              isOpen={discoveryOpen}
+              onClose={() => setDiscoveryOpen(false)}
+              type={isSatis ? "SATIS" : "ALIM"}
+              categoryIds={wizCategoryIds}
+            />
             <InviteByEmailModal
               open={inviteOpen}
               onClose={() => setInviteOpen(false)}
