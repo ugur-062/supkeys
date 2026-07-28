@@ -119,12 +119,18 @@ describe("CompanyUsersSection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("kendisi olmayan üye için aksiyon menüsü butonu görünür", () => {
+  it("aksiyon menüsü kendi satırında da görünür; yıkıcı aksiyonlar kendine kapalı", async () => {
+    const user2 = userEvent.setup();
     render(<CompanyUsersSection canManage meId="owner" />);
-    // owner=me → menü yok; u1 (ada) me değil → menü var.
-    expect(
-      screen.getByRole("button", { name: "Aksiyonlar" }),
-    ).toBeInTheDocument();
+    // Her iki satırda da menü var — kurucu kendi rollerini (SA/ST koltuk)
+    // düzenleyebilmeli.
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    expect(menus).toHaveLength(2);
+    // Kendi satırında Düzenle var; Pasif Yap / Çıkar yok.
+    await user2.click(menus[0]);
+    expect(await screen.findByText("Düzenle")).toBeInTheDocument();
+    expect(screen.queryByText("Pasif Yap")).not.toBeInTheDocument();
+    expect(screen.queryByText("Çıkar")).not.toBeInTheDocument();
   });
 
   it("bekleyen davetler render edilir (canManage)", () => {

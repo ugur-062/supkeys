@@ -237,7 +237,7 @@ export function CompanyUsersSection({
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {canManage && !isMe ? (
+                      {canManage ? (
                         <Dropdown>
                           <DropdownButton plain aria-label="Aksiyonlar">
                             <MoreVertical className="h-4 w-4" />
@@ -247,7 +247,9 @@ export function CompanyUsersSection({
                               <Pencil data-slot="icon" />
                               <DropdownLabel>Düzenle</DropdownLabel>
                             </DropdownItem>
-                            {!u.isOwner ? (
+                            {/* Yıkıcı aksiyonlar kendine ve kurucuya kapalı —
+                                backend setActive/remove self-guard'larının aynası. */}
+                            {!u.isOwner && !isMe ? (
                               <DropdownItem onClick={() => handleToggleActive(u)}>
                                 {u.isActive ? (
                                   <>
@@ -262,7 +264,7 @@ export function CompanyUsersSection({
                                 )}
                               </DropdownItem>
                             ) : null}
-                            {!u.isOwner ? (
+                            {!u.isOwner && !isMe ? (
                               <>
                                 <DropdownDivider />
                                 <DropdownItem onClick={() => setDeleting(u)}>
