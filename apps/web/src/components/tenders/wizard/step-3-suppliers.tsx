@@ -231,10 +231,19 @@ export function Step3Suppliers() {
       );
       const current = new Set<string>(getValues("invitedSupplierIds") ?? []);
       let added = 0;
-      let skipped = 0;
+      // Atlama gerekçeleri AYRI raporlanır — "kodu yok" (veri sorunu,
+      // backfill-rothern-ids ile onarılır) ile "bağlantında yok" farklı şeyler;
+      // ikisini tek mesajda toplamak 2026-07-28 "0 davet" vakasında kullanıcıyı
+      // yanlış yönlendirmişti.
+      let noCode = 0;
+      let notConnected = 0;
       for (const m of tpl.members) {
-        if (!m.rothernId || !connectedRothern.has(m.rothernId)) {
-          skipped++;
+        if (!m.rothernId) {
+          noCode++;
+          continue;
+        }
+        if (!connectedRothern.has(m.rothernId)) {
+          notConnected++;
           continue;
         }
         if (!current.has(m.rothernId)) {
@@ -243,9 +252,18 @@ export function Step3Suppliers() {
         }
       }
       setValue("invitedSupplierIds", [...current], { shouldDirty: true });
-      toast.success(
-        `${added} firma eklendi${skipped > 0 ? ` · ${skipped} bağlantında yok, atlandı` : ""}`,
-      );
+      const parts = [
+        `${added} firma eklendi`,
+        ...(notConnected > 0 ? [`${notConnected} bağlantında yok, atlandı`] : []),
+        ...(noCode > 0
+          ? [`${noCode} firmanın Rothern kodu eksik — destek ile iletişime geçin`]
+          : []),
+      ];
+      if (added === 0 && (noCode > 0 || notConnected > 0)) {
+        toast.error(parts.join(" · "));
+      } else {
+        toast.success(parts.join(" · "));
+      }
       setTplOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Şablon uygulanamadı"));
