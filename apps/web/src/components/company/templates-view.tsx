@@ -29,8 +29,10 @@ import {
 } from "@/hooks/use-supplier-templates";
 import {
   useDeleteQuestionTemplate,
+  useQuestionTemplate,
   useQuestionTemplates,
   useSaveQuestionTemplate,
+  useUpdateQuestionTemplate,
 } from "@/hooks/use-templates";
 import type { AnswerTypeValue } from "@/lib/tenders/form-schema";
 import { ListSkeleton } from "@/components/list";
@@ -247,12 +249,32 @@ interface QuestionRow {
   required: boolean;
 }
 
-function QuestionTemplateDialog({ onClose }: { onClose: () => void }) {
+function QuestionTemplateDialog({
+  editId,
+  onClose,
+}: {
+  editId: string | null;
+  onClose: () => void;
+}) {
   const save = useSaveQuestionTemplate();
+  const update = useUpdateQuestionTemplate();
+  const existing = useQuestionTemplate(editId);
   const [name, setName] = useState("");
   const [rows, setRows] = useState<QuestionRow[]>([
     { text: "", answerType: "TEXT", required: false },
   ]);
+  // Düzenlemede mevcut set yüklenince formu doldur (bir kez — detay tekil).
+  useEffect(() => {
+    if (!existing.data) return;
+    setName(existing.data.name);
+    setRows(
+      existing.data.items.map((q) => ({
+        text: q.text,
+        answerType: q.answerType,
+        required: q.required,
+      })),
+    );
+  }, [existing.data]);
 
   const setRow = (i: number, patch: Partial<QuestionRow>) =>
     setRows((s) => s.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -267,16 +289,22 @@ function QuestionTemplateDialog({ onClose }: { onClose: () => void }) {
       toast.error("En az 1 soru girin");
       return;
     }
+    const payload = {
+      name: name.trim(),
+      items: items.map((r) => ({
+        text: r.text.trim(),
+        answerType: r.answerType,
+        required: r.required,
+      })),
+    };
     try {
-      await save.mutateAsync({
-        name: name.trim(),
-        items: items.map((r) => ({
-          text: r.text.trim(),
-          answerType: r.answerType,
-          required: r.required,
-        })),
-      });
-      toast.success("Soru seti kaydedildi");
+      if (editId) {
+        await update.mutateAsync({ id: editId, ...payload });
+        toast.success("Soru seti güncellendi");
+      } else {
+        await save.mutateAsync(payload);
+        toast.success("Soru seti kaydedildi");
+      }
       onClose();
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kaydedilemedi"));
@@ -285,7 +313,7 @@ function QuestionTemplateDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onClose={onClose} size="2xl">
-      <DialogTitle>Yeni Soru Seti</DialogTitle>
+      <DialogTitle>{editId ? "Soru Setini Düzenle" : "Yeni Soru Seti"}</DialogTitle>
       <DialogBody className="space-y-4">
         <Field>
           <Label>Set adı</Label>
@@ -373,7 +401,10 @@ function QuestionTemplateDialog({ onClose }: { onClose: () => void }) {
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={submit} disabled={save.isPending}>
+        <Button
+          onClick={submit}
+          disabled={save.isPending || update.isPending || existing.isLoading}
+        >
           Kaydet
         </Button>
       </DialogActions>
@@ -463,16 +494,23 @@ export function GroupTemplatesView({
             {(groups.data ?? []).map((g) => (
               <li
                 key={g.id}
-                className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 p-4 transition-colors hover:border-zinc-300"
+                className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition-colors hover:border-zinc-300"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-900">{g.name}</p>
-                  <p className="mt-0.5 text-xs text-zinc-400">
-                    {g.memberCount} firma ·{" "}
-                    {format(new Date(g.updatedAt), "d MMM yyyy", {
-                      locale: tr,
-                    })}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                    <Users className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-zinc-900">
+                      {g.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-400">
+                      {g.memberCount} firma ·{" "}
+                      {format(new Date(g.updatedAt), "d MMM yyyy", {
+                        locale: tr,
+                      })}
+                    </p>
+                  </div>
                 </div>
                 {canManageTpl ? (
                 <div className="flex shrink-0 items-center gap-1">
@@ -518,7 +556,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
   const questionTpls = useQuestionTemplates();
   const deleteQuestion = useDeleteQuestionTemplate();
   const del = useDeleteWithConfirm();
-  const [dialog, setDialog] = useState(false);
+  const [dialog, setDialog] = useState<{ editId: string | null } | null>(null);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -529,7 +567,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
         description="Kalem sorularını set olarak kaydedin — sihirbazın kalem adımında yeniden kullanın."
         action={
           canManageTpl ? (
-            <Button onClick={() => setDialog(true)}>
+            <Button onClick={() => setDialog({ editId: null })}>
               <Plus data-slot="icon" />
               Yeni Set
             </Button>
@@ -568,17 +606,26 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                     </div>
                   </div>
                   {canManageTpl ? (
-                    <Button
-                      plain
-                      aria-label={`${t.name} setini sil`}
-                      onClick={() =>
-                        del("Soru setini", t.name, () =>
-                          deleteQuestion.mutateAsync(t.id),
-                        )
-                      }
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        plain
+                        aria-label={`${t.name} setini düzenle`}
+                        onClick={() => setDialog({ editId: t.id })}
+                      >
+                        <Pencil className="h-4 w-4 text-zinc-400" />
+                      </Button>
+                      <Button
+                        plain
+                        aria-label={`${t.name} setini sil`}
+                        onClick={() =>
+                          del("Soru setini", t.name, () =>
+                            deleteQuestion.mutateAsync(t.id),
+                          )
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
                 {t.preview && t.preview.length > 0 ? (
@@ -608,7 +655,10 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
         )}
       </Section>
       {dialog ? (
-        <QuestionTemplateDialog onClose={() => setDialog(false)} />
+        <QuestionTemplateDialog
+          editId={dialog.editId}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
     </div>
   );
@@ -663,21 +713,26 @@ export function ListingTemplatesView({
               return (
                 <li
                   key={t.id}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 p-4 transition-colors hover:border-zinc-300"
+                  className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition-colors hover:border-zinc-300"
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-medium text-zinc-900">
-                        {t.name}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-medium text-zinc-900">
+                          {t.name}
+                        </p>
+                        <Badge color={isAlim ? "blue" : "emerald"}>
+                          {isAlim ? "Alış" : "Satış"}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-zinc-400">
+                        {p.items?.length ? `${p.items.length} kalem` : "—"}
+                        {p.title ? ` · ${p.title}` : ""}
                       </p>
-                      <Badge color={isAlim ? "blue" : "emerald"}>
-                        {isAlim ? "Alış" : "Satış"}
-                      </Badge>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-zinc-400">
-                      {p.items?.length ? `${p.items.length} kalem` : "—"}
-                      {p.title ? ` · ${p.title}` : ""}
-                    </p>
                   </div>
                   {canManageTpl ? (
                   <Button

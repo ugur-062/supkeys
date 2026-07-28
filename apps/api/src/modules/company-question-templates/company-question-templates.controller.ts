@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -45,6 +46,16 @@ export class CompanyQuestionTemplatesController {
     @Body() dto: SaveQuestionTemplateDto,
   ) {
     return this.service.save(user.companyId, dto);
+  }
+
+  @Put(":id")
+  @RequireCompanyPermission("templates:manage")
+  update(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: SaveQuestionTemplateDto,
+  ) {
+    return this.service.update(user.companyId, id, dto);
   }
 
   @Delete(":id")

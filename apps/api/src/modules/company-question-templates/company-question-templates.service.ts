@@ -80,6 +80,38 @@ export class CompanyQuestionTemplatesService {
     return { id: row.id, name: row.name };
   }
 
+  async update(
+    companyId: string,
+    id: string,
+    input: { name: string; items: QuestionItem[] },
+  ) {
+    if (!input.name?.trim()) {
+      throw new BadRequestException("Şablon adı zorunlu");
+    }
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      throw new BadRequestException("En az 1 soru gerekli");
+    }
+    const row = await this.prisma.listingQuestionTemplate.findUnique({
+      where: { id },
+      select: { id: true, companyId: true },
+    });
+    if (!row || row.companyId !== companyId) {
+      throw new NotFoundException("Şablon bulunamadı");
+    }
+    const updated = await this.prisma.listingQuestionTemplate.update({
+      where: { id },
+      data: {
+        name: input.name.trim().slice(0, 120),
+        items: input.items.map((q) => ({
+          text: q.text,
+          answerType: q.answerType,
+          required: q.required ?? false,
+        })) as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return { id: updated.id, name: updated.name };
+  }
+
   async remove(companyId: string, id: string) {
     const row = await this.prisma.listingQuestionTemplate.findUnique({
       where: { id },

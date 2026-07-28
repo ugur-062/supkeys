@@ -73,6 +73,32 @@ export function useSaveQuestionTemplate() {
   });
 }
 
+export function useUpdateQuestionTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      name: string;
+      items: Array<{
+        text: string;
+        answerType: AnswerTypeValue;
+        required: boolean;
+      }>;
+    }) => {
+      const { id, ...body } = input;
+      const { data } = await companyApi.put(
+        `/company/question-templates/${id}`,
+        body,
+      );
+      return data;
+    },
+    onSuccess: (_d, v) => {
+      void qc.invalidateQueries({ queryKey: ["question-templates"] });
+      void qc.invalidateQueries({ queryKey: ["question-template", v.id] });
+    },
+  });
+}
+
 export function useDeleteQuestionTemplate() {
   const qc = useQueryClient();
   return useMutation({
