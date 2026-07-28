@@ -53,11 +53,15 @@ async function setup() {
     format: "RFQ",
     closesAt: FUTURE,
   });
+  // DRAFT: bu spec ROL kapısını sınar. Gönderim kilidi (2026-07-28) rolden
+  // ÖNCE çalıştığından SUBMITTED teklifte rol kapısına hiç sıra gelmez —
+  // kilidin kendi sözleşmesi ui-lock-parity.spec'te.
   await makeBid(prisma, {
     listingId: listing.id,
     bidderCompanyId: bidder.company.id,
     createdById: bidder.user.id,
     amount: 1000,
+    status: "DRAFT",
   });
   return { buyer, bidder, listing };
 }
@@ -128,6 +132,7 @@ describe("teklif belgeleri op-rol kapısı (ALIM → Satışçı)", () => {
       bidderCompanyId: bidder.company.id,
       createdById: bidder.user.id,
       amount: 500,
+      status: "DRAFT", // bkz. setup() — rol kapısı sınanıyor, gönderim kilidi değil
     });
     // Yalnız Satışçı rolü taşıyan üye SATIS ilanının teklif belgesine dokunamaz.
     await expect(

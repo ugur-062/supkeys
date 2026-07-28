@@ -66,7 +66,17 @@ export class CompanyBidDocumentsService {
     }
   }
 
-  /** Teklif sahibinin bu ilandaki teklifini bulur (yoksa hata). */
+  /**
+   * Teklif sahibinin bu ilandaki teklifini bulur (yoksa hata).
+   *
+   * GÖNDERİM KİLİDİ (2026-07-28): belgeler teklifin İÇERİĞİDİR ve "SUBMITTED
+   * teklif editlenmez" kuralı bunları da kapsar. Arayüz gönderim sonrası
+   * ekle/sil'i zaten gizliyordu ama servis `bid.status`'ü hiç okumuyordu —
+   * doğrudan istekle bağlayıcı teklifin ekleri gönderimden SONRA sessizce
+   * değiştirilebiliyordu (versiyon artmadan, iz bırakmadan). Yalnız DRAFT
+   * teklifte belge yönetilir; yeniden teklif ancak eleme sonrası yeni
+   * versiyonla olur.
+   */
   private async requireOwnBid(
     user: AuthenticatedCompanyUser,
     listingId: string,
@@ -78,10 +88,15 @@ export class CompanyBidDocumentsService {
           bidderCompanyId: user.companyId,
         },
       },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!bid) {
       throw new BadRequestException("Önce teklif verin, sonra belge ekleyin");
+    }
+    if (bid.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Gönderilmiş teklifin belgeleri değiştirilemez",
+      );
     }
     return bid;
   }
@@ -179,13 +194,19 @@ export class CompanyBidDocumentsService {
   ) {
     const doc = await this.prisma.listingBidDocument.findUnique({
       where: { id: docId },
-      include: { bid: { select: { listingId: true } } },
+      include: { bid: { select: { listingId: true, status: true } } },
     });
     if (!doc || doc.bid.listingId !== listingId) {
       throw new NotFoundException("Belge bulunamadı");
     }
     if (doc.uploadedByCompanyId !== user.companyId) {
       throw new ForbiddenException("Bu belgeyi silemezsiniz");
+    }
+    // Gönderim kilidi (bkz. requireOwnBid): bağlayıcı teklifin eki silinemez.
+    if (doc.bid.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Gönderilmiş teklifin belgeleri değiştirilemez",
+      );
     }
     const listing = await this.assertListingOpen(listingId);
     this.assertBidderRole(user, listing.type);

@@ -47,6 +47,8 @@ export class CompanyListingDocumentsService {
     listing: {
       id: string;
       companyId: string;
+      status: string;
+      bidsOpenAt: Date | null;
       visibility: string;
       isInternational: boolean;
       targetCountries: string[];
@@ -54,6 +56,23 @@ export class CompanyListingDocumentsService {
     },
   ) {
     if (listing.companyId === user.companyId) return; // sahip
+
+    // YAYIN + EMBARGO KAPISI (2026-07-28) — getOne'daki iki kuralın aynası.
+    // Bu servis eskiden yalnız görünürlük/bağlantı/ülke bakıyordu: ilan
+    // detayı 404 verirken şartname ucu presigned URL döndürüyordu, yani
+    // taslak ya da açılışı gelmemiş ihalenin dosyaları id'yi bilen firmaca
+    // indirilebiliyordu (mühürlü açılış avantajı).
+    if (listing.status === "DRAFT") {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now()) {
+      // getOne istisnası: ilanda TEKLİFİ olan firma (önceki tur katılımcısı)
+      // açılıştan önce de görür.
+      const myBid = await this.prisma.listingBid.count({
+        where: { listingId: listing.id, bidderCompanyId: user.companyId },
+      });
+      if (myBid === 0) throw new NotFoundException("İlan bulunamadı");
+    }
 
     // Engellenen firma şartname/çizim dosyalarını göremez (getOne/placeBid ile
     // aynı kural — bu servis eskiden blok kontrolünü atlıyordu: engelli-ama-
@@ -147,10 +166,17 @@ export class CompanyListingDocumentsService {
         "İhale teklife kapalı; belgeler değiştirilemez",
       );
     }
-    const submitted = await this.prisma.listingBid.count({
-      where: { listingId, status: "SUBMITTED" },
+    // HERHANGİ bir teklif kaydı kilitler — updateListing ve arayüzdeki canEdit
+    // ile BİREBİR (ikisi de `listingBid.count({listingId})` sayar). Burada
+    // eskiden yalnız SUBMITTED sayılıyordu (yorum "canEdit ile aynı" diyordu
+    // ama değildi): taslak teklif kaydı olan, tüm teklifleri elenen ya da
+    // carryBids ile yeni tura taşınan ihalede şartname, katılım başladıktan
+    // sonra sürüm izi bırakmadan değiştirilebiliyordu — updateListing
+    // kilidinin arka kapısıydı.
+    const bidCount = await this.prisma.listingBid.count({
+      where: { listingId },
     });
-    if (submitted > 0) {
+    if (bidCount > 0) {
       throw new BadRequestException(
         "Bu ihaleye teklif verilmiş; belgeler değiştirilemez",
       );
@@ -223,6 +249,8 @@ export class CompanyListingDocumentsService {
       select: {
         id: true,
         companyId: true,
+        status: true,
+        bidsOpenAt: true,
         visibility: true,
         isInternational: true,
         targetCountries: true,

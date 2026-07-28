@@ -134,22 +134,90 @@ export class CompanyOrderDocumentsService {
       user,
       order.sellerCompanyId === user.companyId ? "seller" : "buyer",
     );
-    // Teminat mektubu onaydan sonra silinemez: teslimat garantisi (alıcı
-    // koruması) onay ANINDA count>0 kapısıyla doğrulanıyor; sonrasında
-    // silinebilseydi garanti sessizce kaybolurdu. Yükleme kapısının aynası
-    // (TEMINAT yalnız PENDING'de yönetilir).
     // NOT (kabul-edilen kalıntı): remove-status-check ile accept'in teminat
     // sayımı+geçişi arasında dar bir yarış var (satıcı teminatı silerken kendi
     // siparişini accept ederse). Tam kapatma accept'i FOR UPDATE + teminat +
     // geçiş atomik yapmayı gerektirir; self-inflicted/dar olduğu için ayrı iş.
-    if (doc.type === "TEMINAT" && order.status !== "PENDING") {
-      throw new BadRequestException(
-        "Teminat mektubu, sipariş onaylandıktan sonra silinemez",
-      );
-    }
+    await this.assertDeletable(doc.type, orderId, order.status);
     await this.storage.deleteObject("private", doc.key).catch(() => undefined);
     await this.prisma.companyOrderDocument.delete({ where: { id: docId } });
     return { ok: true };
+  }
+
+  /**
+   * SİLME EVRE KİLİDİ (2026-07-28) — "etki doğduktan sonra donar".
+   *
+   * Silme, yanlış dosya yüklemeyi düzeltmek için var; guard'lar bugüne dek
+   * yalnız KİM sorusunu soruyordu (yükleyen firma + simetrik rol) ve tek
+   * ZAMAN kuralı teminattaydı. Ama bu sistemde bazı belgeler DURUM TETİKLER:
+   * "Akreditif Açıldı" damgası yalnız LC belgesi varsa basılıyor, ödeme onayı
+   * dekonta dayanıyor. Belge sonradan silinince damga yerinde kalıyor,
+   * dayanağı kayboluyor — üstelik R2 nesnesi de siliniyor (geri dönüş yok).
+   * Aşağısı teminattaki mevcut kuralın diğer tiplere genellenmesidir.
+   */
+  private async assertDeletable(
+    type: CompanyDocType,
+    orderId: string,
+    status: string,
+  ) {
+    const terminal =
+      status === "COMPLETED" || status === "CANCELLED" || status === "REJECTED";
+    // Sonlanmış siparişin dosyaları delildir — hiçbiri silinemez (yükleme
+    // kapısındaki "sonlanmış siparişe belge eklenemez" kuralının aynası).
+    if (terminal) {
+      throw new BadRequestException(
+        "Sonlanmış siparişin belgeleri silinemez",
+      );
+    }
+    if (type === "TEMINAT") {
+      // Teslimat garantisi onay ANINDA count>0 ile doğrulanıyor; sonrasında
+      // silinebilseydi garanti sessizce kaybolurdu.
+      if (status !== "PENDING") {
+        throw new BadRequestException(
+          "Teminat mektubu, sipariş onaylandıktan sonra silinemez",
+        );
+      }
+      return;
+    }
+    if (type === "DELIVERY") {
+      // İrsaliye/konşimento teslim adımının dayanağı.
+      if (status === "DELIVERED") {
+        throw new BadRequestException(
+          "Teslim belgesi, teslimat onaylandıktan sonra silinemez",
+        );
+      }
+      return;
+    }
+    const order = await this.prisma.companyOrder.findUnique({
+      where: { id: orderId },
+      select: { lcOpenedAt: true },
+    });
+    if (type === "LC") {
+      // "Akreditif Açıldı" damgası bu belgenin varlığıyla basıldı.
+      if (order?.lcOpenedAt) {
+        throw new BadRequestException(
+          "Akreditif belgesi, akreditif açıldı işaretlendikten sonra silinemez",
+        );
+      }
+      return;
+    }
+    if (type === "PAYMENT" || type === "PROFORMA") {
+      // Dekont: karşı taraf ödemeyi ONAYLADIYSA dayanağı silinemez.
+      // Proforma: alıcının akreditif açma / peşin ödeme dayanağı.
+      const confirmed = await this.prisma.companyOrderPayment.count({
+        where: { orderId, status: "CONFIRMED" },
+      });
+      if (confirmed > 0 || order?.lcOpenedAt) {
+        throw new BadRequestException(
+          type === "PAYMENT"
+            ? "Onaylanmış ödemenin dekontu silinemez"
+            : "Proforma fatura, ödeme/akreditif işlendikten sonra silinemez",
+        );
+      }
+      return;
+    }
+    // INVOICE / OTHER: sipariş aktifken düzeltilebilir, sonlanınca (yukarıda)
+    // donar.
   }
 
   // ---- yetki ----
