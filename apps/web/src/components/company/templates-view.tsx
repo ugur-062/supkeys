@@ -352,9 +352,16 @@ function QuestionTemplateDialog({
                   maxLength={500}
                 />
                 <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor={`question-answer-type-${i}`}
+                    className="flex items-center gap-2 text-xs text-zinc-500"
+                  >
+                    Cevap türü
+                  </label>
                   {/* Catalyst Select sarmalayıcısı w-full içerir; sabit
                       genişlik ancak !important ile uygulanır (wizard deseni). */}
                   <Select
+                    id={`question-answer-type-${i}`}
                     value={r.answerType}
                     onChange={(e) =>
                       setRow(i, {
@@ -362,7 +369,6 @@ function QuestionTemplateDialog({
                       })
                     }
                     className="!w-auto"
-                    aria-label="Cevap tipi"
                   >
                     {(Object.keys(ANSWER_LABEL) as AnswerTypeValue[]).map((a) => (
                       <option key={a} value={a}>

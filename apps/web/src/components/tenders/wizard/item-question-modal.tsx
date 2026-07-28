@@ -230,6 +230,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                                   {q.text}
                                 </span>
                                 <span className="text-[11px] text-zinc-500">
+                                  Cevap türü:{" "}
                                   {ANSWER_TYPES.find(
                                     (a) => a.value === q.answerType,
                                   )?.label ?? q.answerType}
@@ -294,7 +295,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                       htmlFor={`q-type-${index}-${qi}`}
                       className="text-xs text-zinc-500 mb-0"
                     >
-                      Cevap tipi
+                      Cevap türü
                     </Label>
                     <Select
                       id={`q-type-${index}-${qi}`}
