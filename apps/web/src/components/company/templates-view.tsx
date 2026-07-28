@@ -313,47 +313,57 @@ function QuestionTemplateDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="space-y-2">
             {rows.map((r, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div
+                key={i}
+                className="space-y-2 rounded-lg p-3 ring-1 ring-zinc-950/10"
+              >
                 <Input
                   value={r.text}
                   onChange={(e) => setRow(i, { text: e.target.value })}
-                  placeholder="Soru metni"
-                  className="flex-1"
+                  placeholder={`Soru ${i + 1} — örn. Garanti süresi nedir?`}
+                  maxLength={500}
                 />
-                <Select
-                  value={r.answerType}
-                  onChange={(e) =>
-                    setRow(i, {
-                      answerType: e.target.value as AnswerTypeValue,
-                    })
-                  }
-                  className="w-36"
-                >
-                  {(Object.keys(ANSWER_LABEL) as AnswerTypeValue[]).map((a) => (
-                    <option key={a} value={a}>
-                      {ANSWER_LABEL[a]}
-                    </option>
-                  ))}
-                </Select>
-                <label className="flex items-center gap-1 text-xs text-zinc-600">
-                  <input
-                    type="checkbox"
-                    checked={r.required}
-                    onChange={(e) => setRow(i, { required: e.target.checked })}
-                    className="h-4 w-4 rounded border-zinc-300"
-                  />
-                  Zorunlu
-                </label>
-                {rows.length > 1 ? (
-                  <Button
-                    plain
-                    onClick={() =>
-                      setRows((s) => s.filter((_, idx) => idx !== i))
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Catalyst Select sarmalayıcısı w-full içerir; sabit
+                      genişlik ancak !important ile uygulanır (wizard deseni). */}
+                  <Select
+                    value={r.answerType}
+                    onChange={(e) =>
+                      setRow(i, {
+                        answerType: e.target.value as AnswerTypeValue,
+                      })
                     }
+                    className="!w-auto"
+                    aria-label="Cevap tipi"
                   >
-                    <Trash2 className="h-4 w-4 text-zinc-400" />
-                  </Button>
-                ) : null}
+                    {(Object.keys(ANSWER_LABEL) as AnswerTypeValue[]).map((a) => (
+                      <option key={a} value={a}>
+                        {ANSWER_LABEL[a]}
+                      </option>
+                    ))}
+                  </Select>
+                  <label className="flex items-center gap-1.5 text-sm text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={r.required}
+                      onChange={(e) => setRow(i, { required: e.target.checked })}
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                    Zorunlu
+                  </label>
+                  {rows.length > 1 ? (
+                    <Button
+                      plain
+                      className="ml-auto"
+                      aria-label="Soruyu kaldır"
+                      onClick={() =>
+                        setRows((s) => s.filter((_, idx) => idx !== i))
+                      }
+                    >
+                      <Trash2 className="h-4 w-4 text-zinc-400" />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
