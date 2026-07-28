@@ -8,6 +8,9 @@ export interface QuestionTemplateSummary {
   id: string;
   name: string;
   itemCount: number;
+  createdAt?: string;
+  /** İlk 3 soru metni — kart önizlemesi. */
+  preview?: string[];
 }
 
 export interface QuestionTemplateItem {

@@ -548,26 +548,59 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
             {(questionTpls.data ?? []).map((t) => (
               <li
                 key={t.id}
-                className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 p-4 transition-colors hover:border-zinc-300"
+                className="flex flex-col rounded-xl border border-zinc-950/10 bg-white p-4 transition-colors hover:border-zinc-300"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-900">{t.name}</p>
-                  <p className="mt-0.5 text-xs text-zinc-400">
-                    {t.itemCount} soru
-                  </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                      <ListChecks className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-zinc-900">
+                        {t.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-400">
+                        {t.itemCount} soru
+                        {t.createdAt
+                          ? ` · ${format(new Date(t.createdAt), "d MMM yyyy", { locale: tr })}`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                  {canManageTpl ? (
+                    <Button
+                      plain
+                      aria-label={`${t.name} setini sil`}
+                      onClick={() =>
+                        del("Soru setini", t.name, () =>
+                          deleteQuestion.mutateAsync(t.id),
+                        )
+                      }
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  ) : null}
                 </div>
-                {canManageTpl ? (
-                <Button
-                  plain
-                  aria-label={`${t.name} setini sil`}
-                  onClick={() =>
-                    del("Soru setini", t.name, () =>
-                      deleteQuestion.mutateAsync(t.id),
-                    )
-                  }
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                {t.preview && t.preview.length > 0 ? (
+                  <ul className="mt-3 space-y-1 border-t border-zinc-100 pt-3">
+                    {t.preview.map((q, i) => (
+                      <li
+                        key={i}
+                        className="flex items-center gap-2 text-xs text-zinc-500"
+                      >
+                        <span
+                          className="h-1 w-1 shrink-0 rounded-full bg-zinc-300"
+                          aria-hidden
+                        />
+                        <span className="truncate">{q}</span>
+                      </li>
+                    ))}
+                    {t.itemCount > t.preview.length ? (
+                      <li className="pl-3 text-xs text-zinc-400">
+                        +{t.itemCount - t.preview.length} soru daha
+                      </li>
+                    ) : null}
+                  </ul>
                 ) : null}
               </li>
             ))}

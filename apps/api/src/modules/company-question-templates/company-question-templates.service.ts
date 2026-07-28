@@ -22,11 +22,22 @@ export class CompanyQuestionTemplatesService {
       orderBy: { createdAt: "desc" },
       take: 100,
     });
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      itemCount: Array.isArray(r.items) ? r.items.length : 0,
-    }));
+    return rows.map((r) => {
+      const items = Array.isArray(r.items)
+        ? (r.items as { text?: string }[])
+        : [];
+      return {
+        id: r.id,
+        name: r.name,
+        itemCount: items.length,
+        createdAt: r.createdAt,
+        // Kart önizlemesi: ilk 3 soru metni (liste zaten tam satırı çekiyor).
+        preview: items
+          .slice(0, 3)
+          .map((i) => String(i?.text ?? ""))
+          .filter(Boolean),
+      };
+    });
   }
 
   async getOne(companyId: string, id: string) {
