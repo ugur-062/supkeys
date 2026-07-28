@@ -86,6 +86,12 @@ export interface AiCompletionRequest {
    * gereksiz → kapatınca signature derdi YAPISAL olarak biter + ucuz/hızlı.
    */
   disableThinking?: boolean;
+  /**
+   * Thinking seviyesi tavanı (Gemini 3 `thinkingLevel`). Asistan "low" kullanır:
+   * thinking tamamen kapatılamayan modellerde de çalışır, thought token'ları
+   * (maxOutputTokens'tan yer) ve gecikmeyi kısar. disableThinking öncelikli.
+   */
+  thinkingLevel?: "minimal" | "low" | "medium" | "high";
   maxOutputTokens: number;
   timeoutMs: number;
   /**
@@ -101,6 +107,11 @@ export interface AiCompletionResult {
   usage: AiTokenUsage;
   /** AI-2 — modelin bu turda talep ettiği araç çağrıları (varsa). */
   toolCalls?: AiToolCall[];
+  /**
+   * Sağlayıcının bitiş nedeni (Gemini finishReason; ör. STOP, MAX_TOKENS,
+   * MALFORMED_FUNCTION_CALL). Boş yanıt teşhisi için — hata DEĞİLDİR.
+   */
+  finishReason?: string;
 }
 
 /**

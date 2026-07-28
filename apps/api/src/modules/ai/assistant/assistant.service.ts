@@ -57,7 +57,13 @@ const MAX_TOOL_ITERATIONS = 4;
 const TURN_DEADLINE_MS = 90_000;
 const MAX_TURN_MESSAGE_LEN = 4000;
 const MAX_TOOL_RESULT_CHARS = 8000;
-const MAX_OUTPUT_TOKENS = 1024;
+/** Thought token'ları da bu tavandan yer (Gemini) — 1024'te model bazı turlarda
+ *  tüm bütçeyi düşünmeye harcayıp BOŞ metin dönüyordu (2026-07-27 üretim vakası,
+ *  hatasız SETTLED + boş yanıt). 4096 + thinkingLevel "low" ile yapısal çözüm. */
+const MAX_OUTPUT_TOKENS = 4096;
+/** Asistan turlarında düşünme kısılır: gecikme + thought-token israfı azalır,
+ *  thought signature akışı (Gemini 3 zorunluluğu) aynen korunur. */
+const THINKING_LEVEL = "low" as const;
 /** Araç hatası (403/404/timeout/beklenmeyen) → hep bu nötr sonuç (bilgi sızmaz). */
 const NEUTRAL_ERROR = { error: "unavailable" } as const;
 
@@ -184,6 +190,7 @@ export class AssistantService {
     const deadlineAt = Date.now() + TURN_DEADLINE_MS;
 
     try {
+      let emptyRetried = false;
       for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
         const result = await provider.complete({
           model: this.config.models.default,
@@ -192,12 +199,23 @@ export class AssistantService {
           history,
           tools: toolDefs,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
+          thinkingLevel: THINKING_LEVEL,
           timeoutMs: this.config.timeoutMs,
           deadlineAt,
         });
         accumulate(totalUsage, result.usage);
 
         if (!result.toolCalls || result.toolCalls.length === 0) {
+          // Boş yanıt (metin yok, araç yok) hata DEĞİL ama kullanıcıya
+          // "yanıt oluşturamadım" düşer — bir kez aynı bağlamla yeniden dene
+          // (MALFORMED_FUNCTION_CALL / token starvation tipik geçici sebepler).
+          if (!result.text.trim() && !emptyRetried && Date.now() < deadlineAt) {
+            emptyRetried = true;
+            this.logger.warn(
+              `Asistan boş yanıt döndü (finishReason=${result.finishReason ?? "?"}) — yeniden deneniyor`,
+            );
+            continue;
+          }
           reply = result.text;
           break;
         }
@@ -268,6 +286,7 @@ export class AssistantService {
             prompt: "",
             history,
             maxOutputTokens: MAX_OUTPUT_TOKENS,
+            thinkingLevel: THINKING_LEVEL,
             timeoutMs: this.config.timeoutMs,
             deadlineAt,
           });
@@ -529,7 +548,7 @@ export class AssistantService {
 
     const est: AiTokenUsage = {
       inputTokens: Math.ceil((SUMMARY_SYSTEM_PROMPT.length + prompt.length) / 4),
-      outputTokens: 512,
+      outputTokens: 2048,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
@@ -552,7 +571,9 @@ export class AssistantService {
         model: this.config.models.default,
         system: SUMMARY_SYSTEM_PROMPT,
         prompt,
-        maxOutputTokens: 512,
+        // Thought token'ları da tavandan yer — 512'de özet boş kalabiliyordu.
+        maxOutputTokens: 2048,
+        thinkingLevel: THINKING_LEVEL,
         timeoutMs: this.config.timeoutMs,
       });
       await this.budget.settle(reservation.id, result.usage);

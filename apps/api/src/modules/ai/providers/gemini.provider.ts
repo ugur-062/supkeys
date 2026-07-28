@@ -1,4 +1,4 @@
-import { GoogleGenAI, type Content } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type Content } from "@google/genai";
 import {
   AiProviderError,
   AiProviderTimeoutError,
@@ -9,6 +9,14 @@ import {
   type AiTokenUsage,
   type AiToolCall,
 } from "./ai-provider.interface";
+
+/** İstek arayüzündeki küçük-harf seviye → SDK enum eşlemesi. */
+const THINKING_LEVELS = {
+  minimal: ThinkingLevel.MINIMAL,
+  low: ThinkingLevel.LOW,
+  medium: ThinkingLevel.MEDIUM,
+  high: ThinkingLevel.HIGH,
+} as const;
 
 /** AiHistoryTurn[] → Gemini Content[] (metin / functionCall / functionResponse). */
 function historyToContents(history: AiHistoryTurn[]): Content[] {
@@ -163,7 +171,9 @@ export class GeminiProvider extends BaseAiProvider {
           // çok-turlu araç döngüsünde 400 INVALID_ARGUMENT yapısal olarak biter.
           ...(req.disableThinking
             ? { thinkingConfig: { thinkingBudget: 0 } }
-            : {}),
+            : req.thinkingLevel
+              ? { thinkingConfig: { thinkingLevel: THINKING_LEVELS[req.thinkingLevel] } }
+              : {}),
           // Dış keşif: Google Search grounding (function-calling ile birleşmez).
           ...(req.webSearch ? { tools: [{ googleSearch: {} }] } : {}),
           // AI-2: araç tanımları (function-calling).
@@ -205,10 +215,12 @@ export class GeminiProvider extends BaseAiProvider {
           });
         }
       }
+      const finishReason = resp.candidates?.[0]?.finishReason;
       return {
         text: resp.text ?? "",
         usage,
         ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+        ...(finishReason ? { finishReason: String(finishReason) } : {}),
       };
     } catch (err) {
       if (controller.signal.aborted) {
