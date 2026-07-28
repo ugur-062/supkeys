@@ -1465,14 +1465,8 @@ export default function HomePage() {
               © 2026 Rothern · B2B ticaret platformu ·{" "}
               {OPERATOR.legalName}
             </p>
-            {/* iyzico ile Öde bandı — Visa/Mastercard/Troy logoları dahil
-                (iyzico resmi logo paketi; ödeme sayfası isterleri). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/iyzico/logo_band_white.svg"
-              alt="iyzico ile Öde — Visa, Mastercard, Troy ile güvenli ödeme"
-              className="h-7 w-auto"
-            />
+            {/* Ödeme sağlayıcısı logo bandı, anlaşma tamamlanınca eklenecek —
+                sağlayıcının markası yalnız üye işyeri olduktan sonra kullanılır. */}
           </div>
         </div>
       </footer>

@@ -17,7 +17,7 @@ export default function Page() {
         {
           heading: "1. Hangi Verileri Topluyoruz",
           paragraphs: [
-            "Hesap ve firma bilgileri (ad-soyad, e-posta, telefon, firma unvanı/vergi bilgileri), platformda yürüttüğünüz işlemlere ait kayıtlar (ihale, teklif, sipariş, mesaj) ve hizmetin güvenliği için gerekli teknik kayıtlar (IP, oturum ve log verileri). Kart bilgisi Rothern tarafından saklanmaz; ödemeler iyzico'nun güvenli altyapısında gerçekleşir.",
+            "Hesap ve firma bilgileri (ad-soyad, e-posta, telefon, firma unvanı/vergi bilgileri), platformda yürüttüğünüz işlemlere ait kayıtlar (ihale, teklif, sipariş, mesaj) ve hizmetin güvenliği için gerekli teknik kayıtlar (IP, oturum ve log verileri). Kart bilgisi Rothern tarafından saklanmaz; ödemeler, yetkili bir ödeme kuruluşunun güvenli altyapısı üzerinden gerçekleşir.",
           ],
         },
         {
