@@ -207,9 +207,12 @@ export class CompanyDocsService {
     // KİLİT: belge yalnız (a) hiç gönderilmemişken (UNVERIFIED) ya da (b) genel
     // durum REJECTED iken ve BU belge onaylı değilken DOĞRUDAN değiştirilebilir.
     // İnceleme sürerken (PENDING) veya onaylı belgeye yükleme reddedilir.
-    // Faz Y A-modeli: VERIFIED artık kilit DEĞİL — yükleme Company kolonlarına
-    // dokunmadan CompanyKycRevision'a (PENDING) düşer; admin onaylarsa geçerli
-    // olur, reddederse eski belge kalır. Firma bu süreçte VERIFIED kalır.
+    // ONAYLI BELGE KALICIDIR (2026-07-28 ürün kararı): APPROVED belge firma
+    // durumu ne olursa olsun değiştirilemez; yeniden yükleme yalnız o belge
+    // reddedildiyse mümkündür. Faz Y A-modeli (CompanyKycRevision) yalnız
+    // VERIFIED firmanın HENÜZ ONAYLANMAMIŞ alanları için kalır (boş opsiyonel
+    // belge / incelenmemiş kolon): yükleme Company kolonlarına dokunmadan
+    // revizyona düşer, admin onaylarsa geçerli olur; firma VERIFIED kalır.
     const company = (await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { companyVerificationStatus: true, [DOC_META[k].status]: true },
@@ -222,17 +225,15 @@ export class CompanyDocsService {
     if (!company) throw new NotFoundException("Firma bulunamadı");
     const overall = company.companyVerificationStatus;
     const docStatus = company[DOC_META[k].status] as KycDocStatus;
+    if (docStatus === "APPROVED") {
+      throw new BadRequestException("Bu belge onaylandı; değiştirilemez");
+    }
     if (overall === "VERIFIED") {
       return this.submitRevision(companyId, k, key, actor);
     }
-    const editable =
-      overall === "UNVERIFIED" ||
-      (overall === "REJECTED" && docStatus !== "APPROVED");
-    if (!editable) {
+    if (overall === "PENDING") {
       throw new BadRequestException(
-        overall === "PENDING"
-          ? "Doğrulama inceleniyor; belge değiştirilemez"
-          : "Bu belge onaylandı; değiştirilemez",
+        "Doğrulama inceleniyor; belge değiştirilemez",
       );
     }
     await assertUploadedObjectValid(this.storage, "private", key);

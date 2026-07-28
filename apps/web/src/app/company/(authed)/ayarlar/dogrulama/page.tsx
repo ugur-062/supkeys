@@ -57,16 +57,14 @@ export default function DogrulamaPage() {
   // yalnız REJECTED/UNVERIFIED'de (kimlik alanları) düzenlenebilir.
   const locked = data?.status === "PENDING" || data?.status === "VERIFIED";
   const isTR = (data?.country ?? "TR").toUpperCase() === "TR";
-  // Belge bazlı kilit: onaylanan belge her durumda kilitli; genel REJECTED iken
-  // yalnız onaylı OLMAYAN (reddedilen/bekleyen) belgeler yeniden yüklenebilir.
-  // Faz Y A-modeli: VERIFIED'da yükleme SERBEST — Company belgesi değişmez,
-  // güncelleme revizyon olarak admin onayına düşer (firma VERIFIED kalır).
+  // Belge bazlı kilit (backend commit() ile birebir): ONAYLANAN BELGE KALICI —
+  // hiçbir durumda değiştirilemez; yeniden yükleme yalnız o belge reddedildiyse
+  // (veya hiç yüklenmediyse) mümkün. İnceleme sürerken (PENDING) hepsi kilitli.
+  // VERIFIED'da onaylı olmayan alan (boş opsiyonel belge) revizyon akışına düşer.
   const docEditable = (k: DocKind) => {
     if (!data) return false;
-    if (data.status === "UNVERIFIED") return true;
-    if (data.status === "REJECTED") return data.docStatus[k] !== "APPROVED";
-    if (data.status === "VERIFIED") return true; // → revizyon akışı
-    return false; // PENDING
+    if (data.status === "PENDING") return false;
+    return data.docStatus[k] !== "APPROVED";
   };
 
   const handleFile = async (kind: DocKind, file: File | undefined) => {
@@ -80,7 +78,7 @@ export default function DogrulamaPage() {
       await upload.mutateAsync({ kind, file });
       toast.success(
         data?.status === "VERIFIED"
-          ? "Belge güncellemesi incelemeye gönderildi — mevcut belgeniz geçerliliğini koruyor"
+          ? "Belge incelemeye gönderildi"
           : "Belge yüklendi",
       );
     } catch (err) {
@@ -154,8 +152,8 @@ export default function DogrulamaPage() {
               Firmanız doğrulandı. Premium özellikleri kullanabilirsiniz.
               {canManage ? (
                 <span className="mt-0.5 block text-xs text-emerald-700">
-                  Bir belgeyi güncellerseniz yeni belge ayrıca incelenir; onay
-                  gelene kadar mevcut belgeniz geçerli kalır.
+                  Onaylanan belgeler değiştirilemez; bir belge reddedilirse
+                  yalnız o belgeyi yeniden yükleyebilirsiniz.
                 </span>
               ) : null}
             </div>
