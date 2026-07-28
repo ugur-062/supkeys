@@ -387,7 +387,7 @@ export default function OnaylarPage() {
       <div
         role="tablist"
         aria-label="Onay görünümleri"
-        className="flex gap-1 overflow-x-auto border-b border-zinc-950/10"
+        className="flex gap-1 overflow-x-auto border-b border-zinc-950/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {tabs.map((t) => (
           <button
