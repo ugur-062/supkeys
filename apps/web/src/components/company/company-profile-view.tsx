@@ -169,17 +169,6 @@ export function CompanyProfileView({
                     </span>
                   ) : null}
                 </p>
-                {p.rating && p.rating.count > 0 ? (
-                  <p className="mt-1 flex items-center gap-1 text-sm">
-                    <span className="text-amber-500">★</span>
-                    <span className="font-semibold text-zinc-900">
-                      {p.rating.avg.toFixed(1)}
-                    </span>
-                    <span className="text-zinc-400">
-                      ({p.rating.count} değerlendirme)
-                    </span>
-                  </p>
-                ) : null}
               </div>
             </div>
             {actions ? (
@@ -189,13 +178,31 @@ export function CompanyProfileView({
             ) : null}
           </div>
 
-          {/* Stat şeridi */}
+          {/* Stat şeridi — değerlendirme BURADA durur, başlık bloğunda değil:
+              başlık logoya alttan hizalı (items-end), oraya opsiyonel bir satır
+              eklemek firma adını yukarı kaydırıyordu (değerlendirmesi olan/olmayan
+              firmalar farklı hizalanıyordu). */}
           {p.foundedYear ||
           p.employeeCount ||
           p.website ||
           p.linkedinUrl ||
-          p.instagramUrl ? (
+          p.instagramUrl ||
+          (p.rating && p.rating.count > 0) ? (
             <div className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-zinc-100 pt-4">
+              {p.rating && p.rating.count > 0 ? (
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                    Değerlendirme
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
+                    <span className="text-amber-500">★</span>
+                    {p.rating.avg.toFixed(1)}
+                    <span className="font-normal text-zinc-400">
+                      ({p.rating.count})
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               {p.foundedYear ? (
                 <Stat label="Kuruluş" value={String(p.foundedYear)} />
               ) : null}
