@@ -10,6 +10,7 @@ import {
   CompanyVerificationStatus,
   ComplaintStatus,
   KycDocStatus,
+  type ListingStatus,
 } from "@rothern/db";
 import { StorageService } from "../storage/storage.service";
 import {
@@ -286,6 +287,10 @@ export class AdminCompaniesService {
       expiring,
       oldestPending,
       onboarded,
+      listingsByStatus,
+      listingsByVisibility,
+      listingsByType,
+      totalBids,
     ] = await Promise.all([
       this.prisma.company.count(),
       this.prisma.company.groupBy({
@@ -328,6 +333,21 @@ export class AdminCompaniesService {
       this.prisma.company.count({
         where: { onboardingCompletedAt: { not: null } },
       }),
+      // İlan/ihale panosu — durum, görünürlük ve tip kırılımları.
+      this.prisma.listing.groupBy({ by: ["status"], _count: true }),
+      // Görünürlük YALNIZ yayınlanmışlar üzerinden: taslak bir ilan "herkese
+      // açık" sayılmaz (henüz kimse göremiyor).
+      this.prisma.listing.groupBy({
+        by: ["visibility"],
+        _count: true,
+        where: { status: { not: "DRAFT" } },
+      }),
+      this.prisma.listing.groupBy({
+        by: ["type"],
+        _count: true,
+        where: { status: { not: "DRAFT" } },
+      }),
+      this.prisma.listingBid.count({ where: { status: "SUBMITTED" } }),
     ]);
     const vmap = new Map(
       byVerification.map((g) => [g.companyVerificationStatus, g._count]),
@@ -368,6 +388,42 @@ export class AdminCompaniesService {
           (vmap.get("REJECTED") ?? 0),
         verified: vmap.get("VERIFIED") ?? 0,
       },
+      listings: (() => {
+        const smap = new Map(listingsByStatus.map((g) => [g.status, g._count]));
+        const vismap = new Map(
+          listingsByVisibility.map((g) => [g.visibility, g._count]),
+        );
+        const tymap = new Map(listingsByType.map((g) => [g.type, g._count]));
+        const st = (k: ListingStatus) => smap.get(k) ?? 0;
+        const total = listingsByStatus.reduce((n, g) => n + g._count, 0);
+        const draft = st("DRAFT");
+        return {
+          /** Sistemde açılmış TÜM ilanlar (taslaklar dahil). */
+          total,
+          /** Yayına çıkmış ilanlar — görünürlük/tip kırılımlarının paydası. */
+          published: total - draft,
+          draft,
+          /** Şu an teklif toplayan. */
+          open: st("OPEN"),
+          /** Süre doldu, alıcı karar veriyor (onay bekleyen dahil). */
+          inAward: st("IN_AWARD") + st("IN_AWARD_APPROVAL"),
+          /** Kazandırıldı — sipariş(ler) oluştu. */
+          awarded: st("AWARDED"),
+          /** Kazanansız kapanan + iptal — sonuçsuz biten. */
+          closedNoAward: st("CLOSED_NO_AWARD") + st("CANCELLED"),
+          byVisibility: {
+            PUBLIC: vismap.get("PUBLIC") ?? 0,
+            CONNECTIONS: vismap.get("CONNECTIONS") ?? 0,
+            PRIVATE: vismap.get("PRIVATE") ?? 0,
+          },
+          byType: {
+            ALIM: tymap.get("ALIM") ?? 0,
+            SATIS: tymap.get("SATIS") ?? 0,
+          },
+          /** Gönderilmiş teklif sayısı — platform canlılığı göstergesi. */
+          totalBids,
+        };
+      })(),
     };
   }
 

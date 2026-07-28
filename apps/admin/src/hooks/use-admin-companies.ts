@@ -87,6 +87,19 @@ export interface AdminCompanyStats {
     kycSubmitted: number;
     verified: number;
   };
+  /** İlan/ihale panosu — görünürlük ve tip kırılımları YALNIZ yayınlanmışlar üzerinden. */
+  listings: {
+    total: number;
+    published: number;
+    draft: number;
+    open: number;
+    inAward: number;
+    awarded: number;
+    closedNoAward: number;
+    byVisibility: { PUBLIC: number; CONNECTIONS: number; PRIVATE: number };
+    byType: { ALIM: number; SATIS: number };
+    totalBids: number;
+  };
 }
 
 /** Dashboard KPI'ları — server-side count/groupBy (200-limitten bağımsız). */

@@ -7,6 +7,7 @@ import {
   useAdminCompanies,
   useAdminCompanyStats,
   useAdminComplaints,
+  type AdminCompanyStats,
 } from "@/hooks/use-admin-companies";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
@@ -91,6 +92,9 @@ function DashboardContent() {
       {/* Kayıt hunisi: kayıt → onboarding → KYC → doğrulandı */}
       {s?.funnel ? <FunnelCard funnel={s.funnel} /> : null}
 
+      {/* İlan/ihale panosu — sistemde açılan ihalelerin durumu ve görünürlüğü */}
+      {s?.listings ? <ListingsCard l={s.listings} /> : null}
+
       {/* Son 30 gün aktivite */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MiniStat
@@ -110,12 +114,14 @@ function DashboardContent() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* items-start: kısa panel (ör. "açık şikayet yok") uzun panelin boyuna
+          gerilip kocaman boşluk bırakmasın — her kart kendi boyunda dursun. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* Süresi yaklaşan üyelikler — yenileme satışı fırsatı */}
         <Panel
           title="Süresi Yaklaşan Üyelikler"
           titleIcon={CalendarClock}
-          moreHref="/admin/firmalar?tier=GOLD"
+          moreHref="/admin/firmalar"
         >
           {(s?.expiringMemberships ?? []).length === 0 ? (
             <p className="text-admin-text-muted p-6 text-center text-sm">
@@ -228,6 +234,125 @@ function DashboardContent() {
             ))
           )}
         </Panel>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * İlan/ihale panosu — "sistemde kaç ihale açıldı, kaçı herkese açık, kaçı şu an
+ * canlı" sorularının tek bakışta cevabı. Görünürlük ve tip kırılımları YALNIZ
+ * yayınlanmış ilanlar üzerinden (taslak ilan kimseye görünmediği için "herkese
+ * açık" sayılmaz) — payda bu yüzden `published`.
+ */
+function ListingsCard({
+  l,
+}: {
+  l: NonNullable<AdminCompanyStats["listings"]>;
+}) {
+  const flow = [
+    { label: "Toplam ilan", value: l.total, hint: "taslaklar dahil" },
+    { label: "Yayınlanmış", value: l.published, hint: `${l.draft} taslak` },
+    { label: "Şu an açık", value: l.open, hint: "teklif topluyor" },
+    { label: "Değerlendirmede", value: l.inAward, hint: "alıcı karar veriyor" },
+    { label: "Sonuçlanan", value: l.awarded, hint: "sipariş oluştu" },
+  ];
+  return (
+    <div className="admin-card px-5 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-admin-text font-bold">İlan & İhale Durumu</h3>
+        <span className="text-admin-text-muted text-xs">
+          {l.totalBids.toLocaleString("tr-TR")} gönderilmiş teklif
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {flow.map((f) => (
+          <div key={f.label}>
+            <p className="text-admin-text-muted text-xs font-medium">
+              {f.label}
+            </p>
+            <p className="text-admin-text mt-0.5 text-xl font-bold tabular-nums">
+              {f.value.toLocaleString("tr-TR")}
+            </p>
+            <p className="text-admin-text-muted mt-0.5 text-[11px]">{f.hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-admin-border mt-4 grid grid-cols-1 gap-x-10 gap-y-4 border-t pt-4 sm:grid-cols-2">
+        <Breakdown
+          title="Görünürlük"
+          note="yayınlanmış ilanlar"
+          total={l.published}
+          rows={[
+            { label: "Herkese açık", value: l.byVisibility.PUBLIC },
+            { label: "Bağlantılara açık", value: l.byVisibility.CONNECTIONS },
+            { label: "Yalnız davetli", value: l.byVisibility.PRIVATE },
+          ]}
+        />
+        <Breakdown
+          title="Tip"
+          note="yayınlanmış ilanlar"
+          total={l.published}
+          rows={[
+            { label: "Alım ihalesi", value: l.byType.ALIM },
+            { label: "Satış ilanı", value: l.byType.SATIS },
+          ]}
+        />
+      </div>
+
+      {l.closedNoAward > 0 ? (
+        <p className="text-admin-text-muted mt-3 text-xs">
+          {l.closedNoAward.toLocaleString("tr-TR")} ilan kazanan çıkmadan
+          kapandı veya iptal edildi.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Oranlı kırılım satırları — payda 0 olduğunda bar çizilmez. */
+function Breakdown({
+  title,
+  note,
+  total,
+  rows,
+}: {
+  title: string;
+  note: string;
+  total: number;
+  rows: { label: string; value: number }[];
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between">
+        <p className="text-admin-text text-sm font-semibold">{title}</p>
+        <p className="text-admin-text-muted text-[11px]">{note}</p>
+      </div>
+      <div className="mt-2 space-y-2">
+        {rows.map((r) => {
+          const pct = total > 0 ? Math.round((r.value / total) * 100) : 0;
+          return (
+            <div key={r.label}>
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="text-admin-text-muted">{r.label}</span>
+                <span className="text-admin-text font-semibold tabular-nums">
+                  {r.value.toLocaleString("tr-TR")}
+                  <span className="text-admin-text-muted ml-1.5 text-xs font-normal">
+                    %{pct}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-zinc-900"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
