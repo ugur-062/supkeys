@@ -201,6 +201,42 @@ describe("company-profile — KYC kimlik kilidi", () => {
     expect(c.iban).toBe(VALID_IBAN);
   });
 
+  it.each(["PENDING", "VERIFIED"] as const)(
+    "%s firmada YASAL ÜNVAN değiştirilemez",
+    async (status) => {
+      const svc = makeService();
+      const owner = await makeCompanyWithUser(prisma, {
+        country: "TR",
+        companyVerificationStatus: status,
+      });
+      await expect(
+        svc.update(owner.company.id, {
+          legalName: "Bambaşka Ünvan A.Ş.",
+        } as never),
+      ).rejects.toThrow(/ünvan, kimlik ve IBAN bilgileri değiştirilemez/);
+    },
+  );
+
+  it("kilitli alan AYNI değerle gönderilirse istek geçer (form her kayıtta gönderiyor)", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "VERIFIED",
+    });
+    const before = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    // Ünvan değişmiyor, şehir değişiyor → kilit tetiklenmemeli.
+    await svc.update(owner.company.id, {
+      legalName: before.legalName ?? undefined,
+      city: "Ankara",
+    } as never);
+    const after = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(after.city).toBe("Ankara");
+  });
+
   it("kilitli firmada kimlik-DIŞI alanlar (hakkında) güncellenebilir", async () => {
     const svc = makeService();
     const owner = await makeCompanyWithUser(prisma, {

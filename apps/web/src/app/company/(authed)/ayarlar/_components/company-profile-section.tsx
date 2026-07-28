@@ -78,6 +78,13 @@ export function CompanyProfileSection() {
     }
   }, [profile]);
 
+  // KYC kimlik kilidi — backend company-profile.service ile BİREBİR: inceleme
+  // başladıktan (PENDING) veya onay verildikten (VERIFIED) sonra yasal ünvan
+  // doğrulama dosyasının parçasıdır, değiştirilemez.
+  const kycLocked =
+    profile?.companyVerificationStatus === "PENDING" ||
+    profile?.companyVerificationStatus === "VERIFIED";
+
   // KEP: backend regex birebir (@...kep.tr).
   const kepInvalid =
     form.kepAddress.trim().length > 0 &&
@@ -221,9 +228,15 @@ export function CompanyProfileSection() {
               <Label>Yasal ünvan</Label>
               <Input
                 value={form.legalName}
-                disabled={!canEdit}
+                disabled={!canEdit || kycLocked}
                 onChange={(e) => set({ legalName: e.target.value })}
               />
+              {kycLocked ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  Vergi levhası ve sicil belgeleriyle doğrulandı — değişiklik
+                  için destek ile iletişime geçin.
+                </p>
+              ) : null}
             </Field>
             {/* Sektör ve web sitesi PROFİLİM'e taşındı — herkese açık profilde
                 görünen vitrin verisi, düzenlemesi de orada olmalı. */}

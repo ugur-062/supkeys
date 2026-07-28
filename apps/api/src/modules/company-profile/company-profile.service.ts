@@ -248,29 +248,47 @@ export class CompanyProfileService {
       data.sellerCategoryIds = dto.sellerCategoryIds;
     }
 
-    // KYC KİMLİK KİLİDİ (2026-07-28): MERSİS / ticaret sicil / IBAN, doğrulama
-    // dosyasının parçasıdır — inceleme başladıktan (PENDING) veya onay
-    // verildikten (VERIFIED) sonra DEĞİŞTİRİLEMEZ. Doğrulama ekranı bu alanları
-    // zaten kilitliyordu ama kilit YALNIZ arayüzdeydi; bu uç nokta üzerinden
-    // (Ayarlar formu ya da doğrudan istek) baypas ediliyordu. Kilit artık burada.
-    const kycFieldsTouched =
-      dto.mersisNo !== undefined ||
-      dto.tradeRegistryNo !== undefined ||
-      dto.iban !== undefined ||
-      dto.ibanHolder !== undefined;
-    if (kycFieldsTouched) {
-      const co = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: { companyVerificationStatus: true },
-      });
-      if (
-        co?.companyVerificationStatus === "PENDING" ||
-        co?.companyVerificationStatus === "VERIFIED"
-      ) {
+    // KYC KİMLİK KİLİDİ (2026-07-28): YASAL ÜNVAN / MERSİS / ticaret sicil /
+    // IBAN, doğrulama dosyasının parçasıdır — inceleme başladıktan (PENDING)
+    // veya onay verildikten (VERIFIED) sonra DEĞİŞTİRİLEMEZ. Doğrulama ekranı
+    // bunları zaten kilitliyordu ama kilit YALNIZ arayüzdeydi; bu uç nokta
+    // üzerinden (Ayarlar formu ya da doğrudan istek) baypas ediliyordu.
+    //
+    // "Gönderildi mi" DEĞİL "değişiyor mu" bakılır: Ayarlar formu yasal ünvanı
+    // her kayıtta payload'a koyuyor, varlığa bakan bir kilit doğrulanmış
+    // firmanın şehrini bile güncellemesini engellerdi. Gerçek ünvan değişikliği
+    // (sicil tadili) belgelerle birlikte yeniden doğrulama ister.
+    const LOCKED_KYC = ["legalName", "mersisNo", "tradeRegistryNo", "ibanHolder"] as const;
+    const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
+    const kycBefore = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        companyVerificationStatus: true,
+        legalName: true,
+        mersisNo: true,
+        tradeRegistryNo: true,
+        iban: true,
+        ibanHolder: true,
+      },
+    });
+    const kycLocked =
+      kycBefore?.companyVerificationStatus === "PENDING" ||
+      kycBefore?.companyVerificationStatus === "VERIFIED";
+    if (kycLocked && kycBefore) {
+      const changed = LOCKED_KYC.some(
+        (k) => dto[k] !== undefined && norm(dto[k]) !== norm(kycBefore[k]),
+      );
+      // IBAN ayrı: normalize edilmiş haliyle karşılaştırılır (boşluk/küçük harf
+      // farkı "değişiklik" sayılmasın).
+      const ibanChanged =
+        dto.iban !== undefined &&
+        (dto.iban.trim() ? normalizeIban(dto.iban) : null) !==
+          (kycBefore.iban ?? null);
+      if (changed || ibanChanged) {
         throw new BadRequestException(
-          co.companyVerificationStatus === "PENDING"
-            ? "Doğrulama inceleniyor; kimlik ve IBAN bilgileri değiştirilemez"
-            : "Firmanız doğrulandı; kimlik ve IBAN bilgileri değiştirilemez",
+          kycBefore.companyVerificationStatus === "PENDING"
+            ? "Doğrulama inceleniyor; ünvan, kimlik ve IBAN bilgileri değiştirilemez"
+            : "Firmanız doğrulandı; ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
         );
       }
     }
