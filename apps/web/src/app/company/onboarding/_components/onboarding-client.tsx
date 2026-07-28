@@ -53,7 +53,6 @@ export function OnboardingClient() {
     companyType: "LIMITED",
     taxNumber: "",
     taxOffice: "",
-    website: "",
     city: "",
     district: "",
     stateRegion: "",
@@ -145,7 +144,6 @@ export function OnboardingClient() {
         country: f.country,
         taxNumber: f.taxNumber.trim(),
         taxOffice: f.taxOffice.trim() || undefined,
-        website: f.website.trim() || undefined,
         city: f.city.trim(),
         district: f.district.trim() || undefined,
         stateRegion: f.stateRegion.trim() || undefined,
@@ -238,7 +236,6 @@ export function OnboardingClient() {
                     city: "",
                     district: "",
                     taxOffice: "",
-                    website: "",
                     stateRegion: "",
                   }))
                 }
@@ -294,18 +291,6 @@ export function OnboardingClient() {
                 <Input value={f.taxOffice} onChange={(e) => set("taxOffice")(e.target.value)} />
               </Field>
             ) : null}
-            <Field>
-              <Label>Web Sitesi</Label>
-              <Input
-                value={f.website}
-                onChange={(e) => set("website")(e.target.value)}
-                placeholder="ornekfirma.com"
-              />
-              <p className="mt-1 text-xs text-zinc-500">
-                Opsiyonel — ücretli paketlerde zorunludur. Rothern firma
-                profiliniz bu siteden AI ile oluşturulur.
-              </p>
-            </Field>
             {isTR ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field>
