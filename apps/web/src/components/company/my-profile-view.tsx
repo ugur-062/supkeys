@@ -9,7 +9,7 @@ import {
 import { PublicProfileForm } from "@/components/company/public-profile-form";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { cn } from "@/lib/utils";
-import { Eye, EyeOff, Pencil, Settings2 } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, Pencil, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -67,63 +67,84 @@ export function MyProfileView() {
         <div>
           <Heading>Profilim</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Diğer firmaların seni nasıl gördüğünün birebir önizlemesi.
+            {tab === "preview"
+              ? "Diğer firmaların seni nasıl gördüğünün birebir önizlemesi."
+              : "Buradaki bilgiler firma profilinde ve Google'da görünür."}
           </Text>
         </div>
-        {/* Önizleme / Düzenle geçişi */}
-        <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
-          {(
-            [
-              ["preview", "Önizleme", Eye],
-              ["edit", "Düzenle", Pencil],
-            ] as const
-          ).map(([key, label, Icon]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition",
-                tab === key
-                  ? "bg-white text-zinc-900 shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-800",
-              )}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Yayındaki profile giden bağlantı — sekmeden bağımsız, hep elde. */}
+          {profile.publicEnabled && profile.slug ? (
+            <a
+              href={`/firma/${profile.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:underline"
             >
-              <Icon className="size-3.5" aria-hidden />
-              {label}
-            </button>
-          ))}
+              Yayındaki profili aç
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          ) : null}
+          {/* Önizleme / Düzenle geçişi */}
+          <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
+            {(
+              [
+                ["preview", "Önizleme", Eye],
+                ["edit", "Düzenle", Pencil],
+              ] as const
+            ).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition",
+                  tab === key
+                    ? "bg-white text-zinc-900 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-800",
+                )}
+              >
+                <Icon className="size-3.5" aria-hidden />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Görünürlük durumu */}
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3 text-sm",
-          profile.publicEnabled
-            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-            : "border-amber-200 bg-amber-50 text-amber-800",
-        )}
-      >
-        {profile.publicEnabled ? (
-          <>
-            <Eye className="size-4 shrink-0" aria-hidden />
-            Profilin herkese açık — firma dizininde ve aramalarda görünüyorsun.
-          </>
-        ) : (
-          <>
-            <EyeOff className="size-4 shrink-0" aria-hidden />
-            Profilin şu an herkese kapalı — dizinde görünmüyorsun.
-            <button
-              type="button"
-              onClick={() => setTab("edit")}
-              className="font-semibold underline"
-            >
-              Düzenle&apos;den açabilirsin.
-            </button>
-          </>
-        )}
-      </div>
+      {/* Görünürlük durumu — yalnız ÖNİZLEME'de. Düzenle sekmesinde aynı bilgiyi
+          taşıyan yayın anahtarı zaten formun başında duruyor; ikisini birden
+          göstermek aynı şeyi iki kez söylemek olurdu. */}
+      {tab === "preview" ? (
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3 text-sm",
+            profile.publicEnabled
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-800",
+          )}
+        >
+          {profile.publicEnabled ? (
+            <>
+              <Eye className="size-4 shrink-0" aria-hidden />
+              Profilin herkese açık — firma dizininde ve aramalarda
+              görünüyorsun.
+            </>
+          ) : (
+            <>
+              <EyeOff className="size-4 shrink-0" aria-hidden />
+              Profilin şu an herkese kapalı — dizinde görünmüyorsun.
+              <button
+                type="button"
+                onClick={() => setTab("edit")}
+                className="font-semibold underline"
+              >
+                Düzenle&apos;den açabilirsin.
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {tab === "preview" ? (
         <>

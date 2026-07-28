@@ -19,7 +19,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
 import { companyApi } from "@/lib/company-auth/api";
-import { ExternalLink, Loader2, Lock, Sparkles, X } from "lucide-react";
+import { Loader2, Lock, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -169,41 +169,10 @@ export function PublicProfileForm() {
         </div>
       ) : null}
 
-      {/* Üst başlık + görüntüle */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <Subheading>Herkese Açık Profilim</Subheading>
-          <Text className="mt-0.5 text-sm text-zinc-500">
-            Bu bilgiler firma profilinde ve Google&apos;da görünür.
-          </Text>
-        </div>
-        <div className="flex items-center gap-2">
-          {canEdit ? (
-            <Button outline onClick={enrichFromWebsite} disabled={enriching}>
-              {enriching ? (
-                <Loader2 data-slot="icon" className="animate-spin" />
-              ) : (
-                <Sparkles data-slot="icon" />
-              )}
-              {enriching ? "Siteniz okunuyor…" : "Web sitemden AI ile doldur"}
-            </Button>
-          ) : null}
-        {form.publicEnabled && profile.slug ? (
-          <a
-            href={`/firma/${profile.slug}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline"
-          >
-            Profili görüntüle
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : null}
-        </div>
-      </div>
-
-      {/* Yayın anahtarı */}
-      <Field className="flex items-center justify-between rounded-2xl border border-zinc-950/10 bg-white p-4">
+      {/* Yayın anahtarı — sayfa başlığı üst kabukta (MyProfileView); burada
+          ayrıca "Herkese Açık Profilim" başlığı vardı, aynı şeyi iki kez
+          söylüyordu, kaldırıldı. */}
+      <Field className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-950/10 bg-white p-4">
         <div>
           <Label>Herkese açık profil yayında</Label>
           <Text className="text-xs text-zinc-500">
@@ -217,7 +186,10 @@ export function PublicProfileForm() {
         />
       </Field>
 
-      <section className="space-y-5 rounded-2xl border border-zinc-950/10 bg-white p-5">
+      <FormSection
+        title="Görseller"
+        description="Logo ve kapak, profilinin ilk izlenimi."
+      >
         {/* Logo + kapak */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <ImageUpload
@@ -241,7 +213,33 @@ export function PublicProfileForm() {
             />
           </div>
         </div>
+      </FormSection>
 
+      <FormSection
+        title="Tanıtım"
+        description="Firmanı anlatan metin ve künye bilgileri."
+        action={
+          canEdit ? (
+            <Button
+              outline
+              onClick={enrichFromWebsite}
+              disabled={enriching || !form.website.trim()}
+              title={
+                form.website.trim()
+                  ? undefined
+                  : "Önce web sitesi adresini girin"
+              }
+            >
+              {enriching ? (
+                <Loader2 data-slot="icon" className="animate-spin" />
+              ) : (
+                <Sparkles data-slot="icon" />
+              )}
+              {enriching ? "Siteniz okunuyor…" : "Web sitemden AI ile doldur"}
+            </Button>
+          ) : undefined
+        }
+      >
         <Field>
           <Label>Hakkında</Label>
           <Textarea
@@ -255,7 +253,7 @@ export function PublicProfileForm() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Sektör + web sitesi Ayarlar'dan BURAYA taşındı — ikisi de herkese
-              açık profilde görünüyor; web sitesi ayrıca aşağıdaki "web sitemden
+              açık profilde görünüyor; web sitesi ayrıca yukarıdaki "web sitemden
               AI ile doldur" özelliğinin girdisi. */}
           <Field>
             <Label>Sektör</Label>
@@ -314,6 +312,12 @@ export function PublicProfileForm() {
           </Field>
         </div>
 
+      </FormSection>
+
+      <FormSection
+        title="Vitrin"
+        description="Ne yaptığını ve neyi belgelediğini gösteren içerikler."
+      >
         <ChipInput
           label="Hizmetler"
           values={form.services}
@@ -342,10 +346,12 @@ export function PublicProfileForm() {
           disabled={!canEdit}
           onChange={(photos) => set({ photos })}
         />
-      </section>
+      </FormSection>
 
+      {/* Yapışkan kaydet çubuğu — form uzun; Kaydet'i görmek için en alta
+          inmek gerekiyordu. */}
       {canEdit ? (
-        <div className="flex justify-end">
+        <div className="sticky bottom-0 -mx-1 flex justify-end border-t border-zinc-950/10 bg-white/85 px-1 py-3 backdrop-blur">
           <Button onClick={handleSave} disabled={update.isPending}>
             {update.isPending ? "Kaydediliyor…" : "Kaydet"}
           </Button>
@@ -356,6 +362,37 @@ export function PublicProfileForm() {
         </Text>
       )}
     </div>
+  );
+}
+
+/**
+ * Başlıklı form bölümü — form eskiden tek dev kutuydu (logo, hakkında, künye,
+ * hizmetler, sertifikalar, iki galeri hepsi arka arkaya); hiyerarşi yoktu.
+ */
+function FormSection({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Subheading>{title}</Subheading>
+          {description ? (
+            <Text className="mt-0.5 text-sm text-zinc-500">{description}</Text>
+          ) : null}
+        </div>
+        {action}
+      </div>
+      <div className="mt-5 space-y-5">{children}</div>
+    </section>
   );
 }
 
