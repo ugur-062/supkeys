@@ -60,8 +60,8 @@ const GROUPS: SettingsGroup[] = [
       {
         href: "/company/ayarlar/firma",
         icon: Building2,
-        title: "Firma Profili",
-        description: "Vergi, iletişim ve kategori bilgileri",
+        title: "Firma Bilgileri",
+        description: "Ünvan, adres, KEP ve faaliyet kategorileri",
       },
       {
         href: "/company/ayarlar/adresler",

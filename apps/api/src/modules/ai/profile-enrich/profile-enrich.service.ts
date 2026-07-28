@@ -84,7 +84,7 @@ export class ProfileEnrichService {
     const website = this.normalizeUrl(input.website || company?.website || "");
     if (!website) {
       throw new BadRequestException(
-        "Önce firma web sitenizi ekleyin (Ayarlar → Firma Bilgileri).",
+        "Önce firma web sitenizi ekleyin (Profilim → Düzenle).",
       );
     }
 

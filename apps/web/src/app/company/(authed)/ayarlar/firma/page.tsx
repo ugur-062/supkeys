@@ -6,8 +6,8 @@ import { SettingsShell } from "../_components/settings-shell";
 export default function Page() {
   return (
     <SettingsShell
-      title="Firma Profili"
-      description="Vergi, iletişim, adres ve kategori bilgileri."
+      title="Firma Bilgileri"
+      description="Ticari kayıt: ünvan, adres, KEP ve faaliyet kategorileri."
     >
       <CompanyProfileSection />
     </SettingsShell>

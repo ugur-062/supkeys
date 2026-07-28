@@ -141,7 +141,27 @@ export function MyProfileView() {
           </p>
         </>
       ) : (
-        <PublicProfileForm />
+        <>
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-400">
+            <Settings2 className="size-3.5" aria-hidden />
+            Firma adı, ünvan ve şehir{" "}
+            <Link
+              href="/company/ayarlar/firma"
+              className="font-semibold text-zinc-600 underline hover:text-zinc-900"
+            >
+              Ayarlar → Firma Bilgileri
+            </Link>
+            , IBAN ve kimlik bilgileri{" "}
+            <Link
+              href="/company/ayarlar/dogrulama"
+              className="font-semibold text-zinc-600 underline hover:text-zinc-900"
+            >
+              Doğrulama Belgeleri
+            </Link>{" "}
+            sayfasından yönetilir.
+          </p>
+          <PublicProfileForm />
+        </>
       )}
     </div>
   );

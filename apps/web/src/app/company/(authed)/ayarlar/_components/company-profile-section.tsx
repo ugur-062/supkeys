@@ -42,20 +42,16 @@ export function CompanyProfileSection() {
   const update = useUpdateCompanyProfile();
   const canEdit = useHasCompanyPermission("company:manage");
 
+  // Bu form YALNIZ ticari kaydı yönetir. Kimlik/IBAN (Doğrulama), sektör ve
+  // web sitesi (Profilim) BİLEREK yok — payload'a da girmezler.
   const [form, setForm] = useState({
     name: "",
     legalName: "",
-    industry: "",
-    website: "",
     city: "",
     district: "",
     addressLine: "",
     postalCode: "",
-    mersisNo: "",
-    tradeRegistryNo: "",
     kepAddress: "",
-    iban: "",
-    ibanHolder: "",
     buyerCategoryIds: [] as string[],
     sellerCategoryIds: [] as string[],
   });
@@ -65,17 +61,11 @@ export function CompanyProfileSection() {
       setForm({
         name: profile.name ?? "",
         legalName: profile.legalName ?? "",
-        industry: profile.industry ?? "",
-        website: profile.website ?? "",
         city: profile.city ?? "",
         district: profile.district ?? "",
         addressLine: profile.addressLine ?? "",
         postalCode: profile.postalCode ?? "",
-        mersisNo: profile.mersisNo ?? "",
-        tradeRegistryNo: profile.tradeRegistryNo ?? "",
         kepAddress: profile.kepAddress ?? "",
-        iban: profile.iban ?? "",
-        ibanHolder: profile.ibanHolder ?? "",
         // Yalnız segment (XX000000) kodları — eski hatalı UI alt seviye
         // yazabiliyordu; backend artık exactLevel:1 doğruladığından temizle.
         buyerCategoryIds: (profile.buyerCategoryIds ?? []).filter((id) =>
@@ -88,17 +78,6 @@ export function CompanyProfileSection() {
     }
   }, [profile]);
 
-  // IBAN/MERSİS/KEP doğrulaması — backend company-profile.service ile BİREBİR.
-  // IBAN: TR strict mod-97 (isValidIbanTr), yabancı gevşek format. Eski
-  // `/^TR\d{24}$/` yalnız biçim kontrolüydü (checksum'sız → backend'e uyumsuz).
-  const ibanClean = normalizeIban(form.iban);
-  const ibanInvalid =
-    ibanClean.length > 0 &&
-    (ibanClean.startsWith("TR")
-      ? !isValidIbanTr(ibanClean)
-      : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean));
-  // MERSİS: boş VEYA tam 16 hane (backend @Matches /^$|^\d{16}$/).
-  const mersisInvalid = !isValidMersis(form.mersisNo);
   // KEP: backend regex birebir (@...kep.tr).
   const kepInvalid =
     form.kepAddress.trim().length > 0 &&
@@ -108,22 +87,12 @@ export function CompanyProfileSection() {
     setForm((f) => ({ ...f, ...patch }));
 
   const handleSave = async () => {
-    // Kimlik alanları geçersizse backend 400'ünü beklemeden burada engelle.
-    if (mersisInvalid || kepInvalid || ibanInvalid) {
-      toast.error("Kurumsal kimlik alanlarında geçersiz değer var");
-      return;
-    }
-    // Güvenlik (defense-in-depth): website'i javascript:/data: gibi şemalardan
-    // arındır, şemasızı https'e normalize et. Asıl koruma render'da (safeExternalUrl).
-    const normWebsite = form.website.trim()
-      ? safeExternalUrl(form.website)
-      : "";
-    if (normWebsite === null) {
-      toast.error("Geçersiz web sitesi — yalnız http/https adresleri kabul edilir");
+    if (kepInvalid) {
+      toast.error("Geçerli bir KEP adresi giriniz");
       return;
     }
     try {
-      await update.mutateAsync({ ...form, website: normWebsite });
+      await update.mutateAsync(form);
       toast.success("Firma bilgileri güncellendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Güncellenemedi"));
@@ -185,36 +154,13 @@ export function CompanyProfileSection() {
         </DescriptionList>
       </section>
 
-      {/* Düzenlenebilir kurumsal kimlik kalemleri (MERSİS/KEP/IBAN) */}
+      {/* Kimlik/IBAN alanları BURADA DEĞİL (2026-07-28): MERSİS, ticaret sicil
+          ve IBAN doğrulama dosyasının parçası — tek yerden, Doğrulama
+          ekranından yönetilir ve onay sonrası kilitlenir. Buraya kopyalanınca
+          kilit baypas ediliyordu. Ödeme hesapları da ayrı: Banka Hesapları. */}
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-        <Subheading>Kurumsal Kimlik</Subheading>
+        <Subheading>İletişim</Subheading>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field>
-            <Label>MERSİS No</Label>
-            <Input
-              value={form.mersisNo}
-              maxLength={16}
-              disabled={!canEdit}
-              invalid={mersisInvalid}
-              placeholder="16 haneli"
-              onChange={(e) =>
-                set({ mersisNo: e.target.value.replace(/\D/g, "") })
-              }
-            />
-            {mersisInvalid ? (
-              <p className="mt-1 text-xs text-red-600">
-                MERSİS No 16 haneli olmalı
-              </p>
-            ) : null}
-          </Field>
-          <Field>
-            <Label>Ticaret Sicil No</Label>
-            <Input
-              value={form.tradeRegistryNo}
-              disabled={!canEdit}
-              onChange={(e) => set({ tradeRegistryNo: e.target.value })}
-            />
-          </Field>
           <Field>
             <Label>KEP Adresi</Label>
             <Input
@@ -230,28 +176,24 @@ export function CompanyProfileSection() {
               </p>
             ) : null}
           </Field>
-          <Field>
-            <Label>IBAN</Label>
-            <Input
-              value={form.iban}
-              disabled={!canEdit}
-              invalid={ibanInvalid}
-              placeholder="TR.."
-              onChange={(e) => set({ iban: e.target.value })}
-            />
-            {ibanInvalid ? (
-              <p className="mt-1 text-xs text-red-600">Bu değer geçersiz</p>
-            ) : null}
-          </Field>
-          <Field>
-            <Label>IBAN Sahibi</Label>
-            <Input
-              value={form.ibanHolder}
-              disabled={!canEdit}
-              onChange={(e) => set({ ibanHolder: e.target.value })}
-            />
-          </Field>
         </div>
+        <p className="mt-4 text-xs text-zinc-500">
+          MERSİS, ticaret sicil numarası ve IBAN{" "}
+          <Link
+            href="/company/ayarlar/dogrulama"
+            className="font-semibold text-zinc-700 underline hover:text-zinc-900"
+          >
+            Doğrulama Belgeleri
+          </Link>{" "}
+          sayfasından yönetilir. Sipariş tahsilatında kullanılan hesaplar için{" "}
+          <Link
+            href="/company/ayarlar/banka-hesaplari"
+            className="font-semibold text-zinc-700 underline hover:text-zinc-900"
+          >
+            Banka Hesapları
+          </Link>
+          .
+        </p>
       </section>
 
       {/* Düzenlenebilir firma bilgileri */}
@@ -283,22 +225,8 @@ export function CompanyProfileSection() {
                 onChange={(e) => set({ legalName: e.target.value })}
               />
             </Field>
-            <Field>
-              <Label>Sektör</Label>
-              <Input
-                value={form.industry}
-                disabled={!canEdit}
-                onChange={(e) => set({ industry: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <Label>Web sitesi</Label>
-              <Input
-                value={form.website}
-                disabled={!canEdit}
-                onChange={(e) => set({ website: e.target.value })}
-              />
-            </Field>
+            {/* Sektör ve web sitesi PROFİLİM'e taşındı — herkese açık profilde
+                görünen vitrin verisi, düzenlemesi de orada olmalı. */}
             <Field>
               <Label>İl / Şehir</Label>
               <Input

@@ -812,7 +812,7 @@ export class CompanyAuthService {
     const website = company.website?.trim();
     if (!website || !website.includes(".")) {
       throw new BadRequestException(
-        "Premium için geçerli bir firma web sitesi adresi girmelisiniz",
+        "Premium için geçerli bir firma web sitesi adresi girmelisiniz (Profilim → Düzenle)",
       );
     }
     // TODO(ödeme): premium ücretlendirme burada devreye girecek. Şimdilik

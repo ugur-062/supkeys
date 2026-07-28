@@ -33,10 +33,21 @@ beforeEach(async () => {
   await truncateAll();
 });
 
+/**
+ * Kimlik/IBAN alanları YALNIZ doğrulama ÖNCESİ değiştirilebilir (2026-07-28
+ * kilidi) — bu blok onay öncesi durumu doğrular, o yüzden firmalar UNVERIFIED
+ * kurulur. Factory varsayılanı VERIFIED'dır ve kilide takılır.
+ */
+const makeEditableCompany = (country = "TR") =>
+  makeCompanyWithUser(prisma, {
+    country,
+    companyVerificationStatus: "UNVERIFIED",
+  });
+
 describe("company-profile — kurumsal kimlik kalemleri", () => {
   it("geçerli MERSİS/KEP/IBAN kaydedilir (IBAN normalize)", async () => {
     const svc = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeEditableCompany();
     await svc.update(owner.company.id, {
       mersisNo: "1234567890123456",
       kepAddress: "firma@hs01.kep.tr",
@@ -54,7 +65,7 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
 
   it("geçersiz IBAN reddedilir", async () => {
     const svc = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeEditableCompany();
     await expect(
       svc.update(owner.company.id, { iban: "TR00 1234" } as never),
     ).rejects.toThrow(/geçerli bir iban/i);
@@ -62,7 +73,7 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
 
   it("yabancı IBAN gevşek formatla kabul edilir (TR-dışı katı mod-97 yok)", async () => {
     const svc = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "DE" });
+    const owner = await makeEditableCompany("DE");
     await svc.update(owner.company.id, {
       iban: "de89 3704 0044 0532 0130 00",
     } as never);
@@ -84,7 +95,7 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
 
   it("hassas-olmayan görünümde IBAN maskeli döner (banka listesiyle aynı kural)", async () => {
     const svc = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeEditableCompany();
     await svc.update(owner.company.id, {
       iban: VALID_IBAN,
       ibanHolder: "Örnek A.Ş.",
@@ -100,7 +111,7 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
 
   it("PATCH audit izi: changedFields alan ADLARI; IBAN değişimi critical + maskeli", async () => {
     const svc = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeEditableCompany();
 
     await svc.update(
       owner.company.id,
@@ -139,13 +150,68 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
 
   it("boş IBAN → temizlenir (null)", async () => {
     const svc = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeEditableCompany();
     await svc.update(owner.company.id, { iban: VALID_IBAN } as never);
     await svc.update(owner.company.id, { iban: "" } as never);
     const c = await prisma.company.findUniqueOrThrow({
       where: { id: owner.company.id },
     });
     expect(c.iban).toBeNull();
+  });
+});
+
+/**
+ * KYC kimlik kilidi — doğrulama başladıktan/bittikten sonra MERSİS, ticaret
+ * sicil ve IBAN bu uç noktadan DEĞİŞTİRİLEMEZ. Kilit daha önce yalnız
+ * arayüzdeydi (Doğrulama ekranı), Ayarlar formu üzerinden baypas ediliyordu.
+ */
+describe("company-profile — KYC kimlik kilidi", () => {
+  it.each(["PENDING", "VERIFIED"] as const)(
+    "%s firmada IBAN/MERSİS/sicil değişikliği reddedilir",
+    async (status) => {
+      const svc = makeService();
+      const owner = await makeCompanyWithUser(prisma, {
+        country: "TR",
+        companyVerificationStatus: status,
+      });
+      await expect(
+        svc.update(owner.company.id, { iban: VALID_IBAN } as never),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        svc.update(owner.company.id, {
+          mersisNo: "1234567890123456",
+        } as never),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        svc.update(owner.company.id, { tradeRegistryNo: "999" } as never),
+      ).rejects.toThrow(BadRequestException);
+    },
+  );
+
+  it("REJECTED firmada düzeltme için değişiklik SERBEST", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "REJECTED",
+    });
+    await svc.update(owner.company.id, { iban: VALID_IBAN } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.iban).toBe(VALID_IBAN);
+  });
+
+  it("kilitli firmada kimlik-DIŞI alanlar (hakkında) güncellenebilir", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "VERIFIED",
+    });
+    await svc.update(owner.company.id, { aboutText: "Merhaba" } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.aboutText).toBe("Merhaba");
   });
 });
 

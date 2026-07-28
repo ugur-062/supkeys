@@ -248,6 +248,33 @@ export class CompanyProfileService {
       data.sellerCategoryIds = dto.sellerCategoryIds;
     }
 
+    // KYC KİMLİK KİLİDİ (2026-07-28): MERSİS / ticaret sicil / IBAN, doğrulama
+    // dosyasının parçasıdır — inceleme başladıktan (PENDING) veya onay
+    // verildikten (VERIFIED) sonra DEĞİŞTİRİLEMEZ. Doğrulama ekranı bu alanları
+    // zaten kilitliyordu ama kilit YALNIZ arayüzdeydi; bu uç nokta üzerinden
+    // (Ayarlar formu ya da doğrudan istek) baypas ediliyordu. Kilit artık burada.
+    const kycFieldsTouched =
+      dto.mersisNo !== undefined ||
+      dto.tradeRegistryNo !== undefined ||
+      dto.iban !== undefined ||
+      dto.ibanHolder !== undefined;
+    if (kycFieldsTouched) {
+      const co = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { companyVerificationStatus: true },
+      });
+      if (
+        co?.companyVerificationStatus === "PENDING" ||
+        co?.companyVerificationStatus === "VERIFIED"
+      ) {
+        throw new BadRequestException(
+          co.companyVerificationStatus === "PENDING"
+            ? "Doğrulama inceleniyor; kimlik ve IBAN bilgileri değiştirilemez"
+            : "Firmanız doğrulandı; kimlik ve IBAN bilgileri değiştirilemez",
+        );
+      }
+    }
+
     // Kurumsal kimlik — düzenlenebilir kalemler (Faz 4).
     if (dto.mersisNo !== undefined) data.mersisNo = dto.mersisNo.trim() || null;
     if (dto.tradeRegistryNo !== undefined)

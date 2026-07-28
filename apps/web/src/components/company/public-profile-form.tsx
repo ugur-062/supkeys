@@ -38,6 +38,8 @@ export function PublicProfileForm() {
     publicEnabled: false,
     logoUrl: "",
     coverImageUrl: "",
+    industry: "",
+    website: "",
     linkedinUrl: "",
     instagramUrl: "",
     employeeCount: "",
@@ -55,6 +57,8 @@ export function PublicProfileForm() {
       publicEnabled: profile.publicEnabled,
       logoUrl: profile.logoUrl ?? "",
       coverImageUrl: profile.coverImageUrl ?? "",
+      industry: profile.industry ?? "",
+      website: profile.website ?? "",
       linkedinUrl: profile.linkedinUrl ?? "",
       instagramUrl: profile.instagramUrl ?? "",
       employeeCount: profile.employeeCount ?? "",
@@ -103,18 +107,26 @@ export function PublicProfileForm() {
   };
 
   const handleSave = async () => {
-    const { foundedYear, linkedinUrl, instagramUrl, ...rest } = form;
+    const { foundedYear, linkedinUrl, instagramUrl, website, ...rest } = form;
     // Güvenlik (defense-in-depth): javascript:/data: gibi URL'leri KAYDETME;
     // şemasızı https'e normalize et. Asıl koruma render tarafında (safeExternalUrl).
     const normLinkedin = linkedinUrl.trim() ? safeExternalUrl(linkedinUrl) : "";
     const normInstagram = instagramUrl.trim() ? safeExternalUrl(instagramUrl) : "";
+    const normWebsite = website.trim() ? safeExternalUrl(website) : "";
     if (normLinkedin === null || normInstagram === null) {
       toast.error("Geçersiz bağlantı — yalnız http/https adresleri kabul edilir");
+      return;
+    }
+    if (normWebsite === null) {
+      toast.error(
+        "Geçersiz web sitesi — yalnız http/https adresleri kabul edilir",
+      );
       return;
     }
     try {
       await update.mutateAsync({
         ...rest,
+        website: normWebsite,
         linkedinUrl: normLinkedin,
         instagramUrl: normInstagram,
         foundedYear: foundedYear.trim() ? Number(foundedYear) : undefined,
@@ -242,6 +254,27 @@ export function PublicProfileForm() {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Sektör + web sitesi Ayarlar'dan BURAYA taşındı — ikisi de herkese
+              açık profilde görünüyor; web sitesi ayrıca aşağıdaki "web sitemden
+              AI ile doldur" özelliğinin girdisi. */}
+          <Field>
+            <Label>Sektör</Label>
+            <Input
+              value={form.industry}
+              disabled={!canEdit}
+              placeholder="Örn. Elektrik malzemeleri"
+              onChange={(e) => set({ industry: e.target.value })}
+            />
+          </Field>
+          <Field>
+            <Label>Web sitesi</Label>
+            <Input
+              value={form.website}
+              disabled={!canEdit}
+              placeholder="ornekfirma.com"
+              onChange={(e) => set({ website: e.target.value })}
+            />
+          </Field>
           <Field>
             <Label>Kuruluş yılı</Label>
             <Input
