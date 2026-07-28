@@ -670,12 +670,13 @@ function EditUserModal({
   };
 
   return (
-    <Dialog open onClose={onClose} size="xl">
+    <Dialog open onClose={onClose} size="3xl">
       <DialogTitle>Kullanıcıyı Düzenle</DialogTitle>
       <DialogDescription>{user.email}</DialogDescription>
       {/* Uzun içerik (yetki editörü) viewport'u aşıp üstü header altında
-          kalmasın diye body iç scroll ile sınırlanır. */}
-      <DialogBody className="max-h-[65vh] space-y-5 overflow-y-auto">
+          kalmasın diye body iç scroll ile sınırlanır; pr/-mr çifti içeriğin
+          scrollbar'a yapışmasını önler. */}
+      <DialogBody className="-mr-3 max-h-[70vh] space-y-5 overflow-y-auto pr-3">
         <div>
           <p className="text-sm font-semibold text-zinc-900">Kişi Bilgileri</p>
           <div className="mt-2 grid grid-cols-2 gap-3">
