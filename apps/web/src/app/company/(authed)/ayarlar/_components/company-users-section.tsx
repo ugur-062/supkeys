@@ -49,14 +49,19 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  ClipboardCheck,
   Crown,
   MailPlus,
   MoreVertical,
   Pencil,
   Power,
   PowerOff,
+  Settings2,
+  ShoppingCart,
+  Store,
   Trash2,
   Users2,
+  type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -74,6 +79,13 @@ const ROLE_LABEL: Record<CompanyRole, string> = {
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
   ONAYLAYICI: "Onaylayıcı",
+};
+const ROLE_ICON: Record<CompanyRole, LucideIcon> = {
+  SAHIP: Crown,
+  YONETICI: Settings2,
+  SATIN_ALMACI: ShoppingCart,
+  SATISCI: Store,
+  ONAYLAYICI: ClipboardCheck,
 };
 
 export function CompanyUsersSection({
@@ -663,43 +675,57 @@ function EditUserModal({
       <DialogDescription>{user.email}</DialogDescription>
       {/* Uzun içerik (yetki editörü) viewport'u aşıp üstü header altında
           kalmasın diye body iç scroll ile sınırlanır. */}
-      <DialogBody className="max-h-[65vh] space-y-4 overflow-y-auto">
-        <div className="grid grid-cols-2 gap-3">
-          <Field>
-            <Label>Ad</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          </Field>
-          <Field>
-            <Label>Soyad</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+      <DialogBody className="max-h-[65vh] space-y-5 overflow-y-auto">
+        <div>
+          <p className="text-sm font-semibold text-zinc-900">Kişi Bilgileri</p>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <Field>
+              <Label>Ad</Label>
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </Field>
+            <Field>
+              <Label>Soyad</Label>
+              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </Field>
+          </div>
+          <Field className="mt-3">
+            <Label>Telefon</Label>
+            <PhoneInput value={phone} onChange={setPhone} />
           </Field>
         </div>
-        <Field>
-          <Label>Telefon</Label>
-          <PhoneInput value={phone} onChange={setPhone} />
-        </Field>
 
         {/* Roller (çoklu) */}
         <div>
-          <span className="block text-sm font-medium text-zinc-950">Roller</span>
-          <div className="mt-2 space-y-2">
-            {/* Kurucu ETİKETİ (Faz R): yönetim + billing/silme/devir; İŞLEM
-                yetkisi vermez. Kilitli; yalnız devirle değişir. */}
-            {user.isOwner ? (
-              <div className="flex items-start gap-3 rounded-lg bg-violet-50 p-2.5 text-sm ring-1 ring-violet-200">
-                <Checkbox checked disabled className="mt-0.5" />
-                <span>
-                  <span className="font-semibold text-zinc-900">Kurucu</span>
-                  <span className="mt-0.5 block text-xs text-zinc-500">
-                    Yönetim etiketi — hesap/kullanıcı yönetimi ve billing/silme/
-                    devir. İşlem (ihale açma, teklif) için aşağıdan Satın Almacı/
-                    Satışçı rolü ekleyin. Yalnız devirle değişir.
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-sm font-semibold text-zinc-900">Roller</p>
+            <p className="text-xs text-zinc-500">Birden fazla seçilebilir</p>
+          </div>
+          {/* Kurucu ETİKETİ (Faz R): yönetim + billing/silme/devir; İŞLEM
+              yetkisi vermez. Kilitli; yalnız devirle değişir. */}
+          {user.isOwner ? (
+            <div className="mt-2 flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-3 text-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white">
+                <Crown className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 font-semibold text-zinc-900">
+                  Kurucu
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                    Kilitli
                   </span>
                 </span>
-              </div>
-            ) : null}
-            {/* Faz R: Kurucu'ya SA/ST eklenebilir (etiket işlem vermez);
-                YONETICI etiketini yalnız Kurucu atayabilir. */}
+                <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
+                  Yönetim etiketi — hesap ve kullanıcı yönetimi, faturalama,
+                  devir. Tek başına işlem yetkisi vermez; ihale açmak veya
+                  teklif vermek için aşağıdan rol ekleyin. Yalnız devirle
+                  değişir.
+                </span>
+              </span>
+            </div>
+          ) : null}
+          {/* Faz R: Kurucu'ya SA/ST eklenebilir (etiket işlem vermez);
+              YONETICI etiketini yalnız Kurucu atayabilir. */}
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {(user.isOwner
               ? ROLES.filter(
                   (r) => r.key === "SATIN_ALMACI" || r.key === "SATISCI",
@@ -710,27 +736,37 @@ function EditUserModal({
               // YONETICI seçiliyken ONAYLAYICI anlamsız (onayı zaten kapsar).
               const onayLocked =
                 r.key === "ONAYLAYICI" && roles.includes("YONETICI");
+              const Icon = ROLE_ICON[r.key];
               return (
                 <label
                   key={r.key}
-                  className={`flex items-start gap-3 rounded-lg p-2.5 text-sm ring-1 transition ${
-                    on ? "bg-zinc-50 ring-2 ring-zinc-900" : "bg-white ring-zinc-950/10"
+                  className={`flex items-start gap-3 rounded-xl p-3 text-sm ring-1 transition ${
+                    on
+                      ? "bg-zinc-50 ring-2 ring-zinc-900"
+                      : "bg-white ring-zinc-950/10 hover:ring-zinc-950/25"
                   } ${onayLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                 >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
+                      on ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold text-zinc-900">{r.label}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                      {onayLocked
+                        ? "Yönetici zaten onay verebilir — ayrıca gerekmez"
+                        : r.desc}
+                    </span>
+                  </span>
                   <Checkbox
                     checked={on}
                     disabled={onayLocked}
                     onChange={() => toggleRole(r.key)}
                     className="mt-0.5"
                   />
-                  <span>
-                    <span className="font-semibold text-zinc-900">{r.label}</span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">
-                      {onayLocked
-                        ? "Yönetici zaten onay verebilir — ayrıca gerekmez"
-                        : r.desc}
-                    </span>
-                  </span>
                 </label>
               );
             })}
