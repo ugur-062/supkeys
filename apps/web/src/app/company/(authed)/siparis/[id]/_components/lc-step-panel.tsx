@@ -134,9 +134,9 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
     <section className={`rounded-2xl border p-5 ${toneCls}`}>
       <div className="mb-2 flex items-center gap-2">
         <Landmark className="h-4 w-4 text-zinc-700" />
-        <h3 className="text-sm font-semibold text-zinc-900">
+        <h2 className="text-sm font-semibold text-zinc-900">
           Akreditif — {formatPaymentPlan(order)}
-        </h3>
+        </h2>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Text className="max-w-xl text-sm text-zinc-600">{step.text}</Text>

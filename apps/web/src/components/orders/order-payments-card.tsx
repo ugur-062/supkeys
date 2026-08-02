@@ -150,7 +150,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     <section className="rounded-xl border border-zinc-950/10 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-950/5 px-5 py-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-zinc-900">Ödeme</h3>
+          <h2 className="text-sm font-semibold text-zinc-900">Ödeme</h2>
           {/* İhale şartındaki ödeme planı — award anındaki snapshot. */}
           <p className="truncate text-xs text-zinc-500">
             {formatPaymentPlan(order)}
@@ -226,6 +226,13 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           Yaptığınız ödemenin tutarını girin — satıcı onaylayınca kalan borçtan
           düşülür.
         </DialogDescription>
+        {/* P1 (denetim §4.2): form + Enter ile gönderim. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
         <DialogBody className="space-y-4">
           <Field>
             <Label>Tutar ({curSym}) *</Label>
@@ -249,10 +256,11 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           <Button plain onClick={resetForm}>
             Vazgeç
           </Button>
-          <Button onClick={submit} disabled={record.isPending || !amount}>
+          <Button type="submit" disabled={record.isPending || !amount}>
             Bildir
           </Button>
         </DialogActions>
+        </form>
       </Dialog>
 
       {/* Ödeme listesi */}

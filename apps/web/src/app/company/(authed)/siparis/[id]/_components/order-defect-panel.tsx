@@ -47,9 +47,9 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-zinc-900">
+          <h2 className="text-sm font-semibold text-zinc-900">
             Ayıp ihbarı — sipariş ihtilaflı (TTK 23)
-          </h3>
+          </h2>
           {order.defectReason ? (
             <p className="mt-1 text-sm text-zinc-700">
               <span className="font-medium">İhbar gerekçesi:</span>{" "}

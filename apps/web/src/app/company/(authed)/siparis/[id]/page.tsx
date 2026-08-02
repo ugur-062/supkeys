@@ -427,7 +427,7 @@ export default function OrderDetailPage() {
         <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
           <div className="mb-3 flex items-center gap-2">
             <Gavel className="h-4 w-4 text-zinc-500" />
-            <h3 className="text-sm font-semibold text-zinc-900">Bağlı İhale</h3>
+            <h2 className="text-sm font-semibold text-zinc-900">Bağlı İhale</h2>
           </div>
           {o.listingId ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -459,9 +459,9 @@ export default function OrderDetailPage() {
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-zinc-500" />
-              <h3 className="text-sm font-semibold text-zinc-900">
+              <h2 className="text-sm font-semibold text-zinc-900">
                 {isSeller ? "Alıcı Firma" : "Satıcı Firma"}
-              </h3>
+              </h2>
             </div>
             <Button
               outline
@@ -520,9 +520,9 @@ export default function OrderDetailPage() {
         <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
           <div className="mb-3 flex items-center gap-2">
             <Truck className="h-4 w-4 text-zinc-500" />
-            <h3 className="text-sm font-semibold text-zinc-900">
+            <h2 className="text-sm font-semibold text-zinc-900">
               Teslimat Adresi
-            </h3>
+            </h2>
           </div>
           <p className="text-sm text-zinc-900">
             <span className="font-medium">{o.deliveryAddress.title}</span> —{" "}
@@ -656,9 +656,9 @@ export default function OrderDetailPage() {
         <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
           <div className="mb-3 flex items-center gap-2">
             <Banknote className="h-4 w-4 text-zinc-500" />
-            <h3 className="text-sm font-semibold text-zinc-900">
+            <h2 className="text-sm font-semibold text-zinc-900">
               Ödeme &amp; Fatura
-            </h3>
+            </h2>
           </div>
           <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
             {o.bankAccountHolder ? (

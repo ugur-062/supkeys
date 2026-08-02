@@ -187,9 +187,9 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
 
   return (
     <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
-      <h3 className="mb-4 text-sm font-semibold text-zinc-900">
+      <h2 className="mb-4 text-sm font-semibold text-zinc-900">
         Sipariş Geçmişi
-      </h3>
+      </h2>
       <ol className="space-y-4">
         {events.map((e, i) => {
           const Icon = e.icon;

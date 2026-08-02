@@ -61,6 +61,13 @@ export function AcceptOrderModal({
         Ödeme bilgilerinizi girin — teslim bilgisi teklifinizden alınır,
         yeniden tarih seçmeniz gerekmez.
       </DialogDescription>
+      {/* P1 (denetim §4.2): mantıksal form <form> içinde — Enter gönderir. */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
       <DialogBody className="space-y-4">
         {bankOptional ? (
           <Field>
@@ -121,10 +128,11 @@ export function AcceptOrderModal({
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={submit} disabled={pending || !bankReady}>
+        <Button type="submit" disabled={pending || !bankReady}>
           Onayla
         </Button>
       </DialogActions>
+      </form>
     </Dialog>
   );
 }
@@ -166,6 +174,12 @@ export function ShipOrderModal({
           ? "Kestiğiniz faturanın numarasını girin — sipariş sizin tarafınızdan tamamlanır; alıcı teslim aldığını işaretleyince kesin olarak kapanır."
           : "Kestiğiniz faturanın numarasını girin ve malı teslime hazır işaretleyin — alıcı teslim aldığını işaretleyince sipariş kesin olarak kapanır."}
       </DialogDescription>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
       <DialogBody className="space-y-4">
         <Field>
           <Label>Fatura Numarası *</Label>
@@ -196,10 +210,11 @@ export function ShipOrderModal({
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={submit} disabled={pending || !invoice.trim()}>
+        <Button type="submit" disabled={pending || !invoice.trim()}>
           {title}
         </Button>
       </DialogActions>
+      </form>
     </Dialog>
   );
 }

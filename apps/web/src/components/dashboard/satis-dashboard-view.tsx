@@ -24,16 +24,14 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { formatMoney } from "@/components/ui/money";
 import Link from "next/link";
 import { useEffect, useState, type ComponentType } from "react";
 
+/** P1 (denetim §8.1): tek para formatı — sembol SONDA, kuruş görünür. */
 function formatTRY(amount: number): string {
-  if (!Number.isFinite(amount) || amount === 0) return "₺0";
-  return amount.toLocaleString("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 0,
-  });
+  if (!Number.isFinite(amount)) return "—";
+  return formatMoney(amount, "TRY");
 }
 
 /** Beyaz panel kartı — eski tedarikçi PanelCard'ının zinc/Catalyst portu. */
@@ -228,7 +226,7 @@ export function SatisDashboardView() {
       {/* Karşılama başlığı — satınalma paneliyle aynı biçim */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
+          <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950">
             Satış paneli
           </h1>
           <p className="text-[15px] text-zinc-500">

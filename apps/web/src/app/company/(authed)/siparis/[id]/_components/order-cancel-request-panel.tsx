@@ -98,11 +98,11 @@ export function OrderCancelRequestPanel({
           className={`mt-0.5 size-5 shrink-0 ${disputed ? "text-amber-600" : "text-zinc-500"}`}
         />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-zinc-900">
+          <h2 className="text-sm font-semibold text-zinc-900">
             {disputed
               ? "Sipariş ihtilaflı"
               : "Satıcı sipariş iptali talep etti"}
-          </h3>
+          </h2>
           {reason ? (
             <p className="mt-1 text-sm text-zinc-600">
               <span className="font-medium">Satıcının gerekçesi:</span> {reason}

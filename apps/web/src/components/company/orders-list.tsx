@@ -17,6 +17,7 @@ import {
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { sellerShipsGoods } from "@rothern/shared";
+import { formatMoney } from "@/components/ui/money";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -420,8 +421,9 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
 
         {/* Sağ: tutar + tarih */}
         <div className="flex shrink-0 items-center justify-between gap-4 lg:w-40 lg:flex-col lg:items-end lg:justify-center lg:gap-1">
+          {/* P1 (denetim §8.1): tek para formatı — kuruş görünür, sembol sonda. */}
           <p className="whitespace-nowrap font-mono text-base font-bold tabular-nums text-success-700">
-            {Number(o.amount).toLocaleString("tr-TR")} {sym(o.currency)}
+            {formatMoney(o.amount, o.currency)}
           </p>
           <p className="whitespace-nowrap text-xs text-zinc-400">
             {format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
