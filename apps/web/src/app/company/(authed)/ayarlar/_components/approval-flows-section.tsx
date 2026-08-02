@@ -35,7 +35,9 @@ import {
   ArrowDown,
   BadgeCheck,
   Check,
+  ChevronDown,
   ChevronLeft,
+  ChevronUp,
   Info,
   Pencil,
   Plus,
@@ -661,13 +663,14 @@ function FlowWizard({
                 <div className="w-full rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
+                      {/* P2 (denetim §9 Stepper): çift sıra göstergesi
+                          ("1" yuvarlağı + "1. ONAY") teke indi. */}
                       <div className="flex items-center gap-2">
                         <span className="flex size-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
                           {i + 1}
                         </span>
                         <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-                          {i + 1}. Onay
-                          {s.displayLabel ? ` — ${s.displayLabel}` : ""}
+                          {s.displayLabel || "Onay Adımı"}
                         </span>
                       </div>
                       <p className="mt-1.5 text-sm font-semibold text-zinc-900">
@@ -680,6 +683,38 @@ function FlowWizard({
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-1">
+                      {/* P2 (denetim §9): onaycı sıralama — klavye-dostu
+                          yukarı/aşağı taşıma (dnd yerine bilinçli buton). */}
+                      <Button
+                        plain
+                        disabled={i === 0}
+                        onClick={() =>
+                          setSteps((cur) => {
+                            const next = [...cur];
+                            [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                            return next;
+                          })
+                        }
+                        aria-label={`${i + 1}. onaycıyı yukarı taşı`}
+                        title="Yukarı taşı"
+                      >
+                        <ChevronUp className="size-3.5" aria-hidden />
+                      </Button>
+                      <Button
+                        plain
+                        disabled={i === steps.length - 1}
+                        onClick={() =>
+                          setSteps((cur) => {
+                            const next = [...cur];
+                            [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                            return next;
+                          })
+                        }
+                        aria-label={`${i + 1}. onaycıyı aşağı taşı`}
+                        title="Aşağı taşı"
+                      >
+                        <ChevronDown className="size-3.5" aria-hidden />
+                      </Button>
                       <Button
                         plain
                         onClick={() => setEditingStep(i)}

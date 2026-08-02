@@ -31,6 +31,21 @@ export interface SavingsReportInput {
   currency?: string;
 }
 
+export interface ReportsSummary {
+  /** Son 6 ay — adet bazlı hacim + TRY sipariş toplamı (yalnız TRY siparişler). */
+  months: {
+    key: string;
+    label: string;
+    listings: number;
+    bids: number;
+    orderTotalTry: number;
+  }[];
+  /** ALIM: sonuçlanan ihalelerden kazandırılan; SATIS: karara bağlanan tekliflerden kazanılan. */
+  winRate: { won: number; total: number };
+  orders: { count: number; avgTry: number | null };
+  categories: { name: string; count: number }[];
+}
+
 export interface BidComparisonInput {
   /** İhale numarası ya da id. */
   listingId: string;
@@ -769,6 +784,193 @@ export class CompanyReportsService {
       parties,
       recommendedAwards,
       roundHistory,
+    };
+  }
+
+  /**
+   * P2 (frontend denetimi §10.5): Raporlar hub özet grafikleri — adet bazlı
+   * aylık hacim (para birimi tuzağı yok), kazanma oranı, sipariş ortalaması
+   * (yalnız TRY siparişler — çoklu birim karışmaz) ve kategori dağılımı.
+   * ALIM = kendi ihalelerin/gelen teklifler; SATIS = verdiğin teklifler.
+   */
+  async summary(
+    companyId: string,
+    type: ListingType,
+  ): Promise<ReportsSummary> {
+    const now = new Date();
+    const start6 = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const start12 = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const MONTHS_TR = [
+      "Oca",
+      "Şub",
+      "Mar",
+      "Nis",
+      "May",
+      "Haz",
+      "Tem",
+      "Ağu",
+      "Eyl",
+      "Eki",
+      "Kas",
+      "Ara",
+    ];
+    const monthKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const buckets = new Map<
+      string,
+      { label: string; listings: number; bids: number; orderTotalTry: number }
+    >();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.set(monthKey(d), {
+        label: MONTHS_TR[d.getMonth()],
+        listings: 0,
+        bids: 0,
+        orderTotalTry: 0,
+      });
+    }
+    const bump = (
+      at: Date,
+      field: "listings" | "bids",
+    ) => {
+      const b = buckets.get(monthKey(at));
+      if (b) b[field] += 1;
+    };
+
+    const isAlim = type === "ALIM";
+    const [listingRows, bidRows, decisionRows, orderRows, catRows] =
+      await Promise.all([
+        this.prisma.listing.findMany({
+          where: { companyId, type, createdAt: { gte: start6 } },
+          select: { createdAt: true },
+        }),
+        isAlim
+          ? this.prisma.listingBid.findMany({
+              where: {
+                listing: { companyId, type },
+                status: { in: [...REAL_BID] },
+                createdAt: { gte: start6 },
+              },
+              select: { createdAt: true },
+            })
+          : this.prisma.listingBid.findMany({
+              where: {
+                bidderCompanyId: companyId,
+                status: { in: [...REAL_BID] },
+                createdAt: { gte: start6 },
+              },
+              select: { createdAt: true },
+            }),
+        isAlim
+          ? this.prisma.listing.findMany({
+              where: {
+                companyId,
+                type,
+                status: { in: ["AWARDED", "CLOSED_NO_AWARD", "CANCELLED"] },
+                createdAt: { gte: start12 },
+              },
+              select: { status: true },
+            })
+          : this.prisma.listingBid.findMany({
+              where: {
+                bidderCompanyId: companyId,
+                status: { in: ["WON", "AWARDED_PARTIAL", "LOST"] },
+                createdAt: { gte: start12 },
+              },
+              select: { status: true },
+            }),
+        this.prisma.companyOrder.findMany({
+          where: {
+            ...(isAlim
+              ? { buyerCompanyId: companyId }
+              : { sellerCompanyId: companyId }),
+            status: { notIn: ["REJECTED", "CANCELLED"] },
+            createdAt: { gte: start6 },
+          },
+          select: { createdAt: true, amount: true, currency: true },
+        }),
+        isAlim
+          ? this.prisma.listing.findMany({
+              where: { companyId, type, createdAt: { gte: start12 } },
+              select: { categoryIds: true },
+            })
+          : this.prisma.listingBid.findMany({
+              where: {
+                bidderCompanyId: companyId,
+                status: { in: [...REAL_BID] },
+                createdAt: { gte: start12 },
+              },
+              select: { listing: { select: { categoryIds: true } } },
+            }),
+      ]);
+
+    for (const l of listingRows) bump(l.createdAt, "listings");
+    for (const b of bidRows) bump(b.createdAt, "bids");
+
+    // Sipariş toplamı yalnız TRY — çoklu birimi tek eksende toplamak yanıltıcı.
+    let tryTotal = 0;
+    let tryCount = 0;
+    for (const o of orderRows) {
+      if (o.currency !== "TRY") continue;
+      const amt = Number(o.amount);
+      tryTotal += amt;
+      tryCount += 1;
+      const b = buckets.get(monthKey(o.createdAt));
+      if (b) b.orderTotalTry += amt;
+    }
+
+    const wonCount = decisionRows.filter((r) =>
+      isAlim
+        ? r.status === "AWARDED"
+        : r.status === "WON" || r.status === "AWARDED_PARTIAL",
+    ).length;
+
+    // Kategori dağılımı — L1 segmentine katla (ilk 2 hane + "000000"),
+    // yoksa ham kod; ilk 5 + Diğer.
+    const catCounts = new Map<string, number>();
+    const rawIds = isAlim
+      ? (catRows as { categoryIds: string[] }[]).flatMap((r) => r.categoryIds)
+      : (catRows as { listing: { categoryIds: string[] } }[]).flatMap(
+          (r) => r.listing.categoryIds,
+        );
+    for (const id of rawIds) {
+      const seg = id.length === 8 ? `${id.slice(0, 2)}000000` : id;
+      catCounts.set(seg, (catCounts.get(seg) ?? 0) + 1);
+    }
+    const top = [...catCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    const catNames = top.length
+      ? await this.prisma.category.findMany({
+          where: { id: { in: top.map(([id]) => id) } },
+          select: { id: true, nameTr: true },
+        })
+      : [];
+    const nameById = new Map(catNames.map((c) => [c.id, c.nameTr]));
+    const rest = [...catCounts.values()].reduce((a, b) => a + b, 0) -
+      top.reduce((a, [, n]) => a + n, 0);
+    const categories = [
+      ...top.map(([id, count]) => ({
+        name: nameById.get(id) ?? id,
+        count,
+      })),
+      ...(rest > 0 ? [{ name: "Diğer", count: rest }] : []),
+    ];
+
+    return {
+      months: [...buckets.entries()].map(([key, b]) => ({
+        key,
+        label: b.label,
+        listings: b.listings,
+        bids: b.bids,
+        orderTotalTry: Math.round(b.orderTotalTry * 100) / 100,
+      })),
+      winRate: { won: wonCount, total: decisionRows.length },
+      orders: {
+        count: tryCount,
+        avgTry: tryCount > 0 ? Math.round((tryTotal / tryCount) * 100) / 100 : null,
+      },
+      categories,
     };
   }
 }

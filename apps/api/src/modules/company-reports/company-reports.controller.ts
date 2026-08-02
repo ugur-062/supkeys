@@ -79,6 +79,17 @@ export class CompanyReportsController {
     private readonly excel: ReportsExcelService,
   ) {}
 
+  /** Hub özet grafikleri (denetim §10.5) — kriter yok, tip yeter. */
+  @Post("summary")
+  summary(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() body: { type?: string },
+  ) {
+    const t = parseType(body.type);
+    assertTypeAllowed(user, t);
+    return this.service.summary(user.companyId, t);
+  }
+
   @Post("general")
   general(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,

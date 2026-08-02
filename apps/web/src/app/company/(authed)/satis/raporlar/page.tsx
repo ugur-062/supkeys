@@ -1,10 +1,21 @@
 "use client";
 
 import { HubList } from "@/components/company/hub-list";
+import dynamic from "next/dynamic";
 import { FileText, GitCompare, TrendingUp } from "lucide-react";
+
+// Grafikler (recharts) rota paketine girmesin — tembel + yalnız istemci.
+const ReportsSummaryCharts = dynamic(
+  () =>
+    import("@/components/reports/reports-summary-charts").then(
+      (m) => m.ReportsSummaryCharts,
+    ),
+  { ssr: false },
+);
 
 export default function SatisRaporlarPage() {
   return (
+    <div className="space-y-8">
     <HubList
       title="Raporlar"
       description="Bir rapor tipi seçin, kriterleri doldurun; sonucu web'de görüntüleyin ya da Excel olarak indirin."
@@ -32,5 +43,8 @@ export default function SatisRaporlarPage() {
         },
       ]}
     />
+      {/* P2 (denetim §10.5): hub özet grafikleri. */}
+      <ReportsSummaryCharts type="SATIS" />
+    </div>
   );
 }
