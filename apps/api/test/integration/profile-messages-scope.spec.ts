@@ -98,7 +98,7 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
     );
   }
 
-  it("etiket-only/onaylayıcı/rolsüz üye gönderemez; portal-yönlü rol geçer, okuma serbest", async () => {
+  it("etiket-only/onaylayıcı/rolsüz üye gönderemez VE okuyamaz; portal-yönlü rol geçer", async () => {
     const svc = makeMsgService();
     const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
@@ -124,10 +124,34 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
       svc.send(withRoles(["SATIN_ALMACI"]), "satis", b.company.id, "m"),
     ).rejects.toThrow(/Satışçı rolü gerekir/);
 
-    // Doğru yön geçer; okuma (thread) rolsüz üyeye açık kalır.
+    // Doğru yön geçer.
     await svc.send(withRoles(["SATIN_ALMACI"]), "satinalma", b.company.id, "merhaba");
+
+    // Okuma uçları da rol kapısının arkasında (kullanıcı isteği 2026-08-02):
+    // rolsüz Kurucu konuşmayı OKUYAMAZ, gelen kutusunu LİSTELEYEMEZ.
+    await expect(
+      svc.getThread(withRoles(["SAHIP"], true), "satinalma", b.company.id),
+    ).rejects.toThrow(/görüntülemek için Satın Almacı rolü gerekir/);
+    await expect(
+      svc.listThreads(withRoles([]), "satinalma"),
+    ).rejects.toThrow(/görüntülemek için Satın Almacı rolü gerekir/);
+    // Yön uyuşmayan rol de okuyamaz (satis rozetiyle satınalma kutusu açılmaz).
+    await expect(
+      svc.listThreads(withRoles(["SATISCI"]), "satinalma"),
+    ).rejects.toThrow(/görüntülemek için Satın Almacı rolü gerekir/);
+
+    // Rozet ucu hata üretmez: rolsüz portal 0 sayılır, rollü portal sayar.
+    const bAuth = { ...b.auth, roles: ["SATISCI"] } as typeof b.auth;
+    expect((await svc.unreadCount(bAuth, "satis")).count).toBe(1);
+    expect(
+      (await svc.unreadCount(withRoles(["SAHIP"], true), "satinalma")).count,
+    ).toBe(0);
+    // Portal'sız toplam yalnız rollü tarafları sayar.
+    expect(
+      (await svc.unreadCount({ ...b.auth, roles: [] } as typeof b.auth)).count,
+    ).toBe(0);
     const read = await svc.getThread(
-      withRoles([]),
+      withRoles(["SATIN_ALMACI"]),
       "satinalma",
       b.company.id,
     );

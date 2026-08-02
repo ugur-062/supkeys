@@ -11,7 +11,7 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
-import { accessiblePortals, PORTALS, type PortalKey } from "@/lib/company/portals";
+import { canUseMessaging, PORTALS, type PortalKey } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
   ArrowRightStartOnRectangleIcon,
@@ -47,10 +47,9 @@ export function CompanyTopbar({
 }) {
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
-  // Minimal kabuk (ONAYLAYICI-only/rolsüz): portal-scoped mesaj linki duvara
-  // götürür → popover gizli; bildirim zili kalır (CTA'lar kendi URL'ini taşır).
-  const minimal =
-    accessiblePortals(user?.roles ?? [], company?.tier).length === 0;
+  // Mesaj kutusu yalnız portalın işlem rolüne görünür (Kurucu/Yönetici
+  // etiketi yetmez — API okuma uçları da 403 verir); bildirim zili kalır.
+  const canMessage = canUseMessaging(user?.roles ?? [], activePortal);
   const tier = company?.tier ?? "STANDART";
   const portal = PORTALS[activePortal];
 
@@ -100,9 +99,9 @@ export function CompanyTopbar({
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
       <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
-        {minimal ? null : (
+        {canMessage ? (
           <MessagesPopover portal={activePortal} basePath={portal.basePath} />
-        )}
+        ) : null}
 
         <NotificationBell portal={activePortal} />
 

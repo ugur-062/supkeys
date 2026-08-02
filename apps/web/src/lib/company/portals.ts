@@ -184,6 +184,18 @@ export function accessiblePortals(
   return out;
 }
 
+/**
+ * Mesajlaşma = operasyon rolü işi: portalın işlem rolü (satınalma→Satın
+ * Almacı, satış→Satışçı) olmayan kullanıcı — Kurucu/Yönetici dahil — o
+ * portalda mesajlaşamaz ve gelen kutusunu göremez (API aynası: 403).
+ */
+export function canUseMessaging(
+  roles: CompanyRole[],
+  portal: PortalKey,
+): boolean {
+  return roles.includes(PORTALS[portal].role);
+}
+
 export function isPortalItemActive(
   href: string,
   pathname: string | null,

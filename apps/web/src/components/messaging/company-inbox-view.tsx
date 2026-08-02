@@ -2,11 +2,13 @@
 
 import { PageHeader } from "@/components/list";
 import { CompanyMessageThread } from "@/components/messaging/company-message-thread";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useConnections } from "@/hooks/use-company-connections";
 import {
   useThreads,
   type MessagePortal,
 } from "@/hooks/use-company-messages";
+import { canUseMessaging } from "@/lib/company/portals";
 import { format, isToday } from "date-fns";
 import { tr } from "date-fns/locale";
 import { MessageSquare, Search } from "lucide-react";
@@ -32,8 +34,12 @@ const PORTAL_LABEL: Record<MessagePortal, string> = {
  * thread'i buyer/seller rolüne göre ayırır).
  */
 export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
+  const { user } = useCompanyAuth();
+  // Rol kapısı: portalın işlem rolü yoksa (Kurucu/Yönetici dahil) gelen
+  // kutusu açılmaz — API okuma uçları da 403 verir, sorgular hiç atılmaz.
+  const allowed = canUseMessaging(user?.roles ?? [], portal);
   const connections = useConnections();
-  const threads = useThreads(portal);
+  const threads = useThreads(portal, allowed);
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<string | null>(
     searchParams.get("with"),
@@ -69,6 +75,29 @@ export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
   }, [connections.data, threads.data, search]);
 
   const selectedContact = contacts.find((c) => c.id === selected) ?? null;
+
+  if (!allowed) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Mesajlar"
+          description={`${PORTAL_LABEL[portal]} konuşmaların — bu portala özel.`}
+        />
+        <div className="flex flex-col items-center rounded-xl border border-zinc-950/10 bg-white px-6 py-16 text-center">
+          <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
+          <p className="text-sm font-medium text-zinc-700">
+            Mesajlaşma için{" "}
+            {portal === "satinalma" ? "Satın Almacı" : "Satışçı"} rolü gerekir.
+          </p>
+          <p className="mt-1 max-w-sm text-xs text-zinc-500">
+            Bu portalda mesajlaşabilmek için hesabına ilgili operasyon rolünün
+            tanımlanması gerekiyor. Rolleri Ayarlar → Kullanıcılar&apos;dan
+            kurucu düzenleyebilir.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

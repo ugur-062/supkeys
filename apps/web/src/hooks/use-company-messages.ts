@@ -48,7 +48,7 @@ const KEYS = {
   unread: ["company-msg-unread"] as const,
 };
 
-export function useThreads(portal: MessagePortal) {
+export function useThreads(portal: MessagePortal, enabled = true) {
   return useQuery<ThreadSummary[]>({
     queryKey: KEYS.threads(portal),
     queryFn: async () => {
@@ -58,6 +58,9 @@ export function useThreads(portal: MessagePortal) {
       );
       return data;
     },
+    // Rol kapısı: mesajlaşma rolü olmayan kullanıcı için sorgu hiç atılmaz
+    // (API 403 verir — boşuna poll etme).
+    enabled,
     ...LIVE,
   });
 }

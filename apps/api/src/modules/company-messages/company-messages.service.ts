@@ -111,9 +111,36 @@ export class CompanyMessagesService {
     return portal;
   }
 
+  private portalRole(portal: MessagePortal): CompanyRole {
+    return portal === "satinalma"
+      ? CompanyRole.SATIN_ALMACI
+      : CompanyRole.SATISCI;
+  }
+
+  /**
+   * Mesajlaşma = operasyon rolü işi (kullanıcı isteği 2026-08-02): Kurucu/
+   * Yönetici etiketi tek başına yetmez — kendine Satın Almacı/Satışçı rolü
+   * vermeyen kurucu mesajları OKUYAMAZ da. Portal tarafı rolü belirler
+   * (satinalma=alıcı→Satın Almacı, satis=satıcı→Satışçı).
+   */
+  private requirePortalRole(
+    user: AuthenticatedCompanyUser,
+    portal: MessagePortal,
+    action: "read" | "send",
+  ) {
+    if (user.roles.includes(this.portalRole(portal))) return;
+    const roleLabel = portal === "satinalma" ? "Satın Almacı" : "Satışçı";
+    throw new ForbiddenException(
+      action === "send"
+        ? `Mesaj göndermek için ${roleLabel} rolü gerekir`
+        : `Mesajları görüntülemek için ${roleLabel} rolü gerekir`,
+    );
+  }
+
   /** Portal gelen kutusu — bu portalda firmanın tüm konuşmaları (özet). */
   async listThreads(user: AuthenticatedCompanyUser, portalRaw: string) {
     const portal = this.assertPortal(portalRaw);
+    this.requirePortalRole(user, portal, "read");
     // Bloklu karşı taraf gelen kutusunda da görünmez (karşılıklı-görünmezlik).
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const where =
@@ -174,6 +201,7 @@ export class CompanyMessagesService {
     otherCompanyId: string,
   ) {
     const portal = this.assertPortal(portalRaw);
+    this.requirePortalRole(user, portal, "read");
     const other = await this.prisma.company.findUnique({
       where: { id: otherCompanyId },
       select: { id: true, name: true },
@@ -239,19 +267,10 @@ export class CompanyMessagesService {
   ) {
     const portal = this.assertPortal(portalRaw);
     // Ticari müzakere kapısı (salt-okunur garanti #4): mesaj karşı FİRMAYA
-    // gider, e-posta tetikler, taahhüt izlenimi yaratır → yalnız işlem rolü
-    // gönderebilir; portal tarafı rolü belirler (satinalma=alıcı→Satın Almacı,
-    // satis=satıcı→Satışçı — portal erişim kuralıyla aynı yön). Etiket-only
-    // (Kurucu/Yönetici) ve Onaylayıcı gönderemez; okuma uçları serbest.
-    const neededRole =
-      portal === "satinalma" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
-      throw new ForbiddenException(
-        portal === "satinalma"
-          ? "Mesaj göndermek için Satın Almacı rolü gerekir"
-          : "Mesaj göndermek için Satışçı rolü gerekir",
-      );
-    }
+    // gider, e-posta tetikler, taahhüt izlenimi yaratır → yalnız işlem rolü.
+    // Etiket-only (Kurucu/Yönetici) ve Onaylayıcı gönderemez; okuma uçları da
+    // aynı rol kapısının arkasında (requirePortalRole).
+    this.requirePortalRole(user, portal, "send");
     if (otherCompanyId === user.companyId) {
       throw new BadRequestException("Kendine mesaj gönderemezsin");
     }
@@ -345,21 +364,22 @@ export class CompanyMessagesService {
   /**
    * Nav rozeti — okunmamış mesaj sayısı. `portal` verilirse yalnız o portalın
    * thread'leri (satınalma → firma ALICI; satış → firma SATICI). Verilmezse
-   * iki portal toplamı (geriye uyum).
+   * iki portal toplamı (geriye uyum). Rol kapısı: kullanıcının işlem rolü
+   * olmayan portal rozete SAYILMAZ (403 yerine 0 — rozet ucu hata üretmez).
    */
   async unreadCount(user: AuthenticatedCompanyUser, portalRaw?: string) {
     const portal =
       portalRaw === "satinalma" || portalRaw === "satis" ? portalRaw : null;
-    const threadWhere = portal
-      ? portal === "satinalma"
-        ? { buyerCompanyId: user.companyId }
-        : { sellerCompanyId: user.companyId }
-      : {
-          OR: [
-            { buyerCompanyId: user.companyId },
-            { sellerCompanyId: user.companyId },
-          ],
-        };
+    const asked: MessagePortal[] = portal ? [portal] : ["satinalma", "satis"];
+    const sides = asked
+      .filter((p) => user.roles.includes(this.portalRole(p)))
+      .map((p) =>
+        p === "satinalma"
+          ? { buyerCompanyId: user.companyId }
+          : { sellerCompanyId: user.companyId },
+      );
+    if (sides.length === 0) return { count: 0 };
+    const threadWhere = sides.length === 1 ? sides[0] : { OR: sides };
     // Bloklu gönderenlerin okunmamışları rozete sayılmaz (karşılıklı-görünmezlik).
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const count = await this.prisma.message.count({
