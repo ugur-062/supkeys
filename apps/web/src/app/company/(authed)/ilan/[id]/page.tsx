@@ -1627,7 +1627,7 @@ export default function ListingDetailPage() {
             {formatMoney(l.minPrice ?? 0, l.primaryCurrency ?? "TRY")}
           </strong>
           {l.buyNowPrice
-            ? ` · Hemen-Al: ${Number(l.buyNowPrice).toLocaleString("tr-TR")} ${sym}`
+            ? ` · Hemen-Al: ${formatMoney(l.buyNowPrice, l.primaryCurrency ?? "TRY")}`
             : ""}
         </Text>
       ) : null}
@@ -1644,7 +1644,7 @@ export default function ListingDetailPage() {
   const defaultBack = l.isOwner
     ? isAlim
       ? { href: "/company/satinalma/ihalelerim", label: "İhalelerim" }
-      : { href: "/company/satis/ilanlarim", label: "Satış İlanlarım" }
+      : { href: "/company/satis/ilanlarim", label: "Satış İhalelerim" }
     : isAlim
       ? { href: "/company/satis/acik-ihaleler", label: "Açık İhaleler" }
       : { href: "/company/satinalma/satin-al", label: "Satın Al" };
@@ -1663,17 +1663,22 @@ export default function ListingDetailPage() {
     return (
       <div className="mx-auto max-w-5xl space-y-5">
         {breadcrumb}
-        <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">{header}</div>
-            <div className="flex shrink-0 items-center gap-2">
-              {/* F7: yayınla/onay-iptal da yönetim aksiyonudur — canManage kapısı
-                  (backend publishListing→assertListingManageRole birebir). */}
-              {canManage && l.canPublish ? (
-                <Button onClick={handlePublish} disabled={publish.isPending}>
-                  Yayınla
-                </Button>
+
+        {/* P2 (denetim §5): sticky ActionBar — solda durum, sağda durum
+            makinesine göre birincil aksiyon; sayfa kaydırılınca da görünür.
+            F7: yayınla/onay-iptal yönetim aksiyonudur — canManage kapısı
+            (backend publishListing→assertListingManageRole birebir). */}
+        <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
+              {biddingOpen && l.closesAt ? (
+                <span className="truncate text-xs text-zinc-500">
+                  Kapanış: {formatDateTime(l.closesAt)}
+                </span>
               ) : null}
+            </div>
+            <div className="flex items-center gap-2">
               {canManage && l.pendingApprovalId ? (
                 <Button
                   outline
@@ -1683,8 +1688,17 @@ export default function ListingDetailPage() {
                   Onayı İptal Et
                 </Button>
               ) : null}
+              {canManage && l.canPublish ? (
+                <Button onClick={handlePublish} disabled={publish.isPending}>
+                  Yayınla
+                </Button>
+              ) : null}
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+          <div className="min-w-0">{header}</div>
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
               canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}
@@ -1871,6 +1885,34 @@ export default function ListingDetailPage() {
       <div className="mx-auto max-w-5xl space-y-5">
         {breadcrumb}
 
+        {/* P2 (denetim §5): sticky ActionBar — teklif CTA'sı artık sekmeden
+            bağımsız, kaydırınca da ilk ekranda ("aynı birincil aksiyon bir
+            kez" kuralı gereği yalnız burada). */}
+        <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
+              {biddingOpen && l.closesAt ? (
+                <span className="truncate text-xs text-zinc-500">
+                  Kapanış: {formatDateTime(l.closesAt)}
+                </span>
+              ) : null}
+            </div>
+            {bidCta ? (
+              bidCtaDisabled ? (
+                <Button
+                  disabled
+                  title="Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin"
+                >
+                  {bidCta.label}
+                </Button>
+              ) : (
+                <Button href={bidCta.href}>{bidCta.label}</Button>
+              )
+            ) : null}
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">{header}</div>
@@ -1969,22 +2011,8 @@ export default function ListingDetailPage() {
 
           <TabPanels className="pt-5">
             <TabPanel className="space-y-5 outline-none">
-              {/* Teklif CTA'sı sekmenin EN ÜSTÜNDE — tur hakkı yoksa pasif
-                  (yeni tur vaat edilmez, gerekçe tooltip'te). */}
-              {bidCta ? (
-                <div className="flex justify-end">
-                  {bidCtaDisabled ? (
-                    <Button
-                      disabled
-                      title="Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin"
-                    >
-                      {bidCta.label}
-                    </Button>
-                  ) : (
-                    <Button href={bidCta.href}>{bidCta.label}</Button>
-                  )}
-                </div>
-              ) : null}
+              {/* Teklif CTA'sı sticky ActionBar'a taşındı (denetim §5) —
+                  sekme içinde tekrar edilmez. */}
               <MyBidStatusPanel l={l} />
               {sellerBidSection}
             </TabPanel>
