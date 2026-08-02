@@ -501,7 +501,10 @@ export default function OrderDetailPage() {
                   const current = o.status !== "COMPLETED" && i === stepIndex;
                   return (
                     <div key={s.key} className="flex flex-1 items-start gap-2">
-                      <div className="flex min-w-0 flex-col items-center gap-1.5">
+                      <div
+                        className="flex min-w-0 flex-col items-center gap-1.5"
+                        aria-current={current ? "step" : undefined}
+                      >
                         <div
                           className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
                             done

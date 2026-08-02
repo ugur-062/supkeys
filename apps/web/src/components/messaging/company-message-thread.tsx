@@ -26,7 +26,7 @@ function chatInitials(name: string): string {
       .slice(0, 2)
       .map((w) => w[0])
       .join("")
-      .toUpperCase() || "?"
+      .toLocaleUpperCase("tr-TR") || "?"
   );
 }
 

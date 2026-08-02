@@ -23,7 +23,7 @@ import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 
 function initialsOf(first?: string | null, last?: string | null) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
+  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "?";
 }
 
 /**

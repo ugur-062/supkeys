@@ -1271,7 +1271,7 @@ export default function TeklifVerPage() {
                                 onClick={() =>
                                   setItem(it.id, { price: null })
                                 }
-                                className="mt-7 text-zinc-400 hover:text-red-600"
+                                className="mt-5 rounded-md p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
                               >
                                 <X className="h-4 w-4" aria-hidden="true" />
                               </button>
@@ -1677,7 +1677,7 @@ export default function TeklifVerPage() {
                         onClick={() =>
                           setStagedFiles((s) => s.filter((_, j) => j !== i))
                         }
-                        className="shrink-0 text-zinc-400 hover:text-red-600"
+                        className="-m-2 shrink-0 rounded-md p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
                       >
                         <X className="h-4 w-4" />
                       </button>

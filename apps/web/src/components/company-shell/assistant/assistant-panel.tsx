@@ -154,7 +154,7 @@ const TOOL_LABEL: Record<string, string> = {
 };
 
 function initials(first?: string, last?: string): string {
-  return `${(first ?? "")[0] ?? ""}${(last ?? "")[0] ?? ""}`.toUpperCase() || "S";
+  return `${(first ?? "")[0] ?? ""}${(last ?? "")[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "S";
 }
 
 /** Faz AI-2/3 — asistan sohbet gövdesi (modern balonlar + belge + taslak kartı). */

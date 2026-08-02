@@ -159,7 +159,7 @@ export function CompanyProfileView({
                   />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-950 text-4xl font-bold text-white sm:h-28 sm:w-28">
-                    {p.name.charAt(0).toUpperCase()}
+                    {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
                   </div>
                 )}
               </div>
