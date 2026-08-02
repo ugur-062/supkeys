@@ -2,6 +2,7 @@
 
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
@@ -120,12 +121,34 @@ const GROUPS: SettingsGroup[] = [
 ];
 
 export default function AyarlarPage() {
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
   const isManager =
     !!user &&
     (user.isOwner ||
       user.roles.includes("SAHIP") ||
       user.roles.includes("YONETICI"));
+
+  // P2 (denetim §10.5): karta durum rozeti — YALNIZ store'da hazır veriden
+  // (ekstra istek yok). Durum bilinmiyorsa rozet basmayız.
+  const badgeFor = (href: string): { label: string; tone: StatusTone } | null => {
+    if (href === "/company/ayarlar/2fa" && user)
+      return user.twoFactorEnabled
+        ? { label: "Açık", tone: "done" }
+        : { label: "Kapalı", tone: "neutral" };
+    if (href === "/company/ayarlar/dogrulama" && company) {
+      switch (company.companyVerificationStatus) {
+        case "VERIFIED":
+          return { label: "Doğrulandı", tone: "done" };
+        case "PENDING":
+          return { label: "İncelemede", tone: "pending" };
+        case "REJECTED":
+          return { label: "Reddedildi", tone: "failed" };
+        default:
+          return { label: "Belge bekleniyor", tone: "neutral" };
+      }
+    }
+    return null;
+  };
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -160,7 +183,17 @@ export default function AyarlarPage() {
                       <s.icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-zinc-950">{s.title}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
+                        {s.title}
+                        {(() => {
+                          const badge = badgeFor(s.href);
+                          return badge ? (
+                            <StatusBadge tone={badge.tone}>
+                              {badge.label}
+                            </StatusBadge>
+                          ) : null;
+                        })()}
+                      </p>
                       <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">
                         {s.description}
                       </p>
