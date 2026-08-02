@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ActiveFilterChips,
   EmptyState,
   FilterSelect,
   PageHeader,
@@ -616,6 +617,76 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             className="ml-auto"
           />
         </div>
+        <ActiveFilterChips
+          filters={[
+            ...(search
+              ? [
+                  {
+                    key: "search",
+                    label: `Arama: "${search}"`,
+                    onRemove: () => reset(setSearch)(""),
+                  },
+                ]
+              : []),
+            ...(status !== "all"
+              ? [
+                  {
+                    key: "status",
+                    label:
+                      STATUS_FILTERS.find((f) => f.value === status)?.label ??
+                      status,
+                    onRemove: () => reset(setStatus)("all"),
+                  },
+                ]
+              : []),
+            ...(srcType !== "all"
+              ? [
+                  {
+                    key: "src",
+                    label:
+                      (isSeller
+                        ? {
+                            SATIS: "Satış İlanlarımdan",
+                            ALIM: "Kazanılan İhalelerden",
+                          }
+                        : {
+                            ALIM: "Kendi İhalelerimden",
+                            SATIS: "Satın Alımlarım",
+                          })[srcType as "ALIM" | "SATIS"] ?? srcType,
+                    onRemove: () => reset(setSrcType)("all"),
+                  },
+                ]
+              : []),
+            ...(range !== "all"
+              ? [
+                  {
+                    key: "range",
+                    label:
+                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
+                      range,
+                    onRemove: () => reset(setRange)("all"),
+                  },
+                ]
+              : []),
+            ...(counterparty
+              ? [
+                  {
+                    key: "cp",
+                    label: counterparty,
+                    onRemove: () => reset(setCounterparty)(""),
+                  },
+                ]
+              : []),
+          ]}
+          onClearAll={() => {
+            setSearch("");
+            setStatus("all");
+            setSrcType("all");
+            setRange("all");
+            setCounterparty("");
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* Liste — satır başına tek sipariş (İhalelerim deseni) */}

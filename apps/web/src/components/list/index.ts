@@ -1,3 +1,4 @@
+export { ActiveFilterChips, type ActiveFilter } from "./active-filter-chips";
 export { EmptyState } from "./empty-state";
 export { FilterBar } from "./filter-bar";
 export { FilterSelect, type FilterSelectOption } from "./filter-select";

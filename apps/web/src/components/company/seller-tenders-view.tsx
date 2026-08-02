@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import {
+  ActiveFilterChips,
   EmptyState,
   FilterSelect,
   ListSkeleton,
@@ -403,6 +404,47 @@ export function SellerTendersView({
             className="ml-auto"
           />
         </div>
+        <ActiveFilterChips
+          filters={[
+            ...(search
+              ? [
+                  {
+                    key: "search",
+                    label: `Arama: "${search}"`,
+                    onRemove: () => withReset(setSearch)(""),
+                  },
+                ]
+              : []),
+            ...(range !== "all"
+              ? [
+                  {
+                    key: "range",
+                    label:
+                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
+                      range,
+                    onRemove: () => withReset(setRange)("all"),
+                  },
+                ]
+              : []),
+            ...(buyer !== "all"
+              ? [
+                  {
+                    key: "buyer",
+                    label:
+                      buyerOptions.find((b) => b.value === buyer)?.label ??
+                      buyer,
+                    onRemove: () => withReset(setBuyer)("all"),
+                  },
+                ]
+              : []),
+          ]}
+          onClearAll={() => {
+            setSearch("");
+            setBuyer("all");
+            setRange("all");
+            setPage(1);
+          }}
+        />
       </div>
 
       {tenders.isLoading ? (

@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import {
+  ActiveFilterChips,
   EmptyState,
   FilterSelect,
   ListSkeleton,
@@ -378,6 +379,47 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
             className="ml-auto"
           />
         </div>
+        <ActiveFilterChips
+          filters={[
+            ...(search
+              ? [
+                  {
+                    key: "search",
+                    label: `Arama: "${search}"`,
+                    onRemove: () => resetToFirstPage(setSearch)(""),
+                  },
+                ]
+              : []),
+            ...(status !== "all"
+              ? [
+                  {
+                    key: "status",
+                    label:
+                      STATUS_FILTER_OPTIONS.find((f) => f.value === status)
+                        ?.label ?? status,
+                    onRemove: () => resetToFirstPage(setStatus)("all"),
+                  },
+                ]
+              : []),
+            ...(range !== "all"
+              ? [
+                  {
+                    key: "range",
+                    label:
+                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
+                      range,
+                    onRemove: () => resetToFirstPage(setRange)("all"),
+                  },
+                ]
+              : []),
+          ]}
+          onClearAll={() => {
+            setSearch("");
+            setStatus("all");
+            setRange("all");
+            setPage(1);
+          }}
+        />
       </div>
 
       {isLoading ? (
