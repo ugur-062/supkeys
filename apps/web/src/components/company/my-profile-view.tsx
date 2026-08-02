@@ -33,6 +33,62 @@ export function MyProfileView() {
     );
   }
 
+  // P2 (denetim §10.5): profil tamamlanma — eksik alanlar tıklanabilir çip
+  // olarak listelenir (profil alanları → Düzenle sekmesi, sicil alanları →
+  // Ayarlar/Firma). %100'de kart tamamen gizlenir.
+  const completeness = (() => {
+    const items: { label: string; done: boolean; target: "edit" | "firma" }[] =
+      [
+        { label: "Logo", done: !!profile.logoUrl, target: "edit" },
+        {
+          label: "Kapak görseli",
+          done: !!profile.coverImageUrl,
+          target: "edit",
+        },
+        {
+          label: "Hakkında yazısı",
+          done: !!profile.aboutText?.trim(),
+          target: "edit",
+        },
+        {
+          label: "Ürün / hizmetler",
+          done: (profile.services ?? []).length > 0,
+          target: "edit",
+        },
+        {
+          label: "Fotoğraflar",
+          done: (profile.photos ?? []).length > 0,
+          target: "edit",
+        },
+        {
+          label: "Kuruluş yılı",
+          done: profile.foundedYear != null,
+          target: "edit",
+        },
+        {
+          label: "Çalışan sayısı",
+          done: !!profile.employeeCount,
+          target: "edit",
+        },
+        { label: "Web sitesi", done: !!profile.website, target: "edit" },
+        { label: "Sektör", done: !!profile.industry, target: "firma" },
+        { label: "Şehir", done: !!profile.city, target: "firma" },
+        {
+          label: "Faaliyet kategorileri",
+          done:
+            (profile.buyerCategoryIds ?? []).length +
+              (profile.sellerCategoryIds ?? []).length >
+            0,
+          target: "firma",
+        },
+      ];
+    const doneCount = items.filter((i) => i.done).length;
+    return {
+      missing: items.filter((i) => !i.done),
+      pct: Math.round((doneCount / items.length) * 100),
+    };
+  })();
+
   const viewData: ProfileViewData = {
     name: profile.name,
     rothernId: profile.rothernId,
@@ -144,6 +200,61 @@ export function MyProfileView() {
             </>
           )}
         </div>
+      ) : null}
+
+      {/* Profil tamamlanma kartı — yalnız önizlemede ve %100 altında. */}
+      {tab === "preview" && completeness.pct < 100 ? (
+        <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900">
+                Profil Tamamlanma
+              </h2>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Dolu profiller dizinde ve davetlerde daha çok güven verir —
+                eksikleri tıklayıp tamamlayabilirsin.
+              </p>
+            </div>
+            <span className="font-mono text-2xl font-semibold tabular-nums text-zinc-900">
+              %{completeness.pct}
+            </span>
+          </div>
+          <div
+            className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100"
+            role="progressbar"
+            aria-label="Profil tamamlanma"
+            aria-valuenow={completeness.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full bg-zinc-900 transition-all duration-300"
+              style={{ width: `${completeness.pct}%` }}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {completeness.missing.map((m) =>
+              m.target === "edit" ? (
+                <button
+                  key={m.label}
+                  type="button"
+                  onClick={() => setTab("edit")}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 transition hover:border-zinc-500 hover:text-zinc-900"
+                >
+                  + {m.label}
+                </button>
+              ) : (
+                <Link
+                  key={m.label}
+                  href="/company/ayarlar/firma"
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 transition hover:border-zinc-500 hover:text-zinc-900"
+                >
+                  + {m.label}
+                </Link>
+              ),
+            )}
+          </div>
+        </section>
       ) : null}
 
       {tab === "preview" ? (

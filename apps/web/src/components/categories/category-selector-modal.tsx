@@ -163,7 +163,7 @@ export function CategorySelectorModal({
     <Dialog open={isOpen} onClose={onClose} className="relative z-[60]">
       <DialogBackdrop
         transition
-        className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
+        className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[2px] transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
       />
       <div className="fixed inset-0 flex w-screen items-start justify-center p-2 pt-4 sm:p-4 sm:pt-6">
         <DialogPanel
