@@ -32,8 +32,8 @@ import {
   Gavel,
   ListFilter,
 } from "lucide-react";
+import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 10;
@@ -97,7 +97,6 @@ function matchesSearch(b: MyBid, q: string) {
 
 /** Teklif kartı — Satın Al / Açık İhaleler kart dilinin teklif sürümü. */
 function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
-  const router = useRouter();
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
   const isAlim = b.listing.type === "ALIM";
   const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
@@ -107,17 +106,16 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
       ? closingUrgency(b.listing.status, b.listing.closesAt)
       : null;
 
+  // P2 (denetim §10.2): kart <a> DEĞİL — başlıktaki stretched-link kartı
+  // tıklanabilir kılar; iç aksiyonlar relative z-10 gerçek link olur
+  // (button+router.push workaround'u biter).
   return (
-    <Link
-      href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
-      className="group block"
+    <div
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        isAlim ? "hover:border-blue-300" : "hover:border-emerald-300",
+      )}
     >
-      <div
-        className={cn(
-          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
-          isAlim ? "hover:border-blue-300" : "hover:border-emerald-300",
-        )}
-      >
         {/* Sol aksan şeridi — ihale tipi rengi (İhalelerim kart dili) */}
         <span
           aria-hidden
@@ -136,7 +134,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               </span>
               {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
               <Badge color={isAlim ? "blue" : "emerald"}>
-                {isAlim ? "Alış İhalesi" : "Satış İlanı"}
+                {isAlim ? "Alış İhalesi" : "Satış İhalesi"}
               </Badge>
             </div>
             <h3
@@ -147,7 +145,12 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                   : "group-hover:text-emerald-700",
               )}
             >
-              {b.listing.title}
+              <Link
+                href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
+                className="after:absolute after:inset-0 after:content-['']"
+              >
+                {b.listing.title}
+              </Link>
             </h3>
           </div>
           <Badge color={st.color} className="shrink-0">
@@ -214,38 +217,44 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               {format(new Date(b.createdAt), "dd MMM yyyy", { locale: tr })}
             </span>
           </div>
-          {won && b.orderId ? (
-            // Kart zaten Link — iç içe <a> yerine programatik yönlendirme.
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push(`/company/siparis/${b.orderId}`);
-              }}
-              className="font-semibold text-blue-600 hover:underline"
-            >
-              Siparişe Git →
-            </button>
-          ) : b.listing.status === "OPEN" && b.listing.closesAt ? (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
-                urgency?.className ?? "text-zinc-500",
-              )}
-            >
-              Kapanışa{" "}
-              <CountdownFull
-                deadline={b.listing.closesAt}
-                endedLabel="Kapandı"
-              />
-            </span>
-          ) : (
-            <span className="text-zinc-400">İhale kapandı</span>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {b.listing.status === "OPEN" && b.listing.closesAt ? (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
+                  urgency?.className ?? "text-zinc-500",
+                )}
+              >
+                Kapanışa{" "}
+                <CountdownFull
+                  deadline={b.listing.closesAt}
+                  endedLabel="Kapandı"
+                />
+              </span>
+            ) : !won ? (
+              <span className="text-zinc-400">İhale kapandı</span>
+            ) : null}
+            {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu. */}
+            {won && b.orderId ? (
+              <Link
+                href={`/company/siparis/${b.orderId}`}
+                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+              >
+                Siparişe Git
+                <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            ) : canRebid ? (
+              <Link
+                href={`/company/ilan/${b.listing.id}/teklif-ver`}
+                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+              >
+                Yeniden Teklif Ver
+                <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </Link>
+    </div>
   );
 }
 

@@ -26,12 +26,14 @@ import { closingUrgency } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import {
   Calendar,
   ClipboardList,
   Eye,
   Gavel,
   Globe,
+  Link2,
   MapPin,
   MoreVertical,
   Pencil,
@@ -70,7 +72,7 @@ export function OwnerTenderCard({
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"
     : "/company/satinalma/ihalelerim";
-  const fromLabel = isSatis ? "Satış İlanlarım" : "İhalelerim";
+  const fromLabel = isSatis ? "Satış İhalelerim" : "İhalelerim";
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
   const editHref = isSatis
     ? `/company/satis/ilanlarim/${t.id}/duzenle`
@@ -89,18 +91,16 @@ export function OwnerTenderCard({
     }
   };
 
+  // P2 (denetim §10.2): kart <a> DEĞİL — başlıktaki stretched-link kartı
+  // tıklanabilir kılar, kebab/aksiyon butonları relative z-10 ile üstünde
+  // kalır (iç içe interaktif eleman / stopPropagation hack'i biter).
   return (
-    <Link
-      href={detailHref}
-      aria-label={`${t.tenderNumber ?? ""} ${t.title}`.trim()}
-      className="group block"
+    <div
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        isSatis ? "hover:border-emerald-300" : "hover:border-blue-300",
+      )}
     >
-      <div
-        className={cn(
-          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
-          isSatis ? "hover:border-emerald-300" : "hover:border-blue-300",
-        )}
-      >
         {/* Sol aksan şeridi — portal rengi */}
         <span
           aria-hidden
@@ -126,18 +126,19 @@ export function OwnerTenderCard({
                   : "group-hover:text-blue-700",
               )}
             >
-              {t.title}
+              <Link
+                href={detailHref}
+                aria-label={`${t.tenderNumber ?? ""} ${t.title}`.trim()}
+                className="after:absolute after:inset-0 after:content-['']"
+              >
+                {t.title}
+              </Link>
             </h3>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <TenderStatusBadge status={t.status} />
-            {/* Hızlı aksiyonlar — Link tıklamasını tetiklemesin */}
-            <span
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
+            {/* Hızlı aksiyonlar — stretched-link'in üstünde (z-10). */}
+            <span className="relative z-10">
               <Dropdown>
                 <DropdownButton
                   plain
@@ -150,6 +151,21 @@ export function OwnerTenderCard({
                   <DropdownItem href={detailHref}>
                     <Eye data-slot="icon" />
                     <DropdownLabel>Görüntüle</DropdownLabel>
+                  </DropdownItem>
+                  {/* P2 (denetim §10.2): tek "Görüntüle"lik menü bitti —
+                      gerçek aksiyon: paylaşılabilir detay bağlantısı. */}
+                  <DropdownItem
+                    onClick={() => {
+                      navigator.clipboard
+                        .writeText(
+                          `${window.location.origin}/company/ilan/${t.id}`,
+                        )
+                        .then(() => toast.success("Bağlantı kopyalandı"))
+                        .catch(() => toast.error("Kopyalanamadı"));
+                    }}
+                  >
+                    <Link2 data-slot="icon" />
+                    <DropdownLabel>Bağlantıyı Kopyala</DropdownLabel>
                   </DropdownItem>
                   {canManage && t.status === "DRAFT" ? (
                     <>
@@ -208,8 +224,8 @@ export function OwnerTenderCard({
           </span>
         </div>
 
-        <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-500">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-xs">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-zinc-500">
             <Calendar className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
             <span>
               {t.bidsCloseAt
@@ -223,24 +239,33 @@ export function OwnerTenderCard({
             <span className="truncate">
               {t.createdBy.firstName} {t.createdBy.lastName}
             </span>
+            {urgency ? (
+              <span
+                className={cn(
+                  "ml-1 rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
+                  urgency.className,
+                )}
+              >
+                {urgency.text}
+              </span>
+            ) : null}
           </div>
-          {urgency ? (
-            <span
-              className={cn(
-                "rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
-                urgency.className,
-              )}
-            >
-              {urgency.text}
-            </span>
-          ) : (
-            <span className="whitespace-nowrap text-zinc-400">
-              {format(new Date(t.createdAt), "dd MMM yyyy", { locale: tr })}
-            </span>
-          )}
+          {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu — 3 tık biter. */}
+          <Link
+            href={canManage && t.status === "DRAFT" ? editHref : detailHref}
+            className="relative z-10 inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+          >
+            {canManage && t.status === "DRAFT"
+              ? "Düzenle"
+              : t.status === "AWARDED"
+                ? "Sonucu Gör"
+                : t.bidCount > 0
+                  ? "Teklifleri Gör"
+                  : "Detaya Git"}
+            <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden />
+          </Link>
         </div>
-      </div>
-    </Link>
+    </div>
   );
 }
 

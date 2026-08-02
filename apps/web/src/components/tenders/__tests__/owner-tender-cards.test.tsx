@@ -100,10 +100,14 @@ describe("OwnerTenderList durumları", () => {
       }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("Ali Veli")).toBeInTheDocument();
-    // Kart detaya linkler.
-    expect(
-      screen.getByRole("link"),
-    ).toHaveAttribute("href", expect.stringContaining("/company/ilan/l1"));
+    // Kart detaya linkler — başlık stretched-link + alt satır kart aksiyonu
+    // (P2 §10.2) iki ayrı <a>; ikisi de detayı hedefler.
+    for (const link of screen.getAllByRole("link")) {
+      expect(link).toHaveAttribute(
+        "href",
+        expect.stringContaining("/company/ilan/l1"),
+      );
+    }
   });
 
   it("SATIS: açık artırma (ENGLISH_AUCTION) 'Pazarlık' rozetiyle gösterilir", () => {
