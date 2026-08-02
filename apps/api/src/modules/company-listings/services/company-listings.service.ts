@@ -2397,7 +2397,8 @@ export class CompanyListingsService {
 
     // Bağımsız non-owner okumaları tek turda (görünürlük/blok kapısı sonuçlar
     // gelince değerlendirilir; over-fetch ucuz, seri tur sayısı düşer — P1).
-    const [invitedCount, blockedIds, myBid, auctionView] = await Promise.all([
+    const [invitedCount, blockedIds, myBid, auctionView, myOrder] =
+      await Promise.all([
       // Davet durumu her görünürlükte döner (satıcı "Davet Edildi" rozeti);
       // PRIVATE erişim kontrolü de aynı sayıyı kullanır.
       this.prisma.listingInvitation.count({
@@ -2425,6 +2426,20 @@ export class CompanyListingsService {
             items.length,
           )
         : Promise.resolve(null),
+      // Kazanan teklifçinin bu ilandan doğan siparişi (OrderStatusStrip):
+      // görünürlük kapısı GEREKMEZ — where zaten çağıranın taraf olduğu
+      // siparişle sınırlı (kendi verisi). Kaybeden/teklifsiz için null.
+      this.prisma.companyOrder.findFirst({
+        where: {
+          listingId: id,
+          OR: [
+            { sellerCompanyId: user.companyId },
+            { buyerCompanyId: user.companyId },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, number: true, status: true },
+      }),
     ]);
 
     const isInvited = invitedCount > 0;
@@ -2588,6 +2603,10 @@ export class CompanyListingsService {
               value: a.value,
             })),
           }
+        : null,
+      // Bu ilandan doğan, çağıranın taraf olduğu sipariş (kazanan teklifçi).
+      myOrder: myOrder
+        ? { id: myOrder.id, number: myOrder.number, status: myOrder.status }
         : null,
     };
   }

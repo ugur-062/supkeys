@@ -165,7 +165,7 @@ describe("MyBidStatusPanel — durum makinesi", () => {
         })}
       />,
     );
-    expect(screen.getByText(/Teklifiniz kazandı/)).toBeInTheDocument();
+    expect(screen.getByText(/teklifin kazandı/)).toBeInTheDocument();
     expect(
       // ALIM ihalesini kazanan teklifçi SATICI'dır → linki "Satışlarım"a gider.
       screen.getByRole("link", { name: "Satışlarımı Görüntüle" }),

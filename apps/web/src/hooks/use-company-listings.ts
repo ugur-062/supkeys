@@ -407,6 +407,8 @@ export interface ListingDetail {
     items?: ListingBidItemRow[];
     answers?: { questionId: string; value: string }[];
   } | null;
+  /** Bu ilandan doğan, çağıranın taraf olduğu sipariş (kazanan teklifçi). */
+  myOrder?: { id: string; number: string | null; status: string } | null;
   // İngiliz Usulü (açık eksiltme):
   english?: {
     isEnglishAuction: true;

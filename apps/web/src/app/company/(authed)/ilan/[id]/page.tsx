@@ -46,7 +46,9 @@ import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
 import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
-import { ArrowLeftIcon } from "@heroicons/react/20/solid";
+import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
+import { orderStatusMeta } from "@/lib/orders/order-status";
+import type { CompanyOrderStatus } from "@/hooks/use-company-orders";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import {
   Building2,
@@ -1558,6 +1560,29 @@ export default function ListingDetailPage() {
     color: "zinc" as const,
   };
 
+  // P2 (denetim §10.4): OrderStatusStrip — kazandırma sonrası ihale detayı,
+  // doğan siparişin durumuna bağlanır ("Tamamlandı / Kazandın / Teslime hazır"
+  // üç kopuk ekranı birleşir). myOrder = çağıranın taraf olduğu sipariş.
+  const orderStrip = l.myOrder ? (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+      <p className="text-sm text-emerald-900">
+        Sipariş{" "}
+        <span className="font-mono font-semibold tabular-nums">
+          {l.myOrder.number ?? "—"}
+        </span>
+        <span className="mx-1.5 text-emerald-400">·</span>
+        {orderStatusMeta(l.myOrder.status as CompanyOrderStatus).label}
+      </p>
+      <Link
+        href={`/company/siparis/${l.myOrder.id}`}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 hover:underline"
+      >
+        Siparişe git
+        <ArrowRightIcon className="h-4 w-4" aria-hidden />
+      </Link>
+    </div>
+  ) : null;
+
   const header = (
     <div className="space-y-3">
       {/* Üst satır: numara (eyebrow) + durum */}
@@ -1696,6 +1721,8 @@ export default function ListingDetailPage() {
             </div>
           </div>
         </div>
+
+        {orderStrip}
 
         <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
           <div className="min-w-0">{header}</div>
@@ -1912,6 +1939,8 @@ export default function ListingDetailPage() {
             ) : null}
           </div>
         </div>
+
+        {orderStrip}
 
         <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

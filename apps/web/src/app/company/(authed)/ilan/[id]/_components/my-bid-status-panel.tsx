@@ -428,25 +428,49 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         {l.cancelReason ? <p>Gerekçe: {l.cancelReason}</p> : null}
       </StatusAlert>,
     );
-  } else if (bid.status === "WON") {
+  } else if (bid.status === "WON" || bid.status === "AWARDED_PARTIAL") {
+    // P2 (denetim §10.4): kazanma banner'ı — üç başarı sembolü (Check+Trophy+
+    // emoji) teke indi (Trophy amber), gradient zemin + "sırada ne var" 3 adım
+    // + TEK birincil aksiyon. ALIM'ı kazanan SATICI (siparişi kendisi onaylar),
+    // SATIS'ı kazanan ALICI (satıcı onayını bekler) — adımlar yöne duyarlı.
+    const bidderSells = l.type !== "SATIS";
+    const steps = bidderSells
+      ? [
+          "Sipariş oluşturuldu — onayın bekleniyor.",
+          "Onayla, teslim et ve fatura no ile tamamla.",
+          "Ödemeyi sipariş sayfasından izle.",
+        ]
+      : [
+          "Sipariş oluşturuldu — satıcının onayı bekleniyor.",
+          "Teslimatı sipariş sayfasından izle, teslim alınca onayla.",
+          "Ödemeni aynı sayfadan bildir.",
+        ];
     alerts.push(
-      <StatusAlert key="won" tone="success" title="Tebrikler! Teklifiniz kazandı 🏆">
-        <p className="flex items-center gap-1.5">
-          <Trophy className="h-4 w-4" aria-hidden="true" />
-          Sipariş oluşturuldu —{" "}
-          <Link href={ordersHref} className="font-semibold underline">
-            {ordersLabel}
-          </Link>
-        </p>
-      </StatusAlert>,
-    );
-  } else if (bid.status === "AWARDED_PARTIAL") {
-    alerts.push(
-      <StatusAlert key="part" tone="success" title="Bazı kalemleri kazandınız">
-        <Link href={ordersHref} className="font-semibold underline">
-          {ordersLabel}
-        </Link>
-      </StatusAlert>,
+      <div
+        key="won"
+        className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <Trophy className="h-5 w-5 text-amber-600" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-emerald-900">
+              {bid.status === "WON"
+                ? "Tebrikler — teklifin kazandı!"
+                : "Tebrikler — bazı kalemleri kazandın!"}
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-emerald-800">
+              {steps.map((st) => (
+                <li key={st}>{st}</li>
+              ))}
+            </ol>
+            <div className="mt-3">
+              <Button href={ordersHref}>{ordersLabel}</Button>
+            </div>
+          </div>
+        </div>
+      </div>,
     );
   } else if (bid.status === "LOST" && open) {
     alerts.push(
