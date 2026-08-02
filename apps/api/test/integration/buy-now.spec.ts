@@ -124,10 +124,10 @@ describe("buyNow — mükerrer/kural korumaları + detaylar", () => {
 });
 
 describe("buyNow — detay zorunluluğu + KALEM kısmi seçim", () => {
-  it("teslim tarihi/geçerlilik olmadan Hemen-Al reddedilir", async () => {
+  it("teslim süresi/geçerlilik olmadan Hemen-Al reddedilir", async () => {
     const { service, buyer, listing } = await satisListing();
     await expect(service.buyNow(buyer.auth, listing.id)).rejects.toThrow(
-      /teslim tarihi ve geçerlilik/,
+      /teslim süresi ve geçerlilik/,
     );
   });
 

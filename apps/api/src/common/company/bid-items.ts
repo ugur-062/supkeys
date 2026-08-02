@@ -64,3 +64,34 @@ export function sumLineTotals(lines: readonly PriceQty[]): Prisma.Decimal {
     new Prisma.Decimal(0),
   );
 }
+
+type PriceQtyFx = PriceQty & {
+  /** Kalem birimi → teklifin ana birimi çevrim damgası; null/1 = aynı birim. */
+  fxToBase?: Prisma.Decimal | string | number | null;
+};
+
+/**
+ * S5 (çok-birimli, madde 9) — kalem satırlarının ANA BİRİME çevrilmiş toplamı.
+ * TÜM satırlar ana birimdeyse (fx yok/1) klasik `sumLineTotals` ile BİREBİR —
+ * legacy tek-birim yolun sayısal davranışı değişmez. Karışık birimde her satır
+ * kayıtlı damgayla çevrilip 2 basamağa yuvarlanır (ROUND_HALF_UP), sonra
+ * toplanır. placeBid `bid.amount`'u ve runFullAward nöbetçisi AYNI formülü
+ * (kayıtlı fxToBase ile) kullanır → determinizm, sessiz para ıraksaması yok.
+ */
+export function sumLineTotalsInBase(
+  lines: readonly PriceQtyFx[],
+): Prisma.Decimal {
+  const mixed = lines.some(
+    (l) => l.fxToBase != null && !new Prisma.Decimal(l.fxToBase).equals(1),
+  );
+  if (!mixed) return sumLineTotals(lines);
+  return lines.reduce((sum, l) => {
+    const fx =
+      l.fxToBase != null ? new Prisma.Decimal(l.fxToBase) : new Prisma.Decimal(1);
+    return sum.plus(
+      lineTotal(l.unitPrice, l.quantity)
+        .mul(fx)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
+    );
+  }, new Prisma.Decimal(0));
+}

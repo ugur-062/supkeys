@@ -80,6 +80,8 @@ interface ItemState {
   price: string | null;
   /** Teslim SÜRESİ (BID_DELIVERY_TIMES; "" = genel süre geçerli). */
   deliveryTime: string;
+  /** Kalem para birimi ("" = teklifin ana birimi) — madde 9, yalnız ALIM RFQ. */
+  currency: string;
   answers: Record<string, string>;
 }
 
@@ -258,6 +260,7 @@ export default function TeklifVerPage() {
               ? String(Number(bi.unitPrice))
               : "",
         deliveryTime: bi?.deliveryTime ?? "",
+        currency: bi?.currency ?? "",
         answers,
       };
     }
@@ -304,6 +307,13 @@ export default function TeklifVerPage() {
   };
   const effectiveCurrency =
     currency || l?.primaryCurrency || "TRY";
+  // Madde 9 — kalem bazlı para birimi: yalnız kapalı zarf ALIM ihalesinde ve
+  // ilan birden çok birime izin veriyorsa (backend aynı kuralı zorlar).
+  const canItemCurrency =
+    !isSatis &&
+    !isBuyNowMode &&
+    (l?.allowedCurrencies?.length ?? 0) > 1 &&
+    !l?.english?.isEnglishAuction;
 
   // SATIS: teslimat adresi seçimi. Adres defterinden TESLIMAT/ILETISIM tipli
   // adresler; adrese-teslim şartlı ilanda gönderimde zorunlu.
@@ -349,6 +359,28 @@ export default function TeklifVerPage() {
       return sum + (Number.isFinite(p) ? p * Number(it.quantity) : 0);
     }, 0);
   }, [hasItems, singleAmount, pricedItems, itemState, isBuyNowMode, l]);
+
+  // Madde 9 — birim bazında ara toplamlar: karma birimli teklifte tek sayı
+  // toplamak yanıltıcı olur; birim başına gösterilir, ana birime çevrimi
+  // sunucu kur damgasıyla yapar (bid.amount).
+  const totalsByCurrency = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!hasItems || isBuyNowMode) return m;
+    for (const it of pricedItems) {
+      const st = itemState[it.id];
+      const p = Number(st?.price ?? 0);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      const cur = st?.currency || effectiveCurrency;
+      m.set(cur, (m.get(cur) ?? 0) + p * Number(it.quantity));
+    }
+    return m;
+  }, [hasItems, isBuyNowMode, pricedItems, itemState, effectiveCurrency]);
+  const mixedCurrency = totalsByCurrency.size > 1;
+  const totalLabel = mixedCurrency
+    ? [...totalsByCurrency.entries()]
+        .map(([c, v]) => money(v, c))
+        .join(" + ")
+    : money(total, effectiveCurrency);
 
   // ── Pazarlık çalışma masası hesapları ──
   // Minimum pay kaldırıldı (2026-07-13): tek kural "kendi öncekinden kesin
@@ -598,7 +630,7 @@ export default function TeklifVerPage() {
   const setItem = (itemId: string, patch: Partial<ItemState>) =>
     setItemState((s) => ({
       ...s,
-      [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", answers: {} }), ...patch },
+      [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {} }), ...patch },
     }));
 
   // Çalışma masası araçları: toplu fiyat yazımı + kalem kilidi.
@@ -607,7 +639,7 @@ export default function TeklifVerPage() {
       const out = { ...s };
       for (const [iid, p] of Object.entries(next)) {
         out[iid] = {
-          ...(out[iid] ?? { price: "", deliveryTime: "", answers: {} }),
+          ...(out[iid] ?? { price: "", deliveryTime: "", currency: "", answers: {} }),
           price: p,
         };
       }
@@ -662,6 +694,25 @@ export default function TeklifVerPage() {
             ))}
           </Select>
         </Field>
+        {canItemCurrency ? (
+          <Field>
+            <Label>Kalem Para Birimi</Label>
+            <Select
+              aria-label={`${it.name} para birimi`}
+              value={st?.currency ?? ""}
+              onChange={(e) => setItem(it.id, { currency: e.target.value })}
+            >
+              <option value="">Ana birim ({effectiveCurrency})</option>
+              {(l.allowedCurrencies ?? [])
+                .filter((c) => c !== effectiveCurrency)
+                .map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+        ) : null}
         {(it.questions ?? []).map((q) => (
           <AnswerInput
             key={q.id}
@@ -858,6 +909,7 @@ export default function TeklifVerPage() {
               itemId: it.id,
               unitPrice: Number(st.price),
               deliveryTime: st.deliveryTime || undefined,
+              currency: st.currency || undefined,
               answers: (it.questions ?? [])
                 .map((q) => ({
                   questionId: q.id,
@@ -1193,7 +1245,7 @@ export default function TeklifVerPage() {
                               </Field>
                               {lineTotal !== null ? (
                                 <p className="mt-1 text-right text-xs font-semibold text-zinc-700 tabular-nums">
-                                  = {money(lineTotal, effectiveCurrency)}
+                                  = {money(lineTotal, st?.currency || effectiveCurrency)}
                                 </p>
                               ) : null}
                             </div>
@@ -1237,6 +1289,29 @@ export default function TeklifVerPage() {
                               ))}
                             </Select>
                           </Field>
+                          {canItemCurrency ? (
+                            <Field>
+                              <Label>Kalem Para Birimi</Label>
+                              <Select
+                                aria-label={`${it.name} para birimi`}
+                                value={st?.currency ?? ""}
+                                onChange={(e) =>
+                                  setItem(it.id, { currency: e.target.value })
+                                }
+                              >
+                                <option value="">
+                                  Ana birim ({effectiveCurrency})
+                                </option>
+                                {(l.allowedCurrencies ?? [])
+                                  .filter((c) => c !== effectiveCurrency)
+                                  .map((c) => (
+                                    <option key={c} value={c}>
+                                      {c}
+                                    </option>
+                                  ))}
+                              </Select>
+                            </Field>
+                          ) : null}
                           {(it.questions ?? []).map((q) => (
                             <AnswerInput
                               key={q.id}
@@ -1595,7 +1670,7 @@ export default function TeklifVerPage() {
                 Toplam Teklif
               </p>
               <p className="mt-1 text-2xl font-bold tabular-nums">
-                {money(total, effectiveCurrency)}
+                {totalLabel}
               </p>
               {/* Sınır yerine YAPILAN indirim/artış (öncekine göre). */}
               {isAuction &&
@@ -1706,7 +1781,7 @@ export default function TeklifVerPage() {
             Toplam Teklif
           </p>
           <p className="text-base font-bold text-zinc-950 tabular-nums">
-            {money(total, effectiveCurrency)}
+            {totalLabel}
           </p>
           {/* Sınır yerine YAPILAN indirim/artış (öncekine göre). */}
           {isAuction &&
@@ -1764,8 +1839,14 @@ export default function TeklifVerPage() {
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
             <p className="text-xs font-semibold text-emerald-700">Toplam Teklif</p>
             <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums">
-              {money(total, effectiveCurrency)}
+              {totalLabel}
             </p>
+            {mixedCurrency ? (
+              <p className="mt-1 text-[11px] text-emerald-700">
+                Karma birimli teklif: karşılaştırma toplamı ana birime (
+                {effectiveCurrency}) güncel TCMB kuruyla sistemce çevrilir.
+              </p>
+            ) : null}
           </div>
           {!isBuyNowMode && l.english?.isEnglishAuction ? (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">

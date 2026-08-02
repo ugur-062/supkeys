@@ -1489,6 +1489,12 @@ model ListingBidItem {
   deliveryDate DateTime?
   // Kalem-özel teslim SÜRESİ (opsiyonel) — boşsa teklifin genel süresi geçerli.
   deliveryTime BidDeliveryTime?
+  // Kalem para birimi (madde 9, 2026-08-02) — null = teklifin ana birimi.
+  // Yalnız kapalı zarf ALIM ihalelerinde; award'da para birimi başına ayrı sipariş.
+  currency Currency?
+  // Kalem birimi → teklifin ana birimi çevrim damgası (submit anı, TCMB çaprazı).
+  // null = 1 (aynı birim). S5 nöbetçisi bid.amount'u AYNI damgayla yeniden hesaplar.
+  fxToBase Decimal? @db.Decimal(18, 6)
 
   @@unique([bidId, itemId])
   @@index([bidId])

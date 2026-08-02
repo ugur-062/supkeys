@@ -50,6 +50,7 @@ import {
   bidCoversAllItems,
   lineTotal,
   sumLineTotals,
+  sumLineTotalsInBase,
 } from "../../../common/company/bid-items";
 import {
   isListingClosedAt,
@@ -2358,6 +2359,8 @@ export class CompanyListingsService {
               ? bi.deliveryDate.toISOString()
               : null,
             deliveryTime: bi.deliveryTime,
+            // Madde 9 — kalem para birimi (null = teklifin ana birimi).
+            currency: bi.currency,
           })),
           answers: b.answers.map((a) => ({
             questionId: a.questionId,
@@ -2553,6 +2556,7 @@ export class CompanyListingsService {
                 ? bi.deliveryDate.toISOString()
                 : null,
               deliveryTime: bi.deliveryTime,
+              currency: bi.currency,
             })),
             answers: myBid.answers.map((a) => ({
               questionId: a.questionId,
@@ -3203,6 +3207,8 @@ export class CompanyListingsService {
       unitPrice: number;
       deliveryDate: Date | null;
       deliveryTime: BidDeliveryTime | null;
+      currency: Currency | null;
+      fxToBase: Prisma.Decimal | null;
     }[] = [];
     let answersData: { questionId: string; value: string }[] = [];
 
@@ -3240,12 +3246,71 @@ export class CompanyListingsService {
           "Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı",
         );
       }
+      // Madde 9 (2026-08-02) — kalem bazlı para birimi: kalem, ilanın izin
+      // verdiği birimlerden, teklifin ana biriminden FARKLI bir birim
+      // taşıyabilir. Yalnız kapalı zarf ALIM ihalesinde (SATIS taban kıyası ve
+      // açık eksiltmenin tek-birim kilidi bozulmaz). Çevrim damgası (fxToBase)
+      // submit anında TCMB çaprazından yazılır; bid.amount ana birimde Σ olur
+      // ve award nöbetçisi AYNI damgayla yeniden hesaplar (fail-closed).
+      const itemCurrencyOf = (bi: (typeof provided)[number]): Currency =>
+        ((bi.currency as Currency | undefined) ?? currency);
+      const hasForeignItems = provided.some(
+        (bi) => itemCurrencyOf(bi) !== currency,
+      );
+      const fxByCurrency = new Map<Currency, Prisma.Decimal>([
+        [currency, new Prisma.Decimal(1)],
+      ]);
+      if (hasForeignItems) {
+        if (listing.type !== "ALIM" || listing.format === "ENGLISH_AUCTION") {
+          throw new BadRequestException(
+            "Kalem bazında farklı para birimi yalnız kapalı zarf alım ihalelerinde kullanılabilir",
+          );
+        }
+        for (const bi of provided) {
+          const c = itemCurrencyOf(bi);
+          if (
+            listing.allowedCurrencies.length > 0 &&
+            !listing.allowedCurrencies.includes(c)
+          ) {
+            throw new BadRequestException(
+              `Bu ilan için geçersiz kalem para birimi: ${c}`,
+            );
+          }
+        }
+        // TRY-baz çapraz kur — TAZE (getFreshRate): para kararında bayat/
+        // fallback kur kabul edilmez; kur yoksa fail-closed reddedilir.
+        const rateTry = async (c: Currency): Promise<Prisma.Decimal> => {
+          if (c === "TRY") return new Prisma.Decimal(1);
+          const r = await this.exchangeRates.getFreshRate(c).catch(() => null);
+          if (r == null || r <= 0) {
+            throw new BadRequestException(
+              `Güncel kur bilgisi yok (TCMB ${c}) — kalem bazlı farklı para birimi şu an kullanılamıyor; teklifi tek birimde verin veya daha sonra tekrar deneyin`,
+            );
+          }
+          return new Prisma.Decimal(r);
+        };
+        const baseRate = await rateTry(currency);
+        for (const c of [...new Set(provided.map(itemCurrencyOf))]) {
+          if (fxByCurrency.has(c)) continue;
+          fxByCurrency.set(
+            c,
+            (await rateTry(c))
+              .div(baseRate)
+              .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP),
+          );
+        }
+      }
       // S5: miktar HER ZAMAN listing'den (qtyById) — teklif DTO'sunda quantity
-      // yok. bid.amount = Σ(unitPrice × listingQty), tek-kaynak sumLineTotals.
-      amount = sumLineTotals(
+      // yok. bid.amount = Σ(unitPrice × listingQty) ANA BİRİMDE — tek-kaynak
+      // sumLineTotalsInBase (tek-birimde klasik sumLineTotals ile birebir).
+      amount = sumLineTotalsInBase(
         provided.map((bi) => ({
           unitPrice: bi.unitPrice,
           quantity: qtyById.get(bi.itemId) ?? 0,
+          fxToBase:
+            itemCurrencyOf(bi) !== currency
+              ? (fxByCurrency.get(itemCurrencyOf(bi)) ?? null)
+              : null,
         })),
       );
       // Gönderilen (taslak olmayan) teklif sıfır toplam olamaz; tüm birim
@@ -3253,12 +3318,17 @@ export class CompanyListingsService {
       if (!isDraft && amount.lte(0)) {
         throw new BadRequestException("Teklif toplamı sıfırdan büyük olmalı");
       }
-      bidItemsData = provided.map((bi) => ({
-        itemId: bi.itemId,
-        unitPrice: bi.unitPrice,
-        deliveryDate: bi.deliveryDate ? new Date(bi.deliveryDate) : null,
-        deliveryTime: (bi.deliveryTime as BidDeliveryTime | undefined) ?? null,
-      }));
+      bidItemsData = provided.map((bi) => {
+        const c = itemCurrencyOf(bi);
+        return {
+          itemId: bi.itemId,
+          unitPrice: bi.unitPrice,
+          deliveryDate: bi.deliveryDate ? new Date(bi.deliveryDate) : null,
+          deliveryTime: (bi.deliveryTime as BidDeliveryTime | undefined) ?? null,
+          currency: c !== currency ? c : null,
+          fxToBase: c !== currency ? (fxByCurrency.get(c) ?? null) : null,
+        };
+      });
 
       // Kalem soruları: cevaplar yalnız FİYATLANAN kalemin sorularına verilebilir;
       // gönderimde fiyatlanan kalemlerin ZORUNLU soruları cevaplanmış olmalı.
@@ -3565,6 +3635,8 @@ export class CompanyListingsService {
             unitPrice: bi.unitPrice,
             deliveryDate: bi.deliveryDate,
             deliveryTime: bi.deliveryTime,
+            currency: bi.currency,
+            fxToBase: bi.fxToBase,
           })),
         });
         // Kalem sorusu cevaplarını yenile (aynı desen).
@@ -4126,6 +4198,8 @@ export class CompanyListingsService {
             unitPrice: true,
             deliveryDate: true,
             deliveryTime: true,
+            currency: true,
+            fxToBase: true,
             note: true,
           },
         },
@@ -4162,22 +4236,47 @@ export class CompanyListingsService {
               deliveryDate: bi.deliveryDate,
               deliveryTime: bi.deliveryTime ?? bid.deliveryTime,
               note: bi.note,
+              // Madde 9 — kalem para birimi (null = teklifin ana birimi) +
+              // ana birime çevrim damgası (nöbetçi yeniden hesaplaması için).
+              currency: (bi.currency ?? bid.currency) as Currency,
+              fxToBase: bi.fxToBase,
             }
           : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    // S5 NÖBETÇİSİ: order.amount = bid.amount (güvenilen stored) yolu, YALNIZ
-    // "bid.amount ≡ Σ(unitPrice × listingQty)" invariant'ı geçerliyken doğrudur
-    // (placeBid böyle hesaplar + bidCount kilidi listing miktarını dondurur).
-    // Invariant kırılırsa (ör. kilit statü-filtreli olur → miktar bid sonrası
-    // değişir) burada fail-closed: yanlış tutarlı sipariş YAZILMAZ (tx öncesi).
-    const recomputed = sumLineTotals(orderItems);
+    // S5 NÖBETÇİSİ: order.amount'lar teklif kalemlerinden türetilir; bid.amount
+    // (güvenilen stored) yalnız "bid.amount ≡ ANA BİRİMDE Σ" invariant'ı
+    // geçerliyken doğrudur (placeBid sumLineTotalsInBase ile böyle hesaplar +
+    // bidCount kilidi listing miktarını dondurur; çok-birimli teklifte kayıtlı
+    // fxToBase damgaları kullanılır → determinizm). Invariant kırılırsa burada
+    // fail-closed: yanlış tutarlı sipariş YAZILMAZ (tx öncesi).
+    const recomputed = sumLineTotalsInBase(orderItems);
     if (!recomputed.equals(bid.amount)) {
       throw new BadRequestException(
         "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
       );
     }
+
+    // Madde 9 — para birimi başına AYRI sipariş: siparişler/ödemeler tek birim
+    // kalır. Tek birimli teklifte tek grup = eski davranış (amount ≡ bid.amount).
+    const currencyGroups = new Map<Currency, typeof orderItems>();
+    for (const it of orderItems) {
+      const g = currencyGroups.get(it.currency) ?? [];
+      g.push(it);
+      currencyGroups.set(it.currency, g);
+    }
+    // Kalemsiz ilan (tek-tutar teklif): tek grup, teklifin ana birimi.
+    if (currencyGroups.size === 0) {
+      currencyGroups.set(bid.currency as Currency, []);
+    }
+    // Grup tutarı KENDİ biriminde ve ÇEVRİMSİZ kesin toplamdır; tek grupta
+    // (ana birim) bid.amount ile birebir (yukarıdaki nöbetçi bunu garanti eder).
+    const orderPlans = [...currencyGroups.entries()].map(([cur, items]) => ({
+      currency: cur,
+      items,
+      amount: items.length > 0 ? sumLineTotals(items) : bid.amount,
+    }));
 
     const sellerCompanyId =
       listing.type === "ALIM" ? bid.bidderCompanyId : listing.companyId;
@@ -4193,8 +4292,8 @@ export class CompanyListingsService {
         : bid.deliveryAddressId,
     );
 
-    const number = await this.nextOrderNumber();
-    const order = await runTenantTx(this.prisma, async (tx) => {
+    const numbers = await this.nextOrderNumbers(orderPlans.length);
+    const orders = await runTenantTx(this.prisma, async (tx) => {
       // Atomik durum geçişi: yalnızca OPEN|CLOSED iken AWARDED'a geç. Eşzamanlı
       // ikinci kazandırma (ya da tekrar gönderilen onay-event'i) burada count=0
       // alır ve iptal edilir — çift sipariş oluşmaz (F1/F5).
@@ -4225,70 +4324,98 @@ export class CompanyListingsService {
         where: { listingId, id: { not: bidId }, status: "SUBMITTED" },
         data: { status: "LOST" },
       });
-      const o = await tx.companyOrder.create({
-        data: {
-          number,
-          listingId,
-          sellerCompanyId,
-          buyerCompanyId,
-          amount: bid.amount,
-          currency: bid.currency, // sipariş tutarı teklifin biriminde
-          // Ödeme zamanlaması ilandan snapshot'lanır — aksi halde varsayılan
-          // AFTER_DELIVERY olur ve teslim öncesi (BEFORE_DELIVERY) ilanlarda
-          // alıcı ön ödemeyi kaydedemez, satıcıdan teminat da istenmezdi.
-          paymentTiming: listing.paymentTiming,
-          // Teminat şartı da snapshot — accept guard'ı siparişten okur.
-          requireGuaranteeLetter: listing.requireGuaranteeLetter,
-          // Ödeme planı + teslim şekli snapshot'ı (S2) — ilan silinse de
-          // (SetNull) sipariş kendi şartlarını bilir; Faz 3 motoru buradan okur.
-          paymentCategory: listing.paymentCategory,
-          advancePercent: listing.advancePercent,
-          paymentDays: listing.paymentDays,
-          lcType: listing.lcType,
-          lcConfirmed: listing.lcConfirmed,
-          paymentNote: listing.paymentNote,
-          deliveryTerm: listing.deliveryTerm,
-          status: "PENDING", // satıcı onayı bekler (accept/reject)
-          deliveryAddress,
-        },
-      });
-      if (orderItems.length > 0) {
-        await tx.companyOrderItem.createMany({
-          data: orderItems.map((it) => ({ orderId: o.id, ...it })),
+      // Madde 9: para birimi başına bir sipariş (tek birimde tek sipariş =
+      // eski davranış). Grup tutarı kendi biriminde kesin Σ; nöbetçi yukarıda
+      // bid.amount eşitliğini (ana birimde) zaten doğruladı.
+      const createdOrders: { id: string; number: string | null }[] = [];
+      for (let i = 0; i < orderPlans.length; i++) {
+        const plan = orderPlans[i]!;
+        const o = await tx.companyOrder.create({
+          data: {
+            number: numbers[i],
+            listingId,
+            sellerCompanyId,
+            buyerCompanyId,
+            amount: plan.amount,
+            currency: plan.currency, // sipariş tutarı KENDİ biriminde
+            // Ödeme zamanlaması ilandan snapshot'lanır — aksi halde varsayılan
+            // AFTER_DELIVERY olur ve teslim öncesi (BEFORE_DELIVERY) ilanlarda
+            // alıcı ön ödemeyi kaydedemez, satıcıdan teminat da istenmezdi.
+            paymentTiming: listing.paymentTiming,
+            // Teminat şartı da snapshot — accept guard'ı siparişten okur.
+            requireGuaranteeLetter: listing.requireGuaranteeLetter,
+            // Ödeme planı + teslim şekli snapshot'ı (S2) — ilan silinse de
+            // (SetNull) sipariş kendi şartlarını bilir; Faz 3 motoru buradan okur.
+            paymentCategory: listing.paymentCategory,
+            advancePercent: listing.advancePercent,
+            paymentDays: listing.paymentDays,
+            lcType: listing.lcType,
+            lcConfirmed: listing.lcConfirmed,
+            paymentNote: listing.paymentNote,
+            deliveryTerm: listing.deliveryTerm,
+            status: "PENDING", // satıcı onayı bekler (accept/reject)
+            deliveryAddress,
+          },
         });
+        if (plan.items.length > 0) {
+          await tx.companyOrderItem.createMany({
+            // currency/fxToBase teklif-tarafı alanlar — sipariş kalemi taşımaz
+            // (siparişin kendisi tek birimlidir).
+            data: plan.items.map((it) => ({
+              orderId: o.id,
+              name: it.name,
+              quantity: it.quantity,
+              unit: it.unit,
+              unitPrice: it.unitPrice,
+              deliveryDate: it.deliveryDate,
+              deliveryTime: it.deliveryTime,
+              note: it.note,
+            })),
+          });
+        }
+        createdOrders.push({ id: o.id, number: o.number });
       }
-      return o;
+      return createdOrders;
       // Sipariş oluşturma birden çok yazma içerir; yüksek DB gecikmesinde
       // varsayılan 5sn interactive-transaction limiti aşılabilir.
     }, { timeout: 20000 });
+    const order = orders[0]!;
 
-    // INV-AUDIT-1: parasal taahhüt (sipariş) atomik oluştu → commit SONRASI izle.
+    // INV-AUDIT-1: parasal taahhüt atomik oluştu → commit SONRASI, sipariş
+    // BAŞINA iz (madde 9: çok-birimli teklif birden çok sipariş üretebilir).
     // Bildirim best-effort bloğundan ÖNCE ve bağımsız; log() throw etmez.
-    await this.audit.log({
-      action: "company.listing.awarded",
-      actorType: "company",
-      actorId: actor.actorId,
-      actorEmail: actor.actorEmail ?? null,
-      tenantId: listing.companyId,
-      entityType: "company_order",
-      entityId: order.id,
-      critical: true,
-      metadata: {
-        listingId,
-        listingType: listing.type,
-        orderNumber: order.number,
-        bidId: bid.id,
-        bidderCompanyId: bid.bidderCompanyId,
-        sellerCompanyId,
-        buyerCompanyId,
-        amount: Number(bid.amount),
-        currency: bid.currency,
-        previousBidStatus: "SUBMITTED",
-        newBidStatus: "WON",
-        viaApproval: actor.viaApproval,
-        approverUserId: actor.approverUserId ?? null,
-      },
-    });
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i]!;
+      const plan = orderPlans[i]!;
+      await this.audit.log({
+        action: "company.listing.awarded",
+        actorType: "company",
+        actorId: actor.actorId,
+        actorEmail: actor.actorEmail ?? null,
+        tenantId: listing.companyId,
+        entityType: "company_order",
+        entityId: o.id,
+        critical: true,
+        metadata: {
+          listingId,
+          listingType: listing.type,
+          orderNumber: o.number,
+          bidId: bid.id,
+          bidderCompanyId: bid.bidderCompanyId,
+          sellerCompanyId,
+          buyerCompanyId,
+          amount: Number(plan.amount),
+          currency: plan.currency,
+          // Çok-birimli teklifte ana birimdeki toplam bağlam olarak taşınır.
+          bidAmount: Number(bid.amount),
+          bidCurrency: bid.currency,
+          previousBidStatus: "SUBMITTED",
+          newBidStatus: "WON",
+          viaApproval: actor.viaApproval,
+          approverUserId: actor.approverUserId ?? null,
+        },
+      });
+    }
 
     // C8: sipariş atomik oluştu. Bundan sonraki bildirim/realtime BEST-EFFORT —
     // hatası kazandırmayı geri almamalı. Aksi halde onay motorunun (decide)
@@ -4300,6 +4427,11 @@ export class CompanyListingsService {
         bid.bidderCompanyId,
         wonPortal,
       );
+      // Madde 9: çok-birimli teklifte birden çok sipariş — hepsi sayılır.
+      const orderNumbersLabel = orders
+        .map((o) => o.number)
+        .filter(Boolean)
+        .join(", ");
       if (recipient) {
         this.notify(
           recipient,
@@ -4308,7 +4440,7 @@ export class CompanyListingsService {
             heading: "Teklifiniz kazandı 🎉",
             paragraphs: [
               "Merhaba,",
-              `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
+              `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
             ],
             ctaLabel: "Siparişi Gör",
             ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
@@ -4320,7 +4452,7 @@ export class CompanyListingsService {
         type: "bid_awarded",
         portal: wonPortal,
         title: "Teklifiniz kazandı 🎉",
-        body: `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu.`,
+        body: `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu.`,
         ctaLabel: "Siparişi Gör",
         ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
       });
@@ -4363,7 +4495,7 @@ export class CompanyListingsService {
         });
       }
       this.realtime?.pingListing(listingId, awardParties);
-      this.realtime?.pingOrder(order.id, awardParties);
+      for (const o of orders) this.realtime?.pingOrder(o.id, awardParties);
     } catch (err) {
       this.logger.warn(
         `Kazandırma sonrası bildirim başarısız (sipariş ${order.id}): ${
@@ -4371,7 +4503,9 @@ export class CompanyListingsService {
         }`,
       );
     }
-    return { orderId: order.id, number: order.number };
+    // Geriye-uyumluluk: tekil orderId/number ilk siparişi işaret eder;
+    // çok-birimli teklifte tüm siparişler `orders` ile döner.
+    return { orderId: order.id, number: order.number, orders };
   }
 
   /**
@@ -4649,6 +4783,8 @@ export class CompanyListingsService {
             unitPrice: true,
             deliveryDate: true,
             deliveryTime: true,
+            currency: true,
+            fxToBase: true,
             note: true,
           },
         },
@@ -4659,6 +4795,9 @@ export class CompanyListingsService {
     const groups = new Map<
       string,
       {
+        // Madde 9: grup anahtarı firma+PARA BİRİMİ — çok-birimli tekliften
+        // kazanan kalemler birim başına AYRI siparişe düşer (sipariş tek birim).
+        bidderCompanyId: string;
         orderItems: {
           name: string;
           // S8: order kalem precision — ham Prisma.Decimal (runFullAward
@@ -4671,9 +4810,9 @@ export class CompanyListingsService {
           deliveryTime: BidDeliveryTime | null;
           note: string | null;
         }[];
-        amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
-        currency: Currency; // teklifçinin birimi (firma başına tek teklif)
-        exchangeRateSnapshot: Prisma.Decimal | null; // teklif kur damgası (X-CF-1)
+        amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7), KENDİ biriminde
+        currency: Currency; // bu grubun (siparişin) birimi
+        exchangeRateSnapshot: Prisma.Decimal | null; // birim→TRY damgası (X-CF-1)
         bidIds: Set<string>;
       }
     >();
@@ -4694,17 +4833,32 @@ export class CompanyListingsService {
           ? Math.min(a.awardedQuantity, fullQty)
           : fullQty;
       itemQty.set(a.itemId, qty);
-      let g = groups.get(bid.bidderCompanyId);
+      const itemCurrency = (bi.currency ?? bid.currency) as Currency;
+      const groupKey = `${bid.bidderCompanyId}::${itemCurrency}`;
+      let g = groups.get(groupKey);
       if (!g) {
         g = {
+          bidderCompanyId: bid.bidderCompanyId,
           orderItems: [],
           amount: new Prisma.Decimal(0),
-          currency: bid.currency,
-          // Firma başına tek teklif → grup ilk kurulduğunda o teklifin damgası.
-          exchangeRateSnapshot: bid.exchangeRateSnapshot,
+          currency: itemCurrency,
+          // Birim→TRY damgası: ana birimde teklifin damgası; kalem-birimi
+          // farklıysa çapraz damga = fxToBase × (anaBirim→TRY). İkisinden biri
+          // yoksa null (X-CF-1 fail-closed: onay eşiği çevrilemezse onay
+          // ZORUNLU kılınır, sessiz atlama yok).
+          exchangeRateSnapshot:
+            itemCurrency === bid.currency
+              ? bid.exchangeRateSnapshot
+              : itemCurrency === "TRY"
+                ? new Prisma.Decimal(1)
+                : bid.exchangeRateSnapshot != null && bi.fxToBase != null
+                  ? new Prisma.Decimal(bi.fxToBase).mul(
+                      bid.exchangeRateSnapshot,
+                    )
+                  : null,
           bidIds: new Set(),
         };
-        groups.set(bid.bidderCompanyId, g);
+        groups.set(groupKey, g);
       }
       g.bidIds.add(bid.id);
       g.orderItems.push({
@@ -4806,7 +4960,9 @@ export class CompanyListingsService {
       listingId,
       itemAwards,
     );
-    const groupArr = [...groups.entries()];
+    // Madde 9: grup = (firma, para birimi) — groupArr artık grup nesneleri
+    // (bidderCompanyId grup içinde taşınır).
+    const groupArr = [...groups.values()];
     const numbers = await this.nextOrderNumbers(groupArr.length);
     const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
 
@@ -4916,7 +5072,8 @@ export class CompanyListingsService {
       }
       const orders: { id: string; number: string | null }[] = [];
       for (let i = 0; i < groupArr.length; i++) {
-        const [bidderCompanyId, g] = groupArr[i]!;
+        const g = groupArr[i]!;
+        const bidderCompanyId = g.bidderCompanyId;
         const o = await tx.companyOrder.create({
           data: {
             number: numbers[i],
@@ -4965,7 +5122,8 @@ export class CompanyListingsService {
     // SONRASI, bildirimden ÖNCE. Sipariş başına kayıt = kalem-bazlı dağılımda
     // her tedarikçiye giden taahhüt tekil izlenebilir.
     for (let i = 0; i < groupArr.length; i++) {
-      const [bidderCompanyId, g] = groupArr[i]!;
+      const g = groupArr[i]!;
+      const bidderCompanyId = g.bidderCompanyId;
       const o = created[i];
       if (!o) continue;
       await this.audit.log({
@@ -4999,11 +5157,11 @@ export class CompanyListingsService {
       // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
       const itemWonPortal = this.bidderPortal(listing.type);
       const recipients = await this.companyRecipients(
-        groupArr.map(([bidderCompanyId]) => bidderCompanyId),
+        [...new Set(groupArr.map((g) => g.bidderCompanyId))],
         itemWonPortal,
       );
       for (let i = 0; i < groupArr.length; i++) {
-        const [bidderCompanyId] = groupArr[i]!;
+        const bidderCompanyId = groupArr[i]!.bidderCompanyId;
         const o = created[i];
         const recipient = recipients.get(bidderCompanyId);
         if (recipient && o) {
@@ -5036,7 +5194,7 @@ export class CompanyListingsService {
       }
       this.realtime?.pingListing(listingId, [
         listing.companyId,
-        ...groupArr.map(([bidderCompanyId]) => bidderCompanyId),
+        ...new Set(groupArr.map((g) => g.bidderCompanyId)),
       ]);
       for (const o of created) {
         this.realtime?.pingOrder(o.id, [listing.companyId]);

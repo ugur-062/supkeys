@@ -295,14 +295,15 @@ export default function BidDetailPage() {
                       <TableCell className="text-right tabular-nums text-zinc-600">
                         {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
                       </TableCell>
+                      {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
                       <TableCell className="text-right font-mono tabular-nums text-zinc-700">
                         {up
-                          ? `${Number(up).toLocaleString("tr-TR")} ${!bid.currency || bid.currency === "TRY" ? "₺" : bid.currency}`
+                          ? `${Number(up).toLocaleString("tr-TR")} ${(() => { const c = bi?.currency ?? bid.currency; return !c || c === "TRY" ? "₺" : c; })()}`
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-zinc-900">
                         {line != null
-                          ? `${line.toLocaleString("tr-TR")} ${!bid.currency || bid.currency === "TRY" ? "₺" : bid.currency}`
+                          ? `${line.toLocaleString("tr-TR")} ${(() => { const c = bi?.currency ?? bid.currency; return !c || c === "TRY" ? "₺" : c; })()}`
                           : "—"}
                       </TableCell>
                     </TableRow>

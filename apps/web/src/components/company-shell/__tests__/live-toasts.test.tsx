@@ -91,7 +91,12 @@ beforeEach(() => {
   h.notifs = [];
   h.threads = { satinalma: [], satis: [] };
   // Modül-seviyesi görülenler store'u kullanıcıya bağlı — her test taze kullanıcı.
-  h.user = { id: `u${++userSeq}`, roles: ["SAHIP"] };
+  // Mesaj kartları artık operasyon rolü ister (2026-08-02: mesajlaşma okuma
+  // dahil rol kapılı) — SAHIP tek başına thread taraması yapmaz.
+  h.user = {
+    id: `u${++userSeq}`,
+    roles: ["SAHIP", "SATIN_ALMACI", "SATISCI"],
+  };
   h.tier = "GOLD";
   window.history.pushState({}, "", "/company/satinalma");
   h.get.mockImplementation((url: string, opts?: { params?: { portal?: string } }) => {

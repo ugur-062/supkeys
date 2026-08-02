@@ -68,6 +68,12 @@ export class PlaceBidItemDto {
   })
   deliveryTime?: BidDeliveryTime;
 
+  // Kalem para birimi (madde 9; boşsa teklifin ana birimi). İlanın izin verdiği
+  // birimlerden; yalnız kapalı zarf ALIM ihalesinde — servis doğrular.
+  @IsOptional()
+  @IsEnum(BidCurrencyDto, { message: "Geçersiz kalem para birimi" })
+  currency?: BidCurrencyDto;
+
   // Kalemin sorularına cevaplar (gönderimde zorunlu sorular denetlenir).
   @IsOptional()
   @IsArray()

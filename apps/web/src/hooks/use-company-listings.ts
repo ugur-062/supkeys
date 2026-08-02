@@ -250,6 +250,8 @@ export interface ListingBidItemRow {
   deliveryDate?: string | null;
   /** Kalem teslim SÜRESİ (BID_DELIVERY_TIMES). */
   deliveryTime?: string | null;
+  /** Kalem para birimi (madde 9; null = teklifin ana birimi). */
+  currency?: string | null;
 }
 
 /** SATIS teklifinde alıcının teslimat adresi (satıcıya gösterilir). */
@@ -478,6 +480,7 @@ export function usePlaceBid(id: string) {
         unitPrice: number;
         deliveryDate?: string;
         deliveryTime?: string;
+        currency?: string;
         answers?: { questionId: string; value: string }[];
       }[];
       note?: string;
