@@ -26,6 +26,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { bidDeliveryTimeLabel } from "@rothern/shared";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -194,9 +195,10 @@ export default function BidDetailPage() {
                 : "Taahhüt Edilen Teslim"}
             </dt>
             <dd className="font-medium text-zinc-900">
-              {bid.deliveryDate
-                ? new Date(bid.deliveryDate).toLocaleDateString("tr-TR")
-                : "—"}
+              {bidDeliveryTimeLabel(bid.deliveryTime) ??
+                (bid.deliveryDate
+                  ? new Date(bid.deliveryDate).toLocaleDateString("tr-TR")
+                  : "—")}
             </dd>
           </div>
           <div>
@@ -268,14 +270,17 @@ export default function BidDetailPage() {
                     <TableRow key={it.id}>
                       <TableCell className="text-zinc-900">
                         {it.name}
-                        {bi?.deliveryDate ? (
+                        {bi?.deliveryTime || bi?.deliveryDate ? (
                           <span className="block text-[11px] text-zinc-500">
                             {l.type === "SATIS"
                               ? "İstenen kalem teslimi:"
                               : "Kalem teslimi:"}{" "}
-                            {new Date(bi.deliveryDate).toLocaleDateString(
-                              "tr-TR",
-                            )}
+                            {bidDeliveryTimeLabel(bi.deliveryTime) ??
+                              (bi.deliveryDate
+                                ? new Date(bi.deliveryDate).toLocaleDateString(
+                                    "tr-TR",
+                                  )
+                                : "—")}
                           </span>
                         ) : null}
                         {itemAnswers.map(({ q, value }) => (

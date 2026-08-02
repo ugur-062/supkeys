@@ -242,14 +242,16 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
             },
             description: "HER kalem için birim fiyat",
           },
-          deliveryDate: {
+          deliveryTime: {
             type: "string",
-            description: "Taahhüt edilen teslim tarihi (ISO, gelecekte) — ZORUNLU, kullanıcıya sor",
+            enum: ["STOKTAN", "W1_2", "W3_4", "W5_8", "M2_3", "M3_PLUS"],
+            description:
+              "Taahhüt edilen teslim SÜRESİ — ZORUNLU, kullanıcıya sor. STOKTAN=stoktan hemen, W1_2=1-2 hafta, W3_4=3-4 hafta, W5_8=5-8 hafta, M2_3=2-3 ay, M3_PLUS=3+ ay",
           },
           note: { type: "string" },
           validityDays: { type: "number", description: "Teklif geçerlilik günü (ops.)" },
         },
-        required: ["listingId", "items", "deliveryDate"],
+        required: ["listingId", "items", "deliveryTime"],
       },
     });
   }

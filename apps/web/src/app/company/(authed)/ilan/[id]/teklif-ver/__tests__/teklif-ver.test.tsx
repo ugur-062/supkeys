@@ -138,12 +138,12 @@ describe("TeklifVerPage — kapılar", () => {
 });
 
 describe("TeklifVerPage — form", () => {
-  it("kalem satırı: hedef ipucu + soru + kalem teslim tarihi alanı", () => {
+  it("kalem satırı: hedef ipucu + soru + kalem teslim süresi alanı", () => {
     render(<TeklifVerPage />);
     expect(screen.getByText(/Hedef: 120/)).toBeInTheDocument();
     expect(screen.getByText(/Menşei ülke\?/)).toBeInTheDocument();
     expect(
-      screen.getByLabelText("Kalem Teslim Tarihi (opsiyonel)"),
+      screen.getByLabelText("Çelik Boru teslim süresi"),
     ).toBeInTheDocument();
     expect(screen.getByText("1 soru")).toBeInTheDocument();
   });
@@ -157,7 +157,7 @@ describe("TeklifVerPage — form", () => {
     expect(screen.getAllByText(/1\.500/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Fiyatlandırılan kalem 1/1")).toBeInTheDocument();
 
-    // Teslim tarihi + geçerlilik dolu değil / soru cevapsız → buton disabled.
+    // Teslim süresi + geçerlilik dolu değil / soru cevapsız → buton disabled.
     // Masaüstü + mobil yapışkan çubukta iki eş isimli buton var — ilki (masaüstü).
     const submitBtn = screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!;
     expect(submitBtn).toBeDisabled();
@@ -167,9 +167,9 @@ describe("TeklifVerPage — form", () => {
 
     // Eksikleri tamamla → aktifleşir.
     await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
-    await user.type(
-      screen.getByLabelText("Genel Teslim Tarihi *"),
-      new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10),
+    await user.selectOptions(
+      screen.getByLabelText("Genel teslim süresi"),
+      "W1_2",
     );
     expect(submitBtn).toBeEnabled();
   });
@@ -190,24 +190,21 @@ describe("TeklifVerPage — form", () => {
     expect(screen.getByLabelText("Birim Fiyat")).toBeInTheDocument();
   });
 
-  it("gönderim onay dialog'u → payload kalem teslim tarihi + cevap içerir", async () => {
+  it("gönderim onay dialog'u → payload kalem teslim süresi + cevap içerir", async () => {
     const user = userEvent.setup();
     h.mutateAsync.mockResolvedValue({ status: "SUBMITTED" });
     render(<TeklifVerPage />);
 
     await user.type(screen.getByLabelText("Birim Fiyat"), "150");
     await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
-    const itemDate = new Date(Date.now() + 2 * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-    await user.type(
-      screen.getByLabelText("Kalem Teslim Tarihi (opsiyonel)"),
-      itemDate,
+    await user.selectOptions(
+      screen.getByLabelText("Çelik Boru teslim süresi"),
+      "W3_4",
     );
-    // Kalemin kendi teslim tarihi girildi → genel teslim tarihi alanı artık
+    // Kalemin kendi teslim süresi girildi → genel teslim süresi alanı artık
     // "gerek yok" notuna döner (zorunlu değil); doldurulmasına gerek yok.
     expect(
-      screen.getByText(/genel tarihe gerek yok/i),
+      screen.getByText(/genel süreye gerek yok/i),
     ).toBeInTheDocument();
 
     await user.click(
@@ -227,7 +224,7 @@ describe("TeklifVerPage — form", () => {
           expect.objectContaining({
             itemId: "i1",
             unitPrice: 150,
-            deliveryDate: itemDate,
+            deliveryTime: "W3_4",
             answers: [{ questionId: "q1", value: "Türkiye" }],
           }),
         ],

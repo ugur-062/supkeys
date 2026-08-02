@@ -1919,6 +1919,7 @@ export class CompanyOrdersService {
         unit: it.unit,
         unitPrice: it.unitPrice.toString(),
         deliveryDate: it.deliveryDate,
+        deliveryTime: it.deliveryTime,
         note: it.note,
       })),
     };

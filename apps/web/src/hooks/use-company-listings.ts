@@ -183,8 +183,10 @@ export interface MyBid {
   version: number;
   isBuyNow: boolean;
   createdAt: string;
-  /** ALIM: taahhüt edilen teslim; SATIS: istenen teslim tarihi. */
+  /** ALIM: taahhüt edilen teslim; SATIS: istenen teslim tarihi (LEGACY). */
   deliveryDate: string | null;
+  /** Teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası teklifler). */
+  deliveryTime?: string | null;
   /** Kazanan teklifin oluşturduğu sipariş (WON/AWARDED_PARTIAL). */
   orderId: string | null;
   listing: {
@@ -246,6 +248,8 @@ export interface ListingBidItemRow {
   itemId: string;
   unitPrice: string;
   deliveryDate?: string | null;
+  /** Kalem teslim SÜRESİ (BID_DELIVERY_TIMES). */
+  deliveryTime?: string | null;
 }
 
 /** SATIS teklifinde alıcının teslimat adresi (satıcıya gösterilir). */
@@ -274,8 +278,10 @@ export interface ListingBidRow {
   status: string;
   round?: number;
   createdAt: string;
-  /** ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ teslim tarihi. */
+  /** ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ teslim (LEGACY tarih). */
   deliveryDate?: string | null;
+  /** Teslim SÜRESİ (BID_DELIVERY_TIMES). */
+  deliveryTime?: string | null;
   validityDays?: number | null;
   /** Geçerlilik rozeti: son geçerlilik = submittedAt + validityDays. */
   submittedAt?: string | null;
@@ -391,6 +397,7 @@ export interface ListingDetail {
     eliminatedAt?: string | null;
     updatedAt?: string;
     deliveryDate?: string | null;
+    deliveryTime?: string | null;
     validityDays?: number | null;
     /** SATIS: alıcının seçtiği teslimat adresi (kendi adres defterinden). */
     deliveryAddressId?: string | null;
@@ -470,11 +477,13 @@ export function usePlaceBid(id: string) {
         itemId: string;
         unitPrice: number;
         deliveryDate?: string;
+        deliveryTime?: string;
         answers?: { questionId: string; value: string }[];
       }[];
       note?: string;
       asDraft?: boolean;
       deliveryDate?: string;
+      deliveryTime?: string;
       validityDays?: number;
       deliveryAddressId?: string;
       currency?: string;
@@ -506,6 +515,7 @@ export function useBuyNow(id: string) {
     mutationFn: async (input?: {
       note?: string;
       deliveryDate?: string;
+      deliveryTime?: string;
       validityDays?: number;
       deliveryAddressId?: string;
       itemIds?: string[];

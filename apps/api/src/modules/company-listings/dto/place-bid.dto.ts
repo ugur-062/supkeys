@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsISO8601,
   IsNumber,
@@ -14,6 +15,10 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
+import {
+  BID_DELIVERY_TIMES,
+  type BidDeliveryTime,
+} from "@rothern/shared";
 import { MAX_MONEY } from "../../../common/constants/money";
 
 export enum BidCurrencyDto {
@@ -51,10 +56,17 @@ export class PlaceBidItemDto {
   @Max(MAX_MONEY, { message: "Birim fiyat çok büyük" })
   unitPrice!: number;
 
-  // Kalem-özel teslim tarihi (opsiyonel — boşsa genel teslim tarihi geçerli).
+  // Kalem-özel teslim tarihi — LEGACY (yeni teklifler süre gönderir).
   @IsOptional()
   @IsISO8601({}, { message: "Geçersiz kalem teslim tarihi" })
   deliveryDate?: string;
+
+  // Kalem-özel teslim SÜRESİ (2026-08-02; boşsa genel süre geçerli).
+  @IsOptional()
+  @IsIn(BID_DELIVERY_TIMES as readonly string[], {
+    message: "Geçersiz kalem teslim süresi",
+  })
+  deliveryTime?: BidDeliveryTime;
 
   // Kalemin sorularına cevaplar (gönderimde zorunlu sorular denetlenir).
   @IsOptional()
@@ -92,11 +104,18 @@ export class PlaceBidDto {
   @IsBoolean()
   asDraft?: boolean;
 
-  // Gönderimde zorunlu: teslim tarihi (ALIM: satıcının taahhüdü,
-  // SATIS: alıcının istediği tarih) + geçerlilik süresi.
+  // Teslim tarihi — LEGACY (yeni teklifler süre gönderir; API geriye-uyumlu).
   @IsOptional()
   @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
   deliveryDate?: string;
+
+  // Gönderimde zorunlu: teslim SÜRESİ (ALIM: satıcının taahhüdü, SATIS:
+  // alıcının istediği süre) — kalemlerin tamamı kendi süresini taşımıyorsa.
+  @IsOptional()
+  @IsIn(BID_DELIVERY_TIMES as readonly string[], {
+    message: "Geçersiz teslim süresi",
+  })
+  deliveryTime?: BidDeliveryTime;
 
   // SATIS: alıcının teslimat adresi (kendi adres defterinden). Adrese-teslim
   // şartlı ilanlarda gönderimde zorunlu.
@@ -126,6 +145,12 @@ export class BuyNowDto {
   @IsOptional()
   @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
   deliveryDate?: string;
+
+  @IsOptional()
+  @IsIn(BID_DELIVERY_TIMES as readonly string[], {
+    message: "Geçersiz teslim süresi",
+  })
+  deliveryTime?: BidDeliveryTime;
 
   @IsOptional()
   @IsInt()

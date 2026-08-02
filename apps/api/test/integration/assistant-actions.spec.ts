@@ -475,7 +475,7 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     const out = await actions.proposePlaceBid(bidder.auth, session.id, {
       listingId: listing.id,
       items: [{ itemId: item.id, unitPrice: 50 }],
-      deliveryDate: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+      deliveryTime: "W1_2",
       validityDays: 30,
     });
     expect(out.ok).toBe(true);

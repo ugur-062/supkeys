@@ -112,11 +112,11 @@ describe("placeBid — kalem cevapları + kalem teslim tarihi", () => {
     expect(bid.deliveryDate).toBeNull(); // genel tarih girilmedi ama sorun değil
   });
 
-  it("kalem teslim tarihi YOKSA ve genel de yoksa gönderim reddedilir", async () => {
+  it("kalem teslim süresi/tarihi YOKSA ve genel de yoksa gönderim reddedilir", async () => {
     const { service, seller, listing, item, question } = await setup();
     await expect(
       service.placeBid(seller.auth, listing.id, {
-        validityDays: 30, // deliveryDate YOK, kalem tarihi de YOK
+        validityDays: 30, // deliveryTime/deliveryDate YOK, kalemde de YOK
         items: [
           {
             itemId: item.id,
@@ -125,7 +125,55 @@ describe("placeBid — kalem cevapları + kalem teslim tarihi", () => {
           },
         ],
       } as never),
-    ).rejects.toThrow(/teslim tarihi/i);
+    ).rejects.toThrow(/teslim süresi/i);
+  });
+
+  it("teslim SÜRESİ (2026-08-02): genel süre + kalem süresi kalıcı; kalem süresi genel süreyi gereksiz kılar", async () => {
+    const { service, seller, listing, item, question } = await setup();
+    // Yalnız kalem süresi — genel süre gerekmez.
+    await service.placeBid(seller.auth, listing.id, {
+      validityDays: 30,
+      items: [
+        {
+          itemId: item.id,
+          unitPrice: 100,
+          deliveryTime: "W1_2",
+          answers: [{ questionId: question.id, value: "TR" }],
+        },
+      ],
+    } as never);
+    const bid = await prisma.listingBid.findFirstOrThrow({
+      where: { listingId: listing.id, bidderCompanyId: seller.company.id },
+      include: { items: true },
+    });
+    expect(bid.status).toBe("SUBMITTED");
+    expect(bid.deliveryTime).toBeNull();
+    expect(bid.items[0]!.deliveryTime).toBe("W1_2");
+
+    // Genel süre — kalem süresi olmadan da gönderilebilir (eleme sonrası
+    // yeniden teklif senaryosu yerine ayrı firma kurmak maliyetli; burada
+    // aynı teklifin taslak-üzeri güncellenmesi yeterli: version artar).
+    await prisma.listingBid.update({
+      where: { id: bid.id },
+      data: { status: "DRAFT" },
+    });
+    await service.placeBid(seller.auth, listing.id, {
+      validityDays: 30,
+      deliveryTime: "STOKTAN",
+      items: [
+        {
+          itemId: item.id,
+          unitPrice: 90,
+          answers: [{ questionId: question.id, value: "TR" }],
+        },
+      ],
+    } as never);
+    const bid2 = await prisma.listingBid.findUniqueOrThrow({
+      where: { id: bid.id },
+      include: { items: true },
+    });
+    expect(bid2.deliveryTime).toBe("STOKTAN");
+    expect(bid2.items[0]!.deliveryTime).toBeNull();
   });
 
   it("GÖNDERİMDE zorunlu soru cevapsız → reddedilir; taslakta serbest", async () => {

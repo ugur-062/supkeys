@@ -27,8 +27,10 @@ export interface CompanyOrderItemRow {
   quantity: string;
   unit: string;
   unitPrice: string;
-  /** Kalem-özel teslim tarihi (award snapshot) — boşsa order-level tarih. */
+  /** Kalem-özel teslim tarihi (award snapshot, LEGACY) — boşsa order-level. */
   deliveryDate?: string | null;
+  /** Kalem teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası awardlar). */
+  deliveryTime?: string | null;
   note?: string | null;
 }
 

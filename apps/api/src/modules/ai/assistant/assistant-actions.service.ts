@@ -7,7 +7,13 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@rothern/db";
-import type { AiActionResult, AiPendingAction } from "@rothern/shared";
+import {
+  BID_DELIVERY_TIME_LABELS,
+  BID_DELIVERY_TIMES,
+  type AiActionResult,
+  type AiPendingAction,
+  type BidDeliveryTime,
+} from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -332,20 +338,21 @@ export class AssistantActionsService {
       Number.isFinite(Number(args.validityDays)) && Number(args.validityDays) > 0
         ? Math.min(365, Math.floor(Number(args.validityDays)))
         : undefined;
-    // Teslim tarihi zorunlu (placeBid kuralı) — kullanıcıdan istenir.
-    const deliveryDate = String(args.deliveryDate ?? "").trim();
-    if (!deliveryDate || Number.isNaN(Date.parse(deliveryDate))) {
-      return { ok: false, problem: "Taahhüt edilen teslim tarihi gerekli (örn. 2026-08-15) — kullanıcıya sorun." };
-    }
-    if (Date.parse(deliveryDate) < Date.now()) {
-      return { ok: false, problem: "Teslim tarihi geçmişte olamaz." };
+    // Teslim SÜRESİ zorunlu (2026-08-02, placeBid kuralı) — kullanıcıdan istenir.
+    const deliveryTime = String(args.deliveryTime ?? "").trim();
+    if (!BID_DELIVERY_TIMES.includes(deliveryTime as BidDeliveryTime)) {
+      return {
+        ok: false,
+        problem:
+          "Taahhüt edilen teslim süresi gerekli (STOKTAN / W1_2 / W3_4 / W5_8 / M2_3 / M3_PLUS) — kullanıcıya sorun.",
+      };
     }
 
     const dto: PlaceBidDto = {
       amount: Number(amount.toString()),
       currency: currency as PlaceBidDto["currency"],
       items: items.map((i) => ({ itemId: i.id, unitPrice: priceById.get(i.id)! })),
-      deliveryDate,
+      deliveryTime: deliveryTime as BidDeliveryTime,
       ...(note ? { note } : {}),
       ...(validityDays ? { validityDays } : {}),
     } as PlaceBidDto;
@@ -358,7 +365,7 @@ export class AssistantActionsService {
         `TEKLİF VERİLECEK: ${String(detail.title)} (${String(detail.number ?? listingId)})`,
         ...lines.slice(0, 6),
         ...(lines.length > 6 ? [`… ve ${lines.length - 6} kalem daha`] : []),
-        `TOPLAM: ${amount.toString()} ${currency} · Teslim: ${deliveryDate.slice(0, 10)}${validityDays ? ` · Geçerlilik: ${validityDays} gün` : ""}`,
+        `TOPLAM: ${amount.toString()} ${currency} · Teslim: ${BID_DELIVERY_TIME_LABELS[deliveryTime as BidDeliveryTime]}${validityDays ? ` · Geçerlilik: ${validityDays} gün` : ""}`,
         "Gönderilen teklif GERİ ÇEKİLEMEZ ve değiştirilemez (kapalı zarf).",
       ],
     });

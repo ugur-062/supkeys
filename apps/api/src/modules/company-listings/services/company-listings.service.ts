@@ -15,6 +15,7 @@ import {
   type Currency,
   type ListingBidStatus,
   type ListingBidVisibility,
+  type BidDeliveryTime,
   type ListingDeliveryTerm,
   type ListingFormat,
   type ListingPaymentCategory,
@@ -1727,6 +1728,7 @@ export class CompanyListingsService {
       createdAt: b.createdAt,
       // ALIM: taahhüt edilen teslim; SATIS: istenen teslim (yön etiketi UI'da).
       deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
+      deliveryTime: b.deliveryTime,
       orderId: orderByListing.get(b.listingId) ?? null,
       listing: {
         id: b.listing.id,
@@ -2342,8 +2344,9 @@ export class CompanyListingsService {
           status: b.status,
           round: b.round,
           createdAt: b.createdAt,
-          // ALIM: satıcının taahhüdü; SATIS: alıcının istediği teslim tarihi.
+          // ALIM: satıcının taahhüdü; SATIS: alıcının istediği teslim.
           deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
+          deliveryTime: b.deliveryTime,
           validityDays: b.validityDays,
           // Geçerlilik rozeti için: son geçerlilik = submittedAt + validityDays.
           submittedAt: b.submittedAt ? b.submittedAt.toISOString() : null,
@@ -2354,6 +2357,7 @@ export class CompanyListingsService {
             deliveryDate: bi.deliveryDate
               ? bi.deliveryDate.toISOString()
               : null,
+            deliveryTime: bi.deliveryTime,
           })),
           answers: b.answers.map((a) => ({
             questionId: a.questionId,
@@ -2538,6 +2542,7 @@ export class CompanyListingsService {
             deliveryDate: myBid.deliveryDate
               ? myBid.deliveryDate.toISOString()
               : null,
+            deliveryTime: myBid.deliveryTime,
             validityDays: myBid.validityDays,
             deliveryAddressId: myBid.deliveryAddressId,
             currency: myBid.currency,
@@ -2547,6 +2552,7 @@ export class CompanyListingsService {
               deliveryDate: bi.deliveryDate
                 ? bi.deliveryDate.toISOString()
                 : null,
+              deliveryTime: bi.deliveryTime,
             })),
             answers: myBid.answers.map((a) => ({
               questionId: a.questionId,
@@ -3122,16 +3128,23 @@ export class CompanyListingsService {
         "Teklif göndermek için geçerlilik süresi zorunlu",
       );
     }
-    // Genel teslim tarihi: kalem-bazlı teklifte teklif verilen HER kalemin kendi
-    // teslim tarihi varsa GEREKSİZ (tedarikçi ayrı ayrı girdi) → tekrar istenmez.
-    // Aksi halde (kalemsiz teklif ya da tarihsiz kalem var) gönderimde zorunlu.
+    // Genel teslim SÜRESİ (2026-08-02; tarih yerine süre merdiveni): teklif
+    // verilen HER kalemin kendi süresi (veya legacy tarihi) varsa GEREKSİZ →
+    // tekrar istenmez. Aksi halde gönderimde zorunlu. Legacy deliveryDate
+    // API geriye-uyumluluk için kabul edilmeye devam eder.
     const everyItemHasDelivery =
-      !!dto.items?.length && dto.items.every((bi) => !!bi.deliveryDate);
-    if (!isDraft && !everyItemHasDelivery && !dto.deliveryDate) {
+      !!dto.items?.length &&
+      dto.items.every((bi) => !!bi.deliveryTime || !!bi.deliveryDate);
+    if (
+      !isDraft &&
+      !everyItemHasDelivery &&
+      !dto.deliveryTime &&
+      !dto.deliveryDate
+    ) {
       throw new BadRequestException(
         listing.type === "SATIS"
-          ? "İstenen teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için)"
-          : "Teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için)",
+          ? "İstenen teslim süresi zorunlu (süre girmediğiniz kalemler için)"
+          : "Teslim süresi zorunlu (süre girmediğiniz kalemler için)",
       );
     }
     // Gönderimde teslim tarihi geçmişte olamaz.
@@ -3189,6 +3202,7 @@ export class CompanyListingsService {
       itemId: string;
       unitPrice: number;
       deliveryDate: Date | null;
+      deliveryTime: BidDeliveryTime | null;
     }[] = [];
     let answersData: { questionId: string; value: string }[] = [];
 
@@ -3243,6 +3257,7 @@ export class CompanyListingsService {
         itemId: bi.itemId,
         unitPrice: bi.unitPrice,
         deliveryDate: bi.deliveryDate ? new Date(bi.deliveryDate) : null,
+        deliveryTime: (bi.deliveryTime as BidDeliveryTime | undefined) ?? null,
       }));
 
       // Kalem soruları: cevaplar yalnız FİYATLANAN kalemin sorularına verilebilir;
@@ -3483,6 +3498,8 @@ export class CompanyListingsService {
 
     const status = isDraft ? "DRAFT" : "SUBMITTED";
     const deliveryDate = dto.deliveryDate ? new Date(dto.deliveryDate) : null;
+    const deliveryTime =
+      (dto.deliveryTime as BidDeliveryTime | undefined) ?? null;
     const validityDays = dto.validityDays ?? null;
 
     const bid = await runTenantTx(this.prisma, async (tx) => {
@@ -3500,6 +3517,7 @@ export class CompanyListingsService {
           currency,
           exchangeRateSnapshot,
           deliveryDate,
+          deliveryTime,
           validityDays,
           deliveryAddressId,
           note: dto.note?.trim() || null,
@@ -3518,6 +3536,7 @@ export class CompanyListingsService {
           currency,
           exchangeRateSnapshot,
           deliveryDate,
+          deliveryTime,
           validityDays,
           deliveryAddressId,
           note: dto.note?.trim() || null,
@@ -3545,6 +3564,7 @@ export class CompanyListingsService {
             itemId: bi.itemId,
             unitPrice: bi.unitPrice,
             deliveryDate: bi.deliveryDate,
+            deliveryTime: bi.deliveryTime,
           })),
         });
         // Kalem sorusu cevaplarını yenile (aynı desen).
@@ -3745,16 +3765,20 @@ export class CompanyListingsService {
     }
 
     // Hemen-al da bir TEKLİF gönderimidir — normal gönderimle aynı detaylar
-    // zorunlu (teslim tarihi + geçerlilik); teklif-ver ekranından girilir.
+    // zorunlu (teslim SÜRESİ + geçerlilik); teklif-ver ekranından girilir.
+    // Legacy deliveryDate de kabul edilir (API geriye-uyumlu).
     // (Erişim kontrollerinden SONRA — davetsiz prober'a bilgi sızmaz.)
-    if (!input?.deliveryDate || !input?.validityDays) {
+    if ((!input?.deliveryTime && !input?.deliveryDate) || !input?.validityDays) {
       throw new BadRequestException(
-        "Hemen-Al için istenen teslim tarihi ve geçerlilik süresi zorunlu",
+        "Hemen-Al için istenen teslim süresi ve geçerlilik süresi zorunlu",
       );
     }
-    // Teslim tarihi geçmişte olamaz (placeBid ile aynı; DTO ISO8601 doğruladığı
-    // için new Date güvenli — eskiden validasyonsuzdu, Invalid Date → 500).
-    if (new Date(input.deliveryDate).getTime() < Date.now() - 86_400_000) {
+    // Teslim tarihi (legacy) geçmişte olamaz (placeBid ile aynı; DTO ISO8601
+    // doğruladığı için new Date güvenli).
+    if (
+      input.deliveryDate &&
+      new Date(input.deliveryDate).getTime() < Date.now() - 86_400_000
+    ) {
       throw new BadRequestException("Teslim tarihi geçmişte olamaz");
     }
     // Alıcının teslimat adresi — normal teklif gönderimiyle aynı kural
@@ -3857,7 +3881,9 @@ export class CompanyListingsService {
       throw new BadRequestException("Toplam tutar çok büyük");
     }
 
-    const deliveryDate = new Date(input.deliveryDate);
+    const deliveryDate = input.deliveryDate ? new Date(input.deliveryDate) : null;
+    const deliveryTime =
+      (input.deliveryTime as BidDeliveryTime | undefined) ?? null;
     // Hemen-Al teklifi HER ZAMAN ilanın ana para birimindedir; TRY dışıysa
     // TRY karşılığı gösterimi için kur snapshot'lanır (placeBid ile aynı).
     const exchangeRateSnapshot =
@@ -3886,6 +3912,7 @@ export class CompanyListingsService {
           submittedAt: new Date(),
           note: input.note?.trim() || null,
           deliveryDate,
+          deliveryTime,
           validityDays: input.validityDays ?? null,
           deliveryAddressId,
           round: listing.currentRound,
@@ -3902,6 +3929,7 @@ export class CompanyListingsService {
           version: { increment: 1 },
           note: input.note?.trim() || null,
           deliveryDate,
+          deliveryTime,
           validityDays: input.validityDays ?? null,
           deliveryAddressId,
           round: listing.currentRound,
@@ -4091,11 +4119,13 @@ export class CompanyListingsService {
         amount: true,
         currency: true,
         deliveryAddressId: true,
+        deliveryTime: true,
         items: {
           select: {
             itemId: true,
             unitPrice: true,
             deliveryDate: true,
+            deliveryTime: true,
             note: true,
           },
         },
@@ -4127,8 +4157,10 @@ export class CompanyListingsService {
               quantity: li.quantity,
               unit: li.unit,
               unitPrice: bi.unitPrice,
-              // Kalem-bazlı teslim tarihi + not teklifin kalem satırından snapshot.
+              // Kalem teslim tarihi/süresi + not teklifin kalem satırından
+              // snapshot; kalem süresi yoksa teklifin genel süresi geçerli.
               deliveryDate: bi.deliveryDate,
+              deliveryTime: bi.deliveryTime ?? bid.deliveryTime,
               note: bi.note,
             }
           : null;
@@ -4610,11 +4642,13 @@ export class CompanyListingsService {
         // X-CF-1: teklifin kur damgası — onay eşiği TRY çevriminde `award` ile
         // AYNI INV-FX-1 önceliği (açılış damgası → teklif damgası) kullanılsın.
         exchangeRateSnapshot: true,
+        deliveryTime: true,
         items: {
           select: {
             itemId: true,
             unitPrice: true,
             deliveryDate: true,
+            deliveryTime: true,
             note: true,
           },
         },
@@ -4634,6 +4668,7 @@ export class CompanyListingsService {
           unit: string;
           unitPrice: Prisma.Decimal;
           deliveryDate: Date | null;
+          deliveryTime: BidDeliveryTime | null;
           note: string | null;
         }[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
@@ -4678,6 +4713,8 @@ export class CompanyListingsService {
         unit: li.unit,
         unitPrice: bi.unitPrice,
         deliveryDate: bi.deliveryDate,
+        // Kalem süresi yoksa teklifin genel süresi snapshot'lanır.
+        deliveryTime: bi.deliveryTime ?? bid.deliveryTime,
         note: bi.note,
       });
       g.amount = g.amount.plus(lineTotal(bi.unitPrice, qty)); // S5 tek-kaynak
@@ -4911,6 +4948,7 @@ export class CompanyListingsService {
                 unit: it.unit,
                 unitPrice: it.unitPrice,
                 deliveryDate: it.deliveryDate,
+                deliveryTime: it.deliveryTime,
                 note: it.note,
               })),
             },

@@ -1004,6 +1004,9 @@ model CompanyOrderItem {
   // (ListingBidItem.deliveryDate) snapshot'lanır; boşsa order-level
   // expectedDeliveryDate geçerli. Kalem notu da teklifin kalem notundan gelir.
   deliveryDate DateTime?
+  // Teslim SÜRESİ snapshot'ı (2026-08-02) — kazanan teklifin kalem süresi,
+  // yoksa teklifin genel süresi award anında kopyalanır.
+  deliveryTime BidDeliveryTime?
   note         String?
 
   @@index([orderId])
@@ -1035,8 +1038,11 @@ model ListingBid {
   version              Int       @default(1) // taslak güncellemede artar
   submittedAt          DateTime? // SUBMITTED'a geçiş anı
   // ALIM: satıcının taahhüt ettiği teslim tarihi. SATIS: alıcının İSTEDİĞİ
-  // teslim tarihi (teslim eden ilan sahibi satıcıdır). Gönderimde zorunlu.
+  // teslim tarihi. LEGACY (2026-08-02'den önce) — yeni teklifler süre girer.
   deliveryDate         DateTime?
+  // Teslim SÜRESİ (2026-08-02): tarih yerine merdiven (stoktan/1-2 hafta/…).
+  // Gönderimde zorunlu (kalemlerin tamamı kendi süresini taşımıyorsa).
+  deliveryTime         BidDeliveryTime?
   validityDays         Int? // teklif geçerlilik süresi (gönderimde zorunlu)
   exchangeRateSnapshot Decimal?  @db.Decimal(18, 6) // TRY dışı teklifte TCMB kuru
   eliminationReason    String? // alıcı eleme sebebi
@@ -1128,6 +1134,17 @@ model ListingDocument {
 
   @@index([listingId])
   @@map("listing_documents")
+}
+
+// Teklif teslim süresi merdiveni (2026-08-02) — teklifte tarih yerine süre
+// seçilir; @rothern/shared BID_DELIVERY_TIMES ile birebir.
+enum BidDeliveryTime {
+  STOKTAN // stokta — hemen teslim
+  W1_2 // 1-2 hafta
+  W3_4 // 3-4 hafta
+  W5_8 // 5-8 hafta
+  M2_3 // 2-3 ay
+  M3_PLUS // 3 aydan uzun
 }
 
 enum ListingPriceScope {
@@ -1468,8 +1485,10 @@ model ListingBidItem {
   item      ListingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   unitPrice Decimal     @db.Decimal(18, 2)
   note      String?
-  // Kalem-özel teslim tarihi (opsiyonel) — boşsa teklifin genel teslim tarihi geçerli.
+  // Kalem-özel teslim tarihi — LEGACY (2026-08-02'den önce); yeni teklifler süre girer.
   deliveryDate DateTime?
+  // Kalem-özel teslim SÜRESİ (opsiyonel) — boşsa teklifin genel süresi geçerli.
+  deliveryTime BidDeliveryTime?
 
   @@unique([bidId, itemId])
   @@index([bidId])

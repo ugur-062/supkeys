@@ -17,6 +17,7 @@ import {
   type MyBid,
 } from "@/hooks/use-company-listings";
 import { closingUrgency } from "@/lib/tenders/seller-state";
+import { bidDeliveryTimeLabel } from "@rothern/shared";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -178,10 +179,15 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               ≈ {Number(b.amountTry).toLocaleString("tr-TR")} ₺
             </span>
           ) : null}
-          {b.deliveryDate ? (
+          {b.deliveryTime || b.deliveryDate ? (
             <span className="text-[11px] text-zinc-400">
               {isAlim ? "Taahhüt teslim:" : "İstenen teslim:"}{" "}
-              {format(new Date(b.deliveryDate), "dd MMM yyyy", { locale: tr })}
+              {bidDeliveryTimeLabel(b.deliveryTime) ??
+                (b.deliveryDate
+                  ? format(new Date(b.deliveryDate), "dd MMM yyyy", {
+                      locale: tr,
+                    })
+                  : "")}
             </span>
           ) : null}
           {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}

@@ -32,6 +32,7 @@ import {
   Trophy,
   XCircle,
 } from "lucide-react";
+import { bidDeliveryTimeLabel } from "@rothern/shared";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -305,8 +306,10 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             Fiyatlandırılan Kalemler ({bid.items.length})
           </p>
           {(() => {
-            // Teslim kolonu yalnız en az bir kalemde tarih girildiyse.
-            const hasDelivery = bid.items!.some((bi) => bi.deliveryDate);
+            // Teslim kolonu yalnız en az bir kalemde süre/tarih girildiyse.
+            const hasDelivery = bid.items!.some(
+              (bi) => bi.deliveryTime || bi.deliveryDate,
+            );
             return (
               <Table dense>
                 <TableHead>
@@ -343,11 +346,12 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                         </TableCell>
                         {hasDelivery ? (
                           <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                            {bi.deliveryDate
-                              ? new Date(bi.deliveryDate).toLocaleDateString(
-                                  "tr-TR",
-                                )
-                              : "—"}
+                            {bidDeliveryTimeLabel(bi.deliveryTime) ??
+                              (bi.deliveryDate
+                                ? new Date(bi.deliveryDate).toLocaleDateString(
+                                    "tr-TR",
+                                  )
+                                : "—")}
                           </TableCell>
                         ) : null}
                         <TableCell className="text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums">

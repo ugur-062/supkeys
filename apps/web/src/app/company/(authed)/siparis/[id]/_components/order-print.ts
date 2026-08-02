@@ -1,13 +1,18 @@
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { bidDeliveryTimeLabel } from "@rothern/shared";
 
 import { escapeHtml } from "@/lib/escape-html";
 
-/** Kalem teslim tarihi etiketi (kalem tarihi > sipariş geneli > "—"). */
+/** Kalem teslim etiketi (kalem süresi > kalem tarihi > sipariş geneli > "—").
+ *  Süre = 2026-08-02 sonrası teklifler; tarih legacy kayıtlar için kalır. */
 export function itemDeliveryLabel(
   itemDate: string | null | undefined,
   orderDate: string | null,
+  itemTime?: string | null,
 ): string {
+  const timeLabel = bidDeliveryTimeLabel(itemTime);
+  if (timeLabel) return timeLabel;
   if (itemDate) return format(new Date(itemDate), "dd MMM yyyy", { locale: tr });
   if (orderDate)
     return `${format(new Date(orderDate), "dd MMM yyyy", { locale: tr })} (genel)`;
@@ -20,6 +25,7 @@ interface OrderPrintItem {
   quantity: number | string;
   unitPrice: number | string;
   deliveryDate?: string | null;
+  deliveryTime?: string | null;
 }
 
 interface OrderPrintOrder {
@@ -50,7 +56,11 @@ export function buildOrderPrintHtml(
   const rows = (o.items ?? [])
     .map((it) => {
       const line = Number(it.quantity) * Number(it.unitPrice);
-      const dd = itemDeliveryLabel(it.deliveryDate, o.expectedDeliveryDate);
+      const dd = itemDeliveryLabel(
+        it.deliveryDate,
+        o.expectedDeliveryDate,
+        it.deliveryTime,
+      );
       return `<tr><td>${escapeHtml(it.name)}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${escapeHtml(it.unit)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ${escapeHtml(curSym)}</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ${escapeHtml(curSym)}</td></tr>`;
     })
     .join("");

@@ -38,6 +38,11 @@ import type { DeliveryTerm } from "@/lib/tenders/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
+import {
+  BID_DELIVERY_TIMES,
+  BID_DELIVERY_TIME_LABELS,
+  bidDeliveryTimeLabel,
+} from "@rothern/shared";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
@@ -73,7 +78,8 @@ import {
 /** Kalem başına form durumu. null fiyat = "bu kaleme teklif verme". */
 interface ItemState {
   price: string | null;
-  deliveryDate: string;
+  /** Teslim SÜRESİ (BID_DELIVERY_TIMES; "" = genel süre geçerli). */
+  deliveryTime: string;
   answers: Record<string, string>;
 }
 
@@ -181,7 +187,8 @@ export default function TeklifVerPage() {
   // ── Form durumu ──
   const [itemState, setItemState] = useState<Record<string, ItemState>>({});
   const [singleAmount, setSingleAmount] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState("");
+  // Teslim SÜRESİ (2026-08-02; tarih yerine merdiven) — "" = seçilmedi.
+  const [deliveryTime, setDeliveryTime] = useState("");
   // SATIS: alıcının teslimat adresi (kendi adres defterinden) — adrese-teslim
   // şartlı ilanda gönderimde zorunlu.
   const [deliveryAddressId, setDeliveryAddressId] = useState("");
@@ -210,7 +217,7 @@ export default function TeklifVerPage() {
     setSeeded(false);
     setItemState({});
     setSingleAmount("");
-    setDeliveryDate("");
+    setDeliveryTime("");
     setDeliveryAddressId("");
     setValidityDays("30");
     setCurrency("");
@@ -250,7 +257,7 @@ export default function TeklifVerPage() {
             : bi
               ? String(Number(bi.unitPrice))
               : "",
-        deliveryDate: bi?.deliveryDate ? bi.deliveryDate.slice(0, 10) : "",
+        deliveryTime: bi?.deliveryTime ?? "",
         answers,
       };
     }
@@ -268,7 +275,7 @@ export default function TeklifVerPage() {
     if (bid) {
       if (!l.items?.length && !isBuyNowMode)
         setSingleAmount(String(Number(bid.amount)));
-      if (bid.deliveryDate) setDeliveryDate(bid.deliveryDate.slice(0, 10));
+      if (bid.deliveryTime) setDeliveryTime(bid.deliveryTime);
       if (bid.validityDays) setValidityDays(String(bid.validityDays));
       if (bid.deliveryAddressId) setDeliveryAddressId(bid.deliveryAddressId);
       if (bid.note) setNote(bid.note);
@@ -324,12 +331,12 @@ export default function TeklifVerPage() {
     : isBuyNowMode
       ? items.filter((it) => itemState[it.id]?.price !== null)
       : pricedItems;
-  // Genel teslim tarihi, teklif verilen HER kalemin kendi teslim tarihi varsa
+  // Genel teslim süresi, teklif verilen HER kalemin kendi süresi varsa
   // GEREKSİZ (tedarikçi ayrı ayrı girdi) → zorunlu değil, gizlenir.
   const everyBidItemHasDelivery =
     hasItems &&
     bidItemsForDelivery.length > 0 &&
-    bidItemsForDelivery.every((it) => !!itemState[it.id]?.deliveryDate);
+    bidItemsForDelivery.every((it) => !!itemState[it.id]?.deliveryTime);
 
   const total = useMemo(() => {
     // Hemen-Al TOPLU: tutar ilan geneli hemen-al fiyatıdır (kalem fiyatı yok).
@@ -591,7 +598,7 @@ export default function TeklifVerPage() {
   const setItem = (itemId: string, patch: Partial<ItemState>) =>
     setItemState((s) => ({
       ...s,
-      [itemId]: { ...(s[itemId] ?? { price: "", deliveryDate: "", answers: {} }), ...patch },
+      [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", answers: {} }), ...patch },
     }));
 
   // Çalışma masası araçları: toplu fiyat yazımı + kalem kilidi.
@@ -600,7 +607,7 @@ export default function TeklifVerPage() {
       const out = { ...s };
       for (const [iid, p] of Object.entries(next)) {
         out[iid] = {
-          ...(out[iid] ?? { price: "", deliveryDate: "", answers: {} }),
+          ...(out[iid] ?? { price: "", deliveryTime: "", answers: {} }),
           price: p,
         };
       }
@@ -626,8 +633,8 @@ export default function TeklifVerPage() {
       (it.questions ?? []).some(
         (q) => q.required && !(st?.answers[q.id] ?? "").trim(),
       );
-    const note = st?.deliveryDate
-      ? `Teslim: ${new Date(st.deliveryDate).toLocaleDateString("tr-TR")}`
+    const note = st?.deliveryTime
+      ? `Teslim: ${bidDeliveryTimeLabel(st.deliveryTime)}`
       : null;
     return { requiredMissing, note };
   };
@@ -639,16 +646,21 @@ export default function TeklifVerPage() {
         <Field>
           <Label>
             {isSatis
-              ? "Kalem İçin İstenen Teslim (opsiyonel)"
-              : "Kalem Teslim Tarihi (opsiyonel)"}
+              ? "Kalem İçin İstenen Teslim Süresi (opsiyonel)"
+              : "Kalem Teslim Süresi (opsiyonel)"}
           </Label>
-          <Input
-            type="date"
-            aria-label={`${it.name} teslim tarihi`}
-            min={todayLocalISO()}
-            value={st?.deliveryDate ?? ""}
-            onChange={(e) => setItem(it.id, { deliveryDate: e.target.value })}
-          />
+          <Select
+            aria-label={`${it.name} teslim süresi`}
+            value={st?.deliveryTime ?? ""}
+            onChange={(e) => setItem(it.id, { deliveryTime: e.target.value })}
+          >
+            <option value="">Genel süre geçerli</option>
+            {BID_DELIVERY_TIMES.map((t) => (
+              <option key={t} value={t}>
+                {BID_DELIVERY_TIME_LABELS[t]}
+              </option>
+            ))}
+          </Select>
         </Field>
         {(it.questions ?? []).map((q) => (
           <AnswerInput
@@ -714,12 +726,12 @@ export default function TeklifVerPage() {
         }
       }
     }
-    // Genel teslim tarihi yalnız kalem tarihi GİRİLMEYEN kalem varsa zorunlu.
-    if (!everyBidItemHasDelivery && !deliveryDate)
+    // Genel teslim süresi yalnız kalem süresi GİRİLMEYEN kalem varsa zorunlu.
+    if (!everyBidItemHasDelivery && !deliveryTime)
       problems.push(
         isSatis
-          ? "İstenen teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için)."
-          : "Teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için).",
+          ? "İstenen teslim süresi zorunlu (süre girmediğiniz kalemler için)."
+          : "Teslim süresi zorunlu (süre girmediğiniz kalemler için).",
       );
     if (addressRequired && !deliveryAddressId)
       problems.push(
@@ -834,7 +846,7 @@ export default function TeklifVerPage() {
   const buildPayload = (asDraft: boolean) => ({
     asDraft,
     note: note.trim() || undefined,
-    deliveryDate: deliveryDate || undefined,
+    deliveryTime: deliveryTime || undefined,
     validityDays: validityDays ? Number(validityDays) : undefined,
     deliveryAddressId: (isSatis && deliveryAddressId) || undefined,
     currency: currency || undefined,
@@ -845,7 +857,7 @@ export default function TeklifVerPage() {
             return {
               itemId: it.id,
               unitPrice: Number(st.price),
-              deliveryDate: st.deliveryDate || undefined,
+              deliveryTime: st.deliveryTime || undefined,
               answers: (it.questions ?? [])
                 .map((q) => ({
                   questionId: q.id,
@@ -898,10 +910,7 @@ export default function TeklifVerPage() {
         // istemci fiyatı güvenilmez. KALEM modda kapsam = fiyatı açık kalemler.
         await buyNow.mutateAsync({
           note: note.trim() || undefined,
-          // Ham YYYY-MM-DD gönder (placeBid ile aynı biçim). Backend `new Date()`
-          // ile UTC-gece-yarısına çevirir; istemcide `.toISOString()` yapmak
-          // aynı instant'ı üretir ama iki yol arasında biçim tutarsızlığı yaratırdı.
-          deliveryDate: deliveryDate || undefined,
+          deliveryTime: deliveryTime || undefined,
           validityDays: validityDays ? Number(validityDays) : undefined,
           deliveryAddressId: deliveryAddressId || undefined,
           itemIds:
@@ -1210,18 +1219,23 @@ export default function TeklifVerPage() {
                           <Field>
                             <Label>
                               {isSatis
-                                ? "Kalem İçin İstenen Teslim (opsiyonel)"
-                                : "Kalem Teslim Tarihi (opsiyonel)"}
+                                ? "Kalem İçin İstenen Teslim Süresi (opsiyonel)"
+                                : "Kalem Teslim Süresi (opsiyonel)"}
                             </Label>
-                            <Input
-                              type="date"
-                              aria-label={`${it.name} teslim tarihi`}
-                              min={todayLocalISO()}
-                              value={st?.deliveryDate ?? ""}
+                            <Select
+                              aria-label={`${it.name} teslim süresi`}
+                              value={st?.deliveryTime ?? ""}
                               onChange={(e) =>
-                                setItem(it.id, { deliveryDate: e.target.value })
+                                setItem(it.id, { deliveryTime: e.target.value })
                               }
-                            />
+                            >
+                              <option value="">Genel süre geçerli</option>
+                              {BID_DELIVERY_TIMES.map((t) => (
+                                <option key={t} value={t}>
+                                  {BID_DELIVERY_TIME_LABELS[t]}
+                                </option>
+                              ))}
+                            </Select>
                           </Field>
                           {(it.questions ?? []).map((q) => (
                             <AnswerInput
@@ -1291,25 +1305,33 @@ export default function TeklifVerPage() {
             <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 sm:grid-cols-3">
               <Field>
                 <Label>
-                  {isSatis ? "İstenen Teslim Tarihi" : "Genel Teslim Tarihi"}
+                  {isSatis ? "İstenen Teslim Süresi" : "Genel Teslim Süresi"}
                   {everyBidItemHasDelivery ? "" : " *"}
                 </Label>
                 {everyBidItemHasDelivery ? (
                   <p className="pt-2 text-xs text-emerald-700">
-                    Her kaleme ayrı teslim tarihi girdiniz — genel tarihe gerek
+                    Her kaleme ayrı teslim süresi girdiniz — genel süreye gerek
                     yok.
                   </p>
                 ) : (
                   <>
-                    <Input
-                      type="date"
-                      min={todayLocalISO()}
-                      value={deliveryDate}
-                      onChange={(e) => setDeliveryDate(e.target.value)}
-                    />
+                    <Select
+                      value={deliveryTime}
+                      onChange={(e) => setDeliveryTime(e.target.value)}
+                      aria-label={
+                        isSatis ? "İstenen teslim süresi" : "Genel teslim süresi"
+                      }
+                    >
+                      <option value="">Seçin…</option>
+                      {BID_DELIVERY_TIMES.map((t) => (
+                        <option key={t} value={t}>
+                          {BID_DELIVERY_TIME_LABELS[t]}
+                        </option>
+                      ))}
+                    </Select>
                     {hasItems ? (
                       <p className="mt-1 text-[11px] text-zinc-400">
-                        Kalem tarihi girmediğiniz kalemler için geçerli olur.
+                        Kalem süresi girmediğiniz kalemler için geçerli olur.
                       </p>
                     ) : null}
                   </>

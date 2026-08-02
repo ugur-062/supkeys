@@ -628,7 +628,11 @@ export default function OrderDetailPage() {
                     {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
                   </TableCell>
                   <TableCell className="text-right text-zinc-600">
-                    {itemDeliveryLabel(it.deliveryDate, o.expectedDeliveryDate)}
+                    {itemDeliveryLabel(
+                      it.deliveryDate,
+                      o.expectedDeliveryDate,
+                      it.deliveryTime,
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-mono text-zinc-600">
                     {Number(it.unitPrice).toLocaleString("tr-TR")} {curSym}
