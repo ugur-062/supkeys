@@ -709,8 +709,8 @@ export function ListingTemplatesView({
           <ListSkeleton rows={3} />
         ) : myListingTpls.length === 0 ? (
           <EmptyHint>
-            Henüz şablon yok. Sihirbazın üst çubuğundaki &quot;Şablon Olarak
-            Kaydet&quot; ile ilk şablonunuzu oluşturun.
+            Henüz şablon yok. Sihirbazın üst çubuğundaki “Şablon Olarak
+            Kaydet” ile ilk şablonunuzu oluşturun.
           </EmptyHint>
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">

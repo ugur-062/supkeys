@@ -404,7 +404,7 @@ export function AuctionBidWorkbench({
                             <Badge color="amber">Zorunlu soru</Badge>
                           ) : null}
                         </p>
-                        <p className="truncate text-[11px] text-zinc-400">
+                        <p className="truncate text-xs text-zinc-400">
                           {[
                             it.materialCode,
                             it.minUnitPrice != null

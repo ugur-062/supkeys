@@ -278,7 +278,7 @@ export function GeneralReportView({
               ] as Array<[string, string, boolean?]>
             ).map(([k, v, accent]) => (
               <div key={k} className="bg-white p-3.5">
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                   {k}
                 </dt>
                 <dd
@@ -321,7 +321,7 @@ export function GeneralReportView({
                       >
                         {t.title}
                       </Link>
-                      <div className="tabular-nums text-[11px] text-zinc-400">
+                      <div className="tabular-nums text-xs text-zinc-400">
                         {t.number ?? "—"}
                         {t.closesAt
                           ? ` · ${format(new Date(t.closesAt), "d MMM yyyy", { locale: tr })}`

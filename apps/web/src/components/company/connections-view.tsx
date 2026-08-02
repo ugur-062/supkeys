@@ -485,7 +485,7 @@ export function ConnectionsView() {
               {typeof t.count === "number" && t.count > 0 ? (
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[11px]",
+                    "rounded-full px-1.5 py-0.5 text-xs",
                     active
                       ? "bg-zinc-900 text-white"
                       : "bg-zinc-100 text-zinc-600",
@@ -899,12 +899,12 @@ function BatchInviteDialog({
                   </span>
                   <span className="flex items-center gap-2">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${pill.cls}`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${pill.cls}`}
                     >
                       {pill.label}
                     </span>
                     {r.reason ? (
-                      <span className="text-[11px] text-zinc-400">
+                      <span className="text-xs text-zinc-400">
                         {r.reason}
                       </span>
                     ) : null}

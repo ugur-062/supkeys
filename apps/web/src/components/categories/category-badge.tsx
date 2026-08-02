@@ -30,7 +30,7 @@ export function CategoryBadge({
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-md bg-zinc-50 text-zinc-700 font-semibold border border-zinc-100 ${
-        size === "sm" ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
+        size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-xs"
       }`}
       title={category.breadcrumb ?? category.nameTr}
     >

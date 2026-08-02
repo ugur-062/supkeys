@@ -257,7 +257,7 @@ function KeywordsInput() {
           }}
         />
       </div>
-      <p className="text-[11px] text-slate-400 mt-1">{keywords.length}/10</p>
+      <p className="text-xs text-slate-400 mt-1">{keywords.length}/10</p>
     </Field>
   );
 }
@@ -286,7 +286,7 @@ function VisibilityOption({
         <p className="text-sm font-semibold text-zinc-900 leading-tight">
           {title}
           {recommended ? (
-            <span className="mt-1 block w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            <span className="mt-1 block w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
               Önerilen
             </span>
           ) : null}
@@ -1682,7 +1682,7 @@ export function Step1Info({
                 <span className="text-xs text-amber-800">
                   <span className="font-semibold">
                     Teminat mektubu iste{" "}
-                    <span className="rounded bg-amber-200/70 px-1 py-px text-[10px] font-semibold uppercase">
+                    <span className="rounded bg-amber-200/70 px-1 py-px text-xs font-semibold uppercase">
                       Önerilir
                     </span>
                   </span>

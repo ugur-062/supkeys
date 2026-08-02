@@ -173,7 +173,7 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
               className={`flex max-w-[75%] flex-col ${isMine ? "items-end" : "items-start"}`}
             >
               {!isMine ? (
-                <div className="mb-0.5 ml-2 text-[11px] text-zinc-500">
+                <div className="mb-0.5 ml-2 text-xs text-zinc-500">
                   {msg.senderName}
                 </div>
               ) : null}
@@ -189,7 +189,7 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
                 </p>
               </div>
               <div
-                className={`mt-0.5 text-[10px] text-zinc-400 ${isMine ? "mr-2" : "ml-2"}`}
+                className={`mt-0.5 text-xs text-zinc-400 ${isMine ? "mr-2" : "ml-2"}`}
               >
                 {formatTimestamp(sentAt)}
               </div>

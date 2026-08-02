@@ -101,7 +101,7 @@ export function SellerTenderCard({
         />
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-[11px] font-medium text-zinc-600">
+            <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-xs font-medium text-zinc-600">
               {tender.number ?? "—"}
             </span>
             <h3
@@ -117,7 +117,7 @@ export function SellerTenderCard({
           </div>
           <span
             className={cn(
-              "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
+              "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
               state.className,
             )}
           >
@@ -145,7 +145,7 @@ export function SellerTenderCard({
                 />
               </span>
               <span className="truncate text-zinc-500 italic">Gizli firma</span>
-              <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
                 Premium
               </span>
             </>
@@ -192,7 +192,7 @@ export function SellerTenderCard({
             </Badge>
           ))}
           {tender.extraCategoryCount > 0 ? (
-            <span className="text-[11px] text-zinc-400">
+            <span className="text-xs text-zinc-400">
               +{tender.extraCategoryCount}
             </span>
           ) : null}
@@ -201,7 +201,7 @@ export function SellerTenderCard({
             {tender.itemCount} kalem
           </span>
           {tender.myBidVersion && tender.myBidVersion > 1 ? (
-            <span className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">
+            <span className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600">
               v{tender.myBidVersion}
             </span>
           ) : null}

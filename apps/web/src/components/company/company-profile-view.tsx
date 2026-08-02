@@ -78,7 +78,7 @@ function TradeRow({
 }) {
   return (
     <div>
-      <dt className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </dt>
       <dd
@@ -95,7 +95,7 @@ function TradeRow({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </div>
       <div className="mt-0.5 text-sm font-semibold text-zinc-900">{value}</div>
@@ -203,7 +203,7 @@ export function CompanyProfileView({
             <div className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-zinc-100 pt-4">
               {p.rating && p.rating.count > 0 ? (
                 <div>
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                     Değerlendirme
                   </div>
                   <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
@@ -340,7 +340,7 @@ export function CompanyProfileView({
                       key={c}
                       className="flex items-center gap-2 text-sm text-zinc-700"
                     >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950 text-[11px] text-white">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950 text-xs text-white">
                         ✓
                       </span>
                       {c}
@@ -398,7 +398,7 @@ export function CompanyProfileView({
                         </span>
                       </span>
                     </div>
-                    <div className="text-[11px] text-zinc-400">
+                    <div className="text-xs text-zinc-400">
                       {new Date(r.createdAt).toLocaleDateString("tr-TR")}
                     </div>
                     {r.comment ? (

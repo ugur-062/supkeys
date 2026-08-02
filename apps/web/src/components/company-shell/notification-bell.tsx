@@ -67,7 +67,7 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
       >
         <Bell className="size-5" aria-hidden="true" />
         {unread > 0 ? (
-          <span className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         ) : null}
@@ -129,7 +129,7 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
                           </span>
                           {n.portal ? (
                             <span
-                              className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PORTAL_CHIP[n.portal].cls}`}
+                              className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
                             >
                               {PORTAL_CHIP[n.portal].label}
                             </span>
@@ -138,7 +138,7 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
                         <span className="line-clamp-2 text-xs text-zinc-500">
                           {n.body}
                         </span>
-                        <span className="text-[11px] text-zinc-400">
+                        <span className="text-xs text-zinc-400">
                           {timeAgo(n.createdAt)}
                         </span>
                       </button>

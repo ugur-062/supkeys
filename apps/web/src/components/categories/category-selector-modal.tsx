@@ -210,7 +210,7 @@ export function CategorySelectorModal({
                 <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-600">
                   <Sparkles className="h-3.5 w-3.5 text-zinc-500" />
                   Seçimleriniz
-                  <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white">
                     {draftIds.length}/{maxSelection}
                   </span>
                 </span>
@@ -270,7 +270,7 @@ export function CategorySelectorModal({
               </span>
               {/* Tam yol — "Aksesuarlar" gibi bağlamsız yaprak adları için. */}
               {selectedInfo?.[0]?.breadcrumb ? (
-                <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
+                <span className="mt-0.5 block truncate text-xs text-zinc-500">
                   {selectedInfo[0].breadcrumb}
                 </span>
               ) : null}
@@ -410,7 +410,7 @@ function SegmentList({
           </span>
           {selCount > 0 ? (
             <span
-              className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-bold text-white"
+              className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white"
               title={`Bu dalda ${selCount} seçim`}
             >
               {selCount}
@@ -438,7 +438,7 @@ function SegmentList({
     <div className="space-y-5">
       {malSegments.length > 0 ? (
         <section>
-          <h3 className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+          <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
             Mal ve Ekipman
           </h3>
           <ul className="space-y-0.5">{malSegments.map(renderSegment)}</ul>
@@ -447,7 +447,7 @@ function SegmentList({
 
       {hizmetSegments.length > 0 ? (
         <section>
-          <h3 className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+          <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
             Hizmetler
           </h3>
           <ul className="space-y-0.5">{hizmetSegments.map(renderSegment)}</ul>
@@ -530,7 +530,7 @@ function FamilyList({
               </span>
               {famSelCount > 0 ? (
                 <span
-                  className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white"
                   title={`Bu dalda ${famSelCount} seçim`}
                 >
                   {famSelCount}

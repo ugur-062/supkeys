@@ -306,7 +306,7 @@ export function TwoFactorSection() {
               </Field>
               <Text className="text-xs text-zinc-400">
                 Authenticator kullanıyorsanız uygulamadaki kodu; e-posta 2FA
-                kullanıyorsanız &quot;E-postaya kod gönder&quot; ile gelen kodu girin.
+                kullanıyorsanız “E-postaya kod gönder” ile gelen kodu girin.
               </Text>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={confirmDisable} disabled={disable.isPending}>

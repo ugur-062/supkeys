@@ -229,7 +229,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                                 <span className="text-sm text-zinc-900 block">
                                   {q.text}
                                 </span>
-                                <span className="text-[11px] text-zinc-500">
+                                <span className="text-xs text-zinc-500">
                                   Cevap türü:{" "}
                                   {ANSWER_TYPES.find(
                                     (a) => a.value === q.answerType,
@@ -262,7 +262,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
         {/* Soru listesi */}
         {fields.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-4">
-            Henüz soru yok. "Soru Ekle" ile başlayın veya şablondan seçin.
+            Henüz soru yok. “Soru Ekle” ile başlayın veya şablondan seçin.
           </p>
         ) : (
           <div className="space-y-3">

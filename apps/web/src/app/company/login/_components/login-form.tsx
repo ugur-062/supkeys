@@ -251,7 +251,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         {login.isPending ? "Giriş yapılıyor…" : "Giriş Yap"}
       </Button>
 
-      <div className="flex items-center justify-center gap-3 pt-1 text-[11px] text-zinc-400">
+      <div className="flex items-center justify-center gap-3 pt-1 text-xs text-zinc-400">
         <span className="inline-flex items-center gap-1">
           <Lock className="h-3 w-3" aria-hidden="true" /> SSL korumalı
         </span>

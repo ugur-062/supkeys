@@ -181,7 +181,7 @@ function RequestCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {h.requestNo ? (
-              <span className="font-mono text-[11px] font-semibold text-zinc-500">
+              <span className="font-mono text-xs font-semibold text-zinc-500">
                 {h.requestNo}
               </span>
             ) : null}
@@ -434,7 +434,7 @@ export default function OnaylarPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       {p.requestNo ? (
-                        <span className="font-mono text-[11px] font-semibold text-zinc-500">
+                        <span className="font-mono text-xs font-semibold text-zinc-500">
                           {p.requestNo}
                         </span>
                       ) : null}
@@ -444,7 +444,7 @@ export default function OnaylarPage() {
                         {TYPE_LABEL[p.type]}
                       </Badge>
                       <ListingTypeBadge type={p.listing.type} />
-                      <span className="tabular-nums text-[11px] text-zinc-400">
+                      <span className="tabular-nums text-xs text-zinc-400">
                         {p.listing.number ?? "—"}
                       </span>
                     </div>

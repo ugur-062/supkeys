@@ -172,7 +172,7 @@ export function LogisticsBadge({ className }: { className?: string }) {
     <span
       className={
         className ??
-        "inline-flex items-center gap-1 rounded-md bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700"
+        "inline-flex items-center gap-1 rounded-md bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-teal-700"
       }
     >
       <Truck className="w-3 h-3" />

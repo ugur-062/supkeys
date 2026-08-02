@@ -225,7 +225,7 @@ function AppPreview() {
               <div className="text-base font-semibold text-zinc-900">
                 İşlerim
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                 <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
                 canlı
               </span>
@@ -418,7 +418,7 @@ function BidsPreview() {
           >
             <div className="flex items-center gap-2">
               {b.best ? (
-                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">
                   EN İYİ
                 </span>
               ) : null}
@@ -453,28 +453,28 @@ function SaleListingPreview() {
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
         <div>
-          <div className="tabular-nums text-[11px] font-medium text-zinc-400">
+          <div className="tabular-nums text-xs font-medium text-zinc-400">
             SATIŞ · ROT-000142
           </div>
           <div className="text-sm font-semibold text-zinc-900">
             Fazla bakır · 5 ton
           </div>
         </div>
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
           Açık
         </span>
       </div>
       <div className="mt-3 flex gap-2">
         <div className="flex-1 rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
-          <div className="text-[10px] text-zinc-400">Taban</div>
+          <div className="text-xs text-zinc-400">Taban</div>
           <div className="text-sm font-semibold text-zinc-900">50.000 ₺</div>
         </div>
         <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-          <div className="text-[10px] text-emerald-600">Hemen-Al</div>
+          <div className="text-xs text-emerald-600">Hemen-Al</div>
           <div className="text-sm font-semibold text-emerald-800">80.000 ₺</div>
         </div>
       </div>
-      <div className="mt-4 text-[11px] font-medium text-zinc-500">
+      <div className="mt-4 text-xs font-medium text-zinc-500">
         Sana gelen teklifler
       </div>
       <div className="mt-1.5 space-y-1.5">
@@ -491,7 +491,7 @@ function SaleListingPreview() {
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-zinc-900">{o.a}</span>
               {o.best ? (
-                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-medium text-white">
                   Kazandır
                 </span>
               ) : null}
@@ -580,13 +580,13 @@ function DiscoverPreview() {
               <div className="truncate text-xs font-semibold text-zinc-800">
                 {f.n}
               </div>
-              <div className="text-[10px] text-zinc-400">{f.s}</div>
+              <div className="text-xs text-zinc-400">{f.s}</div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
                 {f.m} eşleşme
               </span>
-              <span className="rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-medium text-white">
+              <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white">
                 Bağlan
               </span>
             </div>
@@ -602,7 +602,7 @@ function ConnectionsPreview() {
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="text-sm font-semibold text-zinc-900">Bağlantılar</div>
       <div className="mt-4">
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
           <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
           Gelen davet
         </div>
@@ -610,13 +610,13 @@ function ConnectionsPreview() {
           <span className="text-xs font-medium text-zinc-800">
             Mavi Lojistik A.Ş.
           </span>
-          <span className="rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-medium text-white">
+          <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white">
             Kabul Et
           </span>
         </div>
       </div>
       <div className="mt-3">
-        <div className="text-[11px] font-medium text-zinc-500">
+        <div className="text-xs font-medium text-zinc-500">
           Bağlı firmalar
         </div>
         <div className="mt-1.5 space-y-1.5">
@@ -659,7 +659,7 @@ function PublicProfilePreview() {
             <span className="text-lg font-bold text-zinc-900">
               Demo Çelik A.Ş.
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
               <CheckIcon className="size-3" />
               Doğrulanmış
             </span>
@@ -682,7 +682,7 @@ function PublicProfilePreview() {
           20 yıllık tedarik tecrübesiyle yurtiçi ve uluslararası metal
           ticareti. Açık ihalelerimize teklif verin.
         </p>
-        <div className="mt-5 text-[11px] font-medium text-zinc-500">
+        <div className="mt-5 text-xs font-medium text-zinc-500">
           Açık ihaleleri
         </div>
         <div className="mt-1.5 space-y-1.5">
@@ -695,7 +695,7 @@ function PublicProfilePreview() {
                 {x.t}
               </span>
               <span
-                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${x.c}`}
+                className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold ${x.c}`}
               >
                 {x.b}
               </span>
@@ -1101,20 +1101,20 @@ export default function HomePage() {
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
               <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="text-[11px] text-zinc-400">Firma A</span>
-                  <span className="text-[11px] text-zinc-300">••• ₺</span>
+                  <span className="text-xs text-zinc-400">Firma A</span>
+                  <span className="text-xs text-zinc-300">••• ₺</span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-200">
-                  <span className="text-[11px] font-medium text-emerald-800">
+                  <span className="text-xs font-medium text-emerald-800">
                     Firma B
                   </span>
-                  <span className="text-[11px] font-semibold text-emerald-900">
+                  <span className="text-xs font-semibold text-emerald-900">
                     11.900 ₺
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="text-[11px] text-zinc-400">Firma C</span>
-                  <span className="text-[11px] text-zinc-300">••• ₺</span>
+                  <span className="text-xs text-zinc-400">Firma C</span>
+                  <span className="text-xs text-zinc-300">••• ₺</span>
                 </div>
               </div>
               <span className="mt-5 inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
@@ -1139,7 +1139,7 @@ export default function HomePage() {
                   <div className="flex-1 rounded-t bg-amber-500" style={{ height: "38%" }} />
                 </div>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-zinc-500">Güncel teklif</span>
+                  <span className="text-xs text-zinc-500">Güncel teklif</span>
                   <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-700">
                     12.000 ₺
                     <ArrowTrendingDownIcon className="size-3.5" />
@@ -1161,13 +1161,13 @@ export default function HomePage() {
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
               <div className="flex gap-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-100">
-                  <div className="text-[10px] text-zinc-400">Taban fiyat</div>
+                  <div className="text-xs text-zinc-400">Taban fiyat</div>
                   <div className="text-sm font-semibold text-zinc-900">
                     50.000 ₺
                   </div>
                 </div>
                 <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-                  <div className="text-[10px] text-emerald-600">Hemen-Al</div>
+                  <div className="text-xs text-emerald-600">Hemen-Al</div>
                   <div className="text-sm font-semibold text-emerald-800">
                     80.000 ₺
                   </div>
@@ -1191,10 +1191,10 @@ export default function HomePage() {
                   <span className="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white">
                     <CheckIcon className="size-3" />
                   </span>
-                  <span className="text-[11px] font-medium text-zinc-700">
+                  <span className="text-xs font-medium text-zinc-700">
                     Satın Almacı
                   </span>
-                  <span className="ml-auto text-[11px] text-zinc-400">
+                  <span className="ml-auto text-xs text-zinc-400">
                     Talep açtı
                   </span>
                 </div>
@@ -1202,10 +1202,10 @@ export default function HomePage() {
                   <span className="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white">
                     <CheckIcon className="size-3" />
                   </span>
-                  <span className="text-[11px] font-medium text-zinc-700">
+                  <span className="text-xs font-medium text-zinc-700">
                     Onaylayıcı
                   </span>
-                  <span className="ml-auto text-[11px] text-zinc-400">
+                  <span className="ml-auto text-xs text-zinc-400">
                     Onayladı
                   </span>
                 </div>
@@ -1213,10 +1213,10 @@ export default function HomePage() {
                   <span className="flex size-4 items-center justify-center">
                     <span className="size-2 animate-pulse rounded-full bg-violet-500" />
                   </span>
-                  <span className="text-[11px] font-medium text-violet-800">
+                  <span className="text-xs font-medium text-violet-800">
                     Yönetici
                   </span>
-                  <span className="ml-auto text-[11px] font-semibold text-violet-700">
+                  <span className="ml-auto text-xs font-semibold text-violet-700">
                     Bekliyor
                   </span>
                 </div>

@@ -232,11 +232,11 @@ export function BidComparisonView({
                         {p.companyName}
                       </span>
                       {!p.submitted ? (
-                        <span className="text-[10px] font-normal text-zinc-400">
+                        <span className="text-xs font-normal text-zinc-400">
                           teklif yok
                         </span>
                       ) : p.isBuyNow ? (
-                        <span className="text-[10px] font-normal text-emerald-600">
+                        <span className="text-xs font-normal text-emerald-600">
                           Hemen-Al
                         </span>
                       ) : null}
@@ -277,7 +277,7 @@ export function BidComparisonView({
                                 ? ip.unitPrice.toLocaleString("tr-TR")
                                 : "—"}
                               {ip?.deltaVsReferencePct != null ? (
-                                <span className="ml-1 text-[10px] text-zinc-400">
+                                <span className="ml-1 text-xs text-zinc-400">
                                   ({ip.deltaVsReferencePct > 0 ? "+" : ""}
                                   {ip.deltaVsReferencePct}%)
                                 </span>
@@ -285,7 +285,7 @@ export function BidComparisonView({
                             </span>
                           ) : null}
                           {data.includeAnswers && ia?.answer ? (
-                            <span className="block max-w-[200px] truncate text-left text-[11px] font-normal text-zinc-500">
+                            <span className="block max-w-[200px] truncate text-left text-xs font-normal text-zinc-500">
                               {ia.answer}
                             </span>
                           ) : null}
@@ -314,7 +314,7 @@ export function BidComparisonView({
                             ? p.totalAmount.toLocaleString("tr-TR")
                             : "—"}
                           {p.bidCurrency ? (
-                            <span className="ml-1 text-[10px] text-zinc-400">
+                            <span className="ml-1 text-xs text-zinc-400">
                               {p.bidCurrency}
                             </span>
                           ) : null}

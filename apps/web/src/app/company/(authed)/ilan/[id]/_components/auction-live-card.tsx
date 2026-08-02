@@ -46,13 +46,13 @@ function Tile({
           : "border-zinc-200 bg-white",
       )}
     >
-      <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+      <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
         {label}
       </p>
       <p className="mt-1 truncate text-lg font-bold text-zinc-950 tabular-nums">
         {value}
       </p>
-      {sub ? <p className="mt-0.5 text-[11px] text-zinc-500">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 text-xs text-zinc-500">{sub}</p> : null}
     </div>
   );
 }
@@ -186,7 +186,7 @@ export function AuctionLiveCard({
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
         <span
           className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
           aria-hidden="true"

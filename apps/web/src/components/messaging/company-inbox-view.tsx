@@ -207,14 +207,14 @@ export function CompanyInboxView() {
                           </span>
                           {r.portal ? (
                             <span
-                              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_CHIP[r.portal].cls}`}
+                              className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[r.portal].cls}`}
                             >
                               {ROLE_CHIP[r.portal].label}
                             </span>
                           ) : null}
                         </span>
                         {r.lastMessageAt ? (
-                          <span className="shrink-0 text-[10px] text-zinc-400">
+                          <span className="shrink-0 text-xs text-zinc-400">
                             {isToday(new Date(r.lastMessageAt))
                               ? format(new Date(r.lastMessageAt), "HH:mm")
                               : format(new Date(r.lastMessageAt), "d MMM", {
@@ -277,7 +277,7 @@ export function CompanyInboxView() {
                           setSelected({ id: selected.id, portal: p })
                         }
                         className={cn(
-                          "rounded-md px-2 py-0.5 text-[11px] font-semibold transition",
+                          "rounded-md px-2 py-0.5 text-xs font-semibold transition",
                           selected.portal === p
                             ? "bg-white shadow-sm " +
                                 (p === "satinalma"

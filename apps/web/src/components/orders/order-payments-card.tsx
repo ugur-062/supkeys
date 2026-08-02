@@ -305,7 +305,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}
                   >
                     {st.label}
                   </span>
@@ -367,7 +367,7 @@ function Totals({
 }) {
   return (
     <div className="px-4 py-3 text-center">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </div>
       <div className={`mt-0.5 font-mono text-sm font-semibold ${tone}`}>

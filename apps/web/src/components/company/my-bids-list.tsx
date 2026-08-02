@@ -130,7 +130,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-[11px] font-medium text-zinc-600">
+              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-xs font-medium text-zinc-600">
                 {b.listing.number ?? "—"}
               </span>
               {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
@@ -180,12 +180,12 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             {formatMoney(b.amount, b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
-            <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
+            <span className="font-mono text-xs text-zinc-400 tabular-nums">
               ≈ {formatMoney(b.amountTry, "TRY")}
             </span>
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
-            <span className="text-[11px] text-zinc-400">
+            <span className="text-xs text-zinc-400">
               {isAlim ? "Taahhüt teslim:" : "İstenen teslim:"}{" "}
               {bidDeliveryTimeLabel(b.deliveryTime) ??
                 (b.deliveryDate
@@ -198,14 +198,14 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
           {b.round > 1 ? <Badge color="zinc">Tur {b.round}</Badge> : null}
           {b.version > 1 ? (
-            <span className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">
+            <span className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600">
               v{b.version}
             </span>
           ) : null}
         </div>
 
         {canRebid ? (
-          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
+          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
             İhale hâlâ açık — güncellenmiş teklifle yeniden katılabilirsin.
           </p>
         ) : null}

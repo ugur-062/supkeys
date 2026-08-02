@@ -110,7 +110,7 @@ function RailItem({
         {label}
       </span>
       {expanded && badge ? (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white">
           {badge > 9 ? "9+" : badge}
         </span>
       ) : null}

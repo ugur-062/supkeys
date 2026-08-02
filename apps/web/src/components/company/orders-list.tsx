@@ -130,7 +130,7 @@ function StageStepper({
                 {done ? (
                   <Check className="size-3.5" strokeWidth={3} aria-hidden />
                 ) : (
-                  <span className="text-[10px] font-bold">{i + 1}</span>
+                  <span className="text-xs font-bold">{i + 1}</span>
                 )}
               </div>
             </div>
@@ -272,13 +272,13 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
         {/* Sol: kimlik + kaynak */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="tabular-nums text-[11px] tracking-wide text-zinc-500">
+            <span className="tabular-nums text-xs tracking-wide text-zinc-500">
               {o.number ?? "—"}
             </span>
             <span
               title={src.hint}
               className={cn(
-                "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold",
                 src.cls,
               )}
             >
@@ -538,7 +538,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               k.filter && status === k.filter && "bg-brand-50/60",
             )}
           >
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               {k.label}
             </dt>
             <dd className="mt-0.5 truncate text-lg font-bold tabular-nums text-zinc-900">

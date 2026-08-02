@@ -67,7 +67,7 @@ function TrendBadge({ current, previous }: { current: number; previous: number }
   const up = pct > 0;
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
         up ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
       }`}
     >
@@ -124,7 +124,7 @@ function ActivityFeed({ rows }: { rows: SatisActivityRow[] }) {
                   {r.subtitle}
                 </span>
               </span>
-              <time className="shrink-0 text-[11px] text-zinc-400">
+              <time className="shrink-0 text-xs text-zinc-400">
                 {format(new Date(r.at), "d MMM", { locale: tr })}
               </time>
             </Link>

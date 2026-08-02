@@ -46,7 +46,7 @@ function TileOption({
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-base font-semibold text-zinc-900">{title}</span>
           {badge ? (
-            <span className="rounded-md bg-success-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success-700">
+            <span className="rounded-md bg-success-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-success-700">
               {badge}
             </span>
           ) : null}
@@ -132,7 +132,7 @@ export function Step0TypeScope() {
           <p>
             İhaleniz <strong>kapalı zarf</strong> usulüyle açılır —{" "}
             {isSatis ? "alıcılar" : "tedarikçiler"} birbirinin teklifini görmez.
-            Kapanıştan sonra dilerseniz &quot;Yeni Tur&quot; ile canlı pazarlığa
+            Kapanıştan sonra dilerseniz “Yeni Tur” ile canlı pazarlığa
             ({isSatis ? "açık artırma" : "açık eksiltme"}) taşıyabilirsiniz.
           </p>
         </div>

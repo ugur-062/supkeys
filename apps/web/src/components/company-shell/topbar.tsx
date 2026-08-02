@@ -93,7 +93,7 @@ export function CompanyTopbar({
         </span>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+            "rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide",
             tier === "GOLD"
               ? "bg-amber-100 text-amber-700"
               : tier === "STANDART"
@@ -131,7 +131,7 @@ export function CompanyTopbar({
                   <span className="block max-w-40 truncate text-sm font-semibold text-zinc-900">
                     {user.firstName} {user.lastName}
                   </span>
-                  <span className="block text-[11px] leading-tight text-zinc-500">
+                  <span className="block text-xs leading-tight text-zinc-500">
                     {user.isOwner ? "Kurucu" : (company?.name ?? "")}
                   </span>
                 </span>

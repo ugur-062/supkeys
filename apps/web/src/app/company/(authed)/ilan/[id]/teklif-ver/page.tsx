@@ -1191,7 +1191,7 @@ export default function TeklifVerPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-100 text-[11px] font-semibold text-zinc-600">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-100 text-xs font-semibold text-zinc-600">
                               {idx + 1}
                             </span>
                             <p className="font-medium text-zinc-900">{it.name}</p>
@@ -1424,7 +1424,7 @@ export default function TeklifVerPage() {
                       ))}
                     </Select>
                     {hasItems ? (
-                      <p className="mt-1 text-[11px] text-zinc-400">
+                      <p className="mt-1 text-xs text-zinc-400">
                         Kalem süresi girmediğiniz kalemler için geçerli olur.
                       </p>
                     ) : null}
@@ -1603,10 +1603,10 @@ export default function TeklifVerPage() {
                       >
                         {d.fileName}
                       </a>
-                      <span className="hidden shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 sm:inline">
+                      <span className="hidden shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 sm:inline">
                         {BID_DOC_KIND_LABELS[d.kind]}
                       </span>
-                      <span className="shrink-0 text-[11px] font-medium text-emerald-600">
+                      <span className="shrink-0 text-xs font-medium text-emerald-600">
                         Yüklendi
                       </span>
                       <button
@@ -1648,7 +1648,7 @@ export default function TeklifVerPage() {
                         <p className="truncate text-sm text-zinc-800">
                           {sf.file.name}
                         </p>
-                        <p className="text-[11px] text-zinc-400">
+                        <p className="text-xs text-zinc-400">
                           {formatBytes(sf.file.size)} · gönderimde yüklenecek
                         </p>
                       </div>
@@ -1789,7 +1789,7 @@ export default function TeklifVerPage() {
                 ne görüneceğini canlı kart zaten gösteriyor); kapalı zarf
                 notu RFQ'da kalır. */}
             {!l.english?.isEnglishAuction ? (
-              <p className="text-center text-[11px] text-zinc-400">
+              <p className="text-center text-xs text-zinc-400">
                 Kapalı zarf: teklifin diğer{" "}
                 {isSatis ? "alıcılara" : "tedarikçilere"} gösterilmez.
               </p>
@@ -1801,7 +1801,7 @@ export default function TeklifVerPage() {
       {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var) */}
       <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
         <div>
-          <p className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
             Toplam Teklif
           </p>
           <p className="text-base font-bold text-zinc-950 tabular-nums">
@@ -1814,7 +1814,7 @@ export default function TeklifVerPage() {
           workbenchTarget.ownLastTotal ? (
             <p
               className={cn(
-                "text-[10px] tabular-nums",
+                "text-xs tabular-nums",
                 workbenchTarget.met ? "text-emerald-600" : "text-amber-600",
               )}
             >
@@ -1866,7 +1866,7 @@ export default function TeklifVerPage() {
               {totalLabel}
             </p>
             {mixedCurrency ? (
-              <p className="mt-1 text-[11px] text-emerald-700">
+              <p className="mt-1 text-xs text-emerald-700">
                 Karma birimli teklif: karşılaştırma toplamı ana birime (
                 {effectiveCurrency}) güncel TCMB kuruyla sistemce çevrilir.
               </p>

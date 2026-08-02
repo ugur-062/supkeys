@@ -391,7 +391,7 @@ export function SupplierDiscoveryModal({
                       sonrası ihale sayfasındaki bu ekrandan gönderilir.
                     </p>
                   ) : null}
-                  <p className="mt-2 text-[11px] text-zinc-400">
+                  <p className="mt-2 text-xs text-zinc-400">
                     Günlük dış davet limiti firma başına 20&apos;dir; aynı adrese
                     yalnız bir kez gönderilir ve her e-postada tek tık
                     vazgeçme bağlantısı bulunur.
@@ -432,7 +432,7 @@ export function SupplierDiscoveryModal({
                         <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
                           <span className="truncate">{c.name}</span>
                           {c.strongMatch ? (
-                            <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                            <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
                               Güçlü eşleşme
                             </span>
                           ) : null}

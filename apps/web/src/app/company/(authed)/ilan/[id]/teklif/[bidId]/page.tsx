@@ -271,7 +271,7 @@ export default function BidDetailPage() {
                       <TableCell className="text-zinc-900">
                         {it.name}
                         {bi?.deliveryTime || bi?.deliveryDate ? (
-                          <span className="block text-[11px] text-zinc-500">
+                          <span className="block text-xs text-zinc-500">
                             {l.type === "SATIS"
                               ? "İstenen kalem teslimi:"
                               : "Kalem teslimi:"}{" "}
@@ -286,7 +286,7 @@ export default function BidDetailPage() {
                         {itemAnswers.map(({ q, value }) => (
                           <span
                             key={q.id}
-                            className="block text-[11px] text-zinc-500"
+                            className="block text-xs text-zinc-500"
                           >
                             {q.text}: <strong>{value}</strong>
                           </span>
@@ -339,7 +339,7 @@ export default function BidDetailPage() {
               if (group.length === 0) return null;
               return (
                 <div key={k} className="space-y-1">
-                  <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                     {BID_DOC_KIND_LABELS[k]}
                   </p>
                   {group.map((d) => (

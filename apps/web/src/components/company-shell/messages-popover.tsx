@@ -78,11 +78,11 @@ function RecentThreads({ close }: { close: () => void }) {
                   {t.otherPartyName}
                 </span>
                 <span
-                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_CHIP[t.portal].cls}`}
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[t.portal].cls}`}
                 >
                   {ROLE_CHIP[t.portal].label}
                 </span>
-                <span className="shrink-0 text-[11px] text-zinc-400">
+                <span className="shrink-0 text-xs text-zinc-400">
                   {timeAgo(t.lastMessageAt)}
                 </span>
               </span>
@@ -124,7 +124,7 @@ export function MessagesPopover() {
       >
         <MessageSquare className="size-5" aria-hidden />
         {unread > 0 ? (
-          <span className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         ) : null}

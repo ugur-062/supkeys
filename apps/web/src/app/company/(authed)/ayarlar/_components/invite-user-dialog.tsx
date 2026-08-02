@@ -125,7 +125,7 @@ export function InviteUserDialog({
                   } ${seatLocked || onayLocked ? "cursor-not-allowed opacity-40" : ""}`}
                 >
                   <div className="font-semibold">{r.label}</div>
-                  <div className="mt-0.5 text-[11px] opacity-70">
+                  <div className="mt-0.5 text-xs opacity-70">
                     {onayLocked ? "Yönetici zaten onay verebilir" : r.hint}
                   </div>
                 </button>

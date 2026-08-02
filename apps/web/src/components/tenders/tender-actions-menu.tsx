@@ -613,7 +613,7 @@ export function TenderActionsMenu({
             {/* Mod açıklamaları yalnız İLGİLİ mod seçiliyken gösterilir. */}
             {vis === "OWN_RANK" ? (
               <p className="mt-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                &quot;Sadece kendi sıralaması&quot; rekabet baskısı yaratır,
+                “Sadece kendi sıralaması” rekabet baskısı yaratır,
                 fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.
               </p>
             ) : null}

@@ -237,8 +237,8 @@ function FlowList({
           kişilerin sırayla onayından geçmesini sağlar.
         </p>
         <p className="text-blue-800/90">
-          Örneğin: "50.000 ₺ üstü kazandırmalar önce Satınalma Müdürü sonra
-          Genel Müdür onayından geçsin." Akış yoksa kazandırma anında uygulanır.
+          Örneğin: “50.000 ₺ üstü kazandırmalar önce Satınalma Müdürü sonra
+          Genel Müdür onayından geçsin.” Akış yoksa kazandırma anında uygulanır.
         </p>
       </InfoNote>
 
@@ -362,14 +362,14 @@ function FlowList({
 
               {/* Zincir önizleme — başlatandan son onaya */}
               <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-3">
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
                   <Users2 className="size-3" />
                   Başlatan
                 </span>
                 {f.steps.map((s) => (
                   <span key={s.order} className="flex items-center gap-1.5">
                     <ArrowRightMini />
-                    <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] text-zinc-700">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-700">
                       <span className="flex size-4 items-center justify-center rounded-full bg-zinc-900 text-[9px] font-bold text-white">
                         {s.order}
                       </span>
@@ -386,7 +386,7 @@ function FlowList({
                   </span>
                 ))}
                 <ArrowRightMini />
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                   <Check className="size-3" />
                   Sipariş oluşur
                 </span>
@@ -531,7 +531,7 @@ function FlowWizard({
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition",
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition",
                   i === step
                     ? "bg-zinc-900 text-white"
                     : i < step
@@ -541,7 +541,7 @@ function FlowWizard({
               >
                 <span
                   className={cn(
-                    "flex size-4 items-center justify-center rounded-full text-[10px]",
+                    "flex size-4 items-center justify-center rounded-full text-xs",
                     i < step
                       ? "bg-emerald-100 text-emerald-700"
                       : i === step
@@ -650,7 +650,7 @@ function FlowWizard({
                   },
                 )}
               </div>
-              <p className="mt-2 text-[11px] text-zinc-400">
+              <p className="mt-2 text-xs text-zinc-400">
                 Hiçbiri seçilmezse <strong>herkesin</strong> kazandırması onaya
                 düşer.
               </p>
@@ -666,7 +666,7 @@ function FlowWizard({
                       {/* P2 (denetim §9 Stepper): çift sıra göstergesi
                           ("1" yuvarlağı + "1. ONAY") teke indi. */}
                       <div className="flex items-center gap-2">
-                        <span className="flex size-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
                           {i + 1}
                         </span>
                         <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
@@ -842,7 +842,7 @@ function FlowWizard({
                     key={i}
                     className="flex flex-wrap items-center gap-2 text-zinc-900"
                   >
-                    <span className="flex size-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
                       {i + 1}
                     </span>
                     {nameById.get(s.approverUserId) ?? "—"}
@@ -862,7 +862,7 @@ function FlowWizard({
             </div>
           </dl>
           <p className="text-xs text-zinc-400">
-            "Kaydet ve Aktifleştir" dediğinizde akış hemen çalışmaya başlar.
+            “Kaydet ve Aktifleştir” dediğinizde akış hemen çalışmaya başlar.
             Taslak kaydederseniz listede pasif durur, sonra aktifleştirirsiniz.
           </p>
         </div>

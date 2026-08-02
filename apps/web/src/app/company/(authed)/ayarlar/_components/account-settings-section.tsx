@@ -320,7 +320,7 @@ export function PasswordSection() {
                       />
                     ))}
                   </div>
-                  <span className="min-w-[3.5rem] text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  <span className="min-w-[3.5rem] text-right text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     {strength.label}
                   </span>
                 </div>

@@ -139,7 +139,7 @@ export default function BildirimlerPage() {
                   </span>
                   {n.portal ? (
                     <span
-                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PORTAL_CHIP[n.portal].cls}`}
+                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
                     >
                       {PORTAL_CHIP[n.portal].label}
                     </span>

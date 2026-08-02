@@ -39,7 +39,7 @@ export function WaitingState({
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-zinc-600">{title}</p>
           {meta ? (
-            <p className="truncate text-[11px] text-zinc-400">{meta}</p>
+            <p className="truncate text-xs text-zinc-400">{meta}</p>
           ) : null}
         </div>
         {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}

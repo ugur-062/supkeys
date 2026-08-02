@@ -75,7 +75,7 @@ function Fact({
 }) {
   return (
     <div className={full ? "sm:col-span-2 lg:col-span-3" : undefined}>
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </dt>
       <dd className="mt-1 break-words text-sm font-medium text-zinc-900">
@@ -156,7 +156,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
                 >
                   {c} {CURRENCY_SYMBOL[c]}
                   {currencyList.length > 1 && c === cur ? (
-                    <span className="ml-1 text-[10px] font-medium uppercase text-zinc-500">
+                    <span className="ml-1 text-xs font-medium uppercase text-zinc-500">
                       ana
                     </span>
                   ) : null}
@@ -320,7 +320,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               <Lock className="h-4 w-4 text-zinc-700" />
             </div>
             <h3 className="font-semibold text-zinc-900">İhale Notları</h3>
-            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
+            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-700">
               Şirket içi
             </span>
           </div>

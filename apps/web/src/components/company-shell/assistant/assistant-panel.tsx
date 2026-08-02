@@ -372,7 +372,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                 çevrimiçi durumunu anlatıyor). */}
             {nearLimit ? (
               <p
-                className="truncate text-[11px] font-medium text-warning-600"
+                className="truncate text-xs font-medium text-warning-600"
                 title="Aylık AI kullanımınız sınıra yaklaştı"
               >
                 Kullanım sınıra yakın
@@ -419,11 +419,11 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
       {showHistory ? (
         <div className="rt-fade-in border-b border-zinc-950/10 bg-surface-subtle">
           <div className="flex items-center justify-between px-4 pb-1 pt-2.5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
               Geçmiş sohbetler
             </p>
             {(sessions.data ?? []).length > 0 ? (
-              <span className="text-[11px] tabular-nums text-zinc-400">
+              <span className="text-xs tabular-nums text-zinc-400">
                 {(sessions.data ?? []).length}
               </span>
             ) : null}
@@ -472,7 +472,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                     >
                       {s.title ?? "Sohbet"}
                     </p>
-                    <p className="truncate text-[11px] text-zinc-400">
+                    <p className="truncate text-xs text-zinc-400">
                       {format(new Date(s.lastMessageAt), "d MMM yyyy HH:mm", {
                         locale: tr,
                       })}
@@ -513,7 +513,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                 <Sparkles className="h-6 w-6" />
               </div>
             </div>
-            <p className="mt-3 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
+            <p className="mt-3 text-xs font-medium uppercase tracking-widest text-zinc-400">
               Rothern Asistanı
             </p>
             <p className="mt-1 text-base font-semibold tracking-tight text-zinc-900">
@@ -612,7 +612,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                   {m.tools.map((t) => (
                     <span
                       key={t}
-                      className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-zinc-500 ring-1 ring-zinc-950/5"
+                      className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-zinc-500 ring-1 ring-zinc-950/5"
                     >
                       <Check className="h-3 w-3 text-success-500" />
                       {TOOL_LABEL[t] ?? t}

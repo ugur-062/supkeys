@@ -156,7 +156,7 @@ export function AiFlagsBanner({
         <p className="text-sm text-zinc-700">
           <span className="font-medium">Belgeden dolduruldu:</span>{" "}
           {filledSummary(result.draft).join(", ")}. Kalemleri
-          &quot;Kalemler&quot; adımında kontrol edebilirsiniz.
+          “Kalemler” adımında kontrol edebilirsiniz.
         </p>
       ) : null}
 
@@ -165,7 +165,7 @@ export function AiFlagsBanner({
           <span className="font-medium">
             Kategoriler kalemlere göre AI tarafından önerildi
           </span>{" "}
-          — &quot;Genel Bilgi&quot; adımında kontrol edin. Teslimat adresini bu
+          — “Genel Bilgi” adımında kontrol edin. Teslimat adresini bu
           formda siz seçersiniz.
         </p>
       ) : (

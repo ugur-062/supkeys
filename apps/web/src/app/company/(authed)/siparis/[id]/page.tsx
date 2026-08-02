@@ -517,7 +517,7 @@ export default function OrderDetailPage() {
                           {done ? (
                             <CheckCircleIcon className="size-5" aria-hidden />
                           ) : (
-                            <span className="text-[11px] font-bold">
+                            <span className="text-xs font-bold">
                               {i + 1}
                             </span>
                           )}

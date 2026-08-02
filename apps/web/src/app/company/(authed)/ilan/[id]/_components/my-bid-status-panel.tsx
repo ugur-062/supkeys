@@ -163,7 +163,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
           (alıcı tarafındaki v2 rozeti duruyor: güncellendi bilgisi). */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
             Statü
           </p>
           <div className="mt-1">
@@ -171,7 +171,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
           </div>
         </div>
         <div>
-          <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
             Toplam
           </p>
           <p className="mt-1 text-sm font-bold text-zinc-950 tabular-nums">
@@ -183,7 +183,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       {validUntil ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
           <div>
-            <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
               Teklif Geçerliliği
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">

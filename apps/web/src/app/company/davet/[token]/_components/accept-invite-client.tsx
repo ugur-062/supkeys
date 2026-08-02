@@ -218,7 +218,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
               {PW_RULES.map((r) => {
                 const ok = r.test(form.password);
                 return (
-                  <li key={r.key} className={`flex items-center gap-1 text-[11px] ${ok ? "text-emerald-600" : "text-zinc-400"}`}>
+                  <li key={r.key} className={`flex items-center gap-1 text-xs ${ok ? "text-emerald-600" : "text-zinc-400"}`}>
                     {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                     {r.label}
                   </li>

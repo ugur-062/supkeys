@@ -205,12 +205,12 @@ export function CompanyUsersSection({
                           <p className="truncate font-semibold text-zinc-900">
                             {u.firstName} {u.lastName}
                             {u.isOwner ? (
-                              <span className="ml-1.5 text-[10px] font-semibold uppercase text-amber-600">
+                              <span className="ml-1.5 text-xs font-semibold uppercase text-amber-600">
                                 Kurucu
                               </span>
                             ) : null}
                             {isMe ? (
-                              <span className="ml-1.5 text-[10px] uppercase text-zinc-400">
+                              <span className="ml-1.5 text-xs uppercase text-zinc-400">
                                 (Siz)
                               </span>
                             ) : null}
@@ -712,7 +712,7 @@ function EditUserModal({
               <span className="min-w-0">
                 <span className="flex items-center gap-2 font-semibold text-zinc-900">
                   Kurucu
-                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-violet-700">
                     Kilitli
                   </span>
                 </span>
@@ -856,7 +856,7 @@ function EditUserModal({
             <div className="mt-3 space-y-4">
               {groups.map(([group, items]) => (
                 <div key={group}>
-                  <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
                     {group}
                   </p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
@@ -876,11 +876,11 @@ function EditUserModal({
                           />
                           <span>{c.label}</span>
                           {!isDefault && on ? (
-                            <span className="text-[10px] font-semibold uppercase text-amber-600">
+                            <span className="text-xs font-semibold uppercase text-amber-600">
                               +
                             </span>
                           ) : isDefault && !on ? (
-                            <span className="text-[10px] font-semibold uppercase text-red-600">
+                            <span className="text-xs font-semibold uppercase text-red-600">
                               −
                             </span>
                           ) : null}

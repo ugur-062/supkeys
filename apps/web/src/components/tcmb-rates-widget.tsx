@@ -92,7 +92,7 @@ export function TcmbRatesWidget() {
             <TrendingUp className="h-3.5 w-3.5" />
             TCMB Döviz Kurları
           </h3>
-          <p className="text-[10px] text-success-700 mt-0.5">
+          <p className="text-xs text-success-700 mt-0.5">
             Günlük gösterge kuru · TCMB
             {/* Kur GÜNLÜK — fetch saati değil kurun ait olduğu TARİH gösterilir
                 (hafta sonu = son iş günü kuru). */}

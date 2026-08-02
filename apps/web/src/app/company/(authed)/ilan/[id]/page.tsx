@@ -93,7 +93,7 @@ function itemMatchesSearch(
 
 function TabBadge({ count }: { count: number }) {
   return (
-    <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600 group-data-selected:bg-zinc-900 group-data-selected:text-white">
+    <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 group-data-selected:bg-zinc-900 group-data-selected:text-white">
       {count}
     </span>
   );
@@ -122,7 +122,7 @@ function MetaItem({
         <Icon className="h-4 w-4 text-zinc-600" />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {label}
         </p>
         <p
@@ -896,7 +896,7 @@ export default function ListingDetailPage() {
             key={k.label}
             className="rounded-xl border border-zinc-950/5 bg-white p-3"
           >
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {k.label}
             </dt>
             <dd className="mt-0.5 text-lg font-bold text-zinc-900">
@@ -939,7 +939,7 @@ export default function ListingDetailPage() {
             <Table dense className="max-h-[65vh] overflow-y-auto">
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky top-0 left-0 z-20 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                  <TableHeader className="sticky top-0 left-0 z-20 bg-white shadow-table-top">
                     Kalem
                   </TableHeader>
                   {l.bids.map((b) => {
@@ -948,12 +948,12 @@ export default function ListingDetailPage() {
                     return (
                       <TableHeader
                         key={b.id}
-                        className="sticky top-0 z-10 bg-white text-right whitespace-normal shadow-[0_1px_0_0_rgba(0,0,0,0.05)]"
+                        className="sticky top-0 z-10 bg-white text-right whitespace-normal shadow-table-top"
                       >
                         {b.bidderName}
                         {priced < totalItems ? (
                           <span
-                            className="block text-[10px] font-medium text-amber-600"
+                            className="block text-xs font-medium text-amber-600"
                             title="Bu teklif tüm kalemleri fiyatlamadı"
                           >
                             {priced}/{totalItems} kalem
@@ -1065,7 +1065,7 @@ export default function ListingDetailPage() {
                 {/* Toplam satırı — filtreden bağımsız, teklifin GENEL toplamı.
                     Sticky bottom: uzun listede kaydırırken hep görünür. */}
                 <TableRow>
-                  <TableCell className="sticky bottom-0 left-0 z-20 bg-zinc-50 font-semibold text-zinc-900 shadow-[0_-1px_0_0_rgba(0,0,0,0.08)]">
+                  <TableCell className="sticky bottom-0 left-0 z-20 bg-zinc-50 font-semibold text-zinc-900 shadow-table-bottom">
                     Teklif Toplamı
                   </TableCell>
                   {l.bids.map((b) => {
@@ -1080,7 +1080,7 @@ export default function ListingDetailPage() {
                       <TableCell
                         key={b.id}
                         className={cn(
-                          "sticky bottom-0 z-10 bg-zinc-50 whitespace-nowrap text-right font-mono tabular-nums shadow-[0_-1px_0_0_rgba(0,0,0,0.08)]",
+                          "sticky bottom-0 z-10 bg-zinc-50 whitespace-nowrap text-right font-mono tabular-nums shadow-table-bottom",
                           isBest
                             ? "font-bold text-emerald-700"
                             : "font-semibold text-zinc-900",
@@ -1089,7 +1089,7 @@ export default function ListingDetailPage() {
                         {Number(b.amount).toLocaleString("tr-TR")}{" "}
                         {symFor(b.currency)}
                         {isBest ? (
-                          <span className="block text-[10px] font-semibold text-emerald-600">
+                          <span className="block text-xs font-semibold text-emerald-600">
                             En iyi toplam
                           </span>
                         ) : null}
@@ -1378,7 +1378,7 @@ export default function ListingDetailPage() {
                   karıştırıyordu). Tam liste teklif detayında. */}
               {(bidDocs.data ?? []).some((d) => d.bidId === b.id) ? (
                 <div className="flex w-full flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-2">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                     Teklif ekleri:
                   </span>
                   {(bidDocs.data ?? [])
@@ -1947,7 +1947,7 @@ export default function ListingDetailPage() {
             <div className="min-w-0 flex-1">{header}</div>
             {biddingOpen && l.closesAt ? (
               <div className="shrink-0 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-right">
-                <p className="text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">
+                <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
                   Kapanmasına
                 </p>
                 <CountdownFull deadline={l.closesAt} />

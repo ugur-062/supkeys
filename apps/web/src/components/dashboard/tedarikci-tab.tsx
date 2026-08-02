@@ -114,7 +114,7 @@ export function TedarikciTab({ data }: Props) {
                         {r.rank >= 1 && r.rank <= 3 ? (
                           <span
                             aria-hidden
-                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${MEDAL_BG[r.rank - 1]}`}
+                            className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white ${MEDAL_BG[r.rank - 1]}`}
                             title={`${r.rank}. sırada`}
                           >
                             ★
@@ -185,7 +185,7 @@ export function TedarikciTab({ data }: Props) {
             </ResponsiveContainer>
             {/* Kupa rozeti — bar üstüne overlay */}
             <div className="pointer-events-none absolute left-1/2 top-1 -translate-x-1/2">
-              <div className="flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 shadow-sm">
+              <div className="flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700 shadow-sm">
                 <Trophy className="h-3 w-3 fill-current text-amber-500" />
                 {competitive.bidderCount} Teklif Veren
               </div>
