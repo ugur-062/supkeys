@@ -9,6 +9,7 @@ import {
 } from "@/hooks/use-notifications";
 import { EmptyState, ListSkeleton } from "@/components/list";
 import { Bell } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -105,6 +106,14 @@ export default function BildirimlerPage() {
             icon={Bell}
             title="Henüz bildiriminiz yok"
             description="İhale davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri burada birikir."
+            action={
+              <Link
+                href="/company/ayarlar/bildirimler"
+                className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              >
+                Bildirim Tercihlerine Git
+              </Link>
+            }
           />
         </div>
       ) : (

@@ -640,7 +640,23 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
             }
             action={
-              isFiltered ? undefined : (
+              isFiltered ? (
+                /* P2 (denetim §5): filtre yüzünden boşsa TEK TIK temizleme. */
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setStatus("all");
+                    setSrcType("all");
+                    setRange("all");
+                    setCounterparty("");
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Filtreleri Temizle
+                </button>
+              ) : (
                 <Link
                   href={
                     isSeller

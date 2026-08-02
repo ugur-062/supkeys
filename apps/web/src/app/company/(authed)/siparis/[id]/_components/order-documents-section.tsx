@@ -16,6 +16,7 @@ import {
   ArrowUpTrayIcon,
   LockClosedIcon,
 } from "@heroicons/react/20/solid";
+import { WaitingState } from "@/components/ui/waiting-state";
 import { useRef } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ function DocGroup({
   hint,
   canUpload,
   lockHint,
+  waitingLabel,
   docs,
 }: {
   orderId: string;
@@ -35,6 +37,8 @@ function DocGroup({
   canUpload: boolean;
   /** canUpload false iken gösterilecek "şu adımdan sonra açılır" ipucu. */
   lockHint?: string | null;
+  /** Belgeyi KARŞI taraf yükleyecekse boş durumda gösterilen bekleme metni. */
+  waitingLabel?: string;
   docs: { id: string; fileName: string; url: string; createdAt: string }[];
 }) {
   const upload = useUploadOrderDoc(orderId);
@@ -77,15 +81,17 @@ function DocGroup({
               className="hidden"
               onChange={(e) => onPick(e.target.files?.[0])}
             />
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={upload.isPending}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-            >
-              <ArrowUpTrayIcon className="h-4 w-4" />
-              {upload.isPending ? "Yükleniyor…" : "Yükle"}
-            </button>
+            {docs.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={upload.isPending}
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+              >
+                <ArrowUpTrayIcon className="h-4 w-4" />
+                {upload.isPending ? "Yükleniyor…" : "Yükle"}
+              </button>
+            ) : null}
           </>
         ) : locked ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500">
@@ -101,8 +107,26 @@ function DocGroup({
 
       <div className="mt-3 space-y-1">
         {docs.length === 0 ? (
-          !locked ? (
-            <Text className="text-xs text-zinc-400">Henüz belge yok.</Text>
+          canUpload ? (
+            /* P2 (denetim §5, DocumentSlot): boş + yüklenebilir = kesikli
+               çerçeveli dropzone — "Henüz belge yok." pasif satırı biter. */
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={upload.isPending}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-200 px-3 py-3 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-400 hover:text-zinc-700 disabled:opacity-60"
+            >
+              <ArrowUpTrayIcon className="h-4 w-4" aria-hidden />
+              {upload.isPending
+                ? "Yükleniyor…"
+                : "Belge yükle — PDF, PNG, JPG (≤50MB)"}
+            </button>
+          ) : !locked ? (
+            waitingLabel ? (
+              <WaitingState size="sm" title={waitingLabel} />
+            ) : (
+              <Text className="text-xs text-zinc-400">Henüz belge yok.</Text>
+            )
           ) : null
         ) : (
           docs.map((d) => (
@@ -220,6 +244,7 @@ export function OrderDocumentsSection({
                 : "Teslimat garantisi (satıcı yükler)"
             }
             canUpload={canUploadTeminat}
+            waitingLabel={!isSeller ? "Satıcı yükler" : undefined}
             docs={guarantee}
           />
         ) : null}
@@ -230,6 +255,7 @@ export function OrderDocumentsSection({
           hint="İrsaliye / sevk belgesi (satıcı yükler)"
           canUpload={canUploadDelivery}
           lockHint={deliveryLockHint}
+          waitingLabel={!isSeller ? "Satıcı yükler" : undefined}
           docs={delivery}
         />
         {/* Akreditif belgesi — yalnız LC siparişte; ödeme dekontu gösterilmez. */}
@@ -241,6 +267,7 @@ export function OrderDocumentsSection({
             hint="Küşat mektubu (alıcı yükler) — 'Akreditif Açıldı' adımının ön koşulu"
             canUpload={canUploadLc}
             lockHint={lcLockHint}
+            waitingLabel={isSeller ? "Alıcı yükler" : undefined}
             docs={lc}
           />
         ) : (
@@ -251,6 +278,7 @@ export function OrderDocumentsSection({
             hint="Ödeme kanıtı (alıcı yükler)"
             canUpload={canUploadPayment}
             lockHint={paymentLockHint}
+            waitingLabel={isSeller ? "Alıcı yükler" : undefined}
             docs={payment}
           />
         )}
@@ -262,6 +290,7 @@ export function OrderDocumentsSection({
           hint="Satıcının kestiği fatura (satıcı yükler)"
           canUpload={canUploadInvoice}
           lockHint={invoiceLockHint}
+          waitingLabel={!isSeller ? "Satıcı yükler" : undefined}
           docs={invoice}
         />
         {/* Proforma fatura — satıcı yükler; alıcı LC açmak/peşin ödemek için. */}
@@ -272,6 +301,7 @@ export function OrderDocumentsSection({
           hint="Ön fatura (satıcı yükler) — alıcı akreditif açmak veya peşin ödeme için kullanır"
           canUpload={canUploadProforma}
           lockHint={proformaLockHint}
+          waitingLabel={!isSeller ? "Satıcı yükler" : undefined}
           docs={proforma}
         />
         {/* Diğer belgeler — serbest ek belge kutusu (her iki taraf). */}
