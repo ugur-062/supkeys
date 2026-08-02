@@ -24,7 +24,7 @@ import {
   type ListingVisibility,
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
-import { derivePaymentTiming, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
+import { derivePaymentTiming, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { bidderOpRole } from "../bidder-op-role";
 import {
@@ -792,6 +792,18 @@ export class CompanyListingsService {
       (dto.paymentCategory as ListingPaymentCategory) ?? "OPEN_ACCOUNT";
     const note = dto.paymentNote?.trim() || null;
     const isInternational = dto.isInternational ?? false;
+
+    // Dış-ticaret ödeme şekilleri (akreditif/vesaik/mal mukabili) yurtiçi
+    // ilanda seçilemez — teslim-şekli kapısıyla simetrik (frontend filtreler,
+    // backend otorite; kapsamı değişen update'te bayat kategori de yakalanır).
+    if (
+      !isInternational &&
+      INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(category)
+    ) {
+      throw new BadRequestException(
+        "Bu ödeme şekli yalnız uluslararası ilanlarda seçilebilir — yurtiçi ilanda peşin, vadeli, açık hesap, çek, senet veya özel kullanın",
+      );
+    }
 
     let advancePercent: number | null = null;
     let paymentDays: number | null = null;

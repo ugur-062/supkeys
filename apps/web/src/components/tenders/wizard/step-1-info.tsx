@@ -26,7 +26,10 @@ import type {
   TenderFormData,
 } from "@/lib/tenders/form-schema";
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
-import { derivePaymentTiming } from "@rothern/shared";
+import {
+  derivePaymentTiming,
+  INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
+} from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -692,6 +695,18 @@ export function Step1Info({
   useEffect(() => {
     if (deliveryTerm && !deliveryTermOptions.includes(deliveryTerm)) {
       setValue("deliveryTerm", undefined, { shouldValidate: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInternational]);
+
+  // Aynı kural ödeme şeklinde: yurtiçine dönüldüğünde dış-ticaret kategorisi
+  // (akreditif/vesaik/mal mukabili) seçiliyse varsayılana çek.
+  useEffect(() => {
+    if (
+      !isInternational &&
+      INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(paymentCategory)
+    ) {
+      setValue("paymentCategory", "OPEN_ACCOUNT", { shouldValidate: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInternational]);
@@ -1403,7 +1418,13 @@ export function Step1Info({
                 invalid={!!errors.paymentCategory}
                 {...register("paymentCategory")}
               >
-                {PAYMENT_CATEGORY_OPTIONS.map((o) => (
+                {PAYMENT_CATEGORY_OPTIONS.filter(
+                  // Dış-ticaret şekilleri (akreditif/vesaik/mal mukabili)
+                  // yalnız uluslararası kapsamda listelenir.
+                  (o) =>
+                    isInternational ||
+                    !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(o.value),
+                ).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -1688,20 +1709,8 @@ export function Step1Info({
               {...register("termsAndConditions")}
             />
           </Field>
-
-          <Field
-            error={errors.internalNotes?.message}
-            hint={`Sadece kendi ekibiniz görür, ${rolDat} iletilmez.`}
-          >
-            <Label htmlFor="internalNotes">Dahili Notlar (özel)</Label>
-            <Textarea
-              id="internalNotes"
-              rows={2}
-              placeholder="Bütçe, hedef fiyat aralığı, pazarlık notları…"
-              hasError={!!errors.internalNotes}
-              {...register("internalNotes")}
-            />
-          </Field>
+          {/* Dahili Notlar wizard'dan kaldırıldı (2026-08-02) — yayın
+              sonrası ⋮ menüsündeki "İç Notlar" dialoğundan girilir. */}
         </div>
       </section>
 
@@ -1731,7 +1740,7 @@ export function Step1Info({
         <div className="space-y-4">
           <Field
             error={errors.bidsOpenAt?.message}
-            hint="Boş bırakılırsa yayınlandığı anda açılır; saat seçmezseniz gün başında (00:00) açılır."
+            hint="Şimdiki zaman öntanımlıdır (yayınlanınca hemen açılır); ileri bir tarih seçerseniz ihale o ana kadar tekliflere kapalı kalır."
           >
             <Label htmlFor="bidsOpenAt-date">Açılış Tarihi</Label>
             <Controller

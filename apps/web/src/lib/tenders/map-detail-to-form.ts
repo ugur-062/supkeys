@@ -1,5 +1,9 @@
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { DEFAULT_FORM_VALUES, type TenderFormData } from "./form-schema";
+import {
+  DEFAULT_FORM_VALUES,
+  nowLocalDateTimeValue,
+  type TenderFormData,
+} from "./form-schema";
 
 type Currency = TenderFormData["primaryCurrency"];
 
@@ -91,10 +95,9 @@ export function mapDetailToForm(
     paymentNote: l.paymentNote ?? "",
     requireGuaranteeLetter: l.requireGuaranteeLetter ?? false,
     termsAndConditions: l.terms ?? "",
-    internalNotes: l.internalNotes ?? "",
-    // Kopyada tarihler boş (kullanıcı yeniden seçer).
+    // Kopyada kapanış boş (kullanıcı yeniden seçer); açılış "şimdi" öntanımlı.
     bidsCloseAt: forCopy ? "" : toLocalInput(l.closesAt),
-    bidsOpenAt: forCopy ? "" : toLocalInput(l.bidsOpenAt),
+    bidsOpenAt: forCopy ? nowLocalDateTimeValue() : toLocalInput(l.bidsOpenAt),
     bidVisibility:
       (l.bidVisibility as TenderFormData["bidVisibility"]) ?? "OWN_ONLY",
     decimalPlaces: l.decimalPlaces ?? 2,

@@ -19,6 +19,15 @@ export const PAYMENT_CATEGORIES = [
 ] as const;
 export type PaymentCategory = (typeof PAYMENT_CATEGORIES)[number];
 
+/**
+ * Yalnız ULUSLARARASI ihalede seçilebilen dış-ticaret ödeme şekilleri —
+ * yurtiçi ihalede akreditif/vesaik/mal mukabili kaldırıldı (2026-08-02).
+ * UI seçenekten düşürür; backend buildPaymentPlan reddeder (UI kilidi ≠ API
+ * kilidi tuzağına karşı çift taraflı).
+ */
+export const INTERNATIONAL_ONLY_PAYMENT_CATEGORIES: readonly PaymentCategory[] =
+  ["MAL_MUKABILI", "LETTER_OF_CREDIT", "CASH_AGAINST_DOCS"];
+
 export const LC_TYPES = ["SIGHT", "USANCE"] as const;
 export type LcSubType = (typeof LC_TYPES)[number];
 

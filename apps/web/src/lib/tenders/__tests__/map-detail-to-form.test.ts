@@ -63,10 +63,11 @@ describe("mapDetailToForm", () => {
     expect(f.invitedSupplierIds).toEqual(["ROT-0001"]); // null rothernId atılır
   });
 
-  it("kopya: başlığa (kopya) eklenir, tarihler boşaltılır", () => {
+  it("kopya: başlığa (kopya) eklenir, kapanış boşalır, açılış 'şimdi' olur", () => {
     const f = mapDetailToForm(detail, { forCopy: true });
     expect(f.title).toBe("Çelik alımı (kopya)");
     expect(f.bidsCloseAt).toBe("");
-    expect(f.bidsOpenAt).toBe("");
+    // Açılış "şimdi" öntanımlı (YYYY-MM-DDTHH:mm) — kaynaktan kopyalanmaz.
+    expect(f.bidsOpenAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   });
 });

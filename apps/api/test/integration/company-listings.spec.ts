@@ -530,10 +530,28 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
       ),
     ).rejects.toThrow(/yurtiçi/);
 
-    // LC-Usance → BEFORE_DELIVERY; teminat bayrağı LC'de false'a normalize.
+    // Dış-ticaret kategorileri (LC/vesaik/mal mukabili) YURTİÇİ ilanda
+    // reddedilir (2026-08-02 kuralı) — teslim-şekli kapısıyla simetrik.
+    for (const cat of [
+      "LETTER_OF_CREDIT",
+      "CASH_AGAINST_DOCS",
+      "MAL_MUKABILI",
+    ]) {
+      await expect(
+        service.create(
+          owner.auth,
+          dto({ paymentCategory: cat, lcType: "SIGHT" }) as never,
+        ),
+      ).rejects.toThrow(/uluslararası/);
+    }
+
+    // LC-Usance (uluslararası) → BEFORE_DELIVERY; teminat bayrağı LC'de
+    // false'a normalize.
     const lc = await service.create(
       owner.auth,
       dto({
+        isInternational: true,
+        targetCountries: ["DE"],
         paymentCategory: "LETTER_OF_CREDIT",
         lcType: "USANCE",
         paymentDays: 90,
@@ -579,10 +597,15 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
     expect(sn.paymentDays).toBe(45);
     expect(sn.paymentTiming).toBe("AFTER_DELIVERY");
 
-    // VESAİK MUKABİLİ: ek zorunlu alan yok; belge karşılığı → BEFORE_DELIVERY.
+    // VESAİK MUKABİLİ (uluslararası): ek zorunlu alan yok; belge karşılığı
+    // → BEFORE_DELIVERY.
     const cad = await service.create(
       owner.auth,
-      dto({ paymentCategory: "CASH_AGAINST_DOCS" }) as never,
+      dto({
+        isInternational: true,
+        targetCountries: ["DE"],
+        paymentCategory: "CASH_AGAINST_DOCS",
+      }) as never,
     );
     const cd = await prisma.listing.findUniqueOrThrow({ where: { id: cad.id } });
     expect(cd.paymentCategory).toBe("CASH_AGAINST_DOCS");

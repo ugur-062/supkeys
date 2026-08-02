@@ -109,17 +109,31 @@ describe("tenderFormSchema", () => {
     }
   });
 
-  it("mal mukabili: vade OPSİYONEL (boş da, günlü de geçerli)", () => {
+  it("mal mukabili: yalnız uluslararası; vade OPSİYONEL (boş da, günlü de)", () => {
+    // Yurtiçi ihalede dış-ticaret kategorisi reddedilir (2026-08-02 kuralı).
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "MAL_MUKABILI" }),
+      ).success,
+    ).toBe(false);
     // Vadesiz (teslimde muaccel) — geçerli; DEFERRED/CHEQUE'in aksine gün istemez.
     expect(
       tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "MAL_MUKABILI", paymentDays: undefined }),
+        validForm({
+          paymentCategory: "MAL_MUKABILI",
+          paymentDays: undefined,
+          isInternational: true,
+        }),
       ).success,
     ).toBe(true);
     // Vade girilirse de geçerli (teslim + gün takibi).
     expect(
       tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "MAL_MUKABILI", paymentDays: 60 }),
+        validForm({
+          paymentCategory: "MAL_MUKABILI",
+          paymentDays: 60,
+          isInternational: true,
+        }),
       ).success,
     ).toBe(true);
   });
@@ -152,15 +166,29 @@ describe("tenderFormSchema", () => {
     ).toBe(true);
   });
 
-  it("akreditifte alt tip zorunlu; Usance vade ister", () => {
+  it("akreditif yalnız uluslararası; alt tip zorunlu; Usance vade ister", () => {
+    // Yurtiçi ihalede akreditif reddedilir (2026-08-02 kuralı).
     expect(
       tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: undefined }),
+        validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT" }),
       ).success,
     ).toBe(false);
     expect(
       tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT" }),
+        validForm({
+          paymentCategory: "LETTER_OF_CREDIT",
+          lcType: undefined,
+          isInternational: true,
+        }),
+      ).success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          paymentCategory: "LETTER_OF_CREDIT",
+          lcType: "SIGHT",
+          isInternational: true,
+        }),
       ).success,
     ).toBe(true);
     expect(
@@ -169,6 +197,7 @@ describe("tenderFormSchema", () => {
           paymentCategory: "LETTER_OF_CREDIT",
           lcType: "USANCE",
           paymentDays: undefined,
+          isInternational: true,
         }),
       ).success,
     ).toBe(false);
@@ -178,6 +207,7 @@ describe("tenderFormSchema", () => {
           paymentCategory: "LETTER_OF_CREDIT",
           lcType: "USANCE",
           paymentDays: 90,
+          isInternational: true,
         }),
       ).success,
     ).toBe(true);

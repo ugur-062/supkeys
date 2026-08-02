@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
   MAX_MONEY,
   MAX_QUANTITY,
   MIN_QUANTITY,
@@ -237,7 +238,6 @@ const baseTenderSchema = z.object({
   // önerir/işaretler; kullanıcı kaldırabilir. Diğer kategorilerde anlamsız.)
   requireGuaranteeLetter: z.boolean(),
   termsAndConditions: z.string().max(10000).optional(),
-  internalNotes: z.string().max(5000).optional(),
   bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
   bidsOpenAt: z.string().optional(),
 
@@ -295,6 +295,17 @@ export const tenderFormSchema = baseTenderSchema
         ? true
         : typeof d.paymentDays === "number" && d.paymentDays > 0,
     { message: "Vade gün sayısı zorunlu", path: ["paymentDays"] },
+  )
+  // Dış-ticaret ödeme şekilleri (akreditif/vesaik/mal mukabili) YALNIZ
+  // uluslararası ihalede — backend buildPaymentPlan aynası.
+  .refine(
+    (d) =>
+      d.isInternational ||
+      !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(d.paymentCategory),
+    {
+      message: "Bu ödeme şekli yalnız uluslararası ihalede seçilebilir",
+      path: ["paymentCategory"],
+    },
   )
   // Kısmi peşin (%<100) YALNIZ yurtiçi ihalede — uluslararasında tam peşin.
   .refine(
@@ -437,7 +448,6 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "lcConfirmed",
     "paymentNote",
     "termsAndConditions",
-    "internalNotes",
     "bidsCloseAt",
     "bidsOpenAt",
     "minPrice",
@@ -450,6 +460,18 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
   ],
   4: ["invitedSupplierIds"],
 };
+
+/**
+ * Yerel "şimdi" — DateTimeInput/datetime-local değeri (YYYY-MM-DDTHH:mm).
+ * Açılış tarihi varsayılanı: form açıldığı an (kullanıcı isteği 2026-08-02 —
+ * alan boş gelmesin, o anki zaman yazılı gelsin). Geçmişte kalması sorun
+ * değil: backend geçmiş açılışı "açılmış" sayar (embargo yalnız gelecekte).
+ */
+export function nowLocalDateTimeValue(): string {
+  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+}
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {
   listingType: "ALIM",
@@ -504,7 +526,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   paymentNote: "",
   requireGuaranteeLetter: false,
   termsAndConditions: "",
-  internalNotes: "",
   bidsCloseAt: "",
   bidsOpenAt: "",
   bidVisibility: "OWN_RANK",

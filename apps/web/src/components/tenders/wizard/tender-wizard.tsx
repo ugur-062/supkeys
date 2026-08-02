@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-listing-templates";
 import {
   DEFAULT_FORM_VALUES,
+  nowLocalDateTimeValue,
   STEP_FIELDS,
   tenderFormSchema,
   type TenderFormData,
@@ -178,8 +179,8 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     invitations: d.invitedSupplierIds?.length ? d.invitedSupplierIds : undefined,
     categoryIds: d.categoryIds,
     keywords: d.keywords,
+    // Dahili not wizard'dan kaldırıldı — yayın sonrası ⋮ "İç Notlar" ile girilir.
     terms: d.termsAndConditions?.trim() || undefined,
-    internalNotes: d.internalNotes?.trim() || undefined,
     requireAllItems: d.requireAllItems,
     requireBidDocument: d.requireBidDocument,
     showTargetToSuppliers: d.showTargetToSuppliers,
@@ -243,7 +244,13 @@ export function TenderWizard({
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
-    defaultValues: initialValues ?? { ...DEFAULT_FORM_VALUES, listingType },
+    defaultValues: initialValues ?? {
+      ...DEFAULT_FORM_VALUES,
+      listingType,
+      // Açılış tarihi "şimdi" ile dolu gelir (boş = belirsizlik; kullanıcı
+      // ileri tarih seçerse embargo devreye girer).
+      bidsOpenAt: nowLocalDateTimeValue(),
+    },
     mode: "onTouched",
   });
   // Yön form değerinden CANLI türetilir — şablon yüklemesi listingType'ı
@@ -476,8 +483,10 @@ export function TenderWizard({
         {/* Üstte adım göstergesi */}
         <WizardSteps current={step} onStepClick={setStep} meta={stepMeta(isSatis)} />
 
-        {/* Sayfaya özel band (örn. AI "Belgeden Doldur" kartı) */}
-        {belowStepsSlot}
+        {/* Sayfaya özel band (AI "Belgeden Doldur" kartı) — YALNIZ ilk adımda:
+            sonraki adımlarda kafa karıştırıyor (belgeden doldurma zaten girilen
+            veriyi ezer); Davetliler adımının AI girişi "AI ile daha fazla eriş". */}
+        {step === 0 ? belowStepsSlot : null}
 
         {/* Faz AI-1 — AI doldurma bandı (işaretli alanlar + refine) */}
         {aiResult ? (
