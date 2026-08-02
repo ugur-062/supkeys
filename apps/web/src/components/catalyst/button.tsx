@@ -182,7 +182,14 @@ export const Button = forwardRef(function Button(
       <TouchTarget>{children}</TouchTarget>
     </Link>
   ) : (
-    <Headless.Button {...props} className={clsx(classes, 'cursor-default')} ref={ref}>
+    // P0 (frontend denetimi): Catalyst'in cursor-default'u global
+    // cursor:pointer kuralını utility olarak eziyordu — buton tıklanabilir
+    // hissettirmeli; disabled'da not-allowed.
+    <Headless.Button
+      {...props}
+      className={clsx(classes, 'cursor-pointer data-disabled:cursor-not-allowed')}
+      ref={ref}
+    >
       <TouchTarget>{children}</TouchTarget>
     </Headless.Button>
   )

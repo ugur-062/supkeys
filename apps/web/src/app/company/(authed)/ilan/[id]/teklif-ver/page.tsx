@@ -1000,7 +1000,17 @@ export default function TeklifVerPage() {
       : 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    // P1 (denetim §4.2): sayfa mantıksal bir form — Enter, doğrulama
+    // temizse onay diyaloğunu açar (buton akışıyla birebir).
+    <form
+      className="mx-auto max-w-5xl space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (problems.length === 0 && !placeBid.isPending && !buyNow.isPending) {
+          setConfirmOpen(true);
+        }
+      }}
+    >
       <Link
         href={detailHref}
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
@@ -1903,6 +1913,6 @@ export default function TeklifVerPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </form>
   );
 }
