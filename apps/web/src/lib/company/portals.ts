@@ -101,7 +101,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
       {
         icon: TagIcon,
-        label: "Satış İlanlarım",
+        label: "Satış İhalelerim",
         href: "/company/satis/ilanlarim",
         // Satış ilanı açma Silver+ (kilit ikonu + segment layout kapısı).
         minTier: "SILVER",

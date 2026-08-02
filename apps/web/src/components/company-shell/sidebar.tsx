@@ -75,6 +75,7 @@ function RailItem({
       // İhalesi"ndeki ölü tıklamanın kaynağı) — nav'da prefetch kapalı.
       prefetch={false}
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       title={expanded ? undefined : label}
       className={cn(
         "group/item relative flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-medium transition-colors",

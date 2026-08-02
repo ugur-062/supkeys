@@ -56,6 +56,13 @@ export function CompanyTopbar({
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
+      {/* A11y (denetim §7.2): klavye kullanıcısı nav'ı atlayıp içeriğe geçer. */}
+      <a
+        href="#icerik"
+        className="sr-only rounded-lg bg-zinc-950 px-3 py-1.5 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:left-3 focus:top-2.5 focus:z-50"
+      >
+        İçeriğe geç
+      </a>
       {/* Mobil: menü */}
       <button
         type="button"

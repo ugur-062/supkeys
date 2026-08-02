@@ -111,7 +111,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           {/* P0: alt nefes payı (pb-24) — AI asistan FAB'ı pagination /
               "Devam" gibi son satır aksiyonlarının üstüne binmesin. */}
           <div className="grow rounded-xl bg-white p-6 pb-24 shadow-xs ring-1 ring-zinc-950/5 lg:p-10 lg:pb-24">
-            <div className="mx-auto max-w-6xl">{children}</div>
+            <div id="icerik" className="mx-auto max-w-6xl">
+              {children}
+            </div>
           </div>
         </div>
       </main>

@@ -26,6 +26,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { formatMoney } from "@/components/ui/money";
 import { bidDeliveryTimeLabel } from "@rothern/shared";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -147,13 +148,12 @@ export default function BidDetailPage() {
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold tabular-nums text-zinc-950">
-              {Number(bid.amount).toLocaleString("tr-TR")}{" "}
-              {!bid.currency || bid.currency === "TRY" ? "₺" : bid.currency}
+              {formatMoney(bid.amount, bid.currency ?? "TRY")}
             </div>
             {bid.currency && bid.currency !== "TRY" ? (
               <div className="text-xs text-zinc-500">
                 {bid.amountTry != null
-                  ? `≈ ${Number(bid.amountTry).toLocaleString("tr-TR")} ₺`
+                  ? `≈ ${formatMoney(bid.amountTry, "TRY")}`
                   : "TRY karşılığı yok (kur alınamadı)"}
               </div>
             ) : null}
@@ -298,12 +298,12 @@ export default function BidDetailPage() {
                       {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
                       <TableCell className="text-right font-mono tabular-nums text-zinc-700">
                         {up
-                          ? `${Number(up).toLocaleString("tr-TR")} ${(() => { const c = bi?.currency ?? bid.currency; return !c || c === "TRY" ? "₺" : c; })()}`
+                          ? formatMoney(up, bi?.currency ?? bid.currency ?? "TRY")
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-zinc-900">
                         {line != null
-                          ? `${line.toLocaleString("tr-TR")} ${(() => { const c = bi?.currency ?? bid.currency; return !c || c === "TRY" ? "₺" : c; })()}`
+                          ? formatMoney(line, bi?.currency ?? bid.currency ?? "TRY")
                           : "—"}
                       </TableCell>
                     </TableRow>

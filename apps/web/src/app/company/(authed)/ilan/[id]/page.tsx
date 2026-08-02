@@ -44,6 +44,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
+import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
@@ -720,7 +721,7 @@ export default function ListingDetailPage() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-700">
                     {it.targetPrice
-                      ? `${Number(it.targetPrice).toLocaleString("tr-TR")} ${sym}`
+                      ? formatMoney(it.targetPrice, l.primaryCurrency ?? "TRY")
                       : "—"}
                   </TableCell>
                 </TableRow>
@@ -1329,11 +1330,10 @@ export default function ListingDetailPage() {
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-mono text-sm font-semibold text-zinc-900">
-                  {Number(b.amount).toLocaleString("tr-TR")}{" "}
-                  {b.currency && b.currency !== "TRY" ? b.currency : "₺"}
+                  {formatMoney(b.amount, b.currency ?? "TRY")}
                   {b.currency && b.currency !== "TRY" && b.amountTry ? (
                     <span className="ml-1 text-xs font-normal text-zinc-400">
-                      ≈ {Number(b.amountTry).toLocaleString("tr-TR")} ₺
+                      ≈ {formatMoney(b.amountTry, "TRY")}
                       {b.exchangeRateSnapshot
                         ? ` (kur: ${b.exchangeRateSnapshot})`
                         : ""}
@@ -1493,7 +1493,7 @@ export default function ListingDetailPage() {
             l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 ✓ Hemen-Al teklifin gönderildi (
-                {Number(l.myBid.amount).toLocaleString("tr-TR")} {sym}) —
+                {formatMoney(l.myBid.amount, l.primaryCurrency ?? "TRY")}) —
                 satıcı onayı bekleniyor.
               </div>
             ) : (
@@ -1502,7 +1502,7 @@ export default function ListingDetailPage() {
                   <div className="text-sm font-semibold text-emerald-900">
                     {l.priceScope === "KALEM"
                       ? "Hemen Al — kalem bazlı fiyatlarla"
-                      : `Hemen Al — ${Number(l.buyNowPrice).toLocaleString("tr-TR")} ${sym}`}
+                      : `Hemen Al — ${formatMoney(l.buyNowPrice ?? 0, l.primaryCurrency ?? "TRY")}`}
                   </div>
                   <div className="text-xs text-emerald-700">
                     Hemen-al fiyatından teklif ver; teslim ve diğer detayları
@@ -1533,10 +1533,7 @@ export default function ListingDetailPage() {
                 <Text className="text-sm">
                   Mevcut teklifin:{" "}
                   <strong>
-                    {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
-                    {!l.myBid.currency || l.myBid.currency === "TRY"
-                      ? "₺"
-                      : l.myBid.currency}
+                    {formatMoney(l.myBid.amount, l.myBid.currency ?? "TRY")}
                   </strong>
                 </Text>
               </div>
@@ -1627,7 +1624,7 @@ export default function ListingDetailPage() {
         <Text className="text-sm text-zinc-600">
           Taban:{" "}
           <strong>
-            {Number(l.minPrice).toLocaleString("tr-TR")} {sym}
+            {formatMoney(l.minPrice ?? 0, l.primaryCurrency ?? "TRY")}
           </strong>
           {l.buyNowPrice
             ? ` · Hemen-Al: ${Number(l.buyNowPrice).toLocaleString("tr-TR")} ${sym}`

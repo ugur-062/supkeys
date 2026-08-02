@@ -17,6 +17,7 @@ import {
   type MyBid,
 } from "@/hooks/use-company-listings";
 import { closingUrgency } from "@/lib/tenders/seller-state";
+import { formatMoney } from "@/components/ui/money";
 import { bidDeliveryTimeLabel } from "@rothern/shared";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
@@ -172,11 +173,11 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 : "bg-emerald-50 text-emerald-700 ring-emerald-100",
             )}
           >
-            {Number(b.amount).toLocaleString("tr-TR")} {sym(b.currency)}
+            {formatMoney(b.amount, b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
             <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
-              ≈ {Number(b.amountTry).toLocaleString("tr-TR")} ₺
+              ≈ {formatMoney(b.amountTry, "TRY")}
             </span>
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
