@@ -28,6 +28,17 @@ export type PaymentCategory = (typeof PAYMENT_CATEGORIES)[number];
 export const INTERNATIONAL_ONLY_PAYMENT_CATEGORIES: readonly PaymentCategory[] =
   ["MAL_MUKABILI", "LETTER_OF_CREDIT", "CASH_AGAINST_DOCS"];
 
+/**
+ * Yalnız YURTİÇİ ihalede seçilebilen ödeme şekilleri (madde 20, 2026-08-02):
+ * açık hesap / çek / senet uluslararası ihalede kaldırıldı. UI filtreler,
+ * backend buildPaymentPlan reddeder (INTERNATIONAL_ONLY ile simetrik).
+ */
+export const DOMESTIC_ONLY_PAYMENT_CATEGORIES: readonly PaymentCategory[] = [
+  "OPEN_ACCOUNT",
+  "CHEQUE",
+  "SENET",
+];
+
 export const LC_TYPES = ["SIGHT", "USANCE"] as const;
 export type LcSubType = (typeof LC_TYPES)[number];
 

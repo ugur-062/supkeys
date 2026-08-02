@@ -545,6 +545,21 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
       ).rejects.toThrow(/uluslararası/);
     }
 
+    // Simetrik (madde 20): açık hesap/çek/senet ULUSLARARASI ilanda reddedilir.
+    for (const cat of ["OPEN_ACCOUNT", "CHEQUE", "SENET"]) {
+      await expect(
+        service.create(
+          owner.auth,
+          dto({
+            isInternational: true,
+            targetCountries: ["DE"],
+            paymentCategory: cat,
+            paymentDays: 30,
+          }) as never,
+        ),
+      ).rejects.toThrow(/yurtiçi ilanlarda seçilebilir/);
+    }
+
     // LC-Usance (uluslararası) → BEFORE_DELIVERY; teminat bayrağı LC'de
     // false'a normalize.
     const lc = await service.create(

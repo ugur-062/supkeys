@@ -173,22 +173,22 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     ).toBeInTheDocument();
   });
 
-  it("ACCEPTED + satıcı → Siparişi Gönder (satıcı taşır)", () => {
+  it("ACCEPTED + satıcı → Siparişi Tamamla (madde 17: gönder yerine tamamla)", () => {
     h.order = order("ACCEPTED", "seller");
     render(<OrderDetailPage />);
     expect(
-      screen.getByRole("button", { name: "Siparişi Gönder" }),
+      screen.getByRole("button", { name: "Siparişi Tamamla" }),
     ).toBeInTheDocument();
   });
 
-  it("ACCEPTED + satıcı + alıcı-toplar teslim (EXW) → Teslime Hazırla", () => {
+  it("ACCEPTED + satıcı + alıcı-toplar teslim (EXW) → yine Siparişi Tamamla", () => {
     h.order = order("ACCEPTED", "seller", { deliveryTerm: "EXW" });
     render(<OrderDetailPage />);
     expect(
-      screen.getByRole("button", { name: "Teslime Hazırla" }),
+      screen.getAllByRole("button", { name: "Siparişi Tamamla" })[0],
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Siparişi Gönder" }),
+      screen.queryByRole("button", { name: "Siparişi Gönder (eski)" }),
     ).not.toBeInTheDocument();
   });
 
@@ -236,7 +236,7 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     });
     render(<OrderDetailPage />);
     expect(
-      screen.queryByRole("button", { name: "Siparişi Gönder" }),
+      screen.queryByRole("button", { name: "Siparişi Gönder (eski)" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/Alıcı ödeme bildirdi/)).toBeInTheDocument();
   });

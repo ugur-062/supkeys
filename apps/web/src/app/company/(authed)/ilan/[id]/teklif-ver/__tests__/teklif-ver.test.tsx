@@ -264,7 +264,8 @@ describe("TeklifVerPage — form", () => {
     expect(screen.getByText("Yeniden Teklif Ver")).toBeInTheDocument();
     expect(screen.getByText(/Fiyat yüksek/)).toBeInTheDocument();
     // Önceki fiyat + cevap tohumlanmış.
-    expect(screen.getByLabelText("Birim Fiyat")).toHaveValue(100);
+    // MoneyInput text-tabanlı (madde 21) — değer string olarak okunur.
+    expect(screen.getByLabelText("Birim Fiyat")).toHaveValue("100");
     expect(screen.getByLabelText(/Menşei ülke/)).toHaveValue("Türkiye");
   });
 });

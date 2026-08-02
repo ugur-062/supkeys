@@ -231,7 +231,7 @@ describe("TTK 23 — muayene/ayıp ihbarı (8 gün)", () => {
 });
 
 describe("MAL_MUKABILI — ödeme penceresi teslim SONRASI (AFTER_DELIVERY)", () => {
-  it("ACCEPTED'da recordPayment REDDEDİLİR; accept→ship→receive→DELIVERED sonrası KABUL", async () => {
+  it("ACCEPTED'da recordPayment REDDEDİLİR; accept→ship→receive(oto-COMPLETED) sonrası KABUL", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -248,11 +248,12 @@ describe("MAL_MUKABILI — ödeme penceresi teslim SONRASI (AFTER_DELIVERY)", ()
         method: "EFT",
       } as never),
     ).rejects.toThrow();
-    // Sevk + teslim (mal mukabili: teslim alınca öde) → DELIVERED.
+    // Sevk + teslim (mal mukabili: teslim alınca öde) → madde 17: teslim
+    // alma siparişi OTOMATİK tamamlar; ödeme penceresi COMPLETED'da açık.
     await orders.ship(seller.auth, order.id, { invoiceNumber: "F-MM" } as never);
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("DELIVERED");
-    // DELIVERED: pencere açık → ödeme kabul.
+    expect(rec.status).toBe("COMPLETED");
+    // COMPLETED: AFTER_DELIVERY penceresi açık → ödeme kabul.
     const p = (await orders.recordPayment(buyer.auth, order.id, {
       amount: 1000,
       method: "EFT",
@@ -479,7 +480,7 @@ describe("S1 — accept banka hesabı LC/vesaikte opsiyonel", () => {
 });
 
 describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
-  it("accept → ship → receive(DELIVERED) → ödeme(borç kapanır ama DURUM değişmez) → complete(kabul)→COMPLETED", async () => {
+  it("accept → ship → receive → madde 17: sipariş OTOMATİK tamamlanır; ödeme borcu sonradan kapanır", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id);
@@ -487,7 +488,7 @@ describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
     await orders.accept(seller.auth, order.id, (await acceptInputFor(seller.company.id)) as never);
     await orders.ship(seller.auth, order.id, { invoiceNumber: "FTR-1" } as never);
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("DELIVERED"); // AFTER_DELIVERY: ödeme adımı açılır
+    expect(rec.status).toBe("COMPLETED"); // madde 17: teslim alma oto-tamamlar
 
     const payment = (await orders.recordPayment(buyer.auth, order.id, {
       amount: 1000,
@@ -495,28 +496,26 @@ describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
     } as never)) as { id: string };
     await orders.confirmPayment(seller.auth, order.id, payment.id);
 
-    // YAŞAM DÖNGÜSÜ AYRIMI: tam ödeme onayı sipariş DURUMUNU değiştirmez —
-    // hâlâ DELIVERED (borç kapandı, operasyonel kabul ayrı adım).
-    let db = await prisma.companyOrder.findUniqueOrThrow({
+    // YAŞAM DÖNGÜSÜ AYRIMI: ödeme onayı durumu değiştirmez — sipariş zaten
+    // COMPLETED (madde 17); borç ödemeyle kapanır. complete() artık geçersiz
+    // (yalnız legacy DELIVERED kayıtlar için).
+    const db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    expect(db.status).toBe("DELIVERED");
-
-    // Alıcı malı KABUL edince (complete) COMPLETED.
-    const res = await orders.complete(buyer.auth, order.id, {} as never);
-    expect(res.status).toBe("COMPLETED");
-    db = await prisma.companyOrder.findUniqueOrThrow({ where: { id: order.id } });
     expect(db.status).toBe("COMPLETED");
     expect(db.acceptedAt).not.toBeNull();
     expect(db.deliveryStartedAt).not.toBeNull();
     expect(db.deliveredAt).not.toBeNull();
     expect(db.completedAt).not.toBeNull();
     expect(db.invoiceNumber).toBe("FTR-1");
+    await expect(
+      orders.complete(buyer.auth, order.id, {} as never),
+    ).rejects.toThrow(/uygun değil/);
   });
 });
 
 describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı", () => {
-  it("tam ödeme onaylı DEĞİLKEN teslim alma DELIVERED'a gider ve ödeme penceresi açık kalır", async () => {
+  it("tam ödeme onaylı DEĞİLKEN teslim alma OTO-COMPLETED'a gider ve ödeme penceresi açık kalır", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -526,11 +525,11 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
       deliveryStartedAt: new Date(),
     });
 
-    // Eskiden koşulsuz COMPLETED'a atlıyordu — hiç ödeme yokken.
+    // Madde 17: teslim alma siparişi otomatik tamamlar; borç AYRI izlenir.
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("DELIVERED");
+    expect(rec.status).toBe("COMPLETED");
 
-    // Kalan ödeme DELIVERED'da kaydedilebilmeli (pencere kapanmasın).
+    // Kalan ödeme COMPLETED'da kaydedilebilmeli (pencere kapanmasın).
     const payment = (await orders.recordPayment(buyer.auth, order.id, {
       amount: 1000,
       method: "EFT",
@@ -539,11 +538,11 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     const db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    // YAŞAM DÖNGÜSÜ AYRIMI: tam ödeme oto-tamamlamaz — DELIVERED kalır.
-    expect(db.status).toBe("DELIVERED");
+    // Durum COMPLETED kalır; ödeme yalnız borcu kapatır.
+    expect(db.status).toBe("COMPLETED");
   });
 
-  it("tam ödeme ONAYLIYKEN de teslim alma DELIVERED'a gider (prepaid oto-COMPLETE etmez); complete→COMPLETED", async () => {
+  it("tam ödeme ONAYLIYKEN teslim alma doğrudan COMPLETED (madde 17)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -563,9 +562,7 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     });
 
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("DELIVERED");
-    const res = await orders.complete(buyer.auth, order.id, {} as never);
-    expect(res.status).toBe("COMPLETED");
+    expect(rec.status).toBe("COMPLETED");
   });
 
   it("C1: CAD (vesaik mukabili) ödenmeden teslim ALINAMAZ (diğer BEFORE_DELIVERY'nin aksine)", async () => {
@@ -589,7 +586,7 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     expect(db.status).toBe("IN_DELIVERY"); // teslim alınmadı
   });
 
-  it("C1: CAD tam ödeme ONAYLIYKEN teslim alınır (DELIVERED; oto-COMPLETE etmez)", async () => {
+  it("C1: CAD tam ödeme ONAYLIYKEN teslim alınır (madde 17: oto-COMPLETED)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -609,7 +606,7 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
       },
     });
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("DELIVERED"); // teslim kapısı geçildi; kabul ayrı adım
+    expect(rec.status).toBe("COMPLETED"); // teslim kapısı geçildi + oto-tamamlandı
   });
 });
 
@@ -1160,24 +1157,22 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
     await orders.lcMarkAccepted(seller.auth, order.id);
     // Kabulden sonra gönderilebilir.
     await orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never);
-    await orders.receive(buyer.auth, order.id, {} as never); // DELIVERED (ödeme yok)
+    // Madde 17: teslim alma siparişi otomatik tamamlar (LC'de de).
+    await orders.receive(buyer.auth, order.id, {} as never);
 
     let db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    expect(db.status).toBe("DELIVERED");
+    expect(db.status).toBe("COMPLETED");
 
     // Banka ödedi → sistem onaylı tam-tutar kaydı + lcPaidAt. Yaşam döngüsü
-    // ayrımı: borç kapandı ama sipariş DURUMU değişmez (DELIVERED).
+    // ayrımı: borç ödeme kaydıyla kapanır; durum zaten COMPLETED.
     await orders.lcMarkPaid(seller.auth, order.id);
     db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    expect(db.status).toBe("DELIVERED");
+    expect(db.status).toBe("COMPLETED");
     expect(db.lcPaidAt).not.toBeNull();
-    // Alıcı malı kabul edince COMPLETED.
-    const res = await orders.complete(buyer.auth, order.id, {} as never);
-    expect(res.status).toBe("COMPLETED");
     const pay = await prisma.companyOrderPayment.findFirstOrThrow({
       where: { orderId: order.id },
     });

@@ -49,6 +49,13 @@ export interface ProfileViewData {
   linkedinUrl: string | null;
   instagramUrl: string | null;
   rating?: { avg: number; count: number } | null;
+  /** Madde 18 — sipariş değerlendirmeleri (yorum + puan + değerlendiren firma). */
+  reviews?: {
+    rating: number;
+    comment: string | null;
+    reviewer: string;
+    createdAt: string;
+  }[];
   /** Kamuya açık ticari sicil bilgileri (tüzel kişi verisi). */
   trade?: {
     legalName: string | null;
@@ -351,6 +358,52 @@ export function CompanyProfileView({
                   ))}
                 </div>
               ) : null}
+            </section>
+          ) : null}
+
+          {/* Madde 18 — değerlendirmeler: yorum + puan listesi (en yeni önce). */}
+          {(p.reviews?.length ?? 0) > 0 ? (
+            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+              <h2 className="text-base font-semibold text-zinc-900">
+                Değerlendirmeler
+                {p.rating && p.rating.count > 0 ? (
+                  <span className="ml-2 text-sm font-medium text-amber-600">
+                    ★ {p.rating.avg.toFixed(1)}{" "}
+                    <span className="text-zinc-400">({p.rating.count})</span>
+                  </span>
+                ) : null}
+              </h2>
+              <ul className="mt-3 space-y-4">
+                {p.reviews!.map((r, i) => (
+                  <li
+                    key={`${r.reviewer}-${r.createdAt}-${i}`}
+                    className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-zinc-900">
+                        {r.reviewer}
+                      </span>
+                      <span
+                        className="shrink-0 text-sm text-amber-500"
+                        aria-label={`${r.rating} / 5`}
+                      >
+                        {"★".repeat(r.rating)}
+                        <span className="text-zinc-200" aria-hidden="true">
+                          {"★".repeat(Math.max(0, 5 - r.rating))}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-zinc-400">
+                      {new Date(r.createdAt).toLocaleDateString("tr-TR")}
+                    </div>
+                    {r.comment ? (
+                      <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-600">
+                        {r.comment}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
         </div>

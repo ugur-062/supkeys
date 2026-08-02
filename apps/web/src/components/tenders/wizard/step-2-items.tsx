@@ -18,6 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { MoneyInputNumber } from "@/components/ui/money-input";
 import {
   Controller,
   useFieldArray,
@@ -294,16 +295,17 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             <Label htmlFor={`items.${index}.minUnitPrice`} required>
               Taban Birim Fiyat
             </Label>
-            <Input
-              id={`items.${index}.minUnitPrice`}
-              type="number"
-              min={0}
-              step="0.01"
-              placeholder="0.00"
-              {...register(`items.${index}.minUnitPrice`, {
-                setValueAs: (v) =>
-                  v === "" || v == null ? undefined : Number(v),
-              })}
+            <Controller
+              control={control}
+              name={`items.${index}.minUnitPrice`}
+              render={({ field }) => (
+                <MoneyInputNumber
+                  id={`items.${index}.minUnitPrice`}
+                  placeholder="0,00"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           </Field>
           <Field
@@ -316,16 +318,17 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             <Label htmlFor={`items.${index}.buyNowUnitPrice`}>
               Hemen-Al Birim Fiyatı
             </Label>
-            <Input
-              id={`items.${index}.buyNowUnitPrice`}
-              type="number"
-              min={0}
-              step="0.01"
-              placeholder="—"
-              {...register(`items.${index}.buyNowUnitPrice`, {
-                setValueAs: (v) =>
-                  v === "" || v == null ? undefined : Number(v),
-              })}
+            <Controller
+              control={control}
+              name={`items.${index}.buyNowUnitPrice`}
+              render={({ field }) => (
+                <MoneyInputNumber
+                  id={`items.${index}.buyNowUnitPrice`}
+                  placeholder="—"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           </Field>
         </div>

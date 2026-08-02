@@ -10,12 +10,13 @@ import {
 } from "@/components/catalyst/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { MoneyInputNumber } from "@/components/ui/money-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { FileText } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { useFormContext } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 
 interface Props {
   open: boolean;
@@ -124,17 +125,17 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
             <Label htmlFor={`detail-targetUnitPrice-${index}`}>
               {isSatis ? "İstenen Birim Fiyat" : "Hedef Birim Fiyat"}
             </Label>
-            <Input
-              id={`detail-targetUnitPrice-${index}`}
-              type="number"
-              min={0}
-              step="any"
-              placeholder="—"
-              hasError={!!itemErrors?.targetUnitPrice}
-              {...register(`items.${index}.targetUnitPrice`, {
-                setValueAs: (v) =>
-                  v === "" || v === undefined ? undefined : Number(v),
-              })}
+            <Controller
+              name={`items.${index}.targetUnitPrice`}
+              render={({ field }) => (
+                <MoneyInputNumber
+                  id={`detail-targetUnitPrice-${index}`}
+                  placeholder="—"
+                  hasError={!!itemErrors?.targetUnitPrice}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           </Field>
         </div>

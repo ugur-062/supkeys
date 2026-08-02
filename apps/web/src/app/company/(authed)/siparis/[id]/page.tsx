@@ -211,7 +211,8 @@ export default function OrderDetailPage() {
     !paymentAwaitingConfirmation &&
     shipUnlocked
       ? {
-          label: sellerShips ? "Siparişi Gönder" : "Teslime Hazırla",
+          // Madde 17: satıcının adımı artık "Siparişi Tamamla" (fatura no).
+          label: "Siparişi Tamamla",
           modal: "ship" as const,
         }
       : !isSeller && o.status === "IN_DELIVERY"
@@ -853,7 +854,7 @@ export default function OrderDetailPage() {
         onSubmit={doReceive}
         pending={receive.isPending}
         title="Teslim Aldım"
-        description={`${o.number ?? "Sipariş"} teslim alındı olarak işaretleniyor.`}
+        description={`${o.number ?? "Sipariş"} teslim alındı olarak işaretlenecek ve sipariş otomatik tamamlanacak. Ödeme borcu (varsa) ayrı izlenmeye devam eder.`}
         confirmLabel="Teslim Aldım"
       />
       <NoteModal

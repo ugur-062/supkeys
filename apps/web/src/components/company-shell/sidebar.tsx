@@ -20,6 +20,7 @@ import {
   BuildingStorefrontIcon,
   Cog6ToothIcon,
   LockClosedIcon,
+  PlusIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/20/solid";
@@ -140,6 +141,10 @@ export function CompanySidebarContent({
   const roles = user?.roles ?? [];
   const canAct = useHasCompanyPermission("approval:act");
   const { data: pendingCount } = usePendingApprovalCount(canAct);
+  // Madde 19: ana menü "Yeni İhale Aç" CTA'sı — izin tek-kaynak backend
+  // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
+  const canCreateBuyListing = useHasCompanyPermission("buy:listing:create");
+  const canCreateSellListing = useHasCompanyPermission("sell:listing:create");
   const available = accessiblePortals(roles, company?.tier);
   // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel gösterilir;
   // giremediği panel kilitli görünür. Tıklayınca PortalGuard uygun ekranı açar
@@ -221,6 +226,43 @@ export function CompanySidebarContent({
               );
             })}
           </div>
+        </div>
+      ) : null}
+
+      {/* Madde 19: "Yeni İhale Aç" — ana menüde belirgin CTA (aktif portala
+          göre satınalma ihalesi / satış ilanı; izin + portal erişimi şart). */}
+      {!minimal &&
+      available.includes(active) &&
+      (active === "satinalma" ? canCreateBuyListing : canCreateSellListing) ? (
+        <div className="mt-3 px-2">
+          <Link
+            href={
+              active === "satinalma"
+                ? "/company/satinalma/ihalelerim/yeni"
+                : "/company/satis/ilanlarim/yeni"
+            }
+            onClick={onNavigate}
+            title={
+              expanded
+                ? undefined
+                : active === "satinalma"
+                  ? "Yeni İhale Aç"
+                  : "Yeni Satış İlanı"
+            }
+            className={cn(
+              "flex h-9 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold text-white shadow-sm transition",
+              active === "satinalma"
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-emerald-600 hover:bg-emerald-700",
+            )}
+          >
+            <PlusIcon className="size-4 shrink-0" aria-hidden />
+            {expanded ? (
+              <span className="truncate">
+                {active === "satinalma" ? "Yeni İhale Aç" : "Yeni Satış İlanı"}
+              </span>
+            ) : null}
+          </Link>
         </div>
       ) : null}
 

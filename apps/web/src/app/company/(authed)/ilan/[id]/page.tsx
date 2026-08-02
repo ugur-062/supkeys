@@ -1710,8 +1710,6 @@ export default function ListingDetailPage() {
                     (b.status === "SUBMITTED" || b.status === "LOST"),
                 ).length
               }
-              autoExtendThresholdMin={l.autoExtendThresholdMin}
-              autoExtendByMinutes={l.autoExtendByMinutes}
             />
           </div>
           ) : null}

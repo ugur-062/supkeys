@@ -11,6 +11,7 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
@@ -675,6 +676,7 @@ export default function TeklifVerPage() {
     const st = itemState[it.id];
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {isAuctionRebid ? null : (
         <Field>
           <Label>
             {isSatis
@@ -694,6 +696,7 @@ export default function TeklifVerPage() {
             ))}
           </Select>
         </Field>
+        )}
         {canItemCurrency ? (
           <Field>
             <Label>Kalem Para Birimi</Label>
@@ -778,7 +781,9 @@ export default function TeklifVerPage() {
       }
     }
     // Genel teslim süresi yalnız kalem süresi GİRİLMEYEN kalem varsa zorunlu.
-    if (!everyBidItemHasDelivery && !deliveryTime)
+    // Madde 14: pazarlık rebid'inde teslim bilgisi taşınan tekliften korunur —
+    // yeniden istenmez (backend de mevcut değeri korur).
+    if (!isAuctionRebid && !everyBidItemHasDelivery && !deliveryTime)
       problems.push(
         isSatis
           ? "İstenen teslim süresi zorunlu (süre girmediğiniz kalemler için)."
@@ -788,7 +793,8 @@ export default function TeklifVerPage() {
       problems.push(
         "Bu ilanda teslim şekli adrese teslim — teslimat adresi seçin.",
       );
-    if (!validityDays || Number(validityDays) < 1)
+    // Madde 15: pazarlıkta geçerlilik sorulmaz — teklif süresizdir.
+    if (!isAuction && (!validityDays || Number(validityDays) < 1))
       problems.push("Geçerlilik süresi zorunlu.");
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
       problems.push("Bu ihalede teklif dosyası zorunlu.");
@@ -898,7 +904,8 @@ export default function TeklifVerPage() {
     asDraft,
     note: note.trim() || undefined,
     deliveryTime: deliveryTime || undefined,
-    validityDays: validityDays ? Number(validityDays) : undefined,
+    validityDays:
+      isAuction ? undefined : validityDays ? Number(validityDays) : undefined,
     deliveryAddressId: (isSatis && deliveryAddressId) || undefined,
     currency: currency || undefined,
     ...(hasItems
@@ -1231,15 +1238,12 @@ export default function TeklifVerPage() {
                             <div className="w-36">
                               <Field>
                                 <Label>Birim Fiyat</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
+                                <MoneyInput
                                   aria-label={`${it.name} birim fiyat`}
                                   value={st?.price ?? ""}
                                   disabled={isBuyNowMode}
-                                  onChange={(e) =>
-                                    setItem(it.id, { price: e.target.value })
+                                  onChange={(raw) =>
+                                    setItem(it.id, { price: raw })
                                   }
                                 />
                               </Field>
@@ -1268,6 +1272,7 @@ export default function TeklifVerPage() {
 
                       {!optedOut ? (
                         <div className="mt-3 grid grid-cols-1 gap-3 border-t border-zinc-50 pt-3 sm:grid-cols-2">
+                          {isAuctionRebid ? null : (
                           <Field>
                             <Label>
                               {isSatis
@@ -1289,6 +1294,7 @@ export default function TeklifVerPage() {
                               ))}
                             </Select>
                           </Field>
+                          )}
                           {canItemCurrency ? (
                             <Field>
                               <Label>Kalem Para Birimi</Label>
@@ -1342,13 +1348,10 @@ export default function TeklifVerPage() {
               <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
                 <Field>
                   <Label>Tutar ({effectiveCurrency})</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                  <MoneyInput
                     value={singleAmount}
                     disabled={isBuyNowMode}
-                    onChange={(e) => setSingleAmount(e.target.value)}
+                    onChange={setSingleAmount}
                   />
                 </Field>
                 {isAuction && !isBuyNowMode && effectiveTarget ? (
@@ -1381,9 +1384,14 @@ export default function TeklifVerPage() {
               <Field>
                 <Label>
                   {isSatis ? "İstenen Teslim Süresi" : "Genel Teslim Süresi"}
-                  {everyBidItemHasDelivery ? "" : " *"}
+                  {everyBidItemHasDelivery || isAuctionRebid ? "" : " *"}
                 </Label>
-                {everyBidItemHasDelivery ? (
+                {isAuctionRebid ? (
+                  <p className="pt-2 text-xs text-zinc-500">
+                    Teslim bilgisi mevcut teklifinizden taşındı — yeniden
+                    sorulmaz.
+                  </p>
+                ) : everyBidItemHasDelivery ? (
                   <p className="pt-2 text-xs text-emerald-700">
                     Her kaleme ayrı teslim süresi girdiniz — genel süreye gerek
                     yok.
@@ -1413,14 +1421,23 @@ export default function TeklifVerPage() {
                 )}
               </Field>
               <Field>
-                <Label>Teklif Geçerlilik Süresi (gün) *</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={validityDays}
-                  onChange={(e) => setValidityDays(e.target.value)}
-                />
+                <Label>
+                  Teklif Geçerlilik Süresi{isAuction ? "" : " (gün) *"}
+                </Label>
+                {isAuction ? (
+                  <p className="pt-2 text-xs text-zinc-500">
+                    Pazarlıkta teklifler <strong>süresiz</strong> geçerlidir —
+                    ayrıca sorulmaz.
+                  </p>
+                ) : (
+                  <Input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={validityDays}
+                    onChange={(e) => setValidityDays(e.target.value)}
+                  />
+                )}
               </Field>
               {(l.allowedCurrencies?.length ?? 0) > 1 ? (
                 <Field>

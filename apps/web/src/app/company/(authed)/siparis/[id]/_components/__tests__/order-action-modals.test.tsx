@@ -95,7 +95,7 @@ describe("ShipOrderModal", () => {
         pending={false}
       />,
     );
-    const confirm = screen.getByRole("button", { name: "Siparişi Gönder" });
+    const confirm = screen.getByRole("button", { name: "Siparişi Tamamla" });
     expect(confirm).toBeDisabled();
 
     await userEvent.type(
@@ -129,7 +129,7 @@ describe("ShipOrderModal", () => {
       "FTR-1",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Siparişi Gönder" }),
+      screen.getByRole("button", { name: "Siparişi Tamamla" }),
     );
     expect(onSubmit).toHaveBeenCalledWith({
       invoiceNumber: "FTR-1",

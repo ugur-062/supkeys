@@ -654,7 +654,7 @@ describe("sipariş yaşam döngüsü audit'i", () => {
     });
   });
 
-  it("receive → company.order.received iz (actor=alıcı, → DELIVERED)", async () => {
+  it("receive → company.order.received iz (actor=alıcı, madde 17: → COMPLETED)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -670,7 +670,8 @@ describe("sipariş yaşam döngüsü audit'i", () => {
     expect(row.tenantId).toBe(buyer.company.id);
     expect(row.metadata).toMatchObject({
       from: "IN_DELIVERY",
-      to: "DELIVERED",
+      to: "COMPLETED",
+      autoCompleted: true,
     });
   });
 

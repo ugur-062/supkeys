@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  DOMESTIC_ONLY_PAYMENT_CATEGORIES,
   INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
   MAX_MONEY,
   MAX_QUANTITY,
@@ -238,7 +239,10 @@ const baseTenderSchema = z.object({
   // önerir/işaretler; kullanıcı kaldırabilir. Diğer kategorilerde anlamsız.)
   requireGuaranteeLetter: z.boolean(),
   termsAndConditions: z.string().max(10000).optional(),
-  bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
+  // Madde 23: SATIS ilanı süresiz olabilir — zorunluluk superRefine'da
+  // (noCloseDate işaretliyse kapanış istenmez).
+  bidsCloseAt: z.string(),
+  noCloseDate: z.boolean(),
   bidsOpenAt: z.string().optional(),
 
   // İngiliz Usulü açık eksiltme (minimum pay kaldırıldı 2026-07-13)
@@ -307,6 +311,16 @@ export const tenderFormSchema = baseTenderSchema
       path: ["paymentCategory"],
     },
   )
+  // Simetrik (madde 20): açık hesap/çek/senet YALNIZ yurtiçi ihalede.
+  .refine(
+    (d) =>
+      !d.isInternational ||
+      !DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(d.paymentCategory),
+    {
+      message: "Bu ödeme şekli yalnız yurtiçi ihalede seçilebilir",
+      path: ["paymentCategory"],
+    },
+  )
   // Kısmi peşin (%<100) YALNIZ yurtiçi ihalede — uluslararasında tam peşin.
   .refine(
     (d) =>
@@ -340,7 +354,17 @@ export const tenderFormSchema = baseTenderSchema
     },
   )
   // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — tek kaynak helper.
+  // Madde 23: SATIS + süresiz işaretliyse kapanış hiç istenmez.
   .superRefine((d, ctx) => {
+    if (d.listingType === "SATIS" && d.noCloseDate) return;
+    if (!d.bidsCloseAt) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Kapanış tarihi seçmelisin",
+        path: ["bidsCloseAt"],
+      });
+      return;
+    }
     const err = closesAtError(d.bidsCloseAt);
     if (err)
       ctx.addIssue({
@@ -351,7 +375,7 @@ export const tenderFormSchema = baseTenderSchema
   })
   .refine(
     (d) => {
-      if (!d.bidsOpenAt) return true;
+      if (!d.bidsOpenAt || !d.bidsCloseAt) return true;
       const open = new Date(d.bidsOpenAt).getTime();
       const close = new Date(d.bidsCloseAt).getTime();
       return Number.isFinite(open) && open < close;
@@ -449,6 +473,7 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "paymentNote",
     "termsAndConditions",
     "bidsCloseAt",
+    "noCloseDate",
     "bidsOpenAt",
     "minPrice",
     "buyNowPrice",
@@ -527,6 +552,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   requireGuaranteeLetter: false,
   termsAndConditions: "",
   bidsCloseAt: "",
+  noCloseDate: false,
   bidsOpenAt: "",
   bidVisibility: "OWN_RANK",
   decimalPlaces: 2,

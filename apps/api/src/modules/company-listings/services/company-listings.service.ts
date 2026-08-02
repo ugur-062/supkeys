@@ -25,7 +25,7 @@ import {
   type ListingVisibility,
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
-import { derivePaymentTiming, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
+import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { bidderOpRole } from "../bidder-op-role";
 import {
@@ -696,6 +696,11 @@ export class CompanyListingsService {
   private validateListingDates(dto: CreateListingDto) {
     if (dto.asDraft) return;
     if (!dto.closesAt) {
+      // Madde 23: SATIS ilanı SÜRESİZ açılabilir (kapanışsız). Cron
+      // `closesAt <= now` filtresi null'ı hiç yakalamaz, isListingClosedAt
+      // null'da "hiç kapanmaz" der — yaşam döngüsü sahibin manuel
+      // kapatması/kazandırmasıyla biter. ALIM'da kapanış zorunlu kalır.
+      if (dto.type === "SATIS") return;
       throw new BadRequestException("Kapanış tarihi zorunlu");
     }
     const close = new Date(dto.closesAt);
@@ -806,6 +811,17 @@ export class CompanyListingsService {
         "Bu ödeme şekli yalnız uluslararası ilanlarda seçilebilir — yurtiçi ilanda peşin, vadeli, açık hesap, çek, senet veya özel kullanın",
       );
     }
+    // Simetrik kapı (madde 20): açık hesap/çek/senet yalnız YURTİÇİ —
+    // uluslararası ilanda peşin, vadeli, mal mukabili, akreditif, vesaik
+    // mukabili veya özel kullanılır.
+    if (
+      isInternational &&
+      DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(category)
+    ) {
+      throw new BadRequestException(
+        "Bu ödeme şekli yalnız yurtiçi ilanlarda seçilebilir — uluslararası ilanda peşin, vadeli, mal mukabili, akreditif, vesaik mukabili veya özel kullanın",
+      );
+    }
 
     let advancePercent: number | null = null;
     let paymentDays: number | null = null;
@@ -895,10 +911,13 @@ export class CompanyListingsService {
       lcConfirmed: category === "LETTER_OF_CREDIT" && (dto.lcConfirmed ?? false),
       paymentNote: note,
       paymentTiming: derivePaymentTiming(category),
-      // Teminat şartı yalnız PEŞİN'de anlamlı (LC'de garanti zaten bankada) —
-      // diğer kategorilerde sessizce false'a normalize (bayat bayrak sızmasın).
+      // Teminat şartı yalnız ALIM + PEŞİN'de anlamlı (LC'de garanti zaten
+      // bankada; SATIS'ta kaldırıldı — madde 22). Diğer kombinasyonlarda
+      // sessizce false'a normalize (bayat bayrak sızmasın).
       requireGuaranteeLetter:
-        category === "ADVANCE" && (dto.requireGuaranteeLetter ?? false),
+        category === "ADVANCE" &&
+        dto.type !== "SATIS" &&
+        (dto.requireGuaranteeLetter ?? false),
     };
   }
 
@@ -1533,7 +1552,13 @@ export class CompanyListingsService {
     // (a) kapanış tarihi zorunlu + gelecekte — yoksa cron kapatamaz / anında
     //     kapanır; (b) PRIVATE ilan en az 1 davetli olmadan yayınlanamaz
     //     (kimsenin göremeyeceği açık ilan olmasın).
-    if (!listing.closesAt || listing.closesAt.getTime() <= Date.now()) {
+    // Madde 23: SATIS ilanı kapanışsız (süresiz) yayınlanabilir.
+    if (listing.closesAt && listing.closesAt.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
+      );
+    }
+    if (!listing.closesAt && listing.type !== "SATIS") {
       throw new BadRequestException(
         "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
       );
@@ -2982,11 +3007,16 @@ export class CompanyListingsService {
             amount: true,
             currency: true,
             activeBidRound: true,
+            // Pazarlık rebid'inde teslim bilgisi taşınan tekliften KORUNUR
+            // (madde 14) — yeniden sorulmaz, gönderilmezse eski değer kalır.
+            deliveryTime: true,
+            deliveryDate: true,
+            validityDays: true,
             // Monotonluk kıyası AYNI KALEMLER bazında — önceki teklifte
             // fiyatlanmış kalemler (kapsam genişletme serbest, bırakma yasak).
             items: {
               where: { ...PRICED_ITEM_WHERE },
-              select: { itemId: true },
+              select: { itemId: true, deliveryTime: true, deliveryDate: true },
             },
           },
         }),
@@ -3126,8 +3156,11 @@ export class CompanyListingsService {
         "Bu turdaki teklifinizi verdiniz — ilan sahibi yeni tur açarsa güncelleyebilirsiniz",
       );
     }
-    // Gönderimde geçerlilik her zaman zorunlu (taslakta opsiyonel).
-    if (!isDraft && !dto.validityDays) {
+    // Gönderimde geçerlilik zorunlu (taslakta opsiyonel). PAZARLIK İSTİSNASI
+    // (madde 13/15): açık eksiltmede geçerlilik SORULMAZ — pazarlık teklifi
+    // süresizdir (validityDays=null yazılır).
+    const isAuctionFormat = listing.format === "ENGLISH_AUCTION";
+    if (!isDraft && !isAuctionFormat && !dto.validityDays) {
       throw new BadRequestException(
         "Teklif göndermek için geçerlilik süresi zorunlu",
       );
@@ -3139,11 +3172,20 @@ export class CompanyListingsService {
     const everyItemHasDelivery =
       !!dto.items?.length &&
       dto.items.every((bi) => !!bi.deliveryTime || !!bi.deliveryDate);
+    // Madde 14: pazarlıkta taşınan teklifin teslim bilgisi KORUNUR — form
+    // yeniden sormaz; mevcut teklifte (genel ya da kalem) teslim varsa
+    // gönderimde tekrar istenmez.
+    const carriedHasDelivery =
+      !!existingBid &&
+      (!!existingBid.deliveryTime ||
+        !!existingBid.deliveryDate ||
+        existingBid.items.some((bi) => bi.deliveryTime || bi.deliveryDate));
     if (
       !isDraft &&
       !everyItemHasDelivery &&
       !dto.deliveryTime &&
-      !dto.deliveryDate
+      !dto.deliveryDate &&
+      !(isAuctionFormat && carriedHasDelivery)
     ) {
       throw new BadRequestException(
         listing.type === "SATIS"
@@ -3318,13 +3360,24 @@ export class CompanyListingsService {
       if (!isDraft && amount.lte(0)) {
         throw new BadRequestException("Teklif toplamı sıfırdan büyük olmalı");
       }
+      // Madde 14: pazarlık rebid'inde kalem teslim bilgisi taşınan tekliften
+      // korunur (dto göndermezse eski değer yazılır — sessiz silme yok).
+      const prevItemDelivery = new Map(
+        (existingBid?.items ?? []).map((i) => [i.itemId, i] as const),
+      );
       bidItemsData = provided.map((bi) => {
         const c = itemCurrencyOf(bi);
+        const prev = isAuctionFormat ? prevItemDelivery.get(bi.itemId) : null;
         return {
           itemId: bi.itemId,
           unitPrice: bi.unitPrice,
-          deliveryDate: bi.deliveryDate ? new Date(bi.deliveryDate) : null,
-          deliveryTime: (bi.deliveryTime as BidDeliveryTime | undefined) ?? null,
+          deliveryDate: bi.deliveryDate
+            ? new Date(bi.deliveryDate)
+            : (prev?.deliveryDate ?? null),
+          deliveryTime:
+            (bi.deliveryTime as BidDeliveryTime | undefined) ??
+            prev?.deliveryTime ??
+            null,
           currency: c !== currency ? c : null,
           fxToBase: c !== currency ? (fxByCurrency.get(c) ?? null) : null,
         };
@@ -3567,10 +3620,17 @@ export class CompanyListingsService {
     }
 
     const status = isDraft ? "DRAFT" : "SUBMITTED";
-    const deliveryDate = dto.deliveryDate ? new Date(dto.deliveryDate) : null;
+    // Madde 13/14/15 — pazarlıkta: teslim bilgisi taşınan tekliften korunur
+    // (dto göndermezse eski değer), geçerlilik SÜRESİZ (null) yazılır.
+    const deliveryDate = dto.deliveryDate
+      ? new Date(dto.deliveryDate)
+      : isAuctionFormat
+        ? (existingBid?.deliveryDate ?? null)
+        : null;
     const deliveryTime =
-      (dto.deliveryTime as BidDeliveryTime | undefined) ?? null;
-    const validityDays = dto.validityDays ?? null;
+      (dto.deliveryTime as BidDeliveryTime | undefined) ??
+      (isAuctionFormat ? (existingBid?.deliveryTime ?? null) : null);
+    const validityDays = isAuctionFormat ? null : (dto.validityDays ?? null);
 
     const bid = await runTenantTx(this.prisma, async (tx) => {
       const b = await tx.listingBid.upsert({
@@ -5338,19 +5398,11 @@ export class CompanyListingsService {
       round: listing.currentRound,
       status: { in: ["SUBMITTED", "LOST"] as ListingBidStatus[] },
     };
-    // GEÇERLİLİK-FARKINDA taşıma (AUTO): teklif, yeni turun AÇILIŞ tarihine
-    // kadar geçerliyse (submittedAt + validityDays) CANLI taşınır — sahibi
-    // yeniden fiyat vermek zorunda değildir. Süresi dolmuşsa fiyatı korunarak
-    // TASLAĞA düşer: tedarikçi ya yeni fiyat verir ya da geçerliliği uzatır
-    // (extendBidValidity). Geçerlilik bilgisi olmayan legacy teklif = süresiz.
-    const carryOpenAt = bidsOpenAt ?? new Date();
-    const isExpiredAtOpen = (b: (typeof bids)[number]): boolean => {
-      const until = bidValidUntilMs(b.submittedAt, b.validityDays);
-      // null = süresiz (legacy) → dolmamış say.
-      return until != null && until < carryOpenAt.getTime();
-    };
-    const expiredBids = bids.filter(isExpiredAtOpen);
-    const validBids = bids.filter((b) => !isExpiredAtOpen(b));
+    // Madde 13 (2026-08-02): teklifler HER ZAMAN otomatik ve CANLI taşınır;
+    // pazarlığa geçildikten sonra geçerlilik SÜRESİZ olur (validityDays=null
+    // zaten "süresiz" semantiği taşıyor — bidValidUntilMs null döner).
+    // Geçerlilik-farkında eleme/taslağa-düşürme KALDIRILDI: süresi dolmuş
+    // teklif de fiyatı korunarak canlı taşınır; sahibi turda güncelleyebilir.
 
     await runTenantTx(this.prisma, async (tx) => {
       const newRound = listing.currentRound + 1;
@@ -5385,19 +5437,19 @@ export class CompanyListingsService {
           bidVisibility: isAuction
             ? (dto.bidVisibility as ListingBidVisibility)
             : "OWN_ONLY",
-          // dto boşsa ilanın MEVCUT ayarı korunur (create'te false default'ken
-          // yeni turun sessizce true'ya dönmesi tutarsızdı).
+          // Madde 13: son-dakika oto-uzatma seçeneği pazarlık ayarlarından
+          // KALDIRILDI — dto açıkça göndermezse KAPALI (ilan mirası yok).
           autoExtendOnLateBid: isAuction
-            ? (dto.autoExtendOnLateBid ?? listing.autoExtendOnLateBid)
+            ? (dto.autoExtendOnLateBid ?? false)
             : false,
-          autoExtendThresholdMin: isAuction
-            ? (dto.autoExtendThresholdMin ??
-              listing.autoExtendThresholdMin ??
-              2)
-            : null,
-          autoExtendByMinutes: isAuction
-            ? (dto.autoExtendByMinutes ?? listing.autoExtendByMinutes ?? 2)
-            : null,
+          autoExtendThresholdMin:
+            isAuction && (dto.autoExtendOnLateBid ?? false)
+              ? (dto.autoExtendThresholdMin ?? 2)
+              : null,
+          autoExtendByMinutes:
+            isAuction && (dto.autoExtendOnLateBid ?? false)
+              ? (dto.autoExtendByMinutes ?? 2)
+              : null,
         },
       });
       if (transition.count !== 1) {
@@ -5421,32 +5473,19 @@ export class CompanyListingsService {
       // kazanabilirdi). `newRound` guard bloğunda hesaplandı.
       if (dto.carryBids === "AUTO") {
         // Primary-dışı birimdeki teklifler de CANLI taşınır: auction kıyasları
-        // artık açılış günü kur damgasıyla birimler arası çevrilerek yapılıyor
-        // (eskiden karışık ham kıyas bozulmasın diye taslağa çekiliyordu).
-        // Revive edilen teklifin bayat eleme damgası temizlenir — aksi halde
-        // önceki turda ELENEN teklif yeni turda "elendi" metadata'sıyla
-        // diriliyordu (çelişki; placeBid resubmit'te de aynı temizlik yapılır).
-        if (validBids.length > 0) {
+        // açılış günü kur damgasıyla birimler arası çevrilerek yapılıyor.
+        // Revive edilen teklifin bayat eleme damgası temizlenir. Madde 13:
+        // taşınan tekliflerin geçerliliği SÜRESİZE çekilir (validityDays=null)
+        // — pazarlık boyunca teklif "dolmaz", geçerlilik yeniden sorulmaz.
+        if (bids.length > 0) {
           await tx.listingBid.updateMany({
-            where: { id: { in: validBids.map((b) => b.id) } },
+            where: { id: { in: bids.map((b) => b.id) } },
             data: {
               status: "SUBMITTED",
               round: newRound,
               eliminationReason: null,
               eliminatedAt: null,
-            },
-          });
-        }
-        // Açılışa kadar geçerliliği DOLMUŞ teklifler taslağa — fiyat korunur,
-        // sahibi bildirimle yeni fiyata ya da geçerlilik uzatmaya çağrılır.
-        if (expiredBids.length > 0) {
-          await tx.listingBid.updateMany({
-            where: { id: { in: expiredBids.map((b) => b.id) } },
-            data: {
-              status: "DRAFT",
-              round: newRound,
-              eliminationReason: null,
-              eliminatedAt: null,
+              validityDays: null,
             },
           });
         }
@@ -5506,12 +5545,13 @@ export class CompanyListingsService {
     if (dto.carryBids === "AUTO" && bids.length > 0) {
       void this.notifyNextRoundCarry(
         listingId,
-        validBids.map((b) => ({
+        bids.map((b) => ({
           companyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
         })),
-        expiredBids.map((b) => b.bidderCompanyId),
+        // Madde 13: geçerlilik süresize çekildiği için "dolmuş" küme yok.
+        [],
         bidsOpenAt,
       ).catch((err) =>
         this.logger.warn(

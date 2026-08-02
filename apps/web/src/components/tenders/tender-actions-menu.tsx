@@ -59,10 +59,6 @@ interface Props {
   /** Mevcut turda yeni tura taşınabilir (SUBMITTED/LOST) teklif sayısı —
    *  0 ise pazarlığa (açık eksiltme) aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
   carryableBidCount?: number;
-  /** İlanın mevcut snipe-koruma süreleri — yeni tur diyaloğunda varsayılan
-   *  olarak gösterilir (yoksa 2/2 dk). */
-  autoExtendThresholdMin?: number | null;
-  autoExtendByMinutes?: number | null;
 }
 
 function toLocalInput(iso: string | null): string {
@@ -87,8 +83,6 @@ export function TenderActionsMenu({
   currency,
   allowedCurrencies = [],
   carryableBidCount = 0,
-  autoExtendThresholdMin,
-  autoExtendByMinutes,
 }: Props) {
   const isSatis = listingType === "SATIS";
   const router = useRouter();
@@ -169,23 +163,17 @@ export function TenderActionsMenu({
     if (notesOpen) setNotes(internalNotes ?? "");
   }, [notesOpen, internalNotes]);
 
-  // Yeni Tur Oluştur form durumu
+  // Yeni Tur Oluştur form durumu — madde 13 (2026-08-02): "önceki teklifler"
+  // seçimi ve snipe-koruma ayarları KALDIRILDI; teklifler her zaman otomatik
+  // taşınır (süresiz geçerlilikle), oto-uzatma kapalı.
   const [nrType, setNrType] = useState<"RFQ" | "ENGLISH_AUCTION">(
     "ENGLISH_AUCTION",
   );
-  const [nrCarry, setNrCarry] = useState<"AUTO" | "LAZY" | "NONE">("AUTO");
   const [nrEliminate, setNrEliminate] = useState(false);
   const [nrClosing, setNrClosing] = useState("");
   const [vis, setVis] = useState<
     "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
   >("OWN_RANK");
-  const [autoExtend, setAutoExtend] = useState(true);
-  // Snipe-koruma süreleri: tetik penceresi + uzatma miktarı (dk, 1-30).
-  // Varsayılan ilanın mevcut ayarı; hiç kurulmamışsa 2/2.
-  const [aeThreshold, setAeThreshold] = useState(
-    String(autoExtendThresholdMin ?? 2),
-  );
-  const [aeBy, setAeBy] = useState(String(autoExtendByMinutes ?? 2));
 
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   // Davet ekleme form durumu
@@ -211,32 +199,18 @@ export function TenderActionsMenu({
       return;
     }
     const isAuc = nrType === "ENGLISH_AUCTION";
-    // Snipe-koruma süreleri: backend DTO ile aynı sınır (1-30 dk).
-    const aeThresholdNum = Number(aeThreshold);
-    const aeByNum = Number(aeBy);
-    if (isAuc && autoExtend) {
-      const valid = (n: number) => Number.isInteger(n) && n >= 1 && n <= 30;
-      if (!valid(aeThresholdNum) || !valid(aeByNum)) {
-        toast.error("Snipe koruma süreleri 1-30 dakika arası olmalı");
-        return;
-      }
-    }
     try {
       await nextRound.mutateAsync({
         type: nrType,
-        carryBids: nrCarry,
+        // Madde 13: teklifler her zaman otomatik taşınır (süresiz geçerlilik).
+        carryBids: "AUTO",
         eliminateNonBidders: nrEliminate,
         closesAt: new Date(nrClosing).toISOString(),
         ...(isAuc
           ? {
               bidVisibility: vis,
-              autoExtendOnLateBid: autoExtend,
-              ...(autoExtend
-                ? {
-                    autoExtendThresholdMin: aeThresholdNum,
-                    autoExtendByMinutes: aeByNum,
-                  }
-                : {}),
+              // Madde 13: son-dakika oto-uzatma kaldırıldı — kapalı gönderilir.
+              autoExtendOnLateBid: false,
             }
           : {}),
       });
@@ -571,44 +545,26 @@ export function TenderActionsMenu({
               işler.
             </div>
           ) : null}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field>
-              <Label>Önceki Teklifler</Label>
-              <select
-                aria-label="Önceki Teklifler"
-                value={nrCarry}
-                onChange={(e) =>
-                  setNrCarry(e.target.value as "AUTO" | "LAZY" | "NONE")
-                }
-                className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
-              >
-                <option value="AUTO">Otomatik taşınsın</option>
-                <option value="LAZY">Teklif verince taşınsın</option>
-                <option value="NONE">Taşınmasın (sıfırdan)</option>
-              </select>
-              {/* Yalnız SEÇİLİ modun açıklaması gösterilir (AUTO geçerlilik-
-                  farkındadır — backend createNextRound ile birebir). */}
-              <p className="mt-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                {nrCarry === "AUTO"
-                  ? "Geçerli teklifler yeni tura gönderilmiş olarak aynen taşınır; geçerlilik süresi dolanlar fiyatı korunarak taslağa düşer. Taşınan teklif, sahibinin bu turdaki teklif hakkını yakmaz — firma dilerse turda bir kez fiyatını iyileştirebilir."
-                  : nrCarry === "LAZY"
-                    ? "Önceki teklifler fiyatı korunarak taslağa çekilir; katılımcı onaylayıp göndermeden yeni turda görünmez."
-                    : "Önceki teklifler kapanmış sayılır, herkes yeni turda sıfırdan teklif verir."}
-              </p>
-            </Field>
-            <Field>
-              <Label>Yeni Kapanış</Label>
-              {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
-              <DateTimeInput
-                idPrefix="next-round-closing"
-                value={nrClosing}
-                onChange={setNrClosing}
-                defaultTime="23:59"
-                dateAriaLabel="Yeni kapanış tarihi"
-                timeAriaLabel="Yeni kapanış saati"
-              />
-            </Field>
+          {/* Madde 13: "Önceki Teklifler" seçimi kaldırıldı — teklifler her
+              zaman otomatik taşınır ve pazarlıkta geçerlilikleri süresizdir. */}
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+            Mevcut teklifler yeni tura <strong>otomatik taşınır</strong> ve
+            pazarlık boyunca <strong>süresiz geçerli</strong> olur. Taşınan
+            teklif, sahibinin bu turdaki teklif hakkını yakmaz — firma dilerse
+            turda bir kez fiyatını iyileştirebilir.
           </div>
+          <Field>
+            <Label>Yeni Kapanış</Label>
+            {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
+            <DateTimeInput
+              idPrefix="next-round-closing"
+              value={nrClosing}
+              onChange={setNrClosing}
+              defaultTime="23:59"
+              dateAriaLabel="Yeni kapanış tarihi"
+              timeAriaLabel="Yeni kapanış saati"
+            />
+          </Field>
           <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input
               type="checkbox"
@@ -670,40 +626,7 @@ export function TenderActionsMenu({
               </p>
             ) : null}
           </Field>
-          <label className="flex items-center gap-2 text-sm text-zinc-700">
-            <input
-              type="checkbox"
-              checked={autoExtend}
-              onChange={(e) => setAutoExtend(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300"
-            />
-            Son dakika gelen teklif kapanışı otomatik uzatsın (snipe koruma)
-          </label>
-          {autoExtend ? (
-            <div className="ml-6 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-sm text-zinc-700">
-              Son
-              <input
-                type="number"
-                min={1}
-                max={30}
-                value={aeThreshold}
-                onChange={(e) => setAeThreshold(e.target.value)}
-                aria-label="Tetik penceresi (dakika)"
-                className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
-              />
-              dk içinde teklif gelirse kapanış
-              <input
-                type="number"
-                min={1}
-                max={30}
-                value={aeBy}
-                onChange={(e) => setAeBy(e.target.value)}
-                aria-label="Uzatma süresi (dakika)"
-                className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
-              />
-              dk uzatılsın.
-            </div>
-          ) : null}
+          {/* Madde 13: snipe-koruma (son dakika oto-uzatma) seçeneği kaldırıldı. */}
             </>
           ) : null}
         </DialogBody>

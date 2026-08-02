@@ -59,7 +59,8 @@ function stepMeta(isSatis: boolean) {
 const LAST_STEP = 4;
 
 /** Üst adım göstergesi — numara + başlık + açıklama. Mobilde dikey, masaüstünde
- *  5 sütun. Tamamlanan adıma tıklayıp geri dönülebilir. */
+ *  5 sütun. Her adıma tıklayıp İKİ YÖNDE gezinilebilir (madde 24) — adım-içi
+ *  validasyon "İleri" akışında kalır; yayın her durumda tam şema doğrular. */
 function WizardSteps({
   current,
   onStepClick,
@@ -75,7 +76,7 @@ function WizardSteps({
         {meta.map((s, idx) => {
           const isDone = current > idx;
           const isActive = current === idx;
-          const clickable = isDone;
+          const clickable = !isActive;
           return (
             <li key={s.title} className={cn(isActive && "bg-brand-50/60")}>
               <button
@@ -154,7 +155,8 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     visibility: d.visibility,
     title: d.title.trim(),
     description: d.description?.trim() || undefined,
-    closesAt: toIso(d.bidsCloseAt),
+    // Madde 23: süresiz SATIS ilanında kapanış gönderilmez (null = süresiz).
+    closesAt: d.noCloseDate ? undefined : toIso(d.bidsCloseAt),
     bidsOpenAt: toIso(d.bidsOpenAt),
     items: d.items.map((it) => ({
       name: it.name.trim(),
@@ -250,6 +252,11 @@ export function TenderWizard({
       // Açılış tarihi "şimdi" ile dolu gelir (boş = belirsizlik; kullanıcı
       // ileri tarih seçerse embargo devreye girer).
       bidsOpenAt: nowLocalDateTimeValue(),
+      // Madde 25 kök nedeni: SATIS ilanı PRIVATE varsayılanla yayınlanınca
+      // "Satın Al" listesinde KİMSE görmüyordu (davet-only + kategori
+      // bildirimi de gitmez). Satış ilanı keşfedilebilir olsun diye
+      // varsayılan HERKESE AÇIK; ALIM'da davetli-kapalı varsayılan korunur.
+      visibility: listingType === "SATIS" ? "PUBLIC" : DEFAULT_FORM_VALUES.visibility,
     },
     mode: "onTouched",
   });

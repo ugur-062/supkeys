@@ -57,11 +57,27 @@ export class PublicProfileService {
     ) {
       throw new NotFoundException("Profil bulunamadı");
     }
-    const ratingAgg = await this.prisma.companyReview.aggregate({
-      where: { targetCompanyId: c.id },
-      _avg: { rating: true },
-      _count: true,
-    });
+    const [ratingAgg, reviews] = await Promise.all([
+      this.prisma.companyReview.aggregate({
+        where: { targetCompanyId: c.id },
+        _avg: { rating: true },
+        _count: true,
+      }),
+      // Madde 18: değerlendirme LİSTESİ de public profilde gösterilir.
+      // Yorum + puan + değerlendiren firma adı (B2B — firma adı zaten ticari
+      // kimliktir); sipariş/tutar detayı SIZMAZ.
+      this.prisma.companyReview.findMany({
+        where: { targetCompanyId: c.id },
+        select: {
+          rating: true,
+          comment: true,
+          createdAt: true,
+          reviewer: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+    ]);
     const { id, publicEnabled, isActive, isBlocked, tier, membershipEndAt, ...pub } =
       c;
     void id;
@@ -78,6 +94,12 @@ export class PublicProfileService {
         effectiveTier(tier as string, membershipEndAt as Date | null) ===
         "GOLD",
       rating: { avg: ratingAgg._avg.rating ?? 0, count: ratingAgg._count },
+      reviews: reviews.map((r) => ({
+        rating: r.rating,
+        comment: r.comment,
+        reviewer: r.reviewer.name,
+        createdAt: r.createdAt,
+      })),
     };
   }
 

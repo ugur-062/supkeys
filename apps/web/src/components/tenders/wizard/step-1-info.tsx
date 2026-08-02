@@ -15,6 +15,7 @@ import { companyApi } from "@/lib/company-auth/api";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/date-time-input";
+import { MoneyInputNumber } from "@/components/ui/money-input";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,7 @@ import type {
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
 import {
   derivePaymentTiming,
+  DOMESTIC_ONLY_PAYMENT_CATEGORIES,
   INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
 } from "@rothern/shared";
 import { cn } from "@/lib/utils";
@@ -686,6 +688,8 @@ export function Step1Info({
   );
   const billingAddrs = (addresses ?? []).filter((a) => a.type === "FATURA");
   const deliveryTerm = watch("deliveryTerm");
+  // Madde 23: SATIS süresiz ihale — kapanış alanı gizlenir.
+  const noCloseDate = watch("noCloseDate");
   const deliveryTermOptions = isInternational
     ? INTERNATIONAL_DELIVERY_TERMS
     : DOMESTIC_DELIVERY_TERMS;
@@ -699,14 +703,20 @@ export function Step1Info({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInternational]);
 
-  // Aynı kural ödeme şeklinde: yurtiçine dönüldüğünde dış-ticaret kategorisi
-  // (akreditif/vesaik/mal mukabili) seçiliyse varsayılana çek.
+  // Aynı kural ödeme şeklinde: kapsam değişince yeni kapsama uymayan seçim
+  // varsayılana çekilir (yurtiçi → açık hesap; uluslararası → peşin).
   useEffect(() => {
     if (
       !isInternational &&
       INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(paymentCategory)
     ) {
       setValue("paymentCategory", "OPEN_ACCOUNT", { shouldValidate: false });
+    }
+    if (
+      isInternational &&
+      DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(paymentCategory)
+    ) {
+      setValue("paymentCategory", "ADVANCE", { shouldValidate: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInternational]);
@@ -720,10 +730,15 @@ export function Step1Info({
     const prev = prevPaymentCategoryRef.current;
     prevPaymentCategoryRef.current = paymentCategory;
     if (prev === paymentCategory) return;
-    setValue("requireGuaranteeLetter", paymentCategory === "ADVANCE", {
-      shouldValidate: false,
-      shouldDirty: true,
-    });
+    // SATIS'ta teminat mektubu seçeneği YOK (madde 22) — öneri de yapılmaz.
+    setValue(
+      "requireGuaranteeLetter",
+      !isSatis && paymentCategory === "ADVANCE",
+      {
+        shouldValidate: false,
+        shouldDirty: true,
+      },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentCategory]);
 
@@ -902,16 +917,17 @@ export function Step1Info({
               <Label required htmlFor="satis-min-price">
                 Taban Fiyat ({primaryCurrency})
               </Label>
-              <Input
-                id="satis-min-price"
-                type="number"
-                min={0}
-                step="0.01"
-                hasError={!!errors.minPrice}
-                {...register("minPrice", {
-                  setValueAs: (v) =>
-                    v === "" || v == null ? undefined : Number(v),
-                })}
+              <Controller
+                control={control}
+                name="minPrice"
+                render={({ field }) => (
+                  <MoneyInputNumber
+                    id="satis-min-price"
+                    hasError={!!errors.minPrice}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
             </Field>
             <Field
@@ -921,16 +937,17 @@ export function Step1Info({
               <Label htmlFor="satis-buynow-price">
                 Hemen-Al Fiyatı ({primaryCurrency})
               </Label>
-              <Input
-                id="satis-buynow-price"
-                type="number"
-                min={0}
-                step="0.01"
-                hasError={!!errors.buyNowPrice}
-                {...register("buyNowPrice", {
-                  setValueAs: (v) =>
-                    v === "" || v == null ? undefined : Number(v),
-                })}
+              <Controller
+                control={control}
+                name="buyNowPrice"
+                render={({ field }) => (
+                  <MoneyInputNumber
+                    id="satis-buynow-price"
+                    hasError={!!errors.buyNowPrice}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
             </Field>
           </div>
@@ -1419,11 +1436,15 @@ export function Step1Info({
                 {...register("paymentCategory")}
               >
                 {PAYMENT_CATEGORY_OPTIONS.filter(
-                  // Dış-ticaret şekilleri (akreditif/vesaik/mal mukabili)
-                  // yalnız uluslararası kapsamda listelenir.
+                  // Kapsama uyan şekiller listelenir: dış-ticaret şekilleri
+                  // (akreditif/vesaik/mal mukabili) yalnız uluslararası;
+                  // açık hesap/çek/senet yalnız yurtiçi (madde 20).
                   (o) =>
-                    isInternational ||
-                    !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(o.value),
+                    isInternational
+                      ? !DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(o.value)
+                      : !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(
+                          o.value,
+                        ),
                 ).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -1647,10 +1668,10 @@ export function Step1Info({
             . Ayrıca sorulmaz.
           </p>
 
-          {/* Teminat mektubu seçeneği — yalnız PEŞİN'de: alıcı parayı önden
-              verdiği için sistem teslimat garantisi ÖNERİR (otomatik işaretli),
-              ama karar ilan sahibinindir (opsiyonel). */}
-          {paymentCategory === "ADVANCE" ? (
+          {/* Teminat mektubu seçeneği — yalnız ALIM + PEŞİN'de: alıcı parayı
+              önden verdiği için sistem teslimat garantisi ÖNERİR (otomatik
+              işaretli), karar ilan sahibinindir. SATIS'ta kaldırıldı (madde 22). */}
+          {!isSatis && paymentCategory === "ADVANCE" ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <label className="flex cursor-pointer items-start gap-2.5">
                 <input
@@ -1760,30 +1781,49 @@ export function Step1Info({
               )}
             />
           </Field>
-          <Field
-            error={errors.bidsCloseAt?.message}
-            hint="Saat seçmezseniz ihale gün sonunda (23:59) kapanır."
-          >
-            <Label htmlFor="bidsCloseAt-date" required>
-              Kapanış Tarihi
-            </Label>
-            <Controller
-              control={control}
-              name="bidsCloseAt"
-              render={({ field }) => (
-                <DateTimeInput
-                  idPrefix="bidsCloseAt"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  defaultTime="23:59"
-                  min={minDateTime}
-                  hasError={!!errors.bidsCloseAt}
-                  dateAriaLabel="Kapanış tarihi"
-                  timeAriaLabel="Kapanış saati"
-                />
-              )}
-            />
-          </Field>
+          {/* Madde 23: SATIS ilanı SÜRESİZ açılabilir — kapanış tarihi yok,
+              ilan sahibi kapatana/kazandırana kadar açık kalır. */}
+          {isSatis ? (
+            <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <input
+                type="checkbox"
+                {...register("noCloseDate")}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              Süresiz ihale (kapanış tarihi yok)
+            </label>
+          ) : null}
+          {isSatis && noCloseDate ? (
+            <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              İhale süresiz açık kalır — siz kapatana ya da kazandırana kadar
+              teklif alınır.
+            </p>
+          ) : (
+            <Field
+              error={errors.bidsCloseAt?.message}
+              hint="Saat seçmezseniz ihale gün sonunda (23:59) kapanır."
+            >
+              <Label htmlFor="bidsCloseAt-date" required>
+                Kapanış Tarihi
+              </Label>
+              <Controller
+                control={control}
+                name="bidsCloseAt"
+                render={({ field }) => (
+                  <DateTimeInput
+                    idPrefix="bidsCloseAt"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    defaultTime="23:59"
+                    min={minDateTime}
+                    hasError={!!errors.bidsCloseAt}
+                    dateAriaLabel="Kapanış tarihi"
+                    timeAriaLabel="Kapanış saati"
+                  />
+                )}
+              />
+            </Field>
+          )}
         </div>
         <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
           <Clock className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />

@@ -537,7 +537,7 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     expect(out.problem).toMatch(/belge/i);
   });
 
-  it("mark_order_received: IN_DELIVERY sipariş → kart; confirm → DELIVERED", async () => {
+  it("mark_order_received: IN_DELIVERY sipariş → kart; confirm → oto-COMPLETED (madde 17)", async () => {
     const actions = makeActions();
     const seller = await makeCompanyWithUser(prisma, { name: "Satıcı AŞ" });
     const buyer = await makeCompanyWithUser(prisma);
@@ -560,7 +560,7 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     const res = await actions.confirm(buyer.auth, session.id, out.pending!.id);
     expect(res.status).toBe("executed");
     const updated = await prisma.companyOrder.findUnique({ where: { id: order.id } });
-    expect(updated?.status).toBe("DELIVERED");
+    expect(updated?.status).toBe("COMPLETED");
   });
 
   it("mark_order_received: satıcı taraf öneremez (alıcı-scope)", async () => {

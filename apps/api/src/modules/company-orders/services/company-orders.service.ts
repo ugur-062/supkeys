@@ -437,13 +437,23 @@ export class CompanyOrdersService {
         );
       }
     }
+    // Madde 17 (2026-08-02): alıcı "Teslim Aldım" deyince sipariş OTOMATİK
+    // tamamlanır (IN_DELIVERY → doğrudan COMPLETED; ayrı "Tamamla" adımı
+    // kalktı). Ödeme yaşam döngüsü AYRI izlenmeye devam eder (COMPLETED
+    // sipariş ödeme-açık olabilir); ayıp ihbarı penceresi COMPLETED'da da
+    // açık (deliveredAt + 8 gün). Eski DELIVERED kayıtlar için complete()
+    // yolu duruyor.
     const res = await this.transition(user, id, {
       side: "buyer",
       from: "IN_DELIVERY",
-      to: "DELIVERED",
-      data: { deliveredAt: new Date(), completedNote: input.note?.trim() || null },
+      to: "COMPLETED",
+      data: {
+        deliveredAt: new Date(),
+        completedAt: new Date(),
+        completedNote: input.note?.trim() || null,
+      },
     });
-    // INV-AUDIT-1: durum geçişi (teslim alındı) — commit sonrası.
+    // INV-AUDIT-1: durum geçişi (teslim alındı → tamamlandı) — commit sonrası.
     await this.audit.log({
       action: "company.order.received",
       actorType: "company",
@@ -456,15 +466,16 @@ export class CompanyOrdersService {
       metadata: {
         orderNumber: res.order.number,
         from: "IN_DELIVERY",
-        to: "DELIVERED",
+        to: "COMPLETED",
+        autoCompleted: true,
       },
     });
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
-      "Sipariş teslim alındı",
-      "Teslim alındı",
-      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı.`,
+      "Sipariş teslim alındı ve tamamlandı",
+      "Sipariş tamamlandı",
+      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı ve tamamlandı.`,
       "satis",
     );
     return { ok: res.ok, status: res.status };
@@ -1047,7 +1058,13 @@ export class CompanyOrdersService {
         "Akreditif kabul edilmeden ödeme alındı işaretlenemez",
       );
     }
-    if (order.status !== "IN_DELIVERY" && order.status !== "DELIVERED") {
+    if (
+      order.status !== "IN_DELIVERY" &&
+      order.status !== "DELIVERED" &&
+      // Madde 17: teslim alma siparişi oto-tamamlar — LC banka ödemesi
+      // COMPLETED siparişte de işaretlenebilmeli (borç yaşam döngüsü ayrı).
+      order.status !== "COMPLETED"
+    ) {
       throw new BadRequestException(
         "Ödeme, sipariş gönderildikten sonra işaretlenebilir",
       );
@@ -1064,7 +1081,12 @@ export class CompanyOrdersService {
       >`SELECT "status","amount" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
       const row = rows[0];
       if (!row) throw new NotFoundException("Sipariş bulunamadı");
-      if (row.status !== "IN_DELIVERY" && row.status !== "DELIVERED") {
+      if (
+        row.status !== "IN_DELIVERY" &&
+        row.status !== "DELIVERED" &&
+        // Madde 17: teslim alma oto-tamamlar — COMPLETED'da da işaretlenebilir.
+        row.status !== "COMPLETED"
+      ) {
         throw new BadRequestException(
           "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
         );

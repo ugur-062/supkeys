@@ -1,11 +1,11 @@
 /**
- * Yeni tur — GEÇERLİLİK-FARKINDA taşıma + geçerlilik uzatma.
+ * Yeni tur taşıması (madde 13, 2026-08-02) + geçerlilik uzatma.
  *
- * AUTO taşımada teklif, yeni turun AÇILIŞ tarihine kadar geçerliyse
- * (submittedAt + validityDays) CANLI taşınır; süresi dolmuşsa fiyatı
- * korunarak TASLAĞA düşer. Her iki grup da tur oluşturulunca in-app
- * bilgilendirilir. Süresi dolan, extendBidValidity ile fiyat değişmeden
- * uzatabilir — taslağa düşmüş teklif aynı fiyatla canlanır.
+ * AUTO taşımada teklifler KOŞULSUZ canlı taşınır ve geçerlilikleri SÜRESİZE
+ * (validityDays=null) çekilir — pazarlık boyunca teklif "dolmaz", geçerlilik
+ * yeniden sorulmaz. Geçerlilik-farkında eleme/taslağa-düşürme KALDIRILDI.
+ * extendBidValidity, tur açılmadan (değerlendirme evresinde) çalışmaya devam
+ * eder — o senaryolar burada tur AÇMADAN test edilir.
  */
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
@@ -84,25 +84,23 @@ const bidOf = (listingId: string, companyId: string) =>
     },
   });
 
-describe("AUTO taşıma — geçerlilik ayrımı", () => {
-  it("geçerli teklif CANLI, süresi dolan fiyatı korunarak TASLAK taşınır", async () => {
+describe("AUTO taşıma — madde 13: koşulsuz canlı + süresiz", () => {
+  it("geçerli VE süresi dolmuş teklif de CANLI taşınır; geçerlilik süresize çekilir", async () => {
     const { service, owner, valid, expired, listing } = await closedRfq();
     await service.createNextRound(owner.auth, listing.id, nextRoundDto());
 
     const v = await bidOf(listing.id, valid.company.id);
     const e = await bidOf(listing.id, expired.company.id);
-    expect(v).toMatchObject({ status: "SUBMITTED", round: 2 });
-    expect(e).toMatchObject({ status: "DRAFT", round: 2 });
+    expect(v).toMatchObject({ status: "SUBMITTED", round: 2, validityDays: null });
+    expect(e).toMatchObject({ status: "SUBMITTED", round: 2, validityDays: null });
     expect(Number(e.amount)).toBe(900); // fiyat korunur
     // Taşıma TUR HAKKI yakmaz: activeBidRound taşımada güncellenmez —
     // taşınan firma yeni turda bir kez fiyat verebilir.
     expect(v.activeBidRound).not.toBe(2);
   });
 
-  it("embargolu açılışta referans AÇILIŞ tarihi: bugün geçerli ama açılışa dek dolacak teklif TASLAĞA düşer", async () => {
-    const { service, owner, valid, expired, listing } = await closedRfq();
-    // valid: 60 gün (30 gün önce) → son gün +30 gün. Açılış +40 gün → DOLMUŞ sayılır.
-    // (expired zaten dolmuş.)
+  it("embargolu açılışta da teklif CANLI taşınır (madde 13); embargo görünürlük istisnası korunur", async () => {
+    const { service, owner, valid, listing } = await closedRfq();
     const opensAt = new Date(Date.now() + 40 * DAY);
     const closes = new Date(Date.now() + 45 * DAY);
     await service.createNextRound(
@@ -113,35 +111,30 @@ describe("AUTO taşıma — geçerlilik ayrımı", () => {
         closesAt: closes.toISOString(),
       }),
     );
+    // Madde 13: açılışa dek "dolacak" olsa bile taslağa düşmez — süresiz taşınır.
     const v = await bidOf(listing.id, valid.company.id);
-    expect(v.status).toBe("DRAFT");
+    expect(v).toMatchObject({ status: "SUBMITTED", validityDays: null });
 
-    // Embargo İSTİSNASI: teklifi olan firma açılış öncesi ilanı GÖREBİLİR ve
-    // geçerliliğini uzatabilir (bildirimin CTA'sı 404 olmasın); teklifsiz
-    // firma embargoda ilanı göremez; teklif verme yine açılışa dek kapalı.
+    // Embargo İSTİSNASI: teklifi olan firma açılış öncesi ilanı GÖREBİLİR;
+    // teklifsiz firma göremez; teklif verme yine açılışa dek kapalı.
     const detail = (await service.getOne(valid.auth, listing.id)) as {
       isOwner: boolean;
       myBid: { status: string } | null;
     };
-    expect(detail.myBid?.status).toBe("DRAFT");
+    expect(detail.myBid?.status).toBe("SUBMITTED");
     const stranger = await makeCompanyWithUser(prisma, { country: "TR" });
     await expect(service.getOne(stranger.auth, listing.id)).rejects.toThrow(
       /bulunamadı/,
     );
-    // 60 gün önce +60g geçerli teklif → son gün bugün civarı geçmişte kalmış
-    // olabilir; +90 gün uzatma açılışın (+40g) ilerisine taşır → canlanır.
-    const ext = await service.extendBidValidity(valid.auth, listing.id, 90);
-    expect(ext.revived).toBe(true);
     await expect(
       service.placeBid(valid.auth, listing.id, {
         amount: 950,
-        deliveryDate: FUTURE.toISOString(),
-        validityDays: 30,
+        deliveryTime: "W1_2",
       } as never),
     ).rejects.toThrow(/henüz başlamadı/);
   });
 
-  it("taşıma bildirimi: taşınana 'taşındı', süresi dolana 'geçerliliği doldu' (in-app)", async () => {
+  it("taşıma bildirimi: her iki teklif sahibi de 'taşındı' bildirimi alır (dolmuş küme yok)", async () => {
     const { service, owner, valid, expired, listing } = await closedRfq();
     await service.createNextRound(owner.auth, listing.id, nextRoundDto());
     // Fire-and-forget bildirimler uzak dev DB'de birkaç round-trip sürer —
@@ -165,37 +158,38 @@ describe("AUTO taşıma — geçerlilik ayrımı", () => {
     expect(
       validNotifs.some((n) => n.title.includes("taşındı")),
     ).toBe(true);
+    // Madde 13: "geçerliliği doldu" kümesi yok — o da taşındı bildirimi alır.
     expect(
-      expiredNotifs.some((n) => n.title.includes("geçerliliği doldu")),
+      expiredNotifs.some((n) => n.title.includes("taşındı")),
     ).toBe(true);
-    expect(
-      expiredNotifs.find((n) => n.title.includes("geçerliliği doldu"))?.body,
-    ).toMatch(/geçerlilik süresini uzatın/);
   });
 });
 
 describe("Geçerlilik uzatma (extendBidValidity)", () => {
-  it("SUBMITTED teklif: validityDays artar", async () => {
-    const { service, owner, valid, listing } = await closedRfq();
-    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+  it("SUBMITTED teklif: validityDays artar (tur açılmadan — değerlendirme evresi)", async () => {
+    const { service, valid, listing } = await closedRfq();
     const res = await service.extendBidValidity(valid.auth, listing.id, 30);
     expect(res).toMatchObject({ ok: true, validityDays: 90, revived: false });
   });
 
-  it("süresi dolup taslağa düşen teklif: uzatınca AYNI fiyatla yeniden CANLI", async () => {
-    const { service, owner, expired, listing } = await closedRfq();
-    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+  it("taslağa düşmüş teklif: uzatınca AYNI fiyatla yeniden CANLI (revive yolu)", async () => {
+    const { service, expired, listing } = await closedRfq();
+    // Madde 13 sonrası taşıma taslağa düşürmüyor — revive yolunu doğrudan
+    // DRAFT'a çekilmiş teklifle test et (mevcut turda taslak canlandırılır).
+    await prisma.listingBid.updateMany({
+      where: { listingId: listing.id, bidderCompanyId: expired.company.id },
+      data: { status: "DRAFT" },
+    });
     // 10 gün geçerliydi, 30 gün önce verildi → 20 gün geride. +60 gün → ileride.
     const res = await service.extendBidValidity(expired.auth, listing.id, 60);
     expect(res).toMatchObject({ ok: true, validityDays: 70, revived: true });
     const b = await bidOf(listing.id, expired.company.id);
-    expect(b).toMatchObject({ status: "SUBMITTED", round: 2 });
+    expect(b).toMatchObject({ status: "SUBMITTED", round: 1 });
     expect(Number(b.amount)).toBe(900);
   });
 
   it("op-rol kapısı: ALIM ilanında Satışçı rolü olmayan üye (SAHIP-only Kurucu dahil) uzatamaz", async () => {
-    const { service, owner, valid, listing } = await closedRfq();
-    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+    const { service, valid, listing } = await closedRfq();
     // Aynı firmadan rolsüz-Kurucu (yalnız SAHIP etiketi) → salt-gözlemci.
     const labelOnlyOwner: typeof valid.auth = {
       ...valid.auth,
@@ -219,8 +213,7 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
   });
 
   it("uzatma audit izi bırakır (düz uzatma + canlandırma metadata'sı)", async () => {
-    const { service, owner, valid, expired, listing } = await closedRfq();
-    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+    const { service, valid, expired, listing } = await closedRfq();
     await service.extendBidValidity(valid.auth, listing.id, 30);
     const plain = await prisma.auditLog.findFirst({
       where: {
@@ -237,6 +230,10 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     });
     // Taslağa düşmüş teklifin canlandırılması (SUBMITTED geçişi) da izli;
     // critical bayrağı persist edilmez, yalnız kayıp-alarm semantiğidir.
+    await prisma.listingBid.updateMany({
+      where: { listingId: listing.id, bidderCompanyId: expired.company.id },
+      data: { status: "DRAFT" },
+    });
     await service.extendBidValidity(expired.auth, listing.id, 60);
     const revive = await prisma.auditLog.findFirst({
       where: {
@@ -249,8 +246,7 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
   });
 
   it("yetersiz uzatma (son gün hâlâ geçmişte) reddedilir", async () => {
-    const { service, owner, expired, listing } = await closedRfq();
-    await service.createNextRound(owner.auth, listing.id, nextRoundDto());
+    const { service, expired, listing } = await closedRfq();
     // 30 gün önce verildi, 10 gün geçerli; +10 gün → son gün yine geçmişte.
     await expect(
       service.extendBidValidity(expired.auth, listing.id, 10),

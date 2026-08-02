@@ -97,6 +97,8 @@ export function mapDetailToForm(
     termsAndConditions: l.terms ?? "",
     // Kopyada kapanış boş (kullanıcı yeniden seçer); açılış "şimdi" öntanımlı.
     bidsCloseAt: forCopy ? "" : toLocalInput(l.closesAt),
+    // Madde 23: kapanışsız (süresiz) SATIS ilanı düzenlenirken işaret korunur.
+    noCloseDate: !forCopy && !l.closesAt,
     bidsOpenAt: forCopy ? nowLocalDateTimeValue() : toLocalInput(l.bidsOpenAt),
     bidVisibility:
       (l.bidVisibility as TenderFormData["bidVisibility"]) ?? "OWN_ONLY",

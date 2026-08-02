@@ -27,6 +27,12 @@ interface PublicProfile {
   linkedinUrl: string | null;
   instagramUrl: string | null;
   rating: { avg: number; count: number } | null;
+  reviews?: {
+    rating: number;
+    comment: string | null;
+    reviewer: string;
+    createdAt: string;
+  }[];
 }
 
 function apiBase() {

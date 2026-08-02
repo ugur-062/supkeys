@@ -931,7 +931,7 @@ export class CompanyConnectionsService {
       throw new NotFoundException("Firma profili bulunamadı");
     }
 
-    const [listings, ratingAgg] = await Promise.all([
+    const [listings, ratingAgg, reviews] = await Promise.all([
       this.prisma.listing.findMany({
         where: {
           companyId: c.id,
@@ -958,6 +958,18 @@ export class CompanyConnectionsService {
         where: { targetCompanyId: c.id },
         _avg: { rating: true },
         _count: true,
+      }),
+      // Madde 18: değerlendirme listesi — public profil (getBySlug) aynası.
+      this.prisma.companyReview.findMany({
+        where: { targetCompanyId: c.id },
+        select: {
+          rating: true,
+          comment: true,
+          createdAt: true,
+          reviewer: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
       }),
     ]);
 
@@ -988,6 +1000,12 @@ export class CompanyConnectionsService {
           avg: ratingAgg._avg.rating ?? 0,
           count: ratingAgg._count,
         },
+        reviews: reviews.map((r) => ({
+          rating: r.rating,
+          comment: r.comment,
+          reviewer: r.reviewer.name,
+          createdAt: r.createdAt,
+        })),
         trade: {
           legalName: c.legalName,
           taxNumber: c.taxNumber,

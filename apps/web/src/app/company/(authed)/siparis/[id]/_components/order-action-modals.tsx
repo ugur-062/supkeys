@@ -154,15 +154,17 @@ export function ShipOrderModal({
     });
   };
 
-  const title = sellerShips ? "Siparişi Gönder" : "Teslime Hazırla";
+  // Madde 17: satıcının tek adımı "Siparişi Tamamla" (fatura no ister);
+  // sonrası alıcı onayı — alıcı teslim aldı deyince sipariş otomatik biter.
+  const title = "Siparişi Tamamla";
 
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{title}</DialogTitle>
       <DialogDescription>
         {sellerShips
-          ? "Kestiğiniz faturanın numarasını girin ve siparişi gönderin."
-          : "Kestiğiniz faturanın numarasını girin ve malı teslime hazır işaretleyin — alıcı gelip alacak/taşıtacak."}
+          ? "Kestiğiniz faturanın numarasını girin — sipariş sizin tarafınızdan tamamlanır; alıcı teslim aldığını işaretleyince kesin olarak kapanır."
+          : "Kestiğiniz faturanın numarasını girin ve malı teslime hazır işaretleyin — alıcı teslim aldığını işaretleyince sipariş kesin olarak kapanır."}
       </DialogDescription>
       <DialogBody className="space-y-4">
         <Field>

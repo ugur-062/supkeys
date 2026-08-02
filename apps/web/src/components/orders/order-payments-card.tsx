@@ -6,6 +6,17 @@ import {
   type CompanyOrderDetail,
   type OrderPayment,
 } from "@/hooks/use-company-orders";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Button } from "@/components/catalyst/button";
+import { Field, Label } from "@/components/catalyst/fieldset";
+import { Input } from "@/components/catalyst/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
@@ -80,6 +91,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   );
   const suggested =
     advanceRemaining > 0.01 ? advanceRemaining : Number(t.remaining);
+  // Madde 16: tamamı bildirildiyse (kalan 0 — bekleyenler dahil düşülür)
+  // "Ödemeyi Yaptım" PASİF: fazla/yinelenen bildirim daha butonda engellenir
+  // (backend tavanı zaten reddediyordu, kullanıcı hatayı formda görüyordu).
+  const fullyCovered = Number(t.remaining) <= 0;
 
   const openForm = () => {
     setAmount(suggested > 0 ? suggested.toFixed(2) : "");
@@ -94,7 +109,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   };
 
   const submit = async () => {
-    const value = Number(amount.replace(",", "."));
+    const value = Number(amount);
     // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend order-payment.dto birebir).
     const e = moneyInputError(value);
     if (e) {
@@ -146,8 +161,14 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         {canAct && isBuyer && order.paymentOpen ? (
           <button
             type="button"
-            onClick={() => (open ? resetForm() : openForm())}
-            className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800"
+            onClick={openForm}
+            disabled={fullyCovered}
+            title={
+              fullyCovered
+                ? "Tamamı bildirildi — onay bekleyenler dahil kalan tutar yok"
+                : undefined
+            }
+            className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             <Plus className="h-3.5 w-3.5" />
             Ödemeyi Yaptım
@@ -180,51 +201,41 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         </div>
       ) : null}
 
-      {/* Kayıt formu (alıcı) */}
-      {open && isBuyer ? (
-        <div className="space-y-3 border-b border-zinc-950/5 bg-zinc-50 px-5 py-4">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-600">
-              Tutar ({curSym})
-            </span>
-            <input
+      {/* Kayıt formu — POP-UP (madde 16: inline şerit yerine diyalog). */}
+      <Dialog open={open && isBuyer} onClose={resetForm} size="md">
+        <DialogTitle>Ödemeyi Bildir</DialogTitle>
+        <DialogDescription>
+          Yaptığınız ödemenin tutarını girin — satıcı onaylayınca kalan borçtan
+          düşülür.
+        </DialogDescription>
+        <DialogBody className="space-y-4">
+          <Field>
+            <Label>Tutar ({curSym}) *</Label>
+            <MoneyInput
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              inputMode="decimal"
+              onChange={setAmount}
               placeholder="0,00"
-              className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+              aria-label="Ödeme tutarı"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-600">
-              Not (opsiyonel)
-            </span>
-            <input
+          </Field>
+          <Field>
+            <Label>Not (opsiyonel)</Label>
+            <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Dekont no, açıklama…"
-              className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
-          </label>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-lg px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
-            >
-              Vazgeç
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={record.isPending}
-              className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              Bildir
-            </button>
-          </div>
-        </div>
-      ) : null}
+          </Field>
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={resetForm}>
+            Vazgeç
+          </Button>
+          <Button onClick={submit} disabled={record.isPending || !amount}>
+            Bildir
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Ödeme listesi */}
       <div className="divide-y divide-zinc-950/5">
@@ -309,7 +320,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         title="Ödemeyi Reddet"
         description="Red gerekçesi alıcıya iletilir."
         confirmLabel="Reddet"
-        minLength={1}
+        minLength={10}
         pending={decide.isPending}
         destructive
       />
