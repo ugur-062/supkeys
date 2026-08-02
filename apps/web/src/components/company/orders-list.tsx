@@ -8,7 +8,17 @@ import {
   Pagination,
   ResultCount,
   SearchInput,
+  ViewToggle,
+  useListView,
 } from "@/components/list";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { ErrorState } from "@/components/ui/error-state";
 import {
   useOrders,
@@ -398,6 +408,9 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   // Kaynak ilan tipi: kendi ihalemden mi (ALIM) satış ilanından mı (SATIS).
   const [srcType, setSrcType] = useState("all");
   const [page, setPage] = useState(1);
+  const [view, setView] = useListView(
+    isSeller ? "rothern-view-satislar" : "rothern-view-siparisler",
+  );
 
   const all = useMemo(
     () => (data ?? []).filter((o) => o.role === role),
@@ -616,6 +629,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             unit="sipariş"
             className="ml-auto"
           />
+          <ViewToggle view={view} onChange={setView} />
         </div>
         <ActiveFilterChips
           filters={[
@@ -742,6 +756,74 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             }
           />
         </div>
+      ) : view === "table" ? (
+        <>
+          {/* P2 (denetim §10.2): yoğun tablo — çok kayıtta karşılaştırma. */}
+          <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>No</TableHeader>
+                  <TableHeader>Sipariş</TableHeader>
+                  <TableHeader>{isSeller ? "Alıcı" : "Satıcı"}</TableHeader>
+                  <TableHeader>Durum</TableHeader>
+                  <TableHeader className="text-right">Tutar</TableHeader>
+                  <TableHeader className="text-right">Tarih</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pageRows.map((o) => {
+                  const meta = orderStatusMeta(
+                    o.status,
+                    sellerShipsGoods(o.deliveryTerm),
+                  );
+                  return (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-mono text-xs text-zinc-500 tabular-nums">
+                        {o.number ?? "—"}
+                      </TableCell>
+                      <TableCell className="max-w-64">
+                        <Link
+                          href={`/company/siparis/${o.id}`}
+                          title={o.listingTitle ?? "Sipariş"}
+                          className="block truncate font-medium text-zinc-900 hover:underline"
+                        >
+                          {o.listingTitle ?? "Sipariş"}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="max-w-48">
+                        <span className="block truncate text-zinc-600" title={o.counterparty}>
+                          {o.counterparty}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-zinc-900">
+                        {formatMoney(o.amount, o.currency)}
+                      </TableCell>
+                      <TableCell className="text-right text-zinc-600">
+                        {format(new Date(o.createdAt), "dd MMM yyyy", {
+                          locale: tr,
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          {totalPages > 1 ? (
+            <Pagination
+              variant="bare"
+              page={safePage}
+              totalPages={totalPages}
+              total={filtered.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          ) : null}
+        </>
       ) : (
         <>
           <div className="flex flex-col gap-3">

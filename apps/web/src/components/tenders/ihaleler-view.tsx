@@ -6,6 +6,8 @@ import {
   Pagination,
   ResultCount,
   SearchInput,
+  ViewToggle,
+  useListView,
 } from "@/components/list";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { OwnerTenderList } from "@/components/tenders/owner-tender-cards";
@@ -91,6 +93,9 @@ export function IhalelerView({
   const [createdById, setCreatedById] = useState("");
   const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
   const [page, setPage] = useState(1);
+  const [view, setView] = useListView(
+    isSatis ? "rothern-view-satis-ihaleler" : "rothern-view-ihaleler",
+  );
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
   // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
@@ -206,7 +211,7 @@ export function IhalelerView({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title={isSatis ? "Satış İlanlarım" : "İhaleler"}
+        title={isSatis ? "Satış İhalelerim" : "İhaleler"}
         description={
           isSatis
             ? "Satış ihalelerinizi yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
@@ -317,6 +322,7 @@ export function IhalelerView({
             unit="ihale"
             className="ml-auto"
           />
+          <ViewToggle view={view} onChange={setView} />
         </div>
       </div>
 
@@ -327,6 +333,7 @@ export function IhalelerView({
         onRetry={() => list.refetch()}
         listingType={listingType}
         emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+        view={view}
       />
 
       {totalPages > 1 ? (

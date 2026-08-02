@@ -8,7 +8,15 @@ import {
   DropdownLabel,
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
-import { EmptyState, ListSkeleton } from "@/components/list";
+import { EmptyState, ListSkeleton, type ListView } from "@/components/list";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import {
   TenderStatusBadge,
   TenderTypeBadge,
@@ -277,6 +285,7 @@ export function OwnerTenderList({
   onRetry,
   listingType = "ALIM",
   emptyCtaLabel = "Yeni İhale Aç",
+  view = "cards",
 }: {
   items: TenderListItem[];
   isLoading: boolean;
@@ -284,6 +293,8 @@ export function OwnerTenderList({
   onRetry: () => void;
   listingType?: "ALIM" | "SATIS";
   emptyCtaLabel?: string;
+  /** P2 (denetim §10.2): kart (tarama) / yoğun tablo (karşılaştırma). */
+  view?: ListView;
 }) {
   // F7: boş-durum CTA'sı da ilan-açma iznine bağlı (yalnız SA/ST).
   const canCreate = useHasCompanyPermission(
@@ -338,8 +349,69 @@ export function OwnerTenderList({
       />
     );
   }
+  if (view === "table") {
+    return (
+      <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+        <Table dense>
+          <TableHead>
+            <TableRow>
+              <TableHeader>No</TableHeader>
+              <TableHeader>İhale</TableHeader>
+              <TableHeader>Durum</TableHeader>
+              <TableHeader className="text-right">Teklif</TableHeader>
+              <TableHeader className="text-right">Davetli</TableHeader>
+              <TableHeader className="text-right">Kapanış</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {items.map((t) => {
+              const fromHref =
+                listingType === "SATIS"
+                  ? "/company/satis/ilanlarim"
+                  : "/company/satinalma/ihalelerim";
+              const fromLabel =
+                listingType === "SATIS" ? "Satış İhalelerim" : "İhalelerim";
+              return (
+                <TableRow key={t.id}>
+                  <TableCell className="font-mono text-xs text-zinc-500 tabular-nums">
+                    {t.tenderNumber ?? "—"}
+                  </TableCell>
+                  <TableCell className="max-w-64">
+                    <Link
+                      href={`/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`}
+                      title={t.title}
+                      className="block truncate font-medium text-zinc-900 hover:underline"
+                    >
+                      {t.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <TenderStatusBadge status={t.status} />
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-600">
+                    {t.bidCount}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-600">
+                    {t.invitationCount}
+                  </TableCell>
+                  <TableCell className="text-right text-zinc-600">
+                    {t.bidsCloseAt
+                      ? format(new Date(t.bidsCloseAt), "dd MMM HH:mm", {
+                          locale: tr,
+                        })
+                      : "—"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+  // P2 (denetim §10.2): tek kolon tam-genişlik kart yerine lg'de iki kolon.
   return (
-    <div className="flex flex-col gap-3">
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       {items.map((t) => (
         <OwnerTenderCard key={t.id} t={t} listingType={listingType} />
       ))}

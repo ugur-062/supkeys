@@ -8,3 +8,4 @@ export { Pagination } from "./pagination";
 export { ResultCount } from "./result-count";
 export { SearchInput } from "./search-input";
 export { SortDropdown, type SortOption } from "./sort-dropdown";
+export { ViewToggle, useListView, type ListView } from "./view-toggle";
