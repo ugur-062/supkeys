@@ -13,7 +13,6 @@ import {
   RecordPaymentDto,
   RejectPaymentReasonDto,
 } from "../../src/modules/company-orders/dto/order-payment.dto";
-import { ProposeRevisionDto } from "../../src/modules/company-orders/dto/order-action.dto";
 import { CreateApprovalFlowDto } from "../../src/modules/company-approvals/dto/approval.dto";
 import { CompleteOnboardingDto } from "../../src/modules/company-auth/dto/onboarding.dto";
 import {
@@ -237,40 +236,7 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
       ).rejects.toBeDefined();
     });
 
-    it("ProposeRevisionDto kalem miktar/birim fiyat çarpım-faktör tavanları", async () => {
-      const validItem = {
-        name: "Kalem",
-        quantity: 10,
-        unit: "adet",
-        unitPrice: 100,
-      };
-      await expect(
-        validate(ProposeRevisionDto, { items: [validItem] }),
-      ).resolves.toBeDefined();
-      // Miktar tavanı (MAX_QUANTITY) aşan red.
-      await expect(
-        validate(ProposeRevisionDto, {
-          items: [{ ...validItem, quantity: MAX_QUANTITY + 1 }],
-        }),
-      ).rejects.toBeDefined();
-      // Birim fiyat tavanı (MAX_MONEY) aşan red — eskiden İKİSİ de sınırsızdı.
-      await expect(
-        validate(ProposeRevisionDto, {
-          items: [{ ...validItem, unitPrice: MAX_MONEY + 1 }],
-        }),
-      ).rejects.toBeDefined();
-      // BK-2: 0-fiyatlı revizyon reddedilir (placeBid ile simetri); 0.01 kabul.
-      await expect(
-        validate(ProposeRevisionDto, {
-          items: [{ ...validItem, unitPrice: 0 }],
-        }),
-      ).rejects.toBeDefined();
-      await expect(
-        validate(ProposeRevisionDto, {
-          items: [{ ...validItem, unitPrice: 0.01 }],
-        }),
-      ).resolves.toBeDefined();
-    });
+    // ProposeRevisionDto testi kaldırıldı (2026-08-02) — revizyon söküldü.
 
     it("CreateApprovalFlowDto conditionMinAmount tavanı aşan red", async () => {
       await expect(

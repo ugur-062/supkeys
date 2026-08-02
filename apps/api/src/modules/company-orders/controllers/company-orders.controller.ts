@@ -7,7 +7,6 @@ import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.
 import {
   AcceptOrderDto,
   OrderNoteDto,
-  ProposeRevisionDto,
   ShipOrderDto,
 } from "../dto/order-action.dto";
 import {
@@ -207,46 +206,7 @@ export class CompanyOrdersController {
     return this.service.lcMarkPaid(user, id);
   }
 
-  // ---- Revizyon müzakeresi (satıcı önerir, alıcı karar verir) ----
-
-  /** Satıcı: revizyon öner (yeni kalemler + opsiyonel teslim tarihi/not). */
-  @Post(":id/revisions")
-  proposeRevision(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-    @Body() dto: ProposeRevisionDto,
-  ) {
-    return this.service.proposeRevision(user, id, dto);
-  }
-
-  /** Alıcı: revizyonu onayla (sipariş güncellenir). */
-  @Post(":id/revisions/:revisionId/approve")
-  approveRevision(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-    @Param("revisionId") revisionId: string,
-  ) {
-    return this.service.approveRevision(user, id, revisionId);
-  }
-
-  /** Alıcı: revizyonu reddet (gerekçeli). */
-  @Post(":id/revisions/:revisionId/reject")
-  rejectRevision(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-    @Param("revisionId") revisionId: string,
-    @Body() dto: OrderReasonDto,
-  ) {
-    return this.service.rejectRevision(user, id, revisionId, dto.reason);
-  }
-
-  /** Satıcı: önerdiği revizyonu geri çek. */
-  @Post(":id/revisions/:revisionId/cancel")
-  cancelRevision(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-    @Param("revisionId") revisionId: string,
-  ) {
-    return this.service.cancelRevision(user, id, revisionId);
-  }
+  // Revizyon müzakeresi KALDIRILDI (2026-08-02, kullanıcı kararı) — sipariş
+  // değişikliği taraflar arası iletişim + gerekirse iptal/yeniden sipariş ile.
+  // DB tabloları (order_revisions) veri kaybı olmasın diye duruyor.
 }

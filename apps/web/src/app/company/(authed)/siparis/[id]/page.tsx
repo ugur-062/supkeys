@@ -33,7 +33,6 @@ import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { sellerShipsGoods } from "@rothern/shared";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { LcStepPanel } from "./_components/lc-step-panel";
-import { OrderRevisionPanel } from "./_components/order-revision-panel";
 import { OrderCancelRequestPanel } from "./_components/order-cancel-request-panel";
 import { OrderDefectPanel } from "./_components/order-defect-panel";
 import {
@@ -808,11 +807,8 @@ export default function OrderDetailPage() {
         )}
       </section>
 
-      {/* Sipariş revizyon müzakeresi (satıcı öner / alıcı karar) */}
       <OrderCancelRequestPanel order={o} />
       <OrderDefectPanel order={o} />
-
-      <OrderRevisionPanel order={o} />
 
       {/* Akreditif adımları (yalnız LC siparişte) */}
       <LcStepPanel order={o} />
