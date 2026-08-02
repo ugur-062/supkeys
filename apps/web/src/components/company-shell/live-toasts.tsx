@@ -4,9 +4,11 @@ import type { AppNotification } from "@/hooks/use-notifications";
 import type { ThreadSummary } from "@/hooks/use-company-messages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { companyApi } from "@/lib/company-auth/api";
+import { playNotificationSound } from "@/lib/notification-sound";
 import { connectRealtime } from "@/lib/realtime";
 import {
-  accessiblePortals,
+  canUseMessaging,
+  PORTAL_ORDER,
   PORTALS,
   type PortalKey,
 } from "@/lib/company/portals";
@@ -127,14 +129,18 @@ function PopupCard({
 }
 
 export function LiveToasts() {
-  const { user, company } = useCompanyAuth();
+  const { user } = useCompanyAuth();
   const qc = useQueryClient();
   const router = useRouter();
 
   useEffect(() => {
     if (!user) return;
     const seen = storeFor(user.id);
-    const portals = accessiblePortals(user.roles ?? [], company?.tier);
+    // Mesaj kartları yalnız işlem rolü olan portallardan (API aynası: rolsüz
+    // portalın threads ucu 403 verir).
+    const portals = PORTAL_ORDER.filter((p) =>
+      canUseMessaging(user.roles ?? [], p),
+    );
     const socket = connectRealtime();
 
     const fetchNotifications = () =>
@@ -226,6 +232,8 @@ export function LiveToasts() {
       const fresh = items.filter((n) => !n.readAt && !seen.notifIds.has(n.id));
       for (const n of items) seen.notifIds.add(n.id);
       if (!seen.seeded) return; // tohumlanmadan sinyal geldi — sessiz geç
+      // Batch başına TEK ses (kart başına değil — 3 kart + özet aynı "ding").
+      if (fresh.length > 0) playNotificationSound();
       // En yenisi önce zaten; sırayla en fazla 3 kart + kalanı özet.
       fresh.slice(0, MAX_CARDS_PER_BATCH).forEach(showNotification);
       if (fresh.length > MAX_CARDS_PER_BATCH)
@@ -234,6 +242,7 @@ export function LiveToasts() {
 
     const onMessage = async () => {
       const lists = await Promise.all(portals.map(fetchThreads));
+      let shown = 0;
       for (const t of lists.flat()) {
         const key = `${t.portal}:${t.threadId}`;
         const prev = seen.threadSeen.get(key);
@@ -242,6 +251,9 @@ export function LiveToasts() {
         if (t.lastMessageAt) seen.threadSeen.set(key, t.lastMessageAt);
         if (!seen.seeded || !isNew) continue;
         if (viewingThread(PORTALS[t.portal].basePath, t.otherPartyId)) continue;
+        // Batch başına TEK ses — ilk gösterilen kartla birlikte.
+        if (shown === 0) playNotificationSound();
+        shown += 1;
         showMessage(t.portal, t);
       }
     };
@@ -264,7 +276,7 @@ export function LiveToasts() {
       socket.off("notification.new", handleNotification);
       socket.off("message.new", handleMessage);
     };
-  }, [user, company?.tier, qc, router]);
+  }, [user, qc, router]);
 
   return null;
 }
