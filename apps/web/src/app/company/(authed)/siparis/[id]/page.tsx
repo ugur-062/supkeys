@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
 import {
@@ -14,6 +13,7 @@ import {
 import { Text } from "@/components/catalyst/text";
 import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
 import { formatMoney } from "@/components/ui/money";
+import { MetaTag, StatusBadge } from "@/components/ui/status-badge";
 import {
   useAcceptOrder,
   useCancelOrder,
@@ -29,6 +29,7 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { formatDate } from "@/lib/format-date";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
+import { orderStatusMeta } from "@/lib/orders/order-status";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
@@ -66,21 +67,6 @@ function stepsFor(sellerShips: boolean) {
   ] as const;
 }
 const STEPS = stepsFor(true);
-
-const STATUS_META: Record<
-  CompanyOrderStatus,
-  { label: string; color: React.ComponentProps<typeof Badge>["color"] }
-> = {
-  PENDING: { label: "Onay bekliyor", color: "amber" },
-  ACCEPTED: { label: "Onaylandı", color: "blue" },
-  CREATED: { label: "Yeni", color: "zinc" },
-  IN_DELIVERY: { label: "Gönderildi", color: "indigo" },
-  DELIVERED: { label: "Ödeme bekleniyor", color: "cyan" },
-  COMPLETED: { label: "Tamamlandı", color: "green" },
-  REJECTED: { label: "Reddedildi", color: "red" },
-  CANCELLED: { label: "İptal", color: "zinc" },
-  DISPUTED: { label: "İhtilaflı", color: "amber" },
-};
 
 // Legacy CREATED siparişler ACCEPTED hizasında gösterilir.
 function stepIndexFor(status: CompanyOrderStatus): number {
@@ -163,16 +149,7 @@ export default function OrderDetailPage() {
   const steps = stepsFor(sellerShips);
   const stepIndex = stepIndexFor(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
-  const statusMeta =
-    o.status === "IN_DELIVERY"
-      ? {
-          label: sellerShips ? "Gönderildi" : "Teslime hazır",
-          color: "indigo" as const,
-        }
-      : (STATUS_META[o.status] ?? {
-          label: o.status,
-          color: "zinc" as const,
-        });
+  const statusMeta = orderStatusMeta(o.status, sellerShips);
   const ordersHref = isSeller
     ? "/company/satis/siparisler"
     : "/company/satinalma/siparisler";
@@ -411,9 +388,7 @@ export default function OrderDetailPage() {
               {o.number}
             </span>
           ) : null}
-          <Badge color={isSeller ? "emerald" : "blue"}>
-            {isSeller ? "Satış siparişi" : "Alış siparişi"}
-          </Badge>
+          <MetaTag>{isSeller ? "Satış siparişi" : "Alış siparişi"}</MetaTag>
         </div>
         <Heading>{o.listingTitle ?? "Sipariş"}</Heading>
       </div>
@@ -423,7 +398,7 @@ export default function OrderDetailPage() {
           dibinde (y≈1148px) kalması biter; mobil dahil ilk ekranda durur. */}
       <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
+          <StatusBadge tone={statusMeta.tone}>{statusMeta.label}</StatusBadge>
           <div className="flex flex-wrap items-center gap-2">
             {/* A2: onaylı ödeme varken iptal backend'de zaten engelli (CO cancel
                 CONFIRMED guard) → buton görünüp 400 vermesin; gizle + not göster. */}
@@ -514,9 +489,11 @@ export default function OrderDetailPage() {
           {/* Durum akışı */}
           <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
             {terminal ? (
-              <Badge color="red">
+              <StatusBadge
+                tone={o.status === "REJECTED" ? "failed" : "neutral"}
+              >
                 {o.status === "REJECTED" ? "Satıcı reddetti" : "İptal edildi"}
-              </Badge>
+              </StatusBadge>
             ) : (
               <div className="flex items-start gap-2">
                 {steps.map((s, i) => {

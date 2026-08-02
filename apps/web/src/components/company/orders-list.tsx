@@ -18,6 +18,8 @@ import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { sellerShipsGoods } from "@rothern/shared";
 import { formatMoney } from "@/components/ui/money";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { orderStatusMeta } from "@/lib/orders/order-status";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -34,74 +36,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 12;
-
-/** Statü pill meta — eski sistemden. */
-const STATUS_META: Record<
-  CompanyOrderStatus,
-  { label: string; pill: string }
-> = {
-  PENDING: {
-    label: "Onay Bekliyor",
-    pill: "bg-warning-50 text-warning-700 border-warning-200",
-  },
-  ACCEPTED: {
-    label: "Onaylandı",
-    pill: "bg-brand-50 text-brand-700 border-brand-200",
-  },
-  CREATED: {
-    label: "Yeni",
-    pill: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  },
-  IN_DELIVERY: {
-    label: "Gönderildi",
-    pill: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  },
-  DELIVERED: {
-    label: "Teslim Alındı",
-    pill: "bg-cyan-50 text-cyan-700 border-cyan-200",
-  },
-  COMPLETED: {
-    label: "Tamamlandı",
-    pill: "bg-success-50 text-success-700 border-success-200",
-  },
-  REJECTED: {
-    label: "Reddedildi",
-    pill: "bg-orange-50 text-orange-700 border-orange-200",
-  },
-  CANCELLED: {
-    label: "İptal Edildi",
-    pill: "bg-danger-50 text-danger-700 border-danger-200",
-  },
-  DISPUTED: {
-    label: "İhtilaflı",
-    pill: "bg-amber-50 text-amber-700 border-amber-200",
-  },
-};
-
-function OrderStatusBadge({
-  status,
-  sellerShips = true,
-}: {
-  status: CompanyOrderStatus;
-  sellerShips?: boolean;
-}) {
-  const base = STATUS_META[status] ?? STATUS_META.CREATED;
-  // IN_DELIVERY etiketi teslim şekline göre: satıcı taşımıyorsa "Teslime Hazır".
-  const meta =
-    status === "IN_DELIVERY" && !sellerShips
-      ? { ...base, label: "Teslime Hazır" }
-      : base;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold",
-        meta.pill,
-      )}
-    >
-      {meta.label}
-    </span>
-  );
-}
 
 // 5 aşamalı akış — orta adım teslim şekline göre "Gönderildi"/"Teslime Hazır".
 function stagesFor(sellerShips: boolean) {
@@ -339,7 +273,9 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             >
               {src.label}
             </span>
-            <OrderStatusBadge status={o.status} sellerShips={sellerShips} />
+            <StatusBadge tone={orderStatusMeta(o.status, sellerShips).tone}>
+              {orderStatusMeta(o.status, sellerShips).label}
+            </StatusBadge>
             {/* Yaşam döngüsü ayrımı: ödeme durumu operasyonel durumdan ayrı.
                 P0: VADESİ GEÇMİŞ ödeme normal "Ödeme bekliyor" ile piksel
                 piksel aynı görünüyordu — gecikme danger rozetle ayrışır. */}
