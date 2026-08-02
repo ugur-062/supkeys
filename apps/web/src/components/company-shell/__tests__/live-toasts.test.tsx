@@ -101,8 +101,13 @@ beforeEach(() => {
   window.history.pushState({}, "", "/company/satinalma");
   h.get.mockImplementation((url: string, opts?: { params?: { portal?: string } }) => {
     if (url === "/notifications") return Promise.resolve({ data: h.notifs });
-    if (url === "/company/messages/threads")
-      return Promise.resolve({ data: h.threads[opts?.params?.portal ?? ""] ?? [] });
+    if (url === "/company/messages/threads") {
+      // Backend satırları portal etiketi taşır (birleşik kutu) — mock da taşısın.
+      const portal = opts?.params?.portal ?? "";
+      return Promise.resolve({
+        data: (h.threads[portal] ?? []).map((t) => ({ portal, ...(t as object) })),
+      });
+    }
     return Promise.reject(new Error(`beklenmeyen GET ${url}`));
   });
   h.post.mockResolvedValue({ data: {} });
@@ -151,7 +156,7 @@ describe("LiveToasts", () => {
     h.threads.satis = [thread("t2", "2026-07-12T10:00:00.000Z")];
     await renderSeeded();
 
-    window.history.pushState({}, "", "/company/satis/mesajlar?with=op-t2");
+    window.history.pushState({}, "", "/company/mesajlar?with=op-t2&portal=satis");
     h.threads.satis = [thread("t2", "2026-07-12T10:09:00.000Z")];
     h.handlers["message.new"]();
     await new Promise((r) => setTimeout(r, 10));

@@ -465,7 +465,7 @@ export default function OrderDetailPage() {
             </div>
             <Button
               outline
-              href={`/company/${isSeller ? "satis" : "satinalma"}/mesajlar?with=${o.counterpartyCompanyId}`}
+              href={`/company/mesajlar?with=${o.counterpartyCompanyId}&portal=${isSeller ? "satis" : "satinalma"}`}
             >
               Mesaj Gönder
             </Button>

@@ -30,16 +30,17 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("tr-TR");
 }
 
-export function NotificationBell({
-  onDark = false,
-  portal,
-}: {
-  onDark?: boolean;
-  /** Aktif portal — zil yalnız bu portalın (+ ortak) bildirimlerini gösterir. */
-  portal?: NotificationPortal;
-}) {
-  const { data: unread = 0 } = useUnreadCount(portal);
-  const { data: items = [], isLoading } = useNotifications(portal);
+/** Panel rozeti — birleşik kutuda bildirim hangi şapkayla ilgili? */
+const PORTAL_CHIP: Record<NotificationPortal, { label: string; cls: string }> = {
+  satinalma: { label: "Satınalma", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "Satış", cls: "bg-emerald-50 text-emerald-700" },
+};
+
+export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
+  // TEK kutu (kullanıcı isteği): portal filtresi yok — iki panelin
+  // bildirimleri birlikte, satır başına panel rozetiyle.
+  const { data: unread = 0 } = useUnreadCount();
+  const { data: items = [], isLoading } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
@@ -85,7 +86,7 @@ export function NotificationBell({
               {unread > 0 ? (
                 <button
                   type="button"
-                  onClick={() => markAll.mutate(portal)}
+                  onClick={() => markAll.mutate(undefined)}
                   className="text-xs font-medium text-blue-600 hover:underline"
                 >
                   Tümünü okundu işaretle
@@ -126,6 +127,13 @@ export function NotificationBell({
                           <span className="text-sm font-medium text-zinc-900">
                             {n.title}
                           </span>
+                          {n.portal ? (
+                            <span
+                              className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PORTAL_CHIP[n.portal].cls}`}
+                            >
+                              {PORTAL_CHIP[n.portal].label}
+                            </span>
+                          ) : null}
                         </div>
                         <span className="line-clamp-2 text-xs text-zinc-500">
                           {n.body}

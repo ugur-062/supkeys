@@ -11,6 +11,8 @@ import {
 export type MessagePortal = "satinalma" | "satis";
 
 export interface ThreadSummary {
+  /** Konuşmanın tarafı — birleşik kutuda rozet ("satinalma"=alıcısınız). */
+  portal: MessagePortal;
   threadId: string;
   otherPartyId: string;
   otherPartyName: string;
@@ -42,13 +44,14 @@ const LIVE = {
 };
 
 const KEYS = {
-  threads: (portal: MessagePortal) => ["company-msg-threads", portal] as const,
+  threads: (portal: MessagePortal | "all") =>
+    ["company-msg-threads", portal] as const,
   thread: (portal: MessagePortal, otherId: string) =>
     ["company-msg-thread", portal, otherId] as const,
   unread: ["company-msg-unread"] as const,
 };
 
-export function useThreads(portal: MessagePortal, enabled = true) {
+export function useThreads(portal: MessagePortal | "all", enabled = true) {
   return useQuery<ThreadSummary[]>({
     queryKey: KEYS.threads(portal),
     queryFn: async () => {

@@ -159,7 +159,7 @@ export default function BidDetailPage() {
             ) : null}
             {bid.bidderCompanyId ? (
               <Link
-                href={`/company/${l.type === "SATIS" ? "satis" : "satinalma"}/mesajlar?with=${bid.bidderCompanyId}`}
+                href={`/company/mesajlar?with=${bid.bidderCompanyId}&portal=${l.type === "SATIS" ? "satis" : "satinalma"}`}
                 className="text-xs font-semibold text-blue-600 hover:underline"
               >
                 Mesaj Gönder

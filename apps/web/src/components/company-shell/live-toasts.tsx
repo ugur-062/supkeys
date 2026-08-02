@@ -59,13 +59,15 @@ function toPath(ctaUrl: string | null): string {
   return path || "/company/bildirimler";
 }
 
-/** Kullanıcı şu an bu konuşmanın içinde mi? (URL: …/mesajlar?with=<id>) */
-function viewingThread(basePath: string, otherPartyId: string): boolean {
+/** Kullanıcı şu an bu konuşmanın içinde mi? (birleşik kutu:
+ *  /company/mesajlar?with=<id>&portal=<p>; portal paramı yoksa firma eşleşmesi yeter.) */
+function viewingThread(portal: PortalKey, otherPartyId: string): boolean {
   if (typeof window === "undefined") return false;
-  return (
-    window.location.pathname === `${basePath}/mesajlar` &&
-    new URLSearchParams(window.location.search).get("with") === otherPartyId
-  );
+  if (window.location.pathname !== "/company/mesajlar") return false;
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("with") !== otherPartyId) return false;
+  const p = q.get("portal");
+  return p === null || p === portal;
 }
 
 function PopupCard({
@@ -153,8 +155,9 @@ export function LiveToasts() {
         .get<ThreadSummary[]>("/company/messages/threads", {
           params: { portal },
         })
-        .then((r) => r.data.map((t) => ({ portal, ...t })))
-        .catch(() => []);
+        // Backend satırları artık portal alanını taşıyor.
+        .then((r) => r.data)
+        .catch(() => [] as ThreadSummary[]);
 
     const showNotification = (n: AppNotification) => {
       const chip = n.portal ? PORTALS[n.portal].label : undefined;
@@ -184,7 +187,6 @@ export function LiveToasts() {
     };
 
     const showMessage = (portal: PortalKey, t: ThreadSummary) => {
-      const basePath = PORTALS[portal].basePath;
       toast.custom(
         (id) => (
           <PopupCard
@@ -195,7 +197,9 @@ export function LiveToasts() {
             chip={PORTALS[portal].label}
             onOpen={() => {
               toast.dismiss(id);
-              router.push(`${basePath}/mesajlar?with=${t.otherPartyId}`);
+              router.push(
+                `/company/mesajlar?with=${t.otherPartyId}&portal=${portal}`,
+              );
             }}
             onClose={() => toast.dismiss(id)}
           />
@@ -250,7 +254,7 @@ export function LiveToasts() {
           t.unread && !!t.lastMessageAt && (!prev || t.lastMessageAt > prev);
         if (t.lastMessageAt) seen.threadSeen.set(key, t.lastMessageAt);
         if (!seen.seeded || !isNew) continue;
-        if (viewingThread(PORTALS[t.portal].basePath, t.otherPartyId)) continue;
+        if (viewingThread(t.portal, t.otherPartyId)) continue;
         // Batch başına TEK ses — ilk gösterilen kartla birlikte.
         if (shown === 0) playNotificationSound();
         shown += 1;

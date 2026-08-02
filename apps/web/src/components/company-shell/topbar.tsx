@@ -11,7 +11,7 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
-import { canUseMessaging, PORTALS, type PortalKey } from "@/lib/company/portals";
+import { canUseMessaging, type PortalKey } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
   ArrowRightStartOnRectangleIcon,
@@ -47,11 +47,12 @@ export function CompanyTopbar({
 }) {
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
-  // Mesaj kutusu yalnız portalın işlem rolüne görünür (Kurucu/Yönetici
-  // etiketi yetmez — API okuma uçları da 403 verir); bildirim zili kalır.
-  const canMessage = canUseMessaging(user?.roles ?? [], activePortal);
+  // Birleşik mesaj kutusu (2026-08-02): ikon, HERHANGİ bir işlem rolü
+  // (Satın Almacı VEYA Satışçı) olana görünür; rozet iki tarafın toplamı.
+  const canMessage =
+    canUseMessaging(user?.roles ?? [], "satinalma") ||
+    canUseMessaging(user?.roles ?? [], "satis");
   const tier = company?.tier ?? "STANDART";
-  const portal = PORTALS[activePortal];
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
@@ -99,11 +100,11 @@ export function CompanyTopbar({
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
       <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
-        {canMessage ? (
-          <MessagesPopover portal={activePortal} basePath={portal.basePath} />
-        ) : null}
+        {canMessage ? <MessagesPopover /> : null}
 
-        <NotificationBell portal={activePortal} />
+        {/* Zil TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte,
+            satır başına panel rozetiyle. */}
+        <NotificationBell />
 
         {user ? (
           <Dropdown>

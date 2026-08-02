@@ -156,5 +156,17 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
       b.company.id,
     );
     expect(read.thread).not.toBeNull();
+
+    // BİRLEŞİK kutu ("all", 2026-08-02): yalnız ROLÜ OLAN tarafların
+    // konuşmaları döner, satırlar portal etiketi taşır; rolsüz kullanıcıda boş.
+    const allRows = await svc.listThreads(withRoles(["SATIN_ALMACI"]), "all");
+    expect(allRows).toHaveLength(1);
+    expect(allRows[0]).toMatchObject({
+      portal: "satinalma",
+      otherPartyId: b.company.id,
+    });
+    // Yalnız Satışçı rolüyle "all": satınalma konuşması SIZMAZ.
+    expect(await svc.listThreads(withRoles(["SATISCI"]), "all")).toHaveLength(0);
+    expect(await svc.listThreads(withRoles([]), "all")).toHaveLength(0);
   });
 });

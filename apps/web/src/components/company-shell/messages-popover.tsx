@@ -1,7 +1,10 @@
 "use client";
 
-import { useThreads, useUnreadMessages } from "@/hooks/use-company-messages";
-import type { PortalKey } from "@/lib/company/portals";
+import {
+  useThreads,
+  useUnreadMessages,
+  type MessagePortal,
+} from "@/hooks/use-company-messages";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
@@ -19,17 +22,16 @@ function timeAgo(iso: string | null): string {
   return new Date(iso).toLocaleDateString("tr-TR");
 }
 
+/** "Bu konuşmada ben kimim?" rozeti — birleşik kutu satırları. */
+const ROLE_CHIP: Record<MessagePortal, { label: string; cls: string }> = {
+  satinalma: { label: "Alıcısınız", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "Satıcısınız", cls: "bg-emerald-50 text-emerald-700" },
+};
+
 /** Panel içeriği ayrı bileşen — thread sorgusu yalnızca popover AÇILINCA atılır. */
-function RecentThreads({
-  portal,
-  basePath,
-  close,
-}: {
-  portal: PortalKey;
-  basePath: string;
-  close: () => void;
-}) {
-  const { data: threads, isLoading } = useThreads(portal);
+function RecentThreads({ close }: { close: () => void }) {
+  // Birleşik kutu (2026-08-02): iki tarafın konuşmaları birlikte.
+  const { data: threads, isLoading } = useThreads("all");
   const recent = (threads ?? []).slice(0, 6);
 
   if (isLoading) {
@@ -52,9 +54,9 @@ function RecentThreads({
   return (
     <ul className="max-h-80 overflow-y-auto">
       {recent.map((t) => (
-        <li key={t.threadId}>
+        <li key={`${t.portal}:${t.threadId}`}>
           <Link
-            href={`${basePath}/mesajlar?with=${t.otherPartyId}`}
+            href={`/company/mesajlar?with=${t.otherPartyId}&portal=${t.portal}`}
             onClick={close}
             className="flex items-start gap-3 px-4 py-2.5 transition hover:bg-zinc-50"
           >
@@ -71,6 +73,11 @@ function RecentThreads({
                   }`}
                 >
                   {t.otherPartyName}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_CHIP[t.portal].cls}`}
+                >
+                  {ROLE_CHIP[t.portal].label}
                 </span>
                 <span className="shrink-0 text-[11px] text-zinc-400">
                   {timeAgo(t.lastMessageAt)}
@@ -101,14 +108,9 @@ function RecentThreads({
  * Topbar mesaj önizlemesi — zil deseniyle aynı: son konuşmalar + okunmamış
  * rozeti; öğe tıklaması ilgili konuşmayı açar (?with=), altta "Tüm mesajlar".
  */
-export function MessagesPopover({
-  portal,
-  basePath,
-}: {
-  portal: PortalKey;
-  basePath: string;
-}) {
-  const { data: unreadData } = useUnreadMessages(portal);
+export function MessagesPopover() {
+  // TEK kutu: rozet iki tarafın toplam okunmamışı (backend rolsüz tarafı saymaz).
+  const { data: unreadData } = useUnreadMessages();
   const unread = unreadData?.count ?? 0;
 
   return (
@@ -135,18 +137,11 @@ export function MessagesPopover({
               <span className="text-sm font-semibold text-zinc-900">
                 Mesajlar
               </span>
-              <span className="text-[11px] uppercase tracking-wide text-zinc-400">
-                {portal === "satinalma" ? "Satınalma" : "Satış"}
-              </span>
             </div>
-            <RecentThreads
-              portal={portal}
-              basePath={basePath}
-              close={close}
-            />
+            <RecentThreads close={close} />
             <div className="border-t border-zinc-100 px-4 py-2.5 text-center">
               <Link
-                href={`${basePath}/mesajlar`}
+                href="/company/mesajlar"
                 onClick={() => close()}
                 className="text-sm font-semibold text-zinc-700 hover:text-zinc-950"
               >

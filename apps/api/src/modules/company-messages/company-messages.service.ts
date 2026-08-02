@@ -137,10 +137,36 @@ export class CompanyMessagesService {
     );
   }
 
-  /** Portal gelen kutusu — bu portalda firmanın tüm konuşmaları (özet). */
+  /**
+   * Gelen kutusu. `portal` verilirse o portalın konuşmaları (rol kapılı);
+   * `"all"` verilirse BİRLEŞİK kutu (kullanıcı isteği 2026-08-02): kullanıcının
+   * İŞLEM ROLÜ OLAN portalların konuşmaları tek listede, satır başına `portal`
+   * etiketiyle — rolü olmayan taraf sızmaz (403 yerine o taraf atlanır).
+   */
   async listThreads(user: AuthenticatedCompanyUser, portalRaw: string) {
+    if (portalRaw === "all") {
+      const portals = (["satinalma", "satis"] as MessagePortal[]).filter((p) =>
+        user.roles.includes(this.portalRole(p)),
+      );
+      const lists = await Promise.all(
+        portals.map((p) => this.listThreadsFor(user, p)),
+      );
+      return lists
+        .flat()
+        .sort(
+          (a, b) =>
+            (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0),
+        );
+    }
     const portal = this.assertPortal(portalRaw);
     this.requirePortalRole(user, portal, "read");
+    return this.listThreadsFor(user, portal);
+  }
+
+  private async listThreadsFor(
+    user: AuthenticatedCompanyUser,
+    portal: MessagePortal,
+  ) {
     // Bloklu karşı taraf gelen kutusunda da görünmez (karşılıklı-görünmezlik).
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const where =
@@ -180,6 +206,8 @@ export class CompanyMessagesService {
         portal === "satinalma" ? t.sellerCompany : t.buyerCompany;
       const last = t.messages[0];
       return {
+        // Birleşik kutu için satır etiketi — tekil modda da döner (tutarlılık).
+        portal,
         threadId: t.id,
         otherPartyId: other.id,
         otherPartyName: other.name,

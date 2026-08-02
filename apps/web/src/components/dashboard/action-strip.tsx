@@ -142,7 +142,7 @@ export function ActionStrip({
       tone: "violet",
       count: unreadMsgs,
       label: "okunmamış mesaj",
-      href: `${base}/mesajlar`,
+      href: "/company/mesajlar",
     });
   }
   for (const e of extra) {

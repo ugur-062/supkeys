@@ -5,11 +5,25 @@ import {
   useMarkNotificationsRead,
   useNotifications,
   type AppNotification,
+  type NotificationPortal,
 } from "@/hooks/use-notifications";
 import { EmptyState, ListSkeleton } from "@/components/list";
-import { useActivePortal } from "@/hooks/use-active-portal";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+/** Panel rozeti — birleşik listede bildirim hangi şapkayla ilgili? */
+const PORTAL_CHIP: Record<NotificationPortal, { label: string; cls: string }> = {
+  satinalma: { label: "Satınalma", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "Satış", cls: "bg-emerald-50 text-emerald-700" },
+};
+
+const FILTERS = [
+  { key: "all", label: "Tümü" },
+  { key: "satinalma", label: "Satınalma" },
+  { key: "satis", label: "Satış" },
+] as const;
+type FilterKey = (typeof FILTERS)[number]["key"];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("tr-TR", {
@@ -21,12 +35,19 @@ function formatDate(iso: string): string {
 }
 
 export default function BildirimlerPage() {
-  const portal = useActivePortal();
-  const { data: items = [], isLoading } = useNotifications(portal);
+  // TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte gelir;
+  // filtre yalnız görünümü daraltır (portal'sız + null-portallı ortaklar
+  // her filtrede görünür).
+  const { data: allItems = [], isLoading } = useNotifications();
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const items =
+    filter === "all"
+      ? allItems
+      : allItems.filter((n) => !n.portal || n.portal === filter);
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
-  const hasUnread = items.some((n) => !n.readAt);
+  const hasUnread = allItems.some((n) => !n.readAt);
 
   const open = (n: AppNotification) => {
     if (!n.readAt) markRead.mutate([n.id]);
@@ -48,13 +69,30 @@ export default function BildirimlerPage() {
         {hasUnread ? (
           <button
             type="button"
-            onClick={() => markAll.mutate(portal)}
+            onClick={() => markAll.mutate(undefined)}
             disabled={markAll.isPending}
             className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-zinc-300 disabled:opacity-50"
           >
             Tümünü okundu işaretle
           </button>
         ) : null}
+      </div>
+
+      <div className="mb-4 flex gap-1 rounded-lg bg-zinc-100 p-1 sm:w-fit">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+              filter === f.key
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
@@ -90,6 +128,13 @@ export default function BildirimlerPage() {
                   <span className="text-sm font-semibold text-zinc-900">
                     {n.title}
                   </span>
+                  {n.portal ? (
+                    <span
+                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PORTAL_CHIP[n.portal].cls}`}
+                    >
+                      {PORTAL_CHIP[n.portal].label}
+                    </span>
+                  ) : null}
                   <span className="ml-auto text-xs text-zinc-400">
                     {formatDate(n.createdAt)}
                   </span>

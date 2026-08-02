@@ -1342,7 +1342,7 @@ export default function ListingDetailPage() {
                 </span>
                 {b.bidderCompanyId ? (
                   <Link
-                    href={`/company/${isAlim ? "satinalma" : "satis"}/mesajlar?with=${b.bidderCompanyId}`}
+                    href={`/company/mesajlar?with=${b.bidderCompanyId}&portal=${isAlim ? "satinalma" : "satis"}`}
                     className="text-xs font-semibold text-blue-600 hover:underline"
                   >
                     Mesaj
