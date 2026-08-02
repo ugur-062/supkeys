@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -25,13 +26,7 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-  Trophy,
-  XCircle,
-} from "lucide-react";
+import { Trophy } from "lucide-react";
 import { bidDeliveryTimeLabel } from "@rothern/shared";
 import Link from "next/link";
 import { useState } from "react";
@@ -39,19 +34,7 @@ import { toast } from "sonner";
 
 type Tone = "success" | "info" | "warning" | "danger";
 
-const TONE_CLASSES: Record<Tone, string> = {
-  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  info: "border-blue-200 bg-blue-50 text-blue-800",
-  warning: "border-amber-200 bg-amber-50 text-amber-800",
-  danger: "border-rose-200 bg-rose-50 text-rose-800",
-};
-const TONE_ICON: Record<Tone, typeof Info> = {
-  success: CheckCircle2,
-  info: Info,
-  warning: AlertTriangle,
-  danger: XCircle,
-};
-
+/** Yerel implementasyon Callout primitive'ine indi (denetim §9 tekilleştirme). */
 function StatusAlert({
   tone,
   title,
@@ -61,17 +44,10 @@ function StatusAlert({
   title: string;
   children?: React.ReactNode;
 }) {
-  const Icon = TONE_ICON[tone];
   return (
-    <div
-      className={cn("flex items-start gap-3 rounded-xl border p-4", TONE_CLASSES[tone])}
-    >
-      <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-      <div className="min-w-0 text-sm">
-        <p className="font-semibold">{title}</p>
-        {children ? <div className="mt-1">{children}</div> : null}
-      </div>
-    </div>
+    <Callout variant={tone} title={title}>
+      {children}
+    </Callout>
   );
 }
 

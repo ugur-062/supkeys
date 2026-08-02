@@ -415,6 +415,7 @@ export default function OrderDetailPage() {
               ) : (
                 <Button
                   plain
+                  className="!text-red-600 data-hover:!bg-red-50"
                   onClick={() => setModal("cancel")}
                   disabled={cancel.isPending}
                 >
@@ -430,6 +431,7 @@ export default function OrderDetailPage() {
             !pendingCancelRequest ? (
               <Button
                 plain
+                className="!text-red-600 data-hover:!bg-red-50"
                 onClick={() => setModal("cancelRequest")}
                 disabled={requestCancel.isPending}
               >
@@ -444,6 +446,7 @@ export default function OrderDetailPage() {
                 </span>
                 <Button
                   plain
+                  className="!text-red-600 data-hover:!bg-red-50"
                   onClick={() => setModal("defectNotice")}
                   disabled={raiseDefect.isPending}
                 >
@@ -458,6 +461,7 @@ export default function OrderDetailPage() {
               <>
                 <Button
                   plain
+                  className="!text-red-600 data-hover:!bg-red-50"
                   onClick={() => setModal("reject")}
                   disabled={reject.isPending}
                 >

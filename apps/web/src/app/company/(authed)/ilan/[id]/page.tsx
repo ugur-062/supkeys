@@ -44,6 +44,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
+import { Callout } from "@/components/ui/callout";
 import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -1545,9 +1546,9 @@ export default function ListingDetailPage() {
               düşük' iddiası — kural kendi öncekinden düşük); kapalı zarf
               notu RFQ'da kalır. */}
           {!l.english?.isEnglishAuction ? (
-            <Text className="text-xs text-zinc-400">
+            <Callout variant="neutral" icon={Lock}>
               Kapalı zarf: diğer tekliflerin tutarını göremezsin.
-            </Text>
+            </Callout>
           ) : null}
           {bidDocsSection}
         </div>

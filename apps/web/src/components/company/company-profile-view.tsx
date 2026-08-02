@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StarIcon } from "@heroicons/react/20/solid";
 
 import { safeExternalUrl } from "@/lib/safe-url";
 
@@ -207,7 +208,7 @@ export function CompanyProfileView({
                     Değerlendirme
                   </div>
                   <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
-                    <span className="text-amber-500">★</span>
+                    <StarIcon className="size-4 text-rating" aria-hidden />
                     {p.rating.avg.toFixed(1)}
                     <span className="font-normal text-zinc-400">
                       ({p.rating.count})
@@ -372,8 +373,9 @@ export function CompanyProfileView({
               <h2 className="text-base font-semibold text-zinc-900">
                 Değerlendirmeler
                 {p.rating && p.rating.count > 0 ? (
-                  <span className="ml-2 text-sm font-medium text-amber-600">
-                    ★ {p.rating.avg.toFixed(1)}{" "}
+                  <span className="ml-2 inline-flex items-center gap-1 text-sm font-medium text-amber-600">
+                    <StarIcon className="size-4 text-rating" aria-hidden />
+                    {p.rating.avg.toFixed(1)}{" "}
                     <span className="text-zinc-400">({p.rating.count})</span>
                   </span>
                 ) : null}
