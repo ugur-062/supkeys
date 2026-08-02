@@ -1642,3 +1642,81 @@ describe("INV-MONEY-1 — Decimal sınır (epsilon YOK)", () => {
     expect(res.status).toBe("IN_DELIVERY");
   });
 });
+
+describe("accept: tahmini teslim tarihi SORULMAZ — kalem tarihlerinden türetilir (2026-08-02)", () => {
+  it("tarihsiz accept → expectedDeliveryDate = kalem teslim tarihlerinin en geci; kalemler tarihsizse null", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "PENDING",
+    });
+    const early = future(3);
+    const late = future(9);
+    await prisma.companyOrderItem.createMany({
+      data: [
+        {
+          orderId: order.id,
+          name: "Kalem A",
+          quantity: 1,
+          unit: "adet",
+          unitPrice: 500,
+          deliveryDate: early,
+        },
+        {
+          orderId: order.id,
+          name: "Kalem B",
+          quantity: 1,
+          unit: "adet",
+          unitPrice: 500,
+          deliveryDate: late,
+        },
+      ],
+    });
+    const acct = await acceptInputFor(seller.company.id);
+    await orders.accept(seller.auth, order.id, {
+      bankAccountId: acct.bankAccountId,
+    } as never);
+    const o = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(o.status).toBe("ACCEPTED");
+    expect(o.expectedDeliveryDate?.getTime()).toBe(late.getTime());
+
+    // Kalemleri tarihsiz sipariş: tarihsiz accept → null kalır (gösterim dayanıklı).
+    const order2 = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "PENDING",
+    });
+    await prisma.companyOrderItem.create({
+      data: {
+        orderId: order2.id,
+        name: "Kalem C",
+        quantity: 1,
+        unit: "adet",
+        unitPrice: 1000,
+      },
+    });
+    const acct2 = await acceptInputFor(seller.company.id);
+    await orders.accept(seller.auth, order2.id, {
+      bankAccountId: acct2.bankAccountId,
+    } as never);
+    const o2 = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order2.id },
+    });
+    expect(o2.expectedDeliveryDate).toBeNull();
+
+    // Açıkça tarih verilirse (API geriye-uyumluluk) aynen yazılır.
+    const order3 = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "PENDING",
+    });
+    const explicit = future(14);
+    const acct3 = await acceptInputFor(seller.company.id);
+    await orders.accept(seller.auth, order3.id, {
+      bankAccountId: acct3.bankAccountId,
+      expectedDeliveryDate: explicit.toISOString(),
+    } as never);
+    const o3 = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order3.id },
+    });
+    expect(o3.expectedDeliveryDate?.getTime()).toBe(explicit.getTime());
+  });
+});

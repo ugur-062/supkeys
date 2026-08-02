@@ -210,6 +210,19 @@ export class CompanyOrdersService {
         "Ödeme alabilmek için onayda bir banka hesabı seçmelisiniz — kayıtlı hesabınız yoksa Ayarlar → Banka Hesapları'ndan ekleyin (yalnız Kurucu ekleyebilir)",
       );
     }
+    // Tahmini teslim kabulde SORULMAZ (2026-08-02) — teklif zaten teslim
+    // bilgisi taşıyor. Verilmezse award snapshot'ındaki kalem teslim
+    // tarihlerinin en geci; hiç yoksa null (gösterimler null'a dayanıklı).
+    let expectedDeliveryDate: Date | null = input.expectedDeliveryDate
+      ? new Date(input.expectedDeliveryDate)
+      : null;
+    if (!expectedDeliveryDate) {
+      const latest = await this.prisma.companyOrderItem.aggregate({
+        where: { orderId: id, deliveryDate: { not: null } },
+        _max: { deliveryDate: true },
+      });
+      expectedDeliveryDate = latest._max.deliveryDate ?? null;
+    }
     const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",
@@ -219,7 +232,7 @@ export class CompanyOrdersService {
         acceptedNote: input.acceptedNote?.trim() || null,
         bankAccountHolder,
         bankIban,
-        expectedDeliveryDate: new Date(input.expectedDeliveryDate),
+        expectedDeliveryDate,
       },
     });
     // INV-AUDIT-1: durum geçişi (sipariş onayı) — commit SONRASI, bildirimden önce.
@@ -236,7 +249,7 @@ export class CompanyOrdersService {
         orderNumber: res.order.number,
         from: "PENDING",
         to: "ACCEPTED",
-        expectedDeliveryDate: input.expectedDeliveryDate,
+        expectedDeliveryDate: expectedDeliveryDate?.toISOString() ?? null,
         bankAccountId: input.bankAccountId,
       },
     });

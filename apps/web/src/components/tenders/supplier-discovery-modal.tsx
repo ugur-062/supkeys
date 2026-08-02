@@ -8,7 +8,10 @@ import {
 } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { useInviteConnection } from "@/hooks/use-company-connections";
+import {
+  useInviteByEmailBatch,
+  useInviteConnection,
+} from "@/hooks/use-company-connections";
 import {
   useExternalSupplierDiscovery,
   useExternalTenderInvite,
@@ -78,6 +81,9 @@ export function SupplierDiscoveryModal({
   // Faz B/C durumları
   const external = useExternalSupplierDiscovery();
   const sendExternal = useExternalTenderInvite();
+  // İhale bağlamı yokken (wizard'dan açılış) genel bağlantı daveti gönderilir
+  // — kullanıcı firmaları seçip butonsuz kalmasın (madde 4 düzeltmesi).
+  const sendGeneric = useInviteByEmailBatch();
   const [externalResults, setExternalResults] = useState<ExternalCandidate[]>([]);
   const [region, setRegion] = useState("");
   const [emailDrafts, setEmailDrafts] = useState<Record<number, string>>({});
@@ -146,6 +152,32 @@ export function SupplierDiscoveryModal({
         toast.success(`${sent.length} davet e-postası gönderildi`);
       }
       for (const s of skipped.slice(0, 3)) {
+        toast.info(`${s.email}: ${s.reason ?? "atlandı"}`);
+      }
+      setSelectedExt(new Set());
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Davetler gönderilemedi"));
+    }
+  };
+
+  /** listingId'siz (wizard) gönderim: genel bağlantı/kayıt daveti. */
+  const sendGenericInvites = async () => {
+    if (sendGeneric.isPending) return;
+    const emails = [...selectedExt]
+      .map((i) => (emailDrafts[i] ?? "").trim().toLowerCase())
+      .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
+    if (emails.length === 0) {
+      toast.error("Seçili adayların e-posta adreslerini doldurun");
+      return;
+    }
+    try {
+      const { results } = await sendGeneric.mutateAsync(emails);
+      const sent = results.filter((r) => r.status !== "skipped");
+      if (sent.length > 0) {
+        setSentEmails((s) => new Set([...s, ...sent.map((r) => r.email)]));
+        toast.success(`${sent.length} davet gönderildi`);
+      }
+      for (const s of results.filter((r) => r.status === "skipped").slice(0, 3)) {
         toast.info(`${s.email}: ${s.reason ?? "atlandı"}`);
       }
       setSelectedExt(new Set());
@@ -336,25 +368,29 @@ export function SupplierDiscoveryModal({
 
               {externalResults.length > 0 ? (
                 <div className="mt-4">
-                  {listingId ? (
-                    <Button
-                      onClick={sendExternalInvites}
-                      disabled={selectedExt.size === 0 || sendExternal.isPending}
-                    >
-                      {sendExternal.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Mail className="h-4 w-4" />
-                      )}
-                      Davet E-postası Gönder ({selectedExt.size})
-                    </Button>
-                  ) : (
-                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      Davet e-postası, ihale yayınlandıktan sonra ihale
-                      sayfasındaki bu ekrandan gönderilir (davet, alıcıyı bu
-                      ihaleye bağlar).
+                  <Button
+                    onClick={listingId ? sendExternalInvites : sendGenericInvites}
+                    disabled={
+                      selectedExt.size === 0 ||
+                      sendExternal.isPending ||
+                      sendGeneric.isPending
+                    }
+                  >
+                    {sendExternal.isPending || sendGeneric.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mail className="h-4 w-4" />
+                    )}
+                    Davet E-postası Gönder ({selectedExt.size})
+                  </Button>
+                  {!listingId ? (
+                    <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                      İhale henüz yayınlanmadığı için <strong>bağlantı/kayıt
+                      daveti</strong> gönderilir — firma kabul edince Davetliler
+                      adımında listenize düşer. İhaleye özel davet, yayın
+                      sonrası ihale sayfasındaki bu ekrandan gönderilir.
                     </p>
-                  )}
+                  ) : null}
                   <p className="mt-2 text-[11px] text-zinc-400">
                     Günlük dış davet limiti firma başına 20&apos;dir; aynı adrese
                     yalnız bir kez gönderilir ve her e-postada tek tık

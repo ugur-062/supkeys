@@ -12,7 +12,6 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { useBankAccounts } from "@/hooks/use-company-bank-accounts";
-import { todayLocalISO } from "@/lib/tenders/date";
 import Link from "next/link";
 import { Textarea } from "@/components/catalyst/textarea";
 import { useState } from "react";
@@ -29,7 +28,6 @@ export function AcceptOrderModal({
   open: boolean;
   onClose: () => void;
   onSubmit: (input: {
-    expectedDeliveryDate: string;
     acceptedNote?: string;
     bankAccountId?: string;
   }) => void;
@@ -37,7 +35,6 @@ export function AcceptOrderModal({
   /** S1: LC/vesaik mukabilinde ödeme banka kanalından gider → banka hesabı opsiyonel. */
   bankOptional?: boolean;
 }) {
-  const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   // Banka bilgisi elle girilmez — Ayarlar → Banka Hesapları'ndan seçilir.
   const accounts = useBankAccounts();
@@ -45,15 +42,13 @@ export function AcceptOrderModal({
   const defaultId =
     accounts.data?.find((a) => a.isDefault)?.id ?? accounts.data?.[0]?.id ?? "";
   const effectiveAccountId = accountId || defaultId;
-  const today = todayLocalISO();
 
   const hasAccounts = !!accounts.data && accounts.data.length > 0;
   const bankReady = bankOptional || !!effectiveAccountId;
 
   const submit = () => {
-    if (!date || !bankReady) return;
+    if (!bankReady) return;
     onSubmit({
-      expectedDeliveryDate: date,
       acceptedNote: note.trim() || undefined,
       bankAccountId: effectiveAccountId || undefined,
     });
@@ -63,18 +58,10 @@ export function AcceptOrderModal({
     <Dialog open={open} onClose={onClose} size="lg">
       <DialogTitle>Siparişi Onayla</DialogTitle>
       <DialogDescription>
-        Tahmini teslim tarihini ve ödeme bilgilerinizi girin.
+        Ödeme bilgilerinizi girin — teslim bilgisi teklifinizden alınır,
+        yeniden tarih seçmeniz gerekmez.
       </DialogDescription>
       <DialogBody className="space-y-4">
-        <Field>
-          <Label>Tahmini Teslim Tarihi *</Label>
-          <Input
-            type="date"
-            min={today}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </Field>
         {bankOptional ? (
           <Field>
             <Label>Ödeme Hesabı</Label>
@@ -134,7 +121,7 @@ export function AcceptOrderModal({
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={submit} disabled={pending || !date || !bankReady}>
+        <Button onClick={submit} disabled={pending || !bankReady}>
           Onayla
         </Button>
       </DialogActions>

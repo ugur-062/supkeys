@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import type { CompanyBankAccount } from "@/hooks/use-company-bank-accounts";
-import { todayLocalISO } from "@/lib/tenders/date";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,24 +34,7 @@ describe("AcceptOrderModal", () => {
     isDefault: true,
   };
 
-  it("teslim tarihi min'i YEREL bugüne eşit; boşken onay kapalı", () => {
-    h.bankAccounts = { data: [account] };
-    render(
-      <AcceptOrderModal
-        open
-        onClose={vi.fn()}
-        onSubmit={vi.fn()}
-        pending={false}
-      />,
-    );
-    const dateInput = screen.getByLabelText("Tahmini Teslim Tarihi *");
-    expect(dateInput).toHaveAttribute("min", todayLocalISO());
-    // UTC slice değil yerel takvim → min "bugün" formatı YYYY-MM-DD.
-    expect(dateInput.getAttribute("min")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
-  });
-
-  it("tarih girilince onay aktif → payload teslim tarihi + varsayılan hesabı taşır", async () => {
+  it("tarih alanı YOK (teslim tekliften gelir); hesap varken onay açık → payload yalnız hesap+not", async () => {
     const onSubmit = vi.fn();
     h.bankAccounts = { data: [account] };
     render(
@@ -63,23 +45,22 @@ describe("AcceptOrderModal", () => {
         pending={false}
       />,
     );
-    const date = new Date(Date.now() + 4 * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-    await userEvent.type(
-      screen.getByLabelText("Tahmini Teslim Tarihi *"),
-      date,
-    );
+    // Kabulde tekrar tarih sorulmaz (2026-08-02).
+    expect(
+      screen.queryByLabelText(/Tahmini Teslim Tarihi/),
+    ).not.toBeInTheDocument();
     const confirm = screen.getByRole("button", { name: "Onayla" });
     expect(confirm).toBeEnabled();
     await userEvent.click(confirm);
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
-        expectedDeliveryDate: date,
         // Varsayılan hesap otomatik seçilir (elle IBAN yok).
         bankAccountId: "acc1",
       }),
+    );
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty(
+      "expectedDeliveryDate",
     );
   });
 
@@ -97,14 +78,6 @@ describe("AcceptOrderModal", () => {
     expect(
       screen.getByText(/banka hesabı gerekli/i),
     ).toBeInTheDocument();
-    const date = new Date(Date.now() + 2 * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-    await userEvent.type(
-      screen.getByLabelText("Tahmini Teslim Tarihi *"),
-      date,
-    );
-    // Hesap yokken tarih girilse de onay KAPALI (ödeme alınamaz).
     expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Onayla" }));
     expect(onSubmit).not.toHaveBeenCalled();

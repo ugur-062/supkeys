@@ -22,8 +22,12 @@ import { MAX_MONEY, MAX_QUANTITY } from "../../../common/constants/money";
  * seçilir (Ayarlar → Banka Hesapları) — elle IBAN girilmez. Gönder: fatura no.
  */
 export class AcceptOrderDto {
+  /** Opsiyonel (2026-08-02): kabulde tekrar tarih SORULMAZ — teslim bilgisi
+   *  teklifle gelir; verilmezse award snapshot'ındaki kalem teslim
+   *  tarihlerinin en geci siparişe yazılır. */
+  @IsOptional()
   @IsDateString({}, { message: "Geçerli bir teslim tarihi girin" })
-  expectedDeliveryDate!: string;
+  expectedDeliveryDate?: string;
 
   @IsOptional()
   @IsString()

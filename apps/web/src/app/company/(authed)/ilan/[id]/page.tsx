@@ -1326,24 +1326,6 @@ export default function ListingDetailPage() {
                     {pricedCountById.get(b.id) ?? 0}/{bidItemCount} kalem
                   </Badge>
                 ) : null}
-                {(bidDocs.data ?? [])
-                  .filter((d) => d.bidId === b.id)
-                  .map((d) => (
-                    <a
-                      key={d.id}
-                      href={d.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={`${BID_DOC_KIND_LABELS[d.kind]}: ${d.fileName}`}
-                      className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-blue-600 hover:underline"
-                    >
-                      <span aria-hidden="true">📎</span>{" "}
-                      {BID_DOC_KIND_LABELS[d.kind]} —{" "}
-                      {d.fileName.length > 16
-                        ? `${d.fileName.slice(0, 14)}…`
-                        : d.fileName}
-                    </a>
-                  ))}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-mono text-sm font-semibold text-zinc-900">
@@ -1389,6 +1371,34 @@ export default function ListingDetailPage() {
                   </>
                 ) : null}
               </div>
+              {/* Teklif ekleri — satır başlığına sıkışmasın diye KENDİ
+                  satırında (isim/rozet kümesinin içinde dosya çipi kafa
+                  karıştırıyordu). Tam liste teklif detayında. */}
+              {(bidDocs.data ?? []).some((d) => d.bidId === b.id) ? (
+                <div className="flex w-full flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-2">
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                    Teklif ekleri:
+                  </span>
+                  {(bidDocs.data ?? [])
+                    .filter((d) => d.bidId === b.id)
+                    .map((d) => (
+                      <a
+                        key={d.id}
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`${BID_DOC_KIND_LABELS[d.kind]}: ${d.fileName}`}
+                        className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-blue-600 hover:underline"
+                      >
+                        <span aria-hidden="true">📎</span>{" "}
+                        {BID_DOC_KIND_LABELS[d.kind]} —{" "}
+                        {d.fileName.length > 16
+                          ? `${d.fileName.slice(0, 14)}…`
+                          : d.fileName}
+                      </a>
+                    ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

@@ -170,7 +170,7 @@ export interface CompanyOrderDetail extends CompanyOrder {
 }
 
 export interface AcceptOrderInput {
-  expectedDeliveryDate: string;
+  /** Kabulde tarih SORULMAZ — teslim bilgisi tekliften gelir (backend türetir). */
   acceptedNote?: string;
   /** Ayarlar → Banka Hesapları'ndan seçilen hesap (IBAN elle girilmez). */
   bankAccountId?: string;
