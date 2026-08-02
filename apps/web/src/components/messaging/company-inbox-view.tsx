@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/list";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { CompanyMessageThread } from "@/components/messaging/company-message-thread";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useConnections } from "@/hooks/use-company-connections";
@@ -197,9 +198,7 @@ export function CompanyInboxView() {
                         : "border-l-transparent"
                     }`}
                   >
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
-                      {(r.name[0] ?? "?").toLocaleUpperCase("tr-TR")}
-                    </div>
+                    <AvatarInitials name={r.name} size="sm" className="mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-1.5">

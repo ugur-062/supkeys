@@ -1,6 +1,7 @@
 "use client";
 
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
   useSendMessage,
   useThreadMessages,
@@ -18,17 +19,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
-function chatInitials(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join("")
-      .toLocaleUpperCase("tr-TR") || "?"
-  );
-}
 
 function formatTimestamp(date: Date): string {
   if (isToday(date)) return format(date, "HH:mm", { locale: tr });
@@ -105,9 +95,7 @@ export function CompanyMessageThread({
     <div className={wrapperCls}>
       {/* Chat header */}
       <div className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
-          {chatInitials(otherPartyName)}
-        </div>
+        <AvatarInitials name={otherPartyName} size="md" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-zinc-950">
             {otherPartyName}
