@@ -204,7 +204,7 @@ function AppPreview() {
         </div>
         <div className="flex">
           {/* sidebar */}
-          <div className="hidden w-48 shrink-0 bg-[#0A0A0A] p-4 sm:block">
+          <div className="hidden w-48 shrink-0 bg-zinc-950 p-4 sm:block">
             <RothernLogo variant="full" size="sm" />
             <div className="mt-6 space-y-1">
               {previewNav.map((n, i) => (
@@ -800,7 +800,7 @@ export default function HomePage() {
       </section>
 
       {/* Pazar & erişim */}
-      <section className="relative isolate overflow-hidden bg-[#0A0A0A] py-24 sm:py-32">
+      <section className="relative isolate overflow-hidden bg-zinc-950 py-24 sm:py-32">
         {/* grid deseni */}
         <svg
           aria-hidden="true"
@@ -1359,7 +1359,7 @@ export default function HomePage() {
       {/* CTA — koyu panel */}
       <section className="px-6 py-24 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="relative isolate overflow-hidden rounded-3xl bg-[#0A0A0A] px-6 py-20 text-center shadow-2xl sm:px-16">
+          <div className="relative isolate overflow-hidden rounded-3xl bg-zinc-950 px-6 py-20 text-center shadow-2xl sm:px-16">
             <h2 className="text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl">
               Firmanı bugün Rothern&apos;e taşı
             </h2>
@@ -1390,7 +1390,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#0A0A0A]">
+      <footer className="bg-zinc-950">
         <div className="mx-auto max-w-7xl px-6 pt-16 pb-10 lg:px-8">
           <div className="xl:grid xl:grid-cols-3 xl:gap-8">
             <div className="space-y-6">

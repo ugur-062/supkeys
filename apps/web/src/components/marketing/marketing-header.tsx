@@ -30,8 +30,8 @@ export function MarketingHeader() {
         aria-label="Global"
         className={`mx-auto flex items-center justify-between text-white transition-all duration-300 ease-out ${
           scrolled
-            ? "mt-3 max-w-3xl rounded-full border border-zinc-800 bg-[#0A0A0A] px-5 py-2 shadow-2xl"
-            : "mt-4 max-w-6xl rounded-2xl border border-zinc-800 bg-[#0A0A0A] px-6 py-3 shadow-lg"
+            ? "mt-3 max-w-3xl rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 shadow-2xl"
+            : "mt-4 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-950 px-6 py-3 shadow-lg"
         }`}
       >
         <div className="flex lg:flex-1">
@@ -83,7 +83,7 @@ export function MarketingHeader() {
         className="lg:hidden"
       >
         <div className="fixed inset-0 z-50" />
-        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-[#0A0A0A] p-6 sm:max-w-sm sm:ring-1 sm:ring-white/10">
+        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-zinc-950 p-6 sm:max-w-sm sm:ring-1 sm:ring-white/10">
           <div className="flex items-center justify-between">
             <Link href="/" className="-m-1.5 p-1.5">
               <RothernLogo variant="full" size="sm" />

@@ -324,7 +324,7 @@ function BreakdownCard({
                     style={{ width: `${Math.min(100, r.percent as number)}%` }}
                   />
                 ) : (
-                  <div className="h-full w-full bg-[repeating-linear-gradient(45deg,transparent_0_4px,#e2e8f0_4px_8px)]" />
+                  <div className="h-full w-full bg-[repeating-linear-gradient(45deg,transparent_0_4px,var(--color-zinc-200)_4px_8px)]" />
                 )}
               </div>
             </li>

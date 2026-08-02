@@ -1,6 +1,20 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"],
+  "extends": [
+    "next/core-web-vitals",
+    "next/typescript"
+  ],
   "rules": {
-    "react/no-unescaped-entities": "off"
+    "react/no-unescaped-entities": "off",
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "JSXAttribute[name.name='className'] Literal[value=/#[0-9a-fA-F]{3}|rgba?\\(/]",
+        "message": "Ham renk (hex/rgb) yasak — @theme token'ı ya da palet sınıfı kullan (frontend denetimi §2). Veri görselleştirme paleti JS sabiti olarak kalabilir."
+      },
+      {
+        "selector": "JSXText[value=/\"/]",
+        "message": "Metinde düz tırnak yerine tipografik “…” kullan (frontend denetimi §8.3)."
+      }
+    ]
   }
 }
