@@ -13,6 +13,7 @@ import {
 import { Text } from "@/components/catalyst/text";
 import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
 import { formatMoney } from "@/components/ui/money";
+import { Iban } from "@/components/ui/iban";
 import { MetaTag, StatusBadge } from "@/components/ui/status-badge";
 import {
   useAcceptOrder,
@@ -756,7 +757,9 @@ export default function OrderDetailPage() {
                 {o.bankIban ? (
                   <div>
                     <dt className="text-xs text-zinc-500">IBAN</dt>
-                    <dd className="font-mono text-zinc-900">{o.bankIban}</dd>
+                    <dd className="text-zinc-900">
+                      <Iban value={o.bankIban} />
+                    </dd>
                   </div>
                 ) : null}
                 {o.invoiceNumber ? (

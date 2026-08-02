@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { Iban } from "@/components/ui/iban";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -25,11 +26,6 @@ import { isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-/** IBAN'ı 4'lü gruplarla okunur gösterir. */
-function fmtIban(iban: string): string {
-  return iban.replace(/(.{4})/g, "$1 ").trim();
-}
 
 export function BankAccountsSection({ canManage }: { canManage: boolean }) {
   const { data: accounts, isLoading } = useBankAccounts();
@@ -93,8 +89,8 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
                       <Badge color="amber">Varsayılan</Badge>
                     ) : null}
                   </div>
-                  <div className="mt-1 font-mono text-xs text-zinc-600">
-                    {fmtIban(a.iban)}
+                  <div className="mt-1 text-xs text-zinc-600">
+                    <Iban value={a.iban} />
                   </div>
                   <div className="mt-0.5 text-xs text-zinc-500">
                     {a.accountHolder}

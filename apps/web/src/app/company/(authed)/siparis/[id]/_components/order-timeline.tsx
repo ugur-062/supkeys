@@ -51,10 +51,10 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     const lines: string[] = [];
     if (o.expectedDeliveryDate)
       lines.push(`Tahmini teslim: ${fmt(o.expectedDeliveryDate)}`);
+    // IBAN zaman çizelgesine YAZILMAZ (denetim §9) — hesap sahibi yeter;
+    // tam IBAN "Ödeme & Fatura" kartında maskeli bileşenle gösterilir.
     if (o.bankAccountHolder || o.bankIban)
-      lines.push(
-        `Hesap: ${o.bankAccountHolder ?? "—"}${o.bankIban ? ` · IBAN: ${o.bankIban}` : ""}`,
-      );
+      lines.push(`Ödeme hesabı: ${o.bankAccountHolder ?? "belirlendi"}`);
     if (o.acceptedNote) lines.push(o.acceptedNote);
     events.push({
       icon: ThumbsUp,
