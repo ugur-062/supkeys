@@ -68,6 +68,28 @@
   --radius-lg:  0.5rem;
   --radius-xl:  0.75rem;
   --radius-2xl: 1rem;
+
+  /* ---- P1 (frontend denetimi) — token tamamlama ---- */
+  /* Kenar: 5 farklı değer → 2 */
+  --color-line:        #E8E8EA;
+  --color-line-strong: #D9D9DE;
+  /* Metin ailesi */
+  --color-fg:        #27272A;
+  --color-fg-muted:  #71717A;
+  --color-fg-subtle: #A1A1AA;
+  /* Info (mavi) — semantik set tamamlanır */
+  --color-info-50:  #EFF6FF;
+  --color-info-500: #3B82F6;
+  --color-info-600: #2563EB;
+  /* Rating — bilinçli istisna: YALNIZ yıldız değerlendirmede */
+  --color-rating: #FBBF24; /* amber-400 */
+  /* Overlay gölgesi (modal/popover) */
+  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.12),
+                    0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  /* Yarıçap rol takma adları: kontrol / kart / overlay */
+  --radius-control: 0.5rem;
+  --radius-card:    0.75rem;
+  --radius-overlay: 1rem;
 }
 
 @layer base {
