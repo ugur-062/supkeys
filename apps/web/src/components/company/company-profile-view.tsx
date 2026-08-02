@@ -135,6 +135,11 @@ export function CompanyProfileView({
                 src={p.coverImageUrl}
                 alt={`${p.name} kapak görseli`}
                 className="h-full w-full object-cover"
+                // P0: kırık R2 URL'inde çıplak kırık-görsel ikonu yerine
+                // koyu zemine (kartın kendi arka planı) sessizce düş.
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             </>

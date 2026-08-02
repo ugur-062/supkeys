@@ -153,9 +153,10 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     expect(screen.getByText("Bekleyen Sipariş")).toBeInTheDocument();
     expect(screen.getByText("Biten Sipariş")).toBeInTheDocument();
 
-    await userEvent.selectOptions(
-      screen.getByLabelText("Durum filtresi"),
-      "PENDING",
+    // FilterSelect artık Listbox (P0): buton → seçenek tıklama.
+    await userEvent.click(screen.getByRole("button", { name: "Durum filtresi" }));
+    await userEvent.click(
+      await screen.findByRole("option", { name: /Onay bekl/i }),
     );
     expect(screen.getByText("Bekleyen Sipariş")).toBeInTheDocument();
     expect(screen.queryByText("Biten Sipariş")).not.toBeInTheDocument();

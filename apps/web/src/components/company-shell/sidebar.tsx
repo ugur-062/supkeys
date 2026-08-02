@@ -71,6 +71,9 @@ function RailItem({
   return (
     <Link
       href={href}
+      // P0: açılışta 13 linkin RSC prefetch fırtınası (503'ler + "Yeni Satış
+      // İhalesi"ndeki ölü tıklamanın kaynağı) — nav'da prefetch kapalı.
+      prefetch={false}
       onClick={onClick}
       title={expanded ? undefined : label}
       className={cn(
@@ -200,6 +203,7 @@ export function CompanySidebarContent({
                 <Link
                   key={p}
                   href={def.basePath}
+                  prefetch={false}
                   title={expanded ? undefined : def.label}
                   onClick={() => {
                     if (allowedP) setLastPortal(p);

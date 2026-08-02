@@ -48,12 +48,17 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Masaüstü rayı — mouse gelince genişler (pin ile sabitlenebilir).
-          Genişleme içeriğin üstüne BİNMEZ; içerik aynı animasyonla sağa kayar. */}
+          P0: hover genişlemesi OVERLAY'dir (gölgeyle üste biner) — içerik
+          yalnız "Menüyü sabitle" aktifken itilir; KPI başlıklarının kırılıp
+          kartların zıplaması biter. */}
       <aside
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? RAIL_EXPANDED : RAIL }}
-        className="fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
+        className={cn(
+          "fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block",
+          expanded && !pinned && "shadow-xl",
+        )}
       >
         <CompanySidebarContent expanded={expanded} />
       </aside>
@@ -99,11 +104,13 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       <main
         className={cn(
           "flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
-          expanded ? "lg:pl-64" : "lg:pl-[4.5rem]",
+          pinned ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >
         <div className="flex grow flex-col p-2 pt-2">
-          <div className="grow rounded-xl bg-white p-6 shadow-xs ring-1 ring-zinc-950/5 lg:p-10">
+          {/* P0: alt nefes payı (pb-24) — AI asistan FAB'ı pagination /
+              "Devam" gibi son satır aksiyonlarının üstüne binmesin. */}
+          <div className="grow rounded-xl bg-white p-6 pb-24 shadow-xs ring-1 ring-zinc-950/5 lg:p-10 lg:pb-24">
             <div className="mx-auto max-w-6xl">{children}</div>
           </div>
         </div>

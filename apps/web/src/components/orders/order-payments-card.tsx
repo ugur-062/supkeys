@@ -183,14 +183,32 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         <Totals label="Kalan" value={t.remaining} tone="text-zinc-900" curSym={curSym} />
       </div>
 
-      {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır. */}
+      {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır.
+          P0: vadesi GEÇMİŞ + borç açık → danger vurgusu ve gecikme gün sayısı. */}
       {order.paymentDueDate ? (
-        <div className="border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600">
-          Ödeme vadesi:{" "}
-          <strong>
-            {format(new Date(order.paymentDueDate), "dd MMM yyyy", { locale: tr })}
-          </strong>
-        </div>
+        (() => {
+          const overdueDays = Math.floor(
+            (Date.now() - new Date(order.paymentDueDate).getTime()) / 86_400_000,
+          );
+          const overdue = overdueDays > 0 && Number(t.remaining) > 0;
+          return (
+            <div
+              className={
+                overdue
+                  ? "border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-medium text-red-700"
+                  : "border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600"
+              }
+            >
+              Ödeme vadesi:{" "}
+              <strong>
+                {format(new Date(order.paymentDueDate), "dd MMM yyyy", {
+                  locale: tr,
+                })}
+              </strong>
+              {overdue ? ` — ${overdueDays} gün gecikti` : ""}
+            </div>
+          );
+        })()
       ) : null}
 
       {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. */}

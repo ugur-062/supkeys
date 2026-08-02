@@ -96,8 +96,9 @@ describe("SellerTendersView", () => {
     expect(screen.getByText("Açık İhale")).toBeInTheDocument();
     expect(screen.queryByText("Biten İhale")).not.toBeInTheDocument();
 
-    const durum = screen.getByLabelText("Durum");
-    await user.selectOptions(within(durum.parentElement!).getByRole("combobox"), "past");
+    // FilterSelect artık Listbox (P0): buton → seçenek tıklama.
+    await user.click(screen.getByRole("button", { name: "Durum" }));
+    await user.click(await screen.findByRole("option", { name: "Geçmiş" }));
     expect(screen.getByText("Biten İhale")).toBeInTheDocument();
     expect(screen.queryByText("Açık İhale")).not.toBeInTheDocument();
     expect(screen.getByText("Kazandın")).toBeInTheDocument();
@@ -111,11 +112,10 @@ describe("SellerTendersView", () => {
     ];
     render(<SellerTendersView />);
 
-    const musteri = screen.getByLabelText("Müşteri");
-    await user.selectOptions(
-      within(musteri.parentElement!).getByRole("combobox"),
-      "cx",
-    );
+    await user.click(screen.getByRole("button", { name: "Müşteri" }));
+    const listbox = await screen.findByRole("listbox");
+    // Seçenek etiketi sayaçlı: "Firma X (1)".
+    await user.click(within(listbox).getByText(/Firma X/));
     expect(screen.getByText("X'in ihalesi")).toBeInTheDocument();
     expect(screen.queryByText("Y'nin ihalesi")).not.toBeInTheDocument();
   });

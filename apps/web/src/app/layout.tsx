@@ -60,8 +60,11 @@ export default function RootLayout({
       <body className="antialiased">
         <QueryProvider>
           {children}
+          {/* P0: sağ-alt — header'ı/aksiyonları örtmesin (canlı mesaj
+              kartlarıyla aynı köşe, tek bildirim bölgesi). */}
           <Toaster
-            position="top-right"
+            position="bottom-right"
+            offset={24}
             richColors
             closeButton
             toastOptions={{

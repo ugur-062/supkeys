@@ -339,15 +339,34 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
               {src.label}
             </span>
             <OrderStatusBadge status={o.status} sellerShips={sellerShips} />
-            {/* Yaşam döngüsü ayrımı: ödeme durumu operasyonel durumdan ayrı. */}
+            {/* Yaşam döngüsü ayrımı: ödeme durumu operasyonel durumdan ayrı.
+                P0: VADESİ GEÇMİŞ ödeme normal "Ödeme bekliyor" ile piksel
+                piksel aynı görünüyordu — gecikme danger rozetle ayrışır. */}
             {o.paymentSettled === false &&
             !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status) ? (
-              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                Ödeme bekliyor
-                {o.paymentDueDate
-                  ? ` · Vade ${new Date(o.paymentDueDate).toLocaleDateString("tr-TR")}`
-                  : ""}
-              </span>
+              (() => {
+                const overdueDays = o.paymentDueDate
+                  ? Math.floor(
+                      (Date.now() - new Date(o.paymentDueDate).getTime()) /
+                        86_400_000,
+                    )
+                  : null;
+                if (overdueDays != null && overdueDays > 0) {
+                  return (
+                    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                      Ödeme gecikti · {overdueDays} gün
+                    </span>
+                  );
+                }
+                return (
+                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Ödeme bekliyor
+                    {o.paymentDueDate
+                      ? ` · Vade ${new Date(o.paymentDueDate).toLocaleDateString("tr-TR")}`
+                      : ""}
+                  </span>
+                );
+              })()
             ) : null}
           </div>
           <p className="mt-1 truncate font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">

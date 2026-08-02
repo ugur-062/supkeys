@@ -77,6 +77,28 @@
     border-color: var(--color-surface-border);
   }
 
+  /* P0 — İMLEÇ: Tailwind v4 Preflight button'a cursor:pointer vermiyor;
+     ölçümde 41/41 buton ok imleci gösterdi. Tek kural, en yüksek getirili
+     müdahale: her etkileşimli öğe "tıklanabilir" hissettirir. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* P0 — TEK odak halkası (monokrom marka): header'daki mavi halka /
+     hesap menüsündeki outline-2 / sidebar'daki stilsizlik üçlüsü teke iner.
+     Siyah, beyaz zeminde her adımda net görünür. */
+  :focus-visible {
+    outline: 2px solid var(--color-zinc-950, #09090b);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
   html,
   body {
     height: 100%;

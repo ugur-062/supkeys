@@ -117,7 +117,9 @@ export function TcmbRatesWidget() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* P0: flex-shrink-0 dar kolonda karttan taşıp SAYFA-GENELİ yatay
+            scrollbar üretiyordu (£ kuru dışarı taşar) — sarmalanabilir. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
             <FlagUS />
             <p className="text-sm font-bold text-success-900 tabular-nums">
