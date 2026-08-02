@@ -1,6 +1,7 @@
 "use client";
 
 import { Heading } from "@/components/catalyst/heading";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { Text } from "@/components/catalyst/text";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -449,19 +450,21 @@ export function TenderWizard({
           </button>
           <div className="flex flex-wrap items-center gap-2">
             {templates.data && templates.data.length > 0 ? (
-              <select
-                defaultValue=""
-                onChange={(e) => loadTemplate(e.target.value)}
-                className="rounded-lg border border-surface-border bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none"
-                aria-label="Şablondan yükle"
-              >
-                <option value="">Şablondan Yükle…</option>
-                {templates.data.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu
+                value=""
+                onChange={(v) => {
+                  if (v) loadTemplate(v);
+                }}
+                ariaLabel="Şablondan yükle"
+                className="min-w-44"
+                options={[
+                  { value: "", label: "Şablondan Yükle…" },
+                  ...templates.data.map((t) => ({
+                    value: t.id,
+                    label: t.name,
+                  })),
+                ]}
+              />
             ) : null}
             <Button variant="secondary" onClick={() => setTemplateOpen(true)}>
               Şablon Olarak Kaydet

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/catalyst/button";
+import { SelectMenu } from "@/components/ui/select-menu";
 import {
   Dialog,
   DialogActions,
@@ -521,17 +522,20 @@ export function TenderActionsMenu({
           {nextRoundMode === "free" ? (
             <Field>
               <Label>İhale Tipi</Label>
-              <select
-                aria-label="İhale Tipi"
+              <SelectMenu
+                ariaLabel="İhale Tipi"
                 value={nrType}
-                onChange={(e) =>
-                  setNrType(e.target.value as "RFQ" | "ENGLISH_AUCTION")
-                }
-                className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
-              >
-                <option value="ENGLISH_AUCTION">{isSatis ? "Pazarlık (Açık Artırma)" : "Pazarlık (Açık Eksiltme)"}</option>
-                <option value="RFQ">Teklif Toplama (Kapalı Zarf)</option>
-              </select>
+                onChange={(v) => setNrType(v as "RFQ" | "ENGLISH_AUCTION")}
+                options={[
+                  {
+                    value: "ENGLISH_AUCTION",
+                    label: isSatis
+                      ? "Pazarlık (Açık Artırma)"
+                      : "Pazarlık (Açık Eksiltme)",
+                  },
+                  { value: "RFQ", label: "Teklif Toplama (Kapalı Zarf)" },
+                ]}
+              />
             </Field>
           ) : null}
           {/* Teklifsiz aktarma uyarısı: taşınacak teklif yoksa eksiltme/artırma
@@ -591,24 +595,21 @@ export function TenderActionsMenu({
           </div>
           <Field>
             <Label>Görünürlük</Label>
-            <select
-              aria-label="Teklif Görünürlüğü"
+            <SelectMenu
+              ariaLabel="Teklif Görünürlüğü"
               value={vis}
-              onChange={(e) =>
-                setVis(e.target.value as typeof vis)
-              }
-              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
-            >
-              <option value="OWN_ONLY">Sadece kendi teklifi</option>
-              <option value="BEST_PRICE">Sadece en iyi teklif</option>
-              <option value="OWN_RANK">
-                Sadece kendi sıralaması (Önerilen)
-              </option>
-              <option value="BEST_AND_OWN_RANK">
-                En iyi teklif ve kendi sıralaması
-              </option>
-              <option value="ALL">Tüm teklifler ve sıralama</option>
-            </select>
+              onChange={(v) => setVis(v as typeof vis)}
+              options={[
+                { value: "OWN_ONLY", label: "Sadece kendi teklifi" },
+                { value: "BEST_PRICE", label: "Sadece en iyi teklif" },
+                { value: "OWN_RANK", label: "Sadece kendi sıralaması (Önerilen)" },
+                {
+                  value: "BEST_AND_OWN_RANK",
+                  label: "En iyi teklif ve kendi sıralaması",
+                },
+                { value: "ALL", label: "Tüm teklifler ve sıralama" },
+              ]}
+            />
             {/* Mod açıklamaları yalnız İLGİLİ mod seçiliyken gösterilir. */}
             {vis === "OWN_RANK" ? (
               <p className="mt-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">

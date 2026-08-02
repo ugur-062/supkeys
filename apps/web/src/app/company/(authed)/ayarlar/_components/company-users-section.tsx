@@ -46,6 +46,7 @@ import {
 } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -783,19 +784,17 @@ function EditUserModal({
                   Devirden sonra <strong>sizin</strong> rolünüz ne olsun? (Yönetim
                   ve operasyon aynı anda seçilemez.)
                 </p>
-                <select
+                <SelectMenu
                   value={myNewRole}
-                  onChange={(e) =>
-                    setMyNewRole(e.target.value as typeof myNewRole)
-                  }
-                  aria-label="Devir sonrası rolünüz"
-                  className="w-full rounded-lg border border-violet-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-                >
-                  <option value="YONETICI">Yönetici (yönetim; operasyon yok)</option>
-                  <option value="SATIN_ALMACI">Satın Almacı (yalnız alış)</option>
-                  <option value="SATISCI">Satışçı (yalnız satış)</option>
-                  <option value="BOTH">Satın Almacı + Satışçı</option>
-                </select>
+                  onChange={(v) => setMyNewRole(v as typeof myNewRole)}
+                  ariaLabel="Devir sonrası rolünüz"
+                  options={[
+                    { value: "YONETICI", label: "Yönetici (yönetim; operasyon yok)" },
+                    { value: "SATIN_ALMACI", label: "Satın Almacı (yalnız alış)" },
+                    { value: "SATISCI", label: "Satışçı (yalnız satış)" },
+                    { value: "BOTH", label: "Satın Almacı + Satışçı" },
+                  ]}
+                />
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
                     type="button"

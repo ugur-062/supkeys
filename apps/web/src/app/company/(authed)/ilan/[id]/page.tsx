@@ -48,6 +48,7 @@ import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
 import { orderStatusMeta } from "@/lib/orders/order-status";
+import { SelectMenu } from "@/components/ui/select-menu";
 import type { CompanyOrderStatus } from "@/hooks/use-company-orders";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import {
@@ -1206,22 +1207,21 @@ export default function ListingDetailPage() {
                         }
                         className="w-24 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
                       />
-                      <select
+                      <SelectMenu
                         value={itemWinners[it.id] ?? ""}
-                        aria-label={`${it.name} için kazanan teklif`}
-                        onChange={(e) =>
-                          setItemWinners((w) => ({ ...w, [it.id]: e.target.value }))
+                        ariaLabel={`${it.name} için kazanan teklif`}
+                        onChange={(v) =>
+                          setItemWinners((w) => ({ ...w, [it.id]: v }))
                         }
-                        className="rounded-md border border-zinc-300 px-2 py-1 text-sm"
-                      >
-                        <option value="">— seç —</option>
-                        {opts.map((o) => (
-                          <option key={o.bidId} value={o.bidId}>
-                            {o.bidderName} · {o.price.toLocaleString("tr-TR")}{" "}
-                            {symFor(o.currency)}
-                          </option>
-                        ))}
-                      </select>
+                        className="min-w-48"
+                        options={[
+                          { value: "", label: "— seç —" },
+                          ...opts.map((o) => ({
+                            value: o.bidId,
+                            label: `${o.bidderName} · ${formatMoney(o.price, o.currency ?? "TRY")}`,
+                          })),
+                        ]}
+                      />
                     </div>
                   </div>
                 );

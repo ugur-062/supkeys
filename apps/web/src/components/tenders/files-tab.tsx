@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -96,18 +97,16 @@ export function FilesTab({
             <label className="sr-only" htmlFor="listing-doc-kind">
               Dosya bölümü
             </label>
-            <select
+            <SelectMenu
               id="listing-doc-kind"
               value={kind}
-              onChange={(e) => setKind(e.target.value as ListingDocKind)}
-              className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            >
-              {LISTING_DOC_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {LISTING_DOC_KIND_LABELS[k]}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setKind(v as ListingDocKind)}
+              className="min-w-44"
+              options={LISTING_DOC_KINDS.map((k) => ({
+                value: k,
+                label: LISTING_DOC_KIND_LABELS[k],
+              }))}
+            />
             <Button as="label" outline>
               <Paperclip data-slot="icon" />
               {upload.isPending ? "Yükleniyor…" : "Dosya Ekle"}

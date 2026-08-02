@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { Button } from "@/components/catalyst/button";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { PremiumOnly } from "@/components/company-shell/premium-only";
 import {
   useActivityLog,
@@ -117,21 +118,16 @@ export default function AktivitePage() {
             <label className="text-xs text-zinc-500" htmlFor="aktivite-modul">
               Modül
             </label>
-            <select
+            <SelectMenu
               id="aktivite-modul"
               value={module}
-              onChange={(e) => {
-                setModule(e.target.value);
+              onChange={(v) => {
+                setModule(v);
                 setPage(1);
               }}
-              className="rounded-lg border border-zinc-950/10 px-2.5 py-1.5 text-sm"
-            >
-              {MODULES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+              className="min-w-44"
+              options={MODULES}
+            />
           </div>
 
           {isError ? (

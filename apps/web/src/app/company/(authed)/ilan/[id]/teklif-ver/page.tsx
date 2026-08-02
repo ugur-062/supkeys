@@ -12,6 +12,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
@@ -1651,26 +1652,22 @@ export default function TeklifVerPage() {
                           {formatBytes(sf.file.size)} · gönderimde yüklenecek
                         </p>
                       </div>
-                      <select
+                      <SelectMenu
                         value={sf.kind}
-                        aria-label={`${sf.file.name} kategorisi`}
-                        onChange={(e) =>
+                        ariaLabel={`${sf.file.name} kategorisi`}
+                        onChange={(v) =>
                           setStagedFiles((s) =>
                             s.map((x, j) =>
-                              j === i
-                                ? { ...x, kind: e.target.value as BidDocKind }
-                                : x,
+                              j === i ? { ...x, kind: v as BidDocKind } : x,
                             ),
                           )
                         }
-                        className="shrink-0 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                      >
-                        {BID_DOC_SELECTABLE_KINDS.map((k) => (
-                          <option key={k} value={k}>
-                            {BID_DOC_KIND_LABELS[k]}
-                          </option>
-                        ))}
-                      </select>
+                        className="w-40 shrink-0"
+                        options={BID_DOC_SELECTABLE_KINDS.map((k) => ({
+                          value: k,
+                          label: BID_DOC_KIND_LABELS[k],
+                        }))}
+                      />
                       <button
                         type="button"
                         aria-label={`${sf.file.name} dosyasını kaldır`}
