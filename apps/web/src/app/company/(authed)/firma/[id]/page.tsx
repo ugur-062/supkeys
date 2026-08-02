@@ -46,7 +46,7 @@ export default function CompanyProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4" aria-hidden>
+      <div className="mx-auto max-w-6xl space-y-4" aria-hidden>
         <div className="h-5 w-28 animate-pulse rounded bg-zinc-100" />
         <div className="h-48 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -230,7 +230,7 @@ export default function CompanyProfilePage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <BackLink />
       <CompanyProfileView profile={p} actions={actions}>
         {tenders}

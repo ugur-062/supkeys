@@ -328,7 +328,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader title="Tekliflerim" description={description} />
 
       {/* Arama + filtreler — diğer listelerle aynı düzen: üstte tam-genişlik

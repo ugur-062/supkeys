@@ -25,7 +25,7 @@ export function MyProfileView() {
 
   if (isLoading || !profile) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4" aria-hidden>
+      <div className="mx-auto max-w-6xl space-y-4" aria-hidden>
         <div className="h-8 w-40 animate-pulse rounded bg-zinc-100" />
         <div className="h-56 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -118,7 +118,7 @@ export function MyProfileView() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Heading>Profilim</Heading>

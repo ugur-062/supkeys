@@ -473,7 +473,7 @@ export function GroupTemplatesView({
   const [dialog, setDialog] = useState<{ editId: string | null } | null>(null);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <BackNav basePath={basePath} />
       <Section
         icon={Users}
@@ -565,7 +565,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
   const [dialog, setDialog] = useState<{ editId: string | null } | null>(null);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <BackNav basePath={basePath} />
       <Section
         icon={ListChecks}
@@ -696,7 +696,7 @@ export function ListingTemplatesView({
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <BackNav basePath={basePath} />
       <Section
         icon={FileText}

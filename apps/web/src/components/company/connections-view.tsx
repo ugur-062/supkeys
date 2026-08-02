@@ -380,7 +380,7 @@ export function ConnectionsView() {
     ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <div>
         <Heading>Bağlantılar</Heading>
         <Text className="mt-1 text-sm text-zinc-500">

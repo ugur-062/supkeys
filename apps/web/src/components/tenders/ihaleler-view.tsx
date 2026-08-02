@@ -209,7 +209,7 @@ export function IhalelerView({
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title={isSatis ? "Satış İhalelerim" : "İhaleler"}
         description={

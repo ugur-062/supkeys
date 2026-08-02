@@ -483,7 +483,7 @@ export default function ListingDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4">
+      <div className="mx-auto max-w-6xl space-y-4">
         <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
         <div className="h-32 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -522,7 +522,7 @@ export default function ListingDetailPage() {
     // invalidate yarışı): "bulunamadı" flaşı yerine iskeleti koru.
     if (isFetching) {
       return (
-        <div className="mx-auto max-w-5xl space-y-4">
+        <div className="mx-auto max-w-6xl space-y-4">
           <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
           <div className="h-32 animate-pulse rounded-2xl bg-zinc-100" />
           <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -1687,7 +1687,7 @@ export default function ListingDetailPage() {
   // ───────────── SAHİP: sekmeli ihale detayı (ALIM + SATIS) ─────────────
   if (l.isOwner) {
     return (
-      <div className="mx-auto max-w-5xl space-y-5">
+      <div className="mx-auto max-w-6xl space-y-5">
         {breadcrumb}
 
         {/* P2 (denetim §5): sticky ActionBar — solda durum, sağda durum
@@ -1910,7 +1910,7 @@ export default function ListingDetailPage() {
   // Kapalı zarf: davetliler/teklifler sekmesi YOK — yalnızca kendi teklifi.
   {
     return (
-      <div className="mx-auto max-w-5xl space-y-5">
+      <div className="mx-auto max-w-6xl space-y-5">
         {breadcrumb}
 
         {/* P2 (denetim §5): sticky ActionBar — teklif CTA'sı artık sekmeden

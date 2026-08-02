@@ -222,7 +222,7 @@ export function SatisDashboardView() {
   const val = (n: number | undefined) => (loading ? "…" : (n ?? 0));
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-6xl space-y-8">
       {/* Karşılama başlığı — satınalma paneliyle aynı biçim */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
