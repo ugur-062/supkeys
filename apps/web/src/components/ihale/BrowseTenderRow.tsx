@@ -32,7 +32,7 @@ function fullDate(iso: string | null): string {
 
 function ColLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="block text-[10px] font-medium uppercase tracking-wide leading-tight text-slate-400">
+    <span className="block text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-400">
       {children}
     </span>
   );
