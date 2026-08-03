@@ -129,18 +129,44 @@ function DocGroup({
             )
           ) : null
         ) : (
-          docs.map((d) => (
-            <a
-              key={d.id}
-              href={d.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              {d.fileName}
-            </a>
-          ))
+          docs.map((d) => {
+            const ext = (d.fileName.split(".").pop() ?? "").toLocaleUpperCase(
+              "tr-TR",
+            );
+            return (
+              /* §9 DocumentSlot: çıplak link satırı bitti — uzantı rozeti +
+                 ad + tarih, sağda İndir. */
+              <div
+                key={d.id}
+                className="flex items-center gap-2 rounded-lg px-1 py-1 transition hover:bg-zinc-50"
+              >
+                <span className="flex h-8 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-500">
+                  {ext.slice(0, 4) || "DOSYA"}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-zinc-900">
+                    {d.fileName}
+                  </span>
+                  <span className="block text-xs text-zinc-400">
+                    {new Date(d.createdAt).toLocaleDateString("tr-TR", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </span>
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${d.fileName} dosyasını indir`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" aria-hidden />
+                </a>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
