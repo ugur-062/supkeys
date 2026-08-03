@@ -1,6 +1,9 @@
 "use client";
 
 import { ActionStrip } from "@/components/dashboard/action-strip";
+import { HeroStat } from "@/components/dashboard/hero-stat";
+import { useReportsSummary } from "@/components/reports/reports-summary-charts";
+import { DASH } from "@/lib/dashboard/strings";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
@@ -219,6 +222,8 @@ export function SatisDashboardView() {
 
   const s = stats.data;
   const loading = stats.isLoading;
+  // Üst şerit: kazanma oranı (son 12 ay — reports summary, ek istek tek).
+  const summary = useReportsSummary("SATIS");
   // §10.1: yüklemede "0 teklif" yanılgısı yok — sayaç "—" gösterir.
   const val = (n: number | undefined) => (loading ? "—" : (n ?? 0));
 
@@ -248,6 +253,47 @@ export function SatisDashboardView() {
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </header>
+
+      {/* KAZANMA ORANI şeridi — başlığın hemen altında (HeroStat, satınalma
+          şeridiyle aynı yapı; tasarruf yerine kazanma odaklı). */}
+      {summary.isLoading ? (
+        <div className="h-28 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+      ) : summary.data && summary.data.winRate.total > 0 ? (
+        <HeroStat
+          headline={DASH.heroWinTitle(
+            String(
+              Math.round(
+                (summary.data.winRate.won / summary.data.winRate.total) * 100,
+              ),
+            ),
+          )}
+          ariaLabel={`Kazanma oranı yüzde ${Math.round((summary.data.winRate.won / summary.data.winRate.total) * 100)} — ${DASH.heroWinSupport(summary.data.winRate.won, summary.data.winRate.total)}`}
+          supports={[
+            DASH.heroWinSupport(
+              summary.data.winRate.won,
+              summary.data.winRate.total,
+            ),
+            "son 12 ay",
+          ]}
+          spark={summary.data.months.map((mo) => ({
+            key: mo.key,
+            value: mo.bids,
+          }))}
+        />
+      ) : summary.data ? (
+        <HeroStat
+          headline=""
+          ariaLabel={DASH.heroWinEmptyTitle}
+          supports={[]}
+          spark={[]}
+          empty={{
+            title: DASH.heroWinEmptyTitle,
+            body: DASH.heroWinEmptyBody,
+            ctaLabel: DASH.heroWinEmptyCta,
+            ctaHref: "/company/satis/acik-ihaleler",
+          }}
+        />
+      ) : null}
 
       {/* Uyarı: davet edilip teklif verilmemiş açık ihaleler (yoksa görünmez) */}
       <InvitedPendingBanner

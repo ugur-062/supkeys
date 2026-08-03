@@ -11,7 +11,13 @@ import {
   useSatinalmaDashboard,
   useSatinalmaTasarruf,
   useSatinalmaTedarikci,
+  useTimeSavings,
 } from "@/hooks/use-company-dashboard";
+import { HeroStat } from "@/components/dashboard/hero-stat";
+import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
+import { SavingsCriteriaDialog } from "@/components/dashboard/savings-criteria-dialog";
+import { formatMoney } from "@/components/ui/money";
+import { DASH } from "@/lib/dashboard/strings";
 import { cn } from "@/lib/utils";
 import {
   Tab,
@@ -39,9 +45,13 @@ const TRIGGER_CLASSES = cn(
 
 export default function SatinalmaDashboardPage() {
   const { company } = useCompanyAuth();
+  // Panelin TAMAMI için tek global dönem (kart içi seçiciler kalktı).
+  const [period, setPeriod] = useState<Period>("year");
   const ihale = useSatinalmaDashboard();
   const tasarruf = useSatinalmaTasarruf();
   const tedarikci = useSatinalmaTedarikci();
+  const savings = useTimeSavings(period);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -50,20 +60,39 @@ export default function SatinalmaDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <header className="min-w-0">
-        <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950">
-          Satınalma paneli
-        </h1>
-        <p className="text-[15px] text-zinc-500">
-          {company?.name ?? "Rothern"}
-          {todayLabel ? (
-            <>
-              <span className="mx-2 text-zinc-300">·</span>
-              <span>{todayLabel}</span>
-            </>
-          ) : null}
-        </p>
+      <header className="flex min-w-0 flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950">
+            Satınalma paneli
+          </h1>
+          <p className="text-[15px] text-zinc-500">
+            {company?.name ?? "Rothern"}
+            {todayLabel ? (
+              <>
+                <span className="mx-2 text-zinc-300">·</span>
+                <span>{todayLabel}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <PeriodToggle value={period} onChange={setPeriod} />
       </header>
+
+      {/* ZAMAN TASARRUFU şeridi — başlığın hemen altında, sekmelerin ÜSTÜNDE. */}
+      {savings.isLoading ? (
+        <div className="h-28 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+      ) : savings.data ? (
+        <SavingsHero
+          data={savings.data}
+          period={period}
+          onHowClick={() => setCriteriaOpen(true)}
+        />
+      ) : null}
+      <SavingsCriteriaDialog
+        open={criteriaOpen}
+        onClose={() => setCriteriaOpen(false)}
+        params={savings.data?.params}
+      />
 
       {/* Uyarı: davet edilip teklif verilmemiş açık SATIŞ ihaleleri (yoksa görünmez) */}
       <InvitedPendingBanner
@@ -103,7 +132,11 @@ export default function SatinalmaDashboardPage() {
           </TabPanel>
           <TabPanel className="outline-none">
             {tasarruf.data ? (
-              <TasarrufTab data={tasarruf.data} />
+              <TasarrufTab
+                data={tasarruf.data}
+                period={period}
+                savings={savings.data}
+              />
             ) : tasarruf.isError ? (
               <ErrorState
                 title="Veri alınamadı"
@@ -148,3 +181,56 @@ function TabLoading() {
   );
 }
 
+/** Zaman Tasarrufu şeridi — 1 ana sayı + en fazla 3 destek (kural). */
+function SavingsHero({
+  data,
+  period,
+  onHowClick,
+}: {
+  data: NonNullable<ReturnType<typeof useTimeSavings>["data"]>;
+  period: Period;
+  onHowClick: () => void;
+}) {
+  const hasActivity =
+    data.savedMinutes > 0 ||
+    data.counters.listings > 0 ||
+    data.counters.bids > 0;
+  if (!hasActivity) {
+    return (
+      <HeroStat
+        headline=""
+        ariaLabel={DASH.heroEmptyTitle}
+        supports={[]}
+        spark={[]}
+        empty={{
+          title: DASH.heroEmptyTitle,
+          body: DASH.heroEmptyBody,
+          ctaLabel: DASH.heroEmptyCta,
+          ctaHref: "/company/satinalma/ihalelerim/yeni",
+        }}
+      />
+    );
+  }
+  const hours = data.savedMinutes / 60;
+  const hoursLabel =
+    hours >= 10 ? String(Math.round(hours)) : hours.toFixed(1);
+  const workDays = (hours / 8).toFixed(hours / 8 >= 10 ? 0 : 1);
+  const supports = [
+    DASH.heroWorkDays(workDays),
+    DASH.heroPeriod[period],
+    ...(data.laborValueTry != null
+      ? [DASH.heroValue(formatMoney(data.laborValueTry, "TRY"))]
+      : []),
+  ];
+  return (
+    <HeroStat
+      headline={DASH.heroSavedTitle(hoursLabel)}
+      ariaLabel={`Yaklaşık ${hoursLabel} saat kazandın — ${supports.join(", ")}`}
+      supports={supports}
+      note={DASH.heroEstimatedNote}
+      spark={data.months.map((m) => ({ key: m.key, value: m.minutes }))}
+      onHowClick={onHowClick}
+      howLabel={DASH.heroHow}
+    />
+  );
+}

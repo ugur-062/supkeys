@@ -13,8 +13,11 @@ import {
   IsEmail,
   IsIn,
   IsNumber,
+  IsOptional,
   IsPositive,
+  Max,
   MaxLength,
+  Min,
 } from "class-validator";
 import {
   CurrentAdmin,
@@ -55,6 +58,29 @@ class ClearSuppressionDto {
   @IsEmail()
   @MaxLength(200)
   email!: string;
+}
+
+/** Zaman Tasarrufu parametreleri (dk) — hepsi opsiyonel; verilen alan yazılır. */
+class TimeSavingsConfigDto {
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  rfqMailPrepMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  followupMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  bidToExcelMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(9)
+  bidItemFactor?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  comparisonTableMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  revisionRoundMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  approvalLoopMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(999)
+  poPrepMin?: number;
+  /** null gönderilirse TL gösterimi kapanır. */
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(1_000_000)
+  hourlyLaborCost?: number | null;
 }
 
 /**
@@ -223,4 +249,77 @@ export class AdminSystemController {
     });
     return { ok: true };
   }
+
+  /** Zaman Tasarrufu parametreleri — global satır (yoksa şema default'ları). */
+  @Get("time-savings-config")
+  @AllowAnyAdminRole()
+  async getTimeSavingsConfig(): Promise<{
+    config: Record<string, number | string | null> | null;
+  }> {
+    const row = await this.prisma.timeSavingsConfig.findFirst({
+      where: { companyId: null },
+    });
+    return { config: row ? serializeTsConfig(row) : null };
+  }
+
+  @Post("time-savings-config")
+  @RequireAdminRole("SUPER_ADMIN")
+  @HttpCode(HttpStatus.OK)
+  async updateTimeSavingsConfig(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: TimeSavingsConfigDto,
+  ): Promise<{ config: Record<string, number | string | null> }> {
+    const data = { ...dto, updatedById: admin.id };
+    const existing = await this.prisma.timeSavingsConfig.findFirst({
+      where: { companyId: null },
+      select: { id: true },
+    });
+    const row = existing
+      ? await this.prisma.timeSavingsConfig.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await this.prisma.timeSavingsConfig.create({
+          data: { ...data, companyId: null },
+        });
+    await this.audit.log({
+      action: "admin.system.time_savings_config_updated",
+      actorType: "admin",
+      actorId: admin.id,
+      entityType: "system",
+      entityId: row.id,
+      metadata: dto as Record<string, unknown>,
+    });
+    return { config: serializeTsConfig(row) };
+  }
+}
+
+/** Prisma Decimal'leri number'a indir (TS2742 + JSON tutarlılığı). */
+function serializeTsConfig(row: {
+  id: string;
+  rfqMailPrepMin: unknown;
+  followupMin: unknown;
+  bidToExcelMin: unknown;
+  bidItemFactor: unknown;
+  comparisonTableMin: unknown;
+  revisionRoundMin: unknown;
+  approvalLoopMin: unknown;
+  poPrepMin: unknown;
+  hourlyLaborCost: unknown | null;
+  updatedAt: Date;
+}): Record<string, number | string | null> {
+  return {
+    id: row.id,
+    rfqMailPrepMin: Number(row.rfqMailPrepMin),
+    followupMin: Number(row.followupMin),
+    bidToExcelMin: Number(row.bidToExcelMin),
+    bidItemFactor: Number(row.bidItemFactor),
+    comparisonTableMin: Number(row.comparisonTableMin),
+    revisionRoundMin: Number(row.revisionRoundMin),
+    approvalLoopMin: Number(row.approvalLoopMin),
+    poPrepMin: Number(row.poPrepMin),
+    hourlyLaborCost:
+      row.hourlyLaborCost != null ? Number(row.hourlyLaborCost) : null,
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }

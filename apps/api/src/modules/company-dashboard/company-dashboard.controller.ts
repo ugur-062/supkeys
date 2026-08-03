@@ -5,11 +5,29 @@ import {
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyDashboardService } from "./company-dashboard.service";
+import {
+  TimeSavingsService,
+  type SavingsPeriod,
+} from "./time-savings.service";
 
 @Controller("company/dashboard")
 @UseGuards(CompanyJwtAuthGuard)
 export class CompanyDashboardController {
-  constructor(private readonly service: CompanyDashboardService) {}
+  constructor(
+    private readonly service: CompanyDashboardService,
+    private readonly timeSavings: TimeSavingsService,
+  ) {}
+
+  /** Zaman Tasarrufu — panel şeridi + Zaman alt bölümü için TEK toplu yanıt. */
+  @Get("time-savings")
+  timeSavingsSummary(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("period") period?: string,
+  ) {
+    const p: SavingsPeriod =
+      period === "month" || period === "quarter" ? period : "year";
+    return this.timeSavings.forCompany(user.companyId, p);
+  }
 
   @Get("satinalma")
   satinalma(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {

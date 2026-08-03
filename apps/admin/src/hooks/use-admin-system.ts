@@ -109,3 +109,46 @@ export function useStorageHealth() {
     retry: 1,
   });
 }
+
+/** Zaman Tasarrufu parametreleri (global satır). */
+export interface TimeSavingsConfigRow {
+  id?: string;
+  rfqMailPrepMin: number;
+  followupMin: number;
+  bidToExcelMin: number;
+  bidItemFactor: number;
+  comparisonTableMin: number;
+  revisionRoundMin: number;
+  approvalLoopMin: number;
+  poPrepMin: number;
+  hourlyLaborCost: number | null;
+}
+
+export function useTimeSavingsConfig() {
+  return useQuery({
+    queryKey: ["admin-system", "time-savings-config"],
+    queryFn: async () => {
+      const { data } = await api.get<{ config: TimeSavingsConfigRow | null }>(
+        "/admin/system/time-savings-config",
+      );
+      return data.config;
+    },
+  });
+}
+
+export function useUpdateTimeSavingsConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Partial<TimeSavingsConfigRow>) => {
+      const { data } = await api.post<{ config: TimeSavingsConfigRow }>(
+        "/admin/system/time-savings-config",
+        input,
+      );
+      return data.config;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: ["admin-system", "time-savings-config"],
+      }),
+  });
+}

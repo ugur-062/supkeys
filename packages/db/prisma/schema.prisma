@@ -494,6 +494,7 @@ model Company {
   approvalRequests     ApprovalRequest[]
   userInvitations      CompanyUserInvitation[]
   addresses            CompanyAddress[]
+  timeSavingsConfig    TimeSavingsConfig?
   bankAccounts         CompanyBankAccount[]
   membershipEvents     CompanyMembershipEvent[]
   adminNotes           CompanyAdminNote[]
@@ -1819,4 +1820,40 @@ model CompanyAddress {
 
   @@index([companyId, type])
   @@map("company_addresses")
+}
+
+/// Zaman Tasarrufu hesap motoru parametreleri (dakika bazlı birim süreler).
+/// companyId NULL = GLOBAL satır (tek adet, kısmi unique index migration'da);
+/// dolu = firma override'ı. Kod içi varsayılanlar yalnız satır yokken fallback.
+model TimeSavingsConfig {
+  id        String   @id @default(cuid())
+  /// NULL = global varsayılan; dolu = firma bazlı override.
+  companyId String?  @unique
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// RFQ mailini hazırlama — dk × davet edilen tedarikçi.
+  rfqMailPrepMin      Decimal @default(6) @db.Decimal(6, 2)
+  /// Takip/hatırlatma — dk × tedarikçi × tur. NOT: hatırlatma turu takibi
+  /// olmadığı için v1 hesabına KATILMAZ (parametre ileriye dönük durur).
+  followupMin         Decimal @default(3) @db.Decimal(6, 2)
+  /// Teklifi Excel'e işleme — dk × teklif (kalem katsayılı).
+  bidToExcelMin       Decimal @default(4) @db.Decimal(6, 2)
+  /// Kalem katsayısı: teklif başına süre × (1 + factor × (kalem-1)).
+  bidItemFactor       Decimal @default(0.15) @db.Decimal(4, 2)
+  /// Karşılaştırma tablosu — dk × ihale.
+  comparisonTableMin  Decimal @default(15) @db.Decimal(6, 2)
+  /// Revizyon turu — dk × tedarikçi × tur (round>1 + version>1 sinyali).
+  revisionRoundMin    Decimal @default(5) @db.Decimal(6, 2)
+  /// Onay mail döngüsü — dk × onaya düşen ihale.
+  approvalLoopMin     Decimal @default(20) @db.Decimal(6, 2)
+  /// PO hazırlama + gönderme — dk × sipariş.
+  poPrepMin           Decimal @default(10) @db.Decimal(6, 2)
+  /// Saatlik iş gücü maliyeti (₺) — NULL ise TL karşılığı hiç gösterilmez.
+  hourlyLaborCost     Decimal? @db.Decimal(10, 2)
+
+  updatedById String? // PlatformAdmin id (global) / CompanyUser id (override)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("time_savings_configs")
 }

@@ -11,7 +11,10 @@ import {
   YAxis,
 } from "recharts";
 import { InfoTooltip } from "./info-tooltip";
-import { PeriodToggle, type Period } from "./period-toggle";
+import type { Period } from "./period-toggle";
+import { SavingsCriteriaDialog } from "./savings-criteria-dialog";
+import { DASH } from "@/lib/dashboard/strings";
+import type { TimeSavingsData } from "@/hooks/use-company-dashboard";
 
 export interface SavingsMetrics {
   totalSavings: number; // TRY
@@ -52,6 +55,10 @@ export interface TasarrufTabData {
 
 interface Props {
   data: TasarrufTabData;
+  /** Global dönem — sayfa başındaki TEK seçici (kart içi seçiciler kalktı). */
+  period: Period;
+  /** Zaman alt bölümü + kriter modalı verisi (time-savings endpoint'i). */
+  savings?: TimeSavingsData;
 }
 
 const TOOLTIP_SAVINGS =
@@ -67,32 +74,66 @@ const TOOLTIP_CATEGORY =
 const TOOLTIP_CURRENCY =
   "İhale ana para birimine göre tasarruf oranı (TRY equivalent baz alınır).";
 
-export function TasarrufTab({ data }: Props) {
-  const [globalPeriod, setGlobalPeriod] = useState<Period>("month");
-  const [topPeriod, setTopPeriod] = useState<Period>("month");
-  const [categoryPeriod, setCategoryPeriod] = useState<Period>("month");
-  const [currencyPeriod, setCurrencyPeriod] = useState<Period>("month");
+export function TasarrufTab({ data, period, savings }: Props) {
+  // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
+  const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
+  const [section, setSection] = useState<"cost" | "time">("cost");
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
-  const metrics = globalPeriod === "month" ? data.month : data.year;
+  const metrics = costPeriod === "month" ? data.month : data.year;
   const topRows =
-    topPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear;
+    costPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear;
   const categoryRows =
-    categoryPeriod === "month" ? data.categoryMonth : data.categoryYear;
+    costPeriod === "month" ? data.categoryMonth : data.categoryYear;
   const currencyRows =
-    currencyPeriod === "month" ? data.currencyMonth : data.currencyYear;
+    costPeriod === "month" ? data.currencyMonth : data.currencyYear;
 
   return (
     <div className="space-y-6">
-      {/* Sağ üstte global dönem filtre */}
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <PeriodToggle value={globalPeriod} onChange={setGlobalPeriod} />
+      {/* Maliyet / Zaman alt bölümleri + kriter modalı (dönem seçici sayfa başında TEK). */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
+          {(
+            [
+              ["cost", DASH.savingsTabCost],
+              ["time", DASH.savingsTabTime],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSection(key)}
+              className={
+                section === key
+                  ? "rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm"
+                  : "rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-800"
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
-          className="text-xs font-semibold text-zinc-700 hover:text-zinc-900"
+          onClick={() => setCriteriaOpen(true)}
+          className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-900"
         >
           Hesaplama Kriterlerini İncele
         </button>
       </div>
+      <SavingsCriteriaDialog
+        open={criteriaOpen}
+        onClose={() => setCriteriaOpen(false)}
+        params={savings?.params}
+      />
+      {period === "quarter" ? (
+        <p className="text-xs text-zinc-400">{DASH.quarterCostNote}</p>
+      ) : null}
+
+      {section === "time" ? (
+        <TimeSection savings={savings} />
+      ) : (
+      <>
 
       {/* 3 metrik kartı */}
       <section className="card p-6">
@@ -127,16 +168,10 @@ export function TasarrufTab({ data }: Props) {
             </h2>
             <InfoTooltip content={TOOLTIP_TOP5} />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-2 text-xs text-slate-500">
-              <span
-                aria-hidden
-                className="h-2 w-2 rounded-full bg-success-500"
-              />
-              En yüksek tasarruflu ihale
-            </span>
-            <PeriodToggle value={topPeriod} onChange={setTopPeriod} />
-          </div>
+          <span className="flex items-center gap-2 text-xs text-slate-500">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />
+            En yüksek tasarruflu ihale
+          </span>
         </header>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -219,20 +254,101 @@ export function TasarrufTab({ data }: Props) {
         <BreakdownCard
           title="Ana Kategori Bazlı Tasarrufum"
           tooltip={TOOLTIP_CATEGORY}
-          period={categoryPeriod}
-          onPeriodChange={setCategoryPeriod}
           rows={categoryRows.map((r) => ({ label: r.label, percent: r.percent }))}
           color="brand"
         />
         <BreakdownCard
           title="Ana Para Birimi Bazlı Tasarrufum"
           tooltip={TOOLTIP_CURRENCY}
-          period={currencyPeriod}
-          onPeriodChange={setCurrencyPeriod}
           rows={currencyRows}
           color="indigo"
         />
       </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+/** Zaman alt bölümü — adım bazlı NET dakika kırılımı + ölçülen medyanlar. */
+function TimeSection({ savings }: { savings?: TimeSavingsData }) {
+  if (!savings) {
+    return (
+      <div className="h-40 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+    );
+  }
+  const rows = savings.breakdown.filter((r) => r.minutes > 0);
+  const total = savings.savedMinutes;
+  const fmtH = (min: number) =>
+    min >= 90 ? `~${(min / 60).toFixed(1)} sa` : `~${Math.round(min)} dk`;
+  const m = savings.measured;
+  const fmtMeasured = (h: number | null) =>
+    h == null ? "—" : h >= 48 ? `${(h / 24).toFixed(1)} gün` : `${h.toFixed(1)} sa`;
+  return (
+    <div className="space-y-6">
+      <section className="card p-6">
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-950">
+          {DASH.timeBreakdownTitle}
+        </h2>
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          {DASH.timeBreakdownHint}
+        </p>
+        {rows.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-500">
+            Bu dönemde hesaba katılacak tamamlanmış iş yok.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {rows.map((r) => (
+              <li key={r.key} className="flex items-center gap-3">
+                <span className="w-44 shrink-0 text-sm text-slate-600">
+                  {r.label}
+                </span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                  <span
+                    className="block h-full rounded-full bg-zinc-900"
+                    style={{
+                      width: `${Math.min(100, (r.minutes / Math.max(1, savings.estimatedMailMinutes)) * 100)}%`,
+                    }}
+                  />
+                </span>
+                <span className="w-20 shrink-0 text-right font-mono text-sm tabular-nums text-slate-900">
+                  {fmtH(r.minutes)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {total > 0 ? (
+          <p className="mt-4 border-t border-zinc-100 pt-3 text-sm text-slate-600">
+            Net kazanım:{" "}
+            <strong className="text-slate-950">{fmtH(total)}</strong>{" "}
+            (sistemde geçen {fmtH(savings.systemMinutes)} düşülmüş)
+          </p>
+        ) : null}
+      </section>
+
+      <section className="card p-6">
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-950">
+          {DASH.timeMeasuredTitle}
+        </h2>
+        <dl className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {(
+            [
+              [DASH.timeMeasuredInvite, m.inviteToFirstBidHours],
+              [DASH.timeMeasuredAward, m.closeToAwardHours],
+              [DASH.timeMeasuredOrder, m.awardToOrderHours],
+            ] as const
+          ).map(([label, v]) => (
+            <div key={label}>
+              <dt className="text-xs text-slate-500">{label}</dt>
+              <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-950">
+                {fmtMeasured(v)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 }
@@ -275,15 +391,11 @@ function Metric({
 function BreakdownCard({
   title,
   tooltip,
-  period,
-  onPeriodChange,
   rows,
   color,
 }: {
   title: string;
   tooltip: string;
-  period: Period;
-  onPeriodChange: (p: Period) => void;
   rows: Array<{ label: string; percent?: number }>;
   color: "brand" | "indigo";
 }) {
@@ -301,7 +413,6 @@ function BreakdownCard({
             {title}
           </h3>
         </div>
-        <PeriodToggle value={period} onChange={onPeriodChange} />
       </header>
 
       <ul className="space-y-4">

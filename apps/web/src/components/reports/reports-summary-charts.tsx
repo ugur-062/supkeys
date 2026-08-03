@@ -40,7 +40,7 @@ const ZINC_400 = "#a1a1aa";
 const ZINC_200 = "#e4e4e7";
 const EMERALD = "#10b981";
 
-function useReportsSummary(type: "ALIM" | "SATIS") {
+export function useReportsSummary(type: "ALIM" | "SATIS") {
   return useQuery({
     queryKey: ["reports-summary", type],
     queryFn: async () => {

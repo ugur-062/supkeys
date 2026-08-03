@@ -31,6 +31,10 @@ vi.mock("@/hooks/use-company-dashboard", () => ({
     };
   },
 }));
+// HeroStat özeti gerçek useQuery kullanır — testte kapalı (QueryClient yok).
+vi.mock("@/components/reports/reports-summary-charts", () => ({
+  useReportsSummary: () => ({ data: undefined, isLoading: false }),
+}));
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesWidget: () => <div data-testid="tcmb" />,
 }));

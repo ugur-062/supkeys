@@ -139,3 +139,50 @@ export function useSatisActivity(limit = 8, page = 1) {
     staleTime: 30_000,
   });
 }
+
+export type SavingsPeriod = "month" | "quarter" | "year";
+
+export interface TimeSavingsBreakdownRow {
+  key: string;
+  label: string;
+  minutes: number;
+}
+
+export interface TimeSavingsData {
+  savedMinutes: number;
+  estimatedMailMinutes: number;
+  systemMinutes: number;
+  laborValueTry: number | null;
+  counters: {
+    listings: number;
+    invitations: number;
+    bids: number;
+    avgItemsPerBid: number;
+    revisionRounds: number;
+    approvals: number;
+    orders: number;
+  };
+  breakdown: TimeSavingsBreakdownRow[];
+  measured: {
+    inviteToFirstBidHours: number | null;
+    closeToAwardHours: number | null;
+    awardToOrderHours: number | null;
+  };
+  months: { key: string; minutes: number }[];
+  params: Record<string, number | null>;
+}
+
+/** Zaman Tasarrufu — panel şeridi + Zaman bölümü için TEK toplu istek. */
+export function useTimeSavings(period: SavingsPeriod) {
+  return useQuery({
+    queryKey: ["company-dashboard", "time-savings", period],
+    queryFn: async () => {
+      const { data } = await companyApi.get<TimeSavingsData>(
+        "/company/dashboard/time-savings",
+        { params: { period } },
+      );
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}

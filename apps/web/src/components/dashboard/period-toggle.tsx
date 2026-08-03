@@ -2,10 +2,11 @@
 
 import { cn } from "@/lib/utils";
 
-export type Period = "month" | "year";
+export type Period = "month" | "quarter" | "year";
 
 const OPTIONS: { value: Period; label: string }[] = [
   { value: "month", label: "Bu Ay" },
+  { value: "quarter", label: "Bu Çeyrek" },
   { value: "year", label: "Bu Yıl" },
 ];
 

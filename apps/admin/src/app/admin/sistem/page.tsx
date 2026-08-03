@@ -21,6 +21,9 @@ import {
   useRefreshRates,
   useStorageHealth,
   useSuppressions,
+  useTimeSavingsConfig,
+  useUpdateTimeSavingsConfig,
+  type TimeSavingsConfigRow,
 } from "@/hooks/use-admin-system";
 import { safeFormat } from "@/lib/date";
 import {
@@ -31,7 +34,7 @@ import {
   RefreshCw,
   Timer,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const MANUAL_CURRENCIES = [
@@ -279,6 +282,7 @@ function SistemView() {
       </section>
 
       <SuppressionsSection />
+      <TimeSavingsConfigSection />
 
       {/* Cron işleri */}
       <section className="admin-card overflow-hidden">
@@ -358,5 +362,107 @@ export default function AdminSistemPage() {
     <AdminShell>
       <SistemView />
     </AdminShell>
+  );
+}
+
+/** Zaman Tasarrufu parametreleri — paneldeki "kazanılan saat" hesabının
+ *  birim süreleri (dk). Kaydet SUPER_ADMIN ister (BE guard); audit'e düşer. */
+const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string }[] = [
+  { key: "rfqMailPrepMin", label: "RFQ maili (dk × davet)" },
+  { key: "followupMin", label: "Hatırlatma (dk — v1'de hesaba katılmaz)" },
+  { key: "bidToExcelMin", label: "Teklif→Excel (dk × teklif)" },
+  { key: "bidItemFactor", label: "Kalem katsayısı", step: "0.05" },
+  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × ihale)" },
+  { key: "revisionRoundMin", label: "Revizyon turu (dk × tur)" },
+  { key: "approvalLoopMin", label: "Onay döngüsü (dk × onay)" },
+  { key: "poPrepMin", label: "PO hazırlama (dk × sipariş)" },
+  { key: "hourlyLaborCost", label: "Saatlik maliyet (₺, boş = TL gizli)" },
+];
+
+const TS_DEFAULTS: TimeSavingsConfigRow = {
+  rfqMailPrepMin: 6,
+  followupMin: 3,
+  bidToExcelMin: 4,
+  bidItemFactor: 0.15,
+  comparisonTableMin: 15,
+  revisionRoundMin: 5,
+  approvalLoopMin: 20,
+  poPrepMin: 10,
+  hourlyLaborCost: null,
+};
+
+function TimeSavingsConfigSection() {
+  const cfg = useTimeSavingsConfig();
+  const update = useUpdateTimeSavingsConfig();
+  const [form, setForm] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const src = cfg.data ?? TS_DEFAULTS;
+    setForm(
+      Object.fromEntries(
+        TS_FIELDS.map((f) => [
+          f.key,
+          src[f.key] == null ? "" : String(src[f.key]),
+        ]),
+      ),
+    );
+  }, [cfg.data]);
+
+  return (
+    <section className="border-admin-border bg-admin-surface rounded-xl border p-5">
+      <h2 className="text-admin-text text-sm font-semibold">
+        Zaman Tasarrufu Parametreleri
+      </h2>
+      <p className="text-admin-text-muted mt-1 text-xs">
+        Firma panellerindeki &ldquo;~X saat kazandın&rdquo; hesabının birim
+        süreleri. Boş bırakılan saatlik maliyet TL gösterimini kapatır.
+      </p>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {TS_FIELDS.map((f) => (
+          <label key={f.key} className="flex flex-col gap-1">
+            <span className="text-admin-text-muted text-xs font-medium">
+              {f.label}
+            </span>
+            <Input
+              type="number"
+              min="0"
+              step={f.step ?? "0.5"}
+              value={form[f.key] ?? ""}
+              onChange={(e) =>
+                setForm((cur) => ({ ...cur, [f.key]: e.target.value }))
+              }
+            />
+          </label>
+        ))}
+      </div>
+      <div className="mt-4">
+        <Button
+          size="sm"
+          loading={update.isPending}
+          onClick={() => {
+            const payload: Partial<TimeSavingsConfigRow> = {};
+            for (const f of TS_FIELDS) {
+              const raw = (form[f.key] ?? "").trim();
+              if (raw === "") {
+                if (f.key === "hourlyLaborCost") payload.hourlyLaborCost = null;
+                continue;
+              }
+              const n = Number(raw);
+              if (!Number.isFinite(n) || n < 0) {
+                toast.error(`Geçersiz değer: ${f.label}`);
+                return;
+              }
+              (payload as Record<string, number | null>)[f.key] = n;
+            }
+            update.mutate(payload, {
+              onSuccess: () => toast.success("Parametreler kaydedildi"),
+              onError: (e: unknown) =>
+                toast.error(e instanceof Error ? e.message : "Kaydedilemedi"),
+            });
+          }}
+        >
+          Kaydet
+        </Button>
+      </div>
+    </section>
   );
 }
