@@ -16,6 +16,10 @@ const h = vi.hoisted(() => ({
 vi.mock("@/hooks/use-company-orders", () => ({
   useOrders: () => h.orders,
 }));
+// Faz 4.2 — OrdersList başlangıç filtresi için URL okur (drill-down).
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import { OrdersList } from "../orders-list";
 

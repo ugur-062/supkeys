@@ -35,6 +35,28 @@ export function formatMoney(
   return `${num} ${SYMBOL[currency] ?? currency}`;
 }
 
+/**
+ * Faz 4 — KPI kartları için kısaltılmış tutar: "208,2 B ₺", "1,2 Mn ₺".
+ * 10.000 altı kısaltılmaz (kuruşsuz tam sayı). Tam değer çağıran tarafta
+ * title/tooltip olarak verilir (formatMoney ile).
+ */
+export function formatCompactMoney(
+  value: number | string,
+  currency = "TRY",
+): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(n)) return "—";
+  const sym = SYMBOL[currency] ?? currency;
+  if (Math.abs(n) < 10_000) {
+    return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(n)} ${sym}`;
+  }
+  const num = new Intl.NumberFormat("tr-TR", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(n);
+  return `${num} ${sym}`;
+}
+
 export function Money({
   value,
   currency = "TRY",

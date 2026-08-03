@@ -97,6 +97,36 @@ describe("DashboardAnalyticsService (DB)", () => {
     ).toBe(1);
   });
 
+  it("money bloğu (Faz 4): dönem harcaması + açık taahhüt TRY-only hesaplanır", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    // Dönem içi TRY sipariş (ödenmemiş) + USD sipariş (money'e girmez).
+    await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        amount: 5000,
+        currency: "TRY",
+        status: "ACCEPTED",
+      },
+    });
+    await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        amount: 900,
+        currency: "USD",
+        status: "ACCEPTED",
+      },
+    });
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.periodSpend).toBe(5000);
+    expect(sa.money.openCommitment).toBe(5000); // ödeme yok → tamamı taahhüt
+    expect(sa.money.dueIn30d).toBe(0); // teslim yok → vade türetilemez
+    expect(sa.money.realizedSavings).toBe(0);
+  });
+
   it("custom aralık (Faz 3): funnel yalnız [from,to) içindeki kayıtları sayar", async () => {
     const DAY = 86_400_000;
     const buyer = await makeCompanyWithUser(prisma, {});

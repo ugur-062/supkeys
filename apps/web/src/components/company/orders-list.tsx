@@ -44,6 +44,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 12;
@@ -394,7 +395,13 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const partyPlural = isSeller ? "Alıcılar" : "Tedarikçiler";
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  // Faz 4.2 — KPI drill-down: ?status=DELIVERED gibi başlangıç filtresi.
+  const urlStatus = useSearchParams().get("status");
+  const [status, setStatus] = useState(
+    urlStatus && STATUS_FILTERS.some((s) => s.value === urlStatus)
+      ? urlStatus
+      : "all",
+  );
   const [sort, setSort] = useState("newest");
   const [range, setRange] = useState<RangeKey>("all");
   const [counterparty, setCounterparty] = useState("");

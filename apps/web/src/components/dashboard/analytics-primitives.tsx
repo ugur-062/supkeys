@@ -8,7 +8,12 @@ import {
   Minus,
 } from "lucide-react";
 import Link from "next/link";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
+} from "recharts";
 
 /**
  * Pano yeniden tasarımı — ortak primitive'ler (panelden bağımsız, props'la
@@ -61,17 +66,27 @@ export function KpiCard({
   spark,
   accent = "slate",
   attention = false,
+  hint,
+  valueTitle,
+  sparkLabels,
 }: {
   label: string;
   value: string | number;
   href: string;
   deltaPct?: number | null;
   /** Son 12 dönem GERÇEK seri — yoksa/boşsa sparkline çizilmez. */
-  spark?: { key: string; value: number }[];
+  spark?: { key: string; value: number; label?: string }[];
   /** Panel ana rengi: satınalma blue, satış emerald. */
   accent?: "blue" | "emerald" | "slate";
-  /** Aksiyon gerektiren kart — sol renkli şerit. */
+  /** Aksiyon gerektiren kart — sol renkli şerit. KURAL: yalnız "aksiyon
+   *  bekleyen > 0" iken ver, nedenini hint ile söyle (Faz 4.4). */
   attention?: boolean;
+  /** Değer altı küçük açıklama — vurgu nedeni / "yalnız TRY" gibi notlar. */
+  hint?: string;
+  /** Kısaltılmış değerin TAM hali (title/tooltip — Faz 4.5). */
+  valueTitle?: string;
+  /** Sparkline tooltip'inde değerin birimi (ör. "₺") — yoksa sayı basılır. */
+  sparkLabels?: { valueSuffix?: string };
 }) {
   const stroke =
     accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#64748b";
@@ -86,9 +101,31 @@ export function KpiCard({
       )}
     >
       {hasSpark ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 opacity-30" aria-hidden>
+        /* Faz 4.3: dekoratif değil — gerçek 12 aylık seri + hover tooltip. */
+        <div className="absolute inset-x-0 bottom-0 h-10 opacity-40">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={spark}>
+              <RTooltip
+                cursor={{ stroke: "#94a3b8", strokeWidth: 1 }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0]!.payload as {
+                    key: string;
+                    value: number;
+                    label?: string;
+                  };
+                  return (
+                    <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm">
+                      <span className="font-medium">{p.label ?? p.key}</span>
+                      {": "}
+                      <span className="tabular-nums">
+                        {new Intl.NumberFormat("tr-TR").format(p.value)}
+                        {sparkLabels?.valueSuffix ?? ""}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
               <Area
                 type="monotone" dataKey="value" stroke={stroke} strokeWidth={1.25}
                 fill={stroke} fillOpacity={0.12} isAnimationActive={false}
@@ -102,9 +139,15 @@ export function KpiCard({
           <p className="text-sm font-medium text-slate-500">{label}</p>
           <TrendBadge pct={deltaPct} />
         </div>
-        <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950">
+        <p
+          className="mt-2 text-3xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950"
+          title={valueTitle}
+        >
           {value}
         </p>
+        {hint ? (
+          <p className="mt-1 truncate text-xs text-slate-500">{hint}</p>
+        ) : null}
       </div>
     </Link>
   );

@@ -27,6 +27,7 @@ import type {
   SatinalmaAnalytics,
   SatinalmaDashboard,
 } from "@/hooks/use-company-dashboard";
+import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
 import Link from "next/link";
@@ -51,29 +52,84 @@ export function SatinalmaIhaleTab({
 
   return (
     <div className="space-y-6">
-      {/* 4 KPI kartı — gerçek 12 aylık seri + önceki dönem deltası
-          (stok metriği olan "Açık İhalelerim"de delta anlamsız → yok). */}
+      {/* Faz 4.1 — birincil satır TUTAR (TRY-only, etiketle söylenir);
+          adet kartları ikinci satıra indi. */}
+      {analytics ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Dönem Harcaması"
+            value={formatCompactMoney(analytics.money.periodSpend)}
+            valueTitle={formatMoney(analytics.money.periodSpend)}
+            href="/company/satinalma/siparisler"
+            accent="blue"
+            deltaPct={compare ? analytics.money.deltas.periodSpend : undefined}
+            hint="dönem içi siparişler · yalnız TRY"
+          />
+          <KpiCard
+            label="Açık Sipariş Taahhüdü"
+            value={formatCompactMoney(analytics.money.openCommitment)}
+            valueTitle={formatMoney(analytics.money.openCommitment)}
+            href="/company/satinalma/siparisler"
+            accent="blue"
+            hint="ödenmemiş sipariş bakiyesi · yalnız TRY"
+          />
+          <KpiCard
+            label="30 Günde Vadesi Gelen"
+            value={formatCompactMoney(analytics.money.dueIn30d)}
+            valueTitle={formatMoney(analytics.money.dueIn30d)}
+            href="/company/satinalma/siparisler?status=DELIVERED"
+            accent="blue"
+            attention={analytics.money.dueIn30d > 0}
+            hint={
+              analytics.money.dueIn30d > 0
+                ? "ödeme planla — vade 30 gün içinde"
+                : "vadesi yaklaşan ödeme yok"
+            }
+          />
+          <KpiCard
+            label="Gerçekleşen Tasarruf"
+            value={formatCompactMoney(analytics.money.realizedSavings)}
+            valueTitle={formatMoney(analytics.money.realizedSavings)}
+            href="/company/satinalma/raporlar/tasarruf"
+            accent="blue"
+            deltaPct={
+              compare ? analytics.money.deltas.realizedSavings : undefined
+            }
+            spark={analytics.savingsTrend}
+            sparkLabels={{ valueSuffix: " ₺" }}
+            hint="hedef fiyata göre · yalnız TRY"
+          />
+        </div>
+      ) : null}
+
+      {/* Adet KPI satırı — gerçek 12 aylık seri + (compare açıkken) delta.
+          Vurgu kuralı (Faz 4.4): yalnız aksiyon bekleyen > 0 + neden metni. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Açık İhalelerim"
           value={data.openCount}
-          href="/company/satinalma/ihalelerim"
+          href="/company/satinalma/ihalelerim?status=OPEN"
           accent="blue"
           spark={analytics?.kpiSeries.listings}
         />
         <KpiCard
           label="Gelen Teklifler"
           value={data.bidsReceived}
-          href="/company/satinalma/ihalelerim"
+          href="/company/satinalma/ihalelerim?status=IN_AWARD"
           accent="blue"
-          attention={data.bidsReceived > 0}
+          attention={(analytics?.actions.awaitingDecision ?? 0) > 0}
+          hint={
+            (analytics?.actions.awaitingDecision ?? 0) > 0
+              ? `${analytics!.actions.awaitingDecision} ihale karar bekliyor`
+              : undefined
+          }
           deltaPct={compare ? analytics?.deltas.bids : undefined}
           spark={analytics?.kpiSeries.bids}
         />
         <KpiCard
           label="Kazandırılan İhaleler"
           value={data.awarded}
-          href="/company/satinalma/ihalelerim"
+          href="/company/satinalma/ihalelerim?status=AWARDED"
           accent="blue"
           deltaPct={compare ? analytics?.deltas.awarded : undefined}
           spark={analytics?.kpiSeries.awarded}

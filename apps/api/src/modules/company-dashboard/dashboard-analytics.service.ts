@@ -140,7 +140,7 @@ export class DashboardAnalyticsService {
       );
       const in30d = new Date(now.getTime() + 30 * 86_400_000);
 
-      const [listings, bids, approvals, orders, payments] = await Promise.all([
+      const [listings, bids, approvals, orders, payments, openOrdersAll] = await Promise.all([
         this.prisma.listing.findMany({
           where: { companyId, type: "ALIM", status: { not: "DRAFT" }, createdAt: { gte: from } },
           select: {
@@ -183,6 +183,18 @@ export class DashboardAnalyticsService {
           where: { order: { buyerCompanyId: companyId }, status: "CONFIRMED" },
           select: { orderId: true, amount: true },
         }),
+        // Stok metrikleri (taahhüt + nakit takvimi) tarih penceresine
+        // TAKILMAZ — 12 aydan eski ama hâlâ açık/ödenmemiş sipariş de sayılır.
+        this.prisma.companyOrder.findMany({
+          where: {
+            buyerCompanyId: companyId,
+            status: { notIn: ["REJECTED", "CANCELLED", "COMPLETED", "DISPUTED"] },
+          },
+          select: {
+            id: true, status: true, amount: true, currency: true,
+            paymentDays: true, deliveredAt: true, completedAt: true,
+          },
+        }),
       ]);
 
       const inWin = <T extends { createdAt: Date }>(rows: T[], s: Date, e?: Date) =>
@@ -204,7 +216,11 @@ export class DashboardAnalyticsService {
       const unpaid = (o: (typeof orders)[number]) =>
         Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0) > 0.01;
       // Vade kolonu yok — S7 kuralı: teslim (deliveredAt/completedAt) + paymentDays.
-      const dueDateOf = (o: (typeof orders)[number]): Date | null => {
+      const dueDateOf = (o: {
+        deliveredAt: Date | null;
+        completedAt: Date | null;
+        paymentDays: number | null;
+      }): Date | null => {
         const base = o.deliveredAt ?? o.completedAt;
         if (!base || o.paymentDays == null) return null;
         return new Date(base.getTime() + o.paymentDays * 86_400_000);
@@ -410,7 +426,8 @@ export class DashboardAnalyticsService {
           amount: 0,
         });
       }
-      for (const o of liveOrders) {
+      // openOrdersAll: 12 aydan eski ama hâlâ ödenmemiş sipariş de takvime girer.
+      for (const o of openOrdersAll) {
         const due = dueDateOf(o);
         if (!due || o.currency !== "TRY") continue;
         if (due < now || due > in30d) continue;
@@ -420,6 +437,44 @@ export class DashboardAnalyticsService {
         weeks[idx]!.amount = round2(weeks[idx]!.amount + remaining);
       }
       const cashCalendar = weeks.map((w) => ({ label: w.label, amount: w.amount }));
+
+      // ── Tutar KPI'ları (Faz 4) — TRY-only, UI etikette söyler ──
+      const trySpendIn = (s: Date, e: Date) =>
+        round2(
+          liveOrders
+            .filter((o) => o.currency === "TRY" && o.createdAt >= s && o.createdAt < e)
+            .reduce((sum, o) => sum + Number(o.amount), 0),
+        );
+      const periodSpend = trySpendIn(start, end);
+      const openCommitment = round2(
+        openOrdersAll
+          .filter((o) => o.currency === "TRY")
+          .reduce((sum, o) => {
+            const remaining = Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0);
+            return sum + Math.max(0, remaining);
+          }, 0),
+      );
+      const dueIn30d = round2(cashCalendar.reduce((s, w) => s + w.amount, 0));
+      const trySavingsIn = (s: Date, e: Date) =>
+        round2(
+          awardedAll
+            .filter((l) => l.awardedAt! >= s && l.awardedAt! < e)
+            .reduce((sum, l) => sum + savingsOf(l), 0),
+        );
+      const realizedSavings = trySavingsIn(start, end);
+      const money = {
+        periodSpend,
+        openCommitment,
+        dueIn30d,
+        realizedSavings,
+        deltas: {
+          periodSpend: deltaPct(periodSpend, trySpendIn(prev.start, prev.end)),
+          realizedSavings: deltaPct(
+            realizedSavings,
+            trySavingsIn(prev.start, prev.end),
+          ),
+        },
+      };
 
       // ── KPI serileri + delta ──
       const kpiSeries = {
@@ -441,7 +496,7 @@ export class DashboardAnalyticsService {
       return {
         actions, funnel, cycleTrend, savingsTrend, categorySavings, topSavings,
         competition: { avgBidsPerListing, lowCompetition },
-        suppliers, cashCalendar, kpiSeries, deltas,
+        suppliers, cashCalendar, money, kpiSeries, deltas,
       };
     });
   }

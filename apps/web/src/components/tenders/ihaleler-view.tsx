@@ -19,6 +19,7 @@ import {
 import { ArrowUpDown, Building2, CalendarRange, Globe, Plus, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const SORT_OPTIONS = [
@@ -86,10 +87,19 @@ export function IhalelerView({
   const list = useTenders(listingType);
   const all = useMemo(() => list.data ?? [], [list.data]);
 
-  const [tab, setTab] = useState<TabKey>("all");
+  // Faz 4.2 — KPI drill-down: ?status=OPEN gibi bir başlangıç filtresi kabul
+  // edilir (yalnız ilk render; sonrası lokal state).
+  const urlStatus = useSearchParams().get("status");
+  const [tab, setTab] = useState<TabKey>(
+    urlStatus && STATUS_OPTIONS.some((o) => o.value === urlStatus)
+      ? (urlStatus as TabKey)
+      : "all",
+  );
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("createdAt:desc");
-  const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
+  // Drill-down'la gelindiyse tarih aralığı daraltılmaz — KPI sayısıyla liste
+  // sayısı tutmalı (varsayılan "Son 3 Ay" filtresi kartla çelişiyordu).
+  const [range, setRange] = useState<RangeKey>(urlStatus ? "all" : DEFAULT_RANGE);
   const [createdById, setCreatedById] = useState("");
   const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
   const [page, setPage] = useState(1);

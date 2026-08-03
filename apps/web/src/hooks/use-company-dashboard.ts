@@ -250,6 +250,17 @@ export interface SatinalmaAnalytics {
     avgResponseHours: number | null;
   }[];
   cashCalendar: { label: string; amount: number }[];
+  /** Faz 4 — tutar KPI'ları (TRY-only; UI etikette söyler). */
+  money: {
+    periodSpend: number;
+    openCommitment: number;
+    dueIn30d: number;
+    realizedSavings: number;
+    deltas: {
+      periodSpend: number | null;
+      realizedSavings: number | null;
+    };
+  };
   kpiSeries: Record<
     "listings" | "bids" | "awarded" | "orders",
     AnalyticsMonthPoint[]

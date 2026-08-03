@@ -322,12 +322,19 @@ export function SatisDashboardView() {
       <>
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Vurgu kuralı (Faz 4.4): davet VARLIĞI değil, yanıt BEKLEYEN davet
+            vurgular — nedeni alt metinde. */}
         <KpiCard
           label="Aktif Davetler"
           value={val(s?.invitations.active)}
           href="/company/satis/acik-ihaleler"
           accent="emerald"
-          attention={(s?.invitations.active ?? 0) > 0}
+          attention={(analytics.data?.actions.unansweredInvites ?? 0) > 0}
+          hint={
+            (analytics.data?.actions.unansweredInvites ?? 0) > 0
+              ? `${analytics.data!.actions.unansweredInvites} davet teklifini bekliyor`
+              : undefined
+          }
         />
         <KpiCard
           label="Aktif Tekliflerim"
@@ -347,7 +354,7 @@ export function SatisDashboardView() {
         <KpiCard
           label="Aktif Sipariş"
           value={val(s?.orders.pending)}
-          href="/company/satis/siparisler"
+          href="/company/satis/siparisler?status=PENDING"
           accent="emerald"
           deltaPct={compare ? analytics.data?.deltas.orders : undefined}
           spark={analytics.data?.kpiSeries.orders}
