@@ -208,7 +208,7 @@ export function SellerTenderCard({
         </div>
 
         <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-500">
+          <div className="flex items-center gap-2 text-zinc-500">
             <Calendar className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
             <span>
               {tender.closesAt

@@ -160,7 +160,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-          <span className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+          <span className="inline-flex items-center gap-2 text-sm text-zinc-600">
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-zinc-100">
               <Building2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
             </span>
@@ -211,7 +211,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         ) : null}
 
         <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-500">
+          <div className="flex items-center gap-2 text-zinc-500">
             <Calendar className="h-3 w-3" aria-hidden="true" />
             <span>
               Verildi{" "}

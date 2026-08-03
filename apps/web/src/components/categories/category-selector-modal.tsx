@@ -207,7 +207,7 @@ export function CategorySelectorModal({
           {mode === "multi" ? (
             <div className="border-b border-zinc-950/5 bg-zinc-50/60 px-6 py-3">
               <div className="mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
                   <Sparkles className="h-3.5 w-3.5 text-zinc-500" />
                   Seçimleriniz
                   <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white">
@@ -230,7 +230,7 @@ export function CategorySelectorModal({
                   ekleyin.
                 </p>
               ) : (
-                <ul className="flex flex-wrap gap-1.5">
+                <ul className="flex flex-wrap gap-2">
                   {draftIds.map((id) => {
                     const info = selectedInfoMap?.get(id);
                     const loading = selectedInfoMap === null;

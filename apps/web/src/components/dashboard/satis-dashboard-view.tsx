@@ -67,7 +67,7 @@ function TrendBadge({ current, previous }: { current: number; previous: number }
   const up = pct > 0;
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
         up ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
       }`}
     >
@@ -187,7 +187,7 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition hover:bg-zinc-50"
+      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-zinc-50"
     >
       <Icon className="h-4 w-4 text-zinc-500" aria-hidden="true" />
       <span className="flex-1 font-medium text-zinc-900">{label}</span>

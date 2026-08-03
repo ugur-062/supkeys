@@ -189,7 +189,7 @@ export function AiFlagsBanner({
           <p className="font-medium">Kontrol etmenizi önerdiğimiz alanlar (AI emin değil):</p>
           <ul className="mt-1 space-y-0.5">
             {formatCheckFlags(checkFlags).map((line) => (
-              <li key={line} className="flex items-start gap-1.5">
+              <li key={line} className="flex items-start gap-2">
                 <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-zinc-400" />
                 {line}
               </li>
@@ -203,7 +203,7 @@ export function AiFlagsBanner({
           <p className="font-medium">Yayınlamadan önce tamamlamanız gerekenler:</p>
           <ul className="mt-1 space-y-0.5">
             {result.missingRequired.map((line) => (
-              <li key={line} className="flex items-start gap-1.5">
+              <li key={line} className="flex items-start gap-2">
                 <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
                 {line}
               </li>
@@ -226,7 +226,7 @@ export function AiFlagsBanner({
           Taslakta bir şeyi değiştirmek mi istiyorsunuz? Yazın, AI formu
           güncellesin:
         </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-2 flex flex-wrap gap-2">
           {[
             "Vadeyi 60 gün yap",
             "Kapanışı 1 hafta uzat",

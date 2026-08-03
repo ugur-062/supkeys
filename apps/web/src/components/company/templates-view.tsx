@@ -78,7 +78,7 @@ function Section({
   return (
     <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm md:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5">
+        <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
             <Icon className="h-4.5 w-4.5 text-zinc-700" aria-hidden="true" />
           </div>
@@ -376,7 +376,7 @@ function QuestionTemplateDialog({
                       </option>
                     ))}
                   </Select>
-                  <label className="flex items-center gap-1.5 text-sm text-zinc-600">
+                  <label className="flex items-center gap-2 text-sm text-zinc-600">
                     <input
                       type="checkbox"
                       checked={r.required}

@@ -138,7 +138,7 @@ function StageStepper({
         })}
       </div>
       {/* Tek satır, tam metin — kırpılma yok */}
-      <p className="mt-1.5 flex items-baseline gap-1.5 text-xs">
+      <p className="mt-1.5 flex items-baseline gap-2 text-xs">
         <span
           className={cn(
             "font-semibold",
@@ -329,7 +329,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
               </span>
             ) : null}
           </p>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-zinc-600">
+          <p className="mt-1 flex items-center gap-2 text-sm text-zinc-600">
             <Building2
               className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400"
               aria-hidden="true"

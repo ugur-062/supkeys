@@ -262,7 +262,7 @@ export function TwoFactorSection() {
             Authenticator cihazınızı kaybederseniz bu kodlardan biriyle giriş
             yapabilirsiniz. Her kod tek kullanımlıktır.
           </p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {recoveryCodes.map((c) => (
               <code
                 key={c}

@@ -53,7 +53,7 @@ function Section({
 }) {
   return (
     <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 md:p-6">
-      <div className="mb-5 flex items-center gap-2.5">
+      <div className="mb-5 flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
           <Icon className="h-4 w-4 text-zinc-700" />
         </div>
@@ -89,7 +89,7 @@ function RuleChip({ active, label }: { active: boolean; label: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium",
+        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium",
         active
           ? "bg-zinc-900 text-white"
           : "bg-zinc-100 text-zinc-400 line-through decoration-zinc-300",
@@ -148,7 +148,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               currencyList.length > 1 ? "Para Birimleri" : "Para Birimi"
             }
           >
-            <span className="flex flex-wrap items-center gap-1.5">
+            <span className="flex flex-wrap items-center gap-2">
               {currencyList.map((c) => (
                 <span
                   key={c}
@@ -315,7 +315,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
       {/* İhale Notları (şirket içi) */}
       {l.internalNotes ? (
         <section className="rounded-2xl border border-zinc-950/5 bg-zinc-50/50 p-5 md:p-6">
-          <div className="mb-4 flex items-center gap-2.5">
+          <div className="mb-4 flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200/70">
               <Lock className="h-4 w-4 text-zinc-700" />
             </div>

@@ -86,7 +86,7 @@ export function CompanyTopbar({
       </Link>
 
       {/* Firma kimliği */}
-      <div className="hidden min-w-0 items-center gap-2.5 sm:flex">
+      <div className="hidden min-w-0 items-center gap-3 sm:flex">
         <div className="h-6 w-px bg-zinc-200" aria-hidden />
         <span className="truncate text-sm font-semibold text-zinc-900">
           {company?.name ?? "—"}
@@ -106,7 +106,7 @@ export function CompanyTopbar({
       </div>
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
-      <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1">
         {canMessage ? <MessagesPopover /> : null}
 
         {/* Zil TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte,
@@ -120,7 +120,7 @@ export function CompanyTopbar({
               aria-label="Hesap menüsü"
               className="!px-2"
             >
-              <span className="flex items-center gap-2.5">
+              <span className="flex items-center gap-3">
                 <Avatar
                   square
                   initials={initialsOf(user.firstName, user.lastName)}

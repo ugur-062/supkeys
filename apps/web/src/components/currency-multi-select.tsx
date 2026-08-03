@@ -163,7 +163,7 @@ export function CurrencyMultiSelect({
               : "border-slate-200 hover:border-slate-300"
         }`}
       >
-        <div className="flex flex-1 flex-wrap items-center gap-1.5">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
           {value.length === 0 ? (
             <span className="text-sm text-slate-500">
               Para birimlerini seçin

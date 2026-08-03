@@ -65,7 +65,7 @@ export function DashboardKpiCard({
         {value}
       </p>
       {hint ? (
-        <p className="mt-1 flex items-start gap-1.5 text-xs text-zinc-500">
+        <p className="mt-1 flex items-start gap-2 text-xs text-zinc-500">
           <span className="flex-1 leading-snug">{hint}</span>
           {warning ? (
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-warning-500" />

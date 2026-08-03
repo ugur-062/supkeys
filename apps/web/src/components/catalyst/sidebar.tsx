@@ -52,7 +52,7 @@ export function SidebarSection({ className, ...props }: React.ComponentPropsWith
 
   return (
     <LayoutGroup id={id}>
-      <div {...props} data-slot="section" className={clsx(className, 'flex flex-col gap-0.5')} />
+      <div {...props} data-slot="section" className={clsx(className, 'flex flex-col gap-1')} />
     </LayoutGroup>
   )
 }

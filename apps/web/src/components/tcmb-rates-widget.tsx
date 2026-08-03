@@ -88,7 +88,7 @@ export function TcmbRatesWidget() {
     <div className="bg-gradient-to-r from-success-50 to-success-50/40 border border-success-200 rounded-2xl px-4 py-3">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
-          <h3 className="text-xs font-bold text-success-900 flex items-center gap-1.5">
+          <h3 className="text-xs font-bold text-success-900 flex items-center gap-2">
             <TrendingUp className="h-3.5 w-3.5" />
             TCMB Döviz Kurları
           </h3>
@@ -120,21 +120,21 @@ export function TcmbRatesWidget() {
         {/* P0: flex-shrink-0 dar kolonda karttan taşıp SAYFA-GENELİ yatay
             scrollbar üretiyordu (£ kuru dışarı taşar) — sarmalanabilir. */}
         <div className="flex min-w-0 flex-wrap items-center gap-1">
-          <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
+          <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
             <FlagUS />
             <p className="text-sm font-bold text-success-900 tabular-nums">
               ${formatRate(usd)}
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
+          <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
             <FlagEU />
             <p className="text-sm font-bold text-success-900 tabular-nums">
               €{formatRate(eur)}
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
+          <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5">
             <FlagGB />
             <p className="text-sm font-bold text-success-900 tabular-nums">
               £{formatRate(gbp)}

@@ -178,7 +178,7 @@ export default function CompanyProfilePage() {
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">Açık İhaleleri</h2>
         {!connected ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+          <span className="inline-flex items-center gap-2 text-xs text-zinc-400">
             <Lock className="h-3.5 w-3.5" />
             Sadece herkese açık
           </span>

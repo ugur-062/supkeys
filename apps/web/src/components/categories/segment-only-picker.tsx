@@ -85,7 +85,7 @@ export function SegmentOnlyPicker({
             {selectedSegments.map((seg) => (
               <span
                 key={seg.id}
-                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
+                className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
                 title={seg.nameTr}
               >
                 <Tag className="h-3 w-3" />

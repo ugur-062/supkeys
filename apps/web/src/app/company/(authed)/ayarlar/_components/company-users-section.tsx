@@ -800,7 +800,7 @@ function EditUserModal({
                     type="button"
                     onClick={confirmTransfer}
                     disabled={update.isPending}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
                   >
                     <Crown className="h-3.5 w-3.5" />
                     {update.isPending ? "Devrediliyor…" : "Devret"}
@@ -818,7 +818,7 @@ function EditUserModal({
               <button
                 type="button"
                 onClick={() => setTransferOpen(true)}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100"
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100"
               >
                 <Crown className="h-3.5 w-3.5" />
                 Kuruculuğu bu kullanıcıya devret
@@ -859,7 +859,7 @@ function EditUserModal({
                   <p className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
                     {group}
                   </p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {(items ?? []).map((c) => {
                       const isDefault = liveDefaults.has(c.key);
                       const on = permState[c.key] ?? false;

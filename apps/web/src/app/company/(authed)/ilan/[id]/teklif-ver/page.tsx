@@ -1564,7 +1564,7 @@ export default function TeklifVerPage() {
                   setDragActive(false);
                   addFiles(Array.from(e.dataTransfer.files));
                 }}
-                className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
                   dragActive
                     ? "border-blue-400 bg-blue-50"
                     : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300"
@@ -1795,7 +1795,7 @@ export default function TeklifVerPage() {
             ) : (
               /* §10.4: liste tamamlanınca kaybolmaz — yeşil "hazır" hâli
                  (alan dolu kalır, panel zıplamaz). */
-              <p className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+              <p className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
                 <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
                 Gönderime hazır — tüm zorunlu alanlar tamam.
               </p>

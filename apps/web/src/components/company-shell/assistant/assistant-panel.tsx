@@ -356,7 +356,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
     <div className="flex h-full flex-col bg-white">
       {/* Başlık — markalı kimlik solda, aksiyonlar sağda (tek satır) */}
       <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
               <Sparkles className="h-4 w-4" />
@@ -429,7 +429,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
             ) : null}
           </div>
           {(sessions.data ?? []).length === 0 ? (
-            <div className="flex flex-col items-center gap-1.5 px-4 pb-4 pt-2 text-center">
+            <div className="flex flex-col items-center gap-2 px-4 pb-4 pt-2 text-center">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-zinc-300 ring-1 ring-zinc-950/5">
                 <MessageSquareText className="h-4 w-4" />
               </span>
@@ -443,7 +443,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                 <div
                   key={s.id}
                   className={cn(
-                    "group flex items-center gap-2.5 border-l-2 px-3.5 py-2 transition-colors hover:bg-white",
+                    "group flex items-center gap-3 border-l-2 px-3.5 py-2 transition-colors hover:bg-white",
                     sessionId === s.id
                       ? "border-l-brand-600 bg-white"
                       : "border-l-transparent",
@@ -529,7 +529,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                   key={s.label}
                   type="button"
                   onClick={() => void submit(s.label)}
-                  className="group flex items-center gap-1.5 rounded-full border border-zinc-950/10 bg-surface-subtle px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 hover:shadow-md active:translate-y-0 active:shadow-sm"
+                  className="group flex items-center gap-2 rounded-full border border-zinc-950/10 bg-surface-subtle px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 hover:shadow-md active:translate-y-0 active:shadow-sm"
                 >
                   <s.icon className="h-3.5 w-3.5 text-zinc-400 transition-colors group-hover:text-brand-600" />
                   {s.label}
@@ -582,7 +582,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                       {m.files && m.files.length > 0 ? (
                         <span
                           className={cn(
-                            "flex flex-wrap gap-1.5",
+                            "flex flex-wrap gap-2",
                             m.content ? "mt-1.5" : "",
                           )}
                         >
@@ -632,7 +632,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.draft.draft.title ? (
-                      <li className="flex items-start gap-1.5">
+                      <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
                           Başlık:{" "}
@@ -643,7 +643,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                       </li>
                     ) : null}
                     {m.draft.draft.items.filter((i) => i.name).length > 0 ? (
-                      <li className="flex items-start gap-1.5">
+                      <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="font-medium text-zinc-800">
                           {m.draft.draft.items.filter((i) => i.name).length} kalem
@@ -651,7 +651,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                       </li>
                     ) : null}
                     {m.draft.draft.deliveryTerm ? (
-                      <li className="flex items-start gap-1.5">
+                      <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
                           Teslim:{" "}
@@ -662,7 +662,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                       </li>
                     ) : null}
                     {m.draft.draft.bidsCloseAt ? (
-                      <li className="flex items-start gap-1.5">
+                      <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
                           Kapanış:{" "}
@@ -681,7 +681,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                   <button
                     type="button"
                     onClick={() => openTenderForm(m.draft!)}
-                    className="group mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                    className="group mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
                   >
                     İhale formunu aç
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -719,7 +719,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.pending.summary.map((line, i) => (
-                      <li key={i} className="flex items-start gap-1.5">
+                      <li key={i} className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-700">{line}</span>
                       </li>
@@ -738,7 +738,7 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
                         disabled={action.isPending}
                         onClick={() => decideAction(m.id, m.pending!, "confirm")}
                         className={cn(
-                          "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60",
+                          "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60",
                           m.pending.severity === "critical"
                             ? "bg-warning-500 hover:bg-warning-600"
                             : "bg-brand-600 hover:bg-brand-700",
@@ -782,11 +782,11 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
         ) : (
           <>
             {files.length > 0 ? (
-              <div className="mb-2 flex flex-wrap gap-1.5">
+              <div className="mb-2 flex flex-wrap gap-2">
                 {files.map((f, i) => (
                   <span
                     key={`${f.name}-${i}`}
-                    className="rt-fade-in flex items-center gap-1.5 rounded-lg border border-zinc-950/10 bg-white px-2 py-1 text-xs text-zinc-600 shadow-sm"
+                    className="rt-fade-in flex items-center gap-2 rounded-lg border border-zinc-950/10 bg-white px-2 py-1 text-xs text-zinc-600 shadow-sm"
                   >
                     <FileText className="h-3 w-3" />
                     <span className="max-w-[120px] truncate">{f.name}</span>

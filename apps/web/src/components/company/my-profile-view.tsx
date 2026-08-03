@@ -154,7 +154,7 @@ export function MyProfileView() {
                 type="button"
                 onClick={() => setTab(key)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition",
+                  "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition",
                   tab === key
                     ? "bg-white text-zinc-900 shadow-sm"
                     : "text-zinc-500 hover:text-zinc-800",
@@ -232,7 +232,7 @@ export function MyProfileView() {
               style={{ width: `${completeness.pct}%` }}
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-2">
             {completeness.missing.map((m) =>
               m.target === "edit" ? (
                 <button
@@ -260,7 +260,7 @@ export function MyProfileView() {
       {tab === "preview" ? (
         <>
           <CompanyProfileView profile={viewData} />
-          <p className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-400">
+          <p className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
             <Settings2 className="size-3.5" aria-hidden />
             Ticari bilgiler (ünvan, VKN, MERSİS…) buradan değil{" "}
             <Link
@@ -274,7 +274,7 @@ export function MyProfileView() {
         </>
       ) : (
         <>
-          <p className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-400">
+          <p className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
             <Settings2 className="size-3.5" aria-hidden />
             Firma adı, ünvan ve şehir{" "}
             <Link

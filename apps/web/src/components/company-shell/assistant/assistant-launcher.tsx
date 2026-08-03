@@ -80,7 +80,7 @@ export function AssistantLauncher() {
             <X className="h-3.5 w-3.5" />
           </button>
           <button type="button" onClick={openPanel} className="text-left">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand-700">
               <Sparkles className="h-4 w-4" /> Rothern Asistanı
             </p>
             <p className="mt-1 pr-3 text-sm text-zinc-600">

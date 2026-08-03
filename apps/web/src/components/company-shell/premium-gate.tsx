@@ -107,7 +107,7 @@ export function PremiumGate() {
 
           {/* Geçiş gereksinimleri */}
           <div className="mt-6 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
               <Lock className="h-3.5 w-3.5" aria-hidden="true" />
               Premium&apos;a geçmek için
             </p>

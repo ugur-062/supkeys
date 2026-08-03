@@ -634,7 +634,7 @@ export function Step3Suppliers() {
                   {selectedCompanies.map((c) => (
                     <span
                       key={c.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700"
+                      className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700"
                     >
                       <Building2 className="h-3.5 w-3.5 text-zinc-400" />
                       <span className="max-w-[14rem] truncate">{c.name}</span>

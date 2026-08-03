@@ -93,11 +93,11 @@ export function AccountInfoSection() {
                 <Badge color="amber">Kurucu</Badge>
               ) : null}
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-sm text-zinc-500">
+            <div className="mt-0.5 flex items-center gap-2 text-sm text-zinc-500">
               <Mail className="h-3.5 w-3.5" />
               {user?.email}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-2">
               {(user?.roles ?? []).map((r) => (
                 <Badge key={r} color="zinc">
                   {ROLE_LABEL[r] ?? r}
@@ -206,7 +206,7 @@ function ReadRow({
       <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </dt>
-      <dd className="mt-0.5 flex items-center gap-1.5 text-sm text-zinc-900">
+      <dd className="mt-0.5 flex items-center gap-2 text-sm text-zinc-900">
         {icon}
         {value || "—"}
       </dd>
@@ -328,7 +328,7 @@ export function PasswordSection() {
                   {PW_REQUIREMENTS.map((req) => {
                     const ok = req.test(pw.next);
                     return (
-                      <li key={req.key} className="flex items-center gap-1.5 text-xs">
+                      <li key={req.key} className="flex items-center gap-2 text-xs">
                         {ok ? (
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
                         ) : (
@@ -348,7 +348,7 @@ export function PasswordSection() {
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-3">
-        <p className="flex items-center gap-1.5 text-xs text-zinc-500">
+        <p className="flex items-center gap-2 text-xs text-zinc-500">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
           Parolanız şifrelenmiş olarak saklanır.
         </p>
@@ -399,7 +399,7 @@ export function NotificationPrefsSection() {
         <Text className="text-sm text-zinc-500">
           Hangi durumlarda e-posta bildirimi almak istediğini seç.
         </Text>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setAll(true)}

@@ -243,7 +243,7 @@ function AppPreview() {
                       : "border-zinc-950/5 shadow-sm"
                   }`}
                 >
-                  <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span className={`size-2 shrink-0 rounded-full ${r.dot}`} />
                     <span className="truncate text-sm text-zinc-800">{r.t}</span>
                   </div>
@@ -602,7 +602,7 @@ function ConnectionsPreview() {
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="text-sm font-semibold text-zinc-900">Bağlantılar</div>
       <div className="mt-4">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
+        <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
           <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
           Gelen davet
         </div>
@@ -668,7 +668,7 @@ function PublicProfilePreview() {
             Metal & Çelik · İstanbul, Türkiye
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-1.5">
+        <div className="mt-4 flex flex-wrap gap-2">
           {["Çelik", "Bakır", "Alüminyum", "İthalat"].map((t) => (
             <span
               key={t}
@@ -735,7 +735,7 @@ function SignupPreview() {
         </div>
         <div>
           <div className="text-xs font-medium text-zinc-500">Roller</div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <div className="mt-1.5 flex flex-wrap gap-2">
             {roles.map((r) => (
               <span
                 key={r.n}
@@ -1132,7 +1132,7 @@ export default function HomePage() {
             {/* Pazarlık — eksiltme */}
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
               <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                <div className="flex h-16 items-end gap-1.5">
+                <div className="flex h-16 items-end gap-2">
                   <div className="flex-1 rounded-t bg-amber-400/80" style={{ height: "100%" }} />
                   <div className="flex-1 rounded-t bg-amber-400/70" style={{ height: "74%" }} />
                   <div className="flex-1 rounded-t bg-amber-400/60" style={{ height: "54%" }} />
@@ -1140,7 +1140,7 @@ export default function HomePage() {
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-zinc-500">Güncel teklif</span>
-                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-700">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700">
                     12.000 ₺
                     <ArrowTrendingDownIcon className="size-3.5" />
                   </span>
@@ -1255,7 +1255,7 @@ export default function HomePage() {
               >
                 {tier.name}
               </span>
-              <p className="mt-5 flex items-baseline gap-x-1.5">
+              <p className="mt-5 flex items-baseline gap-x-2">
                 {tier.price === null ? (
                   <span className="text-4xl font-semibold tracking-tight text-zinc-950">
                     Ücretsiz

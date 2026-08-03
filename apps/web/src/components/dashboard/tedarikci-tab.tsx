@@ -107,7 +107,7 @@ export function TedarikciTab({ data }: Props) {
                 {topSuppliers.map((r) => (
                   <TableRow key={r.rank}>
                     <TableCell>
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3">
                         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-600">
                           {r.rank}
                         </span>

@@ -41,7 +41,7 @@ export function Iban({
     }
   };
   return (
-    <span className={`inline-flex items-center gap-1.5 ${className ?? ""}`}>
+    <span className={`inline-flex items-center gap-2 ${className ?? ""}`}>
       <span className="font-mono tabular-nums">
         {shown ? grouped(value) : maskedForm(value)}
       </span>

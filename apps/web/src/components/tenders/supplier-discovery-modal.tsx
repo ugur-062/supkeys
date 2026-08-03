@@ -245,7 +245,7 @@ export function SupplierDiscoveryModal({
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-t-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-t-lg px-3 py-2 text-sm font-medium transition-colors",
                   tab === t.key
                     ? "border-b-2 border-zinc-900 text-zinc-900"
                     : "text-zinc-500 hover:text-zinc-800",
@@ -322,7 +322,7 @@ export function SupplierDiscoveryModal({
                             </p>
                             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
                               {c.city ? (
-                                <span className="inline-flex items-center gap-0.5">
+                                <span className="inline-flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
                                   {c.city}
                                 </span>
@@ -332,7 +332,7 @@ export function SupplierDiscoveryModal({
                                   href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-0.5 underline hover:text-zinc-800"
+                                  className="inline-flex items-center gap-1 underline hover:text-zinc-800"
                                 >
                                   <Globe className="h-3 w-3" />
                                   {c.website.replace(/^https?:\/\//, "").slice(0, 40)}
@@ -437,9 +437,9 @@ export function SupplierDiscoveryModal({
                             </span>
                           ) : null}
                         </p>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
                           {c.city ? (
-                            <span className="inline-flex items-center gap-0.5">
+                            <span className="inline-flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
                               {c.city}
                             </span>

@@ -123,7 +123,7 @@ export function AuctionLiveCard({
   return (
     <section className="rounded-2xl border border-amber-200/70 bg-amber-50/40 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+        <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
           <Gavel className="h-3.5 w-3.5" aria-hidden="true" />
           {isSatis ? "Pazarlık (Açık Artırma)" : "Pazarlık (Açık Eksiltme)"} · Tur {l.english.currentRound}
         </span>

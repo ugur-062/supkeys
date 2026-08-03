@@ -212,7 +212,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                       <ul className="space-y-1 max-h-44 overflow-y-auto pr-1">
                         {tplDetail.data.items.map((q) => (
                           <li key={q.id}>
-                            <div className="flex items-start gap-2.5 px-2.5 py-2 rounded-md bg-white ring-1 ring-zinc-950/5">
+                            <div className="flex items-start gap-3 px-2.5 py-2 rounded-md bg-white ring-1 ring-zinc-950/5">
                               <Checkbox
                                 className="mt-0.5"
                                 checked={selected.has(q.id)}
@@ -313,7 +313,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                     control={control}
                     name={`items.${index}.questions.${qi}.required`}
                     render={({ field }) => (
-                      <div className="flex items-center gap-1.5 text-sm text-zinc-700">
+                      <div className="flex items-center gap-2 text-sm text-zinc-700">
                         <Checkbox
                           aria-label="Zorunlu soru"
                           checked={!!field.value}

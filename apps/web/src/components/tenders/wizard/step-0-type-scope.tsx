@@ -127,7 +127,7 @@ export function Step0TypeScope() {
       ) : (
         /* Tür seçimi yok (ihale daima kapalı zarf açılır) — koca kart yerine
            tek kompakt bilgi notu; "Yeni Tur" pazarlık keşfi burada kalır. */
-        <div className="flex items-start gap-2.5 rounded-xl border border-zinc-950/10 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        <div className="flex items-start gap-3 rounded-xl border border-zinc-950/10 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
           <p>
             İhaleniz <strong>kapalı zarf</strong> usulüyle açılır —{" "}
@@ -161,7 +161,7 @@ export function Step0TypeScope() {
         /* Ülke hedefleme KALDIRILDI (ürün kararı 2026-07-27): uluslararası
            ihale TÜM yabancı ülkelerdeki firmalara açıktır (backend'de boş
            targetCountries zaten "tümü" demek; alan formda [] kalır). */
-        <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Uluslararası ihaleniz{" "}

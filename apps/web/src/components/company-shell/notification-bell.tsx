@@ -113,7 +113,7 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
                           onItemClick(n);
                           close();
                         }}
-                        className={`flex w-full flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-zinc-50 ${
+                        className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-zinc-50 ${
                           n.readAt ? "" : "bg-blue-50/40"
                         }`}
                       >

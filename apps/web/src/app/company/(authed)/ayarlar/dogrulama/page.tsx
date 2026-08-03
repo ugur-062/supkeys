@@ -240,7 +240,7 @@ export default function DogrulamaPage() {
                 return (
                   <li
                     key={d.key}
-                    className="flex flex-col gap-1.5 px-4 py-3"
+                    className="flex flex-col gap-2 px-4 py-3"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2">

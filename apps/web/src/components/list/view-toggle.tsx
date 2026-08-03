@@ -45,7 +45,7 @@ export function ViewToggle({
     <div
       role="group"
       aria-label="Görünüm"
-      className={cn("flex items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5", className)}
+      className={cn("flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5", className)}
     >
       {(
         [

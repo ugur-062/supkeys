@@ -340,7 +340,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           type="button"
           onClick={() => setDetailOpen(true)}
           className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
             hasDetails
               ? "bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100"
               : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",
@@ -358,7 +358,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           type="button"
           onClick={() => setQuestionOpen(true)}
           className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
             hasQuestion
               ? "bg-warning-50 text-warning-700 border-warning-200 hover:bg-warning-100"
               : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",

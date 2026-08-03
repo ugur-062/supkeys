@@ -224,7 +224,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                   {d} gün
                 </button>
               ))}
-              <span className="flex items-center gap-1.5 text-sm text-zinc-500">
+              <span className="flex items-center gap-2 text-sm text-zinc-500">
                 <input
                   type="number"
                   min={1}

@@ -23,7 +23,7 @@ export function ActiveFilterChips({
 }) {
   if (filters.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       {filters.map((f) => (
         <span
           key={f.key}

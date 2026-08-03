@@ -209,7 +209,7 @@ export function OwnerTenderCard({
             )}
             {t.isInternational ? "Uluslararası" : "Yurtiçi"}
           </Badge>
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-950/5">
+          <span className="inline-flex items-center gap-2 rounded-lg bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-950/5">
             <Users className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
             <strong className="font-semibold text-zinc-800">
               {t.invitationCount}
@@ -218,7 +218,7 @@ export function OwnerTenderCard({
           </span>
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs ring-1",
+              "inline-flex items-center gap-2 rounded-lg px-2.5 py-1 text-xs ring-1",
               t.bidCount > 0
                 ? isSatis
                   ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
@@ -233,7 +233,7 @@ export function OwnerTenderCard({
         </div>
 
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-xs">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-zinc-500">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-zinc-500">
             <Calendar className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
             <span>
               {t.bidsCloseAt

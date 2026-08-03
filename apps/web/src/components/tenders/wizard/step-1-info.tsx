@@ -215,7 +215,7 @@ function KeywordsInput() {
       hint={`${Rol} havuzunda arama eşleşmesi için. Enter veya virgülle ayırın, en fazla 10.`}
     >
       <Label htmlFor="keywords-input">Anahtar Kelimeler</Label>
-      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-surface-border bg-white min-h-[42px] focus-within:ring-2 focus-within:ring-brand-500/30 focus-within:border-brand-500">
+      <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-surface-border bg-white min-h-[42px] focus-within:ring-2 focus-within:ring-brand-500/30 focus-within:border-brand-500">
         {keywords.map((kw) => (
           <span
             key={kw}
@@ -1618,7 +1618,7 @@ export function Step1Info({
                   />
                 </Field>
               ) : null}
-              <label className="flex cursor-pointer items-start gap-2.5">
+              <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
                   {...register("lcConfirmed")}
@@ -1673,7 +1673,7 @@ export function Step1Info({
               işaretli), karar ilan sahibinindir. SATIS'ta kaldırıldı (madde 22). */}
           {!isSatis && paymentCategory === "ADVANCE" ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <label className="flex cursor-pointer items-start gap-2.5">
+              <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
                   {...register("requireGuaranteeLetter")}

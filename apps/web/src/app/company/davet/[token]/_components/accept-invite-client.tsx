@@ -214,7 +214,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
               </div>
               <span className="text-xs font-medium text-zinc-600">{STRENGTH[pwScore]}</span>
             </div>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
               {PW_RULES.map((r) => {
                 const ok = r.test(form.password);
                 return (

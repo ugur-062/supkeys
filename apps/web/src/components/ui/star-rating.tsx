@@ -38,7 +38,7 @@ export function StarRating({
   if (readOnly) {
     return (
       <span
-        className="inline-flex items-center gap-0.5"
+        className="inline-flex items-center gap-1"
         role="img"
         aria-label={`${value} / 5 yıldız`}
       >
@@ -57,7 +57,7 @@ export function StarRating({
     <div
       role="radiogroup"
       aria-label="Puan"
-      className="inline-flex items-center gap-0.5"
+      className="inline-flex items-center gap-1"
       onMouseLeave={() => setHover(0)}
     >
       {[1, 2, 3, 4, 5].map((n) => (

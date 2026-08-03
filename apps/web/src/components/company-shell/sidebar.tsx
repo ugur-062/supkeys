@@ -211,7 +211,7 @@ export function CompanySidebarContent({
                     onNavigate?.();
                   }}
                   className={cn(
-                    "flex h-8 items-center justify-center gap-1.5 rounded-md px-1 text-xs font-semibold whitespace-nowrap transition",
+                    "flex h-8 items-center justify-center gap-2 rounded-md px-1 text-xs font-semibold whitespace-nowrap transition",
                     on
                       ? ACCENT[def.accent].switch
                       : "text-zinc-500 hover:text-zinc-800",
@@ -255,7 +255,7 @@ export function CompanySidebarContent({
                   : "Yeni Satış İlanı"
             }
             className={cn(
-              "flex h-9 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold text-white shadow-sm transition",
+              "flex h-9 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition",
               active === "satinalma"
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-emerald-600 hover:bg-emerald-700",

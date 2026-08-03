@@ -29,7 +29,7 @@ export function TrendBadge({
     <span className={cn("mt-1 flex items-center gap-1 text-xs", className)}>
       <span
         className={cn(
-          "inline-flex items-center gap-0.5 font-semibold",
+          "inline-flex items-center gap-1 font-semibold",
           up ? "text-emerald-600" : "text-rose-600",
         )}
       >

@@ -82,7 +82,7 @@ interface ApproverOption {
 /** Kavramları anlatan bilgi kutusu — kullanıcı "başlatıcı nedir" diye sormasın. */
 function InfoNote({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2.5 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 text-sm text-blue-900">
+    <div className="flex gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 text-sm text-blue-900">
       <Info className="mt-0.5 size-4 shrink-0 text-blue-500" aria-hidden />
       <div className="space-y-1 leading-relaxed">{children}</div>
     </div>
@@ -313,7 +313,7 @@ function FlowList({
                           : "Taslak"}
                     </Badge>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
                     <span className="inline-flex items-center gap-1">
                       <Trophy className="size-3.5 text-zinc-400" />
                       Kazandırma
@@ -361,13 +361,13 @@ function FlowList({
               </div>
 
               {/* Zincir önizleme — başlatandan son onaya */}
-              <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
                   <Users2 className="size-3" />
                   Başlatan
                 </span>
                 {f.steps.map((s) => (
-                  <span key={s.order} className="flex items-center gap-1.5">
+                  <span key={s.order} className="flex items-center gap-2">
                     <ArrowRightMini />
                     <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-700">
                       <span className="flex size-4 items-center justify-center rounded-full bg-zinc-900 text-[9px] font-bold text-white">
@@ -531,7 +531,7 @@ function FlowWizard({
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition",
+                  "flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold transition",
                   i === step
                     ? "bg-zinc-900 text-white"
                     : i < step
@@ -594,7 +594,7 @@ function FlowWizard({
             </Field>
           </div>
           <InfoNote>
-            <p className="flex items-center gap-1.5 font-semibold">
+            <p className="flex items-center gap-2 font-semibold">
               <Trophy className="size-4 text-blue-500" />
               Bu akış ne zaman çalışır?
             </p>
@@ -627,7 +627,7 @@ function FlowWizard({
                 Bu rollerdeki kişiler kazandırma yaptığında onay zinciri
                 devreye girer.
               </p>
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <div className="mt-2.5 flex flex-wrap gap-2">
                 {(["SATIN_ALMACI", "SATISCI", "YONETICI"] as CompanyRole[]).map(
                   (role) => {
                     const on = initiatorRoles.includes(role);
@@ -753,7 +753,7 @@ function FlowWizard({
 
             {/* Bitiş */}
             <ArrowDown className="my-2 size-4 text-zinc-300" />
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
               <Check className="size-3.5" />
               Onaylar tamam → sipariş oluşur
             </div>
@@ -775,7 +775,7 @@ function FlowWizard({
           {/* Yardım paneli */}
           <div className="space-y-3">
             <InfoNote>
-              <p className="flex items-center gap-1.5 font-semibold">
+              <p className="flex items-center gap-2 font-semibold">
                 <ShieldCheck className="size-4 text-blue-500" />
                 Onay adımı nedir?
               </p>

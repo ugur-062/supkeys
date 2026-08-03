@@ -71,7 +71,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const TRIGGER_CLASSES = cn(
-  "group inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+  "group inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
   "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
   "data-selected:border-zinc-900 data-selected:text-zinc-950",
   "focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900",
@@ -117,7 +117,7 @@ function MetaItem({
 }) {
   return (
     <div
-      className={cn("flex min-w-0 items-center gap-2.5 bg-white p-4", className)}
+      className={cn("flex min-w-0 items-center gap-3 bg-white p-4", className)}
     >
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50">
         <Icon className="h-4 w-4 text-zinc-600" />
@@ -1386,7 +1386,7 @@ export default function ListingDetailPage() {
                   satırında (isim/rozet kümesinin içinde dosya çipi kafa
                   karıştırıyordu). Tam liste teklif detayında. */}
               {(bidDocs.data ?? []).some((d) => d.bidId === b.id) ? (
-                <div className="flex w-full flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-2">
+                <div className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-100 pt-2">
                   <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                     Teklif ekleri:
                   </span>
@@ -1607,7 +1607,7 @@ export default function ListingDetailPage() {
       <Heading>{l.title}</Heading>
 
       {/* Tanım rozetleri — emojisiz, anlamsal renkler */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
         <Badge color={isAlim ? "blue" : "emerald"}>
           {isAlim ? "Alış" : "Satış"}
         </Badge>
@@ -1632,7 +1632,7 @@ export default function ListingDetailPage() {
 
       {/* Anahtar kelimeler */}
       {l.keywords && l.keywords.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-zinc-400">Anahtar Kelimeler:</span>
           {l.keywords.map((kw) => (
             <Badge key={kw} color="zinc">
@@ -1644,7 +1644,7 @@ export default function ListingDetailPage() {
 
       {/* Sahip + yön ipucu */}
       <Text className="text-sm">
-        <span className="inline-flex items-center gap-1.5 font-medium text-zinc-700">
+        <span className="inline-flex items-center gap-2 font-medium text-zinc-700">
           {l.owner ? (
             <Building2 className="size-4 text-zinc-400" />
           ) : (

@@ -74,14 +74,14 @@ export function LogisticsInfoCard({
 
       {/* Rota */}
       <div className="flex items-center gap-3 rounded-xl bg-white border border-surface-border p-3">
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <MapPin className="w-4 h-4 text-teal-600 shrink-0" />
           <span className="text-sm font-semibold text-zinc-900 truncate">
             {origin}
           </span>
         </div>
         <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <MapPin className="w-4 h-4 text-zinc-600 shrink-0" />
           <span className="text-sm font-semibold text-zinc-900 truncate">
             {destination}

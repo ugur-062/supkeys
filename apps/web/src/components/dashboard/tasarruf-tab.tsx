@@ -128,7 +128,7 @@ export function TasarrufTab({ data }: Props) {
             <InfoTooltip content={TOOLTIP_TOP5} />
           </div>
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="flex items-center gap-2 text-xs text-slate-500">
               <span
                 aria-hidden
                 className="h-2 w-2 rounded-full bg-success-500"
@@ -259,7 +259,7 @@ function Metric({
   };
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+      <p className="flex items-center gap-2 text-sm font-medium text-slate-600">
         <InfoTooltip content={tooltip} />
         <span>{label}</span>
       </p>

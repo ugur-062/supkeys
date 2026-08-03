@@ -299,7 +299,7 @@ export function AuctionBidWorkbench({
 
       {/* ── Toplu araçlar ── */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-950/10 bg-white p-3">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <div className="w-20">
             {/* step=1: ok tuşları 5→6→7 gitsin (0.01 adımla 5.01 oluyordu);
                 ondalık yüzde ("2,5") elle yazılabilir. */}
@@ -398,7 +398,7 @@ export function AuctionBidWorkbench({
                         {idx + 1}
                       </td>
                       <td className="max-w-64 px-3 py-2">
-                        <p className="flex items-center gap-1.5 truncate font-medium text-zinc-900">
+                        <p className="flex items-center gap-2 truncate font-medium text-zinc-900">
                           <span className="truncate">{it.name}</span>
                           {meta?.requiredMissing ? (
                             <Badge color="amber">Zorunlu soru</Badge>
