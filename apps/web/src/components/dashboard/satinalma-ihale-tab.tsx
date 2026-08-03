@@ -38,9 +38,12 @@ type SubTab = "own" | "company";
 export function SatinalmaIhaleTab({
   data,
   analytics,
+  compare = false,
 }: {
   data: SatinalmaDashboard;
   analytics?: SatinalmaAnalytics;
+  /** Faz 3: deltalar yalnız "önceki dönemle karşılaştır" açıkken çizilir. */
+  compare?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTab>("own");
   const rows =
@@ -64,7 +67,7 @@ export function SatinalmaIhaleTab({
           href="/company/satinalma/ihalelerim"
           accent="blue"
           attention={data.bidsReceived > 0}
-          deltaPct={analytics?.deltas.bids}
+          deltaPct={compare ? analytics?.deltas.bids : undefined}
           spark={analytics?.kpiSeries.bids}
         />
         <KpiCard
@@ -72,7 +75,7 @@ export function SatinalmaIhaleTab({
           value={data.awarded}
           href="/company/satinalma/ihalelerim"
           accent="blue"
-          deltaPct={analytics?.deltas.awarded}
+          deltaPct={compare ? analytics?.deltas.awarded : undefined}
           spark={analytics?.kpiSeries.awarded}
         />
         <KpiCard
@@ -80,7 +83,7 @@ export function SatinalmaIhaleTab({
           value={data.ongoingOrders}
           href="/company/satinalma/siparisler"
           accent="blue"
-          deltaPct={analytics?.deltas.orders}
+          deltaPct={compare ? analytics?.deltas.orders : undefined}
           spark={analytics?.kpiSeries.orders}
         />
       </div>
@@ -108,6 +111,7 @@ export function SatinalmaIhaleTab({
           title="Döngü Süresi"
           subtitle="İhale açılışından siparişe geçen ortalama gün (aylık)"
           ariaLabel="Döngü süresi trendi"
+          rangeBadge="son 12 ay"
         >
           <CycleTrendChart points={analytics?.cycleTrend} />
         </ChartCard>

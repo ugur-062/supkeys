@@ -152,6 +152,20 @@ export function useSatisActivity(limit = 8, page = 1) {
 
 export type SavingsPeriod = "month" | "quarter" | "year";
 
+/** Faz 3 — URL'deki dönem durumu API paramlarına çevrilir (custom → from/to). */
+export interface PeriodQuery {
+  period: "month" | "quarter" | "year" | "custom";
+  from?: string | null;
+  to?: string | null;
+}
+
+function periodParams(q: PeriodQuery | SavingsPeriod) {
+  if (typeof q === "string") return { period: q };
+  return q.period === "custom" && q.from && q.to
+    ? { period: "custom", from: q.from, to: q.to }
+    : { period: q.period === "custom" ? "year" : q.period };
+}
+
 export interface TimeSavingsBreakdownRow {
   key: string;
   label: string;
@@ -183,13 +197,14 @@ export interface TimeSavingsData {
 }
 
 /** Zaman Tasarrufu — panel şeridi + Zaman bölümü için TEK toplu istek. */
-export function useTimeSavings(period: SavingsPeriod) {
+export function useTimeSavings(period: PeriodQuery | SavingsPeriod) {
+  const params = periodParams(period);
   return useQuery({
-    queryKey: ["company-dashboard", "time-savings", period],
+    queryKey: ["company-dashboard", "time-savings", params],
     queryFn: async () => {
       const { data } = await companyApi.get<TimeSavingsData>(
         "/company/dashboard/time-savings",
-        { params: { period } },
+        { params },
       );
       return data;
     },
@@ -274,13 +289,14 @@ export interface SatisAnalytics {
   deltas: Record<"bidsSubmitted" | "orders" | "revenue", number | null>;
 }
 
-export function useSatinalmaAnalytics(period: SavingsPeriod) {
+export function useSatinalmaAnalytics(period: PeriodQuery | SavingsPeriod) {
+  const params = periodParams(period);
   return useQuery({
-    queryKey: ["company-dashboard", "satinalma-analytics", period],
+    queryKey: ["company-dashboard", "satinalma-analytics", params],
     queryFn: async () => {
       const { data } = await companyApi.get<SatinalmaAnalytics>(
         "/company/dashboard/satinalma/analytics",
-        { params: { period } },
+        { params },
       );
       return data;
     },
@@ -288,13 +304,14 @@ export function useSatinalmaAnalytics(period: SavingsPeriod) {
   });
 }
 
-export function useSatisAnalytics(period: SavingsPeriod) {
+export function useSatisAnalytics(period: PeriodQuery | SavingsPeriod) {
+  const params = periodParams(period);
   return useQuery({
-    queryKey: ["company-dashboard", "satis-analytics", period],
+    queryKey: ["company-dashboard", "satis-analytics", params],
     queryFn: async () => {
       const { data } = await companyApi.get<SatisAnalytics>(
         "/company/dashboard/satis/analytics",
-        { params: { period } },
+        { params },
       );
       return data;
     },

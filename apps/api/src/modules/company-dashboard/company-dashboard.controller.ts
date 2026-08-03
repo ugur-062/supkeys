@@ -10,7 +10,41 @@ import {
   type SavingsPeriod,
 } from "./time-savings.service";
 import { ActionCenterService } from "./action-center.service";
-import { DashboardAnalyticsService } from "./dashboard-analytics.service";
+import {
+  DashboardAnalyticsService,
+  type PeriodRange,
+} from "./dashboard-analytics.service";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Dönem paramı çözümü (Faz 3): month|quarter|year veya custom+from&to.
+ * Geçersiz/yarım custom sessizce year'a düşer (yarım aralıkla hesap yok).
+ * `to` gün SONU dahil olsun diye +1 gün HARİÇ üst sınıra çevrilir.
+ */
+function resolvePeriod(
+  period?: string,
+  from?: string,
+  to?: string,
+): { p: SavingsPeriod; range?: PeriodRange } {
+  if (period === "month" || period === "quarter") return { p: period };
+  if (
+    period === "custom" &&
+    from && to &&
+    DATE_RE.test(from) && DATE_RE.test(to) &&
+    from <= to
+  ) {
+    const f = new Date(`${from}T00:00:00`);
+    const t = new Date(`${to}T00:00:00`);
+    if (!Number.isNaN(+f) && !Number.isNaN(+t)) {
+      return {
+        p: "year",
+        range: { from: f, to: new Date(t.getTime() + 86_400_000) },
+      };
+    }
+  }
+  return { p: "year" };
+}
 
 @Controller("company/dashboard")
 @UseGuards(CompanyJwtAuthGuard)
@@ -38,20 +72,22 @@ export class CompanyDashboardController {
   satinalmaAnalytics(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
   ) {
-    const p: SavingsPeriod =
-      period === "month" || period === "quarter" ? period : "year";
-    return this.analytics.satinalma(user.companyId, p);
+    const { p, range } = resolvePeriod(period, from, to);
+    return this.analytics.satinalma(user.companyId, p, range);
   }
 
   @Get("satis/analytics")
   satisAnalytics(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
   ) {
-    const p: SavingsPeriod =
-      period === "month" || period === "quarter" ? period : "year";
-    return this.analytics.satis(user.companyId, p);
+    const { p, range } = resolvePeriod(period, from, to);
+    return this.analytics.satis(user.companyId, p, range);
   }
 
   /** Zaman Tasarrufu — panel şeridi + Zaman alt bölümü için TEK toplu yanıt. */
@@ -59,10 +95,11 @@ export class CompanyDashboardController {
   timeSavingsSummary(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
   ) {
-    const p: SavingsPeriod =
-      period === "month" || period === "quarter" ? period : "year";
-    return this.timeSavings.forCompany(user.companyId, p);
+    const { p, range } = resolvePeriod(period, from, to);
+    return this.timeSavings.forCompany(user.companyId, p, range);
   }
 
   @Get("satinalma")

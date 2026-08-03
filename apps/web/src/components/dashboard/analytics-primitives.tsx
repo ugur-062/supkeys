@@ -6,7 +6,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   Minus,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
@@ -120,6 +119,7 @@ export function ChartCard({
   children,
   className,
   right,
+  rangeBadge,
 }: {
   title: string;
   /** Grafiğin cevapladığı soru / veri notu (ör. "Yalnız TRY"). */
@@ -130,12 +130,22 @@ export function ChartCard({
   children: React.ReactNode;
   className?: string;
   right?: React.ReactNode;
+  /** Faz 3: global dönem seçicisine UYAMAYAN kartın kendi aralığı (ör.
+   *  "son 12 ay") — sessizce farklı aralık kullanan kart kalmasın. */
+  rangeBadge?: string;
 }) {
   return (
     <section className={cn(DASH_CARD, className)} aria-label={ariaLabel}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-sm font-medium text-slate-500">{title}</h3>
+          <h3 className="flex items-center gap-2 text-sm font-medium text-slate-500">
+            {title}
+            {rangeBadge ? (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                {rangeBadge}
+              </span>
+            ) : null}
+          </h3>
           {subtitle ? (
             <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
           ) : null}

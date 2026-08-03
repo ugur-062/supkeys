@@ -14,9 +14,9 @@ import {
 } from "@/hooks/use-company-dashboard";
 import { ActionCenter } from "@/components/dashboard/action-center";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { PeriodControls } from "@/components/dashboard/period-controls";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
-import { useSearchParams } from "next/navigation";
-import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
+import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import { cn } from "@/lib/utils";
 import {
   Tab,
@@ -44,24 +44,18 @@ const TRIGGER_CLASSES = cn(
 
 export default function SatinalmaDashboardPage() {
   const { company } = useCompanyAuth();
-  // Panelin TAMAMI için tek global dönem — URL'de (?period=) taşınır.
-  const searchParams = useSearchParams();
-  const urlPeriod = searchParams.get("period");
-  const [period, setPeriodState] = useState<Period>(
-    urlPeriod === "month" || urlPeriod === "quarter" ? urlPeriod : "year",
+  // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (tek doğruluk
+  // kaynağı, paylaşılabilir/yer imlenebilir; geri tuşu çalışır).
+  const { period, from, to, compare, tab, setParams } = useDashboardParams(
+    "ihale",
+    TABS.map((t) => t.value),
   );
-  const setPeriod = (p: Period) => {
-    setPeriodState(p);
-    const u = new URL(window.location.href);
-    if (p === "year") u.searchParams.delete("period");
-    else u.searchParams.set("period", p);
-    window.history.replaceState(null, "", u.toString());
-  };
+  const periodQuery = { period, from, to };
   const ihale = useSatinalmaDashboard();
   const tasarruf = useSatinalmaTasarruf();
   const tedarikci = useSatinalmaTedarikci();
-  const savings = useTimeSavings(period);
-  const analytics = useSatinalmaAnalytics(period);
+  const savings = useTimeSavings(periodQuery);
+  const analytics = useSatinalmaAnalytics(periodQuery);
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -89,7 +83,13 @@ export default function SatinalmaDashboardPage() {
             anasayfadan kalktı (şerit → raporlar hub'ı). */}
         <div className="flex flex-wrap items-center gap-3">
           <TcmbRatesChip />
-          <PeriodToggle value={period} onChange={setPeriod} />
+          <PeriodControls
+            period={period}
+            from={from}
+            to={to}
+            compare={compare}
+            onChange={setParams}
+          />
         </div>
       </header>
 
@@ -126,7 +126,12 @@ export default function SatinalmaDashboardPage() {
           backend'de, metin haritası ACTION_ROWS'ta). */}
       <ActionCenter portal="satinalma" />
 
-      <TabGroup className="space-y-6">
+      <TabGroup
+        className="space-y-6"
+        // Faz 3: sekme URL'de (?tab=) — paylaşılabilir + geri tuşu çalışır.
+        selectedIndex={Math.max(0, TABS.findIndex((t) => t.value === tab))}
+        onChange={(i) => setParams({ tab: TABS[i]?.value ?? "ihale" })}
+      >
         <TabList
           className="flex gap-1 border-b border-zinc-950/10"
           aria-label="Pano bölümleri"
@@ -146,6 +151,7 @@ export default function SatinalmaDashboardPage() {
               <SatinalmaIhaleTab
                 data={ihale.data}
                 analytics={analytics.data}
+                compare={compare}
               />
             ) : ihale.isError ? (
               <ErrorState
@@ -160,7 +166,9 @@ export default function SatinalmaDashboardPage() {
             {tasarruf.data ? (
               <TasarrufTab
                 data={tasarruf.data}
-                period={period}
+                // Tasarruf verisi ay/yıl sabit görünümlü — custom aralıkta yıl
+                // görünümüne düşer (kart kendi aralığını başlığında söyler).
+                period={period === "custom" ? "year" : period}
                 savings={savings.data}
                 analytics={analytics.data}
               />

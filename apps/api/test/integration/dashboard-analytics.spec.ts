@@ -96,4 +96,35 @@ describe("DashboardAnalyticsService (DB)", () => {
       st.pipeline.find((p) => p.key === "submitted")!.count,
     ).toBe(1);
   });
+
+  it("custom aralık (Faz 3): funnel yalnız [from,to) içindeki kayıtları sayar", async () => {
+    const DAY = 86_400_000;
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const inside = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "OPEN",
+    });
+    // Aralık içine taşı: 10 gün önce açılmış gibi.
+    await prisma.listing.update({
+      where: { id: inside.id },
+      data: { createdAt: new Date(Date.now() - 10 * DAY) },
+    });
+    // İkincisi bugün (aralık DIŞI kalmalı).
+    await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "OPEN",
+    });
+
+    const ranged = await service.satinalma(buyer.company.id, "year", {
+      from: new Date(Date.now() - 15 * DAY),
+      to: new Date(Date.now() - 5 * DAY),
+    });
+    expect(ranged.funnel.find((f) => f.key === "listings")!.count).toBe(1);
+
+    // Aralıksız (year) iki ihaleyi de görür.
+    const full = await service.satinalma(buyer.company.id, "year");
+    expect(full.funnel.find((f) => f.key === "listings")!.count).toBe(2);
+  });
 });

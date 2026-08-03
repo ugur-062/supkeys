@@ -206,15 +206,18 @@ export class TimeSavingsService {
   async forCompany(
     companyId: string,
     period: SavingsPeriod,
+    /** Özel aralık — `to` HARİÇ üst sınır (controller gün+1 kurar). */
+    range?: { from: Date; to: Date },
   ): Promise<TimeSavingsResult> {
-    const key = `${companyId}:${period}`;
+    const key = `${companyId}:${period}${range ? `:${+range.from}-${+range.to}` : ""}`;
     const hit = this.cache.get(key);
     if (hit && Date.now() - hit.at < TimeSavingsService.CACHE_MS) {
       return hit.value;
     }
 
     const now = new Date();
-    const start = periodStart(period, now);
+    const start = range?.from ?? periodStart(period, now);
+    const end = range?.to ?? null;
     // Sparkline her zaman son 6 ay (dönemden bağımsız trend).
     const sparkStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const from = start < sparkStart ? start : sparkStart;
@@ -273,7 +276,7 @@ export class TimeSavingsService {
     ]);
 
     const inPeriod = <T extends { createdAt: Date }>(rows: T[]) =>
-      rows.filter((r) => r.createdAt >= start);
+      rows.filter((r) => r.createdAt >= start && (!end || r.createdAt < end));
 
     const pListings = inPeriod(listings);
     const pInvites = inPeriod(invitations);

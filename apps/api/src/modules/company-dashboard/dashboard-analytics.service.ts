@@ -47,6 +47,12 @@ export function deltaPct(current: number, previous: number): number | null {
   return Math.round(((current - previous) / previous) * 100);
 }
 
+/** Özel tarih aralığı — `to` HARİÇ üst sınır (controller gün+1 kurar). */
+export interface PeriodRange {
+  from: Date;
+  to: Date;
+}
+
 /** Dönemin bir önceki eş penceresi. */
 export function previousWindow(
   period: SavingsPeriod,
@@ -117,13 +123,21 @@ export class DashboardAnalyticsService {
   }
 
   // ── SATINALMA ────────────────────────────────────────────────────────────
-  async satinalma(companyId: string, period: SavingsPeriod) {
-    return this.cached(`sa:${companyId}:${period}`, async () => {
+  async satinalma(companyId: string, period: SavingsPeriod, range?: PeriodRange) {
+    const rangeKey = range ? `:${+range.from}-${+range.to}` : "";
+    return this.cached(`sa:${companyId}:${period}${rangeKey}`, async () => {
       const now = new Date();
-      const start = periodStart(period, now);
-      const prev = previousWindow(period, now);
+      // Özel aralık: [from, to) dönem penceresi; önceki dönem = eşit uzunlukta
+      // hemen öncesi. Aralıksızda mevcut month/quarter/year davranışı.
+      const start = range?.from ?? periodStart(period, now);
+      const end = range?.to ?? now;
+      const prev = range
+        ? { start: new Date(2 * +start - +end), end: start }
+        : previousWindow(period, now);
       const windows = monthWindows(now);
-      const from = windows[0]!.start < prev.start ? windows[0]!.start : prev.start;
+      const from = [windows[0]!.start, prev.start, start].reduce((a, b) =>
+        a < b ? a : b,
+      );
       const in30d = new Date(now.getTime() + 30 * 86_400_000);
 
       const [listings, bids, approvals, orders, payments] = await Promise.all([
@@ -217,13 +231,16 @@ export class DashboardAnalyticsService {
       };
 
       // ── Funnel (dönem içi akış) ──
-      const pListings = inWin(listings, start);
-      const pBids = inWin(bids, start);
-      const pAwarded = listings.filter((l) => l.awardedAt && l.awardedAt >= start);
-      const pOrders = inWin(liveOrders, start);
-      const pDelivered = liveOrders.filter(
-        (o) => (o.deliveredAt ?? o.completedAt) && (o.deliveredAt ?? o.completedAt)! >= start,
+      const pListings = inWin(listings, start, end);
+      const pBids = inWin(bids, start, end);
+      const pAwarded = listings.filter(
+        (l) => l.awardedAt && l.awardedAt >= start && l.awardedAt < end,
       );
+      const pOrders = inWin(liveOrders, start, end);
+      const pDelivered = liveOrders.filter((o) => {
+        const d = o.deliveredAt ?? o.completedAt;
+        return d && d >= start && d < end;
+      });
       const funnel = [
         { key: "listings", label: "İhale", count: pListings.length },
         { key: "bids", label: "Teklif Alan", count: pListings.filter((l) => l.bids.length > 0).length },
@@ -277,7 +294,9 @@ export class DashboardAnalyticsService {
 
       // ── Kategori tasarrufu (dönem içi, TUTARLI) ──
       const catAgg = new Map<string, { savings: number; volume: number }>();
-      for (const l of awardedAll.filter((l) => l.awardedAt! >= start)) {
+      for (const l of awardedAll.filter(
+        (l) => l.awardedAt! >= start && l.awardedAt! < end,
+      )) {
         const seg = l.categoryIds[0] ? `${l.categoryIds[0].slice(0, 2)}000000` : null;
         if (!seg || l.primaryCurrency !== "TRY") continue;
         const itemMap = new Map(l.items.map((i) => [i.id, i]));
@@ -313,7 +332,7 @@ export class DashboardAnalyticsService {
 
       // ── Top-5 tasarruflu ihale (dönem içi) ──
       const topSavings = awardedAll
-        .filter((l) => l.awardedAt! >= start)
+        .filter((l) => l.awardedAt! >= start && l.awardedAt! < end)
         .map((l) => ({ number: l.number ?? "—", title: l.title, amount: round2(savingsOf(l)) }))
         .filter((r) => r.amount > 0)
         .sort((a, b) => b.amount - a.amount)
@@ -410,10 +429,10 @@ export class DashboardAnalyticsService {
         orders: bucketize(liveOrders, (o) => o.createdAt, () => 1, windows),
       };
       const deltas = {
-        listings: deltaPct(inWin(listings, start).length, inWin(listings, prev.start, prev.end).length),
+        listings: deltaPct(pListings.length, inWin(listings, prev.start, prev.end).length),
         bids: deltaPct(pBids.length, inWin(bids, prev.start, prev.end).length),
         awarded: deltaPct(
-          awardedAll.filter((l) => l.awardedAt! >= start).length,
+          pAwarded.length,
           awardedAll.filter((l) => l.awardedAt! >= prev.start && l.awardedAt! < prev.end).length,
         ),
         orders: deltaPct(pOrders.length, inWin(liveOrders, prev.start, prev.end).length),
@@ -428,13 +447,19 @@ export class DashboardAnalyticsService {
   }
 
   // ── SATIŞ ────────────────────────────────────────────────────────────────
-  async satis(companyId: string, period: SavingsPeriod) {
-    return this.cached(`st:${companyId}:${period}`, async () => {
+  async satis(companyId: string, period: SavingsPeriod, range?: PeriodRange) {
+    const rangeKey = range ? `:${+range.from}-${+range.to}` : "";
+    return this.cached(`st:${companyId}:${period}${rangeKey}`, async () => {
       const now = new Date();
-      const start = periodStart(period, now);
-      const prev = previousWindow(period, now);
+      const start = range?.from ?? periodStart(period, now);
+      const end = range?.to ?? now;
+      const prev = range
+        ? { start: new Date(2 * +start - +end), end: start }
+        : previousWindow(period, now);
       const windows = monthWindows(now);
-      const from = windows[0]!.start < prev.start ? windows[0]!.start : prev.start;
+      const from = [windows[0]!.start, prev.start, start].reduce((a, b) =>
+        a < b ? a : b,
+      );
 
       const [bids, invitations, orders] = await Promise.all([
         this.prisma.listingBid.findMany({
@@ -526,7 +551,7 @@ export class DashboardAnalyticsService {
 
       // ── Pipeline (dönem içi): davet ADET (tutar bilinemez — teklif yok),
       //    sonrası TRY tutar. ──
-      const pBids = bids.filter((b) => b.createdAt >= start);
+      const pBids = bids.filter((b) => b.createdAt >= start && b.createdAt < end);
       const tryAmt = (rows: typeof bids) =>
         round2(rows.filter((b) => b.currency === "TRY").reduce((s, b) => s + Number(b.amount), 0));
       const submitted = pBids;
@@ -537,7 +562,9 @@ export class DashboardAnalyticsService {
       const pipeline = [
         {
           key: "invites", label: "Davet",
-          count: invitations.filter((iv) => iv.createdAt >= start).length,
+          count: invitations.filter(
+            (iv) => iv.createdAt >= start && iv.createdAt < end,
+          ).length,
           amountTry: null as number | null, // TODO: teklifsiz davetin tutarı yok
         },
         { key: "submitted", label: "Teklif Verildi", count: submitted.length, amountTry: tryAmt(submitted) },
@@ -627,15 +654,15 @@ export class DashboardAnalyticsService {
         rows.filter((r) => at(r) >= s && (!e || at(r) < e)).length;
       const deltas = {
         bidsSubmitted: deltaPct(
-          inWin(bids, (b) => b.createdAt, start),
+          pBids.length,
           inWin(bids, (b) => b.createdAt, prev.start, prev.end),
         ),
         orders: deltaPct(
-          inWin(orders, (o) => o.createdAt, start),
+          inWin(orders, (o) => o.createdAt, start, end),
           inWin(orders, (o) => o.createdAt, prev.start, prev.end),
         ),
         revenue: deltaPct(
-          round2(tryOrders.filter((o) => o.createdAt >= start).reduce((s, o) => s + Number(o.amount), 0)),
+          round2(tryOrders.filter((o) => o.createdAt >= start && o.createdAt < end).reduce((s, o) => s + Number(o.amount), 0)),
           round2(tryOrders.filter((o) => o.createdAt >= prev.start && o.createdAt < prev.end).reduce((s, o) => s + Number(o.amount), 0)),
         ),
       };

@@ -9,8 +9,8 @@ import {
   KpiCard,
 } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
-import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
-import { useSearchParams } from "next/navigation";
+import { PeriodControls } from "@/components/dashboard/period-controls";
+import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import {
   Area,
   AreaChart,
@@ -219,21 +219,13 @@ export function SatisDashboardView() {
 
   const s = stats.data;
   const loading = stats.isLoading;
-  // Global dönem — URL'de (?period=) taşınır (satınalma ile aynı desen).
-  const searchParams = useSearchParams();
-  const urlPeriod = searchParams.get("period");
-  const [period, setPeriodState] = useState<Period>(
-    urlPeriod === "month" || urlPeriod === "quarter" ? urlPeriod : "year",
+  // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (satınalma ile
+  // ortak useDashboardParams; geri tuşu çalışır, sayfa paylaşılabilir).
+  const { period, from, to, compare, tab, setParams } = useDashboardParams(
+    "teklif",
+    ["teklif", "gelir", "musteri"],
   );
-  const setPeriod = (p: Period) => {
-    setPeriodState(p);
-    const u = new URL(window.location.href);
-    if (p === "year") u.searchParams.delete("period");
-    else u.searchParams.set("period", p);
-    window.history.replaceState(null, "", u.toString());
-  };
-  const analytics = useSatisAnalytics(period);
-  const [tab, setTab] = useState<"teklif" | "gelir" | "musteri">("teklif");
+  const analytics = useSatisAnalytics({ period, from, to });
   const [activityType, setActivityType] = useState<
     "all" | "invitation" | "bid" | "order"
   >("all");
@@ -261,7 +253,13 @@ export function SatisDashboardView() {
         {/* Kur çipi başlıkta; kazanma-oranı şeridi raporlar hub'ına taşındı. */}
         <div className="flex flex-wrap items-center gap-3">
           <TcmbRatesChip />
-          <PeriodToggle value={period} onChange={setPeriod} />
+          <PeriodControls
+            period={period}
+            from={from}
+            to={to}
+            compare={compare}
+            onChange={setParams}
+          />
           <Link
             href="/company/satis/acik-ihaleler"
             className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
@@ -303,7 +301,7 @@ export function SatisDashboardView() {
             type="button"
             role="tab"
             aria-selected={tab === key}
-            onClick={() => setTab(key)}
+            onClick={() => setParams({ tab: key })}
             className={cn(
               "-mb-px border-b-2 px-5 py-2.5 text-sm font-medium transition-colors",
               tab === key
@@ -336,7 +334,7 @@ export function SatisDashboardView() {
           value={val(s?.bids.active)}
           href="/company/satis/tekliflerim"
           accent="emerald"
-          deltaPct={analytics.data?.deltas.bidsSubmitted}
+          deltaPct={compare ? analytics.data?.deltas.bidsSubmitted : undefined}
           spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
         <KpiCard
@@ -351,7 +349,7 @@ export function SatisDashboardView() {
           value={val(s?.orders.pending)}
           href="/company/satis/siparisler"
           accent="emerald"
-          deltaPct={analytics.data?.deltas.orders}
+          deltaPct={compare ? analytics.data?.deltas.orders : undefined}
           spark={analytics.data?.kpiSeries.orders}
         />
       </div>
@@ -475,6 +473,7 @@ function SatisGelirTab({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
         title="Gelir Trendi"
+        rangeBadge="son 12 ay"
         subtitle="Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — TRY satışlar"
         ariaLabel="Aylık gelir trendi"
         href="/company/satis/siparisler"
@@ -510,6 +509,7 @@ function SatisGelirTab({
 
       <ChartCard
         title="Kazanma / Kaybetme Dağılımı"
+        rangeBadge="son 12 ay"
         subtitle="Aylık karara bağlanan teklifler (kazanıldı · kaybedildi · beklemede)"
         ariaLabel="Aylık kazanma kaybetme dağılımı"
         href="/company/satis/tekliflerim"
@@ -593,6 +593,7 @@ function SatisMusteriTab({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
         title="Müşteri Konsantrasyonu"
+        rangeBadge="son 12 ay"
         subtitle="En iyi 5 müşterinin gelir payı (son 12 ay, TRY)"
         ariaLabel="Müşteri konsantrasyonu Pareto"
         right={
@@ -645,6 +646,7 @@ function SatisMusteriTab({
 
       <ChartCard
         title="Kategori Bazlı Kazanma Oranı"
+        rangeBadge="son 12 ay"
         subtitle="Hangi kategorilerde güçlüyüz (karara bağlanan teklifler, son 12 ay)"
         ariaLabel="Kategori bazlı kazanma oranı"
       >
@@ -682,6 +684,7 @@ function SatisMusteriTab({
 
       <ChartCard
         title="Teklif Yanıt Süresi"
+        rangeBadge="son 12 ay"
         subtitle="Davetten teklife geçen ortalama süre (saat, aylık)"
         ariaLabel="Teklif yanıt süresi trendi"
       >
@@ -707,6 +710,7 @@ function SatisMusteriTab({
 
       <ChartCard
         title="Kaçırılan Fırsatlar"
+        rangeBadge="son 12 ay"
         subtitle="Teklif verilmeden süresi dolan davetler (son 12 ay)"
         ariaLabel="Kaçırılan fırsatlar"
         href="/company/satis/acik-ihaleler"

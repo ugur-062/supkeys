@@ -40,6 +40,8 @@ vi.mock("@/hooks/use-company-messages", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/company/satis",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesChip: () => <div data-testid="tcmb" />,
