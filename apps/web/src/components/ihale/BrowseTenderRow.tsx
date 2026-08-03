@@ -1,12 +1,5 @@
 "use client";
 
-import {
-  Dropdown,
-  DropdownButton,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from "@/components/catalyst/dropdown";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import {
   closingUrgency,
@@ -16,19 +9,9 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import {
-  Building2,
-  ChevronRight,
-  Eye,
-  FileText,
-  Gavel,
-  Link2,
-  Lock,
-  MoreHorizontal,
-} from "lucide-react";
+import { Building2, ChevronRight, FileText, Lock } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 import { DaysLeftChip, IHALE_VIEW_FOCUS, InfoChip } from "./IhaleListRow";
 
 /**
@@ -98,20 +81,6 @@ export function BrowseTenderRow({
         : t.invited
           ? "border-l-amber-500"
           : "border-l-emerald-500";
-
-  const copyLink = () => {
-    navigator.clipboard
-      .writeText(`${window.location.origin}/company/ilan/${t.id}`)
-      .then(() => toast.success("Bağlantı kopyalandı"))
-      .catch(() => toast.error("Kopyalanamadı"));
-  };
-
-  const primaryAction =
-    t.status === "OPEN" && t.canBid && !t.myBidStatus
-      ? { icon: Gavel, label: "Teklif Ver", href: detailHref }
-      : t.myBidStatus
-        ? { icon: Gavel, label: "Teklifimi Gör", href: detailHref }
-        : { icon: Eye, label: "Detaya Git", href: detailHref };
 
   const my = myBidLabel(t);
 
@@ -266,52 +235,37 @@ export function BrowseTenderRow({
           </span>
         </div>
 
-        {/* 7 — Aksiyonlar (xl: dikey yığın) */}
-        <div className="hidden px-3 py-2.5 xl:block">
-          <div className="flex flex-col gap-1.5">
-            <Link
-              href={primaryAction.href}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded text-[12px] leading-tight text-slate-700 hover:underline",
-                IHALE_VIEW_FOCUS,
-              )}
-            >
-              <primaryAction.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {primaryAction.label}
-            </Link>
-            <button
-              type="button"
-              onClick={copyLink}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded text-[12px] leading-tight text-slate-700 hover:underline",
-                IHALE_VIEW_FOCUS,
-              )}
-            >
-              <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Bağlantıyı kopyala
-            </button>
-          </div>
-        </div>
-
-        {/* md ve altı: aksiyonlar "…" menüsünde */}
-        <div className="flex items-center px-2 py-2.5 xl:hidden">
-          <Dropdown>
-            <DropdownButton
-              plain
-              aria-label="Aksiyonlar"
-              className={cn("!p-1.5", IHALE_VIEW_FOCUS)}
-            >
-              <MoreHorizontal className="h-4 w-4 text-slate-400" />
-            </DropdownButton>
-            <DropdownMenu anchor="bottom end">
-              <DropdownItem href={primaryAction.href}>
-                <DropdownLabel>{primaryAction.label}</DropdownLabel>
-              </DropdownItem>
-              <DropdownItem onClick={copyLink}>
-                <DropdownLabel>Bağlantıyı kopyala</DropdownLabel>
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+        {/* 7 — Kategori (xl) — aksiyonların yerine (kullanıcı isteği,
+            2026-08-04): Teklif Ver/Bağlantı kopyala zaten detay sayfasında,
+            satır da tıklanabilir; alıcı için ayırt edici bilgi kategori. */}
+        <div className="hidden min-w-0 px-3 py-2.5 xl:block">
+          <ColLabel>Kategori</ColLabel>
+          {t.categories.length > 0 ? (
+            <>
+              <span
+                className={cn(
+                  "mt-1 block truncate text-[13px] font-medium leading-tight",
+                  t.categoryMatch ? "text-blue-700" : "text-slate-700",
+                )}
+                title={t.categories.map((c) => c.name).join(", ")}
+              >
+                {t.categories[0]!.name}
+              </span>
+              {t.categories.length + t.extraCategoryCount > 1 ? (
+                <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                  +{t.categories.length + t.extraCategoryCount - 1} kategori
+                </span>
+              ) : t.categoryMatch ? (
+                <span className="mt-0.5 block text-[11px] leading-tight text-blue-500">
+                  Kategorine uygun
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="mt-1 block text-[13px] leading-tight text-slate-300">
+              —
+            </span>
+          )}
         </div>
 
         {/* 8 — Dikey durum rozeti (md+) — davet/teklif durumuna göre. */}
@@ -363,6 +317,11 @@ export function BrowseTenderRow({
           Kapanış: {shortDate(t.closesAt)}
         </span>
         {my ? <span className="text-[11px] text-slate-500">Teklifim: {my}</span> : null}
+        {t.categories[0] ? (
+          <span className="text-[11px] text-slate-500">
+            {t.categories[0].name}
+          </span>
+        ) : null}
       </div>
 
       {/* Accordion — rozet kalabalığı burada (davet/bağlantı/kategori/fiyat). */}

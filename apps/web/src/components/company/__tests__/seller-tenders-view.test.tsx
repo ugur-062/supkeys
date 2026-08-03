@@ -90,13 +90,14 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     // Sağ uç metrik: benim teklifim (versiyonlu).
     expect(screen.getByText("Verildi · v2")).toBeInTheDocument();
 
-    // Rozet kalabalığı (kategori eşleşme, kategori adı) genişletme satırında.
+    // Kategori artık KOLONDA da görünür (aksiyonların yerine, 2026-08-04) —
+    // kolon + mobil chip; genişletmede rozet + kategori tekrar eder.
+    expect(screen.getAllByText("Canlı Hayvanlar").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Kategorine Uygun")).not.toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "Detayı genişlet" }),
     );
     expect(screen.getByText("Kategorine Uygun")).toBeInTheDocument();
-    expect(screen.getByText("Canlı Hayvanlar")).toBeInTheDocument();
   });
 
   it("maskeli satır 'Gizli firma' + Premium çipi gösterir", () => {
