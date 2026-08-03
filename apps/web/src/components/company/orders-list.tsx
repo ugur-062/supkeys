@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { sellerShipsGoods } from "@rothern/shared";
 import { formatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { orderStatusMeta } from "@/lib/orders/order-status";
+import { orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -48,16 +48,9 @@ import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 12;
 
-// 5 aşamalı akış — orta adım teslim şekline göre "Gönderildi"/"Teslime Hazır".
-function stagesFor(sellerShips: boolean) {
-  return [
-    "Onay Bekliyor",
-    "Onaylandı",
-    sellerShips ? "Gönderildi" : "Teslime Hazır",
-    "Teslim Alındı",
-    "Tamamlandı",
-  ];
-}
+// 5 aşamalı akış — TEK kaynaktan (order-status.orderSteps).
+const stagesFor = (sellerShips: boolean) =>
+  orderSteps(sellerShips).map((s) => s.label);
 const STAGES = stagesFor(true);
 
 function getStageState(status: CompanyOrderStatus): {

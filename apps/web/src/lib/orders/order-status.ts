@@ -22,6 +22,24 @@ export const ORDER_STATUS: Record<
   DISPUTED: { label: "İhtilaflı", tone: "pending" },
 };
 
+/**
+ * 5 aşamalı süreç izleyicisi adımları — liste kartı ve detay tracker'ı
+ * AYNI diziden okur ("Teslim alındı / Teslim Alındı" gibi yazım kaymaları
+ * biter). Orta adım teslim şekline duyarlı.
+ */
+export function orderSteps(sellerShips: boolean): {
+  key: CompanyOrderStatus;
+  label: string;
+}[] {
+  return [
+    { key: "PENDING", label: "Onay Bekliyor" },
+    { key: "ACCEPTED", label: "Onaylandı" },
+    { key: "IN_DELIVERY", label: sellerShips ? "Gönderildi" : "Teslime Hazır" },
+    { key: "DELIVERED", label: "Teslim Alındı" },
+    { key: "COMPLETED", label: "Tamamlandı" },
+  ];
+}
+
 /** IN_DELIVERY etiketi teslim şekline duyarlı: satıcı taşımıyorsa alıcı toplar. */
 export function orderStatusMeta(
   status: CompanyOrderStatus,

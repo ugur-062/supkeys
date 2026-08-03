@@ -30,7 +30,8 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { formatDate } from "@/lib/format-date";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
-import { orderStatusMeta } from "@/lib/orders/order-status";
+import { orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
+import { routeLabel } from "@/lib/company/terms";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
@@ -56,17 +57,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// Orta adım etiketi teslim şekline göre değişir (sellerShips): satıcı taşıyorsa
-// "Gönderildi", alıcı topluyorsa "Teslime Hazır".
-function stepsFor(sellerShips: boolean) {
-  return [
-    { key: "PENDING", label: "Onay" },
-    { key: "ACCEPTED", label: "Onaylandı" },
-    { key: "IN_DELIVERY", label: sellerShips ? "Gönderildi" : "Teslime Hazır" },
-    { key: "DELIVERED", label: "Teslim alındı" },
-    { key: "COMPLETED", label: "Tamamlandı" },
-  ] as const;
-}
+// Adımlar TEK kaynaktan (order-status.orderSteps) — liste kartıyla aynı yazım.
+const stepsFor = orderSteps;
 const STEPS = stepsFor(true);
 
 // Legacy CREATED siparişler ACCEPTED hizasında gösterilir.
@@ -381,7 +373,7 @@ export default function OrderDetailPage() {
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeftIcon className="h-4 w-4" />
-          Siparişler
+          {routeLabel(ordersHref) ?? "Siparişlerim"}
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           {o.number ? (
