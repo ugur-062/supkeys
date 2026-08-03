@@ -116,7 +116,7 @@ function StageStepper({
                   done
                     ? "border-success-500 bg-success-500 text-white"
                     : current
-                      ? "border-brand-500 bg-brand-50 text-brand-700 ring-4 ring-brand-500/15"
+                      ? "border-brand-500 bg-zinc-100 text-brand-700 ring-4 ring-brand-500/15"
                       : "border-zinc-200 bg-white text-zinc-300",
                 )}
               >
@@ -526,9 +526,9 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             disabled={!k.filter}
             onClick={() => k.filter && reset(setStatus)(k.filter)}
             className={cn(
-              "bg-white p-4 text-left",
+              "p-4 text-left",
               k.filter && "cursor-pointer transition-colors hover:bg-zinc-50",
-              k.filter && status === k.filter && "bg-brand-50/60",
+              k.filter && status === k.filter ? "bg-zinc-100/80" : "bg-white",
             )}
           >
             <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">

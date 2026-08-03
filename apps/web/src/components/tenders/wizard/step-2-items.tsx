@@ -209,7 +209,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-semibold text-brand-700">
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-xs font-semibold text-brand-700">
           {index + 1}
         </div>
 
@@ -342,7 +342,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           className={cn(
             "inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
             hasDetails
-              ? "bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100"
+              ? "bg-zinc-100 text-zinc-900 border-zinc-300 hover:bg-zinc-200/70"
               : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",
             detailHasError && "ring-1 ring-danger-300",
           )}

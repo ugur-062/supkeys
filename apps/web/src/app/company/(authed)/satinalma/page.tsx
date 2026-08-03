@@ -120,7 +120,7 @@ export default function SatinalmaDashboardPage() {
 
       {/* Zaman tasarrufu — TEK SATIRLIK ince şerit (dev hero kalktı). */}
       {savings.isLoading ? (
-        <div className="h-10 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
+        <div className="h-10 animate-pulse rounded-lg bg-zinc-200/60" aria-hidden />
       ) : savings.data ? (
         <SavingsHero
           data={savings.data}
@@ -160,7 +160,7 @@ export default function SatinalmaDashboardPage() {
 
       {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
       {analytics.isLoading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+        <div className="h-32 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
       ) : analytics.data ? (
         <ActionCenter
           rows={[
@@ -343,11 +343,11 @@ function TabLoading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-24 animate-pulse rounded-2xl bg-zinc-100"
+            className="h-24 animate-pulse rounded-2xl bg-zinc-200/60"
           />
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-2xl bg-zinc-100" />
+      <div className="h-72 animate-pulse rounded-2xl bg-zinc-200/60" />
     </div>
   );
 }

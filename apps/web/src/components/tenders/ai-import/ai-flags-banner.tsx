@@ -221,7 +221,7 @@ export function AiFlagsBanner({
 
       {/* AI düzeltme composer'ı — sohbet dili: markalı hap girişi + öneri
           chip'leri (chip metni doldurur, kullanıcı sayıyı/tarihi düzeltip yollar). */}
-      <div className="rounded-xl border border-brand-100 bg-white p-3">
+      <div className="rounded-xl border border-zinc-200 bg-white p-3">
         <p className="text-xs font-medium text-zinc-500">
           Taslakta bir şeyi değiştirmek mi istiyorsunuz? Yazın, AI formu
           güncellesin:
@@ -240,7 +240,7 @@ export function AiFlagsBanner({
                 setMessage(s);
                 inputRef.current?.focus();
               }}
-              className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-50"
+              className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50"
             >
               {s}
             </button>

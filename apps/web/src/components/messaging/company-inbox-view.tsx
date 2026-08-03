@@ -194,7 +194,7 @@ export function CompanyInboxView() {
                     }
                     className={`flex w-full items-center gap-3 border-l-2 border-b border-zinc-950/5 px-3 py-3 text-left transition hover:bg-zinc-50 ${
                       isActive
-                        ? "border-l-brand-600 bg-brand-50/60"
+                        ? "border-l-brand-600 bg-zinc-100/80"
                         : "border-l-transparent"
                     }`}
                   >

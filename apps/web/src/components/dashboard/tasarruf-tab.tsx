@@ -336,7 +336,7 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
 function TimeSection({ savings }: { savings?: TimeSavingsData }) {
   if (!savings) {
     return (
-      <div className="h-40 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+      <div className="h-40 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
     );
   }
   const rows = savings.breakdown.filter((r) => r.minutes > 0);

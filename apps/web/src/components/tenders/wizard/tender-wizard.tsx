@@ -73,13 +73,13 @@ function WizardSteps({
 }) {
   return (
     <nav aria-label="İhale adımları">
-      <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 sm:grid-cols-5 sm:divide-x sm:divide-y-0">
+      <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 bg-white sm:grid-cols-5 sm:divide-x sm:divide-y-0">
         {meta.map((s, idx) => {
           const isDone = current > idx;
           const isActive = current === idx;
           const clickable = !isActive;
           return (
-            <li key={s.title} className={cn(isActive && "bg-brand-50/60")}>
+            <li key={s.title} className={cn(isActive && "bg-zinc-100/70")}>
               <button
                 type="button"
                 disabled={!clickable}

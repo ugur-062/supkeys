@@ -49,7 +49,7 @@ export function SaveTemplateDialog({
       size="md"
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
           <BookmarkPlus className="h-5 w-5 text-brand-600" />
         </div>
         <div>

@@ -12,7 +12,7 @@ export const EMAIL_STATUS_META: Record<EmailLogStatus, StatusMeta> = {
   },
   SENDING: {
     label: "Gönderiliyor",
-    badgeClass: "bg-brand-100 text-brand-700 border-brand-200",
+    badgeClass: "bg-zinc-100 text-zinc-800 border-zinc-300",
   },
   SENT: {
     label: "Gönderildi",

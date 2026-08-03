@@ -35,7 +35,7 @@ export function EmptyState({
       <div
         className={cn(
           "h-16 w-16 rounded-2xl flex items-center justify-center mb-4",
-          variant === "no-results" ? "bg-slate-100" : "bg-brand-50",
+          variant === "no-results" ? "bg-slate-100" : "bg-zinc-100",
         )}
       >
         <Icon

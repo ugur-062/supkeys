@@ -51,7 +51,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       // Eski native <button> varsayılanı submit idi — davranışı koru.
       type={type ?? "submit"}
       disabled={disabled || loading}
-      className={cn(fullWidth && "w-full", className)}
+      // Outline (secondary) Catalyst'te şeffaf zeminli — gri sayfa zemininde
+      // arka plana karışıyordu; beyaz zemin tuşu her yüzeyde ayrıştırır.
+      className={cn(variant === "secondary" && "bg-white", fullWidth && "w-full", className)}
       {...styleProps}
       {...props}
     >

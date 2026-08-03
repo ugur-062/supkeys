@@ -159,7 +159,7 @@ export function PublicProfileForm() {
   return (
     <div className="space-y-6">
       {logoCandidate && !form.logoUrl ? (
-        <div className="flex items-center gap-3 rounded-xl border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm text-zinc-700">
+        <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoCandidate} alt="Sitenizde bulunan görsel" className="h-10 w-10 rounded object-contain bg-white ring-1 ring-zinc-200" />
           <span>

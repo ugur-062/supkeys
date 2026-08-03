@@ -30,7 +30,7 @@ function TileOption({
         "group relative flex cursor-pointer flex-col gap-4 rounded-2xl border bg-white p-6 transition",
         "border-zinc-950/10 hover:border-zinc-950/20 hover:shadow-sm",
         "focus:outline-none data-focus:ring-2 data-focus:ring-brand-500/40",
-        "data-checked:border-brand-600 data-checked:bg-brand-50/40 data-checked:ring-1 data-checked:ring-brand-600",
+        "data-checked:border-brand-600 data-checked:bg-zinc-100/60 data-checked:ring-1 data-checked:ring-brand-600",
       )}
     >
       {/* Seçili rozeti */}
@@ -38,7 +38,7 @@ function TileOption({
         <Check className="h-4 w-4" />
       </span>
 
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 transition-colors group-data-checked:bg-brand-600 group-data-checked:text-white">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-brand-700 transition-colors group-data-checked:bg-brand-600 group-data-checked:text-white">
         <Icon className="h-7 w-7" />
       </span>
 
@@ -127,7 +127,7 @@ export function Step0TypeScope() {
       ) : (
         /* Tür seçimi yok (ihale daima kapalı zarf açılır) — koca kart yerine
            tek kompakt bilgi notu; "Yeni Tur" pazarlık keşfi burada kalır. */
-        <div className="flex items-start gap-3 rounded-xl border border-zinc-950/10 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        <div className="flex items-start gap-3 rounded-xl border border-zinc-950/10 bg-white px-4 py-3 text-sm text-zinc-600">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
           <p>
             İhaleniz <strong>kapalı zarf</strong> usulüyle açılır —{" "}

@@ -219,7 +219,7 @@ function KeywordsInput() {
         {keywords.map((kw) => (
           <span
             key={kw}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-100/70 text-brand-800 text-xs font-semibold"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-800 text-xs font-semibold"
           >
             {kw}
             <button
@@ -308,7 +308,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-start gap-3 mb-5">
-      <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0 mt-0.5">
         <Icon className="w-4 h-4 text-brand-700" />
       </div>
       <div>
@@ -871,7 +871,7 @@ export function Step1Info({
               </Button>
             ) : null}
             {aiApplied ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-300">
                 <Sparkles className="h-3 w-3" />
                 AI önerisi — kontrol edin
               </span>
@@ -906,7 +906,7 @@ export function Step1Info({
             description="Taban fiyatın altındaki teklifler kabul edilmez. Hemen-al fiyatı verirseniz alıcı o fiyattan anında teklif oluşturabilir (onayınızla sipariş olur)."
           />
           {watch("priceScope") === "KALEM" ? (
-            <div className="rounded-lg border border-brand-100 bg-brand-50/30 p-3 text-xs text-slate-700">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-slate-700">
               Kalem Bazlı fiyatlandırma seçtiniz — taban ve hemen-al birim
               fiyatları <strong>Kalemler adımında</strong> kalem üzerinde
               girilir.
@@ -963,7 +963,7 @@ export function Step1Info({
             title="Teklif ve Sıralama Görünürlüğü"
             description={`${RolPlGen} canlı ${auctionName}da ne göreceğini belirleyin.`}
           />
-          <div className="rounded-xl border border-brand-100 bg-brand-50/30 p-4 mb-4 flex items-start gap-2">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 mb-4 flex items-start gap-2">
             <Info className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-slate-700">
               Yapacağınız seçimlerin hiçbirinde {rolPl} birbirlerinin ismini

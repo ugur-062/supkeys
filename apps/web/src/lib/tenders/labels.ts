@@ -40,7 +40,7 @@ export const TENDER_STATUS_META: Record<TenderStatus, BadgeMeta> = {
   },
   AWARDED: {
     label: "Tamamlandı",
-    className: "bg-brand-50 text-brand-700 border-brand-200",
+    className: "bg-zinc-100 text-zinc-900 border-zinc-300",
   },
   CANCELLED: {
     label: "İptal",
@@ -66,7 +66,7 @@ export function tenderStatusLabel(status: string): string {
 export const TENDER_TYPE_META: Record<TenderType, BadgeMeta> = {
   RFQ: {
     label: "Teklif Toplama",
-    className: "bg-brand-50 text-brand-700 border-brand-200",
+    className: "bg-zinc-100 text-zinc-900 border-zinc-300",
   },
   ENGLISH_AUCTION: {
     // Kullanıcı yüzünde "Pazarlık" (açık eksiltme/artırma) — iç enum değişmedi.
@@ -102,7 +102,7 @@ export const BID_STATUS_META: Record<BidStatus, BadgeMeta> = {
   },
   SUBMITTED: {
     label: "Verildi",
-    className: "bg-brand-50 text-brand-700 border-brand-200",
+    className: "bg-zinc-100 text-zinc-900 border-zinc-300",
   },
   WITHDRAWN: {
     label: "Geri Çekildi",

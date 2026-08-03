@@ -350,7 +350,7 @@ export function SatisDashboardView() {
 
       {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
       {analytics.isLoading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+        <div className="h-32 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
       ) : analytics.data ? (
         <ActionCenter
           rows={[
@@ -622,7 +622,7 @@ function SatisGelirTab({
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-100" />
+          <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-200/60" />
         ))}
       </div>
     );
@@ -744,7 +744,7 @@ function SatisMusteriTab({
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-100" />
+          <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-200/60" />
         ))}
       </div>
     );

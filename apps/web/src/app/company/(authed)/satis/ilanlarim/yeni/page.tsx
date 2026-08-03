@@ -65,7 +65,7 @@ export default function YeniSatisIhalesiPage() {
         listingType="SATIS"
         belowStepsSlot={
           /* AI-1 — belgeden doldurma girişi (adım göstergesinin hemen altında) */
-          <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
               <Sparkles className="h-5 w-5" />
             </div>
