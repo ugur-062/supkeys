@@ -7,10 +7,10 @@ import {
   ResultCount,
   SearchInput,
   ViewToggle,
-  useListView,
 } from "@/components/list";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { OwnerTenderList } from "@/components/tenders/owner-tender-cards";
+import { IhaleListView } from "@/components/ihale/IhaleListView";
 import { Button } from "@/components/ui/button";
 import {
   useTenders,
@@ -19,7 +19,7 @@ import {
 import { ArrowUpDown, Building2, CalendarRange, Globe, Plus, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "En Yeni" },
@@ -93,9 +93,25 @@ export function IhalelerView({
   const [createdById, setCreatedById] = useState("");
   const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
   const [page, setPage] = useState(1);
-  const [view, setView] = useListView(
-    isSatis ? "rothern-view-satis-ihaleler" : "rothern-view-ihaleler",
-  );
+  // Görünüm: "grid" (kart) | "list" (yoğun satır) — localStorage'da kalıcı.
+  const viewStorageKey = isSatis ? "satis_ihaleler_view" : "ihaleler_view";
+  const [view, setViewState] = useState<"grid" | "list">("grid");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(viewStorageKey) === "list")
+        setViewState("list");
+    } catch {
+      /* varsayılan grid */
+    }
+  }, [viewStorageKey]);
+  const setView = (v: "grid" | "list") => {
+    setViewState(v);
+    try {
+      localStorage.setItem(viewStorageKey, v);
+    } catch {
+      /* kalıcılık olmadan devam */
+    }
+  };
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
   // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
@@ -322,19 +338,32 @@ export function IhalelerView({
             unit="ihale"
             className="ml-auto"
           />
-          <ViewToggle view={view} onChange={setView} />
+          <ViewToggle
+            view={view === "grid" ? "cards" : "table"}
+            onChange={(v) => setView(v === "cards" ? "grid" : "list")}
+          />
         </div>
       </div>
 
-      <OwnerTenderList
-        items={pageRows}
-        isLoading={list.isLoading}
-        isError={list.isError}
-        onRetry={() => list.refetch()}
-        listingType={listingType}
-        emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
-        view={view}
-      />
+      {view === "list" ? (
+        <IhaleListView
+          items={pageRows}
+          isLoading={list.isLoading}
+          isError={list.isError}
+          onRetry={() => list.refetch()}
+          listingType={listingType}
+          emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+        />
+      ) : (
+        <OwnerTenderList
+          items={pageRows}
+          isLoading={list.isLoading}
+          isError={list.isError}
+          onRetry={() => list.refetch()}
+          listingType={listingType}
+          emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+        />
+      )}
 
       {totalPages > 1 ? (
         <Pagination
