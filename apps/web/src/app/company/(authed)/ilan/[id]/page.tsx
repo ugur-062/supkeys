@@ -654,6 +654,14 @@ export default function ListingDetailPage() {
   const visibleItems = (l.items ?? []).filter((it) =>
     itemMatchesSearch(itemSearch, it),
   );
+  // §9 DataTable: teklifçi kendi birim fiyatını şartnamenin yanında görür.
+  const myPriceByItem = new Map(
+    (!l.isOwner && l.myBid?.items ? l.myBid.items : []).map((bi) => [
+      bi.itemId,
+      bi,
+    ]),
+  );
+  const showMyPriceCol = myPriceByItem.size > 0;
   const itemsSection =
     l.items && l.items.length > 0 ? (
       <section className="space-y-2">
@@ -691,13 +699,18 @@ export default function ListingDetailPage() {
                 <TableHeader className="text-right">
                   {isAlim ? "Hedef Fiyat" : "İstenen Fiyat"}
                 </TableHeader>
+                {showMyPriceCol ? (
+                  <TableHeader className="text-right">
+                    Benim Birim Fiyatım
+                  </TableHeader>
+                ) : null}
               </TableRow>
             </TableHead>
             <TableBody>
               {visibleItems.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={showMyPriceCol ? 5 : 4}
                     className="py-6 text-center text-zinc-400"
                   >
                     Aramanızla eşleşen kalem yok.
@@ -736,6 +749,22 @@ export default function ListingDetailPage() {
                       ? formatMoney(it.targetPrice, l.primaryCurrency ?? "TRY")
                       : "—"}
                   </TableCell>
+                  {showMyPriceCol ? (
+                    <TableCell className="text-right font-mono font-medium tabular-nums text-zinc-900">
+                      {(() => {
+                        const bi = myPriceByItem.get(it.id);
+                        return bi && Number(bi.unitPrice) > 0
+                          ? formatMoney(
+                              bi.unitPrice,
+                              bi.currency ??
+                                l.myBid?.currency ??
+                                l.primaryCurrency ??
+                                "TRY",
+                            )
+                          : "—";
+                      })()}
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))}
             </TableBody>

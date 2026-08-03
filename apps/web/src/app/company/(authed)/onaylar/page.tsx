@@ -370,7 +370,9 @@ export default function OnaylarPage() {
             firmadaki tüm süreçler. Akışları buradan tanımlarsın.
           </Text>
         </div>
-        {canManageFlows ? (
+        {/* §9: aynı birincil aksiyon ekranda bir kez — flows sekmesi kendi
+            CTA'sını taşır, üstteki yalnız diğer sekmelerde görünür. */}
+        {canManageFlows && tab !== "flows" ? (
           <Button
             onClick={() => {
               setOpenNewFlow(true);

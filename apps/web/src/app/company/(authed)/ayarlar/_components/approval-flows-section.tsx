@@ -246,10 +246,13 @@ function FlowList({
         <h3 className="text-sm font-semibold text-zinc-900">
           Tanımlı Akışlar
         </h3>
-        <Button onClick={onNew}>
-          <Plus className="size-4" />
-          Yeni Onay Akışı
-        </Button>
+        {/* Boş durumda CTA boş durumun İÇİNDE (§9) — burada yinelenmez. */}
+        {flows && flows.length > 0 ? (
+          <Button onClick={onNew}>
+            <Plus className="size-4" />
+            Yeni Onay Akışı
+          </Button>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -276,8 +279,7 @@ function FlowList({
             Henüz onay akışı yok
           </p>
           <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500">
-            Akış tanımlanmadığı için tüm kazandırmalar anında uygulanıyor. Bir
-            onay zinciri eklemek için yukarıdaki butonu kullanın.
+            Akış tanımlanmadığı için tüm kazandırmalar anında uygulanıyor.
           </p>
           <Button className="mt-4" onClick={onNew}>
             <Plus className="size-4" />
