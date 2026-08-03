@@ -28,160 +28,25 @@ import {
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import {
-  useSatisActivity,
-  useSatisStats,
-  type SatisActivityRow,
-} from "@/hooks/use-company-dashboard";
+import { useSatisStats } from "@/hooks/use-company-dashboard";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import {
-  Activity,
-  ArrowRight,
-  Briefcase,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Package,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import Link from "next/link";
-import { useEffect, useState, type ComponentType } from "react";
-
-/** Beyaz panel kartı — eski tedarikçi PanelCard'ının zinc/Catalyst portu. */
-function PanelCard({
-  title,
-  subtitle,
-  children,
-  padding = "md",
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  padding?: "sm" | "md";
-}) {
-  return (
-    <section className="card">
-      <header className="border-b border-zinc-100 px-5 py-4">
-        <h2 className="text-sm font-semibold text-zinc-950">{title}</h2>
-        {subtitle ? (
-          <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>
-        ) : null}
-      </header>
-      <div className={padding === "sm" ? "p-2" : "p-5"}>{children}</div>
-    </section>
-  );
-}
-
-const ACTIVITY_META: Record<
-  SatisActivityRow["type"],
-  { icon: ComponentType<{ className?: string }>; bg: string; fg: string }
-> = {
-  invitation: { icon: Briefcase, bg: "bg-blue-50", fg: "text-blue-600" },
-  bid: { icon: FileText, bg: "bg-violet-50", fg: "text-violet-600" },
-  order: { icon: Package, bg: "bg-emerald-50", fg: "text-emerald-600" },
-};
-
-function ActivityFeed({ rows }: { rows: SatisActivityRow[] }) {
-  if (rows.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-8 text-sm text-zinc-400">
-        <Activity className="h-5 w-5" aria-hidden="true" />
-        Henüz aktivite yok
-      </div>
-    );
-  }
-  return (
-    <ul className="divide-y divide-zinc-50">
-      {rows.map((r, i) => {
-        const meta = ACTIVITY_META[r.type];
-        const Icon = meta.icon;
-        return (
-          <li key={`${r.href}-${r.at}-${i}`}>
-            <Link
-              href={r.href}
-              className="flex items-center gap-3 px-1 py-2.5 transition hover:bg-zinc-50"
-            >
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta.bg} ${meta.fg}`}
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-zinc-900">
-                  {r.title}
-                </span>
-                <span className="block truncate text-xs text-zinc-500">
-                  {r.subtitle}
-                </span>
-              </span>
-              <time className="shrink-0 text-xs text-zinc-400">
-                {format(new Date(r.at), "d MMM", { locale: tr })}
-              </time>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** Aktivite akışı sayfalama çubuğu — tek sayfa varsa hiç görünmez. */
-function ActivityPager({
-  page,
-  totalPages,
-  onPage,
-}: {
-  page: number;
-  totalPages: number;
-  onPage: (p: number) => void;
-}) {
-  if (totalPages <= 1) return null;
-  const btn =
-    "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40";
-  return (
-    <div className="mt-2 flex items-center justify-between border-t border-zinc-100 pt-3">
-      <button
-        type="button"
-        onClick={() => onPage(page - 1)}
-        disabled={page <= 1}
-        className={btn}
-      >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Önceki
-      </button>
-      <span className="text-xs text-zinc-400 tabular-nums">
-        Sayfa {page} / {totalPages}
-      </span>
-      <button
-        type="button"
-        onClick={() => onPage(page + 1)}
-        disabled={page >= totalPages}
-        className={btn}
-      >
-        Sonraki
-        <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-    </div>
-  );
-}
+import { useEffect, useState } from "react";
 
 /**
  * Satış panosu — karşılama + CTA, aksiyon merkezi, adet KPI satırı + tutar
- * KPI satırı (eski "Performans" kartı — aralığı kart üstünde açıkça yazar),
- * Son Aktiviteler; tek kolon. Blok sırası satınalma paneliyle hizalı
- * (Faz 7.6); satınalmanın İhale/Tasarruf/Tedarikçi sekmeleri veri örgütü
- * gereği korunur — bilinçli sapma. Görsel dil: zinc/Catalyst.
+ * KPI satırı (eski "Performans" kartı — aralığı kart üstünde açıkça yazar);
+ * tek kolon. ("Son Aktiviteler" akışı kullanıcı isteğiyle kaldırıldı,
+ * 2026-08-03.) Blok sırası satınalma paneliyle hizalı (Faz 7.6);
+ * satınalmanın İhale/Tasarruf/Tedarikçi sekmeleri veri örgütü gereği
+ * korunur — bilinçli sapma. Görsel dil: zinc/Catalyst.
  */
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
   const stats = useSatisStats();
-  const [activityPage, setActivityPage] = useState(1);
-  const activity = useSatisActivity(8, activityPage);
-  const activityTotalPages = Math.max(
-    1,
-    Math.ceil((activity.data?.total ?? 0) / (activity.data?.pageSize ?? 8)),
-  );
 
   // Hydration-safe tarih (sunucu/istemci farkı olmasın).
   const [todayLabel, setTodayLabel] = useState("");
@@ -198,9 +63,6 @@ export function SatisDashboardView() {
     ["teklif", "gelir", "musteri"],
   );
   const analytics = useSatisAnalytics({ period, from, to });
-  const [activityType, setActivityType] = useState<
-    "all" | "invitation" | "bid" | "order"
-  >("all");
   // Faz 7.3: yükleme artık iskeletle çözülür (aşağıda) — kartlara gelindiyse
   // veri var; "—" yalnız "değer gerçekten yok" anlamında kalır.
   const val = (n: number | undefined) => n ?? 0;
@@ -425,52 +287,8 @@ export function SatisDashboardView() {
         />
       </div>
 
-      {/* Tek kolon — sağ ray (TCMB + Hızlı Erişim) kaldırıldı. */}
-      <div className="space-y-6">
-          <PanelCard
-            title="Son Aktiviteler"
-            subtitle="Davetler, teklifler ve siparişlerden"
-          >
-            {/* Tür filtresi — yüklü sayfa üstünde istemci tarafı süzme. */}
-            <div className="mb-3 flex gap-1 rounded-lg bg-zinc-100 p-1 sm:w-fit">
-              {(
-                [
-                  ["all", "Tümü"],
-                  ["invitation", "Davet"],
-                  ["bid", "Teklif"],
-                  ["order", "Sipariş"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setActivityType(key)}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-semibold transition",
-                    activityType === key
-                      ? "bg-white text-zinc-900 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-800",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {/* Sayfa geçişinde placeholderData önceki sayfayı tutar — soluk göster. */}
-            <div className={activity.isPlaceholderData ? "opacity-60" : undefined}>
-              <ActivityFeed
-                rows={(activity.data?.rows ?? []).filter(
-                  (r) => activityType === "all" || r.type === activityType,
-                )}
-              />
-            </div>
-            <ActivityPager
-              page={activityPage}
-              totalPages={activityTotalPages}
-              onPage={setActivityPage}
-            />
-          </PanelCard>
-      </div>
+      {/* "Son Aktiviteler" akışı anasayfadan KALDIRILDI (kullanıcı isteği,
+          2026-08-03) — olay geçmişi bildirim zilinde zaten mevcut. */}
       </>
       )}
     </div>

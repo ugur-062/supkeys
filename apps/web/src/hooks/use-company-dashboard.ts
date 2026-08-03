@@ -3,7 +3,7 @@
 import type { TasarrufTabData } from "@/components/dashboard/tasarruf-tab";
 import type { TedarikciTabData } from "@/components/dashboard/tedarikci-tab";
 import { companyApi } from "@/lib/company-auth/api";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 // ── Aksiyon Merkezi (Faz 2) — severity + zaman bilgili tek uyarı listesi ──
 
@@ -107,14 +107,6 @@ export interface SatisStats {
   buyers: { active: number };
 }
 
-export interface SatisActivityRow {
-  type: "invitation" | "bid" | "order";
-  title: string;
-  subtitle: string;
-  at: string;
-  href: string;
-}
-
 export function useSatisStats() {
   return useQuery<SatisStats>({
     queryKey: ["company-dashboard", "satis", "stats"],
@@ -128,27 +120,9 @@ export function useSatisStats() {
   });
 }
 
-export interface SatisActivityPage {
-  rows: SatisActivityRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export function useSatisActivity(limit = 8, page = 1) {
-  return useQuery<SatisActivityPage>({
-    queryKey: ["company-dashboard", "satis", "aktivite", limit, page],
-    queryFn: async () => {
-      const { data } = await companyApi.get<SatisActivityPage>(
-        `/company/dashboard/satis/aktivite?limit=${limit}&page=${page}`,
-      );
-      return data;
-    },
-    // Sayfa geçişinde önceki sayfa görünür kalsın (liste zıplamasın).
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,
-  });
-}
+// "Son Aktiviteler" akışı satış anasayfasından kaldırıldı (2026-08-03) —
+// useSatisActivity hook'u ve tipleri onunla birlikte silindi. Backend ucu
+// (/satis/aktivite) duruyor; geri gelirse hook git geçmişinden alınır.
 
 export type SavingsPeriod = "month" | "quarter" | "year";
 
