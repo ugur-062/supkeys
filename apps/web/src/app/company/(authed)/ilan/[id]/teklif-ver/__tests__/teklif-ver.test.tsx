@@ -174,19 +174,19 @@ describe("TeklifVerPage — form", () => {
     expect(submitBtn).toBeEnabled();
   });
 
-  it("kalem opt-out: X → 'teklif verilmeyecek', geri alınabilir", async () => {
+  it("kalem opt-out: etiketli anahtar → 'teklif verilmeyecek', 'Kalemi geri ekle' ile döner", async () => {
     const user = userEvent.setup();
     render(<TeklifVerPage />);
 
     await user.click(
-      screen.getByRole("button", { name: "Bu kaleme teklif verme" }),
+      screen.getByRole("button", { name: /Bu kaleme teklif vermiyorum/ }),
     );
     expect(
       screen.getByText("Bu kaleme teklif verilmeyecek."),
     ).toBeInTheDocument();
     expect(screen.getByText("Fiyatlandırılan kalem 0/1")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Teklif ver" }));
+    await user.click(screen.getByRole("button", { name: "Kalemi geri ekle" }));
     expect(screen.getByLabelText("Birim Fiyat")).toBeInTheDocument();
   });
 

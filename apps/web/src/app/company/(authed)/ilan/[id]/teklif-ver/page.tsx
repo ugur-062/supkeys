@@ -50,6 +50,7 @@ import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import {
+  CheckCircle2,
   AlertTriangle,
   FileText,
   Info,
@@ -1195,6 +1196,11 @@ export default function TeklifVerPage() {
                               {idx + 1}
                             </span>
                             <p className="font-medium text-zinc-900">{it.name}</p>
+                            {optedOut ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                                Hariç
+                              </span>
+                            ) : null}
                             {(it.questions?.length ?? 0) > 0 ? (
                               <Badge color="zinc">
                                 {it.questions!.length} soru
@@ -1237,7 +1243,7 @@ export default function TeklifVerPage() {
                               }
                               className="text-xs font-semibold text-blue-600 hover:underline"
                             >
-                              {isBuyNowMode ? "Kapsama al" : "Teklif ver"}
+                              {isBuyNowMode ? "Kapsama al" : "Kalemi geri ekle"}
                             </button>
                           ) : (
                             <span className="text-xs text-zinc-400">
@@ -1265,16 +1271,19 @@ export default function TeklifVerPage() {
                               ) : null}
                             </div>
                             {!l.requireAllItems ? (
+                              /* §10.4: anlamı belirsiz × yerine etiketli
+                                 anahtar — geri alma "Kalemi geri ekle". */
                               <button
                                 type="button"
-                                aria-label="Bu kaleme teklif verme"
-                                title="Bu kaleme teklif verme"
                                 onClick={() =>
                                   setItem(it.id, { price: null })
                                 }
-                                className="mt-5 rounded-md p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
+                                className="mt-7 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600"
                               >
-                                <X className="h-4 w-4" aria-hidden="true" />
+                                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span className="hidden sm:inline">
+                                  Bu kaleme teklif vermiyorum
+                                </span>
                               </button>
                             ) : null}
                           </div>
@@ -1783,7 +1792,14 @@ export default function TeklifVerPage() {
                   <li key={`${i}-${p}`}>• {p}</li>
                 ))}
               </ul>
-            ) : null}
+            ) : (
+              /* §10.4: liste tamamlanınca kaybolmaz — yeşil "hazır" hâli
+                 (alan dolu kalır, panel zıplamaz). */
+              <p className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                Gönderime hazır — tüm zorunlu alanlar tamam.
+              </p>
+            )}
 
             {/* Pazarlıkta görünürlük notu kaldırıldı (belirsiz/mantıksızdı —
                 ne görüneceğini canlı kart zaten gösteriyor); kapalı zarf
