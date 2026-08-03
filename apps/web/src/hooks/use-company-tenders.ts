@@ -16,6 +16,9 @@ export interface TenderListItem {
   status: ListingStatus;
   isInternational: boolean;
   categoryIds: string[];
+  /** İlk 2 kategori adı (Kategori kolonu) + kalan sayaç. */
+  categories: { code: string; name: string }[];
+  extraCategoryCount: number;
   createdById: string;
   createdBy: { firstName: string; lastName: string };
   invitationCount: number;

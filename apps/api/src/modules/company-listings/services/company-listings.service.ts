@@ -1811,9 +1811,25 @@ export class CompanyListingsService {
     });
     const umap = new Map(users.map((u) => [u.id, u]));
 
+    // Kategori ADLARI (liste satırındaki Kategori kolonu, 2026-08-04) —
+    // sellerTenders ile aynı desen: ilk 2 ad + kalan sayaç.
+    const catIds = [...new Set(rows.flatMap((r) => r.categoryIds))];
+    const cats = catIds.length
+      ? await this.prisma.category.findMany({
+          where: { id: { in: catIds } },
+          select: { id: true, nameTr: true },
+        })
+      : [];
+    const cmap = new Map(cats.map((c) => [c.id, c.nameTr]));
+
     return rows.map((r) => {
       const u = umap.get(r.createdById);
       return {
+        categories: r.categoryIds.slice(0, 2).map((id) => ({
+          code: id,
+          name: cmap.get(id) ?? id,
+        })),
+        extraCategoryCount: Math.max(0, r.categoryIds.length - 2),
         id: r.id,
         tenderNumber: r.number ?? "—",
         title: r.title,

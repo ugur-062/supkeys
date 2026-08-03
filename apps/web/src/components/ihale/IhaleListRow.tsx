@@ -5,27 +5,9 @@ import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format } from "date-fns";
 import { tr } from "date-fns/locale";
-import {
-  ChevronRight,
-  Eye,
-  FileText,
-  Gavel,
-  HelpCircle,
-  Link2,
-  MoreHorizontal,
-  Pencil,
-  Star,
-} from "lucide-react";
-import {
-  Dropdown,
-  DropdownButton,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from "@/components/catalyst/dropdown";
+import { ChevronRight, FileText, Star } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 
 /**
  * Yoğun SATIR görünümü — referans tasarım uyarlaması. Veri sözleşmesi:
@@ -144,41 +126,6 @@ export function DaysLeftChip({
   return <InfoChip tone={tone}>{u.text}</InfoChip>;
 }
 
-function RowAction({
-  icon: Icon,
-  label,
-  href,
-  onClick,
-  tone = "text-slate-700",
-}: {
-  icon: typeof Eye;
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  tone?: string;
-}) {
-  const cls = cn(
-    "inline-flex items-center gap-1.5 rounded text-[12px] leading-tight hover:underline",
-    tone,
-    IHALE_VIEW_FOCUS,
-  );
-  const inner = (
-    <>
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      {label}
-    </>
-  );
-  return href ? (
-    <Link href={href} className={cls}>
-      {inner}
-    </Link>
-  ) : (
-    <button type="button" onClick={onClick} className={cls}>
-      {inner}
-    </button>
-  );
-}
-
 export interface IhaleListRowProps {
   t: TenderListItem;
   listingType: "ALIM" | "SATIS";
@@ -201,32 +148,12 @@ export function IhaleListRow({
     : "/company/satinalma/ihalelerim";
   const fromLabel = isSatis ? "Satış İhalelerim" : "İhalelerim";
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
-  const editHref = isSatis
-    ? `/company/satis/ilanlarim/${t.id}/duzenle`
-    : `/company/satinalma/ihalelerim/${t.id}/duzenle`;
 
   // Kapanışa < 3 gün → tarih vurgusu (yalnız açık ihalede).
   const closeSoon =
     t.status === "OPEN" &&
     !!t.bidsCloseAt &&
     differenceInCalendarDays(new Date(t.bidsCloseAt), new Date()) < 3;
-
-  const copyLink = () => {
-    navigator.clipboard
-      .writeText(`${window.location.origin}/company/ilan/${t.id}`)
-      .then(() => toast.success("Bağlantı kopyalandı"))
-      .catch(() => toast.error("Kopyalanamadı"));
-  };
-
-  // Duruma göre 2'li aksiyon yığını (referans akış uyarlaması).
-  const primaryAction =
-    t.status === "DRAFT"
-      ? { icon: Pencil, label: "Düzenle", href: editHref }
-      : t.status === "AWARDED"
-        ? { icon: Gavel, label: "Sonucu Gör", href: detailHref }
-        : t.bidCount > 0
-          ? { icon: Gavel, label: "Teklifleri Gör", href: detailHref }
-          : { icon: Eye, label: "Detaya Git", href: detailHref };
 
   return (
     <div
@@ -382,45 +309,29 @@ export function IhaleListRow({
           </span>
         </div>
 
-        {/* 8 — Aksiyonlar (xl: dikey yığın) */}
-        <div className="hidden px-3 py-2.5 xl:block">
-          <div className="flex items-start gap-1.5">
-            <div className="flex flex-col gap-1.5">
-              <RowAction
-                icon={primaryAction.icon}
-                label={primaryAction.label}
-                href={primaryAction.href}
-              />
-              <RowAction icon={Link2} label="Bağlantıyı kopyala" onClick={copyLink} />
-            </div>
-            <span
-              title="Aksiyonlar ihalenin durumuna göre değişir; tüm işlemler detay sayfasında."
-              aria-label="Aksiyonlar hakkında bilgi"
-            >
-              <HelpCircle className="h-3.5 w-3.5 text-slate-300" aria-hidden />
+        {/* 8 — Kategori (xl) — aksiyonların yerine (kullanıcı isteği,
+            2026-08-04): satır zaten detaya tıklanıyor, işlemler detayda. */}
+        <div className="hidden min-w-0 px-3 py-2.5 xl:block">
+          <ColLabel>Kategori</ColLabel>
+          {t.categories.length > 0 ? (
+            <>
+              <span
+                className="mt-1 block truncate text-[13px] font-medium leading-tight text-slate-700"
+                title={t.categories.map((c) => c.name).join(", ")}
+              >
+                {t.categories[0]!.name}
+              </span>
+              {t.categories.length + t.extraCategoryCount > 1 ? (
+                <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                  +{t.categories.length + t.extraCategoryCount - 1} kategori
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="mt-1 block text-[13px] leading-tight text-slate-300">
+              —
             </span>
-          </div>
-        </div>
-
-        {/* md ve altı: aksiyonlar "…" menüsünde */}
-        <div className="flex items-center px-2 py-2.5 xl:hidden">
-          <Dropdown>
-            <DropdownButton
-              plain
-              aria-label="Aksiyonlar"
-              className={cn("!p-1.5", IHALE_VIEW_FOCUS)}
-            >
-              <MoreHorizontal className="h-4 w-4 text-slate-400" />
-            </DropdownButton>
-            <DropdownMenu anchor="bottom end">
-              <DropdownItem href={primaryAction.href}>
-                <DropdownLabel>{primaryAction.label}</DropdownLabel>
-              </DropdownItem>
-              <DropdownItem onClick={copyLink}>
-                <DropdownLabel>Bağlantıyı kopyala</DropdownLabel>
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+          )}
         </div>
 
         {/* 9 — Dikey durum rozeti (md+) */}
@@ -476,6 +387,11 @@ export function IhaleListRow({
         <span className="text-[11px] text-slate-500">
           Teklif: {t.bidCount > 0 ? t.bidCount : "-"}
         </span>
+        {t.categories[0] ? (
+          <span className="text-[11px] text-slate-500">
+            {t.categories[0].name}
+          </span>
+        ) : null}
       </div>
 
       {/* Accordion — mevcut liste verisinin özeti (kalem verisi listede yok;
@@ -494,7 +410,12 @@ export function IhaleListRow({
                   t.format === "ENGLISH_AUCTION" ? "Pazarlık" : "Teklif Toplama",
                 ],
                 ["Kapsam", t.isInternational ? "Uluslararası" : "Yurtiçi"],
-                ["Kategori", `${t.categoryIds.length} kategori`],
+                [
+                  "Kategori",
+                  t.categories.length
+                    ? `${t.categories.map((c) => c.name).join(", ")}${t.extraCategoryCount > 0 ? ` +${t.extraCategoryCount}` : ""}`
+                    : "—",
+                ],
               ] as const
             ).map(([k, v]) => (
               <div key={k}>
