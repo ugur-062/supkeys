@@ -240,32 +240,38 @@ export function SatinalmaIhaleTab({
           </Link>
         </header>
 
-        {/* Alt sekmeler */}
-        <div className="flex gap-6 border-b border-zinc-950/5 px-5">
-          <button
-            type="button"
-            onClick={() => setSubTab("own")}
-            className={cn(
-              "-mb-px border-b-2 py-2.5 text-sm font-medium transition-colors",
-              subTab === "own"
-                ? "border-zinc-900 text-zinc-900"
-                : "border-transparent text-zinc-500 hover:text-zinc-700",
-            )}
-          >
-            Oluşturduğun İhaleler ({data.openTendersOwn.length} İhale)
-          </button>
-          <button
-            type="button"
-            onClick={() => setSubTab("company")}
-            className={cn(
-              "-mb-px border-b-2 py-2.5 text-sm font-medium transition-colors",
-              subTab === "company"
-                ? "border-zinc-900 text-zinc-900"
-                : "border-transparent text-zinc-500 hover:text-zinc-700",
-            )}
-          >
-            Firmanın İhaleleri ({data.openTendersCompany.length} İhale)
-          </button>
+        {/* Alt sekmeler — segmentli kontrol (pano sekmeleriyle aynı dil). */}
+        <div className="border-b border-zinc-950/5 px-5 py-2.5">
+          <div className="inline-flex w-fit gap-1 rounded-lg bg-zinc-100 p-0.5">
+            {(
+              [
+                ["own", "Oluşturduğun", data.openTendersOwn.length],
+                ["company", "Firmanın", data.openTendersCompany.length],
+              ] as const
+            ).map(([key, label, count]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSubTab(key)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all",
+                  subTab === key
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-zinc-950/5"
+                    : "text-zinc-500 hover:text-zinc-900",
+                )}
+              >
+                {label}{" "}
+                <span
+                  className={cn(
+                    "tabular-nums",
+                    subTab === key ? "text-blue-400" : "text-zinc-400",
+                  )}
+                >
+                  ({count})
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Tablo / boş durum */}
@@ -284,39 +290,66 @@ export function SatinalmaIhaleTab({
               <TableHead>
                 <TableRow>
                   <SortableHeader label="İhale No" k="number" sort={sort} onSort={toggleSort} />
-                  <TableHeader>İhale Adı</TableHeader>
+                  <TableHeader>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                      İhale Adı
+                    </span>
+                  </TableHeader>
                   <SortableHeader label="Açılış Tarihi" k="opened" sort={sort} onSort={toggleSort} />
                   <SortableHeader label="Kapanış" k="closes" sort={sort} onSort={toggleSort} />
                   <SortableHeader
                     label="Gelen Teklif" k="bids" sort={sort} onSort={toggleSort}
                     className="text-right"
                   />
-                  <TableHeader>Rekabet</TableHeader>
+                  <TableHeader>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                      Rekabet
+                    </span>
+                  </TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="tabular-nums text-xs text-zinc-600">
-                      {r.tenderNumber}
+                  <TableRow
+                    key={r.id}
+                    className="group transition-colors hover:bg-slate-50/70"
+                  >
+                    <TableCell>
+                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-zinc-600">
+                        {r.tenderNumber}
+                      </span>
                     </TableCell>
-                    <TableCell className="max-w-64 text-zinc-900">
+                    <TableCell className="max-w-64">
                       <Link
                         href={`/company/ilan/${r.id}`}
-                        className="block truncate font-medium hover:text-zinc-600"
+                        className="block truncate text-[13px] font-semibold text-zinc-900 transition-colors group-hover:text-blue-700"
                         title={r.title}
                       >
                         {r.title}
                       </Link>
                     </TableCell>
-                    <TableCell className="tabular-nums text-zinc-600">
+                    <TableCell className="tabular-nums text-xs text-zinc-400">
                       {formatDate(r.openedAt)}
                     </TableCell>
                     <TableCell>
-                      <DaysLeftBadge closesAt={r.closesAt} />
+                      <span className="flex flex-col items-start gap-0.5">
+                        <span className="text-[13px] font-semibold tabular-nums text-zinc-900">
+                          {formatDate(r.closesAt)}
+                        </span>
+                        <DaysLeftBadge closesAt={r.closesAt} />
+                      </span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-700">
-                      {r.bidCount ?? "—"}
+                    <TableCell className="text-right">
+                      <span
+                        className={cn(
+                          "text-[15px] font-semibold tabular-nums",
+                          (r.bidCount ?? 0) > 0
+                            ? "text-blue-700"
+                            : "text-zinc-300",
+                        )}
+                      >
+                        {r.bidCount ?? 0}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <CompetitionCell row={r} />
@@ -375,12 +408,12 @@ function SortableHeader({
         type="button"
         onClick={() => onSort(k)}
         className={cn(
-          "inline-flex items-center gap-1 hover:text-zinc-900",
-          active && "text-zinc-900",
+          "inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+          active ? "text-blue-700" : "text-zinc-400 hover:text-zinc-700",
         )}
       >
         {label}
-        <span aria-hidden className={cn("text-[10px]", !active && "opacity-30")}>
+        <span aria-hidden className={cn("text-[9px]", !active && "opacity-40")}>
           {active ? (sort.dir === 1 ? "▲" : "▼") : "▲"}
         </span>
       </button>
@@ -397,7 +430,12 @@ function CompetitionCell({
 }) {
   const bids = row.bidCount ?? 0;
   if (bids >= 2) {
-    return <span className="text-xs text-zinc-400">Sağlıklı</span>;
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+        <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+        Sağlıklı
+      </span>
+    );
   }
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5 whitespace-nowrap">
