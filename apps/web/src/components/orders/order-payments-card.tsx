@@ -116,6 +116,14 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       toast.error(e);
       return;
     }
+    // §10.3: tavan istemcide de söylenir (backend zaten reddediyor) —
+    // bekleyenler dahil kalanın üstünde bildirim daha formda durdurulur.
+    if (value > Number(t.remaining) + 0.005) {
+      toast.error(
+        `Kalan borcun üstünde bildirim yapılamaz — kalan ${Number(t.remaining).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${curSym}`,
+      );
+      return;
+    }
     try {
       await record.mutateAsync({
         amount: value,
@@ -236,12 +244,22 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         <DialogBody className="space-y-4">
           <Field>
             <Label>Tutar ({curSym}) *</Label>
-            <MoneyInput
-              value={amount}
-              onChange={setAmount}
-              placeholder="0,00"
-              aria-label="Ödeme tutarı"
-            />
+            <div className="flex items-center gap-2">
+              <MoneyInput
+                value={amount}
+                onChange={setAmount}
+                placeholder="0,00"
+                aria-label="Ödeme tutarı"
+              />
+              {/* §10.3: tek tık tam kapama. */}
+              <button
+                type="button"
+                onClick={() => setAmount(Number(t.remaining).toFixed(2))}
+                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+              >
+                Tümünü Öde
+              </button>
+            </div>
           </Field>
           <Field>
             <Label>Not (opsiyonel)</Label>
