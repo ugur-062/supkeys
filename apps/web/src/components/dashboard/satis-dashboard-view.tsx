@@ -219,7 +219,8 @@ export function SatisDashboardView() {
 
   const s = stats.data;
   const loading = stats.isLoading;
-  const val = (n: number | undefined) => (loading ? "…" : (n ?? 0));
+  // §10.1: yüklemede "0 teklif" yanılgısı yok — sayaç "—" gösterir.
+  const val = (n: number | undefined) => (loading ? "—" : (n ?? 0));
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">

@@ -157,9 +157,9 @@ describe("SatisDashboardView", () => {
     expect(h.activityCalls.at(-1)).toEqual([8, 2]);
   });
 
-  it("yüklenirken KPI'lar '…' gösterir", () => {
+  it("yüklenirken KPI'lar '—' gösterir (sahte '0' yok — denetim §10.1)", () => {
     h.statsLoading = true;
     render(<SatisDashboardView />);
-    expect(screen.getAllByText("…").length).toBeGreaterThanOrEqual(4);
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(4);
   });
 });

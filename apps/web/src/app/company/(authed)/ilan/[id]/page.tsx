@@ -175,6 +175,14 @@ export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const searchParams = useSearchParams();
+  // §8.5: aktif sekme ?tab= ile taşınır — yenileme/paylaşımda korunur.
+  const initialTab = Number(searchParams.get("tab") ?? "0") || 0;
+  const rememberTab = (i: number) => {
+    const u = new URL(window.location.href);
+    if (i === 0) u.searchParams.delete("tab");
+    else u.searchParams.set("tab", String(i));
+    window.history.replaceState(null, "", u.toString());
+  };
   // Yalnız iç /company yolları — open redirect / javascript: şeması engellenir.
   const rawFrom = searchParams.get("from");
   const fromHref =
@@ -1827,7 +1835,11 @@ export default function ListingDetailPage() {
           </dl>
         </section>
 
-        <TabGroup defaultIndex={0} className="space-y-5">
+        <TabGroup
+          defaultIndex={initialTab}
+          onChange={rememberTab}
+          className="space-y-5"
+        >
           <TabList
             className="flex flex-wrap border-b border-zinc-950/10"
             aria-label="İhale detay sekmeleri"
@@ -2015,7 +2027,7 @@ export default function ListingDetailPage() {
           </dl>
         </section>
 
-        <TabGroup>
+        <TabGroup defaultIndex={initialTab} onChange={rememberTab}>
           <TabList
             className="flex flex-wrap gap-1 border-b border-zinc-950/10"
             aria-label="İhale bölümleri"
