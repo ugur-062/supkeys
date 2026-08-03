@@ -39,7 +39,7 @@ export const DASH = {
     "Parametreler platform yönetiminden düzenlenebilir; firma bazında özelleştirilebilir. Hatırlatma parametresi, hatırlatma kaydı tutulmadığı için hesaba katılmaz.",
   quarterCostNote:
     "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
-  actionTitle: "Bugün ne yapmalıyım?",
+  actionTitle: "Bekleyen İşler",
   actionEmpty: "Bekleyen bir işin yok.",
   actionShowAll: (n: number) => `Tümünü gör (${n})`,
   actionShowLess: "Daha az göster",
