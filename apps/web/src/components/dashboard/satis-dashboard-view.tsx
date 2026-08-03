@@ -85,18 +85,21 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
-        {/* Kur çipi başlıkta; kazanma-oranı şeridi raporlar hub'ına taşındı. */}
-        <div className="flex flex-wrap items-center gap-3">
-          <TcmbRatesChip />
-          <PeriodControls
-            period={period}
-            from={from}
-            to={to}
-            onChange={setParams}
-          />
+        {/* Kur çipi + dönem seçici üst satırda; "İhaleleri Görüntüle" CTA'sı
+            alt satırda (yan yana üçlü kalabalık duruyordu — kullanıcı isteği). */}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <TcmbRatesChip />
+            <PeriodControls
+              period={period}
+              from={from}
+              to={to}
+              onChange={setParams}
+            />
+          </div>
           <Link
             href="/company/satis/acik-ihaleler"
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
           >
             İhaleleri Görüntüle
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
