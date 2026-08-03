@@ -6,8 +6,9 @@ import { useState } from "react";
 
 /**
  * Pano başlığı dönem kontrolleri (Faz 3): Bu Ay / Bu Çeyrek / Bu Yıl / Özel
- * segmented'ı + Özel'de tarih aralığı girişi + "Karşılaştır" toggle'ı.
- * Durum URL'dedir (useDashboardParams); bu bileşen yalnız görünüm + niyet.
+ * segmented'ı + Özel'de tarih aralığı girişi. ("Önceki dönemle karşılaştır"
+ * toggle'ı kullanıcı isteğiyle kaldırıldı, 2026-08-03 — deltalar artık hep
+ * çizilir.) Durum URL'dedir (useDashboardParams); bu bileşen görünüm + niyet.
  */
 
 const OPTIONS: { value: DashPeriod; label: string }[] = [
@@ -21,18 +22,15 @@ export function PeriodControls({
   period,
   from,
   to,
-  compare,
   onChange,
 }: {
   period: DashPeriod;
   from: string | null;
   to: string | null;
-  compare: boolean;
   onChange: (patch: {
     period?: DashPeriod;
     from?: string | null;
     to?: string | null;
-    compare?: boolean;
   }) => void;
 }) {
   // Taslak tarihler — yalnız "Uygula" URL'e yazar (yarım aralık gezinmez).
@@ -45,15 +43,6 @@ export function PeriodControls({
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-600">
-          <input
-            type="checkbox"
-            checked={compare}
-            onChange={(e) => onChange({ compare: e.target.checked })}
-            className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
-          />
-          Önceki dönemle karşılaştır
-        </label>
         <div
           role="tablist"
           aria-label="Dönem"

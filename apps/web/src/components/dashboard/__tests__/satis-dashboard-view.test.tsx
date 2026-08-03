@@ -79,13 +79,8 @@ describe("SatisDashboardView", () => {
     expect(screen.getByTestId("tcmb")).toBeInTheDocument();
   });
 
-  it("delta rozeti yalnız karşılaştır (?compare=1) açıkken çizilir: 8 vs 4 → %100", () => {
+  it("delta rozeti her zaman çizilir (karşılaştır toggle'ı kaldırıldı): 8 vs 4 → %100", () => {
     h.stats = fullStats();
-    const { unmount } = render(<SatisDashboardView />);
-    expect(screen.queryByText(/%100/)).not.toBeInTheDocument();
-    unmount();
-
-    h.search = "compare=1";
     render(<SatisDashboardView />);
     // TrendBadge biçimi: ok ikonu + "%100" (TR yüzde önde).
     expect(screen.getAllByText(/%100/).length).toBeGreaterThanOrEqual(1);

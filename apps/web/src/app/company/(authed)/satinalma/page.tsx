@@ -48,7 +48,7 @@ export default function SatinalmaDashboardPage() {
   const { company } = useCompanyAuth();
   // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (tek doğruluk
   // kaynağı, paylaşılabilir/yer imlenebilir; geri tuşu çalışır).
-  const { period, from, to, compare, tab, setParams } = useDashboardParams(
+  const { period, from, to, tab, setParams } = useDashboardParams(
     "ihale",
     TABS.map((t) => t.value),
   );
@@ -89,7 +89,6 @@ export default function SatinalmaDashboardPage() {
             period={period}
             from={from}
             to={to}
-            compare={compare}
             onChange={setParams}
           />
         </div>
@@ -153,7 +152,6 @@ export default function SatinalmaDashboardPage() {
               <SatinalmaIhaleTab
                 data={ihale.data}
                 analytics={analytics.data}
-                compare={compare}
               />
             ) : ihale.isError ? (
               <ErrorState

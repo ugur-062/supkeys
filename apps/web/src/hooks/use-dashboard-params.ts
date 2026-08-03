@@ -8,7 +8,6 @@ import { useCallback, useEffect, useRef } from "react";
  * doğruluk kaynağı olarak URL search param'larında yaşar:
  *   ?period=month|quarter|custom  (year = varsayılan, param yazılmaz)
  *   &from=YYYY-MM-DD&to=YYYY-MM-DD  (yalnız period=custom)
- *   &compare=1  (önceki dönemle karşılaştır)
  *   &tab=...    (varsayılan sekme param yazılmaz)
  * Sayfa paylaşılabilir/yer imlenebilir; geçişler history'e PUSH edilir ki
  * geri tuşu çalışsın.
@@ -21,7 +20,6 @@ export interface DashboardParams {
   /** Özel aralık (period=custom iken dolu) — YYYY-MM-DD. */
   from: string | null;
   to: string | null;
-  compare: boolean;
   tab: string;
 }
 
@@ -54,7 +52,6 @@ export function useDashboardParams(
       : rawPeriod === "custom" && isValidRange(from, to)
         ? "custom"
         : "year";
-  const compare = sp.get("compare") === "1";
   const rawTab = sp.get("tab");
   const tab = rawTab && validTabs.includes(rawTab) ? rawTab : defaultTab;
 
@@ -95,10 +92,6 @@ export function useDashboardParams(
         next.delete("to");
       }
 
-      const c = patch.compare ?? cur.get("compare") === "1";
-      if (c) next.set("compare", "1");
-      else next.delete("compare");
-
       const curTab = cur.get("tab");
       const t =
         patch.tab ??
@@ -117,7 +110,6 @@ export function useDashboardParams(
     period,
     from: period === "custom" ? from : null,
     to: period === "custom" ? to : null,
-    compare,
     tab,
     setParams,
   };

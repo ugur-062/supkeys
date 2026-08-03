@@ -51,12 +51,9 @@ const FUNNEL_STAGE_HREF: Record<string, string> = {
 export function SatinalmaIhaleTab({
   data,
   analytics,
-  compare = false,
 }: {
   data: SatinalmaDashboard;
   analytics?: SatinalmaAnalytics;
-  /** Faz 3: deltalar yalnız "önceki dönemle karşılaştır" açıkken çizilir. */
-  compare?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTab>("own");
   // Faz 6.2 — varsayılan sıralama KAPANIŞA göre artan (ihale no değil);
@@ -83,7 +80,7 @@ export function SatinalmaIhaleTab({
             valueTitle={formatMoney(analytics.money.periodSpend)}
             href="/company/satinalma/siparisler"
             accent="blue"
-            deltaPct={compare ? analytics.money.deltas.periodSpend : undefined}
+            deltaPct={analytics.money.deltas.periodSpend}
             hint="dönem içi siparişler · yalnız TRY"
           />
           <KpiCard
@@ -113,9 +110,7 @@ export function SatinalmaIhaleTab({
             valueTitle={formatMoney(analytics.money.realizedSavings)}
             href="/company/satinalma/raporlar/tasarruf"
             accent="blue"
-            deltaPct={
-              compare ? analytics.money.deltas.realizedSavings : undefined
-            }
+            deltaPct={analytics.money.deltas.realizedSavings}
             spark={analytics.savingsTrend}
             sparkLabels={{ valueSuffix: " ₺" }}
             hint="hedef fiyata göre · yalnız TRY"
@@ -144,7 +139,7 @@ export function SatinalmaIhaleTab({
               ? `${analytics!.actions.awaitingDecision} ihale karar bekliyor`
               : undefined
           }
-          deltaPct={compare ? analytics?.deltas.bids : undefined}
+          deltaPct={analytics?.deltas.bids}
           spark={analytics?.kpiSeries.bids}
         />
         <KpiCard
@@ -152,7 +147,7 @@ export function SatinalmaIhaleTab({
           value={data.awarded}
           href="/company/satinalma/ihalelerim?status=AWARDED"
           accent="blue"
-          deltaPct={compare ? analytics?.deltas.awarded : undefined}
+          deltaPct={analytics?.deltas.awarded}
           spark={analytics?.kpiSeries.awarded}
         />
         <KpiCard
@@ -160,7 +155,7 @@ export function SatinalmaIhaleTab({
           value={data.ongoingOrders}
           href="/company/satinalma/siparisler"
           accent="blue"
-          deltaPct={compare ? analytics?.deltas.orders : undefined}
+          deltaPct={analytics?.deltas.orders}
           spark={analytics?.kpiSeries.orders}
         />
       </div>

@@ -61,7 +61,7 @@ export function TcmbRatesChip() {
 
   if (isLoading) {
     return (
-      <div className="h-8 w-44 animate-pulse rounded-lg bg-zinc-200/60" aria-hidden />
+      <div className="h-8 w-52 animate-pulse rounded-lg bg-zinc-200/60" aria-hidden />
     );
   }
   if (!data) return null;
@@ -80,21 +80,32 @@ export function TcmbRatesChip() {
     : null;
   const label = `TCMB günlük gösterge kuru${dateLabel ? ` · ${dateLabel}` : ""}`;
 
+  const rates: { flag: React.ReactNode; symbol: string; value: number }[] = [
+    { flag: <FlagUS />, symbol: "$", value: data.rates.USD ?? 0 },
+    { flag: <FlagEU />, symbol: "€", value: data.rates.EUR ?? 0 },
+    { flag: <FlagGB />, symbol: "£", value: data.rates.GBP ?? 0 },
+  ];
+
   return (
     <div
-      className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold tabular-nums text-zinc-700 shadow-sm"
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200/70 bg-gradient-to-r from-emerald-50/80 to-white px-2 py-1 shadow-sm"
       title={label}
       aria-label={`Döviz kurları — ${label}`}
     >
-      <span>${fmt(data.rates.USD ?? 0)}</span>
-      <span className="text-zinc-300" aria-hidden>
-        ·
-      </span>
-      <span>€{fmt(data.rates.EUR ?? 0)}</span>
-      <span className="text-zinc-300" aria-hidden>
-        ·
-      </span>
-      <span>£{fmt(data.rates.GBP ?? 0)}</span>
+      {rates.map((r, i) => (
+        <span key={r.symbol} className="inline-flex items-center gap-1">
+          {i > 0 ? (
+            <span className="mx-0.5 h-3.5 w-px bg-emerald-200/80" aria-hidden />
+          ) : null}
+          {r.flag}
+          <span className="text-xs font-semibold tabular-nums text-slate-900">
+            <span className="mr-px text-[10px] font-medium text-emerald-700">
+              {r.symbol}
+            </span>
+            {fmt(r.value)}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }

@@ -58,7 +58,7 @@ export function SatisDashboardView() {
   const loading = stats.isLoading;
   // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (satınalma ile
   // ortak useDashboardParams; geri tuşu çalışır, sayfa paylaşılabilir).
-  const { period, from, to, compare, tab, setParams } = useDashboardParams(
+  const { period, from, to, tab, setParams } = useDashboardParams(
     "teklif",
     ["teklif", "gelir", "musteri"],
   );
@@ -92,7 +92,6 @@ export function SatisDashboardView() {
             period={period}
             from={from}
             to={to}
-            compare={compare}
             onChange={setParams}
           />
           <Link
@@ -226,7 +225,7 @@ export function SatisDashboardView() {
           value={val(s?.bids.active)}
           href="/company/satis/tekliflerim"
           accent="emerald"
-          deltaPct={compare ? analytics.data?.deltas.bidsSubmitted : undefined}
+          deltaPct={analytics.data?.deltas.bidsSubmitted}
           spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
         <KpiCard
@@ -241,7 +240,7 @@ export function SatisDashboardView() {
           value={val(s?.orders.pending)}
           href="/company/satis/siparisler?status=PENDING"
           accent="emerald"
-          deltaPct={compare ? analytics.data?.deltas.orders : undefined}
+          deltaPct={analytics.data?.deltas.orders}
           spark={analytics.data?.kpiSeries.orders}
         />
       </div>
@@ -256,7 +255,7 @@ export function SatisDashboardView() {
           href="/company/satis/tekliflerim"
           accent="emerald"
           deltaPct={
-            compare && s && s.last30Days.prevBidsSubmitted > 0
+            s && s.last30Days.prevBidsSubmitted > 0
               ? Math.round(
                   ((s.last30Days.bidsSubmitted - s.last30Days.prevBidsSubmitted) /
                     s.last30Days.prevBidsSubmitted) *
@@ -273,7 +272,7 @@ export function SatisDashboardView() {
           href="/company/satis/siparisler"
           accent="emerald"
           deltaPct={
-            compare && s && s.revenue.prev30 > 0
+            s && s.revenue.prev30 > 0
               ? Math.round(
                   ((s.revenue.last30 - s.revenue.prev30) / s.revenue.prev30) * 100,
                 )
