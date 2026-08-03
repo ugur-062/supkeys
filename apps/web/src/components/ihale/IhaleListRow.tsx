@@ -1,6 +1,7 @@
 "use client";
 
 import type { TenderListItem } from "@/hooks/use-company-tenders";
+import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -92,10 +93,55 @@ function fullDate(iso: string | null): string {
 
 function ColLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="block text-[11px] leading-tight text-slate-400">
+    <span className="block text-[10px] font-medium uppercase tracking-wide leading-tight text-slate-400">
       {children}
     </span>
   );
+}
+
+/** Küçük bilgi çipi — kolonlardaki "hep aynı gri metin" yerine tonlu ayrım
+ *  (her iki satır görünümü: kendi ihalelerim + başkalarının ihaleleri). */
+export function InfoChip({
+  tone,
+  children,
+}: {
+  tone: "emerald" | "violet" | "amber" | "rose" | "slate" | "blue";
+  children: React.ReactNode;
+}) {
+  const cls = {
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    violet: "bg-violet-50 text-violet-700 ring-violet-200",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    rose: "bg-rose-50 text-rose-700 ring-rose-200",
+    blue: "bg-blue-50 text-blue-700 ring-blue-200",
+    slate: "bg-slate-50 text-slate-500 ring-slate-200",
+  }[tone];
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit items-center rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight ring-1",
+        cls,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Kapanışa kalan süre çipi: ≤1 gün kırmızı, ≤3 amber, aksi nötr. */
+export function DaysLeftChip({
+  status,
+  closesAt,
+}: {
+  status: string;
+  closesAt: string | null;
+}) {
+  const u = closingUrgency(status, closesAt);
+  if (!u) return null;
+  const days = daysUntil(closesAt) ?? 99;
+  const tone: "rose" | "amber" | "slate" =
+    days <= 1 ? "rose" : days <= 3 ? "amber" : "slate";
+  return <InfoChip tone={tone}>{u.text}</InfoChip>;
 }
 
 function RowAction({
@@ -258,55 +304,70 @@ export function IhaleListRow({
             başlık zaten detay linki + sağda duruma göre birincil aksiyon var). */}
         <div className="hidden min-w-0 px-3 py-2.5 xl:block">
           <ColLabel>{isSatis ? "Satışçı" : "Satın Almacı"}</ColLabel>
-          <span className="mt-0.5 block truncate text-[13px] leading-tight text-slate-700">
+          <span className="mt-1 block truncate text-[13px] font-semibold leading-tight text-slate-900">
             {t.createdBy.firstName} {t.createdBy.lastName}
           </span>
         </div>
 
-        {/* 5 — Davetli (lg+) */}
+        {/* 5 — Davetli (lg+) — sayı büyük/koyu; 0 davetli soluk kalır. */}
         <div className="hidden px-3 py-2.5 lg:block">
           <ColLabel>Davetli</ColLabel>
-          <span className="mt-0.5 block text-[13px] leading-tight text-slate-700">
-            {t.invitationCount}
+          <span className="mt-0.5 flex items-baseline gap-1">
+            <span
+              className={cn(
+                "text-[15px] font-semibold tabular-nums leading-tight",
+                t.invitationCount > 0 ? "text-slate-900" : "text-slate-300",
+              )}
+            >
+              {t.invitationCount}
+            </span>
+            <span className="text-[11px] text-slate-400">davetli</span>
           </span>
         </div>
 
-        {/* 6 — Kapsam (lg+) */}
+        {/* 6 — Kapsam (lg+) — çip'lerle ayrım (uluslararası yeşil, pazarlık
+            mor; sıradan değerler nötr). */}
         <div className="hidden px-3 py-2.5 lg:block">
           <ColLabel>Kapsam</ColLabel>
-          <span
-            className={cn(
-              "mt-0.5 block text-[13px] leading-tight",
-              t.isInternational
-                ? "font-medium text-emerald-600"
-                : "text-slate-500",
+          <span className="mt-1 flex flex-col items-start gap-1">
+            {t.isInternational ? (
+              <InfoChip tone="emerald">Uluslararası</InfoChip>
+            ) : (
+              <InfoChip tone="slate">Yurtiçi</InfoChip>
             )}
-          >
-            {t.isInternational ? "Uluslararası" : "Yurtiçi"}
-          </span>
-          <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
-            {t.format === "ENGLISH_AUCTION" ? "Pazarlık" : "Teklif Toplama"}
+            {t.format === "ENGLISH_AUCTION" ? (
+              <InfoChip tone="violet">Pazarlık</InfoChip>
+            ) : (
+              <span className="text-[11px] leading-tight text-slate-400">
+                Teklif Toplama
+              </span>
+            )}
           </span>
         </div>
 
-        {/* 7 — Tarihler (md+) */}
+        {/* 7 — Tarihler (md+) — kapanış koyu + kalan süre renkli çip. */}
         <div className="hidden px-3 py-2.5 md:block">
           <ColLabel>Yayın tarihi</ColLabel>
           <span
-            className="mt-0.5 block text-[13px] leading-tight text-slate-700"
+            className="mt-0.5 block text-[13px] leading-tight text-slate-500"
             title={fullDate(t.publishedAt ?? t.createdAt)}
           >
             {shortDate(t.publishedAt ?? t.createdAt)}
           </span>
-          <ColLabel>Kapanış tarihi</ColLabel>
+          <span className="mt-1 block">
+            <ColLabel>Kapanış tarihi</ColLabel>
+          </span>
           <span
             className={cn(
-              "mt-0.5 block text-[13px] leading-tight",
-              closeSoon ? "font-medium text-rose-600" : "text-slate-700",
+              "mt-0.5 block text-[13px] font-semibold leading-tight",
+              closeSoon ? "text-rose-600" : "text-slate-900",
             )}
             title={fullDate(t.bidsCloseAt)}
           >
             {shortDate(t.bidsCloseAt)}
+          </span>
+          <span className="mt-1 block">
+            <DaysLeftChip status={t.status} closesAt={t.bidsCloseAt} />
           </span>
         </div>
 

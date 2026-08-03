@@ -10,6 +10,7 @@ import {
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import {
   closingUrgency,
+  daysUntil,
   deriveSellerTenderState,
 } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { IHALE_VIEW_FOCUS } from "./IhaleListRow";
+import { DaysLeftChip, IHALE_VIEW_FOCUS, InfoChip } from "./IhaleListRow";
 
 /**
  * Başkalarının ihaleleri için yoğun SATIR görünümü (Açık İhaleler / Satın Al)
@@ -48,7 +49,7 @@ function fullDate(iso: string | null): string {
 
 function ColLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="block text-[11px] leading-tight text-slate-400">
+    <span className="block text-[10px] font-medium uppercase tracking-wide leading-tight text-slate-400">
       {children}
     </span>
   );
@@ -166,76 +167,98 @@ export function BrowseTenderRow({
           </div>
         </div>
 
-        {/* 3 — Firma (xl) — başkasının ihalesinde talep sahibi ŞİRKETTİR. */}
+        {/* 3 — Firma (xl) — başkasının ihalesinde talep sahibi ŞİRKETTİR.
+            Görsel hiyerarşi: ikon çipi + koyu yarı-kalın ad (satırın ikinci
+            en önemli bilgisi). */}
         <div className="hidden min-w-0 px-3 py-2.5 xl:block">
           <ColLabel>Firma</ColLabel>
           {t.owner ? (
-            <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+            <span className="mt-1 flex min-w-0 items-center gap-1.5">
               <span
-                className="truncate text-[13px] font-medium leading-tight text-slate-700"
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-md",
+                  isSatis ? "bg-violet-50" : "bg-emerald-50",
+                )}
+              >
+                <Building2
+                  className={cn(
+                    "h-3 w-3",
+                    isSatis ? "text-violet-600" : "text-emerald-600",
+                  )}
+                  aria-hidden
+                />
+              </span>
+              <span
+                className="truncate text-[13px] font-semibold leading-tight text-slate-900"
                 title={t.owner.name}
               >
                 {t.owner.name}
               </span>
             </span>
           ) : (
-            <span className="mt-0.5 flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+            <span className="mt-1 flex items-center gap-1.5">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-50">
+                <Lock className="h-3 w-3 text-amber-500" aria-hidden />
+              </span>
               <span className="truncate text-[13px] italic leading-tight text-slate-500">
                 Gizli firma
               </span>
-              <span className="rounded border border-amber-200 bg-amber-50 px-1 py-0.5 text-[10px] font-semibold text-amber-700">
-                Premium
-              </span>
+              <InfoChip tone="amber">Premium</InfoChip>
             </span>
           )}
         </div>
 
-        {/* 4 — Kalem + para birimi (lg+) */}
+        {/* 4 — Kalem + para birimi (lg+) — sayı büyük/koyu, birim çipte. */}
         <div className="hidden px-3 py-2.5 lg:block">
           <ColLabel>Kalem</ColLabel>
-          <span className="mt-0.5 block text-[13px] leading-tight text-slate-700">
-            {t.itemCount}
+          <span className="mt-0.5 flex items-baseline gap-1">
+            <span className="text-[15px] font-semibold tabular-nums leading-tight text-slate-900">
+              {t.itemCount}
+            </span>
+            <span className="text-[11px] text-slate-400">kalem</span>
           </span>
-          <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+          <span className="mt-1 inline-flex rounded border border-slate-200 bg-white px-1 py-px font-mono text-[10px] font-semibold text-slate-500">
             {t.currency}
           </span>
         </div>
 
-        {/* 5 — Kapsam + usul (lg+) */}
+        {/* 5 — Kapsam + usul (lg+) — çip'lerle ayrım (uluslararası yeşil,
+            pazarlık mor; sıradan değerler nötr). */}
         <div className="hidden px-3 py-2.5 lg:block">
           <ColLabel>Kapsam</ColLabel>
-          <span
-            className={cn(
-              "mt-0.5 block text-[13px] leading-tight",
-              t.isInternational ? "font-medium text-emerald-600" : "text-slate-500",
+          <span className="mt-1 flex flex-col items-start gap-1">
+            {t.isInternational ? (
+              <InfoChip tone="emerald">Uluslararası</InfoChip>
+            ) : (
+              <InfoChip tone="slate">Yurtiçi</InfoChip>
             )}
-          >
-            {t.isInternational ? "Uluslararası" : "Yurtiçi"}
-          </span>
-          <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
-            {t.format === "ENGLISH_AUCTION" ? "Pazarlık" : "Teklif Toplama"}
+            {t.format === "ENGLISH_AUCTION" ? (
+              <InfoChip tone="violet">Pazarlık</InfoChip>
+            ) : (
+              <span className="text-[11px] leading-tight text-slate-400">
+                Teklif Toplama
+              </span>
+            )}
           </span>
         </div>
 
-        {/* 6 — Kapanış (md+) */}
+        {/* 6 — Kapanış (md+) — tarih koyu, kalan süre renkli çip. */}
         <div className="hidden px-3 py-2.5 md:block">
           <ColLabel>Kapanış tarihi</ColLabel>
           <span
             className={cn(
-              "mt-0.5 block text-[13px] leading-tight",
-              urgency ? urgency.className : "text-slate-700",
+              "mt-0.5 block text-[13px] font-semibold leading-tight",
+              urgency && (daysUntil(t.closesAt) ?? 99) <= 3
+                ? urgency.className
+                : "text-slate-900",
             )}
             title={fullDate(t.closesAt)}
           >
             {shortDate(t.closesAt)}
           </span>
-          {urgency ? (
-            <span className={cn("mt-0.5 block text-[11px] leading-tight", urgency.className)}>
-              {urgency.text}
-            </span>
-          ) : null}
+          <span className="mt-1 block">
+            <DaysLeftChip status={t.status} closesAt={t.closesAt} />
+          </span>
         </div>
 
         {/* 7 — Aksiyonlar (xl: dikey yığın) */}
