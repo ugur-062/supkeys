@@ -60,14 +60,18 @@ function stepMeta(isSatis: boolean) {
 const LAST_STEP = 4;
 
 /** Üst adım göstergesi — numara + başlık + açıklama. Mobilde dikey, masaüstünde
- *  5 sütun. Her adıma tıklayıp İKİ YÖNDE gezinilebilir (madde 24) — adım-içi
- *  validasyon "İleri" akışında kalır; yayın her durumda tam şema doğrular. */
+ *  5 sütun. GERİYE her zaman gidilebilir; İLERİYE yalnız "Devam Et"le
+ *  doğrulanmış adımlara atlanabilir (furthest) — önceki adım doldurulmadan
+ *  üstten ileri sıçrama yok (2026-08-04). Yayın her durumda tam şema doğrular. */
 function WizardSteps({
   current,
+  furthest,
   onStepClick,
   meta,
 }: {
   current: number;
+  /** "Devam Et" ile ulaşılmış en ileri adım — ötesi kilitli. */
+  furthest: number;
   onStepClick: (i: number) => void;
   meta: { title: string; desc: string }[];
 }) {
@@ -77,17 +81,25 @@ function WizardSteps({
         {meta.map((s, idx) => {
           const isDone = current > idx;
           const isActive = current === idx;
-          const clickable = !isActive;
+          const locked = idx > furthest;
+          const clickable = !isActive && !locked;
           return (
             <li key={s.title} className={cn(isActive && "bg-zinc-100/70")}>
               <button
                 type="button"
                 disabled={!clickable}
+                aria-disabled={locked || undefined}
+                title={
+                  locked
+                    ? "Önce mevcut adımı doldurup 'Devam Et' ile ilerleyin"
+                    : undefined
+                }
                 onClick={() => clickable && onStepClick(idx)}
                 className={cn(
                   "flex h-full w-full items-start gap-3 p-4 text-left transition-colors",
                   clickable && "cursor-pointer hover:bg-zinc-50",
-                  !clickable && "cursor-default",
+                  isActive && "cursor-default",
+                  locked && "cursor-not-allowed opacity-50",
                 )}
               >
                 <span
@@ -234,6 +246,9 @@ export function TenderWizard({
   // belgeden her zaman güvenilir çıkarılamaz; adım atlanırsa sessizce
   // "yurtiçi" varsayılmış olur.
   const [step, setStep] = useState(0);
+  // İleri gezinme kilidi: yalnız "Devam Et" ile doğrulanan adımların ötesine
+  // üstten atlanamaz; düzenlemede form zaten dolu → tüm adımlar açık.
+  const [furthest, setFurthest] = useState(isEdit ? LAST_STEP : 0);
   const [publishOpen, setPublishOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   // Create modunda seçilen ihale dökümanları — ilan kaydedilince yüklenir
@@ -366,6 +381,7 @@ export function TenderWizard({
       return;
     }
     setStep((s) => Math.min(LAST_STEP, s + 1));
+    setFurthest((f) => Math.max(f, Math.min(LAST_STEP, step + 1)));
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   };
 
@@ -503,20 +519,23 @@ export function TenderWizard({
         </div>
 
         {/* Üstte adım göstergesi */}
-        <WizardSteps current={step} onStepClick={setStep} meta={stepMeta(isSatis)} />
+        <WizardSteps current={step} furthest={furthest} onStepClick={setStep} meta={stepMeta(isSatis)} />
 
-        {/* Sayfaya özel band (AI "Belgeden Doldur" kartı) — YALNIZ ilk adımda:
-            sonraki adımlarda kafa karıştırıyor (belgeden doldurma zaten girilen
-            veriyi ezer); Davetliler adımının AI girişi "AI ile daha fazla eriş". */}
-        {step === 0 ? belowStepsSlot : null}
+        {/* Sayfaya özel band (AI "Belgeden Doldur" kartı) — Tür & Kapsam ve
+            KALEMLER adımlarında (kalemleri belgeden doldurmak tam bu adımın
+            işi; kullanıcı isteği 2026-08-04). Sonraki adımlarda gizli;
+            Davetliler adımının AI girişi "AI ile daha fazla tedarikçiye eriş". */}
+        {step <= 1 ? belowStepsSlot : null}
 
         {/* Faz AI-1 — AI doldurma bandı (işaretli alanlar + refine) */}
         {aiResult ? (
           <AiFlagsBanner result={aiResult} onResult={setAiResult} />
         ) : null}
 
-        {/* İçerik */}
-        <div className="min-w-0 pt-2">
+        {/* İçerik — TEK beyaz yüzey: adım formları gri sayfa zeminiyle
+            karışmasın (2026-08-04); iç bilgi kutuları (bg-zinc-50) bu beyaz
+            zeminde kontrast kazanır. */}
+        <div className="card min-w-0 p-5 sm:p-6">
           {step === 0 ? <Step0TypeScope /> : null}
           {/* Sıra: önce Kalemler, sonra Genel Bilgi — kategori "AI ile bul"
               butonu kalemleri girdi olarak kullandığından kalemler önde. */}
