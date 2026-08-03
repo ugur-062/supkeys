@@ -32,6 +32,12 @@ vi.mock("@/hooks/use-company-dashboard", () => ({
     };
   },
 }));
+vi.mock("@/hooks/use-company-orders", () => ({
+  useOrders: () => ({ data: [] }),
+}));
+vi.mock("@/hooks/use-company-messages", () => ({
+  useUnreadMessages: () => ({ data: { count: 0 } }),
+}));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -101,17 +107,11 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("+100%")).toBeInTheDocument();
   });
 
-  it("davet uyarı banner'ı teklif verilmemiş davet sayısını gösterir", () => {
+  it("davet uyarısı TEK yerden gelir: eski banner render edilmez (çift uyarı fix)", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
-    expect(
-      screen.getByText("Davet edildiğiniz 3 ihaleye henüz teklif vermediniz"),
-    ).toBeInTheDocument();
-  });
-
-  it("davet sıfırsa uyarı banner'ı görünmez", () => {
-    h.stats = fullStats({ invitations: { active: 0 } });
-    render(<SatisDashboardView />);
+    // Eski InvitedPendingBanner kaldırıldı — davet aksiyonu ActionCenter'da
+    // (analytics mock'suz testte satır da yok; çift metin asla oluşmaz).
     expect(
       screen.queryByText(/henüz teklif vermediniz/),
     ).not.toBeInTheDocument();

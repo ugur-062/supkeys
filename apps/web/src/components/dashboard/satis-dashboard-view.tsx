@@ -1,8 +1,10 @@
 "use client";
 
-import { ActionStrip } from "@/components/dashboard/action-strip";
 import { cn } from "@/lib/utils";
 import { DASH } from "@/lib/dashboard/strings";
+import { useOrders } from "@/hooks/use-company-orders";
+import { useUnreadMessages } from "@/hooks/use-company-messages";
+import { MessageSquare, PackageCheck, Wallet } from "lucide-react";
 import {
   ActionCenter,
   ChartCard,
@@ -29,7 +31,6 @@ import {
 import { Clock3, Inbox, Trophy as TrophyIcon, Truck } from "lucide-react";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
-import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
 import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
@@ -259,6 +260,16 @@ export function SatisDashboardView() {
     window.history.replaceState(null, "", u.toString());
   };
   const analytics = useSatisAnalytics(period);
+  // Eski ActionStrip/banner kalemleri ActionCenter'a taşındı (çift uyarı yok).
+  const orders = useOrders();
+  const myOrders = (orders.data ?? []).filter((o) => o.role === "seller");
+  const pendingOrderCount = myOrders.filter(
+    (o) => o.status === "PENDING",
+  ).length;
+  const paymentWindowCount = myOrders.filter(
+    (o) => o.status === "DELIVERED",
+  ).length;
+  const unread = useUnreadMessages("satis");
   const [tab, setTab] = useState<"teklif" | "gelir" | "musteri">("teklif");
   const [activityType, setActivityType] = useState<
     "all" | "invitation" | "bid" | "order"
@@ -370,18 +381,37 @@ export function SatisDashboardView() {
               ctaLabel: "Satışlara Git",
               tone: "red",
             },
+            {
+              key: "orderPending",
+              icon: PackageCheck,
+              count: pendingOrderCount,
+              text: "sipariş onayını bekliyor",
+              href: "/company/satis/siparisler",
+              ctaLabel: "Onayla",
+              tone: "amber",
+            },
+            {
+              key: "payment",
+              icon: Wallet,
+              count: paymentWindowCount,
+              text: "satışın ödemesi bekleniyor",
+              href: "/company/satis/siparisler",
+              ctaLabel: "Ödemeler",
+              tone: "slate",
+            },
+            {
+              key: "messages",
+              icon: MessageSquare,
+              count: unread.data?.count ?? 0,
+              text: "okunmamış mesajın var",
+              href: "/company/mesajlar",
+              ctaLabel: "Mesajlar",
+              tone: "slate",
+            },
           ]}
         />
       ) : null}
 
-      {/* Uyarı: davet edilip teklif verilmemiş açık ihaleler (yoksa görünmez) */}
-      <InvitedPendingBanner
-        count={s?.invitations.active ?? 0}
-        href="/company/satis/acik-ihaleler"
-      />
-
-      {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
-      <ActionStrip portal="satis" />
 
       {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
       {stats.isError && !s ? (

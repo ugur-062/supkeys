@@ -1,6 +1,5 @@
 "use client";
 
-import { ActionStrip } from "@/components/dashboard/action-strip";
 import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
 import { ErrorState } from "@/components/ui/error-state";
@@ -15,6 +14,9 @@ import {
   useTimeSavings,
 } from "@/hooks/use-company-dashboard";
 import { ActionCenter } from "@/components/dashboard/analytics-primitives";
+import { useOrders } from "@/hooks/use-company-orders";
+import { useUnreadMessages } from "@/hooks/use-company-messages";
+import { MessageSquare, PackageCheck } from "lucide-react";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import {
@@ -75,6 +77,20 @@ export default function SatinalmaDashboardPage() {
   const tedarikci = useSatinalmaTedarikci();
   const savings = useTimeSavings(period);
   const analytics = useSatinalmaAnalytics(period);
+  // Eski ActionStrip'in benzersiz kalemleri ActionCenter'a taşındı (çift
+  // uyarı bitti): sipariş durum sayaçları + okunmamış mesaj.
+  const orders = useOrders();
+  const myOrders = (orders.data ?? []).filter((o) => o.role === "buyer");
+  const pendingOrderCount = myOrders.filter(
+    (o) => o.status === "PENDING",
+  ).length;
+  const inDeliveryCount = myOrders.filter(
+    (o) => o.status === "IN_DELIVERY",
+  ).length;
+  const paymentWindowCount = myOrders.filter(
+    (o) => o.status === "DELIVERED",
+  ).length;
+  const unread = useUnreadMessages("satinalma");
   const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   const [todayLabel, setTodayLabel] = useState("");
@@ -184,14 +200,53 @@ export default function SatinalmaDashboardPage() {
               ctaLabel: "Siparişlere Git",
               tone: "red",
             },
+            // TEK ödeme satırı: gecikmiş varsa kırmızı o; yoksa ödeme
+            // penceresi açık (DELIVERED) amber — çift uyarı yok.
+            analytics.data.actions.pendingPayments > 0
+              ? {
+                  key: "payment",
+                  icon: Banknote,
+                  count: analytics.data.actions.pendingPayments,
+                  text: "siparişin ödemesi gecikti",
+                  href: "/company/satinalma/siparisler",
+                  ctaLabel: "Ödemeler",
+                  tone: "red" as const,
+                }
+              : {
+                  key: "payment",
+                  icon: Banknote,
+                  count: paymentWindowCount,
+                  text: "siparişin ödemesi bekleniyor",
+                  href: "/company/satinalma/siparisler",
+                  ctaLabel: "Ödemeler",
+                  tone: "amber" as const,
+                },
             {
-              key: "payment",
-              icon: Banknote,
-              count: analytics.data.actions.pendingPayments,
-              text: "siparişin ödemesi gecikti",
+              key: "receive",
+              icon: PackageCheck,
+              count: inDeliveryCount,
+              text: "sipariş teslim almanı bekliyor",
               href: "/company/satinalma/siparisler",
-              ctaLabel: "Ödemeler",
-              tone: "red",
+              ctaLabel: "Teslim Al",
+              tone: "amber",
+            },
+            {
+              key: "orderPending",
+              icon: Truck,
+              count: pendingOrderCount,
+              text: "sipariş satıcı onayında",
+              href: "/company/satinalma/siparisler",
+              ctaLabel: "İncele",
+              tone: "slate",
+            },
+            {
+              key: "messages",
+              icon: MessageSquare,
+              count: unread.data?.count ?? 0,
+              text: "okunmamış mesajın var",
+              href: "/company/mesajlar",
+              ctaLabel: "Mesajlar",
+              tone: "slate",
             },
           ]}
         />
@@ -211,8 +266,6 @@ export default function SatinalmaDashboardPage() {
         href="/company/satinalma/satin-al"
       />
 
-      {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
-      <ActionStrip portal="satinalma" />
 
       <TabGroup className="space-y-6">
         <TabList
