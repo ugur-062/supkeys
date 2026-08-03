@@ -45,93 +45,78 @@ export const DASH = {
   actionShowLess: "Daha az göster",
 } as const;
 
-/** Aksiyon Merkezi satır metin/CTA haritası — anahtarlar backend
- * ActionCenterService satır key'leriyle birebir. */
+/** Aksiyon Merkezi satır metin haritası — anahtarlar backend
+ * ActionCenterService satır key'leriyle birebir. (Satırın tamamı
+ * tıklanabilir; ayrı CTA etiketi kaldırıldı, 2026-08-03.) */
 export const ACTION_ROWS: Record<
   "satinalma" | "satis",
-  Record<string, { text: string; ctaLabel: string; href: string }>
+  Record<string, { text: string; href: string }>
 > = {
   satinalma: {
     overduePayments: {
       text: "siparişin ödemesi gecikti",
-      ctaLabel: "Ödemeler",
       href: "/company/satinalma/siparisler",
     },
     overdueDeliveries: {
       text: "siparişin teslim tarihi geçti",
-      ctaLabel: "Siparişlere Git",
       href: "/company/satinalma/siparisler",
     },
     zeroBidClosingSoon: {
       text: "ihalen teklifsiz kapanmak üzere",
-      ctaLabel: "Davetli Ekle",
       href: "/company/satinalma/ihalelerim",
     },
     closingSoon: {
       text: "ihalen kapanmak üzere",
-      ctaLabel: "İncele",
       href: "/company/satinalma/ihalelerim",
     },
     awaitingDecision: {
       text: "ihalende karar bekleyen teklif var",
-      ctaLabel: "Değerlendir",
       href: "/company/satinalma/ihalelerim",
     },
     pendingApprovals: {
       text: "kazandırma onay bekliyor",
-      ctaLabel: "Onayla",
       href: "/company/onaylar",
     },
     sellerApproval: {
       text: "sipariş satıcı onayında",
-      ctaLabel: "İncele",
       href: "/company/satinalma/siparisler",
     },
     receiveOrders: {
       text: "sipariş teslim almanı bekliyor",
-      ctaLabel: "Teslim Al",
       href: "/company/satinalma/siparisler",
     },
     paymentWindow: {
       text: "siparişin ödemesi bekleniyor",
-      ctaLabel: "Ödemeler",
       href: "/company/satinalma/siparisler",
     },
     messages: {
       text: "okunmamış mesajın var",
-      ctaLabel: "Mesajlar",
       href: "/company/mesajlar",
     },
   },
   satis: {
     overdueDeliveries: {
       text: "siparişin teslim tarihi geçti",
-      ctaLabel: "Satışlarım",
       href: "/company/satis/siparisler",
     },
     unansweredInvites: {
       text: "davete henüz teklif vermedin",
-      ctaLabel: "Teklif Ver",
       href: "/company/satis/acik-ihaleler",
     },
     expiringBids: {
       text: "teklifinin geçerliliği dolmak üzere",
-      ctaLabel: "Tekliflerim",
       href: "/company/satis/tekliflerim",
     },
     pendingOrders: {
       text: "sipariş onayını bekliyor",
-      ctaLabel: "Onayla",
       href: "/company/satis/siparisler",
     },
     paymentWindow: {
       text: "siparişin ödemesi bekleniyor",
-      ctaLabel: "Satışlarım",
       href: "/company/satis/siparisler",
     },
     messages: {
       text: "okunmamış mesajın var",
-      ctaLabel: "Mesajlar",
       href: "/company/mesajlar",
     },
   },

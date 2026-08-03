@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronRight,
   Clock3,
   Info,
   type LucideIcon,
@@ -109,46 +110,53 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
       ) : (
         <>
           <ul className="divide-y divide-slate-100">
+            {/* Satırın TAMAMI tıklanabilir (sağdaki ayrı CTA tuşu kaldırıldı,
+                kullanıcı isteği 2026-08-03) — sistemdeki liste dili: hover
+                zemin + sağa kayan ok. */}
             {visible.map((r) => {
               const meta = SEVERITY_META[r.severity];
               const t = texts[r.key]!;
               const time = timeLabel(r);
               return (
-                <li key={r.key} className="flex items-center gap-3 px-5 py-2.5">
-                  <span
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                      meta.cls,
-                    )}
-                    title={meta.label}
-                  >
-                    <meta.icon className="h-4 w-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm text-slate-700">
-                    <strong className="font-semibold tabular-nums text-slate-950">
-                      {r.count}
-                    </strong>{" "}
-                    {t.text}
-                    {time ? (
-                      <span
-                        className={cn(
-                          "ml-2 whitespace-nowrap text-xs font-medium",
-                          r.severity === "critical"
-                            ? "text-rose-600"
-                            : r.severity === "warning"
-                              ? "text-amber-600"
-                              : "text-slate-400",
-                        )}
-                      >
-                        {time}
-                      </span>
-                    ) : null}
-                  </span>
+                <li key={r.key}>
                   <Link
                     href={t.href}
-                    className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    aria-label={`${r.count} ${t.text}${time ? ` — ${time}` : ""}`}
+                    className="group flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
                   >
-                    {t.ctaLabel}
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
+                        meta.cls,
+                      )}
+                      title={meta.label}
+                    >
+                      <meta.icon className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm text-slate-700">
+                      <strong className="font-semibold tabular-nums text-slate-950">
+                        {r.count}
+                      </strong>{" "}
+                      <span className="group-hover:text-slate-950">{t.text}</span>
+                      {time ? (
+                        <span
+                          className={cn(
+                            "ml-2 whitespace-nowrap text-xs font-medium",
+                            r.severity === "critical"
+                              ? "text-rose-600"
+                              : r.severity === "warning"
+                                ? "text-amber-600"
+                                : "text-slate-400",
+                          )}
+                        >
+                          {time}
+                        </span>
+                      ) : null}
+                    </span>
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-slate-600"
+                      aria-hidden
+                    />
                   </Link>
                 </li>
               );
