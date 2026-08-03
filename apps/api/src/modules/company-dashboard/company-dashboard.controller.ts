@@ -9,6 +9,7 @@ import {
   TimeSavingsService,
   type SavingsPeriod,
 } from "./time-savings.service";
+import { ActionCenterService } from "./action-center.service";
 import { DashboardAnalyticsService } from "./dashboard-analytics.service";
 
 @Controller("company/dashboard")
@@ -18,7 +19,19 @@ export class CompanyDashboardController {
     private readonly service: CompanyDashboardService,
     private readonly timeSavings: TimeSavingsService,
     private readonly analytics: DashboardAnalyticsService,
+    private readonly actionCenter: ActionCenterService,
   ) {}
+
+  /** Aksiyon Merkezi — severity + zaman bilgili tek uyarı listesi (Faz 2). */
+  @Get("action-center")
+  actionCenterRows(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("portal") portal?: string,
+  ) {
+    return portal === "satis"
+      ? this.actionCenter.satis(user.companyId)
+      : this.actionCenter.satinalma(user.companyId);
+  }
 
   /** Pano analitiği — panel başına TEK toplu yanıt (grafik/aksiyon serileri). */
   @Get("satinalma/analytics")

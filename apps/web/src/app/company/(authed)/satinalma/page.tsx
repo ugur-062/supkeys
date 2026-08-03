@@ -12,19 +12,9 @@ import {
   useSatinalmaTedarikci,
   useTimeSavings,
 } from "@/hooks/use-company-dashboard";
-import { ActionCenter } from "@/components/dashboard/analytics-primitives";
-import { useOrders } from "@/hooks/use-company-orders";
-import { useUnreadMessages } from "@/hooks/use-company-messages";
-import { MessageSquare, PackageCheck } from "lucide-react";
+import { ActionCenter } from "@/components/dashboard/action-center";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
-import {
-  Banknote,
-  CheckSquare,
-  Clock3,
-  Gavel,
-  Truck,
-} from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
 import { cn } from "@/lib/utils";
@@ -72,20 +62,6 @@ export default function SatinalmaDashboardPage() {
   const tedarikci = useSatinalmaTedarikci();
   const savings = useTimeSavings(period);
   const analytics = useSatinalmaAnalytics(period);
-  // Eski ActionStrip'in benzersiz kalemleri ActionCenter'a taşındı (çift
-  // uyarı bitti): sipariş durum sayaçları + okunmamış mesaj.
-  const orders = useOrders();
-  const myOrders = (orders.data ?? []).filter((o) => o.role === "buyer");
-  const pendingOrderCount = myOrders.filter(
-    (o) => o.status === "PENDING",
-  ).length;
-  const inDeliveryCount = myOrders.filter(
-    (o) => o.status === "IN_DELIVERY",
-  ).length;
-  const paymentWindowCount = myOrders.filter(
-    (o) => o.status === "DELIVERED",
-  ).length;
-  const unread = useUnreadMessages("satinalma");
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -146,99 +122,9 @@ export default function SatinalmaDashboardPage() {
         />
       ) : null}
 
-      {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
-      {analytics.isLoading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
-      ) : analytics.data ? (
-        <ActionCenter
-          rows={[
-            {
-              key: "closing",
-              icon: Clock3,
-              count: analytics.data.actions.closingSoon,
-              text: "ihalen 3 gün içinde kapanıyor",
-              href: "/company/satinalma/ihalelerim",
-              ctaLabel: "İncele",
-              tone: "amber",
-            },
-            {
-              key: "decide",
-              icon: Gavel,
-              count: analytics.data.actions.awaitingDecision,
-              text: "ihalende karar bekleyen teklif var",
-              href: "/company/satinalma/ihalelerim",
-              ctaLabel: "Değerlendir",
-              tone: "amber",
-            },
-            {
-              key: "approve",
-              icon: CheckSquare,
-              count: analytics.data.actions.pendingApprovals,
-              text: "kazandırma onay bekliyor",
-              href: "/company/onaylar",
-              ctaLabel: "Onayla",
-              tone: "amber",
-            },
-            {
-              key: "delivery",
-              icon: Truck,
-              count: analytics.data.actions.overdueDeliveries,
-              text: "siparişin teslim tarihi geçti",
-              href: "/company/satinalma/siparisler",
-              ctaLabel: "Siparişlere Git",
-              tone: "red",
-            },
-            // TEK ödeme satırı: gecikmiş varsa kırmızı o; yoksa ödeme
-            // penceresi açık (DELIVERED) amber — çift uyarı yok.
-            analytics.data.actions.pendingPayments > 0
-              ? {
-                  key: "payment",
-                  icon: Banknote,
-                  count: analytics.data.actions.pendingPayments,
-                  text: "siparişin ödemesi gecikti",
-                  href: "/company/satinalma/siparisler",
-                  ctaLabel: "Ödemeler",
-                  tone: "red" as const,
-                }
-              : {
-                  key: "payment",
-                  icon: Banknote,
-                  count: paymentWindowCount,
-                  text: "siparişin ödemesi bekleniyor",
-                  href: "/company/satinalma/siparisler",
-                  ctaLabel: "Ödemeler",
-                  tone: "amber" as const,
-                },
-            {
-              key: "receive",
-              icon: PackageCheck,
-              count: inDeliveryCount,
-              text: "sipariş teslim almanı bekliyor",
-              href: "/company/satinalma/siparisler",
-              ctaLabel: "Teslim Al",
-              tone: "amber",
-            },
-            {
-              key: "orderPending",
-              icon: Truck,
-              count: pendingOrderCount,
-              text: "sipariş satıcı onayında",
-              href: "/company/satinalma/siparisler",
-              ctaLabel: "İncele",
-              tone: "slate",
-            },
-            {
-              key: "messages",
-              icon: MessageSquare,
-              count: unread.data?.count ?? 0,
-              text: "okunmamış mesajın var",
-              href: "/company/mesajlar",
-              ctaLabel: "Mesajlar",
-              tone: "slate",
-            },
-          ]}
-        />
-      ) : null}
+      {/* Aksiyon merkezi — "bugün ne yapmalıyım" (Faz 2: veri + sıralama
+          backend'de, metin haritası ACTION_ROWS'ta). */}
+      <ActionCenter portal="satinalma" />
 
       <TabGroup className="space-y-6">
         <TabList

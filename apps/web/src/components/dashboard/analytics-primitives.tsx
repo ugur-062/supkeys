@@ -5,7 +5,6 @@ import {
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  CheckCircle2,
   Minus,
   type LucideIcon,
 } from "lucide-react";
@@ -15,7 +14,8 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 /**
  * Pano yeniden tasarımı — ortak primitive'ler (panelden bağımsız, props'la
  * beslenir): TrendBadge, KpiCard, ChartCard, DashboardEmptyState,
- * ActionCenter, FunnelChart. Kart standardı: rounded-xl border-slate-200
+ * FunnelChart. (ActionCenter kendi dosyasına taşındı — action-center.tsx.)
+ * Kart standardı: rounded-xl border-slate-200
  * bg-white p-5 shadow-sm; başlık text-sm font-medium text-slate-500.
  * Kural: sahte veri yok — seri boşsa EmptyState, delta yoksa rozet çizilmez.
  */
@@ -192,70 +192,6 @@ export function DashboardEmptyState({
 }
 
 // ── ActionCenter ───────────────────────────────────────────────────────────
-export interface ActionRow {
-  key: string;
-  icon: LucideIcon;
-  count: number;
-  text: string;
-  href: string;
-  ctaLabel: string;
-  /** red = gecikmiş/kritik, amber = yaklaşan, slate = nötr. */
-  tone: "red" | "amber" | "slate";
-}
-
-const TONE_ORDER = { red: 0, amber: 1, slate: 2 } as const;
-const TONE_CLS = {
-  red: "bg-rose-50 text-rose-600",
-  amber: "bg-amber-50 text-amber-600",
-  slate: "bg-slate-100 text-slate-500",
-} as const;
-
-export function ActionCenter({ rows }: { rows: ActionRow[] }) {
-  const active = rows
-    .filter((r) => r.count > 0)
-    .sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]);
-  return (
-    <section className={cn(DASH_CARD, "p-0")} aria-label="Aksiyon merkezi">
-      <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-medium text-slate-500">
-        Bugün ne yapmalıyım?
-      </h2>
-      {active.length === 0 ? (
-        <p className="flex items-center gap-2 px-5 py-4 text-sm text-slate-500">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-          Her şey yolunda — bekleyen aksiyon yok.
-        </p>
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {active.map((r) => (
-            <li key={r.key} className="flex items-center gap-3 px-5 py-2.5">
-              <span
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                  TONE_CLS[r.tone],
-                )}
-              >
-                <r.icon className="h-4 w-4" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1 text-sm text-slate-700">
-                <strong className="font-semibold tabular-nums text-slate-950">
-                  {r.count}
-                </strong>{" "}
-                {r.text}
-              </span>
-              <Link
-                href={r.href}
-                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
-              >
-                {r.ctaLabel}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 // ── FunnelChart (div-tabanlı — recharts funnel'ından daha okunur/erişilir) ─
 export function FunnelChart({
   stages,

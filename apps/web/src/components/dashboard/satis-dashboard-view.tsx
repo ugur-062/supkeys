@@ -1,11 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useOrders } from "@/hooks/use-company-orders";
-import { useUnreadMessages } from "@/hooks/use-company-messages";
-import { MessageSquare, PackageCheck, Wallet } from "lucide-react";
+import { ActionCenter } from "@/components/dashboard/action-center";
 import {
-  ActionCenter,
   ChartCard,
   DashboardEmptyState,
   FunnelChart,
@@ -27,7 +24,6 @@ import {
   XAxis as RXAxis,
   YAxis as RYAxis,
 } from "recharts";
-import { Clock3, Inbox, Truck } from "lucide-react";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -237,16 +233,6 @@ export function SatisDashboardView() {
     window.history.replaceState(null, "", u.toString());
   };
   const analytics = useSatisAnalytics(period);
-  // Eski ActionStrip/banner kalemleri ActionCenter'a taşındı (çift uyarı yok).
-  const orders = useOrders();
-  const myOrders = (orders.data ?? []).filter((o) => o.role === "seller");
-  const pendingOrderCount = myOrders.filter(
-    (o) => o.status === "PENDING",
-  ).length;
-  const paymentWindowCount = myOrders.filter(
-    (o) => o.status === "DELIVERED",
-  ).length;
-  const unread = useUnreadMessages("satis");
   const [tab, setTab] = useState<"teklif" | "gelir" | "musteri">("teklif");
   const [activityType, setActivityType] = useState<
     "all" | "invitation" | "bid" | "order"
@@ -286,69 +272,9 @@ export function SatisDashboardView() {
         </div>
       </header>
 
-      {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
-      {analytics.isLoading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
-      ) : analytics.data ? (
-        <ActionCenter
-          rows={[
-            {
-              key: "invites",
-              icon: Inbox,
-              count: analytics.data.actions.unansweredInvites,
-              text: "davete henüz teklif vermedin",
-              href: "/company/satis/acik-ihaleler",
-              ctaLabel: "Teklif Ver",
-              tone: "amber",
-            },
-            {
-              key: "closing",
-              icon: Clock3,
-              count: analytics.data.actions.closingSoonInvites,
-              text: "davetli ihale 3 gün içinde kapanıyor",
-              href: "/company/satis/acik-ihaleler",
-              ctaLabel: "İncele",
-              tone: "red",
-            },
-            {
-              key: "delivery",
-              icon: Truck,
-              count: analytics.data.actions.overdueDeliveries,
-              text: "satışının teslim tarihi geçti",
-              href: "/company/satis/siparisler",
-              ctaLabel: "Satışlara Git",
-              tone: "red",
-            },
-            {
-              key: "orderPending",
-              icon: PackageCheck,
-              count: pendingOrderCount,
-              text: "sipariş onayını bekliyor",
-              href: "/company/satis/siparisler",
-              ctaLabel: "Onayla",
-              tone: "amber",
-            },
-            {
-              key: "payment",
-              icon: Wallet,
-              count: paymentWindowCount,
-              text: "satışın ödemesi bekleniyor",
-              href: "/company/satis/siparisler",
-              ctaLabel: "Ödemeler",
-              tone: "slate",
-            },
-            {
-              key: "messages",
-              icon: MessageSquare,
-              count: unread.data?.count ?? 0,
-              text: "okunmamış mesajın var",
-              href: "/company/mesajlar",
-              ctaLabel: "Mesajlar",
-              tone: "slate",
-            },
-          ]}
-        />
-      ) : null}
+      {/* Aksiyon merkezi — "bugün ne yapmalıyım" (Faz 2: veri + sıralama
+          backend'de, metin haritası ACTION_ROWS'ta). */}
+      <ActionCenter portal="satis" />
 
 
       {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}

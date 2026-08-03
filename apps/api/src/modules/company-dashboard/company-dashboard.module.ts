@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ActionCenterService } from "./action-center.service";
 import { DashboardAnalyticsService } from "./dashboard-analytics.service";
 import { TimeSavingsService } from "./time-savings.service";
 import { CompanyAuthModule } from "../company-auth/company-auth.module";
@@ -8,6 +9,11 @@ import { CompanyDashboardService } from "./company-dashboard.service";
 @Module({
   imports: [CompanyAuthModule],
   controllers: [CompanyDashboardController],
-  providers: [CompanyDashboardService, TimeSavingsService, DashboardAnalyticsService],
+  providers: [
+    CompanyDashboardService,
+    TimeSavingsService,
+    DashboardAnalyticsService,
+    ActionCenterService,
+  ],
 })
 export class CompanyDashboardModule {}

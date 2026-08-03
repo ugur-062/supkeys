@@ -5,6 +5,36 @@ import type { TedarikciTabData } from "@/components/dashboard/tedarikci-tab";
 import { companyApi } from "@/lib/company-auth/api";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
+// ── Aksiyon Merkezi (Faz 2) — severity + zaman bilgili tek uyarı listesi ──
+
+export type ActionSeverity = "critical" | "warning" | "info";
+
+export interface ActionCenterApiRow {
+  key: string;
+  severity: ActionSeverity;
+  count: number;
+  /** En yakın gelecekteki son tarih (ISO). */
+  dueAt: string | null;
+  /** En büyük gecikme (gün). */
+  overdueDays: number | null;
+  /** En eski bekleme (gün). */
+  waitingDays: number | null;
+}
+
+export function useActionCenter(portal: "satinalma" | "satis") {
+  return useQuery<{ rows: ActionCenterApiRow[] }>({
+    queryKey: ["company-dashboard", "action-center", portal],
+    queryFn: async () => {
+      const { data } = await companyApi.get<{ rows: ActionCenterApiRow[] }>(
+        `/company/dashboard/action-center?portal=${portal}`,
+      );
+      return data;
+    },
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  });
+}
+
 export interface OpenTenderRow {
   id: string;
   tenderNumber: string;

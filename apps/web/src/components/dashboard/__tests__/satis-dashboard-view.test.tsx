@@ -44,6 +44,11 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesChip: () => <div data-testid="tcmb" />,
 }));
+// ActionCenter kendi ucundan beslenir (action-center endpoint) — ayrı test
+// edilir; burada varlığını gözlemleyen hafif mock.
+vi.mock("@/components/dashboard/action-center", () => ({
+  ActionCenter: () => <div data-testid="action-center" />,
+}));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
 

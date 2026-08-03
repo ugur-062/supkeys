@@ -39,7 +39,103 @@ export const DASH = {
     "Parametreler platform yönetiminden düzenlenebilir; firma bazında özelleştirilebilir. Hatırlatma parametresi, hatırlatma kaydı tutulmadığı için hesaba katılmaz.",
   quarterCostNote:
     "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
+  actionTitle: "Bugün ne yapmalıyım?",
+  actionEmpty: "Bekleyen bir işin yok.",
+  actionShowAll: (n: number) => `Tümünü gör (${n})`,
+  actionShowLess: "Daha az göster",
 } as const;
+
+/** Aksiyon Merkezi satır metin/CTA haritası — anahtarlar backend
+ * ActionCenterService satır key'leriyle birebir. */
+export const ACTION_ROWS: Record<
+  "satinalma" | "satis",
+  Record<string, { text: string; ctaLabel: string; href: string }>
+> = {
+  satinalma: {
+    overduePayments: {
+      text: "siparişin ödemesi gecikti",
+      ctaLabel: "Ödemeler",
+      href: "/company/satinalma/siparisler",
+    },
+    overdueDeliveries: {
+      text: "siparişin teslim tarihi geçti",
+      ctaLabel: "Siparişlere Git",
+      href: "/company/satinalma/siparisler",
+    },
+    zeroBidClosingSoon: {
+      text: "ihalen teklifsiz kapanmak üzere",
+      ctaLabel: "Davetli Ekle",
+      href: "/company/satinalma/ihalelerim",
+    },
+    closingSoon: {
+      text: "ihalen kapanmak üzere",
+      ctaLabel: "İncele",
+      href: "/company/satinalma/ihalelerim",
+    },
+    awaitingDecision: {
+      text: "ihalende karar bekleyen teklif var",
+      ctaLabel: "Değerlendir",
+      href: "/company/satinalma/ihalelerim",
+    },
+    pendingApprovals: {
+      text: "kazandırma onay bekliyor",
+      ctaLabel: "Onayla",
+      href: "/company/onaylar",
+    },
+    sellerApproval: {
+      text: "sipariş satıcı onayında",
+      ctaLabel: "İncele",
+      href: "/company/satinalma/siparisler",
+    },
+    receiveOrders: {
+      text: "sipariş teslim almanı bekliyor",
+      ctaLabel: "Teslim Al",
+      href: "/company/satinalma/siparisler",
+    },
+    paymentWindow: {
+      text: "siparişin ödemesi bekleniyor",
+      ctaLabel: "Ödemeler",
+      href: "/company/satinalma/siparisler",
+    },
+    messages: {
+      text: "okunmamış mesajın var",
+      ctaLabel: "Mesajlar",
+      href: "/company/mesajlar",
+    },
+  },
+  satis: {
+    overdueDeliveries: {
+      text: "siparişin teslim tarihi geçti",
+      ctaLabel: "Satışlarım",
+      href: "/company/satis/siparisler",
+    },
+    unansweredInvites: {
+      text: "davete henüz teklif vermedin",
+      ctaLabel: "Teklif Ver",
+      href: "/company/satis/acik-ihaleler",
+    },
+    expiringBids: {
+      text: "teklifinin geçerliliği dolmak üzere",
+      ctaLabel: "Tekliflerim",
+      href: "/company/satis/tekliflerim",
+    },
+    pendingOrders: {
+      text: "sipariş onayını bekliyor",
+      ctaLabel: "Onayla",
+      href: "/company/satis/siparisler",
+    },
+    paymentWindow: {
+      text: "siparişin ödemesi bekleniyor",
+      ctaLabel: "Satışlarım",
+      href: "/company/satis/siparisler",
+    },
+    messages: {
+      text: "okunmamış mesajın var",
+      ctaLabel: "Mesajlar",
+      href: "/company/mesajlar",
+    },
+  },
+};
 
 export const PARAM_LABELS: Record<string, string> = {
   rfqMailPrepMin: "RFQ maili hazırlama (× davet)",
