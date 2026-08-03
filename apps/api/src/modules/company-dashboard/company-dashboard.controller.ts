@@ -9,6 +9,7 @@ import {
   TimeSavingsService,
   type SavingsPeriod,
 } from "./time-savings.service";
+import { DashboardAnalyticsService } from "./dashboard-analytics.service";
 
 @Controller("company/dashboard")
 @UseGuards(CompanyJwtAuthGuard)
@@ -16,7 +17,29 @@ export class CompanyDashboardController {
   constructor(
     private readonly service: CompanyDashboardService,
     private readonly timeSavings: TimeSavingsService,
+    private readonly analytics: DashboardAnalyticsService,
   ) {}
+
+  /** Pano analitiği — panel başına TEK toplu yanıt (grafik/aksiyon serileri). */
+  @Get("satinalma/analytics")
+  satinalmaAnalytics(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("period") period?: string,
+  ) {
+    const p: SavingsPeriod =
+      period === "month" || period === "quarter" ? period : "year";
+    return this.analytics.satinalma(user.companyId, p);
+  }
+
+  @Get("satis/analytics")
+  satisAnalytics(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("period") period?: string,
+  ) {
+    const p: SavingsPeriod =
+      period === "month" || period === "quarter" ? period : "year";
+    return this.analytics.satis(user.companyId, p);
+  }
 
   /** Zaman Tasarrufu — panel şeridi + Zaman alt bölümü için TEK toplu yanıt. */
   @Get("time-savings")
