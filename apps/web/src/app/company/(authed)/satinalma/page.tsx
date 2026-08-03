@@ -1,6 +1,5 @@
 "use client";
 
-import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
 import { ErrorState } from "@/components/ui/error-state";
 import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
@@ -18,7 +17,7 @@ import { useOrders } from "@/hooks/use-company-orders";
 import { useUnreadMessages } from "@/hooks/use-company-messages";
 import { MessageSquare, PackageCheck } from "lucide-react";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
-import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
+import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import {
   Banknote,
   CheckSquare,
@@ -27,11 +26,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { HeroStat } from "@/components/dashboard/hero-stat";
 import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
-import { SavingsCriteriaDialog } from "@/components/dashboard/savings-criteria-dialog";
-import { formatMoney } from "@/components/ui/money";
-import { DASH } from "@/lib/dashboard/strings";
 import { cn } from "@/lib/utils";
 import {
   Tab,
@@ -91,7 +86,6 @@ export default function SatinalmaDashboardPage() {
     (o) => o.status === "DELIVERED",
   ).length;
   const unread = useUnreadMessages("satinalma");
-  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -115,19 +109,13 @@ export default function SatinalmaDashboardPage() {
             ) : null}
           </p>
         </div>
-        <PeriodToggle value={period} onChange={setPeriod} />
+        {/* Kur çipi başlıkta — büyük TCMB kartı ve zaman-tasarrufu şeridi
+            anasayfadan kalktı (şerit → raporlar hub'ı). */}
+        <div className="flex flex-wrap items-center gap-3">
+          <TcmbRatesChip />
+          <PeriodToggle value={period} onChange={setPeriod} />
+        </div>
       </header>
-
-      {/* Zaman tasarrufu — TEK SATIRLIK ince şerit (dev hero kalktı). */}
-      {savings.isLoading ? (
-        <div className="h-10 animate-pulse rounded-lg bg-zinc-200/60" aria-hidden />
-      ) : savings.data ? (
-        <SavingsHero
-          data={savings.data}
-          period={period}
-          onHowClick={() => setCriteriaOpen(true)}
-        />
-      ) : null}
 
       {/* Firma verisi tamamen boşsa: aksiyon/grafik yerine başlangıç listesi. */}
       {analytics.data &&
@@ -252,21 +240,6 @@ export default function SatinalmaDashboardPage() {
         />
       ) : null}
 
-      {/* TCMB — sağ sütun yerine tek satırlık kompakt şerit. */}
-      <TcmbRatesWidget />
-      <SavingsCriteriaDialog
-        open={criteriaOpen}
-        onClose={() => setCriteriaOpen(false)}
-        params={savings.data?.params}
-      />
-
-      {/* Uyarı: davet edilip teklif verilmemiş açık SATIŞ ihaleleri (yoksa görünmez) */}
-      <InvitedPendingBanner
-        count={ihale.data?.invitedPending ?? 0}
-        href="/company/satinalma/satin-al"
-      />
-
-
       <TabGroup className="space-y-6">
         <TabList
           className="flex gap-1 border-b border-zinc-950/10"
@@ -348,59 +321,6 @@ function TabLoading() {
         ))}
       </div>
       <div className="h-72 animate-pulse rounded-2xl bg-zinc-200/60" />
-    </div>
-  );
-}
-
-/** Zaman tasarrufu — tek satırlık ince şerit (ikon + metin + nasıl linki). */
-function SavingsHero({
-  data,
-  period,
-  onHowClick,
-}: {
-  data: NonNullable<ReturnType<typeof useTimeSavings>["data"]>;
-  period: Period;
-  onHowClick: () => void;
-}) {
-  const hasActivity =
-    data.savedMinutes > 0 ||
-    data.counters.listings > 0 ||
-    data.counters.bids > 0;
-  const hours = data.savedMinutes / 60;
-  const hoursLabel = hours >= 10 ? String(Math.round(hours)) : hours.toFixed(1);
-  return (
-    <div
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm"
-      aria-label={
-        hasActivity
-          ? `Yaklaşık ${hoursLabel} saat kazandın (${DASH.heroPeriod[period]}, tahmini)`
-          : DASH.heroEmptyTitle
-      }
-    >
-      <Clock3 className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
-      {hasActivity ? (
-        <>
-          <span className="font-semibold tabular-nums text-slate-950">
-            {DASH.heroSavedTitle(hoursLabel)}
-          </span>
-          <span className="text-slate-500">
-            {DASH.heroPeriod[period]}
-            {data.laborValueTry != null
-              ? ` · ${DASH.heroValue(formatMoney(data.laborValueTry, "TRY"))}`
-              : ""}
-          </span>
-          <span className="text-xs text-slate-400">(tahmini)</span>
-        </>
-      ) : (
-        <span className="text-slate-500">{DASH.heroEmptyBody}</span>
-      )}
-      <button
-        type="button"
-        onClick={onHowClick}
-        className="ml-auto shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-900"
-      >
-        {DASH.heroHow}
-      </button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { HubList } from "@/components/company/hub-list";
+import { WinRateCard } from "@/components/dashboard/win-rate-card";
 import dynamic from "next/dynamic";
 import { FileText, GitCompare, TrendingUp } from "lucide-react";
 
@@ -43,6 +44,9 @@ export default function SatisRaporlarPage() {
         },
       ]}
     />
+      {/* Pano refactor Faz 1: kazanma-oranı şeridi anasayfadan buraya taşındı
+          (n<10 karar iken oran gösterilmez). */}
+      <WinRateCard />
       {/* P2 (denetim §10.5): hub özet grafikleri. */}
       <ReportsSummaryCharts type="SATIS" />
     </div>

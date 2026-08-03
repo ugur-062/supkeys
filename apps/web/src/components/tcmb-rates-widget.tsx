@@ -53,6 +53,53 @@ function FlagGB() {
 }
 
 /**
+ * Pano başlığı için kompakt kur çipi — gövdedeki büyük kartın yerini aldı.
+ * Tam bilgi (kaynak + kurun ait olduğu gün) hover/odak title'ında.
+ */
+export function TcmbRatesChip() {
+  const { data, isLoading } = useCurrentExchangeRates();
+
+  if (isLoading) {
+    return (
+      <div className="h-8 w-44 animate-pulse rounded-lg bg-zinc-200/60" aria-hidden />
+    );
+  }
+  if (!data) return null;
+
+  const fmt = (val: number) =>
+    new Intl.NumberFormat("tr-TR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(val);
+  const dateLabel = data.rateDate
+    ? new Date(`${data.rateDate}T00:00:00`).toLocaleDateString("tr-TR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+  const label = `TCMB günlük gösterge kuru${dateLabel ? ` · ${dateLabel}` : ""}`;
+
+  return (
+    <div
+      className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold tabular-nums text-zinc-700 shadow-sm"
+      title={label}
+      aria-label={`Döviz kurları — ${label}`}
+    >
+      <span>${fmt(data.rates.USD ?? 0)}</span>
+      <span className="text-zinc-300" aria-hidden>
+        ·
+      </span>
+      <span>€{fmt(data.rates.EUR ?? 0)}</span>
+      <span className="text-zinc-300" aria-hidden>
+        ·
+      </span>
+      <span>£{fmt(data.rates.GBP ?? 0)}</span>
+    </div>
+  );
+}
+
+/**
  * V2-3 — TCMB günlük gösterge kuru widget'ı.
  * Tenant + supplier dashboard'larında render edilir. Endpoint public
  * (`/api/exchange-rates/current`), cache 5 dk + refetchInterval 5 dk.

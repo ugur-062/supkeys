@@ -42,22 +42,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/tcmb-rates-widget", () => ({
-  TcmbRatesWidget: () => <div data-testid="tcmb" />,
-}));
-// ActionStrip kendi hook'larıyla (onay/mesaj/sipariş) ayrı test edilir —
-// burada extra prop sözleşmesini gözlemleyen hafif mock.
-vi.mock("@/components/dashboard/action-strip", () => ({
-  ActionStrip: ({
-    extra = [],
-  }: {
-    extra?: { key: string; label: string; count?: number }[];
-  }) => (
-    <div data-testid="action-strip">
-      {extra.map((e) => (
-        <span key={e.key}>{`${e.count} ${e.label}`}</span>
-      ))}
-    </div>
-  ),
+  TcmbRatesChip: () => <div data-testid="tcmb" />,
 }));
 
 import { SatisDashboardView } from "../satis-dashboard-view";

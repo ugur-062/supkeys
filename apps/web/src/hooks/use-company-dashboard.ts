@@ -26,15 +26,6 @@ export interface SatinalmaDashboard {
   openTendersCompany: OpenTenderRow[];
 }
 
-export interface SatisDashboard {
-  openCount: number;
-  activeBids: number;
-  awarded: number;
-  ongoingOrders: number;
-  openTendersOwn: OpenTenderRow[];
-  openTendersCompany: OpenTenderRow[];
-}
-
 export function useSatinalmaDashboard() {
   return useQuery<SatinalmaDashboard>({
     queryKey: ["company-dashboard", "satinalma"],
@@ -71,19 +62,6 @@ export function useSatinalmaTedarikci() {
       return data;
     },
     staleTime: 5 * 60_000,
-  });
-}
-
-export function useSatisDashboard() {
-  return useQuery<SatisDashboard>({
-    queryKey: ["company-dashboard", "satis"],
-    queryFn: async () => {
-      const { data } = await companyApi.get<SatisDashboard>(
-        "/company/dashboard/satis",
-      );
-      return data;
-    },
-    staleTime: 60_000,
   });
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { DASH } from "@/lib/dashboard/strings";
 import { useOrders } from "@/hooks/use-company-orders";
 import { useUnreadMessages } from "@/hooks/use-company-messages";
 import { MessageSquare, PackageCheck, Wallet } from "lucide-react";
@@ -28,9 +27,8 @@ import {
   XAxis as RXAxis,
   YAxis as RYAxis,
 } from "recharts";
-import { Clock3, Inbox, Trophy as TrophyIcon, Truck } from "lucide-react";
-import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
-import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
+import { Clock3, Inbox, Truck } from "lucide-react";
+import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
@@ -202,31 +200,10 @@ function ActivityPager({
   );
 }
 
-function QuickLink({
-  href,
-  icon: Icon,
-  label,
-}: {
-  href: string;
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-zinc-50"
-    >
-      <Icon className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-      <span className="flex-1 font-medium text-zinc-900">{label}</span>
-      <ArrowRight className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
-    </Link>
-  );
-}
-
 /**
- * Satış panosu — eski tedarikçi paneli ana sayfasının birebir paritesi:
- * karşılama + CTA, aksiyon banner'ı, 4 KPI, Performans (trendli), Son
- * Aktiviteler, TCMB kurları + Hızlı Erişim. Görsel dil: zinc/Catalyst.
+ * Satış panosu — karşılama + CTA, aksiyon merkezi, 4 KPI, Performans
+ * (trendli), Son Aktiviteler; tek kolon (sağ ray + Hızlı Erişim kaldırıldı,
+ * kur bilgisi başlıktaki çipte). Görsel dil: zinc/Catalyst.
  */
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
@@ -295,7 +272,9 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
+        {/* Kur çipi başlıkta; kazanma-oranı şeridi raporlar hub'ına taşındı. */}
         <div className="flex flex-wrap items-center gap-3">
+          <TcmbRatesChip />
           <PeriodToggle value={period} onChange={setPeriod} />
           <Link
             href="/company/satis/acik-ihaleler"
@@ -306,47 +285,6 @@ export function SatisDashboardView() {
           </Link>
         </div>
       </header>
-
-      {/* Kazanma oranı — TEK SATIRLIK ince şerit (dev hero kalktı). */}
-      {analytics.data ? (
-        (() => {
-          const decided = analytics.data.winLoss.reduce(
-            (a, w) => a + w.won + w.lost,
-            0,
-          );
-          const won = analytics.data.winLoss.reduce((a, w) => a + w.won, 0);
-          return (
-            <div
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm"
-              aria-label={
-                decided > 0
-                  ? `Kazanma oranı yüzde ${Math.round((won / decided) * 100)} — son 12 ayda karara bağlanan ${decided} teklifin ${won} tanesi kazandı`
-                  : DASH.heroWinEmptyTitle
-              }
-            >
-              <TrophyIcon className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
-              {decided > 0 ? (
-                <>
-                  <span className="font-semibold tabular-nums text-slate-950">
-                    {DASH.heroWinTitle(String(Math.round((won / decided) * 100)))}
-                  </span>
-                  <span className="text-slate-500">
-                    {DASH.heroWinSupport(won, decided)} · son 12 ay
-                  </span>
-                </>
-              ) : (
-                <span className="text-slate-500">{DASH.heroWinEmptyBody}</span>
-              )}
-              <Link
-                href="/company/satis/tekliflerim"
-                className="ml-auto shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-900"
-              >
-                Tekliflerim
-              </Link>
-            </div>
-          );
-        })()
-      ) : null}
 
       {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
       {analytics.isLoading ? (
@@ -492,9 +430,8 @@ export function SatisDashboardView() {
         />
       </div>
 
-      {/* 2 sütun: Performans + Aktivite | TCMB + Hızlı Erişim */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      {/* Tek kolon — sağ ray (TCMB + Hızlı Erişim) kaldırıldı. */}
+      <div className="space-y-6">
           <PanelCard title="Performans" subtitle="Son 30 gün ve toplam özet">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
@@ -579,30 +516,6 @@ export function SatisDashboardView() {
               onPage={setActivityPage}
             />
           </PanelCard>
-        </div>
-
-        <div className="space-y-4">
-          <TcmbRatesWidget />
-          <PanelCard title="Hızlı Erişim" padding="sm">
-            <div className="space-y-1">
-              <QuickLink
-                href="/company/satis/acik-ihaleler"
-                icon={Briefcase}
-                label="Açık İhaleler"
-              />
-              <QuickLink
-                href="/company/satis/siparisler"
-                icon={Package}
-                label="Satışlarım"
-              />
-              <QuickLink
-                href="/company/satis/profilim"
-                icon={TrendingUp}
-                label="Firma Profilim"
-              />
-            </div>
-          </PanelCard>
-        </div>
       </div>
       </>
       )}
