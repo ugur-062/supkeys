@@ -403,10 +403,20 @@ export class CompanyApprovalsService {
       include: { steps: { orderBy: { order: "asc" } } },
     });
     if (!src) throw new NotFoundException("Onay akışı bulunamadı");
+    // §10.7: "(kopya) (kopya)" birikmez — taban ad + "— Kopya N" numaralanır.
+    const base = src.name.replace(/\s*(\(kopya\)|— Kopya( \d+)?)\s*$/i, "").trim();
+    const siblings = await this.prisma.approvalFlow.findMany({
+      where: { companyId: user.companyId, name: { startsWith: base } },
+      select: { name: true },
+    });
+    const taken = new Set(siblings.map((f) => f.name));
+    let copyName = `${base} — Kopya`;
+    for (let n = 2; taken.has(copyName); n += 1)
+      copyName = `${base} — Kopya ${n}`;
     const copy = await this.prisma.approvalFlow.create({
       data: {
         companyId: user.companyId,
-        name: `${src.name} (kopya)`,
+        name: copyName.slice(0, 120),
         type: src.type,
         listingType: src.listingType,
         initiatorRoles: src.initiatorRoles,
