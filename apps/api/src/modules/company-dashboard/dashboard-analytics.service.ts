@@ -142,7 +142,14 @@ export class DashboardAnalyticsService {
 
       const [listings, bids, approvals, orders, payments, openOrdersAll] = await Promise.all([
         this.prisma.listing.findMany({
-          where: { companyId, type: "ALIM", status: { not: "DRAFT" }, createdAt: { gte: from } },
+          // CANCELLED analitik evrenine GİRMEZ (Faz 5): iptal edilmiş ihale
+          // funnel/kpiSeries/deltas'ı şişiriyordu (time-savings ile aynı kural).
+          where: {
+            companyId,
+            type: "ALIM",
+            status: { notIn: ["DRAFT", "CANCELLED"] },
+            createdAt: { gte: from },
+          },
           select: {
             id: true, number: true, title: true, status: true,
             createdAt: true, closesAt: true, awardedAt: true,
@@ -246,23 +253,47 @@ export class DashboardAnalyticsService {
         }).length,
       };
 
-      // ── Funnel (dönem içi akış) ──
+      // ── Funnel — KOHORT (Faz 5): dönemde AÇILAN ihalelerin BUGÜNKÜ aşama
+      //    dağılımı. Her aşama bir öncekinin alt kümesi → monotonic azalan,
+      //    dönüşüm ≤ %100 (eski "dönem-akışı" sayımı %160 gibi imkansız
+      //    oranlar üretiyordu: farklı kohortların sipariş/ihalesi bölünüyordu).
       const pListings = inWin(listings, start, end);
       const pBids = inWin(bids, start, end);
       const pAwarded = listings.filter(
         (l) => l.awardedAt && l.awardedAt >= start && l.awardedAt < end,
       );
       const pOrders = inWin(liveOrders, start, end);
-      const pDelivered = liveOrders.filter((o) => {
-        const d = o.deliveredAt ?? o.completedAt;
-        return d && d >= start && d < end;
-      });
+      const orderedListingIds = new Set(
+        liveOrders.filter((o) => o.listingId).map((o) => o.listingId!),
+      );
+      const deliveredListingIds = new Set(
+        liveOrders
+          .filter((o) => o.listingId && (o.deliveredAt ?? o.completedAt))
+          .map((o) => o.listingId!),
+      );
+      const cohort = pListings;
       const funnel = [
-        { key: "listings", label: "İhale", count: pListings.length },
-        { key: "bids", label: "Teklif Alan", count: pListings.filter((l) => l.bids.length > 0).length },
-        { key: "awarded", label: "Kazandırılan", count: pAwarded.length },
-        { key: "orders", label: "Sipariş", count: pOrders.length },
-        { key: "delivered", label: "Teslim", count: pDelivered.length },
+        { key: "listings", label: "İhale Açıldı", count: cohort.length },
+        {
+          key: "bids",
+          label: "Teklif Aldı",
+          count: cohort.filter((l) => l.bids.length > 0).length,
+        },
+        {
+          key: "awarded",
+          label: "Kazandırıldı",
+          count: cohort.filter((l) => l.awardedAt).length,
+        },
+        {
+          key: "orders",
+          label: "Siparişe Döndü",
+          count: cohort.filter((l) => orderedListingIds.has(l.id)).length,
+        },
+        {
+          key: "delivered",
+          label: "Teslim Edildi",
+          count: cohort.filter((l) => deliveredListingIds.has(l.id)).length,
+        },
       ];
 
       // ── Döngü süresi: ihale açılışı → İLK sipariş (aylık ort. gün) ──

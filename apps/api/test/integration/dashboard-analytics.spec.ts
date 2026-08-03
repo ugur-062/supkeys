@@ -97,6 +97,61 @@ describe("DashboardAnalyticsService (DB)", () => {
     ).toBe(1);
   });
 
+  it("kohort funnel (Faz 5): aşamalar monotonic azalır; CANCELLED evrene girmez", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    // 1) Teklif almış + kazandırılmış + siparişe dönmüş ihale.
+    const won = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+    });
+    await prisma.listing.update({
+      where: { id: won.id },
+      data: { awardedAt: new Date() },
+    });
+    const item = await makeItem(prisma, won.id);
+    await makeBid(prisma, {
+      listingId: won.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      status: "WON",
+      amount: 100,
+      submittedAt: new Date(),
+      items: [{ itemId: item.id, unitPrice: 10 }],
+    });
+    await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        listingId: won.id,
+        amount: 100,
+        currency: "TRY",
+        status: "ACCEPTED",
+      },
+    });
+    // 2) Teklifsiz açık ihale (yalnız ilk aşamada sayılır).
+    await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "OPEN",
+    });
+    // 3) İptal edilmiş ihale — hiç sayılmaz.
+    await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "CANCELLED",
+    });
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    const counts = sa.funnel.map((f) => f.count);
+    expect(counts).toEqual([2, 1, 1, 1, 0]); // CANCELLED yok; teslim yok
+    // Monotonic azalan — kohortta %100 üstü dönüşüm yapısal olarak imkansız.
+    for (let i = 1; i < counts.length; i++) {
+      expect(counts[i]!).toBeLessThanOrEqual(counts[i - 1]!);
+    }
+  });
+
   it("money bloğu (Faz 4): dönem harcaması + açık taahhüt TRY-only hesaplanır", async () => {
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});

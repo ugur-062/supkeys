@@ -244,19 +244,28 @@ export function DashboardEmptyState({
   );
 }
 
-// ── ActionCenter ───────────────────────────────────────────────────────────
 // ── FunnelChart (div-tabanlı — recharts funnel'ından daha okunur/erişilir) ─
+// Faz 5: aşama başına kademeli ton (hepsi aynı renk değil) + opsiyonel
+// tıklanınca-filtreli-liste href'i.
+const FUNNEL_TONES: Record<"blue" | "emerald", string[]> = {
+  blue: ["bg-blue-700", "bg-blue-600", "bg-blue-500", "bg-blue-400", "bg-blue-300"],
+  emerald: [
+    "bg-emerald-700", "bg-emerald-600", "bg-emerald-500",
+    "bg-emerald-400", "bg-emerald-300",
+  ],
+};
+
 export function FunnelChart({
   stages,
   accent = "blue",
   formatValue = (n) => String(n),
 }: {
-  stages: { key: string; label: string; count: number }[];
+  stages: { key: string; label: string; count: number; href?: string }[];
   accent?: "blue" | "emerald";
   formatValue?: (n: number) => string;
 }) {
   const max = Math.max(1, ...stages.map((s) => s.count));
-  const bar = accent === "blue" ? "bg-blue-600" : "bg-emerald-600";
+  const tones = FUNNEL_TONES[accent];
   return (
     <ol className="space-y-2" aria-label="Süreç hunisi">
       {stages.map((s, i) => {
@@ -265,8 +274,8 @@ export function FunnelChart({
           prev != null && prev > 0
             ? Math.round((s.count / prev) * 100)
             : null;
-        return (
-          <li key={s.key}>
+        const inner = (
+          <>
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="text-slate-500">{s.label}</span>
               <span className="tabular-nums text-slate-700">
@@ -280,10 +289,28 @@ export function FunnelChart({
             </div>
             <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100">
               <div
-                className={cn("h-full rounded-full", bar)}
+                className={cn(
+                  "h-full rounded-full",
+                  tones[Math.min(i, tones.length - 1)],
+                )}
                 style={{ width: `${Math.max(2, (s.count / max) * 100)}%` }}
               />
             </div>
+          </>
+        );
+        return (
+          <li key={s.key}>
+            {s.href ? (
+              <Link
+                href={s.href}
+                aria-label={`${s.label} — listeye git`}
+                className="block rounded-md px-1 py-0.5 -mx-1 transition hover:bg-slate-50"
+              >
+                {inner}
+              </Link>
+            ) : (
+              inner
+            )}
           </li>
         );
       })}

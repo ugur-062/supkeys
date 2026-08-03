@@ -35,6 +35,16 @@ import { useState } from "react";
 
 type SubTab = "own" | "company";
 
+/** Faz 5 — huni aşaması → filtreli liste (birebir filtre yoksa düz liste;
+ *  yanlış filtre vermekten iyidir). */
+const FUNNEL_STAGE_HREF: Record<string, string> = {
+  listings: "/company/satinalma/ihalelerim",
+  bids: "/company/satinalma/ihalelerim",
+  awarded: "/company/satinalma/ihalelerim?status=AWARDED",
+  orders: "/company/satinalma/siparisler",
+  delivered: "/company/satinalma/siparisler?status=DELIVERED",
+};
+
 /** Satınalma panosu — İhale sekmesi (eski ihale-tab markup'ı, yeni veri). */
 export function SatinalmaIhaleTab({
   data,
@@ -148,12 +158,18 @@ export function SatinalmaIhaleTab({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Süreç Hunisi"
-          subtitle="İhale → teklif → kazandırma → sipariş → teslim (seçili dönem)"
+          subtitle="Dönemde açılan ihalelerin bugünkü aşaması (kohort — her aşama öncekinin alt kümesi)"
           ariaLabel="Satınalma süreç hunisi"
           href="/company/satinalma/ihalelerim"
         >
           {analytics && analytics.funnel[0]!.count > 0 ? (
-            <FunnelChart stages={analytics.funnel} accent="blue" />
+            <FunnelChart
+              stages={analytics.funnel.map((f) => ({
+                ...f,
+                href: FUNNEL_STAGE_HREF[f.key],
+              }))}
+              accent="blue"
+            />
           ) : (
             <DashboardEmptyState
               title="Henüz huni verisi yok"
@@ -296,14 +312,21 @@ function DaysLeftBadge({ closesAt }: { closesAt: string }) {
   );
 }
 
-/** Döngü süresi çizgisi — null aylar atlanır; hedef verisi platformda YOK
- *  (TODO: firma hedefi girilebilir olursa ReferenceLine eklenecek). */
+/** Döngü süresi — dürüstlük kuralları (Faz 5.2):
+ *  - < 3 dolu ay: grafik YOK — tek büyük sayı + "en az 3 ay" notu (tek
+ *    noktayı çizgi/dikey alan olarak çizmek yanıltıcıydı),
+ *  - eksen tam sayı tick (ondalık gün yok); tüm değerler < 1 günse saate
+ *    çevrilir,
+ *  - null aylar çizgiyle BAĞLANMAZ (connectNulls yok) — izole ay dot kalır.
+ *  Hedef verisi platformda YOK (TODO: firma hedefi girilirse ReferenceLine). */
 function CycleTrendChart({
   points,
 }: {
   points?: { key: string; label: string; value: number | null }[];
 }) {
-  const filled = (points ?? []).filter((p) => p.value != null);
+  const filled = (points ?? []).filter(
+    (p): p is { key: string; label: string; value: number } => p.value != null,
+  );
   if (filled.length === 0) {
     return (
       <DashboardEmptyState
@@ -312,22 +335,66 @@ function CycleTrendChart({
       />
     );
   }
+
+  const avgDays =
+    filled.reduce((s, p) => s + p.value, 0) / filled.length;
+
+  if (filled.length < 3) {
+    return (
+      <div className="flex h-48 flex-col items-center justify-center gap-1">
+        <p className="text-4xl font-semibold tracking-tight tabular-nums text-slate-950">
+          {formatDaysOrHours(avgDays)}
+        </p>
+        <p className="text-sm text-slate-500">
+          ortalama · önceki dönem —
+        </p>
+        <p className="text-xs text-slate-400">
+          Trend için en az 3 ay veri gerekli.
+        </p>
+      </div>
+    );
+  }
+
+  // Tüm değerler < 1 gün → saat ekseni (0,4 gün gibi tick'ler okunmuyordu).
+  const useHours = filled.every((p) => p.value < 1);
+  const data = useHours
+    ? (points ?? []).map((p) =>
+        p.value == null ? p : { ...p, value: Math.round(p.value * 24) },
+      )
+    : points;
+  const unit = useHours ? "saat" : "gün";
+
   return (
-    <div className="h-48">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points}>
-          <CartesianGrid vertical={false} stroke="#e2e8f0" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-          <YAxis tickLine={false} axisLine={false} width={30} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-          <Tooltip formatter={(v) => [`${Number(v ?? 0)} gün`, "Ortalama"]} />
-          <Line
-            type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={1.5}
-            connectNulls dot={{ r: 2 }} isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div>
+      <div className="h-44">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <CartesianGrid vertical={false} stroke="#e2e8f0" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              width={30}
+              tick={{ fontSize: 11, fill: "#94a3b8" }}
+              allowDecimals={false}
+            />
+            <Tooltip formatter={(v) => [`${Number(v ?? 0)} ${unit}`, "Ortalama"]} />
+            <Line
+              type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={1.5}
+              dot={{ r: 3 }} isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="mt-1 text-right text-[11px] text-slate-400">{unit}</p>
     </div>
   );
+}
+
+/** < 1 gün ortalamayı saate çevirerek yazar ("14 saat" / "1,4 gün"). */
+function formatDaysOrHours(days: number): string {
+  if (days < 1) return `${Math.round(days * 24)} saat`;
+  return `${days.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} gün`;
 }
 
 function formatDate(iso: string): string {
