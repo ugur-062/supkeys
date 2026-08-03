@@ -183,10 +183,7 @@ export default function SatinalmaDashboardPage() {
           </TabPanel>
           <TabPanel className="outline-none">
             {tedarikci.data ? (
-              <TedarikciTab
-                data={tedarikci.data}
-                analytics={analytics.data}
-              />
+              <TedarikciTab data={tedarikci.data} />
             ) : tedarikci.isError ? (
               <ErrorState
                 title="Veri alınamadı"

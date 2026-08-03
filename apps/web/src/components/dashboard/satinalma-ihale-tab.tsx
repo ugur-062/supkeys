@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -57,8 +59,17 @@ export function SatinalmaIhaleTab({
   compare?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTab>("own");
-  const rows =
+  // Faz 6.2 — varsayılan sıralama KAPANIŞA göre artan (ihale no değil);
+  // kolon başlıkları tıklanınca yön/kolon değişir.
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: "closes",
+    dir: 1,
+  });
+  const baseRows =
     subTab === "own" ? data.openTendersOwn : data.openTendersCompany;
+  const rows = [...baseRows].sort((a, b) => sort.dir * compareRows(a, b, sort.key));
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
   return (
     <div className="space-y-6">
@@ -189,6 +200,34 @@ export function SatinalmaIhaleTab({
         </ChartCard>
       </div>
 
+      {/* Nakit Takvimi — tedarikçi sekmesinden anasayfa gövdesine taşındı
+          (Faz 6.3): ödeme yükü üçüncü sekmede saklı kalmasın. */}
+      <ChartCard
+        title="Nakit Takvimi"
+        subtitle="Önümüzdeki 30 günün ödeme yükü (haftalık, TRY siparişler)"
+        ariaLabel="30 günlük ödeme takvimi"
+        href="/company/satinalma/siparisler?status=DELIVERED"
+      >
+        {analytics && analytics.cashCalendar.some((w) => w.amount > 0) ? (
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.cashCalendar}>
+                <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                <YAxis tickLine={false} axisLine={false} width={52} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), "Ödeme"]} />
+                <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            title="Önümüzdeki 30 günde vadesi gelen ödeme yok"
+            body="Teslim alınan siparişlerin vadeleri yaklaştıkça haftalık ödeme yükün burada görünecek."
+          />
+        )}
+      </ChartCard>
+
       {/* Teklife Açık İhaleler paneli */}
       <section className="card">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-950/5 px-5 py-4">
@@ -249,11 +288,15 @@ export function SatinalmaIhaleTab({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>İhale No</TableHeader>
+                  <SortableHeader label="İhale No" k="number" sort={sort} onSort={toggleSort} />
                   <TableHeader>İhale Adı</TableHeader>
-                  <TableHeader>Açılış Tarihi</TableHeader>
-                  <TableHeader>Kapanış</TableHeader>
-                  <TableHeader className="text-right">Gelen Teklif</TableHeader>
+                  <SortableHeader label="Açılış Tarihi" k="opened" sort={sort} onSort={toggleSort} />
+                  <SortableHeader label="Kapanış" k="closes" sort={sort} onSort={toggleSort} />
+                  <SortableHeader
+                    label="Gelen Teklif" k="bids" sort={sort} onSort={toggleSort}
+                    className="text-right"
+                  />
+                  <TableHeader>Rekabet</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -262,10 +305,11 @@ export function SatinalmaIhaleTab({
                     <TableCell className="tabular-nums text-xs text-zinc-600">
                       {r.tenderNumber}
                     </TableCell>
-                    <TableCell className="text-zinc-900">
+                    <TableCell className="max-w-64 text-zinc-900">
                       <Link
                         href={`/company/ilan/${r.id}`}
-                        className="font-medium hover:text-zinc-600"
+                        className="block truncate font-medium hover:text-zinc-600"
+                        title={r.title}
                       >
                         {r.title}
                       </Link>
@@ -279,6 +323,9 @@ export function SatinalmaIhaleTab({
                     <TableCell className="text-right tabular-nums text-zinc-700">
                       {r.bidCount ?? "—"}
                     </TableCell>
+                    <TableCell>
+                      <CompetitionCell row={r} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -287,6 +334,88 @@ export function SatinalmaIhaleTab({
         )}
       </section>
     </div>
+  );
+}
+
+type SortKey = "number" | "opened" | "closes" | "bids";
+
+function compareRows(
+  a: { tenderNumber: string; openedAt: string; closesAt: string; bidCount?: number },
+  b: { tenderNumber: string; openedAt: string; closesAt: string; bidCount?: number },
+  key: SortKey,
+): number {
+  switch (key) {
+    case "number":
+      return a.tenderNumber.localeCompare(b.tenderNumber, "tr");
+    case "opened":
+      return Date.parse(a.openedAt) - Date.parse(b.openedAt);
+    case "closes":
+      return Date.parse(a.closesAt) - Date.parse(b.closesAt);
+    case "bids":
+      return (a.bidCount ?? 0) - (b.bidCount ?? 0);
+  }
+}
+
+/** Sıralanabilir kolon başlığı — aria-sort + yön oku. */
+function SortableHeader({
+  label,
+  k,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string;
+  k: SortKey;
+  sort: { key: SortKey; dir: 1 | -1 };
+  onSort: (k: SortKey) => void;
+  className?: string;
+}) {
+  const active = sort.key === k;
+  return (
+    <TableHeader
+      className={className}
+      aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-zinc-900",
+          active && "text-zinc-900",
+        )}
+      >
+        {label}
+        <span aria-hidden className={cn("text-[10px]", !active && "opacity-30")}>
+          {active ? (sort.dir === 1 ? "▲" : "▼") : "▲"}
+        </span>
+      </button>
+    </TableHeader>
+  );
+}
+
+/** Faz 6.1 — Rekabet kolonu: <2 teklif = düşük rekabet + satır içi aksiyon
+ *  ("Davetli Ekle" → ihale detayı; süre uzatma da detaydadır). */
+function CompetitionCell({
+  row,
+}: {
+  row: { id: string; closesAt: string; bidCount?: number };
+}) {
+  const bids = row.bidCount ?? 0;
+  if (bids >= 2) {
+    return <span className="text-xs text-zinc-400">Sağlıklı</span>;
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5 whitespace-nowrap">
+      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+        {bids === 0 ? "0 teklif" : "1 teklif"}
+      </span>
+      <Link
+        href={`/company/ilan/${row.id}`}
+        className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
+      >
+        Davetli Ekle
+      </Link>
+    </span>
   );
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import {
+  copyTitle,
   mapDetailToForm,
   toDateInput,
   toLocalInput,
@@ -63,11 +64,19 @@ describe("mapDetailToForm", () => {
     expect(f.invitedSupplierIds).toEqual(["ROT-0001"]); // null rothernId atılır
   });
 
-  it("kopya: başlığa (kopya) eklenir, kapanış boşalır, açılış 'şimdi' olur", () => {
+  it("kopya: başlık sayaç alır, kapanış boşalır, açılış 'şimdi' olur", () => {
     const f = mapDetailToForm(detail, { forCopy: true });
-    expect(f.title).toBe("Çelik alımı (kopya)");
+    expect(f.title).toBe("Çelik alımı (2)");
     expect(f.bidsCloseAt).toBe("");
     // Açılış "şimdi" öntanımlı (YYYY-MM-DDTHH:mm) — kaynaktan kopyalanmaz.
     expect(f.bidsOpenAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+  });
+
+  it("copyTitle: '(kopya)' zinciri temizlenir, sayaç tek seviyede artar (Faz 6.5)", () => {
+    expect(copyTitle("X")).toBe("X (2)");
+    expect(copyTitle("X (2)")).toBe("X (3)");
+    expect(copyTitle("X (kopya)")).toBe("X (2)");
+    expect(copyTitle("X (kopya) (kopya)")).toBe("X (2)");
+    expect(copyTitle("X (kopya) (kopya) (kopya)")).toBe("X (2)");
   });
 });

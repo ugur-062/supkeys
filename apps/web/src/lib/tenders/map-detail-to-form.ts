@@ -28,6 +28,18 @@ export function toDateInput(iso?: string | null): string {
 }
 
 /**
+ * Faz 6.5 — kopya başlığı: "(kopya) (kopya)" zinciri yerine tek seviye
+ * sayaç. "X" → "X (2)", "X (2)" → "X (3)", "X (kopya) (kopya)" → "X (2)".
+ * (Başlık wizard'da düzenlenebilir — sayaç yalnız çakışmayan varsayılandır.)
+ */
+export function copyTitle(title: string): string {
+  const base = title.replace(/(\s*\(kopya\))+\s*$/i, "").trimEnd();
+  const m = base.match(/^(.*)\s\((\d+)\)$/);
+  if (m) return `${m[1]} (${Number(m[2]) + 1})`;
+  return `${base} (2)`;
+}
+
+/**
  * ListingDetail → wizard form (mapToInput'un tersi). Düzenle ve Kopyala
  * akışları paylaşır. `forCopy=true` ise tarih/davet gibi kopyaya taşınmaması
  * gereken alanlar boşaltılır.
@@ -47,7 +59,7 @@ export function mapDetailToForm(
     minPrice: l.minPrice != null ? Number(l.minPrice) : undefined,
     buyNowPrice: l.buyNowPrice != null ? Number(l.buyNowPrice) : undefined,
     categoryIds: l.categoryIds ?? [],
-    title: forCopy ? `${l.title} (kopya)` : l.title,
+    title: forCopy ? copyTitle(l.title) : l.title,
     description: l.description ?? "",
     keywords: l.keywords ?? [],
     // Kopya daima RFQ açılır — İngiliz usulü doğrudan açılamaz (tek yol

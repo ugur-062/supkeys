@@ -146,12 +146,11 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
       ) : (
       <>
       {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4">
         <ChartCard
           title="Tasarruf Trendi"
           subtitle="Aylık tasarruf (bar) + kümülatif (çizgi) — TRY ihaleler; hedef verisi platformda yok"
           ariaLabel="Aylık tasarruf trendi"
-          className="lg:col-span-2"
         >
           {analytics && analytics.savingsTrend.some((p) => p.value > 0) ? (
             <div className="h-52">
@@ -175,17 +174,9 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
             />
           )}
         </ChartCard>
-        <ChartCard
-          title="Bütçe vs Gerçekleşen"
-          ariaLabel="Bütçe karşılaştırması"
-        >
-          {/* TODO: bütçe varlığı platformda yok — bütçe girişi eklendiğinde
-              bullet chart burada çizilecek. Sahte veri basılmaz. */}
-          <DashboardEmptyState
-            title="Bütçe verisi yok"
-            body="Platformda henüz bütçe tanımı tutulmuyor — bütçe girişi geldiğinde bu kart bullet chart olarak dolacak."
-          />
-        </ChartCard>
+        {/* "Bütçe vs Gerçekleşen" kartı KALDIRILDI (Faz 6.4): bütçe alanı
+            şemada yok — kullanıcıya roadmap cümlesi gösterilmez. Bütçe girişi
+            eklendiğinde kart yeniden gelir (bkz. eksik-veri listesi). */}
       </div>
 
       {/* 3 metrik kartı */}
