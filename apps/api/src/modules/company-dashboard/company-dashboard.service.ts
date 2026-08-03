@@ -40,6 +40,9 @@ export class CompanyDashboardService {
             createdAt: true,
             closesAt: true,
             createdById: true,
+            _count: {
+              select: { bids: { where: { status: "SUBMITTED" } } },
+            },
           },
           orderBy: { createdAt: "desc" },
         }),
@@ -87,6 +90,7 @@ export class CompanyDashboardService {
       title: l.title,
       openedAt: l.createdAt,
       closesAt: l.closesAt ?? l.createdAt,
+      bidCount: l._count.bids,
     });
 
     return {

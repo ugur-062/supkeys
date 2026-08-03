@@ -5,6 +5,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,7 +16,14 @@ import { InfoTooltip } from "./info-tooltip";
 import type { Period } from "./period-toggle";
 import { SavingsCriteriaDialog } from "./savings-criteria-dialog";
 import { DASH } from "@/lib/dashboard/strings";
-import type { TimeSavingsData } from "@/hooks/use-company-dashboard";
+import type {
+  SatinalmaAnalytics,
+  TimeSavingsData,
+} from "@/hooks/use-company-dashboard";
+import {
+  ChartCard,
+  DashboardEmptyState,
+} from "@/components/dashboard/analytics-primitives";
 
 export interface SavingsMetrics {
   totalSavings: number; // TRY
@@ -59,6 +68,8 @@ interface Props {
   period: Period;
   /** Zaman alt bölümü + kriter modalı verisi (time-savings endpoint'i). */
   savings?: TimeSavingsData;
+  /** Trend + tutarlı kategori kırılımı (analytics ucu). */
+  analytics?: SatinalmaAnalytics;
 }
 
 const TOOLTIP_SAVINGS =
@@ -74,7 +85,7 @@ const TOOLTIP_CATEGORY =
 const TOOLTIP_CURRENCY =
   "İhale ana para birimine göre tasarruf oranı (TRY equivalent baz alınır).";
 
-export function TasarrufTab({ data, period, savings }: Props) {
+export function TasarrufTab({ data, period, savings, analytics }: Props) {
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
   const [section, setSection] = useState<"cost" | "time">("cost");
@@ -134,6 +145,48 @@ export function TasarrufTab({ data, period, savings }: Props) {
         <TimeSection savings={savings} />
       ) : (
       <>
+      {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <ChartCard
+          title="Tasarruf Trendi"
+          subtitle="Aylık tasarruf (bar) + kümülatif (çizgi) — TRY ihaleler; hedef verisi platformda yok"
+          ariaLabel="Aylık tasarruf trendi"
+          className="lg:col-span-2"
+        >
+          {analytics && analytics.savingsTrend.some((p) => p.value > 0) ? (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={analytics.savingsTrend}>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <YAxis tickLine={false} axisLine={false} width={48} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <Tooltip formatter={(v, n) => [formatTRY(Number(v ?? 0)), n === "value" ? "Aylık" : "Kümülatif"]} />
+                  <Bar dataKey="value" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                  <Line type="monotone" dataKey="cumulative" stroke="#1e3a8a" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <DashboardEmptyState
+              title="Henüz tasarruf verisi yok"
+              body="İlk ihaleni sonuçlandırdığında (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
+              ctaLabel="İhale Aç"
+              ctaHref="/company/satinalma/ihalelerim/yeni"
+            />
+          )}
+        </ChartCard>
+        <ChartCard
+          title="Bütçe vs Gerçekleşen"
+          ariaLabel="Bütçe karşılaştırması"
+        >
+          {/* TODO: bütçe varlığı platformda yok — bütçe girişi eklendiğinde
+              bullet chart burada çizilecek. Sahte veri basılmaz. */}
+          <DashboardEmptyState
+            title="Bütçe verisi yok"
+            body="Platformda henüz bütçe tanımı tutulmuyor — bütçe girişi geldiğinde bu kart bullet chart olarak dolacak."
+          />
+        </ChartCard>
+      </div>
 
       {/* 3 metrik kartı */}
       <section className="card p-6">
@@ -254,7 +307,16 @@ export function TasarrufTab({ data, period, savings }: Props) {
         <BreakdownCard
           title="Ana Kategori Bazlı Tasarrufum"
           tooltip={TOOLTIP_CATEGORY}
-          rows={categoryRows.map((r) => ({ label: r.label, percent: r.percent }))}
+          rows={categoryRows.map((r) => {
+            const amt = analytics?.categorySavings.find(
+              (c) => c.label === r.label,
+            )?.amount;
+            return {
+              label: r.label,
+              percent: r.percent,
+              amountLabel: amt != null ? formatTRY(amt) : undefined,
+            };
+          })}
           color="brand"
         />
         <BreakdownCard
@@ -396,7 +458,7 @@ function BreakdownCard({
 }: {
   title: string;
   tooltip: string;
-  rows: Array<{ label: string; percent?: number }>;
+  rows: Array<{ label: string; percent?: number; amountLabel?: string }>;
   color: "brand" | "indigo";
 }) {
   const fill =
@@ -425,6 +487,11 @@ function BreakdownCard({
                   {r.label}
                 </span>
                 <span className="font-mono font-semibold text-zinc-900">
+                  {r.amountLabel ? (
+                    <span className="mr-1.5 text-slate-500">
+                      {r.amountLabel}
+                    </span>
+                  ) : null}
                   {hasData ? `${(r.percent as number).toFixed(2)}%` : "—"}
                 </span>
               </div>

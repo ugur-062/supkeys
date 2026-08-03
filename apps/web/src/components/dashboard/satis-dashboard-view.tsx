@@ -1,9 +1,32 @@
 "use client";
 
 import { ActionStrip } from "@/components/dashboard/action-strip";
-import { HeroStat } from "@/components/dashboard/hero-stat";
-import { useReportsSummary } from "@/components/reports/reports-summary-charts";
+import { cn } from "@/lib/utils";
 import { DASH } from "@/lib/dashboard/strings";
+import {
+  ActionCenter,
+  ChartCard,
+  DashboardEmptyState,
+  FunnelChart,
+  KpiCard,
+} from "@/components/dashboard/analytics-primitives";
+import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
+import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
+import { useSearchParams } from "next/navigation";
+import {
+  Area,
+  AreaChart,
+  Bar as RBar,
+  BarChart as RBarChart,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer as RContainer,
+  Tooltip as RTooltip,
+  XAxis as RXAxis,
+  YAxis as RYAxis,
+} from "recharts";
+import { Clock3, Inbox, Trophy as TrophyIcon, Truck } from "lucide-react";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
@@ -222,8 +245,24 @@ export function SatisDashboardView() {
 
   const s = stats.data;
   const loading = stats.isLoading;
-  // Üst şerit: kazanma oranı (son 12 ay — reports summary, ek istek tek).
-  const summary = useReportsSummary("SATIS");
+  // Global dönem — URL'de (?period=) taşınır (satınalma ile aynı desen).
+  const searchParams = useSearchParams();
+  const urlPeriod = searchParams.get("period");
+  const [period, setPeriodState] = useState<Period>(
+    urlPeriod === "month" || urlPeriod === "quarter" ? urlPeriod : "year",
+  );
+  const setPeriod = (p: Period) => {
+    setPeriodState(p);
+    const u = new URL(window.location.href);
+    if (p === "year") u.searchParams.delete("period");
+    else u.searchParams.set("period", p);
+    window.history.replaceState(null, "", u.toString());
+  };
+  const analytics = useSatisAnalytics(period);
+  const [tab, setTab] = useState<"teklif" | "gelir" | "musteri">("teklif");
+  const [activityType, setActivityType] = useState<
+    "all" | "invitation" | "bid" | "order"
+  >("all");
   // §10.1: yüklemede "0 teklif" yanılgısı yok — sayaç "—" gösterir.
   const val = (n: number | undefined) => (loading ? "—" : (n ?? 0));
 
@@ -245,53 +284,93 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
-        <Link
-          href="/company/satis/acik-ihaleler"
-          className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          İhaleleri Görüntüle
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodToggle value={period} onChange={setPeriod} />
+          <Link
+            href="/company/satis/acik-ihaleler"
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          >
+            İhaleleri Görüntüle
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
       </header>
 
-      {/* KAZANMA ORANI şeridi — başlığın hemen altında (HeroStat, satınalma
-          şeridiyle aynı yapı; tasarruf yerine kazanma odaklı). */}
-      {summary.isLoading ? (
-        <div className="h-28 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
-      ) : summary.data && summary.data.winRate.total > 0 ? (
-        <HeroStat
-          headline={DASH.heroWinTitle(
-            String(
-              Math.round(
-                (summary.data.winRate.won / summary.data.winRate.total) * 100,
-              ),
-            ),
-          )}
-          ariaLabel={`Kazanma oranı yüzde ${Math.round((summary.data.winRate.won / summary.data.winRate.total) * 100)} — ${DASH.heroWinSupport(summary.data.winRate.won, summary.data.winRate.total)}`}
-          supports={[
-            DASH.heroWinSupport(
-              summary.data.winRate.won,
-              summary.data.winRate.total,
-            ),
-            "son 12 ay",
+      {/* Kazanma oranı — TEK SATIRLIK ince şerit (dev hero kalktı). */}
+      {analytics.data ? (
+        (() => {
+          const decided = analytics.data.winLoss.reduce(
+            (a, w) => a + w.won + w.lost,
+            0,
+          );
+          const won = analytics.data.winLoss.reduce((a, w) => a + w.won, 0);
+          return (
+            <div
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm"
+              aria-label={
+                decided > 0
+                  ? `Kazanma oranı yüzde ${Math.round((won / decided) * 100)} — son 12 ayda karara bağlanan ${decided} teklifin ${won} tanesi kazandı`
+                  : DASH.heroWinEmptyTitle
+              }
+            >
+              <TrophyIcon className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+              {decided > 0 ? (
+                <>
+                  <span className="font-semibold tabular-nums text-slate-950">
+                    {DASH.heroWinTitle(String(Math.round((won / decided) * 100)))}
+                  </span>
+                  <span className="text-slate-500">
+                    {DASH.heroWinSupport(won, decided)} · son 12 ay
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-500">{DASH.heroWinEmptyBody}</span>
+              )}
+              <Link
+                href="/company/satis/tekliflerim"
+                className="ml-auto shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-900"
+              >
+                Tekliflerim
+              </Link>
+            </div>
+          );
+        })()
+      ) : null}
+
+      {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
+      {analytics.isLoading ? (
+        <div className="h-32 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+      ) : analytics.data ? (
+        <ActionCenter
+          rows={[
+            {
+              key: "invites",
+              icon: Inbox,
+              count: analytics.data.actions.unansweredInvites,
+              text: "davete henüz teklif vermedin",
+              href: "/company/satis/acik-ihaleler",
+              ctaLabel: "Teklif Ver",
+              tone: "amber",
+            },
+            {
+              key: "closing",
+              icon: Clock3,
+              count: analytics.data.actions.closingSoonInvites,
+              text: "davetli ihale 3 gün içinde kapanıyor",
+              href: "/company/satis/acik-ihaleler",
+              ctaLabel: "İncele",
+              tone: "red",
+            },
+            {
+              key: "delivery",
+              icon: Truck,
+              count: analytics.data.actions.overdueDeliveries,
+              text: "satışının teslim tarihi geçti",
+              href: "/company/satis/siparisler",
+              ctaLabel: "Satışlara Git",
+              tone: "red",
+            },
           ]}
-          spark={summary.data.months.map((mo) => ({
-            key: mo.key,
-            value: mo.bids,
-          }))}
-        />
-      ) : summary.data ? (
-        <HeroStat
-          headline=""
-          ariaLabel={DASH.heroWinEmptyTitle}
-          supports={[]}
-          spark={[]}
-          empty={{
-            title: DASH.heroWinEmptyTitle,
-            body: DASH.heroWinEmptyBody,
-            ctaLabel: DASH.heroWinEmptyCta,
-            ctaHref: "/company/satis/acik-ihaleler",
-          }}
         />
       ) : null}
 
@@ -312,34 +391,74 @@ export function SatisDashboardView() {
         />
       ) : null}
 
+      {/* Sekmeler: Teklif / Gelir / Müşteri (satınalma ile aynı dil). */}
+      <div
+        role="tablist"
+        aria-label="Satış panosu bölümleri"
+        className="flex gap-1 border-b border-zinc-950/10"
+      >
+        {(
+          [
+            ["teklif", "Teklif"],
+            ["gelir", "Gelir"],
+            ["musteri", "Müşteri"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={cn(
+              "-mb-px border-b-2 px-5 py-2.5 text-sm font-medium transition-colors",
+              tab === key
+                ? "border-emerald-600 text-zinc-900"
+                : "border-transparent text-zinc-500 hover:text-zinc-700",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "gelir" ? (
+        <SatisGelirTab analytics={analytics.data} loading={analytics.isLoading} />
+      ) : tab === "musteri" ? (
+        <SatisMusteriTab analytics={analytics.data} loading={analytics.isLoading} />
+      ) : (
+      <>
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardKpiCard
+        <KpiCard
           label="Aktif Davetler"
           value={val(s?.invitations.active)}
-          hint="Henüz teklif vermediğin"
           href="/company/satis/acik-ihaleler"
-          accent="success"
+          accent="emerald"
+          attention={(s?.invitations.active ?? 0) > 0}
         />
-        <DashboardKpiCard
+        <KpiCard
           label="Aktif Tekliflerim"
           value={val(s?.bids.active)}
-          hint="Verilmiş + değerlendirilen"
           href="/company/satis/tekliflerim"
-          accent="warning"
+          accent="emerald"
+          deltaPct={analytics.data?.deltas.bidsSubmitted}
+          spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
-        <DashboardKpiCard
+        <KpiCard
           label="Kazanılan İhale"
           value={val(s?.wonTenders)}
-          hint="Toplam kazanım"
           href="/company/satis/tekliflerim"
+          accent="emerald"
+          spark={analytics.data?.kpiSeries.won}
         />
-        <DashboardKpiCard
+        <KpiCard
           label="Aktif Sipariş"
           value={val(s?.orders.pending)}
-          hint="Teslimat bekleyen"
           href="/company/satis/siparisler"
-          accent="indigo"
+          accent="emerald"
+          deltaPct={analytics.data?.deltas.orders}
+          spark={analytics.data?.kpiSeries.orders}
         />
       </div>
 
@@ -391,9 +510,38 @@ export function SatisDashboardView() {
             title="Son Aktiviteler"
             subtitle="Davetler, teklifler ve siparişlerden"
           >
+            {/* Tür filtresi — yüklü sayfa üstünde istemci tarafı süzme. */}
+            <div className="mb-3 flex gap-1 rounded-lg bg-zinc-100 p-1 sm:w-fit">
+              {(
+                [
+                  ["all", "Tümü"],
+                  ["invitation", "Davet"],
+                  ["bid", "Teklif"],
+                  ["order", "Sipariş"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActivityType(key)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-semibold transition",
+                    activityType === key
+                      ? "bg-white text-zinc-900 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {/* Sayfa geçişinde placeholderData önceki sayfayı tutar — soluk göster. */}
             <div className={activity.isPlaceholderData ? "opacity-60" : undefined}>
-              <ActivityFeed rows={activity.data?.rows ?? []} />
+              <ActivityFeed
+                rows={(activity.data?.rows ?? []).filter(
+                  (r) => activityType === "all" || r.type === activityType,
+                )}
+              />
             </div>
             <ActivityPager
               page={activityPage}
@@ -426,6 +574,294 @@ export function SatisDashboardView() {
           </PanelCard>
         </div>
       </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+/** Gelir sekmesi — trend + kazanma yığını + TL pipeline. */
+function SatisGelirTab({
+  analytics,
+  loading,
+}: {
+  analytics?: import("@/hooks/use-company-dashboard").SatisAnalytics;
+  loading: boolean;
+}) {
+  if (loading || !analytics) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-100" />
+        ))}
+      </div>
+    );
+  }
+  const AXIS = { fontSize: 11, fill: "#94a3b8" };
+  const hasRevenue = analytics.revenueTrend.some((p) => p.value > 0);
+  const hasWinLoss = analytics.winLoss.some(
+    (w) => w.won + w.lost + w.pending > 0,
+  );
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <ChartCard
+        title="Gelir Trendi"
+        subtitle="Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — TRY satışlar"
+        ariaLabel="Aylık gelir trendi"
+        href="/company/satis/siparisler"
+        className="lg:col-span-2"
+      >
+        {hasRevenue ? (
+          <div className="h-56">
+            <RContainer width="100%" height="100%">
+              <ComposedChart data={analytics.revenueTrend}>
+                <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
+                <RYAxis tickLine={false} axisLine={false} width={56} tick={AXIS} />
+                <RTooltip
+                  formatter={(v, n) => [
+                    formatMoney(Number(v ?? 0), "TRY"),
+                    n === "value" ? "Aylık" : "Kümülatif",
+                  ]}
+                />
+                <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.12} isAnimationActive={false} />
+                <Line type="monotone" dataKey="cumulative" stroke="#065f46" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+              </ComposedChart>
+            </RContainer>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            title="Henüz gelir verisi yok"
+            body="İlk satışın siparişe dönüştüğünde aylık gelir burada birikecek."
+            ctaLabel="Açık İhalelere Göz At"
+            ctaHref="/company/satis/acik-ihaleler"
+          />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Kazanma / Kaybetme Dağılımı"
+        subtitle="Aylık karara bağlanan teklifler (kazanıldı · kaybedildi · beklemede)"
+        ariaLabel="Aylık kazanma kaybetme dağılımı"
+        href="/company/satis/tekliflerim"
+      >
+        {hasWinLoss ? (
+          <div className="h-52">
+            <RContainer width="100%" height="100%">
+              <RBarChart data={analytics.winLoss}>
+                <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
+                <RYAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={AXIS} />
+                <RTooltip
+                  formatter={(v, n) => [
+                    Number(v ?? 0),
+                    n === "won" ? "Kazanıldı" : n === "lost" ? "Kaybedildi" : "Beklemede",
+                  ]}
+                />
+                <RBar dataKey="won" stackId="w" fill="#059669" />
+                <RBar dataKey="lost" stackId="w" fill="#e11d48" />
+                <RBar dataKey="pending" stackId="w" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
+              </RBarChart>
+            </RContainer>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            title="Henüz karar verisi yok"
+            body="Tekliflerin karara bağlandıkça aylık kazanma/kaybetme dağılımı burada görünecek."
+          />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Pipeline"
+        subtitle="Davet adet; sonraki aşamalar TL (teklifsiz davetin tutarı bilinemez)"
+        ariaLabel="Satış pipeline hunisi"
+      >
+        {analytics.pipeline.some((p) => p.count > 0) ? (
+          <FunnelChart
+            accent="emerald"
+            stages={analytics.pipeline.map((p) => ({
+              key: p.key,
+              label:
+                p.amountTry != null
+                  ? `${p.label} (${formatMoney(p.amountTry, "TRY")})`
+                  : p.label,
+              count: p.count,
+            }))}
+          />
+        ) : (
+          <DashboardEmptyState
+            title="Pipeline boş"
+            body="Davet alıp teklif verdikçe aşamalar burada dolacak."
+            ctaLabel="Açık İhalelere Göz At"
+            ctaHref="/company/satis/acik-ihaleler"
+          />
+        )}
+      </ChartCard>
+    </div>
+  );
+}
+
+/** Müşteri sekmesi — Pareto + kategori kazanma + yanıt süresi + kaçırılan. */
+function SatisMusteriTab({
+  analytics,
+  loading,
+}: {
+  analytics?: import("@/hooks/use-company-dashboard").SatisAnalytics;
+  loading: boolean;
+}) {
+  if (loading || !analytics) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-100" />
+        ))}
+      </div>
+    );
+  }
+  const AXIS = { fontSize: 11, fill: "#94a3b8" };
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <ChartCard
+        title="Müşteri Konsantrasyonu"
+        subtitle="En iyi 5 müşterinin gelir payı (son 12 ay, TRY)"
+        ariaLabel="Müşteri konsantrasyonu Pareto"
+        right={
+          analytics.pareto.concentrationWarning ? (
+            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+              ⚠ Konsantrasyon riski
+            </span>
+          ) : undefined
+        }
+      >
+        {analytics.pareto.rows.length > 0 ? (
+          <ul className="space-y-2.5">
+            {analytics.pareto.rows.map((r) => (
+              <li key={r.name}>
+                <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+                  <span className="truncate text-slate-600" title={r.name}>
+                    {r.name}
+                  </span>
+                  <span className="tabular-nums text-slate-900">
+                    {formatMoney(r.amount, "TRY")}
+                    <span
+                      className={cn(
+                        "ml-1.5 font-semibold",
+                        r.sharePct > 40 ? "text-amber-600" : "text-slate-400",
+                      )}
+                    >
+                      %{r.sharePct}
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      r.sharePct > 40 ? "bg-amber-500" : "bg-emerald-600",
+                    )}
+                    style={{ width: `${Math.max(2, r.sharePct)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <DashboardEmptyState
+            title="Henüz müşteri geliri yok"
+            body="Satışların tamamlandıkça müşteri dağılımı burada görünecek."
+          />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Kategori Bazlı Kazanma Oranı"
+        subtitle="Hangi kategorilerde güçlüyüz (karara bağlanan teklifler, son 12 ay)"
+        ariaLabel="Kategori bazlı kazanma oranı"
+      >
+        {analytics.categoryWinRate.length > 0 ? (
+          <ul className="space-y-2.5">
+            {analytics.categoryWinRate.map((c) => (
+              <li key={c.label}>
+                <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+                  <span className="truncate text-slate-600" title={c.label}>
+                    {c.label}
+                  </span>
+                  <span className="tabular-nums text-slate-900">
+                    <strong>%{c.winPct}</strong>
+                    <span className="ml-1 text-slate-400">
+                      ({c.decided} teklif)
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-emerald-600"
+                    style={{ width: `${Math.max(2, c.winPct)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <DashboardEmptyState
+            title="Henüz karar verisi yok"
+            body="Tekliflerin sonuçlandıkça kategori bazlı gücün burada görünecek."
+          />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Teklif Yanıt Süresi"
+        subtitle="Davetten teklife geçen ortalama süre (saat, aylık)"
+        ariaLabel="Teklif yanıt süresi trendi"
+      >
+        {analytics.responseTrend.some((p) => p.value != null) ? (
+          <div className="h-48">
+            <RContainer width="100%" height="100%">
+              <AreaChart data={analytics.responseTrend}>
+                <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
+                <RYAxis tickLine={false} axisLine={false} width={34} tick={AXIS} />
+                <RTooltip formatter={(v) => [`${Number(v ?? 0)} sa`, "Ortalama"]} />
+                <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.1} connectNulls isAnimationActive={false} />
+              </AreaChart>
+            </RContainer>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            title="Henüz yanıt verisi yok"
+            body="Davetlere teklif verdikçe ortalama yanıt süren burada görünecek."
+          />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Kaçırılan Fırsatlar"
+        subtitle="Teklif verilmeden süresi dolan davetler (son 12 ay)"
+        ariaLabel="Kaçırılan fırsatlar"
+        href="/company/satis/acik-ihaleler"
+      >
+        {analytics.missed.count > 0 ? (
+          <div className="flex h-40 flex-col items-center justify-center gap-1">
+            <p className="text-4xl font-semibold tracking-tight tabular-nums text-rose-600">
+              {analytics.missed.count}
+            </p>
+            <p className="text-sm text-slate-500">davet teklifsiz kapandı</p>
+            {/* TODO: toplam tutar bilinemez — teklif verilmedi, ihale toplam
+                değeri platformda tutulmuyor. */}
+            <p className="text-xs text-slate-400">
+              Tutar hesaplanamaz — teklif verilmeden kapanan ihalenin değeri
+              bilinmez.
+            </p>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            title="Kaçırılan fırsat yok"
+            body="Son 12 ayda teklifsiz kapanan davetli ihalen bulunmuyor."
+          />
+        )}
+      </ChartCard>
     </div>
   );
 }

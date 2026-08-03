@@ -1,0 +1,303 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  CheckCircle2,
+  Minus,
+  type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
+
+/**
+ * Pano yeniden tasarımı — ortak primitive'ler (panelden bağımsız, props'la
+ * beslenir): TrendBadge, KpiCard, ChartCard, DashboardEmptyState,
+ * ActionCenter, FunnelChart. Kart standardı: rounded-xl border-slate-200
+ * bg-white p-5 shadow-sm; başlık text-sm font-medium text-slate-500.
+ * Kural: sahte veri yok — seri boşsa EmptyState, delta yoksa rozet çizilmez.
+ */
+
+export const DASH_CARD = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
+
+// ── TrendBadge ─────────────────────────────────────────────────────────────
+export function TrendBadge({
+  pct,
+  className,
+}: {
+  /** null → önceki dönem verisi yok, rozet çizilmez. */
+  pct: number | null | undefined;
+  className?: string;
+}) {
+  if (pct == null) return null;
+  const up = pct > 0;
+  const flat = pct === 0;
+  const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
+        flat
+          ? "bg-slate-100 text-slate-600"
+          : up
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-rose-50 text-rose-700",
+        className,
+      )}
+      aria-label={`Önceki döneme göre yüzde ${Math.abs(pct)} ${flat ? "değişim yok" : up ? "artış" : "azalış"}`}
+    >
+      <Icon className="h-3 w-3" aria-hidden />%{Math.abs(pct)}
+    </span>
+  );
+}
+
+// ── KpiCard ────────────────────────────────────────────────────────────────
+export function KpiCard({
+  label,
+  value,
+  href,
+  deltaPct,
+  spark,
+  accent = "slate",
+  attention = false,
+}: {
+  label: string;
+  value: string | number;
+  href: string;
+  deltaPct?: number | null;
+  /** Son 12 dönem GERÇEK seri — yoksa/boşsa sparkline çizilmez. */
+  spark?: { key: string; value: number }[];
+  /** Panel ana rengi: satınalma blue, satış emerald. */
+  accent?: "blue" | "emerald" | "slate";
+  /** Aksiyon gerektiren kart — sol renkli şerit. */
+  attention?: boolean;
+}) {
+  const stroke =
+    accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#64748b";
+  const hasSpark = !!spark && spark.some((s) => s.value > 0);
+  return (
+    <Link
+      href={href}
+      className={cn(
+        DASH_CARD,
+        "group relative block overflow-hidden transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
+        attention && "border-l-[3px] border-l-amber-500",
+      )}
+    >
+      {hasSpark ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 opacity-30" aria-hidden>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={spark}>
+              <Area
+                type="monotone" dataKey="value" stroke={stroke} strokeWidth={1.25}
+                fill={stroke} fillOpacity={0.12} isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : null}
+      <div className="relative">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <TrendBadge pct={deltaPct} />
+        </div>
+        <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950">
+          {value}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+// ── ChartCard ──────────────────────────────────────────────────────────────
+export function ChartCard({
+  title,
+  subtitle,
+  href,
+  ariaLabel,
+  children,
+  className,
+  right,
+}: {
+  title: string;
+  /** Grafiğin cevapladığı soru / veri notu (ör. "Yalnız TRY"). */
+  subtitle?: string;
+  /** Drill-down hedefi — verilirse başlıkta ok linki. */
+  href?: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+  className?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <section className={cn(DASH_CARD, className)} aria-label={ariaLabel}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-medium text-slate-500">{title}</h3>
+          {subtitle ? (
+            <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
+          ) : null}
+        </div>
+        {right}
+        {href ? (
+          <Link
+            href={href}
+            aria-label={`${title} — listeye git`}
+            className="rounded p-1 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+          >
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        ) : null}
+      </div>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+// ── DashboardEmptyState (grafik alanı — eksen/grid ÇİZMEZ) ────────────────
+export function DashboardEmptyState({
+  title,
+  body,
+  ctaLabel,
+  ctaHref,
+  className,
+}: {
+  title: string;
+  body: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex h-48 flex-col items-center justify-center gap-2 rounded-lg bg-slate-50 px-6 text-center",
+        className,
+      )}
+    >
+      <p className="text-sm font-medium text-slate-600">{title}</p>
+      <p className="max-w-sm text-xs leading-5 text-slate-400">{body}</p>
+      {ctaLabel && ctaHref ? (
+        <Link
+          href={ctaHref}
+          className="mt-1 inline-flex items-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+        >
+          {ctaLabel}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+// ── ActionCenter ───────────────────────────────────────────────────────────
+export interface ActionRow {
+  key: string;
+  icon: LucideIcon;
+  count: number;
+  text: string;
+  href: string;
+  ctaLabel: string;
+  /** red = gecikmiş/kritik, amber = yaklaşan, slate = nötr. */
+  tone: "red" | "amber" | "slate";
+}
+
+const TONE_ORDER = { red: 0, amber: 1, slate: 2 } as const;
+const TONE_CLS = {
+  red: "bg-rose-50 text-rose-600",
+  amber: "bg-amber-50 text-amber-600",
+  slate: "bg-slate-100 text-slate-500",
+} as const;
+
+export function ActionCenter({ rows }: { rows: ActionRow[] }) {
+  const active = rows
+    .filter((r) => r.count > 0)
+    .sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]);
+  return (
+    <section className={cn(DASH_CARD, "p-0")} aria-label="Aksiyon merkezi">
+      <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-medium text-slate-500">
+        Bugün ne yapmalıyım?
+      </h2>
+      {active.length === 0 ? (
+        <p className="flex items-center gap-2 px-5 py-4 text-sm text-slate-500">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
+          Her şey yolunda — bekleyen aksiyon yok.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {active.map((r) => (
+            <li key={r.key} className="flex items-center gap-3 px-5 py-2.5">
+              <span
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                  TONE_CLS[r.tone],
+                )}
+              >
+                <r.icon className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 text-sm text-slate-700">
+                <strong className="font-semibold tabular-nums text-slate-950">
+                  {r.count}
+                </strong>{" "}
+                {r.text}
+              </span>
+              <Link
+                href={r.href}
+                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+              >
+                {r.ctaLabel}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ── FunnelChart (div-tabanlı — recharts funnel'ından daha okunur/erişilir) ─
+export function FunnelChart({
+  stages,
+  accent = "blue",
+  formatValue = (n) => String(n),
+}: {
+  stages: { key: string; label: string; count: number }[];
+  accent?: "blue" | "emerald";
+  formatValue?: (n: number) => string;
+}) {
+  const max = Math.max(1, ...stages.map((s) => s.count));
+  const bar = accent === "blue" ? "bg-blue-600" : "bg-emerald-600";
+  return (
+    <ol className="space-y-2" aria-label="Süreç hunisi">
+      {stages.map((s, i) => {
+        const prev = i > 0 ? stages[i - 1]!.count : null;
+        const conv =
+          prev != null && prev > 0
+            ? Math.round((s.count / prev) * 100)
+            : null;
+        return (
+          <li key={s.key}>
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="text-slate-500">{s.label}</span>
+              <span className="tabular-nums text-slate-700">
+                <strong className="text-sm font-semibold text-slate-950">
+                  {formatValue(s.count)}
+                </strong>
+                {conv != null ? (
+                  <span className="ml-1.5 text-slate-400">%{conv}</span>
+                ) : null}
+              </span>
+            </div>
+            <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={cn("h-full rounded-full", bar)}
+                style={{ width: `${Math.max(2, (s.count / max) * 100)}%` }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

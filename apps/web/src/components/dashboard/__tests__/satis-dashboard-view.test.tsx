@@ -17,6 +17,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
   }),
 }));
 vi.mock("@/hooks/use-company-dashboard", () => ({
+  useSatisAnalytics: () => ({ data: undefined, isLoading: false }),
   useSatisStats: () => ({ data: h.stats, isLoading: h.statsLoading }),
   useSatisActivity: (limit = 8, page = 1) => {
     h.activityCalls.push([limit, page]);
@@ -31,9 +32,8 @@ vi.mock("@/hooks/use-company-dashboard", () => ({
     };
   },
 }));
-// HeroStat özeti gerçek useQuery kullanır — testte kapalı (QueryClient yok).
-vi.mock("@/components/reports/reports-summary-charts", () => ({
-  useReportsSummary: () => ({ data: undefined, isLoading: false }),
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesWidget: () => <div data-testid="tcmb" />,

@@ -11,6 +11,8 @@ export interface OpenTenderRow {
   title: string;
   openedAt: string;
   closesAt: string;
+  /** Gelen SUBMITTED teklif sayısı (pano tablosu kolonu). */
+  bidCount?: number;
 }
 
 export interface SatinalmaDashboard {
@@ -179,6 +181,111 @@ export function useTimeSavings(period: SavingsPeriod) {
     queryFn: async () => {
       const { data } = await companyApi.get<TimeSavingsData>(
         "/company/dashboard/time-savings",
+        { params: { period } },
+      );
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+// ── Pano analitiği (yeniden tasarım) — panel başına TEK toplu yanıt ──
+
+export interface AnalyticsMonthPoint {
+  key: string;
+  label: string;
+  value: number;
+}
+
+export interface SatinalmaAnalytics {
+  actions: {
+    closingSoon: number;
+    awaitingDecision: number;
+    pendingApprovals: number;
+    overdueDeliveries: number;
+    pendingPayments: number;
+  };
+  funnel: { key: string; label: string; count: number }[];
+  cycleTrend: { key: string; label: string; value: number | null }[];
+  savingsTrend: (AnalyticsMonthPoint & { cumulative: number })[];
+  categorySavings: { label: string; amount: number; percent: number }[];
+  topSavings: { number: string; title: string; amount: number }[];
+  competition: {
+    avgBidsPerListing: number;
+    lowCompetition: {
+      id: string;
+      number: string;
+      title: string;
+      bidCount: number;
+      closesAt: string | null;
+    }[];
+  };
+  suppliers: {
+    name: string;
+    bids: number;
+    winRatePct: number | null;
+    avgResponseHours: number | null;
+  }[];
+  cashCalendar: { label: string; amount: number }[];
+  kpiSeries: Record<
+    "listings" | "bids" | "awarded" | "orders",
+    AnalyticsMonthPoint[]
+  >;
+  deltas: Record<
+    "listings" | "bids" | "awarded" | "orders",
+    number | null
+  >;
+}
+
+export interface SatisAnalytics {
+  actions: {
+    unansweredInvites: number;
+    closingSoonInvites: number;
+    overdueDeliveries: number;
+  };
+  revenueTrend: (AnalyticsMonthPoint & { cumulative: number })[];
+  winLoss: { key: string; label: string; won: number; lost: number; pending: number }[];
+  pipeline: {
+    key: string;
+    label: string;
+    count: number;
+    amountTry: number | null;
+  }[];
+  pareto: {
+    rows: { name: string; amount: number; sharePct: number }[];
+    totalTry: number;
+    concentrationWarning: boolean;
+  };
+  responseTrend: { key: string; label: string; value: number | null }[];
+  categoryWinRate: { label: string; winPct: number; decided: number }[];
+  missed: { count: number; amountTry: number | null };
+  kpiSeries: Record<
+    "bidsSubmitted" | "won" | "orders" | "revenue",
+    AnalyticsMonthPoint[]
+  >;
+  deltas: Record<"bidsSubmitted" | "orders" | "revenue", number | null>;
+}
+
+export function useSatinalmaAnalytics(period: SavingsPeriod) {
+  return useQuery({
+    queryKey: ["company-dashboard", "satinalma-analytics", period],
+    queryFn: async () => {
+      const { data } = await companyApi.get<SatinalmaAnalytics>(
+        "/company/dashboard/satinalma/analytics",
+        { params: { period } },
+      );
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSatisAnalytics(period: SavingsPeriod) {
+  return useQuery({
+    queryKey: ["company-dashboard", "satis-analytics", period],
+    queryFn: async () => {
+      const { data } = await companyApi.get<SatisAnalytics>(
+        "/company/dashboard/satis/analytics",
         { params: { period } },
       );
       return data;

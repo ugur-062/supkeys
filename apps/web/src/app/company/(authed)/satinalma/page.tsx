@@ -8,11 +8,23 @@ import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
 import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
+  useSatinalmaAnalytics,
   useSatinalmaDashboard,
   useSatinalmaTasarruf,
   useSatinalmaTedarikci,
   useTimeSavings,
 } from "@/hooks/use-company-dashboard";
+import { ActionCenter } from "@/components/dashboard/analytics-primitives";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
+import {
+  Banknote,
+  CheckSquare,
+  Clock3,
+  Gavel,
+  Truck,
+} from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { HeroStat } from "@/components/dashboard/hero-stat";
 import { PeriodToggle, type Period } from "@/components/dashboard/period-toggle";
 import { SavingsCriteriaDialog } from "@/components/dashboard/savings-criteria-dialog";
@@ -45,12 +57,24 @@ const TRIGGER_CLASSES = cn(
 
 export default function SatinalmaDashboardPage() {
   const { company } = useCompanyAuth();
-  // Panelin TAMAMI için tek global dönem (kart içi seçiciler kalktı).
-  const [period, setPeriod] = useState<Period>("year");
+  // Panelin TAMAMI için tek global dönem — URL'de (?period=) taşınır.
+  const searchParams = useSearchParams();
+  const urlPeriod = searchParams.get("period");
+  const [period, setPeriodState] = useState<Period>(
+    urlPeriod === "month" || urlPeriod === "quarter" ? urlPeriod : "year",
+  );
+  const setPeriod = (p: Period) => {
+    setPeriodState(p);
+    const u = new URL(window.location.href);
+    if (p === "year") u.searchParams.delete("period");
+    else u.searchParams.set("period", p);
+    window.history.replaceState(null, "", u.toString());
+  };
   const ihale = useSatinalmaDashboard();
   const tasarruf = useSatinalmaTasarruf();
   const tedarikci = useSatinalmaTedarikci();
   const savings = useTimeSavings(period);
+  const analytics = useSatinalmaAnalytics(period);
   const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   const [todayLabel, setTodayLabel] = useState("");
@@ -78,9 +102,9 @@ export default function SatinalmaDashboardPage() {
         <PeriodToggle value={period} onChange={setPeriod} />
       </header>
 
-      {/* ZAMAN TASARRUFU şeridi — başlığın hemen altında, sekmelerin ÜSTÜNDE. */}
+      {/* Zaman tasarrufu — TEK SATIRLIK ince şerit (dev hero kalktı). */}
       {savings.isLoading ? (
-        <div className="h-28 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+        <div className="h-10 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
       ) : savings.data ? (
         <SavingsHero
           data={savings.data}
@@ -88,6 +112,93 @@ export default function SatinalmaDashboardPage() {
           onHowClick={() => setCriteriaOpen(true)}
         />
       ) : null}
+
+      {/* Firma verisi tamamen boşsa: aksiyon/grafik yerine başlangıç listesi. */}
+      {analytics.data &&
+      analytics.data.funnel.every((f) => f.count === 0) &&
+      ihale.data &&
+      ihale.data.openCount === 0 ? (
+        <OnboardingChecklist
+          steps={[
+            {
+              key: "profile",
+              label: "Firma profilini tamamla",
+              done: !!company?.publicEnabled,
+              href: "/company/satinalma/profilim",
+            },
+            {
+              key: "tender",
+              label: "İlk ihaleni oluştur",
+              done: false,
+              href: "/company/satinalma/ihalelerim/yeni",
+            },
+            {
+              key: "invite",
+              label: "Tedarikçi davet et",
+              done: false,
+              href: "/company/satinalma/tedarikcilerim",
+            },
+          ]}
+        />
+      ) : null}
+
+      {/* Aksiyon merkezi — "bugün ne yapmalıyım". */}
+      {analytics.isLoading ? (
+        <div className="h-32 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+      ) : analytics.data ? (
+        <ActionCenter
+          rows={[
+            {
+              key: "closing",
+              icon: Clock3,
+              count: analytics.data.actions.closingSoon,
+              text: "ihalen 3 gün içinde kapanıyor",
+              href: "/company/satinalma/ihalelerim",
+              ctaLabel: "İncele",
+              tone: "amber",
+            },
+            {
+              key: "decide",
+              icon: Gavel,
+              count: analytics.data.actions.awaitingDecision,
+              text: "ihalende karar bekleyen teklif var",
+              href: "/company/satinalma/ihalelerim",
+              ctaLabel: "Değerlendir",
+              tone: "amber",
+            },
+            {
+              key: "approve",
+              icon: CheckSquare,
+              count: analytics.data.actions.pendingApprovals,
+              text: "kazandırma onay bekliyor",
+              href: "/company/onaylar",
+              ctaLabel: "Onayla",
+              tone: "amber",
+            },
+            {
+              key: "delivery",
+              icon: Truck,
+              count: analytics.data.actions.overdueDeliveries,
+              text: "siparişin teslim tarihi geçti",
+              href: "/company/satinalma/siparisler",
+              ctaLabel: "Siparişlere Git",
+              tone: "red",
+            },
+            {
+              key: "payment",
+              icon: Banknote,
+              count: analytics.data.actions.pendingPayments,
+              text: "siparişin ödemesi gecikti",
+              href: "/company/satinalma/siparisler",
+              ctaLabel: "Ödemeler",
+              tone: "red",
+            },
+          ]}
+        />
+      ) : null}
+
+      {/* TCMB — sağ sütun yerine tek satırlık kompakt şerit. */}
+      <TcmbRatesWidget />
       <SavingsCriteriaDialog
         open={criteriaOpen}
         onClose={() => setCriteriaOpen(false)}
@@ -120,7 +231,10 @@ export default function SatinalmaDashboardPage() {
               kullanıcıyı tam sayfa yenilemeye mecbur bırakıyordu. */}
           <TabPanel className="outline-none">
             {ihale.data ? (
-              <SatinalmaIhaleTab data={ihale.data} />
+              <SatinalmaIhaleTab
+                data={ihale.data}
+                analytics={analytics.data}
+              />
             ) : ihale.isError ? (
               <ErrorState
                 title="Veri alınamadı"
@@ -136,6 +250,7 @@ export default function SatinalmaDashboardPage() {
                 data={tasarruf.data}
                 period={period}
                 savings={savings.data}
+                analytics={analytics.data}
               />
             ) : tasarruf.isError ? (
               <ErrorState
@@ -148,7 +263,10 @@ export default function SatinalmaDashboardPage() {
           </TabPanel>
           <TabPanel className="outline-none">
             {tedarikci.data ? (
-              <TedarikciTab data={tedarikci.data} />
+              <TedarikciTab
+                data={tedarikci.data}
+                analytics={analytics.data}
+              />
             ) : tedarikci.isError ? (
               <ErrorState
                 title="Veri alınamadı"
@@ -181,7 +299,7 @@ function TabLoading() {
   );
 }
 
-/** Zaman Tasarrufu şeridi — 1 ana sayı + en fazla 3 destek (kural). */
+/** Zaman tasarrufu — tek satırlık ince şerit (ikon + metin + nasıl linki). */
 function SavingsHero({
   data,
   period,
@@ -195,42 +313,41 @@ function SavingsHero({
     data.savedMinutes > 0 ||
     data.counters.listings > 0 ||
     data.counters.bids > 0;
-  if (!hasActivity) {
-    return (
-      <HeroStat
-        headline=""
-        ariaLabel={DASH.heroEmptyTitle}
-        supports={[]}
-        spark={[]}
-        empty={{
-          title: DASH.heroEmptyTitle,
-          body: DASH.heroEmptyBody,
-          ctaLabel: DASH.heroEmptyCta,
-          ctaHref: "/company/satinalma/ihalelerim/yeni",
-        }}
-      />
-    );
-  }
   const hours = data.savedMinutes / 60;
-  const hoursLabel =
-    hours >= 10 ? String(Math.round(hours)) : hours.toFixed(1);
-  const workDays = (hours / 8).toFixed(hours / 8 >= 10 ? 0 : 1);
-  const supports = [
-    DASH.heroWorkDays(workDays),
-    DASH.heroPeriod[period],
-    ...(data.laborValueTry != null
-      ? [DASH.heroValue(formatMoney(data.laborValueTry, "TRY"))]
-      : []),
-  ];
+  const hoursLabel = hours >= 10 ? String(Math.round(hours)) : hours.toFixed(1);
   return (
-    <HeroStat
-      headline={DASH.heroSavedTitle(hoursLabel)}
-      ariaLabel={`Yaklaşık ${hoursLabel} saat kazandın — ${supports.join(", ")}`}
-      supports={supports}
-      note={DASH.heroEstimatedNote}
-      spark={data.months.map((m) => ({ key: m.key, value: m.minutes }))}
-      onHowClick={onHowClick}
-      howLabel={DASH.heroHow}
-    />
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm"
+      aria-label={
+        hasActivity
+          ? `Yaklaşık ${hoursLabel} saat kazandın (${DASH.heroPeriod[period]}, tahmini)`
+          : DASH.heroEmptyTitle
+      }
+    >
+      <Clock3 className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
+      {hasActivity ? (
+        <>
+          <span className="font-semibold tabular-nums text-slate-950">
+            {DASH.heroSavedTitle(hoursLabel)}
+          </span>
+          <span className="text-slate-500">
+            {DASH.heroPeriod[period]}
+            {data.laborValueTry != null
+              ? ` · ${DASH.heroValue(formatMoney(data.laborValueTry, "TRY"))}`
+              : ""}
+          </span>
+          <span className="text-xs text-slate-400">(tahmini)</span>
+        </>
+      ) : (
+        <span className="text-slate-500">{DASH.heroEmptyBody}</span>
+      )}
+      <button
+        type="button"
+        onClick={onHowClick}
+        className="ml-auto shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-900"
+      >
+        {DASH.heroHow}
+      </button>
+    </div>
   );
 }

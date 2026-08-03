@@ -1,5 +1,11 @@
 "use client";
 
+import type { SatinalmaAnalytics } from "@/hooks/use-company-dashboard";
+import {
+  ChartCard,
+  DashboardEmptyState,
+} from "@/components/dashboard/analytics-primitives";
+import { formatMoney } from "@/components/ui/money";
 import {
   Table,
   TableBody,
@@ -14,8 +20,10 @@ import { useState } from "react";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -60,11 +68,12 @@ export interface TedarikciTabData {
 
 interface Props {
   data: TedarikciTabData;
+  analytics?: SatinalmaAnalytics;
 }
 
 const MEDAL_BG = ["bg-amber-400", "bg-slate-300", "bg-orange-400"] as const;
 
-export function TedarikciTab({ data }: Props) {
+export function TedarikciTab({ data, analytics }: Props) {
   const [topPeriod, setTopPeriod] = useState<Period>("month");
   const [compPeriod, setCompPeriod] = useState<Period>("month");
 
@@ -75,6 +84,74 @@ export function TedarikciTab({ data }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Rekabet skoru + nakit takvimi (analytics). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard
+          title="Rekabet Skoru"
+          subtitle={
+            analytics
+              ? `İhale başına ortalama ${analytics.competition.avgBidsPerListing} teklif — eşik: 2`
+              : undefined
+          }
+          ariaLabel="Rekabet skoru ve düşük rekabetli ihaleler"
+        >
+          {analytics && analytics.competition.lowCompetition.length > 0 ? (
+            <ul className="space-y-2">
+              {analytics.competition.lowCompetition.map((l) => (
+                <li
+                  key={l.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-3 py-2"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-900">
+                      {l.title}
+                    </span>
+                    <span className="text-xs text-amber-700">
+                      Düşük rekabet — {l.bidCount} teklif
+                    </span>
+                  </span>
+                  <a
+                    href={`/company/ilan/${l.id}`}
+                    className="shrink-0 text-xs font-semibold text-slate-700 underline hover:text-slate-950"
+                  >
+                    Davetli ekle
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <DashboardEmptyState
+              title="Düşük rekabetli açık ihale yok"
+              body="Açık ihalelerinin tümü en az 2 teklif almış durumda — rekabet sağlıklı."
+            />
+          )}
+        </ChartCard>
+        <ChartCard
+          title="Nakit Takvimi"
+          subtitle="Önümüzdeki 30 günün ödeme yükü (haftalık, TRY siparişler)"
+          ariaLabel="30 günlük ödeme takvimi"
+          href="/company/satinalma/siparisler"
+        >
+          {analytics && analytics.cashCalendar.some((w) => w.amount > 0) ? (
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.cashCalendar}>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <YAxis tickLine={false} axisLine={false} width={52} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), "Ödeme"]} />
+                  <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <DashboardEmptyState
+              title="Önümüzdeki 30 günde vadesi gelen ödeme yok"
+              body="Teslim alınan siparişlerin vadeleri yaklaştıkça haftalık ödeme yükün burada görünecek."
+            />
+          )}
+        </ChartCard>
+      </div>
       {/* Alt 2 kart: En Sık Teklif Veren Tedarikçiler + En Rekabetçi İhale */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Sol — geniş tablo */}

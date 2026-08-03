@@ -1,6 +1,15 @@
 "use client";
 
 import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   Table,
   TableBody,
   TableCell,
@@ -8,9 +17,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/catalyst/table";
-import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
-import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
-import type { SatinalmaDashboard } from "@/hooks/use-company-dashboard";
+import {
+  ChartCard,
+  DashboardEmptyState,
+  FunnelChart,
+  KpiCard,
+} from "@/components/dashboard/analytics-primitives";
+import type {
+  SatinalmaAnalytics,
+  SatinalmaDashboard,
+} from "@/hooks/use-company-dashboard";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
 import Link from "next/link";
@@ -19,50 +35,84 @@ import { useState } from "react";
 type SubTab = "own" | "company";
 
 /** Satınalma panosu — İhale sekmesi (eski ihale-tab markup'ı, yeni veri). */
-export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
+export function SatinalmaIhaleTab({
+  data,
+  analytics,
+}: {
+  data: SatinalmaDashboard;
+  analytics?: SatinalmaAnalytics;
+}) {
   const [subTab, setSubTab] = useState<SubTab>("own");
   const rows =
     subTab === "own" ? data.openTendersOwn : data.openTendersCompany;
 
   return (
     <div className="space-y-6">
-      {/* 4 KPI kartı */}
+      {/* 4 KPI kartı — gerçek 12 aylık seri + önceki dönem deltası
+          (stok metriği olan "Açık İhalelerim"de delta anlamsız → yok). */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardKpiCard
+        <KpiCard
           label="Açık İhalelerim"
           value={data.openCount}
-          hint="Teklife açık ihalelerini takip et."
           href="/company/satinalma/ihalelerim"
-          accent="brand"
+          accent="blue"
+          spark={analytics?.kpiSeries.listings}
         />
-        <DashboardKpiCard
+        <KpiCard
           label="Gelen Teklifler"
           value={data.bidsReceived}
-          hint="İhalelerine gelen teklifleri incele ve kazandır."
-          warning
           href="/company/satinalma/ihalelerim"
-          accent="warning"
+          accent="blue"
+          attention={data.bidsReceived > 0}
+          deltaPct={analytics?.deltas.bids}
+          spark={analytics?.kpiSeries.bids}
         />
-        <DashboardKpiCard
+        <KpiCard
           label="Kazandırılan İhaleler"
           value={data.awarded}
-          hint="Kazandırılan ihalelerini siparişe dönüştür."
           href="/company/satinalma/ihalelerim"
-          accent="success"
+          accent="blue"
+          deltaPct={analytics?.deltas.awarded}
+          spark={analytics?.kpiSeries.awarded}
         />
-        <DashboardKpiCard
+        <KpiCard
           label="Devam Eden Siparişler"
           value={data.ongoingOrders}
-          hint="Teslim aldığın siparişlerin durumunu belirt."
-          warning
           href="/company/satinalma/siparisler"
-          accent="indigo"
+          accent="blue"
+          deltaPct={analytics?.deltas.orders}
+          spark={analytics?.kpiSeries.orders}
         />
       </div>
 
-      {/* KPI altı — satış paneliyle aynı desen: sol geniş içerik + sağ kur kutusu */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      {/* Ana grafik: süreç hunisi + döngü süresi trendi. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard
+          title="Süreç Hunisi"
+          subtitle="İhale → teklif → kazandırma → sipariş → teslim (seçili dönem)"
+          ariaLabel="Satınalma süreç hunisi"
+          href="/company/satinalma/ihalelerim"
+        >
+          {analytics && analytics.funnel[0]!.count > 0 ? (
+            <FunnelChart stages={analytics.funnel} accent="blue" />
+          ) : (
+            <DashboardEmptyState
+              title="Henüz huni verisi yok"
+              body="İlk ihaleni açıp teklif topladığında süreç dönüşümü burada görünecek."
+              ctaLabel="İhale Aç"
+              ctaHref="/company/satinalma/ihalelerim/yeni"
+            />
+          )}
+        </ChartCard>
+        <ChartCard
+          title="Döngü Süresi"
+          subtitle="İhale açılışından siparişe geçen ortalama gün (aylık)"
+          ariaLabel="Döngü süresi trendi"
+        >
+          <CycleTrendChart points={analytics?.cycleTrend} />
+        </ChartCard>
+      </div>
+
       {/* Teklife Açık İhaleler paneli */}
       <section className="card">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-950/5 px-5 py-4">
@@ -126,7 +176,8 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
                   <TableHeader>İhale No</TableHeader>
                   <TableHeader>İhale Adı</TableHeader>
                   <TableHeader>Açılış Tarihi</TableHeader>
-                  <TableHeader>Kapanış Tarihi</TableHeader>
+                  <TableHeader>Kapanış</TableHeader>
+                  <TableHeader className="text-right">Gelen Teklif</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -146,8 +197,11 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
                     <TableCell className="tabular-nums text-zinc-600">
                       {formatDate(r.openedAt)}
                     </TableCell>
-                    <TableCell className="tabular-nums text-zinc-600">
-                      {formatDate(r.closesAt)}
+                    <TableCell>
+                      <DaysLeftBadge closesAt={r.closesAt} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-zinc-700">
+                      {r.bidCount ?? "—"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -156,13 +210,62 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
           </div>
         )}
       </section>
-        </div>
+    </div>
+  );
+}
 
-        {/* Sağ ray — TCMB kurları */}
-        <div className="space-y-4">
-          <TcmbRatesWidget />
-        </div>
-      </div>
+/** Kapanışa kalan gün rozeti: ≤3 kırmızı, ≤7 amber, aksi nötr. */
+function DaysLeftBadge({ closesAt }: { closesAt: string }) {
+  const days = Math.ceil(
+    (new Date(closesAt).getTime() - Date.now()) / 86_400_000,
+  );
+  if (days < 0)
+    return <span className="text-xs text-zinc-400">Kapandı</span>;
+  const cls =
+    days <= 3
+      ? "bg-rose-50 text-rose-700"
+      : days <= 7
+        ? "bg-amber-50 text-amber-700"
+        : "bg-slate-100 text-slate-600";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${cls}`}
+    >
+      {days === 0 ? "Bugün" : `${days} gün kaldı`}
+    </span>
+  );
+}
+
+/** Döngü süresi çizgisi — null aylar atlanır; hedef verisi platformda YOK
+ *  (TODO: firma hedefi girilebilir olursa ReferenceLine eklenecek). */
+function CycleTrendChart({
+  points,
+}: {
+  points?: { key: string; label: string; value: number | null }[];
+}) {
+  const filled = (points ?? []).filter((p) => p.value != null);
+  if (filled.length === 0) {
+    return (
+      <DashboardEmptyState
+        title="Henüz döngü verisi yok"
+        body="Kazandırdığın ihale siparişe dönüştüğünde açılış→sipariş süresi burada görünecek."
+      />
+    );
+  }
+  return (
+    <div className="h-48">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={points}>
+          <CartesianGrid vertical={false} stroke="#e2e8f0" />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+          <YAxis tickLine={false} axisLine={false} width={30} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+          <Tooltip formatter={(v) => [`${Number(v ?? 0)} gün`, "Ortalama"]} />
+          <Line
+            type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={1.5}
+            connectNulls dot={{ r: 2 }} isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }
