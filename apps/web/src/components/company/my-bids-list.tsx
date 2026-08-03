@@ -196,10 +196,16 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             </span>
           ) : null}
           {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
-          {b.round > 1 ? <Badge color="zinc">Tur {b.round}</Badge> : null}
+          {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
+          {b.round > 1 ? (
+            <span className="text-xs text-zinc-400">Tur {b.round}</span>
+          ) : null}
           {b.version > 1 ? (
-            <span className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600">
-              v{b.version}
+            <span
+              className="text-xs text-zinc-400"
+              title={`Bu teklifin ${b.version}. revizyonu`}
+            >
+              Revizyon {b.version}
             </span>
           ) : null}
         </div>

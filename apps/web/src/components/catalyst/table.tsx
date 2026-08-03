@@ -35,7 +35,14 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  return <thead {...props} className={clsx(className, 'text-zinc-500 dark:text-zinc-400')} />
+  // §9 DataTable (frontend denetimi): sunken zemin + mikro-uppercase başlık —
+  // tüm tablolarda tek başlık dili.
+  return (
+    <thead
+      {...props}
+      className={clsx('bg-zinc-50/80 text-xs tracking-wide text-zinc-500 uppercase', className)}
+    />
+  )
 }
 
 export function TableBody(props: React.ComponentPropsWithoutRef<'tbody'>) {

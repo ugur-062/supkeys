@@ -274,6 +274,18 @@ export function TenderWizard({
   const update = useUpdateListing(listingId ?? "");
   const submitting = (isEdit ? update.isPending : create.isPending) || docsUploading;
 
+  // §9 (denetim): kirli formda sekme kapatma/yenileme uyarısı — kazara veri
+  // kaybı bitmesin. Gönderim sürerken uyarı verilmez (kasıtlı çıkış akışı).
+  const isDirty = form.formState.isDirty;
+  useEffect(() => {
+    if (!isDirty || submitting) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, submitting]);
+
   /**
    * Staged dökümanları yeni oluşan ilana sırayla yükler. Başarısız olanlar
    * ilanı engellemez — kullanıcı Düzenle ekranından tamamlayabilir.
