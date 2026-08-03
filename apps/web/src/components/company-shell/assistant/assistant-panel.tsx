@@ -26,7 +26,9 @@ import {
   Gavel,
   History,
   Info,
+  Maximize2,
   MessageSquareText,
+  Minimize2,
   Package,
   Paperclip,
   Plus,
@@ -158,7 +160,16 @@ function initials(first?: string, last?: string): string {
 }
 
 /** Faz AI-2/3 — asistan sohbet gövdesi (modern balonlar + belge + taslak kartı). */
-export function AssistantPanel({ onClose }: { onClose?: () => void }) {
+export function AssistantPanel({
+  onClose,
+  wide,
+  onToggleWide,
+}: {
+  onClose?: () => void;
+  /** §4.4: genişletme seçeneği (launcher yönetir). */
+  wide?: boolean;
+  onToggleWide?: () => void;
+}) {
   const { user } = useCompanyAuth();
   const router = useRouter();
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -400,6 +411,21 @@ export function AssistantPanel({ onClose }: { onClose?: () => void }) {
           >
             <History className="h-4 w-4" />
           </button>
+          {onToggleWide ? (
+            <button
+              type="button"
+              aria-label={wide ? "Paneli daralt" : "Paneli genişlet"}
+              title={wide ? "Daralt" : "Genişlet"}
+              onClick={onToggleWide}
+              className="hidden h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 sm:flex"
+            >
+              {wide ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </button>
+          ) : null}
           {onClose ? (
             <>
               <span className="mx-0.5 h-5 w-px bg-zinc-950/10" />

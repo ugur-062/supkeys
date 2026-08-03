@@ -27,6 +27,8 @@ const GREET_HIDE_MS = 12_000;
 export function AssistantLauncher() {
   const { user, company } = useCompanyAuth();
   const [open, setOpen] = useState(false);
+  // §4.4: genişletme seçeneği — dar sohbet / geniş okuma.
+  const [wide, setWide] = useState(false);
   const [greet, setGreet] = useState(false);
 
   const eligible =
@@ -118,16 +120,23 @@ export function AssistantLauncher() {
       <Dialog open={open} onClose={setOpen} className="relative z-50">
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-zinc-950/20 transition data-closed:opacity-0"
+          className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[2px] transition data-closed:opacity-0"
         />
         <div className="fixed inset-y-0 right-0 flex max-w-full">
           <DialogPanel
             transition
-            className="flex w-screen max-w-md transform flex-col bg-white shadow-xl transition duration-200 ease-out data-closed:translate-x-full"
+            className={cn(
+              "flex w-screen transform flex-col bg-white shadow-xl transition duration-200 ease-out data-closed:translate-x-full",
+              wide ? "max-w-2xl" : "max-w-md",
+            )}
           >
             {/* Başlık paneldedir (markalı kimlik + aksiyonlar tek satırda) */}
             <div className="min-h-0 flex-1">
-              <AssistantPanel onClose={() => setOpen(false)} />
+              <AssistantPanel
+                onClose={() => setOpen(false)}
+                wide={wide}
+                onToggleWide={() => setWide((w) => !w)}
+              />
             </div>
           </DialogPanel>
         </div>
