@@ -36,7 +36,7 @@ export function HubList({
           <li key={it.href}>
             <Link
               href={it.href}
-              className="group flex items-center gap-4 rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md"
+              className="group flex items-center gap-4 card p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 transition-colors group-hover:bg-zinc-900">
                 <it.icon className="h-5 w-5 text-zinc-700 transition-colors group-hover:text-white" />

@@ -491,7 +491,7 @@ export default function ListingDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4">
+      <div className="space-y-4">
         <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
         <div className="h-32 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -530,7 +530,7 @@ export default function ListingDetailPage() {
     // invalidate yarışı): "bulunamadı" flaşı yerine iskeleti koru.
     if (isFetching) {
       return (
-        <div className="mx-auto max-w-6xl space-y-4">
+        <div className="space-y-4">
           <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
           <div className="h-32 animate-pulse rounded-2xl bg-zinc-100" />
           <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -689,7 +689,7 @@ export default function ListingDetailPage() {
             için premium&apos;a geçin ya da firmayla bağlantı kurun.
           </div>
         ) : null}
-        <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+        <div className="card px-2 [--gutter:--spacing(4)]">
           <Table dense>
             <TableHead>
               <TableRow>
@@ -969,7 +969,7 @@ export default function ListingDetailPage() {
               yalnız fiyat hücreleri nowrap kalır. Teklifçi sayısı gerçekten
               sığmayacak kadar artarsa Catalyst Table'ın kendi overflow-x-auto
               sarmalayıcısı güvenlik ağı olarak devreye girer. */}
-          <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+          <div className="card px-2 [--gutter:--spacing(4)]">
             {/* max-h + iç dikey scroll: sticky başlık/toplam satırı sayfa değil
                 bu kap içinde yapışır (overflow sarmalayıcı viewport sticky'yi
                 kırar). Hairline'lar border yerine shadow — border-collapse
@@ -1724,7 +1724,7 @@ export default function ListingDetailPage() {
   // ───────────── SAHİP: sekmeli ihale detayı (ALIM + SATIS) ─────────────
   if (l.isOwner) {
     return (
-      <div className="mx-auto max-w-6xl space-y-5">
+      <div className="space-y-5">
         {breadcrumb}
 
         {/* P2 (denetim §5): sticky ActionBar — solda durum, sağda durum
@@ -1762,7 +1762,7 @@ export default function ListingDetailPage() {
 
         {orderStrip}
 
-        <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+        <div className="card p-5">
           <div className="min-w-0">{header}</div>
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
@@ -1816,7 +1816,7 @@ export default function ListingDetailPage() {
 
         {/* Meta bar — bölünmüş istatistik şeridi */}
         <section>
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] lg:grid-cols-5">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-5">
             <MetaItem
               icon={Layers}
               label="Kalem"
@@ -1951,7 +1951,7 @@ export default function ListingDetailPage() {
   // Kapalı zarf: davetliler/teklifler sekmesi YOK — yalnızca kendi teklifi.
   {
     return (
-      <div className="mx-auto max-w-6xl space-y-5">
+      <div className="space-y-5">
         {breadcrumb}
 
         {/* P2 (denetim §5): sticky ActionBar — teklif CTA'sı artık sekmeden
@@ -1984,7 +1984,7 @@ export default function ListingDetailPage() {
 
         {orderStrip}
 
-        <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+        <div className="card p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">{header}</div>
             {biddingOpen && l.closesAt ? (
@@ -2027,7 +2027,7 @@ export default function ListingDetailPage() {
 
         {/* Meta şeridi */}
         <section>
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] lg:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-4">
             <MetaItem
               icon={Building2}
               label={isAlim ? "Alıcı Firma" : "Satıcı Firma"}

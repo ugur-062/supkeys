@@ -216,7 +216,7 @@ export function OnboardingClient() {
         ))}
       </ol>
 
-      <div className="mt-6 rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+      <div className="mt-6 card p-5">
         {step === 0 ? (
           <div className="space-y-3">
             <Field>

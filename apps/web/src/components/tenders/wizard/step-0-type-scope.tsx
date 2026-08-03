@@ -102,7 +102,7 @@ export function Step0TypeScope() {
             Bu ihale &apos;Pazarlığa Geç&apos; ile pazarlık (açık eksiltme)
             aşamasına aktarılmış.
           </p>
-          <div className="mt-5 rounded-2xl border border-zinc-950/10 bg-white p-6">
+          <div className="mt-5 card p-6">
             <div className="flex items-start gap-4">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white">
                 <Gavel className="h-7 w-7" />

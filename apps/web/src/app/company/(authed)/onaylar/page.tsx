@@ -130,7 +130,7 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-zinc-100 bg-white">
+    <div className="card">
       <SharedEmptyState
         icon={ClipboardCheck}
         title={text}
@@ -361,7 +361,7 @@ export default function OnaylarPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Heading>Onaylar</Heading>
@@ -420,7 +420,7 @@ export default function OnaylarPage() {
           aria-labelledby="onaylar-tab-pending"
         >
         {pendingLoading ? (
-          <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+          <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
         ) : pendingError ? (
           <ErrorState onRetry={() => refetchPending()} />
         ) : !pending || pending.length === 0 ? (
@@ -513,7 +513,7 @@ export default function OnaylarPage() {
           aria-labelledby="onaylar-tab-history"
         >
         {historyLoading ? (
-          <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+          <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
         ) : historyError ? (
           <ErrorState onRetry={() => refetchHistory()} />
         ) : !history || history.length === 0 ? (
@@ -580,7 +580,7 @@ export default function OnaylarPage() {
             </Select>
           </div>
           {allLoading ? (
-            <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+            <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
           ) : allError ? (
             <ErrorState onRetry={() => refetchAll()} />
           ) : !all || all.length === 0 ? (

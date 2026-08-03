@@ -78,7 +78,7 @@ export function TedarikciTab({ data }: Props) {
       {/* Alt 2 kart: En Sık Teklif Veren Tedarikçiler + En Rekabetçi İhale */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Sol — geniş tablo */}
-        <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 lg:col-span-2">
+        <section className="card p-6 lg:col-span-2">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <InfoTooltip content="Dönemde en çok ihalenize teklif veren tedarikçiler. Ortalama sıralama düşükse o tedarikçi sürekli en iyi 1-2 fiyat veriyor demektir." />
@@ -143,7 +143,7 @@ export function TedarikciTab({ data }: Props) {
         </section>
 
         {/* Sağ — en rekabetçi ihale */}
-        <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+        <section className="card p-6">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-950">
               En Rekabetçi İhale

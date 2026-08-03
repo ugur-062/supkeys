@@ -28,7 +28,11 @@ export function PageHeader({ title, description, action, className }: Props) {
     >
       <div className="min-w-0">
         <Heading>{title}</Heading>
-        {description ? <Text className="mt-1">{description}</Text> : null}
+        {description ? (
+          <Text className="mt-1 text-sm leading-6 text-slate-500">
+            {description}
+          </Text>
+        ) : null}
       </div>
       {action ? <div className="flex-shrink-0">{action}</div> : null}
     </div>

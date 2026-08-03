@@ -97,11 +97,11 @@ export default function BildirimlerPage() {
       </div>
 
       {isLoading ? (
-        <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white shadow-sm">
+        <div className="overflow-hidden card">
           <ListSkeleton rows={6} />
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-100 bg-white">
+        <div className="card">
           <EmptyState
             icon={Bell}
             title="Henüz bildiriminiz yok"
@@ -117,7 +117,7 @@ export default function BildirimlerPage() {
           />
         </div>
       ) : (
-        <ul className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white shadow-sm">
+        <ul className="overflow-hidden card">
           {items.map((n) => (
             <li key={n.id} className="border-b border-zinc-50 last:border-0">
               <button

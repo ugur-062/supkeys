@@ -47,7 +47,7 @@ function PanelCard({
   padding?: "sm" | "md";
 }) {
   return (
-    <section className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+    <section className="card">
       <header className="border-b border-zinc-100 px-5 py-4">
         <h2 className="text-sm font-semibold text-zinc-950">{title}</h2>
         {subtitle ? (
@@ -223,7 +223,7 @@ export function SatisDashboardView() {
   const val = (n: number | undefined) => (loading ? "—" : (n ?? 0));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="space-y-8">
       {/* Karşılama başlığı — satınalma paneliyle aynı biçim */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">

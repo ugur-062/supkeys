@@ -41,7 +41,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const expanded = pinned || hovered;
 
   return (
-    <div className="min-h-svh bg-zinc-50">
+    <div className="min-h-svh bg-slate-50 text-slate-950">
       <CompanyTopbar
         activePortal={activePortal}
         onOpenMobileNav={() => setMobileOpen(true)}
@@ -107,14 +107,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           pinned ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >
-        <div className="flex grow flex-col p-2 pt-2">
-          {/* P0: alt nefes payı (pb-24) — AI asistan FAB'ı pagination /
-              "Devam" gibi son satır aksiyonlarının üstüne binmesin. */}
-          <div className="grow rounded-xl bg-white p-6 pb-24 shadow-xs ring-1 ring-zinc-950/5 lg:p-10 lg:pb-24">
-            <div id="icerik" className="mx-auto max-w-6xl">
-              {children}
-            </div>
-          </div>
+        {/* Görsel tazeleme: dev beyaz panel kalktı — içerik slate-50 zeminde,
+            kartlar beyaz (beyaz-üstüne-beyaz biter). Tek container 1320px;
+            pb-24 = AI FAB nefes payı (P0 kararı korunur). */}
+        <div
+          id="icerik"
+          className="mx-auto w-full max-w-[1320px] grow px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 xl:px-10"
+        >
+          {children}
         </div>
       </main>
 

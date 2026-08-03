@@ -94,7 +94,7 @@ export function BidComparisonView({
     : "₺";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="space-y-5">
       <nav className="text-sm text-zinc-500">
         <Link
           href={basePath}
@@ -113,7 +113,7 @@ export function BidComparisonView({
       </Text>
 
       {/* Kriter kartı */}
-      <section className="space-y-4 rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm">
+      <section className="space-y-4 card p-5 shadow-sm">
         <Field>
           <Label>{isAlim ? "İhale" : "İlan"}</Label>
           <Select
@@ -218,7 +218,7 @@ export function BidComparisonView({
             ) : null}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(3)]">
+          <div className="overflow-x-auto card px-2 [--gutter:--spacing(3)]">
             <Table dense>
               <TableHead>
                 <TableRow>
@@ -359,7 +359,7 @@ export function BidComparisonView({
 
           {/* Önerilen kazanan */}
           {data.includePrice && data.recommendedAwards.length > 0 ? (
-            <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+            <div className="card p-5">
               <Subheading className="mb-3">
                 Önerilen Kazanan{" "}
                 <span className="text-xs font-normal text-zinc-400">
@@ -390,7 +390,7 @@ export function BidComparisonView({
 
           {/* Tur geçmişi */}
           {data.roundHistory.length > 0 ? (
-            <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+            <div className="card p-5">
               <Subheading className="mb-3">Tur Geçmişi</Subheading>
               <Table dense>
                 <TableHead>

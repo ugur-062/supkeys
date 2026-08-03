@@ -95,7 +95,7 @@ export function TasarrufTab({ data }: Props) {
       </div>
 
       {/* 3 metrik kartı */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+      <section className="card p-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Metric
             label="Toplam Tasarrufum"
@@ -119,7 +119,7 @@ export function TasarrufTab({ data }: Props) {
       </section>
 
       {/* En Yüksek Tasarruflu 5 İhalem */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+      <section className="card p-6">
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-zinc-950">
@@ -293,7 +293,7 @@ function BreakdownCard({
       : "bg-zinc-500";
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+    <section className="card p-6">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <InfoTooltip content={tooltip} />

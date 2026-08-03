@@ -45,7 +45,7 @@ export function OrderReviewCard({
   };
 
   return (
-    <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+    <section className="card p-5">
       <Subheading>{title}</Subheading>
       <Text className="mt-0.5 text-sm text-zinc-500">
         {targetName} ile bu siparişteki deneyiminizi puanlayın. Puan, firmanın

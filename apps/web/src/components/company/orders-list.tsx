@@ -491,7 +491,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     : "Henüz alış siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür.";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title={isSeller ? "Satışlarım" : "Siparişlerim"}
         description={
@@ -502,7 +502,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       />
 
       {/* KPI şeridi — tıklayınca ilgili durum filtresi uygulanır */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-4">
         {(
           [
             { label: "Toplam Sipariş", value: String(all.length), filter: "all" },
@@ -709,7 +709,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           onRetry={() => refetch()}
         />
       ) : filtered.length === 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-zinc-950/10 bg-white">
+        <div className="overflow-hidden card">
           <EmptyState
             icon={isFiltered ? CircleSlash : Package}
             variant={isFiltered ? "no-results" : "no-data"}
@@ -752,7 +752,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       ) : view === "table" ? (
         <>
           {/* P2 (denetim §10.2): yoğun tablo — çok kayıtta karşılaştırma. */}
-          <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+          <div className="card px-2 [--gutter:--spacing(4)]">
             <Table dense>
               <TableHead>
                 <TableRow>

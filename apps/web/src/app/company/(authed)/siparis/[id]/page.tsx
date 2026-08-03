@@ -484,7 +484,7 @@ export default function OrderDetailPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           {/* Durum akışı */}
-          <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <section className="card p-5">
             {terminal ? (
               <StatusBadge
                 tone={o.status === "REJECTED" ? "failed" : "neutral"}
@@ -549,7 +549,7 @@ export default function OrderDetailPage() {
 
           {/* Bağlı ihale + karşı taraf (eski panel paritesi) */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+            <section className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Gavel className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
@@ -584,7 +584,7 @@ export default function OrderDetailPage() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+            <section className="card p-5">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-zinc-500" />
@@ -650,7 +650,7 @@ export default function OrderDetailPage() {
           {/* Teslimat adresi — award anındaki snapshot (ALIM: ilanın adresi,
               SATIS: kazanan alıcının teklifte seçtiği adres). */}
           {o.deliveryAddress ? (
-            <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+            <section className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Truck className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
@@ -734,7 +734,7 @@ export default function OrderDetailPage() {
 
           {/* Banka & Fatura */}
           {o.bankAccountHolder || o.bankIban || o.invoiceNumber ? (
-            <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+            <section className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Banknote className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
@@ -798,7 +798,7 @@ export default function OrderDetailPage() {
 
         {/* Sağ kolon — sticky özet: taraf, tutar, ödeme durumu, vade. */}
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-32">
-          <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <section className="card p-5">
             <h2 className="text-sm font-semibold text-zinc-900">Özet</h2>
             <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-zinc-900">
               {formatMoney(o.amount, o.currency)}
@@ -834,7 +834,7 @@ export default function OrderDetailPage() {
           </section>
 
           {/* Sıradaki adım — aksiyonun kendisi ActionBar'da, anlatısı burada. */}
-          <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <section className="card p-5">
             <h2 className="mb-2 text-sm font-semibold text-zinc-900">
               Sıradaki Adım
             </h2>

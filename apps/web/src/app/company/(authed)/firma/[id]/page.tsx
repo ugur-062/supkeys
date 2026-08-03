@@ -46,7 +46,7 @@ export default function CompanyProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4" aria-hidden>
+      <div className="space-y-4" aria-hidden>
         <div className="h-5 w-28 animate-pulse rounded bg-zinc-100" />
         <div className="h-48 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -174,7 +174,7 @@ export default function CompanyProfilePage() {
   );
 
   const tenders = (
-    <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+    <section className="card p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">Açık İhaleleri</h2>
         {!connected ? (
@@ -230,7 +230,7 @@ export default function CompanyProfilePage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <BackLink />
       <CompanyProfileView profile={p} actions={actions}>
         {tenders}

@@ -105,7 +105,7 @@ export function OwnerTenderCard({
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        "group relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover",
         isSatis ? "hover:border-emerald-300" : "hover:border-blue-300",
       )}
     >
@@ -351,7 +351,7 @@ export function OwnerTenderList({
   }
   if (view === "table") {
     return (
-      <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+      <div className="card px-2 [--gutter:--spacing(4)]">
         <Table dense>
           <TableHead>
             <TableRow>

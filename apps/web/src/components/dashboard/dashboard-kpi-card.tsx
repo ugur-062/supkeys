@@ -61,7 +61,7 @@ export function DashboardKpiCard({
           <ArrowRightIcon className="h-4 w-4 shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500" />
         ) : null}
       </div>
-      <p className="mt-3 text-3xl font-semibold tabular-nums text-zinc-950">
+      <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums text-slate-950">
         {value}
       </p>
       {hint ? (
@@ -75,8 +75,10 @@ export function DashboardKpiCard({
     </>
   );
 
-  const base = `group block h-full rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition${
-    href ? " hover:shadow-md" : ""
+  const base = `group block h-full card p-5${
+    href
+      ? " transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover"
+      : ""
   }`;
 
   return href ? (

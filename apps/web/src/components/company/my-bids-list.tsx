@@ -78,14 +78,6 @@ const RANGE_OPTIONS = [
   { value: "365", label: "Son 1 Yıl" },
 ];
 
-function sym(currency: string | undefined): string {
-  return (
-    CURRENCY_SYMBOL[(currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
-    currency ??
-    "₺"
-  );
-}
-
 function matchesSearch(b: MyBid, q: string) {
   if (!q) return true;
   const needle = q.toLocaleLowerCase("tr");
@@ -113,7 +105,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        "group relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover",
         isAlim ? "hover:border-blue-300" : "hover:border-emerald-300",
       )}
     >
@@ -334,7 +326,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <PageHeader title="Tekliflerim" description={description} />
 
       {/* Arama + filtreler — diğer listelerle aynı düzen: üstte tam-genişlik

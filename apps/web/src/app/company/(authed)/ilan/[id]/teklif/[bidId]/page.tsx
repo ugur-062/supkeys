@@ -125,7 +125,7 @@ export default function BidDetailPage() {
       </Link>
 
       {/* Başlık kartı */}
-      <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+      <div className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -186,7 +186,7 @@ export default function BidDetailPage() {
 
       {/* Teslim & geçerlilik — ALIM: satıcının taahhüdü; SATIS: alıcının
           İSTEDİĞİ tarih (kesin tarihi satıcı sipariş onayında verir). */}
-      <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+      <section className="card p-5">
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-xs text-zinc-500">
@@ -243,7 +243,7 @@ export default function BidDetailPage() {
       {items.length > 0 && bid.items && bid.items.length > 0 ? (
         <section className="space-y-2">
           <Subheading>Kalem Teklifleri</Subheading>
-          <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+          <div className="card px-2 [--gutter:--spacing(4)]">
             <Table dense>
               <TableHead>
                 <TableRow>

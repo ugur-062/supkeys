@@ -64,7 +64,7 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
       {/* Teklife Açık İhaleler paneli */}
-      <section className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <section className="card">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-950/5 px-5 py-4">
           <div className="flex items-center gap-2">
             <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />

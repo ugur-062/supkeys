@@ -383,7 +383,7 @@ export function ConnectionsView() {
     ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div>
         <Heading>Bağlantılar</Heading>
         <Text className="mt-1 text-sm text-zinc-500">
@@ -396,7 +396,7 @@ export function ConnectionsView() {
           (yalnız premium — STANDARD davet gönderemez) */}
       <section
         className={cn(
-          "grid gap-4 rounded-2xl border border-zinc-950/10 bg-white p-5",
+          "grid gap-4 card p-5",
           isPaid ? "sm:grid-cols-2" : "sm:grid-cols-1",
         )}
       >
@@ -550,7 +550,7 @@ export function ConnectionsView() {
             </div>
           ) : null}
           {search.isLoading ? (
-            <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+            <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
           ) : !search.data || search.data.length === 0 ? (
             <EmptyBox
               title="Firma bulunamadı"
@@ -590,7 +590,7 @@ export function ConnectionsView() {
             />
           ) : null}
           {connections.isLoading ? (
-            <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+            <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
           ) : connCount === 0 ? (
             <EmptyBox
               title="Henüz bağlantın yok"
@@ -626,7 +626,7 @@ export function ConnectionsView() {
               Gelen istekler
             </p>
             {incoming.isLoading ? (
-              <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={2} /></div>
+              <div className="overflow-hidden card"><ListSkeleton rows={2} /></div>
             ) : incomingCount === 0 ? (
               <EmptyBox
                 title="Bekleyen istek yok"
@@ -678,7 +678,7 @@ export function ConnectionsView() {
               Gönderdiğim istekler
             </p>
             {outgoing.isLoading ? (
-              <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={2} /></div>
+              <div className="overflow-hidden card"><ListSkeleton rows={2} /></div>
             ) : (outgoing.data?.length ?? 0) === 0 ? (
               <EmptyBox
                 title="Bekleyen isteğin yok"

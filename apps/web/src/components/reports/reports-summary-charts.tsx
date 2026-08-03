@@ -65,7 +65,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+    <section className="card p-5">
       <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
       {hint ? <p className="mt-0.5 text-xs text-zinc-500">{hint}</p> : null}
       <div className="mt-3 h-52">{children}</div>

@@ -137,7 +137,7 @@ export function ApprovalFlowsSection({
 
   if (!canManage) {
     return (
-      <div className="rounded-2xl border border-zinc-950/10 bg-white p-6">
+      <div className="card p-6">
         <p className="text-sm text-zinc-500">
           Onay akışlarını yalnızca firma sahibi ya da Yönetici rolündeki
           kullanıcılar yönetebilir.

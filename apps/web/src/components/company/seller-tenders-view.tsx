@@ -85,7 +85,7 @@ export function SellerTenderCard({
     >
       <div
         className={cn(
-          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+          "relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover",
           isSatis ? "hover:border-violet-300" : "hover:border-emerald-300",
         )}
       >
@@ -335,7 +335,7 @@ export function SellerTendersView({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title={isSatis ? "Satın Al" : "İhaleler"}
         description={

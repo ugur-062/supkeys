@@ -129,7 +129,7 @@ export function GeneralReportView({
   const data = report.data;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="space-y-5">
       <nav className="text-sm text-zinc-500">
         <Link
           href={basePath}
@@ -142,7 +142,7 @@ export function GeneralReportView({
       <Heading>{isAlim ? "Genel İhale Raporu" : "Genel İlan Raporu"}</Heading>
 
       {/* Kriter kartı */}
-      <section className="space-y-4 rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm">
+      <section className="space-y-4 card p-5 shadow-sm">
         <div>
           <p className="mb-2 text-xs font-medium text-zinc-500">
             Raporlama Kriteri
@@ -263,7 +263,7 @@ export function GeneralReportView({
       ) : data ? (
         <section className="space-y-4">
           {/* Özet şeridi */}
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-6">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-6">
             {(
               [
                 [
@@ -292,7 +292,7 @@ export function GeneralReportView({
             ))}
           </dl>
 
-          <div className="overflow-x-auto rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+          <div className="overflow-x-auto card px-2 [--gutter:--spacing(4)]">
             <Table dense>
               <TableHead>
                 <TableRow>

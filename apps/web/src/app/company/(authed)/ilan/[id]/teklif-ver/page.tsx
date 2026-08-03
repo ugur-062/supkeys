@@ -1005,7 +1005,7 @@ export default function TeklifVerPage() {
     // P1 (denetim §4.2): sayfa mantıksal bir form — Enter, doğrulama
     // temizse onay diyaloğunu açar (buton akışıyla birebir).
     <form
-      className="mx-auto max-w-6xl space-y-5"
+      className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
         if (problems.length === 0 && !placeBid.isPending && !buyNow.isPending) {
@@ -1101,7 +1101,7 @@ export default function TeklifVerPage() {
         {/* Sol — form */}
         <div className="space-y-5 lg:col-span-2">
           {/* İhale özeti */}
-          <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <section className="card p-5">
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
                 <dt className="text-xs text-zinc-500">{isSatis ? "Satıcı" : "Alıcı"}</dt>

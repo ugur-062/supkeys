@@ -25,7 +25,7 @@ export function MyProfileView() {
 
   if (isLoading || !profile) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4" aria-hidden>
+      <div className="space-y-4" aria-hidden>
         <div className="h-8 w-40 animate-pulse rounded bg-zinc-100" />
         <div className="h-56 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
@@ -118,7 +118,7 @@ export function MyProfileView() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Heading>Profilim</Heading>
@@ -204,7 +204,7 @@ export function MyProfileView() {
 
       {/* Profil tamamlanma kartı — yalnız önizlemede ve %100 altında. */}
       {tab === "preview" && completeness.pct < 100 ? (
-        <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+        <section className="card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900">

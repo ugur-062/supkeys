@@ -175,8 +175,8 @@ export default function AyarlarPage() {
                     key={s.href}
                     href={s.href}
                     className={cn(
-                      "group flex items-center gap-4 rounded-2xl border border-zinc-950/10 bg-white p-5",
-                      "transition-all duration-150 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md",
+                      "group flex items-center gap-4 card p-5",
+                      "transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
                     )}
                   >
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-zinc-900 group-hover:text-white">

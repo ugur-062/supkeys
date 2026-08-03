@@ -67,7 +67,7 @@ export function PremiumGate() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
-      <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white shadow-sm">
+      <div className="overflow-hidden card">
         {/* Premium başlık şeridi — marka mavisi */}
         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 px-6 py-7 text-white">
           <div className="flex items-center gap-2">

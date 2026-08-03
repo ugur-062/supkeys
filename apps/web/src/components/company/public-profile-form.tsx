@@ -172,7 +172,7 @@ export function PublicProfileForm() {
       {/* Yayın anahtarı — sayfa başlığı üst kabukta (MyProfileView); burada
           ayrıca "Herkese Açık Profilim" başlığı vardı, aynı şeyi iki kez
           söylüyordu, kaldırıldı. */}
-      <Field className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-950/10 bg-white p-4">
+      <Field className="flex items-center justify-between gap-4 card p-4">
         <div>
           <Label>Herkese açık profil yayında</Label>
           <Text className="text-xs text-zinc-500">
@@ -381,7 +381,7 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+    <section className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Subheading>{title}</Subheading>

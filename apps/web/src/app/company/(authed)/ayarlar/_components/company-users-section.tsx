@@ -131,7 +131,7 @@ export function CompanyUsersSection({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-950/10 bg-white">
+    <div className="overflow-hidden card">
       <header className="flex items-center justify-between gap-2 border-b border-zinc-950/5 px-5 py-4">
         <div className="flex items-center gap-2">
           <Users2 className="h-4 w-4 text-zinc-500" />

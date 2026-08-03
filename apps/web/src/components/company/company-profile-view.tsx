@@ -127,7 +127,7 @@ export function CompanyProfileView({
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <section className="overflow-hidden card">
         <div className="relative h-40 w-full bg-gradient-to-br from-zinc-900 to-zinc-700 sm:h-56">
           {p.coverImageUrl ? (
             <>
@@ -239,7 +239,7 @@ export function CompanyProfileView({
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-6">
           {p.aboutText ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+            <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">Hakkında</h2>
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
                 {p.aboutText}
@@ -255,7 +255,7 @@ export function CompanyProfileView({
             p.trade.mersisNo ||
             p.trade.tradeRegistryNo ||
             p.trade.kepAddress) ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+            <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
                 Ticari Bilgiler
               </h2>
@@ -292,7 +292,7 @@ export function CompanyProfileView({
           ) : null}
 
           {photos.length > 0 ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+            <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">Galeri</h2>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {photos.map((src, i) => (
@@ -312,7 +312,7 @@ export function CompanyProfileView({
 
         <div className="space-y-6">
           {services.length > 0 ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+            <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
                 Hizmetler
               </h2>
@@ -330,7 +330,7 @@ export function CompanyProfileView({
           ) : null}
 
           {certifications.length > 0 || certificateImages.length > 0 ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+            <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
                 Sertifikalar
               </h2>
@@ -369,7 +369,7 @@ export function CompanyProfileView({
 
           {/* Madde 18 — değerlendirmeler: yorum + puan listesi (en yeni önce). */}
           {(p.reviews?.length ?? 0) > 0 ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+            <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
                 Değerlendirmeler
                 {p.rating && p.rating.count > 0 ? (

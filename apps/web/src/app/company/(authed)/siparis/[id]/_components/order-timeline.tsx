@@ -186,7 +186,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   }
 
   return (
-    <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+    <section className="card p-5">
       <h2 className="mb-4 text-sm font-semibold text-zinc-900">
         Sipariş Geçmişi
       </h2>

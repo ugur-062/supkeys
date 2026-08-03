@@ -52,7 +52,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 md:p-6">
+    <section className="card p-5 md:p-6">
       <div className="mb-5 flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
           <Icon className="h-4 w-4 text-zinc-700" />

@@ -94,7 +94,7 @@ export function SavingsReportView({
   const data = report.data;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="space-y-5">
       <nav className="text-sm text-zinc-500">
         <Link
           href={basePath}
@@ -114,7 +114,7 @@ export function SavingsReportView({
       </Text>
 
       {/* Kriter kartı */}
-      <section className="space-y-4 rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm">
+      <section className="space-y-4 card p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field>
             <Label>Başlangıç</Label>
@@ -175,7 +175,7 @@ export function SavingsReportView({
         ) : (
           <section className="space-y-4">
             {/* Özet şeridi */}
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
               {(
                 [
                   [
@@ -226,7 +226,7 @@ export function SavingsReportView({
             </div>
 
             {/* Satırlar — kalem detayına açılır */}
-            <div className="overflow-x-auto rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+            <div className="overflow-x-auto card px-2 [--gutter:--spacing(4)]">
               <Table dense>
                 <TableHead>
                   <TableRow>
@@ -369,7 +369,7 @@ export function SavingsReportView({
 
             {/* Karşı taraf kırılımı */}
             {data.summary.byParty.length > 0 ? (
-              <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+              <div className="card p-5">
                 <Subheading className="mb-3">
                   {partyWord} Bazlı Kazanılan Tutar
                 </Subheading>

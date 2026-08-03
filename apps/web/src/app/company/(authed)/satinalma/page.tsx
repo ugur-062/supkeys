@@ -49,7 +49,7 @@ export default function SatinalmaDashboardPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="space-y-8">
       <header className="min-w-0">
         <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950">
           Satınalma paneli
