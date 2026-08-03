@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/list";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
-import { ClipboardList, Plus, X } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { IHALE_VIEW_FOCUS, IhaleListRow } from "./IhaleListRow";
@@ -36,7 +36,6 @@ export function IhaleListView({
   listingType?: "ALIM" | "SATIS";
   emptyCtaLabel?: string;
 }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const canCreate = useHasCompanyPermission(
     listingType === "SATIS" ? "sell:listing:create" : "buy:listing:create",
@@ -64,18 +63,6 @@ export function IhaleListView({
       return next;
     });
   };
-
-  const toggleSelect = (id: string) =>
-    setSelected((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const allSelected = items.length > 0 && selected.size === items.length;
-  const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(items.map((i) => i.id)));
 
   if (isError) {
     return (
@@ -148,51 +135,13 @@ export function IhaleListView({
 
   return (
     <div role="table" aria-label="İhale listesi" className="space-y-2">
-      {/* Üst şerit: tümünü seç + seçim varken toplu bar */}
-      <div
-        role="row"
-        className="flex flex-wrap items-center gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200"
-      >
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={toggleAll}
-            aria-label="Tümünü seç"
-            className={cn(
-              "h-4 w-4 rounded border-slate-300 text-blue-600",
-              IHALE_VIEW_FOCUS,
-            )}
-          />
-          <span className="text-[11px] text-slate-400">Tümünü seç</span>
-        </label>
-        {selected.size > 0 ? (
-          <div className="flex items-center gap-3">
-            <span className="text-[12px] font-medium text-slate-700">
-              {selected.size} ihale seçildi
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className={cn(
-                "inline-flex items-center gap-1 rounded text-[12px] text-slate-500 hover:text-slate-900",
-                IHALE_VIEW_FOCUS,
-              )}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-              Seçimi temizle
-            </button>
-          </div>
-        ) : null}
-      </div>
-
+      {/* "Tümünü seç" şeridi KALDIRILDI (kullanıcı isteği, 2026-08-03):
+          toplu sunucu işlemi yok — seçim yalnız yer kaplıyordu. */}
       {items.map((t) => (
         <IhaleListRow
           key={t.id}
           t={t}
           listingType={listingType}
-          selected={selected.has(t.id)}
-          onToggleSelect={toggleSelect}
           favorite={favorites.has(t.id)}
           onToggleFavorite={toggleFavorite}
         />

@@ -56,6 +56,14 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
   };
 }
 
+/** Satır sırası — her satırın kimlik kolonundaki başlık span'ının title'ı
+ *  (BrowseTenderRow: ilk span[title] = ihale başlığı). */
+function rowTitles(): (string | null)[] {
+  return Array.from(document.querySelectorAll('[role="row"]')).map((r) =>
+    r.querySelector("span[title]")?.getAttribute("title") ?? null,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   seq = 0;
@@ -64,24 +72,38 @@ beforeEach(() => {
   h.isError = false;
 });
 
-describe("SellerTendersView", () => {
-  it("kart: durum rozeti + alıcı + kategori + aciliyet render edilir", () => {
-    h.rows = [row({ categoryMatch: true, myBidVersion: 2, myBidStatus: "SUBMITTED" })];
+describe("SellerTendersView (yoğun satır görünümü)", () => {
+  it("satır: durum rozeti + FİRMA + kapanış + teklifim; rozetler genişletmede", async () => {
+    const user = userEvent.setup();
+    h.rows = [
+      row({ categoryMatch: true, myBidVersion: 2, myBidStatus: "SUBMITTED" }),
+    ];
     render(<SellerTendersView />);
 
-    expect(screen.getByText("İhale 1")).toBeInTheDocument();
-    expect(screen.getByText("Teklif Gönderildi")).toBeInTheDocument();
-    expect(screen.getByText("Alıcı A.Ş.")).toBeInTheDocument();
-    expect(screen.getByText("Kategorine Uygun")).toBeInTheDocument();
-    expect(screen.getByText("v2")).toBeInTheDocument();
+    // Başlık tırnaklı basılır → regex; firma adı düz.
+    expect(screen.getByText(/İhale 1/)).toBeInTheDocument();
+    // Durum etiketi dikey rozet (md+) + mobil chip satırında — iki kopya normal.
+    expect(screen.getAllByText("Teklif Gönderildi").length).toBeGreaterThanOrEqual(1);
+    // Firma adı xl kolonu + mobil chip satırında — iki kopya normal.
+    expect(screen.getAllByText("Alıcı A.Ş.").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("5 gün kaldı")).toBeInTheDocument();
-    expect(screen.getByText("3 kalem")).toBeInTheDocument();
+    // Sağ uç metrik: benim teklifim (versiyonlu).
+    expect(screen.getByText("Verildi · v2")).toBeInTheDocument();
+
+    // Rozet kalabalığı (kategori eşleşme, kategori adı) genişletme satırında.
+    expect(screen.queryByText("Kategorine Uygun")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Detayı genişlet" }),
+    );
+    expect(screen.getByText("Kategorine Uygun")).toBeInTheDocument();
+    expect(screen.getByText("Canlı Hayvanlar")).toBeInTheDocument();
   });
 
-  it("maskeli kart 'Gizli firma' + Premium çipi gösterir", () => {
+  it("maskeli satır 'Gizli firma' + Premium çipi gösterir", () => {
     h.rows = [row({ masked: true, owner: null, canBid: false, invited: false })];
     render(<SellerTendersView />);
-    expect(screen.getByText("Gizli firma")).toBeInTheDocument();
+    // Firma kolonu + mobil chip satırı → en az bir "Gizli firma".
+    expect(screen.getAllByText("Gizli firma").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Premium")).toBeInTheDocument();
   });
 
@@ -93,15 +115,15 @@ describe("SellerTendersView", () => {
     ];
     render(<SellerTendersView />);
 
-    expect(screen.getByText("Açık İhale")).toBeInTheDocument();
-    expect(screen.queryByText("Biten İhale")).not.toBeInTheDocument();
+    expect(screen.getByText(/Açık İhale/)).toBeInTheDocument();
+    expect(screen.queryByText(/Biten İhale/)).not.toBeInTheDocument();
 
     // FilterSelect artık Listbox (P0): buton → seçenek tıklama.
     await user.click(screen.getByRole("button", { name: "Durum" }));
     await user.click(await screen.findByRole("option", { name: "Geçmiş" }));
-    expect(screen.getByText("Biten İhale")).toBeInTheDocument();
-    expect(screen.queryByText("Açık İhale")).not.toBeInTheDocument();
-    expect(screen.getByText("Kazandın")).toBeInTheDocument();
+    expect(screen.getByText(/Biten İhale/)).toBeInTheDocument();
+    expect(screen.queryByText(/Açık İhale/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Kazandın").length).toBeGreaterThanOrEqual(1);
   });
 
   it("müşteri filtresi veriden türetilir ve uygulanır", async () => {
@@ -116,8 +138,8 @@ describe("SellerTendersView", () => {
     const listbox = await screen.findByRole("listbox");
     // Seçenek etiketi sayaçlı: "Firma X (1)".
     await user.click(within(listbox).getByText(/Firma X/));
-    expect(screen.getByText("X'in ihalesi")).toBeInTheDocument();
-    expect(screen.queryByText("Y'nin ihalesi")).not.toBeInTheDocument();
+    expect(screen.getByText(/X'in ihalesi/)).toBeInTheDocument();
+    expect(screen.queryByText(/Y'nin ihalesi/)).not.toBeInTheDocument();
   });
 
   it("arama başlık/numara/alıcıda çalışır", async () => {
@@ -125,10 +147,13 @@ describe("SellerTendersView", () => {
     h.rows = [row({ title: "Çelik Boru Alımı" }), row({ title: "Kablo Alımı" })];
     render(<SellerTendersView />);
 
-    await user.type(screen.getByPlaceholderText("İhale adı, numarası veya firma ara…"), "çelik");
+    await user.type(
+      screen.getByPlaceholderText("İhale adı, numarası veya firma ara…"),
+      "çelik",
+    );
     // SearchInput debounce'lı (300ms) → filtrenin uygulanmasını bekle.
-    await waitForElementToBeRemoved(() => screen.queryByText("Kablo Alımı"));
-    expect(screen.getByText("Çelik Boru Alımı")).toBeInTheDocument();
+    await waitForElementToBeRemoved(() => screen.queryByText(/Kablo Alımı/));
+    expect(screen.getByText(/Çelik Boru Alımı/)).toBeInTheDocument();
   });
 
   it("kategori eşleşen ilanlar her sıralamada üstte", () => {
@@ -145,10 +170,7 @@ describe("SellerTendersView", () => {
     ];
     render(<SellerTendersView />);
     // Varsayılan sıralama "yakın biten" — ama eşleşen (30 gün) yine üstte.
-    const titles = screen
-      .getAllByRole("heading", { level: 3 })
-      .map((el) => el.textContent);
-    expect(titles).toEqual(["Eşleşen", "Eşleşmeyen"]);
+    expect(rowTitles()).toEqual(["Eşleşen", "Eşleşmeyen"]);
   });
 
   it("öncelik sırası: davetli > bağlantılı > kategori > gerisi", () => {
@@ -159,21 +181,30 @@ describe("SellerTendersView", () => {
       row({ title: "Davetli", invited: true, connected: false, categoryMatch: false }),
     ];
     render(<SellerTendersView />);
-    const titles = screen
-      .getAllByRole("heading", { level: 3 })
-      .map((el) => el.textContent);
-    expect(titles).toEqual(["Davetli", "Bağlantılı", "Kategori", "Gerisi"]);
+    expect(rowTitles()).toEqual(["Davetli", "Bağlantılı", "Kategori", "Gerisi"]);
   });
 
-  it("bağlantılı (davetsiz) ilan 'Bağlantılı' rozeti gösterir; davetli ilanda gösterilmez", () => {
+  it("bağlantılı (davetsiz) ilanın genişletmesinde 'Bağlantılı' rozeti; davetlide gösterilmez", async () => {
+    const user = userEvent.setup();
     h.rows = [row({ invited: false, connected: true })];
-    const { rerender } = render(<SellerTendersView />);
+    const { unmount } = render(<SellerTendersView />);
+    await user.click(screen.getByRole("button", { name: "Detayı genişlet" }));
     expect(screen.getByText("Bağlantılı")).toBeInTheDocument();
+    unmount();
+
     // Davetli aynı zamanda bağlantılı olsa da 'Davetlisiniz' baskın rozet.
     h.rows = [row({ invited: true, connected: true })];
-    rerender(<SellerTendersView />);
+    render(<SellerTendersView />);
+    await user.click(screen.getByRole("button", { name: "Detayı genişlet" }));
     expect(screen.getByText("Davetlisiniz")).toBeInTheDocument();
     expect(screen.queryByText("Bağlantılı")).not.toBeInTheDocument();
+  });
+
+  it("satırda seçim kutusu YOK (kaldırıldı, 2026-08-03)", () => {
+    h.rows = [row()];
+    render(<SellerTendersView />);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tümünü seç")).not.toBeInTheDocument();
   });
 
   it("boş durum + hata durumu", () => {

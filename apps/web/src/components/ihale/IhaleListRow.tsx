@@ -136,8 +136,6 @@ function RowAction({
 export interface IhaleListRowProps {
   t: TenderListItem;
   listingType: "ALIM" | "SATIS";
-  selected: boolean;
-  onToggleSelect: (id: string) => void;
   favorite: boolean;
   onToggleFavorite: (id: string) => void;
 }
@@ -145,8 +143,6 @@ export interface IhaleListRowProps {
 export function IhaleListRow({
   t,
   listingType,
-  selected,
-  onToggleSelect,
   favorite,
   onToggleFavorite,
 }: IhaleListRowProps) {
@@ -189,29 +185,15 @@ export function IhaleListRow({
   return (
     <div
       role="row"
-      aria-selected={selected}
       className={cn(
         "rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
         st.strip,
-        selected && "ring-blue-300",
       )}
     >
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-stretch xl:grid-cols-[auto_auto_minmax(280px,2fr)_1.2fr_0.9fr_0.9fr_1.1fr_1.1fr_auto_auto] xl:divide-x xl:divide-slate-100">
-        {/* 1 — Seçim */}
-        <div className="flex items-center px-3 py-2.5">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onToggleSelect(t.id)}
-            aria-label={`${t.tenderNumber} seç`}
-            className={cn(
-              "h-4 w-4 rounded border-slate-300 text-blue-600",
-              IHALE_VIEW_FOCUS,
-            )}
-          />
-        </div>
-
-        {/* 2 — Genişlet (md+) */}
+      {/* Seçim kolonu KALDIRILDI (kullanıcı isteği, 2026-08-03): toplu sunucu
+          işlemi yok — kutu yalnız yer kaplıyordu. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch xl:grid-cols-[auto_minmax(280px,2fr)_1.2fr_0.9fr_0.9fr_1.1fr_1.1fr_auto_auto] xl:divide-x xl:divide-slate-100">
+        {/* 1 — Genişlet (md+) */}
         <div className="hidden items-center px-3 py-2.5 md:flex">
           <button
             type="button"
@@ -272,21 +254,13 @@ export function IhaleListRow({
           </div>
         </div>
 
-        {/* 4 — Talep sahibi (xl) */}
+        {/* 4 — Talep sahibi (xl). "Detayı aç" linki KALDIRILDI (çiftti:
+            başlık zaten detay linki + sağda duruma göre birincil aksiyon var). */}
         <div className="hidden min-w-0 px-3 py-2.5 xl:block">
           <ColLabel>{isSatis ? "Satışçı" : "Satın Almacı"}</ColLabel>
           <span className="mt-0.5 block truncate text-[13px] leading-tight text-slate-700">
             {t.createdBy.firstName} {t.createdBy.lastName}
           </span>
-          <Link
-            href={detailHref}
-            className={cn(
-              "mt-0.5 inline-block rounded text-[11px] leading-tight text-blue-600 hover:underline",
-              IHALE_VIEW_FOCUS,
-            )}
-          >
-            Detayı aç
-          </Link>
         </div>
 
         {/* 5 — Davetli (lg+) */}

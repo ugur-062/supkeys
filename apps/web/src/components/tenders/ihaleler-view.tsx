@@ -6,10 +6,8 @@ import {
   Pagination,
   ResultCount,
   SearchInput,
-  ViewToggle,
 } from "@/components/list";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
-import { OwnerTenderList } from "@/components/tenders/owner-tender-cards";
 import { IhaleListView } from "@/components/ihale/IhaleListView";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +18,7 @@ import { ArrowUpDown, Building2, CalendarRange, Globe, Plus, User as UserIcon } 
 import Link from "next/link";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "En Yeni" },
@@ -103,25 +101,6 @@ export function IhalelerView({
   const [createdById, setCreatedById] = useState("");
   const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
   const [page, setPage] = useState(1);
-  // Görünüm: "grid" (kart) | "list" (yoğun satır) — localStorage'da kalıcı.
-  const viewStorageKey = isSatis ? "satis_ihaleler_view" : "ihaleler_view";
-  const [view, setViewState] = useState<"grid" | "list">("grid");
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(viewStorageKey) === "list")
-        setViewState("list");
-    } catch {
-      /* varsayılan grid */
-    }
-  }, [viewStorageKey]);
-  const setView = (v: "grid" | "list") => {
-    setViewState(v);
-    try {
-      localStorage.setItem(viewStorageKey, v);
-    } catch {
-      /* kalıcılık olmadan devam */
-    }
-  };
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
   // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
@@ -348,32 +327,19 @@ export function IhalelerView({
             unit="ihale"
             className="ml-auto"
           />
-          <ViewToggle
-            view={view === "grid" ? "cards" : "table"}
-            onChange={(v) => setView(v === "cards" ? "grid" : "list")}
-          />
         </div>
       </div>
 
-      {view === "list" ? (
-        <IhaleListView
-          items={pageRows}
-          isLoading={list.isLoading}
-          isError={list.isError}
-          onRetry={() => list.refetch()}
-          listingType={listingType}
-          emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
-        />
-      ) : (
-        <OwnerTenderList
-          items={pageRows}
-          isLoading={list.isLoading}
-          isError={list.isError}
-          onRetry={() => list.refetch()}
-          listingType={listingType}
-          emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
-        />
-      )}
+      {/* Tek görünüm: yoğun satır listesi (kart görünümü + görünüm anahtarı
+          kullanıcı isteğiyle kaldırıldı, 2026-08-03). */}
+      <IhaleListView
+        items={pageRows}
+        isLoading={list.isLoading}
+        isError={list.isError}
+        onRetry={() => list.refetch()}
+        listingType={listingType}
+        emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+      />
 
       {totalPages > 1 ? (
         <Pagination

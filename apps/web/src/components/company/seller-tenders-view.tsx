@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/catalyst/badge";
 import {
   ActiveFilterChips,
   EmptyState,
@@ -11,23 +10,14 @@ import {
   ResultCount,
   SearchInput,
 } from "@/components/list";
-import { useSellerTenders, type SellerTenderRow } from "@/hooks/use-seller-tenders";
-import {
-  closingUrgency,
-  deriveSellerTenderState,
-} from "@/lib/tenders/seller-state";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
+import { useSellerTenders } from "@/hooks/use-seller-tenders";
 import {
   ArrowUpDown,
   Building2,
-  Calendar,
   CalendarRange,
   ClipboardList,
-  FileText,
   ListFilter,
-  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -55,183 +45,6 @@ const RANGE_OPTIONS = [
 
 function isPast(status: string): boolean {
   return status !== "OPEN";
-}
-
-/** Eski tedarikçi TenderCard'ının zinc/Catalyst portu (iki yön). */
-export function SellerTenderCard({
-  tender,
-  listingType = "ALIM",
-}: {
-  tender: SellerTenderRow;
-  listingType?: "ALIM" | "SATIS";
-}) {
-  const isSatis = listingType === "SATIS";
-  const state = deriveSellerTenderState(
-    tender.status,
-    tender.myBidStatus,
-    tender.invited,
-  );
-  const urgency = closingUrgency(tender.status, tender.closesAt);
-  const fromHref = isSatis
-    ? "/company/satinalma/satin-al"
-    : "/company/satis/acik-ihaleler";
-  const fromLabel = isSatis ? "Satın Al" : "Açık İhaleler";
-
-  return (
-    <Link
-      href={`/company/ilan/${tender.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`}
-      aria-label={`${tender.number ?? ""} ${tender.title}`.trim()}
-      className="group block"
-    >
-      <div
-        className={cn(
-          "relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover",
-          isSatis ? "hover:border-violet-300" : "hover:border-emerald-300",
-        )}
-      >
-        {/* Sol aksan şeridi — karşı taraf ilanı (satın al: mor, açık ihale: yeşil) */}
-        <span
-          aria-hidden
-          className={cn(
-            "absolute left-0 top-0 bottom-0 w-1",
-            isSatis
-              ? "bg-gradient-to-b from-violet-500 to-violet-300"
-              : "bg-gradient-to-b from-emerald-500 to-emerald-300",
-          )}
-        />
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-xs font-medium text-zinc-600">
-              {tender.number ?? "—"}
-            </span>
-            <h3
-              className={cn(
-                "mt-1.5 line-clamp-2 text-[15px] leading-snug font-semibold text-zinc-950 transition-colors",
-                isSatis
-                  ? "group-hover:text-violet-700"
-                  : "group-hover:text-emerald-700",
-              )}
-            >
-              {tender.title}
-            </h3>
-          </div>
-          <span
-            className={cn(
-              "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
-              state.className,
-            )}
-          >
-            {state.label}
-          </span>
-        </div>
-
-        <div className="mb-3 flex min-w-0 items-center gap-2 text-sm text-zinc-600">
-          {tender.owner ? (
-            <>
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-zinc-100">
-                <Building2
-                  className="h-3.5 w-3.5 text-zinc-500"
-                  aria-hidden="true"
-                />
-              </span>
-              <span className="truncate font-medium">{tender.owner.name}</span>
-            </>
-          ) : (
-            <>
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-amber-50">
-                <Lock
-                  className="h-3.5 w-3.5 text-amber-500"
-                  aria-hidden="true"
-                />
-              </span>
-              <span className="truncate text-zinc-500 italic">Gizli firma</span>
-              <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
-                Premium
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-          <Badge color="zinc">{tender.currency}</Badge>
-          {tender.format === "ENGLISH_AUCTION" ? (
-            <Badge color="purple">
-              Pazarlık
-            </Badge>
-          ) : (
-            <Badge color="zinc">Teklif Toplama</Badge>
-          )}
-          {isSatis && tender.priceScope === "KALEM" ? (
-            <Badge color="emerald">Kalem Bazlı Fiyat</Badge>
-          ) : null}
-          {isSatis && tender.minPrice ? (
-            <Badge color="emerald">
-              Taban {Number(tender.minPrice).toLocaleString("tr-TR")}
-            </Badge>
-          ) : null}
-          {isSatis && tender.buyNowPrice ? (
-            <Badge color="amber">
-              Hemen-Al {Number(tender.buyNowPrice).toLocaleString("tr-TR")}
-            </Badge>
-          ) : null}
-          {tender.invited ? (
-            <Badge color="amber">Davetlisiniz</Badge>
-          ) : null}
-          {!tender.invited && tender.connected ? (
-            <Badge color="purple">Bağlantılı</Badge>
-          ) : null}
-          {tender.visibility === "PUBLIC" ? (
-            <Badge color="green">Herkese Açık</Badge>
-          ) : null}
-          {tender.categoryMatch ? (
-            <Badge color="blue">Kategorine Uygun</Badge>
-          ) : null}
-          {tender.categories.map((c) => (
-            <Badge key={c.code} color="zinc">
-              {c.name}
-            </Badge>
-          ))}
-          {tender.extraCategoryCount > 0 ? (
-            <span className="text-xs text-zinc-400">
-              +{tender.extraCategoryCount}
-            </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1">
-            <FileText className="h-3 w-3" aria-hidden="true" />
-            {tender.itemCount} kalem
-          </span>
-          {tender.myBidVersion && tender.myBidVersion > 1 ? (
-            <span className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600">
-              v{tender.myBidVersion}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Calendar className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
-            <span>
-              {tender.closesAt
-                ? `Kapanış ${format(new Date(tender.closesAt), "dd MMM HH:mm", {
-                    locale: tr,
-                  })}`
-                : "—"}
-            </span>
-          </div>
-          {urgency ? (
-            <span
-              className={cn(
-                "rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
-                urgency.className,
-              )}
-            >
-              {urgency.text}
-            </span>
-          ) : null}
-        </div>
-      </div>
-    </Link>
-  );
 }
 
 /**
@@ -510,9 +323,11 @@ export function SellerTendersView({
         />
       ) : (
         <>
-          <div className="flex flex-col gap-3">
+          {/* Tek görünüm: yoğun satır listesi — İhalelerim ile aynı dil;
+              talep sahibi FİRMA kolonu (kullanıcı isteği, 2026-08-03). */}
+          <div className="space-y-2" role="table" aria-label="İhale listesi">
             {pageRows.map((t) => (
-              <SellerTenderCard key={t.id} tender={t} listingType={listingType} />
+              <BrowseTenderRow key={t.id} t={t} listingType={listingType} />
             ))}
           </div>
           {totalPages > 1 ? (
