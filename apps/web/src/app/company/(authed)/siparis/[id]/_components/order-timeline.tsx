@@ -58,7 +58,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     if (o.acceptedNote) lines.push(o.acceptedNote);
     events.push({
       icon: ThumbsUp,
-      tone: "text-blue-500",
+      tone: "text-emerald-500",
       title: "Sipariş Onaylandı",
       at: fmt(o.acceptedAt),
       actor: sellerLabel,
@@ -68,7 +68,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   if (o.rejectedAt) {
     events.push({
       icon: XCircle,
-      tone: "text-orange-500",
+      tone: "text-red-500",
       title: "Sipariş Reddedildi",
       at: fmt(o.rejectedAt),
       actor: sellerLabel,
@@ -80,7 +80,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   if (o.lcOpenedAt) {
     events.push({
       icon: Landmark,
-      tone: "text-indigo-400",
+      tone: "text-zinc-400",
       title: "Akreditif Açıldı",
       at: fmt(o.lcOpenedAt),
       actor: buyerLabel,
@@ -90,7 +90,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   if (o.lcAcceptedAt) {
     events.push({
       icon: Landmark,
-      tone: "text-indigo-500",
+      tone: "text-emerald-500",
       title: "Akreditif Kabul Edildi",
       at: fmt(o.lcAcceptedAt),
       actor: sellerLabel,
@@ -103,7 +103,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     if (o.deliveryNote) lines.push(o.deliveryNote);
     events.push({
       icon: Truck,
-      tone: "text-indigo-500",
+      tone: "text-emerald-500",
       title: sellerShipsGoods(o.deliveryTerm)
         ? "Sipariş Gönderildi"
         : "Teslime Hazırlandı",
@@ -115,7 +115,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   if (o.deliveredAt) {
     events.push({
       icon: CheckCircle2,
-      tone: "text-cyan-500",
+      tone: "text-emerald-500",
       title: "Teslim Alındı",
       at: fmt(o.deliveredAt),
       actor: buyerLabel,
