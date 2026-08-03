@@ -35,11 +35,13 @@ const TABS = [
   { value: "tedarikci", label: "Tedarikçi" },
 ] as const;
 
+// Segmentli sekme — düz zemin üzerindeki alt-çizgi sekmeler kayboluyordu;
+// aktif = beyaz pill + panel rengi (satış paneliyle aynı dil).
 const TRIGGER_CLASSES = cn(
-  "group inline-flex items-center px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-  "border-transparent text-zinc-500 hover:text-zinc-700",
-  "data-selected:border-zinc-900 data-selected:text-zinc-900",
-  "focus:outline-none rounded-t-md",
+  "rounded-lg px-5 py-2 text-sm font-semibold whitespace-nowrap transition-all",
+  "text-zinc-500 hover:text-zinc-900",
+  "data-selected:bg-white data-selected:text-blue-700 data-selected:shadow-sm data-selected:ring-1 data-selected:ring-zinc-950/5",
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40",
 );
 
 export default function SatinalmaDashboardPage() {
@@ -133,7 +135,7 @@ export default function SatinalmaDashboardPage() {
         onChange={(i) => setParams({ tab: TABS[i]?.value ?? "ihale" })}
       >
         <TabList
-          className="flex gap-1 border-b border-zinc-950/10"
+          className="inline-flex w-fit gap-1 rounded-xl bg-zinc-200/60 p-1 ring-1 ring-zinc-950/5"
           aria-label="Pano bölümleri"
         >
           {TABS.map((t) => (

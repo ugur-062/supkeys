@@ -150,11 +150,13 @@ export function SatisDashboardView() {
         />
       ) : null}
 
-      {/* Sekmeler: Teklif / Gelir / Müşteri (satınalma ile aynı dil). */}
+      {/* Sekmeler: Teklif / Gelir / Müşteri — segmentli kontrol (düz zemin
+          üzerindeki alt-çizgi sekmeler kaybolyordu; aktif = beyaz pill +
+          panel rengi, satınalma ile aynı dil). */}
       <div
         role="tablist"
         aria-label="Satış panosu bölümleri"
-        className="flex gap-1 border-b border-zinc-950/10"
+        className="inline-flex w-fit gap-1 rounded-xl bg-zinc-200/60 p-1 ring-1 ring-zinc-950/5"
       >
         {(
           [
@@ -170,10 +172,11 @@ export function SatisDashboardView() {
             aria-selected={tab === key}
             onClick={() => setParams({ tab: key })}
             className={cn(
-              "-mb-px border-b-2 px-5 py-2.5 text-sm font-medium transition-colors",
+              "rounded-lg px-5 py-2 text-sm font-semibold whitespace-nowrap transition-all",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40",
               tab === key
-                ? "border-emerald-600 text-zinc-900"
-                : "border-transparent text-zinc-500 hover:text-zinc-700",
+                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-zinc-950/5"
+                : "text-zinc-500 hover:text-zinc-900",
             )}
           >
             {label}
