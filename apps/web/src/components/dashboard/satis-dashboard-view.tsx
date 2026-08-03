@@ -42,18 +42,10 @@ import {
   ChevronRight,
   FileText,
   Package,
-  TrendingDown,
-  TrendingUp,
 } from "lucide-react";
-import { formatMoney } from "@/components/ui/money";
+import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import Link from "next/link";
 import { useEffect, useState, type ComponentType } from "react";
-
-/** P1 (denetim §8.1): tek para formatı — sembol SONDA, kuruş görünür. */
-function formatTRY(amount: number): string {
-  if (!Number.isFinite(amount)) return "—";
-  return formatMoney(amount, "TRY");
-}
 
 /** Beyaz panel kartı — eski tedarikçi PanelCard'ının zinc/Catalyst portu. */
 function PanelCard({
@@ -77,29 +69,6 @@ function PanelCard({
       </header>
       <div className={padding === "sm" ? "p-2" : "p-5"}>{children}</div>
     </section>
-  );
-}
-
-/** current vs previous → yüzde değişim rozeti. */
-function TrendBadge({ current, previous }: { current: number; previous: number }) {
-  if (previous <= 0) return null;
-  const pct = Math.round(((current - previous) / previous) * 100);
-  if (pct === 0) return null;
-  const up = pct > 0;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-        up ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
-      }`}
-    >
-      {up ? (
-        <TrendingUp className="h-3 w-3" aria-hidden="true" />
-      ) : (
-        <TrendingDown className="h-3 w-3" aria-hidden="true" />
-      )}
-      {up ? "+" : ""}
-      {pct}%
-    </span>
   );
 }
 
@@ -197,9 +166,11 @@ function ActivityPager({
 }
 
 /**
- * Satış panosu — karşılama + CTA, aksiyon merkezi, 4 KPI, Performans
- * (trendli), Son Aktiviteler; tek kolon (sağ ray + Hızlı Erişim kaldırıldı,
- * kur bilgisi başlıktaki çipte). Görsel dil: zinc/Catalyst.
+ * Satış panosu — karşılama + CTA, aksiyon merkezi, adet KPI satırı + tutar
+ * KPI satırı (eski "Performans" kartı — aralığı kart üstünde açıkça yazar),
+ * Son Aktiviteler; tek kolon. Blok sırası satınalma paneliyle hizalı
+ * (Faz 7.6); satınalmanın İhale/Tasarruf/Tedarikçi sekmeleri veri örgütü
+ * gereği korunur — bilinçli sapma. Görsel dil: zinc/Catalyst.
  */
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
@@ -229,8 +200,9 @@ export function SatisDashboardView() {
   const [activityType, setActivityType] = useState<
     "all" | "invitation" | "bid" | "order"
   >("all");
-  // §10.1: yüklemede "0 teklif" yanılgısı yok — sayaç "—" gösterir.
-  const val = (n: number | undefined) => (loading ? "—" : (n ?? 0));
+  // Faz 7.3: yükleme artık iskeletle çözülür (aşağıda) — kartlara gelindiyse
+  // veri var; "—" yalnız "değer gerçekten yok" anlamında kalır.
+  const val = (n: number | undefined) => n ?? 0;
 
   return (
     <div className="space-y-8">
@@ -318,6 +290,21 @@ export function SatisDashboardView() {
         <SatisGelirTab analytics={analytics.data} loading={analytics.isLoading} />
       ) : tab === "musteri" ? (
         <SatisMusteriTab analytics={analytics.data} loading={analytics.isLoading} />
+      ) : loading && !s ? (
+        /* Faz 7.3: '—'/'…' karışımı yerine gerçek boyutlu iskelet. */
+        <div className="space-y-4" aria-hidden>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200/60" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200/60" />
+            ))}
+          </div>
+          <div className="h-72 animate-pulse rounded-xl bg-zinc-200/60" />
+        </div>
       ) : (
       <>
       {/* KPI grid */}
@@ -361,49 +348,52 @@ export function SatisDashboardView() {
         />
       </div>
 
+      {/* Faz 7.4: "Performans" kartı kaldırıldı — global dönem seçicisiyle
+          çelişen "son 30 gün ve toplam" özeti, aralığını AÇIKÇA söyleyen
+          KPI kartlarına taşındı (tutar satırı — satınalma ile hizalı). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KpiCard
+          label="Son 30 Gün Teklif"
+          value={s?.last30Days.bidsSubmitted ?? 0}
+          href="/company/satis/tekliflerim"
+          accent="emerald"
+          deltaPct={
+            compare && s && s.last30Days.prevBidsSubmitted > 0
+              ? Math.round(
+                  ((s.last30Days.bidsSubmitted - s.last30Days.prevBidsSubmitted) /
+                    s.last30Days.prevBidsSubmitted) *
+                    100,
+                )
+              : undefined
+          }
+          hint="son 30 gün · önceki 30 güne göre"
+        />
+        <KpiCard
+          label="Toplam Gelir"
+          value={formatCompactMoney(s?.revenue.total ?? 0)}
+          valueTitle={formatMoney(s?.revenue.total ?? 0)}
+          href="/company/satis/siparisler"
+          accent="emerald"
+          deltaPct={
+            compare && s && s.revenue.prev30 > 0
+              ? Math.round(
+                  ((s.revenue.last30 - s.revenue.prev30) / s.revenue.prev30) * 100,
+                )
+              : undefined
+          }
+          hint="tüm zamanlar · yalnız TRY"
+        />
+        <KpiCard
+          label="Bağlı Müşteri"
+          value={s?.buyers.active ?? 0}
+          href="/company/satis/musterilerim"
+          accent="emerald"
+          hint="aktif bağlantı"
+        />
+      </div>
+
       {/* Tek kolon — sağ ray (TCMB + Hızlı Erişim) kaldırıldı. */}
       <div className="space-y-6">
-          <PanelCard title="Performans" subtitle="Son 30 gün ve toplam özet">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
-                <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                  Son 30 Gün Teklif
-                  {s ? (
-                    <TrendBadge
-                      current={s.last30Days.bidsSubmitted}
-                      previous={s.last30Days.prevBidsSubmitted}
-                    />
-                  ) : null}
-                </p>
-                <p className="mt-1 text-2xl font-bold text-zinc-950 tabular-nums">
-                  {val(s?.last30Days.bidsSubmitted)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
-                <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                  Toplam Gelir
-                  {s ? (
-                    <TrendBadge
-                      current={s.revenue.last30}
-                      previous={s.revenue.prev30}
-                    />
-                  ) : null}
-                </p>
-                <p className="mt-1 text-2xl font-bold text-zinc-950 tabular-nums">
-                  {loading ? "…" : formatTRY(s?.revenue.total ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
-                <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                  Bağlı Müşteri
-                </p>
-                <p className="mt-1 text-2xl font-bold text-zinc-950 tabular-nums">
-                  {val(s?.buyers.active)}
-                </p>
-              </div>
-            </div>
-          </PanelCard>
-
           <PanelCard
             title="Son Aktiviteler"
             subtitle="Davetler, teklifler ve siparişlerden"
@@ -548,10 +538,11 @@ function SatisGelirTab({
         )}
       </ChartCard>
 
+      {/* Faz 7.2: "Pipeline" → Satış Hunisi (tek dil). */}
       <ChartCard
-        title="Pipeline"
+        title="Satış Hunisi"
         subtitle="Davet adet; sonraki aşamalar TL (teklifsiz davetin tutarı bilinemez)"
-        ariaLabel="Satış pipeline hunisi"
+        ariaLabel="Satış hunisi"
       >
         {analytics.pipeline.some((p) => p.count > 0) ? (
           <FunnelChart
@@ -563,11 +554,14 @@ function SatisGelirTab({
                   ? `${p.label} (${formatMoney(p.amountTry, "TRY")})`
                   : p.label,
               count: p.count,
+              // Davet → teklif farklı evren (kohort değil) — oran yanıltır
+              // (%900 gibi); yalnız karşılaştırılabilir adımlarda oran çıkar.
+              noConversion: p.key === "submitted",
             }))}
           />
         ) : (
           <DashboardEmptyState
-            title="Pipeline boş"
+            title="Satış hunisi boş"
             body="Davet alıp teklif verdikçe aşamalar burada dolacak."
             ctaLabel="Açık İhalelere Göz At"
             ctaHref="/company/satis/acik-ihaleler"
@@ -605,8 +599,18 @@ function SatisMusteriTab({
         ariaLabel="Müşteri konsantrasyonu Pareto"
         right={
           analytics.pareto.concentrationWarning ? (
-            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
-              ⚠ Konsantrasyon riski
+            /* Faz 7.5: uyarı aksiyonsuz kalmasın — müşteri tabanını
+               genişletmenin yolu yeni ihalelere teklif vermek. */
+            <span className="flex flex-col items-end gap-1">
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                ⚠ Konsantrasyon riski
+              </span>
+              <Link
+                href="/company/satis/acik-ihaleler"
+                className="whitespace-nowrap text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
+              >
+                Açık ihalelere göz at
+              </Link>
             </span>
           ) : undefined
         }

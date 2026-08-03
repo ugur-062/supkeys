@@ -8,6 +8,8 @@ const h = vi.hoisted(() => ({
   activity: [] as unknown[],
   activityTotal: undefined as number | undefined,
   activityCalls: [] as [number, number][],
+  /** URL search param'ları (dönem/karşılaştır/sekme) — test başına ayarlanır. */
+  search: "" as string,
 }));
 
 vi.mock("@/hooks/use-company-auth", () => ({
@@ -39,7 +41,7 @@ vi.mock("@/hooks/use-company-messages", () => ({
   useUnreadMessages: () => ({ data: { count: 0 } }),
 }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(h.search),
   usePathname: () => "/company/satis",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
@@ -74,10 +76,11 @@ beforeEach(() => {
   h.activity = [];
   h.activityTotal = undefined;
   h.activityCalls = [];
+  h.search = "";
 });
 
 describe("SatisDashboardView", () => {
-  it("KPI değerleri + karşılama + performans panelleri görünür", () => {
+  it("KPI değerleri + karşılama + tutar KPI satırı görünür", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
 
@@ -86,17 +89,24 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("Kazanılan İhale")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
-    // Gelir TRY formatlı.
-    expect(screen.getByText(/150\.000/)).toBeInTheDocument();
-    // Bağlı müşteri.
+    // Faz 7.4: "Performans" kartı yerine tutar KPI satırı — gelir kompakt
+    // ("150 B ₺"), tam değer title'da.
+    expect(screen.getByText("Toplam Gelir")).toBeInTheDocument();
+    expect(screen.getByText(/150\sB\s₺/)).toBeInTheDocument();
     expect(screen.getByText("Bağlı Müşteri")).toBeInTheDocument();
     expect(screen.getByTestId("tcmb")).toBeInTheDocument();
   });
 
-  it("trend rozeti: 8 vs 4 → +100%", () => {
+  it("delta rozeti yalnız karşılaştır (?compare=1) açıkken çizilir: 8 vs 4 → %100", () => {
     h.stats = fullStats();
+    const { unmount } = render(<SatisDashboardView />);
+    expect(screen.queryByText(/%100/)).not.toBeInTheDocument();
+    unmount();
+
+    h.search = "compare=1";
     render(<SatisDashboardView />);
-    expect(screen.getByText("+100%")).toBeInTheDocument();
+    // TrendBadge biçimi: ok ikonu + "%100" (TR yüzde önde).
+    expect(screen.getAllByText(/%100/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("davet uyarısı TEK yerden gelir: eski banner render edilmez (çift uyarı fix)", () => {
@@ -153,9 +163,12 @@ describe("SatisDashboardView", () => {
     expect(h.activityCalls.at(-1)).toEqual([8, 2]);
   });
 
-  it("yüklenirken KPI'lar '—' gösterir (sahte '0' yok — denetim §10.1)", () => {
+  it("yüklenirken kartlar yerine iskelet çizilir (sahte '0'/'—' karışımı yok — Faz 7.3)", () => {
     h.statsLoading = true;
     render(<SatisDashboardView />);
-    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(4);
+    // KPI kartları render edilmez; gerçek boyutlu iskelet var.
+    expect(screen.queryByText("Aktif Davetler")).not.toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 });

@@ -260,7 +260,14 @@ export function FunnelChart({
   accent = "blue",
   formatValue = (n) => String(n),
 }: {
-  stages: { key: string; label: string; count: number; href?: string }[];
+  stages: {
+    key: string;
+    label: string;
+    count: number;
+    href?: string;
+    /** Önceki aşamayla karşılaştırılabilir değilse (farklı evren) oran gizlenir. */
+    noConversion?: boolean;
+  }[];
   accent?: "blue" | "emerald";
   formatValue?: (n: number) => string;
 }) {
@@ -271,14 +278,18 @@ export function FunnelChart({
       {stages.map((s, i) => {
         const prev = i > 0 ? stages[i - 1]!.count : null;
         const conv =
-          prev != null && prev > 0
+          !s.noConversion && prev != null && prev > 0
             ? Math.round((s.count / prev) * 100)
             : null;
         const inner = (
           <>
+            {/* Faz 7.1: uzun etiket kırpılır (title'da tamamı), değerler
+                asla alt satıra sarmaz — sağ kenarda "%9…" kırpması bitti. */}
             <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="text-slate-500">{s.label}</span>
-              <span className="tabular-nums text-slate-700">
+              <span className="min-w-0 truncate text-slate-500" title={s.label}>
+                {s.label}
+              </span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-slate-700">
                 <strong className="text-sm font-semibold text-slate-950">
                   {formatValue(s.count)}
                 </strong>
