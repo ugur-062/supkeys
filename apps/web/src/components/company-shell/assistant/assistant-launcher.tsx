@@ -15,9 +15,11 @@ import { AssistantPanel } from "./assistant-panel";
 const SEAT_ROLES = ["SATIN_ALMACI", "SATISCI"];
 
 /** Karşılama balonu oturumda BİR KEZ gösterilir (sayfa geçişlerinde tekrar
- *  çıkıp rahatsız etmesin); ~12sn sonra kendiliğinden kaybolur. */
+ *  çıkıp rahatsız etmesin); ~6sn sonra kendiliğinden kaybolur (Faz 8.2:
+ *  12sn'lik balon sağ-alt KPI kartının hover/tıklamasını uzun süre
+ *  yutuyordu — süre kısaldı, kapatma X'i zaten var). */
 const GREET_SEEN_KEY = "ai-assistant-greeted";
-const GREET_HIDE_MS = 12_000;
+const GREET_HIDE_MS = 6_000;
 
 /**
  * Faz AI-2 — sağ-alt floating launcher + sağdan slide-over asistan paneli.
@@ -30,6 +32,14 @@ export function AssistantLauncher() {
   // §4.4: genişletme seçeneği — dar sohbet / geniş okuma.
   const [wide, setWide] = useState(false);
   const [greet, setGreet] = useState(false);
+  // Faz 8.2 — FAB scroll'da küçülür: grafik/tablo son kolonuna daha az biner.
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setCompact(window.scrollY > 160);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const eligible =
     !!user &&
@@ -99,9 +109,12 @@ export function AssistantLauncher() {
         aria-label="AI Asistan"
         onClick={openPanel}
         className={cn(
-          "group fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "group fixed z-40 flex items-center justify-center rounded-full",
           "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-white/20",
-          "transition hover:-translate-y-0.5 hover:shadow-xl",
+          "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl",
+          // Faz 8.2: scroll'da küçülüp köşeye yaklaşır — tablo son kolonunu
+          // daha az kapatır (içerikte pb-24 nefes payı zaten var).
+          compact ? "bottom-4 right-4 h-11 w-11" : "bottom-5 right-5 h-14 w-14",
         )}
       >
         {/* Nefes alan halka — buton kapalıyken sürekli, dikkat çekmeden */}

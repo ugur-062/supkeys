@@ -7,8 +7,9 @@ interface PortalState {
   lastPortal: PortalKey | null;
   setLastPortal: (p: PortalKey) => void;
   /**
-   * Sidebar sabit mi? false (varsayılan) = ikon rayı; mouse gelince genişler,
-   * çekilince daralır. true = hep açık (pin).
+   * Sidebar sabit mi? true (varsayılan, Faz 8.1) = hep açık/METİNLİ —
+   * ikon-only ray ayırt edilemiyordu. false = ikon rayı; hover'da genişler.
+   * Tercih localStorage'da kalıcı (pin butonu).
    */
   sidebarPinned: boolean;
   toggleSidebarPinned: () => void;
@@ -19,10 +20,21 @@ export const usePortalStore = create<PortalState>()(
     (set) => ({
       lastPortal: null,
       setLastPortal: (p) => set({ lastPortal: p }),
-      sidebarPinned: false,
+      sidebarPinned: true,
       toggleSidebarPinned: () =>
         set((s) => ({ sidebarPinned: !s.sidebarPinned })),
     }),
-    { name: "rothern-company-portal" },
+    {
+      name: "rothern-company-portal",
+      // v1→v2 (Faz 8.1): varsayılan genişletilmişe TEK SEFERLİK taşıma —
+      // eski false'lar bilinçli tercih değil eski varsayılandı; bundan
+      // sonraki pin/unpin tercihi aynen kalıcı.
+      version: 2,
+      migrate: (state, version) => {
+        const s = state as PortalState;
+        if (version < 2) return { ...s, sidebarPinned: true };
+        return s;
+      },
+    },
   ),
 );

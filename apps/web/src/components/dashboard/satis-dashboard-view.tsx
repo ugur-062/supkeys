@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ActionCenter } from "@/components/dashboard/action-center";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import {
   ChartCard,
   DashboardEmptyState,
@@ -241,6 +242,38 @@ export function SatisDashboardView() {
           </Link>
         </div>
       </header>
+
+      {/* Faz 8.3 — yeni satıcı: boş kart yığını yerine ilk-çalıştırma listesi
+          (satınalma ile aynı bileşen; tamamlanınca kendiliğinden kaybolur). */}
+      {s &&
+      s.invitations.active === 0 &&
+      s.bids.active === 0 &&
+      s.wonTenders === 0 &&
+      s.orders.pending === 0 &&
+      s.revenue.total === 0 ? (
+        <OnboardingChecklist
+          steps={[
+            {
+              key: "profile",
+              label: "Firma profilini tamamla",
+              done: !!company?.publicEnabled,
+              href: "/company/satis/profilim",
+            },
+            {
+              key: "discover",
+              label: "Açık ihaleleri keşfet",
+              done: false,
+              href: "/company/satis/acik-ihaleler",
+            },
+            {
+              key: "bid",
+              label: "İlk teklifini ver",
+              done: false,
+              href: "/company/satis/acik-ihaleler",
+            },
+          ]}
+        />
+      ) : null}
 
       {/* Aksiyon merkezi — "bugün ne yapmalıyım" (Faz 2: veri + sıralama
           backend'de, metin haritası ACTION_ROWS'ta). */}

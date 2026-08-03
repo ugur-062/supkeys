@@ -76,6 +76,7 @@ function RailItem({
       prefetch={false}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
+      aria-label={label}
       title={expanded ? undefined : label}
       className={cn(
         "group/item relative flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-medium transition-colors",
@@ -205,6 +206,7 @@ export function CompanySidebarContent({
                   key={p}
                   href={def.basePath}
                   prefetch={false}
+                  aria-label={`${def.label} paneline geç`}
                   title={expanded ? undefined : def.label}
                   onClick={() => {
                     if (allowedP) setLastPortal(p);
