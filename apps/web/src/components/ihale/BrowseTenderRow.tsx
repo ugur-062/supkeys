@@ -119,7 +119,7 @@ export function BrowseTenderRow({
     <div
       role="row"
       className={cn(
-        "rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
+        "group/row rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
         strip,
       )}
     >
@@ -154,14 +154,19 @@ export function BrowseTenderRow({
               href={detailHref}
               className={cn("min-w-0 rounded", IHALE_VIEW_FOCUS)}
             >
-              <span className="block text-[11px] leading-tight text-slate-400">
-                İhale {t.number ?? "—"}
+              <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] tabular-nums leading-tight text-zinc-600">
+                {t.number ?? "—"}
               </span>
               <span
-                className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-tight text-slate-900"
+                className={cn(
+                  "mt-1 line-clamp-2 text-[13px] font-semibold leading-tight text-slate-900 transition-colors",
+                  isSatis
+                    ? "group-hover/row:text-violet-700"
+                    : "group-hover/row:text-emerald-700",
+                )}
                 title={t.title}
               >
-                “{t.title}”
+                {t.title}
               </span>
             </Link>
           </div>
