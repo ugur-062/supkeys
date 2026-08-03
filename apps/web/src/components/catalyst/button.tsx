@@ -12,7 +12,9 @@ const styles = {
     // Focus
     'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-zinc-950',
     // Disabled
-    'data-disabled:opacity-50',
+    // §4.5 (frontend denetimi): devre dışı = ayrı token, opaklık değil —
+    // "aktif gibi görünen soluk yeşil" sınıfı biter.
+    'data-disabled:!bg-zinc-100 data-disabled:!text-zinc-400 data-disabled:!shadow-none data-disabled:[--btn-icon:var(--color-zinc-400)]',
     // Icon
     '*:data-[slot=icon]:-mx-0.5 *:data-[slot=icon]:my-0.5 *:data-[slot=icon]:size-5 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:self-center *:data-[slot=icon]:text-(--btn-icon) sm:*:data-[slot=icon]:my-1 sm:*:data-[slot=icon]:size-4 forced-colors:[--btn-icon:ButtonText] forced-colors:data-hover:[--btn-icon:ButtonText]',
   ],

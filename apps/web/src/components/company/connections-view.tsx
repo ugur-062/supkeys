@@ -336,7 +336,10 @@ export function ConnectionsView() {
   };
 
   const handleInviteByEmail = async () => {
-    if (!email.includes("@")) return;
+    if (!email.includes("@")) {
+      toast.error("Geçerli bir e-posta adresi girin");
+      return;
+    }
     try {
       const res = await inviteByEmail.mutateAsync(email.trim());
       toast.success(
@@ -437,9 +440,11 @@ export function ConnectionsView() {
               }}
             />
             <div className="flex flex-wrap items-center gap-2">
+              {/* §4.5: geçersiz girişte buton soluk değil — tıklayınca
+                  net hata (handleInviteByEmail zaten doğruluyor). */}
               <Button
                 onClick={handleInviteByEmail}
-                disabled={inviteByEmail.isPending || !email.includes("@")}
+                disabled={inviteByEmail.isPending}
               >
                 {inviteByEmail.isPending ? "Gönderiliyor…" : "Davet Et"}
               </Button>
