@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import { GoogleGenAI, ThinkingLevel, type Content } from "@google/genai";
 import {
   AiProviderError,
@@ -62,6 +63,7 @@ export type GeminiProviderInit =
 
 export class GeminiProvider extends BaseAiProvider {
   readonly name = "gemini";
+  private readonly logger = new Logger(GeminiProvider.name);
   private readonly client: GoogleGenAI;
 
   constructor(init: GeminiProviderInit) {
@@ -86,6 +88,17 @@ export class GeminiProvider extends BaseAiProvider {
   private static readonly MAX_RETRIES = 2;
   private static readonly RETRY_BACKOFF_MS = [600, 1500];
 
+  /** Sınıf-içi yedek model: flash kapasite hatasında (`-latest` alias'ı dahil
+   *  dalgalı 503 "high demand" verebiliyor) retry'lar tükenince aynı istek bir
+   *  de flash-lite ile denenir. Pro'ya yedek YOK (kalite/maliyet sınıfı
+   *  değişmez). Settle rezervasyondaki modelin fiyatından hesaplar; flash-lite
+   *  daha ucuz olduğundan maliyet en fazla FAZLA sayılır (fail-closed). */
+  private static readonly FALLBACK_MODELS: Record<string, string> = {
+    "gemini-flash-latest": "gemini-flash-lite-latest",
+    "gemini-2.5-flash": "gemini-flash-lite-latest",
+    "gemini-3.5-flash": "gemini-flash-lite-latest",
+  };
+
   private static isTransient(err: unknown): boolean {
     const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
     return (
@@ -99,6 +112,8 @@ export class GeminiProvider extends BaseAiProvider {
   }
 
   async complete(req: AiCompletionRequest): Promise<AiCompletionResult> {
+    let model = req.model;
+    let fallbackUsed = false;
     for (let attempt = 0; ; attempt++) {
       // Tur deadline'ı: her deneme kalan süreyle sınırlanır — çok-çağrılı
       // akışlarda toplam süre timeoutMs × deneme sayısına ŞİŞMEZ.
@@ -113,16 +128,29 @@ export class GeminiProvider extends BaseAiProvider {
       try {
         return await this.completeOnce({
           ...req,
+          model,
           timeoutMs: Math.min(req.timeoutMs, remaining),
         });
       } catch (err) {
         // Timeout kullanıcıyı bekletmesin; geçici olmayan hata da anında düşer.
         if (
           err instanceof AiProviderTimeoutError ||
-          !GeminiProvider.isTransient(err) ||
-          attempt >= GeminiProvider.MAX_RETRIES
+          !GeminiProvider.isTransient(err)
         ) {
           throw err;
+        }
+        if (attempt >= GeminiProvider.MAX_RETRIES) {
+          const fallback = GeminiProvider.FALLBACK_MODELS[model];
+          if (fallbackUsed || !fallback) throw err;
+          this.logger.warn(
+            `Gemini "${model}" ${attempt + 1} denemede de kapasite hatası verdi — yedek modele geçiliyor: "${fallback}"`,
+          );
+          model = fallback;
+          fallbackUsed = true;
+          // Yedek model kendi retry bütçesiyle başlar; toplam süreyi deadlineAt
+          // sınırlar. Farklı kapasite havuzu → backoff beklenmeden denenir.
+          attempt = -1;
+          continue;
         }
         await new Promise((r) =>
           setTimeout(r, GeminiProvider.RETRY_BACKOFF_MS[attempt] ?? 1500),
