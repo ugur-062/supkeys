@@ -302,9 +302,15 @@ export class AssistantService {
       const raw = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Asistan sağlayıcı hatası: ${raw}`);
       // Gemini durum kodunu kullanıcıya-güvenli biçimde yansıt (anahtar/gövde
-      // sızmaz): 503/429 = yoğunluk (tekrar dene), diğer = model/config sorunu.
+      // sızmaz — yalnız 3 haneli kod): log erişimi olmadan da teşhis edilebilsin.
+      // 503/429 = yoğunluk (tekrar dene), 404/403/401 = model/yetki config sorunu.
+      const code =
+        raw.match(/"code"\s*:\s*(\d{3})/)?.[1] ??
+        raw.match(/got status:?\s*(\d{3})/i)?.[1];
       throw new ServiceUnavailableException(
-        "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
+        code
+          ? `Asistan şu an yanıt veremedi (sağlayıcı hatası ${code}) — birkaç saniye sonra tekrar deneyin.`
+          : "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
       );
     }
 
