@@ -75,7 +75,7 @@ export default function SatinalmaDashboardPage() {
             {company?.name ?? "Rothern"}
             {todayLabel ? (
               <>
-                <span className="mx-2 text-zinc-300">·</span>
+                <span className="mx-2 text-zinc-300">{" · "}</span>
                 <span>{todayLabel}</span>
               </>
             ) : null}
@@ -85,12 +85,6 @@ export default function SatinalmaDashboardPage() {
             anasayfadan kalktı (şerit → raporlar hub'ı). */}
         <div className="flex flex-wrap items-center gap-3">
           <TcmbRatesChip />
-          <PeriodControls
-            period={period}
-            from={from}
-            to={to}
-            onChange={setParams}
-          />
         </div>
       </header>
 
@@ -133,6 +127,9 @@ export default function SatinalmaDashboardPage() {
         selectedIndex={Math.max(0, TABS.findIndex((t) => t.value === tab))}
         onChange={(i) => setParams({ tab: TABS[i]?.value ?? "ihale" })}
       >
+        {/* C46 (satış ile aynı): dönem seçici yalnız bu sekmelerin verisini
+            etkiler — ilgili bölümün başında durur. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <TabList
           className="inline-flex w-fit gap-1 rounded-xl bg-zinc-200/60 p-1 ring-1 ring-zinc-950/5"
           aria-label="Pano bölümleri"
@@ -143,6 +140,8 @@ export default function SatinalmaDashboardPage() {
             </Tab>
           ))}
         </TabList>
+        <PeriodControls period={period} from={from} to={to} onChange={setParams} />
+        </div>
 
         <TabPanels>
           {/* Hata → ErrorState + Tekrar dene (refetch); retry'sız statik mesaj

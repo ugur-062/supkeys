@@ -26,7 +26,7 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Check, Send } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -243,6 +243,10 @@ export function TenderWizard({
 } = {}) {
   const router = useRouter();
   const isEdit = mode === "edit";
+  // C36: Şablonlar sayfasından "Sihirbazda Kullan" — ?template=<id> bir kez
+  // uygulanır (şablonlar yüklenince; edit modunda yok sayılır).
+  const searchParamsTpl = useSearchParams().get("template");
+  const appliedTplRef = useRef<string | null>(null);
   // Faz AI-1 UX: AI doldurma sonrasında da 1. adımdan ("Tür & Kapsam")
   // başlanır — yurtiçi/uluslararası seçimi bilinçli bir kullanıcı kararı,
   // belgeden her zaman güvenilir çıkarılamaz; adım atlanırsa sessizce
@@ -355,6 +359,14 @@ export function TenderWizard({
     setStep(0);
     toast.success(`"${tpl.name}" şablonu yüklendi`);
   };
+
+  useEffect(() => {
+    if (isEdit || !searchParamsTpl || !templates.data) return;
+    if (appliedTplRef.current === searchParamsTpl) return;
+    appliedTplRef.current = searchParamsTpl;
+    loadTemplate(searchParamsTpl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, searchParamsTpl, templates.data]);
 
   const handleSaveTemplate = async (name: string) => {
     try {
