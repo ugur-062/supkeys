@@ -102,7 +102,7 @@ export function BrowseTenderRow({
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
             aria-controls={panelId}
-            aria-label={expanded ? "Detayı gizle" : "Detayı genişlet"}
+            aria-label={expanded ? "Detayı daralt" : "Detayı genişlet"}
             className={cn("rounded text-slate-400", IHALE_VIEW_FOCUS)}
           >
             <ChevronRight
@@ -397,7 +397,12 @@ export function BrowseTenderRow({
               </div>
             ))}
           </dl>
-          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} />
+          <IhaleItemsPanel
+            listingId={t.id}
+            detailHref={detailHref}
+            itemsTab={1}
+            initialCount={t.itemCount}
+          />
           <Link
             href={detailHref}
             className={cn(

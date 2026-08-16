@@ -175,7 +175,7 @@ export function IhaleListRow({
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
             aria-controls={panelId}
-            aria-label={expanded ? "Detayı gizle" : "Detayı genişlet"}
+            aria-label={expanded ? "Detayı daralt" : "Detayı genişlet"}
             className={cn("rounded text-slate-400", IHALE_VIEW_FOCUS)}
           >
             <ChevronRight
@@ -430,7 +430,7 @@ export function IhaleListRow({
               </div>
             ))}
           </dl>
-          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} />
+          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} itemsTab={2} />
           <Link
             href={detailHref}
             className={cn(

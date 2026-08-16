@@ -249,7 +249,10 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     const toggle = screen.getByRole("button", { name: "Detayı genişlet" });
     await user.click(toggle);
     expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
-    expect(h.get).toHaveBeenCalledWith("/company/listings/l1");
+    expect(h.get).toHaveBeenCalledWith(
+      "/company/listings/l1",
+      expect.objectContaining({ signal: expect.anything() }),
+    );
     // a11y: chevron aria-controls ile açılan paneli işaret eder.
     const panelId = toggle.getAttribute("aria-controls");
     expect(panelId).toBeTruthy();

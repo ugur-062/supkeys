@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListingDetail, ListingItemRow } from "@/hooks/use-company-listings";
 
 const h = vi.hoisted(() => ({
-  get: vi.fn<(url: string) => Promise<{ data: unknown }>>(),
+  get: vi.fn<(url: string, cfg?: unknown) => Promise<{ data: unknown }>>(),
 }));
 
 vi.mock("@/lib/company-auth/api", () => ({
@@ -31,16 +31,30 @@ function item(over: Partial<ListingItemRow> = {}): ListingItemRow {
 }
 
 function detail(items: ListingItemRow[], over: Partial<ListingDetail> = {}) {
-  return { id: "l1", items, itemCount: items.length, ...over } as ListingDetail;
+  return {
+    id: "l1",
+    primaryCurrency: "TRY",
+    items,
+    itemCount: items.length,
+    ...over,
+  } as ListingDetail;
 }
 
-function renderPanel(client?: QueryClient) {
+function renderPanel(
+  client?: QueryClient,
+  props: Partial<React.ComponentProps<typeof IhaleItemsPanel>> = {},
+) {
   const qc =
     client ??
     new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = rtlRender(
     <QueryClientProvider client={qc}>
-      <IhaleItemsPanel listingId="l1" detailHref="/company/ilan/l1" />
+      <IhaleItemsPanel
+        listingId="l1"
+        detailHref="/company/ilan/l1?from=x"
+        itemsTab={1}
+        {...props}
+      />
     </QueryClientProvider>,
   );
   return { qc, view };
@@ -51,7 +65,7 @@ beforeEach(() => {
 });
 
 describe("IhaleItemsPanel", () => {
-  it("kalemleri kolonlarıyla basar; termin yalnız veri varsa görünür", async () => {
+  it("başlık 'Kalemler (N)' + kolonlar; miktar+birim tek hücrede", async () => {
     h.get.mockResolvedValue({
       data: detail([
         item({
@@ -61,7 +75,6 @@ describe("IhaleItemsPanel", () => {
           materialCode: "MLZ-42",
           quantity: "1500",
           unit: "metre",
-          requiredByDate: "2026-09-10T00:00:00.000Z",
         }),
         item({ lineNo: 2, name: "Vana", quantity: "25", unit: "adet" }),
       ]),
@@ -69,18 +82,36 @@ describe("IhaleItemsPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
-    expect(h.get).toHaveBeenCalledWith("/company/listings/l1");
+    expect(h.get).toHaveBeenCalledWith(
+      "/company/listings/l1",
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+    expect(screen.getByText("Kalemler (2)")).toBeInTheDocument();
     expect(screen.getByText("DN50 dikişsiz")).toBeInTheDocument();
     expect(screen.getByText("MLZ-42")).toBeInTheDocument();
-    expect(screen.getByText("1.500")).toBeInTheDocument();
-    expect(screen.getByText("metre")).toBeInTheDocument();
-    expect(screen.getByText("Termin")).toBeInTheDocument();
-    expect(screen.getByText("10 Eyl 2026")).toBeInTheDocument();
-    // 5'ten az kalem → "Tümünü gör" yok.
-    expect(screen.queryByText(/Tümünü gör/)).not.toBeInTheDocument();
+    expect(screen.getByText("1.500 metre")).toBeInTheDocument();
+    // Hedef fiyat verisi yok (tedarikçi görünümü) → kolon hiç çizilmez.
+    expect(screen.queryByText("Hedef Fiyat")).not.toBeInTheDocument();
+    expect(screen.queryByText(/daha göster/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/detayda gör/)).not.toBeInTheDocument();
   });
 
-  it("5'ten çok kalemde ilk 5 + detay sayfasına 'Tümünü gör (N kalem)' linki", async () => {
+  it("hedef fiyat verisi geldiyse kolon görünür (sahip / opt-in)", async () => {
+    h.get.mockResolvedValue({
+      data: detail([
+        item({ name: "Vana", targetPrice: "1000" }),
+        item({ lineNo: 2 }),
+      ]),
+    });
+    renderPanel();
+
+    expect(await screen.findByText("Hedef Fiyat")).toBeInTheDocument();
+    expect(screen.getByText("1.000,00 ₺")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument(); // fiyatsız kalem
+  });
+
+  it("6-20 kalem: ilk 5 + 'N-5 kalem daha göster' → hepsi + 'Daha az göster'", async () => {
+    const user = userEvent.setup();
     h.get.mockResolvedValue({
       data: detail(
         Array.from({ length: 8 }, (_, i) =>
@@ -91,10 +122,32 @@ describe("IhaleItemsPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("Kalem 1")).toBeInTheDocument();
-    expect(screen.getByText("Kalem 5")).toBeInTheDocument();
     expect(screen.queryByText("Kalem 6")).not.toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "Tümünü gör (8 kalem)" });
-    expect(link).toHaveAttribute("href", "/company/ilan/l1");
+    await user.click(
+      screen.getByRole("button", { name: "3 kalem daha göster" }),
+    );
+    expect(screen.getByText("Kalem 8")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Daha az göster" }));
+    expect(screen.queryByText("Kalem 8")).not.toBeInTheDocument();
+    // Bu kademede detay linki yok.
+    expect(screen.queryByText(/detayda gör/)).not.toBeInTheDocument();
+  });
+
+  it(">20 kalem: ilk 5 + detay sayfası Kalemler sekmesine link, inline açma yok", async () => {
+    h.get.mockResolvedValue({
+      data: detail(
+        Array.from({ length: 25 }, (_, i) =>
+          item({ lineNo: i + 1, name: `Kalem ${i + 1}` }),
+        ),
+      ),
+    });
+    renderPanel(undefined, { itemsTab: 2 });
+
+    expect(await screen.findByText("Kalem 1")).toBeInTheDocument();
+    expect(screen.queryByText("Kalem 6")).not.toBeInTheDocument();
+    expect(screen.queryByText(/daha göster/)).not.toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Tüm 25 kalemi detayda gör →" });
+    expect(link).toHaveAttribute("href", "/company/ilan/l1?from=x&tab=2");
   });
 
   it("kalem yoksa boş durum metni", async () => {
@@ -102,7 +155,7 @@ describe("IhaleItemsPanel", () => {
     renderPanel();
 
     expect(
-      await screen.findByText("Bu ihalede kalem bulunmuyor."),
+      await screen.findByText("Bu ihalede kalem tanımlanmamış."),
     ).toBeInTheDocument();
   });
 
@@ -116,6 +169,13 @@ describe("IhaleItemsPanel", () => {
     await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
     expect(await screen.findByText("Vana")).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("initialCount: liste verisinden gelen N, fetch beklenmeden başlıkta", async () => {
+    h.get.mockReturnValue(new Promise(() => {})); // hiç dönmeyen istek
+    renderPanel(undefined, { initialCount: 7 });
+
+    expect(await screen.findByText("Kalemler (7)")).toBeInTheDocument();
   });
 
   it("cache: panel kapanıp yeniden açılınca (remount) ikinci istek atılmaz", async () => {
