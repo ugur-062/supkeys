@@ -470,7 +470,7 @@ function SaleListingPreview() {
           <div className="text-sm font-semibold text-zinc-900">50.000 ₺</div>
         </div>
         <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-          <div className="text-xs text-emerald-600">Hemen-Al</div>
+          <div className="text-xs text-emerald-600">Hemen Al</div>
           <div className="text-sm font-semibold text-emerald-800">80.000 ₺</div>
         </div>
       </div>
@@ -1167,7 +1167,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-                  <div className="text-xs text-emerald-600">Hemen-Al</div>
+                  <div className="text-xs text-emerald-600">Hemen Al</div>
                   <div className="text-sm font-semibold text-emerald-800">
                     80.000 ₺
                   </div>

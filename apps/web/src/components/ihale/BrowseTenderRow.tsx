@@ -363,7 +363,7 @@ export function BrowseTenderRow({
             ) : null}
             {isSatis && t.buyNowPrice ? (
               <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-amber-700">
-                Hemen-Al {Number(t.buyNowPrice).toLocaleString("tr-TR")}
+                Hemen Al {Number(t.buyNowPrice).toLocaleString("tr-TR")}
               </span>
             ) : null}
             {t.categories.map((c) => (

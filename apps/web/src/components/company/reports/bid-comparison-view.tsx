@@ -237,7 +237,7 @@ export function BidComparisonView({
                         </span>
                       ) : p.isBuyNow ? (
                         <span className="text-xs font-normal text-emerald-600">
-                          Hemen-Al
+                          Hemen Al
                         </span>
                       ) : null}
                     </TableHeader>

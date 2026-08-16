@@ -122,7 +122,7 @@ function BellPanelContent({
                       </span>
                     ) : null}
                   </div>
-                  <span className="line-clamp-2 text-xs text-zinc-500">
+                  <span className="line-clamp-2 text-xs text-zinc-500" title={n.body}>
                     {n.body}
                   </span>
                   <span className="text-xs text-zinc-400">

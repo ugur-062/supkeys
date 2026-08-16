@@ -61,7 +61,7 @@ export function SelectMenu({
         <ListboxOptions modal={false}
           anchor="bottom start"
           transition
-          className="z-50 mt-1 min-w-[calc(var(--button-width))] max-w-96 rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5 transition duration-100 focus:outline-none data-closed:opacity-0 [--anchor-gap:0.25rem]"
+          className="z-50 mt-1 min-w-[calc(var(--button-width))] max-w-96 rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5 transition focus:outline-none data-leave:duration-100 data-leave:ease-in data-closed:data-leave:opacity-0 [--anchor-gap:0.25rem]"
         >
           {options.map((o, i) => (
             <ListboxOption

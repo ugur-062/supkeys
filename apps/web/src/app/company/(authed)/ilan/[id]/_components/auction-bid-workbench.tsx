@@ -411,7 +411,7 @@ export function AuctionBidWorkbench({
                               ? `Taban: ${money(it.minUnitPrice, currency)}`
                               : null,
                             it.buyNowUnitPrice != null
-                              ? `Hemen-Al: ${money(it.buyNowUnitPrice, currency)}`
+                              ? `Hemen Al: ${money(it.buyNowUnitPrice, currency)}`
                               : null,
                             it.targetPrice
                               ? `${isSatis ? "İstenen" : "Hedef"}: ${money(it.targetPrice, currency)}`

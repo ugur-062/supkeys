@@ -129,13 +129,8 @@ describe("AddressBookSection", () => {
     h.del.mockResolvedValue({});
     render(<AddressBookSection canManage />);
 
-    // Kart içindeki ikinci (çöp kutusu) plain buton — erişilebilir adı boş.
-    const card = screen.getByText("Merkez Depo").closest("div")!
-      .parentElement!.parentElement as HTMLElement;
-    const trash = within(card)
-      .getAllByRole("button")
-      .find((b) => b.textContent === "")!;
-    await user.click(trash);
+    // C36 sonrası aksiyonlar erişilebilir adlı ikon butonlar.
+    await user.click(screen.getByRole("button", { name: "Sil" }));
 
     expect(h.confirm).toHaveBeenCalled();
     // confirm async çözüldükten sonra silme çağrılır.

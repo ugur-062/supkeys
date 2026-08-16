@@ -264,7 +264,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             <Label htmlFor={`items.${index}.materialCode`}>Stok Kodu</Label>
             <Input
               id={`items.${index}.materialCode`}
-              placeholder="—"
+              placeholder="örn. STK-00123"
               hasError={!!itemErrors?.materialCode}
               {...register(`items.${index}.materialCode`)}
             />
@@ -316,7 +316,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             hint="Boş bırakılabilir — verilirse alıcı bu kalemi anında bu fiyattan alabilir."
           >
             <Label htmlFor={`items.${index}.buyNowUnitPrice`}>
-              Hemen-Al Birim Fiyatı
+              Hemen Al Birim Fiyatı
             </Label>
             <Controller
               control={control}
@@ -324,7 +324,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               render={({ field }) => (
                 <MoneyInputNumber
                   id={`items.${index}.buyNowUnitPrice`}
-                  placeholder="—"
+                  placeholder=""
                   value={field.value}
                   onChange={field.onChange}
                 />

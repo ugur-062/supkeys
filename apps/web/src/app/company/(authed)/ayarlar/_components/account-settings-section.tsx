@@ -91,7 +91,10 @@ export function AccountInfoSection() {
               {user?.email}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {(user?.roles ?? []).map((r) => (
+              {/* C49: Kurucu ad yanında rozet olarak var — listede tekrarı gizli. */}
+              {(user?.roles ?? [])
+                .filter((r) => r !== "SAHIP")
+                .map((r) => (
                 <RoleBadge key={r} role={r} />
               ))}
             </div>

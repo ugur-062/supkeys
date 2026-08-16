@@ -277,12 +277,14 @@ export function IhalelerView({
             icon={Building2}
             value={tab}
             onChange={(v) => reset(setTab)(v as TabKey)}
+            // C43: sayaç HER seçenekte — "(0)" yazmayan seçenek tıklanıp boş
+            // sonuç veriyordu, sayı bilgisi tutarsızdı.
             options={STATUS_OPTIONS.map((o) => ({
               value: o.value,
               label:
                 o.value === "all"
                   ? `Tümü (${facetRows.length})`
-                  : `${o.label}${stats[o.value] ? ` (${stats[o.value]})` : ""}`,
+                  : `${o.label} (${stats[o.value] ?? 0})`,
             }))}
             ariaLabel="Durum filtresi"
             active={tab !== "all"}

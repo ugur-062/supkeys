@@ -3,7 +3,7 @@
 import { PageContainer } from "@/components/list/page-container";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
-import { ArrowRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 export interface HubItem {
@@ -48,7 +48,7 @@ export function HubList({
                 <p className="font-semibold text-zinc-900">{it.label}</p>
                 <p className="mt-0.5 text-xs text-zinc-500">{it.description}</p>
               </div>
-              <ArrowRight
+              <ChevronRight
                 className="h-4 w-4 shrink-0 text-zinc-400 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-900"
                 aria-hidden="true"
               />

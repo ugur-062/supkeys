@@ -11,7 +11,7 @@ import {
 import { EmptyState, ListSkeleton } from "@/components/list";
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 /** Panel rozeti — birleşik listede bildirim hangi şapkayla ilgili? */
@@ -34,7 +34,19 @@ export default function BildirimlerPage() {
   // filtre yalnız görünümü daraltır (portal'sız + null-portallı ortaklar
   // her filtrede görünür).
   const { data: allItems = [], isLoading } = useNotifications();
-  const [filter, setFilter] = useState<FilterKey>("all");
+  // C60: filtre URL'de (?tab=) — yenileme/paylaşımda korunur.
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const [filter, setFilterState] = useState<FilterKey>(
+    urlTab === "satinalma" || urlTab === "satis" ? urlTab : "all",
+  );
+  const setFilter = (k: FilterKey) => {
+    setFilterState(k);
+    const u = new URL(window.location.href);
+    if (k === "all") u.searchParams.delete("tab");
+    else u.searchParams.set("tab", k);
+    window.history.replaceState(null, "", u.toString());
+  };
   const items =
     filter === "all"
       ? allItems
@@ -52,8 +64,10 @@ export default function BildirimlerPage() {
     }
   };
 
+  // C34: veri/list sayfaları tam genişlik (PageContainer kuralı) — dar
+  // ortalanmış kutu yalnız Ayarlar'da.
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="w-full">
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-zinc-900">Bildirimler</h1>
@@ -142,7 +156,12 @@ export default function BildirimlerPage() {
                     {formatDate(n.createdAt, "datetime")}
                   </span>
                 </div>
-                <span className="text-sm text-zinc-600">{n.body}</span>
+                <span
+                  className={n.readAt ? "text-sm text-zinc-600" : "text-sm font-medium text-zinc-800"}
+                  title={n.body}
+                >
+                  {n.body}
+                </span>
                 {n.ctaLabel ? (
                   <span className="mt-0.5 text-xs font-medium text-blue-600">
                     {n.ctaLabel} →

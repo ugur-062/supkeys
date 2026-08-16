@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { StarIcon } from "@heroicons/react/20/solid";
 
@@ -128,7 +129,14 @@ export function CompanyProfileView({
     <div className="space-y-6">
       {/* Hero */}
       <section className="overflow-hidden card">
-        <div className="relative h-40 w-full bg-gradient-to-br from-zinc-900 to-zinc-700 sm:h-56">
+        {/* C63: kapak yokken ~190px boş koyu blok "bozuk" görünüyordu —
+            kapaksız profilde şerit inceltilir (görsel varsa tam boy). */}
+        <div
+          className={cn(
+            "relative w-full bg-gradient-to-br from-zinc-900 to-zinc-700",
+            p.coverImageUrl ? "h-40 sm:h-56" : "h-14 sm:h-16",
+          )}
+        >
           {p.coverImageUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -177,7 +185,7 @@ export function CompanyProfileView({
                   {[p.industry, location].filter(Boolean).join("  ·  ") ||
                     "Rothern tedarik profili"}
                   {p.rothernId ? (
-                    <span className="ml-2 font-mono text-xs text-zinc-400">
+                    <span className="ml-2 font-mono text-xs slashed-zero text-zinc-400">
                       {/* C25: metin-düzeyi boşluk — kopyada "TRDEM0-0001" gibi
                           yapışmasın (ml-2 yalnız görsel). */}
                       {" "}

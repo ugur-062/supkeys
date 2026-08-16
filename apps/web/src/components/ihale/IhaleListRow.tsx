@@ -366,8 +366,8 @@ export function IhaleListRow({
               {t.bidCount}
             </Link>
           ) : (
-            <span className="mt-0.5 text-[13px] leading-tight text-slate-400">
-              -
+            <span className="mt-0.5 text-[13px] tabular-nums leading-tight text-slate-400">
+              0
             </span>
           )}
         </div>
@@ -390,7 +390,7 @@ export function IhaleListRow({
           </span>
         </span>
         <span className="text-[11px] text-slate-500">
-          Teklif: {t.bidCount > 0 ? t.bidCount : "-"}
+          Teklif: {t.bidCount}
         </span>
         {t.categories[0] ? (
           <span className="text-[11px] text-slate-500">

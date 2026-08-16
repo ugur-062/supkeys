@@ -285,13 +285,23 @@ export function SellerTendersView({
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={isFiltered ? "Sonuç bulunamadı" : "Henüz ihale yok"}
+          title={
+            isFiltered
+              ? "Sonuç bulunamadı"
+              : tab === "active" && all.length > 0
+                ? "Aktif ihale yok"
+                : "Henüz ihale yok"
+          }
           description={
             isFiltered
               ? "Filtrelerinizi değiştirerek tekrar deneyin."
-              : isSatis
-                ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ihalesi yayınlandığında burada görünür."
-                : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık ihale yayınlandığında burada görünür."
+              : tab === "active" && all.length > 0
+                ? // C57: "Aktif" sekmesi varsayılan — geçmiş kayıtlar sessizce
+                  // gizli kalıyordu, boş durum bunu söylemiyordu.
+                  "Şu an açık ihale bulunmuyor. Kapanan ihaleler için Durum filtresinden Geçmiş'i seçin."
+                : isSatis
+                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ihalesi yayınlandığında burada görünür."
+                  : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık ihale yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
           action={

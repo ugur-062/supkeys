@@ -1359,7 +1359,7 @@ export default function ListingDetailPage() {
                   <Badge color="green">Kısmen Kazandı</Badge>
                 ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
-                {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
+                {b.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
                 {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
                     görsün (son gün = submittedAt + validityDays). */}
                 {b.status === "SUBMITTED" &&
@@ -1551,11 +1551,11 @@ export default function ListingDetailPage() {
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
           {/* SATIS + hemen-al: detaylar (teslim/geçerlilik/belge) teklif
               ekranında girilir — buton oraya yönlendirir. Gönderilmiş
-              Hemen-Al varken tekrar gösterilmez. */}
+              Hemen Al varken tekrar gösterilmez. */}
           {!isAlim && biddingOpen && hasBuyNow ? (
             l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                ✓ Hemen-Al teklifin gönderildi (
+                ✓ Hemen Al teklifin gönderildi (
                 {formatMoney(l.myBid.amount, l.primaryCurrency ?? "TRY")}) —
                 satıcı onayı bekleniyor.
               </div>
@@ -1582,7 +1582,7 @@ export default function ListingDetailPage() {
             )
           ) : null}
           {/* CTA butonu sekmenin EN ÜSTÜNE taşındı (aşağıdaki panel) —
-              burada yalnız Hemen-Al / RFQ notları / belgeler kalır. */}
+              burada yalnız Hemen Al / RFQ notları / belgeler kalır. */}
           {l.myBid?.status === "SUBMITTED" &&
           biddingOpen &&
           !l.english?.isEnglishAuction ? (
@@ -1713,7 +1713,7 @@ export default function ListingDetailPage() {
             {formatMoney(l.minPrice ?? 0, l.primaryCurrency ?? "TRY")}
           </strong>
           {l.buyNowPrice
-            ? ` · Hemen-Al: ${formatMoney(l.buyNowPrice, l.primaryCurrency ?? "TRY")}`
+            ? ` · Hemen Al: ${formatMoney(l.buyNowPrice, l.primaryCurrency ?? "TRY")}`
             : ""}
         </Text>
       ) : null}

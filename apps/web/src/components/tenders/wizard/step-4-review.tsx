@@ -72,7 +72,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
                 }
               />
               <Row
-                label="Hemen-Al Fiyatı"
+                label="Hemen Al Fiyatı"
                 value={
                   d.buyNowPrice != null
                     ? `${d.buyNowPrice.toLocaleString("tr-TR")} ${sym}`
@@ -152,7 +152,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
                   <>
                     <th className="px-3 py-2 text-right font-medium">Taban</th>
                     <th className="px-3 py-2 text-right font-medium">
-                      Hemen-Al
+                      Hemen Al
                     </th>
                   </>
                 ) : null}

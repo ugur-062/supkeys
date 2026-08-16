@@ -139,7 +139,7 @@ export default function BidDetailPage() {
               ) : (
                 <Badge color="blue">Değerlendirmede</Badge>
               )}
-              {bid.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
+              {bid.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
               {bid.round ? <Badge color="zinc">Tur {bid.round}</Badge> : null}
             </div>
             <Heading>{bid.bidderName}</Heading>

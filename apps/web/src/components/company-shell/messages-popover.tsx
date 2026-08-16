@@ -91,6 +91,7 @@ function RecentThreads({ close }: { close: () => void }) {
                 className={`block truncate text-xs ${
                   t.unread ? "font-medium text-zinc-700" : "text-zinc-400"
                 }`}
+                title={t.lastMessagePreview ?? undefined}
               >
                 {t.lastMessagePreview ?? "—"}
               </span>

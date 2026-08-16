@@ -122,9 +122,14 @@ function CompanyCard({
           {name}
         </div>
         <div className="truncate text-xs text-zinc-500">
-          {meta || "—"}
+          {/* C47: sektör/şehir boşsa başıboş "—" basma — yalnız ikisi de
+              yokken ve ID de yokken tire görünür. */}
+          {meta || (rothernId ? "" : "—")}
           {rothernId ? (
-            <span className="ml-2 font-mono text-zinc-400">{rothernId}</span>
+            <span className={cn("font-mono slashed-zero text-zinc-400", meta && "ml-2")}>
+              {meta ? " " : ""}
+              {rothernId}
+            </span>
           ) : null}
         </div>
       </div>
@@ -280,7 +285,15 @@ export function ConnectionsView() {
   )
     ? (searchParams.get("tab") as TabKey)
     : "mine";
-  const [tab, setTab] = useState<TabKey>(initialTab);
+  const [tab, setTabState] = useState<TabKey>(initialTab);
+  // C60: sekme URL'de taşınır — yenileme/paylaşımda korunur (?tab=).
+  const setTab = (k: TabKey) => {
+    setTabState(k);
+    const u = new URL(window.location.href);
+    if (k === "mine") u.searchParams.delete("tab");
+    else u.searchParams.set("tab", k);
+    window.history.replaceState(null, "", u.toString());
+  };
   // STANDARD: davet gönderemez + firma dizininde arama/keşif yapamaz; yalnızca
   // bağlantılarını görür ve gelen daveti kabul edip tedarikçi olabilir.
   const { company } = useCompanyAuth();
@@ -378,6 +391,8 @@ export function ConnectionsView() {
         key: "incoming",
         label: "İstekler",
         icon: Inbox,
+        // C48: rozet = gelen + gönderilen + bekleyen e-posta davetleri
+        // (sekme içeriğiyle birebir; başlık title'ı da bunu söyler).
         count: incomingCount + outgoingCount,
       },
     ];
@@ -454,9 +469,13 @@ export function ConnectionsView() {
             </div>
           </div>
           {referralInvites.data && referralInvites.data.length > 0 ? (
-            <Text className="mt-2 text-xs text-zinc-400">
-              {referralInvites.data.length} bekleyen davet
-            </Text>
+            <button
+              type="button"
+              onClick={() => setTab("incoming")}
+              className="mt-2 text-xs font-medium text-blue-600 hover:underline"
+            >
+              {referralInvites.data.length} bekleyen e-posta daveti →
+            </button>
           ) : null}
         </div>
         ) : null}
@@ -956,7 +975,7 @@ function CompanyLinkRow({
           {name}
         </div>
         {rothernId ? (
-          <div className="font-mono text-xs text-zinc-500">{rothernId}</div>
+          <div className="font-mono text-xs slashed-zero text-zinc-500">{rothernId}</div>
         ) : null}
       </div>
     </>

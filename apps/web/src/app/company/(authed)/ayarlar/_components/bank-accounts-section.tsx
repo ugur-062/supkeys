@@ -23,7 +23,7 @@ import {
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { isValidIbanTr, normalizeIban } from "@rothern/shared";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -79,34 +79,47 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {accounts.map((a) => (
             <div key={a.id} className="rounded-lg border border-zinc-200 p-4">
+              {/* C35/C36: başlık kendi satırında + ikon aksiyonlar (adres
+                  kartlarıyla aynı düzen). */}
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-zinc-900">
-                      {a.title}
-                    </span>
-                    {a.isDefault ? (
-                      <Badge color="amber">Varsayılan</Badge>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-600">
-                    <Iban value={a.iban} />
-                  </div>
-                  <div className="mt-0.5 text-xs text-zinc-500">
-                    {a.accountHolder}
-                    {a.bankName ? ` · ${a.bankName}` : ""}
-                  </div>
-                </div>
+                <span
+                  className="min-w-0 truncate text-sm font-semibold text-zinc-900"
+                  title={a.title}
+                >
+                  {a.title}
+                </span>
                 {canManage ? (
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button plain onClick={() => setEditing(a)}>
-                      Düzenle
+                    <Button
+                      plain
+                      aria-label="Düzenle"
+                      title="Düzenle"
+                      onClick={() => setEditing(a)}
+                    >
+                      <Pencil className="h-4 w-4 text-zinc-500" />
                     </Button>
-                    <Button plain onClick={() => handleDelete(a)}>
+                    <Button
+                      plain
+                      aria-label="Sil"
+                      title="Sil"
+                      onClick={() => handleDelete(a)}
+                    >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
                 ) : null}
+              </div>
+              {a.isDefault ? (
+                <div className="mt-1.5">
+                  <Badge color="amber">Varsayılan</Badge>
+                </div>
+              ) : null}
+              <div className="mt-1.5 text-xs text-zinc-600">
+                <Iban value={a.iban} />
+              </div>
+              <div className="mt-0.5 text-xs text-zinc-500">
+                {a.accountHolder}
+                {a.bankName ? ` · ${a.bankName}` : ""}
               </div>
             </div>
           ))}

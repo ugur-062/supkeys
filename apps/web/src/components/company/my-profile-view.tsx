@@ -157,7 +157,8 @@ export function MyProfileView() {
                   "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition",
                   tab === key
                     ? "bg-white text-zinc-900 shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-800",
+                    // C64: soluk gri "devre dışı" okunuyordu — normal kontrast.
+                    : "text-zinc-700 hover:bg-white/60 hover:text-zinc-900",
                 )}
               >
                 <Icon className="size-3.5" aria-hidden />

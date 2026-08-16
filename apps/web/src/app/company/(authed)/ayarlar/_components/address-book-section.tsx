@@ -24,7 +24,7 @@ import {
 } from "@/hooks/use-company-addresses";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { COUNTRIES } from "@rothern/shared";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -81,47 +81,61 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
               key={a.id}
               className="rounded-lg border border-zinc-200 p-4"
             >
+              {/* C35: başlık kendi satırında (uzun ad rozet/aksiyonla
+                  yarışıp 3 satıra kırılıyordu); rozetler ikinci satırda.
+                  C36: satır aksiyonları ikon standardı (kalem + çöp). */}
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-zinc-900">
-                      {a.title}
-                    </span>
-                    <Badge
-                      color={
-                        a.type === "FATURA"
-                          ? "blue"
-                          : a.type === "ILETISIM"
-                            ? "purple"
-                            : "emerald"
-                      }
-                    >
-                      {typeLabel(a.type)}
-                    </Badge>
-                    {a.isDefault ? <Badge color="amber">Varsayılan</Badge> : null}
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-500">
-                    {a.addressLine}
-                    {a.district ? `, ${a.district}` : ""}
-                    {a.city ? `, ${a.city}` : ""}
-                  </div>
-                  {a.type === "FATURA" && (a.taxOffice || a.taxNumber) ? (
-                    <div className="mt-0.5 text-xs text-zinc-400">
-                      VD: {a.taxOffice ?? "—"} · VKN: {a.taxNumber ?? "—"}
-                    </div>
-                  ) : null}
-                </div>
+                <span
+                  className="min-w-0 truncate text-sm font-semibold text-zinc-900"
+                  title={a.title}
+                >
+                  {a.title}
+                </span>
                 {canManage ? (
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button plain onClick={() => setEditing(a)}>
-                      Düzenle
+                    <Button
+                      plain
+                      aria-label="Düzenle"
+                      title="Düzenle"
+                      onClick={() => setEditing(a)}
+                    >
+                      <Pencil className="h-4 w-4 text-zinc-500" />
                     </Button>
-                    <Button plain onClick={() => handleDelete(a)}>
+                    <Button
+                      plain
+                      aria-label="Sil"
+                      title="Sil"
+                      onClick={() => handleDelete(a)}
+                    >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
                 ) : null}
               </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <Badge
+                  color={
+                    a.type === "FATURA"
+                      ? "blue"
+                      : a.type === "ILETISIM"
+                        ? "purple"
+                        : "emerald"
+                  }
+                >
+                  {typeLabel(a.type)}
+                </Badge>
+                {a.isDefault ? <Badge color="amber">Varsayılan</Badge> : null}
+              </div>
+              <div className="mt-1.5 text-xs text-zinc-500">
+                {a.addressLine}
+                {a.district ? `, ${a.district}` : ""}
+                {a.city ? `, ${a.city}` : ""}
+              </div>
+              {a.type === "FATURA" && (a.taxOffice || a.taxNumber) ? (
+                <div className="mt-0.5 text-xs text-zinc-400">
+                  VD: {a.taxOffice ?? "—"} · VKN: {a.taxNumber ?? "—"}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

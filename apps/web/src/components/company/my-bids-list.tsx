@@ -51,6 +51,15 @@ const STATUS: Record<
   // Nötr kullanıcı eylemi — kırmızı hata/tehlike imasıydı (detay paneliyle uyum).
   WITHDRAWN: { label: "Geri çekildi", color: "zinc" },
 };
+/** C52: statü → sol şerit rengi (rozet renkleriyle aynı aile). */
+const STATUS_STRIP: Record<string, string> = {
+  DRAFT: "bg-gradient-to-b from-amber-500 to-amber-300",
+  SUBMITTED: "bg-gradient-to-b from-violet-500 to-violet-300",
+  WON: "bg-gradient-to-b from-emerald-500 to-emerald-300",
+  AWARDED_PARTIAL: "bg-gradient-to-b from-emerald-500 to-emerald-300",
+  LOST: "bg-gradient-to-b from-zinc-400 to-zinc-300",
+  WITHDRAWN: "bg-gradient-to-b from-zinc-400 to-zinc-300",
+};
 // Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
 const STATUS_FALLBACK = { label: "Bilinmiyor", color: "zinc" as const };
 
@@ -109,14 +118,14 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         isAlim ? "hover:border-blue-300" : "hover:border-emerald-300",
       )}
     >
-        {/* Sol aksan şeridi — ihale tipi rengi (İhalelerim kart dili) */}
+        {/* C52: sol şerit STATÜ rengi (tek harita) — önceden ihale TİPİ
+            rengiydi ve "Kazandı" ile "Değerlendirmede" aynı renkte görünüyordu.
+            Tip bilgisi kartta Badge olarak zaten var. */}
         <span
           aria-hidden
           className={cn(
             "absolute left-0 top-0 bottom-0 w-1",
-            isAlim
-              ? "bg-gradient-to-b from-blue-500 to-blue-300"
-              : "bg-gradient-to-b from-emerald-500 to-emerald-300",
+            STATUS_STRIP[b.status] ?? "bg-gradient-to-b from-zinc-400 to-zinc-300",
           )}
         />
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -185,7 +194,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                   : "")}
             </span>
           ) : null}
-          {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
+          {b.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
             <span className="text-xs text-zinc-400">Tur {b.round}</span>
@@ -229,7 +238,11 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 />
               </span>
             ) : !won ? (
-              <span className="text-zinc-400">İhale kapandı</span>
+              <span className="text-zinc-400">
+                {/* C51: Değerlendirmede rozetiyle "İhale kapandı" çelişkili
+                    okunuyordu — gönderilmiş teklifte süreç dili. */}
+                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "İhale kapandı"}
+              </span>
             ) : null}
             {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu. */}
             {won && b.orderId ? (

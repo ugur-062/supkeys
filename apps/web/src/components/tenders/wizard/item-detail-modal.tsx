@@ -130,7 +130,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
               render={({ field }) => (
                 <MoneyInputNumber
                   id={`detail-targetUnitPrice-${index}`}
-                  placeholder="—"
+                  placeholder=""
                   hasError={!!itemErrors?.targetUnitPrice}
                   value={field.value}
                   onChange={field.onChange}

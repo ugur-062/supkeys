@@ -179,7 +179,7 @@ export default function TeklifVerPage() {
   // teklif kazanır (taban fiyat altı kabul edilmez).
   const isSatis = l?.type === "SATIS";
   const isKalemPricing = isSatis && l?.priceScope === "KALEM";
-  // Hemen-Al modu: fiyatlar hemen-al değerleriyle KİLİTLİ; alıcı yalnızca
+  // Hemen Al modu: fiyatlar hemen-al değerleriyle KİLİTLİ; alıcı yalnızca
   // detayları (teslim/geçerlilik/not/belge) girer; gönderim buyNow ile.
   const isBuyNowMode =
     searchParams.get("hemenAl") === "1" &&
@@ -247,7 +247,7 @@ export default function TeklifVerPage() {
       for (const q of it.questions ?? []) {
         answers[q.id] = answerByQ.get(q.id) ?? "";
       }
-      // Hemen-Al modunda kalem fiyatı hemen-al değeriyle sabitlenir;
+      // Hemen Al modunda kalem fiyatı hemen-al değeriyle sabitlenir;
       // hemen-al fiyatı olmayan kalem otomatik kapsam dışı (null = opt-out).
       const buyNowSeed =
         isBuyNowMode && l.priceScope === "KALEM"
@@ -338,7 +338,7 @@ export default function TeklifVerPage() {
     [items, itemState],
   );
 
-  // Teklif verilen kalemler (Hemen-Al'da fiyatı olanlar, normalde pricedItems).
+  // Teklif verilen kalemler (Hemen Al'da fiyatı olanlar, normalde pricedItems).
   const bidItemsForDelivery = !hasItems
     ? []
     : isBuyNowMode
@@ -352,7 +352,7 @@ export default function TeklifVerPage() {
     bidItemsForDelivery.every((it) => !!itemState[it.id]?.deliveryTime);
 
   const total = useMemo(() => {
-    // Hemen-Al TOPLU: tutar ilan geneli hemen-al fiyatıdır (kalem fiyatı yok).
+    // Hemen Al TOPLU: tutar ilan geneli hemen-al fiyatıdır (kalem fiyatı yok).
     if (isBuyNowMode && l?.priceScope !== "KALEM") {
       return Number(l?.buyNowPrice ?? 0);
     }
@@ -578,7 +578,7 @@ export default function TeklifVerPage() {
   if (isBuyNowMode && l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow) {
     return (
       <Blocked
-        title="Hemen-Al teklifin zaten gönderildi — satıcı onayı bekleniyor"
+        title="Hemen Al teklifin zaten gönderildi — satıcı onayı bekleniyor"
         detailHref={detailHref}
       />
     );
@@ -740,7 +740,7 @@ export default function TeklifVerPage() {
     // Form mevcut tekliften henüz tohumlanmadıysa susmalı — boş state'e
     // bakıp "fiyat gir / bırakılamaz" gibi SAHTE hatalar flaşlıyordu.
     if (!seeded) return problems;
-    // Hemen-Al modunda fiyatlar sabittir — fiyat problemleri üretilmez;
+    // Hemen Al modunda fiyatlar sabittir — fiyat problemleri üretilmez;
     // yalnızca detaylar (teslim/geçerlilik/belge/zorunlu soru) doğrulanır.
     if (hasItems && !isBuyNowMode) {
       if (pricedItems.length === 0)
@@ -812,7 +812,7 @@ export default function TeklifVerPage() {
         );
       if (l.buyNowPrice && total >= Number(l.buyNowPrice))
         problems.push(
-          `Teklif Hemen-Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — ihale detayından Hemen Al kullanın.`,
+          `Teklif Hemen Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — ihale detayından Hemen Al kullanın.`,
         );
       // KALEM fiyatlandırma: kalem tabanı/hemen-al'ı gönderimden ÖNCE yakala
       // (backend de aynı kuralı zorlar — 400 yerine anlık geri bildirim).
@@ -826,7 +826,7 @@ export default function TeklifVerPage() {
             );
           if (it.buyNowUnitPrice != null && p >= Number(it.buyNowUnitPrice))
             problems.push(
-              `"${it.name}" birim fiyatı Hemen-Al fiyatına (${money(Number(it.buyNowUnitPrice), effectiveCurrency)}) ulaştı — bu kalemi Hemen Al ile alın.`,
+              `"${it.name}" birim fiyatı Hemen Al fiyatına (${money(Number(it.buyNowUnitPrice), effectiveCurrency)}) ulaştı — bu kalemi Hemen Al ile alın.`,
             );
         }
       }
@@ -967,7 +967,7 @@ export default function TeklifVerPage() {
         if (!up.ok) return; // staged korunur; kullanıcı tekrar dener
       }
       if (isBuyNowMode) {
-        // Hemen-Al: fiyatlar sunucuda hemen-al değerlerinden hesaplanır —
+        // Hemen Al: fiyatlar sunucuda hemen-al değerlerinden hesaplanır —
         // istemci fiyatı güvenilmez. KALEM modda kapsam = fiyatı açık kalemler.
         await buyNow.mutateAsync({
           note: note.trim() || undefined,
@@ -982,7 +982,7 @@ export default function TeklifVerPage() {
               : undefined,
         });
         toast.success(
-          "Hemen-Al teklifin gönderildi — satıcı onayı bekleniyor",
+          "Hemen Al teklifin gönderildi — satıcı onayı bekleniyor",
         );
       } else {
         await placeBid.mutateAsync(buildPayload(false));
@@ -1071,7 +1071,7 @@ export default function TeklifVerPage() {
               ? " Farklı para birimi seçtiniz — taban kıyası sunucuda yapılır."
               : ""}
             {l.buyNowPrice
-              ? ` Hemen-Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine ihale detayındaki Hemen Al kullanılır).`
+              ? ` Hemen Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine ihale detayındaki Hemen Al kullanılır).`
               : ""}{" "}
             En yüksek teklif kazanır.
           </p>
@@ -1082,7 +1082,7 @@ export default function TeklifVerPage() {
         <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>
-            <span className="font-semibold">Hemen-Al modu:</span> fiyatlar
+            <span className="font-semibold">Hemen Al modu:</span> fiyatlar
             hemen-al değerleriyle sabittir, değiştirilemez.{" "}
             {l.priceScope === "KALEM"
               ? "İstemediğiniz kalemi kapsam dışı bırakabilirsiniz (✕); hemen-al fiyatı olmayan kalemler zaten kapsam dışıdır."
@@ -1222,13 +1222,13 @@ export default function TeklifVerPage() {
                               ? ` · Taban: ${money(Number(it.minUnitPrice), effectiveCurrency)}`
                               : ""}
                             {it.buyNowUnitPrice != null
-                              ? ` · Hemen-Al: ${money(Number(it.buyNowUnitPrice), effectiveCurrency)}`
+                              ? ` · Hemen Al: ${money(Number(it.buyNowUnitPrice), effectiveCurrency)}`
                               : ""}
                           </p>
                         </div>
 
                         {optedOut ? (
-                          // Hemen-Al modunda: fiyat hemen-al değeriyle geri
+                          // Hemen Al modunda: fiyat hemen-al değeriyle geri
                           // gelir; hemen-al fiyatı olmayan kalem kapsama hiç
                           // alınamaz (buton yok) — backend zaten reddeder.
                           !isBuyNowMode || it.buyNowUnitPrice != null ? (

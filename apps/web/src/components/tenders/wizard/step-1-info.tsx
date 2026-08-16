@@ -935,7 +935,7 @@ export function Step1Info({
               hint="Boş bırakılabilir — verilirse taban fiyattan düşük olamaz."
             >
               <Label htmlFor="satis-buynow-price">
-                Hemen-Al Fiyatı ({primaryCurrency})
+                Hemen Al Fiyatı ({primaryCurrency})
               </Label>
               <Controller
                 control={control}

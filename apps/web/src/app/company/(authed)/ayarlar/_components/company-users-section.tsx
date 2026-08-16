@@ -220,7 +220,10 @@ export function CompanyUsersSection({
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {u.roles.length ? (
-                          u.roles.map((r) => (
+                          // C49: Kurucu ad yanında rozet — listede tekrarlamaz.
+                          u.roles
+                            .filter((r) => !(u.isOwner && r === "SAHIP"))
+                            .map((r) => (
                             <RoleBadge key={r} role={r} />
                           ))
                         ) : (

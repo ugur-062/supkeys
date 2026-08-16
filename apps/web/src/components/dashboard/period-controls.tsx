@@ -41,7 +41,8 @@ export function PeriodControls({
     draftFrom.length > 0 && draftTo.length > 0 && draftFrom <= draftTo;
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    // C45: özel-aralık paneli ARTIK akışta yer kaplamıyor (absolute popover).
+    <div className="relative flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center gap-3">
         <div
           role="tablist"
@@ -49,7 +50,12 @@ export function PeriodControls({
           className="inline-flex rounded-lg bg-zinc-200/70 p-0.5 text-xs font-semibold ring-1 ring-zinc-950/10"
         >
           {OPTIONS.map((opt) => {
-            const active = opt.value === period;
+            // C45: "Özel" formu açıkken sekme de aktif görünür (uygulanmadan
+            // önce "Bu Ay" seçili kalıyordu).
+            const active =
+              opt.value === "custom"
+                ? period === "custom" || customOpen
+                : opt.value === period && !customOpen;
             return (
               <button
                 key={opt.value}
@@ -81,7 +87,7 @@ export function PeriodControls({
       </div>
 
       {customOpen ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm">
+        <div className="absolute right-0 top-full z-20 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-lg">
           <label className="flex items-center gap-1.5 text-xs text-zinc-600">
             <span>Başlangıç</span>
             <input
@@ -105,9 +111,10 @@ export function PeriodControls({
           <button
             type="button"
             disabled={!draftValid}
-            onClick={() =>
-              onChange({ period: "custom", from: draftFrom, to: draftTo })
-            }
+            onClick={() => {
+              onChange({ period: "custom", from: draftFrom, to: draftTo });
+              setCustomOpen(false);
+            }}
             className="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-40"
           >
             Uygula

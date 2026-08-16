@@ -90,12 +90,6 @@ export function SatisDashboardView() {
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap items-center justify-end gap-3">
             <TcmbRatesChip />
-            <PeriodControls
-              period={period}
-              from={from}
-              to={to}
-              onChange={setParams}
-            />
           </div>
           <Link
             href="/company/satis/acik-ihaleler"
@@ -155,6 +149,10 @@ export function SatisDashboardView() {
       {/* Sekmeler: Teklif / Gelir / Müşteri — segmentli kontrol (düz zemin
           üzerindeki alt-çizgi sekmeler kaybolyordu; aktif = beyaz pill +
           panel rengi, satınalma ile aynı dil). */}
+      {/* C46: dönem seçici YALNIZ bu sekmelerin (trend/analitik) verisini
+          etkiler — üst KPI kartları dönemsizdir; seçici ilgili bölümün başına
+          taşındı (globalmiş gibi görünüp kartları değiştirmiyordu). */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div
         role="tablist"
         aria-label="Satış panosu bölümleri"
@@ -184,6 +182,8 @@ export function SatisDashboardView() {
             {label}
           </button>
         ))}
+      </div>
+      <PeriodControls period={period} from={from} to={to} onChange={setParams} />
       </div>
 
       {tab === "gelir" ? (

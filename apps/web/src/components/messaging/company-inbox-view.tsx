@@ -142,10 +142,11 @@ export function CompanyInboxView() {
         description="Satınalma ve satış konuşmalarınız — tek kutuda; her konuşmada hangi tarafta olduğunuz rozetle görünür."
       />
 
-      <div className="grid h-[calc(100vh-13rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_380px]">
-        {/* Sağ: kontak listesi */}
+      {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA. */}
+      <div className="grid h-[calc(100vh-13rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]">
+        {/* Sol: kontak listesi */}
         <div
-          className={`flex flex-col border-zinc-950/10 bg-white sm:order-2 sm:border-l ${
+          className={`flex flex-col border-zinc-950/10 bg-white sm:order-1 sm:border-r ${
             selected ? "hidden sm:flex" : "flex"
           }`}
         >
@@ -223,7 +224,10 @@ export function CompanyInboxView() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="truncate text-xs text-zinc-500">
+                        <span
+                          className="truncate text-xs text-zinc-500"
+                          title={r.lastMessagePreview ?? undefined}
+                        >
                           {r.lastMessagePreview ?? "Yeni sohbet"}
                         </span>
                         {r.unread ? (
@@ -240,7 +244,7 @@ export function CompanyInboxView() {
 
         {/* Sol: aktif sohbet */}
         <div
-          className={`min-h-0 sm:order-1 ${selected ? "flex" : "hidden sm:flex"} flex-col`}
+          className={`min-h-0 sm:order-2 ${selected ? "flex" : "hidden sm:flex"} flex-col`}
         >
           {selected && selectedRowName ? (
             <>
@@ -306,7 +310,7 @@ export function CompanyInboxView() {
               <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
               <p className="text-sm font-medium text-zinc-600">Bir kişi seç</p>
               <p className="mt-1 text-xs text-zinc-400">
-                Sağdan bir firma seçerek sohbete başla.
+                Soldan bir firma seçerek sohbete başlayın.
               </p>
             </div>
           )}

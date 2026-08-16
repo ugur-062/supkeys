@@ -185,7 +185,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             </Fact>
           ) : null}
           {l.type === "SATIS" && l.buyNowPrice ? (
-            <Fact label="Hemen-Al Fiyatı">
+            <Fact label="Hemen Al Fiyatı">
               {Number(l.buyNowPrice).toLocaleString("tr-TR")} {CURRENCY_SYMBOL[cur]}
             </Fact>
           ) : null}

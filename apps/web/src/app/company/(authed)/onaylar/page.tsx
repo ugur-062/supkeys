@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -36,7 +37,6 @@ import {
   Circle,
   ClipboardCheck,
   MinusCircle,
-  Plus,
   Search,
   Workflow,
   XCircle,
@@ -237,7 +237,21 @@ function RequestCard({
 type OnaylarTab = "pending" | "history" | "all" | "flows";
 
 export default function OnaylarPage() {
-  const [tab, setTab] = useState<OnaylarTab>("pending");
+  // C60: sekme URL'de (?tab=) — yenileme/paylaşımda korunur.
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const [tab, setTabState] = useState<OnaylarTab>(
+    urlTab === "history" || urlTab === "all" || urlTab === "flows"
+      ? urlTab
+      : "pending",
+  );
+  const setTab = (k: OnaylarTab) => {
+    setTabState(k);
+    const u = new URL(window.location.href);
+    if (k === "pending") u.searchParams.delete("tab");
+    else u.searchParams.set("tab", k);
+    window.history.replaceState(null, "", u.toString());
+  };
   const { user } = useCompanyAuth();
   const isManager =
     !!user &&
@@ -245,7 +259,6 @@ export default function OnaylarPage() {
       user.roles.includes("SAHIP") ||
       user.roles.includes("YONETICI"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
-  // Üst "Yeni Onay Akışı" butonu → flows sekmesine geçer + sihirbazı açar.
   // Boolean "intent" + consume: bölüm remount olduğunda (sekmeye tekrar
   // girildiğinde) sihirbaz KENDİLİĞİNDEN açılmasın diye tüketilince sıfırlanır.
   const [openNewFlow, setOpenNewFlow] = useState(false);
@@ -350,8 +363,10 @@ export default function OnaylarPage() {
     }
   };
 
-  const tabs: { key: OnaylarTab; label: string }[] = [
-    { key: "pending", label: `Sıra Sizde (${pending?.length ?? 0})` },
+  // C40: sayaç biçimi ROZET — parantezli metin diğer sekmeli yüzeylerle
+  // (Bağlantılar, ilan detayları) tutarsızdı.
+  const tabs: { key: OnaylarTab; label: string; count?: number }[] = [
+    { key: "pending", label: "Sıra Sizde", count: pending?.length ?? 0 },
     { key: "history", label: "Geçmiş & Taleplerim" },
     { key: "all", label: "Tüm Süreçler" },
     ...(canManageFlows
@@ -369,19 +384,8 @@ export default function OnaylarPage() {
             firmadaki tüm süreçler. Akışları buradan tanımlarsınız.
           </Text>
         </div>
-        {/* §9: aynı birincil aksiyon ekranda bir kez — flows sekmesi kendi
-            CTA'sını taşır, üstteki yalnız diğer sekmelerde görünür. */}
-        {canManageFlows && tab !== "flows" ? (
-          <Button
-            onClick={() => {
-              setOpenNewFlow(true);
-              setTab("flows");
-            }}
-          >
-            <Plus className="size-4" aria-hidden />
-            Yeni Onay Akışı
-          </Button>
-        ) : null}
+        {/* C39: "Yeni Onay Akışı" yalnız Onay Akışları sekmesinde (kendi
+            CTA'sı) — ilgisiz sekmelerde kalabalık yapıyordu. */}
       </div>
 
       {/* Sekmeler */}
@@ -408,6 +412,11 @@ export default function OnaylarPage() {
           >
             {t.key === "flows" ? <Workflow className="size-4" aria-hidden /> : null}
             {t.label}
+            {t.count != null ? (
+              <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                {t.count}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
