@@ -64,7 +64,10 @@ export default function RootLayout({
               kartlarıyla aynı köşe, tek bildirim bölgesi). */}
           <Toaster
             position="bottom-right"
-            offset={24}
+            // C13: alt boşluk AI launcher'ın (bottom-5 h-14) üstünde kalacak
+            // kadar — toast butonun üzerine binmesin.
+            offset={{ right: 24, bottom: 96 }}
+            mobileOffset={{ bottom: 88 }}
             richColors
             closeButton
             toastOptions={{

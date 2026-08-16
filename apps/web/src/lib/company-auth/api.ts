@@ -86,9 +86,11 @@ companyApi.interceptors.response.use(
     }
 
     if (status === 404) {
-      const url = error.config?.url ?? "";
-      const isDetailEndpoint = /\/[^/?]+\/[^/?]+(?:\?|$)/.test(url);
-      if (isDetailEndpoint) {
+      // C12: GET 404'te toast YOK — detay sayfaları kendi hata kartını basar
+      // (toast + kart aynı anda iki farklı mesaj gösteriyordu). Mutasyon
+      // 404'ünde sayfada karşılık olmayabilir → toast kalır.
+      const method = (error.config?.method ?? "get").toLowerCase();
+      if (method !== "get") {
         toast.error(pickMessage(data, "Kayıt bulunamadı"));
       }
       return Promise.reject(error);

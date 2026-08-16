@@ -349,9 +349,11 @@ export function PublicProfileForm() {
       </FormSection>
 
       {/* Yapışkan kaydet çubuğu — form uzun; Kaydet'i görmek için en alta
-          inmek gerekiyordu. */}
+          inmek gerekiyordu. C3: opak zemin + z-10 (yarı saydam bar altta kayan
+          başlıkları "eziyor" gösteriyordu); sağda AI launcher payı (pr-20) —
+          buton FAB'ın altında kalmasın. */}
       {canEdit ? (
-        <div className="sticky bottom-0 -mx-1 flex justify-end border-t border-zinc-950/10 bg-white/85 px-1 py-3 backdrop-blur">
+        <div className="sticky bottom-0 z-10 -mx-1 flex justify-end border-t border-zinc-950/10 bg-white px-1 py-3 pr-20">
           <Button onClick={handleSave} disabled={update.isPending}>
             {update.isPending ? "Kaydediliyor…" : "Kaydet"}
           </Button>
@@ -414,6 +416,9 @@ function ImageUpload({
   onChange: (url: string) => void;
 }) {
   const upload = useUploadProfileImage();
+  // C2: kayıtlı görsel yüklenemezse (kırık URL) inline-block sarmalayıcı
+  // sıfıra çöküyordu — kırık durumda dropzone'a geri dön.
+  const [broken, setBroken] = useState(false);
 
   const onFile = async (file: File) => {
     if (!IMG_MIME.includes(file.type)) {
@@ -438,15 +443,21 @@ function ImageUpload({
     <div className={aspect === "wide" ? "w-full" : undefined}>
       <span className="block text-sm font-medium text-zinc-950">{label}</span>
       <div className="mt-2">
-        {value ? (
-          <div className="relative inline-block">
+        {value && !broken ? (
+          <div
+            className={cn(
+              "relative",
+              aspect === "square" ? "inline-block" : "w-full max-w-md",
+            )}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={value}
               alt={label}
+              onError={() => setBroken(true)}
               className={cn(
                 "rounded-lg border border-zinc-950/10 object-cover",
-                aspect === "square" ? "h-24 w-24" : "h-28 w-full max-w-md",
+                aspect === "square" ? "h-24 w-24" : "h-28 w-full",
               )}
             />
             {!disabled ? (
@@ -463,14 +474,24 @@ function ImageUpload({
         ) : disabled ? (
           <Text className="text-sm text-zinc-400">—</Text>
         ) : (
-          <Dropzone
-            accept="image/jpeg,image/png,image/webp"
-            disabled={upload.isPending}
-            onFiles={(files) => files[0] && onFile(files[0])}
-            label={upload.isPending ? "Yükleniyor…" : `${label} yükle`}
-            hint={hint}
-            className={aspect === "square" ? "w-40" : "max-w-md"}
-          />
+          <>
+            {value && broken ? (
+              <p className="mb-1.5 text-xs text-amber-600">
+                Kayıtlı görsel yüklenemedi — yenisini yükleyin.
+              </p>
+            ) : null}
+            <Dropzone
+              accept="image/jpeg,image/png,image/webp"
+              disabled={upload.isPending}
+              onFiles={(files) => {
+                setBroken(false);
+                if (files[0]) void onFile(files[0]);
+              }}
+              label={upload.isPending ? "Yükleniyor…" : `${label} yükle`}
+              hint={hint}
+              className={aspect === "square" ? "w-40" : "max-w-md"}
+            />
+          </>
         )}
       </div>
     </div>

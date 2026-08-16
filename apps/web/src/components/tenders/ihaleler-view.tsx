@@ -37,7 +37,9 @@ const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
   { value: "12m", label: "Son 1 Yıl" },
   { value: "all", label: "Tümü" },
 ];
-const DEFAULT_RANGE: RangeKey = "3m";
+// C4: varsayılan "Tümü" — "Son 3 Ay" sessizce eski ihaleleri gizliyordu ve
+// isFiltered mantığını ters çeviriyordu (Tümü seçince "filtrelenmiş" yazıyordu).
+const DEFAULT_RANGE: RangeKey = "all";
 const RANGE_DAYS: Record<RangeKey, number | null> = {
   "7d": 7,
   "30d": 30,

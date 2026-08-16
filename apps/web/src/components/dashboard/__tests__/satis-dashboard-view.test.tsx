@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   stats: undefined as unknown,
   statsLoading: false,
+  analytics: undefined as unknown,
   /** URL search param'ları (dönem/karşılaştır/sekme) — test başına ayarlanır. */
   search: "" as string,
 }));
@@ -16,7 +17,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
   }),
 }));
 vi.mock("@/hooks/use-company-dashboard", () => ({
-  useSatisAnalytics: () => ({ data: undefined, isLoading: false }),
+  useSatisAnalytics: () => ({ data: h.analytics, isLoading: false }),
   useSatisStats: () => ({ data: h.stats, isLoading: h.statsLoading }),
 }));
 vi.mock("@/hooks/use-company-orders", () => ({
@@ -58,16 +59,23 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.stats = undefined;
   h.statsLoading = false;
+  h.analytics = undefined;
   h.search = "";
 });
 
 describe("SatisDashboardView", () => {
   it("KPI değerleri + karşılama + tutar KPI satırı görünür", () => {
     h.stats = fullStats();
+    // C9: davet kartı artık analytics.unansweredInvites'tan beslenir.
+    h.analytics = {
+      actions: { unansweredInvites: 3 },
+      deltas: {},
+      kpiSeries: {},
+    };
     render(<SatisDashboardView />);
 
     expect(screen.getByText("Satış paneli")).toBeInTheDocument();
-    expect(screen.getByText("Aktif Davetler")).toBeInTheDocument();
+    expect(screen.getByText("Yanıt Bekleyen Davet")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("Kazanılan İhale")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
@@ -106,7 +114,7 @@ describe("SatisDashboardView", () => {
     h.statsLoading = true;
     render(<SatisDashboardView />);
     // KPI kartları render edilmez; gerçek boyutlu iskelet var.
-    expect(screen.queryByText("Aktif Davetler")).not.toBeInTheDocument();
+    expect(screen.queryByText("Yanıt Bekleyen Davet")).not.toBeInTheDocument();
     expect(screen.queryByText("—")).not.toBeInTheDocument();
     expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });

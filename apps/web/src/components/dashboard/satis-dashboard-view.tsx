@@ -211,15 +211,18 @@ export function SatisDashboardView() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Vurgu kuralı (Faz 4.4): davet VARLIĞI değil, yanıt BEKLEYEN davet
             vurgular — nedeni alt metinde. */}
+        {/* C9: değer ve hint AYNI kaynaktan (analytics.unansweredInvites) —
+            önceden değer satisStats'tan geliyordu ve iki tanım çelişebiliyordu
+            ("Aktif Davetler: 0" + "1 davet bekliyor"). */}
         <KpiCard
-          label="Aktif Davetler"
-          value={val(s?.invitations.active)}
+          label="Yanıt Bekleyen Davet"
+          value={val(analytics.data?.actions.unansweredInvites)}
           href="/company/satis/acik-ihaleler"
           accent="emerald"
           attention={(analytics.data?.actions.unansweredInvites ?? 0) > 0}
           hint={
             (analytics.data?.actions.unansweredInvites ?? 0) > 0
-              ? `${analytics.data!.actions.unansweredInvites} davet teklifini bekliyor`
+              ? `${analytics.data!.actions.unansweredInvites} davet teklifinizi bekliyor`
               : undefined
           }
         />
@@ -238,10 +241,13 @@ export function SatisDashboardView() {
           accent="emerald"
           spark={analytics.data?.kpiSeries.won}
         />
+        {/* C9: sayım onay/gönderim öncesi siparişleri kapsıyor (PENDING/
+            ACCEPTED/CREATED) — "Aktif" adı Siparişler sayfasının daha geniş
+            Aktif kümesiyle çelişiyordu. */}
         <KpiCard
-          label="Aktif Sipariş"
+          label="Bekleyen Sipariş"
           value={val(s?.orders.pending)}
-          href="/company/satis/siparisler?status=PENDING"
+          href="/company/satis/siparisler"
           accent="emerald"
           deltaPct={analytics.data?.deltas.orders}
           spark={analytics.data?.kpiSeries.orders}

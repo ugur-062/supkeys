@@ -295,3 +295,12 @@
 @media (prefers-reduced-motion: reduce) {
   .rt-dot { animation: none; opacity: 0.6; }
 }
+
+/* C13: sonner kapatma (×) butonu varsayılanda kutunun sol-üst DIŞINDA
+   duruyordu — kutunun içinde sağ-üste alındı. */
+[data-sonner-toast] [data-close-button] {
+  left: auto;
+  right: 6px;
+  top: 6px;
+  transform: none;
+}

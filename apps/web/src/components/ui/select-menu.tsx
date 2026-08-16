@@ -58,7 +58,7 @@ export function SelectMenu({
             aria-hidden
           />
         </ListboxButton>
-        <ListboxOptions
+        <ListboxOptions modal={false}
           anchor="bottom start"
           transition
           className="z-50 mt-1 min-w-[calc(var(--button-width))] max-w-96 rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5 transition duration-100 focus:outline-none data-closed:opacity-0 [--anchor-gap:0.25rem]"

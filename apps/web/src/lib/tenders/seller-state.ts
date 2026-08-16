@@ -13,11 +13,13 @@
  *                                    admin moderasyon kapatması, 2026-07-13)
  *   WON                           → "Kazandınız"
  *   AWARDED_PARTIAL               → "Kısmen Kazandınız"
- *   LOST                          → "Kaybettin"
+ *   LOST                          → "Kaybettiniz"
  *   WITHDRAWN                     → "Geri Çekildi"
  *   AWARDED/CLOSED_NO_AWARD + teklifsiz → "Kapandı"
  *   CANCELLED                     → "İptal Edildi"
  */
+
+import { differenceInCalendarDays } from "date-fns";
 export interface SellerTenderState {
   label: string;
   className: string;
@@ -50,7 +52,7 @@ export function deriveSellerTenderState(
   }
   if (bidStatus === "LOST") {
     return {
-      label: "Kaybettin",
+      label: "Kaybettiniz",
       className: "bg-rose-50 text-rose-700 border-rose-200",
       tone: "lose",
     };
@@ -117,7 +119,7 @@ export function deriveSellerTenderState(
   }
   // AWARDED / CLOSED_NO_AWARD (teklifsiz veya sonuçsuz)
   return {
-    label: bidStatus ? "Kapandı" : "Kapandı (teklif vermedin)",
+    label: bidStatus ? "Kapandı" : "Kapandı (teklif vermediniz)",
     className: NEUTRAL,
     tone: "neutral",
   };
@@ -126,7 +128,9 @@ export function deriveSellerTenderState(
 /** Kapanışa kalan tam gün (negatif = geçti). */
 export function daysUntil(iso: string | null): number | null {
   if (!iso) return null;
-  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  // C11: TAKVİM günü farkı — Math.ceil saat-bazlı fark yüzünden hep +1
+  // gösteriyordu (16 Ağu → 20 Ağu "5 gün" değil 4 gün).
+  return differenceInCalendarDays(new Date(iso), new Date());
 }
 
 /** Aciliyet metni + rengi — eski kart footer davranışı. */

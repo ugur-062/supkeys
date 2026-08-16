@@ -178,7 +178,10 @@ export default function ListingDetailPage() {
   const id = params.id;
   const searchParams = useSearchParams();
   // §8.5: aktif sekme ?tab= ile taşınır — yenileme/paylaşımda korunur.
-  const initialTab = Number(searchParams.get("tab") ?? "0") || 0;
+  // C14: aralık dışı ?tab= ilk sekmeye düşer (her iki görünümde de 4 sekme;
+  // clamp yoksa headless son sekmeyi açıyordu).
+  const rawTab = Number(searchParams.get("tab") ?? "0") || 0;
+  const initialTab = rawTab >= 0 && rawTab <= 3 ? rawTab : 0;
   const rememberTab = (i: number) => {
     const u = new URL(window.location.href);
     if (i === 0) u.searchParams.delete("tab");
@@ -523,11 +526,11 @@ export default function ListingDetailPage() {
       return (
         <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
           <Text className="text-sm font-medium text-zinc-900">
-            Bu ihaleye artık erişiminiz yok.
+            İhaleye ulaşılamıyor.
           </Text>
           <Text className="mt-1 text-sm text-zinc-500">
-            İlan kaldırılmış olabilir ya da erişim koşulları değişmiş olabilir
-            (ör. firma bağlantısı veya üyelik durumu). Sorun olduğunu
+            İlan kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş
+            olabilir (ör. firma bağlantısı veya üyelik durumu). Sorun olduğunu
             düşünüyorsanız ilan sahibiyle iletişime geçin.
           </Text>
           <Button outline className="mt-3" href="/company">

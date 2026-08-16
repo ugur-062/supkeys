@@ -72,37 +72,38 @@ export function AssistantLauncher() {
 
   return (
     <>
-      {/* Karşılama balonu — tıklayınca panel açılır */}
-      <div
-        aria-hidden={!greet}
-        className={cn(
-          "fixed bottom-24 right-5 z-40 max-w-[260px] transition-all duration-500",
-          greet && !open
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none translate-y-3 opacity-0",
-        )}
-      >
-        <div className="relative rounded-2xl rounded-br-sm border border-brand-200 bg-white p-3.5 shadow-xl shadow-brand-900/10">
-          <button
-            type="button"
-            aria-label="Karşılama mesajını kapat"
-            onClick={() => setGreet(false)}
-            className="absolute right-2 top-2 text-zinc-300 hover:text-zinc-500"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" onClick={openPanel} className="text-left">
-            <p className="flex items-center gap-2 text-sm font-semibold text-brand-700">
-              <Sparkles className="h-4 w-4" /> Rothern Asistanı
-            </p>
-            <p className="mt-1 pr-3 text-sm text-zinc-600">
-              {user.firstName ? `Merhaba ${user.firstName}!` : "Merhaba!"} 👋
-              Bugün size nasıl yardımcı olabilirim? İhale açabilir, belge
-              okuyabilir ya da sorularınızı yanıtlayabilirim.
-            </p>
-          </button>
+      {/* Karşılama balonu — tıklayınca panel açılır. C58/C8: yalnız görünürken
+          MOUNT edilir — gizliyken DOM'da odaklanabilir görünmez butonlar
+          bırakıyordu ve viewport sağ-altındaki tıklamaları yutabiliyordu. */}
+      {greet && !open ? (
+        <div className="fixed bottom-24 right-5 z-40 max-w-[260px]">
+          <div className="relative rounded-2xl rounded-br-sm border border-brand-200 bg-white p-3.5 shadow-xl shadow-brand-900/10">
+            <button
+              type="button"
+              aria-label="Karşılama mesajını kapat"
+              onClick={() => setGreet(false)}
+              className="absolute right-2 top-2 text-zinc-300 hover:text-zinc-500"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={openPanel}
+              aria-label="Asistan panelini aç"
+              className="text-left"
+            >
+              <p className="flex items-center gap-2 text-sm font-semibold text-brand-700">
+                <Sparkles className="h-4 w-4" /> Rothern Asistanı
+              </p>
+              <p className="mt-1 pr-3 text-sm text-zinc-600">
+                {user.firstName ? `Merhaba ${user.firstName}.` : "Merhaba."}{" "}
+                Size nasıl yardımcı olabilirim? İhale açabilir, belge okuyabilir
+                ya da sorularınızı yanıtlayabilirim.
+              </p>
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <button
         type="button"

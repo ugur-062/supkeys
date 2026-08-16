@@ -1,5 +1,6 @@
 "use client";
 
+import { AI_FEATURE_LABELS, labelOr } from "@/lib/company/labels";
 import {
   Table,
   TableBody,
@@ -13,10 +14,7 @@ import { useAiUsage } from "@/hooks/use-ai-usage";
 import { cn } from "@/lib/utils";
 import { SettingsShell } from "../_components/settings-shell";
 
-/** Özellik anahtarı → TR etiket (AI-1'de dolacak; bilinmeyen ham string'e düşer). */
-const FEATURE_LABELS: Record<string, string> = {
-  test: "Test",
-};
+
 
 /** Yüzde çubuğu — monokrom; uyarı eşiğinden sonra vurgulu. */
 function PercentBar({ percent, warn }: { percent: number; warn: boolean }) {
@@ -166,7 +164,7 @@ export default function AiKullanimPage() {
                         (data.byFeature ?? []).map((r) => (
                           <TableRow key={r.feature}>
                             <TableCell className="text-sm text-zinc-900">
-                              {FEATURE_LABELS[r.feature] ?? r.feature}
+                              {labelOr(AI_FEATURE_LABELS, r.feature, "Diğer")}
                             </TableCell>
                             <TableCell className="text-sm text-zinc-600">
                               {r.requests}

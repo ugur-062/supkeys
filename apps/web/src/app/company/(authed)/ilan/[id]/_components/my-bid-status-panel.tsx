@@ -57,7 +57,7 @@ const BID_STATUS_BADGE: Record<string, { label: string; color: "zinc" | "amber" 
   SUBMITTED: { label: "Gönderildi", color: "violet" },
   WON: { label: "Kazandınız", color: "emerald" },
   AWARDED_PARTIAL: { label: "Kısmen Kazandınız", color: "emerald" },
-  LOST: { label: "Kaybettin", color: "rose" },
+  LOST: { label: "Kaybettiniz", color: "rose" },
   WITHDRAWN: { label: "Geri Çekildi", color: "zinc" },
 };
 

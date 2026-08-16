@@ -19,6 +19,11 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useState } from "react";
 import { SettingsShell } from "../_components/settings-shell";
+import {
+  AUDIT_ACTION_LABELS,
+  labelOr,
+  roleLabel,
+} from "@/lib/company/labels";
 
 /** Modül filtresi — backend whitelist ile birebir. */
 const MODULES: { value: string; label: string }[] = [
@@ -36,60 +41,23 @@ const MODULES: { value: string; label: string }[] = [
   { value: "profile", label: "Firma Profili" },
 ];
 
-/** Eylem → TR etiket (bilinmeyen action ham string'e düşer). */
-const ACTION_LABELS: Record<string, string> = {
-  "company.listing.published": "İhale yayınlandı",
-  "company.listing.awarded": "İhale kazandırıldı",
-  "company.listing.cancelled": "İhale iptal edildi",
-  "company.listing.evaluation_started": "Değerlendirme başlatıldı",
-  "company.listing.closed_no_award": "İhale kazandırmasız kapatıldı",
-  "company.listing.next_round_created": "Pazarlık turu açıldı",
-  "company.listing.manage_denied": "İhale yönetimi reddedildi (yetkisiz deneme)",
-  "company.bid.submitted": "Teklif verildi",
-  "company.order.accepted": "Sipariş kabul edildi",
-  "company.order.rejected": "Sipariş reddedildi",
-  "company.order.shipped": "Sipariş gönderildi",
-  "company.order.received": "Sipariş teslim alındı",
-  "company.order.completed": "Sipariş tamamlandı",
-  "company.order.cancelled": "Sipariş iptal edildi",
-  "company.user.roles_changed": "Kullanıcı rolleri değişti",
-  "company.user.active_changed": "Kullanıcı aktif/pasif yapıldı",
-  "company.user.removed": "Kullanıcı çıkarıldı",
-  "company.user.permissions_overridden": "Kullanıcı izinleri düzenlendi",
-  "company.user.role_change_denied": "Rol değişikliği reddedildi (yetkisiz deneme)",
-  "company.seats.selection_applied": "Koltuk seçimi uygulandı",
-  "company.bank_account.created": "Banka hesabı eklendi",
-  "company.bank_account.updated": "Banka hesabı güncellendi (IBAN maskeli)",
-  "company.bank_account.deleted": "Banka hesabı silindi",
-  "company.address.created": "Adres eklendi",
-  "company.address.updated": "Adres güncellendi",
-  "company.address.deleted": "Adres silindi",
-  "company.docs.uploaded": "KYC belgesi yüklendi",
-  "company.docs.submitted": "KYC doğrulamaya gönderildi",
-  "company.docs.revision_submitted": "Belge güncellemesi incelemeye gönderildi",
-  "company.approval.approved": "Onay verildi",
-  "company.approval.step_approved": "Onay adımı geçildi",
-  "company.approval.rejected": "Onay reddedildi",
-  "company.connection.requested": "Bağlantı isteği gönderildi",
-  "company.connection.accepted": "Bağlantı kabul edildi",
-  "company.connection.rejected": "Bağlantı reddedildi",
-  "company.connection.disconnected": "Bağlantı koparıldı",
-  "company.connection.blocked": "Firma engellendi",
-  "company.connection.unblocked": "Engel kaldırıldı",
-  "company.profile.updated": "Firma profili güncellendi",
-  "company.signup": "Firma kaydı",
-};
 
 /** Metadata'dan kısa, değersiz özet (alan adları / maskeli referanslar). */
 function summarize(row: ActivityLogRow): string {
   const m = row.metadata ?? {};
   const parts: string[] = [];
+  // C16: kazandırma SİPARİŞ BAŞINA iz yazar (INV-AUDIT-1) — numara olmadan
+  // aynı saniyedeki kayıtlar "çift kayıt" gibi okunuyordu.
+  if (typeof m.orderNumber === "string") parts.push(`sipariş ${m.orderNumber}`);
   if (Array.isArray(m.changedFields) && m.changedFields.length) {
     parts.push(`alanlar: ${(m.changedFields as string[]).join(", ")}`);
   }
   if (typeof m.ibanMasked === "string") parts.push(m.ibanMasked);
   if (typeof m.kind === "string") parts.push(String(m.kind));
-  if (Array.isArray(m.after)) parts.push(`yeni roller: ${(m.after as string[]).join(", ") || "—"}`);
+  if (Array.isArray(m.after))
+    parts.push(
+      `yeni roller: ${(m.after as string[]).map(roleLabel).join(", ") || "—"}`,
+    );
   if (typeof m.reason === "string") parts.push(m.reason);
   return parts.join(" · ");
 }
@@ -161,13 +129,19 @@ export default function AktivitePage() {
                         <TableCell className="whitespace-nowrap text-xs text-zinc-500">
                           {fmtDate(r.createdAt)}
                         </TableCell>
-                        <TableCell className="text-sm text-zinc-900">
-                          {ACTION_LABELS[r.action] ?? r.action}
+                        <TableCell
+                          className="text-sm text-zinc-900"
+                          title={AUDIT_ACTION_LABELS[r.action] ? undefined : r.action}
+                        >
+                          {labelOr(AUDIT_ACTION_LABELS, r.action)}
                         </TableCell>
                         <TableCell className="text-xs text-zinc-600">
                           {r.actorEmail ?? "sistem"}
                         </TableCell>
-                        <TableCell className="max-w-[280px] truncate text-xs text-zinc-500">
+                        <TableCell
+                          className="max-w-[280px] truncate text-xs text-zinc-500"
+                          title={summarize(r)}
+                        >
                           {summarize(r)}
                         </TableCell>
                       </TableRow>

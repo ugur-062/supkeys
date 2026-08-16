@@ -19,7 +19,7 @@ describe("deriveSellerTenderState", () => {
       deriveSellerTenderState("AWARDED", "AWARDED_PARTIAL", true).label,
     ).toBe("Kısmen Kazandınız");
     expect(deriveSellerTenderState("AWARDED", "LOST", true).label).toBe(
-      "Kaybettin",
+      "Kaybettiniz",
     );
     expect(deriveSellerTenderState("OPEN", "WITHDRAWN", true).label).toBe(
       "Geri Çekildi",
@@ -59,7 +59,7 @@ describe("deriveSellerTenderState", () => {
       deriveSellerTenderState("IN_AWARD_APPROVAL", "SUBMITTED", false).label,
     ).toBe("Değerlendiriliyor");
     expect(deriveSellerTenderState("AWARDED", null, false).label).toBe(
-      "Kapandı (teklif vermedin)",
+      "Kapandı (teklif vermediniz)",
     );
     expect(
       deriveSellerTenderState("CLOSED_NO_AWARD", "SUBMITTED", false).label,

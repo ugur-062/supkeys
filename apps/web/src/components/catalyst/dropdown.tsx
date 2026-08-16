@@ -25,6 +25,9 @@ export function DropdownMenu({
   return (
     <Headless.MenuItems
       {...props}
+      // C6/C7: modal menü sayfa scroll'unu kilitleyip dışarıyı inert yapıyordu
+      // (ilk tık yutulur, ikinci tetikleyici açılmaz) — non-modal.
+      modal={false}
       transition
       anchor={anchor}
       className={clsx(
