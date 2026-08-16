@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/list/page-container";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { ArrowLeft } from "lucide-react";
@@ -17,7 +18,8 @@ export function SettingsShell({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    // B13: form-ağır Ayarlar bilinçli DAR — tek istisna, PageContainer kuralı.
+    <PageContainer width="narrow" className="space-y-6">
       <Link
         href="/company/ayarlar"
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
@@ -32,6 +34,6 @@ export function SettingsShell({
         ) : null}
       </div>
       {children}
-    </div>
+    </PageContainer>
   );
 }

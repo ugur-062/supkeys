@@ -9,6 +9,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -76,6 +77,27 @@ function ChartCard({
 
 const AXIS_TICK = { fontSize: 11, fill: ZINC_400 };
 
+/** B15: kırpılan kategori etiketi — SVG <title> ile tam metin tooltip'i. */
+function CategoryTick({
+  x,
+  y,
+  payload,
+}: {
+  x?: number | string;
+  y?: number | string;
+  payload?: { value?: unknown };
+}) {
+  const full = String(payload?.value ?? "");
+  const shown = full.length > 20 ? `${full.slice(0, 19)}…` : full;
+  return (
+    <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill={ZINC_400}>
+      <title>{full}</title>
+      {shown}
+    </text>
+  );
+}
+
+
 export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
   const { data, isLoading, isError } = useReportsSummary(type);
   // Paket kapısı / hata: bölüm görünmez (hub kartları etkilenmez).
@@ -123,13 +145,21 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS_TICK} width={28} />
                 <Tooltip
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                  formatter={(v, name) => [
-                    Number(v ?? 0),
-                    name === "listings" ? "İhale" : "Teklif",
-                  ]}
+                  formatter={(v, name) => [Number(v ?? 0), String(name)]}
                 />
-                <Bar dataKey="listings" name="listings" fill={ZINC_900} radius={[3, 3, 0, 0]} />
-                <Bar dataKey="bids" name="bids" fill={ZINC_400} radius={[3, 3, 0, 0]} />
+                {/* B14: iki seri — legend olmadan renkler okunamıyordu. */}
+                <Legend
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: 11 }}
+                />
+                <Bar dataKey="listings" name="İhale" fill={ZINC_900} radius={[3, 3, 0, 0]} />
+                <Bar
+                  dataKey="bids"
+                  name={isAlim ? "Gelen Teklif" : "Verilen Teklif"}
+                  fill={ZINC_400}
+                  radius={[3, 3, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -230,11 +260,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
                   dataKey="name"
                   tickLine={false}
                   axisLine={false}
-                  tick={AXIS_TICK}
+                  tick={CategoryTick}
                   width={140}
-                  tickFormatter={(v: string) =>
-                    v.length > 20 ? `${v.slice(0, 19)}…` : v
-                  }
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}

@@ -36,10 +36,18 @@ const PORTAL_CHIP: Record<NotificationPortal, { label: string; cls: string }> = 
   satis: { label: "Satış", cls: "bg-emerald-50 text-emerald-700" },
 };
 
-export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
+/** Panel içeriği ayrı bileşen — liste sorgusu yalnızca popover AÇILINCA atılır
+ *  (B18: önceden her sayfa yüklemesinde /notifications listesi çekiliyordu;
+ *  rozet için unread-count yeterli). */
+function BellPanelContent({
+  unread,
+  close,
+}: {
+  unread: number;
+  close: () => void;
+}) {
   // TEK kutu (kullanıcı isteği): portal filtresi yok — iki panelin
   // bildirimleri birlikte, satır başına panel rozetiyle.
-  const { data: unread = 0 } = useUnreadCount();
   const { data: items = [], isLoading } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
@@ -54,6 +62,93 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
       router.push(path || "/company");
     }
   };
+
+  return (
+    <>
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
+        <span className="text-sm font-semibold text-zinc-900">
+          Bildirimler
+        </span>
+        {unread > 0 ? (
+          <button
+            type="button"
+            onClick={() => markAll.mutate(undefined)}
+            className="text-xs font-medium text-blue-600 hover:underline"
+          >
+            Tümünü okundu işaretle
+          </button>
+        ) : null}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {isLoading ? (
+          <p className="px-4 py-6 text-center text-sm text-zinc-400">
+            Yükleniyor…
+          </p>
+        ) : recent.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-zinc-400">
+            Henüz bildiriminiz yok.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-50">
+            {recent.map((n) => (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onItemClick(n);
+                    close();
+                  }}
+                  className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-zinc-50 ${
+                    n.readAt ? "" : "bg-blue-50/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {!n.readAt ? (
+                      <span
+                        className="size-1.5 shrink-0 rounded-full bg-blue-500"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <span className="text-sm font-medium text-zinc-900">
+                      {n.title}
+                    </span>
+                    {n.portal ? (
+                      <span
+                        className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
+                      >
+                        {PORTAL_CHIP[n.portal].label}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="line-clamp-2 text-xs text-zinc-500">
+                    {n.body}
+                  </span>
+                  <span className="text-xs text-zinc-400">
+                    {timeAgo(n.createdAt)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="shrink-0 border-t border-zinc-100 px-4 py-2 text-center">
+        <Link
+          href="/company/bildirimler"
+          onClick={() => close()}
+          className="text-xs font-semibold text-zinc-600 hover:text-zinc-900"
+        >
+          Tüm bildirimleri gör
+        </Link>
+      </div>
+    </>
+  );
+}
+
+export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
+  const { data: unread = 0 } = useUnreadCount();
 
   return (
     <Popover className="relative">
@@ -75,90 +170,11 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
 
       <PopoverPanel
         anchor="bottom end"
-        className="z-50 mt-2 w-[22rem] rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem]"
+        // B16: panel viewport'a sığar (--anchor-max-height); liste iç scroll,
+        // başlık/footer sabit — son öğe kesilmez, footer üstüne binmez.
+        className="z-50 mt-2 flex w-[22rem] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem] max-h-[min(var(--anchor-max-height),30rem)]"
       >
-        {({ close }) => (
-          <>
-            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-              <span className="text-sm font-semibold text-zinc-900">
-                Bildirimler
-              </span>
-              {unread > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => markAll.mutate(undefined)}
-                  className="text-xs font-medium text-blue-600 hover:underline"
-                >
-                  Tümünü okundu işaretle
-                </button>
-              ) : null}
-            </div>
-
-            <div className="max-h-96 overflow-y-auto">
-              {isLoading ? (
-                <p className="px-4 py-6 text-center text-sm text-zinc-400">
-                  Yükleniyor…
-                </p>
-              ) : recent.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm text-zinc-400">
-                  Henüz bildiriminiz yok.
-                </p>
-              ) : (
-                <ul className="divide-y divide-zinc-50">
-                  {recent.map((n) => (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onItemClick(n);
-                          close();
-                        }}
-                        className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-zinc-50 ${
-                          n.readAt ? "" : "bg-blue-50/40"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {!n.readAt ? (
-                            <span
-                              className="size-1.5 shrink-0 rounded-full bg-blue-500"
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                          <span className="text-sm font-medium text-zinc-900">
-                            {n.title}
-                          </span>
-                          {n.portal ? (
-                            <span
-                              className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
-                            >
-                              {PORTAL_CHIP[n.portal].label}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="line-clamp-2 text-xs text-zinc-500">
-                          {n.body}
-                        </span>
-                        <span className="text-xs text-zinc-400">
-                          {timeAgo(n.createdAt)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="border-t border-zinc-100 px-4 py-2 text-center">
-              <Link
-                href="/company/bildirimler"
-                onClick={() => close()}
-                className="text-xs font-semibold text-zinc-600 hover:text-zinc-900"
-              >
-                Tüm bildirimleri gör
-              </Link>
-            </div>
-          </>
-        )}
+        {({ close }) => <BellPanelContent unread={unread} close={close} />}
       </PopoverPanel>
     </Popover>
   );

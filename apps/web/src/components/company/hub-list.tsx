@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/list/page-container";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { ArrowRight, type LucideIcon } from "lucide-react";
@@ -26,7 +27,9 @@ export function HubList({
   items: HubItem[];
 }) {
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    // B13: hub sayfaları da veri sayfaları gibi TAM genişlik — Raporlar'da
+    // hub dar / grafikler geniş tutarsızlığı buradan geliyordu.
+    <PageContainer className="space-y-6">
       <div>
         <Heading>{title}</Heading>
         <Text className="mt-1 text-sm text-zinc-500">{description}</Text>
@@ -53,6 +56,6 @@ export function HubList({
           </li>
         ))}
       </ul>
-    </div>
+    </PageContainer>
   );
 }

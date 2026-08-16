@@ -243,7 +243,10 @@ export function IhaleListRow({
             başlık zaten detay linki + sağda duruma göre birincil aksiyon var). */}
         <div className="hidden min-w-0 px-3 py-2.5 xl:block">
           <ColLabel>{isSatis ? "Satışçı" : "Satın Almacı"}</ColLabel>
-          <span className="mt-1 block truncate text-[13px] font-semibold leading-tight text-slate-900">
+          <span
+            className="mt-1 block truncate text-[13px] font-semibold leading-tight text-slate-900"
+            title={`${t.createdBy.firstName} ${t.createdBy.lastName}`}
+          >
             {t.createdBy.firstName} {t.createdBy.lastName}
           </span>
         </div>

@@ -53,7 +53,7 @@ function RecentThreads({ close }: { close: () => void }) {
     );
   }
   return (
-    <ul className="max-h-80 overflow-y-auto">
+    <ul className="min-h-0 flex-1 overflow-y-auto">
       {recent.map((t) => (
         <li key={`${t.portal}:${t.threadId}`}>
           <Link
@@ -111,9 +111,10 @@ function RecentThreads({ close }: { close: () => void }) {
  * Topbar mesaj önizlemesi — zil deseniyle aynı: son konuşmalar + okunmamış
  * rozeti; öğe tıklaması ilgili konuşmayı açar (?with=), altta "Tüm mesajlar".
  */
-export function MessagesPopover() {
-  // TEK kutu: rozet iki tarafın toplam okunmamışı (backend rolsüz tarafı saymaz).
-  const { data: unreadData } = useUnreadMessages();
+export function MessagesPopover({ portal }: { portal: MessagePortal }) {
+  // B18: rozet AKTİF portalın okunmamışı — ActionCenter ile aynı queryKey'i
+  // paylaşır (portal'sız "all" çağrısı aynı sayfada İKİNCİ istek üretiyordu).
+  const { data: unreadData } = useUnreadMessages(portal);
   const unread = unreadData?.count ?? 0;
 
   return (
@@ -132,17 +133,19 @@ export function MessagesPopover() {
 
       <PopoverPanel
         anchor="bottom end"
-        className="z-50 mt-2 w-[22rem] rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem]"
+        // B16: panel viewport'a sığar (--anchor-max-height); liste iç scroll,
+        // başlık/footer sabit — son öğe kesilmez, footer üstüne binmez.
+        className="z-50 mt-2 flex w-[22rem] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem] max-h-[min(var(--anchor-max-height),30rem)]"
       >
         {({ close }) => (
           <>
-            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
               <span className="text-sm font-semibold text-zinc-900">
                 Mesajlar
               </span>
             </div>
             <RecentThreads close={close} />
-            <div className="border-t border-zinc-100 px-4 py-2.5 text-center">
+            <div className="shrink-0 border-t border-zinc-100 px-4 py-2.5 text-center">
               <Link
                 href="/company/mesajlar"
                 onClick={() => close()}

@@ -3,6 +3,7 @@ export { EmptyState } from "./empty-state";
 export { FilterBar } from "./filter-bar";
 export { FilterSelect, type FilterSelectOption } from "./filter-select";
 export { ListSkeleton } from "./list-skeleton";
+export { PageContainer } from "./page-container";
 export { PageHeader } from "./page-header";
 export { Pagination } from "./pagination";
 export { ResultCount } from "./result-count";

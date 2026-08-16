@@ -107,7 +107,7 @@ export function CompanyTopbar({
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
       <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1">
-        {canMessage ? <MessagesPopover /> : null}
+        {canMessage ? <MessagesPopover portal={activePortal} /> : null}
 
         {/* Zil TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte,
             satır başına panel rozetiyle. */}
