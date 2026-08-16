@@ -1,5 +1,6 @@
 "use client";
 
+import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
@@ -142,6 +143,7 @@ export function IhaleListRow({
   const [expanded, setExpanded] = useState(false);
   const isSatis = listingType === "SATIS";
   const st = statusStyle(t.status);
+  const panelId = `ihale-row-detay-${t.id}`;
 
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"
@@ -172,6 +174,7 @@ export function IhaleListRow({
             type="button"
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
+            aria-controls={panelId}
             aria-label={expanded ? "Detayı gizle" : "Detayı genişlet"}
             className={cn("rounded text-slate-400", IHALE_VIEW_FOCUS)}
           >
@@ -394,10 +397,10 @@ export function IhaleListRow({
         ) : null}
       </div>
 
-      {/* Accordion — mevcut liste verisinin özeti (kalem verisi listede yok;
-          tam kalemler detay sayfasında). */}
+      {/* Accordion — liste verisinin özeti + tembel kalem tablosu (yalnız
+          açıkken fetch; ilk 5 kalem, tamamı detay sayfasında). */}
       {expanded ? (
-        <div className="border-t border-slate-100 px-4 py-3">
+        <div id={panelId} className="border-t border-slate-100 px-4 py-3">
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">
             {(
               [
@@ -426,6 +429,7 @@ export function IhaleListRow({
               </div>
             ))}
           </dl>
+          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} />
           <Link
             href={detailHref}
             className={cn(

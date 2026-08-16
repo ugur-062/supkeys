@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  render,
+  render as rtlRender,
   screen,
   waitForElementToBeRemoved,
   within,
@@ -13,6 +14,8 @@ const h = vi.hoisted(() => ({
   rows: [] as unknown[],
   isLoading: false,
   isError: false,
+  // Accordion'daki tembel kalem paneli (IhaleItemsPanel) bu uçtan fetch eder.
+  get: vi.fn<(url: string) => Promise<{ data: unknown }>>(),
 }));
 
 vi.mock("@/hooks/use-seller-tenders", () => ({
@@ -23,7 +26,21 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
   }),
 }));
 
+vi.mock("@/lib/company-auth/api", () => ({
+  companyApi: { get: h.get },
+}));
+
 import { SellerTendersView } from "../seller-tenders-view";
+
+// Kalem paneli useQuery kullanır → QueryClient şart.
+const render = (ui: React.ReactElement) =>
+  rtlRender(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      {ui}
+    </QueryClientProvider>,
+  );
 
 let seq = 0;
 function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
@@ -70,6 +87,9 @@ beforeEach(() => {
   h.rows = [];
   h.isLoading = false;
   h.isError = false;
+  h.get.mockResolvedValue({
+    data: { id: "l1", items: [], itemCount: 0 },
+  });
 });
 
 describe("SellerTendersView (yoğun satır görünümü)", () => {
@@ -199,6 +219,41 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     await user.click(screen.getByRole("button", { name: "Detayı genişlet" }));
     expect(screen.getByText("Davetlisiniz")).toBeInTheDocument();
     expect(screen.queryByText("Bağlantılı")).not.toBeInTheDocument();
+  });
+
+  it("kalemler TEMBEL: satır açılana dek istek yok; açılınca detay ucundan gelir", async () => {
+    const user = userEvent.setup();
+    h.get.mockResolvedValue({
+      data: {
+        id: "l1",
+        items: [
+          {
+            id: "i1",
+            lineNo: 1,
+            name: "Çelik Boru",
+            description: null,
+            quantity: "10",
+            unit: "adet",
+            targetPrice: null,
+          },
+        ],
+        itemCount: 1,
+      },
+    });
+    h.rows = [row()];
+    render(<SellerTendersView />);
+
+    // Liste yüklendi ama satır kapalı → kalem isteği YOK (tembel yükleme).
+    expect(h.get).not.toHaveBeenCalled();
+
+    const toggle = screen.getByRole("button", { name: "Detayı genişlet" });
+    await user.click(toggle);
+    expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
+    expect(h.get).toHaveBeenCalledWith("/company/listings/l1");
+    // a11y: chevron aria-controls ile açılan paneli işaret eder.
+    const panelId = toggle.getAttribute("aria-controls");
+    expect(panelId).toBeTruthy();
+    expect(document.getElementById(panelId!)).toBeInTheDocument();
   });
 
   it("satırda seçim kutusu YOK (kaldırıldı, 2026-08-03)", () => {

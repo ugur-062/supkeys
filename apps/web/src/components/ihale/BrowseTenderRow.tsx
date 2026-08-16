@@ -12,6 +12,7 @@ import { tr } from "date-fns/locale";
 import { Building2, ChevronRight, FileText, Lock } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import { DaysLeftChip, IHALE_VIEW_FOCUS, InfoChip } from "./IhaleListRow";
 
 /**
@@ -66,6 +67,7 @@ export function BrowseTenderRow({
   const isSatis = listingType === "SATIS";
   const state = deriveSellerTenderState(t.status, t.myBidStatus, t.invited);
   const urgency = closingUrgency(t.status, t.closesAt);
+  const panelId = `browse-row-detay-${t.id}`;
 
   const fromHref = isSatis
     ? "/company/satinalma/satin-al"
@@ -99,6 +101,7 @@ export function BrowseTenderRow({
             type="button"
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
+            aria-controls={panelId}
             aria-label={expanded ? "Detayı gizle" : "Detayı genişlet"}
             className={cn("rounded text-slate-400", IHALE_VIEW_FOCUS)}
           >
@@ -324,9 +327,10 @@ export function BrowseTenderRow({
         ) : null}
       </div>
 
-      {/* Accordion — rozet kalabalığı burada (davet/bağlantı/kategori/fiyat). */}
+      {/* Accordion — rozet kalabalığı (davet/bağlantı/kategori/fiyat) + tembel
+          kalem tablosu (yalnız açıkken fetch; ilk 5, tamamı detay sayfasında). */}
       {expanded ? (
-        <div className="border-t border-slate-100 px-4 py-3">
+        <div id={panelId} className="border-t border-slate-100 px-4 py-3">
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             {t.invited ? (
               <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700">
@@ -393,6 +397,7 @@ export function BrowseTenderRow({
               </div>
             ))}
           </dl>
+          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} />
           <Link
             href={detailHref}
             className={cn(
