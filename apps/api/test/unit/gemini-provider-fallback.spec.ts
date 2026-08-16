@@ -89,14 +89,90 @@ describe("GeminiProvider model fallback", () => {
     }
   }, 15_000);
 
-  it("geçici olmayan hata anında düşer — retry da fallback da tetiklenmez", async () => {
+  it("geçici olmayan hata (500) anında düşer — retry da fallback da tetiklenmez", async () => {
     mockGenerateContent.mockRejectedValue(
-      new Error('got status: 400 . {"error":{"code":400,"status":"INVALID_ARGUMENT"}}'),
+      new Error('got status: 500 . {"error":{"code":500,"status":"INTERNAL"}}'),
     );
 
     await expect(
       provider.complete(makeRequest("gemini-flash-latest")),
     ).rejects.toBeInstanceOf(AiProviderError);
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+  });
+});
+
+const BAD_REQUEST_400 = () =>
+  new Error(
+    'got status: 400 . {"error":{"code":400,"message":"Invalid JSON payload received. Unknown name \\"thinking_level\\"","status":"INVALID_ARGUMENT"}}',
+  );
+
+describe("GeminiProvider 400 uyarlama merdiveni", () => {
+  let provider: GeminiProvider;
+
+  beforeEach(() => {
+    mockGenerateContent.mockReset();
+    provider = new GeminiProvider({ apiKey: "test-anahtar-fixture-uzun" });
+  });
+
+  it("thinking'li istek 400 alırsa aynı model thinking'siz yeniden denenir", async () => {
+    mockGenerateContent
+      .mockRejectedValueOnce(BAD_REQUEST_400())
+      .mockResolvedValueOnce(OK_RESPONSE);
+
+    const result = await provider.complete({
+      ...makeRequest("gemini-flash-latest"),
+      thinkingLevel: "low" as const,
+    });
+
+    expect(result.text).toBe("merhaba");
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+    expect(mockGenerateContent.mock.calls[0]![0].model).toBe("gemini-flash-latest");
+    expect(mockGenerateContent.mock.calls[0]![0].config.thinkingConfig).toBeDefined();
+    expect(mockGenerateContent.mock.calls[1]![0].model).toBe("gemini-flash-latest");
+    expect(mockGenerateContent.mock.calls[1]![0].config.thinkingConfig).toBeUndefined();
+  });
+
+  it("thinking söküldükten sonra da 400 sürerse yedek modele geçilir", async () => {
+    mockGenerateContent
+      .mockRejectedValueOnce(BAD_REQUEST_400())
+      .mockRejectedValueOnce(BAD_REQUEST_400())
+      .mockResolvedValueOnce(OK_RESPONSE);
+
+    const result = await provider.complete({
+      ...makeRequest("gemini-flash-latest"),
+      thinkingLevel: "low" as const,
+    });
+
+    expect(result.text).toBe("merhaba");
+    const models = mockGenerateContent.mock.calls.map((c) => c[0].model);
+    expect(models).toEqual([
+      "gemini-flash-latest",
+      "gemini-flash-latest",
+      "gemini-flash-lite-latest",
+    ]);
+  });
+
+  it("thinking'siz istek 400 alırsa doğrudan yedek model denenir", async () => {
+    mockGenerateContent
+      .mockRejectedValueOnce(BAD_REQUEST_400())
+      .mockResolvedValueOnce(OK_RESPONSE);
+
+    const result = await provider.complete(makeRequest("gemini-flash-latest"));
+
+    expect(result.text).toBe("merhaba");
+    const models = mockGenerateContent.mock.calls.map((c) => c[0].model);
+    expect(models).toEqual(["gemini-flash-latest", "gemini-flash-lite-latest"]);
+  });
+
+  it("merdiven tükenince (thinking sök + yedek model) hata fırlatılır", async () => {
+    mockGenerateContent.mockRejectedValue(BAD_REQUEST_400());
+
+    await expect(
+      provider.complete({
+        ...makeRequest("gemini-flash-latest"),
+        thinkingLevel: "low" as const,
+      }),
+    ).rejects.toBeInstanceOf(AiProviderError);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(3);
   });
 });

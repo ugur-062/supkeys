@@ -307,9 +307,11 @@ export class AssistantService {
       const code =
         raw.match(/"code"\s*:\s*(\d{3})/)?.[1] ??
         raw.match(/got status:?\s*(\d{3})/i)?.[1];
+      // Sağlayıcının kendi mesajı (alan adı vb.) — anahtar/istek gövdesi içermez.
+      const detail = raw.match(/"message"\s*:\s*"([^"]{1,160})/)?.[1];
       throw new ServiceUnavailableException(
         code
-          ? `Asistan şu an yanıt veremedi (sağlayıcı hatası ${code}) — birkaç saniye sonra tekrar deneyin.`
+          ? `Asistan şu an yanıt veremedi (sağlayıcı hatası ${code}${detail ? `: ${detail}` : ""}) — birkaç saniye sonra tekrar deneyin.`
           : "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
       );
     }

@@ -111,9 +111,24 @@ export class GeminiProvider extends BaseAiProvider {
     );
   }
 
+  /** 400 INVALID_ARGUMENT — istek şekli reddedildi. `-latest` alias'larının
+   *  arkasındaki model habersiz değişebilir ve yeni sürüm eski bir alanı
+   *  tanımayabilir (2026-08-01: Vertex flash alias'ı `thinkingLevel`'ı tanımayan
+   *  sürüme geçti, asistan her istekte anında 400 aldı). Retry çare değil —
+   *  istek UYARLANIR: önce thinking ayarı sökülür, sonra yedek model denenir. */
+  private static isBadRequest(err: unknown): boolean {
+    const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    return (
+      /"code"\s*:\s*400/.test(m) ||
+      m.includes("invalid_argument") ||
+      /got status:?\s*400/.test(m)
+    );
+  }
+
   async complete(req: AiCompletionRequest): Promise<AiCompletionResult> {
     let model = req.model;
     let fallbackUsed = false;
+    let strippedThinking = false;
     for (let attempt = 0; ; attempt++) {
       // Tur deadline'ı: her deneme kalan süreyle sınırlanır — çok-çağrılı
       // akışlarda toplam süre timeoutMs × deneme sayısına ŞİŞMEZ.
@@ -129,16 +144,40 @@ export class GeminiProvider extends BaseAiProvider {
         return await this.completeOnce({
           ...req,
           model,
+          ...(strippedThinking
+            ? { thinkingLevel: undefined, disableThinking: undefined }
+            : {}),
           timeoutMs: Math.min(req.timeoutMs, remaining),
         });
       } catch (err) {
-        // Timeout kullanıcıyı bekletmesin; geçici olmayan hata da anında düşer.
-        if (
-          err instanceof AiProviderTimeoutError ||
-          !GeminiProvider.isTransient(err)
-        ) {
+        // Timeout kullanıcıyı bekletmesin.
+        if (err instanceof AiProviderTimeoutError) throw err;
+        // 400: istek şekli reddedildi — uyarlama merdiveni (thinking'i sök →
+        // yedek model). Her basamak kendi retry sayacıyla başlar; toplam süreyi
+        // deadlineAt sınırlar.
+        if (GeminiProvider.isBadRequest(err)) {
+          if ((req.thinkingLevel || req.disableThinking) && !strippedThinking) {
+            strippedThinking = true;
+            this.logger.warn(
+              `Gemini "${model}" isteği 400 reddetti — thinking ayarı sökülüp yeniden deneniyor`,
+            );
+            attempt = -1;
+            continue;
+          }
+          const fallback = GeminiProvider.FALLBACK_MODELS[model];
+          if (fallback && !fallbackUsed) {
+            fallbackUsed = true;
+            this.logger.warn(
+              `Gemini "${model}" isteği 400 reddetti — yedek modele geçiliyor: "${fallback}"`,
+            );
+            model = fallback;
+            attempt = -1;
+            continue;
+          }
           throw err;
         }
+        // Geçici olmayan diğer hatalar anında düşer.
+        if (!GeminiProvider.isTransient(err)) throw err;
         if (attempt >= GeminiProvider.MAX_RETRIES) {
           const fallback = GeminiProvider.FALLBACK_MODELS[model];
           if (fallbackUsed || !fallback) throw err;
