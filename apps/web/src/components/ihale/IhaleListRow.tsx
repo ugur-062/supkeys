@@ -1,11 +1,12 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
+import { MODULE_LABELS } from "@/lib/company/portals";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
-import { differenceInCalendarDays, format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { differenceInCalendarDays } from "date-fns";
 import { ChevronRight, FileText, Star } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -65,14 +66,9 @@ export function statusStyle(status: TenderListItem["status"]): StatusStyle {
   }
 }
 
-function shortDate(iso: string | null): string {
-  return iso ? format(new Date(iso), "d MMM", { locale: tr }) : "—";
-}
-function fullDate(iso: string | null): string {
-  return iso
-    ? format(new Date(iso), "d MMMM yyyy HH:mm", { locale: tr })
-    : "";
-}
+// B9: tek tarih dili — kanonik formatlayıcı (yıl her yerde görünür).
+const shortDate = (iso: string | null) => formatDate(iso, "short");
+const fullDate = (iso: string | null) => formatDate(iso, "datetime");
 
 function ColLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -148,7 +144,9 @@ export function IhaleListRow({
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"
     : "/company/satinalma/ihalelerim";
-  const fromLabel = isSatis ? "Satış İhalelerim" : "İhalelerim";
+  const fromLabel = isSatis
+    ? MODULE_LABELS.satis.ilanlarim
+    : MODULE_LABELS.satinalma.ihalelerim;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   // Kapanışa < 3 gün → tarih vurgusu (yalnız açık ihalede).

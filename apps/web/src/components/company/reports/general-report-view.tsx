@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -24,8 +25,6 @@ import {
 } from "@/hooks/use-company-reports";
 import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -324,7 +323,7 @@ export function GeneralReportView({
                       <div className="tabular-nums text-xs text-zinc-400">
                         {t.number ?? "—"}
                         {t.closesAt
-                          ? ` · ${format(new Date(t.closesAt), "d MMM yyyy", { locale: tr })}`
+                          ? ` · ${formatDate(t.closesAt, "short")}`
                           : ""}
                       </div>
                     </TableCell>

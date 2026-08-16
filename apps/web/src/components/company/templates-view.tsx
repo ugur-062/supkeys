@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -38,8 +39,6 @@ import type { AnswerTypeValue } from "@/lib/tenders/form-schema";
 import { ListSkeleton } from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   ArrowLeft,
   FileText,
@@ -512,9 +511,7 @@ export function GroupTemplatesView({
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-400">
                       {g.memberCount} firma ·{" "}
-                      {format(new Date(g.updatedAt), "d MMM yyyy", {
-                        locale: tr,
-                      })}
+                      {formatDate(g.updatedAt, "short")}
                     </p>
                   </div>
                 </div>
@@ -606,7 +603,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                       <p className="mt-0.5 text-xs text-zinc-400">
                         {t.itemCount} soru
                         {t.createdAt
-                          ? ` · ${format(new Date(t.createdAt), "d MMM yyyy", { locale: tr })}`
+                          ? ` · ${formatDate(t.createdAt, "short")}`
                           : ""}
                       </p>
                     </div>

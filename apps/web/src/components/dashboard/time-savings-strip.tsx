@@ -37,7 +37,7 @@ export function TimeSavingsStrip() {
         className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm"
         aria-label={
           hasActivity
-            ? `Yaklaşık ${hoursLabel} saat kazandın (${DASH.heroPeriod.year}, tahmini)`
+            ? `Yaklaşık ${hoursLabel} saat kazandınız (${DASH.heroPeriod.year}, tahmini)`
             : DASH.heroEmptyTitle
         }
       >

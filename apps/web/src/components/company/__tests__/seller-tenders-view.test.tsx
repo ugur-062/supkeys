@@ -136,15 +136,16 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     ];
     render(<SellerTendersView />);
 
-    expect(screen.getByText(/Açık İhale/)).toBeInTheDocument();
+    // B10: sayfa başlığı artık "Açık İhaleler" — regex başlığı da yakalar; exact string kullan.
+    expect(screen.getByText("Açık İhale")).toBeInTheDocument();
     expect(screen.queryByText(/Biten İhale/)).not.toBeInTheDocument();
 
     // FilterSelect artık Listbox (P0): buton → seçenek tıklama.
     await user.click(screen.getByRole("button", { name: "Durum" }));
     await user.click(await screen.findByRole("option", { name: "Geçmiş" }));
     expect(screen.getByText(/Biten İhale/)).toBeInTheDocument();
-    expect(screen.queryByText(/Açık İhale/)).not.toBeInTheDocument();
-    expect(screen.getAllByText("Kazandın").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Açık İhale")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Kazandınız").length).toBeGreaterThanOrEqual(1);
   });
 
   it("müşteri filtresi veriden türetilir ve uygulanır", async () => {

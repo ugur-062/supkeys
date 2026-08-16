@@ -46,9 +46,10 @@ import { Step4Review } from "./step-4-review";
 
 function stepMeta(isSatis: boolean) {
   return [
+    // B11: adımda tür seçimi yok (tür portaldan gelir) — ad içerikle uyumlu.
     isSatis
-      ? { title: "Tür & Kapsam", desc: "Satış ihalesi türü ve kapsamı" }
-      : { title: "Tür & Kapsam", desc: "İhale türü ve kapsamı" },
+      ? { title: "Kapsam", desc: "Satış ihalesinin kapsamı" }
+      : { title: "Kapsam", desc: "İhalenin kapsamı" },
     { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
     { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
     isSatis

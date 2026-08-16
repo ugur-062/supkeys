@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import {
   usePaymentDecision,
   useRecordPayment,
@@ -27,8 +28,6 @@ import {
   formatPaymentPlan,
   KDV_HARIC_NOTE,
 } from "@/lib/tenders/labels";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -209,9 +208,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
             >
               Ödeme vadesi:{" "}
               <strong>
-                {format(new Date(order.paymentDueDate), "dd MMM yyyy", {
-                  locale: tr,
-                })}
+                {formatDate(order.paymentDueDate, "short")}
               </strong>
               {overdue ? ` — ${overdueDays} gün gecikti` : ""}
             </div>
@@ -305,7 +302,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   </div>
                   <div className="text-xs text-zinc-500">
                     {p.method ? `${p.method} · ` : ""}
-                    {format(new Date(p.createdAt), "dd MMM yyyy", { locale: tr })}
+                    {formatDate(p.createdAt, "short")}
                     {p.note ? ` · ${p.note}` : ""}
                     {p.status === "REJECTED" && p.rejectReason
                       ? ` · ${p.rejectReason}`
@@ -316,7 +313,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                       Çek No: {p.chequeNo}
                       {p.chequeBank ? ` · ${p.chequeBank}` : ""}
                       {p.chequeDueDate
-                        ? ` · Vade: ${format(new Date(p.chequeDueDate), "dd MMM yyyy", { locale: tr })}`
+                        ? ` · Vade: ${formatDate(p.chequeDueDate, "short")}`
                         : ""}
                     </div>
                   ) : null}

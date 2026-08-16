@@ -13,11 +13,11 @@ describe("deriveSellerTenderState", () => {
 
   it("teklif sonuçları ilan durumundan önce gelir", () => {
     expect(deriveSellerTenderState("AWARDED", "WON", true).label).toBe(
-      "Kazandın",
+      "Kazandınız",
     );
     expect(
       deriveSellerTenderState("AWARDED", "AWARDED_PARTIAL", true).label,
-    ).toBe("Kısmen Kazandın");
+    ).toBe("Kısmen Kazandınız");
     expect(deriveSellerTenderState("AWARDED", "LOST", true).label).toBe(
       "Kaybettin",
     );

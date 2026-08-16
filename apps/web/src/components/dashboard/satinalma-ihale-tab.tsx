@@ -179,7 +179,7 @@ export function SatinalmaIhaleTab({
           ) : (
             <DashboardEmptyState
               title="Henüz huni verisi yok"
-              body="İlk ihaleni açıp teklif topladığında süreç dönüşümü burada görünecek."
+              body="İlk ihalenizi açıp teklif topladığınızda süreç dönüşümü burada görünecek."
               ctaLabel="İhale Aç"
               ctaHref="/company/satinalma/ihalelerim/yeni"
             />
@@ -245,7 +245,7 @@ export function SatinalmaIhaleTab({
           <div className="inline-flex w-fit gap-1 rounded-lg bg-zinc-100 p-0.5">
             {(
               [
-                ["own", "Oluşturduğun", data.openTendersOwn.length],
+                ["own", "Oluşturduğunuz", data.openTendersOwn.length],
                 ["company", "Firmanın", data.openTendersCompany.length],
               ] as const
             ).map(([key, label, count]) => (
@@ -493,7 +493,7 @@ function CycleTrendChart({
     return (
       <DashboardEmptyState
         title="Henüz döngü verisi yok"
-        body="Kazandırdığın ihale siparişe dönüştüğünde açılış→sipariş süresi burada görünecek."
+        body="Kazandırdığınız ihale siparişe dönüştüğünde açılış→sipariş süresi burada görünecek."
       />
     );
   }

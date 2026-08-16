@@ -1187,7 +1187,7 @@ export function Step1Info({
           description={
             isAuction
               ? `${RolPlGen} kendi para biriminde ${isSatis ? "artırır" : "azaltır"} — pay, açılış günü TCMB kuruyla birimine çevrilir. Ondalık basamak fiyat gösteriminde kullanılır.`
-              : `${RolPlGen} hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ★ ana para birimi TRY equivalent karşılaştırmasının bazıdır.`
+              : `${RolPlGen} hangi para birimlerinde teklif verebileceğini belirleyin. Birden fazla seçebilirsiniz; ★ ana para birimi TRY equivalent karşılaştırmasının bazıdır.`
           }
         />
         <div className="space-y-4">

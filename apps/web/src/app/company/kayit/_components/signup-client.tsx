@@ -231,10 +231,10 @@ export function CompanySignupClient() {
   return (
     <AuthShell
       title="Hesabını aç"
-      subtitle="İlk ihaleni 10 dakikada başlat. Kredi kartı gerekmez."
+      subtitle="İlk ihalenizi 10 dakikada başlatın. Kredi kartı gerekmez."
       footer={
         <>
-          Zaten hesabın var mı?{" "}
+          Zaten hesabınız var mı?{" "}
           <Link href="/company/login" className="font-semibold text-zinc-900 hover:underline">
             Giriş yap
           </Link>
@@ -252,7 +252,7 @@ export function CompanySignupClient() {
         <div className="flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs text-violet-800">
           <Crown className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>
-            Firmayı ilk siz açtığınız için hesabın <strong>Kurucu</strong>su
+            Firmayı ilk siz açtığınız için hesabınız <strong>Kurucu</strong>su
             olarak size atanır — tüm yetkilere sahip olursunuz. Dilerseniz
             sonradan başka bir kullanıcıya devredebilirsiniz.
           </span>

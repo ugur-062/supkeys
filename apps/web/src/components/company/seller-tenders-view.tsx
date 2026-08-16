@@ -1,5 +1,6 @@
 "use client";
 
+import { MODULE_LABELS } from "@/lib/company/portals";
 import {
   ActiveFilterChips,
   EmptyState,
@@ -150,11 +151,11 @@ export function SellerTendersView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isSatis ? "Satın Al" : "İhaleler"}
+        title={isSatis ? MODULE_LABELS.satinalma.satinAl : MODULE_LABELS.satis.acikIhaleler}
         description={
           isSatis
-            ? "Bağlı olduğun satıcıların ve herkese açık satış ihalelerinin listesi — teklif ver ya da Hemen Al, sonuçları takip et."
-            : "Bağlı olduğun alıcı firmaların ve herkese açık ihalelerin listesi — teklif ver, sonuçları takip et."
+            ? "Bağlı olduğunuz satıcıların ve herkese açık satış ihalelerinin listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
+            : "Bağlı olduğunuz alıcı firmaların ve herkese açık ihalelerin listesi — teklif verin, sonuçları takip edin."
         }
       />
 
@@ -289,8 +290,8 @@ export function SellerTendersView({
             isFiltered
               ? "Filtrelerinizi değiştirerek tekrar deneyin."
               : isSatis
-                ? "Satıcılarla bağlantı kurduğunda veya alış kategorine uygun herkese açık satış ihalesi yayınlandığında burada görünür."
-                : "Alıcılarla bağlantı kurduğunda veya kategorine uygun herkese açık ihale yayınlandığında burada görünür."
+                ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ihalesi yayınlandığında burada görünür."
+                : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık ihale yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
           action={

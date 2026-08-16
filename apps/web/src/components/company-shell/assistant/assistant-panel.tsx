@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import {
   useAssistantAction,
@@ -16,8 +17,6 @@ import type {
   AiPendingAction,
   AiTenderExtractResult,
 } from "@rothern/shared";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   AlertTriangle,
   ArrowRight,
@@ -499,9 +498,7 @@ export function AssistantPanel({
                       {s.title ?? "Sohbet"}
                     </p>
                     <p className="truncate text-xs text-zinc-400">
-                      {format(new Date(s.lastMessageAt), "d MMM yyyy HH:mm", {
-                        locale: tr,
-                      })}
+                      {formatDate(s.lastMessageAt, "datetime")}
                       {" · "}
                       {s.turnCount} yazışma
                     </p>
@@ -693,7 +690,7 @@ export function AssistantPanel({
                         <span className="text-zinc-500">
                           Kapanış:{" "}
                           <span className="font-medium text-zinc-800">
-                            {format(new Date(m.draft.draft.bidsCloseAt), "d MMM yyyy", { locale: tr })}
+                            {formatDate(m.draft.draft.bidsCloseAt, "short")}
                           </span>
                         </span>
                       </li>

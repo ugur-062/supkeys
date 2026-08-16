@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
@@ -29,8 +30,6 @@ import {
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -114,7 +113,7 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
                         ? "karar bekleniyor"
                         : "sırada"}
                 {s.decidedAt
-                  ? ` · ${format(new Date(s.decidedAt), "d MMM HH:mm", { locale: tr })}`
+                  ? ` · ${formatDate(s.decidedAt, "datetime")}`
                   : ""}
               </span>
               {s.note ? (
@@ -210,9 +209,9 @@ function RequestCard({
                 <span className="mx-1.5 text-zinc-300">·</span>
               </>
             ) : null}
-            {format(new Date(h.createdAt), "d MMM yyyy HH:mm", { locale: tr })}
+            {formatDate(h.createdAt, "datetime")}
             {h.decidedAt
-              ? ` → ${format(new Date(h.decidedAt), "d MMM HH:mm", { locale: tr })}`
+              ? ` → ${formatDate(h.decidedAt, "datetime")}`
               : ""}
           </div>
           {h.initiatorNote ? (
@@ -367,7 +366,7 @@ export default function OnaylarPage() {
           <Heading>Onaylar</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
             Kazandırma onay süreçleri — sırası sende olanlar, taleplerin ve
-            firmadaki tüm süreçler. Akışları buradan tanımlarsın.
+            firmadaki tüm süreçler. Akışları buradan tanımlarsınız.
           </Text>
         </div>
         {/* §9: aynı birincil aksiyon ekranda bir kez — flows sekmesi kendi
@@ -424,7 +423,7 @@ export default function OnaylarPage() {
         ) : pendingError ? (
           <ErrorState onRetry={() => refetchPending()} />
         ) : !pending || pending.length === 0 ? (
-          <Empty text="Bekleyen onay yok — sana yönlendirilen istekler burada görünür." />
+          <Empty text="Bekleyen onay yok — size yönlendirilen istekler burada görünür." />
         ) : (
           <div className="space-y-3">
             {pending.map((p) => (
@@ -466,9 +465,7 @@ export default function OnaylarPage() {
                       <span className="mx-1.5 text-zinc-300">·</span>
                       Adım {p.currentStepOrder}/{p.totalSteps}
                       <span className="mx-1.5 text-zinc-300">·</span>
-                      {format(new Date(p.createdAt), "d MMM yyyy HH:mm", {
-                        locale: tr,
-                      })}
+                      {formatDate(p.createdAt, "datetime")}
                     </div>
                     {p.initiatorNote ? (
                       <p className="mt-1.5 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-600">
@@ -517,7 +514,7 @@ export default function OnaylarPage() {
         ) : historyError ? (
           <ErrorState onRetry={() => refetchHistory()} />
         ) : !history || history.length === 0 ? (
-          <Empty text="Henüz geçmiş yok — başlattığın ve karara bağlanan istekler burada görünür." />
+          <Empty text="Henüz geçmiş yok — başlattığınız ve karara bağlanan istekler burada görünür." />
         ) : (
           <div className="space-y-3">
             {history.map((h) => (

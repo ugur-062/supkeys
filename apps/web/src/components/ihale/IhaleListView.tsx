@@ -111,7 +111,7 @@ export function IhaleListView({
         title="Henüz ihale yok"
         description={
           canCreate
-            ? "İlk ihaleni birkaç dakikada oluşturabilirsin — davetlileri seç, kalemleri gir, yayınla."
+            ? "İlk ihalenizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
             : "İhale açma işlem rolü (Satın Almacı/Satışçı) gerektirir."
         }
         variant="no-data"

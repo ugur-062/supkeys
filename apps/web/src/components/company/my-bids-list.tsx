@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import {
   ActiveFilterChips,
@@ -22,8 +23,6 @@ import { formatMoney } from "@/components/ui/money";
 import { bidDeliveryTimeLabel } from "@rothern/shared";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   ArrowUpDown,
   Building2,
@@ -181,9 +180,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               {isAlim ? "Taahhüt teslim:" : "İstenen teslim:"}{" "}
               {bidDeliveryTimeLabel(b.deliveryTime) ??
                 (b.deliveryDate
-                  ? format(new Date(b.deliveryDate), "dd MMM yyyy", {
-                      locale: tr,
-                    })
+                  ? formatDate(b.deliveryDate, "short")
                   : "")}
             </span>
           ) : null}
@@ -204,7 +201,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
         {canRebid ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-            İhale hâlâ açık — güncellenmiş teklifle yeniden katılabilirsin.
+            İhale hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
           </p>
         ) : null}
 
@@ -213,7 +210,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             <Calendar className="h-3 w-3" aria-hidden="true" />
             <span>
               Verildi{" "}
-              {format(new Date(b.createdAt), "dd MMM yyyy", { locale: tr })}
+              {formatDate(b.createdAt, "short")}
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -273,8 +270,8 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
 
   const isPurchase = listingType === "SATIS";
   const description = isPurchase
-    ? "Satıcıların ilanlarına verdiğin teklifler ve sonuçları."
-    : "Açık ihalelere verdiğin tüm teklifler ve sonuçları.";
+    ? "Satıcıların ilanlarına verdiğiniz teklifler ve sonuçları."
+    : "Açık ihalelere verdiğiniz tüm teklifler ve sonuçları.";
   const emptyHint = isPurchase
     ? "Satın Al ekranından bir ilana teklif verdiğinde burada görünür."
     : "Açık ihaleler ekranından bir ihaleye teklif verdiğinde burada görünür.";

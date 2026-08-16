@@ -197,10 +197,10 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
             {/* PUBLIC'te davetsizlik doğal durumdur — "davetli yok" uyarı gibi
                 okunuyordu; ihalenin zaten herkese açık olduğu söylenir. */}
             {d.visibility === "PUBLIC"
-              ? `İhale herkese açık — davet gerekmez; kategorine uygun premium ${
+              ? `İhale herkese açık — davet gerekmez; kategorinize uygun premium ${
                   d.listingType === "SATIS" ? "alıcılar" : "tedarikçiler"
-                } görüp teklif verebilir. İstersen sonradan da davet gönderebilirsin.`
-              : "Davetli firma yok — sonra davet gönderebilirsin."}
+                } görüp teklif verebilir. İsterseniz sonradan da davet gönderebilirsiniz.`
+              : "Davetli firma yok — sonra davet gönderebilirsiniz."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">

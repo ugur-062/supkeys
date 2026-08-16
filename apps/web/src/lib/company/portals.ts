@@ -37,6 +37,24 @@ export interface PortalDef {
   nav: PortalNavItem[];
 }
 
+/**
+ * B10 — modül adları TEK sözlükten: sidebar, sayfa başlığı (PageHeader),
+ * breadcrumb ve geri linki (fromLabel) hep buradan okur; ad değişikliği tek
+ * satırdır ve yüzeyler birbirinden kopamaz.
+ */
+export const MODULE_LABELS = {
+  satinalma: {
+    ihalelerim: "İhalelerim",
+    satinAl: "Satın Al",
+    siparisler: "Siparişlerim",
+  },
+  satis: {
+    ilanlarim: "Satış İhalelerim",
+    acikIhaleler: "Açık İhaleler",
+    siparisler: "Satışlarım",
+  },
+} as const;
+
 export const PORTALS: Record<PortalKey, PortalDef> = {
   satinalma: {
     key: "satinalma",
@@ -48,12 +66,12 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       { icon: HomeIcon, label: "Anasayfa", href: "/company/satinalma" },
       {
         icon: ClipboardDocumentListIcon,
-        label: "İhalelerim",
+        label: MODULE_LABELS.satinalma.ihalelerim,
         href: "/company/satinalma/ihalelerim",
       },
       {
         icon: ShoppingCartIcon,
-        label: "Satın Al",
+        label: MODULE_LABELS.satinalma.satinAl,
         href: "/company/satinalma/satin-al",
         minTier: "SILVER",
       },
@@ -64,7 +82,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: ShoppingBagIcon,
-        label: "Siparişlerim",
+        label: MODULE_LABELS.satinalma.siparisler,
         href: "/company/satinalma/siparisler",
       },
       {
@@ -101,14 +119,14 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
       {
         icon: TagIcon,
-        label: "Satış İhalelerim",
+        label: MODULE_LABELS.satis.ilanlarim,
         href: "/company/satis/ilanlarim",
         // Satış ilanı açma Silver+ (kilit ikonu + segment layout kapısı).
         minTier: "SILVER",
       },
       {
         icon: InboxArrowDownIcon,
-        label: "Açık İhaleler",
+        label: MODULE_LABELS.satis.acikIhaleler,
         href: "/company/satis/acik-ihaleler",
       },
       {
@@ -118,7 +136,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: ShoppingBagIcon,
-        label: "Satışlarım",
+        label: MODULE_LABELS.satis.siparisler,
         href: "/company/satis/siparisler",
       },
       {

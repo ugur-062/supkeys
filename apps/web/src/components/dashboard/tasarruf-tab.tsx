@@ -168,7 +168,7 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
           ) : (
             <DashboardEmptyState
               title="Henüz tasarruf verisi yok"
-              body="İlk ihaleni sonuçlandırdığında (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
+              body="İlk ihalenizi sonuçlandırdığınızda (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
               ctaLabel="İhale Aç"
               ctaHref="/company/satinalma/ihalelerim/yeni"
             />

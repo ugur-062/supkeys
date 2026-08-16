@@ -19,9 +19,9 @@ function formatRemaining(ms: number): string {
 }
 
 const VISIBILITY_LABEL: Record<string, string> = {
-  OWN_ONLY: "Rakip bilgisi kapalı — yalnızca kendi teklifini görürsün",
+  OWN_ONLY: "Rakip bilgisi kapalı — yalnızca kendi teklifinizi görürsünüz",
   BEST_PRICE: "En iyi teklif herkese görünür",
-  OWN_RANK: "Yalnızca kendi sıranı görürsün",
+  OWN_RANK: "Yalnızca kendi sıranızı görürsünüz",
   BEST_AND_OWN_RANK: "En iyi teklif + kendi sıran görünür",
   ALL: "Tüm teklifler (anonim) görünür",
 };
@@ -141,7 +141,7 @@ export function AuctionLiveCard({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile
-          label="Senin Teklifin"
+          label="Teklifiniz"
           // Teklifçinin KENDİ para birimiyle gösterilir (ilanınkiyle değil).
           // Versiyon alt yazısı kaldırıldı — tedarikçiye teknik gürültü.
           value={l.myBid ? money(l.myBid.amount, l.myBid.currency) : "—"}
@@ -180,7 +180,7 @@ export function AuctionLiveCard({
             canBidThisRound
               ? `Öncekinden ${isSatis ? "yüksek" : "düşük"} olmalı`
               : // Yeni tur garanti değil — söz vermeden anlat.
-                `Bu turdaki teklifin kesin — ${isSatis ? "satıcı" : "alıcı"} yeni tur açarsa güncelleyebilirsin`
+                `Bu turdaki teklifiniz kesin — ${isSatis ? "satıcı" : "alıcı"} yeni tur açarsa güncelleyebilirsiniz`
           }
           highlight={!canBidThisRound}
         />

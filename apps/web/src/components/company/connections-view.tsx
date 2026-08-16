@@ -387,8 +387,8 @@ export function ConnectionsView() {
       <div>
         <Heading>Bağlantılar</Heading>
         <Text className="mt-1 text-sm text-zinc-500">
-          Firmaları keşfet, profillerini incele ve bağlan. E-posta ile davet
-          ettiğin bağlantılar kalıcıdır.
+          Firmaları keşfedin, profillerini inceleyin ve bağlanın. E-posta ile davet
+          ettiğiniz bağlantılar kalıcıdır.
         </Text>
       </div>
 
@@ -401,9 +401,9 @@ export function ConnectionsView() {
         )}
       >
         <div>
-          <Subheading>Rothern ID&apos;n</Subheading>
+          <Subheading>Rothern ID&apos;niz</Subheading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Genel kimliğin — başka firmalar seni bununla bulur.
+            Genel kimliğiniz — başka firmalar sizi bununla bulur.
           </Text>
           <div className="mt-3 inline-flex items-center gap-2">
             <span className="rounded-lg bg-zinc-100 px-4 py-2 font-mono text-lg font-semibold tracking-wider text-zinc-900">
@@ -522,7 +522,7 @@ export function ConnectionsView() {
           discover.data.companies.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Sana uygun firmalar
+                Size uygun firmalar
                 <span className="ml-1.5 font-normal normal-case text-zinc-400">
                   — kategori eşleşmesine göre
                 </span>
@@ -593,13 +593,13 @@ export function ConnectionsView() {
             <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
           ) : connCount === 0 ? (
             <EmptyBox
-              title="Henüz bağlantın yok"
-              desc="Keşfet'ten firma bul ya da e-posta ile tedarikçini davet et."
+              title="Henüz bağlantınız yok"
+              desc="Keşfet'ten firma bulun ya da e-posta ile tedarikçinizi davet edin."
             />
           ) : filteredConnections.length === 0 ? (
             <EmptyBox
               title="Eşleşen bağlantı yok"
-              desc={`"${connQ}" ile eşleşen bağlantın bulunamadı.`}
+              desc={`"${connQ}" ile eşleşen bağlantınız bulunamadı.`}
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -630,7 +630,7 @@ export function ConnectionsView() {
             ) : incomingCount === 0 ? (
               <EmptyBox
                 title="Bekleyen istek yok"
-                desc="Sana gönderilen bağlantı istekleri burada görünür."
+                desc="Size gönderilen bağlantı istekleri burada görünür."
               />
             ) : (
               <div className="space-y-2">
@@ -681,8 +681,8 @@ export function ConnectionsView() {
               <div className="overflow-hidden card"><ListSkeleton rows={2} /></div>
             ) : (outgoing.data?.length ?? 0) === 0 ? (
               <EmptyBox
-                title="Bekleyen isteğin yok"
-                desc="Gönderdiğin bağlantı istekleri karşı taraf yanıtlayana dek burada durur."
+                title="Bekleyen isteğiniz yok"
+                desc="Gönderdiğiniz bağlantı istekleri karşı taraf yanıtlayana dek burada durur."
               />
             ) : (
               <div className="space-y-2">

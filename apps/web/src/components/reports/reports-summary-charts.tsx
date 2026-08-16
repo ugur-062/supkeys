@@ -1,6 +1,7 @@
 "use client";
 
 import { formatMoney } from "@/components/ui/money";
+import { numberPossessive } from "@/lib/turkish";
 import { companyApi } from "@/lib/company-auth/api";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -104,8 +105,10 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
 
   return (
     <div>
+      {/* B12: bölümde iki pencere var (grafikler 6 ay, oran/segment 12 ay)
+          — başlık nötr; her kart kendi dönemini hint'inde söyler. */}
       <h2 className="mb-3 text-sm font-semibold text-zinc-900">
-        Son 6 Ay Özeti
+        Performans Özeti
       </h2>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {hasVolume ? (
@@ -137,8 +140,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
             title={isAlim ? "Kazandırma Oranı" : "Kazanma Oranı"}
             hint={
               isAlim
-                ? `Son 12 ayda sonuçlanan ${data.winRate.total} ihalenin ${data.winRate.won}'i kazandırıldı`
-                : `Son 12 ayda karara bağlanan ${data.winRate.total} teklifin ${data.winRate.won}'i kazandı`
+                ? `Son 12 ayda sonuçlanan ${data.winRate.total} ihalenin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandırıldı`
+                : `Son 12 ayda karara bağlanan ${data.winRate.total} teklifin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandı`
             }
           >
             <div className="relative h-full">
@@ -214,8 +217,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
             title="Kategori Dağılımı"
             hint={
               isAlim
-                ? "Son 12 ayda açtığın ihalelerin segmentleri"
-                : "Son 12 ayda teklif verdiğin ihalelerin segmentleri"
+                ? "Son 12 ayda açtığınız ihalelerin segmentleri"
+                : "Son 12 ayda teklif verdiğiniz ihalelerin segmentleri"
             }
           >
             <ResponsiveContainer width="100%" height="100%">

@@ -38,7 +38,7 @@ const pricingTiers = [
     tagline: "Ağına bağlan, çevren içinde al-sat.",
     features: [
       "Firma hesabı, sınırsız kullanıcı ve rol",
-      "Davet edildiğin ihalelere teklif verme",
+      "Davet edildiğiniz ihalelere teklif verme",
       "Bağlantılı firmalarla al-sat ve mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
     ],
@@ -109,7 +109,7 @@ const pricingTiers = [
 const faqs = [
   {
     q: "Alıcı ve tedarikçi ayrı mı kayıt oluyor?",
-    a: "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alış hem satış yapar. Kişilere atadığın roller (Satın Almacı / Satışçı) neyi görüp yapabileceğini belirler.",
+    a: "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alış hem satış yapar. Kişilere atadığınız roller (Satın Almacı / Satışçı) neyi görüp yapabileceğini belirler.",
   },
   {
     q: "Tedarikçiler birbirinin teklifini görür mü?",
@@ -117,7 +117,7 @@ const faqs = [
   },
   {
     q: "Standart üyelikle ne yapabilirim?",
-    a: "Bağlandığın firmaların ilanlarına teklif verebilir, sipariş ve belge akışını yürütebilirsin. Kendi ilanını açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek Premium ile gelir.",
+    a: "Bağlandığınız firmaların ilanlarına teklif verebilir, sipariş ve belge akışını yürütebilirsiniz. Kendi ilanınızı açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek Premium ile gelir.",
   },
   {
     q: "Platform paraya aracılık ediyor mu?",
@@ -475,7 +475,7 @@ function SaleListingPreview() {
         </div>
       </div>
       <div className="mt-4 text-xs font-medium text-zinc-500">
-        Sana gelen teklifler
+        Size gelen teklifler
       </div>
       <div className="mt-1.5 space-y-1.5">
         {offers.map((o) => (
@@ -833,8 +833,8 @@ export default function HomePage() {
               Daha geniş pazara, daha fazla müşteriye
             </p>
             <p className="mt-6 text-lg/8 text-zinc-300">
-              İlanın kategori eşleşmesiyle doğru alıcı ya da satıcıya ulaşır.
-              Ağını büyüt, yeni müşterilerle tek panelde buluş; komisyon yok,
+              İlanınız kategori eşleşmesiyle doğru alıcı ya da satıcıya ulaşır.
+              Ağınızı büyütün, yeni müşterilerle tek panelde buluşun; komisyon yok,
               sınır yok.
             </p>
           </div>
@@ -1008,9 +1008,9 @@ export default function HomePage() {
                   Ağını yönet, güvenle bağlan
                 </h3>
                 <p className="mt-4 text-lg/8 text-zinc-600">
-                  Davet gönder ya da kabul et, bağlantı ağını büyüt. Bağlandığın
-                  firmalarla çevre-içi ticaret yap; istemediğin firmayı
-                  engelle.
+                  Davet gönderin ya da kabul edin, bağlantı ağınızı büyütün. Bağlandığınız
+                  firmalarla çevre-içi ticaret yapın; istemediğiniz firmayı
+                  engelleyin.
                 </p>
                 <ul className="mt-6 space-y-3">
                   {[
@@ -1047,18 +1047,18 @@ export default function HomePage() {
             <div>
               <h2 className="text-base/7 font-semibold text-zinc-500">Vitrin</h2>
               <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
-                Herkese açık profilin, dijital vitrinin
+                Herkese açık profiliniz, dijital vitrininiz
               </p>
               <p className="mt-6 text-lg/8 text-zinc-600">
-                Premium üyelikte firman herkese açık bir profile kavuşur:
-                doğrulanmış rozet, sektörlerin, hakkında metnin ve açık
-                ihalelerin. Alıcılar seni bulur, ihalelerine teklif verir.
+                Premium üyelikte firmanız herkese açık bir profile kavuşur:
+                doğrulanmış rozet, sektörleriniz, hakkında metniniz ve açık
+                ihaleleriniz. Alıcılar sizi bulur, ihalelerinize teklif verir.
               </p>
               <ul className="mt-6 space-y-3">
                 {[
                   "Doğrulanmış firma rozeti",
                   "Sektör & konum etiketleri",
-                  "Açık ihalelerin tek sayfada",
+                  "Açık ihaleleriniz tek sayfada",
                 ].map((b) => (
                   <li key={b} className="flex gap-x-3 text-zinc-700">
                     <CheckIcon
@@ -1125,7 +1125,7 @@ export default function HomePage() {
               </h3>
               <p className="mt-1.5 text-sm/6 text-zinc-600">
                 Tedarikçiler birbirini görmeden teklif verir; en iyisini
-                kazandırırsın.
+                kazandırırsınız.
               </p>
             </div>
 
@@ -1315,7 +1315,7 @@ export default function HomePage() {
               Sıkça sorulan sorular
             </h2>
             <p className="mt-6 text-base/7 text-zinc-600">
-              Aradığın yanıtı bulamadın mı?{" "}
+              Aradığınız yanıtı bulamadınız mı?{" "}
               <a
                 href="mailto:destek@rothern.com"
                 className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Button } from "@/components/catalyst/button";
 import {
   useWithdrawDefectNotice,
@@ -8,8 +9,6 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +29,7 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
   if (!active) return null;
 
   const notifiedAt = order.defectNotifiedAt
-    ? format(new Date(order.defectNotifiedAt), "dd MMM yyyy", { locale: tr })
+    ? formatDate(order.defectNotifiedAt, "short")
     : null;
 
   const doWithdraw = async () => {

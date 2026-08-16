@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { PageHeader } from "@/components/list";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { CompanyMessageThread } from "@/components/messaging/company-message-thread";
@@ -138,7 +139,7 @@ export function CompanyInboxView() {
     <div className="space-y-5">
       <PageHeader
         title="Mesajlar"
-        description="Satınalma ve satış konuşmaların — tek kutuda; her konuşmada hangi tarafta olduğun rozetle görünür."
+        description="Satınalma ve satış konuşmalarınız — tek kutuda; her konuşmada hangi tarafta olduğunuz rozetle görünür."
       />
 
       <div className="grid h-[calc(100vh-13rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_380px]">

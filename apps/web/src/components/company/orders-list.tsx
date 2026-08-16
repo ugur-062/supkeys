@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
+import { MODULE_LABELS } from "@/lib/company/portals";
 import {
   ActiveFilterChips,
   EmptyState,
@@ -31,8 +33,6 @@ import { sellerShipsGoods } from "@rothern/shared";
 import { formatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   ArrowUpDown,
   Building2,
@@ -228,24 +228,24 @@ function sourceMeta(
     return type === "ALIM"
       ? {
           label: "Kendi İhalem",
-          hint: "Açtığın alış ihalesini kazandırdın — bu onun siparişi.",
+          hint: "Açtığınız alış ihalesini kazandırdınız — bu onun siparişi.",
           cls: "border-blue-200 bg-blue-50 text-blue-700",
         }
       : {
           label: "Satın Alım",
-          hint: "Bir satıcının satış ilanından satın aldın.",
+          hint: "Bir satıcının satış ilanından satın aldınız.",
           cls: "border-violet-200 bg-violet-50 text-violet-700",
         };
   }
   return type === "SATIS"
     ? {
         label: "Satış İlanım",
-        hint: "Açtığın satış ilanını kazandırdın — bu onun siparişi.",
+        hint: "Açtığınız satış ilanını kazandırdınız — bu onun siparişi.",
         cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
       }
     : {
         label: "Kazanılan İhale",
-        hint: "Bir alıcının ihalesine verdiğin teklif kazandı.",
+        hint: "Bir alıcının ihalesine verdiğiniz teklif kazandı.",
         cls: "border-blue-200 bg-blue-50 text-blue-700",
       };
 }
@@ -367,7 +367,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             {formatMoney(o.amount, o.currency)}
           </p>
           <p className="whitespace-nowrap text-xs text-zinc-400">
-            {format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
+            {formatDate(o.createdAt, "short")}
           </p>
         </div>
       </div>
@@ -503,17 +503,17 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   }, [all, counts]);
 
   const emptyHint = isSeller
-    ? "Henüz satış siparişin yok. Bir satış ilanın veya ihale teklifin kazandığında burada görünür."
-    : "Henüz alış siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür.";
+    ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya ihale teklifiniz kazandığında burada görünür."
+    : "Henüz alış siparişiniz yok. Bir ihalenizi kazandırdığınızda veya satın aldığınızda burada görünür.";
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isSeller ? "Satışlarım" : "Siparişlerim"}
+        title={isSeller ? MODULE_LABELS.satis.siparisler : MODULE_LABELS.satinalma.siparisler}
         description={
           isSeller
-            ? "Satışların — kazandığın ihalelerden ve satışlarından. Onayla, gönder, ödemeyi takip et."
-            : "Alış siparişlerin — kazandırdığın ihalelerden ve satın almalarından. Teslim al, ödemeni bildir, tamamla."
+            ? "Satışlarınız — kazandığınız ihalelerden ve satışlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
+            : "Alış siparişleriniz — kazandırdığınız ihalelerden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
         }
       />
 
@@ -833,9 +833,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                         {formatMoney(o.amount, o.currency)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
-                        {format(new Date(o.createdAt), "dd MMM yyyy", {
-                          locale: tr,
-                        })}
+                        {formatDate(o.createdAt, "short")}
                       </TableCell>
                     </TableRow>
                   );

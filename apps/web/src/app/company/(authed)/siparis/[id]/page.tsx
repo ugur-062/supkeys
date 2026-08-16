@@ -338,7 +338,7 @@ export default function OrderDetailPage() {
           : "Mal teslime hazır olduğunda fatura no ile işaretle — alıcı gelip alacak."
         : next.modal === "receive"
           ? "Malı teslim aldığında işaretle."
-          : "Malı inceleyip kabul ettiğinde tamamla — ödeme ayrı izlenir (borç açık olsa da tamamlayabilirsin)."}
+          : "Malı inceleyip kabul ettiğinizde tamamlayın — ödeme ayrı izlenir (borç açık olsa da tamamlayabilirsiniz)."}
     </Text>
   ) : !isSeller && o.status === "DELIVERED" && paymentAwaitingConfirmation ? (
     <Text className="text-sm text-amber-700">

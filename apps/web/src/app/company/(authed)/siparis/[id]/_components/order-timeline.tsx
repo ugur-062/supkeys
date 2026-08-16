@@ -1,9 +1,8 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import type { CompanyOrderDetail } from "@/hooks/use-company-orders";
 import { sellerShipsGoods } from "@rothern/shared";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   AlertTriangle,
   Ban,
@@ -27,7 +26,7 @@ type Event = {
 function fmt(v: string | null) {
   if (!v) return "";
   try {
-    return format(new Date(v), "d MMM yyyy HH:mm", { locale: tr });
+    return formatDate(v, "datetime");
   } catch {
     return v;
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading, Subheading } from "@/components/catalyst/heading";
@@ -197,7 +198,7 @@ export default function BidDetailPage() {
             <dd className="font-medium text-zinc-900">
               {bidDeliveryTimeLabel(bid.deliveryTime) ??
                 (bid.deliveryDate
-                  ? new Date(bid.deliveryDate).toLocaleDateString("tr-TR")
+                  ? formatDate(bid.deliveryDate, "short")
                   : "—")}
             </dd>
           </div>
@@ -277,9 +278,7 @@ export default function BidDetailPage() {
                               : "Kalem teslimi:"}{" "}
                             {bidDeliveryTimeLabel(bi.deliveryTime) ??
                               (bi.deliveryDate
-                                ? new Date(bi.deliveryDate).toLocaleDateString(
-                                    "tr-TR",
-                                  )
+                                ? formatDate(bi.deliveryDate, "short")
                                 : "—")}
                           </span>
                         ) : null}

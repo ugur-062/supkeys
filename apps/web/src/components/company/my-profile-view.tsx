@@ -124,7 +124,7 @@ export function MyProfileView() {
           <Heading>Profilim</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
             {tab === "preview"
-              ? "Diğer firmaların seni nasıl gördüğünün birebir önizlemesi."
+              ? "Diğer firmaların sizi nasıl gördüğünün birebir önizlemesi."
               : "Buradaki bilgiler firma profilinde ve Google'da görünür."}
           </Text>
         </div>
@@ -183,19 +183,19 @@ export function MyProfileView() {
           {profile.publicEnabled ? (
             <>
               <Eye className="size-4 shrink-0" aria-hidden />
-              Profilin herkese açık — firma dizininde ve aramalarda
-              görünüyorsun.
+              Profiliniz herkese açık — firma dizininde ve aramalarda
+              görünüyorsunuz.
             </>
           ) : (
             <>
               <EyeOff className="size-4 shrink-0" aria-hidden />
-              Profilin şu an herkese kapalı — dizinde görünmüyorsun.
+              Profiliniz şu an herkese kapalı — dizinde görünmüyorsunuz.
               <button
                 type="button"
                 onClick={() => setTab("edit")}
                 className="font-semibold underline"
               >
-                Düzenle&apos;den açabilirsin.
+                Düzenle&apos;den açabilirsiniz.
               </button>
             </>
           )}
@@ -212,7 +212,7 @@ export function MyProfileView() {
               </h2>
               <p className="mt-0.5 text-xs text-zinc-500">
                 Dolu profiller dizinde ve davetlerde daha çok güven verir —
-                eksikleri tıklayıp tamamlayabilirsin.
+                eksikleri tıklayıp tamamlayabilirsiniz.
               </p>
             </div>
             <span className="font-mono text-2xl font-semibold tabular-nums text-zinc-900">

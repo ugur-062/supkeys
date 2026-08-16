@@ -157,7 +157,7 @@ export function FilesTab({
           </div>
           <p className="mt-3 text-sm text-zinc-500">
             {isOwner && canEdit
-              ? "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsin."
+              ? "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsiniz."
               : "Bu ihaleye dosya eklenmemiş."}
           </p>
         </div>

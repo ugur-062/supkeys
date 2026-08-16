@@ -1,30 +1,36 @@
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { formatDate as canonical } from "@/lib/format-date";
 
 type DateInput = Date | string | number | null | undefined;
 
+/**
+ * B9 — İNCE KABUK: tüm çıktılar kanonik formatlayıcıya (lib/format-date.ts)
+ * delege edilir; iki util'in formatları birbirinden KAYAMAZ. Yeni kod doğrudan
+ * `formatDate(value, variant)` kullansın.
+ */
+
 /** Tarih (gün) — "5 Tem 2026". Geçersiz/boş girdide "—". */
 export function formatDate(value: DateInput): string {
-  if (!value) return "—";
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return format(d, "d MMM yyyy", { locale: tr });
+  return canonical(normalize(value), "short");
 }
 
 /** Tarih + saat — "5 Tem 2026 14:30". Geçersiz/boş girdide "—". */
 export function formatDateTime(value: DateInput): string {
-  if (!value) return "—";
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return format(d, "d MMM yyyy HH:mm", { locale: tr });
+  return canonical(normalize(value), "datetime");
 }
 
 /** Yalnızca saat — "14:30". Geçersiz/boş girdide "—". */
 export function formatTime(value: DateInput): string {
-  if (!value) return "—";
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return format(d, "HH:mm", { locale: tr });
+  const d = normalize(value);
+  if (!d) return "—";
+  const dd = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dd.getTime())) return "—";
+  return `${String(dd.getHours()).padStart(2, "0")}:${String(dd.getMinutes()).padStart(2, "0")}`;
+}
+
+function normalize(value: DateInput): Date | string | null {
+  if (value == null) return null;
+  if (typeof value === "number") return new Date(value);
+  return value;
 }
 
 /**

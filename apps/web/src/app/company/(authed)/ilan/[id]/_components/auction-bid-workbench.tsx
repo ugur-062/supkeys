@@ -282,7 +282,7 @@ export function AuctionBidWorkbench({
             ) : (
               <span>
                 {scopeExpanded
-                  ? "Önceden fiyatladığın kalemlerin toplamı öncekinden"
+                  ? "Önceden fiyatladığınız kalemlerin toplamı öncekinden"
                   : "Öncekinden"}{" "}
                 {down ? "düşük" : "yüksek"} olmalı — henüz{" "}
                 {down ? "indirim" : "artış"} yok.

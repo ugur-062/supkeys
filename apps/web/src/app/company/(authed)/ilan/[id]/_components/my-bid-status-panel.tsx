@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/catalyst/button";
@@ -54,8 +55,8 @@ function StatusAlert({
 const BID_STATUS_BADGE: Record<string, { label: string; color: "zinc" | "amber" | "violet" | "emerald" | "rose" }> = {
   DRAFT: { label: "Taslak", color: "amber" },
   SUBMITTED: { label: "Gönderildi", color: "violet" },
-  WON: { label: "Kazandın", color: "emerald" },
-  AWARDED_PARTIAL: { label: "Kısmen Kazandın", color: "emerald" },
+  WON: { label: "Kazandınız", color: "emerald" },
+  AWARDED_PARTIAL: { label: "Kısmen Kazandınız", color: "emerald" },
   LOST: { label: "Kaybettin", color: "rose" },
   WITHDRAWN: { label: "Geri Çekildi", color: "zinc" },
 };
@@ -169,7 +170,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                   validityExpired ? "text-rose-600" : "text-zinc-900",
                 )}
               >
-                {validUntil.toLocaleDateString("tr-TR")} tarihine kadar
+                {formatDate(validUntil, "short")} tarihine kadar
               </p>
               <Badge
                 color={
@@ -198,8 +199,8 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
         <DialogTitle>Teklif Geçerliliğini Uzat</DialogTitle>
         <DialogDescription>
           {validityExpired
-            ? `Teklifinizin geçerliliği ${validUntil?.toLocaleDateString("tr-TR")} tarihinde doldu.`
-            : `Teklifiniz ${validUntil?.toLocaleDateString("tr-TR")} tarihine kadar geçerli.`}{" "}
+            ? `Teklifinizin geçerliliği ${formatDate(validUntil, "short")} tarihinde doldu.`
+            : `Teklifiniz ${formatDate(validUntil, "short")} tarihine kadar geçerli.`}{" "}
           Seçtiğiniz süre mevcut bitiş tarihine eklenir; fiyatınız değişmez.
         </DialogDescription>
         <DialogBody className="space-y-4">
@@ -251,7 +252,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             <p className="text-sm text-zinc-700">
               Yeni bitiş:{" "}
               <span className="font-semibold text-zinc-950">
-                {newValidUntil.toLocaleDateString("tr-TR")}
+                {formatDate(newValidUntil, "short")}
               </span>
             </p>
           ) : null}
@@ -324,9 +325,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                           <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
                             {bidDeliveryTimeLabel(bi.deliveryTime) ??
                               (bi.deliveryDate
-                                ? new Date(bi.deliveryDate).toLocaleDateString(
-                                    "tr-TR",
-                                  )
+                                ? formatDate(bi.deliveryDate, "short")
                                 : "—")}
                           </TableCell>
                         ) : null}
@@ -434,7 +433,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
             <p className="text-base font-semibold text-emerald-900">
               {bid.status === "WON"
                 ? "Tebrikler — teklifin kazandı!"
-                : "Tebrikler — bazı kalemleri kazandın!"}
+                : "Tebrikler — bazı kalemleri kazandınız!"}
             </p>
             <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-emerald-800">
               {steps.map((st) => (

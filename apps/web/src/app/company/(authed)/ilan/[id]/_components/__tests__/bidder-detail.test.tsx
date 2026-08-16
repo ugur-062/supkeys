@@ -65,7 +65,7 @@ describe("AuctionLiveCard", () => {
       />,
     );
     expect(screen.getByText(/Tur 2/)).toBeInTheDocument();
-    expect(screen.getByText("Senin Teklifin")).toBeInTheDocument();
+    expect(screen.getByText("Teklifiniz")).toBeInTheDocument();
     expect(screen.getByText("1.000 ₺")).toBeInTheDocument();
     expect(screen.getByText("900 ₺")).toBeInTheDocument();
     expect(screen.getByText("2 / 5")).toBeInTheDocument();

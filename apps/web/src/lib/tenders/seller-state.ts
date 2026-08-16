@@ -11,8 +11,8 @@
  *                                    doğrudan değerlendirmededir)
  *   CLOSED + SUBMITTED            → "Sonuç Bekleniyor" (CLOSED artık yalnız
  *                                    admin moderasyon kapatması, 2026-07-13)
- *   WON                           → "Kazandın"
- *   AWARDED_PARTIAL               → "Kısmen Kazandın"
+ *   WON                           → "Kazandınız"
+ *   AWARDED_PARTIAL               → "Kısmen Kazandınız"
  *   LOST                          → "Kaybettin"
  *   WITHDRAWN                     → "Geri Çekildi"
  *   AWARDED/CLOSED_NO_AWARD + teklifsiz → "Kapandı"
@@ -36,14 +36,14 @@ export function deriveSellerTenderState(
   }
   if (bidStatus === "WON") {
     return {
-      label: "Kazandın",
+      label: "Kazandınız",
       className: "bg-emerald-50 text-emerald-700 border-emerald-200",
       tone: "win",
     };
   }
   if (bidStatus === "AWARDED_PARTIAL") {
     return {
-      label: "Kısmen Kazandın",
+      label: "Kısmen Kazandınız",
       className: "bg-emerald-50 text-emerald-700 border-emerald-200",
       tone: "win",
     };

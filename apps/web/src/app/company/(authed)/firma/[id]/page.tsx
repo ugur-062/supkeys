@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -24,8 +25,6 @@ import {
 import { useFileComplaint } from "@/hooks/use-company-complaints";
 import { useCompanyProfile } from "@/hooks/use-company-directory";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { ArrowLeft, Ban, Flag, Lock, MoreVertical, Unlink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -130,7 +129,7 @@ export default function CompanyProfilePage() {
         <Badge color="amber">İstek gönderildi</Badge>
       ) : connectionStatus === "incoming" ? (
         <Button href="/company/satinalma/tedarikcilerim" outline>
-          Sana istek gönderdi — Yanıtla
+          Size istek gönderdi — Yanıtla
         </Button>
       ) : connectionStatus === "none" ? (
         <Button onClick={handleConnect} disabled={invite.isPending}>
@@ -218,7 +217,7 @@ export default function CompanyProfilePage() {
               </div>
               <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
                 <span>
-                  {format(new Date(l.createdAt), "d MMM yyyy", { locale: tr })}
+                  {formatDate(l.createdAt, "short")}
                 </span>
                 <TenderStatusBadge status={l.status as "OPEN"} />
               </div>

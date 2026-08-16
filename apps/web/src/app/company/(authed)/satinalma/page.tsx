@@ -109,7 +109,7 @@ export default function SatinalmaDashboardPage() {
             },
             {
               key: "tender",
-              label: "İlk ihaleni oluştur",
+              label: "İlk ihalenizi oluşturun",
               done: false,
               href: "/company/satinalma/ihalelerim/yeni",
             },

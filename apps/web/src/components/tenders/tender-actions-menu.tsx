@@ -450,7 +450,7 @@ export function TenderActionsMenu({
       <Dialog open={closingOpen} onClose={() => setClosingOpen(false)}>
         <DialogTitle>Kapanış Zamanını Değiştir</DialogTitle>
         <DialogDescription>
-          Yeni kapanış tarih/saatini seç. İleri alabilir veya öne çekebilirsin.
+          Yeni kapanış tarih/saatini seçin. İleri alabilir veya öne çekebilirsiniz.
         </DialogDescription>
         <DialogBody>
           <Field>

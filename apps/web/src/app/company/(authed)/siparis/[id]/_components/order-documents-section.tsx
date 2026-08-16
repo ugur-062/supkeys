@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import type { CompanyOrderDetail } from "@/hooks/use-company-orders";
@@ -148,11 +149,7 @@ function DocGroup({
                     {d.fileName}
                   </span>
                   <span className="block text-xs text-zinc-400">
-                    {new Date(d.createdAt).toLocaleDateString("tr-TR", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatDate(d.createdAt, "short")}
                   </span>
                 </span>
                 <a

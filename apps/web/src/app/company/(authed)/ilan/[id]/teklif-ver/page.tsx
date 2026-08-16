@@ -605,7 +605,7 @@ export default function TeklifVerPage() {
   ) {
     return (
       <Blocked
-        title="Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin"
+        title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
         detailHref={detailHref}
       />
     );
@@ -847,13 +847,13 @@ export default function TeklifVerPage() {
           const p = itemState[it.id]?.price;
           if (!(p != null && Number(p) > 0))
             problems.push(
-              `Pazarlıkta önceden fiyatladığın kalem bırakılamaz — "${it.name}" için fiyat gir.`,
+              `Pazarlıkta önceden fiyatladığınız kalem bırakılamaz — "${it.name}" için fiyat girin.`,
             );
         }
       }
       const own = Number(l.myBid.amount);
       const scopeNote = scopeExpanded
-        ? "önceden fiyatladığın kalemlerin toplamı"
+        ? "önceden fiyatladığınız kalemlerin toplamı"
         : "yeni teklifin";
       if (cmpDecimal(comparableTotalStr, "0") === 1) {
         if (isSatis && cmpDecimal(comparableTotalStr, l.myBid.amount) <= 0)
@@ -1085,7 +1085,7 @@ export default function TeklifVerPage() {
             <span className="font-semibold">Hemen-Al modu:</span> fiyatlar
             hemen-al değerleriyle sabittir, değiştirilemez.{" "}
             {l.priceScope === "KALEM"
-              ? "İstemediğin kalemi kapsam dışı bırakabilirsin (✕); hemen-al fiyatı olmayan kalemler zaten kapsam dışıdır."
+              ? "İstemediğiniz kalemi kapsam dışı bırakabilirsiniz (✕); hemen-al fiyatı olmayan kalemler zaten kapsam dışıdır."
               : ""}
             İstenen teslim tarihini ve geçerlilik süresini girip onayla —
             satıcı kazandırınca sipariş oluşur.
@@ -1534,7 +1534,7 @@ export default function TeklifVerPage() {
                 maxLength={1000}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={`${isSatis ? "Satıcıya" : "Alıcıya"} iletmek istediğin not (opsiyonel)`}
+                placeholder={`${isSatis ? "Satıcıya" : "Alıcıya"} iletmek istediğiniz not (opsiyonel)`}
               />
             </div>
           </section>

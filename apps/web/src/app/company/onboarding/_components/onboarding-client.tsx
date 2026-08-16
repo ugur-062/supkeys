@@ -186,7 +186,7 @@ export function OnboardingClient() {
       <h1 className="text-2xl font-bold text-zinc-900">Firma Doğrulama</h1>
       <p className="mt-1 text-sm text-zinc-500">
         Panelini kullanmaya başlamak için firma bilgilerini tamamla. Kayıtta
-        verdiğin bilgiler tekrar sorulmaz.
+        verdiğiniz bilgiler tekrar sorulmaz.
       </p>
 
       {/* Adım göstergesi */}

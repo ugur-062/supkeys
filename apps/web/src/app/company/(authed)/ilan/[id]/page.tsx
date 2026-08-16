@@ -1235,7 +1235,7 @@ export default function ListingDetailPage() {
             <Text className="text-xs text-zinc-500">
               Her kalem için kazanan teklifi seç. Kazanan firma başına ayrı sipariş
               oluşur. İpucu: yukarıdaki Kalem Karşılaştırma tablosunda fiyat
-              hücresine tıklayarak da seçim yapabilirsin.
+              hücresine tıklayarak da seçim yapabilirsiniz.
             </Text>
             <div className="space-y-2">
               {l.items.map((it) => {
@@ -1587,7 +1587,7 @@ export default function ListingDetailPage() {
               <Text className="text-xs text-zinc-500">
                 Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için{" "}
                 {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç. {isAlim ? "Alıcı" : "Satıcı"}{" "}
-                teklifini elerse yeniden teklif verebilirsin.
+                teklifinizi elerse yeniden teklif verebilirsiniz.
               </Text>
               <div className="rounded-lg bg-zinc-50 px-3 py-2">
                 <Text className="text-sm">
@@ -1995,7 +1995,7 @@ export default function ListingDetailPage() {
               bidCtaDisabled ? (
                 <Button
                   disabled
-                  title="Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin"
+                  title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
                 >
                   {bidCta.label}
                 </Button>

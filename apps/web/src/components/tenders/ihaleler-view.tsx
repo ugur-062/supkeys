@@ -1,5 +1,6 @@
 "use client";
 
+import { MODULE_LABELS } from "@/lib/company/portals";
 import {
   FilterSelect,
   PageHeader,
@@ -216,7 +217,7 @@ export function IhalelerView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isSatis ? "Satış İhalelerim" : "İhaleler"}
+        title={isSatis ? MODULE_LABELS.satis.ilanlarim : MODULE_LABELS.satinalma.ihalelerim}
         description={
           isSatis
             ? "Satış ihalelerinizi yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."

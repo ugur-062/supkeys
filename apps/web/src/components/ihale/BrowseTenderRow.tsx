@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
+import { MODULE_LABELS } from "@/lib/company/portals";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import {
   closingUrgency,
@@ -7,8 +9,6 @@ import {
   deriveSellerTenderState,
 } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { Building2, ChevronRight, FileText, Lock } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -24,12 +24,9 @@ import { DaysLeftChip, IHALE_VIEW_FOCUS, InfoChip } from "./IhaleListRow";
  * taban/hemen-al) genişletme satırında.
  */
 
-function shortDate(iso: string | null): string {
-  return iso ? format(new Date(iso), "d MMM", { locale: tr }) : "—";
-}
-function fullDate(iso: string | null): string {
-  return iso ? format(new Date(iso), "d MMMM yyyy HH:mm", { locale: tr }) : "";
-}
+// B9: tek tarih dili — kanonik formatlayıcı (yıl her yerde görünür).
+const shortDate = (iso: string | null) => formatDate(iso, "short");
+const fullDate = (iso: string | null) => formatDate(iso, "datetime");
 
 function ColLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -46,7 +43,7 @@ function myBidLabel(t: SellerTenderRow): string | null {
     t.myBidStatus === "SUBMITTED"
       ? "Verildi"
       : t.myBidStatus === "WON" || t.myBidStatus === "AWARDED_PARTIAL"
-        ? "Kazandın"
+        ? "Kazandınız"
         : t.myBidStatus === "LOST"
           ? "Kaybedildi"
           : t.myBidStatus === "DRAFT"
@@ -72,7 +69,9 @@ export function BrowseTenderRow({
   const fromHref = isSatis
     ? "/company/satinalma/satin-al"
     : "/company/satis/acik-ihaleler";
-  const fromLabel = isSatis ? "Satın Al" : "Açık İhaleler";
+  const fromLabel = isSatis
+    ? MODULE_LABELS.satinalma.satinAl
+    : MODULE_LABELS.satis.acikIhaleler;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   const strip =

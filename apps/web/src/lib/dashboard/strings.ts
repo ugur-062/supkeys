@@ -3,8 +3,10 @@
  * greenfield, ayrı iş); tüm panel metinleri burada toplanır ki i18n geçişinde
  * tek noktadan taşınsın. Bileşen içine serbest metin YAZMA.
  */
+import { numberPossessive } from "@/lib/turkish";
+
 export const DASH = {
-  heroSavedTitle: (hours: string) => `~${hours} saat kazandın`,
+  heroSavedTitle: (hours: string) => `~${hours} saat kazandınız`,
   heroWorkDays: (d: string) => `≈ ${d} iş günü`,
   heroPeriod: { month: "bu ay", quarter: "bu çeyrek", year: "bu yıl" } as const,
   heroValue: (v: string) => `${v} değerinde`,
@@ -12,14 +14,14 @@ export const DASH = {
   heroHow: "Nasıl hesaplanıyor?",
   heroEmptyTitle: "Zaman tasarrufu burada birikecek",
   heroEmptyBody:
-    "İlk ihaleni açıp teklif topladığında, mail'le yürütmeye kıyasla kazandığın süreyi burada göreceksin.",
+    "İlk ihalenizi açıp teklif topladığınızda, mail'le yürütmeye kıyasla kazandığınız süreyi burada göreceksiniz.",
   heroEmptyCta: "İhale Aç",
   heroWinTitle: (pct: string) => `%${pct} kazanma oranı`,
   heroWinSupport: (won: number, total: number) =>
-    `karara bağlanan ${total} teklifin ${won}'i kazandı`,
-  heroWinEmptyTitle: "Kazanma oranın burada görünecek",
+    `karara bağlanan ${total} teklifin ${won}${numberPossessive(won)} kazandı`,
+  heroWinEmptyTitle: "Kazanma oranınız burada görünecek",
   heroWinEmptyBody:
-    "Açık ihalelere teklif verip sonuç aldıkça kazanma oranın ve trendin burada birikecek.",
+    "Açık ihalelere teklif verip sonuç aldıkça kazanma oranınız ve trendiniz burada birikecek.",
   heroWinEmptyCta: "Açık İhalelere Göz At",
   periodLabels: { month: "Bu Ay", quarter: "Bu Çeyrek", year: "Bu Yıl" },
   savingsTabCost: "Maliyet",
@@ -40,7 +42,7 @@ export const DASH = {
   quarterCostNote:
     "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
   actionTitle: "Bekleyen İşler",
-  actionEmpty: "Bekleyen bir işin yok.",
+  actionEmpty: "Bekleyen bir işiniz yok.",
   actionShowAll: (n: number) => `Tümünü gör (${n})`,
   actionShowLess: "Daha az göster",
 } as const;
@@ -62,15 +64,15 @@ export const ACTION_ROWS: Record<
       href: "/company/satinalma/siparisler",
     },
     zeroBidClosingSoon: {
-      text: "ihalen teklifsiz kapanmak üzere",
+      text: "ihaleniz teklifsiz kapanmak üzere",
       href: "/company/satinalma/ihalelerim",
     },
     closingSoon: {
-      text: "ihalen kapanmak üzere",
+      text: "ihaleniz kapanmak üzere",
       href: "/company/satinalma/ihalelerim",
     },
     awaitingDecision: {
-      text: "ihalende karar bekleyen teklif var",
+      text: "ihalenizde karar bekleyen teklif var",
       href: "/company/satinalma/ihalelerim",
     },
     pendingApprovals: {
@@ -82,7 +84,7 @@ export const ACTION_ROWS: Record<
       href: "/company/satinalma/siparisler",
     },
     receiveOrders: {
-      text: "sipariş teslim almanı bekliyor",
+      text: "sipariş teslim almanızı bekliyor",
       href: "/company/satinalma/siparisler",
     },
     paymentWindow: {
@@ -90,7 +92,7 @@ export const ACTION_ROWS: Record<
       href: "/company/satinalma/siparisler",
     },
     messages: {
-      text: "okunmamış mesajın var",
+      text: "okunmamış mesajınız var",
       href: "/company/mesajlar",
     },
   },
@@ -100,15 +102,15 @@ export const ACTION_ROWS: Record<
       href: "/company/satis/siparisler",
     },
     unansweredInvites: {
-      text: "davete henüz teklif vermedin",
+      text: "davete henüz teklif vermediniz",
       href: "/company/satis/acik-ihaleler",
     },
     expiringBids: {
-      text: "teklifinin geçerliliği dolmak üzere",
+      text: "teklifinizin geçerliliği dolmak üzere",
       href: "/company/satis/tekliflerim",
     },
     pendingOrders: {
-      text: "sipariş onayını bekliyor",
+      text: "sipariş onayınızı bekliyor",
       href: "/company/satis/siparisler",
     },
     paymentWindow: {
@@ -116,7 +118,7 @@ export const ACTION_ROWS: Record<
       href: "/company/satis/siparisler",
     },
     messages: {
-      text: "okunmamış mesajın var",
+      text: "okunmamış mesajınız var",
       href: "/company/mesajlar",
     },
   },

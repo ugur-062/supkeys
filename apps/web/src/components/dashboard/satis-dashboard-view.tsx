@@ -598,7 +598,7 @@ function SatisMusteriTab({
         ) : (
           <DashboardEmptyState
             title="Kaçırılan fırsat yok"
-            body="Son 12 ayda teklifsiz kapanan davetli ihalen bulunmuyor."
+            body="Son 12 ayda teklifsiz kapanan davetli ihaleniz bulunmuyor."
           />
         )}
       </ChartCard>

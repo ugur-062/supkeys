@@ -354,7 +354,7 @@ export function Step3Suppliers() {
                 </h2>
                 <p className="text-sm text-zinc-500">
                   {isPublic
-                    ? "Opsiyonel — Rothern'de olmayan bir firmayı e-posta ile davet edebilirsin."
+                    ? "Opsiyonel — Rothern'de olmayan bir firmayı e-posta ile davet edebilirsiniz."
                     : "Bu ihaleye kimler teklif verebilir?"}
                 </p>
               </div>
@@ -375,16 +375,16 @@ export function Step3Suppliers() {
                   <>
                     Bu ihale <strong>Herkese Açık</strong>: kategorinize uygun
                     premium {roleWord === "alıcı" ? "alıcılar" : "tedarikçiler"} davet beklemeden görüp teklif verebilir.
-                    Bu adım <strong>opsiyonel</strong> — çalışmak istediğin
+                    Bu adım <strong>opsiyonel</strong> — çalışmak istediğiniz
                     firma henüz Rothern&apos;de değilse buradan e-posta ile
-                    davet edebilirsin; kayıt olup davetini kabul ettiğinde
-                    ihaleni görür ve teklif verebilir.
+                    davet edebilirsiniz; kayıt olup davetinizi kabul ettiğinde
+                    ihalenizi görür ve teklif verebilir.
                   </>
                 ) : (
                   <>
                     Bu ihale <strong>Davetli (Kapalı)</strong>: yalnızca aşağıdan
-                    seçtiğin firmalar görüp teklif verebilir. Görünürlüğü Genel Bilgi
-                    adımından değiştirebilirsin.
+                    seçtiğiniz firmalar görüp teklif verebilir. Görünürlüğü Genel Bilgi
+                    adımından değiştirebilirsiniz.
                   </>
                 )}
               </p>
@@ -460,8 +460,8 @@ export function Step3Suppliers() {
                   <p className="text-xs text-zinc-500">Yükleniyor…</p>
                 ) : (templates.data?.length ?? 0) === 0 ? (
                   <p className="text-xs text-zinc-500">
-                    Kayıtlı şablonun yok. Firma seçip &ldquo;Şablon
-                    Kaydet&rdquo; ile oluşturabilirsin.
+                    Kayıtlı şablonunuz yok. Firma seçip &ldquo;Şablon
+                    Kaydet&rdquo; ile oluşturabilirsiniz.
                   </p>
                 ) : (
                   <ul className="max-h-52 space-y-1 overflow-y-auto pr-1">
@@ -526,7 +526,7 @@ export function Step3Suppliers() {
                 <p className="text-sm text-zinc-500">
                   {search
                     ? `"${search}" için sonuç yok`
-                    : "Henüz bağlantın yok — ihaleye davet için önce firma ekle."}
+                    : "Henüz bağlantınız yok — ihaleye davet için önce firma ekleyin."}
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={() => setInviteOpen(true)}>
@@ -690,8 +690,8 @@ export function Step3Suppliers() {
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-amber-700">
-                  Davet kabul edilince bağlantılarına eklenir; sonra ihaleye
-                  davet edebilirsin.
+                  Davet kabul edilince bağlantılarınıza eklenir; sonra ihaleye
+                  davet edebilirsiniz.
                 </p>
               </div>
             ) : null}
@@ -702,7 +702,7 @@ export function Step3Suppliers() {
               <p>
                 Yayınlayınca seçili firmalara &ldquo;Yeni İhale Daveti&rdquo;
                 e-postası gönderilir. Davet etmeden de ihaleyi oluşturabilir,
-                sonra davet gönderebilirsin.
+                sonra davet gönderebilirsiniz.
               </p>
             </div>
 

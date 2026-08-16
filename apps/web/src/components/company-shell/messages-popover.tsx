@@ -48,7 +48,7 @@ function RecentThreads({ close }: { close: () => void }) {
     return (
       <div className="px-4 py-10 text-center">
         <MessageSquare className="mx-auto size-7 text-zinc-300" aria-hidden />
-        <p className="mt-2 text-sm text-zinc-500">Henüz mesajın yok.</p>
+        <p className="mt-2 text-sm text-zinc-500">Henüz mesajınız yok.</p>
       </div>
     );
   }
