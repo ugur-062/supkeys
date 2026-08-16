@@ -7,6 +7,8 @@ interface Props {
   isFiltered: boolean;
   unit?: string;
   className?: string;
+  /** B6: veri henüz yüklenmediyse "0 ihale" basma — küçük skeleton göster. */
+  isLoading?: boolean;
 }
 
 export function ResultCount({
@@ -14,7 +16,19 @@ export function ResultCount({
   isFiltered,
   unit = "sonuç",
   className,
+  isLoading = false,
 }: Props) {
+  if (isLoading) {
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "h-4 w-16 animate-pulse rounded bg-slate-200/80",
+          className,
+        )}
+      />
+    );
+  }
   return (
     <p className={cn("text-sm text-slate-500", className)}>
       <strong className="text-zinc-900 font-semibold">

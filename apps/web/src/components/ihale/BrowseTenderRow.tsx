@@ -271,12 +271,12 @@ export function BrowseTenderRow({
           )}
         </div>
 
-        {/* 8 — Dikey durum rozeti (md+) — davet/teklif durumuna göre. */}
-        <div className="hidden items-stretch px-1.5 py-1.5 md:flex">
+        {/* 8 — Durum rozeti (md+) — davet/teklif durumuna göre. Yatay: dikey
+            (writing-mode) sürüm kısa satırlarda kırpılıyordu (B1). */}
+        <div className="hidden items-center px-1.5 py-1.5 md:flex">
           <span
             className={cn(
-              "flex w-8 items-center justify-center rounded border text-[10px] font-semibold leading-none",
-              "[writing-mode:vertical-rl] rotate-180",
+              "whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
               state.className,
             )}
           >

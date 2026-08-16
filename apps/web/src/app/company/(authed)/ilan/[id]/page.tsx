@@ -38,6 +38,8 @@ import {
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { activePortalFromPath } from "@/lib/company/portals";
+import { usePortalStore } from "@/lib/company/portal-store";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
 import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -211,6 +213,24 @@ export default function ListingDetailPage() {
   // F7: kazandır/ele buton kapısı — backend assertListingManageRole birebir
   // (buy/sell:listing:manage + oluşturan/SAHİP). Hook'lar erken-return öncesi.
   const user = useCompanyAuthStore((s) => s.user);
+  // B5: /company/ilan portal segmentlerinin dışında — sidebar bağlamı store'da
+  // kalan son portalı gösteriyordu (alış ihalesine girince Satış menüsü).
+  // Geldiği sayfadan (from), yoksa ihaledeki rolden türetip store'a yaz.
+  const setLastPortal = usePortalStore((s) => s.setLastPortal);
+  useEffect(() => {
+    const fromPortal = activePortalFromPath(fromHref);
+    const rolePortal = l
+      ? l.isOwner
+        ? l.type === "SATIS"
+          ? ("satis" as const)
+          : ("satinalma" as const)
+        : l.type === "SATIS"
+          ? ("satinalma" as const)
+          : ("satis" as const)
+      : null;
+    const portal = fromPortal ?? rolePortal;
+    if (portal) setLastPortal(portal);
+  }, [fromHref, l, setLastPortal]);
   const hasManagePermission = useHasCompanyPermission(
     l?.type === "SATIS" ? "sell:listing:manage" : "buy:listing:manage",
   );
@@ -1731,7 +1751,9 @@ export default function ListingDetailPage() {
             makinesine göre birincil aksiyon; sayfa kaydırılınca da görünür.
             F7: yayınla/onay-iptal yönetim aksiyonudur — canManage kapısı
             (backend publishListing→assertListingManageRole birebir). */}
-        <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
+        {/* B2: top-14 = topbar (h-14) ile hizalı — top-16'daki 8px açık şerit
+            + yarı saydam zemin, altta kayan chip'leri gösteriyordu (opak bg). */}
+        <div className="sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
@@ -1957,7 +1979,9 @@ export default function ListingDetailPage() {
         {/* P2 (denetim §5): sticky ActionBar — teklif CTA'sı artık sekmeden
             bağımsız, kaydırınca da ilk ekranda ("aynı birincil aksiyon bir
             kez" kuralı gereği yalnız burada). */}
-        <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
+        {/* B2: top-14 = topbar (h-14) ile hizalı — top-16'daki 8px açık şerit
+            + yarı saydam zemin, altta kayan chip'leri gösteriyordu (opak bg). */}
+        <div className="sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>

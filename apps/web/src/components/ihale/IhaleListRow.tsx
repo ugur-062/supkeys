@@ -337,12 +337,13 @@ export function IhaleListRow({
           )}
         </div>
 
-        {/* 9 — Dikey durum rozeti (md+) */}
-        <div className="hidden items-stretch px-1.5 py-1.5 md:flex">
+        {/* 9 — Durum rozeti (md+) — yatay: dikey (writing-mode) sürüm kısa
+            satırlarda kırpılıyordu ("rlendirmede"), etiket uzunluğu satır
+            yüksekliğine bağlanamaz. */}
+        <div className="hidden items-center px-1.5 py-1.5 md:flex">
           <span
             className={cn(
-              "flex w-8 items-center justify-center rounded ring-1 text-[10px] font-semibold leading-none",
-              "[writing-mode:vertical-rl] rotate-180",
+              "whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ring-1",
               st.box,
             )}
           >

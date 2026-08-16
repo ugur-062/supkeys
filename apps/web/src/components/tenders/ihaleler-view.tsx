@@ -325,6 +325,7 @@ export function IhalelerView({
             total={filtered.length}
             isFiltered={isFiltered}
             unit="ihale"
+            isLoading={list.isLoading}
             className="ml-auto"
           />
         </div>

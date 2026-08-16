@@ -478,19 +478,28 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
 
   // KPI şeridi (eski panel paritesi).
   const kpis = useMemo(() => {
+    // B4 — MECE: Aktif + Tamamlanan + İptal/Sorunlu = Toplam (DELIVERED
+    // "teslim alındı ama kapanmadı" = hâlâ canlı sipariş → Aktif'te sayılır;
+    // önceden hiçbir kutuda değildi, toplam tutmuyordu).
     const active = all.filter((o) =>
-      ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"].includes(o.status),
+      ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY", "DELIVERED"].includes(
+        o.status,
+      ),
     ).length;
-    // Yaşam döngüsü ayrımı: "Ödeme Bekleyen" artık DELIVERED sayısı DEĞİL —
+    const terminalIssues = all.filter((o) =>
+      ["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status),
+    ).length;
+    // Yaşam döngüsü ayrımı: "Ödeme Bekleyen" DELIVERED sayısı DEĞİL —
     // türetilen ödeme durumundan (paymentSettled=false), status'tan bağımsız.
-    // Terminal/ihtilaf hariç (borç kapanmamış canlı siparişler).
+    // Terminal/ihtilaf hariç (borç kapanmamış canlı siparişler). Diğer
+    // kutularla KESİŞİR — MECE setinin parçası değil, kart altında not var.
     const awaitingPayment = all.filter(
       (o) =>
         o.paymentSettled === false &&
         !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status),
     ).length;
     const completed = counts["COMPLETED"] ?? 0;
-    return { active, awaitingPayment, completed };
+    return { active, awaitingPayment, completed, terminalIssues };
   }, [all, counts]);
 
   const emptyHint = isSeller
@@ -508,22 +517,37 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         }
       />
 
-      {/* KPI şeridi — tıklayınca ilgili durum filtresi uygulanır */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-4">
+      {/* KPI şeridi — tıklayınca ilgili durum filtresi uygulanır. İlk 4 kutu
+          MECE (Toplam = Aktif + Tamamlanan + İptal/Sorunlu); Ödeme Bekleyen
+          kesişen bilgi metriği (kapsamı alt notta). */}
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
         {(
           [
-            { label: "Toplam Sipariş", value: String(all.length), filter: "all" },
-            { label: "Aktif", value: String(kpis.active), filter: null },
+            {
+              label: "Toplam Sipariş",
+              value: String(all.length),
+              filter: "all",
+              hint: null,
+            },
+            { label: "Aktif", value: String(kpis.active), filter: null, hint: null },
+            {
+              label: "Tamamlanan",
+              value: String(kpis.completed),
+              filter: "COMPLETED",
+              hint: null,
+            },
+            {
+              label: "İptal / Sorunlu",
+              value: String(kpis.terminalIssues),
+              filter: null,
+              hint: null,
+            },
             {
               // Ödeme durumu türetilir; status filtresi değil (bilgi amaçlı sayım).
               label: "Ödeme Bekleyen",
               value: String(kpis.awaitingPayment),
               filter: null,
-            },
-            {
-              label: "Tamamlanan",
-              value: String(kpis.completed),
-              filter: "COMPLETED",
+              hint: "durumdan bağımsız, ödemesi kapanmamış",
             },
           ] as const
         ).map((k) => (
@@ -544,6 +568,11 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             <dd className="mt-0.5 truncate text-lg font-bold tabular-nums text-zinc-900">
               {k.value}
             </dd>
+            {k.hint ? (
+              <dd className="mt-0.5 text-[11px] leading-tight text-slate-400">
+                {k.hint}
+              </dd>
+            ) : null}
           </button>
         ))}
       </dl>
@@ -627,6 +656,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             total={filtered.length}
             isFiltered={isFiltered}
             unit="sipariş"
+            isLoading={isLoading}
             className="ml-auto"
           />
           <ViewToggle view={view} onChange={setView} />

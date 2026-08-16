@@ -214,6 +214,7 @@ export function SellerTendersView({
             total={filtered.length}
             isFiltered={isFiltered}
             unit="ihale"
+            isLoading={tenders.isLoading}
             className="ml-auto"
           />
         </div>

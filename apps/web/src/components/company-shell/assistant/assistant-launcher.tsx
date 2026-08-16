@@ -113,8 +113,11 @@ export function AssistantLauncher() {
           "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-white/20",
           "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl",
           // Faz 8.2: scroll'da küçülüp köşeye yaklaşır — tablo son kolonunu
-          // daha az kapatır (içerikte pb-24 nefes payı zaten var).
-          compact ? "bottom-4 right-4 h-11 w-11" : "bottom-5 right-5 h-14 w-14",
+          // daha az kapatır (içerikte pb-24 nefes payı zaten var). B3: küçük
+          // modda yarı saydam — geniş tablonun sağ kenarı okunur kalır.
+          compact
+            ? "bottom-4 right-4 h-11 w-11 opacity-60 hover:opacity-100 focus-visible:opacity-100"
+            : "bottom-5 right-5 h-14 w-14",
         )}
       >
         {/* Nefes alan halka — buton kapalıyken sürekli, dikkat çekmeden */}
