@@ -218,9 +218,7 @@ export function CompanyInboxView() {
                           <span className="shrink-0 text-xs text-zinc-400">
                             {isToday(new Date(r.lastMessageAt))
                               ? format(new Date(r.lastMessageAt), "HH:mm")
-                              : format(new Date(r.lastMessageAt), "d MMM", {
-                                  locale: tr,
-                                })}
+                              : formatDate(r.lastMessageAt, "short")}
                           </span>
                         ) : null}
                       </div>

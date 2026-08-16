@@ -1,5 +1,6 @@
 "use client";
 
+import { MODULE_LABELS } from "@/lib/company/portals";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -273,8 +274,8 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
     ? "Satıcıların ilanlarına verdiğiniz teklifler ve sonuçları."
     : "Açık ihalelere verdiğiniz tüm teklifler ve sonuçları.";
   const emptyHint = isPurchase
-    ? "Satın Al ekranından bir ilana teklif verdiğinde burada görünür."
-    : "Açık ihaleler ekranından bir ihaleye teklif verdiğinde burada görünür.";
+    ? "Satın Al ekranından bir ilana teklif verdiğinizde burada görünür."
+    : "Açık ihaleler ekranından bir ihaleye teklif verdiğinizde burada görünür.";
   const fromHref = isPurchase
     ? "/company/satinalma/tekliflerim"
     : "/company/satis/tekliflerim";
@@ -324,7 +325,14 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Tekliflerim" description={description} />
+      <PageHeader
+        title={
+          isPurchase
+            ? MODULE_LABELS.satinalma.teklifler
+            : MODULE_LABELS.satis.teklifler
+        }
+        description={description}
+      />
 
       {/* Arama + filtreler — diğer listelerle aynı düzen: üstte tam-genişlik
           arama + sıralama, altta ikonlu filtre pill'leri + sonuç sayacı. */}
@@ -423,7 +431,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
         <EmptyState
           icon={isFiltered ? CircleSlash : Gavel}
           variant={isFiltered ? "no-results" : "no-data"}
-          title={isFiltered ? "Eşleşen teklif yok" : "Henüz teklif vermedin"}
+          title={isFiltered ? "Eşleşen teklif yok" : "Henüz teklif vermediniz"}
           description={
             isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
           }

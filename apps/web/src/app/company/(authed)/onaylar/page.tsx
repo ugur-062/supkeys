@@ -365,7 +365,7 @@ export default function OnaylarPage() {
         <div>
           <Heading>Onaylar</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Kazandırma onay süreçleri — sırası sende olanlar, taleplerin ve
+            Kazanan onayı akışları — sırası sizde olanlar, talepleriniz ve
             firmadaki tüm süreçler. Akışları buradan tanımlarsınız.
           </Text>
         </div>

@@ -319,6 +319,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             {src.hint}
             {o.listingNumber ? (
               <span className="ml-1 font-mono text-zinc-400">
+                {" "}
                 ({o.listingNumber})
               </span>
             ) : null}

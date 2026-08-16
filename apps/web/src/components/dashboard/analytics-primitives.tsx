@@ -39,6 +39,9 @@ export function TrendBadge({
   const up = pct > 0;
   const flat = pct === 0;
   const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
+  // C23: küçük tabandan gelen ham yüzdeler ("%20623") anlamsız — tavan.
+  const capped = Math.abs(pct) > 999;
+  const pctLabel = capped ? ">999" : String(Math.abs(pct));
   return (
     <span
       className={cn(
@@ -50,9 +53,10 @@ export function TrendBadge({
             : "bg-rose-50 text-rose-700",
         className,
       )}
-      aria-label={`Önceki döneme göre yüzde ${Math.abs(pct)} ${flat ? "değişim yok" : up ? "artış" : "azalış"}`}
+      aria-label={`Önceki döneme göre yüzde ${pctLabel} ${flat ? "değişim yok" : up ? "artış" : "azalış"}`}
+      title={capped ? `Gerçek değer: %${Math.abs(pct)}` : undefined}
     >
-      <Icon className="h-3 w-3" aria-hidden />%{Math.abs(pct)}
+      <Icon className="h-3 w-3" aria-hidden />%{pctLabel}
     </span>
   );
 }

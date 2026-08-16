@@ -220,7 +220,7 @@ export function OnboardingClient() {
         {step === 0 ? (
           <div className="space-y-3">
             <Field>
-              <Label>Firma Ünvanı *</Label>
+              <Label>Firma Unvanı *</Label>
               <Input value={f.legalName} onChange={(e) => set("legalName")(e.target.value)} />
             </Field>
             <Field>
@@ -454,7 +454,7 @@ export function OnboardingClient() {
         {step === 2 ? (
           <div className="space-y-3">
             <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-              <Summary label="Firma Ünvanı" value={f.legalName} />
+              <Summary label="Firma Unvanı" value={f.legalName} />
               <Summary label="Firma Türü" value={COMPANY_TYPES.find((t) => t.value === f.companyType)?.label} />
               <Summary label="Vergi No / TCKN" value={f.taxNumber} />
               <Summary label="Vergi Dairesi" value={f.taxOffice} />

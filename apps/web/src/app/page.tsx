@@ -973,7 +973,7 @@ export default function HomePage() {
                 </h3>
                 <p className="mt-4 text-lg/8 text-zinc-600">
                   Yönetici, Satın Almacı, Satışçı, Onaylayıcı — sınırsız
-                  kullanıcı, koltuk ücreti yok. İş çıkışında erişim tek tıkla
+                  kullanıcı, kullanıcı-başı ücret yok. İş çıkışında erişim tek tıkla
                   kapanır.
                 </p>
                 <ul className="mt-6 space-y-3">

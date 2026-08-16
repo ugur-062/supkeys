@@ -100,7 +100,7 @@ export function InviteUserDialog({
             Roller birleştirilebilir; Yönetici etiketini yalnız Kurucu
             atayabilir.
             {seatsFull
-              ? " Koltuk dolu — Satın Almacı/Satışçı için paketi yükseltin."
+              ? " Kullanıcı hakkı dolu — Satın Almacı/Satışçı için paketi yükseltin."
               : ""}
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">

@@ -18,6 +18,14 @@ export function roleLabel(code: string): string {
   return ROLE_LABELS[code as CompanyRole] ?? code;
 }
 
+/** Üyelik kademesi etiketleri — rozet/kolon her yerde aynı kasa (C21). */
+export const TIER_LABELS: Record<string, string> = {
+  STANDART: "Standart",
+  BRONZ: "Bronz",
+  SILVER: "Silver",
+  GOLD: "Gold",
+};
+
 /** AI kullanım kırılımı — AiUsage.feature anahtarları. */
 export const AI_FEATURE_LABELS: Record<string, string> = {
   test: "Test",

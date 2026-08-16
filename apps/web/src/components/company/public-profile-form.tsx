@@ -176,7 +176,7 @@ export function PublicProfileForm() {
         <div>
           <Label>Herkese açık profil yayında</Label>
           <Text className="text-xs text-zinc-500">
-            Kapalıyken profilin kimseye / Google&apos;a görünmez.
+            Kapalıyken profiliniz kimseye / Google&apos;a görünmez.
           </Text>
         </div>
         <Switch
@@ -188,7 +188,7 @@ export function PublicProfileForm() {
 
       <FormSection
         title="Görseller"
-        description="Logo ve kapak, profilinin ilk izlenimi."
+        description="Logo ve kapak, profilinizin ilk izlenimi."
       >
         {/* Logo + kapak */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
@@ -217,7 +217,7 @@ export function PublicProfileForm() {
 
       <FormSection
         title="Tanıtım"
-        description="Firmanı anlatan metin ve künye bilgileri."
+        description="Firmanızı anlatan metin ve künye bilgileri."
         action={
           canEdit ? (
             <Button

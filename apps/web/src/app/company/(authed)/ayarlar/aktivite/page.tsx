@@ -32,7 +32,7 @@ const MODULES: { value: string; label: string }[] = [
   { value: "bid", label: "Teklifler" },
   { value: "order", label: "Siparişler" },
   { value: "user", label: "Kullanıcılar" },
-  { value: "seats", label: "Koltuklar" },
+  { value: "seats", label: "Kullanıcı Hakları" },
   { value: "bank_account", label: "Banka Hesapları" },
   { value: "address", label: "Adresler" },
   { value: "docs", label: "Belgeler (KYC)" },

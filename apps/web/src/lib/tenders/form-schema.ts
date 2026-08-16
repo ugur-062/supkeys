@@ -269,7 +269,7 @@ const baseTenderSchema = z.object({
   // Adım 2
   items: z
     .array(tenderItemSchema)
-    .min(1, "En az 1 kalem eklemelisin")
+    .min(1, "En az 1 kalem ekleyin")
     .max(MAX_LISTING_ITEMS, `Maksimum ${MAX_LISTING_ITEMS} kalem`),
 
   // Adım 3
@@ -360,7 +360,7 @@ export const tenderFormSchema = baseTenderSchema
     if (!d.bidsCloseAt) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Kapanış tarihi seçmelisin",
+        message: "Kapanış tarihi seçin",
         path: ["bidsCloseAt"],
       });
       return;

@@ -585,7 +585,7 @@ export function ConnectionsView() {
               aria-label="Bağlantılarımda ara"
               value={connQ}
               onChange={(e) => setConnQ(e.target.value)}
-              placeholder="Bağlantılarında ara — firma adı, Rothern ID, sektör, şehir…"
+              placeholder="Bağlantılarınızda arayın — firma adı, Rothern ID, sektör, şehir…"
               className="max-w-md"
             />
           ) : null}

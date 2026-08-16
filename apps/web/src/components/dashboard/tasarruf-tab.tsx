@@ -333,7 +333,9 @@ function TimeSection({ savings }: { savings?: TimeSavingsData }) {
   const rows = savings.breakdown.filter((r) => r.minutes > 0);
   const total = savings.savedMinutes;
   const fmtH = (min: number) =>
-    min >= 90 ? `~${(min / 60).toFixed(1)} sa` : `~${Math.round(min)} dk`;
+    min >= 90
+      ? `~${(min / 60).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} sa`
+      : `~${Math.round(min)} dk`;
   const m = savings.measured;
   const fmtMeasured = (h: number | null) =>
     h == null ? "—" : h >= 48 ? `${(h / 24).toFixed(1)} gün` : `${h.toFixed(1)} sa`;

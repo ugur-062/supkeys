@@ -224,11 +224,13 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
                   axisLine={false}
                   tick={AXIS_TICK}
                   width={52}
+                  // C24: kısaltma dili formatCompactMoney ile aynı ("60 B",
+                  // "1,2 Mn") — kural: KPI/eksen kısaltır, tablo/detay tam yazar.
                   tickFormatter={(v: number) =>
                     v >= 1_000_000
-                      ? `${(v / 1_000_000).toLocaleString("tr-TR")}M`
+                      ? `${(v / 1_000_000).toLocaleString("tr-TR")} Mn`
                       : v >= 1_000
-                        ? `${(v / 1_000).toLocaleString("tr-TR")}B`
+                        ? `${(v / 1_000).toLocaleString("tr-TR")} B`
                         : String(v)
                   }
                 />

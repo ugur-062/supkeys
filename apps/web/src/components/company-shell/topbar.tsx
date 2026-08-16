@@ -1,5 +1,7 @@
 "use client";
 
+import { RoleBadge } from "@/components/ui/role-badge";
+import { TIER_LABELS } from "@/lib/company/labels";
 import { RothernLogo } from "@/components/brand/logo";
 import { Avatar } from "@/components/catalyst/avatar";
 import {
@@ -31,13 +33,6 @@ function initialsOf(first?: string | null, last?: string | null) {
  * sağda mesajlar + bildirimler + kullanıcı. Satınalma/Satış geçişi sol menünün
  * en üstünde (Anasayfa'nın üzerinde — kullanıcı isteği).
  */
-const TIER_TOPBAR_LABEL: Record<string, string> = {
-  STANDART: "Standart",
-  BRONZ: "Bronz",
-  SILVER: "Silver",
-  GOLD: "Gold",
-};
-
 export function CompanyTopbar({
   activePortal,
   onOpenMobileNav,
@@ -93,7 +88,8 @@ export function CompanyTopbar({
         </span>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide",
+            // C21: uppercase kalktı — rozet her yüzeyde "Gold" kasasıyla yazılır.
+            "rounded-full px-2 py-0.5 text-xs font-semibold tracking-wide",
             tier === "GOLD"
               ? "bg-amber-100 text-amber-700"
               : tier === "STANDART"
@@ -101,7 +97,7 @@ export function CompanyTopbar({
                 : "bg-blue-100 text-blue-700",
           )}
         >
-          {TIER_TOPBAR_LABEL[tier] ?? tier}
+          {TIER_LABELS[tier] ?? tier}
         </span>
       </div>
 
@@ -146,7 +142,9 @@ export function CompanyTopbar({
                 <p className="text-sm font-semibold text-zinc-900">
                   {user.firstName} {user.lastName}
                   {user.isOwner ? (
-                    <span className="text-amber-600"> · Kurucu</span>
+                    <span className="ml-1.5 align-middle">
+                      <RoleBadge owner />
+                    </span>
                   ) : null}
                 </p>
                 <p className="truncate text-xs text-slate-400">{user.email}</p>

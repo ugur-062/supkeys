@@ -1,5 +1,6 @@
 "use client";
 
+import { RoleBadge } from "@/components/ui/role-badge";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -31,14 +32,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
-
-const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Kurucu",
-  YONETICI: "Yönetici",
-  SATIN_ALMACI: "Satın Almacı",
-  SATISCI: "Satışçı",
-  ONAYLAYICI: "Onaylayıcı",
-};
 
 /** Hesap Bilgileri — profil başlık kartı + salt-okunur/düzenle. */
 export function AccountInfoSection() {
@@ -90,7 +83,7 @@ export function AccountInfoSection() {
                 {fullName || "—"}
               </h2>
               {user?.isOwner ? (
-                <Badge color="amber">Kurucu</Badge>
+                <RoleBadge owner />
               ) : null}
             </div>
             <div className="mt-0.5 flex items-center gap-2 text-sm text-zinc-500">
@@ -99,9 +92,7 @@ export function AccountInfoSection() {
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {(user?.roles ?? []).map((r) => (
-                <Badge key={r} color="zinc">
-                  {ROLE_LABEL[r] ?? r}
-                </Badge>
+                <RoleBadge key={r} role={r} />
               ))}
             </div>
           </div>
@@ -397,7 +388,7 @@ export function NotificationPrefsSection() {
     <section className={card}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Text className="text-sm text-zinc-500">
-          Hangi durumlarda e-posta bildirimi almak istediğini seç.
+          Hangi durumlarda e-posta bildirimi almak istediğinizi seçin.
         </Text>
         <div className="flex gap-2">
           <button

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationsRead,
@@ -27,7 +28,7 @@ function timeAgo(iso: string): string {
   if (hr < 24) return `${hr} sa önce`;
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day} gün önce`;
-  return new Date(iso).toLocaleDateString("tr-TR");
+  return formatDate(iso, "short");
 }
 
 /** Panel rozeti — birleşik kutuda bildirim hangi şapkayla ilgili? */

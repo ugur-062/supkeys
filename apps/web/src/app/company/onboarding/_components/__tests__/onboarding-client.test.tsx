@@ -43,7 +43,7 @@ import { OnboardingClient } from "../onboarding-client";
 
 // LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
 async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText("Firma Ünvanı *"), "Örnek Ltd.");
+  await user.type(screen.getByLabelText("Firma Unvanı *"), "Örnek Ltd.");
   await user.type(screen.getByLabelText("Vergi No / TCKN *"), "1234567890");
   await user.type(screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
   await user.selectOptions(screen.getByLabelText("İl *"), "İstanbul");
@@ -90,7 +90,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
   it("geçersiz VKN (11 hane, tüzel) → hata gösterilir + 'Devam' devre dışı", async () => {
     const user = userEvent.setup();
     render(<OnboardingClient />);
-    await user.type(screen.getByLabelText("Firma Ünvanı *"), "Örnek Ltd.");
+    await user.type(screen.getByLabelText("Firma Unvanı *"), "Örnek Ltd.");
     await user.type(screen.getByLabelText("Vergi No / TCKN *"), "10000000146");
     await user.type(screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
     await user.selectOptions(screen.getByLabelText("İl *"), "İstanbul");

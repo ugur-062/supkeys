@@ -29,7 +29,11 @@ export function TimeSavingsStrip() {
     data.counters.listings > 0 ||
     data.counters.bids > 0;
   const hours = data.savedMinutes / 60;
-  const hoursLabel = hours >= 10 ? String(Math.round(hours)) : hours.toFixed(1);
+  // C22: TR ondalık ayırıcı — "6.7" değil "6,7".
+  const hoursLabel =
+    hours >= 10
+      ? String(Math.round(hours))
+      : hours.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 
   return (
     <>

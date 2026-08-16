@@ -26,7 +26,7 @@ const STATUS_META: Record<
 > = {
   UNVERIFIED: { label: "Doğrulanmamış", color: "zinc" },
   PENDING: { label: "Onay bekliyor", color: "amber" },
-  VERIFIED: { label: "Doğrulanmış", color: "green" },
+  VERIFIED: { label: "Doğrulandı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "red" },
 };
 
@@ -216,7 +216,7 @@ export default function DogrulamaPage() {
                 <Input
                   value={ibanHolder}
                   onChange={(e) => setIbanHolder(e.target.value)}
-                  placeholder={isTR ? "Firma Ünvanı A.Ş." : "Firma ünvanı"}
+                  placeholder={isTR ? "Firma Unvanı A.Ş." : "Firma unvanı"}
                   disabled={!canManage || locked}
                   maxLength={120}
                 />

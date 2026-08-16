@@ -4532,7 +4532,7 @@ export class CompanyListingsService {
           recipient,
           {
             subject: "Tebrikler — teklifiniz kazandı",
-            heading: "Teklifiniz kazandı 🎉",
+            heading: "Teklifiniz kazandı",
             paragraphs: [
               "Merhaba,",
               `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
@@ -4546,7 +4546,7 @@ export class CompanyListingsService {
       await this.notifications.pushToCompany(bid.bidderCompanyId, {
         type: "bid_awarded",
         portal: wonPortal,
-        title: "Teklifiniz kazandı 🎉",
+        title: "Teklifiniz kazandı",
         body: `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu.`,
         ctaLabel: "Siparişi Gör",
         ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
@@ -5264,7 +5264,7 @@ export class CompanyListingsService {
             recipient,
             {
               subject: "Tebrikler — teklifiniz kazandı",
-              heading: "Teklifiniz kazandı 🎉",
+              heading: "Teklifiniz kazandı",
               paragraphs: [
                 "Merhaba,",
                 `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
@@ -5280,7 +5280,7 @@ export class CompanyListingsService {
           await this.notifications.pushToCompany(bidderCompanyId, {
             type: "bid_awarded",
             portal: itemWonPortal,
-            title: "Teklifiniz kazandı 🎉",
+            title: "Teklifiniz kazandı",
             body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
             ctaLabel: "Siparişi Gör",
             ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,

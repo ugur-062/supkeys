@@ -178,6 +178,9 @@ export function CompanyProfileView({
                     "Rothern tedarik profili"}
                   {p.rothernId ? (
                     <span className="ml-2 font-mono text-xs text-zinc-400">
+                      {/* C25: metin-düzeyi boşluk — kopyada "TRDEM0-0001" gibi
+                          yapışmasın (ml-2 yalnız görsel). */}
+                      {" "}
                       {p.rothernId}
                     </span>
                   ) : null}
@@ -261,7 +264,7 @@ export function CompanyProfileView({
               </h2>
               <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 {p.trade.legalName ? (
-                  <TradeRow label="Ticari Ünvan" value={p.trade.legalName} />
+                  <TradeRow label="Ticari Unvan" value={p.trade.legalName} />
                 ) : null}
                 {p.trade.taxNumber ? (
                   <TradeRow

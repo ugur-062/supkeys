@@ -62,7 +62,7 @@ const GROUPS: SettingsGroup[] = [
         href: "/company/ayarlar/firma",
         icon: Building2,
         title: "Firma Bilgileri",
-        description: "Ünvan, adres, KEP ve faaliyet kategorileri",
+        description: "Unvan, adres, KEP ve faaliyet kategorileri",
       },
       {
         href: "/company/ayarlar/adresler",
@@ -106,7 +106,7 @@ const GROUPS: SettingsGroup[] = [
         href: "/company/onaylar",
         icon: Workflow,
         title: "Onay Akışları",
-        description: "Kazandırma onay süreçlerini Onaylar sayfasından tanımlayın",
+        description: "Kazanan onayı akışlarını Onaylar sayfasından tanımlayın",
         managerOnly: true,
       },
       {

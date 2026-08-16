@@ -1,5 +1,6 @@
 "use client";
 
+import { MODULE_LABELS } from "@/lib/company/portals";
 import { Heading } from "@/components/catalyst/heading";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Text } from "@/components/catalyst/text";
@@ -475,7 +476,13 @@ export function TenderWizard({
             className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            {step > 0 ? "Geri" : isSatis ? "Satış İlanlarım" : "İhaleler"}
+            {/* C33: adım 1'de modül adı sözlükten (sidebar ile birebir); sonraki
+                adımlarda "Geri". */}
+            {step > 0
+              ? "Geri"
+              : isSatis
+                ? MODULE_LABELS.satis.ilanlarim
+                : MODULE_LABELS.satinalma.ihalelerim}
           </button>
           <div className="flex flex-wrap items-center gap-2">
             {templates.data && templates.data.length > 0 ? (

@@ -149,7 +149,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                                 : "text-slate-400",
                           )}
                         >
-                          {time}
+                          {`— ${time}`}
                         </span>
                       ) : null}
                     </span>

@@ -46,11 +46,15 @@ export const MODULE_LABELS = {
   satinalma: {
     ihalelerim: "İhalelerim",
     satinAl: "Satın Al",
+    teklifler: "Tekliflerim",
     siparisler: "Siparişlerim",
   },
   satis: {
     ilanlarim: "Satış İhalelerim",
     acikIhaleler: "Açık İhaleler",
+    // C32: iki portalda aynı H1 ("Tekliflerim") ayırt edilemiyordu — satış
+    // tarafı portal-önekli (Satış İhalelerim/Satışlarım deseniyle aynı).
+    teklifler: "Satış Tekliflerim",
     siparisler: "Satışlarım",
   },
 } as const;
@@ -77,7 +81,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: TagIcon,
-        label: "Tekliflerim",
+        label: MODULE_LABELS.satinalma.teklifler,
         href: "/company/satinalma/tekliflerim",
       },
       {
@@ -131,7 +135,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: ClipboardDocumentListIcon,
-        label: "Tekliflerim",
+        label: MODULE_LABELS.satis.teklifler,
         href: "/company/satis/tekliflerim",
       },
       {

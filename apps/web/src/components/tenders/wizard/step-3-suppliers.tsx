@@ -1,5 +1,6 @@
 "use client";
 
+import { TIER_LABELS } from "@/lib/company/labels";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -44,12 +45,6 @@ import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
 
-const TIER_LABEL = {
-  STANDART: "Standart",
-  BRONZ: "Bronz",
-  SILVER: "Silver",
-  GOLD: "Gold",
-} as const;
 const TIER_BADGE = {
   STANDART: "bg-zinc-100 text-zinc-700",
   BRONZ: "bg-orange-100 text-orange-800",
@@ -590,7 +585,7 @@ export function Step3Suppliers() {
                                   TIER_BADGE[c.tier],
                                 )}
                               >
-                                {TIER_LABEL[c.tier]}
+                                {TIER_LABELS[c.tier] ?? c.tier}
                               </span>
                             ) : null}
                           </div>

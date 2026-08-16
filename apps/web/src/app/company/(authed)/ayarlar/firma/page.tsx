@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <SettingsShell
       title="Firma Bilgileri"
-      description="Ticari kayıt: ünvan, adres, KEP ve faaliyet kategorileri."
+      description="Ticari kayıt: unvan, adres, KEP ve faaliyet kategorileri."
     >
       <CompanyProfileSection />
     </SettingsShell>

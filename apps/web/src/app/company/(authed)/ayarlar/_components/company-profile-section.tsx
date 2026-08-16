@@ -1,5 +1,6 @@
 "use client";
 
+import { TIER_LABELS } from "@/lib/company/labels";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -28,13 +29,6 @@ import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
-const TIER_LABEL: Record<string, string> = {
-  STANDART: "Standart",
-  BRONZ: "Bronz",
-  SILVER: "Silver",
-  GOLD: "Gold",
-};
 
 export function CompanyProfileSection() {
   const { user } = useCompanyAuth();
@@ -79,7 +73,7 @@ export function CompanyProfileSection() {
   }, [profile]);
 
   // KYC kimlik kilidi — backend company-profile.service ile BİREBİR: inceleme
-  // başladıktan (PENDING) veya onay verildikten (VERIFIED) sonra yasal ünvan
+  // başladıktan (PENDING) veya onay verildikten (VERIFIED) sonra yasal unvan
   // doğrulama dosyasının parçasıdır, değiştirilemez.
   const kycLocked =
     profile?.companyVerificationStatus === "PENDING" ||
@@ -120,7 +114,7 @@ export function CompanyProfileSection() {
           <DescriptionDetails className="font-mono">
             {profile.rothernId ?? "—"}
           </DescriptionDetails>
-          <DescriptionTerm>Yasal Ünvan</DescriptionTerm>
+          <DescriptionTerm>Yasal Unvan</DescriptionTerm>
           <DescriptionDetails>{profile.legalName ?? "—"}</DescriptionDetails>
           <DescriptionTerm>Firma Türü</DescriptionTerm>
           <DescriptionDetails>
@@ -142,20 +136,20 @@ export function CompanyProfileSection() {
           <DescriptionDetails className="font-mono">
             {profile.authorizedTckn ?? "—"}
           </DescriptionDetails>
-          <DescriptionTerm>Yetkili Ünvanı</DescriptionTerm>
+          <DescriptionTerm>Yetkili Unvanı</DescriptionTerm>
           <DescriptionDetails>
             {profile.authorizedTitle ?? "—"}
           </DescriptionDetails>
           <DescriptionTerm>Üyelik</DescriptionTerm>
           <DescriptionDetails>
             <Badge color={profile.tier === "GOLD" ? "amber" : profile.tier === "STANDART" ? "zinc" : "blue"}>
-              {TIER_LABEL[profile.tier] ?? profile.tier}
+              {TIER_LABELS[profile.tier] ?? profile.tier}
             </Badge>
           </DescriptionDetails>
           <DescriptionTerm>Doğrulama</DescriptionTerm>
           <DescriptionDetails>
             {profile.companyVerificationStatus === "VERIFIED"
-              ? "Doğrulanmış"
+              ? "Doğrulandı"
               : "Bekliyor"}
           </DescriptionDetails>
         </DescriptionList>
@@ -225,7 +219,7 @@ export function CompanyProfileSection() {
               />
             </Field>
             <Field>
-              <Label>Yasal ünvan</Label>
+              <Label>Yasal unvan</Label>
               <Input
                 value={form.legalName}
                 disabled={!canEdit || kycLocked}

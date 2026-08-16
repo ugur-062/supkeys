@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
   useThreads,
@@ -20,7 +21,7 @@ function timeAgo(iso: string | null): string {
   if (hr < 24) return `${hr} sa`;
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day} gün`;
-  return new Date(iso).toLocaleDateString("tr-TR");
+  return formatDate(iso, "short");
 }
 
 /** "Bu konuşmada ben kimim?" rozeti — birleşik kutu satırları. */

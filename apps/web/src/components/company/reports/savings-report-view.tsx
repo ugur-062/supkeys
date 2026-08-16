@@ -186,12 +186,12 @@ export function SavingsReportView({
                   [`Toplam ${deltaWord}`, tl(data.summary.grandDelta), true],
                   [
                     `${deltaWord} %`,
-                    `%${data.summary.grandDeltaPct.toFixed(1)}`,
+                    `%${data.summary.grandDeltaPct.toLocaleString("tr-TR", { maximumFractionDigits: 1 })}`,
                     true,
                   ],
                   [
                     `Ort. ${deltaWord} %`,
-                    `%${data.summary.avgDeltaPct.toFixed(1)}`,
+                    `%${data.summary.avgDeltaPct.toLocaleString("tr-TR", { maximumFractionDigits: 1 })}`,
                   ],
                 ] as Array<[string, string, boolean?]>
               ).map(([k, v, accent]) => (

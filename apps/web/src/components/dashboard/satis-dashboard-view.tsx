@@ -79,7 +79,7 @@ export function SatisDashboardView() {
             {company?.name ?? "Rothern"}
             {todayLabel ? (
               <>
-                <span className="mx-2 text-zinc-300">·</span>
+                <span className="mx-2 text-zinc-300">{" · "}</span>
                 <span>{todayLabel}</span>
               </>
             ) : null}

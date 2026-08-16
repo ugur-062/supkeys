@@ -262,7 +262,7 @@ export function MyProfileView() {
           <CompanyProfileView profile={viewData} />
           <p className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
             <Settings2 className="size-3.5" aria-hidden />
-            Ticari bilgiler (ünvan, VKN, MERSİS…) buradan değil{" "}
+            Ticari bilgiler (unvan, VKN, MERSİS…) buradan değil{" "}
             <Link
               href="/company/ayarlar/firma"
               className="font-semibold text-zinc-600 underline hover:text-zinc-900"
@@ -276,7 +276,7 @@ export function MyProfileView() {
         <>
           <p className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
             <Settings2 className="size-3.5" aria-hidden />
-            Firma adı, ünvan ve şehir{" "}
+            Firma adı, unvan ve şehir{" "}
             <Link
               href="/company/ayarlar/firma"
               className="font-semibold text-zinc-600 underline hover:text-zinc-900"

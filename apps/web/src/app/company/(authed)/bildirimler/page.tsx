@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format-date";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationsRead,
@@ -26,14 +27,7 @@ const FILTERS = [
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString("tr-TR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+
 
 export default function BildirimlerPage() {
   // TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte gelir;
@@ -145,7 +139,7 @@ export default function BildirimlerPage() {
                     </span>
                   ) : null}
                   <span className="ml-auto text-xs text-zinc-400">
-                    {formatDate(n.createdAt)}
+                    {formatDate(n.createdAt, "datetime")}
                   </span>
                 </div>
                 <span className="text-sm text-zinc-600">{n.body}</span>

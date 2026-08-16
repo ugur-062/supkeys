@@ -1,5 +1,7 @@
 "use client";
 
+import { ROLE_LABELS } from "@/lib/company/labels";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
@@ -74,13 +76,7 @@ const ROLES: { key: CompanyRole; label: string; desc: string }[] = [
   { key: "SATISCI", label: "Satışçı", desc: "Satış ilanları, ihalelere teklif verme" },
   { key: "ONAYLAYICI", label: "Onaylayıcı", desc: "Onay zincirinde onay/ret" },
 ];
-const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Kurucu",
-  YONETICI: "Yönetici",
-  SATIN_ALMACI: "Satın Almacı",
-  SATISCI: "Satışçı",
-  ONAYLAYICI: "Onaylayıcı",
-};
+const ROLE_LABEL = ROLE_LABELS;
 const ROLE_ICON: Record<CompanyRole, LucideIcon> = {
   SAHIP: Crown,
   YONETICI: Settings2,
@@ -147,7 +143,7 @@ export function CompanyUsersSection({
       {/* Faz K — koltuk barı: SA/ST taşıyan aktif kişi sayısı / paket limiti. */}
       {seats && seats.limit != null ? (
         <div className="border-b border-zinc-950/5 px-5 py-2.5 text-xs text-zinc-600">
-          Koltuk: <strong>{seats.used}/{seats.limit}</strong>
+          Kullanıcı hakkı: <strong>{seats.used}/{seats.limit}</strong>
           {seats.pendingSeatInvites > 0
             ? ` · bekleyen davet: ${seats.pendingSeatInvites}`
             : ""}
@@ -159,7 +155,7 @@ export function CompanyUsersSection({
       {seats && seats.overflow > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
           <span>
-            Paketinizde <strong>{seats.limit}</strong> koltuk var,{" "}
+            Paketinizde <strong>{seats.limit}</strong> kullanıcı hakkı var,{" "}
             <strong>{seats.overflow}</strong> kişi fazla — yeni Satın Almacı/
             Satışçı atanamaz. Mevcut kullanıcılar çalışmaya devam eder.
           </span>
@@ -170,7 +166,7 @@ export function CompanyUsersSection({
                 setSeatSelOpen(true);
               }}
             >
-              Koltukları Seç
+              Kalacak Kullanıcıları Seç
             </Button>
           ) : null}
         </div>
@@ -205,8 +201,8 @@ export function CompanyUsersSection({
                           <p className="truncate font-semibold text-zinc-900">
                             {u.firstName} {u.lastName}
                             {u.isOwner ? (
-                              <span className="ml-1.5 text-xs font-semibold uppercase text-amber-600">
-                                Kurucu
+                              <span className="ml-1.5 align-middle">
+                                <RoleBadge owner />
                               </span>
                             ) : null}
                             {isMe ? (
@@ -225,9 +221,7 @@ export function CompanyUsersSection({
                       <div className="flex flex-wrap gap-1">
                         {u.roles.length ? (
                           u.roles.map((r) => (
-                            <Badge key={r} color="zinc">
-                              {ROLE_LABEL[r] ?? r}
-                            </Badge>
+                            <RoleBadge key={r} role={r} />
                           ))
                         ) : (
                           <span className="text-xs text-zinc-400">Rol yok</span>
@@ -346,9 +340,9 @@ export function CompanyUsersSection({
         onClose={() => setSeatSelOpen(false)}
         size="lg"
       >
-        <DialogTitle>Koltukları Seç</DialogTitle>
+        <DialogTitle>Kalacak Kullanıcıları Seç</DialogTitle>
         <DialogDescription>
-          Paketinizde {seats?.limit ?? 0} koltuk var. Kalacak Satın Almacı/
+          Paketinizde {seats?.limit ?? 0} kullanıcı hakkı var. Kalacak Satın Almacı/
           Satışçı kullanıcılarını seçin — seçilmeyenlerin işlem rolleri
           kaldırılır (hesapları ve diğer yetkileri aynen kalır; açık işlemleri
           kalan ekip tamamlayabilir).
@@ -407,7 +401,7 @@ export function CompanyUsersSection({
               try {
                 const res = await seatSelection.mutateAsync(keepIds);
                 toast.success(
-                  `Koltuk seçimi uygulandı — ${res.droppedCount} kişinin işlem rolleri kaldırıldı`,
+                  `Kullanıcı seçimi uygulandı — ${res.droppedCount} kişinin işlem rolleri kaldırıldı`,
                 );
                 setSeatSelOpen(false);
               } catch (err) {
