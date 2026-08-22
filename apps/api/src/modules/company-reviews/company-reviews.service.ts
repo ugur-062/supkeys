@@ -7,6 +7,11 @@ import {
 import { CompanyRole } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import {
+  REVIEW_SUMMARY_SELECT,
+  REVIEW_SUMMARY_TAKE,
+  buildReviewSummary,
+} from "./review-summary";
 
 @Injectable()
 export class CompanyReviewsService {
@@ -18,7 +23,7 @@ export class CompanyReviewsService {
    */
   async upsert(
     user: AuthenticatedCompanyUser,
-    input: { orderId: string; rating: number; comment?: string },
+    input: { orderId: string; rating: number; comment?: string; showName?: boolean },
   ) {
     if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
       throw new BadRequestException("Puan 1 ile 5 arasında olmalı");
@@ -74,10 +79,13 @@ export class CompanyReviewsService {
         targetCompanyId,
         rating: input.rating,
         comment: input.comment?.trim() || null,
+        // Opt-in referans: varsayılan anonim ("Doğrulanmış alıcı/tedarikçi").
+        showName: input.showName === true,
       },
       update: {
         rating: input.rating,
         comment: input.comment?.trim() || null,
+        ...(input.showName !== undefined ? { showName: input.showName } : {}),
       },
     });
     return { ok: true };
@@ -89,35 +97,22 @@ export class CompanyReviewsService {
       where: {
         orderId_reviewerCompanyId: { orderId, reviewerCompanyId: user.companyId },
       },
-      select: { rating: true, comment: true },
+      select: { rating: true, comment: true, showName: true },
     });
-    return r ? { rating: r.rating, comment: r.comment } : null;
+    return r ? { rating: r.rating, comment: r.comment, showName: r.showName } : null;
   }
 
-  /** Bir firmaya yapılan değerlendirmeler + ortalama (profil için). */
+  /**
+   * Bir firmaya yapılan değerlendirmelerin ÖZETİ (firma bazında gruplu;
+   * platform-içi → opt-in adlar görünür). Profil uçları aynı yardımcıyı kullanır.
+   */
   async listForCompany(companyId: string) {
-    const [reviews, agg] = await Promise.all([
-      this.prisma.companyReview.findMany({
-        where: { targetCompanyId: companyId },
-        include: { reviewer: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-      }),
-      this.prisma.companyReview.aggregate({
-        where: { targetCompanyId: companyId },
-        _avg: { rating: true },
-        _count: true,
-      }),
-    ]);
-    return {
-      avg: agg._avg.rating ?? 0,
-      count: agg._count,
-      reviews: reviews.map((r) => ({
-        rating: r.rating,
-        comment: r.comment,
-        reviewer: r.reviewer.name,
-        createdAt: r.createdAt,
-      })),
-    };
+    const rows = await this.prisma.companyReview.findMany({
+      where: { targetCompanyId: companyId },
+      select: REVIEW_SUMMARY_SELECT,
+      orderBy: { createdAt: "desc" },
+      take: REVIEW_SUMMARY_TAKE,
+    });
+    return buildReviewSummary(rows, { revealNames: true });
   }
 }

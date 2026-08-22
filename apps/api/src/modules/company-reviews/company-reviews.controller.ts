@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import {
+  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -27,6 +28,11 @@ class UpsertReviewDto {
   @IsString()
   @MaxLength(2000)
   comment?: string;
+
+  /** "Firma adım referans olarak görünsün" (platform-içi; herkese açıkta asla). */
+  @IsOptional()
+  @IsBoolean()
+  showName?: boolean;
 }
 
 @Controller("company/reviews")

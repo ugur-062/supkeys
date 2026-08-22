@@ -932,6 +932,9 @@ model CompanyReview {
   target            Company      @relation("ReviewsReceived", fields: [targetCompanyId], references: [id], onDelete: Cascade)
   rating            Int // 1-5 (servis doğrular)
   comment           String?
+  // 2026-08-22: değerlendiren firma adı platform-içi profilde yalnız opt-in ile
+  // görünür ("referans olarak adım görünsün"); herkese açık sayfada asla.
+  showName          Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

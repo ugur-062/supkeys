@@ -23,11 +23,16 @@ export function OrderReviewCard({
   const upsert = useUpsertReview(orderId);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  // Opt-in referans (2026-08-22): varsayılan KAPALI — profilde "Doğrulanmış
+  // alıcı/tedarikçi" olarak anonim görünür; açılırsa platform-içi profilde
+  // firma adı görünür (herkese açık sayfada asla).
+  const [showName, setShowName] = useState(false);
 
   useEffect(() => {
     if (existing) {
       setRating(existing.rating);
       setComment(existing.comment ?? "");
+      setShowName(existing.showName ?? false);
     }
   }, [existing]);
 
@@ -37,7 +42,7 @@ export function OrderReviewCard({
       return;
     }
     try {
-      await upsert.mutateAsync({ rating, comment: comment.trim() || undefined });
+      await upsert.mutateAsync({ rating, comment: comment.trim() || undefined, showName });
       toast.success("Değerlendirmeniz kaydedildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kaydedilemedi"));
@@ -74,6 +79,23 @@ export function OrderReviewCard({
       <p className="mt-1 text-right text-xs text-zinc-400">
         {comment.length}/2000
       </p>
+
+      <label className="mt-2 flex items-start gap-2 text-sm text-zinc-700">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={showName}
+          onChange={(e) => setShowName(e.target.checked)}
+        />
+        <span>
+          Firma adım referans olarak görünsün
+          <span className="block text-xs text-zinc-500">
+            Kapalıyken “Doğrulanmış {title.includes("Tedarikçi") ? "alıcı" : "tedarikçi"}” olarak
+            anonim görünürsünüz. Açıksa yalnız platform içindeki firma profilinde adınız
+            görünür; herkese açık sayfada hiçbir zaman görünmez.
+          </span>
+        </span>
+      </label>
 
       <div className="mt-3 flex justify-end">
         <Button onClick={save} disabled={upsert.isPending || rating < 1}>

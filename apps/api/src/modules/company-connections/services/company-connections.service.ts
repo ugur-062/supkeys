@@ -1,4 +1,9 @@
 import {
+  REVIEW_SUMMARY_SELECT,
+  REVIEW_SUMMARY_TAKE,
+  buildReviewSummary,
+} from "../../company-reviews/review-summary";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -931,7 +936,7 @@ export class CompanyConnectionsService {
       throw new NotFoundException("Firma profili bulunamadı");
     }
 
-    const [listings, ratingAgg, reviews] = await Promise.all([
+    const [listings, reviewRows] = await Promise.all([
       this.prisma.listing.findMany({
         where: {
           companyId: c.id,
@@ -954,24 +959,16 @@ export class CompanyConnectionsService {
         orderBy: { createdAt: "desc" },
         take: 100,
       }),
-      this.prisma.companyReview.aggregate({
-        where: { targetCompanyId: c.id },
-        _avg: { rating: true },
-        _count: true,
-      }),
-      // Madde 18: değerlendirme listesi — public profil (getBySlug) aynası.
+      // 2026-08-22: firma bazında gruplu özet — platform içi: ad yalnız
+      // değerlendirenin opt-in'iyle (showName), aksi "Doğrulanmış alıcı/tedarikçi".
       this.prisma.companyReview.findMany({
         where: { targetCompanyId: c.id },
-        select: {
-          rating: true,
-          comment: true,
-          createdAt: true,
-          reviewer: { select: { name: true } },
-        },
+        select: REVIEW_SUMMARY_SELECT,
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: REVIEW_SUMMARY_TAKE,
       }),
     ]);
+    const reviewSummary = buildReviewSummary(reviewRows, { revealNames: true });
 
     return {
       profile: {
@@ -996,16 +993,8 @@ export class CompanyConnectionsService {
         website: c.website,
         linkedinUrl: c.linkedinUrl,
         instagramUrl: c.instagramUrl,
-        rating: {
-          avg: ratingAgg._avg.rating ?? 0,
-          count: ratingAgg._count,
-        },
-        reviews: reviews.map((r) => ({
-          rating: r.rating,
-          comment: r.comment,
-          reviewer: r.reviewer.name,
-          createdAt: r.createdAt,
-        })),
+        rating: { avg: reviewSummary.avg, count: reviewSummary.orders },
+        reviewSummary,
         trade: {
           legalName: c.legalName,
           taxNumber: c.taxNumber,

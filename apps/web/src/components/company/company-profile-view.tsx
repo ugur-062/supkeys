@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { StarIcon } from "@heroicons/react/20/solid";
+import type { ReviewSummary } from "@rothern/shared";
 
 import { safeExternalUrl } from "@/lib/safe-url";
 import { SafeCoverImage } from "@/components/company/safe-cover-image";
@@ -52,13 +53,11 @@ export interface ProfileViewData {
   linkedinUrl: string | null;
   instagramUrl: string | null;
   rating?: { avg: number; count: number } | null;
-  /** Madde 18 — sipariş değerlendirmeleri (yorum + puan + değerlendiren firma). */
-  reviews?: {
-    rating: number;
-    comment: string | null;
-    reviewer: string;
-    createdAt: string;
-  }[];
+  /**
+   * 2026-08-22 — firma bazında gruplu değerlendirme özeti (api → shared
+   * ReviewSummary). Ad yalnız opt-in + platform içi; herkese açıkta null.
+   */
+  reviewSummary?: ReviewSummary | null;
   /** Kamuya açık ticari sicil bilgileri (tüzel kişi verisi). */
   trade?: {
     legalName: string | null;
@@ -422,54 +421,120 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
-          {/* Madde 18 — değerlendirmeler: yorum + puan listesi (en yeni önce). */}
-          {(p.reviews?.length ?? 0) > 0 ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">
-                Değerlendirmeler
-                {p.rating && p.rating.count > 0 ? (
-                  <span className="ml-2 inline-flex items-center gap-1 text-sm font-medium text-amber-600">
-                    <StarIcon className="size-4 text-rating" aria-hidden />
-                    {p.rating.avg.toFixed(1)}{" "}
-                    <span className="text-zinc-400">({p.rating.count})</span>
-                  </span>
-                ) : null}
-              </h2>
-              <ul className="mt-3 space-y-4">
-                {p.reviews!.map((r, i) => (
-                  <li
-                    key={`${r.reviewer}-${r.createdAt}-${i}`}
-                    className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-semibold text-zinc-900">
-                        {r.reviewer}
-                      </span>
-                      <span
-                        className="shrink-0 text-sm text-amber-500"
-                        aria-label={`${r.rating} / 5`}
-                      >
-                        {"★".repeat(r.rating)}
-                        <span className="text-zinc-200" aria-hidden="true">
-                          {"★".repeat(Math.max(0, 5 - r.rating))}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="text-xs text-zinc-400">
-                      {new Date(r.createdAt).toLocaleDateString("tr-TR")}
-                    </div>
-                    {r.comment ? (
-                      <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-600">
-                        {r.comment}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {/* Değerlendirmeler — firma bazında gruplu özet (2026-08-22): genel
+              puan = ortak ortalamalarının ortalaması; her ortak tek satır;
+              ad yalnız opt-in + platform içi ("Doğrulanmış alıcı/tedarikçi"). */}
+          {p.reviewSummary && p.reviewSummary.orders > 0 ? (
+            <ReviewSummarySection s={p.reviewSummary} />
           ) : null}
         </div>
       </div>
     </div>
   );
 }
+
+const ROLE_LABEL = { buyer: "Doğrulanmış alıcı", seller: "Doğrulanmış tedarikçi" } as const;
+
+function Stars({ value, label }: { value: number; label?: string }) {
+  const full = Math.round(value);
+  return (
+    <span className="shrink-0 text-sm text-amber-500" aria-label={label ?? `${value} / 5`}>
+      {"★".repeat(Math.max(0, Math.min(5, full)))}
+      <span className="text-zinc-200" aria-hidden="true">
+        {"★".repeat(Math.max(0, 5 - full))}
+      </span>
+    </span>
+  );
+}
+
+function monthYear(iso: string): string {
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime())
+    ? d.toLocaleDateString("tr-TR", { month: "short", year: "numeric" })
+    : "";
+}
+
+/**
+ * Değerlendirme özeti bölümü — sunucu bileşeninde de çalışır (olay işleyici
+ * yok; "diğer yorumlar" native <details>). Hem /firma/[slug] hem platform içi.
+ */
+function ReviewSummarySection({ s }: { s: ReviewSummary }) {
+  const maxDist = Math.max(1, ...([5, 4, 3, 2, 1] as const).map((k) => s.distribution[k]));
+  return (
+    <section className="card p-6">
+      <h2 className="text-base font-semibold text-zinc-900">Değerlendirmeler</h2>
+      <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-3xl font-semibold tabular-nums text-zinc-900">
+              {s.avg.toFixed(1)}
+            </span>
+            <Stars value={s.avg} label={`Genel ${s.avg.toFixed(1)} / 5`} />
+          </div>
+          <div className="mt-0.5 text-xs text-zinc-500">
+            {s.firms} firma · {s.orders} sipariş · her firma bir oy
+          </div>
+        </div>
+        <dl className="min-w-[160px] flex-1 space-y-1">
+          {([5, 4, 3, 2, 1] as const).map((k) => (
+            <div key={k} className="flex items-center gap-2 text-xs text-zinc-500">
+              <dt className="w-3 tabular-nums">{k}</dt>
+              <dd className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-amber-400"
+                  style={{ width: `${(s.distribution[k] / maxDist) * 100}%` }}
+                />
+              </dd>
+              <dd className="w-5 text-right tabular-nums">{s.distribution[k]}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <ul className="mt-4 space-y-3">
+        {s.partners.map((pt, i) => {
+          const [latest, ...rest] = pt.comments;
+          return (
+            <li key={`${pt.role}-${pt.lastAt}-${i}`} className="border-t border-zinc-100 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="truncate text-sm font-semibold text-zinc-900">
+                    {pt.name ?? ROLE_LABEL[pt.role]}
+                  </span>
+                  {pt.name ? (
+                    <span className="ml-2 text-xs text-zinc-400">{ROLE_LABEL[pt.role].replace("Doğrulanmış ", "")}</span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <Stars value={pt.avg} label={`${pt.avg} / 5`} />
+                  <span className="tabular-nums">{pt.avg.toFixed(1)}</span>
+                  <span>· {pt.count} sipariş</span>
+                  <span>· {monthYear(pt.lastAt)}</span>
+                </div>
+              </div>
+              {latest ? (
+                <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{latest.comment}</p>
+              ) : null}
+              {rest.length > 0 ? (
+                <details className="mt-1">
+                  <summary className="cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-800">
+                    Diğer {rest.length} yorum
+                  </summary>
+                  <ul className="mt-2 space-y-2">
+                    {rest.map((c, j) => (
+                      <li key={j} className="text-sm text-zinc-600">
+                        <span className="mr-2 text-xs text-zinc-400">{monthYear(c.createdAt)} · {c.rating}/5</span>
+                        <span className="whitespace-pre-wrap">{c.comment}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+

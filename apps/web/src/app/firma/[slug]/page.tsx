@@ -1,4 +1,5 @@
 import { CompanyProfileView } from "@/components/company/company-profile-view";
+import type { ReviewSummary } from "@rothern/shared";
 import { serializeJsonLd } from "@/lib/json-ld";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -27,12 +28,7 @@ interface PublicProfile {
   linkedinUrl: string | null;
   instagramUrl: string | null;
   rating: { avg: number; count: number } | null;
-  reviews?: {
-    rating: number;
-    comment: string | null;
-    reviewer: string;
-    createdAt: string;
-  }[];
+  reviewSummary?: ReviewSummary | null;
 }
 
 function apiBase() {

@@ -386,6 +386,7 @@ export function useOrderReview(orderId: string, enabled: boolean) {
       const { data } = await companyApi.get<{
         rating: number;
         comment: string | null;
+        showName?: boolean;
       } | null>(`/company/reviews/order/${orderId}`);
       return data;
     },
@@ -396,7 +397,7 @@ export function useOrderReview(orderId: string, enabled: boolean) {
 export function useUpsertReview(orderId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { rating: number; comment?: string }) => {
+    mutationFn: async (input: { rating: number; comment?: string; showName?: boolean }) => {
       const { data } = await companyApi.post("/company/reviews", {
         orderId,
         ...input,

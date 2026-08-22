@@ -1,4 +1,9 @@
 import { tierAtLeast } from "@rothern/shared";
+import {
+  REVIEW_SUMMARY_SELECT,
+  REVIEW_SUMMARY_TAKE,
+  buildReviewSummary,
+} from "../company-reviews/review-summary";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
@@ -57,27 +62,16 @@ export class PublicProfileService {
     ) {
       throw new NotFoundException("Profil bulunamadı");
     }
-    const [ratingAgg, reviews] = await Promise.all([
-      this.prisma.companyReview.aggregate({
-        where: { targetCompanyId: c.id },
-        _avg: { rating: true },
-        _count: true,
-      }),
-      // Madde 18: değerlendirme LİSTESİ de public profilde gösterilir.
-      // Yorum + puan + değerlendiren firma adı (B2B — firma adı zaten ticari
-      // kimliktir); sipariş/tutar detayı SIZMAZ.
-      this.prisma.companyReview.findMany({
-        where: { targetCompanyId: c.id },
-        select: {
-          rating: true,
-          comment: true,
-          createdAt: true,
-          reviewer: { select: { name: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      }),
-    ]);
+    // 2026-08-22: firma bazında gruplu özet; HERKESE AÇIK uçta değerlendiren
+    // adı ASLA (revealNames=false) — "X, Y'den alım yapmış" ticari ilişki
+    // haritasıdır; "Doğrulanmış alıcı/tedarikçi" + rol + tarih yeter.
+    const reviewRows = await this.prisma.companyReview.findMany({
+      where: { targetCompanyId: c.id },
+      select: REVIEW_SUMMARY_SELECT,
+      orderBy: { createdAt: "desc" },
+      take: REVIEW_SUMMARY_TAKE,
+    });
+    const reviewSummary = buildReviewSummary(reviewRows, { revealNames: false });
     const { id, publicEnabled, isActive, isBlocked, tier, membershipEndAt, ...pub } =
       c;
     void id;
@@ -93,13 +87,9 @@ export class PublicProfileService {
       goldMember:
         effectiveTier(tier as string, membershipEndAt as Date | null) ===
         "GOLD",
-      rating: { avg: ratingAgg._avg.rating ?? 0, count: ratingAgg._count },
-      reviews: reviews.map((r) => ({
-        rating: r.rating,
-        comment: r.comment,
-        reviewer: r.reviewer.name,
-        createdAt: r.createdAt,
-      })),
+      // rating: geriye uyumlu kısa biçim (firma-ağırlıklı ortalama + sipariş sayısı).
+      rating: { avg: reviewSummary.avg, count: reviewSummary.orders },
+      reviewSummary,
     };
   }
 
