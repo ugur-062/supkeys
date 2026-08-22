@@ -83,3 +83,60 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     expect(screen.getByText("Onaylar")).toBeInTheDocument();
   });
 });
+
+describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", () => {
+  it("satınalma: sıra Anasayfa→İhalelerim→Satın Al→Tekliflerim→Siparişlerim→Bağlantılar→Onaylar→Ayarlar; Raporlar/Şablonlar/Profilim menüde YOK", () => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.canAct = true;
+    render(<CompanySidebarContent expanded showPin={false} />);
+    const labels = screen
+      .getAllByRole("link")
+      .map((a) => a.textContent?.trim())
+      .filter((t): t is string => !!t);
+    // Portal anahtarı (Satınalma/Satış) ve CTA da link — yalnız nav satırlarını süz.
+    const nav = labels.filter((t) =>
+      [
+        "Anasayfa",
+        "İhalelerim",
+        "Satın Al",
+        "Tekliflerim",
+        "Siparişlerim",
+        "Bağlantılar",
+        "Onaylar",
+        "Ayarlar",
+      ].includes(t),
+    );
+    expect(nav).toEqual([
+      "Anasayfa",
+      "İhalelerim",
+      "Satın Al",
+      "Tekliflerim",
+      "Siparişlerim",
+      "Bağlantılar",
+      "Onaylar",
+      "Ayarlar",
+    ]);
+    expect(screen.queryByText("Raporlar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Şablonlar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
+  });
+
+  it("satış: Satış İhalelerim→Açık İhaleler→Satış Tekliflerim→Satışlarım→Bağlantılar; ikincil sayfalar menüde YOK", () => {
+    h.auth.user = { roles: ["SATISCI"] };
+    h.canAct = false;
+    render(<CompanySidebarContent expanded showPin={false} />);
+    const labels = screen
+      .getAllByRole("link")
+      .map((a) => a.textContent?.trim());
+    const idx = (t: string) => labels.indexOf(t);
+    expect(idx("Satış İhalelerim")).toBeGreaterThan(idx("Anasayfa"));
+    expect(idx("Açık İhaleler")).toBeGreaterThan(idx("Satış İhalelerim"));
+    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Açık İhaleler"));
+    expect(idx("Satışlarım")).toBeGreaterThan(idx("Satış Tekliflerim"));
+    expect(idx("Bağlantılar")).toBeGreaterThan(idx("Satışlarım"));
+    expect(screen.queryByText("Raporlar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Şablonlar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
+  });
+});
+

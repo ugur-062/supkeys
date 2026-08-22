@@ -1,4 +1,4 @@
-import { PORTALS } from "./portals";
+import { PORTALS, allPortalRoutes } from "./portals";
 
 const EXTRA: Record<string, string> = {
   "/company/ayarlar": "Ayarlar",
@@ -12,7 +12,7 @@ const EXTRA: Record<string, string> = {
 export function getCompanyBreadcrumb(pathname: string): string {
   for (const p of Object.values(PORTALS)) {
     if (pathname === p.basePath) return `${p.label} · Anasayfa`;
-    for (const item of p.nav) {
+    for (const item of allPortalRoutes(p)) {
       if (pathname === item.href) return item.label;
     }
   }

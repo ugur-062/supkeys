@@ -1,6 +1,6 @@
 "use client";
 
-import { MODULE_LABELS } from "@/lib/company/portals";
+import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
 import {
   FilterSelect,
   PageHeader,
@@ -15,7 +15,7 @@ import {
   useTenders,
   type TenderListItem,
 } from "@/hooks/use-company-tenders";
-import { ArrowUpDown, Building2, CalendarRange, Globe, Plus, User as UserIcon } from "lucide-react";
+import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, Plus, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useSearchParams } from "next/navigation";
@@ -82,6 +82,7 @@ export function IhalelerView({
   listingType?: "ALIM" | "SATIS";
 } = {}) {
   const isSatis = listingType === "SATIS";
+  const secondary = PORTAL_SECONDARY_HREFS[isSatis ? "satis" : "satinalma"];
   const canCreate = useHasCompanyPermission(
     isSatis ? "sell:listing:create" : "buy:listing:create",
   );
@@ -226,22 +227,39 @@ export function IhalelerView({
             : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         }
         action={
-          // F7: ilan açma buy|sell:listing:create ister (yalnız SA/ST taşır) —
-          // etiket-only gözetimde buton görünmez; liste salt-okunur kalır.
-          canCreate ? (
-            <Link
-              href={
-                isSatis
-                  ? "/company/satis/ilanlarim/yeni"
-                  : "/company/satinalma/ihalelerim/yeni"
-              }
-            >
-              <Button variant="primary">
-                <Plus className="h-4 w-4" />
-                {isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Sol menü sadeleştirmesi (2026-08-22): Şablonlar + Raporlar
+                menüden kalktı — tek giriş noktası bu sayfanın başlığı. Sayfalar
+                kendi kapılarını (rol/tier) kendileri uygular. */}
+            <Link href={secondary.sablonlar}>
+              <Button variant="secondary">
+                <LayoutTemplate className="h-4 w-4" />
+                Şablonlar
               </Button>
             </Link>
-          ) : undefined
+            <Link href={secondary.raporlar}>
+              <Button variant="secondary">
+                <BarChart3 className="h-4 w-4" />
+                Raporlar
+              </Button>
+            </Link>
+            {/* F7: ilan açma buy|sell:listing:create ister (yalnız SA/ST taşır) —
+                etiket-only gözetimde buton görünmez; liste salt-okunur kalır. */}
+            {canCreate ? (
+              <Link
+                href={
+                  isSatis
+                    ? "/company/satis/ilanlarim/yeni"
+                    : "/company/satinalma/ihalelerim/yeni"
+                }
+              >
+                <Button variant="primary">
+                  <Plus className="h-4 w-4" />
+                  {isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+                </Button>
+              </Link>
+            ) : null}
+          </div>
         }
       />
 

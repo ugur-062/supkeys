@@ -4,9 +4,14 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useActivePortal } from "@/hooks/use-active-portal";
+import { PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
-import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+
+/** Sol menüden kalkan Profilim'in yeni giriş noktası — href aktif portala göre çözülür. */
+const PROFILE_CARD_HREF = "__firma-profili__";
 
 interface SettingsCard {
   href: string;
@@ -58,6 +63,15 @@ const GROUPS: SettingsGroup[] = [
     title: "Firma Ayarları",
     subtitle: "Firmanızı, ekip üyelerini ve süreçleri yönetin",
     items: [
+      {
+        // 2026-08-22 menü sadeleştirmesi: "Profilim" sol menüden kalktı; vitrin
+        // (herkese açık profil) buradan açılır. Firma Bilgileri = ticari kayıt,
+        // Firma Profili = vitrin — ayrım korunur (bkz. profile/settings split).
+        href: PROFILE_CARD_HREF,
+        icon: Store,
+        title: "Firma Profili",
+        description: "Herkese açık vitrin — logo, tanıtım, kategoriler, değerlendirmeler",
+      },
       {
         href: "/company/ayarlar/firma",
         icon: Building2,
@@ -122,6 +136,11 @@ const GROUPS: SettingsGroup[] = [
 
 export default function AyarlarPage() {
   const { user, company } = useCompanyAuth();
+  const activePortal = useActivePortal();
+  const resolveHref = (href: string) =>
+    href === PROFILE_CARD_HREF
+      ? PORTAL_SECONDARY_HREFS[activePortal].profilim
+      : href;
   const isManager =
     !!user &&
     (user.isOwner ||
@@ -173,7 +192,7 @@ export default function AyarlarPage() {
                 {items.map((s) => (
                   <Link
                     key={s.href}
-                    href={s.href}
+                    href={resolveHref(s.href)}
                     className={cn(
                       "group flex items-center gap-4 card p-5",
                       "transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",

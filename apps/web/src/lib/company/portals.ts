@@ -34,7 +34,16 @@ export interface PortalDef {
   role: CompanyRole;
   basePath: string;
   accent: "blue" | "emerald";
+  /** Sol menüde görünen satırlar (düz liste, iç içe yok). */
   nav: PortalNavItem[];
+  /**
+   * Menüde GÖRÜNMEYEN ama portala ait ikincil sayfalar (2026-08-22 menü
+   * sadeleştirmesi): Raporlar + Şablonlar → İhalelerim sayfası başlığından,
+   * Profilim → Ayarlar hub'ından açılır. Breadcrumb/routeLabel sözlüğü
+   * (nav-config, terms) nav+secondaryNav'ı birlikte tarar — sayfa başlığı ve
+   * geri linki adını kaybetmez.
+   */
+  secondaryNav: PortalNavItem[];
 }
 
 /**
@@ -90,6 +99,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satinalma/siparisler",
       },
       {
+        icon: UsersIcon,
+        label: "Bağlantılar",
+        href: "/company/satinalma/tedarikcilerim",
+      },
+    ],
+    secondaryNav: [
+      {
         icon: ChartBarIcon,
         label: "Raporlar",
         href: "/company/satinalma/raporlar",
@@ -100,11 +116,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         label: "Şablonlar",
         href: "/company/satinalma/sablonlar",
         minTier: "SILVER",
-      },
-      {
-        icon: UsersIcon,
-        label: "Bağlantılar",
-        href: "/company/satinalma/tedarikcilerim",
       },
       {
         icon: IdentificationIcon,
@@ -144,6 +155,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satis/siparisler",
       },
       {
+        icon: BuildingStorefrontIcon,
+        label: "Bağlantılar",
+        href: "/company/satis/musterilerim",
+      },
+    ],
+    secondaryNav: [
+      {
         icon: ChartBarIcon,
         label: "Raporlar",
         href: "/company/satis/raporlar",
@@ -154,11 +172,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         label: "Şablonlar",
         href: "/company/satis/sablonlar",
         minTier: "SILVER",
-      },
-      {
-        icon: BuildingStorefrontIcon,
-        label: "Bağlantılar",
-        href: "/company/satis/musterilerim",
       },
       {
         icon: IdentificationIcon,
@@ -228,3 +241,25 @@ export function isPortalItemActive(
   if (base) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+/** Portalın tüm rotaları (menü + ikincil) — breadcrumb/etiket sözlükleri için. */
+export function allPortalRoutes(def: PortalDef): PortalNavItem[] {
+  return [...def.nav, ...def.secondaryNav];
+}
+
+/** Portala göre Profilim / Raporlar / Şablonlar adresleri (menü dışı giriş noktaları). */
+export const PORTAL_SECONDARY_HREFS: Record<
+  PortalKey,
+  { profilim: string; raporlar: string; sablonlar: string }
+> = {
+  satinalma: {
+    profilim: "/company/satinalma/profilim",
+    raporlar: "/company/satinalma/raporlar",
+    sablonlar: "/company/satinalma/sablonlar",
+  },
+  satis: {
+    profilim: "/company/satis/profilim",
+    raporlar: "/company/satis/raporlar",
+    sablonlar: "/company/satis/sablonlar",
+  },
+};

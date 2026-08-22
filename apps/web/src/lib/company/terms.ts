@@ -1,4 +1,4 @@
-import { PORTALS } from "@/lib/company/portals";
+import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
 
 /**
  * P2 (frontend denetimi §8.3) — terminoloji TEK kaynak. "İlan" kelimesi
@@ -15,7 +15,7 @@ export const TERMS = {
 /** Rota → sidebar etiketi (tam eşleşme). Bulunamazsa null. */
 const ROUTE_LABELS: Record<string, string> = Object.fromEntries(
   Object.values(PORTALS).flatMap((p) =>
-    p.nav.map((item) => [item.href, item.label]),
+    allPortalRoutes(p).map((item) => [item.href, item.label]),
   ),
 );
 

@@ -177,10 +177,6 @@ export function CompanySidebarContent({
   // YONETICI/SAHIP etiketi accessiblePortals'ın manager dalıyla panel aldığı
   // için salt-okunur gözetim (Faz R) DEĞİŞMEZ.
   const minimal = available.length === 0;
-  // Profilim öğesi (portal-özel href) — ayraç altında ayrı render edilir.
-  const profilItem = minimal
-    ? undefined
-    : portal.nav.find((i) => i.href.endsWith("/profilim"));
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -273,12 +269,10 @@ export function CompanySidebarContent({
         </div>
       ) : null}
 
-      {/* Nav — Profilim ayraç altına alınır; Onaylar onun eski (liste-içi) yerine
-          gelir (kullanıcı isteği: Onaylar ↔ Profil yer değişimi). */}
+      {/* Nav — DÜZ liste, iç içe/akordeon yok (2026-08-22 sadeleştirme):
+          Raporlar/Şablonlar İhalelerim sayfasından, Profilim Ayarlar'dan açılır. */}
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">
-        {(minimal ? [] : portal.nav)
-          .filter((item) => !item.href.endsWith("/profilim"))
-          .map((item) => (
+        {(minimal ? [] : portal.nav).map((item) => (
             <RailItem
               key={item.href}
               href={item.href}
@@ -292,7 +286,10 @@ export function CompanySidebarContent({
             />
           ))}
 
-        {/* Onaylar — Profilim'in eski liste-içi konumu (ayraçsız). */}
+        {/* Onaylar — panel nav'ından ayraçla ayrılır (yönetsel). */}
+        {canAct && !minimal ? (
+          <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
+        ) : null}
         {canAct ? (
           <RailItem
             href="/company/onaylar"
@@ -306,21 +303,6 @@ export function CompanySidebarContent({
           />
         ) : null}
 
-        {/* Profilim — Onaylar'ın eski (ayraç altı) konumu. */}
-        {profilItem ? (
-          <>
-            <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
-            <RailItem
-              href={profilItem.href}
-              icon={profilItem.icon}
-              label={profilItem.label}
-              active={isPortalItemActive(profilItem.href, pathname)}
-              accent={portal.accent}
-              expanded={expanded}
-              onClick={onNavigate}
-            />
-          </>
-        ) : null}
       </nav>
 
       {/* Alt: Ayarlar (sol altta) + pin */}
