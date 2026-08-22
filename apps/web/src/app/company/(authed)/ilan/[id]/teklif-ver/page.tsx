@@ -52,14 +52,19 @@ import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import {
   CheckCircle2,
   AlertTriangle,
+  FileSpreadsheet,
   FileText,
   Info,
   Lock,
   Paperclip,
+  Sparkles,
   Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
+import { BidImportDialog, type BidImportApplyRow, type BidImportVariant } from "@/components/bids/bid-import-dialog";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { tierAtLeast } from "@rothern/shared";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -204,6 +209,9 @@ export default function TeklifVerPage() {
   const [seeded, setSeeded] = useState(false);
   // Pazarlık çalışma masası: kilitli kalemler + taşınan (diff/Sıfırla) fiyatlar.
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+  // Fiyat içe aktarma dialog durumu + paket (hook'lar erken return'den ÖNCE).
+  const [bidImport, setBidImport] = useState<BidImportVariant | null>(null);
+  const { company: authCompany } = useCompanyAuth();
   const [initialPrices, setInitialPrices] = useState<Record<string, string>>(
     {},
   );
@@ -635,6 +643,51 @@ export default function TeklifVerPage() {
       ...s,
       [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {} }), ...patch },
     }));
+
+  // Fiyat içe aktarma (Faz 2, 2026-08-22): "Excel Şablonu ile Fiyatla" (AI'sız,
+  // her paket) + "Belgeden Fiyatla (AI)" (Silver+). Yalnız itemState dolar;
+  // gönderme aynı akış (monotonluk/award nöbetçisi/zorunlu-kalem kapıları aynen).
+  const aiAllowed = tierAtLeast(authCompany?.tier ?? "STANDART", "SILVER");
+  const multiCurrency = (l?.allowedCurrencies?.length ?? 0) > 1;
+  const applyImportedPrices = (rows: BidImportApplyRow[]) => {
+    setItemState((s) => {
+      const out = { ...s };
+      for (const r of rows) {
+        if (lockedIds.has(r.itemId)) continue; // çalışma masasında kilitli kalem korunur
+        const prev = out[r.itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {} };
+        out[r.itemId] = {
+          ...prev,
+          price: String(r.unitPrice),
+          currency: multiCurrency && r.currency ? r.currency : prev.currency,
+          deliveryTime: r.deliveryTime ?? prev.deliveryTime,
+        };
+      }
+      return out;
+    });
+    const skipped = rows.filter((r) => lockedIds.has(r.itemId)).length;
+    toast.success(
+      `${rows.length - skipped} kalemin fiyatı forma yazıldı${skipped ? ` (${skipped} kilitli kalem atlandı)` : ""} — göndermeden önce kontrol edin`,
+    );
+  };
+  const bidImportButtons =
+    hasItems && !isBuyNowMode && l ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button outline onClick={() => setBidImport("excel")}>
+          <FileSpreadsheet className="h-4 w-4" />
+          Excel Şablonu ile Fiyatla
+        </Button>
+        <Button
+          outline
+          disabled={!aiAllowed}
+          title={aiAllowed ? undefined : "Belgeden fiyatlama Silver ve üzeri paketlerde"}
+          onClick={() => setBidImport("ai")}
+        >
+          <Sparkles className="h-4 w-4" />
+          Belgeden Fiyatla (AI)
+          {!aiAllowed ? <Lock className="h-3.5 w-3.5 text-zinc-400" aria-hidden /> : null}
+        </Button>
+      </div>
+    ) : null;
 
   // Çalışma masası araçları: toplu fiyat yazımı + kalem kilidi.
   const applyPrices = (next: Record<string, string>) =>
@@ -1133,11 +1186,25 @@ export default function TeklifVerPage() {
             ) : null}
           </section>
 
+          {l && bidImport ? (
+            <BidImportDialog
+              open
+              variant={bidImport}
+              listingId={l.id}
+              currencyLabel={effectiveCurrency}
+              onClose={() => setBidImport(null)}
+              onApply={applyImportedPrices}
+            />
+          ) : null}
+
           {/* Kalem fiyatları — pazarlıkta çalışma masası (hedef çubuğu +
               toplu araçlar + kompakt tablo), diğer akışlarda kart listesi. */}
           {hasItems && auctionItemsMode ? (
             <section className="space-y-3">
-              <Subheading>Kalem Fiyatları</Subheading>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Subheading>Kalem Fiyatları</Subheading>
+                {bidImportButtons}
+              </div>
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   Bu ihalede <strong>tüm kalemlere</strong> teklif vermek zorunlu.
@@ -1165,7 +1232,10 @@ export default function TeklifVerPage() {
             </section>
           ) : hasItems ? (
             <section className="space-y-3">
-              <Subheading>Kalem Fiyatları</Subheading>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Subheading>Kalem Fiyatları</Subheading>
+                {bidImportButtons}
+              </div>
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   Bu ihalede <strong>tüm kalemlere</strong> teklif vermek zorunlu.

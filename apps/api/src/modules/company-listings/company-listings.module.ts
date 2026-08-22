@@ -5,6 +5,8 @@ import { CompanyBlocksModule } from "../company-blocks/company-blocks.module";
 import { EmailModule } from "../email/email.module";
 import { NotificationModule } from "../notifications/notification.module";
 import { CompanyListingsController } from "./controllers/company-listings.controller";
+import { BidImportController } from "./import/bid-import.controller";
+import { BidImportService } from "./import/bid-import.service";
 import { ListingItemImportController } from "./import/listing-item-import.controller";
 import { ListingItemImportService } from "./import/listing-item-import.service";
 import { ListingScheduler } from "./schedulers/listing.scheduler";
@@ -18,9 +20,9 @@ import { CompanyListingsService } from "./services/company-listings.service";
     EmailModule,
     NotificationModule,
   ],
-  controllers: [CompanyListingsController, ListingItemImportController],
-  providers: [CompanyListingsService, ListingScheduler, ListingItemImportService],
+  controllers: [CompanyListingsController, ListingItemImportController, BidImportController],
+  providers: [CompanyListingsService, ListingScheduler, ListingItemImportService, BidImportService],
   // Faz AI-2: asistan araçları bu servisi kullanıcı kimliğiyle çağırır.
-  exports: [CompanyListingsService],
+  exports: [CompanyListingsService, BidImportService],
 })
 export class CompanyListingsModule {}
