@@ -106,18 +106,43 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /**
+ * YERİNDE DÜZENLEME slotları (2026-08-22, Profilim editörü): verilirse ilgili
+ * bölge salt-okunur içerik yerine slot'u render eder ve boş olsa da GÖRÜNÜR
+ * (kullanıcı "+ Hakkında ekle" gibi yer tutucu görür). Verilmezse bileşen
+ * herkese açık sayfadaki gibi salt-okunur davranır — public görünüm ve editör
+ * AYNI düzeni paylaşır (tek kaynak), içerik farkı yalnız slot'ta.
+ */
+export interface ProfileEditSlots {
+  /** Kapak alanının üstüne binen kontroller (absolute konumlandırılır). */
+  cover?: ReactNode;
+  /** Logo kutusunun üstüne binen kontroller. */
+  logo?: ReactNode;
+  /** Ad altındaki "sektör · konum" satırının yerine. */
+  headline?: ReactNode;
+  /** Künye şeridi (kuruluş/çalışan/web/sosyal) yerine. */
+  stats?: ReactNode;
+  about?: ReactNode;
+  gallery?: ReactNode;
+  services?: ReactNode;
+  certifications?: ReactNode;
+}
+
+/**
  * Firma profil görünümü — hem herkese açık SEO sayfası (/firma/[slug]) hem
  * bağlantı-içi sayfa (/company/firma/[id]) AYNI bileşeni kullanır. Tek fark:
- * `actions` (bağlan/engelle) ve `children` (ihaleler) slotları.
+ * `actions` (bağlan/engelle) ve `children` (ihaleler) slotları; Profilim
+ * editörü ayrıca `edit` slotlarıyla bölgeleri düzenlenebilir kılar.
  */
 export function CompanyProfileView({
   profile: p,
   actions,
   children,
+  edit,
 }: {
   profile: ProfileViewData;
   actions?: ReactNode;
   children?: ReactNode;
+  edit?: ProfileEditSlots;
 }) {
   const services = p.services ?? [];
   const certifications = p.certifications ?? [];
@@ -134,7 +159,7 @@ export function CompanyProfileView({
         <div
           className={cn(
             "relative w-full bg-gradient-to-br from-zinc-900 to-zinc-700",
-            p.coverImageUrl ? "h-40 sm:h-56" : "h-14 sm:h-16",
+            p.coverImageUrl ? "h-40 sm:h-56" : edit?.cover ? "h-28 sm:h-36" : "h-14 sm:h-16",
           )}
         >
           {p.coverImageUrl ? (
@@ -153,12 +178,13 @@ export function CompanyProfileView({
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             </>
           ) : null}
+          {edit?.cover ?? null}
         </div>
 
         <div className="px-5 pb-6 sm:px-8">
           <div className="relative z-10 -mt-14 flex flex-wrap items-end justify-between gap-4">
             <div className="flex items-end gap-4">
-              <div className="rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5">
+              <div className="relative rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5">
                 {p.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -171,6 +197,7 @@ export function CompanyProfileView({
                     {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
                   </div>
                 )}
+                {edit?.logo ?? null}
               </div>
               <div className="mb-1.5 min-w-0">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
@@ -181,6 +208,9 @@ export function CompanyProfileView({
                     </span>
                   ) : null}
                 </h1>
+                {edit?.headline ? (
+                  <div className="mt-1">{edit.headline}</div>
+                ) : (
                 <p className="mt-1 text-sm text-zinc-500">
                   {[p.industry, location].filter(Boolean).join("  ·  ") ||
                     "Rothern tedarik profili"}
@@ -193,6 +223,7 @@ export function CompanyProfileView({
                     </span>
                   ) : null}
                 </p>
+                )}
               </div>
             </div>
             {actions ? (
@@ -206,7 +237,9 @@ export function CompanyProfileView({
               başlık logoya alttan hizalı (items-end), oraya opsiyonel bir satır
               eklemek firma adını yukarı kaydırıyordu (değerlendirmesi olan/olmayan
               firmalar farklı hizalanıyordu). */}
-          {p.foundedYear ||
+          {edit?.stats ? (
+            <div className="mt-5 border-t border-zinc-100 pt-4">{edit.stats}</div>
+          ) : p.foundedYear ||
           p.employeeCount ||
           p.website ||
           p.linkedinUrl ||
@@ -249,7 +282,12 @@ export function CompanyProfileView({
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-6">
-          {p.aboutText ? (
+          {edit?.about ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Hakkında</h2>
+              <div className="mt-3">{edit.about}</div>
+            </section>
+          ) : p.aboutText ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">Hakkında</h2>
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
@@ -302,7 +340,12 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
-          {photos.length > 0 ? (
+          {edit?.gallery ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Galeri</h2>
+              <div className="mt-4">{edit.gallery}</div>
+            </section>
+          ) : photos.length > 0 ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">Galeri</h2>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -322,7 +365,12 @@ export function CompanyProfileView({
         </div>
 
         <div className="space-y-6">
-          {services.length > 0 ? (
+          {edit?.services ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>
+              <div className="mt-3">{edit.services}</div>
+            </section>
+          ) : services.length > 0 ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
                 Hizmetler
@@ -340,7 +388,12 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
-          {certifications.length > 0 || certificateImages.length > 0 ? (
+          {edit?.certifications ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Sertifikalar</h2>
+              <div className="mt-3">{edit.certifications}</div>
+            </section>
+          ) : certifications.length > 0 || certificateImages.length > 0 ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
                 Sertifikalar
