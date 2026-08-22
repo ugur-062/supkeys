@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { StarIcon } from "@heroicons/react/20/solid";
 
 import { safeExternalUrl } from "@/lib/safe-url";
+import { SafeCoverImage } from "@/components/company/safe-cover-image";
 
 /**
  * Dış bağlantı — YALNIZ http/https render eder (`javascript:` vb. düşürülür).
@@ -163,20 +164,10 @@ export function CompanyProfileView({
           )}
         >
           {p.coverImageUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={p.coverImageUrl}
-                alt={`${p.name} kapak görseli`}
-                className="h-full w-full object-cover"
-                // P0: kırık R2 URL'inde çıplak kırık-görsel ikonu yerine
-                // koyu zemine (kartın kendi arka planı) sessizce düş.
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-            </>
+            // P0: kırık R2 URL'inde çıplak kırık-görsel ikonu yerine koyu zemine
+            // sessizce düş — onError işleyicisi İSTEMCİ bileşeninde (bu dosya
+            // herkese açık sayfada sunucu bileşeni; RSC'de <img onError> 500 verir).
+            <SafeCoverImage src={p.coverImageUrl} alt={`${p.name} kapak görseli`} />
           ) : null}
           {edit?.cover ?? null}
         </div>
