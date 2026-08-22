@@ -60,6 +60,7 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 8. **Ana akış RFQ:** İngiliz Usulü açık eksiltme tipi kurulu ama ikincil/ayrı akış.
 9. **Body parser 25MB:** Vergi levhası + tender/bid attachment base64; R2 presigned URL altyapısı mevcut, tamamen taşınabilir.
 10. **Audit log append-only**, AI agent event-bus altyapısı ileride (Kafka/RabbitMQ).
+11. **Siparişte belge yükleme YOK (2026-08-22):** Platform muhasebe/belge arşivi değil — teminat/irsaliye/dekont/fatura/LC belgeleri firmaların kendi kanallarında yaşar (`company_order_documents` tablosu + `CompanyDocType` enum DROP edildi). Kalan: ödeme bildir/onayla/reddet (alındı-alınmadı), IBAN snapshot (accept'te banka hesabı zorunlu), LC adım damgaları BEYAN olarak (belge kapısı yok), `requireGuaranteeLetter` bayrağı yalnız BİLGİ (onay kapısı yok). İlan/teklif belgeleri ayrı modüller, aynen duruyor.
 
 ## Konvansiyonlar
 - Form validation: react-hook-form + zod (frontend), class-validator (backend DTO)

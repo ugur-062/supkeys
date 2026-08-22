@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 /**
  * Akreditif (LC) adım paneli — yalnız paymentCategory=LETTER_OF_CREDIT.
- * Akış: alıcı "Akreditif Açıldı" (LC belgesi yüklü) → satıcı "Akreditifi Kabul
+ * Akış: alıcı "Akreditif Açıldı" (beyan; belge yüklemesi yok) → satıcı "Akreditifi Kabul
  * Ettim" (gönderim kilidi açılır) → gönder/teslim → satıcı "Ödeme Bankadan
  * Alındı" (sistem onaylı tam-tutar kaydı üretir, sipariş tamamlanır).
  */
@@ -57,11 +57,11 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
         return isSeller
           ? {
               tone: "wait" as const,
-              text: "Alıcının akreditifi açması bekleniyor. Alıcı küşat mektubunu yükleyip 'Akreditif Açıldı' adımını tamamlayacak.",
+              text: "Alıcının akreditifi açması bekleniyor. Alıcı 'Akreditif Açıldı' adımını tamamlayacak; küşat mektubunu bankanızdan teyit edin.",
             }
           : {
               tone: "act" as const,
-              text: "Akreditifi açtırdıktan sonra küşat mektubunu aşağıdaki Belgeler bölümünden yükleyin ve 'Akreditif Açıldı' olarak işaretleyin.",
+              text: "Akreditifi bankanızdan açtırdıktan sonra 'Akreditif Açıldı' olarak işaretleyin; küşat mektubunu satıcıya banka kanalından iletin.",
               button: {
                 label: "Akreditif Açıldı",
                 onClick: () =>

@@ -16,7 +16,6 @@
 import { CompanyBidDocumentsService } from "../../src/modules/company-bid-documents/company-bid-documents.service";
 import { CompanyListingDocumentsService } from "../../src/modules/company-listing-documents/company-listing-documents.service";
 import { CompanyAddressesService } from "../../src/modules/company-addresses/company-addresses.service";
-import { CompanyOrderDocumentsService } from "../../src/modules/company-orders/company-order-documents.service";
 import { CompanyBlocksService } from "../../src/modules/company-blocks/company-blocks.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import {
@@ -354,99 +353,5 @@ describe("taslak/embargolu ilanın belgeleri indirilemez (getOne aynası)", () =
       items: [{ itemId: item.id, unitPrice: 50 }],
     });
     await expect(svc().list(other.auth, listing.id)).resolves.toEqual([]);
-  });
-});
-
-// ───────────────────────── 5. Sipariş belgeleri ─────────────────────────
-
-describe("sipariş belgesi — etki doğduktan sonra silinemez", () => {
-  const svc = () =>
-    new CompanyOrderDocumentsService(prisma as never, storageMock() as never);
-
-  async function order(
-    status: string,
-    docType: string,
-    over: Record<string, unknown> = {},
-  ) {
-    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
-    const o = await prisma.companyOrder.create({
-      data: {
-        sellerCompanyId: seller.company.id,
-        buyerCompanyId: buyer.company.id,
-        amount: 1000,
-        status: status as never,
-        ...over,
-      },
-    });
-    const uploader = docType === "PAYMENT" ? buyer : seller;
-    const doc = await prisma.companyOrderDocument.create({
-      data: {
-        orderId: o.id,
-        type: docType as never,
-        key: `orders/${o.id}/x.pdf`,
-        fileName: "x.pdf",
-        mimeType: "application/pdf",
-        uploadedByCompanyId: uploader.company.id,
-      },
-    });
-    return { seller, buyer, o, doc, uploader };
-  }
-
-  it("onaylanmış ödemenin dekontu silinemez", async () => {
-    const { buyer, o, doc } = await order("IN_DELIVERY", "PAYMENT");
-    await prisma.companyOrderPayment.create({
-      data: {
-        orderId: o.id,
-        amount: 1000,
-        status: "CONFIRMED",
-        recordedByCompanyId: buyer.company.id,
-      },
-    });
-    await expect(svc().remove(buyer.auth, o.id, doc.id)).rejects.toThrow(
-      /Onaylanmış ödemenin dekontu/,
-    );
-    expect(
-      await prisma.companyOrderDocument.count({ where: { id: doc.id } }),
-    ).toBe(1);
-  });
-
-  it("ödeme henüz onaylanmadıysa dekont silinebilir (yanlış yükleme düzeltmesi)", async () => {
-    const { buyer, o, doc } = await order("IN_DELIVERY", "PAYMENT");
-    await expect(svc().remove(buyer.auth, o.id, doc.id)).resolves.toEqual({
-      ok: true,
-    });
-  });
-
-  it("akreditif açıldı damgalandıysa küşat mektubu silinemez", async () => {
-    const { seller, o, doc } = await order("ACCEPTED", "LC", {
-      lcOpenedAt: new Date(),
-    });
-    // LC belgesini alıcı yükler; burada yükleyen satıcı olduğu için kendi
-    // belgesini silmeye çalışıyor — evre kilidi rolden ÖNCE test edilir.
-    await expect(svc().remove(seller.auth, o.id, doc.id)).rejects.toThrow(
-      /akreditif açıldı işaretlendikten sonra silinemez/,
-    );
-  });
-
-  it("teslim onaylandıysa irsaliye silinemez", async () => {
-    const { seller, o, doc } = await order("DELIVERED", "DELIVERY");
-    await expect(svc().remove(seller.auth, o.id, doc.id)).rejects.toThrow(
-      /teslimat onaylandıktan sonra silinemez/,
-    );
-  });
-
-  it("sonlanmış siparişin hiçbir belgesi silinemez", async () => {
-    const { seller, o, doc } = await order("COMPLETED", "INVOICE");
-    await expect(svc().remove(seller.auth, o.id, doc.id)).rejects.toThrow(
-      /Sonlanmış siparişin belgeleri/,
-    );
-  });
-
-  it("TEMINAT onaydan sonra silinemez (mevcut kural korunur)", async () => {
-    const { seller, o, doc } = await order("ACCEPTED", "TEMINAT");
-    await expect(svc().remove(seller.auth, o.id, doc.id)).rejects.toThrow(
-      /sipariş onaylandıktan sonra silinemez/,
-    );
   });
 });

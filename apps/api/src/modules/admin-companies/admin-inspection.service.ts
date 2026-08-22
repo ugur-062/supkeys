@@ -339,10 +339,6 @@ export class AdminInspectionService {
           },
           orderBy: { createdAt: "desc" },
         },
-        documents: {
-          select: { id: true, type: true, fileName: true, createdAt: true },
-          orderBy: { createdAt: "desc" },
-        },
       },
     });
     if (!o) throw new NotFoundException("Sipariş bulunamadı");

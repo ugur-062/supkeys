@@ -274,33 +274,6 @@ function OrderInspection({ id }: { id: string }) {
             </TableBody>
           </Table>
         </section>
-
-        <section className="admin-card overflow-hidden">
-          <div className="border-admin-border border-b px-5 py-3.5">
-            <h3 className="text-admin-text text-sm font-semibold">
-              Belgeler ({o.documents.length})
-            </h3>
-          </div>
-          <div className="divide-admin-border divide-y">
-            {o.documents.length === 0 ? (
-              <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
-                Belge yok
-              </p>
-            ) : (
-              o.documents.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center justify-between px-5 py-2.5"
-                >
-                  <span className="text-admin-text text-sm">{d.fileName}</span>
-                  <span className="text-admin-text-muted text-xs">
-                    {d.type} · {safeFormat(d.createdAt, "d MMM")}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
       </div>
 
       <PromptDialog

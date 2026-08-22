@@ -817,31 +817,22 @@ describe("taraf ve durum guard'ları", () => {
 });
 
 describe("teminat mektubu — ilan sahibinin seçimi (requireGuaranteeLetter)", () => {
-  it("teminat şartlı sipariş, teminat belgesi yüklenmeden onaylanamaz", async () => {
+  it("teminat şartlı sipariş BELGESİZ onaylanır — bayrak bilgi amaçlı (sipariş belgeleri kaldırıldı 2026-08-22)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
       paymentTiming: "BEFORE_DELIVERY",
       requireGuaranteeLetter: true,
     });
-
-    await expect(
-      orders.accept(seller.auth, order.id, acceptInput as never),
-    ).rejects.toThrow(/teminat mektubu/);
-
-    // Teminat yüklenince onay geçer.
-    await prisma.companyOrderDocument.create({
-      data: {
-        orderId: order.id,
-        type: "TEMINAT",
-        key: `company-orders/${order.id}/teminat/x.pdf`,
-        fileName: "teminat.pdf",
-        mimeType: "application/pdf",
-        uploadedByCompanyId: seller.company.id,
-      },
-    });
-    const res = await orders.accept(seller.auth, order.id, (await acceptInputFor(seller.company.id)) as never);
+    const res = await orders.accept(
+      seller.auth,
+      order.id,
+      (await acceptInputFor(seller.company.id)) as never,
+    );
     expect(res.status).toBe("ACCEPTED");
+    // Bayrak snapshot'ı korunur (UI bilgi notu için).
+    const db = await prisma.companyOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(db.requireGuaranteeLetter).toBe(true);
   });
 
   it("teslim ÖNCESİ ödeme ama şart İŞARETLENMEMİŞ → teminatsız onay geçer (opsiyonel özellik)", async () => {
@@ -1127,26 +1118,12 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
     });
   }
 
-  it("uçtan uca: LC belgesi → açıldı → kabul → gönder → banka ödedi → tamamlandı", async () => {
+  it("uçtan uca: açıldı (beyan, belgesiz) → kabul → gönder → banka ödedi → tamamlandı", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await lcOrder(seller.company.id, buyer.company.id);
 
-    // Belge yokken "Akreditif Açıldı" reddedilir.
-    await expect(orders.lcMarkOpened(buyer.auth, order.id)).rejects.toThrow(
-      /belge/i,
-    );
-    // LC belgesi ekle → açıldı.
-    await prisma.companyOrderDocument.create({
-      data: {
-        orderId: order.id,
-        type: "LC",
-        key: `company-orders/${order.id}/lc/x.pdf`,
-        fileName: "kusat.pdf",
-        mimeType: "application/pdf",
-        uploadedByCompanyId: buyer.company.id,
-      },
-    });
+    // "Akreditif Açıldı" beyandır — belge yüklemesi kaldırıldı (2026-08-22).
     await orders.lcMarkOpened(buyer.auth, order.id);
 
     // Kabul edilmeden gönderilemez.

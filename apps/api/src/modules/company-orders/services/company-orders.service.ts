@@ -170,20 +170,9 @@ export class CompanyOrdersService {
     if (src.status !== "PENDING") {
       throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
     }
-    // Teminat mektubu, İLAN SAHİBİ İSTEDİYSE zorunlu (opsiyonel özellik —
-    // yalnız teslim-öncesi ödemede seçilebilir, sistem orada önerir): parayı
-    // önden alan satıcı, teslimatı garanti etmek için onaydan önce teminat
-    // yükler. Bayrak award anında ilandan siparişe snapshot'lanır.
-    if (src.requireGuaranteeLetter) {
-      const teminat = await this.prisma.companyOrderDocument.count({
-        where: { orderId: id, type: "TEMINAT" },
-      });
-      if (teminat === 0) {
-        throw new BadRequestException(
-          "Bu ilanda teminat mektubu şartı var — siparişi onaylamadan önce Belgeler bölümünden teminat mektubu yükleyin (teslimat garantisi)",
-        );
-      }
-    }
+    // Teminat mektubu şartı (requireGuaranteeLetter) BİLGİ AMAÇLIDIR: belge
+    // yükleme siparişten kaldırıldı (2026-08-22, "muhasebe/belge arşivi değiliz")
+    // — teminat platform dışında alıcıya iletilir; onay kapısı yok.
     // Ödeme alabilmek için kayıtlı banka hesabı — alıcı buraya öder. (Hesabı
     // yalnız Kurucu ekler; satıcı onayda kayıtlı hesaplarından seçer.)
     // S1: LC/vesaik mukabilinde ödeme banka kanalından LC/belge şartına göre
@@ -978,7 +967,7 @@ export class CompanyOrdersService {
     this.assertOrderRole(user, side);
   }
 
-  /** Alıcı: "Akreditif Açıldı" — LC belgesi yüklenmiş olmalı; ACCEPTED evresi. */
+  /** Alıcı: "Akreditif Açıldı" — beyan (belge yüklemesi yok); ACCEPTED evresi. */
   async lcMarkOpened(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     this.assertLcOrder(order, user, "buyer");
@@ -987,15 +976,6 @@ export class CompanyOrdersService {
     }
     if (order.lcOpenedAt) {
       throw new BadRequestException("Akreditif zaten açıldı olarak işaretlendi");
-    }
-    // Akreditif belgesi (küşat mektubu) yüklenmeden "açıldı" denemez.
-    const lcDoc = await this.prisma.companyOrderDocument.count({
-      where: { orderId: id, type: "LC" },
-    });
-    if (lcDoc === 0) {
-      throw new BadRequestException(
-        "Akreditif belgesini (küşat mektubu) Belgeler bölümünden yüklemeden 'Akreditif Açıldı' işaretlenemez",
-      );
     }
     await this.prisma.companyOrder.update({
       where: { id },
@@ -1007,7 +987,7 @@ export class CompanyOrdersService {
       order.sellerCompanyId,
       "Akreditif açıldı — kabulünüz bekleniyor",
       "Akreditif açıldı",
-      `${this.orderLabel(order.number)} sipariş için alıcı akreditifi açtı. Belgeyi inceleyip 'Akreditifi Kabul Ettim' adımını tamamlayın.`,
+      `${this.orderLabel(order.number)} sipariş için alıcı akreditifi açtı. Bankanızdan teyit edip 'Akreditifi Kabul Ettim' adımını tamamlayın.`,
       "satis",
     );
     return { ok: true };

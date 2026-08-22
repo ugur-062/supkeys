@@ -764,31 +764,6 @@ enum CompanyOrderPaymentStatus {
   REJECTED // satıcı ödemeyi reddetti
 }
 
-enum CompanyDocType {
-  DELIVERY // teslim belgesi — yurtiçi irsaliye / uluslararası konşimento (satıcı yükler)
-  PAYMENT // ödeme dekontu (alıcı yükler)
-  TEMINAT // teminat mektubu — teslim öncesi ödemede satıcı SİPARİŞ ONAYINDAN ÖNCE yükler
-  LC // akreditif belgesi (küşat mektubu) — alıcı "Akreditif Açıldı" adımında yükler
-  INVOICE // fatura belgesi — satıcı yükler (fatura no metadata'ya ek olarak PDF/görsel)
-  PROFORMA // proforma fatura — satıcı yükler (ACCEPTED+); alıcı LC açmak/peşin ödemek için kullanır
-  OTHER // diğer belgeler — her iki taraf, serbest ek belge (tek kutu)
-}
-
-model CompanyOrderDocument {
-  id                  String         @id @default(cuid())
-  orderId             String
-  order               CompanyOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  type                CompanyDocType
-  key                 String // R2 object key
-  fileName            String
-  mimeType            String
-  uploadedByCompanyId String
-  createdAt           DateTime       @default(now())
-
-  @@index([orderId])
-  @@map("company_order_documents")
-}
-
 model CompanyOrder {
   id              String   @id @default(cuid())
   number          String?  @unique // ROT-ORD-NNNNNN (global sequence)
@@ -875,7 +850,6 @@ model CompanyOrder {
   defectReason         String?
   disputePrevStatus    CompanyOrderStatus?
 
-  documents CompanyOrderDocument[]
   items     CompanyOrderItem[]
   payments  CompanyOrderPayment[]
   reviews   CompanyReview[]

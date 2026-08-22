@@ -133,10 +133,10 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
   - *GAP (3. dalga — henüz izsiz):* `placeBid`; bağlantı accept/reject/disconnect; sipariş revizyon müzakeresi (propose/approve/reject/cancel-revision).
 
 - **INV-DOC-1** — Her belge okuma/indirme ve presigned-GET üretimi, veriyi döndürmeden/URL üretmeden ÖNCE sahiplik veya taraf-üyeliği doğrular; teklifveren yalnız KENDİ firmasının belgelerini presign edebilir (kapalı zarf).
-  - *Kanıt:* Presigned-GET üreten **6 yol** var, hepsi sahiplik/üyelik/rol kapılı:
+  - *Kanıt:* Presigned-GET üreten **5 yol** var, hepsi sahiplik/üyelik/rol kapılı (sipariş belgeleri 2026-08-22'de KALDIRILDI — tablo+modül yok):
     1. **İlan belgeleri** — `assertCanView` (`company-listing-documents.service.ts:222` → presign `:235`) + upload/register/remove'da `requireOwner`.
     2. **Teklif belgeleri** — non-owner sorgusu `bidderCompanyId` ile filtreli, kapalı zarf (`company-bid-documents.service.ts:131-133` → presign `:147`).
-    3. **Sipariş belgeleri** — `requireParty` (`company-order-documents.service.ts:100` → presign `:112`).
+    3. ~~Sipariş belgeleri~~ — kaldırıldı (bkz. üst not).
     4. **KYC self-view** — firma kendi belgelerini görür; controller `@RequireCompanyPermission("company:manage")` (`company-docs.controller.ts:39`) + kendi `companyId` scope, presign `company-docs.service.ts:113`. Düşük-yetkili operasyon rolleri firmanın KYC PII'sini çekemez.
     5. **KYC admin-view** — `@RequireAdminRole("SUPER_ADMIN","SALES")` (`admin-companies.controller.ts:301`), salt-okuma SUPPORT rolüne kapalı; presign `admin-companies.service.ts:375-380`.
     6. **Profil logo** — yükleme sonrası key→URL çözümü IDOR-kapılı: key yalnız KENDİ firmanın `buildTenantProfilePrefix(companyId)` öneki altında olabilir (`company-profile.service.ts:98` → `resolveImageUrl` presign `:103`); logo bilinçli-public vitrin görselidir, presign yalnız `R2_PUBLIC_BASE_URL` set değilken fallback.

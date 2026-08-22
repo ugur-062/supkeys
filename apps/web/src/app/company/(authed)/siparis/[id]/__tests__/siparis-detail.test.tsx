@@ -40,9 +40,6 @@ vi.mock("@/components/orders/order-payments-card", () => ({
 vi.mock("../_components/order-timeline", () => ({
   OrderTimeline: () => null,
 }));
-vi.mock("../_components/order-documents-section", () => ({
-  OrderDocumentsSection: () => null,
-}));
 vi.mock("../_components/order-review-card", () => ({
   OrderReviewCard: () => null,
 }));

@@ -195,12 +195,6 @@ export interface AdminOrderDetail {
     confirmedAt: string | null;
     createdAt: string;
   }[];
-  documents: {
-    id: string;
-    type: string;
-    fileName: string;
-    createdAt: string;
-  }[];
 }
 
 export function useAdminOrderDetail(id: string) {

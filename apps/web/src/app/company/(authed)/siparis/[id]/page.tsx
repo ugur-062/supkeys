@@ -36,7 +36,6 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { sellerShipsGoods } from "@rothern/shared";
-import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { LcStepPanel } from "./_components/lc-step-panel";
 import { OrderCancelRequestPanel } from "./_components/order-cancel-request-panel";
 import { OrderDefectPanel } from "./_components/order-defect-panel";
@@ -283,13 +282,12 @@ export default function OrderDetailPage() {
     </Text>
   ) : o.status === "PENDING" && isSeller ? (
     <div className="space-y-3">
-      {/* İlan teminat şartlıysa: teminat yüklenmeden onay backend'de reddedilir. */}
+      {/* İlan teminat şartlıysa bilgi notu — belge yüklemesi yok, teminat
+          platform dışında alıcıya iletilir (sipariş belgeleri kaldırıldı). */}
       {o.requireGuaranteeLetter ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Bu ilanda <strong>teminat mektubu şartı</strong> var — siparişi
-          onaylamadan önce Belgeler bölümünden{" "}
-          <strong>teminat mektubu</strong> yüklemeniz zorunlu (teslimat
-          garantisi).
+          Bu ilanda <strong>teminat mektubu şartı</strong> var — teslimat
+          garantisi olarak teminat mektubunu alıcıya doğrudan iletin.
         </div>
       ) : null}
       <Text className="text-sm text-zinc-600">
@@ -778,8 +776,6 @@ export default function OrderDetailPage() {
 
           {/* Ödeme */}
           <OrderPaymentsCard order={o} />
-
-          <OrderDocumentsSection order={o} />
 
           {/* Sipariş geçmişi */}
           <OrderTimeline order={o} />
