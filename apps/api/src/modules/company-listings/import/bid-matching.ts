@@ -102,7 +102,14 @@ export function similarity(a: string, b: string): number {
   const total = [...ga.values()].reduce((s, c) => s + c, 0) + [...gb.values()].reduce((s, c) => s + c, 0);
   const dice = total === 0 ? 0 : (2 * inter) / total;
   const ta = fa.split(" ").filter(Boolean);
-  if (ta.length < 2) return dice;
+  if (ta.length < 2) {
+    // Tek kelimelik kalem adı ("ABB", "Vida"): belge satırında TOKEN olarak
+    // geçiyorsa en az medium ("emin misiniz?") — Dice tek başına çok düşük
+    // kalır (kısa ad ⊂ uzun satır). Kısa/genel kelimeler (<3) hariç.
+    const only = ta[0] ?? "";
+    if (only.length >= 3 && fb.split(" ").includes(only)) return Math.max(dice, SIM_MEDIUM);
+    return dice;
+  }
   const tb = new Set(fb.split(" ").filter(Boolean));
   const hit = ta.filter((t) => tb.has(t)).length;
   const containment = hit / ta.length;

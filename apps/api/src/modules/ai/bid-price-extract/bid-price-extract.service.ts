@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common"
 import type { BidImportResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { BidImportService } from "../../company-listings/import/bid-import.service";
+import { parseLocaleNumber } from "../../company-listings/import/listing-item-import.service";
 import type { DocRow } from "../../company-listings/import/bid-matching";
 import { StorageService } from "../../storage/storage.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
@@ -87,6 +88,19 @@ export class BidPriceExtractService {
     };
     let result: AiCallResult = await this.ai.callAi(user, callOptions);
     let parsed = tryParse(result.text);
+    let salvaged = 0;
+    if (parsed == null && result.finishReason === "MAX_TOKENS") {
+      // Çıktı tavana çarptı (uzun belge ya da dejenere tekrar) — kesik JSON'dan
+      // TAMAMLANMIŞ satırları kurtar; premium retry'a (10+ sn, 4× maliyet) gitme.
+      const rows = salvageRows(result.text);
+      if (rows.length > 0) {
+        parsed = { rows };
+        salvaged = rows.length;
+        this.logger.warn(
+          `bid_price_extract: MAX_TOKENS — kesik çıktıdan ${rows.length} satır kurtarıldı (outTok=${result.outputTokens ?? "?"})`,
+        );
+      }
+    }
     if (parsed == null) {
       this.logger.warn(
         `bid_price_extract: JSON parse edilemedi — premium retry (finish=${result.finishReason ?? "?"} outTok=${result.outputTokens ?? "?"} len=${result.text.length} head="${result.text.slice(0, 120).replace(/\s+/g, " ")}")`,
@@ -104,6 +118,11 @@ export class BidPriceExtractService {
       pricesIncludeVat: typeof parsed?.pricesIncludeVat === "boolean" ? parsed.pricesIncludeVat : null,
       docCurrency: typeof parsed?.docCurrency === "string" ? parsed.docCurrency : null,
     });
+    if (salvaged > 0) {
+      out.notices.unshift(
+        `AI çıktısı uzunluk tavanına çarptı — ${salvaged} satır kurtarıldı; belgenin devamı okunmamış olabilir (belgeyi bölerek yeniden deneyin)`,
+      );
+    }
     if (parsed == null) out.notices.unshift("Belge okunamadı — AI geçerli sonuç döndürmedi; şablonu deneyin");
     return { ...out, route: routed.route, downgraded: result.downgraded, warned: result.warned };
   }
@@ -118,11 +137,56 @@ function tryParse(text: string): Record<string, unknown> | null {
   }
 }
 
-/** AI çıktısı → DocRow[] (şema dışı/uydurma değerler düşer; tavanlar). */
+/**
+ * Kesik (MAX_TOKENS) JSON'dan tamamlanmış `rows[]` nesnelerini çıkarır:
+ * "rows": [ … başlangıcından itibaren küme-parantez derinliğiyle tarar, kapanan
+ * her üst-düzey nesneyi JSON.parse eder; parse edilemeyen (yarım) son nesne
+ * atılır. Dizge içindeki parantezler dikkate alınır.
+ */
+export function salvageRows(text: string): Record<string, unknown>[] {
+  const start = text.search(/"rows"\s*:\s*\[/);
+  if (start === -1) return [];
+  let i = text.indexOf("[", start) + 1;
+  const out: Record<string, unknown>[] = [];
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let objStart = -1;
+  for (; i < text.length; i++) {
+    const ch = text[i]!;
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && objStart !== -1) {
+        try {
+          const o: unknown = JSON.parse(text.slice(objStart, i + 1));
+          if (o && typeof o === "object" && !Array.isArray(o)) out.push(o as Record<string, unknown>);
+        } catch {
+          /* yarım nesne — atla */
+        }
+        objStart = -1;
+      }
+    } else if (ch === "]" && depth === 0) break;
+  }
+  return out;
+}
+
+/** AI çıktısı → DocRow[] (şema dışı/uydurma değerler düşer; tavanlar). Sayılar STRING gelir (şema). */
 export function sanitizeRows(raw: unknown): DocRow[] {
   if (!Array.isArray(raw)) return [];
-  const num = (v: unknown): number | null =>
-    typeof v === "number" && Number.isFinite(v) && v >= 0 && v < 1e15 ? v : null;
+  const num = (v: unknown): number | null => {
+    const n = typeof v === "number" ? v : typeof v === "string" ? parseLocaleNumber(v.slice(0, 40)) : null;
+    return n != null && Number.isFinite(n) && n >= 0 && n < 1e15 ? n : null;
+  };
   const str = (v: unknown, max: number): string | null =>
     typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
   return raw
