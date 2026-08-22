@@ -376,3 +376,21 @@ describe("company-profile — resolveUploadedImage boyut (Fix2)", () => {
     expect(res.url).toContain(key);
   });
 });
+
+describe("company-profile — görsel anahtarları benzersiz (2026-08-22)", () => {
+  it("aynı firma logo için iki upload-url → FARKLI anahtar (object-lock 409 / önbellek sorunu kapanır)", async () => {
+    const { svc } = makeServiceEx({
+      buildTenantProfileKey: (tenant: string, kind: string, id: string, name: string) =>
+        `prod/tenant-profile/${tenant}/${kind}-${id}-${name}`,
+      generatePresignedPut: jest.fn().mockResolvedValue("https://r2/put"),
+    } as never);
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a = await svc.requestImageUploadUrl(owner.company.id, "logo", "a.png", "image/png");
+    const b = await svc.requestImageUploadUrl(owner.company.id, "logo", "a.png", "image/png");
+    expect(a.key).not.toBe(b.key);
+    for (const k of [a.key, b.key]) {
+      expect(k.startsWith(`prod/tenant-profile/${owner.company.id}/logo-`)).toBe(true);
+      expect(k).not.toContain(`logo-${owner.company.id}-`);
+    }
+  });
+});

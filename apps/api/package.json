@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "migrate:public-images": "tsx scripts/migrate-public-images.ts",
     "dev": "concurrently -k -n tsc,node -c blue,green \"tsc -w --preserveWatchOutput\" \"nodemon --watch dist --delay 300ms dist/main.js\"",
     "build": "tsc",
     "start": "node dist/main.js",

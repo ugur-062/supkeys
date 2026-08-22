@@ -89,8 +89,13 @@ export class CompanyProfileService {
     if (!IMAGE_MIME.includes(mimeType)) {
       throw new BadRequestException("Yalnızca JPEG, PNG veya WebP yüklenebilir");
     }
-    // logo/cover sabit (üzerine yazılır); gallery her foto benzersiz.
-    const id = kind === "gallery" ? randomUUID() : companyId;
+    // HER yükleme benzersiz anahtar (2026-08-22): logo/cover eskiden sabit
+    // `<kind>-<companyId>` idi → (a) R2 bucket'ında object-lock/retention
+    // politikası varken ikinci yazma 409 ObjectLockedByBucketPolicy (logo bir
+    // daha DEĞİŞTİRİLEMİYORDU — canlıda doğrulandı), (b) aynı URL tarayıcı/CDN
+    // önbelleğinde kalıp yeni görsel görünmüyordu. Eski nesne yetim kalır
+    // (küçük; temizlik ayrı iş).
+    const id = randomUUID();
     const key = this.storage.buildTenantProfileKey(
       companyId,
       kind,

@@ -14,8 +14,11 @@ export class ProfileImageUploadDto {
 }
 
 export class ProfileImageCommitDto {
-  @IsIn(["logo", "cover"])
-  kind!: "logo" | "cover";
+  // 2026-08-22 FIX: "gallery" eksikti → galeri + sertifika görseli yüklemesi
+  // commit adımında 400 ("kind: Geçersiz seçim") alıyor, fotoğraf hiç
+  // eklenemiyordu (upload-url gallery'yi kabul ediyordu, commit etmiyordu).
+  @IsIn(["logo", "cover", "gallery"])
+  kind!: "logo" | "cover" | "gallery";
 
   @IsString()
   @MaxLength(500)
