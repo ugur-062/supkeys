@@ -36,7 +36,7 @@ export function AiImportDialog({
   const busy = extract.isPending;
 
   const addFiles = (incoming: File[]) => {
-    // Tek PDF ya da çoklu fotoğraf — karışık seçim backend'de de reddedilir.
+    // Tek PDF / tek Excel ya da çoklu fotoğraf — karışık seçim backend'de de reddedilir.
     const merged = [...files, ...incoming].slice(0, 20);
     setFiles(merged);
   };
@@ -66,18 +66,19 @@ export function AiImportDialog({
         </span>
       </DialogTitle>
       <DialogDescription>
-        Şartname, teklif talebi veya sipariş listesi yükleyin — AI ihale formunu
-        doldurur; siz kontrol edip eksikleri tamamlarsınız. İhaleyi her zaman
-        SİZ oluşturursunuz.
+        Şartname, teklif talebi, sipariş listesi ya da serbest Excel tablosu
+        yükleyin — AI ihale formunu doldurur; siz kontrol edip eksikleri
+        tamamlarsınız. İhaleyi her zaman SİZ oluşturursunuz. (Şablon Excel için
+        Kalemler adımındaki “Excel ile İçe Aktar” daha kesindir.)
       </DialogDescription>
       <DialogBody className="space-y-4">
         <Dropzone
-          accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.xlsx,.csv"
           multiple
           disabled={busy}
           onFiles={addFiles}
-          label="PDF veya fotoğraf seç"
-          hint="Tek PDF ya da birden çok sayfa fotoğrafı (en fazla 20)"
+          label="PDF, fotoğraf veya Excel seç"
+          hint="Tek PDF, tek Excel/CSV ya da birden çok sayfa fotoğrafı (en fazla 20)"
         />
         {files.length > 0 ? (
           <ul className="space-y-1">

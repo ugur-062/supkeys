@@ -18,6 +18,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { FileSpreadsheet } from "lucide-react";
+import { ExcelImportDialog } from "@/components/tenders/excel-import/excel-import-dialog";
+import type { ItemImportItem } from "@rothern/shared";
 import { MoneyInputNumber } from "@/components/ui/money-input";
 import {
   Controller,
@@ -33,10 +37,11 @@ export function Step2Items() {
     control,
     formState: { errors },
   } = useFormContext<TenderFormData>();
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "items",
   });
+  const [excelOpen, setExcelOpen] = useState(false);
 
   const itemsArrayError = errors.items?.message ?? errors.items?.root?.message;
 
@@ -44,6 +49,40 @@ export function Step2Items() {
   // KALEM seçilirse her kalem satırında taban/hemen-al girişleri açılır.
   const stepListingType = useWatch({ control, name: "listingType" });
   const isSatisStep = stepListingType === "SATIS";
+  const stepPriceScope = useWatch({ control, name: "priceScope" });
+  const currentItems = useWatch({ control, name: "items" });
+
+  // Excel ile İçe Aktar (2026-08-22, AI yok): önizlemeden geçen kalemler forma
+  // girer — "ekle" modunda formdaki tek BOŞ satır (ad girilmemiş) ezilir ki
+  // kullanıcı boş kalem silmek zorunda kalmasın. Tavan MAX_LISTING_ITEMS.
+  const applyImported = (items: ItemImportItem[], mode: "append" | "replace") => {
+    const mapped = items.map((it) => ({
+      name: it.name ?? "",
+      description: it.description ?? "",
+      quantity: it.quantity ?? 1,
+      unit: it.unit ?? "adet",
+      materialCode: it.materialCode ?? "",
+      requiredByDate: it.requiredByDate ?? "",
+      targetUnitPrice: it.targetUnitPrice ?? undefined,
+      minUnitPrice: it.minUnitPrice ?? undefined,
+      buyNowUnitPrice: it.buyNowUnitPrice ?? undefined,
+      customQuestion: "",
+      questions: [],
+    }));
+    const existing = (currentItems ?? []) as TenderFormData["items"];
+    const keep =
+      mode === "replace"
+        ? []
+        : existing.filter((it, i) => !(existing.length === 1 && i === 0 && !it.name?.trim()));
+    const next = [...keep, ...mapped].slice(0, MAX_LISTING_ITEMS);
+    replace(next as TenderFormData["items"]);
+    const dropped = keep.length + mapped.length - next.length;
+    if (dropped > 0) {
+      toast.warning(`${dropped} kalem tavan nedeniyle eklenmedi (en fazla ${MAX_LISTING_ITEMS})`);
+    } else {
+      toast.success(`${mapped.length} kalem aktarıldı`);
+    }
+  };
 
   const handleAdd = () => {
     if (fields.length >= MAX_LISTING_ITEMS) return;
@@ -123,22 +162,45 @@ export function Step2Items() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
           Toplam <strong>{fields.length}</strong> kalem · Maksimum{" "}
           {MAX_LISTING_ITEMS}
         </p>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleAdd}
-          disabled={fields.length >= MAX_LISTING_ITEMS}
-        >
-          <Plus className="w-4 h-4" />
-          Yeni Kalem Ekle
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setExcelOpen(true)}
+            disabled={fields.length >= MAX_LISTING_ITEMS}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Excel ile İçe Aktar
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleAdd}
+            disabled={fields.length >= MAX_LISTING_ITEMS}
+          >
+            <Plus className="w-4 h-4" />
+            Yeni Kalem Ekle
+          </Button>
+        </div>
       </div>
+
+      <ExcelImportDialog
+        open={excelOpen}
+        onClose={() => setExcelOpen(false)}
+        scope={{
+          listingType: isSatisStep ? "SATIS" : "ALIM",
+          priceScope: isSatisStep ? (stepPriceScope ?? "TOPLU") : undefined,
+        }}
+        existingCount={fields.length}
+        onApply={applyImported}
+      />
     </div>
   );
 }

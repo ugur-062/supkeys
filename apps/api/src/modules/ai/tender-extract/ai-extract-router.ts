@@ -1,6 +1,8 @@
 import { BadRequestException, Logger } from "@nestjs/common";
 import { fromBuffer as fileTypeFromBuffer } from "file-type";
 import { PDFParse } from "pdf-parse";
+import ExcelJS from "exceljs";
+import { Readable } from "stream";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
 import type { AiInlinePart } from "../providers/ai-provider.interface";
@@ -11,6 +13,9 @@ import type { AiInlinePart } from "../providers/ai-provider.interface";
  * 2. Taranmış/karışık PDF → PDF DOĞRUDAN Gemini'ye (inlineData, ~258 token/sayfa;
  *    render kütüphanesi yok — kullanıcı kararı 2026-07-24).
  * 3. Fotoğraf (jpg/png/webp/heic) → HEIC decode + sharp ≤1500px → VISION.
+ * 4. Excel/CSV (xlsx zip imzası / .csv metin) → sayfa sayfa metin tablo → TEXT
+ *    (2026-08-22: "Belgeden Doldur (AI)" serbest tabloyu da okur; şablon Excel
+ *    için AI'sız deterministik yol ayrı — listing-item-import).
  * Ayrı OCR servisi YOK — Gemini vision hem okur hem yapılandırır.
  *
  * Sayfa tavanı (config.maxPages) iki yolda da uygulanır. Üçüncü bir maliyet
@@ -44,6 +49,12 @@ const PDF_PAGE_TOKEN_ESTIMATE = 300;
 const IMAGE_TOKEN_ESTIMATE = 1300;
 
 const PDF_MIME = "application/pdf";
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+/** Sayfa başına okunan satır tavanı (token koruması). */
+const MAX_SHEET_ROWS = 500;
+const MAX_SHEET_COLS = 30;
+const MAX_CELL_CHARS = 200;
 const IMAGE_MIMES = new Set([
   "image/jpeg",
   "image/png",
@@ -77,22 +88,31 @@ export async function routeExtractInput(
 
   const pdfs = typed.filter((f) => f.mime === PDF_MIME);
   const images = typed.filter((f) => f.mime != null && IMAGE_MIMES.has(f.mime));
+  // Tablo: xlsx (zip imzası file-type ile) veya csv (file-type metni tanımaz →
+  // anahtar uzantısı + null-byte yokluğu).
+  const sheets = typed.filter(
+    (f) => f.mime === XLSX_MIME || (f.mime == null && isLikelyCsv(f.key, f.buffer)),
+  );
   const unknown = typed.filter(
-    (f) => f.mime !== PDF_MIME && (f.mime == null || !IMAGE_MIMES.has(f.mime)),
+    (f) => !pdfs.includes(f) && !images.includes(f) && !sheets.includes(f),
   );
   if (unknown.length > 0) {
     throw new BadRequestException(
-      "Desteklenmeyen dosya türü — PDF veya fotoğraf (JPG/PNG/WebP/HEIC) yükleyin",
+      "Desteklenmeyen dosya türü — PDF, fotoğraf (JPG/PNG/WebP/HEIC) veya Excel/CSV yükleyin",
     );
   }
-  if (pdfs.length > 1 || (pdfs.length === 1 && images.length > 0)) {
+  const kinds = [pdfs.length > 0, images.length > 0, sheets.length > 0].filter(Boolean).length;
+  if (kinds > 1 || pdfs.length > 1 || sheets.length > 1) {
     throw new BadRequestException(
-      "Tek seferde ya BİR PDF ya da fotoğraflar yükleyin (karışık gönderilemez)",
+      "Tek seferde ya BİR PDF, ya BİR Excel/CSV ya da fotoğraflar yükleyin (karışık gönderilemez)",
     );
   }
 
   if (pdfs.length === 1) {
     return routePdf(pdfs[0]!.buffer, maxPages);
+  }
+  if (sheets.length === 1) {
+    return routeSpreadsheet(sheets[0]!.buffer, sheets[0]!.mime === XLSX_MIME, maxPages);
   }
 
   // Fotoğraf yolu — hepsi küçültülür, TEK çağrının çoklu part'ları olur.
@@ -113,6 +133,78 @@ export async function routeExtractInput(
     scanPages: images.length,
     extraInputTokenEstimate: images.length * IMAGE_TOKEN_ESTIMATE,
   };
+}
+
+function isLikelyCsv(key: string, buffer: Buffer): boolean {
+  return /\.csv$/i.test(key) && !buffer.subarray(0, 4096).includes(0);
+}
+
+/**
+ * Excel/CSV → sayfa-işaretli metin tablo ("=== Sayfa: X ===" + "| a | b |"
+ * satırları). Formül hücreleri önbellek sonucuyla, tarih hücreleri ISO ile
+ * gelir. Boş satırlar atlanır; tavanlar token koruması (MAX_SHEET_ROWS/COLS).
+ * Her sayfa = 1 "page" (maxPages tavanına tabi).
+ */
+async function routeSpreadsheet(
+  buffer: Buffer,
+  isXlsx: boolean,
+  maxPages: number,
+): Promise<RoutedInput> {
+  const wb = new ExcelJS.Workbook();
+  try {
+    if (isXlsx) await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+    else await wb.csv.read(Readable.from(buffer));
+  } catch {
+    throw new BadRequestException("Tablo dosyası okunamadı — .xlsx veya .csv olarak kaydedip deneyin");
+  }
+  const sheets = wb.worksheets.filter((w) => w.rowCount > 0);
+  if (sheets.length === 0) throw new BadRequestException("Tablo boş görünüyor");
+  if (sheets.length > maxPages) {
+    throw new BadRequestException(
+      `Belge çok uzun (en fazla ${maxPages} sayfa) — ilgili sayfaları ayrı dosyada yükleyin`,
+    );
+  }
+  const chunks: string[] = [];
+  let totalChars = 0;
+  sheets.forEach((ws, i) => {
+    const lines: string[] = [`=== Sayfa ${i + 1}: ${ws.name} ===`];
+    let rows = 0;
+    ws.eachRow({ includeEmpty: false }, (row) => {
+      if (rows >= MAX_SHEET_ROWS) return;
+      const cells: string[] = [];
+      for (let c = 1; c <= Math.min(row.cellCount, MAX_SHEET_COLS); c++) {
+        cells.push(sheetCellText(row.getCell(c).value));
+      }
+      if (cells.every((x) => x === "")) return;
+      rows++;
+      lines.push(`| ${cells.join(" | ")} |`);
+    });
+    const text = lines.join("\n");
+    totalChars += text.length;
+    chunks.push(text);
+  });
+  if (totalChars < 20) throw new BadRequestException("Tablo boş görünüyor");
+  return {
+    route: "text",
+    documentText: chunks.join("\n\n"),
+    pages: sheets.length,
+    textPages: sheets.length,
+    scanPages: 0,
+    extraInputTokenEstimate: 0,
+  };
+}
+
+function sheetCellText(v: ExcelJS.CellValue): string {
+  if (v == null) return "";
+  if (v instanceof Date) return Number.isFinite(v.getTime()) ? v.toISOString().slice(0, 10) : "";
+  if (typeof v === "object") {
+    const o = v as unknown as Record<string, unknown>;
+    if (Array.isArray(o.richText)) return (o.richText as { text: string }[]).map((t) => t.text).join("").slice(0, MAX_CELL_CHARS);
+    if ("result" in o) return sheetCellText(o.result as ExcelJS.CellValue);
+    if (typeof o.text === "string") return o.text.slice(0, MAX_CELL_CHARS);
+    return "";
+  }
+  return String(v).replace(/\s+/g, " ").trim().slice(0, MAX_CELL_CHARS);
 }
 
 async function routePdf(buffer: Buffer, maxPages: number): Promise<RoutedInput> {

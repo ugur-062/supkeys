@@ -42,6 +42,9 @@ const ALLOWED_UPLOAD_MIMES = [
   "image/webp",
   "image/heic",
   "image/heif",
+  // 2026-08-22: serbest Excel/CSV tablo da AI ile okunur (şablon Excel AI'sız yoldan).
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
 ];
 
 @Injectable()
