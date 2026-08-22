@@ -12,6 +12,8 @@ export interface AdminJwtPayload {
   type: "admin";
   /** "Oturumumu açık bırak" — kayan yenilemede cookie tipi (bkz. company). */
   persistent?: boolean;
+  /** Oturum sürümü — PlatformAdmin.tokenVersion ile eşleşmeli (iptal kapısı). */
+  tv?: number;
 }
 
 @Injectable()
@@ -42,6 +44,11 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
 
     if (!admin || !admin.isActive) {
       throw new UnauthorizedException("Admin bulunamadı veya pasif");
+    }
+    // Oturum iptali (denetim 2026-08-23 #3): parola değişimi/reset/2FA
+    // değişimi tokenVersion'ı artırır → eski JWT (ve kayan yenilemesi) düşer.
+    if ((payload.tv ?? 0) !== admin.tokenVersion) {
+      throw new UnauthorizedException("Oturum geçersiz — yeniden giriş yapın");
     }
 
     return {

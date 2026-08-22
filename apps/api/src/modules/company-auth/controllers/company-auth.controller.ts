@@ -5,12 +5,12 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  Ip,
   Patch,
   Post,
   Res,
   UseGuards,
 } from "@nestjs/common";
+import { ClientIp } from "../../../common/http/client-ip.decorator";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
@@ -64,7 +64,7 @@ export class CompanyAuthController {
   @HttpCode(HttpStatus.CREATED)
   signup(
     @Body() dto: CompanySignupDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers("user-agent") userAgent: string,
   ) {
     return this.service.signup(dto, { ip, userAgent });
@@ -89,7 +89,7 @@ export class CompanyAuthController {
   @HttpCode(HttpStatus.OK)
   login(
     @Body() dto: CompanyLoginDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers("user-agent") userAgent: string,
   ) {
     return this.service.login(dto, { ip, userAgent });

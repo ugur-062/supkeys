@@ -39,8 +39,13 @@ function wsOriginAllowed(
     .map((o) => o.trim())
     .filter(Boolean);
   // origin yoksa (native/mobil istemci) engelleme — REST ile aynı davranış.
+  // `*.vercel.app` jokeri REST ile AYNI kapıdan (CORS_ALLOW_VERCEL=true) —
+  // denetim 2026-08-23: WS'te koşulsuz açıktı (drift).
+  const allowVercel = process.env.CORS_ALLOW_VERCEL === "true";
   const ok =
-    !origin || allowlist.includes(origin) || WS_VERCEL_ORIGIN.test(origin);
+    !origin ||
+    allowlist.includes(origin) ||
+    (allowVercel && WS_VERCEL_ORIGIN.test(origin));
   cb(null, ok);
 }
 
@@ -77,16 +82,18 @@ export class RealtimeGateway
   }
 
   async handleConnection(client: Socket): Promise<void> {
-    // Önce httpOnly cookie (withCredentials handshake), geri düşüş auth.token /
-    // Authorization Bearer (geçiş uyumu).
-    const cookieToken = parseCookies(client.handshake.headers.cookie)[
-      AUTH_COOKIE.company
-    ];
-    const token =
-      cookieToken ??
-      (client.handshake.auth?.token as string | undefined) ??
-      (client.handshake.headers.authorization ?? "").replace(/^Bearer /, "");
+    // TÜM handshake işlemi try içinde (denetim 2026-08-23 #1): token çıkarımı
+    // dışarıdaysa bozuk çerez başlığı yakalanmamış red → süreç düşebiliyordu.
     try {
+      // Önce httpOnly cookie (withCredentials handshake), geri düşüş auth.token /
+      // Authorization Bearer (geçiş uyumu).
+      const cookieToken = parseCookies(client.handshake.headers.cookie)[
+        AUTH_COOKIE.company
+      ];
+      const token =
+        cookieToken ??
+        (client.handshake.auth?.token as string | undefined) ??
+        (client.handshake.headers.authorization ?? "").replace(/^Bearer /, "");
       const payload = await this.jwt.verifyAsync<CompanyJwtPayload>(token, {
         secret: this.config.getOrThrow<string>("JWT_SECRET"),
       });

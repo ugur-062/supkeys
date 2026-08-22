@@ -20,12 +20,34 @@ if (dsn) {
       process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? "development",
     // Performans izleme opsiyonel — varsayılan kapalı (yalnız hata izleme).
     tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0),
-    // PII varsayılan olarak GÖNDERİLMEZ (gövde/başlık/çerez sızıntısını azalt).
+    // PII varsayılan olarak GÖNDERİLMEZ. DİKKAT: `sendDefaultPii:false` tek
+    // başına istek verisini KAPATMAZ — @sentry/nestjs varsayılan
+    // requestDataIntegration cookies/headers/body'yi olaya ekler (denetim
+    // 2026-08-23 #5: beklenmedik 500'de rk_company JWT + parola gövdesi Sentry'e
+    // gidiyordu). Entegrasyonu aynı adla ezerek kapatıyoruz + beforeSend ağı.
     sendDefaultPii: false,
+    integrations: [
+      Sentry.requestDataIntegration({
+        include: { cookies: false, data: false, headers: false, ip: false, user: false, query_string: true, url: true },
+      }),
+    ],
+    beforeSend: scrubRequestPii,
+    beforeSendTransaction: scrubRequestPii,
   });
 }
 
 export const sentryEnabled = !!dsn;
+
+/** Olaydaki istek verisinden cookie/header/gövde'yi düşürür (kemer-pantolon askısı). */
+export function scrubRequestPii<T extends { request?: object }>(event: T): T {
+  const r = event.request as Record<string, unknown> | undefined;
+  if (r) {
+    delete r.cookies;
+    delete r.headers;
+    delete r.data;
+  }
+  return event;
+}
 
 /**
  * Fırlatılmayan kritik olayları (kritik-audit kaybı, webhook imza hatası) Sentry'e

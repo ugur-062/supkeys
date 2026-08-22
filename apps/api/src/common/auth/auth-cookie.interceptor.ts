@@ -9,11 +9,12 @@ import { JwtService } from "@nestjs/jwt";
 import type { Request, Response } from "express";
 import { type Observable, map } from "rxjs";
 import {
-  type Realm,
+  isAuthCleared,
   readAuthCookie,
   setAuthCookies,
   shouldSlide,
   slideAuthCookies,
+  type Realm,
 } from "./cookie";
 
 /** Yeniden imzalarken düşürülen zaman claim'leri (sign yenilerini üretir). */
@@ -55,12 +56,12 @@ export class AuthCookieInterceptor implements NestInterceptor {
         if (token) {
           const realm = decodeRealm(token);
           if (realm) {
-            // "Beni hatırla / Oturumumu açık bırak" — yalnız açıkça false ise
-            // session cookie'si. Diğer token akışları rememberMe taşımaz →
-            // kalıcı (varsayılan true).
-            const persistent =
-              (req.body as { rememberMe?: unknown } | undefined)?.rememberMe !==
-              false;
+            // "Beni hatırla / Oturumumu açık bırak": body rememberMe açıkça
+            // verilmişse o; verilmemişse (parola değişimi, 2FA, davet-kabul gibi
+            // token dönen akışlar) MEVCUT cookie'deki `persistent` claim'i
+            // korunur (denetim 2026-08-23: session cookie'si 30 günlük kalıcıya
+            // dönüşüyordu); hiçbiri yoksa varsayılan kalıcı.
+            const persistent = this.resolvePersistent(req, realm);
             setAuthCookies(
               response,
               realm,
@@ -78,6 +79,22 @@ export class AuthCookieInterceptor implements NestInterceptor {
         return body;
       }),
     );
+  }
+
+  private resolvePersistent(req: Request, realm: Realm): boolean {
+    const remember = (req.body as { rememberMe?: unknown } | undefined)?.rememberMe;
+    if (remember === false) return false;
+    if (remember === true) return true;
+    const existing = readAuthCookie(req, realm);
+    if (existing) {
+      try {
+        const decoded = this.jwt.verify<Record<string, unknown>>(existing);
+        if (decoded?.type === realm && decoded.persistent === false) return false;
+      } catch {
+        /* bozuk/eski cookie — varsayılan */
+      }
+    }
+    return true;
   }
 
   /** Login token'ını `persistent` claim'iyle yeniden imzalar (TTL tazelenir). */
@@ -100,6 +117,9 @@ export class AuthCookieInterceptor implements NestInterceptor {
     // @Res() ile doğrudan yazan uçlar (PDF export vb.): header'lar gitmişse
     // Set-Cookie eklenemez — sessizce atla (bir sonraki istek yeniler).
     if (res.headersSent) return;
+    // Logout (clearAuthCookies) bu yanıtta cookie'yi SİLDİ — üstüne taze token
+    // yazma (denetim 2026-08-23 #2: logout çalışmıyordu).
+    if (isAuthCleared(res, realm)) return;
     const token = readAuthCookie(req, realm);
     if (!token) return;
     let decoded: (Record<string, unknown> & TimeClaims) | null = null;

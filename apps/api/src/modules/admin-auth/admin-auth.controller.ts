@@ -5,11 +5,11 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  Ip,
   Post,
   Res,
   UseGuards,
 } from "@nestjs/common";
+import { ClientIp } from "../../common/http/client-ip.decorator";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import { IsString, Length, MinLength } from "class-validator";
@@ -71,7 +71,7 @@ export class AdminAuthController {
   @HttpCode(HttpStatus.OK)
   login(
     @Body() dto: AdminLoginDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers("user-agent") userAgent: string,
   ) {
     return this.adminAuthService.login(dto, { ip, userAgent });

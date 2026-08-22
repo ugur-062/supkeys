@@ -41,6 +41,11 @@ import {
 } from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import {
+  decryptTotpSecret,
+  encryptTotpSecret,
+  totpEncKey,
+} from "../../../common/auth/totp-secret-cipher";
 
 const ROLE_LABELS: Record<CompanyRole, string> = {
   [CompanyRole.SAHIP]: "Kurucu",
@@ -54,6 +59,11 @@ type Ctx = { ip?: string; userAgent?: string };
 
 const EMAIL_CODE_TTL_MIN = 15;
 const EMAIL_CODE_MAX_ATTEMPTS = 5;
+// Denetim 2026-08-23 #9: hesap-bazlı kod ÜRETİM tavanı — resend/login-2FA her
+// çağrıda sayacı sıfır yeni kod veriyordu (IP throttle tek savunmaydı). Saat
+// başına en fazla 5 kod → toplam tahmin bütçesi ≈25/saat (10^6'ya karşı
+// brute-force pratik olarak kapanır); e-posta flood'u da sınırlanır.
+const EMAIL_CODE_MAX_PER_HOUR = 5;
 
 @Injectable()
 export class CompanyAuthService {
@@ -207,7 +217,17 @@ export class CompanyAuthService {
     email: string,
     firstName: string,
     kind: "verify" | "login" = "verify",
-  ): Promise<{ sent: boolean }> {
+  ): Promise<{ sent: boolean; capped?: boolean }> {
+    // Hesap-bazlı üretim tavanı (son 60 dk). Aşıldıysa yeni kod ÜRETİLMEZ ve
+    // e-posta gitmez; mevcut kod (varsa) geçerli kalır. Çağıran generic yanıt
+    // döner (kayıt/yeniden gönder akışında enumeration sızdırmaz).
+    const recent = await this.bypass.emailVerificationCode.count({
+      where: { companyUserId: userId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
+    });
+    if (recent >= EMAIL_CODE_MAX_PER_HOUR) {
+      this.logger.warn(`E-posta kodu üretim tavanı aşıldı (user=${userId})`);
+      return { sent: false, capped: true };
+    }
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
     await this.bypass.emailVerificationCode.updateMany({
       where: { companyUserId: userId, usedAt: null },
@@ -287,10 +307,7 @@ export class CompanyAuthService {
     if (!record || record.expiresAt < new Date()) return false;
     if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) return false;
     if (record.codeHash !== this.hashCode(code.trim())) {
-      await this.bypass.emailVerificationCode.update({
-        where: { id: record.id },
-        data: { attempts: { increment: 1 } },
-      });
+      await this.bumpCodeAttempt(record.id);
       return false;
     }
     await this.bypass.emailVerificationCode.update({
@@ -298,6 +315,17 @@ export class CompanyAuthService {
       data: { usedAt: new Date() },
     });
     return true;
+  }
+
+  /**
+   * Hatalı deneme sayacı — KOŞULLU artış (attempts < MAX): eşzamanlı burst
+   * tavanı aşamaz (denetim 2026-08-23 #9, check-then-act yarışı kapatıldı).
+   */
+  private async bumpCodeAttempt(recordId: string): Promise<void> {
+    await this.bypass.emailVerificationCode.updateMany({
+      where: { id: recordId, attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS } },
+      data: { attempts: { increment: 1 } },
+    });
   }
 
   /** Kodu doğrula → emailVerifiedAt set + otomatik login (token). */
@@ -327,10 +355,7 @@ export class CompanyAuthService {
       );
     }
     if (record.codeHash !== this.hashCode(code)) {
-      await this.bypass.emailVerificationCode.update({
-        where: { id: record.id },
-        data: { attempts: { increment: 1 } },
-      });
+      await this.bumpCodeAttempt(record.id);
       throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
     }
     const [, updatedUser] = await this.bypass.$transaction([
@@ -640,7 +665,10 @@ export class CompanyAuthService {
     try {
       const r = await this.supabaseAuth.verifyPassword(email, dto.password);
       authId = r.authId;
-    } catch {
+    } catch (err) {
+      // Supabase erişim/kesinti hatası (503) parola hatası DEĞİLDİR — aynen
+      // geçir (denetim 2026-08-23 #10: yanlış audit + kullanıcıya yanlış mesaj).
+      if (err instanceof ServiceUnavailableException) throw err;
       auditFail("bad_credentials");
       throw new UnauthorizedException("E-posta veya şifre hatalı");
     }
@@ -833,34 +861,21 @@ export class CompanyAuthService {
    * türevi — ayrı env gerektirmeden DB sızıntısında seed'ler açık kalmasın).
    * Eski düz-metin kayıtlar okurken şeffaf desteklenir (lazy migration).
    */
+  // Ortak yardımcı (common/auth/totp-secret-cipher.ts) — admin realm'le AYNI;
+  // anahtar TOTP_ENC_KEY (varsa) ya da JWT_SECRET türevi; `enc:v1:` biçimi korunur.
   private encKey(): Buffer {
-    return crypto
-      .createHash("sha256")
-      .update(`2fa:${this.config.getOrThrow<string>("JWT_SECRET")}`)
-      .digest();
+    return totpEncKey({
+      jwtSecret: this.config.getOrThrow<string>("JWT_SECRET"),
+      totpEncKey: this.config.get<string>("TOTP_ENC_KEY"),
+    });
   }
 
   private encryptSecret(plain: string): string {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv("aes-256-gcm", this.encKey(), iv);
-    const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return `enc:v1:${iv.toString("base64")}:${tag.toString("base64")}:${ct.toString("base64")}`;
+    return encryptTotpSecret(plain, this.encKey());
   }
 
   private decryptSecret(stored: string): string {
-    if (!stored.startsWith("enc:v1:")) return stored; // legacy düz metin
-    const [, , ivB64, tagB64, ctB64] = stored.split(":");
-    const decipher = crypto.createDecipheriv(
-      "aes-256-gcm",
-      this.encKey(),
-      Buffer.from(ivB64!, "base64"),
-    );
-    decipher.setAuthTag(Buffer.from(tagB64!, "base64"));
-    return Buffer.concat([
-      decipher.update(Buffer.from(ctB64!, "base64")),
-      decipher.final(),
-    ]).toString("utf8");
+    return decryptTotpSecret(stored, this.encKey());
   }
 
   private hashRecoveryCode(code: string): string {
@@ -1211,7 +1226,8 @@ export class CompanyAuthService {
     if (!user || !user.authId) throw new UnauthorizedException();
     try {
       await this.supabaseAuth.verifyPassword(user.email, currentPassword);
-    } catch {
+    } catch (err) {
+      if (err instanceof ServiceUnavailableException) throw err;
       throw new ForbiddenException("Mevcut parola hatalı");
     }
     await this.supabaseAuth.updatePassword(user.authId, newPassword);

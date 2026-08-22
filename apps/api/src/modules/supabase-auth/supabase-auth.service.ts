@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { reportToSentry } from "../../instrument";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -65,7 +66,24 @@ export class SupabaseAuthService {
     });
 
     if (error) {
-      // Supabase mesajlarını sızdırma — generic Unauthorized
+      // Denetim 2026-08-23 #10: kimlik hatası (400/401/403/422 — parola yanlış,
+      // e-posta doğrulanmamış) ile ERİŞİM hatası (ağ/0, 429, ≥500) ayrılır.
+      // Eskiden hepsi "parola hatalı" → kesintide yanlış audit + kullanıcıya
+      // yanlış mesaj + Sentry'e hiçbir şey. Supabase mesajı yine sızdırılmaz.
+      const status = (error as { status?: number }).status ?? 0;
+      const credentialFailure = status === 400 || status === 401 || status === 403 || status === 422;
+      if (!credentialFailure) {
+        this.logger.error(
+          `Supabase Auth erişilemiyor (status=${status}): ${error.name ?? "error"} ${error.message}`,
+        );
+        reportToSentry("Supabase Auth erişilemiyor (signInWithPassword)", "error", {
+          tags: { supabase: "auth_unavailable" },
+          extra: { status, name: error.name },
+        });
+        throw new ServiceUnavailableException(
+          "Giriş servisi geçici olarak kullanılamıyor — lütfen birazdan tekrar deneyin",
+        );
+      }
       this.logger.debug(
         `signInWithPassword failed for ${email}: ${error.message}`,
       );

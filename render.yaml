@@ -25,6 +25,10 @@ services:
         value: 1h
       - key: LOG_LEVEL
         value: info
+      # Render trafiği Cloudflare'den geçer → gerçek istemci IP'si cf-connecting-ip
+      # (throttle/audit). Self-host/CF'siz kurulumda false bırak.
+      - key: TRUST_CF_CONNECTING_IP
+        value: "true"
       # İlk deploy: admin tohumla. Tohumlandıktan sonra false yapıp yeniden deploy et.
       - key: RUN_SEED
         value: "true"

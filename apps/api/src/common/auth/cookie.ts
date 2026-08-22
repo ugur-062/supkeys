@@ -140,9 +140,36 @@ export function clearAuthCookies(
   const { maxAge: _maxAge, ...base } = baseOptions(config, true);
   res.clearCookie(AUTH_COOKIE[realm], base);
   res.clearCookie(CSRF_COOKIE[realm], base);
+  // Denetim 2026-08-23 #2: aynı yanıtta kayan-oturum interceptor'ı taze cookie
+  // yazıp silmeyi EZİYORDU (logout çalışmıyordu). Yanıt işaretlenir; interceptor
+  // bu realm için slide'ı atlar.
+  markAuthCleared(res, realm);
 }
 
-/** `Cookie` header'ını elle parse eder (cookie-parser bağımlılığı olmadan). */
+const AUTH_CLEARED_KEY = "rkAuthCleared";
+
+/** Bu yanıtta oturum cookie'si silindi — kayan yenileme bu realm'e dokunmasın. */
+export function markAuthCleared(res: Response, realm: Realm): void {
+  const locals = res.locals as Record<string, unknown>;
+  const set = (locals[AUTH_CLEARED_KEY] as Set<Realm> | undefined) ?? new Set<Realm>();
+  set.add(realm);
+  locals[AUTH_CLEARED_KEY] = set;
+}
+
+export function isAuthCleared(res: Response, realm: Realm): boolean {
+  const set = (res.locals as Record<string, unknown>)?.[AUTH_CLEARED_KEY] as
+    | Set<Realm>
+    | undefined;
+  return !!set?.has(realm);
+}
+
+/**
+ * `Cookie` header'ını elle parse eder (cookie-parser bağımlılığı olmadan).
+ * Denetim 2026-08-23 #1: bozuk yüzde-kodlu DEĞER (`%zz`, `%E0%A4%A` — domain'deki
+ * HERHANGİ bir çerez) `decodeURIComponent`'ı patlatıyordu → REST'te her istek
+ * 500, WS handshake'te yakalanmamış red (süreç düşebiliyordu). Decode toleranslı:
+ * çözülemeyen değer HAM bırakılır (JWT/CSRF değerlerimiz zaten URL-safe).
+ */
 export function parseCookies(header: string | undefined): Record<string, string> {
   const out: Record<string, string> = {};
   if (!header) return out;
@@ -151,9 +178,19 @@ export function parseCookies(header: string | undefined): Record<string, string>
     if (idx < 0) continue;
     const k = part.slice(0, idx).trim();
     const v = part.slice(idx + 1).trim();
-    if (k) out[k] = decodeURIComponent(v);
+    if (!k) continue;
+    out[k] = safeDecode(v);
   }
   return out;
+}
+
+function safeDecode(v: string): string {
+  if (!v.includes("%")) return v;
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
 }
 
 /** İstekten realm oturum token'ını okur (cookie). Yoksa null. */

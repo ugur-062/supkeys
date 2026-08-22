@@ -151,7 +151,8 @@ export class AdminStaffService {
     // 2FA da sıfırlanır (SUPER_ADMIN kimliği zaten doğruladı).
     await this.prisma.platformAdmin.update({
       where: { id },
-      data: { twoFactorEnabled: false, twoFactorSecret: null },
+      // Oturum iptali: reset sonrası eski oturumlar düşer (denetim 2026-08-23 #3).
+      data: { twoFactorEnabled: false, twoFactorSecret: null, tokenVersion: { increment: 1 } },
     });
     await this.audit.log({
       action: "admin.staff.password_reset",

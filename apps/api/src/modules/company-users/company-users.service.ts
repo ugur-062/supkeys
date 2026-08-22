@@ -952,6 +952,23 @@ export class CompanyUsersService {
         );
       }
       this.assertValidRoleCombo(demoted);
+      // Denetim 2026-08-23 #8: hedef AKTİF olmalı (pasif üyeye devir firmayı
+      // aktif yöneticisiz bırakabiliyordu) ve hedefin izin kısıtı
+      // (permissionsOverride) temizlenmeli — aksi halde yeni Kurucu kendi
+      // "removed" anahtarlarıyla kilitlenip bunu düzeltemiyordu.
+      const target = await tx.companyUser.findFirst({
+        where: { id: targetId, companyId, deletedAt: null },
+        select: { isActive: true },
+      });
+      if (!target?.isActive) {
+        throw new BadRequestException(
+          "Kuruculuk yalnızca aktif bir kullanıcıya devredilebilir",
+        );
+      }
+      await tx.companyUser.update({
+        where: { id: targetId },
+        data: { permissionsOverride: Prisma.DbNull },
+      });
       if (currentOwnerId) {
         await tx.companyUser.update({
           where: { id: currentOwnerId },

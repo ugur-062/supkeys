@@ -58,7 +58,12 @@ model PlatformAdmin {
   // 2FA (TOTP) — admin panel yüksek yetkili: firma tarafındaki authenticator
   // akışının portu (Faz 7).
   twoFactorEnabled Boolean @default(false)
+  // AES-256-GCM şifreli (`enc:v1:` — common/auth/totp-secret-cipher.ts); eski
+  // düz-metin kayıtlar okurken şeffaf (denetim 2026-08-23 #4).
   twoFactorSecret  String?
+  // Oturum iptali (denetim 2026-08-23 #3): parola değişimi/reset/2FA değişimi
+  // artırır; JWT `tv` claim'i eşleşmezse 401 (company ile parite).
+  tokenVersion Int       @default(0)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

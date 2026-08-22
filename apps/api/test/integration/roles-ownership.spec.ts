@@ -266,3 +266,34 @@ describe("Onay-netliği: YONETICI+ONAYLAYICI kombo engeli", () => {
     expect(solo.roles).toEqual([CompanyRole.ONAYLAYICI]);
   });
 });
+
+describe("Denetim 2026-08-23 #8 — kuruculuk devri sertleştirmeleri", () => {
+  it("hedefin permissionsOverride'ı devirde TEMİZLENİR (yeni Kurucu kendi 'removed' anahtarlarıyla kilitlenmez)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [CompanyRole.YONETICI]);
+    await prisma.companyUser.update({
+      where: { id: member.id },
+      data: { permissionsOverride: { removed: ["users:manage"] } },
+    });
+    await svc.updateRoles(owner.auth, member.id, { roles: [CompanyRole.SAHIP] } as never);
+    const newOwner = await prisma.companyUser.findUniqueOrThrow({ where: { id: member.id } });
+    expect(newOwner.roles).toEqual([CompanyRole.SAHIP]);
+    expect(newOwner.permissionsOverride).toBeNull();
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(company.ownerUserId).toBe(member.id);
+  });
+
+  it("PASİF üyeye kuruculuk devredilemez (firma aktif yöneticisiz kalmasın)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [CompanyRole.YONETICI]);
+    await prisma.companyUser.update({ where: { id: member.id }, data: { isActive: false } });
+    await expect(
+      svc.updateRoles(owner.auth, member.id, { roles: [CompanyRole.SAHIP] } as never),
+    ).rejects.toThrow(/aktif bir kullanıcıya devredilebilir/);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(company.ownerUserId).toBe(owner.user.id); // devir olmadı
+  });
+});
+

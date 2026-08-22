@@ -5,7 +5,9 @@ import { JwtModule } from "@nestjs/jwt";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { ScheduleModule } from "@nestjs/schedule";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
+import { maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
@@ -78,10 +80,19 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
           process.env.NODE_ENV !== "production"
             ? { target: "pino-pretty", options: { singleLine: true } }
             : undefined,
+        // Denetim 2026-08-23 #6: path/query'de taşınan davet/referral/sıfırlama
+        // token'ları access-log'a düşmesin — url maskelenir (saf fonksiyon).
+        serializers: {
+          req: (req: Record<string, unknown>) => ({
+            ...req,
+            url: maskSensitiveUrl(req.url as string | undefined),
+          }),
+        },
         redact: {
           paths: [
             "req.headers.authorization",
             "req.headers.cookie",
+            "req.headers[\"cf-connecting-ip\"]",
             'res.headers["set-cookie"]',
             "req.body.password",
             "req.body.currentPassword",
@@ -89,6 +100,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
             "req.body.confirmPassword",
             "req.body.token",
             "req.body.code",
+            "req.params.token",
+            "req.query.token",
           ],
           censor: "[redacted]",
         },
@@ -186,7 +199,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Tracker = gerçek istemci IP'si (Cloudflare arkasında cf-connecting-ip).
+    { provide: APP_GUARD, useClass: ClientIpThrottlerGuard },
     // CSRF çift-gönderim — cookie ile kimlik doğrulanan mutasyonları korur.
     { provide: APP_GUARD, useClass: CsrfGuard },
     // Token'lı yanıtlarda httpOnly oturum + CSRF cookie'lerini yazar.

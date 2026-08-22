@@ -37,10 +37,22 @@ async function bootstrap() {
   });
   // Structured logger (Pino) — tüm Nest loglarını JSON + redaction ile üstlenir.
   app.useLogger(app.get(PinoLogger));
-  // Proxy arkasında (Render/Vercel/Cloudflare) gerçek client IP'si
-  // X-Forwarded-For'dan okunsun — aksi halde rate limiter TÜM trafiği proxy'nin
-  // tek IP'si altında toplar ve herkes ortak limite takılıp 429 alır.
+  // Proxy arkasında gerçek client IP'si: `trust proxy 1` yalnız Render LB'yi
+  // güvenir; prod'da Render'ın ÖNÜNDE Cloudflare de var (3 hop) → req.ip CF
+  // egress'i olur. Bu yüzden throttle/audit IP'si `resolveClientIp` üzerinden
+  // (TRUST_CF_CONNECTING_IP=true iken cf-connecting-ip) okunur — bkz.
+  // common/http/client-ip.ts (denetim 2026-08-23 Parça 1 #7).
   app.set("trust proxy", 1);
+  // Süreç-seviyesi güvenlik ağı (denetim 2026-08-23 #1): yakalanmamış promise
+  // reddi Node 22'de süreci DÜŞÜRÜR (Sentry DSN yoksa hiçbir handler yoktu).
+  // Logla + Sentry'e bildir, süreç ayakta kalsın; kök neden ayrıca düzeltilir.
+  process.on("unhandledRejection", (reason) => {
+    const msg = reason instanceof Error ? reason.stack ?? reason.message : String(reason);
+    new Logger("Process").error(`unhandledRejection: ${msg}`);
+    reportToSentry("unhandledRejection", "error", {
+      extra: { reason: msg.slice(0, 2000) },
+    });
+  });
   const config = app.get(ConfigService);
 
   // Security audit O-3 / #6 — placeholder/zayıf JWT_SECRET reddi (fail-closed).

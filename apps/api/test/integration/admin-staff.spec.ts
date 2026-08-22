@@ -48,11 +48,20 @@ function authRig() {
   };
   const jwt = { sign: jest.fn().mockReturnValue("jwt-token") };
   const audit = new AuditService(prisma as never);
+  // Denetim 2026-08-23 #4: TOTP sırrı şifreli → ConfigService (JWT_SECRET) gerekir.
+  const config = {
+    get: () => undefined,
+    getOrThrow: (k: string) => {
+      if (k === "JWT_SECRET") return "admin-staff-spec-secret-1234567890";
+      throw new Error(k);
+    },
+  };
   const service = new AdminAuthService(
     prisma as never,
     jwt as never,
     supabase as never,
     audit,
+    config as never,
   );
   return { service, supabase };
 }

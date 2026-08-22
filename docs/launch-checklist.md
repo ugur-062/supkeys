@@ -251,3 +251,11 @@ launch-blocker. Tedarikçi VERIFIED olmadan **teklif veremez**, firma PAKET olma
 | **Sentry** | Error tracking + alarm | ⚠️ **Fail-open** — sessiz no-op, uyarı yok |
 | TCMB | Döviz kuru | Graceful — `null` döner, son iyi kur + health `degraded` |
 | Anthropic | AI "Hakkımızda" | Graceful — heuristik fallback, özellik kapanmaz |
+
+## Denetim 2026-08-23 Parça 1 eklemeleri (Kimlik & Oturum)
+
+- [ ] **`TRUST_CF_CONNECTING_IP=true`** (Render env): api Render'ın Cloudflare ön ucu arkasında → throttle/audit IP'si `cf-connecting-ip`'den okunur (aksi halde tüm kullanıcılar CF IP'sinde toplanır, ortak 429). Self-host/CF'siz kurulumda `false`.
+- [ ] **`TOTP_ENC_KEY`** (opsiyonel): TOTP sırrı şifreleme anahtarı; yoksa JWT_SECRET türevi kullanılır. **JWT_SECRET rotasyonundan ÖNCE** bu değişkeni ESKİ JWT_SECRET değeriyle sabitle (yoksa tüm authenticator girişleri kırılır).
+- [ ] **Supabase Auth dashboard sertleştirme:** Authentication → Sign In/Up → "Allow new users to sign up" **KAPAT** (kayıt bizim API'den admin createUser ile; anon key + GoTrue `/signup` yetim auth.users üretmesin), Rate Limits sıkılaştır, e-posta şablonları/SMTP kontrol. Anon key'i sır sınıfında tut (web/admin bundle'ında YOK — olmamalı).
+- [ ] **Admin oturum iptali:** parola değişimi / SUPER_ADMIN reset / 2FA değişimi `tokenVersion++` → eski admin cookie'leri düşer (migration 20260823100000).
+- [ ] Sentry: istek verisi (cookie/header/body) artık gönderilmiyor — DSN'i girince event'te `request.cookies` olmadığını bir kez doğrula.

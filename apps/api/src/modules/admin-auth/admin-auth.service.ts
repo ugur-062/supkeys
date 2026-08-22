@@ -2,11 +2,18 @@ import {
   BadRequestException,
   Injectable,
   UnauthorizedException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import {
+  decryptTotpSecret,
+  encryptTotpSecret,
+  totpEncKey,
+} from "../../common/auth/totp-secret-cipher";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
@@ -20,6 +27,7 @@ export class AdminAuthService {
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   async login(dto: AdminLoginDto, ctx?: { ip?: string; userAgent?: string }) {
@@ -39,7 +47,8 @@ export class AdminAuthService {
     try {
       const result = await this.supabaseAuth.verifyPassword(email, dto.password);
       authId = result.authId;
-    } catch {
+    } catch (err) {
+      if (err instanceof ServiceUnavailableException) throw err; // kesinti ≠ parola hatası
       auditFail("bad_credentials");
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
@@ -61,7 +70,7 @@ export class AdminAuthService {
       }
       const ok = authenticator.verify({
         token: dto.code.trim(),
-        secret: admin.twoFactorSecret,
+        secret: this.decryptSecret(admin.twoFactorSecret),
       });
       if (!ok) {
         auditFail("bad_2fa_code");
@@ -79,6 +88,7 @@ export class AdminAuthService {
       email: admin.email,
       role: admin.role,
       type: "admin",
+      tv: admin.tokenVersion,
     };
 
     void this.audit.log({
@@ -130,20 +140,54 @@ export class AdminAuthService {
     }
     try {
       await this.supabaseAuth.verifyPassword(admin.email, current);
-    } catch {
+    } catch (err) {
+      if (err instanceof ServiceUnavailableException) throw err;
       throw new BadRequestException("Mevcut şifre hatalı");
     }
     if (!admin.authId) {
       throw new BadRequestException("Hesap Supabase köprüsüne bağlı değil");
     }
     await this.supabaseAuth.updatePassword(admin.authId, next);
+    // Oturum iptali: diğer cihazlardaki admin oturumları düşer; bu oturum için
+    // taze token döner (AuthCookieInterceptor cookie'yi yeniler).
+    const token = await this.rotateSession(admin.id);
     await this.audit.log({
       action: "admin.self.password_changed",
       actorType: "admin",
       actorId: adminId,
       actorEmail: admin.email,
     });
-    return { ok: true };
+    return { ok: true, token };
+  }
+
+  /** tokenVersion++ ve bu oturum için taze JWT (denetim 2026-08-23 #3). */
+  private async rotateSession(adminId: string): Promise<string> {
+    const updated = await this.prisma.platformAdmin.update({
+      where: { id: adminId },
+      data: { tokenVersion: { increment: 1 } },
+      select: { id: true, email: true, role: true, tokenVersion: true },
+    });
+    const payload: AdminJwtPayload = {
+      sub: updated.id,
+      email: updated.email,
+      role: updated.role,
+      type: "admin",
+      tv: updated.tokenVersion,
+    };
+    return this.jwt.sign(payload);
+  }
+
+  private encKey(): Buffer {
+    return totpEncKey({
+      jwtSecret: this.config.getOrThrow<string>("JWT_SECRET"),
+      totpEncKey: this.config.get<string>("TOTP_ENC_KEY"),
+    });
+  }
+  private encryptSecret(plain: string): string {
+    return encryptTotpSecret(plain, this.encKey());
+  }
+  private decryptSecret(stored: string): string {
+    return decryptTotpSecret(stored, this.encKey());
   }
 
   /** 2FA kurulum — secret + otpauth URI döner (enable'da kodla doğrulanır). */
@@ -168,15 +212,17 @@ export class AdminAuthService {
     }
     await this.prisma.platformAdmin.update({
       where: { id: adminId },
-      data: { twoFactorEnabled: true, twoFactorSecret: secret },
+      // Şifreli sakla (denetim 2026-08-23 #4) — DB sızıntısında 2FA seed'i açık kalmasın.
+      data: { twoFactorEnabled: true, twoFactorSecret: this.encryptSecret(secret) },
     });
+    const token = await this.rotateSession(adminId);
     await this.audit.log({
       action: "admin.self.2fa_enabled",
       actorType: "admin",
       actorId: adminId,
       actorEmail: admin.email,
     });
-    return { ok: true };
+    return { ok: true, token };
   }
 
   /** 2FA kapat — mevcut kod şart (çalıntı oturum tek başına kapatamasın). */
@@ -185,20 +231,26 @@ export class AdminAuthService {
     if (!admin.twoFactorEnabled || !admin.twoFactorSecret) {
       throw new BadRequestException("2FA etkin değil");
     }
-    if (!authenticator.verify({ token: code.trim(), secret: admin.twoFactorSecret })) {
+    if (
+      !authenticator.verify({
+        token: code.trim(),
+        secret: this.decryptSecret(admin.twoFactorSecret),
+      })
+    ) {
       throw new BadRequestException("Doğrulama kodu hatalı");
     }
     await this.prisma.platformAdmin.update({
       where: { id: adminId },
       data: { twoFactorEnabled: false, twoFactorSecret: null },
     });
+    const token = await this.rotateSession(adminId);
     await this.audit.log({
       action: "admin.self.2fa_disabled",
       actorType: "admin",
       actorId: adminId,
       actorEmail: admin.email,
     });
-    return { ok: true };
+    return { ok: true, token };
   }
 
   private async requireAdmin(id: string) {
