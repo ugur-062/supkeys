@@ -143,6 +143,8 @@ export class TenderExtractService {
       vision: routed.route !== "text",
       parts: routed.parts,
       responseSchema: EXTRACT_RESPONSE_SCHEMA as unknown as object,
+      // Gecikme/boş-yanıt: belge çıkarımı için "low" (bkz. AiCallOptions.thinkingLevel).
+      thinkingLevel: "low" as const,
       extraInputTokenEstimate: routed.extraInputTokenEstimate,
       metadata: {
         route: routed.route,
@@ -158,7 +160,9 @@ export class TenderExtractService {
     // Kısmi başarısızlık: JSON bozuk/boş → 1 otomatik premium retry (AI-0
     // yükseltme kuralı 2: "Flash düşük güvenle döndü").
     if (parsed == null) {
-      this.logger.warn("tender_extract: JSON parse edilemedi — premium retry");
+      this.logger.warn(
+        `tender_extract: JSON parse edilemedi — premium retry (finish=${result.finishReason ?? "?"} outTok=${result.outputTokens ?? "?"} len=${result.text.length} head="${result.text.slice(0, 120).replace(/\s+/g, " ")}")`,
+      );
       result = await this.ai.callAi(user, {
         ...callOptions,
         premiumRetry: true,

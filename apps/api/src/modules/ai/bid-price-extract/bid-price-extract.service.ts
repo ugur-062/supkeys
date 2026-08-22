@@ -51,18 +51,21 @@ export class BidPriceExtractService {
       throw new BadRequestException(`Belge çok uzun (en fazla ${this.config.maxPages} dosya)`);
     }
 
-    // Kalemler + yetki ÖNCE (yetkisiz/kalemsiz ihale için dosya işlemeyiz).
-    const listing = await this.bidImport.loadListing(user, dto.listingId);
-
-    const files = await Promise.all(
-      dto.fileKeys.map(async (key) => {
-        try {
-          return { key, buffer: await this.storage.getObject("private", key) };
-        } catch {
-          throw new BadRequestException("Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin");
-        }
-      }),
-    );
+    // Kalemler+yetki (getOne) ile R2 indirme bağımsız → paralel (uzak DB/R2
+    // turları gecikmenin Gemini dışındaki ana kalemi). Yetkisiz ihalede
+    // loadListing fırlatır; dosya okuma sonucu kullanılmadan reddedilir.
+    const [listing, files] = await Promise.all([
+      this.bidImport.loadListing(user, dto.listingId),
+      Promise.all(
+        dto.fileKeys.map(async (key) => {
+          try {
+            return { key, buffer: await this.storage.getObject("private", key) };
+          } catch {
+            throw new BadRequestException("Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin");
+          }
+        }),
+      ),
+    ]);
     const routed: RoutedInput = await routeExtractInput(files, this.config.maxPages);
 
     const callOptions = {
@@ -72,6 +75,8 @@ export class BidPriceExtractService {
       vision: routed.route !== "text",
       parts: routed.parts,
       responseSchema: BID_PRICE_RESPONSE_SCHEMA as unknown as object,
+      // Gecikme/boş-yanıt: şema-kısıtlı satır okuma için "low" yeterli (bkz. AiCallOptions.thinkingLevel).
+      thinkingLevel: "low" as const,
       extraInputTokenEstimate: routed.extraInputTokenEstimate,
       metadata: {
         route: routed.route,
@@ -83,7 +88,9 @@ export class BidPriceExtractService {
     let result: AiCallResult = await this.ai.callAi(user, callOptions);
     let parsed = tryParse(result.text);
     if (parsed == null) {
-      this.logger.warn("bid_price_extract: JSON parse edilemedi — premium retry");
+      this.logger.warn(
+        `bid_price_extract: JSON parse edilemedi — premium retry (finish=${result.finishReason ?? "?"} outTok=${result.outputTokens ?? "?"} len=${result.text.length} head="${result.text.slice(0, 120).replace(/\s+/g, " ")}")`,
+      );
       result = await this.ai.callAi(user, {
         ...callOptions,
         premiumRetry: true,

@@ -56,6 +56,14 @@ export interface AiCallOptions {
   extraInputTokenEstimate?: number;
   /** AiUsage.metadata'ya yazılacak özellik bağlamı (route, sayfa sayısı vb.). */
   metadata?: Record<string, unknown>;
+  /**
+   * Thinking seviyesi tavanı (Gemini `thinkingLevel`). Belge çıkarımı gibi
+   * şema-kısıtlı işler "low" kullanır: varsayılan dinamik thinking hem
+   * gecikmeyi 2-3× artırıyor hem ara sıra BOŞ/parse-edilemez JSON üretip
+   * premium retry'ı tetikliyordu (2026-08-22 ölçümü: 7 sn → 25 sn). Asistan
+   * zaten "low" (boş-yanıt fix'i, 2026-07-28). Verilmezse sağlayıcı varsayılanı.
+   */
+  thinkingLevel?: "minimal" | "low" | "medium" | "high";
 }
 
 export interface AiCallResult {
@@ -64,6 +72,10 @@ export interface AiCallResult {
   downgraded: boolean;
   /** Firma havuzu uyarı eşiğini (%80) aştı. */
   warned: boolean;
+  /** Sağlayıcı bitiş nedeni (teşhis; STOP/MAX_TOKENS/…) — hata değildir. */
+  finishReason?: string;
+  /** Çıktı token'ı (thinking dahil) — boş-yanıt teşhisi için. */
+  outputTokens?: number;
 }
 
 const WARN_NOTIFICATION_TYPE = "ai_budget_warn";
@@ -180,6 +192,7 @@ export class AiService {
         parts: options.parts,
         responseSchema: options.responseSchema,
         webSearch: options.webSearch,
+        thinkingLevel: options.thinkingLevel,
         maxOutputTokens: this.config.maxOutputTokens,
         timeoutMs: this.config.timeoutMs,
       });
@@ -188,6 +201,8 @@ export class AiService {
         void this.notifyBudgetWarning(user.companyId, settled.percentUsed);
       }
       return {
+        finishReason: result.finishReason,
+        outputTokens: result.usage.outputTokens,
         text: result.text,
         downgraded: reservation.downgraded,
         warned: settled.warned,
