@@ -70,6 +70,7 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 - Toast: sonner top-right, richColors
 - `<RequireAuth>` / `<RequireAdminAuth>` / `<RequireSupplierAuth>` boundary
 - Component yolu: `@/components/{ui,brand,providers,dashboard,tenders,orders}/*`
+- **Profilim = yerinde düzenleme (2026-08-22):** `ProfileEditor` + `CompanyProfileView` `edit` slotları (public görünümle tek düzen); görseller `lib/image-resize` ile tarayıcıda küçültülür; logo/kapak/galeri anahtarları her yüklemede benzersiz (R2 object-lock 409 + önbellek). Görsellerin `pub-*.r2.dev` yerine `cdn.rothern.com`'dan servis edilmesi için `scripts/migrate-public-images.ts` (r2.dev TR'de engelli).
 - API çağrıları: `useMutation` / `useQuery` (TanStack Query) + axios instance
 - **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ; XSS'e kapalı). Zustand persist YALNIZ UI snapshot'ı tutar (`user`/`company`), token DEĞİL — persist key'leri `rothern-company-auth` (web) + `rothern-admin-auth` (admin); remember→localStorage, aksi→sessionStorage. Kimlik `/me` ile doğrulanır. Mutating isteklerde CSRF double-submit (`rk_csrf`/`rk_admin_csrf` → `X-CSRF-Token`). **Kayan oturum:** AuthCookieInterceptor her istekte token ömrünün yarısı geçtiyse taze token basar (CSRF değeri korunur) — aktif kullanıcı düşmez, `JWT_EXPIRES_IN` (prod: 7d olmalı) kadar inaktif kalan düşer; "Oturumumu açık bırak" `persistent` claim'iyle taşınır.
 
