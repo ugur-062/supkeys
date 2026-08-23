@@ -21,6 +21,7 @@ import {
 } from "@rothern/shared";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
+import { assertZipWithinLimits, ZipInspectError } from "../../../common/files/zip-inspect";
 
 /**
  * Kalem Excel şablonu — ÜRET + OKU (2026-08-22). AI YOK: deterministik,
@@ -212,6 +213,9 @@ export class ListingItemImportService {
       if (/\.xlsm$/i.test(fileName)) {
         throw new BadRequestException("Makrolu dosya (.xlsm) kabul edilmez — .xlsx olarak kaydedin");
       }
+      // Zip bombası koruması (denetim 2026-08-23): açılmış boyut/giriş tavanı
+      // yüklemeden ÖNCE (ExcelJS tüm XML'i belleğe açar).
+      assertXlsxSafe(buffer);
       try {
         await wb.xlsx.load(buffer as unknown as ArrayBuffer);
       } catch {
@@ -238,6 +242,22 @@ export class ListingItemImportService {
 }
 
 // ---------------------------------------------------------------- yardımcılar
+
+/** ZIP merkezi dizin tavanları → kullanıcı yüzlü 400 (bozuk/zip64/aşırı büyük). */
+export function assertXlsxSafe(buffer: Buffer): void {
+  try {
+    assertZipWithinLimits(buffer);
+  } catch (e) {
+    if (e instanceof ZipInspectError) {
+      throw new BadRequestException(
+        e.reason === "corrupt" || e.reason === "zip64"
+          ? "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin"
+          : "Excel dosyası çok büyük/karmaşık — yalnız Kalemler sayfasını bırakıp 500 satırın altında yükleyin",
+      );
+    }
+    throw e;
+  }
+}
 
 function decodeBase64Strict(s: string): Buffer {
   const clean = s.replace(/^data:[^;]+;base64,/, "");

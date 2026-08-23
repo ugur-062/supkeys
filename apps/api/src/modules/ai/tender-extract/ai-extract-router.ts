@@ -3,6 +3,7 @@ import { fromBuffer as fileTypeFromBuffer } from "file-type";
 import { PDFParse } from "pdf-parse";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
+import { assertZipWithinLimits, ZipInspectError } from "../../../common/files/zip-inspect";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
 import type { AiInlinePart } from "../providers/ai-provider.interface";
@@ -151,6 +152,21 @@ async function routeSpreadsheet(
   maxPages: number,
 ): Promise<RoutedInput> {
   const wb = new ExcelJS.Workbook();
+  if (isXlsx) {
+    // Zip bombası koruması (denetim 2026-08-23): açılmış boyut tavanı yüklemeden önce.
+    try {
+      assertZipWithinLimits(buffer);
+    } catch (e) {
+      if (e instanceof ZipInspectError) {
+        throw new BadRequestException(
+          e.reason === "corrupt" || e.reason === "zip64"
+            ? "Tablo dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin"
+            : "Tablo dosyası çok büyük — ilgili sayfayı ayrı, küçük bir dosyada yükleyin",
+        );
+      }
+      throw e;
+    }
+  }
   try {
     if (isXlsx) await wb.xlsx.load(buffer as unknown as ArrayBuffer);
     else await wb.csv.read(Readable.from(buffer));

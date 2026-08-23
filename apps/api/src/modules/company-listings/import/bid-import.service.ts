@@ -24,7 +24,7 @@ import {
   type DocRow,
   type MatchItem,
 } from "./bid-matching";
-import { cellText, parseLocaleNumber } from "./listing-item-import.service";
+import { assertXlsxSafe, cellText, parseLocaleNumber } from "./listing-item-import.service";
 
 /**
  * Teklif fiyatı içe aktarma (Faz 2, 2026-08-22).
@@ -217,6 +217,7 @@ export class BidImportService {
     const isZip = buffer[0] === 0x50 && buffer[1] === 0x4b;
     if (isZip) {
       if (/\.xlsm$/i.test(input.fileName)) throw new BadRequestException("Makrolu dosya (.xlsm) kabul edilmez");
+      assertXlsxSafe(buffer); // zip bombası koruması (denetim 2026-08-23)
       try {
         await wb.xlsx.load(buffer as unknown as ArrayBuffer);
       } catch {
