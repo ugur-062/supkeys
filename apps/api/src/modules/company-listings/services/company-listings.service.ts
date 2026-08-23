@@ -50,6 +50,7 @@ import {
   bidCoversAllItems,
   lineTotal,
   sumLineTotals,
+  roundMoney,
   sumLineTotalsInBase,
 } from "../../../common/company/bid-items";
 import {
@@ -5049,6 +5050,11 @@ export class CompanyListingsService {
       });
       g.amount = g.amount.plus(lineTotal(bi.unitPrice, qty)); // S5 tek-kaynak
     }
+    // Grup tutarı sipariş/onay-eşiği tarafında Decimal(18,2) olarak yaşar —
+    // kesirli miktarda (ör. 1.5 × 10.33) 2 basamağı aşan ara toplam DB'de
+    // yuvarlanıp hesapla ıraksıyordu; tek kaynak `roundMoney` ile hizalanır
+    // (denetim 2026-08-23).
+    for (const g of groups.values()) g.amount = roundMoney(g.amount);
     return { groups, itemQty };
   }
 

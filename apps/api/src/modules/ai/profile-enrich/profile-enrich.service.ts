@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { tierAtLeast } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { fetchPublicUrl } from "../../../common/website-import";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai.config";
@@ -205,15 +206,17 @@ export class ProfileEnrichService {
     url: string,
   ): Promise<{ text: string; ogImage: string | null } | null> {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-      const res = await fetch(url, {
-        signal: ctrl.signal,
-        redirect: "follow",
-        headers: { "User-Agent": "RothernBot/1.0 (+https://www.rothern.com)" },
+      // SSRF: kullanıcı gövdeden serbest adres verebiliyor (input.website) →
+      // TEK KAYNAK kapı `assertPublicHttpUrl` + elle yönlendirme doğrulaması
+      // (common/website-import). Eskiden düz `fetch(redirect:"follow")` idi;
+      // iç servisler/metadata uçları çekilip AI özeti olarak dönebiliyordu
+      // (denetim 2026-08-23 Parça 3, HIGH).
+      const res = await fetchPublicUrl(url, {
+        accept: "text/html,application/xhtml+xml",
+        timeoutMs: FETCH_TIMEOUT_MS,
+        userAgent: "RothernBot/1.0 (+https://www.rothern.com)",
       });
-      clearTimeout(t);
-      if (!res.ok) return null;
+      if (!res || !res.ok) return null;
       const buf = Buffer.from(await res.arrayBuffer());
       const html = buf.subarray(0, MAX_HTML_BYTES).toString("utf8");
       const ogImage =

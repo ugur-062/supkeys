@@ -310,9 +310,55 @@ export class AdminInspectionService {
   /** Tam sipariş görünümü — kalemler + ödemeler + belgeler + zaman çizgisi. */
   // Dönüş tipi gevşek — bkz. listingDetail notu.
   async orderDetail(id: string): Promise<Record<string, unknown>> {
+    // Bu uç bilinçli olarak SUPPORT dahil TÜM admin rollerine açık (controller
+    // yorumu + admin-route-authz-wiring.spec sözleşmesi) → payload MİNİMUM
+    // tutulur: `...o` spread'i ile dönen banka IBAN'ı (bankIban/
+    // bankAccountHolder) ve teslimat adresi PII'si (contactName/phone/
+    // addressLine) DIŞARIDA — kardeş uç admin-company-users da aynı gerekçeyle
+    // `phone`u projeksiyondan çıkarıyor (denetim 2026-08-23 Parça 3 #3).
     const o = await this.prisma.companyOrder.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        amount: true,
+        currency: true,
+        listingId: true,
+        buyerCompanyId: true,
+        sellerCompanyId: true,
+        paymentTiming: true,
+        paymentCategory: true,
+        advancePercent: true,
+        paymentDays: true,
+        lcType: true,
+        lcConfirmed: true,
+        paymentNote: true,
+        deliveryTerm: true,
+        requireGuaranteeLetter: true,
+        acceptedNote: true,
+        expectedDeliveryDate: true,
+        invoiceNumber: true,
+        deliveryNote: true,
+        completedNote: true,
+        cancelReason: true,
+        rejectedReason: true,
+        rejectedAt: true,
+        cancelRequestedAt: true,
+        cancelRequestReason: true,
+        disputedAt: true,
+        defectNotifiedAt: true,
+        defectReason: true,
+        lcOpenedAt: true,
+        lcAcceptedAt: true,
+        lcPaidAt: true,
+        acceptedAt: true,
+        deliveryStartedAt: true,
+        deliveredAt: true,
+        completedAt: true,
+        cancelledAt: true,
+        createdAt: true,
+        updatedAt: true,
         buyer: { select: { id: true, name: true, rothernId: true } },
         seller: { select: { id: true, name: true, rothernId: true } },
         listing: { select: { id: true, title: true, number: true } },

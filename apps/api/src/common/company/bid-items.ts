@@ -59,10 +59,24 @@ export function lineTotal(
  * ıraksaması DEĞİL).
  */
 export function sumLineTotals(lines: readonly PriceQty[]): Prisma.Decimal {
-  return lines.reduce(
-    (sum, l) => sum.plus(lineTotal(l.unitPrice, l.quantity)),
-    new Prisma.Decimal(0),
+  return roundMoney(
+    lines.reduce(
+      (sum, l) => sum.plus(lineTotal(l.unitPrice, l.quantity)),
+      new Prisma.Decimal(0),
+    ),
   );
+}
+
+/**
+ * Para yuvarlaması — `Decimal(18,2)` kolonlarının DAVRANIŞIYLA birebir
+ * (ROUND_HALF_UP, 2 basamak; INV-MONEY-1). Toplam tutarların yazılmadan ÖNCE
+ * bundan geçmesi şart: aksi hâlde `10.33 × 1.5 = 15.495` hesaplanıp DB'ye
+ * `15.50` yazılıyor ve aynı formülü yeniden koşan S5 nöbetçisi
+ * `15.495 ≠ 15.50` görüp kazandırmayı KALICI olarak durduruyordu (kesirli
+ * miktarlı ilanlarda toplu kazandırma ölüydü — denetim 2026-08-23).
+ */
+export function roundMoney(d: Prisma.Decimal): Prisma.Decimal {
+  return d.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 }
 
 type PriceQtyFx = PriceQty & {
@@ -85,13 +99,17 @@ export function sumLineTotalsInBase(
     (l) => l.fxToBase != null && !new Prisma.Decimal(l.fxToBase).equals(1),
   );
   if (!mixed) return sumLineTotals(lines);
-  return lines.reduce((sum, l) => {
-    const fx =
-      l.fxToBase != null ? new Prisma.Decimal(l.fxToBase) : new Prisma.Decimal(1);
-    return sum.plus(
-      lineTotal(l.unitPrice, l.quantity)
-        .mul(fx)
-        .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
-    );
-  }, new Prisma.Decimal(0));
+  return roundMoney(
+    lines.reduce((sum, l) => {
+      const fx =
+        l.fxToBase != null
+          ? new Prisma.Decimal(l.fxToBase)
+          : new Prisma.Decimal(1);
+      return sum.plus(
+        lineTotal(l.unitPrice, l.quantity)
+          .mul(fx)
+          .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
+      );
+    }, new Prisma.Decimal(0)),
+  );
 }

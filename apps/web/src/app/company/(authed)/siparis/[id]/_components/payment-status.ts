@@ -9,15 +9,30 @@
  */
 
 /**
- * Tam ödeme onaylı mı — backend `paymentTotals.remaining` = `Decimal.max(0,
- * total − confirmed)` (company-orders.service). `remaining ≤ 0` TAM OLARAK
- * backend `isFullyPaid(total, confirmed)` (confirmed ≥ total) ile eşdeğerdir.
- * paymentTotals yoksa güvenli varsayılan: kalan = tutar (>0) → ödenmemiş.
+ * Borç kapandı mı (ONAYLI ödemeye göre) — tek meşru sinyal backend'in
+ * `paymentSettled` alanıdır (`isFullyPaid(total, confirmed)`, liste ucuyla
+ * birebir aynı helper).
+ *
+ * DİKKAT: `paymentTotals.remaining` = `max(0, total − confirmed − pending)` —
+ * yani "kalan BİLDİRİLEBİLİR tutar" (S4/Madde 16; `recordPayment` tavanıyla
+ * aynı taban). Onay BEKLEYEN bildirim de düşüldüğü için "ödendi" göstergesi
+ * DEĞİLDİR; eski sürüm bunu ödendi sanıyor ve detay "Ödeme tamamlandı" derken
+ * liste "Ödeme bekliyor" diyordu (denetim 2026-08-23 Parça 3 #6).
+ * Sıra: `settled` → onaylı toplam → (son çare) remaining. Epsilon YOK.
  */
 export function orderFullyPaid(
-  paymentTotals: { remaining?: string | null } | null | undefined,
+  paymentTotals:
+    | { confirmed?: string | null; remaining?: string | null }
+    | null
+    | undefined,
   amount: string | number,
+  settled?: boolean | null,
 ): boolean {
+  if (typeof settled === "boolean") return settled;
+  if (Number(amount) <= 0) return true; // 0 tutarlı sipariş edge
+  if (paymentTotals?.confirmed != null) {
+    return Number(paymentTotals.confirmed) >= Number(amount);
+  }
   const remaining = paymentTotals?.remaining ?? amount;
   return Number(remaining) <= 0;
 }

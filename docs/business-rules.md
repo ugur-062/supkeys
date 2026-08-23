@@ -103,8 +103,9 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   (mal bulunamıyor → sipariş sonsuza dek "Onaylandı"da yalan söylüyordu). Satıcı yalnız
   **ACCEPTED**'te iptal TALEP eder (gerekçe min 10); alıcı **onaylar → CANCELLED** ya da
   **reddeder → DISPUTED** (ACCEPTED'a dönmez). DISPUTED = dürüst etiket: saat durur
-  (vade cron/ödeme penceresi/revizyon pasif), iki-yönlü çıkış açık (satıcı sevk / alıcı
-  onay). Otomatik onay YOK. CONFIRMED ödemede alıcı onayı ENGELLENMEZ ama iade uyarısı
+  (vade cron/revizyon pasif), iki-yönlü çıkış açık (satıcı sevk / alıcı onay) — bu
+  yüzden **ödeme kaydı ve LC açıldı/kabul adımları A1-DISPUTED'ta AÇIK kalır**
+  (sevkin ön koşulu); ayıp-DISPUTED'ta kapalı. Otomatik onay YOK. CONFIRMED ödemede alıcı onayı ENGELLENMEZ ama iade uyarısı
   gösterilir (platform para tutmaz — iade taraflar arası). Alıcının KENDİ `/cancel`'ı
   CONFIRMED'de engelli kalır (CO cancel guard, değişmez). Ayrı tablo yok — kanıt izi
   `audit_logs` (platform hakem değil, KAYDEDER) | ✅ **A1**, `752ad978`

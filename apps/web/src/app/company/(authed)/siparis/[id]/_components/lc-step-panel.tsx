@@ -30,12 +30,12 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   const paid = useLcStep(id, "paid");
 
   if (order.paymentCategory !== "LETTER_OF_CREDIT") return null;
-  // Sonlanmış siparişte panel gizlenir (tamamlanan LC ödemesi zaten geçmişte).
-  if (
-    order.status === "REJECTED" ||
-    order.status === "CANCELLED" ||
-    order.status === "COMPLETED"
-  ) {
+  // Sonlanmış siparişte panel gizlenir. COMPLETED **gizlenmez**: Madde 17 ile
+  // "Teslim Aldım" siparişi oto-tamamlıyor, banka ödemesi ise günler sonra
+  // gelebiliyor — `lcMarkPaid` API'si COMPLETED'ı kabul eder (yaşam döngüsü
+  // ayrımı, business-rules §3). Panel COMPLETED'da da açık kalmazsa satıcı
+  // borcu kapatamaz (denetim 2026-08-23 Parça 3 #1).
+  if (order.status === "REJECTED" || order.status === "CANCELLED") {
     return null;
   }
   // Onay öncesi (PENDING) LC adımı yok — önce satıcı siparişi kabul etmeli.
@@ -94,8 +94,12 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
       };
     }
 
-    // Gönderildi / teslim alındı — banka ödemesi işaretlemesi.
-    if (order.status === "IN_DELIVERY" || order.status === "DELIVERED") {
+    // Gönderildi / teslim alındı / tamamlandı — banka ödemesi işaretlemesi.
+    if (
+      order.status === "IN_DELIVERY" ||
+      order.status === "DELIVERED" ||
+      order.status === "COMPLETED"
+    ) {
       if (!order.lcPaidAt) {
         return isSeller
           ? {
@@ -113,6 +117,9 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
               text: "Ödeme akreditif kapsamında banka kanalından yapılır — satıcı ödemeyi aldığında işaretleyecek.",
             };
       }
+      // Ödeme alındı + sipariş tamamlandı → panel gizlenir (geçmiş Zaman
+      // Tüneli'nde); açık siparişte "alındı" bilgisi görünmeye devam eder.
+      if (order.status === "COMPLETED") return null;
       return {
         tone: "ok" as const,
         text: "Akreditif ödemesi alındı.",

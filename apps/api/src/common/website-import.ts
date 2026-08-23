@@ -53,26 +53,61 @@ export function assertPublicHttpUrl(raw: string): URL {
   return url;
 }
 
-async function fetchWithTimeout(
-  url: URL,
-  accept: string,
+/**
+ * SSRF-korumalı fetch — yönlendirmeler ELLE takip edilir ve HER adım yeniden
+ * `assertPublicHttpUrl`'den geçer. `redirect: "follow"` kullanmak ikinci-derece
+ * SSRF bırakıyordu: public bir adres 302 ile `169.254.169.254`/`127.0.0.1`'e
+ * yönlendirdiğinde ilk kapı aşılmış oluyordu (denetim 2026-08-23).
+ * İlk adres geçersiz/özel ise `BadRequestException` fırlatır; sonraki hatalar
+ * (ağ, çok fazla yönlendirme, özel ağa atlama) `null` döner.
+ */
+export async function fetchPublicUrl(
+  raw: string | URL,
+  opts: {
+    accept?: string;
+    timeoutMs?: number;
+    maxRedirects?: number;
+    userAgent?: string;
+  } = {},
 ): Promise<Response | null> {
+  const {
+    accept = "text/html,*/*",
+    timeoutMs = FETCH_TIMEOUT_MS,
+    maxRedirects = 3,
+    userAgent = "RothernBot/1.0 (+https://rothern.com)",
+  } = opts;
+  // İlk adres kapıdan AÇIKÇA geçer (kullanıcı hatalı adres girdiyse mesaj alsın).
+  let url = assertPublicHttpUrl(
+    typeof raw === "string" ? raw : raw.toString(),
+  );
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    return await fetch(url, {
-      signal: ctrl.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent": "RothernBot/1.0 (+https://rothern.com)",
-        Accept: accept,
-      },
-    });
+    for (let hop = 0; hop <= maxRedirects; hop++) {
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        redirect: "manual",
+        headers: { "User-Agent": userAgent, Accept: accept },
+      });
+      if (res.status < 300 || res.status >= 400) return res;
+      const loc = res.headers.get("location");
+      if (!loc) return res;
+      // Göreli konum mutlaklaştırılır; yeni host yeniden doğrulanır.
+      url = assertPublicHttpUrl(new URL(loc, url).toString());
+    }
+    return null; // çok fazla yönlendirme
   } catch {
     return null;
   } finally {
     clearTimeout(t);
   }
+}
+
+async function fetchWithTimeout(
+  url: URL,
+  accept: string,
+): Promise<Response | null> {
+  return fetchPublicUrl(url, { accept });
 }
 
 function decodeEntities(s: string): string {

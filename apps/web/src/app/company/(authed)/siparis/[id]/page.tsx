@@ -153,13 +153,26 @@ export default function OrderDetailPage() {
   // epsilon YOK (eski `confirmed + 0.01 >= amount` 1 kuruş eksikte açıyordu).
   const confirmedPaid = Number(o.paymentTotals?.confirmed ?? 0);
   const remainingDue = Number(o.paymentTotals?.remaining ?? 0);
-  const fullyPaid = orderFullyPaid(o.paymentTotals, o.amount);
+  // Denetim P3 #6: `paymentTotals.remaining` bekleyen (onaysız) bildirimi de
+  // düşer (S4/Madde 16 — "kalan bildirilebilir tutar"). "Borç kapandı mı"
+  // sinyali YALNIZ backend'in `paymentSettled` alanıdır (liste ucuyla aynı
+  // helper); yoksa onaylı toplamdan türetilir.
+  const fullyPaid = orderFullyPaid(o.paymentTotals, o.amount, o.paymentSettled);
   // Faz 3 gönderim kilidi (S3/S5): akreditifte satıcı kabulü, peşinde eşik
   // ödemesi olmadan satıcı GÖNDEREMEZ (backend de reddeder — UI önden kilitler).
   const isLc = o.paymentCategory === "LETTER_OF_CREDIT";
   const advanceDue = Number(o.advanceDue ?? 0);
   const advanceMet = isAdvanceMet(advanceDue, confirmedPaid);
   const shipUnlocked = (!isLc || !!o.lcAcceptedAt) && advanceMet;
+  // Denetim P3 #5: ayıp ihbarlı DISPUTED'ta sevk/tamamlama API'de KAPALI
+  // (TTK-23) — A1-DISPUTED (defectNotifiedAt yok) ise açık kalır.
+  const defectDisputed = o.status === "DISPUTED" && !!o.defectNotifiedAt;
+  // Vesaik mukabili: alıcı tam ödeme onaylanmadan teslim alamaz (receive kapısı).
+  const cadGate =
+    !isSeller &&
+    o.paymentTiming === "BEFORE_DELIVERY" &&
+    o.paymentCategory === "CASH_AGAINST_DOCS" &&
+    !fullyPaid;
   // Sonraki ana aksiyon (modal açar).
   const next =
     isSeller &&
@@ -167,6 +180,7 @@ export default function OrderDetailPage() {
     (o.status === "ACCEPTED" ||
       o.status === "CREATED" ||
       o.status === "DISPUTED") &&
+    !defectDisputed &&
     !paymentAwaitingConfirmation &&
     shipUnlocked
       ? {
@@ -174,7 +188,7 @@ export default function OrderDetailPage() {
           label: "Siparişi Tamamla",
           modal: "ship" as const,
         }
-      : !isSeller && o.status === "IN_DELIVERY"
+      : !isSeller && o.status === "IN_DELIVERY" && !cadGate
         ? { label: "Teslim Aldım", modal: "receive" as const }
         : // YAŞAM DÖNGÜSÜ AYRIMI: Tamamla = malın KABULÜ (operasyonel), ödemeden
           // BAĞIMSIZ. Vadeli siparişte alıcı kabul edip tamamlar; borç ayrı izlenir.
@@ -188,6 +202,7 @@ export default function OrderDetailPage() {
     (o.status === "ACCEPTED" ||
       o.status === "CREATED" ||
       o.status === "DISPUTED") &&
+    !defectDisputed &&
     !advanceMet &&
     !paymentAwaitingConfirmation;
 
@@ -306,6 +321,16 @@ export default function OrderDetailPage() {
       {/* YAŞAM DÖNGÜSÜ AYRIMI: operasyonel bitiş ≠ ödeme; borç ayrı. */}
       {fullyPaid ? (
         <Text className="text-sm text-emerald-700">Ödeme tamamlandı.</Text>
+      ) : paymentAwaitingConfirmation ? (
+        <Text className="text-sm text-amber-700">
+          Ödeme bildirildi — satıcının onayı bekleniyor (onaylı:{" "}
+          {formatMoney(confirmedPaid, o.currency)}).
+        </Text>
+      ) : isLc ? (
+        <Text className="text-sm text-amber-700">
+          Ödeme akreditif kapsamında banka kanalından yapılır — satıcı ödemeyi
+          aldığında Akreditif bölümünden işaretler.
+        </Text>
       ) : (
         <Text className="text-sm text-amber-700">
           Ödeme bekliyor — kalan {formatMoney(remainingDue, o.currency)}
@@ -327,6 +352,17 @@ export default function OrderDetailPage() {
     (o.status === "ACCEPTED" || o.status === "CREATED") ? (
     <Text className="text-sm text-zinc-500">
       Akreditif adımları solda — kabul edildikten sonra gönderebilirsiniz.
+    </Text>
+  ) : isSeller && defectDisputed ? (
+    <Text className="text-sm text-amber-700">
+      Ayıp ihbarı açık — sevk/tamamlama adımı kapalı. Çözüm taraflar arasında;
+      alıcı ihbarı geri çekerse adım yeniden açılır.
+    </Text>
+  ) : cadGate && o.status === "IN_DELIVERY" ? (
+    <Text className="text-sm text-amber-700">
+      Vesaik mukabili — teslim almadan önce kalan{" "}
+      {formatMoney(remainingDue, o.currency)} tutarın ödenip satıcı tarafından
+      onaylanması gerekir.
     </Text>
   ) : next ? (
     <Text className="text-sm text-zinc-600">

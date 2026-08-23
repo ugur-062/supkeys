@@ -476,3 +476,80 @@ describe("#12 — kalem-bazlı kazandırmada kaybedenlere bildirim", () => {
     expect(n).toBeGreaterThan(0);
   });
 });
+
+describe("#1b — kesirli miktarda para yuvarlaması (S5 nöbetçisi ile DB uyumu)", () => {
+  it("1.5 × 10,33 = 15,495 → bid.amount 15,50 yazılır ve TOPLU kazandırma geçer", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      closesAt: FUTURE,
+    });
+    const item = await makeItem(prisma, listing.id, {
+      quantity: new Prisma.Decimal("1.5"),
+    });
+    const placed = (await service.placeBid(bidder.auth, listing.id, {
+      items: [{ itemId: item.id, unitPrice: 10.33 }],
+      validityDays: 30,
+      deliveryDate: FUTURE.toISOString(),
+    } as never)) as { id: string };
+    const stored = await prisma.listingBid.findUniqueOrThrow({
+      where: { id: placed.id },
+    });
+    // DB Decimal(18,2) ile birebir — hesap da yuvarlanmış yazılır.
+    expect(stored.amount.toString()).toBe("15.5");
+
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "IN_AWARD" },
+    });
+    // Eskiden nöbetçi 15,495 ≠ 15,50 görüp kazandırmayı kalıcı durduruyordu.
+    await service.award(owner.auth, listing.id, placed.id);
+    const l = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+    });
+    expect(l.status).toBe("AWARDED");
+    const order = await prisma.companyOrder.findFirstOrThrow({
+      where: { listingId: listing.id },
+    });
+    expect(order.amount.toString()).toBe("15.5");
+  });
+
+  it("kalem-bazlı kazandırma aynı girdide aynı tutarı üretir", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "IN_AWARD",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      closesAt: PAST,
+    });
+    const item = await makeItem(prisma, listing.id, {
+      quantity: new Prisma.Decimal("1.5"),
+    });
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: "15.50",
+      items: [{ itemId: item.id, unitPrice: "10.33" }],
+    });
+    await service.awardByItem(owner.auth, listing.id, [
+      { itemId: item.id, bidId: bid.id },
+    ]);
+    const order = await prisma.companyOrder.findFirstOrThrow({
+      where: { listingId: listing.id },
+    });
+    expect(order.amount.toString()).toBe("15.5");
+  });
+});

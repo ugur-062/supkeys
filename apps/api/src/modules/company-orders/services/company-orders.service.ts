@@ -971,7 +971,8 @@ export class CompanyOrdersService {
   async lcMarkOpened(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     this.assertLcOrder(order, user, "buyer");
-    if (order.status !== "ACCEPTED") {
+    // A1-DISPUTED'ta da açık: sevk çıkışının ön koşulu (bkz. isPaymentOpen).
+    if (order.status !== "ACCEPTED" && !this.isA1Dispute(order)) {
       throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
     }
     if (order.lcOpenedAt) {
@@ -980,6 +981,16 @@ export class CompanyOrdersService {
     await this.prisma.companyOrder.update({
       where: { id },
       data: { lcOpenedAt: new Date() },
+    });
+    await this.audit.log({
+      action: "company.order.lc_opened",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      metadata: { orderNumber: order.number },
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
@@ -997,7 +1008,8 @@ export class CompanyOrdersService {
   async lcMarkAccepted(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     this.assertLcOrder(order, user, "seller");
-    if (order.status !== "ACCEPTED") {
+    // A1-DISPUTED'ta da açık: sevk çıkışının ön koşulu (bkz. isPaymentOpen).
+    if (order.status !== "ACCEPTED" && !this.isA1Dispute(order)) {
       throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
     }
     if (!order.lcOpenedAt) {
@@ -1011,6 +1023,16 @@ export class CompanyOrdersService {
     await this.prisma.companyOrder.update({
       where: { id },
       data: { lcAcceptedAt: new Date() },
+    });
+    await this.audit.log({
+      action: "company.order.lc_accepted",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      metadata: { orderNumber: order.number },
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
@@ -1055,6 +1077,8 @@ export class CompanyOrdersService {
     // YAŞAM DÖNGÜSÜ AYRIMI: LC ödemesi borcu kapatır (onaylı tam-tutar kaydı +
     // lcPaidAt damgası) ama sipariş DURUMUNU değiştirmez — operasyonel tamamlama
     // alıcının `complete()` (kabul) adımıdır, ödeme değil.
+    let createdPaymentId: string | null = null;
+    let paidAmount = new Prisma.Decimal(0);
     await runTenantTx(this.prisma, async (tx) => {
       const rows = await tx.$queryRaw<
         { status: CompanyOrderStatus; amount: Prisma.Decimal }[]
@@ -1078,7 +1102,7 @@ export class CompanyOrdersService {
       // Kalan > 0 ise onaylı tam-tutar kaydı üret (idempotent lcPaidAt damgası
       // çift-tıkı zaten engeller; remaining=0 ise yalnız damga).
       if (remaining.gt(0)) {
-        await tx.companyOrderPayment.create({
+        const created = await tx.companyOrderPayment.create({
           data: {
             orderId: id,
             amount: remaining,
@@ -1090,11 +1114,34 @@ export class CompanyOrdersService {
             recordedByUserId: user.userId,
           },
         });
+        createdPaymentId = created.id;
+        paidAmount = remaining;
       }
       await tx.companyOrder.update({
         where: { id },
         data: { lcPaidAt: new Date() },
       });
+    });
+    // INV-AUDIT-1: bu uç ONAYLI ödeme satırı üretip audit'li paymentDecision
+    // yolunu atlıyordu — "her CONFIRMED ödemenin izi vardır" simetrisi için
+    // aynı aksiyon adıyla iz bırakılır (denetim 2026-08-23 Parça 3 #4).
+    await this.audit.log({
+      action: "company.order.payment_confirmed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: createdPaymentId ? "company_order_payment" : "company_order",
+      entityId: createdPaymentId ?? id,
+      critical: true,
+      metadata: {
+        orderId: id,
+        orderNumber: order.number,
+        amount: Number(paidAmount),
+        currency: order.currency,
+        source: "letter_of_credit",
+        to: "CONFIRMED",
+      },
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
@@ -1194,15 +1241,33 @@ export class CompanyOrdersService {
           if (claimed.count !== 1) continue;
           const remaining = Prisma.Decimal.max(0, totalDec.minus(confirmed));
           const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
-          await this.notifyOrderParty(
-            o.id,
-            o.buyerCompanyId,
-            "Ödeme vadesi yaklaşıyor",
-            "Ödeme vadesi yaklaşıyor",
-            `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${dueAt!.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toNumber().toLocaleString("tr-TR")} ${curSym}.`,
-            "satinalma",
-          );
-          sent++;
+          // Bildirim hatası (a) bu siparişin hatırlatmasını kalıcı kaybetmesin
+          // (damga geri alınır), (b) taramanın kalanını iptal etmesin
+          // (denetim 2026-08-23 Parça 3 #7). `await` korunur — spec'ler
+          // sendDuePaymentReminders sonrası bildirimi senkron sayıyor.
+          try {
+            await this.notifyOrderParty(
+              o.id,
+              o.buyerCompanyId,
+              "Ödeme vadesi yaklaşıyor",
+              "Ödeme vadesi yaklaşıyor",
+              `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${dueAt!.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toNumber().toLocaleString("tr-TR")} ${curSym}.`,
+              "satinalma",
+            );
+            sent++;
+          } catch (err) {
+            await this.bypass.companyOrder
+              .updateMany({
+                where: { id: o.id },
+                data: { paymentDueReminderSentAt: null },
+              })
+              .catch(() => undefined);
+            this.logger.error(
+              `Vade hatırlatması gönderilemedi (${o.id}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          }
         }
       }
       if (candidates.length < BATCH) break;
@@ -1439,20 +1504,34 @@ export class CompanyOrdersService {
     timing: CompanyOrderPaymentTiming,
     status: CompanyOrderStatus,
     category?: PaymentCategory | string | null,
+    defectNotifiedAt?: Date | null,
   ): boolean {
     // Akreditifte ödeme banka kanalından akar — alıcının manuel ödeme kaydı
     // ve dekont penceresi KAPALI. Satıcı "Ödeme Bankadan Alındı" adımıyla
     // sistem tam-tutar onaylı kayıt üretir (lcMarkPaid).
     if (category === "LETTER_OF_CREDIT") return false;
     if (timing === "BEFORE_DELIVERY") {
+      // A1-DISPUTED (satıcı iptal talebi reddedildi, ayıp ihbarı YOK): satıcının
+      // "mal bulundu → sevk" çıkışının ön koşulu peşin eşiğidir; pencere kapalı
+      // olsaydı alıcı ödeyemez, sevk hiç açılmaz ve iki-yönlü çıkış (invariants
+      // §A1) tek yönlü kalırdı. Ayıp-DISPUTED'ta (TTK-23) KAPALI kalır.
       return (
         status === "ACCEPTED" ||
         status === "IN_DELIVERY" ||
         status === "DELIVERED" ||
-        status === "COMPLETED"
+        status === "COMPLETED" ||
+        (status === "DISPUTED" && !defectNotifiedAt)
       );
     }
     return status === "DELIVERED" || status === "COMPLETED";
+  }
+
+  /** A1 ihtilafı (satıcı iptal talebi reddedildi) — ayıp ihbarı DEĞİL. */
+  private isA1Dispute(order: {
+    status: CompanyOrderStatus;
+    defectNotifiedAt: Date | null;
+  }): boolean {
+    return order.status === "DISPUTED" && !order.defectNotifiedAt;
   }
 
   /** Alıcı ödeme kaydı oluşturur (AWAITING_CONFIRMATION). */
@@ -1478,6 +1557,7 @@ export class CompanyOrdersService {
         order.paymentTiming,
         order.status,
         order.paymentCategory,
+        order.defectNotifiedAt,
       )
     ) {
       throw new BadRequestException(
@@ -1859,12 +1939,19 @@ export class CompanyOrdersService {
         o.paymentTiming,
         o.status,
         o.paymentCategory,
+        o.defectNotifiedAt,
       ),
       paymentTotals: {
         confirmed: confirmed.toFixed(2),
         pending: pending.toFixed(2),
+        // S4/Madde 16: "kalan BİLDİRİLEBİLİR tutar" — bekleyen (onaysız)
+        // bildirim de düşülür. "Borç kapandı mı" sinyali DEĞİL; onun için
+        // aşağıdaki `paymentSettled` (liste ucuyla aynı helper) kullanılır.
         remaining: remaining.toFixed(2),
       },
+      // INV-SM-4: borç kapandı mı — YALNIZ onaylı toplamdan (liste ucuyla
+      // birebir aynı). Detay/liste çelişkisini kapatır (Parça 3 #6).
+      paymentSettled: this.isFullyPaid(total, confirmed),
       // Gönderim öncesi onaylanması gereken peşin tutar (S3) — UI kilit/eşik
       // mesajı bunu gösterir; 0 = peşin şartı yok.
       advanceDue: this.advanceDueDecimal(
