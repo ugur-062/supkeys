@@ -48,6 +48,9 @@ cooldown).
 - `/company/approvals/all` izin kapısız: Faz O bilinçli olarak yalnız DETAY uçlarını daralttı; liste verisi zaten `listings`/`orders` listelerinde açık → kabul.
 - TanStack Query önbelleği hesap değişiminde: gerçek akışta ulaşılamaz (tam navigasyon / clear) → INFO hijyen.
 
+## DURUM — Dalga B (kısmi, 2026-08-23)
+Kapatılan LOW'lar: kurtarma kodları pepper'lı v2 hash + atomik tüketim (`7c28c42a`); setActive/remove'da yönetici-hedef koruması (`d80f604b`); doküman sapmaları (CLAUDE.md realm/self-signup/kapalı-zarf, ölü SUPABASE_JWT_SECRET, NEXT_PUBLIC_SUPABASE notları, Supabase signup kapatma adımı — `2b35e3ea`). Kalan Dalga B: davet token hash+POST taşıma, logout CSRF (kabul edilebilir), parola politikası uyumu, onay zinciri rol↔izin (Parça 8), legacy override anahtarları, yetim auth.users aracı, web 401/sessionStorage/hydration (Parça 10), admin nav drift (Parça 9), test boşlukları.
+
 ## DURUM (2026-08-23) — Dalga A UYGULANDI
 #1, #2, #3, #4, #5, #6 (log maskeleme; hash'li saklama Dalga B), #7, #8, #9, #10 düzeltildi + regresyon testleri: `test/unit/auth-hardening-2026-08-23.spec.ts`, `test/integration/realtime-gateway-bad-cookie.spec.ts`, `email-code-cap.spec.ts`, `admin-session-revocation.spec.ts`, `roles-ownership.spec.ts` (+2). LOW'lardan kapatılan: WS `*.vercel.app` kapısı, "oturumu açık bırak" tercihinin korunması, parseCookies REST 500'leri. #11 + kalan LOW/INFO: Dalga B / kullanıcı (Supabase dashboard).
 
