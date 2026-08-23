@@ -38,4 +38,24 @@ UI, un-award yok, 403/404 tutarlılığı).
 Dosya/satır detayları workflow journal'ında (wf_e2d85464-596). Başlıklar: DTO sınırları vs DB kolonları (varchar), TR ondalık frontend↔backend tutarlılığı, controller-validation kapsamı, şablon IDOR (tenant scope mevcut), listing-documents silme kilitleri, bildirim içerik notları.
 
 ## DURUM
-- #4 kapatıldı (`67d9cb05`). Diğerleri ONAY sonrası Dalga A (#1-#3, #5-#12) → test + tam suite + push.
+- #4 kapatıldı (`67d9cb05`).
+- **Dalga A UYGULANDI (2026-08-23): #1-#3, #5-#12 + #14 (LOW)** — service değişiklikleri:
+  S5 nöbetçisi yalnız kalem satırı varken; placeBid taslak güncellemesi `submittedAt:null`
+  + revive `assertVerified`; buyNow KYC + `company.bid.submitted {isBuyNow}` audit;
+  CLOSED (admin moderasyon) createNextRound/award/awardByItem/eliminate/closeNoAward/
+  extendBidValidity setlerinden çıkarıldı (tek çıkış admin reopen); updateListing ilan
+  satırı FOR UPDATE + tx içi teklif sayımı (Conflict); placeBid tx'inde ilan durum/tur/
+  kalem kümesi yeniden doğrulanır (Conflict); roundHistory + bid-documents `list`
+  `assertOwnerReadContext` (Faz O); connections `inviteExternalForListing`
+  `listingManageDenial` + denial audit; `getProfile` embargo OR (kendi teklifi) + ülke
+  kapsamı; teklif kur damgası `getFreshRate` (pazarlıkta AÇILIŞ damgası — TEK BAZ);
+  buildItemGroups TRY teklifte anaBirim→TRY=1; runItemAward kaybedenlere `bid_lost`
+  e-posta+in-app; `inviteByEmail` opt-out → 409.
+  Testler: `test/integration/audit-part2-dalga-a.spec.ts` (13) + fixture drift'i
+  düzeltildi (eski `CLOSED` "değerlendirme" fixture'ları → `IN_AWARD`; ürün kararı:
+  CLOSED yalnız admin moderasyonu — next-round-validity, lifecycle,
+  auction-multicurrency, audit-fixes, auction-modes).
+- **Dalga B BEKLİYOR:** #13 (createNextRound↔placeBid yarışı — FOR UPDATE deseni
+  kısmen placeBid tarafında uygulandı, createNextRound tarafı kalan), kapasite dışı
+  MED adayları (RFQ→RFQ AUTO taşıma, SATIS pazarlıkta Hemen-Al, publish tarih
+  doğrulama, yetim PENDING onay, award OPEN'dan) ve LOW/INFO listesi.

@@ -31,7 +31,7 @@ async function closedRfq() {
     companyId: owner.company.id,
     createdById: owner.user.id,
     type: "ALIM",
-    status: "CLOSED",
+    status: "IN_AWARD",
     visibility: "PUBLIC",
     format: "RFQ",
     closesAt: new Date(Date.now() - 3600_000),
@@ -278,9 +278,9 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     ).rejects.toThrow(/gönderilmiş bir teklif yok/);
   });
 
-  it("kapalı (CLOSED) ilanda uzatma SERBEST — değerlendirme uzarken teklif dolmasın; sonuçlanmışta kapalı; teklifi olmayana 404", async () => {
+  it("değerlendirmedeki (IN_AWARD) ilanda uzatma SERBEST — alıcı karar verirken teklif dolmasın; sonuçlanmışta ve admin-CLOSED'da kapalı; teklifi olmayana 404", async () => {
     const { service, valid, expired, listing } = await closedRfq();
-    // CLOSED'da uzatma serbest (alıcı karar verirken teklif dolmasın).
+    // IN_AWARD'da uzatma serbest (alıcı karar verirken teklif dolmasın).
     const ext = await service.extendBidValidity(valid.auth, listing.id, 30);
     expect(ext.ok).toBe(true);
     // Sonuçlanmış (CLOSED_NO_AWARD) ihalede uzatılamaz.
@@ -291,10 +291,14 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     await expect(
       service.extendBidValidity(valid.auth, listing.id, 30),
     ).rejects.toThrow(/sonuçlandı/);
+    // Denetim P2 #5: yönetici moderasyonu (CLOSED) — sahip/teklifçi aksiyonu yok.
     await prisma.listing.update({
       where: { id: listing.id },
       data: { status: "CLOSED" },
     });
+    await expect(
+      service.extendBidValidity(valid.auth, listing.id, 30),
+    ).rejects.toThrow(/uzatılamaz/);
     // Teklifi olmayan firma → 404 (ilan OPEN olsa bile).
     const stranger = await makeCompanyWithUser(prisma, { country: "TR" });
     const open = await makeListing(prisma, {

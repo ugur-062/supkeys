@@ -156,6 +156,18 @@ export class CompanyBidDocumentsService {
     return { id: doc.id };
   }
 
+  private async assertOwnerReadContext(user: AuthenticatedCompanyUser, listingId: string): Promise<void> {
+    const fullRead =
+      user.isOwner ||
+      user.roles.some((r) => (["SAHIP", "YONETICI", "SATIN_ALMACI", "SATISCI"] as string[]).includes(r));
+    if (fullRead) return;
+    const linked = await this.prisma.approvalRequest.findFirst({
+      where: { listingId, companyId: user.companyId, steps: { some: { approverUserId: user.userId } } },
+      select: { id: true },
+    });
+    if (!linked) throw new NotFoundException("İlan bulunamadı");
+  }
+
   /** İlan sahibi tüm teklif belgelerini; teklifçi yalnızca kendi belgelerini görür. */
   async list(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
@@ -164,6 +176,10 @@ export class CompanyBidDocumentsService {
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     const isOwner = listing.companyId === user.companyId;
+    // Faz O dar-bağlam (denetim 2026-08-23 P2 #8): sahip firmanın ONAYLAYICI-only/
+    // rolsüz üyesi teklifçi belgelerini yalnız onay bağı varsa görür
+    // (CompanyListingsService.assertOwnerReadContext aynası).
+    if (isOwner) await this.assertOwnerReadContext(user, listingId);
 
     const docs = await this.prisma.listingBidDocument.findMany({
       where: isOwner

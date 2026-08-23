@@ -109,7 +109,7 @@ describe("createNextRound — teklif taşıma modları", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       closesAt: PAST,
       currentRound: 1,
     });
@@ -169,7 +169,7 @@ describe("createNextRound — teklif taşıma modları", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       closesAt: PAST,
       currentRound: 1,
     });

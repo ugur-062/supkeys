@@ -159,8 +159,9 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 
 ## 6. Kayıt / KYC / Onboarding
 
-- **VERIFIED gate:** para-taahhüdü aksiyonları (placeBid SUBMIT [taslak hariç], award,
-  awardByItem, publishListing) firma KYC ister; `assertVerified`; JWT'den taze okunur.
+- **VERIFIED gate:** para-taahhüdü aksiyonları (placeBid SUBMIT [taslak hariç], buyNow,
+  extendBidValidity "revive" [DRAFT→SUBMITTED], award, awardByItem, publishListing) firma
+  KYC ister; `assertVerified`; JWT'den taze okunur.
   Gezinme/keşif/davet/taslak/sipariş-akışı serbest | ✅ **INV-KYC-1**, `a5da85f`
 - **Buyer self-register YOK:** yalnız admin daveti + manuel onay. Tedarikçi self-register
   VAR (admin onayı); kayıtlı tedarikçinin yeni davet kabulü → direkt ACTIVE | 🟡 tasarım

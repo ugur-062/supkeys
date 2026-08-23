@@ -190,7 +190,7 @@ describe("durum geçişleri", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       closesAt: PAST,
     });
     await service.closeNoAward(owner.auth, listing.id, "uygun teklif yok");
@@ -208,7 +208,7 @@ describe("durum geçişleri", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       closesAt: PAST,
       currentRound: 1,
     });

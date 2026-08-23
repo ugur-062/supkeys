@@ -27,6 +27,7 @@ import {
   anyPackageWhere,
 } from "../../../common/company/effective-tier";
 import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
+import { listingManageDenial } from "../../company-listings/listing-manage-access";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -131,6 +132,15 @@ export class CompanyConnectionsService {
     }
 
     // Kayıtsız → davet kaydı (varsa koru) + e-posta.
+    // Denetim 2026-08-23 P2 #14: opt-out (/davet-kapat) TÜM davet yollarında
+    // geçerli — yalnız dış-ihale yolunda uygulanıyordu.
+    const optedOut = await this.prisma.referralOptOut.findFirst({
+      where: { email },
+      select: { email: true },
+    });
+    if (optedOut) {
+      throw new ConflictException("Bu e-posta adresi davet almak istemediğini bildirdi");
+    }
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
       select: { name: true },
@@ -206,9 +216,28 @@ export class CompanyConnectionsService {
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: { id: true, title: true, status: true, closesAt: true, categoryIds: true },
+      select: { id: true, title: true, status: true, closesAt: true, categoryIds: true, type: true, createdById: true },
     });
     if (!listing) throw new NotFoundException("İhale bulunamadı");
+    // INV-AZ-1 (denetim 2026-08-23 P2 #7): dış davet = ilan-yönetim eylemi —
+    // iç davet (addInvitations) ile AYNI kapı (tek kaynak listingManageDenial).
+    const denial = listingManageDenial(user, listing);
+    if (denial) {
+      void this.audit.log({
+        action: "company.listing.manage_denied",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "listing",
+        entityId: listing.id,
+        critical: false,
+        metadata: { needed: denial.needed, listingType: listing.type, reason: denial.reason, via: "external_invite" },
+      });
+      throw new ForbiddenException(
+        "Bu ihale için dış davet gönderme yetkiniz yok — ilanı yöneten kullanıcı ve ilgili rol gerekir",
+      );
+    }
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
       throw new BadRequestException("Yalnız taslak/açık ihale için dış davet gönderilebilir");
     }
@@ -944,7 +973,36 @@ export class CompanyConnectionsService {
           // F-CONN-1: görünürlük TEK KAYNAK (getOne ile birebir) — PUBLIC +
           // bağlıysa CONNECTIONS + DAVETLİYSE PRIVATE. Eski `connected ? {}`
           // bağlı firmaya davet-only PRIVATE ihaleleri sızdırıyordu.
-          AND: [visibleOwnerListingWhere(user.companyId, connected)],
+          // Denetim 2026-08-23 P2 #9: açılış embargosu (bidsOpenAt gelecekte →
+          // yalnız teklifi olan görür; NOT(gt) NULL tuzağı yok) + ülke kapsamı
+          // (getOne/sellerTenders ile aynı). Kendi profili hariç.
+          AND: [
+            visibleOwnerListingWhere(user.companyId, connected),
+            ...(c.id === user.companyId
+              ? []
+              : [
+                  {
+                    OR: [
+                      { bidsOpenAt: null },
+                      { bidsOpenAt: { lte: new Date() } },
+                      { bids: { some: { bidderCompanyId: user.companyId } } },
+                    ],
+                  },
+                  {
+                    OR: [
+                      ...(c.country === user.country ? [{ isInternational: false }] : []),
+                      {
+                        isInternational: true,
+                        OR: [
+                          { targetCountries: { isEmpty: true } },
+                          { targetCountries: { has: user.country } },
+                        ],
+                      },
+                      { invitations: { some: { invitedCompanyId: user.companyId } } },
+                    ],
+                  },
+                ]),
+          ],
         },
         select: {
           id: true,

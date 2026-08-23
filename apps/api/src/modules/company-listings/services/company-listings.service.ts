@@ -1363,6 +1363,18 @@ export class CompanyListingsService {
         : null;
 
     const updated = await runTenantTx(this.prisma, async (tx) => {
+      // Denetim 2026-08-23 P2 #6 (TOCTOU): ilan satırını kilitle ve teklif
+      // kontrolünü TX İÇİNDE yinele — eşzamanlı placeBid (aynı kilidi bekler)
+      // kalemleri cascade ile silinmiş bir teklif bırakamasın.
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${listingId} FOR UPDATE`;
+      if (existing.status === "OPEN") {
+        const liveBids = await tx.listingBid.count({ where: { listingId } });
+        if (liveBids > 0) {
+          throw new ConflictException(
+            "Bu ihaleye az önce teklif verildi; düzenleme yapılamaz",
+          );
+        }
+      }
       const l = await tx.listing.update({
         where: { id: listingId },
         data: {
@@ -3475,10 +3487,21 @@ export class CompanyListingsService {
     // (TRY karşılığı gösterimi) hem de aşağıdaki taban/hemen-al kıyası için.
     // Kur alınamazsa teklif yine kabul edilir ama TRY karşılığı boş kalır;
     // sessiz kalmasın diye loglanır (gözlemlenebilirlik).
+    // Denetim 2026-08-23 P2 #10: damga TAZE kurdan (getFreshRate; bayat/sabit
+    // fallback YOK) — RFQ'da bu damga sıralama + kazandırma onay eşiğinin tek
+    // bazı; bayat kurla onay sessizce atlanabiliyordu. Kur yoksa damga null.
+    // ENGLISH_AUCTION'da AÇILIŞ damgası varsa teklif damgası da ondan (INV-FX-1
+    // TEK BAZ: taban/sıralama/eşik ile aynı kaynak; taze kur sorulmaz).
     let exchangeRateSnapshot: number | null = null;
-    if (currency !== "TRY") {
+    const openingStamp =
+      currency !== "TRY"
+        ? this.snapRateDecimal(listing.auctionRateSnapshot, currency)
+        : null;
+    if (openingStamp) {
+      exchangeRateSnapshot = openingStamp.toNumber();
+    } else if (currency !== "TRY") {
       exchangeRateSnapshot = await this.exchangeRates
-        .getCurrentRate(currency)
+        .getFreshRate(currency)
         .catch((err) => {
           this.logger.warn(
             `TCMB kuru alınamadı (${currency}); teklif TRY karşılığı olmadan kaydedilecek: ${
@@ -3668,6 +3691,26 @@ export class CompanyListingsService {
     const validityDays = isAuctionFormat ? null : (dto.validityDays ?? null);
 
     const bid = await runTenantTx(this.prisma, async (tx) => {
+      // Denetim 2026-08-23 P2 #6/#13: ilan satırında kilit + canlı durum/tur
+      // yeniden doğrulama (updateListing/createNextRound/cancel ile yarış) ve
+      // kalemlerin hâlâ var olduğu teyidi (sil-yaz cascade'ine karşı).
+      const live = await tx.$queryRaw<{ status: string; currentRound: number }[]>`SELECT status, "currentRound" FROM listings WHERE id = ${id} FOR UPDATE`;
+      const row = live[0];
+      if (!row || row.status !== "OPEN" || row.currentRound !== listing.currentRound) {
+        throw new ConflictException(
+          "İlan bu sırada güncellendi (durum/tur değişti) — sayfayı yenileyip teklifi tekrar gönderin",
+        );
+      }
+      if (listingItems.length > 0) {
+        const stillThere = await tx.listingItem.count({
+          where: { id: { in: listingItems.map((li) => li.id) } },
+        });
+        if (stillThere !== listingItems.length) {
+          throw new ConflictException(
+            "İlan kalemleri bu sırada değişti — sayfayı yenileyip teklifi tekrar gönderin",
+          );
+        }
+      }
       const b = await tx.listingBid.upsert({
         where: {
           listingId_bidderCompanyId: {
@@ -3709,8 +3752,12 @@ export class CompanyListingsService {
           version: { increment: 1 },
           // Yeniden teklif (elenmişken tekrar SUBMITTED) → eski eleme izini temizle
           // ki myBid'de "elendi" bilgisi canlı teklifle çelişmesin.
+          // Denetim 2026-08-23 P2 #2: taslak güncellemesi eski gönderim damgasını
+          // TAŞIMAZ (submittedAt null) — aksi halde extendBidValidity "revive"
+          // yolu içeriği değişmiş taslağı gönderim kapılarını atlayarak
+          // SUBMITTED'a çeviriyordu.
           ...(isDraft
-            ? {}
+            ? { submittedAt: null }
             : { submittedAt: new Date(), eliminationReason: null, eliminatedAt: null }),
           round: listing.currentRound,
           // Tur hakkı yalnız GÖNDERİMDE işlenir; taslak güncellemesi mevcut
@@ -3918,6 +3965,9 @@ export class CompanyListingsService {
     if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
       throw new ForbiddenException("Hemen-Al için Satın Almacı rolü gerekir");
     }
+    // INV-KYC-1: Hemen-Al da bağlayıcı SUBMITTED tekliftir (placeBid kardeşi) —
+    // denetim 2026-08-23 P2 #3 (erişim kapılarından SONRA, durum 400'lerinden önce).
+    this.assertVerified(user, "teklif veremezsiniz");
 
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
@@ -4056,7 +4106,7 @@ export class CompanyListingsService {
     const exchangeRateSnapshot =
       listing.primaryCurrency !== "TRY"
         ? await this.exchangeRates
-            .getCurrentRate(listing.primaryCurrency)
+            .getFreshRate(listing.primaryCurrency) // taze kur (P2 #10)
             .catch(() => null)
         : null;
     const bid = await runTenantTx(this.prisma, async (tx) => {
@@ -4115,6 +4165,25 @@ export class CompanyListingsService {
       }
       return b;
     });
+    // INV-AUDIT-1: Hemen-Al gönderimi de finansal taahhüt → delil (placeBid ile simetri).
+    await this.audit.log({
+      action: "company.bid.submitted",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing_bid",
+      entityId: bid.id,
+      critical: true,
+      metadata: {
+        listingId,
+        listingType: listing.type,
+        amount: Number(bid.amount),
+        currency: bid.currency,
+        round: listing.currentRound,
+        isBuyNow: true,
+      },
+    });
     this.realtime?.pingListing(listingId, [listing.companyId]);
     return { id: bid.id, amount: bid.amount.toString(), isBuyNow: true };
   }
@@ -4149,7 +4218,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     const neededRole =
@@ -4220,7 +4289,7 @@ export class CompanyListingsService {
       // Koşullu geçiş: yalnız hâlâ OPEN/CLOSED ise askıya al. Eşzamanlı başka bir
       // kazandırma bu arada AWARDED yaptıysa (count=0) üzerine yazma.
       const moved = await this.prisma.listing.updateMany({
-        where: { id: listingId, status: { in: ["OPEN", "CLOSED", "IN_AWARD"] } },
+        where: { id: listingId, status: { in: ["OPEN", "IN_AWARD"] } },
         data: { status: "IN_AWARD_APPROVAL" },
       });
       if (moved.count !== 1) {
@@ -4346,11 +4415,17 @@ export class CompanyListingsService {
     // bidCount kilidi listing miktarını dondurur; çok-birimli teklifte kayıtlı
     // fxToBase damgaları kullanılır → determinizm). Invariant kırılırsa burada
     // fail-closed: yanlış tutarlı sipariş YAZILMAZ (tx öncesi).
-    const recomputed = sumLineTotalsInBase(orderItems);
-    if (!recomputed.equals(bid.amount)) {
-      throw new BadRequestException(
-        "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
-      );
+    // Denetim 2026-08-23 P2 #1: nöbetçi yalnız teklifte KALEM SATIRI varken
+    // anlamlı — TOPLU Hemen-Al (kalem satırı yazılmaz) ve kalemsiz ilan
+    // tekliflerinde Σ(boş)=0 ≠ amount hep 400 veriyordu (Hemen-Al kazandırılamaz,
+    // ilan IN_AWARD'da takılı). Kalemsiz → aşağıdaki tek-tutar sipariş dalı.
+    if (orderItems.length > 0) {
+      const recomputed = sumLineTotalsInBase(orderItems);
+      if (!recomputed.equals(bid.amount)) {
+        throw new BadRequestException(
+          "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
+        );
+      }
     }
 
     // Madde 9 — para birimi başına AYRI sipariş: siparişler/ödemeler tek birim
@@ -4395,7 +4470,7 @@ export class CompanyListingsService {
       const transition = await tx.listing.updateMany({
         where: {
           id: listingId,
-          status: { in: ["OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"] },
+          status: { in: ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] },
         },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
@@ -4631,7 +4706,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     // Kalem-bazlı kazandırma her iki yönde: ALIM'da kalemler farklı satıcılara,
@@ -4699,7 +4774,7 @@ export class CompanyListingsService {
     });
     if (!res.approved) {
       const moved = await this.prisma.listing.updateMany({
-        where: { id: listingId, status: { in: ["OPEN", "CLOSED", "IN_AWARD"] } },
+        where: { id: listingId, status: { in: ["OPEN", "IN_AWARD"] } },
         data: { status: "IN_AWARD_APPROVAL" },
       });
       if (moved.count !== 1) {
@@ -4745,7 +4820,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     const neededRole =
@@ -4808,7 +4883,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     const neededRole =
@@ -4941,16 +5016,22 @@ export class CompanyListingsService {
           // farklıysa çapraz damga = fxToBase × (anaBirim→TRY). İkisinden biri
           // yoksa null (X-CF-1 fail-closed: onay eşiği çevrilemezse onay
           // ZORUNLU kılınır, sessiz atlama yok).
-          exchangeRateSnapshot:
-            itemCurrency === bid.currency
-              ? bid.exchangeRateSnapshot
-              : itemCurrency === "TRY"
+          // Denetim 2026-08-23 P2 #11: TRY teklifte anaBirim→TRY = 1 (damga
+          // null olsa da) — aksi halde TRY teklif + yabancı kalem grubu null
+          // kalıp onay isteği "0 TRY" ile zorunlu onaya düşüyordu.
+          exchangeRateSnapshot: (() => {
+            const baseToTry =
+              bid.currency === "TRY"
                 ? new Prisma.Decimal(1)
-                : bid.exchangeRateSnapshot != null && bi.fxToBase != null
-                  ? new Prisma.Decimal(bi.fxToBase).mul(
-                      bid.exchangeRateSnapshot,
-                    )
-                  : null,
+                : bid.exchangeRateSnapshot != null
+                  ? new Prisma.Decimal(bid.exchangeRateSnapshot)
+                  : null;
+            if (itemCurrency === bid.currency) return baseToTry;
+            if (itemCurrency === "TRY") return new Prisma.Decimal(1);
+            return baseToTry != null && bi.fxToBase != null
+              ? new Prisma.Decimal(bi.fxToBase).mul(baseToTry)
+              : null;
+          })(),
           bidIds: new Set(),
         };
         groups.set(groupKey, g);
@@ -5038,6 +5119,8 @@ export class CompanyListingsService {
         id: true,
         companyId: true,
         type: true,
+        title: true,
+        number: true,
         deliveryAddressId: true,
         paymentTiming: true,
         requireGuaranteeLetter: true,
@@ -5060,6 +5143,18 @@ export class CompanyListingsService {
     const groupArr = [...groups.values()];
     const numbers = await this.nextOrderNumbers(groupArr.length);
     const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
+    // Denetim 2026-08-23 P2 #12: kaybedenleri tx ÖNCESİ yakala (tx içinde LOST
+    // olurlar) → runFullAward ile aynı "ihale sonuçlandı" bildirimi.
+    const losingBidderIds = [
+      ...new Set(
+        (
+          await this.prisma.listingBid.findMany({
+            where: { listingId, status: "SUBMITTED", id: { notIn: winningBidIds } },
+            select: { bidderCompanyId: true },
+          })
+        ).map((b) => b.bidderCompanyId),
+      ),
+    ];
 
     // Teslim adresi: ALIM'da ALICI = ilan sahibi → ilanın adresi (tek).
     // SATIS'ta ALICI = teklifçi → her grubun teklif adresi (firma başına).
@@ -5115,7 +5210,7 @@ export class CompanyListingsService {
       const transition = await tx.listing.updateMany({
         where: {
           id: listingId,
-          status: { in: ["OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"] },
+          status: { in: ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] },
         },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
@@ -5287,9 +5382,40 @@ export class CompanyListingsService {
           });
         }
       }
+      // Kaybedenler (hiç kalem kazanamayan SUBMITTED teklifçiler) — runFullAward simetrisi.
+      if (losingBidderIds.length > 0) {
+        const lostUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+        const lostRecipients = await this.companyRecipients(losingBidderIds, itemWonPortal);
+        for (const cid of losingBidderIds) {
+          const r = lostRecipients.get(cid);
+          if (!r) continue;
+          this.notify(
+            r,
+            {
+              subject: "İhale sonuçlandı",
+              heading: "İhale sonuçlandı",
+              paragraphs: ["Merhaba,", `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`],
+              ctaLabel: "İhaleyi Gör",
+              ctaUrl: lostUrl,
+            },
+            { type: "bid_lost", id: listingId },
+          );
+        }
+        await this.notifications.pushToCompanies(losingBidderIds, {
+          type: "bid_lost",
+          portal: itemWonPortal,
+          title: "İhale sonuçlandı",
+          body: lostBody,
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: lostUrl,
+          listingId,
+        });
+      }
       this.realtime?.pingListing(listingId, [
         listing.companyId,
         ...new Set(groupArr.map((g) => g.bidderCompanyId)),
+        ...losingBidderIds,
       ]);
       for (const o of created) {
         this.realtime?.pingOrder(o.id, [listing.companyId]);
@@ -5386,7 +5512,14 @@ export class CompanyListingsService {
       throw new ForbiddenException("Sadece ilan sahibi yeni tur açabilir");
     }
     this.assertListingManageRole(user, listing);
-    if (!["OPEN", "CLOSED", "IN_AWARD", "CLOSED_NO_AWARD"].includes(listing.status)) {
+    // Denetim 2026-08-23 P2 #5: CLOSED = YALNIZ admin moderasyon kapatması —
+    // sahip yeni turla yeniden açamaz, kazandıramaz, eleyemez (tek çıkış admin reopen).
+    if (listing.status === "CLOSED") {
+      throw new BadRequestException(
+        "Bu ilan yönetici tarafından teklife kapatıldı — yeni tur açılamaz, destek ile iletişime geçin",
+      );
+    }
+    if (!["OPEN", "IN_AWARD", "CLOSED_NO_AWARD"].includes(listing.status)) {
       throw new BadRequestException(
         "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
       );
@@ -5449,7 +5582,7 @@ export class CompanyListingsService {
       const transition = await tx.listing.updateMany({
         where: {
           id: listingId,
-          status: { in: ["OPEN", "CLOSED", "IN_AWARD", "CLOSED_NO_AWARD"] },
+          status: { in: ["OPEN", "IN_AWARD", "CLOSED_NO_AWARD"] },
           currentRound: listing.currentRound,
         },
         data: {
@@ -5719,9 +5852,16 @@ export class CompanyListingsService {
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     // Uzatma sonuçlanmamış her aşamada serbest — değerlendirme uzarken
-    // (CLOSED/IN_AWARD*) teklifin dolmaması tam da bu akışın amacı. OPEN'da
-    // kapanış saati geçmişse cron'u beklemeden reddedilir.
-    const extendable = ["OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"];
+    // (IN_AWARD*) teklifin dolmaması tam da bu akışın amacı. OPEN'da
+    // kapanış saati geçmişse cron'u beklemeden reddedilir. CLOSED = yönetici
+    // moderasyonu (Denetim P2 #5): sahip/teklifçi aksiyonu yok, tek çıkış
+    // admin reopen.
+    const extendable = ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"];
+    if (listing.status === "CLOSED") {
+      throw new BadRequestException(
+        "Bu ilan yönetici tarafından teklife kapatıldı — geçerlilik süresi uzatılamaz",
+      );
+    }
     if (
       !extendable.includes(listing.status) ||
       (listing.status === "OPEN" &&
@@ -5788,6 +5928,11 @@ export class CompanyListingsService {
     }
     const validUntil = new Date(validUntilMs);
     const revived = bid.status === "DRAFT";
+    // Denetim 2026-08-23 P2 #2: canlandırma = yeniden GÖNDERİM; en azından KYC
+    // kapısı placeBid ile aynı (içerik kapıları: placeBid taslak güncellemesi
+    // artık submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak
+    // buraya gelebilir).
+    if (revived) this.assertVerified(user, "teklif veremezsiniz");
     await this.prisma.listingBid.update({
       where: { id: bid.id },
       data: {
@@ -5953,6 +6098,9 @@ export class CompanyListingsService {
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    // Faz O dar-bağlam (denetim 2026-08-23 P2 #8): ONAYLAYICI-only/rolsüz üye
+    // teklifçi adı+tutar geçmişini yalnız onay bağı varsa görür (getOne ile aynı).
+    await this.assertOwnerReadContext(user, listingId);
     const snaps = await this.prisma.listingRoundSnapshot.findMany({
       where: { listingId },
       orderBy: [
@@ -5998,7 +6146,7 @@ export class CompanyListingsService {
     }
     this.assertListingManageRole(user, listing);
     // Karar aşaması: açık VEYA kapanmış ilanda eleme yapılabilir (award ile aynı).
-    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu durumda eleme yapılamaz");
     }
     const bid = await this.prisma.listingBid.findUnique({
@@ -6464,14 +6612,14 @@ export class CompanyListingsService {
       throw new NotFoundException("İlan bulunamadı");
     }
     this.assertListingManageRole(user, listing);
-    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu ilan kapatılamaz");
     }
     await runTenantTx(this.prisma, async (tx) => {
       // Koşullu: eşzamanlı runFullAward bu arada AWARDED + sipariş yazdıysa
       // (count=0) üzerine yazma — sipariş dururken "kazanansız kapandı" olmasın.
       const closed = await tx.listing.updateMany({
-        where: { id: listing.id, status: { in: ["OPEN", "CLOSED", "IN_AWARD"] } },
+        where: { id: listing.id, status: { in: ["OPEN", "IN_AWARD"] } },
         data: { status: "CLOSED_NO_AWARD", cancelReason: reason?.trim() || null },
       });
       if (closed.count !== 1) {

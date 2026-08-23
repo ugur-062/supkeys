@@ -334,7 +334,7 @@ describe("tur taşıma round takibi", () => {
       createdById: buyer.user.id,
       type: "ALIM",
       visibility: "CONNECTIONS",
-      status: "CLOSED",
+      status: "IN_AWARD",
       closesAt: new Date(),
     });
     const bid = await makeBid(prisma, {
@@ -356,7 +356,7 @@ describe("tur taşıma round takibi", () => {
     expect(carried.status).toBe("SUBMITTED");
 
     // Tur 2 → 3 (NONE): taşınan teklif artık LOST'a çekilir (eskiden canlı kalırdı).
-    await prisma.listing.update({ where: { id: l.id }, data: { status: "CLOSED" } });
+    await prisma.listing.update({ where: { id: l.id }, data: { status: "IN_AWARD" } });
     await service.createNextRound(buyer.auth, l.id, {
       type: "RFQ",
       closesAt: future(1).toISOString(),
@@ -379,7 +379,7 @@ describe("kalem-bazlı kazandırma — kısmi kazanım", () => {
       createdById: buyer.user.id,
       type: "ALIM",
       visibility: "CONNECTIONS",
-      status: "CLOSED",
+      status: "IN_AWARD",
     });
     const i1 = await makeItem(prisma, l.id, { name: "A" });
     const i2 = await makeItem(prisma, l.id, { name: "B", lineNo: 2 });

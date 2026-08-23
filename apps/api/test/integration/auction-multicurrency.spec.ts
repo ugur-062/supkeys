@@ -113,6 +113,8 @@ describe("Çoklu birim — birim kilidi ve kur bağımsızlığı", () => {
       auctionRateSnapshot: undefined,
     });
     exchangeRates.getCurrentRate.mockRejectedValue(new Error("TCMB yok"));
+    // P2 #10: damga artık getFreshRate'ten — o da yoksa damga null kalır.
+    exchangeRates.getFreshRate.mockResolvedValue(null);
     const rival = await makeCompanyWithUser(prisma, { country: "TR" });
     await makeBid(prisma, {
       listingId: listing.id,
@@ -251,7 +253,7 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       visibility: "PUBLIC",
       format: "RFQ",
       closesAt: new Date(Date.now() - 3600_000),
@@ -311,7 +313,7 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       visibility: "PUBLIC",
       format: "RFQ",
       closesAt: new Date(Date.now() - 3600_000),
@@ -397,7 +399,7 @@ describe("Onay eşiği — TEK BAZ + X3 fail-closed (INV-FX-1)", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
+      status: "IN_AWARD",
       format: "RFQ",
       visibility: "PUBLIC",
       closesAt: new Date(Date.now() - 3600_000),
