@@ -42,7 +42,7 @@ Railway'in verdiği adrese CNAME ile bağlanır.
 
 ### `api` servisi
 `DIRECT_URL`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `NODE_ENV=production`,
+`SUPABASE_SERVICE_ROLE_KEY`, `NODE_ENV=production`,
 `JWT_SECRET`, `JWT_EXPIRES_IN=1h`,
 `CORS_ORIGINS=https://www.rothern.com,https://admin.rothern.com`,
 `WEB_URL=https://www.rothern.com` **(ŞART — tüm e-posta linkleri buna bakar;

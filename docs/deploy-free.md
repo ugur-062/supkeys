@@ -17,7 +17,8 @@ Demo/ilk yayın için ücretsiz stack. Sıra önemli: **Supabase → Render (API
 2. Settings → Database → Connection string:
    - **DATABASE_URL** = Transaction pooler (port 6543, `?pgbouncer=true&connection_limit=1`)
    - **DIRECT_URL** = Session pooler (port 5432, `?sslmode=require`)
-3. Settings → API: **SUPABASE_URL**, **SUPABASE_ANON_KEY**, **SUPABASE_SERVICE_ROLE_KEY**, **SUPABASE_JWT_SECRET** (JWT settings).
+3. Settings → API: **SUPABASE_URL**, **SUPABASE_ANON_KEY**, **SUPABASE_SERVICE_ROLE_KEY**. (SUPABASE_JWT_SECRET kodda KULLANILMIYOR — girmeye gerek yok.)
+4. Authentication → Sign In/Up: **"Allow new users to sign up" KAPAT** (kayıt yalnız API'nin admin createUser'ı ile; anon key + GoTrue `/signup` yetim auth.users üretmesin) + Rate Limits sıkılaştır.
 
 ## 2. API → Render (Docker, free)
 1. render.com → New → **Blueprint** → bu repo'yu bağla → `render.yaml` okunur, `rothern-api` servisi oluşur.
@@ -39,8 +40,8 @@ Her app için AYRI Vercel projesi (aynı repo):
    ```
    NEXT_PUBLIC_API_URL      = https://rothern-api-xxxx.onrender.com/api
    NEXT_PUBLIC_SITE_URL     = https://<bu-vercel-domaini>
-   NEXT_PUBLIC_SUPABASE_URL = https://<proje>.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY = <anon key>
+   # NEXT_PUBLIC_SUPABASE_* GEREKMEZ: web/admin Supabase'e doğrudan bağlanmaz (2026-07-15'te kaldırıldı);
+   # anon key yalnız API env'inde kalır (sır sınıfı).
    ```
 3. Deploy → Vercel domain'ini not al (web + admin ayrı).
 

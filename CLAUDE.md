@@ -32,9 +32,10 @@ packages/email    @rothern/email     React Email templates + Resend provider
 
 | Tip | URL | E-posta | Şifre |
 |-----|-----|---------|-------|
-| Tenant | localhost:3000/login | ugur@demo.com | demo12345 |
+| Firma (birleşik alıcı+satıcı) | localhost:3000/company/login | firma@demo.com / firma2@demo.com / firma3@demo.com | Demo1234! |
 | Admin | localhost:3001/admin/login | admin@rothern.com | admin12345 |
-| Supplier | localhost:3000/supplier/login | demo-supplier@firma.com | Test1234 |
+
+(Eski "tenant/supplier" ayrı hesapları kaldırıldı — tek Company hesabı iki portal: `/company/satinalma` + `/company/satis`.)
 
 E-postalar Resend `onboarding@resend.dev` test domain'inden gerçekten gönderilir — kullanıcı kayıtlı gerçek bir adres olmalı (test için kendi adresini kullan).
 
@@ -50,11 +51,11 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 
 ## Önemli Mimari Kararlar
 
-1. **3 ayrı auth alanı:** Tenant (`apps/web /dashboard`), Admin (`apps/admin`), Supplier (`apps/web /supplier`). JWT payload'ında `type: "tenant" | "admin" | "supplier"`. Her tarafın kendi store'u + axios instance + 401 redirect interceptor.
+1. **2 auth realm'i:** Company (`apps/web /company/*` — TEK firma hesabı hem alıcı hem satıcı, iki portal `satinalma`/`satis`; rol/izin/tier kapıları) + Admin (`apps/admin`). JWT payload `type: "company" | "admin"`; cookie realm'leri `rk_company`/`rk_admin` (+ `rk_csrf`/`rk_admin_csrf`). Her realm'in kendi store'u + axios instance + 401 interceptor'ı.
 2. **Multi-tenant veri izolasyonu:** Tüm sorgular tenantId scope'unda, servis seviyesinde filtrelenir.
-3. **Buyer self-register YOK:** Alıcı sadece demo görüşmesi → admin'in gönderdiği davet linkiyle kayıt olabilir; e-posta verify sonrası admin manuel onay verir, otomatik onay yoktur.
-4. **Tedarikçi self-register VAR** (admin onayıyla); zaten kayıtlı tedarikçinin yeni alıcı daveti kabulü → direkt `ACTIVE`.
-5. **Kapalı zarf:** Tedarikçiler birbirinin tekliflerini ASLA göremez. Alıcı her zaman görür. `/supplier/tenders/:id` response'ı `invitations`/`bids`/`bidStats` field'ları içermez; sadece `myInvitation` + `myBid`.
+3. **Firma self-signup VAR (3 aşama):** signup → e-posta doğrulama (6 haneli kod, hesap-bazlı 5/saat üretim tavanı) → onboarding (yalnız Kurucu) → panel içi kapılar (KYC/doğrulama belgeleri admin onayı; ihale açma Silver+, satış teklifi Bronz+ — bkz. Faz T/Y). Davetle katılım (firma-kullanıcı daveti + referral/dış davet) ayrıca var.
+4. **Bağlantı modeli:** firmalar arası bağlantı (invite/accept, blok), ilan görünürlüğü PUBLIC/CONNECTIONS/PRIVATE — tek kaynak `listing-visibility.ts`.
+5. **Kapalı zarf:** Teklifçiler birbirinin tekliflerini ASLA göremez; ilan sahibi her zaman görür. `GET /company/listings/:id` non-owner dalı `invitations`/`bids`/`bidStats` içermez; yalnız `myInvitation` + `myBid` (+ pazarlıkta ayarlı `auctionView`). Sözleşme testleri: closed-envelope/visibility-matrix spec'leri.
 6. **SUBMITTED bid editlenmez VE geri çekilemez** (Geri Çek kaldırıldı). Tek değişiklik yolu: alıcıyla iletişim → alıcı eleme yapar LOST → tedarikçi yeniden teklif verebilir (version++). WITHDRAWN yalnız legacy kayıtlarda.
 7. **Kazandırma kalıcı:** Toplu (tek tedarikçi, tüm kalemler) veya Kalem Bazlı (her kalem ayrı tedarikçi). Finalize edilince Tender → AWARDED + Order'lar (`ORD-YYYY-NNNN`). Şu an geri alma YOK (bekleyen).
 8. **Ana akış RFQ:** İngiliz Usulü açık eksiltme tipi kurulu ama ikincil/ayrı akış.

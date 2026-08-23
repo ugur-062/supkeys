@@ -46,8 +46,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
       # ── Depolama (Cloudflare R2) — İKİ BUCKET (bkz. docs/r2-bucket-split.md) ──
       - key: R2_ACCOUNT_ID
         sync: false

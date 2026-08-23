@@ -61,7 +61,7 @@ Her uygulamaya **Domain** ata (Coolify Traefik + Let's Encrypt TLS'i otomatik y�
 
 ### `rothern-api` → **Environment Variables** (runtime)
 `DIRECT_URL`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `NODE_ENV=production`,
+`SUPABASE_SERVICE_ROLE_KEY`, `NODE_ENV=production`,
 `API_PORT=4000`, `API_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGINS`,
 `COOKIE_DOMAIN=.rothern.com`, `EMAIL_*`, `RESEND_API_KEY`, `R2_*`, `SENTRY_*`,
 `LOG_LEVEL`, ve İLK deploy için `RUN_SEED=true` + `INITIAL_ADMIN_*`.
@@ -71,8 +71,8 @@ Her uygulamaya **Domain** ata (Coolify Traefik + Let's Encrypt TLS'i otomatik y�
 > işaretleyin (normal runtime env DEĞİL) yoksa `undefined` derlenir.
 
 `NEXT_PUBLIC_API_URL=https://api.rothern.com/api`,
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `NEXT_PUBLIC_SITE_URL` (web→www.rothern.com, admin→admin.rothern.com).
+(`NEXT_PUBLIC_SUPABASE_*` GEREKMEZ — web/admin Supabase'e doğrudan bağlanmaz; anon key yalnız API env'inde kalır.)
 Runtime env olarak yalnız `PORT` (web=3000, admin=3001) yeterli.
 
 ---
