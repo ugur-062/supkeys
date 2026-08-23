@@ -610,6 +610,14 @@ export class CompanyUsersService {
       throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
     }
     if (!active) {
+      // Denetim 2026-08-23 LOW: #8 düşürme koruması burada da uygulanır —
+      // users:manage override'lı op-rollü kullanıcı YONETICI'yi pasifleştiremesin
+      // (rol değişikliğiyle aynı kapı: yalnız Kurucu/Yönetici).
+      this.assertCanModifyAdminTarget(
+        actor,
+        { id: target.id, roles: target.roles as CompanyRole[] },
+        company?.ownerUserId ?? null,
+      );
       await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
         await tx.companyUser.update({
@@ -740,6 +748,13 @@ export class CompanyUsersService {
     if (targetId === actor.userId) {
       throw new BadRequestException("Kendinizi çıkaramazsınız");
     }
+    // Denetim 2026-08-23 LOW: yönetici hedefi yalnız Kurucu/Yönetici çıkarabilir
+    // (remove geri dönüşsüz — rol değişikliğinden daha kritik).
+    this.assertCanModifyAdminTarget(
+      actor,
+      { id: target.id, roles: target.roles as CompanyRole[] },
+      company?.ownerUserId ?? null,
+    );
     await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
       await tx.companyUser.update({

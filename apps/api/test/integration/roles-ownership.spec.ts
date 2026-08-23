@@ -297,3 +297,25 @@ describe("Denetim 2026-08-23 #8 — kuruculuk devri sertleştirmeleri", () => {
   });
 });
 
+describe("Denetim 2026-08-23 LOW — setActive/remove'da yönetici-hedef koruması", () => {
+  function opActor(base: AuthenticatedCompanyUser, userId: string, companyId: string): AuthenticatedCompanyUser {
+    // users:manage override'lı, yönetim etiketi OLMAYAN op-rollü kullanıcı
+    return { ...base, userId, companyId, isOwner: false, roles: [CompanyRole.SATISCI], permissions: ["users:manage"] } as never;
+  }
+  it("op-rollü (users:manage override) kullanıcı YONETICI'yi pasifleştiremez / çıkaramaz; Kurucu yapabilir", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const manager = await makeUser(prisma, owner.company.id, [CompanyRole.YONETICI]);
+    const op = await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    const actor = opActor(owner.auth, op.id, owner.company.id);
+    await expect(svc.setActive(actor, manager.id, false)).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
+    await expect(svc.remove(actor, manager.id)).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
+    const still = await prisma.companyUser.findUniqueOrThrow({ where: { id: manager.id } });
+    expect(still.isActive).toBe(true);
+    expect(still.deletedAt).toBeNull();
+    // Kurucu pasifleştirebilir (başka aktif yönetici kendisi olduğu için son-yönetici kapısı geçer)
+    await svc.setActive(owner.auth, manager.id, false);
+    expect((await prisma.companyUser.findUniqueOrThrow({ where: { id: manager.id } })).isActive).toBe(false);
+  });
+});
+
