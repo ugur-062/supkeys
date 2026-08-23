@@ -5,6 +5,7 @@
  * adres defteri (varsayılan tekilliği, IDOR, aktif ilanda silme kilidi).
  */
 import { authenticator } from "otplib";
+import * as crypto from "node:crypto";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyAddressesService } from "../../src/modules/company-addresses/company-addresses.service";
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
@@ -468,3 +469,39 @@ describe("adres defteri", () => {
     ).toBe(0);
   });
 });
+
+describe("Denetim 2026-08-23 — kurtarma kodu sertleştirme (pepper + atomik tüketim)", () => {
+  it("eski pepper'sız hash ŞEFFAF kabul edilir (mevcut kullanıcılar kilitlenmez)", async () => {
+    const { service, user, dto } = await signupVerified();
+    const { secret } = await service.setupTwoFactor(user.id);
+    await service.enableTwoFactor(user.id, authenticator.generate(secret));
+    const legacyCode = "LEGACY-CODE1";
+    const legacyHash = crypto
+      .createHash("sha256")
+      .update(`rc:${legacyCode.toUpperCase().replace(/[^A-Z0-9]/g, "")}`)
+      .digest("hex");
+    await prisma.companyUser.update({
+      where: { id: user.id },
+      data: { twoFactorRecoveryCodes: { push: legacyHash } },
+    });
+    const ok = (await service.login({ email: dto.email, password: dto.password, code: legacyCode } as never)) as { token?: string };
+    expect(ok.token).toBeTruthy();
+    const db = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id }, select: { twoFactorRecoveryCodes: true } });
+    expect(db.twoFactorRecoveryCodes).not.toContain(legacyHash);
+  });
+
+  it("aynı kurtarma koduyla EŞZAMANLI iki giriş → yalnız biri geçer (koşullu updateMany)", async () => {
+    const { service, user, dto } = await signupVerified();
+    const { secret } = await service.setupTwoFactor(user.id);
+    const { recoveryCodes } = await service.enableTwoFactor(user.id, authenticator.generate(secret));
+    const rc = recoveryCodes[0]!;
+    const attempts = await Promise.allSettled(
+      Array.from({ length: 4 }, () => service.login({ email: dto.email, password: dto.password, code: rc } as never)),
+    );
+    const okCount = attempts.filter((a) => a.status === "fulfilled" && (a.value as { token?: string }).token).length;
+    expect(okCount).toBe(1);
+    const db = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id }, select: { twoFactorRecoveryCodes: true } });
+    expect(db.twoFactorRecoveryCodes).toHaveLength(7);
+  });
+});
+

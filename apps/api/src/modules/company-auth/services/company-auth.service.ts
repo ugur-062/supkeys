@@ -878,8 +878,20 @@ export class CompanyAuthService {
     return decryptTotpSecret(stored, this.encKey());
   }
 
+  /**
+   * Kurtarma kodu hash'i — v2 PEPPER'lı (anahtar: TOTP şifreleme anahtarından
+   * türetilir; DB sızıntısında 40-bit kodlar çevrimdışı kırılamaz). Denetim
+   * 2026-08-23 LOW. Eski pepper'sız hash'ler doğrulamada ŞEFFAF kabul edilir
+   * (legacyHashRecoveryCode) — yeni kod üretiminde v2 yazılır.
+   */
   private hashRecoveryCode(code: string): string {
-    // Normalize: büyük harf, tire/boşluk yok — kullanıcı nasıl yazarsa yazsın.
+    const norm = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const pepper = this.encKey().toString("hex");
+    return crypto.createHash("sha256").update(`rc:v2:${pepper}:${norm}`).digest("hex");
+  }
+
+  /** Pepper'sız eski biçim (yalnız doğrulamada kabul). */
+  private legacyHashRecoveryCode(code: string): string {
     const norm = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
     return crypto.createHash("sha256").update(`rc:${norm}`).digest("hex");
   }
@@ -928,17 +940,20 @@ export class CompanyAuthService {
       return { ok: true, usedRecovery: false };
     }
     // Kurtarma kodu — her iki yöntemde de geçerli; hash eşleşirse listeden düş.
-    const hash = this.hashRecoveryCode(trimmed);
-    if (user.twoFactorRecoveryCodes.includes(hash)) {
-      await this.bypass.companyUser.update({
-        where: { id: userId },
+    // ATOMİK tüketim (denetim 2026-08-23): `where: has(hash)` koşullu updateMany —
+    // aynı kodla eşzamanlı iki giriş denemesinde yalnız biri geçer.
+    const candidates = [this.hashRecoveryCode(trimmed), this.legacyHashRecoveryCode(trimmed)];
+    const hash = candidates.find((h) => user.twoFactorRecoveryCodes.includes(h));
+    if (hash) {
+      const { count } = await this.bypass.companyUser.updateMany({
+        where: { id: userId, twoFactorRecoveryCodes: { has: hash } },
         data: {
-          twoFactorRecoveryCodes: user.twoFactorRecoveryCodes.filter(
-            (h) => h !== hash,
-          ),
+          twoFactorRecoveryCodes: {
+            set: user.twoFactorRecoveryCodes.filter((h) => h !== hash),
+          },
         },
       });
-      return { ok: true, usedRecovery: true };
+      if (count === 1) return { ok: true, usedRecovery: true };
     }
     return { ok: false, usedRecovery: false };
   }
