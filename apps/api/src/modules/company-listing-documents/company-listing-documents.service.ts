@@ -1,4 +1,5 @@
 import { tierAtLeast } from "@rothern/shared";
+import { hasValidConnection } from "../../common/company/valid-connection";
 import {
   BadRequestException,
   ForbiddenException,
@@ -83,21 +84,17 @@ export class CompanyListingDocumentsService {
       throw new NotFoundException("İlan bulunamadı");
     }
 
-    const [connectedCount, invitedCount] = await Promise.all([
-      this.prisma.companyConnection.count({
-        where: {
-          status: "ACTIVE",
-          OR: [
-            { inviterCompanyId: user.companyId, inviteeCompanyId: listing.companyId },
-            { inviterCompanyId: listing.companyId, inviteeCompanyId: user.companyId },
-          ],
-        },
-      }),
+    // Denetim 2026-08-24 Parça 7: "bağlantılı mı" sorusu ham `ACTIVE` sayımıyla
+    // yanıtlanıyordu; ilan tarafındaki kural (bağlantıyı KURAN taraf efektif
+    // BRONZ+ olmalı — INV-TIER-1) uygulanmıyordu. Sonuç: davet eden firma
+    // paketten düşünce ilan detayı 404 verirken şartname/çizim dosyaları
+    // indirilmeye devam ediyordu. Artık tek kaynak `hasValidConnection`.
+    const [connected, invitedCount] = await Promise.all([
+      hasValidConnection(this.prisma as never, user.companyId, listing.companyId),
       this.prisma.listingInvitation.count({
         where: { listingId: listing.id, invitedCompanyId: user.companyId },
       }),
     ]);
-    const connected = connectedCount > 0;
     const isInvited = invitedCount > 0;
 
     // Davet, getOne/placeBid ile aynı şekilde HER görünürlüğü ve ülke

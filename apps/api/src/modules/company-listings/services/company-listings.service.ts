@@ -79,6 +79,7 @@ import { NextRoundDto } from "../dto/next-round.dto";
 import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasFullReadContext } from "../../../common/company/full-read-context";
+import { isConnectionValid } from "../../../common/company/valid-connection";
 import { reportToSentry } from "../../../instrument";
 import {
   getTenantStore,
@@ -302,12 +303,20 @@ export class CompanyListingsService {
         }),
       ]),
     );
+    // Denetim 2026-08-24 Parça 7: blok SONRASI bildirim. Blok bağlantıyı siler
+    // ama blok ÖNCESİ oluşmuş davet/teklif satırları kalıyor; toplayıcılar blok
+    // süzgeci uygulamadığı için engellenen firmaya ilan bildirimi gitmeye devam
+    // ediyordu. (Kazandırma/eleme gibi BAĞLAYICI sonuç bildirimleri kapsam
+    // dışıdır — onları susturmak karşı tarafı mağdur eder.)
+    const blockedForNotify = await this.blocks.blockedCompanyIds(
+      listing.companyId,
+    );
     const participantIds = [
       ...new Set([
         ...invs.map((iv) => iv.invitedCompanyId),
         ...bids.map((b) => b.bidderCompanyId),
       ]),
-    ];
+    ].filter((cid) => !blockedForNotify.includes(cid));
     const bidUrl = `${this.webUrl()}/company/ilan/${listingId}`;
     const closeRecipients = await this.companyRecipients(
       participantIds,
@@ -455,6 +464,11 @@ export class CompanyListingsService {
         // INV-TIER-1: efektif PAKET (süresi-dolmuş lazy PAKET'e duyuru gitmesin).
         ...anyPackageWhere(),
         isActive: true,
+        // Denetim 2026-08-24 Parça 7: admin tarafından ASKIYA ALINMIŞ firma
+        // (isBlocked=true, isActive=true kalabiliyor) iş fırsatı duyurusu
+        // almaya devam ediyordu — kardeş yüzeylerin (keşif, bağlantı, mesaj,
+        // JWT) hepsi bu süzgeci uyguluyor.
+        isBlocked: false,
         ...countryWhere,
         users: {
           // Kurucu (SAHIP) tam yetkilidir → op-rol taşımasa da eşleşen ilandan
@@ -468,7 +482,11 @@ export class CompanyListingsService {
         OR: catOr,
       },
       select: { id: true },
-      take: 300, // flood-guard
+      // Flood-guard (bilinçli). `orderBy` OLMADAN kesme, 300'ü aşan segmentte
+      // "kim haber alır"ı tarama sırasına bırakıyordu; en YENİ firmalar hiç
+      // haber alamayabiliyordu. Deterministik sıra + sessiz kesmeyi loglama.
+      orderBy: { createdAt: "desc" },
+      take: 300,
     });
     if (candidates.length === 0) return [];
 
@@ -635,7 +653,14 @@ export class CompanyListingsService {
     );
     // Hatırlatma yalnızca HENÜZ TEKLİF VERMEMİŞ davetlilere gider (davet ise
     // herkese). Teklif vermiş firmaları çıkar.
-    let targets = invs.map((iv) => iv.invitedCompanyId);
+    // Blok süzgeci (bkz. notifyListingClosed notu): davet/hatırlatma/yeni tur
+    // duyuruları engellenen firmaya gitmemeli.
+    const blockedInvitees = await this.blocks.blockedCompanyIds(
+      listing.companyId,
+    );
+    let targets = invs
+      .map((iv) => iv.invitedCompanyId)
+      .filter((cid) => !blockedInvitees.includes(cid));
     if (mode === "reminder" || mode === "newRound") {
       const bidders = await this.inOwnerContext(listing.companyId, () =>
         this.prisma.listingBid.findMany({
@@ -7021,17 +7046,9 @@ export class CompanyListingsService {
       },
     });
     return rows
-      .filter(
-        // Bağlantı, onu KURAN (davet eden) taraf PAKET kaldığı sürece geçerli —
-        // hem PREMIUM hem INVITE için (ADMIN hariç: platform kararı, hep açık).
-        // Ödemeyi bırakınca kendi başlattığın bağlantılar düşer → bir kez premium
-        // olup bol davet atarak kalıcı "bedava ihale penceresi" kurulamaz.
-        // INV-TIER-1: EFEKTİF tier (ham değil) — süre-dolma penceresinde bayat
-        // PAKET bağlantıyı canlı tutmasın (cron'u beklemeden).
-        (r) =>
-          r.origin === "ADMIN" ||
-          tierAtLeast(effectiveTier(r.inviter.tier, r.inviter.membershipEndAt), "BRONZ"),
-      )
+      // Kural TEK KAYNAK: common/company/valid-connection.ts (belge servisi ve
+      // WS ağ geçidi de oradan okur — kardeş-yol driftı kapandı).
+      .filter((r) => isConnectionValid(r))
       .map((r) =>
         r.inviterCompanyId === companyId
           ? r.inviteeCompanyId

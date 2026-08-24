@@ -117,9 +117,34 @@ export class CompanyReviewsService {
     if (companyId !== user.companyId) {
       const target = await this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { tier: true, membershipEndAt: true, publicEnabled: true },
+        select: {
+          tier: true,
+          membershipEndAt: true,
+          publicEnabled: true,
+          isActive: true,
+          isBlocked: true,
+        },
       });
       if (!target) throw new NotFoundException("Firma profili bulunamadı");
+      // Denetim 2026-08-24 Parça 7: pasif/askıya alınmış firma ile KARŞILIKLI
+      // blok da kapıya dahil. Blok bağlantı kayıtlarını sildiği için "ilişkili"
+      // dalı bloklu firmayı elemiyordu; askı ise yalnız isBlocked yazıp
+      // publicEnabled'ı bıraktığından değerlendirme özeti (opt-in ortak ADLARI
+      // + yorumlar) açık kalıyordu.
+      if (!target.isActive || target.isBlocked) {
+        throw new NotFoundException("Firma profili bulunamadı");
+      }
+      const blocked = await this.prisma.companyBlock.count({
+        where: {
+          OR: [
+            { blockerCompanyId: user.companyId, blockedCompanyId: companyId },
+            { blockerCompanyId: companyId, blockedCompanyId: user.companyId },
+          ],
+        },
+      });
+      if (blocked > 0) {
+        throw new NotFoundException("Firma profili bulunamadı");
+      }
       const relation = await this.prisma.companyConnection.count({
         where: {
           OR: [

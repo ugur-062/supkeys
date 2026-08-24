@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { runWithTenantContext } from "../../common/tenant/tenant-context";
+import { hasValidConnection } from "../../common/company/valid-connection";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import {
@@ -225,10 +226,31 @@ export class RealtimeGateway
   ): Promise<boolean> {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { companyId: true },
+      select: {
+        companyId: true,
+        visibility: true,
+        bidsOpenAt: true,
+      },
     });
     if (!listing) return false;
     if (listing.companyId === companyId) return true; // sahip
+
+    // Denetim 2026-08-24 Parça 7: oda kapısı REST görünürlüğünü aynalamalı.
+    // Eski hâli üç sınıfı içeri alıyordu: (a) PRIVATE ilanda davetsiz ama
+    // "bağlantılı" firma, (b) embargolu (bidsOpenAt gelecekte) ilanda teklifi
+    // olmayan davetli/bağlantılı firma, (c) sahibince bloklanmış ama ESKİ
+    // davet/teklif satırı duran firma. Ping'ler yalnız id taşısa da bunlar
+    // "bu ilanda hareket var" sinyalidir → kapalı zarf/embargo kararının
+    // dışına sızmamalı.
+    const blocked = await this.prisma.companyBlock.count({
+      where: {
+        OR: [
+          { blockerCompanyId: listing.companyId, blockedCompanyId: companyId },
+          { blockerCompanyId: companyId, blockedCompanyId: listing.companyId },
+        ],
+      },
+    });
+    if (blocked > 0) return false;
 
     const [bid, invite, connection] = await Promise.all([
       this.prisma.listingBid.count({
@@ -237,17 +259,19 @@ export class RealtimeGateway
       this.prisma.listingInvitation.count({
         where: { listingId, invitedCompanyId: companyId },
       }),
-      this.prisma.companyConnection.count({
-        where: {
-          status: "ACTIVE",
-          OR: [
-            { inviterCompanyId: companyId, inviteeCompanyId: listing.companyId },
-            { inviterCompanyId: listing.companyId, inviteeCompanyId: companyId },
-          ],
-        },
-      }),
+      // Denetim 2026-08-24 Parça 7: ham ACTIVE sayımı yerine TEK KAYNAK
+      // geçerlilik kuralı (bağlantıyı kuran taraf efektif BRONZ+ olmalı) —
+      // ilan tarafındaki kapı ile aynı, kardeş-yol driftı kapandı.
+      hasValidConnection(this.prisma as never, companyId, listing.companyId),
     ]);
-    return bid > 0 || invite > 0 || connection > 0;
+    // Embargo: açılış saati gelmemişse yalnız TEKLİFİ OLAN firma dinleyebilir
+    // (ilan detayındaki `bidsOpenAt` istisnasıyla aynı kural).
+    const embargoed =
+      !!listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
+    if (embargoed) return bid > 0;
+    // PRIVATE ilan: yalnız DAVETLİ (bağlantılı olmak yetmez — listing-visibility).
+    if (listing.visibility === "PRIVATE") return bid > 0 || invite > 0;
+    return bid > 0 || invite > 0 || connection;
   }
 
   @SubscribeMessage("unsubscribe")
