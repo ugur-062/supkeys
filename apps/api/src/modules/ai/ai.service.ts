@@ -150,6 +150,9 @@ export class AiService {
           cacheWriteTokens: 0,
         },
         this.config.pricing[model]!,
+        // Rezervasyon da grounding ücretini içermeli; aksi halde tavanlar
+        // gerçekte harcanacak paradan az rezerve eder (fail-open).
+        { grounded: options.webSearch === true },
       );
 
     // Premium alt-bütçesi doluysa reserve() fallback'e (ucuz model) düşer —
@@ -196,7 +199,11 @@ export class AiService {
         maxOutputTokens: this.config.maxOutputTokens,
         timeoutMs: this.config.timeoutMs,
       });
-      const settled = await this.budget.settle(reservation.id, result.usage);
+      // Grounding (Google Search) TOKEN DIŞI, istek başına ücretlidir —
+      // maliyete dahil edilmezse bütçe gerçek faturayı ölçmez (denetim P6).
+      const settled = await this.budget.settle(reservation.id, result.usage, {
+        grounded: options.webSearch === true,
+      });
       if (settled.warned) {
         void this.notifyBudgetWarning(user.companyId, settled.percentUsed);
       }

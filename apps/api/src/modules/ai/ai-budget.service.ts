@@ -8,7 +8,12 @@ import { Prisma } from "@rothern/db";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
-import { AI_CONFIG, type AiConfig, type AiModelPricing } from "./ai.config";
+import {
+  AI_CONFIG,
+  GROUNDED_REQUEST_USD,
+  type AiConfig,
+  type AiModelPricing,
+} from "./ai.config";
 import type { AiTokenUsage } from "./providers/ai-provider.interface";
 
 /**
@@ -72,15 +77,25 @@ const MTOK = new Prisma.Decimal(1_000_000);
 export function costFromUsage(
   usage: AiTokenUsage,
   pricing: AiModelPricing,
+  /**
+   * Token-DIŞI ek kalemler. Bugün tek üye: Google Search grounding (istek
+   * başına ücret). Bütçe motoru bunu ifade edemediği için grounded çağrılar
+   * ölçüm dışı kalıyordu (denetim 2026-08-24 Parça 6).
+   */
+  opts?: { grounded?: boolean },
 ): Prisma.Decimal {
-  return new Prisma.Decimal(usage.inputTokens)
+  const tokenCost = new Prisma.Decimal(usage.inputTokens)
     .mul(pricing.inputPerMTok)
     .add(new Prisma.Decimal(usage.outputTokens).mul(pricing.outputPerMTok))
     .add(new Prisma.Decimal(usage.cacheReadTokens).mul(pricing.cacheReadPerMTok))
     // Cache yazımı: ayrı fiyat tanımı yok → girdi fiyatından (Gemini'de 0 token).
     .add(new Prisma.Decimal(usage.cacheWriteTokens).mul(pricing.inputPerMTok))
-    .div(MTOK)
-    .toDecimalPlaces(6);
+    .div(MTOK);
+  return (
+    opts?.grounded
+      ? tokenCost.add(new Prisma.Decimal(GROUNDED_REQUEST_USD))
+      : tokenCost
+  ).toDecimalPlaces(6);
 }
 
 @Injectable()
@@ -211,6 +226,7 @@ export class AiBudgetService {
   async settle(
     id: string,
     usage: AiTokenUsage,
+    opts?: { grounded?: boolean },
   ): Promise<{ costUsd: Prisma.Decimal; warned: boolean; percentUsed: number }> {
     const row = await this.prisma.aiUsage.findUnique({
       where: { id },
@@ -222,7 +238,9 @@ export class AiBudgetService {
       // loadAiConfig boot'ta doğrular — buraya düşmek config regresyonudur.
       throw new Error(`"${row.model}" için fiyat tanımı yok`);
     }
-    const costUsd = costFromUsage(usage, pricing);
+    const costUsd = costFromUsage(usage, pricing, {
+      grounded: opts?.grounded,
+    });
     await this.prisma.aiUsage.update({
       where: { id },
       data: {

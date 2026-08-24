@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { tierAtLeast } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { fetchPublicUrl } from "../../../common/website-import";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -89,21 +90,42 @@ export class ProfileEnrichService {
       );
     }
 
-    // Günlük deneme sınırı — audit log sayımından (firma AI bütçesi kirlenmez).
+    // Günlük DENEME sınırı — bu uç bilinçli olarak AI bütçesinin dışında
+    // (BRONZ'un USD havuzu yok), dolayısıyla sağlayıcı harcamasına karşı TEK
+    // fren burasıdır. Denetim 2026-08-24 Parça 6: eski hâli üç yoldan
+    // aşılabiliyordu — sayaç yalnız BAŞARIDA, çağrıdan SONRA ve hata yutan
+    // `void audit.log` ile artıyordu (başarısız/pahalı denemeler bedava), ve
+    // oku-sonra-yaz arasında kilit olmadığı için eşzamanlı isteklerin hepsi
+    // aynı sayacı görüyordu. Artık: firma satırı FOR UPDATE ile kilitlenir,
+    // sayım ve "deneme" kaydı AYNI transaction'da yapılır, kayıt çağrıdan
+    // ÖNCE yazılır (başarısız deneme de sayılır).
     const dayStart = new Date();
     dayStart.setUTCHours(0, 0, 0, 0);
-    const attempts = await this.prisma.auditLog.count({
-      where: {
-        tenantId: user.companyId,
-        action: "company.profile_enriched",
-        createdAt: { gte: dayStart },
-      },
+    await runTenantTx(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM companies WHERE id = ${user.companyId} FOR UPDATE`;
+      const attempts = await tx.auditLog.count({
+        where: {
+          tenantId: user.companyId,
+          action: "company.profile_enrich_attempt",
+          createdAt: { gte: dayStart },
+        },
+      });
+      if (attempts >= DAILY_LIMIT) {
+        throw new BadRequestException(
+          `Günlük AI profil oluşturma limitine ulaşıldı (${DAILY_LIMIT}) — yarın tekrar deneyin.`,
+        );
+      }
+      await tx.auditLog.create({
+        data: {
+          action: "company.profile_enrich_attempt",
+          actorType: "company",
+          actorId: user.userId,
+          actorEmail: user.email,
+          tenantId: user.companyId,
+          metadata: { website } as never,
+        },
+      });
     });
-    if (attempts >= DAILY_LIMIT) {
-      throw new BadRequestException(
-        `Günlük AI profil oluşturma limitine ulaşıldı (${DAILY_LIMIT}) — yarın tekrar deneyin.`,
-      );
-    }
 
     // Siteyi çek; başarısızsa Google Search grounding'e düş.
     const fetched = await this.fetchSite(website);

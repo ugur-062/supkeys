@@ -25,6 +25,17 @@ export interface AiModelPricing {
 }
 
 /**
+ * Google Search grounding — TOKEN DEĞİL, İSTEK başına faturalanır. Bütçe
+ * motoru yalnız token maliyetini ifade edebildiği için grounded çağrıların
+ * gerçek maliyeti firmanın USD havuzuna hiç yansımıyordu (denetim 2026-08-24
+ * Parça 6): araç ücreti sessizce ölçüm dışı kalıyordu.
+ *
+ * Değer sağlayıcı listesine göre güncellenmelidir; fazla tahmin etmek
+ * (fail-closed) az tahmin etmekten iyidir — bütçe erken frenler.
+ */
+export const GROUNDED_REQUEST_USD = 0.035;
+
+/**
  * Vertex AI modu (2026-07-24): `generativelanguage.googleapis.com` (AI Studio
  * API) datacenter IP'lerini "User location not supported" ile reddediyor —
  * Render'dan Gemini çağrısı bu yüzden 400 alıyordu. Vertex AI, konumu sunucu

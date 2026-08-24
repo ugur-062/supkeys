@@ -133,10 +133,19 @@ export function AiFlagsBanner({
     if (!m) return;
     try {
       const updated = await refine.mutateAsync({ draft: result.draft, message: m });
-      // Formu güncellenmiş taslakla yeniden doldur (kullanıcının o ana kadarki
-      // el düzeltmeleri AI-taslak alanlarına göre tazelenir — banner bunu söyler).
-      const listingType = form.getValues("listingType");
-      form.reset(mapAiDraftToForm(updated.draft, listingType));
+      // Formu güncellenmiş taslakla tazele — AMA mevcut değerler TABAN alınır:
+      // AI'nın dokunmadığı alanlar (teslimat adresi, davetliler, görünürlük,
+      // kalem soruları, açılış tarihi, SATIS fiyatları) korunur. Eskiden taban
+      // DEFAULT_FORM_VALUES'tı ve bu alanlar uyarısız siliniyordu (denetim
+      // 2026-08-24 Parça 6).
+      const currentValues = form.getValues();
+      form.reset(
+        mapAiDraftToForm(
+          updated.draft,
+          currentValues.listingType,
+          currentValues,
+        ),
+      );
       onResult(updated);
       setMessage("");
       toast.success("Taslak güncellendi — alanları kontrol edin");

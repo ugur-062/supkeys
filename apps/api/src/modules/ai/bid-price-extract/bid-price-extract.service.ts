@@ -2,13 +2,13 @@ import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common"
 import type { BidImportResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { BidImportService } from "../../company-listings/import/bid-import.service";
-import { parseLocaleNumber } from "../../company-listings/import/listing-item-import.service";
 import type { DocRow } from "../../company-listings/import/bid-matching";
 import { StorageService } from "../../storage/storage.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
 import { AiService, type AiCallResult } from "../ai.service";
 import { routeExtractInput, type RoutedInput } from "../tender-extract/ai-extract-router";
 import { isOwnAiExtractKey } from "../tender-extract/ai-extract-keys";
+import { downloadAiInputs } from "../tender-extract/download-ai-inputs";
 import {
   BID_PRICE_RESPONSE_SCHEMA,
   BID_PRICE_SYSTEM_PROMPT,
@@ -55,17 +55,11 @@ export class BidPriceExtractService {
     // Kalemler+yetki (getOne) ile R2 indirme bağımsız → paralel (uzak DB/R2
     // turları gecikmenin Gemini dışındaki ana kalemi). Yetkisiz ihalede
     // loadListing fırlatır; dosya okuma sonucu kullanılmadan reddedilir.
+    // Denetim 2026-08-24 Parça 6 (HIGH): indirmeden ÖNCE HEAD ile boyut
+    // doğrulaması + toplam bayt tavanı + SERİ indirme (tek-kaynak yardımcı).
     const [listing, files] = await Promise.all([
       this.bidImport.loadListing(user, dto.listingId),
-      Promise.all(
-        dto.fileKeys.map(async (key) => {
-          try {
-            return { key, buffer: await this.storage.getObject("private", key) };
-          } catch {
-            throw new BadRequestException("Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin");
-          }
-        }),
-      ),
+      downloadAiInputs(this.storage, dto.fileKeys),
     ]);
     const routed: RoutedInput = await routeExtractInput(files, this.config.maxPages);
 
@@ -181,10 +175,48 @@ export function salvageRows(text: string): Record<string, unknown>[] {
 }
 
 /** AI çıktısı → DocRow[] (şema dışı/uydurma değerler düşer; tavanlar). Sayılar STRING gelir (şema). */
+/**
+ * MODEL çıktısındaki sayıyı okur (Excel/CSV hücresi DEĞİL).
+ *
+ * Sözleşme: binlik ayracı yok, ondalık NOKTA. Bu yüzden "1.875" = 1,875 —
+ * `parseLocaleNumber`'ın TR sezgisiyle 1875 DEĞİL. Sözleşme dışına çıkan bir
+ * model çıktısı için tek tolerans: yalnız virgül içeren değer (TR ondalık)
+ * noktaya çevrilir; her iki ayraç birlikte gelirse (ör. "1.234,56") TR biçimi
+ * kabul edilir.
+ */
+export function parseModelNumber(raw: string): number | null {
+  // Para sembolü/birim/boşluk gibi süsler atılır; rakam, ayraç ve işaret kalır
+  // ("185,50 ₺" → "185,50").
+  const s = raw.trim().replace(/[^\d.,-]/g, "");
+  if (!s) return null;
+  const hasDot = s.includes(".");
+  const hasComma = s.includes(",");
+  let normalized = s;
+  if (hasDot && hasComma) {
+    // "1.234,56" → TR: nokta binlik, virgül ondalık.
+    normalized = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    normalized = s.replace(",", ".");
+  }
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function sanitizeRows(raw: unknown): DocRow[] {
   if (!Array.isArray(raw)) return [];
   const num = (v: unknown): number | null => {
-    const n = typeof v === "number" ? v : typeof v === "string" ? parseLocaleNumber(v.slice(0, 40)) : null;
+    // MODEL ÇIKTISI sözleşmesi (bid-price-extract.prompts.ts): binlik ayracı
+    // YASAK, ondalık ayırıcı NOKTA, 3 ondalığa kadar. Excel/CSV hücreleri için
+    // yazılmış TR sezgisi (`parseLocaleNumber`: "tam 3 hane = binlik") buraya
+    // uygulanınca "1.875" → 1875 oluyordu, yani 1000× fiyat (denetim 2026-08-24
+    // Parça 6). Model çıktısı sade `Number()` ile okunur; TR biçimli bir değer
+    // gelirse (sözleşme dışı) yalnız virgül-ondalık toleransı uygulanır.
+    const n =
+      typeof v === "number"
+        ? v
+        : typeof v === "string"
+          ? parseModelNumber(v.slice(0, 40))
+          : null;
     return n != null && Number.isFinite(n) && n >= 0 && n < 1e15 ? n : null;
   };
   const str = (v: unknown, max: number): string | null =>

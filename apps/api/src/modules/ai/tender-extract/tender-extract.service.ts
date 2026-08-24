@@ -15,6 +15,7 @@ import { AiService, type AiCallResult } from "../ai.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
 import { buildAiExtractKey, isOwnAiExtractKey } from "./ai-extract-keys";
 import { routeExtractInput, type RoutedInput } from "./ai-extract-router";
+import { downloadAiInputs } from "./download-ai-inputs";
 import { sanitizeAiDraft, type SanitizedDraft } from "./ai-draft-sanitizer";
 import { CategorySuggestService } from "./category-suggest.service";
 import {
@@ -116,17 +117,9 @@ export class TenderExtractService {
       );
     }
 
-    const files = await Promise.all(
-      dto.fileKeys.map(async (key) => {
-        try {
-          return { key, buffer: await this.storage.getObject("private", key) };
-        } catch {
-          throw new BadRequestException(
-            "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
-          );
-        }
-      }),
-    );
+    // Denetim 2026-08-24 Parça 6 (HIGH): indirmeden ÖNCE HEAD ile boyut
+    // doğrulaması + toplam bayt tavanı + SERİ indirme (tek-kaynak yardımcı).
+    const files = await downloadAiInputs(this.storage, dto.fileKeys);
 
     // Girdi yönlendirici: metinli PDF → TEXT; taranmış PDF → PDF vision;
     // fotoğraf → küçültülmüş görüntü vision. Seçilen yol metadata'ya loglanır.

@@ -42,9 +42,20 @@ export interface RoutedInput {
 const MIN_TEXT_CHARS_PER_PAGE = 100;
 /** Ham telefon fotoğrafı ASLA gönderilmez — en büyük tasarruf kalemi. */
 const MAX_IMAGE_WIDTH = 1500;
+/** Çözülmüş piksel tavanı (sharp varsayılanı 268 MP — görsel bombasına açık). */
+const MAX_IMAGE_PIXELS = 60_000_000;
 const JPEG_QUALITY = 80;
-/** Gemini inline istek pratiği + base64 şişmesi: dosya başına ham tavan. */
-const MAX_FILE_BYTES = 15 * 1024 * 1024;
+/**
+ * Gemini inline istek pratiği + base64 şişmesi: dosya başına ham tavan.
+ *
+ * DİKKAT: buradaki kontrol buffer ELDE EDİLDİKTEN sonra çalışır. Ingest
+ * yolları R2'dan indirmeden ÖNCE `downloadAiInputs` (HEAD doğrulaması) ile
+ * geçmelidir — doğrulamasız `getObject` nesnenin tamamını belleğe alıp süreci
+ * OOM'a sürükleyebiliyordu (denetim 2026-08-24 Parça 6, HIGH).
+ */
+export const MAX_FILE_BYTES = 15 * 1024 * 1024;
+/** Bir istekteki TOPLAM açılmış bayt tavanı (dosya sayısı × tek tavan DEĞİL). */
+export const MAX_TOTAL_INPUT_BYTES = 40 * 1024 * 1024;
 /** Token tahminleri (fail-closed, yüksek uç): PDF native ~258/sayfa, görüntü ~1290 (1500px). */
 const PDF_PAGE_TOKEN_ESTIMATE = 300;
 const IMAGE_TOKEN_ESTIMATE = 1300;
@@ -52,6 +63,8 @@ const IMAGE_TOKEN_ESTIMATE = 1300;
 const PDF_MIME = "application/pdf";
 const XLSX_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+/** CSV ham bayt tavanı — ExcelJS hücre-nesnesi şişmesine karşı (bkz. routeSpreadsheet). */
+const MAX_CSV_BYTES = 2 * 1024 * 1024;
 /** Sayfa başına okunan satır tavanı (token koruması). */
 const MAX_SHEET_ROWS = 500;
 const MAX_SHEET_COLS = 30;
@@ -71,12 +84,20 @@ export async function routeExtractInput(
   if (files.length === 0) {
     throw new BadRequestException("En az bir dosya gerekli");
   }
+  let totalBytes = 0;
   for (const f of files) {
     if (f.buffer.length > MAX_FILE_BYTES) {
       throw new BadRequestException(
         "Dosya çok büyük (15 MB sınırı) — belgeyi bölerek veya sıkıştırarak deneyin",
       );
     }
+    totalBytes += f.buffer.length;
+  }
+  // Toplam tavan: 20 × 15 MB = 300 MB'lık tek istek kabul edilmemeli.
+  if (totalBytes > MAX_TOTAL_INPUT_BYTES) {
+    throw new BadRequestException(
+      "Seçilen dosyaların toplam boyutu çok büyük — daha az dosya seçin",
+    );
   }
 
   // Magic-bytes: istemci MIME'ına güvenilmez — içerik imzasından tespit.
@@ -152,6 +173,17 @@ async function routeSpreadsheet(
   maxPages: number,
 ): Promise<RoutedInput> {
   const wb = new ExcelJS.Workbook();
+  // CSV'de zip-benzeri bir ön-kontrol yok: ExcelJS satır/hücreleri nesne olarak
+  // belleğe açar → 15 MB'lık dar hücreli bir CSV (ör. "1,1,1,…") milyonlarca
+  // hücre nesnesine dönüşüp GB'larca bellek ister. Satır tavanı (MAX_SHEET_ROWS)
+  // ancak okuma SIRASINDA çalıştığı için koruma değil. Kalem içe aktarma
+  // dosyaları küçük olduğundan CSV'ye ayrı, düşük bir bayt tavanı koyuyoruz
+  // (denetim 2026-08-24 Parça 6).
+  if (!isXlsx && buffer.length > MAX_CSV_BYTES) {
+    throw new BadRequestException(
+      "CSV dosyası çok büyük — ilgili satırları küçük bir dosyada veya .xlsx olarak yükleyin",
+    );
+  }
   if (isXlsx) {
     // Zip bombası koruması (denetim 2026-08-23): açılmış boyut tavanı yüklemeden önce.
     try {
@@ -229,12 +261,25 @@ async function routePdf(buffer: Buffer, maxPages: number): Promise<RoutedInput> 
   let pages: number;
   const parser = new PDFParse({ data: new Uint8Array(buffer) });
   try {
+    // Sayfa tavanı METİN ÇIKARMADAN ÖNCE: `getText()` TÜM sayfaları ayrıştırıp
+    // ancak ondan sonra tavana bakıyordu → binlerce sayfalık "sayfa bombası"
+    // dakikalarca CPU yakıp tek süreçteki tüm kiracıları yavaşlatıyordu
+    // (denetim 2026-08-24 Parça 6). getInfo() yalnız belge meta verisini okur.
+    const info = await parser.getInfo();
+    if (info.total > maxPages) {
+      throw new BadRequestException(
+        `Belge çok uzun (${info.total} sayfa, en fazla ${maxPages}) — ilgili bölümü seçin`,
+      );
+    }
     const result = await parser.getText();
     pages = result.total;
     pageTexts = result.pages.map((p) =>
       (p.text ?? "").replace(/\s+/g, " ").trim(),
     );
   } catch (err) {
+    // Sayfa tavanı reddi (yukarıda) kullanıcıya AYNEN dönmeli — "PDF okunamadı"
+    // altında kaybolmasın.
+    if (err instanceof BadRequestException) throw err;
     // Teşhis için gerçek sebep loglanır (kullanıcıya sızdırılmaz).
     new Logger("AiExtractRouter").warn(
       `PDF parse hatası: ${err instanceof Error ? err.message : String(err)}`,
@@ -297,7 +342,10 @@ async function toResizedJpegPart(
     });
     input = Buffer.from(converted);
   }
-  const resized = await sharp(input)
+  // `limitInputPixels`: sharp varsayılanı 268 MP — "görsel bombası" (küçük
+  // dosya, devasa çözülmüş piksel) ile bellek/CPU tüketilebiliyordu. Belge
+  // fotoğrafı için 60 MP fazlasıyla yeterli (denetim 2026-08-24 Parça 6).
+  const resized = await sharp(input, { limitInputPixels: MAX_IMAGE_PIXELS })
     .rotate() // EXIF yönelimi (telefon fotoğrafı yan gelmesin)
     .resize({ width: MAX_IMAGE_WIDTH, withoutEnlargement: true })
     .jpeg({ quality: JPEG_QUALITY })

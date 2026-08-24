@@ -648,7 +648,6 @@ export default function TeklifVerPage() {
   // her paket) + "Belgeden Fiyatla (AI)" (Silver+). Yalnız itemState dolar;
   // gönderme aynı akış (monotonluk/award nöbetçisi/zorunlu-kalem kapıları aynen).
   const aiAllowed = tierAtLeast(authCompany?.tier ?? "STANDART", "SILVER");
-  const multiCurrency = (l?.allowedCurrencies?.length ?? 0) > 1;
   const applyImportedPrices = (rows: BidImportApplyRow[]) => {
     setItemState((s) => {
       const out = { ...s };
@@ -658,7 +657,12 @@ export default function TeklifVerPage() {
         out[r.itemId] = {
           ...prev,
           price: String(r.unitPrice),
-          currency: multiCurrency && r.currency ? r.currency : prev.currency,
+          // Kalem bazlı para birimi YALNIZ `canItemCurrency` koşullarında
+          // geçerli (Madde 9: kapalı zarf ALIM + çok birimli ilan). Eskiden
+          // yalnız `multiCurrency` bakılıyordu; SATIS/pazarlık/hemen-al
+          // ilanlarında forma birim yazılıp gönderim backend kapısına takılıyordu
+          // (denetim 2026-08-24 Parça 6).
+          currency: canItemCurrency && r.currency ? r.currency : prev.currency,
           deliveryTime: r.deliveryTime ?? prev.deliveryTime,
         };
       }

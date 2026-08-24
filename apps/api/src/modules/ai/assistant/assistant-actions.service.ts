@@ -17,11 +17,12 @@ import {
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
-import type { CreateListingDto } from "../../company-listings/dto/create-listing.dto";
-import type { PlaceBidDto } from "../../company-listings/dto/place-bid.dto";
+import { CreateListingDto } from "../../company-listings/dto/create-listing.dto";
+import { PlaceBidDto } from "../../company-listings/dto/place-bid.dto";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
 import { CompanyOrdersService } from "../../company-orders/services/company-orders.service";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
+import { validatePendingDto } from "./validate-pending-dto";
 
 /**
  * Faz AI-4 — asistan AKSİYON çerçevesi. İlkeler:
@@ -176,13 +177,28 @@ export class AssistantActionsService {
       type: "publish_tender",
       severity: "critical",
       params: { type, dto: dto as unknown as Record<string, unknown> },
+      // Onay kartı BAĞLAYICI alanların TAMAMINI göstermeli: bu alanlar belge/
+      // sohbet içeriğinden (yani düşman olabilecek girdiden) türetiliyor ve tek
+      // tıkla canlı ilana yazılıyor. Eksik gösterim, enjekte edilmiş bir ödeme
+      // planının ya da şartname metninin kullanıcı görmeden yayınlanması
+      // demekti (denetim 2026-08-24 Parça 6).
       summary: [
         `${type === "ALIM" ? "Alım ihalesi" : "Satış ilanı"} YAYINLANACAK: ${dto.title}`,
-        `Kalemler: ${(dto.items ?? []).map((i) => i.name).filter(Boolean).slice(0, 5).join(", ")}${(dto.items ?? []).length > 5 ? "…" : ""} (${(dto.items ?? []).length} kalem)`,
+        `Kalemler: ${(dto.items ?? [])
+          .slice(0, 5)
+          .map(
+            (i) =>
+              `${i.name} — ${i.quantity ?? "?"} ${i.unit ?? ""}`.trim(),
+          )
+          .join(" · ")}${(dto.items ?? []).length > 5 ? " …" : ""} (${(dto.items ?? []).length} kalem)`,
         `Kategori: ${cats.map((c) => c.nameTr).join(", ") || "-"}`,
         `Davet edilecek: ${invitees.map((c) => c.name).join(", ")}`,
         `Kapanış: ${dto.closesAt ?? "-"} · Para birimi: ${dto.primaryCurrency ?? "-"} · Görünürlük: Davetli (kapalı)`,
+        `Ödeme: ${summarizePaymentPlan(dto)} · Teslim: ${dto.deliveryTerm ?? "-"}`,
+        `Açıklama: ${previewText(dto.description)}`,
+        `Şartname: ${previewText(dto.terms)}`,
         "Yayınlandığında teklif almaya açılır; kapanış ve kalemler teklif geldikten sonra değiştirilemez.",
+        "Açıklama/şartname metinleri belgeden geldi — onaylamadan önce okuyun.",
       ],
     });
   }
@@ -580,7 +596,11 @@ export class AssistantActionsService {
         }
         case "place_bid": {
           const p = action.params as { listingId: string; dto: PlaceBidDto };
-          await this.listings.placeBid(user, p.listingId, p.dto);
+          // Denetim P6: saklanan payload YÜRÜTMEDEN ÖNCE gerçek DTO'suyla
+          // doğrulanır (confirm ucu gövde almadığı için ValidationPipe devrede
+          // değil; `as PlaceBidDto` yalnız derleme-zamanı iddiadır).
+          const bidDto = validatePendingDto(PlaceBidDto, p.dto);
+          await this.listings.placeBid(user, p.listingId, bidDto);
           message = "Teklifiniz gönderildi (kapalı zarf — yalnız ihale sahibi görür).";
           resourceId = p.listingId;
           break;
@@ -594,7 +614,10 @@ export class AssistantActionsService {
         }
         case "publish_tender": {
           const p = action.params as { dto: CreateListingDto };
-          const created = (await this.listings.create(user, p.dto)) as { id?: string };
+          const listingDto = validatePendingDto(CreateListingDto, p.dto);
+          const created = (await this.listings.create(user, listingDto)) as {
+            id?: string;
+          };
           resourceId = created?.id;
           message = "İhale yayınlandı — teklifler artık toplanıyor.";
           // Yayınlanan taslağı oturumdan temizle (tekrar yayınlanmasın).
@@ -698,4 +721,25 @@ export class AssistantActionsService {
     }
     return { session, action };
   }
+}
+
+/** Onay kartı için ödeme planı özeti (bağlayıcı alanlar gizlenmemeli). */
+function summarizePaymentPlan(dto: {
+  paymentCategory?: unknown;
+  advancePercent?: number | null;
+  paymentDays?: number | null;
+}): string {
+  const cat = dto.paymentCategory ? String(dto.paymentCategory) : null;
+  if (!cat) return "belirtilmedi";
+  const parts = [cat];
+  if (dto.advancePercent != null) parts.push(`%${dto.advancePercent} peşin`);
+  if (dto.paymentDays != null) parts.push(`${dto.paymentDays} gün vade`);
+  return parts.join(" · ");
+}
+
+/** Serbest metin önizlemesi — kart okunur kalsın diye kısaltılır. */
+function previewText(v: string | null | undefined, max = 220): string {
+  const s = (v ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return "yok";
+  return s.length > max ? `${s.slice(0, max)}… (${s.length} karakter)` : s;
 }

@@ -103,6 +103,19 @@ class FakeStorage {
     if (!f) throw new Error("NoSuchKey");
     return f;
   }
+  /**
+   * Denetim 2026-08-24 Parça 6: AI ingest artık indirmeden ÖNCE HEAD ile boyut
+   * doğruluyor (`downloadAiInputs` → `assertUploadedObjectValid`), bu yüzden
+   * sahte depo da `checkExists` sunmalı.
+   */
+  async checkExists(
+    _bucket: string,
+    key: string,
+  ): Promise<{ exists: boolean; size?: number }> {
+    const f = this.files.get(key);
+    return f ? { exists: true, size: f.length } : { exists: false };
+  }
+  async deleteObject(): Promise<void> {}
   async generatePresignedPut(): Promise<string> {
     return "https://r2.example/put";
   }

@@ -16,10 +16,29 @@ import {
 export function mapAiDraftToForm(
   draft: AiTenderDraft,
   listingType: "ALIM" | "SATIS",
+  /**
+   * Formun O ANKİ değerleri. Verilirse taban bunlar olur → AI'nın DOKUNMADIĞI
+   * alanlar (teslimat adresi, davetliler, görünürlük, kalem soruları, açılış
+   * tarihi, SATIS taban/hemen-al fiyatları…) KORUNUR.
+   *
+   * Denetim 2026-08-24 Parça 6: "AI ile düzelt" kutusu formu her seferinde
+   * DEFAULT_FORM_VALUES tabanına sıfırlıyordu — kullanıcının elle girdiği bu
+   * alanlar uyarısız siliniyordu (bant tüm adımlarda görünür olduğu için
+   * Davetliler/Özet adımında bile).
+   */
+  current?: TenderFormData,
 ): TenderFormData {
   const base: TenderFormData = {
-    ...DEFAULT_FORM_VALUES,
+    ...(current ?? DEFAULT_FORM_VALUES),
     listingType,
+    // Madde 25: SATIŞ ilanının varsayılan görünürlüğü PUBLIC (wizard defaultu
+    // da öyle kurar). AI taslağı yalnız DEFAULT_FORM_VALUES tabanına
+    // uygulandığında bu varsayılan atlanıp PRIVATE'a düşüyordu — ürün kararına
+    // aykırı (denetim 2026-08-24 Parça 6). `current` verildiğinde kullanıcının
+    // seçimi korunur.
+    ...(current
+      ? {}
+      : { visibility: listingType === "SATIS" ? "PUBLIC" as const : DEFAULT_FORM_VALUES.visibility }),
     items: [],
   };
 

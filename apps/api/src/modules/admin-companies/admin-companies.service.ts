@@ -1651,6 +1651,22 @@ export class AdminCompaniesService {
       );
     }
 
+    // KVKK: AI sohbet oturumları firmaya FK ile bağlı DEĞİL (ai_chat_sessions
+    // ayrı tutulur) → cascade ulaşmaz ve silme/anonimleştirme sonrası serbest
+    // metin sohbet içeriği (karşı taraf verisi dahil) 90 günlük TTL cron'una
+    // kadar DB'de kalıyordu. Her iki kolda da açıkça temizlenir (denetim
+    // 2026-08-24 Parça 6). `ai_usage` KALIR: append-only ölçüm/muhasebe kaydı
+    // (bütçe SUM'ı ona bağlı) ve serbest metin içermez.
+    await this.prisma.aiChatSession
+      .deleteMany({ where: { companyId: id } })
+      .catch((err: unknown) =>
+        this.logger.warn(
+          `AI sohbet oturumları silinemedi (${id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+
     if (!hasOrders) {
       await this.prisma.company.delete({ where: { id } });
       await this.audit.log({
