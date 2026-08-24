@@ -1334,9 +1334,18 @@ export class CompanyListingsService {
     }
     // OPEN ilanda tarih doğrulaması asDraft bayrağıyla ATLANAMAZ (yayındaki
     // ilanın kapanışı geçmişe/boşa çekilemez).
-    this.validateListingDates(
-      existing.status === "OPEN" ? { ...dto, asDraft: false } : dto,
-    );
+    //
+    // TÜR de İSTEMCİDEN OKUNMAZ (denetim 2026-08-25 Parça 8): "Madde 23"
+    // kapanışsızlık muafiyeti yalnız SATIS içindir; doğrulamaya `dto.type`
+    // geçilince ALIM ihalesi `type:"SATIS"` + `closesAt:null` gönderilerek
+    // kapanışsız bırakılabiliyordu (auto-close cron `closesAt <= now` filtresi
+    // null'ı hiç yakalamaz → ihale süresiz açık kalır). Servisin geri kalanı
+    // zaten `existing.type` kullanıyor ("Tür değişmez").
+    this.validateListingDates({
+      ...dto,
+      type: existing.type as unknown as CreateListingDto["type"],
+      ...(existing.status === "OPEN" ? { asDraft: false } : {}),
+    });
 
     // Tür değişmez — mevcut türe göre format/fiyat doğrula (create ile aynı).
     const type = existing.type;

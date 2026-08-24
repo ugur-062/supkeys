@@ -75,6 +75,12 @@ export class CompanyApprovalsService {
           firstName: true,
           lastName: true,
           notificationPrefs: true,
+          // INV-SD-1 (denetim 2026-08-25 Parça 8): pasifleştirilmiş/soft-delete
+          // edilmiş onaycıya e-posta GİTMEZ. In-app primitifi bu kapıyı zaten
+          // uyguluyordu; e-posta kolu okumadığı için "Onayınız bekleniyor"
+          // maili ihale başlığı+numarasıyla eski çalışana gidiyordu.
+          isActive: true,
+          deletedAt: true,
         },
       }),
       this.prisma.listing.findUnique({
@@ -83,6 +89,9 @@ export class CompanyApprovalsService {
       }),
     ]);
     if (!approver) return;
+    // INV-SD-1: pasif/silinmiş kullanıcıya bildirim gitmez (e-posta kolu bu
+    // kapıyı okumuyordu — denetim 2026-08-25 Parça 8).
+    if (!approver.isActive || approver.deletedAt) return;
     // Kullanıcı bu bildirimi kapattıysa gönderme (tek kaynak tercih helper'ı).
     const prefs = approver.notificationPrefs as Record<string, boolean> | null;
     if (!isNotificationEnabled(prefs, "approval_pending")) return;
@@ -326,9 +335,10 @@ export class CompanyApprovalsService {
     flowId: string,
     dto: CreateApprovalFlowDto,
   ) {
-    await this.requireOwnFlow(user.companyId, flowId);
+    const current = await this.requireOwnFlow(user.companyId, flowId);
     this.validateFlowInput(dto);
     await this.assertApproversValid(user.companyId, dto.steps.map((s) => s.approverUserId));
+    const wasActive = current.status === "ACTIVE";
     await runTenantTx(this.prisma, async (tx) => {
       await tx.approvalFlowStep.deleteMany({ where: { flowId } });
       await tx.approvalFlow.update({
@@ -348,6 +358,46 @@ export class CompanyApprovalsService {
           },
         },
       });
+      // Denetim 2026-08-25 Parça 8: "örtüşen aktif akış olmasın" invariantı
+      // yalnız setStatus'ta uygulanıyordu. Bu uç `type`/`listingType`
+      // değiştirebildiği için AKTİF bir akış güncellendiğinde iki ACTIVE akış
+      // kalabiliyor, `findMatchingFlow` de `createdAt asc` ile EN ESKİSİNİ
+      // seçip daha gevşek eşiğe düşebiliyordu (onay adımı SKIPPED → kazandırma
+      // onaysız). Aynı passivasyon burada da koşar.
+      if (wasActive) {
+        await tx.approvalFlow.updateMany({
+          where: {
+            companyId: user.companyId,
+            type: dto.type,
+            status: "ACTIVE",
+            id: { not: flowId },
+            OR:
+              (dto.listingType ?? null) == null
+                ? undefined
+                : [{ listingType: null }, { listingType: dto.listingType }],
+          },
+          data: { status: "PASSIVE" },
+        });
+      }
+    });
+    // INV-AUDIT-1: onay AKIŞI konfigürasyonu = yetki kararı. İzsiz değişiklik,
+    // kazandırma onay kapısının sessizce kaldırılmasına izin veriyordu.
+    await this.audit.log({
+      action: "company.approval_flow.updated",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "approval_flow",
+      entityId: flowId,
+      critical: true,
+      metadata: {
+        name: dto.name.trim(),
+        type: dto.type,
+        listingType: dto.listingType ?? null,
+        stepCount: dto.steps.length,
+        wasActive,
+      },
     });
     return { ok: true };
   }
@@ -386,12 +436,45 @@ export class CompanyApprovalsService {
         data: { status: dto.status },
       });
     }
+    // INV-AUDIT-1: aktifleştirme/pasifleştirme onay kapısını açar/kapatır.
+    await this.audit.log({
+      action: "company.approval_flow.status_changed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "approval_flow",
+      entityId: flowId,
+      critical: true,
+      metadata: {
+        from: current.status,
+        to: dto.status,
+        type: current.type,
+        listingType: current.listingType,
+      },
+    });
     return { ok: true };
   }
 
   async deleteFlow(user: AuthenticatedCompanyUser, flowId: string) {
-    await this.requireOwnFlow(user.companyId, flowId);
+    const flow = await this.requireOwnFlow(user.companyId, flowId);
     await this.prisma.approvalFlow.delete({ where: { id: flowId } });
+    // INV-AUDIT-1: aktif akışın silinmesi = onay kapısının kaldırılması.
+    await this.audit.log({
+      action: "company.approval_flow.deleted",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "approval_flow",
+      entityId: flowId,
+      critical: true,
+      metadata: {
+        type: flow.type,
+        listingType: flow.listingType,
+        statusBefore: flow.status,
+      },
+    });
     return { ok: true };
   }
 
@@ -1376,7 +1459,13 @@ export class CompanyApprovalsService {
   private async requireOwnFlow(companyId: string, flowId: string) {
     const f = await this.prisma.approvalFlow.findUnique({
       where: { id: flowId },
-      select: { id: true, companyId: true, type: true, listingType: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        listingType: true,
+        status: true,
+      },
     });
     if (!f || f.companyId !== companyId) {
       throw new NotFoundException("Onay akışı bulunamadı");

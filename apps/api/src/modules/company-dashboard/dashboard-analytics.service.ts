@@ -136,7 +136,12 @@ export class DashboardAnalyticsService {
     maskSupplierNames = false,
   ) {
     const rangeKey = range ? `:${+range.from}-${+range.to}` : "";
-    return this.cached(`sa:${companyId}:${period}${rangeKey}`, async () => {
+    // Faz O maskesi cache ANAHTARININ parçası olmalı: aksi halde tam-okuma
+    // yetkili bir kullanıcı cache'i ısıttığında, dar bağlamlı üye 5 dakika
+    // boyunca MASKESİZ tedarikçi adlarını alıyordu (P4 maskesinin cache
+    // üzerinden baypası — denetim 2026-08-25 Parça 8).
+    const maskKey = maskSupplierNames ? "m1" : "m0";
+    return this.cached(`sa:${companyId}:${period}${rangeKey}:${maskKey}`, async () => {
       const now = new Date();
       // Özel aralık: [from, to) dönem penceresi; önceki dönem = eşit uzunlukta
       // hemen öncesi. Aralıksızda mevcut month/quarter/year davranışı.
@@ -159,7 +164,12 @@ export class DashboardAnalyticsService {
             companyId,
             type: "ALIM",
             status: { notIn: ["DRAFT", "CANCELLED"] },
-            createdAt: { gte: from },
+            // Denetim 2026-08-25 Parça 8: evren yalnız `createdAt >= from` ile
+            // sınırlıydı, oysa serilerin çoğu (tasarruf trendi, kazandırma
+            // KPI'ı, kategori/top tasarruf) `awardedAt`e göre gruplanıyor →
+            // pencereden ÖNCE açılıp pencere İÇİNDE kazandırılan ihale hiçbir
+            // grafikte görünmüyordu (uzun süren ihalelerde sistematik eksik).
+            OR: [{ createdAt: { gte: from } }, { awardedAt: { gte: from } }],
           },
           select: {
             id: true, number: true, title: true, status: true,
@@ -206,7 +216,13 @@ export class DashboardAnalyticsService {
         this.prisma.companyOrder.findMany({
           where: {
             buyerCompanyId: companyId,
-            status: { notIn: ["REJECTED", "CANCELLED", "COMPLETED", "DISPUTED"] },
+            // P8 HIGH: COMPLETED DIŞLANMAZ. Madde 17 ile "Teslim Aldım"
+            // siparişi doğrudan COMPLETED yapıyor; borç ise AYRI izleniyor
+            // (business-rules §3: "COMPLETED = operasyonel bitiş, ödeme
+            // bağımsız"). COMPLETED evrenden atılınca vadesi geçmiş ödeme
+            // sinyali pratikte hiç ateşlenmiyordu. Operasyonel satırlar
+            // (teslim/onay bekleyen) zaten kendi status filtrelerini uygular.
+            status: { notIn: ["REJECTED", "CANCELLED", "DISPUTED"] },
           },
           select: {
             id: true, status: true, amount: true, currency: true,

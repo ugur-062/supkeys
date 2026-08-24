@@ -129,7 +129,13 @@ export class ActionCenterService {
         this.prisma.companyOrder.findMany({
           where: {
             buyerCompanyId: companyId,
-            status: { notIn: ["REJECTED", "CANCELLED", "COMPLETED", "DISPUTED"] },
+            // P8 HIGH: COMPLETED DIŞLANMAZ. Madde 17 ile "Teslim Aldım"
+            // siparişi doğrudan COMPLETED yapıyor; borç ise AYRI izleniyor
+            // (business-rules §3: "COMPLETED = operasyonel bitiş, ödeme
+            // bağımsız"). COMPLETED evrenden atılınca vadesi geçmiş ödeme
+            // sinyali pratikte hiç ateşlenmiyordu. Operasyonel satırlar
+            // (teslim/onay bekleyen) zaten kendi status filtrelerini uygular.
+            status: { notIn: ["REJECTED", "CANCELLED", "DISPUTED"] },
           },
           select: {
             id: true,
@@ -190,7 +196,14 @@ export class ActionCenterService {
     const sellerApproval = orders.filter((o) => o.status === "PENDING");
     const receive = orders.filter((o) => o.status === "IN_DELIVERY");
     const paymentWindow = orders.filter((o) => {
-      if (o.status !== "DELIVERED" || !unpaid(o)) return false;
+      // Madde 17: teslim alma siparişi COMPLETED yapıyor → yalnız DELIVERED'a
+      // bakmak bu satırı ölü bırakıyordu (P8 HIGH ile aynı kök).
+      if (
+        (o.status !== "DELIVERED" && o.status !== "COMPLETED") ||
+        !unpaid(o)
+      ) {
+        return false;
+      }
       const due = dueDateOf(o);
       return !due || due >= now; // vadesi geçenler kırmızı satırda
     });

@@ -5,6 +5,11 @@ import {
 } from "@nestjs/common";
 import type { ListingType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  bidRateToTry,
+  itemUnitPriceTry,
+  listingAmountTry,
+} from "../../common/company/report-currency";
 
 /**
  * Raporlama motoru — eski sistemin (tenant-reports) birleşik Company modeline
@@ -131,7 +136,7 @@ export class CompanyReportsService {
 
   async general(companyId: string, type: ListingType, dto: GeneralReportInput) {
     const include = {
-      invitations: { select: { id: true } },
+      invitations: { select: { id: true, invitedCompanyId: true } },
       bids: { select: BID_SELECT },
       items: {
         select: { quantity: true, targetPrice: true, minUnitPrice: true },
@@ -206,12 +211,13 @@ export class CompanyReportsService {
       publishedAt: Date | null;
       createdAt: Date;
       minPrice: unknown | null;
-      invitations: { id: string }[];
+      invitations: { id: string; invitedCompanyId: string }[];
       bids: Array<{
         status: string;
         amount: unknown;
         currency: string;
         exchangeRateSnapshot: unknown | null;
+        bidderCompanyId: string;
         bidderCompany: { name: string };
       }>;
       items: Array<{
@@ -239,9 +245,18 @@ export class CompanyReportsService {
       ? [...new Set(awardedBids.map((b) => b.bidderCompany.name))].join(", ")
       : null;
     const invitedCount = l.invitations.length;
+    // Denetim 2026-08-25 Parça 8: payda yalnız DAVET sayısıydı; PUBLIC/
+    // CONNECTIONS ilanlarda davetsiz teklif de geldiği için oran %100'ü
+    // aşabiliyordu (canlı örnek: 1 davet / 3 teklif → %300). "Yanıt oranı"
+    // davetlilerin yanıt verme oranıdır → pay da DAVETLİ teklifleriyle
+    // sınırlanır; davetsiz teklifler ayrıca `bidCount` ile görünür.
+    const invitedIds = new Set(l.invitations.map((iv) => iv.invitedCompanyId));
+    const invitedResponses = realBids.filter((b) =>
+      invitedIds.has(b.bidderCompanyId),
+    ).length;
     const responseRate =
       invitedCount > 0
-        ? Math.round((realBids.length / invitedCount) * 1000) / 10
+        ? Math.round((invitedResponses / invitedCount) * 1000) / 10
         : null;
     // Beklenen hacim: ALIM hedef fiyatlar; SATIS taban.
     const estimatedTotal =
@@ -346,10 +361,26 @@ export class CompanyReportsService {
         companyId,
         type,
         status: "AWARDED",
-        createdAt: {
-          gte: new Date(dto.rangeStart),
-          lte: new Date(dto.rangeEnd),
-        },
+        // Denetim 2026-08-25 Parça 8: aralık KAZANDIRMA tarihine uygulanır.
+        // Eskiden `createdAt` filtreleniyor ama `awardedAt`'e göre sıralanıyor
+        // ve arayüz "bu aralıkta kazandırılmış" diyordu → dün kazandırılan eski
+        // ihale raporda yoktu. (awardedAt boş legacy kayıtlar için createdAt
+        // yedeği korunur.)
+        OR: [
+          {
+            awardedAt: {
+              gte: new Date(dto.rangeStart),
+              lte: new Date(dto.rangeEnd),
+            },
+          },
+          {
+            awardedAt: null,
+            createdAt: {
+              gte: new Date(dto.rangeStart),
+              lte: new Date(dto.rangeEnd),
+            },
+          },
+        ],
         ...(dto.currency ? { primaryCurrency: dto.currency as never } : {}),
       },
       include: {
@@ -368,7 +399,18 @@ export class CompanyReportsService {
           where: { status: { in: [...REAL_BID] } },
           select: {
             ...BID_SELECT,
-            items: { select: { itemId: true, unitPrice: true } },
+            // Kalem TRY karşılığı için para birimi damgaları ŞART (P8 HIGH):
+            // hedef/taban ilan biriminde, kazanan birim fiyatı teklif (hatta
+            // kalem) biriminde — çevrilmeden kıyaslanınca uydurma tasarruf ve
+            // yanlış "önerilen kazanan" çıkıyordu.
+            items: {
+              select: {
+                itemId: true,
+                unitPrice: true,
+                currency: true,
+                fxToBase: true,
+              },
+            },
           },
         },
       },
@@ -387,6 +429,8 @@ export class CompanyReportsService {
       // kazandırmada aynı kalemi fiyatlayan kazananlar arasından EN İYİ fiyat
       // (kazandırmanın olağan seçimi) — modelde kalem-başına kazanan ayrıca
       // saklanmadığından en-iyi-fiyat yaklaşımı kullanılır.
+      // P8 HIGH: kıyas ve toplama TRY bazında. Kur damgası yoksa satır hesaba
+      // KATILMAZ (fail-closed) — "0 TL kazanan" uydurma tasarruf üretmesin.
       const winningByItem = new Map<
         string,
         { bidderName: string; unitPrice: number }
@@ -396,7 +440,8 @@ export class CompanyReportsService {
         for (const b of awarded) {
           const bi = b.items.find((x) => x.itemId === it.id);
           if (!bi) continue;
-          const up = Number(bi.unitPrice);
+          const up = itemUnitPriceTry(b, bi);
+          if (up == null) continue; // damga yok → kıyas dışı
           if (
             !best ||
             (bestIsMax ? up > best.unitPrice : up < best.unitPrice)
@@ -406,6 +451,17 @@ export class CompanyReportsService {
         }
         if (best) winningByItem.set(it.id, best);
       }
+      // İlan birimindeki referansı (hedef/taban) TRY'ye çevirmek için oran:
+      // TRY ilanda 1; aksi halde kazanan tekliflerin damgasından türetilir
+      // (aynı ilanda teklifler ilan birimini kullanır). Yoksa referans yok.
+      const listingRate =
+        l.primaryCurrency === "TRY"
+          ? 1
+          : (awarded
+              .map((b) =>
+                b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
+              )
+              .find((r): r is number => r != null) ?? null);
 
       let targetTotal = 0;
       let actualTotal = 0;
@@ -413,14 +469,11 @@ export class CompanyReportsService {
       const items = l.items.map((it) => {
         const win = winningByItem.get(it.id) ?? null;
         // ALIM referansı hedef fiyat; SATIS referansı kalem tabanı.
-        const refUnit =
-          type === "ALIM"
-            ? it.targetPrice != null
-              ? Number(it.targetPrice)
-              : null
-            : it.minUnitPrice != null
-              ? Number(it.minUnitPrice)
-              : null;
+        const refUnit = listingAmountTry(
+          l.primaryCurrency,
+          type === "ALIM" ? it.targetPrice : it.minUnitPrice,
+          listingRate,
+        );
         const qty =
           it.awardedQuantity != null && Number(it.awardedQuantity) > 0
             ? Number(it.awardedQuantity)
@@ -584,7 +637,15 @@ export class CompanyReportsService {
           where: { status: { in: [...REAL_BID] } },
           include: {
             bidderCompany: { select: { id: true, name: true } },
-            items: { select: { itemId: true, unitPrice: true } },
+            // Bkz. savings: kalem kıyası TRY bazında yapılmalı (P8 HIGH).
+            items: {
+              select: {
+                itemId: true,
+                unitPrice: true,
+                currency: true,
+                fxToBase: true,
+              },
+            },
             answers: { select: { questionId: true, value: true } },
           },
         },
@@ -618,29 +679,41 @@ export class CompanyReportsService {
       ),
     ]);
 
+    // P8 HIGH: referans (hedef/taban) İLANIN birimindedir → kalem kıyasıyla
+    // aynı baza (TRY) çekilir. Oran: TRY ilanda 1, aksi halde ilan birimini
+    // kullanan tekliflerin damgasından türetilir.
+    const cmpListingRate =
+      l.primaryCurrency === "TRY"
+        ? 1
+        : (l.bids
+            .map((b) =>
+              b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
+            )
+            .find((r): r is number => r != null) ?? null);
     const itemMeta = l.items.map((it) => ({
       id: it.id,
       name: it.name,
       unit: it.unit,
       quantity: Number(it.quantity),
-      referenceUnitPrice:
-        type === "ALIM"
-          ? it.targetPrice != null
-            ? Number(it.targetPrice)
-            : null
-          : it.minUnitPrice != null
-            ? Number(it.minUnitPrice)
-            : null,
+      referenceUnitPrice: listingAmountTry(
+        l.primaryCurrency,
+        type === "ALIM" ? it.targetPrice : it.minUnitPrice,
+        cmpListingRate,
+      ),
     }));
 
     // Kalem bazında EN İYİ birim fiyat (ALIM: en düşük, SATIS: en yüksek).
+    // P8: (a) kıyas TRY bazında (çevrimsiz ham kıyas yanlış kazanan öneriyordu),
+    // (b) ELENEN teklifler öneriye giremez — eleme, alıcının o teklifi
+    // değerlendirme dışı bıraktığı anlamına gelir.
     const bestByItem = new Map<string, { partyId: string; unitPrice: number }>();
     if (includePrice) {
+      const eligible = l.bids.filter((b) => b.status !== "LOST");
       for (const it of l.items) {
         let best: { partyId: string; unitPrice: number } | null = null;
-        for (const b of l.bids) {
+        for (const b of eligible) {
           const bi = b.items.find((x) => x.itemId === it.id);
-          const up = bi != null ? Number(bi.unitPrice) : null;
+          const up = bi != null ? itemUnitPriceTry(b, bi) : null;
           if (up == null || up <= 0) continue;
           if (
             !best ||
