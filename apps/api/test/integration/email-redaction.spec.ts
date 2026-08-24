@@ -68,6 +68,13 @@ describe("EmailService — davet token redaksiyonu (Commit 5)", () => {
     expect(created[0].payload).toHaveProperty("__redacted");
   });
 
+  it("tender_external_invite → payload REDAKTE (aynı referral token'ı taşır)", async () => {
+    const { svc, created } = makeService();
+    await send(svc, "tender_external_invite");
+    expect(JSON.stringify(created[0].payload)).not.toContain(TOKEN);
+    expect(created[0].payload).toHaveProperty("__redacted");
+  });
+
   it("non-redakte tip (order_status_changed) → payload DOLU kalır", async () => {
     const { svc, created } = makeService();
     await send(svc, "order_status_changed");

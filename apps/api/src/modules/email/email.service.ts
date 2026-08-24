@@ -41,6 +41,10 @@ const REDACTED_CONTEXT_TYPES = new Set([
   // biri `?ref=<token>` / `/company/davet/<token>` linkindeki token'ı okuyup
   // daveti kabul edebilir (bağlantı/ takıma katılma = yetki yükseltme).
   "referral_invite",
+  // Dış ihale daveti AYNI CompanyReferralInvite.token'ı taşır (registerUrl
+  // ?ref= + optOutUrl ?token=) — aynı sınıf, aynı redaksiyon (denetim
+  // 2026-08-23 Parça 4).
+  "tender_external_invite",
   "company_user_invitation",
 ]);
 

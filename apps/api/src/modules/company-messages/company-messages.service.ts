@@ -42,7 +42,7 @@ export class CompanyMessagesService {
   /** Yeni mesaj e-postası — alıcının bildirim e-postasına (best-effort). */
   private async emailNewMessage(
     companyId: string,
-    portal: MessagePortal,
+    senderCompanyId: string,
     senderName: string,
   ) {
     try {
@@ -80,7 +80,13 @@ export class CompanyMessagesService {
               `${senderName} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.`,
             ],
             ctaLabel: "Mesajları Gör",
-            ctaUrl: `${baseUrl}/company/${portal}/mesajlar`,
+            // Denetim 2026-08-23 Parça 4: CTA GÖNDERENİN portalını kullanıyordu;
+            // alıcının portalı her zaman TERSİDİR (thread daima alıcı-satıcı
+            // çifti). Alıcıda o portal yoksa (ör. SILVER-altı tedarikçi için
+            // satınalma portalı) link Premium/erişim ekranına düşüyordu.
+            // Birleşik gelen kutusu (2026-08-02) portal-bağımsız → doğrudan ona
+            // gideriz; sohbet `with` parametresiyle açılır.
+            ctaUrl: `${baseUrl}/company/mesajlar?with=${senderCompanyId}`,
           },
         },
         context: { type: "message_received", id: companyId },
@@ -377,7 +383,11 @@ export class CompanyMessagesService {
     const lastAt = existingThread?.lastMessageAt;
     const quiet = !lastAt || now.getTime() - lastAt.getTime() > GAP_MS;
     if (quiet) {
-      void this.emailNewMessage(otherCompanyId, portal, message.senderName);
+      void this.emailNewMessage(
+        otherCompanyId,
+        user.companyId,
+        message.senderName,
+      );
     }
 
     return {

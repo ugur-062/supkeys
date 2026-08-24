@@ -430,8 +430,11 @@ export class AdminCompaniesController {
   // ── KVKK (Faz 9) ──
   @Get("companies/:id/export")
   @RequireAdminRole("SUPER_ADMIN")
-  exportData(@Param("id") id: string) {
-    return this.service.exportData(id);
+  exportData(
+    @Param("id") id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.exportData(id, { id: admin.id, email: admin.email });
   }
 
   @Delete("companies/:id")

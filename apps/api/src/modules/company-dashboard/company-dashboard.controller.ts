@@ -1,4 +1,5 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { hasFullReadContext } from "../../common/company/full-read-context";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -76,7 +77,12 @@ export class CompanyDashboardController {
     @Query("to") to?: string,
   ) {
     const { p, range } = resolvePeriod(period, from, to);
-    return this.analytics.satinalma(user.companyId, p, range);
+    return this.analytics.satinalma(
+      user.companyId,
+      p,
+      range,
+      !hasFullReadContext(user),
+    );
   }
 
   @Get("satis/analytics")

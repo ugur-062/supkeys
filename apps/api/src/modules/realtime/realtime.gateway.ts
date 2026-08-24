@@ -1,4 +1,5 @@
 import { Logger } from "@nestjs/common";
+import { runWithTenantContext } from "../../common/tenant/tenant-context";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import {
@@ -183,10 +184,18 @@ export class RealtimeGateway
     // subscribe-spam koruması: tek soket sınırsız odaya katılıp bellek şişiremez.
     if (client.rooms.size > 100) return;
     // Erişim kontrolü (K1): yalnız ilgili firma odaya katılabilir.
-    const allowed =
-      body.kind === "order"
-        ? await this.canSubscribeOrder(companyId, body.id)
-        : await this.canSubscribeListing(companyId, body.id);
+    // RLS aktivasyon hazırlığı (denetim 2026-08-23 Parça 4): WS yolunda HTTP
+    // middleware'i çalışmadığı için tenant bağlamı YOK; policy'li tabloları
+    // (listings/bids/orders/invitations) bağlamsız okumak RLS açıldığında TÜM
+    // abonelikleri sessizce reddeder. Handshake'te doğrulanmış companyId ile
+    // bağlamı burada kurarız.
+    const allowed = await runWithTenantContext(
+      { companyId, realm: "company" },
+      () =>
+        body.kind === "order"
+          ? this.canSubscribeOrder(companyId, body.id)
+          : this.canSubscribeListing(companyId, body.id),
+    );
     if (!allowed) return;
     await client.join(`${body.kind}:${body.id}`);
   }

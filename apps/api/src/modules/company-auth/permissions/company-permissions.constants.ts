@@ -159,6 +159,17 @@ export function hasCompanyPermission(
     return true;
   }
   if (override?.removed?.includes(permission)) return false;
-  if (override?.added?.includes(permission)) return true;
+  // Denetim 2026-08-23 Parça 4: `added` KATALOGLA kesiştirilir. Yazma yolu
+  // (company-users.assertCanGrantRoles/override doğrulaması) katalog dışını
+  // zaten 400'lüyor; okuma tarafı filtresizdi → Faz R-1 öncesi yazılmış legacy
+  // `buy:*`/`sell:*` satırları ve katalog dışı anahtarlar sessizce yetki
+  // verebiliyordu (yazma reddederken okuma kabul eden asimetri).
+  // `removed` FİLTRELENMEZ: kısıtlama tarafı fail-closed kalmalı.
+  if (
+    override?.added?.includes(permission) &&
+    (ALL_COMPANY_PERMISSIONS as readonly string[]).includes(permission)
+  ) {
+    return true;
+  }
   return permissionsForRoles(roles).has(permission);
 }

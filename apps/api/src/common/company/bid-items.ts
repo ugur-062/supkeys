@@ -113,3 +113,16 @@ export function sumLineTotalsInBase(
     }, new Prisma.Decimal(0)),
   );
 }
+
+/**
+ * İlan SAHİBİNİN görebileceği teklif durumları — kapalı zarf kuralının sahip
+ * tarafı: gönderilmemiş (DRAFT) teklif sahibe GÖRÜNMEZ (henüz bağlayıcı değil,
+ * teklifçi hâlâ hazırlıyor). İlan detayı bu kümeyi zaten uyguluyordu; teklif
+ * BELGELERİ ucu uygulamıyordu (denetim 2026-08-23 Parça 4) — tek kaynak.
+ */
+export const OWNER_VISIBLE_BID_STATUSES = [
+  "SUBMITTED",
+  "WON",
+  "AWARDED_PARTIAL",
+  "LOST",
+] as const;

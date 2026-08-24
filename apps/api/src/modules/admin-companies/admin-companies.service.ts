@@ -1467,7 +1467,10 @@ export class AdminCompaniesService {
    * KVKK erişim hakkı — firmanın platformdaki TÜM verisi tek JSON.
    * Dönüş gevşek tip: içerik sözleşmesi "her şey" (Prisma include ağacı).
    */
-  async exportData(id: string): Promise<Record<string, unknown>> {
+  async exportData(
+    id: string,
+    actor?: { id: string; email?: string | null },
+  ): Promise<Record<string, unknown>> {
     const company = await this.prisma.company.findUnique({ where: { id } });
     if (!company) throw new NotFoundException("Firma bulunamadı");
     // Perf (aktif/büyük firmada OOM): eski tek-sorgu 14-relation include ağacı
@@ -1491,7 +1494,22 @@ export class AdminCompaniesService {
       addresses,
       bankAccounts,
     ] = await Promise.all([
-      this.pageRelation((a) => root().users(a)),
+      // KVKK dökümü veri ÖZNESİNE iletilir → kimlik-doğrulama iç durumu
+      // (TOTP sırrı/kurtarma kodu hash'leri, authId, tokenVersion) ve yetki
+      // override'ı KAPSAM DIŞI: bunlar öznenin kişisel verisi değil, hesap
+      // güvenliği iç durumudur (denetim 2026-08-23 Parça 4).
+      this.pageRelation((a) =>
+        root().users({
+          ...a,
+          omit: {
+            twoFactorSecret: true,
+            twoFactorRecoveryCodes: true,
+            authId: true,
+            tokenVersion: true,
+            permissionsOverride: true,
+          },
+        }),
+      ),
       this.pageRelation((a) =>
         root().listings({ ...a, include: { items: true, invitations: true } }),
       ),
@@ -1517,6 +1535,32 @@ export class AdminCompaniesService {
       this.pageRelation((a) => root().addresses(a)),
       this.pageRelation((a) => root().bankAccounts(a)),
     ]);
+    // INV-AUDIT-1: KVKK dökümü hassas ve toplu bir okuma — kardeş uç
+    // (deleteOrAnonymize) audit'liyken bu uç izsizdi (denetim 2026-08-23
+    // Parça 4). Metadata'ya ham PII (IBAN/vergi no) YAZILMAZ, yalnız kapsam.
+    if (actor) {
+      await this.audit.log({
+        action: "admin.company.exported",
+        actorType: "admin",
+        actorId: actor.id,
+        actorEmail: actor.email ?? undefined,
+        entityType: "company",
+        entityId: id,
+        critical: true,
+        metadata: {
+          rothernId: company.rothernId,
+          rowCounts: {
+            users: users.length,
+            listings: listings.length,
+            bidsPlaced: bidsPlaced.length,
+            ordersAsBuyer: ordersAsBuyer.length,
+            ordersAsSeller: ordersAsSeller.length,
+            bankAccounts: bankAccounts.length,
+            adminNotes: adminNotes.length,
+          },
+        },
+      });
+    }
     return {
       exportedAt: new Date().toISOString(),
       company: {
@@ -1532,10 +1576,11 @@ export class AdminCompaniesService {
         complaintsMade,
         complaintsReceived,
         membershipEvents,
-        adminNotes,
         addresses,
         bankAccounts,
       },
+      // İç admin notları döküme KONMAZ (öznenin verisi değil, platformun iç
+      // değerlendirmesi) — sayısı hesap-verebilirlik için audit'e yazılır.
     };
   }
 

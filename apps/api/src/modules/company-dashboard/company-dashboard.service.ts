@@ -224,11 +224,12 @@ export class CompanyDashboardService {
           sellerCompanyId: companyId,
           status: { notIn: ["REJECTED", "CANCELLED"] },
         },
-        select: {
-          amount: true,
-          createdAt: true,
-          listing: { select: { primaryCurrency: true } },
-        },
+        // Denetim 2026-08-23 Parça 4: para birimi SİPARİŞİN kendi kolonundan
+        // okunur. İlanın primaryCurrency'si kaynak alınınca (teklif farklı
+        // birimde verilebildiği ve kalem-bazlı kazandırma birim başına ayrı
+        // sipariş ürettiği için) gelir yanlış kurla çevriliyordu; öksüz
+        // siparişte de sessizce "TRY" varsayılıyordu.
+        select: { amount: true, currency: true, createdAt: true },
       }),
       this.prisma.listingBid.count({
         where: { bidderCompanyId: companyId, submittedAt: { gte: d30 } },
@@ -262,7 +263,7 @@ export class CompanyDashboardService {
     let revenueLast30 = 0;
     let revenuePrev30 = 0;
     for (const o of revenueOrders) {
-      const cur = o.listing?.primaryCurrency ?? "TRY";
+      const cur = (o.currency ?? "TRY") as Currency;
       const rate = await getRate(cur, o.createdAt);
       const v = Number(o.amount) * rate;
       revenueTotal += v;
@@ -454,28 +455,39 @@ export class CompanyDashboardService {
     const aggregates: Agg[] = await Promise.all(
       listings.map(async (l) => {
         const awardedAt = l.updatedAt;
-        const rate = await getRate(l.primaryCurrency, awardedAt);
+        // Denetim 2026-08-23 Parça 4: hedef fiyat İLANIN birimindedir, kazanan
+        // birim fiyatı ise TEKLİFİN biriminde — ikisi çevrilmeden çıkarılınca
+        // (ör. TRY ilan + USD teklif) tasarruf uydurma çıkıyordu. Her iki taraf
+        // AYRI kurla TRY'ye çevrilir.
+        const listingRate = await getRate(l.primaryCurrency, awardedAt);
         const itemMap = new Map(l.items.map((i) => [i.id, i]));
         let savings = 0;
         let volume = 0;
         for (const bid of l.bids) {
+          const bidRate = await getRate(
+            (bid.currency ?? l.primaryCurrency) as Currency,
+            awardedAt,
+          );
           for (const bi of bid.items) {
             const item = itemMap.get(bi.itemId);
             if (!item) continue;
             const qty = Number(item.quantity);
-            const winPrice = Number(bi.unitPrice);
-            const target =
-              item.targetPrice !== null ? Number(item.targetPrice) : null;
-            volume += winPrice * qty * rate;
-            if (target !== null && target > winPrice) {
-              savings += (target - winPrice) * qty * rate;
+            const winTry = Number(bi.unitPrice) * bidRate;
+            const targetTry =
+              item.targetPrice !== null
+                ? Number(item.targetPrice) * listingRate
+                : null;
+            volume += winTry * qty;
+            if (targetTry !== null && targetTry > winTry) {
+              savings += (targetTry - winTry) * qty;
             }
           }
         }
         return {
           number: l.number ?? "—",
           title: l.title,
-          currency: l.primaryCurrency,
+          // Tutarlar TRY-eşdeğerdir (yukarıda çevrildi) — etiket de öyle olmalı.
+          currency: "TRY",
           awardedAt,
           savings,
           volume,

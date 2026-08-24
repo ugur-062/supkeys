@@ -123,7 +123,18 @@ export class DashboardAnalyticsService {
   }
 
   // ── SATINALMA ────────────────────────────────────────────────────────────
-  async satinalma(companyId: string, period: SavingsPeriod, range?: PeriodRange) {
+  async satinalma(
+    companyId: string,
+    period: SavingsPeriod,
+    range?: PeriodRange,
+    /**
+     * Faz O (denetim 2026-08-23 Parça 4): dar bağlamlı üye (ONAYLAYICI-only /
+     * rolsüz) tedarikçi KİMLİĞİNİ görmemeli — ilan detayı bu kişiye 404
+     * verirken pano açık ad + kazanma oranı döndürüyordu. Pano çökmesin diye
+     * uç kapatılmaz, yalnız ad maskelenir.
+     */
+    maskSupplierNames = false,
+  ) {
     const rangeKey = range ? `:${+range.from}-${+range.to}` : "";
     return this.cached(`sa:${companyId}:${period}${rangeKey}`, async () => {
       const now = new Date();
@@ -439,7 +450,7 @@ export class DashboardAnalyticsService {
       }
       const suppliers = [...supAgg.entries()]
         .map(([name, a]) => ({
-          name,
+          name: maskSupplierNames ? shortenSupplierName(name) : name,
           bids: a.bids,
           winRatePct: a.decided > 0 ? Math.round((a.won / a.decided) * 100) : null,
           avgResponseHours: null as number | null, // TODO: davetli adı yok (üstteki not)
@@ -761,4 +772,11 @@ export class DashboardAnalyticsService {
       };
     });
   }
+}
+
+/** Faz O maskesi — "Acme Metal A.Ş." → "Acm…" (kimlik değil, satır ayırt edici). */
+function shortenSupplierName(name: string): string {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return "—";
+  return `${trimmed.slice(0, 3)}…`;
 }

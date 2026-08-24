@@ -434,6 +434,9 @@ export function CompanyProfileView({
 }
 
 const ROLE_LABEL = { buyer: "Doğrulanmış alıcı", seller: "Doğrulanmış tedarikçi" } as const;
+/** Rol bilinmiyorsa (bkz. ReviewPartner.role) nötr etiket. */
+const roleLabel = (r: "buyer" | "seller" | null) =>
+  r ? ROLE_LABEL[r] : "Doğrulanmış ortak";
 
 function Stars({ value, label }: { value: number; label?: string }) {
   const full = Math.round(value);
@@ -495,14 +498,14 @@ function ReviewSummarySection({ s }: { s: ReviewSummary }) {
         {s.partners.map((pt, i) => {
           const [latest, ...rest] = pt.comments;
           return (
-            <li key={`${pt.role}-${pt.lastAt}-${i}`} className="border-t border-zinc-100 pt-3">
+            <li key={`${pt.role ?? "x"}-${pt.lastAt}-${i}`} className="border-t border-zinc-100 pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <span className="truncate text-sm font-semibold text-zinc-900">
-                    {pt.name ?? ROLE_LABEL[pt.role]}
+                    {pt.name ?? roleLabel(pt.role)}
                   </span>
                   {pt.name ? (
-                    <span className="ml-2 text-xs text-zinc-400">{ROLE_LABEL[pt.role].replace("Doğrulanmış ", "")}</span>
+                    <span className="ml-2 text-xs text-zinc-400">{roleLabel(pt.role).replace("Doğrulanmış ", "")}</span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-500">

@@ -57,7 +57,16 @@ export function buildReviewSummary(
     const avg = list.reduce((s, r) => s + r.rating, 0) / list.length;
     partners.push({
       name: opts.revealNames && latest.showName ? latest.reviewer.name : null,
-      role: latest.order.buyerCompanyId === latest.reviewerCompanyId ? "buyer" : "seller",
+      // RLS aktivasyon hazırlığı (denetim 2026-08-23 Parça 4): `order` ilişkisi
+      // ÇAPRAZ-firma bir satırdır — RLS açıldığında policy bunu gizleyip null
+      // döndürebilir ve `latest.order.buyerCompanyId` TypeError (500) atardı.
+      // Rol bilinmiyorsa null (UI "Doğrulanmış ortak" der), sayfa çökmez.
+      // KALICI çözüm (Dalga B): CompanyReview'a reviewerRole kolonu.
+      role: latest.order
+        ? latest.order.buyerCompanyId === latest.reviewerCompanyId
+          ? "buyer"
+          : "seller"
+        : null,
       avg: round1(avg),
       count: list.length,
       lastAt: latest.createdAt.toISOString(),

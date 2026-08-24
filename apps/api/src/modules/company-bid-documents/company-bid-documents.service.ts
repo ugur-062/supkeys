@@ -1,3 +1,4 @@
+import { OWNER_VISIBLE_BID_STATUSES } from "../../common/company/bid-items";
 import {
   BadRequestException,
   ForbiddenException,
@@ -183,7 +184,16 @@ export class CompanyBidDocumentsService {
 
     const docs = await this.prisma.listingBidDocument.findMany({
       where: isOwner
-        ? { bid: { listingId } }
+        ? {
+            // Denetim 2026-08-23 Parça 4: sahip yalnız GÖNDERİLMİŞ tekliflerin
+            // belgelerini görür — ilan detayındaki kardeş kural (getOne sahip
+            // dalı) ile TEK KAYNAK. Eskiden DRAFT teklifin belgeleri + teklifçi
+            // adı + presigned indirme URL'i sahibe dönüyordu.
+            bid: {
+              listingId,
+              status: { in: [...OWNER_VISIBLE_BID_STATUSES] },
+            },
+          }
         : { bid: { listingId, bidderCompanyId: user.companyId } },
       include: { bid: { include: { bidderCompany: { select: { name: true } } } } },
       orderBy: { createdAt: "desc" },

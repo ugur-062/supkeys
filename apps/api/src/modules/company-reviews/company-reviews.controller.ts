@@ -57,7 +57,10 @@ export class CompanyReviewsController {
   }
 
   @Get("company/:companyId")
-  forCompany(@Param("companyId") companyId: string) {
-    return this.service.listForCompany(companyId);
+  forCompany(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("companyId") companyId: string,
+  ) {
+    return this.service.listForCompany(user, companyId);
   }
 }

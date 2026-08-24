@@ -21,7 +21,12 @@ export interface ReviewComment {
 export interface ReviewPartner {
   /** Firma adı — yalnız izinliyse (showName) ve platform-içi görünümde; aksi null. */
   name: string | null;
-  role: ReviewerRole;
+  /**
+   * Değerlendirenin ilişkideki rolü. RLS aktivasyonunda çapraz-firma `order`
+   * satırı gizlenebildiği için null olabilir (denetim 2026-08-23 Parça 4) —
+   * UI nötr "Doğrulanmış ortak" etiketine düşer.
+   */
+  role: ReviewerRole | null;
   /** 1-5, 1 ondalık (sunucuda yuvarlanır). */
   avg: number;
   /** Bu ortağın değerlendirdiği sipariş sayısı. */

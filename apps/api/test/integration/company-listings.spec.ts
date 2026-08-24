@@ -1073,7 +1073,13 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       ).rejects.toThrow(DENY);
     });
 
-    it("kişi-bazlı izin override ile verilen yetki tanınır", async () => {
+    it("İŞLEM izni override ile VERİLEMEZ (Faz R) — buy:listing:manage eklense de reddedilir", async () => {
+      // Faz R kararı (company-permissions.constants.ts): işlem izinleri
+      // (buy:*/sell:*) KATALOGDAN çıkarıldı — override ile verilemez/alınamaz
+      // ("koltuk arka-kapısı kapalı"; işlem yetkisi = rol ata/kaldır). Yazma
+      // yolu bunu zaten 400'lüyordu; okuma yolu (hasCompanyPermission) ise
+      // legacy/elle yazılmış satırları kabul ediyordu → denetim 2026-08-23
+      // Parça 4'te kapatıldı. Bu test o kuralın sözleşmesidir.
       const { service, company, listing } = await setup("ALIM");
       const seller = await makeUser(prisma, company.id, [CompanyRole.SATISCI]);
       await prisma.listing.update({
@@ -1085,12 +1091,20 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       await expect(
         service.updateListing(authFor(company, base), listing.id, {} as never),
       ).rejects.toThrow(DENY);
-      // override ile buy:listing:manage eklenince authz geçer
+      // override ile buy:listing:manage eklense DE reddedilir (katalog dışı).
       const granted = authFor(company, base, {
         permissionsOverride: { added: ["buy:listing:manage"], removed: [] },
       });
+      await expect(
+        service.updateListing(granted, listing.id, {} as never),
+      ).rejects.toThrow(DENY);
+      // Doğru yol: SATIN_ALMACI rolü ata → yetki gelir.
+      const withRole = authFor(company, {
+        ...base,
+        roles: [CompanyRole.SATISCI, CompanyRole.SATIN_ALMACI],
+      });
       expect(
-        await errOf(service.updateListing(granted, listing.id, {} as never)),
+        await errOf(service.updateListing(withRole, listing.id, {} as never)),
       ).not.toMatch(DENY);
     });
 

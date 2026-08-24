@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { CompanyRole } from "@rothern/db";
+import { tierAtLeast } from "@rothern/shared";
+import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
@@ -106,7 +108,37 @@ export class CompanyReviewsService {
    * Bir firmaya yapılan değerlendirmelerin ÖZETİ (firma bazında gruplu;
    * platform-içi → opt-in adlar görünür). Profil uçları aynı yardımcıyı kullanır.
    */
-  async listForCompany(companyId: string) {
+  async listForCompany(user: AuthenticatedCompanyUser, companyId: string) {
+    // Denetim 2026-08-23 Parça 4: bu uç kapısızdı — ilişkisiz/paketsiz çağıran,
+    // profil sayfasında 404 alacağı bir firmanın değerlendirme özetini (opt-in
+    // veren ortakların FİRMA ADLARI + yorumlar dahil) okuyabiliyordu. Kapı
+    // company-connections.getProfile ile AYNI olmalı: ilişkili VEYA herkese
+    // açık dizin kaydı; aksi halde varlığı sızdırmamak için 404.
+    if (companyId !== user.companyId) {
+      const target = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { tier: true, membershipEndAt: true, publicEnabled: true },
+      });
+      if (!target) throw new NotFoundException("Firma profili bulunamadı");
+      const relation = await this.prisma.companyConnection.count({
+        where: {
+          OR: [
+            { inviterCompanyId: user.companyId, inviteeCompanyId: companyId },
+            { inviterCompanyId: companyId, inviteeCompanyId: user.companyId },
+          ],
+        },
+      });
+      const publiclyListed =
+        tierAtLeast(user.tier, "BRONZ") &&
+        tierAtLeast(
+          effectiveTier(target.tier, target.membershipEndAt),
+          "BRONZ",
+        ) &&
+        target.publicEnabled;
+      if (relation === 0 && !publiclyListed) {
+        throw new NotFoundException("Firma profili bulunamadı");
+      }
+    }
     const rows = await this.prisma.companyReview.findMany({
       where: { targetCompanyId: companyId },
       select: REVIEW_SUMMARY_SELECT,

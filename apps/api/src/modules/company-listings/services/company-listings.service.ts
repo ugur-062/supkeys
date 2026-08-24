@@ -50,6 +50,7 @@ import {
   bidCoversAllItems,
   lineTotal,
   sumLineTotals,
+  OWNER_VISIBLE_BID_STATUSES,
   roundMoney,
   sumLineTotalsInBase,
 } from "../../../common/company/bid-items";
@@ -77,6 +78,12 @@ import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import { hasFullReadContext } from "../../../common/company/full-read-context";
+import { reportToSentry } from "../../../instrument";
+import {
+  getTenantStore,
+  runWithTenantContext,
+} from "../../../common/tenant/tenant-context";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -283,16 +290,18 @@ export class CompanyListingsService {
 
     // Davetliler + teklif verenler (PUBLIC ilanda davetsiz teklifçi olabilir)
     // birleşik kümesine kapanış bildirimi.
-    const [invs, bids] = await Promise.all([
-      this.prisma.listingInvitation.findMany({
-        where: { listingId },
-        select: { invitedCompanyId: true },
-      }),
-      this.prisma.listingBid.findMany({
-        where: { listingId },
-        select: { bidderCompanyId: true },
-      }),
-    ]);
+    const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
+      Promise.all([
+        this.prisma.listingInvitation.findMany({
+          where: { listingId },
+          select: { invitedCompanyId: true },
+        }),
+        this.prisma.listingBid.findMany({
+          where: { listingId },
+          select: { bidderCompanyId: true },
+        }),
+      ]),
+    );
     const participantIds = [
       ...new Set([
         ...invs.map((iv) => iv.invitedCompanyId),
@@ -607,23 +616,33 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, title: true, number: true, type: true },
+      select: {
+        id: true,
+        title: true,
+        number: true,
+        type: true,
+        companyId: true,
+      },
     });
     if (!listing) return;
     // Davetliler teklifçidir → teklifçi portalı (ALIM→satış, SATIS→satınalma).
     const invitePortal = this.bidderPortal(listing.type);
-    const invs = await this.prisma.listingInvitation.findMany({
-      where: { listingId },
-      select: { invitedCompanyId: true },
-    });
+    const invs = await this.inOwnerContext(listing.companyId, () =>
+      this.prisma.listingInvitation.findMany({
+        where: { listingId },
+        select: { invitedCompanyId: true },
+      }),
+    );
     // Hatırlatma yalnızca HENÜZ TEKLİF VERMEMİŞ davetlilere gider (davet ise
     // herkese). Teklif vermiş firmaları çıkar.
     let targets = invs.map((iv) => iv.invitedCompanyId);
     if (mode === "reminder" || mode === "newRound") {
-      const bidders = await this.prisma.listingBid.findMany({
-        where: { listingId, status: "SUBMITTED" },
-        select: { bidderCompanyId: true },
-      });
+      const bidders = await this.inOwnerContext(listing.companyId, () =>
+        this.prisma.listingBid.findMany({
+          where: { listingId, status: "SUBMITTED" },
+          select: { bidderCompanyId: true },
+        }),
+      );
       const bidderSet = new Set(bidders.map((b) => b.bidderCompanyId));
       targets = targets.filter((id) => !bidderSet.has(id));
     }
@@ -1652,7 +1671,13 @@ export class CompanyListingsService {
    * (Geriye uyum) Eski LISTING_PUBLISH onayı onaylanırsa ilanı OPEN yap —
    * artık yeni akış üretilmez ama bekleyen eski istekler tamamlanabilsin.
    */
-  @OnEvent("listing.publish.approved")
+  // suppressErrors:false ZORUNLU — @nestjs/event-emitter varsayılanı TRUE'dur
+  // (dist/event-subscribers.loader.js: wrapFunctionInTryCatchBlocks, options?.
+  // suppressErrors ?? true) yani dinleyicideki hata YUTULUR ve emitAsync başarı
+  // döner. Onay servisi buna güvenip fail-closed geri alma yapıyor; yutulan
+  // hatada "onay APPROVED ama ilan/sipariş yok" sessiz tutarsızlığı oluşuyordu
+  // (denetim 2026-08-23 Parça 4, HIGH).
+  @OnEvent("listing.publish.approved", { suppressErrors: false })
   async onPublishApproved(payload: { listingId: string }) {
     await this.prisma.listing.update({
       where: { id: payload.listingId },
@@ -1671,10 +1696,48 @@ export class CompanyListingsService {
   /** (Geriye uyum) Eski yayın onayı reddedilirse ilan taslağa geri döner. */
   @OnEvent("listing.publish.rejected")
   async onPublishRejected(payload: { listingId: string }) {
-    await this.prisma.listing.update({
-      where: { id: payload.listingId },
-      data: { status: "DRAFT" },
-    });
+    // `*.rejected` olayları `emit` ile (beklenmeden) ateşlenir → burada
+    // suppressErrors:false yalnız unhandledRejection üretirdi. Bunun yerine
+    // hatayı KENDİMİZ yakalayıp Sentry'e taşıyoruz: sessiz durum-driftı yok
+    // (denetim 2026-08-23 Parça 4).
+    try {
+      await this.prisma.listing.update({
+        where: { id: payload.listingId },
+        data: { status: "DRAFT" },
+      });
+    } catch (err) {
+      this.logger.error(
+        `Yayın reddi uygulanamadı (${payload.listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      reportToSentry("listing.publish.rejected uygulanamadı", "error", {
+        tags: { area: "listings" },
+        extra: { listingId: payload.listingId },
+      });
+    }
+  }
+
+
+  /**
+   * RLS aktivasyon hazırlığı (denetim 2026-08-23 Parça 4): cron/sistem
+   * yollarından çağrılan bildirim toplayıcıları `listing_invitations` ve
+   * `listing_bids` gibi POLİCY'Lİ tabloları okur. Cron'da tenant bağlamı YOK →
+   * RLS açıldığında bu okumalar 0 satır döner ve kapanış/hatırlatma/yeni-tur
+   * bildirimleri SESSİZCE kimseye gitmez. Okumaları ilanın SAHİBİ bağlamında
+   * koşarız (owner kolu her iki policy'de de davetli/teklif kümesini açar);
+   * istek bağlamı zaten varsa (kullanıcı yolu) dokunmayız.
+   */
+  private inOwnerContext<T>(
+    ownerCompanyId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const store = getTenantStore();
+    if (store?.companyId) return fn();
+    return runWithTenantContext(
+      { companyId: ownerCompanyId, realm: "company" },
+      fn,
+    );
   }
 
   /**
@@ -1808,7 +1871,7 @@ export class CompanyListingsService {
             // Taslak/geri-çekilmiş teklif sayılmaz (kapalı zarf: taslağın
             // varlığı bile ima edilmemeli).
             bids: {
-              where: { status: { in: ["SUBMITTED", "WON", "AWARDED_PARTIAL", "LOST"] } },
+              where: { status: { in: [...OWNER_VISIBLE_BID_STATUSES] } },
             },
           },
         },
@@ -2299,7 +2362,7 @@ export class CompanyListingsService {
             listingId: id,
             // AWARDED_PARTIAL dahil — kalem-bazlı kısmi kazanan sahibin
             // listesinden kaybolmasın (yalnız WITHDRAWN/DRAFT gizli).
-            status: { in: ["SUBMITTED", "WON", "AWARDED_PARTIAL", "LOST"] },
+            status: { in: [...OWNER_VISIBLE_BID_STATUSES] },
           },
           include: {
             bidderCompany: { select: { name: true } },
@@ -5437,7 +5500,9 @@ export class CompanyListingsService {
   }
 
   /** Kazandırma onayı onaylandı → saklanan plana göre uygula. */
-  @OnEvent("listing.award.approved")
+  // Bkz. yukarıdaki not: suppressErrors:false olmadan company-approvals'ın
+  // emitAsync + rollback sözleşmesi (fail-closed) HİÇ çalışmaz.
+  @OnEvent("listing.award.approved", { suppressErrors: false })
   async onAwardApproved(payload: {
     listingId: string;
     payload: unknown;
@@ -5476,12 +5541,26 @@ export class CompanyListingsService {
     // Yalnız hâlâ onay-bekleyen ilanı kapat. İlan bu arada başka bir istekle
     // AWARDED olduysa (sipariş var) CLOSED'a düşürme — aksi halde sahibi
     // yeniden kazandırıp ikinci sipariş üretebilirdi.
-    await this.prisma.listing.updateMany({
-      where: { id: payload.listingId, status: "IN_AWARD_APPROVAL" },
-      // Red → değerlendirme SÜRÜYOR (IN_AWARD): kazandırma denemesi yapan
-      // alıcı zaten değerlendirme aşamasındaydı; tedarikçi sinyali kaybolmasın.
-      data: { status: "IN_AWARD" },
-    });
+    // `emit` ile ateşlenir (beklenmez) → hatayı kendimiz yakalayıp Sentry'e
+    // taşırız; aksi halde ilan IN_AWARD_APPROVAL'da sessizce donardı.
+    try {
+      await this.prisma.listing.updateMany({
+        where: { id: payload.listingId, status: "IN_AWARD_APPROVAL" },
+        // Red → değerlendirme SÜRÜYOR (IN_AWARD): kazandırma denemesi yapan
+        // alıcı zaten değerlendirme aşamasındaydı; tedarikçi sinyali kaybolmasın.
+        data: { status: "IN_AWARD" },
+      });
+    } catch (err) {
+      this.logger.error(
+        `Kazandırma reddi uygulanamadı (${payload.listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      reportToSentry("listing.award.rejected uygulanamadı", "error", {
+        tags: { area: "listings" },
+        extra: { listingId: payload.listingId },
+      });
+    }
   }
 
   /**
@@ -6316,20 +6395,28 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, title: true, number: true, type: true },
+      select: {
+        id: true,
+        title: true,
+        number: true,
+        type: true,
+        companyId: true,
+      },
     });
     if (!listing) return;
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
-    const [invs, bids] = await Promise.all([
-      this.prisma.listingInvitation.findMany({
-        where: { listingId },
-        select: { invitedCompanyId: true },
-      }),
-      this.prisma.listingBid.findMany({
-        where: { listingId },
-        select: { bidderCompanyId: true },
-      }),
-    ]);
+    const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
+      Promise.all([
+        this.prisma.listingInvitation.findMany({
+          where: { listingId },
+          select: { invitedCompanyId: true },
+        }),
+        this.prisma.listingBid.findMany({
+          where: { listingId },
+          select: { bidderCompanyId: true },
+        }),
+      ]),
+    );
     const companyIds = [
       ...new Set([
         ...invs.map((iv) => iv.invitedCompanyId),
@@ -6697,19 +6784,7 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
   ): Promise<void> {
-    const fullRead =
-      user.isOwner ||
-      user.roles.some((r) =>
-        (
-          [
-            CompanyRole.SAHIP,
-            CompanyRole.YONETICI,
-            CompanyRole.SATIN_ALMACI,
-            CompanyRole.SATISCI,
-          ] as CompanyRole[]
-        ).includes(r),
-      );
-    if (fullRead) return;
+    if (hasFullReadContext(user)) return; // Faz O tek kaynak
     const linked = await this.prisma.approvalRequest.findFirst({
       where: {
         listingId,

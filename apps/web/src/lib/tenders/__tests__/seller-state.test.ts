@@ -84,7 +84,16 @@ describe("closingUrgency", () => {
 
   it("metinler: gün kaldı / bugün biter / süre doldu", () => {
     expect(closingUrgency("OPEN", iso(5))!.text).toBe("5 gün kaldı");
-    expect(closingUrgency("OPEN", iso(-0.5))!.text).toBe("Bugün biter");
+    // TAKVİM günü farkı (C11) — "bugün" vakası saat-bağımsız kurulmalı:
+    // `iso(-0.5)` (şimdi − 12 saat) sabah koşularında DÜNE düşüp testi
+    // kırıyordu. Bugünün herhangi bir saati her koşuda 0 gün farkı verir.
+    const todayAt = (hour: number) => {
+      const d = new Date();
+      d.setHours(hour, 0, 0, 0);
+      return d.toISOString();
+    };
+    expect(closingUrgency("OPEN", todayAt(1))!.text).toBe("Bugün biter");
+    expect(closingUrgency("OPEN", todayAt(23))!.text).toBe("Bugün biter");
     expect(closingUrgency("OPEN", iso(-2))!.text).toBe("Süre doldu");
   });
 });
