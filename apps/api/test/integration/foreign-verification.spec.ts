@@ -20,7 +20,11 @@ function docsService() {
       v ? `https://r2/presigned/${v}` : null,
     ),
     // commit, nesnenin R2'da var olduğunu doğrular (assertUploadedObjectValid).
-    checkExists: jest.fn(async () => ({ exists: true, size: 1024 })),
+    checkExists: jest.fn(async () => ({
+      exists: true,
+      size: 1024,
+      contentType: "application/pdf",
+    })),
   };
   return new CompanyDocsService(
     prisma as never,

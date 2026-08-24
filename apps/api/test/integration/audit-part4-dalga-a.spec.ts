@@ -35,7 +35,11 @@ function docsService() {
     generatePresignedGet: jest.fn().mockResolvedValue("https://r2.test/get"),
     generatePresignedPut: jest.fn().mockResolvedValue("https://r2.test/put"),
     deleteObject: jest.fn().mockResolvedValue(undefined),
-    checkExists: jest.fn().mockResolvedValue({ exists: true, size: 10 }),
+    checkExists: jest.fn().mockResolvedValue({
+      exists: true,
+      size: 10,
+      contentType: "application/pdf",
+    }),
   } as never);
 }
 

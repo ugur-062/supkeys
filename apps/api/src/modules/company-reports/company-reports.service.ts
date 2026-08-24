@@ -83,6 +83,14 @@ function bidTry(b: {
   return null;
 }
 
+/**
+ * Rapor satır tavanı (denetim 2026-08-24 Parça 5): aralık raporları `take`
+ * olmadan tüm ihale + teklif + kalem + davet ağacını belleğe alıyordu. Rapor
+ * bir ARŞİV değil, karar aracıdır; tavana dayanan rapor kullanıcıya "aralığı
+ * daraltın" uyarısı döndürür.
+ */
+const MAX_REPORT_LISTINGS = 500;
+
 @Injectable()
 export class CompanyReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -160,8 +168,11 @@ export class CompanyReportsService {
         },
         include,
         orderBy: { createdAt: "desc" },
+        take: MAX_REPORT_LISTINGS + 1,
       });
     }
+    const truncated = listings.length > MAX_REPORT_LISTINGS;
+    if (truncated) listings = listings.slice(0, MAX_REPORT_LISTINGS);
 
     const names = await this.userNames(listings.map((l) => l.createdById));
     const rows = listings.map((l) =>
@@ -171,6 +182,9 @@ export class CompanyReportsService {
     return {
       mode: dto.mode,
       type,
+      // Tavana dayandıysa kullanıcı bilir (sessiz kesme yok).
+      truncated,
+      maxRows: MAX_REPORT_LISTINGS,
       generatedAt: new Date().toISOString(),
       rangeStart: dto.rangeStart ?? null,
       rangeEnd: dto.rangeEnd ?? null,
@@ -359,6 +373,9 @@ export class CompanyReportsService {
         },
       },
       orderBy: { awardedAt: "desc" },
+      // Bkz. MAX_REPORT_LISTINGS — sınırsız aralık tüm ihale/teklif/kalem
+      // ağacını belleğe alıyordu.
+      take: MAX_REPORT_LISTINGS,
     });
 
     const bestIsMax = type === "SATIS";

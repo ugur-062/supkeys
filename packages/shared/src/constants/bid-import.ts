@@ -14,6 +14,15 @@ export const BID_IMPORT_HELP_SHEET = "Nasıl Doldurulur";
 /** Gizli sütun başlığı — parser kalemi bununla KESİN eşler. */
 export const BID_IMPORT_ITEM_ID_HEADER = "ItemId (değiştirmeyin)";
 export const BID_IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
+/**
+ * CSV için AYRI, çok daha düşük tavan: ExcelJS `csv.read` dosyanın tamamını
+ * satır/hücre NESNESİNE açar — dar hücreli 3,7 MB'lık bir CSV ölçümde ~470-860
+ * MB heap ve dakikalarca CPU tüketiyordu (tek süreç → tüm kiracılar etkilenir;
+ * denetim 2026-08-24 Parça 5, HIGH). Kalem/fiyat şablonları küçüktür: 500 satır
+ * × ~200 bayt ≈ 100 KB, 1 MB fazlasıyla yeterli. .xlsx yolu bu tavana tabi
+ * DEĞİLDİR (zip-inspect ile açılmış boyut korumalı).
+ */
+export const BID_IMPORT_MAX_CSV_BYTES = 1024 * 1024;
 
 export type BidImportColumnKey =
   | "lineNo"

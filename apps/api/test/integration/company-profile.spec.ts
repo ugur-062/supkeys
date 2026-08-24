@@ -260,7 +260,11 @@ function makeServiceEx(overrides: Record<string, unknown> = {}) {
     generatePresignedGet: jest.fn(),
     deleteObject: jest.fn().mockResolvedValue(undefined),
     buildTenantProfilePrefix: (id: string) => `prod/tenant-profile/${id}/`,
-    checkExists: jest.fn().mockResolvedValue({ exists: true, size: 1000 }),
+    checkExists: jest.fn().mockResolvedValue({
+      exists: true,
+      size: 1000,
+      contentType: "image/png",
+    }),
     getPublicUrl: jest.fn((k: string) => `https://cdn/${k}`),
     resolveImageUrl: jest.fn(),
     // testte "kötü" = tenant-profile içermeyen / evil / data:
@@ -368,7 +372,11 @@ describe("company-profile — resolveUploadedImage boyut (Fix2)", () => {
 
   it("≤10MB → URL döner", async () => {
     const { svc } = makeServiceEx({
-      checkExists: jest.fn().mockResolvedValue({ exists: true, size: 500 }),
+      checkExists: jest.fn().mockResolvedValue({
+        exists: true,
+        size: 500,
+        contentType: "image/png",
+      }),
     });
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const key = `prod/tenant-profile/${owner.company.id}/logo-x.jpg`;

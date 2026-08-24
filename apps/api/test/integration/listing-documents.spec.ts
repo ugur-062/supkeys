@@ -385,6 +385,7 @@ describe("yükleme doğrulaması (boyut/uzantı/hayalet)", () => {
     storage.checkExists.mockResolvedValueOnce({
       exists: true,
       size: 60 * 1024 * 1024,
+      contentType: "application/pdf",
     });
     const { owner, listing } = await ownerListing();
     const key = `listing-docs/${listing.id}/x-dosya.pdf`;

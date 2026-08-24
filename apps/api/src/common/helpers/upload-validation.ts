@@ -59,6 +59,19 @@ export async function assertUploadedObjectValid(
   bucket: BucketKind,
   key: string,
   maxBytes: number = MAX_UPLOAD_BYTES,
+  /**
+   * İzinli GERÇEK içerik tipleri. Presigned PUT içerik tipini İMZALAMAZ (AWS
+   * SDK `prepareRequest` → `unsignableHeaders.add("content-type")`): istemci
+   * "image/png" beyan edip nesneyi `text/html` olarak yükleyebilir. Public
+   * kovadaki nesneler kalıcı ve kimliksiz erişilebilir olduğundan bu, marka
+   * alan adında (cdn.rothern.com) DEPOLANMIŞ XSS demekti — çerez alanı
+   * `.rothern.com` olduğu için CSRF çerezi okunabilir ve sahte giriş sayfası
+   * sunulabilirdi (denetim 2026-08-24 Parça 5, HIGH).
+   *
+   * Bu yüzden gerçek tip yüklemeden SONRA HEAD ile doğrulanır; uymayan nesne
+   * SİLİNİR ve istek reddedilir.
+   */
+  allowedContentTypes?: readonly string[],
 ): Promise<void> {
   const head = await storage.checkExists(bucket, key);
   if (!head.exists) {
@@ -72,6 +85,15 @@ export async function assertUploadedObjectValid(
     throw new BadRequestException(
       `Dosya boyutu ${Math.round(maxBytes / 1024 / 1024)} MB sınırını aşıyor`,
     );
+  }
+  if (allowedContentTypes && allowedContentTypes.length > 0) {
+    const actual = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+    if (!allowedContentTypes.includes(actual)) {
+      await storage.deleteObject(bucket, key).catch(() => undefined);
+      throw new BadRequestException(
+        "Yüklenen dosyanın türü kabul edilmiyor — dosyayı kontrol edip tekrar deneyin",
+      );
+    }
   }
 }
 

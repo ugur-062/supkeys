@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   ITEM_IMPORT_EXAMPLE_SHEET,
   ITEM_IMPORT_HELP_SHEET,
+  ITEM_IMPORT_MAX_CSV_BYTES,
   ITEM_IMPORT_MAX_FILE_BYTES,
   ITEM_IMPORT_MAX_ROWS,
   ITEM_IMPORT_SHEET,
@@ -222,6 +223,13 @@ export class ListingItemImportService {
         throw new BadRequestException("Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin");
       }
     } else if (looksCsv) {
+      // CSV'ye ayrı tavan: ExcelJS csv.read dosyanın tamamını hücre nesnesine
+      // açar (3,7 MB dar hücreli CSV → ~470-860 MB heap; denetim P5 HIGH).
+      if (buffer.length > ITEM_IMPORT_MAX_CSV_BYTES) {
+        throw new BadRequestException(
+          "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+        );
+      }
       try {
         await wb.csv.read(Readable.from(buffer), {
           parserOptions: { delimiter: detectCsvDelimiter(buffer) },

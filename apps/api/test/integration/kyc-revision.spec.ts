@@ -22,7 +22,11 @@ function storageMock() {
     presignStoredObject: jest.fn(async (_bucket: string, v: string | null) =>
       v ? `https://r2/presigned/${v}` : null,
     ),
-    checkExists: jest.fn(async () => ({ exists: true, size: 1024 })),
+    checkExists: jest.fn(async () => ({
+      exists: true,
+      size: 1024,
+      contentType: "application/pdf",
+    })),
   };
 }
 

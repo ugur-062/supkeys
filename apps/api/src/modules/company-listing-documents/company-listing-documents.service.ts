@@ -20,6 +20,7 @@ import {
   assertReportedSize,
   assertSafeFileName,
   assertUploadedObjectValid,
+  MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
 
 const ALLOWED_MIME = [
@@ -224,7 +225,13 @@ export class CompanyListingDocumentsService {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
     assertSafeFileName(input.fileName);
-    await assertUploadedObjectValid(this.storage, "private", input.key);
+    await assertUploadedObjectValid(
+      this.storage,
+      "private",
+      input.key,
+      MAX_UPLOAD_BYTES,
+      ALLOWED_MIME,
+    );
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,

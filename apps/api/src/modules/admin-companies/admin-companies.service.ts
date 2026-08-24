@@ -1620,6 +1620,65 @@ export class AdminCompaniesService {
    *    + e-postaları karartılır + oturumları düşer, hesap pasifleşir.
    * Güvence: FE iki-adım onay (rothernId yazdırılır); yalnız SUPER_ADMIN.
    */
+
+  /**
+   * KVKK imhası — firmaya ait R2 nesnelerini siler (private KYC belgeleri +
+   * public profil görselleri + KYC revizyon anahtarları). Best-effort:
+   * silinemeyen nesne akışı durdurmaz, uyarı olarak loglanır (bucket
+   * object-lock politikası DeleteObject'i reddedebilir).
+   */
+  private async purgeCompanyObjects(company: {
+    id: string;
+    docTaxPlateUrl: string | null;
+    docTradeRegistryUrl: string | null;
+    docSignatureCircularUrl: string | null;
+    docActivityCertUrl: string | null;
+    docIdFrontUrl: string | null;
+    docIdBackUrl: string | null;
+    logoUrl: string | null;
+    coverImageUrl: string | null;
+    photos: string[];
+    certificateImages: string[];
+    kycRevisions: { key: string | null }[];
+  }): Promise<void> {
+    const privateKeys = [
+      company.docTaxPlateUrl,
+      company.docTradeRegistryUrl,
+      company.docSignatureCircularUrl,
+      company.docActivityCertUrl,
+      company.docIdFrontUrl,
+      company.docIdBackUrl,
+      ...company.kycRevisions.map((r) => r.key),
+    ].filter((k): k is string => !!k);
+    // Public görseller URL olarak saklanır; anahtar = public taban sonrası yol.
+    const publicKeys = [
+      company.logoUrl,
+      company.coverImageUrl,
+      ...(company.photos ?? []),
+      ...(company.certificateImages ?? []),
+    ]
+      .filter((u): u is string => !!u)
+      .map((u) => this.storage.publicUrlToKey(u))
+      .filter((k): k is string => !!k);
+
+    let failed = 0;
+    for (const key of privateKeys) {
+      await this.storage.deleteObject("private", key).catch(() => {
+        failed++;
+      });
+    }
+    for (const key of publicKeys) {
+      await this.storage.deleteObject("public", key).catch(() => {
+        failed++;
+      });
+    }
+    if (failed > 0) {
+      this.logger.warn(
+        `KVKK imhası: ${failed} nesne silinemedi (firma ${company.id}) — bucket politikası/erişim kontrol edilmeli`,
+      );
+    }
+  }
+
   async deleteOrAnonymize(
     id: string,
     adminId: string,
@@ -1633,6 +1692,18 @@ export class AdminCompaniesService {
         rothernId: true,
         users: { select: { id: true, authId: true } },
         _count: { select: { ordersAsBuyer: true, ordersAsSeller: true } },
+        // KVKK imhası için nesne anahtarları (aşağıda R2'dan silinir).
+        docTaxPlateUrl: true,
+        docTradeRegistryUrl: true,
+        docSignatureCircularUrl: true,
+        docActivityCertUrl: true,
+        docIdFrontUrl: true,
+        docIdBackUrl: true,
+        logoUrl: true,
+        coverImageUrl: true,
+        photos: true,
+        certificateImages: true,
+        kycRevisions: { select: { key: true } },
       },
     });
     if (!company) throw new NotFoundException("Firma bulunamadı");
@@ -1657,6 +1728,13 @@ export class AdminCompaniesService {
     // kadar DB'de kalıyordu. Her iki kolda da açıkça temizlenir (denetim
     // 2026-08-24 Parça 6). `ai_usage` KALIR: append-only ölçüm/muhasebe kaydı
     // (bütçe SUM'ı ona bağlı) ve serbest metin içermez.
+    // KVKK: DB satırını silmek/anonimleştirmek YETMEZ — belgeler R2'da yaşar.
+    // Cascade yalnız DB'yi kapsar; hiçbir bucket lifecycle kuralı da yok, yani
+    // kimlik/vergi/sicil taramaları ve profil görselleri silme talebinden sonra
+    // depoda kalıyordu (denetim 2026-08-24 Parça 5). Best-effort: silme hatası
+    // akışı bozmaz, loglanır.
+    await this.purgeCompanyObjects(company);
+
     await this.prisma.aiChatSession
       .deleteMany({ where: { companyId: id } })
       .catch((err: unknown) =>
@@ -1705,8 +1783,37 @@ export class AdminCompaniesService {
           blockedAt: new Date(),
           tier: "STANDART",
           membershipEndAt: null,
+          // Denetim 2026-08-24 Parça 5: kimlik/KYC alanları da temizlenmeliydi.
+          // Eskiden vergi no/MERSİS null'lanırken tam da onların KANITI olan
+          // belge anahtarları ve yetkili TCKN kalıyordu — admin firma detayı
+          // bu kolonlar için koşulsuz presigned GET üretiyor, yani silme
+          // talebinden SONRA da kimlik kartı taraması açılabiliyordu.
+          // (Servisin kendi profil yanıtı bu alanları "kişisel/finansal veri"
+          // diye maskeliyor — iç tutarsızlık.)
+          docTaxPlateUrl: null,
+          docTradeRegistryUrl: null,
+          docSignatureCircularUrl: null,
+          docActivityCertUrl: null,
+          docIdFrontUrl: null,
+          docIdBackUrl: null,
+          authorizedTckn: null,
+          authorizedTitle: null,
+          billingTitle: null,
+          billingPhone: null,
+          kepAddress: null,
+          district: null,
+          neighborhood: null,
+          postalCode: null,
+          logoUrl: null,
+          coverImageUrl: null,
+          photos: [],
+          certificateImages: [],
+          aboutText: null,
+          publicEnabled: false,
         },
       }),
+      // KYC revizyon kayıtları da (R2 anahtarı taşır) silinir.
+      this.prisma.companyKycRevision.deleteMany({ where: { companyId: id } }),
       // Kullanıcılar: soft-delete + e-posta karartma (unique korunur) +
       // oturum düşürme. İsimler de anonimleşir.
       ...company.users.map((u, i) =>

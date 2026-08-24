@@ -15,6 +15,7 @@ import {
   assertReportedSize,
   assertSafeFileName,
   assertUploadedObjectValid,
+  MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
 
 /**
@@ -236,7 +237,13 @@ export class CompanyDocsService {
         "Doğrulama inceleniyor; belge değiştirilemez",
       );
     }
-    await assertUploadedObjectValid(this.storage, "private", key);
+    await assertUploadedObjectValid(
+      this.storage,
+      "private",
+      key,
+      MAX_UPLOAD_BYTES,
+      ALLOWED_MIME,
+    );
     // KEY saklanır (public URL değil); okurken presigned GET üretilir. Yeniden
     // yüklenen (reddedilmiş) belge PENDING'e döner, red gerekçesi temizlenir.
     await this.prisma.company.update({
@@ -272,7 +279,13 @@ export class CompanyDocsService {
     key: string,
     actor?: AuthenticatedCompanyUser,
   ) {
-    await assertUploadedObjectValid(this.storage, "private", key);
+    await assertUploadedObjectValid(
+      this.storage,
+      "private",
+      key,
+      MAX_UPLOAD_BYTES,
+      ALLOWED_MIME,
+    );
     const pending = await this.prisma.companyKycRevision.findFirst({
       where: { companyId, kind, status: "PENDING" },
       select: { id: true },

@@ -120,7 +120,15 @@ export class CompanyProfileService {
     // Fix2: public bucket'ta OTORİTATİF varlık + boyut kontrolü (10MB) — diğer
     // 5 upload yolunun aksine burada eksikti → 5GB logo = bant/depolama DoS.
     // Aşan orphan silinir (presigned PUT boyut sınırlayamaz, register'da yakalanır).
-    await assertUploadedObjectValid(this.storage, "public", key, MAX_IMAGE_BYTES);
+    // GERÇEK içerik tipi de doğrulanır: presigned PUT content-type'ı imzalamaz,
+    // public kovadaki HTML/SVG = cdn.rothern.com'da depolanmış XSS (P5 HIGH).
+    await assertUploadedObjectValid(
+      this.storage,
+      "public",
+      key,
+      MAX_IMAGE_BYTES,
+      IMAGE_MIME,
+    );
     const url =
       this.storage.getPublicUrl(key) ??
       (await this.storage.resolveImageUrl(key));

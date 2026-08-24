@@ -17,7 +17,11 @@ function makeDocsRig() {
     generatePresignedPut: jest.fn().mockResolvedValue("https://r2.test/put"),
     generatePresignedGet: jest.fn().mockResolvedValue("https://r2.test/get"),
     deleteObject: jest.fn().mockResolvedValue(undefined),
-    checkExists: jest.fn().mockResolvedValue({ exists: true, size: 1024 }),
+    checkExists: jest.fn().mockResolvedValue({
+      exists: true,
+      size: 1024,
+      contentType: "application/pdf",
+    }),
   };
   return {
     service: new CompanyBidDocumentsService(prisma as never, storage as never),

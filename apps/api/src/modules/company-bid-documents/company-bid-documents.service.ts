@@ -15,6 +15,7 @@ import {
   assertReportedSize,
   assertSafeFileName,
   assertUploadedObjectValid,
+  MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
 
 const ALLOWED_MIME = [
@@ -140,7 +141,13 @@ export class CompanyBidDocumentsService {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
     assertSafeFileName(input.fileName);
-    await assertUploadedObjectValid(this.storage, "private", input.key);
+    await assertUploadedObjectValid(
+      this.storage,
+      "private",
+      input.key,
+      MAX_UPLOAD_BYTES,
+      ALLOWED_MIME,
+    );
     const listing = await this.assertListingOpen(listingId);
     this.assertBidderRole(user, listing.type);
     const bid = await this.requireOwnBid(user, listingId);

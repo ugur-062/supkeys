@@ -7,7 +7,17 @@ export function downloadCsv(
   header: string[],
   rows: (string | number | null | undefined)[][],
 ): void {
-  const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
+  // FORMÜL ENJEKSİYONU koruması (denetim 2026-08-24 Parça 5): Excel/Sheets,
+  // `=`, `+`, `-`, `@` (ve TAB/CR) ile başlayan hücreyi FORMÜL olarak
+  // yorumlar — tırnak sarmak bunu engellemez. Firma ünvanı ve şikayet metni
+  // gibi kullanıcı-yazımı alanlar bu CSV'lere ham giriyordu; dosyayı açan
+  // admin'in makinesinde `=cmd|…` / `=HYPERLINK(…)` çalışabilirdi.
+  // Değeri BOZMADAN nötrlemek için tek tırnak ön-eki kullanılır (Excel bunu
+  // "metin" işareti sayar ve göstermez).
+  const neutralize = (s: string) =>
+    /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  const esc = (v: unknown) =>
+    `"${neutralize(String(v ?? "")).replaceAll('"', '""')}"`;
   const lines = rows.map((r) => r.map(esc).join(";"));
   const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\n")], {
     type: "text/csv;charset=utf-8",

@@ -263,14 +263,18 @@ export class StorageService implements OnModuleInit {
     originalFilename?: string,
   ): Promise<string> {
     this.assertKeyBucket(bucket, key);
+    // İndirme her zaman EK olarak sunulur ve içerik tipi nötrlenir: nesne
+    // (istemci imzalı PUT'ta content-type'ı seçebildiği için) text/html ya da
+    // image/svg+xml olabilir; tarayıcıda satır-içi açılırsa R2 origin'inde
+    // saldırgan script çalışır ve admin/kullanıcı belgeyi "önizlerken" tuzağa
+    // düşer (denetim 2026-08-24 Parça 5).
     const command = new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: key,
-      ...(originalFilename && {
-        ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
-          originalFilename,
-        )}"`,
-      }),
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
+        originalFilename ?? key.split("/").pop() ?? "dosya",
+      )}"`,
+      ResponseContentType: "application/octet-stream",
     });
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
   }
@@ -278,13 +282,22 @@ export class StorageService implements OnModuleInit {
   async checkExists(
     bucket: BucketKind,
     key: string,
-  ): Promise<{ exists: boolean; size?: number }> {
+  ): Promise<{ exists: boolean; size?: number; contentType?: string }> {
     this.assertKeyBucket(bucket, key);
     try {
       const result = await this.client.send(
         new HeadObjectCommand({ Bucket: this.bucketName(bucket), Key: key }),
       );
-      return { exists: true, size: result.ContentLength };
+      // contentType ZORUNLU: presigned PUT içerik tipini İMZALAMAZ (AWS SDK
+      // `prepareRequest` → `unsignableHeaders.add("content-type")`), yani
+      // istemci "image/png" beyan edip nesneyi text/html olarak yükleyebilir.
+      // Tek otoritatif kaynak, yüklemeden SONRA okunan bu HEAD değeridir
+      // (denetim 2026-08-24 Parça 5, HIGH).
+      return {
+        exists: true,
+        size: result.ContentLength,
+        contentType: result.ContentType,
+      };
     } catch (err) {
       const status = (err as { $metadata?: { httpStatusCode?: number } })
         ?.$metadata?.httpStatusCode;
@@ -369,6 +382,29 @@ export class StorageService implements OnModuleInit {
     if (!base) return null;
     const normalized = base.replace(/\/$/, "");
     return `${normalized}/${key}`;
+  }
+
+  /**
+   * `getPublicUrl` tersi — DB'de saklanan public görsel DEĞERİNDEN (tam URL ya
+   * da doğrudan anahtar) nesne anahtarını çıkarır. KVKK imhasında nesneleri
+   * silmek için gerekir (denetim 2026-08-24 Parça 5). Public-sınıf olmayan ya
+   * da çözülemeyen değerlerde null döner (yanlış nesne SİLİNMEZ).
+   */
+  publicUrlToKey(value: string | null | undefined): string | null {
+    if (!value) return null;
+    let candidate = value.trim();
+    if (/^https?:\/\//i.test(candidate)) {
+      try {
+        candidate = decodeURIComponent(new URL(candidate).pathname).replace(
+          /^\/+/,
+          "",
+        );
+      } catch {
+        return null;
+      }
+    }
+    if (!candidate) return null;
+    return this.classifyKey(candidate) === "public" ? candidate : null;
   }
 
   /**

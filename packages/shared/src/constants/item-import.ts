@@ -16,6 +16,15 @@ export const ITEM_IMPORT_EXAMPLE_SHEET = "Örnek";
 export const ITEM_IMPORT_MAX_ROWS = 500;
 /** Şablon dosyası tavanı (base64 gövde ile gelir; 25MB body parser'ın çok altında). */
 export const ITEM_IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
+/**
+ * CSV için AYRI, çok daha düşük tavan: ExcelJS `csv.read` dosyanın tamamını
+ * satır/hücre NESNESİNE açar — dar hücreli 3,7 MB'lık bir CSV ölçümde ~470-860
+ * MB heap ve dakikalarca CPU tüketiyordu (tek süreç → tüm kiracılar etkilenir;
+ * denetim 2026-08-24 Parça 5, HIGH). Kalem/fiyat şablonları küçüktür: 500 satır
+ * × ~200 bayt ≈ 100 KB, 1 MB fazlasıyla yeterli. .xlsx yolu bu tavana tabi
+ * DEĞİLDİR (zip-inspect ile açılmış boyut korumalı).
+ */
+export const ITEM_IMPORT_MAX_CSV_BYTES = 1024 * 1024;
 
 export type ItemImportColumnKey =
   | "name"

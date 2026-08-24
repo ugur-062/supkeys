@@ -4,6 +4,7 @@ import {
   BID_DELIVERY_TIME_LABELS,
   BID_IMPORT_COLUMNS,
   BID_IMPORT_HELP_SHEET,
+  BID_IMPORT_MAX_CSV_BYTES,
   BID_IMPORT_MAX_FILE_BYTES,
   BID_IMPORT_SHEET,
   matchBidImportColumn,
@@ -224,6 +225,12 @@ export class BidImportService {
         throw new BadRequestException("Excel dosyası okunamadı — .xlsx olarak kaydedip deneyin");
       }
     } else if (/\.csv$/i.test(input.fileName) && !buffer.subarray(0, 4096).includes(0)) {
+      // Bkz. listing-item-import: CSV parse belleği hücre sayısıyla patlar.
+      if (buffer.length > BID_IMPORT_MAX_CSV_BYTES) {
+        throw new BadRequestException(
+          "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+        );
+      }
       await wb.csv.read(Readable.from(buffer)).catch(() => {
         throw new BadRequestException("CSV dosyası okunamadı");
       });
