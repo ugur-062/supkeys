@@ -43,7 +43,7 @@ sayfa-sayfa UI↔API parite tablosu yüzeysel kaldı → Dalga B.
 | 16 | **`listingDetail` ham satır dönüyor** — ilan gövdesinde `select` yok: `internalNotes` (şemada "yalnızca açan firma görür"), `logistics` Json (adres/iletişim), ileride eklenecek her kolon. Uç `@AllowAnyAdminRole()`. Parça 3 #3'te `orderDetail` için bu sızıntı kapatılıp gerekçesi koda yazılmıştı; **hemen üstündeki kardeşi atlanmış** | `admin-inspection.service.ts:68-124` vs `:325-345` |
 | 17 | **Askıya alınan firmaya hiçbir bildirim gitmiyor** — ne in-app ne e-posta; gerekçe DB'de kalıyor. Diğer TÜM müdahaleler (ilan kapatma/uzatma/yeniden açma, sipariş iptali) bildiriyor. Şikayet üzerinden askıda şikayetçi de sonucu öğrenmez | `:1065-1081`, `:1440-1460` |
 
-## DALGA B (doğrulanan LOW)
+## DALGA B (doğrulanan LOW) — UYGULANDI (`f17cd3bb`), B12 hariç
 
 - Zorunlu KYC kimlik alanları (MERSİS/sicil/IBAN) yalnız firma `submit()`'inde denetleniyor; admin onay yolu boş alanlarla VERIFIED yapabiliyor (`company-docs.service.ts:373-390`).
 - Ülke değişimi zorunlu belge SETİNİ değiştiriyor (yabancı 3 / TR 6) ama VERIFIED durumu ve kuyruk görünürlüğü değişmiyor — eksik hiçbir zaman kuyrukta belirmez.
@@ -56,7 +56,15 @@ sayfa-sayfa UI↔API parite tablosu yüzeysel kaldı → Dalga B.
 - `announce` `take:5000` sessiz tavan; sunucu tarafı idempotency yok (UI'da önizleme+onay+disable var).
 - `setTier`: `update` + `membershipEvent.create` + audit tek transaction'da değil.
 - `cancelOrder` ilana dokunmuyor: AWARDED ilan canlı siparişsiz kalır, un-award olmadığı için kurtarma yok.
-- Audit append-only yalnız konvansiyon: kodda `auditLog.update/delete` yok (doğrulandı), DB'de kısıt/RLS yok.
+- **AÇIK (B12) — KARAR BEKLİYOR:** Audit append-only yalnız konvansiyon. Kodda
+  `auditLog.update/delete` YOK (doğrulandı) ama DB tarafında kısıt yok. Bunu
+  bir trigger/kural ile zorlamak prod DB davranışını kalıcı değiştirir
+  (`CREATE TRIGGER` kısa ACCESS EXCLUSIVE kilit alır; ileride bir saklama/
+  retention temizliği gerekirse kaldırılması gerekir) ve bekleyen RLS
+  aktivasyonuyla birlikte planlanmalı → ayrı onay konusu.
+- **Kısmen kapatıldı:** admin audit satırları artık `actorEmail` taşıyor
+  (AuditService `PlatformAdmin`'den çözüyor); `ip`/`userAgent` hâlâ yok —
+  istek-kapsamlı ALS gerektiriyor (interceptor + observable bağlamı), ayrı iş.
 - Tek alanlı `orderBy` (list/listListings/membershipReport) → eşit damgalarda sayfa kayması.
 - `AdminRole` enum yorumu "SUPPORT — sadece okuma + tenant impersonate" diyor; impersonate bilinçli olarak YOK (doküman driftı).
 
