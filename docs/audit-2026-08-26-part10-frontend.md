@@ -111,11 +111,37 @@ ardışık isteği.
 
 ## DURUM
 
-- Dalga A **UYGULANMADI** — düzeltme ONAYI bekliyor.
-- Önerilen sıra: **#1** (para bozulması — tek fonksiyon) → **#2** (yetki aşımı) →
-  **#4, #5, #6** (yanlış/geri alınamaz aksiyon) → **#3** (alan hatalarını göster;
-  form drift'lerinin çoğunu görünür kılar) → **#7 + kategori modalı** (iki satır,
-  en büyük performans kazancı) → form drift'leri → önbellek/invalidasyon →
-  a11y → kalan performans.
+- **Dalga A UYGULANDI (2026-08-26, `be514eea` + `67f79598`): 7 HIGH + parite +
+  önbellek + sihirbaz.** Testler: API 144 suite / 1256 test, web 352, admin 79.
+- Uygulananlar: HIGH #1-#7; token'ın yanıt gövdesinden çıkarılması; kategori
+  modalının koşullu render'ı; sihirbaz gönderim kilidi + hatalı adıma atlama +
+  taslakta asgari doğrulama; parite B2 (admin/sistem 3 aksiyon → UI kapısı +
+  matris + drift nöbetçisi), B3 (raporlarda gözetim muafiyeti), B4 (teklif
+  detayında `canManage`), B5 (adres kartı `addresses:manage`); altı önbellek
+  invalidasyonu (koltuk/pano/admin KPI/ödeme listesi/AI aksiyonu/onay→sipariş).
+- Yeni sözleşmeler: `money-input.test.ts` (14) — fonksiyonun İLK testi;
+  `audit-part10-dalga-a.spec.ts` (3) — `suspend` bayrağının SUPER_ADMIN kapısı
+  (drift nöbetçisi gövde-bayrağını göremez, bu yüzden servis testi şart);
+  drift nöbetçisine 4 yeni aksiyon; `reports-role-gate.test.tsx` +2 vaka.
+- **DAVRANIŞ DEĞİŞİKLİĞİ:** `reports-role-gate` spec'i eski kuralı sabitliyordu
+  (işlem rolsüz Kurucu rapor göremez); backend 2026-07-27'de gözetim muafiyeti
+  eklemişti → spec güncel kurala göre yeniden yazıldı.
+
+### Dalga A'da UYGULANMAYAN (bilinçli)
+
+- `segment-only-picker` dış `useRoots()` çağrısı (onboarding/profil) hâlâ tüm
+  kategori ağacını (~180 KB) çekiyor — düzeltmesi "yalnız segmentler" için ayrı
+  bir uç ya da etiketleri seçili id'lerden türetmeyi gerektiriyor → Dalga B.
+- Performansın kalan HIGH/MED'leri (ilan detayı tam-gövde poll'u, sıfır
+  memoizasyon + N×M tablo, `teklif-ver` `itemState` monoliti, `LiveToasts` çift
+  çekim katmanı, bağlantılar 7-sorgu yelpazesi, debounce'suz dizin araması,
+  recharts/AssistantPanel statik import) → yapısal iş, ayrı tur.
+- Form drift'lerinin çoğu (peşin oranı refine'ı, şablon `noCloseDate` sızıntısı,
+  parola politikası tek-kaynağı, tarih-only UTC kayması, eksik `maxLength`'ler,
+  `translateValidatorMessage` ondalık regex'i) → #3 sayesinde artık kullanıcıya
+  GÖRÜNÜR hale geldi; tek tek kapatılması Dalga B.
+- a11y bulguları (radyo grubu adlandırması, asistan `DialogTitle`/`aria-live`,
+  onay diyaloğunun yıkıcı butona odaklanması, `EmptyState` kontrastı, liste
+  hata durumları) → Dalga B.
 - Parça 9'dan devreden: **B12** (audit_logs DB seviyesinde append-only) hâlâ
   karar bekliyor.
