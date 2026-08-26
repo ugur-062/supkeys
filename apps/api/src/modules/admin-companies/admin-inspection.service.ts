@@ -459,6 +459,7 @@ export class AdminInspectionService {
       select: {
         id: true,
         number: true,
+        listingId: true,
         buyerCompanyId: true,
         sellerCompanyId: true,
       },
@@ -501,13 +502,33 @@ export class AdminInspectionService {
         throw new BadRequestException("Sipariş durumu az önce değişti");
       }
     });
+    // Dalga B (denetim 2026-08-26 Parça 9): iptal İLANA dokunmaz — kazandırma
+    // geri alma (un-award) bilinçli olarak YOK. Bunun pratik sonucu, ilanın
+    // son canlı siparişi iptal edilince AWARDED ama siparişsiz kalmasıdır ve
+    // alıcının ürün içinde kurtarma yolu bulunmaz. Ürün kararını burada
+    // DEĞİŞTİRMİYORUZ; durumu GÖRÜNÜR kılıyoruz: audit'e yazılır ve taraflara
+    // bunun ne anlama geldiği söylenir.
+    const stranded = order.listingId
+      ? (await this.prisma.companyOrder.count({
+          where: {
+            listingId: order.listingId,
+            status: { notIn: ["CANCELLED", "REJECTED"] },
+          },
+        })) === 0
+      : false;
     await this.audit.log({
       action: "admin.order.cancelled",
       actorType: "admin",
       actorId: adminId,
       entityType: "order",
       entityId: id,
-      metadata: { reason },
+      metadata: {
+        reason,
+        listingId: order.listingId ?? null,
+        // "Bu iptalle ilan canlı siparişsiz kaldı" — destek/uyum izi.
+        listingLeftWithoutLiveOrder: stranded,
+      },
+      critical: true,
     });
     this.realtime?.pingOrder(id, [
       order.buyerCompanyId,
@@ -521,6 +542,11 @@ export class AdminInspectionService {
         [
           "Merhaba,",
           `${label} sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: ${reason.trim()}`,
+          ...(stranded
+            ? [
+                "Bu iptalden sonra ilgili ihalenin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
+              ]
+            : []),
         ],
         "admin_order_cancelled",
       );

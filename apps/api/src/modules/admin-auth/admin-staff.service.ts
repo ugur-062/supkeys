@@ -105,9 +105,23 @@ export class AdminStaffService {
       throw new BadRequestException("Kendi rolünüzü düşüremezsiniz");
     }
     if (target.role === "SUPER_ADMIN" && role !== "SUPER_ADMIN") {
-      await this.assertNotLastSuperAdmin(id);
+      // Dalga B: sayım + yazım ayrıydı — eşzamanlı iki düşürme ikisi de
+      // "benden başka biri var" görüp sistemi 0 SUPER_ADMIN'le bırakabiliyordu.
+      // Sayım ve yazım tek transaction'da serileşir.
+      await this.prisma.$transaction(async (tx) => {
+        const others = await tx.platformAdmin.count({
+          where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
+        });
+        if (others === 0) {
+          throw new BadRequestException(
+            "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
+          );
+        }
+        await tx.platformAdmin.update({ where: { id }, data: { role } });
+      });
+    } else {
+      await this.prisma.platformAdmin.update({ where: { id }, data: { role } });
     }
-    await this.prisma.platformAdmin.update({ where: { id }, data: { role } });
     await this.audit.log({
       action: "admin.staff.role_set",
       actorType: "admin",
@@ -127,12 +141,27 @@ export class AdminStaffService {
       throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
     }
     if (target.role === "SUPER_ADMIN" && !active) {
-      await this.assertNotLastSuperAdmin(id);
+      // Dalga B: bkz. setRole — sayım + yazım tek transaction'da.
+      await this.prisma.$transaction(async (tx) => {
+        const others = await tx.platformAdmin.count({
+          where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
+        });
+        if (others === 0) {
+          throw new BadRequestException(
+            "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
+          );
+        }
+        await tx.platformAdmin.update({
+          where: { id },
+          data: { isActive: false },
+        });
+      });
+    } else {
+      await this.prisma.platformAdmin.update({
+        where: { id },
+        data: { isActive: active },
+      });
     }
-    await this.prisma.platformAdmin.update({
-      where: { id },
-      data: { isActive: active },
-    });
     await this.audit.log({
       action: active ? "admin.staff.activated" : "admin.staff.deactivated",
       actorType: "admin",
@@ -180,19 +209,4 @@ export class AdminStaffService {
     return admin;
   }
 
-  /** Sistem asla SUPER_ADMIN'siz kalmasın — son aktif süper korunur. */
-  private async assertNotLastSuperAdmin(excludeId: string) {
-    const others = await this.prisma.platformAdmin.count({
-      where: {
-        role: "SUPER_ADMIN",
-        isActive: true,
-        id: { not: excludeId },
-      },
-    });
-    if (others === 0) {
-      throw new BadRequestException(
-        "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
-      );
-    }
-  }
 }

@@ -27,6 +27,13 @@ import { EmailSuppressionService } from "../email/email-suppression.service";
 import { NotificationService } from "../notifications/notification.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 
+/**
+ * Tek duyuruda ulaşılacak azami firma (Dalga B). Aşılırsa gönderim yapılır ama
+ * yanıt `truncated` ile bunu SÖYLER — sessiz kesme, "hepsine gitti" yanılgısı
+ * üretiyordu.
+ */
+const ANNOUNCE_MAX_TARGETS = 5000;
+
 @Injectable()
 export class AdminCompaniesService {
   private readonly logger = new Logger(AdminCompaniesService.name);
@@ -227,7 +234,9 @@ export class AdminCompaniesService {
           _count: {
             select: {
               complaintsReceived: true,
-              users: true,
+              // Dalga B: arama `deletedAt:null` süzerken sayaç süzmüyordu →
+              // ekranda silinmiş kullanıcılar da sayılıyordu.
+              users: { where: { deletedAt: null } },
               // Faz Y: listede "Belge Güncellemesi" rozeti için.
               kycRevisions: { where: { status: "PENDING" } },
             },
@@ -235,10 +244,13 @@ export class AdminCompaniesService {
         },
         // "oldest": KYC kuyruğu için en-eski-önce (updatedAt ≈ belgelerin
         // yüklendiği/PENDING'e geçtiği an) — SLA'ya göre işlem sırası.
+        // Dalga B: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+        // üretiyordu (aynı satır iki sayfada / hiç görünmüyor) → id ile
+        // deterministik tie-break.
         orderBy:
           query.sort === "oldest"
-            ? { updatedAt: "asc" }
-            : { createdAt: "desc" },
+            ? [{ updatedAt: "asc" }, { id: "asc" }]
+            : [{ createdAt: "desc" }, { id: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -327,10 +339,15 @@ export class AdminCompaniesService {
         take: 10,
       }),
       // KYC kuyruk yaşı: en eski PENDING başvuru — SLA takibi.
-      this.prisma.company.findFirst({
+      // Dalga B: `updatedAt` YANLIŞ kaynaktı — firmanın herhangi bir profil
+      // güncellemesi SLA yaşını sıfırlıyordu. Kuyruğa GİRİŞ anı, başvurunun
+      // gönderildiği audit satırıdır (`company.docs.submitted`); yoksa
+      // (legacy kayıt) `updatedAt`'e düşülür.
+      this.prisma.company.findMany({
         where: { companyVerificationStatus: "PENDING" },
-        select: { updatedAt: true },
+        select: { id: true, updatedAt: true },
         orderBy: { updatedAt: "asc" },
+        take: 500,
       }),
       // Kayıt hunisi 2. adımı: onboarding wizard'ını bitirenler.
       this.prisma.company.count({
@@ -360,6 +377,20 @@ export class AdminCompaniesService {
         },
       }),
     ]);
+    // Kuyruğa giriş anı: PENDING firmaların `company.docs.submitted` izlerinin
+    // EN ESKİSİ (bkz. yukarıdaki not). Hiç iz yoksa en eski `updatedAt`.
+    let oldestPendingSince: Date | null = null;
+    if (oldestPending.length > 0) {
+      const submitted = await this.prisma.auditLog.findFirst({
+        where: {
+          action: "company.docs.submitted",
+          entityId: { in: oldestPending.map((c) => c.id) },
+        },
+        select: { createdAt: true },
+        orderBy: { createdAt: "asc" },
+      });
+      oldestPendingSince = submitted?.createdAt ?? oldestPending[0]!.updatedAt;
+    }
     const vmap = new Map(
       byVerification.map((g) => [g.companyVerificationStatus, g._count]),
     );
@@ -393,7 +424,7 @@ export class AdminCompaniesService {
         newOrders: new30Orders,
       },
       expiringMemberships: expiring,
-      oldestPendingSince: oldestPending?.updatedAt ?? null,
+      oldestPendingSince: oldestPendingSince,
       /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
       funnel: {
         signedUp: total,
@@ -505,7 +536,11 @@ export class AdminCompaniesService {
         // e-posta ALIP ALAMADIĞINI göster ("giriş yapamıyorum" destek çağrısı).
         users: { select: { email: true } },
         _count: {
-          select: { users: true, listings: true, complaintsReceived: true },
+          select: {
+            users: { where: { deletedAt: null } },
+            listings: true,
+            complaintsReceived: true,
+          },
         },
       },
     });
@@ -677,6 +712,52 @@ export class AdminCompaniesService {
       return { ok: true, changed: [] };
     }
     await this.prisma.company.update({ where: { id }, data });
+    // Dalga B: ülke değişimi ZORUNLU BELGE SETİNİ değiştirir (TR 6 / yabancı 3).
+    // DE→TR çevrilen VERIFIED bir firmada imza sirküleri/faaliyet belgesi/kimlik
+    // arkası hiç yüklenmemiş olabilir; eski davranışta durum VERIFIED kalıyor ve
+    // `queue=kyc` bu firmayı GÖSTERMİYORDU → eksik KYC sessizce kalıcı oluyordu.
+    // Artık yeni zorunlulardan eksik varsa firma yeniden incelemeye düşer.
+    if (data.country !== undefined) {
+      const after = await this.prisma.company.findUnique({
+        where: { id },
+        select: {
+          country: true,
+          companyVerificationStatus: true,
+          docTaxPlateUrl: true,
+          docTradeRegistryUrl: true,
+          docSignatureCircularUrl: true,
+          docActivityCertUrl: true,
+          docIdFrontUrl: true,
+          docIdBackUrl: true,
+        },
+      });
+      if (after && after.companyVerificationStatus === "VERIFIED") {
+        const missing = requiredKinds(after.country).filter(
+          (k) => !(after as Record<string, unknown>)[DOC_META[k].url],
+        );
+        if (missing.length > 0) {
+          await this.prisma.company.update({
+            where: { id },
+            data: {
+              companyVerificationStatus: "UNVERIFIED",
+              companyVerifiedAt: null,
+              companyRejectionReason:
+                "Ülke değişikliği sonrası yeni zorunlu belgeler eksik — lütfen tamamlayıp yeniden gönderin.",
+            },
+          });
+          void this.notifyCompany(
+            id,
+            "Ülke değişikliği: doğrulama belgeleriniz güncellenmeli",
+            [
+              "Merhaba,",
+              "Firmanızın ülkesi güncellendiği için zorunlu doğrulama belgeleri değişti. Eksik belgeleri yükleyip doğrulamayı yeniden gönderin.",
+            ],
+            "company_verification",
+            { label: "Belgeleri Tamamla", path: "/company/ayarlar/dogrulama" },
+          );
+        }
+      }
+    }
     await this.audit.log({
       action: "admin.company.profile_updated",
       actorType: "admin",
@@ -686,6 +767,32 @@ export class AdminCompaniesService {
       metadata: { changes },
     });
     return { ok: true, changed: Object.keys(data) };
+  }
+
+  /**
+   * VERIFIED kararının ön koşulu: ülkeye göre ZORUNLU kimlik alanları dolu mu?
+   * (Dalga B) Bu kural firma tarafında yalnız `submit()`'te uygulanıyordu;
+   * admin onay yolu (verify/review) atlayabiliyordu → MERSİS/sicil/IBAN'ı boş
+   * bir firma VERIFIED olup para taahhüdü doğuran akışlara girebiliyordu.
+   */
+  private assertKycIdentityComplete(c: {
+    country: string | null;
+    mersisNo: string | null;
+    tradeRegistryNo: string | null;
+    iban: string | null;
+    ibanHolder: string | null;
+  }): void {
+    if ((c.country ?? "TR").toUpperCase() !== "TR") return;
+    const missing: string[] = [];
+    if (!c.mersisNo?.trim()) missing.push("MERSİS numarası");
+    if (!c.tradeRegistryNo?.trim()) missing.push("ticari sicil numarası");
+    if (!c.iban?.trim()) missing.push("IBAN");
+    if (!c.ibanHolder?.trim()) missing.push("IBAN hesap sahibi");
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Doğrulama için eksik kimlik bilgisi: ${missing.join(", ")}. Firma bu alanları doldurmadan onaylanamaz.`,
+      );
+    }
   }
 
   async setVerification(
@@ -708,6 +815,10 @@ export class AdminCompaniesService {
       select: {
         country: true,
         companyVerificationStatus: true,
+        mersisNo: true,
+        tradeRegistryNo: true,
+        iban: true,
+        ibanHolder: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,
@@ -726,6 +837,7 @@ export class AdminCompaniesService {
           );
         }
       }
+      this.assertKycIdentityComplete(c);
     }
     const docStatus: KycDocStatus = status === "VERIFIED" ? "APPROVED" : "REJECTED";
     const docReason = status === "REJECTED" ? (reason?.trim() || null) : null;
@@ -819,6 +931,10 @@ export class AdminCompaniesService {
       select: {
         country: true,
         companyVerificationStatus: true,
+        mersisNo: true,
+        tradeRegistryNo: true,
+        iban: true,
+        ibanHolder: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,
@@ -867,6 +983,8 @@ export class AdminCompaniesService {
     const status: CompanyVerificationStatus = anyRejected
       ? "REJECTED"
       : "VERIFIED";
+    // Dalga B: belge kararları geçse bile kimlik alanları eksikse VERIFIED olmaz.
+    if (status === "VERIFIED") this.assertKycIdentityComplete(c);
     const wasSame = c.companyVerificationStatus === status;
     // #3 + #4 (denetim 2026-08-26 Parça 9): CAS. `where` hem okuduğumuz genel
     // durumu hem de İNCELENEN BELGE ANAHTARLARINI sabitler — admin ekranı
@@ -1254,12 +1372,18 @@ export class AdminCompaniesService {
   async membershipReport(from?: string, to?: string) {
     const where: Record<string, unknown> = {};
     const createdAt: Record<string, Date> = {};
-    if (from) createdAt.gte = new Date(from);
+    // Dalga B: pencere `setHours` ile SUNUCU yerel saatinde kuruluyordu —
+    // UTC sunucuda (Render) TR günü 3 saat kayıyor, "gün sonu" yanlış oluyordu.
+    // Rapor TR kullanıcısına gösterildiği için sınırlar AÇIKÇA TR gününe göre
+    // hesaplanır (Europe/Istanbul sabit +03, yaz saati uygulaması yok).
+    const TR_OFFSET_MS = 3 * 3600_000;
+    /** "YYYY-MM-DD" → o TR gününün başlangıcı (UTC anı). */
+    const trDayStart = (day: string) =>
+      new Date(new Date(`${day}T00:00:00.000Z`).getTime() - TR_OFFSET_MS);
+    if (from) createdAt.gte = trDayStart(from);
     if (to) {
-      // to = gün SONU dahil.
-      const end = new Date(to);
-      end.setHours(23, 59, 59, 999);
-      createdAt.lte = end;
+      // to = TR gününün SONU dahil (ertesi TR gününün başlangıcından 1 ms önce).
+      createdAt.lte = new Date(trDayStart(to).getTime() + 86_400_000 - 1);
     }
     if (Object.keys(createdAt).length > 0) where.createdAt = createdAt;
     // #14 (denetim 2026-08-26 Parça 9): `take` sessiz kesiyordu ve TOPLAMLAR
@@ -1594,12 +1718,29 @@ export class AdminCompaniesService {
       tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
+      /**
+       * Dalga B: GÖNDERMEDEN hedef sayısını döndür. Onay ekranındaki tahmin
+       * `stats` kırılımından geliyordu ve gerçek hedefle uyuşmuyordu (gönderim
+       * `isActive`/`isBlocked` süzüyor, stats süzmüyor) → "1.000 firmaya
+       * gidecek" deyip daha azına gidiyordu.
+       */
+      dryRun?: boolean;
     },
     adminId: string,
   ) {
     const where: Record<string, unknown> = { isActive: true, isBlocked: false };
     if (input.tier) where.tier = input.tier;
     if (input.country) where.country = input.country.trim().toUpperCase();
+    if (input.dryRun) {
+      const exact = await this.prisma.company.count({ where });
+      return {
+        ok: true,
+        dryRun: true as const,
+        targets: Math.min(exact, ANNOUNCE_MAX_TARGETS),
+        delivered: 0,
+        truncated: exact > ANNOUNCE_MAX_TARGETS,
+      };
+    }
     // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
     // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı
     // paralel chunk'larda (5000 seri await → istek timeout riski kalktı).
@@ -1626,7 +1767,8 @@ export class AdminCompaniesService {
             }
           : {}),
       },
-      take: 5000,
+      // Dalga B: sessiz tavan yasak — kesildiyse yanıt bunu SÖYLER.
+      take: ANNOUNCE_MAX_TARGETS + 1,
     })) as {
       id: string;
       name: string;
@@ -1638,6 +1780,8 @@ export class AdminCompaniesService {
         notificationPrefs?: unknown;
       }[];
     }[];
+    const truncated = targets.length > ANNOUNCE_MAX_TARGETS;
+    if (truncated) targets.length = ANNOUNCE_MAX_TARGETS;
     const subject = input.subject.trim();
     const message = input.message.trim();
     const pushPayload = {
@@ -1712,9 +1856,10 @@ export class AdminCompaniesService {
         email: !!input.sendEmail,
         targets: targets.length,
         delivered,
+        truncated,
       },
     });
-    return { ok: true, targets: targets.length, delivered };
+    return { ok: true, targets: targets.length, delivered, truncated };
   }
 
   async resolveComplaint(

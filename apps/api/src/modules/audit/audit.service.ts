@@ -41,14 +41,40 @@ export class AuditService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * `PlatformAdmin.id` → e-posta. Audit yazımını ASLA bozmaz: hata/bulunamama
+   * durumunda null döner (log() zaten fail-safe).
+   */
+  private async resolveAdminEmail(adminId: string): Promise<string | null> {
+    try {
+      const admin = await this.prisma.platformAdmin.findUnique({
+        where: { id: adminId },
+        select: { email: true },
+      });
+      return admin?.email ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async log(entry: AuditEntry): Promise<void> {
     try {
+      // Dalga B (denetim 2026-08-26 Parça 9): admin aksiyonlarının izi yalnız
+      // `actorId`'ye bağlıydı — personel kaydı silinince/id değişince geçmiş
+      // kararların sahibi geriye dönük olarak isimsizleşiyordu. Çağıranların
+      // 17 ayrı noktada e-posta taşımasını beklemek yerine burada TEK yerde
+      // çözülür (çağıran açıkça verirse ona dokunulmaz).
+      const actorEmail =
+        entry.actorEmail ??
+        (entry.actorType === "admin" && entry.actorId
+          ? await this.resolveAdminEmail(entry.actorId)
+          : null);
       await this.prisma.auditLog.create({
         data: {
           action: entry.action,
           actorType: entry.actorType,
           actorId: entry.actorId ?? null,
-          actorEmail: entry.actorEmail ?? null,
+          actorEmail,
           tenantId: entry.tenantId ?? null,
           entityType: entry.entityType ?? null,
           entityId: entry.entityId ?? null,

@@ -98,11 +98,15 @@ export function useAnnounce() {
       tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
+      /** Göndermeden gerçek hedef sayısını sor (onay ekranı — Dalga B). */
+      dryRun?: boolean;
     }) => {
       const { data } = await api.post<{
         ok: boolean;
         targets: number;
         delivered: number;
+        truncated?: boolean;
+        dryRun?: boolean;
       }>("/admin/announcements", input);
       return data;
     },

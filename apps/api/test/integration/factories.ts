@@ -27,6 +27,18 @@ export async function makeCompany(
       // kapıları bunu ister). KYC-akış testleri (kyc-doc-review/foreign-
       // verification) status'ü explicit geçer → etkilenmez.
       companyVerificationStatus: "VERIFIED",
+      // Zorunlu KYC kimlik alanları (denetim 2026-08-26 Parça 9 Dalga B):
+      // GERÇEKÇİ varsayılan — TR firması doğrulamaya `submit()` ile gelir ve
+      // submit bu dördünü ZORUNLU tutar, yani PENDING/VERIFIED bir firmada bu
+      // alanlar prod'da her zaman doludur. Fixture'lar bunu yansıtmazsa admin
+      // onay yolundaki kimlik kapısı yapay olarak kırılır.
+      mersisNo: "0123456789012345",
+      tradeRegistryNo: `TSR-${uniq()}`,
+      // NOT: company-profile.spec'in VALID_IBAN'ından FARKLI olmalı — o spec
+      // "kilitli alanı DEĞİŞTİRME" senaryosunu test ediyor; aynı değer olursa
+      // değişiklik oluşmaz ve kilit hiç tetiklenmez.
+      iban: "TR120006100519786457841399",
+      ibanHolder: "Test Firma A.Ş.",
       ...over,
     },
   });

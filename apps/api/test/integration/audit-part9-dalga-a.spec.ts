@@ -364,3 +364,152 @@ describe("#14 — üyelik raporu toplamları tavandan bağımsız", () => {
     expect(rep.totals.extends).toBe(1);
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// DALGA B
+// ──────────────────────────────────────────────────────────────────────
+
+describe("Dalga B — KYC kimlik alanları admin yolunda da zorunlu", () => {
+  it("MERSİS/IBAN boşken belgeler tam olsa bile VERIFIED reddedilir (TR)", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      companyVerificationStatus: "PENDING",
+    });
+    await uploadAllDocs(co.company.id);
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { mersisNo: null, tradeRegistryNo: null, iban: null, ibanHolder: null },
+    });
+    await expect(
+      service.setVerification(co.company.id, "VERIFIED", "admin-1"),
+    ).rejects.toThrow(/eksik kimlik bilgisi/i);
+  });
+
+  it("yabancı firmada kimlik alanı kuralı uygulanmaz", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      country: "DE",
+      companyVerificationStatus: "PENDING",
+    });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: {
+        docTradeRegistryUrl: "company-docs/x/tradeRegistry.pdf",
+        docTaxPlateUrl: "company-docs/x/taxPlate.pdf",
+        docIdFrontUrl: "company-docs/x/idFront.pdf",
+        mersisNo: null,
+        iban: null,
+      },
+    });
+    await expect(
+      service.setVerification(co.company.id, "VERIFIED", "admin-1"),
+    ).resolves.toMatchObject({ ok: true });
+  });
+});
+
+describe("Dalga B — ülke değişimi zorunlu belge setini bozarsa yeniden incelemeye düşer", () => {
+  it("DE→TR: eksik belgeler varsa VERIFIED kalkar", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      country: "DE",
+      companyVerificationStatus: "VERIFIED",
+    });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: {
+        docTradeRegistryUrl: "company-docs/x/tradeRegistry.pdf",
+        docTaxPlateUrl: "company-docs/x/taxPlate.pdf",
+        docIdFrontUrl: "company-docs/x/idFront.pdf",
+      },
+    });
+    await service.updateProfile(co.company.id, { country: "TR" }, "admin-1");
+    const after = await prisma.company.findUnique({
+      where: { id: co.company.id },
+      select: { companyVerificationStatus: true, country: true },
+    });
+    expect(after!.country).toBe("TR");
+    expect(after!.companyVerificationStatus).toBe("UNVERIFIED");
+  });
+});
+
+describe("Dalga B — audit satırı admin e-postasını taşır", () => {
+  it("actorEmail çağıran vermese de PlatformAdmin'den çözülür", async () => {
+    const { service } = rig();
+    const admin = await prisma.platformAdmin.create({
+      data: {
+        email: "denetci@rothern.com",
+        firstName: "D",
+        lastName: "E",
+        role: "SUPER_ADMIN",
+      },
+    });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await service.suspend(co.company.id, "gerekçe", admin.id);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "admin.company.suspended", entityId: co.company.id },
+    });
+    expect(row.actorEmail).toBe("denetci@rothern.com");
+  });
+});
+
+describe("Dalga B — son aktif SUPER_ADMIN korunur (atomik)", () => {
+  it("tek SUPER_ADMIN pasifleştirilemez", async () => {
+    const only = await prisma.platformAdmin.create({
+      data: {
+        email: "tek@rothern.com",
+        firstName: "T",
+        lastName: "K",
+        role: "SUPER_ADMIN",
+      },
+    });
+    const { AdminStaffService } = await import(
+      "../../src/modules/admin-auth/admin-staff.service"
+    );
+    const staff = new AdminStaffService(
+      prisma as never,
+      new AuditService(prisma as never),
+      {} as never,
+    );
+    await expect(staff.setActive(only.id, false, "başka-admin")).rejects.toThrow(
+      /Son aktif SUPER_ADMIN/i,
+    );
+    const after = await prisma.platformAdmin.findUniqueOrThrow({
+      where: { id: only.id },
+    });
+    expect(after.isActive).toBe(true);
+  });
+});
+
+describe("Dalga B — duyuru dry-run gerçek hedefi sayar", () => {
+  it("askıdaki/pasif firma hedefe girmez ve gönderim yapılmaz", async () => {
+    const { service, notifications } = rig();
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const blocked = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({
+      where: { id: blocked.company.id },
+      data: { isBlocked: true },
+    });
+    const res = await service.announce(
+      { subject: "x", message: "y", tier: "GOLD", dryRun: true },
+      "admin-1",
+    );
+    expect(res.targets).toBe(1);
+    expect(res.delivered).toBe(0);
+    // dry-run HİÇBİR gönderim yapmaz.
+    expect(notifications.pushToCompany).not.toHaveBeenCalled();
+  });
+});
+
+describe("Dalga B — firma listesi sayaçları silinmiş kullanıcıyı saymaz", () => {
+  it("soft-delete edilmiş kullanıcı userCount'a girmez", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.companyUser.update({
+      where: { id: co.user.id },
+      data: { deletedAt: new Date() },
+    });
+    const res = await service.list({});
+    const row = res.items.find((i) => i.id === co.company.id);
+    expect(row!.userCount).toBe(0);
+  });
+});

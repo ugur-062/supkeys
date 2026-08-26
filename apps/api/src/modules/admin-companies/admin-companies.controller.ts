@@ -277,6 +277,11 @@ class AnnounceDto {
   @IsOptional()
   @IsBoolean()
   sendEmail?: boolean;
+
+  /** Dalga B: göndermeden gerçek hedef sayısını sor (onay ekranı için). */
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
 }
 
 class ResolveComplaintDto {

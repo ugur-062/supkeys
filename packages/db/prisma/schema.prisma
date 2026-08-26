@@ -74,7 +74,8 @@ model PlatformAdmin {
 enum AdminRole {
   SUPER_ADMIN // her şey
   SALES // demo, tenant
-  SUPPORT // sadece okuma + tenant impersonate
+  SUPPORT // salt-okuma + zararsız kurtarma (parola sıfırlama/oturum düşürme);
+  // impersonate BİLİNÇLİ OLARAK YOK (bkz. docs/history/CHANGELOG admin rebuild)
 }
 
 model EmailLog {

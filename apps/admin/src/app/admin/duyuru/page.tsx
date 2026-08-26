@@ -10,7 +10,7 @@ import { useAdminCompanyStats } from "@/hooks/use-admin-companies";
 import { useAnnounce } from "@/hooks/use-admin-support";
 import { countryFlag, countryName } from "@/lib/country";
 import { Megaphone } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -28,19 +28,33 @@ function DuyuruView() {
     sendEmail: false,
   });
   const [confirming, setConfirming] = useState(false);
+  /**
+   * Onay ekranındaki KESİN hedef sayısı (Dalga B). Eskiden `stats`
+   * kırılımından tahmin ediliyordu; gönderim `isActive`/`isBlocked` süzdüğü
+   * için ekran "1.000 firmaya gidecek" derken daha azına gidiyordu. Artık
+   * sunucudan dry-run ile gerçek sayı sorulur.
+   */
+  const [exactTargets, setExactTargets] = useState<number | null>(null);
+  const dryRun = useAnnounce();
 
-  // Gönderim ÖNCESİ tahmini hedef sayısı — kör toplu gönderim olmasın.
+  // Form değişince önceki kesin sayı geçersizdir.
+  useEffect(() => {
+    setExactTargets(null);
+  }, [form.tier, form.country]);
+
+  // Kaba ön-gösterge (form doldurulurken) — onay ekranında kesin sayıyla
+  // değiştirilir. Kırılım süzgeçsiz olduğu için ÜST SINIR niteliğindedir.
   const estimatedTargets = (() => {
     const d = stats.data;
     if (!d) return null;
     if (form.country) {
-      // Ülke seçiliyse tier kırılımı elimizde yok — ülke toplamını göster.
       return (
         d.countryBreakdown.find((c) => c.country === form.country)?.count ?? 0
       );
     }
-    if (form.tier === "PAKET") return d.tierBreakdown.BRONZ + d.tierBreakdown.SILVER + d.tierBreakdown.GOLD;
-    if (form.tier === "STANDARD") return d.tierBreakdown.STANDART;
+    if (form.tier) {
+      return d.tierBreakdown[form.tier as keyof typeof d.tierBreakdown] ?? 0;
+    }
     return d.totalCompanies;
   })();
 
@@ -165,9 +179,13 @@ function DuyuruView() {
             <p className="text-sm text-red-800">
               Bu duyuru seçili segmentteki{" "}
               <strong>
-                {estimatedTargets != null
-                  ? `yaklaşık ${estimatedTargets.toLocaleString("tr-TR")} firmaya`
-                  : "tüm firmalara"}
+                {exactTargets != null
+                  ? `${exactTargets.toLocaleString("tr-TR")} firmaya`
+                  : dryRun.isPending
+                    ? "… firmaya"
+                    : estimatedTargets != null
+                      ? `en fazla ${estimatedTargets.toLocaleString("tr-TR")} firmaya`
+                      : "tüm firmalara"}
               </strong>{" "}
               gidecek{form.sendEmail ? " (e-posta dahil)" : ""}. Emin misiniz?
             </p>
@@ -199,7 +217,25 @@ function DuyuruView() {
               disabled={
                 form.subject.trim().length < 3 || form.message.trim().length < 10
               }
-              onClick={() => setConfirming(true)}
+              onClick={() => {
+                setConfirming(true);
+                // Kesin hedef sayısını sunucudan sor (göndermez).
+                dryRun.mutate(
+                  {
+                    subject: form.subject.trim(),
+                    message: form.message.trim(),
+                    tier: (form.tier || undefined) as
+                      | "STANDART"
+                      | "BRONZ"
+                      | "SILVER"
+                      | "GOLD"
+                      | undefined,
+                    country: form.country || undefined,
+                    dryRun: true,
+                  },
+                  { onSuccess: (r) => setExactTargets(r.targets) },
+                );
+              }}
             >
               <Megaphone className="mr-1.5 h-4 w-4" /> Duyuruyu Gönder
             </Button>
