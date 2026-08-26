@@ -13,7 +13,7 @@ function docsService() {
     generatePresignedPut: jest.fn(),
     generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
     getPublicUrl: jest.fn((k: string) => `https://r2/${k}`),
-    deleteObject: jest.fn(),
+    deleteObject: jest.fn().mockResolvedValue(undefined),
     // KYC belgeleri kısa ömürlü presigned GET ile sunulur — gerçek servisle
     // aynı sözleşme: boş değer null, dolu değer URL.
     presignStoredObject: jest.fn(async (_bucket: string, v: string | null) =>

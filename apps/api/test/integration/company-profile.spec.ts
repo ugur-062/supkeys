@@ -15,7 +15,7 @@ function makeService() {
   const storage = {
     generatePresignedPut: jest.fn(),
     generatePresignedGet: jest.fn(),
-    deleteObject: jest.fn(),
+    deleteObject: jest.fn().mockResolvedValue(undefined),
   };
   return new CompanyProfileService(
     prisma as never,

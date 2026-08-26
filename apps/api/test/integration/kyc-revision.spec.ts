@@ -18,7 +18,7 @@ function storageMock() {
   return {
     generatePresignedPut: jest.fn(),
     getPublicUrl: jest.fn((k: string) => `https://r2/${k}`),
-    deleteObject: jest.fn(),
+    deleteObject: jest.fn().mockResolvedValue(undefined),
     presignStoredObject: jest.fn(async (_bucket: string, v: string | null) =>
       v ? `https://r2/presigned/${v}` : null,
     ),
