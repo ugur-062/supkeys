@@ -108,7 +108,15 @@ export function useAssistantAction() {
     },
     onSuccess: () => {
       // Yayınlanan ihale / gönderilen davet listelerde görünsün.
+      // Denetim 2026-08-26 Parça 10: onay kartıyla yürütülen aksiyonlar
+      // arasında kazandırma (SİPARİŞ oluşturur), teslim-alma (sipariş durumu)
+      // ve teklif verme (Tekliflerim) var — yalnız ilanlar tazeleniyordu.
       qc.invalidateQueries({ queryKey: ["company-listings"] });
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+      qc.invalidateQueries({ queryKey: ["company-my-bids"] });
+      qc.invalidateQueries({ queryKey: ["company-orders"] });
+      qc.invalidateQueries({ queryKey: ["company-approvals"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
       qc.invalidateQueries({ queryKey: ["ai-assistant-sessions"] });
     },
   });

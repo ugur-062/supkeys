@@ -135,16 +135,25 @@ export function CategorySelectorButton({
         ) : null}
       </div>
 
-      <CategorySelectorModal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        value={value}
-        onConfirm={onChange}
-        mode={mode}
-        maxSelection={maxSelection}
-        title={modalTitle}
-        description={modalDescription}
-      />
+      {/*
+        Denetim 2026-08-26 Parça 10: modal KOŞULSUZ render ediliyordu. `isOpen`
+        yalnız Headless Dialog'u kapalı tutuyor, bileşen gövdesi yine koşuyor →
+        `useCategoryTree()` (enabled kapısı yok) ~180 KB'lık `/categories/all`
+        çağrısını, kullanıcı kategoriye hiç dokunmasa bile yapıyordu.
+        `next/dynamic` de parçayı render anında indiriyordu.
+      */}
+      {isOpen ? (
+        <CategorySelectorModal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          value={value}
+          onConfirm={onChange}
+          mode={mode}
+          maxSelection={maxSelection}
+          title={modalTitle}
+          description={modalDescription}
+        />
+      ) : null}
     </>
   );
 }

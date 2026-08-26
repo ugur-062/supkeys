@@ -1,6 +1,8 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { canAdminDo } from "@/lib/admin-permissions";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -178,6 +180,12 @@ function SistemView() {
   const refresh = useRefreshRates();
   const storage = useStorageHealth();
   const s = sys.data;
+  // B2: rol kapıları backend @RequireAdminRole ile birebir (drift nöbetçisi
+  // artık bu üç aksiyonu da kapsıyor).
+  const { admin } = useAdminAuth();
+  const canManualRate = canAdminDo(admin?.role, "manualRate");
+  const canListSuppressions = canAdminDo(admin?.role, "listSuppressions");
+  const canTimeSavings = canAdminDo(admin?.role, "timeSavingsConfig");
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -278,11 +286,15 @@ function SistemView() {
           Kur bayatken (7+ gün) döviz ilanlarında taban kıyası güvenlik gereği
           reddedilir — TCMB arızasında bu buton kilidi açar.
         </p>
-        <ManualRateForm />
+        {/* B2 (denetim 2026-08-26 Parça 10): bu üç bölüm SUPER_ADMIN'e kilitli
+            uçlara yazıyor (backend fail-closed) ama UI'da hiç kapı yoktu →
+            SUPPORT/SALES basılabilir düğmeler görüp 403 alıyordu ve
+            "UI kilidi = API kilidi" garantisi bu ekranda yoktu. */}
+        {canManualRate ? <ManualRateForm /> : null}
       </section>
 
-      <SuppressionsSection />
-      <TimeSavingsConfigSection />
+      {canListSuppressions ? <SuppressionsSection /> : null}
+      {canTimeSavings ? <TimeSavingsConfigSection /> : null}
 
       {/* Cron işleri */}
       <section className="admin-card overflow-hidden">

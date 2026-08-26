@@ -20,6 +20,12 @@ interface SettingsCard {
   description: string;
   /** Yalnızca Yönetici görür (operasyon/yönetim kartları). */
   managerOnly?: boolean;
+  /**
+   * Kartı belirli bir İZİNLE kapıla (kart-kapısı = uç-kapısı). `managerOnly`
+   * yönetim ETİKETİNE bakar; bazı kartların ucu ise operasyon rollerine de
+   * açıktır — denetim 2026-08-26 Parça 10 B5.
+   */
+  permission?: string;
 }
 
 interface SettingsGroup {
@@ -83,7 +89,12 @@ const GROUPS: SettingsGroup[] = [
         icon: MapPin,
         title: "Adres Yönetimi",
         description: "Fatura ve teslimat adresleri",
-        managerOnly: true,
+        // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
+        // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi
+        // ekleyebilmeli"). Kart `managerOnly` olduğu için operatör sihirbazda
+        // "Ayarlar → Adresler'den ekleyin" uyarısını alıyor ama kartı
+        // göremiyordu; URL'yi elle yazınca sayfa tam yetkiyle açılıyordu.
+        permission: "addresses:manage",
       },
       {
         href: "/company/ayarlar/banka-hesaplari",
@@ -146,6 +157,8 @@ export default function AyarlarPage() {
     (user.isOwner ||
       user.roles.includes("SAHIP") ||
       user.roles.includes("YONETICI"));
+  /** İzin-kapılı kartlar için efektif izin listesi (Faz R: fallback YOK). */
+  const permissions = user?.permissions ?? [];
 
   // P2 (denetim §10.5): karta durum rozeti — YALNIZ store'da hazır veriden
   // (ekstra istek yok). Durum bilinmiyorsa rozet basmayız.
@@ -178,7 +191,11 @@ export default function AyarlarPage() {
 
       <div className="mt-8 space-y-8">
         {GROUPS.map((group) => {
-          const items = group.items.filter((i) => !i.managerOnly || isManager);
+          const items = group.items.filter((i) =>
+            i.permission
+              ? permissions.includes(i.permission)
+              : !i.managerOnly || isManager,
+          );
           if (items.length === 0) return null;
           return (
             <section key={group.title}>

@@ -427,8 +427,13 @@ export function useRecordPayment(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-orders", "detail", id] }),
+    onSuccess: () => {
+      // Denetim 2026-08-26 Parça 10: yalnız DETAY tazeleniyordu; liste
+      // `paymentSettled`/`paymentDueDate` ile rozet ve KPI basıyor → önek
+      // invalidasyonu (dosyadaki diğer sipariş mutasyonlarının deseni).
+      qc.invalidateQueries({ queryKey: ["company-orders"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+    },
   });
 }
 
@@ -447,7 +452,12 @@ export function usePaymentDecision(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-orders", "detail", id] }),
+    onSuccess: () => {
+      // Denetim 2026-08-26 Parça 10: yalnız DETAY tazeleniyordu; liste
+      // `paymentSettled`/`paymentDueDate` ile rozet ve KPI basıyor → önek
+      // invalidasyonu (dosyadaki diğer sipariş mutasyonlarının deseni).
+      qc.invalidateQueries({ queryKey: ["company-orders"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+    },
   });
 }

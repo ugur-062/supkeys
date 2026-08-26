@@ -58,6 +58,21 @@ export function useCompanyUsers() {
   });
 }
 
+/**
+ * Kullanıcı/davet mutasyonlarının ortak invalidasyonu.
+ *
+ * Denetim 2026-08-26 Parça 10: koltuk sayacı (`company-seats`) YALNIZ
+ * seat-seçim akışında tazeleniyordu. Oysa backend `seatUsage` = aktif SA/ST
+ * kullanıcı + PENDING SA/ST daveti, yani HER davet/rol/pasifleştirme onu
+ * değiştirir. Sonuç: son koltuk dolunca dialog hâlâ davet ettiriyor (API
+ * reddediyor), koltuk boşalınca ise rol seçeneklerini kilitli gösteriyordu.
+ */
+function invalidateUserCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["company-users"] });
+  qc.invalidateQueries({ queryKey: ["company-invitations"] });
+  qc.invalidateQueries({ queryKey: ["company-seats"] });
+}
+
 export function useInviteUser() {
   const qc = useQueryClient();
   return useMutation({
@@ -65,8 +80,7 @@ export function useInviteUser() {
       const { data } = await companyApi.post("/company/users", input);
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-invitations"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -92,8 +106,7 @@ export function useCancelInvitation() {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-invitations"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -106,8 +119,7 @@ export function useResendInvitation() {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-invitations"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -120,7 +132,7 @@ export function useUpdateUserRoles() {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-users"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -155,7 +167,7 @@ export function useUpdateUserPermissions() {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-users"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -177,7 +189,7 @@ export function useUpdateUser() {
       const { data } = await companyApi.patch(`/company/users/${id}`, payload);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-users"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -190,7 +202,7 @@ export function useSetUserActive() {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-users"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -201,7 +213,7 @@ export function useRemoveUser() {
       const { data } = await companyApi.delete(`/company/users/${id}`);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-users"] }),
+    onSuccess: () => invalidateUserCaches(qc),
   });
 }
 
@@ -235,8 +247,7 @@ export function useSeatSelection() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-users"] });
-      qc.invalidateQueries({ queryKey: ["company-seats"] });
+      invalidateUserCaches(qc);
     },
   });
 }

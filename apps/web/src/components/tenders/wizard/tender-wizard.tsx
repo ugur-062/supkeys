@@ -417,10 +417,47 @@ export function TenderWizard({
   // Yayınla'ya basınca doğrudan publish-confirm. Hedef fiyat opsiyoneldir —
   // eksikse uyarı ÇIKMAZ (kullanıcı kararı, 2026-07-11); bütçe-eşikli onay
   // zinciri hedef fiyatsız tetiklenmeyebilir, bu bilinçli kabul edildi.
+  /**
+   * Denetim 2026-08-26 Parça 10: `await form.trigger()` (asenkron zod, dev
+   * formda yavaş) çalışırken `create.isPending` HENÜZ false olduğu için buton
+   * ETKİN kalıyordu → iki tık = iki ayrı ihale/taslak (uç idempotent değil).
+   * Kilit trigger penceresini de kapsamalı.
+   */
+  const submitLock = useRef(false);
+
+  /** Hatalı ilk alanı bulup ait olduğu adıma atla + odakla (UX). */
+  const jumpToFirstError = () => {
+    const errored = Object.keys(form.formState.errors);
+    if (errored.length === 0) return;
+    for (const stepNo of [1, 2, 3, 4] as const) {
+      const match = STEP_FIELDS[stepNo].find((f) =>
+        errored.some((e) => e === f || e.startsWith(`${f}.`)),
+      );
+      if (match) {
+        setStep(stepNo - 1);
+        setFurthest((f) => Math.max(f, stepNo - 1));
+        // Odak, adım render edildikten sonra.
+        setTimeout(() => form.setFocus(match), 0);
+        return;
+      }
+    }
+  };
+
   const handlePublishClick = async () => {
+    if (submitLock.current) return;
+    submitLock.current = true;
+    try {
+      await runPublishClick();
+    } finally {
+      submitLock.current = false;
+    }
+  };
+
+  const runPublishClick = async () => {
     const ok = await form.trigger();
     if (!ok) {
-      toast.error("Eksik/hatalı alanlar var — adımları kontrol et");
+      toast.error("Eksik/hatalı alanlar var — ilgili adıma götürüldünüz");
+      jumpToFirstError();
       return;
     }
     if (isEdit) {
@@ -436,9 +473,23 @@ export function TenderWizard({
   };
 
   const handleSaveDraft = async () => {
-    const ok = await form.trigger();
+    if (submitLock.current) return;
+    submitLock.current = true;
+    try {
+      await runSaveDraft();
+    } finally {
+      submitLock.current = false;
+    }
+  };
+
+  const runSaveDraft = async () => {
+    // Taslakta TAM şema doğrulanmıyordu → yarım kalan iş kaydedilemiyor,
+    // sayfa kapanınca kayboluyordu. Backend `asDraft` ile zaten yalnız
+    // başlığı zorunlu tutuyor (company-listings.service `if (dto.asDraft) return`).
+    const ok = await form.trigger(["type", "title"]);
     if (!ok) {
-      toast.error("Eksik/hatalı alanlar var — adımları kontrol et");
+      toast.error("Taslak için en azından ihale türü ve başlık gerekli");
+      jumpToFirstError();
       return;
     }
     try {

@@ -30,7 +30,13 @@ export type AdminAction =
   | "notify" // POST companies/:id/notify
   | "resolveComplaint" // POST complaints/:id/resolve
   | "manageCompanyUser" // POST companies/:id/users (+active/email)
-  | "recoverAccount"; // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
+  | "recoverAccount"
+  // Denetim 2026-08-26 Parça 10 B2: admin/sistem'deki üç SUPER_ADMIN aksiyonu
+  // matriste HİÇ yoktu → hem UI kapısız hem drift nöbetçisi kapsamı dışındaydı.
+  | "manualRate" // POST admin/system/rates/manual
+  | "clearSuppression" // POST admin/system/suppressions/clear
+  | "timeSavingsConfig" // POST admin/system/time-savings-config
+  | "listSuppressions"; // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
 
 const SUPER: AdminRole[] = ["SUPER_ADMIN"];
 const KYC: AdminRole[] = ["SUPER_ADMIN", "SALES"];
@@ -55,6 +61,10 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   resolveComplaint: KYC,
   manageCompanyUser: KYC,
   recoverAccount: ANY,
+  manualRate: SUPER,
+  clearSuppression: SUPER,
+  timeSavingsConfig: SUPER,
+  listSuppressions: KYC,
 };
 
 /** Rol bu aksiyonu yapabilir mi? (frontend buton kapısı — backend otorite kalır) */

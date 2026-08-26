@@ -23,6 +23,11 @@ function invalidateListingCaches(
   qc.invalidateQueries({ queryKey: ["company-tenders"] });
   if (opts?.orders) qc.invalidateQueries({ queryKey: ["company-orders"] });
   if (opts?.myBids) qc.invalidateQueries({ queryKey: ["company-my-bids"] });
+  // Denetim 2026-08-26 Parça 10: pano HİÇBİR mutasyonla tazelenmiyordu
+  // (repoda `company-dashboard` invalidasyonu yoktu) ve analitik sorguların
+  // staleTime'ı 5 dk → yayınlanan ihale/kazandırma panoda dakikalarca
+  // görünmüyordu. İlan durumunu değiştiren her yol panoyu da tazeler.
+  qc.invalidateQueries({ queryKey: ["company-dashboard"] });
 }
 
 /**
@@ -722,7 +727,9 @@ export function useExtendBidValidity(id: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
-      invalidateListingCaches(qc);
+      // `revived: true` teklifi DRAFT'tan SUBMITTED'a taşıyabiliyor →
+      // Tekliflerim listesi de tazelenmeli (denetim 2026-08-26 Parça 10).
+      invalidateListingCaches(qc, { myBids: true });
     },
   });
 }

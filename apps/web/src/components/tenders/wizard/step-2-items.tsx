@@ -35,6 +35,7 @@ import { ItemQuestionModal } from "./item-question-modal";
 export function Step2Items() {
   const {
     control,
+    getValues,
     formState: { errors },
   } = useFormContext<TenderFormData>();
   const { fields, append, remove, replace } = useFieldArray({
@@ -50,7 +51,12 @@ export function Step2Items() {
   const stepListingType = useWatch({ control, name: "listingType" });
   const isSatisStep = stepListingType === "SATIS";
   const stepPriceScope = useWatch({ control, name: "priceScope" });
-  const currentItems = useWatch({ control, name: "items" });
+  // Denetim 2026-08-26 Parça 10 #7: burada `useWatch({ name: "items" })`
+  // vardı. RHF ad-önekiyle abone olduğu için `items.7.quantity` değişimi bu
+  // izleyiciyi de tetikliyor → HER TUŞ VURUŞU tüm kalem satırlarını yeniden
+  // çiziyordu (100 kalemde ~5.000 element; tavan MAX_LISTING_ITEMS=500).
+  // Değer render'da HİÇ kullanılmıyordu; tek tüketicisi aşağıdaki callback →
+  // aboneliksiz `getValues` yeterli.
 
   // Excel ile İçe Aktar (2026-08-22, AI yok): önizlemeden geçen kalemler forma
   // girer — "ekle" modunda formdaki tek BOŞ satır (ad girilmemiş) ezilir ki
@@ -69,7 +75,7 @@ export function Step2Items() {
       customQuestion: "",
       questions: [],
     }));
-    const existing = (currentItems ?? []) as TenderFormData["items"];
+    const existing = (getValues("items") ?? []) as TenderFormData["items"];
     const keep =
       mode === "replace"
         ? []

@@ -135,6 +135,10 @@ export function useCompanyAction() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }
@@ -252,6 +256,10 @@ export function useReviewDocuments() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }
@@ -280,6 +288,10 @@ export function useReviewDocRevision() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }
@@ -336,6 +348,10 @@ export function useUpdateCompanyProfile() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }
@@ -359,6 +375,10 @@ export function useSetCompanyTier() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
       qc.invalidateQueries({ queryKey: ["membership-history", id] });
     },
   });
@@ -386,6 +406,10 @@ export function useExtendMembership() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
       qc.invalidateQueries({ queryKey: ["membership-history", id] });
     },
   });

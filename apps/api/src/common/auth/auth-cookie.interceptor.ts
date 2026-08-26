@@ -76,6 +76,15 @@ export class AuthCookieInterceptor implements NestInterceptor {
         for (const realm of ["company", "admin"] as const) {
           if (!issued.has(realm)) this.maybeSlide(req, response, realm);
         }
+        // Denetim 2026-08-26 Parça 10: token cookie'ye yazıldıktan sonra
+        // GÖVDEDEN ÇIKARILIR. Eskiden gövdede kalıyordu; ön yüz onu hiçbir
+        // yere yazmasa da yanıtı okuyabilen her JS (XSS, kötücül eklenti,
+        // yanıt yakalayan SDK) 30 günlük JWT'yi görebiliyordu — httpOnly
+        // cookie mimarisinin ("token JS'ten OKUNMAZ", CLAUDE.md) tek baypası.
+        if (issued.size > 0 && isPlainObject(body) && "token" in body) {
+          const { token: _discarded, ...rest } = body as Record<string, unknown>;
+          return rest;
+        }
         return body;
       }),
     );
@@ -142,6 +151,11 @@ export class AuthCookieInterceptor implements NestInterceptor {
       decoded.persistent !== false,
     );
   }
+}
+
+/** Düz nesne mi (dizi/null değil) — gövdeden alan çıkarmadan önce. */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 function extractToken(body: unknown): string | null {

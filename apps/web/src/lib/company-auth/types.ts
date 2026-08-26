@@ -47,7 +47,12 @@ export interface CompanyProfile {
 }
 
 export interface CompanyLoginResponse {
-  token: string;
+  /**
+   * Denetim 2026-08-26 Parça 10: token artık YANITTA DÖNMEZ —
+   * `AuthCookieInterceptor` httpOnly cookie'ye yazdıktan sonra gövdeden
+   * çıkarır. Alan sözleşmede bilerek bırakılmadı; oturum yalnız cookie'dedir
+   * ve `/me` ile doğrulanır (CLAUDE.md "token JS'ten OKUNMAZ").
+   */
   user: CompanyUserDto;
   company: CompanyProfile;
 }

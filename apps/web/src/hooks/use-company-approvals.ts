@@ -246,6 +246,11 @@ export function useCancelApproval() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-approvals"] });
       qc.invalidateQueries({ queryKey: ["company-listings"] });
+      // Son onay `runFullAward` ile SİPARİŞ üretiyor (denetim 2026-08-26
+      // Parça 10) — WS kopuksa liste 30 sn boyunca boş görünüyordu.
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+      qc.invalidateQueries({ queryKey: ["company-orders"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
     },
   });
 }
@@ -271,6 +276,11 @@ export function useDecideApproval() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-approvals"] });
       qc.invalidateQueries({ queryKey: ["company-listings"] });
+      // Son onay `runFullAward` ile SİPARİŞ üretiyor (denetim 2026-08-26
+      // Parça 10) — WS kopuksa liste 30 sn boyunca boş görünüyordu.
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+      qc.invalidateQueries({ queryKey: ["company-orders"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
     },
   });
 }

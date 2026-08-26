@@ -33,6 +33,11 @@ import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
+import { canManageListing } from "@/lib/tenders/can-manage-listing";
 import { toast } from "sonner";
 
 export default function BidDetailPage() {
@@ -44,6 +49,17 @@ export default function BidDetailPage() {
   const eliminate = useEliminateBid(id);
   const bidDocs = useBidDocuments(id);
   const [eliminateOpen, setEliminateOpen] = useState(false);
+  // B4: ihale detayındaki kapının AYNISI (backend assertListingManageRole
+  // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
+  const { user } = useCompanyAuth();
+  const hasManagePermission = useHasCompanyPermission(
+    l?.type === "SATIS" ? "sell:listing:manage" : "buy:listing:manage",
+  );
+  const canManage = canManageListing({
+    hasManagePermission,
+    createdById: l?.createdById,
+    userId: user?.id,
+  });
 
   if (isLoading)
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
@@ -75,7 +91,12 @@ export default function BidDetailPage() {
     );
 
   const items = l.items ?? [];
-  const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
+  // B4 (denetim 2026-08-26 Parça 10): bu sayfada `canManage` kapısı YOKTU —
+  // ilanı AÇMAYAN izinli bir operatöre (ve işlem-rolsüz Kurucu'ya) kazandır/ele
+  // düğmeleri gösteriliyordu; ihale detayında bilinçle gizlenen yıkıcı butonlar
+  // burada açıktı (API `assertListingManageRole` ile 403 veriyordu).
+  const canDecide =
+    (l.status === "OPEN" || l.status === "IN_AWARD") && canManage;
   const docs = (bidDocs.data ?? []).filter((d) => d.bidId === bid.id);
 
   const priceFor = (itemId: string) =>

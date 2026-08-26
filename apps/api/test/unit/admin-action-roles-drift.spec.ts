@@ -14,6 +14,7 @@ import { ADMIN_ANY_ROLE_KEY } from "../../src/modules/admin-auth/decorators/allo
 import { AdminCompaniesController } from "../../src/modules/admin-companies/admin-companies.controller";
 import { AdminCompanyUsersController } from "../../src/modules/admin-companies/admin-company-users.controller";
 import { AdminStaffController } from "../../src/modules/admin-auth/admin-staff.controller";
+import { AdminSystemController } from "../../src/modules/admin-system/admin-system.controller";
 
 const SUPER = ["SUPER_ADMIN"];
 const KYC = ["SUPER_ADMIN", "SALES"];
@@ -50,6 +51,12 @@ const EXPECTED: Record<string, Spec> = {
   manageCompanyUser: { kind: "method", ctrl: AdminCompanyUsersController, method: "addUser", roles: KYC },
   recoverAccount: { kind: "any", ctrl: AdminCompanyUsersController, method: "sendPasswordReset" },
   manageStaff: { kind: "class", ctrl: AdminStaffController, roles: SUPER },
+  // Denetim 2026-08-26 Parça 10 B2: admin/sistem'in üç yıkıcı aksiyonu
+  // matriste hiç yoktu → nöbetçi kapsamı dışındaydı.
+  manualRate: { kind: "method", ctrl: AdminSystemController, method: "setManualRate", roles: SUPER },
+  clearSuppression: { kind: "method", ctrl: AdminSystemController, method: "clearSuppression", roles: SUPER },
+  timeSavingsConfig: { kind: "method", ctrl: AdminSystemController, method: "updateTimeSavingsConfig", roles: SUPER },
+  listSuppressions: { kind: "method", ctrl: AdminSystemController, method: "listSuppressions", roles: KYC },
 };
 
 describe("admin-action-roles DRIFT NÖBETÇİSİ (matris ↔ backend @RequireAdminRole)", () => {

@@ -1,14 +1,18 @@
 "use client";
 
 import { Text } from "@/components/catalyst/text";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { BarChart3 } from "lucide-react";
 
 /**
- * Rapor sayfaları rol kapısı — backend assertTypeAllowed ile BİREBİR (F7):
- * ALIM raporları buy:bid:review (Satın Almacı), SATIS raporları
- * sell:listing:manage (Satışçı) ister. Etiket-only (Kurucu/Yönetici) rapor
- * ÜRETEMEZ (backend 403) — form yerine açıklayıcı not gösterilir.
+ * Rapor sayfaları rol kapısı — backend `assertTypeAllowed` ile BİREBİR:
+ * ALIM raporları `buy:bid:review`, SATIS raporları `sell:listing:manage` ister.
+ *
+ * Denetim 2026-08-26 Parça 10 B3: 2026-07-27 ürün kararıyla backend'e
+ * "GÖZETİM MUAFİYETİ" eklendi (Kurucu ve Yönetici işlem rolü taşımasa da
+ * raporları görebilir — raporlar salt-okunur yönetim çıktısıdır), ama bu kapı
+ * eski kuralda kaldı: işlem-rolsüz Kurucu API'den 200 alırken arayüzde duvara
+ * çarpıyordu, yani özellik erişilemezdi.
  */
 export function ReportsRoleGate({
   portal,
@@ -17,9 +21,15 @@ export function ReportsRoleGate({
   portal: "satinalma" | "satis";
   children: React.ReactNode;
 }) {
-  const allowed = useHasCompanyPermission(
+  const { user } = useCompanyAuth();
+  const hasOpPermission = useHasCompanyPermission(
     portal === "satis" ? "sell:listing:manage" : "buy:bid:review",
   );
+  // Gözetim muafiyeti — backend `assertTypeAllowed` ile aynı sıra.
+  const isSupervisor =
+    !!user?.isOwner ||
+    !!user?.roles.some((r) => r === "SAHIP" || r === "YONETICI");
+  const allowed = isSupervisor || hasOpPermission;
   if (!allowed) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
