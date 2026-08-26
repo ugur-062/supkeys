@@ -75,6 +75,26 @@ sayfa-sayfa UI↔API parite tablosu yüzeysel kaldı → Dalga B.
 
 ## DURUM
 
-- Dalga A **UYGULANMADI** — düzeltme ONAYI bekliyor.
-- Önerilen sıra: **#1** (KYC kapısı + kalıcı kilit) → **#2, #16** (küçük, kapalı uçlu) → **#4, #5** (CAS/idempotency, para) → **#9, #8, #11** (KVKK + sır izi) → **#10** (critical audit) → **#6, #7, #17** (akış/bildirim) → **#12-#15** (sayı doğruluğu + duyuru sınıfı).
+- **Dalga A UYGULANDI (2026-08-26, `c883cc3a` + `70b5c03f`): #1-#17'nin tamamı.**
+- Yeni yetenekler/sözleşmeler:
+  - `StorageService.presignInlinePreview` — satır-içi önizleme; yanıt içerik tipi
+    SUNUCUDA beyaz listeden sabitlenir (XSS'i kapatan `attachment` değil, tipin
+    sabitlenmesidir), uzantı listede yoksa `attachment`'a düşer.
+  - `notification-prefs`'e `announcement` anahtarı (`admin_announcement` artık
+    kapatılabilir); web bildirim tercihleri ekranında "Platform duyuruları".
+  - `detail()` → `docKeys`: belge kararının sürüm sabitlemesi (ön yüz anahtarı
+    geri gönderir, arada değiştiyse 409).
+  - `membershipReport` → `truncated` + `totalMatching`; toplamlar `groupBy` ile
+    TÜM evrenden (tavandan bağımsız), UI'da kesilme uyarısı.
+  - `stats().listings` → `inApproval` + `moderationClosed` kovaları (MECE).
+- Testler: `test/integration/audit-part9-dalga-a.spec.ts` (13) + **tam API suite
+  143 suite / 1242 test yeşil** + web 336 + admin 79.
+- GOTCHA'lar (sonraki turlar için):
+  - `AuditLog`'da **`critical` KOLONU YOK** — yalnız `AuditService` girdisinde
+    bayrak (yazım hatasında `[AUDIT-KRİTİK-KAYIP]` + Sentry). Sözleşme testi DB
+    satırından değil ÇAĞRIDAN doğrulanmalı.
+  - Rig stub tuzağı **dördüncü kez**: yaygın-enjekte `StorageService`'e yeni
+    çağrı (`presignInlinePreview`) + `company-docs`'ta yeni `.catch()` zinciri,
+    5 spec'in stub'ını kırdı (`deleteObject: jest.fn()` promise döndürmüyordu).
+    Tek spec koşumu bunu YAKALAMAZ; tam suite şart.
 - Mercek 1/3/5/6/7 alanları tek denetçiyle tarandığı için Dalga B'de bir ajan turu tekrarlanmalı (özellikle `admin-system` ve sayfa-sayfa parite).
