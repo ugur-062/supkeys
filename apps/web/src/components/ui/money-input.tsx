@@ -16,13 +16,54 @@ export function formatMoneyDisplay(raw: string): string {
   return rest.length > 0 ? `${grouped},${rest.join("")}` : grouped;
 }
 
-/** Görüntüden ham değere: noktalar binlik ayracı sayılır, virgül ondalık. */
+/** En fazla ondalık hane (DB `Decimal(18,2)` ile hizalı). */
+const MONEY_DECIMALS = 2;
+
+/**
+ * Görüntüden ham değere.
+ *
+ * Denetim 2026-08-26 Parça 10 #1: eski sürüm noktayı KOŞULSUZ binlik ayracı
+ * sayıyordu (`replace(/\./g, "")`), ondalık ayracı yalnız virgüldü. Sonuç
+ * ölçüldü: yazarak "1500.50" → 150050 (×100); YAPIŞTIRARAK "1,234.56" → 1.23
+ * (÷1000) ve ekranda "1,23" göründüğü için gözle YAKALANAMIYORDU. Gönderilmiş
+ * teklif geri çekilemediği (CLAUDE.md kural 6) için bu doğrudan para yoluydu.
+ *
+ * Yeni kural (gösterim sözleşmemiz: binlik AYRACI nokta, ondalık VİRGÜL —
+ * yani virgül bizde asla binlik olamaz):
+ *  1. İki ayraç türü de varsa SONUNCUSU ondalıktır ("1.234,56" ve "1,234.56").
+ *  2. Yalnız virgül varsa son virgül ondalıktır ("150,567" → 150,56).
+ *  3. Yalnız nokta varsa: sondaki nokta (kullanıcı ondalığa yeni başladı) ya da
+ *     tek nokta + ≤2 hane ondalıktır ("1500.50"); aksi halde binliktir
+ *     ("1.500", "1.234.567" ve kontrollü input'ta "1.500"+"0" → "1.5005").
+ */
 export function parseMoneyDisplay(display: string): string {
-  const cleaned = display.replace(/\./g, "").replace(/[^0-9,]/g, "");
-  const [int = "", ...rest] = cleaned.split(",");
-  if (rest.length === 0) return int;
-  // En fazla 2 ondalık (MONEY_DECIMALS) — fazlası yazarken kırpılır.
-  return `${int}.${rest.join("").slice(0, 2)}`;
+  const cleaned = display.replace(/[^0-9.,]/g, "");
+  if (!cleaned) return "";
+  const lastDot = cleaned.lastIndexOf(".");
+  const lastComma = cleaned.lastIndexOf(",");
+
+  let decimalAt = -1;
+  if (lastDot !== -1 && lastComma !== -1) {
+    decimalAt = Math.max(lastDot, lastComma); // (1)
+  } else if (lastComma !== -1) {
+    decimalAt = lastComma; // (2)
+  } else if (lastDot !== -1) {
+    const dotCount = cleaned.split(".").length - 1;
+    const digitsAfter = cleaned.length - lastDot - 1;
+    // digitsAfter === 0 ⟺ nokta en sonda. Kontrollü input'ta kritik: görüntü
+    // zaten binlik ayraçlıyken ("1.500") basılan nokta, "iki nokta var, hepsi
+    // binliktir" kuralına takılıp YUTULUYOR ve ondalık hiç girilemiyordu.
+    if (digitsAfter === 0 || (dotCount === 1 && digitsAfter <= MONEY_DECIMALS)) {
+      decimalAt = lastDot; // (3)
+    }
+  }
+
+  const digitsOnly = (v: string) => v.replace(/[^0-9]/g, "");
+  if (decimalAt === -1) return digitsOnly(cleaned);
+  const int = digitsOnly(cleaned.slice(0, decimalAt));
+  // Fazla ondalık yazarken kırpılır (DB Decimal(18,2)).
+  const dec = digitsOnly(cleaned.slice(decimalAt + 1)).slice(0, MONEY_DECIMALS);
+  return `${int}.${dec}`;
 }
 
 type Props = Omit<

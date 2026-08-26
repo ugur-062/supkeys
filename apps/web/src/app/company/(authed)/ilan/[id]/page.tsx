@@ -283,10 +283,14 @@ export default function ListingDetailPage() {
       return;
     }
     if (
+      // #6 (denetim 2026-08-26 Parça 10): metin geri alınamazlığı SÖYLEMİYORDU.
+      // Un-award bilinçli olarak yok (CLAUDE.md §7) — aynı işlemin asistan
+      // yolu bunu açıkça yazıyor, arayüz yazmıyordu.
       !(await confirm({
         title: "Kazandır",
-        description: `"${bidderName}" kazandırılsın mı? Sipariş oluşacak.`,
-        confirmLabel: "Kazandır",
+        description: `"${bidderName}" kazandırılsın mı? Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder (LOST) ve sipariş oluşur.`,
+        confirmLabel: "Evet, kazandır",
+        destructive: true,
       }))
     )
       return;
@@ -489,13 +493,16 @@ export default function ListingDetailPage() {
     }
     const skipped = items.length - itemAwards.length;
     if (
+      // #6: kalem-bazlı kazandırma da geri alınamaz.
       !(await confirm({
         title: "Kalem-bazlı kazandır",
         description:
-          skipped > 0
-            ? `${itemAwards.length} kalem kazandırılacak, ${skipped} kalem (seçilmeyen/teklifsiz) atlanacak. Devam?`
-            : "Kalem-bazlı kazandırılsın mı? Kazanan firma başına sipariş oluşur.",
-        confirmLabel: "Kazandır",
+          (skipped > 0
+            ? `${itemAwards.length} kalem kazandırılacak, ${skipped} kalem (seçilmeyen/teklifsiz) atlanacak. `
+            : "Kalem-bazlı kazandırılsın mı? ") +
+          "Bu işlem GERİ ALINAMAZ: kazanan firma başına sipariş oluşur, kazanmayan teklifler kaybeder.",
+        confirmLabel: "Evet, kazandır",
+        destructive: true,
       }))
     )
       return;

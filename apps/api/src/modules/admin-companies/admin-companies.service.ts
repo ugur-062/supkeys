@@ -2,6 +2,7 @@ import { PAID_TIERS, maskIban } from "@rothern/shared";
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -1867,11 +1868,25 @@ export class AdminCompaniesService {
     input: {
       status: "RESOLVED" | "DISMISSED";
       adminNote?: string;
+      /**
+       * Firmayı askıya al. DİKKAT: askıya alma `POST companies/:id/suspend`
+       * ucunda SUPER_ADMIN'e kilitlidir; bu bayrak o kapıyı DOLANMAMALIDIR
+       * (denetim 2026-08-26 Parça 10 #2) — bu yüzden `actorRole` şart.
+       */
       suspend?: boolean;
       suspendReason?: string;
     },
     adminId: string,
+    actorRole?: string,
   ) {
+    // #2: `suspend` bayrağı, SUPER_ADMIN'e kilitli askıya alma yetkisini
+    // SALES'e açan bir yan kapıydı (üstelik `unsuspend` SUPER-only olduğu için
+    // SALES yaptığını GERİ ALAMIYORDU). Kapı burada, yan etkinin yanında.
+    if (input.suspend && actorRole !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Firma askıya alma yetkisi yalnız SUPER_ADMIN'dedir — şikayeti askıya almadan sonuçlandırabilirsiniz",
+      );
+    }
     const c = await this.prisma.companyComplaint.findUnique({
       where: { id },
       select: { id: true, againstCompanyId: true, status: true },

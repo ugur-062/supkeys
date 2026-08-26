@@ -541,6 +541,7 @@ export class AdminCompaniesController {
     @Body() dto: ResolveComplaintDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    return this.service.resolveComplaint(id, dto, admin.id);
+    // #2: aktörün ROLÜ servise geçer — `suspend` bayrağı SUPER_ADMIN ister.
+    return this.service.resolveComplaint(id, dto, admin.id, admin.role);
   }
 }

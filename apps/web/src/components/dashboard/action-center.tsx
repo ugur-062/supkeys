@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { ErrorState } from "@/components/ui/error-state";
 
 /**
  * Aksiyon Merkezi (Faz 2) — "bugün ne yapmalıyım" TEK uyarı sistemi. Veri +
@@ -72,6 +73,19 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
   if (query.isLoading) {
     return (
       <div className="h-32 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
+    );
+  }
+  // #4 (denetim 2026-08-26 Parça 10): hata dalı YOKTU — istek başarısız
+  // olunca `data` undefined kalıyor, satır sayısı 0 çıkıyor ve panel YEŞİL
+  // onay ikonuyla "Bekleyen bir işiniz yok" basıyordu. Kullanıcı onay
+  // bekleyen ihaleyi/geciken siparişi görmeden süreyi kaçırıyordu.
+  if (query.isError) {
+    return (
+      <ErrorState
+        title="Aksiyon merkezi yüklenemedi"
+        message="Bekleyen işleriniz alınamadı — bu listenin boş olduğu anlamına GELMEZ."
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 

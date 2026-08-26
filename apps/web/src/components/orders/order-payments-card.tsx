@@ -30,6 +30,7 @@ import {
 } from "@/lib/tenders/labels";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { toast } from "sonner";
 
 const PAYMENT_STATUS: Record<
@@ -73,6 +74,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);
+  const confirm = useConfirm();
 
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -138,6 +140,25 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   // Reddedilecek ödeme kaydının id'si — set edilince ReasonDialog açılır
   // (native window.prompt yerine uygulama diyaloğu).
   const [rejectId, setRejectId] = useState<string | null>(null);
+
+  /** Tutarı erişilebilir ad ve onay metni için biçimler. */
+  const amountLabel = (amount: number | string) =>
+    `${Number(amount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${curSym}`;
+
+  /**
+   * #5: "Ödemeyi Aldım" GERİ ALINAMAZ (backend `paymentDecision` atomik CAS
+   * ile CONFIRMED yazar, AWAITING'e dönüş yolu yok) → tutarı gösteren onay.
+   */
+  const confirmReceipt = async (p: { id: string; amount: number | string }) => {
+    const ok = await confirm({
+      title: "Ödemeyi aldım",
+      description: `${amountLabel(p.amount)} tutarındaki ödemeyi tahsil ettiğinizi onaylıyor musunuz? Bu işlem GERİ ALINAMAZ: borç kapanır ve alıcının ödeme yükümlülüğü düşer.`,
+      confirmLabel: "Evet, tahsil ettim",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runDecision(p.id, "confirm");
+  };
 
   const runDecision = async (
     paymentId: string,
@@ -326,11 +347,16 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   </span>
                   {canAct && isSeller && p.status === "AWAITING_CONFIRMATION" ? (
                     <>
+                      {/* #5 (denetim 2026-08-26 Parça 10): bu aksiyon tek
+                          tıkla, onaysız ve GERİ ALINAMAZ idi (backend CAS ile
+                          CONFIRMED yazıyor, dönüş yolu yok) — üstelik 28px ve
+                          adsızdı. Kardeşi "Reddet" zaten diyalogdan geçiyordu. */}
                       <button
                         type="button"
-                        onClick={() => runDecision(p.id, "confirm")}
+                        onClick={() => void confirmReceipt(p)}
                         disabled={decide.isPending}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-success-50 text-success-600 hover:bg-success-500/10 disabled:opacity-50"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-success-50 text-success-600 hover:bg-success-500/10 disabled:opacity-50"
+                        aria-label={`${amountLabel(p.amount)} tutarındaki ödemeyi aldım olarak işaretle`}
                         title="Ödemeyi Aldım"
                       >
                         <Check className="h-4 w-4" />
@@ -339,7 +365,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                         type="button"
                         onClick={() => setRejectId(p.id)}
                         disabled={decide.isPending}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-danger-50 text-danger-600 hover:bg-danger-500/10 disabled:opacity-50"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-danger-50 text-danger-600 hover:bg-danger-500/10 disabled:opacity-50"
+                        aria-label={`${amountLabel(p.amount)} tutarındaki ödemeyi reddet`}
                         title="Reddet"
                       >
                         <X className="h-4 w-4" />

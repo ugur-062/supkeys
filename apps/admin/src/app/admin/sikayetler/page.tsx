@@ -63,6 +63,11 @@ function SikayetlerView() {
   // yapabilir (liste AllowAnyAdminRole) ama Çöz/Reddet butonlarını GÖRMEZ.
   const { admin } = useAdminAuth();
   const canResolve = canAdminDo(admin?.role, "resolveComplaint");
+  // #2 (denetim 2026-08-26 Parça 10): "Çöz & Askıya Al" iki yetki birden
+  // kullanır. Düğme `resolveComplaint` ile kapılıydı, oysa askıya alma
+  // SUPER_ADMIN'e kilitli — SALES bu düğmeden firmayı askıya alabiliyor ve
+  // (unsuspend SUPER-only olduğu için) GERİ ALAMIYORDU.
+  const canSuspend = canAdminDo(admin?.role, "suspend");
   const [status, setStatus] = useState("OPEN");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -224,23 +229,25 @@ function SikayetlerView() {
                     <TableCell>
                       {c.status === "OPEN" && canResolve ? (
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="danger"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() =>
-                              act(
-                                c,
-                                "RESOLVED",
-                                true,
-                                "Çözüldü & askıya alındı",
-                                "Çöz & Askıya Al",
-                              )
-                            }
-                          >
-                            Çöz & Askıya Al
-                          </Button>
+                          {canSuspend ? (
+                            <Button
+                              type="button"
+                              variant="danger"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() =>
+                                act(
+                                  c,
+                                  "RESOLVED",
+                                  true,
+                                  "Çözüldü & askıya alındı",
+                                  "Çöz & Askıya Al",
+                                )
+                              }
+                            >
+                              Çöz & Askıya Al
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             size="sm"
