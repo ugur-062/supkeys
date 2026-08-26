@@ -95,11 +95,18 @@ class RejectDto {
   reason?: string;
 }
 
-/** Belge bazlı inceleme kararları — { [docKind]: { status, reason? } }. */
+/**
+ * Belge bazlı inceleme kararları — { [docKind]: { status, reason?, key? } }.
+ * `key` = incelenen nesnenin R2 anahtarı (denetim 2026-08-26 Parça 9 #3):
+ * gönderilirse karar O nesneye sabitlenir; arada belge değişmişse 409 döner.
+ */
 class ReviewDocsDto {
   @IsObject()
   decisions!: Partial<
-    Record<DocKind, { status: "APPROVED" | "REJECTED"; reason?: string }>
+    Record<
+      DocKind,
+      { status: "APPROVED" | "REJECTED"; reason?: string; key?: string }
+    >
   >;
 }
 

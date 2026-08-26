@@ -14,6 +14,7 @@ export const NOTIFICATION_PREFS: { key: string; label: string }[] = [
   { key: "listingClosed", label: "Katıldığım ihale kapandığında" },
   { key: "categoryMatch", label: "Kategorime uygun yeni ihale açıldığında" },
   { key: "approvalPending", label: "Onayım beklendiğinde" },
+  { key: "announcement", label: "Platform duyuruları" },
 ];
 
 /**

@@ -92,6 +92,8 @@ export class AdminStaffService {
       entityType: "platform_admin",
       entityId: admin.id,
       metadata: { email, role: input.role },
+      // #10 (Parça 9): admin yetki yolu — audit yazımı düşerse alarm.
+      critical: true,
     });
     // Parola audit'e/log'a YAZILMAZ — yalnız yanıt gövdesinde.
     return { ok: true, id: admin.id, tempPassword: password };
@@ -113,6 +115,8 @@ export class AdminStaffService {
       entityType: "platform_admin",
       entityId: id,
       metadata: { from: target.role, to: role },
+      // #10 (Parça 9): admin yetki yolu — audit yazımı düşerse alarm.
+      critical: true,
     });
     return { ok: true };
   }
@@ -135,6 +139,7 @@ export class AdminStaffService {
       actorId,
       entityType: "platform_admin",
       entityId: id,
+      critical: true,
     });
     return { ok: true };
   }
@@ -160,6 +165,8 @@ export class AdminStaffService {
       actorId,
       entityType: "platform_admin",
       entityId: id,
+      // #10 (Parça 9): admin yetki yolu — audit yazımı düşerse alarm.
+      critical: true,
     });
     return { ok: true, tempPassword: password };
   }

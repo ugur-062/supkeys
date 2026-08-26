@@ -15,6 +15,11 @@ export const NOTIFICATION_PREF_KEYS = [
   "listingClosed",
   "categoryMatch",
   "approvalPending",
+  // Platform duyuruları (denetim 2026-08-26 Parça 9 #15): admin segment
+  // duyurusu (`admin_announcement`) tercih haritasında HİÇ yoktu → bu
+  // dosyanın kuralı gereği TRANSACTIONAL (kapatılamaz) sayılıyordu. Oysa
+  // tier/ülke segmentli duyuru ticari ilettir; kullanıcı kapatabilmeli.
+  "announcement",
 ] as const;
 
 export type NotificationPrefKey = (typeof NOTIFICATION_PREF_KEYS)[number];
@@ -38,6 +43,7 @@ const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
   listing_evaluation_reminder: "reminder",
   listing_category_match: "categoryMatch",
   approval_pending: "approvalPending",
+  admin_announcement: "announcement",
   // Aşağıdakiler bilinçli olarak listelenmez → transactional:
   //   password_reset, referral_invite, bid_awarded, order_status_changed
 };

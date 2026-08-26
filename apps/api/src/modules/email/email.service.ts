@@ -32,7 +32,7 @@ export interface SendEmailInput {
  * hash'lemenin (tokenHash/codeHash) tüm amacını boşa çıkarırdı. Bu tiplerde
  * payload maskeli yazılır; gerçek veri yalnız o an render için kullanılır.
  */
-const REDACTED_CONTEXT_TYPES = new Set([
+export const REDACTED_CONTEXT_TYPES = new Set([
   "password_reset",
   "login_2fa",
   "email_verify",
@@ -157,6 +157,8 @@ export class EmailService implements OnModuleInit {
     }
 
     // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
+    // NOT: bu payload ile YENİDEN GÖNDERİM yapılamaz — admin-email-logs.resend
+    // bu tipleri reddeder (denetim 2026-08-26 Parça 9 #2).
     const logPayload =
       input.context && REDACTED_CONTEXT_TYPES.has(input.context.type)
         ? { __redacted: "hassas içerik (token/kod) loglanmaz" }

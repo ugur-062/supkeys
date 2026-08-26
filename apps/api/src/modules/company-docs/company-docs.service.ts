@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
@@ -79,6 +80,8 @@ const ALLOWED_MIME = [
 
 @Injectable()
 export class CompanyDocsService {
+  private readonly logger = new Logger(CompanyDocsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -216,7 +219,12 @@ export class CompanyDocsService {
     // revizyona düşer, admin onaylarsa geçerli olur; firma VERIFIED kalır.
     const company = (await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { companyVerificationStatus: true, [DOC_META[k].status]: true },
+      select: {
+        companyVerificationStatus: true,
+        [DOC_META[k].status]: true,
+        // #8: ezilecek eski nesnenin anahtarı (öksüz kalmasın).
+        [DOC_META[k].url]: true,
+      },
     })) as
       | ({ companyVerificationStatus: CompanyVerificationStatus } & Record<
           string,
@@ -246,6 +254,7 @@ export class CompanyDocsService {
     );
     // KEY saklanır (public URL değil); okurken presigned GET üretilir. Yeniden
     // yüklenen (reddedilmiş) belge PENDING'e döner, red gerekçesi temizlenir.
+    const previousKey = company[DOC_META[k].url] as string | null;
     await this.prisma.company.update({
       where: { id: companyId },
       data: {
@@ -254,6 +263,20 @@ export class CompanyDocsService {
         [DOC_META[k].reason]: null,
       },
     });
+    // #8 (denetim 2026-08-26 Parça 9): ezilen eski nesne R2'da öksüz kalıyor
+    // ve KVKK purge'ü yalnız GÜNCEL anahtarları topladığı için imhadan
+    // kurtuluyordu. Best-effort sil (hata akışı bozmaz).
+    if (previousKey && previousKey !== key) {
+      await this.storage
+        .deleteObject("private", previousKey)
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Eski KYC belgesi silinemedi (${companyId}/${k}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+    }
     // INV-AUDIT-1: KYC belge yüklemesi iz bırakır (tür adı; key/URL yazılmaz).
     await this.audit.log({
       action: "company.docs.uploaded",

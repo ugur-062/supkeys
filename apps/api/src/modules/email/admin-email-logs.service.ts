@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import type { EmailTemplateData } from "@rothern/email";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
-import { EmailService } from "./email.service";
+import { EmailService, REDACTED_CONTEXT_TYPES } from "./email.service";
 import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 
 @Injectable()
@@ -25,9 +29,29 @@ export class AdminEmailLogsService {
         toName: true,
         subject: true,
         payload: true,
+        contextType: true,
       },
     });
     if (!log) throw new NotFoundException("E-posta kaydı bulunamadı");
+
+    // Denetim 2026-08-26 Parça 9 #2: tek-kullanımlık sır taşıyan tiplerde
+    // `payload` DB'ye MASKELİ yazılır (`{__redacted:…}`) — bu payload'la
+    // yeniden gönderim, kullanıcıya kodu/token'ı OLMAYAN bir e-posta yollar
+    // (ya da render'da patlar) ve admin'e sahte bir "gönderildi" gösterirdi.
+    // Doğru kurtarma yolu yeni bir kod/davet ÜRETMEK; burada net şekilde
+    // reddedip admin'i oraya yönlendiriyoruz.
+    const redactedPayload =
+      !!log.payload &&
+      typeof log.payload === "object" &&
+      "__redacted" in (log.payload as Record<string, unknown>);
+    if (
+      (log.contextType && REDACTED_CONTEXT_TYPES.has(log.contextType)) ||
+      redactedPayload
+    ) {
+      throw new BadRequestException(
+        "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (parola sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
+      );
+    }
 
     const result = await this.emailService.send({
       to: { email: log.toEmail, name: log.toName ?? undefined },

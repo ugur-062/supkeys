@@ -112,6 +112,8 @@ describe("admin firma detayı — suppressions rozeti", () => {
   function adminService() {
     const storage = {
       presignStoredObject: jest.fn(async () => null),
+      // Parça 9 #7: KYC önizlemesi satır-içi presign kullanıyor (aynı davranış).
+      presignInlinePreview: jest.fn(async () => null),
     };
     return new AdminCompaniesService(
       prisma as never,

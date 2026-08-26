@@ -69,9 +69,48 @@ export class AdminInspectionService {
   // Not: dönüş tipi bilinçli gevşek — Prisma Decimal iç tipleri TS2742
   // (taşınabilirlik) hatası veriyor; sözleşme FE interface'lerinde.
   async listingDetail(id: string): Promise<Record<string, unknown>> {
+    // Bu uç bilinçli olarak SUPPORT dahil TÜM admin rollerine açık
+    // (admin-route-authz-wiring.spec sözleşmesi) → payload MİNİMUM tutulur.
+    // Denetim 2026-08-26 Parça 9 #16: burada eskiden ham `include` vardı, yani
+    // ilanın TÜM kolonları dönüyordu — `internalNotes` (şemada "yalnızca açan
+    // firma görür") ve `logistics` Json'ındaki adres/iletişim dahil, üstelik
+    // ileride eklenecek her kolon otomatik sızacak şekilde. Kardeş uç
+    // `orderDetail` Parça 3 #3'te aynı gerekçeyle açık `select`e çevrilmişti;
+    // bu metot atlanmıştı.
     const l = await this.prisma.listing.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        number: true,
+        companyId: true,
+        title: true,
+        description: true,
+        type: true,
+        format: true,
+        status: true,
+        visibility: true,
+        isInternational: true,
+        closesAt: true,
+        bidsOpenAt: true,
+        publishedAt: true,
+        awardedAt: true,
+        cancelReason: true,
+        currentRound: true,
+        primaryCurrency: true,
+        allowedCurrencies: true,
+        requireAllItems: true,
+        requireBidDocument: true,
+        isSealedBid: true,
+        deliveryTerm: true,
+        paymentCategory: true,
+        paymentTiming: true,
+        advancePercent: true,
+        paymentDays: true,
+        lcType: true,
+        lcConfirmed: true,
+        requireGuaranteeLetter: true,
+        createdAt: true,
+        updatedAt: true,
         company: { select: { id: true, name: true, rothernId: true } },
         items: {
           select: {

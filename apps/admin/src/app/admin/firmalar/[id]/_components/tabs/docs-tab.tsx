@@ -127,10 +127,13 @@ export function DocsTab({
     const payload: Partial<Record<DocKind, DocDecision>> = {};
     for (const k of required) {
       const dec = decisions[k]!;
+      // #3: EKRANDA GÖRÜLEN nesnenin anahtarı karara iliştirilir — arada firma
+      // belgeyi değiştirdiyse API 409 döner (görülmeyen belge onaylanmaz).
+      const key = data.docKeys?.[k] ?? undefined;
       payload[k] =
         dec.status === "REJECTED"
-          ? { status: "REJECTED", reason: dec.reason!.trim() }
-          : { status: "APPROVED" };
+          ? { status: "REJECTED", reason: dec.reason!.trim(), key }
+          : { status: "APPROVED", key };
     }
     review.mutate(
       { id: companyId, decisions: payload },

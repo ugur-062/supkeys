@@ -167,6 +167,8 @@ export interface AdminCompanyDetail {
   iban: string | null;
   ibanHolder: string | null;
   docTaxPlateUrl: string | null;
+  /** Belge kindi → R2 anahtarı (presigned URL nesneyi tanımlamaz; bkz. #3). */
+  docKeys?: Partial<Record<DocKind, string | null>>;
   docTaxPlateStatus: DocStatus;
   docTaxPlateReason: string | null;
   docTradeRegistryUrl: string | null;
@@ -222,6 +224,12 @@ export type DocStatus = "PENDING" | "APPROVED" | "REJECTED";
 export interface DocDecision {
   status: "APPROVED" | "REJECTED";
   reason?: string;
+  /**
+   * İncelenen nesnenin R2 anahtarı (denetim 2026-08-26 Parça 9 #3). Karar bu
+   * nesneye sabitlenir; ekran açıkken firma belgeyi değiştirdiyse API 409
+   * döner — admin görmediği bir belgeyi onaylamış olmaz.
+   */
+  key?: string | null;
 }
 
 /** Belge bazlı inceleme kararlarını kaydeder (onayla/reddet). */
@@ -427,6 +435,12 @@ export interface MembershipReport {
     expires: number;
     monthsGranted: number;
   };
+  /**
+   * Liste tavana takıldıysa true (denetim 2026-08-26 Parça 9 #14). TOPLAMLAR
+   * her hâlükârda TÜM eşleşen kayıtlardan gelir — kesilen yalnız satır listesi.
+   */
+  truncated?: boolean;
+  totalMatching?: number;
 }
 
 export function useMembershipReport(from?: string, to?: string) {

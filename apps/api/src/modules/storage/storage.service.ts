@@ -279,6 +279,54 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
   }
 
+  /**
+   * SATIR-İÇİ önizleme URL'i — YALNIZ KYC belge incelemesi gibi, admin'in
+   * belgeyi görmesi gereken yerler için (denetim 2026-08-26 Parça 9 #7).
+   *
+   * Parça 5'ten beri her presigned GET koşulsuz `attachment` + octet-stream
+   * basıyordu; bu, XSS'i kapatırken admin önizlemesini de kapatmıştı — her
+   * KYC belgesi (kimlik ön/arka dahil) inceleyenin diskine inmek zorunda
+   * kalıyordu, yani Parça 5'in amaçladığının tersi bir veri yayılımı.
+   *
+   * XSS'i asıl kapatan `attachment` DEĞİL, yanıt içerik tipinin SUNUCU
+   * tarafından sabitlenmesidir: burada tip nesnenin (istemci imzalı PUT'ta
+   * seçebildiği) kendi content-type'ından DEĞİL, anahtarın uzantısından ve
+   * KATI bir beyaz listeden gelir. Uzantı beyaz listede yoksa `attachment`
+   * davranışına düşeriz. Böylece nesne gerçekte text/html olsa bile tarayıcı
+   * onu application/pdf olarak görür ve script çalışmaz.
+   */
+  async presignInlinePreview(
+    bucket: BucketKind,
+    value: string | null | undefined,
+    originalFilename?: string,
+  ): Promise<string | null> {
+    if (!value) return null;
+    const key = this.resolveStoredKey(value);
+    if (!key) return null;
+    const ext = key.split(".").pop()?.toLowerCase() ?? "";
+    const INLINE_SAFE: Record<string, string> = {
+      pdf: "application/pdf",
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      webp: "image/webp",
+    };
+    const contentType = INLINE_SAFE[ext];
+    if (!contentType) {
+      return this.generatePresignedGet(bucket, key, originalFilename);
+    }
+    this.assertKeyBucket(bucket, key);
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName(bucket),
+      Key: key,
+      ResponseContentDisposition: `inline; filename="${encodeURIComponent(
+        originalFilename ?? key.split("/").pop() ?? "belge",
+      )}"`,
+      ResponseContentType: contentType,
+    });
+    return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
+  }
+
   async checkExists(
     bucket: BucketKind,
     key: string,
@@ -418,6 +466,16 @@ export class StorageService implements OnModuleInit {
     originalFilename?: string,
   ): Promise<string | null> {
     if (!value) return null;
+    const key = this.resolveStoredKey(value);
+    if (!key) return null;
+    return this.generatePresignedGet(bucket, key, originalFilename);
+  }
+
+  /**
+   * DB'de saklanan değer (key ya da legacy tam URL) → key. Domain-only legacy
+   * değerlerde null. (presignStoredObject + presignInlinePreview ortak.)
+   */
+  private resolveStoredKey(value: string): string | null {
     let key = value;
     const schemeIdx = value.indexOf("://");
     if (schemeIdx !== -1) {
@@ -426,8 +484,7 @@ export class StorageService implements OnModuleInit {
       if (slash === -1) return null; // domain-only, key çıkarılamaz
       key = decodeURIComponent(afterScheme.slice(slash + 1).split("?")[0]!);
     }
-    if (!key) return null;
-    return this.generatePresignedGet(bucket, key, originalFilename);
+    return key || null;
   }
 
   /**

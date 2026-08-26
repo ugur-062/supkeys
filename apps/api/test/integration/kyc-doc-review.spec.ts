@@ -18,6 +18,10 @@ function storageMock() {
     presignStoredObject: jest.fn(async (_bucket: string, v: string | null) =>
       v ? `https://r2/presigned/${v}` : null,
     ),
+    // Parça 9 #7: KYC önizlemesi satır-içi presign kullanıyor (aynı davranış).
+    presignInlinePreview: jest.fn(async (_bucket: string, v: string | null) =>
+      v ? `https://r2/presigned/${v}` : null,
+    ),
     checkExists: jest.fn(async () => ({
       exists: true,
       size: 1024,

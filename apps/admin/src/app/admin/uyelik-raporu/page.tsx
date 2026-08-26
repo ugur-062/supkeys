@@ -58,6 +58,9 @@ function RaporView() {
   const rows = query.data?.rows ?? [];
   const t = query.data?.totals;
 
+  const truncated = query.data?.truncated ?? false;
+  const totalMatching = query.data?.totalMatching ?? rows.length;
+
   return (
     <div className="max-w-[1100px] space-y-6">
       <PageHeader
@@ -182,6 +185,20 @@ function RaporView() {
             value={t.monthsGranted.toLocaleString("tr-TR")}
             accent="emerald"
           />
+        </div>
+      ) : null}
+
+      {/*
+        #14 (denetim 2026-08-26 Parça 9): liste tavana takıldıysa SÖYLE.
+        Toplam kartları tüm evrenden hesaplandığı için doğru; kesilen yalnız
+        aşağıdaki satır listesi (ve dolayısıyla CSV çıktısı).
+      */}
+      {truncated ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Bu aralıkta {totalMatching.toLocaleString("tr-TR")} hareket var; aşağıda
+          (ve CSV&apos;de) yalnız en yeni {rows.length.toLocaleString("tr-TR")}{" "}
+          tanesi listeleniyor. Yukarıdaki toplamlar hareketlerin TAMAMINI kapsar —
+          daha dar bir tarih aralığı seçerek listenin tümünü görebilirsiniz.
         </div>
       ) : null}
 
