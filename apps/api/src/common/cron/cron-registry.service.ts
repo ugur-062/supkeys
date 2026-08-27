@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { reportToSentry } from "../../instrument";
 
 export interface CronRunRecord {
   /** İnsan-okur ad (admin Sistem Sağlığı sayfasında gösterilir). */
@@ -69,6 +70,23 @@ export async function trackCronRun(
     registry?.recordRun(key);
   } catch (err) {
     registry?.recordRun(key, err);
+    /**
+     * Denetim 2026-08-27 Parça 11 #2: cron hataları HİÇBİR alarma ulaşmıyordu.
+     * `@nestjs/schedule` işi `CronJob.from({...options, onTick})` ile kuruyor
+     * ve `errorHandler` GEÇMİYOR; `cron@4` reddi kendi yakalayıp ham
+     * `console.error("[Cron] error in callback")` basıyor. Yani hata (a) Pino
+     * JSON hattının dışında kalıyor (reqId'siz, redaction'sız), (b) cron zaten
+     * yakaladığı için `unhandledRejection` ağına da düşmüyor. Sonuç: her dakika
+     * patlayan bir iş (ör. ihale kapatma) günlerce sessizce ölü kalabiliyordu;
+     * tek iz, bir adminin Sistem sayfasını açıp rozeti görmesiydi (o kayıt da
+     * süreç-ömürlü). Alarm zincirini burada, tek noktadan bağlıyoruz.
+     */
+    const reason = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    new Logger("Cron").error(`[CRON-HATA] ${key}: ${reason}`);
+    reportToSentry(`[CRON-HATA] ${key}`, "error", {
+      tags: { cron: key },
+      extra: { reason: reason.slice(0, 2000) },
+    });
     throw err;
   }
 }

@@ -653,8 +653,10 @@ export class DashboardAnalyticsService {
         for (const b of bids) {
           const d = decidedAt(b);
           if (d) {
-            if (d >= w.start && d < w.end)
-              b.status === "LOST" ? lost++ : won++;
+            if (d >= w.start && d < w.end) {
+              if (b.status === "LOST") lost++;
+              else won++;
+            }
           } else if (b.createdAt >= w.start && b.createdAt < w.end) {
             pending++;
           }

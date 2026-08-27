@@ -29,9 +29,14 @@ services:
       # (throttle/audit). Self-host/CF'siz kurulumda false bırak.
       - key: TRUST_CF_CONNECTING_IP
         value: "true"
-      # İlk deploy: admin tohumla. Tohumlandıktan sonra false yapıp yeniden deploy et.
+      # İlk deploy: admin tohumla (INITIAL_ADMIN_*). Tohumlandıktan sonra
+      # dashboard'dan kapat. Denetim 2026-08-27 Parça 11: burada sabit "true"
+      # duruyordu ve entrypoint HER konteyner boot'unda (Render free uykudan
+      # uyanış dahil) seed koşuyordu. Artık `sync: false` — blueprint yeniden
+      # senkronlandığında dashboard'daki değeri EZMEZ; ayrıca seed.ts prod'da
+      # demo firmaları artık atlıyor.
       - key: RUN_SEED
-        value: "true"
+        sync: false
       # ── DB (Supabase) — dashboard'da doldur ──
       - key: DATABASE_URL # transaction pooler (6543, pgbouncer)
         sync: false
@@ -81,8 +86,23 @@ services:
         sync: false
       - key: ADMIN_URL
         sync: false
-      - key: COOKIE_DOMAIN # boş bırak (varsayılan host) veya .rothern.com
+      # Prod'da ZORUNLU: assertProdConfigSanity `lax` + dolu COOKIE_DOMAIN
+      # ister; unset bırakılırsa efektif "none" olur ve boot REDDEDİLİR.
+      - key: COOKIE_SAMESITE
+        value: lax
+      - key: COOKIE_DOMAIN # prod'da ZORUNLU (.rothern.com) — boş bırakılamaz
         sync: false
+      # 2FA sırlarının şifreleme anahtarı. Verilmezse JWT_SECRET'ten TÜRETİLİR
+      # → JWT_SECRET rotasyonu TÜM 2FA sırlarını çözülemez hale getirir.
+      # Rotasyondan ÖNCE bunu eski değerle sabitleyin.
+      - key: TOTP_ENC_KEY
+        sync: false
+      # ⚠️ TEK FAIL-OPEN SERVİS: boşsa error tracking VE kritik-audit/webhook/
+      # cron alarmlarının TAMAMI sessiz no-op olur (uygulama sorunsuz boot eder).
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
       # ── İlk admin (RUN_SEED=true iken kullanılır; prod'da zayıf parola reddedilir) ──
       - key: INITIAL_ADMIN_EMAIL
         sync: false

@@ -250,4 +250,23 @@ async function bootstrap() {
   bootstrapLogger.log(`   CORS origins: ${corsOrigins.join(", ")}`);
 }
 
-bootstrap();
+/**
+ * Denetim 2026-08-27 Parça 11: `bootstrap()` REDDİ artık ölümcül.
+ *
+ * Parça 1'de eklenen `process.on("unhandledRejection")` ağı (yukarıda), Node'un
+ * varsayılan çökme davranışını devre dışı bırakıyor. Ağ `bootstrap()`'ın İÇİNDE
+ * ve config guard'larından ÖNCE kurulduğu için, `checkJwtSecret` /
+ * `assertProdWebUrl` / `assertProdConfigSanity` / R2 `HeadBucket` /
+ * `EmailService.getOrThrow` gibi FAIL-CLOSED kapıların throw'ları yutuluyor ve
+ * süreç BAŞARI koduyla (exit 0) bitiyordu — yani "yanlış yapılandırmada deploy
+ * patlasın" garantisi sessizce kırılmıştı. Bu `.catch` onu geri veriyor.
+ */
+bootstrap().catch((err: unknown) => {
+  new Logger("Bootstrap").error(
+    `Uygulama başlatılamadı: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+  );
+  reportToSentry("bootstrap-failed", "error", {
+    extra: { reason: err instanceof Error ? err.message : String(err) },
+  });
+  process.exit(1);
+});

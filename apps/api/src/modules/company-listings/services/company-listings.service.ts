@@ -3397,7 +3397,7 @@ export class CompanyListingsService {
       currency: Currency | null;
       fxToBase: Prisma.Decimal | null;
     }[] = [];
-    let answersData: { questionId: string; value: string }[] = [];
+    const answersData: { questionId: string; value: string }[] = [];
 
     if (listingItems.length > 0) {
       if (!dto.items || dto.items.length === 0) {

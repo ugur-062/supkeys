@@ -3,7 +3,8 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
 import { EventEmitterModule } from "@nestjs/event-emitter";
-import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
+import { SentryModule } from "@sentry/nestjs/setup";
+import { ServerErrorSentryFilter } from "./common/logging/server-error-sentry.filter";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
@@ -210,7 +211,10 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
     // Yakalanmamış istisnaları Sentry'e raporlar, sonra normal hata yanıtına
     // devreder (DSN yoksa capture no-op; yanıt davranışı değişmez).
-    { provide: APP_FILTER, useClass: SentryGlobalFilter },
+    // Denetim 2026-08-27 Parça 11 #1: üst sınıf `'status' in exception` gördüğü
+    // için ELLE ATILAN 5xx'leri de "beklenen" sayıp atlıyordu → alt sınıf
+    // ≥500 HttpException'ları açıkça raporlar.
+    { provide: APP_FILTER, useClass: ServerErrorSentryFilter },
   ],
 })
 export class AppModule implements NestModule {

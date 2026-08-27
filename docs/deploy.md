@@ -23,7 +23,7 @@ container'lar onlara env ile bağlanır.
 
 - **Hetzner** sunucusu (CX22+ önerilir; API build node_modules ağırdır).
 - Sunucuda **Coolify** kurulu (`https://coolify.io` tek-satır installer).
-- DNS: `api` / `app` / `admin` A kayıtları sunucu IP'sine. Cloudflare kullanıyorsanız
+- DNS: `api` / `www` / `admin` A kayıtları sunucu IP'sine. Cloudflare kullanıyorsanız
   sertifika sorunlarını önlemek için başta **DNS-only (gri bulut)**, TLS oturunca proxy'e alın.
 - Supabase/Resend/R2 hesapları hazır; `.env.production.example`'daki değerler elde.
 - Repo Coolify'nin erişebildiği bir Git kaynağında (GitHub App veya deploy key).

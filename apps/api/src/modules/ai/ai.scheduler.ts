@@ -46,13 +46,43 @@ export class AiScheduler implements OnModuleInit {
     this.cronRegistry?.register(
       "ai.cleanupExtractFiles",
       "24 saatten eski geçici AI belge yüklemelerini sil (KVKK/depolama)",
-      "günlük 04:00",
+      "günlük 04:00 + boot catch-up",
     );
     this.cronRegistry?.register(
       "ai.cleanupChatSessions",
       "90 gün dokunulmamış asistan sohbetlerini sil (KVKK)",
-      "günlük 04:10",
+      "günlük 04:10 + boot catch-up",
     );
+
+    /**
+     * BOOT CATCH-UP (denetim 2026-08-27 Parça 11 #12).
+     *
+     * Bu iki iş SAKLAMA (KVKK) taahhüdünü uyguluyor: 24 saatlik geçici belge
+     * TTL'i ve 90 günlük sohbet silmesi. Sabit saatli cron (04:00/04:10 TR =
+     * 01:00/01:10 UTC) Render free planında UYKUDA KAÇAR ve `@nestjs/schedule`
+     * kaçırılan tetiklemeyi telafi etmez — TR gecesinin 04:00'ında platformun
+     * uyanık olma olasılığı düşük olduğu için silme prod'da HİÇ çalışmamış
+     * olabilir. `MembershipScheduler` bu arıza modunu zaten tanıyıp boot
+     * catch-up ekliyor (yorumu: "sabit-saatli cron uyku/restart'ta KAÇAR");
+     * aynı deseni saklama işlerine de uyguluyoruz. Her iki iş de idempotent
+     * (silme), yani fazladan koşması zararsız.
+     */
+    setTimeout(() => {
+      void this.cleanupExtractFiles().catch((err: unknown) =>
+        this.logger.warn(
+          `Boot AI belge temizliği başarısız: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+      void this.cleanupChatSessions().catch((err: unknown) =>
+        this.logger.warn(
+          `Boot AI sohbet temizliği başarısız: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }, 45_000);
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)

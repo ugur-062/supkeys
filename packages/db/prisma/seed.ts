@@ -92,6 +92,28 @@ async function main() {
 
   await ensureSuperAdmin();
 
+  /**
+   * DEMO FİRMALAR — YALNIZ PROD DIŞI (denetim 2026-08-27 Parça 11).
+   *
+   * Bu blok koşulsuzdu ve `render.yaml`'daki `RUN_SEED="true"` ile birlikte
+   * canlıya sabit parolalı (`Demo1234!`, repoda CLAUDE.md'de yazılı), GOLD
+   * paketli, VERIFIED üç firma açıyordu. Dahası `ensureAuthUser` mevcut
+   * kullanıcının parolasını GERİ YAZDIĞI için, parola elle değiştirilse bile
+   * bir sonraki seed koşusu (HER konteyner boot'u) onu tekrar `Demo1234!`
+   * yapıyordu. Prod kapısı yalnız `ensureSuperAdmin`'in zayıf-parola
+   * reddindeydi; demo kolunda hiçbir kontrol yoktu.
+   *
+   * `SEED_DEMO=true` ile bilinçli olarak zorlanabilir; varsayılan KAPALI.
+   */
+  const allowDemo =
+    process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "true";
+  if (!allowDemo) {
+    console.log(
+      "🌱 Seed tamam (production: yalnız admin tohumlandı; demo firmalar ATLANDI).",
+    );
+    return;
+  }
+
   const c1 = await ensureCompany("firma@demo.com", "Demo Firma A.Ş.", "GOLD");
   const c2 = await ensureCompany("firma2@demo.com", "İkinci Firma Ltd", "GOLD");
   const c3 = await ensureCompany("firma3@demo.com", "Üçüncü Firma", "GOLD");

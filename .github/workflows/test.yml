@@ -26,7 +26,7 @@ jobs:
   test:
     name: Test (api + typecheck)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45  # lint + 3 app build + ön yüz testleri eklendi (P11 #8)
 
     services:
       # Supabase 17.6 paritesi (docker-compose.test.yml ile aynı).
@@ -90,6 +90,42 @@ jobs:
 
       - name: Typecheck (all packages)
         run: pnpm typecheck
+
+      # Denetim 2026-08-27 Parça 11 #8: CI yalnız typecheck + api testleri
+      # koşuyordu. Ön yüz (web 57 + admin 15 test dosyası) HİÇ koşmuyor, üç
+      # app HİÇ build edilmiyordu — yani `next build` sırasında patlayan ya da
+      # yalnız ön yüz testinin yakaladığı regresyonlar CI'dan sessizce geçip
+      # doğrudan Vercel'e gidiyordu (ör. CSP nonce için zorunlu force-dynamic
+      # kaldırılırsa girişin komple kırıldığı bir sürüm yayınlanabilir).
+      - name: Lint
+        run: pnpm lint
+
+      # migrate diff BOŞ bir gölge DB ister — service container'da yalnız
+      # rothern_test var, onu kullanamayız (dolu).
+      - name: Gölge veritabanı oluştur
+        run: PGPASSWORD=rothern_test_password psql -h localhost -U rothern -d postgres -c 'CREATE DATABASE rothern_shadow;'
+
+      - name: Şema drift kapısı (migrations ≡ schema.prisma)
+        working-directory: packages/db
+        run: |
+          pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "postgresql://rothern:rothern_test_password@localhost:5432/rothern_shadow" \
+            --exit-code
+
+      - name: Ön yüz testleri (web + admin)
+        run: |
+          pnpm --filter @rothern/web test
+          pnpm --filter @rothern/admin test
+
+      - name: Build (tüm uygulamalar)
+        run: pnpm build
+        env:
+          # NEXT_PUBLIC_* derleme zamanında gömülür; build'in geçmesi için
+          # yer tutucu yeter (yayınlanan değerler Vercel proje env'inden gelir).
+          NEXT_PUBLIC_API_URL: "https://api.example.test"
+          NEXT_PUBLIC_SITE_URL: "https://www.example.test"
 
       # push (main'e her commit): düz test — coverage ~%20 yavaş, ara commit'te
       # gereksiz. Kalite kapısı (coverage + artifact + özet) yalnız pull_request'te.

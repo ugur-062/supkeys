@@ -22,6 +22,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  *
  * KURAL: Bu servis dışında HİÇBİR yerde supabase-js init edilmez.
  */
+/** Supabase Auth çağrıları için üst sınır (denetim P11 #9). */
+const SUPABASE_TIMEOUT_MS = 10_000;
+
 @Injectable()
 export class SupabaseAuthService {
   private readonly logger = new Logger(SupabaseAuthService.name);
@@ -33,15 +36,29 @@ export class SupabaseAuthService {
     const serviceRoleKey = this.requireEnv("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = this.requireEnv("SUPABASE_ANON_KEY");
 
+    /**
+     * Denetim 2026-08-27 Parça 11 #9: `auth-js`'e özel `fetch` verilmediğinde
+     * hiçbir timeout uygulanmıyor (tek tavan undici ≈ 300 sn). Supabase Auth
+     * askıda kalırsa giriş/kayıt istekleri dakikalarca tutuluyordu — üstelik
+     * login throttle penceresindeki tüm istekler aynı anda asılı kalabiliyordu.
+     */
+    const timeoutFetch: typeof fetch = (input, init) =>
+      fetch(input, {
+        ...init,
+        signal: AbortSignal.timeout(SUPABASE_TIMEOUT_MS),
+      });
+
     // Admin client — server-side. asla browser'a sızmamalı.
     this.admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: timeoutFetch },
     });
 
     // Public client — signInWithPassword gibi anonymous user'ın yapabildiği
     // şeyler için. Şifre doğrulamayı bunun üzerinden yaparız.
     this.publicClient = createClient(url, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: timeoutFetch },
     });
   }
 

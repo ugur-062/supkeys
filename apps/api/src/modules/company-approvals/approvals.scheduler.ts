@@ -25,8 +25,23 @@ export class ApprovalsScheduler implements OnModuleInit {
     this.cronRegistry?.register(
       "approvals.remind",
       "Bekleyen onaylara hatırlatma",
-      "günlük 09:00",
+      "günlük 09:00 + boot catch-up",
     );
+    /**
+     * Boot catch-up (denetim 2026-08-27 Parça 11): sabit saatli cron Render
+     * free planında uykuda KAÇAR ve telafi edilmez. `remindPending` kendi
+     * dedup'unu taşıdığı için (`lastReminderAt < now-24h`) fazladan koşum
+     * çift hatırlatma üretmez — güvenli.
+     */
+    setTimeout(() => {
+      void this.remind().catch((err: unknown) =>
+        this.logger.warn(
+          `Boot onay hatırlatma catch-up başarısız: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }, 60_000);
     this.cronRegistry?.register(
       "approvals.fallbackInactiveApprovers",
       "Pasif onaycıyı YONETICI'ye devret",

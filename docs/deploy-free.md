@@ -15,7 +15,7 @@ Demo/ilk yayın için ücretsiz stack. Sıra önemli: **Supabase → Render (API
 ## 1. Supabase (DB + Auth) — ücretsiz
 1. supabase.com → New project (region: **eu-central-1 / Frankfurt**), güçlü DB parolası.
 2. Settings → Database → Connection string:
-   - **DATABASE_URL** = Transaction pooler (port 6543, `?pgbouncer=true&connection_limit=1`)
+   - **DATABASE_URL** = Transaction pooler (port 6543, `?pgbouncer=true&connection_limit=10&pool_timeout=20`)
    - **DIRECT_URL** = Session pooler (port 5432, `?sslmode=require`)
 3. Settings → API: **SUPABASE_URL**, **SUPABASE_ANON_KEY**, **SUPABASE_SERVICE_ROLE_KEY**. (SUPABASE_JWT_SECRET kodda KULLANILMIYOR — girmeye gerek yok.)
 4. Authentication → Sign In/Up: **"Allow new users to sign up" KAPAT** (kayıt yalnız API'nin admin createUser'ı ile; anon key + GoTrue `/signup` yetim auth.users üretmesin) + Rate Limits sıkılaştır.
