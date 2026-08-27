@@ -204,17 +204,69 @@ parametre tavanı yokluğu; `email_verification_codes`/kullanılmış
 `password_reset_tokens` temizliği; `ai-extract/` anahtarlarının env öneki
 taşımaması; coverage'ın fiilen hiç ölçülmemesi.
 
+## CANLI DOĞRULAMA SONUCU (2026-08-27, salt-okuma sorgusu)
+
+Kullanıcı bilgisayarda olmadığı için canlı DB'ye **salt-okuma** sorgusu
+koşuldu (`packages/db/.env` → kök `.env` → prod Supabase pooler). Hiçbir
+yazma yapılmadı.
+
+- **Üç demo hesap da CANLIDA VAR:** `firma@demo.com`, `firma2@demo.com`,
+  `firma3@demo.com` — hepsi aktif, silinmemiş, **GOLD**, **VERIFIED**.
+  Oluşturma: 2026-07-07 (prod yayınından önce; DB dev ile PAYLAŞILDIĞI için
+  yine de canlı API'nin hizmet verdiği veritabanında).
+- **Gerçek veri üretmişler:** 28 ilan, 27 teklif, 28 sipariş.
+- **İyi haber:** üç bağlantılarının tamamı birbirlerine — gerçek firmalarla
+  bağlantıları YOK, yani izole bir küme.
+- **Ölçek:** toplam 20 firmanın 12'si `demofill.local`, 3'ü demo → **yalnız
+  5 firma gerçek**.
+- **AYRICA:** `admin@rothern.com` canlıda **aktif SUPER_ADMIN**, 2FA
+  **KAPALI**, son giriş 2026-07-07 (o günden beri kullanılmamış).
+  CLAUDE.md bu hesabın dev parolasını `admin12345` olarak yazıyor. Seed'in
+  prod zayıf-parola reddi bu parolayı kapsıyor **ama** hesap 2026-07-07'de,
+  NODE_ENV production değilken oluşturulmuş — yani parola hâlâ o olabilir.
+  *Doğrulamak için giriş denemesi YAPILMADI* (prod kimlik doğrulamasına
+  saldırı olur). Bu, bulunanlar içinde en kolay sömürülebilir madde.
+
 ## DURUM
 
-- Dalga A **UYGULANMADI** — düzeltme ONAYI bekliyor; ayrıca **#RUN_SEED için
-  canlı doğrulama** gerekiyor (repo bunu gösteremez).
-- Önerilen sıra: **RUN_SEED** (canlı kontrol + kod kapısı + `sync:false`) →
-  **#5** (`bootstrap().catch` → exit 1; tek satır, tüm boot guard'larının
-  değerini geri verir) → **#3** (`SENTRY_DSN` blueprint'e; diğer tüm alarm
-  bulgularının ön koşulu) → **#1, #2** (5xx ve cron'u Sentry'ye bağla) →
-  **#9, #10, #11** (timeout + fan-out + havuz) → **#8** (CI kapsamı) →
-  **#7, #15** (migration/geri dönüş prosedürü) → **#16** (canlı
-  `cf-connecting-ip` testi) → **#12-#14** (saklama/imha) → **#17**.
+- **Dalga A UYGULANDI (2026-08-27, `3f49891f`)** — aşağıdaki başlıkta.
+- **Canlı temizlik YAPILMADI ve yapılmamalı** — silme geri alınamaz,
+  kullanıcı onayı şart ve demo firmaların ürettiği 28 sipariş/27 teklifin
+  gerçek veriyle ilişkisi kullanıcı tarafından değerlendirilmeli.
+
+### Dalga A'da uygulananlar (`3f49891f`)
+
+`seed.ts` demo bloğu prod'da atlanıyor (`SEED_DEMO=true` ile zorlanabilir);
+`render.yaml` `RUN_SEED` → `sync: false`, ayrıca `SENTRY_DSN`,
+`COOKIE_SAMESITE=lax`, `TOTP_ENC_KEY` eklendi; `bootstrap().catch` →
+`exit 1` (boot guard'ları yeniden ölümcül); `ServerErrorSentryFilter`
+(≥500 HttpException'lar Sentry'e); `trackCronRun` cron hatalarını
+`[CRON-HATA]` + Sentry'e bağlıyor; Resend 10 sn `Promise.race`, Supabase
+Auth `AbortSignal.timeout(10sn)`; prod şablonlarında
+`connection_limit=10&pool_timeout=20`; AI saklama (04:00/04:10) ve onay
+hatırlatma (09:00) cron'larına boot catch-up; CI'ya lint + şema-drift
+kapısı + web/admin vitest + 3 app build (timeout 45 dk) ve mevcut 2 lint
+hatasının düzeltilmesi; doküman driftleri (`app.rothern.com`,
+`THROTTLE_AUTH_LIMIT=10` footgun'ı, `deploy.md` DNS, CLAUDE.md
+`_journal.json`).
+
+Testler: API 144 suite / 1256 test, web 352, admin 79 — hepsi yeşil;
+lint 0 hata; `pnpm build` 5/5; şema drift yok.
+
+### Dalga A'da UYGULANMAYAN (karar/insan gerektiriyor)
+
+- **Canlı demo hesapların ve `admin@rothern.com`'un temizliği** — yıkıcı,
+  kullanıcı kararı.
+- **Migration'ın boot'tan ayrılması** (#7) — deploy topolojisi değişikliği.
+- **PITR/restore runbook'u ve tatbikat** (#15) — Supabase panel erişimi.
+- **R2 object-lock ↔ KVKK uzlaştırması** (#13) ve bucket lifecycle (#MED).
+- **`email_events` saklama politikası** (#14) — Parça 9'un B12'siyle
+  (audit append-only) birlikte karara bağlanmalı.
+- **`cf-connecting-ip` kenar doğrulaması** (#16) — canlı test gerektiriyor
+  (`curl -H 'cf-connecting-ip: …' <render-host>/api/health`).
+- **E-posta retry/kuyruk** (#10) ve fan-out eşzamanlılık sınırı (#11'in
+  kod tarafı) — yapısal iş.
+- `fallbackInactiveApprovers` pencere düzeltmesi (#17).
 - Parça 9'dan devreden **B12** (audit_logs DB seviyesinde append-only) hâlâ
   karar bekliyor ve bu parçanın #14'üyle (saklama politikası) birlikte
   değerlendirilmeli.
