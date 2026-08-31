@@ -1,9 +1,6 @@
 "use client";
 
-import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
 import { ErrorState } from "@/components/ui/error-state";
-import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
-import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSatinalmaAnalytics,
@@ -28,6 +25,32 @@ import {
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+/**
+ * Perf turu (denetim P10 Dalga B): pano sekmeleri recharts'ı STATİK import
+ * ediyordu → grafik kütüphanesi (~100 kB gz) hiçbir grafik açılmasa bile
+ * rotanın ilk yükünde geliyordu. Headless UI zaten yalnız seçili paneli
+ * mount ediyor; eksik olan kod bölmesiydi. `ssr: false` — recharts tarayıcı
+ * ölçümüne dayanır, sunucuda çizmenin faydası yok.
+ */
+const SatinalmaIhaleTab = dynamic(
+  () =>
+    import("@/components/dashboard/satinalma-ihale-tab").then(
+      (m) => m.SatinalmaIhaleTab,
+    ),
+  { ssr: false, loading: () => <TabLoading /> },
+);
+const TasarrufTab = dynamic(
+  () => import("@/components/dashboard/tasarruf-tab").then((m) => m.TasarrufTab),
+  { ssr: false, loading: () => <TabLoading /> },
+);
+const TedarikciTab = dynamic(
+  () =>
+    import("@/components/dashboard/tedarikci-tab").then((m) => m.TedarikciTab),
+  { ssr: false, loading: () => <TabLoading /> },
+);
+
 
 const TABS = [
   { value: "ihale", label: "İhale" },

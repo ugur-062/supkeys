@@ -10,7 +10,18 @@ import {
 } from "@headlessui/react";
 import { Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AssistantPanel } from "./assistant-panel";
+import dynamic from "next/dynamic";
+
+/**
+ * Perf turu (denetim P10 Dalga B): launcher firma kabuğunda, yani HER
+ * kimlikli sayfada mount ediliyor; panel içeriği yalnız açılınca render
+ * ediliyordu ama import STATİKTİ → sohbet paneli, markdown/araç izleri ve
+ * bağımlılıkları hiç açılmasa da her sayfanın ilk yükünde geliyordu.
+ */
+const AssistantPanel = dynamic(
+  () => import("./assistant-panel").then((m) => m.AssistantPanel),
+  { ssr: false },
+);
 
 const SEAT_ROLES = ["SATIN_ALMACI", "SATISCI"];
 
