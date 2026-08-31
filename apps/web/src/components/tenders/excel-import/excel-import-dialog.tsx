@@ -25,6 +25,10 @@ import {
 import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  IMPORT_MAX_FILE_BYTES,
+  ITEM_IMPORT_MAX_CSV_BYTES,
+} from "@rothern/shared";
 
 export type ExcelImportMode = "append" | "replace";
 
@@ -129,14 +133,33 @@ export function ExcelImportDialog({
               </Button>
             </div>
             <div className="rounded-lg border border-zinc-950/10 px-3 py-2.5 text-sm text-zinc-700">
-              <strong>2.</strong> Doldurduğunuz dosyayı yükleyin (Excel .xlsx veya CSV, en fazla 5 MB)
+              <strong>2.</strong> Doldurduğunuz dosyayı yükleyin — Excel .xlsx
+              (en fazla {Math.round(IMPORT_MAX_FILE_BYTES / 1024 / 1024)} MB)
+              veya CSV (en fazla{" "}
+              {Math.round(ITEM_IMPORT_MAX_CSV_BYTES / 1024 / 1024)} MB)
             </div>
             <Dropzone
               accept=".xlsx,.csv"
               disabled={busy}
               onFiles={(fs) => {
                 const f = fs[0];
-                if (f) void run(f);
+                if (!f) return;
+                // Dalga B-5: istemcide boyut kapısı YOKTU — büyük dosya base64'e
+                // çevrilip yollanıyor, kullanıcı bekledikten sonra açıklamasız
+                // 413 alıyordu. Sunucuya gitmeden, doğru sınırla reddet.
+                const isCsv = /\.csv$/i.test(f.name);
+                const cap = isCsv
+                  ? ITEM_IMPORT_MAX_CSV_BYTES
+                  : IMPORT_MAX_FILE_BYTES;
+                if (f.size > cap) {
+                  toast.error(
+                    `Dosya çok büyük (${(f.size / 1024 / 1024).toFixed(1)} MB) — ${
+                      isCsv ? "CSV" : "Excel"
+                    } için sınır ${Math.round(cap / 1024 / 1024)} MB`,
+                  );
+                  return;
+                }
+                void run(f);
               }}
               label="Excel / CSV seç"
               hint="Kendi listeniz de olabilir — başlıklar şablondakiyle aynı olmalı (Kalem Adı, Miktar, Birim…)"

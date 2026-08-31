@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ServiceUnavailableException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -129,9 +130,17 @@ export class CompanyProfileService {
       MAX_IMAGE_BYTES,
       IMAGE_MIME,
     );
-    const url =
-      this.storage.getPublicUrl(key) ??
-      (await this.storage.resolveImageUrl(key));
+    // Dalga B-5 (P5): eskiden CDN tabanı yoksa `resolveImageUrl` ile 15 DAKİKA
+    // ömürlü bir PRESIGNED URL dönülüyordu — istemci onu `logoUrl` olarak
+    // KALICI kaydediyor, çeyrek saat sonra görsel kalıcı olarak ölüyordu
+    // (okuma yolu saklanan değeri ham döndürür, yeniden imzalamaz).
+    // Public profil görseli CDN olmadan doğru çalışamaz → fail-closed.
+    const url = this.storage.getPublicUrl(key);
+    if (!url) {
+      throw new ServiceUnavailableException(
+        "Görsel yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — görsel yüklenemedi. Lütfen sistem yöneticinize bildirin.",
+      );
+    }
     return { url };
   }
 

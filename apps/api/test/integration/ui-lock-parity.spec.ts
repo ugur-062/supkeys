@@ -92,7 +92,7 @@ describe("gönderilmiş teklifin belgeleri değiştirilemez", () => {
   }
 
   it("SUBMITTED teklife belge EKLENEMEZ (presign + kayıt)", async () => {
-    const { service } = { service: new CompanyBidDocumentsService(prisma as never, storageMock() as never) };
+    const { service } = { service: new CompanyBidDocumentsService(prisma as never, storageMock() as never, { log: jest.fn() } as never) };
     const { supplier, listing } = await setup("SUBMITTED");
     await expect(
       service.requestUploadUrl(supplier.auth, listing.id, {
@@ -110,7 +110,7 @@ describe("gönderilmiş teklifin belgeleri değiştirilemez", () => {
   });
 
   it("SUBMITTED teklifin belgesi SİLİNEMEZ — kayıt yerinde kalır", async () => {
-    const service = new CompanyBidDocumentsService(prisma as never, storageMock() as never);
+    const service = new CompanyBidDocumentsService(prisma as never, storageMock() as never, { log: jest.fn() } as never);
     const { supplier, listing, doc } = await setup("SUBMITTED");
     await expect(
       service.remove(supplier.auth, listing.id, doc.id),
@@ -121,7 +121,7 @@ describe("gönderilmiş teklifin belgeleri değiştirilemez", () => {
   });
 
   it("DRAFT teklifte belge yönetimi SERBEST (pozitif kontrol)", async () => {
-    const service = new CompanyBidDocumentsService(prisma as never, storageMock() as never);
+    const service = new CompanyBidDocumentsService(prisma as never, storageMock() as never, { log: jest.fn() } as never);
     const { supplier, listing, doc } = await setup("DRAFT");
     await expect(
       service.remove(supplier.auth, listing.id, doc.id),
@@ -226,6 +226,7 @@ describe("ihale belgeleri — kilit updateListing ile birebir", () => {
       prisma as never,
       storageMock() as never,
       new CompanyBlocksService(prisma as never, new AuditService(prisma as never)) as never,
+      { log: jest.fn() } as never,
     );
 
   it("TASLAK teklif kaydı bile belge değişikliğini kilitler (SUBMITTED şartı değil)", async () => {
@@ -306,6 +307,7 @@ describe("taslak/embargolu ilanın belgeleri indirilemez (getOne aynası)", () =
       prisma as never,
       storageMock() as never,
       new CompanyBlocksService(prisma as never, new AuditService(prisma as never)) as never,
+      { log: jest.fn() } as never,
     );
 
   async function setup(over: Record<string, unknown>) {

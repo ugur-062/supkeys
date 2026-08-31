@@ -17,6 +17,10 @@ import {
   assertUploadedObjectValid,
   MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
+import { AuditService } from "../audit/audit.service";
+
+/** Dalga B-5: teklif başına belge tavanı. */
+const MAX_DOCUMENTS_PER_BID = 30;
 
 const ALLOWED_MIME = [
   "application/pdf",
@@ -32,6 +36,7 @@ export class CompanyBidDocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly audit: AuditService,
   ) {}
 
   /** İlan teklife açık (OPEN) değilse belge değişikliği yapılamaz. */
@@ -151,6 +156,15 @@ export class CompanyBidDocumentsService {
     const listing = await this.assertListingOpen(listingId);
     this.assertBidderRole(user, listing.type);
     const bid = await this.requireOwnBid(user, listingId);
+    // Dalga B-5 (P5): teklif başına belge tavanı yoktu.
+    const existing = await this.prisma.listingBidDocument.count({
+      where: { bidId: bid.id },
+    });
+    if (existing >= MAX_DOCUMENTS_PER_BID) {
+      throw new BadRequestException(
+        `Bir teklife en fazla ${MAX_DOCUMENTS_PER_BID} belge eklenebilir — önce eskilerden silin`,
+      );
+    }
     const doc = await this.prisma.listingBidDocument.create({
       data: {
         bidId: bid.id,
@@ -160,6 +174,17 @@ export class CompanyBidDocumentsService {
         mimeType: input.mimeType,
         uploadedByCompanyId: user.companyId,
       },
+    });
+    // Dalga B-5: teklif belgesi ekleme/silme İZ BIRAKMIYORDU (KYC bırakıyor).
+    void this.audit.log({
+      action: "company.bid_document.added",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "bid_document",
+      entityId: doc.id,
+      metadata: { listingId, bidId: bid.id, fileName: doc.fileName },
     });
     return { id: doc.id };
   }
@@ -245,6 +270,16 @@ export class CompanyBidDocumentsService {
     this.assertBidderRole(user, listing.type);
     await this.storage.deleteObject("private", doc.key).catch(() => undefined);
     await this.prisma.listingBidDocument.delete({ where: { id: docId } });
+    void this.audit.log({
+      action: "company.bid_document.removed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "bid_document",
+      entityId: docId,
+      metadata: { listingId },
+    });
     return { ok: true };
   }
 }

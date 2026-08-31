@@ -29,6 +29,7 @@ export function makeDocsService() {
     prisma as never,
     storage as never,
     blocks as never,
-  );
+        { log: jest.fn() } as never,
+                  );
   return { service, storage, blocks };
 }

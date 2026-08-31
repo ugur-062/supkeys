@@ -26,6 +26,20 @@ export const ITEM_IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
  */
 export const ITEM_IMPORT_MAX_CSV_BYTES = 1024 * 1024;
 
+/**
+ * İSTEMCİ tarafı dosya tavanı (Dalga B-5, denetim P5).
+ *
+ * İçe aktarma gövdesi base64 ile gidiyor ve base64 boyutu 4/3 şişiriyor;
+ * sunucu gövde sınırı 5 MB (`main.ts` body parser). Yani gerçek dosya tavanı
+ * ~3,75 MB, ama arayüz "en fazla 5 MB" yazıyordu ve istemcide HİÇBİR boyut
+ * kontrolü yoktu: kullanıcı 4,5 MB'lık dosyayı seçiyor, base64'e çevrilmesini
+ * bekliyor ve sonunda açıklamasız bir 413 alıyordu.
+ *
+ * 3,5 MB, 5 MB gövde sınırının altında güvenli pay bırakır (base64 + JSON
+ * zarfı + diğer alanlar).
+ */
+export const IMPORT_MAX_FILE_BYTES = 3.5 * 1024 * 1024;
+
 export type ItemImportColumnKey =
   | "name"
   | "quantity"

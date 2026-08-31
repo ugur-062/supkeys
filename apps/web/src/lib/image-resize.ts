@@ -1,48 +1,72 @@
 /**
- * Tarayıcıda görsel küçültme (2026-08-22, profil editörü): telefon fotoğrafı
- * (3-8 MB, 4000px) olduğu gibi yüklenmesin — kenar ≤ maxEdge'e indirilir,
- * WebP'ye çevrilir (kalite 0.85). Küçültme başarısız olursa (SVG, bozuk dosya,
- * canvas yok) ORİJİNAL dosya döner — yükleme hiçbir zaman bu yüzden kırılmaz.
- * Zaten küçük (boyut ve piksel) dosyaya dokunulmaz.
+ * Tarayıcıda görsel küçültme + META VERİ TEMİZLİĞİ (profil editörü).
+ *
+ * Telefon fotoğrafı (3-8 MB, 4000px) olduğu gibi yüklenmesin — kenar ≤
+ * maxEdge'e indirilir ve WebP'ye çevrilir (kalite 0.85).
+ *
+ * DALGA B-5 (denetim P5) — GİZLİLİK: bu fonksiyonun asıl işlevlerinden biri
+ * canvas'tan yeniden kodlayarak EXIF'i (GPS koordinatı, çekim zamanı, cihaz
+ * seri no) DÜŞÜRMEK, ama üç kaçış deliği vardı ve hepsi ORİJİNAL dosyayı
+ * döndürüyordu:
+ *   (a) "zaten küçük" kısayolu — `scale === 1 && size <= 300KB`: küçük çekilmiş
+ *       ya da mesajlaşmadan gelmiş bir fotoğraf HİÇ dokunulmadan geçiyordu;
+ *   (b) `catch { return file }` — çözümleme hatasında orijinal yükleniyordu;
+ *   (c) "yeniden kodlama büyüttü" dalı.
+ * Profil görselleri PUBLIC CDN'den servis edildiği için bu, kullanıcının ev/
+ * şantiye konumunun herkese açık yayınlanması demekti.
+ *
+ * Yeni kural FAIL-CLOSED: desteklenen bir görsel türü her zaman canvas'tan
+ * geçer; geçemezse dosya YÜKLENMEZ, hata fırlatılır (çağıran zaten toast
+ * gösteriyor). "Biraz daha büyük dosya" kabul edilebilir, "sessizce sızan
+ * konum" değil.
  */
+export class ImageProcessingError extends Error {
+  constructor() {
+    super(
+      "Görsel işlenemedi — konum/EXIF bilgisini temizleyemediğimiz için yüklenmedi. Ekran görüntüsü alıp yeniden deneyin.",
+    );
+    this.name = "ImageProcessingError";
+  }
+}
+
 export async function resizeImageFile(
   file: File,
-  opts: { maxEdge: number; quality?: number; skipUnderBytes?: number },
+  opts: { maxEdge: number; quality?: number },
 ): Promise<File> {
   const quality = opts.quality ?? 0.85;
-  const skipUnder = opts.skipUnderBytes ?? 300 * 1024;
-  if (typeof window === "undefined" || typeof document === "undefined") return file;
-  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    throw new ImageProcessingError();
+  }
+  // Desteklenmeyen tür buraya gelmemeli (çağıran MIME süzüyor); gelirse geçme.
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    throw new ImageProcessingError();
+  }
+  let bitmap: ImageBitmap | HTMLImageElement;
   try {
-    const bitmap = await loadBitmap(file);
+    bitmap = await loadBitmap(file);
+  } catch {
+    throw new ImageProcessingError();
+  }
+  try {
     const { width, height } = bitmap;
+    // scale === 1 olsa bile yeniden kodlanır — meta veri temizliği bu adımda.
     const scale = Math.min(1, opts.maxEdge / Math.max(width, height));
-    if (scale === 1 && file.size <= skipUnder) {
-      release(bitmap);
-      return file;
-    }
     const w = Math.max(1, Math.round(width * scale));
     const h = Math.max(1, Math.round(height * scale));
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      release(bitmap);
-      return file;
-    }
+    if (!ctx) throw new ImageProcessingError();
     ctx.drawImage(bitmap as CanvasImageSource, 0, 0, w, h);
-    release(bitmap);
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/webp", quality),
     );
-    if (!blob || blob.size === 0) return file;
-    // Küçültme büyütmüşse (nadir: zaten sıkı sıkıştırılmış küçük PNG) orijinali kullan.
-    if (blob.size >= file.size && scale === 1) return file;
+    if (!blob || blob.size === 0) throw new ImageProcessingError();
     const name = file.name.replace(/\.[a-z0-9]+$/i, "") + ".webp";
     return new File([blob], name, { type: "image/webp", lastModified: Date.now() });
-  } catch {
-    return file;
+  } finally {
+    release(bitmap);
   }
 }
 

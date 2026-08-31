@@ -24,7 +24,7 @@ function makeDocsRig() {
     }),
   };
   return {
-    service: new CompanyBidDocumentsService(prisma as never, storage as never),
+    service: new CompanyBidDocumentsService(prisma as never, storage as never, { log: jest.fn() } as never),
     storage,
   };
 }

@@ -23,6 +23,10 @@ import {
   assertUploadedObjectValid,
   MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
+import { AuditService } from "../audit/audit.service";
+/** Dalga B-5: ilan başına belge tavanı (depolama/bant maliyeti freni). */
+const MAX_DOCUMENTS_PER_LISTING = 30;
+
 
 const ALLOWED_MIME = [
   "application/pdf",
@@ -41,6 +45,7 @@ export class CompanyListingDocumentsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly blocks: CompanyBlocksService,
+    private readonly audit: AuditService,
   ) {}
 
   /** İlanı görme yetkisi (getOne ile aynı kural). Yetkisizse 404. */
@@ -229,6 +234,16 @@ export class CompanyListingDocumentsService {
       MAX_UPLOAD_BYTES,
       ALLOWED_MIME,
     );
+    // Dalga B-5 (P5): ilan başına belge TAVANI yoktu — tek ilana sınırsız
+    // dosya eklenip depolama/bant maliyeti üretilebiliyordu.
+    const existing = await this.prisma.listingDocument.count({
+      where: { listingId },
+    });
+    if (existing >= MAX_DOCUMENTS_PER_LISTING) {
+      throw new BadRequestException(
+        `Bir ilana en fazla ${MAX_DOCUMENTS_PER_LISTING} belge eklenebilir — önce eskilerden silin`,
+      );
+    }
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,
@@ -238,6 +253,19 @@ export class CompanyListingDocumentsService {
         mimeType: input.mimeType,
         uploadedByCompanyId: user.companyId,
       },
+    });
+    // Dalga B-5: belge ekleme/silme İZ BIRAKMIYORDU (KYC yüklemesi bırakıyor —
+    // asimetri). Şartname/çizim uyuşmazlığında "hangi dosya ne zaman eklendi/
+    // kaldırıldı" sorusunun tek yanıtı bu iz.
+    void this.audit.log({
+      action: "company.listing_document.added",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing_document",
+      entityId: doc.id,
+      metadata: { listingId, fileName: doc.fileName, kind: doc.kind },
     });
     return { id: doc.id };
   }
@@ -303,6 +331,16 @@ export class CompanyListingDocumentsService {
       );
     });
     await this.prisma.listingDocument.delete({ where: { id: docId } });
+    void this.audit.log({
+      action: "company.listing_document.removed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing_document",
+      entityId: docId,
+      metadata: { listingId },
+    });
     return { ok: true };
   }
 }

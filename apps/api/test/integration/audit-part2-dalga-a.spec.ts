@@ -302,7 +302,8 @@ describe("#8 — Faz O dar-bağlam: roundHistory + teklif belgeleri", () => {
       {
         generatePresignedGet: jest.fn().mockResolvedValue("https://r2.test/get"),
       } as never,
-    );
+          { log: jest.fn() } as never,
+                 );
     await expect(docs.list(approver, listing.id)).rejects.toThrow();
     await expect(docs.list(owner.auth, listing.id)).resolves.toBeDefined();
   });

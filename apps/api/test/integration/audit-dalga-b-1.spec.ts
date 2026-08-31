@@ -253,3 +253,58 @@ describe("Denetim Dalga B-3", () => {
     ).toThrow(/Geçersiz görsel adresi|kendi profil deponuzdan/);
   });
 });
+
+/** Dalga B-5 — depolama & gizlilik. */
+describe("Denetim Dalga B-5", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("CDN tabanı yoksa profil görseli commit'i REDDEDİLİR (ölü presigned URL saklanmaz)", async () => {
+    const { CompanyProfileService } = await import(
+      "../../src/modules/company-profile/company-profile.service"
+    );
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const key = `test/tenant-profile/${company.id}/logo-x.webp`;
+    const storage = {
+      // R2_PUBLIC_BASE_URL yok → kalıcı URL üretilemiyor
+      getPublicUrl: jest.fn().mockReturnValue(null),
+      resolveImageUrl: jest
+        .fn()
+        .mockResolvedValue("https://r2.example/presigned?exp=900"),
+      checkExists: jest
+        .fn()
+        .mockResolvedValue({ exists: true, size: 1000, contentType: "image/webp" }),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
+      buildTenantProfileKey: jest.fn().mockReturnValue(key),
+      buildTenantProfilePrefix: jest.fn().mockReturnValue(
+        `test/tenant-profile/${company.id}/`,
+      ),
+      classifyKey: jest.fn().mockReturnValue("public"),
+    };
+    const svc = new CompanyProfileService(
+      prisma as never,
+      storage as never,
+      { resolveLabels: jest.fn() } as never,
+      { log: jest.fn() } as never,
+    );
+    await expect(
+      svc.resolveUploadedImage(company.id, key),
+    ).rejects.toThrow(/R2_PUBLIC_BASE_URL|yapılandırma/i);
+    // Eskiden 15 dk ömürlü presigned URL dönüyor, istemci onu KALICI kaydediyordu.
+    expect(storage.resolveImageUrl).not.toHaveBeenCalled();
+    void user;
+    void auth;
+  });
+
+  it("içe aktarma dosya tavanı base64 şişmesini hesaba katar", async () => {
+    const { IMPORT_MAX_FILE_BYTES, ITEM_IMPORT_MAX_CSV_BYTES } = await import(
+      "@rothern/shared"
+    );
+    // Sunucu gövde sınırı 5 MB; base64 4/3 şişirir → dosya tavanı 3,75 MB'ın altında olmalı.
+    const BODY_LIMIT = 5 * 1024 * 1024;
+    expect(IMPORT_MAX_FILE_BYTES * (4 / 3)).toBeLessThan(BODY_LIMIT);
+    // CSV tavanı ayrı ve daha düşük kalmalı (ExcelJS heap patlaması).
+    expect(ITEM_IMPORT_MAX_CSV_BYTES).toBeLessThan(IMPORT_MAX_FILE_BYTES);
+  });
+});
