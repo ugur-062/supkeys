@@ -76,6 +76,43 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 - API çağrıları: `useMutation` / `useQuery` (TanStack Query) + axios instance
 - **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ; XSS'e kapalı). Zustand persist YALNIZ UI snapshot'ı tutar (`user`/`company`), token DEĞİL — persist key'leri `rothern-company-auth` (web) + `rothern-admin-auth` (admin); remember→localStorage, aksi→sessionStorage. Kimlik `/me` ile doğrulanır. Mutating isteklerde CSRF double-submit (`rk_csrf`/`rk_admin_csrf` → `X-CSRF-Token`). **Kayan oturum:** AuthCookieInterceptor her istekte token ömrünün yarısı geçtiyse taze token basar (CSRF değeri korunur) — aktif kullanıcı düşmez, `JWT_EXPIRES_IN` (prod: 7d olmalı) kadar inaktif kalan düşer; "Oturumumu açık bırak" `persistent` claim'iyle taşınır.
 
+## Tek Kaynaklar (single source) — dokunmadan önce buraya bak
+
+Denetim boyunca en sık tekrar eden hata: **helper yazılıyor, çağrı yerlerinin
+bir kısmı bağlanmıyor** ve iki hesap sessizce ayrışıyor. Yeni bir hesap/kural
+yazmadan önce burada karşılığı var mı diye bak.
+
+| Konu | Tek kaynak |
+|------|-----------|
+| Para/kur bazı (rapor+pano) | `common/company/report-currency.ts` |
+| Kalem toplamı / yuvarlama | `common/company/bid-items.ts` (`roundMoney`, `sumLineTotals*`) |
+| Ödeme durumu | `common/company/order-payments.ts` |
+| Efektif paket (INV-TIER-1) | `common/company/effective-tier.ts` (`effectiveTier`, `tierAtLeastWhere`, `anyPackageWhere`) |
+| İlan görünürlüğü | `common/company/listing-visibility.ts` |
+| Bağlantı geçerliliği | `common/company/valid-connection.ts` |
+| Faz O dar-bağlam | `common/company/full-read-context.ts` |
+| Kimlik yolunda Company select | `common/company/auth-company-select.ts` |
+| Teslim SÜRESİ → tarih | `common/company/delivery-time.ts` |
+| Web derin bağlantıları (CTA) | `common/company/app-routes.ts` |
+| Gövde string trim'i (DTO) | `common/decorators/trim.decorator.ts` |
+| IBAN (TR + yabancı mod-97) | `@rothern/shared` `ibanChecksumOk` / `isValidIbanTr` |
+| İçe aktarma sütun/limit | `@rothern/shared` `item-import.ts` / `bid-import.ts` |
+| Para birimi sembolü (web) | `lib/tenders/labels.ts` (`CURRENCY_SYMBOL`, `CURRENCIES`, `currencySymbol`) |
+| Tarih biçimi (web) | `lib/format-date.ts` |
+| Para gösterimi (web) | `components/ui/money.tsx` |
+| Query anahtarları (web) | `NOTIFICATION_KEY`, `MESSAGE_KEYS` (hook'lardan export) |
+
+## Bekleyen Migration'lar (prod'a UYGULANMADI)
+
+`pnpm --filter @rothern/db migrate:deploy` bekliyor. Üçü de **tamamen
+eklemeli** — tablo yeniden yazımı yok:
+
+| Migration | İçerik |
+|-----------|--------|
+| `20260831090000` | `listing_round_snapshots.currency` + `amountTry`, `company_complaints.complainantCompanyId` indeksi |
+| `20260901090000` | `listing_items.updatedAt` (ilan detayı ETag parmak izi için) |
+| `20260901100000` | `order_revision_items` + `company_kyc_revisions` RLS policy'leri |
+
 ## Geliştirme Notları
 - **NestJS CLI watch modu WSL'de bozuk.** `apps/api/package.json` `dev` script'i `concurrently` + `tsc -w` + `nodemon` kullanır. `nest start --watch` KULLANMAYIN.
 - **Prisma `.env` symlink:** `packages/db/.env` → `../../.env`. Migration komutları için gerekli.
@@ -92,7 +129,8 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 
 ## Test & Kalite Durumu
 
-- **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). Test paketi refactor edilmeli (bekleyen iş).
+- **Test sayısı (2026-09-01):** API **147 suite / 1295 test** (114 integration + 35 unit) · web **57 dosya / 354 test** · admin **15 / 79**. Hepsi yeşil.
+  - *Eski not kaldırıldı:* "534 test, bcrypt mock'ları kırık, test paketi refactor edilmeli" iddiası BAYATTI — `bcrypt` repoda hiç geçmiyor (Supabase Auth geçişi 2026-05-20'de tamamlandı), auth spec'leri geçiyor.
 - **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
 - **Test DB — LOKAL izole Postgres (varsayılan):** integration testleri artık
   `docker-compose.test.yml`'daki lokal `postgres:17`'ye koşar (Supabase 17.6 paritesi),
@@ -108,7 +146,7 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
   `test-db.ts` PrismaClient'ında `connection_limit=1`** → tüm sorgular tek bağlantıda
   serileşir, TRUNCATE hiçbir yazımla yarışamaz → deadlock yapısal olarak imkânsız.
   Testler zaten seri (maxWorkers:1) → performans kaybı yok. Ağır suite'ler artık
-  **BİRLİKTE** koşar (74 suite / 788 test yeşil, 0 deadlock). (Remote'a koşma;
+  **BİRLİKTE** koşar (bugün 147 suite / 1295 test yeşil, 0 deadlock). (Remote'a koşma;
   env.ts reddeder.) Not: lokalde deadlock ~1sn'de tespit edilip abort olur (remote'ta
   paylaşımlı-instance + yabancı idle bağlantı yüzünden 56 dk HANG'e dönüşüyordu).
 - **Komutlar:**
@@ -200,7 +238,8 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - alert webhook, audit_logs populate (Structured logger/Sentry/CSP ✅ tamamlandı — bkz. Güvenlik Durumu)
 
 **Teknik borç / temizlik**
-- **Test paketi refactor:** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz; login/register/password test'leri Supabase auth.users mock'larıyla yeniden yazılmalı + smoke E2E paketi güncellenmeli.
+- ~~Test paketi refactor~~ — **TAMAMLANDI**, madde kaldırıldı (bcrypt kalıntısı yok, suite yeşil).
+- **Rig stub gotcha (tekrar eden):** yaygın enjekte edilen bir servise YENİ bağımlılık/çağrı eklendiğinde elle kurulan test rig'leri kırılır — bu denetim boyunca **8 kez** tekrarladı. İki biçimi var: (a) eksik stub → `x is not a function`, (b) **constructor SIRASI kayması** → yanlış nesne enjekte olur ve hata ancak o bağımlılığa ULAŞAN bir testte çıkar (sessiz). Böyle bir değişiklikten sonra **TAM api suite'i** koşulmalı; rig'ler mümkünse paylaşılan bir yardımcıdan kurulmalı.
 - `Supplier.sectors` (kürasyonlu) deprecated kolon kaldırılmalı (migration).
 - `@rothern/email` değişince `pnpm --filter @rothern/email build` şart — CI'da otomatikleşmeli.
 
