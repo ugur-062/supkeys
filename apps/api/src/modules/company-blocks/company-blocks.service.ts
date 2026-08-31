@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@rothern/db";
 import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -57,6 +58,10 @@ export class CompanyBlocksService {
     }
 
     await runTenantTx(this.prisma, async (tx) => {
+      // Dalga B-3: `upsert` yarışa açık (SELECT→INSERT). Aynı firmayı iki
+      // sekmeden/çift tıkla engellemek eşzamanlı iki INSERT üretiyor, biri
+      // P2002 alıp kullanıcıya 500 dönüyordu — oysa engelleme İDEMPOTENT bir
+      // istek. P2002 aşağıda yakalanıp başarı sayılıyor (satır zaten var).
       await tx.companyBlock.upsert({
         where: {
           blockerCompanyId_blockedCompanyId: {
@@ -70,6 +75,15 @@ export class CompanyBlocksService {
           reason: reason?.trim() || null,
         },
         update: { reason: reason?.trim() || null },
+      }).catch((err: unknown) => {
+        // Yarışta ikinci INSERT: satır zaten var → istenen sonuç sağlandı.
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          return;
+        }
+        throw err;
       });
       // Mevcut bağlantı/davet varsa kaldır (iki yön).
       await tx.companyConnection.deleteMany({

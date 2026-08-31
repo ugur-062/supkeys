@@ -226,6 +226,19 @@ export class CompanyUsersService {
     if (!inv || (inv.status !== "PENDING" && inv.status !== "EXPIRED")) {
       throw new NotFoundException("Davet bulunamadı");
     }
+    // Dalga B-3: yeniden gönderim rol-verme kapısını YENİDEN uygulamalı.
+    // Eskiden yalnız firma-sahipliği kontrol ediliyordu; süresi dolmuş bir
+    // YONETICI daveti, o etiketi kendisi ASLA veremeyecek biri tarafından
+    // "yeniden gönder" ile diriltilebiliyordu (kapı davet ANINDA uygulanıp
+    // bir daha bakılmıyordu). Koltuk kapısı da aynı nedenle burada.
+    const roles = inv.roles as CompanyRole[];
+    this.assertCanGrantRoles(actor, roles);
+    if (this.rolesConsumeSeat(roles)) {
+      await this.assertSeatAvailable(this.prisma, actor.companyId, {
+        includePending: true,
+        context: "invite",
+      });
+    }
     await this.prisma.companyUserInvitation.update({
       where: { id: inv.id },
       data: {
@@ -441,7 +454,12 @@ export class CompanyUsersService {
       { id: targetId, roles: target.roles as CompanyRole[] },
       company?.ownerUserId ?? null,
     );
-    this.assertCanGrantRoles(actor, roles, targetId);
+    this.assertCanGrantRoles(
+      actor,
+      roles,
+      targetId,
+      target.roles as CompanyRole[],
+    );
     void target;
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
       // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
@@ -539,7 +557,12 @@ export class CompanyUsersService {
         { id: targetId, roles: target.roles as CompanyRole[] },
         company?.ownerUserId ?? null,
       );
-      this.assertCanGrantRoles(actor, roles, targetId);
+      this.assertCanGrantRoles(
+        actor,
+        roles,
+        targetId,
+        target.roles as CompanyRole[],
+      );
     }
     void target;
     const data = {
@@ -853,16 +876,37 @@ export class CompanyUsersService {
     roles: CompanyRole[],
     /** Bilinen hedef (updateRoles/updateUser) — non-admin denial'ı audit'lensin. */
     targetId?: string,
+    /**
+     * Hedefin MEVCUT rolleri. Verilirse etiket kapısı DELTA'ya bakar
+     * (Dalga B-3); verilmezse (davet yolu — hedef henüz yok) mutlak kümeye
+     * bakar ve bu doğrudur, çünkü orada her rol yeni veriliyor.
+     */
+    currentRoles?: CompanyRole[],
   ) {
+    // Dalga B-3: etiket kapısı MUTLAK kümeye bakıyordu. Yönetici, zaten
+    // YONETICI etiketi taşıyan bir kullanıcının SA/ST rollerini düzenlemek
+    // istediğinde formdaki değişmemiş YONETICI de gövdeye gidiyor ve
+    // "Yönetici etiketini yalnızca Kurucu verebilir" hatası alınıyordu —
+    // yani Yönetici, bir Yöneticinin operasyon rollerini HİÇ düzenleyemiyordu.
+    // Kural aslında "etiketi Kurucu VERİR/ALIR"; etiket DEĞİŞMİYORSA kapı
+    // çalışmamalı. Etiket eklenmesi VE çıkarılması Kurucuya bağlı kalır.
+    // Kapı EKLEME yönündedir: etiketi VERMEK Kurucuya bağlı, KALDIRMAK değil
+    // (mevcut sözleşme — `company-users-admin-demote.spec.ts` #8: Yönetici bir
+    // Yöneticiyi düşürebilir; "en az bir yönetim yetkilisi kalmalı" garantisi
+    // ayrı katmanda, lockedAdminTxAudited içinde). Değişmemiş etiket kapıyı
+    // TETİKLEMEZ — eski mutlak kontrolün hatası buydu.
+    const labelAdded = (label: CompanyRole) =>
+      roles.includes(label) && !(currentRoles ?? []).includes(label);
+
     // Sahiplik (SAHIP) yalnız mevcut firma sahibi tarafından devredilebilir.
-    if (roles.includes("SAHIP") && !actor.isOwner) {
+    if (labelAdded("SAHIP") && !actor.isOwner) {
       throw new ForbiddenException(
         "Kuruculuğu yalnızca mevcut Kurucu devredebilir",
       );
     }
-    // Faz R: YONETICI bir ETİKETTİR — yalnız Kurucu verebilir (Yönetici başka
+    // Faz R: YONETICI bir ETİKETTİR — yalnız Kurucu VERİR (Yönetici başka
     // Yönetici üretemez).
-    if (roles.includes("YONETICI") && !actor.isOwner) {
+    if (labelAdded("YONETICI") && !actor.isOwner) {
       throw new ForbiddenException(
         "Yönetici etiketini yalnızca Kurucu verebilir",
       );

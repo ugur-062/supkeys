@@ -1298,9 +1298,18 @@ export class AdminCompaniesService {
         "Uzatma yalnız paketli üyelikte — önce bir paket (Bronz/Silver/Gold) verin",
       );
     }
+    // Dalga B-3: SÜRESİZ üyelik uzatılamaz. Eskiden `membershipEndAt === null`
+    // dalında `base = now` alınıyordu → "12 ay uzat" süresiz bir üyeliği
+    // 12 ay sonra BİTECEK hâle getiriyordu; uzatma işlemi üyeliği KISALTIYORDU
+    // ve olay tablosunda EXTEND olarak görünüyordu.
+    if (!c.membershipEndAt) {
+      throw new BadRequestException(
+        "Bu firmanın üyeliği süresiz — uzatılamaz. Süre tanımlamak isterseniz önce paketi yeniden verin (bitiş tarihiyle).",
+      );
+    }
     const now = new Date();
     const base =
-      c.membershipEndAt && c.membershipEndAt.getTime() > now.getTime()
+      c.membershipEndAt.getTime() > now.getTime()
         ? new Date(c.membershipEndAt)
         : now;
     const end = new Date(base);

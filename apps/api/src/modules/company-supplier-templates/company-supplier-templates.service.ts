@@ -63,26 +63,53 @@ export class CompanySupplierTemplatesService {
     }
   }
 
-  async list(companyId: string) {
+  /**
+   * Dalga B-3: `isPublic` HİÇBİR sorguda uygulanmıyordu — şema "firmadaki
+   * herkes görebilir" diyor, ama liste/detay yalnız `companyId` süzüyordu.
+   * Yani "Gizli" kutusu işaretlense de şablonu firmadaki HERKES görüyordu:
+   * kutu sessizce etkisizdi ve kullanıcı gizlediğini sanıyordu.
+   * Kural: `isPublic=false` → yalnız oluşturan görür.
+   */
+  async list(companyId: string, userId: string) {
     const rows = await this.prisma.supplierTemplate.findMany({
-      where: { companyId },
-      orderBy: { updatedAt: "desc" },
+      where: {
+        companyId,
+        OR: [{ isPublic: true }, { createdById: userId }],
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     });
+    // Dalga B-3 (P12 Dalga B ile aynı madde): `memberCompanyIds` FK'sız bir
+    // dizi — silinen/bağlantısı kopan firma id'si dizide kalıyor. Ham uzunluk
+    // "5 üye" derken detay 4 firma gösteriyordu. Sayı ÇÖZÜLMÜŞ firmalardan.
+    const allIds = [...new Set(rows.flatMap((r) => r.memberCompanyIds))];
+    const alive = new Set(
+      (
+        await this.prisma.company.findMany({
+          where: { id: { in: allIds } },
+          select: { id: true },
+        })
+      ).map((c) => c.id),
+    );
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
       isPublic: r.isPublic,
-      memberCount: r.memberCompanyIds.length,
-      isOwnedByMe: true,
+      memberCount: r.memberCompanyIds.filter((id) => alive.has(id)).length,
+      isOwnedByMe: r.createdById === userId,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
   }
 
   /** Şablon detayı — üye firmalar (ad + rothernId + tier) ile. */
-  async findOne(companyId: string, id: string) {
+  async findOne(companyId: string, id: string, userId: string) {
     const tpl = await this.prisma.supplierTemplate.findFirst({
-      where: { id, companyId },
+      // Dalga B-3: gizli şablon yalnız oluşturanına açılır (list ile aynı kural).
+      where: {
+        id,
+        companyId,
+        OR: [{ isPublic: true }, { createdById: userId }],
+      },
     });
     if (!tpl) throw new NotFoundException("Şablon bulunamadı");
     const members = await this.prisma.company.findMany({

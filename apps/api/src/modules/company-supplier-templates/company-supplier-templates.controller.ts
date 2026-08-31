@@ -76,7 +76,7 @@ export class CompanySupplierTemplatesController {
   // Okuma her role açık; yazma templates:manage ister.
   @Get()
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.list(user.companyId);
+    return this.service.list(user.companyId, user.userId);
   }
 
   @Get(":id")
@@ -84,7 +84,7 @@ export class CompanySupplierTemplatesController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
   ) {
-    return this.service.findOne(user.companyId, id);
+    return this.service.findOne(user.companyId, id, user.userId);
   }
 
   @Post()

@@ -482,7 +482,13 @@ export class StorageService implements OnModuleInit {
       const afterScheme = value.slice(schemeIdx + 3);
       const slash = afterScheme.indexOf("/");
       if (slash === -1) return null; // domain-only, key çıkarılamaz
-      key = decodeURIComponent(afterScheme.slice(slash + 1).split("?")[0]!);
+      const rawKey = afterScheme.slice(slash + 1).split("?")[0]!;
+      // Bozuk yüzde-kaçışında URIError yerine ham değere düş (Dalga B-3).
+      try {
+        key = decodeURIComponent(rawKey);
+      } catch {
+        key = rawKey;
+      }
     }
     return key || null;
   }

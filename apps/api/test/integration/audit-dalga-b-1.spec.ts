@@ -155,3 +155,101 @@ describe("Denetim Dalga B-2", () => {
     expect(savings).toContain("truncated,");
   });
 });
+
+/** Dalga B-3 — üyelik & rol kapıları. */
+describe("Denetim Dalga B-3", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("SÜRESİZ üyelik uzatılamaz (uzatma onu KISALTIYORDU)", async () => {
+    const { AdminCompaniesService } = await import(
+      "../../src/modules/admin-companies/admin-companies.service"
+    );
+    const { company } = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { membershipEndAt: null }, // süresiz
+    });
+    const svc = new AdminCompaniesService(
+      prisma as never,
+      { log: jest.fn() } as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+      { get: jest.fn() } as never,
+    );
+    await expect(
+      svc.extendMembership(company.id, 12, "admin1"),
+    ).rejects.toThrow(/süresiz/i);
+    const after = await prisma.company.findUniqueOrThrow({
+      where: { id: company.id },
+      select: { membershipEndAt: true },
+    });
+    // Eskiden buraya `now + 12 ay` yazılıyordu → süresiz üyelik BİTİŞLİ olurdu.
+    expect(after.membershipEndAt).toBeNull();
+  });
+
+  it("gizli tedarikçi şablonu firmadaki BAŞKA kullanıcıya görünmez", async () => {
+    const { CompanySupplierTemplatesService } = await import(
+      "../../src/modules/company-supplier-templates/company-supplier-templates.service"
+    );
+    const { company, user } = await makeCompanyWithUser(prisma);
+    const other = await prisma.companyUser.create({
+      data: {
+        companyId: company.id,
+        email: `ikinci-${Date.now()}@demo.com`,
+        firstName: "İkinci",
+        lastName: "Kullanıcı",
+        roles: ["SATIN_ALMACI"],
+      },
+    });
+    await prisma.supplierTemplate.create({
+      data: {
+        companyId: company.id,
+        name: "Gizli liste",
+        isPublic: false,
+        createdById: user.id,
+        memberCompanyIds: [],
+      },
+    });
+    const svc = new CompanySupplierTemplatesService(prisma as never);
+    const mine = await svc.list(company.id, user.id);
+    const theirs = await svc.list(company.id, other.id);
+    expect(mine).toHaveLength(1);
+    // Eskiden `isPublic` HİÇBİR sorguda uygulanmıyordu → burası da 1 dönerdi.
+    expect(theirs).toHaveLength(0);
+  });
+
+  it("silinmiş üye şablonun üye SAYISINA dahil edilmez", async () => {
+    const { CompanySupplierTemplatesService } = await import(
+      "../../src/modules/company-supplier-templates/company-supplier-templates.service"
+    );
+    const { company, user } = await makeCompanyWithUser(prisma);
+    const member = await makeCompanyWithUser(prisma);
+    await prisma.supplierTemplate.create({
+      data: {
+        companyId: company.id,
+        name: "Liste",
+        isPublic: true,
+        createdById: user.id,
+        // biri gerçek, biri artık var olmayan id
+        memberCompanyIds: [member.company.id, "silinmis-firma-id"],
+      },
+    });
+    const svc = new CompanySupplierTemplatesService(prisma as never);
+    const rows = await svc.list(company.id, user.id);
+    // Ham dizi uzunluğu 2 derdi; detay 1 firma gösteriyordu (tutarsızlık).
+    expect(rows[0]!.memberCount).toBe(1);
+  });
+
+  it("bozuk yüzde-kaçışlı görsel adresi 400 verir (500 DEĞİL)", async () => {
+    const { assertOwnProfileImageUrl } = await import(
+      "../../src/common/helpers/upload-validation"
+    );
+    expect(() =>
+      assertOwnProfileImageUrl("https://cdn.rothern.com/public/%zz/x.png", {
+        allowedHosts: ["cdn.rothern.com"],
+        tenantPrefix: "public/c1/",
+      }),
+    ).toThrow(/Geçersiz görsel adresi|kendi profil deponuzdan/);
+  });
+});

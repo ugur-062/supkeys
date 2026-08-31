@@ -848,9 +848,16 @@ export class CompanyAuthService {
     }
     // TODO(ödeme): premium ücretlendirme burada devreye girecek. Şimdilik
     // doğrulama tamamlandıysa ücretsiz PAKET'e geçilir (açık seam).
+    // Dalga B-3: `membershipEndAt` TEMİZLENMELİ. Eskiden yalnız `tier` yazılıyordu;
+    // süresi DOLMUŞ paketli firma (membershipEndAt geçmişte) yükseltince satır
+    // "GOLD" oluyor ama `effectiveTier` hâlâ STANDART döndürüyordu (INV-TIER-1)
+    // → SESSİZ ETKİSİZ YÜKSELTME: kullanıcı yükselttim sanıyor, hiçbir kapı
+    // açılmıyor ve ödeme devreye girdiğinde parası da alınmış oluyor.
+    // Bugün süre yok (ücretsiz seam) → null = süresiz. Ödeme geldiğinde bu
+    // satır dönem sonunu yazacak.
     await this.prisma.company.update({
       where: { id: companyId },
-      data: { tier: "GOLD" },
+      data: { tier: "GOLD", membershipEndAt: null },
     });
     return { ok: true as const, tier: "GOLD" };
   }

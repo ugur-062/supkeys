@@ -126,7 +126,16 @@ export function assertOwnProfileImageUrl(
       "Görsel yalnız kendi profil deponuzdan olabilir",
     );
   }
-  const path = decodeURIComponent(url.pathname).replace(/^\//, "");
+  // Dalga B-3: `decodeURIComponent` try dışındaydı — bozuk yüzde-kaçışlı bir
+  // adres (`...%zz...`) URIError fırlatıp 400 yerine 500 üretiyordu (istemci
+  // hatası sunucu hatası gibi görünüyor, Sentry gürültüsü). Çözülemeyen adres
+  // zaten geçersizdir → ham hâliyle kontrol edilir, eşleşmezse 400.
+  let path: string;
+  try {
+    path = decodeURIComponent(url.pathname).replace(/^\//, "");
+  } catch {
+    path = url.pathname.replace(/^\//, "");
+  }
   if (!path.includes(opts.tenantPrefix)) {
     throw new BadRequestException(
       "Görsel yalnız kendi profil deponuzdan olabilir",
