@@ -300,12 +300,12 @@ function Preview({
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-3 py-2 font-medium">Uygula</th>
-              <th className="px-3 py-2 font-medium">İhale kalemi</th>
-              <th className="px-3 py-2 font-medium">{result.mode === "ai" ? "Belgede bulunan" : "Kaynak"}</th>
-              <th className="px-3 py-2 font-medium text-right">Birim fiyat</th>
-              <th className="px-3 py-2 font-medium">Teslim</th>
-              <th className="px-3 py-2 font-medium">Güven</th>
+              <th scope="col" className="px-3 py-2 font-medium">Uygula</th>
+              <th scope="col" className="px-3 py-2 font-medium">İhale kalemi</th>
+              <th scope="col" className="px-3 py-2 font-medium">{result.mode === "ai" ? "Belgede bulunan" : "Kaynak"}</th>
+              <th scope="col" className="px-3 py-2 font-medium text-right">Birim fiyat</th>
+              <th scope="col" className="px-3 py-2 font-medium">Teslim</th>
+              <th scope="col" className="px-3 py-2 font-medium">Güven</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">

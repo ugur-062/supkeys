@@ -23,7 +23,11 @@ interface Props {
 export function PeriodToggle({ value, onChange, className }: Props) {
   return (
     <div
-      role="tablist"
+      // Dalga B-4 (denetim P10): `role="tablist"` YANLIŞTI — bu bir sekme
+      // değil, bir filtre anahtarı: `aria-controls`/`role="tabpanel"` yok ve
+      // ekran okuyucu "sekme 1/2" diyerek olmayan bir panel vaat ediyordu.
+      // Doğru semantik: basılı-durumlu düğme grubu.
+      role="group"
       aria-label="Dönem"
       className={cn(
         "inline-flex rounded-lg bg-zinc-200/70 p-0.5 text-xs font-semibold ring-1 ring-zinc-950/10",
@@ -36,8 +40,7 @@ export function PeriodToggle({ value, onChange, className }: Props) {
           <button
             key={opt.value}
             type="button"
-            role="tab"
-            aria-selected={active}
+            aria-pressed={active}
             onClick={() => onChange(opt.value)}
             className={cn(
               "rounded-md px-3 py-1.5 transition-colors",

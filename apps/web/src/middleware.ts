@@ -40,6 +40,17 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+  // Dalga B-4: HSTS hiçbir yerde set edilmiyordu (API'de helmet var, ön yüzde
+  // yoktu). Tarayıcı, alan adını bir yıl boyunca yalnız HTTPS üzerinden
+  // konuşmaya zorlar → ilk isteğin http'ye düşüp çerezi sızdırdığı SSL-stripping
+  // penceresi kapanır. Yalnız HTTPS yanıtlarında anlamlıdır (http'de yok sayılır).
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains",
+  );
+  // Tarayıcının MIME tahminini kapat (yüklenen dosya yanlış tiple servis
+  // edilse bile script olarak yorumlanmasın).
+  response.headers.set("X-Content-Type-Options", "nosniff");
   return response;
 }
 

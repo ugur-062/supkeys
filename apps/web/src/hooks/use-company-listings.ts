@@ -161,16 +161,8 @@ export interface CreateListingInput {
   autoExtendByMinutes?: number;
 }
 
-export function useMyListings() {
-  return useQuery({
-    queryKey: ["company-listings", "mine"],
-    queryFn: async () => {
-      const { data } = await companyApi.get<Listing[]>("/company/listings");
-      return data;
-    },
-  });
-}
-
+// Dalga B-4: `useMyListings` KALDIRILDI — hiçbir yerden çağrılmıyordu
+// (ölü kod). Gerekirse git geçmişinden geri alınabilir.
 export interface MyBid {
   id: string;
   amount: string;

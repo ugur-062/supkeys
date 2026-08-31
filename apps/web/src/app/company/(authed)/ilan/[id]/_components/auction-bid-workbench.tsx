@@ -353,16 +353,16 @@ export function AuctionBidWorkbench({
         <table className="min-w-full text-sm">
           <thead className="sticky top-0 z-[1] bg-zinc-50 text-left text-xs text-zinc-500">
             <tr>
-              <th className="px-3 py-2 font-medium">#</th>
-              <th className="px-3 py-2 font-medium">Kalem</th>
-              <th className="px-3 py-2 text-right font-medium">Miktar</th>
-              <th className="px-3 py-2 text-right font-medium">Önceki</th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th scope="col" className="px-3 py-2 font-medium">#</th>
+              <th scope="col" className="px-3 py-2 font-medium">Kalem</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Miktar</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Önceki</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">
                 Yeni Birim Fiyat ({currency === "TRY" ? "₺" : currency})
               </th>
-              <th className="px-3 py-2 text-right font-medium">Satır Toplamı</th>
-              <th className="px-2 py-2" aria-label="Seçim" />
-              <th className="px-2 py-2" aria-label="Detay" />
+              <th scope="col" className="px-3 py-2 text-right font-medium">Satır Toplamı</th>
+              <th scope="col" className="px-2 py-2" aria-label="Seçim" />
+              <th scope="col" className="px-2 py-2" aria-label="Detay" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">

@@ -45,7 +45,11 @@ export function PeriodControls({
     <div className="relative flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center gap-3">
         <div
-          role="tablist"
+          // Dalga B-4 (denetim P10): `role="tablist"` YANLIŞTI — bu bir sekme
+      // değil, bir filtre anahtarı: `aria-controls`/`role="tabpanel"` yok ve
+      // ekran okuyucu "sekme 1/2" diyerek olmayan bir panel vaat ediyordu.
+      // Doğru semantik: basılı-durumlu düğme grubu.
+      role="group"
           aria-label="Dönem"
           className="inline-flex rounded-lg bg-zinc-200/70 p-0.5 text-xs font-semibold ring-1 ring-zinc-950/10"
         >
@@ -60,8 +64,7 @@ export function PeriodControls({
               <button
                 key={opt.value}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                aria-pressed={active}
                 onClick={() => {
                   if (opt.value === "custom") {
                     setCustomOpen(true);

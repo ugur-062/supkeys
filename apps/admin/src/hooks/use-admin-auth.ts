@@ -18,6 +18,7 @@ export function useAdminAuth() {
 
 export function useAdminLogin() {
   const setAuth = useAdminAuthStore((s) => s.setAuth);
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: {
@@ -34,6 +35,12 @@ export function useAdminLogin() {
       return data;
     },
     onSuccess: (data, variables) => {
+      // Dalga B-4: önceki admin oturumunun önbelleği temizlenmeliydi — oturum
+      // 401 ile düşüp BAŞKA bir admin giriş yaptığında TanStack Query eski
+      // hesabın verisini (firma listeleri, KPI, denetim kayıtları) servis
+      // ediyordu. Admin panelinde bu doğrudan bir yetki sınırı sorunudur
+      // (SUPPORT, SUPER_ADMIN'in önbelleğini görebilir).
+      queryClient.clear();
       // Cookie (API) + istemci snapshot'ı aynı "hatırla" tercihine göre.
       setAdminRemember(variables.rememberMe !== false);
       setAuth(data.admin);

@@ -204,13 +204,13 @@ export function ExcelImportDialog({
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Satır</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Satır</th>
                     {visibleColumns.map((k) => (
-                      <th key={k} className="px-3 py-2 font-medium">
+                      <th scope="col" key={k} className="px-3 py-2 font-medium">
                         {headerOf(k)}
                       </th>
                     ))}
-                    <th className="px-3 py-2 font-medium">Durum</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Durum</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">

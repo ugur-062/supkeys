@@ -137,17 +137,17 @@ export function IhaleItemsPanel({
         <table className="w-full min-w-[420px] text-left">
           <thead className={cn(showAll && "sticky top-0 z-[1] bg-white")}>
             <tr>
-              <th className="w-8 py-1 pr-2 text-[11px] font-normal text-slate-400">
+              <th scope="col" className="w-8 py-1 pr-2 text-[11px] font-normal text-slate-400">
                 #
               </th>
-              <th className="py-1 pr-2 text-[11px] font-normal text-slate-400">
+              <th scope="col" className="py-1 pr-2 text-[11px] font-normal text-slate-400">
                 Kalem
               </th>
-              <th className="py-1 pr-2 text-right text-[11px] font-normal text-slate-400">
+              <th scope="col" className="py-1 pr-2 text-right text-[11px] font-normal text-slate-400">
                 Miktar
               </th>
               {showTarget ? (
-                <th className="py-1 text-right text-[11px] font-normal text-slate-400">
+                <th scope="col" className="py-1 text-right text-[11px] font-normal text-slate-400">
                   Hedef Fiyat
                 </th>
               ) : null}

@@ -11,12 +11,5 @@ export interface InboxItem {
   href: string;
 }
 
-export function useInbox() {
-  return useQuery({
-    queryKey: ["company-inbox"],
-    queryFn: async () => {
-      const { data } = await companyApi.get<InboxItem[]>("/company/inbox");
-      return data;
-    },
-  });
-}
+// Dalga B-4: `useInbox` KALDIRILDI — hiçbir yerden çağrılmıyordu
+// (ölü kod). Gerekirse git geçmişinden geri alınabilir.

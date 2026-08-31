@@ -45,6 +45,7 @@ export type CompanyLoginResult =
   | { twoFactorRequired: true; method?: "email" | "authenticator" };
 
 export function useCompanyLogin() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       email: string;
@@ -57,6 +58,14 @@ export function useCompanyLogin() {
         input,
       );
       return data;
+    },
+    // Dalga B-4: girişte önbellek TEMİZLENMİYORDU. Çıkışta temizleniyor ama
+    // çıkış zaten sert yönlendirme yapıyor; asıl riskli yol oturumun 401 ile
+    // düşmesi: kullanıcı SPA'da kalıyor, BAŞKA bir hesapla giriş yapıyor ve
+    // TanStack Query önceki hesabın önbelleğini servis ediyor (ihale listesi,
+    // teklifler, mesajlar). Girişte de sıfırdan başla.
+    onSuccess: () => {
+      queryClient.clear();
     },
   });
 }

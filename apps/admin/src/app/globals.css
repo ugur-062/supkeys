@@ -142,3 +142,28 @@
     font-size: 16px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Dalga B-4 (denetim P10) — hareket tercihi GENEL kapsayıcı.
+
+   Repodaki ÖZEL animasyonların (rt-float, rt-marquee, rt-dot…) her biri tek
+   tek `prefers-reduced-motion` ile kapatılmıştı, ama Tailwind'in yerleşik
+   `animate-pulse`/`animate-bounce` sınıfları ve TÜM `transition-*` geçişleri
+   kapsam dışındaydı — yani vestibüler rahatsızlığı olan bir kullanıcı için
+   iskelet yükleyiciler, açılır menüler ve modal geçişleri hâlâ hareket
+   ediyordu. Yeni animasyon eklendiğinde de listeye eklemek unutuluyordu;
+   kapsayıcı kural bu sınıfı yapısal olarak kapatır.
+
+   `animate-spin` BİLİNÇLİ istisna: dönen ikon "yükleniyor" bilgisinin
+   kendisidir, dondurulursa arayüz takılmış görünür.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

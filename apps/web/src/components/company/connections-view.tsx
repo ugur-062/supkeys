@@ -495,6 +495,11 @@ export function ConnectionsView() {
               key={t.key}
               type="button"
               role="tab"
+              // Dalga B-4: `aria-controls`/`id` yoktu — ekran okuyucu sekmeyi
+              // panelle ilişkilendiremiyor, "sekme" dediği şeyin neyi
+              // değiştirdiğini bildiremiyordu.
+              id={`baglantilar-tab-${t.key}`}
+              aria-controls={`baglantilar-panel-${t.key}`}
               aria-selected={active}
               onClick={() => setTab(t.key)}
               className={cn(
@@ -525,7 +530,12 @@ export function ConnectionsView() {
 
       {/* Keşfet — arama + dizin (yalnız premium) */}
       {shownTab === "discover" && isPaid ? (
-        <section className="space-y-3">
+        <section
+          id="baglantilar-panel-discover"
+          role="tabpanel"
+          aria-labelledby="baglantilar-tab-discover"
+          className="space-y-3"
+        >
           <Input
             aria-label="Firma ara"
             value={q}
@@ -598,7 +608,12 @@ export function ConnectionsView() {
 
       {/* Bağlantılarım */}
       {shownTab === "mine" ? (
-        <section className="space-y-3">
+        <section
+          id="baglantilar-panel-mine"
+          role="tabpanel"
+          aria-labelledby="baglantilar-tab-mine"
+          className="space-y-3"
+        >
           {connCount > 0 ? (
             <Input
               aria-label="Bağlantılarımda ara"
@@ -638,7 +653,12 @@ export function ConnectionsView() {
 
       {/* İstekler — gelen + gönderdiğim + bekleyen e-posta davetleri */}
       {shownTab === "incoming" ? (
-        <section className="space-y-5">
+        <section
+          id="baglantilar-panel-incoming"
+          role="tabpanel"
+          aria-labelledby="baglantilar-tab-incoming"
+          className="space-y-5"
+        >
           {/* Gelen */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">

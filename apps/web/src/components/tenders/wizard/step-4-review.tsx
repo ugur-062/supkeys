@@ -143,15 +143,15 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
           <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-zinc-50 text-xs text-zinc-500">
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Kalem</th>
-                <th className="px-3 py-2 text-right font-medium">Miktar</th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th scope="col" className="px-3 py-2 text-left font-medium">Kalem</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Miktar</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">
                   {d.listingType === "SATIS" ? "İstenen Fiyat" : "Hedef Fiyat"}
                 </th>
                 {d.listingType === "SATIS" && d.priceScope === "KALEM" ? (
                   <>
-                    <th className="px-3 py-2 text-right font-medium">Taban</th>
-                    <th className="px-3 py-2 text-right font-medium">
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Taban</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
                       Hemen Al
                     </th>
                   </>

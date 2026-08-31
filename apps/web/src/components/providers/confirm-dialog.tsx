@@ -53,13 +53,23 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           <DialogDescription>{opts.description}</DialogDescription>
         ) : null}
         <DialogActions>
-          <Button plain onClick={() => settle(false)}>
+          {/* Dalga B-4 (denetim P10): odak YIKICI butondaydı — diyalog açılır
+              açılmaz Enter'a basmak (ya da klavyeyle gezinen bir kullanıcının
+              refleksi) kazandırmayı finalize etmek, teklifi elemek, hesabı
+              silmek gibi GERİ ALINAMAZ işlemi tek tuşta yapıyordu. Yıkıcı
+              diyalogda odak güvenli seçenekte durur; onay bilinçli bir jest
+              gerektirir. Yıkıcı olmayanlarda eski davranış korunur. */}
+          <Button
+            plain
+            onClick={() => settle(false)}
+            autoFocus={opts?.destructive === true}
+          >
             {opts?.cancelLabel ?? "Vazgeç"}
           </Button>
           <Button
             color={opts?.destructive ? "red" : undefined}
             onClick={() => settle(true)}
-            autoFocus
+            autoFocus={opts?.destructive !== true}
           >
             {opts?.confirmLabel ?? "Onayla"}
           </Button>
