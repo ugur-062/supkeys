@@ -414,12 +414,15 @@ export class ReportsExcelService {
     }
     this.autoFit(ws);
 
-    // Tur geçmişi sayfası (arşiv: ad + tutar).
+    // Tur geçmişi sayfası (arşiv: ad + tutar + BİRİM).
+    // P12 #11: birim sütunu eklendi — çok-birimli pazarlıkta arşivlenen tutarın
+    // hangi para biriminde olduğu ayırt edilemiyordu (müzakere geçmişi delil
+    // niteliğinde). Sıralama servis tarafında TRY karşılığına göre yapılıyor.
     if (data.roundHistory.length > 0) {
       const wsHist = wb.addWorksheet("Tur Geçmişi");
-      this.headerRow(wsHist, ["Tur", partyWord, "Tutar"]);
+      this.headerRow(wsHist, ["Tur", partyWord, "Tutar", "Para Birimi"]);
       data.roundHistory.forEach((h) => {
-        wsHist.addRow([`Tur ${h.round}`, h.bidderName, h.amount]);
+        wsHist.addRow([`Tur ${h.round}`, h.bidderName, h.amount, h.currency]);
       });
       this.autoFit(wsHist);
     }

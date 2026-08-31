@@ -33,6 +33,8 @@ export function makeService() {
 
   const service = new CompanyListingsService(
     prisma as never,
+    // P12 #3: bypass client (testte RLS kapalı → aynı client)
+    prisma as never,
     blocks as never,
     approvals as never,
     exchangeRates as never,

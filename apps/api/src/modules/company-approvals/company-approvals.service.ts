@@ -10,7 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaService, PrismaBypassService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { AuditService } from "../audit/audit.service";
@@ -36,6 +36,7 @@ export class CompanyApprovalsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly bypass: PrismaBypassService,
     private readonly events: EventEmitter2,
     private readonly email: EmailService,
     private readonly config: ConfigService,
@@ -1065,6 +1066,9 @@ export class CompanyApprovalsService {
   }
 
   /** Günlük hatırlatma — bekleyen onayların sırası gelen onaycısına e-posta. */
+  // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
+  // YALNIZ cron'dan çağrılır (approvals.scheduler) — tenant bağlamı yok ve
+  // tarama TÜM firmaları kapsar. Ana client'la RLS açıldığında sessizce 0 satır.
   async remindPending() {
     // Eski sistemle aynı: yalnızca 3 günden uzun bekleyen istekler + günde-bir-kez.
     const REMINDER_THRESHOLD_DAYS = 3;
@@ -1072,7 +1076,7 @@ export class CompanyApprovalsService {
     const olderThan = new Date(now - REMINDER_THRESHOLD_DAYS * 86_400_000);
     const dedupAfter = new Date(now - 86_400_000); // son 24 saatte hatırlatıldıysa atla
 
-    const reqs = await this.prisma.approvalRequest.findMany({
+    const reqs = await this.bypass.approvalRequest.findMany({
       where: {
         status: "PENDING",
         createdAt: { lt: olderThan },
@@ -1100,7 +1104,7 @@ export class CompanyApprovalsService {
       // Atomik claim ÖNCE: lastReminderAt'i yalnız hâlâ eski/null iken güncelleyen
       // worker e-posta atar. Eskiden e-posta gönderilip SONRA update yapılıyordu;
       // iki replica 09:00'te aynı reqs'i okuyup çift hatırlatma atabilirdi.
-      const claimed = await this.prisma.approvalRequest.updateMany({
+      const claimed = await this.bypass.approvalRequest.updateMany({
         where: {
           id: r.id,
           status: "PENDING",
@@ -1123,8 +1127,11 @@ export class CompanyApprovalsService {
    * adımında onaycı pasif/silinmişse, aynı firmadaki ilk aktif YONETICI'ye
    * yeniden atar ve yeni onaycıya bildirim gönderir. Onay zinciri tıkanmaz.
    */
+  // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
+  // YALNIZ cron'dan çağrılır (approvals.scheduler) — tenant bağlamı yok ve
+  // tarama TÜM firmaları kapsar. Ana client'la RLS açıldığında sessizce 0 satır.
   async fallbackInactiveApprovers(): Promise<number> {
-    const steps = await this.prisma.approvalRequestStep.findMany({
+    const steps = await this.bypass.approvalRequestStep.findMany({
       where: { status: "PENDING", request: { status: "PENDING" } },
       select: {
         id: true,
@@ -1145,7 +1152,7 @@ export class CompanyApprovalsService {
     if (steps.length === 0) return 0;
 
     const approverIds = [...new Set(steps.map((s) => s.approverUserId))];
-    const approvers = await this.prisma.companyUser.findMany({
+    const approvers = await this.bypass.companyUser.findMany({
       where: { id: { in: approverIds } },
       select: { id: true, isActive: true, deletedAt: true },
     });
@@ -1177,7 +1184,7 @@ export class CompanyApprovalsService {
         await this.rejectForNoApprover(step.request);
         continue;
       }
-      await this.prisma.approvalRequestStep.update({
+      await this.bypass.approvalRequestStep.update({
         where: { id: step.id },
         data: { approverUserId: fallback },
       });

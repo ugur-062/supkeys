@@ -137,7 +137,9 @@ export class AuditService {
       this.prisma.auditLog.count({ where }),
       this.prisma.auditLog.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        // P12: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+        // üretir (aynı satır iki sayfada / hiç görünmez) → id ile tie-break.
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
         select: {
@@ -189,7 +191,9 @@ export class AuditService {
     const [items, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        // P12: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+        // üretir (aynı satır iki sayfada / hiç görünmez) → id ile tie-break.
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

@@ -638,6 +638,9 @@ model CompanyComplaint {
   createdAt            DateTime        @default(now())
 
   @@index([againstCompanyId])
+  // P12: kullanıcı-yüzü "açtığım şikâyetler" listesinin TEK filtresi ve
+  // Company silmesinde CASCADE hedefi — indekssizdi.
+  @@index([complainantCompanyId])
   @@index([status])
   @@map("company_complaints")
 }
@@ -1088,6 +1091,17 @@ model ListingRoundSnapshot {
   round      Int
   bidderName String
   amount     Decimal  @db.Decimal(18, 2)
+  // Denetim 2026-08-28 Parça 12 #11: `amount` teklifçinin KENDİ birimindedir ve
+  // damganın birimi hiç saklanmıyordu — şemadaki diğer TÜM para satırları
+  // birimini taşırken bu taşımıyordu. Çok-birimli pazarlık bilinçli
+  // destekleniyor (auctionRateSnapshot + auctionTryValue bunun için var), yani
+  // tur geçmişi ekranı ve Excel arşivi birimden habersiz `amount asc/desc`
+  // sıralayıp YANLIŞ sıra gösteriyordu (100 USD, 4.000 TRY'nin "altında"
+  // görünüyordu). Kazandırma kararı doğruydu — etki gösterim + arşiv.
+  currency   Currency @default(TRY)
+  // Açılış damgasıyla TRY'ye çevrilmiş karşılık — sıralama/kıyas BUNUN üzerinden
+  // yapılır. Damga yoksa null (fail-closed: uydurma kurla sıralamayız).
+  amountTry  Decimal? @db.Decimal(18, 2)
   createdAt  DateTime @default(now())
 
   @@index([listingId])

@@ -3,6 +3,11 @@ import type { Currency } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import {
+  bidRateToTry,
+  itemUnitPriceTry,
+  listingAmountTry,
+} from "../../common/company/report-currency";
 
 /** "Acme Tedarik Ltd." → "ACM..." anonim kısa görünüm. */
 function shortenName(name: string): string {
@@ -388,10 +393,24 @@ export class CompanyDashboardService {
   }
 
   /**
-   * Satınalma → Tasarruf sekmesi. Kazandırılan ALIM ilanlarında, kazanan (WON)
+   * Satınalma → Tasarruf sekmesi. Kazandırılan ALIM ilanlarında, kazanan
    * tekliflerin kalemlerinde (hedef birim fiyat − kazanan birim fiyat) × miktar.
-   * Multi-currency: her ilan awardedAt (≈updatedAt) tarihindeki TCMB kuruyla
-   * TRY equivalent'a çevrilir.
+   *
+   * Denetim 2026-08-28 Parça 12 #9: bu metot Parça 8'de kurulan TEK BAZ'ı
+   * (`common/company/report-currency.ts`) KULLANMIYORDU — helper yazılmış ama
+   * yalnız `company-reports.service.ts`'e bağlanmıştı. Sonuç: kullanıcı aynı
+   * veriden üç ekranda üç farklı tasarruf rakamı görüyordu. Beş ayrışma vardı,
+   * beşi de burada kapatıldı:
+   *   (a) `updatedAt` kazandırma tarihi sayılıyordu — `awardedAt` var ve
+   *       kazandırmadan SONRAKİ her yazım `updatedAt`'i ileri itiyor;
+   *   (b) teklifin `exchangeRateSnapshot` DAMGASI yok sayılıp `getRateOnDate`
+   *       → `FALLBACK_RATES`'e düşülüyordu — INV-FX-1'in fail-closed kuralının
+   *       TERSİ (damgasız satır hesaba katılmamalı, uydurma kurla değil);
+   *   (c) kalem `currency`/`fxToBase` okunmuyordu (madde 9 çok-birimli teklif);
+   *   (d) `awardedQuantity` yok sayılıp her zaman tam `quantity` çarpılıyordu;
+   *   (e) yalnız `WON` teklifler sayılıyordu — kalem-bazlı kazandırmada teklif
+   *       `AWARDED_PARTIAL` olur, yani kalem-bazlı kazandırmaların tasarrufu
+   *       panoda TÜMÜYLE görünmüyordu (raporda görünüyordu).
    */
   async satinalmaTasarruf(user: AuthenticatedCompanyUser) {
     const now = new Date();
@@ -403,7 +422,12 @@ export class CompanyDashboardService {
         companyId: user.companyId,
         type: "ALIM",
         status: "AWARDED",
-        updatedAt: { gte: yearStart },
+        // Aralık KAZANDIRMA tarihine uygulanır (rapordaki filtreyle aynı;
+        // awardedAt boş legacy kayıtlar için createdAt yedeği).
+        OR: [
+          { awardedAt: { gte: yearStart } },
+          { awardedAt: null, createdAt: { gte: yearStart } },
+        ],
       },
       select: {
         id: true,
@@ -411,13 +435,29 @@ export class CompanyDashboardService {
         title: true,
         primaryCurrency: true,
         categoryIds: true,
-        updatedAt: true,
-        items: { select: { id: true, quantity: true, targetPrice: true } },
+        awardedAt: true,
+        createdAt: true,
+        items: {
+          select: {
+            id: true,
+            quantity: true,
+            targetPrice: true,
+            awardedQuantity: true,
+          },
+        },
         bids: {
-          where: { status: "WON" },
+          where: { status: { in: ["WON", "AWARDED_PARTIAL"] } },
           select: {
             currency: true,
-            items: { select: { itemId: true, unitPrice: true } },
+            exchangeRateSnapshot: true,
+            items: {
+              select: {
+                itemId: true,
+                unitPrice: true,
+                currency: true,
+                fxToBase: true,
+              },
+            },
           },
         },
       },
@@ -431,17 +471,6 @@ export class CompanyDashboardService {
     ];
     const catLabel = await this.resolveCategoryLabels(firstCodes);
 
-    const rateCache = new Map<string, number>();
-    const getRate = async (c: Currency, d: Date): Promise<number> => {
-      if (c === "TRY") return 1;
-      const k = `${c}|${d.toISOString().slice(0, 10)}`;
-      const cached = rateCache.get(k);
-      if (cached !== undefined) return cached;
-      const r = await this.exchangeRate.getRateOnDate(c, d);
-      rateCache.set(k, r);
-      return r;
-    };
-
     interface Agg {
       number: string;
       title: string;
@@ -452,35 +481,54 @@ export class CompanyDashboardService {
       categoryLabel: string;
     }
 
-    const aggregates: Agg[] = await Promise.all(
-      listings.map(async (l) => {
-        const awardedAt = l.updatedAt;
-        // Denetim 2026-08-23 Parça 4: hedef fiyat İLANIN birimindedir, kazanan
-        // birim fiyatı ise TEKLİFİN biriminde — ikisi çevrilmeden çıkarılınca
-        // (ör. TRY ilan + USD teklif) tasarruf uydurma çıkıyordu. Her iki taraf
-        // AYRI kurla TRY'ye çevrilir.
-        const listingRate = await getRate(l.primaryCurrency, awardedAt);
-        const itemMap = new Map(l.items.map((i) => [i.id, i]));
+    const aggregates: Agg[] = listings.map((l) => {
+        const awardedAt = l.awardedAt ?? l.createdAt;
+        // Hedef fiyat İLANIN birimindedir, kazanan birim fiyatı ise TEKLİFİN
+        // (hatta KALEMİN) biriminde — ikisi ayrı ayrı TRY'ye çevrilir.
+        // TEK KAYNAK: report-currency.ts (rapordaki blokla birebir aynı).
+        // İlan birimi TRY değilse oran, ilan birimini kullanan kazanan teklifin
+        // DAMGASINDAN türetilir; damga yoksa referans yok → o satır kıyas dışı.
+        const listingRate =
+          l.primaryCurrency === "TRY"
+            ? 1
+            : (l.bids
+                .map((b) =>
+                  b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
+                )
+                .find((r): r is number => r != null) ?? null);
+
+        // Kalem başına EN İYİ (ALIM → en düşük) TRY birim fiyatı. Aynı kalemi
+        // birden çok kazanan teklif içerebilir (kalem-bazlı kazandırma).
+        const winningByItem = new Map<string, number>();
+        for (const it of l.items) {
+          let best: number | null = null;
+          for (const b of l.bids) {
+            const bi = b.items.find((x) => x.itemId === it.id);
+            if (!bi) continue;
+            const up = itemUnitPriceTry(b, bi);
+            if (up == null) continue; // damga yok → hesaba KATILMAZ
+            if (best == null || up < best) best = up;
+          }
+          if (best != null) winningByItem.set(it.id, best);
+        }
+
         let savings = 0;
         let volume = 0;
-        for (const bid of l.bids) {
-          const bidRate = await getRate(
-            (bid.currency ?? l.primaryCurrency) as Currency,
-            awardedAt,
+        for (const it of l.items) {
+          const winUnit = winningByItem.get(it.id);
+          if (winUnit == null) continue;
+          const qty =
+            it.awardedQuantity != null && Number(it.awardedQuantity) > 0
+              ? Number(it.awardedQuantity)
+              : Number(it.quantity);
+          const refUnit = listingAmountTry(
+            l.primaryCurrency,
+            it.targetPrice,
+            listingRate,
           );
-          for (const bi of bid.items) {
-            const item = itemMap.get(bi.itemId);
-            if (!item) continue;
-            const qty = Number(item.quantity);
-            const winTry = Number(bi.unitPrice) * bidRate;
-            const targetTry =
-              item.targetPrice !== null
-                ? Number(item.targetPrice) * listingRate
-                : null;
-            volume += winTry * qty;
-            if (targetTry !== null && targetTry > winTry) {
-              savings += (targetTry - winTry) * qty;
-            }
+          volume += winUnit * qty;
+          if (refUnit != null && refUnit > winUnit) {
+            savings += (refUnit - winUnit) * qty;
           }
         }
         return {
@@ -495,8 +543,7 @@ export class CompanyDashboardService {
             (l.categoryIds[0] && catLabel.get(l.categoryIds[0])) ||
             "Kategorisiz",
         };
-      }),
-    );
+    });
 
     const monthAggs = aggregates.filter((a) => a.awardedAt >= monthStart);
     const yearAggs = aggregates;

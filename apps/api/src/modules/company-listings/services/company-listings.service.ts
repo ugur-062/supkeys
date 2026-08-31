@@ -26,7 +26,7 @@ import {
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderOpRole } from "../bidder-op-role";
 import {
   LISTING_MANAGE_DENY_MESSAGE,
@@ -117,6 +117,7 @@ export class CompanyListingsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly bypass: PrismaBypassService,
     private readonly blocks: CompanyBlocksService,
     private readonly approvals: CompanyApprovalsService,
     private readonly exchangeRates: ExchangeRateService,
@@ -273,8 +274,14 @@ export class CompanyListingsService {
    * İlan teklife kapandığında (süre dolumu veya erken kapatma) bildirim:
    * davetlilere "ihale kapandı", sahibe "kazandırma kararı zamanı".
    */
+  // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
+  // Bu metot cron'dan da çağrılıyor (tenant bağlamı YOK) ve doğası gereği
+  // ÇAPRAZ-FİRMA: ilan sahibinin satırını okuyup DAVETLİLERİN (başka firmalar)
+  // davet/teklif satırlarını tarar. Ana client'la RLS açıldığında bağlamsız
+  // çağrı 0 satır döner — hata yok, log yok, bildirim sessizce hiç gitmez;
+  // istek yolundan gelen çağrı da sahibin bağlamıyla davetlileri göremezdi.
   async notifyListingClosed(listingId: string, opts?: { skipOwner?: boolean }) {
-    const listing = await this.prisma.listing.findUnique({
+    const listing = await this.bypass.listing.findUnique({
       where: { id: listingId },
       select: {
         id: true,
@@ -293,11 +300,11 @@ export class CompanyListingsService {
     // birleşik kümesine kapanış bildirimi.
     const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
       Promise.all([
-        this.prisma.listingInvitation.findMany({
+        this.bypass.listingInvitation.findMany({
           where: { listingId },
           select: { invitedCompanyId: true },
         }),
-        this.prisma.listingBid.findMany({
+        this.bypass.listingBid.findMany({
           where: { listingId },
           select: { bidderCompanyId: true },
         }),
@@ -556,6 +563,12 @@ export class CompanyListingsService {
    * kategori duyurusunu gönderir ve openNotifiedAt damgalar — ikinci çağrı
    * sessizce döner, çift bildirim gitmez.
    */
+  // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
+  // Bu metot cron'dan da çağrılıyor (tenant bağlamı YOK) ve doğası gereği
+  // ÇAPRAZ-FİRMA: ilan sahibinin satırını okuyup DAVETLİLERİN (başka firmalar)
+  // davet/teklif satırlarını tarar. Ana client'la RLS açıldığında bağlamsız
+  // çağrı 0 satır döner — hata yok, log yok, bildirim sessizce hiç gitmez;
+  // istek yolundan gelen çağrı da sahibin bağlamıyla davetlileri göremezdi.
   async announceListingOpen(
     listingId: string,
     kind: "invitation" | "newRound",
@@ -565,7 +578,7 @@ export class CompanyListingsService {
     // overlap / publish+cron) count=0 alıp sessizce döner — çift bildirim yok.
     // Embargo (bidsOpenAt gelecekte) koşulu sağlamaz → damga basılmaz, cron
     // açılış anında yeniden dener.
-    const claimed = await this.prisma.listing.updateMany({
+    const claimed = await this.bypass.listing.updateMany({
       where: {
         id: listingId,
         status: "OPEN",
@@ -580,7 +593,7 @@ export class CompanyListingsService {
     // turda yayın günü zaten açılış günüdür (aynı gün → aynı kur, zararsız).
     // Kur alınamazsa açılış ENGELLENMEZ: tur oluşturulurkenki damga geçerli kalır.
     try {
-      const l = await this.prisma.listing.findUnique({
+      const l = await this.bypass.listing.findUnique({
         where: { id: listingId },
         select: {
           format: true,
@@ -593,7 +606,7 @@ export class CompanyListingsService {
           l.allowedCurrencies as Currency[],
           l.primaryCurrency as Currency,
         );
-        await this.prisma.listing.update({
+        await this.bypass.listing.update({
           where: { id: listingId },
           data: { auctionRateSnapshot: snap },
         });
@@ -628,11 +641,17 @@ export class CompanyListingsService {
     this.realtime?.pingListing(listingId);
   }
 
+  // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
+  // Bu metot cron'dan da çağrılıyor (tenant bağlamı YOK) ve doğası gereği
+  // ÇAPRAZ-FİRMA: ilan sahibinin satırını okuyup DAVETLİLERİN (başka firmalar)
+  // davet/teklif satırlarını tarar. Ana client'la RLS açıldığında bağlamsız
+  // çağrı 0 satır döner — hata yok, log yok, bildirim sessizce hiç gitmez;
+  // istek yolundan gelen çağrı da sahibin bağlamıyla davetlileri göremezdi.
   async notifyListingInvitees(
     listingId: string,
     mode: "invitation" | "reminder" | "newRound",
   ) {
-    const listing = await this.prisma.listing.findUnique({
+    const listing = await this.bypass.listing.findUnique({
       where: { id: listingId },
       select: {
         id: true,
@@ -646,7 +665,7 @@ export class CompanyListingsService {
     // Davetliler teklifçidir → teklifçi portalı (ALIM→satış, SATIS→satınalma).
     const invitePortal = this.bidderPortal(listing.type);
     const invs = await this.inOwnerContext(listing.companyId, () =>
-      this.prisma.listingInvitation.findMany({
+      this.bypass.listingInvitation.findMany({
         where: { listingId },
         select: { invitedCompanyId: true },
       }),
@@ -663,7 +682,7 @@ export class CompanyListingsService {
       .filter((cid) => !blockedInvitees.includes(cid));
     if (mode === "reminder" || mode === "newRound") {
       const bidders = await this.inOwnerContext(listing.companyId, () =>
-        this.prisma.listingBid.findMany({
+        this.bypass.listingBid.findMany({
           where: { listingId, status: "SUBMITTED" },
           select: { bidderCompanyId: true },
         }),
@@ -5619,6 +5638,8 @@ export class CompanyListingsService {
         createdById: true,
         status: true,
         currentRound: true,
+        // P12 #11: tur damgasının TRY karşılığı açılış kuruyla hesaplanır.
+        auctionRateSnapshot: true,
         primaryCurrency: true,
         allowedCurrencies: true,
         autoExtendOnLateBid: true,
@@ -5743,12 +5764,24 @@ export class CompanyListingsService {
         throw new ConflictException("İlan durumu değişti; yeni tur açılamadı");
       }
       if (bids.length > 0) {
+        // Denetim 2026-08-28 Parça 12 #11: damga artık BİRİMİNİ ve açılış
+        // kuruyla çevrilmiş TRY karşılığını da taşıyor. Eskiden yalnız ham
+        // `amount` yazılıyordu; tur geçmişi ve Excel arşivi bunu birimden
+        // habersiz sıralayınca çok-birimli pazarlıkta yanlış sıra çıkıyordu.
+        // `amountTry` null ise (damga yok) okuma tarafı ham `amount`'a döner.
         await tx.listingRoundSnapshot.createMany({
           data: bids.map((b) => ({
             listingId,
             round: listing.currentRound,
             bidderName: b.bidderCompany.name,
             amount: b.amount,
+            currency: b.currency,
+            amountTry: this.auctionTryValue(
+              b.amount,
+              b.currency,
+              b.exchangeRateSnapshot,
+              listing.auctionRateSnapshot,
+            ),
           })),
         });
       }
@@ -6220,20 +6253,33 @@ export class CompanyListingsService {
     // Faz O dar-bağlam (denetim 2026-08-23 P2 #8): ONAYLAYICI-only/rolsüz üye
     // teklifçi adı+tutar geçmişini yalnız onay bağı varsa görür (getOne ile aynı).
     await this.assertOwnerReadContext(user, listingId);
+    // P12 #11: sıralama TRY karşılığı üzerinden (birimden habersiz `amount`
+    // sıralaması çok-birimli pazarlıkta 100 USD'yi 4.000 TRY'nin ALTINA
+    // koyuyordu). `amountTry` yoksa (damgasız legacy satır) ham `amount`'a
+    // düşülür — tek birimli turlarda ikisi zaten aynı. DB sıralaması null'ları
+    // öngörülemez yerleştireceği için sıralama bellekte yapılıyor (tur başına
+    // teklif sayısı küçük).
     const snaps = await this.prisma.listingRoundSnapshot.findMany({
       where: { listingId },
-      orderBy: [
-        { round: "desc" },
-        { amount: listing.type === "SATIS" ? "desc" : "asc" },
-      ],
+      orderBy: [{ round: "desc" }, { amount: "asc" }],
     });
+    const desc = listing.type === "SATIS";
+    const sortKey = (x: { amount: Prisma.Decimal; amountTry: Prisma.Decimal | null }) =>
+      Number(x.amountTry ?? x.amount);
     const byRound = new Map<
       number,
-      Array<{ bidderName: string; amount: string }>
+      Array<{ bidderName: string; amount: string; currency: string }>
     >();
-    for (const s of snaps) {
+    for (const s of [...snaps].sort((a, b) =>
+      desc ? sortKey(b) - sortKey(a) : sortKey(a) - sortKey(b),
+    )) {
       const arr = byRound.get(s.round) ?? [];
-      arr.push({ bidderName: s.bidderName, amount: s.amount.toString() });
+      arr.push({
+        bidderName: s.bidderName,
+        amount: s.amount.toString(),
+        // Gösterim birimi — etiketsiz tutar arşivde ayırt edilemiyordu.
+        currency: s.currency,
+      });
       byRound.set(s.round, arr);
     }
     return [...byRound.entries()].map(([round, bids]) => ({ round, bids }));

@@ -833,21 +833,29 @@ export class CompanyReportsService {
       }),
     );
 
-    // Tur geçmişi (arşiv) — snapshot yalnız ad+tutar taşır.
+    // Tur geçmişi (arşiv). Denetim 2026-08-28 Parça 12 #11: sıralama ve
+    // etiketleme artık BİRİM-farkında — damga `currency` + açılış kuruyla
+    // çevrilmiş `amountTry` taşıyor. Eskiden ham `amount` karşılaştırılıp
+    // birimsiz arşivleniyordu: çok-birimli pazarlıkta 100 USD, 4.000 TRY'nin
+    // "altında" sıralanıyor ve Excel'de hangi tutarın hangi birimde olduğu
+    // ayırt edilemiyordu. `amountTry` yoksa ham `amount`'a düşülür.
+    const snapKey = (x: { amount: unknown; amountTry: unknown }) =>
+      Number(x.amountTry ?? x.amount);
     const roundHistory =
       dto.includeRoundHistory && Array.isArray(l.roundSnapshots)
         ? [...l.roundSnapshots]
             .sort((a, b) =>
               a.round === b.round
                 ? bestIsMax
-                  ? Number(b.amount) - Number(a.amount)
-                  : Number(a.amount) - Number(b.amount)
+                  ? snapKey(b) - snapKey(a)
+                  : snapKey(a) - snapKey(b)
                 : a.round - b.round,
             )
             .map((s) => ({
               round: s.round,
               bidderName: s.bidderName,
               amount: Number(s.amount),
+              currency: s.currency,
             }))
         : [];
 

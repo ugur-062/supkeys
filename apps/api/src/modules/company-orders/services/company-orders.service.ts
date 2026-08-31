@@ -43,6 +43,7 @@ import {
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import { expectedDeliveryFromTimes } from "../../../common/company/delivery-time";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -210,6 +211,22 @@ export class CompanyOrdersService {
         _max: { deliveryDate: true },
       });
       expectedDeliveryDate = latest._max.deliveryDate ?? null;
+    }
+    // Denetim 2026-08-28 Parça 12 #10: yukarıdaki `deliveryDate` yolu 2026-08-02
+    // sonrası LEGACY — yeni teklifler tarih değil SÜRE (`deliveryTime`) taşıyor,
+    // dolayısıyla yeni siparişlerin tamamında null çıkıyor ve "geciken teslimat"
+    // alarmı yapısal olarak ölüyordu. Süre bandının üst sınırından kabul tarihine
+    // göre türet (tek kaynak: delivery-time.ts; M3_PLUS/eksik süre → null).
+    if (!expectedDeliveryDate) {
+      const acceptedAt = new Date();
+      const items = await this.prisma.companyOrderItem.findMany({
+        where: { orderId: id },
+        select: { deliveryTime: true },
+      });
+      expectedDeliveryDate = expectedDeliveryFromTimes(
+        acceptedAt,
+        items.map((i) => i.deliveryTime),
+      );
     }
     const res = await this.transition(user, id, {
       side: "seller",

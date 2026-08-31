@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { runWithTenantContext } from "../../common/tenant/tenant-context";
 import { hasValidConnection } from "../../common/company/valid-connection";
+import { AUTH_COMPANY_SELECT } from "../../common/company/auth-company-select";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import {
@@ -111,7 +112,7 @@ export class RealtimeGateway
       // passport'a bağlı, RealtimeModule'de değil).
       const user = await this.prisma.companyUser.findUnique({
         where: { id: payload.userId },
-        include: { company: true },
+        include: { company: { select: AUTH_COMPANY_SELECT } },
       });
       if (!user || !user.isActive || user.deletedAt) {
         throw new Error("Kullanıcı geçersiz");

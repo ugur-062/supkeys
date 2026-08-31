@@ -19,6 +19,8 @@ function makeService() {
   } as never;
   const service = new CompanyConnectionsService(
     prisma as never,
+    // P12 #3: bypass client (testte RLS kapalı → aynı client)
+    prisma as never,
     blocks,
     email as never,
     config,

@@ -1554,7 +1554,9 @@ export class AdminCompaniesService {
           complainant: { select: { id: true, name: true, rothernId: true } },
           against: { select: { id: true, name: true, rothernId: true } },
         },
-        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        // P12: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+        // üretir (aynı satır iki sayfada / hiç görünmez) → id ile tie-break.
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }, { id: "desc" }],
         skip: (p - 1) * ps,
         take: ps,
       }),

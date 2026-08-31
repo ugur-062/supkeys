@@ -96,7 +96,9 @@ export class AdminEmailLogsService {
         where,
         skip,
         take: pageSize,
-        orderBy: { queuedAt: "desc" },
+        // P12: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+        // üretir (aynı satır iki sayfada / hiç görünmez) → id ile tie-break.
+        orderBy: [{ queuedAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.emailLog.count({ where }),
     ]);

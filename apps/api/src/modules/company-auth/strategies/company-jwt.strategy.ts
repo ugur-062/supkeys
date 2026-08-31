@@ -10,6 +10,7 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
 import { effectiveTier } from "../../../common/company/effective-tier";
+import { AUTH_COMPANY_SELECT } from "../../../common/company/auth-company-select";
 import type { CompanyPermissionOverride } from "../permissions/company-permissions.constants";
 
 export interface CompanyJwtPayload {
@@ -73,7 +74,9 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // Roller + tier + sahiplik DB'den taze okunur (token'a güvenmeyiz).
     const user = await this.prisma.companyUser.findUnique({
       where: { id: payload.userId },
-      include: { company: true },
+      // Tam `company` satırı DEĞİL — yalnız kapının kullandığı 7 alan.
+      // TEK KAYNAK: AUTH_COMPANY_SELECT (P12 #12; gerekçe orada).
+      include: { company: { select: AUTH_COMPANY_SELECT } },
     });
 
     if (!user || !user.isActive || user.deletedAt) {

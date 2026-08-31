@@ -14,7 +14,10 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { Prisma } from "@rothern/db";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  PrismaService,
+  PrismaBypassService,
+} from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -56,6 +59,7 @@ export class CompanyConnectionsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly bypass: PrismaBypassService,
     private readonly blocks: CompanyBlocksService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
@@ -364,7 +368,14 @@ export class CompanyConnectionsService {
 
   /** Opt-out (public): davet token'ındaki adrese bir daha davet gönderilmez. */
   async markReferralOptOut(token: string) {
-    const inv = await this.prisma.companyReferralInvite.findUnique({
+    // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #5): BYPASS client.
+    // Bu uç PUBLIC ve guard'sız (e-postadaki tek-tık "davet almak istemiyorum"
+    // linki) → tenant bağlamı YOK. `company_referral_invites` policy'li:
+    // RLS açıldığında ana client'la satır bulunamaz, uç her tıklamada 404
+    // döner ve opt-out kaydı HİÇ yazılmaz (ETK/İYS yükümlülüğü).
+    // Cross-tenant okuma güvenli: erişim cuid token'la kapılı, dönen tek alan
+    // e-posta ve o da doğrudan geri verilmiyor.
+    const inv = await this.bypass.companyReferralInvite.findUnique({
       where: { token },
       select: { email: true },
     });

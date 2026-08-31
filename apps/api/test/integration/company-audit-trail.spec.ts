@@ -75,6 +75,8 @@ function makeApprovalRig() {
   const events = new EventEmitter2();
   const approvals = new CompanyApprovalsService(
     prisma as never,
+    // P12 #3: bypass client (testte RLS kapalı → aynı client)
+    prisma as never,
     events,
     email as never,
     config as never,
@@ -106,6 +108,8 @@ function makeFailingAwardRig() {
   const notifications = new NotificationService(prisma as never);
   const events = new EventEmitter2();
   const approvals = new CompanyApprovalsService(
+    prisma as never,
+    // P12 #3: bypass client (testte RLS kapalı → aynı client)
     prisma as never,
     events,
     email as never,
