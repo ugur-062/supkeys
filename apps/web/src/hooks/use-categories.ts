@@ -63,16 +63,24 @@ const withCount = (c: CategoryNode): CategoryNode => ({
 });
 
 /**
- * Level 1 (Segment) listesi — modal ilk açılışta. category-tree
- * cache'inden filtre, ek network çağrısı yok. childCount backend'den gelir.
+ * Level 1 (Segment) listesi.
+ *
+ * Perf turu (denetim P10 Dalga B): eskiden `/categories/all` (≈8,2k satır /
+ * ~180 KB) indirilip level===1 SÜZÜLÜYORDU — yani 38 segment göstermek için
+ * tüm ağaç çekiliyordu. Onboarding ve profil kategori seçimi gibi ağaca hiç
+ * girilmeyen ekranlarda bu tamamen boşa trafik. Artık `/categories/segments`
+ * (yalnız L1). Ağaca gerçekten inen tek yüzey seçim modalı; o drill-down
+ * sırasında `useChildren`/`useCategoryTree` ile zaten kendi verisini çekiyor.
  */
 export function useRoots() {
-  const { data: tree, isLoading, isError, refetch } = useCategoryTree();
-  const data = useMemo(
-    () => tree?.filter((c) => c.level === 1).map(withCount),
-    [tree],
-  );
-  return { data, isLoading, isError, refetch };
+  const { data, isLoading, isError, refetch } = useQuery<CategoryNode[]>({
+    queryKey: ["category-segments"],
+    queryFn: () => api.get("/categories/segments").then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 24 * HOUR_MS,
+  });
+  const mapped = useMemo(() => data?.map(withCount), [data]);
+  return { data: mapped, isLoading, isError, refetch };
 }
 
 /**

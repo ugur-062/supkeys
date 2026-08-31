@@ -17,6 +17,8 @@ import { Bell, MessageSquare, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { NOTIFICATION_KEY } from "@/hooks/use-notifications";
+import { MESSAGE_KEYS } from "@/hooks/use-company-messages";
 
 /**
  * Canlı popup köprüsü — WS sinyali geldiği AN sağ altta Facebook tarzı kart
@@ -145,18 +147,38 @@ export function LiveToasts() {
     );
     const socket = connectRealtime();
 
+    // Perf turu (denetim P10 Dalga B): bu iki çekim HAM axios ile yapılıyordu,
+    // yani zil rozeti (`useNotifications`) ve gelen kutusu (`useThreads`) aynı
+    // uçları KENDİ query'leriyle ayrıca çekiyordu → her WS sinyalinde aynı
+    // veri iki kez iniyordu. `fetchQuery` aynı anahtarları kullanır: tek istek
+    // hem toast'ı besler hem de listelerin önbelleğini tazeler (kullanıcı
+    // zile tıkladığında ekstra tur atılmaz).
     const fetchNotifications = () =>
-      companyApi
-        .get<AppNotification[]>("/notifications")
-        .then((r) => r.data)
+      qc
+        .fetchQuery({
+          queryKey: [...NOTIFICATION_KEY, "list", "all"],
+          queryFn: async () => {
+            const { data } =
+              await companyApi.get<AppNotification[]>("/notifications");
+            return data;
+          },
+          staleTime: 0,
+        })
         .catch(() => [] as AppNotification[]);
     const fetchThreads = (portal: PortalKey) =>
-      companyApi
-        .get<ThreadSummary[]>("/company/messages/threads", {
-          params: { portal },
+      qc
+        .fetchQuery({
+          queryKey: MESSAGE_KEYS.threads(portal),
+          queryFn: async () => {
+            // Backend satırları artık portal alanını taşıyor.
+            const { data } = await companyApi.get<ThreadSummary[]>(
+              "/company/messages/threads",
+              { params: { portal } },
+            );
+            return data;
+          },
+          staleTime: 0,
         })
-        // Backend satırları artık portal alanını taşıyor.
-        .then((r) => r.data)
         .catch(() => [] as ThreadSummary[]);
 
     const showNotification = (n: AppNotification) => {

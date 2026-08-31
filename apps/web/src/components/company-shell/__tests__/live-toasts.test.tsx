@@ -24,7 +24,15 @@ vi.mock("sonner", () => ({
   }),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  // Perf turu: LiveToasts artık ham axios yerine `qc.fetchQuery` kullanıyor
+  // (zil rozeti/gelen kutusuyla ÖNBELLEK PAYLAŞIMI — çift istek gitmesin).
+  // Sahte istemci queryFn'i doğrudan koşar: testin gözlemlediği ağ davranışı
+  // aynı kalır.
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    fetchQuery: ({ queryFn }: { queryFn: () => unknown }) =>
+      Promise.resolve(queryFn()),
+  }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({

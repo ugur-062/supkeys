@@ -136,6 +136,32 @@ export class CategoryService {
     return this.attachChildCount(cats);
   }
 
+  /**
+   * YALNIZ segmentler (L1) — perf turu (denetim P10 Dalga B).
+   *
+   * `useRoots()` yalnız 38 aktif segmenti gösteriyor ama bunun için
+   * `/categories/all`'ı (≈8,2k satır / ~180 KB) indiriyordu. Onboarding ve
+   * profil düzenleme gibi kategori AĞACINA hiç girilmeyen ekranlarda bu
+   * tamamen boşa trafik. Ağaca gerçekten ihtiyaç duyan tek yüzey seçim
+   * modalı; o zaten drill-down sırasında `/all`'ı çekiyor.
+   */
+  async getSegments() {
+    const cats = await this.prisma.category.findMany({
+      where: { isActive: true, level: 1 },
+      orderBy: [{ sortOrder: "asc" }],
+      select: {
+        id: true,
+        code: true,
+        nameTr: true,
+        level: true,
+        parentId: true,
+        segmentLetter: true,
+        sortOrder: true,
+      },
+    });
+    return this.attachChildCount(cats);
+  }
+
   /** Bir parent'ın direkt çocukları (L4 commodity lazy-load için). */
   async childrenOf(parentId: string) {
     if (!parentId) return [];

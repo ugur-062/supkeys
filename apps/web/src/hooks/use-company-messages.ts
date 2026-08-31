@@ -43,7 +43,13 @@ const LIVE = {
   staleTime: 0,
 };
 
-const KEYS = {
+/**
+ * Query anahtarları — DIŞA AKTARIK (perf turu, P10). `LiveToasts` aynı uçları
+ * kendi ham axios çağrısıyla çekiyordu; artık `fetchQuery` ile AYNI anahtarı
+ * kullanıyor. Anahtarı orada elle yazmak sessiz sürüklenme üretir (yanlış
+ * anahtar = önbellek paylaşılmaz, çift istek geri gelir) → tek kaynak.
+ */
+export const MESSAGE_KEYS = {
   threads: (portal: MessagePortal | "all") =>
     ["company-msg-threads", portal] as const,
   thread: (portal: MessagePortal, otherId: string) =>
@@ -53,7 +59,7 @@ const KEYS = {
 
 export function useThreads(portal: MessagePortal | "all", enabled = true) {
   return useQuery<ThreadSummary[]>({
-    queryKey: KEYS.threads(portal),
+    queryKey: MESSAGE_KEYS.threads(portal),
     queryFn: async () => {
       const { data } = await companyApi.get<ThreadSummary[]>(
         "/company/messages/threads",
@@ -73,7 +79,7 @@ export function useThreadMessages(
   otherPartyId: string | undefined,
 ) {
   return useQuery<ThreadResponse>({
-    queryKey: KEYS.thread(portal, otherPartyId ?? ""),
+    queryKey: MESSAGE_KEYS.thread(portal, otherPartyId ?? ""),
     queryFn: async () => {
       const { data } = await companyApi.get<ThreadResponse>(
         `/company/messages/with/${otherPartyId}`,
@@ -98,9 +104,9 @@ export function useSendMessage(portal: MessagePortal, otherPartyId: string) {
       return data;
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: KEYS.thread(portal, otherPartyId) });
-      qc.invalidateQueries({ queryKey: KEYS.threads(portal) });
-      qc.invalidateQueries({ queryKey: KEYS.unread });
+      qc.invalidateQueries({ queryKey: MESSAGE_KEYS.thread(portal, otherPartyId) });
+      qc.invalidateQueries({ queryKey: MESSAGE_KEYS.threads(portal) });
+      qc.invalidateQueries({ queryKey: MESSAGE_KEYS.unread });
     },
   });
 }
@@ -108,7 +114,7 @@ export function useSendMessage(portal: MessagePortal, otherPartyId: string) {
 /** Okunmamış mesaj — AKTİF portal (verilmezse iki portal toplamı). */
 export function useUnreadMessages(portal?: MessagePortal) {
   return useQuery<{ count: number }>({
-    queryKey: [...KEYS.unread, portal ?? "all"],
+    queryKey: [...MESSAGE_KEYS.unread, portal ?? "all"],
     queryFn: async () => {
       const { data } = await companyApi.get<{ count: number }>(
         "/company/messages/unread-count",

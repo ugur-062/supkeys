@@ -69,6 +69,7 @@ import { useSearchParams } from "next/navigation";
 const TAB_KEYS = ["mine", "discover", "incoming"] as const;
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const ORIGIN_BADGE: Record<
   ConnectionOrigin,
@@ -309,7 +310,13 @@ export function ConnectionsView() {
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [connQ, setConnQ] = useState("");
-  const search = useCompanySearch(q);
+  // Perf turu (denetim P10 Dalga B): `q` doğrudan sorguya besleniyordu →
+  // HER TUŞ VURUŞU bir dizin araması isteği. Sunucu tarafında bu arama
+  // indekssiz bir LIKE taraması (bkz. P12 indeks merceği), yani "tedarikçi"
+  // yazmak 9 tam tarama demekti. Repoda zaten kullanılan desen (onaylar
+  // sayfası, kategori modalı) burada eksikti.
+  const debouncedQ = useDebouncedValue(q, 300);
+  const search = useCompanySearch(debouncedQ);
   const outgoing = useOutgoingInvites();
   const discover = useDiscover();
   const cancelReferral = useCancelReferralInvite();

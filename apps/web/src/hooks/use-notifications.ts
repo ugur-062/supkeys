@@ -19,13 +19,14 @@ export interface AppNotification {
   createdAt: string;
 }
 
-const KEY = ["company-notifications"] as const;
+/** Query anahtarı — LiveToasts ile PAYLAŞILIR (perf turu, P10). */
+export const NOTIFICATION_KEY = ["company-notifications"] as const;
 
 /** Bildirim listesi — AKTİF portal (+ ortak). */
 export function useNotifications(portal?: NotificationPortal, enabled = true) {
   const user = useCompanyAuthStore((s) => s.user);
   return useQuery({
-    queryKey: [...KEY, "list", portal ?? "all"],
+    queryKey: [...NOTIFICATION_KEY, "list", portal ?? "all"],
     queryFn: async () => {
       const { data } = await companyApi.get<AppNotification[]>("/notifications", {
         params: portal ? { portal } : undefined,
@@ -41,7 +42,7 @@ export function useNotifications(portal?: NotificationPortal, enabled = true) {
 export function useUnreadCount(portal?: NotificationPortal) {
   const user = useCompanyAuthStore((s) => s.user);
   return useQuery({
-    queryKey: [...KEY, "unread", portal ?? "all"],
+    queryKey: [...NOTIFICATION_KEY, "unread", portal ?? "all"],
     queryFn: async () => {
       const { data } = await companyApi.get<{ count: number }>(
         "/notifications/unread-count",
@@ -65,7 +66,7 @@ export function useMarkNotificationsRead() {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTIFICATION_KEY }),
   });
 }
 
@@ -81,6 +82,6 @@ export function useMarkAllNotificationsRead() {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTIFICATION_KEY }),
   });
 }

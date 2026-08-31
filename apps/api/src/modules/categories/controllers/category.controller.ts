@@ -23,6 +23,16 @@ export class CategoryController {
     return this.service.getAllActive();
   }
 
+  /**
+   * Yalnız segmentler (L1) — `/all`'ın ~180 KB'lık ağacına ihtiyaç duymayan
+   * ekranlar için (onboarding, profil kategori seçimi). Perf turu, P10.
+   */
+  @Get("segments")
+  @Header("Cache-Control", "public, max-age=300")
+  getSegments(): Promise<unknown> {
+    return this.service.getSegments();
+  }
+
   /** Bir parent'ın direkt çocukları — L4 commodity lazy-load. */
   @Get("children")
   @Header("Cache-Control", "public, max-age=60")
