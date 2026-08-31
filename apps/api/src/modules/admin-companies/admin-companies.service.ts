@@ -2196,7 +2196,35 @@ export class AdminCompaniesService {
         name: true,
         rothernId: true,
         users: { select: { id: true, authId: true } },
-        _count: { select: { ordersAsBuyer: true, ordersAsSeller: true } },
+        // Dalga A2 (denetim P12 #1/#2): SERT SİLME kapısı eskiden YALNIZ
+        // siparişe bakıyordu. Sipariş FK'ları `Restrict` (doğru), ama iki
+        // taraflı DİĞER tabloların hepsi `Cascade` — yani 0 siparişli ama
+        // 40 aktif teklifli bir tedarikçi silinince ALICININ ihale dosyası
+        // geriye dönük değişiyordu: teklifler, teklif belgeleri (R2
+        // anahtarlarıyla), soru cevapları, karşılıklı mesaj geçmişi, o
+        // firmanın BAŞKA firmalara verdiği değerlendirmeler ve hakkında/
+        // tarafından açılmış şikâyetler siliniyordu. 3 teklifli bir ihale
+        // 2 teklifli görünüyordu ve bunu fark etmenin yolu yoktu.
+        //
+        // Kural artık: KARŞI TARAFIN kaydını ya da platformun defterini
+        // etkileyen HERHANGİ bir iz varsa sert silme YAPILMAZ —
+        // anonimleştirme dalına düşer (o dal zaten var ve KVKK'yı karşılar).
+        // Şemadaki cascade'leri `Restrict`'e çevirmek ayrıca yapılmalı
+        // (savunma derinliği), ama canlı riski kapatan kapı BURASI.
+        _count: {
+          select: {
+            ordersAsBuyer: true,
+            ordersAsSeller: true,
+            bidsPlaced: true,
+            listings: true,
+            messagesSent: true,
+            reviewsGiven: true,
+            reviewsReceived: true,
+            complaintsMade: true,
+            complaintsReceived: true,
+            membershipEvents: true,
+          },
+        },
         // KVKK imhası için nesne anahtarları (aşağıda R2'dan silinir).
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
@@ -2212,8 +2240,29 @@ export class AdminCompaniesService {
       },
     });
     if (!company) throw new NotFoundException("Firma bulunamadı");
-    const hasOrders =
-      company._count.ordersAsBuyer + company._count.ordersAsSeller > 0;
+    const c = company._count;
+    /**
+     * Sert silmeyi engelleyen izler. Her biri ya KARŞI TARAFIN kaydını
+     * (teklif/mesaj/değerlendirme/şikâyet) ya da platformun defterini
+     * (üyelik olayları = gelir raporunun tek kaynağı) taşır.
+     * `listings`: bu firmanın ilanları silinince ONA TEKLİF VERMİŞ firmaların
+     * teklif geçmişi de gider — kendi ilanı olsa bile tek taraflı değil.
+     */
+    const retentionCounts = {
+      ordersAsBuyer: c.ordersAsBuyer,
+      ordersAsSeller: c.ordersAsSeller,
+      bidsPlaced: c.bidsPlaced,
+      listings: c.listings,
+      messagesSent: c.messagesSent,
+      reviewsGiven: c.reviewsGiven,
+      reviewsReceived: c.reviewsReceived,
+      complaintsMade: c.complaintsMade,
+      complaintsReceived: c.complaintsReceived,
+      membershipEvents: c.membershipEvents,
+    };
+    const hasRetainedHistory = Object.values(retentionCounts).some(
+      (n) => n > 0,
+    );
 
     /**
      * GERİ ALINAMAZ dış temizlik — denetim 2026-08-26 Parça 9 #9: bu üç adım
@@ -2252,7 +2301,7 @@ export class AdminCompaniesService {
         );
     };
 
-    if (!hasOrders) {
+    if (!hasRetainedHistory) {
       await this.prisma.company.delete({ where: { id } });
       await this.audit.log({
         action: "admin.company.deleted",
@@ -2348,7 +2397,15 @@ export class AdminCompaniesService {
       actorId: adminId,
       entityType: "company",
       entityId: id,
-      metadata: { name: company.name, rothernId: company.rothernId },
+      metadata: {
+        name: company.name,
+        rothernId: company.rothernId,
+        // Neden sert silinmedi — hangi izler tuttu (Dalga A2, P12 #1/#2).
+        // Eskiden yalnız "sipariş var" ima ediliyordu; artık gerekçe açık.
+        retainedBecause: Object.fromEntries(
+          Object.entries(retentionCounts).filter(([, n]) => n > 0),
+        ),
+      },
       // #10: geri alınamaz aksiyon.
       critical: true,
     });

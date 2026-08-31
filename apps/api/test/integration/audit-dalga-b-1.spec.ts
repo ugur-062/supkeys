@@ -8,6 +8,26 @@ import { NotificationService } from "../../src/modules/notifications/notificatio
 import { anyPackageWhere } from "../../src/common/company/effective-tier";
 
 /**
+ * AdminCompaniesService rig'i — GERÇEK constructor sırası:
+ * (prisma, storage, email, notifications, config, audit, suppression).
+ * Elle yazınca sıra kaymış ve `audit` yerine e-posta stub'ı geçmişti; hata
+ * ancak audit'e ULAŞAN bir testte ortaya çıktı (rig stub gotcha).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeAdminCompaniesService(Ctor: any): any {
+  return new Ctor(
+    prisma,
+    { deleteObject: jest.fn().mockResolvedValue(undefined) },
+    { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) },
+    { pushToCompany: jest.fn().mockResolvedValue(1) },
+    { get: jest.fn() },
+    { log: jest.fn() },
+    { isSuppressed: jest.fn().mockResolvedValue(false) },
+  );
+}
+
+
+/**
  * Denetim Dalga B — 1. dalga (sessizce yanlış sonuç üreten maddeler).
  * Kaynak: Parça 3/7/8/11 Dalga B listeleri.
  */
@@ -171,12 +191,7 @@ describe("Denetim Dalga B-3", () => {
       where: { id: company.id },
       data: { membershipEndAt: null }, // süresiz
     });
-    const svc = new AdminCompaniesService(
-      prisma as never,
-      { log: jest.fn() } as never,
-      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
-      { get: jest.fn() } as never,
-    );
+    const svc = makeAdminCompaniesService(AdminCompaniesService);
     await expect(
       svc.extendMembership(company.id, 12, "admin1"),
     ).rejects.toThrow(/süresiz/i);
@@ -306,5 +321,75 @@ describe("Denetim Dalga B-5", () => {
     expect(IMPORT_MAX_FILE_BYTES * (4 / 3)).toBeLessThan(BODY_LIMIT);
     // CSV tavanı ayrı ve daha düşük kalmalı (ExcelJS heap patlaması).
     expect(ITEM_IMPORT_MAX_CSV_BYTES).toBeLessThan(IMPORT_MAX_FILE_BYTES);
+  });
+});
+
+/** Dalga A2 — P12 #1/#2 (sert silme kapısı) ve #6 (eksik RLS policy'leri). */
+describe("Denetim P12 A2", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("SİPARİŞSİZ ama TEKLİFLİ firma sert silinmez — anonimleştirilir", async () => {
+    const { AdminCompaniesService } = await import(
+      "../../src/modules/admin-companies/admin-companies.service"
+    );
+    const buyer = await makeCompanyWithUser(prisma);
+    const seller = await makeCompanyWithUser(prisma);
+    const { makeListing, makeItem, makeBid } = await import("./factories");
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      status: "OPEN",
+    });
+    const item = await makeItem(prisma, listing.id);
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      amount: 100,
+      items: [{ itemId: item.id, unitPrice: 100 }],
+    });
+
+    const svc = makeAdminCompaniesService(AdminCompaniesService);
+    // Tedarikçinin HİÇ siparişi yok — eski kapı burada SERT SİLERDİ ve
+    // alıcının ihalesindeki teklif cascade ile yok olurdu.
+    const res = await svc.deleteOrAnonymize(
+      seller.company.id,
+      "admin1",
+      async () => undefined,
+    );
+    expect(res.mode).toBe("anonymized");
+
+    // Alıcının ihale dosyası BOZULMADI:
+    const bidsLeft = await prisma.listingBid.count({
+      where: { listingId: listing.id },
+    });
+    expect(bidsLeft).toBe(1);
+  });
+
+  it("hiçbir izi olmayan firma hâlâ sert silinebilir (KVKK yolu kapanmadı)", async () => {
+    const { AdminCompaniesService } = await import(
+      "../../src/modules/admin-companies/admin-companies.service"
+    );
+    const lonely = await makeCompanyWithUser(prisma);
+    const svc = makeAdminCompaniesService(AdminCompaniesService);
+    const res = await svc.deleteOrAnonymize(
+      lonely.company.id,
+      "admin1",
+      async () => undefined,
+    );
+    expect(res.mode).toBe("deleted");
+  });
+
+  it("RLS backstop'ta artık boşluk yok — 2 tablo daha policy'li", async () => {
+    const rows = await prisma.$queryRawUnsafe<{ tablename: string }[]>(
+      `SELECT tablename FROM pg_policies
+       WHERE schemaname = current_schema()
+         AND tablename IN ('order_revision_items','company_kyc_revisions')`,
+    );
+    const names = rows.map((r) => r.tablename).sort();
+    expect(names).toEqual(["company_kyc_revisions", "order_revision_items"]);
   });
 });
