@@ -20,7 +20,7 @@ yalnız onaydan sonra dokunuldu.
 | 9 | Admin paneli | `audit-2026-08-26-part9-admin.md` | `c883cc3a` + `f17cd3bb` |
 | 10 | Web/Admin ön yüz | `audit-2026-08-26-part10-frontend.md` | `be514eea` + `67f79598` |
 | 11 | Altyapı & operasyon | `audit-2026-08-27-part11-infra.md` | `3f49891f` |
-| 12 | Veri modeli & göç | `audit-2026-08-28-part12-data-model.md` | **onay bekliyor** |
+| 12 | Veri modeli & göç | `audit-2026-08-28-part12-data-model.md` | `HEAD` (2026-08-31) |
 
 ## Tekrar eden hata sınıfları
 
@@ -65,6 +65,6 @@ panellerine erişmesi gerekir. Öncelik sırasıyla:
 
 ## Not
 
-Parça 12 Dalga A henüz uygulanmadı. Aktivasyon-bloklayıcı dört madde (#3-#6)
-bugün canlıda etki üretmiyor — RLS prod'da kapalı — ama açıldığı gün sessiz
-işlev kaybı olarak çıkarlar.
+Parça 12 Dalga A uygulandı (2026-08-31). Aktivasyon-bloklayıcılardan #3 ve #5
+kapandı, #4 çürütüldü (zaten kapalıymış), **#6 açık kaldı** — iki tabloya
+policy eklemek A2'de. Migration `20260831090000` prod'a henüz uygulanmadı.

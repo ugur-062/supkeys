@@ -37,9 +37,9 @@ taraf verisini götürmesi**, **(3) tavansız `include` ağaçları + sıfır GI
 | # | Bulgu | Kanıt |
 |---|-------|-------|
 | 3 | **Cron'lar servise delege ettiği anda ana client'a düşüyor.** Scheduler'ların KENDİ sorguları `PrismaBypassService` kullanıyor (desen doğru), ama delege ettikleri `notifyListingClosed`/`notifyListingInvitees`/`announceListingOpen`/`remindPending`/`fallbackInactiveApprovers` ana client'ta. Cron'da ALS store yok → `set_config` yapılmaz → kısıtlı rol altında policy'li tablolar **0 satır** döner. Sonuç: kapanış bildirimi, kapanış hatırlatması, embargo duyurusu, onay hatırlatması ve pasif-onaycı devri **hiç çalışmaz** — hata yok, log yok, sayaç 0, "cron çalıştı" görünür | `listing.scheduler.ts:85,145,250` → `company-listings.service.ts:296,300,649,666`; `approvals.scheduler.ts:56` |
-| 4 | **WebSocket hiç tenant bağlamı almıyor.** `TenantContextInterceptor` yalnız `getType() === "http"` dalında çalışıyor; WS handshake/handler'ları ALS kapsamı dışında. Gateway abonelik yetkisini `companyOrder.count`/`companyBlock.count`/`listingBid.count`/`listingInvitation.count` ile kapılıyor — dördü de policy'li. Aktivasyondan sonra hepsi 0 döner → realtime TÜM firmalar için ölür (sızıntı yok, fail-closed; ama sessiz ret, teşhisi zor) | `tenant-context.interceptor.ts:24`; `realtime.gateway.ts:209,245,256,259` |
+| ~~4~~ | **ÇÜRÜTÜLDÜ (Dalga A uygulanırken).** Mercek `TenantContextInterceptor`'ın HTTP-only olduğunu doğru saptadı ama gateway'i okumadı: abonelik kapısı **Parça 4'te zaten** `runWithTenantContext({ companyId, realm: "company" }, …)` ile sarılmış (`realtime.gateway.ts:194`). Handshake dalı bağlamsız kalıyor, ama orada yalnız `companies` ve `company_users` okunuyor ve ikisinin de policy'si `USING (true)` (bilinçli permissive) → RLS açıldığında da çalışır. **Aksiyon gerekmiyor.** | `realtime.gateway.ts:194`; `rls_policy_safe_subset` |
 | 5 | **Public referral opt-out ucu policy'li tabloyu bağlamsız okuyor.** `GET /public/referral-optout?token=…` guard'sız ve pre-context; ana client + bağlam yok → policy false → satır bulunamaz. Aktivasyondan sonra e-postadaki "davet almak istemiyorum" linki **her tıklamada 404** verir ve opt-out kaydı hiç yazılmaz — ETK/İYS yükümlülüğü | `referral-optout.controller.ts:16` → `company-connections.service.ts:367` |
-| 6 | **`order_revision_items` policy'siz.** Kardeşi `order_revisions` ve analogu `company_order_items` 2-kat `EXISTS` ile korunuyor, bu tablo ne `ENABLE RLS` ne policy almış — `rls-plan.md` kapsama aldığını yazıyor, migration uygulamamış. Sipariş revizyonu kalem **birim fiyatları** (pazarlık pozisyonu) backstop dışında. Aynı sınıf: `company_kyc_revisions` (plan mühürlendikten 1 gün sonra eklendi, gerekçesiz kapsam dışı — içeriği KYC belgesinin R2 nesne anahtarı: vergi levhası, imza sirküleri, **kimlik ön/arka taraması**) | `schema.prisma:915,1761`; `20260720110000_rls_policy_orders` (yok) |
+| 6 | **`order_revision_items` policy'siz** (doğrulandı: migration'larda geçen tek `ON "order_revision_items"` bir `CREATE INDEX`, `CREATE POLICY` değil).** Kardeşi `order_revisions` ve analogu `company_order_items` 2-kat `EXISTS` ile korunuyor, bu tablo ne `ENABLE RLS` ne policy almış — `rls-plan.md` kapsama aldığını yazıyor, migration uygulamamış. Sipariş revizyonu kalem **birim fiyatları** (pazarlık pozisyonu) backstop dışında. Aynı sınıf: `company_kyc_revisions` (plan mühürlendikten 1 gün sonra eklendi, gerekçesiz kapsam dışı — içeriği KYC belgesinin R2 nesne anahtarı: vergi levhası, imza sirküleri, **kimlik ön/arka taraması**) | `schema.prisma:915,1761`; `20260720110000_rls_policy_orders` (yok) |
 
 ### Göç güvenliği
 
@@ -109,7 +109,15 @@ doğrudan companyId" → bugün 17; `CompanyReview` yanlış grupta).
 
 ## DURUM
 
-- Dalga A **UYGULANMADI** — düzeltme ONAYI bekliyor.
+- **Dalga A UYGULANDI** (2026-08-31): #12, #9, #10, #11, #3, #5 + 4 sayfalı
+  listede id tie-break + `complainantCompanyId` indeksi. Migration
+  `20260831090000` yalnız EKLEMELİ (ADD COLUMN ×2 + CREATE INDEX) ve **prod'a
+  henüz uygulanmadı** — `migrate:deploy` gerekiyor. Testler: yeni spec 10 +
+  tam suite 145 suite / 1266 test, web 352, admin 79 yeşil.
+- **A2'ye bırakılanlar** (tablo yeniden yazımı / policy / PITR şartı):
+  `fxToBase` scale 6→12 (numeric'te scale değişimi no-op transform DEĞİL →
+  `listing_bid_items` yeniden yazılır), #1/#2 cascade → `Restrict`/`SetNull`,
+  #6 iki tabloya policy, gün-anlamlı 7 tarih alanı → `@db.Date`.
 - **Aktivasyon-bloklayıcı olarak işaretlenenler (#3, #4, #5, #6):** RLS prod'da
   açılmadan ÖNCE kapatılmalı; bugün hiçbiri canlıda etki üretmiyor (RLS kapalı),
   ama açıldığı gün sessiz işlev kaybı olarak çıkarlar.
