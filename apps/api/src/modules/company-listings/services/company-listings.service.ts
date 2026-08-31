@@ -86,6 +86,7 @@ import {
   runWithTenantContext,
 } from "../../../common/tenant/tenant-context";
 import { appRoutes } from "../../../common/company/app-routes";
+import { createHash } from "node:crypto";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -2240,7 +2241,69 @@ export class CompanyListingsService {
    * görünürlük kontrolü (yoksa 404), maskeleme + kendi teklifi (myBid) + canBid.
    * Kapalı zarf: sahip olmayan başkalarının tekliflerini GÖREMEZ.
    */
-  async getOne(user: AuthenticatedCompanyUser, id: string) {
+  /**
+   * Sahip detayının DEĞİŞİM PARMAK İZİ — ucuz aggregate'lerden türetilir
+   * (perf turu, denetim P10). Ağır teklif→kalem→cevap ağacını okumadan
+   * "değişti mi?" sorusunu yanıtlar.
+   *
+   * Payload'ın okuduğu TÜM değişken kaynaklar buradadır; biri unutulursa
+   * ekran sessizce bayat kalır. Yeni bir alan eklendiğinde bu listeye de
+   * eklenmelidir (sözleşme testi `listing-etag.spec.ts` her kaynağı ayrı
+   * ayrı kontrol eder).
+   */
+  private async ownerDetailFingerprint(
+    listing: { updatedAt: Date; deliveryAddressId: string | null; billingAddressId: string | null },
+    listingId: string,
+  ): Promise<string> {
+    const addrIds = [listing.deliveryAddressId, listing.billingAddressId].filter(
+      (x): x is string => !!x,
+    );
+    const [bids, items, invites, approval, addrs] = await Promise.all([
+      this.prisma.listingBid.aggregate({
+        where: { listingId },
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
+      this.prisma.listingItem.aggregate({
+        where: { listingId },
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
+      // Davetler DEĞİŞMEZ (yalnız oluşturulur/silinir; `status` alanı yok) →
+      // satır sayısı tek başına yeterli, zaman damgası gereksiz.
+      this.prisma.listingInvitation.count({ where: { listingId } }),
+      this.prisma.approvalRequest.aggregate({
+        where: { listingId },
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
+      addrIds.length
+        ? this.prisma.companyAddress.aggregate({
+            where: { id: { in: addrIds } },
+            _max: { updatedAt: true },
+          })
+        : Promise.resolve({ _max: { updatedAt: null } }),
+    ]);
+    const parts = [
+      listing.updatedAt.getTime(),
+      bids._count._all,
+      bids._max.updatedAt?.getTime() ?? 0,
+      items._count._all,
+      items._max.updatedAt?.getTime() ?? 0,
+      invites,
+      approval._count._all,
+      approval._max.updatedAt?.getTime() ?? 0,
+      addrs._max.updatedAt?.getTime() ?? 0,
+    ].join("-");
+    return `W/"${createHash("sha1").update(parts).digest("base64url")}"`;
+  }
+
+  async getOne(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    /** İstemcinin elindeki sürüm (If-None-Match) — sahip dalında 304 kapısı. */
+    ifNoneMatch?: string,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
       include: { company: { select: { name: true, country: true } } },
@@ -2405,6 +2468,28 @@ export class CompanyListingsService {
       // owner-detayını (rakip teklifler + iç notlar) yalnız kendisine düşmüş
       // onay bağlamında görebilir.
       await this.assertOwnerReadContext(user, listing.id);
+
+      // ── ETag/304 (perf turu, denetim P10) ────────────────────────────────
+      // Sahip detayı açık eksiltmede 4 sn'de bir (kapanışa son 2 dk'da 1,5
+      // sn'de bir) poll'lanıyor ve HER SEFERİNDE tüm teklif→kalem→cevap
+      // ağacını çekiyordu: 500 kalem × 30 teklif senaryosunda ~31 bin satır /
+      // ~4 MB, saniyede bir. Oysa turların çoğunda hiçbir şey değişmez.
+      //
+      // GÜVENLİK: parmak izi YALNIZ sahiplik kapısı (`isOwner`) ve Faz O
+      // dar-bağlam kapısı GEÇTİKTEN SONRA hesaplanır — 304 hiçbir zaman
+      // yetkisiz bir isteğe dönemez, kapıdan geçemeyen istek yukarıda 404
+      // alır. Parmak izi opak bir hash'tir, içerik sızdırmaz.
+      //
+      // TAMLIK: payload'ın okuduğu her DEĞİŞKEN kaynak parmak izinde olmalı,
+      // yoksa ekran sessizce bayat kalır. `listing_items` ve
+      // `listing_invitations` bu yüzden `updatedAt` kolonu aldı
+      // (20260901090000) — onlarsız kalem düzenlemesi ve davet durumu
+      // değişimi "değişmedi" sayılırdı.
+      const fp = await this.ownerDetailFingerprint(listing, id);
+      if (ifNoneMatch && ifNoneMatch === fp) {
+        return { notModified: true as const, etag: fp };
+      }
+
       // Bağımsız sorgular paralel (sahip detayı 4sn'de bir poll'lanabilir).
       const needsApproval =
         listing.status === "IN_APPROVAL" ||
@@ -2462,6 +2547,8 @@ export class CompanyListingsService {
       );
       return {
         ...this.detail(listing, false),
+        // İstemci bunu bir sonraki istekte If-None-Match ile geri gönderir.
+        etag: fp,
         isOwner: true,
         // F7: buton izin-kapısı için — kazandır/ele assertListingManageRole
         // (createdById===userId VEYA SAHİP) ister; UI aynı kapıyı uygular.

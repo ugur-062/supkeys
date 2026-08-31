@@ -309,6 +309,9 @@ export interface ListingAddress {
 }
 
 export interface ListingDetail {
+  /** Sunucu parmak izi — bir sonraki istekte If-None-Match olarak gider
+   *  (sahip dalı; başkası için tanımsız). Perf turu, denetim P10. */
+  etag?: string;
   id: string;
   number: string | null;
   type: ListingType;
@@ -447,10 +450,21 @@ export function useListingDetail(id: string) {
   return useQuery({
     queryKey: ["company-listings", "detail", id],
     enabled: !!id,
-    queryFn: async () => {
-      const { data } = await companyApi.get<ListingDetail>(
+    queryFn: async ({ client, queryKey }) => {
+      // Perf turu (denetim P10): sahip dalı ETag/304 destekliyor. Elimizdeki
+      // sürümü If-None-Match ile yolla; sunucu değişmediğini söylerse (304)
+      // ağır gövde HİÇ kurulmuyor ve biz mevcut önbelleği koruyoruz.
+      // 500 kalem × 30 teklif senaryosunda tur başına ~4 MB → ~0 bayt.
+      const prev = client.getQueryData<ListingDetail>(queryKey);
+      const { data, status } = await companyApi.get<ListingDetail>(
         `/company/listings/${id}`,
+        {
+          headers: prev?.etag ? { "If-None-Match": prev.etag } : undefined,
+          // 304'ü axios HATA saymasın — beklenen yanıt.
+          validateStatus: (s2) => (s2 >= 200 && s2 < 300) || s2 === 304,
+        },
       );
+      if (status === 304 && prev) return prev;
       return data;
     },
     // Canlı güncelleme: açık artırma/eksiltmede 4sn; diğer AÇIK ilanlarda

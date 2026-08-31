@@ -8,6 +8,8 @@ import {
   Post,
   Query,
   UseGuards,
+  Headers,
+  Res,
 } from "@nestjs/common";
 import {
   CurrentCompanyUser,
@@ -27,6 +29,7 @@ import {
 } from "../dto/owner-action.dto";
 import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
+import type { Response } from "express";
 
 @Controller("company/listings")
 @UseGuards(CompanyJwtAuthGuard)
@@ -69,12 +72,31 @@ export class CompanyListingsController {
     );
   }
 
+  /**
+   * Perf turu (denetim P10): sahip dalı ETag/304 destekler. İstemci elindeki
+   * sürümü `If-None-Match` ile gönderir; hiçbir şey değişmemişse gövde HİÇ
+   * kurulmaz (ağır teklif→kalem→cevap ağacı okunmaz) ve 304 döner.
+   *
+   * Yetki sırası KORUNUR: servis önce sahiplik + Faz O kapısını uygular,
+   * parmak izini ondan SONRA hesaplar. Yetkisiz istek 404 alır, 304 değil.
+   */
   @Get(":id")
-  getOne(
+  async getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Headers("if-none-match") ifNoneMatch: string | undefined,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.service.getOne(user, id);
+    const result = await this.service.getOne(user, id, ifNoneMatch);
+    if ("notModified" in result && result.notModified) {
+      res.setHeader("ETag", result.etag);
+      res.status(304);
+      return undefined;
+    }
+    if ("etag" in result && typeof result.etag === "string") {
+      res.setHeader("ETag", result.etag);
+    }
+    return result;
   }
 
   @Post()

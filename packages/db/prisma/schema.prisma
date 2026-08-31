@@ -1408,6 +1408,12 @@ model ListingItem {
 
   createdAt DateTime @default(now())
 
+  // Perf: ilan detayı ETag parmak izi bu damgayı okur — yoksa kalem
+
+  // düzenlemesi / davet durumu değişimi "değişmedi" sayılırdı.
+
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([listingId])
   @@map("listing_items")
 }
