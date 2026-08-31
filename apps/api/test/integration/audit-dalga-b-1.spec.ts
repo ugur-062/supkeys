@@ -119,3 +119,39 @@ describe("Denetim Dalga B-1", () => {
     });
   });
 });
+
+/** Dalga B-2 — tek-kaynak sözleşmeleri. */
+describe("Denetim Dalga B-2", () => {
+  it("derin bağlantılar tek kaynaktan üretilir", async () => {
+    const { appRoutes } = await import(
+      "../../src/common/company/app-routes"
+    );
+    const base = "https://www.rothern.com";
+    expect(appRoutes.listing(base, "abc")).toBe(
+      "https://www.rothern.com/company/ilan/abc",
+    );
+    expect(appRoutes.order(base, "o1")).toBe(
+      "https://www.rothern.com/company/siparis/o1",
+    );
+    expect(appRoutes.approvals(base)).toBe(
+      "https://www.rothern.com/company/onaylar",
+    );
+    expect(appRoutes.messagesWith(base, "c9")).toBe(
+      "https://www.rothern.com/company/mesajlar?with=c9",
+    );
+  });
+
+  it("tasarruf raporu tavana dayandığında `truncated` bildirir", async () => {
+    // Sözleşme kontrolü: alan varlığı (500 ihale kurmak pahalı olurdu).
+    const svcSrc = await import("node:fs").then((fs) =>
+      fs.readFileSync(
+        "src/modules/company-reports/company-reports.service.ts",
+        "utf8",
+      ),
+    );
+    // `general` zaten bildiriyordu; `savings` eskiden SESSİZ kesiyordu.
+    const savings = svcSrc.slice(svcSrc.indexOf("async savings("));
+    expect(savings).toContain("MAX_REPORT_LISTINGS + 1");
+    expect(savings).toContain("truncated,");
+  });
+});

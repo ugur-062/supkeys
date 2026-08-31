@@ -45,6 +45,7 @@ import { RealtimeService } from "../../realtime/realtime.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { expectedDeliveryFromTimes } from "../../../common/company/delivery-time";
 import { reportToSentry } from "../../../instrument";
+import { appRoutes } from "../../../common/company/app-routes";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -161,7 +162,7 @@ export class CompanyOrdersService {
     paragraph: string,
     portal: NotificationPortal,
   ): Promise<void> {
-    const ctaUrl = `${this.webUrl()}/company/siparis/${orderId}`;
+    const ctaUrl = appRoutes.order(this.webUrl(), orderId);
     // In-app kanal (order_status_changed transactional → her zaman gider).
     await this.notifications.pushToCompany(recipientCompanyId, {
       type: "order_status_changed",

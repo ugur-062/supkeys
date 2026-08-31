@@ -47,6 +47,9 @@ export interface GeneralResult {
   generatedAt: string;
   rangeStart: string | null;
   rangeEnd: string | null;
+  /** Sunucu tavanına dayanıldı mı (sessiz kesme yok) — Dalga B-2. */
+  truncated?: boolean;
+  maxRows?: number;
   listings: GeneralRow[];
   summary: {
     totalListings: number;
@@ -109,6 +112,8 @@ export interface SavingsResult {
   rangeStart: string;
   rangeEnd: string;
   currency: string | null;
+  truncated?: boolean;
+  maxRows?: number;
   rows: SavingsRow[];
   summary: {
     totalListings: number;

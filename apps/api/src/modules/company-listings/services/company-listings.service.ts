@@ -85,6 +85,7 @@ import {
   getTenantStore,
   runWithTenantContext,
 } from "../../../common/tenant/tenant-context";
+import { appRoutes } from "../../../common/company/app-routes";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -324,7 +325,7 @@ export class CompanyListingsService {
         ...bids.map((b) => b.bidderCompanyId),
       ]),
     ].filter((cid) => !blockedForNotify.includes(cid));
-    const bidUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+    const bidUrl = appRoutes.listing(this.webUrl(), listingId);
     const closeRecipients = await this.companyRecipients(
       participantIds,
       bidderPortal,
@@ -368,7 +369,7 @@ export class CompanyListingsService {
     // Sahip detay sayfası: kanonik /company/ilan/[id] (owner branch teklifleri +
     // kazandırmayı gösterir). ihalelerim/[id] · ilanlarim/[id] detay page.tsx'i
     // YOK (yalnız .../duzenle var) — oraya yönlendirmek 404 veriyordu.
-    const ownerUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+    const ownerUrl = appRoutes.listing(this.webUrl(), listingId);
     if (owner) {
       this.notify(
         owner,
@@ -690,7 +691,7 @@ export class CompanyListingsService {
       const bidderSet = new Set(bidders.map((b) => b.bidderCompanyId));
       targets = targets.filter((id) => !bidderSet.has(id));
     }
-    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const url = appRoutes.listing(this.webUrl(), listingId);
     const t = listing.title;
     const no = listing.number ?? "—";
     // Mod'a göre metin + tip. Yeni tur (`listing_new_round`) tercihte
@@ -3977,7 +3978,7 @@ export class CompanyListingsService {
           title: "Yeni teklif geldi",
           body: `"${listing.title}" (${listing.number ?? "—"}) ilanınıza yeni bir teklif verildi.`,
           ctaLabel: "İhaleyi Gör",
-          ctaUrl: `${this.webUrl()}/company/ilan/${id}`,
+          ctaUrl: appRoutes.listing(this.webUrl(), id),
           listingId: id,
         })
         .catch((err) =>
@@ -4730,7 +4731,7 @@ export class CompanyListingsService {
               `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
             ],
             ctaLabel: "Siparişi Gör",
-            ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
+            ctaUrl: appRoutes.order(this.webUrl(), order.id),
           },
           { type: "bid_awarded", id: order.id },
         );
@@ -4741,13 +4742,13 @@ export class CompanyListingsService {
         title: "Teklifiniz kazandı",
         body: `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu.`,
         ctaLabel: "Siparişi Gör",
-        ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
+        ctaUrl: appRoutes.order(this.webUrl(), order.id),
       });
       // Kaybeden teklif sahiplerine "ihale sonuçlandı" bildirimi (teklifçi
       // portalı, bidElimination tercihine bağlı — eleme bildirimini kapatan
       // bunu da almaz).
       if (losingBidderIds.length > 0) {
-        const lostUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+        const lostUrl = appRoutes.listing(this.webUrl(), listingId);
         const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
         const lostRecipients = await this.companyRecipients(
           losingBidderIds,
@@ -5487,7 +5488,7 @@ export class CompanyListingsService {
                 `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
               ],
               ctaLabel: "Siparişi Gör",
-              ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
+              ctaUrl: appRoutes.order(this.webUrl(), o.id),
             },
             { type: "bid_awarded", id: o.id },
           );
@@ -5500,13 +5501,13 @@ export class CompanyListingsService {
             title: "Teklifiniz kazandı",
             body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
             ctaLabel: "Siparişi Gör",
-            ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
+            ctaUrl: appRoutes.order(this.webUrl(), o.id),
           });
         }
       }
       // Kaybedenler (hiç kalem kazanamayan SUBMITTED teklifçiler) — runFullAward simetrisi.
       if (losingBidderIds.length > 0) {
-        const lostUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+        const lostUrl = appRoutes.listing(this.webUrl(), listingId);
         const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
         const lostRecipients = await this.companyRecipients(losingBidderIds, itemWonPortal);
         for (const cid of losingBidderIds) {
@@ -5904,7 +5905,7 @@ export class CompanyListingsService {
     if (!listing) return;
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
     const portal = this.bidderPortal(listing.type);
-    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const url = appRoutes.listing(this.webUrl(), listingId);
     const isSatis = listing.type === "SATIS";
     const roundName =
       listing.format === "ENGLISH_AUCTION"
@@ -6202,7 +6203,7 @@ export class CompanyListingsService {
           where: { id: listingId },
           select: { title: true, number: true },
         });
-        const url = `${this.webUrl()}/company/ilan/${listingId}`;
+        const url = appRoutes.listing(this.webUrl(), listingId);
         const addPortal = this.bidderPortal(listing.type);
         const addRecipients = await this.companyRecipients(toAdd, addPortal);
         for (const cid of toAdd) {
@@ -6365,7 +6366,7 @@ export class CompanyListingsService {
             `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
           ],
           ctaLabel: "İhaleyi Gör",
-          ctaUrl: `${this.webUrl()}/company/ilan/${listingId}`,
+          ctaUrl: appRoutes.listing(this.webUrl(), listingId),
         },
         { type: "bid_eliminated", id: bidId },
       );
@@ -6376,7 +6377,7 @@ export class CompanyListingsService {
       title: "Teklifiniz değerlendirme dışı kaldı",
       body: `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
       ctaLabel: "İhaleyi Gör",
-      ctaUrl: `${this.webUrl()}/company/ilan/${listingId}`,
+      ctaUrl: appRoutes.listing(this.webUrl(), listingId),
       listingId,
     });
     this.realtime?.pingListing(listingId, [bid.bidderCompanyId]);
@@ -6504,7 +6505,7 @@ export class CompanyListingsService {
       ]),
     ];
     if (companyIds.length === 0) return;
-    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const url = appRoutes.listing(this.webUrl(), listingId);
     // Katılımcılar teklifçidir → teklifçi portalı.
     const partPortal = this.bidderPortal(listing.type);
     const recipients = await this.companyRecipients(companyIds, partPortal);
@@ -6622,7 +6623,7 @@ export class CompanyListingsService {
     if (!listing) return;
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
     const portal = this.ownerPortal(listing.type);
-    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const url = appRoutes.listing(this.webUrl(), listingId);
     const body = `${label} ihalesi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da ${listing.type === "SATIS" ? "alıcılardan" : "tedarikçilerden"} geçerlilik uzatması isteyin.`;
     const recipient = await this.companyRecipient(listing.companyId, portal);
     if (recipient) {

@@ -9,6 +9,7 @@ import {
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import { appRoutes } from "../../../common/company/app-routes";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -159,7 +160,7 @@ export class MembershipScheduler implements OnModuleInit {
                 "Tekrar premium'a geçmek için hesabınızdan yükseltme yapabilirsiniz.",
               ],
               ctaLabel: "Premium'a Geç",
-              ctaUrl: `${baseUrl}/company/premium`,
+              ctaUrl: appRoutes.premium(baseUrl),
             },
           },
           context: { type: "membership_downgraded", id: c.id },

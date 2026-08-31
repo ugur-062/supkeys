@@ -1,6 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+// Sembol tablosu TEK KAYNAK: lib/tenders/labels.ts (Dalga B-2) — buradaki
+// kopya CHF/AED'de labels.ts ile ÇELİŞİYORDU (aynı tutar iki ekranda iki sembol).
+import { currencySymbol } from "@/lib/tenders/labels";
 
 /**
  * P1 (frontend denetimi §8.1) — TEK para gösterimi. Kurallar:
@@ -10,18 +13,6 @@ import { cn } from "@/lib/utils";
  * Görülen 6 farklı format (₺206.000 / 42.119,9 ₺ / 2.231 ₺ / …) bu bileşende
  * teke iner; yeni para gösterimleri BURADAN geçer, elden formatlanmaz.
  */
-const SYMBOL: Record<string, string> = {
-  TRY: "₺",
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  CHF: "CHF",
-  JPY: "¥",
-  AED: "AED",
-  CNY: "¥",
-  RUB: "₽",
-};
-
 export function formatMoney(
   value: number | string,
   currency = "TRY",
@@ -32,7 +23,7 @@ export function formatMoney(
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
-  return `${num} ${SYMBOL[currency] ?? currency}`;
+  return `${num} ${currencySymbol(currency)}`;
 }
 
 /**
@@ -46,7 +37,7 @@ export function formatCompactMoney(
 ): string {
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return "—";
-  const sym = SYMBOL[currency] ?? currency;
+  const sym = currencySymbol(currency);
   if (Math.abs(n) < 10_000) {
     return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(n)} ${sym}`;
   }
@@ -79,7 +70,7 @@ export function Money({
   })
     .format(n)
     .split(",");
-  const sym = SYMBOL[currency] ?? currency;
+  const sym = currencySymbol(currency);
   return (
     <span
       className={cn(

@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { formatDate } from "@/lib/format-date";
 
 type SubTab = "own" | "company";
 
@@ -559,14 +560,5 @@ function formatDaysOrHours(days: number): string {
   return `${days.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} gün`;
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
-}
+// Dalga B-2: yerel `formatDate` KALDIRILDI — paylaşılan formatDate'i
+// gölgeleyip dd.mm.yyyy üretiyordu (UI'da iki farklı tarih biçimi).

@@ -2,6 +2,8 @@
 
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import { TrendingUp } from "lucide-react";
+// Dalga B-2: "long" varyantı üç kez elle kopyalanmıştı — tek kaynak.
+import { formatDate } from "@/lib/format-date";
 
 /**
  * Inline SVG bayraklar — emoji bayraklar (🇺🇸) bazı platformlarda (özellikle
@@ -72,11 +74,7 @@ export function TcmbRatesChip() {
       maximumFractionDigits: 2,
     }).format(val);
   const dateLabel = data.rateDate
-    ? new Date(`${data.rateDate}T00:00:00`).toLocaleDateString("tr-TR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+    ? formatDate(`${data.rateDate}T00:00:00`, "long")
     : null;
   const label = `TCMB günlük gösterge kuru${dateLabel ? ` · ${dateLabel}` : ""}`;
 
@@ -157,19 +155,12 @@ export function TcmbRatesWidget() {
             {data?.rateDate ? (
               <>
                 {" · "}
-                {new Date(`${data.rateDate}T00:00:00`).toLocaleDateString(
-                  "tr-TR",
-                  { day: "numeric", month: "long", year: "numeric" },
-                )}
+                {formatDate(`${data.rateDate}T00:00:00`, "long")}
               </>
             ) : dataUpdatedAt > 0 ? (
               <>
                 {" · "}
-                {new Date(dataUpdatedAt).toLocaleDateString("tr-TR", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {formatDate(new Date(dataUpdatedAt), "long")}
               </>
             ) : null}
           </p>

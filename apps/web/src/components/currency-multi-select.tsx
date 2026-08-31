@@ -10,20 +10,12 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
-import type { Currency } from "@/lib/format-currency";
-import { CURRENCY_NAMES, CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import type { Currency } from "@/lib/tenders/types";
+import { CURRENCY_NAMES, CURRENCY_SYMBOL,
+  CURRENCIES,
+} from "@/lib/tenders/labels";
 
-const CURRENCIES: Currency[] = [
-  "TRY",
-  "USD",
-  "EUR",
-  "GBP",
-  "CHF",
-  "JPY",
-  "AED",
-  "CNY",
-  "RUB",
-];
+// Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
 interface Props {
   /** Seçili para birimleri (ilk eleman = primary). En az 1 olmalı. */

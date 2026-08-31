@@ -32,6 +32,7 @@ import { bidDeliveryTimeLabel } from "@rothern/shared";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { currencySymbol } from "@/lib/tenders/labels";
 
 type Tone = "success" | "info" | "warning" | "danger";
 
@@ -69,7 +70,8 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const [extendDays, setExtendDays] = useState("30");
   const { user } = useCompanyAuth();
   if (!bid) return null;
-  const symbol = bid.currency === "TRY" || !bid.currency ? "₺" : bid.currency;
+  // Dalga B-2: elle sembol türetme kaldırıldı (USD "$" yerine "USD" gösteriyordu).
+  const symbol = currencySymbol(bid.currency ?? "TRY");
   const itemName = new Map(
     (l.items ?? []).map((it) => [it.id, it] as const),
   );

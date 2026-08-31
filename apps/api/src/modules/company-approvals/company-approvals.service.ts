@@ -22,6 +22,7 @@ import {
   DecideApprovalDto,
   UpdateApprovalFlowStatusDto,
 } from "./dto/approval.dto";
+import { appRoutes } from "../../common/company/app-routes";
 
 type ApprovalType = "LISTING_PUBLISH" | "LISTING_AWARD";
 
@@ -106,7 +107,7 @@ export class CompanyApprovalsService {
         title: "Onayınız bekleniyor",
         body: `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
         ctaLabel: "Onaylar Sayfası",
-        ctaUrl: `${webUrl}/company/onaylar`,
+        ctaUrl: appRoutes.approvals(webUrl),
         listingId,
       })
       .catch((err) =>
@@ -136,7 +137,7 @@ export class CompanyApprovalsService {
                 : []),
             ],
             ctaLabel: "Onaylar Sayfası",
-            ctaUrl: `${webUrl}/company/onaylar`,
+            ctaUrl: appRoutes.approvals(webUrl),
           },
         },
         context: { type: "approval_pending", id: listingId },
@@ -204,7 +205,7 @@ export class CompanyApprovalsService {
         title,
         body,
         ctaLabel: "İhaleyi Gör",
-        ctaUrl: `${webUrl}/company/ilan/${listingId}`,
+        ctaUrl: appRoutes.listing(webUrl, listingId),
         listingId,
       })
       .catch((err) =>
@@ -228,7 +229,7 @@ export class CompanyApprovalsService {
             heading: title,
             paragraphs: ["Merhaba,", body],
             ctaLabel: "İhaleyi Gör",
-            ctaUrl: `${webUrl}/company/ilan/${listingId}`,
+            ctaUrl: appRoutes.listing(webUrl, listingId),
           },
         },
         context: { type: "approval_decided", id: listingId },

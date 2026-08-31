@@ -14,6 +14,7 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { appRoutes } from "../../common/company/app-routes";
 
 /**
  * Portal — mesajlaşma bağımsızlığının anahtarı. Satınalma'da firma ALICI
@@ -86,7 +87,7 @@ export class CompanyMessagesService {
             // satınalma portalı) link Premium/erişim ekranına düşüyordu.
             // Birleşik gelen kutusu (2026-08-02) portal-bağımsız → doğrudan ona
             // gideriz; sohbet `with` parametresiyle açılır.
-            ctaUrl: `${baseUrl}/company/mesajlar?with=${senderCompanyId}`,
+            ctaUrl: appRoutes.messagesWith(baseUrl, senderCompanyId),
           },
         },
         context: { type: "message_received", id: companyId },

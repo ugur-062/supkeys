@@ -356,7 +356,7 @@ export class CompanyReportsService {
     if (!dto.rangeStart || !dto.rangeEnd) {
       throw new BadRequestException("Tarih aralığı zorunlu");
     }
-    const listings = await this.prisma.listing.findMany({
+    let listings = await this.prisma.listing.findMany({
       where: {
         companyId,
         type,
@@ -416,9 +416,13 @@ export class CompanyReportsService {
       },
       orderBy: { awardedAt: "desc" },
       // Bkz. MAX_REPORT_LISTINGS — sınırsız aralık tüm ihale/teklif/kalem
-      // ağacını belleğe alıyordu.
-      take: MAX_REPORT_LISTINGS,
+      // ağacını belleğe alıyordu. Dalga B-2: +1 çekilip `truncated` türetiliyor
+      // — tavan `general`'da bildiriliyordu ama burada SESSİZ kesiliyordu
+      // (kullanıcı eksik tasarruf toplamını tam sanıyordu).
+      take: MAX_REPORT_LISTINGS + 1,
     });
+    const truncated = listings.length > MAX_REPORT_LISTINGS;
+    if (truncated) listings = listings.slice(0, MAX_REPORT_LISTINGS);
 
     const bestIsMax = type === "SATIS";
     const rows = listings.map((l) => {
@@ -576,6 +580,10 @@ export class CompanyReportsService {
       rangeStart: dto.rangeStart,
       rangeEnd: dto.rangeEnd,
       currency: dto.currency ?? null,
+      // Tavana dayandıysa kullanıcı bilir (sessiz kesme yok) — `general` ile
+      // aynı sözleşme.
+      truncated,
+      maxRows: MAX_REPORT_LISTINGS,
       rows,
       summary: {
         totalListings: rows.length,

@@ -29,6 +29,7 @@ import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { CURRENCIES } from "@/lib/tenders/labels";
 
 const STATUS_TR: Record<string, string> = {
   DRAFT: "Taslak",
@@ -40,17 +41,7 @@ const STATUS_TR: Record<string, string> = {
   CANCELLED: "İptal",
   CLOSED_NO_AWARD: "Kazansız",
 };
-const CURRENCIES = [
-  "TRY",
-  "USD",
-  "EUR",
-  "GBP",
-  "CHF",
-  "JPY",
-  "AED",
-  "CNY",
-  "RUB",
-];
+// Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
 function tl(n: number | null) {
   return n == null
@@ -261,6 +252,19 @@ export function GeneralReportView({
         <ReportPendingSkeleton />
       ) : data ? (
         <section className="space-y-4">
+          {/* Dalga B-2: sunucu tavanı SESSİZ kesiyordu — kullanıcı eksik listeyi
+              tam sanıyordu. Sözleşme (`truncated`/`maxRows`) API'de vardı ama
+              hiçbir yüzey okumuyordu. */}
+          {data.truncated ? (
+            <p
+              role="status"
+              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              Sonuç en fazla {data.maxRows ?? 500} kayıtla sınırlandı — daha
+              eskiler bu raporda YOK. Tarih aralığını daraltarak tamamını
+              görebilirsiniz.
+            </p>
+          ) : null}
           {/* Özet şeridi */}
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-6">
             {(
