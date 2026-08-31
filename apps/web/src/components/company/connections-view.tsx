@@ -316,9 +316,15 @@ export function ConnectionsView() {
   // yazmak 9 tam tarama demekti. Repoda zaten kullanılan desen (onaylar
   // sayfası, kategori modalı) burada eksikti.
   const debouncedQ = useDebouncedValue(q, 300);
-  const search = useCompanySearch(debouncedQ);
+  // Perf turu (denetim P10): Keşfet'e ait iki sorgu sayfa açılışında
+  // KOŞULSUZ koşuyordu; oysa hiçbir sekme rozetini beslemiyorlar ve
+  // kullanıcıların çoğu "Bağlantılarım"da kalıyor. Sekme açılınca inerler
+  // (sonrası önbellekten). Rozet besleyen sorgular (connections/incoming/
+  // outgoing/referral) açılışta kalır — onlar gerçekten gerekli.
+  const discoverTabOpen = shownTab === "discover" && isPaid;
+  const search = useCompanySearch(debouncedQ, discoverTabOpen);
   const outgoing = useOutgoingInvites();
-  const discover = useDiscover();
+  const discover = useDiscover(discoverTabOpen);
   const cancelReferral = useCancelReferralInvite();
   const disconnectOutgoing = useDisconnect();
   const rothernId = self.data?.rothernId ?? "—";

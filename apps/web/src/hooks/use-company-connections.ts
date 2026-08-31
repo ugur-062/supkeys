@@ -167,8 +167,17 @@ export interface DiscoverCompany {
   matchScore: number;
 }
 
-export function useDiscover() {
+/**
+ * Perf turu (denetim P10): `enabled` eklendi. Bu sorgu YALNIZ "Keşfet"
+ * sekmesinde kullanılıyor ve hiçbir sekme rozetini beslemiyor, ama sayfa
+ * açılışında koşulsuz koşuyordu — kullanıcı Keşfet'e hiç girmese bile
+ * kategori-eşleşmeli dizin taraması (60 firma + skorlama) çalışıyordu.
+ * Sekme rozetlerini besleyen sorgular (connections/incoming/outgoing/
+ * referral) açılışta kalır; onlar gerçekten gerekli.
+ */
+export function useDiscover(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["company-connections", "discover"],
     queryFn: async () => {
       const { data } = await companyApi.get<{

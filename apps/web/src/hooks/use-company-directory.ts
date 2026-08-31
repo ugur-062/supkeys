@@ -20,8 +20,14 @@ export interface DirectoryCompany {
   connectionStatus: DirectoryConnectionStatus;
 }
 
-export function useCompanySearch(q: string) {
+/**
+ * Perf turu (denetim P10): `enabled` eklendi — dizin araması yalnız Keşfet
+ * sekmesi açıkken anlamlı. Eskiden sayfa açılışında boş `q` ile de koşup
+ * tüm dizini çekiyordu.
+ */
+export function useCompanySearch(q: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["company-directory", "search", q],
     queryFn: async () => {
       const { data } = await companyApi.get<DirectoryCompany[]>(

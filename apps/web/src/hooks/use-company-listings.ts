@@ -464,6 +464,11 @@ export function useListingDetail(id: string) {
           validateStatus: (s2) => (s2 >= 200 && s2 < 300) || s2 === 304,
         },
       );
+      // AYNI referansı döndürmek kasıtlı: TanStack Query `data`'yı değişmemiş
+      // sayar → değişmeyen poll ARTIK YENİDEN RENDER DE ÜRETMEZ. İlan detayı
+      // sayfası 2100+ satırlık ve sıfır memoizasyonlu; 4 sn'de bir (kapanışa
+      // son 2 dk'da 1,5 sn'de bir) baştan render ediliyordu. Yeni nesne
+      // döndürmek (ör. `{ ...prev }`) bu kazancı sessizce yok eder.
       if (status === 304 && prev) return prev;
       return data;
     },
