@@ -15,8 +15,28 @@ Canlıda **aktif SUPER_ADMIN**, **2FA kapalı**, son giriş 2026-07-07.
 o olabilir. *Doğrulamak için giriş denemesi bilinçli YAPILMADI* (prod kimlik
 doğrulamasına saldırı olurdu).
 
-**Yapılacak:** parolayı değiştir + 2FA aç. Hesap kullanılmıyorsa pasifleştir.
-Ardından `CLAUDE.md`'deki test hesabı bloğunu gözden geçir.
+**Durum (2026-09-01):**
+- ✅ Parola `CLAUDE.md`'den KALDIRILDI (artık gitignore'lı `CLAUDE.md.local`'da
+  tutulmalı) — ifşa tarafı kapandı.
+- ❌ **Hesabın kendisi hâlâ aktif.** Pasifleştirmeyi denedim, prod DB yazma
+  izin sınıflandırıcısı tarafından engellendi (doğru bir koruma — etrafından
+  dolaşmadım).
+
+**Önemli bulgu:** İKİ aktif SUPER_ADMIN var —
+`admin@rothern.com` (tohum hesabı, son giriş **2026-07-07**, o günden beri
+kullanılmamış) ve `ugur@supkeys.com` (senin hesabın, son giriş 2026-08-04).
+Yani tohum hesabını pasifleştirmek **kilitlenme riski taşımıyor**.
+
+**Yapılacak (senin onayınla, iki seçenek):**
+
+1. *Önerilen* — tohum hesabını pasifleştir. Admin panelinde
+   Personel → `admin@rothern.com` → pasifleştir. Ya da bana izin verirsen
+   script'i koştururum (`isActive=false` + `tokenVersion++` + audit kaydı,
+   başka aktif SUPER_ADMIN kalmazsa kendini durduran nöbetçiyle).
+2. Kullanmaya devam edeceksen: parolayı değiştir **ve** 2FA aç.
+
+**Ayrıca:** `ugur@supkeys.com` hesabının da **2FA'sı kapalı**. Onu yalnız sen
+açabilirsin (TOTP kaydı cihazında yapılır) — Ayarlar → İki Adımlı Doğrulama.
 
 ---
 

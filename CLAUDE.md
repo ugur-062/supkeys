@@ -32,8 +32,15 @@ packages/email    @rothern/email     React Email templates + Resend provider
 
 | Tip | URL | E-posta | Şifre |
 |-----|-----|---------|-------|
-| Firma (birleşik alıcı+satıcı) | localhost:3000/company/login | firma@demo.com / firma2@demo.com / firma3@demo.com | Demo1234! |
-| Admin | localhost:3001/admin/login | admin@rothern.com | admin12345 |
+| Firma (birleşik alıcı+satıcı) | localhost:3000/company/login | firma@demo.com / firma2@demo.com / firma3@demo.com | `CLAUDE.md.local`'da |
+| Admin | localhost:3001/admin/login | admin@rothern.com | `CLAUDE.md.local`'da |
+
+> ⚠️ **Parolalar buradan KALDIRILDI (2026-09-01).** Gerekçe: dev ve prod AYNI
+> veritabanını kullanıyor, dolayısıyla bu "dev" hesapları CANLI hesaplar.
+> `admin@rothern.com` canlıda aktif SUPER_ADMIN'di, 2FA'sı kapalıydı ve
+> parolası bu dosyada yazılıydı — denetimde bulunan en kolay sömürülebilir
+> maddeydi. Parolalar artık gitignore'lı `CLAUDE.md.local` dosyasında
+> tutulmalı; buraya GERİ YAZILMAMALI.
 
 (Eski "tenant/supplier" ayrı hesapları kaldırıldı — tek Company hesabı iki portal: `/company/satinalma` + `/company/satis`.)
 
