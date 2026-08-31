@@ -21,7 +21,7 @@ export function makeService() {
     getFreshRate: jest.fn().mockResolvedValue(30),
   };
   const email = {
-    send: jest.fn().mockResolvedValue({ emailLogId: "test" }),
+    send: jest.fn().mockResolvedValue({ emailLogId: "test", sent: true }),
   };
   const config = {
     get: jest.fn().mockReturnValue("http://localhost:3000"),

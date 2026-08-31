@@ -10,7 +10,7 @@ import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
 
 function rig() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const notifications = { pushToCompany: jest.fn().mockResolvedValue(1) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const storage = {
@@ -255,7 +255,7 @@ describe("#10 — admin para/yetki aksiyonları critical audit girdisiyle yazıl
         presignInlinePreview: jest.fn().mockResolvedValue(null),
         deleteObject: jest.fn().mockResolvedValue(undefined),
       } as never,
-      { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) } as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
       { pushToCompany: jest.fn().mockResolvedValue(1) } as never,
       { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
       auditMock as never,

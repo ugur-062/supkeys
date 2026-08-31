@@ -4,16 +4,6 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { TcmbService } from "./tcmb.service";
 
 /**
- * Bid'e ilişkilendirilen snapshot — Json field'a yazılır.
- */
-export interface ExchangeRateSnapshot {
-  rate: number;
-  rateDate: string; // ISO YYYY-MM-DD
-  fetchedAt: string; // ISO timestamp
-  source: "TCMB" | "MANUAL" | "FALLBACK";
-}
-
-/**
  * V2-6 — Türk B2B'de en yaygın 9 birim. TRY base, diğer 8'i TCMB'den fetch'lenir.
  */
 const TRACKED_CURRENCIES = [
@@ -175,35 +165,12 @@ export class ExchangeRateService {
     return row ? row.rateDate.toISOString().slice(0, 10) : null;
   }
 
-  /**
-   * Bid submit anında çağrılır. TRY için snapshot null döner — caller
-   * direkt kullanmaz.
-   */
-  async takeSnapshot(currency: Currency): Promise<ExchangeRateSnapshot | null> {
-    if (currency === "TRY") return null;
-    const row = await this.prisma.exchangeRate.findFirst({
-      where: { currency },
-      orderBy: { rateDate: "desc" },
-    });
-    if (row) {
-      return {
-        rate: Number(row.rate),
-        rateDate: row.rateDate.toISOString().slice(0, 10),
-        fetchedAt: row.fetchedAt.toISOString(),
-        source: row.source as "TCMB" | "MANUAL" | "FALLBACK",
-      };
-    }
-    this.warnThrottled(
-      `snapshot:${currency}`,
-      `Kur snapshot yok (${currency}) → FALLBACK; teklif TRY karşılığı yaklaşık olabilir.`,
-    );
-    return {
-      rate: FALLBACK_RATES[currency] ?? 1,
-      rateDate: new Date().toISOString().slice(0, 10),
-      fetchedAt: new Date().toISOString(),
-      source: "FALLBACK",
-    };
-  }
+  // KALDIRILDI (Dalga B, P11): `takeSnapshot()` — ÇAĞRISI YOKTU (ölü kod) ve
+  // kur bulunamadığında `source: "FALLBACK"` ile UYDURMA bir kur döndürüyordu.
+  // Teklif damgası kalıcıdır ve kazandırma kararını sürer; uydurma kurun oraya
+  // yazılabilmesi INV-FX-1'in fail-closed kuralını deliyordu. Bugünkü canlı yol
+  // `getFreshRate()` (bayat/yok → null → gönderim reddedilir) — doğru olan o.
+  // Yeniden ihtiyaç olursa: null dönmeli, asla FALLBACK damgası değil.
 
   async toTry(amount: number, currency: Currency, onDate?: Date): Promise<number> {
     if (currency === "TRY") return amount;

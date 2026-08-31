@@ -13,7 +13,7 @@ const sha256 = (s: string) =>
   crypto.createHash("sha256").update(s).digest("hex");
 
 function rig() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const supabaseAuth = {
     updatePassword: jest.fn().mockResolvedValue(undefined),

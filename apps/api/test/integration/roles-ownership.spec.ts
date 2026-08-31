@@ -21,7 +21,7 @@ function makeUsersService() {
   const companyAuth = {
     createSession: jest.fn(async (userId: string) => ({ token: "t", user: { id: userId } })),
   };
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return new CompanyUsersService(
     prisma as never,

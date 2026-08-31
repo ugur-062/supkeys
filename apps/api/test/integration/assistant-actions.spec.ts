@@ -28,7 +28,7 @@ async function giveCode(companyId: string): Promise<string> {
 }
 
 function makeOrdersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return new CompanyOrdersService(
     prisma as never,

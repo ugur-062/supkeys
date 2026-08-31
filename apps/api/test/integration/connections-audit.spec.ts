@@ -31,7 +31,7 @@ async function giveRothernId(companyId: string): Promise<string> {
 function rig() {
   const audit = new AuditService(prisma as never);
   const blocks = new CompanyBlocksService(prisma as never, audit);
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = {
     pushToCompany: jest.fn().mockResolvedValue(1),

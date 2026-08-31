@@ -44,7 +44,7 @@ function docsService() {
 
 function adminService() {
   const noop = jest.fn().mockResolvedValue(undefined);
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const notifications = { pushToCompany: noop };
   const config = { get: jest.fn(() => "http://localhost:3000") };
   return {

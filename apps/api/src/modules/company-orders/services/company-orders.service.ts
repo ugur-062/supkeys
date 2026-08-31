@@ -44,6 +44,7 @@ import {
 import { RealtimeService } from "../../realtime/realtime.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { expectedDeliveryFromTimes } from "../../../common/company/delivery-time";
+import { reportToSentry } from "../../../instrument";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -110,7 +111,49 @@ export class CompanyOrdersService {
    * alıcının siparişteki rolüdür: alıcı→satinalma, satıcı→satış (böylece
    * satış siparişi bildirimi saf satın almacıya düşmez).
    */
+  /**
+   * Dalga B (P3): bu metot ARTIK FIRLATMAZ.
+   *
+   * 19 çağrı yerinin tamamı durum geçişi COMMIT edildikten SONRA çıplak
+   * `await` ile çağırıyordu — bildirim/e-posta katmanındaki bir hata (Resend
+   * 5xx, suppress, in-app yazımı) kullanıcıya 500 olarak dönüyordu. Kullanıcı
+   * "işlem başarısız" görüyor, oysa sipariş durumu DEĞİŞMİŞ oluyordu; tekrar
+   * denediğinde bu kez state-machine "geçersiz geçiş" diyordu. Kazandırma
+   * yolunda zaten `void ... .catch(...)` deseni vardı, burada yoktu.
+   *
+   * Hata yutulmuyor: loglanıyor + Sentry'e gidiyor. Bildirim en-iyi-çaba bir
+   * yan etkidir, işlemin kendisi değil.
+   */
   private async notifyOrderParty(
+    orderId: string,
+    recipientCompanyId: string,
+    subject: string,
+    heading: string,
+    paragraph: string,
+    portal: NotificationPortal,
+  ): Promise<void> {
+    try {
+      await this.notifyOrderPartyUnsafe(
+        orderId,
+        recipientCompanyId,
+        subject,
+        heading,
+        paragraph,
+        portal,
+      );
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Sipariş bildirimi gönderilemedi (order=${orderId}, alıcı=${recipientCompanyId}): ${reason}`,
+      );
+      reportToSentry("order-notify-failed", "error", {
+        tags: { module: "orders" },
+        extra: { orderId, recipientCompanyId, reason },
+      });
+    }
+  }
+
+  private async notifyOrderPartyUnsafe(
     orderId: string,
     recipientCompanyId: string,
     subject: string,

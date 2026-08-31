@@ -3,6 +3,7 @@ import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-ca
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService } from "../ai.service";
+import { anyPackageWhere } from "../../../common/company/effective-tier";
 
 const MAX_CANDIDATES = 12;
 const MAX_EXTERNAL = 10;
@@ -191,7 +192,12 @@ export class SupplierDiscoveryService {
         id: { notIn: [...excluded] },
         isActive: true,
         isBlocked: false,
-        tier: { in: ["BRONZ", "SILVER", "GOLD"] },
+        // Dalga B (P3/P4/P7'de üç kez kayıtlı INV-TIER-1 driftı): ham `tier`
+        // filtresi üyelik süresi DOLMUŞ firmayı da aday çıkarıyordu — DB'de
+        // hâlâ "GOLD" yazıyor ama efektif kademe STANDART. Kullanıcı bağlantı
+        // daveti gönderiyor, karşı taraf paketsiz olduğu için kabul edemiyor.
+        // TEK KAYNAK: anyPackageWhere (membershipEndAt farkında).
+        ...anyPackageWhere(),
         OR: [
           { [field]: { hasSome: segmentIds } },
           { [field]: { hasSome: subCandidates } },
@@ -205,6 +211,9 @@ export class SupplierDiscoveryService {
         buyerCategoryIds: true,
         sellerCategoryIds: true,
       },
+      // Dalga B: `orderBy` yoktu — `take: 60` ile hangi 60 satırın döneceği
+      // Postgres'in fiziksel sırasına kalıyordu (aynı sorgu farklı sonuç).
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 60,
     });
 

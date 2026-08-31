@@ -29,7 +29,7 @@ import { makeService } from "./make-service";
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
 function makeOrdersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   return new CompanyOrdersService(
@@ -48,7 +48,7 @@ function makeUsersService() {
     deleteUser: jest.fn(),
   };
   const companyAuth = { createSession: jest.fn() };
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return new CompanyUsersService(
     prisma as never,

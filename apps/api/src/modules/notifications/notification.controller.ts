@@ -29,15 +29,24 @@ function parsePortal(v?: string): NotificationPortal | undefined {
 export class NotificationController {
   constructor(private readonly service: NotificationService) {}
 
+  /**
+   * Dalga B (P7): `take` + `before` imleci artık uçtan geçiyor. Servis bunları
+   * zaten destekliyordu ama controller hiç iletmiyordu → 30 satırlık pencere
+   * sabitti. `before` biçimi: `<ISO tarih>_<id>` (son satırın damgası).
+   */
   @Get()
   list(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("unread") unread?: string,
     @Query("portal") portal?: string,
+    @Query("take") take?: string,
+    @Query("before") before?: string,
   ) {
     return this.service.listForUser(user.userId, {
       unreadOnly: unread === "1" || unread === "true",
       portal: parsePortal(portal),
+      take: take ? Number.parseInt(take, 10) || undefined : undefined,
+      before: parseBefore(before),
     });
   }
 
@@ -70,4 +79,20 @@ export class NotificationController {
       updated: await this.service.markAllRead(user.userId, parsePortal(portal)),
     };
   }
+}
+
+/**
+ * `<ISO tarih>_<id>` → imleç. Bozuk/eksik girdi sessizce `undefined` döner
+ * (imleçsiz ilk sayfa) — 500 yerine bozulmamış davranış.
+ */
+function parseBefore(
+  raw?: string,
+): { createdAt: Date; id: string } | undefined {
+  if (!raw) return undefined;
+  const sep = raw.indexOf("_");
+  if (sep <= 0) return undefined;
+  const d = new Date(raw.slice(0, sep));
+  const id = raw.slice(sep + 1);
+  if (Number.isNaN(d.getTime()) || !id || id.length > 60) return undefined;
+  return { createdAt: d, id };
 }

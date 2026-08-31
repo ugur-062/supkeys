@@ -49,7 +49,7 @@ describe("mesaj blok zorlaması (okuma + inbox)", () => {
       prisma as never,
       new AuditService(prisma as never),
     );
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const svc = new CompanyMessagesService(
       prisma as never,
@@ -88,7 +88,7 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
       prisma as never,
       new AuditService(prisma as never),
     );
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     return new CompanyMessagesService(
       prisma as never,

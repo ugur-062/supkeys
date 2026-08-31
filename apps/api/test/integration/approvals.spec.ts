@@ -26,7 +26,7 @@ beforeEach(async () => {
 
 /** Gerçek onay servisi + event köprüsüyle ilan servisi (yayın/kazandırma). */
 function makeApprovalRig() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   const events = new EventEmitter2();
@@ -559,7 +559,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       deleteUser: jest.fn(),
     };
     const companyAuth = { createSession: jest.fn() };
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     return new CompanyUsersService(
       prisma as never,

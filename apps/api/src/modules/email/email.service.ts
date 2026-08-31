@@ -96,7 +96,17 @@ export class EmailService implements OnModuleInit {
    * EmailLog kaydı + render + provider send + status update.
    * Hata caller'a fırlatılır; fire-and-forget istiyorsan `.catch(...)`.
    */
-  async send(input: SendEmailInput): Promise<{ emailLogId: string }> {
+  /**
+   * Dalga B (P7): dönüş artık `sent` bayrağı taşıyor. Suppress edilmiş adreste
+   * bu metot HATA ATMAZ (bilinçli — çağıran akış çökmemeli) ama eskiden başarı
+   * ŞEKLİNİ döndürüyordu: `issueEmailCode` bunu "gitti" sayıp kullanıcıya
+   * "kod gönderildi" diyordu. Oysa hard-bounce almış adrese kod ASLA gitmez →
+   * kullanıcı kalıcı mahsur ve nedenini göremiyor. Parça 1'de eklenen
+   * dürüst-sinyal (`emailSent` / 2FA 503) bu yolda devre dışı kalıyordu.
+   */
+  async send(
+    input: SendEmailInput,
+  ): Promise<{ emailLogId: string; sent: boolean }> {
     // G-M2 suppression: kalıcı-bounce (hard) veya şikayet (complaint) almış
     // adrese gönderim yapma — Resend itibar riski + boşa gönderim. Mevcut
     // EmailLog verisinden kontrol (migration'sız). Soft/undetermined bounce
@@ -153,7 +163,7 @@ export class EmailService implements OnModuleInit {
           },
         });
       }
-      return { emailLogId: skipped.id };
+      return { emailLogId: skipped.id, sent: false };
     }
 
     // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
@@ -216,7 +226,7 @@ export class EmailService implements OnModuleInit {
       this.logger.log(
         `Sent email ${log.id} (${input.templateData.template}) → ${input.to.email} via ${this.providerName}`,
       );
-      return { emailLogId: log.id };
+      return { emailLogId: log.id, sent: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       await this.prisma.emailLog.update({

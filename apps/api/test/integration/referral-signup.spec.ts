@@ -9,7 +9,7 @@ import { makeCompany, makeUser } from "./factories";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
 
 function svc() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   return new CompanyAuthService(
     prisma as never,
     {} as never, // jwt (acceptReferralInvites'te kullanılmaz)

@@ -15,7 +15,7 @@ import { makeCompanyWithUser, makeListing } from "./factories";
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
 function makeOrdersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   return new CompanyOrdersService(

@@ -13,7 +13,7 @@ import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { makeService } from "./make-service";
 
 function ordersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return new CompanyOrdersService(
     prisma as never,

@@ -22,7 +22,7 @@ function makeUsersService() {
       user: { id: userId },
     })),
   };
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return {
     svc: new CompanyUsersService(
@@ -273,7 +273,7 @@ describe("Faz K — downgrade aşkın durum + kurucu seçimi", () => {
     const { NotificationService } = await import(
       "../../src/modules/notifications/notification.service"
     );
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const orders = new CompanyOrdersService(
       prisma as never,

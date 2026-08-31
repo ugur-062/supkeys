@@ -243,7 +243,7 @@ export class CompanyAuthService {
     const isLogin = kind === "login";
     const subject = isLogin ? "Giriş doğrulama kodunuz" : "E-posta doğrulama kodunuz";
     try {
-      await this.email.send({
+      const res = await this.email.send({
         to: { email, name: firstName },
         subject,
         templateData: {
@@ -264,7 +264,10 @@ export class CompanyAuthService {
         },
         context: { type: isLogin ? "login_2fa" : "email_verify", id: userId },
       });
-      return { sent: true };
+      // Dalga B (P7): suppress edilmiş adreste send() hata ATMAZ ama gönderim
+      // de yapmaz — dönüşteki `sent` bayrağını onurlandır, yoksa kullanıcıya
+      // yalan "kod gönderildi" deriz ve kalıcı mahsur kalır.
+      return { sent: res.sent };
     } catch (err) {
       this.logger.error(
         `Doğrulama kodu e-postası gönderilemedi (${email}): ${

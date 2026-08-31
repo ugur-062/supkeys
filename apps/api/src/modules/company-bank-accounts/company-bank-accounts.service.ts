@@ -4,7 +4,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { isValidIbanTr, maskIban, normalizeIban } from "@rothern/shared";
+import {
+  ibanChecksumOk,
+  isValidIbanTr,
+  maskIban,
+  normalizeIban,
+} from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
@@ -151,11 +156,20 @@ export class CompanyBankAccountsService {
   /** TR IBAN katı doğrulanır; yabancı IBAN gevşek (uzunluk + format DTO'da). */
   private validateIban(raw: string): string {
     const iban = normalizeIban(raw.trim());
-    if (iban.startsWith("TR") && !isValidIbanTr(iban)) {
-      throw new BadRequestException("Geçerli bir TR IBAN giriniz");
+    if (iban.startsWith("TR")) {
+      if (!isValidIbanTr(iban)) {
+        throw new BadRequestException("Geçerli bir TR IBAN giriniz");
+      }
+      return iban;
     }
-    if (!/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban)) {
-      throw new BadRequestException("Geçerli bir IBAN giriniz");
+    // Dalga B (P3): yabancı IBAN eskiden YALNIZ şekil kontrolünden geçiyordu —
+    // tek hane yanlış yazılmış bir DE/NL IBAN kabul edilip siparişe ödeme
+    // hesabı olarak damgalanıyordu (hata ancak bankada ortaya çıkar). mod-97
+    // ülke bağımsızdır; artık o da uygulanıyor.
+    if (!ibanChecksumOk(iban)) {
+      throw new BadRequestException(
+        "Geçerli bir IBAN giriniz — kontrol hanesi tutmuyor, lütfen yeniden kontrol edin",
+      );
     }
     return iban;
   }

@@ -13,7 +13,7 @@ import { prisma, truncateAll } from "./test-db";
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
 function makeOrdersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return new CompanyOrdersService(
     prisma as never,

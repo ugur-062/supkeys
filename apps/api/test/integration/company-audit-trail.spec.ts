@@ -30,7 +30,7 @@ import { makeService } from "./make-service";
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
 function makeOrdersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   return new CompanyOrdersService(
@@ -55,7 +55,7 @@ function makeUsersService() {
       user: { id: userId },
     })),
   };
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   return new CompanyUsersService(
     prisma as never,
@@ -69,7 +69,7 @@ function makeUsersService() {
 
 /** Gerçek onay servisi + event köprüsü: onaylanınca GERÇEK kazandırma çalışır. */
 function makeApprovalRig() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   const events = new EventEmitter2();
@@ -103,7 +103,7 @@ function makeApprovalRig() {
  * izi DÜŞMEMELİ (onay verildi ama kazandırma uygulanmadı).
  */
 function makeFailingAwardRig() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   const events = new EventEmitter2();

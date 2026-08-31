@@ -9,7 +9,7 @@ import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
 
 function makeService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const blocks = { blockedCompanyIds: jest.fn().mockResolvedValue([]) } as never;
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") } as never;
   const notifications = {

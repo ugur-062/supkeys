@@ -19,7 +19,7 @@ const bidBase = {
 };
 
 function makeOrdersService() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test", sent: true }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = new NotificationService(prisma as never);
   const orders = new CompanyOrdersService(

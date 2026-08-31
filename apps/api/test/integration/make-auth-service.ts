@@ -25,7 +25,7 @@ export function makeAuthService(env: Record<string, string> = {}) {
     updatePassword: jest.fn(async () => undefined),
   };
   const audit = { log: jest.fn(async () => undefined) };
-  const email = { send: jest.fn(async () => ({ emailLogId: "x" })) };
+  const email = { send: jest.fn(async () => ({ emailLogId: "x", sent: true })) };
   const jwt = new JwtService({
     secret: "test-secret",
     signOptions: { expiresIn: "1h" },

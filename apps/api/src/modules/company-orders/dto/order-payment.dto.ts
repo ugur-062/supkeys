@@ -11,6 +11,7 @@ import {
   ValidateIf,
 } from "class-validator";
 import { MAX_MONEY } from "../../../common/constants/money";
+import { Trim } from "../../../common/decorators/trim.decorator";
 
 /** Çek ödemesi için method değeri — UI ve DTO bu sabiti paylaşır. */
 export const CHEQUE_METHOD = "Çek";
@@ -24,23 +25,27 @@ export class RecordPaymentDto {
   amount!: number;
 
   @IsOptional()
+  @Trim()
   @IsString()
   @MaxLength(80)
   method?: string;
 
   @IsOptional()
+  @Trim()
   @IsString()
   @MaxLength(500)
   note?: string;
 
   // Çek alanları — method "Çek" ise çek no + vade zorunlu.
   @ValidateIf((o) => o.method === CHEQUE_METHOD)
+  @Trim()
   @IsString()
   @IsNotEmpty({ message: "Çek numarası zorunludur" })
   @MaxLength(100)
   chequeNo?: string;
 
   @IsOptional()
+  @Trim()
   @IsString()
   @MaxLength(160)
   chequeBank?: string;
@@ -52,6 +57,7 @@ export class RecordPaymentDto {
 
 /** Sipariş reddi/iptali — gerekçe zorunlu (eski sistemle aynı, min 10 karakter). */
 export class OrderReasonDto {
+  @Trim()
   @IsString()
   @IsNotEmpty({ message: "Gerekçe zorunludur" })
   @MinLength(10, { message: "Gerekçe en az 10 karakter olmalı" })
@@ -61,6 +67,7 @@ export class OrderReasonDto {
 
 /** Ödeme reddi — gerekçe zorunlu (iptal gerekçesiyle simetri: min 10 karakter). */
 export class RejectPaymentReasonDto {
+  @Trim()
   @IsString()
   @IsNotEmpty({ message: "Red sebebi zorunludur" })
   @MinLength(10, { message: "Red sebebi en az 10 karakter olmalı" })

@@ -17,7 +17,7 @@ beforeEach(async () => {
 
 describe("MembershipScheduler.downgradeExpired", () => {
   it("süresi biten PAKET → STANDARD + giden bekleyen davetler iptal; gelen davet & süresi geçmemiş firma korunur", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const scheduler = new MembershipScheduler(
       prisma as never,
@@ -102,7 +102,7 @@ describe("MembershipScheduler.downgradeExpired", () => {
   });
 
   it("düşecek firma yoksa hiçbir şeye dokunmaz", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const scheduler = new MembershipScheduler(
       prisma as never,

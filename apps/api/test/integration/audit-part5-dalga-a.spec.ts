@@ -168,7 +168,7 @@ describe("#3 — KVKK: anonimleştirme kimlik/KYC alanlarını temizler", () => 
     const svc = new AdminCompaniesService(
       prisma as never,
       storage as never,
-      { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) } as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
       { pushToCompany: jest.fn().mockResolvedValue(1) } as never,
       { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
       new AuditService(prisma as never),

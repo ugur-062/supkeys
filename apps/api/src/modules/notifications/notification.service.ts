@@ -194,16 +194,34 @@ export class NotificationService {
       unreadOnly?: boolean;
       take?: number;
       portal?: NotificationPortal;
+      /** Bu satırdan ESKİsini getir (sayfalama imleci). */
+      before?: { createdAt: Date; id: string };
     } = {},
   ) {
     const take = Math.min(Math.max(opts.take ?? 30, 1), 100);
+    // Dalga B (P7): `before` imleci eklendi. Eskiden yalnız son 30 satır
+    // dönüyordu ve daha eskisine ULAŞACAK hiçbir yüzey yoktu — bildirim
+    // kalıcı bir kayıt olmasına rağmen 31. satırdan itibaren erişilemezdi.
+    // İmleç (createdAt, id) çiftinden ilerler: eşit damgalarda id ile kırılır,
+    // yoksa aynı satır iki sayfada görünür ya da hiç görünmez.
     return this.prisma.notification.findMany({
       where: {
         companyUserId: userId,
         ...(opts.unreadOnly ? { readAt: null } : {}),
         ...portalReadFilter(opts.portal),
+        ...(opts.before
+          ? {
+              OR: [
+                { createdAt: { lt: opts.before.createdAt } },
+                {
+                  createdAt: opts.before.createdAt,
+                  id: { lt: opts.before.id },
+                },
+              ],
+            }
+          : {}),
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take,
     });
   }

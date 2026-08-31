@@ -1131,41 +1131,90 @@ export class CompanyApprovalsService {
   // YALNIZ cron'dan çağrılır (approvals.scheduler) — tenant bağlamı yok ve
   // tarama TÜM firmaları kapsar. Ana client'la RLS açıldığında sessizce 0 satır.
   async fallbackInactiveApprovers(): Promise<number> {
-    const steps = await this.bypass.approvalRequestStep.findMany({
-      where: { status: "PENDING", request: { status: "PENDING" } },
-      select: {
-        id: true,
-        approverUserId: true,
-        request: {
-          select: {
-            id: true,
-            companyId: true,
-            listingId: true,
-            type: true,
-            payload: true,
-            createdById: true,
+    // Dalga B (P8) — iki düzeltme:
+    //
+    // (1) STARVATION: `take: 100` FİLTREDEN ÖNCE uygulanıyordu. 100'den fazla
+    //     bekleyen adım varken ilk 100'ün onaylayıcıları geçerliyse `toFix`
+    //     boş çıkıyor, gerçekten tıkanmış adımlar hiç görülmüyordu — üstelik
+    //     `orderBy` da olmadığı için her koşuda aynı ilk 100 dönme eğilimi var,
+    //     yani tıkanma KALICI. Artık imleçle TÜM bekleyen adımlar taranıyor
+    //     (üst sınır bir kaçak-döngü emniyeti, işlevsel tavan değil).
+    //
+    // (2) ROL KAYBI: uygunluk yalnız `isActive`/`deletedAt`'e bakıyordu. Oysa
+    //     `findEligibleApprover` havuzu ROL de istiyor. Onaylayıcının ONAYLAYICI
+    //     rolü sonradan alınırsa kullanıcı aktif kalır → fallback tetiklenmez,
+    //     ama decide() da rolü olmadığı için onaylayamaz → zincir SESSİZCE
+    //     tıkanır. Uygunluk artık iki taraf için de AYNI kural.
+    const APPROVER_ROLES = ["SAHIP", "YONETICI", "ONAYLAYICI"];
+    const MAX_SCAN = 5000; // kaçak-döngü emniyeti
+    type Step = {
+      id: string;
+      approverUserId: string;
+      request: {
+        id: string;
+        companyId: string;
+        listingId: string;
+        type: string;
+        payload: unknown;
+        createdById: string;
+      };
+    };
+    const toFix: Step[] = [];
+    let cursor: string | undefined;
+    let scanned = 0;
+    for (;;) {
+      const batch = await this.bypass.approvalRequestStep.findMany({
+        where: { status: "PENDING", request: { status: "PENDING" } },
+        select: {
+          id: true,
+          approverUserId: true,
+          request: {
+            select: {
+              id: true,
+              companyId: true,
+              listingId: true,
+              type: true,
+              payload: true,
+              createdById: true,
+            },
           },
         },
-      },
-      take: 100,
-    });
-    if (steps.length === 0) return 0;
+        orderBy: { id: "asc" },
+        take: 100,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+      if (batch.length === 0) break;
+      scanned += batch.length;
+      cursor = batch[batch.length - 1]!.id;
 
-    const approverIds = [...new Set(steps.map((s) => s.approverUserId))];
-    const approvers = await this.bypass.companyUser.findMany({
-      where: { id: { in: approverIds } },
-      select: { id: true, isActive: true, deletedAt: true },
-    });
-    const isInactive = new Map(
-      approvers.map((a) => [a.id, !a.isActive || a.deletedAt != null]),
-    );
-    // INV-APPR-1: GEÇERSİZ approver = inaktif/silinmiş VEYA initiator (görev
-    // ayrılığı — self-onay decide'da da reddedilir; burada zinciri açar).
-    const toFix = steps.filter(
-      (s) =>
-        isInactive.get(s.approverUserId) ||
-        s.approverUserId === s.request.createdById,
-    );
+      const approverIds = [...new Set(batch.map((s) => s.approverUserId))];
+      const approvers = await this.bypass.companyUser.findMany({
+        where: { id: { in: approverIds } },
+        select: { id: true, isActive: true, deletedAt: true, roles: true },
+      });
+      const ineligible = new Map(
+        approvers.map((a) => [
+          a.id,
+          !a.isActive ||
+            a.deletedAt != null ||
+            !a.roles.some((r) => APPROVER_ROLES.includes(r)),
+        ]),
+      );
+      // INV-APPR-1: GEÇERSİZ approver = uygunluğunu yitirmiş (pasif/silinmiş/
+      // rolsüz) VEYA initiator (görev ayrılığı — self-onay decide'da da
+      // reddedilir; burada zinciri açar). Kullanıcı kaydı hiç bulunamazsa da
+      // geçersiz sayılır (fail-closed: aksi hâlde adım sonsuza dek PENDING).
+      for (const st of batch) {
+        if (
+          (ineligible.get(st.approverUserId) ?? true) ||
+          st.approverUserId === st.request.createdById
+        ) {
+          toFix.push(st as Step);
+        }
+      }
+      if (batch.length < 100 || scanned >= MAX_SCAN) break;
+    }
+    if (toFix.length === 0) return 0;
 
     let reassigned = 0;
     for (const step of toFix) {

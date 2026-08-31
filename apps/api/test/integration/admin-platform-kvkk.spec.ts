@@ -17,7 +17,7 @@ import {
 } from "./factories";
 
 function rig() {
-  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const notifications = { pushToCompany: jest.fn().mockResolvedValue(1) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const audit = new AuditService(prisma as never);

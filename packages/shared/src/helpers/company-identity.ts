@@ -90,6 +90,25 @@ export function normalizeIban(value: string): string {
 export function isValidIbanTr(value: string): boolean {
   const v = normalizeIban(value);
   if (!/^TR[0-9]{24}$/.test(v)) return false;
+  return ibanChecksumOk(v);
+}
+
+/**
+ * ISO 13616 mod-97 sağlaması — ülke bağımsız (denetim Dalga B, P3).
+ *
+ * Eskiden mod-97 YALNIZ `isValidIbanTr` içinde, TR uzunluk kontrolüne
+ * gömülüydü; yabancı IBAN'lar sadece `^[A-Z]{2}[0-9A-Z]{8,32}$` şekil
+ * kontrolünden geçiyordu. Yani tek hane yanlış yazılmış bir DE/NL IBAN'ı
+ * kabul ediliyor, siparişte ödeme hesabı olarak damgalanıyor ve para yanlış
+ * hesaba gönderilmeye çalışılıyordu — hata ancak bankada ortaya çıkar.
+ * 98 ülke destekleniyor (COUNTRIES), bu yüzden yabancı IBAN istisna değil.
+ *
+ * Uzunluk ülkeye göre değişir (15-34) ve tam tablo burada tutulmuyor; mod-97
+ * zaten tek/çift hane hatalarını ve yer değiştirmeleri yakalar.
+ */
+export function ibanChecksumOk(value: string): boolean {
+  const v = normalizeIban(value);
+  if (!/^[A-Z]{2}[0-9]{2}[0-9A-Z]{11,30}$/.test(v)) return false;
   // mod-97: ilk 4 karakteri sona taşı, harfleri sayıya çevir (A=10..Z=35), %97==1
   const rearranged = v.slice(4) + v.slice(0, 4);
   const numeric = rearranged.replace(/[A-Z]/g, (c) =>
