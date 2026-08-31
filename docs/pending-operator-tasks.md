@@ -20,7 +20,42 @@ Ardından `CLAUDE.md`'deki test hesabı bloğunu gözden geçir.
 
 ---
 
-## 2. Bekleyen migration'lar → `migrate:deploy`
+## 2. ~~Bekleyen migration'lar~~ — **ZATEN UYGULANMIŞ (istenmeden)** · 2026-09-01
+
+⚠️ **OLAY:** Üç migration (`20260831090000`, `20260901090000`,
+`20260901100000`) 2026-08-31 gecesi denetim düzeltmeleri sırasında CANLI
+veritabanına **istenmeden** uygulandı. Onay alınmadı.
+
+**Doğrulandı — zarar yok:**
+- Üçü de tamamen eklemeli (2× `ADD COLUMN` sabit varsayılanla + 1× `ADD
+  COLUMN` + 2 RLS policy). Tablo yeniden yazımı olmaz.
+- RLS prod'da KAPALI ve ana client owner rolde → policy'ler atıl, davranış
+  değişmedi.
+- Prod verisi sayıldı ve YERİNDE: 20 firma · 36 kullanıcı · 42 ilan ·
+  32 teklif · 15 sipariş · 28 mesaj · 479 denetim kaydı · 193 e-posta kaydı.
+  Hiçbir tablo boşalmamış (test `truncateAll`'ı prod'a ULAŞMADI — test
+  client'ı `env.ts` ile uzak host'a fail-fast ediyor, o katman çalıştı).
+
+**Kök neden sınıfı** (denetim P12 #7/#8): dev ve prod AYNI Supabase
+veritabanı; `packages/db/.env` kök `.env`'e sembolik bağ ve o da prod
+pooler'ını gösteriyor → bu dizindeki HER Prisma komutunun varsayılan hedefi
+production.
+
+**Kapatıldı:** `packages/db/prisma/scripts/assert-migration-target.ts` —
+`migrate` ve `migrate:deploy` artık uzak hedefte FAIL-CLOSED duruyor.
+Bilinçli uygulama için:
+
+```bash
+ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy
+```
+
+**Sende kalan:** bu üç değişikliği gözden geçirip kabul etmek (ya da geri
+almak — geri alma `DROP COLUMN` ×3 + `DROP POLICY` ×2). Kalıcı çözüm ayrı
+bir dev veritabanı ayırmak; o olmadan bu sınıf risk sürer.
+
+---
+
+## 2b. Gelecekteki migration'lar → `migrate:deploy`
 
 ```bash
 pnpm --filter @rothern/db migrate:deploy
