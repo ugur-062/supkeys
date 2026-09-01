@@ -57,6 +57,22 @@ const HIDE_SEGMENT_CODES = [
 ];
 
 /**
+ * AİLE (L2) seviyesinde gizlenenler — 2026-09-01.
+ *
+ * Segment tutuluyor ama içindeki bir aile platformda satın alınabilir hiçbir
+ * şeye karşılık gelmiyorsa, o aile ağaçta ÇIKMAZ SOKAK olur: kullanıcı tıklar,
+ * altında hiçbir şey bulamaz. İki dürüst çözüm var — doldurmak ya da gizlemek.
+ * Aşağıdakiler ICD tarzı TIBBİ KODLAMA artığı: "OSGB ve Sağlık Hizmetleri"
+ * segmenti işyeri hekimliği/muayene hizmetleri için duruyor, teşhis kodları
+ * için değil. Bunlara sınıf uydurmak taksonomiyi kirletirdi.
+ */
+const HIDE_FAMILY_CODES = [
+  "85270000", // Ruhsal ve davranışsal bozukluk tanıları
+  "85400000", // Doğuştan malformasyon ve kromozomal anormallik tanıları
+  "85700000", // Alt kemiklerin cerrahi müdahaleleri
+];
+
+/**
  * Tutulacak segment'lerin Türkçe sadeleştirilmiş isimleri. UNSPSC orijinal
  * isimleri çok uzun ve teknik — KOBİ kullanıcı için kısa ve hedef-odaklı.
  */
@@ -195,6 +211,34 @@ async function main() {
     if (shouldHide) totalHidden += wrongState.length;
     else totalReactivated += wrongState.length;
   }
+
+  // 1b) AİLE seviyesinde gizleme — SEGMENT DÖNGÜSÜNDEN SONRA koşmak ZORUNDA.
+  // Yukarıdaki döngü, gizlenmemiş bir segmentin TÜM alt kayıtlarını aktive
+  // ediyor; aile gizlemesi önce yapılsaydı hemen geri açılırdı.
+  console.log(`\n[1b] Aile seviyesinde gizleme (çıkmaz sokak temizliği):`);
+  let familyHidden = 0;
+  for (const code of HIDE_FAMILY_CODES) {
+    const fam = all.find((c) => c.code === code && c.level === 2);
+    if (!fam) {
+      console.warn(`  ⚠️  ${code} bulunamadı (aile değil ya da silinmiş)`);
+      continue;
+    }
+    const ids = collectDescendantIds(fam.id);
+    const wrongState = ids.filter((id) => byId.get(id)?.isActive === true);
+    if (wrongState.length === 0) continue;
+    if (isApply) {
+      await prisma.category.updateMany({
+        where: { id: { in: wrongState } },
+        data: { isActive: false },
+      });
+    }
+    familyHidden += wrongState.length;
+    console.log(
+      `  ⛔ ${code}  ${fam.nameTr.slice(0, 50).padEnd(52, " ")}  ${wrongState.length} gizlenecek`,
+    );
+  }
+  if (familyHidden === 0) console.log("  (yapılacak iş yok)");
+  totalHidden += familyHidden;
 
   // 2) RENAME: segment nameTr güncelleme
   console.log(`\n[2/2] Yeniden adlandırılacak segment'ler:`);

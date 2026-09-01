@@ -284,52 +284,66 @@ async function main() {
   let batchNo = 0;
   let model: string | undefined;
 
-  for (let i = 0; i < classes.length && batchNo < limit; i += BATCH) {
-    const batch = classes.slice(i, i + BATCH);
-    const byCode = new Map(batch.map((k) => [k.code, k]));
-    batchNo++;
-    try {
-      const r = await generateJson<{ classes?: { code: string; leaves: string[] }[] }>({
-        apiKey,
-        prompt: buildPrompt(batch),
-        schema: SCHEMA,
-        temperature: 0.3,
-        preferModel: model,
-      });
-      model = r.model;
-      inTok += r.inTok;
-      outTok += r.outTok;
-      const lines: string[] = [];
-      for (const c of r.data.classes ?? []) {
-        const klass = byCode.get(c.code);
-        if (!klass) continue; // model olmayan kod uydurdu
-        const taken = new Set<string>();
-        let added = 0;
-        for (const leaf of c.leaves ?? []) {
-          if (added >= klass.need) break;
-          const name = acceptName(leaf, klass, taken, globalNames);
-          if (!name) continue;
-          const slot = nextSlot(klass);
-          if (!slot) break;
-          taken.add(norm(name));
-          globalNames.add(norm(name));
-          lines.push(`${klass.code.slice(0, 6)}${slot}\t4\t${klass.code}\t\t${name}`);
-          added++;
+  // EŞZAMANLILIK: gruplar bağımsız (her biri ayrı sınıf kümesi). TEK paylaşılan
+  // durum `globalNames`; JS tek iş parçacıklı olduğundan Set okuma/yazması
+  // await sınırları arasında atomik — iki grup aynı adı aynı anda ekleyemez.
+  const CONCURRENCY = 4;
+  const groups: Klass[][] = [];
+  for (let i = 0; i < classes.length; i += BATCH) groups.push(classes.slice(i, i + BATCH));
+  const planned = Math.min(groups.length, limit === Infinity ? groups.length : limit);
+
+  let cursor = 0;
+  const worker = async () => {
+    for (;;) {
+      const idx = cursor++;
+      if (idx >= planned) return;
+      const batch = groups[idx]!;
+      const byCode = new Map(batch.map((k) => [k.code, k]));
+      try {
+        const r = await generateJson<{ classes?: { code: string; leaves: string[] }[] }>({
+          apiKey,
+          prompt: buildPrompt(batch),
+          schema: SCHEMA,
+          temperature: 0.3,
+          preferModel: model,
+        });
+        model = r.model;
+        inTok += r.inTok;
+        outTok += r.outTok;
+        const lines: string[] = [];
+        for (const c of r.data.classes ?? []) {
+          const klass = byCode.get(c.code);
+          if (!klass) continue; // model olmayan kod uydurdu
+          const taken = new Set<string>();
+          let added = 0;
+          for (const leaf of c.leaves ?? []) {
+            if (added >= klass.need) break;
+            const name = acceptName(leaf, klass, taken, globalNames);
+            if (!name) continue;
+            const slot = nextSlot(klass);
+            if (!slot) break;
+            taken.add(norm(name));
+            globalNames.add(norm(name));
+            lines.push(`${klass.code.slice(0, 6)}${slot}\t4\t${klass.code}\t\t${name}`);
+            added++;
+          }
         }
+        if (lines.length) {
+          fs.appendFileSync(OUT_PATH, lines.join("\n") + "\n", "utf-8");
+          written += lines.length;
+        }
+      } catch (e) {
+        console.error(`\ngrup ${idx + 1} HATA: ${(e as Error).message}`);
       }
-      if (lines.length) {
-        fs.appendFileSync(OUT_PATH, lines.join("\n") + "\n", "utf-8");
-        written += lines.length;
-      }
+      batchNo++;
       const pr = priceOf(model ?? "");
       const cost = (inTok / 1e6) * pr.in + (outTok / 1e6) * pr.out;
       process.stdout.write(
-        `\rgrup ${batchNo}/${Math.ceil(classes.length / BATCH)} · ${written} yaprak · ${model} · ~$${cost.toFixed(3)}   `,
+        `\rgrup ${batchNo}/${planned} · ${written} yaprak · ${model} · ~$${cost.toFixed(3)}   `,
       );
-    } catch (e) {
-      console.error(`\ngrup ${batchNo} HATA: ${(e as Error).message}`);
     }
-  }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   const pr = priceOf(model ?? "");
   const cost = (inTok / 1e6) * pr.in + (outTok / 1e6) * pr.out;

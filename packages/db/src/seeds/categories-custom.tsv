@@ -180,3 +180,197 @@
 39992100	3	39990000		Kablo taşıma ve yönetim
 39992101	4	39992100		Kablo kanalı ve tava
 39992102	4	39992100		Kablo merdiveni ve askı
+31109000	3	31100000		Pik ve sfero döküm parçalar
+31109100	3	31100000		Çelik döküm parçalar
+31109200	3	31100000		Alüminyum ve hafif metal döküm
+31109300	3	31100000		Bronz ve pirinç döküm
+31109400	3	31100000		Hassas döküm (precision casting)
+31119000	3	31110000		Alüminyum ekstrüzyon profiller
+31119100	3	31110000		Plastik ekstrüzyon profiller
+31119200	3	31110000		Kauçuk ekstrüzyon fitil ve profiller
+31139000	3	31130000		Sıcak dövme parçalar
+31139100	3	31130000		Soğuk dövme parçalar
+31139200	3	31130000		Dövme flanş ve bağlantı parçaları
+31149000	3	31140000		Plastik enjeksiyon kalıplama parçaları
+31149100	3	31140000		Kauçuk kalıplama parçaları
+31149200	3	31140000		Rotasyon ve şişirme kalıplama parçaları
+31149300	3	31140000		Kompozit ve SMC kalıplama parçaları
+31189000	3	31180000		O-ring ve keçeler
+31189100	3	31180000		Flanş ve motor contaları
+31189200	3	31180000		Körük ve manşonlar
+31189300	3	31180000		Salmastra ve mekanik salmastralar
+31189400	3	31180000		Tapa kapak ve koruyucu tıpalar
+31239000	3	31230000		Çekilmiş ve haddelenmiş çubuk stok
+31239100	3	31230000		İşlenmiş boru ve tüp stok
+31239200	3	31230000		Kesilmiş levha ve plaka stok
+31249000	3	31240000		Endüstriyel lens ve prizmalar
+31249100	3	31240000		Optik pencere ve aynalar
+31249200	3	31240000		Fiber optik ve ışık kılavuzları
+31259000	3	31250000		Hidrolik kontrol valfleri ve blokları
+31259100	3	31250000		Pnömatik valf ve valf adaları
+31259200	3	31250000		Basınç ve akış regülatörleri
+31259300	3	31250000		Elektrikli aktüatör ve kontrol üniteleri
+31269000	3	31260000		Elektrik pano gövde ve mahfazaları
+31269100	3	31260000		Endüstriyel dolap ve raf sistemleri
+31269200	3	31260000		Kasa taşıma sandık ve muhafazalar
+31279000	3	31270000		Talaşlı imalat makine parçaları
+31279100	3	31270000		Dişli mil ve kovan parçaları
+31279200	3	31270000		Kam eksantrik ve bağlantı kolları
+31289000	3	31280000		Sac damgalama ve pres parçaları
+31289100	3	31280000		Derin çekme sac parçalar
+31289200	3	31280000		Sac bükme ve abkant parçalar
+31299000	3	31290000		İşlem görmüş alüminyum profiller
+31299100	3	31290000		Anodize ve kaplamalı ekstrüzyonlar
+31309000	3	31300000		İşlem görmüş dövme parçalar
+31309100	3	31300000		Isıl işlem görmüş dövme parçalar
+31319000	3	31310000		Kaynaklı boru spoolları
+31319100	3	31310000		Boru dirsek ve fitting montajları
+31319200	3	31310000		Manifold ve dağıtım hatları
+31329000	3	31320000		Çubuk stok kaynaklı montajlar
+31329100	3	31320000		Mil ve çubuk alt montajları
+31339000	3	31330000		Çelik konstrüksiyon montajları
+31339100	3	31330000		Platform merdiven ve korkuluk montajları
+31339200	3	31330000		Şasi ve iskelet montajları
+31349000	3	31340000		Kaynaklı sac montajlar
+31349100	3	31340000		Sac kabin ve muhafaza montajları
+31359000	3	31350000		Tüp bükme ve montajları
+31359100	3	31350000		Isı değiştirici tüp demetleri
+31369000	3	31360000		Levha kaynaklı montajlar
+31369100	3	31360000		Tank ve basınçlı kap montajları
+31379000	3	31370000		Refrakter tuğla ve bloklar
+31379100	3	31370000		Refrakter harç ve döküm malzemeleri
+31379200	3	31370000		Seramik fiber ve yalıtım battaniyeleri
+31389000	3	31380000		Kalıcı mıknatıslar
+31389100	3	31380000		Elektromıknatıs ve manyetik kaldırıcılar
+31389200	3	31380000		Manyetik separatör ve tutucular
+31399000	3	31390000		CNC torna işlenmiş parçalar
+31399100	3	31390000		CNC freze işlenmiş parçalar
+31399200	3	31390000		Taşlama ve honlama işlenmiş parçalar
+31399300	3	31390000		Erozyon ve dalma erozyon parçaları
+31419000	3	31410000		Keçe ve fitil sızdırmazlık elemanları
+31419100	3	31410000		Yağ keçesi ve mil keçeleri
+31429000	3	31420000		Sinterlenmiş metal parçalar
+31429100	3	31420000		Toz metalurjisi burç ve yataklar
+31229000	3	31220000		Deri ve tekstil boyama özleri
+31229100	3	31220000		Tabaklama kimyasalları
+11189000	3	11180000		Demir ve çelik oksitleri
+11189100	3	11180000		Alüminyum ve çinko oksitleri
+11189200	3	11180000		Titanyum ve özel metal oksitleri
+11199000	3	11190000		Demir ve çelik hurdası
+11199100	3	11190000		Alüminyum ve bakır hurdası
+11199200	3	11190000		Talaş ve döküm yan ürünleri
+11199300	3	11190000		Cüruf ve proses yan ürünleri
+23119000	3	23110000		Rafineri ve proses kolonları
+23119100	3	23110000		Petrol pompa ve transfer üniteleri
+23119200	3	23110000		Yağ filtrasyon ve ayrıştırma üniteleri
+23219000	3	23210000		Baskılı devre kartı üretim makineleri
+23219100	3	23210000		SMD dizgi ve lehimleme makineleri
+23219200	3	23210000		Kablo ve konnektör işleme makineleri
+23219300	3	23210000		Elektronik test ve kontrol tezgahları
+30149000	3	30140000		Isı yalıtım malzemeleri
+30149100	3	30140000		Ses yalıtım malzemeleri
+30149200	3	30140000		Su ve nem yalıtım malzemeleri
+30149300	3	30140000		Yangın yalıtım ve durdurucu ürünler
+30149400	3	30140000		Boru ve tesisat yalıtımı
+30259000	3	30250000		Tünel ve galeri tahkimat malzemeleri
+30259100	3	30250000		Yer altı destek ve bulon sistemleri
+32119000	3	32110000		Diyot ve doğrultucular
+32119100	3	32110000		Transistör ve tristörler
+32119200	3	32110000		Güç yarı iletken modülleri
+32119300	3	32110000		Optokuplör ve sensör yarı iletkenleri
+32149000	3	32140000		Vakum tüpleri ve magnetronlar
+32149100	3	32140000		Görüntü ve gösterge tüpleri
+32159000	3	32150000		PLC ve kontrol modülleri
+32159100	3	32150000		HMI operatör panelleri
+32159200	3	32150000		Endüstriyel sensör ve enkoderler
+32159300	3	32150000		Motor sürücü ve servo kontrolörler
+32159400	3	32150000		Endüstriyel haberleşme ve ağ geçitleri
+32159500	3	32150000		Güvenlik röle ve kontrol üniteleri
+50219000	3	50210000		Tütün mamulleri
+50219100	3	50210000		Nargile ve tütün ikameleri
+50389000	3	50380000		Meyve püreleri ve konsantreleri
+50389100	3	50380000		Sebze püreleri ve konsantreleri
+52179000	3	52170000		Duvar kağıdı ve kaplamaları
+52179100	3	52170000		Dekoratif duvar panelleri
+56139000	3	56130000		Mağaza raf ve teşhir sistemleri
+56139100	3	56130000		Kasa ve tezgah üniteleri
+56139200	3	56130000		Vitrin ve stand sistemleri
+56149000	3	56140000		Dekoratif aksesuar ve süsler
+56149100	3	56140000		Tabela ve yönlendirme öğeleri
+73129000	3	73120000		Fason döküm ve dövme hizmetleri
+73129100	3	73120000		Fason ısıl işlem hizmetleri
+73129200	3	73120000		Fason yüzey kaplama ve galvaniz hizmetleri
+73129300	3	73120000		Fason mineral öğütme ve eleme hizmetleri
+77149000	3	77140000		Su ve atıksu analiz hizmetleri
+77149100	3	77140000		Emisyon ve hava kalitesi ölçümü
+77149200	3	77140000		Toprak ve atık analiz hizmetleri
+77149300	3	77140000		Gürültü ve titreşim ölçümü
+82169000	3	82160000		Tanıtım filmi ve video prodüksiyon
+82169100	3	82160000		Fotoğraf ve görsel çekim hizmetleri
+82169200	3	82160000		Kurgu seslendirme ve post prodüksiyon
+12990000	2	12000000		Endüstriyel boya, yapıştırıcı ve proses kimyasalları
+12991500	3	12990000		Endüstriyel boya ve astarlar
+12991600	3	12990000		Toz boya ve kaplama malzemeleri
+12991700	3	12990000		Yapıştırıcı ve dolgu malzemeleri
+12991800	3	12990000		Yağ alma ve endüstriyel temizlik kimyasalları
+12991900	3	12990000		Su ve proses kimyasalları
+12992000	3	12990000		Yüzey işlem ve fosfatlama kimyasalları
+13990000	2	13000000		Plastik ve kauçuk yarı mamul
+13991500	3	13990000		Plastik levha ve plakalar
+13991600	3	13990000		Plastik boru ve profiller
+13991700	3	13990000		Kauçuk hortum ve tabakalar
+13991800	3	13990000		Teknik ve mühendislik plastikleri
+13991900	3	13990000		Sünger ve köpük malzemeler
+14990000	2	14000000		Ambalaj ve koli malzemeleri
+14991500	3	14990000		Oluklu mukavva koli ve kutular
+14991600	3	14990000		Koruyucu ambalaj ve dolgu malzemeleri
+14991700	3	14990000		Etiket ve baskılı ambalaj
+14991800	3	14990000		Streç film ve ambalaj bantları
+14991900	3	14990000		Palet ve taşıma ambalajı
+15990000	2	15000000		Endüstriyel yağ ve işletme akışkanları
+15991500	3	15990000		Hidrolik ve devirdaim yağları
+15991600	3	15990000		Kesme ve talaşlı imalat sıvıları
+15991700	3	15990000		Gres ve özel yağlayıcılar
+15991800	3	15990000		Isı transfer ve trafo yağları
+15991900	3	15990000		Antifriz ve soğutma sıvıları
+26990000	2	26000000		Enerji depolama ve dağıtım sistemleri
+26991500	3	26990000		Akü ve enerji depolama sistemleri
+26991600	3	26990000		Kesintisiz güç kaynakları (UPS)
+26991700	3	26990000		Güneş enerjisi sistemleri
+26991800	3	26990000		Trafo ve orta gerilim dağıtım ekipmanları
+27990000	2	27000000		Atölye el aletleri ve donanımı
+27991500	3	27990000		Akülü ve elektrikli el aletleri
+27991600	3	27990000		Havalı (pnömatik) el aletleri
+27991700	3	27990000		Ölçü ve markalama el aletleri
+27991800	3	27990000		Alet dolabı ve atölye tezgahları
+32990000	2	32000000		Elektronik montaj ve kablaj
+32991500	3	32990000		Kablo demeti ve konnektör montajları
+32991600	3	32990000		Baskılı devre kartı montajı (PCBA)
+32991700	3	32990000		Güç kaynakları ve dönüştürücüler
+32991800	3	32990000		Endüstriyel bilgisayar ve gömülü sistemler
+32991900	3	32990000		Elektronik muhafaza ve soğutma çözümleri
+40990000	2	40000000		Endüstriyel tesisat ve iklimlendirme
+40991500	3	40990000		Endüstriyel havalandırma ve fanlar
+40991600	3	40990000		Soğutma grupları ve chillerler
+40991700	3	40990000		Kazan ve brülör sistemleri
+40991800	3	40990000		Isı değiştirici ve eşanjörler
+40991900	3	40990000		Su arıtma ve filtrasyon sistemleri
+40992000	3	40990000		Basınçlı hava hattı ve ekipmanları
+47990000	2	47000000		Endüstriyel temizlik ekipmanları
+47991500	3	47990000		Zemin temizleme makineleri
+47991600	3	47990000		Endüstriyel vakum ve süpürgeler
+47991700	3	47990000		Yüksek basınçlı yıkama sistemleri
+76990000	2	76000000		Saha ve tesis temizlik hizmetleri
+76991500	3	76990000		Tank ve boru hattı temizliği
+76991600	3	76990000		Kumlama ve yüzey hazırlama hizmetleri
+76991700	3	76990000		Endüstriyel tesis temizlik hizmetleri
+77990000	2	77000000		Atık yönetimi ve geri kazanım
+77991500	3	77990000		Endüstriyel atık toplama ve bertaraf
+77991600	3	77990000		Geri dönüşüm ve geri kazanım hizmetleri
+77991700	3	77990000		Arıtma tesisi işletme hizmetleri
+22991800	3	22990000		Yol ve asfalt makineleri
+22991900	3	22990000		Delme kırma ve sondaj ekipmanları
+22992000	3	22990000		Şantiye saha ve barınma ekipmanları
+31991900	3	31990000		Yay ve tel form parçaları
+73991600	3	73990000		Eklemeli imalat ve 3D baskı hizmetleri
+73991700	3	73990000		Tersine mühendislik ve prototipleme
