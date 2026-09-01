@@ -29,6 +29,12 @@ vi.mock("@/lib/company-auth/store", () => ({
 }));
 vi.mock("@/hooks/use-categories", () => ({
   useRoots: () => h.roots,
+  // Alt kategori seçici (CategorySelectorButton) seçili kodların adını bu
+  // hook'tan çözer. Onboarding'e 2026-09-01'de eklendi; mock'a yazılmazsa
+  // vitest "No export is defined" ile patlar.
+  useCategoriesByIds: () => ({ data: [] }),
+  useAllCategories: () => ({ data: [], isLoading: false }),
+  useCategorySearchTree: () => ({ data: undefined, isLoading: false }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyMe: () => ({ data: h.meData, isLoading: false }),

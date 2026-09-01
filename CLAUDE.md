@@ -275,18 +275,15 @@ seçimleri korunur; 2026-09-01 koşumunda doğrulandı (0 kırık referans).
 NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor — tek koşum ikisine de
 yansır.
 
-## Bekleyen Migration'lar (prod'a UYGULANMADI)
+## Migration Durumu
 
-`pnpm --filter @rothern/db migrate:deploy` bekliyor. İkisi de **tamamen
-eklemeli** — tablo yeniden yazımı yok:
+**Bekleyen YOK** — `migrate status` "up to date" (2026-09-01, 65 migration).
 
-| Migration | İçerik |
-|-----------|--------|
-| `20260901120000` | `CompanyActivity` enum + `companies.activities` (sabit default) + GIN indeksi |
-| `20260901130000` | `category_search_misses` tablosu (kürasyon kuyruğu) |
-
-> 2026-09-01: önceki üç migration (`20260831090000`, `20260901090000`,
-> `20260901100000`) prod'a UYGULANDI — `migrate status` "up to date".
+> ⚠️ **`render.yaml` `autoDeploy: true`** — main'e push edilen API kodu prod'a
+> KENDİLİĞİNDEN gider. Şema kullanan bir değişikliği push ettiysen migration'ı
+> da AYNI turda uygula, yoksa canlı kod olmayan kolonu okur ve o uç 500 döner.
+> Komut fail-closed: `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
+> (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
 ## Geliştirme Notları
 - **NestJS CLI watch modu WSL'de bozuk.** `apps/api/package.json` `dev` script'i `concurrently` + `tsc -w` + `nodemon` kullanır. `nest start --watch` KULLANMAYIN.
