@@ -16,12 +16,12 @@
 | 1 | 8 (teslim süresi zorunlu) | ✅ |
 | 1 | 9 (zorunlu soru bug) | ✅ |
 | 1 | 10 (geçerlilik süresi) | ✅ |
-| 1 | 18 (tedarikçi ihaleler liste) | ✅ (zaten `flex-col` liste) |
+| 1 | 18 (tedarikçi satın alma talepleri liste) | ✅ (zaten `flex-col` liste) |
 | 1 | 24 (bekleyen onay filtre) | ✅ (`pendingForMe` doğru) |
 | 1 | 25 (sıralı çift onay) | ✅ (tek PENDING step) |
 | 1 | 26 (ISO belge upload) | ✅ |
 | 1 | 13 (alıcı sipariş iptal kaldır) | ✅ (2026-06-21) |
-| 2 | 22 (ihale onayı kaldır) | ✅ |
+| 2 | 22 (satın alma talebi onayı kaldır) | ✅ |
 | 2 | 23 (onay ekranı netleştir) | ✅ |
 | G5 | 11 (fatura kesim tarihi kaldır) | ✅ (2026-06-21 · invoiceDate kolonu drop) |
 | G5 | 15 (PDF indirme fix) | ✅ kod (2026-06-21) — zarif 503 + net hata mesajı. **Kök neden: dev'de Chromium sistem kütüphaneleri eksik (`libnspr4.so`); prod Docker'da çalışır.** |
@@ -30,10 +30,10 @@
 | 3 | 16 (direkt ödeme — nakit/çek handshake) | ✅ (2026-06-21) — OrderPayment modeli + state machine (Teslim Aldım → DELIVERED → tam ödeme onayında otomatik COMPLETED) + ödeme dekontu + popup |
 | 3 | 20 (Kayıtlı Bankalarım + tek yönetici) | ✅ — `supplier-banks` modülü + ayarlar/bankalar UI; sipariş onayında bankadan seçim |
 | 3 | 6 (Rothern ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı rothernId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
-| 4 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
-| 3 | 33 (teminat mektubu) | ✅ (2026-06-21) — nakit (paymentTerm=CASH) ihalede kazanan tedarikçi siparişi ONAYLARKEN teminat mektubu yüklemek ZORUNDA (hard block); ORDER_GUARANTEE_LETTER scope; wizard uyarı + accept modal upload + belge panelinde kategori. **Faz 3 TAM bitti.** |
+| 4 | Açık Satın Alma Talebi (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN satın alma taleplerini davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
+| 3 | 33 (teminat mektubu) | ✅ (2026-06-21) — nakit (paymentTerm=CASH) satın alma talebinde kazanan tedarikçi siparişi ONAYLARKEN teminat mektubu yüklemek ZORUNDA (hard block); ORDER_GUARANTEE_LETTER scope; wizard uyarı + accept modal upload + belge panelinde kategori. **Faz 3 TAM bitti.** |
 | 4 | 27 (KYC ek belgeler) | ✅ — ticari sicil + imza sirküleri + banka onaylı IBAN (connect-kyc-uploads) |
-| 4 | 7 (ihale şablonları) | ✅ — kalem sorusu + tedarikçi şablonu + İhaleyi Kopyala |
+| 4 | 7 (satın alma talebi şablonları) | ✅ — kalem sorusu + tedarikçi şablonu + Satın Alma Talebini Kopyala |
 | 4 | 28 (tasarruf raporu) | ✅ (2026-06-21) — karar: **tasarruf = en yüksek teklif − kazanan toplam** (rekabet tasarrufu). Rapor + Excel + genel rapor satırı güncellendi. |
 | 4 | 3 (Proje Haber arama) | ⛔ BLOKLU — harici veri kaynağı; Proje Haber API/erişim bilgisi olmadan kurulamaz. **Faz 4 (3 hariç) bitti.** |
 
@@ -61,14 +61,14 @@
 > canlı kart, teklif oran-enforcement, scheduler mevcut. Ek genişletme yapılmayacak.
 > Bölüm tarihsel referans için bırakıldı.
 
-İhalede iki mod olacak; alıcı ihale açarken seçer:
+Satın Alma Talebinde iki mod olacak; alıcı satın alma talebi açarken seçer:
 
 - **Kapalı zarf (mevcut V1):** Tedarikçiler birbirini hiç görmez, tek teklif verir. Alıcı hepsini görür.
 - **Açık eksiltme (yeni):** Tedarikçiler **canlı yarışır**:
   - Tedarikçi fiyat **vermeden** diğerlerinin fiyatını göremez.
   - Fiyat **verdikten sonra** sistem geri bildirim verir: *"en iyi tekliften %X daha pahalı/ucuzsun"* → tedarikçi daha düşük teklif verebilir.
   - **Firma isimleri tedarikçilere asla görünmez** (anonim).
-  - Süre dolarken yeni en iyi teklif gelirse ihale **otomatik uzar**; **uzama süresini alıcı belirler** (madde 17 — sniping engeli).
+  - Süre dolarken yeni en iyi teklif gelirse satın alma talebi **otomatik uzar**; **uzama süresini alıcı belirler** (madde 17 — sniping engeli).
 
 Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İkisi birlikte "açık eksiltme" modunu oluşturur.
 
@@ -83,16 +83,16 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 |---|---|---|
 | 1 | Dashboard "Uber" fontunda. | ❓ Gerçek Uber Move (lisans) mı, benzeri ücretsiz mi? Tüm uygulama mı sadece dashboard mı? Marka Inter+Plus Jakarta değişecek mi? |
 | 2 | Dashboard tedarikçi bölümü düzeltilecek. | ❓ Tam olarak ne bozuk? |
-| 18 | Tedarikçi tarafında ihaleler **alt alta** (liste). | ✅ |
+| 18 | Tedarikçi tarafında satın alma talepleri **alt alta** (liste). | ✅ |
 | 23 | Onay ekranı daha net/anlaşılır. | ✅ (UX) |
 
-### B. İhale
+### B. Satın Alma Talebi
 | # | Anladığım | Durum |
 |---|---|---|
-| 3 | İhale arama "Proje Haber"den çekilecek. | ❓ Harici veri kaynağı/servis mi? API var mı? |
-| 7 | İhale şablonları (kaydet/yeniden kullan). | ✅ |
+| 3 | Satın Alma Talebi arama "Proje Haber"den çekilecek. | ❓ Harici veri kaynağı/servis mi? API var mı? |
+| 7 | Satın Alma Talebi şablonları (kaydet/yeniden kullan). | ✅ |
 | 9 | Zorunlu soru sormuyor → validasyon bug'ı. | ✅ (bug) |
-| 22 | İhale onayı kaldırılacak (ihaleler onaya düşmeyecek). | ✅ Sipariş onayları kalır. |
+| 22 | Satın Alma Talebi onayı kaldırılacak (satın alma talepleri onaya düşmeyecek). | ✅ Sipariş onayları kalır. |
 | 4+17 | Açık eksiltme (anonim yarış + % gösterge + otomatik uzatma). | ❌ Planlardan çıkarıldı (2026-06-21) — mevcut iskelet yeterli |
 
 ### C. Teklif (tedarikçi)
@@ -124,7 +124,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 ### G. Onay Sistemi
 | # | Anladığım | Durum |
 |---|---|---|
-| 22 | İhale onayı kaldırılacak. | ✅ |
+| 22 | Satın Alma Talebi onayı kaldırılacak. | ✅ |
 | 23 | Onay ekranı netleştirilecek. | ✅ |
 | 24 | Bekleyen onayda görünmesi gereken görünmüyor; her süreçte görünüyor → filtre bug. | ✅ (bug) |
 | 25 | Çift onayda alt kademe onaylamadan üst kademe "onay bekliyor"da **görünmemeli** (sıralı). | ✅ (bug) |
@@ -149,8 +149,8 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 ### K. Uluslararası
 | # | Anladığım | Durum |
 |---|---|---|
-| 29 | TR dışı firma kaydı + doğrulama (ülke, ülkeye göre vergi no, state/province, i18n). | ✅ Uluslararası ihalenin ön koşulu. |
-| 30 | İhale açarken **Yurtiçi / Uluslararası** seçimi. Uluslararası: **konşimento** (irsaliye yerine) + farklı (Incoterms) teslim şekilleri. | ✅ |
+| 29 | TR dışı firma kaydı + doğrulama (ülke, ülkeye göre vergi no, state/province, i18n). | ✅ Uluslararası satın alma talebinin ön koşulu. |
+| 30 | Satın Alma Talebi açarken **Yurtiçi / Uluslararası** seçimi. Uluslararası: **konşimento** (irsaliye yerine) + farklı (Incoterms) teslim şekilleri. | ✅ |
 
 ### L. Güvenli Ödeme / Escrow (komisyonlu)
 | # | Anladığım | Durum |
@@ -203,15 +203,15 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 > Her grup = tek bir çalışma pass'i. **⟳** = çapraz kesen madde (birden fazla gruba değer; o alanı açınca birlikte yapılır).
 
 ### G1 — Görünüm / UI
-- 1 (font/dashboard), 2 (dashboard tedarikçi kısmı), 18 (tedarikçi ihaleler alt alta)
+- 1 (font/dashboard), 2 (dashboard tedarikçi kısmı), 18 (tedarikçi satın alma talepleri alt alta)
 - ⟳ 23 (onay ekranı netliği — G7 ile)
 
-### G2 — İhale oluşturma (wizard + tender model)
+### G2 — Satın Alma Talebi oluşturma (wizard + tender model)
 - 7 (şablonlar), 5 (yurtiçi teslim şekilleri)
 - ⟳ 30 (yurtiçi/uluslararası seçimi + teslim şekli + konşimento alanı — G5/G11 ile)
 - ⟳ 4 (kapalı zarf / açık eksiltme **mod seçimi** — G3 ile)
 - ⟳ 33 (nakit → teminat mektubu **uyarısı** — G8 ile)
-- ⟳ 22 (ihale onayı kaldır — G7 ile)
+- ⟳ 22 (satın alma talebi onayı kaldır — G7 ile)
 - 3 (Proje Haber arama — bağımsız, istersen ayrı)
 - 9 (zorunlu soru bug — G4 ile)
 
@@ -235,7 +235,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 - ⟳ 11 (sipariş onayında bankayı otomatik seçme — G5 ile)
 
 ### G7 — Onay sistemi (tek pass)
-- 22 (ihale onayı kaldır), 23 (netleştir), 24 (bekleyen onay bug), 25 (çift onay sıralı bug)
+- 22 (satın alma talebi onayı kaldır), 23 (netleştir), 24 (bekleyen onay bug), 25 (çift onay sıralı bug)
 
 ### G8 — Ödeme & Escrow
 - 16 (direkt nakit/çek + teslim öncesi/sonrası sıralama), 33 (teminat mektubu enforcement),
@@ -249,7 +249,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 
 ### G11 — Uluslararası / kayıt
 - 29 (TR dışı kayıt + doğrulama)
-- ⟳ 30 (uluslararası ihale — G2), ⟳ 31 (uluslararası escrow — G8)
+- ⟳ 30 (uluslararası satın alma talebi — G2), ⟳ 31 (uluslararası escrow — G8)
 
 ### G12 — Raporlama
 - 28 (tasarruf raporu)
@@ -261,5 +261,5 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 | 11 | G5 (form) + G6 (banka) |
 | 16 | G5 (gösterim) + G8 (mantık) |
 | 23 | G1 (UI) + G7 (onay) |
-| 30 | G2 (ihale) + G5 (konşimento) + G11 (uluslararası) |
+| 30 | G2 (satın alma talebi) + G5 (konşimento) + G11 (uluslararası) |
 | 33 | G2 (uyarı) + G5/G8 (enforcement) |

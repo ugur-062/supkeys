@@ -1,5 +1,15 @@
 # Authz Reviewer — Bulgular
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Kapsam: (A) Admin realm rol granülaritesi, (B) INV-AZ sınıf-tekrarı avı (üç katman: firma / rol / kaynak-sahipliği).
 Zemin: `docs/invariants.md` Bölüm 3–4. Salt-okuma denetim; kod değiştirilmedi.
 

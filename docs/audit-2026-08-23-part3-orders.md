@@ -1,5 +1,15 @@
 # Denetim 2026-08-23 — Parça 3: Sipariş & Para (company-orders, ödeme, kur, tier)
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Yöntem: 7 mercek paralel bulgu toplama (49 ham bulgu) → tekilleştirme → MED
 adayları için bağımsız çürütme turu (11 denetçi; doğruluk + etki + tasarım
 kararı birlikte) → LOW/INFO elle. Bilinçli kabul edilmiş maddeler yeniden

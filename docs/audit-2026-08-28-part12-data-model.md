@@ -1,5 +1,15 @@
 # Denetim 2026-08-28 — Parça 12: Veri Modeli & Göç (SON PARÇA)
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Kapsam: `packages/db/prisma/schema.prisma` (1842 satır · **51 model** · 42 enum ·
 75 `@@index` · 32 `Decimal` · 15 `Json`), 57 migration klasörü, `docs/rls-plan.md`
 + `migration-safety.md`, ve bunları okuyan/yazan `apps/api/src/**`.

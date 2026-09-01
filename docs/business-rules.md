@@ -16,7 +16,7 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 
 ---
 
-## 1. İhale / Teklif / Kazandırma
+## 1. Satın Alma Talebi / Teklif / Kazandırma
 
 - **Kapalı zarf:** tedarikçiler birbirinin teklifini ASLA görmez; sahip her zaman
   görür. `/supplier|company` tekil yanıtı `invitations`/`bids`/`bidStats` içermez —
@@ -27,7 +27,7 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   `rankAuctionBids` | ✅ **INV-FX-1 (X6)**, `5502e95`
 - **Kapanış sınırı DAHİL kapalı** (`>=`/`lte`): tam `closesAt` anı reddedilir —
   `placeBid`/`buyNow`/cron | ✅ **A5/A6**, `b92bbf6`
-- **CLOSED ara durumu yok:** kapanan ihale doğrudan IN_AWARD; CLOSED yalnız admin
+- **CLOSED ara durumu yok:** kapanan satın alma talebi doğrudan IN_AWARD; CLOSED yalnız admin
   moderasyon kapatması — cron/"Değerlendirmeye Al" | 🟡 tasarım
 - **Açılış embargosu:** `bidsOpenAt` gelecekteyse yalnız sahip görür; İSTİSNA teklifli
   firma (geçerlilik uzatma) görür | 🟡 tasarım
@@ -60,7 +60,7 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   KDV oranı/hesabı/tevkifat GEREKMEZ; KDV'yi taraflar kendi faturalarında uygular.
   Amaç yalnız **karşılaştırma bazı netliği** — tedarikçiler farklı KDV varsayarsa
   teklifler sessizce kıyaslanamaz hâle gelir (yanlış kazandırma). `KDV_HARIC_NOTE`
-  ihale wizard'ı (Ödeme Şekli), teklif verme (Teklif Tutarı), teklif karşılaştırma
+  satın alma talebi wizard'ı (Ödeme Şekli), teklif verme (Teklif Tutarı), teklif karşılaştırma
   ve sipariş ödeme kartında gösterilir. Kod-mantığı yok, yalnız metin | ✅ **Fix 6**
 - **Teslim-sonrası (AFTER_DELIVERY) 3 kategorinin ayrımı — vade günü davranışı:**
   | Kategori | `paymentDays` | Vade takibi (cron) | Anlam |
@@ -270,7 +270,7 @@ görünürlük → blok → disconnect). Kapananlar:
 
 | # | Kural | Durum |
 |---|-------|-------|
-| ✅ | **F-CONN-1** getProfile PRIVATE ihale sızıntısı → tek-kaynak görünürlük helper (`listing-visibility.ts`); bağlı-davetsiz firma PRIVATE görmez (getOne birebir) | `f31439e` |
+| ✅ | **F-CONN-1** getProfile PRIVATE satın alma talebi sızıntısı → tek-kaynak görünürlük helper (`listing-visibility.ts`); bağlı-davetsiz firma PRIVATE görmez (getOne birebir) | `f31439e` |
 | ✅ | **BK-CONN-1** referral signup yalnız KULLANILAN token'ı ACTIVE bağlar; diğerleri PENDING istek (rıza tek davet için) | `95c786c` |
 | ✅ | **DOC-CONN-1** connectedCompanyIds bayat/öksüz doc-comment silindi (gerçek: inviter-only effectiveTier) | `370dd18` |
 

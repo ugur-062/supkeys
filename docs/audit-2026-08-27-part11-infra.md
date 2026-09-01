@@ -1,5 +1,15 @@
 # Denetim 2026-08-27 — Parça 11: Altyapı & Operasyon
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Kapsam: `render.yaml`, `apps/api/Dockerfile` + entrypoint, `vercel.json` ×2,
 `.github/workflows/test.yml`, `apps/api/src/main.ts` + `common/config/**` +
 `common/logging/**` + `common/cron/**`, 6 scheduler (12 iş), dış servis

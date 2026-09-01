@@ -1,5 +1,15 @@
 # Rothern — Güvenlik/Hazırlık Denetimi (Tur 3) — BİRLEŞİK RAPOR
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 **Tarih:** 2026-07-14 · **Yöntem:** 4 salt-okuray teammate (tenancy / authz / flow / integrity), adversarial çapraz-sorgu.
 **Odak:** `docs/invariants.md` → "Denetlenmemiş alanlar". Çekirdek authz/tenancy (2 tur denetlenmiş) yeniden denetlenmedi.
 **Ayrıntı dosyaları:** `audit-findings-{tenancy,authz,flow,integrity}.md`.
@@ -61,7 +71,7 @@ Handshake + SendMessage transport doğrulandı (main↔teammate ACK + halka team
 **Fix:** `list`'e `@RequireAdminRole("SUPER_ADMIN","SALES")` VEYA projection'dan `taxNumber` çıkar (`globalSearch:985` zaten temiz — aynı hijyen).
 
 ### 5. [MEDIUM] `cancel` (ilan) koşulsuz yazım → CANCELLED ilana canlı sipariş — INV-SM-1
-`company-listings.service.ts:5120`. Kontrol tx-dışı `if(status!=="OPEN")` (`:5116`); yazım koşulsuz `listing.update`. `award` ile yarışta: `cancel` stale OPEN okur, `award` O1'i oluşturur, `cancel` L'yi CANCELLED'a ezer + "ihale iptal edildi" bildirimi gönderir — ama **O1 siparişi canlı** (PENDING), satıcı işleyebilir. İlan↔sipariş tutarsız + yanıltıcı bildirim.
+`company-listings.service.ts:5120`. Kontrol tx-dışı `if(status!=="OPEN")` (`:5116`); yazım koşulsuz `listing.update`. `award` ile yarışta: `cancel` stale OPEN okur, `award` O1'i oluşturur, `cancel` L'yi CANCELLED'a ezer + "satın alma talebi iptal edildi" bildirimi gönderir — ama **O1 siparişi canlı** (PENDING), satıcı işleyebilir. İlan↔sipariş tutarsız + yanıltıcı bildirim.
 **Fix:** interactive tx'e geçir, `listing.updateMany({where:{id,status:"OPEN"},data:{...}})` + `count===1`; `closeNoAward:5439` ile simetri.
 
 ---

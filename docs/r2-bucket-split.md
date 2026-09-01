@@ -1,13 +1,13 @@
 # R2 İki-Bucket Ayrımı — Kurulum Runbook'u
 
 **Neden:** R2'da public erişim **bucket seviyesindedir**. Tek bucket'ta hem
-profil görselleri (kalıcı-public olmalı) hem KYC/teklif/ihale/sipariş belgeleri
+profil görselleri (kalıcı-public olmalı) hem KYC/teklif/satın alma talebi/sipariş belgeleri
 (private olmalı) durursa, custom domain bağlanınca key'i bilen herkes hassas
 belgeyi **imzasız** çeker — presigned TTL etkisiz kalır (key URL'in path'inde).
 Çözüm: iki ayrı bucket. Bkz. `docs/invariants.md` **INV-STORAGE-1**.
 
 - **PRIVATE bucket** (`R2_PRIVATE_BUCKET`, mevcut `rothern-prod`) → KYC (`company-docs/`),
-  ihale (`listing-docs/`), teklif (`listing-bids/`), sipariş (`company-orders/`).
+  satın alma talebi (`listing-docs/`), teklif (`listing-bids/`), sipariş (`company-orders/`).
   Public access **KAPALI**, custom domain **YOK**, yalnız presigned.
 - **PUBLIC bucket** (`R2_PUBLIC_BUCKET`, yeni `rothern-public`) → yalnız profil
   görselleri (`{env}/tenant-profile/`). Public access + custom domain (cdn.rothern.com).

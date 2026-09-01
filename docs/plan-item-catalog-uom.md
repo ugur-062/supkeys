@@ -16,8 +16,8 @@
 |------|-------|-------|
 | `ListingItem.unit` | **serbest `String`**, arayüzde düz `<Input placeholder="adet">` | "adet/Adet/ADET/ad/pcs" ayrı değerler. Raporda gruplanamaz, Excel'de eşleşmez, teklif karşılaştırması birim tutarlılığını doğrulayamaz |
 | Kalem alanları | `name, description, quantity, unit, materialCode, requiredByDate, targetPrice, minUnitPrice, buyNowUnitPrice` | Marka/MPN, teknik şartname, muadil kabulü, garanti, kalem-bazlı çizim YOK |
-| Yeniden kullanım | YOK — her ihalede kalemler sıfırdan yazılıyor | Aynı 30 kalemi her ay elle girmek; yazım farkları geçmiş kıyasını bozuyor |
-| Var olan altyapı | `ListingTemplate` (tüm sihirbaz snapshot'ı), `ListingQuestionTemplate`, `SupplierTemplate` + `/satinalma/sablonlar` hub'ı | Şablon = TÜM ihale. "Şu 5 kalemi al" yolu yok |
+| Yeniden kullanım | YOK — her satın alma talebinde kalemler sıfırdan yazılıyor | Aynı 30 kalemi her ay elle girmek; yazım farkları geçmiş kıyasını bozuyor |
+| Var olan altyapı | `ListingTemplate` (tüm sihirbaz snapshot'ı), `ListingQuestionTemplate`, `SupplierTemplate` + `/satinalma/sablonlar` hub'ı | Şablon = TÜM satın alma talebi. "Şu 5 kalemi al" yolu yok |
 
 **Ölçek notu:** `unit` alanı stack'te ~243 yerde geçiyor (sihirbaz → DTO →
 `ListingItem` → teklif şablonu → sipariş snapshot'ı → PDF/Excel/rapor).
@@ -151,14 +151,14 @@ tekrarladı; bu sefer baştan.
 
 ### 4.2 Akışlar
 
-**Katalogdan ihaleye (asıl talep)**
+**Katalogdan satın alma talebine (asıl talep)**
 - Sihirbaz adım 2'ye **"Katalogdan Ekle"** düğmesi.
 - Açılan modal kategori seçici deseninin aynısı (arama + çoklu seçim); her
   satırda miktar girişi. "Ekle" → N kalem tek seferde forma basılır.
 - Sıralama: `lastUsedAt` + `usageCount` → gerçekten sık kullanılan üstte.
 
-**İhaleden kataloğa (ters yön, en az onun kadar önemli)**
-- İhale kaydedildikten sonra **"Bu kalemleri kataloğa kaydet"**; kod/ad
+**Satın Alma Talebinden kataloğa (ters yön, en az onun kadar önemli)**
+- Satın Alma Talebi kaydedildikten sonra **"Bu kalemleri kataloğa kaydet"**; kod/ad
   eşleşenler atlanır, yenileri eklenir. Katalog böyle **kendiliğinden**
   dolar — kullanıcıdan önce katalog kurmasını istemek benimsemeyi öldürür.
 
@@ -215,7 +215,7 @@ Faz 1 (birim)  ──►  Faz 2 (katalog)  ──►  Faz 3 (detaylar)
 | Kalem-bazlı belge → R2 nesne sayısı artar | Kullanıcı kararıyla YİNE DE eklendi. Hafifletme: belge AYRI tabloya değil `listing_documents.itemId`'ye bağlandı (yetki/R2 doğrulama/imza/denetim/tavan tek yerde kalır); kalem başına 10 belge tavanı; ilan düzenlemesinde silinen kalemlerin R2 anahtarları commit SONRASI en-iyi-çaba siliniyor. **Bucket object-lock hâlâ açık** (`pending-operator-tasks.md` §6) — DeleteObject reddedilirse temizlik loglanır ama çalışmaz |
 | Yeni kiracı tablosu policy'siz kalabilir | RLS policy'si tablo migration'ıyla AYNI dosyada |
 | AI çıkarımı serbest birim üretiyor | Sanitizer alias tablosundan geçirir; eşleşmezse `unitCode=null` + bayrak (mevcut `AiFlagsBanner` deseni) |
-| Katalog boş başlarsa kullanılmaz | Ters yön ("ihaleden kataloğa") Faz 2'nin **ilk** parçası olarak yazılır |
+| Katalog boş başlarsa kullanılmaz | Ters yön ("satın alma talebinden kataloğa") Faz 2'nin **ilk** parçası olarak yazılır |
 
 ## 7. Kapsam dışı (bilinçli)
 
@@ -223,17 +223,17 @@ Faz 1 (birim)  ──►  Faz 2 (katalog)  ──►  Faz 3 (detaylar)
 - Katalogda revizyon/versiyon geçmişi
 - Firmalar arası katalog paylaşımı
 - `unit` kolonunun DÜŞÜRÜLMESİ (ayrı karar)
-- Stok/envanter takibi — bu bir e-ihale platformu, ERP değil
+- Stok/envanter takibi — bu bir e-satınalma platformu, ERP değil
 
 ## 8. Açık sorular (başlamadan önce senin kararın)
 
 1. **Birim listesi kapalı mı olsun?** Önerim: hayır — serbest metin kaçışı
    uyarıyla kalsın. Kapalı liste veri kalitesini artırır ama "listede yok"
-   durumunda kullanıcı ihale açamaz hale gelir.
+   durumunda kullanıcı satın alma talebi açamaz hale gelir.
 2. **Katalog kalemi silinince** geçmiş ilanlara ne olur? Önerim: `isActive`
    ile pasifleştirme; ilan kalemi zaten kopya (snapshot), bağ kurmuyoruz.
 3. **Katalog kalemi ile ilan kalemi arasında FK olsun mu?** Önerim: **hayır**
-   — kopyalama. FK, katalog düzenlemesinin yayınlanmış ihaleyi geriye dönük
+   — kopyalama. FK, katalog düzenlemesinin yayınlanmış satın alma talebini geriye dönük
    değiştirmesine yol açar (denetimde tam da bu sınıf hatayı kovaladık).
 4. **Faz 3'teki `hsCode`** yalnız uluslararası ilanlarda mı görünsün?
 5. Faz 1 tek başına ship edilsin mi, yoksa Faz 1+2 birlikte mi?

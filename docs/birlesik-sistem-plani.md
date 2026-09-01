@@ -168,7 +168,7 @@
 
 ## 12. Korunan vs değişen (evrim, sıfırdan değil)
 
-**✅ Aynen kalır (yöne kayıtsız):** İhale wizard, bid/eleme/kazandırma, sipariş akışı + PDF, kargo/irsaliye/konşimento, dekont, UNSPSC kategori sistemi, e-posta (React Email+Resend), mesajlaşma, R2 upload, multi-currency, Catalyst UI, şablonlar, admin + KPI, RBAC/IDOR güvenlik, testler.
+**✅ Aynen kalır (yöne kayıtsız):** Satın Alma Talebi wizard, bid/eleme/kazandırma, sipariş akışı + PDF, kargo/irsaliye/konşimento, dekont, UNSPSC kategori sistemi, e-posta (React Email+Resend), mesajlaşma, R2 upload, multi-currency, Catalyst UI, şablonlar, admin + KPI, RBAC/IDOR güvenlik, testler.
 
 **🔧 Değişir (hesap katmanı):** Tenant+Supplier→Company · User+SupplierUser→CompanyUser · 2 auth→1 · kategoriler ayrışır · sipariş FK'leri company'ye · 2 panel→1 (İşlerim + roller) · koltuk kalkar · escrow kalkar.
 
@@ -180,7 +180,7 @@
 - **Koltuk başına ücret (`buyerSeatLimit`):** kaldırıldı; sınırsız kullanıcı.
 - **Alıcı davetle-kayıt zorunluluğu:** kalkar (herkes self-servis).
 - **Özellik-kademeli paketler:** ertelendi (tek sade paketle başla).
-- **i18n / VIES / açık ihale başvuru:** ayrı backlog (bu pivottan bağımsız).
+- **i18n / VIES / açık satın alma talebi başvuru:** ayrı backlog (bu pivottan bağımsız).
 
 ---
 

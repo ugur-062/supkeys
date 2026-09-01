@@ -1,5 +1,15 @@
 # Denetim 2026-08-24 — Parça 6: AI Katmanı
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Yöntem: 8 mercek paralel bulgu toplama (57 ham bulgu: bütçe/maliyet, asistan
 okuma yetkisi, aksiyon çerçevesi, prompt injection, belge hattı, fiyat çıkarma,
 veri/kötüye kullanım, AI ön yüzü) → tekilleştirme (aynı kök nedeni 4-5 mercek

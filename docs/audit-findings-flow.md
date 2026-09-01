@@ -1,5 +1,15 @@
 # Akış / Durum Makinesi Denetimi — flow-reviewer
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Kapsam: İlan + Sipariş + Revizyon + Belge durum makineleri; atomik geçiş guard'ları,
 yarış durumları, idempotency. Salt-okunur kod-yolu izlemesi (invariants.md Bölüm 2/3).
 
@@ -37,7 +47,7 @@ received←(henüz peer PING gelmedi).
   2. `cancel` durumu `OPEN` okur (stale), geçer.
   3. `award`→`runFullAward` commit: L→`AWARDED`, B1→`WON`, Sipariş **O1** oluşur.
   4. `cancel` tx: `listing.update` L→`CANCELLED` (koşulsuz, AWARDED'ı ezer) + `listingBid.updateMany(SUBMITTED→LOST)` (B1 zaten WON, etkilenmez).
-  5. Sonuç: L `CANCELLED` + katılımcılara "ihale iptal edildi" bildirimi (`:5130`), AMA **O1 siparişi canlı** (PENDING) — satıcı kabul edip işleyebilir. İlan durumu ↔ sipariş varlığı tutarsız.
+  5. Sonuç: L `CANCELLED` + katılımcılara "satın alma talebi iptal edildi" bildirimi (`:5130`), AMA **O1 siparişi canlı** (PENDING) — satıcı kabul edip işleyebilir. İlan durumu ↔ sipariş varlığı tutarsız.
 - **Fark (FLOW-1'e göre daha dar):** çift sipariş değil; tek siparişin "iptal edilmiş" bir ilana asılı kalması + yanıltıcı iptal bildirimi. Yine de gerçek mali yükümlülük doğuran sipariş söz konusu.
 - **Minimal düzeltme:** `listing.update`'i tx içinde `listing.updateMany({ where:{ id, status:"OPEN" }, data:{...} })` + `count===1` guard'ına çevir (interactive tx formuna geçir); `closeNoAward:5439` ile birebir simetri.
 

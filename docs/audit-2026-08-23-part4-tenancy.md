@@ -1,5 +1,15 @@
 # Denetim 2026-08-23 — Parça 4: Çok-Kiracılılık & Yetki
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Yöntem: 8 mercek paralel bulgu toplama (50 ham bulgu: tenant kapsamı, RBAC
 motoru, IDOR, portal/Faz O, RLS-bypass, admin realm, okuma yüzeyleri +
 Parça 3'ten sarkan kazandırma→sipariş merceği) → tekilleştirme → HIGH/MED

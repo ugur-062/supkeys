@@ -1,5 +1,15 @@
 # Denetim 2026-08-24 — Parça 7: Bağlantı, Mesaj, Bildirim, WebSocket
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Yöntem: 7 mercek paralel bulgu toplama (64 ham bulgu: bağlantı yaşam döngüsü,
 mesajlaşma, in-app bildirim, e-posta yolları, WS, tercihler/kategori eşleşmesi,
 blok-gizlilik tutarlılığı) → tekilleştirme → 11 bağımsız çürütücü → LOW/INFO elle.

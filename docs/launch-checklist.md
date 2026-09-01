@@ -31,7 +31,7 @@ kesin eler. Meşru presigned URL (imzalı) ile aynı key çekilebilir.
 
 - **`supkeys-documents` (PRIVATE bucket):** public dev URL (`*.r2.dev`) ve custom
   domain **ASLA** açılmamalı. Yalnız presigned. Açılırsa key'i bilen herkes
-  KYC/teklif/ihale/sipariş belgesini imzasız çeker.
+  KYC/teklif/satın alma talebi/sipariş belgesini imzasız çeker.
 - **`rothern-public` (PUBLIC bucket):** yalnız `{env}/tenant-profile/` prefix'i
   bulunur; custom domain (`cdn.rothern.com`) yalnız buna bağlı. Kod tarafında
   **INV-STORAGE-1** kilitliyor (`docs/invariants.md`): başka prefix public URL'e
@@ -143,7 +143,7 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
 self-upgrade `PREMIUM_SELF_UPGRADE_ENABLED=false` ile kapatıldı (INV-TIER-1) → premium
 **yalnız admin grant**. İkisi de admin paneli olmadan çalışmaz → admin deploy'u
 launch-blocker. Tedarikçi VERIFIED olmadan **teklif veremez**, firma PAKET olmadan
-**ihale açamaz**.
+**satın alma talebi açamaz**.
 
 - [ ] `apps/admin`'i Vercel'e deploy et
 - [ ] `admin.rothern.com` custom domain'ini bağla (CSRF sırası için de gerekli — `*.rothern.com` same-site)
@@ -167,7 +167,7 @@ launch-blocker. Tedarikçi VERIFIED olmadan **teklif veremez**, firma PAKET olma
       6 KYC belgesi yükle → **admin panelden VERIFIED yap** → firma artık **teklif verebiliyor
       mu?** (`assertVerified` kapısı devrede — VERIFIED öncesi placeBid/award 403 vermeli).
 - [ ] **Premium grant testi:** admin panelden bir firmaya PAKET ver (`setTier`) → firma
-      **ihale açabiliyor mu?** (self-upgrade flag kapalı → admin grant tek yol).
+      **satın alma talebi açabiliyor mu?** (self-upgrade flag kapalı → admin grant tek yol).
 
 ---
 

@@ -1,7 +1,7 @@
 # Rothern — Bağlam Dosyası
 
 ## Proje
-**Rothern**, AI destekli e-procurement & e-ihale SaaS platformu. PratisPro/SAP Ariba tarzı B2B; alıcılar için RFQ/teklif toplama/açık eksiltme/kazandırma/sipariş, tedarikçiler için davet kabul/teklif verme. V1 hedefi: 3 ay içinde RFQ flow'u tamamlanmış, üretime hazır iskelet.
+**Rothern**, AI destekli e-procurement (e-satınalma) SaaS platformu. PratisPro/SAP Ariba tarzı B2B; alıcılar için RFQ/teklif toplama/açık eksiltme/kazandırma/sipariş, tedarikçiler için davet kabul/teklif verme. V1 hedefi: 3 ay içinde RFQ flow'u tamamlanmış, üretime hazır iskelet.
 
 ## Marka
 Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + lacivert/mavi dual-tone · AI agent katmanı ileride aktif olacak.
@@ -60,7 +60,7 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 
 1. **2 auth realm'i:** Company (`apps/web /company/*` — TEK firma hesabı hem alıcı hem satıcı, iki portal `satinalma`/`satis`; rol/izin/tier kapıları) + Admin (`apps/admin`). JWT payload `type: "company" | "admin"`; cookie realm'leri `rk_company`/`rk_admin` (+ `rk_csrf`/`rk_admin_csrf`). Her realm'in kendi store'u + axios instance + 401 interceptor'ı.
 2. **Multi-tenant veri izolasyonu:** Tüm sorgular tenantId scope'unda, servis seviyesinde filtrelenir.
-3. **Firma self-signup VAR (3 aşama):** signup → e-posta doğrulama (6 haneli kod, hesap-bazlı 5/saat üretim tavanı) → onboarding (yalnız Kurucu) → panel içi kapılar (KYC/doğrulama belgeleri admin onayı; ihale açma Silver+, satış teklifi Bronz+ — bkz. Faz T/Y). Davetle katılım (firma-kullanıcı daveti + referral/dış davet) ayrıca var.
+3. **Firma self-signup VAR (3 aşama):** signup → e-posta doğrulama (6 haneli kod, hesap-bazlı 5/saat üretim tavanı) → onboarding (yalnız Kurucu) → panel içi kapılar (KYC/doğrulama belgeleri admin onayı; satın alma talebi açma Silver+, satış teklifi Bronz+ — bkz. Faz T/Y). Davetle katılım (firma-kullanıcı daveti + referral/dış davet) ayrıca var.
 4. **Bağlantı modeli:** firmalar arası bağlantı (invite/accept, blok), ilan görünürlüğü PUBLIC/CONNECTIONS/PRIVATE — tek kaynak `listing-visibility.ts`.
 5. **Kapalı zarf:** Teklifçiler birbirinin tekliflerini ASLA göremez; ilan sahibi her zaman görür. `GET /company/listings/:id` non-owner dalı `invitations`/`bids`/`bidStats` içermez; yalnız `myInvitation` + `myBid` (+ pazarlıkta ayarlı `auctionView`). Sözleşme testleri: closed-envelope/visibility-matrix spec'leri.
 6. **SUBMITTED bid editlenmez VE geri çekilemez** (Geri Çek kaldırıldı). Tek değişiklik yolu: alıcıyla iletişim → alıcı eleme yapar LOST → tedarikçi yeniden teklif verebilir (version++). WITHDRAWN yalnız legacy kayıtlarda.
@@ -69,6 +69,49 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 9. **Body parser 5MB** (Y-3 ile 25→5MB düşürüldü); belgeler R2 presigned URL ile yüklenir (base64 gövde yalnız küçük içe-aktarma dosyaları).
 10. **Audit log append-only**, AI agent event-bus altyapısı ileride (Kafka/RabbitMQ).
 11. **Siparişte belge yükleme YOK (2026-08-22):** Platform muhasebe/belge arşivi değil — teminat/irsaliye/dekont/fatura/LC belgeleri firmaların kendi kanallarında yaşar (`company_order_documents` tablosu + `CompanyDocType` enum DROP edildi). Kalan: ödeme bildir/onayla/reddet (alındı-alınmadı), IBAN snapshot (accept'te banka hesabı zorunlu), LC adım damgaları BEYAN olarak (belge kapısı yok), `requireGuaranteeLetter` bayrağı yalnız BİLGİ (onay kapısı yok). İlan/teklif belgeleri ayrı modüller, aynen duruyor.
+
+## Ürün Dili — "ihale" DEĞİL "satın alma talebi" (2026-09-01)
+
+Kullanıcının gördüğü hiçbir yerde **"ihale" geçmez**. Yeniden adlandırma
+yapıldı (623+ dize, 4 rota, 308 yönlendirmelerle).
+
+**İki portal, İKİ ayrı sözcük** — bu ayrım kritik, tek kelimeye indirgenemez:
+
+| Bağlam | Ne demek | Sözcük |
+|--------|----------|--------|
+| Satınalma | Firmanın KENDİ satın alma talepleri | **talep** ("Taleplerim") |
+| Satış — kendi sattıkları | Firma satıyor | **ilan** ("Satış İlanlarım") |
+| Satış — teklif verilecekler | BAŞKA firmaların talepleri | **talep** ("Açık Talepler") |
+
+Satış tarafına "satın alma talebi" demek TERSTİR (orada firma satıyor).
+Tek kaynak: `apps/web/src/lib/company/portals.ts` `MODULE_LABELS` —
+gerekçe orada yorumda.
+
+**Türkçe not:** `talep` son sesi yumuşar (talep → **talebi**, talebe,
+talebin). Yeni metin yazarken "talepi/talepe" yazma. Çoğul: talepler →
+**taleplerini**, taleplerinde.
+
+**Henüz DEĞİŞMEYEN (bilinçli, kullanıcı görmez):**
+- Kod adları: `IhaleListView`, `ihaleler-view.tsx`, `components/ihale/`,
+  `isIhale`, `satinalma-ihale-tab`
+- Kod yorumları
+- `docs/audit-*.md` denetim raporları — **TARİHSEL KAYIT**: o tarihteki kodu
+  ve o günkü dizeleri anlatırlar; bugünkü sözcükle yeniden yazmak raporu
+  gerçeğe aykırı hâle getirir (okuyucu git geçmişinde başka bir şey bulur).
+
+Rota değişimi (eskiler `next.config.ts` `redirects()` ile 308 yönlenir —
+gönderilmiş e-postalardaki CTA'lar kırılmasın diye; o e-postalar geri
+alınamaz):
+
+| Eski | Yeni |
+|------|------|
+| `/company/satinalma/ihalelerim` | `/company/satinalma/taleplerim` |
+| `/company/satis/acik-ihaleler` | `/company/satis/acik-talepler` |
+| `/company/satinalma/sablonlar/ihale` | `.../sablonlar/talep` |
+| `/company/satis/sablonlar/ihale` | `.../sablonlar/ilan` |
+
+`/company/ilan/[id]` DEĞİŞMEDİ — "ilan" nötr terim (hem alım hem satış
+kaydının detay sayfası).
 
 ## Konvansiyonlar
 - Form validation: react-hook-form + zod (frontend), class-validator (backend DTO)
@@ -202,7 +245,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
     satır) + platform-özel endüstriyel ekler `categories-custom.tsv` (x99xxxxx
     kod aralığı: iskele/kalıp, elektrik pano, çelik konstrüksiyon, KKD, rigging,
     MRO — 118 satır). `cleanup-categories -- --apply` KOBİ-dışı 20 segmenti
-    gizler → 38 aktif segment / ~8.2k aktif satır. İhale kategorisi min L3;
+    gizler → 38 aktif segment / ~8.2k aktif satır. Satın Alma Talebi kategorisi min L3;
     firma ana kategorileri exactLevel L1 (segment). AI önerisi 2 aşamalı → L3.
     Seed: `pnpm --filter @rothern/db seed-categories` sonra `cleanup-categories
     -- --apply`. NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor —
@@ -227,14 +270,14 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
   Search grounding** (`webSearch` flag; grounding+responseSchema BİRLEŞMEZ →
   2 aşama: araştırma metni → şemalı JSON; e-posta yalnız açıkça yayınlanmışsa,
   kullanıcı doğrular); (C) dış davet e-postası: referral altyapısı + `listingId`
-  bağlamı ("X sizi Y ihalesine davet etti", tender_external_invite şablonu) —
+  bağlamı ("X sizi Y satın alma talebine davet etti", tender_external_invite şablonu) —
   frenler: günlük 20/firma, adrese ömür boyu 1, opt-out (`referral_opt_outs` +
   `/davet-kapat` + public GET endpoint), kayıtlı-adres skip; kayıt token'la
-  tamamlanınca bağlantı ACTIVE + ihaleye otomatik davet (acceptReferralInvites).
-  Giriş noktaları: wizard Davetliler adımı + ihale detay ⋮ menüsü.
+  tamamlanınca bağlantı ACTIVE + satın alma talebine otomatik davet (acceptReferralInvites).
+  Giriş noktaları: wizard Davetliler adımı + satın alma talebi detay ⋮ menüsü.
 - **Yurtdışı şirket kaydı — ÇEKİRDEK BİTTİ (Faz 1-3):** ülke seçimi (COUNTRIES, 98 ülke) + ülke-farkında vergi/adres doğrulama (TR strict VKN/TCKN, yabancı gevşek) + onboarding UI (alıcı+tedarikçi). Şema: Tenant/Supplier.country+stateRegion. KALAN: (a) i18n — UI hâlâ Türkçe (next-intl greenfield, ayrı büyük iş); (b) VIES — AB VAT ücretsiz oto-doğrulama; (c) yabancı belge/KYB kontrolü = mevcut admin onayı + belge (ödeme sağlayıcısı KYB yapmaz çünkü sanal POS düşünülüyor).
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
-- Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
+- Açık satın alma talebi (PUBLIC) + tedarikçi başvuru sistemi
 - Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).
 - WebSocket real-time bildirim
 - Admin ek kontroller: impersonate (güvenlik değerlendirilecek), iade/refund, doğrudan kullanıcı ekleme, CSV export, dahili not, global arama
@@ -267,17 +310,17 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
   düşer, kararı model DEĞİL kullanıcı verir) + Faz 3: `request_place_bid`
   (critical, yalnız satis portalı; TÜM kalemler fiyatlı + teslim tarihi
   zorunlu, amount=Σ hesaplanır — award nöbetçisi uyumlu; belge/zorunlu-soru
-  isteyen ihale sayfaya yönlendirilir; fiyatı model uyduramaz) +
+  isteyen satın alma talebi sayfaya yönlendirilir; fiyatı model uyduramaz) +
   `request_mark_order_received` (normal, yalnız satinalma; IN_DELIVERY→
   DELIVERED). Diğer sipariş adımları (gönderim/ödeme/tamamlama/iptal) bilinçli
   araçsız — sayfaya yönlendirilir. Audit: `ai.action_executed` via metadata'lı.
-- ✅ **Faz AI-3 (2026-07-24): Asistan yenileme BİTTİ** — (1) belge yükleme yeni-ihale sayfasında belirgin kart + asistan composer'ında 📎 (asistan içinden belge→taslak); (2) asistan UI modernize (marka gradient, avatar/timestamp, araç rozeti, öneri chip'leri, taslak kartı); (3) **konuşarak ihale açma**: `propose_tender_draft` non-binding araç — model çekirdek alanları toplar, eksik zorunluları sırayla sorar; taslak `AiChatSession.tenderDraft`'ta birikir (belge+konuşma birleşimi, `mergeDrafts`); yanıtta `tenderDraft` payload → "İhale formunu aç" → `sessionStorage["ai-tender-draft"]` + `yeni?ai=1` → wizard prefilled. İHALE AÇILMAZ (kategori AI seçemez; kullanıcı formda seçip Yayınla — BAĞLAYICI-YAZMA-YOK korunur). Vertex prod'da çalışıyor; teşhis mesajı sadeleştirildi.
+- ✅ **Faz AI-3 (2026-07-24): Asistan yenileme BİTTİ** — (1) belge yükleme yeni talep sayfasında belirgin kart + asistan composer'ında 📎 (asistan içinden belge→taslak); (2) asistan UI modernize (marka gradient, avatar/timestamp, araç rozeti, öneri chip'leri, taslak kartı); (3) **konuşarak satın alma talebi açma**: `propose_tender_draft` non-binding araç — model çekirdek alanları toplar, eksik zorunluları sırayla sorar; taslak `AiChatSession.tenderDraft`'ta birikir (belge+konuşma birleşimi, `mergeDrafts`); yanıtta `tenderDraft` payload → "Satın Alma Talebi formunu aç" → `sessionStorage["ai-tender-draft"]` + `yeni?ai=1` → wizard prefilled. SATIN ALMA TALEBİ AÇILMAZ (kategori AI seçemez; kullanıcı formda seçip Yayınla — BAĞLAYICI-YAZMA-YOK korunur). Vertex prod'da çalışıyor; teşhis mesajı sadeleştirildi.
 - ✅ **Faz AI-2 (2026-07-24): Asistan sohbeti BİTTİ** — `POST /company/ai/assistant/message` (+sessions CRUD); asistan sistemin OKUMA servislerini kullanıcı kimliğiyle IN-PROCESS çağırır (ham DB YOK) → yetki katmanı (rol/tier/görünürlük/kapalı-zarf/Faz O) bedava çalışır. 6-7 okuma aracı (Gemini function-calling), BAĞLAYICI YAZMA YOK (sayfaya yönlendirir). Portal-yönlü kısıt (SA satış/ST alım verisi göremez), araç hatası → nötr `unavailable` (bilgi sızmaz), kayan pencere (son 8 tur + tek özet), 90 gün TTL cron, kullanıcıya-scope'lu kalıcı oturum. Frontend: sağ-alt floating launcher + slide-over (Silver+ ∧ SA/ST). GOTCHA: Gemini 3 function-calling **thought signature** ZORUNLU — modelin functionCall part'ındaki `thoughtSignature` geri beslemede korunmazsa 400; ayrıca fnResponse turundan sonra boş user turu EKLEME (mesajı history'ye koy, prompt="").
-- ✅ **Faz AI-1 (2026-07-24): Belge/fotoğraf → ihale formu BİTTİ** — `POST /company/ai/tender-extract` (+uploads/url, +tender-refine); girdi yönlendirici (metinli PDF→TEXT bedava çıkarım; taranmış/karışık PDF→Gemini'ye DOĞRUDAN inlineData ~258 tok/sayfa; foto→sharp ≤1500px, HEIC destekli); sayfa tavanı `AI_MAX_PAGES=20`; "bir kez oku, JSON'la konuş" (refine belgeyi yeniden okumaz); AI çıktısı shared-limits sanitizer'dan geçer (geçmeyen null+flag), vision'da miktar/birim/tarih/para birimi varsayılan işaretli; KDV-dahil uyarısı; prompt-injection sınırı (<belge> VERİ + şema-kısıtlı çıktı); wizard'a giriş noktası "Belgeden Doldur (AI)" + AiFlagsBanner + refine kutusu. AI ihale AÇMAZ — oluşturma normal kapılardan. NOT: `pnpm test` artık `NODE_OPTIONS=--experimental-vm-modules` ile koşar (pdfjs fake-worker dynamic import); tek spec koşarken de bu env gerekli: `NODE_OPTIONS=--experimental-vm-modules npx jest <spec>`.
+- ✅ **Faz AI-1 (2026-07-24): Belge/fotoğraf → satın alma talebi formu BİTTİ** — `POST /company/ai/tender-extract` (+uploads/url, +tender-refine); girdi yönlendirici (metinli PDF→TEXT bedava çıkarım; taranmış/karışık PDF→Gemini'ye DOĞRUDAN inlineData ~258 tok/sayfa; foto→sharp ≤1500px, HEIC destekli); sayfa tavanı `AI_MAX_PAGES=20`; "bir kez oku, JSON'la konuş" (refine belgeyi yeniden okumaz); AI çıktısı shared-limits sanitizer'dan geçer (geçmeyen null+flag), vision'da miktar/birim/tarih/para birimi varsayılan işaretli; KDV-dahil uyarısı; prompt-injection sınırı (<belge> VERİ + şema-kısıtlı çıktı); wizard'a giriş noktası "Belgeden Doldur (AI)" + AiFlagsBanner + refine kutusu. AI satın alma talebi AÇMAZ — oluşturma normal kapılardan. NOT: `pnpm test` artık `NODE_OPTIONS=--experimental-vm-modules` ile koşar (pdfjs fake-worker dynamic import); tek spec koşarken de bu env gerekli: `NODE_OPTIONS=--experimental-vm-modules npx jest <spec>`.
 - ✅ **Faz AI-0 (2026-07-24): AI altyapısı BİTTİ** — Gemini adapter (sağlayıcı-soyut `BaseAiProvider`), USD-bazlı firma bütçesi (Silver $6 / Gold $25, takvim ayı UTC), ön-rezervasyon + FOR UPDATE (yarış kapalı), tavanlar (kullanıcı %50, günlük %25, istek-başı %5, premium alt-bütçe %20), model yükseltme = KOD kararı (eşik/feature/retry — kullanıcı seçemez), `/company/ai/usage` + `ayarlar/ai-kullanim` ekranı (yalnız yüzde). `GEMINI_API_KEY` yoksa AI kapalı (503, prod'da gürültülü); fiyat tablosu `apps/api/src/modules/ai/ai.config.ts`, her satır costUsd snapshot. AI-1/AI-2 özellikleri `AiService.callAi` kapısından geçecek.
-- ✅ **Excel ile kalem içe aktarma — Faz 1 (2026-08-22):** AI'sız, deterministik, her pakete açık. `GET /company/listing-item-import/template` (xlsx: Kalemler + Nasıl Doldurulur + Örnek; SATIS+KALEM'de taban/hemen-al sütunları) + `POST .../parse` (base64 gövde ≤5MB, xlsx/csv, yalnız ÖNİZLEME döner — satır-hata listesi; yazmaz). Sütun tanımı TEK KAYNAK `@rothern/shared` `item-import.ts` (başlık/alias/limit). Web: Kalemler adımında "Excel ile İçe Aktar" (önizleme → ekle/değiştir). AI "Belgeden Doldur" artık serbest Excel/CSV'yi de okur (router: sheet→metin tablo, TEXT yolu). **Faz 2 (2026-08-22) BİTTİ — tedarikçi fiyat içe aktarma:** `GET /company/listings/:id/bid-import/template` (ihaleye özel xlsx: kalemler ön-dolu + GİZLİ ItemId, yalnız fiyat/para birimi/teslim/not açık; AI'sız, her paket) + `POST .../bid-import/parse` (ItemId ile KESİN eşleme) + `POST /company/ai/bid-price-extract` (Silver+, feature `bid_price_extract`; model yalnız belge SATIRLARINI okur, fiyat uyduramaz; EŞLEŞTİRME KODDA `bid-matching.ts`: kod→ad→Dice/kapsama benzerliği ≥0.85 high / ≥0.60 medium / model ipucu ≥0.35; toplam÷miktar türetme, miktar/birim/para birimi/KDV uyarıları; teslim metni→BidDeliveryTime). Sözleşme `@rothern/shared bid-import.ts` (`BidImportResult`: her kalem için match + unmatchedDocRows + notices). Web: teklif-ver "Kalem Fiyatları" başlığında "Excel Şablonu ile Fiyatla" + "Belgeden Fiyatla (AI)" → tek önizleme dialog'u (güven rozeti, elle eşleme, uygula-kutusu) → yalnız itemState dolar; gönderme normal akış. Hiçbir uç teklif YAZMAZ.
+- ✅ **Excel ile kalem içe aktarma — Faz 1 (2026-08-22):** AI'sız, deterministik, her pakete açık. `GET /company/listing-item-import/template` (xlsx: Kalemler + Nasıl Doldurulur + Örnek; SATIS+KALEM'de taban/hemen-al sütunları) + `POST .../parse` (base64 gövde ≤5MB, xlsx/csv, yalnız ÖNİZLEME döner — satır-hata listesi; yazmaz). Sütun tanımı TEK KAYNAK `@rothern/shared` `item-import.ts` (başlık/alias/limit). Web: Kalemler adımında "Excel ile İçe Aktar" (önizleme → ekle/değiştir). AI "Belgeden Doldur" artık serbest Excel/CSV'yi de okur (router: sheet→metin tablo, TEXT yolu). **Faz 2 (2026-08-22) BİTTİ — tedarikçi fiyat içe aktarma:** `GET /company/listings/:id/bid-import/template` (satın alma talebine özel xlsx: kalemler ön-dolu + GİZLİ ItemId, yalnız fiyat/para birimi/teslim/not açık; AI'sız, her paket) + `POST .../bid-import/parse` (ItemId ile KESİN eşleme) + `POST /company/ai/bid-price-extract` (Silver+, feature `bid_price_extract`; model yalnız belge SATIRLARINI okur, fiyat uyduramaz; EŞLEŞTİRME KODDA `bid-matching.ts`: kod→ad→Dice/kapsama benzerliği ≥0.85 high / ≥0.60 medium / model ipucu ≥0.35; toplam÷miktar türetme, miktar/birim/para birimi/KDV uyarıları; teslim metni→BidDeliveryTime). Sözleşme `@rothern/shared bid-import.ts` (`BidImportResult`: her kalem için match + unmatchedDocRows + notices). Web: teklif-ver "Kalem Fiyatları" başlığında "Excel Şablonu ile Fiyatla" + "Belgeden Fiyatla (AI)" → tek önizleme dialog'u (güven rozeti, elle eşleme, uygula-kutusu) → yalnız itemState dolar; gönderme normal akış. Hiçbir uç teklif YAZMAZ.
 - AI agent layer (event-bus, MCP entegrasyonu, action endpoint'leri `/api/agents/v1/...`)
-- "Tercihlerimi Getir" preset, "Önceki İhalelerden Ekle" template
+- "Tercihlerimi Getir" preset, "Önceki Satın Alma Taleplerinden Ekle" template
 - Akıllı şartname motoru, manipülasyon tespiti
 
 ---

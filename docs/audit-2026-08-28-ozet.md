@@ -1,5 +1,15 @@
 # Tam Sistem Denetimi 2026-08-23 → 2026-08-28 — Kapanış Özeti
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 12 parça, parça başına 6-7 paralel mercek, her parçada ana oturumda **çürütme turu**
 (HIGH/MED iddiaları kod okunarak — mümkün olduğunda çalıştırılarak — doğrulanır;
 doğrulanamayan iddia rapora "çürütülen" olarak yazılır). Üretim koduna her parçada

@@ -1,5 +1,15 @@
 # Denetim 2026-08-26 — Parça 10: Web / Admin Ön Yüz
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Kapsam: `apps/web` (76 sayfa; en büyükleri `ilan/[id]` 2134, `teklif-ver` 2005,
 `wizard/step-1-info` 1838, `home-page` 1475 satır) + `apps/admin` (18 sayfa),
 ilgili API uçlarıyla birlikte.

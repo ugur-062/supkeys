@@ -1,5 +1,15 @@
 # Cross-field / Akış Tutarlılığı Denetimi — Bulgular
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 **Tarih:** 2026-07-17 · **Kapsam:** 4 domain (onay, RFQ, auction, sipariş) uçtan-uca, aşama-aşama · **Yöntem:** 4 named-teammate paralel + adversarial sınır sorgulaması · **Salt-okunur** (kod değişmedi).
 
 **Aranan sınıf:** aynı büyüklüğün birden çok yerde hesaplanıp/saklanıp **sessizce ıraksadığı** hatalar (X5 = iki "fiyatlı kalem" tanımı, X7 = üç "onaylı toplam", FX = dört kur anı). Bu sınıf 500 vermez, testler yeşil kalır, **YANLIŞ SONUÇ** doğurur.
@@ -87,7 +97,7 @@ Tekrarlanan-tanım/tekrarlanan-hesap yerleri (X5 sınıfı, şu an senkron):
 
 **HİÇBİR reviewer'ın OKUMADIĞI CL bölgeleri (kör noktalar — sonraki tur):**
 1. **`create` 961-1175** (+ `validateListingBusinessRules 861`, `buildPaymentPlan 755`, `assertVerified 953`) — **rfq kör noktası:** create-anında `minPrice`/`buyNowUnitPrice` doğrulaması, placeBid floor-check'inin TÜKETTİĞİ değerlerle tutarlı mı bilinmiyor. (validateSatisPricing okundu ama create gövdesi değil.)
-2. **`sellerTenders` kuyruğu 1750-1989** — tedarikçi ihale listesi (kapalı-zarf ilişkili).
+2. **`sellerTenders` kuyruğu 1750-1989** — tedarikçi satın alma talebi listesi (kapalı-zarf ilişkili).
 3. **`resolveBidDeliveryAddress`/`orderDeliverySnapshot` 2716-2824** — teslimat-adresi snapshot'ı bid→order sınırında (denetlenmedi).
 4. **`eliminate` 5404, `cancel` 5490, `startEvaluation` 5639, `closeNoAward` 5853** — yaşam-döngüsü geçişleri. **rfq kör noktası:** eleme in-flight award ile yarışır mı (runFullAward `CL:4003` status re-check muhtemelen güvenli ama eleme tarafı denetlenmedi).
 5. **`detail` 6028, `serialize` 6197** — yanıt serileştirme (sızıntı yüzeyi; non-owner getOne yolu kontrol edildi ama tam serialize değil).

@@ -1,5 +1,15 @@
 # Denetim 2026-08-25 — Parça 8: Onay Akışı, Raporlar, Pano, Şablonlar, Kategori
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Yöntem: 7 mercek paralel bulgu toplama (76 ham bulgu) → tekilleştirme →
 12 bağımsız çürütücü → LOW/INFO elle. Bu turda çürütücüler sayısal iddiaları
 canlı probe ile ölçtü (ör. 3,7 MB CSV, %300 yanıt oranı, 40 kat kur sapması).

@@ -1,5 +1,15 @@
 # Tenancy Denetim Bulguları (tenancy-reviewer)
 
+> **Terminoloji notu (2026-09-01):** Bu rapor yazıldığında ürün dilinde
+> "ihale" kullanılıyordu. Sonradan kullanıcı-yüzü dil **"satın alma talebi"**
+> (satış tarafında "ilan") olarak değiştirildi. Rapor metni BİLİNÇLİ olarak
+> güncellenmedi: o tarihteki kodu ve dizeleri anlatıyor, bugünkü sözcükle
+> yeniden yazılırsa okuyucu git geçmişinde başka bir şey bulur. Kod adları
+> (`IhaleListView`, `ihaleler-view.tsx` vb.) zaten değişmedi. Bkz. CLAUDE.md
+> § Ürün Dili.
+
+
+
 Handshake: sent→authz-reviewer; received←(bekleniyor; ilk denemede peer henüz spawn olmamıştı, 2. denemede ulaşıldı)
 
 Kapsam: INV-MT (MT-1..5) ihlalleri YENİ yüzeylerde — realtime gateway/servis, realtime emit çağıran servisler, scheduler/cron işleyicileri, ve iki büyük servisin (company-listings ~5748 st., company-orders ~1600 st.) INV kanıt-satırları dışında kalan Prisma sorguları. Çekirdek authz/tenancy iki tur denetlendi, tekrarlanmadı.
