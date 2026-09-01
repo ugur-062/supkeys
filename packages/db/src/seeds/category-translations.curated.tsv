@@ -4579,3 +4579,72 @@
 26131907	Açık deniz geçiş parçası	Offshore transition piece
 26131908	Açık deniz trafo merkezi üst yapısı	Offshore substation topside
 26131909	Kara trafo merkezi	Onshore substation
+
+# Madencilik, sondaj, petrol sahası tamamlama ekipmanları.
+26131910	Türbinler arası kablolar ve aksesuarları	Inter array cables and accessories
+26131911	Şebekeye bağlantı kabloları ve aksesuarları	Export cables and accessories
+20101505	Maden kesici zinciri	Cutter chain for mining
+20101506	Kesici kol	Cutter bar
+20101507	Döner kesiciler	Rotary cutters
+20101618	Zincirli tabla besleyici	Apron feeder
+20101619	Tartılı bant besleyici	Weigh belt feeder
+20101620	Elektromanyetik titreşimli besleyici	Electromagnetic vibro feeder
+20101621	Elektromekanik titreşimli besleyici	Electromechanical vibro feeder
+20101715	Kırıcı ucu	Crusher bit
+20101716	Kırıcı çekici	Crusher hammer
+20102105	Çelik delme çubuğu	Steel drill rod
+20102106	Vakumlu delme çubuğu	Vacuum drill rod
+20111620	Çekiçli kepçe	Hammer grab
+20111621	Muhafaza borusu salıcı	Casing oscillator
+20111622	Ters sirkülasyonlu sondaj	Reverse circulation drill
+20111623	Diyafram duvar kepçesi	Diaphragm wall clamshell
+20111710	Tübing içi paker onarım seti	Thru tubing packer repair kit
+20111711	Tübing içi parça ve aksesuarları	Thru tubing parts and accessories
+20111712	Yıkama borusu	Wash pipe
+20111713	Sondaj boru rafı	Drilling fingerboard
+20111714	Sarmal tij konnektörü	Coiled tubing connector
+20111715	Kuyu sahası havuz örtüsü	Well site pit liner
+20111716	Basınç test aleti	Pressure testing tool
+20111717	Hızlı rakor bağlantısı	Quick unions fitting
+20121120	Yaylı santralizör	Bow spring centralizer
+20121121	Bıçaklı santralizör	Blade centralizer
+20121122	Yaylı santralizör ara parçası	Bow spring centralizer sub
+20121123	Kademeli çimentolama alet seti	Cementing stage tool kit
+20121124	Çimentolama şamandıra ekipman seti	Cementing float equipment kit
+20121125	Çimento tutucu seti	Cement retainer kit
+20121126	Santralizör parça ve aksesuarları	Centralizer parts and accessories
+20121128	Tork ve sürtünme azaltma aleti	Torque and drag reduction tool
+20121129	Tork ve sürtünme azaltma aleti parça ve aksesuarları	Torque and drag reduction tool parts and accessories
+20121130	Köprü tapası parça ve aksesuarları	Bridge plug parts and accessories
+20121214	Çatlatma donanımları	Fracturing outfits
+20121324	Kum kontrol halkası	Sand control ring
+20121325	Yarıklı boru deseni	Slotted pipe pattern
+20121326	Kum kontrol eleği parça ve aksesuarları	Sand control screen parts and accessories
+20121327	Kuyu başı kum filtresi	Wellhead sand filter
+20121431	Şişirilebilir paker	Inflatable packer
+20121432	Kuyu içi kontrol valfi parça ve aksesuarları	Downhole control valve parts and accessories
+20121433	Muhafazalı kuyu tamamlama onarım seti	Cased hole completion repair kit
+20121434	Kayar kovan onarım seti	Sliding sleeve repair kit
+20121435	Yerleştirme adaptör seti	Setting adapter kit
+20121436	Piston kaldırma sistemi parça ve aksesuarları	Plunger lift system parts and accessories
+20121437	Yeraltı emniyet valfi parça ve aksesuarları	Subsurface safety valve parts and accessories
+20121438	Gaz kaldırma valfi parça ve aksesuarları	Gas lift valve parts and accessories
+20121439	Üretim pakeri mandreli	Production packer mandrel
+20121440	Anülüs muhafaza pakeri ara parçası	Annulus casing packer sub
+20121441	Liner yerleştirme aleti	Liner setting tool
+20121442	Sürtünme bloğu	Drag block
+20121443	Liner paker yerleştirme alet seti	Liner packer setting tool kit
+20121444	Liner sistemi onarım seti	Liner system repair kit
+20121445	Üretim pakeri parça ve aksesuarları	Production packer parts and accessories
+20121446	Liner üst pakeri	Liner top packer
+20121448	Hurda toplama başlığı	Junk bonnet
+20121449	Piston kaldırma ekipmanı	Plunger lift equipment
+20121450	Gaz kaldırma mandreli	Gas lift mandrel
+20121451	Gaz kaldırma valfi	Gas lift valve
+20121452	Kalıcı kuyu içi ölçer	Permanent downhole gauge
+20121453	Dengeleme ara parçası	Equalizing sub
+20121454	Delikli ve yarıklı tübing liner ve ara parçası	Perforated and slotted tubing liner and spacer
+20121456	Yüzey ram tipi BOP	Surface ram type Bop
+20121459	Wireline giriş kılavuzu	Wireline entry guide
+20121517	Kuyu raybası parça ve aksesuarları	Wellbore hole reamer parts and accessories
+20121518	Döner kontrol başlığı	Rotating control head
