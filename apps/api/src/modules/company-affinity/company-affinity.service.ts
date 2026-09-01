@@ -354,6 +354,31 @@ export class CompanyAffinityService {
   }
 
   /**
+   * TEK firmanın verilen kategorilerdeki skorlarını KATEGORİ BAZINDA döner.
+   * Liste sıralaması ilan başına farklı kategoriye bakar; ilan×kategori
+   * başına sorgu atmak N×M tur demek olurdu.
+   */
+  async profileFor(
+    companyId: string,
+    categoryIds: string[],
+    dir: Dir,
+  ): Promise<Map<string, { score: number; reasons: AffinityReasons }>> {
+    const out = new Map<string, { score: number; reasons: AffinityReasons }>();
+    if (categoryIds.length === 0) return out;
+    const rows = await this.prisma.companyAffinity.findMany({
+      where: { companyId, categoryId: { in: categoryIds } },
+      select: { categoryId: true, sellScore: true, buyScore: true, reasons: true },
+    });
+    for (const r of rows) {
+      out.set(r.categoryId, {
+        score: dir === "sell" ? r.sellScore : r.buyScore,
+        reasons: (r.reasons ?? {}) as AffinityReasons,
+      });
+    }
+    return out;
+  }
+
+  /**
    * Verilen firmaların skorlarını TEK sorguda getirir (liste sıralaması).
    * Liste başına firma-başına-sorgu N+1 üretirdi.
    */

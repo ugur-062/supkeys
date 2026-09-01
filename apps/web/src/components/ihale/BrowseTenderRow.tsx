@@ -351,6 +351,18 @@ export function BrowseTenderRow({
                 Kategorine Uygun
               </span>
             ) : null}
+            {/* "NEDEN GÖSTERİLDİ" — ilgi motorunun kara kutu olmaması için
+                zorunlu. Metin backend'in ham sinyal dökümünden türer
+                (kazanılan sipariş / verilen teklif / katalog…), model
+                metninden DEĞİL. */}
+            {t.matchReason ? (
+              <span
+                className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-slate-600"
+                title="Bu ilan geçmiş etkinliğinize göre önceliklendirildi"
+              >
+                {t.matchReason}
+              </span>
+            ) : null}
             {isSatis && t.priceScope === "KALEM" ? (
               <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
                 Kalem Bazlı Fiyat

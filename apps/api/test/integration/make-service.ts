@@ -1,6 +1,7 @@
 import { CompanyListingsService } from "../../src/modules/company-listings/services/company-listings.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
+import { CompanyAffinityService } from "../../src/modules/company-affinity/company-affinity.service";
 import { prisma } from "./test-db";
 
 /**
@@ -30,6 +31,10 @@ export function makeService() {
   const notifications = new NotificationService(prisma as never);
   // Gerçek AuditService (test şeması) — para/yetki izleri assert edilebilsin.
   const audit = new AuditService(prisma as never);
+  // Gerçek ilgi servisi (test şeması) — bildirim eşiği testlerde de çalışsın.
+  // @Optional olmasına rağmen rig'e KONULDU: opsiyonel bırakıp hiç vermemek,
+  // eşik mantığının hiçbir spec'te koşmaması demek olurdu.
+  const affinity = new CompanyAffinityService(prisma as never);
 
   const service = new CompanyListingsService(
     prisma as never,
@@ -42,6 +47,9 @@ export function makeService() {
     config as never,
     notifications,
     audit,
+    undefined, // realtime — testte WS yok
+    undefined, // storage  — testte R2 yok
+    affinity,
   );
 
   return {
@@ -53,5 +61,6 @@ export function makeService() {
     config,
     notifications,
     audit,
+    affinity,
   };
 }

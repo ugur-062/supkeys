@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { CronRegistryService, trackCronRun } from "../../common/cron/cron-registry.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { CompanyAffinityService } from "./company-affinity.service";
 
 /**
@@ -15,13 +16,41 @@ import { CompanyAffinityService } from "./company-affinity.service";
  * giriyor.
  */
 @Injectable()
-export class CompanyAffinityScheduler {
+export class CompanyAffinityScheduler implements OnModuleInit {
   private readonly logger = new Logger(CompanyAffinityScheduler.name);
 
   constructor(
     private readonly affinity: CompanyAffinityService,
     private readonly cronRegistry: CronRegistryService,
+    private readonly prisma: PrismaBypassService,
   ) {}
+
+  /**
+   * Boot yakalaması — YALNIZ tablo hiç doldurulmamışsa.
+   *
+   * İlk dağıtımdan sonra (ve kategori yeniden kurulumu skorları sıfırlarsa)
+   * öneri yüzeyleri gece 03:20'ye kadar boş kalmasın diye. "Her açılışta
+   * hesapla" DEĞİL: hesap tüm sipariş/teklif/katalog tablolarını tarıyor ve
+   * sık yeniden başlatmada boşa yük olurdu.
+   */
+  onModuleInit(): void {
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const existing = await this.prisma.companyAffinity.count();
+          if (existing > 0) return;
+          this.logger.log("İlgi profili boş — ilk hesap koşuluyor");
+          await this.affinity.recomputeAll();
+        } catch (err) {
+          this.logger.warn(
+            `Boot ilgi hesabı başarısız: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      })();
+    }, 30_000);
+  }
 
   @Cron("20 3 * * *", { timeZone: "Europe/Istanbul" })
   async recompute(): Promise<void> {

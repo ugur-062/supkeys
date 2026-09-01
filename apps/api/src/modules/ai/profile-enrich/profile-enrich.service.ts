@@ -14,14 +14,23 @@ import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai.config";
 import { BaseAiProvider } from "../providers/ai-provider.interface";
+import { AiService } from "../ai.service";
 
 /**
  * "Rothern profilini web sitenden AI ile oluştur" — BRONZ+ özelliği (Bronz
  * satış paketi profilden en çok yararlanan kesim; PaidTierGuard SILVER olduğu
- * için kapı burada). Firma AI bütçesine DOKUNMAZ (kayıt/kurulum yardımı —
- * ai_usage'a yazılmaz); kötüye kullanım günlük denemede sınırlanır (audit
- * log sayımı). Sonuç TASLAKTIR: kaydetmez, kullanıcı önizleyip düzenler ve
- * mevcut profil formundan kaydeder.
+ * için kapı burada). Sonuç TASLAKTIR: kaydetmez, kullanıcı önizleyip düzenler
+ * ve mevcut profil formundan kaydeder.
+ *
+ * BÜTÇE (2026-09-01 düzeltmesi): eskiden firma AI bütçesine DOKUNMUYORDU —
+ * "kayıt/kurulum yardımı" gerekçesiyle. Bu, `callAi` kapısını baypas eden TEK
+ * AI yoluydu: web araması + iki model çağrısı yapıyor, `ai_usage`'a hiçbir
+ * satır yazmıyordu. Sonuç: firmanın gerçek AI tüketimi `ayarlar/ai-kullanim`
+ * ekranında EKSİK görünüyordu ve maliyet hiçbir yerde muhasebeleşmiyordu.
+ * Artık diğer bütün AI özellikleri gibi `AiService.callAi` üzerinden geçer.
+ * Günlük 3 deneme sınırı KALDI — bütçe ve kötüye kullanım freni ayrı şeyler:
+ * bütçesi bol bir firma da bu ucu döngüye sokmamalı (her deneme dış site
+ * çekiyor).
  */
 
 const DAILY_LIMIT = 3;
@@ -62,6 +71,7 @@ export class ProfileEnrichService {
     @Inject(AI_PROVIDER_TOKEN) private readonly provider: BaseAiProvider | null,
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly ai: AiService,
   ) {}
 
   async enrich(
@@ -144,14 +154,14 @@ export class ProfileEnrichService {
       "Şunları üret: aboutText (firmanın ne yaptığını anlatan 2-4 paragraf, 400-1200 karakter); services (sunduğu ürün/hizmet başlıkları, en fazla 12, kısa); city (merkez şehir); foundedYear (kuruluş yılı, sitede açıkça yazıyorsa); linkedinUrl/instagramUrl (sitede link varsa).",
     ].join("\n");
 
-    const result = await this.provider
-      .complete({
-        model: this.config.models.default,
+    const result = await this.ai
+      .callAi(user, {
+        feature: "profile_enrich",
         system,
         prompt: ask,
-        ...(usingSearch ? { webSearch: true } : { responseSchema: DRAFT_SCHEMA as unknown as object }),
-        maxOutputTokens: 2048,
-        timeoutMs: this.config.timeoutMs,
+        ...(usingSearch
+          ? { webSearch: true }
+          : { responseSchema: DRAFT_SCHEMA as unknown as object }),
       })
       .catch((err: unknown) => {
         this.logger.warn(
@@ -165,13 +175,14 @@ export class ProfileEnrichService {
     // Grounding yolu serbest metin döner → ikinci ucuz çağrıyla şemaya çevir.
     let jsonText = result.text;
     if (usingSearch) {
-      const parsed = await this.provider.complete({
-        model: this.config.models.default,
-        system: "Verilen metni şemaya uygun JSON'a dönüştür; metinde olmayanı null bırak, EKLEME.",
+      // İkinci çağrı da bütçeden geçer: grounding+responseSchema BİRLEŞMEDİĞİ
+      // için iki aşama zorunlu, ama ikisi de gerçek token harcıyor.
+      const parsed = await this.ai.callAi(user, {
+        feature: "profile_enrich",
+        system:
+          "Verilen metni şemaya uygun JSON'a dönüştür; metinde olmayanı null bırak, EKLEME.",
         prompt: `<metin>\n${result.text.slice(0, 10_000)}\n</metin>`,
         responseSchema: DRAFT_SCHEMA as unknown as object,
-        maxOutputTokens: 2048,
-        timeoutMs: this.config.timeoutMs,
       });
       jsonText = parsed.text;
     }

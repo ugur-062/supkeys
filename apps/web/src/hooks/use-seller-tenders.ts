@@ -25,6 +25,13 @@ export interface SellerTenderRow {
   myBidStatus: string | null;
   myBidVersion: number | null;
   categoryMatch: boolean;
+  /**
+   * İlgi motoru: bu ilan neden karşınıza çıktı ("Bu alanda daha önce teklif
+   * verdiniz" gibi). Backend ham sinyalden türetir; null olabilir.
+   */
+  matchReason?: string | null;
+  /** İlgi skoru (0-100, firma başına normalize). Sıralama kademesi için. */
+  matchScore?: number;
   categories: { code: string; name: string }[];
   extraCategoryCount: number;
   /** SATIS fiyatlandırma kapsamı (TOPLU/KALEM). */

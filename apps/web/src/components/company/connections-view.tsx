@@ -578,9 +578,17 @@ export function ConnectionsView() {
                     industry={c.industry}
                     city={null}
                     badge={
-                      c.matchScore > 0
-                        ? { label: `${c.matchScore} kategori eşleşmesi`, color: "blue" }
-                        : undefined
+                      // "NEDEN GÖSTERİLDİ" — ham skor sayısı ("7 kategori
+                      // eşleşmesi") kullanıcıya hiçbir şey anlatmıyordu ve
+                      // artık skor beyan sayımı da değil. Gerekçe metni
+                      // backend'in sinyal dökümünden gelir.
+                      c.discovery
+                        ? { label: "Yeni firma", color: "zinc" as const }
+                        : c.matchReason
+                          ? { label: c.matchReason, color: "blue" as const }
+                          : c.matchScore > 0
+                            ? { label: "Faaliyet alanınıza yakın", color: "blue" as const }
+                            : undefined
                     }
                   />
                 ))}

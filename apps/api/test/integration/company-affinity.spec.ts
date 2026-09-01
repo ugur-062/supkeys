@@ -13,6 +13,7 @@ import { CompanyAffinityService } from "../../src/modules/company-affinity/compa
 import { affinityReasonText } from "../../src/modules/company-affinity/company-affinity.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeBid, invite } from "./factories";
+import { makeService } from "./make-service";
 
 const service = () => new CompanyAffinityService(prisma as never);
 
@@ -264,5 +265,52 @@ describe("CompanyAffinityService — yeniden hesap", () => {
     await makeCompanyWithUser(prisma);
     const r = await service().recomputeAll();
     expect(r.rows).toBe(0);
+  });
+});
+
+/**
+ * BİLDİRİM EŞİĞİ (Faz 3) — motorun ilk somut faydası.
+ *
+ * Eskiden duyuru "o segmenti işaretlemiş, en YENİ 300 firma"ya gidiyordu;
+ * yani kimin haber alacağını kayıt tarihi belirliyordu. Artık ilgi skoru
+ * belirliyor. Ama eleme KOŞULLU: eşiği geçen yeterince firma yoksa kimse
+ * elenmez — genç pazarda sert eşik duyuruyu tamamen susturur ve bu
+ * gürültüden daha kötüdür.
+ */
+describe("bildirim eşiği — ilgi sıralaması", () => {
+  it("eşiği geçen az sayıda firma varsa KİMSE elenmez (genç pazar koruması)", async () => {
+    const { service: listings } = makeService();
+    const buyer = await makeCompanyWithUser(prisma);
+    const weak = await makeCompanyWithCategories({ sellerSubCategoryIds: [LEAF] });
+    await service().recomputeAll();
+
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [LEAF],
+    });
+    const notified = await listings.notifyCategoryMatchedCompanies(listing.id);
+
+    // Tek aday ve skoru düşük — susturulmamalı.
+    expect(notified.map((c) => c.id)).toContain(weak.company.id);
+  });
+
+  it("ilgi profili HİÇ hesaplanmamışsa da bildirim gider (motor bozulsa akış durmaz)", async () => {
+    const { service: listings } = makeService();
+    const buyer = await makeCompanyWithUser(prisma);
+    const target = await makeCompanyWithCategories({ sellerSubCategoryIds: [LEAF] });
+    // recomputeAll ÇAĞRILMADI → company_affinity boş.
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [LEAF],
+    });
+
+    const notified = await listings.notifyCategoryMatchedCompanies(listing.id);
+    expect(notified.map((c) => c.id)).toContain(target.company.id);
   });
 });

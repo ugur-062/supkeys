@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CompanyApprovalsModule } from "../company-approvals/company-approvals.module";
 import { CompanyAuthModule } from "../company-auth/company-auth.module";
+import { CompanyAffinityModule } from "../company-affinity/company-affinity.module";
 import { CompanyBlocksModule } from "../company-blocks/company-blocks.module";
 import { EmailModule } from "../email/email.module";
 import { NotificationModule } from "../notifications/notification.module";
@@ -19,6 +20,7 @@ import { CompanyListingsService } from "./services/company-listings.service";
     CompanyApprovalsModule,
     EmailModule,
     NotificationModule,
+    CompanyAffinityModule,
   ],
   controllers: [CompanyListingsController, ListingItemImportController, BidImportController],
   providers: [CompanyListingsService, ListingScheduler, ListingItemImportService, BidImportService],

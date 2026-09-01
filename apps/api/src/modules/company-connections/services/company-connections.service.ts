@@ -31,6 +31,7 @@ import {
 } from "../../../common/company/effective-tier";
 import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
+import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -765,29 +766,103 @@ export class CompanyConnectionsService {
         name: true,
         rothernId: true,
         industry: true,
+        activities: true,
+        createdAt: true,
         buyerCategoryIds: true,
         sellerCategoryIds: true,
       },
       take: 100,
     });
 
-    const scored = companies
-      .map((c) => {
-        const sellsWhatIBuy = c.sellerCategoryIds.filter((x) =>
-          myBuyer.has(x),
-        ).length;
-        const buysWhatISell = c.buyerCategoryIds.filter((x) =>
-          mySeller.has(x),
-        ).length;
-        return {
-          id: c.id,
-          name: c.name,
-          rothernId: c.rothernId,
-          industry: c.industry,
-          matchScore: sellsWhatIBuy + buysWhatISell,
-        };
-      })
-      .sort((a, b) => b.matchScore - a.matchScore);
+    // İLGİ SKORU (ilgi motoru Faz 3).
+    //
+    // Eski skor BEYAN kesişiminin ham sayısıydı: "kaç segmentimiz ortak".
+    // 38 kova için bu neredeyse gürültü — hem çok kutu işaretleyen firmayı
+    // ödüllendiriyordu (genişlik cezası yok), hem de firmanın o alanda
+    // gerçekten iş yapıp yapmadığına bakmıyordu.
+    const myBuyCats = [...myBuyer];
+    const mySellCats = [...mySeller];
+    const affRows =
+      myBuyCats.length + mySellCats.length > 0
+        ? await this.prisma.companyAffinity.findMany({
+            where: {
+              companyId: { in: companies.map((c) => c.id) },
+              categoryId: { in: [...new Set([...myBuyCats, ...mySellCats])] },
+            },
+            select: {
+              companyId: true,
+              categoryId: true,
+              sellScore: true,
+              buyScore: true,
+              reasons: true,
+            },
+          })
+        : [];
+
+    const buySet = new Set(myBuyCats);
+    const sellSet = new Set(mySellCats);
+    const best = new Map<string, { score: number; reasons: unknown }>();
+    for (const r of affRows) {
+      // "Bana ne satabilir" + "benden ne alabilir" — iki yön toplanır.
+      const v =
+        (buySet.has(r.categoryId) ? r.sellScore : 0) +
+        (sellSet.has(r.categoryId) ? r.buyScore : 0);
+      const cur = best.get(r.companyId);
+      if (!cur || v > cur.score) best.set(r.companyId, { score: v, reasons: r.reasons });
+    }
+
+    // GERİ DÜŞÜŞ: ilgi profili hiç hesaplanmamışsa (ilk dağıtım, gece cron'u
+    // henüz koşmamış, tablo yeni sıfırlanmış) skorların HEPSİ 0 olur ve
+    // sıralama tamamen ölür. Böyle bir durumda eski BEYAN kesişimine düşülür —
+    // zayıf bir sinyal ama sıfırdan iyi. Listeler tarafındaki @Optional
+    // davranışının karşılığı: istatistik katmanı yoksa akış eski hâline döner.
+    const affinityReady = best.size > 0;
+
+    const enriched = companies.map((c) => {
+      const hit = best.get(c.id);
+      const declaredOverlap =
+        c.sellerCategoryIds.filter((x) => buySet.has(x)).length +
+        c.buyerCategoryIds.filter((x) => sellSet.has(x)).length;
+      return {
+        id: c.id,
+        name: c.name,
+        rothernId: c.rothernId,
+        industry: c.industry,
+        activities: c.activities,
+        createdAt: c.createdAt,
+        matchScore: affinityReady
+          ? Number((hit?.score ?? 0).toFixed(2))
+          : declaredOverlap,
+        matchReason: affinityReady
+          ? affinityReasonTextThirdParty((hit?.reasons ?? null) as never)
+          : declaredOverlap > 0
+            ? "Faaliyet alanlarında işaretli"
+            : null,
+      };
+    });
+
+    const ranked = [...enriched].sort((a, b) => b.matchScore - a.matchScore);
+
+    // %20 KEŞİF KOTASI — "zengin daha zengin" freni.
+    //
+    // Salt skorla sıralarsan ilk kazanan hep önerilir, hep kazanır ve yeni
+    // tedarikçi ASLA görünmez; pazar yeri kapalı bir kulübe döner ve alıcı da
+    // kaybeder (rekabet azalır). Sonuçların beşte biri, skoru düşük ama YENİ
+    // firmalara ayrılır — soğuk başlangıcı yapısal olarak taşır.
+    const QUOTA = 0.2;
+    const keep = Math.max(1, Math.ceil(ranked.length * (1 - QUOTA)));
+    const head = ranked.slice(0, keep);
+    const headIds = new Set(head.map((c) => c.id));
+    const discovery = enriched
+      .filter((c) => !headIds.has(c.id))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, Math.max(0, ranked.length - keep))
+      .map((c) => ({ ...c, discovery: true as const }));
+
+    const scored = [...head.map((c) => ({ ...c, discovery: false as const })), ...discovery].map(
+      // createdAt yalnız kota hesabı içindi — dışarı sızmasın.
+      ({ createdAt, ...rest }) => rest,
+    );
 
     return { locked: false as const, companies: scored };
   }

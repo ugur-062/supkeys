@@ -164,7 +164,14 @@ export interface DiscoverCompany {
   name: string;
   rothernId: string | null;
   industry: string | null;
+  /** Faaliyet tipi kodları (üretici/bayi/hizmet/dış ticaret/fason). */
+  activities?: string[];
+  /** İlgi skoru — beyan kesişimi değil, gerçek davranış. */
   matchScore: number;
+  /** "Neden gösterildi" — ham sinyalden türetilir, model metninden değil. */
+  matchReason?: string | null;
+  /** %20 keşif kotasından geldi (skoru düşük ama yeni firma). */
+  discovery?: boolean;
 }
 
 /**

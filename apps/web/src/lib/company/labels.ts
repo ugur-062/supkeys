@@ -26,12 +26,21 @@ export const TIER_LABELS: Record<string, string> = {
   GOLD: "Gold",
 };
 
-/** AI kullanım kırılımı — AiUsage.feature anahtarları. */
+/**
+ * AI kullanım kırılımı — `AiUsage.feature` anahtarları.
+ *
+ * Backend'de `callAi({ feature })` ile yazılan HER anahtar burada olmalı;
+ * eksik kalan anahtar kullanıcıya ham biçimde ("bid_price_extract") görünür.
+ * 2026-09-01'de üçü eksikti.
+ */
 export const AI_FEATURE_LABELS: Record<string, string> = {
   test: "Test",
   assistant: "Asistan",
   tender_extract: "Belgeden Satın Alma Talebi Çıkarımı",
   supplier_discovery: "Tedarikçi Keşfi",
+  bid_price_extract: "Belgeden Teklif Fiyatlama",
+  category_suggest: "Kategori Önerisi",
+  profile_enrich: "Web Sitesinden Profil Oluşturma",
 };
 
 /** Aktivite logu — AuditLog.action anahtarları (backend ile birebir). */

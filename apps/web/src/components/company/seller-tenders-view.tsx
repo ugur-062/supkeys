@@ -116,6 +116,14 @@ export function SellerTendersView({
       if (a.invited !== b.invited) return a.invited ? -1 : 1;
       if (a.connected !== b.connected) return a.connected ? -1 : 1;
       if (a.categoryMatch !== b.categoryMatch) return a.categoryMatch ? -1 : 1;
+      // İlgi KADEMESİ (kaba) — ham skorla sıralamak kullanıcının seçtiği
+      // sıralamayı tamamen ezerdi (skor float, eşitlik neredeyse hiç olmaz).
+      // Üç kademe: güçlü / ilgili / gerisi. Kademe içinde kullanıcının
+      // seçimi geçerli kalır.
+      const tier = (n?: number) => (!n ? 0 : n >= 15 ? 2 : n >= 5 ? 1 : 0);
+      const ta2 = tier(a.matchScore);
+      const tb2 = tier(b.matchScore);
+      if (ta2 !== tb2) return tb2 - ta2;
       if (sort === "newest")
         return (
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

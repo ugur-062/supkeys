@@ -89,6 +89,11 @@ import {
 import { appRoutes } from "../../../common/company/app-routes";
 import { createHash } from "node:crypto";
 import { StorageService } from "../../storage/storage.service";
+import {
+  CompanyAffinityService,
+  affinityReasonText,
+  type AffinityReasons,
+} from "../../company-affinity/company-affinity.service";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -115,6 +120,18 @@ type AwardActor = {
  */
 const CLOSING_REMINDER_MINUTES = 60;
 
+/**
+ * Bildirim ilgi eşiği. Skorlar firma başına 100 puanlık bütçeye normalize —
+ * 3 kategoriye yoğunlaşan firma her birinde ~33, 20'ye yayılan ~5 alır.
+ * 5 puan "bu alanla gerçekten ilgili" için makul alt sınır.
+ */
+const NOTIFY_MIN_AFFINITY = 5;
+/**
+ * Eleme ancak bu kadar güçlü aday varsa uygulanır — genç pazarda herkesi
+ * susturmamak için. Bkz. `rankByAffinity`.
+ */
+const NOTIFY_MIN_STRONG = 10;
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -134,6 +151,9 @@ export class CompanyListingsService {
     // temizliğin yokluğu iş akışını bozmaz ve elle kurulan test rig'lerini
     // kırmaz (rig stub gotcha bu denetimde 8 kez tekrarladı).
     @Optional() private readonly storage?: StorageService,
+    // İlgi motoru — bildirim eşiği ve sıralama için. @Optional: yoksa akış
+    // eski davranışa (herkese, en yeniden) düşer, bildirim hiç kesilmez.
+    @Optional() private readonly affinity?: CompanyAffinityService,
   ) {}
 
 
@@ -505,21 +525,39 @@ export class CompanyListingsService {
     });
     if (candidates.length === 0) return [];
 
+    // İLGİ EŞİĞİ (ilgi motoru Faz 3).
+    //
+    // Eskiden bu liste "o segmenti işaretlemiş, en yeni 300 firma"ydı — yani
+    // duyuruyu kimin alacağını kayıt tarihi belirliyordu. 38 kova için bu
+    // neredeyse rastgele; kullanıcı birkaç alakasız bildirimden sonra
+    // bildirimleri kapatıyor ve ürün orada sessizce işlevini yitiriyor.
+    //
+    // Artık adaylar ilgi skoruna göre sıralanır ve zayıf ilgililer elenir.
+    // AMA eleme KOŞULLU: eşiği geçen yeterince firma yoksa hiç kimse
+    // elenmez. Genç bir pazar yerinde skorların çoğu beyandan gelir; sert
+    // bir eşik o durumda duyuruyu tamamen susturur ve tedarikçi hiç haber
+    // alamaz — gürültüden daha kötü bir sonuç.
+    const ranked = await this.rankByAffinity(
+      candidates.map((c) => c.id),
+      listing.categoryIds,
+      isBuyDemand ? "sell" : "buy",
+    );
+
     // Teklifçi portalı (ALIM→satış, SATIS→satınalma) — e-posta fallback'i de
     // bu portalın rolüne göre süzülür.
     const matchPortal = this.bidderPortal(listing.type);
     const recipients = await this.companyRecipients(
-      candidates.map((c) => c.id),
+      ranked.map((c) => c.id),
       matchPortal,
     );
     const url = `${this.webUrl()}${
-      isBuyDemand ? "/company/satis/acik-satın alma talepleri" : "/company/satinalma/satin-al"
+      isBuyDemand ? "/company/satis/acik-talepler" : "/company/satinalma/satin-al"
     }`;
     const label = isBuyDemand ? "satın alma talebi" : "satış ilanı";
     const verb = isBuyDemand ? "Sattığınız" : "Aldığınız";
     const action = isBuyDemand ? "teklif vermek" : "satın almak";
     let sent = 0;
-    for (const c of candidates) {
+    for (const c of ranked) {
       const to = recipients.get(c.id);
       if (!to) continue;
       this.notify(
@@ -544,7 +582,7 @@ export class CompanyListingsService {
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
     await this.notifications.pushToCompanies(
-      candidates.map((c) => c.id),
+      ranked.map((c) => c.id),
       {
         type: "listing_category_match",
         title: `Kategorinize uygun yeni ${label}`,
@@ -556,11 +594,57 @@ export class CompanyListingsService {
       },
     );
     this.logger.log(
-      `Kategori eşleşmesi (${listing.number}): ${sent} firmaya bildirim (${
+      `Kategori eşleşmesi (${listing.number}): ${sent}/${candidates.length} firmaya bildirim (${
         isBuyDemand ? "satıcı" : "alıcı"
       })`,
     );
-    return candidates;
+    return ranked;
+  }
+
+  /**
+   * Adayları ilgi skoruna göre sıralar ve zayıf ilgilileri eler.
+   *
+   * ELEME KOŞULLU — bilinçli. Genç bir pazar yerinde skorların çoğu beyandan
+   * gelir ve hepsi eşiğin altında kalabilir; sert bir eşik o durumda duyuruyu
+   * tamamen susturur ve tedarikçi hiç haber alamaz. Bu, gürültüden daha kötü
+   * bir sonuç. Bu yüzden eleme yalnız eşiği geçen YETERİNCE firma varsa
+   * uygulanır; yoksa sıralama yapılır ama kimse elenmez.
+   *
+   * İlgi servisi yoksa (@Optional) liste OLDUĞU GİBİ döner — bildirim
+   * hiçbir koşulda kesilmez.
+   */
+  private async rankByAffinity(
+    companyIds: string[],
+    categoryIds: string[],
+    dir: "sell" | "buy",
+  ): Promise<{ id: string }[]> {
+    if (!this.affinity || companyIds.length === 0) {
+      return companyIds.map((id) => ({ id }));
+    }
+    let scores: Map<string, { score: number }>;
+    try {
+      scores = await this.affinity.scoresForCompanies(companyIds, categoryIds, dir);
+    } catch (err) {
+      // İlgi hesabı bir istatistik katmanı; erişilemezse duyuru yine gitmeli.
+      this.logger.warn(
+        `İlgi skoru okunamadı, sıralamasız devam: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return companyIds.map((id) => ({ id }));
+    }
+    const withScore = companyIds
+      .map((id) => ({ id, score: scores.get(id)?.score ?? 0 }))
+      .sort((a, b) => b.score - a.score);
+
+    const strong = withScore.filter((c) => c.score >= NOTIFY_MIN_AFFINITY);
+    if (strong.length >= NOTIFY_MIN_STRONG) {
+      this.logger.log(
+        `İlgi eşiği: ${strong.length}/${withScore.length} firma eşiği geçti, gerisi elendi`,
+      );
+      return strong.map((c) => ({ id: c.id }));
+    }
+    return withScore.map((c) => ({ id: c.id }));
   }
 
   /** Davetli firmalara ihale daveti / kapanış hatırlatması e-postası. */
@@ -2288,16 +2372,64 @@ export class CompanyListingsService {
     //   3) BAĞLANTILI firma ihaleleri (iş ilişkim olan firma)
     //   4) Kategori eşleşenler (sektörüme uygun herkese açık)
     //   5) gerisi
+    // İLGİ SKORU (ilgi motoru Faz 3) — kategori kademesinin İÇİNDE kırıcı.
+    //
+    // Üstteki merdiven (davetli > bağlantılı > kategori) doğru ve bilinçli;
+    // ilgi onun YERİNE geçmez, en alt kademeyi düzenler. Aksi hâlde "beni özel
+    // çağıran" bir ilan, sırf o kategorideki skorum düşük diye aşağı düşerdi.
+    //
+    // "Neden gösterildi" ZORUNLU — kara kutu güvensizliğinin karşılığı.
+    const affinityByListing = new Map<string, { score: number; reason: string | null }>();
+    if (this.affinity) {
+      try {
+        // TEK toplu sorgu: ilan×kategori başına sorgu N×M tur ederdi.
+        const allCats = [...new Set(rows.flatMap((r) => r.categories.map((c) => c.code)))];
+        const profile = await this.affinity.profileFor(
+          companyId,
+          allCats,
+          type === "ALIM" ? "sell" : "buy",
+        );
+        for (const r of rows) {
+          let best = 0;
+          let reasons: AffinityReasons | null = null;
+          for (const c of r.categories) {
+            const hit = profile.get(c.code);
+            if (hit && hit.score > best) {
+              best = hit.score;
+              reasons = hit.reasons;
+            }
+          }
+          affinityByListing.set(r.id, {
+            score: best,
+            reason: affinityReasonText(reasons),
+          });
+        }
+      } catch (err) {
+        // İlgi bir istatistik katmanı — okunamazsa liste yine dönmeli.
+        this.logger.warn(
+          `İlgi skoru okunamadı, sıralamasız devam: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
     rows.sort(
       (a, b) =>
         Number(b._open) - Number(a._open) ||
         Number(b.invited) - Number(a.invited) ||
         Number(b.connected) - Number(a.connected) ||
         Number(b.categoryMatch) - Number(a.categoryMatch) ||
+        (affinityByListing.get(b.id)?.score ?? 0) -
+          (affinityByListing.get(a.id)?.score ?? 0) ||
         0,
     );
-    // Yardımcı alan dışarı sızmasın.
-    return rows.map(({ _open, ...r }) => r);
+    // Yardımcı alan dışarı sızmasın; ilgi gerekçesi kullanıcıya çıkar.
+    return rows.map(({ _open, ...r }) => ({
+      ...r,
+      matchScore: affinityByListing.get(r.id)?.score ?? 0,
+      matchReason: affinityByListing.get(r.id)?.reason ?? null,
+    }));
   }
 
   /**

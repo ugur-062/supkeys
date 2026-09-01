@@ -164,3 +164,42 @@ DEĞİL).
 3. Görüntüleme takibi (Faz 4) isteniyor mu, yoksa mevcut sinyaller yeterli mi?
 4. "Size uygun talepler" satış panosunda ayrı bir blok mu, yoksa mevcut
    "Açık Talepler" listesinin sıralaması mı değişsin?
+
+
+---
+
+## 10. Uygulama durumu (2026-09-01)
+
+| Faz | Durum |
+|-----|-------|
+| Faz 1 — beyanı derinleştir | ✅ alt kategori (onboarding+profil, tavan 50) + faaliyet tipi ekseni |
+| Faz 2 — CompanyAffinity | ✅ tablo + gece cron (03:20) + boot yakalaması (yalnız boşsa) |
+| Faz 3 — sıralama + yüzeyler | ✅ bildirim eşiği · açık talepler sıralaması · "neden gösterildi" · önerilen firmalar · %20 keşif kotası |
+| Faz 4 — görüntüleme izleri | ⏳ yapılmadı (KVKK ayrı düşünülmeli; mevcut sinyaller yeterli görüldü) |
+
+### Açık soruların cevapları
+1. **Alt kategori tavanı 50** — kaldı. Asıl fren tavan değil GENİŞLİK CEZASI:
+   skor sabit bütçeye normalize, yayıldıkça zayıflıyor. Tavan yalnız payload
+   koruması.
+2. **Keşif kotası %20** — planın önerisi uygulandı. Genç pazarda daha agresif
+   olabilir; kota tek sabitte (`QUOTA`) durduğu için değiştirmek tek satır.
+3. **Görüntüleme takibi** — yapılmadı. Mevcut beş sinyal (sipariş/teklif/davet/
+   katalog/ilan) profili doldurmaya yetiyor.
+4. **"Size uygun talepler"** — AYRI blok açılmadı; mevcut "Açık Talepler"
+   listesinin SIRALAMASI değişti. Gerekçe: kullanıcının zaten baktığı yeri
+   düzeltmek, bakmadığı yeni bir blok eklemekten etkili.
+
+### Uygulamada eklenen iki koruma (planda yoktu)
+- **Bildirim eşiği KOŞULLU**: eşiği geçen yeterince firma yoksa kimse elenmez.
+  Genç pazarda skorların çoğu beyandan gelir; sert eşik duyuruyu tamamen
+  susturur ve bu gürültüden kötüdür.
+- **İlgi motoru @Optional**: servis yoksa/okunamıyorsa liste ve bildirim eski
+  davranışa döner. Bir istatistik katmanı yüzünden iş akışı durmamalı.
+
+### İlgi, merdivenin YERİNE geçmez
+Açık talepler sıralamasında öncelik merdiveni (davetli > bağlantılı > kategori)
+korundu; ilgi yalnız kategori kademesinin İÇİNDE kırıcı. Aksi hâlde "beni özel
+çağıran" bir talep, o kategorideki skorum düşük diye aşağı düşerdi.
+İstemci tarafında ilgi KABA KADEMEYE çevrilir (güçlü/ilgili/gerisi) — ham
+skorla sıralamak kullanıcının seçtiği sıralamayı (en yeni / kapanışa göre)
+tamamen ezerdi.
