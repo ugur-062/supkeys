@@ -280,6 +280,12 @@ export interface BidDeliveryAddress {
 export interface ListingBidRow {
   id: string;
   bidderName: string;
+  /**
+   * Teklif verenin belge doğrulaması tamam mı. Davetli/bağlantılı firma
+   * doğrulanmadan teklif verebildiği için alıcı bunu kazandırmadan önce
+   * görmeli. Eski yanıtlarda alan yok → `undefined` (rozet çizilmez).
+   */
+  bidderVerified?: boolean;
   bidderCompanyId?: string;
   amount: string;
   currency?: string;

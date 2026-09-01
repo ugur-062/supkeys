@@ -1060,6 +1060,19 @@ export default function ListingDetailPage() {
                         className="sticky top-0 z-10 bg-white text-right whitespace-normal shadow-table-top"
                       >
                         {b.bidderName}
+                        {/* 2026-09-01: davetli/bağlantılı firma BELGESİZ
+                            teklif verebiliyor. Alıcı bunu KAZANDIRMADAN ÖNCE
+                            görmeli — aksi hâlde sipariş doğduktan sonra
+                            öğrenir. Uyarı değil BİLGİ: alıcı zaten kendi
+                            davet ettiği firmayı çoğu zaman umursamayacak. */}
+                        {b.bidderVerified === false ? (
+                          <span
+                            className="block text-xs font-medium text-zinc-500"
+                            title="Bu firmanın belge doğrulaması tamamlanmadı"
+                          >
+                            Doğrulanmamış firma
+                          </span>
+                        ) : null}
                         {priced < totalItems ? (
                           <span
                             className="block text-xs font-medium text-amber-600"

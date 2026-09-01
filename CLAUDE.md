@@ -137,11 +137,28 @@ profil eklemekten ibaret. Afrika'da tersi: ortak doğrulama altyapısı yok,
 yalnız admin tarafından `setVerification` ile yazılıyor ve **otomatik onay
 yolu hiç yok** — bayrak "bir şey yapıyormuş" izlenimi veren ölü bir kavramdı.
 
-**KAYIT için admin onayı GEREKMEZ.** Hesap onboarding biter bitmez çalışır:
-gezinme, bağlantı, mesajlaşma, taslak hazırlama serbest. `VERIFIED` yalnız
-PARA TAAHHÜDÜ doğuran işlemlerin kapısıdır (ilan yayınlama, teklif gönderme,
-kazandırma, hemen-al — INV-KYC-1). Bu, bilinçli bir huni: kullanıcı taslağı
-kurar, yayınlamada doğrulamaya yönlendirilir.
+**KAYIT için admin onayı GEREKMEZ.** Hesap onboarding biter bitmez çalışır.
+
+**KYC kapısının yeri (2026-09-01 revizyonu) — prensip: doğrulama, PLATFORMUN
+KEFİL OLDUĞU yerde istenir.**
+
+| Aksiyon | VERIFIED şart mı |
+|---------|------------------|
+| Gezinme · bağlantı · mesaj · TASLAK | ❌ |
+| **Davetli/bağlantılı** talebe teklif · Hemen-Al | ❌ — alıcı firmayı zaten tanıyor, riski bilerek alıyor |
+| PUBLIC talebe **tanımadan** teklif | ✅ — oraya sokan platform (ayrıca BRONZ+ ister) |
+| Talep yayınlama · kazandırma | ✅ (ayrıca SILVER+ ister) |
+| **Paket satın alma** | ✅ — asıl kapı burası (+2FA +web sitesi) |
+| Sipariş kabulü | ❌ bugün — platform parayı TAŞIMIYOR (bildir/onayla). **Escrow gelirse kapı buraya taşınmalı** |
+
+Eski hâli HER teklifte belge istiyordu ve en kötü anda çarpıyordu: tedarikçi
+40 kalemi fiyatlıyor, "Gönder"de 403 alıyor, elle inceleme günler sürüyor,
+talep kapanıyor. Kaybeden yalnız tedarikçi değil — alıcı da davet ettiği
+firmadan teklif alamıyor.
+
+Davetli/bağlantılı firma belgesiz teklif verebildiği için alıcı, teklif
+sütununda **"Doğrulanmamış firma"** ibaresini görür — kazandırmadan önce
+bilerek karar versin diye. Sözleşme: `kyc-bid-gate.spec.ts`.
 
 **Kapı YALNIZ YENİ KAYDA uygulanır.** `COUNTRIES` (98) kısaltılmadı: mevcut
 firmaların ülkesi gösterilebilmeli ve adres defterinde her ülke seçilebilmeli

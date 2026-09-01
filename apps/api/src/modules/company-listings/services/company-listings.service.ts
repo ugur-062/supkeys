@@ -2588,7 +2588,9 @@ export class CompanyListingsService {
             status: { in: [...OWNER_VISIBLE_BID_STATUSES] },
           },
           include: {
-            bidderCompany: { select: { name: true } },
+            bidderCompany: {
+              select: { name: true, companyVerificationStatus: true },
+            },
             items: true,
             answers: true,
             // SATIS: alıcının teslimat adresi (satıcı görür — nereye teslim).
@@ -2661,6 +2663,12 @@ export class CompanyListingsService {
         bids: rankedBids.map((b) => ({
           id: b.id,
           bidderName: b.bidderCompany.name,
+          // 2026-09-01: davetli/bağlantılı firma BELGESİZ teklif verebiliyor
+          // (KYC kapısı yalnız PUBLIC'e tanımadan erişende). Alıcı bunu
+          // KAZANDIRMADAN ÖNCE görmeli: aksi hâlde kazandırır, sipariş doğar
+          // ve karşı tarafın doğrulanmamış olduğunu sonradan öğrenir.
+          bidderVerified:
+            b.bidderCompany.companyVerificationStatus === "VERIFIED",
           bidderCompanyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
@@ -3449,9 +3457,30 @@ export class CompanyListingsService {
     }
 
     const isDraft = dto.asDraft === true;
-    // INV-KYC-1: teklif SUBMIT para-taahhüdüdür (bağlayıcı) → VERIFIED ister.
-    // TASLAK kaydetme SERBEST (funnel kırılmaz).
-    if (!isDraft) this.assertVerified(user, "teklif veremezsiniz");
+    // INV-KYC-1 (2026-09-01 revizyonu): doğrulama, PLATFORMUN KEFİL OLDUĞU
+    // yerde istenir — tanıştıran platform mu, yoksa taraflar birbirini zaten
+    // tanıyor mu?
+    //
+    //   · Alıcı bu firmayı KENDİ davet ettiyse ya da aralarında bağlantı
+    //     varsa, karşı taraf riskini bilerek alıyor. Platform araya girmiyor,
+    //     dolayısıyla kefil olması da gerekmiyor → BELGE İSTENMEZ.
+    //   · PUBLIC bir talebe TANIMADIĞI firma olarak eriştiyse oraya onu
+    //     platform soktu → doğrulama gerekir.
+    //
+    // Eski hâli her teklifte belge istiyordu ve en kötü anda çarpıyordu:
+    // tedarikçi 40 kalemi fiyatlıyor, "Gönder"e basıyor, "belgelerinizi
+    // yükleyip onay bekleyin" duvarına toslıyor; elle inceleme günler sürüyor,
+    // talep kapanıyor. Kaybeden yalnız tedarikçi değil — alıcı da davet
+    // ettiği firmadan teklif alamıyor.
+    //
+    // NOT: PUBLIC yolu zaten BRONZ+ paket istiyor ve paket alma VERIFIED
+    // istiyor, yani doğrulama zincirle de uygulanıyor. Buradaki açık kontrol
+    // savunma derinliği: admin `setTier` ile elle paket verebiliyor ve o yol
+    // doğrulamayı atlıyor.
+    const reachedViaRelationship = isInvited || connected;
+    if (!isDraft && !reachedViaRelationship) {
+      this.assertVerified(user, "teklif veremezsiniz");
+    }
     // Auction'da gönderilmiş teklif TASLAĞA çekilemez: agregattan düşürür
     // ("yumuşak geri çekme" ile fiyat manipülasyonu) ve sonraki gönderimde
     // monotonluk referanssız kalırdı.
@@ -4282,7 +4311,13 @@ export class CompanyListingsService {
     }
     // INV-KYC-1: Hemen-Al da bağlayıcı SUBMITTED tekliftir (placeBid kardeşi) —
     // denetim 2026-08-23 P2 #3 (erişim kapılarından SONRA, durum 400'lerinden önce).
-    this.assertVerified(user, "teklif veremezsiniz");
+    // 2026-09-01: placeBid ile AYNI daraltma — davetli/bağlantılı firmadan
+    // belge istenmez (alıcı onu zaten tanıyor); kapı yalnız PUBLIC'e
+    // tanımadan erişen tarafta. İki kardeş yolun ayrışması sessiz bir tutarsızlık
+    // olurdu: aynı ilana placeBid ile belgesiz, Hemen-Al ile belgeli.
+    if (!isInvited && !connected) {
+      this.assertVerified(user, "teklif veremezsiniz");
+    }
 
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
