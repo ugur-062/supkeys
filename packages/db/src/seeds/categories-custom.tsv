@@ -116,3 +116,67 @@
 73991504	4	73991500		Kalibrasyon hizmeti
 73991505	4	73991500		Endüstriyel temizlik hizmeti
 73991506	4	73991500		Yalıtım ve izolasyon uygulama hizmeti
+11990000	2	11000000		Metal yarı mamul ve profil ürünleri
+11991500	3	11990000		Paslanmaz çelik ürünler
+11991501	4	11991500		Paslanmaz çelik boru ve profil
+11991502	4	11991500		Paslanmaz çelik sac ve levha
+11991503	4	11991500		Paslanmaz çelik lama, mil ve çubuk
+11991504	4	11991500		Paslanmaz bağlantı elemanları
+11991600	3	11990000		Galvaniz ve kaplamalı ürünler
+11991601	4	11991600		Galvaniz sac ve rulo
+11991602	4	11991600		Galvaniz boru ve profil
+11991603	4	11991600		Sıcak daldırma galvaniz kaplama
+11991700	3	11990000		Alüminyum ürünler
+11991701	4	11991700		Alüminyum sistem/endüstriyel profil
+11991702	4	11991700		Alüminyum sac, levha ve rulo
+11991703	4	11991700		Alüminyum boru ve kutu profil
+11991800	3	11990000		Karbon çeliği ürünler
+11991801	4	11991800		Siyah çelik boru (dikişli/dikişsiz)
+11991802	4	11991800		Sıcak/soğuk haddelenmiş sac
+11991803	4	11991800		Lama, köşebent ve NPU/IPE/HEA profil
+11991804	4	11991800		İnşaat demiri ve hasır çelik
+23991700	3	23990000		CNC talaşlı imalat
+23991701	4	23991700		CNC torna işleme
+23991702	4	23991700		CNC freze / işleme merkezi
+23991703	4	23991700		CNC taşlama ve honlama
+23991704	4	23991700		Erozyon (EDM) ve tel erozyon
+23991800	3	23990000		Sac işleme ve kesim
+23991801	4	23991800		Lazer kesim (sac/boru)
+23991802	4	23991800		Plazma ve oksijen kesim
+23991803	4	23991800		Su jeti kesim
+23991804	4	23991800		Abkant büküm ve şekillendirme
+23991805	4	23991800		CNC punch / sac delme
+23991900	3	23990000		Kalıp ve model imalatı
+23991901	4	23991900		Plastik enjeksiyon kalıbı
+23991902	4	23991900		Sac metal (progresif) kalıp
+23991903	4	23991900		Döküm modeli ve maça kalıbı
+23992000	3	23990000		Kaynak ve birleştirme
+23992001	4	23992000		Kaynak teli, elektrot ve sarfı
+23992002	4	23992000		Kaynak makinesi (MIG/TIG/örtülü)
+23992003	4	23992000		Robot kaynak hizmeti
+31990000	2	31000000		Hareket, aktarma ve akışkan bileşenleri
+31991500	3	31990000		Güç aktarma organları
+31991501	4	31991500		Redüktör ve dişli kutusu
+31991502	4	31991500		Kaplin ve şaft bağlantı elemanı
+31991503	4	31991500		Kayış, kasnak ve zincir dişli
+31991504	4	31991500		Lineer kızak, vidalı mil ve yataklama
+31991600	3	31990000		Hidrolik bileşenler
+31991601	4	31991600		Hidrolik hortum ve rakor
+31991602	4	31991600		Hidrolik silindir
+31991603	4	31991600		Hidrolik pompa ve valf
+31991604	4	31991600		Hidrolik güç ünitesi
+31991700	3	31990000		Pnömatik bileşenler
+31991701	4	31991700		Pnömatik silindir ve aktüatör
+31991702	4	31991700		Pnömatik valf ve şartlandırıcı
+31991703	4	31991700		Pnömatik hortum ve bağlantı
+31991800	3	31990000		Sızdırmazlık ve titreşim elemanları
+31991801	4	31991800		O-ring, keçe ve salmastra
+31991802	4	31991800		Titreşim takozu ve kompansatör
+39992000	3	39990000		Tahrik, sürücü ve motor
+39992001	4	39992000		Servo motor ve sürücü
+39992002	4	39992000		Frekans invertörü (VFD)
+39992003	4	39992000		Asenkron elektrik motoru
+39992004	4	39992000		Redüktörlü motor (motoredüktör)
+39992100	3	39990000		Kablo taşıma ve yönetim
+39992101	4	39992100		Kablo kanalı ve tava
+39992102	4	39992100		Kablo merdiveni ve askı
