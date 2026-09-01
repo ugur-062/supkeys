@@ -3480,3 +3480,113 @@
 23153606	Elektro dağlama markalama makinesi	Electro etcher marking machine
 23153607	Mürekkep püskürtmeli markalama makinesi	Inkjet marking machine
 23153608	Elektronik boru markalama makinesi	Electronic tube marking machine
+
+# Gıda/kimya/elektronik üretim + takım tezgahları ve kesici takımlar.
+40183206	Demir tüp takımı	Iron tube assembly
+23153801	Elektrostatik flaks uygulayıcı	Electrostatic fluxer
+23153802	Elektrik bobin sarma makinesi	Electrical coil winding machine
+23161517	Basınçlı döküm makinesi	Die casting machine
+23181510	Et bağlama veya poşetleme makinesi	Meat tyer or bagger
+23181514	Peynir üretim makinesi	Cheese making machine
+23181515	Tofu üretim makinesi	Bean curd making machine
+23181516	Erişte üretim makinesi	Noodle making machine
+23181517	Fermente soya makinesi	Fermented soybean machine
+23181518	Gıda fermentasyon cihazı	Food fermentation device
+23181519	Pastörizasyon makinesi	Pasteurizing machine
+23181520	Krema separatörü	Cream separator
+23181521	Deniz yosunu işleme makinesi	Laver or seaweed refining machine
+23181523	Mezbaha ekipmanı	Slaughterhouse or abattoir equipment
+23181524	Tereyağı yayığı	Butter churn
+23181525	Gıda çözdürme makinesi	Food materials defrosting machine
+23181705	Gıda sterilizasyon makinesi	Food sterilizing machine
+23181801	Kahve kavurma ekipmanı	Coffee roasting equipment
+23181805	Buz makinesi parça ve aksesuarları	Ice making machine parts and accessories
+23181806	İçecek sterilizatörü	Beverage sterilizer
+23181807	Süt ürünleri karıştırıcısı	Dairy mixer
+23181808	Sos damlatma (ripple) makinesi	Ripple machine
+23191006	Kum karıştırıcı	Sand mixer
+23201006	Damıtma kolonu	Distillation column
+23201007	Damıtma kolonu dolgusu	Distillation column packing
+23201008	Damıtma tepsisi	Distillation tray
+23201009	Basınçlı kap	Pressure vessel
+23201010	Hidroprosess reaktör iç donanımı	Hyroprocessing reactor internal
+23201011	Schoepentoeter giriş elemanı	Schoepentoeter inlet device
+23201204	Gıda kurutma ekipmanı	Food drying equipment
+23201205	Kurutucu ve bileşenleri	Dryer and component
+23211003	Terminal dizgi makinesi	Terminal insertion machine
+23211102	Baskı devre kartı üretim sistemi	Printed circuit board making system
+23211103	Wafer tel bağlama makinesi	Wafer wire bonder
+23211104	Yarı iletken çip muayene monitörü	Semiconductor chip inspection monitor
+23211105	Vakumlu emprenye/gözenek kapatma cihazı	Vacuum impregnation or porosity sealing device
+23211106	İyon implantasyon cihazı	Ion implanter
+23221102	Tavuk tüy yolma makinesi	Chicken defeathering machine
+23231904	Ahşap kalınlık planyası	Planer, woodworking
+23241405	Puntasız taşlama makinesi	Centerless grinding machine
+23241406	Ultrasonik işleme makinesi	Ultrasonic machine
+23241407	Silindirik taşlama makinesi	Cylindrical grinding machine
+23241408	Bıçak bileme makinesi	Knife grinding machine
+23241409	Optik profil taşlama makinesi	Optical profile grinding machine
+23241410	Sonsuz vida taşlama makinesi	Worm grinding machine
+23241411	Polisaj (keçe) makinesi	Buffing machine
+23241509	Metal şerit testere makinesi	Metal band sawing machine
+23241510	Metal giyotin makas	Metal shearing machine
+23241511	Diş açma makinesi	Threading machine
+23241603	Havşa veya yuva açma takımı	Countersink tool or counterbore tool
+23241617	Konik pim raybası	Taper pin reamer
+23241618	Kule cıvatası raybası	Tower bolt reamer
+23241619	Boru raybası	Pipe reamer
+23241620	Kovan rayba	Shell reamer
+23241621	Çubuk testere ağzı	Rod saw blade
+23241622	Tek açılı freze çakısı	Single angle cutter
+23241623	Yan freze çakısı	Side milling cutter
+23241624	Silindirik düz freze çakısı	Plain milling cylindrical cutter
+23241625	Kovan parmak freze çakısı	Shell end milling cutter
+23241626	Dışbükey freze çakısı	Convex cutter
+23241627	İçbükey freze çakısı	Concave cutter
+23241628	Köşe yuvarlama çakısı	Corner rounding cutter
+23241629	Metal dilme testeresi	Metal slitting saw
+23241630	T kanal çakısı	T slot cutter
+23241631	Woodruff kama yuvası çakısı	Woodruff seat cutter
+23241632	Kırlangıç kuyruğu çakısı	Dovetail cutter
+23241633	Dişli açma çakısı	Gear shaper cutter
+23241634	Standart boy matkap ucu	Jobber length drill
+23241635	Kısa boy matkap ucu	Screw machine drill
+23241636	Küçültülmüş saplı matkap ucu	Silver and deming drill
+23241637	Uzun boy matkap ucu	Extra length or longboy drill
+23241638	Karbür uçlu delik açma testeresi	Carbide tipped hole cutter
+23241639	Konik saplı matkap ucu	Taper shank drill
+23241640	Kademeli matkap ucu	Multi step drill
+23241641	Altıgen saplı kademeli matkap ucu	Mult step hex step drill
+23241642	Hızlı diş açma takımı	Speed threader
+23241643	Altıgen saplı rayba	Hex shank reamer
+23241644	Karbondioksit lazer	Carbon dioxide laser
+23241645	Düz saplı makine raybası	Straight shank chucking reamer
+23241646	Ayarlanabilir rayba	Adjustable reamer
+23241647	Konik saplı makine raybası	Taper shank chucking reamer
+23241805	Döner tablalı delme makinesi	Rotary table drilling machine
+23241806	Çok milli delme makinesi	Multiple spindle head drilling machine
+23241807	Radyal kollu matkap	Radial arm drilling machine
+23241808	Derin delik delme makinesi	Deep hole drilling machine
+23241809	Sütunlu tezgah matkabı	Bench drilling machine
+23241906	Dikey delik büyütme makinesi	Vertical boring machine
+23242103	Form boşaltma takımı	Form relief
+23242118	Tırtıl açma takımı	Knurling tool
+23242119	Torna kalemi	Lathe bit
+23242120	Makine tablası kaidesi	Machine table base
+23242208	Dişli diş pahlama makinesi	Gear tooth chamfering machine
+23242307	Talaş mili (leadscrew)	Leadscrew
+23242308	Punta delme makinesi	Centering machine
+23242507	Üniversal freze makinesi	Universal milling machine
+23242508	Kopya freze makinesi	Copy milling machine
+23242509	Taretli freze makinesi	Turret milling machine
+23242510	Planya tipi freze makinesi	Planer style milling machine
+23242511	Parmak freze	Machine end mill
+23242609	Honlama makinesi	Honing machine
+23242610	Elmas delik kalibreleme makinesi	Diamond bore sizing machine
+23242611	Çentik açma makinesi	Notching machine
+23242612	Metal gravür makinesi	Metal engraving machine
+23242613	Kılavuz çekme makinesi	Tapping machine
+23242614	Kama yuvası açma makinesi	Key seating machine
+23242615	Sac kanal açma makinesi	Sheet metal grooving machine
+23242701	Katlamalı boru üretim hattı makinesi	Folded tube mill machinery
+23242702	Kaynaklı boru üretim hattı makinesi	Welded tube mill machinery
