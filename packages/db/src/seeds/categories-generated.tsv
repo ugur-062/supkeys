@@ -1,0 +1,2744 @@
+# ÜRETİLMİŞ kategori yaprakları — gen-category-leaves.ts
+# Biçim: <kod>\t4\t<üstKod>\t\t<ad>  (categories-custom.tsv ile aynı)
+# Elle düzeltme SERBEST; yeniden koşumda mevcut satırlar korunur ve
+# slotları rezerve sayılır.
+31151501	4	31151500		Çelik halat
+31151502	4	31151500		Naylon halat
+31151503	4	31151500		Kendir halat
+31151504	4	31151500		Polyester halat
+31151505	4	31151500		Örgülü halat
+31151506	4	31151500		Çelik özlü halat
+31151507	4	31151500		Lif özlü halat
+31151508	4	31151500		Polipropilen halat
+31151509	4	31151500		Statik halat
+31151601	4	31151600		Transmisyon zinciri
+31151602	4	31151600		Paslanmaz çelik zincir
+31151603	4	31151600		Yük kaldırma zinciri
+31151604	4	31151600		Gal zinciri
+31151605	4	31151600		Konveyör zinciri
+31151606	4	31151600		Makaralı zincir
+31151607	4	31151600		Çift sıra zincir
+31151608	4	31151600		Plastik baklalı zincir
+31151609	4	31151600		Kar zinciri
+31151701	4	31151700		Gaz teli kablosu
+31151702	4	31151700		Debriyaj kablosu
+31151703	4	31151700		Fren kablosu
+31151704	4	31151700		Çelik kumanda kablosu
+31151705	4	31151700		İtme çekme kablosu
+31151706	4	31151700		Kilitleme kablosu
+31151707	4	31151700		El freni kablosu
+31151708	4	31151700		Jikle kablosu
+31151709	4	31151700		Mekanik kumanda kablosu
+31151801	4	31151800		Yaylık çelik tel
+31151802	4	31151800		İnşaat bağlama teli
+31151803	4	31151800		Tavlı tel
+31151804	4	31151800		Galvanizli çelik tel
+31151805	4	31151800		Paslanmaz çelik tel
+31151806	4	31151800		Bakır tel
+31151807	4	31151800		Pirinç tel
+31151808	4	31151800		Dikenli tel
+31151809	4	31151800		Jiletli tel
+31151901	4	31151900		Zaman kayışı
+31151903	4	31151900		V kayışı
+31151905	4	31151900		Tırtıllı V kayışı
+31151906	4	31151900		Poliüretan zaman kayışı
+31151907	4	31151900		Kanallı kayış
+31151908	4	31151900		Dişli kayış
+31151909	4	31151900		Konveyör bandı kayışı
+31152001	4	31152000		Paslanmaz çelik emniyet teli
+31152002	4	31152000		Monel emniyet teli
+31152003	4	31152000		Havacılık tipi emniyet teli
+31152004	4	31152000		Kilit teli
+31152005	4	31152000		Mühürleme teli
+31152006	4	31152000		Çelik bariyer teli
+31152007	4	31152000		Yaşam hattı teli
+31152008	4	31152000		Korkuluk teli
+31152009	4	31152000		Gergi teli
+31152101	4	31152100		Naylon kordon ip
+31152102	4	31152100		Polyester kordon ip
+31152103	4	31152100		Pamuklu şerit kordon
+31152104	4	31152100		Elastik kordon
+31152105	4	31152100		Yassı örme kordon
+31152106	4	31152100		Deri kordon şerit
+31152107	4	31152100		Silikon kordon fitil
+31152108	4	31152100		Polipropilen kordon
+31152109	4	31152100		Mumlu kordon ip
+31152201	4	31152200		Tavlı demir tel
+31152202	4	31152200		Galvanizli çelik tel
+31152203	4	31152200		Dikenli çelik tel
+31152204	4	31152200		Yaylık çelik tel
+31152205	4	31152200		Paslanmaz çelik tel
+31152206	4	31152200		Örgülü çelik halat teli
+31152207	4	31152200		İnşaat bağlama teli
+31152208	4	31152200		Yüksek karbonlu çelik tel
+31152209	4	31152200		Bakır kaplı çelik tel
+31152301	4	31152300		Elektrolitik bakır tel
+31152302	4	31152300		Pirinç tel
+31152303	4	31152300		Alüminyum tel
+31152304	4	31152300		Bronz tel
+31152305	4	31152300		Nikel krom rezistans teli
+31152306	4	31152300		Kurşun tel
+31152307	4	31152300		Titanyum tel
+31152308	4	31152300		Gümüş kaynak teli
+31152309	4	31152300		Çinko tel
+31161501	4	31161500		Akıllı vida
+31161502	4	31161500		Sunta vidası
+31161503	4	31161500		Sac vidası
+31161504	4	31161500		Metrik vida
+31161505	4	31161500		Alçıpan vidası
+31161506	4	31161500		Ağaç vidası
+31161507	4	31161500		Punta kaynak vidası
+31161508	4	31161500		Beton vidası
+31161509	4	31161500		YHB matkap uçlu vida
+31161601	4	31161600		Altıköşe başlı cıvata
+31161602	4	31161600		İmbus cıvata
+31161603	4	31161600		Havşa başlı cıvata
+31161604	4	31161600		Flanşlı cıvata
+31161605	4	31161600		U cıvata
+31161606	4	31161600		T başlı cıvata
+31161607	4	31161600		Kasa cıvatası
+31161608	4	31161600		Gözlü cıvata
+31161609	4	31161600		Yarım diş cıvata
+31161701	4	31161700		Altıköşe somun
+31161702	4	31161700		Fiberli somun
+31161703	4	31161700		Flanşlı somun
+31161704	4	31161700		Kelebek somun
+31161705	4	31161700		Kör somun
+31161706	4	31161700		Kare somun
+31161707	4	31161700		Uzatma somunu
+31161708	4	31161700		T kanallı somun
+31161709	4	31161700		Kafesli somun
+11101502	4	11101500		Kalsit tozu
+11101503	4	11101500		Bentonit kili
+11101504	4	11101500		Kaolen kili
+11101505	4	11101500		Talk tozu
+11101507	4	11101500		Barit tozu
+11101508	4	11101500		Kuvars tozu
+11101509	4	11101500		Feldspat madeni
+11101601	4	11101600		Demir cevheri
+11101602	4	11101600		Krom cevheri
+11101603	4	11101600		Bakır cevheri
+11101604	4	11101600		Boksit cevheri
+11101605	4	11101600		Çinko cevheri
+11101606	4	11101600		Kurşun cevheri
+11101607	4	11101600		Manganez cevheri
+11101608	4	11101600		Nikel cevheri
+11101609	4	11101600		Bor cevheri
+11101701	4	11101700		Külçe alüminyum
+11101702	4	11101700		Külçe bakır
+11101703	4	11101700		Külçe çinko
+11101704	4	11101700		Külçe kurşun
+11101705	4	11101700		Külçe nikel
+11101706	4	11101700		Külçe kalay
+11101707	4	11101700		Pik demir
+11101708	4	11101700		Katot bakır
+11101709	4	11101700		Alüminyum biyet
+11101801	4	11101800		Külçe gümüş
+11101802	4	11101800		Gümüş granül
+11101803	4	11101800		Külçe altın
+11101804	4	11101800		Has altın astar
+11101805	4	11101800		Platin tel
+11101806	4	11101800		Platin pota
+11101807	4	11101800		Paladyum anot
+11101808	4	11101800		Gümüş anot
+11101809	4	11101800		Gümüş tel
+11111502	4	11111500		Torf toprak
+11111503	4	11111500		Nebati toprak
+11111504	4	11111500		Kil hamuru
+11111505	4	11111500		Şamot kili
+11111506	4	11111500		Mil kumu
+11111507	4	11111500		Bahçe toprağı
+11111508	4	11111500		Elenmiş nebati toprak
+11111509	4	11111500		Killi toprak
+11111702	4	11111700		Sıva kumu
+11111703	4	11111700		Şap kumu
+11111704	4	11111700		Beton kumu
+11111705	4	11111700		Dere kumu
+11111706	4	11111700		Döküm kumu
+11111707	4	11111700		Filtre kumu
+11111708	4	11111700		Taş kumu
+11111709	4	11111700		Ocak kumu
+11121501	4	11121500		Doğal kauçuk lateks
+11121503	4	11121500		Çam terebentini
+11121504	4	11121500		Arap zamkı
+11121505	4	11121500		Kitre zamkı
+11121506	4	11121500		Mantar meşesi kabuğu
+11121507	4	11121500		Kanada balzamı
+11121508	4	11121500		Sığla yağı
+11121509	4	11121500		Katran yağı
+11121701	4	11121700		Çam kozalağı
+11121702	4	11121700		Ağaç kabuğu malçı
+11121703	4	11121700		Mantar tıpa hammaddesi
+11121704	4	11121700		Defne yaprağı
+11121705	4	11121700		Sandal ağacı talaşı
+11121706	4	11121700		Meşe palamudu
+11121707	4	11121700		Ağaç reçinesi esansı
+11121708	4	11121700		Bambu kamışı
+11121709	4	11121700		Saz ve kamış demeti
+11121801	4	11121800		Ham pamuk lifi
+11121802	4	11121800		Keten lifi
+11121803	4	11121800		Kenevir lifi
+11121804	4	11121800		Jüt lifi
+11121805	4	11121800		Hindistan cevizi lifi
+11121806	4	11121800		Sisal lifi
+11121807	4	11121800		Rami lifi
+11121808	4	11121800		Abaka lifi
+11121809	4	11121800		Bambu lifi
+11121901	4	11121900		Gül yağı
+11121902	4	11121900		Lavanta yağı
+11121903	4	11121900		Kekik yağı
+11121904	4	11121900		Nane yağı
+11121905	4	11121900		Okaliptüs yağı
+11121906	4	11121900		Biberiye yağı
+11121907	4	11121900		Limon otu yağı
+11121908	4	11121900		Portakal çiçeği esansı
+11121909	4	11121900		Yasemin esansı
+11122007	4	11122000		Yönlendirilmiş yonga levha (OSB)
+11122008	4	11122000		Ahşap kompozit profil
+11122009	4	11122000		Çapraz lamine ahşap panel (CLT)
+11131502	4	11131500		Ham sığır derisi
+11131503	4	11131500		Ham koyun derisi
+11131504	4	11131500		Ham keçi derisi
+11131505	4	11131500		Pikeli deri
+11131506	4	11131500		Islak mavi deri (wet blue)
+11131507	4	11131500		Kırkım koyun yünü
+11131508	4	11131500		Keçi kılı
+11131509	4	11131500		Deve tüyü lifi
+11131601	4	11131600		Teknik balmumu
+11131603	4	11131600		Endüstriyel jelatin
+11131604	4	11131600		Ham sığır derisi
+11131605	4	11131600		Kuş tüyü dolgu malzemesi
+11131606	4	11131600		Kemik unu
+11141601	4	11141600		Plastik çapak hurda
+11141602	4	11141600		Hurda araba lastiği
+11141603	4	11141600		Atık kağıt ve karton
+11141604	4	11141600		Atık cam kırığı
+11141605	4	11141600		Hurda ahşap palet
+11141606	4	11141600		Tekstil kırpıntı hurdası
+11141607	4	11141600		Elektronik kart hurdası
+11141608	4	11141600		Hurda PVC profil
+11141609	4	11141600		Atık motor yağı
+11141701	4	11141700		Atık bitkisel yağ
+11141702	4	11141700		Pancar küspesi
+11141703	4	11141700		Şeker pancarı melası
+11141704	4	11141700		Zeytin pirinası
+11141705	4	11141700		Tütün tozu
+11141706	4	11141700		Bira mayası atığı
+11141707	4	11141700		Peynir altı suyu
+11141708	4	11141700		Meyve posası
+11141709	4	11141700		Ayçiçeği küspesi
+11151501	4	11151500		Ham pamuk lifi
+11151502	4	11151500		Polyester kesik elyaf
+11151503	4	11151500		Cam elyaf kırpıntı
+11151504	4	11151500		Karbon elyaf
+11151505	4	11151500		Kenevir lifi
+11151506	4	11151500		Jüt lifi
+11151507	4	11151500		Akrilik elyaf
+11151508	4	11151500		Yün elyafı
+11151509	4	11151500		Bazalt elyafı
+11151601	4	11151600		Pamuk ipliği
+11151602	4	11151600		Polyester iplik
+11151603	4	11151600		Naylon iplik
+11151604	4	11151600		Akrilik iplik
+11151605	4	11151600		Yün iplik
+11151606	4	11151600		Dikiş ipliği
+11151607	4	11151600		Elastan iplik
+11151608	4	11151600		Viskon iplik
+11151609	4	11151600		Polipropilen iplik
+11151701	4	11151700		Çok katlı bükümlü pamuk ipliği
+11151702	4	11151700		Naylon büküm ipliği
+11151703	4	11151700		Polyester dikiş ipliği
+11151704	4	11151700		Jüt büküm ipliği
+11151705	4	11151700		Kenevir halat ipliği
+11151706	4	11151700		Mumlu büküm ipliği
+11151707	4	11151700		Polipropilen büküm ipliği
+11151708	4	11151700		Teknik bükümlü iplik
+11151709	4	11151700		Keten büküm ipliği
+11161501	4	11161500		Ham ipek kumaş
+11161502	4	11161500		Saten ipek kumaş
+11161503	4	11161500		Şifon ipek kumaş
+11161504	4	11161500		Krep ipek kumaş
+11161505	4	11161500		Tafta ipek kumaş
+11161506	4	11161500		Jakarlı ipek kumaş
+11161507	4	11161500		Organze ipek kumaş
+11161508	4	11161500		Vual ipek kumaş
+11161509	4	11161500		Şantuk ipek kumaş
+11161601	4	11161600		Kaşe yün kumaş
+11161602	4	11161600		Kaşmir yün kumaş
+11161603	4	11161600		Gabardin yün kumaş
+11161604	4	11161600		Flanel yün kumaş
+11161605	4	11161600		Triko yün kumaş
+11161606	4	11161600		Keçe yün kumaş
+11161607	4	11161600		Ekose yün kumaş
+11161608	4	11161600		Alpaka yün kumaş
+11161609	4	11161600		Merinos yün kumaş
+11161701	4	11161700		Gabardin pamuklu kumaş
+11161702	4	11161700		Poplin pamuklu kumaş
+11161703	4	11161700		Branda pamuklu kumaş
+11161704	4	11161700		Kanvas pamuklu kumaş
+11161705	4	11161700		Denim pamuklu kumaş
+11161706	4	11161700		Vual pamuklu kumaş
+11161707	4	11161700		Şile bezi pamuklu kumaş
+11161708	4	11161700		Kadife pamuklu kumaş
+11161709	4	11161700		Müslin pamuklu kumaş
+11161801	4	11161800		Polyester astar kumaş
+11161802	4	11161800		Akrilik branda kumaşı
+11161803	4	11161800		Naylon branda kumaşı
+11161804	4	11161800		Polar sentetik kumaş
+11161805	4	11161800		Mikrofiber temizlik kumaşı
+11161806	4	11161800		Likralı sentetik kumaş
+11161807	4	11161800		Viskon astar kumaş
+11161808	4	11161800		Neopren sentetik kumaş
+11161809	4	11161800		Poliüretan kaplama kumaş
+11162001	4	11162000		Keten kumaş
+11162002	4	11162000		Kenevir kumaş
+11162003	4	11162000		Jüt çuval kumaşı
+11162004	4	11162000		Bambu kumaş
+11162005	4	11162000		Isırgan otu kumaşı
+11162006	4	11162000		Soya lifi kumaş
+11162007	4	11162000		Ramie keten kumaş
+11162008	4	11162000		Hasır dokuma kumaş
+11162009	4	11162000		Hindistan cevizi lifi kumaş
+11162201	4	11162200		Spunbond tela kumaş
+11162202	4	11162200		Meltblown maske kumaşı
+11162203	4	11162200		İğnelenmiş keçe kumaş
+11162204	4	11162200		Kimyasal bağlamalı tela kumaş
+11162205	4	11162200		Isıl bağlamalı vatka kumaş
+11162206	4	11162200		Su jetiyle bağlanmış kumaş
+11162207	4	11162200		Tarım tipi nonwoven örtü
+11162208	4	11162200		Medikal nonwoven kumaş
+11162209	4	11162200		Otomotiv tavan keçesi kumaş
+11162301	4	11162300		Doğal sığır derisi
+11162302	4	11162300		Yarma süet deri
+11162303	4	11162300		Suni deri rulo
+11162304	4	11162300		Keçi derisi astar
+11162305	4	11162300		Kösele taban derisi
+11162306	4	11162300		Nubuk deri levha
+11162307	4	11162300		Koyun derisi post
+11162308	4	11162300		Yarı mamul kürk deri
+11162309	4	11162300		Su geçirmez teknik deri
+11162401	4	11162400		Silikonlu boncuk elyaf
+11162402	4	11162400		Vatkalı rulo elyaf
+11162403	4	11162400		Polyester dolgu elyafı
+11162404	4	11162400		Yün dolgu elyafı
+11162405	4	11162400		Mikrofiber dolgu elyafı
+11162406	4	11162400		Isı yalıtımlı keçe elyaf
+11162407	4	11162400		Yanmaz dolgu elyafı
+11162408	4	11162400		Akustik dolgu elyafı
+11162409	4	11162400		Kırpıntı sünger dolgu
+11171502	4	11171500		S235JR yapısal çelik
+11171503	4	11171500		S355JR yüksek mukavemetli çelik
+11171504	4	11171500		C45 imalat çeliği
+11171505	4	11171500		4140 ıslah çeliği
+11171506	4	11171500		8620 sementasyon çeliği
+11171507	4	11171500		DKP sac levha
+11171508	4	11171500		HRP rulo sac
+11171509	4	11171500		St37 transmisyon mili
+11171604	4	11171600		Paslanmaz çelik alaşımı 316l
+11171605	4	11171600		Paslanmaz çelik alaşımı 430
+11171606	4	11171600		Paslanmaz çelik alaşımı 310s
+11171607	4	11171600		Paslanmaz çelik alaşımı 321
+11171608	4	11171600		Paslanmaz çelik alaşımı 410
+11171609	4	11171600		Paslanmaz çelik alaşımı 420
+11171703	4	11171700		M42 kobaltlı yüksek hız çeliği
+11171704	4	11171700		M7 yüksek hız çeliği
+11171705	4	11171700		T1 tungstenli yüksek hız çeliği
+11171706	4	11171700		T15 yüksek hız çeliği
+11171707	4	11171700		Z110WCV5 yüksek hız çeliği
+11171708	4	11171700		HSS-Co5 matkap ucu çeliği
+11171709	4	11171700		HSS-Co8 torna kalemi çeliği
+11171802	4	11171800		Inconel 625 süper alaşımı
+11171803	4	11171800		Inconel 718 süper alaşımı
+11171804	4	11171800		Hastelloy C276 süper alaşımı
+11171805	4	11171800		Hastelloy B2 süper alaşımı
+11171806	4	11171800		Monel 400 nikel alaşımı
+11171807	4	11171800		Monel K500 nikel alaşımı
+11171808	4	11171800		Incoloy 800 nikel alaşımı
+11171809	4	11171800		Incoloy 825 nikel alaşımı
+11171902	4	11171900		Grade 5 titanyum çubuk
+11171903	4	11171900		Grade 2 saf titanyum plaka
+11171904	4	11171900		Grade 9 titanyum dikişsiz boru
+11171905	4	11171900		Ti-6Al-4V titanyum levha
+11171906	4	11171900		Grade 7 titanyum tel
+11171907	4	11171900		Ti-6Al-2Sn-4Zr-2Mo titanyum blok
+11171908	4	11171900		Grade 23 titanyum medikal çubuk
+11172002	4	11172000		6061-T6 alüminyum profil
+11172003	4	11172000		7075-T6 alüminyum plaka
+11172004	4	11172000		5083 H111 alüminyum levha
+11172005	4	11172000		2024-T3 alüminyum çubuk
+11172006	4	11172000		1050 alüminyum rulo
+11172007	4	11172000		6082-T6 alüminyum lama
+11172008	4	11172000		5754 alüminyum çeteli sac
+11172009	4	11172000		3003 alüminyum boru
+11172102	4	11172100		Stellite 6 kobalt çubuk
+11172103	4	11172100		Stellite 12 kobalt plaka
+11172104	4	11172100		Haynes 188 alaşım sac
+11172105	4	11172100		L-605 kobalt alaşımlı tel
+11172106	4	11172100		Stellite 21 döküm blok
+11172107	4	11172100		MP35N kobalt alaşımlı çubuk
+11172108	4	11172100		Elgiloy yaylık tel
+11172109	4	11172100		CoCrMo medikal alaşım blok
+11172201	4	11172200		AZ31B magnezyum levha
+11172202	4	11172200		AZ91D magnezyum külçe
+11172203	4	11172200		AM60B magnezyum döküm blok
+11172204	4	11172200		AZ61A magnezyum çubuk
+11172205	4	11172200		AZ80A magnezyum dövme blok
+11172206	4	11172200		ZK60A magnezyum profil
+11172207	4	11172200		WE43 magnezyum alaşım plaka
+11172208	4	11172200		AZ31B magnezyum şerit
+11172209	4	11172200		AM50A magnezyum külçe
+11172301	4	11172300		Silikomanganez külçe
+11172302	4	11172300		Yüksek karbonlu ferromanganez
+11172303	4	11172300		Orta karbonlu ferromanganez
+11172304	4	11172300		Düşük karbonlu ferromanganez
+11172305	4	11172300		Elektrolitik manganez metal pulu
+11172306	4	11172300		Manganez bronzu çubuk
+11172307	4	11172300		Manganez bronzu levha
+11172308	4	11172300		Hadfield manganez çeliği plaka
+11172309	4	11172300		Manganez bakır alaşım şerit
+12131601	4	12131600		Profesyonel havai fişek bataryası
+12131602	4	12131600		Deniz tipi işaret fişeği
+12131603	4	12131600		Turuncu renkli sis kutusu
+12131604	4	12131600		Elektrikli piroteknik ateşleyici
+12131605	4	12131600		Yavaş yanan emniyetli fitil
+12131606	4	12131600		Demiryolu uyarı çatpatı
+12131607	4	12131600		Piroteknik gaz jeneratörü
+12131608	4	12131600		Paraşütlü aydınlatma fişeği
+12131609	4	12131600		Sahne soğuk ateş şelalesi
+12131701	4	12131700		Manyetolu ateşleme cihazı
+12131801	4	12131800		Dumansız barut
+12131802	4	12131800		Kara barut
+12131803	4	12131800		Sevk barutu
+12131804	4	12131800		Av fişeği barutu
+12131805	4	12131800		Nitrogliserin bazlı barut
+12131806	4	12131800		Nitroselüloz bazlı barut
+12131807	4	12131800		Çift bazlı barut
+12131808	4	12131800		Tek bazlı barut
+12131809	4	12131800		Küresel barut
+12141501	4	12141500		Magnezyum külçe
+12141502	4	12141500		Kalsiyum metal granül
+12141503	4	12141500		Berilyum blok
+12141504	4	12141500		Baryum metal parça
+12141505	4	12141500		Stronsiyum metal
+12141506	4	12141500		Galyum metal külçe
+12141507	4	12141500		İndiyum metal tel
+12141508	4	12141500		Talyum metal çubuk
+12141509	4	12141500		Magnezyum şerit levha
+12141601	4	12141600		Neodimyum metal külçe
+12141602	4	12141600		Seryum metal parça
+12141603	4	12141600		Lantanyum metal
+12141604	4	12141600		Samaryum metal
+12141605	4	12141600		Gadolinyum metal
+12141606	4	12141600		Disprozyum metal
+12141607	4	12141600		İtriyum metal
+12141608	4	12141600		Skandiyum metal
+12141609	4	12141600		Praseodimyum metal
+12141701	4	12141700		Titanyum külçe
+12141702	4	12141700		Kobalt katot plaka
+12141703	4	12141700		Nikel anot levha
+12141704	4	12141700		Krom metal parça
+12141705	4	12141700		Manganez metal parça
+12141706	4	12141700		Volfram çubuk
+12141707	4	12141700		Zirkonyum sünger metal
+12141708	4	12141700		Vanadyum metal külçe
+12141709	4	12141700		Molibden plaka
+12141801	4	12141800		Lityum metal külçe
+12141802	4	12141800		Sodyum metal külçe
+12141803	4	12141800		Potasyum metal parça
+12141804	4	12141800		Sezyum metal ampul
+12141805	4	12141800		Rubidyum metal
+12141806	4	12141800		Lityum folyo şerit
+12141807	4	12141800		Sodyum metal dispersiyonu
+12141808	4	12141800		Lityum metal granül
+12141809	4	12141800		Sodyum metal blok
+12141901	4	12141900		Sıvı azot tüpü
+12141902	4	12141900		Sıvı oksijen tüpü
+12141903	4	12141900		Toz kükürt
+12141904	4	12141900		Aktif karbon tozu
+12141905	4	12141900		Klor gazı tüpü
+12141906	4	12141900		Saf hidrojen gazı tüpü
+12141907	4	12141900		Saf azot gazı tüpü
+12141908	4	12141900		Saf oksijen gazı tüpü
+12141909	4	12141900		Kırmızı fosfor
+12142001	4	12142000		Argon gazı tüpü
+12142002	4	12142000		Helyum gazı tüpü
+12142003	4	12142000		Neon gazı tüpü
+12142004	4	12142000		Ksenon gazı tüpü
+12142005	4	12142000		Kripton gazı tüpü
+12142006	4	12142000		Sıvı helyum tankı
+12142007	4	12142000		Sıvı argon tankı
+12142008	4	12142000		Karışım argon gazı tüpü
+12142009	4	12142000		Lazer gazı karışımı
+12142101	4	12142100		Asetilen gazı tüpü
+12142102	4	12142100		Karbondioksit gazı tüpü
+12142103	4	12142100		Sanayi tipi propan tüpü
+12142104	4	12142100		Karışım kaynak gazı tüpü
+12142105	4	12142100		Amonyak gazı tüpü
+12142106	4	12142100		Azot protoksit gazı tüpü
+12142107	4	12142100		Kuru hava tüpü
+12142108	4	12142100		Sınai bütan gazı tüpü
+12142109	4	12142100		Metan gazı tüpü
+12142209	4	12142200		Döteryum gazı tüpü
+12161501	4	12161500		pH indikatör kağıdı
+12161502	4	12161500		Fenolftalein indikatör çözeltisi
+12161503	4	12161500		Metil oranj indikatör çözeltisi
+12161504	4	12161500		Karl Fischer reaktifi
+12161505	4	12161500		Fehling A ve B çözeltisi
+12161506	4	12161500		Gümüş nitrat çözeltisi
+12161507	4	12161500		EDTA titrasyon çözeltisi
+12161508	4	12161500		Turnusol indikatör kağıdı
+12161509	4	12161500		Nessler reaktifi çözeltisi
+12161701	4	12161700		pH 4 tampon çözeltisi
+12161702	4	12161700		pH 7 tampon çözeltisi
+12161703	4	12161700		pH 10 tampon çözeltisi
+12161704	4	12161700		Fosfat tampon çözeltisi
+12161705	4	12161700		Asetat tampon çözeltisi
+12161706	4	12161700		Sitrat tampon çözeltisi
+12161707	4	12161700		Tris-HCl tampon çözeltisi
+12161708	4	12161700		Karbonat tampon çözeltisi
+12161709	4	12161700		Borat tampon çözeltisi
+12161801	4	12161800		Koloidal silis
+12161802	4	12161800		Hidrojel polimerler
+12161803	4	12161800		Sıvı dispersiyon ajanları
+12161805	4	12161800		Lateks bağlayıcılar
+12161806	4	12161800		Süspansiyon stabilizatörleri
+12161807	4	12161800		Köpük kesici ajanlar
+12161808	4	12161800		Organosoller
+12161809	4	12161800		Aerosol itici gazlar
+12161901	4	12161900		Anyonik yüzey aktif maddeler
+12161902	4	12161900		Katyonik yüzey aktif maddeler
+12161903	4	12161900		Noniyonik yüzey aktif maddeler
+12161904	4	12161900		Amfoterik yüzey aktif maddeler
+12161905	4	12161900		Endüstriyel ıslatıcı ajanlar
+12161906	4	12161900		Köpük yapıcı sürfaktanlar
+12161907	4	12161900		Sıvı emülgatörler
+12161908	4	12161900		Yüzey tesviye ajanları
+12161909	4	12161900		Biyobozunur sürfaktanlar
+12162001	4	12162000		Ftalat bazlı plastikleştiriciler
+12162002	4	12162000		Ftalatsız plastikleştiriciler
+12162003	4	12162000		Adipat bazlı plastikleştiriciler
+12162004	4	12162000		Polimerik plastikleştiriciler
+12162005	4	12162000		Sebasat bazlı plastikleştiriciler
+12162006	4	12162000		Epoksi plastikleştiriciler
+12162007	4	12162000		Trimellitat plastikleştiriciler
+12162008	4	12162000		PVC plastikleştirici yağlar
+12162009	4	12162000		Fosfat ester plastikleştiriciler
+12162101	4	12162100		Halojensiz alev geciktiriciler
+12162102	4	12162100		Bromlu alev geciktiriciler
+12162103	4	12162100		Fosfor bazlı alev geciktiriciler
+12162104	4	12162100		Alüminyum hidroksit dolgusu
+12162105	4	12162100		Magnezyum hidroksit katkısı
+12162106	4	12162100		Antimon trioksit alev geciktirici
+12162107	4	12162100		İntümesan alev geciktirici tozlar
+12162108	4	12162100		Klorlu parafin alev geciktiriciler
+12162109	4	12162100		Çinko borat alev geciktirici
+12162201	4	12162200		Fenolik antioksidanlar
+12162202	4	12162200		Fosfit bazlı antioksidanlar
+12162203	4	12162200		Tioester bazlı antioksidanlar
+12162204	4	12162200		Polimer antioksidan katkıları
+12162205	4	12162200		Kauçuk antioksidanları
+12162206	4	12162200		Birincil antioksidan tozlar
+12162207	4	12162200		İkincil antioksidan sıvılar
+12162208	4	12162200		Metal deaktivatör antioksidanlar
+12162209	4	12162200		Amin bazlı antioksidanlar
+12162301	4	12162300		Epoksi reçine sertleştiricileri
+12162302	4	12162300		Poliüretan kürleme ajanları
+12162303	4	12162300		Silikon kürleme katalizörleri
+12162304	4	12162300		Akrilik sertleştirici katkılar
+12162305	4	12162300		Amin bazlı epoksi sertleştiriciler
+12162306	4	12162300		Anhidrit sertleştiriciler
+12162307	4	12162300		Organik peroksit kürleme ajanları
+12162308	4	12162300		Kauçuk vulkanizasyon ajanları
+12162309	4	12162300		Beton kürleme kimyasalları
+12162701	4	12162700		Sondaj çamuru sıvı kaybı önleyici
+12162702	4	12162700		Çimento harcı sıvı kaybı katkısı
+12162703	4	12162700		Nişasta bazlı sıvı kaybı kontrol ajanı
+12162704	4	12162700		Polianyonik selüloz sıvı kaybı katkısı
+12162705	4	12162700		Sentetik polimerik sıvı kaybı önleyici
+12162706	4	12162700		Yüksek sıcaklık sıvı kaybı katkısı
+12162801	4	12162800		Anyonik sürtünme azaltıcı polimer
+12162802	4	12162800		Katyonik sürtünme azaltıcı polimer
+12162803	4	12162800		Sıvı sürtünme azaltıcı konsantresi
+12162804	4	12162800		Toz sürtünme azaltıcı katkı
+12162805	4	12162800		Hidrolik çatlatma sürtünme azaltıcısı
+12162806	4	12162800		Boru hattı akış iyileştirici sürtünme azaltıcı
+12163101	4	12163100		Asitlendirme çamur önleyici katkısı
+12163102	4	12163100		Ham petrol çamur önleyici kimyasal
+12163103	4	12163100		Fuel oil çamur önleyici katkı
+12163104	4	12163100		Organik çamur önleyici inhibitör
+12163105	4	12163100		Asfaltit çökmesini önleyici katkı
+12163201	4	12163200		Çimento gaz göçü önleyici katkı
+12163202	4	12163200		Lateks bazlı gaz göçü önleyici
+12163203	4	12163200		Polimerik gaz göçü kontrol ajanı
+12163204	4	12163200		Kuyu çimentolama gaz blokaj katkısı
+12163601	4	12163600		Asit korozyon inhibitörü
+12163602	4	12163600		Su hattı korozyon inhibitörü
+12163603	4	12163600		Gaz hattı korozyon inhibitörü
+12163604	4	12163600		Yağ bazlı korozyon inhibitörü
+12163605	4	12163600		Beton korozyon inhibitör katkısı
+12163606	4	12163600		Buhar kazanı korozyon önleyici
+12163607	4	12163600		Amine bazlı korozyon inhibitörü
+12163608	4	12163600		Bakır ve pirinç korozyon önleyici
+12164101	4	12164100		Yerinde toprak stabilizasyon kimyasalı
+12164102	4	12164100		Yerinde biyoremediasyon besini
+12164103	4	12164100		Yerinde oksidasyon kimyasalı
+12164104	4	12164100		Yerinde yanma katalizörü
+12164301	4	12164300		Sitrik asit demir önleyici
+12164302	4	12164300		Asit stimülasyonu demir kontrol ajanı
+12164303	4	12164300		Demir şelatlama ajanı
+12164304	4	12164300		Sodyum eritorbat demir önleyici
+12164305	4	12164300		EDTA demir kontrol kimyasalı
+12164306	4	12164300		NTA demir stabilizatörü
+12164307	4	12164300		Asit kuyusu demir çöktürme önleyici
+12164308	4	12164300		Demir indirgeyici kimyasal katkı
+12164309	4	12164300		Sülfamik asit demir kontrol katkısı
+12164401	4	12164400		Petrol tipi emülsiyon kırıcı
+12164402	4	12164400		Asit emülsiyon önleyici
+12164403	4	12164400		Anyonik de-emülsifiyer
+12164404	4	12164400		Katyonik emülsiyon bozucu
+12164405	4	12164400		Silikon bazlı de-emülsifiyer
+12164406	4	12164400		Atık su yağ ayırıcı kimyasal
+12164407	4	12164400		Alkil fenol reçine emülsiyon kırıcı
+12164408	4	12164400		Polieter bazlı de-emülsifiyer
+12164409	4	12164400		Sondaj çamuru emülsiyon önleyici
+12164501	4	12164500		Gıda tipi sodyum benzoat
+12164502	4	12164500		Potasyum sorbat koruyucu
+12164503	4	12164500		Gıda tipi sitrik asit anhidrat
+12164504	4	12164500		Kalsiyum propiyonat katkısı
+12164505	4	12164500		Monosodyum glutamat
+12164506	4	12164500		Gıda tipi askorbik asit
+12164507	4	12164500		Farmasötik sınıf magnezyum stearat
+12164508	4	12164500		Gıda tipi ksantan gam
+12164509	4	12164500		Farmasötik sınıf gliserin
+12164901	4	12164900		Kristalize beton su yalıtım katkısı
+12164902	4	12164900		Sıvı harç su geçirmezlik katkısı
+12164903	4	12164900		Toz harç su yalıtım kimyasalı
+12164904	4	12164900		Beton priz hızlandırıcı su geçirimsizlik katkısı
+12164905	4	12164900		Akrilik esaslı su yalıtım emülsiyonu
+12164906	4	12164900		Silikon esaslı su itici katkı
+12164907	4	12164900		Puzolanik beton su yalıtım ajanı
+12164908	4	12164900		Şap içi su yalıtım kimyasalı
+12164909	4	12164900		Enjeksiyon tipi su yalıtım jeli
+12165101	4	12165100		Polimer sel taşkını kimyasalı
+12165102	4	12165100		Petrol geri kazanım sürfaktanı
+12165103	4	12165100		Viskozite artırıcı poliakrilamid
+12165104	4	12165100		Karbondioksit sel taşkını köpük ajanı
+12165105	4	12165100		Alkali sürfaktant polimer katkısı
+12165106	4	12165100		Kuyu içi süpürme verimi artırıcı
+12165107	4	12165100		Petrol hareketlilik kontrol polimeri
+12165108	4	12165100		Sıcaklık dayanımlı kuyu jeli
+12165109	4	12165100		Rezervuar ıslanabilirlik değiştirici kimyasal
+12171501	4	12171500		Epoksi zemin boyası
+12171502	4	12171500		Endüstriyel rapid boya
+12171503	4	12171500		Selülozik tinerli boya
+12171504	4	12171500		Akrilik oto boyası
+12171505	4	12171500		Su bazlı dış cephe boyası
+12171506	4	12171500		Yol çizgi boyası
+12171507	4	12171500		Isıya dayanıklı fırın boyası
+12171508	4	12171500		Antipas astar boya
+12171509	4	12171500		Poliüretan metal boyası
+12171601	4	12171600		Titanyum dioksit pigmenti
+12171602	4	12171600		Demir oksit boya pigmenti
+12171603	4	12171600		Karbon siyahı pigmenti
+12171604	4	12171600		Ultramarin mavi pigment
+12171605	4	12171600		Krom yeşili pigment
+12171606	4	12171600		Ftalosiyanin mavisi pigment
+12171607	4	12171600		Sedefli sedef pigment
+12171608	4	12171600		Organik toz pigment
+12171609	4	12171600		İnorganik toz pigment
+12171701	4	12171700		Sıvı renk masterbatch
+12171702	4	12171700		Granül renk masterbatch
+12171703	4	12171700		Siyah masterbatch
+12171704	4	12171700		Beyaz masterbatch
+12171705	4	12171700		Katkı masterbatch
+12171706	4	12171700		Sıvı pigment dispersiyonu
+12171707	4	12171700		Su bazlı pigment pastası
+12171708	4	12171700		Solvent bazlı pigment pastası
+12171709	4	12171700		Plastisol renk pastası
+12181501	4	12181500		Parafin mumu
+12181502	4	12181500		Mikrokristalin mum
+12181503	4	12181500		Soya mumu
+12181504	4	12181500		Karnauba mumu
+12181505	4	12181500		Polietilen mum
+12181506	4	12181500		Arı mumu
+12181507	4	12181500		Kalıp ayırıcı mum
+12181508	4	12181500		Sıcak eriyik mum
+12181509	4	12181500		Endüstriyel jel mum
+12181601	4	12181600		Kalıp ayırıcı yağ
+12181602	4	12181600		Kızak yağı
+12181603	4	12181600		Isı transfer yağı
+12181604	4	12181600		Trafo yağı
+12181605	4	12181600		Kompresör yağı
+12181606	4	12181600		Pnömatik sistem yağı
+12181607	4	12181600		Bor yağı
+12181608	4	12181600		Kesme yağı
+12181609	4	12181600		Şanzıman yağı
+12191501	4	12191500		Tiner selülozik
+12191502	4	12191500		Tiner sentetik
+12191503	4	12191500		Endüstriyel tiner
+12191504	4	12191500		Hekzan çözücü
+12191505	4	12191500		Heptan çözücü
+12191506	4	12191500		Toluen çözücü
+12191507	4	12191500		Ksilen çözücü
+12191508	4	12191500		White spirit çözücü
+12191509	4	12191500		Solvent nafta
+12352001	4	12352000		Siklohekzan
+12352002	4	12352000		Stiren monomer
+12352003	4	12352000		Fenol
+12352004	4	12352000		Aseton
+12352005	4	12352000		Metil etil keton
+12352006	4	12352000		İzopropil alkol
+12352007	4	12352000		Etil asetat
+12352008	4	12352000		Bütil glikol
+12352009	4	12352000		Monopropilen glikol
+12352101	4	12352100		Endüstriyel etil alkol
+12352102	4	12352100		İzopropil alkol
+12352103	4	12352100		Teknik aseton
+12352104	4	12352100		Rafine gliserin
+12352105	4	12352100		Monoetilen glikol
+12352106	4	12352100		Propilen glikol
+12352107	4	12352100		Endüstriyel toluen
+12352108	4	12352100		Endüstriyel ksilen
+12352109	4	12352100		Metil etil keton
+12352201	4	12352200		Endüstriyel enzim
+12352202	4	12352200		Sıvı sodyum glukonat
+12352203	4	12352200		Sitrik asit monohidrat
+12352204	4	12352200		Laktik asit
+12352205	4	12352200		Ksantan sakızı
+12352206	4	12352200		Sodyum aljinat
+12352207	4	12352200		Aktif maya
+12352208	4	12352200		Endüstriyel nişasta
+12352209	4	12352200		Gıda tipi jelatin
+12352301	4	12352300		Payet kostik
+12352302	4	12352300		Sıvı boncuk kostik
+12352303	4	12352300		Teknik hidroklorik asit
+12352304	4	12352300		Endüstriyel sülfürik asit
+12352305	4	12352300		Sıvı nitrik asit
+12352306	4	12352300		Sodyum bikarbonat
+12352307	4	12352300		Alüminyum sülfat
+12352308	4	12352300		Sıvı demir 3 klorür
+12352401	4	12352400		Selülozik tiner
+12352402	4	12352400		Sentetik tiner
+12352403	4	12352400		Endüstriyel antifriz
+12352404	4	12352400		Kalıp ayırıcı solvent karışımı
+12352405	4	12352400		Metal temizleme solventi
+12352406	4	12352400		Kireç çözücü asit karışımı
+12352407	4	12352400		Yüzey hazırlama solventi
+12352408	4	12352400		Poliüretan tiner
+12352409	4	12352400		Epoksi tiner
+12352501	4	12352500		Tekstil boya fiksatörü
+12352502	4	12352500		Koku sabitleyici fiksatif
+12352503	4	12352500		Deri boyası sabitleyici
+12352504	4	12352500		Endüstriyel pH sabitleyici
+12352505	4	12352500		Baskı boyası sabitleyici
+12352506	4	12352500		Polimerik fiksatif
+12352507	4	12352500		Formaldehit içermeyen fiksatif
+12352508	4	12352500		Renk sabitleyici kimyasal
+12352509	4	12352500		Emülsiyon sabitleyici
+13101501	4	13101500		Doğal kauçuk levha
+13101502	4	13101500		Doğal kauçuk rulo
+13101503	4	13101500		Sıvı doğal lateks
+13101504	4	13101500		Krepe doğal kauçuk
+13101505	4	13101500		Para kauçuk levha
+13101506	4	13101500		Doğal kauçuk takoz
+13101507	4	13101500		Granül doğal kauçuk
+13101508	4	13101500		Doğal kauçuk şerit
+13101509	4	13101500		Fitil doğal kauçuk
+13101601	4	13101600		Nitril kauçuk levha
+13101602	4	13101600		Neopren kauçuk levha
+13101603	4	13101600		Silikon kauçuk levha
+13101604	4	13101600		EPDM kauçuk şerit
+13101605	4	13101600		Florokarbon kauçuk conta
+13101606	4	13101600		SBR kauçuk rulo
+13101607	4	13101600		Poliüretan kauçuk takoz
+13101608	4	13101600		Tabii kauçuk levha
+13101609	4	13101600		Köpük kauçuk izolasyon bandı
+13101701	4	13101700		Termoplastik elastomer levha
+13101702	4	13101700		Sıvı silikon elastomer
+13101703	4	13101700		Poliüretan elastomer mil
+13101704	4	13101700		Akrilik elastomer conta
+13101705	4	13101700		Floroelastomer o-ring şeridi
+13101706	4	13101700		Klor sülfonatlı polietilen levha
+13101707	4	13101700		Termoplastik poliüretan film
+13101708	4	13101700		Poliester elastomer profil
+13101709	4	13101700		Kopolimer elastomer takoz
+13101901	4	13101900		Bakalit levha
+13101902	4	13101900		Epoksi fiberglas plaka
+13101903	4	13101900		Melamin reçineli levha
+13101904	4	13101900		Poliüretan döküm takoz
+13101905	4	13101900		Doymamış polyester levha
+13101906	4	13101900		Fenolik reçineli kağıt levha
+13101907	4	13101900		Silikon reçineli cam elyaf plaka
+13101908	4	13101900		Üre formaldehit kalıp tozu
+13101909	4	13101900		Poliimid film şerit
+13102001	4	13102000		Polietilen levha
+13102002	4	13102000		Poliamid döküm takoz
+13102003	4	13102000		Poliasetal levha
+13102004	4	13102000		Polikarbonat şeffaf levha
+13102005	4	13102000		Polipropilen plaka
+13102006	4	13102000		Polivinil klorür levha
+13102007	4	13102000		Akrilonitril bütadien stiren levha
+13102008	4	13102000		Politetraflorotilen blok
+13102009	4	13102000		Akrilik pleksiglas levha
+13111001	4	13111000		Epoksi döküm reçinesi
+13111002	4	13111000		Doymamış polyester reçinesi
+13111003	4	13111000		Vinilester kimyasal reçine
+13111004	4	13111000		Poliüretan enjeksiyon reçinesi
+13111005	4	13111000		Akrilik döküm reçinesi
+13111006	4	13111000		Alkild bağlayıcı reçine
+13111007	4	13111000		Fenolik laminasyon reçinesi
+13111008	4	13111000		Melamin kaplama reçinesi
+13111009	4	13111000		Silikon emprenye reçinesi
+13111101	4	13111100		Çam reçinesi
+13111102	4	13111100		Damla sakızı reçinesi
+13111103	4	13111100		Shellac gomalak reçine
+13111104	4	13111100		Kopal doğal reçine
+13111105	4	13111100		Amber kehribar reçinesi
+13111106	4	13111100		Mür mürsafi reçinesi
+13111107	4	13111100		Günlük sığla reçinesi
+13111108	4	13111100		Sandaros reçinesi
+13111109	4	13111100		Doğal çam terebentin reçinesi
+13111301	4	13111300		Poliüretan montaj köpüğü
+13111302	4	13111300		Yangına dayanıklı köpük
+13111303	4	13111300		Akustik ses yalıtım köpüğü
+13111304	4	13111300		Polietilen levha köpük
+13111305	4	13111300		XPS ısı yalıtım levhası
+13111306	4	13111300		EPS strafor köpük
+13111307	4	13111300		Tabancalı poliüretan köpük
+13111308	4	13111300		Kendinden yapışkanlı sünger şerit
+13111309	4	13111300		Elastomerik kauçuk köpüğü boru
+22101601	4	22101600		Asfalt silindiri
+22101602	4	22101600		Asfalt finişeri
+22101603	4	22101600		Asfalt distribütörü
+22101604	4	22101600		Asfalt kazıma makinesi
+22101605	4	22101600		El tipi asfalt kompaktörü
+22101606	4	22101600		Asfalt yama silindiri
+22101607	4	22101600		Asfalt kesme makinesi bıçağı
+22101701	4	22101700		Ekskavatör kovası
+22101702	4	22101700		İş makinesi hidrolik silindiri
+22101703	4	22101700		Palet zinciri ve palet pabucu
+22101704	4	22101700		İş makinesi ataşman hızlı değiştirici
+22101705	4	22101700		Kırıcı delici uç
+22101706	4	22101700		İş makinesi kabin camı
+22101707	4	22101700		Ağır vasıta şanzıman dişlisi
+22101708	4	22101700		İş makinesi radyatörü
+22101709	4	22101700		Kepçe tırnağı ve adaptörü
+22101801	4	22101800		Makaslı personel yükseltici platform
+22101802	4	22101800		Eklemli sepetli platform
+22101803	4	22101800		Teleskobik bomlu platform
+22101804	4	22101800		Araç üstü sepetli platform
+22101805	4	22101800		Örümcek platform
+22101806	4	22101800		Dikey personel yükseltici
+22101807	4	22101800		Çekilebilir makaslı platform
+22101808	4	22101800		Paletli personel yükseltici
+22101809	4	22101800		Akülü makaslı platform
+22101902	4	22101900		İnşaat asansörü gırgır
+22101903	4	22101900		Harç karma makinesi
+22101904	4	22101900		Beton vibratörü hortumu ve şişesi
+22101905	4	22101900		Demir bükme makinesi
+22101906	4	22101900		Demir kesme makinesi
+22101907	4	22101900		Tuğla ve briket makinesi
+22101908	4	22101900		Şap dökme makinesi
+22102001	4	22102000		Hidrolik beton kırıcı ataşman
+22102002	4	22102000		Beton kesme testeresi
+22102003	4	22102000		Hidrolik beton ezici pulverizatör
+22102004	4	22102000		Yıkım makası ataşmanı
+22102005	4	22102000		Karot delme makinesi
+22102006	4	22102000		Elektrohidrolik kaya kırıcı
+22102007	4	22102000		Yıkım robotu uzaktan kumandalı
+22102008	4	22102000		Moloz atma kulesi şutu
+22102009	4	22102000		Beton çatlatma silindiri
+22991506	4	22991500		Betoniyer harç karma makinesi
+22991507	4	22991500		Beton kovası
+22991508	4	22991500		Beton test presi
+22991509	4	22991500		Beton perdah tepsisi
+22991605	4	22991600		Mini damper
+22991606	4	22991600		Paletli mini yükleyici
+22991607	4	22991600		Belden kırmalı mini yükleyici
+22991608	4	22991600		Ataşmanlı mini ekskavatör
+22991609	4	22991600		Kompakt silindir
+22991705	4	22991700		Sepetli platform
+22991706	4	22991700		Araç üstü katlanır bomlu vinç
+22991707	4	22991700		Portal vinç
+22991708	4	22991700		Pergel vinç
+22991709	4	22991700		Yük asansörü
+23101502	4	23101500		Ahşap torna tezgahı
+23101503	4	23101500		Taş kesme makinesi
+23101504	4	23101500		Seramik kesme tezgahı
+23101505	4	23101500		Kenar bantlama makinesi
+23101506	4	23101500		Çizgili yatar daire testere
+23101507	4	23101500		Ahşap kalınlık makinesi
+23101508	4	23101500		Mermer parlatma makinesi
+23121502	4	23121500		İplik büküm makinesi
+23121503	4	23121500		Kumaş boyama kazanı
+23121504	4	23121500		Örme makinesi
+23121505	4	23121500		Dokuma tezgahı
+23121506	4	23121500		Kumaş sarma makinesi
+23121507	4	23121500		Tekstil ram makinesi
+23121508	4	23121500		İplik sarma makinesi
+23121509	4	23121500		Kumaş kesim masası
+23121601	4	23121600		Overlok makinesi
+23121602	4	23121600		Reçme makinesi
+23121603	4	23121600		Dikiş makinesi motoru
+23121604	4	23121600		Kumaş serim makinesi
+23121605	4	23121600		Dikiş makinesi çağanozu
+23121606	4	23121600		Tela yapıştırma presi
+23121607	4	23121600		Dikiş iğnesi
+23121608	4	23121600		Kumaş kesim motoru
+23131502	4	23131500		Elmas parlatma pedi
+23131504	4	23131500		Zımpara diski
+23131505	4	23131500		Keçe cila diski
+23131506	4	23131500		Taş parlatma tozu
+23131507	4	23131500		Sulu taş zımpara makinesi
+23131508	4	23131500		Patinato fırçası
+23131509	4	23131500		Tamburlu parlatma makinesi
+23131601	4	23131600		Faseta kesim makinesi
+23131602	4	23131600		Faseta dopu
+23131603	4	23131600		Açı ayarlı faseta kafası
+23131604	4	23131600		Faseta transfer bloğu
+23131605	4	23131600		Dop mumu
+23131606	4	23131600		Hassas indeks çarkı
+23131607	4	23131600		Faseta elmas diski
+23131608	4	23131600		Taş yapıştırma aparatı
+23131609	4	23131600		Hizalama mastarı
+23131701	4	23131700		Kabaşon kesim makinesi
+23131702	4	23131700		Kabaşon şablonu
+23131703	4	23131700		Kabaşon dop çubuğu
+23131704	4	23131700		Karbon zımpara şeridi
+23131705	4	23131700		Kabaşon şekillendirme diski
+23131706	4	23131700		Su devirdaim pompası
+23131707	4	23131700		Kabaşon parlatma keçesi
+23131708	4	23131700		Trimmer taş kesme testeresi
+23131709	4	23131700		Kabaşon kumpası
+23141602	4	23141600		Deri yarma makinesi
+23141603	4	23141600		Deri tıraşlama makinesi
+23141604	4	23141600		Deri inceltme bıçağı
+23141605	4	23141600		Deri gerdirme tezgahı
+23141606	4	23141600		Deri yumuşatma tamburu
+23141607	4	23141600		Deri kurutma askısı
+23141608	4	23141600		Deri ütüleme presi
+23141701	4	23141700		Deri dikiş makinesi
+23141702	4	23141700		Deri kenar boyama makinesi
+23141703	4	23141700		Deri perçin çakma presi
+23141704	4	23141700		Deri desen baskı kalıbı
+23141705	4	23141700		Deri kenar parlatma makinesi
+23141706	4	23141700		Deri kesim presi
+23141707	4	23141700		Deri delme zımbası
+23141708	4	23141700		Deri şerit kesme makinesi
+23141709	4	23141700		Deri dikim biz aparatı
+23151501	4	23151500		Plastik enjeksiyon makinesi
+23151502	4	23151500		Plastik ekstrüzyon hattı
+23151503	4	23151500		Plastik kırma makinesi
+23151504	4	23151500		Kauçuk vulkanizasyon presi
+23151505	4	23151500		Plastik şişirme kalıbı
+23151506	4	23151500		Kauçuk hamur karıştırıcı
+23151507	4	23151500		Plastik hammadde kurutucusu
+23151508	4	23151500		Termoform şekillendirme makinesi
+23151509	4	23151500		Kauçuk ekstruder kafası
+23151601	4	23151600		Seramik çamur karıştırma mikseri
+23151602	4	23151600		Çimento döner fırın halkası
+23151603	4	23151600		Cam ergitme potası
+23151604	4	23151600		Seramik karo pres kalıbı
+23151605	4	23151600		Cam kesme masası
+23151606	4	23151600		Çimento bilyalı değirmen astarı
+23151607	4	23151600		Tuğla ve kiremit pres makinesi
+23151608	4	23151600		Cam temperleme hattı rezistansı
+23151609	4	23151600		Seramik sır püskürtme tabancası
+23151701	4	23151700		Optik cam parlatma makinesi
+23151702	4	23151700		Mercek kaplama vakum cihazı
+23151703	4	23151700		Optik lens kesme makinesi
+23151704	4	23151700		Gözlük camı kanal açma makinesi
+23151705	4	23151700		Optik merkezleme cihazı
+23151706	4	23151700		Lens kalıplama presi
+23151707	4	23151700		Optik yüzey pürüzlülük ölçer
+23151708	4	23151700		Mercek rodaj makinesi
+23151709	4	23151700		Optik kalibrasyon diski
+23151801	4	23151800		İlaç tableti basma kalıbı
+23151802	4	23151800		Blister ambalaj şekillendirme kalıbı
+23151803	4	23151800		Toz dolum ve kapsülleme makinesi
+23151804	4	23151800		İlaç karıştırma reaktörü
+23151805	4	23151800		Ampul ve flakon yıkama makinesi
+23151806	4	23151800		Liyofilizasyon dondurarak kurutma tepsisi
+23151807	4	23151800		Granülasyon eleği
+23151901	4	23151900		Kağıt hamuru elek plakası
+23151902	4	23151900		Bobin dilme bıçağı
+23151903	4	23151900		Kağıt kurutma silindiri keçesi
+23151904	4	23151900		Karton kutu katlama yapıştırma makinesi
+23151905	4	23151900		Kağıt kalender silindiri
+23151906	4	23151900		Yivli mukavva vals topu
+23151907	4	23151900		Kağıt hamuru arıtma diski
+23151908	4	23151900		Karton masura sarma makinesi
+23151909	4	23151900		Kağıt giyotin bıçağı
+23152001	4	23152000		Bobin sarma mili
+23152002	4	23152000		Pnömatik şaft başlığı
+23152003	4	23152000		Bobin kenar kontrol sensörü
+23152004	4	23152000		Manyetik tozlu fren ünitesi
+23152005	4	23152000		Bobin dilme dairesel bıçağı
+23152006	4	23152000		Gerginlik kontrol kartı
+23152007	4	23152000		Bobin aktarma arabası
+23152008	4	23152000		Havalı şaft sibobu
+23152009	4	23152000		Bobin çözücü fren balatası
+23152101	4	23152100		Manyetik bantlı metal ayırıcı
+23152102	4	23152100		Vibrasyonlu elek teli
+23152103	4	23152100		Santrifüj dekanter tamburu
+23152104	4	23152100		Siklon toz ayırıcı filtre
+23152105	4	23152100		Optik ayıklama makinesi kamerası
+23152106	4	23152100		Elektrostatik toz ayırıcı
+23152107	4	23152100		Yoğunluk farkı bazlı ayırma masası
+23152108	4	23152100		Helezonlu susuzlaştırma presi
+23152109	4	23152100		Hava sınıflandırıcılı değirmen rotoru
+23152201	4	23152200		Kaynak masası
+23152202	4	23152200		Montaj sehpası
+23152203	4	23152200		Döner kaynak fikstür masası
+23152204	4	23152200		Modüler kaynak tezgahı
+23152205	4	23152200		Yükseklik ayarlı çalışma masası
+23152206	4	23152200		Ağır hizmet tipi atölye tezgahı
+23152207	4	23152200		T kanallı döküm tabla
+23152208	4	23152200		Pnömatik kaldırma sehpası
+23152209	4	23152200		Ergonomik montaj masası
+23152902	4	23152900		Vakum paketleme makinesi
+23152903	4	23152900		Koli bantlama makinesi
+23152904	4	23152900		Shrink ambalaj makinesi
+23152905	4	23152900		Çemberleme makinesi
+23152906	4	23152900		Palet streçleme makinesi
+23152907	4	23152900		Dikey dolum ve paketleme makinesi
+23152908	4	23152900		Etiketleme makinesi
+23152909	4	23152900		Isı büzüşmeli ambalaj tüneli
+23153001	4	23153000		Pnömatik parça tutucu
+23153002	4	23153000		Vakumlu taşıma vantuzu
+23153003	4	23153000		Döner indeksleme tablası
+23153004	4	23153000		Manyetik parça kaldırıcı
+23153005	4	23153000		Hassas konumlandırma tablası
+23153006	4	23153000		Parça yönlendirme vibratörü
+23153007	4	23153000		Doğrusal modül kızak sistemi
+23153008	4	23153000		Mekanik kıskaç griper
+23153009	4	23153000		Hizalama ve merkezleme aparatı
+23153101	4	23153100		Endüstriyel yağlama pompası
+23153102	4	23153100		Hava kurutucu filtre
+23153103	4	23153100		Pnömatik susturucu
+23153104	4	23153100		Makine koruma kabini
+23153105	4	23153100		Talaş konveyörü
+23153106	4	23153100		Endüstriyel vibrasyon takozu
+23153107	4	23153100		Manyetik talaş ayırıcı
+23153108	4	23153100		Makine aydınlatma lambası
+23153201	4	23153200		Endüstriyel robot kolu
+23153202	4	23153200		Kolaboratif robot cobot
+23153203	4	23153200		Kartezyen robot sistemi
+23153204	4	23153200		Robotik kaynak torcu
+23153205	4	23153200		Robotik griper tutucu
+23153206	4	23153200		Robot yedek parça paketi
+23153207	4	23153200		Robotik çapak alma ünitesi
+23153208	4	23153200		AGV otonom yönlendirmeli araç
+23153209	4	23153200		Robot kontrol ünitesi kabini
+23153401	4	23153400		Otomatik vida besleme makinesi
+23153402	4	23153400		Pnömatik pres makinesi
+23153403	4	23153400		Hidrolik montaj presi
+23153404	4	23153400		Sıkma ve torklama istasyonu
+23153405	4	23153400		Perçin çakma makinesi
+23153406	4	23153400		Sıcak geçme montaj cihazı
+23153407	4	23153400		Otomatik pim çakma makinesi
+23153408	4	23153400		Döner tablalı montaj makinesi
+23153409	4	23153400		Ultrasonik kaynak montaj makinesi
+23153501	4	23153500		Elektrostatik toz boya tabancası
+23153502	4	23153500		Yaş boya püskürtme tabancası
+23153503	4	23153500		Boya kurutma fırını
+23153504	4	23153500		Boya kabini filtresi
+23153505	4	23153500		Boya mikseri ve karıştırıcı
+23153506	4	23153500		Boya pompası ve basınç kabı
+23153507	4	23153500		Otomatik boyama robotu
+23153508	4	23153500		Boya hortumu ve bağlantı rekoru
+23153509	4	23153500		Elektrostatik boya jeneratörü
+23153601	4	23153600		Lazer markalama makinesi
+23153602	4	23153600		Mürekkep püskürtmeli inkjet kodlama makinesi
+23153603	4	23153600		Elektrokimyasal metal markalama cihazı
+23153604	4	23153600		Pnömatik kazıma makinesi
+23153606	4	23153600		Sıcak baskı ve yaldız makinesi
+23153607	4	23153600		Rulo metal damgalama makinesi
+23153608	4	23153600		El tipi lazer markalama cihazı
+23153609	4	23153600		Karakter şablonu ve çelik zımba seti
+23153701	4	23153700		Dijital tork anahtarı
+23153702	4	23153700		Pnömatik tork artırıcı
+23153703	4	23153700		Hidrolik tork anahtarı
+23153704	4	23153700		Hassas makine mengenesi
+23153705	4	23153700		Elektrikli tork tornavidası
+23153706	4	23153700		Tork kalibrasyon cihazı
+23153707	4	23153700		Hassas sıfırlama aparatı
+23153708	4	23153700		Pnömatik sıkıcı ve gevşetici
+23153709	4	23153700		Tork kontrollü vidalama ünitesi
+23153801	4	23153800		Toz kaplama kabini
+23153802	4	23153800		Kumlama ve yüzey hazırlama kabini
+23153803	4	23153800		Kataforez kaplama banyosu
+23153804	4	23153800		Galvaniz kaplama kazanı
+23153805	4	23153800		PVD kaplama makinesi
+23153806	4	23153800		Teflon kaplama fırını
+23153807	4	23153800		Plazma sprey kaplama sistemi
+23153808	4	23153800		Kimyasal kaplama tankı
+23153809	4	23153800		Termal sprey kaplama tabancası
+23161502	4	23161500		Yüksek basınçlı metal döküm makinesi
+23161503	4	23161500		Kokil döküm tezgahı
+23161504	4	23161500		Sürekli döküm makinesi
+23161505	4	23161500		Santrifüj döküm makinesi
+23161506	4	23161500		Döküm potası ve taşıma arabası
+23161507	4	23161500		Maça yapma makinesi
+23161508	4	23161500		Derecesiz kalıplama hattı
+23161509	4	23161500		Döküm kumu hazırlama mikseri
+23161601	4	23161600		Döküm kumu ve bentonit
+23161602	4	23161600		Grafit döküm potası
+23161603	4	23161600		Refrakter döküm harcı
+23161604	4	23161600		Döküm ayırıcı sprey
+23161605	4	23161600		Eriyik metal filtresi
+23161606	4	23161600		Maça yapıştırıcısı
+23161607	4	23161600		Döküm boyası ve kaplaması
+23161608	4	23161600		Aşılayıcı ve cüruf önleyici
+23161609	4	23161600		Termokupl koruyucu kılıfı
+23161701	4	23161700		Kokil döküm kalıbı
+23161702	4	23161700		Enjeksiyon döküm kalıbı
+23161703	4	23161700		Kum döküm derece modelleri
+23161704	4	23161700		Sürekli döküm kalıbı
+23161705	4	23161700		Hassas döküm mumu
+23161706	4	23161700		Döküm potası
+23161707	4	23161700		Maça sandığı
+23161708	4	23161700		Döküm yolluk sistemi elemanları
+23161709	4	23161700		Savurma döküm kalıbı
+23181503	4	23181500		Endüstriyel hamur yoğurma makinesi
+23181504	4	23181500		Endüstriyel sebze yıkama makinesi
+23181602	4	23181600		Endüstriyel et kıyma makinesi
+23181603	4	23181600		Şerit testereli kemik kesme makinesi
+23181604	4	23181600		Endüstriyel sebze dilimleme makinesi
+23181605	4	23181600		Döner kesme diski
+23181606	4	23181600		Gıda dilimleme bıçağı
+23181607	4	23181600		Ekmek dilimleme makinesi
+23181608	4	23181600		Tavuk parçalama makinesi
+23181609	4	23181600		Gıda ufalama makinesi
+23181701	4	23181700		Endüstriyel konveksiyonlu fırın
+23181702	4	23181700		Döner arabalı ekmek fırını
+23181703	4	23181700		Endüstriyel tütsüleme kabini
+23181704	4	23181700		Buharlı pişirme kazanı
+23181705	4	23181700		Endüstriyel fritöz
+23181706	4	23181700		Sürekli bantlı pişirme fırını
+23181707	4	23181700		Endüstriyel mikrodalga pişirici
+23181708	4	23181700		Gıda kurutma fırını
+23181709	4	23181700		Vakumlu pişirme kazanı
+23181801	4	23181800		Meyve suyu ekstraktörü
+23181802	4	23181800		Süt seperatörü
+23181803	4	23181800		Bira mayalama tankı
+23181804	4	23181800		Karbonizasyon ünitesi
+23181805	4	23181800		Şurup hazırlama tankı
+23181806	4	23181800		Endüstriyel çay demleme makinesi
+23181807	4	23181800		Kahve kavurma makinesi
+23181808	4	23181800		Meyve presi
+23181809	4	23181800		Homojenizatör
+23191002	4	23191000		Ribbon blender toz karıştırıcı
+23191003	4	23191000		V tipi toz karıştırıcı
+23191004	4	23191000		Çift konik mikser
+23191005	4	23191000		Planet mikser
+23191006	4	23191000		Yüksek devirli yaş karıştırıcı
+23191007	4	23191000		Laboratuvar tipi batch mikser
+23191008	4	23191000		Dikey helezonlu karıştırıcı
+23191009	4	23191000		Pnömatik toz karıştırıcı
+23191102	4	23191100		Çift vidalı sürekli karıştırıcılar
+23191103	4	23191100		Sürekli mikser karıştırma kolları
+23191104	4	23191100		Sürekli mikser karıştırma bıçakları
+23191105	4	23191100		Sürekli mikser dozajlama üniteleri
+23191106	4	23191100		Sürekli mikser tahrik motorları
+23191107	4	23191100		Sürekli mikser aşınma plakaları
+23191108	4	23191100		Sürekli mikser sızdırmazlık elemanları
+23201001	4	23201000		Gaz yıkama kuleleri
+23201002	4	23201000		Absorpsiyon kolonları
+23201003	4	23201000		Destilasyon kolon dolgu malzemeleri
+23201004	4	23201000		Sıvı dağıtıcı nozullar
+23201005	4	23201000		Gaz dağıtıcı plakalar
+23201006	4	23201000		Demister damla tutucular
+23201007	4	23201000		Kabarcıklı kolon reaktörleri
+23201008	4	23201000		Sprey kuleleri
+23201009	4	23201000		Plakalı gaz sıvı temas kolonları
+23201205	4	23201200		Döner tamburlu kurutucular
+23201206	4	23201200		Vakumlu kurutma fırınları
+23201207	4	23201200		Tepsili endüstriyel kurutucular
+23201208	4	23201200		Bantlı kurutma tünelleri
+23201209	4	23201200		Kurutma fırını rezistansları
+23221002	4	23221000		Kasa yıkama makineleri
+23221003	4	23221000		Canlı tavuk taşıma konveyörleri
+23221004	4	23221000		Kasa istifleme makineleri
+23221005	4	23221000		Kasa ayırma üniteleri
+23221006	4	23221000		Tavuk askılama konveyörleri
+23221007	4	23221000		Canlı tavuk tartım sistemleri
+23221008	4	23221000		Kasa taşıma arabaları
+23221101	4	23221100		Tavuk şoklama cihazları
+23221102	4	23221100		Otomatik kesim bıçakları
+23221103	4	23221100		Kan akıtma olukları
+23221104	4	23221100		Haşlama kazanları
+23221105	4	23221100		Tüy yolma makineleri
+23221106	4	23221100		Tüy yolma parmakları
+23221107	4	23221100		Kafa koparma makineleri
+23221108	4	23221100		Kursak temizleme üniteleri
+23221109	4	23221100		Ayak kesme makineleri
+23231002	4	23231000		Rotorlu tomruk kabuk soyma makineleri
+23231003	4	23231000		Tamburlu tomruk kabuk soyucuları
+23231004	4	23231000		Kabuk soyma bıçakları
+23231005	4	23231000		Kabuk soyma rotoru dişleri
+23231006	4	23231000		Tomruk merkezleme üniteleri
+23231007	4	23231000		Tomruk besleme konveyörleri
+23231008	4	23231000		Kabuk tahliye konveyörleri
+23241402	4	23241400		Silindirik taşlama makinesi
+23241403	4	23241400		Düzlem yüzey taşlama makinesi
+23241404	4	23241400		Punta taşlama makinesi
+23241405	4	23241400		Puntasız taşlama makinesi
+23241406	4	23241400		Alet bileme makinesi
+23241407	4	23241400		Krank mili taşlama makinesi
+23241408	4	23241400		İç çap taşlama makinesi
+23241409	4	23241400		CNC taşlama tezgahı
+23241501	4	23241500		Şerit testere tezgahı
+23241502	4	23241500		Daire testere tezgahı
+23241503	4	23241500		Profil kesme makinesi
+23241504	4	23241500		Lazer kesim tezgahı
+23241505	4	23241500		Plazma kesim tezgahı
+23241506	4	23241500		Su jeti kesim makinesi
+23241507	4	23241500		Giyotin makas tezgahı
+23241508	4	23241500		Tel erozyon tezgahı
+23241509	4	23241500		CNC boru kesme makinesi
+23241601	4	23241600		Torna kalemi
+23241602	4	23241600		Karbür parmak freze
+23241603	4	23241600		Matkap ucu seti
+23241604	4	23241600		Pafta lokması
+23241605	4	23241600		Rayba ucu
+23241606	4	23241600		Daire testere bıçağı
+23241607	4	23241600		Şerit testere bıçağı
+23241608	4	23241600		U matkap gövdesi
+23241701	4	23241700		Titreşimli çapak alma makinesi
+23241702	4	23241700		Santrifüj çapak alma makinesi
+23241703	4	23241700		Bant zımparalı çapak alma makinesi
+23241704	4	23241700		Fırçalı çapak alma makinesi
+23241705	4	23241700		Termal çapak alma makinesi
+23241706	4	23241700		Kimyasal çapak alma makinesi
+23241707	4	23241700		Yüzey parlatma tamburu
+23241708	4	23241700		CNC çapak alma tezgahı
+23241709	4	23241700		Pnomatik çapak alma el aleti
+23241801	4	23241800		Sütunlu matkap tezgahı
+23241802	4	23241800		Radyal matkap tezgahı
+23241803	4	23241800		Manyetik matkap makinesi
+23241804	4	23241800		Masaüstü matkap tezgahı
+23241805	4	23241800		Çok milli delme makinesi
+23241806	4	23241800		CNC delik delme merkezi
+23241807	4	23241800		Derin delik delme tezgahı
+23241808	4	23241800		Koordinatlı delme makinesi
+23241809	4	23241800		Şanzımanlı matkap tezgahı
+23241901	4	23241900		Yatay delik delme tezgahı
+23241902	4	23241900		Dikey delik delme tezgahı
+23241903	4	23241900		CNC delik işleme tezgahı
+23241904	4	23241900		Boru delik delme makinesi
+23241905	4	23241900		Profil delik delme makinesi
+23241906	4	23241900		Flanş delik delme tezgahı
+23241907	4	23241900		Çoklu delik delme ünitesi
+23241908	4	23241900		Pnomatik delik delme makinesi
+23241909	4	23241900		Hidrolik delik delme presi
+23242101	4	23242100		CNC takım tutucu
+23242102	4	23242100		Torna aynası
+23242103	4	23242100		Freze malafası
+23242104	4	23242100		Döner punta
+23242105	4	23242100		Manyetik tabla
+23242106	4	23242100		Pens takımı
+23242107	4	23242100		Makine mengenesi
+23242108	4	23242100		Talaş konveyörü
+23242109	4	23242100		Divizör
+23242201	4	23242200		Dişli azdırma makinesi
+23242202	4	23242200		Dişli raspalama makinesi
+23242203	4	23242200		Dişli taşlama makinesi
+23242204	4	23242200		Dişli profil taşlama makinesi
+23242205	4	23242200		Konik dişli açma makinesi
+23242206	4	23242200		Kremayer dişli açma makinesi
+23242207	4	23242200		Dişli yuvarlama makinesi
+23242208	4	23242200		İç dişli açma makinesi
+23242209	4	23242200		Dişli çapak alma makinesi
+23242301	4	23242300		CNC yatay torna tezgahı
+23242302	4	23242300		CNC dikey torna tezgahı
+23242303	4	23242300		Üniversal torna tezgahı
+23242304	4	23242300		Masaüstü torna tezgahı
+23242305	4	23242300		Çok milli torna tezgahı
+23242306	4	23242300		Ağır hizmet torna tezgahı
+23242307	4	23242300		Otomat torna tezgahı
+23242308	4	23242300		İsviçre tipi kayar otomat torna
+23242309	4	23242300		Karusel torna tezgahı
+23242401	4	23242400		5 eksen CNC işleme merkezi
+23242402	4	23242400		Dikey işleme merkezi
+23242403	4	23242400		Yatay işleme merkezi
+23242404	4	23242400		Köprü tipi işleme merkezi
+23242405	4	23242400		Portal tipi işleme merkezi
+23242406	4	23242400		Çift kolonlu işleme merkezi
+23242407	4	23242400		CNC delme ve kılavuz çekme merkezi
+23242408	4	23242400		Yüksek hızlı CNC işleme merkezi
+23242409	4	23242400		Çok milli işleme merkezi
+23242501	4	23242500		Üniversal freze tezgahı
+23242502	4	23242500		Kalıpçı freze tezgahı
+23242503	4	23242500		CNC dikey freze tezgahı
+23242504	4	23242500		CNC yatay freze tezgahı
+23242505	4	23242500		Konsollu freze tezgahı
+23242506	4	23242500		Portal freze tezgahı
+23242507	4	23242500		Masaüstü freze tezgahı
+23242508	4	23242500		Kopya freze tezgahı
+23242509	4	23242500		Takımcı freze tezgahı
+23242601	4	23242600		Tel erozyon makinesi
+23242602	4	23242600		Dalma erozyon makinesi
+23242603	4	23242600		Lazer metal kesme makinesi
+23242604	4	23242600		Plazma metal kesme makinesi
+23242605	4	23242600		Su jeti metal kesme makinesi
+23242606	4	23242600		Şerit testere makinesi
+23242607	4	23242600		Daire testere makinesi
+23242608	4	23242600		Metal broşlama makinesi
+23251502	4	23251500		Mekanik abkant pres
+23251503	4	23251500		NC boru bükme makinesi
+23251504	4	23251500		CNC boru bükme makinesi
+23251505	4	23251500		Profil bükme makinesi
+23251506	4	23251500		Silindir bükme makinesi
+23251507	4	23251500		Caka ceket bükme makinesi
+23251508	4	23251500		Kenet bükme makinesi
+23251509	4	23251500		El tipi boru bükme aparatı
+23251601	4	23251600		Metal sac haddeleme makinesi
+23251602	4	23251600		Profil haddeleme makinesi
+23251603	4	23251600		Diş açma hadde makinesi
+23251604	4	23251600		Sıcak haddeleme tesisi
+23251605	4	23251600		Soğuk haddeleme tesisi
+23251606	4	23251600		Boru doğrultma ve haddeleme makinesi
+23251607	4	23251600		Metal şerit haddeleme makinesi
+23251608	4	23251600		Hadde merdanesi
+23251609	4	23251600		Hadde kılavuzu
+23251701	4	23251700		Sıcak dövme presi
+23251702	4	23251700		Soğuk dövme presi
+23251703	4	23251700		Şahmeran dövme tokmağı
+23251704	4	23251700		Yatay dövme makinesi
+23251705	4	23251700		Hava tahrikli dövme çekici
+23251706	4	23251700		Hidrolik dövme presi
+23251707	4	23251700		Dövme kalıbı bloğu
+23251708	4	23251700		İndüksiyonlu tavlama ocağı
+23251709	4	23251700		Dövme maşası
+23251801	4	23251800		Progresif metal şekillendirme kalıbı
+23251802	4	23251800		Kesme ve sıvama kalıbı
+23251803	4	23251800		Abkant pres alt kalıbı
+23251804	4	23251800		Abkant pres üst bıçağı
+23251805	4	23251800		Eksantrik pres kalıbı
+23251806	4	23251800		Punch makinesi zımbası
+23251807	4	23251800		Punch makinesi matrisi
+23251808	4	23251800		Sıvama sıvısı ve yağı
+23251809	4	23251800		Kalıp yayları ve kolonları
+23251901	4	23251900		Teneke kutu kapatma makinesi
+23251902	4	23251900		Aerosol kutusu dolum makinesi
+23251903	4	23251900		Metal kapak kapatma makinesi
+23251904	4	23251900		Alüminyum tüp dolum makinesi
+23251905	4	23251900		Metal varil imalat hattı
+23251906	4	23251900		Kutu gövde kaynak makinesi
+23251907	4	23251900		Metal kap kenar kıvırma makinesi
+23251908	4	23251900		Kutu sızdırmazlık test cihazı
+23251909	4	23251900		Metal kutu laklama makinesi
+23261502	4	23261500		Seçici lazer sinterleme makinesi (SLS)
+23261503	4	23261500		Stereolitografi 3D yazıcı (SLA)
+23261504	4	23261500		Doğrudan metal lazer sinterleme makinesi (DMLS)
+23261505	4	23261500		Dijital ışık işleme 3D yazıcı (DLP)
+23261506	4	23261500		Elektron ışınlı erime makinesi (EBM)
+23261507	4	23261500		Polimer jet 3D yazıcı
+23261508	4	23261500		Bağlayıcı püskürtme makinesi (Binder Jetting)
+23261509	4	23261500		3D yazıcı reçine kürleme cihazı
+23271402	4	23271400		Gazaltı MIG-MAG kaynak makinesi
+23271403	4	23271400		TIG argon kaynak makinesi
+23271404	4	23271400		İnverter çanta kaynak makinesi
+23271405	4	23271400		Plazma kesme makinesi
+23271406	4	23271400		Punta kaynak makinesi
+23271407	4	23271400		Lazer kaynak makinesi
+23271408	4	23271400		Alın kaynak makinesi
+23271501	4	23271500		İndüksiyonlu sert lehimleme makinesi
+23271502	4	23271500		Alevli sert lehimleme makinesi
+23271503	4	23271500		Vakumlu sert lehimleme fırını
+23271504	4	23271500		Dirençli sert lehimleme makinesi
+23271505	4	23271500		Gaz altı sert lehimleme ünitesi
+23271601	4	23271600		Sıcak hava lehimleme istasyonu
+23271602	4	23271600		Dalga lehimleme makinesi
+23271604	4	23271600		Lazer lehimleme makinesi
+23271605	4	23271600		Kızılötesi infrared lehimleme makinesi
+23271606	4	23271600		Gazlı lehimleme pürmüzü
+23271607	4	23271600		Ultrasonik lehimleme makinesi
+23271608	4	23271600		Daldırma lehim potası
+23271701	4	23271700		Gazaltı kaynak torcu
+23271702	4	23271700		TIG kaynak torcu
+23271703	4	23271700		Kaynak şase pensesi
+23271704	4	23271700		Elektrot pensi
+23271705	4	23271700		Kaynak maskesi camı
+23271706	4	23271700		Kaynak gaz regülatörü
+23271707	4	23271700		Kaynak ağzı açma aparatı
+23271801	4	23271800		Gazaltı kaynak teli
+23271802	4	23271800		Örtülü kaynak elektrodu
+23271803	4	23271800		Sert lehim teli
+23271804	4	23271800		Sert lehim pastası
+23271805	4	23271800		Lehim teli
+23271806	4	23271800		Lehim pastası
+23271807	4	23271800		Tozaltı kaynak tozu
+23281501	4	23281500		Elektrostatik toz boya makinesi
+23281502	4	23281500		Yaş boya püskürtme makinesi
+23281503	4	23281500		Galvaniz kaplama tesisi
+23281504	4	23281500		Kumlama makinesi
+23281505	4	23281500		PVD kaplama makinesi
+23281506	4	23281500		Kimyasal nikel kaplama banyosu
+23281507	4	23281500		Termal sprey kaplama tabancası
+23281508	4	23281500		Kataforez kaplama hattı
+23281509	4	23281500		Plastisol kaplama fırını
+23291501	4	23291500		Manyetik matkap makinesi
+23291502	4	23291500		Sütunlu matkap tezgahı
+23291503	4	23291500		Radyal matkap tezgahı
+23291504	4	23291500		Karbür matkap ucu
+23291505	4	23291500		HSS matkap ucu
+23291506	4	23291500		Karot delme makinesi
+23291507	4	23291500		Kılavuz çekme aparatı
+23291508	4	23291500		Havşa açma ucu
+23291509	4	23291500		Punta matkabı
+23301501	4	23301500		Tel çekme makinesi
+23301502	4	23301500		Tel doğrultma ve kesme makinesi
+23301503	4	23301500		Tel bükme makinesi
+23301504	4	23301500		Dikenli tel makinesi
+23301505	4	23301500		Tel örme makinesi
+23301506	4	23301500		Tel çekme kalıbı
+23301507	4	23301500		Tel sıyırma aparatı
+23301508	4	23301500		Tel sarma makarası
+23301509	4	23301500		Tel gerdirme aparatı
+23991505	4	23991500		Pens ve pens takımı
+23991506	4	23991500		Mıknatıslı tabla
+23991507	4	23991500		Döner punta
+23991508	4	23991500		Divizör ve döner tabla
+23991509	4	23991500		T-kanal pabuç seti
+23991605	4	23991600		Ultrasonik temizleme cihazı
+23991606	4	23991600		Endüstriyel parça yıkama makinesi
+23991607	4	23991600		Kumlama kabini
+23991608	4	23991600		Flanş ayırma aparatı
+23991609	4	23991600		Kondenser temizleme pompası
+26101101	4	26101100		Trifaze asenkron motor
+26101102	4	26101100		Monofaze asenkron motor
+26101103	4	26101100		Sincap kafesli elektrik motoru
+26101104	4	26101100		Bilezikli asenkron motor
+26101105	4	26101100		Frenli AC motor
+26101106	4	26101100		Ex-proof AC motor
+26101107	4	26101100		Yüksek verimli IE3 motor
+26101108	4	26101100		Yüksek verimli IE4 motor
+26101109	4	26101100		Çift hızlı AC motor
+26101201	4	26101200		Fırçasız DC motor
+26101202	4	26101200		Fırçalı DC motor
+26101203	4	26101200		Servo DC motor
+26101204	4	26101200		Step motor
+26101205	4	26101200		Redüktörlü DC motor
+26101206	4	26101200		Sabit mıknatıslı DC motor
+26101207	4	26101200		Şönt sargılı DC motor
+26101208	4	26101200		Seri sargılı DC motor
+26101209	4	26101200		Enkoderli DC motor
+26101301	4	26101300		Dizel motor
+26101302	4	26101300		Benzinli motor
+26101303	4	26101300		Pnömatik motor
+26101304	4	26101300		Hidrolik motor
+26101305	4	26101300		Gaz türbini
+26101306	4	26101300		Buhar türbini
+26101307	4	26101300		Rüzgar türbini
+26101308	4	26101300		Stirling motoru
+26101309	4	26101300		Su türbini
+26101401	4	26101400		Jeneratör alternatörü
+26101402	4	26101400		Motor marş dinamosu
+26101403	4	26101400		Şarj dinamosu
+26101404	4	26101400		Volan dişlisi
+26101405	4	26101400		Krank mili
+26101406	4	26101400		Eksantrik mili
+26101407	4	26101400		Motor supabı
+26101408	4	26101400		Karbüratör
+26101701	4	26101700		Motor hava filtresi
+26101702	4	26101700		Motor yağ filtresi
+26101703	4	26101700		Karter contası
+26101704	4	26101700		Motor subap kapağı
+26101901	4	26101900		Silindir kapağı
+26101902	4	26101900		Piston segmanı
+26101903	4	26101900		Biyel kolu
+26101904	4	26101900		Motor bloğu
+26101905	4	26101900		Krank yatağı
+26101906	4	26101900		Emme manifoldu
+26101907	4	26101900		Egzoz manifoldu
+26101908	4	26101900		Karter muhafazası
+26101909	4	26101900		Motor subap gaydı
+26111501	4	26111500		Volan diski
+26111502	4	26111500		Kardan mili
+26111503	4	26111500		Şaft kaplini
+26111504	4	26111500		Tork konvertörü
+26111505	4	26111500		Diferansiyel dişlisi
+26111506	4	26111500		Şanzıman dişlisi
+26111507	4	26111500		Aks mili
+26111508	4	26111500		Redüktör gövdesi
+26111509	4	26111500		Manyetik kavrama
+26111802	4	26111800		Zamanlama zinciri
+26111803	4	26111800		Triger kayışı
+26111804	4	26111800		Gergi kasnağı
+26111805	4	26111800		Tahrik zinciri
+26111806	4	26111800		Konik dişli
+26111807	4	26111800		Sonsuz vida dişlisi
+26111808	4	26111800		Kardan mafsalı
+26111809	4	26111800		Kama kanallı mil
+26111901	4	26111900		Elektromanyetik kavrama
+26111902	4	26111900		Hidrolik kavrama
+26111903	4	26111900		Pnömatik kavrama
+26111904	4	26111900		Santrifüj kavrama
+26111905	4	26111900		Tek yönlü kavrama
+26111906	4	26111900		Esnek kaplinli kavrama
+26111907	4	26111900		Dişli kavrama
+26111908	4	26111900		Sürtünmeli kavrama
+26111909	4	26111900		Manyetik tozlu kavrama
+26112002	4	26112000		Kavrama balatası
+26112005	4	26112000		Debriyaj rulmanı
+26112006	4	26112000		Kavrama çatalı
+26112007	4	26112000		Debriyaj merkezi
+26112008	4	26112000		Kavrama yayı
+26112009	4	26112000		Debriyaj teli
+26112101	4	26112100		Elektromanyetik fren
+26112102	4	26112100		Hidrolik diskli fren
+26112103	4	26112100		Pnömatik kampanalı fren
+26112104	4	26112100		Fren balatası
+26112105	4	26112100		Fren kaliperi
+26112106	4	26112100		Fren diski
+26112107	4	26112100		Fren bobini
+26112108	4	26112100		Fren hidrolik ünitesi
+26112109	4	26112100		Emniyetli fren sistemi
+26121501	4	26121500		Tek damarlı bakır tel
+26121502	4	26121500		Çok damarlı montaj teli
+26121503	4	26121500		Emaye bobin teli
+26121504	4	26121500		NYA kablo teli
+26121505	4	26121500		Galvanizli çelik tel
+26121506	4	26121500		Silikon izoleli tel
+26121507	4	26121500		Yüksek sıcaklık teli
+26121508	4	26121500		Topraklama teli
+26121601	4	26121600		Halojensiz yangına dayanıklı kablo
+26121602	4	26121600		Zırhlı yeraltı enerji kablosu
+26121603	4	26121600		Kauçuk kılıflı kaynak kablosu
+26121701	4	26121700		Otomotiv kablo demeti
+26121702	4	26121700		Makine içi kablo demeti
+26121703	4	26121700		Sinyalizasyon kablo demeti
+26121704	4	26121700		Pano içi kablolama demeti
+26121705	4	26121700		Soketli hazır kablo demeti
+26121706	4	26121700		Sensör kablo demeti
+26121707	4	26121700		Spiral kablo demeti
+26121708	4	26121700		Yüksek gerilim kablo demeti
+26121709	4	26121700		Özel tasarım endüstriyel kablo demeti
+26121801	4	26121800		Akü bağlantı kablosu
+26121802	4	26121800		Oto tesisat kablosu
+26121803	4	26121800		Sinyal ve hoparlör oto kablosu
+26121804	4	26121800		Buji kablo seti
+26121805	4	26121800		Oto şase kablosu
+26121806	4	26121800		Sargılı spiral oto kablosu
+26121807	4	26121800		Çok damarlı oto kablosu
+26121808	4	26121800		Yüksek gerilim oto kablosu
+26121809	4	26121800		Halojensiz oto kablosu
+26131601	4	26131600		Jeneratör egzoz susturucusu
+26131602	4	26131600		Endüstriyel egzoz spirali
+26131603	4	26131600		Katalitik konvertör filtresi
+26131604	4	26131600		Egzoz gazı yıkayıcı scrubber
+26131605	4	26131600		Jeneratör egzoz borusu
+26131606	4	26131600		Egzoz kıvılcım tutucu
+26131607	4	26131600		Egzoz gazı analiz sondası
+26131608	4	26131600		Egzoz sızdırmazlık flanşı
+26131609	4	26131600		Isıya dayanıklı egzoz sargısı
+26131701	4	26131700		Şebeke analizörü
+26131702	4	26131700		Jeneratör takip modülü
+26131703	4	26131700		Dijital multimetre panelmetresi
+26131704	4	26131700		Akım trafosu test cihazı
+26131705	4	26131700		Yalıtım direnci test cihazı
+26131706	4	26131700		Faz sırası ölçüm cihazı
+26131707	4	26131700		Güç kalitesi kaydedici
+26131708	4	26131700		Harmonik filtre analizörü
+26131709	4	26131700		Batarya deşarj test cihazı
+26131801	4	26131800		Jeneratör kontrol paneli
+26131802	4	26131800		Otomatik transfer şalteri ATS
+26131803	4	26131800		Voltaj regülatörü AVR
+26131804	4	26131800		Senkronizasyon rölesi
+26131805	4	26131800		Hız kontrol ünitesi governor
+26131806	4	26131800		Yük paylaşım modülü
+26131807	4	26131800		Şebeke koruma rölesi
+26131808	4	26131800		Akü şarj redresörü
+26131809	4	26131800		Uzaktan çalıştırma modülü
+26131901	4	26131900		Monokristal güneş paneli
+26131902	4	26131900		Solar şarj kontrol cihazı
+26131903	4	26131900		Güneş enerjisi invertörü
+26131904	4	26131900		Solar montaj rayı
+26131905	4	26131900		Solar kablo konnektörü MC4
+26131906	4	26131900		Güneş paneli temizleme fırçası
+26131907	4	26131900		Solar akü grubu
+26131908	4	26131900		Güneş takip sistemi tracker
+26131909	4	26131900		Solar çatı sızdırmazlık elemanı
+26141601	4	26141600		Nötron dedektörü
+26141602	4	26141600		Radyasyon dozometresi
+26141603	4	26141600		Nötron kaynağı taşıma kabı
+26141604	4	26141600		Subkritik reaktör kontrol çubuğu
+26141605	4	26141600		Radyasyon zırhlama plakası
+26141701	4	26141700		Kişisel dozimetre
+26141702	4	26141700		Alan radyasyon monitörü
+26141703	4	26141700		Termolüminesans dozimetre okuyucu
+26141704	4	26141700		Kalibrasyon fantomu
+26141705	4	26141700		Radyasyon doz hızı ölçer
+26141706	4	26141700		Elektronik cep dozimetresi
+26141707	4	26141700		Nötron dozimetresi
+26141708	4	26141700		Alfa beta el ayak monitörü
+26141709	4	26141700		Sintilasyon dedektörü
+26141801	4	26141800		Sıcak hücre manipülatörü
+26141802	4	26141800		Kurşun korumalı cam pencere
+26141803	4	26141800		Radyoaktif malzeme taşıma konteyneri
+26141804	4	26141800		Sıcak hücre havalandırma filtresi
+26141805	4	26141800		Zırhlı transfer portu
+26141806	4	26141800		Sıcak hücre aydınlatma armatürü
+26141807	4	26141800		Kurşun tuğla
+26141808	4	26141800		Uzaktan kumandalı maşa
+26141809	4	26141800		Sıcak hücre sızdırmazlık contası
+26141901	4	26141900		Nükleer seviye sensörü
+26141902	4	26141900		Radyometrik yoğunluk ölçer
+26141903	4	26141900		Nötron nem ölçer
+26141904	4	26141900		Gama ışını kalınlık sensörü
+26141905	4	26141900		X-ışını floresan analizörü
+26141906	4	26141900		Koaksiyel germanyum dedektörü
+26141907	4	26141900		Çok kanallı analizör kartı
+26141908	4	26141900		Radyometrik konveyör kantarı
+26141909	4	26141900		Alfa spektrometresi
+26142001	4	26142000		Endüstriyel gama sterilizatörü
+26142002	4	26142000		Elektron demeti hızlandırıcısı
+26142003	4	26142000		Kobalt-60 kaynak kalemi
+26142004	4	26142000		Işınlama odası kapısı
+26142005	4	26142000		Radyografik kaynak tüpü
+26142006	4	26142000		Işınlama numune taşıma sistemi
+26142007	4	26142000		Gama radyografi cihazı
+26142008	4	26142000		X-ışını tüpü jeneratörü
+26142009	4	26142000		Işınlama dozimetre kartı
+26142101	4	26142100		Reaktör kontrol çubuğu sürücüsü
+26142102	4	26142100		Nükleer basınçlı kap contası
+26142103	4	26142100		Reaktör içi nötron akısı dedektörü
+26142104	4	26142100		Nükleer sınıf vana
+26142105	4	26142100		Reaktör soğutma pompası salmastrası
+26142106	4	26142100		Kontrol çubuğu kılavuz tüpü
+26142107	4	26142100		Reaktör kapağı saplaması
+26142108	4	26142100		Nükleer buhar üreteci borusu
+26142109	4	26142100		Reaktör koruma sistemi paneli
+26142201	4	26142200		Nükleer yakıt demeti
+26142202	4	26142200		Zirkonyum yakıt zarfı borusu
+26142203	4	26142200		Yakıt yükleme makinesi
+26142204	4	26142200		Kullanılmış yakıt depolama rafı
+26142205	4	26142200		Yakıt peleti pres kalıbı
+26142206	4	26142200		Kullanılmış yakıt taşıma fıçısı
+26142207	4	26142200		Yakıt çubuğu kaynak makinesi
+26142208	4	26142200		Yakıt havuzu soğutma eşanjörü
+26142209	4	26142200		Yakıt demeti taşıma sepeti
+26142301	4	26142300		Kurşun tuğla
+26142303	4	26142300		Radyasyon koruyucu cam
+26142304	4	26142300		Kurşun önlük
+26142305	4	26142300		Radyasyon koruyucu paravan
+26142306	4	26142300		Kurşun kaplı kapı
+26142307	4	26142300		Nötron kalkanı levhası
+26142308	4	26142300		Radyasyon koruyucu konteyner
+26142401	4	26142400		Radyoaktif atık depolama varili
+26142402	4	26142400		Radyoaktif atık taşıma konteyneri
+26142403	4	26142400		Radyoaktif sıvı atık tankı
+26142404	4	26142400		Radyoaktif atık sıkıştırma presi
+26142405	4	26142400		Radyasyon ölçüm kabini
+26142406	4	26142400		Radyoaktif filtre elemanı
+27111501	4	27111500		Sac makası
+27111502	4	27111500		Kablo soyma pensesi
+27111503	4	27111500		Demir testeresi kolu
+27111505	4	27111500		Beton demiri kesme makası
+27111506	4	27111500		Yan keski
+27111507	4	27111500		Kargaburun pense
+27111508	4	27111500		Kerpeten
+27111601	4	27111600		Eğe seti
+27111602	4	27111600		Işkence aleti
+27111603	4	27111600		Raspa
+27111604	4	27111600		Ahşap oyma kalemi
+27111605	4	27111600		Sac bükme pensesi
+27111606	4	27111600		Metal markalama zımbası
+27111607	4	27111600		Örs
+27111608	4	27111600		Doğrultma çekici
+27111609	4	27111600		Kılavuz ve pafta takımı
+27111702	4	27111700		İki ağızlı açık anahtar
+27111703	4	27111700		Kombine anahtar takımı
+27111705	4	27111700		Kurbağacık anahtar
+27111706	4	27111700		Boru anahtarı
+27111707	4	27111700		Allen anahtar takımı
+27111708	4	27111700		Tork anahtarı
+27111709	4	27111700		Cırcır kolu
+27111802	4	27111800		Kumpas
+27111803	4	27111800		Mikrometre
+27111804	4	27111800		Su terazisi
+27111805	4	27111800		Lazer hizalama aleti
+27111806	4	27111800		Çelik cetvel
+27111807	4	27111800		Sentil çakısı
+27111808	4	27111800		Nivo
+27111809	4	27111800		Gönyeler
+27111901	4	27111900		El raspası
+27111902	4	27111900		Çapak alma aparatı
+27111903	4	27111900		El raybası
+27111904	4	27111900		Pafta kolu
+27111905	4	27111900		Kılavuz kolu
+27111906	4	27111900		Metal eğesi
+27111907	4	27111900		Ağaç törpüsü
+27111908	4	27111900		Iskarpela takımı
+27112001	4	27112000		El çapası
+27112002	4	27112000		Budama makası
+27112003	4	27112000		El tırpanı
+27112005	4	27112000		Bağ testeresi
+27112006	4	27112000		Toprak tırmığı
+27112007	4	27112000		Ot yolma aparatı
+27112008	4	27112000		Meyve toplama aparatı
+27112101	4	27112100		Ayarlı pense
+27112102	4	27112100		İşkence kelepçesi
+27112103	4	27112100		Tezgah mengenesi
+27112104	4	27112100		Boru anahtarı
+27112105	4	27112100		Kargaburun pense
+27112106	4	27112100		Segman pensesi
+27112107	4	27112100		Kerpeten
+27112108	4	27112100		Kablo soyma pensesi
+27112109	4	27112100		Sıkma pensesi
+27112201	4	27112200		Duvarcı malası
+27112202	4	27112200		Sıva malası
+27112203	4	27112200		Derz artısı
+27112204	4	27112200		Beton mastarı
+27112205	4	27112200		Alçı malası
+27112206	4	27112200		Seramik kesme makinesi
+27112207	4	27112200		Duvarcı çekici
+27112208	4	27112200		Harç karıştırma ucu
+27112209	4	27112200		Sistre demiri
+27112301	4	27112300		Çırpı ipi
+27112302	4	27112300		Markalama boyası
+27112303	4	27112300		Nokta zımbası
+27112304	4	27112300		Çelik cetvel
+27112305	4	27112300		Şerit metre
+27112306	4	27112300		Tebeşir tutucu
+27112307	4	27112300		Lazer hizalama cihazı
+27112308	4	27112300		Su terazisi
+27112309	4	27112300		Gönye cetveli
+27112401	4	27112400		Havalı çivi tabancası
+27112402	4	27112400		Manuel zımba tabancası
+27112403	4	27112400		Elektrikli çivi çakma makinesi
+27112404	4	27112400		Perçin tabancası
+27112405	4	27112400		Somun perçin aleti
+27112406	4	27112400		Dübel çakma aleti
+27112407	4	27112400		Gazlı çivi çakma tabancası
+27112408	4	27112400		Havalı zımba tabancası
+27112409	4	27112400		Kimyasal dübel tabancası
+27112501	4	27112500		Mekanik kriko
+27112502	4	27112500		Hidrolik şişe kriko
+27112503	4	27112500		Demir bükme anahtarı
+27112504	4	27112500		Boru bükme aparatı
+27112505	4	27112500		Manivela demiri
+27112506	4	27112500		Akrobat vinç
+27112507	4	27112500		Zincirli çektirme
+27112508	4	27112500		Halatlı çektirme
+27112509	4	27112500		Rulman çektirmesi
+27112601	4	27112600		Silikon tabancası
+27112602	4	27112600		Mastik tabancası
+27112603	4	27112600		Kimyasal dübel tabancası
+27112604	4	27112600		Gres pompası
+27112605	4	27112600		Sıvı conta tabancası
+27112606	4	27112600		Poliüretan köpük tabancası
+27112607	4	27112600		Gres pompası ucu
+27112608	4	27112600		Sosis silikon tabancası
+27112609	4	27112600		Pnömatik silikon tabancası
+27112701	4	27112700		Darbeli matkap
+27112702	4	27112700		Avuç taşlama makinesi
+27112703	4	27112700		Akülü vidalama
+27112704	4	27112700		Kırıcı delici matkap
+27112705	4	27112700		Elektrikli dekupaj testere
+27112706	4	27112700		Daire testere makinesi
+27112707	4	27112700		Elektrikli zımpara makinesi
+27112708	4	27112700		Sıcak hava tabancası
+27112801	4	27112800		Beton matkap ucu
+27112802	4	27112800		Ahşap matkap ucu
+27112803	4	27112800		Vidalama bits ucu
+27112804	4	27112800		Bits uç tutucu
+27112805	4	27112800		Panç testere ucu
+27112806	4	27112800		Taşlama taşı
+27112807	4	27112800		Kesici disk
+27112808	4	27112800		SDS plus matkap ucu
+27112901	4	27112900		Koli bandı dispenseri
+27112902	4	27112900		Manuel varil pompası
+27112903	4	27112900		El yağdanlığı
+27112904	4	27112900		Çember makinesi aparatı
+27112905	4	27112900		Streç film sarma aparatı
+27112906	4	27112900		Kablo makarası boş
+27112907	4	27112900		Hortum sarma makarası
+27112908	4	27112900		Etiketleme makinesi
+27112909	4	27112900		Sıvı dağıtıcı huni
+27113001	4	27113000		Çelik tel fırça
+27113002	4	27113000		Saplı boya fırçası
+27113003	4	27113000		Rulo boya fırçası
+27113004	4	27113000		Çanak tel fırça
+27113005	4	27113000		Kalem tel fırça
+27113006	4	27113000		Oto yıkama fırçası
+27113007	4	27113000		Süpürge fırçası başlığı
+27113008	4	27113000		Pirinç tel fırça
+27113009	4	27113000		Yağlı boya fırçası
+27113101	4	27113100		Rulman çektirmesi
+27113102	4	27113100		Kasnak çektirmesi
+27113103	4	27113100		Hidrolik çektirme
+27113104	4	27113100		İki kollu çektirme
+27113105	4	27113100		Üç kollu çektirme
+27113106	4	27113100		Rotil çektirmesi
+27113107	4	27113100		Saplama sökme aparatı
+27113108	4	27113100		Zırh çektirme aparatı
+27113109	4	27113100		Mekanik çektirme seti
+27113202	4	27113200		Mekanik bakımcı alet seti
+27113206	4	27113200		Lokma anahtar takımı
+27113207	4	27113200		Yıldız iki ağız anahtar seti
+27113208	4	27113200		Elektronikçi el aleti seti
+27113209	4	27113200		İzoleli alet seti
+27113301	4	27113300		Kumpas
+27113302	4	27113300		Mikrometre
+27113303	4	27113300		Komparatör saati
+27113304	4	27113300		Sentil çeliği
+27113305	4	27113300		Mihengir
+27113306	4	27113300		Açı ölçer
+27113307	4	27113300		Hassas cımbız seti
+27113308	4	27113300		Kıl gönye
+27113309	4	27113300		Radius mastarı
+27113404	4	27113400		Işkence demiri
+27113405	4	27113400		Rende
+27113406	4	27113400		Iskarpela seti
+27113407	4	27113400		Ahşap törpüsü
+27113408	4	27113400		El testeresi
+27113409	4	27113400		Geçme testere
+27121501	4	27121500		Atölye tipi hidrolik pres
+27121502	4	27121500		H tipi hidrolik pres
+27121503	4	27121500		C tipi hidrolik pres
+27121505	4	27121500		Hidrolik doğrultma presi
+27121506	4	27121500		Masaüstü hidrolik pres
+27121507	4	27121500		Hidrolik hortum sıkma presi
+27121508	4	27121500		Hidrolik burç çakma presi
+27121509	4	27121500		Manuel hidrolik pres
+27131502	4	27131500		Pnömatik matkap
+27131503	4	27131500		Pnömatik kalıpçı taşlama
+27131504	4	27131500		Pnömatik zımpara makinesi
+27131505	4	27131500		Pnömatik perçin tabancası
+27131506	4	27131500		Pnömatik kırıcı
+27131507	4	27131500		Pnömatik gres tabancası
+27131508	4	27131500		Pnömatik boya tabancası
+27131509	4	27131500		Pnömatik çivi çakma tabancası
+27141001	4	27141000		Kaporta çektirme aparatı
+27141002	4	27141000		Puntalama çürütme matkabı
+27141003	4	27141000		Kaporta düzeltme çekici
+27141004	4	27141000		Vantuzlu cam taşıyıcı
+27141005	4	27141000		Kaporta doğrultma pensesi
+27141006	4	27141000		Plastik klips sökme aparatı
+27141007	4	27141000		Kaporta göçük düzeltme seti
+27141008	4	27141000		Fender koruyucu örtü
+27141009	4	27141000		Silikonlu kaporta takozu
+31161801	4	31161800		Düz rondela
+31161802	4	31161800		Yaylı rondela
+31161803	4	31161800		Tırtıllı pul
+31161804	4	31161800		Rulman pulu
+31161805	4	31161800		Bakır sızdırmazlık pulu
+31161806	4	31161800		Fiberli pul
+31161807	4	31161800		Geniş kasa pulu
+31161808	4	31161800		Kilitli rondela
+31161809	4	31161800		Alüminyum sızdırmazlık pulu
+31161901	4	31161900		Çekme yayı
+31161902	4	31161900		Basma yayı
+31161903	4	31161900		Kurma yayı
+31161904	4	31161900		Disk yay
+31161905	4	31161900		Kalıp yayı
+31161906	4	31161900		Form yayı
+31161907	4	31161900		Gazlı amortisör yayı
+31161908	4	31161900		Paslanmaz çelik yay
+31161909	4	31161900		Yaprak yay
+31162001	4	31162000		İnşaat çivisi
+31162002	4	31162000		Beton çivisi
+31162003	4	31162000		Çelik çivi
+31162004	4	31162000		Şerit çivi
+31162005	4	31162000		Rulo çivi
+31162006	4	31162000		Tel çivi
+31162007	4	31162000		Başsız çivi
+31162008	4	31162000		Bakır çivi
+31162009	4	31162000		Çatı çivisi
+31162101	4	31162100		Gömlekli dübel
+31162102	4	31162100		Kimyasal dübel kartuşu
+31162103	4	31162100		Çelik çekme dübel
+31162104	4	31162100		Sismik ankraj mili
+31162105	4	31162100		Asma tavan dübeli
+31162106	4	31162100		Tij borusu
+31162107	4	31162100		Kaya saplaması
+31162108	4	31162100		Gazbeton dübeli
+31162109	4	31162100		Ağır yük dübeli
+31162201	4	31162200		Pop perçin
+31162202	4	31162200		Somunlu perçin
+31162203	4	31162200		Geniş kafa perçin
+31162204	4	31162200		Paslanmaz çelik perçin
+31162205	4	31162200		Havşa kafalı perçin
+31162206	4	31162200		Yarı yarık perçin
+31162207	4	31162200		Alüminyum pop perçin
+31162208	4	31162200		Çelik perçin
+31162209	4	31162200		Plastik perçin
+31162301	4	31162300		Çelik dübel
+31162302	4	31162300		Kimyasal dübel kartuşu
+31162303	4	31162300		Metrik dişli saplama
+31162304	4	31162300		Sunta vidası
+31162305	4	31162300		Akıllı çatı vidası
+31162306	4	31162300		Altıköşe başlı cıvata
+31162307	4	31162300		Fiberli somun
+31162308	4	31162300		Düz rondela
+31162309	4	31162300		Pop perçin
+31162401	4	31162400		Vidalı hortum kelepçesi
+31162402	4	31162400		Plastik kablo bağı
+31162403	4	31162400		Çelik halat klemensi
+31162404	4	31162400		U-bolt boru kelepçesi
+31162405	4	31162400		Yaylı pim
+31162406	4	31162400		Dış segman
+31162407	4	31162400		Çelik halat gerdirmesi
+31162408	4	31162400		Vidalı karabina
+31162409	4	31162400		Ağır yük kelepçesi
+31162501	4	31162500		L tipi montaj braketi
+31162502	4	31162500		Ağır yük raf konsolu
+31162503	4	31162500		Boru askı kelepçesi
+31162504	4	31162500		Profil montaj mesnedi
+31162505	4	31162500		Köşe birleştirme sacı
+31162506	4	31162500		Güneş paneli montaj braketi
+31162507	4	31162500		Ayarlanabilir duvar desteği
+31162508	4	31162500		Kablo kanalı askı konsolu
+31162509	4	31162500		Titreşim alıcı sönümleyici mesnet
+31162601	4	31162600		Vidalı kanca vida
+31162602	4	31162600		S tipi çelik kanca
+31162603	4	31162600		Emniyet mandallı vinç kancası
+31162604	4	31162600		Erkek aybolt mapa
+31162605	4	31162600		Dişi aybolt mapa
+31162606	4	31162600		Çelik halat kancası
+31162607	4	31162600		Karabinalı yük kancası
+31162608	4	31162600		Gerdirme kancası
+31162609	4	31162600		Panel askı kancası
+31162701	4	31162700		Frenli döner sanayi tekeri
+31162702	4	31162700		Sabit ağır yük tekeri
+31162703	4	31162700		Poliamid transpalet tekeri
+31162704	4	31162700		Sürgülü kapı makarası
+31162705	4	31162700		Rulmanlı çelik makara
+31162706	4	31162700		Mobilya yön tekerleği
+31162707	4	31162700		Poliüretan kaplı tekerlek
+31162708	4	31162700		Havalı el arabası tekeri
+31162709	4	31162700		Kılavuz makara
+31162801	4	31162800		Yaprak kapı menteşesi
+31162802	4	31162800		Pirinç asma kilit
+31162803	4	31162800		Gömme kapı kilidi
+31162804	4	31162800		Metal dolap kilidi
+31162805	4	31162800		Çelik çekmece rayı
+31162806	4	31162800		Yaylı dolap mandalı
+31162807	4	31162800		Alüminyum kapı kolu
+31162808	4	31162800		Silikon tabancası
+31162809	4	31162800		Plastik takım çantası
+31162901	4	31162900		Hortum kelepçesi
+31162902	4	31162900		Ağır hizmet kelepçesi
+31162903	4	31162900		U-cıvata kelepçe
+31162904	4	31162900		T-cıvatalı kelepçe
+31162905	4	31162900		Paslanmaz çelik kelepçe
+31162906	4	31162900		Plastik kablo kelepçesi
+31162907	4	31162900		Borulu hat kelepçesi
+31162908	4	31162900		Yaylı hortum kelepçesi
+31162909	4	31162900		Çift kulaklı kelepçe
+31163001	4	31163000		Esnek şaft kavraması
+31163002	4	31163000		Yıldız kavrama
+31163003	4	31163000		Dişli kavrama
+31163004	4	31163000		Hızlı bağlantı rakoru
+31163005	4	31163000		Flanşlı mil kavraması
+31163006	4	31163000		Pnömatik hızlı kavrama
+31163007	4	31163000		Hidrolik hızlı kavrama
+31163008	4	31163000		Kam kilitli kaplin
+31163009	4	31163000		Tırnaklı hortum kavraması
+31163101	4	31163100		Endüstriyel fiş priz konnektörü
+31163102	4	31163100		Hızlı kablo konnektörü
+31163103	4	31163100		Dairesel askeri konnektör
+31163104	4	31163100		Klemens tipi konnektör
+31163105	4	31163100		Fiber optik konnektör
+31163106	4	31163100		Koaksiyel kablo konnektörü
+31163107	4	31163100		Pnömatik hortum konnektörü
+31163108	4	31163100		Hidrolik boru konnektörü
+31163109	4	31163100		T-bağlantı konnektörü
+31163201	4	31163200		Dış segman
+31163202	4	31163200		İç segman
+31163203	4	31163200		Yaylı pim
+31163204	4	31163200		Rupin pim
+31163205	4	31163200		Çatal pim
+31163206	4	31163200		E-segman
+31163207	4	31163200		Kama mili
+31163208	4	31163200		Dübel pim
+31163209	4	31163200		Kilitli rondela
+31163301	4	31163300		Tam dişli saplama
+31163302	4	31163300		İki ucu dişli saplama
+31163303	4	31163300		Kimyasal dübel saplaması
+31163304	4	31163300		Kaynak saplaması
+31163305	4	31163300		Flanş saplaması
+31163306	4	31163300		Yüksek mukavemetli saplama
+31163307	4	31163300		Paslanmaz çelik saplama
+31163308	4	31163300		Trapez dişli saplama
+31163309	4	31163300		Gijon saplama
+31163401	4	31163400		Çelik elek teli
+31163402	4	31163400		Paslanmaz elek teli
+31163403	4	31163400		Genişletilmiş metal levha
+31163404	4	31163400		Punto kaynaklı tel örgü
+31163405	4	31163400		Perfore delikli sac
+31163406	4	31163400		Poliüretan elek paneli
+31163407	4	31163400		Krom nikel elek dokusu
+31163408	4	31163400		Helezon tel örgü
+31163409	4	31163400		Kama tel elek
+31171501	4	31171500		Konik makaralı rulman
+31171502	4	31171500		Silindirik makaralı rulman
+31171503	4	31171500		Oynak makaralı rulman
+31171505	4	31171500		Eksenel rulman
+31171506	4	31171500		İğneli rulman
+31171507	4	31171500		Lineer rulman
+31171508	4	31171500		Yataklı rulman
+31171509	4	31171500		Hassas rulman
+31171601	4	31171600		Bronz burç
+31171602	4	31171600		Grafitli bronz burç
+31171603	4	31171600		Çelik burç
+31171604	4	31171600		Sinter metal burç
+31171605	4	31171600		Plastik burç
+31171606	4	31171600		Teflon burç
+31171607	4	31171600		Konik sıkma burcu
+31171608	4	31171600		Miller için faturalı burç
+31171609	4	31171600		Kaymalı yatak burcu
+31171701	4	31171700		Düz dişli
+31171702	4	31171700		Helis dişli
+31171703	4	31171700		Konik dişli
+31171704	4	31171700		Sonsuz vida ve karşılık dişlisi
+31171705	4	31171700		Çavuş dişli
+31171706	4	31171700		İç dişli
+31171707	4	31171700		Kremayer dişli
+31171708	4	31171700		Planet dişli
+31171709	4	31171700		Ayna mahruti dişli seti
+31171801	4	31171800		Ağır sanayi tekerleği
+31171802	4	31171800		Poliamid tekerlek
+31171803	4	31171800		Poliüretan kaplı tekerlek
+31171804	4	31171800		Döküm tekerlek
+31171805	4	31171800		Kauçuk kaplı tekerlek
+31171806	4	31171800		Mobilya ve hafif hizmet tekerleği
+31171807	4	31171800		Isıya dayanıklı fırın tekerleği
+31171808	4	31171800		Paslanmaz maşalı tekerlek
+31171809	4	31171800		Transpalet tekerleği
+31171901	4	31171900		Tek sıralı zincir dişlisi
+31171902	4	31171900		Çift sıralı zincir dişlisi
+31171903	4	31171900		Üç sıralı zincir dişlisi
+31171904	4	31171900		Kulaklı zincir dişlisi
+31171905	4	31171900		Konik burçlu zincir dişlisi
+31171906	4	31171900		Paslanmaz çelik zincir dişlisi
+31171907	4	31171900		İndüksiyonla sertleştirilmiş zincir dişlisi
+31171908	4	31171900		Sevk zinciri dişlisi
+31171909	4	31171900		Özel imalat zincir dişlisi
+31191501	4	31191500		Flap disk zımpara
+31191502	4	31191500		Fiber zımpara diski
+31191503	4	31191500		Rulo zımpara
+31191504	4	31191500		Bant zımpara
+31191505	4	31191500		Çanak taşlama taşı
+31191507	4	31191500		Kesme taşı
+31191508	4	31191500		Kumlama kumları
+31191509	4	31191500		Elmas aşındırıcı eğe
+31191601	4	31191600		Kesme taşı
+31191602	4	31191600		Çapak alma diski
+31191603	4	31191600		Flap disk zımpara
+31191604	4	31191600		Saplı aşındırıcı taş
+31191605	4	31191600		Çanak zımpara taşı
+31191606	4	31191600		Silindirik taşlama taşı
+31191607	4	31191600		Elmas bileme taşı
+31191608	4	31191600		Mermer silim taşı
+31191609	4	31191600		Segmanlı taşlama taşı
+31201501	4	31201500		Koli bandı
+31201502	4	31201500		Kağıt maskeleme bandı
+31201503	4	31201500		Teflon sızdırmazlık bandı
+31201504	4	31201500		Elektrik izole bandı
+31201506	4	31201500		Alüminyum folyo bant
+31201507	4	31201500		Kaydırmazlık bandı
+31201508	4	31201500		Bez tamir bandı
+31201509	4	31201500		Filament takviyeli bant
+31201601	4	31201600		Hızlı yapıştırıcı aktivatörlü
+31201602	4	31201600		Çift bileşenli epoksi yapıştırıcı
+31201603	4	31201600		Poliüretan montaj yapıştırıcısı
+31201604	4	31201600		Kontak yapıştırıcı solüsyon
+31201605	4	31201600		Sıcak silikon mum yapıştırıcı
+31201606	4	31201600		Ahşap ve iskelet tutkalı
+31201607	4	31201600		Civata sabitleyici anaerobik yapıştırıcı
+31201608	4	31201600		Rulman sıkılık sağlayıcı
+31201609	4	31201600		Siyanoakrilat hızlı yapıştırıcı
+31211501	4	31211500		Epoksi astar boya
+31211502	4	31211500		Antipas metal boyası
+31211503	4	31211500		Akrilik yol çizgi boyası
+31211504	4	31211500		Selülozik endüstriyel boya
+31211505	4	31211500		Sentetik parlak boya
+31211506	4	31211500		Yangın geciktirici intümesan boya
+31211508	4	31211500		Poliüretan zemin boyası
+31211601	4	31211600		Selülozik tiner
+31211602	4	31211600		Sentetik tiner
+31211603	4	31211600		Epoksi tiner
+31211604	4	31211600		Poliüretan tiner
+31211605	4	31211600		Boya sökücü jel
+31211606	4	31211600		Likit boya kurutucu sikatif
+31211607	4	31211600		Renklendirici pigment pastası
+31211608	4	31211600		Boya matlaştırıcı ajan
+31211609	4	31211600		Akışkanlaştırıcı boya katkısı
+31211701	4	31211700		Poliüretan son kat boya
+31211702	4	31211700		Epoksi son kat boya
+31211703	4	31211700		Yat verniği
+31211704	4	31211700		Selülozik parlak vernik
+31211705	4	31211700		Akrilik şeffaf vernik
+31211706	4	31211700		Su bazlı ahşap koruyucu vernik
+31211707	4	31211700		Metalik son kat boya
+31211708	4	31211700		Mat vernik sprey
+31211709	4	31211700		Taş verniği son kat
+31211801	4	31211800		Sentetik tiner
+31211802	4	31211800		Selülozik tiner
+31211803	4	31211800		Epoksi tiner
+31211804	4	31211800		Poliüretan tiner
+31211805	4	31211800		Akrilik tiner
+31211806	4	31211800		Fırın boya tineri
+31211807	4	31211800		Rapid tiner
+31211808	4	31211800		Yol çizgi boyası tineri
+31211809	4	31211800		Endüstriyel boya sökücü
+31211901	4	31211900		Boya rulosu
+31211902	4	31211900		Kestirme fırçası
+31211903	4	31211900		Boya püskürtme tabancası
+31211904	4	31211900		Boya karıştırıcı mikser ucu
+31211905	4	31211900		Boya maskeleme bandı
+31211906	4	31211900		Boya tavası ve ızgarası
+31211907	4	31211900		Boya süzgeci
+31211908	4	31211900		Boya tabancası memesi
+31211909	4	31211900		Havasız boya pompası hortumu
+31401501	4	31401500		Kalıplanmış kauçuk conta
+31401502	4	31401500		Kalıplanmış silikon conta
+31401504	4	31401500		Kalıplanmış viton conta
+31401505	4	31401500		Kalıplanmış epdm conta
+31401506	4	31401500		Kalıplanmış neopren conta
+31401507	4	31401500		Kalıplanmış teflon conta
+31401508	4	31401500		Kalıplanmış poliüretan conta
+31401509	4	31401500		Kalıplanmış mantar conta
+32101501	4	32101500		Çok katmanlı baskı devre kartı
+32101502	4	32101500		Esnek baskı devre kartı
+32101503	4	32101500		Tek yüzeyli baskı devre kartı
+32101504	4	32101500		Çift yüzeyli baskı devre kartı
+32101505	4	32101500		Alüminyum tabanlı baskı devre kartı
+32101506	4	32101500		Radyo frekansı RF amplifikatörü
+32101507	4	32101500		Radyo frekansı RF zayıflatıcı
+32101508	4	32101500		Radyo frekansı RF filtre
+32101509	4	32101500		Radyo frekansı RF anten modülü
+32101602	4	32101600		Mikrodenetleyici entegre devre
+32101603	4	32101600		Mikroişlemci entegre devre
+32101604	4	32101600		Voltaj regülatörü entegresi
+32101605	4	32101600		Operasyonel amplifikatör op-amp entegresi
+32101606	4	32101600		Analog dijital dönüştürücü ADC entegresi
+32101607	4	32101600		Dijital analog dönüştürücü DAC entegresi
+32101608	4	32101600		Mantık kapısı entegresi
+32101609	4	32101600		Zamanlayıcı entegre devre
+32121706	4	32121700		Ayrık güç transistörü
+32121707	4	32121700		Ayrık sinyal diyotu
+32121708	4	32121700		Ayrık zener diyotu
+32121709	4	32121700		Ayrık varistör
+32131001	4	32131000		Elektrolitik kondansatör
+32131002	4	32131000		Metal film direnç
+32131003	4	32131000		Entegre devre soketi
+32131004	4	32131000		Kristal osilatör
+32131005	4	32131000		Potansiyometre ve reosta
+32131006	4	32131000		Seramik disk kondansatör
+32131007	4	32131000		Zener diyot
+32131008	4	32131000		Köprü diyot
+32131009	4	32131000		Baskı devre klemensi
+39101604	4	39101600		LED ampul
+39101606	4	39101600		Metal halide lamba
+39101607	4	39101600		Sodyum buharlı lamba
+39101801	4	39101800		Lamba duyu
+39101802	4	39101800		Aydınlatma direği konsolu
+39101803	4	39101800		Armatür camı
+39101804	4	39101800		Lamba starteri
+39101805	4	39101800		Armatür montaj aparatı
+39101806	4	39101800		Lamba koruma kafesi
+39101807	4	39101800		LED sürücü kasası
+39101808	4	39101800		Armatür askı zinciri
+39101809	4	39101800		Lamba reflektörü
+39101901	4	39101900		Elektronik floresan balastı
+39101902	4	39101900		Mekanik floresan balastı
+39101903	4	39101900		Sodyum buharlı lamba balastı
+39101904	4	39101900		Metal halide lamba balastı
+39101905	4	39101900		Halojen lamba trafosu
+39101906	4	39101900		LED sürücü trafosu
+39101907	4	39101900		Aydınlatma izolasyon trafosu
+39101908	4	39101900		Kısılabilir elektronik balast
+39101909	4	39101900		Ateşleyici ignitör
+39111501	4	39111500		Sıva altı LED panel
+39111502	4	39111500		Sıva üstü LED armatür
+39111503	4	39111500		Ray spot armatürü
+39111504	4	39111500		Lineer aydınlatma armatürü
+39111505	4	39111500		Dekoratif aplik armatür
+39111506	4	39111500		Yüksek tavan aydınlatma armatürü
+39111701	4	39111700		Acil durum yönlendirme armatürü
+39111702	4	39111700		Şarjlı acil aydınlatma kiti
+39111703	4	39111700		Acil durum kaçış yolu aydınlatması
+39111704	4	39111700		Acil durum aydınlatma bataryası
+39111705	4	39111700		Işıldaklı acil durum lambası
+39111706	4	39111700		Acil durum aydınlatma spotu
+39111707	4	39111700		Kendinden akülü acil yönlendirme levhası
+39111708	4	39111700		Merkezi batarya ünitesi
+39111709	4	39111700		Acil durum aydınlatma test butonu
+39111801	4	39111800		Aydınlatma direği konsolu
+39111802	4	39111800		Armatür montaj aparatı
+39111803	4	39111800		Balast ve sürücü kutusu
+39111804	4	39111800		Aydınlatma zinciri ve askı takımı
+39111805	4	39111800		Armatür camı ve glop
+39111806	4	39111800		LED sürücü ve trafo
+39111807	4	39111800		Projektör montaj ayağı
+39111808	4	39111800		Aydınlatma sensörü ve fotosel
+39111901	4	39111900		Ex-proof projektör
+39111902	4	39111900		Ex-proof flüoresan armatür
+39111903	4	39111900		Temiz oda armatürü
+39111904	4	39111900		Yüksek tavan LED armatürü
+39111905	4	39111900		Toz ve nem geçirmez etanj armatür
+39111906	4	39111900		Kimyasal dayanımlı armatür
+39111907	4	39111900		Havuz altı aydınlatma armatürü
+39111908	4	39111900		Acil durum yönlendirme armatürü
+39111909	4	39111900		Ex-proof el feneri
+39112001	4	39112000		Şantiye seyyar kablo makarası
+39112002	4	39112000		Şarjlı LED projektör
+39112003	4	39112000		Teleskopik aydınlatma kulesi
+39112004	4	39112000		Mıknatıslı seyyar çalışma lambası
+39112005	4	39112000		Akülü el feneri
+39112006	4	39112000		Kafa feneri
+39112007	4	39112000		Geçici şantiye aydınlatma zinciri
+39112008	4	39112000		Taşınabilir jeneratörlü aydınlatma seti
+39112009	4	39112000		Şarjlı muayene lambası
+39112101	4	39112100		Fiber optik aydınlatma kablosu
+39112102	4	39112100		Fiber optik ışık kaynağı cihazı
+39112103	4	39112100		LED mercek ve lens aparatı
+39112104	4	39112100		Işık yönlendirici reflektör
+39112105	4	39112100		Fiber optik tavan yıldız seti
+39112106	4	39112100		Optik prizma ve difüzör panel
+39112107	4	39112100		Lineer ışık tüpü
+39112108	4	39112100		Endüstriyel ışık kılavuzu
+39112109	4	39112100		Lazer çizgi hizalama cihazı
+39112201	4	39112200		Sahne sis makinesi
+39112202	4	39112200		Stroboskop flaşör lamba
+39112203	4	39112200		Sahne kar makinesi
+39112204	4	39112200		Kabarcık ve köpük makinesi
+39112205	4	39112200		Sahne lazer efekt cihazı
+39112206	4	39112200		DMX kontrol masası
+39112207	4	39112200		Sis likiti ve efekt sıvısı
+39112208	4	39112200		Yapay alev efekt makinesi
+39112209	4	39112200		Renk değiştirici LED spot
+39112301	4	39112300		Sahne takip spotu
+39112302	4	39112300		Fresnel stüdyo spotu
+39112303	4	39112300		Profil projektör armatürü
+39112304	4	39112300		Sahne ışık standı ve tripod
+39112305	4	39112300		Truss montaj kelepçesi
+39112306	4	39112300		Stüdyo softbox aydınlatma seti
+39112307	4	39112300		Sahne perdesi arkası aydınlatma barı
+39112308	4	39112300		Renkli ışık filtresi ve jelatin
+39112309	4	39112300		DMX sinyal dağıtıcı splitter
+39112401	4	39112400		DMX kontrol konsolu
+39112402	4	39112400		Sahne aydınlatma dimmer paketi
+39112403	4	39112400		DMX sinyal dağıtıcı ve çoklayıcı
+39112404	4	39112400		Kablosuz DMX alıcı verici
+39112405	4	39112400		Sahne aydınlatma kontrol yazılımı
+39112406	4	39112400		DMX dekoder ve sürücü
+39112407	4	39112400		Sahne aydınlatma splitteri
+39112408	4	39112400		Akıllı aydınlatma kontrol arayüzü
+39112409	4	39112400		Sahne aydınlatma tetikleyici kumanda
+39112501	4	39112500		Sahne robot ışığı
+39112502	4	39112500		Takip spotu
+39112503	4	39112500		LED par sahne spotu
+39112504	4	39112500		Tiyatro sahne projektörü
+39112505	4	39112500		Stüdyo panel LED ışığı
+39112506	4	39112500		Fresnel stüdyo spotu
+39112507	4	39112500		Strobe flaşör sahne ışığı
+39112508	4	39112500		Blinder seyirci aydınlatması
+39112509	4	39112500		Sahne efekt lazer cihazı
+39112601	4	39112600		Gazlı kamp feneri
+39112602	4	39112600		Kimyasal ışık çubuğu
+39112603	4	39112600		Gazyağı lambası
+39112604	4	39112600		Karbür lambası
+39112605	4	39112600		Mum ve mumluk
+39112606	4	39112600		Güneş enerjili solar fener
+39112607	4	39112600		Yansıtıcı reflektör plaka
+39112608	4	39112600		Fosforlu acil durum yönlendirme levhası
+39112609	4	39112600		Rüzgar feneri
+39121002	4	39121000		Voltaj regülatörü
+39121003	4	39121000		Aktif harmonik filtre
+39121102	4	39121100		Elektrik dağıtım panosu
+39121103	4	39121100		Motor kontrol merkezi panosu MCC
+39121104	4	39121100		Şantiye elektrik panosu
+39121105	4	39121100		Kompanzasyon panosu
+39121106	4	39121100		Aydınlatma kontrol panosu
+39121107	4	39121100		Ana dağıtım panosu ADP
+39121108	4	39121100		Transfer panosu ATS
+39121109	4	39121100		Piyano tipi kontrol masası
+39121301	4	39121300		Sıva altı buat kutusu
+39121302	4	39121300		Sıva üstü buat kutusu
+39121303	4	39121300		Plastik elektrik panosu
+39121304	4	39121300		Metal buat kutusu
+39121305	4	39121300		Kablo geçiş rakoru
+39121306	4	39121300		Klemens kutusu
+39121307	4	39121300		Polyester pano
+39121308	4	39121300		Döküm buat kutusu
+39121309	4	39121300		Pano havalandırma menfezi
+39121401	4	39121400		Sıkmalı kablo pabucu
+39121403	4	39121400		Ulemens klemens
+39121404	4	39121400		Geçmeli kablo soketi
+39121405	4	39121400		Endüstriyel fiş priz kombinasyonu
+39121407	4	39121400		Yalıtımlı kablo ucu
+39121408	4	39121400		Hızlı bağlantı konnektörü
+39121409	4	39121400		Vidalı klemens
+39121501	4	39121500		Kumanda butonu
+39121502	4	39121500		Sınır anahtarı limit switch
+39121503	4	39121500		Pedallı ayak şalteri
+39121504	4	39121500		Pako şalter
+39121505	4	39121500		Zaman rölesi
+39121506	4	39121500		Sinyal kulesi
+39121507	4	39121500		Kumanda kutusu
+39121508	4	39121500		Seçici anahtar
+39121601	4	39121600		Otomatik sigorta
+39121602	4	39121600		Kaçak akım rölesi
+39121603	4	39121600		Termik manyetik şalter
+39121604	4	39121600		Parafudr
+39121605	4	39121600		Cam sigorta
+39121606	4	39121600		Bıçaklı sigorta
+39121607	4	39121600		Motor koruma şalteri
+39121702	4	39121700		Kablo bağı
+39121703	4	39121700		Spiral boru
+39121704	4	39121700		Kablo kanalı
+39121705	4	39121700		Klemens rayı
+39121706	4	39121700		Kablo rakoru
+39121707	4	39121700		Isıyla büzüşen makaron
+39121708	4	39121700		Elektrik bandı
+39121802	4	39121800		Akıllı aydınlatma modülü
+39121804	4	39121800		Varlık ve hareket sensörü
+39121805	4	39121800		Akıllı termostat
+39121806	4	39121800		Merkezi kontrol paneli
+39121807	4	39121800		Otomatik perde panjur motoru
+39121808	4	39121800		Akıllı kapı kilidi
+39121809	4	39121800		Enerji izleme analizörü
+39121902	4	39121900		Grup kilitleme kutusu
+39121903	4	39121900		Asma kilit istasyonu
+39121904	4	39121900		Vana kilitleme aparatı
+39121905	4	39121900		Elektrik panosu kilitleme aparatı
+39121906	4	39121900		Etiketleme kartı tagout
+39121907	4	39121900		Çoklu kilitleme kilit çoklayıcı
+39121908	4	39121900		Sigorta kilitleme aparatı
+39121909	4	39121900		Kablo kilitleme aparatı
+39122002	4	39122000		DC motor sürücüsü
+39122003	4	39122000		Servo motor sürücüsü
+39122004	4	39122000		Yumuşak yolverici
+39122005	4	39122000		Frekans konvertörü
+39122006	4	39122000		Adım motor sürücüsü
+39122007	4	39122000		Vektör kontrol sürücüsü
+39122008	4	39122000		Sürücü kontrol paneli
+39122009	4	39122000		Sürücü frenleme direnci
+39122101	4	39122100		Dağıtım trafosu
+39122102	4	39122100		Akım trafosu
+39122103	4	39122100		Gerilim trafosu
+39122104	4	39122100		Elektrik dağıtım panosu
+39122105	4	39122100		Busbar kanal sistemi
+39122106	4	39122100		Yüksek gerilim sigortası
+39122107	4	39122100		Parafudr
+39122108	4	39122100		İzolatör zinciri
+39122109	4	39122100		Yük ayırıcısı
+39122201	4	39122200		Sınır anahtarı
+39122202	4	39122200		Pako şalter
+39122203	4	39122200		Manyetik şalter
+39122204	4	39122200		Seviye şalteri
+39122205	4	39122200		Basınç şalteri
+39122206	4	39122200		Ayak pedalı anahtarı
+39122207	4	39122200		Döner buton anahtarı
+39122208	4	39122200		Acil durdurma butonu
+39122301	4	39122300		Zaman rölesi
+39122302	4	39122300		Termik röle
+39122303	4	39122300		Faz koruma rölesi
+39122304	4	39122300		Katı hal rölesi
+39122305	4	39122300		Güvenlik rölesi
+39122306	4	39122300		Sinyal rölesi
+39122307	4	39122300		Soketli röle
+39122308	4	39122300		Kaçak akım rölesi
+39122309	4	39122300		Röle soketi
+39131501	4	39131500		Kablo etiketleme makinesi
+39131502	4	39131500		Isıyla büzüşen makaron etiket
+39131503	4	39131500		Kablo işaretleme halkası
+39131504	4	39131500		Yapışkanlı kablo etiketi
+39131505	4	39131500		Kablo etiketleme şeridi
+39131506	4	39131500		Numaratörlü kablo yüksüğü
+39131507	4	39131500		Kablo bağlama etiketi
+39131508	4	39131500		Paslanmaz çelik kablo etiketi
+39131509	4	39131500		Kablo işaretleme kalemi
+39131601	4	39131600		Spiral kablo koruma borusu
+39131602	4	39131600		Isıyla büzüşen makaron
+39131603	4	39131600		Kablo koruma kılıfı
+39131604	4	39131600		Örgülü kablo çorabı
+39131605	4	39131600		Yarık spiral hortum
+39131606	4	39131600		Kablo geçiş rakoru
+39131607	4	39131600		Kablo kanalı kapağı
+39131608	4	39131600		Cam elyaf yanmaz makaron
+39131609	4	39131600		Kablo koruma spirali metal
+39131701	4	39131700		PVC kablo kanalı
+39131702	4	39131700		Metal kablo kanalı
+39131703	4	39131700		Spiral boru
+39131704	4	39131700		Galvanizli çelik boru
+39131705	4	39131700		Halojensiz kablo kanalı
+39131706	4	39131700		Kablo merdiveni
+39131707	4	39131700		Busway akım dağıtım barası
+39131708	4	39131700		Kablo kanalı ek parçası
+39131709	4	39131700		Beton geçiş borusu
+39991507	4	39991500		Polyester pano gövdesi
+39991508	4	39991500		Paslanmaz çelik pano gövdesi
+39991509	4	39991500		Sıva altı dağıtım kutusu
+39991609	4	39991600		Yük ayırıcı şalter
+39991708	4	39991700		Sıcaklık kontrol cihazı
+39991709	4	39991700		Emniyet rölesi
+39991805	4	39991800		Statik kontaktör
+39991806	4	39991800		Kompanzasyon reaktörü
+39991807	4	39991800		Aktif harmonik filtre
+39991808	4	39991800		Kondansatör deşarj ünitesi
+39991809	4	39991800		Güç faktörü düzeltme panosu
+39991906	4	39991900		Analog pano tipi ampermetre
+39991907	4	39991900		Dijital pano tipi voltmetre
+39991908	4	39991900		Şebeke analizörü
+39991909	4	39991900		Aktif reaktif elektrik sayacı
+40101501	4	40101500		Havalandırma kanalı
+40101502	4	40101500		Salyangoz fan
+40101504	4	40101500		Aksiyal fan
+40101505	4	40101500		Hava damperi
+40101506	4	40101500		Hava filtresi
+40101507	4	40101500		Esnek havalandırma borusu
+40101508	4	40101500		Hız anahtarı
+40101603	4	40101600		Sanayi tipi vantilatör
+40101605	4	40101600		Hava perdesi
+40101606	4	40101600		Hücreli aspiratör
+40101607	4	40101600		Kanal tipi fan
+40101608	4	40101600		Sirkülasyon pompası
+40101803	4	40101800		Elektrikli konvektör
+40101804	4	40101800		Sıcak hava apareyi
+40101809	4	40101800		Radyant ısıtıcı
+40101904	4	40101900		Nem ölçer
+40101905	4	40101900		Nem alma cihazı filtresi
+40101906	4	40101900		Higrostat
+40101907	4	40101900		Nemlendirme nozulu
+40101908	4	40101900		Kurutma tableti
+40101909	4	40101900		Nem kontrol paneli
+40102001	4	40102000		Buhar kazanı
+40102002	4	40102000		Kızgın yağ kazanı
+40102003	4	40102000		Kazan brülörü
+40102004	4	40102000		Kazan emniyet ventili
+40102005	4	40102000		Kazan besi pompası
+40102006	4	40102000		Kondens tankı
+40102007	4	40102000		Kazan duman borusu
+40102008	4	40102000		Degazörör ünitesi
+40102009	4	40102000		Kazan kontrol paneli
+40102101	4	40102100		Şömine haznesi
+40102102	4	40102100		Şömine camı
+40102103	4	40102100		Şömine odun sepeti
+40102104	4	40102100		Şömine maşa takımı
+40102105	4	40102100		Biyoetanol şömine
+40102106	4	40102100		Elektrikli şömine
+40102107	4	40102100		Şömine bacası
+40102108	4	40102100		Şömine ızgarası
+40102109	4	40102100		Şömine siperliği
+40141601	4	40141600		Pirinç küresel vana
+40141602	4	40141600		Paslanmaz çelik küresel vana
+40141603	4	40141600		Flanşlı kelebek vana
+40141604	4	40141600		Döküm sürgülü vana
+40141605	4	40141600		Solenoid vana
+40141606	4	40141600		Termostatik vana
+40141607	4	40141600		İğne vana
+40141608	4	40141600		Diyaframlı vana
+40141609	4	40141600		Emniyet vanası
+40141701	4	40141700		Paslanmaz çelik dirsek
+40141702	4	40141700		Dişli boru nipeli
+40141703	4	40141700		Kaynak boyunlu flanş
+40141704	4	40141700		Galvaniz boru manşonu
+40141705	4	40141700		Pirinç hortum rekoru
+40141706	4	40141700		Dişli redüksiyon
+40141707	4	40141700		Kör tapa
+40141708	4	40141700		Konik oturmalı rakor
+40141709	4	40141700		Eşit te bağlantı parçası
+40141901	4	40141900		Galvaniz dikdörtgen hava kanalı
+40141902	4	40141900		Spiral kenetli yuvarlak boru
+40141903	4	40141900		İzoleli flexible hava kanalı
+40141904	4	40141900		Alüminyum akordeon boru
+40141905	4	40141900		Plenum kutusu
+40141906	4	40141900		Hava kanalı susturucusu
+40141907	4	40141900		Hava damperi
+40141908	4	40141900		Kanal tipi fan
+40141909	4	40141900		Hava kanalı flanş profili
+40142001	4	40142000		Çelik örgülü hidrolik hortum
+40142002	4	40142000		Poliüretan pnömatik hortum
+40142003	4	40142000		PVC spiral emici hortum
+40142004	4	40142000		Yangın hortumu
+40142005	4	40142000		Paslanmaz çelik örgülü hortum
+40142006	4	40142000		Yüksek sıcaklık silikon hortumu
+40142007	4	40142000		Şeffaf örgülü su hortumu
+40142008	4	40142000		Kimyasal madde hortumu
+40142009	4	40142000		Akaryakıt ve yağ hortumu
+40142201	4	40142200		Su basınç düşürücü vana
+40142202	4	40142200		Argon gaz regülatörü
+40142203	4	40142200		Oksijen gaz regülatörü
+40142204	4	40142200		Filtre regülatör yağlayıcı grup
+40142205	4	40142200		Doğalgaz servis regülatörü
+40142206	4	40142200		LPG tüp regülatörü
+40142207	4	40142200		Hassas basınç regülatörü
+40142208	4	40142200		Debi ayarlı gaz regülatörü
+40142209	4	40142200		Pnömatik basınç regülatörü
+40142501	4	40142500		Çalpara çek valf
+40142502	4	40142500		Yaylı pirinç çek valf
+40142503	4	40142500		Disk tipi çek valf
+40142504	4	40142500		Y tipi döküm pislik tutucu
+40142505	4	40142500		Termodinamik kondenstop
+40142506	4	40142500		Şamandıralı buhar kapanı
+40142507	4	40142500		Otomatik hava tahliye pürjörü
+40142508	4	40142500		Vakum kırıcı
+40142509	4	40142500		Paslanmaz çelik süzgeç
+40151501	4	40151500		Dalgıç pompa
+40151502	4	40151500		Dişli pompa
+40151504	4	40151500		Dozaj pompası
+40151602	4	40151600		Vidalı kompresör
+40151603	4	40151600		Pistonlu kompresör
+40151604	4	40151600		Sessiz kompresör
+40151605	4	40151600		Yağsız kompresör
+40151606	4	40151600		Yüksek basınç kompresörü
+40151608	4	40151600		Seyyar kompresör
+40151609	4	40151600		Turbo kompresör
+40151701	4	40151700		Pompa mili
+40151702	4	40151700		Pompa fanı
+40151703	4	40151700		Mekanik salmastra
+40151704	4	40151700		Pompa gövdesi
+40151705	4	40151700		Pompa kaplini
+40151706	4	40151700		Kompresör hava filtresi
+40151707	4	40151700		Kompresör yağı
+40151708	4	40151700		Basınç şalteri
+40151709	4	40151700		Kompresör piston segmanı
+40161501	4	40161500		Yakıt filtresi
+40161502	4	40161500		Su filtresi kartuşu
+40161503	4	40161500		Hidrolik yağ filtresi
+40161506	4	40161500		Toz toplama filtresi
+40161507	4	40161500		Hepa filtre
+40161508	4	40161500		Karbon filtre
+40161509	4	40161500		Panel filtre
+40161601	4	40161600		Endüstriyel su yumuşatma cihazı
+40161603	4	40161600		Ters osmoz sistemi
+40161604	4	40161600		Ultraviyole dezenfeksiyon sistemi
+40161605	4	40161600		Aktif karbon filtreleme ünitesi
+40161606	4	40161600		Kum filtresi sistemi
+40161607	4	40161600		Atık su arıtma tesisi ekipmanı
+40161701	4	40161700		Yağ ayırıcı seperatör
+40161702	4	40161700		Su separatorü
+40161703	4	40161700		Manyetik talaş ayırıcı
+40161704	4	40161700		Hava separatorü
+40161705	4	40161700		Santrifüj separator
+40161706	4	40161700		Siklon separator
+40161707	4	40161700		Kondens tahliye cihazı
+40161708	4	40161700		Gaz separatorü
+40161709	4	40161700		Yağ su separatorü
+40161801	4	40161800		Aktif karbon granül
+40161802	4	40161800		Antrasit filtre malzemesi
+40161803	4	40161800		Kuvars filtre kumu
+40161804	4	40161800		Filtre torbası kumaşı
+40161805	4	40161800		İğneli keçe filtre kumaşı
+40161806	4	40161800		Seramik filtre kartuşu
+40161807	4	40161800		Paslanmaz çelik filtre teli
+40161808	4	40161800		Akrilik filtre torbası
+40161809	4	40161800		Cam elyaf filtre rulosu
+40171601	4	40171600		Dikişsiz çelik çekme boru
+40171602	4	40171600		Paslanmaz çelik sanayi borusu
+40171603	4	40171600		Galvanizli dişli boru
+40171604	4	40171600		Sfero döküm boru
+40171605	4	40171600		Polietilen altyapı borusu
+40171606	4	40171600		PPRC tesisat borusu
+40171607	4	40171600		PVC basınçlı temiz su borusu
+40171608	4	40171600		Spiral kaynaklı çelik boru
+40171609	4	40171600		Bakır tesisat borusu
+40174701	4	40174700		Paslanmaz çelik dişli flanş
+40174702	4	40174700		Karbon çelik dişli flanş
+40174703	4	40174700		Galvanizli dişli flanş
+40174704	4	40174700		Pirinç dişli flanş
+40174705	4	40174700		PN16 dişli flanş
+40174706	4	40174700		PN40 dişli flanş
+40174707	4	40174700		ANSI sınıfı dişli flanş
+40174708	4	40174700		Bronz dişli flanş
+40181801	4	40181800		Boyuna kaynaklı çelik boru
+40181802	4	40181800		Spiral kaynaklı çelik boru
+40181803	4	40181800		ERW kaynaklı sanayi borusu
+40181804	4	40181800		Galvanizli kaynaklı çelik boru
+40181805	4	40181800		Siyah kaynaklı tesisat borusu
+40181806	4	40181800		Paslanmaz argon kaynaklı boru
+40181807	4	40181800		Kalın etli kaynaklı boru
+40181808	4	40181800		Hassas kaynaklı çelik boru
+40181809	4	40181800		Profil kaynaklı çelik boru
+40183002	4	40183000		Örgülü şeffaf PVC hortum
+40183003	4	40183000		Çelik telli emici hortum
+40183004	4	40183000		Spiral sarımlı plastik hortum
+40183005	4	40183000		Yüksek basınçlı hidrolik hortum
+40183006	4	40183000		EPDM kauçuk su hortumu
+40183007	4	40183000		Silikon takviyeli hortum
+40183008	4	40183000		Poliüretan pnömatik hortum
+40183009	4	40183000		Yangın dayanımlı kauçuk hortum
+73101601	4	73101600		Fason sıvı gübre dolumu
+73101602	4	73101600		Fason toz kimyasal karıştırma
+73101603	4	73101600		Fason kozmetik ürün imalatı
+73101604	4	73101600		Endüstriyel temizlik kimyasalı üretimi
+73101605	4	73101600		Fason aerosol dolum hizmeti
+73101606	4	73101600		Kimyasal fason paketleme hizmeti
+73101607	4	73101600		Özel formüllü gübre üretimi
+73101608	4	73101600		Fason plastik hammadde renklendirme
+73101609	4	73101600		Fason sıvı kimyasal dolumu
+73111501	4	73111500		Fason ahşap CNC kesim hizmeti
+73111502	4	73111500		Fason ahşap ebatlama ve kenar bantlama
+73111503	4	73111500		Fason ahşap torna ve oyma işleri
+73111504	4	73111500		Fason ahşap kurutma ve fırınlama hizmeti
+73111505	4	73111500		Fason ahşap emprenyeleme hizmeti
+73111506	4	73111500		Fason ahşap boyama ve vernikleme
+73111507	4	73111500		Fason palet ve sandık imalatı
+73111508	4	73111500		Fason MDF ve sunta kaplama hizmeti
+73111509	4	73111500		Fason ahşap lamine kiriş üretimi
+73131501	4	73131500		Fason gazlı içecek dolum hizmeti
+73131502	4	73131500		Fason meyve suyu sıkma ve pastörizasyon
+73131503	4	73131500		Fason kaynak suyu şişeleme hizmeti
+73131504	4	73131500		Fason bira ve alkollü içecek fıçılama
+73131505	4	73131500		Fason toz içecek karıştırma ve paketleme
+73131506	4	73131500		Fason bitki çayı harmanlama ve poşetleme
+73131507	4	73131500		Fason sıvı içecek sterilizasyon hizmeti
+73131508	4	73131500		Fason konsantre içecek hazırlama hizmeti
+73131509	4	73131500		Fason cam şişe içecek etiketleme ve ambalajlama
+73131601	4	73131600		Fason et parçalama ve kemiksizleştirme
+73131602	4	73131600		Fason kıyma ve köfte hazırlama hizmeti
+73131603	4	73131600		Fason tavuk kesim ve paketleme hizmeti
+73131604	4	73131600		Fason balık temizleme ve fileto çıkarma
+73131605	4	73131600		Fason et fümeleme ve kurutma hizmeti
+73131606	4	73131600		Fason şarküteri ürünleri doldurma ve kürleme
+73131607	4	73131600		Fason deniz ürünü şoklama ve dondurma
+73131608	4	73131600		Fason sakatat işleme ve temizleme hizmeti
+73131609	4	73131600		Fason et ürünleri vakumlu paketleme
+73131701	4	73131700		Fason meyve ve sebze kurutma hizmeti
+73131702	4	73131700		Fason sebze yıkama ve doğrama hizmeti
+73131703	4	73131700		Fason meyve püre ve konsantre üretimi
+73131704	4	73131700		Fason turşu ve salamura kurma hizmeti
+73131705	4	73131700		Fason dondurulmuş meyve sebze şoklama
+73131706	4	73131700		Fason salça ve sos kaynatma hizmeti
+73131707	4	73131700		Fason meyve sebze mumlama ve boylama
+73131708	4	73131700		Fason zeytin işleme ve tatlandırma hizmeti
+73131709	4	73131700		Fason hazır salata paketleme hizmeti
+73131801	4	73131800		Fason süt pastörizasyon ve sterilizasyon
+73131802	4	73131800		Fason peynir mayalama ve olgunlaştırma
+73131803	4	73131800		Fason yoğurt ve ayran dolum hizmeti
+73131804	4	73131800		Fason tereyağı yayık ve paketleme hizmeti
+73131805	4	73131800		Fason süt tozu ve peynir altı suyu üretimi
+73131806	4	73131800		Fason yumurta yıkama ve tasnifleme hizmeti
+73131807	4	73131800		Fason likit yumurta pastörizasyon hizmeti
+73131808	4	73131800		Fason dondurma miksi hazırlama ve dondurma
+73131809	4	73131800		Fason kaşar peyniri eritme ve kalıplama
+73131901	4	73131900		Fason buğday ve tahıl öğütme hizmeti
+73131902	4	73131900		Fason bitkisel yağ rafine etme hizmeti
+73131903	4	73131900		Fason zeytinyağı sıkım ve filtreleme hizmeti
+73131904	4	73131900		Fason şeker kırma ve paketleme hizmeti
+73131905	4	73131900		Fason un eleme ve paçallama hizmeti
+73131906	4	73131900		Fason bakliyat eleme ve boylama hizmeti
+73131907	4	73131900		Fason nişasta ve glikoz şurubu üretimi
+73131908	4	73131900		Fason margarin ve katı yağ hidrojenasyon
+73131909	4	73131900		Fason tahıl kavurma ve patlatma hizmeti
+73141501	4	73141500		Polyester elyaf üretimi
+73141502	4	73141500		Polipropilen elyaf üretimi
+73141503	4	73141500		Akrilik elyaf üretimi
+73141504	4	73141500		Cam elyafı çekimi
+73141505	4	73141500		Karbon elyaf üretimi
+73141506	4	73141500		Pamuk elyafı işleme
+73141507	4	73141500		Sentetik elyaf çekimi
+73141508	4	73141500		Selülozik elyaf üretimi
+73141509	4	73141500		Metalik elyaf üretimi
+73141601	4	73141600		Fason iplik büküm hizmeti
+73141602	4	73141600		Fason iplik boyama hizmeti
+73141603	4	73141600		İplik aktarma ve bobinaj hizmeti
+73141604	4	73141600		Fason iplik fikse etme
+73141605	4	73141600		Polyester iplik bükümü
+73141606	4	73141600		Pamuk ipliği eğirme hizmeti
+73141607	4	73141600		Naylon iplik bükümü
+73141608	4	73141600		Fason iplik şardonlama
+73141609	4	73141600		Tekstüre iplik üretimi
+73141701	4	73141700		Fason dokuma kumaş üretimi
+73141702	4	73141700		Fason örme kumaş üretimi
+73141703	4	73141700		Fason deri tabaklama hizmeti
+73141704	4	73141700		Kumaş boyama ve apre hizmeti
+73141705	4	73141700		Fason deri kesim hizmeti
+73141706	4	73141700		Teknik tekstil dokuma hizmeti
+73141707	4	73141700		Fason kapitone dikim hizmeti
+73141708	4	73141700		Nonwoven kumaş üretimi
+73151503	4	73151500		Elektronik kart dizgi ve montajı
+73151504	4	73151500		Kablo gruplama ve montaj hizmeti
+73151505	4	73151500		Mekanik parça montaj hizmeti
+73151506	4	73151500		Fason pano montajı
+73151507	4	73151500		Plastik parça montaj hizmeti
+73151508	4	73151500		Metal konstrüksiyon montajı
+73151509	4	73151500		Yarı mamul birleştirme hizmeti
+73151601	4	73151600		Fason shrink ambalajlama hizmeti
+73151602	4	73151600		Fason blister ambalajlama hizmeti
+73151603	4	73151600		Fason kolileme ve paketleme hizmeti
+73151604	4	73151600		Sıvı dolum ve ambalajlama hizmeti
+73151605	4	73151600		Toz ve granül dolum hizmeti
+73151606	4	73151600		Fason etiketleme hizmeti
+73151607	4	73151600		Palet streçleme ve çemberleme hizmeti
+73151608	4	73151600		Vakumlu paketleme hizmeti
+73151609	4	73151600		Fason poşetleme hizmeti
+73151701	4	73151700		Fason metal kumlama hizmeti
+73151702	4	73151700		Fason metal taşlama hizmeti
+73151703	4	73151700		Fason plastik kırma ve çapak hizmeti
+73151704	4	73151700		Fason metal dilme hizmeti
+73151705	4	73151700		Fason rulo sac boy kesme hizmeti
+73151706	4	73151700		Fason metal ısıl işlem hizmeti
+73151707	4	73151700		Fason elektrostatik toz boyama
+73151708	4	73151700		Fason metal galvaniz kaplama
+73151709	4	73151700		Fason lazer kesim hizmeti
+73151801	4	73151800		Bobinden bobine dilimleme hizmeti
+73151802	4	73151800		Yapışkanlı bant kesim ve laminasyon hizmeti
+73151803	4	73151800		Endüstriyel rulo ebatlama hizmeti
+73151804	4	73151800		Koruyucu film ve folyo kesim hizmeti
+73151805	4	73151800		Sünger ve keçe kesim hizmeti
+73151806	4	73151800		Lazerle esnek malzeme kesim hizmeti
+73151807	4	73151800		Sıcak transfer baskı ve laminasyon hizmeti
+73151808	4	73151800		Bobinden tabakaya kesim hizmeti
+73151809	4	73151800		Çift taraflı bant şekilli kesim hizmeti
+73151901	4	73151900		Metal plaka üzerine serigrafi baskı hizmeti
+73151902	4	73151900		Plastik parça üzerine tampon baskı hizmeti
+73151903	4	73151900		Endüstriyel panel UV dijital baskı hizmeti
+73151904	4	73151900		Lazer markalama ve kazıma hizmeti
+73151905	4	73151900		Alüminyum etiket asit indirme baskı hizmeti
+73151906	4	73151900		Membran tuş takımı baskı hizmeti
+73151907	4	73151900		Sıcak yaldız varak baskı hizmeti
+73151908	4	73151900		Ambalaj üzerine flekso baskı hizmeti
+73151909	4	73151900		Isıyla büzüşen makaron baskı hizmeti
+73152001	4	73152000		Aerosol tüp dolum hizmeti
+73152002	4	73152000		Endüstriyel sıvı kimyasal dolum hizmeti
+73152003	4	73152000		Toz ve granül malzeme dolum hizmeti
+73152004	4	73152000		Tüp ve kartuş dolum hizmeti
+73152005	4	73152000		Kozmetik ve kişisel bakım ürünleri dolum hizmeti
+73152006	4	73152000		Gıda dışı sıvı şişeleme hizmeti
+73152007	4	73152000		Tek kullanımlık sachet paket dolum hizmeti
+73152008	4	73152000		Bidon ve varil dolum hizmeti
+73152009	4	73152000		Yapıştırıcı ve mastik dolum hizmeti
+73161501	4	73161500		Özel tasarım konveyör hattı imalatı
+73161502	4	73161500		Endüstriyel otomasyon hücresi imalatı
+73161503	4	73161500		Hidrolik güç ünitesi imalatı
+73161504	4	73161500		Özel amaçlı pres makinesi imalatı
+73161505	4	73161500		Endüstriyel karıştırıcı ve mikser imalatı
+73161506	4	73161500		Paketleme ve ambalaj makinesi imalatı
+73161507	4	73161500		Talaşlı imalat makinesi fason üretimi
+73161508	4	73161500		Endüstriyel fırın ve kurutma sistemi imalatı
+73161509	4	73161500		Dozajlama ve dolum makinesi imalatı
+73161601	4	73161600		Fabrika içi yük taşıma arabası imalatı
+73161602	4	73161600		Çekilir tip römork ve dorse imalatı
+73161603	4	73161600		Forklift ataşmanı imalatı
+73161604	4	73161600		Demiryolu vagon yedek parça imalatı
+73161605	4	73161600		İstifleme ve kaldırma ataşmanı imalatı
+73161606	4	73161600		AGV ve otonom taşıma aracı şasisi imalatı
+73161607	4	73161600		Tekne ve yat metal aksam imalatı
+73161608	4	73161600		Ağır yük taşıma platformu imalatı
+73161609	4	73161600		Havalimanı yer hizmetleri ekipmanı imalatı
+73171601	4	73171600		Optik ve fotonik cihaz imalat hizmetleri
+73171603	4	73171600		Endüstriyel ölçüm ve kalibrasyon cihazı imalatı
+73171604	4	73171600		Elektronik kart ve sensör muhafazası imalatı
+73171606	4	73171600		Hassas terazi ve tartım sistemi imalatı
+73171607	4	73171600		Akış ve basınç ölçer cihaz imalatı
+73171608	4	73171600		Çevre ve gaz analiz cihazı imalatı
+73171609	4	73171600		Mikro mekanik parça ve dişli imalatı
+73181101	4	73181100		Elektrostatik toz boya kaplama
+73181102	4	73181100		Sıcak daldırma galvaniz kaplama
+73181104	4	73181100		Sert krom kaplama hizmeti
+73181105	4	73181100		Eloksal kaplama hizmeti
+73181106	4	73181100		Çinko kaplama hizmeti
+73181107	4	73181100		Kumlama ve boyama hizmeti
+73181108	4	73181100		Fosfat kaplama hizmeti
+73181109	4	73181100		Kataforez kaplama hizmeti
+73991507	4	73991500		Kompresör bakım ve onarım hizmeti
+73991508	4	73991500		Jeneratör periyodik bakım hizmeti
+73991509	4	73991500		Yangın söndürme sistemleri periyodik kontrolü

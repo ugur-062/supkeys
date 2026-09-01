@@ -4,9 +4,106 @@ import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader, SearchInput } from "@/components/list";
 import { api } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, FolderTree } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronRight, FolderTree, SearchX } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+interface SearchMiss {
+  id: string;
+  query: string;
+  rawQuery: string;
+  count: number;
+  lastSeenAt: string;
+}
+
+/**
+ * KÜRASYON KUYRUĞU — kullanıcıların arayıp BULAMADIĞI terimler.
+ *
+ * Taksonominin nerede eksik olduğunu söyleyen tek doğrudan sinyal budur:
+ * biri bir şey aradı, karşılığı yoktu. İki olası düzeltme var — eşanlamlı
+ * eklemek (`category-keywords.tsv`) ya da kategori açmak
+ * (`categories-custom.tsv`). Hangisi olduğuna bakan kişi karar verir; not
+ * ZORUNLU ki aynı terim tekrar geldiğinde iş baştan yapılmasın.
+ */
+function CurationQueue() {
+  const qc = useQueryClient();
+  const [note, setNote] = useState<Record<string, string>>({});
+
+  const misses = useQuery({
+    queryKey: ["admin-category-misses"],
+    queryFn: async () => {
+      const { data } = await api.get<SearchMiss[]>(
+        "/admin/system/category-misses",
+        { params: { limit: 50 } },
+      );
+      return data;
+    },
+    staleTime: 30_000,
+  });
+
+  const resolve = useMutation({
+    mutationFn: async ({ id, text }: { id: string; text: string }) => {
+      await api.post(`/admin/system/category-misses/${id}/resolve`, {
+        note: text,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Ele alındı olarak işaretlendi");
+      void qc.invalidateQueries({ queryKey: ["admin-category-misses"] });
+    },
+    onError: () => toast.error("İşaretlenemedi"),
+  });
+
+  const rows = misses.data ?? [];
+  if (misses.isLoading || rows.length === 0) return null;
+
+  return (
+    <div className="admin-card px-5 py-4">
+      <div className="flex items-center gap-2">
+        <SearchX className="h-4 w-4 text-amber-600" aria-hidden="true" />
+        <p className="text-admin-text text-sm font-bold">
+          Bulunamayan aramalar
+        </p>
+        <Badge color="amber">{rows.length}</Badge>
+      </div>
+      <p className="text-admin-text-muted mt-1 text-xs">
+        Kullanıcılar bunları aradı, karşılığı çıkmadı. Ya eşanlamlı ya
+        kategori eksik. Ele aldıktan sonra ne yaptığınızı yazıp işaretleyin —
+        terim yeniden aranırsa kuyruğa geri döner.
+      </p>
+      <ul className="mt-3 divide-y divide-zinc-950/5">
+        {rows.map((m) => (
+          <li key={m.id} className="flex flex-wrap items-center gap-2 py-2">
+            <span className="text-admin-text text-sm font-medium">
+              {m.rawQuery}
+            </span>
+            <Badge color="zinc">{m.count}×</Badge>
+            <input
+              value={note[m.id] ?? ""}
+              onChange={(e) =>
+                setNote((n) => ({ ...n, [m.id]: e.target.value }))
+              }
+              placeholder="Ne yapıldı? (ör. eşanlamlı eklendi)"
+              className="ml-auto w-64 rounded-md border border-zinc-950/10 px-2 py-1 text-sm"
+            />
+            <button
+              type="button"
+              disabled={!note[m.id]?.trim() || resolve.isPending}
+              onClick={() =>
+                resolve.mutate({ id: m.id, text: note[m.id]!.trim() })
+              }
+              className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40"
+            >
+              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              İşaretle
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 interface CommodityNode {
   id: string;
@@ -67,6 +164,8 @@ function KategorilerView() {
         title="Kategoriler"
         description="UNSPSC taksonomisi (UNGM TR) — kod veya ada göre ara; hiyerarşi koddan türetilir."
       />
+
+      <CurationQueue />
 
       <SearchInput
         value={q}
