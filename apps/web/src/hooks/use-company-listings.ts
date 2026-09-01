@@ -234,6 +234,13 @@ export interface ListingItemRow {
   unit: string;
   /** Faz 1: kanonik birim kodu; eski kayıtlarda null. */
   unitCode?: string | null;
+  // Faz 3 — kalem detayları (maskeli görünümde bazıları null döner).
+  brand?: string | null;
+  mpn?: string | null;
+  alternativeAllowed?: boolean;
+  specification?: string | null;
+  warrantyMonths?: number | null;
+  hsCode?: string | null;
   targetPrice: string | null;
   /** SATIS + KALEM fiyatlandırma. */
   minUnitPrice?: string | null;
@@ -251,6 +258,11 @@ export interface ListingBidItemRow {
   deliveryTime?: string | null;
   /** Kalem para birimi (madde 9; null = teklifin ana birimi). */
   currency?: string | null;
+  // Faz 3 — MUADİL beyanı: alıcı izin verdiyse tedarikçi NE teklif ettiğini
+  // söyler; olmadan alıcı tekliflerin aynı ürüne mi ait olduğunu göremez.
+  isAlternative?: boolean;
+  offeredBrand?: string | null;
+  offeredMpn?: string | null;
 }
 
 /** SATIS teklifinde alıcının teslimat adresi (satıcıya gösterilir). */

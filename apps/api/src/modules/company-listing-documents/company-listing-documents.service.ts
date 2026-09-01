@@ -25,7 +25,11 @@ import {
 } from "../../common/helpers/upload-validation";
 import { AuditService } from "../audit/audit.service";
 /** Dalga B-5: ilan başına belge tavanı (depolama/bant maliyeti freni). */
-const MAX_DOCUMENTS_PER_LISTING = 30;
+// Faz 3: kalem-bazlı belge eklendiği için ilan toplamı yükseltildi; ayrıca
+// KALEM başına ayrı bir tavan var, yani tek kalem toplamı tüketemez.
+const MAX_DOCUMENTS_PER_LISTING = 100;
+/** Faz 3: kalem başına teknik resim/çizim tavanı. */
+const MAX_DOCUMENTS_PER_ITEM = 10;
 
 
 const ALLOWED_MIME = [
@@ -212,6 +216,8 @@ export class CompanyListingDocumentsService {
       fileName: string;
       mimeType: string;
       kind?: ListingDocKind;
+      /** Faz 3: doluysa belge o KALEME bağlanır (ilan seviyesi değil). */
+      itemId?: string;
     },
   ) {
     await this.requireOwner(user, listingId);
@@ -244,10 +250,29 @@ export class CompanyListingDocumentsService {
         `Bir ilana en fazla ${MAX_DOCUMENTS_PER_LISTING} belge eklenebilir — önce eskilerden silin`,
       );
     }
+    // Faz 3 — kalem-bazlı belge. Kalem AYNI ilana ait olmalı: aksi hâlde
+    // başka bir ilanın kalemine belge iliştirilebilirdi (IDOR).
+    let itemId: string | null = null;
+    if (input.itemId) {
+      const owned = await this.prisma.listingItem.count({
+        where: { id: input.itemId, listingId },
+      });
+      if (owned !== 1) throw new NotFoundException("Kalem bulunamadı");
+      const perItem = await this.prisma.listingDocument.count({
+        where: { itemId: input.itemId },
+      });
+      if (perItem >= MAX_DOCUMENTS_PER_ITEM) {
+        throw new BadRequestException(
+          `Bir kaleme en fazla ${MAX_DOCUMENTS_PER_ITEM} belge eklenebilir`,
+        );
+      }
+      itemId = input.itemId;
+    }
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,
         kind: input.kind ?? "DIGER",
+        itemId,
         key: input.key,
         fileName: input.fileName.slice(0, 200),
         mimeType: input.mimeType,
@@ -265,7 +290,12 @@ export class CompanyListingDocumentsService {
       tenantId: user.companyId,
       entityType: "listing_document",
       entityId: doc.id,
-      metadata: { listingId, fileName: doc.fileName, kind: doc.kind },
+      metadata: {
+        listingId,
+        fileName: doc.fileName,
+        kind: doc.kind,
+        itemId: doc.itemId,
+      },
     });
     return { id: doc.id };
   }
@@ -298,6 +328,8 @@ export class CompanyListingDocumentsService {
     return Promise.all(
       docs.map(async (d) => ({
         id: d.id,
+        // Faz 3: null = ilan seviyesi, dolu = kalem-bazlı teknik belge.
+        itemId: d.itemId,
         kind: d.kind,
         fileName: d.fileName,
         mimeType: d.mimeType,

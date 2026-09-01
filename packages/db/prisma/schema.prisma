@@ -1134,7 +1134,16 @@ model ListingDocument {
   uploadedByCompanyId String
   createdAt           DateTime       @default(now())
 
+  /**
+   * Faz 3 — kalem-bazlı belge. NULL = ilan seviyesi belge (bugünkü davranış).
+   * AYRI bir tablo açmak yerine bu kolon: yetki kapısı, R2 doğrulaması,
+   * indirme imzası, denetim izi ve tavan mantığı TEK yerde kalır.
+   */
+  itemId              String?
+  item                ListingItem?   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
   @@index([listingId])
+  @@index([itemId])
   @@map("listing_documents")
 }
 
@@ -1462,10 +1471,31 @@ model ListingItem {
   buyNowUnitPrice Decimal?  @db.Decimal(18, 2)
   materialCode    String? // malzeme/stok kodu
   requiredByDate  DateTime? // istenen teslim tarihi
+
+  // ── Faz 3: kalem detayları ────────────────────────────────────────────
+  /** Marka — "şu markanın şu parçası" teklif kıyasının temeli. */
+  brand           String?
+  /** Üretici parça numarası (MPN). */
+  mpn             String?
+  /**
+   * MUADİL/EŞDEĞER teklif kabul edilir mi? Klasik satınalma alanı: teklifin
+   * kapsamını belirler. Tedarikçi tarafındaki karşılığı `ListingBidItem`
+   * `isAlternative`/`offeredBrand`/`offeredMpn` — o olmadan alıcı gelen
+   * tekliflerin AYNI ürüne mi ait olduğunu göremez.
+   */
+  alternativeAllowed Boolean @default(true)
+  /** Uzun teknik şartname (SAP long text karşılığı). `description` kısa özet. */
+  specification   String?
+  /** Garanti süresi (ay) — tekliflerde kıyaslanabilir olsun. */
+  warrantyMonths  Int?
+  /** GTİP/HS kodu — yalnız uluslararası ilanlarda anlamlı. */
+  hsCode          String?
   awardedQuantity Decimal?  @db.Decimal(18, 3) // kısmi kazandırmada verilen miktar
 
   bidItems  ListingBidItem[]
   questions ListingItemQuestion[]
+  /** Kalem-bazlı teknik resim/çizim (Faz 3) — ilan belgeleriyle AYNI tablo. */
+  documents ListingDocument[]
 
   createdAt DateTime @default(now())
 
@@ -1547,6 +1577,16 @@ model ListingBidItem {
   itemId    String
   item      ListingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   unitPrice Decimal     @db.Decimal(18, 2)
+
+  // ── Faz 3: MUADİL teklif simetrisi ────────────────────────────────────
+  // `ListingItem.alternativeAllowed` tek başına yarım kalır: tedarikçi muadil
+  // teklif edebiliyorsa NE teklif ettiğini söyleyebilmeli. Bunlar olmadan
+  // alıcı, gelen üç teklifin aynı ürüne mi farklı ürünlere mi ait olduğunu
+  // göremez ve karşılaştırma yanıltıcı olur.
+  /** Teklif edilen ürün ALICININ istediğinden farklı mı (muadil/eşdeğer)? */
+  isAlternative Boolean @default(false)
+  offeredBrand  String?
+  offeredMpn    String?
   note      String?
   // Kalem-özel teslim tarihi — LEGACY (2026-08-02'den önce); yeni teklifler süre girer.
   deliveryDate DateTime?

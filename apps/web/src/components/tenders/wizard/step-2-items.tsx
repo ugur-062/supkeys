@@ -15,7 +15,7 @@ import {
   FileText,
   HelpCircle,
   Plus,
-  Trash2, PackageSearch } from "lucide-react";
+  Trash2, PackageSearch, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileSpreadsheet } from "lucide-react";
@@ -35,6 +35,7 @@ import {
   CatalogPickerDialog,
   type PickedCatalogItem,
 } from "@/components/tenders/wizard/catalog-picker-dialog";
+import { Textarea } from "@/components/catalyst/textarea";
 
 export function Step2Items() {
   const {
@@ -276,6 +277,8 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
   // `watch()` tüm formu dinler, `useWatch` yalnız bu iki alanı).
   const unitValue = useWatch({ control, name: `items.${index}.unit` });
   const unitCodeValue = useWatch({ control, name: `items.${index}.unitCode` });
+  // GTİP alanı yalnız uluslararası ilanda görünür (Faz 3 kararı).
+  const isInternational = useWatch({ control, name: "isInternational" });
   // SATIS + KALEM fiyatlandırma: kalem başına taban/hemen-al girişleri açılır.
   // Her iki useWatch KOŞULSUZ çağrılmalı — `&&` içinde kısa-devre edilirse
   // hook sırası render'lar arası değişir (rules-of-hooks; listingType SATIS↔
@@ -403,6 +406,114 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             />
           </Field>
         </div>
+
+        {/* Faz 3 — kalem detayları. KATLANIR: varsayılan görünüm bugünkü kadar
+            sade kalsın diye altı yeni alan buraya alındı. Kullanıcı ihtiyaç
+            duyduğunda açar; çoğu kalemde hiç açılmayacak. */}
+        <details className="group mt-3 rounded-lg border border-zinc-950/10 bg-zinc-50/50">
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-zinc-700 hover:text-zinc-900">
+            <span className="inline-flex items-center gap-1.5">
+              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+              Detaylar
+              <span className="text-xs font-normal text-zinc-500">
+                (marka, muadil, şartname, garanti)
+              </span>
+            </span>
+          </summary>
+          <div className="grid grid-cols-1 gap-3 border-t border-zinc-950/5 px-3 py-3 md:grid-cols-6">
+            <Field error={itemErrors?.brand?.message} className="md:col-span-3">
+              <Label htmlFor={`items.${index}.brand`}>Marka</Label>
+              <Input
+                id={`items.${index}.brand`}
+                placeholder="örn. SKF"
+                hasError={!!itemErrors?.brand}
+                {...register(`items.${index}.brand`)}
+              />
+            </Field>
+            <Field error={itemErrors?.mpn?.message} className="md:col-span-3">
+              <Label htmlFor={`items.${index}.mpn`}>Üretici Parça No</Label>
+              <Input
+                id={`items.${index}.mpn`}
+                placeholder="örn. 6204-2RS"
+                hasError={!!itemErrors?.mpn}
+                {...register(`items.${index}.mpn`)}
+              />
+            </Field>
+
+            <Field className="md:col-span-6">
+              <label className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 rounded border-zinc-300"
+                  {...register(`items.${index}.alternativeAllowed`)}
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-zinc-800">
+                    Muadil (eşdeğer) ürün teklif edilebilir
+                  </span>
+                  <span className="block text-xs text-zinc-500">
+                    Kapatırsanız tedarikçiler yalnız belirttiğiniz markayı
+                    teklif edebilir. Açıkken teklif verirken hangi markayı
+                    önerdiklerini belirtirler.
+                  </span>
+                </span>
+              </label>
+            </Field>
+
+            <Field
+              error={itemErrors?.specification?.message}
+              className="md:col-span-6"
+            >
+              <Label htmlFor={`items.${index}.specification`}>
+                Teknik Şartname
+              </Label>
+              <Textarea
+                id={`items.${index}.specification`}
+                rows={3}
+                placeholder="Standart, tolerans, malzeme kalitesi…"
+                {...register(`items.${index}.specification`)}
+              />
+            </Field>
+
+            <Field
+              error={itemErrors?.warrantyMonths?.message}
+              className="md:col-span-3"
+            >
+              <Label htmlFor={`items.${index}.warrantyMonths`}>
+                Garanti (ay)
+              </Label>
+              <Input
+                id={`items.${index}.warrantyMonths`}
+                type="number"
+                min={0}
+                max={600}
+                placeholder="örn. 24"
+                hasError={!!itemErrors?.warrantyMonths}
+                {...register(`items.${index}.warrantyMonths`, {
+                  setValueAs: (v: string) =>
+                    v === "" ? undefined : Number(v),
+                })}
+              />
+            </Field>
+
+            {/* GTİP yalnız uluslararası ilanda anlamlı — aksi hâlde gereksiz
+                alan gösterip formu ağırlaştırmayalım. */}
+            {isInternational ? (
+              <Field
+                error={itemErrors?.hsCode?.message}
+                className="md:col-span-3"
+              >
+                <Label htmlFor={`items.${index}.hsCode`}>GTİP / HS Kodu</Label>
+                <Input
+                  id={`items.${index}.hsCode`}
+                  placeholder="örn. 8482.10"
+                  hasError={!!itemErrors?.hsCode}
+                  {...register(`items.${index}.hsCode`)}
+                />
+              </Field>
+            ) : null}
+          </div>
+        </details>
 
         <button
           type="button"

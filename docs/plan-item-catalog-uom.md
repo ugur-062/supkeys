@@ -1,6 +1,9 @@
 # Plan — Kalem Kataloğu, Ölçü Birimleri ve Kalem Detayları
 
-> **Durum:** TASLAK — onay bekliyor, kod yazılmadı.
+> **Durum:** ✅ **ÜÇ FAZ DA UYGULANDI** (2026-09-01).
+> Faz 1 birim kataloğu · Faz 2 kalem kataloğu · Faz 3 kalem detayları +
+> muadil simetrisi + kalem-bazlı belge. Aşağıdaki metin planın kendisidir;
+> uygulamadaki sapmalar bölüm sonlarında not edildi.
 > Talep: kalem eklemeye detay alanları gelsin; ölçü birimleri serbest metin
 > yerine **seçilebilir** olsun; kalemler **kaydedilip sonra hızlıca yeniden
 > eklenebilsin** ("SAP'deki gibi").
@@ -209,7 +212,7 @@ Faz 1 (birim)  ──►  Faz 2 (katalog)  ──►  Faz 3 (detaylar)
 |------|----------|
 | `unit` 243 yerde — tek seferde değişim kırar | expand→contract; `unit` bir sürüm boyunca yazılmaya devam eder |
 | Sipariş snapshot'ı geçmiş veri | Snapshot dondurulmuş; yalnız yeni kayıt koda yazar |
-| Kalem-bazlı belge → R2 nesne sayısı artar | **Bağımlılık:** R2 yetim nesne temizliği ve object-lock politikası hâlâ açık (`pending-operator-tasks.md` §6). Faz 3'ün belge maddesi o çözülmeden başlamamalı |
+| Kalem-bazlı belge → R2 nesne sayısı artar | Kullanıcı kararıyla YİNE DE eklendi. Hafifletme: belge AYRI tabloya değil `listing_documents.itemId`'ye bağlandı (yetki/R2 doğrulama/imza/denetim/tavan tek yerde kalır); kalem başına 10 belge tavanı; ilan düzenlemesinde silinen kalemlerin R2 anahtarları commit SONRASI en-iyi-çaba siliniyor. **Bucket object-lock hâlâ açık** (`pending-operator-tasks.md` §6) — DeleteObject reddedilirse temizlik loglanır ama çalışmaz |
 | Yeni kiracı tablosu policy'siz kalabilir | RLS policy'si tablo migration'ıyla AYNI dosyada |
 | AI çıkarımı serbest birim üretiyor | Sanitizer alias tablosundan geçirir; eşleşmezse `unitCode=null` + bayrak (mevcut `AiFlagsBanner` deseni) |
 | Katalog boş başlarsa kullanılmaz | Ters yön ("ihaleden kataloğa") Faz 2'nin **ilk** parçası olarak yazılır |

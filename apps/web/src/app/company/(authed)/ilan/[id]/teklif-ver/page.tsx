@@ -91,6 +91,10 @@ interface ItemState {
   /** Kalem para birimi ("" = teklifin ana birimi) — madde 9, yalnız ALIM RFQ. */
   currency: string;
   answers: Record<string, string>;
+  // ── Faz 3: MUADİL beyanı (yalnız alıcı izin verdiyse görünür) ──────────
+  isAlternative: boolean;
+  offeredBrand: string;
+  offeredMpn: string;
 }
 
 function money(v: number, currency: string): string {
@@ -273,6 +277,10 @@ export default function TeklifVerPage() {
         deliveryTime: bi?.deliveryTime ?? "",
         currency: bi?.currency ?? "",
         answers,
+        // Faz 3 — mevcut teklif düzenleniyorsa muadil beyanı geri yüklenir.
+        isAlternative: bi?.isAlternative ?? false,
+        offeredBrand: bi?.offeredBrand ?? "",
+        offeredMpn: bi?.offeredMpn ?? "",
       };
     }
     setItemState(next);
@@ -641,7 +649,7 @@ export default function TeklifVerPage() {
   const setItem = (itemId: string, patch: Partial<ItemState>) =>
     setItemState((s) => ({
       ...s,
-      [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {} }), ...patch },
+      [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {}, isAlternative: false, offeredBrand: "", offeredMpn: "" }), ...patch },
     }));
 
   // Fiyat içe aktarma (Faz 2, 2026-08-22): "Excel Şablonu ile Fiyatla" (AI'sız,
@@ -653,7 +661,7 @@ export default function TeklifVerPage() {
       const out = { ...s };
       for (const r of rows) {
         if (lockedIds.has(r.itemId)) continue; // çalışma masasında kilitli kalem korunur
-        const prev = out[r.itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {} };
+        const prev = out[r.itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {}, isAlternative: false, offeredBrand: "", offeredMpn: "" };
         out[r.itemId] = {
           ...prev,
           price: String(r.unitPrice),
@@ -699,7 +707,7 @@ export default function TeklifVerPage() {
       const out = { ...s };
       for (const [iid, p] of Object.entries(next)) {
         out[iid] = {
-          ...(out[iid] ?? { price: "", deliveryTime: "", currency: "", answers: {} }),
+          ...(out[iid] ?? { price: "", deliveryTime: "", currency: "", answers: {}, isAlternative: false, offeredBrand: "", offeredMpn: "" }),
           price: p,
         };
       }
@@ -774,6 +782,56 @@ export default function TeklifVerPage() {
                 ))}
             </Select>
           </Field>
+        ) : null}
+        {/* Faz 3 — MUADİL beyanı. Yalnız alıcı izin verdiyse görünür; izin
+            yoksa alan HİÇ çıkmaz (tedarikçiye uygulanamayacak bir seçenek
+            göstermek kafa karıştırır). Alıcının istediği marka varsa
+            hatırlatılır ki tedarikçi ne yerine ne önerdiğini bilsin. */}
+        {it.alternativeAllowed !== false ? (
+          <Field className="sm:col-span-2">
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 rounded border-zinc-300"
+                checked={st?.isAlternative ?? false}
+                onChange={(e) =>
+                  setItem(it.id, { isAlternative: e.target.checked })
+                }
+              />
+              <span className="text-sm">
+                <span className="font-medium text-zinc-800">
+                  Muadil (eşdeğer) ürün teklif ediyorum
+                </span>
+                {it.brand || it.mpn ? (
+                  <span className="block text-xs text-zinc-500">
+                    İstenen: {[it.brand, it.mpn].filter(Boolean).join(" · ")}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          </Field>
+        ) : null}
+        {it.alternativeAllowed !== false && st?.isAlternative ? (
+          <>
+            <Field>
+              <Label>Teklif Ettiğiniz Marka</Label>
+              <Input
+                aria-label={`${it.name} teklif edilen marka`}
+                value={st?.offeredBrand ?? ""}
+                onChange={(e) =>
+                  setItem(it.id, { offeredBrand: e.target.value })
+                }
+              />
+            </Field>
+            <Field>
+              <Label>Teklif Ettiğiniz Parça No</Label>
+              <Input
+                aria-label={`${it.name} teklif edilen parça no`}
+                value={st?.offeredMpn ?? ""}
+                onChange={(e) => setItem(it.id, { offeredMpn: e.target.value })}
+              />
+            </Field>
+          </>
         ) : null}
         {(it.questions ?? []).map((q) => (
           <AnswerInput
@@ -976,6 +1034,15 @@ export default function TeklifVerPage() {
               unitPrice: Number(st.price),
               deliveryTime: st.deliveryTime || undefined,
               currency: st.currency || undefined,
+              // Faz 3: yalnız alıcı izin verdiyse anlamlı. Sunucu zaten
+              // bayrağı `alternativeAllowed`a göre düşürüyor (tedarikçi
+              // kuralı aşamaz) — burada da göndermiyoruz.
+              isAlternative:
+                it.alternativeAllowed !== false && st.isAlternative
+                  ? true
+                  : undefined,
+              offeredBrand: st.offeredBrand.trim() || undefined,
+              offeredMpn: st.offeredMpn.trim() || undefined,
               answers: (it.questions ?? [])
                 .map((q) => ({
                   questionId: q.id,

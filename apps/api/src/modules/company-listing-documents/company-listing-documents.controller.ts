@@ -46,6 +46,8 @@ export class CompanyListingDocumentsController {
       fileName: string;
       mimeType: string;
       kind?: import("@rothern/db").ListingDocKind;
+      /** Faz 3: doluysa belge o KALEME bağlanır (ilan seviyesi değil). */
+      itemId?: string;
     },
   ) {
     return this.service.register(user, id, body);

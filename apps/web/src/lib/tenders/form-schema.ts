@@ -144,6 +144,19 @@ export const tenderItemSchema = z.object({
   unit: z.string().min(1, "Birim zorunlu").max(20, "Maksimum 20 karakter"),
   /** Faz 1: kanonik birim kodu; "listede yok" seçilirse null kalır. */
   unitCode: z.string().nullable().optional(),
+  // ── Faz 3: kalem detayları (hepsi opsiyonel, katlanır panelde) ──────────
+  brand: z.string().max(100, "Maksimum 100 karakter").optional(),
+  mpn: z.string().max(100, "Maksimum 100 karakter").optional(),
+  /** Muadil/eşdeğer teklif kabul edilir mi (varsayılan: evet). */
+  alternativeAllowed: z.boolean().optional(),
+  specification: z.string().max(5000, "Maksimum 5000 karakter").optional(),
+  warrantyMonths: z
+    .number()
+    .int("Tam sayı girin")
+    .min(0)
+    .max(600, "En fazla 600 ay")
+    .optional(),
+  hsCode: z.string().max(20, "Maksimum 20 karakter").optional(),
   materialCode: z.string().max(50, "Maksimum 50 karakter").optional(),
   requiredByDate: z.string().optional(),
   targetUnitPrice: money(
@@ -568,6 +581,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
       quantity: 1,
       unit: "adet",
       unitCode: "PCE",
+      alternativeAllowed: true,
       materialCode: "",
       requiredByDate: "",
       targetUnitPrice: undefined,

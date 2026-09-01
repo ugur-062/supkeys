@@ -88,6 +88,7 @@ import {
 } from "../../../common/tenant/tenant-context";
 import { appRoutes } from "../../../common/company/app-routes";
 import { createHash } from "node:crypto";
+import { StorageService } from "../../storage/storage.service";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -129,6 +130,10 @@ export class CompanyListingsService {
     private readonly notifications: NotificationService,
     private readonly audit: AuditService,
     @Optional() private readonly realtime?: RealtimeService,
+    // Faz 3: yetim R2 nesnesi temizliği EN-İYİ-ÇABA — @Optional, çünkü
+    // temizliğin yokluğu iş akışını bozmaz ve elle kurulan test rig'lerini
+    // kırmaz (rig stub gotcha bu denetimde 8 kez tekrarladı).
+    @Optional() private readonly storage?: StorageService,
   ) {}
 
 
@@ -1261,6 +1266,13 @@ export class CompanyListingsService {
               // göndermediyse serbest metinden TÜRET (Excel/AI/eski istemci
               // yolları da kodlanmış olsun). Tanınmazsa null — metin geçerli.
               unitCode: it.unitCode ?? normalizeUnit(it.unit),
+              // Faz 3 — kalem detayları.
+              brand: it.brand?.trim() || null,
+              mpn: it.mpn?.trim() || null,
+              alternativeAllowed: it.alternativeAllowed ?? true,
+              specification: it.specification?.trim() || null,
+              warrantyMonths: it.warrantyMonths ?? null,
+              hsCode: it.hsCode?.trim() || null,
               targetPrice: it.targetPrice ?? null,
               minUnitPrice:
                 priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
@@ -1333,6 +1345,9 @@ export class CompanyListingsService {
         createdById: true,
       },
     });
+    // Faz 3 — tx İÇİNDE toplanır, commit'ten SONRA R2'dan silinir (tx geri
+    // alınırsa nesne gitmiş olmasın).
+    const staleDocKeys: string[] = [];
     if (!existing || existing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
@@ -1516,6 +1531,20 @@ export class CompanyListingsService {
 
       // Kalemleri tamamen yeniden yaz. ListingBidItem/ListingItemQuestion
       // FK'leri Cascade → eski (geri-çekilmiş) teklif kalemleri de temizlenir.
+      //
+      // Faz 3 — R2 YETİM ÖNLEMİ: kalem-bazlı belgeler de Cascade ile DB'den
+      // gider, ama R2 nesnesi kalırdı. Bucket'ta yetim nesne temizliği hâlâ
+      // açık bir konu (docs/pending-operator-tasks.md §6); yeni bir belge
+      // yüzeyi açarken birikimi ARTIRMAMAK için anahtarları silmeden ÖNCE
+      // topluyoruz ve tx commit'inden SONRA en-iyi-çaba siliyoruz.
+      // (tx içinde silmek yanlış olurdu: tx geri alınırsa nesne gitmiş olur.)
+      const orphanedKeys = (
+        await tx.listingDocument.findMany({
+          where: { listingId, itemId: { not: null } },
+          select: { key: true },
+        })
+      ).map((d) => d.key);
+      staleDocKeys.push(...orphanedKeys);
       await tx.listingItem.deleteMany({ where: { listingId } });
       if (dto.items?.length) {
         for (let i = 0; i < dto.items.length; i++) {
@@ -1532,6 +1561,13 @@ export class CompanyListingsService {
               // göndermediyse serbest metinden TÜRET (Excel/AI/eski istemci
               // yolları da kodlanmış olsun). Tanınmazsa null — metin geçerli.
               unitCode: it.unitCode ?? normalizeUnit(it.unit),
+              // Faz 3 — kalem detayları.
+              brand: it.brand?.trim() || null,
+              mpn: it.mpn?.trim() || null,
+              alternativeAllowed: it.alternativeAllowed ?? true,
+              specification: it.specification?.trim() || null,
+              warrantyMonths: it.warrantyMonths ?? null,
+              hsCode: it.hsCode?.trim() || null,
               targetPrice: it.targetPrice ?? null,
               minUnitPrice:
                 priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
@@ -1580,6 +1616,25 @@ export class CompanyListingsService {
           }`,
         ),
       );
+    }
+    // Faz 3 — yetim R2 nesnelerini en-iyi-çaba temizle. Başarısızlık akışı
+    // KIRMAZ (kullanıcının düzenlemesi tamamlandı) ama loglanır; bucket
+    // object-lock DeleteObject'i reddediyorsa burada görünür.
+    if (staleDocKeys.length > 0) {
+      const storage = this.storage;
+      if (storage) {
+        void Promise.all(
+          staleDocKeys.map((k) =>
+            storage.deleteObject("private", k).catch((err: unknown) =>
+              this.logger.warn(
+                `Yetim kalem belgesi silinemedi (${k}): ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              ),
+            ),
+          ),
+        );
+      }
     }
     return this.serialize(updated);
   }
@@ -2438,6 +2493,15 @@ export class CompanyListingsService {
       unit: it.unit,
       // Faz 1: kanonik kod da döner; istemci `unitCode ?? unit` gösterir.
       unitCode: it.unitCode,
+      // Faz 3 — kalem detayları. `alternativeAllowed` TEKLİF VERENİN de
+      // görmesi gereken bir kural (muadil sunabilir mi?), bu yüzden maskeli
+      // dalda bile gizlenmez; marka/MPN de teklifin konusudur.
+      brand: it.brand,
+      mpn: it.mpn,
+      alternativeAllowed: it.alternativeAllowed,
+      specification: it.specification,
+      warrantyMonths: it.warrantyMonths,
+      hsCode: it.hsCode,
       // CC-1: hedef/istenen fiyat non-owner'a YALNIZCA sahip opt-in ettiyse
       // gösterilir (varsayılan gizli — çıpalama riski). Sahip yolu (detail) ayrı,
       // hep görür. minUnitPrice/buyNowUnitPrice (SATIS tabanı) bilerek açık kalır.
@@ -2466,6 +2530,14 @@ export class CompanyListingsService {
       quantity: it.quantity.toString(),
       unit: it.unit,
       unitCode: it.unitCode,
+      brand: it.brand,
+      mpn: it.mpn,
+      alternativeAllowed: it.alternativeAllowed,
+      // Maskeli (premium olmayan) görünüm: uzun şartname ve ticari detay
+      // gizli kalır — bugünkü `description: null` kararıyla aynı çizgi.
+      specification: null,
+      warrantyMonths: null,
+      hsCode: null,
       description: null,
       targetPrice: null,
       minUnitPrice: null,
@@ -2625,6 +2697,11 @@ export class CompanyListingsService {
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
             unitPrice: bi.unitPrice.toString(),
+            // Faz 3 — muadil beyanı: alıcı gelen tekliflerin AYNI ürüne mi
+            // ait olduğunu ancak bununla görebilir.
+            isAlternative: bi.isAlternative,
+            offeredBrand: bi.offeredBrand,
+            offeredMpn: bi.offeredMpn,
             deliveryDate: bi.deliveryDate
               ? bi.deliveryDate.toISOString()
               : null,
@@ -2837,6 +2914,9 @@ export class CompanyListingsService {
             items: myBid.items.map((bi) => ({
               itemId: bi.itemId,
               unitPrice: bi.unitPrice.toString(),
+              isAlternative: bi.isAlternative,
+              offeredBrand: bi.offeredBrand,
+              offeredMpn: bi.offeredMpn,
               deliveryDate: bi.deliveryDate
                 ? bi.deliveryDate.toISOString()
                 : null,
@@ -3502,15 +3582,23 @@ export class CompanyListingsService {
         quantity: true,
         minUnitPrice: true,
         buyNowUnitPrice: true,
+        // Faz 3: muadil izni — tedarikçinin beyanı buna göre kabul/düşürülür.
+        alternativeAllowed: true,
         questions: { select: { id: true, required: true, text: true } },
       },
     });
+    // Muadil kuralı için id→kalem eşlemi (aşağıdaki map'te okunur).
+    const itemById = new Map(listingItems.map((li) => [li.id, li]));
 
     // Para tutarları Decimal ile hesaplanır (kayan nokta birikimi yok — F7).
     let amount: Prisma.Decimal;
     let bidItemsData: {
       itemId: string;
       unitPrice: number;
+      // Faz 3 — muadil beyanı.
+      isAlternative: boolean;
+      offeredBrand: string | null;
+      offeredMpn: string | null;
       deliveryDate: Date | null;
       deliveryTime: BidDeliveryTime | null;
       currency: Currency | null;
@@ -3635,6 +3723,13 @@ export class CompanyListingsService {
         return {
           itemId: bi.itemId,
           unitPrice: bi.unitPrice,
+          // Muadil beyanı yalnız alıcı İZİN VERDİYSE anlamlı; izin yoksa
+          // bayrak sessizce düşürülür (tedarikçi kuralı aşamaz).
+          isAlternative:
+            (bi.isAlternative ?? false) &&
+            (itemById.get(bi.itemId)?.alternativeAllowed ?? true),
+          offeredBrand: bi.offeredBrand?.trim() || null,
+          offeredMpn: bi.offeredMpn?.trim() || null,
           deliveryDate: bi.deliveryDate
             ? new Date(bi.deliveryDate)
             : (prev?.deliveryDate ?? null),
@@ -3804,7 +3899,6 @@ export class CompanyListingsService {
     // altına inemez; kalem hemen-al fiyatına eşit/üzeri birim fiyat yerine
     // o kalem Hemen Al ile alınır. (Taslakta serbest.)
     if (needsFloorCheck && bidItemsData.length > 0) {
-      const itemById = new Map(listingItems.map((li) => [li.id, li]));
       for (const bi of bidItemsData) {
         const li = itemById.get(bi.itemId);
         if (!li) continue;
@@ -3992,6 +4086,10 @@ export class CompanyListingsService {
             bidId: b.id,
             itemId: bi.itemId,
             unitPrice: bi.unitPrice,
+            // Faz 3 — muadil beyanı.
+            isAlternative: bi.isAlternative,
+            offeredBrand: bi.offeredBrand,
+            offeredMpn: bi.offeredMpn,
             deliveryDate: bi.deliveryDate,
             deliveryTime: bi.deliveryTime,
             currency: bi.currency,

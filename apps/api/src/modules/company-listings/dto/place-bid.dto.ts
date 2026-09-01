@@ -56,6 +56,15 @@ export class PlaceBidItemDto {
   @Max(MAX_MONEY, { message: "Birim fiyat çok büyük" })
   unitPrice!: number;
 
+  // ── Faz 3: MUADİL teklif beyanı ────────────────────────────────────────
+  // Alıcı `alternativeAllowed` ile muadile izin veriyorsa tedarikçi NE teklif
+  // ettiğini söyleyebilmeli; yoksa alıcı gelen tekliflerin aynı ürüne mi ait
+  // olduğunu göremez. `isAlternative` işaretliyse en az marka VEYA MPN
+  // beklenir — kural serviste (DTO tek alanı görebilir).
+  @IsOptional() @IsBoolean() isAlternative?: boolean;
+  @IsOptional() @IsString() @MaxLength(100) offeredBrand?: string;
+  @IsOptional() @IsString() @MaxLength(100) offeredMpn?: string;
+
   // Kalem-özel teslim tarihi — LEGACY (yeni teklifler süre gönderir).
   @IsOptional()
   @IsISO8601({}, { message: "Geçersiz kalem teslim tarihi" })

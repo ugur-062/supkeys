@@ -157,6 +157,20 @@ export class ListingItemDto {
   @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
   unitCode?: string;
 
+  // ── Faz 3: kalem detayları (hepsi opsiyonel) ─────────────────────────
+  @IsOptional() @Trim() @IsString() @MaxLength(100) brand?: string;
+  @IsOptional() @Trim() @IsString() @MaxLength(100) mpn?: string;
+
+  /** Muadil/eşdeğer teklif kabul edilir mi (varsayılan: evet). */
+  @IsOptional() @IsBoolean() alternativeAllowed?: boolean;
+
+  @IsOptional() @Trim() @IsString() @MaxLength(5000) specification?: string;
+
+  @IsOptional() @IsInt() @Min(0) @Max(600) warrantyMonths?: number;
+
+  /** GTİP/HS kodu — yalnız uluslararası ilanda anlamlı, serbest bırakılır. */
+  @IsOptional() @Trim() @IsString() @MaxLength(20) hsCode?: string;
+
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)

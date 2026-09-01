@@ -126,6 +126,12 @@ export function mapDetailToForm(
             quantity: Number(it.quantity),
             unit: it.unit,
             unitCode: it.unitCode ?? null,
+            brand: it.brand ?? "",
+            mpn: it.mpn ?? "",
+            alternativeAllowed: it.alternativeAllowed ?? true,
+            specification: it.specification ?? "",
+            warrantyMonths: it.warrantyMonths ?? undefined,
+            hsCode: it.hsCode ?? "",
             materialCode: it.materialCode ?? "",
             requiredByDate: toDateInput(it.requiredByDate),
             targetUnitPrice:

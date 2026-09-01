@@ -178,6 +178,9 @@ function mapToInput(d: TenderFormData): CreateListingInput {
       description: it.description?.trim() || undefined,
       quantity: it.quantity,
       unit: it.unit.trim(),
+      // Faz 1: kullanıcının SEÇTİĞİ kanonik kod. Gönderilmezse servis metinden
+      // türetir, ama "listede yok" kaçışında niyet kaybolurdu.
+      unitCode: it.unitCode ?? undefined,
       targetPrice: it.targetUnitPrice,
       minUnitPrice:
         isSatis && d.priceScope === "KALEM" ? it.minUnitPrice : undefined,
@@ -185,6 +188,14 @@ function mapToInput(d: TenderFormData): CreateListingInput {
         isSatis && d.priceScope === "KALEM" ? it.buyNowUnitPrice : undefined,
       materialCode: it.materialCode?.trim() || undefined,
       requiredByDate: toIso(it.requiredByDate),
+      // Faz 3 — kalem detayları. Payload'a EKLENMEZSE form alanları sessizce
+      // düşerdi (kullanıcı doldurur, hiçbir yere yazılmaz).
+      brand: it.brand?.trim() || undefined,
+      mpn: it.mpn?.trim() || undefined,
+      alternativeAllowed: it.alternativeAllowed ?? undefined,
+      specification: it.specification?.trim() || undefined,
+      warrantyMonths: it.warrantyMonths ?? undefined,
+      hsCode: it.hsCode?.trim() || undefined,
       questions: it.questions?.length
         ? it.questions.map((q) => ({
             text: q.text.trim(),
