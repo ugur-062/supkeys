@@ -25,7 +25,7 @@
 30991802	4	30991800		Yangın dolabı ve hortumu
 30991803	4	30991800		Sprinkler sistemleri
 30991804	4	30991800		Yangın algılama ve alarm sistemleri
-30991805	4	30991800		Yangın kapısı
+30991805	4	30991800		Yangın kapısı (sertifikalı)
 30991806	4	30991800		Yangın durdurucu ve yalıtım malzemeleri
 30991900	3	30990000		Kişisel koruyucu donanım (KKD)
 30991901	4	30991900		Baret ve kafa koruma
@@ -91,7 +91,7 @@
 22991704	4	22991700		Cephe platformu ve makaslı platform
 23990000	2	23000000		Takım, aparat ve endüstriyel bakım
 23991500	3	23990000		Takım ve bağlama aparatları
-23991501	4	23991500		Takım tutucu
+23991501	4	23991500		CNC takım tutucu ve adaptör
 23991502	4	23991500		Kesici uç (insert)
 23991503	4	23991500		Ayna ve bağlama aparatı
 23991504	4	23991500		Mengene ve fikstür
