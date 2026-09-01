@@ -878,6 +878,14 @@ export function Step1Info({
             ) : null}
           </div>
           <div className="mt-2">
+            {/*
+              catalog="discovery" — talep ve ilan kategorisi Ariba **Discovery**
+              kataloğundan seçilir; firma "hangi alandasınız" seçimi TAM
+              katalogdan (ayarlar + onboarding, varsayılan "full"). İki dışa
+              aktarım yalnız L4 yaprakta ayrışıyor: 13 yaprak yalnız tam
+              katalogda. Bu prop yalnız GÖSTERİMİ süzer — kapı backend'de,
+              `company-listings.service.ts` `inDiscovery: true` şart koşar.
+            */}
             <CategorySelectorButton
               value={categoryIds}
               onChange={(ids) => {
@@ -886,6 +894,7 @@ export function Step1Info({
               }}
               mode="multi"
               maxSelection={3}
+              catalog="discovery"
               placeholder="Satın Alma Talebi kategorilerini seçin"
               modalTitle="Satın Alma Talebi Kategorileri Seç"
               error={errors.categoryIds?.message as string | undefined}

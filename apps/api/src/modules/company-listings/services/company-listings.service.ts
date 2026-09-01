@@ -1124,12 +1124,22 @@ export class CompanyListingsService {
       }
     }
     // Kategori kodları taksonomide var olmalı (ihale için level ≥ 3).
+    //
+    // `inDiscovery: true` — TALEP/İLAN kategorisi Ariba **Discovery**
+    // kataloğundan seçilir; firma "hangi alandasınız" seçimi TAM katalogdan
+    // (`category-selection.helper.ts`, süzgeç yok). İki dışa aktarım yalnız L4
+    // yaprakta ayrışıyor: 13 yaprak yalnız tam katalogda ve buraya giremez.
+    //
+    // Kapının YERİ burası, istemci değil: `catalog` query parametresi yalnız
+    // hangi ağacın gösterileceğini seçer. İstemci onu göndermese ya da elle
+    // discovery dışı bir kod yollasa da talep/ilan o kodu TAŞIYAMAZ.
     if (dto.categoryIds?.length) {
       const found = await this.prisma.category.count({
         where: {
           code: { in: dto.categoryIds },
           level: { gte: 3 },
           isActive: true,
+          inDiscovery: true,
         },
       });
       if (found !== new Set(dto.categoryIds).size) {

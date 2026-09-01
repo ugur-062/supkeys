@@ -208,61 +208,121 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Faaliyet tipi etiket/tavan | `@rothern/shared` `constants/company-activities.ts` |
 | Arama katlama + tokenleme | `@rothern/shared` `helpers/search-fold.ts` |
 
-## Kategori Kataloğu (2026-09-01 — Europages ölçeği)
+## Kategori Kataloğu (2026-09-02 — Ariba, BİREBİR)
 
-**4 seviye** (Segment/Family/Class/Commodity), `Category.id = UNSPSC kodu`.
-Hiyerarşi 8 haneli koddan türer, `parentId` = üst kod.
+**4 seviye** (Segment/Family/Class/Commodity), `Category.id = 8 haneli kod`.
+Hiyerarşi koddan türer, `parentId` = üst kod.
+
+### İKİ KATALOG, İKİ KULLANIM YERİ
+
+Ariba'nın iki dışa aktarımı var ve **iki ayrı yerde** kullanılıyorlar:
+
+| Nerede | Katalog | Kaynak CSV |
+|--------|---------|-----------|
+| **Talep ve ilan** kategorisi | Discovery alt kümesi (158.005) | `ariba-discovery-tum-kategoriler-hiyerarsik.csv` |
+| **Firma** kategori seçimi ("hangi alandasınız") | Tam katalog (158.018) | `ariba-tum-kategoriler-hiyerarsik.csv` |
+
+**Ölçülen fark YALNIZ L4 yaprakta.** L1 (58 segment), L2 (558 aile) ve L3
+(7.966 sınıf) iki dosyada kod ve ad olarak birebir aynı. Fark tam olarak:
+- **13 yaprak yalnız tam katalogda** (Plastik Kasalar, Nakış Hizmetleri,
+  Marka/Logo Tasarım Hizmetleri, 3 ulaşım rezervasyonu…) — firma beyan
+  edebilir, kimse o kodla talep açamaz.
+- **31 kodda ikinci bir ad** var (aşağı bak).
+
+Bu yüzden **ayrı tablo/ayrı ağaç YOK**: tek katalog, kod başına tek satır +
+`Category.inDiscovery` bayrağı.
+
+### ADLARA DOKUNULMAZ
+
+Kullanıcıya gösterilen ağaç Ariba kataloğunun birebir kendisidir. Çeviri,
+kısaltma, tekilleştirme, gizleme YOK. `import-ariba-csv.ts` yalnız iki mekanik
+dönüşüm yapar: kodu 8 haneye sıfır-doldurur ve üst kodu aynı koddan türetir.
+
+> ⚠️ `cleanup-categories` bu akışın **PARÇASI DEĞİL**. Koşarsa segment gizler
+> ve ad değiştirir — birebir garantisini bozar. Eski (22.106'lık) kataloğa göre
+> yazılmış HIDE/RENAME listeleri hâlâ içinde.
+>
+> `gen-category-leaves` **SİLİNDİ** (AI-üretilmiş yaprak üretiyordu).
+
+### Çakışan kodlar — 31 kod, kaynak verinin defekti
+
+`tum` dosyasında 31 kod İKİ farklı ad taşıyor ve bunlar **çeviri değil**: Ariba
+TR zaten dolu bir UNSPSC koduna özel kategori yazmış.
+
+| Kod | discovery | tum'daki ikinci ad |
+|-----|-----------|--------------------|
+| `53131639` | Urinary incontinence pad | Dil temizleyici |
+| `56131604` | Paint color center component | Alışveriş Sepetleri |
+| `43211723` | Electronic voting equipment | Tepme yakalayıcı |
+
+`Category.id = kod` tekil olduğu için biri düşmek ZORUNDA.
+**Kural: ortak kodlarda DISCOVERY'nin adı kazanır.**
+
+Gerekçe: kazanan ad **iki katalogda da AYNI** olmalı. Aksi hâlde alıcı
+"Urinary incontinence pad" talebi açar, tedarikçi "Dil temizleyici" beyan eder
+— aynı kod, dolayısıyla eşleştirme alakasız iki ürünü sessizce çiftler.
+
+Düşen ad kaybolmuyor: `keywords`'e yazılır, `searchText`'e katlanır → **arama
+onu yine bulur**, yalnız etiket olarak görünmez. Tam liste:
+`docs/category-duplicate-codes.md` (üretilir, elle düzenlenmez).
+
+### Kapı BACKEND'de — istemciye güvenilmez
+
+| Yer | Kural |
+|-----|-------|
+| `company-listings.service.ts` `validateListingBusinessRules` | `level ≥ 3` **∧ `inDiscovery: true`** |
+| `common/helpers/category-selection.helper.ts` | süzgeç YOK — tam katalog |
+
+`catalog` query parametresi (`/categories/children`, `/categories/search-tree`)
+yalnız hangi ağacın GÖSTERİLECEĞİNİ seçer. İstemci onu göndermese ya da elle
+discovery dışı kod yollasa da talep/ilan o kodu **taşıyamaz**. Tek kaynak:
+`@rothern/shared` `constants/category-catalog.ts`
+(`parseCategoryCatalog`, `categoryCatalogWhere`). Sözleşme:
+`category-catalog.spec.ts`.
+
+`/categories/all` (L1-L2) ve `/categories/segments` (L1) **katalog almaz** —
+o katmanlar iki dışa aktarımda birebir aynı; parametre eklemek aynı baytlar
+için iki önbellek girdisi üretirdi. `/categories/by-ids` de süzmez: kayıtlı bir
+kod her hâlükârda çözülebilmeli.
 
 ### Kaynak dosyalar (`packages/db/src/seeds/`)
 
 | Dosya | Ne | Kim yazar |
 |-------|-----|-----------|
-| `unspsc.tsv` | UNGM UNSPSC TR çıkarımı (13.305) | dış kaynak |
-| `categories-custom.tsv` | x99xxxxx aralığı, elle küratörlü endüstriyel boşluklar (182) | İNSAN |
-| `categories-generated.tsv` | 2.740 yaprak, alıcı dilinde ürün adı | `gen-category-leaves.ts` |
+| `ariba-categories.tsv` | 158.018 kategori, 7 sütun (6.'sı `inDiscovery`, 7.'si düşen alt adlar) | `import-ariba-csv.ts` |
 | `category-keywords.tsv` | elle küratörlü eşanlamlı | İNSAN — **üretilen dosyayı EZER** |
-| `category-keywords.generated.tsv` | 8.103 satır TR jargon | `gen-category-keywords.ts` |
+| `category-keywords.generated.tsv` | TR jargon | `gen-category-keywords.ts` |
 
 **Öncelik kuralı:** `apply-category-keywords` ve `seed-categories` ikisi de
 üretilen dosyayı ÖNCE, elle yazılanı SONRA okur → aynı kodda insan kararı
-kazanır ve yeniden üretimde kaybolmaz.
+kazanır. Sözlük kataloğu **genişletemez**, yalnız aramayı besler; Ariba'da
+karşılığı olmayan kodlar sessizce düşer.
 
-### Canlı durum
-22.106 kategori · **16.867 aktif** (38 segment / 307 aile / 1.451 sınıf /
-15.071 yaprak). Karşılaştırma: Europages 26 sektör / 4.500 başlık / 90.000
-kelime (26 dilde).
-
-**İKİ SIFIR — katalog sağlık ölçütü:** `sınıfsız aile = 0` ve
-`yapraksız sınıf = 0`. Ağaçta hiçbir seviyede ÇIKMAZ SOKAK yok. 2026-09-01
-öncesi 45 aile tamamen sınıfsızdı (25'i segment 31'de) ve yaprak üreticisi
-oraları hiç göremiyordu — yalnız var olan sınıfların altını doldurur.
-Yeni kategori eklerken bu iki sayı 0 kalmalı:
-```sql
-SELECT COUNT(*) FROM categories f WHERE f."isActive" AND f.level=2
-  AND NOT EXISTS (SELECT 1 FROM categories c
-                  WHERE c."isActive" AND c.level=3 AND c."parentId"=f.id);
-```
-
-### Ad TEKİLLİĞİ (eşleşmeyi bölmemek için)
+### Ad TEKİLLİĞİ
 Aynı ad iki düğümde olursa alıcı birini, satıcı diğerini seçer ve eşleşme
-sessizce bölünür. `gen-category-leaves` küresel tekillik uygular (DB adları +
-o ana dek üretilenler). UNSPSC'nin KENDİ içindeki 55 tekrarı bilinçli duruyor
-— standart veriyi yeniden adlandırmak ayrı bir karar.
+sessizce bölünür. Ariba kataloğunun KENDİ içindeki tekrarlar bilinçli duruyor —
+standart veriyi yeniden adlandırmak "birebir" kuralını bozardı.
 
 ### Arama
 TR-katlanmış `searchText = fold(nameTr + " " + keywords)` (`foldSearchText`,
 shared) — 'İ'/aksan sorunu yok. Sorgu **TOKENLİ**: kelimelere bölünüp AND'lenir
-(`tokenizeQuery`, shared), sıra önemsiz, kelimeler ad ile eşanlamlı sözlüğüne
-dağılabilir. `searchText` kod tabanında YALNIZ burada kullanılır — eşleştirmede
-/bildirimde/yetkide DEĞİL; hatalı bir eşanlamlı aramayı bozar, veriyi asla.
+(`tokenizeQuery`, shared), sıra önemsiz. `searchText` kod tabanında YALNIZ
+burada kullanılır — eşleştirmede/bildirimde/yetkide DEĞİL; hatalı bir eşanlamlı
+aramayı bozar, veriyi asla.
+
+**Trigram indeksi (2026-09-02):** aranan satır 21.577'den 157.402'ye çıktığı
+için `searchText` ve `nameTr` üzerinde `pg_trgm` GIN indeksi var
+(`20260902100100_category_search_trgm`). `contains` → `LIKE '%…%'` btree ile
+indekslenemez; indeks olmadan her arama tam tarama olurdu. Sınır: trigram ≥3
+karakterde çalışır, 2 karakterlik sorgu tam taramaya düşer (kabul).
 
 ### Seçim seviyeleri
-| Nerede | Seviye |
-|--------|--------|
-| Satın alma talebi kategorisi | min L3 |
-| Firma ANA kategorisi | exactLevel L1 (segment) |
-| Firma ALT kategorisi | L2-4, tavan 50 — `buyer/sellerSubCategoryIds` |
-| AI önerisi | 2 aşamalı → L3 |
+| Nerede | Seviye | Katalog |
+|--------|--------|---------|
+| Satın alma talebi / ilan kategorisi | min L3 | **discovery** |
+| Firma ANA kategorisi | exactLevel L1 (segment) | tam |
+| Firma ALT kategorisi | L2-4, tavan 50 — `buyer/sellerSubCategoryIds` | tam |
+| AI önerisi | 2 aşamalı → L3 | — (L3 iki katalogda aynı) |
 
 Ana ve alt kategori AYRI eksen; eşleştirme (`deriveCategoryMatchCandidates`)
 ilanın kodundan tüm üst seviyeleri türetir ve ikisine de `hasSome` bakar.
@@ -279,25 +339,39 @@ sayfasının başındaki panel. Çözülmüş terim yeniden aranırsa kuyruğa G
 
 ### Koşum sırası (canlı)
 ```bash
-pnpm --filter @rothern/db gen-category-leaves      # yeni yaprak (AI, çevrimdışı)
-pnpm --filter @rothern/db seed-categories          # TEK transaction, sil+kur
-pnpm --filter @rothern/db cleanup-categories -- --apply   # ŞART: seed hepsini aktif yazar
-pnpm --filter @rothern/db gen-category-keywords    # eksik sözlükleri üret
-pnpm --filter @rothern/db apply-category-keywords  # reseed'siz canlıya
+# 1) İki CSV → tek TSV (sıra ÖNEMLİ: önce tam, sonra discovery)
+pnpm --filter @rothern/db import-ariba-csv -- <tum-csv> <discovery-csv>
+# 2) Şema (inDiscovery kolonu + trigram indeksi)
+ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy
+# 3) Katalog: TEK transaction, sil+kur
+pnpm --filter @rothern/db seed-categories
+# 4) Sözlük (opsiyonel, reseed'siz canlıya)
+pnpm --filter @rothern/db apply-category-keywords
 ```
-`cleanup-categories` ATLANIRSA gizli 20 segment **ve** 3 gizli aile geri açılır
-(`HIDE_SEGMENT_CODES` + `HIDE_FAMILY_CODES`). Aile gizlemesi segment
-döngüsünden SONRA koşar — o döngü gizlenmemiş segmentin tüm altını aktive
-ettiği için önce koşsa hemen geri açılırdı. `seed-categories`
-sil+kur yapar ama FK yok (seçimler `categoryIds String[]` = kod) → firma/ilan
-seçimleri korunur; 2026-09-01 koşumunda doğrulandı (0 kırık referans).
+`import-ariba-csv` fail-loud: iki dosya L1/L2/L3'te ayrışırsa, discovery tam
+kataloğun alt kümesi değilse ya da öksüz düğüm varsa **durur** — sessizce
+birleştirmez.
+
+`seed-categories` sil+kur yapar ama FK yok (seçimler `categoryIds String[]` =
+kod) → firma/ilan seçimleri korunur. 2026-09-02 geçişinde ölçüldü: 42 ilanın
+20 tekil kodu + 20 firmanın 27 kodu, **0 kırık referans**.
 
 NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor — tek koşum ikisine de
 yansır.
 
 ## Migration Durumu
 
-**Bekleyen YOK** — `migrate status` "up to date" (2026-09-01, 65 migration).
+**2 BEKLEYEN** (2026-09-02, 68 migration) — kategori katalog geçişiyle geldi,
+canlıya HENÜZ uygulanmadı:
+- `20260902100000_category_in_discovery` — `Category.inDiscovery` kolonu
+  (sabit DEFAULT ile ADD COLUMN, tablo yeniden yazılmaz)
+- `20260902100100_category_search_trgm` — `pg_trgm` + `searchText`/`nameTr`
+  GIN indeksi (tablo o an 22k satır, indeks kurulumu saniyeler)
+
+İkisi de lokal test PG'de uygulandı ve suite yeşil. Canlıya:
+`ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy` — ardından
+`seed-categories` ŞART (kolon olmadan seed patlar, seed olmadan katalog eski
+kalır).
 
 > ⚠️ **`render.yaml` `autoDeploy: true`** — main'e push edilen API kodu prod'a
 > KENDİLİĞİNDEN gider. Şema kullanan bir değişikliği push ettiysen migration'ı

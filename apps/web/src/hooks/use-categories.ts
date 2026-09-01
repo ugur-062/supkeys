@@ -2,16 +2,21 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { CategoryCatalog } from "@rothern/shared";
 import { api } from "@/lib/api";
 
 /**
- * V2-6 — 4 seviye UNSPSC kategori sistemi (lazy loading).
+ * V2-6 — 4 seviye kategori sistemi (lazy loading, kaynak: Ariba kataloğu).
  *   Level 1 = Segment   (XX000000)
  *   Level 2 = Family    (XXXX0000)
  *   Level 3 = Class     (XXXXXX00)
  *   Level 4 = Commodity (XXXXXXXX)
  *
- * Sadece Level 3 + 4 seçilebilir. Level 1 + 2 accordion grup başlığıdır.
+ * İKİ KATALOG (2026-09-02): `catalog="discovery"` talep/ilan kategorisi,
+ * `catalog="full"` (varsayılan) firma "hangi alandasınız" seçimi. Yalnız L4
+ * yaprakta ayrışıyorlar (13 yaprak), o yüzden `useCategoryTree` (L1-L2) ve
+ * `useRoots` (L1) katalog ALMIYOR — o katmanlar iki katalogda birebir aynı ve
+ * tek önbellek girdisi ikisine de yetiyor.
  */
 export interface CategoryNode {
   id: string;
@@ -39,12 +44,15 @@ const HOUR_MS = 60 * 60 * 1000;
 const FIVE_MIN_MS = 5 * 60 * 1000;
 
 /**
- * V2-6.5 — Tüm aktif kategoriler tek fetch. Modal/segment expand'lerinde
- * yüzlerce paralel /children isteği yerine tek istek (~150KB) + in-memory
- * traverse. parentId üzerinden grupla → useChildren bu cache'ten okur.
+ * Ağacın ÜST katmanı tek fetch: L1 segmentler + L2 aileler (~616 satır /
+ * ~90 KB). Segment açıldığında aileler in-memory gelir; sınıf ve emtia
+ * `/children` ile açıldıkça inilir.
  *
- * staleTime 5 dk: tedarikçi yönetim panelinden kategori ekleme/güncelleme
- * yapıldığında alıcı/tedarikçi tarafının max 5dk'da güncel listeyi görsün.
+ * L3 2026-09-01'de bu cevabın DIŞINA çıktı: katalog Ariba dışa aktarımına
+ * geçince L1-L3 8.582 satır / 1,43 MB oldu ve modal her açılışta bunu
+ * indiriyordu.
+ *
+ * staleTime 5 dk: kategori güncellemesi max 5 dk'da görünsün.
  * refetchOnMount: modal her açıldığında stale olabilirse yeniden çek.
  */
 export function useCategoryTree() {
@@ -85,32 +93,41 @@ export function useRoots() {
 
 /**
  * Bir parent'ın direkt çocukları.
- * - Parent Segment/Family (L1/L2) → çocukları (L2/L3) /all cache'inde, in-memory.
- * - Parent Class (L3) → çocukları L4 commodity, payload optimizasyonu gereği
- *   cache'te DEĞİL → `/children` ile lazy çekilir (class açılınca tek istek).
+ * - Parent Segment (L1) → çocukları (L2 aileler) `/all` cache'inde, in-memory.
+ * - Parent Family/Class (L2/L3) → çocukları (L3/L4) payload optimizasyonu
+ *   gereği cache'te DEĞİL → `/children` ile lazy çekilir (düğüm açılınca
+ *   tek istek).
+ *
+ * `parentLevel` ÇAĞIRANDAN gelir, ağaçtan çıkarılmaz — L3 bir düğüm artık
+ * `/all` cevabında olmadığı için `tree.find(parentId)` onu bulamaz ve seviye
+ * sessizce yanlış hesaplanırdı (emtia listesi boş dönerdi). Üç çağıran da
+ * hangi seviyeyi açtığını zaten biliyor.
  */
-export function useChildren(parentId: string | null | undefined) {
+export function useChildren(
+  parentId: string | null | undefined,
+  parentLevel: 1 | 2 | 3,
+  catalog: CategoryCatalog = "full",
+) {
   const { data: tree, isLoading } = useCategoryTree();
-  const parent = useMemo(
-    () => (tree && parentId ? tree.find((c) => c.id === parentId) : undefined),
-    [tree, parentId],
-  );
-  const isClass = parent?.level === 3;
+  const lazyNeeded = parentLevel >= 2;
 
-  // L1/L2 parent → in-memory
+  // L1 parent → aileler in-memory. Katalog süzgeci GEREKMEZ: aileler (L2) iki
+  // katalogda birebir aynı; ayrışma yalnız L4'te.
   const memoryChildren = useMemo(() => {
-    if (!tree || !parentId || isClass) return undefined;
+    if (!tree || !parentId || lazyNeeded) return undefined;
     return tree.filter((c) => c.parentId === parentId).map(withCount);
-  }, [tree, parentId, isClass]);
+  }, [tree, parentId, lazyNeeded]);
 
-  // L3 (class) parent → L4 commodity lazy
+  // L2/L3 parent → sınıf/emtia lazy. `catalog` query anahtarında ŞART: aksi
+  // hâlde firma seçiminde açılan bir sınıfın 13 fazla yaprağı, aynı sınıfı
+  // talep formunda açan kullanıcıya önbellekten servis edilirdi.
   const lazy = useQuery<CategoryNode[]>({
-    queryKey: ["category-children", parentId],
+    queryKey: ["category-children", parentId, catalog],
     queryFn: () =>
       api
-        .get("/categories/children", { params: { parentId } })
+        .get("/categories/children", { params: { parentId, catalog } })
         .then((r) => r.data),
-    enabled: !!parentId && isClass,
+    enabled: !!parentId && lazyNeeded,
     staleTime: FIVE_MIN_MS,
     gcTime: HOUR_MS,
   });
@@ -119,7 +136,7 @@ export function useChildren(parentId: string | null | undefined) {
     [lazy.data],
   );
 
-  if (isClass) return { data: lazyChildren, isLoading: lazy.isLoading };
+  if (lazyNeeded) return { data: lazyChildren, isLoading: lazy.isLoading };
   return { data: memoryChildren, isLoading };
 }
 
@@ -161,13 +178,16 @@ export interface SearchTreeSegment {
  * Hiyerarşik arama — eşleşenleri parent path'leri ile tree olarak döner.
  * Modal'da PratisPro tarzı tree render için. Min 2 char (backend enforce).
  */
-export function useCategorySearchTree(query: string) {
+export function useCategorySearchTree(
+  query: string,
+  catalog: CategoryCatalog = "full",
+) {
   const trimmed = query.trim();
   return useQuery<{ segments: SearchTreeSegment[]; truncated?: boolean }>({
-    queryKey: ["category-search-tree", trimmed],
+    queryKey: ["category-search-tree", trimmed, catalog],
     queryFn: () =>
       api
-        .get("/categories/search-tree", { params: { q: trimmed } })
+        .get("/categories/search-tree", { params: { q: trimmed, catalog } })
         .then((r) => r.data),
     enabled: trimmed.length >= 2,
     staleTime: FIVE_MIN_MS,

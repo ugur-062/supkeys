@@ -18,3 +18,4 @@ export * from "./constants/bid-import";
 export * from "./constants/units";
 export * from "./constants/company-activities";
 export * from "./types/review-summary";
+export * from "./constants/category-catalog";

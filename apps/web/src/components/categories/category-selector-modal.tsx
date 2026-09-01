@@ -36,6 +36,7 @@ function Disclosure({ open }: { open: boolean }) {
 function DisclosureSpacer() {
   return <span className="w-4 shrink-0" aria-hidden />;
 }
+import type { CategoryCatalog } from "@rothern/shared";
 import {
   type CategoryNode,
   type SearchTreeClass,
@@ -57,6 +58,13 @@ interface Props {
   maxSelection?: number;
   title?: string;
   description?: string;
+  /**
+   * Hangi Ariba kataloğu gösterilsin:
+   *   "discovery" → talep/ilan kategorisi (Discovery alt kümesi)
+   *   "full"      → firma "hangi alandasınız" seçimi (tam katalog, varsayılan)
+   * Yalnız L4 yaprakta ayrışıyorlar; segment/aile/sınıf ikisinde de aynı.
+   */
+  catalog?: CategoryCatalog;
 }
 
 /**
@@ -75,6 +83,7 @@ export function CategorySelectorModal({
   maxSelection = 20,
   title = "Kategori Seç",
   description,
+  catalog = "full",
 }: Props) {
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
@@ -93,7 +102,7 @@ export function CategorySelectorModal({
 
   const { data: roots, isLoading: rootsLoading } = useRoots();
   const { data: searchTree, isLoading: searchLoading } =
-    useCategorySearchTree(debouncedSearch);
+    useCategorySearchTree(debouncedSearch, catalog);
   // Seçilen kategorilerin breadcrumb'larını getir — header chip listesi için.
   const { data: selectedInfo } = useCategoriesByIds(draftIds);
   // O(1) lookup için Map'e dönüştür — N seçimde linear .find() yerine.
@@ -311,6 +320,7 @@ export function CategorySelectorModal({
                 selected={draftIds}
                 onToggleSelection={toggleSelection}
                 mode={mode}
+                catalog={catalog}
               />
             )}
           </div>
@@ -354,6 +364,7 @@ interface SegmentListProps {
   selected: string[];
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
+  catalog: CategoryCatalog;
 }
 
 function SegmentList({
@@ -367,6 +378,7 @@ function SegmentList({
   selected,
   onToggleSelection,
   mode,
+  catalog,
 }: SegmentListProps) {
   if (roots.length === 0) {
     return (
@@ -425,6 +437,7 @@ function SegmentList({
             expandedClasses={expandedClasses}
             onToggleFamily={onToggleFamily}
             onToggleClass={onToggleClass}
+            catalog={catalog}
             selected={selected}
             onToggleSelection={onToggleSelection}
             mode={mode}
@@ -466,6 +479,7 @@ interface FamilyListProps {
   selected: string[];
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
+  catalog: CategoryCatalog;
 }
 
 function FamilyList({
@@ -477,8 +491,9 @@ function FamilyList({
   selected,
   onToggleSelection,
   mode,
+  catalog,
 }: FamilyListProps) {
-  const { data: families, isLoading } = useChildren(segmentId);
+  const { data: families, isLoading } = useChildren(segmentId, 1, catalog);
 
   if (isLoading) {
     return (
@@ -502,6 +517,7 @@ function FamilyList({
           selected={selected}
           onToggleSelection={onToggleSelection}
           mode={mode}
+          catalog={catalog}
         />
       </div>
     );
@@ -551,6 +567,7 @@ function FamilyList({
                 selected={selected}
                 onToggleSelection={onToggleSelection}
                 mode={mode}
+                catalog={catalog}
               />
             ) : null}
           </li>
@@ -567,6 +584,7 @@ interface ClassListProps {
   selected: string[];
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
+  catalog: CategoryCatalog;
 }
 
 function ClassList({
@@ -576,8 +594,9 @@ function ClassList({
   selected,
   onToggleSelection,
   mode,
+  catalog,
 }: ClassListProps) {
-  const { data: classes, isLoading } = useChildren(familyId);
+  const { data: classes, isLoading } = useChildren(familyId, 2, catalog);
 
   if (isLoading) {
     return (
@@ -595,6 +614,7 @@ function ClassList({
           cls={cls}
           isExpanded={expandedClasses.has(cls.id)}
           onToggleExpand={onToggleClass}
+          catalog={catalog}
           selected={selected}
           onToggleSelection={onToggleSelection}
           mode={mode}
@@ -611,6 +631,7 @@ interface ClassRowProps {
   selected: string[];
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
+  catalog: CategoryCatalog;
 }
 
 function ClassRow({
@@ -620,6 +641,7 @@ function ClassRow({
   selected,
   onToggleSelection,
   mode,
+  catalog,
 }: ClassRowProps) {
   const commodityCount = cls._count?.children ?? 0;
   const hasCommodities = commodityCount > 0;
@@ -680,6 +702,7 @@ function ClassRow({
           selected={selected}
           onToggleSelection={onToggleSelection}
           mode={mode}
+          catalog={catalog}
         />
       ) : null}
     </li>
@@ -691,6 +714,7 @@ interface CommodityListProps {
   selected: string[];
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
+  catalog: CategoryCatalog;
 }
 
 function CommodityList({
@@ -698,8 +722,9 @@ function CommodityList({
   selected,
   onToggleSelection,
   mode,
+  catalog,
 }: CommodityListProps) {
-  const { data: commodities, isLoading } = useChildren(classId);
+  const { data: commodities, isLoading } = useChildren(classId, 3, catalog);
 
   if (isLoading) {
     return (

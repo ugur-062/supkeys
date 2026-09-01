@@ -4,124 +4,56 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { foldSearchText, tokenizeQuery } from "@rothern/shared";
+import {
+  categoryCatalogWhere,
+  foldSearchText,
+  tokenizeQuery,
+  type CategoryCatalog,
+} from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 /**
- * V2-6 — 4 seviye UNSPSC kategori servisi.
+ * 4 seviye kategori servisi (kaynak: Ariba kataloğu, birebir).
  *   level 1 = Segment   (XX000000)
  *   level 2 = Family    (XXXX0000)
  *   level 3 = Class     (XXXXXX00)
  *   level 4 = Commodity (XXXXXXXX)
  *
- * Lazy loading: frontend ilk açılışta sadece roots (level 1) çeker, expand
- * edildiğinde o parent'ın direkt çocuklarını ister. Tedarikçi ve tender
- * "seçim" katmanları sadece Level 3+4'tür (Class veya Commodity).
+ * Lazy loading: frontend `/all` ile L1-L2'yi çeker, bir düğüm açıldığında o
+ * düğümün direkt çocuklarını `/children` ile ister. Seçim katmanı firma ANA
+ * kategorisinde L1, ALT kategoride L2-L4, satın alma talebinde min L3.
+ *
+ * BELLEK NOTU (2026-09-01): burada kategorilerin TAMAMINI belleğe alan bir
+ * breadcrumb cache'i (`loadAllCategories`) vardı — çağıranı kalmamıştı ve
+ * katalog 158 bin satıra çıkınca çağrılsaydı tek istekte ~24 MB JSON çekip
+ * Render free planının 512 MB'ını zorlardı. Silindi; breadcrumb'lar
+ * `getByIds`'te hedefli sorguyla çıkarılıyor (yalnız seçili kodlar).
  */
-// CACHE_TTL_MS — allCategoriesById (P-5) breadcrumb cache TTL. Kategoriler
-// statik (V2-7'ye kadar değişmez), 1 saat yeterli; restart cache'i temizler.
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 saat
-
-interface CategoryNode {
-  id: string;
-  code: string;
-  nameTr: string;
-  level: number;
-  parentId: string | null;
-  segmentLetter: string | null;
-}
-
 @Injectable()
 export class CategoryService {
-  /**
-   * Performans audit P-5 — Tüm aktif kategorileri tek seferde yükleyen index.
-   * `tender.list` ve `tender.findOne` her tender × kategori için 4-seviye
-   * `parent.parent.parent.parent` include'u atıyordu (her join seviyesi ayrı
-   * batched query). UNSPSC tüm subset ~4000 kayıt, ~400KB JS object → tek
-   * boot/cache turunda Map'e yüklenirse breadcrumb O(depth) lookup, list
-   * endpoint Prisma include'u tek seviyeye düşer.
-   */
-  private allCategoriesById: Map<string, CategoryNode> | null = null;
-  private allCategoriesExpiresAt = 0;
   private readonly logger = new Logger(CategoryService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Tüm aktif kategorileri Map'e yükle (1h cache). Breadcrumb lookup için
-   * `parent.parent...` zinciri burada in-memory yürütülür.
-   */
-  private async loadAllCategories(): Promise<Map<string, CategoryNode>> {
-    const now = Date.now();
-    if (
-      this.allCategoriesById &&
-      this.allCategoriesExpiresAt > now
-    ) {
-      return this.allCategoriesById;
-    }
-    const rows = await this.prisma.category.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        code: true,
-        nameTr: true,
-        level: true,
-        parentId: true,
-        segmentLetter: true,
-      },
-    });
-    const map = new Map<string, CategoryNode>();
-    for (const r of rows) {
-      map.set(r.id, r);
-    }
-    this.allCategoriesById = map;
-    this.allCategoriesExpiresAt = now + CACHE_TTL_MS;
-    return map;
-  }
-
-  /**
-   * Verilen ID'ler için breadcrumb string'lerini in-memory map üzerinden
-   * O(depth) hesaplar. Aktif olmayan veya bulunamayan ID için map'te entry yok.
-   */
-  async getBreadcrumbsByIds(
-    ids: string[],
-  ): Promise<Map<string, { node: CategoryNode; breadcrumb: string }>> {
-    if (ids.length === 0) return new Map();
-    const all = await this.loadAllCategories();
-    const result = new Map<string, { node: CategoryNode; breadcrumb: string }>();
-    for (const id of ids) {
-      const node = all.get(id);
-      if (!node) continue;
-      const parts: string[] = [];
-      let cur: CategoryNode | undefined = node;
-      while (cur) {
-        if (cur.level === 1) {
-          const letter = cur.segmentLetter ? `${cur.segmentLetter}. ` : "";
-          parts.unshift(`${letter}${cur.nameTr}`);
-        } else {
-          parts.unshift(cur.nameTr);
-        }
-        cur = cur.parentId ? all.get(cur.parentId) : undefined;
-      }
-      result.set(id, { node, breadcrumb: parts.join(" › ") });
-    }
-    return result;
-  }
-
-  /**
-   * V2-6.5 — Tüm aktif kategoriler (flat). Modal'ın tek seferde tree'nin
-   * tamamını çekmesi için. parentId üzerinden client-side traverse yapılır;
-   * eski lazy /children endpoint çağrılarına gerek yok.
-   */
-  /**
-   * Payload optimizasyonu — yalnızca L1-L3 (Segment/Family/Class) döner.
-   * L4 commodity'ler (toplam yığının ~%80'i) class açılınca `/children` ile
-   * lazy çekilir. Her düğüme `childCount` eklenir (L4 sayısı dahil) → frontend
-   * commodity'leri yüklemeden "expand var mı" gösterebilir.
+   * V2-6.5 — Ağacın ÜST katmanı (flat). Modal bunu tek seferde çeker,
+   * parentId üzerinden client-side traverse eder.
+   *
+   * Payload optimizasyonu — yalnızca L1-L2 (Segment/Family) döner.
+   * L3 sınıflar ve L4 emtialar `/children` ile açıldıkça lazy çekilir. Her
+   * düğüme `childCount` eklenir → frontend alt katmanı yüklemeden "expand
+   * var mı" gösterebilir.
+   *
+   * NEDEN L3 DE DIŞARIDA (2026-09-01): katalog Ariba dışa aktarımına geçince
+   * L1-L3 1.796 satırdan 8.582'ye çıktı — yani ~180 KB'lık cevap 1,43 MB
+   * oldu. Modal her açılışta (staleTime 5 dk) bunu indiriyordu. L1-L2 ise
+   * 616 satır / ~90 KB: bugünkünden de KÜÇÜK. Sınıflar zaten yalnız kullanıcı
+   * bir aileyi açtığında gerekiyor ve tek ailenin altında en fazla birkaç
+   * düzine sınıf var — o istek küçük ve seyrek.
    */
   async getAllActive() {
     const cats = await this.prisma.category.findMany({
-      where: { isActive: true, level: { lte: 3 } },
+      where: { isActive: true, level: { lte: 2 } },
       orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
@@ -162,11 +94,18 @@ export class CategoryService {
     return this.attachChildCount(cats);
   }
 
-  /** Bir parent'ın direkt çocukları (L4 commodity lazy-load için). */
-  async childrenOf(parentId: string) {
+  /**
+   * Bir parent'ın direkt çocukları (L3 sınıf / L4 emtia lazy-load için).
+   *
+   * `catalog` YALNIZ burada ve `searchHierarchical`'da anlamlı: iki katalog
+   * (firma seçimi = tam, talep/ilan = discovery) yalnız L4 yaprakta ayrışıyor.
+   * `getAllActive` (L1-L2) ve `getSegments` (L1) o yüzden katalog almıyor —
+   * o katmanlar iki dışa aktarımda kod ve ad olarak birebir aynı.
+   */
+  async childrenOf(parentId: string, catalog: CategoryCatalog = "full") {
     if (!parentId) return [];
     const cats = await this.prisma.category.findMany({
-      where: { isActive: true, parentId },
+      where: { isActive: true, parentId, ...categoryCatalogWhere(catalog) },
       orderBy: [{ sortOrder: "asc" }],
       select: {
         id: true,
@@ -178,17 +117,28 @@ export class CategoryService {
         sortOrder: true,
       },
     });
-    return this.attachChildCount(cats);
+    return this.attachChildCount(cats, catalog);
   }
 
-  /** Verilen düğümlere `childCount` (aktif direkt çocuk sayısı) ekler. */
+  /**
+   * Verilen düğümlere `childCount` (aktif direkt çocuk sayısı) ekler.
+   *
+   * `catalog` sayıma da uygulanır: aksi hâlde çocukları yalnız discovery-dışı
+   * yapraklardan ibaret bir sınıf, talep/ilan seçicisinde "açılabilir" görünür
+   * ve açılınca BOŞ gelirdi.
+   */
   private async attachChildCount<T extends { id: string }>(
     cats: T[],
+    catalog: CategoryCatalog = "full",
   ): Promise<(T & { childCount: number })[]> {
     if (cats.length === 0) return [];
     const counts = await this.prisma.category.groupBy({
       by: ["parentId"],
-      where: { isActive: true, parentId: { in: cats.map((c) => c.id) } },
+      where: {
+        isActive: true,
+        parentId: { in: cats.map((c) => c.id) },
+        ...categoryCatalogWhere(catalog),
+      },
       _count: { _all: true },
     });
     const m = new Map(counts.map((c) => [c.parentId, c._count._all]));
@@ -200,7 +150,10 @@ export class CategoryService {
    * tree olarak döner. Aynı segment/family altındaki match'ler birlikte gruplanır;
    * eşleşmeyen kardeşler gizlenir. Frontend modalında PratisPro tarzı render için.
    */
-  async searchHierarchical(query: string): Promise<{
+  async searchHierarchical(
+    query: string,
+    catalog: CategoryCatalog = "full",
+  ): Promise<{
     segments: Array<{
       id: string;
       code: string;
@@ -264,10 +217,14 @@ export class CategoryService {
           ],
         };
 
+    // Katalog süzgeci YALNIZ burada: eşleşenler L3+L4 ve iki katalog yalnız
+    // L4'te ayrışıyor. Aşağıdaki `famMatches` (L2 + L3 çocukları) süzülmüyor —
+    // o katmanlar iki dışa aktarımda birebir aynı.
     const matched = await this.prisma.category.findMany({
       where: {
         isActive: true,
         level: { in: [3, 4] },
+        ...categoryCatalogWhere(catalog),
         ...nameFilter,
       },
       include: {

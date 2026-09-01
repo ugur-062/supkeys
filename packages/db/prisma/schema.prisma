@@ -239,6 +239,24 @@ model Category {
    */
   level  Int
 
+  /**
+   * Ariba **Discovery** kataloğunda da var mı?
+   *
+   * İKİ kaynak dışa aktarımı var ve ölçülen fark YALNIZ L4 yaprakta:
+   *   tam katalog (158.018) → FİRMA kategori seçimi ("hangi alandasınız")
+   *   discovery  (158.005)  → TALEP ve İLAN kategorisi
+   * L1 (58 segment), L2 (558 aile) ve L3 (7.966 sınıf) kod ve ad olarak birebir
+   * aynı; fark 13 yaprakla sınırlı. Bu yüzden ayrı tablo/ayrı ağaç YOK — tek
+   * katalog, kod başına tek satır, bu bayrakla süzülüyor.
+   *
+   * Kapı BACKEND'de: talep/ilan kategori doğrulaması `inDiscovery: true` ŞART
+   * koşar (`company-listings.service.ts`); firma seçimi koşmaz
+   * (`category-selection.helper.ts`) — tam kataloğu görür.
+   *
+   * `seed-categories` yazar, kaynağı `ariba-categories.tsv` 6. sütunu.
+   */
+  inDiscovery Boolean @default(true)
+
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children Category[] @relation("CategoryHierarchy")

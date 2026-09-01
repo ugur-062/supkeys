@@ -4,20 +4,24 @@
  * boş-kategori penceresi açmamak için bu script tercih edilir).
  * Her satır: keywords kolonu + searchText = fold(nameTr + keywords).
  *
- * İKİ KAYNAK, ELLE KÜRASYON ÜSTÜN:
+ * ÜÇ KAYNAK, TEK BİLEŞİM (`lib/category-keywords.ts`):
  *   1. category-keywords.generated.tsv — gen-category-keywords.ts çıktısı (toplu)
  *   2. category-keywords.tsv           — ELLE yazılan (aynı kod varsa EZER)
- * Gerekçe: üretilen sözlük taban kelime hazinesini verir; insan kararı
- * (yanlış eşleşme düzeltmesi, kürasyon döngüsünden gelen terim) son sözdür ve
- * yeniden üretimde kaybolmamalıdır.
+ *   3. ariba-categories.tsv 7. sütun   — çakışan kodda DÜŞEN adlar
+ * Gerekçe: üretilen sözlük taban kelime hazinesini verir; insan kararı son
+ * sözdür ve yeniden üretimde kaybolmamalıdır.
+ *
+ * ⚠️ Bu script keywords'ü REPLACE eder (merge DEĞİL). O yüzden bileşimi
+ * `seed-categories` ile PAYLAŞMAK zorunda: ayrışsalardı burada koşmak,
+ * seed'in yazdığı düşen adları ("Hazır Beton" → 30111505) sessizce silerdi.
  *
  * Çalıştırma: `pnpm --filter @rothern/db apply-category-keywords`
  * Idempotent; TSV'de olmayan kategorilere dokunmaz, DEĞİŞMEYEN satırı yazmaz.
  */
 import { PrismaClient, Prisma } from "@prisma/client";
 import { foldSearchText } from "@rothern/shared";
-import * as fs from "fs";
 import * as path from "path";
+import { buildKeywordsByCode } from "./lib/category-keywords";
 
 const prisma = new PrismaClient();
 
@@ -29,33 +33,19 @@ const prisma = new PrismaClient();
  */
 const CHUNK = 500;
 
-function readTsv(filePath: string, into: Map<string, string>): number {
-  if (!fs.existsSync(filePath)) return 0;
-  let n = 0;
-  for (const line of fs.readFileSync(filePath, "utf-8").split("\n")) {
-    if (!line.trim() || line.startsWith("#")) continue;
-    const [code, kw] = line.split("\t");
-    if (code?.trim() && kw?.trim()) {
-      into.set(code.trim(), kw.trim());
-      n++;
-    }
-  }
-  return n;
-}
-
 async function main() {
   const dir = path.resolve(__dirname, "../../src/seeds");
-  const entries = new Map<string, string>();
-
-  // Sıra kritik: üretilen ÖNCE okunur, elle küratörlü SONRA — aynı kod
-  // geldiğinde Map.set elle yazılanı bırakır.
-  const gen = readTsv(path.join(dir, "category-keywords.generated.tsv"), entries);
-  const cur = readTsv(path.join(dir, "category-keywords.tsv"), entries);
+  const {
+    byCode: entries,
+    generated,
+    curated,
+    altNames,
+  } = buildKeywordsByCode(dir);
   if (entries.size === 0) {
     throw new Error(`Hiç eşanlamlı kaydı bulunamadı: ${dir}`);
   }
   console.log(
-    `📄 ${entries.size} kategori (üretilen ${gen} + elle ${cur}, çakışanda elle kazandı)\n`,
+    `📄 ${entries.size} kategori (üretilen ${generated} + elle ${curated}, çakışanda elle kazandı; + ${altNames} düşen ad)\n`,
   );
 
   const cats = await prisma.category.findMany({

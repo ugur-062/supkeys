@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronRight, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
+import type { CategoryCatalog } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 
 // Performans audit P-4 — Modal 808 satır, kullanıcı açana kadar bundle'a
@@ -22,6 +23,12 @@ interface Props {
   modalTitle?: string;
   modalDescription?: string;
   disabled?: boolean;
+  /**
+   * Hangi Ariba kataloğu: talep/ilan formlarında `"discovery"`, firma
+   * kategori seçiminde `"full"` (varsayılan). Modal'a geçer; asıl kapı
+   * backend'de (`company-listings.service.ts`).
+   */
+  catalog?: CategoryCatalog;
 }
 
 /**
@@ -38,6 +45,7 @@ export function CategorySelectorButton({
   modalTitle = "Kategori Seç",
   modalDescription,
   disabled,
+  catalog = "full",
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const { data: selectedCategories } = useCategoriesByIds(value);
@@ -138,8 +146,8 @@ export function CategorySelectorButton({
       {/*
         Denetim 2026-08-26 Parça 10: modal KOŞULSUZ render ediliyordu. `isOpen`
         yalnız Headless Dialog'u kapalı tutuyor, bileşen gövdesi yine koşuyor →
-        `useCategoryTree()` (enabled kapısı yok) ~180 KB'lık `/categories/all`
-        çağrısını, kullanıcı kategoriye hiç dokunmasa bile yapıyordu.
+        `useCategoryTree()` (enabled kapısı yok) `/categories/all` çağrısını,
+        kullanıcı kategoriye hiç dokunmasa bile yapıyordu.
         `next/dynamic` de parçayı render anında indiriyordu.
       */}
       {isOpen ? (
@@ -152,6 +160,7 @@ export function CategorySelectorButton({
           maxSelection={maxSelection}
           title={modalTitle}
           description={modalDescription}
+          catalog={catalog}
         />
       ) : null}
     </>

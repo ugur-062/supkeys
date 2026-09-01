@@ -1,4 +1,17 @@
 /**
+ * ⛔ AKIŞ DIŞI — 2026-09-01'den beri KOŞULMUYOR. Koşmadan önce oku.
+ *
+ * Katalog artık Ariba dışa aktarımının BİREBİR kendisi (`seed-categories.ts`):
+ * 58 segmentin hepsi görünür, adlar kaynaktaki gibi. Bu script segment gizler
+ * ve 24 segmenti yeniden adlandırır — yani tam da o birebir garantisini bozar.
+ * Ayrıca HIDE/RENAME listeleri eski (22.106'lık) kataloğa göre yazılmıştı.
+ *
+ * Silinmedi çünkü "segmenti gizle" gelecekte istenirse doğru araç budur; ama
+ * bugünkü seed akışının parçası DEĞİL ve `--apply` ile koşulursa firma
+ * kategori seçimindeki ağaç sessizce daralır.
+ *
+ * ── Aşağısı özgün başlığıdır ──
+ *
  * V2-6.5 — Kategori temizliği (KOBİ inşaat/elektrik/iskele odaklı).
  *
  * UNSPSC tree'sinden alakasız segment'leri soft-delete (`isActive=false`) eder

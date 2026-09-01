@@ -3,9 +3,14 @@ import type { PrismaService } from "../prisma/prisma.service";
 
 /**
  * Birleşik kategori seçimi doğrulaması (alıcı + tedarikçi ortak).
- * - main: 1-3 ANA kategori (UNSPSC segment, level 1)
+ * - main: 1-3 ANA kategori (segment, level 1)
  * - sub: 0-sınırsız ALT kategori (level 2-4 — family/class/commodity)
  * Hepsi mevcut + aktif olmalı. mainNames, ana kategori sırasıyla döner.
+ *
+ * `inDiscovery` SÜZGECİ YOK — bilinçli. Firmanın "hangi alandayım" beyanı TAM
+ * Ariba kataloğundan yapılır; talep/ilan kategorisi ise Discovery alt
+ * kümesinden (`company-listings.service.ts` `inDiscovery: true` şart koşar).
+ * Fark 13 yaprak: firma onları beyan edebilir, kimse o kodla talep açamaz.
  */
 export async function validateCategorySelection(
   prisma: PrismaService,

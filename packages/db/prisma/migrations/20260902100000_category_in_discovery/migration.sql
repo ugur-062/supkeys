@@ -1,0 +1,12 @@
+-- Ariba Discovery alt kümesi bayrağı.
+--
+-- Katalog İKİ dışa aktarımdan geliyor ve yalnız L4 yaprakta ayrışıyorlar:
+--   tam katalog (158.018) → firma kategori seçimi
+--   discovery  (158.005)  → talep/ilan kategorisi
+-- Fark 13 yaprak; ayrı tablo yerine tek katalog + bu bayrak.
+--
+-- GÜVENLİ: PG11+ sabit DEFAULT ile ADD COLUMN tablo yeniden yazmaz (kilit
+-- milisaniyeler). Mevcut satırların hepsi `true` oluyor — doğru ara değer:
+-- eski katalog bu ayrımdan önce yazıldı ve `seed-categories` hemen ardından
+-- tabloyu tamamen yeniden kuruyor (kaynak: ariba-categories.tsv 6. sütun).
+ALTER TABLE "categories" ADD COLUMN "inDiscovery" BOOLEAN NOT NULL DEFAULT true;
