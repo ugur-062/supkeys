@@ -1973,3 +1973,316 @@
 31381553	Plastik bağlı enjeksiyon kalıplı anizotropik stronsiyum ferrit mıknatıs montajı	Plastic bonded injection molded anisotropic strontium ferrite magnet assembly
 31381554	Plastik bağlı enjeksiyon kalıplı anizotropik samaryum kobalt mıknatıs montajı	Plastic bonded injection molded anisotropic samarium cobalt magnet assembly
 31381555	Plastik bağlı enjeksiyon kalıplı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Plastic bonded injection molded anisotropic ferrous aluminum nickel cobalt magnet assembly
+31391501	Plastik standart hassasiyetli talaşlı imalat	Plastic standard precision machining
+31391502	Seramik standart hassasiyetli talaşlı imalat	Ceramic standard precision machining
+31391503	Çelik standart hassasiyetli talaşlı imalat	Steel standard precision machining
+31391504	Paslanmaz çelik standart hassasiyetli talaşlı imalat	Stainless steel standard precision machining
+31391505	Alüminyum standart hassasiyetli talaşlı imalat	Aluminum standard precision machining
+31391506	Pirinç standart hassasiyetli talaşlı imalat	Brass standard precision machining
+31391601	Plastik orta hassasiyetli talaşlı imalat	Plastic medium precision machining
+31391602	Seramik orta hassasiyetli talaşlı imalat	Ceramic medium precision machining
+31391603	Çelik orta hassasiyetli talaşlı imalat	Steel medium precision machining
+31391604	Paslanmaz çelik orta hassasiyetli talaşlı imalat	Stainless steel medium precision machining
+31391605	Alüminyum orta hassasiyetli talaşlı imalat	Aluminum medium precision machining
+31391606	Pirinç orta hassasiyetli talaşlı imalat	Brass medium precision machining
+31391701	Plastik yüksek hassasiyetli talaşlı imalat	Plastic high precision machining
+31391702	Seramik yüksek hassasiyetli talaşlı imalat	Ceramic high precision machining
+31391703	Çelik yüksek hassasiyetli talaşlı imalat	Steel high precision machining
+31391704	Paslanmaz çelik yüksek hassasiyetli talaşlı imalat	Stainless steel high precision machining
+31391705	Alüminyum yüksek hassasiyetli talaşlı imalat	Aluminum high precision machining
+31391706	Pirinç yüksek hassasiyetli talaşlı imalat	Brass high precision machining
+31401501	Kauçuk kalıplanmış conta	Rubber molded gasket
+31401502	Plastik kalıplanmış conta	Plastic molded gasket
+31401503	O-ring kalıplanmış conta	O ring molded gasket
+31401504	EMI kalıplanmış conta	Electromagnetic interference molded gasket
+31401505	Silikon kalıplanmış conta	Silicone molded gasket
+31401506	Şişirilebilir kalıplanmış conta	Inflatable molded gasket
+31401507	Kalıplanmış conta seti	Molded gasket kit
+31401601	Kauçuk kesme kalıplı conta	Rubber die cut gasket
+31401602	Plastik kesme kalıplı conta	Plastic die cut gasket
+31401603	Tekstil kesme kalıplı conta	Textile die cut gasket
+31401604	Mantar kesme kalıplı conta	Cork die cut gasket
+31401605	EMI kesme kalıplı conta	Electromagnetic interference or EMI die cut gasket
+31401606	Silikon kesme kalıplı conta	Silicone die cut gasket
+31401607	Preslenmiş elyaf kesme kalıplı conta	Compressed fiber die cut gasket
+31401608	Çift malzemeli kesme kalıplı conta	Bimaterial die cut gasket
+31401609	Poliflüoroetilen kesme kalıplı conta	Polyfluoroethylene die cut gasket
+31401610	Kesme kalıplı conta seti	Die cut gasket kit
+31401701	Kauçuk kaplı çelik preslenmiş conta	Rubber coated steel stamped gasket
+31401702	Plastik preslenmiş conta	Plastic stamped gasket
+31401703	Kauçuk preslenmiş conta	Rubber stamped gasket
+31401704	Metal preslenmiş conta	Metal stamped gasket
+31401705	Tekstil preslenmiş conta	Textile stamped gasket
+31401706	Mantar preslenmiş conta	Cork stamped gasket
+31401707	Cıvatalı preslenmiş conta	Bolted stamped gasket
+31401708	Preslenmiş conta seti	Stamped gasket kit
+31401801	EMI su jeti kesim conta	Electromagnetic interference water jet cut gasket
+31401802	Kauçuk su jeti kesim conta	Rubber water jet cut gasket
+31401803	Plastik su jeti kesim conta	Plastic water jet cut gasket
+31401804	Tekstil su jeti kesim conta	Textile water jet cut gasket
+31401805	Mantar su jeti kesim conta	Cork water jet cut gasket
+31401806	Silikon su jeti kesim conta	Silicone water jet cut gasket
+31401807	Su jeti kesim conta seti	Water jet cut gasket kit
+31401901	Poliakrilat sıvı conta	Polyacrylate liquid gasket
+31401902	Silikon sıvı conta	Silicone liquid gasket
+31401903	Solventli sıvı conta	Solvent liquid gasket
+31401904	Anaerobik sıvı conta	Anaerobic liquid gasket
+31411501	Kauçuk torna kesim keçe	Rubber lathe cut seal
+31411502	PTFE torna kesim keçe	Polytetrafluoroethylene lathe cut seal
+31411503	Neopren torna kesim keçe	Neoprene lathe cut seal
+31411504	Poliakrilat torna kesim keçe	Polyacrylate lathe cut seal
+31411505	Metalik torna kesim keçe	Metallic lathe cut seal
+31411506	Torna kesim keçe seti	Lathe cut seal kit
+31411601	Kauçuk kesme kalıplı keçe	Rubber die cut seal
+31411602	Köpük kesme kalıplı keçe	Foam die cut seal
+31411603	Plastik kesme kalıplı keçe	Plastic die cut seal
+31411604	Kesme kalıplı keçe seti	Die cut seal kit
+31411605	Silikon kesme kalıplı keçe	Silicone die cut seal
+31411701	İtici tip mekanik salmastra	Pusher mechanical seal
+31411702	Körüklü mekanik salmastra	Bellows mechanical seal
+31411703	Mekanik salmastra seti	Mechanical seal kit
+31411704	V halka keçe	V ring seal
+31411705	Dudaklı keçe	Lip seal
+31411706	Diğer mekanik salmastralar	Mechanical seals
+31411707	Yağ keçeleri	Oil seals
+31411801	Kaynaklı diyafram keçe	Welded diaphragm seal
+31411802	Kelepçeli diyafram keçe	Clamped diaphragm seal
+31411803	Kapsül diyafram keçe	Capsule diaphragm seal
+31411804	Kauçuk diyafram keçe	Rubber diaphragm seal
+31411805	Elyaf takviyeli diyafram keçe	Fiber reinforced diaphragm seal
+31411901	Kauçuk kalıplanmış keçe	Rubber molded seal
+31411902	Plastik kalıplanmış keçe	Plastic molded seal
+31411903	Hassas kalıplanmış keçe	Precision molded seal
+31411904	Metal veya plastik üzeri kauçuk kalıplanmış keçe	Rubber on metal or plastic molded seal
+31411905	Silikon kalıplanmış keçe	Silicone molded seal
+31421501	Demir-bakır standart sinter filtre	Iron copper standard sintered filter
+31421502	Yumuşak manyetik demir kompozit standart sinter filtre	Soft magnetic iron composite standard sintered filter
+31421503	Yumuşak manyetik demir kompozit yüksek sıcaklık sinter filtre	Soft magnetic iron composite high temperature sintered filter
+31421504	Paslanmaz çelik standart sinter filtre	Stainless steel standard sintered filter
+31421505	Paslanmaz çelik yüksek sıcaklık sinter filtre	Stainless steel high temperature sintered filter
+31421506	Paslanmaz çelik sıkıştırılmış standart sinter filtre	Stainless steel compacted standard sintered filter
+31421507	Nikel-kobalt standart sinter filtre	Nickel cobalt standard sintered filter
+31421508	Nikel-kobalt yüksek sıcaklık sinter filtre	Nickel cobalt high temperature sintered filter
+31421509	Nikel-kobalt sıkıştırılmış standart sinter filtre	Nickel cobalt compacted standard sintered filter
+31421510	Alüminyum standart sinter filtre	Aluminum standard sintered filter
+31421511	Alüminyum yüksek sıcaklık sinter filtre	Aluminum high temperature sintered filter
+31421512	Bakır esaslı standart sinter filtre	Copper based standard sintered filter
+31421513	Titanyum alaşımı standart sinter filtre	Titanium alloy standard sintered filter
+31421514	Titanyum alaşımı yüksek sıcaklık sinter filtre	Titanium alloy high temperature sintered filter
+31421515	Berilyum standart sinter filtre	Beryllium standard sintered filter
+31421516	Berilyum yüksek sıcaklık sinter filtre	Beryllium high temperature sintered filter
+31421517	Refrakter metal standart sinter filtre	Refractory metal standard sintered filter
+31421518	Refrakter metal yüksek sıcaklık sinter filtre	Refractory metal high temperature sintered filter
+31421519	Seramik standart sinter filtre	Ceramic standard sintered filter
+31421520	Seramik yüksek sıcaklık sinter filtre	Ceramic high temperature sintered filter
+31421521	Saf demir tozu standart sinter filtre	Pure iron powder standard sintered filter
+31421522	Saf demir tozu yüksek sıcaklık sinter filtre	Pure iron powder high temperature sintered filter
+30101719	Haydit kiriş	Haydite beam
+30101720	Kontrplak kiriş	Plywood beam
+30101818	Fiberglas U profil	Fiberglass channel
+30102016	Tantal folyo	Tantalum foil
+30102221	Elyaf levha	Fiber plate
+30102222	Ahşap yünü levha	Woodwool plate
+30102223	Ahşap kaplama levha	Wood veneer plate
+30102224	Coreboard levha	Coreboard plate
+30102225	Mantar levha	Cork plate
+30102226	Bütil levha	Butyl plate
+30102227	Tantal levha	Tantalum plate
+30102317	Kompozit profiller	Composite profiles
+30102805	Kompozit kazık	Composite piling
+30103105	Korkuluk ve bağlantı elemanı	Railing and fitting
+30103207	Lamine ızgara	Laminated grating
+30103208	Ahşap ızgara	Wood grating
+30103209	Izgara kapağı	Grating cover
+30103609	Havalandırma perde levhası	Brattice board
+30103610	Tahkimat blok	Crib block
+30103611	Ekskavatör paleti	Shovel mat
+30103612	Demiryolu traversi	Railway tie
+30103613	Prekast haydit eleman	Precast haydite element
+30103614	Çelik plaka kiriş	Steel plate joist
+30103615	Plakalı ana kiriş	Plate girder
+30103616	Kompozit karkas	Composite framework
+30103618	Çelik karkas	Steel framework
+30103619	Prekast beton eleman	Precast concrete element
+30103620	Emprenyeli tahkimat blok	Crib block treated
+30103621	Emprenyesiz demiryolu traversi	Railway tie untreated
+30103622	Kare kereste	Square timber
+30103623	İnşaat demiri veya hasır çelik	Reinforcing bar or rebar or mesh
+30103624	Hazır set veya baraj elemanı	Preformed dike or dam element
+30103625	Üst yapı modülü	Topside Module
+30103626	Kule geçiş platformu	Tower gangway
+30103627	Kanal kapağı	Trench cover
+30103628	Prefabrik lamine çelik panel	Prefabricated laminated steel panel
+30103629	Prefabrik alüminyum panel	Prefabricated aluminum panel
+30103801	Çelik lif	Steel fiber
+30103802	Kalay lif	Tin fiber
+30103803	Alüminyum lif	Aluminum fiber
+30103804	Alaşım lif	Alloy fiber
+30103901	Başlı miller	Headed shafts
+30104001	Yuvarlak içi boş yapısal profil (HSS)	Round hollow structural section HSS
+30104002	Kare içi boş yapısal profil (HSS)	Square hollow structural section HSS
+30111505	Hazır beton	Ready mix concrete
+30111506	Grout (dolgu harcı)	Grout
+30111507	Toprakta kürlenen beton	Soil cured concrete
+30111508	Su geçirgen beton	Water permeable concrete
+30111509	Asfalt esaslı beton	Asphalt based concrete
+30111510	Boru hattı koruma beton yatağı	Pipeline protection concrete mattress
+30111801	Doğal agrega	Natural aggregate
+30111802	Yapay agrega	Artificial aggregate
+30111803	Geri kazanılmış agrega	Recycled aggregate
+30111901	Beton donatı lifi	Concrete reinforcing fiber
+30111902	İnşaat genleşme derzi	Construction expansion joint
+30111903	Hasır tel levha	Wire mesh sheet
+30121504	Bitüm	Bitumen
+30121701	Geogrid (geomesh)	Geomesh
+30121702	Geotekstil	Geotextile
+30121703	Köprü korkuluğu	Bridge rail
+30121704	Beton plak	Concrete slab
+30121705	Kaldırım plakası	Paving slab
+30121706	Beton bordür	Concrete curb
+30121707	Gürültü bariyeri paneli	Noise protection board
+30121708	Tuğla karo	Brick tile
+30121709	Elenmemiş kırma taş	Ungraded crushed rock
+30121710	Parke taşı	Paving stone
+30121711	Doğal taş bordür	Natural curbstone
+30121712	Direk kapağı	Post cover
+30121713	Rögar kapağı	Manhole cover
+30121714	Rögar gövdesi	Manhole box
+30121715	Köprü genleşme derzi	Bridge expansion joint
+30121716	Köprü mesnet bağlantısı	Bridge seat mounting
+30121717	Otokorkuluk	Guardrail
+30121718	Kaya düşmesine karşı güvenlik çiti ve ağı	Safety fence and net for rock drop
+30121719	Yol güvenlik ayırıcısı	Safety separator for road
+30121720	Drenaj borusu koku önleyici	Drain pipe odor suppression device
+30121721	Drenaj toprak ve kum haznesi	Drainage earth and sand barrel
+30121722	PE yağmur suyu ve kanalizasyon ayırma duvarı	PE rainwater and sewer separation walls
+30121801	Ağaç ızgarası	Tree grating
+30121802	Ağaç koruma çubuğu	Tree protection rod
+30121803	Suni çim	Artificial turf
+30121901	Zemin stabilizatörü	Soil stabilizer
+30122001	Elastik levha dış zemin kaplaması	Elastic sheet exterior paving material
+30122002	Dış mekan geçirimli agrega zemin kaplaması	Exterior permeable aggregate flooring material
+30122003	Boyalı veya kaplamalı dış zemin	Painted or coated exterior flooring
+30122004	Kaymaz dış zemin kaplaması	Non skid exterior paving material
+30131505	Haydit blok	Haydite block
+30131506	Doğal taş plaka	Natural rock slab
+30131507	Hafif beton blok	Light concrete block
+30131508	Cam blok	Glass block
+30131509	Ses yalıtımlı blok	Sound proof block
+30131510	İstinat için beton blok	Concrete block for revetment
+30131511	Beton koruma bloğu (tetrapod)	Concrete armor unit
+30131512	Gazbeton blok (AAC)	Autoclaved lightweight aerated concrete block
+30131513	Kauçuk blok	Rubber block
+30131514	Betonarme menfez bloğu	Reinforced concrete built up culvert block
+30131515	Ahşap blok	Wood block
+30131516	Hissedilebilir yüzey (Braille) blok	Braille block
+30131517	Kerpiç blok	Adobe block
+30131518	Köprüler için beton blok	Concrete block for bridges
+30131519	Gabion blok	Gabion block
+30131605	Kireç kumtaşı tuğla	Sandlime brick
+30131606	Lös tuğla	Loess brick
+30131607	Kil tuğla	Clay brick
+30131608	Tuz sırlı tuğla	Salt glazed brick
+30131609	Prefabrik tuğla	Fabricated brick
+30131610	Yalıtımlı ateş tuğlası	Insulating fire brick
+30131611	Ahşap tuğla	Wood brick
+30131706	Metal karo veya yassı taş	Metal tile or flagstone
+30131707	Porselen	Porcelain
+30141514	Genleştirilmiş polistiren (EPS) yalıtım	Expanded polystyrene EPS insulation
+30141515	Ekstrüde polistiren (XPS) yalıtım	Extruded polystyrene XPS insulation
+30141516	Taş yünü yalıtım	Mineral wool insulation
+30141604	Püskürtme kaplama yalıtım	Spray coating insulation
+30141605	Yangına dayanım malzemesi	Fireproofing material
+30141606	Yangın durdurucu şişen malzemeler	Firestop intumescent materials
+30141607	Yapısal ısı köprüsü kesici ürün	Structural thermal break product
+30141701	Asfalt levha su yalıtım katmanı	Asphalt board sealing layer
+30141702	Plastik su yalıtım katmanı	Plastic sealing layer
+30141703	Kauçuk su yalıtım katmanı	Rubber sealing layer
+30151509	Kauçuk mesnet bloğu	Rubber support block
+30151511	Beton çatı kiremidi	Concrete roofing tile
+30151512	Tuğla çatı kiremidi	Brick roofing tile
+30151513	Seramik çatı kiremidi	Ceramic roof tile
+30151514	Metal çatı kiremidi	Metal roof tile
+30151516	Polipropilen çatı kiremidi	Polypropylene roof tile
+30151517	Plastik çatı kiremitleri	Plastic roof tiles
+30151610	Mahya ve dere elemanı	Hip and ridge
+30151807	Dış cephe süpürgelik malzemesi	Exterior trim material
+30151808	Tuğla kalıbı	Brick mould
+30151809	Yapı malzemesi cam kaplama	Building material glazing
+30151902	Sundurma	Canopy
+30151903	Yapısal sundurma	Structural canopy
+30152004	Çit bariyerleri	Fence barriers
+30161505	Paneller ve panel kaplama	Panels or paneling
+30161510	Plastik duvar kaplaması	Plastic wall covering
+30161511	Duvar kumaşı	Wall fabric
+30161721	Zemin geçiş profili	Flooring threshold
+30161722	Taş-plastik kompozit zemin (SPC)	Stoneplastic composite flooring
+30161723	Ahşap-plastik kompozit zemin (WPC)	Wood plastic composite flooring
+30161803	Ev dolabı	Domestic cupboard
+30161804	Okul dolabı	School cupboard
+30161805	Laboratuvar dolabı	Laboratory cupboard
+30161806	Gardırop	Wardrobe
+30161807	Çekmece	Drawer
+30161808	Çekmece rayı	Drawer slide
+30161809	Darbe koruma pedi	Bumper pad
+30161810	Üç aynalı dolap	Tri view cabinet
+30161811	İç mekan tefriş uygulaması	Construction interior fit-out
+30162001	Yüksek basınçlı laminat (HPL)	High pressure laminate
+30162002	Özel laminat	Specialty laminate
+30162004	Kenar bandı laminat	Edgebanding laminate
+30162005	Rijit termal folyo (RTF)	Rigid thermal foil RTF
+30162101	Çelik merdiven	Steel stairs
+30162103	Beton merdiven	Concrete stairs
+30162104	Merdiven basamak profili	Stair nosing
+30162201	Laminat tezgah	Laminate countertop
+30162202	Döküm mermer tezgah	Cultured marble countertop
+30162203	Solid surface tezgah	Solid surface countertop
+30162204	Granit tezgah	Granite countertop
+30162301	Döner raf donanımı	Lazy susan hardware or assembly
+30162302	Baharatlık raf veya çekmece içi	Spice rack or spice drawer insert
+30162303	Sürgülü çöp kovası donanımı	Pull out waste basket hardware or assembly
+30162304	Kiler dolabı donanımı	Pantry hardware or assembly
+30162305	Devrilir tepsi donanımı	Tilt out tray hardware or assembly
+30162306	Kapak montajlı veya sürgülü havluluk donanımı	Door mount or sliding towel hardware or assembly
+30162307	Sürgülü veya devrilir çamaşır sepeti donanımı	Pull out or tip out hamper hardware or assembly
+30162308	Ekmeklik kapağı veya takımı	Bread box lid or assembly
+30162309	Kadeh askısı	Stemware rack
+30162310	Sürgülü tepsi	Roll out tray
+30162311	Sürgülü saklama kabı donanımı	Slide out storage bin or assembly
+30162401	Katlanır duvar	Folding wall
+30162402	Paravan duvar veya kabin	Screen wall or cubicle
+30162403	İç duvar sistemi	Interior wall system
+30162404	Soğuk oda duvarı	Cold storage wall
+30171515	Denetim kapağı	Inspection door
+30171516	Kapı sineklik	Door screen
+30171517	Ses yalıtımlı kapı	Sound proof door
+30171518	İkinci kalite kapı	Blem door
+30171519	Patlamaya dayanıklı kapı	Blast proof door
+30171520	Kapı ve pencere kasa profili	Door and window loop
+30171521	Su sızdırmaz kapı	Water tight door
+30171522	Hava sızdırmaz kapı	Air tight door
+30171523	Yangın kapısı	Fire door
+30171524	Radyasyon korumalı kapı	Shielding door
+30171525	Basınç kapısı	Pressure door
+30171526	Katlanır kapı	Folding door
+30171527	Melamin kapı	Melamine door
+30171616	Çift camlı pencere	Double-paned window
+30171710	Yalıtım camı	Insulating glass
+30171711	Ondüle cam	Corrugated glass
+30171712	Katedral cam	Cathedral glass
+30171804	Duman tahliye kapağı	Smoke lid
+30171907	Denizlik (pencere eşiği)	Window sill
+30171908	Pencere kemeri	Window arch
+30172101	Panel garaj kapısı	Pan garage door
+30172102	Yalıtımlı sandviç panel garaj kapısı	Insulated sandwich garage door
+30172103	Ahşap garaj kapısı	Wood garage door
+30172104	Kanatlı garaj kapısı	Carriage garage door
+30172105	Sineklikli garaj kapısı	Screen garage door
+30172106	PVC garaj kapısı	PVC garage door
+30172107	Tel örgü garaj kapısı	Chain link garage door
+30172108	Kepenk tipi garaj kapısı	Rolling garage door
+30172109	Garaj kapısı bileşeni	Garage door component
+30172110	Garaj kapısı aksesuarı	Garage door accessory
+30172111	Garaj kapısı komple motoru	Garage door complete operator
+30172112	Garaj kapısı motor bileşeni	Garage door operator component
+30172113	Garaj kapısı motor aksesuarı	Garage door operator accessory
