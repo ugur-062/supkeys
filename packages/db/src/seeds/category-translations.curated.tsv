@@ -2700,3 +2700,154 @@
 40141664	Döner kontrol valfi	Rotary control valve
 40141665	Kendinden ayarlı kontrol valfi	Self-regulating control valve
 40141666	Diyafram kontrol valfi	Diaphragm control valve
+40141667	İğneli kontrol valfi	Needle control valve
+40141668	Kısma (choke) kontrol valfi	Choke control valve
+40141669	Kontrol valfi konumlandırıcısı	Control valve positioner
+40141670	Alaşımlı/paslanmaz çelik küresel vana	Alloy/stainless steel ball valve
+40141671	Karbon çeliği küresel vana	Carbon steel ball valve
+40141672	Karbon çeliği çek valf	Carbon steel check valve
+40141673	Alaşımlı/paslanmaz çelik çek valf	Alloy steel/stainless steel check valve
+40141674	Karbon çeliği sürgülü vana	Carbon steel gate valve
+40141675	Alaşımlı/paslanmaz çelik sürgülü vana	Alloy/stainless steel gate valve
+40141676	Karbon çeliği glob vana	Carbon steel globe valve
+40141677	Alaşımlı/paslanmaz çelik glob vana	Alloy/stainless steel globe valve
+40141678	Kelebek vanalar	Butterfly valves
+40141679	Konsantrik kelebek vana	Concentric butterfly valve
+40141680	Üçlü/çiftli eksantrik kelebek vana	Triple/double offset butterfly valve
+40141749	Vakum kırıcı	Vacuum breaker
+40141750	Atık su kolu	Waste arm
+40141751	Duvar dirseği	Wall bend
+40141755	Boru sallanma önleyici destek	Pipe sway brace
+40141756	Boru bağlantı kutusu aksesuarı	Pipe connection box accessory
+40141757	Rozans (kapak halkası)	Escutcheon
+40141758	Drenaj kanalı	Drainage channel
+40141759	Yer süzgeci	Floor drain
+40141760	Donmaz hidrant	Non freeze hydrant
+40141761	Boru kolektörü	Piping manifold
+40141762	Su sayacı koruma kutusu	Water meter protection tub
+40141763	Su darbesi emici	Water hammer arrester
+40141764	Hortum takımı	Hose assembly
+40141765	Drenaj separatörü	Drain separator
+40141766	Semerli hızlı bağlantı (şebeke suyu)	Snap tap with saddle for water works
+40141767	Boru pabucu	Pipe shoe
+40141768	Kuyu başı adaptörü	Pitless adapter
+40141769	Vana kutusu veya vana odası	Valve box or valve room
+40141770	Boru kaynak (füzyon) makinesi	Pipe fusion machine
+40141771	Buhar ve hava ejektörü	Steam and air ejector
+40141923	Lateks kanal	Latex duct or ductwork
+40141924	Naylon kanal	Nylon duct or ductwork
+40141925	Hava ve baca gazı kanalı	Air and flue gas ducting
+40142011	Kimyasal hortum	Chemical hose
+40142012	Gıda hortumu	Food and beverage hose
+40142013	Maden hortumu	Mining hose
+40142014	Petrol hortumu	Petroleum hose
+40142015	Buharlı temizlik hortumu	Steam cleaning hose
+40142016	Vakum hortumu	Vacuum hose
+40142017	Kaynak hortumu	Welding hose
+40142018	Püskürtme hortumu	Spray hose
+40142019	Kanal hortumu	Ducting hose
+40142020	Hidrolik hortum	Hydraulic hose
+40142021	Taş tozu hortumu	Rock dust hose
+40142022	Hortum makarası	Hose reel
+40142204	Kaynak oksijen regülatörü	Welding regulator oxygen
+40142205	Kaynak asetilen regülatörü	Welding regulator acetylene
+40142206	Savak kapağı	Sluice gate
+40142207	Su seviye regülatörü	Water level regulator
+40142208	Gaz karıştırıcı	Gas mixer
+40142505	Y tipi pislik tutucu	Y strainer
+40142506	T tipi pislik tutucu	Tee strainer
+40142507	Konik pislik tutucu	Conical strainer
+40142508	Sepetli pislik tutucu	Basket strainer
+40142509	Yağ tutucu	Oil trap
+40142510	Termostatik kondenstop	Thermostatic steam trap
+40142511	Termodinamik kondenstop	Thermodynamic steam trap
+40142512	Havalandırma tapası	Breather
+40142513	P sifon	P trap
+40142514	J sifon	J trap
+40142515	S sifon	S trap
+40142601	LNG/hidrokarbon sıvı deniz yükleme kolu	LNG hydrocarbon liquid marine loading arm
+40142602	Petrol/LPG/kimyasal tanker yükleme kolu ve platformu	Oil or Lpg or chemical rail/road tanker loading arm and gantry
+40151565	Parçalayıcı pompa	Macerator pump
+40151566	Basınç yükseltici pompa	Booster pump
+40151567	Yüksek sıcaklık pompası	High temperature pump
+40151568	Pülp pompası	Pulp pump
+40151569	Monoflex pompa	Monoflex pump
+40151570	Karışık akışlı pompa	Mixed flow pump
+40151571	Hat tipi pompa	Inline pump
+40151572	Hava kaldırmalı pompa	Air lift pump
+40151573	Manyetik kavramalı pompa	Magnet pump
+40151574	Ejektör pompa	Ejector pump
+40151575	Fırçasız soğutucu pompası	Brushless coolant pump
+40151576	Harç pompası	Mortar pump
+40151577	Enjeksiyon (grout) pompası	Grouting pump
+40151578	Dalış hava pompası	Diving air pump
+40151579	Yerçekimi pompası	Gravity pump
+40151580	Yağlama pompası	Lubricator pump
+40151581	Çok kademeli pompa	Multi stage pump
+40151582	Pedallı pompa	Treadle pump
+40151583	Elektronik dolum pompası	Electronic dispensing pump
+40151584	Yağ/benzin karışım dolum pompası	Oil/gasoline mixture dispensing pump
+40151585	Mekanik dolum pompası	Mechanical dispensing pump
+40151586	LPG dolum pompası	Liquefied petroleum gas dispensing pump
+40151587	Elektronik satış sistemli dolum pompası	Electronic marketing system dispensing pump
+40151588	Endüstriyel pompalar	Industrial pumps
+40151729	Pompa statoru	Pump stator
+40151731	Pompa rotoru	Pump rotor
+40151732	Pompa mili	Pump shaft
+40151733	Pompa taban plakası	Pump soleplate
+40151734	Pompa kaidesi	Pump baseplate
+40151735	Pompa kolon takımı	Pump column assembly
+40151736	Pompa kolon borusu	Pump column pipe
+40151737	Pompa kademe gövdesi takımı	Pump bowl assembly
+40151738	Pompa emme çanı	Pump suction bell
+40151739	Pistonlu pompa parçaları	Reciprocating pump parts
+40151740	Pompa yedek parça ve aksesuarları	Pump spare parts and accessories
+40151801	Rotatif kompresör parçaları	Rotary compressor parts
+40151802	Hava kompresörü parçaları	Air compressor parts
+40151803	Pistonlu kompresör parçaları	Reciprocating compressor parts
+40151804	Santrifüj kompresör parçaları	Centrifugal compressor parts
+40151805	Kompresör yedek parça ve aksesuarları	Compressor spare parts and accessories
+40161516	Hat tipi filtreler	Inline filters
+40161528	Kum filtresi	Sand filter
+40161529	Borulu filtre	Tube filter
+40161530	Kabin hava filtresi	Cabin air filter
+40161531	Filtre takımı	Filter assembly
+40161532	Filtre süzgeci	Filter strainer
+40161533	Katı atık filtresi	Solid waste filter
+40161534	Kahve filtresi	Coffee filter
+40161535	Karter havalandırma (CCV) filtresi	Crankcase ventilation (CCV) filter
+40161536	Filtre ve bileşenleri	Filter and components
+40161603	Boru temizleme makinesi	Pipe and tube cleaning machine
+40161604	Yağ rejenerasyon ünitesi	Oil regenerator
+40161605	Koku giderme kulesi	Deodorizing tower
+40161606	Hava temizleme ozon jeneratörü	Ozone generator for air cleaning
+40161607	Baca gazı kükürt giderme sistemi	Flue gas desulphurization system
+40161608	Hava sterilizatörü	Air sterilizer
+40161609	Su arıtma sistemi	Water purification system
+40161610	Gaz yıkayıcı	Gas scrubber
+40161705	Damla tutucu ped	Demister pad
+40161706	Azot jeneratörü	Nitrogen generator
+40161707	Diğer separatörler	Separators
+40161708	Siklon separatör ve bileşenleri	Cyclone separator and components
+40161807	Filtre elemanı	Filter element
+40161808	Biyolojik filtre ortamı	Biological filter media
+40161809	Filtre kartuşu	Filter cartridge
+40161901	Endüstriyel kimya ekipmanı yedek parça ve aksesuarları	Industrial chemical equipment spare parts and accessories
+40171501	Ticari kaynaklı karbon çeliği boru	Commercial welded carbon steel pipe
+40171502	Ticari dikişsiz karbon çeliği boru	Commercial seamless carbon steel pipe
+40171503	Ticari sfero döküm boru	Commercial ductile iron pipe
+40171504	Ticari yüksek nikelli alaşım boru	Commercial high nickel alloy pipe
+40171505	Ticari yüksek akma dayanımlı çelik boru	Commercial high yield steel pipe
+40171506	Ticari demir alaşımı boru	Commercial ferrous alloy pipe
+40171507	Ticari alüminyum boru	Commercial aluminum pipe
+40171508	Ticari pirinç boru	Commercial brass pipe
+40171509	Ticari bronz boru	Commercial bronze pipe
+40171510	Ticari beton boru	Commercial concrete pipe
+40171511	Ticari bakır boru	Commercial copper pipe
+40171512	Ticari dökme demir boru	Commercial cast iron pipe
+40171513	Ticari montajlı dökme demir boru göbeği	Commercial assembled cast iron pipe hub
+40171514	Ticari kurşun boru	Commercial lead pipe
+40171515	Ticari magnezyum boru	Commercial magnesium pipe
+40171516	Ticari demir dışı boru	Commercial non ferrous pipe
+40171517	Ticari PVC boru	Commercial PVC pipe
+40171518	Ticari CPVC boru	Commercial CPVC pipe
