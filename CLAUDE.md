@@ -122,7 +122,7 @@ Yeni kayıt yalnız şu ülkelerden alınır. Tek kaynak: `@rothern/shared`
 |-----|------|-----|
 | TR | Türkiye | 6 belge (mevcut akış) |
 | **XN** | KKTC | **ISO 3166-1'de KODU YOK** — kullanıcıya ayrılmış X-aralığı. Dış sistemlere GÖNDERİLMEMELİ |
-| RU | Rusya | `enhancedDueDiligence: true` → her kayıt zorunlu manuel inceleme |
+| RU | Rusya | ortak yabancı temeli (ülkeye özel ek kural YOK) |
 | AZ · KZ · UZ | Azerbaycan, Kazakistan, Özbekistan | ortak yabancı temeli |
 | CN | Çin | 营业执照 TEK belgede sicil+vergi+temsilci → vergi belgesi İSTENMEZ |
 | AE | BAE | Trade License zorunlu; TRN yalnız KDV mükellefinde → vergi belgesi zorunlu DEĞİL |
@@ -131,6 +131,17 @@ Yeni kayıt yalnız şu ülkelerden alınır. Tek kaynak: `@rothern/shared`
 ülkede aynı doğrulamayı yapar ve **VIES zaten yazılmış durumda** — açmak
 profil eklemekten ibaret. Afrika'da tersi: ortak doğrulama altyapısı yok,
 54 ayrı sicil; toptan değil talep geldikçe eklenir.
+
+**Doğrulama ülkeden BAĞIMSIZ ve İSTİSNASIZ manueldir.** Bir ara Rusya'ya
+"zorunlu ek inceleme" bayrağı konmuştu; KALDIRILDI çünkü `VERIFIED` zaten
+yalnız admin tarafından `setVerification` ile yazılıyor ve **otomatik onay
+yolu hiç yok** — bayrak "bir şey yapıyormuş" izlenimi veren ölü bir kavramdı.
+
+**KAYIT için admin onayı GEREKMEZ.** Hesap onboarding biter bitmez çalışır:
+gezinme, bağlantı, mesajlaşma, taslak hazırlama serbest. `VERIFIED` yalnız
+PARA TAAHHÜDÜ doğuran işlemlerin kapısıdır (ilan yayınlama, teklif gönderme,
+kazandırma, hemen-al — INV-KYC-1). Bu, bilinçli bir huni: kullanıcı taslağı
+kurar, yayınlamada doğrulamaya yönlendirilir.
 
 **Kapı YALNIZ YENİ KAYDA uygulanır.** `COUNTRIES` (98) kısaltılmadı: mevcut
 firmaların ülkesi gösterilebilmeli ve adres defterinde her ülke seçilebilmeli

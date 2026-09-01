@@ -3,7 +3,6 @@ import {
   COUNTRIES,
   getCountryProfile,
   isRegistrationOpen,
-  needsEnhancedDueDiligence,
   registrationCountries,
   requiredDocsForCountry,
 } from "@rothern/shared";
@@ -79,24 +78,11 @@ describe("Ülke profilleri", () => {
     });
   });
 
-  describe("yaptırım/yüksek risk kovası", () => {
-    it("Rusya zorunlu manuel incelemeye düşer", () => {
-      expect(needsEnhancedDueDiligence("RU")).toBe(true);
-    });
-
-    it("diğer açık ülkeler düşmez", () => {
-      for (const c of OPEN.filter((x) => x !== "RU")) {
-        expect(needsEnhancedDueDiligence(c)).toBe(false);
-      }
-    });
-
-    it("kapı KAPATMAK yerine inceleme zorunlu kılıyor", () => {
-      // Ülkeyi tümden kapatmak yerine incelemeyi zorunlu kılmak bilinçli:
-      // uyum listesi kararı hukukta, ürün kararı değil.
-      expect(isRegistrationOpen("RU")).toBe(true);
-      expect(needsEnhancedDueDiligence("RU")).toBe(true);
-    });
-  });
+  // NOT: burada "yaptırım/yüksek risk kovası" testleri vardı
+  // (`enhancedDueDiligence`). KALDIRILDI — firma doğrulaması zaten İSTİSNASIZ
+  // manuel (`VERIFIED` yalnız admin `setVerification` ile yazar, otomatik
+  // onay yolu yok), dolayısıyla bayrak operasyonel olarak hiçbir şey
+  // yapmıyordu. Ülkeden bağımsız tek kural: her firma elle incelenir.
 
   describe("MEVCUT firmalar kilitlenmez", () => {
     it("kapalı ülkedeki eski kayıt için belge kümesi YİNE de hesaplanır", () => {

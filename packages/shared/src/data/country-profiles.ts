@@ -52,12 +52,6 @@ export interface CountryProfile {
   group: CountryGroup;
   /** Kayıt formunda seçilebilir mi. false → yeni kayıt alınmaz. */
   registrationOpen: boolean;
-  /**
-   * true → otomatik onay YOK; kayıt her hâlükârda manuel admin incelemesine
-   * düşer. Yaptırım/yüksek risk kovası bu bayrakla yönetilir — ülke kapısını
-   * tümden kapatmak yerine incelemeyi zorunlu kılar.
-   */
-  enhancedDueDiligence: boolean;
   /** Bu ülkede ZORUNLU belge türleri. */
   requiredDocs: DocRequirement[];
   /** Vergi/sicil no doğrulayıcı anahtarı. */
@@ -89,7 +83,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "TR",
     group: "TR",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     // Mevcut TR akışı — 6 belge, hiç değişmiyor.
     requiredDocs: [
       "taxPlate",
@@ -110,7 +103,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "XN",
     group: "TR",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     // Türk ticaret pratiği ama ayrı sicil/vergi dairesi: imza sirküleri ve
     // faaliyet belgesi karşılığı her zaman aynı biçimde olmadığı için TR'nin
     // 6'lısı değil, 4 belge.
@@ -123,9 +115,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "RU",
     group: "RU",
     registrationOpen: true,
-    // Kapsamlı yaptırım rejimi — kapıyı kapatmak yerine HER kaydı manuel
-    // incelemeye düşürüyoruz. Liste kararı hukuk danışmanında.
-    enhancedDueDiligence: true,
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "RU_INN",
     viesSupported: false,
@@ -135,7 +124,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "AZ",
     group: "TURKIC",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "AZ_TIN",
     viesSupported: false,
@@ -145,7 +133,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "KZ",
     group: "TURKIC",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "KZ_BIN",
     viesSupported: false,
@@ -155,7 +142,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "UZ",
     group: "TURKIC",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "UZ_INN",
     viesSupported: false,
@@ -165,7 +151,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "CN",
     group: "CN",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     // 营业执照 (Business License) TEK belgede sicil + vergi + yasal temsilci
     // taşır; ayrıca vergi belgesi istemek gereksiz tekrar olur.
     requiredDocs: ["tradeRegistry", "idFront"],
@@ -177,7 +162,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     code: "AE",
     group: "GULF",
     registrationOpen: true,
-    enhancedDueDiligence: false,
     // Trade License zorunlu; TRN yalnız KDV mükellefinde var, o yüzden vergi
     // belgesi zorunlu DEĞİL (serbest bölge şirketlerinin çoğunda yok).
     requiredDocs: ["tradeRegistry", "idFront"],
@@ -227,9 +211,9 @@ export function requiredDocsForCountry(
   return getCountryProfile(code)?.requiredDocs ?? BASE_FOREIGN;
 }
 
-/** Zorunlu manuel inceleme gerektiren ülke mi. */
-export function needsEnhancedDueDiligence(
-  code: string | null | undefined,
-): boolean {
-  return getCountryProfile(code)?.enhancedDueDiligence === true;
-}
+// NOT: burada bir zamanlar `enhancedDueDiligence` bayrağı vardı (Rusya için
+// "zorunlu manuel inceleme"). KALDIRILDI: firma doğrulaması zaten İSTİSNASIZ
+// manuel — `VERIFIED` yalnız admin tarafından `setVerification` ile yazılır,
+// otomatik onay yolu HİÇ YOK. Bayrak operasyonel olarak hiçbir şey yapmıyor,
+// yalnız "bir şey yapıyormuş" izlenimi veriyordu. Ülkeden bağımsız tek ve
+// dürüst kural: her firma elle incelenir.

@@ -487,6 +487,22 @@ export function OnboardingClient() {
                   .join(", ")}
               />
             </dl>
+            {/* Sırada ne olduğunu ÜLKEDEN BAĞIMSIZ olarak söyler. Kayıt için
+                admin onayı GEREKMEZ — hesap hemen çalışır; doğrulama yalnız
+                para taahhüdü doğuran işlemlerin (ilan yayınlama, teklif
+                gönderme, kazandırma) kapısıdır. Kullanıcı bunu baştan bilsin
+                ki "kaydoldum ama teklif veremiyorum" sürprizi yaşamasın. */}
+            <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-900">
+              <p className="font-medium">Kayıttan sonra ne olacak?</p>
+              <p className="mt-1">
+                Hesabınız <strong>hemen açılır</strong>; ilanları
+                inceleyebilir, firmalarla bağlantı kurup mesajlaşabilirsiniz.
+                Teklif göndermek ve talep yayınlamak için firma
+                doğrulamanızın tamamlanması gerekir — belgelerinizi{" "}
+                <strong>Ayarlar → Doğrulama</strong>&apos;dan yükleyip onaya
+                gönderin. Belgeleriniz ekibimizce elle incelenir.
+              </p>
+            </div>
             <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-sm text-zinc-700">
               <Checkbox aria-label="Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim" checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} className="mt-0.5" />
               Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim.

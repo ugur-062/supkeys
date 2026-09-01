@@ -20,8 +20,7 @@ import {
   isValidTaxIdForCountry,
   isValidTckn,
 
-  isRegistrationOpen,
-  needsEnhancedDueDiligence,} from "@rothern/shared";
+  isRegistrationOpen,} from "@rothern/shared";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
@@ -533,22 +532,6 @@ export class CompanyAuthService {
         },
       });
     });
-
-    // Yüksek riskli ülke (yaptırım kovası) → iz bırak. Doğrulama zaten manuel
-    // ama incelemeyi yapan admin bunu KAYITTAN görebilmeli; bayrağı şemaya
-    // yazmıyoruz çünkü ülkeden TÜRETİLEBİLİR (tek kaynak country-profiles).
-    if (needsEnhancedDueDiligence(country)) {
-      void this.audit.log({
-        action: "company.onboarding.enhanced_dd_flagged",
-        actorType: "company",
-        actorId: userId,
-        tenantId: companyId,
-        entityType: "company",
-        entityId: companyId,
-        critical: true,
-        metadata: { country, reason: "country_profile_enhanced_due_diligence" },
-      });
-    }
 
     return { ok: true as const };
   }
