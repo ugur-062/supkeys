@@ -3590,3 +3590,166 @@
 23242615	Sac kanal açma makinesi	Sheet metal grooving machine
 23242701	Katlamalı boru üretim hattı makinesi	Folded tube mill machinery
 23242702	Kaynaklı boru üretim hattı makinesi	Welded tube mill machinery
+26121802	Tek damarlı 60 volt sınıf A otomotiv kablosu	Single core 60 volt class a automotive cable
+26121803	Tek damarlı 60 volt sınıf B otomotiv kablosu	Single core 60 volt class b automotive cable
+26121804	Tek damarlı 60 volt sınıf C otomotiv kablosu	Single core 60 volt class c automotive cable
+26121805	Tek damarlı 60 volt sınıf D otomotiv kablosu	Single core 60 volt class d automotive cable
+26121806	Tek damarlı 60 volt sınıf E otomotiv kablosu	Single core 60 volt class e automotive cable
+26121807	Tek damarlı 60 volt sınıf F otomotiv kablosu	Single core 60 volt class f automotive cable
+26121808	Tek damarlı 60 volt sınıf G otomotiv kablosu	Single core 60 volt class g automotive cable
+26121809	Tek damarlı 60 volt sınıf H otomotiv kablosu	Single core 60 volt class h automotive cable
+26121810	Tek damarlı 600 volt sınıf A otomotiv kablosu	Single core 600 volt class a automotive cable
+26121811	Tek damarlı 600 volt sınıf B otomotiv kablosu	Single core 600 volt class b automotive cable
+26121812	Tek damarlı 600 volt sınıf C otomotiv kablosu	Single core 600 volt class c automotive cable
+26121813	Tek damarlı 600 volt sınıf D otomotiv kablosu	Single core 600 volt class d automotive cable
+26121814	Tek damarlı 600 volt sınıf E otomotiv kablosu	Single core 600 volt class e automotive cable
+26121815	Tek damarlı 600 volt sınıf F otomotiv kablosu	Single core 600 volt class f automotive cable
+26121816	Tek damarlı 600 volt sınıf G otomotiv kablosu	Single core 600 volt class g automotive cable
+26121817	Tek damarlı 600 volt sınıf H otomotiv kablosu	Single core 600 volt class h automotive cable
+26121818	Çok damarlı 60 volt sınıf A otomotiv kablosu	Multi core 60 volt class a automotive cable
+26121819	Çok damarlı 60 volt sınıf B otomotiv kablosu	Multi core 60 volt class b automotive cable
+26121820	Çok damarlı 60 volt sınıf C otomotiv kablosu	Multi core 60 volt class c automotive cable
+26121821	Çok damarlı 60 volt sınıf D otomotiv kablosu	Multi core 60 volt class d automotive cable
+26121822	Çok damarlı 60 volt sınıf E otomotiv kablosu	Multi core 60 volt class e automotive cable
+26121823	Çok damarlı 60 volt sınıf F otomotiv kablosu	Multi core 60 volt class f automotive cable
+26121824	Çok damarlı 60 volt sınıf G otomotiv kablosu	Multi core 60 volt class g automotive cable
+26121825	Çok damarlı 60 volt sınıf H otomotiv kablosu	Multi core 60 volt class h automotive cable
+26121826	Çok damarlı 600 volt sınıf A otomotiv kablosu	Multi core 600 volt class a automotive cable
+26121827	Çok damarlı 600 volt sınıf B otomotiv kablosu	Multi core 600 volt class b automotive cable
+26121828	Çok damarlı 600 volt sınıf C otomotiv kablosu	Multi core 600 volt class c automotive cable
+26121829	Çok damarlı 600 volt sınıf D otomotiv kablosu	Multi core 600 volt class d automotive cable
+26121830	Çok damarlı 600 volt sınıf E otomotiv kablosu	Multi core 600 volt class e automotive cable
+26121831	Çok damarlı 600 volt sınıf F otomotiv kablosu	Multi core 600 volt class f automotive cable
+26121832	Çok damarlı 600 volt sınıf G otomotiv kablosu	Multi core 600 volt class g automotive cable
+26121833	Çok damarlı 600 volt sınıf H otomotiv kablosu	Multi core 600 volt class h automotive cable
+26121834	Örgülü 60 volt sınıf A otomotiv kablosu	Braided 60 volt class a automotive cable
+26121835	Örgülü 60 volt sınıf B otomotiv kablosu	Braided 60 volt class b automotive cable
+26121836	Örgülü 60 volt sınıf C otomotiv kablosu	Braided 60 volt class c automotive cable
+26121837	Örgülü 60 volt sınıf D otomotiv kablosu	Braided 60 volt class d automotive cable
+26121838	Örgülü 60 volt sınıf E otomotiv kablosu	Braided 60 volt class e automotive cable
+26121839	Örgülü 60 volt sınıf F otomotiv kablosu	Braided 60 volt class f automotive cable
+26121840	Örgülü 60 volt sınıf G otomotiv kablosu	Braided 60 volt class g automotive cable
+26121841	Örgülü 60 volt sınıf H otomotiv kablosu	Braided 60 volt class h automotive cable
+26121842	Örgülü 600 volt sınıf A otomotiv kablosu	Braided 600 volt class a automotive cable
+26121843	Örgülü 600 volt sınıf B otomotiv kablosu	Braided 600 volt class b automotive cable
+26121844	Örgülü 600 volt sınıf C otomotiv kablosu	Braided 600 volt class c automotive cable
+26121845	Örgülü 600 volt sınıf D otomotiv kablosu	Braided 600 volt class d automotive cable
+26121846	Örgülü 600 volt sınıf E otomotiv kablosu	Braided 600 volt class e automotive cable
+26121847	Örgülü 600 volt sınıf F otomotiv kablosu	Braided 600 volt class f automotive cable
+26121848	Örgülü 600 volt sınıf G otomotiv kablosu	Braided 600 volt class g automotive cable
+26121849	Örgülü 600 volt sınıf H otomotiv kablosu	Braided 600 volt class h automotive cable
+26121850	Çok damarlı ekranlı 60 volt otomotiv kablosu	Multi core screened 60 volt automotive cable
+26121851	Çok damarlı ekranlı 600 volt otomotiv kablosu	Multi core screened 600 volt automotive cable
+
+# Havacılık/demiryolu/denizaltı, elektrik, kimya — elle çevrildi.
+23271425	Yarı otomatik kaynak makineleri	Semi-automatic welding machines
+27111754	S anahtar	S wrench
+27111755	Y anahtar	Y wrench
+27112151	Kablo soyma pensesi	Wire-stripping pliers
+27113205	Havalimanı aydınlatma aletleri	Airport lighting, tools
+39111622	Pist ve taksi yolu aydınlatma sistemi	Runway & taxiway lighting system
+39111625	Hassas yaklaşma açı göstergesi (PAPI) sistemi	Precision approach path indicator (PAPI) system
+39111629	Görsel yanaşma yönlendirme sistemi (VDGS)	Visual Docking Guidance System (VDGS)
+39112014	Taşınabilir havaalanı aydınlatma sistemi (PALS)	Portable Airfield Lighting System (PALS)
+39112605	Güneş enerjili aydınlatma sistemi	Solar powered lighting system,
+39121118	Transformatör, 400 Hz	Transformer, 400 Hz
+39121119	Motor-alternatör, 400 Hz	Motor-Alternator, 400 Hz
+39121469	Elektrik fiş/priz adaptörü	Electrical plug/receptacle adapter
+39121571	Temassız dokunmatik anahtar	Non-contact touch switch
+39121650	Uzaktan kumandalı kesici arabası giriş/çıkış cihazı	Racking-in/out device with remote control
+26101518	Dizel motor, 750 kW üzeri	Diesel Engine over to 750 kW
+26101519	Dizel motor, 750 kW'a kadar	Diesel Engine up to 750 kW
+26111614	Piezoelektrik jeneratör	Piezo-electric generator
+26121668	Kablo düzenleme elemanı	Cord/cable management device
+26131511	Jeneratör seti, benzinli	Generator set, gasoline powered
+20111718	Manyetik olmayan sondaj borusu ara elemanı	Non-magnetic drill stem substitute
+20121455	BOP conta test cihazı	BOP cup tester
+20121457	BOP kumanda sistemi	BOP operating system
+20121614	Çift merkezli matkap ucu	Bi-centre drill bit
+20122411	Petrol/gaz üretim ekipmanı	Oil/gas production equipment
+20122415	Özel yedek parça ve yüzey üretim ekipmanı	Proprietary spare parts & production surface equipment
+20122713	OCTG muhafaza borusu ve aksesuarları	OCTG casing and accessories
+20142408	Kılavuz hatlı denizaltı kuyu başı	Subsea wellhead guide-line
+20142409	Kılavuz hatsız denizaltı kuyu başı	Subsea wellhead guide-line less
+20143801	Denizaltı debimetre, tek fazlı	Subsea flow meter, single phase
+20143802	Denizaltı debimetre, çok fazlı	Subsea flow meter, multi phase
+25101511	Şarj edilebilir hibrit elektrikli araç	Plug-In-hybrid electric vehicle
+25101944	Pist süpürme aracı, çekilir	Runway sweeper, towed
+25101945	Pist süpürme aracı, kendinden yürür	Runway sweeper, self-propelled
+25101949	Sondaj/burgu kamyonu	Drilling/auger truck
+25121606	Kendinden yürür demiryolu veya tramvay vagonu	Self-propelled railway or tramway coach, van, or truck
+25121718	Vagon merkez kirişi ve EOCC kural 57, 58, 59	Railcar Center Sill and EOCC rule 57, 58 & 59
+25121720	Vagon genel malzeme kural 63-84	Railcar general material rule 63-84
+25131510	Uçak, tek motorlu	Aircraft, single engine
+25131511	Uçak, çift motorlu	Aircraft, twin engine
+25131512	Uçak, geniş gövdeli jet	Aircraft, jet widebody
+25132201	Kurtarma ve yangın söndürme hava aracı, 150 galon	Rescue and firefighting aircraft, 150 gallon
+25132202	Kurtarma ve yangın söndürme hava aracı, 3000 galon	Rescue and firefighting aircraft, 3000 gallon
+25132203	Kurtarma ve yangın söndürme hava aracı, 1500 galon	Rescue and firefighting aircraft,1500 gallon
+25171729	Vagon fren kirişi kural 7 ve 10	Railcar brake beam rule 7 & 10
+25171730	Vagon fren pabucu/kaması kural 12	Railcar brake shoe/key rule 12
+25171731	Vagon el freni kural 13	Railcar hand brake rule 13
+25171732	Vagon hava hortumu kural 5 ve 6	Railcar air hose rule 5 & 6
+25171733	Hava valfleri ve silindirleri kural 3, 4 ve 9	Air valves / cylinders rule 3, 4 & 9
+25171734	Fren boşluk ayarlayıcı kural 8	Slack adjuster rule 8
+25172614	Vagon yürüme platformu kural 53	Railcar Running Board rule 53
+25172804	Hidrolik motorlar, uçak	Hydraulic motors, aircraft
+25172805	Hidrolik pompalar, uçak	Hydraulic pumps, aircraft
+25173109	Diferansiyel GPS (DGPS) yerel alan destek sistemi (LAAS)	Differential Global Positioning System (DGPS) Local Area Augmentation System (LAAS)
+25173110	GNSS geniş alan destek sistemi (WAAS)	GNSS Wide Area Augmentation System (WAAS)
+25173111	VHF DGNSS veri bağlantısı	VHF DGNSS data link
+25173112	GPS alıcı özerk bütünlük izleme (RAIM)	GPS Receiver Autonomous Integrity Monitoring
+25173115	Aletli iniş sistemi (ILS)	Instrument Landing System (ILS)
+25173116	ILS lokalizer ekipmanı	ILS localizer equipment
+25173117	ILS iniş açısı ekipmanı	ILS glide path equipment
+25173118	Mesafe ölçüm ekipmanı (DME)	Distance Measuring Equipment (DME)
+25173119	Yönsüz radyo fener ve ilgili ekipman	Non-directional beacon and associated equipment
+25173120	Yönsüz radyo fener (NDB)	Non-Directional Beacon (NDB)
+25173121	Yön bulucu (DF)	Direction Finder (DF)
+25173125	VHF işaret feneri ve ilgili ekipman	VHF marker beacon and associated equipment
+25173126	Küresel konumlama sistemi (GPS)	Global Positioning System (GPS)
+25173129	Dijital GNSS yerel alan destek sistemi	Digital global navigation satellite system /local area augmentation system
+25173133	Aletli iniş sistemi ve mesafe ölçüm sistemi	Instrument landing system/distance measuring equipment system
+25173135	Diferansiyel GPS yer istasyonu	Differential global positioning system - ground station
+25181614	Vagon yan şasi, travers ve yan yatak kural 36, 37, 46, 47, 48	Railcar Side Frame, Bolster, and side bearings rule 36, 37, 46, 47, & 48
+25191528	Ön şartlandırılmış hava ünitesi (körük için)	Preconditioned Air Unit (For PBB)
+25191535	Hava trafik kontrol (ATC) simülatörleri	Air Traffic Control (ATC) simulators
+25191537	Uçuş yönetim sistemi (FMS)	Flight Management System (FMS)
+25191540	Bagaj eşleştirme sistemi	Baggage Reconciliation System (BHS)
+25191550	Servis ve bakım platformu	Servicing/maintenance platform
+25191551	Yer aracı ve taşıma takip sistemi	Ground vehicle/transportation tracking system
+25191555	Bagaj arabası, yolcu	Cart, baggage - passenger
+25191557	Havalimanı faturalama sistemi	Airport/aviation billing system
+25191748	Değiştirilebilir kasa ve platform kaldırma modülü	Swap body/Platform lifting system module
+25191749	Araç yıkama ve temizlik ekipmanı	Car wash/cleaning equipment
+25201803	AMHS (ATS mesaj yönetim sistemi)	AMHS (ATS Message Handling System)
+25202410	IATA yakıt ikmali güvenlik ekipmanı	IATA fueling safety equipment
+24101668	Kaldırma kirişi ve yayıcı çubuk	Lifting beam & spreader bar
+24101673	Çok bacaklı sapan	Multi-leg sling
+24101734	V pulluk sıyırıcı	V plough scraper
+24102110	Tartı, depo	Scale, warehouse
+24102508	LPG tüp dolum tesisi	LPG cylinder filling plant
+24111832	LPG dökme tank	LPG bulk tank
+24111833	LPG tüp rafları	LPG cylinder racks
+24111835	LPG tüp valfi	LPG cylinder valve
+11131610	Yenmeyen kuş ve kümes hayvanı yumurtaları	Non-edible bird and poultry eggs
+11171601	Paslanmaz çelik alaşımı 304	Stainless steel alloy 304
+11171602	Paslanmaz çelik alaşımı 304L	Stainless steel alloy 304l
+11171603	Paslanmaz çelik alaşımı 316	Stainless steel alloy 316
+11171701	Z90WDCV6542 veya M2 yüksek hız çeliği	Z90WDCV6542 or M2 high speed steel
+11171702	Z90WDKCV65542 veya M35 yüksek hız çeliği	Z90WDKCV65542 or M35 high speed steel
+11172001	Alüminyum alaşımı 7178	Aluminum alloy 7178
+12161612	Katalizör için değerli metal alımı ve geri kazanımı	Purchase/reclaim precious metals for catalyst
+12163803	H2S tutucu	H2S absorbent
+12165201	İçilebilir olmayan su	Non-potable water
+12352143	Diizopropanolamin	Di-iso-propanolamine
+12352324	Kalsiyum hipoklorit, havuz kimyasalı	Calcium HC, chemical pool product
+12352602	Hidroflorik asit, susuz (HF)	Hydrofluoric acid, anhydrous HF
+12361501	1-fenil-2-propanon	1-phenyl-2-propanone
+12361502	3,4-metilendioksifenil-2-propanon	3,4-methylenedioxyphenyl-2-propanone
+12361503	Gama-bütirolakton	Gamma-butyrolactone
+12361506	N-asetilantranilik asit	N-acetylanthranilic acid
+13111077	Poliamid 6-12	Polyamide 6-12
+13111078	Poliamid 6-6	Polyamide 6-6
+13111079	Poliamid 4-6	Polyamide 4-6
+13111081	Poliamid 12	Polyamide 12
