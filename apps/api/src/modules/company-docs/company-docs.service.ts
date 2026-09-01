@@ -7,7 +7,8 @@ import {
 } from "@nestjs/common";
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
 import { randomUUID } from "node:crypto";
-import { maskIban } from "@rothern/shared";
+import { maskIban ,
+  requiredDocsForCountry,} from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -63,12 +64,21 @@ export const DOC_FIELDS = Object.fromEntries(
   KINDS.map((k) => [k, DOC_META[k].url]),
 ) as Record<DocKind, string>;
 
-// Ülkeye göre ZORUNLU belge seti. TR: 6 KYC. Yabancı: daha az/farklı belge
-// (Certificate of Incorporation + Tax/VAT Certificate + Yetkili Kimlik) →
-// admin manuel KYB onayı. (Alanlar aynı; anlam/etiket ülkeye göre.)
-const FOREIGN_REQUIRED: DocKind[] = ["tradeRegistry", "taxPlate", "idFront"];
+/**
+ * Ülkeye göre ZORUNLU belge seti — TEK KAYNAK `@rothern/shared`
+ * `country-profiles.ts`.
+ *
+ * Eskiden İKİLİYDİ: TR → 6 belge, "yabancı" → sabit 3 belge. Yani Çinli bir
+ * firmadan da Rus bir firmadan da aynı üç belge isteniyordu, oysa sicil/vergi
+ * sistemleri tamamen farklı (Çin'de 营业执照 tek belgede sicil+vergi+temsilci
+ * taşır; BAE'de Trade License zorunlu ama TRN yalnız KDV mükellefinde var).
+ * Artık her ülkenin kendi listesi profilden okunur.
+ *
+ * Profili olmayan ülke (kapalı ama MEVCUT kayıt) ortak yabancı temeline
+ * düşer — eski kayıtlar belgesiz kalmasın.
+ */
 export function requiredKinds(country: string | null | undefined): DocKind[] {
-  return (country ?? "TR").toUpperCase() === "TR" ? KINDS : FOREIGN_REQUIRED;
+  return requiredDocsForCountry(country) as DocKind[];
 }
 
 const ALLOWED_MIME = [

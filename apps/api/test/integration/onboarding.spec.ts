@@ -113,28 +113,72 @@ describe("completeOnboarding", () => {
     ).rejects.toThrow(/T\.C\.|TCKN|Kimlik/i);
   });
 
-  it("yabancı firma (DE): TCKN/vergi dairesi/ilçe zorunlu değil, stateRegion kaydedilir", async () => {
+  // NOT: bu test eskiden DE (Almanya) kullanıyordu. 2026-09-01 kayıt kapısıyla
+  // AB kapatıldı (bkz. docs/plan-country-registration.md) → AÇIK bir yabancı
+  // ülkeye taşındı. Testin konusu ülke değil, "TR'ye özel alanlar yabancıda
+  // zorunlu değil" kuralı.
+  it("yabancı firma (KZ): TCKN/vergi dairesi/ilçe zorunlu değil, stateRegion kaydedilir", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const cat = await makeCategory();
     await service.completeOnboarding(owner.user.id, owner.company.id, {
       ...dto(cat.id),
-      country: "DE",
+      country: "KZ",
       companyType: "LIMITED",
-      taxNumber: "DE811234567",
+      taxNumber: "123456789012",
       taxOffice: undefined,
       district: undefined,
-      stateRegion: "Bayern",
-      city: "Munich",
+      stateRegion: "Almatı",
+      city: "Almaty",
       authorizedTckn: undefined,
     } as never);
     const c = await prisma.company.findUniqueOrThrow({
       where: { id: owner.company.id },
     });
-    expect(c.country).toBe("DE");
-    expect(c.stateRegion).toBe("Bayern");
+    expect(c.country).toBe("KZ");
+    expect(c.stateRegion).toBe("Almatı");
     expect(c.onboardingCompletedAt).not.toBeNull();
     expect(c.authorizedTckn).toBeNull();
+  });
+
+  it("KAPALI ülkeden yeni kayıt REDDEDİLİR (kayıt kapısı)", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await expect(
+      service.completeOnboarding(owner.user.id, owner.company.id, {
+        ...dto(cat.id),
+        country: "DE", // AB kapalı
+        companyType: "LIMITED",
+        taxNumber: "DE811234567",
+        taxOffice: undefined,
+        district: undefined,
+        city: "Munich",
+        authorizedTckn: undefined,
+      } as never),
+    ).rejects.toThrow(/yeni kayıt alınmıyor/i);
+  });
+
+  it("KKTC (XN) kabul edilir — ISO listesinde olmamasına rağmen", async () => {
+    // ISO 3166-1'de KKTC kodu yok; profil kapısı onu tanıyor. Bu test o
+    // özel durumun uçtan uca çalıştığını sabitler.
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(owner.user.id, owner.company.id, {
+      ...dto(cat.id),
+      country: "XN",
+      companyType: "LIMITED",
+      taxNumber: "KKTC-123456",
+      taxOffice: undefined,
+      district: undefined,
+      city: "Lefkoşa",
+      authorizedTckn: undefined,
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.country).toBe("XN");
   });
 
   it("kategori seçilmezse reddedilir", async () => {

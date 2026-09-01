@@ -19,7 +19,9 @@ import {
   isValidCountryCode,
   isValidTaxIdForCountry,
   isValidTckn,
-} from "@rothern/shared";
+
+  isRegistrationOpen,
+  needsEnhancedDueDiligence,} from "@rothern/shared";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
@@ -412,8 +414,20 @@ export class CompanyAuthService {
     }
 
     const country = (dto.country || "TR").toUpperCase();
-    if (!isValidCountryCode(country)) {
+    // KKTC (XN) ISO listesinde YOK — profil kapısı onu tanır, `COUNTRIES`
+    // tanımaz. Bu yüzden geçerlilik "ISO'da var VEYA açık bir profili var".
+    if (!isValidCountryCode(country) && !isRegistrationOpen(country)) {
       throw new BadRequestException("Geçersiz ülke seçimi");
+    }
+    // KAYIT KAPISI (2026-09-01): yeni kayıt yalnız profili AÇIK ülkelerden.
+    // YALNIZ YENİ KAYDA uygulanır — mevcut firmalar etkilenmez (bu metot
+    // yukarıda `onboardingCompletedAt` ile zaten korunuyor). Aksi hâlde
+    // kapatılan bir ülkedeki çalışan hesap kilitlenirdi.
+    if (!isRegistrationOpen(country)) {
+      throw new BadRequestException(
+        "Şu anda bu ülkeden yeni kayıt alınmıyor. Ülkenizin açılmasını " +
+          "istiyorsanız bizimle iletişime geçin.",
+      );
     }
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
     if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
@@ -519,6 +533,22 @@ export class CompanyAuthService {
         },
       });
     });
+
+    // Yüksek riskli ülke (yaptırım kovası) → iz bırak. Doğrulama zaten manuel
+    // ama incelemeyi yapan admin bunu KAYITTAN görebilmeli; bayrağı şemaya
+    // yazmıyoruz çünkü ülkeden TÜRETİLEBİLİR (tek kaynak country-profiles).
+    if (needsEnhancedDueDiligence(country)) {
+      void this.audit.log({
+        action: "company.onboarding.enhanced_dd_flagged",
+        actorType: "company",
+        actorId: userId,
+        tenantId: companyId,
+        entityType: "company",
+        entityId: companyId,
+        critical: true,
+        metadata: { country, reason: "country_profile_enhanced_due_diligence" },
+      });
+    }
 
     return { ok: true as const };
   }

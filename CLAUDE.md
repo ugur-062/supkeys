@@ -113,6 +113,30 @@ alınamaz):
 `/company/ilan/[id]` DEĞİŞMEDİ — "ilan" nötr terim (hem alım hem satış
 kaydının detay sayfası).
 
+## Kayıt Ülkeleri — SEKİZ ülke (2026-09-01)
+
+Yeni kayıt yalnız şu ülkelerden alınır. Tek kaynak: `@rothern/shared`
+`data/country-profiles.ts`. Gerekçe: `docs/plan-country-registration.md`.
+
+| Kod | Ülke | Not |
+|-----|------|-----|
+| TR | Türkiye | 6 belge (mevcut akış) |
+| **XN** | KKTC | **ISO 3166-1'de KODU YOK** — kullanıcıya ayrılmış X-aralığı. Dış sistemlere GÖNDERİLMEMELİ |
+| RU | Rusya | `enhancedDueDiligence: true` → her kayıt zorunlu manuel inceleme |
+| AZ · KZ · UZ | Azerbaycan, Kazakistan, Özbekistan | ortak yabancı temeli |
+| CN | Çin | 营业执照 TEK belgede sicil+vergi+temsilci → vergi belgesi İSTENMEZ |
+| AE | BAE | Trade License zorunlu; TRN yalnız KDV mükellefinde → vergi belgesi zorunlu DEĞİL |
+
+**AB ve Afrika bilinçli KAPALI.** AB'yi ertelemenin maliyeti yok: VIES 27
+ülkede aynı doğrulamayı yapar ve **VIES zaten yazılmış durumda** — açmak
+profil eklemekten ibaret. Afrika'da tersi: ortak doğrulama altyapısı yok,
+54 ayrı sicil; toptan değil talep geldikçe eklenir.
+
+**Kapı YALNIZ YENİ KAYDA uygulanır.** `COUNTRIES` (98) kısaltılmadı: mevcut
+firmaların ülkesi gösterilebilmeli ve adres defterinde her ülke seçilebilmeli
+(teslimat adresi kayıt kapısına tabi değil). Kapatılan bir ülkedeki çalışan
+hesap ASLA kilitlenmemeli.
+
 ## Konvansiyonlar
 - Form validation: react-hook-form + zod (frontend), class-validator (backend DTO)
 - Hata mesajları Türkçe (kullanıcı yüzü)
@@ -275,7 +299,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
   `/davet-kapat` + public GET endpoint), kayıtlı-adres skip; kayıt token'la
   tamamlanınca bağlantı ACTIVE + satın alma talebine otomatik davet (acceptReferralInvites).
   Giriş noktaları: wizard Davetliler adımı + satın alma talebi detay ⋮ menüsü.
-- **Yurtdışı şirket kaydı — ÇEKİRDEK BİTTİ (Faz 1-3):** ülke seçimi (COUNTRIES, 98 ülke) + ülke-farkında vergi/adres doğrulama (TR strict VKN/TCKN, yabancı gevşek) + onboarding UI (alıcı+tedarikçi). Şema: Tenant/Supplier.country+stateRegion. KALAN: (a) i18n — UI hâlâ Türkçe (next-intl greenfield, ayrı büyük iş); (b) VIES — AB VAT ücretsiz oto-doğrulama; (c) yabancı belge/KYB kontrolü = mevcut admin onayı + belge (ödeme sağlayıcısı KYB yapmaz çünkü sanal POS düşünülüyor).
+- **Yurtdışı şirket kaydı — ÇEKİRDEK BİTTİ (Faz 1-3):** ülke seçimi (COUNTRIES, 98 ülke) + ülke-farkında vergi/adres doğrulama (TR strict VKN/TCKN, yabancı gevşek) + onboarding UI (alıcı+tedarikçi). Şema: Tenant/Supplier.country+stateRegion. KALAN: (a) i18n — UI hâlâ Türkçe (next-intl greenfield, ayrı büyük iş); (c) yabancı belge/KYB kontrolü = mevcut admin onayı + belge (ödeme sağlayıcısı KYB yapmaz çünkü sanal POS düşünülüyor). **(b) VIES YAPILDI** — `POST /company-auth/vies-check` + onboarding'de "VIES ile doğrula" butonu çalışıyor; not bayattı. AB kayıt kapısıyla kapalı olduğu için şu an erişilemez, AB açılınca hazır.
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
 - Açık satın alma talebi (PUBLIC) + tedarikçi başvuru sistemi
 - Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).

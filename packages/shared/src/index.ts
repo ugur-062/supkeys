@@ -7,6 +7,7 @@ export * from "./helpers/bid-delivery-time";
 export * from "./constants/limits";
 export * from "./data/turkey-locations";
 export * from "./data/countries";
+export * from "./data/country-profiles";
 export * from "./data/phone-codes";
 export * from "./helpers/tier";
 export * from "./helpers/search-fold";

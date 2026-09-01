@@ -66,13 +66,13 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     expect(screen.getByRole("button", { name: "Devam" })).toBeDisabled();
   });
 
-  it("TR: il/ilçe/vergi dairesi görünür; DE'ye geçince şehir/eyalet gelir", async () => {
+  it("TR: il/ilçe/vergi dairesi görünür; yabancıya (KZ) geçince şehir/eyalet gelir", async () => {
     const user = userEvent.setup();
     render(<OnboardingClient />);
     expect(screen.getByLabelText("İl *")).toBeInTheDocument();
     expect(screen.getByLabelText("Vergi Dairesi *")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Ülke *"), "DE");
+    await user.selectOptions(screen.getByLabelText("Ülke *"), "KZ");
     expect(screen.queryByLabelText("İl *")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Şehir *")).toBeInTheDocument();
     expect(screen.getByLabelText("Eyalet / Bölge")).toBeInTheDocument();
@@ -209,7 +209,19 @@ describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
   });
 });
 
-describe("OnboardingClient — VIES (yabancı)", () => {
+/**
+ * VIES testleri ŞU AN ATLANIYOR — silinmedi.
+ *
+ * 2026-09-01 kayıt kapısıyla AB ülkeleri kapatıldı
+ * (docs/plan-country-registration.md), dolayısıyla ülke listesinde seçilebilir
+ * bir AB ülkesi YOK ve bu akışa UI'dan ulaşılamıyor. VIES kodu (uç + hook +
+ * buton) OLDUĞU GİBİ DURUYOR ve çalışıyor; AB açıldığında `describe.skip` →
+ * `describe` yeterli olacak.
+ *
+ * Testleri silmek yanlış olurdu: AB açıldığında bu yolun sessizce bozulmuş
+ * olduğunu fark etmenin tek yolu bunlar.
+ */
+describe.skip("OnboardingClient — VIES (yabancı; AB kapalıyken erişilemez)", () => {
   it("AB ülkesinde VIES butonu görünür + doğrulama çağrılır", async () => {
     const user = userEvent.setup();
     h.viesAsync.mockResolvedValue({ valid: true, name: "ACME GmbH" });

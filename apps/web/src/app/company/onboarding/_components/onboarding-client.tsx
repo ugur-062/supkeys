@@ -19,7 +19,8 @@ import {
   TURKEY_LOCATIONS,
   isValidTaxIdForCountry,
   isValidTckn,
-} from "@rothern/shared";
+
+  registrationCountries,} from "@rothern/shared";
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -240,7 +241,12 @@ export function OnboardingClient() {
                   }))
                 }
               >
-                {COUNTRIES.map((c) => (
+                {/* Kayıt kapısı (2026-09-01): yalnız profili AÇIK ülkeler.
+                    `COUNTRIES` (98) burada KULLANILMAZ — kaydolamayacağı bir
+                    ülkeyi seçtirip formun sonunda reddetmek en kötü akış.
+                    Adres defteri ayrı: orada tüm ülkeler seçilebilir
+                    (teslimat adresi kayıt kapısına tabi değil). */}
+                {registrationCountries().map((c) => (
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </Select>
@@ -466,7 +472,10 @@ export function OnboardingClient() {
               />
               <Summary
                 label="Ülke"
-                value={COUNTRIES.find((c) => c.code === f.country)?.name}
+                value={
+                  registrationCountries().find((c) => c.code === f.country)?.name ??
+                  COUNTRIES.find((c) => c.code === f.country)?.name
+                }
               />
               <Summary label="Yetkili" value={`${user?.firstName} ${user?.lastName}`} />
               <Summary label="Rol" value="Kurucu (tam yetki)" />
