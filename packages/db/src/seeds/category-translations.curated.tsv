@@ -2532,3 +2532,171 @@
 30251503	Reçine yapıştırıcı kapsülü	Resin glue capsule or cartridge
 30251504	Genleşme kovanı	Expansion shell
 30251505	Yan duvar hasırı	Rib mat
+30263901	Sıcak haddelenmiş HSLA çelik çubuk	High strength low alloy HSLA steel hot rolled bar
+30264005	Elektro galvanizli sıcak haddelenmiş karbon çeliği SAE 1000 serisi sac	Carbon steel SAE 1000 series electro galvanized hot rolled sheet
+30264006	Elektro galvanizli sıcak haddelenmiş karbon çeliği SAE 1100 serisi sac	Carbon steel SAE 1100 series electro galvanized hot rolled sheet
+30264007	Elektro galvanizli sıcak haddelenmiş karbon çeliği SAE 1200 serisi sac	Carbon steel SAE 1200 series electro galvanized hot rolled sheet
+30264008	Elektro galvanizli sıcak haddelenmiş karbon çeliği SAE 1500 serisi sac	Carbon steel SAE 1500 series electro galvanized hot rolled sheet
+30264009	Sıcak daldırma galvanizli sıcak haddelenmiş karbon çeliği SAE 1000 serisi sac	Carbon steel SAE 1000 series hot dip galvanized hot rolled sheet
+30264010	Sıcak daldırma galvanizli sıcak haddelenmiş karbon çeliği SAE 1100 serisi sac	Carbon steel SAE 1100 series hot dip galvanized hot rolled sheet
+30264011	Sıcak daldırma galvanizli sıcak haddelenmiş karbon çeliği SAE 1200 serisi sac	Carbon steel SAE 1200 series hot dip galvanized hot rolled sheet
+30264012	Sıcak daldırma galvanizli sıcak haddelenmiş karbon çeliği SAE 1500 serisi sac	Carbon steel SAE 1500 series hot dip galvanized hot rolled sheet
+30264017	Elektro galvanizli soğuk haddelenmiş karbon çeliği SAE 1000 serisi sac	Carbon steel SAE 1000 series electro galvanized cold rolled sheet
+30264018	Elektro galvanizli soğuk haddelenmiş karbon çeliği SAE 1100 serisi sac	Carbon steel SAE 1100 series electro galvanized cold rolled sheet
+30264019	Elektro galvanizli soğuk haddelenmiş karbon çeliği SAE 1200 serisi sac	Carbon steel SAE 1200 series electro galvanized cold rolled sheet
+30264020	Elektro galvanizli soğuk haddelenmiş karbon çeliği SAE 1500 serisi sac	Carbon steel SAE 1500 series electro galvanized cold rolled sheet
+30264021	Sıcak daldırma galvanizli soğuk haddelenmiş karbon çeliği SAE 1000 serisi sac	Carbon steel SAE 1000 series hot dip galvanized cold rolled sheet
+30264022	Sıcak daldırma galvanizli soğuk haddelenmiş karbon çeliği SAE 1100 serisi sac	Carbon steel SAE 1100 series hot dip galvanized cold rolled sheet
+30264023	Sıcak daldırma galvanizli soğuk haddelenmiş karbon çeliği SAE 1200 serisi sac	Carbon steel SAE 1200 series hot dip galvanized cold rolled sheet
+30264024	Sıcak daldırma galvanizli soğuk haddelenmiş karbon çeliği SAE 1500 serisi sac	Carbon steel SAE 1500 series hot dip galvanized cold rolled sheet
+30264201	Sıcak haddelenmiş HSLA çelik sac	High strength low alloy HSLA steel hot rolled sheet
+30264202	Soğuk haddelenmiş HSLA çelik sac	High strength low alloy HSLA cold rolled sheet
+30264203	Alüminyum kaplı çelik sac	Aluminized steel sheet
+30264204	Oluklu çelik sac	Corrugated steel sheet
+30264301	Delikli çelik rulo	Perforated steel coil
+30264302	Kabartmalı çelik rulo	Embossed steel coil
+30264303	Alüminyum kaplı çelik rulo	Aluminized steel coil
+30264304	Sıcak daldırma galvanizli çelik rulo	Hot dip galvanized steel coil
+30264305	Elektro galvanizli çelik rulo	Electro galvanized steel coil
+30265012	Oluklu alüminyum sac	Corrugated aluminum sheet
+30265301	Sfero döküm çubuk	Ductile iron cast bar
+30265302	Gri font döküm çubuk	Gray iron cast bar
+30265303	Beyaz font döküm çubuk	White iron cast bar
+30265304	Temper döküm çubuk	Malleable iron cast bar
+30265401	Sıcak haddelenmiş sfero sac	Ductile iron hot rolled sheet
+30265402	Sıcak haddelenmiş gri font sac	Gray iron hot rolled sheet
+30265403	Sıcak haddelenmiş beyaz font sac	White iron hot rolled sheet
+30265404	Sıcak haddelenmiş temper sac	Malleable iron hot rolled sheet
+30265501	Sfero rulo	Ductile iron coil
+30265502	Sfero şerit	Ductile iron strip
+30265503	Sfero kütük	Ductile iron billet
+30265504	Gri font kütük	Gray iron billet
+30265505	Beyaz font kütük	White iron billet
+30265506	Temper kütük	Malleable iron billet
+30265601	Demir alaşımı çubuk	Ferrous alloy bar
+30265602	Demir alaşımı sac	Ferrous alloy sheet
+30265701	Demir alaşımı rulo	Ferrous alloy coil
+30265702	Demir alaşımı şerit	Ferrous alloy strip
+30265703	Demir alaşımı kütük	Ferrous alloy billet
+30265704	Demir alaşımı ekstrüzyon külçesi	Ferrous alloy extrusion ingot
+30265801	Plastik çubuk	Plastic bar
+30265802	Plastik plaka	Plastic sheet
+30265803	Oluklu plastik plaka	Corrugated plastic sheet
+30265901	Plastik rulo	Plastic coil
+30265902	Plastik şerit	Plastic strip
+30266001	Değerli metal çubuk	Precious metal bar
+30266002	Demir dışı alaşım çubuk	Non ferrous alloy bar
+30266101	Berilyum alaşımı sac	Beryllium alloy sheet
+30266102	Kompozit metal sac	Composite metal sheet
+30266103	Demir dışı alaşım sac	Non ferrous alloy sheet
+30266201	Grafit rulo	Graphite coil
+30266202	Demir dışı alaşım rulo	Non ferrous alloy coil
+30266203	Değerli metal rulo	Precious metal coil
+30266204	Demir dışı alaşım şerit	Non ferrous alloy strip
+30266205	Demir dışı alaşım kütük	Non ferrous alloy billet
+30266206	Değerli metal kütük	Precious metal billet
+30266207	Değerli metal külçe	Precious metal ingot
+30266208	Antimon külçe	Antimony ingot
+30266209	Kadmiyum külçe	Cadmium ingot
+30266210	Zirkonyum külçe	Zirconium ingot
+30266211	Kobalt külçe	Cobalt ingot
+30266212	Molibden külçe	Molybdenum ingot
+30266213	Arsenik külçe	Arsenic ingot
+30266214	Bizmut külçe	Bismuth ingot
+30266215	İndiyum külçe	Indium ingot
+30266216	Demir dışı alaşım ekstrüzyon külçesi	Non ferrous alloy extrusion ingot
+30266401	Kauçuk çubuk	Rubber bar
+30266402	Kauçuk plaka	Rubber sheet
+30266403	Sünger kauçuk plaka	Foam rubber sheet
+30266404	Mantar-kauçuk levha	Cork and rubber sheet
+30266405	Preslenmiş elyaf levha	Compressed fiber sheet
+30266406	Metal takviyeli preslenmiş elyaf levha	Metal inserted compressed fiber sheet
+30266407	Elyaf-kauçuk levha	Fiber and rubber sheet
+30266408	Asbest levha	Asbestos sheet
+30266410	Tantal çubuk	Tantalum bar
+30266501	Kauçuk şerit	Rubber strip
+30266502	Preslenmiş elyaf rulo	Compressed fiber coil
+30266503	Elyaf-kauçuk rulo	Fiber and rubber coil
+30266504	Tantal şerit	Tantalum strip
+30266701	Çelik mil malzemesi	Steel shafting
+30266702	Paslanmaz çelik mil malzemesi	Stainless steel shafting
+40101507	Spiral havalandırma kanalı	Spiral ventilation tubing
+40101508	Havalandırma perdesi	Ventilation curtain
+40101509	Havalandırma ölçüm noktası	Ventilation spad
+40101510	Havalandırma kanalı	Ventilation tubing
+40101511	Havalandırma kanalı askısı	Ventilation tube hanger
+40101512	Havalandırma kanalı bağlantı elemanları	Ventilation tube fittings
+40101513	Patlama tahliye panelleri	Blast relief panels
+40101606	Havalandırma çek valfi	Ventilation check
+40101607	Hava debisi kontrol damperi	Air volume control valve
+40101608	Fan filtre ünitesi	Fan filter unit
+40101609	Tavan vantilatörü	Ceiling fan
+40101610	Tavan vantilatörü seti	Ceiling fan kit
+40101708	Fan coil ünitesi	Fan coil unit
+40101709	Klima santrali	Air handling unit
+40101715	Sabit sıcaklık ve nem kabini	Constant temperature and humidity chamber
+40101716	Soğutma kulesi	Cooling tower
+40101717	Klima enerji tasarruf cihazı	Air conditioner power saver
+40101718	Soğutma serpantini	Cooling coil
+40101719	Sıvı soğutucu akışkan tankı	Liquid refrigerant receiver
+40101721	Su soğutmalı kondenser	Water cooled condensor
+40101722	Buhar kondenseri	Steam condenser
+40101837	Baca	Chimney
+40101838	Ekonomizer	Economizer
+40101839	Şaşırtma plakası	Baffle plate
+40101840	Film ısıtıcı	Film heater
+40101841	Hava ön ısıtıcısı	Air preheater
+40101842	Buz eritme cihazı	Ice melting device
+40101843	Elektrikli fırın	Electric furnace
+40101844	Yüksek frekanslı indüksiyon vakumlu ergitme fırını	High frequency induction vacuum melting furnace
+40101845	Yansımalı fırın	Reverberatory furnace
+40101846	Tuz banyolu fırın	Salt bath furnace
+40101847	Sementasyon ve nitrürleme elektrik fırını	Carburization and nitrification electric furnace
+40101848	Cebri hava ısıtma sistemi	Forced air heating system
+40101849	Sıcak su dağıtım kolektörü	Hot water distribution header
+40101850	Krematoryum	Crematory
+40101852	Plakalı eşanjör parça ve aksesuarları	Plate heat exchanger parts and accessories
+40101853	Karbon çeliği borulu ısı değiştirici	Carbon steel pipe heat exchange equipment
+40101854	Alaşımlı borulu ısı değiştirici	Alloy pipe heat exchange equipment
+40101855	Buhar geri kazanım ünitesi	Vapor recovery unit
+40101856	Fırın ısıtıcı serpantini	Heater furnace coil
+40101857	Elektrikli ısıtıcı	Electric heater
+40101858	Hat tipi buhar ısıtıcı (alçak/orta basınç)	Inline steam heater low/medium pressure
+40101859	Hat tipi buhar ısıtıcı (yüksek basınç)	Inline steam heater high pressure
+40101860	Isı değiştirici borusu	Heat exchanger tube
+40101861	Ön ısıtıcı	Preheater
+40102101	Odun yakıtlı şömine	Wood fueled fireplace
+40102102	Gaz yakıtlı şömine (B tipi baca)	Gas fueled fireplace B vent
+40102103	Gaz yakıtlı şömine (hermetik baca)	Gas fueled fireplace vent direct
+40102104	Gaz yakıtlı şömine (bacasız)	Gas fueled fireplace vent free
+40102105	Elektrikli şömine	Electric fueled fireplace
+40102106	Şömine kaplaması	Fireplace facing
+40102107	Şömine çerçevesi	Fireplace mantle surrounds
+40102201	Elastomer veya kauçuk kompansatör	Elastomeric or rubber expansion joint
+40102202	Kumaş kompansatör	Fabric expansion joint
+40102203	Metal kompansatör	Metal expansion joint
+40141641	Supap (poppet) valf	Poppet valve
+40141642	Semer tipi valf	Saddle valve
+40141643	Dip klepe	Foot valve
+40141644	Döner hava kilidi valfi	Rotary airlock valve
+40141645	Valf mili	Valve stem
+40141646	Valf yuvası	Valve seat
+40141647	Segman valf	Segment valve
+40141648	Manyetik valf	Magnetic valve
+40141649	Yön kontrol valfi bobin takımı	Directional control valve coil assembly
+40141650	Basınçlı gaz valfi	Compressed gas valve
+40141651	Hava valfi	Air valve
+40141652	Basınç düşürücü valf	Pressure reducing valve
+40141653	Savak vanası	Sluice valve
+40141654	Musluk valf	Cock valve
+40141655	Vakum valfi	Vacuum valve
+40141656	Flanşlı kelebek vana	Flange type butterfly valve
+40141658	Blok ve tahliye valfi	Block and bleed valve
+40141659	Kaldırmalı çek valf	Lift check valve
+40141660	Elektronik gaz küresel vana	Electronic gas ball valve
+40141661	Pig küresel vana	Pig ball valve
+40141662	Valf kilitleme sistemi	Valve interlock system
+40141663	Glob kontrol valfi	Globe control valve
+40141664	Döner kontrol valfi	Rotary control valve
+40141665	Kendinden ayarlı kontrol valfi	Self-regulating control valve
+40141666	Diyafram kontrol valfi	Diaphragm control valve
