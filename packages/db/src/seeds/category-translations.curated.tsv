@@ -4380,3 +4380,108 @@
 39122244	Kesme şalteri	Cutout switch
 39122245	Manyetik anahtar	Magnetic switch
 39122246	Potansiyometre anahtarı	Electrical potentiometer switch
+
+# Röleler, kablo kanalları, elektrik motorları ve motor bileşenleri.
+39122247	Otomotiv iklimlendirme potansiyometre anahtarı	Automotive HVAC potentiometer switch
+39122248	Güç sinyali dağıtım anahtarı	Power signal distribution switch
+39122249	Direksiyon kumanda anahtarı	Steering wheel control switch
+39122250	Otomatik şanzıman vites seçici anahtarı	Automatic transmission gear selector switch
+39122251	Kademeli tutuşlu anahtar	Detent switch
+39122301	Buchholz rölesi	Buchholtz relay
+39122302	Mesafe rölesi	Distance relay
+39122303	Çok kontaklı röle	Multicontact relay
+39122304	Reed röle	Reed relay
+39122305	Ölçü rölesi	Meter relay
+39122306	Yönlü toprak rölesi	Directional ground relay
+39122307	Yardımcı röle	Auxiliary relay
+39122308	Oransal diferansiyel röle	Ratio differential relay
+39122309	Topraksız röle	Unground relay
+39122310	Seçici toprak rölesi	Selecting ground relay
+39122311	Basınç rölesi	Pressure relay
+39122312	Polarite rölesi	Polarity relay
+39122313	Serbest açma rölesi	Trip free relay
+39122314	Blokaj rölesi	Blocking relay
+39122315	Elektromanyetik röle	Electromagnetic relay
+39122316	Tekrar kapama rölesi	Reclosing relay
+39122317	Mandallı röle	Latching relay
+39122318	Frekans rölesi	Frequency relay
+39122319	Doğru akım rölesi	Direct current relay
+39122320	Yatay röle	Horizontal relay
+39122321	Polarize olmayan röle	Non polarized relay
+39122322	Doğru akım gerilim rölesi	Direct current voltage relay
+39122323	Çok fonksiyonlu dijital röle	Multi function digital relay
+39122324	Güç rölesi	Power relay
+39122325	Genel amaçlı röle	General purpose relay
+39122326	Soketli röle	Socket relay
+39122327	Alternatif gerilim rölesi	Alternating voltage relay
+39122328	Cıvalı röle	Mercury relay
+39122329	Zaman rölesi	Time relay
+39122330	Aşırı yük rölesi	Overload relay
+39122331	Kumanda rölesi	Control relay
+39122332	Faz koruma rölesi	Phase failure relay
+39122333	Katı hal rölesi	Solid state relay
+39122334	Röle kartı veya çoklu röle modülü	Relay board or multiple relay module
+39122335	Röle soketi veya tabanı	Relay socket or base
+39122336	Sinyal flaşör rölesi	Turn signal flasher relay
+39122337	Baskı devre kartı rölesi	Printed circuit board relay
+39131608	Kanal sızdırmazlık sistemi	Duct sealing system
+39131609	Kablo koruma plakası	Cable protection plate
+39131715	Yeraltı hortum kanalı	Underground hose conduit
+39131717	Elektrik borusu dirseği	Electrical conduit elbow
+39131718	Elektrik borusu nipeli	Electrical conduit nipple
+39131719	EMT metal elektrik borusu	Electrical metallic tubing EMT
+39131720	Dişli elektrik borusu	Running thread conduit
+39131721	Yeraltı tesisat borusu	Underground wiring pipe
+26101110	Çok devirli AC motor	Multispeed motor AC
+26101111	Basınçlı yıkama makinesi AC motoru	Pressure washer motor AC
+26101112	Genel amaçlı AC motor	General purpose motor AC
+26101113	Dalgıç AC motor	Submersible motor AC
+26101114	Asenkron (endüksiyon) AC motor	Induction motor AC
+26101115	Çok fazlı AC motor	Multi phase motor AC
+26101116	Tek fazlı AC motor	Single phase motor AC
+26101117	Dikey içi boş milli AC motor	Vertical hollowshaft motor AC
+26101211	Ultrasonik veya titreşim motoru	Ultrasonic or vibration motor
+26101212	İş mili (spindle) motoru	Spindle motor
+26101301	Hava veya pnömatik motor	Air or pneumatic motor
+26101312	Eksenel pistonlu motor	Axial piston motor
+26101313	Radyal pistonlu motor	Radial piston motor
+26101413	Motor gövdesi veya kapağı	Motor casing or cover
+26101414	Motor fırça taşıyıcı	Motor brush carrier
+26101415	Motor kolektörü	Motor commutator
+26101416	Alternatör fanı	Alternator fan
+26101503	Benzinli motorlar	Gasoline engines
+26101514	Jet motoru	Jet engine
+26101515	Benzinli takma motor	Gasoline outboard motor
+26101516	Dizel takma motor	Diesel outboard motor
+26101517	Elektrikli içten takma motor	Electric inboard motor
+26101767	Türbin statoru	Turbine stator
+26101768	Türbin mili	Turbine shaft
+26101769	Ateşleme bobini	Ignition coil
+26101770	Benzinli motor elektronik kontrol ünitesi	Electronic engine control for gasoline engines
+26101771	Dizel motor elektronik kontrol ünitesi	Electronic engine control for diesel engine
+26101772	Enjektör temizleyici	Injector cleaner
+26101773	Dizel oransal ölçüm valfi	Diesel proportional metering valve
+26101774	Kanister tahliye selenoid valfi	Canister purge solenoid valve
+26101775	Dizel yüksek basınç valfi	Diesel high pressure valve
+26101776	İmmobilizer bobini	Immobilizer coil
+26101777	Benzin enjektör bobini	Fuel injector coil gasoline
+26101778	Dizel enjektör bobini	Fuel injector coil diesel
+26101779	Kablo demeti lastiği	Wiring harness grommet
+26101780	Yağ enjektörü veya ölçüm valfi	Oil injector or metering valve
+26101781	Piston pimi	Piston pin
+26101782	Ateşleme distribütörü	Ignition distributor
+26101783	Hidrolik döner mafsal	Hydraulic swivel joint
+26101784	Diferansiyel istavrozu	Differential spider
+26101785	Yağ süzgeç elemanı	Oil strainer element
+26101786	Supap iticisi	Valve tappet
+26101787	Emme valfi ve kızağı	Admission valve and rack
+26101789	Silindir kapak contası	Engine head gasket
+26101790	Yakıt gazı besleme sistemi	Fuel gas supply system
+26101791	Ana yataklar	Main bearings
+26101792	Biyel yatakları	Connecting rod bearings
+26101793	Piston soğutma jetleri ve valfleri	Piston cooling jets and valves
+26101794	Buhar türbini yedek parça ve aksesuarları	Steam turbine spare parts and accessories
+26101795	Gaz türbini yedek parça ve aksesuarları	Gas turbine spare parts and accessories
+26101796	Hidrolik acil kapama sistemi	Hydraulic emergency shut off system
+26101797	Motor yedek parçaları	Engine spare parts
+26101906	Kam mili yatakları	Camshaft bearings
