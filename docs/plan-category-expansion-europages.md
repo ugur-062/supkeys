@@ -1,6 +1,7 @@
 # Kategori Derinleştirme — Europages Ölçeğine Plan
 
-> Durum: **PLAN — onay bekliyor.** Ölçümler 2026-09-01, canlı DB.
+> Durum: **UYGULANDI (2026-09-01).** Altı fazın tamamı bitti; sonuçlar en altta.
+> Ölçümler canlı DB üzerinden.
 
 ## 1. Europages gerçekte nasıl kurulu
 
@@ -120,3 +121,30 @@ Faz 6 en son (diğerlerinin çıktısını besler).
 
 **Canlıda bekleyen (operatör):** bugünkü 48 kategori + 83 kelime satırı henüz
 canlı değil — `seed-categories` + `apply-category-keywords` koşulmalı.
+
+
+---
+
+## 6. Sonuç (2026-09-01, uygulandıktan sonra)
+
+| | ÖNCE | SONRA |
+|---|---|---|
+| aktif kategori | 8.187 | **10.991** |
+| anahtar kelime | 194 | **48.259** |
+| sözlüklü kategori | 28 | **8.178** |
+| endüstriyel yaprak (segment 31+23+12) | 82 | **1.382** |
+| 12 gerçekçi endüstriyel sorgudan sonuç veren | 1 | **11** |
+
+Altı fazın hepsi yapıldı:
+1. Tokenli arama — `tokenizeQuery` (shared), TR bağlaçları elenir
+2. Kelime katmanı — 8.103 satır, offline üretim, toplam **$1.04**
+3. Endüstriyel derinlik — 2.740 yaprak, alıcı dilinde, 12 segment
+4. Faaliyet tipi — `CompanyActivity` ekseni (kayıt + ayarlar + profil)
+5. Firma alt kategorileri — `buyer/sellerSubCategoryIds` ucu açıldı
+6. Kürasyon döngüsü — `category_search_misses` + admin paneli
+
+**Ölçümün değiştirdiği şey:** başlangıçtaki varsayım "kategori sayısı az"dı.
+Ölçünce seçilebilir düğüm sayımızın (7.852) Europages'in 4.500 başlığından
+zaten fazla olduğu, asıl açığın **kelime hazinesi** (464x) ve **dağılım**
+(laboratuvar 1.702 yaprak / imalat bileşenleri 8) olduğu çıktı. Plan buna göre
+kuruldu; yeni sınıf uydurmak yerine var olan sınıfların altı dolduruldu.

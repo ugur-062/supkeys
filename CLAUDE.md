@@ -203,17 +203,90 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Tarih biçimi (web) | `lib/format-date.ts` |
 | Para gösterimi (web) | `components/ui/money.tsx` |
 | Query anahtarları (web) | `NOTIFICATION_KEY`, `MESSAGE_KEYS` (hook'lardan export) |
+| Ölçü birimleri | `@rothern/shared` `constants/units.ts` |
+| Kayıt ülkesi / belge kümesi | `@rothern/shared` `data/country-profiles.ts` |
+| Faaliyet tipi etiket/tavan | `@rothern/shared` `constants/company-activities.ts` |
+| Arama katlama + tokenleme | `@rothern/shared` `helpers/search-fold.ts` |
+
+## Kategori Kataloğu (2026-09-01 — Europages ölçeği)
+
+**4 seviye** (Segment/Family/Class/Commodity), `Category.id = UNSPSC kodu`.
+Hiyerarşi 8 haneli koddan türer, `parentId` = üst kod.
+
+### Kaynak dosyalar (`packages/db/src/seeds/`)
+
+| Dosya | Ne | Kim yazar |
+|-------|-----|-----------|
+| `unspsc.tsv` | UNGM UNSPSC TR çıkarımı (13.305) | dış kaynak |
+| `categories-custom.tsv` | x99xxxxx aralığı, elle küratörlü endüstriyel boşluklar (182) | İNSAN |
+| `categories-generated.tsv` | 2.740 yaprak, alıcı dilinde ürün adı | `gen-category-leaves.ts` |
+| `category-keywords.tsv` | elle küratörlü eşanlamlı | İNSAN — **üretilen dosyayı EZER** |
+| `category-keywords.generated.tsv` | 8.103 satır TR jargon | `gen-category-keywords.ts` |
+
+**Öncelik kuralı:** `apply-category-keywords` ve `seed-categories` ikisi de
+üretilen dosyayı ÖNCE, elle yazılanı SONRA okur → aynı kodda insan kararı
+kazanır ve yeniden üretimde kaybolmaz.
+
+### Canlı durum
+16.227 kategori · **10.991 aktif** (38 segment) · **48.259 anahtar kelime**
+(8.178 kategoride). Karşılaştırma: Europages 26 sektör / 4.500 başlık /
+90.000 kelime.
+
+### Arama
+TR-katlanmış `searchText = fold(nameTr + " " + keywords)` (`foldSearchText`,
+shared) — 'İ'/aksan sorunu yok. Sorgu **TOKENLİ**: kelimelere bölünüp AND'lenir
+(`tokenizeQuery`, shared), sıra önemsiz, kelimeler ad ile eşanlamlı sözlüğüne
+dağılabilir. `searchText` kod tabanında YALNIZ burada kullanılır — eşleştirmede
+/bildirimde/yetkide DEĞİL; hatalı bir eşanlamlı aramayı bozar, veriyi asla.
+
+### Seçim seviyeleri
+| Nerede | Seviye |
+|--------|--------|
+| Satın alma talebi kategorisi | min L3 |
+| Firma ANA kategorisi | exactLevel L1 (segment) |
+| Firma ALT kategorisi | L2-4, tavan 50 — `buyer/sellerSubCategoryIds` |
+| AI önerisi | 2 aşamalı → L3 |
+
+Ana ve alt kategori AYRI eksen; eşleştirme (`deriveCategoryMatchCandidates`)
+ilanın kodundan tüm üst seviyeleri türetir ve ikisine de `hasSome` bakar.
+
+### İkinci eksen: faaliyet tipi
+`Company.activities` (`CompanyActivity[]`, tavan 3) — üretici / distribütör-bayi
+/ hizmet sağlayıcı / ithalatçı-ihracatçı / fason. Etiket tek kaynağı
+`@rothern/shared` `company-activities.ts`. Kategori NE'yi, bu NASIL'ı söyler.
+
+### Kürasyon döngüsü
+Sonuçsuz aramalar `category_search_misses` tablosuna (katlanmış sorgu tekil
+anahtar → yazım varyantları tek satırda toplanır). Admin: kategoriler
+sayfasının başındaki panel. Çözülmüş terim yeniden aranırsa kuyruğa GERİ döner.
+
+### Koşum sırası (canlı)
+```bash
+pnpm --filter @rothern/db gen-category-leaves      # yeni yaprak (AI, çevrimdışı)
+pnpm --filter @rothern/db seed-categories          # TEK transaction, sil+kur
+pnpm --filter @rothern/db cleanup-categories -- --apply   # ŞART: seed hepsini aktif yazar
+pnpm --filter @rothern/db gen-category-keywords    # eksik sözlükleri üret
+pnpm --filter @rothern/db apply-category-keywords  # reseed'siz canlıya
+```
+`cleanup-categories` ATLANIRSA gizli 20 segment geri açılır. `seed-categories`
+sil+kur yapar ama FK yok (seçimler `categoryIds String[]` = kod) → firma/ilan
+seçimleri korunur; 2026-09-01 koşumunda doğrulandı (0 kırık referans).
+
+NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor — tek koşum ikisine de
+yansır.
 
 ## Bekleyen Migration'lar (prod'a UYGULANMADI)
 
-`pnpm --filter @rothern/db migrate:deploy` bekliyor. Üçü de **tamamen
+`pnpm --filter @rothern/db migrate:deploy` bekliyor. İkisi de **tamamen
 eklemeli** — tablo yeniden yazımı yok:
 
 | Migration | İçerik |
 |-----------|--------|
-| `20260831090000` | `listing_round_snapshots.currency` + `amountTry`, `company_complaints.complainantCompanyId` indeksi |
-| `20260901090000` | `listing_items.updatedAt` (ilan detayı ETag parmak izi için) |
-| `20260901100000` | `order_revision_items` + `company_kyc_revisions` RLS policy'leri |
+| `20260901120000` | `CompanyActivity` enum + `companies.activities` (sabit default) + GIN indeksi |
+| `20260901130000` | `category_search_misses` tablosu (kürasyon kuyruğu) |
+
+> 2026-09-01: önceki üç migration (`20260831090000`, `20260901090000`,
+> `20260901100000`) prod'a UYGULANDI — `migrate status` "up to date".
 
 ## Geliştirme Notları
 - **NestJS CLI watch modu WSL'de bozuk.** `apps/api/package.json` `dev` script'i `concurrently` + `tsc -w` + `nodemon` kullanır. `nest start --watch` KULLANMAYIN.
@@ -231,7 +304,7 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 
 ## Test & Kalite Durumu
 
-- **Test sayısı (2026-09-01):** API **147 suite / 1295 test** (114 integration + 35 unit) · web **57 dosya / 354 test** · admin **15 / 79**. Hepsi yeşil.
+- **Test sayısı (2026-09-01):** API **152 suite / 1371 test** (+2 skipped) · web **57 dosya / 354 test** · admin **15 / 79**. Hepsi yeşil.
   - *Eski not kaldırıldı:* "534 test, bcrypt mock'ları kırık, test paketi refactor edilmeli" iddiası BAYATTI — `bcrypt` repoda hiç geçmiyor (Supabase Auth geçişi 2026-05-20'de tamamlandı), auth spec'leri geçiyor.
 - **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
 - **Test DB — LOKAL izole Postgres (varsayılan):** integration testleri artık
@@ -292,21 +365,8 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
   - V2-3: Multi-currency + TCMB cron integration
   - V2-4: 1-on-1 messaging (Messenger-style)
   - V2-5: Tedarikçi paneli redesign
-  - V2-6: UNSPSC kategori sistemi — güncel durum (2026-07-26): **4 seviye**
-    (Segment/Family/Class/Commodity), `packages/db/src/seeds/unspsc.tsv` (13.305
-    satır) + platform-özel endüstriyel ekler `categories-custom.tsv` (x99xxxxx
-    kod aralığı: iskele/kalıp, elektrik pano, çelik konstrüksiyon, KKD, rigging,
-    MRO — 118 satır). `cleanup-categories -- --apply` KOBİ-dışı 20 segmenti
-    gizler → 38 aktif segment / ~8.2k aktif satır. Satın Alma Talebi kategorisi min L3;
-    firma ana kategorileri exactLevel L1 (segment). AI önerisi 2 aşamalı → L3.
-    Seed: `pnpm --filter @rothern/db seed-categories` sonra `cleanup-categories
-    -- --apply`. NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor —
-    tek koşum ikisine de yansır (Category.id = UNSPSC kodu, rebuild güvenli).
-    Arama TR-katlanmış `searchText` kolonundan (`foldSearchText`, shared) —
-    'İ'/aksan sorunu yok; eşanlamlı jargon `category-keywords.tsv` →
-    `keywords` kolonu, canlıya reseed'siz `apply-category-keywords` ile.
-    Sonuçsuz aramalar API loglarında "Kategori araması sonuçsuz" (kürasyon
-    girdisi).
+  - V2-6: UNSPSC kategori sistemi — bkz. aşağıdaki **Kategori Kataloğu**
+    bölümü (2026-09-01'de Europages ölçeğine genişletildi).
 - **Polish:** Liste sayfaları UX, admin paneli + KPI, form hata TR, mobile, e-posta QA.
 
 ---
