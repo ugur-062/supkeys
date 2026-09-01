@@ -19,7 +19,10 @@ import {
   type ItemImportItem,
   type ItemImportResult,
   type ItemImportRow,
-} from "@rothern/shared";
+
+  normalizeUnit,
+  isQuantityValidForUnit,
+  getUnit,} from "@rothern/shared";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
 import { assertZipWithinLimits, ZipInspectError } from "../../../common/files/zip-inspect";
@@ -509,11 +512,29 @@ function validateRow(
     errors.push("Hemen-Al fiyatı tabandan küçük olamaz");
   }
 
+  // Faz 1: serbest metin birimi kanonik koda çevir. Tanınmazsa satır GEÇERLİ
+  // kalır (kod null) — Excel'de "ad." yazan kullanıcıyı durdurmuyoruz, ama
+  // "2,5 adet" gibi birimle çelişen miktarı yakalıyoruz.
+  const unitCode = normalizeUnit(unit);
+  if (
+    quantity != null &&
+    unitCode != null &&
+    !isQuantityValidForUnit(quantity, unitCode)
+  ) {
+    const u = getUnit(unitCode)!;
+    errors.push(
+      u.decimals === 0
+        ? `"${u.nameTr}" birimi tam sayı ister — ondalıklı miktar girilemez`
+        : `Miktar "${u.nameTr}" için en fazla ${u.decimals} ondalık olabilir`,
+    );
+  }
+
   const item: ItemImportItem = {
     name,
     description,
     quantity,
     unit,
+    unitCode,
     materialCode,
     requiredByDate,
     targetUnitPrice,

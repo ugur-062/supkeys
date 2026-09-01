@@ -986,6 +986,9 @@ model CompanyOrderItem {
   name      String
   quantity  Decimal      @db.Decimal(18, 3)
   unit      String
+  // Award anında kalemden kopyalanan kanonik birim kodu (snapshot).
+  // Geçmiş siparişlerin birimi DEĞİŞTİRİLMEZ; yalnız yeni kayıtlar doldurur.
+  unitCode  String?
   unitPrice Decimal      @db.Decimal(18, 2)
   // Kalem-özel teslim tarihi — award anında kazanan teklifin kalem tarihinden
   // (ListingBidItem.deliveryDate) snapshot'lanır; boşsa order-level
@@ -1394,7 +1397,12 @@ model ListingItem {
   name            String
   description     String?
   quantity        Decimal   @db.Decimal(18, 3)
+  // Serbest metin birim — LEGACY ama hâlâ yazılıyor (expand→contract).
+  // Gösterim `unitCode ?? unit` sırasıyla okunur; `unit` ayrı bir kararla düşecek.
   unit            String // adet, kg, m, paket…
+  // Kanonik ölçü birimi kodu (@rothern/shared UNITS). Tanınmayan birimde NULL
+  // kalır ve serbest metin `unit` geçerlidir — liste bilinçli olarak KAPALI DEĞİL.
+  unitCode        String?
   targetPrice     Decimal?  @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
   // SATIS + kalem-bazlı fiyatlandırma: kalem taban / hemen-al BİRİM fiyatları.
   minUnitPrice    Decimal?  @db.Decimal(18, 2)
@@ -1409,9 +1417,7 @@ model ListingItem {
   createdAt DateTime @default(now())
 
   // Perf: ilan detayı ETag parmak izi bu damgayı okur — yoksa kalem
-
-  // düzenlemesi / davet durumu değişimi "değişmedi" sayılırdı.
-
+  // düzenlemesi "değişmedi" sayılıp istemciye 304 dönerdi (ekran bayat).
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([listingId])

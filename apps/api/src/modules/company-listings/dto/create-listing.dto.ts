@@ -19,6 +19,11 @@ import {
   ValidateNested,
 } from "class-validator";
 import { MAX_MONEY } from "../../../common/constants/money";
+import { UNITS } from "@rothern/shared";
+import { Trim } from "../../../common/decorators/trim.decorator";
+
+/** DTO `@IsIn` için kod listesi — TEK KAYNAK UNITS. */
+const UNIT_CODES = UNITS.map((u) => u.code);
 
 export enum ListingTypeDto {
   ALIM = "ALIM",
@@ -132,10 +137,25 @@ export class ListingItemDto {
   @Max(1_000_000_000)
   quantity!: number;
 
+  /**
+   * Serbest metin birim (LEGACY ama zorunlu kalır — expand→contract).
+   * Katalogda tanınan bir birimse `unitCode` de dolar; tanınmazsa metin
+   * olduğu gibi saklanır ve kullanıcı uyarılır. Liste bilinçli KAPALI DEĞİL.
+   */
+  @Trim()
   @IsString()
   @MinLength(1)
   @MaxLength(20)
   unit!: string;
+
+  /**
+   * Kanonik birim kodu (@rothern/shared UNITS). İstemci gönderirse doğrulanır;
+   * göndermezse servis `unit` metninden türetir (`normalizeUnit`).
+   */
+  @IsOptional()
+  @IsString()
+  @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  unitCode?: string;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

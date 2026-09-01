@@ -31,6 +31,7 @@ import {
 } from "react-hook-form";
 import { ItemDetailModal } from "./item-detail-modal";
 import { ItemQuestionModal } from "./item-question-modal";
+import { UnitSelect } from "@/components/ui/unit-select";
 
 export function Step2Items() {
   const {
@@ -67,6 +68,7 @@ export function Step2Items() {
       description: it.description ?? "",
       quantity: it.quantity ?? 1,
       unit: it.unit ?? "adet",
+      unitCode: it.unitCode ?? null,
       materialCode: it.materialCode ?? "",
       requiredByDate: it.requiredByDate ?? "",
       targetUnitPrice: it.targetUnitPrice ?? undefined,
@@ -97,6 +99,7 @@ export function Step2Items() {
       description: "",
       quantity: 1,
       unit: "adet",
+      unitCode: "PCE",
       materialCode: "",
       requiredByDate: "",
       targetUnitPrice: undefined,
@@ -221,8 +224,13 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
   const {
     register,
     control,
+    setValue,
     formState: { errors },
   } = useFormContext<TenderFormData>();
+  // Faz 1: birim seçici kontrollü — `useWatch` ile okunur (P10 perf notu:
+  // `watch()` tüm formu dinler, `useWatch` yalnız bu iki alanı).
+  const unitValue = useWatch({ control, name: `items.${index}.unit` });
+  const unitCodeValue = useWatch({ control, name: `items.${index}.unitCode` });
   // SATIS + KALEM fiyatlandırma: kalem başına taban/hemen-al girişleri açılır.
   // Her iki useWatch KOŞULSUZ çağrılmalı — `&&` içinde kısa-devre edilirse
   // hook sırası render'lar arası değişir (rules-of-hooks; listingType SATIS↔
@@ -317,11 +325,23 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             <Label htmlFor={`items.${index}.unit`} required>
               Birim
             </Label>
-            <Input
+            {/* Faz 1: serbest metin yerine SEÇİM. `unit` (okunur metin) ve
+                `unitCode` (kanonik) birlikte yazılır; "listede yok" seçilirse
+                kod null kalır ve kullanıcı engellenmez. */}
+            <UnitSelect
               id={`items.${index}.unit`}
-              placeholder="adet"
+              value={unitValue ?? ""}
+              unitCode={unitCodeValue ?? null}
               hasError={!!itemErrors?.unit}
-              {...register(`items.${index}.unit`)}
+              onChange={(next) => {
+                setValue(`items.${index}.unit`, next.unit, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                setValue(`items.${index}.unitCode`, next.unitCode, {
+                  shouldDirty: true,
+                });
+              }}
             />
           </Field>
 

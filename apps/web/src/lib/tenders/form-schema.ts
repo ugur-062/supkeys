@@ -142,6 +142,8 @@ export const tenderItemSchema = z.object({
     .max(MAX_QUANTITY, "Miktar çok büyük")
     .refine((n) => maxDecimals(n, QUANTITY_DECIMALS), "En fazla 3 ondalık"),
   unit: z.string().min(1, "Birim zorunlu").max(20, "Maksimum 20 karakter"),
+  /** Faz 1: kanonik birim kodu; "listede yok" seçilirse null kalır. */
+  unitCode: z.string().nullable().optional(),
   materialCode: z.string().max(50, "Maksimum 50 karakter").optional(),
   requiredByDate: z.string().optional(),
   targetUnitPrice: money(
@@ -565,6 +567,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
       description: "",
       quantity: 1,
       unit: "adet",
+      unitCode: "PCE",
       materialCode: "",
       requiredByDate: "",
       targetUnitPrice: undefined,

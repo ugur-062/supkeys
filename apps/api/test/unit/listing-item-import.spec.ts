@@ -75,7 +75,7 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
   it("geçerli satırlar aktarılır; hatalı satırlar errors ile önizlemede kalır; boş satır atlanır", async () => {
     const b64 = await fillTemplate({ listingType: "ALIM" }, [
       ['Çelik boru 2"', 120, "m", "ST37", "BRU-200", "15.09.2026", 185],
-      ["Dirsek 90°", "12,5", "adet", "", "", new Date(Date.UTC(2026, 8, 30)), "42,50"],
+      ["Dirsek 90°", "12,5", "kg", "", "", new Date(Date.UTC(2026, 8, 30)), "42,50"],
       [], // boş → atlanır
       ["", 5, "kg"], // ad boş → hata
       ["Flanş", "abc", "adet"], // miktar sayı değil
@@ -111,12 +111,36 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     });
     // TR ondalık + Excel tarih hücresi (UTC) + para metni
     expect(r2!.item).toMatchObject({ quantity: 12.5, requiredByDate: "2026-09-30", targetUnitPrice: 42.5 });
+    // Faz 1: serbest metin birim kanonik koda çevrilir.
+    expect(r1!.item.unitCode).toBe("M");
+    expect(r2!.item.unitCode).toBe("KG");
     expect(r3!.errors).toEqual(["Kalem Adı boş"]);
     expect(r3!.rowNumber).toBe(5); // boş 4. satır atlandı, numara korunur
     expect(r4!.errors).toEqual(["Miktar sayı değil"]);
     expect(r5!.errors[0]).toMatch(/ondalık/);
     expect(r6!.errors[0]).toMatch(/Termin tarihi geçersiz/);
     expect(r7!.errors[0]).toMatch(/Birim çok uzun/);
+  });
+
+  it("Faz 1: birim ile ÇELİŞEN miktar reddedilir (12,5 adet)", async () => {
+    const b64 = await fillTemplate({ listingType: "ALIM" }, [
+      ["Vida", "12,5", "adet"], // adet ondalık kabul etmez
+      ["Tel", "12,5", "kg"], // kg kabul eder
+      ["Bobin", "12,5", "bobin"], // bilinmeyen birim → kural uygulanmaz
+    ]);
+    const res = await svc.parse({
+      fileName: "s.xlsx",
+      mimeType: "x",
+      dataBase64: b64,
+      listingType: "ALIM",
+    });
+    const [a, b, c] = res.rows;
+    expect(a!.errors[0]).toMatch(/tam sayı/);
+    expect(b!.errors).toEqual([]);
+    expect(b!.item.unitCode).toBe("KG");
+    // Bilinmeyen birim satırı GEÇERLİ kalır (liste kapalı değil) ama kodsuz.
+    expect(c!.errors).toEqual([]);
+    expect(c!.item.unitCode).toBeNull();
   });
 
   it("SATIS+KALEM: hemen-al < taban → satır hatası; ALIM'da taban/hemen-al sütunları yok sayılır", async () => {

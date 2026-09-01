@@ -125,6 +125,7 @@ export function mapDetailToForm(
             description: it.description ?? "",
             quantity: Number(it.quantity),
             unit: it.unit,
+            unitCode: it.unitCode ?? null,
             materialCode: it.materialCode ?? "",
             requiredByDate: toDateInput(it.requiredByDate),
             targetUnitPrice:

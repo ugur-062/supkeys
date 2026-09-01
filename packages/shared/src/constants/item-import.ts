@@ -203,6 +203,12 @@ export function matchImportColumn(rawHeader: unknown): ItemImportColumnKey | nul
 export interface ItemImportItem extends AiTenderDraftItem {
   minUnitPrice: number | null;
   buyNowUnitPrice: number | null;
+  /**
+   * Serbest metin birimden türetilen kanonik kod (Faz 1). Tanınmazsa `null`
+   * ve satır YİNE DE geçerlidir — kullanıcı `notices` ile uyarılır. Birim
+   * listesi bilinçli olarak kapalı değil.
+   */
+  unitCode?: string | null;
 }
 
 export interface ItemImportRow {

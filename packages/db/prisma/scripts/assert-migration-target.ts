@@ -23,12 +23,34 @@
  * Bu env'i kalıcı olarak `.env`'e YAZMAYIN — nöbetçinin tüm değeri, kararın
  * her seferinde bilinçli verilmesinde.
  */
-// Prisma CLI `.env`'i kendisi yükler; nöbetçi de AYNI dosyayı okumalı,
-// yoksa hedefi göremez (ve fail-closed davranıp lokal geliştirmeyi kilitler).
-import { config as loadEnv } from "dotenv";
+// Prisma CLI `.env`'i kendisi yükler; nöbetçi de AYNI dosyayı okumalı, yoksa
+// hedefi göremez (ve fail-closed davranıp lokal geliştirmeyi de kilitler).
+// `dotenv` bu paketin bağımlılığı DEĞİL ve yalnız bunun için eklemeye değmez —
+// tek bir anahtar okuyoruz, elle ayrıştırmak yeterli.
+import * as fs from "node:fs";
 import * as path from "node:path";
 
-loadEnv({ path: path.resolve(__dirname, "../../.env") });
+function envFromFile(key: string): string | undefined {
+  const file = path.resolve(__dirname, "../../.env");
+  let text: string;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    return undefined;
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq <= 0 || t.slice(0, eq).trim() !== key) continue;
+    // Tırnaklı ve tırnaksız biçimler.
+    return t
+      .slice(eq + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
+  }
+  return undefined;
+}
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "postgres", "db"]);
 
@@ -41,7 +63,8 @@ function hostOf(url: string | undefined): string | null {
   }
 }
 
-const url = process.env.DATABASE_URL;
+// Süreç env'i öncelikli (jest globalSetup açıkça geçiriyor), yoksa .env.
+const url = process.env.DATABASE_URL ?? envFromFile("DATABASE_URL");
 const host = hostOf(url);
 
 if (!host) {

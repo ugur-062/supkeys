@@ -25,7 +25,8 @@ import {
   type ListingVisibility,
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
-import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
+import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode ,
+  normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderOpRole } from "../bidder-op-role";
 import {
@@ -1256,6 +1257,10 @@ export class CompanyListingsService {
               description: it.description?.trim() || null,
               quantity: it.quantity,
               unit: it.unit.trim(),
+              // Faz 1: kanonik birim kodu. İstemci gönderdiyse onu kullan,
+              // göndermediyse serbest metinden TÜRET (Excel/AI/eski istemci
+              // yolları da kodlanmış olsun). Tanınmazsa null — metin geçerli.
+              unitCode: it.unitCode ?? normalizeUnit(it.unit),
               targetPrice: it.targetPrice ?? null,
               minUnitPrice:
                 priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
@@ -1523,6 +1528,10 @@ export class CompanyListingsService {
               description: it.description?.trim() || null,
               quantity: it.quantity,
               unit: it.unit.trim(),
+              // Faz 1: kanonik birim kodu. İstemci gönderdiyse onu kullan,
+              // göndermediyse serbest metinden TÜRET (Excel/AI/eski istemci
+              // yolları da kodlanmış olsun). Tanınmazsa null — metin geçerli.
+              unitCode: it.unitCode ?? normalizeUnit(it.unit),
               targetPrice: it.targetPrice ?? null,
               minUnitPrice:
                 priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
@@ -2427,6 +2436,8 @@ export class CompanyListingsService {
       description: it.description,
       quantity: it.quantity.toString(),
       unit: it.unit,
+      // Faz 1: kanonik kod da döner; istemci `unitCode ?? unit` gösterir.
+      unitCode: it.unitCode,
       // CC-1: hedef/istenen fiyat non-owner'a YALNIZCA sahip opt-in ettiyse
       // gösterilir (varsayılan gizli — çıpalama riski). Sahip yolu (detail) ayrı,
       // hep görür. minUnitPrice/buyNowUnitPrice (SATIS tabanı) bilerek açık kalır.
@@ -2454,6 +2465,7 @@ export class CompanyListingsService {
       name: it.name,
       quantity: it.quantity.toString(),
       unit: it.unit,
+      unitCode: it.unitCode,
       description: null,
       targetPrice: null,
       minUnitPrice: null,
@@ -4589,7 +4601,13 @@ export class CompanyListingsService {
 
     const listingItems = await this.prisma.listingItem.findMany({
       where: { listingId },
-      select: { id: true, name: true, quantity: true, unit: true },
+      select: {
+        id: true,
+        name: true,
+        quantity: true,
+        unit: true,
+        unitCode: true,
+      },
     });
     const orderItems = listingItems
       .map((li) => {
@@ -4599,6 +4617,8 @@ export class CompanyListingsService {
               name: li.name,
               quantity: li.quantity,
               unit: li.unit,
+              // Snapshot: kalemin kanonik birim kodu da dondurulur.
+              unitCode: li.unitCode ?? null,
               unitPrice: bi.unitPrice,
               // Kalem teslim tarihi/süresi + not teklifin kalem satırından
               // snapshot; kalem süresi yoksa teklifin genel süresi geçerli.

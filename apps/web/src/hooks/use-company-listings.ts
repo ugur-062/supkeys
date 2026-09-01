@@ -232,6 +232,8 @@ export interface ListingItemRow {
   description: string | null;
   quantity: string;
   unit: string;
+  /** Faz 1: kanonik birim kodu; eski kayıtlarda null. */
+  unitCode?: string | null;
   targetPrice: string | null;
   /** SATIS + KALEM fiyatlandırma. */
   minUnitPrice?: string | null;
