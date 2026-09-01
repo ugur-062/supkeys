@@ -881,3 +881,422 @@
 95141700	Prefabrik ticari ve sanayi binaları ve yapıları	Prefabricated commercial and industrial buildings and structures
 95141800	Prefabrik acil yardım binaları ve yapıları	Prefabricated emergency relief buildings and structures
 95141900	Prefabrik sağlık binaları ve yapıları	Prefabricated medical buildings and structures
+
+# Yaprak adları (L4) — döküm/dövme bloğu, kural tabanlı üretildi + denetlendi.
+31101601	Demir dışı alaşım kum döküm	Non ferrous alloy sand casting
+31101602	Demir alaşımı kum döküm	Ferrous alloy sand casting
+31101603	Çelik kum döküm	Steel sand casting
+31101604	Paslanmaz çelik kum döküm	Stainless steel sand casting
+31101606	Alüminyum kum döküm	Aluminum sand casting
+31101607	Magnezyum kum döküm	Magnesium sand casting
+31101608	Titanyum kum döküm	Titanium sand casting
+31101609	Berilyum kum döküm	Beryllium sand casting
+31101610	Bakır kum döküm	Copper sand casting
+31101611	Pirinç kum döküm	Brass sand casting
+31101612	Bronz kum döküm	Bronze sand casting
+31101613	Çinko kum döküm	Zinc sand casting
+31101614	Kalay kum döküm	Tin sand casting
+31101615	Kurşun kum döküm	Lead sand casting
+31101616	Değerli metal kum döküm	Precious metal sand casting
+31101617	Gri font kum döküm	Grey iron sand casting
+31101618	Sfero kum döküm	Ductile iron sand casting
+31101619	Temper kum döküm	Malleable iron sand casting
+31101701	Demir dışı alaşım kokil döküm	Non ferrous alloy permanent mold casting
+31101702	Demir alaşımı kokil döküm	Ferrous alloy permanent mold casting
+31101703	Çelik kokil döküm	Steel permanent mold casting
+31101704	Paslanmaz çelik kokil döküm	Stainless steel permanent mold casting
+31101705	Demir kokil döküm	Iron permanent mold casting
+31101706	Alüminyum kokil döküm	Aluminum permanent mold casting
+31101707	Magnezyum kokil döküm	Magnesium permanent mold casting
+31101708	Titanyum kokil döküm	Titanium permanent mold casting
+31101709	Berilyum kokil döküm	Beryllium permanent mold casting
+31101710	Bakır kokil döküm	Copper permanent mold casting
+31101711	Pirinç kokil döküm	Brass permanent mold casting
+31101712	Bronz kokil döküm	Bronze permanent mold casting
+31101713	Çinko kokil döküm	Zinc permanent mold casting
+31101714	Kalay kokil döküm	Tin permanent mold casting
+31101715	Kurşun kokil döküm	Lead permanent mold casting
+31101716	Değerli metal kokil döküm	Precious metal permanent mold casting
+31101801	Demir dışı alaşım kabuk kalıp döküm	Non ferrous alloy shell mold casting
+31101802	Demir alaşımı kabuk kalıp döküm	Ferrous alloy shell mold casting
+31101803	Çelik kabuk kalıp döküm	Steel shell mold casting
+31101804	Paslanmaz çelik kabuk kalıp döküm	Stainless steel shell mold casting
+31101806	Alüminyum kabuk kalıp döküm	Aluminum shell mold casting
+31101807	Magnezyum kabuk kalıp döküm	Magnesium shell mold casting
+31101808	Titanyum kabuk kalıp döküm	Titanium shell mold casting
+31101809	Berilyum kabuk kalıp döküm	Beryllium shell mold casting
+31101810	Bakır kabuk kalıp döküm	Copper shell mold casting
+31101811	Pirinç kabuk kalıp döküm	Brass shell mold casting
+31101812	Bronz kabuk kalıp döküm	Bronze shell mold casting
+31101813	Çinko kabuk kalıp döküm	Zinc shell mold casting
+31101814	Kalay kabuk kalıp döküm	Tin shell mold casting
+31101815	Kurşun kabuk kalıp döküm	Lead shell mold casting
+31101816	Değerli metal kabuk kalıp döküm	Precious metal shell mold casting
+31101817	Sfero kabuk kalıp döküm	Ductile iron shell mold casting
+31101901	Demir dışı alaşım hassas döküm	Non ferrous alloy investment casting
+31101902	Demir alaşımı hassas döküm	Ferrous alloy investment casting
+31101903	Çelik hassas döküm	Steel investment casting
+31101904	Paslanmaz çelik hassas döküm	Stainless steel investment casting
+31101905	Demir hassas döküm	Iron investment casting
+31101906	Alüminyum hassas döküm	Aluminum investment casting
+31101907	Magnezyum hassas döküm	Magnesium investment casting
+31101908	Çinko hassas döküm	Zinc investment casting
+31101909	Kalay hassas döküm	Tin investment casting
+31101910	Kurşun hassas döküm	Lead investment casting
+31101911	Değerli metal hassas döküm	Precious metal investment casting
+31101912	Titanyum hassas döküm	Titanium investment casting
+31101914	Alaşımlı çelik hassas döküm	Steel alloy investment casting
+31102001	Demir dışı alaşım savurma döküm	Non ferrous alloy centrifugal casting
+31102002	Demir alaşımı savurma döküm	Ferrous alloy centrifugal casting
+31102003	Çelik savurma döküm	Steel centrifugal casting
+31102004	Paslanmaz çelik savurma döküm	Stainless steel centrifugal casting
+31102005	Demir savurma döküm	Iron centrifugal casting
+31102006	Alüminyum savurma döküm	Aluminum centrifugal casting
+31102007	Magnezyum savurma döküm	Magnesium centrifugal casting
+31102008	Titanyum savurma döküm	Titanium centrifugal casting
+31102009	Berilyum savurma döküm	Beryllium centrifugal casting
+31102010	Bakır savurma döküm	Copper centrifugal casting
+31102011	Pirinç savurma döküm	Brass centrifugal casting
+31102012	Bronz savurma döküm	Bronze centrifugal casting
+31102013	Çinko savurma döküm	Zinc centrifugal casting
+31102014	Kalay savurma döküm	Tin centrifugal casting
+31102015	Kurşun savurma döküm	Lead centrifugal casting
+31102016	Değerli metal savurma döküm	Precious metal centrifugal casting
+31102101	Demir dışı alaşım seramik kalıp döküm	Non ferrous alloy ceramic mold casting
+31102102	Demir alaşımı seramik kalıp döküm	Ferrous alloy ceramic mold casting
+31102103	Çelik seramik kalıp döküm	Steel ceramic mold casting
+31102104	Paslanmaz çelik seramik kalıp döküm	Stainless steel ceramic mold casting
+31102105	Demir seramik kalıp döküm	Iron ceramic mold casting
+31102106	Alüminyum seramik kalıp döküm	Aluminum ceramic mold casting
+31102107	Magnezyum seramik kalıp döküm	Magnesium ceramic mold casting
+31102108	Titanyum seramik kalıp döküm	Titanium ceramic mold casting
+31102109	Berilyum seramik kalıp döküm	Beryllium ceramic mold casting
+31102110	Bakır seramik kalıp döküm	Copper ceramic mold casting
+31102111	Pirinç seramik kalıp döküm	Brass ceramic mold casting
+31102112	Bronz seramik kalıp döküm	Bronze ceramic mold casting
+31102113	Çinko seramik kalıp döküm	Zinc ceramic mold casting
+31102114	Kalay seramik kalıp döküm	Tin ceramic mold casting
+31102115	Kurşun seramik kalıp döküm	Lead ceramic mold casting
+31102116	Değerli metal seramik kalıp döküm	Precious metal ceramic mold casting
+31102201	Demir dışı alaşım grafit kalıp döküm	Non ferrous alloy graphite mold casting
+31102202	Demir alaşımı grafit kalıp döküm	Ferrous alloy graphite mold casting
+31102203	Çelik grafit kalıp döküm	Steel graphite mold casting
+31102204	Paslanmaz çelik grafit kalıp döküm	Stainless steel graphite mold casting
+31102205	Demir grafit kalıp döküm	Iron graphite mold casting
+31102206	Alüminyum grafit kalıp döküm	Aluminum graphite mold casting
+31102207	Magnezyum grafit kalıp döküm	Magnesium graphite mold casting
+31102208	Titanyum grafit kalıp döküm	Titanium graphite mold casting
+31102209	Berilyum grafit kalıp döküm	Beryllium graphite mold casting
+31102210	Bakır grafit kalıp döküm	Copper graphite mold casting
+31102211	Pirinç grafit kalıp döküm	Brass graphite mold casting
+31102212	Bronz grafit kalıp döküm	Bronze graphite mold casting
+31102213	Çinko grafit kalıp döküm	Zinc graphite mold casting
+31102214	Kalay grafit kalıp döküm	Tin graphite mold casting
+31102215	Kurşun grafit kalıp döküm	Lead graphite mold casting
+31102216	Değerli metal grafit kalıp döküm	Precious metal graphite mold casting
+31102301	Demir dışı alaşım alçı kalıp döküm	Non ferrous alloy plaster mold casting
+31102302	Demir alaşımı alçı kalıp döküm	Ferrous alloy plaster mold casting
+31102303	Çelik alçı kalıp döküm	Steel plaster mold casting
+31102304	Paslanmaz çelik alçı kalıp döküm	Stainless steel plaster mold casting
+31102305	Demir alçı kalıp döküm	Iron plaster mold casting
+31102306	Alüminyum alçı kalıp döküm	Aluminum plaster mold casting
+31102307	Magnezyum alçı kalıp döküm	Magnesium plaster mold casting
+31102308	Titanyum alçı kalıp döküm	Titanium plaster mold casting
+31102309	Berilyum alçı kalıp döküm	Beryllium plaster mold casting
+31102310	Bakır alçı kalıp döküm	Copper plaster mold casting
+31102311	Pirinç alçı kalıp döküm	Brass plaster mold casting
+31102312	Bronz alçı kalıp döküm	Bronze plaster mold casting
+31102313	Çinko alçı kalıp döküm	Zinc plaster mold casting
+31102314	Kalay alçı kalıp döküm	Tin plaster mold casting
+31102315	Kurşun alçı kalıp döküm	Lead plaster mold casting
+31102316	Değerli metal alçı kalıp döküm	Precious metal plaster mold casting
+31102401	Demir dışı alaşım V proses döküm	Non ferrous alloy v process casting
+31102402	Demir alaşımı V proses döküm	Ferrous alloy v process casting
+31102403	Çelik V proses döküm	Steel v process casting
+31102404	Paslanmaz çelik V proses döküm	Stainless steel v process casting
+31102405	Demir V proses döküm	Iron v process casting
+31102406	Alüminyum V proses döküm	Aluminum v process casting
+31102407	Magnezyum V proses döküm	Magnesium v process casting
+31102408	Titanyum V proses döküm	Titanium v process casting
+31102409	Berilyum V proses döküm	Beryllium v process casting
+31102410	Bakır V proses döküm	Copper v process casting
+31102411	Pirinç V proses döküm	Brass v process casting
+31102412	Bronz V proses döküm	Bronze v process casting
+31102413	Çinko V proses döküm	Zinc v process casting
+31102414	Kalay V proses döküm	Tin v process casting
+31102415	Kurşun V proses döküm	Lead v process casting
+31102416	Değerli metal V proses döküm	Precious metal v process casting
+31102501	Alüminyum alçak basınçlı kokil döküm	Aluminum low pressure permanent mold casting
+31102601	Alüminyum yüksek basınçlı enjeksiyon döküm	Aluminum high pressure die casting
+31102602	Çinko yüksek basınçlı enjeksiyon döküm	Zinc high pressure die casting
+31102603	Magnezyum yüksek basınçlı enjeksiyon döküm	Magnesium high pressure die casting
+31102701	Alüminyum sıkıştırma döküm	Aluminum squeeze casting
+31102801	Alüminyum yarı katı döküm	Aluminum semi solid casting
+31102901	Alüminyum yerçekimli kokil döküm	Aluminum gravity permanent mold casting
+31121120	İşlenmiş alüminyum yüksek basınçlı enjeksiyon döküm	Aluminum high pressure die machined casting
+31121121	İşlenmiş alüminyum yüksek basınçlı enjeksiyon döküm montajı	Aluminum high pressure die machined casting assembly
+31121122	İşlenmiş magnezyum yüksek basınçlı enjeksiyon döküm	Magnesium high pressure die machined casting
+31121123	İşlenmiş magnezyum yüksek basınçlı enjeksiyon döküm montajı	Magnesium high pressure die machined casting assembly
+31121124	İşlenmiş çinko yüksek basınçlı enjeksiyon döküm	Zinc high pressure die machined casting
+31121125	İşlenmiş çinko yüksek basınçlı enjeksiyon döküm montajı	Zinc high pressure die machined casting assembly
+31121220	İşlenmiş alüminyum kum döküm	Aluminum sand machined casting
+31121221	İşlenmiş alüminyum kum döküm montajı	Aluminum sand machined casting assembly
+31121222	İşlenmiş sfero kum döküm	Ductile iron sand machined casting
+31121223	İşlenmiş sfero kum döküm montajı	Ductile iron sand machined casting assembly
+31121224	İşlenmiş gri font kum döküm	Grey iron sand machined casting
+31121225	İşlenmiş gri font kum döküm montajı	Grey iron sand machined casting assembly
+31121226	İşlenmiş temper kum döküm	Malleable iron sand machined casting
+31121227	İşlenmiş temper kum döküm montajı	Malleable iron sand machined casting assembly
+31121320	İşlenmiş alüminyum alçak basınçlı kokil döküm	Aluminum low pressure permanent mold machined casting
+31121321	İşlenmiş alüminyum alçak basınçlı kokil döküm montajı	Aluminum low pressure permanent mold machined casting assembly
+31121520	İşlenmiş sfero kabuk kalıp döküm	Ductile iron shell mold machined casting
+31121521	İşlenmiş sfero kabuk kalıp döküm montajı	Ductile iron shell mold machined casting assembly
+31121616	İşlenmiş paslanmaz çelik hassas döküm montajı	Stainless steel investment machined casting assembly
+31121617	İşlenmiş alaşımlı çelik hassas döküm	Steel alloy investment machined casting
+31121618	İşlenmiş alaşımlı çelik hassas döküm montajı	Steel alloy investment machined casting assembly
+31122001	İşlenmiş alüminyum sıkıştırma döküm	Aluminum squeeze machined casting
+31122002	İşlenmiş alüminyum sıkıştırma döküm montajı	Aluminum squeeze machined casting assembly
+31122101	İşlenmiş alüminyum yarı katı döküm	Aluminum semi solid machined casting
+31122102	İşlenmiş alüminyum yarı katı döküm montajı	Aluminum semi solid machined casting assembly
+31122201	İşlenmiş alüminyum yerçekimli kokil döküm	Aluminum gravity permanent mold machined casting
+31122202	İşlenmiş alüminyum yerçekimli kokil döküm montajı	Aluminum gravity permanent mold machined casting assembly
+31132101	Soğuk dövülmüş işlenmiş çelik dövme	Cold forged machined steel forging
+31132105	Ilık dövülmüş işlenmiş çelik dövme	Warm forged machined steel forging
+31132109	Sıcak dövülmüş işlenmiş çelik dövme	Hot forged machined steel forging
+31132201	Soğuk dövülmüş işlenmiş pirinç dövme	Cold forged machined brass forging
+31132205	Ilık dövülmüş işlenmiş pirinç dövme	Warm forged machined brass forging
+31132301	Soğuk dövülmüş işlenmiş alüminyum dövme	Cold forged machined aluminum forging
+31132305	Ilık dövülmüş işlenmiş alüminyum dövme	Warm forged machined aluminum forging
+31132401	Soğuk dövülmüş işlenmiş demir dışı alaşım dövme	Cold forged machined non ferrous alloy forging
+31132405	Ilık dövülmüş işlenmiş demir dışı alaşım dövme	Warm forged machined non ferrous alloy forging
+31132409	Sıcak dövülmüş işlenmiş demir dışı alaşım dövme	Hot forged machined non ferrous alloy forging
+31132501	Soğuk dövülmüş işlenmiş demir alaşımı dövme	Cold forged machined ferrous alloy forging
+31132505	Ilık dövülmüş işlenmiş demir alaşımı dövme	Warm forged machined ferrous alloy forging
+31132509	Sıcak dövülmüş işlenmiş demir alaşımı dövme	Hot forged machined ferrous alloy forging
+31132601	Soğuk dövülmüş işlenmiş paslanmaz çelik dövme	Cold forged machined stainless steel forging
+31132605	Ilık dövülmüş işlenmiş paslanmaz çelik dövme	Warm forged machined stainless steel forging
+31132609	Sıcak dövülmüş işlenmiş paslanmaz çelik dövme	Hot forged machined stainless steel forging
+31132701	Soğuk dövülmüş işlenmiş demir dövme	Cold forged machined iron forging
+31132705	Ilık dövülmüş işlenmiş demir dövme	Warm forged machined iron forging
+31132709	Sıcak dövülmüş işlenmiş demir dövme	Hot forged machined iron forging
+31132801	Soğuk dövülmüş işlenmiş magnezyum dövme	Cold forged machined magnesium forging
+31132805	Ilık dövülmüş işlenmiş magnezyum dövme	Warm forged machined magnesium forging
+31132809	Sıcak dövülmüş işlenmiş magnezyum dövme	Hot forged machined magnesium forging
+31132901	Soğuk dövülmüş işlenmiş titanyum dövme	Cold forged machined titanium forging
+31132905	Ilık dövülmüş işlenmiş titanyum dövme	Warm forged machined titanium forging
+31132909	Sıcak dövülmüş işlenmiş titanyum dövme	Hot forged machined titanium forging
+31133001	Soğuk dövülmüş işlenmiş berilyum dövme	Cold forged machined beryllium forging
+31133005	Ilık dövülmüş işlenmiş berilyum dövme	Warm forged machined beryllium forging
+31133009	Sıcak dövülmüş işlenmiş berilyum dövme	Hot forged machined beryllium forging
+31133101	Soğuk dövülmüş işlenmiş bakır dövme	Cold forged machined copper forging
+31133105	Ilık dövülmüş işlenmiş bakır dövme	Warm forged machined copper forging
+31133109	Sıcak dövülmüş işlenmiş bakır dövme	Hot forged machined copper forging
+31133201	Soğuk dövülmüş işlenmiş çinko dövme	Cold forged machined zinc forging
+31133205	Ilık dövülmüş işlenmiş çinko dövme	Warm forged machined zinc forging
+31133209	Sıcak dövülmüş işlenmiş çinko dövme	Hot forged machined zinc forging
+31133301	Soğuk dövülmüş işlenmiş bronz dövme	Cold forged machined bronze forging
+31133305	Ilık dövülmüş işlenmiş bronz dövme	Warm forged machined bronze forging
+31133309	Sıcak dövülmüş işlenmiş bronz dövme	Hot forged machined bronze forging
+31133401	Soğuk dövülmüş işlenmiş kalay dövme	Cold forged machined tin forging
+31133405	Ilık dövülmüş işlenmiş kalay dövme	Warm forged machined tin forging
+31133409	Sıcak dövülmüş işlenmiş kalay dövme	Hot forged machined tin forging
+31133501	Soğuk dövülmüş işlenmiş kurşun dövme	Cold forged machined lead forging
+31133505	Ilık dövülmüş işlenmiş kurşun dövme	Warm forged machined lead forging
+31133509	Sıcak dövülmüş işlenmiş kurşun dövme	Hot forged machined lead forging
+31133601	Soğuk dövülmüş işlenmiş değerli metal dövme	Cold forged machined precious metal forging
+31133605	Ilık dövülmüş işlenmiş değerli metal dövme	Warm forged machined precious metal forging
+31133609	Sıcak dövülmüş işlenmiş değerli metal dövme	Hot forged machined precious metal forging
+31132102	Soğuk dövülmüş ısıl işlemli çelik dövme	Cold forged heat treated steel forging
+31132103	Soğuk dövülmüş işlenmiş ve ısıl işlemli çelik dövme	Cold forged machined and heat treated steel forging
+31132104	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli çelik dövme	Cold forged heat treated and cold sized steel forging
+31132106	Ilık dövülmüş ısıl işlemli çelik dövme	Warm forged heat treated steel forging
+31132107	Ilık dövülmüş işlenmiş ve ısıl işlemli çelik dövme	Warm forged machined and heat treated steel forging
+31132108	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli çelik dövme	Warm forged heat treated and cold sized steel forging
+31132110	Sıcak dövülmüş ısıl işlemli çelik dövme	Hot forged heat treated steel forging
+31132111	Sıcak dövülmüş işlenmiş ve ısıl işlemli çelik dövme	Hot forged machined and heat treated steel forging
+31132112	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli çelik dövme	Hot forged heat treated and cold sized steel forging
+31132202	Soğuk dövülmüş ısıl işlemli pirinç dövme	Cold forged heat treated brass forging
+31132203	Soğuk dövülmüş işlenmiş ve ısıl işlemli pirinç dövme	Cold forged machined and heat treated brass forging
+31132204	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli pirinç dövme	Cold forged heat treated and cold sized brass forging
+31132206	Ilık dövülmüş ısıl işlemli pirinç dövme	Warm forged heat treated brass forging
+31132207	Ilık dövülmüş işlenmiş ve ısıl işlemli pirinç dövme	Warm forged machined and heat treated brass forging
+31132208	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli pirinç dövme	Warm forged heat treated and cold sized brass forging
+31132302	Soğuk dövülmüş ısıl işlemli alüminyum dövme	Cold forged heat treated aluminum forging
+31132303	Soğuk dövülmüş işlenmiş ve ısıl işlemli alüminyum dövme	Cold forged machined and heat treated aluminum forging
+31132304	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli alüminyum dövme	Cold forged heat treated and cold sized aluminum forging
+31132306	Ilık dövülmüş ısıl işlemli alüminyum dövme	Warm forged heat treated aluminum forging
+31132307	Ilık dövülmüş işlenmiş ve ısıl işlemli alüminyum dövme	Warm forged machined and heat treated aluminum forging
+31132308	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli alüminyum dövme	Warm forged heat treated and cold sized aluminum forging
+31132402	Soğuk dövülmüş ısıl işlemli demir dışı alaşım dövme	Cold forged heat treated non ferrous alloy forging
+31132403	Soğuk dövülmüş işlenmiş ve ısıl işlemli demir dışı alaşım dövme	Cold forged machined and heat treated non ferrous alloy forging
+31132404	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli demir dışı alaşım dövme	Cold forged heat treated and cold sized non ferrous alloy forging
+31132406	Ilık dövülmüş ısıl işlemli demir dışı alaşım dövme	Warm forged heat treated non ferrous alloy forging
+31132407	Ilık dövülmüş işlenmiş ve ısıl işlemli demir dışı alaşım dövme	Warm forged machined and heat treated non ferrous alloy forging
+31132408	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli demir dışı alaşım dövme	Warm forged heat treated and cold sized non ferrous alloy forging
+31132410	Sıcak dövülmüş ısıl işlemli demir dışı alaşım dövme	Hot forged heat treated non ferrous alloy forging
+31132411	Sıcak dövülmüş işlenmiş ve ısıl işlemli demir dışı alaşım dövme	Hot forged machined and heat treated non ferrous alloy forging
+31132412	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli demir dışı alaşım dövme	Hot forged heat treated and cold sized non ferrous alloy forging
+31132502	Soğuk dövülmüş ısıl işlemli demir alaşımı dövme	Cold forged heat treated ferrous alloy forging
+31132503	Soğuk dövülmüş işlenmiş ve ısıl işlemli demir alaşımı dövme	Cold forged machined and heat treated ferrous alloy forging
+31132504	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli demir alaşımı dövme	Cold forged heat treated and cold sized ferrous alloy forging
+31132506	Ilık dövülmüş ısıl işlemli demir alaşımı dövme	Warm forged heat treated ferrous alloy forging
+31132507	Ilık dövülmüş işlenmiş ve ısıl işlemli demir alaşımı dövme	Warm forged machined and heat treated ferrous alloy forging
+31132508	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli demir alaşımı dövme	Warm forged heat treated and cold sized ferrous alloy forging
+31132510	Sıcak dövülmüş ısıl işlemli demir alaşımı dövme	Hot forged heat treated ferrous alloy forging
+31132511	Sıcak dövülmüş işlenmiş ve ısıl işlemli demir alaşımı dövme	Hot forged machined and heat treated ferrous alloy forging
+31132512	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli demir alaşımı dövme	Hot forged heat treated and cold sized ferrous alloy forging
+31132602	Soğuk dövülmüş ısıl işlemli paslanmaz çelik dövme	Cold forged heat treated stainless steel forging
+31132603	Soğuk dövülmüş işlenmiş ve ısıl işlemli paslanmaz çelik dövme	Cold forged machined and heat treated stainless steel forging
+31132604	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli paslanmaz çelik dövme	Cold forged heat treated and cold sized stainless steel forging
+31132606	Ilık dövülmüş ısıl işlemli paslanmaz çelik dövme	Warm forged heat treated stainless steel forging
+31132607	Ilık dövülmüş işlenmiş ve ısıl işlemli paslanmaz çelik dövme	Warm forged machined and heat treated stainless steel forging
+31132608	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli paslanmaz çelik dövme	Warm forged heat treated and cold sized stainless steel forging
+31132610	Sıcak dövülmüş ısıl işlemli paslanmaz çelik dövme	Hot forged heat treated stainless steel forging
+31132611	Sıcak dövülmüş işlenmiş ve ısıl işlemli paslanmaz çelik dövme	Hot forged machined and heat treated stainless steel forging
+31132612	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli paslanmaz çelik dövme	Hot forged heat treated and cold sized stainless steel forging
+31132702	Soğuk dövülmüş ısıl işlemli demir dövme	Cold forged heat treated iron forging
+31132703	Soğuk dövülmüş işlenmiş ve ısıl işlemli demir dövme	Cold forged machined and heat treated iron forging
+31132704	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli demir dövme	Cold forged heat treated and cold sized iron forging
+31132706	Ilık dövülmüş ısıl işlemli demir dövme	Warm forged heat treated iron forging
+31132707	Ilık dövülmüş işlenmiş ve ısıl işlemli demir dövme	Warm forged machined and heat treated iron forging
+31132708	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli demir dövme	Warm forged heat treated and cold sized iron forging
+31132710	Sıcak dövülmüş ısıl işlemli demir dövme	Hot forged heat treated iron forging
+31132711	Sıcak dövülmüş işlenmiş ve ısıl işlemli demir dövme	Hot forged machined and heat treated iron forging
+31132712	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli demir dövme	Hot forged heat treated and cold sized iron forging
+31132802	Soğuk dövülmüş ısıl işlemli magnezyum dövme	Cold forged heat treated magnesium forging
+31132803	Soğuk dövülmüş işlenmiş ve ısıl işlemli magnezyum dövme	Cold forged machined and heat treated magnesium forging
+31132804	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli magnezyum dövme	Cold forged heat treated and cold sized magnesium forging
+31132806	Ilık dövülmüş ısıl işlemli magnezyum dövme	Warm forged heat treated magnesium forging
+31132807	Ilık dövülmüş işlenmiş ve ısıl işlemli magnezyum dövme	Warm forged machined and heat treated magnesium forging
+31132808	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli magnezyum dövme	Warm forged heat treated and cold sized magnesium forging
+31132810	Sıcak dövülmüş ısıl işlemli magnezyum dövme	Hot forged heat treated magnesium forging
+31132811	Sıcak dövülmüş işlenmiş ve ısıl işlemli magnezyum dövme	Hot forged machined and heat treated magnesium forging
+31132812	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli magnezyum dövme	Hot forged heat treated and cold sized magnesium forging
+31132902	Soğuk dövülmüş ısıl işlemli titanyum dövme	Cold forged heat treated titanium forging
+31132903	Soğuk dövülmüş işlenmiş ve ısıl işlemli titanyum dövme	Cold forged machined and heat treated titanium forging
+31132904	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli titanyum dövme	Cold forged heat treated and cold sized titanium forging
+31132906	Ilık dövülmüş ısıl işlemli titanyum dövme	Warm forged heat treated titanium forging
+31132907	Ilık dövülmüş işlenmiş ve ısıl işlemli titanyum dövme	Warm forged machined and heat treated titanium forging
+31132908	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli titanyum dövme	Warm forged heat treated and cold sized titanium forging
+31132910	Sıcak dövülmüş ısıl işlemli titanyum dövme	Hot forged heat treated titanium forging
+31132911	Sıcak dövülmüş işlenmiş ve ısıl işlemli titanyum dövme	Hot forged machined and heat treated titanium forging
+31132912	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli titanyum dövme	Hot forged heat treated and cold sized titanium forging
+31133002	Soğuk dövülmüş ısıl işlemli berilyum dövme	Cold forged heat treated beryllium forging
+31133003	Soğuk dövülmüş işlenmiş ve ısıl işlemli berilyum dövme	Cold forged machined and heat treated beryllium forging
+31133004	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli berilyum dövme	Cold forged heat treated and cold sized beryllium forging
+31133006	Ilık dövülmüş ısıl işlemli berilyum dövme	Warm forged heat treated beryllium forging
+31133007	Ilık dövülmüş işlenmiş ve ısıl işlemli berilyum dövme	Warm forged machined and heat treated beryllium forging
+31133008	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli berilyum dövme	Warm forged heat treated and cold sized beryllium forging
+31133010	Sıcak dövülmüş ısıl işlemli berilyum dövme	Hot forged heat treated beryllium forging
+31133011	Sıcak dövülmüş işlenmiş ve ısıl işlemli berilyum dövme	Hot forged machined and heat treated beryllium forging
+31133012	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli berilyum dövme	Hot forged heat treated and cold sized beryllium forging
+31133102	Soğuk dövülmüş ısıl işlemli bakır dövme	Cold forged heat treated copper forging
+31133103	Soğuk dövülmüş işlenmiş ve ısıl işlemli bakır dövme	Cold forged machined and heat treated copper forging
+31133104	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli bakır dövme	Cold forged heat treated and cold sized copper forging
+31133106	Ilık dövülmüş ısıl işlemli bakır dövme	Warm forged heat treated copper forging
+31133107	Ilık dövülmüş işlenmiş ve ısıl işlemli bakır dövme	Warm forged machined and heat treated copper forging
+31133108	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli bakır dövme	Warm forged heat treated and cold sized copper forging
+31133110	Sıcak dövülmüş ısıl işlemli bakır dövme	Hot forged heat treated copper forging
+31133111	Sıcak dövülmüş işlenmiş ve ısıl işlemli bakır dövme	Hot forged machined and heat treated copper forging
+31133112	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli bakır dövme	Hot forged heat treated and cold sized copper forging
+31133202	Soğuk dövülmüş ısıl işlemli çinko dövme	Cold forged heat treated zinc forging
+31133203	Soğuk dövülmüş işlenmiş ve ısıl işlemli çinko dövme	Cold forged machined and heat treated zinc forging
+31133204	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli çinko dövme	Cold forged heat treated and cold sized zinc forging
+31133206	Ilık dövülmüş ısıl işlemli çinko dövme	Warm forged heat treated zinc forging
+31133207	Ilık dövülmüş işlenmiş ve ısıl işlemli çinko dövme	Warm forged machined and heat treated zinc forging
+31133208	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli çinko dövme	Warm forged heat treated and cold sized zinc forging
+31133210	Sıcak dövülmüş ısıl işlemli çinko dövme	Hot forged heat treated zinc forging
+31133211	Sıcak dövülmüş işlenmiş ve ısıl işlemli çinko dövme	Hot forged machined and heat treated zinc forging
+31133212	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli çinko dövme	Hot forged heat treated and cold sized zinc forging
+31133302	Soğuk dövülmüş ısıl işlemli bronz dövme	Cold forged heat treated bronze forging
+31133303	Soğuk dövülmüş işlenmiş ve ısıl işlemli bronz dövme	Cold forged machined and heat treated bronze forging
+31133304	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli bronz dövme	Cold forged heat treated and cold sized bronze forging
+31133306	Ilık dövülmüş ısıl işlemli bronz dövme	Warm forged heat treated bronze forging
+31133307	Ilık dövülmüş işlenmiş ve ısıl işlemli bronz dövme	Warm forged machined and heat treated bronze forging
+31133308	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli bronz dövme	Warm forged heat treated and cold sized bronze forging
+31133310	Sıcak dövülmüş ısıl işlemli bronz dövme	Hot forged heat treated bronze forging
+31133311	Sıcak dövülmüş işlenmiş ve ısıl işlemli bronz dövme	Hot forged machined and heat treated bronze forging
+31133312	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli bronz dövme	Hot forged heat treated and cold sized bronze forging
+31133402	Soğuk dövülmüş ısıl işlemli kalay dövme	Cold forged heat treated tin forging
+31133403	Soğuk dövülmüş işlenmiş ve ısıl işlemli kalay dövme	Cold forged machined and heat treated tin forging
+31133404	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli kalay dövme	Cold forged heat treated and cold sized tin forging
+31133406	Ilık dövülmüş ısıl işlemli kalay dövme	Warm forged heat treated tin forging
+31133407	Ilık dövülmüş işlenmiş ve ısıl işlemli kalay dövme	Warm forged machined and heat treated tin forging
+31133408	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli kalay dövme	Warm forged heat treated and cold sized tin forging
+31133410	Sıcak dövülmüş ısıl işlemli kalay dövme	Hot forged heat treated tin forging
+31133411	Sıcak dövülmüş işlenmiş ve ısıl işlemli kalay dövme	Hot forged machined and heat treated tin forging
+31133412	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli kalay dövme	Hot forged heat treated and cold sized tin forging
+31133502	Soğuk dövülmüş ısıl işlemli kurşun dövme	Cold forged heat treated lead forging
+31133503	Soğuk dövülmüş işlenmiş ve ısıl işlemli kurşun dövme	Cold forged machined and heat treated lead forging
+31133504	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli kurşun dövme	Cold forged heat treated and cold sized lead forging
+31133506	Ilık dövülmüş ısıl işlemli kurşun dövme	Warm forged heat treated lead forging
+31133507	Ilık dövülmüş işlenmiş ve ısıl işlemli kurşun dövme	Warm forged machined and heat treated lead forging
+31133508	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli kurşun dövme	Warm forged heat treated and cold sized lead forging
+31133510	Sıcak dövülmüş ısıl işlemli kurşun dövme	Hot forged heat treated lead forging
+31133511	Sıcak dövülmüş işlenmiş ve ısıl işlemli kurşun dövme	Hot forged machined and heat treated lead forging
+31133512	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli kurşun dövme	Hot forged heat treated and cold sized lead forging
+31133602	Soğuk dövülmüş ısıl işlemli değerli metal dövme	Cold forged heat treated precious metal forging
+31133603	Soğuk dövülmüş işlenmiş ve ısıl işlemli değerli metal dövme	Cold forged machined and heat treated precious metal forging
+31133604	Soğuk dövülmüş ısıl işlemli ve soğuk kalibreli değerli metal dövme	Cold forged heat treated and cold sized precious metal forging
+31133606	Ilık dövülmüş ısıl işlemli değerli metal dövme	Warm forged heat treated precious metal forging
+31133607	Ilık dövülmüş işlenmiş ve ısıl işlemli değerli metal dövme	Warm forged machined and heat treated precious metal forging
+31133608	Ilık dövülmüş ısıl işlemli ve soğuk kalibreli değerli metal dövme	Warm forged heat treated and cold sized precious metal forging
+31133610	Sıcak dövülmüş ısıl işlemli değerli metal dövme	Hot forged heat treated precious metal forging
+31133611	Sıcak dövülmüş işlenmiş ve ısıl işlemli değerli metal dövme	Hot forged machined and heat treated precious metal forging
+31133612	Sıcak dövülmüş ısıl işlemli ve soğuk kalibreli değerli metal dövme	Hot forged heat treated and cold sized precious metal forging
+31142001	Termoplastik sıkıştırma kalıplama montajı	Thermoplastic compression molding assembly
+31142002	Termoplastik daldırma kalıplama montajı	Thermoplastic dip molding assembly
+31142003	Termoplastik şişirme kalıplama montajı	Thermoplastic blown molding assembly
+31142004	Termoplastik enjeksiyon kalıplama montajı	Thermoplastic injection molding assembly
+31142005	Termoplastik gaz destekli enjeksiyon kalıplama montajı	Thermoplastic gas assisted injection molding assembly
+31142006	Termoplastik yüksek hassasiyetli enjeksiyon kalıplama montajı	Thermoplastic high precision injection molding assembly
+31142007	Termoplastik transfer kalıplama montajı	Thermoplastic transfer molding assembly
+31142101	Termoplastik sıkıştırma kalıplama inserti	Thermoplastic compression molding insert
+31142102	Termoplastik daldırma kalıplama inserti	Thermoplastic dip molding insert
+31142103	Termoplastik şişirme kalıplama inserti	Thermoplastic blown molding insert
+31142104	Termoplastik enjeksiyon kalıplama inserti	Thermoplastic injection molding insert
+31142105	Termoplastik gaz destekli enjeksiyon kalıplama inserti	Thermoplastic gas assisted injection molding insert
+31142106	Termoplastik yüksek hassasiyetli enjeksiyon kalıplama inserti	Thermoplastic high precision injection molding insert
+31142107	Termoplastik transfer kalıplama inserti	Thermoplastic transfer molding insert
+31142201	Termoplastik sıkıştırma çok bileşenli insertli kalıplama montajı	Thermoplastic compression multiple shot inserted molding assembly
+31142202	Termoplastik daldırma çok bileşenli insertli kalıplama montajı	Thermoplastic dip multiple shot inserted molding assembly
+31142203	Termoplastik şişirme çok bileşenli insertli kalıplama montajı	Thermoplastic blown multiple shot inserted molding assembly
+31142204	Termoplastik enjeksiyon çok bileşenli insertli kalıplama montajı	Thermoplastic injection multiple shot inserted molding assembly
+31142205	Termoplastik gaz destekli enjeksiyon çok bileşenli insertli kalıplama montajı	Thermoplastic gas assisted injection multiple shot inserted molding assembly
+31142206	Termoplastik yüksek hassasiyetli enjeksiyon çok bileşenli insertli kalıplama montajı	Thermoplastic high precision injection multiple shot inserted molding assembly
+31142207	Termoplastik transfer çok bileşenli insertli kalıplama montajı	Thermoplastic transfer multiple shot inserted molding assembly
+31142301	Termoplastik sıkıştırma insertli kalıplama montajı	Thermoplastic compression inserted molding assembly
+31142302	Termoplastik daldırma insertli kalıplama montajı	Thermoplastic dip inserted molding assembly
+31142303	Termoplastik şişirme insertli kalıplama montajı	Thermoplastic blown inserted molding assembly
+31142304	Termoplastik enjeksiyon insertli kalıplama montajı	Thermoplastic injection inserted molding assembly
+31142305	Termoplastik gaz destekli enjeksiyon insertli kalıplama montajı	Thermoplastic gas assisted injection inserted molding assembly
+31142306	Termoplastik yüksek hassasiyetli enjeksiyon insertli kalıplama montajı	Thermoplastic high precision injection inserted molding assembly
+31142307	Termoplastik transfer insertli kalıplama montajı	Thermoplastic transfer inserted molding assembly
+31142401	Termoset sıkıştırma kalıplama montajı	Thermoset compression molding assembly
+31142402	Termoset daldırma kalıplama montajı	Thermoset dip molding assembly
+31142403	Termoset şişirme kalıplama montajı	Thermoset blown molding assembly
+31142404	Termoset enjeksiyon kalıplama montajı	Thermoset injection molding assembly
+31142405	Termoset gaz destekli enjeksiyon kalıplama montajı	Thermoset gas assisted injection molding assembly
+31142406	Termoset yüksek hassasiyetli enjeksiyon kalıplama montajı	Thermoset high precision injection molding assembly
+31142407	Termoset transfer kalıplama montajı	Thermoset transfer molding assembly
+31142501	Termoset sıkıştırma kalıplama inserti	Thermoset compression molding insert
+31142502	Termoset daldırma kalıplama inserti	Thermoset dip molding insert
+31142503	Termoset şişirme kalıplama inserti	Thermoset blown molding insert
+31142504	Termoset enjeksiyon kalıplama inserti	Thermoset injection molding insert
+31142505	Termoset gaz destekli enjeksiyon kalıplama inserti	Thermoset gas assisted injection molding insert
+31142506	Termoset yüksek hassasiyetli enjeksiyon kalıplama inserti	Thermoset high precision injection molding insert
+31142507	Termoset transfer kalıplama inserti	Thermoset transfer molding insert
+31142601	Termoset sıkıştırma çok bileşenli insertli kalıplama montajı	Thermoset compression multiple shot inserted molding assembly
+31142602	Termoset daldırma çok bileşenli insertli kalıplama montajı	Thermoset dip multiple shot inserted molding assembly
+31142603	Termoset şişirme çok bileşenli insertli kalıplama montajı	Thermoset blown multiple shot inserted molding assembly
+31142604	Termoset enjeksiyon çok bileşenli insertli kalıplama montajı	Thermoset injection multiple shot inserted molding assembly
+31142605	Termoset gaz destekli enjeksiyon çok bileşenli insertli kalıplama montajı	Thermoset gas assisted injection multiple shot inserted molding assembly
+31142606	Termoset yüksek hassasiyetli enjeksiyon çok bileşenli insertli kalıplama montajı	Thermoset high precision injection multiple shot inserted molding assembly
+31142607	Termoset transfer çok bileşenli insertli kalıplama montajı	Thermoset transfer multiple shot inserted molding assembly
+31142701	Termoset sıkıştırma insertli kalıplama montajı	Thermoset compression inserted molding assembly
+31142702	Termoset daldırma insertli kalıplama montajı	Thermoset dip inserted molding assembly
+31142703	Termoset şişirme insertli kalıplama montajı	Thermoset blown inserted molding assembly
+31142704	Termoset enjeksiyon insertli kalıplama montajı	Thermoset injection inserted molding assembly
+31142705	Termoset gaz destekli enjeksiyon insertli kalıplama montajı	Thermoset gas assisted injection inserted molding assembly
+31142706	Termoset yüksek hassasiyetli enjeksiyon insertli kalıplama montajı	Thermoset high precision injection inserted molding assembly
+31142707	Termoset transfer insertli kalıplama montajı	Thermoset transfer inserted molding assembly
