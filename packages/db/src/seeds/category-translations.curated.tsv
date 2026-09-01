@@ -4485,3 +4485,97 @@
 26101796	Hidrolik acil kapama sistemi	Hydraulic emergency shut off system
 26101797	Motor yedek parçaları	Engine spare parts
 26101906	Kam mili yatakları	Camshaft bearings
+
+# Redüktör/kavrama/kasnak, jeneratör, akü, kablo, açık deniz rüzgar.
+26111536	Mile monteli redüktör	Shaft mounted speed reducer
+26111537	Sonsuz vidalı redüktör	Worm speed reducer
+26111538	Helisel dişli redüktör	Helical speed reducer
+26111539	Helisel ve sonsuz vidalı redüktör	Helical and worm speed reducer
+26111540	Planet redüktör	Planetary speed reducer
+26111541	Sikloidal redüktör	Cycloidal speed reducer
+26111542	Konik dişli redüktör veya hız yükseltici	Bevel speed reducer increaser
+26111543	Sürtünmeli tahrik redüktörü	Traction drive speed reducer
+26111545	Fren kampanası adaptörü	Brake drum adapter
+26111547	Sıkmalı göbek	Clamping hub
+26111548	Vites değiştirici	Gear shift
+26111549	Mil omuzu	Shaft shoulder
+26111550	Hareket kontrol parça ve aksesuarları	Motion control parts and accessories
+26111609	Gaz türbini jeneratörü	Gas turbine generator
+26111610	Selsin jeneratör	Selsyn generator
+26111611	Yardımcı jeneratör	Auxiliary generator
+26111612	Darbe jeneratörü	Impulse generator
+26111613	Gelgit dalga jeneratörü	Tidal wave generator
+26111615	Benzinli jeneratör	Petrol generator
+26111727	Akü deşarj cihazı	Battery discharger
+26111728	Standart referans pil	Standard cell
+26111729	Otomatik akü şarj ünitesi	Auto battery charger unit
+26111730	Redoks akış bataryası veya yakıt hücresi	Redox flow battery or fuel cell
+26111731	Deniz suyu bataryası	Seawater battery
+26111732	Akü onarım aleti	Battery repair tool
+26111733	Batarya enerji depolama kontrol ve yönetim sistemi	Battery energy storage control and management system
+26111808	Trantorque sıkma göbeği	Trantorque
+26111811	Senkron kayış	Synchronous belt
+26111812	Senkron kasnak	Synchronous pulley
+26111813	Değişken hızlı kasnak	Variable speed pulley
+26111814	Altıgen kayış	Hexagonal belt
+26111815	Konik kasnak	Cone pulley
+26111816	Düz kasnak	Flat pulley
+26111911	Pnömatik kavrama	Pneumatic clutch
+26111912	Mekanik kavrama	Mechanical clutch
+26111913	Kavrama geri tutma ünitesi	Clutch hold back unit
+26111914	Tırnaklı kavrama	Jaw clutch
+26111915	Otomatik kavrama	Automatic clutch
+26111916	Yarı otomatik kavrama	Semi automatic clutch
+26111917	Elektromanyetik kavrama	Electromagnetic clutch
+26112005	Motosiklet debriyaj kolu kaidesi	Clutch handle base for motorcycle
+26112006	Debriyaj merkezi ve bileşenleri	Clutch pump and components
+26121544	Abone iniş teli	Drop wire
+26121545	Taşınabilir elektrik kordonu	Portable electrical cord
+26121546	Kalaylı bakır tel	Tinned copper wire
+26121547	Pirinç tel	Brass wire
+26121549	Yalıtımlı sargı teli	Insulated winding wire
+26121643	Çelik takviyeli çıplak iletken	Bare steel reinforced electrical cable
+26121644	Çıplak alüminyum iletken	Bare aluminum electrical cable
+26121645	Çıplak bakır iletken	Bare copper electrical cable
+26121646	Sürüklemeli ve maden makinesi kablosu	Trailing and mining machine cable
+26121647	Sürüklemeli ve maden makinesi kablo takımı	Trailing and mining machine cable assembly
+26121648	Yüksek gerilim kablo başlık seti	High voltage cable termination kit
+26121649	Yüksek gerilim kablo ek seti	High voltage cable joining kit
+26121650	Fiber optik kablo takımı	Fiber optic cable assembly
+26121651	Yağa dayanıklı SO kablo	Oil resistant SO cable
+26121652	Elektrik kordon takımı	Electrical cord assembly
+26121653	Şehirlerarası kablo	Toll cable
+26121654	Taşıyıcı frekans kablosu	Carrier frequency cable
+26121655	Simpleks ve dupleks fiber optik kablo	Simplex and duplex fiber optic cable
+26121656	Denizaltı fiber optik kablo	Submarine fiber optic cable
+26121657	Alev geciktirici fiber optik kablo	Flame retardant fiber optic cable
+26121658	Alüminyum iletkenli hareket dayanımlı iletim kablosu	Aluminum conductor motion resistant transmission cable
+26121659	Alüminyum iletkenli dörtlü abone iniş kablosu	Aluminum conductor quadruplex service drop cable
+26121660	Alüminyum iletkenli ikili abone iniş kablosu	Aluminum conductor duplex service drop cable
+26121661	Alüminyum iletkenli yeraltı abone giriş kablosu	Aluminum conductor underground service entrance cable
+26121662	Alüminyum iletkenli abone giriş kablosu	Aluminum conductor service entrance cable
+26121663	Tek alüminyum iletkenli abone kablosu	Single aluminum conductor service cable
+26121664	Alüminyum iletkenli polietilen kaplı hat teli	Aluminum conductor polyethylene covered line wire
+26121665	Alüminyum üçlü abone iniş kablosu	Aluminum triplex service drop cable
+26121666	Haberleşme kablo takımı	Communication cable assembly
+26121667	Arka panel giriş çıkış kablosu	Backplane input output cable
+26121706	Koaksiyel kablo takımı	Coaxial assembly
+26121707	Yassı esnek kablo takımı	Flat flexible cable assembly
+26121708	Akü kablo takımı	Battery cable assembly
+26121709	Spiral kordon takımı	Coiled cord assembly
+26121710	Oksijen sensörü kablo demeti	Oxygen sensor wiring harness
+26121852	Ateşleme çekirdekli otomotiv kablosu	Ignition core automotive cable
+26131512	Benzinli jeneratör seti	Gasoline generator set
+26131617	Kanatlı damper	Vane damper
+26131618	Supap tipi damper	Poppet damper
+26131619	Flare ucu ve bileşenleri	Flare tip and component
+26131815	Elektrik akümülatörü	Electric accumulator
+26131901	Açık deniz rüzgar türbini	Offshore wind turbine
+26131902	Açık deniz türbin kulesi	Offshore turbine tower
+26131903	Açık deniz monopile temeli	Offshore monopile foundation
+26131904	Açık deniz jacket temeli	Offshore jacket foundation
+26131905	Açık deniz yerçekimi temeli	Offshore gravity foundation
+26131906	Açık deniz yüzer temel	Offshore floating foundation
+26131907	Açık deniz geçiş parçası	Offshore transition piece
+26131908	Açık deniz trafo merkezi üst yapısı	Offshore substation topside
+26131909	Kara trafo merkezi	Onshore substation
