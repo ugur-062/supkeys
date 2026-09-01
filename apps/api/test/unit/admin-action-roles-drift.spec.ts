@@ -57,6 +57,7 @@ const EXPECTED: Record<string, Spec> = {
   clearSuppression: { kind: "method", ctrl: AdminSystemController, method: "clearSuppression", roles: SUPER },
   timeSavingsConfig: { kind: "method", ctrl: AdminSystemController, method: "updateTimeSavingsConfig", roles: SUPER },
   listSuppressions: { kind: "method", ctrl: AdminSystemController, method: "listSuppressions", roles: KYC },
+  resolveCategoryMiss: { kind: "method", ctrl: AdminSystemController, method: "resolveCategoryMiss", roles: KYC },
 };
 
 describe("admin-action-roles DRIFT NÖBETÇİSİ (matris ↔ backend @RequireAdminRole)", () => {

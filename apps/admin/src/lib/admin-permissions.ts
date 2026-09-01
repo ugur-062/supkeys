@@ -36,7 +36,8 @@ export type AdminAction =
   | "manualRate" // POST admin/system/rates/manual
   | "clearSuppression" // POST admin/system/suppressions/clear
   | "timeSavingsConfig" // POST admin/system/time-savings-config
-  | "listSuppressions"; // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
+  | "listSuppressions" // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
+  | "resolveCategoryMiss"; // POST admin/system/category-misses/:id/resolve
 
 const SUPER: AdminRole[] = ["SUPER_ADMIN"];
 const KYC: AdminRole[] = ["SUPER_ADMIN", "SALES"];
@@ -65,6 +66,7 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   clearSuppression: SUPER,
   timeSavingsConfig: SUPER,
   listSuppressions: KYC,
+  resolveCategoryMiss: KYC,
 };
 
 /** Rol bu aksiyonu yapabilir mi? (frontend buton kapısı — backend otorite kalır) */

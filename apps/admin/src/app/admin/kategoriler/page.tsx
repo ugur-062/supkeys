@@ -4,6 +4,8 @@ import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader, SearchInput } from "@/components/list";
 import { api } from "@/lib/api";
+import { canAdminDo } from "@/lib/admin-permissions";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, FolderTree, SearchX } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -28,6 +30,11 @@ interface SearchMiss {
  */
 function CurationQueue() {
   const qc = useQueryClient();
+  // Backend @RequireAdminRole("SUPER_ADMIN","SALES") — buton kapısı onunla
+  // BİREBİR (matris `admin-permissions.ts`, drift nöbetçisi API unit spec'inde).
+  // Kapısız bırakılırsa SUPPORT butonu görür ve tıklayınca 403 alır.
+  const { admin } = useAdminAuth();
+  const canResolve = canAdminDo(admin?.role, "resolveCategoryMiss");
   const [note, setNote] = useState<Record<string, string>>({});
 
   const misses = useQuery({
@@ -89,7 +96,9 @@ function CurationQueue() {
             />
             <button
               type="button"
-              disabled={!note[m.id]?.trim() || resolve.isPending}
+              disabled={
+                !canResolve || !note[m.id]?.trim() || resolve.isPending
+              }
               onClick={() =>
                 resolve.mutate({ id: m.id, text: note[m.id]!.trim() })
               }
