@@ -3822,3 +3822,159 @@
 23291702	Lehimli rayba	Brazed reamer
 23291703	Masif rayba	Solid reamer
 23291704	Kesici uçlu rayba	Indexable reamer
+
+# El aletleri: kesme, çekiç, anahtar, ölçü, eğe, bahçe, pense.
+23291801	Eksenel diş açma kateri	Axial threading holder
+23291802	Dış diş açma kateri	External threading holder
+23291803	İç diş açma kateri	Internal threading holder
+23291804	Diş açma kesici ucu	Threading insert
+23291901	Bara kafası	Boring head
+23291902	Kaba bara takımı	Rough boring tool
+23301501	Tel ve kablo kesme ve terminal montaj ekipmanı	Wire and cable cutting and terminal assembly equipment
+27111533	Kasap makası	Butcher scissors
+27111534	Pergel kesici	Compass cutter
+27111535	Tel makası	Wire scissors
+27111536	Daire kesici	Circle cutter
+27111537	Ahşap burgu ucu	Wood auger bit
+27111538	Forstner ucu	Forstner bit
+27111539	Yassı ahşap matkap ucu	Flat wood bit
+27111540	Fayans matkap ucu	Tile bit
+27111541	Merkezleme uçlu matkap ucu	Bullet pilot point
+27111542	Sivri uçlu ahşap matkap ucu	Spur point bit
+27111543	Duvar matkap ucu	Masonry bit
+27111544	Boyuna kesme testeresi	Rip saw
+27111545	Enine kesme testeresi	Crosscut saw
+27111547	Zemin testeresi	Flooring saw
+27111548	Sırtlı zıvana testeresi	Tenon or back saw
+27111549	Delik testeresi	Pad or keyhole saw
+27111550	Kollu testere	Bow saw
+27111551	Tomruk testeresi	Log saw
+27111552	Kıl testere	Coping saw
+27111553	Çift kişilik enine testere	Two man crosscut saw
+27111554	Bıçak bileyici	Blade sharpener
+27111555	Nokta zımbası	Center punch
+27111556	Delik zımbası	Hollow punch
+27111557	Konik zımba	Taper punch
+27111558	Paralel pim zımbası	Parallel pin punch
+27111559	Demir testeresi	Hacksaw
+27111560	Mini pense	Mini pliers
+27111561	Gönye kesme kutusu	Miter box
+27111562	Fiber optik kesici	Optical fiber cleaver
+27111615	Balyoz	Sledge hammer
+27111616	Küre uçlu çekiç	Ball peen hammer
+27111617	Kauçuk tokmak	Rubber mallet
+27111618	Marangoz çekici	Claw hammer
+27111619	Çapraz ve düz uçlu çekiç	Cross and straight pein hammer
+27111620	Çapraz uçlu küçük çekiç	Cross pein pin hammer
+27111621	Taşçı çekici	Club hammer or lump hammer
+27111622	Marangoz tokmağı	Joiners mallet
+27111623	El tipi şişe kapaklama aleti	Hand bottle crimper
+27111742	Darbeli tornavida	Impact screwdriver
+27111743	Yıldız anahtar	Ring wrench or spanner
+27111744	Ofset yıldız anahtar	Offset ring wrench or spanner
+27111745	Yarık yıldız anahtar	Split ring wrench or spanner
+27111746	Bulldog anahtar	Bulldog wrench or spanner
+27111747	Lokma ağızlı anahtar	Box wrench or spanner
+27111748	Ayak izi anahtarı	Footprint wrench
+27111749	Boru anahtarı	Pipe wrench or stillson wrench
+27111750	Kilitli pense anahtar	Mole wrench
+27111751	Lavabo anahtarı	Tap spanner or basin wrench
+27111752	Dar alan anahtarı	Obstruction wrench
+27111753	Cırcırlı anahtar	Ratchet wrench
+27111756	Karga ayağı anahtar	Crows foot wrench
+27111757	Darbeli çekiçli anahtar	Slugging wrench
+27111758	Kam atlamalı anahtar	Cam over wrench
+27111759	Bıçak anahtarı	Blade wrench
+27111760	Bijon anahtarı	Wheel nut wrench or lug nut wrench
+27111761	Su pompası pensesi	Water pump wrench
+27111762	Hareketli başlı dişli anahtar	Flexible head gear wrench
+27111763	Alyan anahtar	Allen wrench
+27111764	Matkap sökme kaması	Drill drift
+27111765	Varil tapa anahtarı	Drum plug wrench
+27111766	Haç bijon anahtarı	Cross rim wrench
+27111767	Ofset tornavida	Offset screw driver
+27111768	Köşeli lokma	Point socket
+27111769	Yağ filtresi anahtarı	Oil filter wrench
+27111813	Şakül ipi	Plumb bob line
+27111814	Muayene aynası	Inspection mirror
+27111815	Kombine gönye	Combination square
+27111816	Mastar bilya seti	Gage ball set
+27111817	Çekme payı cetveli	Shrink or shrinkage rule
+27111818	Komparatör standı	Dial gauge stand
+27111819	Yüzey pürüzlülüğü karşılaştırma numunesi	Roughness comparison specimen
+27111820	Ana gönye	Square master
+27111821	Silindirik gönye	Cylindrical square
+27111822	Açı ölçme aleti	Angle measuring instrument
+27111823	Merkez mastarı	Center gauge
+27111824	Açı mastarı	Angle gauge
+27111825	Sinüs tablası	Sine plate
+27111826	Hassas yüzey plakası	Precision surface plate
+27111827	Ayarlanabilir açı plakası	Adjustable angle plate
+27111828	Sabit açı plakası	Fixed angle plate
+27111829	Optik paralel	Optical parallel
+27111916	Çatı sökücü	Roof ripper
+27111918	El zımparası	Hand sander
+27111919	Kaba diş eğe	Bastard cut file
+27111920	Orta diş eğe	Second cut file
+27111921	İnce diş eğe	Smooth cut file
+27111922	Çapraz diş eğe	Cross cut file
+27111923	Zincir testere eğesi	Chain saw file
+27111924	Törpü dişli eğe	Rasp cut file
+27111925	İğne eğe	Needle file
+27111926	Alüminyum düz eğe	Aluminum flat file
+27111927	Alüminyum yarım yuvarlak eğe	Aluminum half round file
+27111928	Rende tipi eğe	Cheesegrater file
+27111929	Düz el eğesi	Flat hand file
+27111930	Yuvarlak eğe	Round file
+27111931	Yarım yuvarlak eğe	Half round file
+27111932	Kare eğe	Square file
+27111934	Düz konik eğe	Flat taper file
+27111935	Bıçak eğe	Knife file
+27111936	Kilit eğesi	Warding file
+27111937	Laminat eğesi	Laminate file
+27111938	Uzun açılı torna eğesi	Long angle lathe file
+27111939	Yarım yuvarlak boru hattı eğesi	Half round pipe line file
+27111940	Testere eğesi	Mill saw file
+27111941	Konik testere eğesi	Taper saw file
+27111942	Çift uçlu testere eğesi	Double end saw file
+27111943	Çiftçi eğesi	Farmers own file
+27111944	Hassas eğe	Precision file
+27111948	Yarım yuvarlak ahşap törpüsü	Half round wood rasp
+27111949	Yarım yuvarlak mobilya törpüsü	Half round cabinet rasp
+27111950	Yuvarlak ahşap törpüsü	Round wood rasp
+27111951	Dört yüzlü ayakkabı törpüsü	Four in hand shoe rasp
+27111952	At nalı törpüsü	Horse rasp
+27111953	Nalbant törpüsü	Farrier rasp
+27111954	Konik saplı köprü raybası	Taper shank bridge reamer
+27111955	Yuvarlak saplı köprü raybası	Round shank bridge reamer
+27111956	Perdah aleti	Burnisher
+27111957	Nozul temizleyici	Nozzle cleaner
+27111958	El lepleme aleti	Hand lapper
+27112025	Kısa saplı çapa	Short handled hoe
+27112026	Sap kaması	Handle wedge
+27112028	Ağaç kabuk soyucu	Tree debarker
+27112030	Budama bıçağı	Billhook
+27112032	Keser	Adze
+27112034	Kök kesici	Root cutter
+27112035	Çit budama makinesi	Hedge trimmer
+27112037	Çalı kesici tırpan	Brush cutter
+27112039	Uzun saplı budama makası	Lopper
+27112040	Toprak sondası	Soil probe
+27112041	Aşı bıçağı	Grafting knife
+27112042	Ağaç çapı ölçer	Tree caliper
+27112043	Ağaç teşhis cihazı (rezistograf)	Tree diagnostic tool or resistograph
+27112044	Ağaç gövde enjeksiyon seti	Tree trunk Injection set
+27112045	Çim kesme makinesi	Sod cutter
+27112046	Çim süpürme makinesi	Turf sweeper
+27112047	Yüksek dal makası	High branch shears
+27112138	Manuel boru doğrultucu	Manual pipe straightener
+27112139	Kombine pense	Combination pliers
+27112140	Segman pensesi	Circlip pliers
+27112141	Cam pensesi	Glass pliers
+27112142	Çok amaçlı pense	Multi tool pliers
+27112143	Fayans kesme pensesi	Tile cutting pliers
+27112144	Çıtçıt pensesi	Snap pliers
+27112145	Ayarlı pense	Slip joint pliers
+27112146	Döner tabanlı mengene	Swivel base vise
+27112147	Sıkma pensesi	Crimping pliers
+27112148	Elektronik pense	Electronics pliers
