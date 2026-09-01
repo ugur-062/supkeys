@@ -1558,3 +1558,418 @@
 31171544	Yastık blok yatak	Plummer block bearing
 31171545	Rulman kapağı	Bearing cover
 31171546	Çift yönlü yatak	Reversible bearing
+31171547	Silindirik rulman	Cylindrical bearing
+31171548	Rulman söküm kovanı	Bearing withdrawal sleeve
+31171549	Taşlı yatak	Jewel bearing
+31171550	Kombine bilyalı-makaralı rulman	Combined ball roller bearing
+31171551	Yağsız yatak	Oilless bearing
+31171552	Eksenel bilyalı rulman	Thrust ball bearing
+31171553	Eksenel makaralı rulman	Thrust roller bearing
+31171554	Kılavuz yatak	Guide bearing
+31171555	Makaralı rulman adaptör takımı	Roller bearing adapter assembly
+31171556	Yüksek performanslı insert rulman	High performance insert bearing
+31171557	Kaymalı yatak burcu	Journal bearing bushing
+31171558	Doğrusal ve dönel hareket makarası	Linear and rotary motion roller
+31171559	Makaralı rulman kilit plakası	Lock plate for roller bearing
+31171560	Makaralı rulman kilitleme segmanı	Locking snap ring for roller bearing
+31171561	Makaralı rulman adaptör kovanı	Adapter sleeve for roller bearing
+31171562	Setuskurlu insert rulman	Insert bearing with set screw locking
+31171563	Eksantrik kilit bilezikli insert rulman	Insert bearing with eccentric locking collar
+31171564	Standart iç bilezikli insert rulman	Insert bearing with standard inner ring
+31171607	Aşınma burcu	Wear bushing
+31171608	İşlenmemiş burç	Bushing blank
+31171609	Burç kovanı	Bushing sleeve
+31171610	Soğuk dövme burç	Cold headed bushing
+31171715	Silindirik dişli	Cylindrical gear
+31171716	Ok dişli (herringbone)	Herringbone gear
+31171717	Yüksek devirli yatay redüktör	Highspeed horizontal gearbox
+31171718	Planet dişli redüktör	Epicyclic gearbox
+31171719	Dik açılı redüktör	Right angle gearbox
+31171720	Turbo paralel mil dişlisi	Turbo parallel shaft gear
+31171721	Tahrik sistemi dişlisi	Propulsion system gear
+31171902	Mühendislik zinciri dişlisi	Engineering chain sprocket
+31171903	Konveyör zinciri dişlisi	Conveying chain sprocket
+31171904	Sessiz zincir dişlisi	Silent chain sprocket
+31171905	Zincir çarkı	Chain wheel
+31181704	Salmastra kutusu	Stuffing box
+31181705	Keçe destek halkası	Seal backup ring
+31181801	Otomotiv vites kolu körüğü	Automotive transmission shift lever boot
+31181802	Buji kablosu başlığı	Ignition boot
+31191520	Zımpara yıldızı	Abrasive star
+31191521	Zımpara fırçası	Abrasive brush
+31201530	Alüminyum folyo bant	Aluminum foil tape
+31201531	Polietilen bant	Polyethylene tape
+31201532	Polivinil klorür (PVC) bant	Polyvinyl chloride PVC tape
+31201533	Kurşun folyo bant	Lead foil tape
+31201534	Kauçuk bant	Rubber tape
+31201535	Kablo ek bandı	Cable splicing tape
+31201536	Polietilen keçe bant	Polyethylene fleece tape
+31201537	Yırtma bandı	Tear tape
+31201538	Fosforlu (fotolüminesan) bant	Photoluminescent tape
+31201618	Alçıpan derz dolgusu	Drywall joint compound
+31201619	Hızlı yapıştırıcı	Instant adhesive
+31201620	Reaktif yapıştırıcı	Reactive adhesive
+31201621	Sprey yapıştırıcı	Aerosol adhesive
+31201622	Çok amaçlı yapıştırıcı	Multi purpose adhesive
+31201623	Kontak yapıştırıcı	Contact adhesive
+31201624	Montaj yapıştırıcısı	Mounting adhesive
+31201625	Macun astarı	Putty primer
+31201626	Basınca duyarlı yapıştırıcı (PSA)	Pressure sensitive adhesive PSA
+31201627	Anaerobik yapıştırıcı	Anaerobic adhesive
+31201632	Silikon yapıştırıcı	Silicone adhesive
+31201633	Florokarbon yapıştırıcı	Fluorocarbon adhesive
+31201634	Akrilik anaerobik yapıştırıcı	Acrylic anerobic adhesive
+31201635	Poliüretan yapıştırıcı	Polyurethane adhesive
+31201636	Siyanoakrilat yapıştırıcı	Cyanoacrylate adhesive
+31201637	Haberleşme için köpük tipi su tutucu malzeme	Foam type water stop material for communication
+31201638	Vida kilitleme bileşikleri	Thread locking compounds
+31201701	Vida sızdırmazlık maddesi	Thread sealant
+31201702	Emprenye sızdırmazlık maddesi	Impregnation sealant
+31201703	Silikon kapsülleme	Silicone encapsulation
+31201704	Köpük dolgu	Foam sealant
+31201705	Sızdırmazlık bileşiği	Sealing compound
+31201706	Mühür mumu	Sealing wax
+31201707	Silikon koruyucu kaplama	Silicone conformal coating
+31201708	Akrilik koruyucu kaplama	Acrylic conformal coating
+31201709	Poliüretan koruyucu kaplama	Polyurethane conformal coating
+31201710	Epoksi koruyucu kaplama	Epoxy conformal coating
+31201711	Parilen koruyucu kaplama	Parylene conformal coating
+31201712	Silikon mastik	Silicone sealant
+31201713	Poliüretan mastik	Polyurethane sealant
+31211513	İşaretleme boyası	Marking paint
+31211514	Soğuk galvaniz bileşiği	Cold galvanizing compound
+31211515	Solvent bazlı boya	Solvent based paint
+31211516	Fırın boyası	Baked finish paint
+31211517	Desenli bitiş boyası	Pattern finish paint
+31211518	Pas önleyici boya	Anti rust paint
+31211519	Alüminyum boya	Aluminum paint
+31211520	Zehirli boya (antifouling)	Antifouling paint
+31211521	Hazır karışım boya	Ready mixed paint
+31211522	Ağır hizmet kaplama	Heavy duty coating
+31211523	Yüksek sıcaklık boyası	High temperature paint
+31211524	Gesso (astar dolgu)	Gesso
+31211525	Alkid reçineli boya	Alkyd resin paint
+31211526	Epoksi astar boya	Epoxy primer paint
+31211607	Ultraviyole engelleyici	Ultraviolet inhibitor
+31211709	Bitirme vernik tonu	Finishing stain toner
+31211919	Sünger aplikatör	Foam applicator
+31231120	Gümüş çelik işlenmiş çubuk	Silver steel machined bar stock
+31241706	Düz ayna	Flat mirror
+31241808	Dikroik filtre	Dichroic filter
+31241809	Lyot filtresi	Lyot filter
+31241810	Jelatin filtre	Gelatin filter
+31241811	Renk filtresi	Color filter
+31241812	Polarize filtre	Polarizing filter
+31241813	Yansıma filtresi	Reflection filter
+31241814	Emme filtresi	Suction filter
+31241815	Girişim filtresi	Interference filter
+31242107	Optik test tablası	Optical test board
+31251512	Otomotiv iklimlendirme aktüatörü	Automotive HVAC actuator
+31251513	Savak kapağı aktüatörü	Sluice gate actuator
+31251514	Uçak elektromekanik aktüatörü	Aircraft electromechanical actuator
+31251515	Aktüatör seti	Actuator kit
+31251516	Anahtar aktüatörü	Switch actuator
+31261506	Termostat gövdesi	Thermostat housing
+31261705	Akustik perde mahfazası	Acoustic screen enclosure
+31261706	Gürültü bastırma paneli	Noise suppression panel
+31261707	İklimlendirme ses susturucusu	HVAC sound attenuator
+31281522	Berilyum bakır ıstampa bileşeni	Beryllium copper stamped component
+31281523	Kalay kaplı bakır ıstampa bileşeni	Tin plated copper stamped component
+31281524	Alüminyum SAE 1000 serisi ıstampa bileşeni	Aluminum SAE series 1000 stamped component
+31281525	Alüminyum SAE 3000 serisi ıstampa bileşeni	Aluminum SAE series 3000 stamped component
+31281526	Alüminyum SAE 5000 serisi ıstampa bileşeni	Aluminum SAE series 5000 stamped component
+31281527	Alüminyum SAE 6000 serisi ıstampa bileşeni	Aluminum SAE series 6000 stamped component
+31281528	Inconel ıstampa bileşeni	Inconel stamped component
+31281529	Karbon çeliği SAE 1000 soğuk haddelenmiş kalay kaplı ıstampa bileşeni	Carbon steel SAE series 1000 cold rolled tin coated stamped component
+31281530	Karbon çeliği SAE 1000 sıcak haddelenmiş ıstampa bileşeni	Carbon steel SAE series 1000 hot rolled stamped component
+31281531	Alaşımlı çelik sıcak haddelenmiş ıstampa bileşeni	Steel alloy hot rolled stamped component
+31281532	Karbon çeliği SAE 1000 soğuk haddelenmiş ıstampa bileşeni	Carbon steel SAE series 1000 cold rolled stamped component
+31281533	Paslanmaz çelik SAE 200 soğuk haddelenmiş ıstampa bileşeni	Stainless steel SAE series 200 cold rolled stamped component
+31281534	Paslanmaz çelik SAE 300 soğuk haddelenmiş ıstampa bileşeni	Stainless steel SAE series 300 cold rolled stamped component
+31281535	Paslanmaz çelik SAE 400 soğuk haddelenmiş ıstampa bileşeni	Stainless steel SAE series 400 cold rolled stamped component
+31281536	Alaşımlı çelik soğuk haddelenmiş ıstampa bileşeni	Steel alloy cold rolled stamped component
+31281537	Karbon çeliği SAE 1000 soğuk haddelenmiş sıcak daldırma galvanizli ıstampa bileşeni	Carbon steel SAE series 1000 cold rolled hot dip galvanized stamped component
+31281538	Karbon çeliği SAE 1000 elektro galvanizli soğuk haddelenmiş ıstampa bileşeni	Carbon steel SAE series 1000 electro galvanized cold rolled stamped component
+31331614	Jacket (deniz platformu) yapısı	Jacket structure
+31331615	Monotower alt yapısı	Monotower substructure
+31371108	Şamot tuğla	Fire clay brick
+31371210	Yüksek alüminalı dökülebilir refrakter	High alumina castable
+31371211	Şamot dökülebilir refrakter	Fire clay castable
+31371212	Özel hizmet dökülebilir refrakteri	Special service castable
+
+# Mıknatıs bloğu — kural tabanlı üretildi + denetlendi.
+31381101	Döküm işlenmiş izotropik ferrit mıknatıs	Cast machined isotropic ferrite magnet
+31381102	Döküm işlenmiş izotropik baryum ferrit mıknatıs	Cast machined isotropic barium ferrite magnet
+31381103	Döküm işlenmiş izotropik stronsiyum ferrit mıknatıs	Cast machined isotropic strontium ferrite magnet
+31381104	Döküm işlenmiş izotropik neodim mıknatıs	Cast machined isotropic neodymium magnet
+31381105	Döküm işlenmiş izotropik samaryum kobalt mıknatıs	Cast machined isotropic samarium cobalt magnet
+31381106	Döküm işlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast machined isotropic ferrous aluminum nickel cobalt magnet
+31381107	Döküm işlenmiş anizotropik ferrit mıknatıs	Cast machined anisotropic ferrite magnet
+31381108	Döküm işlenmiş anizotropik baryum ferrit mıknatıs	Cast machined anisotropic barium ferrite magnet
+31381109	Döküm işlenmiş anizotropik stronsiyum ferrit mıknatıs	Cast machined anisotropic strontium ferrite magnet
+31381110	Döküm işlenmiş anizotropik samaryum kobalt mıknatıs	Cast machined anisotropic samarium cobalt magnet
+31381111	Döküm işlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast machined anisotropic ferrous aluminum nickel cobalt magnet
+31381112	Döküm işlenmiş ve kaplamalı izotropik ferrit mıknatıs	Cast machined and coated isotropic ferrite magnet
+31381113	Döküm işlenmiş ve kaplamalı izotropik baryum ferrit mıknatıs	Cast machined and coated isotropic barium ferrite magnet
+31381114	Döküm işlenmiş ve kaplamalı izotropik stronsiyum ferrit mıknatıs	Cast machined and coated isotropic strontium ferrite magnet
+31381115	Döküm işlenmiş ve kaplamalı izotropik neodim mıknatıs	Cast machined and coated isotropic neodymium magnet
+31381116	Döküm işlenmiş ve kaplamalı izotropik samaryum kobalt mıknatıs	Cast machined and coated isotropic samarium cobalt magnet
+31381117	Döküm işlenmiş ve kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast machined and coated isotropic ferrous aluminum nickel cobalt magnet
+31381118	Döküm işlenmiş ve kaplamalı anizotropik ferrit mıknatıs	Cast machined and coated anisotropic ferrite magnet
+31381119	Döküm işlenmiş ve kaplamalı anizotropik baryum ferrit mıknatıs	Cast machined and coated anisotropic barium ferrite magnet
+31381120	Döküm işlenmiş ve kaplamalı anizotropik stronsiyum ferrit mıknatıs	Cast machined and coated anisotropic strontium ferrite magnet
+31381121	Döküm işlenmiş ve kaplamalı anizotropik samaryum kobalt mıknatıs	Cast machined and coated anisotropic samarium cobalt magnet
+31381122	Döküm işlenmiş ve kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast machined and coated anisotropic ferrous aluminum nickel cobalt magnet
+31381123	Döküm kaplamalı izotropik ferrit mıknatıs	Cast coated isotropic ferrite magnet
+31381124	Döküm kaplamalı izotropik baryum ferrit mıknatıs	Cast coated isotropic barium ferrite magnet
+31381125	Döküm kaplamalı izotropik stronsiyum ferrit mıknatıs	Cast coated isotropic strontium ferrite magnet
+31381126	Döküm kaplamalı izotropik neodim mıknatıs	Cast coated isotropic neodymium magnet
+31381127	Döküm kaplamalı izotropik samaryum kobalt mıknatıs	Cast coated isotropic samarium cobalt magnet
+31381128	Döküm kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast coated isotropic ferrous aluminum nickel cobalt magnet
+31381129	Döküm kaplamalı anizotropik ferrit mıknatıs	Cast coated anisotropic ferrite magnet
+31381130	Döküm kaplamalı anizotropik baryum ferrit mıknatıs	Cast coated anisotropic barium ferrite magnet
+31381131	Döküm kaplamalı anizotropik stronsiyum ferrit mıknatıs	Cast coated anisotropic strontium ferrite magnet
+31381132	Döküm kaplamalı anizotropik samaryum kobalt mıknatıs	Cast coated anisotropic samarium cobalt magnet
+31381133	Döküm kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast coated anisotropic ferrous aluminum nickel cobalt magnet
+31381134	Döküm kalıptan çıkma izotropik ferrit mıknatıs	Cast off tool isotropic ferrite magnet
+31381135	Döküm kalıptan çıkma izotropik baryum ferrit mıknatıs	Cast off tool isotropic barium ferrite magnet
+31381136	Döküm kalıptan çıkma izotropik stronsiyum ferrit mıknatıs	Cast off tool isotropic strontium ferrite magnet
+31381137	Döküm kalıptan çıkma izotropik neodim mıknatıs	Cast off tool isotropic neodymium magnet
+31381138	Döküm kalıptan çıkma izotropik samaryum kobalt mıknatıs	Cast off tool isotropic samarium cobalt magnet
+31381139	Döküm kalıptan çıkma izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast off tool isotropic ferrous aluminum nickel cobalt magnet
+31381140	Döküm kalıptan çıkma anizotropik ferrit mıknatıs	Cast off tool anisotropic ferrite magnet
+31381141	Döküm kalıptan çıkma anizotropik baryum ferrit mıknatıs	Cast off tool anisotropic barium ferrite magnet
+31381142	Döküm kalıptan çıkma anizotropik stronsiyum ferrit mıknatıs	Cast off tool anisotropic strontium ferrite magnet
+31381143	Döküm kalıptan çıkma anizotropik samaryum kobalt mıknatıs	Cast off tool anisotropic samarium cobalt magnet
+31381144	Döküm kalıptan çıkma anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Cast off tool anisotropic ferrous aluminum nickel cobalt magnet
+31381145	Döküm izotropik ferrit mıknatıs montajı	Castisotropic ferrite magnet assembly
+31381146	Döküm izotropik baryum ferrit mıknatıs montajı	Castisotropic barium ferrite magnet assembly
+31381147	Döküm izotropik stronsiyum ferrit mıknatıs montajı	Castisotropic strontium ferrite magnet assembly
+31381148	Döküm izotropik neodim mıknatıs montajı	Castisotropic neodymium magnet assembly
+31381149	Döküm izotropik samaryum kobalt mıknatıs montajı	Castisotropic samarium cobalt magnet assembly
+31381150	Döküm izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Castisotropic ferrous aluminum nickel cobalt magnet assembly
+31381151	Döküm anizotropik ferrit mıknatıs montajı	Castanisotropic ferrite magnet assembly
+31381152	Döküm anizotropik baryum ferrit mıknatıs montajı	Castanisotropic barium ferrite magnet assembly
+31381153	Döküm anizotropik stronsiyum ferrit mıknatıs montajı	Castanisotropic strontium ferrite magnet assembly
+31381154	Döküm anizotropik samaryum kobalt mıknatıs montajı	Castanisotropic samarium cobalt magnet assembly
+31381155	Döküm anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Castanisotropic ferrous aluminum nickel cobalt magnet assembly
+31381201	Sinterlenmiş işlenmiş izotropik ferrit mıknatıs	Sintered machined isotropic ferrite magnet
+31381202	Sinterlenmiş işlenmiş izotropik baryum ferrit mıknatıs	Sintered machined isotropic barium ferrite magnet
+31381203	Sinterlenmiş işlenmiş izotropik stronsiyum ferrit mıknatıs	Sintered machined isotropic strontium ferrite magnet
+31381204	Sinterlenmiş işlenmiş izotropik neodim mıknatıs	Sintered machined isotropic neodymium magnet
+31381205	Sinterlenmiş işlenmiş izotropik samaryum kobalt mıknatıs	Sintered machined isotropic samarium cobalt magnet
+31381206	Sinterlenmiş işlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered machined isotropic ferrous aluminum nickel cobalt magnet
+31381207	Sinterlenmiş işlenmiş anizotropik ferrit mıknatıs	Sintered machined anisotropic ferrite magnet
+31381208	Sinterlenmiş işlenmiş anizotropik baryum ferrit mıknatıs	Sintered machined anisotropic barium ferrite magnet
+31381209	Sinterlenmiş işlenmiş anizotropik stronsiyum ferrit mıknatıs	Sintered machined anisotropic strontium ferrite magnet
+31381210	Sinterlenmiş işlenmiş anizotropik samaryum kobalt mıknatıs	Sintered machined anisotropic samarium cobalt magnet
+31381211	Sinterlenmiş işlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered machined anisotropic ferrous aluminum nickel cobalt magnet
+31381212	Sinterlenmiş işlenmiş ve kaplamalı izotropik ferrit mıknatıs	Sintered machined and coated isotropic ferrite magnet
+31381213	Sinterlenmiş işlenmiş ve kaplamalı izotropik baryum ferrit mıknatıs	Sintered machined and coated isotropic barium ferrite magnet
+31381214	Sinterlenmiş işlenmiş ve kaplamalı izotropik stronsiyum ferrit mıknatıs	Sintered machined and coated isotropic strontium ferrite magnet
+31381215	Sinterlenmiş işlenmiş ve kaplamalı izotropik neodim mıknatıs	Sintered machined and coated isotropic neodymium magnet
+31381216	Sinterlenmiş işlenmiş ve kaplamalı izotropik samaryum kobalt mıknatıs	Sintered machined and coated isotropic samarium cobalt magnet
+31381217	Sinterlenmiş işlenmiş ve kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered machined and coated isotropic ferrous aluminum nickel cobalt magnet
+31381218	Sinterlenmiş işlenmiş ve kaplamalı anizotropik ferrit mıknatıs	Sintered machined and coated anisotropic ferrite magnet
+31381219	Sinterlenmiş işlenmiş ve kaplamalı anizotropik baryum ferrit mıknatıs	Sintered machined and coated anisotropic barium ferrite magnet
+31381220	Sinterlenmiş işlenmiş ve kaplamalı anizotropik stronsiyum ferrit mıknatıs	Sintered machined and coated anisotropic strontium ferrite magnet
+31381221	Sinterlenmiş işlenmiş ve kaplamalı anizotropik samaryum kobalt mıknatıs	Sintered machined and coated anisotropic samarium cobalt magnet
+31381222	Sinterlenmiş işlenmiş ve kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered machined and coated anisotropic ferrous aluminum nickel cobalt magnet
+31381223	Sinterlenmiş kaplamalı izotropik ferrit mıknatıs	Sintered coated isotropic ferrite magnet
+31381224	Sinterlenmiş kaplamalı izotropik baryum ferrit mıknatıs	Sintered coated isotropic barium ferrite magnet
+31381225	Sinterlenmiş kaplamalı izotropik stronsiyum ferrit mıknatıs	Sintered coated isotropic strontium ferrite magnet
+31381226	Sinterlenmiş kaplamalı izotropik neodim mıknatıs	Sintered coated isotropic neodymium magnet
+31381227	Sinterlenmiş kaplamalı izotropik samaryum kobalt mıknatıs	Sintered coated isotropic samarium cobalt magnet
+31381228	Sinterlenmiş kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered coated isotropic ferrous aluminum nickel cobalt magnet
+31381229	Sinterlenmiş kaplamalı anizotropik ferrit mıknatıs	Sintered coated anisotropic ferrite magnet
+31381230	Sinterlenmiş kaplamalı anizotropik baryum ferrit mıknatıs	Sintered coated anisotropic barium ferrite magnet
+31381231	Sinterlenmiş kaplamalı anizotropik stronsiyum ferrit mıknatıs	Sintered coated anisotropic strontium ferrite magnet
+31381232	Sinterlenmiş kaplamalı anizotropik samaryum kobalt mıknatıs	Sintered coated anisotropic samarium cobalt magnet
+31381233	Sinterlenmiş kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered coated anisotropic ferrous aluminum nickel cobalt magnet
+31381234	Sinterlenmiş kalıptan çıkma izotropik ferrit mıknatıs	Sintered off tool isotropic ferrite magnet
+31381235	Sinterlenmiş kalıptan çıkma izotropik baryum ferrit mıknatıs	Sintered off tool isotropic barium ferrite magnet
+31381236	Sinterlenmiş kalıptan çıkma izotropik stronsiyum ferrit mıknatıs	Sintered off tool isotropic strontium ferrite magnet
+31381237	Sinterlenmiş kalıptan çıkma izotropik neodim mıknatıs	Sintered off tool isotropic neodymium magnet
+31381238	Sinterlenmiş kalıptan çıkma izotropik samaryum kobalt mıknatıs	Sintered off tool isotropic samarium cobalt magnet
+31381239	Sinterlenmiş kalıptan çıkma izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered off tool isotropic ferrous aluminum nickel cobalt magnet
+31381240	Sinterlenmiş kalıptan çıkma anizotropik ferrit mıknatıs	Sintered off tool anisotropic ferrite magnet
+31381241	Sinterlenmiş kalıptan çıkma anizotropik baryum ferrit mıknatıs	Sintered off tool anisotropic barium ferrite magnet
+31381242	Sinterlenmiş kalıptan çıkma anizotropik stronsiyum ferrit mıknatıs	Sintered off tool anisotropic strontium ferrite magnet
+31381243	Sinterlenmiş kalıptan çıkma anizotropik samaryum kobalt mıknatıs	Sintered off tool anisotropic samarium cobalt magnet
+31381244	Sinterlenmiş kalıptan çıkma anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Sintered off tool anisotropic ferrous aluminum nickel cobalt magnet
+31381245	Sinterlenmiş izotropik ferrit mıknatıs montajı	Sinteredisotropic ferrite magnet assembly
+31381246	Sinterlenmiş izotropik baryum ferrit mıknatıs montajı	Sinteredisotropic barium ferrite magnet assembly
+31381247	Sinterlenmiş izotropik stronsiyum ferrit mıknatıs montajı	Sinteredisotropic strontium ferrite magnet assembly
+31381248	Sinterlenmiş izotropik neodim mıknatıs montajı	Sinteredisotropic neodymium magnet assembly
+31381249	Sinterlenmiş izotropik samaryum kobalt mıknatıs montajı	Sinteredisotropic samarium cobalt magnet assembly
+31381250	Sinterlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Sinteredisotropic ferrous aluminum nickel cobalt magnet assembly
+31381251	Sinterlenmiş anizotropik ferrit mıknatıs montajı	Sinteredanisotropic ferrite magnet assembly
+31381252	Sinterlenmiş anizotropik baryum ferrit mıknatıs montajı	Sinteredanisotropic barium ferrite magnet assembly
+31381253	Sinterlenmiş anizotropik stronsiyum ferrit mıknatıs montajı	Sinteredanisotropic strontium ferrite magnet assembly
+31381254	Sinterlenmiş anizotropik samaryum kobalt mıknatıs montajı	Sinteredanisotropic samarium cobalt magnet assembly
+31381255	Sinterlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Sinteredanisotropic ferrous aluminum nickel cobalt magnet assembly
+31381301	Preslenmiş sinterlenmiş ve işlenmiş izotropik ferrit mıknatıs	Pressed sintered and machined isotropic ferrite magnet
+31381302	Preslenmiş sinterlenmiş ve işlenmiş izotropik baryum ferrit mıknatıs	Pressed sintered and machined isotropic barium ferrite magnet
+31381303	Preslenmiş sinterlenmiş ve işlenmiş izotropik stronsiyum ferrit mıknatıs	Pressed sintered and machined isotropic strontium ferrite magnet
+31381304	Preslenmiş sinterlenmiş ve işlenmiş izotropik neodim mıknatıs	Pressed sintered and machined isotropic neodymium magnet
+31381305	Preslenmiş sinterlenmiş ve işlenmiş izotropik samaryum kobalt mıknatıs	Pressed sintered and machined isotropic samarium cobalt magnet
+31381306	Preslenmiş sinterlenmiş ve işlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed sintered and machined isotropic ferrous aluminum nickel cobalt magnet
+31381307	Preslenmiş sinterlenmiş ve işlenmiş anizotropik ferrit mıknatıs	Pressed sintered and machined anisotropic ferrite magnet
+31381308	Preslenmiş sinterlenmiş ve işlenmiş anizotropik baryum ferrit mıknatıs	Pressed sintered and machined anisotropic barium ferrite magnet
+31381309	Preslenmiş sinterlenmiş ve işlenmiş anizotropik stronsiyum ferrit mıknatıs	Pressed sintered and machined anisotropic strontium ferrite magnet
+31381310	Preslenmiş sinterlenmiş ve işlenmiş anizotropik samaryum kobalt mıknatıs	Pressed sintered and machined anisotropic samarium cobalt magnet
+31381311	Preslenmiş sinterlenmiş ve işlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed sintered and machined anisotropic ferrous aluminum nickel cobalt magnet
+31381312	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı izotropik ferrit mıknatıs	Pressed sintered and machined and coated isotropic ferrite magnet
+31381313	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı izotropik baryum ferrit mıknatıs	Pressed sintered and machined and coated isotropic barium ferrite magnet
+31381314	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı izotropik stronsiyum ferrit mıknatıs	Pressed sintered and machined and coated isotropic strontium ferrite magnet
+31381315	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı izotropik neodim mıknatıs	Pressed sintered and machined and coated isotropic neodymium magnet
+31381316	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı izotropik samaryum kobalt mıknatıs	Pressed sintered and machined and coated isotropic samarium cobalt magnet
+31381317	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed sintered and machined and coated isotropic ferrous aluminum nickel cobalt magnet
+31381318	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı anizotropik ferrit mıknatıs	Pressed sintered and machined and coated anisotropic ferrite magnet
+31381319	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı anizotropik baryum ferrit mıknatıs	Pressed sintered and machined and coated anisotropic barium ferrite magnet
+31381320	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı anizotropik stronsiyum ferrit mıknatıs	Pressed sintered and machined and coated anisotropic strontium ferrite magnet
+31381321	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı anizotropik samaryum kobalt mıknatıs	Pressed sintered and machined and coated anisotropic samarium cobalt magnet
+31381322	Preslenmiş sinterlenmiş ve işlenmiş ve kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed sintered and machined and coated anisotropic ferrous aluminum nickel cobalt magnet
+31381323	Preslenmiş sinterlenmiş ve kaplamalı izotropik ferrit mıknatıs	Pressed sintered and coated isotropic ferrite magnet
+31381324	Preslenmiş sinterlenmiş ve kaplamalı izotropik baryum ferrit mıknatıs	Pressed sintered and coated isotropic barium ferrite magnet
+31381325	Preslenmiş sinterlenmiş ve kaplamalı izotropik stronsiyum ferrit mıknatıs	Pressed sintered and coated isotropic strontium ferrite magnet
+31381326	Preslenmiş sinterlenmiş ve kaplamalı izotropik neodim mıknatıs	Pressed sintered and coated isotropic neodymium magnet
+31381327	Preslenmiş sinterlenmiş ve kaplamalı izotropik samaryum kobalt mıknatıs	Pressed sintered and coated isotropic samarium cobalt magnet
+31381328	Preslenmiş sinterlenmiş ve kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed sintered and coated isotropic ferrous aluminum nickel cobalt magnet
+31381329	Preslenmiş sinterlenmiş ve kaplamalı anizotropik ferrit mıknatıs	Pressed sintered and coated anisotropic ferrite magnet
+31381330	Preslenmiş sinterlenmiş ve kaplamalı anizotropik baryum ferrit mıknatıs	Pressed sintered and coated anisotropic barium ferrite magnet
+31381331	Preslenmiş sinterlenmiş ve kaplamalı anizotropik stronsiyum ferrit mıknatıs	Pressed sintered and coated anisotropic strontium ferrite magnet
+31381332	Preslenmiş sinterlenmiş ve kaplamalı anizotropik samaryum kobalt mıknatıs	Pressed sintered and coated anisotropic samarium cobalt magnet
+31381333	Preslenmiş sinterlenmiş ve kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed sintered and coated anisotropic ferrous aluminum nickel cobalt magnet
+31381334	Preslenmiş ve sinterlenmiş kalıptan çıkma izotropik ferrit mıknatıs	Pressed and sintered off tool isotropic ferrite magnet
+31381335	Preslenmiş ve sinterlenmiş kalıptan çıkma izotropik baryum ferrit mıknatıs	Pressed and sintered off tool isotropic barium ferrite magnet
+31381336	Preslenmiş ve sinterlenmiş kalıptan çıkma izotropik stronsiyum ferrit mıknatıs	Pressed and sintered off tool isotropic strontium ferrite magnet
+31381337	Preslenmiş ve sinterlenmiş kalıptan çıkma izotropik neodim mıknatıs	Pressed and sintered off tool isotropic neodymium magnet
+31381338	Preslenmiş ve sinterlenmiş kalıptan çıkma izotropik samaryum kobalt mıknatıs	Pressed and sintered off tool isotropic samarium cobalt magnet
+31381339	Preslenmiş ve sinterlenmiş kalıptan çıkma izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed and sintered off tool isotropic ferrous aluminum nickel cobalt magnet
+31381340	Preslenmiş ve sinterlenmiş kalıptan çıkma anizotropik ferrit mıknatıs	Pressed and sintered off tool anisotropic ferrite magnet
+31381341	Preslenmiş ve sinterlenmiş kalıptan çıkma anizotropik baryum ferrit mıknatıs	Pressed and sintered off tool anisotropic barium ferrite magnet
+31381342	Preslenmiş ve sinterlenmiş kalıptan çıkma anizotropik stronsiyum ferrit mıknatıs	Pressed and sintered off tool anisotropic strontium ferrite magnet
+31381343	Preslenmiş ve sinterlenmiş kalıptan çıkma anizotropik samaryum kobalt mıknatıs	Pressed and sintered off tool anisotropic samarium cobalt magnet
+31381344	Preslenmiş ve sinterlenmiş kalıptan çıkma anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Pressed and sintered off tool anisotropic ferrous aluminum nickel cobalt magnet
+31381345	Preslenmiş ve sinterlenmiş izotropik ferrit mıknatıs montajı	Pressed and sintered isotropic ferrite magnet assembly
+31381346	Preslenmiş ve sinterlenmiş izotropik baryum ferrit mıknatıs montajı	Pressed and sintered isotropic barium ferrite magnet assembly
+31381347	Preslenmiş ve sinterlenmiş izotropik stronsiyum ferrit mıknatıs montajı	Pressed and sintered isotropic strontium ferrite magnet assembly
+31381348	Preslenmiş ve sinterlenmiş izotropik neodim mıknatıs montajı	Pressed and sintered isotropic neodymium magnet assembly
+31381349	Preslenmiş ve sinterlenmiş izotropik samaryum kobalt mıknatıs montajı	Pressed and sintered isotropic samarium cobalt magnet assembly
+31381350	Preslenmiş ve sinterlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Pressed and sintered isotropic ferrous aluminum nickel cobalt magnet assembly
+31381351	Preslenmiş ve sinterlenmiş anizotropik ferrit mıknatıs montajı	Pressed and sintered anisotropic ferrite magnet assembly
+31381352	Preslenmiş ve sinterlenmiş anizotropik baryum ferrit mıknatıs montajı	Pressed and sintered anisotropic barium ferrite magnet assembly
+31381353	Preslenmiş ve sinterlenmiş anizotropik stronsiyum ferrit mıknatıs montajı	Pressed and sintered anisotropic strontium ferrite magnet assembly
+31381354	Preslenmiş ve sinterlenmiş anizotropik samaryum kobalt mıknatıs montajı	Pressed and sintered anisotropic samarium cobalt magnet assembly
+31381355	Preslenmiş ve sinterlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Pressed and sintered anisotropic ferrous aluminum nickel cobalt magnet assembly
+31381401	Plastik bağlı işlenmiş izotropik ferrit mıknatıs	Plastic bonded machined isotropic ferrite magnet
+31381402	Plastik bağlı işlenmiş izotropik baryum ferrit mıknatıs	Plastic bonded machined isotropic barium ferrite magnet
+31381403	Plastik bağlı işlenmiş izotropik stronsiyum ferrit mıknatıs	Plastic bonded machined isotropic strontium ferrite magnet
+31381404	Plastik bağlı işlenmiş izotropik neodim mıknatıs	Plastic bonded machined isotropic neodymium magnet
+31381405	Plastik bağlı işlenmiş izotropik samaryum kobalt mıknatıs	Plastic bonded machined isotropic samarium cobalt magnet
+31381406	Plastik bağlı işlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded machined isotropic ferrous aluminum nickel cobalt magnet
+31381407	Plastik bağlı işlenmiş anizotropik ferrit mıknatıs	Plastic bonded machined anisotropic ferrite magnet
+31381408	Plastik bağlı işlenmiş anizotropik baryum ferrit mıknatıs	Plastic bonded machined anisotropic barium ferrite magnet
+31381409	Plastik bağlı işlenmiş anizotropik stronsiyum ferrit mıknatıs	Plastic bonded machined anisotropic strontium ferrite magnet
+31381410	Plastik bağlı işlenmiş anizotropik samaryum kobalt mıknatıs	Plastic bonded machined anisotropic samarium cobalt magnet
+31381411	Plastik bağlı işlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded machined anisotropic ferrous aluminum nickel cobalt magnet
+31381412	Plastik bağlı işlenmiş ve kaplamalı izotropik ferrit mıknatıs	Plastic bonded machined and coated isotropic ferrite magnet
+31381413	Plastik bağlı işlenmiş ve kaplamalı izotropik baryum ferrit mıknatıs	Plastic bonded machined and coated isotropic barium ferrite magnet
+31381414	Plastik bağlı işlenmiş ve kaplamalı izotropik stronsiyum ferrit mıknatıs	Plastic bonded machined and coated isotropic strontium ferrite magnet
+31381415	Plastik bağlı işlenmiş ve kaplamalı izotropik neodim mıknatıs	Plastic bonded machined and coated isotropic neodymium magnet
+31381416	Plastik bağlı işlenmiş ve kaplamalı izotropik samaryum kobalt mıknatıs	Plastic bonded machined and coated isotropic samarium cobalt magnet
+31381417	Plastik bağlı işlenmiş ve kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded machined and coated isotropic ferrous aluminum nickel cobalt magnet
+31381418	Plastik bağlı işlenmiş ve kaplamalı anizotropik ferrit mıknatıs	Plastic bonded machined and coated anisotropic ferrite magnet
+31381419	Plastik bağlı işlenmiş ve kaplamalı anizotropik baryum ferrit mıknatıs	Plastic bonded machined and coated anisotropic barium ferrite magnet
+31381420	Plastik bağlı işlenmiş ve kaplamalı anizotropik stronsiyum ferrit mıknatıs	Plastic bonded machined and coated anisotropic strontium ferrite magnet
+31381421	Plastik bağlı işlenmiş ve kaplamalı anizotropik samaryum kobalt mıknatıs	Plastic bonded machined and coated anisotropic samarium cobalt magnet
+31381422	Plastik bağlı işlenmiş ve kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded machined and coated anisotropic ferrous aluminum nickel cobalt magnet
+31381423	Plastik bağlı kaplamalı izotropik ferrit mıknatıs	Plastic bonded coated isotropic ferrite magnet
+31381424	Plastik bağlı kaplamalı izotropik baryum ferrit mıknatıs	Plastic bonded coated isotropic barium ferrite magnet
+31381425	Plastik bağlı kaplamalı izotropik stronsiyum ferrit mıknatıs	Plastic bonded coated isotropic strontium ferrite magnet
+31381426	Plastik bağlı kaplamalı izotropik neodim mıknatıs	Plastic bonded coated isotropic neodymium magnet
+31381427	Plastik bağlı kaplamalı izotropik samaryum kobalt mıknatıs	Plastic bonded coated isotropic samarium cobalt magnet
+31381428	Plastik bağlı kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded coated isotropic ferrous aluminum nickel cobalt magnet
+31381429	Plastik bağlı kaplamalı anizotropik ferrit mıknatıs	Plastic bonded coated anisotropic ferrite magnet
+31381430	Plastik bağlı kaplamalı anizotropik baryum ferrit mıknatıs	Plastic bonded coated anisotropic barium ferrite magnet
+31381431	Plastik bağlı kaplamalı anizotropik stronsiyum ferrit mıknatıs	Plastic bonded coated anisotropic strontium ferrite magnet
+31381432	Plastik bağlı kaplamalı anizotropik samaryum kobalt mıknatıs	Plastic bonded coated anisotropic samarium cobalt magnet
+31381433	Plastik bağlı kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded coated anisotropic ferrous aluminum nickel cobalt magnet
+31381434	Plastik bağlı kalıptan çıkma izotropik ferrit mıknatıs	Plastic bonded off tool isotropic ferrite magnet
+31381435	Plastik bağlı kalıptan çıkma izotropik baryum ferrit mıknatıs	Plastic bonded off tool isotropic barium ferrite magnet
+31381436	Plastik bağlı kalıptan çıkma izotropik stronsiyum ferrit mıknatıs	Plastic bonded off tool isotropic strontium ferrite magnet
+31381437	Plastik bağlı kalıptan çıkma izotropik neodim mıknatıs	Plastic bonded off tool isotropic neodymium magnet
+31381438	Plastik bağlı kalıptan çıkma izotropik samaryum kobalt mıknatıs	Plastic bonded off tool isotropic samarium cobalt magnet
+31381439	Plastik bağlı kalıptan çıkma izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded off tool isotropic ferrous aluminum nickel cobalt magnet
+31381440	Plastik bağlı kalıptan çıkma anizotropik ferrit mıknatıs	Plastic bonded off tool anisotropic ferrite magnet
+31381441	Plastik bağlı kalıptan çıkma anizotropik baryum ferrit mıknatıs	Plastic bonded off tool anisotropic barium ferrite magnet
+31381442	Plastik bağlı kalıptan çıkma anizotropik stronsiyum ferrit mıknatıs	Plastic bonded off tool anisotropic strontium ferrite magnet
+31381443	Plastik bağlı kalıptan çıkma anizotropik samaryum kobalt mıknatıs	Plastic bonded off tool anisotropic samarium cobalt magnet
+31381444	Plastik bağlı kalıptan çıkma anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded off tool anisotropic ferrous aluminum nickel cobalt magnet
+31381445	Plastik bağlı izotropik ferrit mıknatıs montajı	Plastic bonded isotropic ferrite magnet assembly
+31381446	Plastik bağlı izotropik baryum ferrit mıknatıs montajı	Plastic bonded isotropic barium ferrite magnet assembly
+31381447	Plastik bağlı izotropik stronsiyum ferrit mıknatıs montajı	Plastic bonded isotropic strontium ferrite magnet assembly
+31381448	Plastik bağlı izotropik neodim mıknatıs montajı	Plastic bonded isotropic neodymium magnet assembly
+31381449	Plastik bağlı izotropik samaryum kobalt mıknatıs montajı	Plastic bonded isotropic samarium cobalt magnet assembly
+31381450	Plastik bağlı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Plastic bonded isotropic ferrous aluminum nickel cobalt magnet assembly
+31381451	Plastik bağlı anizotropik ferrit mıknatıs montajı	Plastic bonded anisotropic ferrite magnet assembly
+31381452	Plastik bağlı anizotropik baryum ferrit mıknatıs montajı	Plastic bonded anisotropic barium ferrite magnet assembly
+31381453	Plastik bağlı anizotropik stronsiyum ferrit mıknatıs montajı	Plastic bonded anisotropic strontium ferrite magnet assembly
+31381454	Plastik bağlı anizotropik samaryum kobalt mıknatıs montajı	Plastic bonded anisotropic samarium cobalt magnet assembly
+31381455	Plastik bağlı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Plastic bonded anisotropic ferrous aluminum nickel cobalt magnet assembly
+31381501	Plastik bağlı enjeksiyon kalıplı işlenmiş izotropik ferrit mıknatıs	Plastic bonded injection molded machined isotropic ferrite magnet
+31381502	Plastik bağlı enjeksiyon kalıplı işlenmiş izotropik baryum ferrit mıknatıs	Plastic bonded injection molded machined isotropic barium ferrite magnet
+31381503	Plastik bağlı enjeksiyon kalıplı işlenmiş izotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded machined isotropic strontium ferrite magnet
+31381504	Plastik bağlı enjeksiyon kalıplı işlenmiş izotropik neodim mıknatıs	Plastic bonded injection molded machined isotropic neodymium magnet
+31381505	Plastik bağlı enjeksiyon kalıplı işlenmiş izotropik samaryum kobalt mıknatıs	Plastic bonded injection molded machined isotropic samarium cobalt magnet
+31381506	Plastik bağlı enjeksiyon kalıplı işlenmiş izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded machined isotropic ferrous aluminum nickel cobalt magnet
+31381507	Plastik bağlı enjeksiyon kalıplı işlenmiş anizotropik ferrit mıknatıs	Plastic bonded injection molded machined anisotropic ferrite magnet
+31381508	Plastik bağlı enjeksiyon kalıplı işlenmiş anizotropik baryum ferrit mıknatıs	Plastic bonded injection molded machined anisotropic barium ferrite magnet
+31381509	Plastik bağlı enjeksiyon kalıplı işlenmiş anizotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded machined anisotropic strontium ferrite magnet
+31381510	Plastik bağlı enjeksiyon kalıplı işlenmiş anizotropik samaryum kobalt mıknatıs	Plastic bonded injection molded machined anisotropic samarium cobalt magnet
+31381511	Plastik bağlı enjeksiyon kalıplı işlenmiş anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded machined anisotropic ferrous aluminum nickel cobalt magnet
+31381512	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı izotropik ferrit mıknatıs	Plastic bonded injection molded machined and coated isotropic ferrite magnet
+31381513	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı izotropik baryum ferrit mıknatıs	Plastic bonded injection molded machined and coated isotropic barium ferrite magnet
+31381514	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı izotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded machined and coated isotropic strontium ferrite magnet
+31381515	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı izotropik neodim mıknatıs	Plastic bonded injection molded machined and coated isotropic neodymium magnet
+31381516	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı izotropik samaryum kobalt mıknatıs	Plastic bonded injection molded machined and coated isotropic samarium cobalt magnet
+31381517	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded machined and coated isotropic ferrous aluminum nickel cobalt magnet
+31381518	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı anizotropik ferrit mıknatıs	Plastic bonded injection molded machined and coated anisotropic ferrite magnet
+31381519	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı anizotropik baryum ferrit mıknatıs	Plastic bonded injection molded machined and coated anisotropic barium ferrite magnet
+31381520	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı anizotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded machined and coated anisotropic strontium ferrite magnet
+31381521	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı anizotropik samaryum kobalt mıknatıs	Plastic bonded injection molded machined and coated anisotropic samarium cobalt magnet
+31381522	Plastik bağlı enjeksiyon kalıplı işlenmiş ve kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded machined and coated anisotropic ferrous aluminum nickel cobalt magnet
+31381523	Plastik bağlı enjeksiyon kalıplı kaplamalı izotropik ferrit mıknatıs	Plastic bonded injection molded coated isotropic ferrite magnet
+31381524	Plastik bağlı enjeksiyon kalıplı kaplamalı izotropik baryum ferrit mıknatıs	Plastic bonded injection molded coated isotropic barium ferrite magnet
+31381525	Plastik bağlı enjeksiyon kalıplı kaplamalı izotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded coated isotropic strontium ferrite magnet
+31381526	Plastik bağlı enjeksiyon kalıplı kaplamalı izotropik neodim mıknatıs	Plastic bonded injection molded coated isotropic neodymium magnet
+31381527	Plastik bağlı enjeksiyon kalıplı kaplamalı izotropik samaryum kobalt mıknatıs	Plastic bonded injection molded coated isotropic samarium cobalt magnet
+31381528	Plastik bağlı enjeksiyon kalıplı kaplamalı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded coated isotropic ferrous aluminum nickel cobalt magnet
+31381529	Plastik bağlı enjeksiyon kalıplı kaplamalı anizotropik ferrit mıknatıs	Plastic bonded injection molded coated anisotropic ferrite magnet
+31381530	Plastik bağlı enjeksiyon kalıplı kaplamalı anizotropik baryum ferrit mıknatıs	Plastic bonded injection molded coated anisotropic barium ferrite magnet
+31381531	Plastik bağlı enjeksiyon kalıplı kaplamalı anizotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded coated anisotropic strontium ferrite magnet
+31381532	Plastik bağlı enjeksiyon kalıplı kaplamalı anizotropik samaryum kobalt mıknatıs	Plastic bonded injection molded coated anisotropic samarium cobalt magnet
+31381533	Plastik bağlı enjeksiyon kalıplı kaplamalı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded coated anisotropic ferrous aluminum nickel cobalt magnet
+31381534	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma izotropik ferrit mıknatıs	Plastic bonded injection molded off tool isotropic ferrite magnet
+31381535	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma izotropik baryum ferrit mıknatıs	Plastic bonded injection molded off tool isotropic barium ferrite magnet
+31381536	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma izotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded off tool isotropic strontium ferrite magnet
+31381537	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma izotropik neodim mıknatıs	Plastic bonded injection molded off tool isotropic neodymium magnet
+31381538	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma izotropik samaryum kobalt mıknatıs	Plastic bonded injection molded off tool isotropic samarium cobalt magnet
+31381539	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded off tool isotropic ferrous aluminum nickel cobalt magnet
+31381540	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma anizotropik ferrit mıknatıs	Plastic bonded injection molded off tool anisotropic ferrite magnet
+31381541	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma anizotropik baryum ferrit mıknatıs	Plastic bonded injection molded off tool anisotropic barium ferrite magnet
+31381542	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma anizotropik stronsiyum ferrit mıknatıs	Plastic bonded injection molded off tool anisotropic strontium ferrite magnet
+31381543	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma anizotropik samaryum kobalt mıknatıs	Plastic bonded injection molded off tool anisotropic samarium cobalt magnet
+31381544	Plastik bağlı enjeksiyon kalıplı kalıptan çıkma anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs	Plastic bonded injection molded off tool anisotropic ferrous aluminum nickel cobalt magnet
+31381545	Plastik bağlı enjeksiyon kalıplı izotropik ferrit mıknatıs montajı	Plastic bonded injection molded isotropic ferrite magnet assembly
+31381546	Plastik bağlı enjeksiyon kalıplı izotropik baryum ferrit mıknatıs montajı	Plastic bonded injection molded isotropic barium ferrite magnet assembly
+31381547	Plastik bağlı enjeksiyon kalıplı izotropik stronsiyum ferrit mıknatıs montajı	Plastic bonded injection molded isotropic strontium ferrite magnet assembly
+31381548	Plastik bağlı enjeksiyon kalıplı izotropik neodim mıknatıs montajı	Plastic bonded injection molded isotropic neodymium magnet assembly
+31381549	Plastik bağlı enjeksiyon kalıplı izotropik samaryum kobalt mıknatıs montajı	Plastic bonded injection molded isotropic samarium cobalt magnet assembly
+31381550	Plastik bağlı enjeksiyon kalıplı izotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Plastic bonded injection molded isotropic ferrous aluminum nickel cobalt magnet assembly
+31381551	Plastik bağlı enjeksiyon kalıplı anizotropik ferrit mıknatıs montajı	Plastic bonded injection molded anisotropic ferrite magnet assembly
+31381552	Plastik bağlı enjeksiyon kalıplı anizotropik baryum ferrit mıknatıs montajı	Plastic bonded injection molded anisotropic barium ferrite magnet assembly
+31381553	Plastik bağlı enjeksiyon kalıplı anizotropik stronsiyum ferrit mıknatıs montajı	Plastic bonded injection molded anisotropic strontium ferrite magnet assembly
+31381554	Plastik bağlı enjeksiyon kalıplı anizotropik samaryum kobalt mıknatıs montajı	Plastic bonded injection molded anisotropic samarium cobalt magnet assembly
+31381555	Plastik bağlı enjeksiyon kalıplı anizotropik AlNiCo (demir-alüminyum-nikel-kobalt) mıknatıs montajı	Plastic bonded injection molded anisotropic ferrous aluminum nickel cobalt magnet assembly
