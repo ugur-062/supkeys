@@ -4648,3 +4648,141 @@
 20121459	Wireline giriş kılavuzu	Wireline entry guide
 20121517	Kuyu raybası parça ve aksesuarları	Wellbore hole reamer parts and accessories
 20121518	Döner kontrol başlığı	Rotating control head
+
+# Sondaj/tahlisiye/wireline/kuyu başı ekipmanları.
+20121519	Döner kontrol başlığı parça ve aksesuarları	Rotating control head parts and accessories
+20121520	BOP parça ve aksesuarları	Blowout preventer parts and accessories
+20121521	Kuyu içi amortisör parça ve aksesuarları	Downhole shock absorber parts and accessories
+20121522	Muhafaza borusu kazıyıcı parça ve aksesuarları	Casing scraper parts and accessories
+20121523	Sondaj jarı (darbe aleti)	Drilling jar
+20121524	Sondaj jarı parça ve aksesuarları	Drilling jar parts and accessories
+20121608	Uç bloğu	Bit block
+20121609	Sürekli madencilik ucu	Continuous mining bit
+20121610	Besleyici ucu	Feeder bit
+20121611	Uzun ayak ucu	Longwall bit
+20121612	Tavan delme ucu	Roof drill bit
+20121613	Matkap ucu aksesuarları	Drill bit accessories
+20121709	Tahlisiye yıkama borusu ve uzatması	Fishing wash pipe and extension
+20121710	Overshot uzatması	Overshot extension
+20121711	Tahlisiye ara parçası	Fishing sub
+20121712	Muhafaza borusu yaması parça ve aksesuarları	Casing patch parts and accessories
+20121713	Yıkama borusu tahrik burcu	Wash pipe drive bushing
+20121714	Tahlisiye iz alma bloğu	Fishing impression block
+20121715	Wireline sistemi tahlisiye seti	Wireline system fishing kit
+20121716	Hurda sepeti parça ve aksesuarları	Junk basket parts and accessories
+20121717	Overshot kavrayıcı	Overshot grapple
+20121718	Overshot kontrolü	Overshot control
+20121719	Overshot pakeri	Overshot packer
+20121720	Overshot parça ve aksesuarları	Overshot parts and accessories
+20121721	Tahlisiye mıknatısı	Fishing magnet
+20121722	Konik kılavuz	Taper tap
+20121723	Tahlisiye mızrak kavrayıcısı	Fishing spear grapple
+20121724	Tahlisiye mızrağı parça ve aksesuarları	Fishing spear parts and accessories
+20121725	Muhafaza borusu kesici	Casing cutter
+20121726	Kovan kılavuz	Box tap
+20121727	Hurda sepeti	Junk basket
+20121728	Tahlisiye jarı	Fishing jar
+20121806	Sondaj sırasında loglama (LWD) aletleri	Logging while drilling tools LWD
+20121807	LWD parça ve aksesuarları	Logging while drilling tools LWD parts and accessories
+20121808	Yönlü sondaj stabilizatörü	Directional drilling stabilizer
+20121809	Döner yönlendirilebilir alet parça ve aksesuarları	Rotary steerable tools parts and accessories
+20121810	Yönlü sondaj ara parçası	Directional drilling sub
+20121811	Yönlü sondaj iticisi	Directional drilling thruster
+20121813	Çamur motoru parça ve aksesuarları	Mud motor parts and accessories
+20121915	Yoğunluk logu	Bulk density log
+20121916	Optik algılamalı kuyu içi kablo	Optical sensing downhole cable
+20121917	Optik algılama mandreli ve aksesuarları	Optical sensing mandrel and accessories
+20121918	Optik algılamalı yüzey kablosu	Optical sensing surface cable
+20121919	Muhafaza borusu muayene aleti ve aksesuarları	Casing inspection tool and accessories
+20121920	Serbest nokta gösterge aleti ve aksesuarları	Freepoint indicator tool and accessories
+20121921	Radyasyon ölçüm cihazı	Radiation survey meter
+20121922	Gama ışını aleti parça ve aksesuarları	Gamma ray tool parts and accessories
+20121923	Kuyu görüntüleme aleti ve parçaları	Well imaging tool and parts
+20121924	Kuyu içi kamera sistemi	Downhole camera system
+20121925	Sondaj çamuru sistemi yedek parça ve aksesuarları	Drilling mud system spare parts and accessories
+20122217	Üretim kuyusu test yüzey kaydedicisi	Production well testing surface recorder
+20122218	Kuyu test ve izleme cihazları	Well test and monitoring instruments
+20122219	Petrol kuyusu kontrol ve izleme ekipmanı	Oil well control and monitoring equipment
+20122220	Kuyu testi yedek parça ve aksesuarları	Well test spare parts and accessories
+20122221	Kuyu test üniteleri	Well test units
+20122358	Test dartı	Test dart
+20122359	Slickline indirme aleti parça ve aksesuarları	Slickline running tool parts and accessories
+20122360	Wireline broş	Wireline broach
+20122361	Sabit valf	Standing valve
+20122362	Wireline çan kılavuzu	Wireline bell guide
+20122363	Tel bulucu	Wire finder
+20122364	Wireline alet dizisi	Wireline tool string
+20122365	Slickline santralizör parça ve aksesuarları	Slickline centralizer parts and accessories
+20122366	Manyetik desantralizör	Magnetic decentralizer
+20122367	Wireline çekme aleti	Wireline pulling tool
+20122368	Wireline mandreli	Wireline mandrel
+20122369	Wireline yerleştirme aleti	Wireline setting tool
+20122370	Wireline geçiş parçası	Wireline crossover
+20122371	Slickline santralizörü	Slickline centralizer
+20122372	Wireline döner mafsalı	Wireline swivel joint
+20122373	Slickline kickover aleti parça ve aksesuarları	Slickline kickover tool parts and accessories
+20122374	Wireline salmastra kutusu	Wireline stuffing box
+20122375	Wireline hızlı kilit kaplini	Wireline quick lock coupling
+20122376	Wireline tapaları	Wireline plugs
+20122412	Üretim loglama aletleri yedek parça ve aksesuarları	Production logging tools spare parts and accessories
+20122413	Yağlama yağı kızak sistemi	Lube oil skid system
+20122414	Yağlama yağı şartlandırma paketi	Lube oil conditioning package
+20122416	Kuyu sondaj ve geri alınabilir üretim aletleri	Well drilling and retrievable production tools
+20122516	Sarmal tij alet dizisi	Coiled tubing tool string
+20122518	Sarmal tij santralizörü	Coiled tubing centralizer
+20122710	Muhafaza borusu durdurucu	Casing stop device
+20122711	Konduktör muhafaza borusu	Conductors casing
+20122712	Muhafaza borusu ek aleti	Casing joint tool
+20122714	Kuyu tübingi ve aksesuarları	Well tubing and accessories
+20122715	Muhafaza borusu ve tübing yedek parça ve aksesuarları	Casing and tubing spare parts and accessories
+20122716	Masif genleşebilir muhafaza borusu	Solid expandable casing
+20122717	Genleşebilir yarıklı tübing	Expandable slotted tubing
+20122718	Konduktör çakma pabucu	Conductors drive shoe
+20122719	Konduktörler ve aksesuarları	Conductors and accessories
+20122844	Motorlu boru anahtarı	Power tongs
+20122845	Boru elleçleme ekipmanı parça ve aksesuarları	Pipe handling equipment parts and accessories
+20122846	Boru yönlendirme platformu	Stabbing board
+20122847	Kaldırma ara parçası ve tapası	Lift sub and plug
+20122848	Yatay sıkma ünitesi parça ve aksesuarları	Horizontal makeup device or bucking unit parts and accessories
+20122849	Kuyu muhafaza borusu örümceği	Well casing spider
+20122851	Hidrolik güç ünitesi	Hydraulic power unit
+20122852	Sondaj makinesi ve çamur ekipmanı yedek parça ve aksesuarları	Drilling machinery and mud equipment spare parts and accessories
+20123004	Multilateral paker parça ve aksesuarları	Multilateral packer parts and accessories
+20123101	Muhafaza borusu çıkış yerleştirme aleti	Casing exit setting tool
+20123102	Muhafaza borusu çıkış whipstock	Casing exit whipstock
+20123201	Yarıklı genleşebilir yerleştirme aleti	Slotted expandable setting tool
+20123202	Genleşebilir kum eleği askısı onarım seti	Expandable sand screen hanger repair kit
+20123203	Genleşebilir liner	Expandable liner
+20123204	Kaynaklanabilir liner	Weldable liner
+20123205	Genleşebilir tapa	Expandable plug
+20123206	Şişebilen paker	Swellable packer
+20123301	Sondaj pabucu	Drill shoe
+20123302	Sondaj pabucu parça ve aksesuarları	Drill shoe parts and accessories
+20123303	Sondaj mızrağı	Drilling spear
+20123304	Sondaj mızrağı parça ve aksesuarları	Drilling spear parts and accessories
+20131011	Genel sondaj kimyasalı	General drilling chemical
+20131203	Kuyu üretim katkıları	Well production additives
+20141016	Kuyu başı oturma kaidesi	Wellhead landing base
+20141017	Kuyu başı taşıyıcı gövdesi	Wellhead carrier body
+20141018	Kuyu başı askısı	Wellhead hanger
+20141019	Denge kollu pompaj ünitesi	Beam pumping unit
+20141020	Düz delik metal keçe	Straight bore metal seal
+20141021	Denizaltı kuyu başı ekipmanı ve aksesuarları	Subsea wellhead equipment and accessories
+20141022	Kara platformu kuyu başı ekipmanı ve aksesuarları	Onshore platform wellhead equipment and accessories
+20141023	Kara platformu üretim ağaçları ve kuyu başı takımları	Onshore platform christmas trees and wellhead assemblies
+20141024	Kompakt kuyu başı	Compact wellhead
+20141025	Konvansiyonel kuyu başı	Conventional wellhead
+20141026	Denizaltı kuyu başı	Subsea wellhead
+20141102	Kimyasal enjeksiyon paket ekipmanı	Chemical injection packaged equipment
+20141302	Kuyu içi jet pompa parça ve aksesuarları	Downhole jet pump parts and accessories
+20141303	Sondaj tübingi	Drill tubing
+20141502	Kuyu içi helisel rotorlu pompa	Downhole progressive cavity pump
+20141503	Üretim dizisi bileşenleri ve yeraltı pompası	Production string components and subsurface pump
+20141504	Üretim dizisi ve yeraltı pompası yedek parça ve aksesuarları	Production string components and subsurface pump spare parts and accessories
+20141706	Deniz ve açık deniz tesisleri	Marine and offshore installations
+20141902	Susuzlaştırma kızakları	Dehydration skids
+20142302	Yakıt gazı arıtma kızağı	Fuel gas treatment skid
+20142406	Denizaltı kontrol sistemi	Subsea control system
+20142407	Petrol kuyusu üretim ağacı	Oil well christmas tree
+20142410	Kılavuz hatlı denizaltı üretim ağacı	Subsea christmas tree guideline
+20142411	Kılavuz hatsız denizaltı üretim ağacı	Subsea christmas tree guideline less
