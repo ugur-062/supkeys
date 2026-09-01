@@ -1300,3 +1300,261 @@
 31142705	Termoset gaz destekli enjeksiyon insertli kalıplama montajı	Thermoset gas assisted injection inserted molding assembly
 31142706	Termoset yüksek hassasiyetli enjeksiyon insertli kalıplama montajı	Thermoset high precision injection inserted molding assembly
 31142707	Termoset transfer insertli kalıplama montajı	Thermoset transfer inserted molding assembly
+31101620	Döküm düğümü	Casting node
+31133701	Sürtünme malzemesi toz metal ve alaşımı	Friction material powdered metal and metal alloy
+31133702	Elektrik kontak toz metal ve alaşımı	Electrical contact powdered metal and metal alloy
+31133703	Sinterlenmiş karbür toz metal ve alaşımı	Cemented carbide powdered metal and metal alloy
+31133704	Elmas metal matris toz metal ve alaşımı	Diamond metal matrix powdered metal and metal alloy
+31141901	Plastik insertli enjeksiyon kalıplama	Plastic inserted injection molding
+31142801	Plastik veya plastisol daldırma kalıplama	Plastic or plastisol dip molding
+31142802	Lateks daldırma kalıplama	Latex dip molding
+31142803	Neopren daldırma kalıplama	Neoprene dip molding
+31142804	Üretan daldırma kalıplama	Urethane dip molding
+31142901	Kalıp içi aplike enjeksiyon kalıplama	In mold applique injection molding
+31142902	Kalıp içi mürekkep transferli enjeksiyon kalıplama	In mold ink transfer injection molding
+31142903	Kalıpta renklendirmeli enjeksiyon kalıplama	Mold to color injection molding
+31142904	Çok bileşenli enjeksiyon kalıplama	Multiple shot injection molding
+31143001	Plastik gaz destekli kalıplama	Plastic gas assist molding
+31143002	Yapısal köpük gaz destekli kalıplama	Structural foam gas assist molding
+31143101	Termoplastik enjeksiyon bitmiş kalıplama montajı	Thermoplastic injection finished molding assembly
+31143102	Termoplastik sıkıştırma bitmiş kalıplama montajı	Thermoplastic compression finished molding assembly
+31143103	Termoplastik gaz destekli enjeksiyon bitmiş kalıplama montajı	Thermoplastic gas assisted injection finished molding assembly
+31143201	Boyalı enjeksiyon kalıplama	Painted injection molding
+31143202	Kaplamalı enjeksiyon kalıplama	Plated injection molding
+31143203	Metalize enjeksiyon kalıplama	Metallized injection molding
+31143204	Lazer işlemli enjeksiyon kalıplama	Lased injection molding
+31143205	Lazer işlemli ve boyalı enjeksiyon kalıplama	Lased and painted injection molding
+31151510	Rayon ip	Rayon rope
+31151511	Keten ip	Linen rope
+31151512	Polietilen ip	Polyethylene rope
+31151513	Hindistan cevizi lifi ip	Coconut fiber rope
+31151514	Jüt ip	Jute rope
+31151515	Esparto otu ip	Esparto grass rope
+31151516	Rafya ip	Raffia rope
+31151517	Aloe lifi ip	Aloe rope
+31151518	Emprenye ip	Impregnated rope
+31151519	Lateks ip	Latex rope
+31151520	Vinilon ip	Vinylon rope
+31151521	Asbest ip	Asbestos rope
+31151522	Çelik halat ve zincir bağlantı elemanı	Wire rope and chain fitting
+31151610	Boş pimli zincir	Hollow pin chain
+31151611	Sessiz zincir	Silent chain
+31151612	Blok zincir	Block chain
+31151613	Mühendislik zinciri	Engineering chain
+31151614	Konveyör zinciri	Conveying chain
+31151615	Makaralı veya plaka üstü zincir	Roller or plate top chain
+31151616	Pimli (pintle) zincir	Pintle chain
+31151617	Dragline zinciri	Dragline chain
+31151618	Uzun ayak (longwall) zinciri	Longwall chain
+31151619	Yürüyen merdiven basamak zinciri	Escalator step chain
+31151620	Tahıl elevatör zinciri	Grain elevator chain
+31151709	Elektriksiz demir kablo	Non electrical iron cable
+31151710	Sentetik kablo	Synthetic cable
+31151805	Demetli veya çok filamentli tel	Strand or multi filament wire
+31151806	Lamine tel	Laminated wire
+31152101	Pamuk kordon	Cotton cord
+31152102	Naylon kordon	Nylon cord
+31152103	Metalik kordon	Metallic cord
+31152104	Silikon kordon	Silicone cord
+31152105	Lateks kordon	Latex cord
+31152106	Polyester kordon	Polyester cord
+31152107	Neopren kordon	Neoprene cord
+31152108	Polipropilen kordon	Polypropylene cord
+31152109	Kauçuk kordon	Rubber cord
+31152110	Asbest kordon	Asbestos cord
+31152111	Cam elyaf kordon	Glass fiber cord
+31152112	Seramik elyaf kordon	Ceramic fiber cord
+31152201	Düşük karbonlu çelik tel	Low carbon steel wire
+31152202	Sert çekilmiş çelik tel	Hard drawn steel wire
+31152203	Paslanmaz çelik tel	Stainless steel wire
+31152204	Demetli çelik tel	Stranded steel wire
+31152205	Yağda ıslah edilmiş tel	Oil tempered wire
+31152206	Kaplamalı çelik tel	Coated steel wire
+31152207	Öngerilmeli beton çelik teli	Prestressed concrete steel wire
+31152208	Öngerilmeli beton demetli çelik teli	Prestressed concrete stranded steel wire
+31152209	Demir tel	Iron wire
+31152301	Kurşun veya kurşun alaşımı tel	Lead or lead alloy wire
+31152302	Nikel veya nikel alaşımı tel	Nickel or nickel alloy wire
+31152303	Nikrom alaşımı tel	Nichrome alloy wire
+31152304	Bakır veya bakır alaşımı tel	Copper or copper alloy wire
+31152305	Alüminyum veya alüminyum alaşımı tel	Aluminium or aluminium alloy wire
+31152306	Kalay veya kalay alaşımı tel	Tin or tin alloy wire
+31152307	Titanyum veya titanyum alaşımı tel	Titanium or titanium alloy wire
+31161519	Elevatör kovası vidası	Elevator bucket screw
+31161520	Altıgen başlı vida	Hexagonal head screw
+31161521	Taşıyıcı (carriage) vida	Carriage screw
+31161522	Halkalı vida	Eye screw
+31161523	Kanatlı vida	Wing screw
+31161524	Dekoratif vida	Decorative screw
+31161525	Plastik vidası	Screw for plastic
+31161526	Beton vidası	Concrete screw
+31161527	Çekiç başlı veya T vida	Hammerhead or T screw
+31161528	Matkap uçlu vida	Self drilling screw
+31161529	Kriko vidası	Jack screw
+31161530	Setuskur (grub) vida	Grub screw
+31161531	Vidalı mil (güç vidası)	Lead screw or power screw
+31161532	Alyan vida	Allen screw
+31161533	Pullu vida	Washer assembled screw
+31161534	Trapez dişli vida	Trapezoidal thread screw
+31161535	Akustik tirfon vida	Acoustical lag screw
+31161622	Kesme cıvatası	Shear bolt
+31161623	Kablo bulonu	Cable bolt
+31161624	Reçineli bulon	Resin bolt
+31161625	Demiryolu ray cıvatası	Railway track bolt
+31161626	SEMS pullu cıvata	Sems bolt
+31161627	Cıvata takımı	Bolt assembly
+31161628	Kare başlı cıvata	Square head bolt
+31161629	Yuvarlak başlı cıvata	Round head bolt
+31161630	İşlenmemiş cıvata	Blank bolt
+31161631	Omuzlu cıvata	Shoulder bolt
+31161632	Kaya bulonu	Rock bolt
+31161633	Soba cıvatası	Stove bolt
+31161634	Boyunlu cıvata	Over neck bolt
+31161635	Pullu cıvata	Washer assembled bolt
+31161636	Kaynak cıvatası	Welding bolt
+31161637	İmbus başlı cıvata	Socket head bolt
+31161638	T cıvata	T bolt
+31161639	Askı cıvatası	Hanger bolt
+31161640	Kancalı cıvata	Hook bolt
+31161641	Konik saplı cıvata	Taper shank bolt
+31161732	Yarım ay somun	Half moon nut
+31161733	T somun (T kanal somunu)	T nut or T slot nut
+31161734	Kanallı yuvarlak somun	Slotted round nut
+31161735	Kafes somun	Cage nut
+31161736	Dekoratif somun kapağı	Decorative nut cap
+31161737	Kesme somunu	Shear nut
+31161738	Keps somun (K somun)	Keps nut or K nut
+31161739	Kaynak veya perçin somun	Weld or clinch nut
+31161740	Cıvata somunu	Bolt nut
+31161741	İç anahtar ağızlı somun	Internal wrenching nut
+31161821	Daralan pul	Tapered washer
+31161822	Dişli emniyet pulu	Tooth lock washer
+31161823	Geniş yüzeyli pul	Fender washer
+31161824	Çatı bulonu pulu	Roof bolt washer
+31161825	Belleville (tabak) pul	Belleville washer
+31161826	Çentikli pul	Notched washer
+31161827	Kesik kenarlı pul	Clipped washer
+31161828	Kanallı pul	Slotted washer
+31161829	Tespit pulu	Retaining washer
+31161830	Dalgalı pul	Wave washer
+31161831	Parmaklı yay pulu	Finger spring washer
+31161832	Havşa pul	Countersunk washer
+31161833	Contalı pul	Bonded washer
+31161834	Çanak pul	Cup washer
+31161835	Tırnaklı pul	Tab washer
+31161836	Ankraj plakası pulu	Anchor plate washer
+31161837	Yaylı (yarıklı) pul	Split washer
+31161838	Dilli pul	Tongued washer
+31161909	Dalgalı yay	Waveform spring
+31161910	Tel formlu yay	Wireform spring
+31161911	Yay takımı	Spring assembly
+31161912	Enjektör valf yayı	Injector valve spring
+31162009	Lif çimento çivisi	Fiber cement nail
+31162010	Nal çivisi	Horseshoe nail
+31162011	Dekoratif çivi	Decorative nail
+31162012	Nirengi çivisi	Survey nail
+31162013	Tekne çivisi	Boat nail
+31162014	Demiryolu ray çivisi	Railroad spike or nail
+31162109	Zemin ankrajı	Ground anchor
+31162110	Kendinden delen plastik dübel	Self-drilling plastic anchor
+31162111	Tel halat ankrajı	Wireline anchor
+31162211	Dolu perçin	Solid rivet
+31162212	Çakma perçin	Drive rivet
+31162213	Havşa başlı perçin	Flush rivet
+31162214	Yarı boru perçin	Semi tubular rivet
+31162215	Boru perçin	Tubular rivet
+31162216	Omuzlu perçin	Shoulder rivet
+31162314	Fayans derz çarpısı	Tile spacer
+31162420	Mühendislik menteşesi	Engineered hinge
+31162421	Mandal	Catch
+31162508	Mil halka braketi	Shaft eye bracket
+31162612	Kare kanca	Square hook
+31162613	Sekiz kanca	Figure eight hook
+31162614	Sabit kanca	Fixed hook
+31162615	Döner kanca bloğu	Swivel hook block
+31162814	Karışık bağlantı elemanı seti	Fastener assortment kit
+31162815	Şim (ayar plakası)	Shim
+31162816	Düze (spinneret)	Spinneret
+31162817	Çelik halat soketi	Wire rope socket
+31162818	Korozyon önleyici anot	Anti corrosion anode
+31162819	Kumanda kolu	Control lever
+31162907	Uzayan kelepçe	Extending clamp
+31162908	Minyatür kelepçe	Miniature clamp
+31162909	Ses yalıtımlı kelepçe	Isophonic clamp
+31162910	Matkap kelepçesi	Drill clamp
+31162911	El vidalı işkence	Hand screw clamp
+31162912	Uzun gövdeli işkence	Sash clamp
+31162913	Tezgah işkencesi	Bench clamp
+31162914	Kayışlı kelepçe	Web clamp
+31162915	Gönye işkencesi	Miter clamp
+31162916	Hızlı işkence	Quick action clamp
+31162917	Hızlı kavrama işkencesi	Quick grip clamp
+31162918	Tahrikli kelepçe	Power clamp
+31162919	Seri kelepçe	Speed clamp
+31162920	Çerçeve işkencesi	Picture frame clamp
+31163006	Izgara kaplin	Grid coupling
+31163007	Zincirli kaplin	Chain coupling
+31163008	Diskli kaplin	Disc coupling
+31163009	Rijit kaplin	Rigid coupling
+31163010	Elastik ara elemanlı (spider) kaplin	Spider coupling
+31163011	Tırnaklı kaplin	Jaw coupling
+31163012	Kaplin yarımı	Coupling half
+31163013	Mil kaplini	Shaft coupling
+31163014	Döner kaplin	Rotary coupling
+31163015	Oldham kaplini	Oldham coupling
+31163016	Çubuk kaplini	Rod coupling
+31163017	Kaplin çubuğu	Coupling rod
+31163018	Körüklü kaplin	Bellows coupling
+31163019	Manyetik kaplin	Magnetic coupling
+31163020	Flanşlı kaplin	Flange coupling
+31163021	Üniversal esnek kaplin	Universal flexible coupling
+31163022	Kelepçeli kaplin	Clamp coupling
+31163023	Manşonlu kaplin	Muff coupling
+31163024	Flanş tipi esnek kaplin	Flange type flexible coupling
+31163025	Bölünmüş manşonlu kaplin	Split muff coupling
+31163026	Yarım bindirmeli kaplin	Half lap coupling
+31163027	Makaralı zincir kaplini	Roller chain coupling
+31163028	Izgara tipi esnek kaplin	Grid type flexible coupling
+31163029	Sürtünmeli klipsli kaplin	Friction clip coupling
+31163030	Dura-Flex kaplin	Dura flex coupling
+31163031	Sellers kaplini	Sellers coupling
+31163032	Elektrik kaplin adaptörü	Electrical coupling adapter
+31163104	Mekanik donatı ekleme manşonu	Mechanical rebar connector or splice
+31163217	Hızlı sökülen mil göbek kilitleme burcu	Quick disconnect shaft hub locking bushing
+31163218	Rulman adaptör kovanı	Bearing adapter sleeve
+31163219	Silindirik pim	Cylindrical pin
+31163220	Karışık pim seti	Pin assortment set
+31163221	Panel çivisi	Panel pin
+31163222	Kare kama	Square key
+31163223	Dikdörtgen kama	Rectangular key
+31163224	Konik kama	Taper key
+31163225	Baş kamalı (gib) kama	Gib head key
+31163226	Segman (circlip)	Circlip
+31163227	Savurma halkası	Flinger
+31163228	Yarık halka	Split ring
+31163229	Metal tutucu klips	Metal retaining clip
+31163230	Plastik tutucu klips	Plastic retaining clip
+31163231	Boru tutucu bileziği	Pipe retaining collar
+31163301	Çift uçlu saplama	Double ended stud
+31163302	Kaynak veya perçin saplama	Weld or clinch stud
+31163303	Bilyalı saplama	Ball stud
+31163304	Kompleks saplama	Complex stud
+31163305	Gevşeme önleyici eleman	Anti-loosening device
+31163401	Gabion (tel kafes duvar)	Gabion
+31171530	Kam izleyici rulman	Cam follower bearing
+31171531	Eğik bilyalı rulman	Angular contact bearing
+31171532	Kendinden ayarlı rulman	Self aligning bearing
+31171533	Gergi rulmanı ve gövdesi	Take up bearing and frame
+31171534	Dişli tabanlı yatak	Tapped base bearing
+31171535	Kartuş yatak	Cartridge bearing
+31171536	İnsert rulman	Insert bearing
+31171537	Kombine rulman	Combination bearing
+31171538	Dört nokta temaslı rulman	Four point bearing
+31171539	Rulman bilyası	Bearing ball
+31171540	Rulman iğnesi	Bearing needle
+31171541	Rulman makarası	Bearing roller
+31171542	Gergi rulmanı	Tensioner bearing
+31171543	Esnek yatak	Flexure bearing
+31171544	Yastık blok yatak	Plummer block bearing
+31171545	Rulman kapağı	Bearing cover
+31171546	Çift yönlü yatak	Reversible bearing
