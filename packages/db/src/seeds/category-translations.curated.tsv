@@ -3336,3 +3336,147 @@
 40175406	Boru destek askıları	Pipe support hangers
 40175407	Boru hattı küreleri	Pipeline spheres
 40175408	Boru hattı şişirilebilir küreleri	Pipeline inflatable spheres
+40181801	Kaynaklı çelik bükülmüş tüp	Welded steel bent tube
+40181802	Kaynaklı çelik delikli tüp	Welded steel pierced tube
+40181803	Kaynaklı çelik uç formlu tüp	Welded steel end formed tube
+40181804	Kaynaklı çelik çok kanallı tüp	Welded steel multiport tube
+40181805	Kaynaklı çelik pahlı tüp	Welded steel chamfered tube
+40181806	Kaynaklı çelik tüp takımı	Welded steel tube assembly
+40182301	Dikişsiz çelik bükülmüş tüp	Seamless steel bent tube
+40182302	Dikişsiz çelik delikli tüp	Seamless steel pierced tube
+40182303	Dikişsiz çelik uç formlu tüp	Seamless steel end formed tube
+40182304	Dikişsiz çelik çok kanallı tüp	Seamless steel multiport tube
+40182305	Dikişsiz çelik pahlı tüp	Seamless steel chamfered tube
+40182306	Dikişsiz çelik tüp takımı	Seamless steel tube assembly
+40182801	Ekstrüde çelik bükülmüş tüp	Extruded steel bent tube
+40182802	Ekstrüde çelik delikli tüp	Extruded steel pierced tube
+40182803	Ekstrüde çelik uç formlu tüp	Extruded steel end formed tube
+40182804	Ekstrüde çelik çok kanallı tüp	Extruded steel multiport tube
+40182805	Ekstrüde çelik pahlı tüp	Extruded steel chamfered tube
+40182806	Ekstrüde çelik tüp takımı	Extruded steel tube assembly
+40183201	Demir bükülmüş tüp	Iron bent tube
+40183202	Demir delikli tüp	Iron pierced tube
+40183203	Demir uç formlu tüp	Iron end formed tube
+40183204	Demir çok kanallı tüp	Iron multiport tube
+40183205	Demir pahlı tüp	Iron chamfered tube
+
+# Tüp/hortum bağlantıları + ağaç, tekstil, deri, ambalaj, markalama makineleri.
+40181807	Kanatlı boru	Finned tube
+40181808	Fırın borusu	Furnace tube
+40181809	Karbon/alaşımlı çelik tüp	CS/alloy steel tube
+40182707	Ekstrüde alüminyum çekme boru	Extruded aluminum drawn tubing
+40183001	Kauçuk hortum	Rubber tubing
+40183002	PVC plastik hortum	PVC plastic tubing
+40183003	CPVC plastik hortum	CPVC plastic tubing
+40183004	HDPE plastik hortum	HDPE plastic tubing
+40183005	Alçak basınçlı kauçuk hortum	Low pressure rubber tubing
+40183006	Isı ile daralan makaron	Heat shrink tubing
+40183007	Kauçuk köpük boru yalıtımı	Rubber foam tubing
+40183008	Poliüretan (PUR) hortum	Polyurethane PUR tubing
+40183009	Örgülü kılıf hortum	Braided sleeve tubing
+40183010	Yüksek basınçlı kauçuk hortum ve takımı	High pressure rubber tubing with assembly
+40183011	Silikon hortum	Silicone tubing
+40183012	Isı ile daralan kılıflar	Heat shrink sleeves
+40183101	Tüp dirseği	Tube elbow
+40183102	Tüp te bağlantısı	Tube tee
+40183103	Tüp rakoru	Tube union
+40183104	Tüp kapağı	Tube cap
+40183105	Tüp nipeli	Tube nipple
+40183106	Tüp tapası	Tube plug
+40183107	Tüp kaplini	Tube coupling
+40183108	Tüp burcu	Tube bushing
+40183109	Tüp adaptörü	Tube adapter
+40183110	Tüp bağlantı elemanı	Tube connector
+40183111	Tüp dört yollu bağlantısı	Tube cross
+40183112	Tüp redüksiyonu	Tube reducer
+40183113	Karbon çeliği enstrümantasyon tüpü	Carbon steel instrumentation tube
+40183114	Paslanmaz çelik enstrümantasyon tüpü	Stainless steel instrumentation tubing
+23101525	Salınımlı mil zımpara makinesi	Oscillating spindle sander
+23101528	Tamburlu zımpara makinesi	Drum sander
+23101530	Kırlangıç kuyruğu açma makinesi	Dovetail machine
+23101531	Kombine ağaç işleme makinesi	Combination woodworking machine
+23101532	Zıvana açma makinesi	Tenoner or tenoning machine
+23101533	Soğuk pres	Cold press
+23101534	Kenar bantlama makinesi	Edge bander
+23101535	Parmak ek makinesi	Finger jointing machine
+23101536	Kavela makinesi	Dowel machine
+23101537	Bantlı ve diskli zımpara makinesi	Belt and disc sander
+23101538	Ahşap planya makinesi	Woodworking jointer
+23101539	Kanal açma makinesi	Gaining machine
+23101540	Ahşap müzik aleti üretim makinesi	Machine to make wood music instruments
+23121511	Tekstil yıkama makinesi	Textile washing machine
+23121512	Tarak makinesi	Carding machine
+23121513	İplik katlama-bobin makinesi	Yarn assembly winder
+23121514	Haşıl makinesi	Sizing machine
+23121515	Şardon makinesi	Raising machine
+23121516	Kumaş yakma makinesi	Singeing machine
+23121517	İnce eğirme makinesi	Fine spinning machine
+23121518	İplik sökme makinesi	Thread unravelling machine
+23121519	Laboratuvar eğirme sistemi	Laboratory spinning system
+23121520	Çözgü makinesi	Warping machine
+23121521	Çözgü düğümleme makinesi	Warp tying machine
+23121616	Boyama test cihazı	Dyeing tester
+23121617	Kumaş germe çerçevesi	Fabric frame
+23121618	Overlok makinesi tutucusu	Grip of overlock sewing machine
+23121619	Dikiş makinesi kıvırma aparatı	Hemmer for sewing machine
+23121620	Tekstil ters çevirme makinesi	Textile turning machine
+23121621	Kumaş ekleme makinesi	Fabric splicing machine
+23141606	Deri sıkma (sammying) makinesi	Sammying machine
+23141607	Deri düzeltme aleti	Slicker
+23141608	Kıl giderme makinesi	Dehairing machine
+23151518	Daldırma kalıplama ekipmanı	Dip molding equipment
+23151519	Üretan köpük kalıplama ve işleme ekipmanı	Urethane foam molding and processing equipment
+23151520	Rotasyonel kalıplama ekipmanı	Rotational molding equipment
+23151609	Cam üfleme aleti	Glass blowing instrument
+23151825	Filtre ve karıştırıcı tank ünitesi	Filter and mixer tank unit
+23151826	Çözünme ve dağılma test ekipmanı	Dissolution or disintegration verification equipment
+23151907	Elek tamburu veya elek	Screen drum or sieve
+23151908	Mekanik hamur rafinörü	Mechanical pulp refiner
+23151909	Odun hamurlaştırıcı	Wood pulper
+23151910	Flotasyon ünitesi	Flotator
+23151911	Kağıt makinesi	Paper machine
+23152105	Elektromekanik vibratör	Electromechanical vibrator
+23152106	Üretan profilli titreşimli eleme eleği	Urethane profile vibratory separation screen
+23152107	Profil telli titreşimli eleme eleği	Profile wire vibratory separation screen
+23152108	Delikli sac titreşimli eleme eleği	Punch plate vibratory separation screen
+23152109	Üretan kaplı delikli sac titreşimli eleme eleği	Urethane coated punch plate vibratory separation screen
+23152110	Üretan veya kauçuk telli titreşimli eleme eleği	Urethane or rubber wire vibratory separation screen
+23152111	Örgü telli titreşimli eleme eleği	Woven wire vibratory separation screen
+23152112	Üretan kaplı örgü telli titreşimli eleme eleği	Urethane coated woven wire vibratory separation screen
+23152113	Vibro elek	Vibro shifter
+23152114	Tahıl hasat elekleri	Cereal harvest sieves
+23152115	Yıkama tamburu	Washing drum
+23152907	Ambalaj makinesi sarf malzemeleri	Packaging machinery supplies
+23152908	Şişe yıkama makinesi	Bottle washing machine
+23152909	Ürün ayırma makinesi	Commodity sorting machine
+23152910	Otomatik torba üretim makinesi	Automatic bag making machine
+23152911	Ayakkabı kapama makinesi	Shoe closing machine
+23152912	Şişe kapaklama makinesi	Bottle capping machine
+23152913	Konserve kutu kapama makinesi	Canning seamer
+23152914	Teneke kutu makineleri	Tin can machinery
+23152915	Kutu dolum makinesi	Can filling machine
+23152916	Kutu paketleme makinesi	Can packing machine
+23152917	Kauçuk balya kesme makinesi	Rubber bale cutting machine
+23152918	Genel ürün paketleme makineleri	General goods packing machines
+23152919	Şişe dolum makinesi	Bottle filling machine
+23152920	Kap dolum makinesi	Container filling machine
+23153003	Ana jig	Master jig
+23153039	Makine ray arabası	Machine rail carriage
+23153141	Erozyon (EDM) teli	Electro discharge machine EDM wire
+23153142	Akordiyon körük	Accordion bellows
+23153143	Püskürtme nozulu	Spray nozzle
+23153144	Püskürtme bloğu	Spray block
+23153145	Boya tabancası	Spray gun
+23153146	Makine güç aktarımı ve aksesuarları	Machinery transmission and accessories
+23153147	Metal püskürtme teli ve tozu	Metal spraying wire and powder
+23153207	Temizlik robotu	Cleaning robot
+23153416	Esnek bileşenler	Flexible components
+23153418	Özel montaj aparatı ve takımı	Custom assembly fixtures or tooling
+23153419	Özel tek istasyonlu makine	Custom single station machine
+23153420	Tel ve kablo montaj makinesi	Wire and cable assembly machine
+23153421	Bükme veya demetleme makinesi	Twister or stranding machine
+23153509	Püskürtmeli boyama ekipmanı ve aksesuarları	Spray painting equipment and accessories
+23153605	Nokta vuruşlu markalama makinesi	Dot marking machine
+23153606	Elektro dağlama markalama makinesi	Electro etcher marking machine
+23153607	Mürekkep püskürtmeli markalama makinesi	Inkjet marking machine
+23153608	Elektronik boru markalama makinesi	Electronic tube marking machine
