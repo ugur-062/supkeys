@@ -3753,3 +3753,72 @@
 13111078	Poliamid 6-6	Polyamide 6-6
 13111079	Poliamid 4-6	Polyamide 4-6
 13111081	Poliamid 12	Polyamide 12
+
+# Metal şekillendirme, kaynak, lehim, ısıl işlem, kesici takımlar.
+23251508	Demir bükme makinesi	Steel bar bending machine
+23251509	Tel çekme makinesi	Wire drawing machine
+23251602	Sac şekillendirme makinesi	Sheet metal forming machine
+23251603	Merdaneli pres	Rolling press
+23251708	Yüksek hızlı dövme makinesi	High speed forging machine
+23251709	Havalı çekiçli dövme makinesi	Air hammer forging machine
+23251710	Yaylı çekiçli dövme makinesi	Spring hammer forging machine
+23251711	Buharlı çekiçli dövme makinesi	Steam hammer forging machine
+23251712	Düşen çekiçli dövme makinesi	Drop hammer forging machine
+23251713	Daraltma (swaging) dövme makinesi	Swaging forging machine
+23251714	Yığma dövme makinesi veya krank pres	Upset forger or crank press
+23251812	Endüstriyel pafta	Industrial threading die
+23251813	Kablo çekme kalıbı	Cabling die
+23251814	Çekme kalıbı	Drawing die
+23251901	Sac besleme ünitesi	Metal sheet feeder
+23261601	Üç boyutlu baskı filamenti	Three dimensional printing filament
+23261602	Üç boyutlu yazıcı arabası	Three dimensional printer cart
+23271411	Plastik kaynak makinesi	Plastic welder
+23271412	Termit kaynak makinesi	Thermite welder
+23271413	Elektron ışını kaynak (EBW) makinesi	Electron beam welding EBW machine
+23271414	Elektrocüruf kaynak (ESW) makinesi	Electro slag welding ESW machine
+23271415	Soğuk basınç veya temas kaynak makinesi	Cold pressure or contact welding machine
+23271416	Sürtünme kaynak (FW) makinesi	Friction welding FW machine
+23271417	Sert lehim kaynak makinesi	Braze welding machine
+23271418	Yakma alın kaynak makinesi	Flash butt welding machine
+23271419	Yığma kaynak makinesi	Upset welder
+23271420	Dikiş kaynak makinesi	Seam welder
+23271421	Şerit testere kaynak makinesi	Band saw blade welder
+23271422	Saplama kaynak makinesi	Stud welder or stud arc welder
+23271423	Alternatif akım (AC) ark kaynak makinesi	Alternating current AC arc welder
+23271424	Doğru akım (DC) ark kaynak makinesi	Direct current DC arc welder
+23271426	Endüstriyel kaynak atölyesi ekipmanı	Industrial welding shop equipment
+23271604	Dalga lehimleme makinesi	Wave soldering machine
+23271605	Reflow fırını	Reflow oven
+23271606	Seçici lehimleme makinesi	Selective soldering machine
+23271607	Otomatik lehimleme makinesi	Automatic soldering machine
+23271717	Alev geri tepme emniyeti	Flashback arrestor
+23271718	Kaynak battaniyesi	Welding blanket
+23271719	Pozitif basınçlı kabin	Positive pressure enclosure or habitat
+23271720	Arkadan gaz koruma başlığı	Trailing shield
+23271721	Plastik birleştirme malzemeleri	Plastic joining materials
+23271722	Kaynak transformatörleri	Welding transformers
+23271814	Kesme elektrodu	Cutting electrode
+23271815	Lehim çubuğu	Solder bar
+23271816	Lehim pastası	Solder paste
+23271817	Lehim tozu	Solder powder
+23271818	Lehim teli	Solder wire
+23271819	Metal birleştirme flaksı	Metal joining flux
+23271820	Kaynak elektrodu nem stabilizatörü	Welding electrode moisture stabilizer
+23271821	Kaynak torcu	Welder torch
+23281504	Tamburlu kaplama makinesi	Barrel plating machine
+23281603	Yaşlandırma sertleştirme fırını	Heat treating age hardening furnace
+23281604	Elektrot kurutma fırını	Electrode oven
+23281605	Isıl işlem ekipmanı	Heat treating equipment
+23281703	Kum püskürtme makinesi	Sand blasting machine
+23281704	Yüzey sertleştirme erozyon makinesi	Surface hardening electro discharge machine
+23281904	Sulu temizleme ve yıkama ekipmanı	Aqueous cleaning and washing equipment
+23281905	Termal yağ alma ekipmanı	Thermal degreasing equipment
+23291501	Lehimli matkap ucu	Brazed drill
+23291502	Değiştirilebilir uçlu matkap	Exchangeable top or nosepiece drill
+23291503	Kesici uçlu matkap	Indexable insert drill
+23291504	Değiştirilebilir uçlu freze	Exchangeable top or nosepiece mill
+23291601	Freze kesici ucu	Milling insert
+23291701	Rayba bıçağı	Reamer blade
+23291702	Lehimli rayba	Brazed reamer
+23291703	Masif rayba	Solid reamer
+23291704	Kesici uçlu rayba	Indexable reamer
