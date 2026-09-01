@@ -75,7 +75,21 @@ bir dev veritabanı ayırmak; o olmadan bu sınıf risk sürer.
 
 ---
 
-## 2b. Gelecekteki migration'lar → `migrate:deploy`
+## 2b. ✅ Kalem/birim migration'ları UYGULANDI · 2026-09-01
+
+`20260901120000` (unitCode) · `20260901130000` (kalem kataloğu + RLS) ·
+`20260901140000` (kalem detayları + belge itemId + muadil alanları).
+
+Kullanıcı tarafından bilinçli olarak uygulandı
+(`ALLOW_REMOTE_MIGRATION=1`); nöbetçi uyarısını verip geçirdi.
+
+**Doğrulandı:** on tabloda satır sayısı ÖNCESİYLE AYNI (veri kaybı yok) ·
+beklenen 12 kolonun 12'si var · `company_items` tablosu ve
+`company_items_rls` policy'si oluştu · `migrate status` temiz.
+
+---
+
+## 2c. Gelecekteki migration'lar → `migrate:deploy`
 
 ```bash
 pnpm --filter @rothern/db migrate:deploy
