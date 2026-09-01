@@ -282,7 +282,20 @@ export class CategoryService {
         },
       },
       take: 200,
-      orderBy: [{ level: "desc" }, { sortOrder: "asc" }],
+      // SINIF (L3) ÖNCE, emtia (L4) sonra — kırpma sırası kritik.
+      //
+      // Eskiden `level: "desc"` idi (emtia önce). Katalog küçük ve eşanlamlı
+      // sözlüğü boşken bu zararsızdı: geniş bir sorgu bile 200'ü zor buluyordu.
+      // Katalog 10.991 kategoriye ve sözlük 61k kelimeye çıkınca durum tersine
+      // döndü — ölçüm (2026-09-01, canlı): "makine" 92 sınıf + 474 emtia
+      // eşleştiriyor ve emtia-önce sıralamada ilk 200'e giren sınıf sayısı
+      // SIFIR. Kullanıcı 200 tekil ürün görüyor, gezinebileceği tek bir üst
+      // başlık görmüyordu.
+      //
+      // Sınıf önce gelince gezinilebilir omurga kırpmadan KURTULUYOR; ağaç
+      // kurucusu eşleşen emtianın sınıfını zaten (isMatch:false ile) ekliyor,
+      // yani yol bilgisi kaybolmuyor.
+      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
     });
 
     // Family (L2) adıyla arama da bulsun: eşleşen family'lerin TÜM Class'ları

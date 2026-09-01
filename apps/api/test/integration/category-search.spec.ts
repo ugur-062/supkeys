@@ -366,3 +366,61 @@ describe("CategoryService.searchTree — sonuçsuz arama kaydı", () => {
     expect(await prisma.categorySearchMiss.count()).toBe(0);
   });
 });
+
+/**
+ * KIRPMA SIRASI (2026-09-01).
+ *
+ * 200 sonuç tavanı katalog küçükken neredeyse hiç devreye girmiyordu. Katalog
+ * 10.991 kategoriye ve eşanlamlı sözlüğü 61k kelimeye çıkınca geniş sorgular
+ * tavana dayanmaya başladı — ölçüm: "makine" 92 sınıf + 474 emtia eşleştiriyor.
+ * Emtia-önce sıralamada ilk 200'e giren SINIF sayısı sıfırdı: kullanıcı 200
+ * tekil ürün görüyor, gezinebileceği hiçbir üst başlık göremiyordu.
+ */
+describe("CategoryService.searchTree — kırpmada sınıf önceliği", () => {
+  it("tavan aşılınca SINIF (L3) sonuçları emtiaya (L4) feda edilmez", async () => {
+    await makeCategory({ code: "30000000", nameTr: "Makine", level: 1 });
+    await makeCategory({
+      code: "30990000",
+      nameTr: "Genel makineler",
+      level: 2,
+      parentId: "30000000",
+    });
+    // 3 sınıf × 80 emtia = 243 eşleşme → 200 tavanı aşılır.
+    // (Bir sınıfın altına en fazla 99 emtia sığar: kodun son 2 hanesi.)
+    for (let c = 0; c < 3; c++) {
+      const clsCode = `3099${15 + c}00`;
+      await makeCategory({
+        code: clsCode,
+        nameTr: `Tezgah grubu ${c}`,
+        level: 3,
+        parentId: "30990000",
+      });
+      for (let i = 1; i <= 80; i++) {
+        await makeCategory({
+          code: `${clsCode.slice(0, 6)}${String(i).padStart(2, "0")}`,
+          nameTr: `Tezgah modeli ${c}-${i}`,
+          level: 4,
+          parentId: clsCode,
+        });
+      }
+    }
+
+    const res = await service().searchHierarchical("tezgah");
+
+    expect(res.truncated).toBe(true);
+    const classes = res.segments.flatMap((s) =>
+      s.families.flatMap((f) => f.classes),
+    );
+    // Emtia seli sınıfları kırpmanın dışına itmedi: üçü de EŞLEŞME olarak
+    // ağaçta. level:desc sıralamasında ilk 200'ün tamamı emtia olurdu ve
+    // kullanıcı gezinebileceği tek bir üst başlık göremezdi.
+    const matched = classes.filter((c) => c.isMatch).map((c) => c.nameTr);
+    expect(matched).toEqual(
+      expect.arrayContaining([
+        "Tezgah grubu 0",
+        "Tezgah grubu 1",
+        "Tezgah grubu 2",
+      ]),
+    );
+  });
+});
