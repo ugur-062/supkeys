@@ -15,8 +15,7 @@ import {
   FileText,
   HelpCircle,
   Plus,
-  Trash2,
-} from "lucide-react";
+  Trash2, PackageSearch } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileSpreadsheet } from "lucide-react";
@@ -32,6 +31,10 @@ import {
 import { ItemDetailModal } from "./item-detail-modal";
 import { ItemQuestionModal } from "./item-question-modal";
 import { UnitSelect } from "@/components/ui/unit-select";
+import {
+  CatalogPickerDialog,
+  type PickedCatalogItem,
+} from "@/components/tenders/wizard/catalog-picker-dialog";
 
 export function Step2Items() {
   const {
@@ -44,6 +47,7 @@ export function Step2Items() {
     name: "items",
   });
   const [excelOpen, setExcelOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   const itemsArrayError = errors.items?.message ?? errors.items?.root?.message;
 
@@ -90,6 +94,32 @@ export function Step2Items() {
     } else {
       toast.success(`${mapped.length} kalem aktarıldı`);
     }
+  };
+
+  /**
+   * Katalogdan seçilenleri forma ekler (Faz 2). Excel içe aktarma yoluyla AYNI
+   * `applyImported` mantığı kullanılır — boş satırı ezme, tavan uyarısı ve
+   * "kaç kalem eklendi" bildirimi tek yerde kalsın diye.
+   *
+   * KOPYALAMA: katalog id'si forma TAŞINMAZ. Katalogdaki sonraki bir düzeltme
+   * yayınlanmış ihaleyi geriye dönük değiştirmemeli (FK yok, snapshot var).
+   */
+  const applyCatalog = (picked: PickedCatalogItem[]) => {
+    applyImported(
+      picked.map((p) => ({
+        name: p.name,
+        description: p.description,
+        quantity: p.quantity,
+        unit: p.unit,
+        unitCode: p.unitCode,
+        materialCode: p.materialCode,
+        requiredByDate: null,
+        targetUnitPrice: p.targetPrice,
+        minUnitPrice: null,
+        buyNowUnitPrice: null,
+      })),
+      "append",
+    );
   };
 
   const handleAdd = () => {
@@ -181,6 +211,16 @@ export function Step2Items() {
             type="button"
             variant="secondary"
             size="sm"
+            onClick={() => setCatalogOpen(true)}
+            disabled={fields.length >= MAX_LISTING_ITEMS}
+          >
+            <PackageSearch className="w-4 h-4" />
+            Katalogdan Ekle
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => setExcelOpen(true)}
             disabled={fields.length >= MAX_LISTING_ITEMS}
           >
@@ -209,6 +249,11 @@ export function Step2Items() {
         }}
         existingCount={fields.length}
         onApply={applyImported}
+      />
+      <CatalogPickerDialog
+        open={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        onPick={applyCatalog}
       />
     </div>
   );

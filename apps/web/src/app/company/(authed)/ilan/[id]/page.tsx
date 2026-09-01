@@ -65,12 +65,12 @@ import {
   MapPin,
   Paperclip,
   Users,
-  Wallet,
-} from "lucide-react";
+  Wallet, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useImportListingToCatalog } from "@/hooks/use-company-items";
 
 const TRIGGER_CLASSES = cn(
   "group inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
@@ -195,6 +195,9 @@ export default function ListingDetailPage() {
       ? rawFrom
       : null;
   const fromLabel = searchParams.get("fromLabel");
+  // Faz 2: hook koşulsuz çağrılmalı — erken dönüşlerin ARDINDA çağırmak
+  // rules-of-hooks ihlali (render'lar arası hook sırası değişir).
+  const saveToCatalog = useImportListingToCatalog();
   const { data: l, isLoading, isFetching, isError, error, refetch } =
     useListingDetail(id);
   // 404 = erişim kalktı (kapalı-zarf gereği sebep söylenmez): bağlantı
@@ -703,14 +706,52 @@ export default function ListingDetailPage() {
               : l.items.length}
             )
           </Subheading>
-          {l.items.length > ITEM_SEARCH_THRESHOLD ? (
-            <SearchInput
-              value={itemSearch}
-              onChange={setItemSearch}
-              placeholder="Kalem ara…"
-              className="w-56"
-            />
-          ) : null}
+          <div className="flex items-center gap-2">
+            {l.items.length > ITEM_SEARCH_THRESHOLD ? (
+              <SearchInput
+                value={itemSearch}
+                onChange={setItemSearch}
+                placeholder="Kalem ara…"
+                className="w-56"
+              />
+            ) : null}
+            {/* Faz 2 TERS YÖN: katalog kendiliğinden dolsun. Kullanıcıdan
+                önce oturup katalog kurmasını istemek benimsemeyi öldürür —
+                zaten girdiği kalemleri tek tıkla saklayabilmeli. Yalnız ilan
+                sahibi ve yönetebilen kullanıcıya görünür. */}
+            {canManage && !l.masked ? (
+              <Button
+                outline
+                disabled={saveToCatalog.isPending}
+                onClick={() => {
+                  saveToCatalog.mutate(l.id, {
+                    onSuccess: (r) => {
+                      if (r.added === 0) {
+                        toast.info(
+                          r.skipped > 0
+                            ? "Bu kalemler katalogunuzda zaten var"
+                            : "Kataloğa eklenecek kalem bulunamadı",
+                        );
+                      } else {
+                        toast.success(
+                          `${r.added} kalem kataloğa eklendi${
+                            r.skipped > 0 ? ` · ${r.skipped} zaten vardı` : ""
+                          }`,
+                        );
+                      }
+                    },
+                    onError: (err) =>
+                      toast.error(
+                        extractErrorMessage(err, "Kataloğa kaydedilemedi"),
+                      ),
+                  });
+                }}
+              >
+                <PackagePlus className="h-4 w-4" />
+                Kataloğa Kaydet
+              </Button>
+            ) : null}
+          </div>
         </div>
         {l.masked ? (
           <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">

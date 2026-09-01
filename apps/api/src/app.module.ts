@@ -46,6 +46,7 @@ import { CompanyReportsModule } from "./modules/company-reports/company-reports.
 import { CompanyReviewsModule } from "./modules/company-reviews/company-reviews.module";
 import { CompanyListingTemplatesModule } from "./modules/company-listing-templates/company-listing-templates.module";
 import { CompanySupplierTemplatesModule } from "./modules/company-supplier-templates/company-supplier-templates.module";
+import { CompanyItemsModule } from "./modules/company-items/company-items.module";
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
 import { CompanyProfileModule } from "./modules/company-profile/company-profile.module";
@@ -188,6 +189,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyDocsModule,
     CompanyListingTemplatesModule,
     CompanySupplierTemplatesModule,
+    CompanyItemsModule,
     CompanyOrdersModule,
     CompanyInboxModule,
     CompanyMessagesModule,

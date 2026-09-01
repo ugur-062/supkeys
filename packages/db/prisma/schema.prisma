@@ -492,6 +492,7 @@ model Company {
   listingInvitations   ListingInvitation[]       @relation("ListingInvitee")
   listingTemplates     ListingTemplate[]
   supplierTemplates    SupplierTemplate[]
+  items                CompanyItem[]
   threadsAsBuyer       MessageThread[]           @relation("ThreadBuyer")
   threadsAsSeller      MessageThread[]           @relation("ThreadSeller")
   messagesSent         Message[]                 @relation("MessageSender")
@@ -1373,6 +1374,58 @@ model ListingTemplate {
 
 // Tedarikçi şablonu — sık birlikte davet edilen bağlı firma grubu (ihale
 // sihirbazında tek tıkla davet). Üyeler bağlı firma id'leri (denormalize).
+/**
+ * KALEM KATALOĞU (Faz 2) — firma-içi tekrar kullanılabilir kalem kartları.
+ * SAP "Material Master"ın bu ürüne uyarlanmış, sadeleştirilmiş hâli.
+ *
+ * TASARIM: ilan kalemiyle arasında FK YOKTUR — katalogdan ihaleye KOPYALANIR.
+ * FK olsaydı katalogdaki bir düzeltme yayınlanmış ihaleyi geriye dönük
+ * değiştirirdi; denetim boyunca tam olarak bu sınıf hatayı kovaladık
+ * (snapshot'lar dondurulur, canlı bağ kurulmaz).
+ *
+ * Silme yerine `isActive=false` (pasifleştirme): geçmiş ilanlar kopya taşıdığı
+ * için zaten etkilenmez, ama kullanıcı yanlışlıkla sildiğini geri alabilmeli.
+ */
+model CompanyItem {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /** Firma-içi stok kodu — OPSİYONEL (KOBİ kullanıcısı kod tutmuyor olabilir). */
+  code          String?
+  name          String
+  description   String?
+  /** Uzun teknik metin (SAP long text karşılığı) — Faz 3'te ilan kalemine de gelecek. */
+  specification String?
+  /**
+   * Kanonik ölçü birimi (@rothern/shared UNITS). İlan kalemiyle AYNI kural:
+   * tanınmayan birimde NULL kalır ve serbest metin `unit` geçerlidir.
+   * Katalogda zorunlu tutmak, "bobin" yazan kullanıcıyı kalemini kaydedemez
+   * hâle getirirdi — liste bilinçli olarak kapalı değil.
+   */
+  unitCode      String?
+  /** Serbest metin karşılığı — okuma `unitCode ?? unit` sırasıyla. */
+  unit          String
+  /** UNSPSC kategorisi (L3+) — yeni taksonomi ÜRETİLMEZ, mevcut ağaca bağlanır. */
+  categoryId    String?
+  brand         String?
+  /** Üretici parça numarası. */
+  mpn           String?
+  targetPrice   Decimal? @db.Decimal(18, 2)
+  isActive      Boolean  @default(true)
+  /** "En sık kullanılan üstte" sıralaması — katalogdan ihaleye her eklemede artar. */
+  usageCount    Int      @default(0)
+  lastUsedAt    DateTime?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  // Kod verilmişse firma içinde tekil (null'lar çakışmaz — Postgres davranışı).
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+  @@index([companyId, categoryId])
+  @@map("company_items")
+}
+
 model SupplierTemplate {
   id               String   @id @default(cuid())
   companyId        String

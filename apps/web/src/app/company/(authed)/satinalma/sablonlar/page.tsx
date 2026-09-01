@@ -1,7 +1,7 @@
 "use client";
 
 import { HubList } from "@/components/company/hub-list";
-import { FileStack, ListChecks, Users } from "lucide-react";
+import { FileStack, ListChecks, PackageSearch, Users } from "lucide-react";
 
 export default function SatinalmaSablonlarPage() {
   return (
@@ -9,6 +9,16 @@ export default function SatinalmaSablonlarPage() {
       title="Şablonlar"
       description="İhale açarken tekrar tekrar girdiğiniz verileri bir kez şablonlayın, hızla uygulayın."
       items={[
+        {
+          // Faz 2 — Kalem Kataloğu. Sol menü sadeleştirme kararına sadık
+          // kalındı: yeni bir menü satırı AÇILMADI, mevcut Şablonlar hub'ının
+          // dördüncü kartı olarak duruyor.
+          href: "/company/satinalma/sablonlar/kalemler",
+          label: "Kalem Kataloğu",
+          description:
+            "Sık kullandığınız kalemleri bir kez kaydedin; ihale açarken “Katalogdan Ekle” ile saniyede listeleyin.",
+          icon: PackageSearch,
+        },
         {
           href: "/company/satinalma/sablonlar/ihale",
           label: "İhale Şablonları",
