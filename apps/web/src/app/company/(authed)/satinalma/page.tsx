@@ -53,7 +53,7 @@ const TedarikciTab = dynamic(
 
 
 const TABS = [
-  { value: "ihale", label: "İhale" },
+  { value: "satın alma talebi", label: "Satın Alma Talebi" },
   { value: "tasarruf", label: "Tasarruf" },
   { value: "tedarikci", label: "Tedarikçi" },
 ] as const;
@@ -72,7 +72,7 @@ export default function SatinalmaDashboardPage() {
   // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (tek doğruluk
   // kaynağı, paylaşılabilir/yer imlenebilir; geri tuşu çalışır).
   const { period, from, to, tab, setParams } = useDashboardParams(
-    "ihale",
+    "satın alma talebi",
     TABS.map((t) => t.value),
   );
   const periodQuery = { period, from, to };
@@ -126,7 +126,7 @@ export default function SatinalmaDashboardPage() {
             },
             {
               key: "tender",
-              label: "İlk ihalenizi oluşturun",
+              label: "İlk satın alma talebinizi oluşturun",
               done: false,
               href: "/company/satinalma/ihalelerim/yeni",
             },
@@ -148,7 +148,7 @@ export default function SatinalmaDashboardPage() {
         className="space-y-6"
         // Faz 3: sekme URL'de (?tab=) — paylaşılabilir + geri tuşu çalışır.
         selectedIndex={Math.max(0, TABS.findIndex((t) => t.value === tab))}
-        onChange={(i) => setParams({ tab: TABS[i]?.value ?? "ihale" })}
+        onChange={(i) => setParams({ tab: TABS[i]?.value ?? "satın alma talebi" })}
       >
         {/* C46 (satış ile aynı): dönem seçici yalnız bu sekmelerin verisini
             etkiler — ilgili bölümün başında durur. */}

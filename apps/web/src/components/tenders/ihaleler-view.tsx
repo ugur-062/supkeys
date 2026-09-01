@@ -223,7 +223,7 @@ export function IhalelerView({
         title={isSatis ? MODULE_LABELS.satis.ilanlarim : MODULE_LABELS.satinalma.ihalelerim}
         description={
           isSatis
-            ? "Satış ihalelerinizi yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
+            ? "satış ilanlarınızı yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
             : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         }
         action={
@@ -255,7 +255,7 @@ export function IhalelerView({
               >
                 <Button variant="primary">
                   <Plus className="h-4 w-4" />
-                  {isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+                  {isSatis ? "Yeni Satış İlanı" : "Yeni Satın Alma Talebi Aç"}
                 </Button>
               </Link>
             ) : null}
@@ -265,7 +265,7 @@ export function IhalelerView({
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 500 ihale gösteriliyor — daha fazlası varsa arama ve
+          En fazla 500 satın alma talebi gösteriliyor — daha fazlası varsa arama ve
           filtrelerle daraltın.
         </div>
       ) : null}
@@ -276,7 +276,7 @@ export function IhalelerView({
           <SearchInput
             value={search}
             onChange={reset(setSearch)}
-            placeholder="İhale adı veya numarası ara…"
+            placeholder="Satın Alma Talebi adı veya numarası ara…"
             className="flex-1"
           />
           <FilterSelect
@@ -347,7 +347,7 @@ export function IhalelerView({
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit="ihale"
+            unit="satın alma talebi"
             isLoading={list.isLoading}
             className="ml-auto"
           />
@@ -362,7 +362,7 @@ export function IhalelerView({
         isError={list.isError}
         onRetry={() => list.refetch()}
         listingType={listingType}
-        emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+        emptyCtaLabel={isSatis ? "Yeni Satış İlanı" : "Yeni Satın Alma Talebi Aç"}
       />
 
       {totalPages > 1 ? (

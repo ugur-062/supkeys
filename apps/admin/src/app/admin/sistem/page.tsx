@@ -384,7 +384,7 @@ const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string
   { key: "followupMin", label: "Hatırlatma (dk — v1'de hesaba katılmaz)" },
   { key: "bidToExcelMin", label: "Teklif→Excel (dk × teklif)" },
   { key: "bidItemFactor", label: "Kalem katsayısı", step: "0.05" },
-  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × ihale)" },
+  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × satın alma talebi)" },
   { key: "revisionRoundMin", label: "Revizyon turu (dk × tur)" },
   { key: "approvalLoopMin", label: "Onay döngüsü (dk × onay)" },
   { key: "poPrepMin", label: "PO hazırlama (dk × sipariş)" },

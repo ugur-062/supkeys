@@ -307,11 +307,11 @@ export function applyDocRowValues(
   if (r.quantity != null && Number.isFinite(r.quantity)) {
     const q = Number(it.quantity);
     if (Number.isFinite(q) && q > 0 && Math.abs(q - r.quantity) / q > 0.001) {
-      m.warnings.push(`Belgedeki miktar (${r.quantity}) ihaledekinden (${it.quantity}) farklı`);
+      m.warnings.push(`Belgedeki miktar (${r.quantity}) satın alma talebindekinden (${it.quantity}) farklı`);
     }
   }
   if (r.unit && foldText(r.unit) !== foldText(it.unit)) {
-    m.warnings.push(`Belgedeki birim (${r.unit}) ihaledekinden (${it.unit}) farklı`);
+    m.warnings.push(`Belgedeki birim (${r.unit}) satın alma talebindekinden (${it.unit}) farklı`);
   }
   const cur = normalizeCurrency(r.currency);
   if (cur) {
@@ -319,7 +319,7 @@ export function applyDocRowValues(
       // Ana birimle aynıysa null bırak (= teklifin ana birimi).
       m.currency = cur === opts.primaryCurrency ? null : cur;
     } else {
-      m.warnings.push(`Belgedeki para birimi (${cur}) bu ihalede kabul edilmiyor — teklif birimi kullanılacak`);
+      m.warnings.push(`Belgedeki para birimi (${cur}) bu satın alma talebinde kabul edilmiyor — teklif birimi kullanılacak`);
     }
   }
   m.deliveryTime = normalizeDeliveryTime(r.deliveryText);

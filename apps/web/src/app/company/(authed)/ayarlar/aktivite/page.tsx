@@ -28,7 +28,7 @@ import {
 /** Modül filtresi — backend whitelist ile birebir. */
 const MODULES: { value: string; label: string }[] = [
   { value: "", label: "Tümü" },
-  { value: "listing", label: "İhaleler" },
+  { value: "listing", label: "Satın Alma Talepleri" },
   { value: "bid", label: "Teklifler" },
   { value: "order", label: "Siparişler" },
   { value: "user", label: "Kullanıcılar" },
@@ -78,7 +78,7 @@ export default function AktivitePage() {
   return (
     <SettingsShell
       title="Aktivite Logu"
-      description="Firmanızdaki eylem kayıtları — kim ihale açtı, kim rol değiştirdi, kim banka hesabı güncelledi. Değerler değil eylemler kaydedilir; hassas alanlar maskeli referansla görünür."
+      description="Firmanızdaki eylem kayıtları — kim satın alma talebi açtı, kim rol değiştirdi, kim banka hesabı güncelledi. Değerler değil eylemler kaydedilir; hassas alanlar maskeli referansla görünür."
     >
       <PremiumOnly minTier="SILVER">
         <div className="space-y-4">

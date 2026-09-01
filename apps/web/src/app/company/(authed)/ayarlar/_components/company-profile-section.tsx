@@ -281,7 +281,7 @@ export function CompanyProfileSection() {
                     value={form.buyerCategoryIds}
                     onChange={(ids) => set({ buyerCategoryIds: ids })}
                     title="Alış Faaliyet Alanları"
-                    description="Satın aldığınız ana kategorileri seçin — ihale eşleşmesi ve öneriler bu seçime göre yapılır."
+                    description="Satın aldığınız ana kategorileri seçin — satın alma talebi eşleşmesi ve öneriler bu seçime göre yapılır."
                   />
                 </div>
               ) : (
@@ -300,7 +300,7 @@ export function CompanyProfileSection() {
                     value={form.sellerCategoryIds}
                     onChange={(ids) => set({ sellerCategoryIds: ids })}
                     title="Satış Faaliyet Alanları"
-                    description="Tedarik edebileceğiniz ana kategorileri seçin — açık ihale önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
+                    description="Tedarik edebileceğiniz ana kategorileri seçin — açık satın alma talebi önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
                   />
                 </div>
               ) : (

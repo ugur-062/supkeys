@@ -105,7 +105,7 @@ export class CompanyApprovalsService {
       .pushToUser(approverUserId, {
         type: "approval_pending",
         title: "Onayınız bekleniyor",
-        body: `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
+        body: `"${listing?.title ?? "Satın Alma Talebi"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
         ctaLabel: "Onaylar Sayfası",
         ctaUrl: appRoutes.approvals(webUrl),
         listingId,
@@ -131,7 +131,7 @@ export class CompanyApprovalsService {
             heading: "Onayınız bekleniyor",
             paragraphs: [
               "Merhaba,",
-              `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
+              `"${listing?.title ?? "Satın Alma Talebi"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
               ...(daysWaiting && daysWaiting > 0
                 ? [`Bu onay ${daysWaiting} gündür bekliyor.`]
                 : []),
@@ -193,7 +193,7 @@ export class CompanyApprovalsService {
     const webUrl =
       resolveWebUrl(this.config);
     const title = approved ? "Onay isteğiniz onaylandı" : "Onay isteğiniz reddedildi";
-    const body = `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için başlattığınız onay isteği ${
+    const body = `"${listing?.title ?? "Satın Alma Talebi"}" (${listing?.number ?? "—"}) için başlattığınız onay isteği ${
       approved ? "onaylandı ve işlem uygulandı" : "reddedildi"
     }.${note ? ` Not: ${note}` : ""}`;
     await this.notifications
@@ -204,7 +204,7 @@ export class CompanyApprovalsService {
         type: "approval_decided",
         title,
         body,
-        ctaLabel: "İhaleyi Gör",
+        ctaLabel: "Satın Alma Talebini Gör",
         ctaUrl: appRoutes.listing(webUrl, listingId),
         listingId,
       })
@@ -228,7 +228,7 @@ export class CompanyApprovalsService {
             subject: title,
             heading: title,
             paragraphs: ["Merhaba,", body],
-            ctaLabel: "İhaleyi Gör",
+            ctaLabel: "Satın Alma Talebini Gör",
             ctaUrl: appRoutes.listing(webUrl, listingId),
           },
         },

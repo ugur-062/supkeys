@@ -112,7 +112,7 @@ export class CompanyReportsService {
     });
     if (!row) {
       throw new NotFoundException(
-        "İhale bulunamadı — numara veya ID hatalı olabilir",
+        "Satın Alma Talebi bulunamadı — numara veya ID hatalı olabilir",
       );
     }
     return row.id;
@@ -146,14 +146,14 @@ export class CompanyReportsService {
     let listings;
     if (dto.mode === "SINGLE") {
       if (!dto.listingId?.trim()) {
-        throw new BadRequestException("İhale numarası ya da ID zorunlu");
+        throw new BadRequestException("Satın Alma Talebi numarası ya da ID zorunlu");
       }
       const id = await this.resolveListingId(companyId, dto.listingId);
       const one = await this.prisma.listing.findFirst({
         where: { id, companyId, type },
         include,
       });
-      if (!one) throw new NotFoundException("İhale bulunamadı");
+      if (!one) throw new NotFoundException("Satın Alma Talebi bulunamadı");
       listings = [one];
     } else {
       if (!dto.rangeStart || !dto.rangeEnd) {
@@ -662,7 +662,7 @@ export class CompanyReportsService {
           : false,
       },
     });
-    if (!l) throw new NotFoundException("İhale bulunamadı");
+    if (!l) throw new NotFoundException("Satın Alma Talebi bulunamadı");
 
     const includePrice = dto.criteria === "PRICE" || dto.criteria === "BOTH";
     const includeAnswers =

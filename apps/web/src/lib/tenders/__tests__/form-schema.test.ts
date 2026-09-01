@@ -11,7 +11,7 @@ function validForm(over: Partial<TenderFormData> = {}): TenderFormData {
   return {
     ...DEFAULT_FORM_VALUES,
     categoryIds: ["cat-1"],
-    title: "Geçerli ihale başlığı",
+    title: "Geçerli satın alma talebi başlığı",
     bidsCloseAt: future,
     items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
     // 2026-07-11 ürün kararı: teslim şekli + teslimat adresi zorunlu.
@@ -138,7 +138,7 @@ describe("tenderFormSchema", () => {
     ).toBe(true);
   });
 
-  it("kısmi peşin yalnız yurtiçi ihalede", () => {
+  it("kısmi peşin yalnız yurtiçi satın alma talebinde", () => {
     // Yurtiçi: %50 peşin OK (kalan vade opsiyonel).
     expect(
       tenderFormSchema.safeParse(
@@ -229,7 +229,7 @@ describe("tenderFormSchema", () => {
     ).toBe(true);
   });
 
-  it("lojistik ihalede çıkış/varış/kargo zorunlu", () => {
+  it("lojistik satın alma talebinde çıkış/varış/kargo zorunlu", () => {
     const bad = tenderFormSchema.safeParse(validForm({ isLogistics: true }));
     expect(bad.success).toBe(false);
     const ok = tenderFormSchema.safeParse(
@@ -287,7 +287,7 @@ describe("tenderFormSchema — sınır tavanları (F2/F3, backend DTO birebir)",
   });
 });
 
-describe("tenderFormSchema — SATIS (satış ihalesi)", () => {
+describe("tenderFormSchema — SATIS (satış satın alma talebi)", () => {
   it("SATIS: taban fiyat zorunlu; verilince geçer", () => {
     const noMin = tenderFormSchema.safeParse(
       validForm({ listingType: "SATIS" }),

@@ -84,7 +84,7 @@ export function SatisGelirTab({
           <DashboardEmptyState
             title="Henüz gelir verisi yok"
             body="İlk satışın siparişe dönüştüğünde aylık gelir burada birikecek."
-            ctaLabel="Açık İhalelere Göz At"
+            ctaLabel="Açık Taleplere Göz At"
             ctaHref="/company/satis/acik-ihaleler"
           />
         )}
@@ -149,7 +149,7 @@ export function SatisGelirTab({
           <DashboardEmptyState
             title="Satış hunisi boş"
             body="Davet alıp teklif verdikçe aşamalar burada dolacak."
-            ctaLabel="Açık İhalelere Göz At"
+            ctaLabel="Açık Taleplere Göz At"
             ctaHref="/company/satis/acik-ihaleler"
           />
         )}
@@ -195,7 +195,7 @@ export function SatisMusteriTab({
                 href="/company/satis/acik-ihaleler"
                 className="whitespace-nowrap text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
               >
-                Açık ihalelere göz at
+                Açık satın alma taleplerine göz at
               </Link>
             </span>
           ) : undefined
@@ -321,14 +321,14 @@ export function SatisMusteriTab({
             {/* TODO: toplam tutar bilinemez — teklif verilmedi, ihale toplam
                 değeri platformda tutulmuyor. */}
             <p className="text-xs text-slate-400">
-              Tutar hesaplanamaz — teklif verilmeden kapanan ihalenin değeri
+              Tutar hesaplanamaz — teklif verilmeden kapanan satın alma talebinin değeri
               bilinmez.
             </p>
           </div>
         ) : (
           <DashboardEmptyState
             title="Kaçırılan fırsat yok"
-            body="Son 12 ayda teklifsiz kapanan davetli ihaleniz bulunmuyor."
+            body="Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor."
           />
         )}
       </ChartCard>

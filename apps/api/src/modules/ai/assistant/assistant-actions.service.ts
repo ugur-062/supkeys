@@ -89,17 +89,17 @@ export class AssistantActionsService {
       ? args.rothernIds.filter((r): r is string => typeof r === "string").slice(0, 50)
       : [];
     if (!listingId || rothernIds.length === 0) {
-      return { ok: false, problem: "İhale id ve en az bir firma kodu (Rothern ID) gerekli." };
+      return { ok: false, problem: "Satın Alma Talebi id ve en az bir firma kodu (Rothern ID) gerekli." };
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
       select: { id: true, title: true, number: true, status: true, type: true },
     });
     if (!listing) {
-      return { ok: false, problem: "Bu id ile firmanıza ait bir ihale bulunamadı." };
+      return { ok: false, problem: "Bu id ile firmanıza ait bir satın alma talebi bulunamadı." };
     }
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
-      return { ok: false, problem: "Bu ihale artık davete kapalı (yalnız taslak/açık ihaleye davet eklenir)." };
+      return { ok: false, problem: "Bu satın alma talebi artık davete kapalı (yalnız taslak/açık satın alma talebine davet eklenir)." };
     }
     // Kod → firma adı çözümü (özet için; bağlayıcı doğrulama execute'ta).
     const targets = await this.prisma.company.findMany({
@@ -114,7 +114,7 @@ export class AssistantActionsService {
       severity: "normal",
       params: { listingId, rothernIds },
       summary: [
-        `İhale: ${listing.title} (${listing.number ?? listing.id})`,
+        `Satın Alma Talebi: ${listing.title} (${listing.number ?? listing.id})`,
         `Davet edilecek: ${targets.map((t) => `${t.name} (${t.rothernId})`).join(", ")}`,
         "Yalnız bağlantılı firmalara davet gider; diğerleri atlanır.",
       ],
@@ -137,7 +137,7 @@ export class AssistantActionsService {
       return {
         ok: false,
         problem:
-          "Davetli ihale en az bir firma davetiyle yayınlanır — davet edilecek bağlantılı firmaların Rothern kodlarını isteyin.",
+          "Davetli satın alma talebi en az bir firma davetiyle yayınlanır — davet edilecek bağlantılı firmaların Rothern kodlarını isteyin.",
       };
     }
     const invitees = await this.connectedCompaniesByCode(user.companyId, rawCodes);
@@ -153,7 +153,7 @@ export class AssistantActionsService {
       select: { tenderDraft: true },
     });
     if (!session?.tenderDraft) {
-      return { ok: false, problem: "Bu sohbette biriken bir ihale taslağı yok — önce taslağı birlikte hazırlayın." };
+      return { ok: false, problem: "Bu sohbette biriken bir satın alma talebi taslağı yok — önce taslağı birlikte hazırlayın." };
     }
     const s = sanitizeAiDraft(session.tenderDraft, "refine");
     if (s.missingRequired.length > 0) {
@@ -183,7 +183,7 @@ export class AssistantActionsService {
       // planının ya da şartname metninin kullanıcı görmeden yayınlanması
       // demekti (denetim 2026-08-24 Parça 6).
       summary: [
-        `${type === "ALIM" ? "Alım ihalesi" : "Satış ilanı"} YAYINLANACAK: ${dto.title}`,
+        `${type === "ALIM" ? "Alım satın alma talebi" : "Satış ilanı"} YAYINLANACAK: ${dto.title}`,
         `Kalemler: ${(dto.items ?? [])
           .slice(0, 5)
           .map(
@@ -224,7 +224,7 @@ export class AssistantActionsService {
       severity: "normal",
       params: { listingId: ref.listing.id, bidId: ref.bid.id, reason },
       summary: [
-        `İhale: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
+        `Satın Alma Talebi: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
         `Elenecek teklif: ${ref.supplierName} — ${ref.bid.amount} ${ref.bid.currency}`,
         ...(reason ? [`Gerekçe: ${reason}`] : []),
         "Tedarikçiye eleme bildirimi gider; dilerse yeniden teklif verebilir.",
@@ -245,7 +245,7 @@ export class AssistantActionsService {
     const ref = await this.loadOwnedBid(user, args);
     if (typeof ref === "string") return { ok: false, problem: ref };
     if (!["OPEN", "IN_AWARD", "CLOSED"].includes(ref.listing.status)) {
-      return { ok: false, problem: "Bu ihale kazandırmaya uygun durumda değil." };
+      return { ok: false, problem: "Bu satın alma talebi kazandırmaya uygun durumda değil." };
     }
     if (!["SUBMITTED"].includes(ref.bid.status)) {
       return { ok: false, problem: "Yalnız gönderilmiş (aktif) bir teklif kazandırılabilir." };
@@ -256,7 +256,7 @@ export class AssistantActionsService {
       severity: "critical",
       params: { listingId: ref.listing.id, bidId: ref.bid.id, note },
       summary: [
-        `İhale KAZANDIRILACAK: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
+        `Satın Alma Talebi KAZANDIRILACAK: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
         `Kazanan: ${ref.supplierName} — ${ref.bid.amount} ${ref.bid.currency} (tüm kalemler)`,
         "Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder, sipariş oluşturulur.",
         "Firmanızda onay akışı tanımlıysa işlem önce şirket onayına düşer.",
@@ -275,23 +275,23 @@ export class AssistantActionsService {
     args: Record<string, unknown>,
   ): Promise<ProposeOutcome> {
     const listingId = String(args.listingId ?? "").trim();
-    if (!listingId) return { ok: false, problem: "İhale id gerekli." };
+    if (!listingId) return { ok: false, problem: "Satın Alma Talebi id gerekli." };
     let detail: Record<string, unknown>;
     try {
       detail = (await this.listings.getOne(user, listingId)) as Record<string, unknown>;
     } catch {
-      return { ok: false, problem: "İhale bulunamadı veya erişiminiz yok." };
+      return { ok: false, problem: "Satın Alma Talebi bulunamadı veya erişiminiz yok." };
     }
     if (detail.isOwner === true) {
-      return { ok: false, problem: "Kendi ihalenize teklif veremezsiniz." };
+      return { ok: false, problem: "Kendi satın alma talebinize teklif veremezsiniz." };
     }
     if (detail.status !== "OPEN") {
-      return { ok: false, problem: "Bu ihale teklife açık değil." };
+      return { ok: false, problem: "Bu satın alma talebi teklife açık değil." };
     }
     if (detail.requireBidDocument === true) {
       return {
         ok: false,
-        problem: "Bu ihale teklif belgesi istiyor — teklifi ihale sayfasından belge yükleyerek verin.",
+        problem: "Bu satın alma talebi teklif belgesi istiyor — teklifi satın alma talebi sayfasından belge yükleyerek verin.",
       };
     }
     const items = (detail.items ?? []) as Array<{
@@ -302,17 +302,17 @@ export class AssistantActionsService {
       questions?: Array<{ required?: boolean }>;
     }>;
     if (items.length === 0) {
-      return { ok: false, problem: "İhale kalemleri okunamadı — sayfadan teklif verin." };
+      return { ok: false, problem: "Satın Alma Talebi kalemleri okunamadı — sayfadan teklif verin." };
     }
     if (items.some((i) => (i.questions ?? []).some((q) => q.required))) {
       return {
         ok: false,
-        problem: "Bu ihalede cevaplanması zorunlu teknik sorular var — teklifi ihale sayfasından verin.",
+        problem: "Bu satın alma talebinde cevaplanması zorunlu teknik sorular var — teklifi satın alma talebi sayfasından verin.",
       };
     }
     const myBid = detail.myBid as { status?: string } | null | undefined;
     if (myBid?.status === "SUBMITTED") {
-      return { ok: false, problem: "Bu ihalede zaten gönderilmiş aktif bir teklifiniz var (geri çekilemez)." };
+      return { ok: false, problem: "Bu satın alma talebinde zaten gönderilmiş aktif bir teklifiniz var (geri çekilemez)." };
     }
 
     // Kalem fiyatları: TÜM kalemler fiyatlanmalı (kısmi teklif sayfaya).
@@ -336,7 +336,7 @@ export class AssistantActionsService {
     const currency = String(args.currency ?? detail.primaryCurrency ?? "TRY");
     const allowed = (detail.allowedCurrencies ?? []) as string[];
     if (allowed.length > 0 && !allowed.includes(currency)) {
-      return { ok: false, problem: `Bu ihalede geçerli para birimleri: ${allowed.join(", ")}.` };
+      return { ok: false, problem: `Bu satın alma talebinde geçerli para birimleri: ${allowed.join(", ")}.` };
     }
 
     // amount = Σ(birim × miktar) — award nöbetçisiyle (bid.amount ≡ Σ) uyumlu.
@@ -442,12 +442,12 @@ export class AssistantActionsService {
   > {
     const listingId = String(args.listingId ?? "").trim();
     const bidId = String(args.bidId ?? "").trim();
-    if (!listingId || !bidId) return "İhale id ve teklif id gerekli.";
+    if (!listingId || !bidId) return "Satın Alma Talebi id ve teklif id gerekli.";
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
       select: { id: true, title: true, number: true, status: true },
     });
-    if (!listing) return "Bu id ile firmanıza ait bir ihale bulunamadı.";
+    if (!listing) return "Bu id ile firmanıza ait bir satın alma talebi bulunamadı.";
     const bid = await this.prisma.listingBid.findFirst({
       where: { id: bidId, listingId },
       select: {
@@ -458,7 +458,7 @@ export class AssistantActionsService {
         bidderCompany: { select: { name: true } },
       },
     });
-    if (!bid) return "Bu ihalede böyle bir teklif bulunamadı.";
+    if (!bid) return "Bu satın alma talebinde böyle bir teklif bulunamadı.";
     return {
       listing,
       bid: { id: bid.id, amount: bid.amount, currency: bid.currency, status: bid.status },
@@ -601,7 +601,7 @@ export class AssistantActionsService {
           // değil; `as PlaceBidDto` yalnız derleme-zamanı iddiadır).
           const bidDto = validatePendingDto(PlaceBidDto, p.dto);
           await this.listings.placeBid(user, p.listingId, bidDto);
-          message = "Teklifiniz gönderildi (kapalı zarf — yalnız ihale sahibi görür).";
+          message = "Teklifiniz gönderildi (kapalı zarf — yalnız satın alma talebi sahibi görür).";
           resourceId = p.listingId;
           break;
         }
@@ -619,7 +619,7 @@ export class AssistantActionsService {
             id?: string;
           };
           resourceId = created?.id;
-          message = "İhale yayınlandı — teklifler artık toplanıyor.";
+          message = "Satın Alma Talebi yayınlandı — teklifler artık toplanıyor.";
           // Yayınlanan taslağı oturumdan temizle (tekrar yayınlanmasın).
           await this.prisma.aiChatSession.update({
             where: { id: session.id },

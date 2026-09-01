@@ -23,9 +23,9 @@ export default function SatinalmaRaporlarPage() {
       items={[
         {
           href: "/company/satinalma/raporlar/genel",
-          label: "Genel İhale Raporu",
+          label: "Genel Satın Alma Talebi Raporu",
           description:
-            "Tek ihale veya tarih aralığında ihalelerinizi listeleyin — katılım, kazanan ve tasarrufla.",
+            "Tek satın alma talebi veya tarih aralığında satın alma taleplerinizi listeleyin — katılım, kazanan ve tasarrufla.",
           icon: FileText,
         },
         {
@@ -39,7 +39,7 @@ export default function SatinalmaRaporlarPage() {
           href: "/company/satinalma/raporlar/teklif-karsilastirma",
           label: "Teklif Karşılaştırma Raporu",
           description:
-            "Bir ihaleye gelen teklifleri kalem bazında yan yana karşılaştırın.",
+            "Bir satın alma talebine gelen teklifleri kalem bazında yan yana karşılaştırın.",
           icon: GitCompare,
         },
       ]}

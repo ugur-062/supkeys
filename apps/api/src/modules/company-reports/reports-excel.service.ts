@@ -65,11 +65,11 @@ export class ReportsExcelService {
     wb.creator = "Rothern";
     wb.created = new Date();
     const ws = wb.addWorksheet(
-      isAlim ? "Genel İhale Raporu" : "Genel İlan Raporu",
+      isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel İlan Raporu",
     );
     this.title(
       ws,
-      isAlim ? "Genel İhale Raporu" : "Genel Satış İlanı Raporu",
+      isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel Satış İlanı Raporu",
       data.generatedAt,
     );
     if (data.mode === "RANGE" && data.rangeStart && data.rangeEnd) {
@@ -127,13 +127,13 @@ export class ReportsExcelService {
     ws.addRow(["Özet"]).font = { bold: true, size: 13, color: { argb: INK } };
     (
       [
-        [isAlim ? "Toplam İhale" : "Toplam İlan", s.totalListings],
+        [isAlim ? "Toplam Satın Alma Talebi" : "Toplam İlan", s.totalListings],
         ["Kazandırılan", s.awardedListings],
         ["İptal", s.cancelledListings],
         ["Toplam Davet", s.totalInvited],
         ["Toplam Teklif", s.totalSubmittedBids],
         ["Yanıt Oranı", `${s.overallResponseRate}%`],
-        ["Ort. Teklif / İhale", s.avgBidsPerListing],
+        ["Ort. Teklif / Satın Alma Talebi", s.avgBidsPerListing],
         [isAlim ? "Hedef Toplam" : "Taban Toplam", s.totalEstimated],
         ["Kazanan Toplam (TRY)", s.totalAwardedValue],
         [`Toplam ${deltaWord} (TRY)`, s.totalDelta],

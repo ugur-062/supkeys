@@ -90,7 +90,7 @@ export function FilesTab({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
             <FileText className="h-4 w-4 text-zinc-700" />
           </div>
-          <h3 className="font-semibold text-zinc-900">İhale Dosyaları</h3>
+          <h3 className="font-semibold text-zinc-900">Satın Alma Talebi Dosyaları</h3>
         </div>
         {isOwner && canEdit ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -158,7 +158,7 @@ export function FilesTab({
           <p className="mt-3 text-sm text-zinc-500">
             {isOwner && canEdit
               ? "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsiniz."
-              : "Bu ihaleye dosya eklenmemiş."}
+              : "Bu satın alma talebine dosya eklenmemiş."}
           </p>
         </div>
       ) : (

@@ -44,7 +44,7 @@ export function CategorySelectorButton({
 
   const defaultPlaceholder =
     mode === "single"
-      ? "İhale kategorisini seçin"
+      ? "Satın Alma Talebi kategorisini seçin"
       : "Tedarik kategorilerinizi seçin";
 
   return (

@@ -208,8 +208,8 @@ function sym(currency: string | undefined): string {
  * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır (ham "Alış
  * İhalesi/Satış İlanı" etiketi kafa karıştırıyordu: alıcı portalında "Satış
  * İlanı" gören kullanıcı kendi alışını satış sanıyordu).
- *  - Alıcı: ALIM → "Kendi İhalem", SATIS → "Satın Alım"
- *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan İhale"
+ *  - Alıcı: ALIM → "Kendi Satın Alma Talebim", SATIS → "Satın Alım"
+ *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan Satın Alma Talebi"
  * İlan silinmişse (listingType null) nötr "İlan silinmiş" gösterilir —
  * etiketi hiç olmayan sipariş kalmaz.
  */
@@ -227,8 +227,8 @@ function sourceMeta(
   if (role === "buyer") {
     return type === "ALIM"
       ? {
-          label: "Kendi İhalem",
-          hint: "Açtığınız alış ihalesini kazandırdınız — bu onun siparişi.",
+          label: "Kendi Satın Alma Talebim",
+          hint: "Açtığınız alış satın alma talebini kazandırdınız — bu onun siparişi.",
           cls: "border-blue-200 bg-blue-50 text-blue-700",
         }
       : {
@@ -244,8 +244,8 @@ function sourceMeta(
         cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
       }
     : {
-        label: "Kazanılan İhale",
-        hint: "Bir alıcının ihalesine verdiğiniz teklif kazandı.",
+        label: "Kazanılan Satın Alma Talebi",
+        hint: "Bir alıcının satın alma talebine verdiğiniz teklif kazandı.",
         cls: "border-blue-200 bg-blue-50 text-blue-700",
       };
 }
@@ -504,8 +504,8 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   }, [all, counts]);
 
   const emptyHint = isSeller
-    ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya ihale teklifiniz kazandığında burada görünür."
-    : "Henüz alış siparişiniz yok. Bir ihalenizi kazandırdığınızda veya satın aldığınızda burada görünür.";
+    ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya satın alma talebi teklifiniz kazandığında burada görünür."
+    : "Henüz alış siparişiniz yok. Bir satın alma talebinizi kazandırdığınızda veya satın aldığınızda burada görünür.";
 
   return (
     <div className="space-y-6">
@@ -513,8 +513,8 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         title={isSeller ? MODULE_LABELS.satis.siparisler : MODULE_LABELS.satinalma.siparisler}
         description={
           isSeller
-            ? "Satışlarınız — kazandığınız ihalelerden ve satışlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
-            : "Alış siparişleriniz — kazandırdığınız ihalelerden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
+            ? "Satışlarınız — kazandığınız satın alma taleplerinden ve satışlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
+            : "Alış siparişleriniz — kazandırdığınız satın alma taleplerinden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
         }
       />
 
@@ -623,7 +623,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                 ? [
                     { value: "all", label: "Tüm Kaynaklar" },
                     { value: "SATIS", label: "Satış İlanlarımdan" },
-                    { value: "ALIM", label: "Kazanılan İhalelerden" },
+                    { value: "ALIM", label: "Kazanılan Satın Alma Taleplerinden" },
                   ]
                 : [
                     { value: "all", label: "Tüm Kaynaklar" },
@@ -692,7 +692,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                       (isSeller
                         ? {
                             SATIS: "Satış İlanlarımdan",
-                            ALIM: "Kazanılan İhalelerden",
+                            ALIM: "Kazanılan Satın Alma Taleplerinden",
                           }
                         : {
                             ALIM: "Kendi İhalelerimden",
@@ -781,7 +781,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   }
                   className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
                 >
-                  {isSeller ? "Açık İhalelere Göz At" : "İhalelerime Git"}
+                  {isSeller ? "Açık Taleplere Göz At" : "İhalelerime Git"}
                 </Link>
               )
             }

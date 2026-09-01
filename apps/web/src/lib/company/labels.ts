@@ -30,19 +30,19 @@ export const TIER_LABELS: Record<string, string> = {
 export const AI_FEATURE_LABELS: Record<string, string> = {
   test: "Test",
   assistant: "Asistan",
-  tender_extract: "Belgeden İhale Çıkarımı",
+  tender_extract: "Belgeden Satın Alma Talebi Çıkarımı",
   supplier_discovery: "Tedarikçi Keşfi",
 };
 
 /** Aktivite logu — AuditLog.action anahtarları (backend ile birebir). */
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
-  "company.listing.published": "İhale yayınlandı",
-  "company.listing.awarded": "İhale kazandırıldı",
-  "company.listing.cancelled": "İhale iptal edildi",
+  "company.listing.published": "Satın Alma Talebi yayınlandı",
+  "company.listing.awarded": "Satın Alma Talebi kazandırıldı",
+  "company.listing.cancelled": "Satın Alma Talebi iptal edildi",
   "company.listing.evaluation_started": "Değerlendirme başlatıldı",
-  "company.listing.closed_no_award": "İhale kazandırmasız kapatıldı",
+  "company.listing.closed_no_award": "Satın Alma Talebi kazandırmasız kapatıldı",
   "company.listing.next_round_created": "Pazarlık turu açıldı",
-  "company.listing.manage_denied": "İhale yönetimi reddedildi (yetkisiz deneme)",
+  "company.listing.manage_denied": "Satın Alma Talebi yönetimi reddedildi (yetkisiz deneme)",
   "company.bid.submitted": "Teklif verildi",
   "company.bid.validity_extended": "Teklif geçerliliği uzatıldı",
   "company.order.accepted": "Sipariş kabul edildi",

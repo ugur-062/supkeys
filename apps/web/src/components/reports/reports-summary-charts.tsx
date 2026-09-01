@@ -135,7 +135,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {hasVolume ? (
           <ChartCard
-            title={isAlim ? "Aylık İhale ve Gelen Teklif" : "Aylık İhale ve Verilen Teklif"}
+            title={isAlim ? "Aylık Satın Alma Talebi ve Gelen Teklif" : "Aylık Satın Alma Talebi ve Verilen Teklif"}
             hint="Adet — son 6 ay"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -153,7 +153,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
                   iconSize={8}
                   wrapperStyle={{ fontSize: 11 }}
                 />
-                <Bar dataKey="listings" name="İhale" fill={ZINC_900} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="listings" name="Satın Alma Talebi" fill={ZINC_900} radius={[3, 3, 0, 0]} />
                 <Bar
                   dataKey="bids"
                   name={isAlim ? "Gelen Teklif" : "Verilen Teklif"}
@@ -170,7 +170,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
             title={isAlim ? "Kazandırma Oranı" : "Kazanma Oranı"}
             hint={
               isAlim
-                ? `Son 12 ayda sonuçlanan ${data.winRate.total} ihalenin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandırıldı`
+                ? `Son 12 ayda sonuçlanan ${data.winRate.total} satın alma talebinin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandırıldı`
                 : `Son 12 ayda karara bağlanan ${data.winRate.total} teklifin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandı`
             }
           >
@@ -249,8 +249,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
             title="Kategori Dağılımı"
             hint={
               isAlim
-                ? "Son 12 ayda açtığınız ihalelerin segmentleri"
-                : "Son 12 ayda teklif verdiğiniz ihalelerin segmentleri"
+                ? "Son 12 ayda açtığınız satın alma taleplerin segmentleri"
+                : "Son 12 ayda teklif verdiğiniz satın alma taleplerin segmentleri"
             }
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -267,7 +267,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                  formatter={(v) => [Number(v ?? 0), "İhale"]}
+                  formatter={(v) => [Number(v ?? 0), "Satın Alma Talebi"]}
                 />
                 <Bar dataKey="count" fill={ZINC_900} radius={[0, 3, 3, 0]} />
               </BarChart>

@@ -95,14 +95,14 @@ describe("OrdersList — durum katmanları", () => {
     ).toBeInTheDocument();
   });
 
-  it("boş liste (satıcı) → satıcıya özel metin + Açık İhalelere Göz At", () => {
+  it("boş liste (satıcı) → satıcıya özel metin + Açık Taleplere Göz At", () => {
     h.orders = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
     render(<OrdersList role="seller" />);
     expect(
-      screen.getByText(/Satışlarınız — kazandığınız ihalelerden/),
+      screen.getByText(/Satışlarınız — kazandığınız satın alma taleplerinden/),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Açık İhalelere Göz At" }),
+      screen.getByRole("link", { name: "Açık Taleplere Göz At" }),
     ).toBeInTheDocument();
   });
 });
@@ -123,7 +123,7 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     expect(screen.queryByText("Satıcı Siparişi")).not.toBeInTheDocument();
   });
 
-  it("alıcı ALIM siparişi → 'Kendi İhalem' + 'Satıcı:' etiketi", () => {
+  it("alıcı ALIM siparişi → 'Kendi Satın Alma Talebim' + 'Satıcı:' etiketi", () => {
     h.orders = {
       data: [
         order({
@@ -137,7 +137,7 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
       refetch: vi.fn(),
     };
     render(<OrdersList role="buyer" />);
-    expect(screen.getByText("Kendi İhalem")).toBeInTheDocument();
+    expect(screen.getByText("Kendi Satın Alma Talebim")).toBeInTheDocument();
     // "Tedarikçi X" hem satır etiketinde hem karşı-taraf filtre <option>'unda
     // geçer; satır etiketini tam metinle eşleştirip tekilliği koru.
     expect(screen.getByText("Satıcı: Tedarikçi X")).toBeInTheDocument();

@@ -62,7 +62,7 @@ const RESPONSE_SCHEMA_WITH_KEYWORDS = {
 
 const SYSTEM_PROMPT = [
   "Bir B2B satınalma platformu için kategori eşleştirme yaparsın.",
-  "Sana ihale kalemleri ve platformun UNSPSC kategori listesi verilir.",
+  "Sana satın alma talebi kalemleri ve platformun UNSPSC kategori listesi verilir.",
   "Kalemlerin TAMAMINI kapsayan EN AZ SAYIDA kategori KODU seç —",
   "tek kategori yeterliyse YALNIZ onu döndür (en fazla 3).",
   "Fazladan 'ilgili olabilir' kategorisi EKLEME; her kategori en az bir",
@@ -177,7 +177,7 @@ export class CategorySuggestService {
         rows: classes,
         ask: [
           `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) DETAY kategori kodunu seç.`,
-          `Ayrıca kalemlerden, ihale aramasında kullanılacak ${MAX_KEYWORDS} adede kadar kısa Türkçe anahtar kelime üret (ürün/hizmet adları; marka ve genel sözcük yazma).`,
+          `Ayrıca kalemlerden, satın alma talebi aramasında kullanılacak ${MAX_KEYWORDS} adede kadar kısa Türkçe anahtar kelime üret (ürün/hizmet adları; marka ve genel sözcük yazma).`,
         ].join(" "),
         stage: "class",
         collectKeywords: true,

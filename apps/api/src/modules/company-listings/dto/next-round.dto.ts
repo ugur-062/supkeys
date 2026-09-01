@@ -32,7 +32,7 @@ export enum BidVisibilityDto {
  * İngiliz Usulü geçişini de kapsar (RFQ→İngiliz "aktarma" budur).
  */
 export class NextRoundDto {
-  @IsEnum(NextRoundTypeDto, { message: "Geçersiz ihale tipi" })
+  @IsEnum(NextRoundTypeDto, { message: "Geçersiz satın alma talebi tipi" })
   type!: NextRoundTypeDto;
 
   @IsEnum(CarryBidsDto, { message: "Geçersiz teklif taşıma modu" })

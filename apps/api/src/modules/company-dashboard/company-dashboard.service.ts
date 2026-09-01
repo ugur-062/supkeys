@@ -363,7 +363,7 @@ export class CompanyDashboardService {
       ...invitations.map((iv): ActivityRow => ({
         type: "invitation",
         title: iv.listing.title,
-        subtitle: `İhale daveti · ${iv.listing.number ?? "—"}`,
+        subtitle: `Satın Alma Talebi daveti · ${iv.listing.number ?? "—"}`,
         at: iv.createdAt,
         href: `/company/ilan/${iv.listing.id}`,
       })),

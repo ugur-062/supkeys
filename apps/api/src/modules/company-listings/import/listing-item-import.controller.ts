@@ -48,7 +48,7 @@ export class ListingItemImportController {
     const name =
       q.listingType === "SATIS"
         ? "rothern-satis-kalem-sablonu.xlsx"
-        : "rothern-ihale-kalem-sablonu.xlsx";
+        : "rothern-satın alma talebi-kalem-sablonu.xlsx";
     res.set({
       "Content-Type": XLSX_MIME,
       "Content-Disposition": `attachment; filename="${name}"`,

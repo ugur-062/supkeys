@@ -100,7 +100,7 @@ export function SavingsReportView({
       </Heading>
       <Text className="text-sm text-zinc-500">
         {isAlim
-          ? "Kazandırılan ihalelerde rekabetin size kazandırdığı tutar (en yüksek teklif − kazanan) ve hedef fiyata göre kalem detayı."
+          ? "Kazandırılan satın alma taleplerinde rekabetin size kazandırdığı tutar (en yüksek teklif − kazanan) ve hedef fiyata göre kalem detayı."
           : "Kazandırılan ilanlarda rekabetin fiyatı yükselttiği tutar (kazanan − en düşük teklif) ve tabana göre kalem detayı."}
       </Text>
 
@@ -161,7 +161,7 @@ export function SavingsReportView({
       ) : data ? (
         data.rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center text-sm text-zinc-500">
-            Bu aralıkta kazandırılmış {isAlim ? "ihale" : "ilan"} yok.
+            Bu aralıkta kazandırılmış {isAlim ? "satın alma talebi" : "ilan"} yok.
           </div>
         ) : (
           <section className="space-y-4">
@@ -183,7 +183,7 @@ export function SavingsReportView({
               {(
                 [
                   [
-                    isAlim ? "İhale" : "İlan",
+                    isAlim ? "Satın Alma Talebi" : "İlan",
                     String(data.summary.totalListings),
                   ],
                   ["Kazanan Toplam", tl(data.summary.grandActual)],
@@ -234,7 +234,7 @@ export function SavingsReportView({
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>{isAlim ? "İhale" : "İlan"}</TableHeader>
+                    <TableHeader>{isAlim ? "Satın Alma Talebi" : "İlan"}</TableHeader>
                     <TableHeader className="text-right">Teklif</TableHeader>
                     <TableHeader className="text-right">
                       {isAlim ? "En Yüksek" : "En Düşük"}

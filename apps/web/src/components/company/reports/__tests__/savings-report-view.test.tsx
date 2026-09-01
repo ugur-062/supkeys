@@ -143,11 +143,11 @@ describe("SavingsReportView", () => {
     expect(screen.getByText(/Profil/)).toBeInTheDocument();
   });
 
-  it("boş sonuç → 'kazandırılmış ihale yok' mesajı", () => {
+  it("boş sonuç → 'kazandırılmış satın alma talebi yok' mesajı", () => {
     h.reportData = result([]);
     render(<SavingsReportView {...base} />);
     expect(
-      screen.getByText(/Bu aralıkta kazandırılmış ihale yok/),
+      screen.getByText(/Bu aralıkta kazandırılmış satın alma talebi yok/),
     ).toBeInTheDocument();
   });
 

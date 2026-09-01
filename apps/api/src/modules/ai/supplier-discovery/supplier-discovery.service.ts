@@ -107,7 +107,7 @@ export class SupplierDiscoveryService {
         `Kategoriler: ${catNames.join(", ")}`,
         ...(items.length > 0 ? [`İlgili ürün/kalemler: ${items.join(", ")}`] : []),
         "",
-        `En fazla ${MAX_EXTERNAL} gerçek firma bul. Her biri için şu bilgileri yaz: firma adı, şehir, web sitesi, (varsa açıkça yayınlanmış iletişim e-postası), bu ihale için neden uygun olduğuna dair TEK cümle.`,
+        `En fazla ${MAX_EXTERNAL} gerçek firma bul. Her biri için şu bilgileri yaz: firma adı, şehir, web sitesi, (varsa açıkça yayınlanmış iletişim e-postası), bu satın alma talebi için neden uygun olduğuna dair TEK cümle.`,
       ].join("\n"),
       metadata: { route: "external_discovery", stage: "research" },
     });

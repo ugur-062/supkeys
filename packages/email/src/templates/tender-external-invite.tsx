@@ -7,7 +7,7 @@ import { Layout } from "./_components/layout";
 import { COLORS, FONTS } from "./_components/tokens";
 
 /**
- * Faz C — dış tedarikçi daveti ("X sizi 'Y' ihalesine davet etti").
+ * Faz C — dış tedarikçi daveti ("X sizi 'Y' satın alma talebine davet etti").
  * Tek seferlik davet formatı: pazarlama dili yok, yalnız ihale başlığı +
  * kategori + kapanış (kapalı zarf: tutar/teklif bilgisi ASLA). Alt bilgide
  * kim-neden-gönderdi açıklaması + tek tık opt-out (İYS/ETK hijyeni).
@@ -46,15 +46,15 @@ const footnote = {
 export function makeTenderExternalInviteSubject(
   props: TenderExternalInviteData,
 ): string {
-  return `📋 ${props.inviterName} sizi "${props.tenderTitle}" ihalesine davet etti`;
+  return `📋 ${props.inviterName} sizi "${props.tenderTitle}" satın alma talebine davet etti`;
 }
 
 export function TenderExternalInviteEmail(props: TenderExternalInviteData) {
   return (
     <Layout
-      preview={`${props.inviterName}, "${props.tenderTitle}" ihalesi için sizden teklif almak istiyor.`}
+      preview={`${props.inviterName}, "${props.tenderTitle}" satın alma talebi için sizden teklif almak istiyor.`}
     >
-      <Heading>Bir ihaleye davet edildiniz 📋</Heading>
+      <Heading>Bir satın alma talebine davet edildiniz 📋</Heading>
 
       <Text style={paragraph}>Merhaba,</Text>
 
@@ -102,7 +102,7 @@ export function renderTenderExternalInviteText(
   props: TenderExternalInviteData,
 ): string {
   return [
-    `${props.inviterName} sizi Rothern'de "${props.tenderTitle}" ihalesine davet etti.`,
+    `${props.inviterName} sizi Rothern'de "${props.tenderTitle}" satın alma talebine davet etti.`,
     `Kategori: ${props.categories}`,
     ...(props.closesAt ? [`Son teklif tarihi: ${props.closesAt}`] : []),
     "",

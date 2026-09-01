@@ -189,7 +189,7 @@ export default async function PublicCompanyProfile({
               {p.name} ile alış-satış yapmak için Rothern&apos;e kayıt olun
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Bağlantı kurun, ihalelerini görün, teklif verin — tek panelden
+              Bağlantı kurun, satın alma taleplerini görün, teklif verin — tek panelden
               yönetin.
             </p>
           </div>

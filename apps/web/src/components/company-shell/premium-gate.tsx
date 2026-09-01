@@ -11,7 +11,7 @@ import { toast } from "sonner";
 const BENEFITS = [
   {
     title: "Satınalma paneli",
-    desc: "İhale açıp tedarikçilerden teklif topla, en iyi fiyatı yakala",
+    desc: "Satın Alma Talebi açıp tedarikçilerden teklif topla, en iyi fiyatı yakala",
   },
   {
     title: "Satış ilanları",
@@ -23,7 +23,7 @@ const BENEFITS = [
   },
   {
     title: "Hazır şablonlar",
-    desc: "Saniyeler içinde ihale ve ilan oluştur",
+    desc: "Saniyeler içinde satın alma talebi ve ilan oluştur",
   },
   {
     title: "Öne çıkan profil + davet",
@@ -79,7 +79,7 @@ export function PremiumGate() {
           <h1 className="mt-2 text-xl font-bold">Bu özellik Silver ve üzeri paketlere özel</h1>
           <p className="mt-1 text-sm text-blue-100">
             Paketsiz üyeler yalnız davet edildikleri ve bağlantılarının
-            ihalelerine teklif verebilir. Paket alarak platformun tamamını açın.
+            satın alma taleplerine teklif verebilir. Paket alarak platformun tamamını açın.
           </p>
         </div>
 

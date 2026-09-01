@@ -17,8 +17,8 @@ import { IHALE_VIEW_FOCUS, IhaleListRow } from "./IhaleListRow";
  */
 function favKey(listingType: "ALIM" | "SATIS") {
   return listingType === "SATIS"
-    ? "satis_ihaleler_favorites"
-    : "ihaleler_favorites";
+    ? "satis_satın alma talepleri_favorites"
+    : "satın alma talepleri_favorites";
 }
 
 export function IhaleListView({
@@ -27,7 +27,7 @@ export function IhaleListView({
   isError,
   onRetry,
   listingType = "ALIM",
-  emptyCtaLabel = "Yeni İhale Aç",
+  emptyCtaLabel = "Yeni Satın Alma Talebi Aç",
 }: {
   items: TenderListItem[];
   isLoading: boolean;
@@ -108,11 +108,11 @@ export function IhaleListView({
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Henüz ihale yok"
+        title="Henüz satın alma talebi yok"
         description={
           canCreate
-            ? "İlk ihalenizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
-            : "İhale açma işlem rolü (Satın Almacı/Satışçı) gerektirir."
+            ? "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
+            : "Satın Alma Talebi açma işlem rolü (Satın Almacı/Satışçı) gerektirir."
         }
         variant="no-data"
         action={
@@ -134,7 +134,7 @@ export function IhaleListView({
   }
 
   return (
-    <div role="table" aria-label="İhale listesi" className="space-y-2">
+    <div role="table" aria-label="Satın Alma Talebi listesi" className="space-y-2">
       {/* "Tümünü seç" şeridi KALDIRILDI (kullanıcı isteği, 2026-08-03):
           toplu sunucu işlemi yok — seçim yalnız yer kaplıyordu. */}
       {items.map((t) => (

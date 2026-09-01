@@ -231,7 +231,7 @@ export function CompanySignupClient() {
   return (
     <AuthShell
       title="Hesabını aç"
-      subtitle="İlk ihalenizi 10 dakikada başlatın. Kredi kartı gerekmez."
+      subtitle="İlk satın alma talebinizi 10 dakikada başlatın. Kredi kartı gerekmez."
       footer={
         <>
           Zaten hesabınız var mı?{" "}

@@ -84,7 +84,7 @@ export function TedarikciTab({ data }: Props) {
         <section className="card p-6 lg:col-span-2">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <InfoTooltip content="Dönemde en çok ihalenize teklif veren tedarikçiler. Ortalama sıralama düşükse o tedarikçi sürekli en iyi 1-2 fiyat veriyor demektir." />
+              <InfoTooltip content="Dönemde en çok satın alma talebinize teklif veren tedarikçiler. Ortalama sıralama düşükse o tedarikçi sürekli en iyi 1-2 fiyat veriyor demektir." />
               <h2 className="text-sm font-semibold text-zinc-950">
                 En Sık Teklif Veren Tedarikçiler
               </h2>
@@ -101,7 +101,7 @@ export function TedarikciTab({ data }: Props) {
               <TableHead>
                 <TableRow>
                   <TableHeader>Tedarikçiler</TableHeader>
-                  <TableHeader>Teklif Verdiği İhale</TableHeader>
+                  <TableHeader>Teklif Verdiği Satın Alma Talebi</TableHeader>
                   <TableHeader>Ortalama Sıra</TableHeader>
                   <TableHeader>Toplam Teklif</TableHeader>
                 </TableRow>
@@ -149,7 +149,7 @@ export function TedarikciTab({ data }: Props) {
         <section className="card p-6">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-950">
-              En Rekabetçi İhale
+              En Rekabetçi Satın Alma Talebi
             </h2>
             <PeriodToggle value={compPeriod} onChange={setCompPeriod} />
           </header>

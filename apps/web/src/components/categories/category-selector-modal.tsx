@@ -156,8 +156,8 @@ export function CategorySelectorModal({
 
   const defaultDescription =
     mode === "single"
-      ? "İhale için 1 kategori seçin — tedarikçi eşleşmesi bu seçime göre yapılır."
-      : "Tedarik edebildiğiniz kategorileri işaretleyin — ilgili ihalelere davet alırsınız.";
+      ? "Satın Alma Talebi için 1 kategori seçin — tedarikçi eşleşmesi bu seçime göre yapılır."
+      : "Tedarik edebildiğiniz kategorileri işaretleyin — ilgili satın alma taleplerine davet alırsınız.";
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[60]">

@@ -132,20 +132,20 @@ function TypewriterMarkdown({
 const SEAT = { buy: "SATIN_ALMACI", sell: "SATISCI" };
 // Metinler aynen korunur (submit'e aynı string gider) — yalnız ikon eşleşir.
 const SUGGESTIONS = [
-  { label: "İhalelerimi göster", icon: Gavel },
-  { label: "Yeni ihale açmak istiyorum", icon: Plus },
+  { label: "Satın Alma Taleplerimi göster", icon: Gavel },
+  { label: "Yeni satın alma talebi açmak istiyorum", icon: Plus },
   { label: "Son siparişlerim", icon: Package },
-  { label: "Açık ihaleleri ara", icon: Search },
+  { label: "Açık satın alma taleplerini ara", icon: Search },
 ] as const;
 const TOOL_LABEL: Record<string, string> = {
-  list_my_tenders: "İhalelerinize baktım",
-  search_open_tenders: "Açık ihaleleri aradım",
-  get_tender_detail: "İhale detayına baktım",
+  list_my_tenders: "Satın Alma Taleplerinize baktım",
+  search_open_tenders: "Açık satın alma taleplerini aradım",
+  get_tender_detail: "Satın Alma Talebi detayına baktım",
   list_my_orders: "Siparişlerinize baktım",
   get_order_detail: "Sipariş detayına baktım",
   list_my_connections: "Bağlantılarınıza baktım",
   list_my_bids: "Tekliflerinize baktım",
-  propose_tender_draft: "İhale taslağını hazırladım",
+  propose_tender_draft: "Satın Alma Talebi taslağını hazırladım",
   request_send_invites: "Davet önerisi hazırladım",
   request_publish_tender: "Yayınlama önerisi hazırladım",
   request_eliminate_bid: "Eleme önerisi hazırladım",
@@ -543,7 +543,7 @@ export function AssistantPanel({
               Size nasıl yardımcı olabilirim?
             </p>
             <p className="mt-1 max-w-xs text-sm text-zinc-500">
-              İhalelerinizi sorun, belge yükleyin ya da konuşarak yeni ihale
+              Satın Alma Taleplerinizi sorun, belge yükleyin ya da konuşarak yeni satın alma talebi
               açın.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
@@ -651,7 +651,7 @@ export function AssistantPanel({
                     <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-brand-500 to-brand-700 text-white">
                       <FileText className="h-3.5 w-3.5" />
                     </span>
-                    İhale Taslağı
+                    Satın Alma Talebi Taslağı
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.draft.draft.title ? (
@@ -706,7 +706,7 @@ export function AssistantPanel({
                     onClick={() => openTenderForm(m.draft!)}
                     className="group mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
                   >
-                    İhale formunu aç
+                    Satın Alma Talebi formunu aç
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </div>
@@ -842,7 +842,7 @@ export function AssistantPanel({
                 onClick={() => fileRef.current?.click()}
                 disabled={send.isPending}
                 aria-label="Belge ekle"
-                title="İhale belgesi ekle"
+                title="Satın Alma Talebi belgesi ekle"
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
               >
                 <Paperclip className="h-4 w-4" />
@@ -858,7 +858,7 @@ export function AssistantPanel({
                   }
                 }}
                 rows={1}
-                placeholder="Bir şey sorun veya ihale açın…"
+                placeholder="Bir şey sorun veya satın alma talebi açın…"
                 disabled={send.isPending}
                 className="max-h-56 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
               />

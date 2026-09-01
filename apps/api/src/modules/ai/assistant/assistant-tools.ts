@@ -79,7 +79,7 @@ const PAYMENT_ENUM = [
 const TENDER_DRAFT_PARAMS = {
   type: "object",
   properties: {
-    title: { type: "string", description: "İhale başlığı (3-200 karakter)" },
+    title: { type: "string", description: "Satın Alma Talebi başlığı (3-200 karakter)" },
     description: { type: "string" },
     primaryCurrency: { type: "string", enum: CURRENCY_ENUM },
     deliveryTerm: { type: "string", enum: DELIVERY_ENUM, description: "Teslim şekli" },
@@ -92,7 +92,7 @@ const TENDER_DRAFT_PARAMS = {
     keywords: { type: "array", items: { type: "string" } },
     items: {
       type: "array",
-      description: "İhale kalemleri (en az 1)",
+      description: "Satın Alma Talebi kalemleri (en az 1)",
       items: {
         type: "object",
         properties: {
@@ -119,7 +119,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     {
       name: TOOL_NAMES.listMyTenders,
       description:
-        "Firmanın kendi açtığı ihale/ilanları listeler. type=ALIM: satın alma ihaleleriniz; type=SATIS: satış ilanlarınız. Yalnız erişiminiz olan tarafı sorun.",
+        "Firmanın kendi açtığı satın alma talebi/ilanları listeler. type=ALIM: satın alma satın alma talepleriniz; type=SATIS: satış ilanlarınız. Yalnız erişiminiz olan tarafı sorun.",
       parameters: {
         type: "object",
         properties: {
@@ -131,7 +131,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     {
       name: TOOL_NAMES.searchOpenTenders,
       description:
-        "Piyasadaki, firmanızın görebildiği açık ihale/ilanları arar (görünürlük ve maskeleme otomatik uygulanır). type=ALIM: teklif verebileceğiniz açık alım ihaleleri; type=SATIS: satın alabileceğiniz satış ilanları.",
+        "Piyasadaki, firmanızın görebildiği açık satın alma talebi/ilanları arar (görünürlük ve maskeleme otomatik uygulanır). type=ALIM: teklif verebileceğiniz açık alım satın alma taleplerini; type=SATIS: satın alabileceğiniz satış ilanları.",
       parameters: {
         type: "object",
         properties: {
@@ -143,7 +143,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     {
       name: TOOL_NAMES.getTenderDetail,
       description:
-        "Belirli bir ihale/ilanın detayını getirir (id ile). Görebildiğiniz kadarı döner; başkalarının teklifleri kapalı zarftır.",
+        "Belirli bir satın alma talebi/ilanın detayını getirir (id ile). Görebildiğiniz kadarı döner; başkalarının teklifleri kapalı zarftır.",
       parameters: {
         type: "object",
         properties: { id: { type: "string" } },
@@ -173,7 +173,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
   if (canListMyBids(portals)) {
     defs.push({
       name: TOOL_NAMES.listMyBids,
-      description: "Firmanızın başka ihalelere verdiği teklifleri listeler.",
+      description: "Firmanızın başka satın alma taleplerine verdiği teklifleri listeler.",
       parameters: { type: "object", properties: {} },
     });
   }
@@ -183,7 +183,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.proposeTenderDraft,
       description:
-        "Kullanıcı yeni bir ihale/ilan açmak istediğinde, o ana kadar topladığın TÜM alanları buraya ver (her çağrıda tam taslak — önceki + yeni). İhaleyi OLUŞTURMAZ; yalnız taslağı kaydeder. Kategori ve adres SORMA (kullanıcı formda seçer).",
+        "Kullanıcı yeni bir satın alma talebi/ilan açmak istediğinde, o ana kadar topladığın TÜM alanları buraya ver (her çağrıda tam taslak — önceki + yeni). Satın Alma Talebini OLUŞTURMAZ; yalnız taslağı kaydeder. Kategori ve adres SORMA (kullanıcı formda seçer).",
       parameters: TENDER_DRAFT_PARAMS as unknown as object,
     });
     // AI-4: aksiyon önerileri — kullanıcı AÇIKÇA isteyince çağrılır; yürütmez,
@@ -191,7 +191,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.requestSendInvites,
       description:
-        "Kullanıcı kendi ihalesine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi ihalesi; rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
+        "Kullanıcı kendi satın alma talebine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi satın alma talebi; rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
       parameters: {
         type: "object",
         properties: {
@@ -204,11 +204,11 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.requestPublishTender,
       description:
-        "Kullanıcı, bu sohbette biriken ihale taslağını YAYINLAMAK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: doğrulanmış özetle onay kartı çıkarır; ihale ancak kullanıcı onaylarsa yayınlanır. Davetli (kapalı) yayınlanır: davet edilecek en az bir BAĞLANTILI firmanın Rothern kodu gerekir — kullanıcıya kimleri davet edeceğini sor (bağlantı listesinden bulabilirsin). Taslakta eksik zorunlu alan varsa araç sana eksikleri söyler — önce onları tamamla.",
+        "Kullanıcı, bu sohbette biriken satın alma talebi taslağını YAYINLAMAK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: doğrulanmış özetle onay kartı çıkarır; satın alma talebi ancak kullanıcı onaylarsa yayınlanır. Davetli (kapalı) yayınlanır: davet edilecek en az bir BAĞLANTILI firmanın Rothern kodu gerekir — kullanıcıya kimleri davet edeceğini sor (bağlantı listesinden bulabilirsin). Taslakta eksik zorunlu alan varsa araç sana eksikleri söyler — önce onları tamamla.",
       parameters: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["ALIM", "SATIS"], description: "İhale yönü" },
+          type: { type: "string", enum: ["ALIM", "SATIS"], description: "Satın Alma Talebi yönü" },
           rothernIds: {
             type: "array",
             items: { type: "string" },
@@ -224,12 +224,12 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.requestPlaceBid,
       description:
-        "Kullanıcı bir açık ihaleye TEKLİF VERMEK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: kritik onay kartı çıkarır — gönderilen teklif GERİ ÇEKİLEMEZ. TÜM kalemler için birim fiyatı kullanıcıdan iste (itemId'leri get_tender_detail'den al). Belge veya zorunlu soru isteyen ihalede araç seni sayfaya yönlendirmeni söyler. Fiyatları SEN UYDURAMAZSIN; yalnız kullanıcının verdiği fiyatlar.",
+        "Kullanıcı bir açık satın alma talebine TEKLİF VERMEK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: kritik onay kartı çıkarır — gönderilen teklif GERİ ÇEKİLEMEZ. TÜM kalemler için birim fiyatı kullanıcıdan iste (itemId'leri get_tender_detail'den al). Belge veya zorunlu soru isteyen satın alma talebinde araç seni sayfaya yönlendirmeni söyler. Fiyatları SEN UYDURAMAZSIN; yalnız kullanıcının verdiği fiyatlar.",
       parameters: {
         type: "object",
         properties: {
           listingId: { type: "string" },
-          currency: { type: "string", description: "Boşsa ihalenin ana para birimi" },
+          currency: { type: "string", description: "Boşsa satın alma talebinin ana para birimi" },
           items: {
             type: "array",
             items: {
@@ -276,7 +276,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.requestEliminateBid,
       description:
-        "Kullanıcı kendi ihalesindeki bir teklifi ELEMEK istediğinde çağır. Yürütmez: onay kartı çıkarır. bidId'yi get_tender_detail sonucundan al; kullanıcı tedarikçi adıyla söylediyse önce detaydan eşleştir. Elenen tedarikçi yeniden teklif verebilir.",
+        "Kullanıcı kendi satın alma talebindeki bir teklifi ELEMEK istediğinde çağır. Yürütmez: onay kartı çıkarır. bidId'yi get_tender_detail sonucundan al; kullanıcı tedarikçi adıyla söylediyse önce detaydan eşleştir. Elenen tedarikçi yeniden teklif verebilir.",
       parameters: {
         type: "object",
         properties: {
@@ -290,7 +290,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.requestAwardTender,
       description:
-        "Kullanıcı kendi ihalesini bir teklife (TOPLU — tüm kalemler tek tedarikçi) KAZANDIRMAK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: kritik onay kartı çıkarır; işlem GERİ ALINAMAZ (sipariş oluşur). KARARI SEN VERME: hangi teklifin kazanacağını kullanıcı söyler; sen ancak istenirse teklifleri karşılaştırıp bilgi verirsin. Kalem-bazlı (her kaleme ayrı tedarikçi) kazandırma için ihale sayfasına yönlendir.",
+        "Kullanıcı kendi satın alma talebini bir teklife (TOPLU — tüm kalemler tek tedarikçi) KAZANDIRMAK istediğini AÇIKÇA söylediğinde çağır. Yürütmez: kritik onay kartı çıkarır; işlem GERİ ALINAMAZ (sipariş oluşur). KARARI SEN VERME: hangi teklifin kazanacağını kullanıcı söyler; sen ancak istenirse teklifleri karşılaştırıp bilgi verirsin. Kalem-bazlı (her kaleme ayrı tedarikçi) kazandırma için satın alma talebi sayfasına yönlendir.",
       parameters: {
         type: "object",
         properties: {

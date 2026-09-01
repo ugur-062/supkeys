@@ -118,7 +118,7 @@ export function CatalogPickerDialog({
             <p className="mt-2 text-sm text-zinc-600">
               {q
                 ? "Aramanızla eşleşen kalem yok."
-                : "Katalogunuz henüz boş. Bir ihale oluşturduktan sonra “Kalemleri kataloğa kaydet” ile doldurabilirsiniz."}
+                : "Katalogunuz henüz boş. Bir satın alma talebi oluşturduktan sonra “Kalemleri kataloğa kaydet” ile doldurabilirsiniz."}
             </p>
           </div>
         ) : (

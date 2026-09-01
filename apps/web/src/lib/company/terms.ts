@@ -2,14 +2,14 @@ import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
 
 /**
  * P2 (frontend denetimi §8.3) — terminoloji TEK kaynak. "İlan" kelimesi
- * üründen kaldırıldı: satış tarafı "satış ihalesi", alış tarafı "alış
+ * üründen kaldırıldı: satış tarafı "satış satın alma talebi", alış tarafı "alış
  * ihalesi". Rota→etiket sözlüğü sidebar nav'ından (PORTALS) türetilir —
  * sayfa başlığı, breadcrumb ve geri linki aynı adı kullanır; "Satışlarım /
  * ← Siparişler" tarzı kaymalar buradan kapanır.
  */
 export const TERMS = {
-  TENDER_SELL: "satış ihalesi",
-  TENDER_BUY: "alış ihalesi",
+  TENDER_SELL: "satış satın alma talebi",
+  TENDER_BUY: "alış satın alma talebi",
 } as const;
 
 /** Rota → sidebar etiketi (tam eşleşme). Bulunamazsa null. */

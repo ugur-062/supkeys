@@ -227,7 +227,7 @@ export function TenderActionsMenu({
   const handleCancel = async (reason: string) => {
     try {
       await cancelListing.mutateAsync(reason);
-      toast.success("İhale iptal edildi");
+      toast.success("Satın Alma Talebi iptal edildi");
       setCancelOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "İptal edilemedi"));
@@ -255,7 +255,7 @@ export function TenderActionsMenu({
   const handleCloseNoAward = async (reason: string) => {
     try {
       await closeNoAward.mutateAsync(reason || undefined);
-      toast.success("İhale kazanan olmadan kapatıldı");
+      toast.success("Satın Alma Talebi kazanan olmadan kapatıldı");
       setCloseNoAwardOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kapatılamadı"));
@@ -268,7 +268,7 @@ export function TenderActionsMenu({
       !(await confirm({
         title: "Değerlendirmeye Al",
         description:
-          "Kapanış zamanı beklenmeden teklif alımı şimdi durdurulacak ve ihale " +
+          "Kapanış zamanı beklenmeden teklif alımı şimdi durdurulacak ve satın alma talebi " +
           "değerlendirme aşamasına geçecek. Bu işlem geri alınamaz; yeniden " +
           "teklif almak isterseniz Yeni Tur açabilirsiniz. Teklif verenler bilgilendirilir.",
         confirmLabel: "Değerlendirmeye Al",
@@ -277,7 +277,7 @@ export function TenderActionsMenu({
       return;
     try {
       await startEvaluation.mutateAsync();
-      toast.success("İhale değerlendirmeye alındı");
+      toast.success("Satın Alma Talebi değerlendirmeye alındı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Değerlendirmeye alınamadı"));
     }
@@ -315,7 +315,7 @@ export function TenderActionsMenu({
       <div className="flex flex-wrap items-center gap-2">
         {canEdit ? (
           <Button outline href={isSatis ? `/company/satis/ilanlarim/${id}/duzenle` : `/company/satinalma/ihalelerim/${id}/duzenle`}>
-            İhaleyi Düzenle
+            Satın Alma Talebini Düzenle
           </Button>
         ) : null}
         {isOpen ? (
@@ -387,7 +387,7 @@ export function TenderActionsMenu({
             <DropdownItem
               href={isSatis ? `/company/satis/ilanlarim/yeni?from=${id}` : `/company/satinalma/ihalelerim/yeni?from=${id}`}
             >
-              <DropdownLabel>İhaleyi Kopyala</DropdownLabel>
+              <DropdownLabel>Satın Alma Talebini Kopyala</DropdownLabel>
             </DropdownItem>
             {isAuction ? (
               <DropdownItem onClick={() => setHistoryOpen(true)}>
@@ -421,7 +421,7 @@ export function TenderActionsMenu({
             {isOpen ? (
               <DropdownItem onClick={() => setCancelOpen(true)}>
                 <DropdownLabel className="text-red-600">
-                  İhaleyi İptal Et
+                  Satın Alma Talebini İptal Et
                 </DropdownLabel>
               </DropdownItem>
             ) : null}
@@ -516,14 +516,14 @@ export function TenderActionsMenu({
         <DialogDescription>
           {nextRoundMode === "auction"
             ? `Aynı kalem ve davetlilerle pazarlık (${isSatis ? "açık artırma" : "açık eksiltme"}) turu başlar${isOpen ? "; mevcut teklif alımı kapanır" : ""}. Teklifler kurala göre taşınabilir.`
-            : `Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak Pazarlık seçersen ihale ${isSatis ? "açık artırmaya" : "açık eksiltmeye"} dönüşür.`}
+            : `Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak Pazarlık seçersen satın alma talebi ${isSatis ? "açık artırmaya" : "açık eksiltmeye"} dönüşür.`}
         </DialogDescription>
         <DialogBody className="space-y-4">
           {nextRoundMode === "free" ? (
             <Field>
-              <Label>İhale Tipi</Label>
+              <Label>Satın Alma Talebi Tipi</Label>
               <SelectMenu
-                ariaLabel="İhale Tipi"
+                ariaLabel="Satın Alma Talebi Tipi"
                 value={nrType}
                 onChange={(v) => setNrType(v as "RFQ" | "ENGLISH_AUCTION")}
                 options={[
@@ -614,7 +614,7 @@ export function TenderActionsMenu({
             {vis === "OWN_RANK" ? (
               <p className="mt-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
                 “Sadece kendi sıralaması” rekabet baskısı yaratır,
-                fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.
+                fiyat bilgisi sızdırmaz — çoğu satın alma talebi için en dengeli mod.
               </p>
             ) : null}
             {/* ALL seçilince anonimlik güvencesi açıkça yazılır (etiketteki
@@ -657,9 +657,9 @@ export function TenderActionsMenu({
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
         onSubmit={handleCancel}
-        title="İhaleyi İptal Et"
+        title="Satın Alma Talebini İptal Et"
         description={`İptal gerekçesi davetli ${isSatis ? "alıcılara" : "tedarikçilere"} iletilir. Bu işlem geri alınamaz.`}
-        confirmLabel="İhaleyi İptal Et"
+        confirmLabel="Satın Alma Talebini İptal Et"
         minLength={10}
         pending={cancelListing.isPending}
         destructive
@@ -669,7 +669,7 @@ export function TenderActionsMenu({
         onClose={() => setCloseNoAwardOpen(false)}
         onSubmit={handleCloseNoAward}
         title="Kazanan Olmadan Kapat"
-        description="İhale kazandırılmadan kapatılır. Gerekçe opsiyonel."
+        description="Satın Alma Talebi kazandırılmadan kapatılır. Gerekçe opsiyonel."
         confirmLabel="Kapat"
         pending={closeNoAward.isPending}
         destructive
@@ -679,7 +679,7 @@ export function TenderActionsMenu({
       <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} size="lg">
         <DialogTitle>{isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}</DialogTitle>
         <DialogDescription>
-          Bağlı firmalarından bu ihaleye davet etmek istediklerini seç.
+          Bağlı firmalarından bu satın alma talebine davet etmek istediklerini seç.
         </DialogDescription>
         <DialogBody className="space-y-3">
           <Input

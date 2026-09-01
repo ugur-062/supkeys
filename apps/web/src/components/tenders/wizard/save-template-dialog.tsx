@@ -55,7 +55,7 @@ export function SaveTemplateDialog({
         <div>
           <DialogTitle>Şablon olarak kaydet</DialogTitle>
           <DialogDescription>
-            Bu ihaleyi tekrar kullanmak üzere şablonlayın
+            Bu satın alma talebini tekrar kullanmak üzere şablonlayın
           </DialogDescription>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function SaveTemplateDialog({
         </Field>
         <p className="text-xs text-zinc-500">
           Kalemler, kategoriler ve ayarlar şablona dahil edilir. Kapanış tarihi
-          ve davetli tedarikçiler her ihalede yeniden seçilir.
+          ve davetli tedarikçiler her satın alma talebinde yeniden seçilir.
         </p>
       </DialogBody>
 

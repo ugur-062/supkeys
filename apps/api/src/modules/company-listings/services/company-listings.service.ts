@@ -280,7 +280,7 @@ export class CompanyListingsService {
 
   /**
    * İlan teklife kapandığında (süre dolumu veya erken kapatma) bildirim:
-   * davetlilere "ihale kapandı", sahibe "kazandırma kararı zamanı".
+   * davetlilere "satın alma talebi kapandı", sahibe "kazandırma kararı zamanı".
    */
   // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
   // Bu metot cron'dan da çağrılıyor (tenant bağlamı YOK) ve doğası gereği
@@ -343,13 +343,13 @@ export class CompanyListingsService {
       this.notify(
         r,
         {
-          subject: "İhalede teklif alımı kapandı",
-          heading: "İhale değerlendirme aşamasında",
+          subject: "Satın Alma Talebinde teklif alımı kapandı",
+          heading: "Satın Alma Talebi değerlendirme aşamasında",
           paragraphs: [
             "Merhaba,",
-            `${label} ihalesinde teklif alımı kapandı; ihale değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
+            `${label} satın alma talebinde teklif alımı kapandı; satın alma talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
           ],
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: bidUrl,
         },
         { type: "listing_closed", id: listingId },
@@ -361,9 +361,9 @@ export class CompanyListingsService {
       {
         type: "listing_closed",
         portal: bidderPortal,
-        title: "İhale değerlendirme aşamasında",
-        body: `${label} ihalesinde teklif alımı kapandı; ihale değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
-        ctaLabel: "İhaleyi Gör",
+        title: "Satın Alma Talebi değerlendirme aşamasında",
+        body: `${label} satın alma talebinde teklif alımı kapandı; satın alma talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
+        ctaLabel: "Satın Alma Talebini Gör",
         ctaUrl: bidUrl,
         listingId,
       },
@@ -381,11 +381,11 @@ export class CompanyListingsService {
       this.notify(
         owner,
         {
-          subject: "İhaleniz kapandı — kazandırma kararı bekleniyor",
+          subject: "Satın Alma Talebiniz kapandı — kazandırma kararı bekleniyor",
           heading: "Kazandırma kararı zamanı",
           paragraphs: [
             "Merhaba,",
-            `${label} ihaleniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
+            `${label} satın alma talebiniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
           ],
           ctaLabel: "Teklifleri İncele",
           ctaUrl: ownerUrl,
@@ -398,7 +398,7 @@ export class CompanyListingsService {
       type: "listing_closed_owner",
       portal: ownerPortal,
       title: "Kazandırma kararı zamanı",
-      body: `${label} ihaleniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
+      body: `${label} satın alma talebiniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
       ctaLabel: "Teklifleri İncele",
       ctaUrl: ownerUrl,
       listingId,
@@ -513,9 +513,9 @@ export class CompanyListingsService {
       matchPortal,
     );
     const url = `${this.webUrl()}${
-      isBuyDemand ? "/company/satis/acik-ihaleler" : "/company/satinalma/satin-al"
+      isBuyDemand ? "/company/satis/acik-satın alma talepleri" : "/company/satinalma/satin-al"
     }`;
-    const label = isBuyDemand ? "ihale" : "satış ilanı";
+    const label = isBuyDemand ? "satın alma talebi" : "satış ilanı";
     const verb = isBuyDemand ? "Sattığınız" : "Aldığınız";
     const action = isBuyDemand ? "teklif vermek" : "satın almak";
     let sent = 0;
@@ -531,7 +531,7 @@ export class CompanyListingsService {
             "Merhaba,",
             `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). İncelemek ve ${action} için Rothern'e giriş yapın.`,
           ],
-          ctaLabel: isBuyDemand ? "Açık İhaleleri Gör" : "Satış İlanlarını Gör",
+          ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
           ctaUrl: url,
           footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
         },
@@ -550,7 +550,7 @@ export class CompanyListingsService {
         title: `Kategorinize uygun yeni ${label}`,
         body: `${verb} kategorilerle eşleşen yeni bir ${label}: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}).`,
         ctaUrl: url,
-        ctaLabel: isBuyDemand ? "Açık İhaleleri Gör" : "Satış İlanlarını Gör",
+        ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
         listingId: listing.id,
         portal: matchPortal,
       },
@@ -706,29 +706,29 @@ export class CompanyListingsService {
     const content = {
       invitation: {
         type: "listing_invitation" as const,
-        subject: "Bir ihaleye davet edildiniz",
-        heading: "İhale daveti",
-        paragraph: `"${t}" (${no}) ihalesine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
-        inAppTitle: "İhale daveti",
-        inAppBody: `"${t}" (${no}) ihalesine davet edildiniz.`,
-        ctaLabel: "İhaleyi Gör",
+        subject: "Bir satın alma talebine davet edildiniz",
+        heading: "Satın Alma Talebi daveti",
+        paragraph: `"${t}" (${no}) satın alma talebine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
+        inAppTitle: "Satın Alma Talebi daveti",
+        inAppBody: `"${t}" (${no}) satın alma talebine davet edildiniz.`,
+        ctaLabel: "Satın Alma Talebini Gör",
       },
       reminder: {
         type: "listing_reminder" as const,
-        subject: "İhale kapanışı yaklaşıyor",
+        subject: "Satın Alma Talebi kapanışı yaklaşıyor",
         heading: "Kapanış hatırlatması",
-        paragraph: `"${t}" (${no}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
+        paragraph: `"${t}" (${no}) satın alma talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
         inAppTitle: "Kapanış hatırlatması",
-        inAppBody: `"${t}" (${no}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
+        inAppBody: `"${t}" (${no}) satın alma talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
         ctaLabel: "Teklif Ver",
       },
       newRound: {
         type: "listing_new_round" as const,
-        subject: "İhalede yeni tur başladı",
+        subject: "Satın Alma Talebinde yeni tur başladı",
         heading: "Yeni tur açıldı",
-        paragraph: `"${t}" (${no}) ihalesinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.`,
+        paragraph: `"${t}" (${no}) satın alma talebinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.`,
         inAppTitle: "Yeni tur açıldı",
-        inAppBody: `"${t}" (${no}) ihalesinde yeni tur açıldı — güncel teklifinizi verin.`,
+        inAppBody: `"${t}" (${no}) satın alma talebinde yeni tur açıldı — güncel teklifinizi verin.`,
         ctaLabel: "Teklif Ver",
       },
     }[mode];
@@ -1076,7 +1076,7 @@ export class CompanyListingsService {
   ) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        `${action} için Silver veya üzeri paket gerekir. Mevcut ihalelerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.`,
+        `${action} için Silver veya üzeri paket gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.`,
       );
     }
   }
@@ -1104,7 +1104,7 @@ export class CompanyListingsService {
 
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "İlan/ihale açmak için Silver veya üzeri paket gerekir.",
+        "İlan/satın alma talebi açmak için Silver veya üzeri paket gerekir.",
       );
     }
     // BK-A (kör-nokta denetimi): asDraft:false doğrudan status:OPEN üretir =
@@ -1356,7 +1356,7 @@ export class CompanyListingsService {
     // OPEN ise yalnızca henüz SUBMITTED teklif yokken.
     if (existing.status !== "OPEN" && existing.status !== "DRAFT") {
       throw new BadRequestException(
-        "Sadece taslak veya henüz teklif gelmemiş ihaleler düzenlenebilir",
+        "Sadece taslak veya henüz teklif gelmemiş satın alma talepleri düzenlenebilir",
       );
     }
     if (existing.status === "OPEN") {
@@ -1369,7 +1369,7 @@ export class CompanyListingsService {
       });
       if (bidCount > 0) {
         throw new BadRequestException(
-          "Bu ihaleye teklif verilmiş; düzenleme yapılamaz",
+          "Bu satın alma talebine teklif verilmiş; düzenleme yapılamaz",
         );
       }
     }
@@ -1409,7 +1409,7 @@ export class CompanyListingsService {
       existing.format !== "ENGLISH_AUCTION"
     ) {
       throw new BadRequestException(
-        "İhale formatı düzenlemeyle pazarlığa çevrilemez — 'Pazarlığa Geç' ile aktarın",
+        "Satın Alma Talebi formatı düzenlemeyle pazarlığa çevrilemez — 'Pazarlığa Geç' ile aktarın",
       );
     }
     format = dto.format as ListingFormat;
@@ -1466,7 +1466,7 @@ export class CompanyListingsService {
         const liveBids = await tx.listingBid.count({ where: { listingId } });
         if (liveBids > 0) {
           throw new ConflictException(
-            "Bu ihaleye az önce teklif verildi; düzenleme yapılamaz",
+            "Bu satın alma talebine az önce teklif verildi; düzenleme yapılamaz",
           );
         }
       }
@@ -2162,7 +2162,7 @@ export class CompanyListingsService {
         take: 300,
       }),
       // Geçmiş: yalnız KATILDIĞIM (davet/teklif) kapanmış ilanlar. Başkasının
-      // kapanmış ilanı "açık ihaleler" listesinde görünmez (kullanıcı kararı):
+      // kapanmış ilanı "açık satın alma talepleri" listesinde görünmez (kullanıcı kararı):
       // katılmadığın bir ilan kapandıysa listeden düşer; onu ancak teklif
       // verdiysen (tekliflerim/geçmiş) ya da sipariş çıktıysa (siparişlerim)
       // görürsün. Kendi ilanlarını (kapanmış dahil) ownerTenders gösterir.
@@ -3397,7 +3397,7 @@ export class CompanyListingsService {
     if (!canBid) {
       throw new ForbiddenException(
         listing.visibility === "PRIVATE"
-          ? "Bu özel ihaleye yalnızca davetli firmalar teklif verebilir"
+          ? "Bu özel satın alma talebine yalnızca davetli firmalar teklif verebilir"
           : "Bu ilana teklif vermek için premium üyelik gerekir",
       );
     }
@@ -3567,7 +3567,7 @@ export class CompanyListingsService {
         : 0;
       if (docCount === 0) {
         throw new BadRequestException(
-          "Bu ihalede teklif dosyası zorunlu — önce taslak kaydedip dosya ekleyin",
+          "Bu satın alma talebinde teklif dosyası zorunlu — önce taslak kaydedip dosya ekleyin",
         );
       }
     }
@@ -3609,7 +3609,7 @@ export class CompanyListingsService {
     if (listingItems.length > 0) {
       if (!dto.items || dto.items.length === 0) {
         throw new BadRequestException(
-          "Bu ihale kalem-bazlı; en az bir kaleme birim fiyat girin",
+          "Bu satın alma talebi kalem-bazlı; en az bir kaleme birim fiyat girin",
         );
       }
       const qtyById = new Map(
@@ -3631,7 +3631,7 @@ export class CompanyListingsService {
         provided.length < listingItems.length
       ) {
         throw new BadRequestException(
-          "Bu ihalede tüm kalemlere teklif vermelisiniz",
+          "Bu satın alma talebinde tüm kalemlere teklif vermelisiniz",
         );
       }
       // Gönderimde her fiyatlanan kalem pozitif olmalı (0₺'lik satır kazanamaz).
@@ -3657,7 +3657,7 @@ export class CompanyListingsService {
       if (hasForeignItems) {
         if (listing.type !== "ALIM" || listing.format === "ENGLISH_AUCTION") {
           throw new BadRequestException(
-            "Kalem bazında farklı para birimi yalnız kapalı zarf alım ihalelerinde kullanılabilir",
+            "Kalem bazında farklı para birimi yalnız kapalı zarf alım satın alma taleplerinde kullanılabilir",
           );
         }
         for (const bi of provided) {
@@ -4174,7 +4174,7 @@ export class CompanyListingsService {
           portal: this.ownerPortal(listing.type),
           title: "Yeni teklif geldi",
           body: `"${listing.title}" (${listing.number ?? "—"}) ilanınıza yeni bir teklif verildi.`,
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: appRoutes.listing(this.webUrl(), id),
           listingId: id,
         })
@@ -4361,7 +4361,7 @@ export class CompanyListingsService {
         : 0;
       if (docCount === 0) {
         throw new BadRequestException(
-          "Bu ihalede teklif belgesi zorunlu — önce belge yükleyin",
+          "Bu satın alma talebinde teklif belgesi zorunlu — önce belge yükleyin",
         );
       }
     }
@@ -4389,8 +4389,8 @@ export class CompanyListingsService {
       ) {
         throw new BadRequestException(
           buyableItems.length < listing.items.length
-            ? "Bu ihalede tüm kalemlere teklif zorunlu; hemen-al fiyatı olmayan kalemler nedeniyle Hemen Al kullanılamaz — normal teklif verin"
-            : "Bu ihalede tüm kalemlere teklif zorunlu — tüm kalemleri seçin",
+            ? "Bu satın alma talebinde tüm kalemlere teklif zorunlu; hemen-al fiyatı olmayan kalemler nedeniyle Hemen Al kullanılamaz — normal teklif verin"
+            : "Bu satın alma talebinde tüm kalemlere teklif zorunlu — tüm kalemleri seçin",
         );
       }
       amount = selectedIds.reduce((sum, itemId) => {
@@ -4571,7 +4571,7 @@ export class CompanyListingsService {
       });
       if (docCount === 0) {
         throw new BadRequestException(
-          "Bu ihale teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
+          "Bu satın alma talebi teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
         );
       }
     }
@@ -4933,7 +4933,7 @@ export class CompanyListingsService {
             heading: "Teklifiniz kazandı",
             paragraphs: [
               "Merhaba,",
-              `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
+              `Bir satın alma talebinde teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
             ],
             ctaLabel: "Siparişi Gör",
             ctaUrl: appRoutes.order(this.webUrl(), order.id),
@@ -4945,16 +4945,16 @@ export class CompanyListingsService {
         type: "bid_awarded",
         portal: wonPortal,
         title: "Teklifiniz kazandı",
-        body: `Bir ihalede teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu.`,
+        body: `Bir satın alma talebinde teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu.`,
         ctaLabel: "Siparişi Gör",
         ctaUrl: appRoutes.order(this.webUrl(), order.id),
       });
-      // Kaybeden teklif sahiplerine "ihale sonuçlandı" bildirimi (teklifçi
+      // Kaybeden teklif sahiplerine "satın alma talebi sonuçlandı" bildirimi (teklifçi
       // portalı, bidElimination tercihine bağlı — eleme bildirimini kapatan
       // bunu da almaz).
       if (losingBidderIds.length > 0) {
         const lostUrl = appRoutes.listing(this.webUrl(), listingId);
-        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı.`;
         const lostRecipients = await this.companyRecipients(
           losingBidderIds,
           wonPortal,
@@ -4965,13 +4965,13 @@ export class CompanyListingsService {
           this.notify(
             r,
             {
-              subject: "İhale sonuçlandı",
-              heading: "İhale sonuçlandı",
+              subject: "Satın Alma Talebi sonuçlandı",
+              heading: "Satın Alma Talebi sonuçlandı",
               paragraphs: [
                 "Merhaba,",
                 `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`,
               ],
-              ctaLabel: "İhaleyi Gör",
+              ctaLabel: "Satın Alma Talebini Gör",
               ctaUrl: lostUrl,
             },
             { type: "bid_lost", id: listingId },
@@ -4980,9 +4980,9 @@ export class CompanyListingsService {
         await this.notifications.pushToCompanies(losingBidderIds, {
           type: "bid_lost",
           portal: wonPortal,
-          title: "İhale sonuçlandı",
+          title: "Satın Alma Talebi sonuçlandı",
           body: lostBody,
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: lostUrl,
           listingId,
         });
@@ -5242,7 +5242,7 @@ export class CompanyListingsService {
       select: { id: true, name: true, quantity: true, unit: true },
     });
     if (items.length === 0) {
-      throw new BadRequestException("Bu ihalede kalem yok");
+      throw new BadRequestException("Bu satın alma talebinde kalem yok");
     }
     const itemMap = new Map(items.map((i) => [i.id, i]));
     // Kısmi kapsam: yalnızca kazanan seçilen kalemler kazandırılır; teklif
@@ -5472,7 +5472,7 @@ export class CompanyListingsService {
     const numbers = await this.nextOrderNumbers(groupArr.length);
     const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
     // Denetim 2026-08-23 P2 #12: kaybedenleri tx ÖNCESİ yakala (tx içinde LOST
-    // olurlar) → runFullAward ile aynı "ihale sonuçlandı" bildirimi.
+    // olurlar) → runFullAward ile aynı "satın alma talebi sonuçlandı" bildirimi.
     const losingBidderIds = [
       ...new Set(
         (
@@ -5690,7 +5690,7 @@ export class CompanyListingsService {
               heading: "Teklifiniz kazandı",
               paragraphs: [
                 "Merhaba,",
-                `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
+                `Bir satın alma talebinde teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
               ],
               ctaLabel: "Siparişi Gör",
               ctaUrl: appRoutes.order(this.webUrl(), o.id),
@@ -5704,7 +5704,7 @@ export class CompanyListingsService {
             type: "bid_awarded",
             portal: itemWonPortal,
             title: "Teklifiniz kazandı",
-            body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
+            body: `Bir satın alma talebinde teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
             ctaLabel: "Siparişi Gör",
             ctaUrl: appRoutes.order(this.webUrl(), o.id),
           });
@@ -5713,7 +5713,7 @@ export class CompanyListingsService {
       // Kaybedenler (hiç kalem kazanamayan SUBMITTED teklifçiler) — runFullAward simetrisi.
       if (losingBidderIds.length > 0) {
         const lostUrl = appRoutes.listing(this.webUrl(), listingId);
-        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı.`;
         const lostRecipients = await this.companyRecipients(losingBidderIds, itemWonPortal);
         for (const cid of losingBidderIds) {
           const r = lostRecipients.get(cid);
@@ -5721,10 +5721,10 @@ export class CompanyListingsService {
           this.notify(
             r,
             {
-              subject: "İhale sonuçlandı",
-              heading: "İhale sonuçlandı",
+              subject: "Satın Alma Talebi sonuçlandı",
+              heading: "Satın Alma Talebi sonuçlandı",
               paragraphs: ["Merhaba,", `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`],
-              ctaLabel: "İhaleyi Gör",
+              ctaLabel: "Satın Alma Talebini Gör",
               ctaUrl: lostUrl,
             },
             { type: "bid_lost", id: listingId },
@@ -5733,9 +5733,9 @@ export class CompanyListingsService {
         await this.notifications.pushToCompanies(losingBidderIds, {
           type: "bid_lost",
           portal: itemWonPortal,
-          title: "İhale sonuçlandı",
+          title: "Satın Alma Talebi sonuçlandı",
           body: lostBody,
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: lostUrl,
           listingId,
         });
@@ -6132,7 +6132,7 @@ export class CompanyListingsService {
     );
     for (const c of carried) {
       const recipient = recipients.get(c.companyId) ?? null;
-      const body = `${label} ihalesinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı ${isSatis ? "artırabilirsiniz" : "düşürebilirsiniz"}.`;
+      const body = `${label} satın alma talebinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı ${isSatis ? "artırabilirsiniz" : "düşürebilirsiniz"}.`;
       if (recipient) {
         this.notify(
           recipient,
@@ -6140,7 +6140,7 @@ export class CompanyListingsService {
             subject: "Yeni tur açıldı — teklifiniz taşındı",
             heading: "Teklifiniz yeni tura taşındı",
             paragraphs: ["Merhaba,", body],
-            ctaLabel: "İhaleyi Gör",
+            ctaLabel: "Satın Alma Talebini Gör",
             ctaUrl: url,
           },
           { type: "listing_new_round", id: listingId },
@@ -6151,14 +6151,14 @@ export class CompanyListingsService {
         portal,
         title: "Yeni tur — teklifiniz taşındı",
         body,
-        ctaLabel: "İhaleyi Gör",
+        ctaLabel: "Satın Alma Talebini Gör",
         ctaUrl: url,
         listingId,
       });
     }
     for (const companyId of expiredCompanyIds) {
       const recipient = recipients.get(companyId) ?? null;
-      const body = `${label} ihalesinde ${roundName} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. ${opensText} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın.`;
+      const body = `${label} satın alma talebinde ${roundName} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. ${opensText} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın.`;
       if (recipient) {
         this.notify(
           recipient,
@@ -6166,7 +6166,7 @@ export class CompanyListingsService {
             subject: "Teklifinizin geçerlilik süresi doldu — işlem gerekli",
             heading: "Teklifinizin geçerliliği doldu",
             paragraphs: ["Merhaba,", body],
-            ctaLabel: "İhaleyi Gör",
+            ctaLabel: "Satın Alma Talebini Gör",
             ctaUrl: url,
           },
           { type: "listing_new_round", id: listingId },
@@ -6177,7 +6177,7 @@ export class CompanyListingsService {
         portal,
         title: "Teklifinizin geçerliliği doldu",
         body,
-        ctaLabel: "İhaleyi Gör",
+        ctaLabel: "Satın Alma Talebini Gör",
         ctaUrl: url,
         listingId,
       });
@@ -6227,7 +6227,7 @@ export class CompanyListingsService {
         listing.closesAt.getTime() <= Date.now())
     ) {
       throw new BadRequestException(
-        "İhale sonuçlandı — geçerlilik süresi uzatılamaz",
+        "Satın Alma Talebi sonuçlandı — geçerlilik süresi uzatılamaz",
       );
     }
     const bid = await this.prisma.listingBid.findUnique({
@@ -6337,7 +6337,7 @@ export class CompanyListingsService {
     listingId: string,
     rothernIds: string[],
   ) {
-    this.assertPaidForNewListingWork(user, "İhaleye yeni tedarikçi davet etmek");
+    this.assertPaidForNewListingWork(user, "Satın Alma Talebine yeni tedarikçi davet etmek");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -6366,7 +6366,7 @@ export class CompanyListingsService {
       listing.closesAt.getTime() - Date.now() < 2 * 60_000
     ) {
       throw new BadRequestException(
-        "Kapanışa 2 dakikadan az kala pazarlık ihalesine tedarikçi eklenemez",
+        "Kapanışa 2 dakikadan az kala pazarlık satın alma talebine tedarikçi eklenemez",
       );
     }
 
@@ -6417,13 +6417,13 @@ export class CompanyListingsService {
           this.notify(
             r,
             {
-              subject: "Bir ihaleye davet edildiniz",
-              heading: "İhale daveti",
+              subject: "Bir satın alma talebine davet edildiniz",
+              heading: "Satın Alma Talebi daveti",
               paragraphs: [
                 "Merhaba,",
-                `"${title?.title ?? "İhale"}" (${title?.number ?? "—"}) ihalesine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
+                `"${title?.title ?? "Satın Alma Talebi"}" (${title?.number ?? "—"}) satın alma talebine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
               ],
-              ctaLabel: "İhaleyi Gör",
+              ctaLabel: "Satın Alma Talebini Gör",
               ctaUrl: url,
             },
             { type: "listing_invitation", id: listingId },
@@ -6432,9 +6432,9 @@ export class CompanyListingsService {
         await this.notifications.pushToCompanies(toAdd, {
           type: "listing_invitation",
           portal: addPortal,
-          title: "İhale daveti",
-          body: `"${title?.title ?? "İhale"}" (${title?.number ?? "—"}) ihalesine davet edildiniz.`,
-          ctaLabel: "İhaleyi Gör",
+          title: "Satın Alma Talebi daveti",
+          body: `"${title?.title ?? "Satın Alma Talebi"}" (${title?.number ?? "—"}) satın alma talebine davet edildiniz.`,
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: url,
           listingId,
         });
@@ -6568,9 +6568,9 @@ export class CompanyListingsService {
           heading: "Teklifiniz değerlendirme dışı kaldı",
           paragraphs: [
             "Merhaba,",
-            `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
+            `"${info?.title ?? "Satın Alma Talebi"}" (${info?.number ?? "—"}) satın alma talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
           ],
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: appRoutes.listing(this.webUrl(), listingId),
         },
         { type: "bid_eliminated", id: bidId },
@@ -6580,8 +6580,8 @@ export class CompanyListingsService {
       type: "bid_eliminated",
       portal: elimPortal,
       title: "Teklifiniz değerlendirme dışı kaldı",
-      body: `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
-      ctaLabel: "İhaleyi Gör",
+      body: `"${info?.title ?? "Satın Alma Talebi"}" (${info?.number ?? "—"}) satın alma talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
+      ctaLabel: "Satın Alma Talebini Gör",
       ctaUrl: appRoutes.listing(this.webUrl(), listingId),
       listingId,
     });
@@ -6649,10 +6649,10 @@ export class CompanyListingsService {
     });
     // Katılımcılara haber ver (UI "gerekçe iletilir" vaadi artık gerçek).
     void this.notifyListingParticipants(listingId, {
-      subject: "İhale iptal edildi",
-      heading: "İhale iptal edildi",
+      subject: "Satın Alma Talebi iptal edildi",
+      heading: "Satın Alma Talebi iptal edildi",
       body: (label) =>
-        `${label} ihalesi ilan sahibi tarafından iptal edildi.${
+        `${label} satın alma talebi ilan sahibi tarafından iptal edildi.${
           reason?.trim() ? ` Gerekçe: ${reason.trim()}` : ""
         }`,
       type: "listing_closed",
@@ -6723,7 +6723,7 @@ export class CompanyListingsService {
           subject: opts.subject,
           heading: opts.heading,
           paragraphs: ["Merhaba,", opts.body(label)],
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: url,
         },
         { type: opts.type, id: listingId },
@@ -6734,7 +6734,7 @@ export class CompanyListingsService {
       portal: partPortal,
       title: opts.heading,
       body: opts.body(label),
-      ctaLabel: "İhaleyi Gör",
+      ctaLabel: "Satın Alma Talebini Gör",
       ctaUrl: url,
       listingId,
     });
@@ -6763,11 +6763,11 @@ export class CompanyListingsService {
     }
     this.assertListingManageRole(user, listing);
     if (listing.status === "IN_AWARD") {
-      throw new BadRequestException("İhale zaten değerlendirmede");
+      throw new BadRequestException("Satın Alma Talebi zaten değerlendirmede");
     }
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
-        "Yalnızca açık ihale değerlendirmeye alınabilir",
+        "Yalnızca açık satın alma talebi değerlendirmeye alınabilir",
       );
     }
     // Koşullu geçiş: eşzamanlı kapanış cron'u / kazandırma yarışında durum
@@ -6829,16 +6829,16 @@ export class CompanyListingsService {
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
     const portal = this.ownerPortal(listing.type);
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const body = `${label} ihalesi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da ${listing.type === "SATIS" ? "alıcılardan" : "tedarikçilerden"} geçerlilik uzatması isteyin.`;
+    const body = `${label} satın alma talebi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da ${listing.type === "SATIS" ? "alıcılardan" : "tedarikçilerden"} geçerlilik uzatması isteyin.`;
     const recipient = await this.companyRecipient(listing.companyId, portal);
     if (recipient) {
       this.notify(
         recipient,
         {
-          subject: "Değerlendirmedeki ihalede teklif geçerlilikleri doluyor",
+          subject: "Değerlendirmedeki satın alma talebinde teklif geçerlilikleri doluyor",
           heading: "Teklif geçerlilikleri dolmak üzere",
           paragraphs: ["Merhaba,", body],
-          ctaLabel: "İhaleyi Gör",
+          ctaLabel: "Satın Alma Talebini Gör",
           ctaUrl: url,
         },
         { type: "listing_evaluation_reminder", id: listingId },
@@ -6849,7 +6849,7 @@ export class CompanyListingsService {
       portal,
       title: "Teklif geçerlilikleri dolmak üzere",
       body,
-      ctaLabel: "İhaleyi Gör",
+      ctaLabel: "Satın Alma Talebini Gör",
       ctaUrl: url,
       listingId,
     });
@@ -6929,10 +6929,10 @@ export class CompanyListingsService {
       timeZone: "Europe/Istanbul",
     });
     void this.notifyListingParticipants(listing.id, {
-      subject: "İhale kapanış zamanı değişti",
+      subject: "Satın Alma Talebi kapanış zamanı değişti",
       heading: "Kapanış zamanı değişti",
       body: (label) =>
-        `${label} ihalesinin kapanış zamanı ${direction}. Yeni kapanış: ${newClosingLabel}.`,
+        `${label} satın alma talebinin kapanış zamanı ${direction}. Yeni kapanış: ${newClosingLabel}.`,
       type: "listing_closing_changed",
     }).catch((err) =>
       this.logger.error(
@@ -7029,10 +7029,10 @@ export class CompanyListingsService {
       },
     });
     void this.notifyListingParticipants(listingId, {
-      subject: "İhale kazanan olmadan kapatıldı",
-      heading: "İhale sonuçlanmadan kapatıldı",
+      subject: "Satın Alma Talebi kazanan olmadan kapatıldı",
+      heading: "Satın Alma Talebi sonuçlanmadan kapatıldı",
       body: (label) =>
-        `${label} ihalesi kazanan seçilmeden kapatıldı.${
+        `${label} satın alma talebi kazanan seçilmeden kapatıldı.${
           reason?.trim() ? ` Gerekçe: ${reason.trim()}` : ""
         }`,
       type: "listing_closed",

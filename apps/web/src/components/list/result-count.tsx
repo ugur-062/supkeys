@@ -7,7 +7,7 @@ interface Props {
   isFiltered: boolean;
   unit?: string;
   className?: string;
-  /** B6: veri henüz yüklenmediyse "0 ihale" basma — küçük skeleton göster. */
+  /** B6: veri henüz yüklenmediyse "0 satın alma talebi" basma — küçük skeleton göster. */
   isLoading?: boolean;
 }
 

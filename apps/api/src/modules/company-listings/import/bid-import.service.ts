@@ -75,7 +75,7 @@ export class BidImportService {
       }[];
     };
     if (d.isOwner) {
-      throw new BadRequestException("Kendi ihalenize teklif veremezsiniz");
+      throw new BadRequestException("Kendi satın alma talebinize teklif veremezsiniz");
     }
     const items: MatchItem[] = (d.items ?? []).map((it) => ({
       id: it.id,
@@ -87,7 +87,7 @@ export class BidImportService {
     }));
     if (items.length === 0) {
       throw new BadRequestException(
-        "Bu ihalede kalem listesi yok ya da görüntüleme yetkiniz yok — fiyat içe aktarma yalnız kalemli ihalelerde",
+        "Bu satın alma talebinde kalem listesi yok ya da görüntüleme yetkiniz yok — fiyat içe aktarma yalnız kalemli satın alma taleplerinde",
       );
     }
     const primary = d.primaryCurrency ?? null;
@@ -153,7 +153,7 @@ export class BidImportService {
             formulae: [`"${currencyList.join(",")}"`],
             showErrorMessage: true,
             errorTitle: "Para birimi",
-            error: `Bu ihalede kabul edilen para birimleri: ${currencyList.join(", ")}`,
+            error: `Bu satın alma talebinde kabul edilen para birimleri: ${currencyList.join(", ")}`,
           };
         }
         if (c.key === "deliveryTime") {
@@ -186,9 +186,9 @@ export class BidImportService {
     const lines = [
       `Teklif şablonu — ${l.title}`,
       "",
-      `"${BID_IMPORT_SHEET}" sayfasındaki gri sütunlar ihalenin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).`,
+      `"${BID_IMPORT_SHEET}" sayfasındaki gri sütunlar satın alma talebinin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).`,
       "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden), Teslim Süresi (listeden), Not.",
-      "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (ihale tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
+      "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (satın alma talebi tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
       "Ondalık ayracı virgül veya nokta olabilir (185,50 ya da 185.50).",
       "Dosyayı kaydedip teklif sayfasındaki 'Excel Şablonu ile Fiyatla' ile yükleyin — önce önizleme görürsünüz, teklif göndermez.",
     ];
@@ -199,7 +199,7 @@ export class BidImportService {
     });
 
     const out = await wb.xlsx.writeBuffer();
-    const safe = l.title.replace(/[^a-zA-Z0-9ğüşöçıİĞÜŞÖÇ _-]/g, "").slice(0, 40).trim() || "ihale";
+    const safe = l.title.replace(/[^a-zA-Z0-9ğüşöçıİĞÜŞÖÇ _-]/g, "").slice(0, 40).trim() || "satın alma talebi";
     return { buffer: Buffer.from(out as ArrayBuffer), fileName: `teklif-sablonu-${safe}.xlsx` };
   }
 
@@ -235,7 +235,7 @@ export class BidImportService {
         throw new BadRequestException("CSV dosyası okunamadı");
       });
     } else {
-      throw new BadRequestException("Desteklenmeyen dosya — bu ihalenin Excel şablonunu indirip doldurun");
+      throw new BadRequestException("Desteklenmeyen dosya — bu satın alma talebinin Excel şablonunu indirip doldurun");
     }
     const ws = wb.getWorksheet(BID_IMPORT_SHEET) ?? wb.worksheets[0];
     if (!ws) throw new BadRequestException("Dosyada sayfa bulunamadı");
@@ -257,7 +257,7 @@ export class BidImportService {
     const keys = new Set(map.values());
     if (!keys.has("itemId") || !keys.has("unitPrice")) {
       throw new BadRequestException(
-        "Bu dosya bu ihalenin teklif şablonu değil (ItemId / Birim Fiyat sütunları yok). Şablonu 'Excel Şablonu ile Fiyatla' penceresinden indirin.",
+        "Bu dosya bu satın alma talebinin teklif şablonu değil (ItemId / Birim Fiyat sütunları yok). Şablonu 'Excel Şablonu ile Fiyatla' penceresinden indirin.",
       );
     }
     const colOf = (k: BidImportColumnKey) => [...map.entries()].find(([, v]) => v === k)?.[0];
@@ -317,7 +317,7 @@ export class BidImportService {
       if (curRaw != null && String(curRaw).trim() !== "" && !cur) m.errors.push(`Para birimi tanınmadı: ${String(curRaw)}`);
       if (cur) {
         if (l.allowedCurrencies.length > 0 && !l.allowedCurrencies.includes(cur)) {
-          m.errors.push(`Para birimi (${cur}) bu ihalede kabul edilmiyor (${l.allowedCurrencies.join(", ")})`);
+          m.errors.push(`Para birimi (${cur}) bu satın alma talebinde kabul edilmiyor (${l.allowedCurrencies.join(", ")})`);
         } else {
           m.currency = cur === l.primaryCurrency ? null : cur;
         }
@@ -333,7 +333,7 @@ export class BidImportService {
       if (seen.has(it.id)) m.warnings.push("Aynı kalem şablonda birden çok satırda — son satır geçerli");
       seen.set(it.id, m);
     }
-    if (unknownRows > 0) notices.push(`${unknownRows} satır ihale kalemlerine bağlanamadı (ItemId bozuk/silinmiş) — atlandı`);
+    if (unknownRows > 0) notices.push(`${unknownRows} satır satın alma talebi kalemlerine bağlanamadı (ItemId bozuk/silinmiş) — atlandı`);
 
     // Her kalem için bir satır (şablonda olmayan/boş kalem → none).
     const matches: BidImportMatch[] = l.items.map(
@@ -384,10 +384,10 @@ export class BidImportService {
     }
     const docCur = normalizeCurrency(docMeta.docCurrency);
     if (docCur && l.allowedCurrencies.length > 0 && !l.allowedCurrencies.includes(docCur)) {
-      notices.push(`Belge para birimi (${docCur}) bu ihalede kabul edilmiyor (${l.allowedCurrencies.join(", ")})`);
+      notices.push(`Belge para birimi (${docCur}) bu satın alma talebinde kabul edilmiyor (${l.allowedCurrencies.join(", ")})`);
     }
     const matchedCount = matches.filter((m) => m.unitPrice != null).length;
-    if (matchedCount === 0) notices.push("Belgeden ihale kalemlerine fiyat eşlenemedi — elle eşleyebilir ya da şablonu kullanabilirsiniz");
+    if (matchedCount === 0) notices.push("Belgeden satın alma talebi kalemlerine fiyat eşlenemedi — elle eşleyebilir ya da şablonu kullanabilirsiniz");
     const medium = matches.filter((m) => m.confidence === "medium").length;
     if (medium > 0) notices.push(`${medium} kalem düşük güvenle eşleşti — sarı satırları kontrol edin`);
     return {

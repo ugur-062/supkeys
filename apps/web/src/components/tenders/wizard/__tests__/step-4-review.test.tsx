@@ -35,11 +35,11 @@ beforeEach(() => {
 
 describe("Step4Review — özet tablosu", () => {
   it("kalemler tabloda satır satır render edilir", () => {
-    render(<Harness values={{ title: "Test İhale", items: ITEMS }} />);
+    render(<Harness values={{ title: "Test Satın Alma Talebi", items: ITEMS }} />);
     expect(screen.getByText("Çelik Boru")).toBeInTheDocument();
     expect(screen.getByText("Bakır Tel")).toBeInTheDocument();
     // Başlık satırı da özette görünür.
-    expect(screen.getByText("Test İhale")).toBeInTheDocument();
+    expect(screen.getByText("Test Satın Alma Talebi")).toBeInTheDocument();
   });
 
   it("kalem tablosu overflow-x-auto sarmalayıcı içinde (yatay kaydırma)", () => {

@@ -94,7 +94,7 @@ export default function CompanyProfilePage() {
     if (!connectionId) return;
     const ok = await confirmDialog({
       title: "Bağlantı kaldırılsın mı?",
-      description: `"${p.name}" ile bağlantınız kaldırılacak; davetli ihalelerini artık göremezsiniz.`,
+      description: `"${p.name}" ile bağlantınız kaldırılacak; davetli satın alma taleplerini artık göremezsiniz.`,
       confirmLabel: "Kaldır",
       destructive: true,
     });
@@ -175,7 +175,7 @@ export default function CompanyProfilePage() {
   const tenders = (
     <section className="card p-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-zinc-900">Açık İhaleleri</h2>
+        <h2 className="text-base font-semibold text-zinc-900">Açık Satın Alma Taleplerini</h2>
         {!connected ? (
           <span className="inline-flex items-center gap-2 text-xs text-zinc-400">
             <Lock className="h-3.5 w-3.5" />
@@ -186,13 +186,13 @@ export default function CompanyProfilePage() {
 
       {!connected ? (
         <Text className="mt-1 text-xs text-zinc-500">
-          Bağlanırsanız bu firmanın davetli ihalelerini de görürsünüz.
+          Bağlanırsanız bu firmanın davetli satın alma taleplerini de görürsünüz.
         </Text>
       ) : null}
 
       {listings.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center text-sm text-zinc-500">
-          Şu an açık ihale yok.
+          Şu an açık satın alma talebi yok.
         </div>
       ) : (
         <div className="mt-4 space-y-2">

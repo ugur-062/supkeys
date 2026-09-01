@@ -97,7 +97,7 @@ export function Step0TypeScope() {
         /* Pazarlığa aktarılmış ihale (yalnız düzenlemede görülür) — format
            bilgisi burada gösterilmeye devam eder; değiştirilemez. */
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">İhale Türü</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Satın Alma Talebi Türü</h2>
           <p className="mt-1 text-sm text-zinc-500">
             Bu ihale &apos;Pazarlığa Geç&apos; ile pazarlık (açık eksiltme)
             aşamasına aktarılmış.
@@ -130,7 +130,7 @@ export function Step0TypeScope() {
         <div className="flex items-start gap-3 rounded-xl border border-zinc-950/10 bg-white px-4 py-3 text-sm text-zinc-600">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
           <p>
-            İhaleniz <strong>kapalı zarf</strong> usulüyle açılır —{" "}
+            Satın Alma Talebiniz <strong>kapalı zarf</strong> usulüyle açılır —{" "}
             {isSatis ? "alıcılar" : "tedarikçiler"} birbirinin teklifini görmez.
             Kapanıştan sonra dilerseniz “Yeni Tur” ile canlı pazarlığa
             ({isSatis ? "açık artırma" : "açık eksiltme"}) taşıyabilirsiniz.

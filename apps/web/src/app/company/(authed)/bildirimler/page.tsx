@@ -72,7 +72,7 @@ export default function BildirimlerPage() {
         <div>
           <h1 className="text-xl font-bold text-zinc-900">Bildirimler</h1>
           <p className="text-sm text-zinc-500">
-            İhale davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri.
+            Satın Alma Talebi davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri.
           </p>
         </div>
         {hasUnread ? (
@@ -113,7 +113,7 @@ export default function BildirimlerPage() {
           <EmptyState
             icon={Bell}
             title="Henüz bildiriminiz yok"
-            description="İhale davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri burada birikir."
+            description="Satın Alma Talebi davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri burada birikir."
             action={
               <Link
                 href="/company/ayarlar/bildirimler"

@@ -260,7 +260,7 @@ function ListingsCard({
   return (
     <div className="admin-card px-5 py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-admin-text font-bold">İlan & İhale Durumu</h3>
+        <h3 className="text-admin-text font-bold">İlan & Satın Alma Talebi Durumu</h3>
         <span className="text-admin-text-muted text-xs">
           {l.totalBids.toLocaleString("tr-TR")} gönderilmiş teklif
         </span>
@@ -296,7 +296,7 @@ function ListingsCard({
           note="yayınlanmış ilanlar"
           total={l.published}
           rows={[
-            { label: "Alım ihalesi", value: l.byType.ALIM },
+            { label: "Alım satın alma talebi", value: l.byType.ALIM },
             { label: "Satış ilanı", value: l.byType.SATIS },
           ]}
         />

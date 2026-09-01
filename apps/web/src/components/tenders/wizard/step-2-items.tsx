@@ -163,7 +163,7 @@ export function Step2Items() {
                   <p className="text-sm font-semibold text-zinc-900">
                     Toplu
                     <span className="block text-xs font-normal text-zinc-500">
-                      İhale geneli tek taban + tek hemen-al fiyatı.
+                      Satın Alma Talebi geneli tek taban + tek hemen-al fiyatı.
                     </span>
                   </p>
                 </div>

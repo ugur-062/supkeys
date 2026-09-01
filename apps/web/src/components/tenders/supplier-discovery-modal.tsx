@@ -221,8 +221,8 @@ export function SupplierDiscoveryModal({
                   Daha fazla {counterpart}ye eriş
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-zinc-500">
-                  İhale kategorilerinize göre platformda eşleşen, henüz bağlantınız
-                  olmayan firmalar. Davet gönderin — kabul edince ihalenize davet
+                  Satın Alma Talebi kategorilerinize göre platformda eşleşen, henüz bağlantınız
+                  olmayan firmalar. Davet gönderin — kabul edince satın alma talebinize davet
                   edebilirsiniz.
                 </p>
               </div>
@@ -385,10 +385,10 @@ export function SupplierDiscoveryModal({
                   </Button>
                   {!listingId ? (
                     <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                      İhale henüz yayınlanmadığı için <strong>bağlantı/kayıt
+                      Satın Alma Talebi henüz yayınlanmadığı için <strong>bağlantı/kayıt
                       daveti</strong> gönderilir — firma kabul edince Davetliler
-                      adımında listenize düşer. İhaleye özel davet, yayın
-                      sonrası ihale sayfasındaki bu ekrandan gönderilir.
+                      adımında listenize düşer. Satın Alma Talebine özel davet, yayın
+                      sonrası satın alma talebi sayfasındaki bu ekrandan gönderilir.
                     </p>
                   ) : null}
                   <p className="mt-2 text-xs text-zinc-400">
@@ -403,7 +403,7 @@ export function SupplierDiscoveryModal({
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {effCategoryIds.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
-                Önce Genel Bilgi adımında ihale kategorisini seçin — öneriler
+                Önce Genel Bilgi adımında satın alma talebi kategorisini seçin — öneriler
                 kategoriye göre bulunur.
               </p>
             ) : discovery.isPending ? (

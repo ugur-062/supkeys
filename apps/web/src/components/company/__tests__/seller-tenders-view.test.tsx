@@ -48,7 +48,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
   return {
     id: `l${seq}`,
     number: `ROT-2026-000${seq}`,
-    title: `İhale ${seq}`,
+    title: `Satın Alma Talebi ${seq}`,
     status: "OPEN",
     visibility: "CONNECTIONS",
     format: "RFQ",
@@ -101,7 +101,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     render(<SellerTendersView />);
 
     // Başlık tırnaklı basılır → regex; firma adı düz.
-    expect(screen.getByText(/İhale 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Satın Alma Talebi 1/)).toBeInTheDocument();
     // Durum etiketi dikey rozet (md+) + mobil chip satırında — iki kopya normal.
     expect(screen.getAllByText("Teklif Gönderildi").length).toBeGreaterThanOrEqual(1);
     // Firma adı xl kolonu + mobil chip satırında — iki kopya normal.
@@ -131,28 +131,28 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
   it("varsayılan tab Aktif: geçmiş ilan gizli; Geçmiş'e geçince görünür", async () => {
     const user = userEvent.setup();
     h.rows = [
-      row({ title: "Açık İhale" }),
-      row({ title: "Biten İhale", status: "AWARDED", myBidStatus: "WON" }),
+      row({ title: "Açık Satın Alma Talebi" }),
+      row({ title: "Biten Satın Alma Talebi", status: "AWARDED", myBidStatus: "WON" }),
     ];
     render(<SellerTendersView />);
 
-    // B10: sayfa başlığı artık "Açık İhaleler" — regex başlığı da yakalar; exact string kullan.
-    expect(screen.getByText("Açık İhale")).toBeInTheDocument();
-    expect(screen.queryByText(/Biten İhale/)).not.toBeInTheDocument();
+    // B10: sayfa başlığı artık "Açık Talepler" — regex başlığı da yakalar; exact string kullan.
+    expect(screen.getByText("Açık Satın Alma Talebi")).toBeInTheDocument();
+    expect(screen.queryByText(/Biten Satın Alma Talebi/)).not.toBeInTheDocument();
 
     // FilterSelect artık Listbox (P0): buton → seçenek tıklama.
     await user.click(screen.getByRole("button", { name: "Durum" }));
     await user.click(await screen.findByRole("option", { name: "Geçmiş" }));
-    expect(screen.getByText(/Biten İhale/)).toBeInTheDocument();
-    expect(screen.queryByText("Açık İhale")).not.toBeInTheDocument();
+    expect(screen.getByText(/Biten Satın Alma Talebi/)).toBeInTheDocument();
+    expect(screen.queryByText("Açık Satın Alma Talebi")).not.toBeInTheDocument();
     expect(screen.getAllByText("Kazandınız").length).toBeGreaterThanOrEqual(1);
   });
 
   it("müşteri filtresi veriden türetilir ve uygulanır", async () => {
     const user = userEvent.setup();
     h.rows = [
-      row({ owner: { id: "cx", name: "Firma X" }, title: "X'in ihalesi" }),
-      row({ owner: { id: "cy", name: "Firma Y" }, title: "Y'nin ihalesi" }),
+      row({ owner: { id: "cx", name: "Firma X" }, title: "X'in satın alma talebi" }),
+      row({ owner: { id: "cy", name: "Firma Y" }, title: "Y'nin satın alma talebi" }),
     ];
     render(<SellerTendersView />);
 
@@ -160,8 +160,8 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     const listbox = await screen.findByRole("listbox");
     // Seçenek etiketi sayaçlı: "Firma X (1)".
     await user.click(within(listbox).getByText(/Firma X/));
-    expect(screen.getByText(/X'in ihalesi/)).toBeInTheDocument();
-    expect(screen.queryByText(/Y'nin ihalesi/)).not.toBeInTheDocument();
+    expect(screen.getByText(/X'in satın alma talebi/)).toBeInTheDocument();
+    expect(screen.queryByText(/Y'nin satın alma talebi/)).not.toBeInTheDocument();
   });
 
   it("arama başlık/numara/alıcıda çalışır", async () => {
@@ -170,7 +170,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     render(<SellerTendersView />);
 
     await user.type(
-      screen.getByPlaceholderText("İhale adı, numarası veya firma ara…"),
+      screen.getByPlaceholderText("Satın Alma Talebi adı, numarası veya firma ara…"),
       "çelik",
     );
     // SearchInput debounce'lı (300ms) → filtrenin uygulanmasını bekle.
@@ -270,11 +270,11 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
   it("boş durum + hata durumu", () => {
     h.rows = [];
     const { unmount } = render(<SellerTendersView />);
-    expect(screen.getByText("Henüz ihale yok")).toBeInTheDocument();
+    expect(screen.getByText("Henüz satın alma talebi yok")).toBeInTheDocument();
     unmount();
 
     h.isError = true;
     render(<SellerTendersView />);
-    expect(screen.getByText("İhaleler yüklenemedi")).toBeInTheDocument();
+    expect(screen.getByText("Satın Alma Talepleri yüklenemedi")).toBeInTheDocument();
   });
 });

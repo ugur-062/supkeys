@@ -120,7 +120,7 @@ export class ListingItemImportService {
       `En fazla ${ITEM_IMPORT_MAX_ROWS} kalem. Boş satırlar atlanır.`,
       "Fiyatlar KDV HARİÇ girilir. Ondalık ayracı virgül veya nokta olabilir (12,5 ya da 12.5).",
       "Tarihler GG.AA.YYYY (ör. 15.09.2026) ya da Excel tarih hücresi olabilir.",
-      "Dosyayı kaydedip (.xlsx) ihale formundaki 'Excel ile İçe Aktar' ile yükleyin; aktarmadan önce önizleme görürsünüz.",
+      "Dosyayı kaydedip (.xlsx) satın alma talebi formundaki 'Excel ile İçe Aktar' ile yükleyin; aktarmadan önce önizleme görürsünüz.",
       "Sütunların sırası önemli değil; başlık metni aynı kaldığı sürece sütun ekleyip çıkarabilirsiniz (zorunlular hariç).",
     ];
     for (const n of notes) {

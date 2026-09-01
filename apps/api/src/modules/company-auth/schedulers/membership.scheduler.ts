@@ -156,7 +156,7 @@ export class MembershipScheduler implements OnModuleInit {
               heading: "Premium üyeliğiniz sona erdi",
               paragraphs: [
                 "Merhaba,",
-                "Premium (Rothern) üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Artık yeni ihale açamaz, firma davet edemez veya dizinde görünemezsiniz; mevcut ilanlarınızı tamamlayabilir ve gelen davetlere teklif verebilirsiniz.",
+                "Premium (Rothern) üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Artık yeni satın alma talebi açamaz, firma davet edemez veya dizinde görünemezsiniz; mevcut ilanlarınızı tamamlayabilir ve gelen davetlere teklif verebilirsiniz.",
                 "Tekrar premium'a geçmek için hesabınızdan yükseltme yapabilirsiniz.",
               ],
               ctaLabel: "Premium'a Geç",

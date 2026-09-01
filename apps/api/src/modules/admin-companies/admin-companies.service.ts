@@ -1258,7 +1258,7 @@ export class AdminCompaniesService {
         "Paket üyeliğiniz sonlandırıldı",
         [
           "Merhaba,",
-          "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Artık yeni ihale açamaz, firma davet edemez veya dizinde görünemezsiniz; mevcut ilanlarınızı tamamlayabilir ve gelen davetlere teklif verebilirsiniz.",
+          "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Artık yeni satın alma talebi açamaz, firma davet edemez veya dizinde görünemezsiniz; mevcut ilanlarınızı tamamlayabilir ve gelen davetlere teklif verebilirsiniz.",
           "Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
         ],
         "membership_downgraded",

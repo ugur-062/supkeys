@@ -249,7 +249,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
       </Section>
 
       {/* Kurallar */}
-      <Section title="İhale Kuralları" icon={ShieldCheck}>
+      <Section title="Satın Alma Talebi Kuralları" icon={ShieldCheck}>
         <div className="flex flex-wrap gap-2">
           <RuleChip
             active={!!l.isSealedBid}
@@ -319,7 +319,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200/70">
               <Lock className="h-4 w-4 text-zinc-700" />
             </div>
-            <h3 className="font-semibold text-zinc-900">İhale Notları</h3>
+            <h3 className="font-semibold text-zinc-900">Satın Alma Talebi Notları</h3>
             <span className="inline-flex items-center gap-1 rounded-md bg-zinc-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-700">
               Şirket içi
             </span>

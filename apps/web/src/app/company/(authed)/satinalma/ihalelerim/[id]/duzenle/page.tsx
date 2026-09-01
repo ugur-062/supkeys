@@ -18,8 +18,8 @@ export default function EditTenderPage() {
   if (!l || !l.isOwner) {
     return (
       <Notice
-        title="İhale bulunamadı"
-        desc="Bu ihaleyi düzenleme yetkiniz yok."
+        title="Satın Alma Talebi bulunamadı"
+        desc="Bu satın alma talebini düzenleme yetkiniz yok."
         href="/company/satinalma/ihalelerim"
       />
     );
@@ -27,7 +27,7 @@ export default function EditTenderPage() {
   if (l.type !== "ALIM") {
     return (
       <Notice
-        title="Bu ekran yalnızca ihaleleri düzenler"
+        title="Bu ekran yalnızca satın alma taleplerini düzenler"
         desc="Satış ilanları kendi düzenleme ekranından güncellenir."
         href={`/company/ilan/${id}`}
       />
@@ -37,7 +37,7 @@ export default function EditTenderPage() {
     return (
       <Notice
         title="Düzenlenemez"
-        desc="Bu ihaleye teklif verilmiş veya kapanmış; içerik değiştirilemez."
+        desc="Bu satın alma talebine teklif verilmiş veya kapanmış; içerik değiştirilemez."
         href={`/company/ilan/${id}`}
       />
     );

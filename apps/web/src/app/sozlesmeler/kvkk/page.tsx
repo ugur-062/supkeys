@@ -11,7 +11,7 @@ export default function Page() {
       sections={[
         {
           paragraphs: [
-            `İşbu Aydınlatma Metni, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, veri sorumlusu sıfatıyla ${OPERATOR.legalName} ("Rothern" markasıyla, "Platform") tarafından, www.rothern.com adresinde sunulan B2B e-tedarik ve e-ihale platformunun kullanımı kapsamında kişisel verilerinizin işlenmesine ilişkin olarak sizleri bilgilendirmek amacıyla hazırlanmıştır. Veri sorumlusunun adresi: ${OPERATOR.address}.`,
+            `İşbu Aydınlatma Metni, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, veri sorumlusu sıfatıyla ${OPERATOR.legalName} ("Rothern" markasıyla, "Platform") tarafından, www.rothern.com adresinde sunulan B2B e-tedarik ve e-satın alma talebi platformunun kullanımı kapsamında kişisel verilerinizin işlenmesine ilişkin olarak sizleri bilgilendirmek amacıyla hazırlanmıştır. Veri sorumlusunun adresi: ${OPERATOR.address}.`,
             "Platform, firmalar (tüzel ve gerçek kişi tacirler) arasında satın alma ve satış süreçlerine aracılık eden bir iş uygulamasıdır; kişisel veriler ağırlıklı olarak firma yetkilisi ve firma çalışanı sıfatıyla hareket eden gerçek kişilere aittir.",
           ],
         },
@@ -21,7 +21,7 @@ export default function Page() {
             "Kimlik bilgileri: ad, soyad; şahıs firmalarında T.C. kimlik numarası (vergi mükellefiyeti doğrulaması amacıyla).",
             "İletişim bilgileri: e-posta adresi, telefon numarası, işyeri adresi.",
             "Firma ve mali bilgiler: firma unvanı, vergi kimlik numarası, vergi dairesi, fatura ve teslimat adresleri, banka hesap (IBAN) bilgileri, vergi levhası ve benzeri doğrulama belgeleri.",
-            "İşlem verileri: ihale, teklif, sipariş, onay ve mesajlaşma kayıtları; platforma yüklenen belge ve görseller.",
+            "İşlem verileri: satın alma talebi, teklif, sipariş, onay ve mesajlaşma kayıtları; platforma yüklenen belge ve görseller.",
             "İşlem güvenliği verileri: IP adresi, oturum ve log kayıtları, çerez verileri.",
           ],
         },
@@ -29,7 +29,7 @@ export default function Page() {
           heading: "2. İşleme Amaçları",
           list: [
             "Üyelik hesabının oluşturulması, doğrulanması ve yönetimi; firma doğrulama (KYB) süreçlerinin yürütülmesi.",
-            "İhale açma, teklif toplama, değerlendirme, kazandırma ve sipariş süreçlerine aracılık edilmesi.",
+            "Satın Alma Talebi açma, teklif toplama, değerlendirme, kazandırma ve sipariş süreçlerine aracılık edilmesi.",
             "İşlemlere ilişkin zorunlu bildirimlerin (e-posta ve platform içi) iletilmesi.",
             "Platform güvenliğinin sağlanması, hataların tespiti, denetim izlerinin (audit log) tutulması ve kötüye kullanımın önlenmesi.",
             "Yasal yükümlülüklerin yerine getirilmesi ve yetkili kurumların taleplerinin karşılanması.",

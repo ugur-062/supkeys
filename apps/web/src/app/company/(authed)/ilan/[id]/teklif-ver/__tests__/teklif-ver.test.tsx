@@ -128,11 +128,11 @@ describe("TeklifVerPage — kapılar", () => {
     ).toBeInTheDocument();
   });
 
-  it("kapalı ihale → engellenir", () => {
+  it("kapalı satın alma talebi → engellenir", () => {
     h.detail = baseDetail({ status: "CLOSED" });
     render(<TeklifVerPage />);
     expect(
-      screen.getByText("Bu ihaleye artık teklif verilemez"),
+      screen.getByText("Bu satın alma talebine artık teklif verilemez"),
     ).toBeInTheDocument();
   });
 });

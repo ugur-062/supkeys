@@ -8,11 +8,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
  * UI'da toggle olarak gösterilir; varsayılan tümü açık.
  */
 export const NOTIFICATION_PREFS: { key: string; label: string }[] = [
-  { key: "invitation", label: "İhale daveti aldığımda" },
-  { key: "reminder", label: "Davetli olduğum ihalenin kapanışı yaklaştığında" },
+  { key: "invitation", label: "Satın Alma Talebi daveti aldığımda" },
+  { key: "reminder", label: "Davetli olduğum satın alma talebinin kapanışı yaklaştığında" },
   { key: "bidElimination", label: "Teklifim elendiğinde" },
-  { key: "listingClosed", label: "Katıldığım ihale kapandığında" },
-  { key: "categoryMatch", label: "Kategorime uygun yeni ihale açıldığında" },
+  { key: "listingClosed", label: "Katıldığım satın alma talebi kapandığında" },
+  { key: "categoryMatch", label: "Kategorime uygun yeni satın alma talebi açıldığında" },
   { key: "approvalPending", label: "Onayım beklendiğinde" },
   { key: "announcement", label: "Platform duyuruları" },
 ];

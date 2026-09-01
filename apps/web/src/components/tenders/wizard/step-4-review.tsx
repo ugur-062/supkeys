@@ -45,14 +45,14 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   return (
     <div className="space-y-5">
       <Section title="Genel Bilgi" onEdit={() => onEditStep(2)}>
-        <Row label="İhale Adı" value={d.title || "—"} />
+        <Row label="Satın Alma Talebi Adı" value={d.title || "—"} />
         <Row
           label="Tip"
           value={
             d.listingType === "SATIS"
               ? d.type === "ENGLISH_AUCTION"
-                ? "Satış İhalesi — Pazarlık (Açık Artırma — en yüksek kazanır)"
-                : "Satış İhalesi — Teklif Toplama (en yüksek kazanır)"
+                ? "Satış İlanı — Pazarlık (Açık Artırma — en yüksek kazanır)"
+                : "Satış İlanı — Teklif Toplama (en yüksek kazanır)"
               : d.type === "ENGLISH_AUCTION"
                 ? "Pazarlık (Açık Eksiltme)"
                 : "Teklif Toplama (Kapalı Zarf)"
@@ -126,7 +126,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         {d.bidsOpenAt ? <Row label="Açılış" value={fmtDate(d.bidsOpenAt)} /> : null}
         {stagedDocsCount != null && stagedDocsCount > 0 ? (
           <Row
-            label="İhale Dökümanları"
+            label="Satın Alma Talebi Dökümanları"
             value={`${stagedDocsCount} dosya — yayınlanınca yüklenecek`}
           />
         ) : null}
@@ -197,7 +197,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
             {/* PUBLIC'te davetsizlik doğal durumdur — "davetli yok" uyarı gibi
                 okunuyordu; ihalenin zaten herkese açık olduğu söylenir. */}
             {d.visibility === "PUBLIC"
-              ? `İhale herkese açık — davet gerekmez; kategorinize uygun premium ${
+              ? `Satın Alma Talebi herkese açık — davet gerekmez; kategorinize uygun premium ${
                   d.listingType === "SATIS" ? "alıcılar" : "tedarikçiler"
                 } görüp teklif verebilir. İsterseniz sonradan da davet gönderebilirsiniz.`
               : "Davetli firma yok — sonra davet gönderebilirsiniz."}

@@ -136,7 +136,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               </span>
               {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
               <Badge color={isAlim ? "blue" : "emerald"}>
-                {isAlim ? "Alış İhalesi" : "Satış İhalesi"}
+                {isAlim ? "Alış Satın Alma Talebi" : "Satış İlanı"}
               </Badge>
             </div>
             <h3
@@ -211,7 +211,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
         {canRebid ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-            İhale hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
+            Satın Alma Talebi hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
           </p>
         ) : null}
 
@@ -239,9 +239,9 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               </span>
             ) : !won ? (
               <span className="text-zinc-400">
-                {/* C51: Değerlendirmede rozetiyle "İhale kapandı" çelişkili
+                {/* C51: Değerlendirmede rozetiyle "Satın Alma Talebi kapandı" çelişkili
                     okunuyordu — gönderilmiş teklifte süreç dili. */}
-                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "İhale kapandı"}
+                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "Satın Alma Talebi kapandı"}
               </span>
             ) : null}
             {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu. */}
@@ -285,10 +285,10 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
   const isPurchase = listingType === "SATIS";
   const description = isPurchase
     ? "Satıcıların ilanlarına verdiğiniz teklifler ve sonuçları."
-    : "Açık ihalelere verdiğiniz tüm teklifler ve sonuçları.";
+    : "Açık satın alma taleplerine verdiğiniz tüm teklifler ve sonuçları.";
   const emptyHint = isPurchase
     ? "Satın Al ekranından bir ilana teklif verdiğinizde burada görünür."
-    : "Açık ihaleler ekranından bir ihaleye teklif verdiğinizde burada görünür.";
+    : "Açık satın alma talepleri ekranından bir satın alma talebine teklif verdiğinizde burada görünür.";
   const fromHref = isPurchase
     ? "/company/satinalma/tekliflerim"
     : "/company/satis/tekliflerim";
@@ -357,7 +357,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
             placeholder={
               isPurchase
                 ? "İlan adı, numarası veya satıcı ara…"
-                : "İhale adı, numarası veya alıcı ara…"
+                : "Satın Alma Talebi adı, numarası veya alıcı ara…"
             }
             className="flex-1"
           />
@@ -472,7 +472,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
                 }
                 className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
               >
-                {isPurchase ? "Satın Al'a Göz At" : "Açık İhalelere Göz At"}
+                {isPurchase ? "Satın Al'a Göz At" : "Açık Taleplere Göz At"}
               </Link>
             )
           }

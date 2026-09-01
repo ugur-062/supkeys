@@ -57,7 +57,7 @@ export function PublishConfirmDialog({
           <Send className="h-5 w-5 text-success-600" />
         </div>
         <div>
-          <DialogTitle>İhaleyi Yayınla</DialogTitle>
+          <DialogTitle>Satın Alma Talebini Yayınla</DialogTitle>
           <DialogDescription>{rolDat} davet gönderilecek</DialogDescription>
         </div>
       </div>
@@ -80,7 +80,7 @@ export function PublishConfirmDialog({
             disabled={isSubmitting}
             className="h-4 w-4 rounded border-zinc-300"
           />
-          Bir daha gösterme — sonraki ihaleler onaysız yayınlansın
+          Bir daha gösterme — sonraki satın alma talepleri onaysız yayınlansın
         </label>
       </DialogBody>
 

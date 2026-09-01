@@ -142,8 +142,8 @@ export function BidImportDialog({
       </DialogTitle>
       <DialogDescription>
         {isAi
-          ? "Fiyat listenizi, proformanızı ya da teklif mektubunuzu yükleyin — AI satırları okur, sistem ihale kalemleriyle eşleştirir; siz kontrol edip uygularsınız. Teklifi her zaman SİZ gönderirsiniz."
-          : "Bu ihaleye özel şablonu indirin, fiyat/teslim sütunlarını doldurun ve yükleyin — kalemler birebir eşleşir (AI kullanılmaz). Teklifi her zaman SİZ gönderirsiniz."}
+          ? "Fiyat listenizi, proformanızı ya da teklif mektubunuzu yükleyin — AI satırları okur, sistem satın alma talebi kalemleriyle eşleştirir; siz kontrol edip uygularsınız. Teklifi her zaman SİZ gönderirsiniz."
+          : "Bu satın alma talebine özel şablonu indirin, fiyat/teslim sütunlarını doldurun ve yükleyin — kalemler birebir eşleşir (AI kullanılmaz). Teklifi her zaman SİZ gönderirsiniz."}
       </DialogDescription>
 
       <DialogBody className="space-y-4">
@@ -183,7 +183,7 @@ export function BidImportDialog({
                 void run(isAi ? fs.slice(0, 20) : [fs[0]!]);
               }}
               label={isAi ? "PDF, fotoğraf veya Excel seç" : "Doldurulmuş şablonu seç"}
-              hint={isAi ? "En fazla 20 dosya · fiyatlar KDV hariç okunur" : "Yalnız bu ihalenin şablonu kabul edilir"}
+              hint={isAi ? "En fazla 20 dosya · fiyatlar KDV hariç okunur" : "Yalnız bu satın alma talebinin şablonu kabul edilir"}
             />
             {busy && files.length === 0 ? (
               <p className="text-sm text-zinc-500">
@@ -301,7 +301,7 @@ function Preview({
           <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <th scope="col" className="px-3 py-2 font-medium">Uygula</th>
-              <th scope="col" className="px-3 py-2 font-medium">İhale kalemi</th>
+              <th scope="col" className="px-3 py-2 font-medium">Satın Alma Talebi kalemi</th>
               <th scope="col" className="px-3 py-2 font-medium">{result.mode === "ai" ? "Belgede bulunan" : "Kaynak"}</th>
               <th scope="col" className="px-3 py-2 font-medium text-right">Birim fiyat</th>
               <th scope="col" className="px-3 py-2 font-medium">Teslim</th>

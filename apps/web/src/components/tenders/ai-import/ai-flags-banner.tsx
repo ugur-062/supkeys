@@ -15,7 +15,7 @@ import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
 const TOP_LABELS: Record<string, string> = {
-  title: "İhale başlığı",
+  title: "Satın Alma Talebi başlığı",
   description: "Açıklama",
   primaryCurrency: "Para birimi",
   deliveryTerm: "Teslim şekli",

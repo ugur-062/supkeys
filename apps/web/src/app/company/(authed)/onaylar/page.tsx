@@ -557,8 +557,8 @@ export default function OnaylarPage() {
               <Input
                 value={fltSearch}
                 onChange={(e) => setFltSearch(e.target.value)}
-                placeholder="Onay no / ihale ara…"
-                aria-label="Onay no veya ihale ara"
+                placeholder="Onay no / satın alma talebi ara…"
+                aria-label="Onay no veya satın alma talebi ara"
                 className="w-full pl-8"
               />
             </div>

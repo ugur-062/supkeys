@@ -129,7 +129,7 @@ export function GeneralReportView({
           Raporlar
         </Link>
       </nav>
-      <Heading>{isAlim ? "Genel İhale Raporu" : "Genel İlan Raporu"}</Heading>
+      <Heading>{isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel İlan Raporu"}</Heading>
 
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
@@ -145,13 +145,13 @@ export function GeneralReportView({
             <RadioField>
               <Radio value="SINGLE" />
               <Label>
-                Tek bir {isAlim ? "ihaleyi" : "ilanı"} raporlayacağım
+                Tek bir {isAlim ? "satın alma talebini" : "ilanı"} raporlayacağım
               </Label>
             </RadioField>
             <RadioField>
               <Radio value="RANGE" />
               <Label>
-                Belirli tarih aralığındaki {isAlim ? "ihaleleri" : "ilanları"}{" "}
+                Belirli tarih aralığındaki {isAlim ? "satın alma taleplerini" : "ilanları"}{" "}
                 raporlayacağım
               </Label>
             </RadioField>
@@ -160,7 +160,7 @@ export function GeneralReportView({
 
         {mode === "SINGLE" ? (
           <Field>
-            <Label>{isAlim ? "İhale" : "İlan"}</Label>
+            <Label>{isAlim ? "Satın Alma Talebi" : "İlan"}</Label>
             <Select
               value={listingId}
               onChange={(e) => setListingId(e.target.value)}
@@ -270,7 +270,7 @@ export function GeneralReportView({
             {(
               [
                 [
-                  isAlim ? "Toplam İhale" : "Toplam İlan",
+                  isAlim ? "Toplam Satın Alma Talebi" : "Toplam İlan",
                   String(data.summary.totalListings),
                 ],
                 ["Kazandırılan", String(data.summary.awardedListings)],
@@ -299,7 +299,7 @@ export function GeneralReportView({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky left-0 z-10 bg-white">{isAlim ? "İhale" : "İlan"}</TableHeader>
+                  <TableHeader className="sticky left-0 z-10 bg-white">{isAlim ? "Satın Alma Talebi" : "İlan"}</TableHeader>
                   <TableHeader>Durum</TableHeader>
                   <TableHeader className="text-right">Davet</TableHeader>
                   <TableHeader className="text-right">Teklif</TableHeader>

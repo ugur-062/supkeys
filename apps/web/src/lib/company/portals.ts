@@ -53,16 +53,25 @@ export interface PortalDef {
  */
 export const MODULE_LABELS = {
   satinalma: {
-    ihalelerim: "İhalelerim",
+    // Portal bağlamı zaten "Satınalma" — menüde kısa biçim yeterli ve
+    // "Taleplerim" sol menüde taşıyordu.
+    ihalelerim: "Taleplerim",
     satinAl: "Satın Al",
     teklifler: "Tekliflerim",
     siparisler: "Siparişlerim",
   },
   satis: {
-    ilanlarim: "Satış İhalelerim",
-    acikIhaleler: "Açık İhaleler",
+    // ÖNEMLİ AYRIM (yeniden adlandırma, 2026-09-01): satış portalında iki
+    // farklı şey var ve ikisi AYNI sözcükle anılamaz —
+    //   · `ilanlarim`  = firmanın KENDİ sattığı şeyler → "ilan"
+    //   · `acikTalepler` = BAŞKA firmaların satın alma talepleri, teklif
+    //     verilecek olanlar → "talep"
+    // Eskiden ikisine de "ihale" deniyordu; düz çeviri "Satış Satın Alma
+    // Taleplerim" gibi anlamsız bir başlık üretiyordu.
+    ilanlarim: "Satış İlanlarım",
+    acikIhaleler: "Açık Talepler",
     // C32: iki portalda aynı H1 ("Tekliflerim") ayırt edilemiyordu — satış
-    // tarafı portal-önekli (Satış İhalelerim/Satışlarım deseniyle aynı).
+    // tarafı portal-önekli (Satış İlanlarım/Satışlarım deseniyle aynı).
     teklifler: "Satış Tekliflerim",
     siparisler: "Satışlarım",
   },

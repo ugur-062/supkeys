@@ -300,7 +300,7 @@ export class DashboardAnalyticsService {
       );
       const cohort = pListings;
       const funnel = [
-        { key: "listings", label: "İhale Açıldı", count: cohort.length },
+        { key: "listings", label: "Satın Alma Talebi Açıldı", count: cohort.length },
         {
           key: "bids",
           label: "Teklif Aldı",

@@ -55,10 +55,10 @@ describe("NotificationBell", () => {
       {
         id: "n1",
         type: "listing_category_match",
-        title: "Kategorinize uygun yeni ihale",
-        body: "Eşleşen ihale yayınlandı",
+        title: "Kategorinize uygun yeni satın alma talebi",
+        body: "Eşleşen satın alma talebi yayınlandı",
         ctaUrl: "https://app.local/company/satis/acik-ihaleler",
-        ctaLabel: "Açık İhaleleri Gör",
+        ctaLabel: "Açık Satın Alma Taleplerini Gör",
         listingId: "l1",
         readAt: null,
         createdAt: new Date().toISOString(),
@@ -68,10 +68,10 @@ describe("NotificationBell", () => {
     await user.click(screen.getByRole("button", { name: /Bildirimler/ }));
 
     expect(
-      await screen.findByText("Kategorinize uygun yeni ihale"),
+      await screen.findByText("Kategorinize uygun yeni satın alma talebi"),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByText("Kategorinize uygun yeni ihale"));
+    await user.click(screen.getByText("Kategorinize uygun yeni satın alma talebi"));
     expect(h.markRead).toHaveBeenCalledWith(["n1"]);
     // Mutlak URL host'u soyulur → SPA path'i push edilir.
     expect(h.push).toHaveBeenCalledWith("/company/satis/acik-ihaleler");

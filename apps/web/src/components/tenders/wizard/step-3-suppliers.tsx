@@ -350,7 +350,7 @@ export function Step3Suppliers() {
                 <p className="text-sm text-zinc-500">
                   {isPublic
                     ? "Opsiyonel — Rothern'de olmayan bir firmayı e-posta ile davet edebilirsiniz."
-                    : "Bu ihaleye kimler teklif verebilir?"}
+                    : "Bu satın alma talebine kimler teklif verebilir?"}
                 </p>
               </div>
             </div>
@@ -368,7 +368,7 @@ export function Step3Suppliers() {
               <p className="text-sm text-zinc-600">
                 {visibility === "PUBLIC" ? (
                   <>
-                    Bu ihale <strong>Herkese Açık</strong>: kategorinize uygun
+                    Bu satın alma talebi <strong>Herkese Açık</strong>: kategorinize uygun
                     premium {roleWord === "alıcı" ? "alıcılar" : "tedarikçiler"} davet beklemeden görüp teklif verebilir.
                     Bu adım <strong>opsiyonel</strong> — çalışmak istediğiniz
                     firma henüz Rothern&apos;de değilse buradan e-posta ile
@@ -377,7 +377,7 @@ export function Step3Suppliers() {
                   </>
                 ) : (
                   <>
-                    Bu ihale <strong>Davetli (Kapalı)</strong>: yalnızca aşağıdan
+                    Bu satın alma talebi <strong>Davetli (Kapalı)</strong>: yalnızca aşağıdan
                     seçtiğiniz firmalar görüp teklif verebilir. Görünürlüğü Genel Bilgi
                     adımından değiştirebilirsiniz.
                   </>
@@ -521,7 +521,7 @@ export function Step3Suppliers() {
                 <p className="text-sm text-zinc-500">
                   {search
                     ? `"${search}" için sonuç yok`
-                    : "Henüz bağlantınız yok — ihaleye davet için önce firma ekleyin."}
+                    : "Henüz bağlantınız yok — satın alma talebine davet için önce firma ekleyin."}
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={() => setInviteOpen(true)}>

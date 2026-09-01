@@ -36,7 +36,7 @@ describe("AssistantMarkdown", () => {
 
   it("**Başlık:** ile başlayan satırı madde sanmaz (paragraf kalır)", () => {
     const { container } = render(
-      <AssistantMarkdown text="**Açık İhaleler:**" />,
+      <AssistantMarkdown text="**Açık Satın Alma Talepleri:**" />,
     );
     expect(container.querySelector("ul")).toBeNull();
     expect(container.querySelector("p strong")).not.toBeNull();

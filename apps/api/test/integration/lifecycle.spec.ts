@@ -307,14 +307,14 @@ describe("Değerlendirmeye Al (IN_AWARD)", () => {
     });
     await expect(
       service.startEvaluation(owner.auth, listing.id),
-    ).rejects.toThrow(/açık ihale/);
+    ).rejects.toThrow(/açık satın alma talebi/);
     await prisma.listing.update({
       where: { id: listing.id },
       data: { status: "CLOSED" },
     });
     await expect(
       service.startEvaluation(owner.auth, listing.id),
-    ).rejects.toThrow(/açık ihale/);
+    ).rejects.toThrow(/açık satın alma talebi/);
   });
 
   it("IN_AWARD'dan kazandırma (→ AWARDED + sipariş), kazansız kapatma ve yeni tur çalışır", async () => {

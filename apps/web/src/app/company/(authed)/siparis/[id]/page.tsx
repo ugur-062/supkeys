@@ -587,7 +587,7 @@ export default function OrderDetailPage() {
               <div className="mb-3 flex items-center gap-2">
                 <Gavel className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
-                  Bağlı İhale
+                  Bağlı Satın Alma Talebi
                 </h2>
               </div>
               {o.listingId ? (
@@ -601,14 +601,14 @@ export default function OrderDetailPage() {
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
                           {o.listingType === "ALIM"
-                            ? "Alış ihalesi"
-                            : "Satış ihalesi"}
+                            ? "Alış satın alma talebi"
+                            : "satış ilanı"}
                         </span>
                       ) : null}
                     </p>
                   </div>
                   <Button outline href={`/company/ilan/${o.listingId}`}>
-                    İhaleye Git
+                    Satın Alma Talebine Git
                   </Button>
                 </div>
               ) : (

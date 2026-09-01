@@ -214,7 +214,7 @@ export function sanitizeAiDraft(
 
   // Eksik ZORUNLU alanlar (AI sorar; opsiyoneller boş bırakılır — kullanıcı yorulmaz).
   const missingRequired: string[] = [];
-  if (!draft.title) missingRequired.push("İhale başlığı");
+  if (!draft.title) missingRequired.push("Satın Alma Talebi başlığı");
   const usableItems = items.filter((i) => i.name);
   if (usableItems.length === 0) missingRequired.push("En az bir kalem");
   else {

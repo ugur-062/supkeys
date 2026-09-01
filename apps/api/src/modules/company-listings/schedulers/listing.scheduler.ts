@@ -41,7 +41,7 @@ export class ListingScheduler implements OnModuleInit {
     );
     this.cronRegistry?.register(
       "listing.evaluationValidityReminders",
-      "Değerlendirmedeki ihalede geçerliliği dolmak üzere olan teklifler için sahibe hatırlatma",
+      "Değerlendirmedeki satın alma talebinde geçerliliği dolmak üzere olan teklifler için sahibe hatırlatma",
       "saatte bir",
     );
   }

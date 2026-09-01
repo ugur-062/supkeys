@@ -765,12 +765,12 @@ export function Step1Info({
         <SectionHeader
           icon={Info}
           title="Genel Bilgiler"
-          description="İhalenize ad verin ve kısaca tanımlayın."
+          description="Satın Alma Talebinize ad verin ve kısaca tanımlayın."
         />
         <div className="space-y-4">
           <Field error={errors.title?.message}>
             <Label htmlFor="title" required>
-              İhale Adı
+              Satın Alma Talebi Adı
             </Label>
             <Input
               id="title"
@@ -785,7 +785,7 @@ export function Step1Info({
             <Textarea
               id="description"
               rows={3}
-              placeholder="İhalenin amacı, kapsamı, özel gereksinimler…"
+              placeholder="Satın Alma Talebinin amacı, kapsamı, özel gereksinimler…"
               hasError={!!errors.description}
               {...register("description")}
             />
@@ -797,7 +797,7 @@ export function Step1Info({
           <Field
             hint={`Davetli: yalnız seçtikleriniz. Bağlantılarıma Açık: bağlı ${rolPl} davet beklemeden görür. Herkese Açık: ek olarak premium ${rolPl} de teklif verir.`}
           >
-            <Label>İhale Görünürlüğü</Label>
+            <Label>Satın Alma Talebi Görünürlüğü</Label>
             <FormRadioGroup
               name="visibility"
               className="grid grid-cols-1 md:grid-cols-3 gap-3"
@@ -847,7 +847,7 @@ export function Step1Info({
         <SectionHeader
           icon={Tag}
           title="Kategoriler"
-          description={`İhalenizin ana konusunu tanımlayan kategoriyi seçin (gerekiyorsa en fazla 3). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
+          description={`Satın Alma Talebinizin ana konusunu tanımlayan kategoriyi seçin (gerekiyorsa en fazla 3). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
         />
         {/* Hata metnini yalnız CategorySelectorButton basar (Field'a da
             verilirse aynı mesaj iki kez görünüyordu). */}
@@ -886,8 +886,8 @@ export function Step1Info({
               }}
               mode="multi"
               maxSelection={3}
-              placeholder="İhale kategorilerini seçin"
-              modalTitle="İhale Kategorileri Seç"
+              placeholder="Satın Alma Talebi kategorilerini seçin"
+              modalTitle="Satın Alma Talebi Kategorileri Seç"
               error={errors.categoryIds?.message as string | undefined}
             />
           </div>
@@ -978,28 +978,28 @@ export function Step1Info({
               <VisibilityOption
                 value="OWN_ONLY"
                 title="Sadece kendi teklifi"
-                desc={`${Rol}, ihaledeki hiçbir teklifi ve sıralamayı göremez.`}
+                desc={`${Rol}, satın alma talebindeki hiçbir teklifi ve sıralamayı göremez.`}
               />
               <VisibilityOption
                 value="BEST_PRICE"
                 title="Sadece en iyi teklif"
-                desc={`${Rol}, ihaledeki en iyi teklifi görür.`}
+                desc={`${Rol}, satın alma talebindeki en iyi teklifi görür.`}
               />
               <VisibilityOption
                 value="OWN_RANK"
                 title="Sadece kendi sıralaması"
-                desc={`${Rol}, sadece kendi sıralamasını görür. Rekabet baskısı yaratır, fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.`}
+                desc={`${Rol}, sadece kendi sıralamasını görür. Rekabet baskısı yaratır, fiyat bilgisi sızdırmaz — çoğu satın alma talebi için en dengeli mod.`}
                 recommended
               />
               <VisibilityOption
                 value="BEST_AND_OWN_RANK"
                 title="En iyi teklif ve kendi sıralaması"
-                desc={`${Rol}, ihaledeki en iyi teklifi ve kendi sıralamasını görür.`}
+                desc={`${Rol}, satın alma talebindeki en iyi teklifi ve kendi sıralamasını görür.`}
               />
               <VisibilityOption
                 value="ALL"
                 title="Tüm teklifler ve sıralama"
-                desc={`${Rol}, ihaledeki tüm teklifleri ve sıralamaları görür.`}
+                desc={`${Rol}, satın alma talebindeki tüm teklifleri ve sıralamaları görür.`}
               />
             </FormRadioGroup>
           </Field>
@@ -1010,7 +1010,7 @@ export function Step1Info({
       <section>
         <SectionHeader
           icon={Gavel}
-          title="İhale Kuralları"
+          title="Satın Alma Talebi Kuralları"
           description={`${RolPlGen} teklif verme şeklini belirleyin.`}
         />
         <div className="space-y-3">
@@ -1183,7 +1183,7 @@ export function Step1Info({
       <section>
         <SectionHeader
           icon={Wallet}
-          title={isAuction ? "İhale Para Ayarları" : "Para Birimleri"}
+          title={isAuction ? "Satın Alma Talebi Para Ayarları" : "Para Birimleri"}
           description={
             isAuction
               ? `${RolPlGen} kendi para biriminde ${isSatis ? "artırır" : "azaltır"} — pay, açılış günü TCMB kuruyla birimine çevrilir. Ondalık basamak fiyat gösteriminde kullanılır.`
@@ -1344,7 +1344,7 @@ export function Step1Info({
                 ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
                 : isSatis
                   ? "Opsiyonel — malın bulunduğu / yükleneceği adres; davetli alıcılar görür."
-                  : `Opsiyonel — hizmet ihalesinde boş bırakabilirsiniz. Seçilirse davet edilen ${rolPl} görür.`
+                  : `Opsiyonel — hizmet satın alma talebinde boş bırakabilirsiniz. Seçilirse davet edilen ${rolPl} görür.`
             }
           >
             <Label htmlFor="deliveryAddressId">
@@ -1463,7 +1463,7 @@ export function Step1Info({
           {paymentCategory === "ADVANCE" ? (
             isInternational ? (
               <p className="text-xs text-zinc-500">
-                Uluslararası ihalede peşin ödeme <strong>tam (%100)</strong>{" "}
+                Uluslararası satın alma talebinde peşin ödeme <strong>tam (%100)</strong>{" "}
                 uygulanır — kısmi peşin yalnız yurtiçi ihalelerde seçilebilir.
               </p>
             ) : (
@@ -1761,7 +1761,7 @@ export function Step1Info({
         <div className="space-y-4">
           <Field
             error={errors.bidsOpenAt?.message}
-            hint="Şimdiki zaman öntanımlıdır (yayınlanınca hemen açılır); ileri bir tarih seçerseniz ihale o ana kadar tekliflere kapalı kalır."
+            hint="Şimdiki zaman öntanımlıdır (yayınlanınca hemen açılır); ileri bir tarih seçerseniz satın alma talebi o ana kadar tekliflere kapalı kalır."
           >
             <Label htmlFor="bidsOpenAt-date">Açılış Tarihi</Label>
             <Controller
@@ -1795,13 +1795,13 @@ export function Step1Info({
           ) : null}
           {isSatis && noCloseDate ? (
             <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-              İhale süresiz açık kalır — siz kapatana ya da kazandırana kadar
+              Satın Alma Talebi süresiz açık kalır — siz kapatana ya da kazandırana kadar
               teklif alınır.
             </p>
           ) : (
             <Field
               error={errors.bidsCloseAt?.message}
-              hint="Saat seçmezseniz ihale gün sonunda (23:59) kapanır."
+              hint="Saat seçmezseniz satın alma talebi gün sonunda (23:59) kapanır."
             >
               <Label htmlFor="bidsCloseAt-date" required>
                 Kapanış Tarihi
@@ -1828,7 +1828,7 @@ export function Step1Info({
         <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
           <Clock className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
           <p>
-            Kapanış tarihinden sonra teklif kabul edilmez ve ihale kazandırma
+            Kapanış tarihinden sonra teklif kabul edilmez ve satın alma talebi kazandırma
             aşamasına geçer.
           </p>
         </div>

@@ -200,7 +200,7 @@ export class CompanyConnectionsService {
    *               pasif firma / engelli) — reason ile
    */
   /**
-   * Faz C — DIŞ ihale daveti: "X sizi 'Y' ihalesine davet etti" e-postası.
+   * Faz C — DIŞ ihale daveti: "X sizi 'Y' satın alma talebine davet etti" e-postası.
    * İtibar/ETK frenleri:
    *  - günlük firma tavanı (ihale-bağlamlı davet, UTC gün): 20
    *  - aynı adrese (bu firmadan) ömür boyu TEK davet (mevcut referral = skip)
@@ -222,7 +222,7 @@ export class CompanyConnectionsService {
       where: { id: listingId, companyId: user.companyId },
       select: { id: true, title: true, status: true, closesAt: true, categoryIds: true, type: true, createdById: true },
     });
-    if (!listing) throw new NotFoundException("İhale bulunamadı");
+    if (!listing) throw new NotFoundException("Satın Alma Talebi bulunamadı");
     // INV-AZ-1 (denetim 2026-08-23 P2 #7): dış davet = ilan-yönetim eylemi —
     // iç davet (addInvitations) ile AYNI kapı (tek kaynak listingManageDenial).
     const denial = listingManageDenial(user, listing);
@@ -239,11 +239,11 @@ export class CompanyConnectionsService {
         metadata: { needed: denial.needed, listingType: listing.type, reason: denial.reason, via: "external_invite" },
       });
       throw new ForbiddenException(
-        "Bu ihale için dış davet gönderme yetkiniz yok — ilanı yöneten kullanıcı ve ilgili rol gerekir",
+        "Bu satın alma talebi için dış davet gönderme yetkiniz yok — ilanı yöneten kullanıcı ve ilgili rol gerekir",
       );
     }
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
-      throw new BadRequestException("Yalnız taslak/açık ihale için dış davet gönderilebilir");
+      throw new BadRequestException("Yalnız taslak/açık satın alma talebi için dış davet gönderilebilir");
     }
 
     const DAILY_CAP = 20;
@@ -1133,7 +1133,7 @@ export class CompanyConnectionsService {
       .pushToCompany(conn.inviterCompanyId, {
         type: "connection_accepted",
         title: "Bağlantı isteğiniz kabul edildi",
-        body: `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık ihalelerini görebilirsiniz.`,
+        body: `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık satın alma taleplerini görebilirsiniz.`,
       })
       .catch((err) =>
         this.logger.warn(
@@ -1147,7 +1147,7 @@ export class CompanyConnectionsService {
       "Bağlantı isteğiniz kabul edildi",
       [
         "Merhaba,",
-        `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık ihalelerini görebilirsiniz.`,
+        `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık satın alma taleplerini görebilirsiniz.`,
       ],
       "connection_accepted",
       conn.id,

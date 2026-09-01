@@ -139,7 +139,7 @@ export function IhaleListRow({
   const [expanded, setExpanded] = useState(false);
   const isSatis = listingType === "SATIS";
   const st = statusStyle(t.status);
-  const panelId = `ihale-row-detay-${t.id}`;
+  const panelId = `satın alma talebi-row-detay-${t.id}`;
 
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"

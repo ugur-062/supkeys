@@ -388,7 +388,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
 
   if (!bid) {
     return open ? null : (
-      <StatusAlert tone="info" title="Bu ihaleye teklif vermediniz." />
+      <StatusAlert tone="info" title="Bu satın alma talebine teklif vermediniz." />
     );
   }
 
@@ -400,7 +400,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="cancelled"
         tone="info"
-        title="İhale ilan sahibi tarafından iptal edildi."
+        title="Satın Alma Talebi ilan sahibi tarafından iptal edildi."
       >
         {l.cancelReason ? <p>Gerekçe: {l.cancelReason}</p> : null}
       </StatusAlert>,
@@ -458,13 +458,13 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
           </p>
         ) : null}
         <p className="mt-1">
-          İhale hâlâ açık — teklifinizi güncelleyip yeniden verebilirsiniz.
+          Satın Alma Talebi hâlâ açık — teklifinizi güncelleyip yeniden verebilirsiniz.
         </p>
       </StatusAlert>,
     );
   } else if (bid.status === "LOST") {
     alerts.push(
-      <StatusAlert key="lost" tone="info" title="İhale sonuçlandı — teklifiniz kazanamadı." />,
+      <StatusAlert key="lost" tone="info" title="Satın Alma Talebi sonuçlandı — teklifiniz kazanamadı." />,
     );
   } else if (bid.status === "WITHDRAWN") {
     alerts.push(
@@ -500,7 +500,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="draft-late"
         tone="info"
-        title="İhale kapandı — taslak teklifiniz gönderilmedi."
+        title="Satın Alma Talebi kapandı — taslak teklifiniz gönderilmedi."
       />,
     );
   } else if (

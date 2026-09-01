@@ -59,10 +59,10 @@ const ROLE_LABEL: Record<CompanyRole, string> = {
 
 function listingTypeLabel(t: ApprovalListingType | null) {
   return t === "ALIM"
-    ? "Alış ihaleleri"
+    ? "Alış satın alma taleplerini"
     : t === "SATIS"
       ? "Satış ilanları"
-      : "Tüm ihaleler";
+      : "Tüm satın alma talepleri";
 }
 
 const fmtTl = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
@@ -586,11 +586,11 @@ function FlowWizard({
                 }
               >
                 <option value="">Tüm ihaleler (alış + satış)</option>
-                <option value="ALIM">Yalnız alış ihaleleri</option>
+                <option value="ALIM">Yalnız alış satın alma taleplerini</option>
                 <option value="SATIS">Yalnız satış ilanları</option>
               </Select>
               <Text className="mt-1 text-xs text-zinc-400">
-                Onay yalnızca seçtiğiniz tipteki ihalelerin kazandırmasında
+                Onay yalnızca seçtiğiniz tipteki satın alma taleplerin kazandırmasında
                 devreye girer.
               </Text>
             </Field>

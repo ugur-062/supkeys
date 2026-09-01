@@ -12,7 +12,7 @@ import { RealtimeService } from "../realtime/realtime.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 /**
- * Admin inceleme + müdahale (Faz 5) — "ihalemde ne oldu / siparişim takıldı"
+ * Admin inceleme + müdahale (Faz 5) — "satın alma talebimde ne oldu / siparişim takıldı"
  * destek çağrıları. Admin platform sahibidir: kapalı-zarf kuralı TARAFLAR
  * arasında geçerlidir, admin tüm teklifleri tutarlarıyla görür. Müdahaleler
  * gerekçeli + audit'li + ilgili taraflara bildirimli.
@@ -544,7 +544,7 @@ export class AdminInspectionService {
           `${label} sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: ${reason.trim()}`,
           ...(stranded
             ? [
-                "Bu iptalden sonra ilgili ihalenin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
+                "Bu iptalden sonra ilgili satın alma talebinin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
               ]
             : []),
         ],

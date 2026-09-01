@@ -66,7 +66,7 @@ export function StagedDocuments({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
             <FileText className="h-4 w-4 text-zinc-700" />
           </div>
-          <h3 className="font-semibold text-zinc-900">İhale Dökümanları</h3>
+          <h3 className="font-semibold text-zinc-900">Satın Alma Talebi Dökümanları</h3>
           {docs.length > 0 ? <Badge color="zinc">{docs.length}</Badge> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">

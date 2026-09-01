@@ -387,7 +387,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     expect(reasons).toContain("title:validation_failed");
     expect(reasons).toContain("primaryCurrency:validation_failed");
     expect(reasons).toContain("items.0.quantity:validation_failed");
-    expect(result.missingRequired).toContain("İhale başlığı");
+    expect(result.missingRequired).toContain("Satın Alma Talebi başlığı");
   });
 
   it("kategori önerisi: öneri geldiyse taslağa girer ve 'Kategori' eksik listesinden düşer; gelmezse eksik kalır", async () => {
@@ -502,7 +502,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     const svc2 = makeService(makeCfg(), p2, storage);
     const result2 = await svc2.extract(co.auth, { fileKeys: [key], listingType: "ALIM" });
     expect(result2.draft.title).toBeNull();
-    expect(result2.missingRequired).toContain("İhale başlığı");
+    expect(result2.missingRequired).toContain("Satın Alma Talebi başlığı");
   });
 
   it("refine: belge GÖNDERİLMEZ — yalnız taslak JSON + mesaj (parts yok)", async () => {

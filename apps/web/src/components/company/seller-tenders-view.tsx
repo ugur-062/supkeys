@@ -154,14 +154,14 @@ export function SellerTendersView({
         title={isSatis ? MODULE_LABELS.satinalma.satinAl : MODULE_LABELS.satis.acikIhaleler}
         description={
           isSatis
-            ? "Bağlı olduğunuz satıcıların ve herkese açık satış ihalelerinin listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
-            : "Bağlı olduğunuz alıcı firmaların ve herkese açık ihalelerin listesi — teklif verin, sonuçları takip edin."
+            ? "Bağlı olduğunuz satıcıların ve herkese açık satış satın alma taleplerinin listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
+            : "Bağlı olduğunuz alıcı firmaların ve herkese açık satın alma taleplerin listesi — teklif verin, sonuçları takip edin."
         }
       />
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 300 ihale gösteriliyor — daha fazlası varsa arama ve
+          En fazla 300 satın alma talebi gösteriliyor — daha fazlası varsa arama ve
           filtrelerle daraltın.
         </div>
       ) : null}
@@ -173,7 +173,7 @@ export function SellerTendersView({
           <SearchInput
             value={search}
             onChange={withReset(setSearch)}
-            placeholder="İhale adı, numarası veya firma ara…"
+            placeholder="Satın Alma Talebi adı, numarası veya firma ara…"
             className="flex-1"
           />
           <FilterSelect
@@ -214,7 +214,7 @@ export function SellerTendersView({
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit="ihale"
+            unit="satın alma talebi"
             isLoading={tenders.isLoading}
             className="ml-auto"
           />
@@ -268,7 +268,7 @@ export function SellerTendersView({
         <div className="space-y-3">
           <EmptyState
             icon={ClipboardList}
-            title="İhaleler yüklenemedi"
+            title="Satın Alma Talepleri yüklenemedi"
             description="Bir hata oluştu — tekrar deneyin."
             variant="no-results"
           />
@@ -289,8 +289,8 @@ export function SellerTendersView({
             isFiltered
               ? "Sonuç bulunamadı"
               : tab === "active" && all.length > 0
-                ? "Aktif ihale yok"
-                : "Henüz ihale yok"
+                ? "Aktif satın alma talebi yok"
+                : "Henüz satın alma talebi yok"
           }
           description={
             isFiltered
@@ -298,10 +298,10 @@ export function SellerTendersView({
               : tab === "active" && all.length > 0
                 ? // C57: "Aktif" sekmesi varsayılan — geçmiş kayıtlar sessizce
                   // gizli kalıyordu, boş durum bunu söylemiyordu.
-                  "Şu an açık ihale bulunmuyor. Kapanan ihaleler için Durum filtresinden Geçmiş'i seçin."
+                  "Şu an açık satın alma talebi bulunmuyor. Kapanan satın alma talepleri için Durum filtresinden Geçmiş'i seçin."
                 : isSatis
-                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ihalesi yayınlandığında burada görünür."
-                  : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık ihale yayınlandığında burada görünür."
+                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış satın alma talebi yayınlandığında burada görünür."
+                  : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık satın alma talebi yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
           action={
@@ -337,7 +337,7 @@ export function SellerTendersView({
         <>
           {/* Tek görünüm: yoğun satır listesi — İhalelerim ile aynı dil;
               talep sahibi FİRMA kolonu (kullanıcı isteği, 2026-08-03). */}
-          <div className="space-y-2" role="table" aria-label="İhale listesi">
+          <div className="space-y-2" role="table" aria-label="Satın Alma Talebi listesi">
             {pageRows.map((t) => (
               <BrowseTenderRow key={t.id} t={t} listingType={listingType} />
             ))}

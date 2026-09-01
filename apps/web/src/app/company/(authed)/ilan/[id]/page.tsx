@@ -379,8 +379,8 @@ export default function ListingDetailPage() {
     // Yayın onayı kaldırıldı — taslak doğrudan yayınlanır.
     if (
       !(await confirm({
-        title: "İhaleyi yayınla",
-        description: `İhale yayınlansın mı? Yayınlandıktan sonra ${
+        title: "Satın Alma Talebini yayınla",
+        description: `Satın Alma Talebi yayınlansın mı? Yayınlandıktan sonra ${
           l?.type === "SATIS" ? "alıcılar" : "tedarikçiler"
         } görebilir.`,
         confirmLabel: "Yayınla",
@@ -389,7 +389,7 @@ export default function ListingDetailPage() {
       return;
     try {
       await publish.mutateAsync(undefined);
-      toast.success("İhale yayınlandı");
+      toast.success("Satın Alma Talebi yayınlandı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yayınlanamadı"));
     }
@@ -536,7 +536,7 @@ export default function ListingDetailPage() {
       return (
         <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
           <Text className="text-sm font-medium text-zinc-900">
-            İhaleye ulaşılamıyor.
+            Satın Alma Talebine ulaşılamıyor.
           </Text>
           <Text className="mt-1 text-sm text-zinc-500">
             İlan kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş
@@ -1582,7 +1582,7 @@ export default function ListingDetailPage() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
             {isAlim
-              ? "Bu alış ihalesine teklif (satış) vermek için hesabınızda "
+              ? "Bu alış satın alma talebine teklif (satış) vermek için hesabınızda "
               : "Bu satış ilanına teklif (alış) vermek için hesabınızda "}
             <strong>{isAlim ? "Satışçı" : "Satın Almacı"}</strong> rolü gerekir
             — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
@@ -1777,10 +1777,10 @@ export default function ListingDetailPage() {
   // ilanı gördüğü listeye döner (?from= her zaman öncelikli).
   const defaultBack = l.isOwner
     ? isAlim
-      ? { href: "/company/satinalma/ihalelerim", label: "İhalelerim" }
-      : { href: "/company/satis/ilanlarim", label: "Satış İhalelerim" }
+      ? { href: "/company/satinalma/ihalelerim", label: "Taleplerim" }
+      : { href: "/company/satis/ilanlarim", label: "Satış İlanlarım" }
     : isAlim
-      ? { href: "/company/satis/acik-ihaleler", label: "Açık İhaleler" }
+      ? { href: "/company/satis/acik-ihaleler", label: "Açık Talepler" }
       : { href: "/company/satinalma/satin-al", label: "Satın Al" };
   const breadcrumb = (
     <Link
@@ -1870,7 +1870,7 @@ export default function ListingDetailPage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               {l.status === "IN_APPROVAL"
-                ? "Onay bekliyor — yayın askıda. Onaylandığında ihale otomatik yayınlanır."
+                ? "Onay bekliyor — yayın askıda. Onaylandığında satın alma talebi otomatik yayınlanır."
                 : "Kazandırma onayı bekliyor. Onaylandığında kazandırma tamamlanır."}
             </p>
           </div>
@@ -1944,7 +1944,7 @@ export default function ListingDetailPage() {
         >
           <TabList
             className="flex flex-wrap border-b border-zinc-950/10"
-            aria-label="İhale detay sekmeleri"
+            aria-label="Satın Alma Talebi detay sekmeleri"
           >
             <Tab className={TRIGGER_CLASSES}>
               <Gavel className="h-4 w-4" />
@@ -2134,7 +2134,7 @@ export default function ListingDetailPage() {
         <TabGroup defaultIndex={initialTab} onChange={rememberTab}>
           <TabList
             className="flex flex-wrap gap-1 border-b border-zinc-950/10"
-            aria-label="İhale bölümleri"
+            aria-label="Satın Alma Talebi bölümleri"
           >
             <Tab className={TRIGGER_CLASSES}>
               <Gavel className="h-4 w-4" aria-hidden="true" />

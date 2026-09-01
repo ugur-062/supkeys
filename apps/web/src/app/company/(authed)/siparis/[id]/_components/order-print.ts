@@ -76,7 +76,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 <div class="muted">Rothern · ${escapeHtml(new Date(o.createdAt).toLocaleString("tr-TR"))}</div>
 <div class="meta">
 <strong>${isSeller ? "Alıcı" : "Satıcı"}:</strong> ${escapeHtml(o.counterparty)}<br>
-<strong>İhale:</strong> ${escapeHtml(o.listingTitle ?? "—")} (${escapeHtml(o.listingNumber ?? "—")})<br>
+<strong>Satın Alma Talebi:</strong> ${escapeHtml(o.listingTitle ?? "—")} (${escapeHtml(o.listingNumber ?? "—")})<br>
 <strong>Durum:</strong> ${escapeHtml(statusLabel)}
 </div>
 <table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Teslim</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>

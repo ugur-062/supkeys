@@ -123,7 +123,7 @@ export function SatinalmaIhaleTab({
           Vurgu kuralı (Faz 4.4): yalnız aksiyon bekleyen > 0 + neden metni. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Açık İhalelerim"
+          label="Açık Satın Alma Taleplerim"
           value={data.openCount}
           href="/company/satinalma/ihalelerim?status=OPEN"
           accent="blue"
@@ -137,14 +137,14 @@ export function SatinalmaIhaleTab({
           attention={(analytics?.actions.awaitingDecision ?? 0) > 0}
           hint={
             (analytics?.actions.awaitingDecision ?? 0) > 0
-              ? `${analytics!.actions.awaitingDecision} ihale karar bekliyor`
+              ? `${analytics!.actions.awaitingDecision} satın alma talebi karar bekliyor`
               : undefined
           }
           deltaPct={analytics?.deltas.bids}
           spark={analytics?.kpiSeries.bids}
         />
         <KpiCard
-          label="Kazandırılan İhaleler"
+          label="Kazandırılan Satın Alma Talepleri"
           value={data.awarded}
           href="/company/satinalma/ihalelerim?status=AWARDED"
           accent="blue"
@@ -165,7 +165,7 @@ export function SatinalmaIhaleTab({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Süreç Hunisi"
-          subtitle="Dönemde açılan ihalelerin bugünkü aşaması (kohort — her aşama öncekinin alt kümesi)"
+          subtitle="Dönemde açılan satın alma taleplerin bugünkü aşaması (kohort — her aşama öncekinin alt kümesi)"
           ariaLabel="Satınalma süreç hunisi"
           href="/company/satinalma/ihalelerim"
         >
@@ -180,15 +180,15 @@ export function SatinalmaIhaleTab({
           ) : (
             <DashboardEmptyState
               title="Henüz huni verisi yok"
-              body="İlk ihalenizi açıp teklif topladığınızda süreç dönüşümü burada görünecek."
-              ctaLabel="İhale Aç"
+              body="İlk satın alma talebinizi açıp teklif topladığınızda süreç dönüşümü burada görünecek."
+              ctaLabel="Satın Alma Talebi Aç"
               ctaHref="/company/satinalma/ihalelerim/yeni"
             />
           )}
         </ChartCard>
         <ChartCard
           title="Döngü Süresi"
-          subtitle="İhale açılışından siparişe geçen ortalama gün (aylık)"
+          subtitle="Satın Alma Talebi açılışından siparişe geçen ortalama gün (aylık)"
           ariaLabel="Döngü süresi trendi"
           rangeBadge="son 12 ay"
         >
@@ -230,7 +230,7 @@ export function SatinalmaIhaleTab({
           <div className="flex items-center gap-2">
             <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />
             <h2 className="text-base font-semibold text-zinc-950">
-              Teklife Açık İhaleler
+              Teklife Açık Satın Alma Talepleri
             </h2>
           </div>
           <Link
@@ -282,7 +282,7 @@ export function SatinalmaIhaleTab({
               <FileX2 className="h-7 w-7 text-zinc-400" />
             </div>
             <p className="text-sm text-zinc-500">
-              Görüntülenecek bir ihale bulunmamaktadır.
+              Görüntülenecek bir satın alma talebi bulunmamaktadır.
             </p>
           </div>
         ) : (
@@ -290,10 +290,10 @@ export function SatinalmaIhaleTab({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <SortableHeader label="İhale No" k="number" sort={sort} onSort={toggleSort} />
+                  <SortableHeader label="Satın Alma Talebi No" k="number" sort={sort} onSort={toggleSort} />
                   <TableHeader>
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                      İhale Adı
+                      Satın Alma Talebi Adı
                     </span>
                   </TableHeader>
                   <SortableHeader label="Açılış Tarihi" k="opened" sort={sort} onSort={toggleSort} />
@@ -494,7 +494,7 @@ function CycleTrendChart({
     return (
       <DashboardEmptyState
         title="Henüz döngü verisi yok"
-        body="Kazandırdığınız ihale siparişe dönüştüğünde açılış→sipariş süresi burada görünecek."
+        body="Kazandırdığınız satın alma talebi siparişe dönüştüğünde açılış→sipariş süresi burada görünecek."
       />
     );
   }

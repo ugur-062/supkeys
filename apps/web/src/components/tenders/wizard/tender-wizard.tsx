@@ -49,8 +49,8 @@ function stepMeta(isSatis: boolean) {
   return [
     // B11: adımda tür seçimi yok (tür portaldan gelir) — ad içerikle uyumlu.
     isSatis
-      ? { title: "Kapsam", desc: "Satış ihalesinin kapsamı" }
-      : { title: "Kapsam", desc: "İhalenin kapsamı" },
+      ? { title: "Kapsam", desc: "satış ilanının kapsamı" }
+      : { title: "Kapsam", desc: "Satın Alma Talebinin kapsamı" },
     { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
     { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
     isSatis
@@ -78,7 +78,7 @@ function WizardSteps({
   meta: { title: string; desc: string }[];
 }) {
   return (
-    <nav aria-label="İhale adımları">
+    <nav aria-label="Satın Alma Talebi adımları">
       <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 bg-white sm:grid-cols-5 sm:divide-x sm:divide-y-0">
         {meta.map((s, idx) => {
           const isDone = current > idx;
@@ -499,7 +499,7 @@ export function TenderWizard({
     // başlığı zorunlu tutuyor (company-listings.service `if (dto.asDraft) return`).
     const ok = await form.trigger(["type", "title"]);
     if (!ok) {
-      toast.error("Taslak için en azından ihale türü ve başlık gerekli");
+      toast.error("Taslak için en azından satın alma talebi türü ve başlık gerekli");
       jumpToFirstError();
       return;
     }
@@ -521,21 +521,21 @@ export function TenderWizard({
     if (isEdit && listingId) {
       try {
         await update.mutateAsync(input);
-        toast.success("İhale güncellendi");
+        toast.success("Satın Alma Talebi güncellendi");
         router.push(`/company/ilan/${listingId}`);
       } catch (err) {
-        toast.error(extractErrorMessage(err, "İhale güncellenemedi"));
+        toast.error(extractErrorMessage(err, "Satın Alma Talebi güncellenemedi"));
       }
       return;
     }
     try {
       const listing = await create.mutateAsync(input);
       await uploadStagedDocs(listing.id);
-      toast.success("İhale oluşturuldu");
+      toast.success("Satın Alma Talebi oluşturuldu");
       setPublishOpen(false);
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İhale oluşturulamadı"));
+      toast.error(extractErrorMessage(err, "Satın Alma Talebi oluşturulamadı"));
     }
   };
 
@@ -587,16 +587,16 @@ export function TenderWizard({
           <Heading>
             {isEdit
               ? isSatis
-                ? "Satış İhalesini Düzenle"
-                : "İhaleyi Düzenle"
+                ? "Satış İlanıni Düzenle"
+                : "Satın Alma Talebini Düzenle"
               : isSatis
-                ? "Yeni Satış İhalesi"
-                : "Yeni İhale"}
+                ? "Yeni Satış İlanı"
+                : "Yeni Satın Alma Talebi"}
           </Heading>
           <Text className="mt-1 text-sm text-zinc-500">
             {isEdit
               ? "Değişiklikleri yapıp kaydedin. Teklif geldikten sonra düzenlenemez."
-              : "Adımları tamamlayıp ihaleyi yayınlayın."}
+              : "Adımları tamamlayıp satın alma talebini yayınlayın."}
           </Text>
         </div>
 
@@ -666,7 +666,7 @@ export function TenderWizard({
                   loading={submitting}
                 >
                   <Send className="h-4 w-4" />
-                  {isEdit ? "Değişiklikleri Kaydet" : "İhaleyi Yayınla"}
+                  {isEdit ? "Değişiklikleri Kaydet" : "Satın Alma Talebini Yayınla"}
                 </Button>
               </div>
             )}

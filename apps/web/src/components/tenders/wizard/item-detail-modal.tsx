@@ -118,7 +118,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
             error={itemErrors?.targetUnitPrice?.message}
             hint={
               showTarget
-                ? `${isSatis ? "Alıcılar" : "Tedarikçiler"} bu fiyatı görecek (İhale Kuralları'nda açık).`
+                ? `${isSatis ? "Alıcılar" : "Tedarikçiler"} bu fiyatı görecek (Satın Alma Talebi Kuralları'nda açık).`
                 : "Yalnız sizin için — karşı tarafa gösterilmez."
             }
           >

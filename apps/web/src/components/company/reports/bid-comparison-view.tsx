@@ -106,7 +106,7 @@ export function BidComparisonView({
       </nav>
       <Heading>Teklif Karşılaştırma Raporu</Heading>
       <Text className="text-sm text-zinc-500">
-        Bir {isAlim ? "ihaleye" : "ilana"} gelen teklifleri kalem bazında yan
+        Bir {isAlim ? "satın alma talebine" : "ilana"} gelen teklifleri kalem bazında yan
         yana karşılaştırın —{" "}
         {isAlim ? "en düşük birim fiyatlar" : "en yüksek birim fiyatlar"}{" "}
         vurgulanır.
@@ -115,7 +115,7 @@ export function BidComparisonView({
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
         <Field>
-          <Label>{isAlim ? "İhale" : "İlan"}</Label>
+          <Label>{isAlim ? "Satın Alma Talebi" : "İlan"}</Label>
           <Select
             value={listingId}
             onChange={(e) => setListingId(e.target.value)}

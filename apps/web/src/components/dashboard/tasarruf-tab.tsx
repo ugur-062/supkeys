@@ -75,15 +75,15 @@ interface Props {
 const TOOLTIP_SAVINGS =
   "İhalelerdeki tüm kalemler için, kalem bazında En iyi ilk teklif ve En iyi son teklif arasındaki farkın, ilgili kalem miktarıyla çarpılıp toplanması ile elde edilir.";
 const TOOLTIP_VOLUME =
-  "Kazandırılan ihalelerde, kazanan kalemlerin (birim fiyat × miktar) toplamı.";
+  "Kazandırılan satın alma taleplerinde, kazanan kalemlerin (birim fiyat × miktar) toplamı.";
 const TOOLTIP_RATE =
   "Toplam tasarruf / toplam işlem hacmi oranı. Genel verimlilik göstergesi.";
 const TOOLTIP_TOP5 =
-  "Seçilen dönemde, kalem-bazlı tasarruf hesabıyla bulduğumuz en yüksek tasarruflu 5 ihale.";
+  "Seçilen dönemde, kalem-bazlı tasarruf hesabıyla bulduğumuz en yüksek tasarruflu 5 satın alma talebi.";
 const TOOLTIP_CATEGORY =
-  "Kategori bazında ortalama tasarruf oranı (en az 1 kazandırılmış ihalesi olan kategoriler).";
+  "Kategori bazında ortalama tasarruf oranı (en az 1 kazandırılmış satın alma talebi olan kategoriler).";
 const TOOLTIP_CURRENCY =
-  "İhale ana para birimine göre tasarruf oranı (TRY equivalent baz alınır).";
+  "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY equivalent baz alınır).";
 
 export function TasarrufTab({ data, period, savings, analytics }: Props) {
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
@@ -149,7 +149,7 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
       <div className="grid grid-cols-1 gap-4">
         <ChartCard
           title="Tasarruf Trendi"
-          subtitle="Aylık tasarruf (bar) + kümülatif (çizgi) — TRY ihaleler; hedef verisi platformda yok"
+          subtitle="Aylık tasarruf (bar) + kümülatif (çizgi) — TRY satın alma talepleri; hedef verisi platformda yok"
           ariaLabel="Aylık tasarruf trendi"
         >
           {analytics && analytics.savingsTrend.some((p) => p.value > 0) ? (
@@ -168,8 +168,8 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
           ) : (
             <DashboardEmptyState
               title="Henüz tasarruf verisi yok"
-              body="İlk ihalenizi sonuçlandırdığınızda (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
-              ctaLabel="İhale Aç"
+              body="İlk satın alma talebinizi sonuçlandırdığınızda (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
+              ctaLabel="Satın Alma Talebi Aç"
               ctaHref="/company/satinalma/ihalelerim/yeni"
             />
           )}
@@ -208,13 +208,13 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-zinc-950">
-              En Yüksek Tasarruflu 5 İhalem
+              En Yüksek Tasarruflu 5 Satın Alma Talebim
             </h2>
             <InfoTooltip content={TOOLTIP_TOP5} />
           </div>
           <span className="flex items-center gap-2 text-xs text-slate-500">
             <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />
-            En yüksek tasarruflu ihale
+            En yüksek tasarruflu satın alma talebi
           </span>
         </header>
 
@@ -277,7 +277,7 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
                     fontSize: 12,
                   }}
                   formatter={(v) => [formatTRY(Number(v)), "Tasarruf"]}
-                  labelFormatter={(rank) => `#${String(rank)}. İhale`}
+                  labelFormatter={(rank) => `#${String(rank)}. Satın Alma Talebi`}
                 />
                 <Bar
                   dataKey="amount"

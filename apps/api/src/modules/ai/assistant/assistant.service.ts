@@ -102,7 +102,7 @@ export class AssistantService {
           data: {
             companyId: user.companyId,
             userId: user.userId,
-            title: (text || "İhale taslağı").slice(0, 60),
+            title: (text || "Satın Alma Talebi taslağı").slice(0, 60),
           },
         });
 
@@ -175,7 +175,7 @@ export class AssistantService {
     // başlar ve fnResponse sonrası model devam eder (Gemini tur-sıra kuralı).
     const effectiveText =
       text ||
-      "Yüklediğim belgeden ihale taslağı hazırla; eksik zorunlu alanları sırayla sor.";
+      "Yüklediğim belgeden satın alma talebi taslağı hazırla; eksik zorunlu alanları sırayla sor.";
     const history: AiHistoryTurn[] = [
       ...plan.history,
       { role: "user", parts: [{ text: effectiveText }] },

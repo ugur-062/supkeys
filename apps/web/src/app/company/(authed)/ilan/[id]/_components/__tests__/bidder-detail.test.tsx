@@ -172,7 +172,7 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     ).toBeInTheDocument();
   });
 
-  it("LOST + açık ihale → eleme gerekçesi + yeniden teklif mesajı", () => {
+  it("LOST + açık satın alma talebi → eleme gerekçesi + yeniden teklif mesajı", () => {
     render(
       <MyBidStatusPanel
         l={detail({
@@ -225,7 +225,7 @@ describe("MyBidStatusPanel — durum makinesi", () => {
 
     render(<MyBidStatusPanel l={detail({ status: "AWARDED", myBid: null })} />);
     expect(
-      screen.getByText("Bu ihaleye teklif vermediniz."),
+      screen.getByText("Bu satın alma talebine teklif vermediniz."),
     ).toBeInTheDocument();
   });
 });

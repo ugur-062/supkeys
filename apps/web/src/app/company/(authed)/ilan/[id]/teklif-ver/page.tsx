@@ -118,7 +118,7 @@ function Blocked({ title, detailHref }: { title: string; detailHref: string }) {
       />
       <Heading className="mt-3">{title}</Heading>
       <Button href={detailHref} className="mt-5" outline>
-        İhale Detayına Dön
+        Satın Alma Talebi Detayına Dön
       </Button>
     </div>
   );
@@ -524,7 +524,7 @@ export default function TeklifVerPage() {
   }
   if (!l) {
     // İlan yüklenemedi — tipi (ALIM/SATIS) bilinmediğinden nötr hedef.
-    return <Blocked title="İhale bulunamadı" detailHref="/company" />;
+    return <Blocked title="Satın Alma Talebi bulunamadı" detailHref="/company" />;
   }
 
   // ── Kapılar ──
@@ -537,13 +537,13 @@ export default function TeklifVerPage() {
         <Lock className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
         <Heading className="mt-3">Teklif için paket (Bronz+) gerekir</Heading>
         <Text className="mt-2 text-sm text-zinc-500">
-          Bu herkese açık ihaleye teklif vermek için firmanızı doğrulayıp bir
+          Bu herkese açık satın alma talebine teklif vermek için firmanızı doğrulayıp bir
           paket alın veya ilan sahibiyle bağlantı kurun.
         </Text>
         <div className="mt-5 flex items-center justify-center gap-3">
           <Button href="/company/premium">Paket Al</Button>
           <Button href={detailHref} outline>
-            İhale Detayına Dön
+            Satın Alma Talebi Detayına Dön
           </Button>
         </div>
       </div>
@@ -555,7 +555,7 @@ export default function TeklifVerPage() {
         title={
           isSatis
             ? "Satış ilanına teklif (alış) için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin"
-            : "Alış ihalesine teklif (satış) için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
+            : "Alış satın alma talebine teklif (satış) için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
         }
         detailHref={detailHref}
       />
@@ -564,7 +564,7 @@ export default function TeklifVerPage() {
   // GÖNDERİM SÜRERKEN/AZ ÖNCE GÖNDERİLDİĞİNDE: onSuccess içindeki cache
   // yazımı isSuccess bayrağından ÖNCE ulaşır — aşağıdaki kapılar (zaten
   // verildi / tur hakkı doldu) router.push tamamlanmadan devreye girip
-  // "İhale Detayına Dön" ekranı flaşlıyordu. Pending dahil tek durum
+  // "Satın Alma Talebi Detayına Dön" ekranı flaşlıyordu. Pending dahil tek durum
   // ekranı göster; dönüş otomatik.
   if (
     placeBid.isPending ||
@@ -575,13 +575,13 @@ export default function TeklifVerPage() {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-zinc-500">
         {placeBid.isSuccess || buyNow.isSuccess
-          ? "Teklifin gönderildi — ihale detayına dönülüyor…"
+          ? "Teklifin gönderildi — satın alma talebi detayına dönülüyor…"
           : "Teklifin gönderiliyor…"}
       </div>
     );
   }
   if (l.status !== "OPEN") {
-    return <Blocked title="Bu ihaleye artık teklif verilemez" detailHref={detailHref} />;
+    return <Blocked title="Bu satın alma talebine artık teklif verilemez" detailHref={detailHref} />;
   }
   if (l.myBid?.status === "WITHDRAWN") {
     return (
@@ -861,7 +861,7 @@ export default function TeklifVerPage() {
       if (pricedItems.length === 0)
         problems.push("En az bir kaleme birim fiyat girin.");
       if (l.requireAllItems && pricedItems.length < items.length)
-        problems.push("Bu ihalede tüm kalemlere teklif vermelisiniz.");
+        problems.push("Bu satın alma talebinde tüm kalemlere teklif vermelisiniz.");
     } else if (!hasItems && !isBuyNowMode) {
       // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend place-bid.dto birebir).
       if (!singleAmount) problems.push("Geçerli bir tutar girin.");
@@ -884,7 +884,7 @@ export default function TeklifVerPage() {
       }
       if (isBuyNowMode && l.requireAllItems && scope.length < items.length)
         problems.push(
-          "Bu ihalede tüm kalemlere teklif zorunlu — kalem kapsam dışı bırakılamaz.",
+          "Bu satın alma talebinde tüm kalemlere teklif zorunlu — kalem kapsam dışı bırakılamaz.",
         );
     }
     if (hasItems && !isBuyNowMode) {
@@ -914,7 +914,7 @@ export default function TeklifVerPage() {
     if (!isAuction && (!validityDays || Number(validityDays) < 1))
       problems.push("Geçerlilik süresi zorunlu.");
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
-      problems.push("Bu ihalede teklif dosyası zorunlu.");
+      problems.push("Bu satın alma talebinde teklif dosyası zorunlu.");
     // SATIS: taban/hemen-al kıyası yalnız ilanın kendi para biriminde anlamlı.
     if (
       isSatis &&
@@ -927,7 +927,7 @@ export default function TeklifVerPage() {
         );
       if (l.buyNowPrice && total >= Number(l.buyNowPrice))
         problems.push(
-          `Teklif Hemen Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — ihale detayından Hemen Al kullanın.`,
+          `Teklif Hemen Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — satın alma talebi detayından Hemen Al kullanın.`,
         );
       // KALEM fiyatlandırma: kalem tabanı/hemen-al'ı gönderimden ÖNCE yakala
       // (backend de aynı kuralı zorlar — 400 yerine anlık geri bildirim).
@@ -1142,7 +1142,7 @@ export default function TeklifVerPage() {
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
       >
         <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-        {l.number ?? "İhale"}
+        {l.number ?? "Satın Alma Talebi"}
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1195,7 +1195,7 @@ export default function TeklifVerPage() {
               ? " Farklı para birimi seçtiniz — taban kıyası sunucuda yapılır."
               : ""}
             {l.buyNowPrice
-              ? ` Hemen Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine ihale detayındaki Hemen Al kullanılır).`
+              ? ` Hemen Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine satın alma talebi detayındaki Hemen Al kullanılır).`
               : ""}{" "}
             En yüksek teklif kazanır.
           </p>
@@ -1278,7 +1278,7 @@ export default function TeklifVerPage() {
               </div>
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Bu ihalede <strong>tüm kalemlere</strong> teklif vermek zorunlu.
+                  Bu satın alma talebinde <strong>tüm kalemlere</strong> teklif vermek zorunlu.
                 </div>
               ) : null}
               <AuctionBidWorkbench
@@ -1309,7 +1309,7 @@ export default function TeklifVerPage() {
               </div>
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Bu ihalede <strong>tüm kalemlere</strong> teklif vermek zorunlu.
+                  Bu satın alma talebinde <strong>tüm kalemlere</strong> teklif vermek zorunlu.
                 </div>
               ) : null}
               <div className="space-y-3">
@@ -1689,7 +1689,7 @@ export default function TeklifVerPage() {
             <div className="space-y-3 rounded-xl border border-zinc-950/10 bg-white p-4">
               {l.requireBidDocument ? (
                 <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Bu ihalede teklif dosyası zorunlu — en az bir dosya ekleyin.
+                  Bu satın alma talebinde teklif dosyası zorunlu — en az bir dosya ekleyin.
                 </p>
               ) : null}
 

@@ -188,7 +188,7 @@ const baseTenderSchema = z.object({
     .max(3, "En fazla 3 kategori seçebilirsiniz"),
   title: z
     .string()
-    .min(3, "İhale adı en az 3 karakter olmalı")
+    .min(3, "Satın Alma Talebi adı en az 3 karakter olmalı")
     .max(200, "Maksimum 200 karakter"),
   description: z.string().max(5000, "Maksimum 5000 karakter").optional(),
   keywords: z
@@ -322,7 +322,7 @@ export const tenderFormSchema = baseTenderSchema
       d.isInternational ||
       !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(d.paymentCategory),
     {
-      message: "Bu ödeme şekli yalnız uluslararası ihalede seçilebilir",
+      message: "Bu ödeme şekli yalnız uluslararası satın alma talebinde seçilebilir",
       path: ["paymentCategory"],
     },
   )
@@ -332,7 +332,7 @@ export const tenderFormSchema = baseTenderSchema
       !d.isInternational ||
       !DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(d.paymentCategory),
     {
-      message: "Bu ödeme şekli yalnız yurtiçi ihalede seçilebilir",
+      message: "Bu ödeme şekli yalnız yurtiçi satın alma talebinde seçilebilir",
       path: ["paymentCategory"],
     },
   )
@@ -343,7 +343,7 @@ export const tenderFormSchema = baseTenderSchema
       !d.isInternational ||
       (d.advancePercent ?? 100) === 100,
     {
-      message: "Kısmi peşin ödeme yalnız yurtiçi ihalelerde seçilebilir",
+      message: "Kısmi peşin ödeme yalnız yurtiçi satın alma taleplerinde seçilebilir",
       path: ["advancePercent"],
     },
   )
@@ -402,7 +402,7 @@ export const tenderFormSchema = baseTenderSchema
       d.listingType !== "SATIS" ||
       d.priceScope === "KALEM" ||
       (d.minPrice ?? 0) > 0,
-    { message: "Satış ihalesi için taban fiyat zorunlu", path: ["minPrice"] },
+    { message: "satış ilanı için taban fiyat zorunlu", path: ["minPrice"] },
   )
   .refine(
     (d) =>

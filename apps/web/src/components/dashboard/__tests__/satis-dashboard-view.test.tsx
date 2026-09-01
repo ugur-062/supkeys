@@ -77,7 +77,7 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("Satış paneli")).toBeInTheDocument();
     expect(screen.getByText("Yanıt Bekleyen Davet")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("Kazanılan İhale")).toBeInTheDocument();
+    expect(screen.getByText("Kazanılan Satın Alma Talebi")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
     // Faz 7.4: "Performans" kartı yerine tutar KPI satırı — gelir kompakt
     // ("150 B ₺"), tam değer title'da.

@@ -19,7 +19,7 @@ export default function EditSatisIhalesiPage() {
   if (!l || !l.isOwner || l.type !== "SATIS") {
     return (
       <Notice
-        title="Satış ihalesi bulunamadı"
+        title="satış ilanı bulunamadı"
         desc="Bu ilanı düzenleme yetkiniz yok."
         href="/company/satis/ilanlarim"
       />

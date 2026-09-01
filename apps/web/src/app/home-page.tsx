@@ -38,7 +38,7 @@ const pricingTiers = [
     tagline: "Ağına bağlan, çevren içinde al-sat.",
     features: [
       "Firma hesabı, sınırsız kullanıcı ve rol",
-      "Davet edildiğiniz ihalelere teklif verme",
+      "Davet edildiğiniz satın alma taleplerine teklif verme",
       "Bağlantılı firmalarla al-sat ve mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
     ],
@@ -56,7 +56,7 @@ const pricingTiers = [
     features: [
       "Firma dizininde görünürlük & herkese açık profil",
       "Bağlantı daveti gönderme",
-      "Herkese açık ihalelere sınırsız teklif",
+      "Herkese açık satın alma taleplerine sınırsız teklif",
       "Sipariş, teslim & ödeme adımı takibi",
       "2 kullanıcı koltuğu (Satışçı)",
     ],
@@ -70,12 +70,12 @@ const pricingTiers = [
   {
     name: "Silver",
     price: 160,
-    tagline: "Tam alış & satış gücü: ihale aç, süreci yönet.",
+    tagline: "Tam alış & satış gücü: satın alma talebi aç, süreci yönet.",
     features: [
-      "Firma dizininde görünürlük, davet & herkese açık ihalelere teklif",
-      "İhale açma — teklif toplama (RFQ) & pazarlık/eksiltme",
+      "Firma dizininde görünürlük, davet & herkese açık satın alma taleplerine teklif",
+      "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
       "Raporlar, şablonlar & onay akışları",
-      "Yapay zekâ: belgeden ihale taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
+      "Yapay zekâ: belgeden satın alma talebi taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
       "4 kullanıcı koltuğu (Satın Almacı & Satışçı)",
     ],
     cta: "Silver'a Başla",
@@ -90,10 +90,10 @@ const pricingTiers = [
     price: 230,
     tagline: "Yüksek hacim ve geniş ekipler için.",
     features: [
-      "Firma dizininde görünürlük, davet & herkese açık ihalelere teklif",
-      "İhale açma — teklif toplama (RFQ) & pazarlık/eksiltme",
+      "Firma dizininde görünürlük, davet & herkese açık satın alma taleplerine teklif",
+      "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
       "Raporlar, şablonlar & onay akışları",
-      "Yapay zekâ — yükseltilmiş kullanım limitiyle: belgeden ihale taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
+      "Yapay zekâ — yükseltilmiş kullanım limitiyle: belgeden satın alma talebi taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
       "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
       "8 kullanıcı koltuğu (Satın Almacı & Satışçı)",
     ],
@@ -680,10 +680,10 @@ function PublicProfilePreview() {
         </div>
         <p className="mt-4 text-sm/6 text-zinc-600">
           20 yıllık tedarik tecrübesiyle yurtiçi ve uluslararası metal
-          ticareti. Açık ihalelerimize teklif verin.
+          ticareti. Açık satın alma taleplerimize teklif verin.
         </p>
         <div className="mt-5 text-xs font-medium text-zinc-500">
-          Açık ihaleleri
+          Açık satın alma taleplerini
         </div>
         <div className="mt-1.5 space-y-1.5">
           {tenders.map((x) => (
@@ -869,7 +869,7 @@ export default function HomePage() {
             Eksiksiz ticaret
           </h2>
           <p className="mt-2 max-w-2xl text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
-            Almaktan satmaya, ihaleden teslime
+            Almaktan satmaya, satın alma talebinden teslime
           </p>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-16 lg:grid-cols-6">
@@ -1058,7 +1058,7 @@ export default function HomePage() {
                 {[
                   "Doğrulanmış firma rozeti",
                   "Sektör & konum etiketleri",
-                  "Açık ihaleleriniz tek sayfada",
+                  "Açık satın alma talepleriniz tek sayfada",
                 ].map((b) => (
                   <li key={b} className="flex gap-x-3 text-zinc-700">
                     <CheckIcon
@@ -1086,7 +1086,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-base/7 font-semibold text-zinc-500">
-              İhale türleri
+              Satın Alma Talebi türleri
             </h2>
             <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
               Her ihtiyaca uygun format

@@ -97,12 +97,12 @@ const base = { type: "ALIM" as const, basePath: "/company/satinalma/raporlar" };
 describe("GeneralReportView", () => {
   it("kriter formu ve iki aksiyon butonu render edilir; başta oluştur pasif", () => {
     render(<GeneralReportView {...base} />);
-    expect(screen.getByText("Genel İhale Raporu")).toBeInTheDocument();
+    expect(screen.getByText("Genel Satın Alma Talebi Raporu")).toBeInTheDocument();
     expect(
-      screen.getByText(/Tek bir ihaleyi raporlayacağım/),
+      screen.getByText(/Tek bir satın alma talebini raporlayacağım/),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/tarih aralığındaki ihaleleri/),
+      screen.getByText(/tarih aralığındaki satın alma taleplerini/),
     ).toBeInTheDocument();
     // Excel indir butonu her zaman görünür.
     expect(
@@ -112,7 +112,7 @@ describe("GeneralReportView", () => {
     expect(screen.getByRole("button", { name: /Raporu Oluştur/ })).toBeDisabled();
   });
 
-  it("SINGLE mod: ihale seçince Raporu Oluştur mutasyonu tetikler", async () => {
+  it("SINGLE mod: satın alma talebi seçince Raporu Oluştur mutasyonu tetikler", async () => {
     const user = userEvent.setup();
     h.reportMutate.mockResolvedValue(result());
     render(<GeneralReportView {...base} />);
@@ -132,10 +132,10 @@ describe("GeneralReportView", () => {
     });
   });
 
-  it("sonuç verisi varken özet şeridi + ihale satırı render edilir", () => {
+  it("sonuç verisi varken özet şeridi + satın alma talebi satırı render edilir", () => {
     h.reportData = result();
     render(<GeneralReportView {...base} />);
-    expect(screen.getByText("Toplam İhale")).toBeInTheDocument();
+    expect(screen.getByText("Toplam Satın Alma Talebi")).toBeInTheDocument();
     expect(screen.getByText("Yanıt Oranı")).toBeInTheDocument();
     // Özet şeridinde toplam tasarruf başlığı.
     expect(screen.getByText("Toplam Tasarruf")).toBeInTheDocument();

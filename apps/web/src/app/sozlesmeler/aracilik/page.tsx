@@ -12,28 +12,28 @@ export default function Page() {
         {
           heading: "1. Konu ve Platformun Rolü",
           paragraphs: [
-            `İşbu Sözleşme; Rothern platformunun işletmecisi ${OPERATOR.legalName}'nin ("Platform"), alıcı ve satıcı firmalar arasında ihale (RFQ), teklif toplama, açık eksiltme/artırma, kazandırma ve sipariş süreçlerine elektronik ortamda aracılık etmesinin koşullarını düzenler.`,
-            "Platform yalnızca aracıdır: taraflar arasında kurulan alım-satım ilişkisinin tarafı, temsilcisi, komisyoncusu veya garantörü değildir. Malın/hizmetin mevzuata ve ihale şartlarına uygunluğu, ayıptan sorumluluk, teslimat, fatura ve ödeme yükümlülükleri münhasıran alıcı ile satıcı arasındadır.",
+            `İşbu Sözleşme; Rothern platformunun işletmecisi ${OPERATOR.legalName}'nin ("Platform"), alıcı ve satıcı firmalar arasında satın alma talebi (RFQ), teklif toplama, açık eksiltme/artırma, kazandırma ve sipariş süreçlerine elektronik ortamda aracılık etmesinin koşullarını düzenler.`,
+            "Platform yalnızca aracıdır: taraflar arasında kurulan alım-satım ilişkisinin tarafı, temsilcisi, komisyoncusu veya garantörü değildir. Malın/hizmetin mevzuata ve satın alma talebi şartlarına uygunluğu, ayıptan sorumluluk, teslimat, fatura ve ödeme yükümlülükleri münhasıran alıcı ile satıcı arasındadır.",
           ],
         },
         {
-          heading: "2. İhale Süreci",
+          heading: "2. Satın Alma Talebi Süreci",
           paragraphs: [
-            "İhaleyi açan firma; ihale şartlarını, kalemleri, teslimat ve ödeme koşullarını doğru ve eksiksiz belirlemekle yükümlüdür. Yayımlanan ihale, belirlenen kapanış tarihine kadar tekliflere açıktır; ihale sahibi mevzuata uygun olmak kaydıyla ihaleyi kalıcı olarak kapatabilir veya iptal edebilir.",
-            "Davetli (kapalı) ihaleleri yalnızca davet edilen firmalar görür. Herkese açık ihaleler, uygun üyelik paketine sahip firmalara açıktır.",
+            "Satın Alma Talebini açan firma; satın alma talebi şartlarını, kalemleri, teslimat ve ödeme koşullarını doğru ve eksiksiz belirlemekle yükümlüdür. Yayımlanan satın alma talebi, belirlenen kapanış tarihine kadar tekliflere açıktır; satın alma talebi sahibi mevzuata uygun olmak kaydıyla satın alma talebini kalıcı olarak kapatabilir veya iptal edebilir.",
+            "Davetli (kapalı) satın alma taleplerini yalnızca davet edilen firmalar görür. Herkese açık satın alma talepleri, uygun üyelik paketine sahip firmalara açıktır.",
           ],
         },
         {
           heading: "3. Kapalı Zarf Esası",
           paragraphs: [
-            "Aksi ihale tipinde açıkça öngörülmedikçe teklifler kapalı zarf esasıyla toplanır: teklif verenler birbirlerinin tekliflerini, kimliklerini ve teklif sayısını göremez; teklifleri yalnızca ihale sahibi görür. Açık eksiltme/artırma (pazarlık) tipi ihalelerde görünürlük, ihale sahibinin seçtiği ve ihalede ilan edilen görünürlük moduna tabidir.",
+            "Aksi satın alma talebi tipinde açıkça öngörülmedikçe teklifler kapalı zarf esasıyla toplanır: teklif verenler birbirlerinin tekliflerini, kimliklerini ve teklif sayısını göremez; teklifleri yalnızca satın alma talebi sahibi görür. Açık eksiltme/artırma (pazarlık) tipi satın alma taleplerinde görünürlük, satın alma talebi sahibinin seçtiği ve satın alma talebinde ilan edilen görünürlük moduna tabidir.",
           ],
         },
         {
           heading: "4. Tekliflerin Bağlayıcılığı",
           paragraphs: [
-            "Gönderilen teklif, teklif geçerlilik süresi boyunca teklif vereni bağlar; teklif gönderildikten sonra tek taraflı olarak değiştirilemez veya geri çekilemez. Teklifte düzeltme ihtiyacı doğarsa teklif veren, ihale sahibiyle platform üzerinden iletişime geçer; ihale sahibinin mevcut teklifi elemesi hâlinde yeni teklif verilebilir.",
-            "İhale sahibinin kazandırma kararını onaylamasıyla kazanan teklif esas alınarak sipariş kaydı oluşturulur. Kazandırma; ihalenin tamamı için tek satıcıya veya kalem bazında birden çok satıcıya yapılabilir.",
+            "Gönderilen teklif, teklif geçerlilik süresi boyunca teklif vereni bağlar; teklif gönderildikten sonra tek taraflı olarak değiştirilemez veya geri çekilemez. Teklifte düzeltme ihtiyacı doğarsa teklif veren, satın alma talebi sahibiyle platform üzerinden iletişime geçer; satın alma talebi sahibinin mevcut teklifi elemesi hâlinde yeni teklif verilebilir.",
+            "Satın Alma Talebi sahibinin kazandırma kararını onaylamasıyla kazanan teklif esas alınarak sipariş kaydı oluşturulur. Kazandırma; satın alma talebinin tamamı için tek satıcıya veya kalem bazında birden çok satıcıya yapılabilir.",
           ],
         },
         {
@@ -46,9 +46,9 @@ export default function Page() {
           heading: "6. Tarafların Yükümlülükleri",
           list: [
             "Firma ve yetkili bilgilerinin doğru ve güncel tutulması; istenen doğrulama belgelerinin ibrazı,",
-            "İhale şartlarına, verilen tekliflere ve oluşturulan siparişlere uygun davranılması,",
+            "Satın Alma Talebi şartlarına, verilen tekliflere ve oluşturulan siparişlere uygun davranılması,",
             "Rekabeti bozucu anlaşma, danışıklı teklif, fiyat manipülasyonu ve benzeri uygulamalardan kaçınılması,",
-            "İhale süreçlerinde edinilen ticari bilgilerin (teklif içerikleri dâhil) amaç dışı kullanılmaması ve üçüncü kişilerle paylaşılmaması,",
+            "Satın Alma Talebi süreçlerinde edinilen ticari bilgilerin (teklif içerikleri dâhil) amaç dışı kullanılmaması ve üçüncü kişilerle paylaşılmaması,",
             "Platform dışına yönlendirme yoluyla süreç bütünlüğünü bozan davranışlardan kaçınılması.",
           ],
         },
@@ -62,20 +62,20 @@ export default function Page() {
         {
           heading: "8. Kayıtlar ve Denetim İzi",
           paragraphs: [
-            "İhale, teklif, kazandırma, sipariş ve mesajlaşma süreçlerine ilişkin işlem kayıtları ile denetim izleri Platform tarafından tutulur. Bu kayıtlar, taraflar arasındaki uyuşmazlıklarda HMK m. 193 anlamında delil teşkil eder.",
+            "Satın Alma Talebi, teklif, kazandırma, sipariş ve mesajlaşma süreçlerine ilişkin işlem kayıtları ile denetim izleri Platform tarafından tutulur. Bu kayıtlar, taraflar arasındaki uyuşmazlıklarda HMK m. 193 anlamında delil teşkil eder.",
           ],
         },
         {
           heading: "9. Sorumluluğun Reddi",
           paragraphs: [
-            "Platform; kullanıcıların beyan ettiği bilgi ve belgelerin doğruluğunu, ihale konusu mal/hizmetin niteliğini, satıcının ifa kabiliyetini veya alıcının ödeme gücünü garanti etmez. Taraflar, sözleşme kuracakları karşı taraf hakkında kendi ticari değerlendirmelerini yapmakla yükümlüdür.",
+            "Platform; kullanıcıların beyan ettiği bilgi ve belgelerin doğruluğunu, satın alma talebi konusu mal/hizmetin niteliğini, satıcının ifa kabiliyetini veya alıcının ödeme gücünü garanti etmez. Taraflar, sözleşme kuracakları karşı taraf hakkında kendi ticari değerlendirmelerini yapmakla yükümlüdür.",
             "Kast ve ağır ihmal hâlleri saklı kalmak üzere Platform, taraflar arasındaki alım-satım ilişkisinden doğan zararlardan sorumlu tutulamaz.",
           ],
         },
         {
           heading: "10. İhlal ve Yaptırımlar",
           paragraphs: [
-            "İşbu Sözleşme'ye aykırılık hâlinde Platform; ilgili ihale veya teklifi kaldırma, hesabı askıya alma veya üyeliği sona erdirme yetkisine sahiptir. Mevzuata aykırılık şüphesi taşıyan durumlar yetkili mercilere bildirilebilir.",
+            "İşbu Sözleşme'ye aykırılık hâlinde Platform; ilgili satın alma talebi veya teklifi kaldırma, hesabı askıya alma veya üyeliği sona erdirme yetkisine sahiptir. Mevzuata aykırılık şüphesi taşıyan durumlar yetkili mercilere bildirilebilir.",
           ],
         },
         {

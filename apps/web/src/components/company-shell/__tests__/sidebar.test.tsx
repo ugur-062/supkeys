@@ -50,7 +50,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.auth.user = { roles: ["ONAYLAYICI"] };
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
-    expect(screen.queryByText("Açık İhaleler")).not.toBeInTheDocument();
+    expect(screen.queryByText("Açık Talepler")).not.toBeInTheDocument();
     expect(screen.queryByText("Tekliflerim")).not.toBeInTheDocument();
     expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
     expect(screen.getByText("Onaylar")).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.canAct = false;
     render(<CompanySidebarContent expanded showPin={false} />);
     expect(screen.queryByText("Onaylar")).not.toBeInTheDocument();
-    expect(screen.queryByText("Açık İhaleler")).not.toBeInTheDocument();
+    expect(screen.queryByText("Açık Talepler")).not.toBeInTheDocument();
     expect(screen.getByText("Ayarlar")).toBeInTheDocument();
   });
 
@@ -71,7 +71,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
     // GOLD yönetici → available=[satinalma, satis], aktif=satinalma nav'ı.
-    expect(screen.getByText("İhalelerim")).toBeInTheDocument();
+    expect(screen.getByText("Taleplerim")).toBeInTheDocument();
     expect(screen.getByText("Ayarlar")).toBeInTheDocument();
   });
 
@@ -79,13 +79,13 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.auth.user = { roles: ["ONAYLAYICI", "SATISCI"] };
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
-    expect(screen.getByText("Açık İhaleler")).toBeInTheDocument();
+    expect(screen.getByText("Açık Talepler")).toBeInTheDocument();
     expect(screen.getByText("Onaylar")).toBeInTheDocument();
   });
 });
 
 describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", () => {
-  it("satınalma: sıra Anasayfa→İhalelerim→Satın Al→Tekliflerim→Siparişlerim→Bağlantılar→Onaylar→Ayarlar; Raporlar/Şablonlar/Profilim menüde YOK", () => {
+  it("satınalma: sıra Anasayfa→Taleplerim→Satın Al→Tekliflerim→Siparişlerim→Bağlantılar→Onaylar→Ayarlar; Raporlar/Şablonlar/Profilim menüde YOK", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
@@ -97,7 +97,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     const nav = labels.filter((t) =>
       [
         "Anasayfa",
-        "İhalelerim",
+        "Taleplerim",
         "Satın Al",
         "Tekliflerim",
         "Siparişlerim",
@@ -108,7 +108,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     );
     expect(nav).toEqual([
       "Anasayfa",
-      "İhalelerim",
+      "Taleplerim",
       "Satın Al",
       "Tekliflerim",
       "Siparişlerim",
@@ -121,7 +121,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
   });
 
-  it("satış: Satış İhalelerim→Açık İhaleler→Satış Tekliflerim→Satışlarım→Bağlantılar; ikincil sayfalar menüde YOK", () => {
+  it("satış: Satış İlanlarım→Açık Talepler→Satış Tekliflerim→Satışlarım→Bağlantılar; ikincil sayfalar menüde YOK", () => {
     h.auth.user = { roles: ["SATISCI"] };
     h.canAct = false;
     render(<CompanySidebarContent expanded showPin={false} />);
@@ -129,9 +129,9 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
       .getAllByRole("link")
       .map((a) => a.textContent?.trim());
     const idx = (t: string) => labels.indexOf(t);
-    expect(idx("Satış İhalelerim")).toBeGreaterThan(idx("Anasayfa"));
-    expect(idx("Açık İhaleler")).toBeGreaterThan(idx("Satış İhalelerim"));
-    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Açık İhaleler"));
+    expect(idx("Satış İlanlarım")).toBeGreaterThan(idx("Anasayfa"));
+    expect(idx("Açık Talepler")).toBeGreaterThan(idx("Satış İlanlarım"));
+    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Açık Talepler"));
     expect(idx("Satışlarım")).toBeGreaterThan(idx("Satış Tekliflerim"));
     expect(idx("Bağlantılar")).toBeGreaterThan(idx("Satışlarım"));
     expect(screen.queryByText("Raporlar")).not.toBeInTheDocument();

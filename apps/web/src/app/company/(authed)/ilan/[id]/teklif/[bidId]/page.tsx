@@ -84,7 +84,7 @@ export default function BidDetailPage() {
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeftIcon className="h-4 w-4" />
-          İhale
+          Satın Alma Talebi
         </Link>
         <Text className="text-sm text-zinc-500">Teklif bulunamadı.</Text>
       </div>

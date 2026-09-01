@@ -170,7 +170,7 @@ export class CompanyListingDocumentsService {
     if (listing.status === "DRAFT") return; // taslak her zaman düzenlenebilir
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
-        "İhale teklife kapalı; belgeler değiştirilemez",
+        "Satın Alma Talebi teklife kapalı; belgeler değiştirilemez",
       );
     }
     // HERHANGİ bir teklif kaydı kilitler — updateListing ve arayüzdeki canEdit
@@ -185,7 +185,7 @@ export class CompanyListingDocumentsService {
     });
     if (bidCount > 0) {
       throw new BadRequestException(
-        "Bu ihaleye teklif verilmiş; belgeler değiştirilemez",
+        "Bu satın alma talebine teklif verilmiş; belgeler değiştirilemez",
       );
     }
   }

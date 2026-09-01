@@ -40,7 +40,7 @@ function OptOutInner() {
               Davetler kapatıldı
             </h1>
             <p className="mt-2 text-sm text-zinc-600">
-              Bu e-posta adresine Rothern üzerinden bir daha ihale daveti
+              Bu e-posta adresine Rothern üzerinden bir daha satın alma talebi daveti
               gönderilmeyecek.
             </p>
           </>

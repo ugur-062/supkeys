@@ -83,7 +83,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
         <Text>
           Sık kullandığınız kalemleri saklayın; ihale açarken{" "}
           <strong>Katalogdan Ekle</strong> ile saniyede listeleyin. Katalog,
-          ihale detayındaki <strong>Kataloğa Kaydet</strong> ile kendiliğinden
+          satın alma talebi detayındaki <strong>Kataloğa Kaydet</strong> ile kendiliğinden
           dolar.
         </Text>
       </div>
@@ -113,7 +113,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
           <Text className="mt-1">
             {showArchived
               ? "Arşivlenmiş kalem yok."
-              : "Bir ihale oluşturduktan sonra kalem listesinin üstündeki “Kataloğa Kaydet” düğmesiyle doldurabilirsiniz."}
+              : "Bir satın alma talebi oluşturduktan sonra kalem listesinin üstündeki “Kataloğa Kaydet” düğmesiyle doldurabilirsiniz."}
           </Text>
         </div>
       ) : (

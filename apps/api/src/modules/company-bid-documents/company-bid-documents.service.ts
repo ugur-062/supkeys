@@ -48,7 +48,7 @@ export class CompanyBidDocumentsService {
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
-        "İhale teklife kapalı — belge eklenemez/silinemez",
+        "Satın Alma Talebi teklife kapalı — belge eklenemez/silinemez",
       );
     }
     return listing;

@@ -156,7 +156,7 @@ describe("teklif şablonu — üretim", () => {
 
   it("sahip kendi ihalesi için şablon alamaz", async () => {
     const { owner, listing, svc } = await setup();
-    await expect(svc.buildTemplate(owner.auth, listing.id)).rejects.toThrow(/Kendi ihalenize/);
+    await expect(svc.buildTemplate(owner.auth, listing.id)).rejects.toThrow(/Kendi satın alma talebinize/);
   });
 });
 
@@ -210,7 +210,7 @@ describe("teklif şablonu — doldur → parse (YAZMAZ)", () => {
     expect(by[i1.id]!.errors).toEqual(["Birim fiyat sayı değil"]);
     expect(by[i2.id]!.errors.join(" | ")).toMatch(/EUR.*kabul edilmiyor/);
     expect(by[i2.id]!.errors.join(" | ")).toMatch(/Teslim süresi tanınmadı/);
-    expect(res.notices.join()).toMatch(/1 satır ihale kalemlerine bağlanamadı/);
+    expect(res.notices.join()).toMatch(/1 satır satın alma talebi kalemlerine bağlanamadı/);
     expect(res.matchedCount).toBe(0);
   });
 

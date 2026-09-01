@@ -14,15 +14,15 @@ export const DASH = {
   heroHow: "Nasıl hesaplanıyor?",
   heroEmptyTitle: "Zaman tasarrufu burada birikecek",
   heroEmptyBody:
-    "İlk ihalenizi açıp teklif topladığınızda, mail'le yürütmeye kıyasla kazandığınız süreyi burada göreceksiniz.",
-  heroEmptyCta: "İhale Aç",
+    "İlk satın alma talebinizi açıp teklif topladığınızda, mail'le yürütmeye kıyasla kazandığınız süreyi burada göreceksiniz.",
+  heroEmptyCta: "Satın Alma Talebi Aç",
   heroWinTitle: (pct: string) => `%${pct} kazanma oranı`,
   heroWinSupport: (won: number, total: number) =>
     `karara bağlanan ${total} teklifin ${won}${numberPossessive(won)} kazandı`,
   heroWinEmptyTitle: "Kazanma oranınız burada görünecek",
   heroWinEmptyBody:
-    "Açık ihalelere teklif verip sonuç aldıkça kazanma oranınız ve trendiniz burada birikecek.",
-  heroWinEmptyCta: "Açık İhalelere Göz At",
+    "Açık satın alma taleplerine teklif verip sonuç aldıkça kazanma oranınız ve trendiniz burada birikecek.",
+  heroWinEmptyCta: "Açık Taleplere Göz At",
   periodLabels: { month: "Bu Ay", quarter: "Bu Çeyrek", year: "Bu Yıl" },
   savingsTabCost: "Maliyet",
   savingsTabTime: "Zaman",
@@ -64,15 +64,15 @@ export const ACTION_ROWS: Record<
       href: "/company/satinalma/siparisler",
     },
     zeroBidClosingSoon: {
-      text: "ihaleniz teklifsiz kapanmak üzere",
+      text: "satın alma talebiniz teklifsiz kapanmak üzere",
       href: "/company/satinalma/ihalelerim",
     },
     closingSoon: {
-      text: "ihaleniz kapanmak üzere",
+      text: "satın alma talebiniz kapanmak üzere",
       href: "/company/satinalma/ihalelerim",
     },
     awaitingDecision: {
-      text: "ihalenizde karar bekleyen teklif var",
+      text: "satın alma talebinizde karar bekleyen teklif var",
       href: "/company/satinalma/ihalelerim",
     },
     pendingApprovals: {
@@ -129,7 +129,7 @@ export const PARAM_LABELS: Record<string, string> = {
   followupMin: "Takip/hatırlatma (hesaba katılmaz)",
   bidToExcelMin: "Teklifi Excel'e işleme (× teklif)",
   bidItemFactor: "Kalem katsayısı",
-  comparisonTableMin: "Karşılaştırma tablosu (× ihale)",
+  comparisonTableMin: "Karşılaştırma tablosu (× satın alma talebi)",
   revisionRoundMin: "Revizyon/pazarlık turu (× tur)",
   approvalLoopMin: "Onay mail döngüsü (× onay)",
   poPrepMin: "Sipariş (PO) hazırlama (× sipariş)",

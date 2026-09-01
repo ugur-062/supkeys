@@ -97,7 +97,7 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
-        {/* Kur çipi + dönem seçici üst satırda; "İhaleleri Görüntüle" CTA'sı
+        {/* Kur çipi + dönem seçici üst satırda; "Satın Alma Taleplerini Görüntüle" CTA'sı
             alt satırda (yan yana üçlü kalabalık duruyordu — kullanıcı isteği). */}
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap items-center justify-end gap-3">
@@ -107,7 +107,7 @@ export function SatisDashboardView() {
             href="/company/satis/acik-ihaleler"
             className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
           >
-            İhaleleri Görüntüle
+            Satın Alma Taleplerini Görüntüle
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
@@ -131,7 +131,7 @@ export function SatisDashboardView() {
             },
             {
               key: "discover",
-              label: "Açık ihaleleri keşfet",
+              label: "Açık satın alma taleplerini keşfet",
               done: false,
               href: "/company/satis/acik-ihaleler",
             },
@@ -247,7 +247,7 @@ export function SatisDashboardView() {
           spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
         <KpiCard
-          label="Kazanılan İhale"
+          label="Kazanılan Satın Alma Talebi"
           value={val(s?.wonTenders)}
           href="/company/satis/tekliflerim"
           accent="emerald"

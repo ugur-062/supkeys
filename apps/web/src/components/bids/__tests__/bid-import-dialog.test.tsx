@@ -42,7 +42,7 @@ const TEMPLATE_RESULT: BidImportResult = {
   listingId: "L1",
   matches: [
     base({ itemId: "i1", lineNo: 1, itemName: "Çelik boru", unitPrice: 185.5, deliveryTime: "W1_2", confidence: "exact", source: "Şablon satır 2" }),
-    base({ itemId: "i2", lineNo: 2, itemName: "Dirsek", unitPrice: 10, confidence: "exact", errors: ["Para birimi (EUR) bu ihalede kabul edilmiyor"] }),
+    base({ itemId: "i2", lineNo: 2, itemName: "Dirsek", unitPrice: 10, confidence: "exact", errors: ["Para birimi (EUR) bu satın alma talebinde kabul edilmiyor"] }),
     base({ itemId: "i3", lineNo: 3, itemName: "Flanş" }),
   ],
   unmatchedDocRows: [],
@@ -57,7 +57,7 @@ const AI_RESULT: BidImportResult = {
   listingId: "L1",
   matches: [
     base({ itemId: "i1", lineNo: 1, itemName: "Çelik boru", unitPrice: 185, confidence: "exact", source: "Boru siyah BRU-200" }),
-    base({ itemId: "i2", lineNo: 2, itemName: "Dirsek", unitPrice: 40, confidence: "medium", source: "Dirsek benzeri", warnings: ["Belgedeki miktar (10) ihaledekinden (40) farklı"] }),
+    base({ itemId: "i2", lineNo: 2, itemName: "Dirsek", unitPrice: 40, confidence: "medium", source: "Dirsek benzeri", warnings: ["Belgedeki miktar (10) satın alma talebindekinden (40) farklı"] }),
     base({ itemId: "i3", lineNo: 3, itemName: "Flanş" }),
   ],
   unmatchedDocRows: [{ id: "doc-5", text: "Flanş DN50 galvaniz", unitPrice: 90, currency: null, deliveryTime: null }],
