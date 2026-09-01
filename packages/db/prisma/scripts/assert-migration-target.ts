@@ -22,6 +22,16 @@
  *
  * Bu env'i kalıcı olarak `.env`'e YAZMAYIN — nöbetçinin tüm değeri, kararın
  * her seferinde bilinçli verilmesinde.
+ *
+ * TEK İSTİSNA — PROD KONTEYNERİ: `apps/api/docker-entrypoint.sh` bu izni
+ * ÇAĞRI YERİNDE veriyor. Orası geliştirici makinesi değil; prod konteynerinin
+ * başlangıcında prod veritabanına migration uygulamak yapılması GEREKEN iştir.
+ *
+ * ⚠️ 2026-09-01 OLAYI: bu nöbetçi eklendiğinde entrypoint güncellenmedi ve
+ * `set -e` yüzünden HER Render deploy'u 17 saat boyunca exit 1 ile düştü.
+ * Canlı eski kodla çalışmaya devam ettiği için sessiz kaldı — kimse fark
+ * etmedi. DERS: paylaşılan bir script'e fail-closed kapı koyarken o script'i
+ * ÇAĞIRAN tüm yolları (deploy, CI, entrypoint) saymak zorunludur.
  */
 // Prisma CLI `.env`'i kendisi yükler; nöbetçi de AYNI dosyayı okumalı, yoksa
 // hedefi göremez (ve fail-closed davranıp lokal geliştirmeyi de kilitler).
