@@ -143,7 +143,7 @@ export function IhaleListRow({
 
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"
-    : "/company/satinalma/ihalelerim";
+    : "/company/satinalma/taleplerim";
   const fromLabel = isSatis
     ? MODULE_LABELS.satis.ilanlarim
     : MODULE_LABELS.satinalma.ihalelerim;

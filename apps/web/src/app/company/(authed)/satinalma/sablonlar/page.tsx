@@ -20,7 +20,7 @@ export default function SatinalmaSablonlarPage() {
           icon: PackageSearch,
         },
         {
-          href: "/company/satinalma/sablonlar/ihale",
+          href: "/company/satinalma/sablonlar/talep",
           label: "Satın Alma Talebi Şablonları",
           description:
             "Tekrarlayan alışlarınızı (kalemler + ayarlar dahil) şablonlayın; yeni satın alma talebini tek tıkla şablondan başlatın.",

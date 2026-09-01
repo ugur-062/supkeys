@@ -68,7 +68,7 @@ export function BrowseTenderRow({
 
   const fromHref = isSatis
     ? "/company/satinalma/satin-al"
-    : "/company/satis/acik-ihaleler";
+    : "/company/satis/acik-talepler";
   const fromLabel = isSatis
     ? MODULE_LABELS.satinalma.satinAl
     : MODULE_LABELS.satis.acikIhaleler;

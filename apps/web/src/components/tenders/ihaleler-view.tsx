@@ -250,7 +250,7 @@ export function IhalelerView({
                 href={
                   isSatis
                     ? "/company/satis/ilanlarim/yeni"
-                    : "/company/satinalma/ihalelerim/yeni"
+                    : "/company/satinalma/taleplerim/yeni"
                 }
               >
                 <Button variant="primary">

@@ -20,7 +20,7 @@ export default function EditTenderPage() {
       <Notice
         title="Satın Alma Talebi bulunamadı"
         desc="Bu satın alma talebini düzenleme yetkiniz yok."
-        href="/company/satinalma/ihalelerim"
+        href="/company/satinalma/taleplerim"
       />
     );
   }

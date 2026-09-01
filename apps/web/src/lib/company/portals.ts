@@ -89,7 +89,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       {
         icon: ClipboardDocumentListIcon,
         label: MODULE_LABELS.satinalma.ihalelerim,
-        href: "/company/satinalma/ihalelerim",
+        href: "/company/satinalma/taleplerim",
       },
       {
         icon: ShoppingCartIcon,
@@ -151,7 +151,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       {
         icon: InboxArrowDownIcon,
         label: MODULE_LABELS.satis.acikIhaleler,
-        href: "/company/satis/acik-ihaleler",
+        href: "/company/satis/acik-talepler",
       },
       {
         icon: ClipboardDocumentListIcon,

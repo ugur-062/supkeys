@@ -10,7 +10,7 @@ export default function SatisSablonlarPage() {
       description="İlan açarken tekrar tekrar girdiğiniz verileri bir kez şablonlayın, hızla uygulayın."
       items={[
         {
-          href: "/company/satis/sablonlar/ihale",
+          href: "/company/satis/sablonlar/ilan",
           label: "İlan Şablonları",
           description:
             "Tekrarlayan satışlarınızı (kalemler + ayarlar dahil) şablonlayın; yeni ilanı tek tıkla şablondan başlatın.",

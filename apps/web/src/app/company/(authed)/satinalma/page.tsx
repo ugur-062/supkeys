@@ -128,7 +128,7 @@ export default function SatinalmaDashboardPage() {
               key: "tender",
               label: "İlk satın alma talebinizi oluşturun",
               done: false,
-              href: "/company/satinalma/ihalelerim/yeni",
+              href: "/company/satinalma/taleplerim/yeni",
             },
             {
               key: "invite",

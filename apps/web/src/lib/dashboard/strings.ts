@@ -65,15 +65,15 @@ export const ACTION_ROWS: Record<
     },
     zeroBidClosingSoon: {
       text: "satın alma talebiniz teklifsiz kapanmak üzere",
-      href: "/company/satinalma/ihalelerim",
+      href: "/company/satinalma/taleplerim",
     },
     closingSoon: {
       text: "satın alma talebiniz kapanmak üzere",
-      href: "/company/satinalma/ihalelerim",
+      href: "/company/satinalma/taleplerim",
     },
     awaitingDecision: {
       text: "satın alma talebinizde karar bekleyen teklif var",
-      href: "/company/satinalma/ihalelerim",
+      href: "/company/satinalma/taleplerim",
     },
     pendingApprovals: {
       text: "kazandırma onay bekliyor",
@@ -103,7 +103,7 @@ export const ACTION_ROWS: Record<
     },
     unansweredInvites: {
       text: "davete henüz teklif vermediniz",
-      href: "/company/satis/acik-ihaleler",
+      href: "/company/satis/acik-talepler",
     },
     expiringBids: {
       text: "teklifinizin geçerliliği dolmak üzere",

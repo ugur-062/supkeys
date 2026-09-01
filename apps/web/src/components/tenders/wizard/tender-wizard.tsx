@@ -421,7 +421,7 @@ export function TenderWizard({
     else if (isEdit && listingId) router.push(`/company/ilan/${listingId}`);
     else
       router.push(
-        isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/ihalelerim",
+        isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/taleplerim",
       );
   };
 

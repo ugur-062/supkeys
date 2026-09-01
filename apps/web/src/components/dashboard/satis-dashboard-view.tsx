@@ -104,7 +104,7 @@ export function SatisDashboardView() {
             <TcmbRatesChip />
           </div>
           <Link
-            href="/company/satis/acik-ihaleler"
+            href="/company/satis/acik-talepler"
             className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
           >
             Satın Alma Taleplerini Görüntüle
@@ -133,13 +133,13 @@ export function SatisDashboardView() {
               key: "discover",
               label: "Açık satın alma taleplerini keşfet",
               done: false,
-              href: "/company/satis/acik-ihaleler",
+              href: "/company/satis/acik-talepler",
             },
             {
               key: "bid",
               label: "İlk teklifini ver",
               done: false,
-              href: "/company/satis/acik-ihaleler",
+              href: "/company/satis/acik-talepler",
             },
           ]}
         />
@@ -229,7 +229,7 @@ export function SatisDashboardView() {
         <KpiCard
           label="Yanıt Bekleyen Davet"
           value={val(analytics.data?.actions.unansweredInvites)}
-          href="/company/satis/acik-ihaleler"
+          href="/company/satis/acik-talepler"
           accent="emerald"
           attention={(analytics.data?.actions.unansweredInvites ?? 0) > 0}
           hint={

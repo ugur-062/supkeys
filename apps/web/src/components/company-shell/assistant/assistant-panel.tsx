@@ -348,7 +348,7 @@ export function AssistantPanel({
     sessionStorage.setItem("ai-tender-draft", JSON.stringify(draft));
     router.push(
       isBuyer
-        ? "/company/satinalma/ihalelerim/yeni?ai=1"
+        ? "/company/satinalma/taleplerim/yeni?ai=1"
         : "/company/satis/ilanlarim/yeni?ai=1",
     );
   };

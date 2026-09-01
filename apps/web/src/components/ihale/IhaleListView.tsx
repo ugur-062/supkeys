@@ -104,7 +104,7 @@ export function IhaleListView({
     const createHref =
       listingType === "SATIS"
         ? "/company/satis/ilanlarim/yeni"
-        : "/company/satinalma/ihalelerim/yeni";
+        : "/company/satinalma/taleplerim/yeni";
     return (
       <EmptyState
         icon={ClipboardList}

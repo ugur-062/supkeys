@@ -170,7 +170,7 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
               title="Henüz tasarruf verisi yok"
               body="İlk satın alma talebinizi sonuçlandırdığınızda (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
               ctaLabel="Satın Alma Talebi Aç"
-              ctaHref="/company/satinalma/ihalelerim/yeni"
+              ctaHref="/company/satinalma/taleplerim/yeni"
             />
           )}
         </ChartCard>

@@ -241,7 +241,7 @@ export function CompanySidebarContent({
           <Link
             href={
               active === "satinalma"
-                ? "/company/satinalma/ihalelerim/yeni"
+                ? "/company/satinalma/taleplerim/yeni"
                 : "/company/satis/ilanlarim/yeni"
             }
             onClick={onNavigate}

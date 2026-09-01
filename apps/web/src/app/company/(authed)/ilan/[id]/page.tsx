@@ -1777,10 +1777,10 @@ export default function ListingDetailPage() {
   // ilanı gördüğü listeye döner (?from= her zaman öncelikli).
   const defaultBack = l.isOwner
     ? isAlim
-      ? { href: "/company/satinalma/ihalelerim", label: "Taleplerim" }
+      ? { href: "/company/satinalma/taleplerim", label: "Taleplerim" }
       : { href: "/company/satis/ilanlarim", label: "Satış İlanlarım" }
     : isAlim
-      ? { href: "/company/satis/acik-ihaleler", label: "Açık Talepler" }
+      ? { href: "/company/satis/acik-talepler", label: "Açık Talepler" }
       : { href: "/company/satinalma/satin-al", label: "Satın Al" };
   const breadcrumb = (
     <Link

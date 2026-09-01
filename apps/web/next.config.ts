@@ -30,6 +30,44 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+
+  /**
+   * "ihale" → "satın alma talebi" yeniden adlandırmasının URL bacağı
+   * (2026-09-01). ESKİ adresler KALICI olarak yenisine yönlenir.
+   *
+   * Neden şart: gönderilmiş e-postalardaki CTA linkleri eski adresi taşıyor
+   * ve o e-postalar geri alınamaz — yönlendirme olmadan kullanıcı 404 görür.
+   * Ayrıca kayıtlı yer imleri ve dış bağlantılar da kırılırdı.
+   *
+   * `permanent: true` → 308 (301'in yöntem-koruyan karşılığı; tarayıcılar
+   * 301'de isteği GET'e çeviriyordu). Alt yollar `:path*` ile taşınır, sorgu
+   * parametreleri Next tarafından otomatik aktarılır — yani
+   * `/…/ihalelerim/abc?tab=2` → `/…/taleplerim/abc?tab=2`.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/company/satinalma/ihalelerim/:path*",
+        destination: "/company/satinalma/taleplerim/:path*",
+        permanent: true,
+      },
+      {
+        source: "/company/satis/acik-ihaleler/:path*",
+        destination: "/company/satis/acik-talepler/:path*",
+        permanent: true,
+      },
+      {
+        source: "/company/satinalma/sablonlar/ihale/:path*",
+        destination: "/company/satinalma/sablonlar/talep/:path*",
+        permanent: true,
+      },
+      {
+        source: "/company/satis/sablonlar/ihale/:path*",
+        destination: "/company/satis/sablonlar/ilan/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

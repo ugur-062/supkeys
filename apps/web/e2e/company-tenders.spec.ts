@@ -19,7 +19,7 @@ async function login(page: import("@playwright/test").Page) {
 
 test("giriş yapıp İhalelerim listesini görür", async ({ page }) => {
   await login(page);
-  await page.goto("/company/satinalma/ihalelerim");
+  await page.goto("/company/satinalma/taleplerim");
   await expect(
     page.getByRole("link", { name: /Yeni İhale Aç/ }),
   ).toBeVisible();
@@ -30,7 +30,7 @@ test("giriş yapıp İhalelerim listesini görür", async ({ page }) => {
 
 test("Yeni İhale Aç sihirbazını açar", async ({ page }) => {
   await login(page);
-  await page.goto("/company/satinalma/ihalelerim");
+  await page.goto("/company/satinalma/taleplerim");
   await page.getByRole("link", { name: /Yeni İhale Aç/ }).click();
   await page.waitForURL(/\/ihalelerim\/yeni/, { timeout: 20_000 });
   // Sihirbazın ilk adımı (tür/kapsam) yüklendi.

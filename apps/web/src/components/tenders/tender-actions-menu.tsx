@@ -133,7 +133,7 @@ export function TenderActionsMenu({
     try {
       await deleteListing.mutateAsync(id);
       toast.success("Taslak silindi");
-      router.push(isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/ihalelerim");
+      router.push(isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/taleplerim");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Silinemedi"));
     }
@@ -314,7 +314,7 @@ export function TenderActionsMenu({
       {/* Karma: önemli aksiyonlar görünür buton, kalanı ⋮ menüsünde (eski sistem) */}
       <div className="flex flex-wrap items-center gap-2">
         {canEdit ? (
-          <Button outline href={isSatis ? `/company/satis/ilanlarim/${id}/duzenle` : `/company/satinalma/ihalelerim/${id}/duzenle`}>
+          <Button outline href={isSatis ? `/company/satis/ilanlarim/${id}/duzenle` : `/company/satinalma/taleplerim/${id}/duzenle`}>
             Satın Alma Talebini Düzenle
           </Button>
         ) : null}
@@ -385,7 +385,7 @@ export function TenderActionsMenu({
               <DropdownLabel>İç Notlar</DropdownLabel>
             </DropdownItem>
             <DropdownItem
-              href={isSatis ? `/company/satis/ilanlarim/yeni?from=${id}` : `/company/satinalma/ihalelerim/yeni?from=${id}`}
+              href={isSatis ? `/company/satis/ilanlarim/yeni?from=${id}` : `/company/satinalma/taleplerim/yeni?from=${id}`}
             >
               <DropdownLabel>Satın Alma Talebini Kopyala</DropdownLabel>
             </DropdownItem>

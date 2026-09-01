@@ -85,7 +85,7 @@ export function SatisGelirTab({
             title="Henüz gelir verisi yok"
             body="İlk satışın siparişe dönüştüğünde aylık gelir burada birikecek."
             ctaLabel="Açık Taleplere Göz At"
-            ctaHref="/company/satis/acik-ihaleler"
+            ctaHref="/company/satis/acik-talepler"
           />
         )}
       </ChartCard>
@@ -150,7 +150,7 @@ export function SatisGelirTab({
             title="Satış hunisi boş"
             body="Davet alıp teklif verdikçe aşamalar burada dolacak."
             ctaLabel="Açık Taleplere Göz At"
-            ctaHref="/company/satis/acik-ihaleler"
+            ctaHref="/company/satis/acik-talepler"
           />
         )}
       </ChartCard>
@@ -192,7 +192,7 @@ export function SatisMusteriTab({
                 ⚠ Konsantrasyon riski
               </span>
               <Link
-                href="/company/satis/acik-ihaleler"
+                href="/company/satis/acik-talepler"
                 className="whitespace-nowrap text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
               >
                 Açık satın alma taleplerine göz at
@@ -310,7 +310,7 @@ export function SatisMusteriTab({
         rangeBadge="son 12 ay"
         subtitle="Teklif verilmeden süresi dolan davetler (son 12 ay)"
         ariaLabel="Kaçırılan fırsatlar"
-        href="/company/satis/acik-ihaleler"
+        href="/company/satis/acik-talepler"
       >
         {analytics.missed.count > 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-1">

@@ -468,7 +468,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
                 href={
                   isPurchase
                     ? "/company/satinalma/satin-al"
-                    : "/company/satis/acik-ihaleler"
+                    : "/company/satis/acik-talepler"
                 }
                 className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
               >

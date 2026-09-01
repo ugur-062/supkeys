@@ -41,9 +41,9 @@ type SubTab = "own" | "company";
 /** Faz 5 — huni aşaması → filtreli liste (birebir filtre yoksa düz liste;
  *  yanlış filtre vermekten iyidir). */
 const FUNNEL_STAGE_HREF: Record<string, string> = {
-  listings: "/company/satinalma/ihalelerim",
-  bids: "/company/satinalma/ihalelerim",
-  awarded: "/company/satinalma/ihalelerim?status=AWARDED",
+  listings: "/company/satinalma/taleplerim",
+  bids: "/company/satinalma/taleplerim",
+  awarded: "/company/satinalma/taleplerim?status=AWARDED",
   orders: "/company/satinalma/siparisler",
   delivered: "/company/satinalma/siparisler?status=DELIVERED",
 };
@@ -125,14 +125,14 @@ export function SatinalmaIhaleTab({
         <KpiCard
           label="Açık Satın Alma Taleplerim"
           value={data.openCount}
-          href="/company/satinalma/ihalelerim?status=OPEN"
+          href="/company/satinalma/taleplerim?status=OPEN"
           accent="blue"
           spark={analytics?.kpiSeries.listings}
         />
         <KpiCard
           label="Gelen Teklifler"
           value={data.bidsReceived}
-          href="/company/satinalma/ihalelerim?status=IN_AWARD"
+          href="/company/satinalma/taleplerim?status=IN_AWARD"
           accent="blue"
           attention={(analytics?.actions.awaitingDecision ?? 0) > 0}
           hint={
@@ -146,7 +146,7 @@ export function SatinalmaIhaleTab({
         <KpiCard
           label="Kazandırılan Satın Alma Talepleri"
           value={data.awarded}
-          href="/company/satinalma/ihalelerim?status=AWARDED"
+          href="/company/satinalma/taleplerim?status=AWARDED"
           accent="blue"
           deltaPct={analytics?.deltas.awarded}
           spark={analytics?.kpiSeries.awarded}
@@ -167,7 +167,7 @@ export function SatinalmaIhaleTab({
           title="Süreç Hunisi"
           subtitle="Dönemde açılan satın alma taleplerin bugünkü aşaması (kohort — her aşama öncekinin alt kümesi)"
           ariaLabel="Satınalma süreç hunisi"
-          href="/company/satinalma/ihalelerim"
+          href="/company/satinalma/taleplerim"
         >
           {analytics && analytics.funnel[0]!.count > 0 ? (
             <FunnelChart
@@ -182,7 +182,7 @@ export function SatinalmaIhaleTab({
               title="Henüz huni verisi yok"
               body="İlk satın alma talebinizi açıp teklif topladığınızda süreç dönüşümü burada görünecek."
               ctaLabel="Satın Alma Talebi Aç"
-              ctaHref="/company/satinalma/ihalelerim/yeni"
+              ctaHref="/company/satinalma/taleplerim/yeni"
             />
           )}
         </ChartCard>
@@ -234,7 +234,7 @@ export function SatinalmaIhaleTab({
             </h2>
           </div>
           <Link
-            href="/company/satinalma/ihalelerim"
+            href="/company/satinalma/taleplerim"
             className="text-sm font-semibold text-zinc-900 hover:text-zinc-600"
           >
             Tümünü İncele →

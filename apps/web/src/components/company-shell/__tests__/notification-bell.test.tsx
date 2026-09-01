@@ -57,7 +57,7 @@ describe("NotificationBell", () => {
         type: "listing_category_match",
         title: "Kategorinize uygun yeni satın alma talebi",
         body: "Eşleşen satın alma talebi yayınlandı",
-        ctaUrl: "https://app.local/company/satis/acik-ihaleler",
+        ctaUrl: "https://app.local/company/satis/acik-talepler",
         ctaLabel: "Açık Satın Alma Taleplerini Gör",
         listingId: "l1",
         readAt: null,
@@ -74,7 +74,7 @@ describe("NotificationBell", () => {
     await user.click(screen.getByText("Kategorinize uygun yeni satın alma talebi"));
     expect(h.markRead).toHaveBeenCalledWith(["n1"]);
     // Mutlak URL host'u soyulur → SPA path'i push edilir.
-    expect(h.push).toHaveBeenCalledWith("/company/satis/acik-ihaleler");
+    expect(h.push).toHaveBeenCalledWith("/company/satis/acik-talepler");
   });
 
   it("boşken 'bildiriminiz yok' mesajı", async () => {
