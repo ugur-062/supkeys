@@ -2851,3 +2851,275 @@
 40171516	Ticari demir dışı boru	Commercial non ferrous pipe
 40171517	Ticari PVC boru	Commercial PVC pipe
 40171518	Ticari CPVC boru	Commercial CPVC pipe
+
+# Boru bağlantı elemanları bloğu — kural tabanlı üretildi + denetlendi.
+40171521	Ticari kaynaklı paslanmaz çelik boru	Commercial welded stainless steel pipe
+40171522	Ticari dikişsiz paslanmaz çelik boru	Commercial seamless stainless steel pipe
+40171523	Ticari kalay boru	Commercial tin pipe
+40171524	Ticari titanyum boru	Commercial titanium pipe
+40171525	Ticari çinko boru	Commercial zinc pipe
+40171526	Ticari cam boru	Commercial glass pipe
+40171527	Ticari kaynaklı oluklu galvanizli boru	Commercial welded corrugated galvanized pipe
+40171601	Endüstriyel kaynaklı karbon çeliği boru	Industrial welded carbon steel pipe
+40171602	Endüstriyel dikişsiz karbon çeliği boru	Industrial seamless carbon steel pipe
+40171603	Endüstriyel sfero döküm boru	Industrial ductile iron pipe
+40171604	Endüstriyel yüksek nikelli alaşım boru	Industrial high nickel alloy pipe
+40171605	Endüstriyel yüksek akma dayanımlı çelik boru	Industrial high yield steel pipe
+40171606	Endüstriyel demir alaşımı boru	Industrial ferrous alloy pipe
+40171607	Endüstriyel alüminyum boru	Industrial aluminum pipe
+40171608	Endüstriyel pirinç boru	Industrial brass pipe
+40171609	Endüstriyel bronz boru	Industrial bronze pipe
+40171610	Endüstriyel beton boru	Industrial concrete pipe
+40171611	Endüstriyel bakır boru	Industrial copper pipe
+40171612	Endüstriyel dökme demir boru	Industrial cast iron pipe
+40171614	Endüstriyel kurşun boru	Industrial lead pipe
+40171615	Endüstriyel magnezyum boru	Industrial magnesium pipe
+40171616	Endüstriyel demir dışı boru	Industrial non ferrous pipe
+40171621	Endüstriyel kaynaklı paslanmaz çelik boru	Industrial welded stainless steel pipe
+40171622	Endüstriyel dikişsiz paslanmaz çelik boru	Industrial seamless stainless steel pipe
+40171623	Endüstriyel kalay boru	Industrial tin pipe
+40171624	Endüstriyel titanyum boru	Industrial titanium pipe
+40171625	Endüstriyel çinko boru	Industrial zinc pipe
+40171626	Endüstriyel cam boru	Industrial glass pipe
+40171701	Pirinç boru adaptörü	Brass pipe adapter
+40171702	Karbon çeliği boru adaptörü	Carbon steel pipe adapter
+40171703	Dökme demir boru adaptörü	Cast iron pipe adapter
+40171704	Sfero döküm boru adaptörü	Ductile iron pipe adapter
+40171705	Dövme çelik boru adaptörü	Forged steel pipe adapter
+40171706	Temper döküm boru adaptörü	Malleable iron pipe adapter
+40171707	Paslanmaz çelik boru adaptörü	Stainless steel pipe adapter
+40171801	Karbon çeliği boru açılı yüzey halkası	Carbon steel pipe angle face ring
+40171802	Dövme çelik boru açılı yüzey halkası	Forged steel pipe angle face ring
+40171803	Paslanmaz çelik boru açılı yüzey halkası	Stainless steel pipe angle face ring
+40171901	Karbon çeliği boru destek flanşı	Carbon steel pipe backup flange
+40171902	Dövme çelik boru destek flanşı	Forged steel pipe backup flange
+40171903	Paslanmaz çelik boru destek flanşı	Stainless steel pipe backup flange
+40171904	Sfero döküm boru destek flanşı	Ductile iron pipe backup flange
+40171905	Bakır boru destek flanşı	Copper pipe backup flange
+40171906	Alüminyum boru yedek flanşı	Aluminum pipe reserve flange
+40171907	Galvanizli demir boru yedek flanşı	Galvanized iron pipe reserve flange
+40172001	Pirinç boru şaşırtma levhası	Brass pipe baffle
+40172002	Sfero döküm boru şaşırtma levhası	Ductile iron pipe baffle
+40172003	Dövme çelik boru şaşırtma levhası	Forged steel pipe baffle
+40172004	Paslanmaz çelik boru şaşırtma levhası	Stainless steel pipe baffle
+40172101	Dökme demir boru bükümü	Cast iron pipe bend
+40172102	Temper döküm boru bükümü	Malleable iron pipe bend
+40172103	Bakır boru bükümü	Copper pipe bend
+40172104	Galvanizli demir boru bükümü	Galvanized iron pipe bend
+40172105	Karbon çeliği boru bükümü	Carbon steel pipe bend
+40172106	Dubleks çelik boru bükümü	Duplex steel pipe bend
+40172107	Paslanmaz çelik boru bükümü	Stainless steel pipe bend
+40172108	Titanyum boru bükümü	Titanium pipe bend
+40172201	Karbon çeliği boru kör flanşı	Carbon steel pipe blind flange
+40172202	Dökme demir boru kör flanşı	Cast iron pipe blind flange
+40172203	Sfero döküm boru kör flanşı	Ductile iron pipe blind flange
+40172204	Dövme çelik boru kör flanşı	Forged steel pipe blind flange
+40172205	Paslanmaz çelik boru kör flanşı	Stainless steel pipe blind flange
+40172206	Bakır boru kör flanşı	Copper pipe blind flange
+40172207	Galvanizli demir boru kör flanşı	Galvanized iron pipe blind flange
+40172301	Pirinç boru burcu	Brass pipe bushing
+40172302	Karbon çeliği boru burcu	Carbon steel pipe bushing
+40172303	Dökme demir boru burcu	Cast iron pipe bushing
+40172304	Sfero döküm boru burcu	Ductile iron pipe bushing
+40172305	Dövme çelik boru burcu	Forged steel pipe bushing
+40172306	Temper döküm boru burcu	Malleable iron pipe bushing
+40172307	Paslanmaz çelik boru burcu	Stainless steel pipe bushing
+40172312	Bakır boru burcu	Copper pipe bushing
+40172313	Kauçuk boru burcu	Rubber pipe bushing
+40172314	Galvanizli çelik boru burcu	Galvanized steel pipe bushing
+40172315	Bronz boru burcu	Bronze pipe bushing
+40172401	Pirinç boru kapağı	Brass pipe cap
+40172402	Karbon çeliği boru kapağı	Carbon steel pipe cap
+40172403	Dökme demir boru kapağı	Cast iron pipe cap
+40172404	Sfero döküm boru kapağı	Ductile iron pipe cap
+40172405	Dövme çelik boru kapağı	Forged steel pipe cap
+40172406	Temper döküm boru kapağı	Malleable iron pipe cap
+40172407	Paslanmaz çelik boru kapağı	Stainless steel pipe cap
+40172412	Bakır boru kapağı	Copper pipe cap
+40172413	Kauçuk boru kapağı	Rubber pipe cap
+40172414	Galvanizli demir boru kapağı	Galvanized iron pipe cap
+40172501	Pirinç boru bağlantı elemanı	Brass pipe connector
+40172502	Karbon çeliği boru bağlantı elemanı	Carbon steel pipe connector
+40172503	Dökme demir boru bağlantı elemanı	Cast iron pipe connector
+40172504	Sfero döküm boru bağlantı elemanı	Ductile iron pipe connector
+40172505	Dövme çelik boru bağlantı elemanı	Forged steel pipe connector
+40172506	Temper döküm boru bağlantı elemanı	Malleable iron pipe connector
+40172507	Paslanmaz çelik boru bağlantı elemanı	Stainless steel pipe connector
+40172512	Cam elyaf takviyeli termoset plastik boru bağlantı elemanı	Glass reinforced thermosetting plastic pipe connector
+40172513	Esnek boru bağlantı elemanı	Flexible pipe connector
+40172514	Ön yalıtımlı boru bağlantı elemanı	Preinsulated pipe connector
+40172515	Polibütilen boru bağlantı elemanı	Polybutylene pipe connector
+40172516	Polietilen boru bağlantı elemanı	Polyethylene pipe connector
+40172517	Polipropilen boru bağlantı elemanı	Polypropylene pipe connector
+40172518	Kaplamalı çelik boru bağlantı elemanı	Coated steel pipe connector
+40172519	Alüminyum ve alüminyum alaşımı boru bağlantı elemanı	Aluminium and aluminium alloy pipe connector
+40172520	Sert PVC boru bağlantı elemanı	Rigid polyvinyl chloride pipe connector
+40172521	Bakır ve bakır alaşımı boru bağlantı elemanı	Copper and copper alloy pipe connector
+40172522	Esnek boru bağlantısı	Flexible pipe joint
+40172523	Oluklu boru bağlantı elemanı	Corrugated pipe connector
+40172601	Pirinç boru kaplini	Brass pipe coupling
+40172602	Karbon çeliği boru kaplini	Carbon steel pipe coupling
+40172603	Dökme demir boru kaplini	Cast iron pipe coupling
+40172604	Sfero döküm boru kaplini	Ductile iron pipe coupling
+40172605	Dövme çelik boru kaplini	Forged steel pipe coupling
+40172606	Temper döküm boru kaplini	Malleable iron pipe coupling
+40172607	Paslanmaz çelik boru kaplini	Stainless steel pipe coupling
+40172612	Bakır boru kaplini	Copper pipe coupling
+40172613	Galvanizli demir boru kaplini	Galvanized iron pipe coupling
+40172701	Pirinç boru dört yollu bağlantısı	Brass pipe cross
+40172702	Karbon çeliği boru dört yollu bağlantısı	Carbon steel pipe cross
+40172703	Dökme demir boru dört yollu bağlantısı	Cast iron pipe cross
+40172704	Sfero döküm boru dört yollu bağlantısı	Ductile iron pipe cross
+40172705	Dövme çelik boru dört yollu bağlantısı	Forged steel pipe cross
+40172706	Temper döküm boru dört yollu bağlantısı	Malleable iron pipe cross
+40172707	Paslanmaz çelik boru dört yollu bağlantısı	Stainless steel pipe cross
+40172712	Bakır boru dört yollu bağlantısı	Copper pipe cross
+40172801	Pirinç boru dirseği	Brass pipe elbow
+40172802	Karbon çeliği boru dirseği	Carbon steel pipe elbow
+40172803	Dökme demir boru dirseği	Cast iron pipe elbow
+40172804	Sfero döküm boru dirseği	Ductile iron pipe elbow
+40172805	Dövme çelik boru dirseği	Forged steel pipe elbow
+40172806	Temper döküm boru dirseği	Malleable iron pipe elbow
+40172807	Paslanmaz çelik boru dirseği	Stainless steel pipe elbow
+40172812	Bakır boru dirseği	Copper pipe elbow
+40172813	Alüminyum boru dirseği	Aluminum pipe elbow
+40172814	Galvanizli demir boru dirseği	Galvanized iron pipe elbow
+40172815	Galvanizli çelik boru dirseği	Galvanized steel pipe elbow
+40172901	Karbon çeliği boru genleşme kompansatörü	Carbon steel pipe expansion joint
+40172902	Dökme demir boru genleşme kompansatörü	Cast iron pipe expansion joint
+40172903	Sfero döküm boru genleşme kompansatörü	Ductile iron pipe expansion joint
+40172904	Dövme çelik boru genleşme kompansatörü	Forged steel pipe expansion joint
+40172905	Paslanmaz çelik boru genleşme kompansatörü	Stainless steel pipe expansion joint
+40172910	Kauçuk boru genleşme kompansatörü	Rubber pipe expansion joint
+40172911	Bakır boru genleşme kompansatörü	Copper pipe expansion joint
+40173001	Pirinç boru yarım kaplini	Brass pipe half coupling
+40173002	Karbon çeliği boru yarım kaplini	Carbon steel pipe half coupling
+40173003	Dövme çelik boru yarım kaplini	Forged steel pipe half coupling
+40173004	Temper döküm boru yarım kaplini	Malleable iron pipe half coupling
+40173005	Paslanmaz çelik boru yarım kaplini	Stainless steel pipe half coupling
+40173101	Karbon çeliği boru lapjoint flanşı	Carbon steel pipe lapjoint flange
+40173102	Dövme çelik boru lapjoint flanşı	Forged steel pipe lapjoint flange
+40173103	Paslanmaz çelik boru lapjoint flanşı	Stainless steel pipe lapjoint flange
+40173104	Bakır boru lapjoint flanşı	Copper pipe lapjoint flange
+40173201	Karbon çeliği boru uzun boyunlu kaynak flanşı	Carbon steel pipe long weldneck flange
+40173202	Dövme çelik boru uzun boyunlu kaynak flanşı	Forged steel pipe long weldneck flange
+40173203	Paslanmaz çelik boru uzun boyunlu kaynak flanşı	Stainless steel pipe long weldneck flange
+40173301	Pirinç boru nipeli	Brass pipe nipple
+40173302	Karbon çeliği boru nipeli	Carbon steel pipe nipple
+40173303	Paslanmaz çelik boru nipeli	Stainless steel pipe nipple
+40173308	Bakır boru nipeli	Copper pipe nipple
+40173309	Galvanizli demir boru nipeli	Galvanized iron pipe nipple
+40173310	Sfero döküm boru nipeli	Ductile iron pipe nipple
+40173401	Pirinç boru plaka flanşı	Brass pipe plate flange
+40173402	Karbon çeliği boru plaka flanşı	Carbon steel pipe plate flange
+40173403	Dökme demir boru plaka flanşı	Cast iron pipe plate flange
+40173404	Sfero döküm boru plaka flanşı	Ductile iron pipe plate flange
+40173405	Temper döküm boru plaka flanşı	Malleable iron pipe plate flange
+40173406	Paslanmaz çelik boru plaka flanşı	Stainless steel pipe plate flange
+40173409	Bakır boru plaka flanşı	Copper pipe plate flange
+40173501	Pirinç boru tapası	Brass pipe plug
+40173502	Karbon çeliği boru tapası	Carbon steel pipe plug
+40173503	Dökme demir boru tapası	Cast iron pipe plug
+40173504	Sfero döküm boru tapası	Ductile iron pipe plug
+40173505	Dövme çelik boru tapası	Forged steel pipe plug
+40173506	Temper döküm boru tapası	Malleable iron pipe plug
+40173507	Paslanmaz çelik boru tapası	Stainless steel pipe plug
+40173512	Bakır boru tapası	Copper pipe plug
+40173513	Kauçuk boru tapası	Rubber pipe plug
+40173514	Alüminyum boru tapası	Aluminum pipe plug
+40173515	Galvanizli demir boru tapası	Galvanized iron pipe plug
+40173601	Pirinç boru redüksiyon kaplini	Brass pipe reducing coupling
+40173602	Karbon çeliği boru redüksiyon kaplini	Carbon steel pipe reducing coupling
+40173603	Dökme demir boru redüksiyon kaplini	Cast iron pipe reducing coupling
+40173604	Sfero döküm boru redüksiyon kaplini	Ductile iron pipe reducing coupling
+40173605	Dövme çelik boru redüksiyon kaplini	Forged steel pipe reducing coupling
+40173606	Temper döküm boru redüksiyon kaplini	Malleable iron pipe reducing coupling
+40173607	Paslanmaz çelik boru redüksiyon kaplini	Stainless steel pipe reducing coupling
+40173612	Kauçuk boru redüksiyon kaplini	Rubber pipe reducing coupling
+40173613	Bakır boru redüksiyon kaplini	Copper pipe reducing coupling
+40173614	Alüminyum boru redüksiyon kaplini	Aluminum pipe reducing coupling
+40173615	Galvanizli demir boru redüksiyon kaplini	Galvanized iron pipe reducing coupling
+40173701	Pirinç boru redüksiyon flanşı	Brass pipe reducing flange
+40173702	Dökme demir boru redüksiyon flanşı	Cast iron pipe reducing flange
+40173703	Sfero döküm boru redüksiyon flanşı	Ductile iron pipe reducing flange
+40173704	Dövme çelik boru redüksiyon flanşı	Forged steel pipe reducing flange
+40173705	Temper döküm boru redüksiyon flanşı	Malleable iron pipe reducing flange
+40173706	Paslanmaz çelik boru redüksiyon flanşı	Stainless steel pipe reducing flange
+40173711	Bakır boru redüksiyon flanşı	Copper pipe reducing flange
+40173801	Dökme demir boru tamir kelepçesi	Cast iron pipe repair clamp
+40173802	Sfero döküm boru tamir kelepçesi	Ductile iron pipe repair clamp
+40173803	Dövme çelik boru tamir kelepçesi	Forged steel pipe repair clamp
+40173804	Paslanmaz çelik boru tamir kelepçesi	Stainless steel pipe repair clamp
+40173901	Karbon çeliği boru patlama diski	Carbon steel pipe rupture disk
+40173902	Dökme demir boru patlama diski	Cast iron pipe rupture disk
+40173903	Sfero döküm boru patlama diski	Ductile iron pipe rupture disk
+40173904	Dövme çelik boru patlama diski	Forged steel pipe rupture disk
+40173905	Temper döküm boru patlama diski	Malleable iron pipe rupture disk
+40173906	Paslanmaz çelik boru patlama diski	Stainless steel pipe rupture disk
+40174001	Pirinç boru kaymalı flanşı	Brass pipe slipon flange
+40174002	Karbon çeliği boru kaymalı flanşı	Carbon steel pipe slipon flange
+40174003	Dökme demir boru kaymalı flanşı	Cast iron pipe slipon flange
+40174004	Sfero döküm boru kaymalı flanşı	Ductile iron pipe slipon flange
+40174005	Dövme çelik boru kaymalı flanşı	Forged steel pipe slipon flange
+40174006	Paslanmaz çelik boru kaymalı flanşı	Stainless steel pipe slipon flange
+40174007	Bakır boru kaymalı flanşı	Copper pipe slipon flange
+40174101	Karbon çeliği boru soket kaynaklı flanşı	Carbon steel pipe socketweld flange
+40174102	Dövme çelik boru soket kaynaklı flanşı	Forged steel pipe socketweld flange
+40174103	Paslanmaz çelik boru soket kaynaklı flanşı	Stainless steel pipe socketweld flange
+40174108	Bakır boru soket kaynaklı flanşı	Copper pipe socketweld flange
+40174201	Karbon çeliği boru sockolet bağlantısı	Carbon steel pipe sockolet
+40174202	Dövme çelik boru sockolet bağlantısı	Forged steel pipe sockolet
+40174203	Paslanmaz çelik boru sockolet bağlantısı	Stainless steel pipe sockolet
+40174301	Pirinç boru ara parçası	Brass pipe spacer
+40174302	Karbon çeliği boru ara parçası	Carbon steel pipe spacer
+40174303	Dökme demir boru ara parçası	Cast iron pipe spacer
+40174304	Sfero döküm boru ara parçası	Ductile iron pipe spacer
+40174305	Dövme çelik boru ara parçası	Forged steel pipe spacer
+40174306	Paslanmaz çelik boru ara parçası	Stainless steel pipe spacer
+40174401	Karbon çeliği boru gözlük tipi kör flanşı	Carbon steel pipe spectacle blind flange
+40174402	Dövme çelik boru gözlük tipi kör flanşı	Forged steel pipe spectacle blind flange
+40174403	Paslanmaz çelik boru gözlük tipi kör flanşı	Stainless steel pipe spectacle blind flange
+40174501	Pirinç boru döner bağlantısı	Brass pipe swivel or rotating joint
+40174506	Bakır boru döner bağlantısı	Copper pipe swivel or rotating joint
+40174601	Pirinç boru te bağlantısı	Brass pipe tee
+40174602	Karbon çeliği boru te bağlantısı	Carbon steel pipe tee
+40174603	Dökme demir boru te bağlantısı	Cast iron pipe tee
+40174604	Sfero döküm boru te bağlantısı	Ductile iron pipe tee
+40174605	Dövme çelik boru te bağlantısı	Forged steel pipe tee
+40174606	Temper döküm boru te bağlantısı	Malleable iron pipe tee
+40174607	Paslanmaz çelik boru te bağlantısı	Stainless steel pipe tee
+40174612	Bakır boru te bağlantısı	Copper pipe tee
+40174613	Galvanizli demir boru te bağlantısı	Galvanized iron pipe tee
+40174701	Pirinç boru dişli flanşı	Brass pipe threaded flange
+40174702	Karbon çeliği boru dişli flanşı	Carbon steel pipe threaded flange
+40174703	Dökme demir boru dişli flanşı	Cast iron pipe threaded flange
+40174704	Sfero döküm boru dişli flanşı	Ductile iron pipe threaded flange
+40174705	Dövme çelik boru dişli flanşı	Forged steel pipe threaded flange
+40174706	Temper döküm boru dişli flanşı	Malleable iron pipe threaded flange
+40174707	Paslanmaz çelik boru dişli flanşı	Stainless steel pipe threaded flange
+40174801	Karbon çeliği boru klozet flanşı	Carbon steel pipe toilet flange
+40174802	Dökme demir boru klozet flanşı	Cast iron pipe toilet flange
+40174807	Pirinç boru klozet flanşı	Brass pipe toilet flange
+40174808	Bakır boru klozet flanşı	Copper pipe toilet flange
+40174901	Pirinç boru rakoru	Brass pipe union
+40174902	Karbon çeliği boru rakoru	Carbon steel pipe union
+40174903	Dökme demir boru rakoru	Cast iron pipe union
+40174904	Sfero döküm boru rakoru	Ductile iron pipe union
+40174905	Dövme çelik boru rakoru	Forged steel pipe union
+40174906	Temper döküm boru rakoru	Malleable iron pipe union
+40174907	Paslanmaz çelik boru rakoru	Stainless steel pipe union
+40174912	Bakır boru rakoru	Copper pipe union
+40175001	Karbon çeliği boru boyunlu kaynak flanşı	Carbon steel pipe weldneck flange
+40175002	Dövme çelik boru boyunlu kaynak flanşı	Forged steel pipe weldneck flange
+40175003	Paslanmaz çelik boru boyunlu kaynak flanşı	Stainless steel pipe weldneck flange
+40175101	Karbon çeliği boru weldolet bağlantısı	Carbon steel pipe weldolet
+40175102	Dövme çelik boru weldolet bağlantısı	Forged steel pipe weldolet
+40175103	Paslanmaz çelik boru weldolet bağlantısı	Stainless steel pipe weldolet
+40175201	Pirinç boru Y bağlantısı	Brass pipe wye
+40175202	Karbon çeliği boru Y bağlantısı	Carbon steel pipe wye
+40175203	Dökme demir boru Y bağlantısı	Cast iron pipe wye
+40175204	Sfero döküm boru Y bağlantısı	Ductile iron pipe wye
+40175205	Dövme çelik boru Y bağlantısı	Forged steel pipe wye
+40175206	Temper döküm boru Y bağlantısı	Malleable iron pipe wye
+40175207	Paslanmaz çelik boru Y bağlantısı	Stainless steel pipe wye
+40175212	Bakır boru Y bağlantısı	Copper pipe wye
