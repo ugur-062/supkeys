@@ -228,9 +228,26 @@ Hiyerarşi 8 haneli koddan türer, `parentId` = üst kod.
 kazanır ve yeniden üretimde kaybolmaz.
 
 ### Canlı durum
-16.227 kategori · **10.991 aktif** (38 segment) · **48.259 anahtar kelime**
-(8.178 kategoride). Karşılaştırma: Europages 26 sektör / 4.500 başlık /
-90.000 kelime.
+22.106 kategori · **16.867 aktif** (38 segment / 307 aile / 1.451 sınıf /
+15.071 yaprak). Karşılaştırma: Europages 26 sektör / 4.500 başlık / 90.000
+kelime (26 dilde).
+
+**İKİ SIFIR — katalog sağlık ölçütü:** `sınıfsız aile = 0` ve
+`yapraksız sınıf = 0`. Ağaçta hiçbir seviyede ÇIKMAZ SOKAK yok. 2026-09-01
+öncesi 45 aile tamamen sınıfsızdı (25'i segment 31'de) ve yaprak üreticisi
+oraları hiç göremiyordu — yalnız var olan sınıfların altını doldurur.
+Yeni kategori eklerken bu iki sayı 0 kalmalı:
+```sql
+SELECT COUNT(*) FROM categories f WHERE f."isActive" AND f.level=2
+  AND NOT EXISTS (SELECT 1 FROM categories c
+                  WHERE c."isActive" AND c.level=3 AND c."parentId"=f.id);
+```
+
+### Ad TEKİLLİĞİ (eşleşmeyi bölmemek için)
+Aynı ad iki düğümde olursa alıcı birini, satıcı diğerini seçer ve eşleşme
+sessizce bölünür. `gen-category-leaves` küresel tekillik uygular (DB adları +
+o ana dek üretilenler). UNSPSC'nin KENDİ içindeki 55 tekrarı bilinçli duruyor
+— standart veriyi yeniden adlandırmak ayrı bir karar.
 
 ### Arama
 TR-katlanmış `searchText = fold(nameTr + " " + keywords)` (`foldSearchText`,
@@ -268,7 +285,10 @@ pnpm --filter @rothern/db cleanup-categories -- --apply   # ŞART: seed hepsini 
 pnpm --filter @rothern/db gen-category-keywords    # eksik sözlükleri üret
 pnpm --filter @rothern/db apply-category-keywords  # reseed'siz canlıya
 ```
-`cleanup-categories` ATLANIRSA gizli 20 segment geri açılır. `seed-categories`
+`cleanup-categories` ATLANIRSA gizli 20 segment **ve** 3 gizli aile geri açılır
+(`HIDE_SEGMENT_CODES` + `HIDE_FAMILY_CODES`). Aile gizlemesi segment
+döngüsünden SONRA koşar — o döngü gizlenmemiş segmentin tüm altını aktive
+ettiği için önce koşsa hemen geri açılırdı. `seed-categories`
 sil+kur yapar ama FK yok (seçimler `categoryIds String[]` = kod) → firma/ilan
 seçimleri korunur; 2026-09-01 koşumunda doğrulandı (0 kırık referans).
 

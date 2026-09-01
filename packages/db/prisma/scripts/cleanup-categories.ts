@@ -279,6 +279,41 @@ async function main() {
     `   Aktif kategori: ${activeBefore} → ${activeAfter} (${delta >= 0 ? "+" : ""}${delta})`,
   );
 
+  // ÇIKMAZ SOKAK DENETİMİ — "iki sıfır" ölçütü.
+  //
+  // Ağaçta görünüp altında hiçbir şey olmayan bir düğüm, kullanıcı için kırık
+  // bir bağlantıdır: tıklar, boş ekran görür. 2026-09-01'de 45 aile bu
+  // durumdaydı ve KİMSE fark etmemişti, çünkü hiçbir yerde ölçülmüyordu.
+  // Yaprak üreticisi de göremez (yalnız var olan sınıfların altını doldurur).
+  // Bu yüzden ölçüm buraya, her koşumda görülecek yere konuldu.
+  const activeNow = await prisma.category.findMany({
+    where: { isActive: true },
+    select: { id: true, code: true, nameTr: true, level: true, parentId: true },
+  });
+  const childCount = new Map<string, number>();
+  for (const c of activeNow) {
+    if (c.parentId) childCount.set(c.parentId, (childCount.get(c.parentId) ?? 0) + 1);
+  }
+  const emptyFam = activeNow.filter((c) => c.level === 2 && !childCount.get(c.id));
+  const emptyCls = activeNow.filter((c) => c.level === 3 && !childCount.get(c.id));
+
+  console.log(`\n🔍 Çıkmaz sokak denetimi:`);
+  console.log(
+    `   sınıfsız aile : ${emptyFam.length}${emptyFam.length ? "  ⚠️" : "  ✅"}`,
+  );
+  console.log(
+    `   yapraksız sınıf: ${emptyCls.length}${emptyCls.length ? "  ⚠️" : "  ✅"}`,
+  );
+  for (const c of [...emptyFam, ...emptyCls].slice(0, 10)) {
+    console.log(`     ⚠️  ${c.code} ${c.nameTr.slice(0, 48)}`);
+  }
+  if (emptyFam.length || emptyCls.length) {
+    console.log(
+      `   → Ya sınıf/yaprak ekleyin (categories-custom.tsv +\n` +
+        `     gen-category-leaves) ya da HIDE_FAMILY_CODES'a alın.`,
+    );
+  }
+
   if (!isApply) {
     console.log("\n💡 Uygulamak için: pnpm --filter @rothern/db cleanup-categories -- --apply");
   } else {
