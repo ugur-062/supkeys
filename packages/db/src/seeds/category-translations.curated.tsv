@@ -4257,3 +4257,126 @@
 39121405	Kablo pabucu	Cable or wire lug
 39121421	Elektrik konnektör takımı	Electrical connector assembly
 39121431	Kablo rakoru	Cable gland connector
+
+# Elektrik: konnektör, devre koruma, iletim-dağıtım, şalter/anahtar.
+39121449	Tel veya kablo sıkma ek manşonu	Wire or cable compression splice
+39121450	Çekiç başlı klemens	Hammer head
+39121451	Branşman bağlantısı	Tap off
+39121452	Kablo eki	Cable joint
+39121453	Yengeç tipi kablo eki	Crab joint
+39121454	Akü kutup başı	Battery terminal
+39121455	Kalıplı elektrik konnektörü	Electrical insertion mold connector
+39121456	Trafo merkezi konnektörü	Substation connector
+39121457	Ekzotermik kaynak bağlantısı	Exothermic connector
+39121458	Tel veya kablo sıkma redüksiyonu	Wire or cable compression reducer
+39121459	PCB baskılı geçme başlık konnektörü	Printed circuit board PCB press fit header connector
+39121460	Filtreli başlık konnektörü	Filtered header connector
+39121461	Konnektör ve kablo keçesi	Connector and cable seal
+39121462	Telekomünikasyon konnektörü	Telecommunication connector
+39121463	Fiş jakı	Jack for plug
+39121464	EMT metal boru dirseği	Electrical metallic tubing EMT elbow
+39121465	Esnek örgülü iletken	Flexible braid
+39121466	Mekanik konnektör pabucu ve kapağı	Mechanical connector lug and cap
+39121467	Mekanik konnektör fişi ve kapağı	Mechanical connector plug and cap
+39121468	Giriş çıkış konnektör kapağı	Input output connector cover
+39121470	Sayaçlı priz	Billing type outlet
+39121568	Şönt reaktör	Shunt reactor
+39121569	Seri reaktör	Series reactor
+39121570	Tekrar kapamalı kesici (recloser)	Recloser
+39121631	Yüksek gerilim yağlı kesici	High voltage oil filled circuit breaker
+39121632	Şebeke koruma rölesi	Network protector
+39121633	Devre kesici	Circuit interruptor
+39121634	Parafudr	Surge arrestor
+39121635	Gerilim regülatörü	Voltage regulator
+39121636	Akım sınırlayıcı	Current limiter
+39121637	Ark bastırıcı	Arc suppressor
+39121638	Sigortalı ayırıcı	Fuse cutout
+39121639	Vakum kesici	Vacuum interruptor
+39121640	Hidrolik devre kesici	Hydraulic circuit breaker
+39121641	Kancalı sigorta	Hook fuse
+39121642	Vidalı sigorta	Screw fuse
+39121643	Aşırı gerilim koruma panosu	Surge protector panel
+39121644	Yüksek hızlı kesici	High speed circuit breaker
+39121645	Yağlı kesici	Oil circuit breaker
+39121646	Gazlı kesici	Gas circuit breaker
+39121647	Elektrostatik deşarj elemanı	Electrostatic discharger
+39121648	Topraklama katkı malzemesi	Earth additive
+39121649	Ark arıza kesici (AFCI)	Arc fault circuit interrupter
+39121723	Isı ile daralan boru	Heat shrinkable tube
+39121724	Konnektör montaj donanımı	Connector mounting hardware
+39121725	Kablo çekme çorabı	Electrical cable grip
+39121726	Kablo bağlama makinesi	Electrical cable lasher
+39121727	Elektrik izolatör çubuğu	Electrical insulator rod
+39121728	Yalıtım borusu	Insulating tube
+39121729	Elektrik uç seti	Electrical lead set
+39121730	Elektrik rozeti	Electrical rosette
+39121731	Kablo bağı seti	Cable tie kit
+39121803	Bina iklimlendirme kontrol sistemi	Building environmental control system
+39121911	Su geçirmez kilitli priz ve kapağı	Watertight locking outlet and cover
+39121912	Sigorta kilitleme elemanı	Fuse lockout
+39122004	İnverter sürücü parça ve aksesuarları	Inverter drive parts and accessories
+39122005	İnverter sürücü çıkış filtresi	Inverter drive output filter
+39122006	Değişken hızlı sürücü	Variable speed drive
+39122101	Kablo başlığı	Cable pothead
+39122102	Kademe değiştirici	Tap changer
+39122103	Elektrik direği	Utility pole
+39122104	Gergi teli	Guy wire
+39122105	Elektrik ara parçası	Electrical spacer
+39122106	Travers destek elemanı	Brace for crossarm
+39122107	Ahşap tesisat takozu	Wood wiring block
+39122108	Gergi teli ankraj çubuğu	Guy wire anchor rod
+39122109	Kare profil çelik travers	Square type steel crossarm
+39122110	Havai hat bağlantı pulu	Connecting washer for electric overhead line
+39122111	Katener hattı seksiyoner	Sectioning device on the electric car line
+39122112	İzolatör takım halkası	Insulator set eye
+39122113	Direk traversi	Utility pole crossarm
+39122114	Busbar branşman kutusu	Electrical bus way tap or bus tap
+39122115	Zırh çubuğu	Electrical armor rod
+39122116	Havai hat bağlantı elemanı	Overhead line link fitting
+39122117	Gergi direği askı boyunduruğu	Strain pole suspension yoke
+39122118	Klemens bloğu	Electrical wire block connector
+39122119	Enerji iletim çelik direği	Power transmission steel tower
+39122120	Direk kelepçesi	Utility pole band
+39122201	Kodlu anahtar	Code switch
+39122202	Bıçaklı şalter	Knife switch
+39122203	Hassas anahtar	Sensitive switch
+39122204	Devirmeli anahtar	Tumble switch
+39122205	Emniyet şalteri	Safety switch
+39122206	Dimmer anahtar	Dimmer switch
+39122207	Tamburlu şalter	Drum switch
+39122208	Zaman şalteri	Time switch
+39122209	Ani geçişli anahtar	Snap switch
+39122210	Basınç şalteri	Pressure switch
+39122212	Sürgülü anahtar	Slide switch
+39122213	Limit şalteri	Limit switch
+39122215	Ayarlı anahtar	Variable switch
+39122216	Buton anahtar	Push button switch
+39122217	Döner anahtar	Rotary switch
+39122218	Sigortasız şalter	Non fusible switch
+39122219	Seviye veya flatör şalteri	Level or float switch
+39122220	Radyo frekans (RF) anahtarı	Radio frequency RF switch
+39122221	Anahtar parça ve aksesuarı	Switch part or accessory
+39122222	Ayak pedalı anahtar	Foot switch
+39122223	Akış şalteri	Flow switch
+39122224	Anahtarlı kilit şalteri	Keylock switch
+39122225	Cıvalı anahtar	Mercury switch
+39122226	Basmalı (rocker) anahtar	Rocker switch
+39122227	Joystick anahtar veya kumanda	Joystick switch or control
+39122228	Vakum şalteri	Vacuum switch
+39122229	Sıcaklık şalteri	Temperature switch
+39122230	Yaklaşım sensörü anahtarı	Proximity switch
+39122231	Kombine cihaz anahtarı	Combination device switch
+39122232	Kombine anahtar	Combination switch
+39122233	Ayırıcı şalter	Disconnect switch
+39122234	Kilitli anahtar	Locking switch
+39122236	Hareket sensörlü anahtar	Occupancy or motion sensing switch
+39122237	Pano montajlı anahtar	Panel mount switch
+39122238	Fotosel anahtar	Photocell switch
+39122239	Zincirli anahtar	Pull chain switch
+39122240	Devir şalteri	Speed switch
+39122241	Reed anahtar	Reed switch
+39122242	Topraklama ayırıcısı	Ground switch
+39122243	Mikro anahtar	Micro switch
+39122244	Kesme şalteri	Cutout switch
+39122245	Manyetik anahtar	Magnetic switch
+39122246	Potansiyometre anahtarı	Electrical potentiometer switch
