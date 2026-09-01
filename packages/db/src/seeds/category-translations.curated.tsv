@@ -4128,3 +4128,132 @@
 27131524	Pnömatik havşa	Pneumatic countersink
 27131525	Pnömatik makas	Pneumatic shears
 27131526	Pnömatik pres	Pneumatic press
+
+# Aydınlatma (iç/dış/havacılık) + trafo, elektrik kutuları ve konnektörler.
+27131527	Pnömatik alet seti	Pneumatic tool set
+27131529	Pnömatik asansörler	Pneumatic elevators
+27131530	Pnömatik aletler ve aksesuarları	Pneumatic tools and accessories
+27131615	Pnömatik vakum jeneratörü	Pneumatic vacuum generator
+27151501	Biyoremediasyon yıkama sıvısı	Bioremediating washer fluid
+27151502	Biyoremediasyon yıkama filtresi	Bioremediating washer filter
+27151503	Biyoremediasyon yıkama aksesuarları	Bioremediating washer accessories
+39101624	Siyah ışık (UV lamba)	Black light
+39101625	Ksenon lamba	Xenon lamp
+39101626	Kripton lamba	Krypton lamp
+39101627	Ark lambası	Arc lamp
+39101628	LED lamba	Light emitting diode LED lamp
+39101629	LCD arka aydınlatma veya soğuk katot lamba	Liquid crystal display LCD backlight or cold cathode lamp
+39101804	Yüksek basınçlı sodyum lamba ateşleyicisi	High pressure sodium lamp ignitor
+39101805	Metal halide kuru kondansatör	Metal halide dry capacitor
+39101806	Yüksek basınçlı sodyum lamba kuru kondansatörü	High pressure sodium lamp dry capacitor
+39101807	Lamba T bağlantısı	Lamp tee
+39101907	Elektronik yüksek yoğunluklu deşarj (EHID) balast	Electronic high intensity discharge EHID ballast
+39111503	Duvar armatürü	Wall fixture
+39111512	Laboratuvar çalışma lambası	Laboratory task light
+39111521	Dekoratif tavan veya sıva altı armatür	Decorative ceiling or flush mount fixture
+39111528	Dolap altı armatür	Undercabinet fixture
+39111529	Aydınlatma gobosu	Lighting gobo
+39111530	Ticari downlight armatür	Commercial downlighting fixture
+39111531	Ticari downlight çerçevesi	Commercial downlighting trim
+39111532	Floresan yüksek tavan armatürü	Fluorescent high bay fixture
+39111533	Floresan bant armatür	Fluorescent strip
+39111534	Lensli gömme armatür	Lensed troffer
+39111535	Parabolik armatür	Parabolic fixture
+39111536	Makyaj aynası aydınlatması	Vanity lighting
+39111537	Spor aydınlatma armatürü	Sports lighting fixture
+39111538	Garaj veya sundurma armatürü	Garage or canopy lighting fixture
+39111539	Aydınlatma kutusu	Lighting box
+39111540	Oto lift aydınlatma sistemi	Auto lift lighting system
+39111541	İç mekan armatür aksesuarı	Interior lighting fixture accessory
+39111542	Büyüteçli lamba	Magnifying lamp
+39111543	Işıklı banyo aspiratörü	Bath fan with light
+39111544	LED armatür	Light emitting diode LED fixture
+39111545	Gece lambası	Domestic night light
+39111546	Yüksek tavan aydınlatması	High bay lighting
+39111547	Alçak tavan aydınlatması	Low bay lighting
+39111548	Hava temizlemeli LED armatür	Air purification and LED lighting fixture
+39111605	Peyzaj aydınlatması	Landscape lighting
+39111609	Aydınlatma direği ve donanımı	Lighting pole or post and hardware
+39111610	El feneri	Flashlight
+39111611	Projektör	Flood light
+39111612	Alan aydınlatması	Area lighting
+39111613	Güvenlik aydınlatması	Security lighting
+39111614	Posta kutusu armatürü	Mailbox lighting fixture
+39111615	Zemine gömme aydınlatma	Ingrade lighting
+39111616	Dış mekan aydınlatma aksesuarları	Outdoor lighting accessories
+39111617	Yenilenebilir enerjili sokak aydınlatması	Renewable energy street lighting
+39111618	Spor aydınlatma sistemi	Sports lighting system
+39111619	Geniş alan aydınlatma sistemi	Large area lighting system
+39111620	Dış mekan aplik	Outdoor sconce
+39111621	Heliport aydınlatma sistemleri	Heliport lighting systems
+39111623	Yaklaşma aydınlatma sistemi	Approach lighting system
+39111624	Yaklaşma aydınlatma direği	Approach lighting system mast
+39111626	Projektör armatür	Floodlight
+39111627	Rüzgar yönü göstergesi	Wind direction indicator
+39111628	Geri yansıtıcı işaret	Retroreflective marker
+39111630	Taksi yolu yönlendirme levhası	Taxiing guidance sign
+39111631	Havalimanı aydınlatma lambası	Airport lighting lamp
+39111632	Hassas yaklaşma açı gösterge sistemi	Precision approach path indicator system
+39111633	Engel aydınlatması	Obstacle lighting
+39111634	Havaalanı feneri	Aerodrome beacon
+39111815	Lamba ve armatür koruması	Lamp and lamp fixture guard
+39111817	Lamba montaj aksesuarı	Lamp mounting accessory
+39111821	Aydınlatma dönüşüm seti	Lighting retrofit kit
+39111822	Aydınlatma duvar braketi	Lighting wall bracket
+39111823	Aydınlatma direk başlığı	Lighting post cap
+39111824	Aydınlatma difüzör lensi	Lighting lens diffuser
+39111825	Lamba açılır kapağı	Lamp swing gate
+39111826	Aydınlatma kablo seti	Lighting cord set
+39111827	Aydınlatma reflektörü	Lighting reflector or reflecting baffle
+39111828	Armatür kapağı	Lighting fixture door
+39111829	Aydınlatma kanal kapağı	Lighting channel cover
+39111830	Aydınlatma çapraz kolu	Lighting cross arm
+39111831	Sarkıt armatür montaj aksesuarları	Suspended lighting fixture mounting accessories
+39111832	Havalimanı aydınlatma aksesuarları	Airport lighting accessory items
+39111903	Uzun ayak aydınlatması	Longwall lighting
+39111904	Denizcilik armatürü	Marine location fixture
+39111905	Temiz oda armatürü	Clean room light fixture
+39111906	Ağır hizmet armatürü	Rough service light fixture
+39111907	Buhar sızdırmaz armatür	Vapor tight light fixture
+39111908	Vandalizme dayanıklı armatür	Vandal resistant light fixture
+39111909	Özel ortam armatür aksesuarı	Special environment lighting fixture accessory
+39111910	Süs veya yılbaşı ağacı aydınlatması	Festive or christmas tree lighting
+39111911	Tavan vantilatörü aydınlatma seti	Ceiling fan light kit
+39112012	El veya uzatmalı lamba	Hand or extension light
+39112013	Taşınabilir ve geçici aydınlatma aksesuarı	Portable and temporary lighting accessory
+39112103	LED sürücü	Light emitting diode LED driver
+39112202	Köpük baloncuk makinesi	Bubble machine
+39112203	Konfeti makinesi	Confetti machine
+39112204	Köpük makinesi	Foaming machine
+39112205	Sis makinesi	Smoke machine
+39112206	Kar makinesi	Snow machine
+39112309	Disko topu	Mirror ball or disco ball
+39121011	Kesintisiz güç kaynağı (UPS)	Uninterruptible power supply UPS
+39121032	Akım transformatörü	Current transformer
+39121033	Gerilim transformatörü	Potential transformer
+39121034	Sıfır faz akım transformatörü	Zero phase current transformer
+39121035	Motor yol verme kompanzatörü	Motor starting compensator
+39121036	Radyo frekans (RF) transformatörü	Radio frequency RF transformer
+39121037	Sınırlayıcı transformatör	Limiting transformer
+39121038	Saptırma bobini	Deflecting yoke
+39121039	Yakıt hücreli güç kaynağı	Fuel cell power supply
+39121040	Elektrik tasarruf cihazı	Electric power saver
+39121041	Sabit gerilim transformatörü	Constant voltage transformer
+39121042	Flaman transformatörü	Filament transformer
+39121043	Döner transformatör	Rotary transformer
+39121044	Ses frekans transformatörü	Audio frequency transformer
+39121045	Modülasyon transformatörü	Modulation transformer
+39121046	Uyum transformatörü	Matching transformer
+39121047	Ara frekans transformatörü	Intermediate frequency transformer
+39121048	Karadan gemiye elektrik besleme	Alternative maritime power
+39121117	Bara	Buss bar
+39121120	Frekans çevirici	Frequency converter
+39121306	Anahtar kutusu	Switch box
+39121308	Priz kutusu	Outlet box
+39121312	Elektrik buşingi	Electrical bushing
+39121314	Patlamaya dayanıklı mahfaza	Explosion proof enclosure
+39121337	Elektrik sızdırmazlık çözücüsü veya macunu	Electrical sealing solvent or cement
+39121403	Kilitli fiş	Locking plug
+39121405	Kablo pabucu	Cable or wire lug
+39121421	Elektrik konnektör takımı	Electrical connector assembly
+39121431	Kablo rakoru	Cable gland connector
