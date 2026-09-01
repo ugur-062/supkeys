@@ -290,6 +290,53 @@ model CategorySearchMiss {
   @@map("category_search_misses")
 }
 
+/// FİRMA İLGİ PROFİLİ — beyandan DAVRANIŞA geçiş (ilgi motoru Faz 2).
+///
+/// Bugün eşleştirme yalnız BEYANA bakıyor: firma bir segmenti işaretlemiş mi.
+/// 38 kova için bu neredeyse rastgele — yeni talep o segmenti işaretleyen
+/// HERKESE bildirim gönderiyor, kullanıcı 5. alakasız bildirimden sonra
+/// bildirimleri kapatıyor ve ürün sessizce işlevini yitiriyor.
+///
+/// Bu tablo firmanın GERÇEKTE ne yaptığını ölçer: neye teklif verdi, neyi
+/// kazandı, kataloğunda ne var, hangi talebe davet edildi. Gece cron'u
+/// yeniden hesaplar; canlı sorgu yalnız OKUR (hesap maliyeti istek yoluna
+/// girmez).
+///
+/// KATEGORİYE FK YOK — BİLİNÇLİ. `seed-categories` kategorileri sil+kur
+/// yapıyor; FK olsaydı ya seed'i bloklardı ya bu satırları cascade silerdi.
+/// Aynı sebeple ilan/firma kategori seçimleri de `String[]` kod tutuyor
+/// (Category.id = UNSPSC kodu, sabit). Ölü categoryId'ler gece hesabında
+/// kendiliğinden düşer.
+model CompanyAffinity {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Category.id (= UNSPSC kodu). FK yok — yukarıdaki nota bak.
+  categoryId String
+
+  /// SATIŞ yönü: teklif verdiği, kazandığı, kataloğunda tuttuğu, davet edildiği.
+  sellScore Float @default(0)
+  /// ALIŞ yönü: yayınladığı talepler.
+  buyScore  Float @default(0)
+
+  /// "Neden gösterildi" için ham sinyal dökümü — kara kutu güvensizliğinin
+  /// karşılığı. Örn. {"wonOrders":2,"bids":5,"catalog":11,"declared":true}.
+  /// Kullanıcıya gösterilen metin BUNDAN türetilir, model metninden değil.
+  reasons Json?
+
+  computedAt DateTime @default(now())
+
+  @@unique([companyId, categoryId])
+  /// Kategoriye göre "en ilgili firmalar" (öneri yüzeyleri).
+  @@index([categoryId, sellScore])
+  @@index([categoryId, buyScore])
+  /// Firma profilini toptan okumak (bildirim eşiği, "neden gösterildi").
+  @@index([companyId])
+  @@map("company_affinity")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?
@@ -540,6 +587,7 @@ model Company {
   listingTemplates     ListingTemplate[]
   supplierTemplates    SupplierTemplate[]
   items                CompanyItem[]
+  affinity             CompanyAffinity[]
   threadsAsBuyer       MessageThread[]           @relation("ThreadBuyer")
   threadsAsSeller      MessageThread[]           @relation("ThreadSeller")
   messagesSent         Message[]                 @relation("MessageSender")
