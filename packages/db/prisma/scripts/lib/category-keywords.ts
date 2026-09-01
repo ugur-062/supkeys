@@ -17,8 +17,11 @@
  *   2. Ariba kataloğunda aynı kodu paylaşan DÜŞEN adlar
  *      (`ariba-categories.tsv` 7. sütun). Etiket olarak gösterilmezler ama
  *      arama onları bulmalı — bkz. docs/category-duplicate-codes.md.
+ *   3. ÇEVRİLEN adların İNGİLİZCE ASLI (`category-translations.tsv` 3. sütun).
+ *      "ball bearing" arayan "Bilyalı rulman"ı bulmaya devam etmeli; çeviri
+ *      arama hazinesini DARALTMAMALI.
  *
- * Hepsi YALNIZ aramayı besler (`searchText`); `nameTr` asla değişmez.
+ * Hepsi YALNIZ aramayı besler (`searchText`); gösterilen ad `nameTr`'dir.
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -58,12 +61,49 @@ function readAltNames(seedsDir: string, into: Map<string, string>): number {
   return n;
 }
 
+/**
+ * Çeviri overlay'i: kod → { tr: gösterilecek ad, source: İngilizce aslı }.
+ *
+ * İKİ DOSYA, sıra kritik — sözlükle AYNI öncelik kuralı:
+ *   1. category-translations.tsv          — AI üretti (gen-category-translations)
+ *   2. category-translations.curated.tsv  — ELLE yazıldı, aynı kodda EZER
+ * Gerekçe: insan düzeltmesi AI yeniden koşulduğunda kaybolmamalı. Üst
+ * seviyeler (segment/aile) elle yazılmaya değer — herkes onları görüyor.
+ */
+export function readTranslations(
+  seedsDir: string,
+): Map<string, { tr: string; source: string }> {
+  const out = new Map<string, { tr: string; source: string }>();
+  for (const name of [
+    "category-translations.tsv",
+    "category-translations.curated.tsv",
+  ]) {
+    const p = path.join(seedsDir, name);
+    if (!fs.existsSync(p)) continue;
+    for (const line of fs.readFileSync(p, "utf-8").split("\n")) {
+      if (!line.trim() || line.startsWith("#")) continue;
+      const [code, tr, source] = line.split("\t");
+      if (code?.trim() && tr?.trim()) {
+        // Elle yazılan dosyada 3. sütun boş olabilir — o kodda ÜRETİLEN
+        // satırın kaynağı korunur, yoksa arama İngilizce terimi kaybederdi.
+        const prev = out.get(code.trim());
+        out.set(code.trim(), {
+          tr: tr.trim(),
+          source: (source ?? "").trim() || prev?.source || "",
+        });
+      }
+    }
+  }
+  return out;
+}
+
 export interface KeywordBuild {
-  /** Kod → nihai `keywords` dizesi (sözlük + düşen adlar). */
+  /** Kod → nihai `keywords` dizesi (sözlük + düşen adlar + İngilizce asıl). */
   byCode: Map<string, string>;
   generated: number;
   curated: number;
   altNames: number;
+  sourceNames: number;
 }
 
 /**
@@ -84,14 +124,24 @@ export function buildKeywordsByCode(seedsDir: string): KeywordBuild {
   const altMap = new Map<string, string>();
   const altNames = readAltNames(seedsDir, altMap);
 
+  // Çevrilen adın İngilizce aslı da aramaya girer.
+  const srcMap = new Map<string, string>();
+  for (const [code, t] of readTranslations(seedsDir)) {
+    if (t.source) srcMap.set(code, t.source);
+  }
+
   const byCode = new Map<string, string>();
-  for (const code of new Set([...curatedMap.keys(), ...altMap.keys()])) {
-    const merged = [curatedMap.get(code), altMap.get(code)]
+  for (const code of new Set([
+    ...curatedMap.keys(),
+    ...altMap.keys(),
+    ...srcMap.keys(),
+  ])) {
+    const merged = [curatedMap.get(code), altMap.get(code), srcMap.get(code)]
       .filter(Boolean)
       .join(" ")
       .trim();
     if (merged) byCode.set(code, merged);
   }
 
-  return { byCode, generated, curated, altNames };
+  return { byCode, generated, curated, altNames, sourceNames: srcMap.size };
 }

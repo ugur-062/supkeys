@@ -34,7 +34,7 @@ import { PrismaClient } from "@prisma/client";
 import { foldSearchText } from "@rothern/shared";
 import * as fs from "fs";
 import * as path from "path";
-import { buildKeywordsByCode } from "./lib/category-keywords";
+import { buildKeywordsByCode, readTranslations } from "./lib/category-keywords";
 
 /**
  * UZUN İŞLEM → DIRECT_URL (session mode, 5432).
@@ -93,8 +93,22 @@ async function main() {
   // yazdığının bir kısmını sessizce silerdi.
   // Ariba kataloğunda karşılığı olmayan kodlar sessizce düşer: sözlük kataloğu
   // genişletemez, yalnız aramayı besler.
-  const { byCode: keywordsByCode, generated, curated, altNames } =
-    buildKeywordsByCode(path.resolve(__dirname, "../../src/seeds"));
+  const seedsDir = path.resolve(__dirname, "../../src/seeds");
+  const { byCode: keywordsByCode, generated, curated, altNames, sourceNames } =
+    buildKeywordsByCode(seedsDir);
+
+  /**
+   * ÇEVİRİ OVERLAY'i (`category-translations.tsv`) — Ariba dışa aktarımının
+   * çevrilmemiş İngilizce adları burada Türkçeye çevrilmiş hâlleriyle EZİLİR.
+   *
+   * Kaynak dosya (`ariba-categories.tsv`) EZİLMEZ: provenance orada durur,
+   * çeviri ayrı ve diff'lenebilir bir katman. Kötü bir çeviri AI'yı yeniden
+   * koşmadan o dosyadan elle düzeltilir. Dosya YOKSA katalog birebir Ariba
+   * adlarıyla kurulur — yani overlay tamamen opsiyonel.
+   *
+   * İngilizce asıl kaybolmuyor: `buildKeywordsByCode` onu keywords'e katıyor.
+   */
+  const translations = readTranslations(seedsDir);
 
   const cats: Cat[] = [];
   const seen = new Set<string>();
@@ -117,7 +131,7 @@ async function main() {
       level,
       parentCode: parentCode || null,
       segmentLetter: segmentLetter || null,
-      nameTr: nameTr.trim(),
+      nameTr: translations.get(code)?.tr ?? nameTr.trim(),
       // Sütun YOKSA `true` — eski 5 sütunlu bir TSV ile koşulursa katalog
       // daralmasın; discovery kapısı fazladan kod SIZDIRMAZ, yalnız 13
       // yaprağı da talep/ilan seçimine açar (fail-open, bilinçli: alternatifi
@@ -150,8 +164,9 @@ async function main() {
     `   Discovery alt kümesi (talep/ilan): ${discCount} — yalnız firma seçiminde: ${cats.length - discCount}`,
   );
   console.log(
-    `   Arama sözlüğü: ${keywordsByCode.size} kod (üretilen ${generated} + elle ${curated} + düşen ad ${altNames})`,
+    `   Arama sözlüğü: ${keywordsByCode.size} kod (üretilen ${generated} + elle ${curated} + düşen ad ${altNames} + İngilizce asıl ${sourceNames})`,
   );
+  console.log(`   Çeviri overlay'i: ${translations.size} ad Türkçeleştirildi`);
   console.log(`   TSV'de alternatif ad taşıyan kod: ${altCount}\n`);
 
   // Sil + yeniden kur TEK İŞLEMDE.

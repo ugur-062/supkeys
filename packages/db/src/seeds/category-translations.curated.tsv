@@ -1,0 +1,883 @@
+# ELLE yazılan kategori çevirileri — category-translations.tsv'yi EZER.
+# Biçim: <kod> ⇥ <TR ad> ⇥ <kaynak ad>
+#
+# Buraya yazılan satır AI yeniden koşulduğunda KAYBOLMAZ (sözlük dosyalarıyla
+# aynı öncelik kuralı). Üst seviyeler burada tutulmaya değer: kategori
+# seçicisinin ilk ekranında herkes segment adlarını görüyor.
+#
+# Segment adları (L1) — 2026-09-02, elle çevrildi. Ariba TR dışa aktarımında
+# bu 9 segment çevrilmemiş kalmıştı.
+
+25000000	Araçlar, Aksesuarları ve Bileşenleri	Vehicles and their Accessories and Components
+46000000	Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları	Law Enforcement and National Security and Security and Safety Equipment and Supplies
+50000000	Gıda ve İçecek Ürünleri	Food and Beverage Products
+51000000	İlaç Ürünleri (Doğum Kontrol ve Aşılar Dahil)	Pharmaceutical Products incl. Contraceptives and Vaccines
+57000000	İnsani Yardım Malzemeleri, Kitleri ve Aksesuarları	Humanitarian Relief Items, Kits, or Accessories
+64000000	Finansal Araçlar, Ürünler, Sözleşmeler ve Anlaşmalar	Financial Instruments, Products, Contracts and Agreements
+72000000	Bina ve Tesis İnşaat ve Bakım Hizmetleri	Building and Facility Construction and Maintenance Services
+92000000	Kamu Düzeni, Güvenlik ve Emniyet Hizmetleri	Public Order and Security and Safety Services
+95000000	Arazi, Binalar, Yapılar ve Ulaşım Altyapısı	Land and Buildings and Structures and Thoroughfares
+
+# Aile adları (L2) — 2026-09-02, elle çevrildi.
+10200000	Canlı gül fidanları	Live rose bushes
+10210000	Tür/çeşit sayısı yüksek canlı çiçek bitkileri	Live plants of high species or variety count flowers
+10220000	Tür/çeşit sayısı düşük canlı çiçek bitkileri	Live plants of low species or variety count flowers
+10230000	Canlı krizantemler	Live chrysanthemums
+10240000	Canlı karanfiller	Live carnations
+10250000	Canlı orkideler	Live orchids
+10300000	Kesme taze gül	Fresh cut rose
+10310000	Tür/çeşit sayısı yüksek kesme taze çiçekler	Fresh cut blooms of high species or variety count flowers
+10320000	Tür/çeşit sayısı düşük kesme taze çiçekler	Fresh cut blooms of low species or variety count flowers
+10330000	Kesme taze krizantemler	Fresh cut chrysanthemums
+10340000	Kesme taze çiçek buketleri	Fresh cut floral bouquets
+10350000	Kesme taze karanfiller	Fresh cut carnations
+10360000	Kesme taze orkideler	Fresh cut orchids
+10400000	Kesme kuru güller	Dried cut roses
+10410000	Tür/çeşit sayısı yüksek kesme kuru çiçekler	Dried cut blooms of high species or variety count flowers
+10420000	Tür/çeşit sayısı düşük kesme kuru çiçekler	Dried cut blooms of low species or variety count flowers
+10430000	Kesme kuru krizantemler	Dried cut chrysanthemums
+10440000	Kesme kuru karanfiller	Dried cut carnations
+10450000	Kesme kuru orkideler	Dried cut orchids
+10500000	Kesme taze yeşillik	Fresh cut greenery
+11190000	Metal atık, hurda ve yan ürünler	Metal waste scrap and by products
+12360000	İlaç öncül maddeleri	Pharmaceutical drug precursors
+22110000	Deniz inşaat ve montaj ekipmanları	Marine construction and installation equipment
+23290000	Endüstriyel takım tezgahları	Industrial machine tools
+23300000	Tel işleme makineleri ve ekipmanları	Wire machinery and equipment
+27150000	Parça temizleme makineleri ve aksesuarları	Part cleaning machinery and accessories
+30100000	Yapısal bileşenler ve temel profiller	Structural components and basic shapes
+30250000	Yeraltı madenciliği yapıları ve malzemeleri	Underground mining structures and materials
+30260000	Yapısal malzemeler	Structural materials
+31100000	Dökümler ve döküm montajları	Castings and casting assemblies
+31180000	Salmastralar, körükler ve koruyucu kapaklar	Packings glands boots and covers
+31390000	Talaşlı imalat parçaları	Machinings
+31400000	Contalar	Gaskets
+31410000	Keçeler ve sızdırmazlık elemanları	Seals
+31420000	Sinterlenmiş parçalar	Sintered parts
+32110000	Ayrık yarı iletken elemanlar	Discrete semiconductor devices
+40170000	Borular, boru hatları ve boru bağlantı elemanları	Pipe piping and pipe fittings
+40180000	Tüpler, tüp hatları ve tüp bağlantı elemanları	Tubes tubing and tube fittings
+41130000	Kan üretimi ve hematoloji sistemleri, bileşenleri ve sarf malzemeleri	Blood manufacturing and hematology systems, components and supplies
+41140000	Klinik kimya test sistemleri, bileşenleri ve sarf malzemeleri	Clinical chemistry testing systems, components, and supplies
+41150000	Klinik laboratuvar ve toksikoloji test sistemleri ve sarf malzemeleri	Clinical laboratory and toxicology testing systems, components, and supplies
+41160000	Hücre kültürü ürünleri	Cellular culture products
+41170000	Tanı ve mikrobiyoloji cihazları	Diagnostic and microbiological devices
+41180000	İmmünolojik test sistemleri, bileşenleri ve sarf malzemeleri	Immunological testing systems, components, and supplies
+41190000	Patoloji cihazları ve aksesuarları	Pathology instrumentation and accessories
+41200000	Serolojik ve numune hazırlama test sistemleri ve sarf malzemeleri	Serological and specimen preparation test systems, components and supplies
+42170000	Mobil sağlık hizmeti ürünleri	Mobile medical services products
+42280000	Tıbbi temizlik ve sterilizasyon ürünleri	Medical cleaning and sterilization products
+42320000	Ortopedik cerrahi implantlar	Orthopedic surgical implants
+44120000	Kırtasiye malzemeleri	Office supply
+46200000	Savunma, kolluk ve iş güvenliği eğitim ekipmanları	Defense and law enforcement and security and safety training equipment
+46210000	İş güvenliği ekipmanları, malzemeleri ve eğitim materyalleri	Workplace safety equipment and supplies and training materials
+46220000	Askeri silah ve mühimmat imha ekipmanları ve ilgili ürünler	Military weapon and ammunition disarmament and disposal equipment and related products
+47140000	Toksik ve tehlikeli atık temizleme ürünleri	Toxic and hazardous waste cleanup products
+48130000	Cenaze ekipman ve malzemeleri	Funeral equipment and materials
+48140000	Profesyonel hizmet robotları	Professional service robot
+50100000	Kuruyemiş ve tohumlar	Nuts and seeds
+50300000	Taze meyveler	Fresh fruits
+50310000	Organik taze meyveler	Organic fresh fruits
+50320000	Kuru meyveler	Dried fruit
+50330000	Organik kuru meyveler	Dried organic fruit
+50340000	Dondurulmuş meyveler	Frozen fruit
+50350000	Organik dondurulmuş meyveler	Frozen organic fruit
+50360000	Konserve veya kavanoz meyveler	Canned or jarred fruit
+50370000	Organik konserve veya kavanoz meyveler	Canned or jarred organic fruit
+50380000	Taze meyve püreleri	Fresh fruit purees
+50390000	Organik taze meyve püreleri	Organic fresh fruit purees
+50400000	Taze sebzeler	Fresh vegetables
+50410000	Organik taze sebzeler	Organic fresh vegetables
+50420000	Kuru sebzeler	Dried vegetables
+50430000	Organik kuru sebzeler	Dried organic vegetables
+50440000	Dondurulmuş sebzeler	Frozen vegetables
+50450000	Organik dondurulmuş sebzeler	Frozen organic vegetables
+50460000	Konserve veya kavanoz sebzeler	Canned or jarred vegetables
+50470000	Organik konserve veya kavanoz sebzeler	Canned or jarred organic vegetables
+50480000	Taze sebze püreleri	Fresh vegetable purees
+50490000	Organik taze sebze püreleri	Organic fresh vegetable purees
+50500000	Besin takviyeleri	Nutritional supplements
+50520000	GDO'suz taze meyveler	Non GMO fresh fruits
+50530000	GDO'suz kuru meyveler	Dried non GMO fruits
+50540000	GDO'suz dondurulmuş meyveler	Frozen non GMO fruits
+50550000	GDO'suz konserve veya kavanoz meyveler	Canned or jarred non GMO fruits
+50560000	GDO'suz taze meyve püreleri	Non GMO fresh fruit purees
+50580000	GDO'suz taze sebzeler	Non GMO fresh vegetables
+50590000	GDO'suz kuru sebzeler	Dried Non GMO vegetables
+50600000	GDO'suz dondurulmuş sebzeler	Frozen Non GMO vegetables
+50610000	GDO'suz konserve veya kavanoz sebzeler	Canned or jarred Non GMO vegetables
+50620000	GDO'suz taze sebze püreleri	Non GMO fresh vegetable purees
+50630000	İşlenmiş taze sebzeler	Fresh vegetables processed
+51100000	Amebisitler, trikomonasitler ve antiprotozoaller	Amebicides and trichomonacides and antiprotozoals
+51120000	Antiaritmikler, antianjinaller ve kalp yetmezliği ilaçları	Antiarrythmics and antianginals and cardioplegics and drugs for heart failure
+51260000	Adrenerjik blokerler	Adrenergic blocking agents
+51270000	Anestezik ilaçlar, yardımcıları ve analeptikler	Anaesthetic drugs and related adjuncts and analeptics
+51280000	Antibakteriyeller	Antibacterials
+51290000	Antidepresanlar	Antidepressants
+51300000	Antifungal ilaçlar	Antifungal drugs
+51310000	Antihistaminikler veya H1 blokerleri	Antihistamines or H1 blockers
+51320000	Antihiperlipidemik ve hipokolesterolemik ajanlar	Antihyperlipidemic and hypocholesterolemic agents
+51330000	Antipsikotikler	Antipsychotics
+51340000	Antiviral ilaçlar	Antiviral drugs
+51350000	Östrojenler, progestinler ve dahili doğum kontrol ilaçları	Estrogens and progestins and internal contraceptives
+51360000	Hipnotikler	Hypnotics
+51370000	Kontrole tabi analjezikler	Controlled substance analgesics
+51380000	Steroid olmayan antiinflamatuvar ilaçlar (NSAII)	Nonsteroidal anti inflammatory drugs NSAIDs
+51390000	Sempatomimetik veya adrenerjik ilaçlar	Sympathomimetic or adrenergic drugs
+51400000	Sakinleştiriciler, antimanik ve anksiyolitik ilaçlar	Tranquilizers and antimanic and antianxiety drugs
+51410000	Vazodilatörler	Vasodilators
+51420000	Kortikosteroidler	Corticosteroids
+51430000	Antihipertansif ilaçlar	Antihypertensive drugs
+51440000	Radyofarmasötikler ve kontrast maddeler	Radiopharmaceuticals and contrast media
+51450000	Antelmintikler	Anthelmintics
+51460000	Bitkisel ilaçlar	Herbal drugs
+51470000	Antiseptikler	Antiseptics
+52150000	Ev mutfak eşyaları ve malzemeleri	Domestic kitchenware and kitchen supplies
+56140000	Dekoratif süs eşyaları	Decorative adornments
+57010000	Hayatta kalma malzemeleri	Survival supplies
+57020000	İnsani yardım faaliyetlerine ilişkin hizmetler	Services related to humanitarian relief actions
+57030000	İnsani yardım sağlık malzemeleri	Humanitarian health supplies
+57040000	Eğitim ve rekreasyon malzemeleri	Educational or recreational items
+57050000	İnsani yardım gıdası	Humanitarian relief food
+57060000	Barınma ve yardım malzemeleri	Shelter and relief items
+57070000	İnsani yardım lojistik malzemeleri	Humanitarian logistics supplies
+57080000	İnsani yardım bilişim ekipmanları	Humanitarian IT equipment
+64100000	Banka ürünleri	Bank offered products
+64110000	Menkul kıymetler	Securities
+64120000	Sigortalanabilir menfaat sözleşmeleri	Insurable interest contracts
+64130000	Genel anlaşmalar ve sözleşmeler	General agreements and contracts
+64140000	Kamu mülkiyet hakkı tahsisleri	Governmental property right conferrals
+64150000	Parasal araçlar ve döviz	Monetary instruments or currency
+71170000	Petrol ve doğal gaz laboratuvar test hizmetleri	Oil and gas laboratory testing services
+72100000	Bina ve tesis bakım ve onarım hizmetleri	Building and facility maintenance and repair services
+72110000	Konut inşaat hizmetleri	Residential building construction services
+72120000	Konut dışı bina inşaat hizmetleri	Nonresidential building construction services
+72140000	Ağır inşaat hizmetleri	Heavy construction services
+72150000	Uzmanlık gerektiren inşaat ve bakım hizmetleri	Specialized trade construction and maintenance services
+77140000	Çevre laboratuvarı hizmetleri	Environmental laboratory services
+78140000	Taşımacılık hizmetleri	Transport services
+80170000	Halkla ilişkiler ve kurumsal iletişim hizmetleri	Public relations and professional communications services
+81170000	Biyoloji bilimleri hizmetleri	Biological science services
+82160000	Film ve tiyatro yapım destek hizmetleri	Film and theater production support services
+83130000	Bilgi ve iletişim yayıncılığı hizmetleri	Information and communication broadcasting Service
+84110000	Muhasebe ve defter tutma hizmetleri	Accounting and bookkeeping services
+85170000	Ölüm ve yaşam sonu destek hizmetleri	Death and dying support services
+85210000	Enfeksiyöz ve paraziter hastalık tanıları - bölüm a	Diagnoses of infectious and parasitic diseases-part a
+85220000	Enfeksiyöz ve paraziter hastalık tanıları - bölüm b	Diagnoses of infectious and parasitic diseases-part b
+85250000	Neoplazm (tümör) tanıları	Diagnoses of neoplasms
+85260000	Endokrin, beslenme ve metabolizma hastalıkları tanıları	Diagnoses of endocrine, nutritional and metabolic diseases
+85270000	Ruhsal ve davranışsal bozukluk tanıları	Diagnoses of mental and behavioral disorders
+85280000	Sinir sistemi hastalıkları tanıları	Diagnoses of diseases of the nervous system
+85290000	Göz ve göz eki hastalıkları tanıları	Diagnoses of diseases of the eye and adnexa
+85300000	Kulak ve mastoid hastalıkları tanıları	Diagnoses of diseases of the ear and mastoid process
+85310000	Dolaşım sistemi hastalıkları tanıları	Diagnoses of diseases of the circulatory system
+85320000	Kan ve kan yapıcı organ hastalıkları ve bağışıklık bozuklukları tanıları	Diagnoses of diseases of the blood and blood-forming organs and certain disorders involving the immune mechanism
+85330000	Sindirim sistemi hastalıkları tanıları	Diagnoses of diseases of the digestive system
+85340000	Solunum sistemi hastalıkları tanıları	Diagnoses of diseases of the respiratory system
+85350000	Deri ve deri altı doku hastalıkları tanıları	Diagnoses of diseases of the skin and subcutaneous tissue
+85360000	Ürogenital sistem hastalıkları tanıları	Diagnoses of diseases of the genitourinary system
+85370000	Kas-iskelet sistemi ve bağ dokusu hastalıkları tanıları	Diagnoses of diseases of the musculoskeletal system and connective tissue
+85380000	Perinatal dönemde başlayan durum tanıları	Diagnoses of certain conditions originating in the perinatal period
+85390000	Gebelik, doğum ve lohusalık dönemi tanıları	Diagnoses of pregnancy, childbirth conditions and the puerperium
+85400000	Doğumsal anomali ve kromozom bozukluğu tanıları	Diagnoses of congenital malformations, deformations, and chromosomal abnormalities
+85410000	Başka yerde sınıflanmamış semptom, bulgu ve anormal laboratuvar sonucu tanıları	Diagnoses of symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified
+85420000	Yaralanma, zehirlenme ve dış nedenli sonuç tanıları - bölüm 1	Diagnoses of injury, poisoning and certain other consequences of external causes-part 1
+85430000	Yaralanma, zehirlenme ve dış nedenli sonuç tanıları - bölüm 2	Diagnoses of injury, poisoning and certain other consequences of external causes-part 2.
+85440000	Hastalık ve ölümün dış nedenleri tanıları	Diagnoses of external causes of morbidity and mortality
+85450000	Sağlık durumunu etkileyen etkenler ve sağlık hizmeti başvuru tanıları	The diagnosis of factors influencing health status and contact with health services
+85470000	Merkezi sinir sistemi cerrahi girişimleri	Surgical interventions or procedures of central nervous system
+85480000	Periferik sinir sistemi cerrahi girişimleri	Surgical interventions or procedures of peripheral nervous system
+85490000	Kalp ve büyük damar cerrahi girişimleri	Surgical interventions or procedures of heart and great vessels
+85500000	Üst atardamar cerrahi girişimleri	Surgical interventions or procedures of upper arteries
+85510000	Alt atardamar cerrahi girişimleri	Surgical interventions or procedures of lower arteries
+85520000	Üst toplardamar cerrahi girişimleri	Surgical interventions or procedures of upper veins
+85530000	Alt toplardamar cerrahi girişimleri	Surgical interventions or procedures of lower veins
+85540000	Lenfatik ve kan sistemi cerrahi girişimleri	Surgical interventions or procedures of lymphatic and hemic systems
+85550000	Duyu sistemi cerrahi girişimleri - göz ve ekleri	Surgical interventions or procedures of sensory functional systems-vision eye and related structures
+85560000	Duyu sistemi cerrahi girişimleri - kulak, burun, sinüs	Surgical interventions or procedures of sensory functional systems-hearing and smell, ear nose sinus
+85570000	Solunum sistemi cerrahi girişimleri	Surgical interventions or procedures of the respiratory system
+85580000	Ağız ve boğaz cerrahi girişimleri	Surgical interventions or procedures of the mouth and throat
+85590000	Sindirim sistemi cerrahi girişimleri: üst sindirim sistemi	Surgical interventions or procedures of the gastrointestinal system: the upper digestive system
+85600000	Sindirim sistemi cerrahi girişimleri: alt sindirim sistemi	Surgical interventions or procedures of the gastrointestinal system: the lower digestive system
+85610000	Hepatobiliyer sistem cerrahi girişimleri	Surgical interventions or procedures of the hepatobiliary system
+85620000	Endokrin sistem cerrahi girişimleri	Surgical interventions or procedures of the endocrine system
+85630000	Deri ve meme cerrahi girişimleri	Surgical interventions or procedures of the skin and breast
+85640000	Deri altı doku ve fasya cerrahi girişimleri	Surgical interventions or procedures of the subcutaneous tissue and fascia
+85650000	Kas cerrahi girişimleri	Surgical interventions or procedures of muscles
+85660000	Tendon cerrahi girişimleri	Surgical interventions or procedures of tendons
+85670000	Bursa ve bağ cerrahi girişimleri	Surgical interventions or procedures of bursae and ligaments
+85680000	Baş ve yüz kemikleri cerrahi girişimleri	Surgical interventions or procedures of head and facial bones
+85690000	Üst ekstremite kemikleri cerrahi girişimleri	Surgical interventions or procedures of upper bones
+85700000	Alt ekstremite kemikleri cerrahi girişimleri	Surgical interventions or procedures of lower bones
+85710000	Üst ekstremite eklemleri cerrahi girişimleri	Surgical interventions or procedures of upper joints
+85720000	Alt ekstremite eklemleri cerrahi girişimleri	Surgical interventions or procedures of lower joints
+85730000	Üriner sistem cerrahi girişimleri	Surgical interventions or procedures of urinary system
+85740000	Kadın üreme sistemi cerrahi girişimleri	Surgical interventions or procedures of female reproductive system
+85750000	Erkek üreme sistemi cerrahi girişimleri	Surgical interventions or procedures of male reproductive system
+85760000	Anatomik bölge cerrahi girişimleri - genel	Surgical interventions or procedures of anatomic regions-general
+85770000	Anatomik bölge cerrahi girişimleri - üst ekstremiteler	Surgical interventions or procedures of anatomic regions-upper extremities
+85780000	Anatomik bölge cerrahi girişimleri - alt ekstremiteler	Surgical interventions or procedures of anatomic regions-lower extremities
+85790000	Obstetrik girişimler, gebelik	Obstetric interventions or procedures, pregnancy
+85800000	Yerleştirme girişimleri, anatomik bölgeler ve açıklıklar	Placement interventions or procedures, anatomic regions and orifices
+85810000	Uygulama girişimleri: verme, yıkama ve dolaşım	Administrative interventions or procedures, physiological systems and anatomical regions, introduction and irrigation and circulatory
+85820000	Ölçüm ve izleme girişimleri ve ölçüm cihazları	Measurement and monitoring interventions or procedures-physiological systems, measurement, monitoring and measurement devices
+85830000	Ekstrakorporeal veya sistemik destek ve tedaviler	Extracorporeal or systemic assistance, performance and therapies for physiological systems
+85840000	Anatomik bölgelere göre osteopatik girişimler	Osteopathic interventions or procedures by anatomical regions
+85860000	Anatomik bölgeye göre kiropraktik girişimler	Chiropractic interventions or procedures by anatomical region
+85870000	Anatomik bölge veya sisteme göre görüntüleme girişimleri	Imaging interventions or procedures by anatomical region or system
+85880000	Nükleer tıp girişimleri	Nuclear medicine interventions or procedures
+85890000	Radyoterapi girişimleri	Radiation therapy interventions or procedures
+85900000	Fiziksel rehabilitasyon girişimleri	Physical rehabilitation interventions or procedures
+85910000	Ruh sağlığı girişimleri	Mental health interventions or procedures
+85920000	Madde bağımlılığı girişimleri	Substance abuse interventions or procedures
+95100000	Arsa ve parseller	Land parcels
+95110000	Yollar ve geçitler	Thoroughfares
+95120000	Kalıcı binalar ve yapılar	Permanent buildings and structures
+95130000	Taşınabilir binalar ve yapılar	Portable buildings and structures
+95140000	Prefabrik binalar ve yapılar	Prefabricated buildings and structures
+
+# Sınıf adları (L3) — çekirdek segmentler, 2026-09-02, elle çevrildi.
+11101900	Ara işlenmiş ve rafine cevher ürünleri	Intermediate processed and refined ore products
+11111900	Dekoratif taş	Decorative rock
+11122000	Mühendislik ahşap ürünleri	Engineered wood products
+11162400	Elyaf dolgu (vatka)	Batting
+11172200	Magnezyum esaslı alaşımlar	Magnesium based alloys
+11172300	Manganez esaslı alaşımlar	Manganese based alloys
+11191800	Metal yan ürünleri	Metal byproducts
+12164600	Kağıt, plastik ve kumaş modifiye edicileri	Paper plastic and fabric modifiers
+12164700	Endüstriyel antiseptikler	Industrial antiseptics
+12164800	Su azaltıcı katkılar	Water reducing agents
+12164900	Su yalıtım katkıları	Waterproofing agents
+12165000	Büzülme önleyici katkılar	Non shrinkage agents
+12165100	İleri petrol üretimi kimyasalları	Chemicals for enhanced oil recovery
+12165200	Su arıtma kimyasalları	Water treatment
+12165300	Adsorbanlar	Adsorbent
+12352600	Flor kimyasalları	Fluorochemicals
+12361500	Narkotik ilaç öncül maddeleri	Narcotic drug precursors
+13111200	Plastik filmler	Plastic films
+15101800	Bitkisel sıvı yakıtlar ve biyoyakıtlar	Plant based liquid fuels or biofuels
+15101900	Geri kazanılmış fuel oil	Recycled fuel oil
+20123100	Muhafaza borusu çıkış aletleri	Casing exit tools
+20123200	Genleşebilir kuyu içi ekipmanları	Expandable downhole equipment
+20123300	Sondajla eş zamanlı muhafaza borusu aletleri	Casing while drilling tools
+20143300	Boru hattı servis ekipmanları	Pipeline service equipment
+20143400	Denizaltı umbilikal hatlar ve ilgili ekipmanlar	Subsea umbilicals and related equipment
+20143500	Denizaltı proje montaj aletleri	Subsea project installation tools
+20143600	Denizaltı esnek hatlar	Subsea flexibles
+20143700	Denizaltı boru hattı malzemeleri	Subsea pipeline materials
+20143800	Denizaltı ölçüm cihazları	Subsea meters
+21102500	Sulama sistemleri ve ekipmanları	Irrigation systems and equipment
+21102600	Tarımsal koruma malzemeleri	Agricultural protection materials
+22110100	Bağlama (palamar) ekipmanları	Equipment for mooring
+22110200	Yüzer üretim, depolama ve boşaltma sistemleri	Floating production storage and offloading
+23153800	Kaplama sistemleri	Coating systems
+23242700	Boru üretim hattı makineleri	Tube mill machinery
+23251900	Metal ambalaj üretim makineleri ve ekipmanları	Metal container manufacturing machinery and equipment
+23261600	Hızlı prototipleme makinesi aksesuarları	Rapid prototyping machine accessories
+23291500	Endüstriyel delme takımları	Industrial drilling tools
+23291600	Endüstriyel frezeleme takımları	Industrial milling tools
+23291700	Endüstriyel raybalama takımları	Industrial reaming tools
+23291800	Endüstriyel diş açma takımları	Industrial threading tools
+23291900	Endüstriyel delik büyütme takımları	Industrial boring tools
+23301500	Tel işleme makineleri, ekipmanları ve aksesuarları	Wire working machinery and equipment and accessories
+24102400	Atık elleçleme ve geri dönüşüm sistemleri	Waste material handling and recycling systems
+24102500	Tesis ekipmanları	Plant equipment
+24112900	Nakliye kasaları	Crates
+24113000	Kayar levhalar (slip sheet)	Slip sheets
+24113100	Kutular	Boxes
+24122000	Şişeler ve flakonlar	Bottles or vials
+25132100	İnsansız hava aracı	Unmanned aerial vehicle
+25132200	Güvenlik ve kurtarma hava araçları	Safety and rescue aircraft
+25174800	Özel araç sistemleri ve bileşenleri	Specialized vehicle systems and components
+25174900	Araç titreşim sönümleyicileri ve izolatörleri	Vehicle vibration dampeners and isolators
+25175000	Elektrikli araç şarj sistemleri	Electric vehicle charging systems
+25175100	Taşıt onarım parça setleri	Transportation repair parts kits
+25175200	Özel güvenlik ve kurtarma aracı aksesuarları	Specialized safety and rescue vehicle accessory
+25191800	Araç test ve ölçüm ekipmanları	Vehicle testing and measuring equipment
+25202800	Havacılık veri haberleşme ekipmanları	Aeronautical data communications equipment
+25202900	Hava trafik yönetim ekipmanları	Air traffic management equipment
+26121800	Otomotiv kablosu	Automotive cable
+26131900	Açık deniz rüzgar santrali makine ve ekipmanları	Offshore wind farm machinery and equipment
+27113300	Hassas el aletleri	Precision hand tools
+27113400	Marangoz aletleri	Carpentry tools
+27113500	Atölye aletleri	Workshop tool
+27121800	Hidrolik aletler	Hydraulic tools
+27151500	Biyoremediasyonlu parça temizleme makineleri ve aksesuarları	Bioremediating part cleaning machinery and accessories
+30102400	Çubuk	Rod
+30103800	Metalik lifler ve filamentler	Metallic fibers and filaments
+30103900	Miller	Shafts
+30104000	İçi boş yapısal profiller (HSS)	Hollow structural sections HSS
+30111800	Agregalar	Aggregates
+30111900	Beton donatı hırdavatı	Concrete reinforcement hardware
+30121700	Karayolu ve demiryolu inşaat malzemeleri	Road and railroad construction materials
+30121800	Peyzaj mimarisi malzemeleri	Landscape architecture materials
+30121900	Zemin stabilizatörleri ve güçlendirme malzemeleri	Soil stabilizers and reinforcing materials
+30122000	Özel dış zemin kaplama ve döşeme malzemeleri	Specialized external flooring and paving materials
+30141700	Yalıtım örtü katmanları	Insulation sealing layers
+30162000	İç mekan lamine malzemeleri	Interior laminates
+30162100	Merdivenler ve merdiven sistemleri	Stairs and stairways
+30162200	Tezgah üstü yüzeyler	Countertops
+30162300	Dolap aksesuarları	Cabinet accessories
+30162400	Bölme duvarlar	Partition walls
+30172100	Garaj kapıları ve motorları	Garage doors and operators
+30181600	Sıhhi olmayan konut armatürleri	Non sanitary residential fixtures
+30181700	Musluklar ve bataryalar	Faucets or taps
+30181800	Musluk ve duş başlıkları, jetler, parça ve aksesuarları	Faucet and shower heads, jets and parts and accessories
+30191700	Şantiye barakaları ve karavanları	Construction sheds and trailers
+30191800	Geçici inşaat ve bakım destek ekipman ve malzemeleri	Temporary construction and maintenance support equipment and materials
+30251500	Yeraltı tavan tahkimat yapıları	Underground roof support structures
+30261500	Pirinç çubuklar	Brass bars
+30261600	Pirinç saclar	Brass sheets
+30261700	Pirinç külçe, şerit, kütük ve rulolar	Brass ingots strips billets and coil
+30261800	Magnezyum çubuk ve saclar	Magnesium bars and sheets
+30261900	Magnezyum külçe, şerit, kütük ve rulolar	Magnesium ingots strips billets and coil
+30262000	Titanyum çubuk ve saclar	Titanium bars and sheets
+30262100	Titanyum külçe, şerit, kütük ve rulolar	Titanium ingots strips billets and coil
+30262200	Bakır çubuklar	Copper bars
+30262300	Bakır saclar	Copper sheets
+30262400	Bakır külçe, şerit, kütük ve rulolar	Copper ingots strip billets and coil
+30262500	Bronz çubuklar	Bronze bars
+30262600	Bronz saclar	Bronze sheets
+30262700	Bronz külçe, şerit, kütük ve rulolar	Bronze ingots strips billets and coil
+30262800	Çinko çubuk ve saclar	Zinc bars and sheets
+30262900	Çinko külçe, şerit, kütük ve rulolar	Zinc ingots strips billets and coil
+30263000	Kalay çubuklar	Tin bars
+30263100	Kalay saclar	Tin sheet
+30263200	Kalay külçe, şerit ve rulolar	Tin ingots strip and coil
+30263300	Kurşun çubuklar	Lead bars
+30263400	Kurşun saclar	Lead sheets
+30263500	Kurşun külçe, şerit, kütük ve rulolar	Lead ingots strips billets and coil
+30263600	Karbon çeliği çubuklar	Carbon steel bars
+30263700	Alaşımlı çelik çubuklar	Steel alloy bars
+30263800	Takım çeliği çubuklar	Tool steel bars
+30263900	Özel çelik çubuklar	Specialty steel bars
+30264000	Karbon çeliği saclar	Carbon steel sheets
+30264100	Alaşımlı çelik saclar	Steel alloy sheets
+30264200	Özel çelik saclar	Specialty steel sheets
+30264300	Özel çelik rulolar	Specialty steel coils
+30264400	Karbon çeliği külçe, şerit, kütük ve rulolar	Carbon steel ingots strips billets and coil
+30264500	Paslanmaz çelik çubuklar	Stainless steel bars
+30264600	Paslanmaz çelik saclar	Stainless steel sheets
+30264700	Paslanmaz çelik rulolar	Stainless steel coil
+30264800	Paslanmaz çelik şeritler	Stainless steel strips
+30264900	Alüminyum çubuklar	Aluminum bars
+30265000	Alüminyum saclar	Aluminum sheets
+30265100	Alüminyum rulolar	Aluminum coil
+30265200	Alüminyum şerit ve külçeler	Aluminum strips and ingots
+30265300	Demir çubuklar	Iron bars
+30265400	Demir saclar	Iron sheets
+30265500	Demir külçe, şerit, kütük ve rulolar	Iron ingots strips billets and coil
+30265600	Demir alaşımı çubuk ve saclar	Ferrous alloy bars and sheets
+30265700	Demir alaşımı külçe, şerit, kütük ve rulolar	Ferrous alloy ingots strips billets and coil
+30265800	Plastik çubuk ve levhalar	Plastic bars and sheets
+30265900	Plastik rulo ve şeritler	Plastic coil and strips
+30266000	Değerli ve özel metal çubuklar	Precious metal and specialty metal bars
+30266100	Değerli ve özel metal saclar	Precious metal and specialty metal sheets
+30266200	Değerli ve özel metal rulo, şerit, kütük ve külçeler	Precious metal and specialty metal coil strips billets and ingots
+30266300	Ahşap yapı malzemeleri	Wood structural materials
+30266400	Özel malzeme çubuk ve levhaları	Specialty material bars and sheets
+30266500	Özel malzeme rulo, şerit, kütük ve külçeleri	Specialty material coil strips billets and ingots
+30266600	Nikel sac ve külçeler	Nickel sheets and ingots
+30266700	Mil malzemeleri	Shafting
+31101600	Kum döküm ve döküm montajları	Sand castings and casting assemblies
+31101700	Kalıcı kalıp dökümleri ve döküm montajları	Permanent mold castings and casting assemblies
+31101800	Kabuk kalıp dökümleri ve döküm montajları	Shell mold castings and casting assemblies
+31101900	Hassas döküm ve döküm montajları	Investment castings and casting assemblies
+31102500	Alçak basınçlı kalıcı kalıp dökümleri ve montajları	Low pressure permanent die castings and casting assemblies
+31102600	Yüksek basınçlı enjeksiyon dökümleri ve montajları	High pressure die castings and casting assemblies
+31102700	Sıkıştırma dökümleri ve döküm montajları	Squeeze castings and casting assemblies
+31102800	Yarı katı dökümler ve döküm montajları	Semi solid castings and casting assemblies
+31102900	Yerçekimli kalıcı kalıp dökümleri ve montajları	Gravity permanent mold castings and casting assemblies
+31122000	İşlenmiş sıkıştırma dökümleri ve montajları	Squeeze machined castings and casting assemblies
+31122100	İşlenmiş yarı katı dökümler ve montajları	Semi solid machined castings and casting assemblies
+31122200	İşlenmiş yerçekimli kalıcı kalıp dökümleri ve montajları	Gravity permanent mold machined castings and casting assemblies
+31132100	Çelik dövmeler	Steel forgings
+31132200	Pirinç dövmeler	Brass forgings
+31132300	Alüminyum dövmeler	Aluminum forgings
+31132400	Demir dışı alaşım dövmeler	Non ferrous alloy forgings
+31132500	Demir alaşımı dövmeler	Ferrous alloy forgings
+31132600	Paslanmaz çelik dövmeler	Stainless steel forgings
+31132700	Demir dövmeler	Iron forgings
+31132800	Magnezyum dövmeler	Magnesium forgings
+31132900	Titanyum dövmeler	Titanium forgings
+31133000	Berilyum dövmeler	Beryllium forgings
+31133100	Bakır dövmeler	Copper forgings
+31133200	Çinko dövmeler	Zinc forgings
+31133300	Bronz dövmeler	Bronze forgings
+31133400	Kalay dövmeler	Tin forgings
+31133500	Kurşun dövmeler	Lead forgings
+31133600	Değerli metal dövmeler	Precious metal forgings
+31133700	Toz metaller ve metal alaşımları	Powdered metals and metal alloys
+31141900	İnsertli enjeksiyon kalıplamaları	Inserted injection moldings
+31142000	Termoplastik kalıplama montajları	Thermoplastic molding assemblies
+31142100	Termoplastik kalıplama insertleri	Thermoplastic molding inserts
+31142200	Termoplastik çok bileşenli kalıplama montajları	Thermoplastic multiple shot molding assemblies
+31142300	Termoplastik insertli kalıplama montajları	Thermoplastic inserted molding assemblies
+31142400	Termoset kalıplama montajları	Thermoset molding assemblies
+31142500	Termoset kalıplama insertleri	Thermoset molding inserts
+31142600	Termoset çok bileşenli kalıplama montajları	Thermoset multiple shot molding assemblies
+31142700	Termoset insertli kalıplama montajları	Thermoset inserted modling assembly
+31142800	Daldırma kalıplamalar	Dip moldings
+31142900	Kalıp içi dekorlu enjeksiyon kalıplamaları	In mold decorated injection moldings
+31143000	Gaz destekli kalıplamalar	Gas assist moldings
+31143100	Termoplastik bitmiş kalıplama montajları	Thermoplastic finished molding assemblies
+31143200	Kalıp sonrası dekorlu enjeksiyon kalıplamaları	Post mold decorated injection moldings
+31152100	Kordonlar	Cords
+31152200	Elektriksiz demir ve çelik tel	Non electric iron and steel wire
+31152300	Elektriksiz demir dışı metal tel	Non electric nonferrous metal wire
+31163300	Saplamalar	Studs
+31163400	Metal ağlar ve elek yapıları	Metal nets and screening structures
+31181800	Otomotiv körük ve kılıfları	Automotive boots and covers
+31201600	Yapıştırıcılar	Adhesives
+31201700	Sızdırmazlık macunları	Sealants
+31381100	Döküm mıknatıslar ve mıknatıs montajları	Castmagnets and magnet assemblies
+31381200	Sinterlenmiş mıknatıslar ve mıknatıs montajları	Sintered magnets and magnet assemblies
+31381300	Preslenmiş mıknatıslar ve mıknatıs montajları	Pressed magnet and magnet assemblies
+31381400	Plastik bağlı mıknatıslar ve mıknatıs montajları	Plastic bonded magnets and magnet assemblies
+31381500	Enjeksiyon kalıplı mıknatıslar ve mıknatıs montajları	Injection molded magnets and magnet assemblies
+31391500	Standart hassasiyetli talaşlı imalat	Standard precision machinings
+31391600	Orta hassasiyetli talaşlı imalat	Medium precision machinings
+31391700	Yüksek hassasiyetli talaşlı imalat	High precision machinings
+31401500	Kalıplanmış contalar	Molded gaskets
+31401600	Kesme kalıbıyla üretilmiş contalar	Die cut gaskets
+31401700	Preslenmiş contalar	Stamped gaskets
+31401800	Su jeti ile kesilmiş contalar	Water jet cut gaskets
+31401900	Sıvı contalar	Liquid gaskets
+31411500	Torna kesim keçeler	Lathe cut seals
+31411600	Kesme kalıbıyla üretilmiş keçeler	Die cut seals
+31411700	Mekanik salmastralar	Mechanical seals
+31411800	Diyafram sızdırmazlık elemanları	Diaphragm seals
+31411900	Kalıplanmış keçeler	Molded seals
+31421500	Sinterlenmiş filtreler	Sintered filters
+32121800	Sinyal filtreleri	Signal filters
+32121900	Rezonatörler	Resonators
+32152000	Proses kontrol ve paket otomasyon sistemleri	Process control or packaged automation systems
+39111500	İç mekan aydınlatma armatürleri ve aksesuarları	Interior lighting fixtures and accessories
+39111600	Dış mekan aydınlatma armatürleri ve aksesuarları	Exterior lighting fixtures and accessories
+39111900	Özel ortam armatürleri ve aksesuarları	Special environment fixtures and accessories
+39112300	Sahne ve stüdyo aydınlatması ve aksesuarları	Stage and studio lighting and accessories
+39121500	Elektrik kumanda elemanları ve aksesuarları	Electrical controls and accessories
+39122100	Elektrik iletim ve dağıtım ekipmanları	Electrical transmission and distribution equipment
+39122200	Elektrik anahtarları ve aksesuarları	Electrical switches and accessories
+39122300	Elektrik röleleri ve aksesuarları	Electrical relays and accessories
+39122400	Havalimanı güç kaynağı ve dağıtım ekipmanları	Airport power supply and power distribution equipment
+40101700	Soğutma ekipmanları, parça ve aksesuarları	Cooling equipment and parts and accessories
+40102100	Şömineler ve aksesuarları	Fireplaces and accessories
+40102200	Genleşme derzleri	Expansion joint
+40142600	Deniz yükleme kolu	Marine loading arm
+40151800	Kompresör parça ve aksesuarları	Compressor parts or accessories
+40161900	Endüstriyel kimya ekipmanları	Industrial chemical equipment
+40171500	Ticari borular ve boru hatları	Commercial pipe and piping
+40171600	Endüstriyel borular ve boru hatları	Industrial pipe and piping
+40171700	Boru adaptörleri	Pipe adapters
+40171800	Boru açılı yüzey halkaları	Pipe angle face rings
+40171900	Boru destek flanşları	Pipe backup flanges
+40172000	Boru şaşırtma levhaları	Pipe baffles
+40172100	Boru bükümleri (bend)	Pipe bends
+40172200	Boru kör flanşları	Pipe blind flanges
+40172300	Boru burçları	Pipe bushings
+40172400	Boru kapakları	Pipe caps
+40172500	Boru bağlantı elemanları	Pipe connectors
+40172600	Boru kaplinleri	Pipe couplings
+40172700	Boru dört yollu bağlantıları	Pipe crosses
+40172800	Boru dirsekleri	Pipe elbows
+40172900	Boru genleşme kompansatörleri	Pipe expansion joints
+40173000	Boru yarım kaplinleri	Pipe half couplings
+40173100	Boru lapjoint flanşları	Pipe lapjoint flanges
+40173200	Boru uzun boyunlu kaynak flanşları	Pipe long weldneck flanges
+40173300	Boru nipelleri	Pipe nipples
+40173400	Boru plaka flanşları	Pipe plate flanges
+40173500	Boru tapaları	Pipe plugs
+40173600	Boru redüksiyon kaplinleri	Pipe reducing couplings
+40173700	Boru redüksiyon flanşları	Pipe reducing flanges
+40173800	Boru tamir kelepçeleri	Pipe repair clamps
+40173900	Boru patlama diskleri	Pipe rupture disks
+40174000	Boru kaymalı (slip-on) flanşlar	Pipe slipon flanges
+40174100	Boru soket kaynaklı flanşlar	Pipe socketweld flanges
+40174200	Boru sockolet bağlantıları	Pipe sockolets
+40174300	Boru ara parçaları	Pipe spacers
+40174400	Boru gözlük tipi kör flanşlar	Pipe spectacle blind flanges
+40174500	Boru döner bağlantıları	Pipe swivel or rotating joints
+40174600	Boru te bağlantıları	Pipe tees
+40174700	Boru dişli flanşları	Pipe threaded flanges
+40174800	Boru klozet flanşları	Pipe toilet flanges
+40174900	Boru rakorları	Pipe unions
+40175000	Boru boyunlu kaynak flanşları	Pipe weldneck flanges
+40175100	Boru weldolet bağlantıları	Pipe weldolets
+40175200	Boru Y bağlantıları	Pipe wyes
+40175300	Özel boru bağlantı elemanları ve flanşlar	Specialized pipe fittings and flanges
+40175400	Boru destekleri	Pipe support
+40181500	Kaynaklı bakır borular	Welded copper tubes
+40181600	Kaynaklı pirinç borular	Welded brass tubes
+40181700	Kaynaklı alüminyum borular	Welded aluminum tubes
+40181800	Kaynaklı çelik borular	Welded steel tubes
+40181900	Kaynaklı paslanmaz çelik borular	Welded stainless steel tubes
+40182000	Dikişsiz bakır borular	Seamless copper tubes
+40182100	Dikişsiz pirinç borular	Seamless brass tubes
+40182200	Dikişsiz alüminyum borular	Seamless aluminum tubes
+40182300	Dikişsiz çelik borular	Seamless steel tubes
+40182400	Dikişsiz paslanmaz çelik borular	Seamless stainless steel tubes
+40182500	Ekstrüde bakır borular	Extruded copper tubes
+40182600	Ekstrüde pirinç borular	Extruded brass tubes
+40182700	Ekstrüde alüminyum borular	Extruded aluminum tubes
+40182800	Ekstrüde çelik borular	Extruded steel tubes
+40182900	Ekstrüde paslanmaz çelik borular	Extruded stainless steel tubes
+40183000	Kauçuk ve plastik hortumlar	Rubber and plastic tubing
+40183100	Tüp bağlantı elemanları	Tube fittings
+40183200	Demir borular	Iron tubes
+41105500	Nükleik asit (DNA/RNA) ekstraksiyon, saflaştırma ve ölçüm kitleri	Nucleic acid DNA and RNA extraction and purification and quantitation kits and components
+41106700	Laboratuvar botanik ekipmanları ve aksesuarları	Laboratory botanical equipment and accessories
+41106800	Temiz oda sertifikalı malzemeler	Cleanroom certified supplies
+41112700	Laboratuvar tohum ve yem test ekipmanları	Laboratory seed and feed testing equipment
+41113600	Elektriksel ölçüm ve test ekipmanları ve aksesuarları	Electrical measuring and testing equipment and accessories
+41116600	Otomatik hava gözlem sistemleri (AWOS/ASOS)	Automated Weather Observation Systems (AWOS) Automated Surface Observing System (ASOS)
+41131500	Otomatik ve yarı otomatik hematoloji cihazları	Automated and semi-automated hematology devices
+41131600	Kan bankası işleme ürünleri	Blood bank processing products
+41131700	Hematoloji kitleri ve paketleri	Hematology kits and packages
+41131800	Hematoloji reaktifleri	Hematology reagents
+41131900	Manuel hematoloji cihazları	Manual hematology devices
+41132000	Transfüzyon için işlenmiş kan ürünleri	Processed blood products for transfusion
+41141500	Klinik kimya anyon standartları	Clinical chemistry anion standards
+41141600	Klinik kimya enzimleri	Clinical chemistry enzymes
+41141700	Klinik kimya reaktifleri	Clinical chemistry reagents
+41141800	Klinik kimya substratları	Clinical chemistry substrates
+41141900	Klinik kimya test sistemleri a-g	Clinical chemistry test systems a-g
+41142000	Klinik kimya test sistemleri h-z	Clinical chemistry test systems h-z
+41142100	Klinik kimya titrant reaktifleri	Clinical chemistry titrant reagents
+41151500	Klinik laboratuvar kolorimetrik standartları	Clinical laboratory colorimetric standards
+41151600	Klinik laboratuvar cihazları	Clinical laboratory instruments
+41151700	Klinik toksikoloji test sistemleri	Clinical toxicology test systems
+41161500	Hücre ve doku kültürü ürünleri	Cell and tissue culture products
+41171500	Tanı cihazları	Diagnostic devices
+41171600	Mikrobiyoloji cihazları	Microbiology devices
+41181500	İmmünolojik test sistemleri	Immunological test systems
+41181600	İmmünoloji laboratuvar ekipmanları ve reaktifleri	Immunology laboratory equipment and reagents
+41181700	Yenilebilir immünolojik alerjen ekstraktları	Edible immunological allergenic extracts
+41181800	Yenilemez immünolojik alerjen ekstraktları	Non edible immunological allergenic extracts
+41181900	Tümör ilişkili antijen immünolojik test sistemleri	Tumor associated antigen immunological test systems
+41191500	Patoloji cihazları	Pathology instrumentation
+41191600	Patoloji aksesuarları	Pathology  accessories
+41202000	Serolojik reaktifler	Serological reagents
+41202100	Numune hazırlama reaktifleri	Specimen preparation reagents
+42121800	Veteriner suni tohumlama ekipman ve malzemeleri	Veterinary artificial insemination equipment and supplies
+42142700	Üroloji tedavi ürünleri ve malzemeleri	Urological treatment products and supplies
+42143100	Kadın doğum ve jinekoloji ekipman ve malzemeleri	Obstetrics and gynecology equipment and supplies
+42144000	Harici işitme cihazı parça ve aksesuarları	External hearing device parts and accessories
+42144100	Plevral boşluk drenaj ürünleri	Pleural cavity drain products
+42144200	Akupunktur ekipmanları	Acupuncture equipment
+42144300	Harici kontrpulsasyon (ECP) ürünleri	External counterpulsation ECP products
+42144400	Cerrahi dışı aspirasyon ürünleri	Nonsurgical suction products
+42144500	Cinsel işlev bozukluğu cihaz ve malzemeleri	Impotence and sexual disorder devices and supplies
+42152900	Diş hekimliği ve yan dal alet ve cihaz aksesuarları	Dental and subspecialty instrument and device accessories
+42153000	Diş hekimliği ve yan dal alet ve cihaz setleri	Dental and subspecialty instrument and device sets
+42161900	Terapötik aferez ekipman ve malzemeleri	Therapeutic apheresis equipment and supplies
+42171500	Mobil sağlık afet yönetimi ürünleri ve malzemeleri	Mobile medical services disaster management products and mobile medical services supplies
+42171600	Mobil sağlık kurtarma, sabitleme ve taşıma ürünleri	Mobile medical services extricating and immobilizing and transporting products
+42171700	Mobil sağlık battaniyeleri	Mobile medical services blankets
+42171800	Mobil sağlık hava yolu yönetim ekipmanları	Mobile medical services airway management equipment
+42171900	Tıbbi ekipman çantaları, kutuları ve taşıyıcıları	Medical equipment bags and cases and carriers and related products
+42172000	Mobil sağlık kitleri	Mobile medical services kits
+42172100	Mobil sağlık canlandırma ürünleri	Mobile medical services resuscitation products
+42183400	Oftalmik kameralar	Ophthalmic cameras
+42183500	Oftalmik skoplar	Ophthalmic scopes
+42192300	Hasta kaldırma sistemleri ve ilgili ürünler	Patient lifts and related products
+42192400	Tıbbi ekipman taşıma, transfer ve depolama ürünleri	Medical equipment transport and transfer and storage products
+42192700	Özel muayene masaları ve ilgili ürünler	Specialty exam tables and related products
+42192800	Tıbbi ve farmasötik biyolojik atık bertaraf ürünleri	Medical and pharmaceutical biohazard disposal products
+42204100	Nükleer tıp sıcak laboratuvar ekipmanları ve ilgili ürünler	Nuclear medicine hot lab equipment and related products
+42204200	Tıbbi radyolojik malzeme elleçleme cihaz ve aletleri	Medical radiological material handling devices and instruments
+42204300	Tıbbi radyolojik tanı sistemleri	Medical radiological diagnostic systems
+42231900	Emzirme ekipman, aksesuar ve malzemeleri	Breast feeding equipment and accessories and supplies
+42282000	Alet temizleme cihazları ve aksesuarları	Instrument cleaning devices and accessories
+42282100	Otomatik oda dezenfeksiyon ekipmanları ve aksesuarları	Automated room disinfection equipment and accessories
+42292000	Cerrahi aynalar ve ilgili ürünler	Surgical mirrors and related products
+42293300	Cerrahi distraksiyon, kompresyon ve kombine aletler	Surgical distraction and compression and combination instruments and related product
+42293500	Cerrahi aspirasyon ve irrigasyon ürünleri	Surgical suction and irrigation products
+42293600	Cerrahi buji ve sondalar ve ilgili ürünler	Surgical bougies and sounds and related products
+42294200	Cerrahi alet setleri ve sistemleri	Surgical instrument sets and systems
+42294300	Meme biyopsisi ekipman, alet ve malzemeleri	Breast biopsy equipment and instruments and supplies
+42294900	Endoskopik aletler	Endoscopic instruments
+42295000	Endoskopik ekipman aksesuarları ve ilgili ürünler	Endoscopic equipment accessories and related products
+42295800	Cerrahi termo ablasyon sistemleri ve aksesuarları	Surgical thermo ablation systems and accessories
+42295900	Stentler	Stents
+42296000	Kardiyovasküler implantlar	Cardiovascular implants
+42296100	Nöroşirürji implantları	Neurosurgical implants
+42296200	Cerrahi robotik ekipman ve aksesuarları	Surgical robotic equipment and accessories and related products
+42296300	Endoskoplar	Endoscopes
+42296400	Endoskopik ekipmanlar	Endoscopic equipment
+42296500	Kriyocerrahi alet, aksesuar ve malzemeleri	Cryosurgery instruments and accessories and supplies
+42296600	Tıbbi stereotaktik sistemler	Medical stereotactic systems
+42296700	Cerrahi kemik çimentoları ve ilgili ürünler	Surgical bone cements and related products
+42296800	Cerrahi aletler ve aksesuarları	Surgical instruments and accessories
+42311600	Hemostatik ajanlar	Hemostatic agents
+42312200	Sütürler ve ilgili ürünler	Sutures and related products
+42312600	Negatif basınç ve oksijen tedavili yara bakım ürünleri	Negative pressure and oxygen therapy wound care products
+42312700	Biyomühendislik deri eşdeğerleri ve örtüleri	Bioengineered skin substitutes or dressings and related products
+42321500	Ortopedik travma implantları	Orthopedic trauma implants
+42321600	Omurga implantları	Spinal implants
+42321700	Kalça eklemi implantları	Hip joint implants
+42321800	Diz eklemi implantları	Knee joint implants
+42321900	Omuz eklemi implantları	Shoulder joint implants
+42322000	Distal eklem ortopedik implantları	Distal joint orthopedic implants
+42322100	Ortopedik deneme implant ölçerleri	Orthopedic trial implant sizers
+42322200	Yumuşak doku tespit ürünleri	Soft tissue fixation products
+42322300	Ortopedik torasik implantlar ve ilgili ürünler	Orthopedic thoracic implants and related products
+42322400	Ekstremite koruyucu implantlar	Limb salvage implants
+42322500	Eksternal fiksasyon bileşenleri	External fixation components
+42322600	Genel ortopedik implantlar	General orthopedic implants
+42322700	Ayak ve ayak bileği implantları	Foot and ankle implants
+42322800	Total ayak bileği protez implantları	Total ankle joint replacement implants
+43212200	Bilgisayar veri depolama yönetim sistemleri	Computer data storage management systems
+43233700	Sistem yönetim yazılımı	System management software
+45112100	Derslik ve dil laboratuvarı ekipmanları ve çeviri sistemleri	Classroom and language laboratory equipment & interpretation system
+45121600	Kamera parça ve aksesuarları	Camera parts and accessories
+46101900	Kesici silahlar ve aksesuarları	Bladed weapons and accessories
+46151800	Patlayıcı kontrol ekipman, aksesuar ve malzemeleri	Explosives control equipment and accessories and supplies
+46151900	Kimyasal-biyolojik kontrol ekipman, aksesuar ve malzemeleri	Chemical biological control equipment and accessories and supplies
+46161700	Kurtarma ekipmanları ve aksesuarları	Rescue equipment and accessories
+46171700	Araç geçiş kontrol sistemleri	Vehicle access control
+46201000	Kamu güvenliği eğitim ekipmanları	Public safety training equipment
+46201100	Hafif silah eğitim ekipmanları	Small arms weapons training equipment
+46211500	İş güvenliği eğitim araç ve materyalleri	Workplace safety training aids and materials
+46211600	Çalışma alanı işaretleme ve görsel uyarıcılar	Work area marking and visual indicators
+46211700	Çalışma alanı güvenlik ve koruyucu ekipmanları	Work area safety and protective equipment
+46221500	Mayın temizleme ekipmanları ve ilgili ürünler	Demining equipment and related products
+47121500	Temizlik arabaları ve aksesuarları	Cleaning and janitorial carts and accessories
+47141500	Petrol sızıntısı temizleme ürünleri	Oil spill cleanup products
+48131500	Defin ve mezar ürünleri	Burial or grave products
+48140100	Profesyonel hizmet robotu	Professional service robot
+49211900	Elektrikli kuvvet egzersiz cihazları	Electrical strength exerciser
+49241800	Sauna ekipmanları	Sauna equipment
+52152300	Ev mutfak sarf malzemeleri	Domestic kitchen supplies
+53103200	Tek kullanımlık giysiler	Disposable clothes
+53103300	Giysi setleri	Clothing kits
+53131700	Terapötik masaj ekipmanları	Therapeutic massage equipment
+53131800	Dövme ekipman, aksesuar ve malzemeleri	Tattoo equipment and accessories and materials
+55122000	Elektrik etiketleri	Electrical labels
+56141500	Seramik süs eşyaları	Ceramic adornments
+56141600	Cam süs eşyaları	Glass adornments
+56141700	Metal süs eşyaları	Metal adornments
+56141800	Ahşap süs eşyaları	Wooden adornments
+57010100	Hızlı müdahale kitleri	Rapid response kits
+57020100	İnsani yardım operasyon hizmetleri	Humanitarian operational services
+57030100	Acil sağlık kitleri	Health emergency kits
+57030200	Acil durum tuvalet üniteleri	Emergency latrine facility
+57030300	Su, sanitasyon ve hijyen kitleri	Water, sanitation and hygiene kits
+57030400	Kişisel koruyucu donanım	Personal protective equipment
+57040100	Eğitim kitleri	Educational kits
+57040200	Rekreasyon kitleri	Recreational kits
+57040300	Erken çocukluk gelişimi	Early childhood development
+57050100	Acil beslenme kitleri	Emergency nutritional kits
+57050200	Acil durum gıda rasyonları	Food emergency rations
+57050300	Acil durum gıda kitleri	Food emergency kits
+57060100	Acil durum giysi kitleri	Emergency clothing kits
+57060200	Acil barınma kitleri	Shelter emergency kits
+57060300	Acil ofis kitleri	Office emergency kits
+57060400	Çok amaçlı acil durum kitleri	Multipurpose emergency kits
+57070100	Acil lojistik kitleri	Logistics emergency kits
+57080100	Acil bilişim ekipman kitleri	Emergency IT equipment kits
+60106500	Dini malzemeler	Religious supplies
+60106600	Yetenek ve meslek testi materyalleri	Aptitude and vocational testing materials
+64101500	Vadeli mevduat hesapları	Time deposit accounts
+64101600	Vadesiz mevduat hesapları	Demand deposit accounts
+64101700	Elektronik fon transferi ve ödeme ürünleri	Electronic fund transfer and payment products
+64101800	Kart bazlı rotatif kredi ürünleri	Card based revolving credit products
+64101900	Hesap bazlı kredi ürünleri	Account based credit products
+64102000	Yatırım hesapları	Investment accounts
+64111500	Hisse senedi bazlı menkul kıymetler	Equity based securities
+64111600	Borçlanma araçları	Debt based securities
+64111700	Türev menkul kıymetler	Derivative securities
+64111800	Haklar ve intifa senetleri	Entitlements or rights
+64111900	Yapılandırılmış finansal ürünler	Structured financial products
+64121500	Mal sigortası sözleşmeleri	Property insurance contracts
+64122000	Hayat sigortası sözleşmeleri	Life insurance contracts
+64122100	Sağlık sigortası sözleşmeleri	Health insurance contracts
+64122200	Diş sigortası sözleşmeleri	Dental insurance contracts
+64122300	Kaza sigortası sözleşmeleri	Casualty insurance contracts
+64122400	Kefalet senetleri	Surety bonds
+64131500	Anlaşmalar	Agreements
+64131600	Sözleşmeler	Contracts
+64141500	Uluslararası fikri mülkiyet koruma ürünleri	International intellectual property protection products
+64141600	Ulusal fikri mülkiyet koruma ürünleri	National intellectual property protection products
+64141700	Çevresel telafi bankacılığı ürünleri	Environmental mitigation banking products
+64151500	Temsili para ve döviz	Representative money or currency
+70123000	Hayvan kontrol ve refah hizmetleri	Animal control and welfare services
+70171500	Su kaynağı geliştirme hizmetleri	Water resource development service
+70171600	Su kalitesi yönetim hizmetleri	Water quality management services
+70171700	Sulama sistemi bakım ve yönetim hizmetleri	Irrigation system maintenance and management services
+71101600	Maden sondaj, patlatma ve inşaat hizmetleri	Mine drilling blasting and construction services
+71151500	Hidrokarbon tahsis yönetimi ve danışmanlık hizmetleri	Hydrocarbon allocation management and consultancy services
+71161700	Petrol sahası mevzuat uyum hizmetleri	Oilfield regulatory compliance services
+71161800	Petrol sahası atık yönetim hizmetleri	Oilfield waste management services
+71171500	Ham petrol testi	Crude oil testing
+71171600	Doğal gaz test hizmetleri	Natural gas testing services
+71171700	Yağ durum izleme hizmetleri	Oil condition monitoring services
+71171800	Üretim suyu izleme hizmetleri	Produced water monitoring services
+71171900	Formasyon suyu test hizmetleri	Formation water testing services
+72101500	Bina bakım ve onarım hizmetleri	Building maintenance and repair services
+72102900	Tesis bakım ve onarım hizmetleri	Facility maintenance and repair services
+72103100	Taşıma sistemleri montaj ve onarımı	Conveyance systems installation and repair
+72103300	Altyapı bakım ve onarım hizmetleri	Infrastructure maintenance and repair services
+72111000	Müstakil konut inşaat hizmetleri	Single family dwelling construction services
+72111100	Çok birimli konut inşaat hizmetleri	Multiple unit dwelling construction services
+72121000	Yeni sanayi yapısı ve depo inşaat hizmetleri	New industrial building and warehouse construction services
+72121100	Ticari ve ofis binası inşaat hizmetleri	Commercial and office building construction services
+72121200	Tarımsal yapı inşaat hizmetleri	Agricultural building construction services
+72121300	Oto servis ve akaryakıt istasyonu inşaat hizmetleri	Automotive garage and service station construction services
+72121400	Özel kamu binası inşaat hizmetleri	Specialized public building construction services
+72121500	Sanayi tesisi inşaat hizmetleri	Industrial plant construction services
+72121600	Açık deniz rüzgar santrali hizmetleri	Offshore wind farm service
+72141000	Karayolu ve yol inşaat hizmetleri	Highway and road construction services
+72141100	Altyapı yapımı, kaplama ve asfaltlama hizmetleri	Infrastructure building and surfacing and paving services
+72141200	Deniz inşaat hizmetleri	Marine construction services
+72141400	Ceza infaz kurumu inşaat ve onarım hizmetleri	Detention facility construction and repair services
+72141500	Arazi hazırlama hizmetleri	Land preparation services
+72141600	Toplu taşıma sistemi inşaat hizmetleri	Mass transit system construction services
+72141700	İnşaat makine ve ekipman kiralama hizmetleri	Construction machinery and equipment rental or leasing services
+72151000	Kazan ve fırın yapım ve bakım hizmetleri	Boiler and furnace construction and maintenance services
+72151100	Tesisat yapım hizmetleri	Plumbing construction services
+72151200	Isıtma, soğutma ve iklimlendirme (HVAC) yapım ve bakım hizmetleri	Heating and cooling and air conditioning HVAC construction and maintenance services
+72151300	Boya ve duvar kağıdı hizmetleri	Painting and paper hanging services
+72151400	Duvar kaplama yapım hizmetleri	Wall covering construction services
+72151500	Elektrik sistemi hizmetleri	Electrical system services
+72151600	Özel haberleşme sistemi hizmetleri	Specialized communication system services
+72151700	Güvenlik sistemi montaj hizmetleri	Safety and security system installation services
+72151800	Makine montaj, bakım ve onarım hizmetleri	Machine installation and maintenance and repair services
+72151900	Duvar ve taş işçiliği hizmetleri	Masonry and stonework services
+72152000	Sıva ve alçıpan hizmetleri	Plastering and drywall services
+72152100	Akustik ve yalıtım hizmetleri	Acoustical and insulation services
+72152200	Mozaik, seramik, mermer ve karo hizmetleri	Terrazzo tile and marble and mosaic services
+72152300	Marangozluk hizmetleri	Carpentry services
+72152400	Kapı ve pencere montaj hizmetleri	Window and door installation and erection services
+72152500	Zemin döşeme hizmetleri	Floor laying services
+72152600	Çatı, cephe kaplama ve sac işleri hizmetleri	Roofing and siding and sheet metal services
+72152700	Beton uygulama ve onarım hizmetleri	Concrete installation and repair services
+72152800	Su kuyusu sondaj hizmetleri	Water well drilling services
+72152900	Çelik konstrüksiyon montaj hizmetleri	Structural steel erection services
+72153000	Cam ve cam montaj hizmetleri	Glass and glazing services
+72153100	Spor ve rekreasyon tesisi inşaat hizmetleri	Athletic and recreational facility construction services
+72153200	Kaplama, derz dolgu, su ve yangın yalıtımı hizmetleri	Coating and caulking and weather water and fireproofing services
+72153300	Akaryakıt istasyonu ekipman montaj ve bakım hizmetleri	Service station equipment installation and maintenance services
+72153400	Kaldırma-taşıma (rigging) ve iskele hizmetleri	Rigging and scaffolding services
+72153500	Yapı dış cephe temizlik hizmetleri	Structural exterior cleaning services
+72153600	İç mekan bitirme, döşeme ve tadilat hizmetleri	Interior finishing and furnishing and remodeling services
+72153700	Otopark inşaat, ekipman montaj ve bakım hizmetleri	Parking facility construction and equipment installation and maintenance and repair services
+72153900	Şantiye hazırlık hizmetleri	Building site preparation services
+72154000	Özel yapı ve zanaat hizmetleri	Specialty building and trades services
+72154100	Dağıtım ve koşullandırma sistemi ekipman bakım ve onarım hizmetleri	Distribution and conditioning system equipment maintenance and repair services
+72154200	Enstrümantasyon montaj, bakım ve onarım hizmetleri	Instrumentation installation maintenance and repair services
+72154300	Tahrik ve elektrik üretim ekipmanı bakım ve onarım hizmetleri	Motive and electrical power generation equipment maintenance and repair services
+72154400	Boru tesisatı imalat ve bakım hizmetleri	Pipefitting fabrication and maintenance services
+72154500	Ağır ekipman montaj ve bakım hizmetleri	Heavy equipment installation and maintenance services
+72154600	Hayvan barınağı ve muhafaza yapımı ve bakım hizmetleri	Animal habitat and enclosure construction and maintenance services
+76122000	Düzenli depolama (katı atık) hizmetleri	Landfill services
+76122100	Atıktan yakıt harmanlama hizmetleri	Waste to fuel blending services
+76122200	Atık yakma hizmetleri	Waste incineration services
+76122300	Geri dönüşüm hizmetleri	Recycling services
+76122400	Atık bertaraf ve arıtma ücretleri	Refuse disposal and treatment fees
+77102000	Çevresel raporlama hizmetleri	Environmental reporting services
+77141500	Su ve sulu ortam testleri	Water or aqueous testing
+77141600	İçilebilir olmayan su ve sulu ortam testleri	Non-drinking water or aqueous testing
+77141700	Toprak, çamur ve katı atık testleri	Soil or sludge or solid waste testing
+78112000	Çok modlu yolcu taşımacılığı hizmetleri	Intermodal passenger transport services
+78141500	Taşıma organizasyon hizmetleri	Transport arranging services
+78141900	Taşıma konteyneri kiralama hizmetleri	Transport container rental services
+78142000	Taşıt kiralama hizmetleri	Transport conveyance rental or lease services
+78142100	Lojistik operasyon yönetimi	Logistics operation management
+78142200	Havacılıkla ilgili hizmetler ve danışmanlık	Aviation-Related services and consultancy
+78181500	Araç bakım ve onarım hizmetleri	Vehicle maintenance and repair services
+78181600	Kaporta ve boya hizmetleri	Panel and paint services
+78181700	Taşıt yakıt ikmali, depolama ve destek hizmetleri	Transport fueling and vehicle storage and support services
+78181800	Sabit kanatlı uçak bakım ve onarım hizmetleri	Fixed wing aircraft maintenance and repair services
+78181900	Döner kanatlı hava aracı bakım ve onarım hizmetleri	Rotary wing aircraft maintenance and repair services
+78182000	Deniz taşıtı bakım ve onarım hizmetleri	Water transport vessel maintenance and repair services
+78182100	Elektromobilite hizmetleri	Electro mobility service
+80101800	İş sağlığı ve güvenliği yönetimi	Health and safety management
+80121900	Ücretli hukuki katılım hizmetleri	Compensated legal participation services
+80122000	Hukuki inceleme ve araştırma hizmetleri	Legal review and inquiry services
+80122100	İdare hukuku hizmetleri	Administrative law services
+80122200	Anayasa hukuku hizmetleri	Constitutional law services
+80122300	Uluslararası hukuk hizmetleri	International law services
+80142000	Müşteri ilişkileri yönetimi hizmetleri	Customer relationship management services
+80142100	Kaynak geliştirme (bağış toplama) hizmetleri	Fundraising services
+80161700	Varlık geri kazanım hizmetleri	Asset recovery service
+80161800	Ofis ekipmanı kiralama hizmetleri	Office equipment rental or leasing services
+80171500	Durum ve paydaş analizi ve iletişim planlama hizmetleri	Situation and stakeholder analysis and communications planning services
+80171600	Tanıtım ve pazarlama destek hizmetleri	Publicity and marketing support services
+80171700	İtibar ve marka yönetimi hizmetleri	Reputation and brand management services
+80171800	Halkla ilişkiler ve medya ilişkileri hizmetleri	Public relations and media relations services
+80171900	Paydaş yönetimi ve ilişkileri hizmetleri	Stakeholder management and relations services
+80172000	Kurumsal iletişim hizmetleri	Professional communication services
+80172100	Sorun ve kriz yönetimi hizmetleri	Issues and crisis management services
+80172200	Sponsorluklar	Sponsorships
+81102500	İzin ve ruhsat hizmetleri	Permitting services
+81102600	Numune alma hizmetleri	Sampling services
+81102700	Enstrümanlı kontrol sistemleri tasarım ve mühendislik hizmetleri	Instrumented control systems design and engineering services
+81102800	Mayın tarlası ve mayın temizleme hizmetleri	Minefield and demining services
+81102900	Kültürel koruma ve restorasyon mühendisliği hizmetleri	Cultural conservation-restoration engineering services
+81103000	Deniz operasyon ve denetim hizmetleri	Marine operation and inspection services
+81103100	Teknoloji araştırma ve geliştirme hizmetleri	Technology research and development service
+81103200	Ar-Ge, inovasyon ve teknoloji hizmetleri	Research and development innovation and technology services
+81103300	Geomatik mühendisliği	Geomatics engineering
+81103400	Mühendislik, tedarik ve proje yönetimi hizmetleri	Engineering procurement and project management services
+81111800	Sistem ve sistem bileşeni yönetim hizmetleri	System and system component administration services
+81112300	Bilgisayar donanımı bakım ve destek	Computer hardware maintenance and support
+81112400	Bilgisayar donanımı kiralama hizmetleri	Computer hardware rental or leasing services
+81112500	Bilgisayar yazılımı lisanslama ve kiralama hizmetleri	Computer software licensing rental or leasing service
+81112600	Bilgisayar donanımı harici bakım, onarım ve destek	Computer hardware offsite or depot maintenance, repair and support
+81141900	Üretim teknolojisi araştırma ve geliştirme hizmetleri	Manufacturing technology research and development services
+81161800	Veri, ses ve multimedya ağ ekipmanı ve platform kiralama hizmetleri	Data voice or multimedia network equipment or platform rental or leasing services
+81161900	Bulut tabanlı hizmet olarak donanım (HaaS)	Cloud-based hardware as a service
+81162000	Bulut tabanlı hizmet olarak yazılım (SaaS)	Cloud-based software as a service
+81162100	Bulut tabanlı hizmet olarak platform (PaaS)	Cloud-based platform as a service
+81162200	Bulut tabanlı hizmet olarak altyapı (IaaS)	Cloud-based infrastructure as a service
+81162300	Bulut tabanlı hizmet olarak iş süreci (BPaaS)	Cloud-based business process as a service
+81171500	Deniz biyolojisi hizmetleri	Marine biology services
+81171600	Ekoloji bilimi hizmetleri	Ecological science services
+81171700	Botanik bilimi hizmetleri	Botanical science services
+81171800	Tarım bilimi hizmetleri	Agricultural science services
+81171900	Aerobiyoloji bilimi hizmetleri	Aerobiological science services
+82112000	Yüz yüze sözlü çeviri hizmetleri	In person language interpretation services
+82112100	Dile özgü editörlük ve yazarlık hizmetleri	Language specific editorial and writing services
+82141700	Üç boyutlu (3B) görselleştirme hizmetleri	Three dimensional 3D visualization services
+82161500	Tiyatro dekor tasarımı, aksesuar ve kostüm hizmetleri	Theatrical set design, property and costume services
+83130100	İletişim hizmetleri	Communication service
+84131900	Kaza branşı sigorta hizmetleri	Insurance services for casualty lines
+86101900	Havacılığa özgü eğitim	Aviation specific training
+86132000	Yönetim eğitimi hizmetleri	Management education and training services
+86132100	Eğitim planlama, kolaylaştırma ve sunum hizmetleri	Training planning, facilitation and delivery services
+86132200	Eğitim destek hizmetleri	Educational support services
+90101900	Yiyecek içecek ekipmanı kiralama ve bakım hizmetleri	Food and beverage equipment rental or leasing and maintenance services
+90111900	Özel konaklama hizmetleri	Specialized accommodation services
+90121800	Acil seyahat yardım hizmetleri	Emergency travel assistance services
+90152200	Boş zaman hizmetleri	Leisure service
+92121800	Zırhlı araç ve para nakil hizmetleri	Armored car services and money transport
+92121900	Deniz güvenlik hizmetleri	Marine security services
+93142200	İhtiyaç sahipleri için barınma hizmetleri	Accommodation services for those in need
+95101500	Konut arsası	Residential land parcel
+95101600	Ticari arsalar	Commercial land parcels
+95101700	Sanayi arsaları	Industrial land parcels
+95101800	Kamu arsaları	Governmental land parcels
+95101900	Tarım arazisi	Agricultural land
+95111500	Sınırlı trafikli yollar	Limited traffic thoroughfares
+95111600	Açık trafikli yollar	Open traffic thoroughfares
+95121500	Ticari ve eğlence binaları ve yapıları	Commercial and entertainment buildings and structures
+95121600	Ulaşım binaları ve yapıları	Transport buildings and structures
+95121700	Kamu binaları ve yapıları	Public buildings and structures
+95121800	Altyapı binaları ve yapıları	Utility buildings and structures
+95121900	Eğitim ve araştırma binaları ve yapıları	Educational and research buildings and structures
+95122000	Hastane binaları ve yapıları	Hospital buildings and structures
+95122100	Konaklama binaları ve yapıları	Accommodation buildings and structures
+95122300	Spor ve sağlık binaları ve yapıları	Sports and health buildings and structures
+95122400	Sanayi binaları ve yapıları	Industrial buildings and structures
+95122500	Tarım, hayvancılık ve balıkçılık binaları ve yapıları	Agricultural and farming and fishing buildings and structures
+95122600	Dini binalar ve yapılar	Religious buildings and structures
+95122700	Savunma binaları ve yapıları	Defense buildings and structures
+95131500	Tribünler ve oturma kademeleri	Grandstands and bleachers
+95131600	Taşınabilir ticari ve sanayi binaları ve yapıları	Portable commercial and industrial buildings and structures
+95131700	Çadırlar ve membran yapılar	Tents and membrane structures
+95141500	Prefabrik çiftlik binaları ve yapıları	Prefabricated farm buildings and structures
+95141600	Prefabrik konut binaları ve yapıları	Prefabricated residential buildings and structures
+95141700	Prefabrik ticari ve sanayi binaları ve yapıları	Prefabricated commercial and industrial buildings and structures
+95141800	Prefabrik acil yardım binaları ve yapıları	Prefabricated emergency relief buildings and structures
+95141900	Prefabrik sağlık binaları ve yapıları	Prefabricated medical buildings and structures
