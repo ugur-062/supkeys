@@ -259,6 +259,37 @@ model Category {
   @@map("categories")
 }
 
+/// SONUÇSUZ KATEGORİ ARAMALARI — katalog kürasyonunun ham girdisi.
+///
+/// Kullanıcı "abkant" yazıp hiçbir şey bulamıyorsa iki ihtimal var: ya kategori
+/// eksik, ya eşanlamlı. İkisi de düzeltilebilir ama ancak KAYIT altındaysa —
+/// eskiden bu bilgi yalnız API loguna düşüyordu ve log döngüsüyle kayboluyordu.
+///
+/// Aramanın kendisi hiçbir zaman bu yazıma bağlı DEĞİL: kayıt başarısız olursa
+/// sessizce yutulur, kullanıcı sonucunu alır.
+model CategorySearchMiss {
+  id String @id @default(cuid())
+
+  /// foldSearchText'ten geçmiş biçim — "Abkant", "abkant" ve "ABKANT" TEK
+  /// satırda toplanır, sayaç gerçek talebi gösterir.
+  query String @unique
+  /// Kullanıcının yazdığı son ham hâli — kürasyon yaparken bağlam (aksan,
+  /// büyük harf, yazım hatası deseni burada görünür).
+  rawQuery String
+
+  count       Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  /// Admin ele aldı mı (kelime/kategori eklendi ya da "geçersiz arama" dendi).
+  resolvedAt   DateTime?
+  resolvedNote String?
+
+  /// Kürasyon kuyruğu: çözülmemişler, en çok arananlar önce.
+  @@index([resolvedAt, count])
+  @@map("category_search_misses")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?

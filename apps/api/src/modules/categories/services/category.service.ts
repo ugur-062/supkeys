@@ -309,6 +309,7 @@ export class CategoryService {
       // Sonuçsuz aramalar keywords/taksonomi kürasyonunun ham girdisi —
       // log drain'de "Kategori araması sonuçsuz" ile toplanır.
       this.logger.log(`Kategori araması sonuçsuz: "${q.slice(0, 80)}"`);
+      await this.recordSearchMiss(q, folded);
       return { segments: [], truncated: false };
     }
 
@@ -558,6 +559,42 @@ export class CategoryService {
       level: c.level,
       breadcrumb: buildBreadcrumb(c),
     }));
+  }
+
+  /**
+   * Sonuçsuz aramayı kürasyon kuyruğuna yazar (Faz 6).
+   *
+   * Katlanmış biçim tekil anahtar: "Abkant", "abkant", "ABKANT" tek satırda
+   * toplanır ve sayaç GERÇEK talebi gösterir — yoksa aynı ihtiyaç üç ayrı
+   * düşük-sayılı satıra bölünür ve kuyrukta hiç yukarı çıkmaz.
+   *
+   * AWAIT ediliyor, fire-and-forget DEĞİL. Gerekçe: bu depoda arkada bırakılan
+   * yazımlar test yalıtımını bozup TRUNCATE ile kilit yarışına giriyordu
+   * (CLAUDE.md 40P01 notu). Sonuçsuz arama zaten azınlık yol; tek ek tur
+   * kullanıcıya hissettirmez.
+   *
+   * Hata YUTULUR: kürasyon istatistiği hiçbir zaman aramayı düşürmemeli.
+   */
+  private async recordSearchMiss(raw: string, folded: string): Promise<void> {
+    // Çok uzun sorgu kürasyona bir şey katmaz, tabloyu şişirir (yapıştırılan
+    // ürün tarifi, tesadüfi metin). Kısa olan zaten çağıran tarafta elendi.
+    if (!folded || folded.length > 60) return;
+    try {
+      await this.prisma.categorySearchMiss.upsert({
+        where: { query: folded },
+        create: { query: folded, rawQuery: raw.slice(0, 80) },
+        update: {
+          count: { increment: 1 },
+          lastSeenAt: new Date(),
+          rawQuery: raw.slice(0, 80),
+          // Yeniden aranıyorsa çözüm tutmamış demektir — kuyruğa geri alınır.
+          resolvedAt: null,
+        },
+      });
+    } catch {
+      // Sessiz: tablo yoksa (migration uygulanmamış ortam) ya da yarış
+      // durumunda arama akışı etkilenmemeli.
+    }
   }
 
   /**

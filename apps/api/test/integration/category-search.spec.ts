@@ -295,3 +295,74 @@ describe("CategoryService.searchTree — tokenli arama", () => {
     );
   });
 });
+
+/**
+ * KÜRASYON DÖNGÜSÜ (Faz 6, 2026-09-01).
+ *
+ * Sonuçsuz aramalar, taksonominin nerede eksik olduğunu söyleyen tek doğrudan
+ * sinyaldir — kullanıcı bir şey arıyor ve bulamıyor. Bu bilgi eskiden yalnız
+ * API loguna düşüp log döngüsüyle kayboluyordu; artık sayaçlı bir kuyrukta
+ * birikiyor.
+ */
+describe("CategoryService.searchTree — sonuçsuz arama kaydı", () => {
+  it("sonuç bulunamayan arama kuyruğa yazılır", async () => {
+    await makeChain({ seg: "Metal", fam: "Çelik", cls: "Paslanmaz sac" });
+
+    await service().searchHierarchical("abkant büküm");
+
+    const row = await prisma.categorySearchMiss.findUnique({
+      where: { query: "abkant bukum" },
+    });
+    expect(row?.count).toBe(1);
+    expect(row?.rawQuery).toBe("abkant büküm");
+    expect(row?.resolvedAt).toBeNull();
+  });
+
+  it("aynı arama farklı yazımla gelse TEK satırda sayılır", async () => {
+    await makeChain({ seg: "Metal", fam: "Çelik", cls: "Paslanmaz sac" });
+
+    // Katlanmış biçim aynı: "Abkant" / "ABKANT" / "abkant".
+    await service().searchHierarchical("Abkant");
+    await service().searchHierarchical("ABKANT");
+    await service().searchHierarchical("abkant");
+
+    const rows = await prisma.categorySearchMiss.findMany();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.count).toBe(3);
+  });
+
+  it("SONUÇ BULUNAN arama kuyruğa YAZILMAZ", async () => {
+    await makeChain({ seg: "Metal", fam: "Çelik", cls: "Paslanmaz sac" });
+
+    await service().searchHierarchical("paslanmaz");
+
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+  });
+
+  it("çözülmüş terim yeniden aranırsa kuyruğa GERİ ALINIR", async () => {
+    await makeChain({ seg: "Metal", fam: "Çelik", cls: "Paslanmaz sac" });
+
+    await service().searchHierarchical("caraskal");
+    await prisma.categorySearchMiss.update({
+      where: { query: "caraskal" },
+      data: { resolvedAt: new Date(), resolvedNote: "eşanlamlı eklendi" },
+    });
+
+    // Hâlâ bulunamıyor → çözüm tutmamış.
+    await service().searchHierarchical("caraskal");
+
+    const row = await prisma.categorySearchMiss.findUnique({
+      where: { query: "caraskal" },
+    });
+    expect(row?.resolvedAt).toBeNull();
+    expect(row?.count).toBe(2);
+  });
+
+  it("aşırı uzun sorgu kuyruğu şişirmez", async () => {
+    await makeChain({ seg: "Metal", fam: "Çelik", cls: "Paslanmaz sac" });
+
+    await service().searchHierarchical("x".repeat(120));
+
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+  });
+});

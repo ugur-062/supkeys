@@ -5,7 +5,9 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { Type } from "class-transformer";
@@ -15,6 +17,7 @@ import {
   IsNumber,
   IsOptional,
   IsPositive,
+  IsString,
   Max,
   MaxLength,
   Min,
@@ -32,6 +35,13 @@ import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import { EmailSuppressionService } from "../email/email-suppression.service";
+
+class ResolveCategoryMissDto {
+  /** Ne yapıldı: "eşanlamlı eklendi", "kategori açıldı", "geçersiz arama" … */
+  @IsString()
+  @MaxLength(200)
+  note!: string;
+}
 
 const MANUAL_CURRENCIES = [
   "USD",
@@ -251,6 +261,78 @@ export class AdminSystemController {
   }
 
   /** Zaman Tasarrufu parametreleri — global satır (yoksa şema default'ları). */
+  /**
+   * KATEGORİ KÜRASYON KUYRUĞU (Faz 6).
+   *
+   * Sonuçsuz aramalar taksonominin nerede eksik olduğunu söyleyen TEK
+   * doğrudan sinyal: kullanıcı bir şey arıyor, bulamıyor. Ya kategori yok ya
+   * eşanlamlı yok — ikisi de düzeltilebilir. Eskiden bu bilgi yalnız API
+   * loguna düşüp log döngüsüyle kayboluyordu.
+   *
+   * Kuyruk sırası: çözülmemişler, en çok arananlar önce.
+   */
+  @Get("category-misses")
+  @AllowAnyAdminRole() // Ürün/katalog sinyali — PII yok.
+  async categoryMisses(
+    @Query("includeResolved") includeResolved?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const take = Math.min(Math.max(Number(limit) || 100, 1), 500);
+    const rows = await this.prisma.categorySearchMiss.findMany({
+      where: includeResolved === "true" ? {} : { resolvedAt: null },
+      orderBy: [{ count: "desc" }, { lastSeenAt: "desc" }],
+      take,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      query: r.query,
+      rawQuery: r.rawQuery,
+      count: r.count,
+      firstSeenAt: r.firstSeenAt.toISOString(),
+      lastSeenAt: r.lastSeenAt.toISOString(),
+      resolvedAt: r.resolvedAt?.toISOString() ?? null,
+      resolvedNote: r.resolvedNote,
+    }));
+  }
+
+  /**
+   * Bir aramayı ele alındı olarak işaretler (kelime/kategori eklendi ya da
+   * "geçersiz arama" denildi). Not ZORUNLU: sonradan bakan kişi kararın
+   * gerekçesini görmeli, yoksa aynı terim tekrar kuyruğa girdiğinde iş
+   * baştan yapılır.
+   *
+   * SİLMİYORUZ: terim yeniden aranırsa `recordSearchMiss` resolvedAt'i
+   * temizleyip kuyruğa geri alır — çözüm tutmamış demektir.
+   */
+  @Post("category-misses/:id/resolve")
+  @HttpCode(HttpStatus.OK)
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  async resolveCategoryMiss(
+    @Param("id") id: string,
+    @Body() body: ResolveCategoryMissDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    const row = await this.prisma.categorySearchMiss.findUnique({
+      where: { id },
+      select: { id: true, query: true },
+    });
+    if (!row) throw new BadRequestException("Kayıt bulunamadı");
+
+    await this.prisma.categorySearchMiss.update({
+      where: { id },
+      data: { resolvedAt: new Date(), resolvedNote: body.note.trim() },
+    });
+    await this.audit.log({
+      action: "admin.system.category_miss_resolved",
+      actorType: "admin",
+      actorId: admin.id,
+      entityType: "system",
+      entityId: `category-miss:${row.query}`,
+      metadata: { query: row.query, note: body.note.trim() },
+    });
+    return { ok: true };
+  }
+
   @Get("time-savings-config")
   @AllowAnyAdminRole()
   async getTimeSavingsConfig(): Promise<{
