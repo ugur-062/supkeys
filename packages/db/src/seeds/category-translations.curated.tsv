@@ -2286,3 +2286,249 @@
 30172111	Garaj kapısı komple motoru	Garage door complete operator
 30172112	Garaj kapısı motor bileşeni	Garage door operator component
 30172113	Garaj kapısı motor aksesuarı	Garage door operator accessory
+
+# Metal yarı mamul bloğu — kural tabanlı üretildi + denetlendi.
+30261501	Sıcak haddelenmiş C360 pirinç çubuk	Hot rolled c360 brass bar
+30261502	Sıcak dövülmüş C360 pirinç çubuk	Hot forged c360 brass bar
+30261503	Sıcak haddelenmiş C464 pirinç çubuk	Hot rolled c464 brass bar
+30261504	Sıcak dövülmüş C464 pirinç çubuk	Hot forged c464 brass bar
+30261505	Soğuk çekilmiş C464 pirinç çubuk	Cold drawn c464 brass bar
+30261601	Sıcak haddelenmiş C360 pirinç sac	Hot rolled c360 brass sheet
+30261602	Sıcak haddelenmiş C464 pirinç sac	Hot rolled c464 brass sheet
+30261603	Soğuk haddelenmiş C464 pirinç sac	Cold rolled c464 brass sheet
+30261701	Pirinç rulo	Brass coil
+30261702	Pirinç şerit	Brass strip
+30261703	Pirinç kütük	Brass billet
+30261704	Pirinç külçe	Brass ingot
+30261801	Ekstrüde magnezyum çubuk	Extruded magnesium bar
+30261802	Soğuk haddelenmiş magnezyum sac	Cold rolled magnesium sheet
+30261901	Magnezyum rulo	Magnesium coil
+30261902	Magnezyum şerit	Magnesium strip
+30261903	Magnezyum kütük	Magnesium billet
+30261904	Magnezyum külçe	Magnesium ingot
+30262001	Döküm titanyum çubuk	Cast titanium bar
+30262002	Sıcak haddelenmiş titanyum sac	Hot rolled titanium sheet
+30262101	Titanyum rulo	Titanium coil
+30262102	Titanyum şerit	Titanium strip
+30262103	Titanyum kütük	Titanium billet
+30262104	Titanyum külçe	Titanium ingot
+30262201	Soğuk çekilmiş bakır çubuk	Cold drawn copper bar
+30262202	Sıcak haddelenmiş bakır çubuk	Hot rolled copper bar
+30262301	Sıcak haddelenmiş bakır sac	Hot rolled copper sheet
+30262302	Soğuk haddelenmiş bakır sac	Cold rolled copper sheet
+30262401	Bakır rulo	Copper coil
+30262402	Sıcak haddelenmiş bakır şerit	Hot rolled copper strip
+30262403	Soğuk haddelenmiş bakır şerit	Cold rolled copper strip
+30262404	Bakır kütük	Copper billet
+30262405	Bakır külçe	Copper ingot
+30262501	Sıcak haddelenmiş fosfor bronz çubuk	Hot rolled phosphor bronze bar
+30262502	Soğuk çekilmiş fosfor bronz çubuk	Cold drawn phosphor bronze bar
+30262503	Sıcak haddelenmiş alüminyum bronz çubuk	Hot rolled aluminum bronze bar
+30262504	Soğuk çekilmiş alüminyum bronz çubuk	Cold drawn aluminum bronze bar
+30262505	Sıcak haddelenmiş silisyum bronz çubuk	Hot rolled silicone bronze bar
+30262506	Soğuk çekilmiş silisyum bronz çubuk	Cold drawn silicone bronze bar
+30262601	Sıcak haddelenmiş fosfor bronz sac	Hot rolled phosphor bronze sheet
+30262602	Soğuk haddelenmiş fosfor bronz sac	Cold rolled phosphor bronze sheet
+30262603	Sıcak haddelenmiş alüminyum bronz sac	Hot rolled aluminum bronze sheet
+30262604	Soğuk haddelenmiş alüminyum bronz sac	Cold rolled aluminum bronze sheet
+30262605	Sıcak haddelenmiş alüminyum-silisyum sac	Hot rolled aluminum silicone sheet
+30262606	Soğuk haddelenmiş silisyum bronz sac	Cold rolled silicone bronze sheet
+30262701	Bronz rulo	Bronze coil
+30262702	Bronz şerit	Bronze strip
+30262703	Bronz kütük	Bronze billet
+30262704	Bronz külçe	Bronze ingot
+30262801	Sıcak haddelenmiş çinko çubuk	Hot rolled zinc bar
+30262802	Sıcak haddelenmiş çinko sac	Hot rolled zinc sheet
+30262901	Çinko rulo	Zinc coil
+30262902	Çinko şerit	Zinc strip
+30262903	Çinko kütük	Zinc billet
+30262904	Çinko külçe	Zinc ingot
+30263001	Soğuk çekilmiş kalay çubuk	Tin cold drawn bar
+30263002	Sıcak haddelenmiş kalay çubuk	Tin hot rolled bar
+30263101	Sıcak haddelenmiş kalay sac	Tin hot rolled sheet
+30263102	Soğuk haddelenmiş kalay sac	Tin cold rolled sheet
+30263201	Kalay rulo	Tin coil
+30263202	Kalay şerit	Tin strip
+30263203	Kalay külçe	Tin ingot
+30263301	Ekstrüde kurşun çubuk	Lead extruded bar
+30263302	Sıcak haddelenmiş kurşun çubuk	Lead hot rolled bar
+30263303	Soğuk çekilmiş kurşun çubuk	Lead cold drawn bar
+30263401	Sıcak haddelenmiş kurşun sac	Lead hot rolled sheet
+30263402	Soğuk haddelenmiş kurşun sac	Lead cold rolled sheet
+30263501	Kurşun rulo	Lead coil
+30263502	Kurşun şerit	Lead strip
+30263503	Kurşun kütük	Lead billet
+30263504	Kurşun külçe	Lead ingot
+30263601	Soğuk çekilmiş karbon çeliği SAE 1000 serisi çubuk	Carbon steel SAE 1000 series cold drawn bar
+30263602	Soğuk çekilmiş karbon çeliği SAE 1100 serisi çubuk	Carbon steel SAE 1100 series cold drawn bar
+30263603	Soğuk çekilmiş karbon çeliği SAE 1200 serisi çubuk	Carbon steel SAE 1200 series cold drawn bar
+30263604	Soğuk çekilmiş karbon çeliği SAE 1500 serisi çubuk	Carbon steel SAE 1500 series cold drawn bar
+30263605	Sıcak haddelenmiş karbon çeliği SAE 1000 serisi çubuk	Carbon steel SAE 1000 series hot rolled bar
+30263606	Sıcak haddelenmiş karbon çeliği SAE 1100 serisi çubuk	Carbon steel SAE 1100 series hot rolled bar
+30263607	Sıcak haddelenmiş karbon çeliği SAE 1200 serisi çubuk	Carbon steel SAE 1200 series hot rolled bar
+30263608	Sıcak haddelenmiş karbon çeliği SAE 1500 serisi çubuk	Carbon steel SAE 1500 series hot rolled bar
+30263701	Soğuk çekilmiş alaşımlı çelik SAE 4000 serisi çubuk	Steel alloy SAE 4000 series cold drawn bar
+30263702	Soğuk çekilmiş alaşımlı çelik SAE 5000 serisi çubuk	Steel alloy SAE 5000 series cold drawn bar
+30263703	Soğuk çekilmiş alaşımlı çelik SAE 6000 serisi çubuk	Steel alloy SAE 6000 series cold drawn bar
+30263704	Soğuk çekilmiş alaşımlı çelik SAE 8000 serisi çubuk	Steel alloy SAE 8000 series cold drawn bar
+30263705	Soğuk çekilmiş alaşımlı çelik SAE 9000 serisi çubuk	Steel alloy SAE 9000 series cold drawn bar
+30263706	Sıcak haddelenmiş alaşımlı çelik SAE 4000 serisi çubuk	Steel alloy SAE 4000 series hot rolled bar
+30263707	Sıcak haddelenmiş alaşımlı çelik SAE 5000 serisi çubuk	Steel alloy SAE 5000 series hot rolled bar
+30263708	Sıcak haddelenmiş alaşımlı çelik SAE 6000 serisi çubuk	Steel alloy SAE 6000 series hot rolled bar
+30263709	Sıcak haddelenmiş alaşımlı çelik SAE 8000 serisi çubuk	Steel alloy SAE 8000 series hot rolled bar
+30263710	Sıcak haddelenmiş alaşımlı çelik SAE 9000 serisi çubuk	Steel alloy SAE 9000 series hot rolled bar
+30263801	Soğuk çekilmiş takım çeliği çubuk	Tool steel cold drawn bar
+30263802	Sıcak haddelenmiş takım çeliği çubuk	Tool steel hot rolled bar
+30264001	Sıcak haddelenmiş karbon çeliği SAE 1000 serisi sac	Carbon steel SAE 1000 series hot rolled sheet
+30264002	Sıcak haddelenmiş karbon çeliği SAE 1100 serisi sac	Carbon steel SAE 1100 series hot rolled sheet
+30264003	Sıcak haddelenmiş karbon çeliği SAE 1200 serisi sac	Carbon steel SAE 1200 series hot rolled sheet
+30264004	Sıcak haddelenmiş karbon çeliği SAE 1500 serisi sac	Carbon steel SAE 1500 series hot rolled sheet
+30264013	Soğuk haddelenmiş karbon çeliği SAE 1000 serisi sac	Carbon steel SAE 1000 series cold rolled sheet
+30264014	Soğuk haddelenmiş karbon çeliği SAE 1100 serisi sac	Carbon steel SAE 1100 series cold rolled sheet
+30264015	Soğuk haddelenmiş karbon çeliği SAE 1200 serisi sac	Carbon steel SAE 1200 series cold rolled sheet
+30264016	Soğuk haddelenmiş karbon çeliği SAE 1500 serisi sac	Carbon steel SAE 1500 series cold rolled sheet
+30264101	Sıcak haddelenmiş alaşımlı çelik SAE 4000 serisi sac	Steel alloy SAE 4000 series hot rolled sheet
+30264102	Sıcak haddelenmiş alaşımlı çelik SAE 5000 serisi sac	Steel alloy SAE 5000 series hot rolled sheet
+30264103	Sıcak haddelenmiş alaşımlı çelik SAE 6000 serisi sac	Steel alloy SAE 6000 series hot rolled sheet
+30264104	Sıcak haddelenmiş alaşımlı çelik SAE 8000 serisi sac	Steel alloy SAE 8000 series hot rolled sheet
+30264105	Sıcak haddelenmiş alaşımlı çelik SAE 9000 serisi sac	Steel alloy SAE 9000 series hot rolled sheet
+30264106	Soğuk haddelenmiş alaşımlı çelik SAE 4000 serisi sac	Steel alloy SAE 4000 series cold rolled sheet
+30264107	Soğuk haddelenmiş alaşımlı çelik SAE 5000 serisi sac	Steel alloy SAE 5000 series cold rolled sheet
+30264108	Soğuk haddelenmiş alaşımlı çelik SAE 6000 serisi sac	Steel alloy SAE 6000 series cold rolled sheet
+30264109	Soğuk haddelenmiş alaşımlı çelik SAE 8000 serisi sac	Steel alloy SAE 8000 series cold rolled sheet
+30264110	Soğuk haddelenmiş alaşımlı çelik SAE 9000 serisi sac	Steel alloy SAE 9000 series cold rolled sheet
+30264401	Sıcak haddelenmiş karbon çeliği SAE 1100 serisi rulo	Carbon steel SAE 1100 series hot rolled coil
+30264402	Sıcak haddelenmiş karbon çeliği SAE 1200 serisi rulo	Carbon steel SAE 1200 series hot rolled coil
+30264403	Sıcak haddelenmiş karbon çeliği SAE 1500 serisi rulo	Carbon steel SAE 1500 series hot rolled coil
+30264404	Soğuk haddelenmiş karbon çeliği SAE 1100 serisi şerit	Carbon steel SAE 1100 series cold rolled strip
+30264405	Soğuk haddelenmiş karbon çeliği SAE 1200 serisi şerit	Carbon steel SAE 1200 series cold rolled strip
+30264406	Soğuk haddelenmiş karbon çeliği SAE 1500 serisi şerit	Carbon steel SAE 1500 series cold rolled strip
+30264407	Sıcak haddelenmiş karbon çeliği SAE 1100 serisi şerit	Carbon steel SAE 1100 series hot rolled strip
+30264408	Sıcak haddelenmiş karbon çeliği SAE 1200 serisi şerit	Carbon steel SAE 1200 series hot rolled strip
+30264409	Sıcak haddelenmiş karbon çeliği SAE 1500 serisi şerit	Carbon steel SAE 1500 series hot rolled strip
+30264410	Sıcak haddelenmiş karbon çeliği kütük	Carbon steel hot rolled billet
+30264411	Soğuk haddelenmiş karbon çeliği kütük	Carbon steel cold rolled billet
+30264412	Sıcak haddelenmiş karbon çeliği külçe	Carbon steel hot rolled ingot
+30264413	Soğuk haddelenmiş karbon çeliği külçe	Carbon steel cold rolled ingot
+30264501	Soğuk çekilmiş paslanmaz çelik SAE 200 serisi çubuk	Stainless steel SAE 200 series cold drawn bar
+30264502	Soğuk çekilmiş paslanmaz çelik SAE 300 serisi çubuk	Stainless steel SAE 300 series cold drawn bar
+30264503	Soğuk çekilmiş paslanmaz çelik SAE 400 serisi çubuk	Stainless steel SAE 400 series cold drawn bar
+30264504	Sıcak haddelenmiş paslanmaz çelik SAE 200 serisi çubuk	Stainless steel SAE 200 series hot rolled bar
+30264505	Sıcak haddelenmiş paslanmaz çelik SAE 300 serisi çubuk	Stainless steel SAE 300 series hot rolled bar
+30264506	Sıcak haddelenmiş paslanmaz çelik SAE 400 serisi çubuk	Stainless steel SAE 400 series hot rolled bar
+30264601	Sıcak haddelenmiş paslanmaz çelik SAE 200 serisi sac	Stainless steel SAE 200 series hot rolled sheet
+30264602	Sıcak haddelenmiş paslanmaz çelik SAE 300 serisi sac	Stainless steel SAE 300 series hot rolled sheet
+30264603	Sıcak haddelenmiş paslanmaz çelik SAE 400 serisi sac	Stainless steel SAE 400 series hot rolled sheet
+30264604	Soğuk haddelenmiş paslanmaz çelik SAE 200 serisi sac	Stainless steel SAE 200 series cold rolled sheet
+30264605	Soğuk haddelenmiş paslanmaz çelik SAE 300 serisi sac	Stainless steel SAE 300 series cold rolled sheet
+30264606	Soğuk haddelenmiş paslanmaz çelik SAE 400 serisi sac	Stainless steel SAE 400 series cold rolled sheet
+30264701	Sıcak haddelenmiş paslanmaz çelik SAE 300 serisi rulo	Stainless steel SAE 300 series hot rolled coil
+30264702	Sıcak haddelenmiş paslanmaz çelik SAE 400 serisi rulo	Stainless steel SAE 400 series hot rolled coil
+30264703	Soğuk haddelenmiş paslanmaz çelik SAE 200 serisi rulo	Stainless steel SAE 200 series cold rolled coil
+30264704	Soğuk haddelenmiş paslanmaz çelik SAE 300 serisi rulo	Stainless steel SAE 300 series cold rolled coil
+30264705	Soğuk haddelenmiş paslanmaz çelik SAE 400 serisi rulo	Stainless steel SAE 400 series cold rolled coil
+30264801	Sıcak haddelenmiş paslanmaz çelik SAE 200 serisi şerit	Stainless steel SAE 200 series hot rolled strip
+30264802	Sıcak haddelenmiş paslanmaz çelik SAE 300 serisi şerit	Stainless steel SAE 300 series hot rolled strip
+30264803	Sıcak haddelenmiş paslanmaz çelik SAE 400 serisi şerit	Stainless steel SAE 400 series hot rolled strip
+30264804	Soğuk haddelenmiş paslanmaz çelik SAE 200 serisi şerit	Stainless steel SAE 200 series cold rolled strip
+30264805	Soğuk haddelenmiş paslanmaz çelik SAE 300 serisi şerit	Stainless steel SAE 300 series cold rolled strip
+30264806	Soğuk haddelenmiş paslanmaz çelik SAE 400 serisi şerit	Stainless steel SAE 400 series cold rolled strip
+30264901	Soğuk çekilmiş alüminyum SAE 1000 serisi çubuk	Aluminum SAE 1000 series cold drawn bar
+30264902	Sıcak haddelenmiş alüminyum SAE 1000 serisi çubuk	Aluminum SAE 1000 series hot rolled bar
+30264903	Soğuk çekilmiş alüminyum SAE 2000 serisi çubuk	Aluminum SAE 2000 series cold drawn bar
+30264904	Sıcak haddelenmiş alüminyum SAE 2000 serisi çubuk	Aluminum SAE 2000 series hot rolled bar
+30264905	Soğuk çekilmiş alüminyum SAE 3000 serisi çubuk	Aluminum SAE 3000 series cold drawn bar
+30264906	Sıcak haddelenmiş alüminyum SAE 3000 serisi çubuk	Aluminum SAE 3000 series hot rolled bar
+30264907	Soğuk çekilmiş alüminyum SAE 4000 serisi çubuk	Aluminum SAE 4000 series cold drawn bar
+30264908	Sıcak haddelenmiş alüminyum SAE 4000 serisi çubuk	Aluminum SAE 4000 series hot rolled bar
+30264909	Soğuk çekilmiş alüminyum SAE 5000 serisi çubuk	Aluminum SAE 5000 series cold drawn bar
+30264910	Sıcak haddelenmiş alüminyum SAE 5000 serisi çubuk	Aluminum SAE 5000 series hot rolled bar
+30264911	Soğuk çekilmiş alüminyum SAE 6000 serisi çubuk	Aluminum SAE 6000 series cold drawn bar
+30264912	Sıcak haddelenmiş alüminyum SAE 6000 serisi çubuk	Aluminum SAE 6000 series hot rolled bar
+30265001	Soğuk haddelenmiş alüminyum SAE 1000 serisi sac	Aluminum SAE 1000 series cold rolled sheet
+30265002	Sıcak haddelenmiş alüminyum SAE 1000 serisi sac	Aluminum SAE 1000 series hot rolled sheet
+30265003	Soğuk haddelenmiş alüminyum SAE 2000 serisi sac	Aluminum SAE 2000 series cold rolled sheet
+30265004	Sıcak haddelenmiş alüminyum SAE 2000 serisi sac	Aluminum SAE 2000 series hot rolled sheet
+30265005	Soğuk haddelenmiş alüminyum SAE 3000 serisi sac	Aluminum SAE 3000 series cold rolled sheet
+30265006	Sıcak haddelenmiş alüminyum SAE 3000 serisi sac	Aluminum SAE 3000 series hot rolled sheet
+30265007	Soğuk haddelenmiş alüminyum SAE 4000 serisi sac	Aluminum SAE 4000 series cold rolled sheet
+30265008	Sıcak haddelenmiş alüminyum SAE 4000 serisi sac	Aluminum SAE 4000 series hot rolled sheet
+30265009	Soğuk haddelenmiş alüminyum SAE 5000 serisi sac	Aluminum SAE 5000 series cold rolled sheet
+30265010	Sıcak haddelenmiş alüminyum SAE 5000 serisi sac	Aluminum SAE 5000 series hot rolled sheet
+30265011	Soğuk haddelenmiş alüminyum SAE 6000 serisi sac	Aluminum SAE 6000 series cold rolled sheet
+30265101	Sıcak haddelenmiş alüminyum SAE 1000 serisi rulo	Aluminum SAE 1000 series hot rolled coil
+30265102	Sıcak haddelenmiş alüminyum SAE 2000 serisi rulo	Aluminum SAE 2000 series hot rolled coil
+30265103	Sıcak haddelenmiş alüminyum SAE 3000 serisi rulo	Aluminum SAE 3000 series hot rolled coil
+30265104	Sıcak haddelenmiş alüminyum SAE 4000 serisi rulo	Aluminum SAE 4000 series hot rolled coil
+30265105	Sıcak haddelenmiş alüminyum SAE 5000 serisi rulo	Aluminum SAE 5000 series hot rolled coil
+30265106	Sıcak haddelenmiş alüminyum SAE 6000 serisi rulo	Aluminum SAE 6000 series hot rolled coil
+30265201	Alüminyum şerit	Aluminum strip
+30265202	Alüminyum külçe	Aluminum ingot
+30266601	Nikel sac	Nickel sheet
+30266602	Nikel külçe	Nickel ingot
+
+# Sıhhi tesisat, iskele, kalıp — elle çevrildi.
+30181517	Jakuzi küveti	Whirlpool tub
+30181518	Su dağıtım çeşmesi	Water distribution tap stand
+30181519	Alaturka tuvalet taşı	Latrine / squatting plate
+30181601	Sabunluk	Soap dish
+30181602	Havluluk (bar, halka, ayak veya kanca)	Towel bar or ring or stand or hook
+30181603	Klozet kapağı	Toilet seat
+30181604	Klozet kapak kapağı	Toilet seat lid
+30181605	Süzgeç	Drain
+30181606	Bornoz askısı	Robe hook
+30181607	Duş perdesi ve takımı	Shower curtain or assembly
+30181608	Duş perde borusu	Shower rod
+30181609	Duş rafı	Shower caddy
+30181610	Tuvalet kağıtlığı	Toilet tissue holder
+30181612	Tıraş bıçağı askısı	Shaving razor hook
+30181613	Küvet veya jakuzi eteği	Bathtub or whirlpool apron or skirt
+30181614	Sıvı sabunluk	Liquid soap dispenser
+30181701	Musluk ağzı	Spigot
+30181702	Batarya ünitesi	Faucet unit
+30181801	Duş başlığı	Shower head
+30181802	Perlatör	Faucet aerator
+30181803	El duşu ünitesi	Hand held shower unit
+30181804	Batarya kolu	Faucet handle
+30181805	Sabit ve el duşu kombinasyonu	Combination fixed and hand held shower head
+30181806	Jakuzi jeti	Whirlpool jet
+30181807	Musluk gagası	Spout
+30181808	Ankastre gövde valfi	Rough in valve
+30181809	El duşu tamir seti	Hand shower repair kit
+30181810	Batarya kaplama takımı	Faucet trim
+30181811	Batarya tamir seti	Faucet repair kit
+30181812	Vücut duşu başlığı	Body spray head
+30191506	Platformlu merdiven	Platform step ladder
+30191507	Kombine merdiven	Combination ladder
+30191508	Çatı merdiveni	Roof ladder
+30191509	Yangın kaçış merdiveni	Fire escape ladder
+30191510	Yangın söndürme merdiveni	Fire extinguishing ladder
+30191601	İskele korkuluğu	Scaffolding handrail
+30191604	İskele çapraz bağlantısı	Scaffolding cross brace
+30191605	İskele çerçevesi	Scaffolding frame
+30191606	İskele merdiveni	Scaffolding staircase
+30191607	İskele karşı ağırlığı	Scaffolding counterweight
+30191608	İskele konsolu	Scaffolding corbel
+30191609	İskele sehpası	Scaffolding trestle
+30191610	İskele vinç kolu (davit)	Scaffolding davit
+30191611	İskele sabitleme elemanı	Scaffolding fixation device
+30191612	İskele çelik halatı	Scaffolding wire rope
+30191613	Merdiven platformu	Ladder platform
+30191614	Merdiven tepsisi	Ladder tray
+30191615	Merdiven açılma sınırlayıcı	Ladder stay
+30191616	İnşaat güvenlik ağı	Construction safety net
+30191617	İnşaat güvenlik rafı	Construction safety shelf
+30191701	Şantiye barakası	Construction shed
+30191801	Yapısal kalıp	Structural formwork
+30191802	Yapısal kalıp aksesuarı	Structural formwork accessory
+30191803	Yapısal ara parça	Structural spacer
+30191804	Geçici yol kaplama plakası	Temporary roadway lining plate
+30191805	Yapısal döşeme plakası	Structural deck plate
+30241703	PTFE membran yapı	Polytetrafluoroethylene membrane structure
+30241704	PVF membran yapı	Polyvinyl fluoride structure membrane structure
+30241705	Çadır kışlık donanım seti	Winterization kit for tent
+30251501	Kombine tavan bulonu ve makası	Combination roof bolt and truss
+30251502	Tavan plakası	Roof plate
+30251503	Reçine yapıştırıcı kapsülü	Resin glue capsule or cartridge
+30251504	Genleşme kovanı	Expansion shell
+30251505	Yan duvar hasırı	Rib mat
