@@ -43,25 +43,40 @@ async function main() {
     __dirname,
     "../../src/seeds/categories-custom.tsv",
   );
-  // Küratörlü eşanlamlılar (code ⇥ keywords) — searchText'e katlanarak girer.
-  const keywordsPath = path.resolve(
-    __dirname,
-    "../../src/seeds/category-keywords.tsv",
-  );
+  // Eşanlamlılar (code ⇥ keywords) — searchText'e katlanarak girer.
+  // İKİ kaynak; sıra kritik: üretilen ÖNCE, elle küratörlü SONRA okunur, aynı
+  // kodda Map.set elle yazılanı bırakır (apply-category-keywords.ts ile aynı
+  // öncelik). Üretilen dosya okunmazsa tam reseed toplu sözlüğü SİLERDİ.
   const keywordsByCode = new Map<string, string>();
-  if (fs.existsSync(keywordsPath)) {
-    for (const line of fs.readFileSync(keywordsPath, "utf-8").split("\n")) {
+  for (const name of [
+    "category-keywords.generated.tsv",
+    "category-keywords.tsv",
+  ]) {
+    const p = path.resolve(__dirname, "../../src/seeds", name);
+    if (!fs.existsSync(p)) continue;
+    for (const line of fs.readFileSync(p, "utf-8").split("\n")) {
+      if (!line.trim() || line.startsWith("#")) continue;
       const [code, kw] = line.split("\t");
       if (code?.trim() && kw?.trim()) keywordsByCode.set(code.trim(), kw.trim());
     }
   }
+
+  // ÜRETİLEN yapraklar (gen-category-leaves.ts) — endüstriyel segmentlerde
+  // UNSPSC çıkarımının budanmış L4 katmanını doldurur. Opsiyonel.
+  const generatedPath = path.resolve(
+    __dirname,
+    "../../src/seeds/categories-generated.tsv",
+  );
 
   const lines = [
     ...fs.readFileSync(filePath, "utf-8").split("\n"),
     ...(fs.existsSync(customPath)
       ? fs.readFileSync(customPath, "utf-8").split("\n")
       : []),
-  ].filter((l) => l.trim());
+    ...(fs.existsSync(generatedPath)
+      ? fs.readFileSync(generatedPath, "utf-8").split("\n")
+      : []),
+  ].filter((l) => l.trim() && !l.startsWith("#"));
 
   const cats: Cat[] = [];
   const seen = new Set<string>();

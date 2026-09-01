@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { foldSearchText } from "@rothern/shared";
+import { foldSearchText, tokenizeQuery } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 /**
@@ -237,13 +237,32 @@ export class CategoryService {
     // TR-katlanmış arama: 'İ' (PG lower → i+combining dot) ve aksansız yazım
     // ("jenerator") ham ILIKE'ta eşleşmez — searchText + katlanmış sorgu esas
     // yol, nameTr ILIKE searchText'i boş kalmış satırlar için yedek.
+    //
+    // TOKENLİ arama: sorgu TEK PARÇA aranırsa kelime sırası tutmadığında hiçbir
+    // şey bulunmaz — "paslanmaz sac" kategori adı "Sac ve paslanmaz yassı
+    // mamul" olan satırı ıskalar, "hidrolik pompa fiyatı" hiç bulmaz. Sorgu
+    // kelimelere bölünüp AND'lenir: her kelime bir yerde geçmeli, sırası
+    // önemsiz. Bu, hiç yeni veri eklemeden recall'ü artırır ve eşanlamlı
+    // sözlüğünün (keywords) değerini çarpar — kullanıcı ürün adıyla marka/
+    // özellik kelimesini aynı sorguda karıştırdığında da eşleşir.
     const folded = foldSearchText(q);
-    const nameFilter = {
-      OR: [
-        { searchText: { contains: folded } },
-        { nameTr: { contains: q, mode: "insensitive" as const } },
-      ],
-    };
+    const tokens = tokenizeQuery(q);
+    const nameFilter = tokens.length
+      ? {
+          AND: tokens.map((t) => ({
+            OR: [
+              { searchText: { contains: foldSearchText(t) } },
+              { nameTr: { contains: t, mode: "insensitive" as const } },
+            ],
+          })),
+        }
+      : // Tek anlamlı kelime kalmadı ("ve ile" gibi) — bütün ifadeyi ara.
+        {
+          OR: [
+            { searchText: { contains: folded } },
+            { nameTr: { contains: q, mode: "insensitive" as const } },
+          ],
+        };
 
     const matched = await this.prisma.category.findMany({
       where: {

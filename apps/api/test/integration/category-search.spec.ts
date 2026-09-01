@@ -6,7 +6,7 @@
  * da eşleşmiyordu. Bu spec, fold edilen sorgu + searchText kolonunun bu iki
  * sınıfı da yakaladığının sözleşmesidir.
  */
-import { foldSearchText } from "@rothern/shared";
+import { foldSearchText, tokenizeQuery } from "@rothern/shared";
 import { CategoryService } from "../../src/modules/categories/services/category.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
@@ -163,6 +163,29 @@ describe("CategoryService.searchTree — TR fold", () => {
   });
 });
 
+describe("tokenizeQuery", () => {
+  it("boşluk, virgül ve eğik çizgiyle böler", () => {
+    expect(tokenizeQuery("paslanmaz sac, levha/plaka")).toEqual([
+      "paslanmaz",
+      "sac",
+      "levha",
+      "plaka",
+    ]);
+  });
+  it("bağlaçları ve tek harfi atar", () => {
+    expect(tokenizeQuery("vinç ve caraskal a")).toEqual(["vinç", "caraskal"]);
+  });
+  it("bağlacı KATLANMIŞ biçimde tanır ('İLE' → 'ile')", () => {
+    expect(tokenizeQuery("boru İLE fitting")).toEqual(["boru", "fitting"]);
+  });
+  it("ham kelimeyi döndürür (katlamaz) — nameTr yedeği için", () => {
+    expect(tokenizeQuery("Jeneratör kabini")).toEqual(["Jeneratör", "kabini"]);
+  });
+  it("yalnız bağlaç varsa boş döner (çağıran bütün ifadeye düşer)", () => {
+    expect(tokenizeQuery("ve ile")).toEqual([]);
+  });
+});
+
 describe("foldSearchText", () => {
   it("TR harfleri ve şapkalıları ASCII'ye katlar", () => {
     expect(foldSearchText("İskele ÇĞÜŞÖI ı kâğıt")).toBe(
@@ -172,6 +195,103 @@ describe("foldSearchText", () => {
   it("boşlukları tekilleştirir", () => {
     expect(foldSearchText("  çelik   konstrüksiyon  ")).toBe(
       "celik konstruksiyon",
+    );
+  });
+});
+
+/**
+ * TOKENLİ arama sözleşmesi (Faz 1, 2026-09-01).
+ *
+ * Kök neden: sorgu TEK PARÇA aranıyordu — `searchText contains "paslanmaz sac"`.
+ * Kullanıcı kelimeleri kategori adındaki sırayla yazmadığında ya da ad ile
+ * eşanlamlıyı karıştırdığında hiçbir şey bulunmuyordu. Ölçüm (canlı, 8.149
+ * düğüm): 8 gerçekçi endüstriyel sorgunun 7'si 0 sonuç döndürüyordu.
+ *
+ * Yeni sözleşme: sorgu kelimelere bölünür ve AND'lenir — her kelime bir yerde
+ * geçmeli, SIRASI önemsiz; kelimeler ad ile eşanlamlı sözlüğüne DAĞILABİLİR.
+ */
+describe("CategoryService.searchTree — tokenli arama", () => {
+  const classesOf = (res: Awaited<ReturnType<CategoryService["searchHierarchical"]>>) =>
+    res.segments.flatMap((s) => s.families.flatMap((f) => f.classes)).map((c) => c.nameTr);
+
+  it("kelime SIRASI tutmasa da bulur", async () => {
+    await makeChain({
+      seg: "Metal",
+      fam: "Çelik ürünler",
+      cls: "Sac ve paslanmaz yassı mamul",
+    });
+
+    // Ad "Sac ve paslanmaz..." — kullanıcı ters yazıyor.
+    expect(classesOf(await service().searchHierarchical("paslanmaz sac"))).toContain(
+      "Sac ve paslanmaz yassı mamul",
+    );
+  });
+
+  it("bir kelime ADDAN, diğeri EŞANLAMLIDAN gelse de bulur", async () => {
+    await makeCategory({ code: "11000000", nameTr: "Hammadde", level: 1 });
+    await makeCategory({
+      code: "11990000",
+      nameTr: "Metal yarı mamul",
+      level: 2,
+      parentId: "11000000",
+    });
+    await makeCategory({
+      code: "11991500",
+      nameTr: "Paslanmaz çelik ürünler",
+      level: 3,
+      parentId: "11990000",
+      keywords: "inox aisi 304 316 levha",
+    });
+
+    // "paslanmaz" adda, "304" yalnız eşanlamlıda — tek parça arama bunu bulamazdı.
+    expect(
+      classesOf(await service().searchHierarchical("paslanmaz 304")),
+    ).toContain("Paslanmaz çelik ürünler");
+  });
+
+  it("bağlaç ('ve') sonucu daraltmaz", async () => {
+    await makeCategory({ code: "22000000", nameTr: "İnşaat makineleri", level: 1 });
+    await makeCategory({
+      code: "22990000",
+      nameTr: "Şantiye ekipmanları",
+      level: 2,
+      parentId: "22000000",
+    });
+    await makeCategory({
+      code: "22991700",
+      nameTr: "Kaldırma platformları",
+      level: 3,
+      parentId: "22990000",
+      keywords: "vinç caraskal telfer",
+    });
+
+    // "ve" hiçbir kategoride geçmez; AND'lenirse sorgu 0 döndürürdü.
+    expect(
+      classesOf(await service().searchHierarchical("vinç ve caraskal")),
+    ).toContain("Kaldırma platformları");
+  });
+
+  it("kelimelerden biri hiç geçmiyorsa sonuç DÖNMEZ (AND anlamı)", async () => {
+    await makeChain({
+      seg: "Metal",
+      fam: "Çelik ürünler",
+      cls: "Paslanmaz sac",
+    });
+
+    // "paslanmaz" var, "hidrolik" yok → kesişim boş.
+    const res = await service().searchHierarchical("paslanmaz hidrolik");
+    expect(res.segments).toEqual([]);
+  });
+
+  it("tek kelimeli sorguda eski davranış korunur", async () => {
+    await makeChain({
+      seg: "Enerji ekipmanları",
+      fam: "Güç kaynakları",
+      cls: "Jeneratörler",
+    });
+
+    expect(classesOf(await service().searchHierarchical("jenerator"))).toContain(
+      "Jeneratörler",
     );
   });
 });

@@ -39,3 +39,30 @@ export function foldSearchText(input: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * Türkçe bağlaçlar — sorguda tek başına anlam taşımaz, AND'lenirse sonucu
+ * gereksiz daraltır ("boru ve fittings" → "ve" hiçbir kategori adında geçmez
+ * ve sorgu hiç sonuç döndürmez). Liste BİLİNÇLİ olarak kısa: gereğinden fazla
+ * kelime elemek, kullanıcının gerçekten aradığı terimi atma riskini doğurur.
+ */
+const STOPWORDS = new Set(["ve", "ile", "veya", "icin", "ya", "de", "da"]);
+
+/**
+ * Arama sorgusunu anlamlı kelimelere böler (katlanmış biçimde eleme yapar ama
+ * HAM kelimeyi döndürür — çağıran taraf `nameTr` gibi katlanmamış kolonlara da
+ * bakabilsin diye).
+ *
+ * Tek kaynak: kategori araması bunu kullanır; yeni bir arama yüzeyi eklenirse
+ * kendi bölme mantığını yazmak yerine buradan geçmeli.
+ */
+export function tokenizeQuery(input: string): string[] {
+  if (!input) return [];
+  return input
+    .split(/[\s,;/]+/)
+    .map((t) => t.trim())
+    .filter((t) => {
+      if (t.length < 2) return false;
+      return !STOPWORDS.has(foldSearchText(t));
+    });
+}

@@ -16,6 +16,8 @@
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "cleanup-categories": "tsx prisma/scripts/cleanup-categories.ts",
     "apply-category-keywords": "tsx prisma/scripts/apply-category-keywords.ts",
+    "gen-category-keywords": "tsx prisma/scripts/gen-category-keywords.ts",
+    "gen-category-leaves": "tsx prisma/scripts/gen-category-leaves.ts",
     "repair-owner-labels": "tsx prisma/scripts/repair-owner-labels.ts",
     "backfill-rothern-ids": "tsx prisma/scripts/backfill-rothern-ids.ts",
     "format": "prisma format",
