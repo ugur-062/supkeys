@@ -3978,3 +3978,153 @@
 27112146	Döner tabanlı mengene	Swivel base vise
 27112147	Sıkma pensesi	Crimping pliers
 27112148	Elektronik pense	Electronics pliers
+
+# El/elektrikli/hidrolik/pnömatik aletler, duvarcılık, işaretleme, dağıtım.
+27112149	Antistatik pense	Electrostatic pliers
+27112150	Kuyumcu pensesi	Jewellers pliers
+27112152	Triclamp kelepçe	Triclover clamp
+27112153	Kayış ekleme aleti	Belt lacer
+27112154	Freze mengenesi	Milling vise
+27112155	Segman açma pensesi	Piston ring expander
+27112156	El mengenesi	Hand vise
+27112157	Matkap mengenesi	Drill vise
+27112158	Ayaklı mengene	Leg vise
+27112159	Zincirli mengene	Chain vise
+27112160	Tel bükme aleti	Wire twister
+27112161	Tel sarma aleti	Wire wrapping tool
+27112162	Cetvel kelepçesi	Rule clamp
+27112206	Mastar tahtası	Screed board
+27112207	El tokmağı	Hand rammer
+27112208	Kazma	Pickaxe
+27112209	Duvarcı küreği	Masonry shovel
+27112210	Derz demiri	Brick jointer
+27112211	Derz malası	Tuck pointer
+27112212	Bordür yüzey aleti	Curb face tool
+27112213	Beton oluğu	Concrete chute
+27112215	Kanal açma malası	Grooving edger
+27112216	Fayans çizeceği	Tile scribe
+27112217	Fayans kesici	Tile cutter
+27112218	Elektrikli fayans testeresi	Tile power saw
+27112219	Fayans kırma pensesi	Tile nipper
+27112220	El tipi fayans testeresi	Tile hand saw
+27112221	Seramik matkap ucu	Tile drill bit
+27112222	Fayans delik açma testeresi	Tile hole cutter
+27112223	Fayans eğesi	Tile file
+27112224	Profil mastarı	Profile gauge
+27112225	Dişli yapıştırıcı malası	Notched spreader
+27112226	Fayans malası	Tile trowel
+27112227	Derz dolgu malası	Grout spreader
+27112228	Derz temizleme aleti	Grout rake
+27112229	Fayans sökme keskisi	Tile removing chisel
+27112231	Basamak aleti	Step tool
+27112232	Kanal açıcı	Groover
+27112307	İp tozu	Chalk for chalk line
+27112308	İşaretleme arabası	Marking cart
+27112309	İşaretleme kalemi	Marking pen
+27112310	Tebeşir tutucu	Chalk holder
+27112311	İşaretleme tebeşiri	Marking chalk
+27112312	Yüzey mastarı	Surface gauge
+27112313	İşaretleme mastarı	Marking gauge
+27112408	Endüstriyel zımba teli sökücü	Industrial staple remover
+27112409	Barutlu çivi tabancası	Explosive stud gun
+27112410	Kablo bağı tabancası	Cable tie gun
+27112507	Levye (kaz ayağı)	Wrecking or crow bar
+27112508	Kablo bükme aleti	Cable bender
+27112604	Macun kabı	Putty bowl
+27112722	Pah kırma aleti	Beveling tool
+27112723	Elektrikli sac makası	Power shears
+27112725	Elektrikli perçin tabancası	Power riveter
+27112726	Elektrikli demir kesme makası	Power rod cutter
+27112727	Harç tabancası	Mortar gun
+27112728	Elektrikli havşa açma aleti	Power flaring tool
+27112729	Boru sıkma aleti	Tube crimper
+27112730	Elektrikli gres tabancası	Power grease gun
+27112731	Elektrikli makas	Power scissors
+27112732	Elektrikli boru bükme makinesi	Power pipe bender
+27112733	Köşe kesici	Angle cutter
+27112734	Dekupaj testere	Jigsaw
+27112735	Kıl testere makinesi	Scroll saw
+27112736	Duvar kanal açma makinesi	Wall chaser
+27112737	Eksantrik zımpara makinesi	Orbital sander
+27112738	Detay zımpara makinesi	Detail sander
+27112739	Bantlı zımpara makinesi	Belt sander
+27112740	Tezgah zımpara makinesi	Bench sander
+27112741	Parmak zımpara makinesi	File sander or finger sander
+27112742	Diskli zımpara makinesi	Disc sander
+27112743	Radyal kollu testere	Radial arm saw
+27112744	Pnömatik testere	Pneumatic saw
+27112745	Beton kesme makinesi	Concrete saw
+27112746	Motorlu testere	Chain saw
+27112747	Tilki kuyruğu testere	Reciprocating saw
+27112748	Gönye kesme makinesi	Miter saw
+27112749	Avuç taşlama (spiral)	Angle grinder
+27112750	Akülü sıkma aleti	Battery powered crimping tool
+27112751	Elektrikli kablo kesici aksesuarları	Power cable cutter accessories
+27112805	El paftası	Threading die hand tool
+27112833	Matkap ucu kutusu	Drill bit case
+27112834	El boru paftası kutusu	Hand pipe threader case
+27112835	Makine raybası	Machine reamer
+27112836	Tornavida ucu seti	Screwdriver bit set
+27112837	El raybası	Hand reamer
+27112838	Kesme diski	Cutting disc
+27112839	Keski ucu	Chisel bit
+27112840	Kılavuz matkap ucu	Guide drill bit
+27112841	Metal için el matkap ucu	Hand drill bit for metal
+27112842	Ahşap için el matkap ucu	Hand drill bit for wood
+27112843	Taş için el matkap ucu	Hand drill bit for stone
+27112844	Lepleme plakası	Lapping plate
+27112845	Matkap ucu seti	Drill bit set
+27112846	Sıcak hava tabancası adaptörü	Heat gun adapter
+27112847	Pafta kutusu	Die case
+27112909	Çatı zift fırçası	Roofing mop
+27112910	Taşınabilir atık yağ deposu	Portable waste oil storage
+27112911	Yağlama kabı	Oil cup
+27112912	Yağ değiştirme cihazı	Oil changer
+27112913	Yağ yağlayıcı	Oil lubricator
+27112914	Gres yağlayıcı	Grease lubricator
+27112915	Doğal gaz dolum ünitesi	Natural gas dispenser
+27112916	Akaryakıt pompası	Liquid fuel dispenser or gasoline pump
+27112917	Gres tabancası hortumu	Grease gun hose
+27112918	Gres tabancası enjektörü	Grease gun injector
+27112919	AdBlue dolum ünitesi	Diesel exhaust fluid dispenser
+27112920	İstasyon sahası ekipmanı	Forecourt equipment
+27112921	Elektrikli araç şarj ekipmanı	Electric vehicle supply equipment
+27112922	Hidrojen istasyonu ekipmanı	Hydrogen site equipment
+27113005	Çatı fırçası	Roofing brush
+27113105	Yay açma aleti	Spring expander
+27113206	Uçak kurtarma aletleri	Aircraft rescue tools
+27113207	Boru pafta takımı	Threading pipe tool kit
+27113301	Büyüteç	Magnifying glass
+27113302	Rulman ayırıcı	Bearing splitter
+27113401	Tezgah daire testere	Table saw
+27113501	Takım tezgahı parça ve aksesuarları	Machine tool parts and accessories
+27113502	Atölye takım tezgahı aksesuarları	Workshop machine tools accessories
+27121504	Endüstriyel hidrolik pres	Industrial hydraulic press
+27121801	Rögar kapağı kaldırıcı	Manhole cover lifters
+27121802	Hidrolik akümülatörler	Hydraulic accumulators
+27121803	Hidrolik kelepçe	Hydraulic clamp
+27121804	Hidrolik makas	Hydraulic shears
+27121805	Hidrolik çektirme	Hydraulic extractor
+27121806	Hidrolik boru bükme	Hydraulic pipe bender
+27121808	Hidrolik zincir kesici	Hydraulic chain cutter
+27121809	Hidrolik somun kırma aleti	Hydraulic nut breaking tool
+27121810	Hidrolik el sıkma aleti	Hydraulic hand crimp tool
+27121811	Hidrolik sıkma aleti aksesuarı	Hydraulic crimp tool accessory
+27121812	Hidrolik uzaktan kumanda	Hydraulic remote
+27121813	Hidrolik sınıflandırıcı	Hydraulic classifier
+27121814	Sıkma kalıbı adaptörü	Compression die adaptor
+27121815	Hidrolik anahtar	Hydraulic wrench
+27121816	Hidrolik zımba	Hydraulic punch
+27131513	Pnömatik eğe	Pneumatic file
+27131514	Pnömatik pense	Pneumatic pliers
+27131515	Pnömatik anahtar (darbesiz)	Pneumatic wrench non impact
+27131516	Pnömatik kalem taşlama	Pneumatic pen
+27131518	Pnömatik oto cam sökme aleti	Pneumatic auto glass removal tool
+27131519	Pnömatik zımba	Pneumatic or air punch
+27131520	Pnömatik demir kesici	Pneumatic rod cutter
+27131521	Pnömatik perçin tabancası	Pneumatic riveter
+27131522	Mini pnömatik zımpara	Miniature pneumatic sander
+27131523	Pnömatik tokmak	Pneumatic rammer
+27131524	Pnömatik havşa	Pneumatic countersink
+27131525	Pnömatik makas	Pneumatic shears
+27131526	Pnömatik pres	Pneumatic press
