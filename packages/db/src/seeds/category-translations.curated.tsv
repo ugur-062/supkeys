@@ -3123,3 +3123,216 @@
 40175206	Temper döküm boru Y bağlantısı	Malleable iron pipe wye
 40175207	Paslanmaz çelik boru Y bağlantısı	Stainless steel pipe wye
 40175212	Bakır boru Y bağlantısı	Copper pipe wye
+40171519	Ticari ABS boru	Commercial ABS pipe
+40171520	Ticari HDPE boru	Commercial HDPE pipe
+40171617	Endüstriyel PVC boru	Industrial PVC pipe
+40171618	Endüstriyel CPVC boru	Industrial CPVC pipe
+40171619	Endüstriyel ABS boru	Industrial ABS pipe
+40171620	Endüstriyel HDPE boru	Industrial HDPE pipe
+40171708	PVC plastik boru adaptörü	PVC plastic pipe adapter
+40171709	CPVC plastik boru adaptörü	CPVC plastic pipe adapter
+40171710	ABS plastik boru adaptörü	ABS plastic pipe adapter
+40171711	HDPE plastik boru adaptörü	HDPE plastic pipe adapter
+40172005	PVC plastik boru şaşırtma levhası	PVC plastic pipe baffle
+40172006	CPVC plastik boru şaşırtma levhası	CPVC plastic pipe baffle
+40172007	ABS plastik boru şaşırtma levhası	ABS plastic pipe baffle
+40172008	HDPE plastik boru şaşırtma levhası	HDPE plastic pipe baffle
+40172308	PVC plastik boru burcu	PVC plastic pipe bushing
+40172309	CPVC plastik boru burcu	CPVC plastic pipe bushing
+40172310	ABS plastik boru burcu	ABS plastic pipe bushing
+40172311	HDPE plastik boru burcu	HDPE plastic pipe bushing
+40172408	PVC plastik boru kapağı	PVC plastic pipe cap
+40172409	CPVC plastik boru kapağı	CPVC plastic pipe cap
+40172410	ABS plastik boru kapağı	ABS plastic pipe cap
+40172411	HDPE plastik boru kapağı	HDPE plastic pipe cap
+40172508	PVC plastik boru bağlantı elemanı	PVC plastic pipe connector
+40172509	CPVC plastik boru bağlantı elemanı	CPVC plastic pipe connector
+40172510	ABS plastik boru bağlantı elemanı	ABS plastic pipe connector
+40172511	HDPE plastik boru bağlantı elemanı	HDPE plastic pipe connector
+40172608	PVC plastik boru kaplini	PVC plastic pipe coupling
+40172609	CPVC plastik boru kaplini	CPVC plastic pipe coupling
+40172610	ABS plastik boru kaplini	ABS plastic pipe coupling
+40172611	HDPE plastik boru kaplini	HDPE plastic pipe coupling
+40172708	PVC plastik boru dört yollu bağlantısı	PVC plastic pipe cross
+40172709	CPVC plastik boru dört yollu bağlantısı	CPVC plastic pipe cross
+40172710	ABS plastik boru dört yollu bağlantısı	ABS plastic pipe cross
+40172711	HDPE plastik boru dört yollu bağlantısı	HDPE plastic pipe cross
+40172808	PVC plastik boru dirseği	PVC plastic pipe elbow
+40172809	CPVC plastik boru dirseği	CPVC plastic pipe elbow
+40172810	ABS plastik boru dirseği	ABS plastic pipe elbow
+40172811	HDPE plastik boru dirseği	HDPE plastic pipe elbow
+40172906	PVC plastik boru genleşme kompansatörü	PVC plastic pipe expansion joint
+40172907	CPVC plastik boru genleşme kompansatörü	CPVC plastic pipe expansion joint
+40172908	ABS plastik boru genleşme kompansatörü	ABS plastic pipe expansion joint
+40172909	HDPE plastik boru genleşme kompansatörü	HDPE plastic pipe expansion joint
+40173006	PVC plastik boru yarım kaplini	PVC plastic pipe half coupling
+40173007	CPVC plastik boru yarım kaplini	CPVC plastic pipe half coupling
+40173008	ABS plastik boru yarım kaplini	ABS plastic pipe half coupling
+40173009	HDPE plastik boru yarım kaplini	HDPE plastic pipe half coupling
+40173304	PVC plastik boru nipeli	PVC plastic pipe nipple
+40173305	CPVC plastik boru nipeli	CPVC plastic pipe nipple
+40173306	ABS plastik boru nipeli	ABS plastic pipe nipple
+40173307	HDPE plastik boru nipeli	HDPE plastic pipe nipple
+40173407	ABS plastik boru plaka flanşı	ABS plastic pipe plate flange
+40173408	PVC plastik boru plaka flanşı	PVC plastic pipe plate flange
+40173508	PVC plastik boru tapası	PVC plastic pipe plug
+40173509	CPVC plastik boru tapası	CPVC plastic pipe plug
+40173510	ABS plastik boru tapası	ABS plastic pipe plug
+40173511	HDPE plastik boru tapası	HDPE plastic pipe plug
+40173608	PVC plastik boru redüksiyon kaplini	PVC plastic pipe reducing coupling
+40173609	CPVC plastik boru redüksiyon kaplini	CPVC plastic pipe reducing coupling
+40173610	ABS plastik boru redüksiyon kaplini	ABS plastic pipe reducing coupling
+40173611	HDPE plastik boru redüksiyon kaplini	HDPE plastic pipe reducing coupling
+40173707	PVC plastik boru redüksiyon flanşı	PVC plastic pipe reducing flange
+40173708	CPVC plastik boru redüksiyon flanşı	CPVC plastic pipe reducing flange
+40173709	ABS plastik boru redüksiyon flanşı	ABS plastic pipe reducing flange
+40173710	HDPE plastik boru redüksiyon flanşı	HDPE plastic pipe reducing flange
+40173805	PVC plastik boru tamir kelepçesi	PVC plastic pipe repair clamp
+40173806	CPVC plastik boru tamir kelepçesi	CPVC plastic pipe repair clamp
+40173807	ABS plastik boru tamir kelepçesi	ABS plastic pipe repair clamp
+40173808	HDPE plastik boru tamir kelepçesi	HDPE plastic pipe repair clamp
+40173907	PVC plastik boru patlama diski	PVC plastic pipe rupture disk
+40173908	CPVC plastik boru patlama diski	CPVC plastic pipe rupture disk
+40173909	ABS plastik boru patlama diski	ABS plastic pipe rupture disk
+40173910	HDPE plastik boru patlama diski	HDPE plastic pipe rupture disk
+40174008	PVC boru kaymalı flanşı	PVC pipe slipon flange
+40174104	PVC plastik boru soket kaynaklı flanşı	PVC plastic pipe socketweld flange
+40174105	CPVC plastik boru soket kaynaklı flanşı	CPVC plastic pipe socketweld flange
+40174106	ABS plastik boru soket kaynaklı flanşı	ABS plastic pipe socketweld flange
+40174107	HDPE plastik boru soket kaynaklı flanşı	HDPE plastic pipe socketweld flange
+40174307	PVC plastik boru ara parçası	PVC plastic pipe spacer
+40174308	CPVC plastik boru ara parçası	CPVC plastic pipe spacer
+40174309	ABS plastik boru ara parçası	ABS plastic pipe spacer
+40174310	HDPE plastik boru ara parçası	HDPE plastic pipe spacer
+40174502	PVC plastik boru döner bağlantısı	PVC plastic pipe swivel or rotating joint
+40174503	CPVC plastik boru döner bağlantısı	CPVC plastic pipe swivel or rotating joint
+40174504	ABS plastik boru döner bağlantısı	ABS plastic pipe swivel or rotating joint
+40174505	HDPE plastik boru döner bağlantısı	HDPE plastic pipe swivel or rotating joint
+40174608	PVC plastik boru te bağlantısı	PVC plastic pipe tee
+40174609	CPVC plastik boru te bağlantısı	CPVC plastic pipe tee
+40174610	ABS plastik boru te bağlantısı	ABS plastic pipe tee
+40174611	HDPE plastik boru te bağlantısı	HDPE plastic pipe tee
+40174708	PVC plastik boru dişli flanşı	PVC plastic pipe threaded flange
+40174709	CPVC plastik boru dişli flanşı	CPVC plastic pipe threaded flange
+40174710	ABS plastik boru dişli flanşı	ABS plastic pipe threaded flange
+40174711	HDPE plastik boru dişli flanşı	HDPE plastic pipe threaded flange
+40174803	PVC plastik boru klozet flanşı	PVC plastic pipe toilet flange
+40174804	CPVC plastik boru klozet flanşı	CPVC plastic pipe toilet flange
+40174805	ABS plastik boru klozet flanşı	ABS plastic pipe toilet flange
+40174806	HDPE plastik boru klozet flanşı	HDPE plastic pipe toilet flange
+40174908	PVC plastik boru rakoru	PVC plastic pipe union
+40174909	CPVC plastik boru rakoru	CPVC plastic pipe union
+40174910	ABS plastik boru rakoru	ABS plastic pipe union
+40174911	HDPE plastik boru rakoru	HDPE plastic pipe union
+40175208	PVC plastik boru Y bağlantısı	PVC plastic pipe wye
+40175209	CPVC plastik boru Y bağlantısı	CPVC plastic pipe wye
+40175210	ABS plastik boru Y bağlantısı	ABS plastic pipe wye
+40175211	HDPE plastik boru Y bağlantısı	HDPE plastic pipe wye
+40181501	Kaynaklı bakır bükülmüş tüp	Welded copper bent tube
+40181502	Kaynaklı bakır delikli tüp	Welded copper pierced tube
+40181503	Kaynaklı bakır uç formlu tüp	Welded copper end formed tube
+40181504	Kaynaklı bakır çok kanallı tüp	Welded copper multiport tube
+40181505	Kaynaklı bakır pahlı tüp	Welded copper chamfered tube
+40181506	Kaynaklı bakır tüp takımı	Welded copper tube assembly
+40181601	Kaynaklı pirinç bükülmüş tüp	Welded brass bent tube
+40181602	Kaynaklı pirinç delikli tüp	Welded brass pierced tube
+40181603	Kaynaklı pirinç uç formlu tüp	Welded brass end formed tube
+40181604	Kaynaklı pirinç çok kanallı tüp	Welded brass multiport tube
+40181605	Kaynaklı pirinç pahlı tüp	Welded brass chamfered tube
+40181606	Kaynaklı pirinç tüp takımı	Welded brass tube assembly
+40181701	Kaynaklı alüminyum bükülmüş tüp	Welded aluminum bent tube
+40181702	Kaynaklı alüminyum delikli tüp	Welded aluminum pierced tube
+40181703	Kaynaklı alüminyum uç formlu tüp	Welded aluminum end formed tube
+40181704	Kaynaklı alüminyum çok kanallı tüp	Welded aluminum multiport tube
+40181705	Kaynaklı alüminyum pahlı tüp	Welded aluminum chamfered tube
+40181706	Kaynaklı alüminyum tüp takımı	Welded aluminum tube assembly
+40181901	Kaynaklı paslanmaz çelik bükülmüş tüp	Welded stainless steel bent tube
+40181902	Kaynaklı paslanmaz çelik delikli tüp	Welded stainless steel pierced tube
+40181903	Kaynaklı paslanmaz çelik uç formlu tüp	Welded stainless steel end formed tube
+40181904	Kaynaklı paslanmaz çelik çok kanallı tüp	Welded stainless steel multiport tube
+40181905	Kaynaklı paslanmaz çelik pahlı tüp	Welded stainless steel chamfered tube
+40181906	Kaynaklı paslanmaz çelik tüp takımı	Welded stainless steel tube assembly
+40182001	Dikişsiz bakır bükülmüş tüp	Seamless copper bent tube
+40182002	Dikişsiz bakır delikli tüp	Seamless copper pierced tube
+40182003	Dikişsiz bakır uç formlu tüp	Seamless copper end formed tube
+40182004	Dikişsiz bakır çok kanallı tüp	Seamless copper multiport tube
+40182005	Dikişsiz bakır pahlı tüp	Seamless copper chamfered tube
+40182006	Dikişsiz bakır tüp takımı	Seamless copper tube assembly
+40182101	Dikişsiz pirinç bükülmüş tüp	Seamless brass bent tube
+40182102	Dikişsiz pirinç delikli tüp	Seamless brass pierced tube
+40182103	Dikişsiz pirinç uç formlu tüp	Seamless brass end formed tube
+40182104	Dikişsiz pirinç çok kanallı tüp	Seamless brass multiport tube
+40182105	Dikişsiz pirinç pahlı tüp	Seamless brass chamfered tube
+40182106	Dikişsiz pirinç tüp takımı	Seamless brass tube assembly
+40182201	Dikişsiz alüminyum bükülmüş tüp	Seamless aluminum bent tube
+40182202	Dikişsiz alüminyum delikli tüp	Seamless aluminum pierced tube
+40182203	Dikişsiz alüminyum uç formlu tüp	Seamless aluminum end formed tube
+40182204	Dikişsiz alüminyum çok kanallı tüp	Seamless aluminum multiport tube
+40182205	Dikişsiz alüminyum pahlı tüp	Seamless aluminum chamfered tube
+40182206	Dikişsiz alüminyum tüp takımı	Seamless aluminum tube assembly
+40182401	Dikişsiz paslanmaz çelik bükülmüş tüp	Seamless stainless steel bent tube
+40182402	Dikişsiz paslanmaz çelik delikli tüp	Seamless stainless steel pierced tube
+40182403	Dikişsiz paslanmaz çelik uç formlu tüp	Seamless stainless steel end formed tube
+40182404	Dikişsiz paslanmaz çelik çok kanallı tüp	Seamless stainless steel multiport tube
+40182405	Dikişsiz paslanmaz çelik pahlı tüp	Seamless stainless steel chamfered tube
+40182406	Dikişsiz paslanmaz çelik tüp takımı	Seamless stainless steel tube assembly
+40182501	Ekstrüde bakır bükülmüş tüp	Extruded copper bent tube
+40182502	Ekstrüde bakır delikli tüp	Extruded copper pierced tube
+40182503	Ekstrüde bakır uç formlu tüp	Extruded copper end formed tube
+40182504	Ekstrüde bakır çok kanallı tüp	Extruded copper multiport tube
+40182505	Ekstrüde bakır pahlı tüp	Extruded copper chamfered tube
+40182506	Ekstrüde bakır tüp takımı	Extruded copper tube assembly
+40182601	Ekstrüde pirinç bükülmüş tüp	Extruded brass bent tube
+40182602	Ekstrüde pirinç delikli tüp	Extruded brass pierced tube
+40182603	Ekstrüde pirinç uç formlu tüp	Extruded brass end formed tube
+40182604	Ekstrüde pirinç çok kanallı tüp	Extruded brass multiport tube
+40182605	Ekstrüde pirinç pahlı tüp	Extruded brass chamfered tube
+40182606	Ekstrüde pirinç tüp takımı	Extruded brass tube assembly
+40182701	Ekstrüde alüminyum bükülmüş tüp	Extruded aluminum bent tube
+40182702	Ekstrüde alüminyum delikli tüp	Extruded aluminum pierced tube
+40182703	Ekstrüde alüminyum uç formlu tüp	Extruded aluminum end formed tube
+40182704	Ekstrüde alüminyum çok kanallı tüp	Extruded aluminum multiport tube
+40182705	Ekstrüde alüminyum pahlı tüp	Extruded aluminum chamfered tube
+40182706	Ekstrüde alüminyum tüp takımı	Extruded aluminum tube assembly
+40182901	Ekstrüde paslanmaz çelik bükülmüş tüp	Extruded stainless steel bent tube
+40182902	Ekstrüde paslanmaz çelik delikli tüp	Extruded stainless steel pierced tube
+40182903	Ekstrüde paslanmaz çelik uç formlu tüp	Extruded stainless steel end formed tube
+40182904	Ekstrüde paslanmaz çelik çok kanallı tüp	Extruded stainless steel multiport tube
+40182905	Ekstrüde paslanmaz çelik pahlı tüp	Extruded stainless steel chamfered tube
+40182906	Ekstrüde paslanmaz çelik tüp takımı	Extruded stainless steel tube assembly
+
+# Özel boru bağlantıları, hat borusu, destekler — elle çevrildi.
+40171528	Kompozit esnek hat borusu	Composite flexibles line pipe
+40171613	Endüstriyel montajlı dökme demir boru göbeği	Industrial assembled cast iron pipe hub
+40171627	Ekşi olmayan dikişsiz karbon çeliği hat borusu	Non-sour seamless carbon steel line pipe
+40171628	Ekşi ortam dikişsiz karbon çeliği hat borusu	Sour seamless carbon steel line pipe
+40171629	Ekşi ortam HFW/ERW/HFI karbon çeliği hat borusu	Sour HFW/ERW/HFI carbon steel line pipe
+40171630	Ekşi olmayan HFW/ERW/HFI karbon çeliği hat borusu	Non sour HFW/ERW/HFI carbon steel line pipe
+40171631	Ekşi ortam boyuna tozaltı kaynaklı karbon çeliği hat borusu	Sour longitudinal submerged carbon steel Line pipe
+40171632	Ekşi olmayan boyuna kaynaklı karbon çeliği hat borusu	Non-sour longitudinal carbon steel line pipe
+40171633	Ekşi ortam spiral kaynaklı karbon çeliği hat borusu	Sour helical/spiral carbon steel line pipe
+40171634	Ekşi olmayan spiral kaynaklı karbon çeliği hat borusu	Non-sour helical/spiral carbon steel line pipe
+40172614	Yalıtım kaplini	Insulation Coupling
+40172713	Galvanizli demir boru dört yollu bağlantısı	Galvanized iron pipe cross or junction
+40173311	Siyah demir boru nipeli	Black iron pipe nipple
+40173312	Naylon plastik boru nipeli	Nylon plastic pipe nipple
+40174311	İç/dış tüp ara parçası	Spacer inner/outer tube
+40174404	Gözlük tipi kör flanşlar	Spectacle blinds
+40175301	Amonyak flanşları	Ammonia flanges
+40175302	Orifis flanşları	Orifice flanges
+40175303	Boru branşman çıkışları	Pipe branch outlets
+40175304	Boru bağlantı kutuları	Pipe connection boxes
+40175305	Boru insertleri	Pipe inserts
+40175306	Boru yan çıkışları (lateral)	Pipe laterals
+40175307	Boru semerleri	Pipe saddles
+40175308	Boru uç bağlantıları (stub end)	Pipe stubends
+40175309	Boru su kesici flanşları	Pipe puddle flanges
+40175310	Flanş yalıtım seti	Flange insulation kit
+40175401	Boru tıkaçları	Pipe stoppers
+40175402	Boru hattı pig gönderme/alma istasyonları	Pipeline launch/receive traps
+40175403	Hızlı açılır kapaklar	Quick opening closures
+40175404	Boru hattı destek yastıkları	Pipeline support bags
+40175405	Yaylı askı	Spring hanger
+40175406	Boru destek askıları	Pipe support hangers
+40175407	Boru hattı küreleri	Pipeline spheres
+40175408	Boru hattı şişirilebilir küreleri	Pipeline inflatable spheres
