@@ -5,6 +5,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Length,
@@ -12,6 +13,10 @@ import {
   MaxLength,
 } from "class-validator";
 import { CompanyRole } from "@rothern/db";
+import {
+  COMPANY_ACTIVITY_CODES,
+  MAX_COMPANY_ACTIVITIES,
+} from "@rothern/shared";
 
 export enum CompanyTypeDto {
   JOINT_STOCK = "JOINT_STOCK",
@@ -139,6 +144,18 @@ export class CompleteOnboardingDto {
   @IsString({ each: true })
   @MaxLength(40, { each: true })
   subCategoryIds?: string[];
+
+  /**
+   * Faaliyet tipi (üretici/bayi/hizmet/dış ticaret/fason). Kategori firmanın
+   * NE'sini, bu NASIL'ını söyler; kayıt anında sorulur çünkü sonradan
+   * ayarlara girip dolduran firma azınlıkta kalır ve eksik veri eşleştirmeyi
+   * baştan sakat bırakır.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_COMPANY_ACTIVITIES)
+  @IsIn(COMPANY_ACTIVITY_CODES as unknown as string[], { each: true })
+  activities?: string[];
 
   // ── Adım 3: Beyan ──
   @IsBoolean()

@@ -31,6 +31,7 @@ const SELECT = {
   name: true,
   legalName: true,
   industry: true,
+  activities: true,
   website: true,
   country: true,
   city: true,
@@ -50,6 +51,8 @@ const SELECT = {
   photos: true,
   certificateImages: true,
   buyerCategoryIds: true,
+  buyerSubCategoryIds: true,
+  sellerSubCategoryIds: true,
   sellerCategoryIds: true,
   taxNumber: true,
   taxOffice: true,
@@ -227,6 +230,11 @@ export class CompanyProfileService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.legalName !== undefined) data.legalName = dto.legalName.trim() || null;
     if (dto.industry !== undefined) data.industry = dto.industry.trim() || null;
+    if (dto.activities !== undefined) {
+      // Yinelenen seçim tavanı boşa harcamasın (arayüz kutu işaretliyor ama
+      // gövde elle de gelebilir).
+      data.activities = [...new Set(dto.activities)];
+    }
     if (dto.website !== undefined) data.website = dto.website.trim() || null;
     if (dto.city !== undefined) data.city = dto.city.trim() || null;
     if (dto.district !== undefined) data.district = dto.district.trim() || null;
@@ -261,6 +269,21 @@ export class CompanyProfileService {
     // (yayın bildirimi, keşfet, açık ihale sıralaması) bu dizileri segment
     // kodu varsayar; alt seviye yazılırsa firma eşleşme sinyalini sessizce
     // kaybediyordu (onboarding zaten L1 yazar, ayarlar UI'ı da artık öyle).
+    // ALT kategoriler: level 2-4 (family/class/commodity). Ana kategori
+    // exactLevel:1 kalır — ikisi AYRI eksen, alt kategori ananın yerine
+    // geçmez (eşleştirme her ikisine de `hasSome` ile bakar).
+    if (dto.buyerSubCategoryIds !== undefined) {
+      await this.categories.validateIds(dto.buyerSubCategoryIds, {
+        minLevel: 2,
+      });
+      data.buyerSubCategoryIds = [...new Set(dto.buyerSubCategoryIds)];
+    }
+    if (dto.sellerSubCategoryIds !== undefined) {
+      await this.categories.validateIds(dto.sellerSubCategoryIds, {
+        minLevel: 2,
+      });
+      data.sellerSubCategoryIds = [...new Set(dto.sellerSubCategoryIds)];
+    }
     if (dto.buyerCategoryIds !== undefined) {
       await this.categories.validateIds(dto.buyerCategoryIds, { exactLevel: 1 });
       data.buyerCategoryIds = dto.buyerCategoryIds;

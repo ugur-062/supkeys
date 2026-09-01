@@ -488,6 +488,7 @@ export class CompanyAuthService {
           sellerCategoryIds: mainIds,
           buyerSubCategoryIds: subIds,
           sellerSubCategoryIds: subIds,
+          activities: [...new Set(dto.activities ?? [])] as never,
           onboardingCompletedAt: new Date(),
         },
       });

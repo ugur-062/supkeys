@@ -171,6 +171,18 @@ enum CompanyType {
   SOLE_PROPRIETOR
 }
 
+/// Firmanın NE YAPTIĞI — CompanyType'ın (hukuki biçim) tamamlayıcısı.
+/// Europages'in ikinci ekseni; alıcı için çoğu zaman kategoriden daha
+/// belirleyici (seri üretim → üretici, stoktan acil → bayi, çizimle parça →
+/// fason). Etiket/ipucu tek kaynağı: @rothern/shared company-activities.ts
+enum CompanyActivity {
+  MANUFACTURER // Üretici
+  DISTRIBUTOR // Distribütör / Bayi
+  SERVICE_PROVIDER // Hizmet sağlayıcı
+  IMPORTER_EXPORTER // İthalatçı / İhracatçı
+  CONTRACT_MANUFACTURER // Fason imalatçı
+}
+
 enum CompanyVerificationStatus {
   UNVERIFIED // belge yok / eksik
   PENDING // 6/6 belge yüklendi, admin onayı bekliyor
@@ -406,6 +418,10 @@ model Company {
 
   // İletişim / fatura / kurumsal
   industry               String?
+  /// Faaliyet tipi (çoklu) — bir firma hem üretici hem ihracatçı olabilir.
+  /// Tavan MAX_COMPANY_ACTIVITIES (3): hepsini işaretleyen firma hiçbir şey
+  /// söylememiş olur ve her aramada çıkarak eşleştirmeyi bozar.
+  activities             CompanyActivity[] @default([])
   website                String?
   billingTitle           String?
   billingEmail           String?

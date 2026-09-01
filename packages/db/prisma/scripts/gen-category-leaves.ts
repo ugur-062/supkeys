@@ -143,6 +143,7 @@ function acceptName(
   raw: string,
   klass: Klass,
   takenInBatch: Set<string>,
+  globalNames: Set<string>,
 ): string | null {
   const name = raw.replace(/\s+/g, " ").trim().replace(/[.,;:]+$/, "");
   if (name.length < 3 || name.length > 55) return null;
@@ -159,6 +160,10 @@ function acceptName(
   if (n === norm(klass.nameTr)) return null;
   if (klass.existing.some((e) => norm(e) === n)) return null;
   if (takenInBatch.has(n)) return null;
+  // KÜRESEL tekillik: aynı ad iki farklı sınıfın altında olamaz. Yoksa alıcı
+  // birini, satıcı diğerini seçer ve eşleşme sessizce bölünür — kategorinin
+  // varlık sebebi tam olarak ikisini aynı düğümde buluşturmak.
+  if (globalNames.has(n)) return null;
   return name;
 }
 
@@ -189,6 +194,8 @@ async function main() {
   // Daha önce üretilmiş satırlar: hem sınıfı atlamak hem slot rezerve etmek için.
   const priorByClass = new Map<string, Set<string>>();
   const priorNames = new Map<string, string[]>();
+  /** Bu dosyada + DB'de var olan TÜM adlar (küresel tekillik için). */
+  const globalNames = new Set<string>();
   if (fs.existsSync(OUT_PATH)) {
     for (const line of fs.readFileSync(OUT_PATH, "utf-8").split("\n")) {
       if (!line.trim() || line.startsWith("#")) continue;
@@ -197,6 +204,7 @@ async function main() {
       if (!priorByClass.has(parentCode)) priorByClass.set(parentCode, new Set());
       priorByClass.get(parentCode)!.add(code.slice(6));
       priorNames.set(parentCode, [...(priorNames.get(parentCode) ?? []), nameTr]);
+      globalNames.add(norm(nameTr));
     }
   }
 
@@ -212,6 +220,9 @@ async function main() {
   const all = await prisma.category.findMany({
     select: { id: true, code: true, nameTr: true, parentId: true, level: true },
   });
+  // DB'de zaten var olan adlar da rezerve: üretilen yaprak mevcut bir
+  // kategoriyle aynı adı taşımamalı.
+  for (const c of all) globalNames.add(norm(c.nameTr));
   const byId = new Map(all.map((c) => [c.id, c]));
   const childrenOf = new Map<string, typeof all>();
   for (const c of all) {
@@ -296,11 +307,12 @@ async function main() {
         let added = 0;
         for (const leaf of c.leaves ?? []) {
           if (added >= klass.need) break;
-          const name = acceptName(leaf, klass, taken);
+          const name = acceptName(leaf, klass, taken, globalNames);
           if (!name) continue;
           const slot = nextSlot(klass);
           if (!slot) break;
           taken.add(norm(name));
+          globalNames.add(norm(name));
           lines.push(`${klass.code.slice(0, 6)}${slot}\t4\t${klass.code}\t\t${name}`);
           added++;
         }

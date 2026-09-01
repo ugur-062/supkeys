@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { StarIcon } from "@heroicons/react/20/solid";
-import type { ReviewSummary } from "@rothern/shared";
+import { companyActivityLabel, type ReviewSummary } from "@rothern/shared";
 
 import { safeExternalUrl } from "@/lib/safe-url";
 import { SafeCoverImage } from "@/components/company/safe-cover-image";
@@ -38,6 +38,12 @@ export interface ProfileViewData {
   goldMember?: boolean;
   rothernId?: string | null;
   industry: string | null;
+  /**
+   * Faaliyet tipi kodları (üretici/bayi/hizmet/dış ticaret/fason). Alıcı için
+   * çoğu zaman sektörden daha ayırt edici — bu yüzden ünvanın hemen altında,
+   * rozet olarak gösterilir.
+   */
+  activities?: string[];
   city: string | null;
   country: string | null;
   logoUrl: string | null;
@@ -257,6 +263,18 @@ export function CompanyProfileView({
                 <Stat label="Çalışan" value={p.employeeCount} />
               ) : null}
               {p.industry ? <Stat label="Sektör" value={p.industry} /> : null}
+              {p.activities?.length ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {p.activities.map((code) => (
+                    <span
+                      key={code}
+                      className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-900 ring-1 ring-blue-600/20 ring-inset"
+                    >
+                      {companyActivityLabel(code)}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="ml-auto flex items-center gap-4 text-sm">
                 <ExternalLink href={p.website} label="Web Sitesi" />
                 <ExternalLink href={p.linkedinUrl} label="LinkedIn" />

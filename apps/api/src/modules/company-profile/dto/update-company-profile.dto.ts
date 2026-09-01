@@ -1,6 +1,8 @@
+import { COMPANY_ACTIVITY_CODES, MAX_COMPANY_ACTIVITIES } from "@rothern/shared";
 import {
   ArrayMaxSize,
   IsArray,
+  IsIn,
   IsBoolean,
   IsInt,
   IsOptional,
@@ -27,6 +29,17 @@ export class UpdateCompanyProfileDto {
   @IsString()
   @MaxLength(100)
   industry?: string;
+
+  /**
+   * Faaliyet tipi (çoklu). Tavan tek kaynak @rothern/shared'de —
+   * hepsini işaretleyen firma hiçbir şey söylememiş olur ve her aramada
+   * çıkarak eşleştirmeyi bozar.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_COMPANY_ACTIVITIES)
+  @IsIn(COMPANY_ACTIVITY_CODES as unknown as string[], { each: true })
+  activities?: string[];
 
   @IsOptional()
   @IsString()
@@ -162,4 +175,30 @@ export class UpdateCompanyProfileDto {
   @ArrayMaxSize(50)
   @IsString({ each: true })
   sellerCategoryIds?: string[];
+
+  /**
+   * ALT kategoriler (level 2-4). Ana kategori (segment) tek başına çok geniş:
+   * "İmalat Makineleri" 88 başlık taşıyor, o segmenti seçen firma o segmentteki
+   * HER talebin bildirimini alıyor. Alt kategori, firmanın gerçekten ilgilendiği
+   * dalı işaretlemesini sağlar.
+   *
+   * Eşleştirme zaten hazırdı (`deriveCategoryMatchCandidates` ilanın kodundan
+   * TÜM üst seviyeleri türetir, `buyerSubCategoryIds`/`sellerSubCategoryIds`
+   * kolonları şemada duruyordu) — eksik olan yalnız bu alanları KABUL eden bir
+   * uçtu; profil DTO'su hiç taşımıyordu.
+   *
+   * Tavan 50: ana kategoriyle aynı. Sınırsız seçim, segment seçmekle aynı
+   * kapıya çıkar ve eşleştirmenin anlamını yok eder.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  buyerSubCategoryIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  sellerSubCategoryIds?: string[];
 }

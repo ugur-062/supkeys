@@ -13,6 +13,7 @@ import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import {
   useCompanyAuth,
@@ -24,7 +25,13 @@ import {
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { safeExternalUrl } from "@/lib/safe-url";
-import { isValidIbanTr, isValidMersis, normalizeIban } from "@rothern/shared";
+import {
+  COMPANY_ACTIVITIES,
+  MAX_COMPANY_ACTIVITIES,
+  isValidIbanTr,
+  isValidMersis,
+  normalizeIban,
+} from "@rothern/shared";
 import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -48,6 +55,9 @@ export function CompanyProfileSection() {
     kepAddress: "",
     buyerCategoryIds: [] as string[],
     sellerCategoryIds: [] as string[],
+    buyerSubCategoryIds: [] as string[],
+    sellerSubCategoryIds: [] as string[],
+    activities: [] as string[],
   });
 
   useEffect(() => {
@@ -68,6 +78,15 @@ export function CompanyProfileSection() {
         sellerCategoryIds: (profile.sellerCategoryIds ?? []).filter((id) =>
           /^\d{2}000000$/.test(id),
         ),
+        // ALT kategori: segment DIŞI her seviye (family/class/commodity).
+        // Ana kategorinin filtresinin tam TERSİ — ikisi ayrı eksen.
+        buyerSubCategoryIds: (profile.buyerSubCategoryIds ?? []).filter(
+          (id) => !/^\d{2}000000$/.test(id),
+        ),
+        sellerSubCategoryIds: (profile.sellerSubCategoryIds ?? []).filter(
+          (id) => !/^\d{2}000000$/.test(id),
+        ),
+        activities: profile.activities ?? [],
       });
     }
   }, [profile]);
@@ -269,6 +288,51 @@ export function CompanyProfileSection() {
             />
           </Field>
 
+          {/* Faaliyet tipi — kategori "ne", bu "nasıl". */}
+          <div>
+            <span className="block text-sm font-medium text-zinc-950">
+              Faaliyet tipi
+            </span>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Alıcı için çoğu zaman kategoriden daha belirleyici: seri üretim
+              işi üreticiye, stoktan acil ihtiyaç bayiye, çizimle parça fasona
+              gider. En fazla {MAX_COMPANY_ACTIVITIES} seçim.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {COMPANY_ACTIVITIES.map((a) => {
+                const selected = form.activities.includes(a.code);
+                const full =
+                  !selected && form.activities.length >= MAX_COMPANY_ACTIVITIES;
+                return (
+                  <button
+                    key={a.code}
+                    type="button"
+                    disabled={!canEdit || full}
+                    aria-pressed={selected}
+                    title={a.hintTr}
+                    onClick={() =>
+                      set({
+                        activities: selected
+                          ? form.activities.filter((c) => c !== a.code)
+                          : [...form.activities, a.code],
+                      })
+                    }
+                    className={
+                      selected
+                        ? "rounded-lg border border-blue-600 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900"
+                        : "rounded-lg border border-zinc-950/10 bg-white px-3 py-2 text-left text-sm text-zinc-700 hover:border-zinc-950/20 disabled:opacity-40"
+                    }
+                  >
+                    <span className="block">{a.nameTr}</span>
+                    <span className="block text-xs font-normal text-zinc-500">
+                      {a.hintTr}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Ne alırım / ne satarım */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -276,17 +340,37 @@ export function CompanyProfileSection() {
                 🔵 Ne alırım (alış kategorileri)
               </span>
               {canEdit ? (
-                <div className="mt-2">
+                <div className="mt-2 space-y-3">
                   <SegmentOnlyPicker
                     value={form.buyerCategoryIds}
                     onChange={(ids) => set({ buyerCategoryIds: ids })}
                     title="Alış Faaliyet Alanları"
                     description="Satın aldığınız ana kategorileri seçin — satın alma talebi eşleşmesi ve öneriler bu seçime göre yapılır."
                   />
+                  <div>
+                    <span className="block text-xs font-medium text-zinc-500">
+                      Alt kategoriler (isteğe bağlı)
+                    </span>
+                    <p className="mt-0.5 mb-2 text-xs text-zinc-400">
+                      Ana kategori geniştir; alt kırılım seçerseniz yalnız
+                      gerçekten ilgilendiğiniz ilanlar karşınıza çıkar.
+                    </p>
+                    <CategorySelectorButton
+                      value={form.buyerSubCategoryIds}
+                      onChange={(ids) => set({ buyerSubCategoryIds: ids })}
+                      maxSelection={50}
+                      modalTitle="Alış Alt Kategorileri"
+                      modalDescription="Satın aldığınız ürün/hizmetleri arayıp seçin."
+                      placeholder="Alt kategori ekle"
+                    />
+                  </div>
                 </div>
               ) : (
                 <Text className="mt-1 text-sm text-zinc-500">
                   {form.buyerCategoryIds.length} kategori
+                  {form.buyerSubCategoryIds.length
+                    ? ` · ${form.buyerSubCategoryIds.length} alt kategori`
+                    : ""}
                 </Text>
               )}
             </div>
@@ -295,17 +379,37 @@ export function CompanyProfileSection() {
                 🟢 Ne satarım (satış kategorileri)
               </span>
               {canEdit ? (
-                <div className="mt-2">
+                <div className="mt-2 space-y-3">
                   <SegmentOnlyPicker
                     value={form.sellerCategoryIds}
                     onChange={(ids) => set({ sellerCategoryIds: ids })}
                     title="Satış Faaliyet Alanları"
                     description="Tedarik edebileceğiniz ana kategorileri seçin — açık satın alma talebi önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
                   />
+                  <div>
+                    <span className="block text-xs font-medium text-zinc-500">
+                      Alt kategoriler (isteğe bağlı)
+                    </span>
+                    <p className="mt-0.5 mb-2 text-xs text-zinc-400">
+                      Tedarik ettiğiniz ürünleri tek tek işaretleyin — talepler
+                      önce bu kırılıma göre karşınıza çıkar.
+                    </p>
+                    <CategorySelectorButton
+                      value={form.sellerSubCategoryIds}
+                      onChange={(ids) => set({ sellerSubCategoryIds: ids })}
+                      maxSelection={50}
+                      modalTitle="Satış Alt Kategorileri"
+                      modalDescription="Tedarik ettiğiniz ürün/hizmetleri arayıp seçin."
+                      placeholder="Alt kategori ekle"
+                    />
+                  </div>
                 </div>
               ) : (
                 <Text className="mt-1 text-sm text-zinc-500">
                   {form.sellerCategoryIds.length} kategori
+                  {form.sellerSubCategoryIds.length
+                    ? ` · ${form.sellerSubCategoryIds.length} alt kategori`
+                    : ""}
                 </Text>
               )}
             </div>

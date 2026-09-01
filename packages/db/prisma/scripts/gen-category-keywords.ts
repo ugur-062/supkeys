@@ -224,42 +224,59 @@ async function main() {
   // Çalışan model gruplar arasında taşınır — her grupta merdiveni baştan denemeyiz.
   let model: string | undefined;
 
-  for (let i = 0; i < nodes.length && batchNo < limit; i += BATCH) {
-    const batch = nodes.slice(i, i + BATCH);
-    batchNo++;
-    try {
-      const r = await generateJson<{ items?: { code: string; keywords: string }[] }>({
-        apiKey,
-        prompt: buildPrompt(batch),
-        schema: SCHEMA,
-        preferModel: model,
-      });
-      model = r.model;
-      inTok += r.inTok;
-      outTok += r.outTok;
-      const lines: string[] = [];
-      for (const item of r.data.items ?? []) {
-        const name = nameByCode.get(item.code);
-        // Model olmayan bir kod uydurabilir — sessizce atla.
-        if (!name) continue;
-        const kw = sanitize(item.keywords ?? "", name);
-        if (!kw) continue;
-        lines.push(`${item.code}\t${kw}`);
+  // EŞZAMANLILIK: gruplar birbirinden BAĞIMSIZ (her biri ayrı düğüm kümesi,
+  // paylaşılan durum yok) — sırayla koşmak için hiçbir sebep yok ve 203 grup
+  // seri hâlde ~2,5 saat sürüyordu. Havuz küçük tutuldu: sağlayıcı 429/503
+  // verdiğinde merdiven zaten bekliyor, agresif paralellik o beklemeyi
+  // çoğaltmaktan başka işe yaramaz.
+  const CONCURRENCY = 4;
+  const batches: Node[][] = [];
+  for (let i = 0; i < nodes.length; i += BATCH) batches.push(nodes.slice(i, i + BATCH));
+  const planned = Math.min(batches.length, limit === Infinity ? batches.length : limit);
+
+  let cursor = 0;
+  const worker = async () => {
+    for (;;) {
+      const idx = cursor++;
+      if (idx >= planned) return;
+      const batch = batches[idx]!;
+      try {
+        const r = await generateJson<{ items?: { code: string; keywords: string }[] }>({
+          apiKey,
+          prompt: buildPrompt(batch),
+          schema: SCHEMA,
+          preferModel: model,
+        });
+        model = r.model;
+        inTok += r.inTok;
+        outTok += r.outTok;
+        const lines: string[] = [];
+        for (const item of r.data.items ?? []) {
+          const name = nameByCode.get(item.code);
+          // Model olmayan bir kod uydurabilir — sessizce atla.
+          if (!name) continue;
+          const kw = sanitize(item.keywords ?? "", name);
+          if (!kw) continue;
+          lines.push(`${item.code}\t${kw}`);
+        }
+        if (lines.length) {
+          // Her grup ANINDA yazılır: koşu kesilirse üretilen kaybolmaz.
+          // appendFileSync tek iş parçacığında atomik — havuz güvenli.
+          fs.appendFileSync(OUT_PATH, lines.join("\n") + "\n", "utf-8");
+          written += lines.length;
+        }
+      } catch (e) {
+        console.error(`\ngrup ${idx + 1} HATA: ${(e as Error).message}`);
       }
-      if (lines.length) {
-        // Her grup ANINDA yazılır: koşu kesilirse üretilen kaybolmaz.
-        fs.appendFileSync(OUT_PATH, lines.join("\n") + "\n", "utf-8");
-        written += lines.length;
-      }
+      batchNo++;
       const pr = priceOf(model ?? "");
       const cost = (inTok / 1e6) * pr.in + (outTok / 1e6) * pr.out;
       process.stdout.write(
-        `\rgrup ${batchNo}/${Math.ceil(nodes.length / BATCH)} · ${written} satır · ${model} · ~$${cost.toFixed(3)}   `,
+        `\rgrup ${batchNo}/${planned} · ${written} satır · ${model} · ~$${cost.toFixed(3)}   `,
       );
-    } catch (e) {
-      console.error(`\ngrup ${batchNo} HATA: ${(e as Error).message}`);
     }
-  }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   const pr = priceOf(model ?? "");
   const cost = (inTok / 1e6) * pr.in + (outTok / 1e6) * pr.out;

@@ -135,41 +135,55 @@ async function main() {
   console.log(`   Class:     ${byLevel[3]}`);
   console.log(`   Commodity: ${byLevel[4]}\n`);
 
-  // 1. Eski veriyi temizle
-  console.log("🧹 Mevcut kategoriler temizleniyor...");
-  await prisma.category.deleteMany({});
-
-  // 2. Seviye sırayla yaz (parent her zaman daha düşük seviyede → önce var olur).
-  //    id = code; parentId = parentCode. Chunk'lı createMany.
-  console.log("💾 Database'e yazılıyor...");
+  // Sil + yeniden kur TEK İŞLEMDE.
+  //
+  // Neden: bu script CANLI veritabanına koşuyor (dev ve prod aynı Supabase).
+  // İşlem dışında yapıldığında, `deleteMany` ile son `createMany` arasında
+  // kopan bir bağlantı kategori tablosunu BOŞ ya da yarım bırakır — kategori
+  // seçimi, arama ve ilan eşleştirmesi o anda çöker ve script yeniden koşana
+  // kadar öyle kalır. İşlem içinde aynı hata sessizce geri sarılır, eski ağaç
+  // yerinde durur.
+  //
+  // Sil+kur (upsert değil) BİLİNÇLİ: kaldırılan kategoriler de temizlenmeli.
+  // Güvenli olmasının sebebi FK olmaması — firma/ilan seçimleri `categoryIds`
+  // String[] olarak KOD saklıyor ve Category.id = kod sabit (CLAUDE.md).
+  console.log("🧹+💾 Kategoriler tek işlemde yeniden kuruluyor...");
   let inserted = 0;
-  for (let level = 1; level <= 4; level++) {
-    const levelCats = cats
-      .filter((c) => c.level === level)
-      .sort((a, b) => a.code.localeCompare(b.code));
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.category.deleteMany({});
+      for (let level = 1; level <= 4; level++) {
+        const levelCats = cats
+          .filter((c) => c.level === level)
+          .sort((a, b) => a.code.localeCompare(b.code));
 
-    for (let i = 0; i < levelCats.length; i += CHUNK) {
-      const chunk = levelCats.slice(i, i + CHUNK);
-      await prisma.category.createMany({
-        data: chunk.map((c, idx) => ({
-          id: c.code,
-          code: c.code,
-          nameTr: c.nameTr,
-          keywords: keywordsByCode.get(c.code) ?? "",
-          searchText: foldSearchText(
-            `${c.nameTr} ${keywordsByCode.get(c.code) ?? ""}`,
-          ),
-          level: c.level,
-          parentId: c.parentCode,
-          segmentLetter: c.segmentLetter,
-          sortOrder: i + idx,
-          isActive: true,
-        })),
-      });
-      inserted += chunk.length;
-      console.log(`   L${level}: ${inserted}/${cats.length} yazıldı...`);
-    }
-  }
+        for (let i = 0; i < levelCats.length; i += CHUNK) {
+          const chunk = levelCats.slice(i, i + CHUNK);
+          await tx.category.createMany({
+            data: chunk.map((c, idx) => ({
+              id: c.code,
+              code: c.code,
+              nameTr: c.nameTr,
+              keywords: keywordsByCode.get(c.code) ?? "",
+              searchText: foldSearchText(
+                `${c.nameTr} ${keywordsByCode.get(c.code) ?? ""}`,
+              ),
+              level: c.level,
+              parentId: c.parentCode,
+              segmentLetter: c.segmentLetter,
+              sortOrder: i + idx,
+              isActive: true,
+            })),
+          });
+          inserted += chunk.length;
+          console.log(`   L${level}: ${inserted}/${cats.length} yazıldı...`);
+        }
+      }
+    },
+    // Uzak Supabase'de tur başına ~215 ms; ~11k satır / 2000'lik gruplar =
+    // birkaç on saniye. Varsayılan 5 sn kesinlikle yetmez.
+    { timeout: 180_000, maxWait: 30_000 },
+  );
 
   const [totalDb, segDb, famDb, clsDb, comDb] = await Promise.all([
     prisma.category.count(),

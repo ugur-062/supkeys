@@ -608,8 +608,13 @@ export class CategoryService {
     if (opts.minLevel !== undefined) {
       const tooHigh = found.filter((c) => c.level < (opts.minLevel as number));
       if (tooHigh.length > 0) {
+        // Mesaj minLevel'a göre kurulur. Sabit metin, minLevel=3 varsayıyordu;
+        // firma ALT kategorisi minLevel=2 ile çağırıyor ve orada Family GEÇERLİ
+        // — sabit metin kullanıcıya yanlış kuralı söylerdi.
         throw new BadRequestException(
-          "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez).",
+          opts.minLevel >= 3
+            ? "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez)."
+            : "Ana başlık (Segment) alt kategori olarak seçilemez — bir alt kırılım seçin.",
         );
       }
     }

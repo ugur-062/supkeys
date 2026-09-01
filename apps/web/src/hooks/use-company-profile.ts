@@ -28,6 +28,11 @@ export interface CompanyProfile {
   certificateImages: string[];
   buyerCategoryIds: string[];
   sellerCategoryIds: string[];
+  /** ALT kategoriler (level 2-4) — ana kategoriden AYRI eksen. */
+  buyerSubCategoryIds: string[];
+  sellerSubCategoryIds: string[];
+  /** Faaliyet tipi (çoklu) — üretici / bayi / hizmet / dış ticaret / fason. */
+  activities: string[];
   taxNumber: string | null;
   taxOffice: string | null;
   companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | null;
@@ -72,6 +77,9 @@ export type CompanyProfileUpdate = Partial<
     | "certificateImages"
     | "buyerCategoryIds"
     | "sellerCategoryIds"
+    | "buyerSubCategoryIds"
+    | "sellerSubCategoryIds"
+    | "activities"
     | "mersisNo"
     | "tradeRegistryNo"
     | "kepAddress"

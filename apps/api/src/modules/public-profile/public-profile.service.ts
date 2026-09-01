@@ -28,6 +28,7 @@ export class PublicProfileService {
         slug: true,
         rothernId: true,
         industry: true,
+        activities: true,
         city: true,
         country: true,
         logoUrl: true,

@@ -13,6 +13,7 @@ interface PublicProfile {
   slug: string | null;
   rothernId: string | null;
   industry: string | null;
+  activities?: string[];
   city: string | null;
   country: string | null;
   logoUrl: string | null;

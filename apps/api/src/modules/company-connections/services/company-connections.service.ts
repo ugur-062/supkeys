@@ -45,6 +45,7 @@ const COMPANY_CARD_SELECT = {
   city: true,
   country: true,
   industry: true,
+  activities: true,
   users: {
     where: { isActive: true, deletedAt: null },
     take: 1,

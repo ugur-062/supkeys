@@ -161,6 +161,7 @@ export function ProfileEditor({
     name: profile.name,
     rothernId: profile.rothernId,
     industry: draft.industry || null,
+    activities: profile.activities,
     city: profile.city,
     country: profile.country,
     logoUrl: draft.logoUrl || null,

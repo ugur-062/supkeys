@@ -402,3 +402,147 @@ describe("company-profile — görsel anahtarları benzersiz (2026-08-22)", () =
     }
   });
 });
+
+/**
+ * FAALİYET TİPİ + ALT KATEGORİ (Faz 4-5, 2026-09-01).
+ *
+ * Faaliyet tipi: kategori firmanın NE'sini söyler, faaliyet tipi NASIL'ını
+ * (üretici mi, bayi mi, fason mu). Europages'in ikinci ekseni; bizde hiç yoktu
+ * — `CompanyType` yalnız hukuki biçim.
+ *
+ * Alt kategori: `buyerSubCategoryIds`/`sellerSubCategoryIds` kolonları ve
+ * eşleştirmesi (`deriveCategoryMatchCandidates`) ZATEN vardı; eksik olan tek
+ * şey bu alanları KABUL eden bir uçtu — profil DTO'su onları hiç taşımıyordu,
+ * dolayısıyla firma ana segmentten daha ince bir şey söyleyemiyordu.
+ */
+describe("company-profile — faaliyet tipi", () => {
+  it("geçerli faaliyet tipleri kaydedilir ve yinelenen ayıklanır", async () => {
+    const svc = makeService();
+    const owner = await makeEditableCompany();
+
+    await svc.update(owner.company.id, {
+      activities: ["MANUFACTURER", "IMPORTER_EXPORTER", "MANUFACTURER"],
+    } as never);
+
+    const row = await prisma.company.findUnique({
+      where: { id: owner.company.id },
+      select: { activities: true },
+    });
+    expect(row?.activities).toEqual(["MANUFACTURER", "IMPORTER_EXPORTER"]);
+  });
+
+  it("boş dizi gönderilebilir (seçimi kaldırma)", async () => {
+    const svc = makeService();
+    const owner = await makeEditableCompany();
+
+    await svc.update(owner.company.id, {
+      activities: ["DISTRIBUTOR"],
+    } as never);
+    await svc.update(owner.company.id, {
+      activities: [],
+    } as never);
+
+    const row = await prisma.company.findUnique({
+      where: { id: owner.company.id },
+      select: { activities: true },
+    });
+    expect(row?.activities).toEqual([]);
+  });
+});
+
+describe("company-profile — alt kategoriler", () => {
+  /** Segment → Family → Class zinciri; alt kategori seçimi için gerçek satır gerekir. */
+  async function seedTree() {
+    await prisma.category.create({
+      data: {
+        id: "31000000",
+        code: "31000000",
+        nameTr: "İmalat Bileşenleri",
+        level: 1,
+        isActive: true,
+        searchText: "imalat bilesenleri",
+      },
+    });
+    await prisma.category.create({
+      data: {
+        id: "31170000",
+        code: "31170000",
+        nameTr: "Rulmanlar",
+        level: 2,
+        parentId: "31000000",
+        isActive: true,
+        searchText: "rulmanlar",
+      },
+    });
+    await prisma.category.create({
+      data: {
+        id: "31171500",
+        code: "31171500",
+        nameTr: "Bilyalı rulmanlar",
+        level: 3,
+        parentId: "31170000",
+        isActive: true,
+        searchText: "bilyali rulmanlar",
+      },
+    });
+  }
+
+  /** Gerçek CategoryService — validateIds seviye kuralını burada sınıyoruz. */
+  function makeServiceWithCategories() {
+    const storage = {
+      generatePresignedPut: jest.fn(),
+      generatePresignedGet: jest.fn(),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {
+      CategoryService,
+    } = require("../../src/modules/categories/services/category.service");
+    return new CompanyProfileService(
+      prisma as never,
+      storage as never,
+      new CategoryService(prisma as never) as never,
+      new AuditService(prisma as never),
+    );
+  }
+
+  it("family (L2) ve class (L3) alt kategori olarak kabul edilir", async () => {
+    await seedTree();
+    const svc = makeServiceWithCategories();
+    const owner = await makeEditableCompany();
+
+    await svc.update(owner.company.id, {
+      sellerSubCategoryIds: ["31170000", "31171500"],
+    } as never);
+
+    const row = await prisma.company.findUnique({
+      where: { id: owner.company.id },
+      select: { sellerSubCategoryIds: true },
+    });
+    expect(row?.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
+  });
+
+  it("segment (L1) alt kategori OLAMAZ — ana kategoriyle aynı eksene düşer", async () => {
+    await seedTree();
+    const svc = makeServiceWithCategories();
+    const owner = await makeEditableCompany();
+
+    await expect(
+      svc.update(owner.company.id, {
+        buyerSubCategoryIds: ["31000000"],
+      } as never),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("ana kategori hâlâ YALNIZ segment kabul eder (eksen ayrımı korunur)", async () => {
+    await seedTree();
+    const svc = makeServiceWithCategories();
+    const owner = await makeEditableCompany();
+
+    await expect(
+      svc.update(owner.company.id, {
+        buyerCategoryIds: ["31171500"],
+      } as never),
+    ).rejects.toThrow(BadRequestException);
+  });
+});

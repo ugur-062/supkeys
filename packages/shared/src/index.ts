@@ -16,4 +16,5 @@ export * from "./types/ai-assistant";
 export * from "./constants/item-import";
 export * from "./constants/bid-import";
 export * from "./constants/units";
+export * from "./constants/company-activities";
 export * from "./types/review-summary";
