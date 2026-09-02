@@ -10,6 +10,15 @@ import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 interface HealthCheckResult {
   status: "ok" | "degraded";
   service: "rothern-api";
+  /**
+   * ÇALIŞAN SÜRÜM — deploy'un gerçekten çıkıp çıkmadığı tek istekle görünsün.
+   *
+   * 2026-09-03: Render "deploy başarılı" gösterdi ama servis eski kodu
+   * sunmaya devam etti; anlamak için rota rota yoklama yapmak gerekti
+   * (`Cannot GET …` vs bizim `Bulunamadı`). Render `RENDER_GIT_COMMIT`'i
+   * konteynere kendisi koyar; yoksa "unknown".
+   */
+  version: string;
   timestamp: string;
   checks: {
     database: "up" | "down";
@@ -64,6 +73,11 @@ export class HealthController {
       // Bayat kur kesinti değildir ama izleme fark etsin → degraded.
       status: dbStatus === "down" || rates?.stale ? "degraded" : "ok",
       service: "rothern-api",
+      version: (
+        process.env.RENDER_GIT_COMMIT ??
+        process.env.GIT_COMMIT ??
+        "unknown"
+      ).slice(0, 7),
       timestamp: new Date().toISOString(),
       checks: { database: dbStatus, exchangeRates: rates },
     };
