@@ -4925,3 +4925,145 @@
 25132101	Tarımsal drone	Agricultural drone
 25132102	Askeri drone	Military drone
 25132103	Hobi drone	Recreational drone
+
+# İnşaat ve tesis hizmetleri.
+72101506	Asansör bakım hizmetleri	Elevator maintenance services
+72101507	Bina bakım hizmeti	Building maintenance service
+72101508	Zemin temizlik hizmetleri	Floor cleaning services
+72101509	Yangın koruma sistemi ve ekipmanı bakım-onarım hizmeti	Fire protection system and equipment maintenance or repair service
+72101510	Tesisat bakım-onarım hizmeti	Plumbing system maintenance or repair
+72101511	Klima montaj ve bakım-onarım hizmeti	Air conditioning installation or maintenance or repair service
+72101512	Yük asansörü kurulum hizmeti	Hoist construction service
+72101513	Şantiye dışı üretim (offsite) hizmeti	Offsite construction service
+72101514	Çöp toplama alanı yapım hizmeti	Refuse area construction service
+72101515	Zemin oturması onarım hizmeti	Subsidence service work
+72101516	Yangın söndürücü muayene ve bakım hizmeti	Fire extinguisher inspection maintenance and repair service
+72101517	Taşınabilir jeneratör bakım-onarım hizmeti	Portable generator maintenance and or repair service
+72101518	Taşınabilir jeneratör kiralama hizmeti	Portable generator rental service
+72101519	Gaz tesisatı montaj hizmeti	Gas fitting installation service
+72101520	Çatı karkas hizmeti	Roof framing service
+72101521	Bina karkas hizmeti	Building framing service
+72101522	Perakende tesis ve ekipman bakım hizmeti	Retail facility and equipment maintenance service
+72101523	Perakende tesis bakım hizmetleri	Retail facility maintenance services
+72101524	Hidrojen üretim ekipmanı hizmeti	Hydrogen generation equipment service
+72102903	Kar temizleme hizmetleri	Snow removal services
+72102906	Peyzaj mimarlığı hizmeti	Landscape architecture service
+72102907	Tesis bütünlük yönetimi hizmeti	Facility integrity management service
+72102908	Tesis yönetimi küçük projeler	Facility management minor projects
+72102909	Tesis kurulum yönetimi hizmeti	Installation facility management service
+72103101	Malzeme taşıma sistemi montajı	Material conveyance system installation
+72103102	Malzeme taşıma sistemi onarımı	Material conveyance system repair
+72103103	Yer üstü konveyör hizmeti	Aboveground conveyor service
+72103104	Yeraltı konveyör hizmeti	Underground conveyor service
+72103301	Otopark veya yol bakım-onarım hizmetleri	Parking lot or road maintenance or repairs or services
+72103302	Telekom ekipmanı bakım ve destek	Telecom equipment maintenance or support
+72103304	Otopark veya yol süpürme hizmetleri	Parking lot or road sweeping services
+72103305	Drenaj döşeme hizmeti	Drain laying service
+72111001	Müstakil konut tadilat, ek ve onarım hizmeti	Single family home remodeling addition and repair service
+72111002	Müstakil konut genel tadilat hizmeti	Single family home general remodeling service
+72111003	Yerinde prefabrik ev onarım hizmeti	On site mobile home repair service
+72111004	Teras ve deck yapım-onarım hizmeti	Patio and deck construction and repair service
+72111005	Müstakil konut yangın hasarı onarım hizmeti	Single family home fire damage repair service
+72111006	Müstakil konut yeni inşaat hizmeti	Single family home new construction service
+72111007	Müstakil prefabrik konut montaj hizmeti	Single family prefabricated home erection service
+72111101	Yeni apartman inşaat hizmeti	New apartment building construction service
+72111102	Yeni kooperatif inşaat hizmeti	New cooperative construction service
+72111103	Yeni site konutu inşaat hizmeti	New condominium construction service
+72111104	Yeni yurt inşaat hizmeti	New dormitory construction service
+72111105	Yeni otel veya motel inşaat hizmeti	New hotel or motel construction service
+72111106	Apartman tadilat hizmeti	Apartment remodeling service
+72111107	Kooperatif dairesi tadilat hizmeti	Cooperative apartment remodeling service
+72111108	Site konutu tadilat hizmeti	Condominium remodeling service
+72111109	Yurt tadilat hizmeti	Dormitory remodeling service
+72111110	Otel veya motel tadilat hizmeti	Hotel or motel remodeling service
+72111111	Genel konut inşaat müteahhitlik hizmeti	General residential construction contractor service
+72121001	Kuru temizleme tesisi yapım ve tadilat hizmeti	Dry cleaning plant construction and remodeling service
+72121002	Gıda üretim veya paketleme tesisi yapım ve tadilat hizmeti	Food product manufacturing or packing plant construction and remodeling service
+72121003	Tahıl silosu yapım ve tadilat hizmeti	Grain elevator construction and remodeling service
+72121004	Kağıt veya selüloz fabrikası yapım ve tadilat hizmeti	Paper or pulp mill construction and remodeling service
+72121005	İlaç üretim tesisi yapım ve tadilat hizmeti	Pharmaceutical manufacturing plant construction and remodeling service
+72121006	Prefabrik sanayi yapısı montaj ve tadilat hizmeti	Prefabricated industrial building erection and remodeling service
+72121007	Kamyon ve otomobil montaj fabrikası yapım ve tadilat hizmeti	Truck and automobile assembly plant constructionand remodeling service
+72121008	Depo yapım ve tadilat hizmeti	Warehouse construction and remodeling service
+72121101	Ticari ve ofis binası yeni inşaat hizmeti	Commercial and office building new construction service
+72121102	Ticari ve ofis binası prefabrik montaj hizmeti	Commercial and office building prefabricated erection service
+72121103	Ticari ve ofis binası yenileme ve onarım hizmeti	Commercial and office building renovation and repair service
+72121104	Restoran inşaat hizmeti	Restaurant construction service
+72121105	Alışveriş merkezi inşaat hizmeti	Shopping center and mall construction service
+72121201	Çiftlik yapısı inşaat hizmeti	Farm building construction service
+72121202	Sera inşaat hizmeti	Greenhouse construction service
+72121203	Silo ve tarımsal hizmet binası inşaat hizmeti	Silo and agricultural service building construction service
+72121301	Oto servis inşaat hizmeti	Automotive garage construction service
+72121302	Akaryakıt istasyonu inşaat hizmeti	Automotive service station construction service
+72121401	Banka binası inşaat hizmeti	Bank building construction service
+72121402	İtfaiye binası inşaat hizmeti	Fire station construction service
+72121403	Hastane inşaat hizmeti	Hospital construction service
+72121404	Postane inşaat hizmeti	Post office construction service
+72121405	İbadethane inşaat hizmeti	Religious building construction service
+72121406	Okul binası inşaat hizmeti	School building construction service
+72121407	Anıt mezar inşaat hizmeti	Mausoleum construction service
+72121408	Stadyum inşaat hizmeti	Stadium construction service
+72121409	Halk kütüphanesi inşaatı	Public library construction
+72121410	Havalimanı terminal ve hangar inşaatı	Airport terminal and hanger construction
+72121411	Kongre merkezi inşaat hizmeti	Convention facility construction service
+72121412	Otogar inşaat hizmeti	Bus station construction service
+72121501	Kimya tesisi inşaat hizmeti	Chemical plant construction service
+72121502	Maden yükleme-boşaltma istasyonu inşaat hizmeti	Mine loading and discharging station construction service
+72121503	Petrol rafinerisi inşaat hizmeti	Oil refinery construction service
+72121504	Atık bertaraf tesisi inşaat hizmeti	Waste disposal plant construction service
+72121505	Atık su ve kanalizasyon arıtma tesisi inşaat hizmeti	Waste water and sewage treatment plant construction service
+72121506	Enerji santrali inşaat hizmeti	Power plant construction service
+72121507	Tank yapım ve servis hizmeti	Tank construction and servicing
+72121508	Cevher hazırlama tesisi inşaat hizmeti	Preparation plant construction service
+72121509	Yeraltı elektrik hizmetleri	Underground Electrical Services
+72121510	Yüzer petrol-gaz üretim, depolama ve boşaltma sistemi inşaat hizmeti	Floating oil and gas production storage and offloading system construction service
+72121511	Açık deniz petrol-gaz tesisi bağlantı ve devreye alma hizmeti	Offshore oil and gas production facility hookup and commissioning service
+72121512	Açık deniz petrol-gaz tesisi ekipman montaj ve entegrasyon hizmeti	Offshore oil and gas production facility equipment installation and integration service
+72121514	Petrol-gaz üretim platformu ve üst yapı imalat hizmeti	Oil and gas production platform and topside fabrication service
+72121515	Yüzer petrol-gaz üretim sistemi gövde imalat hizmeti	Floating oil and gas production system hull fabrication service
+72121516	Sabit açık deniz petrol-gaz tesisi imalat hizmeti	Fixed oil and gas offshore production facilities fabrication service
+72121517	LNG tesisi inşaat hizmeti	Liquid natural gas LNG plant construction service
+72121601	Açık deniz rüzgar santrali geliştirme ve proje yönetimi	Offshore wind farm development and project management
+72121602	Açık deniz rüzgar santrali çevresel etüt	Offshore wind farm environmental survey
+72121603	Açık deniz rüzgar santrali geoteknik etüt	Offshore wind farm geotechnical survey
+72121604	Açık deniz rüzgar santrali montaj ve devreye alma	Offshore wind farm installation and commissioning
+72121605	Açık deniz rüzgar santrali işletme, bakım ve servis	Offshore wind farm operation, maintenance and service
+72121606	Açık deniz rüzgar santrali söküm	Offshore wind farm decommissioning
+72141001	Karayolu yeni inşaat hizmeti	Highway and road new construction service
+72141002	Karayolu levha veya otokorkuluk yapım-onarım hizmeti	Highway and road sign or guardrail construction and repair service
+72141003	Karayolu bakım hizmeti	Highway and road maintenance service
+72141004	Karayolu reflektör montaj hizmeti	Highway reflector installation service
+72141101	Havalimanı pist inşaat hizmeti	Airport runway construction service
+72141102	Arazi tesviye hizmeti	Land grading service
+72141103	Karayolu asfaltlama hizmeti	Highway and road paving service
+72141104	Karayolu yenileme kaplama hizmeti	Highway and road resurfacing service
+72141105	Kaldırım yapım-onarım hizmeti	Sidewalk construction and repair service
+72141106	Stabilize veya toprak yol inşaat hizmeti	Gravel or dirt road construction service
+72141107	Köprü yapım-onarım hizmeti	Bridge construction and repair service
+72141108	Tünel yapım-onarım hizmeti	Tunnel construction and repair service
+72141109	Viyadük yapım-onarım hizmeti	Viaduct construction and repair service
+72141110	Petrol-gaz branşman hattı inşaat hizmeti	Oil and gas branch line construction service
+72141111	Ana gaz hattı inşaat hizmeti	Gas main construction service
+72141112	Doğal gaz kompresör istasyonu inşaat hizmeti	Natural gas compressor station construction service
+72141113	Petrol-gaz boru hattı inşaat hizmeti	Oil and gas pipeline construction service
+72141114	Boru hattı kaplama hizmeti	Pipeline wrapping service
+72141115	Elektrik kablosu döşeme hizmeti	Electrical cable laying service
+72141116	Televizyon kablosu döşeme hizmeti	Television cable laying service
+72141117	Telefon ve haberleşme kablosu döşeme hizmeti	Telephone and communication cable laying service
+72141118	Telekomünikasyon kulesi inşaat hizmeti	Telecommunication transmission tower construction service
+72141119	Su kemeri inşaat hizmeti	Aqueduct construction service
+72141120	Kanalizasyon hattı inşaat hizmeti	Sewer line construction service
+72141121	Ana su hattı inşaat hizmeti	Water main construction service
+72141122	Enerji nakil hattı inşaat hizmeti	Electric power line construction service
+72141123	Rögar inşaat hizmeti	Manhole construction service
+72141124	Boru döşeme hizmeti	Pipe laying service
+72141125	Pompa istasyonu inşaat hizmeti	Pumping station construction service
+72141126	Yeraltı altyapı inşaat hizmeti	Underground utilities construction service
+72141127	Yol ve otopark yüzey koruma kaplaması	Seal coating of roads, highways and parking lots
+72141128	Meydan yapım ve düzenleme hizmeti	Public square construction and or remodelling service
+72141130	Süs havuzu yapım ve düzenleme hizmeti	Ornamental fountain construction and or remodelling service
+72141131	Su deposu inşaat hizmeti	Water reservoir construction service
+72141201	Keson kazık hizmeti	Caisson drilling service
+72141202	Kanal inşaat hizmeti	Canal construction service
+72141203	Baraj inşaat hizmeti	Dam construction service
+72141204	Rıhtım inşaat hizmeti	Dock construction service
