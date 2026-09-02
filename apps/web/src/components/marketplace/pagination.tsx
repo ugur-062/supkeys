@@ -31,13 +31,13 @@ export function Pagination({
   return (
     <nav
       aria-label="Sayfalama"
-      className="mt-10 flex items-center justify-between border-t border-zinc-200 pt-6"
+      className="mt-10 flex items-center justify-between border-t border-zinc-950/5 pt-6"
     >
       {page > 1 ? (
         <Link
           href={href(page - 1)}
           rel="prev"
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
         >
           ← Önceki
         </Link>
@@ -51,7 +51,7 @@ export function Pagination({
         <Link
           href={href(page + 1)}
           rel="next"
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
         >
           Sonraki →
         </Link>

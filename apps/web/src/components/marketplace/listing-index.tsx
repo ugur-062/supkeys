@@ -1,7 +1,7 @@
-import { GridPattern } from "./grid-pattern";
 import { EmptyListings, ListingCard } from "./listing-card";
 import { Pagination } from "./pagination";
 import { SearchForm } from "./search-form";
+import { Heading } from "@/components/catalyst/heading";
 import {
   MARKETPLACE_ROUTES,
   type PublicListingType,
@@ -86,22 +86,23 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
 
   return (
     <>
-      {/* Başlık bandı KOYU: anasayfanın hero'suyla aynı dil, ayrıca süzgeç
-          alanını içerikten görsel olarak ayırıyor. Eskiden beyaz üstüne beyaz
-          duruyordu ve sayfanın nerede başladığı belli olmuyordu. */}
-      <header className="relative isolate overflow-hidden bg-zinc-950 px-6 pt-28 pb-12 lg:px-8">
-        <GridPattern id="index-grid" />
-        <div className="relative mx-auto max-w-7xl">
-          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+      {/* Application UI — Headings / Page headings. Açık zemin, ince alt
+          çizgi; koyu banttan döndük (ürün kararı). Ayrım rengi değil YÜZEYİ
+          değiştiriyor: beyaz başlık + gri gövde. */}
+      <header className="border-b border-zinc-950/5 bg-white pt-28 pb-10">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <Heading
+            level={1}
+            className="text-3xl font-semibold tracking-tight !text-zinc-950 sm:text-4xl"
+          >
             {title}
-          </h1>
-          <p className="mt-3 max-w-2xl text-base/7 text-zinc-400">{lead}</p>
+          </Heading>
+          <p className="mt-3 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
           <div className="mt-7 max-w-3xl">
             <SearchForm
               action={basePath}
               defaultValue={searchParams.q}
               hidden={{ kategori: searchParams.kategori, il: searchParams.il }}
-              tone="dark"
             />
           </div>
         </div>
@@ -202,7 +203,18 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            /* Sütun sayısı içerik sayısıyla sınırlı: tek kayıt üçte birlik
+               şeridin solunda öksüz kalmasın (anasayfadaki SectionGrid ile
+               aynı kural). */
+            <div
+              className={`grid grid-cols-1 gap-5 ${
+                page.items.length >= 3
+                  ? "sm:grid-cols-2 xl:grid-cols-3"
+                  : page.items.length === 2
+                    ? "sm:grid-cols-2"
+                    : "sm:max-w-sm"
+              }`}
+            >
               {page.items.map((l) => (
                 <ListingCard key={l.number} listing={l} />
               ))}

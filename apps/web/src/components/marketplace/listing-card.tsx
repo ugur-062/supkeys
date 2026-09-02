@@ -1,14 +1,16 @@
+import { Badge } from "@/components/catalyst/badge";
 import { formatDate } from "@/lib/format-date";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import {
   STATE_LABEL,
   listingPath,
   publicState,
+  type PublicListingState,
 } from "@/lib/public/marketplace";
 import { currencySymbol } from "@/lib/tenders/labels";
 import {
-  ArrowUpRightIcon,
   BuildingOffice2Icon,
+  ChevronRightIcon,
   ClockIcon,
   GlobeAltIcon,
   MapPinIcon,
@@ -16,25 +18,30 @@ import {
 import Link from "next/link";
 
 /**
- * Durum rozeti. Marka monokrom (bkz. globals.css `@theme` — mavi aksanlar
- * bilinçle zinc'e map edilmiş), o yüzden RENK yalnız DURUM anlatır:
- * yeşil = teklif alınıyor, kehribar = karar aşamasında, gri = bitti.
+ * Durum rengi Catalyst `Badge` paletinden. Marka monokrom (globals.css
+ * `@theme` mavi tonları bilinçle zinc'e map ediyor), o yüzden RENK yalnız
+ * DURUM anlatır: yeşil = teklif alınıyor, kehribar = karar aşamasında,
+ * gri = bitti.
  */
-const STATE_CLASS: Record<string, string> = {
-  open: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  evaluating: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  closed: "bg-zinc-100 text-zinc-600 ring-zinc-500/20",
+const STATE_COLOR: Record<PublicListingState, "emerald" | "amber" | "zinc"> = {
+  open: "emerald",
+  evaluating: "amber",
+  closed: "zinc",
 };
 
 /**
  * Pazar yeri kartı — SUNUCU bileşeni (client JS yok).
  *
+ * Application UI "Lists / Grid lists / simple cards" düzeni: beyaz yüzey,
+ * `ring-1 ring-zinc-950/5` + `shadow-sm`. Kenarlık yerine ring kullanmak
+ * Catalyst'in kendi yüzey dilidir; 1px kenarlıktan daha yumuşak durur ve
+ * hover'da kalınlaştığında düzeni kaydırmaz.
+ *
  * Kartın tamamı tek bir <Link>; iç içe bağlantı BİLİNÇLİ olarak yok — HTML'de
  * <a> içinde <a> geçersizdir ve tarayıcı onu sessizce düzeltirken DOM'u bozar.
  *
- * Görsel hiyerarşi başlıkta toplanır: kart yüksekliği sabit değil ama meta
- * satırı `mt-auto` ile daima alta yapışır, böylece ızgaradaki kartların alt
- * kenarları hizalanır (farklı uzunlukta başlıklar diziyi tırtıklı yapmaz).
+ * Meta satırı `mt-auto` ile daima alta yapışır → farklı uzunlukta başlıklar
+ * ızgarayı tırtıklı yapmaz.
  */
 export function ListingCard({ listing }: { listing: PublicListingCard }) {
   const state = publicState(listing.status);
@@ -45,20 +52,18 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
   return (
     <Link
       href={href}
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-900/20 hover:shadow-xl hover:shadow-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+      className="group flex h-full flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
     >
       <div className="flex items-center justify-between gap-3">
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATE_CLASS[state]}`}
-        >
+        <Badge color={STATE_COLOR[state]}>
           {state === "open" ? (
             <span className="size-1.5 rounded-full bg-emerald-500" />
           ) : null}
           {STATE_LABEL[state]}
-        </span>
-        <ArrowUpRightIcon
+        </Badge>
+        <ChevronRightIcon
           aria-hidden
-          className="size-4 shrink-0 text-zinc-300 transition group-hover:text-zinc-900"
+          className="size-5 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
         />
       </div>
 
@@ -81,7 +86,7 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
       <div className="mt-auto pt-5">
         {/* Fiyat varsa vurgulu satır; yoksa kalem sayısı — kart hep aynı
             yükseklikte "bir şey" gösterir, boşluk bırakmaz. */}
-        <div className="flex items-baseline justify-between gap-3 border-t border-zinc-100 pt-3">
+        <div className="flex items-baseline justify-between gap-3 border-t border-zinc-950/5 pt-3">
           {listing.buyNowPrice ? (
             <p className="text-lg font-semibold tracking-tight text-zinc-950">
               {currencySymbol(listing.primaryCurrency)}
@@ -104,7 +109,10 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
           {listing.company.industry ? (
             <div className="flex min-w-0 items-center gap-1">
               <dt className="sr-only">Sektör</dt>
-              <BuildingOffice2Icon aria-hidden className="size-3.5 shrink-0 text-zinc-300" />
+              <BuildingOffice2Icon
+                aria-hidden
+                className="size-3.5 shrink-0 text-zinc-300"
+              />
               <dd className="truncate">{listing.company.industry}</dd>
             </div>
           ) : null}
@@ -138,8 +146,7 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
 /**
  * Boş liste — 200 döner, 404 değil.
  *
- * Eski hâli 150px'lik kesikli bir kutuydu ve sayfanın en görünür yerinde
- * "bozuk" izlenimi veriyordu. Artık kompakt ve AKSİYONLU: ziyaretçiye ne
+ * Kesikli kutu yerine kompakt ve AKSİYONLU bir yüzey: ziyaretçiye ne
  * yapacağını söylüyor. Envanteri az bir pazar yerinde bu fark büyük.
  */
 export function EmptyListings({
@@ -152,7 +159,7 @@ export function EmptyListings({
   action?: { label: string; href: string };
 }) {
   return (
-    <div className="flex flex-col items-start gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/70 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col items-start gap-4 rounded-2xl bg-white px-6 py-8 shadow-sm ring-1 ring-zinc-950/5 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-semibold text-zinc-900">{title}</p>
         {hint ? <p className="mt-1 text-sm text-zinc-500">{hint}</p> : null}

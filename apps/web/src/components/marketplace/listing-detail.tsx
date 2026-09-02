@@ -1,5 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "./marketplace-footer";
+import { Badge } from "@/components/catalyst/badge";
+import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
 import { serializeJsonLd } from "@/lib/json-ld";
 import {
@@ -28,10 +30,10 @@ import {
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
-const STATE_CLASS: Record<string, string> = {
-  open: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  evaluating: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  closed: "bg-zinc-100 text-zinc-600 ring-zinc-500/20",
+const STATE_COLOR: Record<string, "emerald" | "amber" | "zinc"> = {
+  open: "emerald",
+  evaluating: "amber",
+  closed: "zinc",
 };
 
 /**
@@ -196,23 +198,22 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
 
         <header className="mt-6">
           <div className="flex flex-wrap items-center gap-3">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${STATE_CLASS[state]}`}
-            >
-              {STATE_LABEL[state]}
-            </span>
-            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
+            <Badge color={STATE_COLOR[state]}>{STATE_LABEL[state]}</Badge>
+            <Badge color="zinc">
               {isDemand
                 ? MARKETPLACE_LABELS.demandOne
                 : MARKETPLACE_LABELS.offerOne}
-            </span>
+            </Badge>
             <span className="font-mono text-xs text-zinc-400">
               {listing.number}
             </span>
           </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
+          <Heading
+            level={1}
+            className="mt-4 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+          >
             {listing.title}
-          </h1>
+          </Heading>
           {listing.categories.length > 0 ? (
             <ul className="mt-4 flex flex-wrap gap-2">
               {listing.categories.map((c) => (
@@ -245,7 +246,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                 <h2 className="text-lg font-semibold text-zinc-950">
                   Kalemler ({listing.items.length})
                 </h2>
-                <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-200">
+                <div className="mt-4 overflow-x-auto rounded-2xl ring-1 ring-zinc-950/5">
                   <table className="w-full min-w-[36rem] text-left text-sm">
                     <thead className="bg-zinc-50 text-xs tracking-wide text-zinc-500 uppercase">
                       <tr>
@@ -258,7 +259,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                         ) : null}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100 bg-white">
+                    <tbody className="divide-y divide-zinc-950/5 bg-white">
                       {listing.items.map((i) => (
                         <tr key={i.lineNo} className="align-top">
                           <td className="py-3 pr-3 pl-4 text-zinc-400">
@@ -307,24 +308,23 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
               <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
                 İlan bilgileri
               </h2>
-              {/* Etiket ÜSTTE değer ALTTA: uzun değerler (teslim şekli
-                  cümlesi) sağa yaslı iki sütunlu düzende iki satıra düşüp
-                  hizayı bozuyordu. Izgara hücreleri eşit yükseklikte kalır. */}
-              <dl className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-zinc-200 sm:grid-cols-2">
+              {/* Application UI — Data display / Description lists /
+                  "left-aligned striped". Zebra satır, uzun değerlerde (teslim
+                  şekli cümlesi) hizayı bozmaz ve tek/çift alan sayısında boş
+                  hücre bırakmaz — önceki ızgara düzeninin iki kusuru da bu
+                  desende yapısal olarak yok. */}
+              <dl className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
                 {facts.map((f, i) => (
                   <div
                     key={f.label}
-                    // Tek sayıda bilgi varsa sonuncusu iki sütuna yayılır;
-                    // aksi hâlde ızgaranın sağ altında zemin rengiyle boyalı
-                    // BOŞ bir hücre kalıyor ve eksik veri gibi okunuyordu.
-                    className={`bg-white px-5 py-4 ${
-                      i === facts.length - 1 && facts.length % 2 === 1
-                        ? "sm:col-span-2"
-                        : ""
+                    className={`px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4 ${
+                      i % 2 === 0 ? "bg-zinc-50" : "bg-white"
                     }`}
                   >
-                    <dt className="text-xs/5 text-zinc-500">{f.label}</dt>
-                    <dd className="mt-0.5 text-sm font-medium text-zinc-950">
+                    <dt className="text-sm/6 font-medium text-zinc-900">
+                      {f.label}
+                    </dt>
+                    <dd className="mt-1 text-sm/6 text-zinc-600 sm:col-span-2 sm:mt-0">
                       {f.value}
                     </dd>
                   </div>
@@ -333,7 +333,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
               {/* Şartname ve ödeme notu bilinçli olarak public yanıtta YOK
                   (serbest metin, iletişim bilgisi taşıyabiliyor). Ziyaretçiye
                   bunun eksik değil KURAL olduğunu söylüyoruz. */}
-              <p className="mt-6 flex items-start gap-2 rounded-xl bg-zinc-50 p-4 text-sm/6 text-zinc-600">
+              <p className="mt-6 flex items-start gap-2 rounded-xl bg-zinc-50 p-4 text-sm/6 text-zinc-600 ring-1 ring-zinc-950/5">
                 <LockClosedIcon
                   aria-hidden
                   className="mt-0.5 size-4 shrink-0 text-zinc-400"
@@ -348,7 +348,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
           </div>
 
           <aside className="lg:sticky lg:top-28 lg:self-start">
-            <div className="rounded-2xl border border-zinc-200 p-5">
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                 {isDemand ? "Alıcı" : "Satıcı"}
               </h2>
@@ -389,7 +389,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                 Firma kimliği yalnız kayıtlı kullanıcılara açıktır.
               </p>
 
-              <div className="mt-5 border-t border-zinc-200 pt-5">
+              <div className="mt-5 border-t border-zinc-950/5 pt-5">
                 {state === "open" ? (
                   <>
                     <Link
@@ -429,7 +429,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                 envanterden BAĞIMSIZ olarak doğru ve ziyaretçinin asıl merak
                 ettiği şey: teklifimi kim görür, karşı taraf gerçek mi, ne
                 ödeyeceğim. */}
-            <ul className="mt-6 space-y-4 rounded-2xl bg-zinc-50 p-5">
+            <ul className="mt-6 space-y-4 rounded-2xl bg-zinc-50 p-5 ring-1 ring-zinc-950/5">
               {[
                 {
                   icon: LockClosedIcon,

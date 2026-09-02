@@ -19,7 +19,7 @@ export function SectorGrid({ facets }: { facets: PublicFacets }) {
   if (sectors.length < 3) return <CatalogBand />;
 
   return (
-    <section className="border-y border-zinc-200 bg-zinc-50">
+    <section className="border-y border-zinc-950/5 bg-zinc-50">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
           Sektöre göre gezin
@@ -33,7 +33,7 @@ export function SectorGrid({ facets }: { facets: PublicFacets }) {
             <li key={s.id}>
               <Link
                 href={`${MARKETPLACE_ROUTES.demands}?kategori=${s.id}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm transition hover:border-zinc-900/20 hover:shadow-sm"
+                className="flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-zinc-950/5 transition hover:shadow-md hover:ring-zinc-950/10"
               >
                 <span className="line-clamp-1 font-medium text-zinc-900">
                   {s.name}
@@ -66,7 +66,7 @@ function CatalogBand() {
     { value: "%0", label: "Komisyon" },
   ];
   return (
-    <section className="border-y border-zinc-200 bg-zinc-50">
+    <section className="border-y border-zinc-950/5 bg-zinc-50">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
@@ -87,9 +87,9 @@ function CatalogBand() {
             <ArrowRightIcon aria-hidden className="size-4" />
           </Link>
         </div>
-        <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-zinc-200 sm:grid-cols-4">
+        <dl className="mt-10 grid grid-cols-2 divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 sm:grid-cols-4 sm:divide-x">
           {facts.map((f) => (
-            <div key={f.label} className="bg-white px-5 py-6">
+            <div key={f.label} className="px-5 py-6">
               <dt className="text-xs/5 text-zinc-500">{f.label}</dt>
               <dd className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
                 {f.value}

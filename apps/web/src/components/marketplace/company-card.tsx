@@ -24,10 +24,10 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
             alt=""
             width={48}
             height={48}
-            className="size-12 shrink-0 rounded-lg object-contain ring-1 ring-zinc-200"
+            className="size-12 shrink-0 rounded-lg object-contain ring-1 ring-zinc-950/5"
           />
         ) : (
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-200">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5">
             <BuildingOffice2Icon aria-hidden className="size-6 text-zinc-400" />
           </span>
         )}
@@ -72,7 +72,7 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
   );
 
   const className =
-    "group flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-5 transition";
+    "group flex h-full flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition duration-200";
 
   if (!company.slug) {
     return <div className={className}>{inner}</div>;
@@ -80,7 +80,7 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
   return (
     <Link
       href={`/firma/${company.slug}`}
-      className={`${className} hover:-translate-y-0.5 hover:border-zinc-900/20 hover:shadow-xl hover:shadow-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950`}
+      className={`${className} hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950`}
     >
       {inner}
     </Link>

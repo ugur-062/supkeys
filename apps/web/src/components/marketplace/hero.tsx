@@ -1,21 +1,21 @@
-import { GridPattern } from "./grid-pattern";
 import { SearchForm } from "./search-form";
+import { Heading } from "@/components/catalyst/heading";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
 /**
- * Pazar yeri hero'su — KOYU.
+ * Pazar yeri hero'su — AÇIK zemin.
  *
- * Beyaz üstüne ortalanmış başlıktan koyu bir banda geçtim: pazarlama sayfası
- * (`/nasil-calisir`) zaten bu dili konuşuyor (zinc-950 zemin, ızgara deseni,
- * emerald eyebrow) ve anasayfa ondan kopuk duruyordu. Ayrıca envanter azken
- * beyaz-üstüne-beyaz düzen sayfayı "boş" değil "bitmemiş" gösteriyordu; koyu
- * bant sayfaya ağırlık merkezi veriyor.
+ * Tailwind Plus "Marketing / Heroes / simple centered" düzeni: beyaz zemin +
+ * arkada yumuşak bir gradient leke. Koyu banttan buraya döndük çünkü koyu
+ * zemin sayfanın geri kalanıyla (beyaz envanter kartları) çarpışıyordu ve
+ * ürün kararı açık kalması yönünde.
  *
- * Izgara deseni ve parıltı saf CSS (inline SVG data-uri YOK, harici görsel
- * YOK) — CSP `img-src`/`connect-src` kısıtlarına takılmaz ve statik HTML'de
- * ek istek üretmez.
+ * Leke `clipPath` ile kesilen tek bir div; renk PALET SINIFINDAN geliyor
+ * (repo ham hex'i yasaklıyor — eslint no-restricted-syntax). Orijinal örnek
+ * pembe/mor kullanıyor; marka monokrom olduğu için zinc→emerald tonuna
+ * çevrildi ve opaklık düşürüldü, arka plan gürültüsü olmaktan çıktı.
  */
 export function MarketplaceHero({
   stats,
@@ -23,60 +23,98 @@ export function MarketplaceHero({
   stats: { label: string; value: string }[];
 }) {
   return (
-    <section className="relative isolate overflow-hidden bg-zinc-950 px-6 pt-32 pb-16 lg:px-8">
-      <GridPattern id="hero-grid" />
-      {/* yumuşak parıltı */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-1/2 -z-10 size-[44rem] -translate-x-1/2 rounded-full bg-gradient-to-tr from-emerald-500/10 via-white/5 to-transparent blur-3xl"
-      />
+    <div className="relative isolate overflow-hidden bg-white">
+      <GradientBlob className="-top-40 sm:-top-80" position="left" />
 
-      <div className="relative mx-auto max-w-4xl text-center">
-        <p className="text-sm/6 font-semibold text-emerald-400">
-          Herkese açık pazar yeri
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-balance text-white sm:text-6xl">
-          Alım talebini bul, teklifini ver
-        </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-lg/8 text-pretty text-zinc-400">
-          Firmaların herkese açık alım taleplerini ve satılık ilanlarını
-          inceleyin. Görmek için üyelik gerekmez; teklif vermek ücretsiz
-          hesapla.
-        </p>
+      <div className="mx-auto max-w-7xl px-6 pt-32 pb-16 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center">
+          <div className="mb-8 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+              Herkese açık pazar yeri
+            </div>
+          </div>
 
-        <div className="mx-auto mt-9 max-w-2xl">
-          <SearchForm action={MARKETPLACE_ROUTES.demands} tone="dark" />
+          <Heading
+            level={1}
+            className="text-4xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-6xl"
+          >
+            Alım talebini bul, teklifini ver
+          </Heading>
+          <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-pretty text-zinc-500">
+            Firmaların herkese açık alım taleplerini ve satılık ilanlarını
+            inceleyin. Görmek için üyelik gerekmez; teklif vermek ücretsiz
+            hesapla.
+          </p>
+
+          <div className="mx-auto mt-9 max-w-2xl">
+            <SearchForm action={MARKETPLACE_ROUTES.demands} size="lg" />
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+            <HeroLink
+              href={MARKETPLACE_ROUTES.demands}
+              label={MARKETPLACE_LABELS.demands}
+            />
+            <HeroLink
+              href={MARKETPLACE_ROUTES.offers}
+              label={MARKETPLACE_LABELS.offers}
+            />
+            <HeroLink
+              href={MARKETPLACE_ROUTES.companies}
+              label={MARKETPLACE_LABELS.companies}
+            />
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-          <HeroLink
-            href={MARKETPLACE_ROUTES.demands}
-            label={MARKETPLACE_LABELS.demands}
-          />
-          <HeroLink
-            href={MARKETPLACE_ROUTES.offers}
-            label={MARKETPLACE_LABELS.offers}
-          />
-          <HeroLink
-            href={MARKETPLACE_ROUTES.companies}
-            label={MARKETPLACE_LABELS.companies}
-          />
-        </div>
+        {stats.length > 0 ? (
+          /* Application UI — Data display / Stats / "with shared borders" */
+          <dl className="mx-auto mt-16 grid max-w-5xl grid-cols-1 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+            {stats.map((s) => (
+              <div key={s.label} className="px-6 py-6">
+                <dt className="text-sm/6 text-zinc-500">{s.label}</dt>
+                <dd className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
+                  {s.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
 
-      {stats.length > 0 ? (
-        <dl className="relative mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-zinc-950 px-5 py-6">
-              <dt className="text-xs/5 text-zinc-500">{s.label}</dt>
-              <dd className="mt-1 text-2xl font-semibold tracking-tight text-white">
-                {s.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-    </section>
+      <GradientBlob className="top-[calc(100%-14rem)]" position="right" />
+    </div>
+  );
+}
+
+/**
+ * Arka plandaki yumuşak leke. `aspect-1155/678` + `clipPath` Tailwind Plus
+ * örneğinden birebir; renkler palet sınıfı.
+ */
+function GradientBlob({
+  className,
+  position,
+}: {
+  className: string;
+  position: "left" | "right";
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-x-0 -z-10 transform-gpu overflow-hidden blur-3xl ${className}`}
+    >
+      <div
+        style={{
+          clipPath:
+            "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
+        }}
+        className={`relative aspect-1155/678 w-144.5 -translate-x-1/2 bg-gradient-to-tr from-emerald-200 to-zinc-300 opacity-25 sm:w-288.75 ${
+          position === "left"
+            ? "left-[calc(50%-11rem)] rotate-30 sm:left-[calc(50%-30rem)]"
+            : "left-[calc(50%+3rem)] sm:left-[calc(50%+36rem)]"
+        }`}
+      />
+    </div>
   );
 }
 
@@ -84,7 +122,7 @@ function HeroLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 font-medium text-zinc-300 transition hover:text-white"
+      className="inline-flex items-center gap-1 font-semibold text-zinc-900 transition hover:text-zinc-600"
     >
       {label}
       <ArrowRightIcon aria-hidden className="size-4" />

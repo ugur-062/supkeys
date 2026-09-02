@@ -761,7 +761,7 @@ function SignupPreview() {
 export default function HomePage() {
   return (
     <div className="bg-white">
-      <MarketingHeader />
+      <MarketingHeader tone="dark" />
 
       {/* Hero — sade beyaz zemin (grid deseni + gradient + uçuşan kartlar kaldırıldı) */}
       <section className="relative isolate overflow-hidden bg-white px-6 pb-20 lg:px-8">
