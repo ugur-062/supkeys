@@ -8327,3 +8327,155 @@
 42322808	Tibial ayak bileği ogmanı	Tibial ankle augment
 42322809	Talar ogman	Talar augment
 42322810	Ayak bileği eklemi implantı	Ankle joint implant
+25191541	Drone istasyonu	Drone station
+25191542	Uçak yakıt ikmali paket kızağı	Aircraft fueling package skid
+25191543	Yangın söndürme ve kurtarma için uçak ve hava ekipmanı	Aircraft and airborne equipment for fire fighting and rescue
+25191544	Havaalanı uçuş yönetim sistemi	Airport flight management system
+25191545	Ortak kullanım terminal ekipmanı	Common use terminal equipment
+25191546	Oksijen dolum arabası	Oxygen filling cart
+25191547	Bagaj ve kargo taşıma sistemi	Baggage and cargo handling system
+25191548	Su ikmal ünitesi	Water servicing unit
+25191549	İkram servisi ünitesi	Catering service unit
+25191552	Uçuş bilgi ekran sistemi	Flight information display system
+25191553	Ön şartlandırılmış hava ünitesi	Preconditioned air unit
+25191554	Seyyar hava trafik kontrol kulesi	Mobile ATA control tower
+25191556	Bagaj arabası aksesuarları	Baggage cart accessories
+25191558	Helikopter pisti ağları	Helideck nets
+25191559	Helikopter yakıt ikmal paketleri	Helicopter fueling packages
+25191561	Sıkıştırılmış doğal gaz dispenseri	Compressed natural gas dispenser
+25191705	Motor pistonu ve kolu terazisi	Engine piston and rod scale
+25191706	Demiryolu aracı kaldırma krikosu	Railway rolling stock lifting jack
+25191707	Motor ve bileşen için demiryolu kaldırma masası	Railway lift table for engine and component
+25191708	Karbüratör dengeleyici	Carburetor balancer
+25191709	Güç ayarlayıcı	Power adjuster
+25191710	Supap alıştırma aleti	Valve lapper
+25191711	Supap yüzey taşlama aleti	Valve refacer
+25191712	Supap yuvası kesici	Valve seat cutter
+25191713	Antifriz geri dönüşüm cihazı	Antifreeze recycling device
+25191714	Fren kampanası tornası	Brake drum lathe
+25191715	Fren balatası taşlama makinesi	Brake shoe grinder
+25191716	Fren yayı pensesi	Brake spring pliers
+25191717	Araç kaportası düzeltme makinesi	Vehicle body straightening machine
+25191718	Araç altı servis kızağı	Vehicle service creeper
+25191719	Oto servis bijon anahtarı	Wheel nut or lug wrench
+25191720	Buji anahtarı	Spark plug wrench
+25191721	Buji temizleyici	Spark plug cleaner
+25191722	Motor alet takımı	Engine tool kit
+25191723	Piston ısıtıcı	Piston heater
+25191724	Otomatik şanzıman revizyon kiti	Automatic transmission rebuild kit
+25191725	Otomotiv silindir honlama tezgâhı	Automotive boring machine
+25191726	Otomotiv honlama makinesi	Automotive honing machine
+25191727	Biyel kolu hizalayıcı	Connecting rod aligner
+25191728	Krank mili balans makinesi	Crankshaft balancer
+25191729	Krank mili taşlama makinesi	Crankshaft grinder
+25191730	Avans lambası	Timing light
+25191731	Tork konvertörü temizleyici	Torque converter cleaner
+25191732	Piston mengenesi	Piston vise
+25191733	Piston taşlama makinesi	Piston grinder
+25191734	Supap yayı sıkıştırıcı	Valve spring compressor
+25191735	Segman sıkıştırıcı	Piston ring compressor
+25191736	Araç sürüş simülatörü	Vehicle driving simulator
+25191737	Otomatik lastik şişirme cihazı	Automatic tire inflator
+25191738	Lastik açıcı	Tire spreader
+25191739	Direksiyon kutusu simülasyon test cihazı	Steering gear simulation tester
+25191740	Araç yıkama makinesi	Vehicle washing machine
+25191741	Demiryolu aracı yıkama makinesi	Railway washing machine
+25191742	Araç parçası yıkama makinesi	Vehicle parts washing machine
+25191743	Demiryolu bileşeni yıkama makinesi	Railway component washing machine
+25191744	Lastik kaplama makinesi	Tire retreading machine
+25191745	Lastik levyesi	Tire iron
+25191746	Temassız araç yıkama ekipmanı	Touchless car washing equipment
+25191747	Fırçasız araç yıkama ekipmanı	Brushless car washing equipment
+25191750	Oto koku	Air freshener
+25191751	Ticari araç bakım ürünleri	Commercial vehicle care products
+25191752	Tekerlek yükü göstergesi	Wheel load indicator
+25191753	Otomatik veya temassız oto yıkama	Automatic or touchless carwash
+25191754	Duvara monte araç yıkama ekipmanı	Wall mounted car washing equipment
+25191755	Lastik tamir servisi ekipmanı	Tire repair service equipment
+25191802	Kontak açıklığı takometresi	Dwell tachometer
+25191803	Dizel duman test cihazı	Diesel smoke tester
+25191804	Radyatör test cihazı	Radiator tester
+25191805	Motor distribütörü test cihazı	Engine distributor tester
+25191806	Akü hidrometresi	Battery hydrometer
+25191807	Yatak yağ kaçağı dedektörü	Bearing oil leakage detector
+25191808	Fren test cihazı	Brake tester
+25191809	Yanal kayma test cihazı	Side slip tester
+25191810	Şasi dinamometresi	Chassis dynamometer
+25191811	Hız göstergesi test cihazı	Speedometer tester
+25191812	Stall test cihazı	Stall tester
+25191813	Buji tırnak mastarı	Spark plug gap gauge
+25191814	Buji test cihazı	Spark plug tester
+25191815	Endüvi test cihazı	Armature tester
+25191816	Basmalı yay test cihazı	Compression type spring tester
+25191817	Kompresyon basınç göstergesi	Compression pressure gauge
+25191818	Hava filtresi elemanı test cihazı	Air cleaner element tester
+25191819	ABS simülasyon test cihazı	Anti lock braking system ABS simulation tester
+25191820	Motor multimetresi	Engine multimeter
+25191821	Motor simülasyon test cihazı	Engine simulation tester
+25191822	Motor enjektörü test cihazı	Engine injector tester
+25191823	Motor test yatağı	Engine test bed
+25191824	Motor ayar test cihazı	Engine tune up tester
+25191825	Yakıt tüketim ölçer	Fuel consumption meter
+25191826	Yağ kaçağı test cihazı	Oil leakage tester
+25191827	Elektronik kontrollü süspansiyon ECS simülasyon test cihazı	Electronic control suspension ECS simulation tester
+25191828	Otomatik şanzıman test cihazı	Automatic transmission tester
+25191829	Elektronik kontrol muayene sistemi	Electronic control inspection system
+25191830	Far ayar test cihazı	Headlight tester
+25191831	Araç cam krikosu test cihazı	Vehicle window regulator tester
+25191832	Araç servisi için vakum göstergesi	Vacuum gauge for vehicle servicing
+25191833	Kamber kaster mastarı	Camber caster gauge
+25191834	Bobin kondansatör direnç test cihazı	Coil condenser resistance or ohm tester
+25191835	Lastik basınç göstergesi	Tire pressure gauge
+25191836	Ön düzen toe mastarı	Toe in gauge
+25191837	Dönüş yarıçapı mastarı	Turning radius gauge
+25191838	Otomotiv araç muayene sistemi	Automotive vehicle inspection system
+25191839	Kilometre sayacı	Odometer
+25191840	Motor test ekipmanı	Engine testing equipment
+25191841	Yakıt test aracı	Fuel test vehicle
+25201521	Rotor palası trim tabı	Trim tab for rotor blade
+25201522	Helikopter üniversal podu	Helicopter universal pod
+25202207	İniş takımı çekme desteği	Landing gear drag brace
+25202406	Yakıt hattı temizleme aparatı	Postbuster
+25202407	Uçak taşınabilir yakıt deposu	Aircraft portable fuel storage tank
+25202408	Uçak yakıt numune alma cihazı	Aircraft fuel sampling apparatus
+25202409	Uçak yakıt tetikli tabancası	Aircraft fuel trigger nozzle
+25202411	Yakıt boşaltma bağlantıları	Defueling connections
+25202511	Uçak su dedektörü kapsülü	Aircraft water detector capsule
+25202512	Uçak ekipmanı ve yedek parçaları	Aircraft equipment and spare parts
+25202608	Uçak basınçlandırma ekipmanı	Aircraft pressurization equipment
+25202609	Uçak fark basınç göstergesi	Aircraft differential pressure gauge
+25202610	Mikrofiltreler	Microfilters
+25202611	Uçak filtre monitörü ve elemanı	Aircraft filter monitor and element
+25202612	Uçak yakıt iletkenlik ölçerleri	Conductivity meters
+25202801	Haberleşme kontrol ve izleme ekipmanı	Communications control and monitoring equipment
+25202902	Otomatik bağımlı gözetim	Automatic dependent surveillance
+25202903	Hava trafik hizmetleri konsolları ve konsol ekipmanı	Air traffic services consoles and console equipment
+25202904	Dijital ses kayıt ve oynatma sistemi	Digital voice recording and playback system
+25202905	Otomatik terminal bilgi hizmeti ekipmanı	Automatic terminal information service equipment
+25202906	Havacılık bilgi sistemi	Aeronautical information system
+25202907	Havacılık bilgi yönetim sistemi	Aeronautical information management system
+25202908	Volmet ekipmanı	Volmet equipment
+25202909	Seçmeli çağrı ekipmanı	Selective calling equipment
+25202910	Uçuş ilerleme şeridi	Flight progress strip
+25202911	Çoklu konumlandırma gözetimi	Multilateration surveillance
+24131510	Tezgâh tipi buzdolabı	Counter refrigerator
+24131511	Pastane tipi dolap buzdolabı	Bakery cabinet refrigerator
+24131512	Soğutmalı tezgâh hazırlık istasyonu	Refrigerated counter preparation station
+24131513	Soğutucu akışkan	Refrigerant
+24131514	Ön soğutma ve soğuk depolama ünitesi	Precooling and cold storage unit
+24131515	İlaç buzdolabı ve dondurucusu	Pharmaceutical refrigerator and freezer
+24131516	Soğuk hava deposu ünitesi	Cold storage room
+24131517	Kriyojenik soğutma ünitesi ekipmanı	Cryogenic refrigerating unit equipment
+24131602	Dik dolap tipi dondurucu	Upright cabinet freezer
+24131608	Pastane tipi dolap dondurucu	Bakery cabinet freezer
+24131609	Tezgâh altı dolap dondurucu	Under counter cabinet freezer
+24131610	Tezgâh tipi dolap dondurucu	Counter cabinet freezer
+24131903	Yaprak buz makinesi	Ice flake maker
+24141516	Nem alıcı	Dessicant
+24141517	Poli film	Polyfilm
+24141518	Ayırıcı levha	Separator sheet
+24141519	Çelik çemberleme bandı	Steel packing band or strapping
+24141520	Metal olmayan çemberleme bandı	Non metal packing band or strapping
+24141521	Fümigasyon örtüsü	Fumigation sheet
+24141522	Halat koruyucuları	Rope protectors
+24141710	Etiket teli	Tag wire
