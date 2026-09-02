@@ -5695,3 +5695,147 @@
 32101656	GPS entegre devresi	Global positioning system GPS integrated circuit
 32101657	Tuner entegre devresi	Tuner integrated circuit
 32101658	Grafik hızlandırıcı entegre devre	Graphics accelerator integrated circuit
+
+# Elektronik bileşenler, tarım makineleri, iş makineleri.
+32101659	Ekran sürücü entegre devresi	Drivers display integrated circuit
+32101661	İvmeölçer entegre devresi	Accelerometer integrated circuit
+32101662	Hall etkili entegre devre	Hall effect integrated circuit
+32101663	Kızılötesi sıcaklık sensörü entegre devresi	Infrared IR temperature sensor integrated circuit
+32101664	Ultrasonik entegre devre	Ultrasonic integrated circuit
+32101665	Görüntü sensörü entegre devresi	Image sensor integrated circuit
+32101666	Video veya medya işlemci entegre devresi	Video or media processor integrated circuit
+32101667	Görüntü işlemci entegre devresi	Vision processor integrated circuit
+32101668	Kodek entegre devresi	Codecs integrated circuit
+32101669	Haberleşme protokolü entegre devresi	Communication protocol integrated circuit
+32101670	Transponder entegre devresi	Transponder integrated circuit
+32101671	Basınç sensörü entegre devresi	Pressure sensor integrated circuit
+32101672	Bacak çerçevesi (lead frame)	Lead frame
+32111513	Varaktör diyot	Varactor diode
+32111514	PIN diyot	PIN diode
+32111515	Optik diyot	Optical diode
+32111612	Güç alan etkili transistör	Power field effect transistor
+32111614	Akıllı alan etkili transistör	Smart field effect transistor
+32111615	Küçük sinyal alan etkili transistör	Small signal field effect transistor
+32111616	RF alan etkili transistör	Radio frequency field effect transistor
+32111707	Yarı iletken suseptör	Semiconductor suspector
+32111708	Empedans uyumlama devresi	Impedance matching network
+32111709	Sıcaklık dengeleme devresi	Temperature compensating network
+32121505	Alüminyum elektrolitik sabit kondansatör	Aluminum electrolytic fixed capacitor
+32121506	Seramik sabit kondansatör	Ceramic fixed capacitor
+32121507	Film sabit kondansatör	Film fixed capacitor
+32121508	Tantal sabit kondansatör	Tantalum fixed capacitor
+32121509	Havalı kondansatör	Air capacitor
+32121510	Gazlı kondansatör	Gas capacitor
+32121511	Yağlı kondansatör	Oil capacitor
+32121512	Mika kondansatör	Mica capacitor
+32121513	Vakumlu kondansatör	Vacuum capacitor
+32121514	Kağıt kondansatör	Paper capacitor
+32121515	Metalize kağıt kondansatör	Metallized paper capacitor
+32121610	Termistör	Thermistor
+32121611	Kısıcı plaka	Restrictor plate or air restrictor
+32121612	Yüzey montaj direnci	Surface mount resistor
+32121613	Tel sargılı direnç	Wirewound resistor
+32121614	Metal oksit film direnç	Metal film oxide resistor
+32121615	Karbon film direnç	Carbon film resistor
+32121616	Trimer direnç	Trimmer resistor
+32121617	Güç direnci	Power resistor
+32121618	Metal film direnç	Metal film resistor
+32121707	Silikon kontrollü doğrultucu (SCR)	Silicon controlled rectifier
+32121708	Köprü doğrultucu	Bridge rectifier
+32121709	Tel sargılı bobin	Wirewound inductor
+32121710	Çok katmanlı bobin	Multilayer inductor
+32121711	Şok bobini	Choke inductor
+32121712	Yüksek frekans bobini	High frequency coil
+32121801	Yüzey akustik dalga (SAW) filtre	Surface acoustic wave SAW filter
+32121802	Seramik filtre	Ceramic filter
+32121803	Mikrodalga filtre	Microwave filter
+32121804	Kristal filtre	Crystal filter
+32121901	Yüzey akustik dalga (SAW) rezonatör	Surface acoustic wave SAW resonator
+32121902	Seramik rezonatör	Ceramic resonator
+32131014	Boş esnek baskı devre kartı	Bare flexible printed circuit board
+32131015	Tek yüzlü boş baskı devre kartı	Single sided bare printed circuit board
+32131016	Çift yüzlü boş baskı devre kartı	Double sided bare printed circuit board
+32131017	Çok katmanlı boş baskı devre kartı	Multilayer bare printed circuit board
+32131018	Kalın bakır katmanlı boş baskı devre kartı	Heavy layer copper bare printed circuit board
+32131019	Altın kaplamalı boş baskı devre kartı	Electroplated gold layer bare printed circuit board
+32131020	Dizgili esnek baskı devre kartı	Assembled flexible printed circuit board
+32131021	Düşük sıcaklıkta pişirilmiş seramik altlık (LTCC)	Low temperature co fired ceramic substrate
+32131022	Baskı devre kartı seramiği	Ceramic for printed circuit board PCB substrates
+32131023	Elektrik veya elektronik cihaz tutucusu	Electrical or electronic device holder
+32141017	Sayaç tüpü	Counter tube
+32141018	Işın çıkış tüpü	Beam output tube
+32141019	Mikrodalga elektron tüpü	Microwave electron tube
+32141020	Frekans çevirici tüp	Frequency converting tube
+32141021	Doğrultucu tüp	Rectifier tube
+32141022	Gerilim regülatörü elektron tüpü	Voltage regulator electron tube
+32141110	Mıknatıs kutup parçası	Magnet pole piece
+32151504	Elektronik devre dengeleyici	Electronic circuit equalizer
+32152001	Dağıtık kontrol paket sistemi (DCS)	Distributed control packaged system DCS
+32152002	SCADA paket sistemi	Supervisory control and data acquisition packaged system SCADA
+32152003	Emniyet enstrümantasyon paket sistemi (SIS)	Safety instrumented packaged system SIS
+21101518	Toprak sterilizatörü	Soil sterilizer
+21101519	Toprak enjektörü	Soil injector
+21101520	Alev makinesi	Flame thrower
+21101521	Gübre karıştırıcı	Fertilizer mixer
+21101522	Sırt pulluğu	Ridge plough or plow
+21101523	Tarım makinesi otomatik yönetim sistemi	Automated management system for agricultural machinery
+21101524	Tarla seti çekme makinesi	Levee banking machine
+21101525	Taş toplama makinesi	Stone collection machine
+21101526	Tarım ekskavatörü	Farming excavator
+21101527	Kütük kesme makinesi	Stump cutting machine
+21101608	Bitki büyütme kabini	Plant growth cabinet or chamber
+21101609	Tohum yatağı	Seed bed
+21101610	Toprak örtme makinesi	Soil covering machine
+21101612	Tohum çimlendirici	Seed germinator
+21101613	Havalı ekim makinesi	Air seeder
+21101709	Balya makinesi	Baler
+21101710	Hasat kurutucusu	Harvest dryer
+21101712	Kesme çiçek otomatik bağlama makinesi	Cut flower automatic binding machine
+21101713	Çırçır makinesi	Cotton ginning machine
+21101714	Sarımsak ayırma makinesi	Garlic separating machine
+21101715	Balya makinesi parça ve aksesuarları	Baler parts or accessories
+21101716	Ot hasat makinesi parça ve aksesuarları	Haymaking machinery parts or accessories
+21101809	Tahıl fumigasyon sistemi	Grain fumigation system
+21101910	Yün tarağı	Wool comb
+21101911	Kümes gübresi kompostlayıcı	Poultry manure composter
+21101912	Hayvan zapt etme kanalı	Livestock restraint chute
+21101913	Gaga kesme cihazı	Debeaker
+21101914	Hayvan elektrikli çiti	Livestock electric fence
+21101915	Domuz sırt yağı ölçer	Pig backfat tester
+21101916	Süt sağma makinesi parça ve aksesuarları	Milking machine parts and accessories
+21101917	Hayvan yemliği	Livestock feeder
+21102007	Meyve ayırıcı	Fruit sorter
+21102008	Arpa temizleme veya kabuk soyma ekipmanı	Barley cleaning or hulling equipment
+21102009	Temizleme, ayırma ve sınıflandırma makinesi parça ve aksesuarları	Cleaning, sorting, and grading machine parts and accessories
+21102208	Odun yarma makinesi	Log splitter
+21102209	Orman vinci	Forestry winch
+21102305	Tarımsal gölgeleme malzemesi	Agricultural sun shade material
+21102306	Hidroponik gübre enjektörü	Hydroponic fertilizer injector
+21102307	Bitkisel hava temizleme ve yetiştirme cihazı	Plant-based air purification and cultivation device
+21102405	Böcek yakalama ağı	Insect catcher net
+21102501	Damla sulama elemanları	Irrigation trickles
+21102502	Üstten sulama elemanları	Irrigation overheads
+21102503	Sulama parça ve aksesuarları	Irrigation parts and accessories
+21102601	Tarımsal plastik örtü	Plastic film for agriculture
+21111603	Tohum yapıştırma makinesi	Seed attaching machine
+22101535	Kazık sökücü	Pile extractor
+22101536	Lastik yıkama ünitesi	Tire washer
+22101537	Beton kazık kesici	Concrete pile cutter
+22101538	Kar küreyici	Snow plow
+22101539	Hafriyat makinesi parça ve aksesuarları	Earthmoving machinery parts and accessories
+22101540	Yol dışı damperli araç	Dumper designed for off-highway use
+22101621	Asfalt distribütörü	Asphalt distributor
+22101623	Beton serme ve perdah makinesi	Concrete paving and finishing machine
+22101624	Yol çizgi makinesi	Road marking machine
+22101625	Beton yüzey işleme makinesi	Concrete surfacing machine
+22101626	Asfalt plenti	Asphalt mixing plant
+22101627	Asfalt eritici	Asphalt melter
+22101628	Agrega yıkayıcı	Aggregate washer
+22101629	Agrega kurutucu	Aggregate dryer
+22101630	Yol çizgi sökücü	Roadmarking remover
+22101631	Kazık çakma kılavuzu	Pile driver guide
+22101632	Boya sökücü	Paint stripper
+22101633	Asfalt çatlak dolgu ekipmanı	Asphalt/pavement crack sealing equipment
+22101722	Kepçe dişi	Bucket tooth
+22101723	Kepçe yan kesici	Bucket side cutter
+22101724	Hidrolik kırıcı keskisi	Hydraulic breaker chisel
