@@ -40,6 +40,37 @@ const COMPANY_SUFFIXES = [
 ];
 
 /**
+ * Herhangi bir metinden URL parçası üretir — ŞİRKET KURALI YOK.
+ *
+ * `generateSlug` ile aynı latinizasyon/temizleme algoritmasını kullanır; tek
+ * fark, şirket türü sonekini ("A.Ş.", "Ltd. Şti.") KIRPMAMASIDIR. Ayrı
+ * durmasının sebebi: ilan/talep başlığı bir şirket adı değildir ve "… Ltd"
+ * ile biten bir başlıktan o soneki silmek metni bozar.
+ *
+ * @example
+ *   slugifyText("Çelik Boru Alımı") → "celik-boru-alimi"
+ */
+export function slugifyText(input: string): string {
+  if (!input) return "";
+
+  let s = input.toLowerCase().trim();
+
+  // Türkçe karakter latinize (normalize'dan ÖNCE: "ı"/"İ" NFKD ile düzelmez)
+  s = Array.from(s)
+    .map((ch) => TR_CHAR_MAP[ch] ?? ch)
+    .join("");
+
+  // Diakritik / latin extended → ASCII normalization
+  s = s.normalize("NFKD").replace(/\p{Diacritic}/gu, "");
+
+  // Alfanümerik olmayan her şey → "-", ardışıkları tekle, uçları kırp
+  return s
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
  * Şirket adından URL/DB slug'ı üretir.
  *
  * @example
@@ -51,7 +82,8 @@ export function generateSlug(input: string): string {
 
   let s = input.toLowerCase().trim();
 
-  // Türkçe karakter latinize
+  // Türkçe karakter latinize — sonek karşılaştırması latinize metin üzerinden
+  // yapıldığı için bu adım slugifyText'ten ÖNCE burada da gerekli.
   s = Array.from(s)
     .map((ch) => TR_CHAR_MAP[ch] ?? ch)
     .join("");
@@ -63,19 +95,7 @@ export function generateSlug(input: string): string {
     }
   }
 
-  // Diakritik / latin extended → ASCII normalization
-  s = s.normalize("NFKD").replace(/\p{Diacritic}/gu, "");
-
-  // Alfanümerik olmayan her şey → "-"
-  s = s.replace(/[^a-z0-9]+/g, "-");
-
-  // Ardışık tireler → tek tire
-  s = s.replace(/-+/g, "-");
-
-  // Baş/son tireleri sil
-  s = s.replace(/^-|-$/g, "");
-
-  return s;
+  return slugifyText(s);
 }
 
 /**

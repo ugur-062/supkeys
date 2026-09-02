@@ -31,6 +31,17 @@ const PUBLIC_EXACT = [
  */
 export const PUBLIC_ROUTE_PREFIXES = [
   "/firma", // herkese açık firma profili (SEO omurgası)
+  // Pazar yeri — adların TEK KAYNAĞI `lib/public/marketplace.ts`
+  // MARKETPLACE_ROUTES. Burada yeniden yazılmalarının sebebi: bu dosyayı
+  // `middleware.ts` içe aktarıyor ve middleware edge çalışma zamanında koşuyor;
+  // buraya `@rothern/shared` zinciri sokmak her istekte gereksiz paket yükler.
+  // İki liste `public/marketplace.test.ts` ile karşılaştırılır — ayrışırsa test
+  // kırılır.
+  "/alim-talepleri",
+  "/satilik",
+  "/tedarikciler",
+  "/talep",
+  "/ilan",
   "/hakkimizda",
   "/iletisim",
   "/sozlesmeler",

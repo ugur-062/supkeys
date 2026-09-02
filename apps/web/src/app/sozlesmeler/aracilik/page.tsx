@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <LegalDoc
       title="Platform Aracılık ve Kullanım Sözleşmesi"
-      updatedAt="26 Temmuz 2026"
+      updatedAt="2 Eylül 2026"
       sections={[
         {
           heading: "1. Konu ve Platformun Rolü",
@@ -20,7 +20,10 @@ export default function Page() {
           heading: "2. Satın Alma Talebi Süreci",
           paragraphs: [
             "Satın Alma Talebini açan firma; satın alma talebi şartlarını, kalemleri, teslimat ve ödeme koşullarını doğru ve eksiksiz belirlemekle yükümlüdür. Yayımlanan satın alma talebi, belirlenen kapanış tarihine kadar tekliflere açıktır; satın alma talebi sahibi mevzuata uygun olmak kaydıyla satın alma talebini kalıcı olarak kapatabilir veya iptal edebilir.",
-            "Davetli (kapalı) satın alma taleplerini yalnızca davet edilen firmalar görür. Herkese açık satın alma talepleri, uygun üyelik paketine sahip firmalara açıktır.",
+            "Görünürlük üç kademelidir: davetli (kapalı) satın alma taleplerini yalnızca davet edilen firmalar; bağlantılara açık olanları yalnızca ilan sahibiyle bağlantısı bulunan firmalar görür.",
+            "Herkese açık olarak yayımlanan satın alma talepleri ve satış ilanları, Platform'un giriş gerektirmeyen sayfalarında (pazar yeri) yayımlanabilir ve arama motorlarınca dizinlenebilir. Bu sayfalarda ilanın numarası, başlığı, açıklaması, kategorisi, kalemleri, miktar ve birimleri, teslimat/ödeme koşulları, son teklif tarihi ile ilanı açan firmanın adı ve konumu görüntülenebilir.",
+            "Teklifler bu kapsamın DIŞINDADIR: teklif içerikleri, teklif veren firmaların kimlikleri ve teklif sayısı herkese açık sayfalarda hiçbir koşulda yayımlanmaz (madde 3).",
+            "Firma, herkese açık yayımı üç noktadan geri alabilir: ilanın görünürlüğünü \"bağlantılar\" veya \"davetli\" olarak değiştirerek, ilan bazında arama motoru dizinlemesini kapatarak ya da firma ayarlarından tüm ilanlarının pazar yerinde görünmesini durdurarak. Yayımdan kaldırılan bir sayfanın arama motoru sonuçlarından ne zaman düşeceği ilgili arama motorunun tarama sıklığına bağlıdır ve Platform'un denetiminde değildir.",
           ],
         },
         {
