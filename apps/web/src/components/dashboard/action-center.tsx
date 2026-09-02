@@ -26,6 +26,12 @@ import { ErrorState } from "@/components/ui/error-state";
  * metin haritası + zaman etiketi + maks 5 satır ve "Tümünü gör". Okunmamış
  * mesaj satırı tek istisna (ayrı canlı sayaç ucundan gelir, info olarak
  * listeye eklenir). Hiç satır yoksa nötr boş durum — sahte satır üretilmez.
+ *
+ * ── İKİ GÖRÜNÜM, TEK VERİ (2026-09-03) ────────────────────────────────────
+ * Anasayfa artık pazar yeriyle açılıyor; bekleyen işler orada tam genişlik
+ * kart olarak ~400 px yiyordu. `ActionStrip` aynı veriyi TEK SATIR çip
+ * şeridine indirir, "Tümü" ile bu tam liste açılır. Uç, sıralama ve metin
+ * haritası ORTAK — iki görünüm ayrışamaz.
  */
 
 const MAX_VISIBLE = 5;
@@ -187,6 +193,104 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
           ) : null}
         </>
       )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* KOMPAKT ŞERİT — anasayfa                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bekleyen işlerin tek satırlık hâli: `ikon + sayı + kısa metin` çipleri.
+ *
+ * Hiç iş yoksa ŞERİT HİÇ ÇİZİLMEZ — "bekleyen bir işiniz yok" satırı da yer
+ * kaplıyordu ve hiçbir şey söylemiyordu. Yükleme sırasında da çizilmez:
+ * anasayfanın üstünde zıplayan bir iskelet, pazar yeri bloğunu aşağı iter.
+ *
+ * Hata dalı KORUNUR (denetim P10 #4): istek düşünce sessizce "iş yok"
+ * göstermek, kullanıcıya geciken siparişi kaçırtır.
+ */
+export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
+  const query = useActionCenter(portal);
+  const unread = useUnreadMessages(portal);
+  const [open, setOpen] = useState(false);
+
+  if (query.isLoading) return null;
+  if (query.isError) {
+    return (
+      <ErrorState
+        title="Bekleyen işler yüklenemedi"
+        message="Bu listenin boş olduğu anlamına GELMEZ."
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  const texts = ACTION_ROWS[portal];
+  const rows: ActionCenterApiRow[] = [...(query.data?.rows ?? [])];
+  const unreadCount = unread.data?.count ?? 0;
+  if (unreadCount > 0) {
+    rows.push({
+      key: "messages",
+      severity: "info",
+      count: unreadCount,
+      dueAt: null,
+      overdueDays: null,
+      waitingDays: null,
+    });
+  }
+  const known = rows.filter((r) => texts[r.key]);
+  if (known.length === 0) return null;
+
+  return (
+    <section aria-label={DASH.actionTitle} className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+          {DASH.actionTitle}
+        </span>
+        {known.slice(0, 5).map((r) => {
+          const meta = SEVERITY_META[r.severity];
+          const t = texts[r.key]!;
+          const time = timeLabel(r);
+          return (
+            <Link
+              key={r.key}
+              href={t.href}
+              title={time ? `${t.text} — ${time}` : t.text}
+              className={cn(
+                "group inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1.5 text-sm font-medium ring-1 ring-inset transition",
+                r.severity === "critical"
+                  ? "bg-rose-50 text-rose-700 ring-rose-600/20 hover:bg-rose-100"
+                  : r.severity === "warning"
+                    ? "bg-amber-50 text-amber-800 ring-amber-600/20 hover:bg-amber-100"
+                    : "bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-6 items-center justify-center rounded-full",
+                  meta.cls,
+                )}
+              >
+                <meta.icon className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <span className="tabular-nums font-semibold">{r.count}</span>
+              <span className="font-normal">{t.text}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="ml-auto text-sm font-semibold text-zinc-500 hover:text-zinc-900"
+        >
+          {open ? "Gizle" : `Tümü (${known.length})`}
+        </button>
+      </div>
+      {/* Açılınca AYNI bileşen: tek veri, tek sıralama, tek metin haritası. */}
+      {open ? <ActionCenter portal={portal} /> : null}
     </section>
   );
 }

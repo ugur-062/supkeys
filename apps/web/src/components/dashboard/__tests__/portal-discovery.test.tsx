@@ -109,13 +109,18 @@ describe("PortalDiscovery", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("ÜRÜNLER sekmesi yalnız satınalmada var", async () => {
+  it("ÜRÜN sekmesi yalnız satınalmada var ve 'Ürünlerim' ile karışmaz", async () => {
+    // Ad "Tedarikçi ürünleri": satıştaki "Ürünlerim" firmanın KENDİ kataloğu,
+    // buradaki başkalarının vitrini — menüde yan yana okunduğunda ayırt
+    // edilemiyordu (kullanıcı geri bildirimi).
     const { unmount } = wrap(<PortalDiscovery portal="satinalma" />);
-    expect(await screen.findByRole("button", { name: "Ürünler" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Tedarikçi ürünleri" }),
+    ).toBeInTheDocument();
     unmount();
     wrap(<PortalDiscovery portal="satis" />);
     await screen.findByText("Paslanmaz çelik boru");
-    expect(screen.queryByRole("button", { name: "Ürünler" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /ürün/i })).toBeNull();
   });
 
   it("boş envanterde hayalet ızgara değil, tek satır + yönlendirme", async () => {

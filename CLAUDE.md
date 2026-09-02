@@ -452,6 +452,45 @@ ARASINA bir keşif bloğu girdi (`components/dashboard/portal-discovery.tsx`).
 yerinde. Sıra gerekçesi: "bugün ne yapmalıyım" (kişisel, acil) → "piyasada ne
 var" (fırsat) → "nasıl gidiyorum" (geçmiş).
 
+### Anasayfa düzeni (2026-09-03 revizyonu)
+
+Kullanıcı geri bildirimi: "sistem karışık, bekleyen işler çok yer kaplıyor,
+pazar yeri hissi yok". Pano üç bloğa indi, bu SIRAYLA:
+
+| # | Blok | Ne der |
+|---|------|--------|
+| 1 | **Pazar yeri** (keşif) | "piyasada ne var" — ilk ekran |
+| 2 | **Şerit** (bekleyen işler) | "bugün ne yapmalıyım" — TEK SATIR çip |
+| 3 | **4 sayı** (dönemsiz KPI) | "bugün ne durumdayım" |
+
+**Grafikler ve dönem seçici RAPORLAR'a taşındı.** İki gerekçe: (a) aynı veri
+hem panoda hem Raporlar hub'ının özet grafiklerinde çiziliyordu — çift bakım;
+(b) grafik bir KARAR ekranıdır, oraya bilerek gidilir. Ölçüldü: pano ilk yükü
+**306 kB → 205 kB** (recharts rota paketinden çıktı). `KpiCard`ın sparkline'ı
+da ayrı dosyaya alınıp tembelleştirildi — seri yoksa recharts hiç inmez.
+
+`ActionCenter` iki görünüm, TEK veri: `ActionStrip` (şerit) aynı ucu, aynı
+sıralamayı ve aynı metin haritasını okur; "Tümü" ile tam liste açılır. Hiç iş
+yoksa şerit ÇİZİLMEZ — "bekleyen bir işiniz yok" satırı da yer kaplıyordu.
+
+**Profilim** sol menüden değil **sağ üst hesap menüsünden** açılır (Ayarlar'ın
+yanında). `secondaryNav` kaydı DURUYOR: o liste sol menüyü değil rota kaydını
+(breadcrumb + başlık + tier kapısı) besliyor; silinseydi profil sayfasının
+başlığı "Anasayfa"ya düşerdi.
+
+### Sözlük kalıntıları temizlendi (2026-09-03)
+
+2026-09-01 yeniden adlandırması satış tarafında yanlış oturmuştu:
+"Kazanılan Satın Alma Talebi" → **"Kazandığım İşler"** (satışta talep
+KAZANILMAZ, teklif kazanılır) · "Aylık Satın Alma Talebi ve Verilen Teklif" →
+**"Aylık Açık Talep ve Verilen Teklif"** · "En Rekabetçi Satın Alma Talebi" →
+**"En Rekabetçi Talep"**.
+
+**Ürün adları ayrıldı:** satınalmadaki keşif **"Ürün Ara"** (fiil), satıştaki
+kendi katalog **"Ürünlerim"**. İkisi menüde yan yana okunduğunda ayırt
+edilemiyordu (kullanıcı geri bildirimi). Keşif bloğundaki sekme:
+"Tedarikçi ürünleri".
+
 ### Portal yönü içeriği belirler
 
 | Panel | Şeritte ne var | Uç |

@@ -8,12 +8,12 @@ import {
   Minus,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-  Tooltip as RTooltip,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const KpiSparkline = dynamic(
+  () => import("./kpi-sparkline").then((m) => m.KpiSparkline),
+  { ssr: false },
+);
 
 /**
  * Pano yeniden tasarımı — ortak primitive'ler (panelden bağımsız, props'la
@@ -105,37 +105,15 @@ export function KpiCard({
       )}
     >
       {hasSpark ? (
-        /* Faz 4.3: dekoratif değil — gerçek 12 aylık seri + hover tooltip. */
+        /* Faz 4.3: dekoratif değil — gerçek 12 aylık seri + hover tooltip.
+           TEMBEL: recharts yalnız seri VARSA iner (2026-09-03) — yeni pano
+           sayı gösteriyor, grafik kütüphanesini rota paketine sokmasın. */
         <div className="absolute inset-x-0 bottom-0 h-10 opacity-40">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={spark}>
-              <RTooltip
-                cursor={{ stroke: "#94a3b8", strokeWidth: 1 }}
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null;
-                  const p = payload[0]!.payload as {
-                    key: string;
-                    value: number;
-                    label?: string;
-                  };
-                  return (
-                    <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm">
-                      <span className="font-medium">{p.label ?? p.key}</span>
-                      {": "}
-                      <span className="tabular-nums">
-                        {new Intl.NumberFormat("tr-TR").format(p.value)}
-                        {sparkLabels?.valueSuffix ?? ""}
-                      </span>
-                    </div>
-                  );
-                }}
-              />
-              <Area
-                type="monotone" dataKey="value" stroke={stroke} strokeWidth={1.25}
-                fill={stroke} fillOpacity={0.12} isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <KpiSparkline
+            spark={spark!}
+            stroke={stroke}
+            valueSuffix={sparkLabels?.valueSuffix}
+          />
         </div>
       ) : null}
       <div className="relative">

@@ -178,7 +178,7 @@ export function PortalDiscovery({ portal }: Props) {
           {(
             [
               ["listings", copy.listingsTab],
-              ["products", "Ürünler"],
+              ["products", "Tedarikçi ürünleri"],
             ] as const
           ).map(([key, label]) => (
             <button

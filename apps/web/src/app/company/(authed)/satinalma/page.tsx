@@ -5,83 +5,23 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSatinalmaAnalytics,
   useSatinalmaDashboard,
-  useSatinalmaTasarruf,
-  useSatinalmaTedarikci,
-  useTimeSavings,
 } from "@/hooks/use-company-dashboard";
-import { ActionCenter } from "@/components/dashboard/action-center";
+import { ActionStrip } from "@/components/dashboard/action-center";
+import { KpiCard } from "@/components/dashboard/analytics-primitives";
+import Link from "next/link";
 import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
-import { PeriodControls } from "@/components/dashboard/period-controls";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
-import { useDashboardParams } from "@/hooks/use-dashboard-params";
-import { cn } from "@/lib/utils";
-import {
-  Tab,
-  TabGroup,
-  TabList,
-  TabPanel,
-  TabPanels,
-} from "@headlessui/react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-
-/**
- * Perf turu (denetim P10 Dalga B): pano sekmeleri recharts'ı STATİK import
- * ediyordu → grafik kütüphanesi (~100 kB gz) hiçbir grafik açılmasa bile
- * rotanın ilk yükünde geliyordu. Headless UI zaten yalnız seçili paneli
- * mount ediyor; eksik olan kod bölmesiydi. `ssr: false` — recharts tarayıcı
- * ölçümüne dayanır, sunucuda çizmenin faydası yok.
- */
-const SatinalmaIhaleTab = dynamic(
-  () =>
-    import("@/components/dashboard/satinalma-ihale-tab").then(
-      (m) => m.SatinalmaIhaleTab,
-    ),
-  { ssr: false, loading: () => <TabLoading /> },
-);
-const TasarrufTab = dynamic(
-  () => import("@/components/dashboard/tasarruf-tab").then((m) => m.TasarrufTab),
-  { ssr: false, loading: () => <TabLoading /> },
-);
-const TedarikciTab = dynamic(
-  () =>
-    import("@/components/dashboard/tedarikci-tab").then((m) => m.TedarikciTab),
-  { ssr: false, loading: () => <TabLoading /> },
-);
-
-
-const TABS = [
-  { value: "satın alma talebi", label: "Satın Alma Talebi" },
-  { value: "tasarruf", label: "Tasarruf" },
-  { value: "tedarikci", label: "Tedarikçi" },
-] as const;
-
-// Segmentli sekme — düz zemin üzerindeki alt-çizgi sekmeler kayboluyordu;
-// aktif = beyaz pill + panel rengi (satış paneliyle aynı dil).
-const TRIGGER_CLASSES = cn(
-  "rounded-lg px-5 py-2 text-sm font-semibold whitespace-nowrap transition-all",
-  "text-zinc-500 hover:text-zinc-900",
-  "data-selected:bg-white data-selected:text-blue-700 data-selected:shadow-sm data-selected:ring-1 data-selected:ring-zinc-950/5",
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40",
-);
 
 export default function SatinalmaDashboardPage() {
   const { company } = useCompanyAuth();
-  // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (tek doğruluk
-  // kaynağı, paylaşılabilir/yer imlenebilir; geri tuşu çalışır).
-  const { period, from, to, tab, setParams } = useDashboardParams(
-    "satın alma talebi",
-    TABS.map((t) => t.value),
-  );
-  const periodQuery = { period, from, to };
+  // Dönem seçici GRAFİKLERLE BİRLİKTE Raporlar'a gitti; panodaki 4 sayı
+  // dönemsizdir. Analitik yalnız "her şey boş mu" kontrolü için okunur.
   const ihale = useSatinalmaDashboard();
-  const tasarruf = useSatinalmaTasarruf();
-  const tedarikci = useSatinalmaTedarikci();
-  const savings = useTimeSavings(periodQuery);
-  const analytics = useSatinalmaAnalytics(periodQuery);
+  const analytics = useSatinalmaAnalytics({ period: "month" });
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -141,104 +81,63 @@ export default function SatinalmaDashboardPage() {
         />
       ) : null}
 
-      {/* Aksiyon merkezi — "bugün ne yapmalıyım" (Faz 2: veri + sıralama
-          backend'de, metin haritası ACTION_ROWS'ta). */}
-      <ActionCenter portal="satinalma" />
-
-      {/* Keşif — "piyasada ne var". Aksiyon merkezinin ALTINDA: önce kendi
-          işin, sonra fırsatlar, sonra geçmişe bakış (analitik sekmeler). */}
+      {/* PAZAR YERİ ÖNCE (2026-09-03 kullanıcı kararı): ilk ekran "piyasada
+          ne var" olmalı. Bekleyen işler kaybolmuyor, altında tek satır. */}
       <PortalDiscovery portal="satinalma" />
 
-      <TabGroup
-        className="space-y-6"
-        // Faz 3: sekme URL'de (?tab=) — paylaşılabilir + geri tuşu çalışır.
-        selectedIndex={Math.max(0, TABS.findIndex((t) => t.value === tab))}
-        onChange={(i) => setParams({ tab: TABS[i]?.value ?? "satın alma talebi" })}
-      >
-        {/* C46 (satış ile aynı): dönem seçici yalnız bu sekmelerin verisini
-            etkiler — ilgili bölümün başında durur. */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-        <TabList
-          className="inline-flex w-fit gap-1 rounded-xl bg-zinc-200/60 p-1 ring-1 ring-zinc-950/5"
-          aria-label="Pano bölümleri"
-        >
-          {TABS.map((t) => (
-            <Tab key={t.value} className={TRIGGER_CLASSES}>
-              {t.label}
-            </Tab>
-          ))}
-        </TabList>
-        <PeriodControls period={period} from={from} to={to} onChange={setParams} />
-        </div>
+      <ActionStrip portal="satinalma" />
 
-        <TabPanels>
-          {/* Hata → ErrorState + Tekrar dene (refetch); retry'sız statik mesaj
-              kullanıcıyı tam sayfa yenilemeye mecbur bırakıyordu. */}
-          <TabPanel className="outline-none">
-            {ihale.data ? (
-              <SatinalmaIhaleTab
-                data={ihale.data}
-                analytics={analytics.data}
-              />
-            ) : ihale.isError ? (
-              <ErrorState
-                title="Veri alınamadı"
-                onRetry={() => void ihale.refetch()}
-              />
-            ) : (
-              <TabLoading />
-            )}
-          </TabPanel>
-          <TabPanel className="outline-none">
-            {tasarruf.data ? (
-              <TasarrufTab
-                data={tasarruf.data}
-                // Tasarruf verisi ay/yıl sabit görünümlü — custom aralıkta yıl
-                // görünümüne düşer (kart kendi aralığını başlığında söyler).
-                period={period === "custom" ? "year" : period}
-                savings={savings.data}
-                analytics={analytics.data}
-              />
-            ) : tasarruf.isError ? (
-              <ErrorState
-                title="Veri alınamadı"
-                onRetry={() => void tasarruf.refetch()}
-              />
-            ) : (
-              <TabLoading />
-            )}
-          </TabPanel>
-          <TabPanel className="outline-none">
-            {tedarikci.data ? (
-              <TedarikciTab data={tedarikci.data} />
-            ) : tedarikci.isError ? (
-              <ErrorState
-                title="Veri alınamadı"
-                onRetry={() => void tedarikci.refetch()}
-              />
-            ) : (
-              <TabLoading />
-            )}
-          </TabPanel>
-        </TabPanels>
-      </TabGroup>
-    </div>
-  );
-}
-
-function TabLoading() {
-  // Skeleton — KPI şeridi + tablo yer tutucusu (spinner yerine tek dil).
-  return (
-    <div className="space-y-4" aria-hidden>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-24 animate-pulse rounded-2xl bg-zinc-200/60"
+      {/* DÖNEMSİZ 4 SAYI — "bugün ne durumdayım". Grafikler ve dönem
+          seçici RAPORLAR'a taşındı (2026-09-03): aynı veri hem panoda hem
+          Raporlar hub'ında çiziliyordu ve anasayfayı pazar yeri olmaktan
+          çıkarıyordu. */}
+      {ihale.data ? (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiCard
+            label="Açık Taleplerim"
+            value={ihale.data.openCount}
+            href="/company/satinalma/taleplerim?status=OPEN"
+            accent="blue"
           />
-        ))}
-      </div>
-      <div className="h-72 animate-pulse rounded-2xl bg-zinc-200/60" />
+          <KpiCard
+            label="Gelen Teklifler"
+            value={ihale.data.bidsReceived}
+            href="/company/satinalma/taleplerim?status=IN_AWARD"
+            accent="blue"
+          />
+          <KpiCard
+            label="Kazandırılan Talepler"
+            value={ihale.data.awarded}
+            href="/company/satinalma/taleplerim?status=AWARDED"
+            accent="blue"
+          />
+          <KpiCard
+            label="Devam Eden Siparişler"
+            value={ihale.data.ongoingOrders}
+            href="/company/satinalma/siparisler"
+            accent="blue"
+          />
+        </div>
+      ) : ihale.isError ? (
+        <ErrorState title="Veri alınamadı" onRetry={() => void ihale.refetch()} />
+      ) : (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-hidden>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-zinc-200/60" />
+          ))}
+        </div>
+      )}
+
+      <p className="text-sm text-zinc-500">
+        Detaylı analiz ve grafikler{" "}
+        <Link
+          href="/company/satinalma/raporlar"
+          className="font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
+        >
+          Raporlar
+        </Link>{" "}
+        bölümünde.
+      </p>
     </div>
   );
 }

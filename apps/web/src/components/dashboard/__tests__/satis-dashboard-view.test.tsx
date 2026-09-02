@@ -34,10 +34,11 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesChip: () => <div data-testid="tcmb" />,
 }));
-// ActionCenter kendi ucundan beslenir (action-center endpoint) — ayrı test
-// edilir; burada varlığını gözlemleyen hafif mock.
+// Aksiyon merkezi/şeridi kendi ucundan beslenir — ayrı test edilir; burada
+// varlığını gözlemleyen hafif mock.
 vi.mock("@/components/dashboard/action-center", () => ({
   ActionCenter: () => <div data-testid="action-center" />,
+  ActionStrip: () => <div data-testid="action-strip" />,
 }));
 // Keşif bloğu kendi uçlarından beslenir (seller-tenders/discover-facets) ve
 // ayrı test edilir; burada varlığını gözlemleyen hafif mock — aksi hâlde
@@ -83,18 +84,43 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("Satış paneli")).toBeInTheDocument();
     expect(screen.getByText("Yanıt Bekleyen Davet")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("Kazanılan Satın Alma Talebi")).toBeInTheDocument();
+    // Sözlük düzeltmesi (2026-09-03): satış panelinde "Satın Alma Talebi"
+    // KAZANILMAZ — kazanılan şey teklif/iştir.
+    expect(screen.getByText("Kazandığım İşler")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
-    // Faz 7.4: "Performans" kartı yerine tutar KPI satırı — gelir kompakt
-    // ("150 B ₺"), tam değer title'da.
-    expect(screen.getByText("Toplam Gelir")).toBeInTheDocument();
-    expect(screen.getByText(/150\sB\s₺/)).toBeInTheDocument();
-    expect(screen.getByText("Bağlı Müşteri")).toBeInTheDocument();
     expect(screen.getByTestId("tcmb")).toBeInTheDocument();
   });
 
-  it("delta rozeti her zaman çizilir (karşılaştır toggle'ı kaldırıldı): 8 vs 4 → %100", () => {
+  it("GRAFİKLER ve dönemsel tutar kartları panoda YOK — Raporlar'a taşındı", () => {
+    // Anasayfa artık pazar yeriyle açılıyor; dönemsel okuma Raporlar'da.
     h.stats = fullStats();
+    render(<SatisDashboardView />);
+    expect(screen.queryByText("Toplam Gelir")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bağlı Müşteri")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Gelir" })).toBeNull();
+    // Yönlendirme kalmalı: veri kaybolmadı, yer değiştirdi.
+    expect(screen.getByRole("link", { name: "Raporlar" })).toBeInTheDocument();
+  });
+
+  it("pazar yeri bloğu bekleyen işlerden ÖNCE gelir", () => {
+    h.stats = fullStats();
+    const { container } = render(<SatisDashboardView />);
+    const html = container.innerHTML;
+    expect(html.indexOf("portal-discovery")).toBeGreaterThan(-1);
+    expect(html.indexOf("portal-discovery")).toBeLessThan(
+      html.indexOf("action-strip"),
+    );
+  });
+
+  it("delta rozeti KPI kartında çizilir (analitikten gelir)", () => {
+    // Tutar kartlarındaki 30-günlük delta Raporlar'a taşındı; panodaki
+    // kartların deltası analytics.deltas'tan gelmeye devam ediyor.
+    h.stats = fullStats();
+    h.analytics = {
+      actions: { unansweredInvites: 0 },
+      deltas: { bidsSubmitted: 100 },
+      kpiSeries: {},
+    };
     render(<SatisDashboardView />);
     // TrendBadge biçimi: ok ikonu + "%100" (TR yüzde önde).
     expect(screen.getAllByText(/%100/).length).toBeGreaterThanOrEqual(1);

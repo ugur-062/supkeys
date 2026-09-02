@@ -13,12 +13,17 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
-import { canUseMessaging, type PortalKey } from "@/lib/company/portals";
+import {
+  canUseMessaging,
+  profilePath,
+  type PortalKey,
+} from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
+  IdentificationIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { MessagesPopover } from "./messages-popover";
@@ -150,6 +155,13 @@ export function CompanyTopbar({
                 <p className="truncate text-xs text-slate-400">{user.email}</p>
               </div>
               <DropdownDivider />
+              {/* Profilim sol menüden buraya taşındı (2026-09-03): kimlik
+                  ayarları Ayarlar'la aynı yerde. Rota AKTİF PORTALA göre —
+                  profil tek kayıt ama her portalın kendi adresi var. */}
+              <DropdownItem href={profilePath(activePortal)}>
+                <IdentificationIcon data-slot="icon" />
+                <DropdownLabel>Profilim</DropdownLabel>
+              </DropdownItem>
               <DropdownItem href="/company/ayarlar">
                 <Cog6ToothIcon data-slot="icon" />
                 <DropdownLabel>Ayarlar</DropdownLabel>

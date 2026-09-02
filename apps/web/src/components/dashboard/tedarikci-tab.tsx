@@ -101,7 +101,7 @@ export function TedarikciTab({ data }: Props) {
               <TableHead>
                 <TableRow>
                   <TableHeader>Tedarikçiler</TableHeader>
-                  <TableHeader>Teklif Verdiği Satın Alma Talebi</TableHeader>
+                  <TableHeader>Teklif Verdiği Talep</TableHeader>
                   <TableHeader>Ortalama Sıra</TableHeader>
                   <TableHeader>Toplam Teklif</TableHeader>
                 </TableRow>
@@ -149,7 +149,7 @@ export function TedarikciTab({ data }: Props) {
         <section className="card p-6">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-950">
-              En Rekabetçi Satın Alma Talebi
+              En Rekabetçi Talep
             </h2>
             <PeriodToggle value={compPeriod} onChange={setCompPeriod} />
           </header>

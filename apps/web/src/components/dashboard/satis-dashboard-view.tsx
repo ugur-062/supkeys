@@ -1,51 +1,17 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { ActionCenter } from "@/components/dashboard/action-center";
+import { ActionStrip } from "@/components/dashboard/action-center";
 import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
-import {
-  ChartCard,
-  DashboardEmptyState,
-  FunnelChart,
-  KpiCard,
-} from "@/components/dashboard/analytics-primitives";
+import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
-import { PeriodControls } from "@/components/dashboard/period-controls";
-import { useDashboardParams } from "@/hooks/use-dashboard-params";
-import dynamic from "next/dynamic";
 
-/**
- * Perf turu (P10 Dalga B): grafik sekmeleri `satis-chart-tabs.tsx`'e taşındı
- * ve tembel yükleniyor — recharts artık pano açılışında değil, ilgili sekme
- * açıldığında iniyor. `ssr: false`: recharts tarayıcı ölçümüne dayanır.
- */
-const SatisGelirTab = dynamic(
-  () => import("./satis-chart-tabs").then((m) => m.SatisGelirTab),
-  { ssr: false, loading: () => <ChartTabsLoading /> },
-);
-const SatisMusteriTab = dynamic(
-  () => import("./satis-chart-tabs").then((m) => m.SatisMusteriTab),
-  { ssr: false, loading: () => <ChartTabsLoading /> },
-);
-
-function ChartTabsLoading() {
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-200/60" />
-      ))}
-    </div>
-  );
-}
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatisStats } from "@/hooks/use-company-dashboard";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ArrowRight } from "lucide-react";
-import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -69,13 +35,10 @@ export function SatisDashboardView() {
 
   const s = stats.data;
   const loading = stats.isLoading;
-  // Faz 3 — dönem + sekme + karşılaştır + özel aralık URL'de (satınalma ile
-  // ortak useDashboardParams; geri tuşu çalışır, sayfa paylaşılabilir).
-  const { period, from, to, tab, setParams } = useDashboardParams(
-    "teklif",
-    ["teklif", "gelir", "musteri"],
-  );
-  const analytics = useSatisAnalytics({ period, from, to });
+  // Dönem seçici GRAFİKLERLE BİRLİKTE Raporlar'a gitti; panodaki 4 sayı
+  // dönemsizdir ("bugün ne durumdayım"). Analitikten yalnız delta/spark ve
+  // yanıtsız davet sayısı okunur — varsayılan dönemle.
+  const analytics = useSatisAnalytics({ period: "month" });
   // Faz 7.3: yükleme artık iskeletle çözülür (aşağıda) — kartlara gelindiyse
   // veri var; "—" yalnız "değer gerçekten yok" anlamında kalır.
   const val = (n: number | undefined) => n ?? 0;
@@ -98,20 +61,9 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
-        {/* Kur çipi + dönem seçici üst satırda; "Satın Alma Taleplerini Görüntüle" CTA'sı
-            alt satırda (yan yana üçlü kalabalık duruyordu — kullanıcı isteği). */}
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <TcmbRatesChip />
-          </div>
-          <Link
-            href="/company/satis/acik-talepler"
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            Satın Alma Taleplerini Görüntüle
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
+        {/* CTA keşif bloğunda ("İlan aç") — başlıkta ikinci bir çağrı
+            tutmak aynı işi iki yerde tekrarlıyordu. Kur çipi kalır. */}
+        <TcmbRatesChip />
       </header>
 
       {/* Faz 8.3 — yeni satıcı: boş kart yığını yerine ilk-çalıştırma listesi
@@ -146,13 +98,12 @@ export function SatisDashboardView() {
         />
       ) : null}
 
-      {/* Aksiyon merkezi — "bugün ne yapmalıyım" (Faz 2: veri + sıralama
-          backend'de, metin haritası ACTION_ROWS'ta). */}
-      <ActionCenter portal="satis" />
-
-      {/* Keşif — "piyasada ne var". Aksiyon merkezinin ALTINDA: önce kendi
-          işin, sonra fırsatlar, sonra geçmişe bakış (KPI/grafikler). */}
+      {/* PAZAR YERİ ÖNCE (2026-09-03 kullanıcı kararı): anasayfanın ilk
+          ekranı "piyasada ne var" olmalı. Bekleyen işler kaybolmuyor, hemen
+          altta TEK SATIR şeride iniyor. */}
       <PortalDiscovery portal="satis" />
+
+      <ActionStrip portal="satis" />
 
       {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
       {stats.isError && !s ? (
@@ -162,51 +113,11 @@ export function SatisDashboardView() {
         />
       ) : null}
 
-      {/* Sekmeler: Teklif / Gelir / Müşteri — segmentli kontrol (düz zemin
-          üzerindeki alt-çizgi sekmeler kaybolyordu; aktif = beyaz pill +
-          panel rengi, satınalma ile aynı dil). */}
-      {/* C46: dönem seçici YALNIZ bu sekmelerin (trend/analitik) verisini
-          etkiler — üst KPI kartları dönemsizdir; seçici ilgili bölümün başına
-          taşındı (globalmiş gibi görünüp kartları değiştirmiyordu). */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-      <div
-        role="tablist"
-        aria-label="Satış panosu bölümleri"
-        className="inline-flex w-fit gap-1 rounded-xl bg-zinc-200/60 p-1 ring-1 ring-zinc-950/5"
-      >
-        {(
-          [
-            ["teklif", "Teklif"],
-            ["gelir", "Gelir"],
-            ["musteri", "Müşteri"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setParams({ tab: key })}
-            className={cn(
-              "rounded-lg px-5 py-2 text-sm font-semibold whitespace-nowrap transition-all",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40",
-              tab === key
-                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-zinc-950/5"
-                : "text-zinc-500 hover:text-zinc-900",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <PeriodControls period={period} from={from} to={to} onChange={setParams} />
-      </div>
-
-      {tab === "gelir" ? (
-        <SatisGelirTab analytics={analytics.data} loading={analytics.isLoading} />
-      ) : tab === "musteri" ? (
-        <SatisMusteriTab analytics={analytics.data} loading={analytics.isLoading} />
-      ) : loading && !s ? (
+      {/* GRAFİKLER RAPORLAR'A TAŞINDI (2026-09-03): aynı veri hem panoda hem
+          Raporlar hub'ında çiziliyordu (çift bakım) ve anasayfayı pazar yeri
+          olmaktan çıkarıyordu. Panoda dönemsiz 4 sayı kalır; dönem seçici de
+          grafiklerle birlikte gitti — burada seçilecek bir dönem kalmadı. */}
+      {loading && !s ? (
         /* Faz 7.3: '—'/'…' karışımı yerine gerçek boyutlu iskelet. */
         <div className="space-y-4" aria-hidden>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -251,7 +162,7 @@ export function SatisDashboardView() {
           spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
         <KpiCard
-          label="Kazanılan Satın Alma Talebi"
+          label="Kazandığım İşler"
           value={val(s?.wonTenders)}
           href="/company/satis/tekliflerim"
           accent="emerald"
@@ -270,49 +181,18 @@ export function SatisDashboardView() {
         />
       </div>
 
-      {/* Faz 7.4: "Performans" kartı kaldırıldı — global dönem seçicisiyle
-          çelişen "son 30 gün ve toplam" özeti, aralığını AÇIKÇA söyleyen
-          KPI kartlarına taşındı (tutar satırı — satınalma ile hizalı). */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiCard
-          label="Son 30 Gün Teklif"
-          value={s?.last30Days.bidsSubmitted ?? 0}
-          href="/company/satis/tekliflerim"
-          accent="emerald"
-          deltaPct={
-            s && s.last30Days.prevBidsSubmitted > 0
-              ? Math.round(
-                  ((s.last30Days.bidsSubmitted - s.last30Days.prevBidsSubmitted) /
-                    s.last30Days.prevBidsSubmitted) *
-                    100,
-                )
-              : undefined
-          }
-          hint="son 30 gün · önceki 30 güne göre"
-        />
-        <KpiCard
-          label="Toplam Gelir"
-          value={formatCompactMoney(s?.revenue.total ?? 0)}
-          valueTitle={formatMoney(s?.revenue.total ?? 0)}
-          href="/company/satis/siparisler"
-          accent="emerald"
-          deltaPct={
-            s && s.revenue.prev30 > 0
-              ? Math.round(
-                  ((s.revenue.last30 - s.revenue.prev30) / s.revenue.prev30) * 100,
-                )
-              : undefined
-          }
-          hint="tüm zamanlar · yalnız TRY"
-        />
-        <KpiCard
-          label="Bağlı Müşteri"
-          value={s?.buyers.active ?? 0}
-          href="/company/satis/musterilerim"
-          accent="emerald"
-          hint="aktif bağlantı"
-        />
-      </div>
+      {/* Tutar/30-gün kartları da Raporlar'a taşındı — dönemsel okuma orada,
+          "bugün ne durumdayım" burada. */}
+      <p className="text-sm text-zinc-500">
+        Detaylı analiz ve grafikler{" "}
+        <Link
+          href="/company/satis/raporlar"
+          className="font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
+        >
+          Raporlar
+        </Link>{" "}
+        bölümünde.
+      </p>
 
       {/* "Son Aktiviteler" akışı anasayfadan KALDIRILDI (kullanıcı isteği,
           2026-08-03) — olay geçmişi bildirim zilinde zaten mevcut. */}

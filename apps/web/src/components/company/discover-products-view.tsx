@@ -39,7 +39,7 @@ export function DiscoverProductsView() {
   return (
     <PageContainer>
       <PageHeader
-        title="Ürünler"
+        title="Ürün Ara"
         description="Tedarikçi firmaların vitrinlerindeki ürünler. Beğendiğiniz ürünün firmasıyla doğrudan iletişime geçin."
       />
 

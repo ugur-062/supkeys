@@ -52,15 +52,26 @@ export interface PortalDef {
  * breadcrumb ve geri linki (fromLabel) hep buradan okur; ad değişikliği tek
  * satırdır ve yüzeyler birbirinden kopamaz.
  */
+/**
+ * PROFİLİM artık SAĞ ÜST hesap menüsünde (2026-09-03 kullanıcı kararı).
+ *
+ * `secondaryNav` kaydı KALDIRILMADI: o liste sol menüyü DEĞİL rota kaydını
+ * (breadcrumb + sayfa başlığı + tier kapısı) besliyor — silinseydi profil
+ * sayfasının başlığı "Anasayfa"ya düşerdi. Değişen yalnız GİRİŞ NOKTASI:
+ * eskiden yalnız Ayarlar kartından bulunuyordu, şimdi avatar menüsünde.
+ */
+export const profilePath = (portal: PortalKey) => `/company/${portal}/profilim`;
+
 export const MODULE_LABELS = {
   satinalma: {
     // Portal bağlamı zaten "Satınalma" — menüde kısa biçim yeterli ve
     // "Taleplerim" sol menüde taşıyordu.
     ihalelerim: "Taleplerim",
     satinAl: "Satın Al",
-    // Faz keşif: BAŞKA firmaların vitrinleri. `satis.urunler` ("Ürünlerim")
-    // firmanın KENDİ kataloğu — iyelik kipi ikisini ayırır.
-    urunler: "Ürünler",
+    // BAŞKA firmaların vitrinleri. Satıştaki "Ürünlerim" firmanın KENDİ
+    // kataloğu; ikisi menüde yan yana okunduğunda ayırt edilemiyordu
+    // (kullanıcı geri bildirimi 2026-09-03) → burada FİİL kullanıyoruz.
+    urunAra: "Ürün Ara",
     teklifler: "Tekliflerim",
     siparisler: "Siparişlerim",
   },
@@ -110,7 +121,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: CubeIcon,
-        label: MODULE_LABELS.satinalma.urunler,
+        label: MODULE_LABELS.satinalma.urunAra,
         href: "/company/satinalma/urunler",
       },
       {

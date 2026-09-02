@@ -135,7 +135,11 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {hasVolume ? (
           <ChartCard
-            title={isAlim ? "Aylık Satın Alma Talebi ve Gelen Teklif" : "Aylık Satın Alma Talebi ve Verilen Teklif"}
+            title={
+              isAlim
+                ? "Aylık Talep ve Gelen Teklif"
+                : "Aylık Açık Talep ve Verilen Teklif"
+            }
             hint="Adet — son 6 ay"
           >
             <ResponsiveContainer width="100%" height="100%">

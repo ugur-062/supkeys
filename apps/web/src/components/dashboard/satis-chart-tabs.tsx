@@ -26,7 +26,7 @@ import {
   XAxis as RXAxis,
   YAxis as RYAxis,
 } from "recharts";
-import { formatCompactMoney, formatMoney } from "@/components/ui/money";
+import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 

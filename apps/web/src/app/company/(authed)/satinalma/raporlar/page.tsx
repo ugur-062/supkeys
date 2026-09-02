@@ -1,6 +1,7 @@
 "use client";
 
 import { HubList } from "@/components/company/hub-list";
+import { SatinalmaAnalytics } from "@/components/reports/satinalma-analytics";
 import { TimeSavingsStrip } from "@/components/dashboard/time-savings-strip";
 import dynamic from "next/dynamic";
 import { FileText, GitCompare, TrendingUp } from "lucide-react";
@@ -47,6 +48,9 @@ export default function SatinalmaRaporlarPage() {
       {/* Pano refactor Faz 1: zaman-tasarrufu şeridi anasayfadan buraya taşındı. */}
       <TimeSavingsStrip />
       {/* P2 (denetim §10.5): hub özet grafikleri. */}
+      {/* Panodan taşınan analiz — hub listesinin ALTINDA: rapor seçmek
+          birincil iş, analiz ikincil. */}
+      <SatinalmaAnalytics />
       <ReportsSummaryCharts type="ALIM" />
     </div>
   );
