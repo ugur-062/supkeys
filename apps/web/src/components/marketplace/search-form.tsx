@@ -13,13 +13,17 @@ export function SearchForm({
   defaultValue,
   placeholder = "Ne arıyorsunuz? (ürün, hizmet, malzeme)",
   hidden,
+  tone = "light",
 }: {
   action: string;
   defaultValue?: string;
   placeholder?: string;
   /** Aramada korunması gereken mevcut süzgeçler (kategori/şehir). */
   hidden?: Record<string, string | undefined>;
+  /** `dark` = koyu hero üstünde (beyaz alan, beyaz buton). */
+  tone?: "light" | "dark";
 }) {
+  const dark = tone === "dark";
   return (
     <form action={action} method="get" role="search" className="w-full">
       {Object.entries(hidden ?? {}).map(([k, v]) =>
@@ -37,12 +41,20 @@ export function SearchForm({
             defaultValue={defaultValue}
             placeholder={placeholder}
             aria-label="Pazar yerinde ara"
-            className="h-12 w-full rounded-full border border-zinc-300 bg-white pr-4 pl-11 text-base text-zinc-950 shadow-sm outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+            className={`w-full rounded-full border bg-white pr-4 pl-11 text-zinc-950 outline-none placeholder:text-zinc-400 ${
+              dark
+                ? "h-14 border-transparent text-base shadow-xl focus:ring-2 focus:ring-white/40"
+                : "h-12 border-zinc-300 text-base shadow-sm focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            }`}
           />
         </div>
         <button
           type="submit"
-          className="h-12 shrink-0 rounded-full bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          className={`shrink-0 rounded-full font-semibold transition ${
+            dark
+              ? "h-14 bg-white px-7 text-sm text-zinc-950 hover:bg-zinc-200"
+              : "h-12 bg-zinc-950 px-6 text-sm text-white hover:bg-zinc-800"
+          }`}
         >
           Ara
         </button>

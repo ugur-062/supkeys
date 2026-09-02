@@ -19,7 +19,9 @@ import {
 import type { DeliveryTerm, PaymentCategory } from "@/lib/tenders/types";
 import {
   ArrowRightIcon,
+  BanknotesIcon,
   BuildingOffice2Icon,
+  CheckBadgeIcon,
   GlobeAltIcon,
   LockClosedIcon,
   MapPinIcon,
@@ -173,7 +175,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
       />
       <MarketingHeader />
 
-      <main className="mx-auto max-w-5xl px-6 pt-28 pb-24 lg:px-8">
+      <main className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
         <nav aria-label="Yol" className="text-sm text-zinc-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
@@ -217,7 +219,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                 <li key={c.id}>
                   <Link
                     href={`${indexBase}?kategori=${c.id.slice(0, 2)}000000`}
-                    className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800 hover:bg-blue-100"
+                    className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:border-zinc-900/20 hover:text-zinc-950"
                   >
                     {c.name}
                   </Link>
@@ -239,27 +241,29 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
             ) : null}
 
             {listing.items.length > 0 ? (
-              <section className="mt-10">
+              <section className="mt-12">
                 <h2 className="text-lg font-semibold text-zinc-950">
                   Kalemler ({listing.items.length})
                 </h2>
-                <div className="mt-4 overflow-x-auto">
+                <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-200">
                   <table className="w-full min-w-[36rem] text-left text-sm">
-                    <thead className="border-b border-zinc-200 text-xs tracking-wide text-zinc-500 uppercase">
+                    <thead className="bg-zinc-50 text-xs tracking-wide text-zinc-500 uppercase">
                       <tr>
-                        <th className="py-2 pr-3 font-medium">#</th>
-                        <th className="py-2 pr-3 font-medium">Kalem</th>
-                        <th className="py-2 pr-3 font-medium">Miktar</th>
-                        <th className="py-2 pr-3 font-medium">Marka / MPN</th>
+                        <th className="py-2.5 pr-3 pl-4 font-medium">#</th>
+                        <th className="py-2.5 pr-3 font-medium">Kalem</th>
+                        <th className="py-2.5 pr-3 font-medium">Miktar</th>
+                        <th className="py-2.5 pr-3 font-medium">Marka / MPN</th>
                         {!isDemand ? (
-                          <th className="py-2 font-medium">Hemen al</th>
+                          <th className="py-2.5 pr-4 font-medium">Hemen al</th>
                         ) : null}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
+                    <tbody className="divide-y divide-zinc-100 bg-white">
                       {listing.items.map((i) => (
                         <tr key={i.lineNo} className="align-top">
-                          <td className="py-3 pr-3 text-zinc-400">{i.lineNo}</td>
+                          <td className="py-3 pr-3 pl-4 text-zinc-400">
+                            {i.lineNo}
+                          </td>
                           <td className="py-3 pr-3">
                             <p className="font-medium text-zinc-900">{i.name}</p>
                             {i.description ? (
@@ -283,7 +287,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                               : "—"}
                           </td>
                           {!isDemand ? (
-                            <td className="py-3 whitespace-nowrap text-zinc-900">
+                            <td className="py-3 pr-4 whitespace-nowrap text-zinc-900">
                               {i.buyNowUnitPrice
                                 ? `${currencySymbol(listing.primaryCurrency)}${Number(
                                     i.buyNowUnitPrice,
@@ -299,18 +303,28 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
               </section>
             ) : null}
 
-            <section className="mt-10">
-              <h2 className="text-lg font-semibold text-zinc-950">
+            <section className="mt-12">
+              <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
                 İlan bilgileri
               </h2>
-              <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
-                {facts.map((f) => (
+              {/* Etiket ÜSTTE değer ALTTA: uzun değerler (teslim şekli
+                  cümlesi) sağa yaslı iki sütunlu düzende iki satıra düşüp
+                  hizayı bozuyordu. Izgara hücreleri eşit yükseklikte kalır. */}
+              <dl className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-zinc-200 sm:grid-cols-2">
+                {facts.map((f, i) => (
                   <div
                     key={f.label}
-                    className="flex justify-between gap-4 border-b border-zinc-100 pb-2"
+                    // Tek sayıda bilgi varsa sonuncusu iki sütuna yayılır;
+                    // aksi hâlde ızgaranın sağ altında zemin rengiyle boyalı
+                    // BOŞ bir hücre kalıyor ve eksik veri gibi okunuyordu.
+                    className={`bg-white px-5 py-4 ${
+                      i === facts.length - 1 && facts.length % 2 === 1
+                        ? "sm:col-span-2"
+                        : ""
+                    }`}
                   >
-                    <dt className="text-sm text-zinc-500">{f.label}</dt>
-                    <dd className="text-right text-sm font-medium text-zinc-900">
+                    <dt className="text-xs/5 text-zinc-500">{f.label}</dt>
+                    <dd className="mt-0.5 text-sm font-medium text-zinc-950">
                       {f.value}
                     </dd>
                   </div>
@@ -401,7 +415,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                     </p>
                     <Link
                       href={indexBase}
-                      className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900"
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
                     >
                       Açık olanları gör
                       <ArrowRightIcon aria-hidden className="size-4" />
@@ -410,6 +424,43 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                 )}
               </div>
             </div>
+
+            {/* Sağ sütun kartın altında boş kalıyordu. Buraya konan üç madde
+                envanterden BAĞIMSIZ olarak doğru ve ziyaretçinin asıl merak
+                ettiği şey: teklifimi kim görür, karşı taraf gerçek mi, ne
+                ödeyeceğim. */}
+            <ul className="mt-6 space-y-4 rounded-2xl bg-zinc-50 p-5">
+              {[
+                {
+                  icon: LockClosedIcon,
+                  title: "Kapalı zarf",
+                  body: "Teklifinizi yalnız ilan sahibi görür; rakipler ne teklifinizi ne kimliğinizi görebilir.",
+                },
+                {
+                  icon: CheckBadgeIcon,
+                  title: "Doğrulanmış firmalar",
+                  body: "Talep yayımlayan ve kazandıran firmalar kimlik doğrulamasından geçer.",
+                },
+                {
+                  icon: BanknotesIcon,
+                  title: "Komisyon yok",
+                  body: "Platform alım-satım bedelinden pay almaz.",
+                },
+              ].map((t) => (
+                <li key={t.title} className="flex gap-3">
+                  <t.icon
+                    aria-hidden
+                    className="mt-0.5 size-4 shrink-0 text-zinc-400"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {t.title}
+                    </p>
+                    <p className="mt-0.5 text-xs/5 text-zinc-500">{t.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </aside>
         </div>
       </main>

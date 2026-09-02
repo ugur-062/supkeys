@@ -3,7 +3,14 @@ import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
-/** Anasayfadaki "son kayıtlar" bölümü — başlık + ızgara + "tümü" bağlantısı. */
+/**
+ * Anasayfadaki "son kayıtlar" bölümü.
+ *
+ * Envanter azken ızgara BOŞ HÜCRE bırakmasın diye sütun sayısı içerik
+ * sayısıyla sınırlanır: tek kayıt tek sütunda, iki kayıt iki sütunda durur.
+ * Sabit `lg:grid-cols-3` bıraksaydık tek kart üçte birlik bir şeridin
+ * solunda öksüz kalır ve sayfa "yüklenememiş" gibi okunurdu.
+ */
 export function SectionGrid({
   heading,
   lead,
@@ -11,6 +18,8 @@ export function SectionGrid({
   hrefLabel,
   listings,
   emptyTitle,
+  emptyHint,
+  emptyAction,
 }: {
   heading: string;
   lead: string;
@@ -18,7 +27,16 @@ export function SectionGrid({
   hrefLabel: string;
   listings: PublicListingCard[];
   emptyTitle: string;
+  emptyHint?: string;
+  emptyAction?: { label: string; href: string };
 }) {
+  const cols =
+    listings.length >= 3
+      ? "sm:grid-cols-2 lg:grid-cols-3"
+      : listings.length === 2
+        ? "sm:grid-cols-2"
+        : "sm:max-w-sm";
+
   return (
     <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -26,24 +44,27 @@ export function SectionGrid({
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
             {heading}
           </h2>
-          <p className="mt-2 max-w-2xl text-base/7 text-zinc-600">{lead}</p>
+          <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
         </div>
-        <Link
-          href={href}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900"
-        >
-          {hrefLabel}
-          <ArrowRightIcon aria-hidden className="size-4" />
-        </Link>
+        {listings.length > 0 ? (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
+          >
+            {hrefLabel}
+            <ArrowRightIcon aria-hidden className="size-4" />
+          </Link>
+        ) : null}
       </div>
       <div className="mt-8">
         {listings.length === 0 ? (
           <EmptyListings
             title={emptyTitle}
-            hint="Yeni kayıtlar yayımlandıkça burada görünür."
+            hint={emptyHint}
+            action={emptyAction}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`grid grid-cols-1 gap-5 ${cols}`}>
             {listings.map((l) => (
               <ListingCard key={l.number} listing={l} />
             ))}

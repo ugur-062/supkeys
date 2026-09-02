@@ -32,7 +32,7 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
           </span>
         )}
         <div className="min-w-0">
-          <h3 className="line-clamp-1 text-base font-semibold text-zinc-950 group-hover:text-blue-700">
+          <h3 className="line-clamp-1 text-base font-semibold text-zinc-950 group-hover:text-zinc-600">
             {company.name}
           </h3>
           {company.city ? (
@@ -45,7 +45,7 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
       </div>
 
       {company.industry ? (
-        <p className="mt-3 line-clamp-1 text-xs font-medium text-blue-700">
+        <p className="mt-3 line-clamp-1 text-xs font-medium text-zinc-500">
           {company.industry}
         </p>
       ) : null}
@@ -80,7 +80,7 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
   return (
     <Link
       href={`/firma/${company.slug}`}
-      className={`${className} hover:border-zinc-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600`}
+      className={`${className} hover:-translate-y-0.5 hover:border-zinc-900/20 hover:shadow-xl hover:shadow-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950`}
     >
       {inner}
     </Link>

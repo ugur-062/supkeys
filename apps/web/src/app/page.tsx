@@ -1,6 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
-import { SearchForm } from "@/components/marketplace/search-form";
+import { MarketplaceHero } from "@/components/marketplace/hero";
+import { TrustBand } from "@/components/marketplace/trust-band";
 import { SectionGrid } from "@/components/marketplace/section-grid";
 import { SectorGrid } from "@/components/marketplace/sector-grid";
 import { serializeJsonLd } from "@/lib/json-ld";
@@ -10,14 +11,7 @@ import {
 } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
 import { resolveSiteUrl } from "@/lib/site-url";
-import {
-  ArrowRightIcon,
-  CheckBadgeIcon,
-  LockClosedIcon,
-  UsersIcon,
-} from "@heroicons/react/20/solid";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ComingSoon } from "@/components/marketplace/coming-soon";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 
@@ -60,23 +54,27 @@ export const metadata: Metadata = MARKETPLACE_LIVE
       robots: { index: false, follow: false },
     };
 
-const HOW_IT_WORKS = [
-  {
-    icon: UsersIcon,
-    title: "Kaydol ve firmanı tanıt",
-    body: "Tek hesapla hem alıcı hem satıcı olursun. Faaliyet alanını ve kategorilerini seç; eşleşen talepler sana gelsin.",
-  },
-  {
-    icon: LockClosedIcon,
-    title: "Kapalı zarf teklif ver",
-    body: "Teklifini yalnız talep sahibi görür. Rakip tedarikçiler ne teklifini ne kimliğini ne de kaç teklif geldiğini görebilir.",
-  },
-  {
-    icon: CheckBadgeIcon,
-    title: "Siparişe dönüştür",
-    body: "Kazandırma kararıyla sipariş otomatik oluşur; teslim ve ödeme adımlarını aynı panelden takip edersin.",
-  },
-];
+/**
+ * Hero sayaçları. Sıfır olan canlı sayaç GÖSTERİLMEZ: "0" ya da "—" yazan bir
+ * kutu, envanteri duyurmaktan çok sayfayı bozuk gösteriyordu (ölçüldü).
+ * Boşalan yer katalog gerçekleriyle doldurulur — hepsi envanterden bağımsız
+ * ve her zaman doğru. Dört kutu hep dolu olur.
+ */
+function heroStats(demands: number, offers: number) {
+  const live = [
+    { label: "Açık alım talebi", value: demands },
+    { label: "Satılık ilan", value: offers },
+  ]
+    .filter((s) => s.value > 0)
+    .map((s) => ({ label: s.label, value: s.value.toLocaleString("tr-TR") }));
+
+  const catalog = [
+    { label: "Kategori", value: "158.018" },
+    { label: "Sektör", value: "58" },
+    { label: "Komisyon", value: "%0" },
+  ];
+  return [...live, ...catalog].slice(0, 4);
+}
 
 export default async function HomePage() {
   // Anahtar kapalıyken API'ye HİÇ gitmiyoruz: "yakında" sayfası veri
@@ -116,54 +114,7 @@ export default async function HomePage() {
       <MarketingHeader />
 
       <main>
-        {/* Hero — envanterle açılır, pazarlama sözüyle değil. */}
-        <section className="px-6 pt-32 pb-16 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <h1 className="text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-              Türkiye'nin B2B alım-satım pazar yeri
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-lg/8 text-pretty text-zinc-600">
-              Açık alım taleplerini ve satılık ilanları inceleyin, kapalı zarf
-              usulüyle teklif verin. Görmek için üyelik gerekmez.
-            </p>
-            <div className="mx-auto mt-8 max-w-2xl">
-              <SearchForm action={MARKETPLACE_ROUTES.demands} />
-            </div>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-              <Link
-                href={MARKETPLACE_ROUTES.demands}
-                className="inline-flex items-center gap-1 font-semibold text-zinc-900 hover:text-blue-700"
-              >
-                {MARKETPLACE_LABELS.demands}
-                {demands.total > 0 ? (
-                  <span className="text-zinc-500">
-                    ({demands.total.toLocaleString("tr-TR")})
-                  </span>
-                ) : null}
-                <ArrowRightIcon aria-hidden className="size-4" />
-              </Link>
-              <Link
-                href={MARKETPLACE_ROUTES.offers}
-                className="inline-flex items-center gap-1 font-semibold text-zinc-900 hover:text-blue-700"
-              >
-                {MARKETPLACE_LABELS.offers}
-                {offers.total > 0 ? (
-                  <span className="text-zinc-500">
-                    ({offers.total.toLocaleString("tr-TR")})
-                  </span>
-                ) : null}
-                <ArrowRightIcon aria-hidden className="size-4" />
-              </Link>
-              <Link
-                href={MARKETPLACE_ROUTES.companies}
-                className="inline-flex items-center gap-1 font-semibold text-zinc-900 hover:text-blue-700"
-              >
-                {MARKETPLACE_LABELS.companies}
-                <ArrowRightIcon aria-hidden className="size-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
+        <MarketplaceHero stats={heroStats(demands.total, offers.total)} />
 
         <SectionGrid
           heading={MARKETPLACE_LABELS.demands}
@@ -171,7 +122,9 @@ export default async function HomePage() {
           href={MARKETPLACE_ROUTES.demands}
           hrefLabel="Tüm talepler"
           listings={demands.items.slice(0, 6)}
-          emptyTitle="Şu an açık alım talebi yayımlanmamış."
+          emptyTitle="Şu an teklife açık bir alım talebi yok."
+          emptyHint="Yeni talepler yayımlandıkça burada görünür. Kendi talebinizi açmak için ücretsiz hesap yeterli."
+          emptyAction={{ label: "Talep aç", href: "/company/kayit" }}
         />
 
         <SectorGrid facets={facets} />
@@ -182,49 +135,12 @@ export default async function HomePage() {
           href={MARKETPLACE_ROUTES.offers}
           hrefLabel="Tüm ilanlar"
           listings={offers.items.slice(0, 6)}
-          emptyTitle="Şu an satılık ilan yayımlanmamış."
+          emptyTitle="Şu an satılık ilan yok."
+          emptyHint="Ürün ve hizmetlerinizi yayımlamak için ücretsiz hesap yeterli."
+          emptyAction={{ label: "İlan aç", href: "/company/kayit" }}
         />
 
-        {/* Nasıl çalışır — kısa; uzun anlatı /nasil-calisir'da. */}
-        <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-          <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-            Nasıl çalışır
-          </h2>
-          <ol className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {HOW_IT_WORKS.map((s, i) => (
-              <li
-                key={s.title}
-                className="rounded-2xl border border-zinc-200 bg-white p-6"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-full bg-zinc-950 text-sm font-semibold text-white">
-                    {i + 1}
-                  </span>
-                  <s.icon aria-hidden className="size-5 text-zinc-400" />
-                </div>
-                <h3 className="mt-4 text-base font-semibold text-zinc-950">
-                  {s.title}
-                </h3>
-                <p className="mt-2 text-sm/6 text-zinc-600">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Link
-              href="/company/kayit"
-              className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Ücretsiz kaydol
-            </Link>
-            <Link
-              href="/nasil-calisir"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-blue-700"
-            >
-              Ürünü ve paketleri incele
-              <ArrowRightIcon aria-hidden className="size-4" />
-            </Link>
-          </div>
-        </section>
+        <TrustBand />
       </main>
 
       <MarketplaceFooter />

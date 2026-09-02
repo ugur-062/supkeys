@@ -75,7 +75,7 @@ function SignInWall() {
         Açık alım talepleri ve satılık ilanlar üyelik olmadan görünür —{" "}
         <Link
           href={MARKETPLACE_ROUTES.demands}
-          className="font-medium text-blue-700 hover:underline"
+          className="font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
         >
           pazar yerine göz atın
         </Link>
@@ -196,7 +196,7 @@ export default async function Page({
                             aria-current={sp.il === c.city ? "true" : undefined}
                             className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
                               sp.il === c.city
-                                ? "bg-blue-50 font-medium text-blue-800"
+                                ? "bg-zinc-950 font-medium text-white"
                                 : "text-zinc-700 hover:bg-zinc-100"
                             }`}
                           >

@@ -1,3 +1,4 @@
+import { GridPattern } from "./grid-pattern";
 import { EmptyListings, ListingCard } from "./listing-card";
 import { Pagination } from "./pagination";
 import { SearchForm } from "./search-form";
@@ -63,6 +64,10 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
   const activeCategory = params.category;
   const activeCity = params.city;
   const hasFilter = !!(params.q || activeCategory || activeCity);
+  const showFacets =
+    page.items.length > 0 ||
+    hasFilter ||
+    facets.categories.length + facets.cities.length >= 4;
 
   /** Süzgeç bağlantısı — mevcut süzgeçleri korur, sayfayı 1'e döndürür. */
   const filterHref = (patch: Partial<MarketplaceSearchParams>) => {
@@ -80,24 +85,31 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 pt-28 pb-24 lg:px-8">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
-          {title}
-        </h1>
-        <p className="mt-3 max-w-2xl text-base/7 text-zinc-600">{lead}</p>
+    <>
+      {/* Başlık bandı KOYU: anasayfanın hero'suyla aynı dil, ayrıca süzgeç
+          alanını içerikten görsel olarak ayırıyor. Eskiden beyaz üstüne beyaz
+          duruyordu ve sayfanın nerede başladığı belli olmuyordu. */}
+      <header className="relative isolate overflow-hidden bg-zinc-950 px-6 pt-28 pb-12 lg:px-8">
+        <GridPattern id="index-grid" />
+        <div className="relative mx-auto max-w-7xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            {title}
+          </h1>
+          <p className="mt-3 max-w-2xl text-base/7 text-zinc-400">{lead}</p>
+          <div className="mt-7 max-w-3xl">
+            <SearchForm
+              action={basePath}
+              defaultValue={searchParams.q}
+              hidden={{ kategori: searchParams.kategori, il: searchParams.il }}
+              tone="dark"
+            />
+          </div>
+        </div>
       </header>
 
-      <div className="mt-8 max-w-3xl">
-        <SearchForm
-          action={basePath}
-          defaultValue={searchParams.q}
-          hidden={{ kategori: searchParams.kategori, il: searchParams.il }}
-        />
-      </div>
-
+      <div className="mx-auto max-w-7xl px-6 pt-8 pb-24 lg:px-8">
       {hasFilter ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-zinc-500">Süzgeçler:</span>
           {params.q ? (
             <FilterChip href={filterHref({ q: undefined })} label={`"${params.q}"`} />
@@ -116,15 +128,23 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
           ) : null}
           <Link
             href={basePath}
-            className="text-sm font-medium text-blue-700 hover:underline"
+            className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
           >
             Tümünü temizle
           </Link>
         </div>
       ) : null}
 
-      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[16rem_1fr]">
-        <aside className="lg:sticky lg:top-28 lg:self-start">
+      {/* Sonuç da süzgeç de yokken kenar çubuğu BASILMAZ: tek bir sektör
+          satırı taşıyan boş bir sütun, sayfayı doldurmaz — yarım kalmış
+          gösterir. O durumda boş-durum bandı tam genişlik alır. */}
+      <div
+        className={`mt-8 grid grid-cols-1 gap-10 ${
+          showFacets ? "lg:grid-cols-[16rem_1fr]" : ""
+        }`}
+      >
+        {showFacets ? (
+        <aside className="lg:sticky lg:top-24 lg:self-start">
           <FacetGroup
             heading="Sektör"
             items={facets.categories.slice(0, 12).map((c) => ({
@@ -146,13 +166,14 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
             }))}
           />
         </aside>
+        ) : null}
 
         <div>
-          <p className="mb-4 text-sm text-zinc-500">
-            {page.total > 0
-              ? `${page.total.toLocaleString("tr-TR")} kayıt`
-              : "Kayıt yok"}
-          </p>
+          {page.total > 0 ? (
+            <p className="mb-4 text-sm text-zinc-500">
+              {page.total.toLocaleString("tr-TR")} kayıt
+            </p>
+          ) : null}
           {page.items.length === 0 ? (
             <EmptyListings
               title={
@@ -164,6 +185,20 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
                 hasFilter
                   ? "Süzgeçleri gevşetip yeniden deneyin."
                   : "Yeni kayıtlar yayımlandıkça burada görünür."
+              }
+              action={
+                hasFilter
+                  ? { label: "Süzgeçleri temizle", href: basePath }
+                  : {
+                      label:
+                        type === "ALIM"
+                          ? "Satılık ilanlara bak"
+                          : "Alım taleplerine bak",
+                      href:
+                        type === "ALIM"
+                          ? MARKETPLACE_ROUTES.offers
+                          : MARKETPLACE_ROUTES.demands,
+                    }
               }
             />
           ) : (
@@ -187,7 +222,8 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -230,13 +266,15 @@ function FacetGroup({
               href={i.href}
               className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
                 i.active
-                  ? "bg-blue-50 font-medium text-blue-800"
+                  ? "bg-zinc-950 font-medium text-white"
                   : "text-zinc-700 hover:bg-zinc-100"
               }`}
               aria-current={i.active ? "true" : undefined}
             >
               <span className="line-clamp-1">{i.label}</span>
-              <span className="shrink-0 text-xs text-zinc-400">{i.count}</span>
+              <span className={`shrink-0 text-xs ${i.active ? "text-zinc-400" : "text-zinc-400"}`}>
+                {i.count}
+              </span>
             </Link>
           </li>
         ))}

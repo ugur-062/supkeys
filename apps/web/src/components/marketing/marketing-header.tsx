@@ -28,7 +28,6 @@ const navigation = [
       ]
     : []),
   { name: "Nasıl Çalışır", href: "/nasil-calisir" },
-  { name: "Fiyatlar", href: "/nasil-calisir#fiyatlar" },
 ];
 
 export function MarketingHeader() {
@@ -48,7 +47,7 @@ export function MarketingHeader() {
         aria-label="Global"
         className={`mx-auto flex items-center justify-between text-white transition-all duration-300 ease-out ${
           scrolled
-            ? "mt-3 max-w-3xl rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 shadow-2xl"
+            ? "mt-3 max-w-5xl rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 shadow-2xl"
             : "mt-4 max-w-6xl rounded-2xl border border-zinc-800 bg-zinc-950 px-6 py-3 shadow-lg"
         }`}
       >
@@ -68,12 +67,12 @@ export function MarketingHeader() {
             <Bars3Icon aria-hidden="true" className="size-6" />
           </button>
         </div>
-        <div className="hidden lg:flex lg:gap-x-6">
+        <div className="hidden lg:flex lg:gap-x-6 xl:gap-x-8">
           {navigation.map((item) => (
             <a
               key={item.name}
               href={item.href}
-              className="text-sm/6 font-medium text-zinc-300 transition hover:text-white"
+              className="text-sm/6 font-medium whitespace-nowrap text-zinc-300 transition hover:text-white"
             >
               {item.name}
             </a>
@@ -82,13 +81,13 @@ export function MarketingHeader() {
         <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-3">
           <Link
             href="/company/login"
-            className="text-sm/6 font-semibold text-white transition hover:text-zinc-300"
+            className="text-sm/6 font-semibold whitespace-nowrap text-white transition hover:text-zinc-300"
           >
             Giriş Yap
           </Link>
           <Link
             href="/company/kayit"
-            className="rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-200"
+            className="rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap text-zinc-950 shadow-sm transition hover:bg-zinc-200"
           >
             Kaydol
           </Link>
