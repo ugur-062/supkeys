@@ -388,6 +388,74 @@ const EMPTY_PRODUCTS: PublicProductPage = {
   pageSize: 24,
 };
 
+/* ------------------------------------------------------------------ */
+/* Ürün dizini (firmalar arası)                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Dizin kartı firma REFERANSI taşır — firma altı `PublicProductCard` taşımaz
+ * (orada firma zaten URL'de). İlan kartının tersi olduğu için tip de ayrı:
+ * ilan kartına yanlışlıkla firma eklenmesi derleme hatası vermeli.
+ */
+export interface ProductIndexCard extends PublicProductCard {
+  company: {
+    name: string;
+    slug: string;
+    city: string | null;
+    country: string | null;
+  };
+}
+
+export interface ProductIndexPage {
+  items: ProductIndexCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ProductFacets {
+  categories: { id: string; name: string; level: number; count: number }[];
+  cities: { city: string; count: number }[];
+  truncated: boolean;
+}
+
+export interface ProductListParams {
+  q?: string;
+  category?: string;
+  city?: string;
+  page?: number;
+}
+
+const EMPTY_PRODUCT_INDEX: ProductIndexPage = {
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: 24,
+};
+
+const EMPTY_PRODUCT_FACETS: ProductFacets = {
+  categories: [],
+  cities: [],
+  truncated: false,
+};
+
+export function fetchProducts(
+  params: ProductListParams = {},
+): Promise<ProductIndexPage> {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.category) sp.set("category", params.category);
+  if (params.city) sp.set("city", params.city);
+  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  const qs = sp.toString();
+  // Ürün kalıcı içerik — ilandan uzun önbellek (uçtaki `s-maxage` ile aynı).
+  return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300);
+}
+
+export function fetchProductFacets(): Promise<ProductFacets> {
+  return getJson("/public/products/facets", EMPTY_PRODUCT_FACETS, 600);
+}
+
 export function fetchCompanyProducts(
   companySlug: string,
   params: { q?: string; categoryId?: string; page?: number } = {},

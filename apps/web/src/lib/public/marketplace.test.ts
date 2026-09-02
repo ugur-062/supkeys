@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { PUBLIC_ROUTE_PREFIXES, isPublicRoute } from "../public-routes";
 import {
   MARKETPLACE_ROUTES,
+  categoryPath,
+  parseCategoryCode,
   isIndexableState,
   listingPath,
   listingSlug,
@@ -152,5 +154,29 @@ describe("yayın anahtarı kapsamı", () => {
         "MARKETPLACE_LIVE",
       );
     }
+  });
+});
+
+describe("ürün kategori yolu", () => {
+  it("kod ÖNDE — ayrıştırma tek regex'e iner", () => {
+    const p = categoryPath("39000000", "Elektrik Malzemeleri");
+    expect(p).toBe("/urunler/kategori/39000000-elektrik-malzemeleri");
+    expect(parseCategoryCode("39000000-elektrik-malzemeleri")).toBe("39000000");
+  });
+
+  it("adsız da geçerli bir yol üretir", () => {
+    expect(categoryPath("39000000")).toBe("/urunler/kategori/39000000");
+    expect(parseCategoryCode("39000000")).toBe("39000000");
+  });
+
+  it("ad KODLA BİTİYORSA bile doğru kodu okur", () => {
+    // Ad sonda olsaydı "…-39000000" ile biten bir ad yanlış kodu verirdi.
+    expect(parseCategoryCode("40000000-boru-39000000")).toBe("40000000");
+  });
+
+  it("kod olmayan yol reddedilir", () => {
+    expect(parseCategoryCode("elektrik")).toBeNull();
+    expect(parseCategoryCode("3900000")).toBeNull(); // 7 hane
+    expect(parseCategoryCode("")).toBeNull();
   });
 });

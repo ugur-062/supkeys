@@ -1,6 +1,11 @@
-import { MARKETPLACE_ROUTES, listingPath } from "@/lib/public/marketplace";
+import {
+  MARKETPLACE_ROUTES,
+  categoryPath,
+  listingPath,
+} from "@/lib/public/marketplace";
 import {
   fetchListingSitemap,
+  fetchProductFacets,
   fetchProductSitemap,
 } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -49,10 +54,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Yayın öncesi: sitemap BOŞ. Var olmayan (404 dönen) pazar yeri adreslerini
   // listelemek tarayıcıya yanlış bilgi vermek olurdu.
   if (!MARKETPLACE_LIVE) return [];
-  const [companies, listings, products] = await Promise.all([
+  const [companies, listings, products, productFacets] = await Promise.all([
     fetchCompanySlugs(),
     fetchListingSitemap(),
     fetchProductSitemap(),
+    fetchProductFacets(),
   ]);
 
   const now = new Date();
@@ -73,6 +79,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // MARKETPLACE_ROUTES.companies BURADA YOK: firma dizini giriş
       // gerektiriyor ve `noindex`. Tekil `/firma/<slug>` profilleri aşağıda
       // duruyor — onlar opt-in ve herkese açık kalmaya devam ediyor.
+      {
+        path: MARKETPLACE_ROUTES.products,
+        priority: 0.9,
+        changeFrequency: "daily" as const,
+      },
       {
         path: "/nasil-calisir",
         priority: 0.6,
@@ -129,9 +140,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // Kategori sayfaları: ürünü OLAN kategoriler (facet listesi). Boş kategori
+  // sitemap'e girmez — indekse değersiz sayfa göndermek alan adına zarar.
+  // URL kanonik etiketle AYNI fonksiyondan (`categoryPath`) üretilir; ayrı
+  // kurulsalardı Google ikisini de güvensiz sayardı.
+  const categoryRoutes: MetadataRoute.Sitemap = productFacets.categories.map(
+    (c) => ({
+      url: `${siteUrl}${categoryPath(c.id, c.name)}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+    }),
+  );
+
   return [
     ...hubs,
     ...legal,
+    ...categoryRoutes,
     ...listingRoutes,
     ...productRoutes,
     ...companyRoutes,

@@ -39,6 +39,7 @@ export const PUBLIC_ROUTE_PREFIXES = [
   // kırılır.
   "/alim-talepleri",
   "/satilik",
+  "/urunler", // firmalar-arası ürün dizini + kategori sayfaları
   "/talep",
   "/talep-onayla", // misafir talebi doğrulama (noindex, force-dynamic)
   "/ilan",

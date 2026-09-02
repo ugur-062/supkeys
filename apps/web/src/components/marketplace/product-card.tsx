@@ -14,9 +14,18 @@ import Link from "next/link";
  */
 export function ProductCard({
   companySlug,
+  companyName,
+  companyCity,
   product,
 }: {
   companySlug: string;
+  /**
+   * Yalnız DİZİNDE verilir. Firma sayfasındaki listede firma zaten bellidir;
+   * her kartta adını tekrarlamak gürültüdür. Dizinde ise zorunlu: hangi ürünün
+   * kimden geldiğini göstermeyen liste, tıklamadan karar verdirmez.
+   */
+  companyName?: string;
+  companyCity?: string | null;
   product: PublicProductCard;
 }) {
   const price = productPrice(product);
@@ -45,6 +54,15 @@ export function ProductCard({
             className="mt-0.5 size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
           />
         </div>
+
+        {companyName ? (
+          <p className="mt-1 truncate text-xs font-medium text-zinc-500">
+            {companyName}
+            {companyCity ? (
+              <span className="text-zinc-400"> · {companyCity}</span>
+            ) : null}
+          </p>
+        ) : null}
 
         {product.excerpt ? (
           <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-500">

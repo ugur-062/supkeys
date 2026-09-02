@@ -1,10 +1,15 @@
-import { EmptyListings, ListingCard } from "./listing-card";
-import type { PublicListingCard } from "@/lib/public/marketplace-api";
+import { EmptyListings } from "./listing-card";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 /**
- * Anasayfadaki "son kayıtlar" bölümü.
+ * Anasayfadaki "son kayıtlar" bölümü — İLAN ve ÜRÜN bölümleri ORTAK kullanır.
+ *
+ * Kartları `cards` olarak alır (kendi tipini bilmez): ilan kartı ile ürün
+ * kartı farklı veri taşır ama bölüm ÇERÇEVESİ aynı olmalı. İki ayrı bölüm
+ * bileşeni yazılsaydı biri "tümünü gör" bağlantısını başka yere koyar, öteki
+ * boş durumu farklı gösterirdi ve anasayfa iki farklı ritim konuşurdu.
  *
  * Envanter azken ızgara BOŞ HÜCRE bırakmasın diye sütun sayısı içerik
  * sayısıyla sınırlanır: tek kayıt tek sütunda, iki kayıt iki sütunda durur.
@@ -16,7 +21,7 @@ export function SectionGrid({
   lead,
   href,
   hrefLabel,
-  listings,
+  cards,
   emptyTitle,
   emptyHint,
   emptyAction,
@@ -25,15 +30,15 @@ export function SectionGrid({
   lead: string;
   href: string;
   hrefLabel: string;
-  listings: PublicListingCard[];
+  cards: ReactNode[];
   emptyTitle: string;
   emptyHint?: string;
   emptyAction?: { label: string; href: string };
 }) {
   const cols =
-    listings.length >= 3
+    cards.length >= 3
       ? "sm:grid-cols-2 lg:grid-cols-3"
-      : listings.length === 2
+      : cards.length === 2
         ? "sm:grid-cols-2"
         : "sm:max-w-sm";
 
@@ -46,7 +51,7 @@ export function SectionGrid({
           </h2>
           <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
         </div>
-        {listings.length > 0 ? (
+        {cards.length > 0 ? (
           <Link
             href={href}
             className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
@@ -57,18 +62,14 @@ export function SectionGrid({
         ) : null}
       </div>
       <div className="mt-8">
-        {listings.length === 0 ? (
+        {cards.length === 0 ? (
           <EmptyListings
             title={emptyTitle}
             hint={emptyHint}
             action={emptyAction}
           />
         ) : (
-          <div className={`grid grid-cols-1 gap-5 ${cols}`}>
-            {listings.map((l) => (
-              <ListingCard key={l.number} listing={l} />
-            ))}
-          </div>
+          <div className={`grid grid-cols-1 gap-5 ${cols}`}>{cards}</div>
         )}
       </div>
     </section>

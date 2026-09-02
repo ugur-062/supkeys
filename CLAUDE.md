@@ -197,7 +197,7 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Kategori nitelik çözümleyici | `common/company/category-attributes.ts` |
 | Kategori ata zinciri | `@rothern/shared` `helpers/category-code.ts` |
 | Public görsel yükleme | `common/company/public-image-upload.ts` |
-| Public profil kapısı | `common/company/public-profile-gate.ts` |
+| Public profil + ürün kapısı | `common/company/public-profile-gate.ts` (`hasPublicProfile`, `publicProductWhere`) |
 | Bağlantı geçerliliği | `common/company/valid-connection.ts` |
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
 | Kimlik yolunda Company select | `common/company/auth-company-select.ts` |
@@ -585,7 +585,9 @@ bir env kararıdır.
 | Rota | Ne | Render |
 |------|-----|--------|
 | `/` | pazar yeri anasayfası (envanter + arama + sektörler) | ○ statik, ISR 60sn |
-| `/alim-talepleri` · `/satilik` | ALIM/SATIS listeleri, süzgeçli | ƒ dinamik |
+| `/alim-talepleri` · `/satilik` | ALIM/SATIS listeleri, süzgeçli | ○ statik, ISR 60sn |
+| `/urunler` | ÜRÜN dizini (firmalar arası vitrin) | ○ statik, ISR 5dk |
+| `/urunler/kategori/<kod>-<ad>` | kategori kırılımı — long-tail | ● SSG, ISR 10dk |
 | `/tedarikciler` | firma dizini — **GİRİŞ GEREKTİRİR** | ƒ dinamik, `noindex` |
 | `/talep/<slug>` · `/ilan/<slug>` | tekil kayıt | ƒ dinamik, ISR 120sn |
 | `/nasil-calisir` | ESKİ pazarlama anasayfası (içerik birebir taşındı) | ○ statik, ISR 1sa |
@@ -605,6 +607,10 @@ uymaz. Tek kaynak `apps/web/src/lib/public/marketplace.ts`:
 |-------|-----------|-------|----------------|
 | ALIM | "Taleplerim" | "Açık Talepler" | **"Alım Talepleri"** |
 | SATIS | — | "Satış İlanlarım" | **"Satılık İlanlar"** |
+| ÜRÜN | — | "Ürünlerim" | **"Ürünler"** |
+
+**Ürün ≠ ilan.** İlan süreli bir işlemdir, ürün firmanın kalıcı vitrinidir;
+ziyaretçiye ikisine de "ilan" demek, kapanmayan bir kaydı süreli sandırır.
 
 ### İki kapı — vitrin ve indeks AYRI
 
@@ -681,13 +687,34 @@ ilanlarda tümden kaldırmak — kapıyı "görmek"ten "teklif vermek"e taşıma
 zaten BRONZ+/KYC istiyor — bunu da kapatır. Yayın öncesi verilecek karar,
 `docs/launch-checklist.md` § Pazar yeri açılışı.
 
-### Bilinen sınır
+### Ürün dizini — süzgeç YOLDA (2026-09-02)
 
-Süzgeçli liste sayfaları `searchParams` okuduğu için DİNAMİK; Next kendi
-`no-store`'unu middleware'den SONRA yazdığı için kenar önbelleğine giremiyor
-(`next.config` `headers()` de aynı sebeple çalışmaz — ölçüldü, middleware'de
-not var). Doğru çözüm başlık değil ROTA BİÇİMİ: süzgeci yol parçasına taşımak
-(`/alim-talepleri/kategori/<kod>`) o sayfaları statik yapar. Long-tail turunda.
+Ürün kategori süzgeci sorgu parametresi DEĞİL yol parçasıdır
+(`/urunler/kategori/39000000-elektrik-malzemeleri`). İki kazanç:
+
+- sayfa **statik üretilebiliyor** (`generateStaticParams`, facet listesinden —
+  yalnız ÜRÜNÜ OLAN kategoriler; 158 bin kategoriyi üretmek boş sayfa yığını
+  ve "ince içerik" cezası demekti),
+- her kategori **kendi indekslenebilir adresini** alıyor; long-tail'in tamamı
+  buradan geliyor.
+
+Kod ÖNDE (`<kod>-<ad>`) — ilan slug'ıyla aynı gerekçe: ayrıştırma tek regex'e
+iner, ad sonda olsaydı "…-39000000" ile biten bir kategori adı sessizce yanlış
+kodu verirdi. Kanonik olmayan yol **308** ile kanoniğe döner; sitemap ve
+kanonik etiket AYNI `categoryPath()`ten üretilir.
+
+**İlan listelerinde süzgeç hâlâ sorguda** — aynı dönüşüm oraya da yapılmalı
+(`/alim-talepleri/kategori/<kod>`). Desen artık kurulu, mekanik iş.
+
+### Ürün dizini kapısı
+
+`common/company/public-profile-gate.ts` `publicProductWhere()` — TEK KAYNAK.
+Üç çağıran: firma altı ürün listesi, ürün sitemap'i, firmalar-arası dizin.
+Kopyalansaydı ayrışması SESSİZ olurdu: paketi biten firmanın ürünü dizinde
+kalır, profili 404 döner — ziyaretçi çıkmaz bağlantıya tıklar.
+
+Dizin kartı **firma adını TAŞIR** (ilan kartının tersi). Sözleşme:
+`public-product-index.spec.ts`.
 
 ## Migration Durumu
 

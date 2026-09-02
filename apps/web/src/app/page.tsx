@@ -2,6 +2,8 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
 import { MarketplaceHero } from "@/components/marketplace/hero";
 import { TrustBand } from "@/components/marketplace/trust-band";
+import { ListingCard } from "@/components/marketplace/listing-card";
+import { ProductCard } from "@/components/marketplace/product-card";
 import { SectionGrid } from "@/components/marketplace/section-grid";
 import { SectorGrid } from "@/components/marketplace/sector-grid";
 import { serializeJsonLd } from "@/lib/json-ld";
@@ -9,7 +11,11 @@ import {
   MARKETPLACE_LABELS,
   MARKETPLACE_ROUTES,
 } from "@/lib/public/marketplace";
-import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
+import {
+  fetchFacets,
+  fetchListings,
+  fetchProducts,
+} from "@/lib/public/marketplace-api";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { ComingSoon } from "@/components/marketplace/coming-soon";
@@ -59,12 +65,13 @@ export default async function HomePage() {
   // istemiyor ve boşuna istek atmak build'i API'ye bağımlı yapardı.
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
 
-  // Üç çağrı paralel: biri düşerse diğerleri sayfayı taşımaya devam eder
+  // Dört çağrı paralel: biri düşerse diğerleri sayfayı taşımaya devam eder
   // (veri katmanı hata YUTAR ve boş döner — bkz. marketplace-api.ts).
-  const [demands, offers, facets] = await Promise.all([
+  const [demands, offers, facets, products] = await Promise.all([
     fetchListings({ type: "ALIM", page: 1 }),
     fetchListings({ type: "SATIS", page: 1 }),
     fetchFacets(),
+    fetchProducts({ page: 1 }),
   ]);
 
   const jsonLd = {
@@ -99,7 +106,9 @@ export default async function HomePage() {
           lead="Firmaların herkese açık yayımladığı, teklif bekleyen satın alma talepleri."
           href={MARKETPLACE_ROUTES.demands}
           hrefLabel="Tüm talepler"
-          listings={demands.items.slice(0, 6)}
+          cards={demands.items.slice(0, 6).map((l) => (
+            <ListingCard key={l.number} listing={l} />
+          ))}
           emptyTitle="Şu an teklife açık bir alım talebi yok."
           emptyHint="Yeni talepler yayımlandıkça burada görünür. Kendi talebinizi açmak için ücretsiz hesap yeterli."
           emptyAction={{ label: "Talep aç", href: "/company/kayit" }}
@@ -112,10 +121,31 @@ export default async function HomePage() {
           lead="Firmaların satışa açtığı ürün, malzeme ve hizmetler."
           href={MARKETPLACE_ROUTES.offers}
           hrefLabel="Tüm ilanlar"
-          listings={offers.items.slice(0, 6)}
+          cards={offers.items.slice(0, 6).map((l) => (
+            <ListingCard key={l.number} listing={l} />
+          ))}
           emptyTitle="Şu an satılık ilan yok."
           emptyHint="Ürün ve hizmetlerinizi yayımlamak için ücretsiz hesap yeterli."
           emptyAction={{ label: "İlan aç", href: "/company/kayit" }}
+        />
+
+        <SectionGrid
+          heading={MARKETPLACE_LABELS.products}
+          lead="Firmaların vitrinlerindeki ürünler — süreli bir ilan değil, kalıcı katalog."
+          href={MARKETPLACE_ROUTES.products}
+          hrefLabel="Tüm ürünler"
+          cards={products.items.slice(0, 6).map((p) => (
+            <ProductCard
+              key={`${p.company.slug}/${p.slug}`}
+              companySlug={p.company.slug}
+              companyName={p.company.name}
+              companyCity={p.company.city}
+              product={p}
+            />
+          ))}
+          emptyTitle="Şu an yayımlanmış ürün yok."
+          emptyHint="Firmalar vitrinlerini doldurdukça ürünler burada görünür."
+          emptyAction={{ label: "Vitrin aç", href: "/company/kayit" }}
         />
 
         <TrustBand />

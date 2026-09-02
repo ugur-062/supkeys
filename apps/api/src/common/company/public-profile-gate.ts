@@ -1,5 +1,6 @@
+import { Prisma } from "@rothern/db";
 import { tierAtLeast } from "@rothern/shared";
-import { effectiveTier } from "./effective-tier";
+import { anyPackageWhere, effectiveTier } from "./effective-tier";
 
 /**
  * `/firma/<slug>` HERKESE AÇIK PROFİL KAPISI — TEK KAYNAK.
@@ -31,4 +32,31 @@ export function hasPublicProfile(c: {
     !c.isBlocked &&
     tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ")
   );
+}
+
+/**
+ * HERKESE AÇIK ÜRÜN KAPISI (sorgu biçimi) — TEK KAYNAK.
+ *
+ * `hasPublicProfile`in ürün karşılığı: ürünün kendi yayın durumu VE sahibinin
+ * profil kapısı birlikte sağlanmalı. Üç çağıran var (firma altı ürün listesi,
+ * ürün sitemap'i, firmalar-arası ürün dizini) ve kopyalandığında ayrışması
+ * SESSİZ olur: paketi biten bir firmanın ürünü dizinde kalır ama profili 404
+ * döner, yani ziyaretçi çıkmaz bir bağlantıya tıklar.
+ *
+ * `slug: { not: null }` ŞART — slug yayında donar ama taslakta null olabilir;
+ * slug'sız ürünün URL'i kurulamaz.
+ */
+export function publicProductWhere(now: Date = new Date()): Prisma.CompanyItemWhereInput {
+  return {
+    isPublic: true,
+    isActive: true,
+    slug: { not: null },
+    company: {
+      publicEnabled: true,
+      isActive: true,
+      isBlocked: false,
+      slug: { not: null },
+      ...anyPackageWhere(now),
+    },
+  };
 }

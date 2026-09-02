@@ -24,6 +24,7 @@ const navigation = [
     ? [
         { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
         { name: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
+        { name: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
         { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
       ]
     : []),

@@ -5,7 +5,10 @@ import {
   toPublicProduct,
   toPublicProductCard,
 } from "./dto/public-product.projection";
-import { hasPublicProfile } from "../../common/company/public-profile-gate";
+import {
+  hasPublicProfile,
+  publicProductWhere,
+} from "../../common/company/public-profile-gate";
 import {
   labelAttributes,
   resolveCategoryAttributes,
@@ -127,10 +130,8 @@ export class PublicProfileService {
     const tokens = q?.q ? tokenizeQuery(q.q) : [];
 
     const where: Prisma.CompanyItemWhereInput = {
+      ...publicProductWhere(),
       companyId: company.id,
-      isPublic: true,
-      isActive: true,
-      slug: { not: null },
       ...(q?.categoryId && isCategoryCode(q.categoryId)
         ? // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik"
           // seçen ziyaretçi altındaki yaprakları da görür.
@@ -166,10 +167,9 @@ export class PublicProfileService {
     const company = await this.requirePublicCompany(slug);
     const row = await this.prisma.companyItem.findFirst({
       where: {
+        ...publicProductWhere(),
         companyId: company.id,
         slug: productSlug,
-        isPublic: true,
-        isActive: true,
       },
       select: PUBLIC_PRODUCT_SELECT,
     });
@@ -204,18 +204,7 @@ export class PublicProfileService {
    */
   async productSitemap() {
     const rows = await this.prisma.companyItem.findMany({
-      where: {
-        isPublic: true,
-        isActive: true,
-        slug: { not: null },
-        company: {
-          publicEnabled: true,
-          isActive: true,
-          isBlocked: false,
-          slug: { not: null },
-          ...anyPackageWhere(),
-        },
-      },
+      where: publicProductWhere(),
       select: {
         slug: true,
         updatedAt: true,

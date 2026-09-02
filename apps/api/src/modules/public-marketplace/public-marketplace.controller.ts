@@ -2,6 +2,7 @@ import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common
 import { Throttle } from "@nestjs/throttler";
 import { MarketplaceLiveGuard } from "../../common/http/marketplace-live.guard";
 import { PublicListQueryDto } from "./dto/public-list-query.dto";
+import { PublicProductQueryDto } from "./dto/public-product-query.dto";
 import { PublicMarketplaceService } from "./public-marketplace.service";
 
 /**
@@ -52,6 +53,27 @@ export class PublicMarketplaceController {
   @Header("Cache-Control", "public, max-age=0, s-maxage=900, stale-while-revalidate=3600")
   sitemap() {
     return this.service.sitemap();
+  }
+
+  /**
+   * ÜRÜN DİZİNİ — firmalar arası vitrin.
+   *
+   * İlan listesinden iki farkı var ve ikisi de bilinçli:
+   *  · kart FİRMA ADINI taşır (ürün = vitrin, ilan = işlem),
+   *  · `state` süzgeci yok — ürünün açık/kapalısı olmaz.
+   *
+   * Önbellek ilandan UZUN: ürün kalıcı içerik, dakikada bir değişmez.
+   */
+  @Get("products")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
+  products(@Query() q: PublicProductQueryDto) {
+    return this.service.listProducts(q);
+  }
+
+  @Get("products/facets")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=1800")
+  productFacets() {
+    return this.service.productFacets();
   }
 
   /**

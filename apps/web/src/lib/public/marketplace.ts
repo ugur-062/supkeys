@@ -30,6 +30,8 @@ import { slugifyText } from "@rothern/shared";
 export const MARKETPLACE_ROUTES = {
   /** ALIM ilanları listesi (satın alma talepleri). */
   demands: "/alim-talepleri",
+  /** Firmalar-arası ÜRÜN dizini (vitrin). */
+  products: "/urunler",
   /** SATIS ilanları listesi. */
   offers: "/satilik",
   /**
@@ -48,6 +50,12 @@ export const MARKETPLACE_ROUTES = {
 export const MARKETPLACE_LABELS = {
   demands: "Alım Talepleri",
   offers: "Satılık İlanlar",
+  /**
+   * ÜRÜN ≠ İLAN. İlan süreli bir işlemdir ("Satılık İlanlar"), ürün firmanın
+   * kalıcı vitrinidir. Ziyaretçiye "ilan" demek, kapanmayan bir kaydı süreli
+   * sanmasına yol açar.
+   */
+  products: "Ürünler",
   companies: "Firmalar",
   /** Tekil kayıt için başlık öneki (sayfa H1'inde değil, listelerde rozet). */
   demandOne: "Alım talebi",
@@ -137,4 +145,34 @@ export const STATE_LABEL: Record<PublicListingState, string> = {
  */
 export function isIndexableState(state: PublicListingState): boolean {
   return state === "open";
+}
+
+/* ------------------------------------------------------------------ */
+/* Ürün dizini — kategori yolu                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `/urunler/kategori/39000000-elektrik-malzemeleri`
+ *
+ * Süzgeç neden SORGU değil YOL: `?kategori=…` okuyan sayfa Next 15'te dinamik
+ * olmak zorunda ve kenar önbelleğine giremiyor. Yol parçası olduğunda sayfa
+ * STATİK üretilebiliyor ve her kategori kendi başına indekslenebilir bir
+ * adres kazanıyor — long-tail'in tamamı buradan geliyor.
+ *
+ * KOD ÖNDE, ilan slug'ıyla aynı gerekçe: ayrıştırma tek ve kayma ihtimali
+ * olmayan bir düzenli ifadeye iner. Ad sonda olsaydı "…-39000000" ile biten
+ * bir kategori adı sessizce yanlış kodu verirdi.
+ */
+const CATEGORY_CODE_RE = /^(\d{8})(?:-|$)/;
+
+export function categoryPath(code: string, name?: string): string {
+  const tail = name ? slugifyText(name) : "";
+  const slug = tail ? `${code}-${tail}` : code;
+  return `${MARKETPLACE_ROUTES.products}/kategori/${slug}`;
+}
+
+/** Yol parçasından kategori kodunu çıkarır. Geçersizse null. */
+export function parseCategoryCode(slug: string): string | null {
+  const m = CATEGORY_CODE_RE.exec(slug.trim());
+  return m ? m[1] : null;
 }
