@@ -655,6 +655,8 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  publicInquiries PublicInquiry[]
+
   @@index([tier, isActive, country])
   // Perf: admin KYC kuyruğu (where companyVerificationStatus) + groupBy.
   @@index([companyVerificationStatus])
@@ -830,6 +832,98 @@ enum ReferralInviteStatus {
  * kayıt olunca otomatik INVITE (kalıcı) bağlantı kurulur. Kayıtlı firmalar
  * doğrudan connect-by-referral / Rothern ID ile bağlanır (bu model değil).
  */
+/**
+ * MİSAFİR BİLGİ TALEBİ (Faz 1) — hesabı OLMAYAN ziyaretçinin ürün sayfasından
+ * gönderdiği talep.
+ *
+ * ── ÜÇ AŞAMALI, HER AŞAMA AYRI DAMGA ──────────────────────────────────────
+ *   1. oluşturuldu        → satıcıya HİÇBİR ŞEY gitmez
+ *   2. `verifiedAt`       → ziyaretçi e-postasını doğruladı, TALEP İLETİLİR
+ *   3. `claimedCompanyId` → ziyaretçi aynı e-postayla kaydoldu, talep hesabına
+ *                           bağlandı ve yanıtı okuyabilir
+ *
+ * Doğrulama kapısı spam'i yapısal olarak kapatır: sahte adres satıcıya
+ * hiçbir maliyet çıkarmaz çünkü doğrulanmadan iletim yok. Hız limitleri
+ * (IP/e-posta) bunun ÜSTÜNE gelir, yerine değil.
+ *
+ * ── SATICI ZİYARETÇİNİN E-POSTASINI GÖRMEZ ────────────────────────────────
+ * `email`/`phone` yalnız platformun kendi bildirimleri için. Satıcıya
+ * gösterilseydi doğrudan yazıp platformu atlar, döngü dışarı kaçardı — ve
+ * ziyaretçi kaydolmadığı için biz de ilişkiyi göremezdik.
+ *
+ * ── YANIT BİLDİRİMİ İÇERİK TAŞIMAZ ────────────────────────────────────────
+ * Satıcı yanıtlayınca ziyaretçiye giden e-posta yalnız "yanıt geldi, okumak
+ * için hesap açın" der. Yanıt metnini koysaydık kayıt teşviki buharlaşır ve
+ * platform ücretsiz bir e-posta rölesine dönerdi.
+ */
+model PublicInquiry {
+  id String @id @default(cuid())
+
+  // ── Hedef: şimdilik YALNIZ ürün ────────────────────────────────────────
+  // İlan sayfasında bilinçli olarak YOK: ilan sahibi anonim ve gelen yanıt
+  // kimliği açığa vururdu. İlanın doğru aksiyonu teklif vermek.
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productId String
+  product   CompanyItem @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // ── Ziyaretçi ──────────────────────────────────────────────────────────
+  name        String
+  email       String
+  companyName String?
+  /** Satıcıya GÖSTERİLMEZ (bkz. model notu). */
+  phone       String?
+  message     String
+  /** Serbest metin miktar beyanı ("500 adet") — yapılandırılmış alan değil. */
+  quantity    String?
+
+  // ── Doğrulama ──────────────────────────────────────────────────────────
+  /** Tek kullanımlık doğrulama jetonu (hash'lenmiş saklanır). */
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  verifiedAt DateTime?
+
+  /** Ziyaretçi aynı e-postayla kaydolunca bağlanır. */
+  claimedCompanyId String?
+  claimedAt        DateTime?
+
+  /** Kötüye kullanım incelemesi için — yanıtta ASLA dönmez. */
+  createdIp String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  replies PublicInquiryReply[]
+
+  // Satıcı panelinde "gelen talepler": yalnız doğrulanmışlar, yeni önce.
+  @@index([companyId, verifiedAt])
+  // Kayıt sırasında e-postayla eşleşen bekleyen talepleri bulmak için.
+  @@index([email])
+  @@index([productId])
+  @@map("public_inquiries")
+}
+
+/**
+ * Satıcının misafir talebine yanıtı.
+ *
+ * Ayrı tablo çünkü `MessageThread` firma↔firma: gönderenin hesabı yok.
+ * Ziyaretçi kaydolunca (`claimedCompanyId`) bu yanıtlar hesabına görünür olur.
+ */
+model PublicInquiryReply {
+  id        String        @id @default(cuid())
+  inquiryId String
+  inquiry   PublicInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  /** Yanıtı yazan satıcı kullanıcısı. */
+  authorId  String
+  body      String
+  /** Ziyaretçiye "yanıt geldi" bildirimi gönderildi mi (idempotency). */
+  notifiedAt DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([inquiryId])
+  @@map("public_inquiry_replies")
+}
+
 model CompanyReferralInvite {
   id               String  @id @default(cuid())
   inviterCompanyId String
@@ -1416,6 +1510,16 @@ model Listing {
   // company.publicListingsEnabled) — indekslenmeyen ilan sitede görünmeye
   // devam eder, sayfası `noindex` alır.
   publicIndexable          Boolean            @default(true)
+  /**
+   * Kart ve OG görseli. Sahibi seçmezse ilk kalemin ilk görselinden TÜRETİLİR;
+   * o da yoksa kategori görseline düşülür (`lib/public/category-visual.ts`).
+   * Ayrıca "bir de kapak seç" diye ekstra iş çıkarmıyoruz.
+   *
+   * ALIM'da opsiyonel, SATIS'ta yayın kapısında istenir — görsel asimetrisi:
+   * SATAN gösterir, ALAN tarif eder. Alıcı henüz sahip olmadığı 40 kalemi
+   * fotoğraflayamaz; zorunlu tutmak o talebi hiç yayımlanamaz hâle getirirdi.
+   */
+  coverImageUrl            String?
   // Kalem "hedef/istenen birim fiyat"ı (targetPrice) teklif verebilen karşı
   // tarafa gösterilsin mi? Varsayılan GİZLİ (opt-in) — açık göstermek fiyat
   // çıpalaması yaratır; sahip bilerek bütçe paylaşmak isterse açar.
@@ -1680,6 +1784,8 @@ model CompanyItem {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
+  publicInquiries PublicInquiry[]
+
   // Kod verilmişse firma içinde tekil (null'lar çakışmaz — Postgres davranışı).
   @@unique([companyId, code])
   // Slug da firma içinde tekil — URL çakışması olmasın.
@@ -1816,6 +1922,14 @@ model ListingItem {
    */
   hsCode             String?
   awardedQuantity    Decimal? @db.Decimal(18, 3) // kısmi kazandırmada verilen miktar
+  /**
+   * Kalem görselleri (R2 URL), ilki kapak. Görsel KALEME ait: çok kalemli bir
+   * ilanda her kalem farklı bir şeydir ve tek görsel on iki makineyi temsil
+   * edemez. İlan kapağı bunlardan türetilir.
+   *
+   * Tavan 4 — kalem listesi galeri değil; daha fazlası tabloyu boğar.
+   */
+  images             String[] @default([])
 
   bidItems  ListingBidItem[]
   questions ListingItemQuestion[]

@@ -58,6 +58,8 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
       {/* Görsel: kayıtta fotoğraf yoksa kategori görseli. Gri kutu YOK —
           envanterin çoğu ALIM ve alıcı fotoğraf yüklemiyor. */}
       <CategoryImage
+        src={listing.coverImageUrl}
+        alt={listing.title}
         categoryIds={listing.categories.map((c) => c.id)}
         className="border-b border-zinc-950/5"
       />

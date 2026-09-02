@@ -89,9 +89,11 @@ export const PUBLIC_LISTING_SELECT = {
   publishedAt: true,
   updatedAt: true,
   publicIndexable: true,
+  coverImageUrl: true,
   items: {
     select: {
       lineNo: true,
+      images: true,
       name: true,
       description: true,
       quantity: true,
@@ -142,6 +144,7 @@ export interface PublicListingCompany {
 
 export interface PublicListingItem {
   lineNo: number;
+  images: string[];
   name: string;
   description: string | null;
   quantity: string;
@@ -187,6 +190,11 @@ export interface PublicListing {
   closesAt: string | null;
   publishedAt: string | null;
   updatedAt: string;
+  /**
+   * Kart/OG görseli. Sahibi seçmediyse İLK KALEMİN ilk görselinden türetilir;
+   * o da yoksa `null` ve web tarafı kategori görseline düşer.
+   */
+  coverImageUrl: string | null;
   /** Arama motoru dizinlemesine sahip tarafından izin verildi mi. */
   indexable: boolean;
   itemCount: number;
@@ -210,6 +218,7 @@ export type PublicListingCard = Pick<
   | "itemCount"
   | "company"
   | "categories"
+  | "coverImageUrl"
 > & {
   /** İlk ~200 karakter — kart özeti; tam metin detayda. */
   excerpt: string | null;
@@ -226,6 +235,7 @@ export function toPublicItem(
 ): PublicListingItem {
   return {
     lineNo: i.lineNo,
+    images: i.images,
     name: i.name,
     description: i.description,
     quantity: i.quantity.toString(),
@@ -251,6 +261,23 @@ export function toPublicCompany(
     industry: c.industry,
     activities: c.activities,
   };
+}
+
+/**
+ * İlan kapağı — sahibinin seçtiği görsel, yoksa İLK KALEMİN ilk görseli.
+ *
+ * Türetme burada TEK KAYNAK: kart ve detay aynı sonucu vermeli, aksi hâlde
+ * ziyaretçi listede bir görsel görüp tıklayınca başkasını bulurdu.
+ */
+export function deriveCover(row: {
+  coverImageUrl: string | null;
+  items: { images: string[] }[];
+}): string | null {
+  if (row.coverImageUrl) return row.coverImageUrl;
+  for (const item of row.items) {
+    if (item.images.length > 0) return item.images[0];
+  }
+  return null;
 }
 
 export function excerptOf(description: string | null, max = 200): string | null {

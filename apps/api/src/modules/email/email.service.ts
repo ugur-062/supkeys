@@ -46,6 +46,11 @@ export const REDACTED_CONTEXT_TYPES = new Set([
   // 2026-08-23 Parça 4).
   "tender_external_invite",
   "company_user_invitation",
+  // Misafir bilgi talebi doğrulama jetonu (Faz 1): `?t=<token>` bağlantısı
+  // TEK KULLANIMLIK bir sırdır — okuyan, başkasının talebini onaylayıp
+  // satıcıya ilettirebilir (spam kapısını dışarıdan açar). tokenHash ile
+  // hash'lemenin amacı payload düz saklanırsa boşa çıkardı.
+  "public_inquiry_verify",
 ]);
 
 /**

@@ -197,11 +197,17 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
           </ol>
         </nav>
 
-        {/* Kategori görseli — ilan fotoğrafı gelene kadar (Faz 3b) sayfanın
-            görsel çıpası. Dar ve geniş: içeriği bastırmasın. */}
+        {/* Gerçek kapak varsa daha geniş oran (görsel içeriktir); yoksa
+            kategori görseli dar bir bant olarak durur ve metni bastırmaz. */}
         <CategoryImage
+          src={listing.coverImageUrl}
+          alt={listing.title}
           categoryIds={listing.categoryIds}
-          ratio="aspect-[6/1] sm:aspect-[8/1]"
+          ratio={
+            listing.coverImageUrl
+              ? "aspect-[16/6] sm:aspect-[16/5]"
+              : "aspect-[6/1] sm:aspect-[8/1]"
+          }
           className="mt-6 rounded-2xl ring-1 ring-zinc-950/5"
         />
 
@@ -275,6 +281,17 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                             {i.lineNo}
                           </td>
                           <td className="py-3 pr-3">
+                            <div className="flex items-start gap-3">
+                              {i.images.length > 0 ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={i.images[0]}
+                                  alt=""
+                                  loading="lazy"
+                                  className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-zinc-950/5"
+                                />
+                              ) : null}
+                              <div className="min-w-0">
                             <p className="font-medium text-zinc-900">{i.name}</p>
                             {i.description ? (
                               <p className="mt-1 text-xs text-zinc-500">
@@ -286,6 +303,8 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                                 {i.specification}
                               </p>
                             ) : null}
+                              </div>
+                            </div>
                           </td>
                           <td className="py-3 pr-3 whitespace-nowrap text-zinc-700">
                             {Number(i.quantity).toLocaleString("tr-TR")}{" "}

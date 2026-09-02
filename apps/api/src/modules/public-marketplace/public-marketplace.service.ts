@@ -11,6 +11,7 @@ import {
   type PublicListing,
   type PublicListingCard,
   type PublicListingRow,
+  deriveCover,
   excerptOf,
   toPublicCompany,
   toPublicItem,
@@ -63,6 +64,7 @@ export class PublicMarketplaceService {
       primaryCurrency: row.primaryCurrency,
       isInternational: row.isInternational,
       itemCount: row.items.length,
+      coverImageUrl: deriveCover(row),
       excerpt: excerptOf(row.description),
       buyNowPrice: row.buyNowPrice?.toString() ?? null,
       company: toPublicCompany(row.company),
@@ -106,6 +108,7 @@ export class PublicMarketplaceService {
       closesAt: row.closesAt?.toISOString() ?? null,
       publishedAt: row.publishedAt?.toISOString() ?? null,
       updatedAt: row.updatedAt.toISOString(),
+      coverImageUrl: deriveCover(row),
       // `marketplaceIndexableWhere` ile AYNI mantık: ilan bazlı izin ∧ hâlâ
       // teklife açık. Sahip izin vermiş olsa bile kapanmış ilan dizinlenmez.
       // Sayfa bunu okuyup `noindex` basar; sitemap zaten sorguda süzüyor.

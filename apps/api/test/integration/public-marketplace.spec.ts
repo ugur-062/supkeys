@@ -407,3 +407,52 @@ describe("yayın anahtarı — sunucu tarafı kapı", () => {
     expect(guard.canActivate()).toBe(true);
   });
 });
+
+describe("ilan kapağı — TÜRETİLİR", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("sahibi kapak seçtiyse o kullanılır", async () => {
+    const { listing } = await seedPublicListing({ coverImageUrl: "kapak.webp" });
+    const d = await service().getByNumber(listing.number as string);
+    expect(d.coverImageUrl).toBe("kapak.webp");
+  });
+
+  it("kapak yoksa İLK KALEMİN ilk görselinden türetilir", async () => {
+    // Sahibe "bir de kapak seç" diye ekstra iş çıkarmıyoruz.
+    const { listing } = await seedPublicListing();
+    const item = await prisma.listingItem.findFirstOrThrow({
+      where: { listingId: listing.id },
+    });
+    await prisma.listingItem.update({
+      where: { id: item.id },
+      data: { images: ["kalem-1.webp", "kalem-2.webp"] },
+    });
+    const d = await service().getByNumber(listing.number as string);
+    expect(d.coverImageUrl).toBe("kalem-1.webp");
+  });
+
+  it("görselsiz ilanda null döner — web kategori görseline düşer", async () => {
+    const { listing } = await seedPublicListing();
+    const d = await service().getByNumber(listing.number as string);
+    expect(d.coverImageUrl).toBeNull();
+  });
+
+  it("kart ve detay AYNI kapağı gösterir", async () => {
+    // Ayrışsalardı ziyaretçi listede bir görsel görüp tıklayınca başkasını
+    // bulurdu.
+    const { listing } = await seedPublicListing();
+    const item = await prisma.listingItem.findFirstOrThrow({
+      where: { listingId: listing.id },
+    });
+    await prisma.listingItem.update({
+      where: { id: item.id },
+      data: { images: ["ayni.webp"] },
+    });
+    const card = (await service().list({})).items[0];
+    const detail = await service().getByNumber(listing.number as string);
+    expect(card.coverImageUrl).toBe(detail.coverImageUrl);
+    expect(card.coverImageUrl).toBe("ayni.webp");
+  });
+});

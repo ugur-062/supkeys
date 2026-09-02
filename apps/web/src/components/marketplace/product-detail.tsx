@@ -1,6 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "./marketplace-footer";
 import { CategoryImage } from "./category-image";
+import { InquiryButton } from "./inquiry-button";
 import { Badge } from "@/components/catalyst/badge";
 import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
@@ -316,12 +317,14 @@ export function ProductDetail({
               ) : null}
 
               <div className="mt-5 border-t border-zinc-950/5 pt-5">
-                <Link
-                  href="/company/kayit"
-                  className="block rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  Teklif iste
-                </Link>
+                {/* Hesap SORMUYOR — misafir talebi. Kayıt yanıtı okumak için
+                    gerekiyor; kullanıcı o noktada zaten emek vermiş olur. */}
+                <InquiryButton
+                  companySlug={companySlug}
+                  productSlug={product.slug}
+                  productName={product.name}
+                  companyName={company.name}
+                />
                 <p className="mt-2 text-center text-xs text-zinc-500">
                   Hesabınız var mı?{" "}
                   <Link

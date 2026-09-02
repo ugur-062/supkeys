@@ -1,7 +1,6 @@
-import {
-  TONE_CLASS,
-  categoryVisual,
-} from "@/lib/public/category-visual";
+import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
+import { optimizable } from "@/lib/public/image-host";
+import Image from "next/image";
 
 /**
  * Kart görseli — gerçek fotoğraf varsa o, yoksa ÜRETİLMİŞ kategori görseli.
@@ -31,16 +30,28 @@ export function CategoryImage({
   if (src) {
     return (
       <div className={`relative overflow-hidden ${ratio} ${className}`}>
-        {/* `next/image` DEĞİL: `images.remotePatterns` yapılandırılmamış
-            (profil sayfası da aynı sebeple düz <img> kullanıyor). Faz 3c'de
-            cdn.rothern.com için yapılandırılacak. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          className="size-full object-cover"
-        />
+        {optimizable(src) ? (
+          // CDN host'u `next.config` `remotePatterns`te tanımlıysa optimize
+          // edilmiş sürüm: responsive srcset + lazy + boyut dönüşümü.
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover"
+          />
+        ) : (
+          // Tanımsız host (harici görsel, yapılandırılmamış ortam) →
+          // `next/image` REDDEDER. Düz <img> ile göstermek, görselin hiç
+          // görünmemesinden iyidir.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt}
+            loading="lazy"
+            className="size-full object-cover"
+          />
+        )}
       </div>
     );
   }

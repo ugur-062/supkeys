@@ -96,6 +96,20 @@ describe("public rota ⇔ render modu değişmezi", () => {
     expect(offenders).toEqual([]);
   });
 
+  /**
+   * İSTİSNA — public ama BİLİNÇLİ olarak dinamik.
+   *
+   * Değişmezin asıl kuralı tek yönlü: nonce'lı CSP alan rota statik OLAMAZ.
+   * Tersi (nonce'suz rota statik olmalı) bir ZORUNLULUK değil, SEO isteğiydi.
+   * Aşağıdaki rotalar nonce'suz CSP alır (anonim, çerez okumaz) ama statik
+   * üretilmemeleri gerekir — ve `noindex` oldukları için CDN önbelleğinden
+   * kaybedecekleri bir şey de yok.
+   */
+  const DYNAMIC_PUBLIC_EXCEPTIONS: Record<string, string> = {
+    "talep-onayla/page.tsx":
+      "Tek kullanımlık jetonu SUNUCUDA doğrulayıp talebi satıcıya ileten adım — önbelleklenemez, önceden üretilemez. noindex.",
+  };
+
   it("public segmentlerin hiçbir yerinde force-dynamic YOKTUR", () => {
     const offenders: string[] = [];
     for (const prefix of PUBLIC_ROUTE_PREFIXES) {
@@ -107,11 +121,21 @@ describe("public rota ⇔ render modu değişmezi", () => {
         continue; // henüz oluşturulmamış public rota
       }
       for (const file of files) {
+        const rel = path.relative(APP_DIR, file);
+        if (rel in DYNAMIC_PUBLIC_EXCEPTIONS) continue;
         if (FORCE_DYNAMIC.test(readIfExists(file) ?? "")) {
-          offenders.push(path.relative(APP_DIR, file));
+          offenders.push(rel);
         }
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("istisna listesindeki rotalar GERÇEKTEN force-dynamic (ölü istisna yok)", () => {
+    // İstisna kaldırıldığında listede unutulursa kural sessizce gevşer.
+    const stale = Object.keys(DYNAMIC_PUBLIC_EXCEPTIONS).filter(
+      (rel) => !FORCE_DYNAMIC.test(readIfExists(path.join(APP_DIR, rel)) ?? ""),
+    );
+    expect(stale).toEqual([]);
   });
 });

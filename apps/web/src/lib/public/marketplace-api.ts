@@ -41,6 +41,11 @@ export interface PublicListingCard {
   type: PublicListingType;
   title: string;
   status: string;
+  /**
+   * Kart/OG görseli. Sahibi seçmediyse ilk kalemin ilk görselinden TÜRETİLİR
+   * (backend); o da yoksa `null` ve kategori görseline düşülür.
+   */
+  coverImageUrl: string | null;
   closesAt: string | null;
   publishedAt: string | null;
   primaryCurrency: string;
@@ -54,6 +59,7 @@ export interface PublicListingCard {
 
 export interface PublicListingItem {
   lineNo: number;
+  images: string[];
   name: string;
   description: string | null;
   quantity: string;

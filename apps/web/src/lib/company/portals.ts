@@ -73,6 +73,10 @@ export const MODULE_LABELS = {
     // Faz 2 — ilandan AYRI: ilan süreli bir işlem, ürün kalıcı bir vitrin
     // kaydı. Aynı sözcükle anılsalardı kullanıcı hangisini açacağını bilemezdi.
     urunler: "Ürünlerim",
+    // Misafir ziyaretçilerin ürün sayfalarından gönderdiği sorular (Faz 1) —
+    // "mesaj" DEĞİL: mesajlaşma firma↔firma, bu kanalda gönderenin hesabı
+    // olmayabilir. Aynı sözcüğü kullanmak iki farklı akışı karıştırırdı.
+    bilgiTalepleri: "Bilgi Talepleri",
     acikIhaleler: "Açık Talepler",
     // C32: iki portalda aynı H1 ("Tekliflerim") ayırt edilemiyordu — satış
     // tarafı portal-önekli (Satış İlanlarım/Satışlarım deseniyle aynı).

@@ -27,6 +27,44 @@ const nextConfig: NextConfig = {
   // standalone çıktı @rothern/shared'i kopyalamıyor, symlink ile repo köküne
   // çözüyor → Docker imajında (monorepo yok) runtime'da modül bulunamıyordu.
   transpilePackages: ["@rothern/shared"],
+
+  /**
+   * GÖRSEL OPTİMİZASYONU (Faz 3c).
+   *
+   * Bugüne kadar her yerde düz `<img>` vardı çünkü `remotePatterns`
+   * tanımsızdı ve `next/image` yapılandırılmamış uzak host'u REDDEDİYOR.
+   * İki logo için sorun değildi; ürün kataloğu ve ilan görselleriyle birlikte
+   * yüzlerce görselli ızgaralar geldi — optimizasyon, responsive `srcset` ve
+   * lazy boyutlandırma olmadan mobilde ilk yükleme çöker.
+   *
+   * Host'lar ENV'DEN türetilir, elle yazılmaz: `R2_PUBLIC_BASE_URL` ortama
+   * göre değişiyor (cdn.rothern.com / pub-*.r2.dev / boş). Elle yazsaydık
+   * env değiştiğinde görseller sessizce 400 dönerdi.
+   *
+   * NOT: `pub-*.r2.dev` Türkiye'de engelli — görseller custom domain'den
+   * (cdn.rothern.com) servis edilmeli. Bu yüzden yapılandırma env'i olduğu
+   * gibi izler; r2.dev'e düşen bir kurulum ZATEN bozuktur ve görünür olmalı.
+   */
+  images: {
+    remotePatterns: [
+      process.env.NEXT_PUBLIC_CDN_URL ?? process.env.R2_PUBLIC_BASE_URL,
+    ]
+      .filter((v): v is string => !!v)
+      .flatMap((raw) => {
+        try {
+          const u = new URL(raw);
+          return [
+            {
+              protocol: u.protocol.replace(":", "") as "http" | "https",
+              hostname: u.hostname,
+            },
+          ];
+        } catch {
+          // Bozuk env → host eklenmez; görsel `<img>` yoluna düşer.
+          return [];
+        }
+      }),
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
