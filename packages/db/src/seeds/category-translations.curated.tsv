@@ -78,34 +78,34 @@
 50100000	Kuruyemiş ve tohumlar	Nuts and seeds
 50300000	Taze meyveler	Fresh fruits
 50310000	Organik taze meyveler	Organic fresh fruits
-50320000	Kuru meyveler	Dried fruit
-50330000	Organik kuru meyveler	Dried organic fruit
+50320000	Kurutulmuş meyveler	Dried fruit
+50330000	Kurutulmuş organik meyveler	Dried organic fruit
 50340000	Dondurulmuş meyveler	Frozen fruit
-50350000	Organik dondurulmuş meyveler	Frozen organic fruit
-50360000	Konserve veya kavanoz meyveler	Canned or jarred fruit
-50370000	Organik konserve veya kavanoz meyveler	Canned or jarred organic fruit
+50350000	Dondurulmuş organik meyveler	Frozen organic fruit
+50360000	Konserve meyveler	Canned or jarred fruit
+50370000	Konserve organik meyveler	Canned or jarred organic fruit
 50380000	Taze meyve püreleri	Fresh fruit purees
 50390000	Organik taze meyve püreleri	Organic fresh fruit purees
 50400000	Taze sebzeler	Fresh vegetables
 50410000	Organik taze sebzeler	Organic fresh vegetables
-50420000	Kuru sebzeler	Dried vegetables
-50430000	Organik kuru sebzeler	Dried organic vegetables
+50420000	Kurutulmuş sebzeler	Dried vegetables
+50430000	Kurutulmuş organik sebzeler	Dried organic vegetables
 50440000	Dondurulmuş sebzeler	Frozen vegetables
-50450000	Organik dondurulmuş sebzeler	Frozen organic vegetables
-50460000	Konserve veya kavanoz sebzeler	Canned or jarred vegetables
-50470000	Organik konserve veya kavanoz sebzeler	Canned or jarred organic vegetables
+50450000	Dondurulmuş organik sebzeler	Frozen organic vegetables
+50460000	Konserve sebzeler	Canned or jarred vegetables
+50470000	Konserve organik sebzeler	Canned or jarred organic vegetables
 50480000	Taze sebze püreleri	Fresh vegetable purees
 50490000	Organik taze sebze püreleri	Organic fresh vegetable purees
 50500000	Besin takviyeleri	Nutritional supplements
 50520000	GDO'suz taze meyveler	Non GMO fresh fruits
-50530000	GDO'suz kuru meyveler	Dried non GMO fruits
-50540000	GDO'suz dondurulmuş meyveler	Frozen non GMO fruits
-50550000	GDO'suz konserve veya kavanoz meyveler	Canned or jarred non GMO fruits
+50530000	Kurutulmuş GDO'suz meyveler	Dried non GMO fruits
+50540000	Dondurulmuş GDO'suz meyveler	Frozen non GMO fruits
+50550000	Konserve GDO'suz meyveler	Canned or jarred non GMO fruits
 50560000	GDO'suz taze meyve püreleri	Non GMO fresh fruit purees
 50580000	GDO'suz taze sebzeler	Non GMO fresh vegetables
-50590000	GDO'suz kuru sebzeler	Dried Non GMO vegetables
-50600000	GDO'suz dondurulmuş sebzeler	Frozen Non GMO vegetables
-50610000	GDO'suz konserve veya kavanoz sebzeler	Canned or jarred Non GMO vegetables
+50590000	Kurutulmuş GDO'suz sebzeler	Dried Non GMO vegetables
+50600000	Dondurulmuş GDO'suz sebzeler	Frozen Non GMO vegetables
+50610000	Konserve GDO'suz sebzeler	Canned or jarred Non GMO vegetables
 50620000	GDO'suz taze sebze püreleri	Non GMO fresh vegetable purees
 50630000	İşlenmiş taze sebzeler	Fresh vegetables processed
 51100000	Amebisitler, trikomonasitler ve antiprotozoaller	Amebicides and trichomonacides and antiprotozoals
