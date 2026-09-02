@@ -5608,3 +5608,90 @@
 12164801	Çimento su azaltıcı katkı	Cement water reducing agent
 12164802	Su ile şişen su tutucu madde	Water swelling or water stop agent
 12164803	Yapısal su itici	Structural water repellent
+
+# Polimerler, yakıtlar, yağlar, RF bileşenleri ve entegre devreler.
+13101608	Geri kazanılmış kauçuk	Reclaimed rubber
+13101725	Etilen propilen dien (EPDM)	Ethylene propylene diene EPDM
+13102031	Polifenilen eter (PPE)	Polyphenylene ether PPE
+13102032	Termoplastik poliolefin (TPO)	Thermoplastic polyolefin TPO
+13111075	Polikarbonat-ABS alaşımı (PC/ABS)	Polycarbonate acrylonitrile butadiene styrene alloy PC ABS
+13111076	Çapraz bağlı polietilen (PEX)	Cross linked polyethylene PEX
+13111080	Yüksek sıcaklık poliamit (HTN)	Polyamide high temperature nylon HTN
+13111082	Poliamid 6	Polyamide 6
+13111309	Poliüretan köpük	Polyurethane foam
+13111310	Etilen vinil asetat köpük	Ethylene vinyl acetate foam
+15101512	Petrol koku	Petroleum coke or pet coke
+15101513	Yol dışı dizel yakıt	Diesel fuel off road
+15101601	Yarı bitümlü kömür	Sub bituminous or weak coal
+15101609	Briket	Briquette
+15101610	Hindistan cevizi kabuğu kömürü	Coconut shell charcoal
+15101611	Antrasit (taş kömürü)	Anthracite or hard coal
+15101612	Metalurjik kömür	Metallurgical coal
+15101613	Ham kömür	Raw coal
+15101614	Enerji kömürü	Energy coal
+15101615	Odun yongası yakıt	Wood chip fuel
+15101616	Yakacak odun	Firewood
+15101617	Organik atık çamurundan yakıt	Fuel from organic waste sludge
+15101703	No.5 ağır fuel oil	No.5 Residual heavy fuel oil
+15101801	Biyodizel	Biodiesel
+15101802	Etanol	Ethanol
+15101803	Metanol	Methanol
+15101901	Rafine yağ	Refined oil
+15111512	Sıkıştırılmış doğal gaz (CNG)	Compressed natural gas CNG
+15111703	Yakıt bakım katkısı	Fuel treatment
+15111704	Yakıt temizleyici	Fuel cleaner
+15111705	Yakıt stabilizatörü	Fuel stabilizer
+15111706	Oktan arttırıcı	Octane boost
+15111707	Setan arttırıcı	Cetane boost
+15111708	Tetraetil kurşun	Tetraethyllead
+15111709	İşaretleyici ve boyar madde	Marker and dye
+15111711	Yakıt katkıları	Fuel additives
+15121505	Trafo yağı veya yalıtım yağı	Transformer oil or insulating oil
+15121528	Yangına dayanıklı hidrolik akışkan	Fire resistant hydraulic fluid
+15121529	Soğutma makinesi yağı	Refrigerating machine oil
+15121530	Isı transfer yağı	Heat transfer oil or fluid
+15121531	Yağ katkısı	Lubricant additive
+15121532	Sıvı reçine (kolofan)	Liquid rosin
+15121533	Rafine kolza yağı	Oil Refined Rapeseed
+15121534	Boyasız koruyucu kaplama	Non paint protective coating
+15121535	Akma noktası düşürücü	Pour ​​point depressant
+15121536	Molibden esaslı yağlayıcı	Molygear and Molykote
+15121807	Antifriz	Antifreeze
+15121905	Termal macun	Thermal grease
+15131602	Kullanılmış nükleer yakıt çubuğu	Spent or irradiated nuclear fuel rod
+32101529	Böleç (splitter)	Splitter
+32101530	RF birleştirici	Radio frequency RF combiner
+32101531	Zayıflatıcı ağ pedi	Attenuator network pad
+32101532	Seramik altlık	Ceramic substrate
+32101533	Çıkış transformatörü	Output transformer
+32101534	Dalga tuzağı	Wave trap
+32101535	Faz modülasyon devresi	Phase modulation circuit
+32101536	Faz dengesizliği ve güç faktörü kompanzatörü	Phase unbalance and power factor compensator
+32101537	Senkro tekrarlayıcı	Synchro repeater
+32101538	Empedans stabilizatörü	Impedance stabilizer
+32101539	Frekans seçici	Frequency selector
+32101540	Rezolver	Resolver
+32101541	Senkro verici	Synchro transmitter
+32101542	Senkro alıcı	Synchro receiver
+32101544	Frekans osilatörü	Frequency oscillator
+32101545	Anten bobini	Antenna coil
+32101546	Frekans çoklayıcı	Frequency multiplier
+32101547	Sınırlayıcı	Limiter
+32101548	Diskriminatör	Discriminator
+32101638	Uygulamaya özel entegre devre (ASIC)	Application specific integrated circuit
+32101641	Giriş seviyesi sayısal sinyal işlemci (DSP)	Low end digital signal processor DSP
+32101643	Programlanabilir lojik entegre devre	Programmable logic integrated circuit
+32101644	Üst seviye sayısal sinyal işlemci (DSP)	High end digital signal processor DSP
+32101646	NOR paralel flash bellek	NOR parallel flash memory
+32101647	NOR seri flash bellek	NOR serial flash memory
+32101648	NAND flash bellek	NAND flash memory
+32101649	Standart analog veya lineer entegre devre	Standard analog or linear integrated circuit
+32101650	Analog ses yükseltici entegre devre	Analog audio amplifier integrated circuit
+32101651	Dijital ses yükseltici entegre devre	Digital audio amplifier integrated circuit
+32101652	Standart lojik entegre devre	Standard logic integrated circuit
+32101653	Mikrodalga entegre devre	Microwave integrated circuit
+32101654	Veri yolu alıcı-verici entegre devre	Bus transceiver integrated circuit
+32101655	Uydu dijital radyo entegre devresi	Satellite digital audio radio service integrated circuit
+32101656	GPS entegre devresi	Global positioning system GPS integrated circuit
+32101657	Tuner entegre devresi	Tuner integrated circuit
+32101658	Grafik hızlandırıcı entegre devre	Graphics accelerator integrated circuit
