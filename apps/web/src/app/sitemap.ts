@@ -1,5 +1,8 @@
 import { MARKETPLACE_ROUTES, listingPath } from "@/lib/public/marketplace";
-import { fetchListingSitemap } from "@/lib/public/marketplace-api";
+import {
+  fetchListingSitemap,
+  fetchProductSitemap,
+} from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { resolveSiteUrl } from "@/lib/site-url";
@@ -46,9 +49,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Yayın öncesi: sitemap BOŞ. Var olmayan (404 dönen) pazar yeri adreslerini
   // listelemek tarayıcıya yanlış bilgi vermek olurdu.
   if (!MARKETPLACE_LIVE) return [];
-  const [companies, listings] = await Promise.all([
+  const [companies, listings, products] = await Promise.all([
     fetchCompanySlugs(),
     fetchListingSitemap(),
+    fetchProductSitemap(),
   ]);
 
   const now = new Date();
@@ -115,5 +119,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }));
 
-  return [...hubs, ...legal, ...listingRoutes, ...companyRoutes];
+  // Ürünler: firmanın altında yaşayan kalıcı içerik. İlanlardan farklı
+  // olarak süresi dolmuyor, bu yüzden `changeFrequency` daha seyrek ve
+  // öncelik daha yüksek — vitrinin asıl indekslenecek gövdesi burası.
+  const productRoutes: MetadataRoute.Sitemap = products.map((p) => ({
+    url: `${siteUrl}/firma/${p.companySlug}/urun/${p.slug}`,
+    lastModified: new Date(p.updatedAt),
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  return [
+    ...hubs,
+    ...legal,
+    ...listingRoutes,
+    ...productRoutes,
+    ...companyRoutes,
+  ];
 }

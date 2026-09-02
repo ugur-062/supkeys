@@ -134,6 +134,7 @@ describe("yayın anahtarı kapsamı", () => {
     "tedarikciler/page.tsx",
     "talep/[slug]/page.tsx",
     "ilan/[slug]/page.tsx",
+    "firma/[slug]/urun/[urunSlug]/page.tsx",
     "page.tsx", // anasayfa
   ];
 

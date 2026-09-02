@@ -312,3 +312,128 @@ export async function fetchDirectory(
     facets: facets ?? { cities: [], activities: [] },
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Ürün vitrini (Faz 2)                                                */
+/* ------------------------------------------------------------------ */
+
+export interface PriceTier {
+  minQty: number;
+  unitPrice: number;
+}
+
+export interface PublicProductCard {
+  slug: string;
+  name: string;
+  images: string[];
+  priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
+  priceAmount: string | null;
+  /** Kartta da var: kademeli fiyatlı ürün "teklif isteyin" göstermemeli. */
+  priceTiers: PriceTier[] | null;
+  priceCurrency: string;
+  moq: string | null;
+  unit: string;
+  categoryId: string | null;
+  excerpt: string | null;
+}
+
+export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
+  description: string | null;
+  specification: string | null;
+  brand: string | null;
+  mpn: string | null;
+  unitCode: string | null;
+  videoUrl: string | null;
+  externalUrl: string | null;
+  documents: { url: string; title: string }[] | null;
+  keywords: string[];
+  attributes: Record<string, string | string[]> | null;
+  /**
+   * Gösterim için ETİKETLENMİŞ nitelikler — ham `attributes` anahtarları
+   * ziyaretçiye gösterilmez ("koruma_sinifi" değil "Koruma sınıfı (IP)").
+   * Kategori tanımı bulunamayan anahtar bu listede YOKTUR.
+   */
+  attributeList: { key: string; label: string; value: string; unit: string | null }[];
+  publishedAt: string | null;
+  updatedAt: string;
+}
+
+export interface PublicProductCompany {
+  name: string;
+  slug: string | null;
+  city: string | null;
+  country: string | null;
+  logoUrl: string | null;
+  industry: string | null;
+  activities: string[];
+}
+
+export interface PublicProductPage {
+  items: PublicProductCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const EMPTY_PRODUCTS: PublicProductPage = {
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: 24,
+};
+
+export function fetchCompanyProducts(
+  companySlug: string,
+  params: { q?: string; categoryId?: string; page?: number } = {},
+): Promise<PublicProductPage> {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.categoryId) sp.set("categoryId", params.categoryId);
+  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  const qs = sp.toString();
+  return getJson(
+    `/public/companies/${encodeURIComponent(companySlug)}/products${qs ? `?${qs}` : ""}`,
+    EMPTY_PRODUCTS,
+    300,
+  );
+}
+
+/**
+ * Tekil ürün. `null` = yok/erişilemez → sayfa `notFound()` çağırır.
+ * Listede boş dönmek kabul edilebilir ama detayda "bulunamadı" 404 olmalı.
+ */
+export async function fetchProduct(
+  companySlug: string,
+  productSlug: string,
+): Promise<{ product: PublicProduct; company: PublicProductCompany } | null> {
+  const base = resolveApiBaseUrl();
+  if (!base) return null;
+  try {
+    const res = await fetch(
+      `${base}/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}`,
+      { next: { revalidate: 300 }, headers: { accept: "application/json" } },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as {
+      product: PublicProduct;
+      company: PublicProductCompany;
+    };
+  } catch (err) {
+    console.error(`[urun] ${companySlug}/${productSlug} çağrısı başarısız`, err);
+    return null;
+  }
+}
+
+export interface ProductSitemapRow {
+  companySlug: string;
+  slug: string;
+  updatedAt: string;
+}
+
+export function fetchProductSitemap(): Promise<ProductSitemapRow[]> {
+  return getJson<ProductSitemapRow[]>(
+    "/public/companies/products/sitemap",
+    [],
+    900,
+  );
+}

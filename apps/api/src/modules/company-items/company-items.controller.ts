@@ -13,14 +13,19 @@ import {
   IsBoolean,
   IsIn,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Max,
   MaxLength,
+  Min,
   MinLength,
   ArrayMaxSize,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { MAX_MONEY, UNITS } from "@rothern/shared";
+import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
@@ -30,6 +35,9 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import { CompanyItemsService } from "./company-items.service";
 
 const UNIT_CODES = UNITS.map((u) => u.code);
+// Para birimi TEK KAYNAK: Prisma `Currency` enum'ı. Elle liste yazmak
+// enum büyüdüğünde sessizce eskirdi.
+const CURRENCY_CODES = Object.values(Currency) as string[];
 
 class CatalogItemDto {
   @IsOptional() @Trim() @IsString() @MaxLength(50) code?: string;
@@ -44,6 +52,64 @@ class CatalogItemDto {
   @IsOptional() @Trim() @IsString() @MaxLength(100) mpn?: string;
   @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Max(MAX_MONEY)
   targetPrice?: number;
+}
+
+
+/** Kademeli fiyat satırı — miktar arttıkça birim fiyat düşer. */
+class PriceTierDto {
+  @IsNumber() @Min(1) @Max(1_000_000_000) minQty!: number;
+  @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_MONEY) unitPrice!: number;
+}
+
+class ProductDocDto {
+  @Trim() @IsString() @MaxLength(500) url!: string;
+  @Trim() @IsString() @MaxLength(200) title!: string;
+}
+
+/**
+ * Vitrin alanları. Temel kalem alanlarından (ad/birim/kod) AYRI uç:
+ * ikisi farklı ekranlarda düzenleniyor ve tek DTO'da toplamak, kalem
+ * düzenlerken vitrin alanlarının sessizce sıfırlanmasına yol açardı.
+ */
+class ShowcaseDto {
+  @IsOptional() @Trim() @IsString() @MaxLength(20) categoryId?: string;
+
+  /** İLKİ KAPAK. Tavan 8 — daha fazlası kart/galeri düzenini bozar. */
+  @IsOptional() @IsArray() @ArrayMaxSize(8)
+  @IsString({ each: true }) @MaxLength(500, { each: true })
+  images?: string[];
+
+  @IsOptional() @Trim() @IsString() @MaxLength(500) videoUrl?: string;
+  @IsOptional() @Trim() @IsString() @MaxLength(500) externalUrl?: string;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(5)
+  @ValidateNested({ each: true }) @Type(() => ProductDocDto)
+  documents?: ProductDocDto[];
+
+  /**
+   * 1-15 etiket. Üst sınır Europages ile aynı: daha fazlası etiket spamine
+   * dönüşüyor ve aramayı bozuyor.
+   */
+  @IsOptional() @IsArray() @ArrayMaxSize(15)
+  @IsString({ each: true }) @MaxLength(50, { each: true })
+  keywords?: string[];
+
+  /** Kategoriden MİRAS nitelikler; tanımsız anahtar serviste düşer. */
+  @IsOptional() @IsObject() attributes?: Record<string, unknown>;
+
+  @IsOptional() @IsIn(["FIXED", "TIERED", "ON_REQUEST"])
+  priceMode?: "FIXED" | "TIERED" | "ON_REQUEST";
+
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_MONEY)
+  priceAmount?: number;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(10)
+  @ValidateNested({ each: true }) @Type(() => PriceTierDto)
+  priceTiers?: PriceTierDto[];
+
+  @IsOptional() @IsIn(CURRENCY_CODES) priceCurrency?: string;
+
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) moq?: number;
 }
 
 class SetActiveDto {
@@ -86,6 +152,51 @@ export class CompanyItemsController {
       take: take ? Number.parseInt(take, 10) || undefined : undefined,
       skip: skip ? Number.parseInt(skip, 10) || undefined : undefined,
     });
+  }
+
+
+  /* ---------------------------------------------------------------- */
+  /* VİTRİN (Faz 2)                                                    */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Bir kategorinin ETKİN nitelik seti — ata zincirinden miras.
+   * Form kategori seçilir seçilmez bunu çağırır.
+   *
+   * ":id" rotalarından ÖNCE tanımlı olmalı (statik rota önceliği), aksi hâlde
+   * "attributes" bir kalem kimliği sanılırdı.
+   */
+  @Get("attributes/:categoryId")
+  attributes(@Param("categoryId") categoryId: string) {
+    return this.service.resolveAttributes(categoryId);
+  }
+
+  @Patch(":id/showcase")
+  @RequireCompanyPermission("templates:manage")
+  updateShowcase(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: ShowcaseDto,
+  ) {
+    return this.service.updateShowcase(user, id, dto);
+  }
+
+  @Post(":id/publish")
+  @RequireCompanyPermission("templates:manage")
+  publish(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.publish(user, id);
+  }
+
+  @Post(":id/unpublish")
+  @RequireCompanyPermission("templates:manage")
+  unpublish(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.unpublish(user, id);
   }
 
   @Post()

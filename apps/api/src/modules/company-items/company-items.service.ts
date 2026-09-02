@@ -3,8 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@rothern/db";
-import { foldSearchText, normalizeUnit, getUnit } from "@rothern/shared";
+import { Prisma, type Currency } from "@rothern/db";
+import { foldSearchText, getUnit, normalizeUnit, slugifyText } from "@rothern/shared";
+import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import {
+  productCompletion,
+  productPublishBlockers,
+  type ProductLike,
+} from "../../common/company/product-completion";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -13,6 +19,59 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 const MAX_CATALOG_ITEMS = 5000;
 /** Tek seferde kataloğa alınabilecek kalem sayısı (ihaleden içe aktarma). */
 const MAX_BULK_IMPORT = 200;
+
+/**
+ * Vitrin yanıtı — AÇIK tip. Prisma'nın `JsonValue` tipleri controller
+ * imzasına sızarsa TS "taşınabilir değil" diyor (TS2742); JSON alanları
+ * dışarıya `unknown` olarak veriliyor, istemci zaten kendi tipini biliyor.
+ */
+export interface ProductShowcase {
+  id: string;
+  name: string;
+  slug: string | null;
+  isPublic: boolean;
+  publishedAt: string | null;
+  categoryId: string | null;
+  description: string | null;
+  images: string[];
+  videoUrl: string | null;
+  externalUrl: string | null;
+  documents: unknown;
+  keywords: string[];
+  attributes: unknown;
+  priceMode: string;
+  priceAmount: string | null;
+  priceTiers: unknown;
+  priceCurrency: string;
+  moq: string | null;
+  completion: { score: number; missing: { key: string; label: string; points: number }[] };
+  publishBlockers: string[];
+  attributeDefs: {
+    key: string;
+    nameTr: string;
+    type: string;
+    options: string[];
+    unit: string | null;
+    isRequired: boolean;
+    definedAt: string;
+  }[];
+}
+
+/** Vitrin alanları — temel kalem alanlarından AYRI güncellenir. */
+export interface ShowcaseInput {
+  categoryId?: string | null;
+  images?: string[];
+  videoUrl?: string | null;
+  externalUrl?: string | null;
+  documents?: { url: string; title: string }[] | null;
+  keywords?: string[];
+  attributes?: Record<string, unknown>;
+  priceMode?: "FIXED" | "TIERED" | "ON_REQUEST";
+  priceAmount?: number | null;
+  priceTiers?: { minQty: number; unitPrice: number }[] | null;
+  priceCurrency?: string;
+  moq?: number | null;
+}
 
 export interface CatalogItemInput {
   code?: string | null;
@@ -284,6 +343,237 @@ export class CompanyItemsService {
     });
     if (!row) throw new NotFoundException("Katalog kalemi bulunamadı");
     return row;
+  }
+
+  /* ================================================================== */
+  /* VİTRİN (Faz 2) — kalemi herkese açık ÜRÜNE çeviren katman             */
+  /* ================================================================== */
+
+  /**
+   * Bir kategorinin ETKİN nitelik seti — ata zincirinden miras.
+   * Mantık `common/company/category-attributes.ts`de TEK KAYNAK; herkese açık
+   * ürün sayfası da aynı çözümleyiciden okuyor (panelde sorulan nitelik ile
+   * vitrinde gösterilen etiket ayrışmasın).
+   */
+  async resolveAttributes(categoryId: string | null | undefined) {
+    return resolveCategoryAttributes(this.prisma, categoryId);
+  }
+
+  /** Ürünün vitrin alanlarını günceller (görsel, fiyat, nitelik, etiket…). */
+  async updateShowcase(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    input: ShowcaseInput,
+  ) {
+    const before = await this.requireOwn(user.companyId, id);
+    const patch = await this.normalizeShowcase(before, input);
+    const row = await this.prisma.companyItem
+      .update({ where: { id }, data: patch })
+      .catch((e: unknown) => {
+        throw this.mapDuplicate(e, before.code);
+      });
+    void this.audit.log({
+      action: "company.product.updated",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_item",
+      entityId: id,
+      metadata: { name: row.name, isPublic: row.isPublic },
+    });
+    return this.serializeShowcase(row);
+  }
+
+  /**
+   * Vitrine çıkar. Kapı `productPublishBlockers` — TEK KAYNAK; skor kapı
+   * DEĞİL (gerekçe o dosyada).
+   */
+  async publish(user: AuthenticatedCompanyUser, id: string) {
+    const row = await this.requireOwn(user.companyId, id);
+    const blockers = productPublishBlockers(this.toProductLike(row));
+    if (blockers.length > 0) {
+      throw new BadRequestException(
+        `Yayımlanamadı — ${blockers.join(", ")}`,
+      );
+    }
+    const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug);
+    const updated = await this.prisma.companyItem.update({
+      where: { id },
+      data: { isPublic: true, publishedAt: row.publishedAt ?? new Date(), slug },
+    });
+    void this.audit.log({
+      action: "company.product.published",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_item",
+      entityId: id,
+      metadata: { name: updated.name, slug },
+    });
+    return this.serializeShowcase(updated);
+  }
+
+  /** Vitrinden çeker. Kayıt SİLİNMEZ; slug korunur (geri açılınca aynı URL). */
+  async unpublish(user: AuthenticatedCompanyUser, id: string) {
+    await this.requireOwn(user.companyId, id);
+    const updated = await this.prisma.companyItem.update({
+      where: { id },
+      data: { isPublic: false },
+    });
+    void this.audit.log({
+      action: "company.product.unpublished",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_item",
+      entityId: id,
+      metadata: { name: updated.name },
+    });
+    return this.serializeShowcase(updated);
+  }
+
+  /**
+   * Firma içinde tekil slug. Ad değişse bile MEVCUT slug korunur — yayımlanmış
+   * bir ürünün URL'ini başlık düzeltmesi yüzünden kırmak, gelen bağlantıyı ve
+   * arama motoru sıralamasını çöpe atmak demek.
+   */
+  private async ensureSlug(
+    companyId: string,
+    id: string,
+    name: string,
+    current: string | null,
+  ): Promise<string> {
+    if (current) return current;
+    const base = slugifyText(name) || "urun";
+    for (let i = 0; i < 100; i += 1) {
+      const candidate = i === 0 ? base : `${base}-${i + 1}`;
+      const clash = await this.prisma.companyItem.findFirst({
+        where: { companyId, slug: candidate, NOT: { id } },
+        select: { id: true },
+      });
+      if (!clash) return candidate;
+    }
+    // 100 denemede bulunamadıysa kayıt kimliğine düş — çakışma imkânsız.
+    return `${base}-${id.slice(-6)}`;
+  }
+
+  private async normalizeShowcase(
+    before: { categoryId: string | null },
+    input: ShowcaseInput,
+  ) {
+    const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
+    const keywords = [
+      ...new Set((input.keywords ?? []).map((k) => k.trim()).filter(Boolean)),
+    ];
+    const categoryId = input.categoryId?.trim() || before.categoryId;
+
+    // Nitelikler: yalnız o kategoride TANIMLI anahtarlar geçer. Tanımsız
+    // anahtar sessizce düşer — istemcinin uydurduğu alan veriyi kirletmesin.
+    const defs = await this.resolveAttributes(categoryId);
+    const allowed = new Set(defs.map((d) => d.key));
+    const attributes: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(input.attributes ?? {})) {
+      if (allowed.has(k) && v != null && v !== "") attributes[k] = v;
+    }
+
+    return {
+      ...(input.categoryId !== undefined ? { categoryId } : {}),
+      images,
+      keywords,
+      attributes:
+        Object.keys(attributes).length > 0
+          ? (attributes as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+      videoUrl: input.videoUrl?.trim() || null,
+      externalUrl: input.externalUrl?.trim() || null,
+      documents: input.documents ? (input.documents as Prisma.InputJsonValue) : Prisma.DbNull,
+      priceMode: input.priceMode ?? "ON_REQUEST",
+      priceAmount:
+        input.priceMode === "FIXED" && input.priceAmount != null
+          ? new Prisma.Decimal(input.priceAmount)
+          : null,
+      priceTiers:
+        input.priceMode === "TIERED" && input.priceTiers?.length
+          ? (input.priceTiers as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+      ...(input.priceCurrency
+        ? { priceCurrency: input.priceCurrency as Currency }
+        : {}),
+      moq: input.moq == null ? null : new Prisma.Decimal(input.moq),
+    };
+  }
+
+  private toProductLike(r: {
+    name: string;
+    categoryId: string | null;
+    description: string | null;
+    images: string[];
+    keywords: string[];
+    priceMode: string;
+    priceAmount: Prisma.Decimal | null;
+    priceTiers: Prisma.JsonValue | null;
+    moq: Prisma.Decimal | null;
+    attributes: Prisma.JsonValue | null;
+  }): ProductLike {
+    return {
+      name: r.name,
+      categoryId: r.categoryId,
+      description: r.description,
+      images: r.images,
+      keywords: r.keywords,
+      priceMode: r.priceMode as ProductLike["priceMode"],
+      priceAmount: r.priceAmount,
+      priceTiers: r.priceTiers,
+      moq: r.moq,
+      attributes: (r.attributes as Record<string, unknown> | null) ?? null,
+    };
+  }
+
+  private async serializeShowcase(r: Parameters<typeof this.toProductLike>[0] & {
+    id: string;
+    isPublic: boolean;
+    publishedAt: Date | null;
+    slug: string | null;
+    videoUrl: string | null;
+    externalUrl: string | null;
+    documents: Prisma.JsonValue | null;
+    priceCurrency: string;
+  }): Promise<ProductShowcase> {
+    const like = this.toProductLike(r);
+    const defs = await this.resolveAttributes(r.categoryId);
+    const completion = productCompletion(like, {
+      requiredAttributeKeys: defs.filter((d) => d.isRequired).map((d) => d.key),
+    });
+    // Skor DB'ye de yazılır (sıralama/rapor için); yanıt taze hesaptan döner.
+    void this.prisma.companyItem
+      .update({ where: { id: r.id }, data: { completionScore: completion.score } })
+      .catch(() => undefined);
+    return {
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      isPublic: r.isPublic,
+      publishedAt: r.publishedAt?.toISOString() ?? null,
+      categoryId: r.categoryId,
+      description: r.description,
+      images: r.images,
+      videoUrl: r.videoUrl,
+      externalUrl: r.externalUrl,
+      documents: r.documents,
+      keywords: r.keywords,
+      attributes: r.attributes,
+      priceMode: r.priceMode,
+      priceAmount: r.priceAmount?.toString() ?? null,
+      priceTiers: r.priceTiers,
+      priceCurrency: r.priceCurrency,
+      moq: r.moq?.toString() ?? null,
+      completion,
+      publishBlockers: productPublishBlockers(like),
+      attributeDefs: defs,
+    };
   }
 
   private async assertCapacity(companyId: string, adding: number) {

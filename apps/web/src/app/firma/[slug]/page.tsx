@@ -1,4 +1,5 @@
 import { CompanyProfileView } from "@/components/company/company-profile-view";
+import { CompanyProducts } from "@/components/marketplace/company-products";
 import type { ReviewSummary } from "@rothern/shared";
 import { serializeJsonLd } from "@/lib/json-ld";
 import type { Metadata } from "next";
@@ -201,6 +202,11 @@ export default async function PublicCompanyProfile({
             Bağlantı İsteği Gönder
           </Link>
         </section>
+
+        {/* Ürün portföyü — profil verisinden BAĞIMSIZ çekilir, ürünü olmayan
+            firmada hiç basılmaz. Vitrinin SEO omurgası burası: ilanlar süreli
+            ve azken ürünler kalıcı ve çoğalan içerik. */}
+        <CompanyProducts companySlug={p.slug ?? ""} />
 
         <CompanyProfileView profile={p} />
 

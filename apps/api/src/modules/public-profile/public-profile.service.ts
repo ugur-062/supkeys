@@ -1,4 +1,15 @@
+import { Prisma } from "@rothern/db";
+import { isCategoryCode, tokenizeQuery } from "@rothern/shared";
+import {
+  PUBLIC_PRODUCT_SELECT,
+  toPublicProduct,
+  toPublicProductCard,
+} from "./dto/public-product.projection";
 import { hasPublicProfile } from "../../common/company/public-profile-gate";
+import {
+  labelAttributes,
+  resolveCategoryAttributes,
+} from "../../common/company/category-attributes";
 import {
   REVIEW_SUMMARY_SELECT,
   REVIEW_SUMMARY_TAKE,
@@ -87,6 +98,169 @@ export class PublicProfileService {
       rating: { avg: reviewSummary.avg, count: reviewSummary.orders },
       reviewSummary,
     };
+  }
+
+
+  /* ================================================================== */
+  /* HERKESE AÇIK ÜRÜNLER (Faz 2)                                        */
+  /* ================================================================== */
+
+  /**
+   * Firmanın vitrindeki ürünleri.
+   *
+   * Kapı İKİ katmanlı ve ikisi de gerekli:
+   *   1. FİRMA public profil kapısından geçmeli (`hasPublicProfile`) — profil
+   *      sayfası yoksa ürün sayfasının bağlı olacağı bir gövde de yok.
+   *   2. ÜRÜN yayımlanmış olmalı (`isPublic`) — taslak sızmasın.
+   *
+   * Firma kapısı kapalıysa 404: "firma var ama ürünleri gizli" demek yerine
+   * hiç yokmuş gibi davranmak, opt-in olmayan firmanın varlığını bile
+   * duyurmamak demek.
+   */
+  async listPublicProducts(
+    slug: string,
+    q?: { q?: string; categoryId?: string; page?: number },
+  ) {
+    const company = await this.requirePublicCompany(slug);
+    const pageSize = 24;
+    const page = Math.max(1, q?.page ?? 1);
+    const tokens = q?.q ? tokenizeQuery(q.q) : [];
+
+    const where: Prisma.CompanyItemWhereInput = {
+      companyId: company.id,
+      isPublic: true,
+      isActive: true,
+      slug: { not: null },
+      ...(q?.categoryId && isCategoryCode(q.categoryId)
+        ? // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik"
+          // seçen ziyaretçi altındaki yaprakları da görür.
+          { categoryId: { startsWith: q.categoryId.replace(/0+$/, "") } }
+        : {}),
+      ...(tokens.length
+        ? { AND: tokens.map((t) => ({ searchText: { contains: t } })) }
+        : {}),
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.companyItem.count({ where }),
+      this.prisma.companyItem.findMany({
+        where,
+        select: PUBLIC_PRODUCT_SELECT,
+        // Tamamlanma skoru yüksek olan önce: eksiksiz ürün vitrinin yüzü.
+        orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items: rows.map(toPublicProductCard),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /** Tekil ürün — firma slug'ı + ürün slug'ı. */
+  async getPublicProduct(slug: string, productSlug: string) {
+    const company = await this.requirePublicCompany(slug);
+    const row = await this.prisma.companyItem.findFirst({
+      where: {
+        companyId: company.id,
+        slug: productSlug,
+        isPublic: true,
+        isActive: true,
+      },
+      select: PUBLIC_PRODUCT_SELECT,
+    });
+    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    // Nitelikler ETİKETLENEREK döner: ziyaretçiye ham anahtar
+    // ("koruma_sinifi") göstermek bir hata ekranı gibi okunur. Çözümleyici
+    // panelle AYNI kaynak — sorulan alanla gösterilen etiket ayrışamaz.
+    const attributeDefs = await resolveCategoryAttributes(
+      this.prisma,
+      row.categoryId,
+    );
+    return {
+      product: {
+        ...toPublicProduct(row),
+        attributeList: labelAttributes(row.attributes, attributeDefs),
+      },
+      company: {
+        name: company.name,
+        slug: company.slug,
+        city: company.city,
+        country: company.country,
+        logoUrl: company.logoUrl,
+        industry: company.industry,
+        activities: company.activities,
+      },
+    };
+  }
+
+  /**
+   * Ürün sitemap'i — YALNIZ dizinlenebilir olanlar.
+   * Firma kapısı + ürün yayımı; ikisi de sorguda.
+   */
+  async productSitemap() {
+    const rows = await this.prisma.companyItem.findMany({
+      where: {
+        isPublic: true,
+        isActive: true,
+        slug: { not: null },
+        company: {
+          publicEnabled: true,
+          isActive: true,
+          isBlocked: false,
+          slug: { not: null },
+          ...anyPackageWhere(),
+        },
+      },
+      select: {
+        slug: true,
+        updatedAt: true,
+        company: { select: { slug: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 45000,
+    });
+    return rows
+      .filter((r) => r.slug && r.company.slug)
+      .map((r) => ({
+        companySlug: r.company.slug as string,
+        slug: r.slug as string,
+        updatedAt: r.updatedAt.toISOString(),
+      }));
+  }
+
+  /**
+   * Public profil kapısından geçen firmayı getirir, geçmiyorsa 404.
+   * `getBySlug` ile AYNI kapı (`hasPublicProfile`) — ayrışırsa profili
+   * olmayan bir firmanın ürünleri görünür hâle gelirdi.
+   */
+  private async requirePublicCompany(slug: string) {
+    const c = await this.prisma.company.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        city: true,
+        country: true,
+        logoUrl: true,
+        industry: true,
+        activities: true,
+        publicEnabled: true,
+        isActive: true,
+        isBlocked: true,
+        tier: true,
+        membershipEndAt: true,
+      },
+    });
+    if (!c || !hasPublicProfile({ ...c, tier: c.tier as string })) {
+      throw new NotFoundException("Profil bulunamadı");
+    }
+    return c;
   }
 
   /** Sitemap için yayınlanmış public profillerin slug + son güncelleme. */
