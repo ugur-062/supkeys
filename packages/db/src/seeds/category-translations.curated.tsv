@@ -8479,3 +8479,218 @@
 24141521	Fümigasyon örtüsü	Fumigation sheet
 24141522	Halat koruyucuları	Rope protectors
 24141710	Etiket teli	Tag wire
+41101519	Laboratuvar hücre parçalayıcı	Laboratory cell disruptor
+41101520	Homojenizatör parça ve aksesuarları	Homogenizer parts and accessories
+41101708	Laboratuvar öğütücü veya parlatıcı	Laboratory grinder or polisher
+41101709	Laboratuvar asfalt ve beton karıştırıcı	Laboratory asphalt and concrete mixer
+41101710	Laboratuvar öğütücü veya toz haline getirici haznesi	Laboratory grinder or pulverizer pot
+41101711	Laboratuvar kesme ekipmanı	Laboratory cutting equipment
+41101811	Elektron probu röntgen mikroanalizörü	Electron probe x ray micro analyzer
+41101812	Parçacık hızlandırıcı	Particle accelerator
+41102427	Kurutma kulesi	Drying tower
+41102428	Emici kâğıt	Bibulous paper
+41102604	Laboratuvar hayvanı yakalama cihazı	Laboratory animal catching device
+41102609	Anestezi tabancası	Anaesthetic gun
+41102610	Araştırma testi için hayvan	Animal for research testing
+41102611	Araştırma hayvanı yemi ve diyeti	Research animal food and diet
+41102612	Araştırma hayvanı indüksiyon kabini	Research animal induction chamber
+41102613	Araştırma hayvanı fizyolojik test kiti	Research animal physiological test kit
+41102614	Araştırma hayvanı altlık malzemesi	Research animal bedding material
+41102923	Somatik hücre sayıcı	Somatic cell counter
+41102925	Histoloji formalin ve solvent dayanıklı kalıcı kalem	Histology formalin and solvent resistant permanent marker
+41102926	Histoloji doku kaseti haznesi	Histology tissue cassette hopper
+41102927	Histoloji doku işleme aleti	Histology tissue processing implement
+41102929	Histoloji ultrasonik temizleyici	Histology ultrasonic cleaner
+41102930	Sitoloji lam işleyici	Cytology slide processor
+41102931	Parafin dispenseri	Paraffin dispenser
+41103026	Tezgâh üstü buz kovası veya soğutma kabı	Benchtop ice bucket or chilling container
+41103027	Kan ünitesi saklama kılıfı	Blood unit storage boot
+41103028	Sıvı azot ölçüm çubuğu	Liquid nitrogen measuring stick
+41103029	Kriyojenik saklama çubuğu	Cryogenic storage cane
+41103030	Kriyojenik saklama torbası veya dış sargısı	Cryogenic storage bag or overwrap
+41103032	Kriyojenik tüp veya flakon kalıcı kalemi veya etiketi	Cryogenic tube or vial permanent marker or label
+41103033	Laboratuvar dewar kabı	Laboratory dewar flask
+41103034	Mikroorganizma kriyojenik saklama için kriyobead sistemi	Cryobead system for microbial organism cryogenic storage
+41103035	Taze donmuş plazma saklama kutusu veya çerçevesi	Fresh frozen plasma storage carton or frame
+41103036	Soğutmalı numune saklama rafı veya tepsisi	Refrigerated specimen storage rack or tray
+41103211	Laboratuvar atık su arıtma ekipmanı	Laboratory wastewater treatment equipment
+41103212	Laboratuvar cam malzeme temizleme fırçası	Lab glassware cleaning brush
+41103213	Laboratuvar yüzey ve cam malzeme dekontaminantı	Laboratory surface and glassware decontaminant
+41103214	Yüksek basınçlı temizleme ekipmanı	High pressure cleaning equipment
+41103319	Konsantrasyon ölçüm aleti	Concentration measurement instrument
+41103320	Yoğunluk ölçüm aleti	Density measurement instrument
+41103321	Yüzen cisim stabilite ölçüm cihazı	Floating body stability measurement apparatus
+41103322	Su çekimi göstergesi	Draft gauge
+41103323	Açık kanal akustik debimetre	Open channel acoustic flowmeter
+41103324	Laboratuvar dalga jeneratörü	Laboratory wave generator
+41103325	Görsel akışkan akış cihazı	Visual fluid flow apparatus
+41103326	Rüzgâr tüneli	Wind tunnel
+41103327	Akıntı ölçer	Current meter
+41103328	Vakumlu pipet aspiratör sistemi	Vacuum based pipette aspirator system
+41103416	Sıcaklık çevrim kabini	Temperature cycle chamber
+41103417	İç ortam hava kalitesi monitörü	Indoor air quality monitor
+41103418	Sıcaklık ve nem içine girilebilir iklim kabini	Temperature and humidity walk in environmental chamber
+41103419	Kirlilik iklim kabini	Pollution environmental chamber
+41103420	Ozon iklim kabini	Ozone environmental chamber
+41103421	Patlama iklim kabini	Explosion environmental chamber
+41103514	Laboratuvar buhar jeneratörü	Laboratory steam generator
+41103515	Laboratuvar gaz jeneratörü	Laboratory gas generator
+41103516	Kollu davlumbaz	Arm hood
+41103517	Biyogüvenlik kabini	Biological safety cabinet
+41103716	Kan bankası plazma çözme banyosu	Blood bank plasma thawing bath
+41103717	Doku kültürü banyosu	Tissue culture bath
+41103718	Histoloji doku dondurma banyosu	Histology tissue freezing bath
+41103817	Laboratuvar reaktörü	Laboratory reactor
+41103818	Mikroplaka çalkalayıcı	Microplate shaker
+41103820	Hidroişlem reaktörü iç aksamı	Hydroprocessing reactor internals
+41103914	Sitosantrifüj	Cytocentrifuge
+41103915	Sitosantrifüj hunisi veya filtre kartı veya klempi	Cytocentrifuge cytofunnel or filter card or clamp
+41103916	Santrifüj kontrol kartı veya baskılı devre kartı	Centrifuge control board or printed circuit board
+41103917	Santrifüj mikroplaka taşıyıcısı veya kapatma kapağı	Centrifuge microplate carrier or sealing lid
+41104021	Fraksiyon toplayıcı	Fraction collector
+41104022	Numune şekillendirici	Sample shaper
+41104118	Numune toplama kabı	Specimen collection container
+41104125	Histoloji veya patoloji koruyuculu numune kabı	Histology or pathology preservative specimen container
+41104126	Histoloji veya patoloji numune kabı	Histology or pathology specimen container
+41104127	Laboratuvar besleyici	Laboratory feeder
+41104128	Çubuksuz kültür numunesi toplayıcı	Culture specimen collector without swabs
+41104129	Yenidoğan metabolik hastalık tarama kartı	Neonatal metabolic disorder screen collection card
+41104130	Kan kültürü toplama kiti	Blood culture collection kit
+41104131	Kıl kurdu toplama paleti veya cihazı	Pinworm collection paddle or device
+41104132	Böbrek taşı için idrar süzgeci	Urine strainer for renal calculi
+41104133	Kordon kanı toplayıcı	Umbilical cord blood collector
+41104134	Tanı numunesi taşıyıcıları için soğutucu paket	Refrigerant pack for diagnostic specimen shippers
+41104135	Kanama zamanı insizyon cihazı ve emici kâğıt	Template bleeding time incision device and blotting paper
+41104136	Numune bırakma kutusu	Specimen drop box
+41104137	Arteriyel ve kapiller kan gazı toplama kiti	Arterial and capillary blood gas collection kit
+41104138	Kan alma iğnesi tutucuları	Blood collection needle holders
+41104139	Numune güvenliği için kurcalamaya karşı korumalı kap	Tamper proof container for specimen custody or security
+41104213	Distile veya deiyonize su	Distilled or deionized water
+41104214	Ters ozmoz ekipmanı parça ve aksesuarları	Reverse osmosis equipment parts and accessories
+41104309	Mikroaerofilik ortam kültür sistemi	Microaerophilic environmental culture system
+41104425	Karbondioksitli inkübatör	Carbon dioxide incubator
+41104426	Besiyeri hazırlama cihazı	Media preparation apparatus
+41104427	Trombosit inkübatörü	Platelet incubator
+41104513	Magnezyum ergitme fırını	Magnesium melt oven
+41104613	Laboratuvar sıcak presi	Laboratory hot press
+41104818	Yapılandırılmış dolgu	Structured packing
+41104819	Hücre hasat cihazı	Cell harvester
+41104820	Laboratuvar fraksiyonlu damıtma cihazı	Laboratory fractional distillation apparatus
+41104821	Statik numune konsantratörü	Static sample concentrator
+41104903	Laboratuvar ultrafiltrasyon ekipmanı	Laboratory ultrafiltration equipment
+41104931	Serum ayırıcı tüp filtresi	Serum separator tube filter
+41104932	Hücre süzgeci	Cell strainer
+41104933	Polimeraz zincir reaksiyonu PCR sistemi	Polymerase chain reaction (PCR) system
+41105206	İmmünohistokimya otomatik boyayıcı	Immunohistochemistry autostainer
+41105207	İmmünohistokimya otomatik boyayıcı aksesuarı	Immunohistochemistry autostainer accessory
+41105208	Laboratuvar boyama rafı ve tepsisi	Laboratory staining rack and tray
+41105209	Çok bölümlü manuel lam boyayıcı seti	Multidepartment manual slide stainer set
+41105340	Elektroforez sistemi	Electrophoresis system
+41105341	Otoradyografi filmi	Autoradiography film
+41105342	Agaroz jel elektroforezi kiti ve reaktifi	Kit and reagent for agarose gel electrophoresis
+41105343	Bant esaslı elektroforez kiti ve reaktifi	Kit and reagent for tape based electrophoresis
+41105344	Elektroforez numune aplikatörü veya bıçağı	Electrophoresis sample applicator or blade
+41105345	Protein jel boyası	Protein gel stain
+41105521	Deoksiribonükleik asit DNA tespit sistemi	Deoxyribonucleic acid DNA detection system
+41105522	Nükleik asit izolasyonu manyetik olmayan boncuklar	Nucleic acid isolation non magnetic beads
+41105909	Peptit sentezleyici	Peptide synthesizer
+41106224	Elektroporasyon sistemi	Electroporation system
+41106225	Bakteri için şişelenmiş sıvı besiyeri	Bottled broth media for bacteria
+41106226	Maya için şişelenmiş sıvı besiyeri	Bottled broth media for yeast
+41106227	Maya için özel plaka	Specialty plate for yeast
+41106228	Maya için şişelenmiş agar besiyeri	Bottled agar media or stabs for yeast
+41106229	Mikrobiyoloji için şişelenmiş serum fizyolojik veya su	Bottled saline or water for microbiology
+41106230	Tanımlama ve duyarlılık panelleri için inokulum sıvısı	Inoculum fluid for identification and sensitivity panels
+41106231	Ortam mikrobiyal varlığı için kontakt agar plağı	Contact agar plate for environmental microbial presence
+41106232	Otomatik mikrobiyal kültür plağı ekim cihazı	Automated microbial culture plate streaker
+41106233	Biyolistik parçacık iletim sistemi	Biolistic particle delivery system
+41106234	Penisilindir	Penicylinder
+41106315	Hasta başı PCR cihazı	Near patient PCR machine
+41106701	Yaprak alanı ölçer	Leaf area meter
+41106702	Fotosentez ölçüm cihazı	Photosynthesis measurement apparatus
+41106703	Bitki büyümesi ölçüm aleti veya oksanometre	Plant growth measuring instrument or auxanometer
+41106704	Klorofil ölçüm aleti	Chlorophyl measuring instrument
+41106705	Fitotron	Phytotron
+41106706	Minirizotron	Minirhizotron
+41106707	Bitki beslenmesi inceleme cihazı	Vegetation nutrition inspection device
+41106708	Bitki toplama cihazı seti	Plant collection device set
+41106709	Bitki kök basıncı ölçüm aletleri	Plant root pressure measuring instruments
+41106801	Temiz oda sertifikalı giysi	Cleanroom certified apparel
+41106802	Temiz oda sertifikalı ayakkabı	Cleanroom certified footwear
+41106803	Temiz oda yapışkan zemin matları	Cleanroom tacky floor mats
+41111519	Vinç kantarı	Crane scale
+41111520	Konveyör tartım kantarı	Conveyor weighting scale
+41111521	Termogravimetre	Thermogravimeter
+41111522	Hazne kantarı	Hopper scale
+41111523	Ağırlık prototipi	Weight prototype
+41111524	Fiyat gösterge terazisi	Price indicating scale
+41111525	Otomatik paketleme kantarı	Automatic packer scale
+41111526	Otomatik seçici terazi	Automatic selective scale
+41111527	Ev tipi bagaj tartısı	Domestic luggage scale
+41111528	Bagaj veya kargo kantarı	Baggage or cargo scale
+41111529	Elektronik tartı	Electronic weight scale
+41111624	Aleksometre	Alexometer
+41111625	Kurvimetre	Curvimeter
+41111626	Mastar bloğu	Gauge block
+41111627	V bloğu	Vee block
+41111628	Tel metresi	Wire meter
+41111629	Kablo uzantılı doğrusal konum sensörü	Cable or wire extension linear position sensor
+41111630	Komparatör saati	Dial indicator or dial gauge
+41111631	Radyüs mastarı	Radius gauge
+41111632	Silindir mastarı	Cylinder gauge
+41111633	Hava mikrometresi	Air micrometer
+41111634	Elektrikli mikrometre	Electrical micrometer
+41111635	Mastar bloğu komparatörü	Gage block comparator
+41111636	Silindir çapı ölçüm ekipmanı	Cylinder diameter measuring equipment
+41111637	Konik kap test cihazı	Conical cup tester
+41111638	Sigara çevresi test cihazı	Cigarette circumference tester
+41111639	Vida tapa mastarı ve yıldız yuva	Screw plug gauge and cross recess
+41111640	Kaynak mastarı	Welding gauge
+41111641	Diş adımı mastarı	Thread pitch gauge
+41111642	Ray birleşim boşluğu mastarı	Rail joint gap gauge
+41111643	Tel mastarı	Wire gauge
+41111644	Pim mastarı	Pin gauge
+41111645	Sinüs çubuğu	Sine bar
+41111646	Teleskopik mastar	Telescoping gauge
+41111647	Delik mastarı	Hole gauge
+41111648	Konik mastar	Taper gauge
+41111649	Lastik diş derinliği ölçer	Tire depth gauge
+41111650	Matkap mastarı	Drill gauge
+41111651	Katetometre	Cathetometer
+41111652	Kompresometre	Compressometer
+41111740	Otomatik optik muayene sistemi	Automated optical inspection system
+41111741	Mikroskop diferansiyel girişim kontrast ekipmanı	Microscope differential interference contrast equipment
+41111742	Periskop veya koruma skobu	Periscope or protectorscope
+41111743	Otokolimatör	Autocollimator
+41111744	Mikroskobik mikrometre	Microscopic micrometer
+41111745	Mikromanipülatör	Micromanipulator
+41111746	Optik kaldıraç	Optical lever
+41111747	Endüstriyel fiberskop	Industrial fiberscope
+41111748	Multimedya görüntü mikroskobu	Multimedia image microscope
+41111749	Faz kontrast mikroskobu	Phase contrast microscope
+41111750	Mikroskop titreşim önleyici mat veya masa	Microscope anti vibration mat or table
+41111751	Mikroskop floresan filtresi	Microscope fluorescence filter
+41111752	Mikroskop filtre küpü veya kutusu	Microscope filter cube or box
+41111753	Manuel mikroskop revolveri	Manual microscope nosepiece
+41111754	Motorlu mikroskop revolveri	Motorized microscope nosepiece
+41111755	Mikroskop düğmesi	Microscope knob
+41111756	Mikroskop taban ünitesi	Microscope base unit
+41111757	Mikroskop başlığı	Microscope head
+41111758	Mikroskop gövdesi	Microscope body
+41111760	Mikroskop numune hareket sistemi ve aksesuarları	Microscope sample manipulation system and accessories
+41111761	Geçirimli elektron mikroskobu TEM ızgarası veya destek filmi	Transmission electron microscopy TEM grid or support film
+41111762	Geçirimli elektron mikroskobu TEM ızgarası saklama kutusu	Transmission electron microscopy TEM grid storage box
+41111763	Mikroskop temizleme kiti	Microscope cleaning kit
+41111764	Mikroskop bağlantı parçası	Microscope fitting
+41111765	Mikroskop tabla lam klipsi	Microscope stage slide clip
+41111766	El tipi dijital mikroskop	Handheld digital microscope
+41111767	Mikroskop tabla ısıtma sistemi veya inkübatörü	Microscope stage warming system or incubator and accessories
+41111768	Işıklı kutu aglütinasyon okuyucusu	Lighted box agglutination viewer
+41111769	Işıklı aynalı aglütinasyon okuyucusu	Lighted mirror agglutination viewer
+41111770	Mikroskop işaretleyicisi	Microscope pointer
+41111771	LCR metre	LCR meter
+41111810	Sıcak test ekipmanı istasyonu	Hot testing equipment station
+41111811	Soğuk test ekipmanı istasyonu	Cold testing equipment station
+41111812	Gama ışını radyografi muayene ekipmanı	Gamma ray radiography examination equipment
+41111813	Endüstriyel radyograf inceleme negatoskopu	Industrial radiograph viewing illuminator
+41111814	Nötron radyografi muayene ekipmanı	Neutron radiography examination equipment
