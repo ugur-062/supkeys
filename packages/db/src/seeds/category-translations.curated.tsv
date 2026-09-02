@@ -10785,3 +10785,193 @@
 81162104	Hizmet olarak platform yazılım bileşenleri	Platform software components as a service
 81162201	Hizmet olarak bulut yedekleme	Cloud backup as a service
 81162202	Hizmet olarak bulut depolama	Cloud storage as a service
+81162203	Hizmet olarak bulut güvenlik duvarları	Cloud firewalls as a service
+81162204	Hizmet olarak bulut ağ cihazları	Cloud network devices as a service
+81162301	Hizmet olarak borç hesapları süreci	Accounts payable process as a service
+81162302	Hizmet olarak veri analitiği süreci	Data analytics process as a service
+81162303	Hizmet olarak içerik yönetimi süreci	Content management process as a service
+81162304	Hizmet olarak masraf yönetimi süreci	Expense management process as a service
+81162305	Hizmet olarak risk yönetimi süreci	Risk management process as a service
+81162306	Hizmet olarak yardım masası süreci	Help desk process as a service
+81162307	Hizmet olarak insan kaynakları yönetimi süreci	Human resource management process as a service
+81162308	Hizmet olarak eğitim süreci	Training process as a service
+81162309	Hizmet olarak bordro süreci	Payroll process as a service
+81162310	Hizmet olarak satın alma süreci	Procurement process as a service
+81171501	Deniz biyolojisi danışmanlık hizmeti	Marine biology consultation service
+81171601	Su ekolojisi hizmeti	Aquatic ecology service
+81171701	Bahçe bitkileri bilimi hizmeti	Horticultural science service
+81171702	Ağaç bilimi hizmeti	Arboricultural science service
+81171801	Tarım bilimi danışmanlık hizmeti	Agricultural science consultation service
+81171901	Hava kalitesi bilimi hizmeti	Air quality science service
+71101603	Maden sondaj kuyusu açma hizmeti	Mine bore hole drilling service
+71101604	Eğimli kuyu yapım hizmeti	Slope shaft construction service
+71101605	Maden yatay sondaj hizmeti	Mine horizontal drilling service
+71101606	Yeraltı tahkimat kurulum hizmeti	Underground seal installation service
+71101607	Yeraltı tavan yapım hizmeti	Underground roofing construction service
+71101608	Bunker yapım hizmeti	Bunker construction service
+71101609	Yeraltı havalandırma yapım hizmeti	Underground ventilation construction service
+71101710	Maden makinesi kiralama hizmeti	Mine machinery rental or leasing service
+71112124	Elektrikli tel hat açık kuyu hizmetleri	Electric wireline open hole services
+71112125	Elektrikli tel hat operasyon üssü ve lojistiği	Electric wireline operation base and logistics
+71121124	Sürekli boru ve stimülasyon hizmeti	Coiled tubing and stimulation service
+71121206	Karot analiz hizmeti	Core analysis service
+71121310	Kuyu ağzı emniyet vanası BOP kiralama	Blow out preventer BOP rental
+71121311	Kalıcı kuyu içi ölçer hizmeti	Permanent downhole gauges service
+71121312	Sondaj aleti kiralama hizmeti	Drilling tool rental service
+71121409	PDC matkap ucu kiralama	PDC drill bit rental
+71121411	Doğal veya emprenye elmas matkap ucu kiralama	Nat diamond/impregnated drill bit rental
+71121517	Varlık bütünlüğü yönetim hizmetleri	Asset integrity management services
+71121518	Kuyu sahası jeoloji hizmetleri	Well site geology services
+71121519	Jeoloji operasyon hizmetleri	Geology operations services
+71121638	Kuyu sondaj borusu temizleme hizmeti	Well drilling pipe cleaning service
+71121641	Döner yönlendirilebilir yönlü sondaj hizmeti	Rotary steerable directional drilling service
+71121642	Sondaj optimizasyon hizmetleri	Drilling optimization services
+71121643	Yönlü sondaj türbini	Directional drilling turbine
+71121644	Yönlü sondaj kuyu dibi takımı	Directional drilling bottom hole assembly
+71121645	Yönlü sondaj entegre hizmet paketleri	Directional drilling integrated service packages
+71121646	Lojistik üs hizmetleri	Logistics base services
+71121647	Açık deniz denge altı sondaj hizmetleri	Offshore underbalanced drilling services
+71121648	Denge altı sondaj hizmetleri	Underbalanced drilling services
+71121649	Kondüktör boru hizmeti	Conductor service
+71121650	Açık deniz muhafaza veya üretim borusu hizmeti	Offshore casing/tubing service
+71121652	Petrol kuyusu üretim ağacı hizmetleri	Oil well christmas trees services
+71121653	Yönlü sondaj maddi olmayan maliyetleri	Directional drilling intangible costs
+71121654	Yönlü sondaj insan gücü hizmeti	Directional drilling manpower service
+71121655	Yönlü sondaj motor hizmeti	Directional drilling motor service
+71121656	Sondaj sırasında ölçüm	Measurement-while-drilling
+71121657	Sondaj sırasında loglama	Logging while drilling
+71121658	Yönlü sondaj sirkülasyon kaybı	Directional drilling lost circulation
+71121707	Balıklama ve frezeleme hizmetleri	Fishing and milling services
+71121708	Üretim borusu içi balıklama ve frezeleme hizmetleri	Fishing and milling thru tubing services
+71121905	Sıvı atık yönetim hizmeti	Fluid waste management service
+71122309	Deniz altı kuyu üretim ekipmanı izleme ve muayene hizmeti	Subsea well production equipment monitoring and inspection service
+71122310	Deniz altı kuyu proje yönetimi ve mühendislik hizmeti	Subsea well project management and engineering service
+71122311	Deniz altı kuyu ön mühendislik tasarım hizmeti FEED	Subsea well project front end engineering design service FEED
+71122312	Deniz altı ekipman kurulum ve müdahale aracı hizmeti	Subsea equipment installation and intervention tool service
+71122313	Deniz altı taş dolgu hizmeti	Subsea rock installation service
+71122314	Çok amaçlı gemi hizmeti	Multi-service vessel service
+71122315	Dalış destek gemisi hizmetleri	Diving support vessel services
+71122316	Deniz altı basınç altında delme hizmetleri	Subsea hot tapping services
+71122317	Derin deniz altı riser sistemi hizmeti	Deepwater subsea riser system service
+71122318	Deniz altı ekipman ve alet kiralama hizmetleri	Subsea equipment tools rental services
+71122319	Derin deniz satış sonrası deniz altı ekipman depolama	Deepwater aftermarket subsea equipment storage
+71122320	Umbilikal uzun süreli depolama	Umbilical long term storage
+71122507	Yığın kurulum hizmetleri	Stack building services
+71122617	Tamamlama temizleme aleti hizmeti	Completion clean-up tool service
+71122618	Sondaj çamuru kimyasalları hizmeti	Mud drilling chemicals service
+71122619	Tamamlama yenileme hizmeti	Completion refurbishment service
+71122709	Kuyu içi alet bakım hizmetleri	Downhole tool maintenance services
+71122711	Kuyu tamiratı hizmeti	Well workover service
+71122712	Kuyu tamiratı kaldırma botu hizmeti	Well workover lift boat service
+71122713	Deniz altı kuyu başı hizmeti	Subsea wellhead service
+71122714	Deniz altı üretim ağacı hizmeti	Subsea christmas tree service
+71122715	Deniz altı akış hattı hizmeti	Subsea flowline service
+71122716	Deniz altı bakım hizmeti	Subsea maintenance service
+71122717	Deniz altı kontrol sistemi hizmeti	Subsea control system service
+71122718	Petrol kuyusu üretim bakım hizmeti	Oil well production maintenance service
+71122906	Sondaj kulesi konumlandırma elektronik ekipman hizmeti	Rig positioning electronic equipment service
+71122907	Konaklama platformu hizmeti	Accommodation rig service
+71123008	Döner ekipman entegre hizmet sözleşmesi	Rotating equipment integrated service contract
+71123009	Entegre enstrüman hizmetleri	Integrated instrument services
+71123010	Entegre deniz lojistik hizmetleri	Integrated marine logistics services
+71123011	Entegre havacılık lojistik hizmetleri	Integrated aviation logistics services
+71123012	Entegre üretim kimyasalları hizmetleri	Integrated production chemicals services
+71123013	Entegre boru tesisatı hizmetleri	Integrated pipefitting services
+71123014	Entegre pompa onarım ve bakım hizmetleri	Integrated pump repair and maintenance services
+71123015	Entegre tesis yönetim hizmeti	Integrated facilities management service
+71131020	Açık deniz hidrolik çatlatma	Offshore hydraulic fracturing
+71131021	Karada hidrolik çatlatma	Onshore hydraulic fracturing
+71131022	Üretim sistemi optimizasyon hizmeti	Production system optimization service
+71131023	Yüksek basınçlı çatlatma destek malzemesi hizmeti	High pressure fracturing proppant service
+71131024	Yüksek basınçlı çatlatma pompalama hizmeti	High pressure fracturing pumping service
+71131202	Azotla süpürme hizmeti	Nitrogen purging service
+71131419	Gaz toplama hizmeti	Gas gathering service
+71131420	Kuyu geri akış filtrasyon hizmeti	Well flowback filtration service
+71131421	Yüzey üretim test hizmetleri	Surface production testing services
+71151501	Hidrokarbon paylaştırma ve muhasebesi	Hydrocarbon allocation and accounting
+71151502	Hidrokarbon ölçümü	Hydrocarbon measurement
+71151503	Hidrokarbon paylaştırma muhasebe ve ölçüm denetimleri	Hydrocarbon allocation, accounting, and measurement audits
+71161112	Sondaj kırıntısı yeniden enjeksiyon hizmeti	Cuttings re-injection service
+71161207	Elektrikli tel hat insan gücü hizmetleri	Electric wireline manpower services
+71161208	Elektrikli tel hat yüzey ekipmanı hizmetleri	Electric wireline surface equipment services
+71161209	Elektrikli tel hat mekanik ve yardımcı hizmetleri	Electric wireline mechanical and auxiliary services
+71161210	Elektrikli tel hat veri işleme hizmetleri	Electric wireline data processing services
+71161211	Elektrikli tel hat kuyu kaybı hizmetleri	Electric wireline lost hole services
+71161212	Elektrikli tel hat entegre hizmet paketleri	Electric wireline integrated service packages
+71161213	Kuyu içi sapma ölçüm hizmeti	Wellbore survey service
+71161309	Geçici konaklama destek hizmeti	Temporary accommodation support service
+71161310	Kanal işleri bakım hizmetleri	Canal works maintenance services
+71161311	Bakım sözleşmeleri yönetim hizmeti	Maintenance contracts management service
+71161312	Duruş yönetim hizmeti	Shutdown management service
+71161313	Katodik muayene hizmeti	Cathodic inspection service
+71161314	Petrol kuyusu proje yönetim hizmeti	Oil well project management service
+71161606	Petrol ve gaz teknolojisi lisanslama hizmeti	Oil and gas technology licensing service
+71161607	Hortum muayene hizmeti	Hose inspection service
+71161608	Tedarikçi veya atölye muayene hizmeti	Vendor/shop inspection service
+71161609	Varlık yönetimi muayene hizmeti	Asset management inspection service
+71161610	Teknik danışmanlık hizmetleri	Technical consultant services
+71161611	Hasar talebi yönetimi teknik danışmanlık hizmetleri	Technical consultant services for claim management
+71161612	Varlık bütünlüğü bilgi ve veri kontrolü teknik danışmanlığı	Technical consultant services for asset integrity information and data control
+71161701	Bağımsız kuyu inceleme hizmetleri	Independent well examination services
+71161801	Petrol sahası atığı sıkıştırma hizmetleri	Oilfield waste compaction services
+71161802	Petrol sahası atığı balyalama hizmetleri	Oilfield waste baling services
+71171501	Ham petrol değer düzeltme hizmeti	Crude oil value adjustment service
+71171502	Ham petrol akışkan karakterizasyon hizmeti	Fluid characterization of crude oil service
+71171503	Ham petrol bileşim analizleri	Compositional analyses of crude oil
+71171504	Ham petrol yükleme analizleri	Crude oil loading analyses
+71171505	Tank kamyon veya mavna numune alma ve gemi muayenesi	Sampling or Ship Inspection Tank, Truck, Barge
+71171506	Laboratuvar test hizmeti	Laboratory testing service
+71171601	Doğal gaz bileşim analizi	Compositional analysis of natural gas
+71171602	Doğal gazda karbondioksit analizi	Analysis of carbon dioxide CO2 in natural gas
+71171603	Doğal gaz yükleme analizi	Natural gas loading analysis
+71171701	Jet yakıtı yeniden sertifikasyonu	Jet fuel recertification
+71171702	Yağlama yağı izleme hizmeti	Lube oil monitoring service
+71171703	Motor yağı izleme	Engine oil monitoring
+71171704	Hidrolik yağ izleme	Hydraulic oil monitoring
+71171705	Dizel yakıt izleme	Diesel fuel monitoring
+71171706	Su bazlı hidrolik akışkan izleme	Water-based hydraulic fluid monitoring
+71171707	Fuel oil izleme	Fuel oil monitoring
+71171801	Kabuklaşma izleme	Scale monitoring
+71171802	Kalıntı kabuklaşma önleyici izleme	Residual scale inhibitor RSI monitoring
+71171803	Basınçlı numunelerde gaz su oranı	Gas water ratio in pressurised samples
+71171901	Suda element analizleri	Element analyses in water
+71171902	Suda organik asit analizi	Analysis of organic acids in water
+71171903	Suda besin maddesi analizi	Analysis of nutrients in water
+80101509	Kamu ilişkileri ve toplum ilişkileri danışmanlık hizmeti	Government affairs and community relations consultation service
+80101510	Risk yönetimi danışmanlık hizmeti	Risk management consultation service
+80101511	İnsan kaynakları danışmanlık hizmeti	Human resources consulting service
+80101512	Aktüerya danışmanlık hizmetleri	Actuarial consulting services
+80101513	Süreç ve prosedür yönetimi danışmanlık hizmeti	Process and procedures management consultation service
+80101514	Mevzuat ve uyum araştırma hizmeti	Business regulatory and compliance research service
+80101605	Geçici teknik çizim hizmeti	Temporary drafting service
+80101606	Proje izleme ve değerlendirme	Project monitoring and evaluation
+80101607	Proje etki değerlendirmesi	Project impact assessment
+80101708	Kimyasal yönetim hizmeti	Chemical management service
+80101709	Acil durum müdahale yönetimi ve danışmanlık hizmetleri	Emergency response management and consultancy services
+80101801	İş sağlığı ve güvenliği yönetim ve danışmanlık hizmetleri	Health and safety management and consultancy services
+80111509	İş değerlendirme hizmeti	Job evaluation service
+80111510	Görev tanımı geliştirme ve yazma hizmeti	Job description development and writing service
+80111511	İşgücü eğitimi etki değerlendirmesi	Labor training impact assessment
+80111512	Bilgi teknolojileri uzman hizmetleri	Information technology (IT) expert services
+80111513	Kurum içi eğitim hizmeti	Internal training service
+80111625	Geçici yeraltı düz işçilik	Temporary manual labor underground
+80111717	Çalışan sağlık taraması hizmeti	Employee physical screening service
+80111718	Çalışan beceri testi ve değerlendirme hizmeti	Employee skill testing and assessment service
+80111719	Çalışan psikometrik test hizmeti	Employee psychometric testing service
+80111720	Üst düzey yönetici işe alım hizmeti	Executive recruitment service
+80111721	Yönetici dışı işe alım hizmeti	Non-Executive recruitment service
+80121708	Sigorta hukuku hizmeti	Insurance law service
+80121901	Jüri üyeliği hizmeti	Jury member service
+80121902	Tanıklık hizmeti	Witness service
+80121903	Bilirkişi tanıklık hizmeti	Expert witness service
+80121904	Tebligat memuru hizmeti	Process server service
+80122001	Bağımsız uyuşmazlık arabuluculuk veya tahkim hizmeti	Independent dispute mediation or arbitration service
+80122002	Bağımsız komisyon veya soruşturma kurulu hizmeti	Independent commission or board of inquiry service
+80122101	İdare hukuku danışmanlık hizmeti	Administrative law consultation service
+80122102	Belediye hukuku danışmanlık hizmeti	Municipality law consultation service
+80122103	Bilişim hukuku danışmanlık hizmeti	Computing law consultation service
+80122201	Anayasa hukuku danışmanlık hizmeti	Constitutional law consultation service
+80122202	Anayasa hukuku kamu sektörü savunma danışmanlık hizmeti	Constitutional law public sector defense consultation service
+80122301	Uluslararası hukuk danışmanlık hizmeti	International law consultation service
+80131504	Açık deniz geçici konaklama hizmeti	Offshore temporary housing service
+80131506	Taşınabilir tuvalet kiralama hizmeti	Portable toilet rental service
