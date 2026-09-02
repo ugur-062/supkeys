@@ -9352,3 +9352,223 @@
 41141529	Silika standartları	Silica standards
 41141530	Sükroz standartları	Sucrose standards
 41141531	Sülfat standartları	Sulfate standards
+41141532	Tiyosiyanat standartları	Thiocyanate standards
+41141533	Tiyosülfat standartları	Thiosulfate standards
+41141534	Sıfır oksijen standartları	Zero-oxygen standards
+41141601	5'-nükleotidaz	5'-nucleotidase
+41141602	Asit fosfataz	Acid phosphatase
+41141603	Alanin aminotransferaz	Alanine amino-transferase
+41141604	Aldolaz	Aldolase
+41141605	Alkalen fosfataz	Alkaline phosphatase
+41141606	Alkalen fosfataz izoenzimleri	Alkaline phosphatase isoenzymes
+41141607	Amilaz	Amylase
+41141608	Amilaz izoenzimi	Amylase isoenzyme
+41141609	Anjiyotensin dönüştürücü enzim	Angiotensin converting enzyme
+41141610	Aspartat aminotransferaz	Aspartate amino-transferase
+41141611	Kolinesteraz	Cholinesterase
+41141612	Kimotripsin	Chymotrypsin
+41141613	Kreatin kinaz	Creatine kinase
+41141614	Kreatin kinaz MB	Creatine kinase - mb
+41141616	Gama glutamiltransferaz	Gamma glutamyltransferase
+41141617	Glutamat dehidrogenaz	Glutamate dehydrogenase
+41141618	Hidroksibutirat dehidrogenaz	Hydroxybutyrate dehydrogenase
+41141619	Laktat dehidrogenaz izoenzimleri	Lactate dehydrogenase isoenzymes
+41141620	Laktat dehidrogenaz L	Lactate dehydrogenase l
+41141621	Laktat dehidrogenaz P	Lactate dehydrogenase p
+41141622	Lösin aminopeptidaz	Leucine aminopeptidase
+41141623	Lipaz	Lipase
+41141624	Lizozim	Lysozyme
+41141625	Malat dehidrogenaz	Malate dehydrogenase
+41141626	N-asetil-beta-D-glukozaminidaz	N-acetyl-b,d-glucosaminidase
+41141627	Diğer enzimler	Other enzymes
+41141628	Pepsin	Pepsin
+41141629	Fosfoheksoz izomeraz	Phospho hexose isomerase
+41141630	Sorbitol dehidrogenaz	Sorbitol dehydrogenase
+41141701	Asetik asit alkol ve toluidin mavisi kombine reaktifleri	Acetic acid, alcohol, and toluidine blue combination reagents
+41141702	Asit alkol ve renk giderici sıvı reaktifleri	Acid, alcohol, and decolorizing fluid reagents
+41141703	Aldehit ürobilinojen tayin reaktifleri	Aldehyde urobilinogen determination reagents
+41141704	Kemik dekalsifikasyon solüsyonları	Bone decalcifying solutions
+41141705	EDTA disodyum sulu çözelti reaktifleri	Edta disodium aqueous solution reagents
+41141706	Altın klorür sulu çözelti reaktifleri	Gold chloride aqueous solution reagents
+41141707	Niteliksel albümin tespit reaktifleri	Qualitative albumin detection reagents
+41141708	Semen bikarbonat formalin sulandırma reaktifleri	Semen bicarbonate-formalin diluting fluid reagents
+41141709	Sodyum sitrat sulu çözelti reaktifleri	Sodium citrate aqueous solution reagents
+41141710	Sodyum fosfat reaktifleri	Sodium phosphate reagents
+41141711	Toluidin mavisi sulu çözelti reaktifleri	Toluidine blue aqueous solution reagents
+41141712	İdrar albümini reaktifleri	Urine albumin reagents
+41141713	İdrar kalsiyumu tespit reaktifleri	Urine calcium detection reagents
+41141714	Çinko sülfat bağırsak kisti yumurta veya parazit reaktifleri	Zinc sulfate intestinal cyst, egg, or parasite reagents
+41141801	Albümin	Albumin
+41141802	Safra asitleri	Bile acids
+41141803	Bilirubin	Bilirubin
+41141804	Kolesterol	Cholesterol
+41141805	Bakır analiti	Copper
+41141806	Kreatinin	Creatinine
+41141807	Delta aminolevülinik asit	Delta-aminolaevulinic acid
+41141808	D-ksiloz	D-xylose
+41141809	Fruktozamin	Fructosamine
+41141810	Fruktoz	Fructose
+41141811	Galaktoz	Galactose
+41141812	Glukoz	Glucose
+41141813	Glikozile hemoglobin	Glycosylated/glycated hemoglobin
+41141814	Yüksek yoğunluklu lipoprotein kolesterol	High density lipoprotein cholesterol
+41141815	Demir substratı	Iron substrate
+41141816	Demir bağlama kapasitesi	Iron binding capacity
+41141817	Laktat	Lactate
+41141818	Lesitin	Lecithin
+41141819	Lipoprotein kimyasal tayini	Lipoprotein, chemical determination/detection
+41141820	Lipoprotein elektroforezi	Lipoprotein electrophoresis
+41141821	Düşük yoğunluklu lipoprotein kolesterol	Low density lipoprotein cholesterol including sd-ldl
+41141822	Esterleşmemiş yağ asitleri	Non esterified fatty acids
+41141823	Oksalat	Oxalate
+41141824	Fenilketonüri	Phenylketonuria
+41141825	Fosfolipit substratı	Phospholipids substrate
+41141826	Porfobilinojen	Porphobilinogen
+41141827	Protein elektroforezi	Protein electrophoresis
+41141828	Piruvat	Pyruvate
+41141829	Timol	Thymol
+41141830	Total lipitler	Total lipids
+41141831	Total porfirin	Total porphyrine
+41141832	Total protein	Total protein
+41141833	Trigliseritler	Triglycerides
+41141834	Üre veya kan üre azotu	Urea/blood urea nitrogen
+41141835	Ürik asit	Uric acid
+41141836	Çinko substratı	Zinc substrate
+41141901	17-hidroksikortikosteroid test sistemi	17-hydroxycorticosteroids (17-ketogenic steroids) test system
+41141902	17-hidroksiprogesteron test sistemi	17-hydroxyprogesterone test system
+41141903	17-ketosteroid test sistemi	17-ketosteroids test system
+41141904	2,3-difosfogliserik asit test sistemi	2,3-diphosphoglyceric acid test system
+41141906	5'-nükleotidaz test sistemi	5'-nucleotidase test system
+41141907	6-fosfoglukonat dehidrogenaz test sistemi	6-phosphogluconate dehydrogenase test system
+41141908	Asit fosfataz test sistemi	Acid phosphatase (total or prostatic) test system
+41141909	Adrenokortikotropik hormon ACTH test sistemi	Adrenocorticotropic hormone (acth) test system
+41141910	Alanin aminotransferaz ALT test sistemi	Alanine amino transferase (alt/sgpt) test system
+41141911	Albümin test sistemi	Albumin test system
+41141912	Aldolaz test sistemi	Aldolase test system
+41141913	Aldosteron test sistemi	Aldosterone test system
+41141914	Alkalen fosfataz veya izoenzimleri test sistemi	Alkaline phosphatase or isoenzymes test system
+41141915	Amonyak test sistemi	Ammonia test system
+41141916	Amilaz test sistemi	Amylase test system
+41141917	Androstenedion test sistemi	Androstenedione test system
+41141918	Androsteron test sistemi	Androsterone test system
+41141919	Anjiyotensin dönüştürücü enzim ACE test sistemi	Angiotensin converting enzyme (a.c.e.) test system
+41141920	Anjiyotensin I ve renin test sistemi	Angiotensin i and renin test system
+41141921	Askorbik asit test sistemi	Ascorbic acid test system
+41141922	Aspartat aminotransferaz AST test sistemi	Aspartate amino transferase (ast/sgot) test system
+41141923	Bikarbonat ve karbondioksit test sistemi	Bicarbonate/carbon dioxide test system
+41141924	Yenidoğanda bilirubin test sistemi	Bilirubin (total and unbound) in the neonate test system
+41141925	Bilirubin total veya direkt test sistemi	Bilirubin (total or direct) test system
+41141926	Biyotinidaz test sistemi	Biotinidase test system
+41141927	Kan gazları ve kan pH test sistemi	Blood gases (pco2, po2) and blood ph test system
+41141928	Kan numunesi alma cihazı	Blood specimen collection device
+41141929	Kan hacmi test sistemi	Blood volume test system
+41141930	B tipi natriüretik peptit test sistemi	B-type natriuretic peptide test system
+41141932	Kalsiyum test sistemi	Calcium test system
+41141933	Kalibratör IVD cihazı	Calibrator IVD device
+41141934	Kalp nakli gen ifade profilleme test sistemi	Cardiac allograft gene expression profiling test system
+41141935	Total katekolamin test sistemi	Catecholamines (total) test system
+41141936	Klorür test sistemi	Chloride test system
+41141937	Total kolesterol test sistemi	Cholesterol (total) test system
+41141938	Kolilglisin test sistemi	Cholylglycine test system
+41141939	Kimotripsin test sistemi	Chymotrypsin test system
+41141940	Bileşik S 11-deoksikortizol test sistemi	Compound s (11-deoxycortisol) test system
+41141941	Konjuge sülfolitokolik asit test sistemi	Conjugated sulfolithocholic acid (slcg) test system
+41141942	Bakır test sistemi	Copper test system
+41141943	Kortikoid test sistemi	Corticoids test system
+41141944	Kortikosteron test sistemi	Corticosterone test system
+41141945	Kortizol test sistemi	Cortisol (hydrocortisone and hydroxycorticosterone) test system
+41141946	Proinsülin C-peptit test sistemi	C-peptides of proinsulin test system
+41141947	Kreatin kinaz veya izoenzimleri test sistemi	Creatine phosphokinase/creatine kinase or isoenzymes test system
+41141948	Kreatin test sistemi	Creatine test system
+41141949	Kreatinin test sistemi	Creatinine test system
+41141950	Siklik AMP test sistemi	Cyclic amp test system
+41141951	Siklosporin test sistemi	Cyclosporine test system
+41141952	Sistin test sistemi	Cystine test system
+41141953	Dehidroepiandrosteron test sistemi	Dehydroepiandrosterone (free and sulfate) test system
+41141954	Delta aminolevülinik asit test sistemi	Delta-aminolevulinic acid test system
+41141955	Deoksikortikosteron test sistemi	Desoxycorticosterone test system
+41141956	Östradiol test sistemi	Estradiol test system
+41141957	Östriol test sistemi	Estriol test system
+41141958	Gebelikte total östrojen test sistemi	Estrogens (total, in pregnancy) test system
+41141959	Gebelik dışı total östrojen test sistemi	Estrogens (total, nonpregnancy) test system
+41141960	Östron test sistemi	Estrone test system
+41141961	Etiyokolanolon test sistemi	Etiocholanolone test system
+41141962	Yağ asitleri test sistemi	Fatty acids test system
+41141963	Folik asit test sistemi	Folic acid test system
+41141964	Folikül uyarıcı hormon test sistemi	Follicle-stimulating hormone test system
+41141965	Formiminoglutamik asit FIGLU test sistemi	Formiminoglutamic acid (figlu) test system
+41141966	Serbest tiroksin test sistemi	Free thyroxine test system
+41141967	Serbest tirozin test sistemi	Free tyrosine test system
+41141968	Galaktoz test sistemi	Galactose test system
+41141969	Galaktoz-1-fosfat üridil transferaz test sistemi	Galactose-1-phosphate uridyl transferase test system
+41141970	Gama glutamil transpeptidaz ve izoenzimleri test sistemi	Gamma-glutamyl transpeptidase and isoenzymes test system
+41141971	Mide asiditesi test sistemi	Gastric acidity test system
+41141972	Gastrin test sistemi	Gastrin test system
+41141973	Globulin test sistemi	Globulin test system
+41141974	Glukagon test sistemi	Glucagon test system
+41141975	Glukoz test sistemi	Glucose test system
+41141976	Glutatyon test sistemi	Glutathione test system
+41142001	Histidin test sistemi	Histidine test system
+41142002	İnsan koryonik gonadotropini hCG test sistemi	Human chorionic gonadotropin (hcg) test system
+41142003	İnsan büyüme hormonu test sistemi	Human growth hormone test system
+41142004	İnsan plasental laktojen test sistemi	Human placental lactogen test system
+41142005	Hidroksibutirik dehidrogenaz test sistemi	Hydroxybutyric dehydrogenase test system
+41142006	Hidroksiprolin test sistemi	Hydroxyproline test system
+41142007	İmmünoreaktif insülin test sistemi	Immunoreactive insulin test system
+41142008	Hem dışı demir test sistemi	Iron (non-heme) test system
+41142009	Demir bağlama kapasitesi test sistemi	Iron-binding capacity test system
+41142010	İzositrik dehidrogenaz test sistemi	Isocitric dehydrogenase test system
+41142011	Niceliksel olmayan keton test sistemi	Ketones (nonquantitative) test system
+41142012	Laktat dehidrogenaz izoenzimleri test sistemi	Lactate dehydrogenase isoenzymes test system
+41142013	Laktat dehidrogenaz test sistemi	Lactate dehydrogenase test system
+41142014	Laktik asit test sistemi	Lactic acid test system
+41142015	Amniyon sıvısı lesitin sfingomiyelin oranı test sistemi	Lecithin/sphingomyelin ratio in amniotic fluid test system
+41142016	Lösin aminopeptidaz test sistemi	Leucine aminopeptidase test system
+41142017	Lipaz test sistemi	Lipase test system
+41142018	Total lipit test sistemi	Lipid (total) test system
+41142019	Lipoprotein test sistemi	Lipoprotein test system
+41142020	Lüteinleştirici hormon test sistemi	Luteinizing hormone test system
+41142021	Lizozim muramidaz test sistemi	Lysozyme (muramidase) test system
+41142022	Magnezyum test sistemi	Magnesium test system
+41142023	Malik dehidrogenaz test sistemi	Malic dehydrogenase test system
+41142024	Niceliksel olmayan metilmalonik asit test sistemi	Methylmalonic acid (nonquantitative) test system
+41142025	Niceliksel olmayan mukopolisakkarit test sistemi	Mucopolysaccharides (nonquantitative) test system
+41142026	Tandem kütle spektrometrisi yenidoğan tarama test sistemi	Newborn screening test system for amino acids, free carnitine, and acylcarnitines using tandem mass spectrometry
+41142027	Niceliksel olmayan nitrit test sistemi	Nitrite (nonquantitative) test system
+41142028	Amino azot test sistemi	Nitrogen (amino-nitrogen) test system
+41142029	Ornitin karbamil transferaz test sistemi	Ornithine carbamyl transferase test system
+41142030	Ozmolalite test sistemi	Osmolality test system
+41142031	Oksalat test sistemi	Oxalate test system
+41142032	Paratiroid hormonu test sistemi	Parathyroid hormone test system
+41142033	Fenilalanin test sistemi	Phenylalanine test system
+41142034	Fosfoheksoz izomeraz test sistemi	Phosphohexose isomerase test system
+41142035	Fosfolipit test sistemi	Phospholipid test system
+41142036	İnorganik fosfor test sistemi	Phosphorus (inorganic) test system
+41142037	Plazma onkometri test sistemi	Plasma oncometry test system
+41142038	Porfobilinojen test sistemi	Porphobilinogen test system
+41142039	Porfirin test sistemi	Porphyrins test system
+41142040	Potasyum test sistemi	Potassium test system
+41142041	Pregnandiol test sistemi	Pregnanediol test system
+41142042	Pregnantriol test sistemi	Pregnanetriol test system
+41142043	Pregnenolon test sistemi	Pregnenolone test system
+41142044	Progesteron test sistemi	Progesterone test system
+41142045	Prolaktin test sistemi	Prolactin (lactogen) test system
+41142046	Protein fraksiyonlama test sistemi	Protein (fractionation) test system
+41142047	Proteine bağlı iyot test sistemi	Protein-bound iodine test system
+41142048	Piruvat kinaz test sistemi	Pyruvate kinase test system
+41142049	Piruvik asit test sistemi	Pyruvic acid test system
+41142050	Kalite kontrol materyali	Quality control material (assayed and unassayed)
+41142051	Sodyum test sistemi	Sodium test system
+41142052	Sorbitol dehidrogenaz test sistemi	Sorbitol dehydrogenase test system
+41142053	Takrolimus test sistemi	Tacrolimus test system
+41142054	Testosteron test sistemi	Testosterone test system
+41142055	Tiroit uyarıcı hormon test sistemi	Thyroid stimulating hormone test system
+41142056	Tiroksin bağlayıcı globulin test sistemi	Thyroxine-binding globulin test system
+41142057	Total protein test sistemi	Total protein test system
+41142058	Total tiroksin test sistemi	Total thyroxine test system
+41142059	Total triiyodotironin test sistemi	Total triiodothyronine test system
+41142060	Trigliserit test sistemi	Triglyceride test system
+41142061	Triiyodotironin tutulum test sistemi	Triiodothyronine uptake test system
+41142062	Trioz fosfat izomeraz test sistemi	Triose phosphate isomerase test system
+41142063	Tripsin test sistemi	Trypsin test system
+41142064	Üre azotu test sistemi	Urea nitrogen test system
