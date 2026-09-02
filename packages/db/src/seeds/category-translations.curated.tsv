@@ -10215,7 +10215,7 @@
 12361510	Asetik anhidrit	Acetic anhydride
 12361512	Psödoefedrin hidroklorür	Pseudoephedrine hydrochloride
 12361513	Efedrin hidroklorür	Ephedrine hydrochloride
-13111040	Hidrokarbon yapışkanlık artırıcı	Hydrocarbon tackifier
+13111040	Hidrokarbon yapışkanlık artırıcı	Hidrokarbon tackifier
 22101908	Karton bant dren veya fitil dren	Cardboard band drain or wick drain
 22101909	Çamur basınçlı tünel açma makinesi	Slurry tunnel boring machine
 22102002	Yıkım topu	Wrecking ball
@@ -18416,3 +18416,228 @@
 85456200	Bakım verene bağımlılıkla ilgili sorun tanıları	Diagnoses of problems related to care-provider dependency
 85456300	Sağlık tesisi ve bakımıyla ilgili sorun tanıları	Diagnoses of problems related to medical facilities and health care
 85456400	Diğer koşullarda sağlık hizmetine başvuru tanıları	Diagnoses of persons encountering health services in other circumstances
+11121615	Kavak ağacı	Poplar wood
+11151613	Metal iplik	Metal thread
+12165303	Moleküler elek	Molecular sieve
+12171621	Floresan pigment	Fluorescent pigment
+15111710	Metal deaktivatörü	Metal deactivator
+20121127	Oturtma bileziği	Landing collar
+20121447	Liner oturtma bileziği	Liner setting collar
+20121458	Annüler kuyu ağzı emniyet vanası	Annular blowout preventer
+20121812	Yönlü sondaj ağırlıklı matkap borusu	Directional drilling drill collar
+21101517	Rotovatör veya motorlu çapa	Rotary tiller or power tiller
+21101611	Gübre akış hızı kontrol ünitesi	Fertilizer flow rate controller
+21101711	Mısır tanesi ayırma makinesi	Corn sheller
+21102102	Yağlı tohum presi	Oil seed expeller
+22101622	Asfalt geri dönüşüm makinesi	Asphalt recycler
+23101529	Tutkal merdaneli sürme makinesi	Glue roller spreader
+23151610	Mikropipet çekme cihazı	Micropipette puller
+23181522	Tohum veya sert kabuk kırma makinesi	Seed or nut sheller
+23221103	Tüy yolma veya deri sıyırma makinesi	Plucker or hide puller
+24101645	Paletli vinç	Crawler crane
+24101667	Boru taşıma manipülatörü	Pipe handler
+24112703	Metal palet	Metal pallet
+24112901	Ahşap kasa	Wooden crate
+24131507	Şoklama soğutucu	Blast chiller
+24131605	İçine girilebilir dondurucular	Walk in dondurucular
+25101907	Karavan römork	Trailer, travel or caravan
+25101923	Paletli traktör	Crawler type tractor
+25101939	Seyyar derslik römorku	Trailer, mobile classroom
+25121716	Ahşap demiryolu traversi	Wooden railroad tie
+25173114	Doppler VHF çok yönlü menzil DVOR tam yer istasyonu	Doppler Very High Frequency Omni Range (DVOR) Complete ground station
+25173122	Doppler yön bulucu DF	Doppler Direction Finder (DF)
+25173131	Doppler VHF çok yönlü menzil tam yer istasyonu takımı	Doppler VHF omnidirectional range complete ground station
+25173714	Egzoz gazı devridaim kontrol ünitesi	Exhaust gas recirculation controller
+25173818	Pervane şaftı	Propeller or prop shaft
+25173819	Deniz pervanesi tahrik şaftı	Marine propeller drive shaft
+25181606	Römork kasası	Trailer body
+25181609	Dökme yük römorku	Bulk trailer
+25181610	Hava kargo römorku	Air cargo trailer
+25181611	Dolly römork	Dolly trailer
+25181612	Tarım römorku	Agricultural trailer
+25181715	Damperli römork	Dump trailer
+25181716	Şasi römork	Chassis trailer
+25181717	Alçak şasili römork	Low bed trailer
+25181718	Kablo makarası römorku	Cable reel trailer
+25181719	Frigorifik römork	Refrigerated trailer
+25181721	Çeki demirli römork	Drawbar trailer
+25191532	Bagaj veya kargo römorku	Baggage/Cargo trailer
+25191560	Seyyar yakıt ikmal aracı	Mobile fueller
+25191801	Growler endüvi test cihazı	Growler tester
+25202901	Kontrolör çalışma istasyonu	Controller workstation
+26111544	Hız kontrol ünitesi	Speed controller
+26111546	Türbin diski	Turbine disk
+26121548	Dikdörtgen kesitli tel	Rectangular wire
+27111532	Kuyumcu makası	Jeweler scissors
+27111546	Panel testere	Panel saw
+27111917	Tutkal merdanesi	Glue roller
+27111933	Üç köşe üçgen eğe	Three square triangular file
+27111945	Kalıpçı kıvrık eğesi	Die sinker riffler
+27111946	Gümüşçü kıvrık eğesi	Silversmiths riffler
+27112027	Bahçe süpürgesi	Garden broom
+27112029	Bahçe sulama kabı	Garden watering can
+27112031	Bahçe eleği	Garden sieve
+27112036	Bahçe öğütücü	Garden shredder
+27112038	Bahçe zincirli testeresi	Garden chainsaw
+27112230	Derz demiri veya derz dolgu aleti	Tuck pointer or joint filler
+27112724	Elektrikli sac kemirme makinesi	Power nibbler
+27113106	Kaymalı çekiçli çektirme	Slide hammer puller
+27113402	Ahşap torna seti	Woodturning set
+27121807	Hidrolik çektirme aleti	Hydraulic puller
+27131517	Endüstriyel pnömatik zımba tabancası	Industrial pneumatic stapler
+27131528	Pnömatik çivi sökücü	Pneumatic nail puller
+30102804	Ahşap kazık	Wooden piling
+30102907	Emprenyeli ahşap direk	Treated wooden post
+30103104	Ahşap korkuluk	Wooden rail
+30103617	Ahşap karkas	Wooden framework
+30104003	Dikdörtgen içi boş yapısal profil HSS	Rectangular hollow structural section HSS
+30151515	Ahşap çatı kiremidi	Wooden roof tile
+30162003	Metal laminat	Metal laminate
+30162102	Ahşap merdiven	Wooden stairs
+30191702	Şantiye römorku	Construction trailer
+30266301	Ahşap çıta	Wooden bar
+32101639	8 bit mikrodenetleyici	8 bit microcontroller
+32101640	16 bit mikrodenetleyici	16 bit microcontroller
+32101642	32 bit orta seviye mikrodenetleyici	32 bit midrange microcontroller
+32101645	32 bit üst seviye mikrodenetleyici	32 bit high end microcontroller
+32101660	Açısal hız sensörü entegre devresi	Angular rate sensor integrated circuit
+32111613	Bipolar veya radyo frekansı bipolar transistör	Bipolar or radio frequency bipolar transistor
+32151708	PLC giriş çıkış muhafazası	Programmable logic controller input output housing
+32151709	PLC giriş çıkış kapakları	Programmable logic controller Input output doors
+39111833	Fotoelektrik kontrol ünitesi	Photoelectric controller
+39122211	Toggle şalter	Toggle switch
+39122214	Kontrolör şalteri	Controller switch
+39131716	Kablo yönlendirici	Cable handler
+40101710	Pistonlu soğutma grubu	Reciprocating chiller
+40101711	Santrifüj sıvı soğutma grubu	Centrifugal liquid chiller
+40101712	Vidalı soğutma grubu	Screw chiller
+40101713	Absorpsiyonlu soğutma grubu	Absorption chiller
+40101714	Absorpsiyonlu soğutma grubu ısıtıcısı	Absorption chiller heater
+40101723	Termoelektrik soğutucu	Thermoelectric cooler
+40101724	Adsorpsiyonlu soğutma grubu	Adsorption chiller
+40101725	Kanatlı fanlı hava soğutucu	Fin fan type air cooler
+40101726	Yağ soğutucu	Oil cooler
+40101727	Radyatörlü soğutucu	Radiator cooler
+40101833	Kazan veya ısıtıcı ateşleyicisi	Boiler or heater igniter
+40102006	Atık ısı kazanı	Waste heat boiler
+40102007	Mini yakıtlı kazan	Mini oil boiler
+40141657	Yangın sprinkler kontrol vanası	Fire sprinkler control valve
+40151730	Pompa çarkı	Pump impeller
+41102430	Laboratuvar genel amaçlı ısıyla kapatma cihazı	Laboratory general purpose heat sealer
+41102924	Otomatik doku kaseti etiketleyici	Automated tissue cassette labeler
+41102928	Otomatik mikroskop lamı etiketleyici	Automated microscope slide labeler
+41103031	Yalıtımlı taşıma soğutucusu	Insulated transport cooler or tote
+41103819	Doku kültürü döner tamburu	Tissue culture roller drum
+41104930	Laboratuvar moleküler eleği	Molecular sieve
+41111759	Trinoküler ışık mikroskobu	Trinocular light compound microscope
+41111968	Açısal hız sensörü	Angular rate sensor
+41112305	Nem kontrol ünitesi	Humidity controller
+41115419	Dairesel dikroizm spektrometresi	Circular dichroism spectrometer
+41115615	pH kontrol ünitesi	pH controller
+41115843	Moleküler tanı analizörü	Molecular diagnostics analyzer
+41116029	Moleküler tanı analizörü reaktifleri	Molecular diagnostics analyzer reagents
+41122113	Kılcal pipet veya tüp çekme cihazı	Capillary pipette or tube puller
+41122422	Kan alma hortumu sıyırıcı kapatıcı kesici	Blood collection tubing stripper-sealer-cutter
+41181845	Ihlamur alerjen ekstreleri	Linden allergenic extracts
+41181865	Kavak alerjen ekstreleri	Poplar allergenic extracts
+41181919	Kromogranin A testleri	Chromogranin a tests
+41181928	Laminin testleri	Laminin tests
+41181937	Serotonin testleri	Serotonin tests
+42142802	Varis çorabı veya kompresyon giysisi	Vascular or compression apparel or support
+42144404	Bronkoskopsuz bronkoalveoler lavaj kateterleri	Non-bronchoscope bronchoalveolar lavage catheters
+42151684	Dental dolgu taşıyıcıları	Dental filler carriers
+42152001	Bitewing film tutucuları	Bitewing tutucular
+42152921	Disk koruyucuları	Disk guards
+42181505	Endometriyal hücre örnekleyici setleri	Endometrial cell sampler sets
+42181914	Transkraniyal doppler TCD mikroemboli monitörü	Transcranial doppler TCD microemboli monitor
+42182605	Göz kası testi ışıkları	Ocular muscle testing lights
+42183046	Binoküler görme test setleri	Binocular vision test sets
+42183054	Oküler pletismograflar	Ocular plethysmographs
+42183061	Göz içi basıncı aplikatörleri	Ocular pressure applicators
+42183068	Makula test cihazları	Macular testers
+42183079	Oftalmik speküler mikroskoplar	Ophthalmic specular microscopes
+42191610	Klinik modüler dolap sistemleri	Clinical modular caseworks
+42201706	Tıbbi ultrason veya doppler probları	Medical ultrasound or doppler or echocardiograph probes
+42201707	Tıbbi ultrason veya doppler jel ısıtıcıları	Medical ultrasound or doppler or echocardiograph gel warmers
+42201708	Tıbbi ultrason veya doppler jelleri veya iletim pedleri	Medical ultrasound or doppler or echocardiograph gels or transmission pads or lotions
+42201709	Tıbbi ultrason veya doppler monitörleri	Medical ultrasound or doppler or echocardiograph monitors
+42201710	Tıbbi ultrason veya doppler yazıcıları	Medical ultrasound or doppler or echocardiograph printers
+42201711	Tıbbi ultrason veya doppler transdüseri	Medical ultrasound or doppler or echocardiograph transducer
+42201713	Tıbbi ultrason veya doppler üç boyutlu bileşenleri	Medical ultrasound or doppler or echocardiograph three dimensional components
+42203403	Tanısal veya girişimsel damar kateteri giriş aparatları	Diagnostic or interventional vascular catheter introducers
+42203404	Damar görüntüleme kılavuz telleri	Vascular imaging guidewires
+42203410	Kardiyovasküler kateter kılıfı	Cardiovascular catheter sheath
+42203414	Damar filtreleri	Vascular filters
+42203420	Damar görüntüleme snareleri	Vascular imaging snares
+42203421	Tanısal veya girişimsel damar işlem tepsileri veya setleri	Diagnostic or interventional vascular trays or packs
+42203432	Damar içi tıkayıcı kateterler	Intravascular occluding catheters
+42203437	Kardiyovasküler kateter kılavuz teli uzatmaları	Cardiovascular catheter guidewire extensions
+42203438	Kardiyovasküler kılavuz tel giriş aparatları	Cardiovascular guidewire introducers
+42203440	Kardiyovasküler damar dilatörleri	Cardiovascular vessel dilators
+42203441	Damar içi ultrason kateterleri	Intravascular ultrasound catheters
+42203444	Tanısal veya girişimsel damar kateteri giriş aparatı setleri	Diagnostic or interventional vascular catheter introducer sets
+42221907	Kardiyovasküler kan akış ölçerleri	Cardiovascular blood flowmeters
+42221910	Damar dışı kan akışı probları	Extravascular blood-flow probes
+42271807	Ölçülü doz inhaler hazneleri	Metered dose inhaler spacers or holding chambers
+42294527	Göz içi gazlar	Intraocular gases
+42294530	Vitrektomi lensi	Vitrectomy lens
+42294536	Kapsül germe halkası enjektörü	Capsular tension ring injector
+42294722	Perfüzyon ventriküler drenaj setleri	Perfusion ventricular drainage sets
+42294741	Ventriküler kanüller veya iğneler	Ventricular cannulas or needles
+42294910	Endoskopik monopolar veya bipolar kablo	Endoscopic monopolar or bipolar cable
+42294924	Endoskopik monopolar veya bipolar el aletleri	Endoscopic monopolar or bipolar hand instruments
+42294965	Bipolar endoskopik koagülatör kesiciler	Bipolar endoscopic coagulator-cutters
+42295305	Damar tıkayıcı veya ligatör	Vascular occluder or ligator
+42295524	Göz içi lensler IOL	Intraocular lenses IOL
+42295532	Testis protezi	Testicular prosthesis
+42295601	Serebral ventriküler veya hidrosefali drenaj kateterleri	Cerebral ventricular or hydrocephalus drainage catheters or adapters
+42295602	Eksternal serebral ventriküler drenaj torbaları	External cerebral ventricular drainage bags or reservoirs
+42296002	Kardiyovasküler kondüitler	Cardiovascular conduits
+42296006	Damar greftleri	Vascular grafts
+42296007	Kardiyovasküler tıkayıcılar	Cardiovascular occluders
+42296011	Damar koilleri	Vascular coils
+42296114	Nörovasküler koiller	Neurovascular coils
+42296801	Kardiyovasküler veya torasik cerrahi aletleri	Cardiovascular or thoracic surgical instruments
+42321701	Asetabular kaplar	Acetabular cups
+42321702	Asetabular kap kabukları	Acetabular cup shells
+42321703	Asetabular kap astarları	Acetabular cup liners
+42321710	Femoral modüler kalça bileşeni adaptörleri	Femoral modular hip component adapters
+42321713	Asetabular vidalar	Acetabular screws
+42321714	Asetabular ogmanlar	Acetabular augments
+42321718	Asetabular kafesler	Acetabular cages
+42321719	Asetabular meşler	Acetabular meshes
+42321722	Asetabular halkalar	Acetabular rings
+42321804	Patellar implantlar	Patellar implants
+42321806	Tibial insertler veya eklem yüzeyleri	Tibial inserts or bearings or articular surfaces
+42321809	Tibial, femoral veya patellar ogmanlar	Tibial or femoral or patellar augments
+42322714	Subtalar implant	Subtalar implant
+42322803	Tibial ayak bileği insertleri veya eklem yüzeyleri	Tibial ankle inserts or bearings or articular surfaces
+43201539	Ana bilgisayar konsol denetleyicisi	Console controller mainframe
+43201543	Ana bilgisayar bağlantı birimi	Coupler facility mainframe
+43212117	Yazıcı denetleyicisi	Printer controller
+43221723	Hücresel şebeke anteni	Cellular antenna
+43222644	Ağ trafiği denetleyicisi	Network traffic controller
+45111708	Yayın alanı denetleyicisi	Broadcast domain controller
+45121603	Kamera objektifi	Camera lens
+45121711	Renk kontrol ünitesi	Color controller
+46151901	Kimyasal biyolojik dekontaminasyon römorku	Chemical biological decontamination trailer
+46221511	Mayın silindiri veya mayın tarayıcısı	Mine roller or mine trawl
+47101557	Eğik plakalı çöktürücü	Inclined plate settler
+49211609	Golf putt antrenman aparatı	Golf putting partneri
+49211817	Kas gücü ölçüm aleti	Muscular strength measurement instrument
+52141613	Ev tipi çamaşır kaynatma kazanı	Domestic clothes boiler
+52152017	Ahşap pirinç sandığı	Wooden rice chest
+56141701	Metal kâse	Metal bowl
+56141704	Metal vazo	Metal vase
+56141801	Ahşap kâse	Wooden bowl
+56141802	Ahşap sandık veya kutu	Wooden chest or box
+56141803	Ahşap heykelcik	Wooden figurine or statuette
+56141804	Dekoratif ahşap kaplar	Decorative wooden utensils
+56141805	Ahşap vazo	Wooden vase
+56141806	Dekoratif ahşap tabak veya tepsi	Decorative wooden plate or tray
+60104919	Leyden şişesi	Leyden jar
+71121410	Konik makaralı matkap ucu kiralama	Roller cone drill bit rental
+72151005	Kazan basınç kontrol ünitesi kurulumu	Boiler pressure controller installation
+72151006	Kazan basınç kontrol ünitesi bakım veya onarım hizmeti	Boiler pressure controller maintenance or repair or operation
+90151503	Hayvanat bahçesi	Zoological garden or zoo
+95121510	Bahçe	Garden
