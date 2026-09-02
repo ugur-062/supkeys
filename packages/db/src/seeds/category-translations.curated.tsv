@@ -11761,3 +11761,198 @@
 43222827	Çoklayıcı veya MUX	Multiplexer or MUX
 43222828	Frekans bölmeli çoklayıcı	Frequency division multiplexer
 43222903	Telekomünikasyon kulesi veya direği	Telecommunication tower or support
+43223310	Fiber optik konektör	Fiber optic connector
+43223311	Fiber optik zayıflatıcı	Fiber optic attenuator
+43223312	Fiber optik kablo soyucu	Fiber optic cable stripper
+43223313	Fiber optik sıkma pensesi	Fiber optic crimper
+43223314	Fiber optik parlatma aparatı	Fiber optic polishing fixture
+43223315	Fiber optik alet bıçak seti	Fiber optic tool blade set
+43223316	Fiber optik çizici	Fiber optic scribe
+43223317	Fiber optik tampon sıyırıcı	Fiber optic buffer remover
+43223318	Fiber optik verici	Fiber optic emitter
+43223319	Fiber optik dedektör	Fiber optic detector
+43223320	Fiber optik süreklilik test cihazı	Fiber optic continuity tester
+43223321	Fiber optik konektör klipsi	Fiber optic connector clip
+43223322	Fiber optik destek kavrayıcısı	Fiber optic support grip
+43223323	Fiber optik adaptör	Fiber optic adapter
+43223324	Fiber optik parlatma filmi	Fiber optic polishing film
+43223325	Fiber optik temizleme çubuğu	Fiber optic swab
+43223326	Fiber optik patch kablo	Fiber optic patch cord
+43223327	Fiber optik arıza bulucu	Fiber optic fault locator
+43223328	Fiber optik patch paneli	Fiber optic patch panel
+43223329	Fiber optik ışık kaynağı	Fiber optic light source
+43223330	Fiber optik konektör montaj aleti	Fiber optic connector assembly tool
+43223331	Fiber optik iç parça	Fiber optic insert
+43223332	Fiber optik alet kiti	Fiber optic tool kit
+43223333	Fiber optik mikroskop merceği	Fiber optic scope eyepiece
+43223334	Fiber optik alet ve kalıp seti	Fiber optic tool and die set
+43223335	Fiber optik kılavuz teli	Fiber optic music wire
+43223336	Fiber optik mikroskop adaptörü	Fiber optic scope adapter
+43223337	Fiber optik muhafaza	Fiber optic enclosure
+43223338	Fiber optik ek kutusu	Fiber optic connection closure
+43223339	Fiber optik dağıtım kutusu	Fiber optic distribution box
+43223340	Fiber optik füzyon ek makinesi	Fiber optic fusion splicer
+43223341	Birleştirici	Combiner
+43223342	Dalga kılavuzu ve bağlantı kiti	Waveguide and connection kit
+43223343	Ağ krone aleti	Network punchdown tool
+43231515	Posta ve sevkiyat yazılımı	Mailing and shipping software
+43231516	Denetim yazılımı	Audit software
+43231517	Prosedür yönetim yazılımı	Procedure management software
+43231518	Süreç haritalama ve tasarım yazılımı	Process mapping and design software
+43231606	Kurumsal kaynak planlama ERP iş süreci	Business Process ERP (Enterprise Resource Planning)
+43231607	Faturalama yazılımı	Billing and invoicing software
+43232314	İş zekâsı ve veri analiz yazılımı	Business intelligence and data analysis software
+43232509	Ses sentezleme ve tanıma yazılımı	Voice synthesizer and recognition software
+43232510	Coğrafi bilgi sistemi	Geographic information system
+43232613	Üretim yürütme sistemi MES yazılımı	Manufacturing execution system MES software
+43232614	Bilgisayar destekli tasarım CAD ve üretim CAM sistemi	Computer aided design CAD and computer aided manufacturing CAM system
+43232615	Yüz tanıma yazılımı	Facial recognition software
+43232616	Hukuk yönetim yazılımı	Legal management software
+43232617	Meteoroloji kontrol yazılımı	Meteorological control software
+43232618	Radar görüntü işleme yazılımı	Radar image treatment software
+43232619	Uydu görüntü işleme yazılımı	Satellite image treatment software
+43232620	Risk yönetimi veri ve analiz yazılımı	Risk management data and analysis software
+43232805	IP multimedya alt sistemi yazılımı	Internet protocol IP multimedia subsystem software
+43232806	Bulut tabanlı yönetim yazılımı	Cloud-based management software
+43232917	Yazılım tanımlı ağ ve sanallaştırma yazılımı	Software defined networking/ virtualization software
+43233006	Sanal makine yazılımı	Virtual machine software
+43233007	Bilgisayar görüntüleme yazılımı	Computer imaging software
+43233206	Bulut tabanlı koruma veya güvenlik yazılımı	Cloud-based protection or security software
+43233422	Göz izleme yazılımı	Eye tracking software
+43233513	Bulut tabanlı veri erişim ve paylaşım yazılımı	Cloud-based data access and sharing software
+43233514	COSPAS-SARSAT yazılımı	COSPAS/SARSAT software
+43233701	Kurumsal sistem yönetim yazılımı	Enterprise system management software
+44101507	Mürekkep püskürtmeli faks makinesi	Inkjet fax machine
+44101508	Lazer faks makinesi	Laser fax machine
+44101509	Termal faks makinesi	Thermal fax machine
+44101510	Hava durumu faksı	Weather facsimile or radiofax
+44101511	Teksir makinesi ve aksesuarları	Mimeograph and accessories
+44101607	Kâğıt pres makinesi	Paper press machine
+44101608	Kâğıt öğütücü torbası	Paper shredder bag
+44101730	Otomatik belge ayırıcı	Automatic document sorter
+44101731	Sayfa veya satır büyüteci	Page or bar magnifier
+44101807	Cep hesap makinesi	Pocket calculator
+44101808	Bilimsel hesap makinesi	Scientific calculator
+44101809	Masaüstü hesap makinesi	Desktop calculator
+44101810	Yazıcılı hesap makinesi	Printer calculator
+44101903	Cüzdan güncelleme makinesi	Bankbook or passbook update machine
+44101904	Çek yazma makinesi	Protectograph
+44102109	Otomatik posta makinesi	Automatic postal or mailing machine
+44102413	CD veya DVD etiketleme sistemi kiti	Compact disc or digital versatile disc CD/DVD labeling system kit
+44102414	Otomatik mürekkepli kaşe	Self-inking stamp
+44102504	Kâğıt ve plastik sayıcı	Paper and plastic counter
+44102606	Daktilo şeridi	Typewriter ribbon
+44102802	Termal ciltleme makinesi	Thermal binding machine
+44102803	Spiral ciltleme makinesi	Spiral binding machine
+44102804	Tarak ciltleme makinesi	Comb binding machine
+44102805	Ciltleme delme makinesi	Binding punch machine
+44102806	Tel ciltleme makinesi	Wire binding machine
+44103103	Yazıcı veya faks toneri	Printer or facsimile toner
+44103125	Yazıcı bakım kiti	Printer maintenance kit
+44103126	Dijital çoğaltma makinesi mürekkebi	Digital duplicating machine ink
+44103127	Fotokopi makinesi toneri	Photocopier toner
+44103206	Parmak izli personel devam ve geçiş kontrol cihazı	Fingerprint time attendance and access control machine
+44103207	Kartlı mesai saati cihazı aksesuarları	Time card or time clock machine accessories
+44103508	Ciltleme delme kalıbı	Binding die punch
+44111522	Kitap tutucu	Book holder
+44111523	Masa düzenleyici aksesuar kiti	Desk organizer accessories kit
+44111524	Çöp sepeti	Waste-paper basket
+44111617	Madeni para kontrol makinesi	Coin inspection machine
+44111618	Ankesörlü telefon kartı	Public telephone card or phone card
+44111816	Çoklu çizim makinesi	Multiplex drafting machine
+44111817	Çizim pergeli	Drafting divider
+44111818	Eidograf	Eidograph
+44111912	Beyaz tahta silgisi	Whiteboard eraser
+44111913	Pilli beyaz tahta silgisi	Battery driven whiteboard eraser
+44111914	Pano askısı	Chart hanger
+44111915	Dijital not tahtası	Digital memo board
+44111916	Kâğıtlı sunum tahtası	Flip chart
+44121513	Posta pulu	Postage stamp
+44121627	Kitap ayracı	Bookmark
+44121637	Ofis cetveli	Office ruler
+44121638	Ofis ekipmanı ve kırtasiye sarf malzemesi	Office product equipment and stationery consumable
+44121719	Tek kullanımlık dolma kalem	Disposable fountain pen
+44121720	Çok fonksiyonlu kalem	Multifunction pen
+44121721	Silinebilir mürekkepli kalem	Erasable ink pen
+44121809	Silgi tutucu	Eraser holder
+44121906	Keçeli kalem kartuşu	Felt pen cartridge
+44121907	Dolma kalem mürekkep yedeği	Fountain pen ink refill
+44121908	Tükenmez kalem yedeği	Ballpoint pen ink refill
+44122029	Sınıflandırma dosyası	Classification folder
+44122031	Asma dosya rayı	Side rails for hanging folder frame
+44122032	Konferans dosyası	Conference folder
+44122033	Körüklü dosya	Accordion file folder
+44122034	Kitap sayfa tutucu	Book page holder
+44122035	Kollu klasör	Lever arch file
+44122036	Kutu dosya	Box file
+44122037	Halkalı klasör	Ring binder
+44122109	Cırt cırtlı bağlantı elemanı	Hook and loop fastener
+44122122	Manyetik raptiye	Magnetic thumbtack
+45101517	Ofset prova baskı makinesi	Offset proof press
+45101518	Baskı kalıbı presi	Printing plate press
+45101519	Endüstriyel tabela ve etiket masaüstü yazıcı	Industrial sign and label benchtop printer
+45101520	Endüstriyel tabela ve etiket taşınabilir yazıcı	Industrial sign and label portable printer
+45101612	Rakle bıçağı	Doctor blade
+45101613	Endüstriyel tabela ve etiket masaüstü yazıcı aksesuarları	Industrial sign and label benchtop printer accessories
+45101614	Endüstriyel tabela ve etiket taşınabilir yazıcı aksesuarları	Industrial sign and label portable printer accessories
+45101615	Ofset baskı makinesi parçaları	Offset printing machine parts
+45101616	Ofset baskı temizlik aksesuarları	Offset printing cleaning accessories
+45101709	Baskı filmi	Printing film
+45101710	Endüstriyel tabela ve etiket yazıcı mürekkebi	Industrial sign and label printer ink
+45101711	Endüstriyel tabela ve etiket yazıcı şeridi	Industrial sign and label printer ribbon
+45111619	Film makarası	Film reel
+45111620	Slayt film kopyalayıcı	Slide film copier
+45111706	Kombine ses mikseri ve amplifikatörü	Combination audio mixer and amplifier
+45111707	Ses ekipmanı konektörü ve sahne kutusu	Audio equipment connector and stage box
+45111709	Uzak amplifikatör	Remote amplifier
+45111710	Çan ve siren ünitesi	Chime and siren unit
+45111711	Hoparlör baffle	Speaker baffle
+45111712	Kaset çoğaltıcı	Tape duplicator
+45111713	Ses dağıtım amplifikatörü	Audio distribution amplifier
+45111714	Ses analog dijital dönüştürücü	Audio analog to digital AD converter
+45111715	Ses dijital analog dönüştürücü	Audio digital to analog DA converter
+45111716	Dijital ses iş istasyonu DAW	Digital audio workstation DAW
+45111717	Reverb ünitesi	Reverberator
+45111718	Gecikme ünitesi	Delay unit
+45111719	Ses monitörü	Audio monitor
+45111720	Ses spektrum analizörü	Audio spectrum analyzer
+45111721	Makaralı teyp	Reel to reel tape recorder
+45111722	Kaset çalar	Cassette deck
+45111723	Sabit diskli kaydedici	Hard disk recorder
+45111724	Manyetik kafa	Magnetic head
+45111725	Akustik kutu	Acoustic box
+45111726	Anons sistemi aksesuarları	Public address system accessories
+45111811	Video hassas monitörü	Video precision monitor
+45111812	Görsel bilgi ekran cihazı	Visual information display device
+45111813	Alt akış anahtarlayıcı	Down stream keyer
+45111814	Dijital video efekt DVE ekipmanı	Digital video effects DVE equipment
+45111815	Ses görüntü konsolu	Audio video console
+45111816	Logo üreteci	Logo generator
+45111817	Karakter üreteci	Character generator
+45111818	Video gürültü azaltıcı	Video noise reducer
+45111819	Video mikser	Video mixer
+45111820	Video işleme amplifikatörü	Video processing amplifier
+45111821	Senkronizasyon jeneratörü	Synchronizing or sync generator
+45111822	Televizyon en boy oranı dönüştürücü	Television aspect ratio converter
+45111823	Video standardı dönüştürücü	Video standards converter
+45111824	Senkronizasyon dönüştürücü	Synchronizing or sync converter
+45111825	Kare senkronizatörü	Frame synchronizer
+45111826	MPEG kodlayıcı	Motion picture experts group MPEG encoder
+45111827	Video kaset kontrol cihazı	Video tape checker
+45111828	Suflör cihazı	Prompter
+45111829	Repro kamerası	Process camera
+45112101	Simultane tercüme sistemleri	Interpretation systems
+45112102	Kablosuz simultane tercüme ekipmanı	Wireless interpretation equipment
+45121522	Kızılötesi kamera	Infrared camera
+45121523	Astronomi kamerası	Astronomical camera
+45121524	Göz izleme kamerası	Eye tracking camera
+45121624	Fotoğraf ışık reflektörü	Photography light reflector
+45121625	Deklanşör kablosu	Shutter release
+45121626	Dijital kamera arkalığı	Digital camera back
+45121627	Kamera flaş difüzörü	Camera flash diffuser
+45121628	Kamera lens filtresi	Camera lens filter
+45121629	Kamera ray motoru	Camera track motor
+45121630	Kamera şemsiye reflektörü	Camera parasol reflector
+45121631	Elektronik vizör	Electronic viewfinder
+45121632	Fotoğraf flaş cihazı	Photographic flashlight apparatus
+45121633	Kamera yedek parçaları	Camera spare parts
