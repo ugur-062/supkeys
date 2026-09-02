@@ -244,6 +244,18 @@ Türkçeleştirme kaynağın ÜSTÜNE binen ayrı bir katmandır
 Üçüncü sütun **kaynağın o anki hâlini** taşır: Ariba yeni bir dışa aktarım
 gönderdiğinde satırlar diff'lenebilir, körlemesine ezilmez.
 
+**Aynı katman kaynak KUSURLARINI da düzeltir (2026-09-02 denetimi).** Ariba'nın
+Türkçe dışa aktarımında yanlış element sembolleri (`Kadmiyum Ca`), yazım
+hataları (`Eletrikli`, `Elektronim`, `hzimetleri`), bir yanlış ad (`irmak` →
+`Çıkrık`) ve **farklı dallarda çakışan 36 ad** vardı (`Aynalar` hem optik ayna
+hem torna aynası; `Yataklar` hem rulman hem mobilya). Çakışan adlar
+eşleştirmeyi sessizce böldüğü için en tehlikelisiydi. Tam liste + her
+düzeltmenin dayanağı: **`docs/category-source-defects.md`**.
+
+> Kaynak TSV'ye YAZILMAZ: `import-ariba-csv.ts` onu her koşumda CSV'lerden
+> yeniden üretir, oraya yazılan düzeltme ilk içe aktarmada sessizce kaybolur.
+> Düzeltme overlay'de durur, 3. sütun kusurlu hâli sakladığı için denetlenebilir.
+
 **Kapsam — kullanıcının SEÇTİĞİ her katman %100 Türkçe:**
 
 | Katman | Sayı | Durum |
@@ -317,7 +329,7 @@ kod her hâlükârda çözülebilmeli.
 | Dosya | Ne | Kim yazar |
 |-------|-----|-----------|
 | `ariba-categories.tsv` | 158.018 kategori, 7 sütun (6.'sı `inDiscovery`, 7.'si düşen alt adlar) | `import-ariba-csv.ts` |
-| `category-translations.curated.tsv` | 18.569 satır TR ad + kaynak ad | İNSAN (kalıplarda kural motoru) |
+| `category-translations.curated.tsv` | 18.627 satır TR ad + kaynak ad (kaynak kusur düzeltmeleri dahil) | İNSAN (kalıplarda kural motoru) |
 | `category-keywords.tsv` | elle küratörlü eşanlamlı | İNSAN — **üretilen dosyayı EZER** |
 | `category-keywords.generated.tsv` | TR jargon | `gen-category-keywords.ts` |
 
