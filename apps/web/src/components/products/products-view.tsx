@@ -1,5 +1,6 @@
 "use client";
 
+import { ImportDialog } from "./import-dialog";
 import { ProductShowcaseForm } from "./product-showcase-form";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
@@ -29,6 +30,7 @@ import { useState } from "react";
  */
 export function ProductsView() {
   const [q, setQ] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<{
     item: CatalogItem;
     showcase: ProductShowcase;
@@ -84,7 +86,17 @@ export function ProductsView() {
       <PageHeader
         title="Ürünlerim"
         description="Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde ve arama motorlarında görünür."
+        action={
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
+          >
+            Toplu ürün ekle
+          </button>
+        }
       />
+      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
       <div className="relative mt-6 max-w-md">
         <MagnifyingGlassIcon
@@ -110,6 +122,15 @@ export function ProductsView() {
             Kalem kataloğunuza eklediğiniz her kalem burada ürüne
             dönüştürülebilir.
           </p>
+          {!q ? (
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="mt-4 rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Excel veya katalogdan toplu ekle
+            </button>
+          ) : null}
         </div>
       ) : (
         <ul className="mt-8 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">

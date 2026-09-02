@@ -223,3 +223,132 @@ export function useUploadProductImage() {
     },
   });
 }
+
+/* ================================================================== */
+/* TOPLU İÇE AKTARMA (Faz 4)                                           */
+/* ================================================================== */
+
+export interface ProductImportRow {
+  rowNumber: number;
+  name: string;
+  code: string | null;
+  description: string | null;
+  categoryId: string | null;
+  unit: string;
+  brand: string | null;
+  mpn: string | null;
+  keywords: string[];
+  priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
+  price: number | null;
+  currency: string | null;
+  moq: number | null;
+  /** Bu satırdaki sorunlar — satır yine yazılabilir, kullanıcı görsün diye. */
+  issues: string[];
+}
+
+export interface ProductImportResult {
+  rows: ProductImportRow[];
+  /** Dosya geneli uyarılar (kırpılan satır, tanınmayan sütun…). */
+  notices: string[];
+}
+
+/**
+ * Dosyayı ÖNİZLEMEYE gönderir — hiçbir şey yazılmaz.
+ * Yazma ayrı bir onay adımı (`useCommitProductImport`).
+ */
+export function useParseProductImport() {
+  return useMutation<ProductImportResult, Error, File>({
+    mutationFn: async (file) => {
+      const dataBase64 = await fileToBase64(file);
+      const { data } = await companyApi.post<ProductImportResult>(
+        "/company/items/import/parse",
+        { fileName: file.name, mimeType: file.type, dataBase64 },
+      );
+      return data;
+    },
+  });
+}
+
+export function useCommitProductImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: ProductImportRow[]) => {
+      const { data } = await companyApi.post<{
+        created: number;
+        updated: number;
+      }>("/company/items/import/commit", {
+        rows: rows.map((r) => ({
+          name: r.name,
+          code: r.code,
+          description: r.description,
+          categoryId: r.categoryId,
+          unit: r.unit,
+          brand: r.brand,
+          mpn: r.mpn,
+          keywords: r.keywords,
+          priceMode: r.priceMode,
+          price: r.price,
+          currency: r.currency,
+          moq: r.moq,
+        })),
+      });
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: CATALOG_KEY });
+    },
+  });
+}
+
+/**
+ * "Katalogdan ürün ekle (AI)" — kullanıcının YÜKLEDİĞİ katalogdan (PDF/foto/
+ * tablo) ürün satırları. Çıktı Excel yoluyla AYNI sözleşme
+ * (`ProductImportResult`) → aynı önizleme, aynı `commit` ucu.
+ *
+ * Dosya API gövdesinden geçmez: presigned PUT ile doğrudan R2'ya gider
+ * (tender-extract ile aynı anahtar alanı).
+ */
+export function useAiProductExtract() {
+  return useMutation<ProductImportResult, Error, File[]>({
+    mutationFn: async (files) => {
+      const fileKeys: string[] = [];
+      for (const f of files) {
+        const { data: presigned } = await companyApi.post<{
+          url: string;
+          key: string;
+        }>("/company/ai/uploads/url", {
+          fileName: f.name,
+          mimeType: f.type,
+          fileSize: f.size,
+        });
+        const put = await fetch(presigned.url, {
+          method: "PUT",
+          body: f,
+          headers: { "Content-Type": f.type },
+        });
+        if (!put.ok) throw new Error("Dosya yüklenemedi — lütfen tekrar deneyin");
+        fileKeys.push(presigned.key);
+      }
+      const { data } = await companyApi.post<ProductImportResult>(
+        "/company/ai/product-extract",
+        { fileKeys },
+        // Çok sayfalı katalog vision çıkarımı global 45sn'yi aşabilir.
+        { timeout: 180_000 },
+      );
+      return data;
+    },
+  });
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const s = String(reader.result ?? "");
+      // `data:...;base64,` önekini sunucu da soyuyor ama burada da temizle.
+      resolve(s.slice(s.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(new Error("Dosya okunamadı"));
+    reader.readAsDataURL(file);
+  });
+}

@@ -214,6 +214,8 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Kayıt ülkesi / belge kümesi | `@rothern/shared` `data/country-profiles.ts` |
 | Faaliyet tipi etiket/tavan | `@rothern/shared` `constants/company-activities.ts` |
 | Arama katlama + tokenleme | `@rothern/shared` `helpers/search-fold.ts` |
+| Ürün içe aktarma sütunları | `@rothern/shared` `constants/product-import.ts` |
+| Yüklenen tablo dosyası okuma | `common/files/spreadsheet-reader.ts` |
 
 ## Kategori Kataloğu (2026-09-02 — Ariba, BİREBİR)
 
@@ -521,6 +523,41 @@ onaylamadan yayımlanmaz.
 > (SSRF korumalı, onboarding'de kullanıcının kendi girdiği adres). Ürün
 > kataloğuyla ilgisi yok.
 
+### Toplu ürün ekleme — İKİ KAYNAK, TEK YAZMA YOLU
+
+| Kaynak | Uç | AI | Paket |
+|--------|-----|-----|-------|
+| Excel/CSV şablonu | `GET/POST company/items/import/{template,parse}` | ❌ | hepsi |
+| Katalog PDF/foto | `POST company/ai/product-extract` | ✅ | Silver+ |
+
+İkisi de **aynı** `ProductImportResult` üretir ve **aynı** `commit` ucundan
+(`POST company/items/import/commit`) geçer. İki ayrı yazma yolu olsaydı biri
+diğerinin kuralını kaçırırdı; bu yüzden AI yalnız SATIRLARI üretir, yazmayı
+kullanıcının onayı yapar. Sütun sözleşmesi tek kaynak: `@rothern/shared`
+`product-import.ts`. Dosya okuma sertleştirmesi (zip bombası, CSV tavanı, MIME
+sniff, `.xlsm` reddi, katı base64) `common/files/spreadsheet-reader.ts`'e
+çıkarıldı — yeni yol onu kullanır.
+
+> ⚠️ ESKİ yol (`listing-item-import.service.ts`) hâlâ AYNI korumaların KENDİ
+> kopyasını taşıyor. Bu, denetimde en sık tekrar eden hatanın ta kendisi:
+> helper yazılır, çağrı yerlerinin bir kısmı bağlanmaz, iki hesap sessizce
+> ayrışır. Bir güvenlik düzeltmesi buraya geldiğinde İKİ dosyaya da uygulanmalı
+> (ya da o yol tek kaynağa taşınmalı — borç kaydı aşağıda).
+
+**Model KATEGORİ KODU yazamaz.** Kod üretirse "39121999" gibi geçerli GÖRÜNEN
+ama katalogda olmayan (ya da bambaşka ürüne ait) bir koda düşer ve ürün
+sessizce yanlış dala bağlanır. Model yalnız Türkçe ürün tipi ifadesi
+(`categoryHint`) yazar, kodu backend **katalogda arayarak** bulur; bulunamazsa
+alan BOŞ kalır ve satır uyarı taşır. Kod gibi görünen ipucu sanitizer'da
+düşürülür. (Aynı ilke: teklif içe aktarmada "eşleştirme KODDA".)
+
+**Kategori kodu VARLIĞI doğrulanır** — biçim (8 hane) yetmez. Karşılığı olmayan
+kod hem önizlemede işaretlenir hem YAZMA yolunda null'lanır: yoksa nitelik
+mirası boş döner ama yayın kapısı `categoryId` dolu göründüğü için AÇIK kalırdı.
+
+Ürünler **TASLAK** doğar: 500 satır tek tıkla vitrine düşmez ve yayın en az bir
+görsel ister — görsel ne Excel'de ne katalog çıkarımında taşınır.
+
 ## Pazar Yeri (herkese açık vitrin) — 2026-09-02
 
 Giriş YAPMAMIŞ ziyaretçiye açık ilan/talep vitrini + firma dizini.
@@ -785,6 +822,10 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Teknik borç / temizlik**
 - ~~Test paketi refactor~~ — **TAMAMLANDI**, madde kaldırıldı (bcrypt kalıntısı yok, suite yeşil).
 - **Rig stub gotcha (tekrar eden):** yaygın enjekte edilen bir servise YENİ bağımlılık/çağrı eklendiğinde elle kurulan test rig'leri kırılır — bu denetim boyunca **8 kez** tekrarladı. İki biçimi var: (a) eksik stub → `x is not a function`, (b) **constructor SIRASI kayması** → yanlış nesne enjekte olur ve hata ancak o bağımlılığa ULAŞAN bir testte çıkar (sessiz). Böyle bir değişiklikten sonra **TAM api suite'i** koşulmalı; rig'ler mümkünse paylaşılan bir yardımcıdan kurulmalı.
+- **Tablo okuma tek kaynağı yarım:** `common/files/spreadsheet-reader.ts` ürün
+  içe aktarma için çıkarıldı; `listing-item-import.service.ts` hâlâ kendi
+  kopyasını kullanıyor. Güvenlik düzeltmesi tek dosyaya inerse diğer yol açık
+  kalır — taşınmalı (spec'leri var, mekanik iş).
 - `Supplier.sectors` (kürasyonlu) deprecated kolon kaldırılmalı (migration).
 - `@rothern/email` değişince `pnpm --filter @rothern/email build` şart — CI'da otomatikleşmeli.
 

@@ -14,6 +14,8 @@ import { CategorySuggestService } from "./tender-extract/category-suggest.servic
 import { TenderExtractController } from "./tender-extract/tender-extract.controller";
 import { TenderExtractService } from "./tender-extract/tender-extract.service";
 import { BidPriceExtractController } from "./bid-price-extract/bid-price-extract.controller";
+import { ProductExtractController } from "./product-extract/product-extract.controller";
+import { ProductExtractService } from "./product-extract/product-extract.service";
 import { BidPriceExtractService } from "./bid-price-extract/bid-price-extract.service";
 import { AssistantController } from "./assistant/assistant.controller";
 import { AuditModule } from "../audit/audit.module";
@@ -45,7 +47,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     CompanyOrdersModule,
     CompanyConnectionsModule,
   ],
-  controllers: [AiUsageController, TenderExtractController, BidPriceExtractController, AssistantController, SupplierDiscoveryController, ProfileEnrichController],
+  controllers: [AiUsageController, TenderExtractController, BidPriceExtractController, ProductExtractController, AssistantController, SupplierDiscoveryController, ProfileEnrichController],
   providers: [
     {
       provide: AI_CONFIG,
@@ -80,6 +82,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     AiScheduler,
     TenderExtractService,
     BidPriceExtractService,
+    ProductExtractService,
     CategorySuggestService,
     AssistantService,
     AssistantActionsService,
