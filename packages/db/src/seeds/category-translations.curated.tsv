@@ -12713,3 +12713,214 @@
 82112059	Yerinde Tayca tercüme hizmeti	In person thai interpretation service
 82112060	Yerinde Tibetçe tercüme hizmeti	In person tibetan interpretation service
 82112061	Yerinde Türkçe tercüme hizmeti	In person turkish interpretation service
+82112062	Yerinde Ukraynaca tercüme hizmeti	In person ukranian interpretation service
+82112063	Yerinde Vietnamca tercüme hizmeti	In person vietnamese interpretation service
+82112064	Yerinde Yidiş tercüme hizmeti	In person yiddish interpretation service
+82112065	Yerinde Yugoslav dili tercüme hizmeti	In person yugoslavian interpretation service
+82112066	Yerinde Macarca tercüme hizmeti	In person hungarian interpretation service
+82112067	Yerinde işaret dili tercüme hizmeti	In person sign language interpretation service
+82112101	İngilizce editörlük hizmetleri	Editorial services - english
+82112102	Fransızca editörlük hizmetleri	Editorial services - french
+82112103	İspanyolca editörlük hizmetleri	Editorial services - spanish
+82112104	Rusça editörlük hizmetleri	Editorial services - russian
+82112105	Arapça editörlük hizmetleri	Editorial services - arabic
+82112106	Çince editörlük hizmetleri	Editorial services - chinese
+82131505	Film post prodüksiyon hizmeti	Film post production service
+82141701	Üç boyutlu 3D tarama	Three dimensional 3D scanning
+82141702	Üç boyutlu 3D animasyon	Three dimensional 3D animation
+82141703	Üç boyutlu 3D çekim	Three dimensional 3D filming
+82141704	Sanal gerçeklik simülasyon hizmeti	Virtual reality simulation service
+82141705	Artırılmış gerçeklik hizmeti	Augmented reality service
+82141706	Karma gerçeklik simülasyon hizmeti	Mixed reality simulation service
+82151509	Kamusal sanat eseri kurulum ve bakım hizmeti	Public or outdoor artwork or decorative fixture installation and maintenance
+82151510	Sanat eseri kurulum ve tablo asma hizmeti	Art installation and picture hanging service
+82151511	Sanat galerisi ve müze sergileri teknik hizmeti	Technical service for art gallery and museum exhibitions and collections
+82151512	Sanat galerisi ve müze sergileri küratörlük hizmeti	Curatorial service for art gallery and museum exhibitions and collections
+82161501	Tiyatro dekor yapım hizmeti	Theatrical prop construction service
+82161502	Tiyatro dekor kiralama hizmeti	Theatrical prop rental service
+82161503	Tiyatro kostüm kiralama hizmeti	Theatrical costume rental service
+82161504	Sahne tasarım hizmeti	Set design service
+82161505	Tiyatro makyaj sanatçısı hizmeti	Theatrical make-up artist service
+83101904	Enerji altyapı hizmetleri	Energy Utilities
+83111606	Telsiz el kitabı	Radio manual
+83112206	Yönlü telsiz kapasitesi afet kurtarma yönetim hizmeti	Directional radio capacity disaster recovery management service
+83112506	Yönlü telsiz omurga kapasitesi teknik altyapı hizmeti	Directional radio backbone capacity technical infrastructure service
+83112606	Yönlü telsiz kapasitesi müşteri erişim hizmeti	Directional radio capacity customer access service
+83121705	Sosyal medya ilgili hizmetler	Social media related services
+83130101	Kablolu haberleşme hizmeti	Wire communication service
+83130102	Kablosuz haberleşme hizmeti	Wireless communication service
+84111501	Maliyet muhasebesi hizmeti	Cost accounting service
+84111502	Finansal muhasebe hizmeti	Financial accounting service
+84111503	Vergi muhasebesi hizmeti	Tax accounting service
+84111507	Stok muhasebesi hizmeti	Inventory accounting service
+84111508	İhracat yönetimi ve muhasebesi hizmeti	Export administration and accounting service
+84111509	Finans danışmanlık hizmetleri	Finance advisory consulting services
+84111803	Yurt dışı KDV iadesi hizmeti	Foreign value added tax recovery service
+84111804	Yurt içi KDV iadesi hizmeti	Domestic value added tax recovery service
+84121608	Ödeme geçidi hizmetleri	Payment gateway services
+84121610	Pazarlama fonu	Marketing fund
+84121611	İşlem ücretleri	Transaction fees
+84121706	Finansal varlık yönetim hizmeti	Financial asset management service
+84131518	Bisiklet sigortası	Bicycle insurance
+84131519	Yangın sigortası	Fire insurance
+84131520	Sigorta aracılık ücreti ve komisyonu	Insurance broking fees and commission
+84131611	Tıbbi malpraktis sigortası	Medical malpractice insurance
+84131612	Sağlık dışı tazminat talebi analiz hizmeti	Non-medical benefit claims analysis service
+84131613	Tazminat ödeme işlem veya yönetim hizmeti	Claims payment processing or administration
+84131614	Sigorta riski değerlendirme hizmeti	Underwriting service
+84131615	Çalışan sağlık dışı sigorta hizmetleri	Employee non-health Insurance services
+84131901	İş kazası sigortası hizmeti	Workers' compensation insurance service
+84131902	Mesleki sorumluluk sigortası hizmetleri	Professional errors and omissions liability insurance services
+84131903	Yönetici sorumluluk sigortası hizmetleri	Directors and officers liability insurance services
+84131904	Mütevelli sorumluluk sigortası hizmetleri	Fiduciary liability insurance services
+84131905	İşveren uygulamaları sorumluluk sigortası hizmetleri	Employment practice liability insurance services
+86101510	Tarım makineleri ve ekipmanı eğitimi	Agricultural machinery and equipment training
+86101717	Pazarlama profesyonel eğitim hizmeti	Marketing professional training service
+86101810	Personel beceri eğitimi	Personnel skills training
+86101811	Akreditasyon veya yeniden akreditasyon hizmeti	Accreditation or re-accreditation service
+86101901	Aviyonik eğitimi	Avionics training
+86132001	Yönetici koçluğu hizmeti	Executive coaching service
+86132101	Eğitim moderasyon hizmeti	Training facilitation service
+86132102	Eğitim planlama ve geliştirme danışmanlık hizmeti	Training planning and development consultancy service
+86132103	Eğitim programı tasarım ve içerik geliştirme hizmeti	Training course design and content development service
+86132201	Eğitim atölyesi hizmeti	Training workshop service
+86132202	Saha gezisi hizmeti	Field trip service
+86132203	Eğitim planlama hizmeti	Educational planning service
+86132204	Müfredat geliştirme hizmeti	Curriculum development service
+86132205	Eğitim öngörü hizmeti	Educational forecasting service
+86132206	Öğretim ve eğitim araştırması hizmeti	Teaching and educational research service
+86132207	Eğitim psikolojisi hizmeti	Educational psychology service
+86132208	Eğitim sosyolojisi hizmeti	Educational sociology service
+86132209	Eğitim yönetimi hizmeti	Educational administration service
+86132210	Eğitim istatistikleri hizmeti	Educational statistics service
+86132211	Eğitim anketleri hizmeti	Educational surveys service
+86132212	Eğitim verisi toplama hizmeti	Educational data collection service
+86132213	Eğitim yönetim hizmeti	Educational management service
+86132214	Eğitim değerlendirme hizmeti	Educational evaluation service
+86132215	Eğitim politikası hizmeti	Educational policy service
+86132216	Eğitim mevzuatı hizmeti	Educational legislation service
+86132217	Eğitimde yenilik hizmeti	Educational innovation service
+90101605	Taşımacılık personeli için yemek hizmeti	Food service for transportation operators
+90101901	Kahve makinesi ve değirmeni kiralama ve bakım hizmeti	Coffee machine and grinder rental and maintenance service
+90101902	Kahve veya sıcak içecek otomatı kiralama ve bakım hizmeti	Coffee or hot drink vending machine rental and maintenance service
+90101903	Ocak kiralama hizmeti	Stove rental service
+90101904	Mikrodalga fırın kiralama hizmeti	Microwave oven rental service
+90101905	Blender kiralama hizmeti	Blender rental service
+90101906	Konfeti makinesi kiralama hizmeti	Confetti machine rental service
+90101907	Servis masası kiralama hizmeti	Tavola rental service
+90101908	Propan gaz tüpü kiralama hizmeti	Propane gas balloon rental service
+90111605	Yemek ve kişisel harcama	Meals and personal expense
+90111606	Yemek ve ağırlama hizmeti	Meals and entertainment service
+90111901	İşçi şantiye konaklama hizmeti	Worker worksite room or unit accommodation service
+90111902	Öğrenci yurdu konaklama hizmeti	Student residential room or unit accommodation service
+90111903	Uzun süreli konaklama hizmetleri	Extended stay services
+90111904	Açık deniz konaklama	Offshore accommodation
+90121603	Yolcu bileti doğrulama hizmeti	Passenger ticket verification service
+90121801	Acil seyahat acentesi desteği	Emergency travel agent assistance
+90131603	Sinema dağıtım hizmeti	Cinema distribution service
+90152201	Üçüncü taraf boş zaman hizmeti	Leisure service / 3rd party
+90152202	Personel boş zaman hizmeti	Staff leisure service
+92101505	Grafiti ve vandalizm önleme destek hizmeti	Graffiti and vandalism deterrence support service
+92101905	Emniyet bekleme gemisi hizmeti	Safety standby vessel service
+92101906	Acil müdahale gemisi hizmetleri	Emergency response vessel services
+92111607	Muharebe alanı temizleme hizmeti	Battle area clearance BAC service
+92111608	Patlayıcı mühimmat imha hizmeti	Explosive ordnance disposal EOD service
+92111609	Mayın faaliyeti merkezi hizmeti	Mine action center MAC or mine action coordination center MACC service
+92111610	Mayın temizliği sonrası denetim hizmeti	Post mine clearance inspection service
+92111611	Mayın temizliği görev tasarım hizmeti	Demining post design service PDS
+92111612	Mayın temizliği ön geliştirme hizmeti	Demining preliminary development PD service
+92111613	Mayın mağduru destek hizmeti	Mine victim or survivor assistance service
+92111614	Fiziksel güvenlik ve stok yönetimi hizmeti	Physical security and stockpile management PSSM service
+92111615	Mayın yasağı ve patlayıcı kalıntı risk eğitimi	Landmine prohibition action and explosive remnants of war risk education
+92111616	Mayın yasağı ve patlayıcı kalıntı savunuculuğu	Landmine prohibition action and explosive remnants of war advocacy
+92111717	Kimyasal silah imhası	Chemical weapons destruction
+92112005	Mayın tarlası bölgesi	Minefield zone
+92121705	Biyometrik güvenlik sistemleri	Biometric security systems
+92121801	Zırhlı araç hizmeti	Armored car service
+92121802	Para nakil hizmeti	Money transport service
+92121803	Para saklama hizmeti	Money storage service
+92121901	Güvenlik botu hizmeti	Security boat service
+93141515	Göçmen yerleşim destek hizmeti	Immigrant settlement support service
+93141715	Antropolojik araştırma hizmeti	Anthropological research service
+93141716	Paleontolojik inceleme hizmeti	Paleontologic study service
+93141717	Kültürel miras kazı hizmetleri	Cultural heritage excavation services
+93141718	Kültürel miras sörvey gösterge hizmeti	Cultural heritage survey indicator service
+93142201	İhtiyaç sahibi gençler için konaklama hizmeti	Accommodation service for youth in need
+93142202	İhtiyaç sahibi yetişkinler için konaklama hizmeti	Accommodation service for adults in need
+93142203	İhtiyaç sahibi yaşlılar için konaklama hizmeti	Accommodation service for elderly in need
+93151516	Yapı ruhsatı	Building permit
+93151517	Lisans veya kayıt ücreti	License or registration fee
+93151518	Tapu harcı	Property title fee
+93151519	Sansür hizmeti	Censorship service
+93151520	Kanal ücretleri ve lisansları	Canal fees/licenses
+93161608	Gümrük vergisi	Custom tax or duty
+93161609	Tarife veya harç	Tariff or duty
+57010101	BM personeli için kişisel seyahat kitleri	Personal travel kits for UN staff
+57010102	BM personeli için saha kitleri	Field Kits for UN staff
+57020101	İnsani yardım uçuş operasyonları	Humanitarian relief flight operations
+57020102	İnsani yardım lojistik teslimat ve depolama	Humanitarian logistic delivery and warehousing
+57030102	Çocuk ve bebekler için akut sulu ishal kitleri	Acute watery diarrhea kits for children and infants
+57030103	İnsani yardım obstetrik cerrahi kiti	Obstetric, surgical kit
+57030104	Ağızdan sıvı desteği noktası sarf kiti	Oral-rehydration-points consumable kit
+57030105	Acil sağlık kiti	Emergency health kit
+57030106	Salgın sağlık kiti	Epidemy health kit
+57030107	Birinci basamak sağlık kiti	Primary healthcare kit
+57030108	Üreme sağlığı kiti	Reproductive health kit
+57030109	Travma ve acil cerrahi kiti	Trauma and emergency surgery kit
+57030110	Bulaşıcı olmayan hastalıklar kiti	Non communicable diseases kit
+57030112	İshal hastalığı kiti	Diarrheal disease kit
+57030301	İnsani yardım kadın hijyen ve bakım seti	Female hygiene and personal care set
+57030302	Yetişkin hijyen ve kişisel bakım seti	Adult hygiene and personal care set
+57030303	Su dağıtım kiti	Water distribution kit
+57030305	Su sanitasyon ve hijyen kiti	Water, sanitation and hygiene kit
+57030401	Ebola kişisel koruyucu kiti	Ebola, personal protective kit
+57040102	Matematik öğretim kiti	Math teaching kit
+57040103	Arapça öğrenci ve öğretmen kitleri	Arabic student kits and teacher kit
+57040104	Fen öğretim kiti	Science teaching kit
+57040105	Öğrenciler için okul kiti	School kit for students
+57040301	Erken çocukluk gelişimi kiti	Early childhood development kit
+57050101	Beslenme kiti ayakta tedavi ekipman modülü	Nutritional kit - outpatient, module-equipment
+57050102	Beslenme kiti ayakta tedavi kayıt modülü	Nutritional kit - outpatient, module registration
+57050103	Beslenme kiti yatarak tedavi tıbbi malzeme modülü	Nutritional kit - inpatient module, medical supplies
+57050104	Beslenme kiti yatarak tedavi ekipman modülü	Nutritional kit - inpatient, module-equipment
+57050105	Beslenme kiti yatarak tedavi kayıt modülü	Nutritional kit - inpatient, module-registration
+57050201	Takviye besleme veya emzirme kiti	Supplementary feeding/nursing kit
+57050202	Acil müdahale rasyonu	Immediate response ration (IRR)
+57050203	Kompakt gıda	Compact food
+57050204	Mısır soya karışımı CSB Plus	CSB Plus
+57050205	Acil durum rasyonu	Emergency ration
+57050301	Terapötik besleme kiti	Therapeutic feeding kit
+57060101	Çocuk ve bebekler için kışlık giysi kiti	Winter clothing kit for children and infants
+57060102	Yetişkinler için kışlık giysi kiti	Winter clothing kit for adults
+57060201	Su bidonları	Jerry cans
+57060202	Muhtelif boyutlarda mutfak seti	Kitchen set, varying sizes
+57060203	Çadır aksesuarları	Accessories for tent
+57060204	Plastik veya branda örtü	Plastic / Tarpaulin sheeting
+57060205	Uyku matları	Sleeping mats
+57060206	Çadır kışlık yalıtım kiti	Winterization kit for tent
+57060207	SRB test kiti	SRB testing kit
+57060301	BM personeli için ofis kitleri	Office kits for UN staff
+57060302	Mülteci kayıt paketi	Refugee Registration Package
+57060303	Ofis kullanımı için çadır	Tent, for office use
+57060401	Çok amaçlı kullanım için çadır	Tent, for multipurpose use
+57070101	Refakatsiz çocuklar için erken tespit kiti	Early identification kit for unaccompanied children
+57070102	Lojistik güç kaynakları	Logistic power supplies
+57070103	Güç kaynağı	Power supply
+57070104	Kırtasiye ve kişisel koruyucu donanım	Stationery and PPE
+57070105	Kişisel koruyucu donanım güç ve su temini	Personal protection equipment, power and water supply
+57080101	Acil durum telekomünikasyon ekipmanı	Emergency telecommunications equipment
+57080102	Acil durum operasyon odası ekipman kiti	Emergency operations room equipment kit
+57080103	BM personeli için acil durum bilgisayar ekipmanı	Emergency computer equipment for UN staff
+57080104	Ofis için BT kiti	IT kit for office
+54101513	Kravat iğnesi	Tiepin
+54101514	Değerli mücevher seti	Fine jewelry set
+54101707	Kulak genişletici	Ear gauge
+54101708	Kulak genişletici aksesuarları	Ear gauge accessories
+54111503	Kronometre	Stop watch
+54111504	Gemi kronometresi	Marine chronometer
+54111505	Dalgıç saati	Diver watch
+54111605	Elektronik ana saat	Electronic master clock
+54111606	Elektronik bağlı saat	Electronic slave clock
+54111710	Saat mekanizması	Watch or clock movement
+91101606	Makyaj uygulama hizmeti	Make up application service
+91101904	Terzilik hizmeti	Tailoring service
