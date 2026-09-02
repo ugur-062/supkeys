@@ -11569,3 +11569,195 @@
 47111508	Çamaşır leke çıkarma masası	Laundry spotting table
 47111509	Çamaşırhane çalışma masası	Laundry work table
 47111510	Çamaşır yıkama teknesi	Laundry wash tub or basin
+47111511	Çamaşır kolalama makinesi	Laundry starching machine
+47121501	Temizlik arabası	Cleaning or janitorial cart
+47121502	Temizlik arabası aksesuarları	Cleaning or janitorial cart accessories
+47121614	Zemin makinesi parça ve aksesuarları	Floor machine parts and accessories
+47121707	Bulantı veya kusma torbaları	Motion sickness or emesis bags
+47121710	Gıda atığı sayacı	Food waste meter
+47121711	Evcil hayvan dışkısı toplama ekipmanı	Pet excrement disposal equipment
+47121814	Toz ayırıcı	Dust separator
+47121815	Havuz temizleyici	Pool cleaner
+47121816	Temizlik solüsyonu dispenseri ve aksesuarları	Cleaning solution dispenser and accessories
+47121817	Ultraviyole dezenfeksiyon aydınlatma ünitesi	Ultraviolet disinfectant lighting unit
+47121904	Yıkama küresi	Spray ball
+47131608	Tuvalet fırçası ve fırça altlığı	Toilet brush and toilet brush holder
+47131712	Pisuar sıçrama önleyici pedi	Anti splash urinal pad
+47131835	Kükürt giderici madde	Desulfurizing agent
+47131836	Floresan temizlik işaretleme jeli	Flourescent cleanliness marking gel
+47131910	Süper emici polimer	Super absorbent polymer
+47141501	Petrol toplama ağı	Oil drag net
+47141502	Bariyer serme sistemi	Containment boom
+47141503	Hava kirliliği kontrol ekipmanı	Air pollution control equipment
+43191514	Uydu telefonu	Satellite phone
+43191515	Hoparlörlü telefon	Speaker phone
+43191516	Santral telefon sistemi	Keyphone system
+43191517	Masaüstü VHF telsiz seti	Very High Frequency Radio Set, Desktop
+43191518	Araç tipi VHF telsiz seti	Very High Frequency Radio Set, Mobile
+43191519	El tipi VHF telsiz seti	Very High Frequency Radio Set, Handheld
+43191520	Masaüstü HF telsiz seti	High frequency radio set, desktop
+43191521	Araç tipi HF telsiz seti	High frequency radio set, mobile
+43191616	Centrex telefon konsolu	Centrex phone console
+43191633	Santral telefon alt ünitesi	Key phone subset
+43191634	Santral telefon sistemi genişletme kartı	Extension board for keyphone system
+43191635	Cep telefonu yedek parçaları	Mobile phone spare parts
+43191636	Maket cep telefonu	Dummy mobile phone
+43191637	Cep telefonu ekran koruyucu	Mobile or cell phone screen protector
+43191638	Mikrofonlu kulaklık	Headset with microphone
+43201411	PCI kartı	Peripheral component interconnect PCI card
+43201412	PCMCIA veya PC kartı	PCMCIA or PC card
+43201413	Manyetik şeritli kart	Magnetic stripe card
+43201414	Sabit disk koruyucu	Hard disk protector
+43201415	Abone kimlik modülü SIM kartı	Subscriber identity module SIM card
+43201416	Veri toplama kartı	Data acquisition board
+43201417	Multimedya entegre kartı	Multimedia integrated board
+43201560	Yardımcı işlemci	Coprocessor
+43201619	Bilgisayar soğutma fanı	Computer cooling fan
+43201815	Mikrokanal mimarili okuma ve yazma sürücüleri	Peripheral component microchannel interconnect architecture reader and writer drives
+43201819	Salt okunur HD DVD	Read only high definition digital versatile disc HD DVD
+43201820	Okuma yazmalı HD DVD	Read write high definition digital versatile disc HD DVD
+43201821	Salt okunur Blu-ray disk	Read only blu-ray disc BD
+43201822	Okuma yazmalı Blu-ray disk	Read write blu-ray disc BD
+43201823	Multimedya sabit diskli HDD oynatıcı	Multimedia hard disc drive HDD player
+43201825	Disk yayınlayıcı	Disc publisher
+43201826	CD-ROM dizisi	Compact disk read only memory CD ROM array
+43201827	Taşınabilir sabit disk depolama cihazı	Portable hard disk storage device
+43201828	DVD-Audio diski	Digital video disc audio DVD A
+43201829	DVD-Video diski	Digital video disc video DVD V
+43201830	Katı hal sürücü SSD	Solid state drive SSD
+43201831	Telekomünikasyon bellek ünitesi	Telecommunications memory unit
+43201832	Optik veya kompakt disk değiştirici	Optical or compact disc juke box
+43201833	Dijitalden analoga dönüştürme sistemi	Digital to analog conversion system
+43201835	Ağa bağlı depolama NAS cihazı	Network attached storage NAS device
+43201904	DVD-AV diski	Digital video disc audio video DVD AV
+43201905	Teyp ünitesi temizleme kiti	Tape unit cleaning kit
+43202005	Flash bellek kartı	Flash memory storage card
+43202009	Boş ses kaseti	Blank audio tape
+43202010	USB bellek	Pen or flash drive
+43202106	Taşınabilir medya kutusu veya cüzdanı	Portable media case or wallet
+43202107	CD veya DVD çantası	Compact disc or digital versatile disc CD/DVD briefcase
+43202108	Hafıza kartı kutusu	Memory card case
+43202215	Klavye veya fare kablosu	Keyboard or mouse cable
+43202216	Yazıcı bağlantı kablosu	Printer connection cable
+43202217	Bilgisayar kablosu tutucusu	Computer cable holder
+43202218	Bilgisayar kablosu kapağı	Computer cable cover
+43202219	Otomotiv HVAC kontrol paneli takımı	Automotive heating ventilation air conditioning HVAC control head assembly
+43202220	Otomotiv HVAC güç modülü	Automotive heating ventilation air conditioning HVAC power module
+43202221	Otomotiv HVAC direnç takımı	Automotive heating ventilation air conditioning HVAC resistor assembly
+43202222	Bilgisayar kablosu	Computer cable
+43211501	Bilgisayar sunucusu	Computer server
+43211502	Üst düzey bilgisayar sunucusu	High end computer server
+43211503	Dizüstü bilgisayar	Notebook computer
+43211504	Kişisel dijital asistan PDA	Personal digital assistant PDAs or organizer
+43211506	İnce istemci bilgisayar	Thin client computer
+43211507	Masaüstü bilgisayar	Desktop computer
+43211508	Kişisel bilgisayar	Personal computer
+43211509	Tablet bilgisayar	Tablet computer
+43211510	Ana bilgisayar konsolu veya uç birimi	Mainframe console or dumb terminal
+43211511	Giyilebilir bilişim cihazı	Wearable computing device
+43211512	Ana bilgisayar	Mainframe computer
+43211514	Bilgisayar kiosk	Computer kiosk
+43211515	Bilgisayar iş istasyonu	Computer workstation
+43211516	Mini bilgisayar	Minicomputer
+43211517	Analog bilgisayar	Analog computer
+43211518	Çok ekranlı bilgisayar	Multi screen computer
+43211519	Elektronik kitap okuyucu	Electronic reader or E-reader
+43211520	Barebone bilgisayar	Barebone computer
+43211521	Hepsi bir arada masaüstü bilgisayar	All in one desktop computer
+43211522	Blade sunucu	Computer blade server
+43211523	Ortak kullanım self servis kiosk	Common-use self-service kiosk
+43211614	Bluetooth USB adaptörü	Bluetooth universal serial bus USB adapter
+43211615	Dizüstü bilgisayar genişletme yuvası	Notebook computer expansion dock
+43211616	PDA tutucusu	Personal digital assistant PDA holder
+43211617	USB uzatma kablosu	Universal serial bus USB extension cable
+43211618	USB GPRS modem	Universal serial bus general packet radio service USB GPRS modem
+43211619	Dizüstü bilgisayar taşıma çantası	Notebook computer carrying case
+43211620	Tablet bilgisayar kılıfı	Tablet computer cover
+43211621	Tablet koruyucu film veya ekran koruyucu	Tablet protective film or screen protector
+43211622	Giriş çıkış portu kilitleme cihazı	I/O port locking device
+43211623	Akıllı telefon arayüz cihazları	Smart phone interface devices
+43211624	Bilgisayar güç kaynağı	Computer power supply
+43211708	Bilgisayar faresi	Computer mouse
+43211721	Delikli kart okuyucu	Punch card reader
+43211723	Elektronik oylama veya oy sayım ekipmanı	Electronic voting or vote-counting equipment
+43211724	Bilgisayar çevre birimi kiti	Computer peripheral kit
+43211725	CD veya DVD temizleyici	Compact disc or digital versatile disc CD/DVD cleaner
+43211726	Dijital kalem	Digital pen
+43211727	Manyetik mürekkep karakter okuyucu MICR cihazı	Magnetic ink character recognition MICR device
+43211728	Akıllı kart uç birimi	Smart card dummy terminal
+43211729	Optik işaret okuyucu	Optical mark reader
+43211730	Veri toplama sistemi	Data acquisition system
+43211731	Görüntü analizörü	Image analyzer
+43211732	Dijital film okuyucu	Digital film reader
+43211733	Klavye ve fare kiti	Keyboard and mouse kit
+43211734	Bilgisayar iztopu	Computer trackball
+43211735	Uçak bileti doğrulayıcı	Airline ticket validator
+43211736	Konferans oylama sistemi	Conference voting system
+43211806	Klavye bilek desteği	Keyboard wrist rest
+43211807	Fare bilek desteği	Mouse wrist rest
+43211908	Vakum floresan ekran	Vacuum fluorescent display
+43211909	Polimer LED ekran	Poly light emitting diode LED display
+43211910	Ekran eğim mekanizması	Display tilt mechanism
+43211911	Dokunmatik ekran camı	Touchscreen glass
+43211912	Dokunmatik ekran filmi	Touchscreen film
+43211913	Aktif LCD ekran	LCD active display
+43211914	Pasif LCD ekran	LCD passive display
+43211915	Kuantum nokta QLED ekran	Quantum dot QLED display
+43212003	Monitör bileşenleri	Monitor components
+43212115	Barkod yazıcı	Bar code printer
+43212116	RFID etiket yazıcı	Radio frequency identification RFID tag printer
+43212118	Şerit yazıcı	Strip Printer
+43212201	Depolama sanallaştırma sistemi	Storage virtualization system
+43221527	Telefon dinleme koruyucusu	Wire tapping protector
+43221528	Denetim sinyal ünitesi	Supervisory signal unit
+43221529	Konuşma sayacı	Call meter
+43221530	Santral sinyal cihazı	Switch board signal device
+43221531	Ses haberleşme anahtarlama VCS sistemi	Voice Communications Switch (VCS) system
+43221532	PABX santral sistemi	PABX system
+43221533	TETRA sayısal telsiz sistemi	Terrestrial Trunked Radio (TETRA)
+43221534	Radyolink sistemi	Radio link system
+43221535	İnterkom sistemi bakım aletleri ve aksesuarları	Intercom system maintenance tools and accessories
+43221604	Sayısal abone hattı XDSL ekipmanı	Digital subscriber loop or line XDSL equipment
+43221722	GPS anteni	Global positioning system GPS antenna
+43221724	Zaman senkronize jeneratör	Time synchronized generator
+43221725	Sinyal bölücü	Signal divider
+43221726	Anten reflektörü	Reflector for antenna
+43221727	Anten aksesuarı	Antenna accessory
+43221728	Radom veya radar kubbesi	Radome or radar dome
+43221729	Taşınabilir anten	Portable antenna
+43221730	Kablolu telekomünikasyon vericisi	Wired telecommunications transmitter
+43221731	Su altı haberleşme sistemi	Underwater communication system
+43221732	Hoparlör kontrol ünitesi	Speaker control unit
+43221733	Uzaktan otomatik sayaç okuma sistemi	Remote automatic meter reading system
+43221734	Uydu haberleşme ekipmanı	Satellite communications equipment
+43221735	VSAT sistemi	VSAT system
+43221736	COSPAS-SARSAT sistemi	COSPAS/SARSAT system
+43221737	COSPAS-SARSAT yer istasyonları	COSPAS/SARSAT ground stations
+43221738	VHF veya VDL AM verici	Transmitter VHF/VDL, AM
+43221739	HF alıcı verici	Transceivers, HF
+43221740	VHF AM alıcı verici	Transceivers, VHF AM
+43221741	VHF FM alıcı verici	Transceivers, VHF FM
+43221742	Tek ve çok kanallı VHF UHF alıcı verici	Transceivers VHF, UHF single and multi channel
+43221744	Acil durum konum vericisi	Emergency locating transmitter
+43221745	HF verici ve ilgili ekipman	HF transmitter and associated equipment
+43221746	Uydu haberleşme cihazları	Satellite communications equipment
+43221747	UHF verici ve ilgili ekipman	UHF transmitters and  associated equipment
+43221748	VHF alıcı ve ilgili ekipman	VHF receivers and associated equipment
+43221809	Optik verici	Optical transmitter
+43221810	Optik çoklayıcı	Optical multiplexer
+43221811	Optik anahtar	Optical switch
+43222504	Telsiz karıştırma vericisi	Radio jamming transmitter
+43222637	Gigabit pasif optik ağ GPON	Gigabyte passive optical network GPON
+43222638	Yönetilen kiralık hat ağı MLLN ekipmanı	Managed lease line network MLLN equipment
+43222639	IP multimedya alt sistemi donanımı	Internet protocol IP multimedia subsystem hardware
+43222640	Kablosuz erişim noktası	Wireless access point
+43222641	IP paylaşım cihazı	Internet protocol sharing device
+43222642	Yönlendirmeli anahtarlayıcı	Routing switcher
+43222643	Kablo ağı test cihazı	Cable network tester
+43222704	Telgraf santralı	Telegraph switch board
+43222806	Krone bloğu	Punch down block
+43222818	Telefon dağıtım terminal panosu	Telephone distributing terminal frame
+43222826	Taşıyıcı terminali	Carrier terminal
+43222827	Çoklayıcı veya MUX	Multiplexer or MUX
+43222828	Frekans bölmeli çoklayıcı	Frequency division multiplexer
+43222903	Telekomünikasyon kulesi veya direği	Telecommunication tower or support
