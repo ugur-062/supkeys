@@ -5552,3 +5552,59 @@
 11161608	Pamuklu havlu kumaş	Cotton terry towelling
 11161706	Pamuklu şönil	Cotton chenille
 11161707	Taranmış veya penye pamuk	Cotton carded or combed
+
+# Patlayıcılar, sanayi gazları, katalizörler, kimyasal katkılar.
+12131509	Amonyum nitrat-fuel oil (ANFO)	Ammonium nitrate and fuel oil ANFO
+12131510	Beyaz fosfor	White phosphorus
+12131709	Patlayıcı sıkılama aleti	Explosive tamper
+12142107	Hidrojen sülfür	Hydrogen sulfide
+12142108	Karbon monoksit	Carbon monoxide
+12142109	Kuru buz	Dry ice
+12142110	Sıvı amonyak	Liquid ammonia
+12142111	Sıvı azot	Liquid nitrogen
+12142112	Sıvı argon	Liquid argon
+12142113	Sıvı helyum	Liquid helium
+12142114	Sıvı oksijen	Liquid oxygen
+12142115	Hidrojen klorür gazı	Hydrogen chloride gas
+12142116	Oksijen bileşiği gazlar	Oxygen compound gases
+12142117	Endüstriyel gaz dökme tüpü	Industrial gases bulk cylinder
+12142118	Endüstriyel gaz tüpü	Industrial gases cylinder
+12142119	Yerinde endüstriyel gaz üretimi	Onsite industrial gases production
+12161605	Arıtma katalizörü	Treating catalyst
+12161606	Reforming katalizörü	Reforming catalyst
+12161607	Ayrıştırma katalizörü	Decomposition catalyst
+12161608	Adsorban malzeme katalizörü	Adsorbent material catalyst
+12161609	Hidrojen üretim ünitesi katalizörü	Hydrogen manufacturing unit catalyst
+12161610	Petrokimya katalizörü	Petrochemical catalyst
+12161611	Hidrokraking katalizörü	Hydrocracking catalyst
+12161613	Çevresel katalizör	Environmental catalyst
+12161809	Silikon jel	Silicone gel
+12161909	Betain yüzey aktif madde	Betaine surfactant
+12161913	Püskürtme yardımcı maddesi	Spray adjuvant
+12162006	Aromatik ester plastifiyan	Aromatic ester plasticizer
+12162007	Polioller	Polyols
+12162008	Ön polimerler	Prepolymers
+12162304	Yapıştırıcı hızlandırıcı	Adhesive accelerator
+12162305	Beton katkısı	Concrete additive
+12163102	Dağıtıcı (deflokülant)	Deflocculant
+12163502	Çimento katkıları	Cement additives
+12163804	Cıva tutucu	Mercury absorbent
+12163805	Üretim yağı işleme kimyasalları	Production oil treatment chemicals
+12164202	Yanma önleyici	Combustion inhibitor
+12164302	Demir bağlayıcı	Iron sequestering agent
+12164303	Demir korozyon önleyici	Iron corrosion inhibitor
+12164505	Yardımcı madde (eksipiyan)	Excipient
+12164506	Tablet bağlayıcı	Tablet binder
+12164507	Tablet kaplama	Tablet coating
+12164508	Dağıtıcı (disintegran)	Disintegrant
+12164509	Topaklanma önleyici	Anticaking agent
+12164601	Haşıl maddesi	Sizing agent
+12164602	Kıvam arttırıcı	Thickening agent
+12164603	Optik beyazlatıcı	Optical brightener
+12164604	Antistatik madde	Antistatic agent
+12164605	Mikro flokülant	Micro flocculant
+12164606	Işık ve UV stabilizatörü	Light and ultraviolet UV stabilizer
+12164701	Antiseptik katkı	Antiseptic additive
+12164801	Çimento su azaltıcı katkı	Cement water reducing agent
+12164802	Su ile şişen su tutucu madde	Water swelling or water stop agent
+12164803	Yapısal su itici	Structural water repellent
