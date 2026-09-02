@@ -191,6 +191,8 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Ödeme durumu | `common/company/order-payments.ts` |
 | Efektif paket (INV-TIER-1) | `common/company/effective-tier.ts` (`effectiveTier`, `tierAtLeastWhere`, `anyPackageWhere`) |
 | İlan görünürlüğü | `common/company/listing-visibility.ts` |
+| Pazar yeri sözcükleri/rotaları (web) | `lib/public/marketplace.ts` |
+| Pazar yeri yayın anahtarı (web) | `lib/public/marketplace-live.ts` |
 | Bağlantı geçerliliği | `common/company/valid-connection.ts` |
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
 | Kimlik yolunda Company select | `common/company/auth-company-select.ts` |
@@ -431,13 +433,98 @@ kod) → firma/ilan seçimleri korunur. 2026-09-02 geçişinde ölçüldü: 42 i
 NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor — tek koşum ikisine de
 yansır.
 
+## Pazar Yeri (herkese açık vitrin) — 2026-09-02
+
+Giriş YAPMAMIŞ ziyaretçiye açık ilan/talep vitrini + firma dizini.
+**Yayın anahtarı KAPALI** — `NEXT_PUBLIC_MARKETPLACE_LIVE=true` + redeploy ile
+açılır (`apps/web/src/lib/public/marketplace-live.ts`). Kapalıyken `/`
+"Çok Yakında" gösterir, pazar yeri rotaları 404, robots `Disallow: /`,
+sitemap boş. Açılış geri alınamaz bir dış etki olduğu için tetiği `git push`
+değil bilinçli bir env kararıdır.
+
+### Rotalar
+
+| Rota | Ne | Render |
+|------|-----|--------|
+| `/` | pazar yeri anasayfası (envanter + arama + sektörler) | ○ statik, ISR 60sn |
+| `/alim-talepleri` · `/satilik` | ALIM/SATIS listeleri, süzgeçli | ƒ dinamik |
+| `/tedarikciler` | firma dizini | ƒ dinamik |
+| `/talep/<slug>` · `/ilan/<slug>` | tekil kayıt | ƒ dinamik, ISR 120sn |
+| `/nasil-calisir` | ESKİ pazarlama anasayfası (içerik birebir taşındı) | ○ statik, ISR 1sa |
+
+Slug: **numara ÖNDE** (`/talep/rot-000042-celik-boru`). Ayrıştırma tek regex'e
+iner; numara sonda olsaydı başlığı "…-rot-9" ile biten kayıt sessizce YANLIŞ
+ilanı açardı. Eski slug ve yanlış taban (`/talep` altında SATIS) **308** ile
+kanoniğe yönlenir. Sitemap ve sayfanın kanonik etiketi AYNI `listingPath`ten
+üretilir — ayrı kurulsalardı Google ikisini de güvensiz sayardı.
+
+### ÜÇÜNCÜ sözcük çerçevesi
+
+Ziyaretçinin ne alıcılığı ne satıcılığı var; panelin iyelik kipli sözlüğü ona
+uymaz. Tek kaynak `apps/web/src/lib/public/marketplace.ts`:
+
+| kayıt | satınalma | satış | **pazar yeri** |
+|-------|-----------|-------|----------------|
+| ALIM | "Taleplerim" | "Açık Talepler" | **"Alım Talepleri"** |
+| SATIS | — | "Satış İlanlarım" | **"Satılık İlanlar"** |
+
+### İki kapı — vitrin ve indeks AYRI
+
+Tek kaynak `common/company/listing-visibility.ts`
+(`marketplaceListingWhere`, `marketplaceIndexableWhere`):
+
+```
+VİTRİN = PUBLIC ∧ company.publicListingsEnabled ∧ firma aktif/bloksuz
+         ∧ publishedAt ∧ embargo geçmiş
+         ∧ statü ∈ {OPEN, IN_AWARD, IN_AWARD_APPROVAL, AWARDED, CLOSED_NO_AWARD}
+İNDEKS = vitrin ∧ listing.publicIndexable ∧ company.publicEnabled ∧ statü=OPEN
+```
+
+`CLOSED` (admin moderasyonu) ve `CANCELLED` vitrine bile ÇIKMAZ — moderasyonla
+kapatılan ilanı yayımlamak moderasyonu anlamsız kılardı. Kapanmış ilan sitede
+DURUR (gelen bağlantı kırılmasın) ama `noindex` alır ve sitemap'ten düşer.
+
+### Kapalı zarf YAPISAL
+
+`dto/public-listing.projection.ts` `PUBLIC_LISTING_SELECT` bir **beyaz
+liste**: listelenmeyen kolon Prisma'dan hiç dönmez, mapper'da unutulsa bile
+sızamaz. Sözleşme testi `public-marketplace.spec.ts` yanıt ağacını gezip
+yasaklı anahtar arar (gerçek teklif yazıp tutarının çıktıda geçmediğini
+doğrular).
+
+DIŞARIDA: teklifler **ve teklif SAYISI** (md. 3 sayıyı da yasaklıyor) ·
+`targetPrice` (bayrak açık olsa bile — izin TEDARİKÇİYE verildi) ·
+`minPrice`/`minUnitPrice` (pazarlık tabanı; `buyNowPrice` DAHİL, o kamuya açık
+satış beyanı) · `terms`/`paymentNote` (serbest metin, IBAN/telefon taşıyabilir)
+· `logistics`/adresler · `internalNotes` · `createdById` · cuid `id`'ler.
+`description` DAHİL — sayfanın içeriği odur.
+
+### ⚠️ AÇIK ÜRÜN KARARI: maskeli freemium ↔ pazar yeri çelişkisi
+
+`listingBidEligibility` PUBLIC ilanı STANDART üyeye **maskeli** gösteriyor
+(açıklama/sahip adı/anahtar kelime gizli). Pazar yeri açılınca aynı içerik
+ANONİM ziyaretçiye TAM görünecek → **çıkış yapan daha çoğunu görür**, maske
+işlevsizleşir. Karar verilmeli: maske PUBLIC ilanlarda kalksın (kapı
+"görmek"ten "teklif vermek"e taşınsın — zaten BRONZ+/KYC istiyor) ya da pazar
+yeri yalnız maskeli veri göstersin (o zaman ince içerik → SEO değersiz).
+
+### Bilinen sınır
+
+Süzgeçli liste sayfaları `searchParams` okuduğu için DİNAMİK; Next kendi
+`no-store`'unu middleware'den SONRA yazdığı için kenar önbelleğine giremiyor
+(`next.config` `headers()` de aynı sebeple çalışmaz — ölçüldü, middleware'de
+not var). Doğru çözüm başlık değil ROTA BİÇİMİ: süzgeci yol parçasına taşımak
+(`/alim-talepleri/kategori/<kod>`) o sayfaları statik yapar. Long-tail turunda.
+
 ## Migration Durumu
 
-**Bekleyen YOK** — `migrate status` "up to date" (2026-09-02, 68 migration).
+**Bekleyen YOK** — `migrate status` "up to date" (2026-09-02, 69 migration).
 Kategori geçişinin iki migration'ı canlıya uygulandı:
 - `20260902100000_category_in_discovery` — `Category.inDiscovery` kolonu
 - `20260902100100_category_search_trgm` — `pg_trgm` + `searchText`/`nameTr`
   GIN indeksi (canlıda doğrulandı: `Bitmap Index Scan`, 1,35 ms)
+- `20260902130000_marketplace_public_flags` — `Company.publicListingsEnabled`
+  + `Listing.publicIndexable` (iki ADD COLUMN, sabit DEFAULT → kilit anlık)
 
 > ⚠️ **`render.yaml` `autoDeploy: true`** — main'e push edilen API kodu prod'a
 > KENDİLİĞİNDEN gider. Şema kullanan bir değişikliği push ettiysen migration'ı
