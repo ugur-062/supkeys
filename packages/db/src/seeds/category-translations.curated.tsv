@@ -17054,34 +17054,34 @@
 85819300	Damar sistemi, periferik venler, dolaşım, perkütan yaklaşım	Vascular system-peripheral veins-circulatory, percutaneous approach
 85819400	Damar sistemi, periferik venler, dolaşım, açık yaklaşım	Vascular system-peripheral veins-circulatory, open approach
 85821000	Beyin, sinir sistemi ve kafa içi uygulamalar, doğal veya yapay açıklık yoluyla	Brain and nervous system and intracranial applications, via natural or artificial opening
-85821100	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım	Brain and nervous system and intracranial applications, external approach
+85821100	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım (ölçüm)	Brain and nervous system and intracranial applications, external approach
 85821200	Beyin, sinir sistemi ve kafa içi uygulamalar, perkütan yaklaşım	Brain and nervous system and intracranial applications, percutaneous approach
 85821300	Gastrointestinal sistem uygulamaları, doğal veya yapay açıklık yoluyla	Gastrointestinal system applications, via natural or artificial opening
 85821400	Gastrointestinal sistem uygulamaları, eksternal yaklaşım	Gastrointestinal system applications, external approach
 85821500	Gastrointestinal sistem uygulamaları, perkütan yaklaşım	Gastrointestinal system applications, percutaneous approach
 85821600	Gastrointestinal sistem uygulamaları, perkütan endoskopik yaklaşım	Gastrointestinal system applications, percutaneous endoscopic approach
-85821700	Kas iskelet uygulamaları, eksternal yaklaşım	Musculoskeletal applications, external approach
+85821700	Kas iskelet uygulamaları, eksternal yaklaşım (ölçüm)	Musculoskeletal applications, external approach
 85821800	Kas iskelet uygulamaları, perkütan yaklaşım	Musculoskeletal applications, percutaneous approach
-85821900	Kalp dışı elektriksel aktivite ve iletim uygulamaları, doğal veya yapay açıklık yoluyla	Non-cardiac electrical activity and conductivity applications, via natural or artificial opening
+85821900	Kalp dışı elektriksel aktivite ve iletim uygulamaları, doğal veya yapay açıklık yoluyla (ölçüm)	Non-cardiac electrical activity and conductivity applications, via natural or artificial opening
 85822000	Kalp dışı elektriksel aktivite ve iletim uygulamaları, eksternal yaklaşım	Non-cardiac electrical activity and conductivity applications, external approach
 85822100	Kalp dışı elektriksel aktivite ve iletim uygulamaları, açık yaklaşım	Non-cardiac electrical activity and conductivity applications, open approach
 85822200	Kalp dışı elektriksel aktivite ve iletim uygulamaları, perkütan yaklaşım	Non-cardiac electrical activity and conductivity applications, percutaneous approach
 85822300	Solunum uygulamaları, doğal veya yapay açıklık yoluyla	Respiratory applications, via natural or artificial opening
-85822400	Solunum uygulamaları, eksternal yaklaşım	Respiratory applications, external approach
+85822400	Solunum uygulamaları, eksternal yaklaşım (ölçüm)	Respiratory applications, external approach
 85822500	Üriner ve üreme uygulamaları, doğal veya yapay açıklık yoluyla	Urinary and reproductive applications, via natural or artificial opening
-85822600	Üriner ve üreme uygulamaları, eksternal yaklaşım	Urinary and reproductive applications, external approach
-85822700	Vasküler ve hemodinamik uygulamalar, doğal veya yapay açıklık yoluyla	Vascular and hemodynamic applications, via natural or artificial opening
-85822800	Vasküler ve hemodinamik uygulamalar, eksternal yaklaşım	Vascular and hemodynamic applications, external approach
+85822600	Üriner ve üreme uygulamaları, eksternal yaklaşım (ölçüm)	Urinary and reproductive applications, external approach
+85822700	Vasküler ve hemodinamik uygulamalar, doğal veya yapay açıklık yoluyla (ölçüm)	Vascular and hemodynamic applications, via natural or artificial opening
+85822800	Vasküler ve hemodinamik uygulamalar, eksternal yaklaşım (ölçüm)	Vascular and hemodynamic applications, external approach
 85822900	Vasküler ve hemodinamik uygulamalar, açık yaklaşım	Vascular and hemodynamic applications, open approach
 85823000	Vasküler ve hemodinamik uygulamalar, perkütan yaklaşım	Vascular and hemodynamic applications, percutaneous approach
-85823100	Kalp dışı elektriksel aktivite ve iletim uygulamaları, doğal veya yapay açıklık yoluyla	Non-cardiac electrical activity and conductivity applications, via natural or artificial opening
-85823200	Vasküler ve hemodinamik uygulamalar, doğal veya yapay açıklık yoluyla	Vascular and hemodynamic applications, via natural or artificial opening
-85823300	Üriner ve üreme uygulamaları, eksternal yaklaşım	Urinary and reproductive applications, external approach
-85823400	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım	Brain and nervous system and intracranial applications, external approach
-85823500	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım	Brain and nervous system and intracranial applications, external approach
-85823600	Vasküler ve hemodinamik uygulamalar, eksternal yaklaşım	Vascular and hemodynamic applications, external approach
-85823700	Kas iskelet uygulamaları, eksternal yaklaşım	Musculoskeletal applications, external approach
-85823800	Solunum uygulamaları, eksternal yaklaşım	Respiratory applications, external approach
+85823100	Kalp dışı elektriksel aktivite ve iletim uygulamaları, doğal veya yapay açıklık yoluyla (izleme)	Non-cardiac electrical activity and conductivity applications, via natural or artificial opening
+85823200	Vasküler ve hemodinamik uygulamalar, doğal veya yapay açıklık yoluyla (izleme)	Vascular and hemodynamic applications, via natural or artificial opening
+85823300	Üriner ve üreme uygulamaları, eksternal yaklaşım (izleme)	Urinary and reproductive applications, external approach
+85823400	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım (izleme)	Brain and nervous system and intracranial applications, external approach
+85823500	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım (cihaz ölçümü)	Brain and nervous system and intracranial applications, external approach
+85823600	Vasküler ve hemodinamik uygulamalar, eksternal yaklaşım (cihaz ölçümü)	Vascular and hemodynamic applications, external approach
+85823700	Kas iskelet uygulamaları, eksternal yaklaşım (cihaz ölçümü)	Musculoskeletal applications, external approach
+85823800	Solunum uygulamaları, eksternal yaklaşım (cihaz ölçümü)	Respiratory applications, external approach
 85831000	Kardiyovasküler veya dolaşım bozukluğu tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  cardiovascular or circulatory dysfunction
 85831100	Solunum bozukluğu tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  respiratory dysfunction
 85831200	Hepatobiliyer bozukluk tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  hepatobiliary dysfunction
