@@ -1,5 +1,6 @@
 import { MARKETPLACE_ROUTES, listingPath } from "@/lib/public/marketplace";
 import { fetchListingSitemap } from "@/lib/public/marketplace-api";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { MetadataRoute } from "next";
@@ -42,6 +43,9 @@ async function fetchCompanySlugs(): Promise<CompanySitemapEntry[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = resolveSiteUrl();
+  // Yayın öncesi: sitemap BOŞ. Var olmayan (404 dönen) pazar yeri adreslerini
+  // listelemek tarayıcıya yanlış bilgi vermek olurdu.
+  if (!MARKETPLACE_LIVE) return [];
   const [companies, listings] = await Promise.all([
     fetchCompanySlugs(),
     fetchListingSitemap(),

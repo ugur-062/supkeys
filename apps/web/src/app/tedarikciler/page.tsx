@@ -11,7 +11,9 @@ import {
 } from "@/lib/public/marketplace-api";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { companyActivityLabel } from "@rothern/shared";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
 export const revalidate = 120;
@@ -43,6 +45,8 @@ export default async function Page({
 }: {
   searchParams: Promise<SP>;
 }) {
+  // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
+  if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   const pageNo = Number(sp.sayfa);
   const [dir, facets] = await Promise.all([

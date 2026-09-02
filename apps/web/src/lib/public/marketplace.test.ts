@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PUBLIC_ROUTE_PREFIXES, isPublicRoute } from "../public-routes";
 import {
@@ -91,5 +93,42 @@ describe("durum daraltma ve indeks kapısı", () => {
     expect(isIndexableState("open")).toBe(true);
     expect(isIndexableState("evaluating")).toBe(false);
     expect(isIndexableState("closed")).toBe(false);
+  });
+});
+
+/**
+ * DEĞİŞMEZ: her pazar yeri rotası yayın anahtarını okumalı.
+ *
+ * `MARKETPLACE_LIVE` kapalıyken pazar yeri rotaları 404 döner, robots her şeyi
+ * kapatır ve sitemap boşalır. Yeni bir pazar yeri rotası eklenip kapı
+ * unutulursa o sayfa yayın öncesi CANLI olur ve arama motoru onu indeksler —
+ * geri alınması bizim denetimimizde olmayan bir etki. Bu test dosya sistemi
+ * üzerinden o unutmayı yakalar.
+ */
+describe("yayın anahtarı kapsamı", () => {
+  const APP = path.resolve(__dirname, "../../app");
+  const PAGES = [
+    "alim-talepleri/page.tsx",
+    "satilik/page.tsx",
+    "tedarikciler/page.tsx",
+    "talep/[slug]/page.tsx",
+    "ilan/[slug]/page.tsx",
+    "page.tsx", // anasayfa
+  ];
+
+  it("her pazar yeri sayfası MARKETPLACE_LIVE okur", () => {
+    const missing = PAGES.filter((rel) => {
+      const src = readFileSync(path.join(APP, rel), "utf-8");
+      return !src.includes("MARKETPLACE_LIVE");
+    });
+    expect(missing).toEqual([]);
+  });
+
+  it("robots ve sitemap de anahtarı okur", () => {
+    for (const f of ["robots.ts", "sitemap.ts"]) {
+      expect(readFileSync(path.join(APP, f), "utf-8")).toContain(
+        "MARKETPLACE_LIVE",
+      );
+    }
   });
 });

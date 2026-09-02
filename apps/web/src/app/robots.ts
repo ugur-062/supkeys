@@ -1,3 +1,4 @@
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { MetadataRoute } from "next";
 
@@ -10,6 +11,15 @@ import type { MetadataRoute } from "next";
  */
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = resolveSiteUrl();
+  // Yayın öncesi: hiçbir şey taranmasın. "Yakında" sayfasının indekslenmesi
+  // alan adı için değersiz, hatta zararlı (içeriksiz sayfa sinyali).
+  if (!MARKETPLACE_LIVE) {
+    return {
+      rules: [{ userAgent: "*", disallow: "/" }],
+      sitemap: `${siteUrl}/sitemap.xml`,
+      host: siteUrl,
+    };
+  }
   return {
     rules: [
       {

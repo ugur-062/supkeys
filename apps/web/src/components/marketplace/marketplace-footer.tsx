@@ -1,5 +1,6 @@
 import { RothernLogo } from "@/components/brand/logo";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import Link from "next/link";
 
 /**
@@ -11,14 +12,19 @@ import Link from "next/link";
  * sitemap üzerinden keşfedilir (daha yavaş, daha az güvenilir).
  */
 const COLUMNS = [
-  {
-    heading: "Pazar yeri",
-    links: [
-      { label: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
-      { label: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
-      { label: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
-    ],
-  },
+  // Yayın anahtarı kapalıyken pazar yeri sütunu HİÇ basılmaz — rotalar 404.
+  ...(MARKETPLACE_LIVE
+    ? [
+        {
+          heading: "Pazar yeri",
+          links: [
+            { label: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
+            { label: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
+            { label: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+          ],
+        },
+      ]
+    : []),
   {
     heading: "Rothern",
     links: [

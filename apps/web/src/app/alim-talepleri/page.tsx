@@ -6,7 +6,9 @@ import {
 } from "@/components/marketplace/listing-index";
 import { MARKETPLACE_LABELS } from "@/lib/public/marketplace";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 /**
  * ISR: 60 sn. Sayfa süzgeçli varyantlar üretiyor (`?kategori=…`), her varyant
@@ -32,6 +34,8 @@ export default async function Page({
 }: {
   searchParams: Promise<MarketplaceSearchParams>;
 }) {
+  // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
+  if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   return (
     <div className="min-h-dvh bg-white">

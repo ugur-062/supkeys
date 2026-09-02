@@ -5,6 +5,7 @@ import {
   MARKETPLACE_LABELS,
   MARKETPLACE_ROUTES,
 } from "@/lib/public/marketplace";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -17,9 +18,15 @@ import { useEffect, useState } from "react";
  * Adların tek kaynağı `lib/public/marketplace.ts` MARKETPLACE_LABELS.
  */
 const navigation = [
-  { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
-  { name: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
-  { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+  // Pazar yeri satırları yalnız yayın anahtarı AÇIKKEN görünür; kapalıyken
+  // 404'e link vermiş olurduk.
+  ...(MARKETPLACE_LIVE
+    ? [
+        { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
+        { name: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
+        { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+      ]
+    : []),
   { name: "Nasıl Çalışır", href: "/nasil-calisir" },
   { name: "Fiyatlar", href: "/nasil-calisir#fiyatlar" },
 ];

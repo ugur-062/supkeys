@@ -18,6 +18,8 @@ import {
 } from "@heroicons/react/20/solid";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ComingSoon } from "@/components/marketplace/coming-soon";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 
 /**
  * PAZAR YERİ ANASAYFASI — sunucu bileşeni, ISR.
@@ -35,7 +37,7 @@ export const revalidate = 60;
 
 const SITE = resolveSiteUrl();
 
-export const metadata: Metadata = {
+const LIVE_METADATA: Metadata = {
   title: "Rothern — B2B pazar yeri: açık alım talepleri ve satılık ilanlar",
   description:
     "Firmaların açık alım taleplerini ve satılık ilanlarını inceleyin. Kapalı zarf teklif toplama, sipariş takibi ve firma keşfi tek panelde. Kaydolmak ücretsiz.",
@@ -48,6 +50,15 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+export const metadata: Metadata = MARKETPLACE_LIVE
+  ? LIVE_METADATA
+  : {
+      title: "Çok Yakında",
+      description:
+        "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz.",
+      robots: { index: false, follow: false },
+    };
 
 const HOW_IT_WORKS = [
   {
@@ -68,6 +79,10 @@ const HOW_IT_WORKS = [
 ];
 
 export default async function HomePage() {
+  // Anahtar kapalıyken API'ye HİÇ gitmiyoruz: "yakında" sayfası veri
+  // istemiyor ve boşuna istek atmak build'i API'ye bağımlı yapardı.
+  if (!MARKETPLACE_LIVE) return <ComingSoon />;
+
   // Üç çağrı paralel: biri düşerse diğerleri sayfayı taşımaya devam eder
   // (veri katmanı hata YUTAR ve boş döner — bkz. marketplace-api.ts).
   const [demands, offers, facets] = await Promise.all([

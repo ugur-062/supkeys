@@ -3,6 +3,7 @@ import { resolveListingPage } from "@/components/marketplace/listing-page";
 import { listingPath, parseListingNumber } from "@/lib/public/marketplace";
 import { fetchListing } from "@/lib/public/marketplace-api";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
@@ -44,6 +45,8 @@ export default async function Page({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
+  if (!MARKETPLACE_LIVE) notFound();
   const { slug } = await params;
   const res = await resolveListingPage(slug, "ALIM");
   if (res.kind === "notFound") notFound();
