@@ -5319,3 +5319,154 @@
 25191536	Seyrüsefer yardımcıları eğitim sistemleri	Navaids training systems
 25191538	Havalimanı bilgi sistemi	Airport information system
 25191539	Otomatik uçuş sorgu yanıt sistemleri	Automated flight inquiry response systems
+
+# Malzeme elleçleme, kaldırma, konveyör, tank, ambalaj, konteyner.
+24101513	Çekici araç (tugger)	Tugger
+24101514	Platform araba	Platform truck
+24101515	Konteyner istifleyici	Straddle carrier truck
+24101516	Motorlu platform araba	Powered platform truck
+24101517	Elektrikli çekici traktör	Electric tow tractor
+24101518	Devrilir araba kapağı ve aksesuarları	Tilt truck lids or accessories
+24101617	Makaslı platform veya kaldırma masası	Scissor lift or lift table
+24101637	Naylon kumaş sapan	Nylon fabric sling
+24101638	Çelik halat sapan	Wire rope sling
+24101639	Irgat	Windlass
+24101640	Yürütme dişli ünitesi	Traversing gear unit
+24101641	Sapan kilidi	Shackle
+24101642	Yüzer vinç	Floating crane
+24101643	Çamaşır ve giydirme arabası	Laundry and dressing trolley
+24101644	Servis asansörü	Dumb waiter
+24101646	Demiryolu vinci	Railway crane
+24101647	Malzeme kaldırma kelepçesi	Material lifting clamp
+24101648	Sac kaldırma kelepçesi	Plate lifting clamp
+24101649	Vinçli ırgat	Winch crane
+24101650	Gergili derik vinç	Guy derrick
+24101651	Baba ırgat	Capstan
+24101652	Pergel vinç	Jib crane
+24101653	Köprülü vinç	Overhead crane
+24101654	Portal vinç	Gantry crane
+24101655	Araç park asansör sistemi	Vehicle parking lift system
+24101656	Traktör çekişli vinç	Tractor towed crane
+24101657	Traktöre monteli vinç	Tractor mounted crane
+24101658	Kaldırma mıknatısı	Lifting magnet
+24101659	Araç hareketli krikosu	Vehicle movable jack or dolly
+24101660	Akü kaldırıcı	Battery lifter
+24101661	Araç lifti	Vehicle lift
+24101662	Vinç örtüsü	Winch cover
+24101663	Yandan yükleyici	Side loader
+24101664	Kaide üstü vinç	Pedestal mounted crane
+24101665	Kiriş arabası	Beam trolley
+24101666	Mobil yükseltilebilir çalışma platformu	Mobile elevating work platform
+24101669	Açık deniz gergi sistemi	Offshore tensioning system
+24101670	Yük ve açı göstergesi	Load and angle indicator
+24101671	Kaldırma ekipmanı yedek parça ve aksesuarları	Hoisting and lifting equipment spare parts and accessories
+24101672	Zincir sapan	Chain sling
+24101674	Flemenk göz çelik halat sapan	Flemish eye wire rope sling
+24101675	Palet kaldırma cihazı	Pallet lifting device
+24101729	Elevatör kovası	Elevator bucket
+24101730	Helezon konveyör	Screw conveyor
+24101731	Konveyör etek levhası	Conveyor skirt board
+24101732	Konveyör taşıyıcı rulo braketi	Conveyor carrying idler bracket
+24101733	Konveyör dönüş rulo braketi	Conveyor return idler bracket
+24101735	Hava kaydırıcı	Air slide
+24101736	Yoğun faz taşıma sistemi	Dense phase conveying system
+24101737	Seyrek faz taşıma sistemi	Lean phase conveying system
+24101738	Çubuk kapak	Rod gate
+24101739	Dökme malzeme alım ünitesi	Bulk receiving unit
+24101740	Yüksek açılı konveyör	High angle conveyor
+24101741	İç bant sıyırıcı	Internal belt scraper
+24101742	Dış bant sıyırıcı	External belt scraper
+24101743	Konveyör kuyruk mili	Conveyor tail shaft
+24101744	Konveyör baş mili	Conveyor head shaft
+24101745	Tekerlekli konveyör	Wheel conveyor
+24101746	Taşınabilir konveyör	Portable conveyor
+24101747	Konveyör desteği	Conveyor support
+24101748	Devirmeli konveyör	Tripper conveyor
+24101749	Konveyör sistemi	Conveyor system
+24101750	Havai raylı konveyör	Overhead track conveyor
+24101908	Varil sehpası	Drum stillage
+24101909	Varil yenileme makinesi	Drum reconditioning machine
+24102011	Kitaplık aksesuarı	Bookshelf accessory
+24102111	Depo sarf malzemesi	Warehouse consumable
+24102209	Kesme kalıbı makinesi	Die cutting machine
+24102210	Balya presi	Baling press
+24102401	Dikey atık sıkıştırıcı	Vertical waste compactor
+24102402	Sabit atık sıkıştırıcı	Stationary waste compactor
+24102501	Tesis ekipmanı yedek parça ve aksesuarları	Plant equipment spare parts and accessories
+24102502	Paketleme tesisi	Packing Plant
+24102503	Torba dolum makinesi	Bag filling machine
+24102504	Tüp dolum makinesi	Cylinder filling machine
+24102505	Kül paketleme makinesi	Ash packing machine
+24102506	Çemberleme makineleri	Strapping machines
+24102507	Tel dikiş makinesi	Wire stitching machine
+24111511	Elyaf file torba	Fiber mesh bag
+24111512	Hasır torba	Straw bag
+24111513	Pamuk torba	Cotton bag
+24111514	Fermuarlı torba	Zipper bag
+24111515	Dokunmamış kumaş torba	Unwoven fabric bag
+24111516	Poşet torba	Pouch bag
+24111814	Sıcak su tankı	Hot water tank
+24111815	Buhar kondens tankı	Steam condensate tank
+24111816	Sıvılaştırılmış gaz tankı veya tüpü	Liquified gas tank or cylinder
+24111817	Çimento silosu	Cement silo
+24111818	Tank keçesi	Tank seal
+24111819	Hidrofor tankı	Hydropneumatic tank
+24111820	Cam elyaf takviyeli plastik tank	Glass reinforced plastic tank
+24111821	Hacim kalibrasyon tankı	Volumetric prover tank
+24111822	Tesis eleman parçası	Plant element part
+24111823	Küresel basınçlı kap	Spherical Pressure Vessel
+24111824	Küçük tohum depolama silosu	Small seed storage silo
+24111825	Yatay silindirik tank	Fabricated bullet tank
+24111826	Gözetleme camları	Sight glasses
+24111827	Sıvı seviye göstergesi	Liquid level gauge
+24111828	Dolum valfi	Fill valve
+24111829	Aşırı akış valfi	Excess flow valve
+24111830	Çok yollu emniyet valfi	Multiport relieve valve
+24111831	Tank aksesuarları	Tanks accessories
+24111834	Valf koruma kapağı	Valve protection cap
+24111836	Valf bağlantı elemanı	Valve fitting
+24111837	LPG regülatörü adaptörü	Adaptor for LPG regulator
+24111838	Paketleme tesisi özel parça ve aksesuarları	Packaging plant proprietary parts and accessories
+24112113	Sabit yakıt varili	Static fuel drum
+24112210	Süt güğümü	Milk can
+24112401	Alet sandığı veya dolabı	Tool chest or cabinet
+24112406	Raf bölmesi	Shelf partition
+24112411	Taşıma ve uçuş kasası	Road and flight case
+24112412	Ekipman taşıma kasası	Equipment transportation case
+24112413	Bayrak saklama kutusu	Flag storage box or case
+24112416	Yeraltı ekipman kabini	Underground equipment cabinet
+24112505	Oluklu mukavva formlar	Corrugated cardboard shapes
+24112603	Sabit yakıt bidonu	Static fuel can
+24112805	Sıcaklık kontrollü yük konteyneri	Temperature controlled freight container
+24112806	Sabit yakıt konteyneri	Static fuel container
+24112807	Depolama ve transit üniteleri	Storage and transit units
+24112808	Yalıtımlı nakliye konteyneri	Insulated shipping container
+24112809	Kargo konteyneri	Cargo container
+24112902	Plastik kasa	Plastic crate
+24113001	Oluklu kayar levha	Corrugated slip sheet
+24113002	Fiber veya kraft levha kayar levha	Fiberboard or solid kraftboard slip sheet
+24113003	Plastik kayar levha	Plastic slip sheet
+24113101	Posta kutusu	Mail box
+24113102	Antistatik kutu	Antistatic box
+24113103	Kutu kapağı	Box lid
+24113104	Soğuk saklama kutusu	Cold storage box
+24113105	Oy sandığı	Ballot box
+24113106	Alet kutusu	Tool box
+24113107	Kutu bölmesi	Box partition
+24113108	Aşı için yalıtımlı kutu	Insulated box for vaccines
+24113109	Kalıplanmış kutu	Molded box
+24121510	Çay poşeti zarfı	Tea bag envelope
+24121511	Ambalaj kartonu	Packaging carton
+24121512	Soğutucu jel paketi	Cold pack or ice brick
+24121513	Ambalaj kasası	Packaging case
+24121514	Yalıtım paketi	Insulation pack
+24121808	Fiber kutu	Fiberboard can
+24121809	Varil kazıma makinesi	Drum scraping machine
+24121810	Varil yıkama makinesi	Drum washing machine
+24121811	Varil ısıtıcı	Drum heater
+24121812	Varil dolum makinesi	Drum filling machine
+24121813	Varil sacı	Drum sheet
+24122002	Plastik şişe ve flakonlar	Plastic bottles or vials
+24122003	Cam şişe ve flakonlar	Glass bottles or vials
+24131508	Dolap tipi buzdolabı	Cabinet refrigerator
+24131509	Tezgah altı buzdolabı	Under counter refrigerator
