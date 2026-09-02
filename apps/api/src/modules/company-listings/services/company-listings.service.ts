@@ -119,6 +119,12 @@ type AwardActor = {
  * Kapanışa bu kadar dk kala, teklif vermemiş davetlilere e-posta gider.
  */
 const CLOSING_REMINDER_MINUTES = 60;
+/**
+ * Teklifçiye görünen AÇIK ilanlarda tarama tavanı. Liste ve keşif sayaçları
+ * aynı tavanı kullanır — biri 300, öteki sınırsız tarasaydı sayaç listeden
+ * fazlasını söylerdi.
+ */
+const SELLER_SCAN_CAP = 300;
 
 /**
  * Bildirim ilgi eşiği. Skorlar firma başına 100 puanlık bütçeye normalize —
@@ -2154,7 +2160,95 @@ export class CompanyListingsService {
    * bağımsız listeye girer — browse()'daki "davetli PRIVATE görünmez" boşluğunu
    * kapatır.
    */
-  async sellerTenders(user: AuthenticatedCompanyUser, type: ListingType = "ALIM") {
+  /**
+   * TEKLİFÇİYE GÖRÜNEN AÇIK İLAN KOŞULU — TEK KAYNAK.
+   *
+   * İki çağıran var ve ayrışmaları SESSİZ olurdu:
+   *   · `sellerTenders` (liste),
+   *   · `discoverFacets` (pano keşif bloğundaki sektör sayaçları).
+   * Sayaç başka, liste başka bir kural okusaydı kullanıcı "12 ilan" görüp
+   * tıklayınca 5 ilan bulurdu.
+   *
+   * Kural: kendi ilanın ve bloklu firmanın ilanı HARİÇ; DAVETLİYSEN her şey
+   * görünür, değilsen ülke kapsamı ∧ görünürlük (PUBLIC ya da bağlantılıysan
+   * CONNECTIONS). PUBLIC ilan STANDARD üyeye de listelenir (maskeli önizleme);
+   * teklif/detay hakları `listingBidEligibility` ile ayrıca sınırlanır.
+   */
+  private sellerVisibleWhere(o: {
+    type: ListingType;
+    companyId: string;
+    connectedIds: string[];
+    blockedIds: string[];
+    country: string | null | undefined;
+  }): Prisma.ListingWhereInput {
+    // Ülkesi olmayan (eski) kayıt: yurtiçi eşleşmesi kurulamaz, yalnız
+    // uluslararası dal kalır — sessizce herkesle eşleşmesin.
+    const country = o.country ?? undefined;
+    return {
+      type: o.type,
+      companyId: { notIn: [o.companyId, ...o.blockedIds] },
+      status: "OPEN",
+      AND: [
+        // Açılış embargosu: açılış tarihi GELECEKTE olan ilan, sahibi dışında
+        // kimseye listelenmez (davetli dahil) — açılışta cron duyurusuyla
+        // görünür olur. NOT(gt) KULLANMA: SQL'de NULL > x NULL döner ve
+        // NOT(NULL) satırı eler — açılışsız ilan kaybolur.
+        // İSTİSNA: ilanda TEKLİFİ olan firma (önceki turun katılımcısı)
+        // embargoda da görür — "yeni fiyat hazırla ya da geçerliliği uzat"
+        // bildirimi açılıştan önce gider; ilanı açamayan uzatamazdı.
+        // Teklif verme yine açılışa kadar kapalıdır (placeBid embargosu).
+        {
+          OR: [
+            { bidsOpenAt: null },
+            { bidsOpenAt: { lte: new Date() } },
+            { bids: { some: { bidderCompanyId: o.companyId } } },
+          ],
+        },
+        {
+          OR: [
+            { invitations: { some: { invitedCompanyId: o.companyId } } },
+            {
+              AND: [
+                {
+                  OR: [
+                    ...(country
+                      ? [
+                          { isInternational: false, company: { country } },
+                          {
+                            isInternational: true,
+                            company: { country: { not: country } },
+                          },
+                        ]
+                      : [{ isInternational: true }]),
+                  ],
+                },
+                {
+                  OR: [
+                    { visibility: "PUBLIC" as const },
+                    {
+                      visibility: "CONNECTIONS" as const,
+                      companyId: { in: o.connectedIds },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  /**
+   * Teklifçi listesi. `limit` verilirse SIRALAMADAN SONRA kırpılır — pano
+   * keşif şeridi 6 kart gösteriyor ama sıralama tüm kümeden çıkmalı, yoksa
+   * "en uygun 6" değil "rastgele 6" gösterirdik.
+   */
+  async sellerTenders(
+    user: AuthenticatedCompanyUser,
+    type: ListingType = "ALIM",
+    opts: { limit?: number } = {},
+  ) {
     const companyId = user.companyId;
     const [connectedIds, blockedIds, myCompany] = await Promise.all([
       this.connectedCompanyIds(companyId),
@@ -2178,30 +2272,9 @@ export class CompanyListingsService {
     const invitedClause = {
       invitations: { some: { invitedCompanyId: companyId } },
     };
-    // Ülke kapsamı (yurtiçi VEYA bana açık uluslararası) — davetliler hariç.
-    const countryOr = [
-      { isInternational: false, company: { country: myCountry } },
-      {
-        isInternational: true,
-        company: { country: { not: myCountry } },
-        AND: [
-          {
-            OR: [
-              { targetCountries: { isEmpty: true } },
-              { targetCountries: { has: myCountry } },
-            ],
-          },
-        ],
-      },
-    ];
     // PUBLIC ilanlar STANDARD üyeye de listelenir (MASKELİ önizleme — premium
     // başvurusuna yönlendirme için); teklif/detay hakları masked/canBid ile
     // sınırlanır. CONNECTIONS yalnız bağlantılılara.
-    const visibilityOr = [
-      { visibility: "PUBLIC" as const },
-      { visibility: "CONNECTIONS" as const, companyId: { in: connectedIds } },
-    ];
-
     const select = {
       id: true,
       number: true,
@@ -2218,42 +2291,35 @@ export class CompanyListingsService {
       priceScope: true,
       minPrice: true,
       buyNowPrice: true,
-      company: { select: { name: true } },
+      company: { select: { name: true, city: true } },
       _count: { select: { items: true } },
+      // Kapak: sahibin seçtiği görsel, yoksa ilk kalemin ilk görseli
+      // (pazar yerindeki `deriveCover` ile AYNI kural — iki yerde farklı
+      // kapak göstermek aynı ilanı iki farklı kayıt gibi okuturdu).
+      coverImageUrl: true,
+      items: {
+        where: { images: { isEmpty: false } },
+        select: { images: true },
+        orderBy: { lineNo: "asc" as const },
+        take: 1,
+      },
     };
 
     const [openRows, pastRows] = await Promise.all([
       this.prisma.listing.findMany({
-        where: {
-          ...baseWhere,
-          status: "OPEN",
-          AND: [
-            // Açılış embargosu: açılış tarihi GELECEKTE olan ilan, sahibi
-            // dışında kimseye listelenmez (davetli dahil) — açılışta cron
-            // duyurusuyla görünür olur. NOT(gt) KULLANMA: SQL'de NULL > x
-            // NULL döner ve NOT(NULL) satırı eler — açılışsız ilan kaybolur.
-            // İSTİSNA: ilanda TEKLİFİ olan firma (önceki turun katılımcısı)
-            // embargoda da görür — "yeni fiyat hazırla ya da geçerliliği uzat"
-            // bildirimi açılıştan önce gider; ilanı açamayan uzatamazdı.
-            // Teklif verme yine açılışa kadar kapalıdır (placeBid embargosu).
-            {
-              OR: [
-                { bidsOpenAt: null },
-                { bidsOpenAt: { lte: new Date() } },
-                { bids: { some: { bidderCompanyId: companyId } } },
-              ],
-            },
-            {
-              OR: [
-                invitedClause,
-                { AND: [{ OR: countryOr }, { OR: visibilityOr }] },
-              ],
-            },
-          ],
-        },
+        // Görünürlük TEK KAYNAK (`sellerVisibleWhere`): keşif sektör
+        // sayaçları da aynı fonksiyonu okur, yoksa kutudaki sayı ile açılan
+        // liste sessizce ayrışırdı.
+        where: this.sellerVisibleWhere({
+          type,
+          companyId,
+          connectedIds,
+          blockedIds,
+          country: myCountry,
+        }),
         select,
         orderBy: { closesAt: "asc" },
-        take: 300,
+        take: SELLER_SCAN_CAP,
       }),
       // Geçmiş: yalnız KATILDIĞIM (davet/teklif) kapanmış ilanlar. Başkasının
       // kapanmış ilanı "açık satın alma talepleri" listesinde görünmez (kullanıcı kararı):
@@ -2355,6 +2421,10 @@ export class CompanyListingsService {
         // id: liste "Müşteri/Satıcı" filtresi companyId'ye göre gruplar
         // (browse ile aynı shape; maskelide kimlik sızdırılmaz).
         owner: masked ? null : { id: l.companyId, name: l.company.name },
+        // Şehir kimlik DEĞİL nitelik: maskeli kartta da kalır (teklif verecek
+        // tarafın lojistik kararı için gerekli, pazar yeriyle aynı çizgi).
+        ownerCity: l.company.city,
+        coverImageUrl: l.coverImageUrl ?? l.items[0]?.images[0] ?? null,
         masked,
         canBid,
         invited,
@@ -2435,11 +2505,67 @@ export class CompanyListingsService {
         0,
     );
     // Yardımcı alan dışarı sızmasın; ilgi gerekçesi kullanıcıya çıkar.
-    return rows.map(({ _open, ...r }) => ({
+    const mapped = rows.map(({ _open, ...r }) => ({
       ...r,
       matchScore: affinityByListing.get(r.id)?.score ?? 0,
       matchReason: affinityByListing.get(r.id)?.reason ?? null,
     }));
+    return opts.limit && opts.limit > 0 ? mapped.slice(0, opts.limit) : mapped;
+  }
+
+  /**
+   * KEŞİF SEKTÖR SAYAÇLARI — pano keşif bloğunun sektör kutuları.
+   *
+   * `sellerTenders` ile AYNI görünürlük kurallarını kullanır (aynı yardımcı
+   * `sellerVisibleWhere`); ayrı bir where yazsaydık kutudaki sayı ile
+   * tıklayınca açılan liste sessizce ayrışırdı — kullanıcı "12 ilan" görüp
+   * 5 ilan bulurdu.
+   *
+   * Sayım SEGMENT (L1) düzeyinde: ilan L3/L4 kod taşır ama panoda 158 bin
+   * satırlık bir süzgeç sunulamaz (pazar yeri facet'iyle aynı karar).
+   */
+  async discoverFacets(user: AuthenticatedCompanyUser, type: ListingType = "ALIM") {
+    const companyId = user.companyId;
+    const [connectedIds, blockedIds] = await Promise.all([
+      this.connectedCompanyIds(companyId),
+      this.blocks.blockedCompanyIds(companyId),
+    ]);
+    const rows = await this.prisma.listing.findMany({
+      where: this.sellerVisibleWhere({
+        type,
+        companyId,
+        connectedIds,
+        blockedIds,
+        country: user.country,
+      }),
+      select: { categoryIds: true },
+      take: SELLER_SCAN_CAP,
+    });
+
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      for (const seg of new Set(
+        r.categoryIds
+          .filter((c) => c.length === 8)
+          .map((c) => `${c.slice(0, 2)}000000`),
+      )) {
+        counts.set(seg, (counts.get(seg) ?? 0) + 1);
+      }
+    }
+    if (counts.size === 0) return { segments: [], total: rows.length };
+
+    const cats = await this.prisma.category.findMany({
+      where: { id: { in: [...counts.keys()] } },
+      select: { id: true, nameTr: true },
+    });
+    const nameById = new Map(cats.map((c) => [c.id, c.nameTr] as const));
+    return {
+      segments: [...counts.entries()]
+        .map(([id, count]) => ({ id, name: nameById.get(id) ?? id, count }))
+        .filter((s) => s.name !== s.id)
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
+      total: rows.length,
+    };
   }
 
   /**

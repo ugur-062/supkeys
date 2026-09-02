@@ -10,6 +10,7 @@ import {
   useTimeSavings,
 } from "@/hooks/use-company-dashboard";
 import { ActionCenter } from "@/components/dashboard/action-center";
+import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { PeriodControls } from "@/components/dashboard/period-controls";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
@@ -143,6 +144,10 @@ export default function SatinalmaDashboardPage() {
       {/* Aksiyon merkezi — "bugün ne yapmalıyım" (Faz 2: veri + sıralama
           backend'de, metin haritası ACTION_ROWS'ta). */}
       <ActionCenter portal="satinalma" />
+
+      {/* Keşif — "piyasada ne var". Aksiyon merkezinin ALTINDA: önce kendi
+          işin, sonra fırsatlar, sonra geçmişe bakış (analitik sekmeler). */}
+      <PortalDiscovery portal="satinalma" />
 
       <TabGroup
         className="space-y-6"

@@ -39,6 +39,12 @@ vi.mock("@/components/tcmb-rates-widget", () => ({
 vi.mock("@/components/dashboard/action-center", () => ({
   ActionCenter: () => <div data-testid="action-center" />,
 }));
+// Keşif bloğu kendi uçlarından beslenir (seller-tenders/discover-facets) ve
+// ayrı test edilir; burada varlığını gözlemleyen hafif mock — aksi hâlde
+// gerçek `useQuery` sağlayıcısız çalışıp bu suite'i kırar.
+vi.mock("@/components/dashboard/portal-discovery", () => ({
+  PortalDiscovery: () => <div data-testid="portal-discovery" />,
+}));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
 

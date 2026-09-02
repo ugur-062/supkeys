@@ -58,6 +58,9 @@ export const MODULE_LABELS = {
     // "Taleplerim" sol menüde taşıyordu.
     ihalelerim: "Taleplerim",
     satinAl: "Satın Al",
+    // Faz keşif: BAŞKA firmaların vitrinleri. `satis.urunler` ("Ürünlerim")
+    // firmanın KENDİ kataloğu — iyelik kipi ikisini ayırır.
+    urunler: "Ürünler",
     teklifler: "Tekliflerim",
     siparisler: "Siparişlerim",
   },
@@ -104,6 +107,11 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         label: MODULE_LABELS.satinalma.satinAl,
         href: "/company/satinalma/satin-al",
         minTier: "SILVER",
+      },
+      {
+        icon: CubeIcon,
+        label: MODULE_LABELS.satinalma.urunler,
+        href: "/company/satinalma/urunler",
       },
       {
         icon: TagIcon,

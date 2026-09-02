@@ -4,8 +4,16 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma, type CompanyItemPriceMode, type Currency } from "@rothern/db";
-import { foldSearchText, getUnit, normalizeUnit, slugifyText } from "@rothern/shared";
+import {
+  foldSearchText,
+  getUnit,
+  isCategoryCode,
+  normalizeUnit,
+  slugifyText,
+  tokenizeQuery,
+} from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { publicProductWhere } from "../../common/company/public-profile-gate";
 import {
   requestPublicImageUpload,
   resolvePublicImage,
@@ -114,6 +122,22 @@ export interface CatalogItemInput {
  * Bu bilinçli — FK olsaydı katalogdaki bir düzeltme yayınlanmış ihaleyi
  * geriye dönük değiştirirdi.
  */
+/** Panel içi ürün keşfi satırı (kart). */
+export interface DiscoverProductRow {
+  slug: string;
+  name: string;
+  excerpt: string | null;
+  images: string[];
+  unit: string;
+  categoryId: string | null;
+  priceMode: string;
+  priceAmount: string | null;
+  priceTiers: unknown;
+  priceCurrency: string;
+  moq: string | null;
+  company: { name: string; slug: string; city: string | null };
+}
+
 @Injectable()
 export class CompanyItemsService {
   // DİKKAT (rig stub gotcha, CLAUDE.md): `storage` SONA eklendi. Araya
@@ -354,6 +378,75 @@ export class CompanyItemsService {
       data: { usageCount: { increment: 1 }, lastUsedAt: new Date() },
     });
     return { updated: res.count };
+  }
+
+  /**
+   * PANEL İÇİ ÜRÜN KEŞFİ — alıcı panelinin keşif şeridi (Faz C).
+   *
+   * Kapı `publicProductWhere()` TEK KAYNAĞINDAN gelir; panele özel gevşek bir
+   * kural yazmadım çünkü iki kapı zamanla ayrışır ve "panelde görünen ama
+   * profilinde 404 veren ürün" üretir. Tek fark: KENDİ ürünlerin hariç —
+   * kendi vitrinini keşif şeridinde görmek gürültü.
+   *
+   * Kimlik AÇIK: panelde firma adı zaten görünür (dizin de öyle). İlan
+   * anonimliği yalnız herkese açık sayfalarda geçerli — orada "kim alıyor"
+   * rekabet istihbaratı, burada ise karşı taraf zaten üye.
+   */
+  async discoverProducts(
+    user: AuthenticatedCompanyUser,
+    opts: { q?: string; category?: string; limit?: number } = {},
+  ): Promise<DiscoverProductRow[]> {
+    const take = Math.min(Math.max(opts.limit ?? 12, 1), 48);
+    const tokens = opts.q ? tokenizeQuery(opts.q) : [];
+    const rows = await this.prisma.companyItem.findMany({
+      where: {
+        ...publicProductWhere(),
+        companyId: { not: user.companyId },
+        ...(opts.category && isCategoryCode(opts.category)
+          ? { categoryId: { startsWith: opts.category.replace(/0+$/, "") } }
+          : {}),
+        ...(tokens.length
+          ? { AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })) }
+          : {}),
+      },
+      select: {
+        slug: true,
+        name: true,
+        description: true,
+        images: true,
+        unit: true,
+        categoryId: true,
+        priceMode: true,
+        priceAmount: true,
+        priceTiers: true,
+        priceCurrency: true,
+        moq: true,
+        company: { select: { name: true, slug: true, city: true } },
+      },
+      orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+      take,
+    });
+    return rows.map((r) => {
+      const flat = (r.description ?? "").replace(/\s+/g, " ").trim();
+      return {
+        slug: r.slug ?? "",
+        name: r.name,
+        excerpt: flat ? (flat.length <= 140 ? flat : `${flat.slice(0, 139)}…`) : null,
+        images: r.images,
+        unit: r.unit,
+        categoryId: r.categoryId,
+        priceMode: r.priceMode,
+        priceAmount: r.priceAmount?.toString() ?? null,
+        priceTiers: r.priceTiers,
+        priceCurrency: r.priceCurrency,
+        moq: r.moq?.toString() ?? null,
+        company: {
+          name: r.company.name,
+          slug: r.company.slug ?? "",
+          city: r.company.city,
+        },
+      };
+    });
   }
 
   // ── yardımcılar ─────────────────────────────────────────────────────────

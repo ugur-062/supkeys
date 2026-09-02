@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ActionCenter } from "@/components/dashboard/action-center";
+import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import {
   ChartCard,
@@ -149,6 +150,9 @@ export function SatisDashboardView() {
           backend'de, metin haritası ACTION_ROWS'ta). */}
       <ActionCenter portal="satis" />
 
+      {/* Keşif — "piyasada ne var". Aksiyon merkezinin ALTINDA: önce kendi
+          işin, sonra fırsatlar, sonra geçmişe bakış (KPI/grafikler). */}
+      <PortalDiscovery portal="satis" />
 
       {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
       {stats.isError && !s ? (

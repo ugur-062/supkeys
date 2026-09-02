@@ -442,6 +442,62 @@ kod) → firma/ilan seçimleri korunur. 2026-09-02 geçişinde ölçüldü: 42 i
 NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor — tek koşum ikisine de
 yansır.
 
+## Panel Keşif Bloğu — "giriş yapınca pazar yeri" (2026-09-02)
+
+Panel anasayfaları analitik-önceydi; "piyasada ne var" hissi yoktu ve keşif
+sayfaları menüde saklıydı. Panoya, aksiyon merkezi ile analitik sekmelerin
+ARASINA bir keşif bloğu girdi (`components/dashboard/portal-discovery.tsx`).
+
+**Pano SİLİNMEDİ** — aksiyon merkezi, KPI'lar, grafik sekmeleri, dönem seçici
+yerinde. Sıra gerekçesi: "bugün ne yapmalıyım" (kişisel, acil) → "piyasada ne
+var" (fırsat) → "nasıl gidiyorum" (geçmiş).
+
+### Portal yönü içeriği belirler
+
+| Panel | Şeritte ne var | Uç |
+|-------|----------------|-----|
+| Satınalma (firma ALIR) | başkalarının **SATIŞ ilanları** + firmaların **ürünleri** | `seller-tenders?type=SATIS` · `company/items/discover` |
+| Satış (firma SATAR) | başkalarının **ALIM talepleri** | `seller-tenders?type=ALIM` |
+
+Yön ters dönerse kullanıcı kendi tarafındaki kayıtları "fırsat" sanır —
+sözleşme testi `portal-discovery.test.tsx` bunu kilitler. Kendi kayıtların
+şeritte YOK; onlar KPI'larda ve "Taleplerim/İlanlarım"da.
+
+### Pazar yerinin herkese açık uçları PANELDE KULLANILMAZ
+
+Üç sebep: (1) `MARKETPLACE_LIVE` kapalıyken boş dönerler, (2) maskeleme/davet/
+bağlantı görünürlüğünü taşımazlar, (3) panelin göreceği içeriğin bir kısmı
+(bağlantıya özel ilanlar) orada hiç yok. Blok panelin kendi auth'lu uçlarını
+kullanır; görünürlük `sellerTenders` ile aynı fonksiyondan gelir.
+
+### Sektör sayaçları ile liste TEK KAYNAK
+
+`sellerVisibleWhere()` (company-listings.service) — `sellerTenders` ve
+`discoverFacets` ikisi de onu okur. Ayrışsalardı kutuda "12 ilan" yazıp
+tıklayınca 5 ilan çıkardı. Tarama tavanı da ortak (`SELLER_SCAN_CAP`).
+
+`limit` SIRALAMADAN SONRA kırpar: sorguyu kırpsaydık "en uygun 6" değil
+"rastgele 6" gösterirdik ve davetli ilan listenin dışında kalabilirdi.
+
+### Panel ürün keşfi
+
+`GET company/items/discover` — kapı `publicProductWhere()` TEK KAYNAĞI +
+"kendi ürünlerin hariç". Panele özel gevşek bir kural yazılmadı: iki kapı
+zamanla ayrışır ve "panelde görünen ama profilinde 404 veren ürün" üretir.
+Kimlik AÇIK (panelde firma adı zaten görünür); ilan anonimliği yalnız herkese
+açık sayfalarda geçerli.
+
+Satınalma sol menüsünde **"Ürünler"** (başkalarının vitrini) — satış
+portalındaki **"Ürünlerim"** (kendi katalog) ile karıştırılmamalı; ayrımı
+iyelik kipi taşıyor.
+
+### Arama devri
+
+Keşif kutusundaki terim `?q=` ile ilgili listeye devredilir; `SellerTendersView`
+ve ürün keşfi artık başlangıç değerlerini URL'DEN okur (yan fayda: o sayfalar
+paylaşılabilir/yer imlenebilir oldu). `useSearchParams` null dönebildiği için
+erişim opsiyoneldir — testte ve sunucu-öncesi render'da çökmesin.
+
 ## Ürün Kataloğu (firma vitrini) — 2026-09-02
 
 `CompanyItem` iç kullanımlık "kalem kısayolu"ydu; Faz 2 onu firmanın HERKESE

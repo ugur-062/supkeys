@@ -17,6 +17,10 @@ export interface SellerTenderRow {
   createdAt: string;
   itemCount: number;
   owner: { id: string; name: string } | null;
+  /** Şehir kimlik DEĞİL nitelik — maskeli kartta da kalır (lojistik kararı). */
+  ownerCity?: string | null;
+  /** Kapak görseli: sahibin seçtiği, yoksa ilk kalemin ilk görseli. */
+  coverImageUrl?: string | null;
   masked: boolean;
   canBid: boolean;
   invited: boolean;

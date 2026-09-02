@@ -44,6 +44,61 @@ describe("sellerTenders", () => {
     expect(row!.masked).toBe(false);
   });
 
+  it("limit SIRALAMADAN SONRA kırpar — 'en uygun N', 'rastgele N' değil", async () => {
+    // Pano keşif şeridi 6 kart gösteriyor; sorguyu kırpsaydık davetli ilan
+    // listenin dışında kalabilirdi.
+    const { service } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const base = { companyId: buyer.company.id, createdById: buyer.user.id, type: "ALIM" as const };
+    // Önce iki herkese açık ilan, SONRA davetli olan — davetli sıralamada üste
+    // çıkmalı ve limit=1 ile TEK dönen o olmalı.
+    await makeListing(prisma, { ...base, visibility: "PUBLIC" });
+    await makeListing(prisma, { ...base, visibility: "PUBLIC" });
+    const invited = await makeListing(prisma, { ...base, visibility: "PRIVATE" });
+    await invite(prisma, invited.id, seller.company.id, buyer.user.id);
+
+    const all = await service.sellerTenders(seller.auth);
+    expect(all.length).toBe(3);
+    const limited = await service.sellerTenders(seller.auth, "ALIM", { limit: 1 });
+    expect(limited).toHaveLength(1);
+    expect(limited[0].id).toBe(invited.id);
+    expect(limited[0].id).toBe(all[0].id);
+  });
+
+  it("keşif sektör sayaçları LİSTEYLE aynı kuralı okur", async () => {
+    // Sayaç başka, liste başka bir görünürlük kuralı okusaydı kullanıcı
+    // "2 ilan" görüp tıklayınca 1 ilan bulurdu.
+    const { service, blocks } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const blocked = await makeCompanyWithUser(prisma, { country: "TR" });
+    blocks.blockedCompanyIds.mockResolvedValue([blocked.company.id]);
+    await prisma.category.create({
+      data: {
+        id: "39000000", code: "39000000", nameTr: "Elektrik Sistemleri",
+        keywords: "", searchText: "elektrik", level: 1, isActive: true, sortOrder: 0,
+      },
+    });
+    await makeListing(prisma, {
+      companyId: buyer.company.id, createdById: buyer.user.id,
+      type: "ALIM", visibility: "PUBLIC", categoryIds: ["39121000"],
+    });
+    // Bloklu firmanın ilanı ne listede ne sayaçta olmalı.
+    await makeListing(prisma, {
+      companyId: blocked.company.id, createdById: blocked.user.id,
+      type: "ALIM", visibility: "PUBLIC", categoryIds: ["39121000"],
+    });
+
+    const rows = await service.sellerTenders(seller.auth);
+    const facets = await service.discoverFacets(seller.auth);
+    expect(rows).toHaveLength(1);
+    expect(facets.total).toBe(1);
+    expect(facets.segments).toEqual([
+      { id: "39000000", name: "Elektrik Sistemleri", count: 1 },
+    ]);
+  });
+
   it("teklif durumu + versiyon satıra işlenir; geçmiş (AWARDED) ilan listelenir", async () => {
     const { service } = makeService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });

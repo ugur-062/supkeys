@@ -65,8 +65,29 @@ export class CompanyListingsController {
   sellerTenders(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("type") type?: string,
+    @Query("limit") limit?: string,
   ) {
+    // `limit` SIRALAMADAN SONRA kırpar (serviste) — pano keşif şeridi 6 kart
+    // gösterir ama sıralama tüm kümeden çıkar; sorguyu kırpsaydık "en uygun 6"
+    // değil "rastgele 6" gösterirdik. Tavan 24: şerit bundan fazlasını çizmez.
+    const n = Number(limit);
     return this.service.sellerTenders(
+      user,
+      type === "SATIS" ? "SATIS" : "ALIM",
+      { limit: Number.isFinite(n) && n > 0 ? Math.min(Math.trunc(n), 24) : undefined },
+    );
+  }
+
+  /**
+   * Pano keşif bloğunun sektör kutuları — segment başına açık ilan sayısı.
+   * Görünürlük `seller-tenders` ile AYNI fonksiyondan gelir.
+   */
+  @Get("discover-facets")
+  discoverFacets(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("type") type?: string,
+  ) {
+    return this.service.discoverFacets(
       user,
       type === "SATIS" ? "SATIS" : "ALIM",
     );

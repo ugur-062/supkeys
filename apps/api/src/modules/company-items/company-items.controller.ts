@@ -186,6 +186,27 @@ export class CompanyItemsController {
    *      kalıcı CDN URL'i döner.
    * İkinci adım şart: presigned PUT ne boyutu ne içerik tipini imzalayabilir.
    */
+  /**
+   * Panel içi ürün keşfi — alıcı panelinin keşif şeridi ve "Ürünler" sayfası.
+   *
+   * Kendi kataloğun DEĞİL, başka firmaların yayımlanmış ürünleri. İzin
+   * gerektirmez: keşif okuma, katalog yazma değil.
+   */
+  @Get("discover")
+  discover(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("q") q?: string,
+    @Query("category") category?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const n = Number(limit);
+    return this.service.discoverProducts(user, {
+      q: q?.slice(0, 120),
+      category: category?.slice(0, 8),
+      limit: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
+    });
+  }
+
   @Post("images/upload-url")
   @RequireCompanyPermission("templates:manage")
   imageUploadUrl(

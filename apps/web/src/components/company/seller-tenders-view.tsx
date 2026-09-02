@@ -21,7 +21,8 @@ import {
   ListFilter,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const PAGE_SIZE = 20;
 
@@ -61,11 +62,23 @@ export function SellerTendersView({
 } = {}) {
   const isSatis = listingType === "SATIS";
   const tenders = useSellerTenders(listingType);
-  const [search, setSearch] = useState("");
+  // Arama/kategori URL'DEN başlar: pano keşif bloğu buraya `?q=` / `?kategori=`
+  // ile devrediyor. URL'siz başlasaydı devredilen terim sessizce kaybolurdu;
+  // ayrıca sayfa artık paylaşılabilir/yer imlenebilir.
+  // `useSearchParams` sunucu-öncesi render ve test ortamında NULL dönebilir;
+  // opsiyonel erişim olmadan bileşen o ortamlarda çöker.
+  const sp = useSearchParams();
+  const [search, setSearch] = useState(sp?.get("q") ?? "");
   const [tab, setTab] = useState("active");
   const [sort, setSort] = useState("closing-asc");
   const [range, setRange] = useState("all");
   const [buyer, setBuyer] = useState("all");
+  const [category, setCategory] = useState(sp?.get("kategori") ?? "");
+  useEffect(() => {
+    setSearch(sp?.get("q") ?? "");
+    setCategory(sp?.get("kategori") ?? "");
+    setPage(1);
+  }, [sp]);
   const [page, setPage] = useState(1);
 
   const all = useMemo(() => tenders.data ?? [], [tenders.data]);
@@ -99,6 +112,12 @@ export function SellerTendersView({
       if (rangeMs !== null && now - new Date(t.createdAt).getTime() > rangeMs)
         return false;
       if (buyer !== "all" && t.owner?.id !== buyer) return false;
+      // Kategori kutusundan gelen segment: ilan kodları o segmentin altında mı
+      // (hiyerarşi koddan türer — ilk iki hane segment).
+      if (category && /^\d{8}$/.test(category)) {
+        const seg = category.slice(0, 2);
+        if (!t.categories.some((c) => c.code.slice(0, 2) === seg)) return false;
+      }
       if (search) {
         const q = search.toLocaleLowerCase("tr-TR");
         const hay = `${t.title} ${t.number ?? ""} ${t.owner?.name ?? ""}`
@@ -137,7 +156,7 @@ export function SellerTendersView({
       return sort === "closing-desc" ? tb - ta : ta - tb;
     });
     return rows;
-  }, [all, tab, sort, range, buyer, search]);
+  }, [all, tab, sort, range, buyer, search, category]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
