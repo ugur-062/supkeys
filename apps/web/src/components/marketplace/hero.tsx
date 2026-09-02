@@ -16,12 +16,13 @@ import Link from "next/link";
  * (repo ham hex'i yasaklıyor — eslint no-restricted-syntax). Orijinal örnek
  * pembe/mor kullanıyor; marka monokrom olduğu için zinc→emerald tonuna
  * çevrildi ve opaklık düşürüldü, arka plan gürültüsü olmaktan çıktı.
+ *
+ * SAYAÇ IZGARASI KALDIRILDI (kullanıcı kararı): "Satılık ilan 1" gibi bir
+ * kutu envanteri duyurmuyor, aksine ne kadar az olduğunu ilan ediyordu;
+ * "Kategori 158.018 / Sektör 58 / Komisyon %0" ise ziyaretçinin o an sorduğu
+ * soruya ("burada ne var") yanıt vermeyen kurum içi rakamlardı.
  */
-export function MarketplaceHero({
-  stats,
-}: {
-  stats: { label: string; value: string }[];
-}) {
+export function MarketplaceHero() {
   return (
     <div className="relative isolate overflow-hidden bg-white">
       <GradientBlob className="-top-40 sm:-top-80" position="left" />
@@ -67,19 +68,6 @@ export function MarketplaceHero({
           </div>
         </div>
 
-        {stats.length > 0 ? (
-          /* Application UI — Data display / Stats / "with shared borders" */
-          <dl className="mx-auto mt-16 grid max-w-5xl grid-cols-1 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-            {stats.map((s) => (
-              <div key={s.label} className="px-6 py-6">
-                <dt className="text-sm/6 text-zinc-500">{s.label}</dt>
-                <dd className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
-                  {s.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
       </div>
 
       <GradientBlob className="top-[calc(100%-14rem)]" position="right" />

@@ -53,18 +53,11 @@ export function SectorGrid({ facets }: { facets: PublicFacets }) {
 /**
  * Sektör kırılımı anlamlı olacak kadar kayıt yokken görünen bant.
  *
- * Boş bir ızgara yerine HER ZAMAN DOĞRU olan bir şey söylüyor: katalog
- * gerçekten 158 bin satır ve dört seviye. Ziyaretçiye "burada henüz bir şey
- * yok" yerine "burası neyi kapsıyor" anlatmak, envanterin biriktiği ilk
- * günlerde sayfayı ayakta tutan tek dürüst içerik.
+ * Rakam ızgarası KALDIRILDI (kullanıcı kararı): "158.018 kategori" ziyaretçi
+ * için bir vaat değil, kurum içi bir istatistik. Kalan metin aynı şeyi
+ * rakamla övünmeden söylüyor.
  */
 function CatalogBand() {
-  const facts = [
-    { value: "158.018", label: "Kategori (Ariba/UNSPSC uyumlu)" },
-    { value: "58", label: "Sektör başlığı" },
-    { value: "4", label: "Seviye — segmentten ürüne" },
-    { value: "%0", label: "Komisyon" },
-  ];
   return (
     <section className="border-y border-zinc-950/5 bg-zinc-50">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
@@ -87,16 +80,6 @@ function CatalogBand() {
             <ArrowRightIcon aria-hidden className="size-4" />
           </Link>
         </div>
-        <dl className="mt-10 grid grid-cols-2 divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 sm:grid-cols-4 sm:divide-x">
-          {facts.map((f) => (
-            <div key={f.label} className="px-5 py-6">
-              <dt className="text-xs/5 text-zinc-500">{f.label}</dt>
-              <dd className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
-                {f.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
       </div>
     </section>
   );

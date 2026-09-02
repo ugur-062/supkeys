@@ -54,28 +54,6 @@ export const metadata: Metadata = MARKETPLACE_LIVE
       robots: { index: false, follow: false },
     };
 
-/**
- * Hero sayaçları. Sıfır olan canlı sayaç GÖSTERİLMEZ: "0" ya da "—" yazan bir
- * kutu, envanteri duyurmaktan çok sayfayı bozuk gösteriyordu (ölçüldü).
- * Boşalan yer katalog gerçekleriyle doldurulur — hepsi envanterden bağımsız
- * ve her zaman doğru. Dört kutu hep dolu olur.
- */
-function heroStats(demands: number, offers: number) {
-  const live = [
-    { label: "Açık alım talebi", value: demands },
-    { label: "Satılık ilan", value: offers },
-  ]
-    .filter((s) => s.value > 0)
-    .map((s) => ({ label: s.label, value: s.value.toLocaleString("tr-TR") }));
-
-  const catalog = [
-    { label: "Kategori", value: "158.018" },
-    { label: "Sektör", value: "58" },
-    { label: "Komisyon", value: "%0" },
-  ];
-  return [...live, ...catalog].slice(0, 4);
-}
-
 export default async function HomePage() {
   // Anahtar kapalıyken API'ye HİÇ gitmiyoruz: "yakında" sayfası veri
   // istemiyor ve boşuna istek atmak build'i API'ye bağımlı yapardı.
@@ -114,7 +92,7 @@ export default async function HomePage() {
       <MarketingHeader />
 
       <main>
-        <MarketplaceHero stats={heroStats(demands.total, offers.total)} />
+        <MarketplaceHero />
 
         <SectionGrid
           heading={MARKETPLACE_LABELS.demands}
