@@ -7,6 +7,43 @@
 
 ---
 
+## 0. Sende bekleyen — pazar yeri / ürün vitrini (2026-09-02)
+
+Kod tarafı HAZIR ve testli; bu üçü panel/DNS erişimi ister.
+
+### 0a. `cdn.rothern.com` — Cloudflare custom domain · **ürün görsellerini bu bekliyor**
+
+`R2_PUBLIC_BASE_URL` yoksa görsel yükleme **fail-closed** (bilinçli): ürün
+vitrini yayın için en az 1 görsel istiyor, yani bu adım kapanmadan hiçbir ürün
+yayımlanamaz. `pub-*.r2.dev` TR'de engelli olduğu için custom domain
+ZORUNLU — `docs/launch-checklist.md` § R2/CDN.
+
+1. Cloudflare → R2 → PUBLIC bucket → Settings → **Custom Domain** → `cdn.rothern.com`
+2. Render + Vercel env: `R2_PUBLIC_BASE_URL=https://cdn.rothern.com`
+   (+ web'de `NEXT_PUBLIC_CDN_URL` — `next/image` allowlist'i buradan türer)
+3. Mevcut `pub-*.r2.dev` URL'lerini taşı:
+   `pnpm --filter @rothern/api migrate:public-images` (script hazır)
+4. Doğrula: launch-checklist'in 200/404 tablosu (public logo 200, private KYC 404)
+
+### 0b. Resend domain doğrulaması
+
+Hâlâ `onboarding@resend.dev` test domain'i → e-posta YALNIZ kayıtlı adrese
+gidiyor. Misafir bilgi talebi (`PublicInquiry`) **tamamen** e-postaya bağlı:
+doğrulama kodu gitmezse talep hiç iletilmez. Resend → Domains → `rothern.com`
+DNS kayıtları (SPF/DKIM/DMARC) + `EMAIL_FROM_ADDRESS` güncelle.
+
+### 0c. Pazar yeri açma anahtarları — **envanter dolmadan AÇMA**
+
+- Vercel → `NEXT_PUBLIC_MARKETPLACE_LIVE=true` (+ redeploy; build zamanı okunur)
+- Render → `MARKETPLACE_LIVE=true`
+
+⚠️ Bugün **1** açık PUBLIC ilan var. Az içerikle indekslenmek alan adına kalıcı
+"ince içerik" gölgesi bırakır ve açılış geri alınamaz (sayfayı kaldırsan bile
+indeksten düşme süresi arama motorunun elinde). Önce ilan/ürün biriktir.
+Kararı `docs/launch-checklist.md` § Pazar yeri açılışı'nda işaretle.
+
+---
+
 ## 1. `admin@rothern.com` — parola + 2FA · **EN ÖNCELİKLİ**
 
 Canlıda **aktif SUPER_ADMIN**, **2FA kapalı**, son giriş 2026-07-07.
