@@ -15901,3 +15901,1360 @@
 10502700	Taze kesme oregonya	Fresh cut oregonia
 10502800	Taze kesme pitosporum	Fresh cut pittosporum
 10502900	Taze kesme tek tür yeşillikler	Fresh cut single species greens
+85121500	Birinci basamak hekim hizmetleri	Primary care practitioner services
+85121600	Tıp doktoru uzman hizmetleri	Medical doctor specialist services
+85121700	Sağlık hizmeti sağlayıcısı uzman hizmetleri	Healthcare provider specialist services
+85122100	Hastalar için tıbbi rehabilitasyon hizmetleri	Medical rehabilitation services for patients
+85141600	Bitkisel tedaviler	Bitkisel tedaviler
+85141700	Homeopatik uygulama	Homeopatik uygulama
+85171500	Cenaze ve ilgili hizmetler	Funeral and associated services
+85171600	Hospis bakımı	Hospice care
+85171700	Tanatoloji hizmetleri	Thanatology services
+85471000	Beyin sapı ve arka beyin, refleks hareket ve yaşamsal işlev yapıları, açık yaklaşım	Brain stem hindbrain-structures controlling reflexes movement vital functions, open approach
+85471100	Beyin sapı ve arka beyin, refleks hareket ve yaşamsal işlev yapıları, perkütan yaklaşım	Brain stem hindbrain-structures controlling reflexes movement vital functions, percutaneous approach
+85471200	Beyin sapı ve arka beyin, refleks hareket ve yaşamsal işlev yapıları, perkütan endoskopik yaklaşım	Brain stem hindbrain-structures controlling reflexes movement vital functions, percutaneous endoscopic approach
+85471300	Beyin yarımküreleri yapıları, eksternal yaklaşım	Cerebral hemispheres structures-external approach
+85471400	Beyin yarımküreleri yapıları, açık yaklaşım	Cerebral hemispheres structures-open approach
+85471500	Beyin yarımküreleri yapıları, perkütan yaklaşım	Cerebral hemispheres structures-percutaneous approach
+85471600	Beyin yarımküreleri yapıları, perkütan endoskopik yaklaşım	Cerebral hemispheres structures-percutaneous endoscopic approach
+85471700	Beyin ventrikülleri ve spinal kanal, eksternal yaklaşım	Cerebral ventricles spinal canal-external approach
+85471800	Beyin ventrikülleri ve spinal kanal, açık yaklaşım	Cerebral ventricles spinal canal-open approach
+85471900	Beyin ventrikülleri ve spinal kanal, perkütan yaklaşım	Cerebral ventricles spinal canal-percutaneous approach
+85472000	Beyin ventrikülleri ve spinal kanal, perkütan endoskopik yaklaşım	Cerebral ventricles spinal canal-percutaneous endoscopic approach
+85472100	Alt kraniyal sinirler, açık yaklaşım - A bölümü	Lower cranial nerves-open approach-part A
+85472200	Alt kraniyal sinirler, açık yaklaşım - B bölümü	Lower cranial nerves-open approach-part B
+85472300	Alt kraniyal sinirler, perkütan yaklaşım	Lower cranial nerves-percutaneous approach
+85472400	Alt kraniyal sinirler, perkütan endoskopik yaklaşım - A bölümü	Lower cranial nerves-percutaneous endoscopic approach-part A
+85472500	Alt kraniyal sinirler, perkütan endoskopik yaklaşım - B bölümü	Lower cranial nerves-percutaneous endoscopic approach-part B
+85472600	Meninksler, araknoid boşluk ve koruyucu zarlar, eksternal yaklaşım	Meninges arachnoid space protective membranes-external approach
+85472700	Meninksler, araknoid boşluk ve koruyucu zarlar, açık yaklaşım	Meninges arachnoid space protective membranes-open approach
+85472800	Meninksler, araknoid boşluk ve koruyucu zarlar, perkütan yaklaşım	Meninges arachnoid space protective membranes-percutaneous approach
+85472900	Meninksler, araknoid boşluk ve koruyucu zarlar, perkütan endoskopik yaklaşım	Meninges arachnoid space protective membranes-percutaneous endoscopic approach
+85473000	Omurilik yapıları, eksternal yaklaşım	Spinal cord structures-external approach
+85473100	Omurilik yapıları, açık yaklaşım	Spinal cord structures-open approach
+85473200	Omurilik yapıları, perkütan yaklaşım	Spinal cord structures-percutaneous approach
+85473300	Omurilik yapıları, perkütan endoskopik yaklaşım	Spinal cord structures-percutaneous endoscopic approach
+85473400	Üst kraniyal sinirler, işitme koku tat ve yüz hareketi, eksternal yaklaşım	Upper cranial nerves-hearing smell taste facial movement, external approach
+85473500	Üst kraniyal sinirler, işitme koku tat ve yüz hareketi, açık yaklaşım	Upper cranial nerves-hearing smell taste facial movement, open approach
+85473600	Üst kraniyal sinirler, işitme koku tat ve yüz hareketi, perkütan yaklaşım	Upper cranial nerves-hearing smell taste facial movement, percutaneous approach
+85473700	Üst kraniyal sinirler, işitme koku tat ve yüz hareketi, perkütan endoskopik yaklaşım	Upper cranial nerves-hearing smell taste facial movement, percutaneous endoscopic approach
+85473800	Üst kraniyal sinirler, görme ve göz hareketi, açık yaklaşım - A bölümü	Upper cranial nerves-vision ocular movement, open approach-part A
+85473900	Üst kraniyal sinirler, görme ve göz hareketi, açık yaklaşım - B bölümü	Upper cranial nerves-vision ocular movement, open approach-part B
+85474000	Üst kraniyal sinirler, görme ve göz hareketi, perkütan yaklaşım	Upper cranial nerves-vision ocular movement, percutaneous approach
+85474100	Üst kraniyal sinirler, görme ve göz hareketi, perkütan endoskopik yaklaşım	Upper cranial nerves-vision ocular movement, percutaneous endoscopic approach
+85481000	Baş sinirleri, açık yaklaşım	Nerves head, open approach
+85481100	Baş sinirleri, perkütan yaklaşım	Nerves head, percutaneous approach
+85481200	Baş sinirleri, perkütan endoskopik yaklaşım	Nerves head, percutaneous endoscopic approach
+85481300	Alt ekstremite sinirleri, açık yaklaşım	Nerves lower extremities, open approach
+85481400	Alt ekstremite sinirleri, perkütan yaklaşım	Nerves lower extremities, percutaneous approach
+85481500	Alt ekstremite sinirleri, perkütan endoskopik yaklaşım	Nerves lower extremities, percutaneous endoscopic approach
+85481600	Lumbosakral bölge sinirleri, eksternal yaklaşım	Nerves lumbrosacral region, external approach
+85481700	Lumbosakral bölge sinirleri, açık yaklaşım - A bölümü	Nerves lumbrosacral region, open approach-part A
+85481800	Lumbosakral bölge sinirleri, açık yaklaşım - B bölümü	Nerves lumbrosacral region, open approach-part B
+85481900	Lumbosakral bölge sinirleri, perkütan yaklaşım - A bölümü	Nerves lumbrosacral region, percutaneous approach-part A
+85482000	Lumbosakral bölge sinirleri, perkütan yaklaşım - B bölümü	Nerves lumbrosacral region, percutaneous approach-part B
+85482100	Lumbosakral bölge sinirleri, perkütan endoskopik yaklaşım - A bölümü	Nerves lumbrosacral region, percutaneous endoscopic approach-part A
+85482200	Lumbosakral bölge sinirleri, perkütan endoskopik yaklaşım - B bölümü	Nerves lumbrosacral region, percutaneous endoscopic approach-part B
+85482300	Torakoabdominal bölge sinirleri, açık yaklaşım	Nerves thoraco-abdominal region, open approach
+85482400	Torakoabdominal bölge sinirleri, perkütan yaklaşım	Nerves thoraco-abdominal region, percutaneous approach
+85482500	Torakoabdominal bölge sinirleri, perkütan endoskopik yaklaşım	Nerves thoraco-abdominal region, percutaneous endoscopic approach
+85482600	Üst ekstremite sinirleri, açık yaklaşım	Nerves upper extremities, open approach
+85482700	Üst ekstremite sinirleri, perkütan yaklaşım	Nerves upper extremities, percutaneous approach
+85482800	Üst ekstremite sinirleri, perkütan endoskopik yaklaşım	Nerves upper extremities, percutaneous endoscopic approach
+85482900	Servikal omurlardan çıkan sinirler, açık yaklaşım	Nerves originating from cervical vertebrae, open approach
+85483000	Servikal omurlardan çıkan sinirler, perkütan yaklaşım	Nerves originating from cervical vertebrae, percutaneous approach
+85483100	Servikal omurlardan çıkan sinirler, perkütan endoskopik yaklaşım	Nerves originating from cervical vertebrae, percutaneous endoscopic approach
+85491000	Arterler, göğüs kalp akciğerler, açık yaklaşım - A bölümü	Arteries-chest heart lungs, open approach-part A
+85491100	Arterler, göğüs kalp akciğerler, açık yaklaşım - B bölümü	Arteries-chest heart lungs, open approach-part B
+85491200	Arterler, göğüs kalp akciğerler, açık yaklaşım - C bölümü	Arteries-chest heart lungs, open approach-part C
+85491300	Arterler, göğüs kalp akciğerler, açık yaklaşım - D bölümü	Arteries-chest heart lungs, open approach-part D
+85491400	Arterler, göğüs kalp akciğerler, açık yaklaşım - E bölümü	Arteries-chest heart lungs, open approach-part E
+85491500	Arterler, göğüs kalp akciğerler, açık yaklaşım - F bölümü	Arteries-chest heart lungs, open approach-part F
+85491600	Arterler, göğüs kalp akciğerler, açık yaklaşım - G bölümü	Arteries-chest heart lungs, open approach-part G
+85491700	Arterler, göğüs kalp akciğerler, perkütan yaklaşım - A bölümü	Arteries-chest heart lungs, percutaneous approach-part A
+85491800	Arterler, göğüs kalp akciğerler, perkütan yaklaşım - B bölümü	Arteries-chest heart lungs, percutaneous approach-part B
+85491900	Arterler, göğüs kalp akciğerler, perkütan endoskopik yaklaşım - A bölümü	Arteries-chest heart lungs, percutaneous endoscopic approach-part A
+85492000	Arterler, göğüs kalp akciğerler, perkütan endoskopik yaklaşım - B bölümü	Arteries-chest heart lungs, percutaneous endoscopic approach-part B
+85492100	Arterler, göğüs kalp akciğerler, perkütan endoskopik yaklaşım - C bölümü	Arteries-chest heart lungs, percutaneous endoscopic approach-part C
+85492200	Arterler, göğüs kalp akciğerler, perkütan endoskopik yaklaşım - D bölümü	Arteries-chest heart lungs, percutaneous endoscopic approach-part D
+85492300	Kalp ileti sistemi ve ilgili yapılar, açık yaklaşım	Conduction heart related structures, open approach
+85492400	Kalp ileti sistemi ve ilgili yapılar, perkütan yaklaşım	Conduction heart related structures, percutaneous approach
+85492500	Kalp ileti sistemi ve ilgili yapılar, perkütan endoskopik yaklaşım	Conduction heart related structures, percutaneous endoscopic approach
+85492600	Kalp desteği, izleme ve nakli, eksternal yaklaşım	Heart assistance monitoring transplantation, external approach
+85492700	Kalp desteği, izleme ve nakli, açık yaklaşım	Heart assistance monitoring transplantation, open approach
+85492800	Kalp desteği, izleme ve nakli, perkütan yaklaşım	Heart assistance monitoring transplantation, percutaneous approach
+85492900	Kalp desteği, izleme ve nakli, perkütan endoskopik yaklaşım	Heart assistance monitoring transplantation, percutaneous endoscopic approach
+85493000	Miyokart, kalp boşlukları ve ilgili yapılar, açık yaklaşım - A bölümü	Myocardium chambers heart and related structures, open approach-part A
+85493100	Miyokart, kalp boşlukları ve ilgili yapılar, açık yaklaşım - B bölümü	Myocardium chambers heart and related structures, open approach-part B
+85493200	Miyokart, kalp boşlukları ve ilgili yapılar, açık yaklaşım - C bölümü	Myocardium chambers heart and related structures, open approach-part C
+85493300	Miyokart, kalp boşlukları ve ilgili yapılar, perkütan yaklaşım - A bölümü	Myocardium chambers heart and related structures, percutaneous approach-part A
+85493400	Miyokart, kalp boşlukları ve ilgili yapılar, perkütan yaklaşım - B bölümü	Myocardium chambers heart and related structures, percutaneous approach-part B
+85493500	Miyokart, kalp boşlukları ve ilgili yapılar, perkütan endoskopik yaklaşım - A bölümü	Myocardium chambers heart and related structures, percutaneous endoscopic approach-part A
+85493600	Miyokart, kalp boşlukları ve ilgili yapılar, perkütan endoskopik yaklaşım - B bölümü	Myocardium chambers heart and related structures, percutaneous endoscopic approach-part B
+85493700	Miyokart, kalp boşlukları ve ilgili yapılar, perkütan endoskopik yaklaşım - C bölümü	Myocardium chambers heart and related structures, percutaneous endoscopic approach-part C
+85493800	Perikart, kalp ve büyük damar incelemesi, açık yaklaşım	Pericardium inspection heart and great vessels, open approach
+85493900	Perikart, kalp ve büyük damar incelemesi, perkütan yaklaşım	Pericardium inspection heart and great vessels, percutaneous approach
+85494000	Perikart, kalp ve büyük damar incelemesi, perkütan endoskopik yaklaşım	Pericardium inspection heart and great vessels, percutaneous endoscopic approach
+85494100	Kalp kapakları ve ilgili yapılar, açık yaklaşım	Valves heart and related structures, open approach
+85494200	Kalp kapakları ve ilgili yapılar, perkütan yaklaşım	Valves heart and related structures, percutaneous approach
+85494300	Kalp kapakları ve ilgili yapılar, perkütan endoskopik yaklaşım	Valves heart and related structures, percutaneous endoscopic approach
+85494400	Kalp ve akciğer venleri, açık yaklaşım - A bölümü	Veins heart and lungs, open approach-part A
+85494500	Kalp ve akciğer venleri, açık yaklaşım - B bölümü	Veins heart and lungs, open approach-part B
+85494600	Kalp ve akciğer venleri, perkütan yaklaşım	Veins heart and lungs, percutaneous approach
+85494700	Kalp ve akciğer venleri, perkütan endoskopik yaklaşım - A bölümü	Veins heart and lungs, percutaneous endoscopic approach-part A
+85494800	Kalp ve akciğer venleri, perkütan endoskopik yaklaşım - B bölümü	Veins heart and lungs, percutaneous endoscopic approach-part B
+85494900	Ventriküler destek ve kalp nakli, eksternal yaklaşım	Ventricular assistance heart transplantation, external approach
+85495000	Ventriküler destek ve kalp nakli, açık yaklaşım	Ventricular assistance heart transplantation, open approach
+85495100	Ventriküler destek ve kalp nakli, perkütan yaklaşım	Ventricular assistance heart transplantation, percutaneous approach
+85495200	Ventriküler destek ve kalp nakli, perkütan endoskopik yaklaşım	Ventricular assistance heart transplantation, percutaneous endoscopic approach
+85501000	Beyin ve omurga ana arterleri, açık yaklaşım - A bölümü	Principal arteries brain and spinal column, open approach-part A
+85501100	Beyin ve omurga ana arterleri, açık yaklaşım - B bölümü	Principal arteries brain and spinal column, open approach-part B
+85501200	Beyin ve omurga ana arterleri, perkütan yaklaşım - A bölümü	Principal arteries brain and spinal column, percutaneous approach-part A
+85501300	Beyin ve omurga ana arterleri, perkütan yaklaşım - B bölümü	Principal arteries brain and spinal column, percutaneous approach-part B
+85501400	Beyin ve omurga ana arterleri, perkütan endoskopik yaklaşım - A bölümü	Principal arteries brain and spinal column, percutaneous endoscopic approach-part A
+85501500	Beyin ve omurga ana arterleri, perkütan endoskopik yaklaşım - B bölümü	Principal arteries brain and spinal column, percutaneous endoscopic approach-part B
+85501600	Göğüs ana arterleri, açık yaklaşım - A bölümü	Principal arteries chest or thorax, open approach-part A
+85501700	Göğüs ana arterleri, açık yaklaşım - B bölümü	Principal arteries chest or thorax, open approach-part B
+85501800	Göğüs ana arterleri, açık yaklaşım - C bölümü	Principal arteries chest or thorax, open approach-part C
+85501900	Göğüs ana arterleri, açık yaklaşım - D bölümü	Principal arteries chest or thorax, open approach-part D
+85502000	Göğüs ana arterleri, açık yaklaşım - E bölümü	Principal arteries chest or thorax, open approach-part E
+85502100	Göğüs ana arterleri, perkütan yaklaşım - A bölümü	Principal arteries chest or thorax, percutaneous approach-part A
+85502200	Göğüs ana arterleri, perkütan yaklaşım - B bölümü	Principal arteries chest or thorax, percutaneous approach-part B
+85502300	Göğüs ana arterleri, perkütan endoskopik yaklaşım - A bölümü	Principal arteries chest or thorax, percutaneous endoscopic approach-part A
+85502400	Göğüs ana arterleri, perkütan endoskopik yaklaşım - B bölümü	Principal arteries chest or thorax, percutaneous endoscopic approach-part B
+85502500	Baş ve boyun ana arterleri, açık yaklaşım - A bölümü	Principal arteries head and neck, open approach-part A
+85502600	Baş ve boyun ana arterleri, açık yaklaşım - B bölümü	Principal arteries head and neck, open approach-part B
+85502700	Baş ve boyun ana arterleri, açık yaklaşım - C bölümü	Principal arteries head and neck, open approach-part C
+85502800	Baş ve boyun ana arterleri, açık yaklaşım - D bölümü	Principal arteries head and neck, open approach-part D
+85502900	Baş ve boyun ana arterleri, perkütan yaklaşım - A bölümü	Principal arteries head and neck, percutaneous approach-part A
+85503000	Baş ve boyun ana arterleri, perkütan yaklaşım - B bölümü	Principal arteries head and neck, percutaneous approach-part B
+85503100	Baş ve boyun ana arterleri, perkütan yaklaşım - C bölümü	Principal arteries head and neck, percutaneous approach-part C
+85503200	Baş ve boyun ana arterleri, perkütan endoskopik yaklaşım - A bölümü	Principal arteries head and neck, percutaneous endoscopic approach-part A
+85503300	Baş ve boyun ana arterleri, perkütan endoskopik yaklaşım - B bölümü	Principal arteries head and neck, percutaneous endoscopic approach-part B
+85503400	Baş ve boyun ana arterleri, perkütan endoskopik yaklaşım - C bölümü	Principal arteries head and neck, percutaneous endoscopic approach-part C
+85503500	Üst vücut ana arterleri, eksternal yaklaşım	Principal arteries upper body, external approach
+85503600	Üst vücut ana arterleri, açık yaklaşım	Principal arteries upper body, open approach
+85503700	Üst vücut ana arterleri, perkütan yaklaşım	Principal arteries upper body, percutaneous approach
+85503800	Üst vücut ana arterleri, perkütan endoskopik yaklaşım	Principal arteries upper body, percutaneous endoscopic approach
+85503900	Üst ekstremite ana arterleri, açık yaklaşım - A bölümü	Principal arteries upper extremities, open approach-part A
+85504000	Üst ekstremite ana arterleri, açık yaklaşım - B bölümü	Principal arteries upper extremities, open approach-part B
+85504100	Üst ekstremite ana arterleri, açık yaklaşım - C bölümü	Principal arteries upper extremities, open approach-part C
+85504200	Üst ekstremite ana arterleri, açık yaklaşım - D bölümü	Principal arteries upper extremities, open approach-part D
+85504300	Üst ekstremite ana arterleri, açık yaklaşım - E bölümü	Principal arteries upper extremities, open approach-part E
+85504400	Üst ekstremite ana arterleri, açık yaklaşım - F bölümü	Principal arteries upper extremities, open approach- part F
+85504500	Üst ekstremite ana arterleri, açık yaklaşım - G bölümü	Principal arteries upper extremities, open approach- part G
+85504600	Üst ekstremite ana arterleri, perkütan yaklaşım - A bölümü	Principal arteries upper extremities, percutaneous approach-part A
+85504700	Üst ekstremite ana arterleri, perkütan yaklaşım - B bölümü	Principal arteries upper extremities, percutaneous approach-part B
+85504800	Üst ekstremite ana arterleri, perkütan yaklaşım - C bölümü	Principal arteries upper extremities, percutaneous approach-part C
+85504900	Üst ekstremite ana arterleri, perkütan endoskopik yaklaşım - A bölümü	Principal arteries upper extremities, percutaneous endoscopic approach-part A
+85505000	Üst ekstremite ana arterleri, perkütan endoskopik yaklaşım - B bölümü	Principal arteries upper extremities, percutaneous endoscopic approach-part B
+85505100	Üst ekstremite ana arterleri, perkütan endoskopik yaklaşım - C bölümü	Principal arteries upper extremities, percutaneous endoscopic approach-part C
+85505200	Üst ekstremite ana arterleri, perkütan endoskopik yaklaşım - D bölümü	Principal arteries upper extremities, percutaneous endoscopic approach-part D
+85511000	Karın ana arterleri, açık yaklaşım - A bölümü	Principal arteries abdomen, open approach-part A
+85511100	Karın ana arterleri, açık yaklaşım - B bölümü	Principal arteries abdomen, open approach-part B
+85511200	Karın ana arterleri, açık yaklaşım - C bölümü	Principal arteries abdomen, open approach-part C
+85511300	Karın ana arterleri, açık yaklaşım - D bölümü	Principal arteries abdomen, open approach-part D
+85511400	Karın ana arterleri, açık yaklaşım - E bölümü	Principal arteries abdomen, open approach-part E
+85511500	Karın ana arterleri, açık yaklaşım - F bölümü	Principal arteries abdomen, open approach-part F
+85511600	Karın ana arterleri, açık yaklaşım - G bölümü	Principal arteries abdomen, open approach-part G
+85511700	Karın ana arterleri, açık yaklaşım - H bölümü	Principal arteries abdomen, open approach-part H
+85511800	Karın ana arterleri, açık yaklaşım - I bölümü	Principal arteries abdomen, open approach-part I
+85511900	Karın ana arterleri, açık yaklaşım - J bölümü	Principal arteries abdomen, open approach-part J
+85512000	Karın ana arterleri, açık yaklaşım - K bölümü	Principal arteries abdomen, open approach-part K
+85512100	Karın ana arterleri, açık yaklaşım - L bölümü	Principal arteries abdomen, open approach-part L
+85512200	Karın ana arterleri, açık yaklaşım - M bölümü	Principal arteries abdomen, open approach-part M
+85512300	Karın ana arterleri, açık yaklaşım - N bölümü	Principal arteries abdomen, open approach-part N
+85512400	Karın ana arterleri, açık yaklaşım - O bölümü	Principal arteries abdomen, open approach-part O
+85512500	Karın ana arterleri, açık yaklaşım - P bölümü	Principal arteries abdomen, open approach-part P
+85512600	Karın ana arterleri, perkütan yaklaşım - A bölümü	Principal arteries abdomen, percutaneous approach-part A
+85512700	Karın ana arterleri, perkütan yaklaşım - B bölümü	Principal arteries abdomen, percutaneous approach-part B
+85512800	Karın ana arterleri, perkütan yaklaşım - C bölümü	Principal arteries abdomen, percutaneous approach-part C
+85512900	Karın ana arterleri, perkütan yaklaşım - D bölümü	Principal arteries abdomen, percutaneous approach-part D
+85513000	Karın ana arterleri, perkütan yaklaşım - E bölümü	Principal arteries abdomen, percutaneous approach-part E
+85513100	Karın ana arterleri, perkütan yaklaşım - F bölümü	Principal arteries abdomen, percutaneous approach-part F
+85513200	Karın ana arterleri, perkütan yaklaşım - G bölümü	Principal arteries abdomen, percutaneous approach-part G
+85513300	Karın ana arterleri, perkütan endoskopik yaklaşım - A bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part A
+85513400	Karın ana arterleri, perkütan endoskopik yaklaşım - B bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part B
+85513500	Karın ana arterleri, perkütan endoskopik yaklaşım - C bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part C
+85513600	Karın ana arterleri, perkütan endoskopik yaklaşım - D bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part D
+85513700	Karın ana arterleri, perkütan endoskopik yaklaşım - E bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part E
+85513800	Karın ana arterleri, perkütan endoskopik yaklaşım - F bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part F
+85513900	Karın ana arterleri, perkütan endoskopik yaklaşım - G bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part G
+85514000	Karın ana arterleri, perkütan endoskopik yaklaşım - H bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part H
+85514100	Karın ana arterleri, perkütan endoskopik yaklaşım - I bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part I
+85514200	Karın ana arterleri, perkütan endoskopik yaklaşım - J bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part J
+85514300	Karın ana arterleri, perkütan endoskopik yaklaşım - K bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part K
+85514400	Karın ana arterleri, perkütan endoskopik yaklaşım - L bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part L
+85514500	Karın ana arterleri, perkütan endoskopik yaklaşım - M bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part M
+85514600	Karın ana arterleri, perkütan endoskopik yaklaşım - N bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part N
+85514700	Karın ana arterleri, perkütan endoskopik yaklaşım - O bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part O
+85514800	Karın ana arterleri, perkütan endoskopik yaklaşım - P bölümü	Principal arteries abdomen, percutaneous endoscopic approach-part P
+85514900	Alt vücut ana arterleri, eksternal yaklaşım	Principal arteries lower body, external approach
+85515000	Alt vücut ana arterleri, açık yaklaşım	Principal arteries lower body, open approach
+85515100	Alt vücut ana arterleri, perkütan yaklaşım	Principal arteries lower body, percutaneous approach
+85515200	Alt vücut ana arterleri, perkütan endoskopik yaklaşım	Principal arteries lower body, percutaneous endoscopic approach
+85515300	Alt ekstremite ana arterleri, açık yaklaşım - A bölümü	Principal arteries lower extremities, open approach-part A
+85515400	Alt ekstremite ana arterleri, açık yaklaşım - B bölümü	Principal arteries lower extremities, open approach-part B
+85515500	Alt ekstremite ana arterleri, açık yaklaşım - C bölümü	Principal arteries lower extremities, open approach-part C
+85515600	Alt ekstremite ana arterleri, açık yaklaşım - D bölümü	Principal arteries lower extremities, open approach-part D
+85515700	Alt ekstremite ana arterleri, perkütan yaklaşım - A bölümü	Principal arteries lower extremities, percutaneous approach-part A
+85515800	Alt ekstremite ana arterleri, perkütan yaklaşım - B bölümü	Principal arteries lower extremities, percutaneous approach-part B
+85515900	Alt ekstremite ana arterleri, perkütan yaklaşım - C bölümü	Principal arteries lower extremities, percutaneous approach-part C
+85516000	Alt ekstremite ana arterleri, perkütan endoskopik yaklaşım - A bölümü	Principal arteries lower extremities, percutaneous endoscopic approach-part A
+85516100	Alt ekstremite ana arterleri, perkütan endoskopik yaklaşım - B bölümü	Principal arteries lower extremities, percutaneous endoscopic approach-part B
+85516200	Alt ekstremite ana arterleri, perkütan endoskopik yaklaşım - C bölümü	Principal arteries lower extremities, percutaneous endoscopic approach-part C
+85516300	Alt ekstremite ana arterleri, perkütan endoskopik yaklaşım - D bölümü	Principal arteries lower extremities, percutaneous endoscopic approach-part D
+85516400	Alt ekstremite ana arterleri, perkütan endoskopik yaklaşım - E bölümü	Principal arteries lower extremities, percutaneous endoscopic approach-part E
+85521000	Beyin ve omurilik ana venleri, açık yaklaşım - A bölümü	Principal veins brain and spinal cord, open approach-part A
+85521100	Beyin ve omurilik ana venleri, açık yaklaşım - B bölümü	Principal veins brain and spinal cord, open approach-part B
+85521200	Beyin ve omurilik ana venleri, perkütan yaklaşım - A bölümü	Principal veins brain and spinal cord, percutaneous approach-part A
+85521300	Beyin ve omurilik ana venleri, perkütan yaklaşım - B bölümü	Principal veins brain and spinal cord, percutaneous approach-part B
+85521400	Beyin ve omurilik ana venleri, perkütan endoskopik yaklaşım - A bölümü	Principal veins brain and spinal cord, percutaneous endoscopic approach-part A
+85521500	Beyin ve omurilik ana venleri, perkütan endoskopik yaklaşım - B bölümü	Principal veins brain and spinal cord, percutaneous endoscopic approach-part B
+85521600	Göğüs ana venleri, açık yaklaşım - A bölümü	Principal veins chest or thorax, open approach-part A
+85521700	Göğüs ana venleri, açık yaklaşım - B bölümü	Principal veins chest or thorax, open approach-part B
+85521800	Göğüs ana venleri, perkütan yaklaşım - A bölümü	Principal veins chest or thorax, percutaneous approach-part A
+85521900	Göğüs ana venleri, perkütan yaklaşım - B bölümü	Principal veins chest or thorax, percutaneous approach-part B
+85522000	Göğüs ana venleri, perkütan endoskopik yaklaşım - A bölümü	Principal veins chest or thorax, percutaneous endoscopic approach-part A
+85522100	Göğüs ana venleri, perkütan endoskopik yaklaşım - B bölümü	Principal veins chest or thorax, percutaneous endoscopic approach-part B
+85522200	Baş ve boyun ana venleri, açık yaklaşım - A bölümü	Principal veins head and neck, open approach-part A
+85522300	Baş ve boyun ana venleri, açık yaklaşım - B bölümü	Principal veins head and neck, open approach-part B
+85522400	Baş ve boyun ana venleri, perkütan yaklaşım	Principal veins head and neck, percutaneous approach
+85522500	Baş ve boyun ana venleri, perkütan endoskopik yaklaşım - A bölümü	Principal veins head and neck, percutaneous endoscopic approach-part A
+85522600	Baş ve boyun ana venleri, perkütan endoskopik yaklaşım - B bölümü	Principal veins head and neck, percutaneous endoscopic approach-part B
+85522700	Üst vücut ana venleri, eksternal yaklaşım	Principal veins upper body, external approach
+85522800	Üst vücut ana venleri, açık yaklaşım	Principal veins upper body, open approach
+85522900	Üst vücut ana venleri, perkütan yaklaşım	Principal veins upper body, percutaneous approach
+85523000	Üst vücut ana venleri, perkütan endoskopik yaklaşım	Principal veins upper body, percutaneous endoscopic approach
+85523100	Üst ekstremite ana venleri, açık yaklaşım - A bölümü	Principal veins upper extremities, open approach-part A
+85523200	Üst ekstremite ana venleri, açık yaklaşım - B bölümü	Principal veins upper extremities, open approach-part B
+85523300	Üst ekstremite ana venleri, açık yaklaşım - C bölümü	Principal veins upper extremities, open approach-part C
+85523400	Üst ekstremite ana venleri, açık yaklaşım - D bölümü	Principal veins upper extremities, open approach-part D
+85523500	Üst ekstremite ana venleri, perkütan yaklaşım - A bölümü	Principal veins upper extremities, percutaneous approach-part A
+85523600	Üst ekstremite ana venleri, perkütan yaklaşım - B bölümü	Principal veins upper extremities, percutaneous approach-part B
+85523700	Üst ekstremite ana venleri, perkütan yaklaşım - C bölümü	Principal veins upper extremities, percutaneous approach-part C
+85523800	Üst ekstremite ana venleri, perkütan yaklaşım - D bölümü	Principal veins upper extremities, percutaneous approach-part D
+85523900	Üst ekstremite ana venleri, perkütan endoskopik yaklaşım - A bölümü	Principal veins upper extremities, percutaneous endoscopic approach-part A
+85524000	Üst ekstremite ana venleri, perkütan endoskopik yaklaşım - B bölümü	Principal veins upper extremities, percutaneous endoscopic approach-part B
+85524100	Üst ekstremite ana venleri, perkütan endoskopik yaklaşım - C bölümü	Principal veins upper extremities, percutaneous endoscopic approach-part C
+85524200	Üst ekstremite ana venleri, perkütan endoskopik yaklaşım - D bölümü	Principal veins upper extremities, percutaneous endoscopic approach-part D
+85531000	Alt vücut ana venleri, eksternal yaklaşım	Principal veins lower body, external approach
+85531100	Alt vücut ana venleri, açık yaklaşım	Principal veins lower body, open approach
+85531200	Alt vücut ana venleri, perkütan yaklaşım	Principal veins lower body, percutaneous approach
+85531300	Alt vücut ana venleri, perkütan endoskopik yaklaşım	Principal veins lower body, percutaneous endoscopic approach
+85531400	Alt ekstremite ana venleri, açık yaklaşım - A bölümü	Principal veins lower extremities, open approach-part A
+85531500	Alt ekstremite ana venleri, açık yaklaşım - B bölümü	Principal veins lower extremities, open approach-part B
+85531600	Alt ekstremite ana venleri, açık yaklaşım - C bölümü	Principal veins lower extremities, open approach-part C
+85531700	Alt ekstremite ana venleri, perkütan yaklaşım - A bölümü	Principal veins lower extremities, percutaneous approach-part A
+85531800	Alt ekstremite ana venleri, perkütan yaklaşım - B bölümü	Principal veins lower extremities, percutaneous approach-part B
+85531900	Alt ekstremite ana venleri, perkütan yaklaşım - C bölümü	Principal veins lower extremities, percutaneous approach-part C
+85532000	Alt ekstremite ana venleri, perkütan endoskopik yaklaşım - A bölümü	Principal veins lower extremities, percutaneous endoscopic approach-part A
+85532100	Alt ekstremite ana venleri, perkütan endoskopik yaklaşım - B bölümü	Principal veins lower extremities, percutaneous endoscopic approach-part B
+85532200	Alt ekstremite ana venleri, perkütan endoskopik yaklaşım - C bölümü	Principal veins lower extremities, percutaneous endoscopic approach-part C
+85532300	Karın ana venleri, açık yaklaşım - A bölümü	Principal veins abdomen, open approach-part A
+85532400	Karın ana venleri, açık yaklaşım - B bölümü	Principal veins abdomen, open approach-part B
+85532500	Karın ana venleri, açık yaklaşım - C bölümü	Principal veins abdomen, open approach-part C
+85532600	Karın ana venleri, açık yaklaşım - D bölümü	Principal veins abdomen, open approach-part D
+85532700	Karın ana venleri, açık yaklaşım - E bölümü	Principal veins abdomen, open approach-part E
+85532800	Karın ana venleri, açık yaklaşım - F bölümü	Principal veins abdomen, open approach-part F
+85532900	Karın ana venleri, açık yaklaşım - G bölümü	Principal veins abdomen, open approach-part G
+85533000	Karın ana venleri, perkütan yaklaşım - A bölümü	Principal veins abdomen, percutaneous approach-part A
+85533100	Karın ana venleri, perkütan yaklaşım - B bölümü	Principal veins abdomen, percutaneous approach-part B
+85533200	Karın ana venleri, perkütan yaklaşım - C bölümü	Principal veins abdomen, percutaneous approach-part C
+85533300	Karın ana venleri, perkütan yaklaşım - D bölümü	Principal veins abdomen, percutaneous approach-part D
+85533400	Karın ana venleri, perkütan endoskopik yaklaşım - A bölümü	Principal veins abdomen, percutaneous endoscopic approach-part A
+85533500	Karın ana venleri, perkütan endoskopik yaklaşım - B bölümü	Principal veins abdomen, percutaneous endoscopic approach-part B
+85533600	Karın ana venleri, perkütan endoskopik yaklaşım - C bölümü	Principal veins abdomen, percutaneous endoscopic approach-part C
+85533700	Karın ana venleri, perkütan endoskopik yaklaşım - D bölümü	Principal veins abdomen, percutaneous endoscopic approach-part D
+85533800	Karın ana venleri, perkütan endoskopik yaklaşım - E bölümü	Principal veins abdomen, percutaneous endoscopic approach-part E
+85533900	Karın ana venleri, perkütan endoskopik yaklaşım - F bölümü	Principal veins abdomen, percutaneous endoscopic approach-part F
+85534000	Karın ana venleri, perkütan endoskopik yaklaşım - G bölümü	Principal veins abdomen, percutaneous endoscopic approach-part G
+85534100	Göğüs ve toraks ana venleri, açık yaklaşım	Principal veins chest and thorax, open approach
+85534200	Göğüs ve toraks ana venleri, perkütan yaklaşım	Principal veins chest and thorax, percutaneous approach
+85534300	Göğüs ve toraks ana venleri, perkütan endoskopik yaklaşım	Principal veins chest and thorax, percutaneous endoscopic approach
+85541000	Alt lenf düğümleri, açık yaklaşım - A bölümü	Lower lymph nodes, open approach-part A
+85541100	Alt lenf düğümleri, açık yaklaşım - B bölümü	Lower lymph nodes, open approach-part B
+85541200	Alt lenf düğümleri, perkütan yaklaşım - A bölümü	Lower lymph nodes, percutaneous approach-part A
+85541300	Alt lenf düğümleri, perkütan yaklaşım - B bölümü	Lower lymph nodes, percutaneous approach-part B
+85541400	Alt lenf düğümleri, perkütan endoskopik yaklaşım - A bölümü	Lower lymph nodes, percutaneous endoscopic approach-part A
+85541500	Alt lenf düğümleri, perkütan endoskopik yaklaşım - B bölümü	Lower lymph nodes, percutaneous endoscopic approach-part B
+85541600	Lenfatik kanal ve drenaj sistemi, eksternal yaklaşım	Lymphatic duct and drainage system, external approach
+85541700	Lenfatik kanal ve drenaj sistemi, açık yaklaşım	Lymphatic duct and drainage system, open approach
+85541800	Lenfatik kanal ve drenaj sistemi, perkütan yaklaşım	Lymphatic duct and drainage system, percutaneous approach
+85541900	Lenfatik kanal ve drenaj sistemi, perkütan endoskopik yaklaşım	Lymphatic duct and drainage system, percutaneous endoscopic approach
+85542000	Özgül olmayan lenfatik sistem, eksternal yaklaşım	Non-specific lymphatic system, external approach
+85542100	Özgül olmayan lenfatik sistem, açık yaklaşım	Non-specific lymphatic system, open approach
+85542200	Özgül olmayan lenfatik sistem, perkütan yaklaşım	Non-specific lymphatic system, percutaneous approach
+85542300	Özgül olmayan lenfatik sistem, perkütan endoskopik yaklaşım	Non-specific lymphatic system, percutaneous endoscopic approach
+85542400	Lenfatik sistem organları, eksternal yaklaşım	Organs of the lymphatic system, external approach
+85542500	Lenfatik sistem organları, açık yaklaşım	Organs of the lymphatic system, open approach
+85542600	Lenfatik sistem organları, perkütan yaklaşım	Organs of the lymphatic system, percutaneous approach
+85542700	Lenfatik sistem organları, perkütan endoskopik yaklaşım	Organs of the lymphatic system, percutaneous endoscopic approach
+85542800	Üst lenf düğümleri, açık yaklaşım - A bölümü	Upper lymph nodes, open approach-part A
+85542900	Üst lenf düğümleri, açık yaklaşım - B bölümü	Upper lymph nodes, open approach-part B
+85543000	Üst lenf düğümleri, perkütan yaklaşım - A bölümü	Upper lymph nodes, percutaneous approach-part A
+85543100	Üst lenf düğümleri, perkütan yaklaşım - B bölümü	Upper lymph nodes, percutaneous approach-part B
+85543200	Üst lenf düğümleri, perkütan endoskopik yaklaşım - A bölümü	Upper lymph nodes, percutaneous endoscopic approach-part A
+85543300	Üst lenf düğümleri, perkütan endoskopik yaklaşım - B bölümü	Upper lymph nodes, percutaneous endoscopic approach-part B
+85543400	Üst lenf düğümleri, perkütan endoskopik yaklaşım - C bölümü	Upper lymph nodes, percutaneous endoscopic approach-part C
+85551000	Ön kamara ve ilgili yapılar, eksternal yaklaşım	Anterior chamber and related structures, external approach
+85551100	Ön kamara ve ilgili yapılar, perkütan yaklaşım	Anterior chamber and related structures, percutaneous approach
+85551200	Göz küresi yapısı, eksternal yaklaşım	Bulbus or globe structure, external approach
+85551300	Göz küresi yapısı, açık yaklaşım	Bulbus or globe structure, open approach
+85551400	Göz küresi yapısı, perkütan yaklaşım	Bulbus or globe structure, percutaneous approach
+85551500	Göz küresi yapısı, doğal veya yapay açıklıktan endoskopik	Bulbus or globe structure, natural or artificial opening endoscopic
+85551600	Koroid, sklera ve kornea yapıları, eksternal yaklaşım	Choroid, sclera and corneal structures, external approach
+85551700	Koroid, sklera ve kornea yapıları, açık yaklaşım	Choroid, sclera and corneal structures, open approach
+85551800	Koroid, sklera ve kornea yapıları, perkütan yaklaşım	Choroid, sclera and corneal structures, percutaneous approach
+85551900	Lens veya katarakt, eksternal yaklaşım	Lens or cataract, external approach
+85552000	Lens veya katarakt, açık yaklaşım	Lens or cataract, open approach
+85552100	Lens veya katarakt, perkütan yaklaşım	Lens or cataract, percutaneous approach
+85552200	Arka kamara, retina ve vitreus, eksternal yaklaşım	Posterior chamber, retina/retinal vessels, vitreous humor, external approach
+85552300	Arka kamara, retina ve vitreus, açık yaklaşım	Posterior chamber, retina/retinal vessels, vitreous humor, open approach
+85552400	Arka kamara, retina ve vitreus, perkütan yaklaşım	Posterior chamber, retina/retinal vessels, vitreous humor, percutaneous approach
+85552500	Göz kapağı yumuşak dokusu ve gözyaşı kanalları, eksternal yaklaşım	Soft tissue eyelids and lacrimal ducts, external approach
+85552600	Göz kapağı yumuşak dokusu ve gözyaşı kanalları, açık yaklaşım - A bölümü	Soft tissue eyelids and lacrimal ducts, open approach-part A
+85552700	Göz kapağı yumuşak dokusu ve gözyaşı kanalları, açık yaklaşım - B bölümü	Soft tissue eyelids and lacrimal ducts, open approach-part B
+85552800	Göz kapağı yumuşak dokusu ve gözyaşı kanalları, perkütan yaklaşım - A bölümü	Soft tissue eyelids and lacrimal ducts, percutaneous approach-part A
+85552900	Göz kapağı yumuşak dokusu ve gözyaşı kanalları, perkütan yaklaşım - B bölümü	Soft tissue eyelids and lacrimal ducts, percutaneous approach-part B
+85553000	Göz kapağı yumuşak dokusu ve gözyaşı kanalları, doğal veya yapay açıklıktan endoskopik	Soft tissue eyelids and lacrimal ducts, natural or artificial opening endoscopic
+85553100	Dış göz hareketi yapıları, eksternal yaklaşım	Structures of extrinsic ocular movement, external approach
+85553200	Dış göz hareketi yapıları, açık yaklaşım	Structures of extrinsic ocular movement, open approach
+85553300	Dış göz hareketi yapıları, perkütan yaklaşım	Structures of extrinsic ocular movement, percutaneous approach
+85561000	Kulak yapıları, doğal veya yapay açıklıktan - A bölümü	Structures of the ear, natural or artificial opening-part A
+85561100	Kulak yapıları, doğal veya yapay açıklıktan - B bölümü	Structures of the ear, natural or artificial opening-part B
+85561200	Kulak yapıları, doğal veya yapay açıklıktan - C bölümü	Structures of the ear, natural or artificial opening-part C
+85561300	Kulak yapıları, doğal veya yapay açıklıktan - D bölümü	Structures of the ear, natural or artificial opening-part D
+85561400	Kulak yapıları, eksternal yaklaşım - A bölümü	Structures of the ear, external approach-part A
+85561500	Kulak yapıları, eksternal yaklaşım - B bölümü	Structures of the ear, external approach-part B
+85561600	Kulak yapıları, açık yaklaşım - A bölümü	Structures of the ear, open approach-part A
+85561700	Kulak yapıları, açık yaklaşım - B bölümü	Structures of the ear, open approach-part B
+85561800	Kulak yapıları, açık yaklaşım - C bölümü	Structures of the ear, open approach-part C
+85561900	Kulak yapıları, açık yaklaşım - D bölümü	Structures of the ear, open approach-part D
+85562000	Kulak yapıları, perkütan yaklaşım - A bölümü	Structures of the ear, percutaneous approach-part A
+85562100	Kulak yapıları, perkütan yaklaşım - B bölümü	Structures of the ear, percutaneous approach-part B
+85562200	Kulak yapıları, perkütan endoskopik yaklaşım - A bölümü	Structures of the ear, percutaneous endoscopic approach-part A
+85562300	Kulak yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the ear, percutaneous endoscopic approach-part B
+85562400	Burun yapıları, doğal veya yapay açıklıktan	Structures of the nose, natural or artificial opening
+85562500	Burun yapıları, eksternal yaklaşım	Structures of the nose, external approach
+85562600	Burun yapıları, açık yaklaşım - A bölümü	Structures of the nose, open approach-part A
+85562700	Burun yapıları, açık yaklaşım - B bölümü	Structures of the nose, open approach-part B
+85562800	Burun yapıları, perkütan yaklaşım - A bölümü	Structures of the nose, percutaneous approach-part A
+85562900	Burun yapıları, perkütan yaklaşım - B bölümü	Structures of the nose, percutaneous approach-part B
+85563000	Burun yapıları, perkütan endoskopik yaklaşım - A bölümü	Structures of the nose, percutaneous endoscopic approach-part A
+85563100	Burun yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the nose, percutaneous endoscopic approach-part B
+85563200	Ağız ve burun yutağı yapıları, doğal veya yapay açıklıktan	Structures of the oral and nasal pharynx, natural or artificial opening
+85563300	Ağız ve burun yutağı yapıları, eksternal yaklaşım	Structures of the oral and nasal pharynx, external approach
+85563400	Ağız ve burun yutağı yapıları, açık yaklaşım	Structures of the oral and nasal pharynx, open approach
+85563500	Ağız ve burun yutağı yapıları, perkütan yaklaşım	Structures of the oral and nasal pharynx, percutaneous approach
+85563600	Ağız ve burun yutağı yapıları, perkütan endoskopik yaklaşım	Structures of the oral and nasal pharynx, percutaneous endoscopic approach
+85571000	Trakeobronşiyal ağaç yapıları, doğal veya yapay açıklıktan - A bölümü	Structures of the tracheo-broncheal tree, natural or artificial opening-part A
+85571100	Trakeobronşiyal ağaç yapıları, doğal veya yapay açıklıktan - B bölümü	Structures of the tracheo-broncheal tree, natural or artificial opening-part B
+85571200	Trakeobronşiyal ağaç yapıları, doğal veya yapay açıklıktan - C bölümü	Structures of the tracheo-broncheal tree, natural or artificial opening-part C
+85571300	Trakeobronşiyal ağaç yapıları, doğal veya yapay açıklıktan - D bölümü	Structures of the tracheo-broncheal tree, natural or artificial opening-part D
+85571400	Trakeobronşiyal ağaç yapıları, doğal veya yapay açıklıktan - E bölümü	Structures of the tracheo-broncheal tree, natural or artificial opening-part E
+85571500	Trakeobronşiyal ağaç yapıları, doğal veya yapay açıklıktan - F bölümü	Structures of the tracheo-broncheal tree, natural or artificial opening-part F
+85571600	Trakeobronşiyal ağaç yapıları, eksternal yaklaşım	Structures of the tracheo-broncheal tree, external approach
+85571700	Trakeobronşiyal ağaç yapıları, açık yaklaşım - A bölümü	Structures of the tracheo-broncheal tree, open approach-part A
+85571800	Trakeobronşiyal ağaç yapıları, açık yaklaşım - B bölümü	Structures of the tracheo-broncheal tree, open approach-part B
+85571900	Trakeobronşiyal ağaç yapıları, açık yaklaşım - C bölümü	Structures of the tracheo-broncheal tree, open approach-part C
+85572000	Trakeobronşiyal ağaç yapıları, açık yaklaşım - D bölümü	Structures of the tracheo-broncheal tree, open approach-part D
+85572100	Trakeobronşiyal ağaç yapıları, perkütan yaklaşım - A bölümü	Structures of the tracheo-broncheal tree, percutaneous approach-part A
+85572200	Trakeobronşiyal ağaç yapıları, perkütan yaklaşım - B bölümü	Structures of the tracheo-broncheal tree, percutaneous approach-part B
+85572300	Trakeobronşiyal ağaç yapıları, perkütan yaklaşım - C bölümü	Structures of the tracheo-broncheal tree, percutaneous approach-part C
+85572400	Trakeobronşiyal ağaç yapıları, perkütan endoskopik yaklaşım - A bölümü	Structures of the tracheo-broncheal tree, percutaneous endoscopic approach-part A
+85572500	Trakeobronşiyal ağaç yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the tracheo-broncheal tree, percutaneous endoscopic approach-part B
+85572600	Trakeobronşiyal ağaç yapıları, perkütan endoskopik yaklaşım - C bölümü	Structures of the tracheo-broncheal tree, percutaneous endoscopic approach-part C
+85572700	Trakeobronşiyal ağaç yapıları, perkütan endoskopik yaklaşım - D bölümü	Structures of the tracheo-broncheal tree, percutaneous endoscopic approach-part D
+85572800	Akciğer ve plevra yapıları, doğal veya yapay açıklıktan - A bölümü	Structures of the lungs and pleura, natural or artificial opening-part A
+85572900	Akciğer ve plevra yapıları, doğal veya yapay açıklıktan - B bölümü	Structures of the lungs and pleura, natural or artificial opening-part B
+85573000	Akciğer ve plevra yapıları, doğal veya yapay açıklıktan - C bölümü	Structures of the lungs and pleura, natural or artificial opening-part C
+85573100	Akciğer ve plevra yapıları, eksternal yaklaşım	Structures of the lungs and pleura, external approach
+85573200	Akciğer ve plevra yapıları, açık yaklaşım - A bölümü	Structures of the lungs and pleura, open approach-part A
+85573300	Akciğer ve plevra yapıları, açık yaklaşım - B bölümü	Structures of the lungs and pleura, open approach-part B
+85573400	Akciğer ve plevra yapıları, açık yaklaşım - C bölümü	Structures of the lungs and pleura, open approach-part C
+85573500	Akciğer ve plevra yapıları, perkütan yaklaşım - A bölümü	Structures of the lungs and pleura, percutaneous approach-part A
+85573600	Akciğer ve plevra yapıları, perkütan yaklaşım - B bölümü	Structures of the lungs and pleura, percutaneous approach-part B
+85573700	Akciğer ve plevra yapıları, perkütan endoskopik yaklaşım - A bölümü	Structures of the lungs and pleura, percutaneous endoscopic approach-part A
+85573800	Akciğer ve plevra yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the lungs and pleura, percutaneous endoscopic approach-part B
+85581000	Dudaklar ve ağız içi mukoza, eksternal yaklaşım	Lips and buccal mucosal lining oral alimentary cavity, external approach
+85581100	Dudaklar ve ağız içi mukoza, açık yaklaşım	Lips and buccal mucosal lining oral alimentary cavity, open approach
+85581200	Dudaklar ve ağız içi mukoza, perkütan yaklaşım	Lips and buccal mucosal lining oral alimentary cavity, percutaneous approach
+85581300	Ağız, yüz, boğaz ve boyun, doğal veya yapay açıklıktan	Mouth alimentary cavity face throat neck, natural or artificial opening
+85581400	Ağız, yüz, boğaz ve boyun, eksternal yaklaşım	Mouth alimentary cavity face throat neck, external approach
+85581500	Ağız, yüz, boğaz ve boyun, açık yaklaşım	Mouth alimentary cavity face throat neck, open approach
+85581600	Ağız, yüz, boğaz ve boyun, perkütan yaklaşım	Mouth alimentary cavity face throat neck, percutaneous approach
+85581700	Ağız, yüz, boğaz ve boyun, perkütan endoskopik yaklaşım	Mouth alimentary cavity face throat neck, percutaneous endoscopic approach
+85581800	Orofaringeal kemik damak ve kıkırdak yapılar, eksternal yaklaşım	Oropharyngeal bony palate/cartilaginous structures mouth, external approach
+85581900	Orofaringeal kemik damak ve kıkırdak yapılar, açık yaklaşım	Oropharyngeal bony palate/cartilaginous structures mouth, open approach
+85582000	Orofaringeal kemik damak ve kıkırdak yapılar, perkütan yaklaşım	Oropharyngeal bony palate/cartilaginous structures mouth, percutaneous approach
+85582100	Orofaringeal kas yapısı, eksternal yaklaşım	Oropharyngeal muscular structure, external approach
+85582200	Orofaringeal kas yapısı, açık yaklaşım	Oropharyngeal muscular structure, open approach
+85582300	Orofaringeal kas yapısı, perkütan yaklaşım	Oropharyngeal muscular structure, percutaneous approach
+85582400	Orofaringeal yumuşak doku lenfatik yapıları, eksternal yaklaşım	Oropharyngeal soft tissue lymphatic structures, external approach
+85582500	Orofaringeal yumuşak doku lenfatik yapıları, açık yaklaşım	Oropharyngeal soft tissue lymphatic structures, open approach
+85582600	Orofaringeal yumuşak doku lenfatik yapıları, perkütan yaklaşım	Oropharyngeal soft tissue lymphatic structures, percutaneous approach
+85582700	Orofaringeal yumuşak doku lenfatik yapıları, perkütan endoskopik yaklaşım	Oropharyngeal soft tissue lymphatic structures, percutaneous endoscopic approach
+85582800	Orofaringeal yumuşak doku lenfatik yapıları, doğal veya yapay açıklıktan	Oropharyngeal soft tissue lymphatic structures, natural or artificial opening
+85582900	Yüz ve boyun tükürük bezleri, eksternal yaklaşım	Salivary glands face and neck, external approach
+85583000	Yüz ve boyun tükürük bezleri, açık yaklaşım	Salivary glands face and neck, open approach
+85583100	Yüz ve boyun tükürük bezleri, perkütan yaklaşım	Salivary glands face and neck, percutaneous approach
+85583200	Boyun ses üretimi yapıları, eksternal yaklaşım	Structures neck related to phonation/vocalization, external approach
+85583300	Boyun ses üretimi yapıları, açık yaklaşım	Structures neck related to phonation/vocalization, open approach
+85583400	Boyun ses üretimi yapıları, perkütan yaklaşım	Structures neck related to phonation/vocalization, percutaneous approach
+85583500	Boyun ses üretimi yapıları, perkütan endoskopik yaklaşım	Structures neck related to phonation/vocalization, percutaneous endoscopic approach
+85583600	Boyun ses üretimi yapıları, doğal veya yapay açıklıktan endoskopik - A bölümü	Structures neck related to phonation/vocalization, natural or artificial opening endoscopic-part A
+85583700	Boyun ses üretimi yapıları, doğal veya yapay açıklıktan endoskopik - B bölümü	Structures neck related to phonation/vocalization, natural or artificial opening endoscopic-part B
+85583800	Dil veya orofaringeal kas yapısı, eksternal ve açık yaklaşım	Tongue or oropharyngeal muscular structure, external and open approach
+85591000	Karın paryetal zarı, eksternal yaklaşım	Abdominal parietal lining, external approach
+85591100	Karın paryetal zarı, açık yaklaşım	Abdominal parietal lining, open approach
+85591200	Karın paryetal zarı, perkütan yaklaşım	Abdominal parietal lining, percutaneous approach
+85591300	Karın paryetal zarı, perkütan endoskopik yaklaşım	Abdominal parietal lining, percutaneous endoscopic approach
+85591400	Özofagus, sindirim kanalı ve göğüs, doğal veya yapay açıklıktan endoskopik	Esophagus alimentary canal chest, natural or artificial opening endoscopic
+85591500	Özofagus, sindirim kanalı ve göğüs, açık yaklaşım	Esophagus alimentary canal chest, open approach
+85591600	Özofagus, sindirim kanalı ve göğüs, perkütan yaklaşım	Esophagus alimentary canal chest, percutaneous approach
+85591700	Özofagus, sindirim kanalı ve göğüs, perkütan endoskopik yaklaşım	Esophagus alimentary canal chest, percutaneous endoscopic approach
+85591800	Özofagogastrik bileşke, mide ve mezenter, eksternal yaklaşım	Esophogastric junction stomach mesentery, external approach
+85591900	Özofagogastrik bileşke, mide ve mezenter, açık yaklaşım	Esophogastric junction stomach mesentery, open approach
+85592000	Özofagogastrik bileşke, mide ve mezenter, perkütan yaklaşım	Esophogastric junction stomach mesentery, percutaneous approach
+85592100	Özofagogastrik bileşke, mide ve mezenter, perkütan endoskopik yaklaşım	Esophogastric junction stomach mesentery, percutaneous endoscopic approach
+85592200	İnce bağırsak duodenum bölümü, açık yaklaşım	Duodenal portion small intestine, open approach
+85592300	Üst sindirim sistemi, yemek borusu, doğal veya yapay açıklıktan endoskopik - A bölümü	Upper digestive system-esophagus, natural or artificial opening endoscopic-part A
+85592400	Üst sindirim sistemi, yemek borusu, doğal veya yapay açıklıktan endoskopik - B bölümü	Upper digestive system-esophagus, natural or artificial opening endoscopic-part B
+85592500	Üst sindirim sistemi, yemek borusu, doğal veya yapay açıklıktan endoskopik - C bölümü	Upper digestive system-esophagus, natural or artificial opening endoscopic-part C
+85592600	Üst sindirim sistemi, yemek borusu, doğal veya yapay açıklıktan endoskopik - D bölümü	Upper digestive system-esophagus, natural or artificial opening endoscopic-part D
+85592700	Üst sindirim sistemi, yemek borusu, doğal veya yapay açıklıktan endoskopik - E bölümü	Upper digestive system-esophagus, natural or artificial opening endoscopic-part E
+85592800	Üst sindirim sistemi, yemek borusu, eksternal yaklaşım	Upper digestive system-esophagus, external approach
+85592900	Üst sindirim sistemi, yemek borusu, açık yaklaşım - A bölümü	Upper digestive system-esophagus, open approach-part A
+85593000	Üst sindirim sistemi, yemek borusu, açık yaklaşım - B bölümü	Upper digestive system-esophagus, open approach-part B
+85593100	Üst sindirim sistemi, yemek borusu, açık yaklaşım - C bölümü	Upper digestive system-esophagus, open approach-part C
+85593200	Üst sindirim sistemi, yemek borusu, perkütan yaklaşım - A bölümü	Upper digestive system-esophagus, percutaneous approach-part A
+85593300	Üst sindirim sistemi, yemek borusu, perkütan yaklaşım - B bölümü	Upper digestive system-esophagus, percutaneous approach-part B
+85593400	Üst sindirim sistemi, özofagus, perkütan endoskopik yaklaşım - A bölümü	Upper digestive system- esophagus, percutaneous endoscopic approach-part A
+85593500	Üst sindirim sistemi, özofagus, perkütan endoskopik yaklaşım - B bölümü	Upper digestive system- esophagus, percutaneous endoscopic approach-part B
+85593600	Üst sindirim sistemi, özofagus, perkütan endoskopik yaklaşım - C bölümü	Upper digestive system- esophagus, percutaneous endoscopic approach-part C
+85593700	Üst sindirim sistemi, ince bağırsak, eksternal yaklaşım	Upper digestive system- small intestine, external approach
+85593800	Üst sindirim sistemi, ince bağırsak, açık yaklaşım - A bölümü	Upper digestive system- small intestine, open approach-part A
+85593900	Üst sindirim sistemi, ince bağırsak, açık yaklaşım - B bölümü	Upper digestive system- small intestine, open approach-part B
+85594000	Üst sindirim sistemi, ince bağırsak, açık yaklaşım - C bölümü	Upper digestive system- small intestine, open approach-part C
+85594100	Üst sindirim sistemi, ince bağırsak, perkütan yaklaşım - A bölümü	Upper digestive system- small intestine, percutaneous approach-part A
+85594200	Üst sindirim sistemi, ince bağırsak, perkütan yaklaşım - B bölümü	Upper digestive system- small intestine, percutaneous approach-part B
+85594300	Üst sindirim sistemi, ince bağırsak, perkütan endoskopik yaklaşım - A bölümü	Upper digestive system- small intestine, percutaneous endoscopic approach-part A
+85594400	Üst sindirim sistemi, ince bağırsak, perkütan endoskopik yaklaşım - B bölümü	Upper digestive system- small intestine, percutaneous endoscopic approach-part B
+85594500	Üst sindirim sistemi, ince bağırsak, perkütan endoskopik yaklaşım - C bölümü	Upper digestive system- small intestine, percutaneous endoscopic approach-part C
+85594600	Üst sindirim sistemi, ince bağırsak, doğal veya yapay açıklıktan endoskopik - A bölümü	Upper digestive system- small intestine, natural or artificial opening endoscopic-part A
+85594700	Üst sindirim sistemi, ince bağırsak, doğal veya yapay açıklıktan endoskopik - B bölümü	Upper digestive system- small intestine, natural or artificial opening endoscopic-part B
+85594800	Üst sindirim sistemi, ince bağırsak, doğal veya yapay açıklıktan endoskopik - C bölümü	Upper digestive system- small intestine, natural or artificial opening endoscopic-part C
+85594900	Üst sindirim sistemi, ince bağırsak, doğal veya yapay açıklıktan endoskopik - D bölümü	Upper digestive system- small intestine, natural or artificial opening endoscopic-part D
+85601000	Alt sindirim sistemi, çekum ve apendiks, doğal veya yapay açıklıktan - A bölümü	Lower digestive system-cecum appendix, natural or artificial opening-part A
+85601100	Alt sindirim sistemi, çekum ve apendiks, doğal veya yapay açıklıktan - B bölümü	Lower digestive system-cecum appendix, natural or artificial opening-part B
+85601200	Alt sindirim sistemi, çekum ve apendiks, eksternal yaklaşım	Lower digestive system-cecum appendix, external approach
+85601300	Alt sindirim sistemi, çekum ve apendiks, açık yaklaşım	Lower digestive system-cecum appendix, open approach
+85601400	Alt sindirim sistemi, çekum ve apendiks, perkütan yaklaşım	Lower digestive system-cecum appendix, percutaneous approach
+85601500	Alt sindirim sistemi, çekum ve apendiks, perkütan endoskopik yaklaşım	Lower digestive system-cecum appendix, percutaneous endoscopic approach
+85601600	Alt sindirim sistemi, kolon, doğal veya yapay açıklıktan - A bölümü	Lower digestive system-colon, natural or artificial opening-part A
+85601700	Alt sindirim sistemi, kolon, doğal veya yapay açıklıktan - B bölümü	Lower digestive system-colon, natural or artificial opening-part B
+85601800	Alt sindirim sistemi, kolon, doğal veya yapay açıklıktan - C bölümü	Lower digestive system-colon, natural or artificial opening-part C
+85601900	Alt sindirim sistemi, kolon, eksternal yaklaşım	Lower digestive system-colon, external approach
+85602000	Alt sindirim sistemi, kolon, açık yaklaşım - A bölümü	Lower digestive system-colon, open approach-part A
+85602100	Alt sindirim sistemi, kolon, açık yaklaşım - B bölümü	Lower digestive system-colon, open approach-part B
+85602200	Alt sindirim sistemi, kolon, perkütan yaklaşım	Lower digestive system-colon, percutaneous approach
+85602300	Alt sindirim sistemi, kolon, perkütan endoskopik yaklaşım - A bölümü	Lower digestive system-colon, percutaneous endoscopic approach-part A
+85602400	Alt sindirim sistemi, kolon, perkütan endoskopik yaklaşım - B bölümü	Lower digestive system-colon, percutaneous endoscopic approach-part B
+85602500	Alt sindirim sistemi, kalın bağırsak ve omentum, doğal veya yapay açıklıktan - A bölümü	Lower digestive system-large intestine omentum, natural or artificial opening-part A
+85602600	Alt sindirim sistemi, kalın bağırsak ve omentum, doğal veya yapay açıklıktan - B bölümü	Lower digestive system-large intestine omentum, natural or artificial opening-part B
+85602700	Alt sindirim sistemi, kalın bağırsak ve omentum, eksternal yaklaşım	Lower digestive system-large intestine omentum, external approach
+85602800	Alt sindirim sistemi, kalın bağırsak ve omentum, açık yaklaşım - A bölümü	Lower digestive system-large intestine omentum, open approach-part A
+85602900	Alt sindirim sistemi, kalın bağırsak ve omentum, açık yaklaşım - B bölümü	Lower digestive system-large intestine omentum, open approach-part B
+85603000	Alt sindirim sistemi, kalın bağırsak ve omentum, perkütan yaklaşım	Lower digestive system-large intestine omentum, percutaneous approach
+85603100	Alt sindirim sistemi, kalın bağırsak ve omentum, perkütan endoskopik yaklaşım - A bölümü	Lower digestive system-large intestine omentum, percutaneous endoscopic approach-part A
+85603200	Alt sindirim sistemi, kalın bağırsak ve omentum, perkütan endoskopik yaklaşım - B bölümü	Lower digestive system-large intestine omentum, percutaneous endoscopic approach-part B
+85603300	Alt sindirim sistemi, rektum ve anüs, doğal veya yapay açıklıktan - A bölümü	Lower digestive system-rectum anus, natural or artificial opening-part A
+85603400	Alt sindirim sistemi, rektum ve anüs, doğal veya yapay açıklıktan - B bölümü	Lower digestive system-rectum anus, natural or artificial opening-part B
+85603500	Alt sindirim sistemi, rektum ve anüs, eksternal yaklaşım	Lower digestive system-rectum anus, external approach
+85603600	Alt sindirim sistemi, rektum ve anüs, açık yaklaşım	Lower digestive system-rectum anus, open approach
+85603700	Alt sindirim sistemi, rektum ve anüs, perkütan yaklaşım	Lower digestive system-rectum anus, percutaneous approach
+85603800	Alt sindirim sistemi, rektum ve anüs, perkütan endoskopik yaklaşım	Lower digestive system-rectum anus, percutaneous endoscopic approach
+85603900	Alt sindirim sistemi, ince bağırsak, doğal veya yapay açıklıktan	Lower digestive system-small intestine, natural or artificial opening
+85604000	Alt sindirim sistemi, ince bağırsak, açık yaklaşım	Lower digestive system-small intestine, open approach
+85604100	Alt sindirim sistemi, ince bağırsak, perkütan endoskopik yaklaşım	Lower digestive system-small intestine, percutaneous endoscopic approach
+85611000	Koledok ve Vater ampullası, eksternal yaklaşım	Common bile duct-ampulla of vater, external approach
+85611100	Koledok ve Vater ampullası, açık yaklaşım	Common bile duct-ampulla of vater, open approach
+85611200	Koledok ve Vater ampullası, perkütan yaklaşım	Common bile duct-ampulla of vater, percutaneous approach
+85611300	Koledok ve Vater ampullası, perkütan endoskopik yaklaşım	Common bile duct-ampulla of vater, percutaneous endoscopic approach
+85611400	Koledok ve Vater ampullası, doğal veya yapay açıklıktan	Common bile duct-ampulla of vater, natural or artificial opening
+85611500	Safra kesesi ve sistik kanal, eksternal yaklaşım	Gallbladder cystic duct, external approach
+85611600	Safra kesesi ve sistik kanal, açık yaklaşım	Gallbladder cystic duct, open approach
+85611700	Safra kesesi ve sistik kanal, perkütan yaklaşım	Gallbladder cystic duct, percutaneous approach
+85611800	Safra kesesi ve sistik kanal, perkütan endoskopik yaklaşım	Gallbladder cystic duct, percutaneous endoscopic approach
+85611900	Safra kesesi ve sistik kanal, doğal veya yapay açıklıktan	Gallbladder cystic duct, natural or artificial opening
+85612000	Karaciğer ve hepatik kanal, doğal veya yapay açıklıktan - A bölümü	Liver hepatic duct-hepatobiliary duct, natural or artificial opening-part A
+85612100	Karaciğer ve hepatik kanal, doğal veya yapay açıklıktan - B bölümü	Liver hepatic duct-hepatobiliary duct, natural or artificial opening-part B
+85612200	Karaciğer ve hepatik kanal, eksternal yaklaşım	Liver hepatic duct-hepatobiliary duct, external approach
+85612300	Karaciğer ve hepatik kanal, açık yaklaşım - A bölümü	Liver hepatic duct-hepatobiliary duct, open approach-part A
+85612400	Karaciğer ve hepatik kanal, açık yaklaşım - B bölümü	Liver hepatic duct-hepatobiliary duct, open approach-part B
+85612500	Karaciğer ve hepatik kanal, perkütan yaklaşım	Liver hepatic duct-hepatobiliary duct, percutaneous approach
+85612600	Karaciğer ve hepatik kanal, perkütan endoskopik yaklaşım - A bölümü	Liver hepatic duct-hepatobiliary duct, percutaneous endoscopic approach-part A
+85612700	Karaciğer ve hepatik kanal, perkütan endoskopik yaklaşım - B bölümü	Liver hepatic duct-hepatobiliary duct, percutaneous endoscopic approach-part B
+85612800	Pankreas ve pankreas kanalı, eksternal yaklaşım	Pancreas pancreatic duct, external approach
+85612900	Pankreas ve pankreas kanalı, açık yaklaşım - A bölümü	Pancreas pancreatic duct, open approach-part A
+85613000	Pankreas ve pankreas kanalı, açık yaklaşım - B bölümü	Pancreas pancreatic duct, open approach-part B
+85613100	Pankreas ve pankreas kanalı, perkütan yaklaşım	Pancreas pancreatic duct, percutaneous approach
+85613200	Pankreas ve pankreas kanalı, perkütan endoskopik yaklaşım - A bölümü	Pancreas pancreatic duct, percutaneous endoscopic approach-part A
+85613300	Pankreas ve pankreas kanalı, perkütan endoskopik yaklaşım - B bölümü	Pancreas pancreatic duct, percutaneous endoscopic approach-part B
+85613400	Pankreas ve pankreas kanalı, doğal veya yapay açıklıktan - A bölümü	Pancreas pancreatic duct, natural or artificial opening-part A
+85613500	Pankreas ve pankreas kanalı, doğal veya yapay açıklıktan - B bölümü	Pancreas pancreatic duct, natural or artificial opening-part B
+85621000	Adrenal bezler ve nöroendokrin ganglionlar, eksternal yaklaşım	Adrenal glands-neuroendocrine ganglia, external approach
+85621100	Adrenal bezler ve nöroendokrin ganglionlar, açık yaklaşım	Adrenal glands-neuroendocrine ganglia, open approach
+85621200	Adrenal bezler ve nöroendokrin ganglionlar, perkütan yaklaşım	Adrenal glands-neuroendocrine ganglia, percutaneous approach
+85621300	Adrenal bezler ve nöroendokrin ganglionlar, perkütan endoskopik yaklaşım	Adrenal glands-neuroendocrine ganglia, percutaneous endoscopic approach
+85621400	Özgül olmayan endokrin yapı, eksternal yaklaşım	Non-specific endocrine structure, external approach
+85621500	Özgül olmayan endokrin yapı, açık yaklaşım	Non-specific endocrine structure, open approach
+85621600	Özgül olmayan endokrin yapı, perkütan yaklaşım	Non-specific endocrine structure, percutaneous approach
+85621700	Özgül olmayan endokrin yapı, perkütan endoskopik yaklaşım	Non-specific endocrine structure, percutaneous endoscopic approach
+85621800	Hipofiz ve epifiz bezleri, eksternal yaklaşım	Pituitary pineal glands, external approach
+85621900	Hipofiz ve epifiz bezleri, açık yaklaşım	Pituitary pineal glands, open approach
+85622000	Hipofiz ve epifiz bezleri, perkütan yaklaşım	Pituitary pineal glands, percutaneous approach
+85622100	Hipofiz ve epifiz bezleri, perkütan endoskopik yaklaşım	Pituitary pineal glands, percutaneous endoscopic approach
+85622200	Tiroit ve paratiroit bezleri, eksternal yaklaşım	Thyroid parathyroid glands, external approach
+85622300	Tiroit ve paratiroit bezleri, açık yaklaşım	Thyroid parathyroid glands, open approach
+85622400	Tiroit ve paratiroit bezleri, perkütan yaklaşım	Thyroid parathyroid glands, percutaneous approach
+85622500	Tiroit ve paratiroit bezleri, perkütan endoskopik yaklaşım	Thyroid parathyroid glands, percutaneous endoscopic approach
+85631000	Deri dokusu, gövde ön arka, eksternal yaklaşım	Integumentary tissue-trunk torso, anterior posterior, external approach
+85631200	Deri dokusu, ekstremiteler, eksternal yaklaşım - A bölümü	Integumentary tissue- extremities, external approach-part A
+85631300	Deri dokusu, ekstremiteler, eksternal yaklaşım - B bölümü	Integumentary tissue- extremities, external approach-part B
+85631400	Deri dokusu, ekstremiteler, eksternal yaklaşım - C bölümü	Integumentary tissue- extremities, external approach-part C
+85631500	Deri dokusu, ekstremiteler, eksternal yaklaşım - D bölümü	Integumentary tissue- extremities, external approach-part D
+85631600	Deri dokusu, baş boyun, eksternal yaklaşım	Integumentary tissue-head neck, external approach
+85631700	Meme bez dokusu ve ilgili yapılar, eksternal yaklaşım - A bölümü	Mammary glandular tissue-breast associated structures, external approach-part A
+85631800	Meme bez dokusu ve ilgili yapılar, eksternal yaklaşım - B bölümü	Mammary glandular tissue-breast associated structures, external approach-part B
+85631900	Meme bez dokusu ve ilgili yapılar, açık yaklaşım - A bölümü	Mammary glandular tissue-breast associated structures, open approach-part A
+85632000	Meme bez dokusu ve ilgili yapılar, açık yaklaşım - B bölümü	Mammary glandular tissue-breast associated structures, open approach-part B
+85632100	Meme bez dokusu ve ilgili yapılar, perkütan yaklaşım - A bölümü	Mammary glandular tissue-breast associated structures, percutaneous approach-part A
+85632200	Meme bez dokusu ve ilgili yapılar, perkütan yaklaşım - B bölümü	Mammary glandular tissue-breast associated structures, percutaneous approach-part B
+85632300	Meme bez dokusu ve ilgili yapılar, doğal veya yapay açıklıktan endoskopik - A bölümü	Mammary glandular tissue-breast associated structures, natural or artificial opening endoscopic-part A
+85632400	Meme bez dokusu ve ilgili yapılar, doğal veya yapay açıklıktan endoskopik - B bölümü	Mammary glandular tissue-breast associated structures, natural or artificial opening endoscopic-part B
+85632500	Meme bez dokusu ve ilgili yapılar, doğal veya yapay açıklıktan endoskopik - C bölümü	Mammary glandular tissue-breast associated structures, natural or artificial opening endoscopic-part C
+85641000	Deri altı doku ve fasya, gövde ön arka, eksternal yaklaşım	Subcutaneous tissue fascia-trunk torso, anterior posterior, external approach
+85641100	Deri altı doku ve fasya, gövde ön arka, açık yaklaşım - A bölümü	Subcutaneous tissue fascia-trunk torso, anterior posterior, open approach-part A
+85641200	Deri altı doku ve fasya, gövde ön arka, açık yaklaşım - B bölümü	Subcutaneous tissue fascia-trunk torso, anterior posterior, open approach-part B
+85641300	Deri altı doku ve fasya, gövde ön arka, açık yaklaşım - C bölümü	Subcutaneous tissue fascia-trunk torso, anterior posterior, open approach-part C
+85641400	Deri altı doku ve fasya, gövde ön arka, perkütan yaklaşım - A bölümü	Subcutaneous tissue fascia-trunk torso, anterior posterior, percutaneous approach-part A
+85641500	Deri altı doku ve fasya, gövde ön arka, perkütan yaklaşım - B bölümü	Subcutaneous tissue fascia-trunk torso, anterior posterior, percutaneous approach-part B
+85641600	Deri altı doku ve fasya, ekstremiteler, eksternal yaklaşım	Subcutaneous tissue fascia-extremities, external approach
+85641700	Deri altı doku ve fasya, ekstremiteler, açık yaklaşım - A bölümü	Subcutaneous tissue fascia-extremities, open approach-part A
+85641800	Deri altı doku ve fasya, ekstremiteler, açık yaklaşım - B bölümü	Subcutaneous tissue fascia-extremities, open approach-part B
+85641900	Deri altı doku ve fasya, ekstremiteler, açık yaklaşım - C bölümü	Subcutaneous tissue fascia-extremities, open approach-part C
+85642000	Deri altı doku ve fasya, ekstremiteler, açık yaklaşım - D bölümü	Subcutaneous tissue fascia-extremities, open approach-part D
+85642100	Deri altı doku ve fasya, ekstremiteler, perkütan yaklaşım - A bölümü	Subcutaneous tissue fascia-extremities, percutaneous approach-part A
+85642200	Deri altı doku ve fasya, ekstremiteler, perkütan yaklaşım - B bölümü	Subcutaneous tissue fascia-extremities, percutaneous approach-part B
+85642300	Deri altı doku ve fasya, ekstremiteler, perkütan yaklaşım - C bölümü	Subcutaneous tissue fascia-extremities, percutaneous approach-part C
+85642400	Deri altı doku ve fasya, ekstremiteler, perkütan yaklaşım - D bölümü	Subcutaneous tissue fascia-extremities, percutaneous approach-part D
+85642500	Deri altı doku ve fasya, baş boyun, eksternal yaklaşım	Subcutaneous tissue fascia-head neck, external approach
+85642600	Deri altı doku ve fasya, baş boyun, açık yaklaşım	Subcutaneous tissue fascia-head neck, open approach
+85642700	Deri altı doku ve fasya, baş boyun, perkütan yaklaşım	Subcutaneous tissue fascia-head neck, percutaneous approach
+85642800	Deri altı doku ve fasya, erkek ve kadın genital bölgesi, eksternal yaklaşım	Subcutaneous tissue fascia-male female genitalia, external approach
+85642900	Deri altı doku ve fasya, erkek ve kadın genital bölgesi, açık yaklaşım	Subcutaneous tissue fascia-male female genitalia, open approach
+85643000	Deri altı doku ve fasya, erkek ve kadın genital bölgesi, perkütan yaklaşım	Subcutaneous tissue fascia-male female genitalia, percutaneous approach
+85651000	Kaslar, karın kalça perine, eksternal yaklaşım	Muscles-abdomen hip perineum, external approach
+85651100	Kaslar, karın kalça perine, açık yaklaşım - A bölümü	Muscles-abdomen hip perineum, open approach-part A
+85651200	Kaslar, karın kalça perine, açık yaklaşım - B bölümü	Muscles-abdomen hip perineum, open approach-part B
+85651300	Kaslar, karın kalça perine, perkütan yaklaşım	Muscles-abdomen hip perineum, percutaneous approach
+85651400	Kaslar, karın kalça perine, perkütan endoskopik yaklaşım - A bölümü	Muscles-abdomen hip perineum, percutaneous endoscopic approach-part A
+85651500	Kaslar, karın kalça perine, perkütan endoskopik yaklaşım - B bölümü	Muscles-abdomen hip perineum, percutaneous endoscopic approach-part B
+85651600	Kaslar, göğüs gövde omuz, eksternal yaklaşım	Muscles-chest trunk shoulder, external approach
+85651700	Kaslar, göğüs gövde omuz, açık yaklaşım - A bölümü	Muscles-chest trunk shoulder, open approach-part A
+85651800	Kaslar, göğüs gövde omuz, açık yaklaşım - B bölümü	Muscles-chest trunk shoulder, open approach-part B
+85651900	Kaslar, göğüs gövde omuz, perkütan yaklaşım	Muscles-chest trunk shoulder, percutaneous approach
+85652000	Kaslar, göğüs gövde omuz, perkütan endoskopik yaklaşım - A bölümü	Muscles-chest trunk shoulder, percutaneous endoscopic approach-part A
+85652100	Kaslar, göğüs gövde omuz, perkütan endoskopik yaklaşım - B bölümü	Muscles-chest trunk shoulder, percutaneous endoscopic approach-part B
+85652200	Kaslar, baş boyun, eksternal yaklaşım	Muscles-head neck, external approach
+85652300	Kaslar, baş boyun, açık yaklaşım	Muscles-head neck, open approach
+85652400	Kaslar, baş boyun, perkütan yaklaşım	Muscles-head neck, percutaneous approach
+85652500	Kaslar, baş boyun, perkütan endoskopik yaklaşım	Muscles-head neck, percutaneous endoscopic approach
+85652600	Kaslar, alt ekstremiteler, eksternal yaklaşım	Muscles-lower extremities, external approach
+85652700	Kaslar, alt ekstremiteler, açık yaklaşım - A bölümü	Muscles-lower extremities, open approach-part A
+85652800	Kaslar, alt ekstremiteler, açık yaklaşım - B bölümü	Muscles-lower extremities, open approach-part B
+85652900	Kaslar, alt ekstremiteler, perkütan yaklaşım	Muscles-lower extremities, percutaneous approach
+85653000	Kaslar, alt ekstremiteler, perkütan endoskopik yaklaşım - A bölümü	Muscles-lower extremities, percutaneous endoscopic approach-part A
+85653100	Kaslar, alt ekstremiteler, perkütan endoskopik yaklaşım - B bölümü	Muscles-lower extremities, percutaneous endoscopic approach-part B
+85653200	Kaslar, üst ekstremiteler, eksternal yaklaşım	Muscles-upper extremities, external approach
+85653300	Kaslar, üst ekstremiteler, açık yaklaşım - A bölümü	Muscles-upper extremities, open approach-part A
+85653400	Kaslar, üst ekstremiteler, açık yaklaşım - B bölümü	Muscles-upper extremities, open approach-part B
+85653500	Kaslar, üst ekstremiteler, perkütan yaklaşım	Muscles-upper extremities, percutaneous approach
+85653600	Kaslar, üst ekstremiteler, perkütan endoskopik yaklaşım - A bölümü	Muscles-upper extremities, percutaneous endoscopic approach-part A
+85653700	Kaslar, üst ekstremiteler, perkütan endoskopik yaklaşım - B bölümü	Muscles-upper extremities, percutaneous endoscopic approach-part B
+85661000	Tendonlar, gövde ön arka, eksternal yaklaşım	Tendons-trunk torso, anterior posterior, external approach
+85661100	Tendonlar, gövde ön arka, açık yaklaşım - A bölümü	Tendons-trunk torso, anterior posterior, open approach-part A
+85661200	Tendonlar, gövde ön arka, açık yaklaşım - B bölümü	Tendons-trunk torso, anterior posterior, open approach-part B
+85661300	Tendonlar, gövde ön arka, perkütan yaklaşım	Tendons-trunk torso, anterior posterior, percutaneous approach
+85661400	Tendonlar, gövde ön arka, perkütan endoskopik yaklaşım - A bölümü	Tendons-trunk torso, anterior posterior, percutaneous endoscopic approach-part A
+85661500	Tendonlar, gövde ön arka, perkütan endoskopik yaklaşım - B bölümü	Tendons-trunk torso, anterior posterior, percutaneous endoscopic approach-part B
+85661600	Tendonlar, baş boyun, eksternal yaklaşım	Tendons-head neck, external approach
+85661700	Tendonlar, baş boyun, açık yaklaşım	Tendons-head neck, open approach
+85661800	Tendonlar, baş boyun, perkütan yaklaşım	Tendons-head neck, percutaneous approach
+85661900	Tendonlar, baş boyun, perkütan endoskopik yaklaşım	Tendons-head neck, percutaneous endoscopic approach
+85662000	Tendonlar, alt ekstremiteler, eksternal yaklaşım	Tendons-lower extremities, external approach
+85662100	Tendonlar, alt ekstremiteler, açık yaklaşım - A bölümü	Tendons-lower extremities, open approach-part A
+85662200	Tendonlar, alt ekstremiteler, açık yaklaşım - B bölümü	Tendons-lower extremities, open approach-part B
+85662300	Tendonlar, alt ekstremiteler, açık yaklaşım - C bölümü	Tendons-lower extremities, open approach-part C
+85662400	Tendonlar, alt ekstremiteler, perkütan yaklaşım	Tendons-lower extremities, percutaneous approach
+85662500	Tendonlar, alt ekstremiteler, perkütan endoskopik yaklaşım - A bölümü	Tendons-lower extremities, percutaneous endoscopic approach-part A
+85662600	Tendonlar, alt ekstremiteler, perkütan endoskopik yaklaşım - B bölümü	Tendons-lower extremities, percutaneous endoscopic approach-part B
+85662700	Tendonlar, alt ekstremiteler, perkütan endoskopik yaklaşım - C bölümü	Tendons-lower extremities, percutaneous endoscopic approach-part C
+85662800	Tendonlar, erkek ve kadın genital bölgesi, eksternal yaklaşım	Tendons-male female genitalia, external approach
+85662900	Tendonlar, erkek ve kadın genital bölgesi, açık yaklaşım	Tendons-male female genitalia, open approach
+85663000	Tendonlar, erkek ve kadın genital bölgesi, perkütan yaklaşım	Tendons-male female genitalia, percutaneous approach
+85663100	Tendonlar, üst ve alt vücut, perkütan endoskopik yaklaşım	Tendons-upper lower body, percutaneous endoscopic approach
+85663200	Tendonlar, üst ekstremiteler, eksternal yaklaşım	Tendons-upper extremities, external approach
+85663300	Tendonlar, üst ekstremiteler, açık yaklaşım - A bölümü	Tendons-upper extremities, open approach-part A
+85663400	Tendonlar, üst ekstremiteler, açık yaklaşım - B bölümü	Tendons-upper extremities, open approach-part B
+85663500	Tendonlar, üst ekstremiteler, perkütan yaklaşım	Tendons-upper extremities, percutaneous approach
+85663600	Tendonlar, üst ekstremiteler, perkütan endoskopik yaklaşım - A bölümü	Tendons-upper extremities, percutaneous endoscopic approach-part A
+85663700	Tendonlar, üst ekstremiteler, perkütan endoskopik yaklaşım - B bölümü	Tendons-upper extremities, percutaneous endoscopic approach-part B
+85671000	Bursa ve bağlar, karın perine, eksternal yaklaşım	Bursae ligaments-abdomen perineum, external approach
+85671100	Bursa ve bağlar, karın perine, açık yaklaşım	Bursae ligaments-abdomen perineum, open approach
+85671200	Bursa ve bağlar, karın perine, perkütan yaklaşım	Bursae ligaments-abdomen perineum, percutaneous approach
+85671300	Bursa ve bağlar, karın perine, perkütan endoskopik yaklaşım	Bursae ligaments-abdomen perineum, percutaneous endoscopic approach
+85671400	Bursa ve bağlar, alt ekstremiteler tanımlanmamış eklem, eksternal yaklaşım	Bursae ligaments-lower extremities unspecified joint articulation, external approach
+85671500	Bursa ve bağlar, alt ekstremiteler tanımlanmamış eklem, açık yaklaşım	Bursae ligaments-lower extremities unspecified joint articulation, open approach
+85671600	Bursa ve bağlar, alt ekstremiteler tanımlanmamış eklem, perkütan yaklaşım	Bursae ligaments-lower extremities unspecified joint articulation, percutaneous approach
+85671700	Bursa ve bağlar, alt ekstremiteler tanımlanmamış eklem, perkütan endoskopik yaklaşım	Bursae ligaments-lower extremities unspecified joint articulation, percutaneous endoscopic approach
+85671800	Bursa ve bağlar, alt ekstremiteler, eksternal yaklaşım	Bursae ligaments-lower extremities, external approach
+85671900	Bursa ve bağlar, alt ekstremiteler, açık yaklaşım - A bölümü	Bursae ligaments-lower extremities, open approach-part A
+85672000	Bursa ve bağlar, alt ekstremiteler, açık yaklaşım - B bölümü	Bursae ligaments-lower extremities, open approach-part B
+85672100	Bursa ve bağlar, alt ekstremiteler, perkütan yaklaşım	Bursae ligaments-lower extremities, percutaneous approach
+85672200	Bursa ve bağlar, alt ekstremiteler, perkütan endoskopik yaklaşım - A bölümü	Bursae ligaments-lower extremities, percutaneous endoscopic approach-part A
+85672300	Bursa ve bağlar, alt ekstremiteler, perkütan endoskopik yaklaşım - B bölümü	Bursae ligaments-lower extremities, percutaneous endoscopic approach-part B
+85672400	Bursa ve bağlar, boyun gövde toraks, eksternal yaklaşım	Bursae ligaments-neck trunk thorax, external approach
+85672500	Bursa ve bağlar, boyun gövde toraks, açık yaklaşım	Bursae ligaments-neck trunk thorax, open approach
+85672600	Bursa ve bağlar, boyun gövde toraks, perkütan yaklaşım	Bursae ligaments-neck trunk thorax, percutaneous approach
+85672700	Bursa ve bağlar, boyun gövde toraks, perkütan endoskopik yaklaşım	Bursae ligaments-neck trunk thorax, percutaneous endoscopic approach
+85672800	Bursa ve bağlar, üst ekstremiteler tanımlanmamış eklem, eksternal yaklaşım	Bursae ligaments-upper extremities unspecified joint articulation, external approach
+85672900	Bursa ve bağlar, üst ekstremiteler tanımlanmamış eklem, açık yaklaşım	Bursae ligaments-upper extremities unspecified joint articulation, open approach
+85673000	Bursa ve bağlar, üst ekstremiteler tanımlanmamış eklem, perkütan yaklaşım	Bursae ligaments-upper extremities unspecified joint articulation, percutaneous approach
+85673100	Bursa ve bağlar, üst ekstremiteler tanımlanmamış eklem, perkütan endoskopik yaklaşım	Bursae ligaments-upper extremities unspecified joint articulation, percutaneous endoscopic approach
+85673200	Bursa ve bağlar, üst ekstremiteler, eksternal yaklaşım	Bursae ligaments-upper extremities, external approach
+85673300	Bursa ve bağlar, üst ekstremiteler, açık yaklaşım - A bölümü	Bursae ligaments-upper extremities, open approach-part A
+85673400	Bursa ve bağlar, üst ekstremiteler, açık yaklaşım - B bölümü	Bursae ligaments-upper extremities, open approach-part B
+85673500	Bursa ve bağlar, üst ekstremiteler, perkütan yaklaşım	Bursae ligaments-upper extremities, percutaneous approach
+85673600	Bursa ve bağlar, üst ekstremiteler, perkütan endoskopik yaklaşım - A bölümü	Bursae ligaments-upper extremities, percutaneous endoscopic approach-part A
+85673700	Bursa ve bağlar, üst ekstremiteler, perkütan endoskopik yaklaşım - B bölümü	Bursae ligaments-upper extremities, percutaneous endoscopic approach-part B
+85681000	Yüz kemikleri, eksternal yaklaşım	Bones of the face, external approach
+85681100	Yüz kemikleri, açık yaklaşım - A bölümü	Bones of the face, open approach-part A
+85681200	Yüz kemikleri, açık yaklaşım - B bölümü	Bones of the face, open approach-part B
+85681300	Yüz kemikleri, açık yaklaşım - C bölümü	Bones of the face, open approach-part C
+85681400	Yüz kemikleri, açık yaklaşım - D bölümü	Bones of the face, open approach-part D
+85681500	Yüz kemikleri, perkütan yaklaşım - A bölümü	Bones of the face, percutaneous approach-part A
+85681600	Yüz kemikleri, perkütan yaklaşım - B bölümü	Bones of the face, percutaneous approach-part B
+85681700	Yüz kemikleri, perkütan yaklaşım - C bölümü	Bones of the face, percutaneous approach-part C
+85681800	Yüz kemikleri, perkütan yaklaşım - D bölümü	Bones of the face, percutaneous approach-part D
+85681900	Yüz kemikleri, perkütan endoskopik yaklaşım - A bölümü	Bones of the face, percutaneous endoscopic approach-part A
+85682000	Yüz kemikleri, perkütan endoskopik yaklaşım - B bölümü	Bones of the face, percutaneous endoscopic approach-part B
+85682100	Yüz kemikleri, perkütan endoskopik yaklaşım - C bölümü	Bones of the face, percutaneous endoscopic approach-part C
+85682200	Yüz kemikleri, perkütan endoskopik yaklaşım - D bölümü	Bones of the face, percutaneous endoscopic approach-part D
+85682300	Kafatası yassı kemikleri, eksternal yaklaşım	Flat bones skull, external approach
+85682400	Kafatası yassı kemikleri, açık yaklaşım - A bölümü	Flat bones skull, open approach-part A
+85682500	Kafatası yassı kemikleri, açık yaklaşım - B bölümü	Flat bones skull, open approach-part B
+85682600	Kafatası yassı kemikleri, açık yaklaşım - C bölümü	Flat bones skull, open approach-part C
+85682700	Kafatası yassı kemikleri, açık yaklaşım - D bölümü	Flat bones skull, open approach-part D
+85682800	Kafatası yassı kemikleri, perkütan yaklaşım - A bölümü	Flat bones skull, percutaneous approach-part A
+85682900	Kafatası yassı kemikleri, perkütan yaklaşım - B bölümü	Flat bones skull, percutaneous approach-part B
+85683000	Kafatası yassı kemikleri, perkütan yaklaşım - C bölümü	Flat bones skull, percutaneous approach-part C
+85683100	Kafatası yassı kemikleri, perkütan endoskopik yaklaşım - A bölümü	Flat bones skull, percutaneous endoscopic approach-part A
+85683200	Kafatası yassı kemikleri, perkütan endoskopik yaklaşım - B bölümü	Flat bones skull, percutaneous endoscopic approach-part B
+85683300	Kafatası yassı kemikleri, perkütan endoskopik yaklaşım - C bölümü	Flat bones skull, percutaneous endoscopic approach-part C
+85691000	Kol kemiği, tanımlanmamış, eksternal yaklaşım	Bone of the arm-unspecified, external approach
+85691100	Kol kemiği, tanımlanmamış, açık yaklaşım	Bone of the arm-unspecified, open approach
+85691200	Kol kemiği, tanımlanmamış, perkütan yaklaşım	Bone of the arm-unspecified, percutaneous approach
+85691300	Kol kemiği, tanımlanmamış, perkütan endoskopik yaklaşım	Bone of the arm-unspecified, percutaneous endoscopic approach
+85691400	Omuz konkav kemiği, eksternal yaklaşım	Concave bone shoulder, external approach
+85691500	Omuz konkav kemiği, açık yaklaşım	Concave bone shoulder, open approach
+85691600	Omuz konkav kemiği, perkütan yaklaşım	Concave bone shoulder, percutaneous approach
+85691700	Omuz konkav kemiği, perkütan endoskopik yaklaşım	Concave bone shoulder, percutaneous endoscopic approach
+85691800	Yassı kemikler, eksternal yaklaşım	Flat bones, external approach
+85691900	Yassı kemikler, açık yaklaşım - A bölümü	Flat bones, open approach-part A
+85692000	Yassı kemikler, açık yaklaşım - B bölümü	Flat bones, open approach-part B
+85692100	Yassı kemikler, perkütan yaklaşım - A bölümü	Flat bones, percutaneous approach-part A
+85692200	Yassı kemikler, perkütan yaklaşım - B bölümü	Flat bones, percutaneous approach-part B
+85692300	Yassı kemikler, perkütan endoskopik yaklaşım - A bölümü	Flat bones, percutaneous endoscopic approach-part A
+85692400	Yassı kemikler, perkütan endoskopik yaklaşım - B bölümü	Flat bones, percutaneous endoscopic approach-part B
+85692500	Düzensiz kemikler, eksternal yaklaşım	Irregular bones, external approach
+85692600	Düzensiz kemikler, açık yaklaşım	Irregular bones, open approach
+85692700	Düzensiz kemikler, perkütan yaklaşım	Irregular bones, percutaneous approach
+85692800	Düzensiz kemikler, perkütan endoskopik yaklaşım	Irregular bones, percutaneous endoscopic approach
+85692900	Kol uzun kemikleri, eksternal yaklaşım	Long bones arm, external approach
+85693000	Kol uzun kemikleri, açık yaklaşım - A bölümü	Long bones arm, open approach-part A
+85693100	Kol uzun kemikleri, açık yaklaşım - B bölümü	Long bones arm, open approach-part B
+85693200	Kol uzun kemikleri, açık yaklaşım - C bölümü	Long bones arm, open approach-part C
+85693300	Kol uzun kemikleri, açık yaklaşım - D bölümü	Long bones arm, open approach-part D
+85693400	Kol uzun kemikleri, açık yaklaşım - E bölümü	Long bones arm, open approach-part E
+85693500	Kol uzun kemikleri, perkütan yaklaşım - A bölümü	Long bones arm, percutaneous approach-part A
+85693600	Kol uzun kemikleri, perkütan yaklaşım - B bölümü	Long bones arm, percutaneous approach-part B
+85693700	Kol uzun kemikleri, perkütan yaklaşım - C bölümü	Long bones arm, percutaneous approach-part C
+85693800	Kol uzun kemikleri, perkütan yaklaşım - D bölümü	Long bones arm, percutaneous approach-part D
+85693900	Kol uzun kemikleri, perkütan yaklaşım - E bölümü	Long bones arm, percutaneous approach-part E
+85694000	Kol uzun kemikleri, perkütan endoskopik yaklaşım - A bölümü	Long bones arm, percutaneous endoscopic approach-part A
+85694100	Kol uzun kemikleri, perkütan endoskopik yaklaşım - B bölümü	Long bones arm, percutaneous endoscopic approach-part B
+85694200	Kol uzun kemikleri, perkütan endoskopik yaklaşım - C bölümü	Long bones arm, percutaneous endoscopic approach-part C
+85694300	Kol uzun kemikleri, perkütan endoskopik yaklaşım - D bölümü	Long bones arm, percutaneous endoscopic approach-part D
+85694400	Kol uzun kemikleri, perkütan endoskopik yaklaşım - E bölümü	Long bones arm, percutaneous endoscopic approach-part E
+85694500	El uzun kemikleri, eksternal yaklaşım	Long bones hand, external approach
+85694600	El uzun kemikleri, açık yaklaşım - A bölümü	Long bones hand, open approach-part A
+85694700	El uzun kemikleri, açık yaklaşım - B bölümü	Long bones hand, open approach-part B
+85694800	El uzun kemikleri, açık yaklaşım - C bölümü	Long bones hand, open approach-part C
+85694900	El uzun kemikleri, perkütan yaklaşım - A bölümü	Long bones hand, percutaneous approach-part A
+85695000	El uzun kemikleri, perkütan yaklaşım - B bölümü	Long bones hand, percutaneous approach-part B
+85695100	El uzun kemikleri, perkütan endoskopik yaklaşım - A bölümü	Long bones hand, percutaneous endoscopic approach-part A
+85695200	El uzun kemikleri, perkütan endoskopik yaklaşım - B bölümü	Long bones hand, percutaneous endoscopic approach-part B
+85695300	El kısa kemikleri, eksternal yaklaşım	Short bones hand, external approach
+85695400	El kısa kemikleri, açık yaklaşım	Short bones hand, open approach
+85695500	El kısa kemikleri, perkütan yaklaşım	Short bones hand, percutaneous approach
+85695600	El kısa kemikleri, perkütan endoskopik yaklaşım	Short bones hand, percutaneous endoscopic approach
+85695700	Üst kemik, tanımlanmamış, eksternal yaklaşım	Upper bone-unspecified, external approach
+85701000	Pelvis kemikleri, eksternal yaklaşım	Bones pelvis, external approach
+85701100	Pelvis kemikleri, açık yaklaşım - A bölümü	Bones pelvis, open approach-part A
+85701200	Pelvis kemikleri, açık yaklaşım - B bölümü	Bones pelvis, open approach-part B
+85701300	Pelvis kemikleri, perkütan yaklaşım - A bölümü	Bones pelvis, percutaneous approach-part A
+85701400	Pelvis kemikleri, perkütan yaklaşım - B bölümü	Bones pelvis, percutaneous approach-part B
+85701500	Pelvis kemikleri, perkütan endoskopik yaklaşım - A bölümü	Bones pelvis, percutaneous endoscopic approach-part A
+85701600	Pelvis kemikleri, perkütan endoskopik yaklaşım - B bölümü	Bones pelvis, percutaneous endoscopic approach-part B
+85701700	Alt ekstremite kemikleri, tanımlanmamış, eksternal yaklaşım	Bones lower extremities-unspecified, external approach
+85701800	Alt ekstremite kemikleri, tanımlanmamış, açık yaklaşım	Bones lower extremities-unspecified, open approach
+85701900	Alt ekstremite kemikleri, tanımlanmamış, perkütan yaklaşım	Bones lower extremities-unspecified, percutaneous approach
+85702000	Alt ekstremite kemikleri, tanımlanmamış, perkütan endoskopik yaklaşım	Bones lower extremities-unspecified, percutaneous endoscopic approach
+85702100	Alt düzensiz kemikler, eksternal yaklaşım	Irregular lower bones, external approach
+85702200	Alt düzensiz kemikler, açık yaklaşım	Irregular lower bones, open approach
+85702300	Alt düzensiz kemikler, perkütan yaklaşım	Irregular lower bones, percutaneous approach
+85702400	Alt düzensiz kemikler, perkütan endoskopik yaklaşım	Irregular lower bones, percutaneous endoscopic approach
+85702500	Ayak uzun kemikleri, eksternal yaklaşım	Long bones foot, external approach
+85702600	Ayak uzun kemikleri, açık yaklaşım	Long bones foot, open approach
+85702700	Ayak uzun kemikleri, perkütan yaklaşım	Long bones foot, percutaneous approach
+85702800	Ayak uzun kemikleri, perkütan endoskopik yaklaşım	Long bones foot, percutaneous endoscopic approach
+85702900	Bacak uzun kemikleri, eksternal yaklaşım	Long bones leg, external approach
+85703000	Bacak uzun kemikleri, açık yaklaşım - A bölümü	Long bones leg, open approach-part A
+85703100	Bacak uzun kemikleri, açık yaklaşım - B bölümü	Long bones leg, open approach-part B
+85703200	Bacak uzun kemikleri, açık yaklaşım - C bölümü	Long bones leg, open approach-part C
+85703300	Bacak uzun kemikleri, açık yaklaşım - D bölümü	Long bones leg, open approach-part D
+85703400	Bacak uzun kemikleri, açık yaklaşım - E bölümü	Long bones leg, open approach-part E
+85703500	Bacak uzun kemikleri, perkütan yaklaşım - A bölümü	Long bones leg, percutaneous approach-part A
+85703600	Bacak uzun kemikleri, perkütan yaklaşım - B bölümü	Long bones leg, percutaneous approach-part B
+85703700	Bacak uzun kemikleri, perkütan yaklaşım - C bölümü	Long bones leg, percutaneous approach-part C
+85703800	Bacak uzun kemikleri, perkütan yaklaşım - D bölümü	Long bones leg, percutaneous approach-part D
+85703900	Bacak uzun kemikleri, perkütan yaklaşım - E bölümü	Long bones leg, percutaneous approach-part E
+85704000	Bacak uzun kemikleri, perkütan endoskopik yaklaşım - A bölümü	Long bones leg, percutaneous endoscopic approach-part A
+85704100	Bacak uzun kemikleri, perkütan endoskopik yaklaşım - B bölümü	Long bones leg, percutaneous endoscopic approach-part B
+85704200	Bacak uzun kemikleri, perkütan endoskopik yaklaşım - C bölümü	Long bones leg, percutaneous endoscopic approach-part C
+85704300	Bacak uzun kemikleri, perkütan endoskopik yaklaşım - D bölümü	Long bones leg, percutaneous endoscopic approach-part D
+85704400	Bacak uzun kemikleri, perkütan endoskopik yaklaşım - E bölümü	Long bones leg, percutaneous endoscopic approach-part E
+85704500	Sesamoid kemikler, eksternal yaklaşım	Sesamoid bones, external approach
+85704600	Sesamoid kemikler, açık yaklaşım	Sesamoid bones, open approach
+85704700	Sesamoid kemikler, perkütan yaklaşım	Sesamoid bones, percutaneous approach
+85704800	Sesamoid kemikler, perkütan endoskopik yaklaşım	Sesamoid bones, percutaneous endoscopic approach
+85704900	Ayak kısa kemikleri, eksternal yaklaşım	Short bones foot, external approach
+85705000	Ayak kısa kemikleri, açık yaklaşım - A bölümü	Short bones foot, open approach-part A
+85705100	Ayak kısa kemikleri, açık yaklaşım - B bölümü	Short bones foot, open approach-part B
+85705200	Ayak kısa kemikleri, perkütan yaklaşım - A bölümü	Short bones foot, percutaneous approach-part A
+85705300	Ayak kısa kemikleri, perkütan yaklaşım - B bölümü	Short bones foot, percutaneous approach-part B
+85705400	Ayak kısa kemikleri, perkütan endoskopik yaklaşım - A bölümü	Short bones foot, percutaneous endoscopic approach-part A
+85705500	Ayak kısa kemikleri, perkütan endoskopik yaklaşım - B bölümü	Short bones foot, percutaneous endoscopic approach-part B
+85711000	Klavikula eklemleri, eksternal yaklaşım	Clavicular joints, external approach
+85711100	Klavikula eklemleri, açık yaklaşım - A bölümü	Clavicular joints, open approach-part A
+85711200	Klavikula eklemleri, açık yaklaşım - B bölümü	Clavicular joints, open approach-part B
+85711300	Klavikula eklemleri, perkütan yaklaşım - A bölümü	Clavicular joints, percutaneous approach-part A
+85711400	Klavikula eklemleri, perkütan yaklaşım - B bölümü	Clavicular joints, percutaneous approach-part B
+85711500	Klavikula eklemleri, perkütan endoskopik yaklaşım - A bölümü	Clavicular joints, percutaneous endoscopic approach-part A
+85711600	Klavikula eklemleri, perkütan endoskopik yaklaşım - B bölümü	Clavicular joints, percutaneous endoscopic approach-part B
+85711700	Üst eklemler, tanımlanmamış, eksternal yaklaşım	Upper joints-unspecified, external approach
+85711800	Kol eklemleri, eksternal yaklaşım - A bölümü	Joints arm, external approach-part A
+85711900	Kol eklemleri, eksternal yaklaşım - B bölümü	Joints arm, external approach-part B
+85712000	Kol eklemleri, açık yaklaşım - A bölümü	Joints arm, open approach-part A
+85712100	Kol eklemleri, açık yaklaşım - B bölümü	Joints arm, open approach-part B
+85712200	Kol eklemleri, açık yaklaşım - C bölümü	Joints arm, open approach-part C
+85712300	Kol eklemleri, perkütan yaklaşım - A bölümü	Joints arm, percutaneous approach-part A
+85712400	Kol eklemleri, perkütan yaklaşım - B bölümü	Joints arm, percutaneous approach-part B
+85712500	Kol eklemleri, perkütan yaklaşım - C bölümü	Joints arm, percutaneous approach-part C
+85712600	Kol eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints arm, percutaneous endoscopic approach-part A
+85712700	Kol eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints arm, percutaneous endoscopic approach-part B
+85712800	Kol eklemleri, perkütan endoskopik yaklaşım - C bölümü	Joints arm, percutaneous endoscopic approach-part C
+85712900	El eklemleri, eksternal yaklaşım - A bölümü	Joints hand, external approach-part A
+85713000	El eklemleri, eksternal yaklaşım - B bölümü	Joints hand, external approach-part B
+85713100	El eklemleri, açık yaklaşım - A bölümü	Joints hand, open approach-part A
+85713200	El eklemleri, açık yaklaşım - B bölümü	Joints hand, open approach-part B
+85713300	El eklemleri, açık yaklaşım - C bölümü	Joints hand, open approach-part C
+85713400	El eklemleri, açık yaklaşım - D bölümü	Joints hand, open approach-part D
+85713500	El eklemleri, açık yaklaşım - E bölümü	Joints hand, open approach-part E
+85713600	El eklemleri, perkütan yaklaşım - A bölümü	Joints hand, percutaneous approach-part A
+85713700	El eklemleri, perkütan yaklaşım - B bölümü	Joints hand, percutaneous approach-part B
+85713800	El eklemleri, perkütan yaklaşım - C bölümü	Joints hand, percutaneous approach-part C
+85713900	El eklemleri, perkütan yaklaşım - D bölümü	Joints hand, percutaneous approach-part D
+85714000	El eklemleri, perkütan yaklaşım - E bölümü	Joints hand, percutaneous approach-part E
+85714100	El eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints hand, percutaneous endoscopic approach-part A
+85714200	El eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints hand, percutaneous endoscopic approach-part B
+85714300	El eklemleri, perkütan endoskopik yaklaşım - C bölümü	Joints hand, percutaneous endoscopic approach-part C
+85714400	El eklemleri, perkütan endoskopik yaklaşım - D bölümü	Joints hand, percutaneous endoscopic approach-part D
+85714500	El eklemleri, perkütan endoskopik yaklaşım - E bölümü	Joints hand, percutaneous endoscopic approach-part E
+85714600	Baş eklemleri, eksternal yaklaşım	Joints head, external approach
+85714700	Baş eklemleri, açık yaklaşım - A bölümü	Joints head, open approach-part A
+85714800	Baş eklemleri, açık yaklaşım - B bölümü	Joints head, open approach-part B
+85714900	Baş eklemleri, perkütan yaklaşım - A bölümü	Joints head, percutaneous approach-part A
+85715000	Baş eklemleri, perkütan yaklaşım - B bölümü	Joints head, percutaneous approach-part B
+85715100	Baş eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints head, percutaneous endoscopic approach-part A
+85715200	Baş eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints head, percutaneous endoscopic approach-part B
+85715300	Omurga eklemleri, eksternal yaklaşım - A bölümü	Joints spine, external approach-part A
+85715400	Omurga eklemleri, eksternal yaklaşım - B bölümü	Joints spine, external approach-part B
+85715500	Omurga eklemleri, açık yaklaşım - A bölümü	Joints spine, open approach-part A
+85715600	Omurga eklemleri, açık yaklaşım - B bölümü	Joints spine, open approach-part B
+85715700	Omurga eklemleri, açık yaklaşım - C bölümü	Joints spine, open approach-part C
+85715800	Omurga eklemleri, açık yaklaşım - D bölümü	Joints spine, open approach-part D
+85715900	Omurga eklemleri, açık yaklaşım - E bölümü	Joints spine, open approach-part E
+85716000	Omurga eklemleri, açık yaklaşım - F bölümü	Joints spine, open approach-part F
+85716100	Omurga eklemleri, perkütan yaklaşım - A bölümü	Joints spine, percutaneous approach-part A
+85716200	Omurga eklemleri, perkütan yaklaşım - B bölümü	Joints spine, percutaneous approach-part B
+85716300	Omurga eklemleri, perkütan yaklaşım - C bölümü	Joints spine, percutaneous approach-part C
+85716400	Omurga eklemleri, perkütan yaklaşım - D bölümü	Joints spine, percutaneous approach-part D
+85716500	Omurga eklemleri, perkütan yaklaşım - E bölümü	Joints spine, percutaneous approach-part E
+85716600	Omurga eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints spine, percutaneous endoscopic approach-part A
+85716700	Omurga eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints spine, percutaneous endoscopic approach-part B
+85716800	Omurga eklemleri, perkütan endoskopik yaklaşım - C bölümü	Joints spine, percutaneous endoscopic approach-part C
+85716900	Omurga eklemleri, perkütan endoskopik yaklaşım - D bölümü	Joints spine, percutaneous endoscopic approach-part D
+85717000	Omurga eklemleri, perkütan endoskopik yaklaşım - E bölümü	Joints spine, percutaneous endoscopic approach-part E
+85721000	Alt eklemler, tanımlanmamış, eksternal yaklaşım	Lower joints-unspecified, external approach
+85721100	Ayak eklemleri, eksternal yaklaşım - A bölümü	Joints foot, external approach-part A
+85721200	Ayak eklemleri, eksternal yaklaşım - B bölümü	Joints foot, external approach-part B
+85721300	Ayak eklemleri, açık yaklaşım - A bölümü	Joints foot, open approach-part A
+85721400	Ayak eklemleri, açık yaklaşım - B bölümü	Joints foot, open approach-part B
+85721500	Ayak eklemleri, açık yaklaşım - C bölümü	Joints foot, open approach-part C
+85721600	Ayak eklemleri, açık yaklaşım - D bölümü	Joints foot, open approach-part D
+85721700	Ayak eklemleri, açık yaklaşım - E bölümü	Joints foot, open approach-part E
+85721800	Ayak eklemleri, perkütan yaklaşım - A bölümü	Joints foot, percutaneous approach-part A
+85721900	Ayak eklemleri, perkütan yaklaşım - B bölümü	Joints foot, percutaneous approach-part B
+85722000	Ayak eklemleri, perkütan yaklaşım - C bölümü	Joints foot, percutaneous approach-part C
+85722100	Ayak eklemleri, perkütan yaklaşım - D bölümü	Joints foot, percutaneous approach-part D
+85722200	Ayak eklemleri, perkütan yaklaşım - E bölümü	Joints foot, percutaneous approach-part E
+85722300	Ayak eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints foot, percutaneous endoscopic approach-part A
+85722400	Ayak eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints foot, percutaneous endoscopic approach-part B
+85722500	Ayak eklemleri, perkütan endoskopik yaklaşım - C bölümü	Joints foot, percutaneous endoscopic approach-part C
+85722600	Ayak eklemleri, perkütan endoskopik yaklaşım - D bölümü	Joints foot, percutaneous endoscopic approach-part D
+85722700	Ayak eklemleri, perkütan endoskopik yaklaşım - E bölümü	Joints foot, percutaneous endoscopic approach-part E
+85722800	Bacak eklemleri, eksternal yaklaşım - A bölümü	Joints leg, external approach-part A
+85722900	Bacak eklemleri, eksternal yaklaşım - B bölümü	Joints leg, external approach-part B
+85723000	Bacak eklemleri, açık yaklaşım - A bölümü	Joints leg, open approach-part A
+85723100	Bacak eklemleri, açık yaklaşım - B bölümü	Joints leg, open approach-part B
+85723200	Bacak eklemleri, açık yaklaşım - C bölümü	Joints leg, open approach-part C
+85723300	Bacak eklemleri, açık yaklaşım - D bölümü	Joints leg, open approach-part D
+85723400	Bacak eklemleri, açık yaklaşım - E bölümü	Joints leg, open approach-part E
+85723500	Bacak eklemleri, açık yaklaşım - F bölümü	Joints leg, open approach-part F
+85723600	Bacak eklemleri, açık yaklaşım - G bölümü	Joints leg, open approach-part G
+85723700	Bacak eklemleri, perkütan yaklaşım - A bölümü	Joints leg, percutaneous approach-part A
+85723800	Bacak eklemleri, perkütan yaklaşım - B bölümü	Joints leg, percutaneous approach-part B
+85723900	Bacak eklemleri, perkütan yaklaşım - C bölümü	Joints leg, percutaneous approach-part C
+85724000	Bacak eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints leg, percutaneous endoscopic approach-part A
+85724100	Bacak eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints leg, percutaneous endoscopic approach-part B
+85724200	Bacak eklemleri, perkütan endoskopik yaklaşım - C bölümü	Joints leg, percutaneous endoscopic approach-part C
+85724300	Alt omurga eklemleri, eksternal yaklaşım - A bölümü	Joints lower spine, external approach-part A
+85724400	Alt omurga eklemleri, eksternal yaklaşım - B bölümü	Joints lower spine, external approach-part B
+85724500	Alt omurga eklemleri, açık yaklaşım - A bölümü	Joints lower spine, open approach-part A
+85724600	Alt omurga eklemleri, açık yaklaşım - B bölümü	Joints lower spine, open approach-part B
+85724700	Alt omurga eklemleri, açık yaklaşım - C bölümü	Joints lower spine, open approach-part C
+85724800	Alt omurga eklemleri, açık yaklaşım - D bölümü	Joints lower spine, open approach-part D
+85724900	Alt omurga eklemleri, açık yaklaşım - E bölümü	Joints lower spine, open approach-part E
+85725000	Alt omurga eklemleri, açık yaklaşım - F bölümü	Joints lower spine, open approach-part F
+85725100	Alt omurga eklemleri, perkütan yaklaşım - A bölümü	Joints lower spine, percutaneous approach-part A
+85725200	Alt omurga eklemleri, perkütan yaklaşım - B bölümü	Joints lower spine, percutaneous approach-part B
+85725300	Alt omurga eklemleri, perkütan yaklaşım - C bölümü	Joints lower spine, percutaneous approach-part C
+85725400	Alt omurga eklemleri, perkütan yaklaşım - D bölümü	Joints lower spine, percutaneous approach-part D
+85725500	Alt omurga eklemleri, perkütan yaklaşım - E bölümü	Joints lower spine, percutaneous approach-part E
+85725600	Alt omurga eklemleri, perkütan endoskopik yaklaşım - A bölümü	Joints lower spine, percutaneous endoscopic approach-part A
+85725700	Alt omurga eklemleri, perkütan endoskopik yaklaşım - B bölümü	Joints lower spine, percutaneous endoscopic approach-part B
+85725800	Alt omurga eklemleri, perkütan endoskopik yaklaşım - C bölümü	Joints lower spine, percutaneous endoscopic approach-part C
+85725900	Alt omurga eklemleri, perkütan endoskopik yaklaşım - D bölümü	Joints lower spine, percutaneous endoscopic approach-part D
+85726000	Alt omurga eklemleri, perkütan endoskopik yaklaşım - E bölümü	Joints lower spine, percutaneous endoscopic approach-part E
+85731000	Alt üriner sistem, mesane ve üretra, doğal veya yapay açıklıktan - A bölümü	Lower urinary system-bladder urethra, natural or artificial opening-part A
+85731100	Alt üriner sistem, mesane ve üretra, doğal veya yapay açıklıktan - B bölümü	Lower urinary system-bladder urethra, natural or artificial opening-part B
+85731200	Alt üriner sistem, mesane ve üretra, doğal veya yapay açıklıktan - C bölümü	Lower urinary system-bladder urethra, natural or artificial opening-part C
+85731300	Alt üriner sistem, mesane ve üretra, eksternal yaklaşım	Lower urinary system-bladder urethra, external approach
+85731400	Alt üriner sistem, mesane ve üretra, açık yaklaşım - A bölümü	Lower urinary system-bladder urethra, open approach-part A
+85731500	Alt üriner sistem, mesane ve üretra, açık yaklaşım - B bölümü	Lower urinary system-bladder urethra, open approach-part B
+85731600	Alt üriner sistem, mesane ve üretra, perkütan yaklaşım - A bölümü	Lower urinary system-bladder urethra, percutaneous approach-part A
+85731700	Alt üriner sistem, mesane ve üretra, perkütan yaklaşım - B bölümü	Lower urinary system-bladder urethra, percutaneous approach-part B
+85731800	Alt üriner sistem, mesane ve üretra, perkütan endoskopik yaklaşım - A bölümü	Lower urinary system-bladder urethra, percutaneous endoscopic approach-part A
+85731900	Alt üriner sistem, mesane ve üretra, perkütan endoskopik yaklaşım - B bölümü	Lower urinary system-bladder urethra, percutaneous endoscopic approach-part B
+85732000	Üst üriner sistem, böbrekler ve üreterler, doğal veya yapay açıklıktan - A bölümü	Upper urinary system-kidneys ureters, natural or artificial opening-part A
+85732100	Üst üriner sistem, böbrekler ve üreterler, doğal veya yapay açıklıktan - B bölümü	Upper urinary system-kidneys ureters, natural or artificial opening-part B
+85732200	Üst üriner sistem, böbrekler ve üreterler, doğal veya yapay açıklıktan - C bölümü	Upper urinary system-kidneys ureters, natural or artificial opening-part C
+85732300	Üst üriner sistem, böbrekler ve üreterler, doğal veya yapay açıklıktan - D bölümü	Upper urinary system-kidneys ureters, natural or artificial opening-part D
+85732400	Üst üriner sistem, böbrekler ve üreterler, eksternal yaklaşım	Upper urinary system-kidneys ureters, external approach
+85732500	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - A bölümü	Upper urinary system-kidneys ureters, open approach-part A
+85732600	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - B bölümü	Upper urinary system-kidneys ureters, open approach-part B
+85732700	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - C bölümü	Upper urinary system-kidneys ureters, open approach-part C
+85732800	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - D bölümü	Upper urinary system-kidneys ureters, open approach-part D
+85732900	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - E bölümü	Upper urinary system-kidneys ureters, open approach-part E
+85733000	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - F bölümü	Upper urinary system-kidneys ureters, open approach-part F
+85733100	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - G bölümü	Upper urinary system-kidneys ureters, open approach-part G
+85733200	Üst üriner sistem, böbrekler ve üreterler, açık yaklaşım - H bölümü	Upper urinary system-kidneys ureters, open approach-part H
+85733300	Üst üriner sistem, böbrekler ve üreterler, perkütan yaklaşım - A bölümü	Upper urinary system-kidneys ureters, percutaneous approach-part A
+85733400	Üst üriner sistem, böbrekler ve üreterler, perkütan yaklaşım - B bölümü	Upper urinary system-kidneys ureters, percutaneous approach-part B
+85733500	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - A bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part A
+85733600	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - B bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part B
+85733700	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - C bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part C
+85733800	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - D bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part D
+85733900	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - E bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part E
+85734000	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - F bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part F
+85734100	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - G bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part G
+85734200	Üst üriner sistem, böbrekler ve üreterler, perkütan endoskopik yaklaşım - H bölümü	Upper urinary system-kidneys ureters, percutaneous endoscopic approach-part H
+85741000	Kadın üreme sistemi dış yapıları, eksternal yaklaşım	External structures female reproductive system, external approach
+85741100	Kadın üreme sistemi dış yapıları, açık yaklaşım	External structures female reproductive system, open approach
+85741200	Yumurtalıklar, doğal veya yapay açıklıktan	Ovaries, natural or artificial opening
+85741300	Yumurtalıklar, eksternal yaklaşım	Ovaries, external approach
+85741400	Yumurtalıklar, açık yaklaşım	Ovaries, open approach
+85741500	Yumurtalıklar, perkütan yaklaşım	Ovaries, percutaneous approach
+85741600	Yumurtalıklar, perkütan endoskopik yaklaşım	Ovaries, percutaneous endoscopic approach
+85741700	Rahim, serviks ve fallop tüpleri, doğal veya yapay açıklıktan - A bölümü	Uterus cervix fallopian tubes, natural or artificial opening-part A
+85741800	Rahim, serviks ve fallop tüpleri, doğal veya yapay açıklıktan - B bölümü	Uterus cervix fallopian tubes, natural or artificial opening-part B
+85741900	Rahim, serviks ve fallop tüpleri, doğal veya yapay açıklıktan - C bölümü	Uterus cervix fallopian tubes, natural or artificial opening-part C
+85742000	Rahim, serviks ve fallop tüpleri, eksternal yaklaşım	Uterus cervix fallopian tubes, external approach
+85742100	Rahim, serviks ve fallop tüpleri, açık yaklaşım - A bölümü	Uterus cervix fallopian tubes, open approach-part A
+85742200	Rahim, serviks ve fallop tüpleri, açık yaklaşım - B bölümü	Uterus cervix fallopian tubes, open approach-part B
+85742300	Rahim, serviks ve fallop tüpleri, perkütan yaklaşım - A bölümü	Uterus cervix fallopian tubes, percutaneous approach-part A
+85742400	Rahim, serviks ve fallop tüpleri, perkütan yaklaşım - B bölümü	Uterus cervix fallopian tubes, percutaneous approach-part B
+85742500	Rahim, serviks ve fallop tüpleri, perkütan endoskopik yaklaşım - A bölümü	Uterus cervix fallopian tubes, percutaneous endoscopic approach-part A
+85742600	Rahim, serviks ve fallop tüpleri, perkütan endoskopik yaklaşım - B bölümü	Uterus cervix fallopian tubes, percutaneous endoscopic approach-part B
+85742700	Vajina ve vajinal yapılar, doğal veya yapay açıklıktan - A bölümü	Vagina vaginal structures, natural or artificial opening-part A
+85742800	Vajina ve vajinal yapılar, doğal veya yapay açıklıktan - B bölümü	Vagina vaginal structures, natural or artificial opening-part B
+85742900	Vajina ve vajinal yapılar, eksternal yaklaşım	Vagina vaginal structures, external approach
+85743000	Vajina ve vajinal yapılar, açık yaklaşım	Vagina vaginal structures, open approach
+85743100	Vajina ve vajinal yapılar, perkütan yaklaşım	Vagina vaginal structures, percutaneous approach
+85743200	Vajina ve vajinal yapılar, perkütan endoskopik yaklaşım	Vagina vaginal structures, percutaneous endoscopic approach
+85751000	Erkek üreme sistemi ekzokrin bezleri, doğal veya yapay açıklıktan	Exocrine glands male reproductive system, natural or artificial opening
+85751100	Erkek üreme sistemi ekzokrin bezleri, açık yaklaşım	Exocrine glands male reproductive system, open approach
+85751200	Erkek üreme sistemi ekzokrin bezleri, perkütan yaklaşım	Exocrine glands male reproductive system, percutaneous approach
+85751300	Erkek üreme sistemi ekzokrin bezleri, perkütan endoskopik yaklaşım	Exocrine glands male reproductive system, percutaneous endoscopic approach
+85751400	Erkek üreme sistemi ekzokrin bezleri, eksternal yaklaşım	Exocrine glands male reproductive system, external approach
+85751500	Penis ve çiftleşme yapıları, doğal veya yapay açıklıktan	Penis copulatory structures, natural or artificial opening
+85751600	Penis ve çiftleşme yapıları, eksternal yaklaşım	Penis copulatory structures, external approach
+85751700	Penis ve çiftleşme yapıları, açık yaklaşım	Penis copulatory structures, open approach
+85751800	Penis ve çiftleşme yapıları, perkütan yaklaşım	Penis copulatory structures, percutaneous approach
+85751900	Penis ve çiftleşme yapıları, perkütan endoskopik yaklaşım	Penis copulatory structures, percutaneous endoscopic approach
+85752000	Spermatik kord ve ilgili yapılar, doğal veya yapay açıklıktan	Spermatic cord related structures, natural or artificial opening
+85752100	Spermatik kord ve ilgili yapılar, eksternal yaklaşım	Spermatic cord related structures, external approach
+85752200	Spermatik kord ve ilgili yapılar, açık yaklaşım - A bölümü	Spermatic cord related structures, open approach-part A
+85752300	Spermatik kord ve ilgili yapılar, açık yaklaşım - B bölümü	Spermatic cord related structures, open approach-part B
+85752400	Spermatik kord ve ilgili yapılar, açık yaklaşım - C bölümü	Spermatic cord related structures, open approach-part C
+85752500	Spermatik kord ve ilgili yapılar, perkütan yaklaşım	Spermatic cord related structures, percutaneous approach
+85752600	Spermatik kord ve ilgili yapılar, perkütan endoskopik yaklaşım - A bölümü	Spermatic cord related structures, percutaneous endoscopic approach-part A
+85752700	Spermatik kord ve ilgili yapılar, perkütan endoskopik yaklaşım - B bölümü	Spermatic cord related structures, percutaneous endoscopic approach-part B
+85752800	Testis yapıları, epididim ve skrotum, doğal veya yapay açıklıktan	Testicular structures-epididymis scrotum, natural or artificial opening
+85752900	Testis yapıları, epididim ve skrotum, eksternal yaklaşım	Testicular structures-epididymis scrotum, external approach
+85753000	Testis yapıları, epididim ve skrotum, açık yaklaşım - A bölümü	Testicular structures-epididymis scrotum, open approach-part A
+85753100	Testis yapıları, epididim ve skrotum, açık yaklaşım - B bölümü	Testicular structures-epididymis scrotum, open approach-part B
+85753200	Testis yapıları, epididim ve skrotum, perkütan yaklaşım - A bölümü	Testicular structures-epididymis scrotum, percutaneous approach-part A
+85753300	Testis yapıları, epididim ve skrotum, perkütan yaklaşım - B bölümü	Testicular structures-epididymis scrotum, percutaneous approach-part B
+85753400	Testis yapıları, epididim ve skrotum, perkütan endoskopik yaklaşım - A bölümü	Testicular structures-epididymis scrotum, percutaneous endoscopic approach-part A
+85753500	Testis yapıları, epididim ve skrotum, perkütan endoskopik yaklaşım - B bölümü	Testicular structures-epididymis scrotum, percutaneous endoscopic approach-part B
+85761000	Ön karın ve perine yapıları, eksternal yaklaşım	Structures anterior abdomen and perinium, external approach
+85761100	Ön karın ve perine yapıları, açık yaklaşım - A bölümü	Structures anterior abdomen and perinium, open approach-part A
+85761200	Ön karın ve perine yapıları, açık yaklaşım - B bölümü	Structures anterior abdomen and perinium, open approach-part B
+85761300	Ön karın ve perine yapıları, perkütan yaklaşım	Structures anterior abdomen and perinium, percutaneous approach
+85761400	Ön karın ve perine yapıları, perkütan endoskopik yaklaşım	Structures anterior abdomen and perinium, percutaneous endoscopic approach
+85761500	Karın ve pelvis boşluğu yapıları, perkütan endoskopik yaklaşım	Structures of the abdominal and pelvic cavities, percutaneous endoscopic approach
+85761600	Göğüs veya kardiyotorasik boşluk yapıları, doğal veya yapay açıklıktan	Structures of the chest or cardiothoracic cavities, natural or artificial opening
+85761700	Göğüs veya kardiyotorasik boşluk yapıları, eksternal yaklaşım	Structures of the chest or cardiothoracic cavities, external approach
+85761800	Göğüs veya kardiyotorasik boşluk yapıları, açık yaklaşım - A bölümü	Structures of the chest or cardiothoracic cavities, open approach-part A
+85761900	Göğüs veya kardiyotorasik boşluk yapıları, açık yaklaşım - B bölümü	Structures of the chest or cardiothoracic cavities, open approach-part B
+85762000	Göğüs veya kardiyotorasik boşluk yapıları, perkütan yaklaşım - A bölümü	Structures of the chest or cardiothoracic cavities, percutaneous approach-part A
+85762100	Göğüs veya kardiyotorasik boşluk yapıları, perkütan yaklaşım - B bölümü	Structures of the chest or cardiothoracic cavities, percutaneous approach-part B
+85762200	Göğüs veya kardiyotorasik boşluk yapıları, perkütan endoskopik yaklaşım - A bölümü	Structures of the chest or cardiothoracic cavities, percutaneous endoscopic approach-part A
+85762300	Göğüs veya kardiyotorasik boşluk yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the chest or cardiothoracic cavities, percutaneous endoscopic approach-part B
+85762400	Kafatası veya kafa boşluğu yapıları, eksternal yaklaşım	Structures of the cranium or cranial cavity, external approach
+85762500	Kafatası veya kafa boşluğu yapıları, açık yaklaşım	Structures of the cranium or cranial cavity, open approach
+85762600	Kafatası veya kafa boşluğu yapıları, perkütan yaklaşım	Structures of the cranium or cranial cavity, percutaneous approach
+85762700	Kafatası veya kafa boşluğu yapıları, perkütan endoskopik yaklaşım	Structures of the cranium or cranial cavity, percutaneous endoscopic approach
+85762800	Sırt yüzeyi yapıları, eksternal yaklaşım	Structures of the dorsal surface or back, external approach
+85762900	Sırt yüzeyi yapıları, açık yaklaşım	Structures of the dorsal surface or back, open approach
+85763000	Sırt yüzeyi yapıları, perkütan yaklaşım	Structures of the dorsal surface or back, percutaneous approach
+85763100	Sırt yüzeyi yapıları, perkütan endoskopik yaklaşım	Structures of the dorsal surface or back, percutaneous endoscopic approach
+85763200	Gastrointestinal veya safra yolu yapıları, doğal veya yapay açıklık yoluyla	Structures of the gastrointestinal or biliary tract, via natural or artificial opening
+85763300	Gastrointestinal veya safra yolu yapıları, eksternal yaklaşım	Structures of the gastrointestinal or biliary tract, external approach
+85763400	Gastrointestinal veya safra yolu yapıları, açık yaklaşım	Structures of the gastrointestinal or biliary tract, open approach
+85763500	Gastrointestinal veya safra yolu yapıları, perkütan yaklaşım	Structures of the gastrointestinal or biliary tract, percutaneous approach
+85763600	Gastrointestinal veya safra yolu yapıları, perkütan endoskopik yaklaşım	Structures of the gastrointestinal or biliary tract, percutaneous endoscopic approach
+85763700	Baş ve boyun yapıları, doğal veya yapay açıklık yoluyla	Structures of the head and neck, via natural or artificial opening
+85763800	Baş ve boyun yapıları, eksternal yaklaşım - A bölümü	Structures of the head and neck, external approach-part A
+85763900	Baş ve boyun yapıları, eksternal yaklaşım - B bölümü	Structures of the head and neck, external approach-part B
+85764000	Baş ve boyun yapıları, açık yaklaşım - A bölümü	Structures of the head and neck, open approach-part A
+85764100	Baş ve boyun yapıları, açık yaklaşım - B bölümü	Structures of the head and neck, open approach-part B
+85764200	Baş ve boyun yapıları, açık yaklaşım - C bölümü	Structures of the head and neck, open approach-part C
+85764300	Baş ve boyun yapıları, perkütan yaklaşım - A bölümü	Structures of the head and neck, percutaneous approach-part A
+85764400	Baş ve boyun yapıları, perkütan yaklaşım - B bölümü	Structures of the head and neck, percutaneous approach-part B
+85764500	Baş ve boyun yapıları, perkütan yaklaşım - C bölümü	Structures of the head and neck, percutaneous approach-part C
+85764600	Baş ve boyun yapıları, perkütan endoskopik yaklaşım - A bölümü	Structures of the head and neck, percutaneous endoscopic approach-part A
+85764700	Baş ve boyun yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the head and neck, percutaneous endoscopic approach-part B
+85764800	Baş ve boyun yapıları, perkütan endoskopik yaklaşım - C bölümü	Structures of the head and neck, percutaneous endoscopic approach-part C
+85764900	Peritoneal, retroperitoneal ve pelvik boşluk yapıları, eksternal yaklaşım	Structures of the peritoneal and retroperitoneal and pelvic cavities, external approach
+85765000	Peritoneal, retroperitoneal ve pelvik boşluk yapıları, açık yaklaşım	Structures of the peritoneal and retroperitoneal and pelvic cavities, open approach
+85765100	Peritoneal, retroperitoneal ve pelvik boşluk yapıları, perkütan yaklaşım	Structures of the peritoneal and retroperitoneal and pelvic cavities, percutaneous approach
+85765200	Peritoneal, retroperitoneal ve pelvik boşluk yapıları, perkütan endoskopik yaklaşım	Structures of the peritoneal and retroperitoneal and pelvic cavities, percutaneous endoscopic approach
+85765300	Ürogenital veya üreme yolu yapıları, doğal veya yapay açıklık yoluyla	Structures of the genitourinary or reproductive tracts, via natural or artificial opening
+85765400	Ürogenital veya üreme yolu yapıları, eksternal yaklaşım	Structures of the genitourinary or reproductive tracts, external approach
+85765500	Ürogenital veya üreme yolu yapıları, açık yaklaşım	Structures of the genitourinary or reproductive tracts, open approach
+85765600	Ürogenital veya üreme yolu yapıları, perkütan yaklaşım	Structures of the genitourinary or reproductive tracts, percutaneous approach
+85765700	Ürogenital veya üreme yolu yapıları, perkütan endoskopik yaklaşım	Structures of the genitourinary or reproductive tracts, percutaneous endoscopic approach
+85771000	Kol ve dirsek, eksternal yaklaşım	Arm and elbow, external approach
+85771100	Kol ve dirsek, açık yaklaşım - A bölümü	Arm and elbow, open approach-part A
+85771200	Kol ve dirsek, açık yaklaşım - B bölümü	Arm and elbow, open approach-part B
+85771300	Kol ve dirsek, perkütan yaklaşım - A bölümü	Arm and elbow, percutaneous approach-part A
+85771400	Kol ve dirsek, perkütan yaklaşım - B bölümü	Arm and elbow, percutaneous approach-part B
+85771500	Kol ve dirsek, perkütan endoskopik yaklaşım - A bölümü	Arm and elbow, percutaneous endoscopic approach-part A
+85771600	Kol ve dirsek, perkütan endoskopik yaklaşım - B bölümü	Arm and elbow, percutaneous endoscopic approach-part B
+85771700	Sol veya sağ üst ekstremite, eksternal yaklaşım	Left or right upper extremity, external approach
+85771800	Sol veya sağ üst ekstremite, açık yaklaşım	Left or right upper extremity, open approach
+85771900	Sol veya sağ üst ekstremite, perkütan yaklaşım	Left or right upper extremity, percutaneous approach
+85772000	Sol veya sağ üst ekstremite, perkütan endoskopik yaklaşım	Left or right upper extremity, percutaneous endoscopic approach
+85772100	Omuz ve koltuk altı, eksternal yaklaşım	Shoulder and axilla, external approach
+85772200	Omuz ve koltuk altı, açık yaklaşım	Shoulder and axilla, open approach
+85772300	Omuz ve koltuk altı, perkütan yaklaşım	Shoulder and axilla, percutaneous approach
+85772400	Omuz ve koltuk altı, perkütan endoskopik yaklaşım	Shoulder and axilla, percutaneous endoscopic approach
+85772500	Başparmak ve parmaklar, eksternal yaklaşım	Thumb and fingers, external approach
+85772600	Başparmak ve parmaklar, açık yaklaşım - A bölümü	Thumb and fingers, open approach-part A
+85772700	Başparmak ve parmaklar, açık yaklaşım - B bölümü	Thumb and fingers, open approach-part B
+85772800	Başparmak ve parmaklar, perkütan yaklaşım	Thumb and fingers, percutaneous approach
+85772900	Başparmak ve parmaklar, perkütan endoskopik yaklaşım	Thumb and fingers, percutaneous endoscopic approach
+85773000	El bileği ve el, eksternal yaklaşım	Wrist and hand, external approach
+85773100	El bileği ve el, açık yaklaşım	Wrist and hand, open approach
+85773200	El bileği ve el, perkütan yaklaşım	Wrist and hand, percutaneous approach
+85773300	El bileği ve el, perkütan endoskopik yaklaşım	Wrist and hand, percutaneous endoscopic approach
+85781000	Arka bölge anatomik yapıları, açık yaklaşım	Anatomic structures of the hindquarter, open approach
+85781100	Pelvik, femoral ve inguinal bölgeler, eksternal yaklaşım	Pelvic and femoral and inguinal regions, external approach
+85781200	Pelvik, femoral ve inguinal bölgeler, açık yaklaşım	Pelvic and femoral and inguinal regions, open approach
+85781300	Pelvik, femoral ve inguinal bölgeler, perkütan yaklaşım	Pelvic and femoral and inguinal regions, percutaneous approach
+85781400	Pelvik, femoral ve inguinal bölgeler, perkütan endoskopik yaklaşım	Pelvic and femoral and inguinal regions, percutaneous endoscopic approach
+85781500	Ayak bileği ve ayak yapıları, eksternal yaklaşım	Structures of the ankle and feet, external approach
+85781600	Ayak bileği ve ayak yapıları, açık yaklaşım - A bölümü	Structures of the ankle and feet, open approach-part A
+85781700	Ayak bileği ve ayak yapıları, açık yaklaşım - B bölümü	Structures of the ankle and feet, open approach-part B
+85781800	Ayak bileği ve ayak yapıları, açık yaklaşım - C bölümü	Structures of the ankle and feet, open approach-part C
+85781900	Ayak bileği ve ayak yapıları, perkütan yaklaşım	Structures of the ankle and feet, percutaneous approach
+85782000	Ayak bileği ve ayak yapıları, perkütan endoskopik yaklaşım	Structures of the ankle and feet, percutaneous endoscopic approach
+85782100	Bacak yapıları, eksternal yaklaşım	Structures of the legs, external approach
+85782200	Bacak yapıları, açık yaklaşım - A bölümü	Structures of the legs, open approach-part A
+85782300	Bacak yapıları, açık yaklaşım - B bölümü	Structures of the legs, open approach-part B
+85782400	Bacak yapıları, perkütan yaklaşım - A bölümü	Structures of the legs, percutaneous approach-part A
+85782500	Bacak yapıları, perkütan yaklaşım - B bölümü	Structures of the legs, percutaneous approach-part B
+85782600	Bacak yapıları, perkütan endoskopik yaklaşım	Structures of the legs, percutaneous endoscopic approach
+85782700	Bacak yapıları, perkütan endoskopik yaklaşım - B bölümü	Structures of the legs, percutaneous endoscopic approach-part B
+85782800	Alt ekstremite yapıları, eksternal yaklaşım	Structures of the lower extremities, external approach
+85782900	Alt ekstremite yapıları, açık yaklaşım	Structures of the lower extremities, open approach
+85783000	Alt ekstremite yapıları, perkütan yaklaşım	Structures of the lower extremities, percutaneous approach
+85783100	Alt ekstremite yapıları, perkütan endoskopik yaklaşım	Structures of the lower extremities, percutaneous endoscopic approach
+85791000	Gebelik ürünleri, doğal veya yapay açıklıktan - A bölümü	Products of conception, natural or artificial opening-part A
+85791100	Gebelik ürünleri, doğal veya yapay açıklıktan - B bölümü	Products of conception, natural or artificial opening-part B
+85791200	Gebelik ürünleri, eksternal yaklaşım	Products of conception, external approach
+85791300	Gebelik ürünleri, açık yaklaşım	Products of conception, open approach
+85791400	Gebelik ürünleri, perkütan yaklaşım	Products of conception, percutaneous approach
+85791500	Gebelik ürünleri, perkütan endoskopik yaklaşım	Products of conception, percutaneous endoscopic approach
+85801000	Ekstremiteler, değişim - A bölümü	Extremities, change-part A
+85801100	Ekstremiteler, değişim - B bölümü	Extremities, change-part B
+85801200	Ekstremiteler, değişim - C bölümü	Extremities, change-part C
+85801300	Ekstremiteler, kompresyon	Extremities, compression
+85801400	Ekstremiteler, pansuman	Extremities, dressing
+85801500	Ekstremiteler, immobilizasyon	Extremities, immobilization
+85801600	Ekstremiteler, tamponlama	Extremities, packing
+85801700	Ekstremiteler, çıkarma - A bölümü	Extremities, removal-part A
+85801800	Ekstremiteler, çıkarma - B bölümü	Extremities, removal-part B
+85801900	Ekstremiteler, çıkarma - C bölümü	Extremities, removal-part C
+85802000	Ekstremiteler, traksiyon	Extremities, traction
+85802100	Baş ve boyun	Head and neck
+85802200	Alt gövde - A bölümü	Lower trunk and torso-part A
+85802300	Alt gövde - B bölümü	Lower trunk and torso-part B
+85802400	Üst gövde	Upper trunk and torso
+85802500	Anatomik açıklıklar	Anatomic orifices
+85811000	Gövde boşlukları, abdominal ve peritoneal, doğal veya yapay açıklık yoluyla	Body cavities of the trunk-abdominal and peritoneal, via natural or artificial opening
+85811100	Gövde boşlukları, abdominal ve peritoneal, açık yaklaşım	Body cavities of the trunk-abdominal and peritoneal, open approach
+85811200	Gövde boşlukları, abdominal ve peritoneal, perkütan yaklaşım	Body cavities of the trunk-abdominal and peritoneal, percutaneous approach
+85811300	Gövde boşlukları, plevral ve perikardiyal, doğal veya yapay açıklık yoluyla	Body cavities of the trunk-pleural and pericardial, via natural or artificial opening
+85811400	Gövde boşlukları, plevral ve perikardiyal, açık yaklaşım	Body cavities of the trunk-pleural and pericardial, open approach
+85811500	Gövde boşlukları, plevral ve perikardiyal, perkütan yaklaşım	Body cavities of the trunk-pleural and pericardial, percutaneous approach
+85811600	Kafa boşluğu, doğal veya yapay açıklık yoluyla	Cranial cavity, via natural or artificial opening
+85811700	Kafa boşluğu, açık yaklaşım	Cranial cavity, open approach
+85811800	Kafa boşluğu, perkütan yaklaşım	Cranial cavity, percutaneous approach
+85811900	Gözler, kulaklar ve burun, doğal veya yapay açıklık yoluyla	Eyes and ears and nose, via natural or artificial opening
+85812000	Gözler, kulaklar ve burun, eksternal yaklaşım	Eyes and ears and nose, external approach
+85812100	Gözler, kulaklar ve burun, perkütan yaklaşım	Eyes and ears and nose, percutaneous approach
+85812200	Alt gastrointestinal sistem, anal ve rektal, doğal veya yapay açıklık yoluyla	Gastrointestinal system-lower GI and anal and rectal, via natural or artificial opening
+85812300	Alt gastrointestinal sistem, anal ve rektal, perkütan yaklaşım	Gastrointestinal system-lower GI and anal and rectal, percutaneous approach
+85812400	Gastrointestinal sistem, oral ve orofaringeal, doğal veya yapay açıklık yoluyla	Gastrointestinal system-oral and oropharyngeal, via natural or artificial opening
+85812500	Gastrointestinal sistem, oral ve orofaringeal, eksternal yaklaşım	Gastrointestinal system-oral and oropharyngeal, external approach
+85812600	Gastrointestinal sistem, oral ve orofaringeal, perkütan yaklaşım	Gastrointestinal system-oral and oropharyngeal, percutaneous approach
+85812700	Gastrointestinal sistem, mide ve üst GI, doğal veya yapay açıklık yoluyla	Gastrointestinal system-stomach and upper GI, via natural or artificial opening
+85812800	Gastrointestinal sistem, mide ve üst GI, perkütan yaklaşım	Gastrointestinal system-stomach and upper GI, percutaneous approach
+85812900	Ürogenital sistem, böbrekler, üreterler, mesane ve üretra, doğal veya yapay açıklık yoluyla	Genitourinary system and kidneys and ureters and bladder and urethra, via natural or artificial opening
+85813000	Ürogenital sistem, böbrekler, üreterler, mesane ve üretra, perkütan yaklaşım	Genitourinary system and kidneys and ureters and bladder and urethra, percutaneous approach
+85813100	Hepatobiliyer sistem, karaciğer, pankreas, safra kesesi ve kanallar, doğal veya yapay açıklık yoluyla	Hepatobiliary system-liver and pancreas and gall bladder and ducts, via natural or artificial opening
+85813200	Hepatobiliyer sistem, karaciğer, pankreas, safra kesesi ve kanallar, perkütan yaklaşım	Hepatobiliary system-liver and pancreas and gall bladder and ducts, percutaneous approach
+85813300	Deri sistemi, mukoza ve deri altı dokular, eksternal yaklaşım	Integumentary system and skin and mucous membranes and subcutaneous tissues, external approach
+85813400	Deri sistemi, mukoza ve deri altı dokular, açık yaklaşım	Integumentary system and skin and mucous membranes and subcutaneous tissues, open approach
+85813500	Deri sistemi, mukoza ve deri altı dokular, perkütan yaklaşım	Integumentary system and skin and mucous membranes and subcutaneous tissues, percutaneous approach
+85813600	Lenfatik sistem, perkütan yaklaşım	Lymphatic system, percutaneous approach
+85813700	Kas iskelet sistemi, kemik, kemik iliği ve kemik içi, açık yaklaşım	Musculoskeletal system-bone and bone marrow and intraosseous, open approach
+85813800	Kas iskelet sistemi, kemik, kemik iliği ve kemik içi, perkütan yaklaşım	Musculoskeletal system-bone and bone marrow and intraosseous, percutaneous approach
+85813900	Kas iskelet sistemi, kaslar, perkütan yaklaşım	Musculoskeletal system-muscles, percutaneous approach
+85814000	Sinir sistemi, omurilik, spinal kanal ve epidural boşluk, doğal veya yapay açıklık yoluyla	Nervous system-spinal cord and spinal canal and epidural space, via natural or artificial opening
+85814100	Sinir sistemi, omurilik, spinal kanal ve epidural boşluk, perkütan yaklaşım	Nervous system-spinal cord and spinal canal and epidural space, percutaneous approach
+85814200	Sinir sistemi, omurilik ve spinal kanal, doğal veya yapay açıklık yoluyla	Nervous system-spinal cord and spinal canal, via natural or artificial opening
+85814300	Sinir sistemi, omurilik ve spinal kanal, açık yaklaşım	Nervous system-spinal cord and spinal canal, open approach
+85814400	Sinir sistemi, omurilik ve spinal kanal, perkütan yaklaşım	Nervous system-spinal cord and spinal canal, percutaneous approach
+85814500	Üreme sistemi, kadın, doğal veya yapay açıklık yoluyla	Reproductive system-female, via natural or artificial opening
+85814600	Üreme sistemi, kadın, açık yaklaşım	Reproductive system-female, open approach
+85814700	Üreme sistemi, kadın, perkütan yaklaşım	Reproductive system-female, percutaneous approach
+85814800	Üreme sistemi, erkek, doğal veya yapay açıklık yoluyla	Reproductive system-male, via natural or artificial opening
+85814900	Üreme sistemi, erkek, perkütan yaklaşım	Reproductive system-male, percutaneous approach
+85815000	Üreme sistemi, gebelik ürünleri, doğal veya yapay açıklık yoluyla	Reproductive system-products of conception, via natural or artificial opening
+85815100	Üreme sistemi, gebelik ürünleri, perkütan yaklaşım	Reproductive system-products of conception, percutaneous approach
+85815200	Solunum yolu, akciğerler ve bronşlar, doğal veya yapay açıklık yoluyla	Respiratory tract and lungs and bronchi, via natural or artificial opening
+85815300	Solunum yolu, akciğerler ve bronşlar, perkütan yaklaşım	Respiratory tract and lungs and bronchi, percutaneous approach
+85815400	Damar sistemi, santral arterler, açık yaklaşım	Vascular system-central arteries, open approach
+85815500	Damar sistemi, santral arterler, perkütan yaklaşım	Vascular system-central arteries, percutaneous approach
+85815600	Damar sistemi, santral venler, açık yaklaşım	Vascular system-central veins, open approach
+85815700	Damar sistemi, santral venler, perkütan yaklaşım	Vascular system-central veins, percutaneous approach
+85815800	Damar sistemi, kalp ve koroner arterler, açık yaklaşım	Vascular system-heart and coronary arteries, open approach
+85815900	Damar sistemi, kalp ve koroner arterler, perkütan yaklaşım	Vascular system-heart and coronary arteries, percutaneous approach
+85816000	Damar sistemi, periferik arterler, açık yaklaşım	Vascular system-peripheral arteries, open approach
+85816100	Damar sistemi, periferik arterler, perkütan yaklaşım	Vascular system-peripheral arteries, percutaneous approach
+85816200	Damar sistemi, periferik venler, açık yaklaşım	Vascular system-peripheral veins, open approach
+85816300	Damar sistemi, periferik venler, perkütan yaklaşım	Vascular system-peripheral veins, percutaneous approach
+85816400	Gövde boşlukları, abdominal ve peritoneal yıkama, perkütan yaklaşım	Body cavities of the trunk-abdominal and peritoneal-irrigation, percutaneous approach
+85816500	Gözler, kulaklar ve burun yıkaması, perkütan yaklaşım	Eyes and ears and nose-irrigation, percutaneous approach
+85816600	Gözler, kulaklar ve burun yıkaması, doğal veya yapay açıklık yoluyla	Eyes and ears and nose-irrigation, via natural or artificial opening
+85816700	Solunum yolu, akciğerler ve bronş yıkaması, perkütan yaklaşım	Respiratory tract and lungs and bronchi-irrigation, percutaneous approach
+85816800	Solunum yolu, akciğerler ve bronş yıkaması, doğal veya yapay açıklık yoluyla	Respiratory tract and lungs and bronchi-irrigation, via natural or artificial opening
+85816900	Gastrointestinal sistem, mide ve üst GI yıkaması, perkütan yaklaşım	Gastrointestinal system-stomach and upper GI-irrigation, percutaneous approach
+85817000	Alt GI, anal ve rektal yıkama, perkütan yaklaşım	Gastrointestinal system-lower GI and anal and rectal-irrigation, percutaneous approach
+85817100	Alt gastrointestinal sistem, anal ve rektal yıkama, doğal veya yapay açıklık yoluyla	Gastrointestinal system-lower  GI and anal and rectal-irrigation, via natural or artificial opening
+85817200	Hepatobiliyer sistem, karaciğer, pankreas ve safra yolları yıkaması, perkütan yaklaşım	Hepatobiliary system-liver and pancreas and gall bladder and ducts-irrigation, percutaneous approach
+85817300	Hepatobiliyer sistem, karaciğer, pankreas ve safra yolları yıkaması, doğal veya yapay açıklık yoluyla	Hepatobiliary system-liver and pancreas and gall bladder and ducts-irrigation, via natural or artificial opening
+85817400	Ürogenital sistem, böbrek, üreter, mesane ve üretra yıkaması, perkütan yaklaşım	Genitourinary system and kidneys and ureters and bladder and urethra-irrigation, percutaneous approach
+85817500	Ürogenital sistem, böbrek, üreter, mesane ve üretra yıkaması, doğal veya yapay açıklık yoluyla	Genitourinary system and kidneys and ureters and bladder and urethra-irrigation, via natural or artificial opening
+85817600	Üreme sistemi, erkek, yıkama, perkütan yaklaşım	Reproductive system-male-irrigation, percutaneous approach
+85817700	Üreme sistemi, erkek, yıkama, doğal veya yapay açıklık yoluyla	Reproductive system-male-irrigation, via natural or artificial opening
+85817800	Üreme sistemi, kadın, yıkama, perkütan yaklaşım	Reproductive system-female-irrigation, percutaneous approach
+85817900	Üreme sistemi, kadın, yıkama, doğal veya yapay açıklık yoluyla	Reproductive system-female-irrigation, via natural or artificial opening
+85818000	Kafa boşluğu yıkaması, perkütan yaklaşım	Cranial cavity-irrigation, percutaneous approach
+85818100	Sinir sistemi, omurilik ve spinal kanal yıkaması, perkütan yaklaşım	Nervous system-spinal cord and spinal canal-irrigation, percutaneous approach
+85818200	Sinir sistemi, omurilik, spinal kanal ve epidural boşluk yıkaması, perkütan yaklaşım	Nervous system-spinal cord and spinal canal and epidural space-irrigation, percutaneous approach
+85818300	Kas iskelet sistemi, kemik, eklem ve kemik iliği yıkaması, perkütan yaklaşım	Musculoskeletal system-bone and joints and bone marrow and intraosseous-irrigation, percutaneous approach
+85818400	Gövde boşlukları, plevral ve perikardiyal yıkama, perkütan yaklaşım	Body cavities of the trunk-pleural and pericardial-irrigation, percutaneous approach
+85818500	Üreme sistemi, gebelik ürünleri, dolaşım, doğal veya yapay açıklık yoluyla	Reproductive system-products of conception-circulatory, via natural or artificial opening
+85818600	Üreme sistemi, gebelik ürünleri, dolaşım, perkütan yaklaşım	Reproductive system-products of conception-circulatory, percutaneous approach
+85818700	Damar sistemi, santral arterler, dolaşım, perkütan yaklaşım	Vascular system-central arteries-circulatory, percutaneous approach
+85818800	Damar sistemi, santral arterler, dolaşım, açık yaklaşım	Vascular system-central arteries-circulatory, open approach
+85818900	Damar sistemi, santral venler, dolaşım, perkütan yaklaşım	Vascular system-central veins-circulatory, percutaneous approach
+85819000	Damar sistemi, santral venler, dolaşım, açık yaklaşım	Vascular system-central veins-circulatory, open approach
+85819100	Damar sistemi, periferik arterler, dolaşım, perkütan yaklaşım	Vascular system-peripheral arteries-circulatory, percutaneous approach
+85819200	Damar sistemi, periferik arterler, dolaşım, açık yaklaşım	Vascular system-peripheral arteries-circulatory, open approach
+85819300	Damar sistemi, periferik venler, dolaşım, perkütan yaklaşım	Vascular system-peripheral veins-circulatory, percutaneous approach
+85819400	Damar sistemi, periferik venler, dolaşım, açık yaklaşım	Vascular system-peripheral veins-circulatory, open approach
+85821000	Beyin, sinir sistemi ve kafa içi uygulamalar, doğal veya yapay açıklık yoluyla	Brain and nervous system and intracranial applications, via natural or artificial opening
+85821100	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım	Brain and nervous system and intracranial applications, external approach
+85821200	Beyin, sinir sistemi ve kafa içi uygulamalar, perkütan yaklaşım	Brain and nervous system and intracranial applications, percutaneous approach
+85821300	Gastrointestinal sistem uygulamaları, doğal veya yapay açıklık yoluyla	Gastrointestinal system applications, via natural or artificial opening
+85821400	Gastrointestinal sistem uygulamaları, eksternal yaklaşım	Gastrointestinal system applications, external approach
+85821500	Gastrointestinal sistem uygulamaları, perkütan yaklaşım	Gastrointestinal system applications, percutaneous approach
+85821600	Gastrointestinal sistem uygulamaları, perkütan endoskopik yaklaşım	Gastrointestinal system applications, percutaneous endoscopic approach
+85821700	Kas iskelet uygulamaları, eksternal yaklaşım	Musculoskeletal applications, external approach
+85821800	Kas iskelet uygulamaları, perkütan yaklaşım	Musculoskeletal applications, percutaneous approach
+85821900	Kalp dışı elektriksel aktivite ve iletim uygulamaları, doğal veya yapay açıklık yoluyla	Non-cardiac electrical activity and conductivity applications, via natural or artificial opening
+85822000	Kalp dışı elektriksel aktivite ve iletim uygulamaları, eksternal yaklaşım	Non-cardiac electrical activity and conductivity applications, external approach
+85822100	Kalp dışı elektriksel aktivite ve iletim uygulamaları, açık yaklaşım	Non-cardiac electrical activity and conductivity applications, open approach
+85822200	Kalp dışı elektriksel aktivite ve iletim uygulamaları, perkütan yaklaşım	Non-cardiac electrical activity and conductivity applications, percutaneous approach
+85822300	Solunum uygulamaları, doğal veya yapay açıklık yoluyla	Respiratory applications, via natural or artificial opening
+85822400	Solunum uygulamaları, eksternal yaklaşım	Respiratory applications, external approach
+85822500	Üriner ve üreme uygulamaları, doğal veya yapay açıklık yoluyla	Urinary and reproductive applications, via natural or artificial opening
+85822600	Üriner ve üreme uygulamaları, eksternal yaklaşım	Urinary and reproductive applications, external approach
+85822700	Vasküler ve hemodinamik uygulamalar, doğal veya yapay açıklık yoluyla	Vascular and hemodynamic applications, via natural or artificial opening
+85822800	Vasküler ve hemodinamik uygulamalar, eksternal yaklaşım	Vascular and hemodynamic applications, external approach
+85822900	Vasküler ve hemodinamik uygulamalar, açık yaklaşım	Vascular and hemodynamic applications, open approach
+85823000	Vasküler ve hemodinamik uygulamalar, perkütan yaklaşım	Vascular and hemodynamic applications, percutaneous approach
+85823100	Kalp dışı elektriksel aktivite ve iletim uygulamaları, doğal veya yapay açıklık yoluyla	Non-cardiac electrical activity and conductivity applications, via natural or artificial opening
+85823200	Vasküler ve hemodinamik uygulamalar, doğal veya yapay açıklık yoluyla	Vascular and hemodynamic applications, via natural or artificial opening
+85823300	Üriner ve üreme uygulamaları, eksternal yaklaşım	Urinary and reproductive applications, external approach
+85823400	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım	Brain and nervous system and intracranial applications, external approach
+85823500	Beyin, sinir sistemi ve kafa içi uygulamalar, eksternal yaklaşım	Brain and nervous system and intracranial applications, external approach
+85823600	Vasküler ve hemodinamik uygulamalar, eksternal yaklaşım	Vascular and hemodynamic applications, external approach
+85823700	Kas iskelet uygulamaları, eksternal yaklaşım	Musculoskeletal applications, external approach
+85823800	Solunum uygulamaları, eksternal yaklaşım	Respiratory applications, external approach
+85831000	Kardiyovasküler veya dolaşım bozukluğu tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  cardiovascular or circulatory dysfunction
+85831100	Solunum bozukluğu tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  respiratory dysfunction
+85831200	Hepatobiliyer bozukluk tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  hepatobiliary dysfunction
+85831300	Kan veya lenf ile ilgili tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  blood or lymph
+85831400	Boşaltım bozukluğu tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to excretory dysfunction
+85831500	Sinir sistemi bozukluğu tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to nervous system dysfunction
+85831600	Isı düzenlemesi ile ilgili tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to thermal regulation
+85831700	Deri sistemi ile ilgili tanı veya tedavi işlemleri	Diagnostic or therapeutic actions related to  integumentary system
+85831800	Kas iskelet sistemi tanı veya tedavi işlemleri	Diagnostic action or therapeutic treatment musculoskeletal system
+85841000	Karın, lumbosakral ve pelvik bölgeler, eksternal yaklaşım	Abdomen and lubrosacral and pelvic regions, external approach
+85841100	Üst ve alt ekstremiteler, eksternal yaklaşım	Upper and lower extremities, external approach
+85841200	Baş, boyun ve toraks yapıları, eksternal yaklaşım	Head and neck and thoracic structures, external approach
+85861000	Baş, boyun ve toraks bölgeleri	Head and neck and thoracic regions
+85861100	Karın, lumbosakral ve pelvik bölgeler	Abdomen and lubrosacral and pelvic regions
+85861200	Üst ve alt ekstremiteler	Upper and lower extremities
+85871000	Sinir sistemi, omurilik, spinal kanal ve epidural aralık	Nervous system - spinal cord and spinal canal and epidural space
+85871100	Sinir sistemi, beyin, ventriküller ve ilgili yapılar	Nervous system-brain and ventricles and related structures
+85871200	Damar sistemi, kalp, koroner arterler ve baypas greftleri - A bölümü	Vascular system-heart and coronary arteries and related bypass grafts-part A
+85871300	Damar sistemi, kalp, koroner arterler ve baypas greftleri - B bölümü	Vascular system-heart and coronary arteries and related bypass grafts-part B
+85871400	Göğüs ve gövde boşlukları	Cavities of the chest and trunk
+85871500	Deri, deri altı doku ve meme	Skin, subcutaneous tissue and breast
+85871600	Damar sistemi, santral arteriyel	Vascular system-central arterial
+85871700	Damar sistemi, serebral arteriyel, subklavyen	Vascular system-cerebral arterial-subclavian
+85871800	Damar sistemi, serebral arteriyel, karotis - A bölümü	Vascular system-cerebral arterial-carotid, part A
+85871900	Damar sistemi, serebral arteriyel, karotis - B bölümü	Vascular system-cerebral arterial-carotid, part B
+85872000	Damar sistemi, serebral arteriyel, vertebral	Vascular system-cerebral arterial-vertebral
+85872100	Damar sistemi, periferik arteriyel, ekstremiteler	Vascular system-peripheral arterial-extremities
+85872200	Damar sistemi, santral arteriyel, pulmoner	Vascular system-central arterial-pulmonary
+85872300	Damar sistemi, periferik arterler, spinal ve vertebral	Vascular system-peripheral arteries-spinal and vertebral
+85872400	Damar sistemi, üst arteriyel, özgül olmayan	Vascular system-upper arterial-non specific
+85872500	Damar sistemi, serebral arteriyel, aort arkı	Vascular system-cerebral arterial-aortic arch
+85872600	Damar sistemi, serebral arterler, kafa içi	Vascular system-cerebral arteries-intracranial
+85872700	Damar sistemi, viseral bölge arterleri - A bölümü	Vascular system-arteries of the visceral region, part A
+85872800	Damar sistemi, viseral bölge arterleri - B bölümü	Vascular system-arteries of the visceral region, part B
+85872900	Damar sistemi, viseral bölge arterleri - C bölümü	Vascular system-arteries of the visceral region, part C
+85873000	Damar sistemi, viseral bölge venleri - A bölümü	Vascular system-veins of the visceral region, part A
+85873100	Damar sistemi, viseral bölge venleri - B bölümü	Vascular system-veins of the visceral region, part B
+85873200	Damar sistemi, viseral bölge venleri - C bölümü	Vascular system-veins of the visceral region, part C
+85873300	Damar sistemi, serebral venler	Vascular system-cerebral veins
+85873400	Damar sistemi, kafa içi venler ve sinüsler	Vascular system-intracranial veins-sinuses
+85873500	Damar sistemi, serebral venler, juguler	Vascular system-cerebral veins-jugular
+85873600	Damar sistemi, serebral venler, subklavyen	Vascular system-cerebral veins-subclavian
+85873700	Damar sistemi, venler ve lenfatikler, alt ekstremiteler	Vascular system-veins and lymphatics-lower extremities
+85873800	Damar sistemi, venler ve lenfatikler, üst ekstremiteler	Vascular system-veins and lymphatics-upper extremities
+85873900	Damar sistemi, santral venler, pulmoner	Vascular system-central veins-pulmonary
+85874000	Damar sistemi, venler, diyaliz şantları, özgül olmayan	Vascular system-veins-dialysis shunts-non specific
+85874100	Damar sistemi, santral venler, vena kava	Vascular system-central veins-vena cava
+85874200	Damar sistemi, alt ekstremite venleri	Vascular system-veins of the lower extremities
+85874300	Damar sistemi, diğer venler, diyaliz şantı	Vascular system-other veins-dialysis shunt
+85874400	Damar sistemi, alt ekstremite venleri ve lenfatikleri	Vascular system-veins and lymphatics of the lower extremities
+85874500	Damar sistemi, diğer venler, diyaliz erişimi	Vascular system-other veins-dialysis access
+85874600	Damar sistemi, venler ve lenfatikler, viseral bölge	Vascular system-veins and lymphatics-visceral region
+85874700	Damar sistemi, venler ve lenfatikler, baş ve boyun	Vascular system-veins and lymphatics-head and neck
+85874800	Göz kulak burun boğaz kemik ve yumuşak doku yapıları - A bölümü	Bony and soft tissue structures-eye and ear and nose and throat, part A
+85874900	Göz kulak burun boğaz kemik ve yumuşak doku yapıları - B bölümü	Bony and soft tissue structures-eye and ear and nose and throat, part B
+85875000	Baş ve boyun bez dokusu	Glandular tissue of the head and neck
+85875100	Solunum sistemi, akciğerler, trakeobronşiyal ağaç ve larenks	Respiratory system-lungs, tracheobronchial tree and larynx
+85875200	Kas iskelet yapıları, göğüs ve toraks	Musculoskeletal structures-chest and thorax
+85875300	Üst gastrointestinal sistem	Gastrointestinal system-upper
+85875400	Alt gastrointestinal sistem	Gastrointestinal system-lower
+85875500	Üreme sistemi, gebelik ürünleri - A bölümü	Reproductive system-products of conception, part A
+85875600	Üreme sistemi, gebelik ürünleri - B bölümü	Reproductive system-products of conception, part B
+85875700	Üreme sistemi, gebelik ürünleri - C bölümü	Reproductive system-products of conception, part C
+85875800	Hepatobiliyer sistem	Hepatobiliary system
+85875900	Deri yapıları, üst ekstremiteler	Integumentary structures-upper extremities
+85876000	Deri yapıları, göğüs ve toraks	Integumentary structures-chest and thorax
+85876100	Deri yapıları, alt ekstremiteler	Integumentary structures-lower extremities
+85876200	Kas iskelet sistemi, üst ekstremite apendiküler yapıları	Musculoskeletal system-appendicular structures of the upper extremities
+85876300	Kas iskelet yapıları, üst ekstremiteler - A bölümü	Musculoskeletal structures-upper extremities, part A
+85876400	Kas iskelet yapıları, üst ekstremiteler - B bölümü	Musculoskeletal structures-upper extremities, part B
+85876500	Kas iskelet yapıları, üst ekstremiteler - C bölümü	Musculoskeletal structures-upper extremities, part C
+85876600	Kas iskelet sistemi, baş ve boyun kemikleri	Musculoskeletal system-bones of the head and neck
+85876700	Kas iskelet sistemi, aksiyel olmayan üst kemikler	Musculoskeletal system-nonaxial upper bones
+85876800	Kas iskelet sistemi, aksiyel olmayan alt kemikler - A bölümü	Musculoskeletal system- nonaxial lower bones, part A
+85876900	Kas iskelet sistemi, aksiyel olmayan alt kemikler - B bölümü	Musculoskeletal system- nonaxial lower bones, part B
+85877000	Kas iskelet sistemi, aksiyel olmayan alt kemikler - C bölümü	Musculoskeletal system- nonaxial lower bones, part C
+85877100	Kas iskelet sistemi, omurga ve pelvis kemik ve eklemleri	Musculoskeletal system-bones and joints of spine and pelvis
+85877200	Kas iskelet sistemi, kafatası ve yüz kemikleri hariç aksiyel iskelet	Musculoskeletal system-axial skeleton except skull and facial bones
+85877300	Ürogenital sistem - A bölümü	Genitourinary system, part A
+85877400	Ürogenital sistem - B bölümü	Genitourinary system, part B
+85877500	Ürogenital sistem - C bölümü	Genitourinary system, part C
+85877600	Ürogenital sistem, ileum	Genitourinary system-ileum
+85877700	Üreme sistemi, erkek, korpus kavernozum	Reproductive system-male-corpora cavenosa
+85877800	Kas iskelet sistemi, tüm anatomik bölgeler	Musculoskeletal system-all anatomical regions
+85881000	Kas iskelet sistemi	Musculoskeletal system
+85881100	Hepatobiliyer sistem ve pankreas	Hepatobiliary system and pancreas
+85881200	Deri, deri altı doku ve meme	Skin, subcutaneous tissue and breast
+85881300	Kulak, burun, ağız ve boğaz	Ear, nose, mouth and throat
+85881400	Gözler	Eyes
+85881500	Üriner sistem	Urinary system
+85881600	Sinir sistemi	Nervous system
+85881700	Lenfatik ve hematolojik sistem	Lymphatic and hematologic system
+85881800	Damar sistemi, venler	Vascular system-veins
+85881900	Damar sistemi, kalp	Vascular system-heart
+85882000	Anatomik bölgeler	Anatomical regions
+85882100	Anatomik bölgeler, tüm vücut	Anatomic regions-whole body
+85882200	Üreme sistemi, erkek	Reproductive system-male
+85882300	Solunum sistemi	Respiratory system
+85882400	Göğüs ve toraks	Chest and thorax
+85882500	Gastrointestinal sistem	Gastrointestinal system
+85882600	Endokrin sistem	Endocrine system
+85882700	Ekstremiteler, üst ve alt	Extremities-upper and lower
+85882800	Karın ve pelvis	Abdomen and pelvis
+85891000	Merkezi ve periferik sinir sistemi - A bölümü	Central and peripheral nervous system, part A
+85891100	Merkezi ve periferik sinir sistemi - B bölümü	Central and peripheral nervous system, part B
+85891200	Kas iskelet sistemi - A bölümü	Musculoskeletal system, part A
+85891300	Kas iskelet sistemi - B bölümü	Musculoskeletal system, part B
+85891400	Lenfatik ve hematolojik sistem - A bölümü	Lymphatic and hematologic system, part A
+85891500	Lenfatik ve hematolojik sistem - B bölümü	Lymphatic and hematologic system, Part B
+85891600	Lenfatik ve hematolojik sistem - C bölümü	Lymphatic and hematologic system, part C
+85891700	Endokrin sistem - A bölümü	Endocrine system, part A
+85891800	Endokrin sistem - B bölümü	Endocrine system, part B
+85891900	Baş ve boyun	Head and neck
+85892000	Kulak, burun, ağız ve boğaz - A bölümü	Ear, nose, mouth and throat, part A
+85892100	Kulak, burun, ağız ve boğaz - B bölümü	Ear, nose, mouth and throat, Part B
+85892200	Kulak, burun, ağız ve boğaz - C bölümü	Ear, nose, mouth and throat, part C
+85892300	Kulak, burun, ağız ve boğaz - D bölümü	Ear, nose, mouth and throat, part D
+85892400	Gözler	Eyes
+85892500	Göğüs ve toraks	Chest and thorax
+85892600	Solunum sistemi - A bölümü	Respiratory system, part A
+85892700	Solunum sistemi - B bölümü	Respiratory system, part B
+85892800	Solunum sistemi - C bölümü	Respiratory system, part C
+85892900	Hepatobiliyer sistem ve pankreas - A bölümü	Hepatobiliary system and pancreas, part A
+85893000	Hepatobiliyer sistem ve pankreas - B bölümü	Hepatobiliary system and pancreas, part B
+85893100	Gastrointestinal sistem - A bölümü	Gastrointestinal system, part A
+85893200	Gastrointestinal sistem - B bölümü	Gastrointestinal system, part B
+85893300	Gastrointestinal sistem - C bölümü	Gastrointestinal system, part C
+85893400	Deri	Skin
+85893500	Karın ve pelvis	Abdomen and pelvis
+85893600	Üriner sistem - A bölümü	Urinary system, part A
+85893700	Üriner sistem - B bölümü	Urinary system, part B
+85893800	Üreme sistemi, erkek	Reproductive system-male
+85893900	Üreme sistemi, kadın	Reproductive system-female
+85894000	Anatomik bölgeler, tüm vücut	Anatomic regions-whole body
+85901000	Koklear implant tedavisi	Cochlear implant-treatment
+85901100	Tanısal odyoloji - A bölümü	Diagnostic audiology, part A
+85901200	Tanısal odyoloji - B bölümü	Diagnostic audiology, part B
+85901300	İşitme terapisi ve rehabilitasyonu	Hearing therapy and rehabilitation
+85901400	Motor ve sinir işlevi, hareket ve mobilite değerlendirmesi	Motor and/or nerve function-movement and mobility-assessment
+85901500	Motor ve sinir işlevi, dolaşım sistemi tedavisi	Motor and/or nerve function-circulatory system-treatment
+85901600	Motor ve sinir işlevi, ürogenital sistem değerlendirmesi	Motor and/or nerve function-genitourinary system-assessment
+85901700	Motor ve sinir işlevi, ürogenital sistem tedavisi	Motor and/or nerve function-genitourinary system-treatment
+85901800	Motor ve sinir işlevi, deri sistemi değerlendirmesi	Motor and/or nerve function-integumentary system-assessment
+85901900	Motor ve sinir işlevi, deri sistemi tedavisi - A bölümü	Motor and/or nerve function-integumentary system-treatment, part A
+85902000	Motor ve sinir işlevi, deri sistemi tedavisi - B bölümü	Motor and/or nerve function-integumentary system-treatment, part B
+85902100	Motor ve sinir işlevi, kas iskelet sistemi değerlendirmesi	Motor and/or nerve function-musculoskeletal system-assessment
+85902200	Motor ve sinir işlevi, kas iskelet sistemi tedavisi - A bölümü	Motor and/or nerve function-musculoskeletal system-treatment, part A
+85902300	Motor ve sinir işlevi, kas iskelet sistemi tedavisi - B bölümü	Motor and/or nerve function-musculoskeletal system-treatment, part B
+85902400	Motor ve sinir işlevi, nörolojik sistem değerlendirmesi	Motor and/or nerve function-neurological system-assessment
+85902500	Motor ve sinir işlevi, nörolojik sistem tedavisi - A bölümü	Motor and/or nerve function-neurological system-treatment, part A
+85902600	Motor ve sinir işlevi, nörolojik sistem tedavisi - B bölümü	Motor and/or nerve function-neurological system-treatment, part B
+85902700	Motor ve sinir işlevi, solunum sistemi tedavisi	Motor and/or nerve function-respiratory system-treatment
+85902800	Protez ve ortez uygulaması, çoklu vücut sistemleri	Prosthetic and orthotic device fitting-multiple body systems
+85902900	Konuşma değerlendirmesi - A bölümü	Speech-assessment, part A
+85903000	Konuşma değerlendirmesi - B bölümü	Speech-assessment, part B
+85903100	Konuşma tedavisi	Speech-treatment
+85903200	Vestibüler değerlendirme	Vestibular assessment
+85903300	Vestibüler tedavi, deri sistemi	Vestibular treatment-integumentary system
+85903400	Vestibüler tedavi, kas iskelet sistemi	Vestibular treatment-musculoskeletal system
+85903500	Vestibüler tedavi, algısal işleme ve görsel motor bütünleşme	Vestibular treatment-perceptual processing and visual motor integration
+85903600	Günlük yaşam aktiviteleri, dolaşım sistemi değerlendirmesi	Daily living activities-circulatory system-assessment
+85903700	Günlük yaşam aktiviteleri, deri sistemi tedavisi	Daily living activities-integumentary system-treatment
+85903800	Günlük yaşam aktiviteleri, kas iskelet sistemi tedavisi	Daily living activities-musculoskeletal system-treatment
+85903900	Günlük yaşam aktiviteleri, nörolojik sistem değerlendirmesi	Daily living activities-neurological system-assessment
+85904000	Günlük yaşam aktiviteleri, solunum sistemi değerlendirmesi	Daily living activities-respiratory system-assessment
+85904100	Günlük yaşam aktiviteleri, mobilite ve mesleki değerlendirme	Daily living activities-mobility and occupational-assessment
+85904200	Günlük yaşam aktiviteleri, mobilite ve mesleki tedavi	Daily living activities-mobility and occupational-treatment
+85904300	Bakım veren eğitimi, hareket ve mobilite	Caregiver training-movement and mobility
+85911000	Psikoterapi ve danışmanlık hizmetleri	Psychotherapy and counseling services
+85911100	Terapötik veya farmasötik girişimler ve tedaviler	Therapeutic or pharmaceutical interventions and treatments
+85911200	Psikolojik testler	Psychological tests
+85921000	Farmakoterapi girişimleri ve tedavileri	Pharmacotherapy interventions and treatments
+85921100	İlaç yönetimi	Medication management
+85921200	Detoksifikasyon tedavileri	Detoxification treatments
+85921300	Psikoterapi ve danışmanlık	Psychotherapy and counseling
+85631100	Deri dokusu, dış erkek ve kadın genital bölgesi, eksternal yaklaşım	Integumentary tissue-external male female genitalia, external approach

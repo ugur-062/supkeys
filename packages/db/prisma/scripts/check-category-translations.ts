@@ -143,8 +143,19 @@ function main() {
   const translated = new Set(effective.keys());
   /** `--fix` yalnız ÜRETİLEN dosyadaki satırı düşürebilir. */
   const fixable = new Set(rows.map((r) => r.code));
+  /**
+   * Kaynakta AYNI adı taşıyan kodlar çevrildiğinde yine aynı ada düşer; bu
+   * çakışmayı çeviri ÜRETMEDİ, kaynakta zaten vardı (UNSPSC'nin kendi
+   * tekrarları — bkz. CLAUDE.md "Ad TEKİLLİĞİ"). Yalnız kaynak adları
+   * BİRBİRİNDEN FARKLI olan gruplar gerçek yeni çakışmadır.
+   */
+  const sameSource = (codes: string[]): boolean =>
+    new Set(codes.map((c) => (catalog.get(c) ?? "").toLocaleLowerCase("tr")))
+      .size === 1;
+
   const collisions = [...byFinal]
     .filter(([k, codes]) => codes.length > 1 && !srcDup.has(k))
+    .filter(([, codes]) => !sameSource(codes))
     .filter(([, codes]) => codes.some((c) => translated.has(c)))
     .map(([k, codes]) => ({ name: k, codes: codes.sort() }));
 
