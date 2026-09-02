@@ -5193,3 +5193,129 @@
 25172911	Araç dış aydınlatma muhafazası	Vehicle exterior lighting bonnet
 25173006	Kaplamasız araç içi aydınlatma camı	Uncoated vehicle interior lighting lense
 25173007	Kaplamalı araç içi aydınlatma camı	Coated vehicle interior lighting lense
+
+# Araç sistemleri (egzoz/emisyon, şanzıman, direksiyon, iç donanım) + havalimanı yer hizmetleri.
+25173008	Araç ışık kılavuzu	Vehicle light pipe
+25173009	Araç gösterge paneli lambaları	Vehicle dashboard lights
+25173123	Ambulans araç aksesuarları	Ambulance vehicle accessories
+25173124	Yön bulma ekipmanı aksesuarları	Direction finding equipment accessories
+25173127	Yer seyrüsefer ve iniş yardımcıları	Ground navigational aids and landing aids
+25173128	Uydu seyrüsefer ekipmanı	Satellite navigation equipment
+25173130	Seyrüsefer sensörü	Navigation sensor
+25173134	Yön bulma ekipmanı	Direction finding equipment
+25173706	Katalizör keçesi	Catalytic mat
+25173707	Katalizör taşıyıcısı	Catalytic substrate
+25173708	Katalizör kaplama ve çözeltisi	Catalytic waste coat and solution
+25173709	Dizel partikül filtresi (DPF)	Diesel particulate filter
+25173710	AdBlue (dizel egzoz sıvısı)	Diesel exhaust fluid
+25173711	AdBlue filtresi	Diesel exhaust fluid filter
+25173712	EGR valfi	Exhaust gas recirculation valve
+25173713	EGR modülü	Exhaust gas recirculation module
+25173715	EGR borusu	Exhaust gas recirculation pipe
+25173716	Egzoz sistemi contası	Exhaust system gasket
+25173717	Egzoz yağmur kapağı	Exhaust weather cap
+25173718	AdBlue besleme ve dozaj modülü	Diesel exhaust fluid supply and dosing module
+25173719	AdBlue hatları	Diesel exhaust fluid lines
+25173720	AdBlue deposu	Diesel exhaust fluid tank
+25173721	Egzoz ısı kalkanları ve koruma ızgaraları	Exhaust heat shields and guard grids
+25173820	Sürekli değişken şanzıman (CVT)	Continuously variable transmission
+25173821	Transfer kutusu takımı	Transfer case assembly
+25173822	Motosiklet vites pedalı	Gear shift pedal for motorcycle
+25173823	Şanzıman onarım seti	Gearbox or transmission repair kit
+25173902	Marş motoru	Engine starter motor
+25173903	Araç içi kesme kalıplı elektrik ve ekranlama bileşeni	Vehicle interior die cut electrical and shielding component
+25173904	Motosiklet ateşleme sistemi	Ignition system for motorcycle
+25174001	Motor fanı	Fan
+25174005	Araç gösterge ibresi	Vehicle gauge indicator pointer
+25174006	Soğutma suyu hortum takımı	Cooling water hose assembly
+25174007	Termik şalterli fan	Thermo switch ventilator
+25174008	İçten yanmalı motor devirdaim pompası	Water pump for internal combustion engines
+25174201	Direksiyon kutusu (kremayer)	Steering rack
+25174214	Ahşap direksiyon simidi	Wood steering wheel
+25174215	Deri direksiyon simidi	Leather steering wheel
+25174216	Rot başı kolu	Steering knuckle arm
+25174217	Araç direksiyon kutusu	Vehicle steering gear
+25174218	Motosiklet gidon ve elcikleri	Motorcycle handle and grips
+25174411	Kauçuk tuş takımı	Rubber key pad
+25174412	Araç dekoratif aplike	Vehicle decorative applique
+25174413	Araç içi amblem	Vehicle interior badge or emblem
+25174414	Takograf	Tachograph
+25174415	Araç yağ basınç göstergesi	Vehicle oil pressure gauge
+25174416	Araç çakmağı	Vehicle cigarette lighter
+25174417	Araç kombine anahtarı	Vehicle combination switch
+25174418	Araç paspası	Vehicle floor mat
+25174419	Araç ses ve görüntü sistemi	Vehicle audio video system
+25174420	Araç küllüğü	Vehicle ash tray
+25174421	Araç perdesi	Vehicle curtain
+25174604	Dümen veya tekne koltuğu	Helm or boat seating
+25174605	Motosiklet selesi	Motorcycle seat
+25174606	Araç koltuğu	Vehicle seat
+25174702	Bisiklet jant teli	Bicycle spoke
+25174703	Motosiklet arka kutusu	Motorcycle tail box
+25174704	İki tekerlekli araç sepeti	Basket for two wheeled vehicle
+25174705	İki tekerlekli araç posta kutusu	Mail carrying box for two wheeled vehicle
+25174801	Kamyon zemin stabilizatörü veya krikosu	Truck suction stabilizer or ground jack
+25174802	Çekici bomu	Boom for wrecker truck or tow truck
+25174803	Çeki kancası	Towing hook
+25174804	Araç ayaklandırma sehpası	Vehicle outrigger
+25174805	Araç kum serpme ünitesi	Vehicle sand spreader
+25174806	Araca özel branda	Fitted vehicle body cover
+25174807	Araç menteşesi	Vehicle hinge
+25174808	Araç aksesuar saklama kutusu	Vehicle accessories storage box
+25174809	Araç merdiveni	Vehicle ladder
+25174810	Araç krikosu	Vehicle jack
+25174811	Bagaj kilit tırnağı	Trunk claw
+25174812	Traktör çeki takımları	Tractor hitch assemblies
+25174813	Çeki demiri topuzu	Hitch ball
+25174814	Çeki demiri	Hitch drawbar
+25174815	Rotil yuvaları	Ball sockets
+25174816	Bağlantı klevis takımı	Linkage clevis assembly
+25174817	Üst bağlantı kolu	Upper link arm
+25174818	Alt bağlantı kolu	Lower link arm
+25174819	Kaldırma kolu	Lift arm
+25174820	Arka bağlantı stabilizatörü	Rear linkage stabilizer
+25174901	Kalıplanmış araç titreşim sönümleyici ve izolatörü	Molded vehicle vibration dampener and isolator
+25174902	Ekstrüde araç titreşim sönümleyici ve izolatörü	Extruded vehicle vibration dampener and isolator
+25174903	Kesme kalıplı araç titreşim sönümleyici ve izolatörü	Die cut vehicle vibration dampener and isolator
+25175001	Elektrikli araç taşınabilir şarj cihazı	Electric vehicle portable charger
+25175002	Elektrikli araç şarj istasyonu	Electric vehicle charging station
+25175003	Elektrikli araç şarj seti	Electric vehicle charging kit
+25175004	Elektrikli araç şarj kablosu	Electric vehicle charging cable
+25175101	Motorlu araç onarım parça seti	Motor vehicle repair part kit
+25175102	Motosiklet onarım parça seti	Motorcycle repair part kit
+25175103	Deniz taşıtı onarım parça setleri	Marine transport repair part kits
+25175104	Demiryolu onarım parça setleri	Railway repair part kits
+25175105	Uçak onarım parça setleri	Aircraft repair part kits
+25175106	Motorsuz bisiklet onarım parça seti	Non motorized cycle repair part kit
+25175107	Uzay aracı onarım parça setleri	Spacecraft repair part kits
+25175108	Yağlama ekipmanı	Lubrication equipment
+25175201	Ambulans aksesuarları	Ambulance accessories
+25175202	İtfaiye aracı aksesuarları	Fire fighting vehicle accessories
+25175203	Arama kurtarma aracı aksesuarları	Search and rescue vehicle accessories
+25181604	Kargo kamyonu kasası	Cargo truck body
+25181605	Damper kasası	Dump truck body
+25181607	Çekici kabini	Tractor cab
+25181608	Araç şasisi	Vehicle frame
+25181613	Motorlu araç şasisi	Automotive chassis fitted with engine
+25181615	Platform kaldırma sistemi modülü	Platform lifting system module
+25191515	Yerden kontrollü yaklaşma sistemi	Ground controlled approach system
+25191516	Uçak hava ile çalıştırma ünitesi	Aircraft air start unit
+25191517	Uçak iklimlendirme aracı	Aircraft air conditioning and heating truck
+25191518	Havacılık sensörü test ekipmanı	Aeronautical sensor test equipment
+25191519	Uçak çekme adaptörü	Aircraft towing adapter
+25191520	Çevresel test kabini	Environmental test chamber
+25191521	Geri çekilebilir kanca kablo destek sistemi	Retractable hook cable support system
+25191522	Uçak motoru bakım seti	Aircraft engine maintenance set
+25191523	Uçak bagaj çekicisi	Airplane baggage tug or tractor
+25191524	Hava kargo konveyör aracı	Airfreight conveyor truck
+25191525	Uçak yakıt ikmal aracı	Aircraft refueling truck
+25191526	Otomatik terminal bilgi hizmeti (ATIS)	Automatic terminal information service ATIS
+25191527	Havalimanı kuş kaçırma sistemi	Airport or heliport or helideck bird deterrent system
+25191529	Azot dolum arabası	Nitrogen filling cart
+25191530	Uçak kabin temizlik ünitesi	Aircraft cabin cleaning unit
+25191531	Katı atık bertaraf ekipmanı	Solid waste disposal equipment
+25191533	Sabit yolcu yürüyüş yolu	Fixed passenger walkway
+25191534	Engelli yolcu yükleme aracı	Reduced mobility passenger loader
+25191536	Seyrüsefer yardımcıları eğitim sistemleri	Navaids training systems
+25191538	Havalimanı bilgi sistemi	Airport information system
+25191539	Otomatik uçuş sorgu yanıt sistemleri	Automated flight inquiry response systems
