@@ -8913,3 +8913,223 @@
 41113819	Zemin analizörü	Soil analyzer
 41113820	Agrega özgül ağırlık test cihazı	Aggregate specific gravity tester
 41113821	Zemin penetrasyon test cihazı	Soil penetration tester
+41113822	Kaliforniya taşıma oranı CBR test cihazı	California bearing ratio tester
+41113823	Numune genleşme test cihazı	Specimen expansion tester
+41113824	Zemin sabit seviyeli geçirgenlik test cihazı	Soil head permeability tester
+41113825	Zemin agrega analizörü	Soil aggregate analyzer
+41113826	Zemin dokusu analizörü	Soil texture analyzer
+41113827	Serbest basınç dayanımı cihazı	Soil unconfined compression apparatus
+41113828	Kum konisi yoğunluk cihazı	Sand density cone apparatus
+41113829	Su altı zemin numunesi alma ekipmanı	Underwater soil picking equipment
+41113830	Agrega birim ağırlık ölçüm aleti	Aggregate unit weight measuring instrument
+41113831	Model kumu nem ölçüm aleti	Facing sand water measuring instrument
+41114207	Total station	Total station
+41114208	Uzunluk ölçüm aleti	Longimetry instrument
+41114209	Takeometre	Tachymeter or tacheometer
+41114210	Optik nivo	Optical level
+41114211	Altimetre	Altimeter
+41114212	Ayna stereoskop	Mirror stereoscope
+41114213	Koordinat komparatörü	Coordinate comparator
+41114214	Ölçüm şablonu	Survey template
+41114215	Dendrometre	Dendrometer
+41114216	Alidat	Alidade
+41114217	İskandil ipi	Lead line
+41114218	Planimetre	Planimeter
+41114219	Şakül kolu	Plumbing arm
+41114220	Teodolit	Transit
+41114221	Optik gönye	Optical square
+41114412	Radyo akustik sondaj sistemi	Radio acoustic sounding system
+41114413	Bulut tavanı ölçer	Ceilometer
+41114414	Meteoroloji uydusu alım ekipmanı	Meteorological satellite receiving equipment
+41114415	Yıldırım analiz sistemi	Lightning analysis system
+41114416	Hava haritası kaydedici veya tarayıcı	Weather chart recorder or scanner
+41114417	Meteoroloji şamandıra robotu	Meteorological buoy robot
+41114418	Meteoroloji uydusu veri alım ve analiz sistemi	Meteorological satellite data receiving and analyzing system
+41114419	Alçak seviye rüzgâr kesme uyarı sistemi	Low level wind shear alert system
+41114420	Barometre kalibratörü	Barometer calibrator
+41114421	Higrometre kalibratörü	Hygrometer calibrator
+41114422	Yağış ölçer kalibratörü	Rain gauge calibrator
+41114423	Otomatik meteoroloji sistemi kalibratörü	Automatic weather system calibrator
+41114424	Anemometre kalibratörü	Anenometer calibrator
+41114425	Aktinometre kalibratörü	Actinometer calibrator
+41114426	Barometrik anahtar	Baroswitch
+41114427	Rüzgâr yön göstergesi	Wind vane
+41114428	Hidrojen jeneratörü	Hydrogen generator
+41114429	Pist görüş mesafesi IRVR sistemi	Instrumental Runway Visual Range (IRVR) system
+41114430	Transmisyometre	Transmissometer
+41114431	Meteoroloji balonu	Meteorological balloon
+41114511	Yumuşaklık test cihazı	Softness tester
+41114512	Yüksek hızlı dinamik balans test cihazı	High speed rotational balance tester
+41114513	Eksantriklik ölçüm aleti	Eccentricity measuring instrument
+41114514	Burulma titreşimi ölçüm aleti	Twist vibration measuring instrument
+41114515	Merkezkaç kuvvet test cihazı	Centrifugal force tester
+41114516	Kesme kuvveti ölçüm aleti	Cutting force measuring instrument
+41114517	Hidrolik şişirme test cihazı	Hydraulic bulge tester
+41114518	Fermuar dayanıklılık test cihazı	Zipper endurance tester
+41114519	Çekme ve araba sistemi	Tug and trolley system
+41114520	Düşürme test cihazı	Drop tester
+41114521	Hava kompresörü test cihazı	Air compressor tester
+41114522	Dişli test cihazı	Gear tester
+41114523	Test çubuğu	Test bar
+41114524	Hidrolik test cihazı	Hydraulic tester
+41114525	Yağ filtresi test cihazı	Oil filter tester
+41114526	Hava filtresi test cihazı	Air cleaner tester
+41114527	Kayış test cihazı	Belt tester
+41114528	Düzlemsel hareket mekanizması ölçüm aleti	Planer motion mechanism measuring instrument
+41114529	Lastik yol test cihazı	Tire running tester
+41114530	Yapışma gerilmesi test cihazı	Bonding stress tester
+41114627	Yük halkası	Proving ring
+41114628	Plastisite test cihazı	Plasticity tester
+41114629	Isıl deformasyon test cihazı	Heat distortion tester
+41114630	Termal şok test cihazı	Thermal shock tester
+41114631	Gerilme test cihazı	Stress tester
+41114632	Çekme dayanımı test cihazı	Tensile strength tester
+41114633	Isıl genleşme test cihazı	Thermal expansion tester
+41114634	Erichsen test cihazı	Erichsen tester
+41114635	Mücevher değerlendirme test cihazı	Jewel appraising tester
+41114636	Polimer kalıplama koşulu ölçüm aleti	Polymer molding condition measuring instrument
+41114637	Kiriş test cihazı	Beam test apparatus
+41114638	Yük test cihazı	Load tester
+41114639	Çimento akış test cihazı	Cement flow tester
+41114640	Yol düzgünlüğü ölçüm ekipmanı	Road plane measuring equipment
+41114641	Laboratuvar çimento kür ekipmanı	Laboratory cement curing equipment
+41114642	İğne deliği dedektörü	Pinhole detector
+41114643	Çimento hacim genleşmesi test cihazı	Cement soundness tester
+41114644	Beton hava içeriği ölçüm aleti	Concrete air measuring instrument
+41114645	Harç uzunluk test cihazı	Mortar length tester
+41114646	Vicat iğnesi test cihazı	Vicat needle tester
+41114647	Çökme slump test cihazı	Slump tester
+41114648	Beton veya çimento vibrasyon test cihazı	Concrete or cement vibration tester
+41114649	Harç geçirgenlik test cihazı	Mortar permeability tester
+41114650	Beton silindir kalıbı	Concrete cylinder mold
+41114707	Tekstil veya kâğıt dayanım test cihazı	Textile or paper strength tester
+41114708	Su buharı geçirgenlik test cihazı	Water vapor permeability tester
+41114709	İplik test aleti	Yarn testing instrument
+41114710	Isı geçirgenlik test cihazı	Thermal transmittance tester
+41114711	Tekstil dökümlülük test cihazı	Textile drape tester
+41114712	Tekstil su iticilik test cihazı	Textile water repellency tester
+41114713	Tekstil buruşma geri kazanım test cihazı	Textile crease recovery tester
+41114714	Tekstil olgunluk test cihazı	Textile maturity tester
+41114715	Tekstil veya kâğıt hava geçirgenlik test cihazı	Textile or paper air permeability tester
+41114716	Tekstil çekme test cihazı	Textile shrinkage tester
+41114717	Tekstil kurutma test cihazı	Textile baking tester
+41114718	Tekstil boncuklanma derecesi test cihazı	Textile pilling degree tester
+41114719	Kâğıt tabakası test makinesi	Paper sheet testing machine
+41114720	Kâğıt ve kumaş su emme test cihazı	Paper and cloth water absoption tester
+41114721	Elyaf uzunluğu test cihazı	Fiber length tester
+41114722	Yırtılma dayanımı test cihazı	Tearing strength tester
+41114723	Patlama dayanımı test cihazı	Bursting strength tester
+41115102	Gonyometre	Goniometer
+41115203	Meteoroloji radarı	Meteorology radar
+41115309	Lüksmetre	Lux or light meter
+41115311	Fotometre	Photometer
+41115323	Fonksiyon jeneratörü	Function generator
+41115324	Ultraviyole sensörü	Ultraviolet sensor
+41115325	Termal kamera	Thermal imager
+41115326	Optik kolimatör	Optic collimator
+41115327	Fotoelektrik ölçüm ekipmanı	Photoelectric measuring equipment
+41115328	Dalga formu sentezleyici	Wave form synthesizer
+41115329	Radyo dalgası yayılımı ölçüm ekipmanı	Radiowave propagation measuring equipment
+41115330	Bulanıklık ölçer	Haze meter
+41115331	Parlaklık ölçüm aleti	Glossiness measuring instrument
+41115332	Optik dalga boyu ölçer	Optical wavelength meter
+41115333	Foton ölçüm aleti	Photon measurement instrument
+41115334	Beyazlık test cihazı	Whiteness tester
+41115335	Vektörskop	Vectorscope
+41115336	Laboratuvar ultraviyole lambası	Laboratory ultraviolet ray lamp
+41115337	Dalga ölçüm aleti	Wave measuring instrument
+41115338	Aydınlık şiddeti ölçer	Illuminance meter
+41115339	Elipsometre	Ellipsometer
+41115340	Fotometre aksesuarları	Photometer accessories
+41115412	Spektrobolometre	Spectrobolometer
+41115413	Akış sitometresi	Flow cytometer
+41115414	Radyo dalgası spektroskopi sistemi	Radio ray spectroscopy system
+41115415	Kimyasal analiz için elektron spektroskopi sistemi	Electron spectroscopy system for chemical analysis
+41115416	Elektron spin rezonans spektrometresi	Electron spin resonance spectrometer
+41115417	Atomik absorpsiyon AA spektrometresi aksesuarları	Atomic absorption AA spectrometer accessories
+41115418	Spektrofotometre aksesuarları	Spectrophotometer accessories
+41115506	Gürültü jeneratörü	Noise generator
+41115507	Ses analizörü	Voice analyzer
+41115508	Ses dedektörü	Sound detector
+41115509	Yer altı boru ve kablo dedektörü	Underground pipe and cable detector
+41115510	Su borusu kaçak dedektörü	Waterpipe leak detector
+41115511	İşitme cihazı test cihazı	Hearing aid tester
+41115512	Akustik konum vericisi	Pinger
+41115513	Akustik jeneratör	Acoustic generator
+41115514	Sonoşamandıra	Sonobuoy
+41115515	Hidrofon	Hydrophone
+41115516	Desibel ölçer	Decibel (dB) meter
+41115710	Gaz kromatografisi GC kolonları	Gas chromatography GC columns
+41115721	Hızlı protein sıvı kromatografisi FPLC sistemi	Fast protein liquid chromatography FPLC system
+41115722	Hızlı protein sıvı kromatografisi FPLC kolonu	Fast protein liquid chromatography FPLC column
+41115723	Süperkritik akışkan kromatografı	Supercritical fluid chromatograph
+41115724	Kromatografi flakonu veya iç kabı veya kapağı	Chromatography vial or insert or cap
+41115725	İnce tabaka kromatografisi plağı	Thin layer chromatography plate
+41115726	İnce tabaka kromatografisi bağlantı parçası	Thin layer chromatography fitting
+41115727	Kromatografi emici kâğıdı	Chromatography blotting paper
+41115728	İyon kromatografisi IC kolonu	Ion chromatography IC column
+41115729	İyon kromatografisi IC ön kolonu	Ion chromatography IC guard column
+41115730	Yüksek basınçlı sıvı kromatografisi HPLC ön kolonu	High pressure liquid chromatography HPLC guard column
+41115731	QuEChERS dispersif katı faz ekstraksiyonu	QuEChERS Dispersive SPE
+41115732	Sıvı kromatograf LC fraksiyon toplayıcı	Liquid chromatograph LC fraction collector
+41115733	İyon kromatografisi IC eluent jeneratörü	Ion chromatography IC eluent generator
+41115831	Mikroplaka taşıma için istifleyici veya magazin	Stacker or magazine for microplate handling
+41115832	Antibiyotik tespit ekipmanı	Antibiotic detection equipment
+41115833	Cilt analiz cihazı	Skin analyzer
+41115834	Akış sitometresi aksesuarları veya malzemeleri	Flow cytometer accessories or supplies
+41115835	Androloji ve fertilite otomatik sayıcısı	Androgeny and fertility automated counter
+41115836	Androloji ve fertilite otomatik sayıcısı aksesuarları	Androgeny and fertility automated counter accessories and supplies
+41115837	Parçacık sayıcı ve boyut ölçer	Particle counter and sizer
+41115838	Parçacık sayıcı ve boyut ölçer aksesuarları	Particle counter and sizer accessories and supplies
+41115839	Kan bankası aferez ve donör ünitesi işleme analizörü	Blood bank apheresis and donor unit processing analyzer
+41115840	Kan bankası aferez ve donör ünitesi işleme analizörü aksesuarları	Blood bank apheresis and donor unit processing analyzer accessories and supplies
+41115841	Otomatik kan kültürü sistemi	Automated blood culture system
+41115842	Otomatik kan kültürü sistemi analizörü aksesuarları	Automated blood culture system analyzer accessories or supplies
+41115845	Hücre metabolizması analizörü	Cell metabolism analyzer
+41115846	Hücre metabolizması analizörü aksesuarları	Cell metabolism analyzer accessories
+41115847	Ter klorür iyontoforez analizörü	Sweat chloride iontophoresis analyzer
+41115848	Ter klorür iyontoforez analizörü aksesuarları	Sweat chloride iontophoresis analyzer accessories
+41115849	Elektrolit analizörü	Electrolyte analyzer
+41115850	Pipet hacim kalibrasyon ve doğrulama analizörü	Pipettor delivery calibration and verification analyzer
+41115851	Pipet hacim kalibrasyon ve doğrulama analizörü aksesuarları	Pipettor delivery calibration and verification analyzer accessories
+41115852	Akış sitometrisi analizörü	Flow cytometry analyzer
+41115853	Otomatik yüksek performanslı kromatografi HPLC analizör sistemi	Automated high performance chromatography HPLC analyzer system
+41115854	Otomatik yüksek performanslı kromatografi HPLC analizör sistemi aksesuarları	Automated high performance chromatography HPLC analyzer system accessories
+41115855	Transplantasyon tanı analizörü	Transplant diagnostics analyzer
+41115856	Transplantasyon tanı analizörü aksesuarları	Transplant diagnostics analyzer accessories
+41115857	Alev fotometresi analizörü	Flame photometer analyzer
+41115858	Alev fotometresi analizörü aksesuarları	Flame photometer analyzer accessories
+41115859	Gaz sıvı kromatografisi ve kütle spektrometrisi analizörü	Gas liquid chromatography and mass spectrometry analyzer
+41115860	Genomik analiz analizörü	Genomic analysis analyzer
+41115861	Genomik analiz analizörü aksesuarları	Genomic analysis analyzer accessories
+41115862	Nükleik asit ekstraksiyon izolasyon ve saflaştırma analizörü	Nucleic acid extraction, isolation and purification analyzer
+41115863	Nükleik asit ekstraksiyon izolasyon ve saflaştırma analizörü aksesuarları	Nucleic acid extraction isolation and purification analyzer accessories
+41115864	Multipleks analizör	Multiplex analyzer
+41115865	Multipleks analizör aksesuarları	Multiplex analyzer accessories
+41115866	Biyomanyetik ayırma analizörü	Biomagnetic separation analyzer
+41115867	Biyomanyetik ayırma analizörü aksesuarları	Biomagnetic separation analyzer accessories
+41115868	Otomatik kalite kontrol yönetim sistemi	Automated quality control manager system
+41115869	İmmünohematoloji analizörü	Immunohematology analyzer
+41115870	İmmünohematoloji analizörü aksesuarları veya malzemeleri	Immunohematology analyzer accessories or supplies
+41115871	Analizör test protokol dosyası	Analyzer, assay protocol file
+41115872	Taşınabilir klinik kimya analizörü	Clinical chemistry analyzer, portable
+41116016	Elektrolit analizörü reaktifi	Electrolyte analyzer reagent
+41116017	Androloji ve fertilite otomatik sayıcısı reaktifi	Androgeny and fertility automated counter reagent
+41116018	Parçacık boyut ölçer ve sayıcı analizörü reaktifi	Particle sizer and counter analyzer reagent
+41116019	Hormon analizörü reaktifi	Hormone analyzer reagent
+41116020	Viroloji analizörü reaktifi	Virology analyzer reagent
+41116021	Otomatik kan kültürü sistemi analizörü reaktifi	Automated blood culture system analyzer reagent
+41116022	Pipet hacim kalibrasyon ve doğrulama analizörü reaktifi	Pipettor delivery calibration and verification analyzer reagent
+41116023	Otomatik HPLC analizör sistemi reaktifi veya kiti	Automated high performance chromatography HPLC analyzer system reagent or kit
+41116024	Transplantasyon analizörü reaktifi veya kiti	Transplant analyzer reagent or kit
+41116025	Alev fotometresi analizörü reaktifi veya kiti	Flame photometer analyzer reagent or kit
+41116026	Gaz sıvı kromatografisi ve kütle spektrometrisi analizörü reaktifi	Gas liquid chromatography and mass spectrometry analyzer reagent
+41116027	Nükleik asit ekstraksiyon izolasyon ve saflaştırma analizörü reaktifi	Nucleic acid extraction isolation and purification analyzer reagent and kit
+41116028	İmmünohematoloji analizörü reaktifi	Immunohematology analyzer reagent
+41116030	Monoklonal anti B serumu	Anti B serum, monoclonal
+41116149	Limulus amebosit lizat LAL test cihazı	Limulus amebocyte lysate LAL tester
+41116150	Androloji ve fertilite test kitleri ve malzemeleri	Androgeny and fertility test kits and supplies
+41116151	Androloji ve fertilite kalite kontrolleri ve kalibratörleri	Androgeny and fertility quality controls and calibrators and standards
+41116152	Akış sitometrisi kalite kontrolleri ve kalibratörleri	Flow cytometry quality controls and calibrators and standards
+41116153	İmmünohistokimya kalite kontrolleri ve kalibratörleri	Immunohistochemistry quality controls and calibrators and standards
+41116154	Parçacık sayıcı ve boyut ölçer kalite kontrolleri ve kalibratörleri	Particle counter and sizer quality controls and calibrators and standards
