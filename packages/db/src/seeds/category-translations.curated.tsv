@@ -12479,3 +12479,237 @@
 60131516	Elektronik akort cihazı	Electronic instrument tuner
 60131517	Müzik aleti çantası	Musical instrument case or protective carry bag
 60131518	Müzik aleti askısı	Musical instrument strap or harness
+60131519	Müzik aleti sehpası	Musical instrument stand
+60131520	Baget	Drum stick
+60131521	Kore geleneksel müzik aksesuarları	Korean traditional music accessories
+60131703	At nalı çalgısı	Horses hoofs
+60141028	Etkileşimli video oyunu figürü	Interactive video game figure
+60141029	Oyuncak balon veya top aksesuarları	Toy balloon or ball accessories
+60141116	Go oyunu ve aksesuarları	Baduk or go game and accessories
+60141117	Yut dört çubuk oyunu ve aksesuarları	Yut or four stick game and accessories
+60141118	Janggi oyunu ve aksesuarları	Janggi game and accessories
+60141119	Ödül çarkı	Prize wheel
+60141120	Atma oyunu seti	Toss game set
+60141121	Sanal gerçeklik oyun cihazı	Virtual reality gaming device
+64101501	Mevduat sertifikası	Certificate of deposit CD
+64101502	Basit tasarruf hesabı	Simple savings account
+64101601	Faizli vadesiz hesap	Interest bearing checking account
+64101602	Para piyasası hesabı	Money market account
+64101603	Basit vadesiz hesap	Simple checking account
+64101701	Fatura ödeme uygulaması	Bill paying application
+64101702	Döviz alım satım uygulaması	Currency exchange application
+64101703	Para transferi uygulaması	Money transfer application
+64101704	Ek hesap koruması	Over draft protection
+64101801	Teminatlı kredi kartı	Secured credit card
+64101802	Teminatsız kredi kartı	Unsecured credit card
+64101803	Grup seyahat ve toplantı kartı	Group travel meeting card
+64101804	Satın alma kartı	Procurement card
+64101901	Taşıt kredisi	Automotive loan
+64101902	Ekipman kredisi	Equipment loan
+64101903	Forfaiting kredisi	Forfaiting loan
+64101904	Konut teminatlı kredi limiti	Home equity line of credit
+64101905	Konut teminatlı kredi	Home equity loan
+64101906	Stok finansmanı kredisi	Inventory loan
+64101907	İpotekli konut kredisi	Mortgage loan
+64101908	Alacak finansmanı kredisi	Receivable loan
+64101909	Teminatsız kredi	Unsecured loan
+64101910	Teminatsız rotatif kredi limiti	Unsecured revolving line of credit
+64101911	Tahsilat kutusu	Lock box
+64101912	Kiralık kasa	Safe deposit box
+64102001	Eğitim tasarruf hesabı	Education savings account
+64102002	Sağlık tasarruf hesabı	Health savings account
+64102003	Kurumsal bireysel emeklilik hesabı	Individual retirement account IRA, corporate
+64102004	Kişisel bireysel emeklilik hesabı	Individual retirement account IRA, personal
+64102005	Kamu sektörü bireysel emeklilik hesabı	Individual retirement account IRA, public sector
+64102006	Basitleştirilmiş çalışan emeklilik hesabı	Simplified employee pension SEP account
+64102007	Temel yatırım hesabı	Basic investment account
+64102008	Yönetilen yatırım hesabı	Managed investment account
+64111501	Adi hisse senedi	Common or ordinary stock
+64111502	İmtiyazlı hisse senedi	Preferred stock
+64111503	Rüçhanlı hisse senedi	Preference stock
+64111504	Hisseye dönüştürülebilir senet	Convertible stock
+64111505	Dönüştürülebilir imtiyazlı hisse senedi	Convertible preferred stock
+64111507	Yatırım fonu katılma payı	Unit trust unit
+64111601	Tahvil	Bond
+64111602	Hisseye dönüştürülebilir tahvil	Convertible bond
+64111603	Varantlı tahvil	Bond with warrant attached
+64111604	Orta vadeli borçlanma senedi	Medium- term note
+64111605	Para piyasası aracı	Money market instrument
+64111606	Varlığa dayalı menkul kıymet	Asset-backed security
+64111607	İpoteğe dayalı menkul kıymet	Mortgage-backed security
+64111608	Sermaye benzeri borç	Subordinated debt or debenture
+64111701	Finansal forward sözleşmesi	Forward contract, financial
+64111702	Emtia forward sözleşmesi	Forward contract, commodity
+64111703	Finansal vadeli işlem sözleşmesi	Futures contract, financial
+64111704	Emtia vadeli işlem sözleşmesi	Futures contract, commodity
+64111705	Karbon kredisi izni veya sertifikası	Carbon credit permit or certificate
+64111706	Sertifikalı emisyon azaltım birimi	Certified emission reduction CER unit
+64111707	Yenilenebilir enerji kredisi	Renewable energy credit REC
+64111708	Spot fiyat sözleşmesi	Spot price contract
+64111709	Swap sözleşmesi	Swap contract
+64111710	Alım opsiyonu sözleşmesi	Call option contract
+64111711	Satım opsiyonu sözleşmesi	Put option contract
+64111712	Gökkuşağı opsiyon sözleşmesi	Rainbow option contract
+64111801	Bedelsiz pay hakkı	Allotment or bonus right
+64111802	Rüçhan hakkı	Subscription right
+64111803	Satın alma hakkı	Purchase right
+64111804	Varant	Warrant
+64111901	Anapara korumalı yapılandırılmış finansal ürün	Principal protected structured financial product
+64111902	Anapara korumasız yapılandırılmış finansal ürün	Principal unprotected structured financial product
+64111903	Borsa yatırım fonu	Exchange traded fund ETF
+64111904	Tekil yapılandırılmış ürün	Single structured product
+64111905	Gökkuşağı yapılandırılmış ürün	Over the rainbow structured product
+64111906	Değişken anüite	Variable annuity
+64121501	Uçak sigortası poliçesi	Aircraft insurance policy
+64121503	Ticari araç sigortası poliçesi	Commercial automotive insurance policy
+64121504	Ticari çoklu risk poliçesi	Commercial multiple peril policy
+64121505	Çiftlik sahibi çoklu risk poliçesi	Farm owners multiple peril policy
+64121506	Sel sigortası poliçesi	Flood insurance policy
+64121507	Yardımlaşma sandığı sigorta poliçesi	Fraternal benefit society insurance policy
+64121508	Konut sigortası poliçesi	Homeowners insurance policy
+64121509	Kara nakliyat sigortası poliçesi	Inland marine insurance policy
+64121510	Kasko sigortası poliçesi	Personal automobile insurance policy
+64121511	Deniz nakliyat sigortası poliçesi	Ocean marine insurance policy
+64121512	Kefalet poliçesi	Surety policy
+64121513	Tapu sigortası poliçesi	Title insurance policy
+64121514	Garanti poliçesi	Warranty policy
+64122001	Kredi hayat sigortası poliçesi	Credit life insurance policy
+64122002	Yardımlaşma sandığı hayat sigortası poliçesi	Fraternal life insurance policy
+64122003	Grup hayat sigortası poliçesi	Group life insurance policy
+64122004	Vadeli hayat sigortası poliçesi	Term life insurance policy
+64122005	Ömür boyu hayat sigortası poliçesi	Whole life insurance policy
+64122006	Sabit anüite poliçesi	Fixed annuity policy
+64122007	Değiştirilmiş garantili anüite poliçesi	Modified guaranteed annuity policy
+64122101	Bireysel sağlık sigortası poliçesi	Individual health insurance policy
+64122102	Grup sağlık sigortası poliçesi	Group health insurance policy
+64122201	Bireysel diş sigortası poliçesi	Individual dental insurance policy
+64122202	Grup diş sigortası poliçesi	Group dental insurance policy
+64122301	Mesleki sorumluluk sigortası sözleşmesi	Professional errors and omissions liability insurance contract
+64122302	Yönetici sorumluluk sigortası sözleşmesi	Directors and officers liability insurance contract
+64122303	Mütevelli sorumluluk sigortası sözleşmesi	Fiduciary liability insurance contract
+64122304	İşveren uygulamaları sorumluluk sigortası sözleşmesi	Employment practice liability insurance contract
+64122305	İş kazası sigortası	Workers compensation insurance
+64122401	Ticari kefalet senedi	Commercial surety bond
+64122402	Sözleşme kefalet senedi	Contract surety bond
+64131501	Temel anlaşma	Basic agreement
+64131502	Temel sipariş anlaşması	Basic ordering agreement
+64131601	Sabit fiyatlı sözleşme	Fixed price contract
+64131602	Maliyet karşılamalı sözleşme	Cost reimbursement contract
+64131603	Teşvikli sözleşme	Incentive contract
+64131604	Belirsiz teslimatlı sözleşme	Indefinite delivery contract
+64131605	Zaman ve malzeme sözleşmesi	Time and materials contract
+64131606	İşçilik saati sözleşmesi	Labor hour contract
+64131607	Ön niyet sözleşmesi	Letter contract
+64141501	Uluslararası patent	International patent
+64141502	Uluslararası marka	International trademark
+64141503	Uluslararası hizmet markası	International servicemark
+64141504	Uluslararası telif hakkı	International copyright
+64141601	Ulusal patent	Nation based patent
+64141602	Ulusal marka	Nation based trademark
+64141603	Ulusal hizmet markası	Nation based servicemark
+64141604	Ulusal telif hakkı	Nation based copyright
+64141701	Çevresel telafi kredisi	Environmental mitigation credit
+64151501	Ulusal kâğıt para	National banknotes
+64151502	Ticari banknotlar	Commercial banknotes
+64151503	Madeni paralar	Coins or coinage
+64151504	Yerel para birimi	Local currency
+64151505	Dijital para birimi	Digital currency
+70121706	Hayvan kimliklendirme ve kayıt hizmeti	Livestock identification and recording service
+70123001	Köpek kontrolü ve refahı hizmeti	Dog control, containment and welfare service
+70141608	Havadan ekin sörveyi	Aerial crop survey
+70141711	Agronomi danışmanlık hizmeti	Agronomy consultancy service
+70161705	Çalılık ve orman ekolojisi ve koruma hizmeti	Bush and forest ecology and conservation service
+70161706	Kıyı ekolojisi ve koruma hizmeti	Coastal ecology and conservation service
+70161707	Hayvan veya kuş koruma alanlarının yönetimi	Conservation and management of animal or bird sanctuaries or pest free environments
+70161708	Tatlı su göl ve akarsu koruma ve yönetimi	Conservation and management of freshwater ponds and lakes and rivers and streams
+70161709	Kıyı şeridi ekolojisi ve koruma hizmeti	Riparian margins ecology and conservation service
+70161710	Sulak alan ekolojisi ve koruma hizmeti	Wetland ecology and conservation service
+70161711	Mangrov bataklığı ekolojisi ve koruma hizmeti	Mangrove swamp ecology and conservation service
+70171507	Yüzey suyu geliştirme	Surface water development
+70171710	Sulama sistemi yapım hizmeti	Irrigation system construction service
+77101506	İmar onayı işlem hizmeti	Development consent or approval processing service
+77102001	Yasal uyum sertifikasyon hizmeti	Legal compliance certification service
+77102002	Emisyon raporlama uyum hizmeti	Emission reporting compliance service
+77102003	Güvenlik uyumu veya kaza raporlama hizmeti	Safety compliance or accident reporting service
+77102004	Atık üretimi veya bertaraf raporlama hizmeti	Waste generation or disposal reporting service
+77111603	Arazi ıslah hizmetleri	Land rehabilitation services
+77111604	Hayvan leşi bertaraf alanı ıslah hizmeti	Animal carcass disposal site restoration service
+77141501	Mikrobiyolojik test	Microbiological testing
+77141502	Metal analizi	Metals testing
+77141503	İnorganik madde analizi	Inorganics testing
+77141504	Yarı uçucu organik madde analizi	Semi-volatile organics testing
+77141505	Uçucu organik bileşik analizi	Volatile organic compounds testing
+77141601	İçme suyu dışı su mikrobiyolojik testi	Non drinking water microbiological testing
+77141602	İçme suyu dışı su metal analizi	Non drinking water metals testing
+77141603	İçme suyu dışı su inorganik madde analizi	Non drinking water inorganics testing
+77141604	İçme suyu dışı su yarı uçucu organik madde analizi	Non drinking water semi-volatile organics testing
+77141605	İçme suyu dışı su uçucu organik bileşik analizi	Non drinking water volatile organic compounds testing
+77141701	Toprak veya çamur veya katı atık mikrobiyolojik testi	Microbiological testing of soil or sludge or solid waste
+77141702	Toprak veya çamur veya katı atık metal analizi	Metals testing of soil or sludge or solid waste
+77141703	Toprak veya çamur veya katı atık inorganik madde analizi	Inorganics testing of soil or sludge or solid waste
+77141704	Toprak veya çamur veya katı atık yarı uçucu organik analizi	Semi-volatile organics testing of soil or sludge or solid waste
+77141705	Toprak veya çamur veya katı atık uçucu organik analizi	Volatile organics testing of soil or sludge or solid waste
+82101605	Televizyon reklamı yapım hizmeti	Television commercials production service
+82101606	Radyo reklamı yapım hizmeti	Radio commercial production service
+82101802	Reklam yapım hizmeti	Advertising production service
+82101906	Dijital medya satın alma ve planlama hizmetleri	Digital media purchase and planning services
+82112001	Yerinde Afganca veya Peştuca tercüme hizmeti	In person afghan or pashto or pushto interpretation service
+82112002	Yerinde Arnavutça tercüme hizmeti	In person albanian interpretation service
+82112003	Yerinde Amharca tercüme hizmeti	In person amharic interpretation service
+82112004	Yerinde Arapça tercüme hizmeti	In person arabic interpretation service
+82112005	Yerinde Ermenice tercüme hizmeti	In person armenian interpretation service
+82112006	Yerinde Bangladeş dili tercüme hizmeti	In person bangledesh interpretation service
+82112007	Yerinde Belarusça tercüme hizmeti	In person belarussian interpretation service
+82112008	Yerinde Bengalce tercüme hizmeti	In person bengali interpretation service
+82112009	Yerinde Boşnakça tercüme hizmeti	In person bosnian interpretation service
+82112010	Yerinde Bulgarca tercüme hizmeti	In person bulgarian interpretation service
+82112011	Yerinde Kamboçyaca tercüme hizmeti	In person cambodian interpretation service
+82112012	Yerinde Çince tercüme hizmeti	In person chinese interpretation service
+82112013	Yerinde Kreol tercüme hizmeti	In person creole interpretation service
+82112014	Yerinde Hırvatça tercüme hizmeti	In person croatian interpretation service
+82112015	Yerinde Çekçe tercüme hizmeti	In person czech interpretation service
+82112016	Yerinde Danca tercüme hizmeti	In person danish interpretation service
+82112017	Yerinde Dinka dili tercüme hizmeti	In person dinka interpretation service
+82112018	Yerinde Felemenkçe tercüme hizmeti	In person dutch interpretation service
+82112019	Yerinde Mısır Arapçası tercüme hizmeti	In person egyptian interpretation service
+82112020	Yerinde Fanti dili tercüme hizmeti	In person fanti interpretation service
+82112021	Yerinde Fanti veya Farsça tercüme hizmeti	In person fanti or persian interpretation service
+82112022	Yerinde Fransızca tercüme hizmeti	In person french interpretation service
+82112023	Yerinde Almanca tercüme hizmeti	In person german interpretation service
+82112024	Yerinde Yunanca tercüme hizmeti	In person greek interpretation service
+82112025	Yerinde Gucaratça tercüme hizmeti	In person gugarati interpretation service
+82112026	Yerinde İbranice tercüme hizmeti	In person hebrew interpretation service
+82112027	Yerinde Hintçe tercüme hizmeti	In person hindi interpretation service
+82112028	Yerinde Hmong dili tercüme hizmeti	In person hmong interpretation service
+82112029	Yerinde Amerikan Kızılderili dili tercüme hizmeti	In person american indian interpretation service
+82112030	Yerinde Endonezce tercüme hizmeti	In person indonesian interpretation service
+82112031	Yerinde İtalyanca tercüme hizmeti	In person italian interpretation service
+82112032	Yerinde Jamaika dili tercüme hizmeti	In person jamaican interpretation service
+82112033	Yerinde Japonca tercüme hizmeti	In person japanese interpretation service
+82112034	Yerinde Kırgızca tercüme hizmeti	In person kirghiz interpretation service
+82112035	Yerinde Korece tercüme hizmeti	In person korean interpretation service
+82112036	Yerinde Kürtçe tercüme hizmeti	In person kurdish interpretation service
+82112037	Yerinde Litvanca tercüme hizmeti	In person lithuanian interpretation service
+82112038	Yerinde Malayalam dili tercüme hizmeti	In person malayalam interpretation service
+82112039	Yerinde Mandingo dili tercüme hizmeti	In person mandingo interpretation service
+82112040	Yerinde Yerli Amerikan dili tercüme hizmeti	In person native american interpretation service
+82112041	Yerinde Pakistan dili tercüme hizmeti	In person pakistani interpretation service
+82112042	Yerinde Doğu Pencapçası tercüme hizmeti	In person eastern panjabi interpretation service
+82112043	Yerinde Batı Pencapçası tercüme hizmeti	In person western panjabi interpretation service
+82112044	Yerinde Lehçe tercüme hizmeti	In person polish interpretation service
+82112045	Yerinde Portekizce tercüme hizmeti	In person portuguese interpretation service
+82112046	Yerinde Rumence tercüme hizmeti	In person romanian interpretation service
+82112047	Yerinde Romanca tercüme hizmeti	In person romany interpretation service
+82112048	Yerinde Rusça tercüme hizmeti	In person russian interpretation service
+82112050	Yerinde Samoaca tercüme hizmeti	In person samoan interpretation service
+82112051	Yerinde Sırpça tercüme hizmeti	In person serbian interpretation service
+82112052	Yerinde Sırp-Hırvatça tercüme hizmeti	In person serbo croatian interpretation service
+82112053	Yerinde Slovence tercüme hizmeti	In person slovenian interpretation service
+82112054	Yerinde Somalice tercüme hizmeti	In person somali interpretation service
+82112055	Yerinde İspanyolca tercüme hizmeti	In person spanish interpretation service
+82112056	Yerinde Svahili tercüme hizmeti	In person swahili interpretation service
+82112057	Yerinde İsveççe tercüme hizmeti	In person swedish interpretation service
+82112058	Yerinde Tayvanca tercüme hizmeti	In person taiwanese interpretation service
+82112059	Yerinde Tayca tercüme hizmeti	In person thai interpretation service
+82112060	Yerinde Tibetçe tercüme hizmeti	In person tibetan interpretation service
+82112061	Yerinde Türkçe tercüme hizmeti	In person turkish interpretation service
