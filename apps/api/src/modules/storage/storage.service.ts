@@ -180,10 +180,17 @@ export class StorageService implements OnModuleInit {
     return `${this.envPrefix}/tenant-profile/${tenantId}/`;
   }
 
-  /** Alıcı (tenant) public profil görselleri (logo/cover/gallery) için R2 key. */
+  /**
+   * Firmanın HERKESE AÇIK görselleri için R2 key (logo/kapak/galeri/ÜRÜN).
+   *
+   * Ürün görselleri aynı prefix'i paylaşıyor çünkü ikisi de public kovada,
+   * aynı firmaya ait ve aynı IDOR kontrolünden geçiyor
+   * (`common/company/public-image-upload.ts`). Ayrı prefix açmak o kontrolü
+   * ikiye bölerdi.
+   */
   buildTenantProfileKey(
     tenantId: string,
-    kind: "cover" | "logo" | "gallery",
+    kind: "cover" | "logo" | "gallery" | "product",
     id: string,
     originalFilename: string,
   ): string {

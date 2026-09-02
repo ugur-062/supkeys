@@ -112,6 +112,17 @@ class ShowcaseDto {
   @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) moq?: number;
 }
 
+
+/** Ürün görseli yükleme isteği — presigned PUT üretir. */
+class ImageUploadDto {
+  @Trim() @IsString() @MaxLength(200) fileName!: string;
+  @Trim() @IsString() @MaxLength(100) mimeType!: string;
+}
+
+class ResolveImageDto {
+  @Trim() @IsString() @MaxLength(500) key!: string;
+}
+
 class SetActiveDto {
   @IsBoolean() isActive!: boolean;
 }
@@ -166,6 +177,37 @@ export class CompanyItemsController {
    * ":id" rotalarından ÖNCE tanımlı olmalı (statik rota önceliği), aksi hâlde
    * "attributes" bir kalem kimliği sanılırdı.
    */
+
+  /**
+   * Ürün görseli — iki adım (profil görselleriyle AYNI akış):
+   *   1. `images/upload-url` → presigned PUT, tarayıcı DOĞRUDAN R2'ye yükler
+   *      (sunucudan geçmez, gövde sınırına takılmaz),
+   *   2. `images/resolve`    → yükleneni DOĞRULAR (boyut + gerçek MIME) ve
+   *      kalıcı CDN URL'i döner.
+   * İkinci adım şart: presigned PUT ne boyutu ne içerik tipini imzalayabilir.
+   */
+  @Post("images/upload-url")
+  @RequireCompanyPermission("templates:manage")
+  imageUploadUrl(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ImageUploadDto,
+  ) {
+    return this.service.requestImageUpload(
+      user.companyId,
+      dto.fileName,
+      dto.mimeType,
+    );
+  }
+
+  @Post("images/resolve")
+  @RequireCompanyPermission("templates:manage")
+  imageResolve(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ResolveImageDto,
+  ) {
+    return this.service.resolveImage(user.companyId, dto.key);
+  }
+
   @Get("attributes/:categoryId")
   attributes(@Param("categoryId") categoryId: string) {
     return this.service.resolveAttributes(categoryId);

@@ -4,6 +4,7 @@ import {
   BuildingStorefrontIcon,
   ChartBarIcon,
   ClipboardDocumentListIcon,
+  CubeIcon,
   DocumentDuplicateIcon,
   HomeIcon,
   IdentificationIcon,
@@ -69,6 +70,9 @@ export const MODULE_LABELS = {
     // Eskiden ikisine de "ihale" deniyordu; düz çeviri "Satış Satın Alma
     // Taleplerim" gibi anlamsız bir başlık üretiyordu.
     ilanlarim: "Satış İlanlarım",
+    // Faz 2 — ilandan AYRI: ilan süreli bir işlem, ürün kalıcı bir vitrin
+    // kaydı. Aynı sözcükle anılsalardı kullanıcı hangisini açacağını bilemezdi.
+    urunler: "Ürünlerim",
     acikIhaleler: "Açık Talepler",
     // C32: iki portalda aynı H1 ("Tekliflerim") ayırt edilemiyordu — satış
     // tarafı portal-önekli (Satış İlanlarım/Satışlarım deseniyle aynı).

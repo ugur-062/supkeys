@@ -14,7 +14,11 @@ import { CompanyItemsService } from "../../src/modules/company-items/company-ite
  */
 describe("Kalem Kataloğu", () => {
   const make = () =>
-    new CompanyItemsService(prisma as never, { log: jest.fn() } as never);
+    new CompanyItemsService(
+      prisma as never,
+      { log: jest.fn() } as never,
+      {} as never, // storage — bu spec görsel yoluna girmiyor
+    );
 
   beforeEach(async () => {
     await truncateAll();
@@ -184,6 +188,7 @@ describe("arşiv görünümü", () => {
     const svc = new CompanyItemsService(
       prisma as never,
       { log: jest.fn() } as never,
+      {} as never, // storage — bu spec görsel yoluna girmiyor
     );
     const a = await svc.create(auth, { name: "Aktif", unit: "adet" });
     const b = await svc.create(auth, { name: "Arşivlik", unit: "adet" });

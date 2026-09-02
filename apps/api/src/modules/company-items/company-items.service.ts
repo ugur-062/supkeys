@@ -7,6 +7,11 @@ import { Prisma, type Currency } from "@rothern/db";
 import { foldSearchText, getUnit, normalizeUnit, slugifyText } from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import {
+  requestPublicImageUpload,
+  resolvePublicImage,
+} from "../../common/company/public-image-upload";
+import { StorageService } from "../storage/storage.service";
+import {
   productCompletion,
   productPublishBlockers,
   type ProductLike,
@@ -95,9 +100,13 @@ export interface CatalogItemInput {
  */
 @Injectable()
 export class CompanyItemsService {
+  // DİKKAT (rig stub gotcha, CLAUDE.md): `storage` SONA eklendi. Araya
+  // sokulsaydı elle kurulan test rig'lerinde audit ile yer değiştirir ve hata
+  // ancak storage'a ULAŞAN bir testte, sessizce ortaya çıkardı.
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly storage: StorageService,
   ) {}
 
   /** Arama + sayfalama. Sıralama: sık kullanılan ve yakında kullanılan üstte. */
@@ -357,6 +366,30 @@ export class CompanyItemsService {
    */
   async resolveAttributes(categoryId: string | null | undefined) {
     return resolveCategoryAttributes(this.prisma, categoryId);
+  }
+
+  /**
+   * Ürün görseli için presigned PUT. Mantık profil görselleriyle AYNI
+   * kaynaktan (`public-image-upload.ts`): benzersiz anahtar, IDOR kontrolü,
+   * yükleme sonrası otoritatif boyut/MIME doğrulaması, CDN'siz fail-closed.
+   */
+  async requestImageUpload(
+    companyId: string,
+    fileName: string,
+    mimeType: string,
+  ) {
+    return requestPublicImageUpload(
+      this.storage,
+      companyId,
+      "product",
+      fileName,
+      mimeType,
+    );
+  }
+
+  /** Yükleme bitince key → kalıcı public URL (DB'ye YAZMAZ). */
+  async resolveImage(companyId: string, key: string) {
+    return resolvePublicImage(this.storage, companyId, key);
   }
 
   /** Ürünün vitrin alanlarını günceller (görsel, fiyat, nitelik, etiket…). */

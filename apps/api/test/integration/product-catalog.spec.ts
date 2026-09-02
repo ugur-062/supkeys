@@ -23,6 +23,7 @@ const service = () =>
   new CompanyItemsService(
     prisma as unknown as PrismaService,
     audit as never,
+    {} as never, // storage — bu spec görsel yoluna girmiyor
   );
 
 const SEG = "39000000";

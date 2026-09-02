@@ -1,4 +1,8 @@
 import {
+  requestPublicImageUpload,
+  resolvePublicImage,
+} from "../../common/company/public-image-upload";
+import {
   BadRequestException,
   ServiceUnavailableException,
   ForbiddenException,
@@ -83,68 +87,26 @@ export class CompanyProfileService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Logo/kapak için presigned PUT URL üretir (tarayıcı doğrudan R2'ye yükler). */
+  /**
+   * Logo/kapak/galeri için presigned PUT URL. Mantık TEK KAYNAK
+   * (`common/company/public-image-upload.ts`) — ürün görselleri de aynı
+   * sertleştirmelerden geçsin diye oraya taşındı.
+   */
   async requestImageUploadUrl(
     companyId: string,
     kind: "logo" | "cover" | "gallery",
     fileName: string,
     mimeType: string,
   ) {
-    if (!IMAGE_MIME.includes(mimeType)) {
-      throw new BadRequestException("Yalnızca JPEG, PNG veya WebP yüklenebilir");
-    }
-    // HER yükleme benzersiz anahtar (2026-08-22): logo/cover eskiden sabit
-    // `<kind>-<companyId>` idi → (a) R2 bucket'ında object-lock/retention
-    // politikası varken ikinci yazma 409 ObjectLockedByBucketPolicy (logo bir
-    // daha DEĞİŞTİRİLEMİYORDU — canlıda doğrulandı), (b) aynı URL tarayıcı/CDN
-    // önbelleğinde kalıp yeni görsel görünmüyordu. Eski nesne yetim kalır
-    // (küçük; temizlik ayrı iş).
-    const id = randomUUID();
-    const key = this.storage.buildTenantProfileKey(
-      companyId,
-      kind,
-      id,
-      fileName,
-    );
-    const url = await this.storage.generatePresignedPut("public", key, mimeType);
-    return { url, key };
+    return requestPublicImageUpload(this.storage, companyId, kind, fileName, mimeType);
   }
 
   /**
-   * Yükleme bitince key → kalıcı public URL'e çevirir (DB'ye YAZMAZ — URL forma
-   * konup diğer alanlarla birlikte Kaydet'te kalıcılaşır).
+   * Yükleme bitince key → kalıcı public URL (DB'ye YAZMAZ — URL forma konup
+   * diğer alanlarla birlikte Kaydet'te kalıcılaşır).
    */
   async resolveUploadedImage(companyId: string, key: string) {
-    // IDOR koruması: istemci-verdiği key yalnız KENDİ firmasının tenant-profile
-    // prefix'inde olabilir. Aksi halde başka firmanın (KYC/teklif dahil aynı
-    // bucket) nesnesine presigned URL üretilebilirdi.
-    if (!key.startsWith(this.storage.buildTenantProfilePrefix(companyId))) {
-      throw new ForbiddenException("Bu görsel anahtarına erişim yetkiniz yok");
-    }
-    // Fix2: public bucket'ta OTORİTATİF varlık + boyut kontrolü (10MB) — diğer
-    // 5 upload yolunun aksine burada eksikti → 5GB logo = bant/depolama DoS.
-    // Aşan orphan silinir (presigned PUT boyut sınırlayamaz, register'da yakalanır).
-    // GERÇEK içerik tipi de doğrulanır: presigned PUT content-type'ı imzalamaz,
-    // public kovadaki HTML/SVG = cdn.rothern.com'da depolanmış XSS (P5 HIGH).
-    await assertUploadedObjectValid(
-      this.storage,
-      "public",
-      key,
-      MAX_IMAGE_BYTES,
-      IMAGE_MIME,
-    );
-    // Dalga B-5 (P5): eskiden CDN tabanı yoksa `resolveImageUrl` ile 15 DAKİKA
-    // ömürlü bir PRESIGNED URL dönülüyordu — istemci onu `logoUrl` olarak
-    // KALICI kaydediyor, çeyrek saat sonra görsel kalıcı olarak ölüyordu
-    // (okuma yolu saklanan değeri ham döndürür, yeniden imzalamaz).
-    // Public profil görseli CDN olmadan doğru çalışamaz → fail-closed.
-    const url = this.storage.getPublicUrl(key);
-    if (!url) {
-      throw new ServiceUnavailableException(
-        "Görsel yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — görsel yüklenemedi. Lütfen sistem yöneticinize bildirin.",
-      );
-    }
-    return { url };
+    return resolvePublicImage(this.storage, companyId, key);
   }
 
   async get(companyId: string, canSeeSensitive = true) {
