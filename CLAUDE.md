@@ -317,7 +317,7 @@ kod her hâlükârda çözülebilmeli.
 | Dosya | Ne | Kim yazar |
 |-------|-----|-----------|
 | `ariba-categories.tsv` | 158.018 kategori, 7 sütun (6.'sı `inDiscovery`, 7.'si düşen alt adlar) | `import-ariba-csv.ts` |
-| `category-translations.curated.tsv` | 14.669 satır TR ad + kaynak ad | İNSAN (kalıplarda kural motoru) |
+| `category-translations.curated.tsv` | 18.569 satır TR ad + kaynak ad | İNSAN (kalıplarda kural motoru) |
 | `category-keywords.tsv` | elle küratörlü eşanlamlı | İNSAN — **üretilen dosyayı EZER** |
 | `category-keywords.generated.tsv` | TR jargon | `gen-category-keywords.ts` |
 
@@ -340,6 +340,22 @@ boru hattı kaplama/sarma, ulusal banknot…).
 
 Kaynakta ZATEN aynı adı taşıyan kodlar (`Eyes` / `Eyes`) çevrildiğinde yine
 aynı ada düşer; bunu çeviri üretmedi, denetleyici bu grupları ayıklar.
+
+### "İngilizce mi?" süzgecinin TUZAĞI — `-lar` / `-ler`
+
+Çevrilecek satırları bulmak için kullanılan sezgisel süzgeç, Türkçe çoğul ekini
+(`lar`/`ler`) sözcük sonunda arıyordu. **İngilizcede de bu harflerle biten
+sözcükler var** ve hepsi "zaten Türkçe" sanıldı:
+
+> col**lar** · chil**ler** · control**ler** · hand**ler** · trai**ler** ·
+> dopp**ler** · inha**ler** · vascu**lar** · ocu**lar** · acetabu**lar** ·
+> modu**lar** · muscu**lar**
+
+2026-09-02 denetiminde kapsam içinde bu yüzden atlanmış **226 satır** bulundu
+(damar kateterleri, soğutma grupları, römorklar, ultrason probları…). Yeni bir
+tarama yazarken ek aramak YETMEZ: kapsam içindeki aksansız satırların tamamı
+gözle okunmalı (o tur 3.547 satır) ya da ayırt edici olarak Türkçe sözcük
+dağarcığı kullanılmalı.
 
 ### Arama
 TR-katlanmış `searchText = fold(nameTr + " " + keywords)` (`foldSearchText`,
