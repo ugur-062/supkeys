@@ -18,6 +18,7 @@ import {
 } from "./dto/public-listing.projection";
 import type { PublicListQueryDto } from "./dto/public-list-query.dto";
 import type { PublicProductQueryDto } from "./dto/public-product-query.dto";
+import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import {
   PRODUCT_INDEX_SELECT,
   toProductIndexCard,
@@ -38,6 +39,10 @@ const PAGE_SIZE = 24;
  * tek bir yardımcı yazıp facet'i `unnest` ile hesaplamak.
  */
 const FACET_SCAN_CAP = 5000;
+/** Nitelik facet'inde bir anahtar için gösterilecek en fazla değer. */
+const ATTR_FACET_VALUES = 12;
+/** Sayılabilir nitelik tipleri — serbest metin ve sayı facet OLMAZ. */
+const FACETABLE_TYPES = new Set(["SINGLE_SELECT", "MULTI_SELECT"]);
 
 @Injectable()
 export class PublicMarketplaceService {
@@ -307,6 +312,36 @@ export class PublicMarketplaceService {
     return tokens.map((t) => ({ searchText: { contains: t } }));
   }
 
+  /**
+   * Nitelik süzgeci — `attributes` JSON'ı üzerinde.
+   *
+   * Değer İKİ biçimde saklanabiliyor: tekli seçimde dize ("Çelik"), çoklu
+   * seçimde dizi (["Çelik","Alüminyum"]). Tek bir eşleşme biçimi seçseydik
+   * süzgeç, kategorinin yarısında sessizce boş dönerdi — bu yüzden ikisi de
+   * OR'lanıyor.
+   *
+   * Bilinen sınır: `attributes` üzerinde indeks YOK. Kapı (`publicProductWhere`)
+   * kümeyi zaten daraltıyor ve canlıda ürün sayısı üç haneli değil; ölçmeden
+   * GIN indeksi eklemek erken. Ürün sayısı büyüdüğünde ilk bakılacak yer.
+   */
+  private attributeClauses(raw?: string[]): Prisma.CompanyItemWhereInput[] {
+    const out: Prisma.CompanyItemWhereInput[] = [];
+    for (const entry of raw ?? []) {
+      const i = entry.indexOf(":");
+      if (i <= 0) continue;
+      const key = entry.slice(0, i);
+      const value = entry.slice(i + 1).trim();
+      if (!value) continue;
+      out.push({
+        OR: [
+          { attributes: { path: [key], equals: value } },
+          { attributes: { path: [key], array_contains: [value] } },
+        ],
+      });
+    }
+    return out;
+  }
+
   async listProducts(q: PublicProductQueryDto): Promise<{
     items: ProductIndexCard[];
     total: number;
@@ -319,6 +354,7 @@ export class PublicMarketplaceService {
       // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
       // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz.
       ...(q.city ? [{ company: { city: q.city } }] : []),
+      ...this.attributeClauses(q.attr),
     ];
     const where: Prisma.CompanyItemWhereInput = {
       ...publicProductWhere(),
@@ -347,14 +383,28 @@ export class PublicMarketplaceService {
    * kapı tek kaynak bir Prisma `where`; ham SQL'e çevirmek onu kopyalamak
    * olurdu. Tavan aşılırsa `truncated` döner — sessizce eksik sayılmaz.
    */
-  async productFacets(): Promise<{
+  async productFacets(category?: string): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
+    attributes: {
+      key: string;
+      nameTr: string;
+      unit: string | null;
+      values: { value: string; count: number }[];
+    }[];
     truncated: boolean;
   }> {
+    // Tarama KATEGORİDEN BAĞIMSIZ: sektör ve şehir sayaçları TÜM vitrini
+    // göstermeli, yoksa kategori sayfasındaki "Sektör" listesi yalnız o
+    // sektörü gösterir ve ziyaretçi başka sektöre geçemez. Kategoriye özgü
+    // olan tek şey NİTELİK sayımı; o, aynı taramadan bellekte süzülür.
     const rows = await this.prisma.companyItem.findMany({
       where: publicProductWhere(),
-      select: { categoryId: true, company: { select: { city: true } } },
+      select: {
+        categoryId: true,
+        attributes: true,
+        company: { select: { city: true } },
+      },
       take: FACET_SCAN_CAP + 1,
     });
     const truncated = rows.length > FACET_SCAN_CAP;
@@ -385,8 +435,74 @@ export class PublicMarketplaceService {
       cities: [...cityCount.entries()]
         .map(([city, count]) => ({ city, count }))
         .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+      attributes: await this.attributeFacets(
+        category,
+        // Nitelik sayımı YALNIZ o daldaki ürünlerden: kod öneki, kategori
+        // süzgecinin (ata zinciri) bellek karşılığı.
+        category
+          ? scanned.filter((r) =>
+              (r.categoryId ?? "").startsWith(category.replace(/0+$/, "")),
+            )
+          : [],
+      ),
       truncated,
     };
+  }
+
+  /**
+   * NİTELİK facet'leri — yalnız bir kategori seçiliyken.
+   *
+   * Sebep: nitelikler kategoriye özgü. Kategori seçilmeden "IP sınıfı" süzgeci
+   * göstermek, listedeki ürünlerin çoğunda o alanın hiç tanımlı olmadığı bir
+   * kenar çubuğu üretirdi.
+   *
+   * Tanımlar kategori ağacından MİRASLA gelir (panelde sorulanla AYNI kaynak),
+   * sayımlar taranan ürünlerden. Yalnız kapalı listeler sayılır: serbest metin
+   * ve sayı alanında her ürün kendi değerini üretir, sayım anlamsızdır.
+   *
+   * Değeri OLMAYAN nitelik listeye girmez — süzgeç, o ekranda hiçbir şeyi
+   * daraltmayan bir satır göstermemeli.
+   */
+  private async attributeFacets(
+    category: string | undefined,
+    rows: { attributes: Prisma.JsonValue | null }[],
+  ): Promise<
+    { key: string; nameTr: string; unit: string | null; values: { value: string; count: number }[] }[]
+  > {
+    if (!category || !/^\d{8}$/.test(category)) return [];
+    const defs = (await resolveCategoryAttributes(this.prisma, category)).filter(
+      (d) => FACETABLE_TYPES.has(d.type),
+    );
+    if (defs.length === 0) return [];
+
+    const counts = new Map<string, Map<string, number>>();
+    for (const d of defs) counts.set(d.key, new Map());
+    for (const r of rows) {
+      const a = r.attributes;
+      if (!a || typeof a !== "object" || Array.isArray(a)) continue;
+      for (const d of defs) {
+        const raw = (a as Record<string, unknown>)[d.key];
+        // Tekli seçim dize, çoklu seçim dizi — ikisi de aynı sayaca düşer.
+        const values = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+        const bucket = counts.get(d.key)!;
+        for (const v of values) {
+          if (typeof v !== "string" || !v.trim()) continue;
+          bucket.set(v, (bucket.get(v) ?? 0) + 1);
+        }
+      }
+    }
+
+    return defs
+      .map((d) => ({
+        key: d.key,
+        nameTr: d.nameTr,
+        unit: d.unit,
+        values: [...counts.get(d.key)!.entries()]
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "tr"))
+          .slice(0, ATTR_FACET_VALUES),
+      }))
+      .filter((f) => f.values.length > 0);
   }
 
   /* ---------------------------------------------------------------- */

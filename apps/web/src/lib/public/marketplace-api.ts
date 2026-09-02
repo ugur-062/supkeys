@@ -413,9 +413,18 @@ export interface ProductIndexPage {
   pageSize: number;
 }
 
+export interface ProductAttributeFacet {
+  key: string;
+  nameTr: string;
+  unit: string | null;
+  values: { value: string; count: number }[];
+}
+
 export interface ProductFacets {
   categories: { id: string; name: string; level: number; count: number }[];
   cities: { city: string; count: number }[];
+  /** YALNIZ kategori seçiliyken dolu — nitelikler kategoriye özgü. */
+  attributes: ProductAttributeFacet[];
   truncated: boolean;
 }
 
@@ -423,6 +432,8 @@ export interface ProductListParams {
   q?: string;
   category?: string;
   city?: string;
+  /** `anahtar:değer` çiftleri — uçta tekrarlanan `attr` parametresine döner. */
+  attr?: string[];
   page?: number;
 }
 
@@ -436,6 +447,7 @@ const EMPTY_PRODUCT_INDEX: ProductIndexPage = {
 const EMPTY_PRODUCT_FACETS: ProductFacets = {
   categories: [],
   cities: [],
+  attributes: [],
   truncated: false,
 };
 
@@ -446,14 +458,18 @@ export function fetchProducts(
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
   if (params.city) sp.set("city", params.city);
+  // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
+  // ilk ayraçlı seçenekte sessizce bölerdi.
+  for (const a of params.attr ?? []) sp.append("attr", a);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
   // Ürün kalıcı içerik — ilandan uzun önbellek (uçtaki `s-maxage` ile aynı).
   return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300);
 }
 
-export function fetchProductFacets(): Promise<ProductFacets> {
-  return getJson("/public/products/facets", EMPTY_PRODUCT_FACETS, 600);
+export function fetchProductFacets(category?: string): Promise<ProductFacets> {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  return getJson(`/public/products/facets${qs}`, EMPTY_PRODUCT_FACETS, 600);
 }
 
 export function fetchCompanyProducts(

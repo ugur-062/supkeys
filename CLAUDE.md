@@ -721,6 +721,25 @@ kanonik etiket AYNI `categoryPath()`ten üretilir.
 **İlan listelerinde süzgeç hâlâ sorguda** — aynı dönüşüm oraya da yapılmalı
 (`/alim-talepleri/kategori/<kod>`). Desen artık kurulu, mekanik iş.
 
+### Nitelik süzgeci (2026-09-02)
+
+Kategori kırılımının altındaki asıl ayrım: `?nitelik=malzeme:Çelik&nitelik=standart:EN`
+(tekrarlanan parametre, tavan 6). Tek parametrede birleştirilmedi — değerler
+kategori tanımından gelen serbest metin, "|" gibi bir ayraç ilk ayraçlı
+seçenekte sessizce bölerdi.
+
+| Kural | Neden |
+|-------|-------|
+| Tekli (dize) VE çoklu (dizi) değer birlikte eşleşir | Aynı anahtar iki biçimde saklanıyor; tek biçim arasak süzgeç kategorinin yarısında sessizce boş dönerdi |
+| Nitelik facet'i YALNIZ kategori seçiliyken | Nitelikler kategoriye özgü; kategorisiz listede "IP sınıfı" satırı ürünlerin çoğunda tanımsız |
+| Yalnız kapalı listeler sayılır (SELECT) | Serbest metin/sayıda her ürün kendi değerini üretir, sayım anlamsız |
+| Değeri olmayan nitelik listede YOK | Hiçbir şeyi daraltmayan süzgeç satırı gösterilmez |
+| Tanımlar MİRASLA gelir | Panelde sorulanla aynı kaynak (`resolveCategoryAttributes`) — sorulan alanla süzülen alan ayrışamaz |
+
+**Bilinen sınır:** `attributes` JSON'ında indeks YOK. Kapı (`publicProductWhere`)
+kümeyi zaten daraltıyor ve canlıda ürün sayısı üç haneli değil; ölçmeden GIN
+indeksi eklemek erken olur. Ürün sayısı büyüdüğünde ilk bakılacak yer burası.
+
 ### Ürün dizini kapısı
 
 `common/company/public-profile-gate.ts` `publicProductWhere()` — TEK KAYNAK.

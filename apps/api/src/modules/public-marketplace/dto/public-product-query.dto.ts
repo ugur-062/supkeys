@@ -1,5 +1,7 @@
 import { Transform } from "class-transformer";
 import {
+  ArrayMaxSize,
+  IsArray,
   IsInt,
   IsOptional,
   IsString,
@@ -34,6 +36,30 @@ export class PublicProductQueryDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
+  /**
+   * Nitelik süzgeci — `anahtar:değer` çiftleri, tekrarlanabilir
+   * (`?attr=malzeme:Çelik&attr=koruma_sinifi:IP65`).
+   *
+   * Neden tek param değil de tekrar: değerler serbest metin (kategori
+   * tanımından gelir, ayraç içerebilir) — "|" gibi bir ayraçla birleştirmek
+   * ilk "|" içeren seçenekte sessizce bölerdi.
+   *
+   * Tavan 6: her çift ayrı bir JSON koşulu üretir ve bu uçlar kenar
+   * önbelleğine yazılıyor; sınırsız kombinasyon hem pahalı sorgu hem sınırsız
+   * önbellek anahtarı demek.
+   */
+  @IsOptional()
+  @Transform(({ value }) =>
+    value == null ? undefined : Array.isArray(value) ? value : [value],
+  )
+  @IsArray()
+  @ArrayMaxSize(6)
+  @Matches(/^[a-z0-9_]{1,40}:[^\n\r]{1,60}$/, {
+    each: true,
+    message: "Nitelik süzgeci anahtar:değer biçiminde olmalı",
+  })
+  attr?: string[];
+
   @IsOptional()
   @Transform(({ value }) => {
     const n = Number(value);
@@ -43,4 +69,17 @@ export class PublicProductQueryDto {
   @Min(1)
   @Max(200)
   page?: number;
+}
+
+/**
+ * Facet sorgusu — YALNIZ kategori alır.
+ *
+ * `PublicProductQueryDto` yeniden kullanılmadı: kullanılmayan parametreler
+ * (arama, sayfa) önbellek anahtarını çeşitlendirir ve aynı yanıt için onlarca
+ * girdi üretirdi.
+ */
+export class PublicProductFacetQueryDto {
+  @IsOptional()
+  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  category?: string;
 }

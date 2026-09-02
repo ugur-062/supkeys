@@ -17,6 +17,7 @@ export function SearchForm({
   defaultValue,
   placeholder = "Ne arıyorsunuz? (ürün, hizmet, malzeme)",
   hidden,
+  hiddenList,
   size = "md",
 }: {
   action: string;
@@ -24,6 +25,12 @@ export function SearchForm({
   placeholder?: string;
   /** Aramada korunması gereken mevcut süzgeçler (kategori/şehir). */
   hidden?: Record<string, string | undefined>;
+  /**
+   * Tekrarlanabilen süzgeçler (nitelik). Ayrı prop çünkü tek anahtar altında
+   * BİRDEN ÇOK değer var; `Record<string,string>` bunu taşıyamaz ve arama
+   * yapan ziyaretçi seçtiği nitelikleri sessizce kaybederdi.
+   */
+  hiddenList?: Record<string, string[]>;
   /** `lg` = hero (daha yüksek ve gölgeli). */
   size?: "md" | "lg";
 }) {
@@ -32,6 +39,11 @@ export function SearchForm({
     <form action={action} method="get" role="search" className="w-full">
       {Object.entries(hidden ?? {}).map(([k, v]) =>
         v ? <input key={k} type="hidden" name={k} value={v} /> : null,
+      )}
+      {Object.entries(hiddenList ?? {}).flatMap(([k, list]) =>
+        list.map((v) => (
+          <input key={`${k}:${v}`} type="hidden" name={k} value={v} />
+        )),
       )}
       <div className="flex items-stretch gap-2">
         <div

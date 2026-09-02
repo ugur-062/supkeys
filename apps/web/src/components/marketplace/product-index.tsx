@@ -26,6 +26,14 @@ export interface ProductSearchParams {
   q?: string;
   il?: string;
   sayfa?: string;
+  /** Nitelik süzgeci — `anahtar:değer`, tekrarlanabilir. */
+  nitelik?: string | string[];
+}
+
+/** Tekrarlanan parametre tek dize de gelebilir — her zaman diziye indirge. */
+function attrList(v: string | string[] | undefined): string[] {
+  if (!v) return [];
+  return (Array.isArray(v) ? v : [v]).filter((a) => a.includes(":")).slice(0, 6);
 }
 
 /** Türkçe URL → İngilizce API sınırı (ilan tarafıyla aynı kural). */
@@ -34,10 +42,12 @@ export function toProductParams(
   fixedCategory?: string,
 ): ProductListParams {
   const page = Number(sp.sayfa);
+  const attr = attrList(sp.nitelik);
   return {
     q: sp.q?.trim() || undefined,
     category: /^\d{8}$/.test(fixedCategory ?? "") ? fixedCategory : undefined,
     city: sp.il?.trim() || undefined,
+    ...(attr.length ? { attr } : {}),
     page: Number.isFinite(page) && page > 1 ? Math.trunc(page) : undefined,
   };
 }
@@ -63,18 +73,29 @@ export async function ProductIndex({
 
   const [page, facets] = await Promise.all([
     fetchProducts(params),
-    fetchProductFacets(),
+    // Nitelik sayaçları kategoriye özgü — kategorisiz sayfada boş döner.
+    fetchProductFacets(category?.id),
   ]);
 
   const activeCity = params.city;
-  const hasFilter = !!(params.q || activeCity);
+  const activeAttrs = params.attr ?? [];
+  const hasFilter = !!(params.q || activeCity || activeAttrs.length);
   const showFacets =
     page.items.length > 0 ||
     hasFilter ||
     facets.categories.length + facets.cities.length >= 4;
 
-  /** Sorgu süzgeçleri (arama + şehir) korunur; kategori YOLDA. */
-  const withQuery = (path: string, patch: Partial<ProductSearchParams> = {}) => {
+  /**
+   * Sorgu süzgeçleri (arama + şehir + nitelik) korunur; kategori YOLDA.
+   *
+   * `attrs` verilmezse mevcut nitelik seçimleri aynen taşınır: sektör
+   * değiştiren ya da sayfa çeviren ziyaretçi seçtiği nitelikleri kaybetmemeli.
+   */
+  const withQuery = (
+    path: string,
+    patch: { q?: string; il?: string } = {},
+    attrs: string[] = activeAttrs,
+  ) => {
     const next: Record<string, string | undefined> = {
       q: searchParams.q,
       il: searchParams.il,
@@ -82,11 +103,20 @@ export async function ProductIndex({
     };
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(next)) if (v) sp.set(k, v);
+    for (const a of attrs) sp.append("nitelik", a);
     const s = sp.toString();
     return s ? `${path}?${s}` : path;
   };
-  const filterHref = (patch: Partial<ProductSearchParams> = {}) =>
+  const filterHref = (patch: { q?: string; il?: string } = {}) =>
     withQuery(basePath, patch);
+  /** Bir nitelik değerini açar/kapatır (aynı bağlantı iki yönlü çalışır). */
+  const attrHref = (key: string, value: string) => {
+    const entry = `${key}:${value}`;
+    const next = activeAttrs.includes(entry)
+      ? activeAttrs.filter((a) => a !== entry)
+      : [...activeAttrs, entry];
+    return withQuery(basePath, {}, next);
+  };
 
   return (
     <>
@@ -104,6 +134,7 @@ export async function ProductIndex({
               action={basePath}
               defaultValue={searchParams.q}
               hidden={{ il: searchParams.il }}
+              hiddenList={{ nitelik: activeAttrs }}
               placeholder="Ürün, marka veya parça numarası arayın"
             />
           </div>
@@ -138,6 +169,22 @@ export async function ProductIndex({
             {activeCity ? (
               <FilterChip href={filterHref({ il: undefined })} label={activeCity} />
             ) : null}
+            {activeAttrs.map((a) => {
+              // Etiket olarak DEĞER gösterilir: "Paslanmaz çelik" tek başına
+              // okunur, "malzeme:Paslanmaz çelik" makine dili gibi durur.
+              const value = a.slice(a.indexOf(":") + 1);
+              return (
+                <FilterChip
+                  key={a}
+                  href={withQuery(
+                    basePath,
+                    {},
+                    activeAttrs.filter((x) => x !== a),
+                  )}
+                  label={value}
+                />
+              );
+            })}
             <Link
               href={basePath}
               className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
@@ -178,6 +225,23 @@ export async function ProductIndex({
                   active: activeCity === c.city,
                 }))}
               />
+
+              {/* Nitelik süzgeçleri yalnız kategori sayfasında dolu gelir —
+                  nitelikler kategoriye özgü; kategorisiz listede her ürün
+                  başka bir alan kümesi taşır ve süzgeç anlamsızlaşır. */}
+              {facets.attributes.map((a) => (
+                <FacetGroup
+                  key={a.key}
+                  heading={a.unit ? `${a.nameTr} (${a.unit})` : a.nameTr}
+                  items={a.values.map((v) => ({
+                    key: `${a.key}:${v.value}`,
+                    label: v.value,
+                    count: v.count,
+                    href: attrHref(a.key, v.value),
+                    active: activeAttrs.includes(`${a.key}:${v.value}`),
+                  }))}
+                />
+              ))}
             </aside>
           ) : null}
 
@@ -226,12 +290,15 @@ export async function ProductIndex({
                 ))}
               </div>
             )}
+            {/* Sayfalama nitelik seçimlerini de taşır: 2. sayfaya geçen
+                ziyaretçi süzgeçlerini kaybetmemeli. */}
             <Pagination
               page={page.page}
               total={page.total}
               pageSize={page.pageSize}
               basePath={basePath}
               params={{ q: searchParams.q, il: searchParams.il }}
+              repeated={{ nitelik: activeAttrs }}
             />
           </div>
         </div>

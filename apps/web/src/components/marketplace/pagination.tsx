@@ -10,12 +10,15 @@ export function Pagination({
   pageSize,
   basePath,
   params,
+  repeated,
 }: {
   page: number;
   total: number;
   pageSize: number;
   basePath: string;
   params: Record<string, string | undefined>;
+  /** Tekrarlanabilen parametreler (ör. nitelik süzgeçleri) — sırası korunur. */
+  repeated?: Record<string, string[]>;
 }) {
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   if (lastPage <= 1) return null;
@@ -23,6 +26,8 @@ export function Pagination({
   const href = (p: number) => {
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v);
+    for (const [k, list] of Object.entries(repeated ?? {}))
+      for (const v of list) sp.append(k, v);
     if (p > 1) sp.set("sayfa", String(p));
     const q = sp.toString();
     return q ? `${basePath}?${q}` : basePath;

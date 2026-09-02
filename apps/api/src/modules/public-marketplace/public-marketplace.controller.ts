@@ -2,7 +2,10 @@ import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common
 import { Throttle } from "@nestjs/throttler";
 import { MarketplaceLiveGuard } from "../../common/http/marketplace-live.guard";
 import { PublicListQueryDto } from "./dto/public-list-query.dto";
-import { PublicProductQueryDto } from "./dto/public-product-query.dto";
+import {
+  PublicProductFacetQueryDto,
+  PublicProductQueryDto,
+} from "./dto/public-product-query.dto";
 import { PublicMarketplaceService } from "./public-marketplace.service";
 
 /**
@@ -70,10 +73,15 @@ export class PublicMarketplaceController {
     return this.service.listProducts(q);
   }
 
+  /**
+   * Ürün süzgeç sayaçları. `category` verilirse o kategorinin MİRAS ALDIĞI
+   * niteliklerin değer sayımları da döner — nitelik süzgeci kategoriye özgü
+   * olduğu için kategorisiz istekte anlamsızdır.
+   */
   @Get("products/facets")
   @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=1800")
-  productFacets() {
-    return this.service.productFacets();
+  productFacets(@Query() q: PublicProductFacetQueryDto) {
+    return this.service.productFacets(q.category);
   }
 
   /**
