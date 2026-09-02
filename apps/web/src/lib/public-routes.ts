@@ -42,6 +42,7 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/tedarikciler",
   "/talep",
   "/ilan",
+  "/nasil-calisir", // eski pazarlama anasayfası (kök pazar yerine döndü)
   "/hakkimizda",
   "/iletisim",
   "/sozlesmeler",

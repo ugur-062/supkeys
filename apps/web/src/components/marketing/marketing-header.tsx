@@ -1,16 +1,27 @@
 "use client";
 
 import { RothernLogo } from "@/components/brand/logo";
+import {
+  MARKETPLACE_LABELS,
+  MARKETPLACE_ROUTES,
+} from "@/lib/public/marketplace";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+/**
+ * Kök `/` pazar yerine dönünce pazarlama çapaları (#ozellikler/#fiyatlar/#sss)
+ * `/nasil-calisir`e taşındı — burada da öyle yazılı olmazsa bağlantılar
+ * anasayfada karşılığı olmayan bir çapaya gider ve sessizce hiçbir şey yapmaz.
+ * Adların tek kaynağı `lib/public/marketplace.ts` MARKETPLACE_LABELS.
+ */
 const navigation = [
-  { name: "Özellikler", href: "/#ozellikler" },
-  { name: "Nasıl Çalışır", href: "/#nasil" },
-  { name: "Fiyatlar", href: "/#fiyatlar" },
-  { name: "SSS", href: "/#sss" },
+  { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
+  { name: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
+  { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+  { name: "Nasıl Çalışır", href: "/nasil-calisir" },
+  { name: "Fiyatlar", href: "/nasil-calisir#fiyatlar" },
 ];
 
 export function MarketingHeader() {
@@ -50,7 +61,7 @@ export function MarketingHeader() {
             <Bars3Icon aria-hidden="true" className="size-6" />
           </button>
         </div>
-        <div className="hidden lg:flex lg:gap-x-8">
+        <div className="hidden lg:flex lg:gap-x-6">
           {navigation.map((item) => (
             <a
               key={item.name}

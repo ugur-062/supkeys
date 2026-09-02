@@ -1,0 +1,246 @@
+import { EmptyListings, ListingCard } from "./listing-card";
+import { Pagination } from "./pagination";
+import { SearchForm } from "./search-form";
+import {
+  MARKETPLACE_ROUTES,
+  type PublicListingType,
+} from "@/lib/public/marketplace";
+import {
+  fetchFacets,
+  fetchListings,
+  type ListParams,
+} from "@/lib/public/marketplace-api";
+import Link from "next/link";
+
+/**
+ * TÜRKÇE URL ↔ İNGİLİZCE API sınırı.
+ *
+ * Ziyaretçinin gördüğü adres Türkçe (`?kategori=31000000&il=İstanbul&sayfa=2`),
+ * API sözleşmesi İngilizce. Çeviri TEK yerde, burada; sayfalar ham
+ * `searchParams` görmez. Bilinmeyen parametre sessizce düşer — ziyaretçinin
+ * uydurduğu bir anahtar sorguya sızmasın.
+ */
+export interface MarketplaceSearchParams {
+  q?: string;
+  kategori?: string;
+  il?: string;
+  sayfa?: string;
+  durum?: string;
+}
+
+export function toListParams(
+  sp: MarketplaceSearchParams,
+  type: PublicListingType,
+): ListParams {
+  const page = Number(sp.sayfa);
+  return {
+    type,
+    q: sp.q?.trim() || undefined,
+    category: /^\d{8}$/.test(sp.kategori ?? "") ? sp.kategori : undefined,
+    city: sp.il?.trim() || undefined,
+    state: sp.durum === "hepsi" ? "all" : undefined,
+    page: Number.isFinite(page) && page > 1 ? Math.trunc(page) : undefined,
+  };
+}
+
+interface Props {
+  type: PublicListingType;
+  title: string;
+  lead: string;
+  searchParams: MarketplaceSearchParams;
+}
+
+export async function ListingIndex({ type, title, lead, searchParams }: Props) {
+  const params = toListParams(searchParams, type);
+  const basePath =
+    type === "ALIM" ? MARKETPLACE_ROUTES.demands : MARKETPLACE_ROUTES.offers;
+
+  const [page, facets] = await Promise.all([
+    fetchListings(params),
+    fetchFacets(),
+  ]);
+
+  const activeCategory = params.category;
+  const activeCity = params.city;
+  const hasFilter = !!(params.q || activeCategory || activeCity);
+
+  /** Süzgeç bağlantısı — mevcut süzgeçleri korur, sayfayı 1'e döndürür. */
+  const filterHref = (patch: Partial<MarketplaceSearchParams>) => {
+    const next: Record<string, string | undefined> = {
+      q: searchParams.q,
+      kategori: searchParams.kategori,
+      il: searchParams.il,
+      durum: searchParams.durum,
+      ...patch,
+    };
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(next)) if (v) sp.set(k, v);
+    const s = sp.toString();
+    return s ? `${basePath}?${s}` : basePath;
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl px-6 pt-28 pb-24 lg:px-8">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+          {title}
+        </h1>
+        <p className="mt-3 max-w-2xl text-base/7 text-zinc-600">{lead}</p>
+      </header>
+
+      <div className="mt-8 max-w-3xl">
+        <SearchForm
+          action={basePath}
+          defaultValue={searchParams.q}
+          hidden={{ kategori: searchParams.kategori, il: searchParams.il }}
+        />
+      </div>
+
+      {hasFilter ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-zinc-500">Süzgeçler:</span>
+          {params.q ? (
+            <FilterChip href={filterHref({ q: undefined })} label={`"${params.q}"`} />
+          ) : null}
+          {activeCategory ? (
+            <FilterChip
+              href={filterHref({ kategori: undefined })}
+              label={
+                facets.categories.find((c) => c.id === activeCategory)?.name ??
+                activeCategory
+              }
+            />
+          ) : null}
+          {activeCity ? (
+            <FilterChip href={filterHref({ il: undefined })} label={activeCity} />
+          ) : null}
+          <Link
+            href={basePath}
+            className="text-sm font-medium text-blue-700 hover:underline"
+          >
+            Tümünü temizle
+          </Link>
+        </div>
+      ) : null}
+
+      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[16rem_1fr]">
+        <aside className="lg:sticky lg:top-28 lg:self-start">
+          <FacetGroup
+            heading="Sektör"
+            items={facets.categories.slice(0, 12).map((c) => ({
+              key: c.id,
+              label: c.name,
+              count: c.count,
+              href: filterHref({ kategori: c.id }),
+              active: activeCategory === c.id,
+            }))}
+          />
+          <FacetGroup
+            heading="Şehir"
+            items={facets.cities.slice(0, 12).map((c) => ({
+              key: c.city,
+              label: c.city,
+              count: c.count,
+              href: filterHref({ il: c.city }),
+              active: activeCity === c.city,
+            }))}
+          />
+        </aside>
+
+        <div>
+          <p className="mb-4 text-sm text-zinc-500">
+            {page.total > 0
+              ? `${page.total.toLocaleString("tr-TR")} kayıt`
+              : "Kayıt yok"}
+          </p>
+          {page.items.length === 0 ? (
+            <EmptyListings
+              title={
+                hasFilter
+                  ? "Bu süzgeçlerle eşleşen kayıt yok."
+                  : "Şu an burada yayımlanmış kayıt yok."
+              }
+              hint={
+                hasFilter
+                  ? "Süzgeçleri gevşetip yeniden deneyin."
+                  : "Yeni kayıtlar yayımlandıkça burada görünür."
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {page.items.map((l) => (
+                <ListingCard key={l.number} listing={l} />
+              ))}
+            </div>
+          )}
+          <Pagination
+            page={page.page}
+            total={page.total}
+            pageSize={page.pageSize}
+            basePath={basePath}
+            params={{
+              q: searchParams.q,
+              kategori: searchParams.kategori,
+              il: searchParams.il,
+              durum: searchParams.durum,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterChip({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200"
+    >
+      {label}
+      <span aria-hidden>×</span>
+      <span className="sr-only">süzgecini kaldır</span>
+    </Link>
+  );
+}
+
+function FacetGroup({
+  heading,
+  items,
+}: {
+  heading: string;
+  items: {
+    key: string;
+    label: string;
+    count: number;
+    href: string;
+    active: boolean;
+  }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="mb-8">
+      <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+        {heading}
+      </h2>
+      <ul className="mt-3 space-y-1">
+        {items.map((i) => (
+          <li key={i.key}>
+            <Link
+              href={i.href}
+              className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
+                i.active
+                  ? "bg-blue-50 font-medium text-blue-800"
+                  : "text-zinc-700 hover:bg-zinc-100"
+              }`}
+              aria-current={i.active ? "true" : undefined}
+            >
+              <span className="line-clamp-1">{i.label}</span>
+              <span className="shrink-0 text-xs text-zinc-400">{i.count}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

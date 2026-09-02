@@ -73,3 +73,66 @@ export function visibleOwnerListingWhere(
     ],
   };
 }
+
+/**
+ * PAZAR YERİ (giriş YAPMAMIŞ ziyaretçi) — iki ayrı kapı, ikisi de burada.
+ *
+ * Panel kuralları yukarıda izleyici kimliğine göre çalışır; burada izleyici
+ * YOKTUR. O yüzden kapı tamamen ilanın ve sahibinin kendi bayraklarından
+ * kurulur. İki kapıyı ayırmamızın sebebi iki farklı rızayı temsil etmeleri:
+ *
+ *   VİTRİN  → "platformun herkese açık sayfasında görünsün"
+ *   İNDEKS  → "arama motoru kalıcı olarak dizinlesin"
+ *
+ * İkincisi geri alınması ZOR bir karardır (sayfa kaldırılsa bile düşme süresi
+ * arama motorunun tarama sıklığına bağlı — Aracılık Sözleşmesi md. 2'de böyle
+ * yazılı), bu yüzden daha dar tutulur.
+ */
+
+/** Yayımlanmış ve pazar yerinde gösterilebilir durumlar. */
+const MARKETPLACE_STATUSES = [
+  "OPEN",
+  "IN_AWARD",
+  "IN_AWARD_APPROVAL",
+  "AWARDED",
+  "CLOSED_NO_AWARD",
+] as const;
+// DIŞARIDA: DRAFT/IN_APPROVAL (yayımlanmadı), CANCELLED (iptal — gösterilecek
+// bir şey kalmadı), CLOSED (yalnız ADMIN moderasyon kapatması; moderasyonla
+// kapatılan ilanı vitrine koymak moderasyonu anlamsız kılar).
+
+/**
+ * Vitrin kapısı. `now` dışarıdan alınır ki sorgu ile testin saati aynı olsun.
+ */
+export function marketplaceListingWhere(now: Date): Prisma.ListingWhereInput {
+  return {
+    visibility: "PUBLIC",
+    status: { in: [...MARKETPLACE_STATUSES] },
+    publishedAt: { not: null },
+    // Açılış embargosu: gelecek tarihli açılışta ilanı sahibi dışında kimse
+    // göremez (bkz. bidsOpenAt). NOT(gt) NULL tuzağı: `bidsOpenAt: { lte: now }`
+    // yazmak NULL satırları da ELERDİ — bu yüzden açık OR.
+    OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+    company: {
+      publicListingsEnabled: true,
+      isActive: true,
+      isBlocked: false,
+    },
+  };
+}
+
+/**
+ * İndeks kapısı = vitrin ∧ ilan bazlı izin ∧ firmanın public profil rızası ∧
+ * hâlâ teklife açık. Kapanmış ilan sitede DURUR ama `noindex` alır ve
+ * sitemap'ten düşer — süresi geçmiş ilanı indekste tutmak hem ziyaretçiyi
+ * yanıltır hem de alan adının güvenilirliğini aşağı çeker.
+ */
+export function marketplaceIndexableWhere(now: Date): Prisma.ListingWhereInput {
+  const base = marketplaceListingWhere(now);
+  return {
+    ...base,
+    status: "OPEN",
+    publicIndexable: true,
+    company: { ...(base.company as object), publicEnabled: true },
+  };
+}

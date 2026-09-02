@@ -1,0 +1,319 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@rothern/db";
+import { tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { effectiveTier } from "../../common/company/effective-tier";
+import {
+  marketplaceIndexableWhere,
+  marketplaceListingWhere,
+} from "../../common/company/listing-visibility";
+import {
+  PUBLIC_LISTING_SELECT,
+  type PublicListing,
+  type PublicListingCard,
+  type PublicListingRow,
+  excerptOf,
+  toPublicCompany,
+  toPublicItem,
+} from "./dto/public-listing.projection";
+import type { PublicListQueryDto } from "./dto/public-list-query.dto";
+
+/** Sayfa başına kart — SEO'da ilk ekranda çok fazla bağlantı istemiyoruz. */
+const PAGE_SIZE = 24;
+/**
+ * Facet hesabı BELLEKTE yapılır (kategori kodları `String[]`, Prisma dizi
+ * elemanına groupBy yapamaz). Ham SQL yazmamamın sebebi drift: görünürlük
+ * kapısı `listing-visibility.ts`de tek kaynaktır, ham SQL onu KOPYALAMAK
+ * zorunda kalırdı ve kural değişince sessizce ayrışırdı.
+ *
+ * Bu tavan aşıldığında sayım EKSİK olur — o yüzden yanıt `truncated` bayrağı
+ * taşır, sessizce kırpmaz. Aşıldığı gün doğru çözüm: kapıyı SQL'e çeviren
+ * tek bir yardımcı yazıp facet'i `unnest` ile hesaplamak.
+ */
+const FACET_SCAN_CAP = 5000;
+
+@Injectable()
+export class PublicMarketplaceService {
+  constructor(private readonly prisma: PrismaBypassService) {}
+
+  /**
+   * `/firma/<slug>` sayfası GERÇEKTEN var mı — public-profile servisiyle AYNI
+   * kapı (publicEnabled ∧ isActive ∧ !isBlocked ∧ efektif BRONZ+). Ayrı
+   * yazılmasının sebebi: burada firma zaten ilanla birlikte çekildi, ikinci
+   * sorgu atmak N+1 olurdu. Kapı değişirse İKİSİ birlikte değişmeli.
+   */
+  private hasPublicProfile(c: PublicListingRow["company"]): boolean {
+    return (
+      !!c.slug &&
+      c.publicEnabled &&
+      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ")
+    );
+  }
+
+  private async resolveCategories(
+    codes: string[],
+  ): Promise<Map<string, { id: string; name: string; level: number }>> {
+    const unique = [...new Set(codes)].filter(Boolean);
+    if (unique.length === 0) return new Map();
+    const rows = await this.prisma.category.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, nameTr: true, level: true },
+    });
+    return new Map(
+      rows.map((r) => [r.id, { id: r.id, name: r.nameTr, level: r.level }]),
+    );
+  }
+
+  private toCard(
+    row: PublicListingRow,
+    cats: Map<string, { id: string; name: string; level: number }>,
+  ): PublicListingCard {
+    return {
+      number: row.number ?? "",
+      type: row.type,
+      title: row.title,
+      status: row.status,
+      closesAt: row.closesAt?.toISOString() ?? null,
+      publishedAt: row.publishedAt?.toISOString() ?? null,
+      primaryCurrency: row.primaryCurrency,
+      isInternational: row.isInternational,
+      itemCount: row.items.length,
+      excerpt: excerptOf(row.description),
+      buyNowPrice: row.buyNowPrice?.toString() ?? null,
+      company: toPublicCompany(row.company, this.hasPublicProfile(row.company)),
+      categories: row.categoryIds
+        .map((id) => cats.get(id))
+        .filter((c): c is NonNullable<typeof c> => !!c),
+    };
+  }
+
+  private toDetail(
+    row: PublicListingRow,
+    cats: Map<string, { id: string; name: string; level: number }>,
+  ): PublicListing {
+    return {
+      number: row.number ?? "",
+      type: row.type,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      format: row.format,
+      priceScope: row.priceScope,
+      buyNowPrice: row.buyNowPrice?.toString() ?? null,
+      primaryCurrency: row.primaryCurrency,
+      allowedCurrencies: row.allowedCurrencies,
+      isInternational: row.isInternational,
+      targetCountries: row.targetCountries,
+      categoryIds: row.categoryIds,
+      keywords: row.keywords,
+      requireAllItems: row.requireAllItems,
+      requireBidDocument: row.requireBidDocument,
+      requireGuaranteeLetter: row.requireGuaranteeLetter,
+      isSealedBid: row.isSealedBid,
+      isLogistics: row.isLogistics,
+      deliveryTerm: row.deliveryTerm,
+      paymentCategory: row.paymentCategory,
+      paymentTiming: row.paymentTiming,
+      advancePercent: row.advancePercent,
+      paymentDays: row.paymentDays,
+      lcType: row.lcType,
+      lcConfirmed: row.lcConfirmed,
+      closesAt: row.closesAt?.toISOString() ?? null,
+      publishedAt: row.publishedAt?.toISOString() ?? null,
+      updatedAt: row.updatedAt.toISOString(),
+      // Sahip izin vermiş olsa bile ilan kapandıysa dizinlenmez: kapı
+      // `marketplaceIndexableWhere` ile AYNI mantık (status OPEN ∧ bayrak ∧
+      // firma rızası). Sayfa bunu okuyup `noindex` basar.
+      indexable:
+        row.publicIndexable &&
+        row.status === "OPEN" &&
+        row.company.publicEnabled,
+      itemCount: row.items.length,
+      items: row.items.map(toPublicItem),
+      company: toPublicCompany(row.company, this.hasPublicProfile(row.company)),
+      categories: row.categoryIds
+        .map((id) => cats.get(id))
+        .filter((c): c is NonNullable<typeof c> => !!c),
+    };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Liste                                                             */
+  /* ---------------------------------------------------------------- */
+
+  async list(q: PublicListQueryDto): Promise<{
+    items: PublicListingCard[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const now = new Date();
+    const page = Math.max(1, q.page ?? 1);
+    const where: Prisma.ListingWhereInput = {
+      ...marketplaceListingWhere(now),
+      ...(q.type ? { type: q.type } : {}),
+      // Varsayılan: yalnız teklife AÇIK olanlar. Kapanmışlar `state=all` ile
+      // istenirse gelir (arşiv sayfaları) — ama asla varsayılan değildir,
+      // ziyaretçiye ölü ilan göstermek en kötü ilk izlenim.
+      ...(q.state === "all" ? {} : { status: "OPEN" }),
+      ...(q.category ? { categoryIds: { has: q.category } } : {}),
+      ...(q.city ? { company: { is: { city: q.city } } } : {}),
+      ...this.searchWhere(q.q),
+    };
+    // `city` süzgeci `company` nesnesini EZERDİ (spread sırası) — kapıdaki
+    // firma koşullarını geri bindir.
+    if (q.city) {
+      where.company = {
+        is: {
+          city: q.city,
+          publicListingsEnabled: true,
+          isActive: true,
+          isBlocked: false,
+        },
+      };
+    }
+
+    const [total, rows] = await Promise.all([
+      this.prisma.listing.count({ where }),
+      this.prisma.listing.findMany({
+        where,
+        select: PUBLIC_LISTING_SELECT,
+        // Yeni yayımlanan üstte; `publishedAt` eşitse numara kararlı ikincil
+        // anahtar (sayfalar arası kayma olmasın).
+        orderBy: [{ publishedAt: "desc" }, { number: "desc" }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ]);
+
+    const cats = await this.resolveCategories(
+      rows.flatMap((r) => r.categoryIds),
+    );
+    return {
+      items: rows.map((r) => this.toCard(r, cats)),
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+    };
+  }
+
+  /**
+   * Serbest arama — başlık/açıklama/anahtar kelime. Kategori aramasındaki
+   * `searchText` yolundan AYRI: orada katlanmış tek bir sütun var, burada
+   * yok. Sorgu tokenlenir ve her token AND'lenir (sıra önemsiz), her token
+   * üç alanda OR'lanır.
+   */
+  private searchWhere(raw?: string): Prisma.ListingWhereInput {
+    const tokens = raw ? tokenizeQuery(raw) : [];
+    if (tokens.length === 0) return {};
+    return {
+      AND: tokens.map((t) => ({
+        OR: [
+          { title: { contains: t, mode: "insensitive" as const } },
+          { description: { contains: t, mode: "insensitive" as const } },
+          { keywords: { has: t } },
+        ],
+      })),
+    };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Detay                                                             */
+  /* ---------------------------------------------------------------- */
+
+  async getByNumber(number: string): Promise<PublicListing> {
+    const now = new Date();
+    const row = await this.prisma.listing.findFirst({
+      where: { ...marketplaceListingWhere(now), number },
+      select: PUBLIC_LISTING_SELECT,
+    });
+    if (!row) throw new NotFoundException("İlan bulunamadı");
+    const cats = await this.resolveCategories(row.categoryIds);
+    return this.toDetail(row, cats);
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Facet                                                             */
+  /* ---------------------------------------------------------------- */
+
+  async facets(): Promise<{
+    categories: { id: string; name: string; level: number; count: number }[];
+    cities: { city: string; count: number }[];
+    types: { type: string; count: number }[];
+    truncated: boolean;
+  }> {
+    const now = new Date();
+    const rows = await this.prisma.listing.findMany({
+      where: { ...marketplaceListingWhere(now), status: "OPEN" },
+      select: {
+        type: true,
+        categoryIds: true,
+        company: { select: { city: true } },
+      },
+      take: FACET_SCAN_CAP + 1,
+    });
+    const truncated = rows.length > FACET_SCAN_CAP;
+    const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
+
+    const catCount = new Map<string, number>();
+    const cityCount = new Map<string, number>();
+    const typeCount = new Map<string, number>();
+    for (const r of scanned) {
+      typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
+      const city = r.company.city?.trim();
+      if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+      // Kategori sayımı SEGMENT (L1) düzeyinde: ilan L3/L4 kod taşır, ama
+      // ziyaretçiye 158 bin satırlık bir süzgeç sunulamaz. 8 haneli kodun ilk
+      // iki hanesi segmenttir (hiyerarşi koddan türer).
+      for (const seg of new Set(
+        r.categoryIds.filter((c) => c.length === 8).map((c) => `${c.slice(0, 2)}000000`),
+      )) {
+        catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
+      }
+    }
+
+    const cats = await this.resolveCategories([...catCount.keys()]);
+    return {
+      categories: [...catCount.entries()]
+        .map(([id, count]) => {
+          const c = cats.get(id);
+          return c ? { ...c, count } : null;
+        })
+        .filter((c): c is NonNullable<typeof c> => !!c)
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
+      cities: [...cityCount.entries()]
+        .map(([city, count]) => ({ city, count }))
+        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+      types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
+      truncated,
+    };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Sitemap                                                           */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Yalnız DİZİNLENEBİLİR ilanlar. Başlık da döner: URL slug'ı web tarafında
+   * numara+başlıktan kurulur (`lib/public/marketplace.ts`), sitemap'in kanonik
+   * URL ile birebir aynı dizeyi üretmesi ŞART — yoksa Google sitemap'teki
+   * adresi izler, sayfada başka bir kanonik görür ve ikisini de güvensiz sayar.
+   */
+  async sitemap(): Promise<
+    { number: string; title: string; type: string; updatedAt: string }[]
+  > {
+    const now = new Date();
+    const rows = await this.prisma.listing.findMany({
+      where: { ...marketplaceIndexableWhere(now), number: { not: null } },
+      select: { number: true, title: true, type: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 45000, // sitemap dosya başına 50.000 URL sınırının altında
+    });
+    return rows.map((r) => ({
+      number: r.number as string,
+      title: r.title,
+      type: r.type,
+      updatedAt: r.updatedAt.toISOString(),
+    }));
+  }
+}

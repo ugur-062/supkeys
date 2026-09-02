@@ -47,6 +47,16 @@ function buildCsp(nonce: string | null, isDev: boolean): string {
   ].join("; ");
 }
 
+/**
+ * NOT (ölçüldü, 2026-09-02): `Cache-Control`'ü BURADAN vermeyi denedim —
+ * ÇALIŞMIYOR. Next dinamik render edilen sayfalara kendi
+ * `private, no-cache, no-store`'unu middleware'den SONRA yazıyor ve bizimkini
+ * eziyor (`next.config` `headers()` yolu da aynı sebeple çalışmaz; Next bunu
+ * belgelendiriyor). Süzgeçli liste sayfaları bu yüzden kenar önbelleğine
+ * giremiyor. Doğru çözüm başlık değil ROTA BİÇİMİ: süzgeci sorgu dizesinden
+ * çıkarıp yol parçasına taşımak (`/alim-talepleri/kategori/<kod>`) o sayfaları
+ * statik/ISR yapar. Long-tail turunda yapılacak.
+ */
 export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
   // Public rota → nonce ÜRETME. Üretip kullanmamak, statik HTML'i nonce'lı

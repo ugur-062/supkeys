@@ -2,11 +2,11 @@ import { resolveSiteUrl } from "@/lib/site-url";
 import type { MetadataRoute } from "next";
 
 /**
- * V2-SEO — robots.txt — Next.js 15 MetadataRoute convention.
+ * robots.txt — Next.js MetadataRoute.
  *
- * Genel kural:
- *  - / (anasayfa), /<slug> (public tedarikçi profili), /login (giriş) → indexlenir
- *  - Tüm panel/auth callback/admin/api yolları → engellenir
+ * İzin verilen küme `lib/public-routes.ts` PUBLIC_ROUTE_PREFIXES ile aynı
+ * olmalı: o dosya CSP/render tarafını, bu dosya tarayıcı tarafını yönetir.
+ * Ayrışırlarsa ya taranamayan bir public sayfa kalır ya da panel taranır.
  */
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = resolveSiteUrl();
@@ -14,7 +14,19 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/firma/"],
+        allow: [
+          "/",
+          "/firma/",
+          "/alim-talepleri",
+          "/satilik",
+          "/tedarikciler",
+          "/talep/",
+          "/ilan/",
+          "/nasil-calisir",
+        ],
+        // `/company/` panelin tamamı (login/kayıt dahil) — dizinlenecek içerik
+        // yok, tarama bütçesi yer. Süzgeçli varyantlar (`?kategori=`, `?il=`)
+        // ENGELLENMEZ: gerçek içerik üretirler ve long-tail girişidir.
         disallow: ["/company/", "/admin/", "/api/", "/auth/"],
       },
     ],
