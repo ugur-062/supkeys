@@ -5990,3 +5990,155 @@
 72152201	İç mekan mermer döşeme hizmeti	Interior marble installation service
 72152202	Mozaik yapım ve onarım hizmeti	Mosaic creation and repair service
 72152203	Karo mozaik döşeme ve onarım hizmeti	Terrazzo installation and repair service
+
+# İnşaat zanaat hizmetleri (zemin, çatı, beton, cam, cephe, özel işler).
+72152204	Seramik karo döşeme hizmeti	Ceramic tile installation service
+72152301	Kaba marangozluk hizmeti	Rough carpentry service
+72152302	İnce marangozluk hizmeti	Finish carpentry service
+72152303	Dolap yapım ve montaj hizmeti	Cabinet building and installation service
+72152401	Garaj kapısı montaj hizmeti	Garage door installation or erection service
+72152402	Prefabrik kapı ve pencere montaj hizmeti	Prefabricated window and door installation service
+72152403	Giriş ve çıkış kasa yapım hizmeti	Entryway and exit framing service
+72152404	Metal profil montaj hizmeti	Metal stud installation service
+72152405	Mağaza donanımı montaj hizmeti	Store fixture installation service
+72152501	Yükseltilmiş döşeme sistemi montaj hizmeti	Access flooring system installation service
+72152502	Asfalt karo döşeme hizmeti	Asphalt tile installation service
+72152503	Halı döşeme hizmeti	Carpet laying service
+72152504	Seramik zemin karosu döşeme hizmeti	Ceramic floor tile installation service
+72152505	Linolyum döşeme hizmeti	Linoleum installation service
+72152506	Esnek zemin döşeme hizmeti	Resilient floor laying service
+72152507	Vinil zemin karo ve rulo döşeme hizmeti	Vinyl floor tile and sheet installation service
+72152508	Ahşap zemin döşeme ve yenileme hizmeti	Wood floor installation and refinishing service
+72152509	Zemin tesviye hizmeti	Floor leveling service
+72152510	Beton zemin uygulama hizmeti	Concrete flooring Installation service
+72152601	Çatı kaplama hizmeti	Roofing service
+72152602	Oluk ve yağmur iniş borusu hizmeti	Gutter and downspout service
+72152603	Çatı penceresi montaj hizmeti	Skylight installation service
+72152604	Mimari sac işleri hizmeti	Architectural sheet metal service
+72152605	Tavan yapım ve onarım hizmeti	Ceiling erection and repair service
+72152606	Cephe kaplama montaj ve onarım hizmeti	Siding installation and repair service
+72152607	Moloz bacası montaj hizmeti	Chute installation service
+72152701	Dış cephe beton sıva hizmeti	Exterior concrete stucco service
+72152702	Enjeksiyon (grout) hizmeti	Grouting service
+72152703	Püskürtme beton (gunit) hizmeti	Gunite installation service
+72152704	Bordür yapım hizmeti	Curb construction service
+72152705	Kaldırım veya rampa yapım hizmeti	Sidewalk or ramp construction service
+72152706	Araç yolu yapım hizmeti	Driveway construction service
+72152707	İstinat duvarı yapım hizmeti	Retaining wall construction service
+72152708	Otopark yapım hizmeti	Parking lot construction service
+72152709	Beton pompalama hizmeti	Concrete pumping service
+72152710	Temel ve ayak yapım hizmeti	Foundation and footing construction service
+72152711	Beton teras yapım hizmeti	Concrete patio construction service
+72152801	Konut su kuyusu sondaj hizmeti	Domestic water well drilling service
+72152802	Jeotermal kuyu sondaj hizmeti	Geothermal water well drilling service
+72152901	Metal bina cephesi montaj hizmeti	Metal building front installation service
+72152902	Beton donatı yerleştirme hizmeti	Concrete reinforcement placing service
+72152903	Asansör cephesi montaj hizmeti	Elevator front installation service
+72152904	Dış metal duvar sistemi montaj hizmeti	Exterior metal wall system installation service
+72152905	Yapısal demir işleri hizmeti	Structural iron work service
+72152906	Metal rabıtz ve taşıyıcı profil hizmeti	Metal lath and furring service
+72152907	Prekast beton taşıyıcı panel montaj hizmeti	Precast concrete structural framing panel placing service
+72152908	Baca montaj hizmeti	Smoke stack installation service
+72152909	Metal depolama tankı montaj hizmeti	Metal storage tank erection service
+72153001	Kurşun geçirmez cam montaj hizmeti	Ballistic resistant glazing installation service
+72153002	Cam montaj ve onarım hizmeti	Glazing installation and repair service
+72153101	Bowling pisti montaj hizmeti	Bowling alley installation service
+72153102	Kapalı spor sahası yapım hizmeti	Indoor sport court construction service
+72153103	Oyun alanı yapım ve ekipman montaj hizmeti	Playground construction and equipment installation service
+72153104	Spa veya jakuzi yapım ve montaj hizmeti	Spa or hot tub construction and installation service
+72153105	Yüzme havuzu yapım hizmeti	Swimming pool construction service
+72153106	Spor sahası yapım hizmeti	Athletic field construction service
+72153107	Golf sahası yapım hizmeti	Golf course construction service
+72153108	Tenis kortu yapım hizmeti	Tennis court construction service
+72153201	Beton yapı plastik kaplama hizmeti	Plastic coating of concrete structures service
+72153202	Metal yapı kaplama hizmeti	Metal structure coating service
+72153203	Korozyon kontrol hizmeti	Corrosion control service
+72153204	Nem yalıtım hizmeti	Damp proofing service
+72153205	Derz dolgu (mastik) hizmeti	Caulking service
+72153206	Bina yangın yalıtım hizmeti	Building fireproofing service
+72153207	Beton yüzey cilalama hizmeti	Glazing of concrete surfaces service
+72153208	Boru ve kazan yalıtım hizmeti	Insulation of pipes and boilers service
+72153209	Su yalıtım hizmeti	Waterproofing service
+72153210	Yapı ve boru hattı korozyon koruma muayenesi	Structure and pipelines corrosion protection inspection
+72153301	Benzin pompası montaj hizmeti	Gasoline pump installation service
+72153302	Dizel pompa montaj hizmeti	Diesel pump installation service
+72153303	Akaryakıt istasyonu ekipmanı bakım-onarım hizmeti	Service station equipment maintenance and or repair service
+72153401	Kaldırma-taşıma (rigging) hizmetleri	Rigging services
+72153402	İskele hizmetleri	Scaffolding services
+72153501	Bina dış cephe temizlik hizmeti	Building exterior cleaning service
+72153502	Bina dış cephe kumlama hizmeti	Building exterior sandblasting service
+72153503	Bina dış cephe buharlı temizlik hizmeti	Building exterior steam cleaning service
+72153504	Yüksek basınçlı su püskürtme	High pressure water blasting
+72153505	Şantiye temizlik hizmeti	Construction site clean up service
+72153506	İnşaat sonrası temizlik hizmeti	New building post construction cleanup service
+72153507	Şantiye moloz taşıma hizmeti	Construction site haul away service
+72153601	Küvet yenileme ve onarım hizmeti	Bathtub refinishing and repair service
+72153602	Dolap içi düzenleyici montaj ve onarım hizmeti	Closet organizer installation and repair service
+72153603	Tezgah montaj hizmeti	Counter top installation service
+72153604	Perde rayı montaj hizmeti	Drapery track installation service
+72153605	Mutfak ve banyo tadilat hizmeti	Kitchen and bathroom remodeling service
+72153606	Ofis mobilyası montaj veya yeniden düzenleme hizmeti	Office furniture installation or reconfiguration service
+72153607	Plastik duvar karosu montaj hizmeti	Plastic wall tile installation service
+72153608	Pencere kaplama montaj hizmeti	Window treatment installation service
+72153609	Ev veya ticari cihaz montaj hizmeti	Domestic or commercial appliance installation service
+72153610	Prefabrik şömine montaj hizmeti	Prefabricated fireplace installation service
+72153611	Mutfak dolabı montaj hizmeti	Kitchen cabinet installation service
+72153612	İç mimari ve dekorasyon	Interior design or decorating
+72153613	Ofis mobilyası kiralama ve bakım hizmeti	Office furniture lease and maintenance service
+72153614	Döşemecilik hizmeti	Upholstery service
+72153615	Ofis mobilyası onarım hizmeti	Office furniture repair service
+72153701	Otopark ekipmanı montajı	Parking facility equipment installation
+72153702	Otopark bakımı	Parking lot maintenance
+72153901	İksa ve temel takviye işleri	Shoring and underpinning work
+72153902	Prefabrik ev yerleştirme ve sabitleme	Mobile home site set up and tie down
+72154001	Anten montaj hizmeti	Antenna installation service
+72154002	Suni çim döşeme hizmeti	Artificial turf installation service
+72154003	Tente montaj hizmeti	Awning installation service
+72154004	Bina taşıma hizmeti	Building mover service
+72154005	Kablo ekleme hizmeti	Cable splicingservice
+72154006	Karot delme ve kesme hizmeti	Core drilling and cutting service
+72154007	Su tahliye hizmeti	Dewatering service
+72154008	Elmas delme ve kesme hizmeti	Diamond drilling and sawing service
+72154009	Endüstriyel rampa ve ekipman montaj hizmeti	Industrial dock and dock equipment installation service
+72154010	Asansör montaj, bakım ve onarım hizmeti	Elevator installation maintenance and repair service
+72154011	Epoksi uygulama hizmeti	Epoxy application service
+72154012	Beton kalıp kurma ve sökme hizmeti	Concrete forms erection and dismantling service
+72154013	Çit yapım hizmeti	Fence construction service
+72154014	Fiberglas uygulama ve bakım hizmeti	Fiberglass installation and maintenance service
+72154015	Yangın merdiveni montaj hizmeti	Fire escape installation service
+72154016	Geçit töreni platformu yapım hizmeti	Parade float construction service
+72154017	Yiyecek içecek ekipmanı montaj hizmeti	Food service equipment installation service
+72154018	Fıskiye montaj hizmeti	Fountain installation service
+72154019	Gaz kaçağı tespit hizmeti	Gas leak detection service
+72154020	Tıbbi gaz sistemi montaj hizmeti	Medical gas system installation service
+72154021	Cam filmi kaplama hizmeti	Glass tinting service
+72154022	Hidrolik ekipman montaj ve bakım hizmeti	Hydraulic equipment installation and maintenance service
+72154023	Paratoner montaj hizmeti	Lightning conductor erection service
+72154024	Süsleme metal ve demir işleri hizmeti	Ornamental metal and iron work service
+72154025	Akaryakıt tankı boşaltma hizmeti	Petroleum storage tank pumping and draining service
+72154026	Hidrojen hücresi ikmal hizmeti	Hydrogen cell refueling service
+72154027	Direk çukuru kazma hizmeti	Posthole digging service
+72154028	Tabela montaj ve bakım hizmeti	Sign installation and maintenance service
+72154029	Yüksek yapı montaj ve onarım hizmeti	Steeple jack installation and repair service
+72154030	Kule çanı montaj ve onarım hizmeti	Tower bell installation and repair service
+72154031	Yerinde kaynak hizmeti	On site welding service
+72154032	Kapı, pencere ve sineklik montaj ve onarım hizmeti	Window and door and screening installation and repair service
+72154033	Tiyatro dekor ve aksesuar yapım ve onarım hizmeti	Theatrical prop or set or scenery construction erection and repair service
+72154034	Yeraltı akaryakıt tankı montaj hizmeti	Underground petroleum storage tank installation service
+72154035	Nükleer santral yakıt ikmal hizmeti	Nuclear power refueling service
+72154036	Merkezi süpürge sistemi montaj hizmeti	Central vacuum cleaning system installation service
+72154037	Kasa veya kasa dairesi montaj hizmeti	Safe or vault installation service
+72154038	Bilgisayar odası elektromanyetik ekranlama hizmeti	Airwave shielding installation for computer room service
+72154039	Bina kapatma hizmeti	Building board up service
+72154040	Yeraltı koruyucu kaplama montaj hizmeti	Underground protective lining installation service
+72154041	Atış hedef sistemi montaj hizmeti	Target systems installation service
+72154042	Bayrak direği montaj hizmeti	Flag pole erection service
+72154043	Endüstriyel ve ticari püskürtme hizmeti	Industrial and commercial sprayingservice
+72154044	Su kullanım hizmeti	Water hewning or use service
+72154045	Yeraltı su seviyesi düşürme hizmeti	Ground water level reduction service
+72154046	Yürüyen merdiven montaj hizmeti	Escalator installation service
+72154047	Kaldırma masası hizmeti	Lift table service
+72154048	Balkon ve dış geçiş yolu hizmeti	Balcony and external walkway service
+72154049	Güneş kırıcı hizmeti	Sun screen service
+72154050	Alışveriş arabası bakım-onarım hizmeti	Shopping cart maintenance or repair service
+72154051	Mezar nakil hizmeti	Grave relocation service
