@@ -593,6 +593,34 @@ kalınlığı, bağlantı, üretim yöntemi). O yaprak için TEK satır yazılma
 Doldurulmamış bir dalda form nitelik SORMAZ ve akış çalışır — matris eksikken
 ürün eklenemez hâle gelmemeli.
 
+### Ürün ekleme İLAN AÇMAYA BENZEMEZ (2026-09-03)
+
+İlan bir **sihirbazdır** (adımlar, kalemler, miktar, teslim, kapanış); ürün
+**tek sayfa** bir vitrin kaydıdır — Europages'te de öyle. Bu yüzden "önce
+kalem aç, sonra vitrini doldur" iki adımına BÖLMÜYORUZ: `POST
+company/items/product` kaydı ve vitrin alanlarını TEK çağrıda yazar, iç
+tarafta `create` + `updateShowcase` (aynı normalizasyon, tek yazma yolu).
+
+Form sırası: **ad → kategori → açıklama → görseller → anahtar kelimeler →
+nitelikler → fiyat/MOQ**, sağda canlı tamamlanma halkası. Ürün TASLAK doğar;
+yayımlamak ayrı ve bilinçli bir adım.
+
+> ⚠️ **Kapatılan çıkmaz:** vitrin formunda AD ve AÇIKLAMA alanları hiç YOKTU,
+> ama yayın kapısı ≥100 karakter açıklama istiyor. Kullanıcı açıklamayı
+> yazacak bir alan bulamadığı için ürününü yayımlayamıyordu. İkisi de artık
+> `ShowcaseDto`da; ad değişince `searchText` yeniden türetilir (yoksa ürün
+> eski adıyla aranmaya devam ederdi).
+
+### Menüden ulaşılamayan sayfa bırakma
+
+`satis/urunlerim` ve `satis/bilgi-talepleri` yazılmış, `MODULE_LABELS`e adları
+girilmiş ama **menüye hiç eklenmemişti** — kullanıcı ürününü nereden
+ekleyeceğini sordu. Sayfa yazmakla sayfayı ulaşılabilir kılmak ayrı işler.
+`module-reachability.test.ts` bunu dosya sistemi üzerinden zorunlu tutar:
+menüde olmayan her sayfa gerekçesiyle listede olmalı, ve `MODULE_LABELS`teki
+her ad bir menü satırında kullanılmalı (bağlanmamış etiket, "sayfa var ama
+ulaşılamıyor" hatasının erken işareti).
+
 ### Skor ≠ yayın kapısı
 
 `common/company/product-completion.ts` ikisini AYRI tutar:

@@ -240,3 +240,52 @@ describe("yayımlama akışı", () => {
     await expect(service().publish(b.auth, item.id)).rejects.toBeDefined();
   });
 });
+
+describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("createProduct kaydı ve vitrin alanlarını birlikte yazar", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const p = await service().createProduct(auth, {
+      name: "Dağıtım panosu 400A",
+      unit: "adet",
+      description: "x".repeat(120),
+      keywords: ["pano", "ip54"],
+      priceMode: "FIXED",
+      priceAmount: 4500,
+    });
+    expect(p.name).toBe("Dağıtım panosu 400A");
+    expect(p.description).toHaveLength(120);
+    expect(p.keywords).toEqual(["pano", "ip54"]);
+    expect(p.priceMode).toBe("FIXED");
+    // TASLAK doğar — yayımlamak ayrı adım.
+    expect(p.isPublic).toBe(false);
+  });
+
+  it("adsız ürün açılamaz", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    await expect(
+      service().createProduct(auth, { name: "   ", unit: "adet" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("AD ve AÇIKLAMA vitrin yolundan güncellenir, arama metni yenilenir", async () => {
+    // Eski hâlde bu iki alan vitrin formunda YOKTU: kullanıcı ≥100 karakter
+    // açıklama isteyen yayın kapısını geçemiyordu.
+    const { auth } = await makeCompanyWithUser(prisma);
+    const p = await service().createProduct(auth, { name: "Eski ad", unit: "adet" });
+    const updated = await service().updateShowcase(auth, p.id, {
+      name: "Paslanmaz çelik boru",
+      description: "y".repeat(150),
+      keywords: ["boru"],
+    });
+    expect(updated.name).toBe("Paslanmaz çelik boru");
+    expect(updated.description).toHaveLength(150);
+    const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: p.id } });
+    // Ad değişti → arama metni de yenilenmeli, yoksa ürün eski adıyla aranır.
+    expect(row.searchText).toContain("paslanmaz");
+    expect(row.searchText).toContain("boru");
+  });
+});

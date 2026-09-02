@@ -72,6 +72,14 @@ class ProductDocDto {
  * düzenlerken vitrin alanlarının sessizce sıfırlanmasına yol açardı.
  */
 class ShowcaseDto {
+  /**
+   * Ad ve açıklama vitrin formundan yazılır (2026-09-03). Eskiden bu DTO'da
+   * ikisi de yoktu: ürün ekranında açıklama alanı görünmüyordu ama yayın
+   * kapısı ≥100 karakter açıklama istiyordu — kullanıcı çıkmaza giriyordu.
+   */
+  @IsOptional() @Trim() @IsString() @MinLength(1) @MaxLength(200) name?: string;
+  @IsOptional() @Trim() @IsString() @MaxLength(5000) description?: string;
+
   @IsOptional() @Trim() @IsString() @MaxLength(20) categoryId?: string;
 
   /** İLKİ KAPAK. Tavan 8 — daha fazlası kart/galeri düzenini bozar. */
@@ -111,6 +119,14 @@ class ShowcaseDto {
 
   @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) moq?: number;
 }
+
+/** Yeni ürün — vitrin alanları + kalemin ölçü birimi. */
+class NewProductDto extends ShowcaseDto {
+  @IsOptional() @Trim() @IsString() @MaxLength(20) unit?: string;
+  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  unitCode?: string;
+}
+
 
 
 /** Ürün görseli yükleme isteği — presigned PUT üretir. */
@@ -260,6 +276,19 @@ export class CompanyItemsController {
     @Param("id") id: string,
   ) {
     return this.service.unpublish(user, id);
+  }
+
+  /**
+   * ÜRÜN OLUŞTUR — tek çağrı, tek form (ilan sihirbazının aksine).
+   * Kayıt TASLAK doğar; yayımlamak ayrı adım.
+   */
+  @Post("product")
+  @RequireCompanyPermission("templates:manage")
+  createProduct(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: NewProductDto,
+  ) {
+    return this.service.createProduct(user, dto);
   }
 
   @Post()

@@ -28,9 +28,36 @@ import { useState } from "react";
  * Liste ile form aynı sayfada, tek seferde tek ürün düzenlenir: ürün formu
  * uzun (görsel, nitelik, fiyat kademeleri) ve modal içine sığmıyor.
  */
+/** Boş vitrin kaydı — "yeni ürün" formunun başlangıç değeri. */
+const EMPTY_PRODUCT: ProductShowcase = {
+  id: "",
+  name: "",
+  slug: null,
+  isPublic: false,
+  publishedAt: null,
+  categoryId: null,
+  description: null,
+  images: [],
+  videoUrl: null,
+  externalUrl: null,
+  documents: null,
+  keywords: [],
+  attributes: null,
+  priceMode: "ON_REQUEST",
+  priceAmount: null,
+  priceTiers: null,
+  priceCurrency: "TRY",
+  moq: null,
+  completion: { score: 0, missing: [] },
+  publishBlockers: [],
+  attributeDefs: [],
+};
+
 export function ProductsView() {
   const [q, setQ] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  /** Yeni ürün: AYNI tek-sayfa form, boş kayıtla. */
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<{
     item: CatalogItem;
     showcase: ProductShowcase;
@@ -52,6 +79,46 @@ export function ProductsView() {
       /* hata toast'ı mutation'da */
     }
   };
+
+  if (creating) {
+    return (
+      <PageContainer>
+        <button
+          type="button"
+          onClick={() => setCreating(false)}
+          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+        >
+          <ArrowLeftIcon aria-hidden className="size-4" />
+          Ürünlere dön
+        </button>
+        <PageHeader
+          title="Yeni ürün"
+          description="Tek sayfa: adı, kategorisi, açıklaması, görselleri ve fiyatı. Kaydedince taslak olarak durur; yayımlamak ayrı bir adım."
+        />
+        <div className="mt-8">
+          <ProductShowcaseForm
+            mode="new"
+            product={EMPTY_PRODUCT}
+            unit="adet"
+            onClose={() => setCreating(false)}
+            onCreated={(created) => {
+              // Kayıt oluştu → düzenleme moduna geç: kullanıcı aynı formda
+              // kalır, ikinci kaydetme artık güncelleme olur.
+              setCreating(false);
+              setEditing({
+                item: {
+                  id: created.id,
+                  name: created.name,
+                  unit: "adet",
+                } as CatalogItem,
+                showcase: created,
+              });
+            }}
+          />
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (editing) {
     return (
@@ -87,16 +154,26 @@ export function ProductsView() {
         title="Ürünlerim"
         description="Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde ve arama motorlarında görünür."
         action={
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
-          >
-            Toplu ürün ekle
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
+            >
+              Toplu ekle
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Yeni ürün
+            </button>
+          </div>
         }
       />
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+
 
       <div className="relative mt-6 max-w-md">
         <MagnifyingGlassIcon
@@ -123,13 +200,22 @@ export function ProductsView() {
             dönüştürülebilir.
           </p>
           {!q ? (
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="mt-4 rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Excel veya katalogdan toplu ekle
-            </button>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Yeni ürün ekle
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportOpen(true)}
+                className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+              >
+                Excel veya katalogdan toplu ekle
+              </button>
+            </div>
           ) : null}
         </div>
       ) : (

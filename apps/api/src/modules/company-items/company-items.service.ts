@@ -72,6 +72,9 @@ export interface ProductShowcase {
 
 /** Vitrin alanları — temel kalem alanlarından AYRI güncellenir. */
 export interface ShowcaseInput {
+  /** Ürün adı — vitrin formundan da yazılabilir (2026-09-03). */
+  name?: string;
+  description?: string;
   categoryId?: string | null;
   images?: string[];
   videoUrl?: string | null;
@@ -625,6 +628,41 @@ export class CompanyItemsService {
   }
 
   /**
+   * ÜRÜN OLUŞTUR — tek çağrı (2026-09-03).
+   *
+   * "Ürün ekleme ilan açmaya benzemesin" (kullanıcı kararı): ilan bir sihirbaz
+   * akışıdır (adımlar, miktar, teslim, kapanış), ürün ise TEK SAYFA bir
+   * vitrin kaydıdır. Bu yüzden önce "kalem aç" sonra "vitrini doldur" diye iki
+   * adıma bölmüyoruz — form bir kez gönderilir, kayıt bir kez oluşur.
+   *
+   * Ürün TASLAK doğar; yayımlamak ayrı ve bilinçli bir adım (`publish`).
+   */
+  async createProduct(user: AuthenticatedCompanyUser, input: ShowcaseInput & { unit?: string; unitCode?: string }) {
+    const name = input.name?.trim();
+    if (!name) throw new BadRequestException("Ürün adı zorunlu");
+    const base = this.normalize({
+      name,
+      unit: input.unit ?? "adet",
+      unitCode: input.unitCode,
+    });
+    await this.assertCapacity(user.companyId, 1);
+    const created = await this.prisma.companyItem
+      .create({
+        data: {
+          ...base,
+          companyId: user.companyId,
+          createdById: user.userId,
+        },
+      })
+      .catch((e: unknown) => {
+        throw this.mapDuplicate(e, base.code);
+      });
+    // Vitrin alanları AYNI normalizasyondan geçer — iki yazma yolu olsaydı
+    // biri nitelik süzgecini ya da searchText'i kaçırırdı.
+    return this.updateShowcase(user, created.id, input);
+  }
+
+  /**
    * Vitrine çıkar. Kapı `productPublishBlockers` — TEK KAYNAK; skor kapı
    * DEĞİL (gerekçe o dosyada).
    */
@@ -700,7 +738,7 @@ export class CompanyItemsService {
   }
 
   private async normalizeShowcase(
-    before: { categoryId: string | null },
+    before: { categoryId: string | null; name?: string; brand?: string | null; mpn?: string | null },
     input: ShowcaseInput,
   ) {
     const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
@@ -718,10 +756,27 @@ export class CompanyItemsService {
       if (allowed.has(k) && v != null && v !== "") attributes[k] = v;
     }
 
+    // AD ve AÇIKLAMA da bu yoldan yazılır (2026-09-03). Eskiden ürün formunda
+    // ikisi de YOKTU: kullanıcı ≥100 karakter açıklama isteyen yayın kapısını
+    // ürün ekranından geçemiyordu — açıklamayı yazacak alan hiçbir yerde
+    // görünmüyordu. Tek kayıt, tek form, tek kaydetme yolu.
+    const name = input.name?.trim();
+    const description =
+      input.description === undefined ? undefined : input.description.trim() || null;
+
     return {
+      ...(name ? { name } : {}),
+      ...(description !== undefined ? { description } : {}),
       ...(input.categoryId !== undefined ? { categoryId } : {}),
       images,
       keywords,
+      // Arama metni ad/marka/mpn/etiketlerden TÜRETİLİR — ad değişince
+      // yenilenmezse ürün eski adıyla aranmaya devam ederdi.
+      searchText: foldSearchText(
+        [name ?? before.name, before.brand, before.mpn, ...keywords]
+          .filter(Boolean)
+          .join(" "),
+      ),
       attributes:
         Object.keys(attributes).length > 0
           ? (attributes as Prisma.InputJsonValue)

@@ -9,12 +9,19 @@ import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
   useCategoryAttributes,
+  useCreateProduct,
   usePublishProduct,
   useUpdateShowcase,
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
 import { ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/20/solid";
+/**
+ * Yayın kapısının açıklama eşiği — backend'le AYNI sayı olmalı, yoksa form
+ * "yeterli" derken sunucu reddeder. Tek kaynak `product-completion.ts`;
+ * burada sabit kopya, çünkü o dosya API paketinde.
+ */
+const MIN_DESCRIPTION = 100;
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -38,12 +45,26 @@ export function ProductShowcaseForm({
   product,
   unit,
   onClose,
+  mode = "edit",
+  onCreated,
 }: {
   product: ProductShowcase;
   /** Kalemin ölçü birimi — fiyat ve MOQ satırlarında gösterilir. */
   unit: string;
   onClose: () => void;
+  /**
+   * "new": kayıt HENÜZ YOK; ilk kaydetmede tek çağrıyla oluşur.
+   *
+   * İlan açma bir SİHİRBAZDIR (adımlar, miktar, teslim, kapanış); ürün ekleme
+   * TEK SAYFADIR — Europages'te de öyle. Bu yüzden "önce kalem aç, sonra
+   * vitrini doldur" diye ikiye bölmüyoruz.
+   */
+  mode?: "edit" | "new";
+  onCreated?: (created: ProductShowcase) => void;
 }) {
+  const isNew = mode === "new";
+  const [name, setName] = useState(product.name);
+  const [description, setDescription] = useState(product.description ?? "");
   const [categoryId, setCategoryId] = useState(product.categoryId ?? "");
   const [images, setImages] = useState<string[]>(product.images);
   const [keywords, setKeywords] = useState<string[]>(product.keywords);
@@ -62,6 +83,7 @@ export function ProductShowcaseForm({
 
   const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
   const save = useUpdateShowcase();
+  const create = useCreateProduct();
   const publish = usePublishProduct();
 
   /**
@@ -81,6 +103,8 @@ export function ProductShowcaseForm({
 
   const patch = useMemo(
     () => ({
+      name: name.trim(),
+      description: description.trim(),
       categoryId: categoryId || null,
       images,
       keywords,
@@ -92,7 +116,7 @@ export function ProductShowcaseForm({
       moq: moq ? Number(moq) : null,
       externalUrl: externalUrl.trim() || null,
     }),
-    [categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl],
+    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl],
   );
 
   const addKeyword = () => {
@@ -103,17 +127,26 @@ export function ProductShowcaseForm({
   };
 
   const handleSave = async (thenPublish: boolean) => {
+    if (!patch.name) {
+      toast.error("Ürün adı zorunlu");
+      return;
+    }
     try {
-      const saved = await save.mutateAsync({ id: product.id, patch });
+      // Yeni üründe kayıt TEK çağrıyla oluşur (create+vitrin); sonrasında
+      // düzenleme moduna geçeriz — kullanıcı için bu tek bir "kaydet".
+      const saved = isNew
+        ? await create.mutateAsync({ ...patch, unit })
+        : await save.mutateAsync({ id: product.id, patch });
+      if (isNew) onCreated?.(saved);
       if (!thenPublish) {
-        toast.success("Taslak kaydedildi");
+        toast.success(isNew ? "Ürün taslak olarak eklendi" : "Taslak kaydedildi");
         return;
       }
       if (saved.publishBlockers.length > 0) {
         toast.error(`Yayımlanamadı — ${saved.publishBlockers.join(", ")}`);
         return;
       }
-      await publish.mutateAsync({ id: product.id, publish: true });
+      await publish.mutateAsync({ id: saved.id, publish: true });
       toast.success("Ürün vitrinde yayımlandı");
       onClose();
     } catch {
@@ -121,11 +154,49 @@ export function ProductShowcaseForm({
     }
   };
 
-  const busy = save.isPending || publish.isPending;
+  const busy = save.isPending || publish.isPending || create.isPending;
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-8">
+        {/* AD ve AÇIKLAMA formun BAŞINDA (2026-09-03): ikisi de eskiden bu
+            ekranda YOKTU; kullanıcı ≥100 karakter açıklama isteyen yayın
+            kapısını geçemiyordu çünkü açıklamayı yazacak alan hiçbir yerde
+            görünmüyordu. */}
+        <Field>
+          <Label required>Ürün adı</Label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={200}
+            placeholder="Dağıtım panosu 400A IP54"
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          />
+        </Field>
+
+        <Field
+          hint={`Yayımlamak için en az ${MIN_DESCRIPTION} karakter. Ne olduğunu, nerede kullanıldığını ve öne çıkan özelliklerini yazın.`}
+        >
+          <Label required>Açıklama</Label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={5000}
+            rows={6}
+            placeholder="IP54 korumalı, 400A dağıtım panosu. Endüstriyel tesislerde ana dağıtım hattında kullanılır…"
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          />
+          <p
+            className={`mt-1 text-xs ${
+              description.trim().length >= MIN_DESCRIPTION
+                ? "text-emerald-600"
+                : "text-zinc-500"
+            }`}
+          >
+            {description.trim().length} / {MIN_DESCRIPTION} karakter
+          </p>
+        </Field>
+
         <Field
           hint="Nitelik alanları seçtiğiniz kategoriden gelir — üst kategoride tanımlı nitelikler otomatik devralınır."
         >

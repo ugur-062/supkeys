@@ -6,6 +6,7 @@ import {
   ClipboardDocumentListIcon,
   CubeIcon,
   DocumentDuplicateIcon,
+  EnvelopeIcon,
   HomeIcon,
   IdentificationIcon,
   InboxArrowDownIcon,
@@ -179,6 +180,23 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: InboxArrowDownIcon,
         label: MODULE_LABELS.satis.acikIhaleler,
         href: "/company/satis/acik-talepler",
+      },
+      {
+        // GAP FIX (2026-09-03): sayfa Faz 2'de yazılmıştı ama menüye HİÇ
+        // eklenmemişti — kullanıcı ürününü nereden ekleyeceğini soramaz hâle
+        // geldi. Satınalmada "Ürün Ara" görünüp satışta hiçbir şey olmaması
+        // ayrımı büsbütün karıştırıyordu.
+        icon: CubeIcon,
+        label: MODULE_LABELS.satis.urunler,
+        href: "/company/satis/urunlerim",
+        // Vitrin herkese açık bir yüzey — profil kapısıyla aynı eşik.
+        minTier: "BRONZ",
+      },
+      {
+        icon: EnvelopeIcon,
+        label: MODULE_LABELS.satis.bilgiTalepleri,
+        href: "/company/satis/bilgi-talepleri",
+        minTier: "BRONZ",
       },
       {
         icon: ClipboardDocumentListIcon,

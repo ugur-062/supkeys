@@ -145,6 +145,31 @@ export interface ShowcasePatch {
  * Kategorinin ETKİN nitelik seti — ata zincirinden miras.
  * Kategori değişince form alanları buradan yeniden kurulur.
  */
+/**
+ * YENİ ÜRÜN — tek çağrı: kayıt + vitrin alanları birlikte.
+ *
+ * İlan açma bir sihirbazdır; ürün ekleme tek sayfadır (kullanıcı kararı
+ * 2026-09-03). Bu yüzden "önce kalem aç, sonra vitrini doldur" iki adımına
+ * bölmüyoruz — form bir kez gönderilir.
+ */
+export function useCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      input: Record<string, unknown> & { name: string; unit: string },
+    ) => {
+      const { data } = await companyApi.post<ProductShowcase>(
+        "/company/items/product",
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: CATALOG_KEY });
+    },
+  });
+}
+
 export function useCategoryAttributes(categoryId: string | null | undefined) {
   return useQuery<AttributeDef[]>({
     queryKey: [...CATALOG_KEY, "attributes", categoryId ?? "-"],
