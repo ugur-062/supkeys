@@ -232,11 +232,38 @@ Ariba'nın iki dışa aktarımı var ve **iki ayrı yerde** kullanılıyorlar:
 Bu yüzden **ayrı tablo/ayrı ağaç YOK**: tek katalog, kod başına tek satır +
 `Category.inDiscovery` bayrağı.
 
-### ADLARA DOKUNULMAZ
+### KAYNAK BİREBİR, GÖSTERİM TÜRKÇE (2026-09-02)
 
-Kullanıcıya gösterilen ağaç Ariba kataloğunun birebir kendisidir. Çeviri,
-kısaltma, tekilleştirme, gizleme YOK. `import-ariba-csv.ts` yalnız iki mekanik
-dönüşüm yapar: kodu 8 haneye sıfır-doldurur ve üst kodu aynı koddan türetir.
+Ariba'nın Türkçe dışa aktarımında kategorilerin bir bölümü İngilizce kalmıştı.
+Kaynak dosya (`ariba-categories.tsv`) hâlâ **birebir**: kısaltma,
+tekilleştirme, gizleme YOK; `import-ariba-csv.ts` yalnız kodu 8 haneye
+sıfır-doldurur ve üst kodu aynı koddan türetir.
+
+Türkçeleştirme kaynağın ÜSTÜNE binen ayrı bir katmandır
+(`category-translations.curated.tsv`, `<kod> ⇥ <TR ad> ⇥ <kaynak ad>`).
+Üçüncü sütun **kaynağın o anki hâlini** taşır: Ariba yeni bir dışa aktarım
+gönderdiğinde satırlar diff'lenebilir, körlemesine ezilmez.
+
+**Kapsam — kullanıcının SEÇTİĞİ her katman %100 Türkçe:**
+
+| Katman | Sayı | Durum |
+|--------|------|-------|
+| L1 segment | 58 | tamamı Türkçe |
+| L2 aile | 558 | tamamı Türkçe |
+| L3 sınıf | 7.966 | tamamı Türkçe |
+| L4 çekirdek yaprak | 15.231 | tamamı Türkçe |
+| L4 kalan yaprak | 134.205 | kaynak dilinde — **bilinçli kapsam dışı** |
+
+Kalan 134k yaprak ağacın en alt ucudur; oraya inen kullanıcı zaten Türkçe bir
+L3 sınıfın altındadır ve arama `keywords` üzerinden İngilizce özgün adı da
+bulur. Gerekirse aynı boru hattıyla (aşağıdaki kural motorları) genişletilir.
+
+**Kural motorları:** tekrar eden kalıplar elle değil üretilerek çevrildi —
+gıda (segment 50, ~215 ürün adı × 8 ön ek → 1.728 satır), ilaç (segment 51,
+sınıf ön eki + ~290 kimyasal aile → 506 satır), canlı bitki (segment 10,
+3 ön ek × ~180 botanik ad → 487 satır), sağlık (segment 85, 479 anatomi
+başlığı + yaklaşım kuyruğu → 1.357 satır). Sözlük tek yerde durur; kalıp
+değişirse tek satır düzeltilir.
 
 > ⚠️ `cleanup-categories` bu akışın **PARÇASI DEĞİL**. Koşarsa segment gizler
 > ve ad değiştirir — birebir garantisini bozar. Eski (22.106'lık) kataloğa göre
@@ -290,6 +317,7 @@ kod her hâlükârda çözülebilmeli.
 | Dosya | Ne | Kim yazar |
 |-------|-----|-----------|
 | `ariba-categories.tsv` | 158.018 kategori, 7 sütun (6.'sı `inDiscovery`, 7.'si düşen alt adlar) | `import-ariba-csv.ts` |
+| `category-translations.curated.tsv` | 14.669 satır TR ad + kaynak ad | İNSAN (kalıplarda kural motoru) |
 | `category-keywords.tsv` | elle küratörlü eşanlamlı | İNSAN — **üretilen dosyayı EZER** |
 | `category-keywords.generated.tsv` | TR jargon | `gen-category-keywords.ts` |
 
@@ -298,10 +326,20 @@ kod her hâlükârda çözülebilmeli.
 kazanır. Sözlük kataloğu **genişletemez**, yalnız aramayı besler; Ariba'da
 karşılığı olmayan kodlar sessizce düşer.
 
-### Ad TEKİLLİĞİ
+### Ad TEKİLLİĞİ — çeviri katmanının EN TEHLİKELİ hatası
 Aynı ad iki düğümde olursa alıcı birini, satıcı diğerini seçer ve eşleşme
 sessizce bölünür. Ariba kataloğunun KENDİ içindeki tekrarlar bilinçli duruyor —
 standart veriyi yeniden adlandırmak "birebir" kuralını bozardı.
+
+Çeviri bunu **yenisini üreterek** bozabilir: iki farklı İngilizce ad aynı
+Türkçe karşılığa düşerse (ör. `Live carnations` ve `Live dianthuses` ikisi de
+"Canlı karanfiller"). `check-category-translations.ts` her turda bunu arar ve
+çakışma bulursa **exit 1** verir — uygulama adımı çalışmaz. Bu tur 12 gerçek
+çakışma yakalandı ve ayrıştırıldı (mantar/mantar palamudu, karanfil/diyantus,
+boru hattı kaplama/sarma, ulusal banknot…).
+
+Kaynakta ZATEN aynı adı taşıyan kodlar (`Eyes` / `Eyes`) çevrildiğinde yine
+aynı ada düşer; bunu çeviri üretmedi, denetleyici bu grupları ayıklar.
 
 ### Arama
 TR-katlanmış `searchText = fold(nameTr + " " + keywords)` (`foldSearchText`,
@@ -345,9 +383,15 @@ pnpm --filter @rothern/db import-ariba-csv -- <tum-csv> <discovery-csv>
 ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy
 # 3) Katalog: TEK transaction, sil+kur
 pnpm --filter @rothern/db seed-categories
-# 4) Sözlük (opsiyonel, reseed'siz canlıya)
+# 4) Çeviri: ÖNCE doğrula (çakışma varsa exit 1), sonra uygula
+npx tsx prisma/scripts/check-category-translations.ts
+npx tsx prisma/scripts/apply-category-translations.ts
+# 5) Sözlük (opsiyonel, reseed'siz canlıya)
 pnpm --filter @rothern/db apply-category-keywords
 ```
+`seed-categories` çeviriyi zaten okur (`nameTr = çeviri ?? kaynak`), yani
+tam reseed'de 4. adım gerekmez. `apply-category-translations` reseed
+YAPMADAN canlıya yazmak içindir — yalnız değişen satıra dokunur.
 `import-ariba-csv` fail-loud: iki dosya L1/L2/L3'te ayrışırsa, discovery tam
 kataloğun alt kümesi değilse ya da öksüz düğüm varsa **durur** — sessizce
 birleştirmez.
@@ -361,17 +405,11 @@ yansır.
 
 ## Migration Durumu
 
-**2 BEKLEYEN** (2026-09-02, 68 migration) — kategori katalog geçişiyle geldi,
-canlıya HENÜZ uygulanmadı:
+**Bekleyen YOK** — `migrate status` "up to date" (2026-09-02, 68 migration).
+Kategori geçişinin iki migration'ı canlıya uygulandı:
 - `20260902100000_category_in_discovery` — `Category.inDiscovery` kolonu
-  (sabit DEFAULT ile ADD COLUMN, tablo yeniden yazılmaz)
 - `20260902100100_category_search_trgm` — `pg_trgm` + `searchText`/`nameTr`
-  GIN indeksi (tablo o an 22k satır, indeks kurulumu saniyeler)
-
-İkisi de lokal test PG'de uygulandı ve suite yeşil. Canlıya:
-`ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy` — ardından
-`seed-categories` ŞART (kolon olmadan seed patlar, seed olmadan katalog eski
-kalır).
+  GIN indeksi (canlıda doğrulandı: `Bitmap Index Scan`, 1,35 ms)
 
 > ⚠️ **`render.yaml` `autoDeploy: true`** — main'e push edilen API kodu prod'a
 > KENDİLİĞİNDEN gider. Şema kullanan bir değişikliği push ettiysen migration'ı
