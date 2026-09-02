@@ -14,6 +14,7 @@
     "seed-demo-fill": "tsx prisma/scripts/seed-demo-fill.ts",
     "create-test-company": "tsx prisma/scripts/create-test-company.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
+    "seed-category-attributes": "tsx prisma/scripts/seed-category-attributes.ts",
     "import-ariba-csv": "tsx prisma/scripts/import-ariba-csv.ts",
     "cleanup-categories": "tsx prisma/scripts/cleanup-categories.ts",
     "apply-category-keywords": "tsx prisma/scripts/apply-category-keywords.ts",

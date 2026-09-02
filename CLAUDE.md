@@ -425,6 +425,8 @@ npx tsx prisma/scripts/check-category-translations.ts
 npx tsx prisma/scripts/apply-category-translations.ts
 # 5) Sözlük (opsiyonel, reseed'siz canlıya)
 pnpm --filter @rothern/db apply-category-keywords
+# 6) Kategori → nitelik matrisi (idempotent; seed-categories'ten SONRA)
+pnpm --filter @rothern/db seed-category-attributes
 ```
 `seed-categories` çeviriyi zaten okur (`nameTr = çeviri ?? kaynak`), yani
 tam reseed'de 4. adım gerekmez. `apply-category-translations` reseed
@@ -479,9 +481,22 @@ Bir ürünün nitelikleri = kodunun ata zincirindeki tüm satırlar
 fonksiyondan okur). Aynı `groupKey` daha spesifik düğümde varsa O KAZANIR.
 
 Böylece 158.018 kategoriye tek tek satır yazmak gerekmiyor: 58 segment +
-birkaç yüz aile yeter. **İlk tur 15 kategori / 61 nitelik** dolduruldu
-(`src/seeds/category-attributes.ts` → `seed-category-attributes.ts`).
-Doldurulmamış kategoride form nitelik SORMAZ ve yine çalışır.
+birkaç yüz aile yeter. **58 segmentin 58'i dolu: 237 nitelik / 59 düğüm**
+(`src/seeds/category-attributes.ts` → `pnpm --filter @rothern/db
+seed-category-attributes`, idempotent + fail-loud; kaynakta olmayan satırı
+SİLER — matris tek kaynak, veritabanı kopyası).
+
+İlk tur 14 segmentti; ürün dizini açılınca kalanı dolduruldu, çünkü nitelik
+tanımlı olmayan dalda süzgeç kurulamıyor ve ürün formu o kullanıcıya hiçbir
+yapılandırılmış soru sormuyordu — katalog dolu, karşılaştırılabilir veri yok.
+
+Derinleştirme (L2/L3 bindirmesi) talep geldikçe: `40170000` (borular) örneği
+dosyada. Ölçüldü — yaprak `40171501` sekiz nitelik devralıyor: dördü
+segmentten (malzeme, basınç, sıcaklık, standart), dördü aileden (DN çapı, et
+kalınlığı, bağlantı, üretim yöntemi). O yaprak için TEK satır yazılmadı.
+
+Doldurulmamış bir dalda form nitelik SORMAZ ve akış çalışır — matris eksikken
+ürün eklenemez hâle gelmemeli.
 
 ### Skor ≠ yayın kapısı
 
