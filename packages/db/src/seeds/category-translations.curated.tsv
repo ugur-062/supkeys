@@ -14741,3 +14741,676 @@
 50630100	Standart	Regular
 50630200	Organik	Organic
 50630300	GDO'suz	Non-GMO
+51112300	Alkilleyici ajan alkansülfonik asitler	Alkylating agent alkanesulfonic acids
+51112400	Alkilleyici ajan amitler	Alkylating agent amides
+51112500	Alkilleyici ajan azot hardalı bileşikleri	Alkylating agent nitrogen mustard compounds
+51112600	Alkilleyici ajan nitrozoüre bileşikleri	Alkylating agent nitrosourea compounds
+51112700	Alkilleyici ajan organoplatin bileşikleri	Alkylating agent organoplatinum compounds
+51112800	Alkilleyici ajan stilbenler	Alkylating agent stilbenes
+51112900	Alkilleyici ajan triazinler	Alkylating agent triazines
+51113000	Alkilleyici ajan aminler	Alkylating agent amines
+51113100	Alkilleyici ajan alkoller	Alkylating agent alcohols
+51113200	Alkilleyici ajan aziridinler	Alkylating agent aziridines
+51113300	Alkilleyici ajan karbamatlar	Alkylating agent carbamates
+51113400	Alkilleyici ajan karboksilik asitler	Alkylating agent carboxylic acids
+51113500	Alkilleyici ajan piperazinler	Alkylating agent piperazines
+51113600	Alkilleyici ajan sitokinler	Alkylating agent cytokines
+51122800	Antiaritmik alkoller	Antiarrythmic alcohols
+51122900	Antiaritmik toprak alkali metaller	Antiarrythmic alkaline earth metals
+51123000	Antiaritmik alkaloitler	Antiarrythmic alkaloids
+51123100	Antiaritmik amitler	Antiarrythmic amides
+51123200	Antiaritmik aminler	Antiarrythmic amines
+51123300	Antiaritmik azosinler	Antiarrythmic azocines
+51123400	Antiaritmik azoller	Antiarrythmic azoles
+51123500	Antiaritmik benzazepinler	Antiarrythmic benzazepines
+51123600	Antiaritmik benzofuranlar	Antiarrythmic benzofurans
+51123700	Antiaritmik halkalı hidrokarbonlar	Antiarrythmic cyclic hydrocarbons
+51123800	Antiaritmik guanidinler	Antiarrythmic guanidines
+51123900	Antiaritmik indoller	Antiarrythmic indoles
+51124000	Antiaritmik piperidinler	Antiarrythmic piperidines
+51124100	Antiaritmik purinler	Antiarrythmic purines
+51124200	Antiaritmik piridinler	Antiarrythmic pyridines
+51124300	Antiaritmik kinolinler	Antiarrythmic quinolines
+51124400	Antiaritmik kardiyak glikozitler veya kardenolitler	Antiarrythmic cardiac glycosides or cardenolides
+51124500	Antiaritmik kükürt bileşikleri	Antiarrythmic sulfur compounds
+51143900	Uyarıcı veya iştah kesici alkoller	Stimulant or anorexiant alcohols
+51144000	Uyarıcı veya iştah kesici aminler	Stimulant or anorexiant amines
+51144100	Uyarıcı veya iştah kesici amfetaminler	Stimulant or anorexiant amphetamines
+51144200	Uyarıcı veya iştah kesici azoller	Stimulant or anorexiant azoles
+51144300	Uyarıcı veya iştah kesici morfolinler	Stimulant or anorexiant morpholines
+51144400	Uyarıcı veya iştah kesici piperazinler	Stimulant or anorexiant piperazines
+51144500	Uyarıcı veya iştah kesici pirolidinler	Stimulant or anorexiant pyrrolidines
+51144600	Uyarıcı veya iştah kesici alkaloitler	Stimulant or anorexiant alkaloids
+51144700	Uyarıcı veya iştah kesici amitler	Stimulant or anorexiant amides
+51144800	Uyarıcı veya iştah kesici benzen türevleri	Stimulant or anorexiant benzene derivatives
+51144900	Uyarıcı veya iştah kesici karboksilik asitler	Stimulant or anorexiant carboxylic acids
+51145000	Uyarıcı veya iştah kesici indoller	Stimulant or anorexiant indoles
+51145100	Uyarıcı veya iştah kesici oksadiazoller	Stimulant or anorexiant oxadiazoles
+51145200	Uyarıcı veya iştah kesici piperidinler	Stimulant or anorexiant piperidines
+51145300	Uyarıcı veya iştah kesici pirolidonlar	Stimulant or anorexiant pyrrolidones
+51183100	Antidiyabetik ve hiperglisemik amitler	Antidiabetic and hyperglycemic amides
+51183200	Antidiyabetik ve hiperglisemik aminler	Antidiabetic and hyperglycemic amines
+51183300	Antidiyabetik ve hiperglisemik dipeptidil peptidaz-4 inhibitörleri	Antidiabetic and hyperglycemic dipeptidyl peptidase-4 inhibitors
+51183400	Antidiyabetik ve hiperglisemik glinitler	Antidiabetic and hyperglycemic glinides
+51183500	Antidiyabetik ve hiperglisemik guanidinler	Antidiabetic and hyperglycemic guanidines
+51183600	Antidiyabetik ve hiperglisemik peptit hormonlar	Antidiabetic and hyperglycemic peptide hormones
+51183700	Antidiyabetik ve hiperglisemik tiyazolidindionlar	Antidiabetic and hyperglycemic thiazolidinediones
+51183800	Antidiyabetik ve hiperglisemik alfa-glukozidaz inhibitörleri	Antidiabetic and hyperglycemic alpha-glucosidase inhibitors
+51183900	Antidiyabetik ve hiperglisemik peroksizom proliferatör aktive reseptörleri	Antidiabetic and hyperglycemic peroxisome proliferator-activated receptors
+51184000	Antidiyabetik ve hiperglisemik sülfonilüreler	Antidiabetic and hyperglycemic sulfonylureas
+51202200	İmmünosüpresan amitler	Immunosupressant amides
+51202300	İmmünosüpresan amino asitler	Immunosupressant amino acids
+51202400	İmmünosüpresan antikorlar	Immunosupressant antibodies
+51202500	İmmünosüpresan azoller	Immunosupressant azoles
+51202600	İmmünosüpresan imitler	Immunosupressant imides
+51202700	İmmünosüpresan immünoglobulinler	Immunosupressant immunoglobulins
+51202800	İmmünosüpresan makrolitler	Immunosupressant macrolides
+51202900	İmmünosüpresan nükleik asitler, nükleotitler, nükleozitler	Immunosupressant nucleic acids, nucleotides, and nucleosides
+51203000	İmmünosüpresan orto-aminobenzoatlar	Immunosupressant ortho-aminobenzoates
+51203100	İmmünosüpresan peptitler	Immunosupressant peptides
+51203200	İmmünosüpresan fenoller	Immunosupressant phenols
+51203300	İmmünosüpresan ftalimitler	Immunosupressant phthalimides
+51203400	İmmünosüpresan purinler	Immunosupressant purines
+51203500	İmmünosüpresan aziridinler	Immunosupressant aziridines
+51203600	İmmünosüpresan karboksilik asitler	Immunosupressant carboxylic acids
+51203700	İmmünosüpresan ağır metaller	Immunosupressant heavy metals
+51203800	İmmünosüpresan immünokonjugatlar	Immunosupressant immunoconjugates
+51203900	İmmünosüpresan organoaltın bileşikleri	Immunosupressant organogold compounds
+51204000	İmmünosüpresan piridinler	Immunosupressant pyridines
+51204100	İmmünosüpresan rekombinant füzyon proteinleri	Immunosupressant recombinant fusion proteins
+51261500	Adrenerjik blokör amitler	Adrenergic blocking agent amides
+51261600	Adrenerjik blokör aminler	Adrenergic blocking agent amines
+51261700	Adrenerjik blokör amino alkoller ve aminokinolinler ve benzopiranlar ve bradikinin analogları ve türevleri	Adrenergic blocking agent amino alcohols and aminoquinolines and benzopyrans and bradykinin/analogs and derivatives
+51261800	Adrenerjik blokör benzofuranlar	Adrenergic blocking agent benzofurans
+51262000	Adrenerjik blokör bütirofenonlar ve karbazoller ve dibenzazepinler ve dimetilaminler	Adrenergic blocking agent butyrophenones and carbazoles and dibenzazepines and dimethylamines
+51262100	Adrenerjik blokör indoller	Adrenergic blocking agent indoles
+51262200	Adrenerjik blokör dioksanlar	Adrenergic blocking agent dioxanes
+51262300	Adrenerjik blokör ergolinler ve heterosiklik bileşikler, üç halkalı bileşikler ve morfolinler ve piridazinler	Adrenergic blocking agent ergolines and heterocyclic compounds, 3-ring and morpholines and pyridazines
+51262400	Adrenerjik blokör etanolaminler	Adrenergic blocking agent ethanolamines
+51262500	Adrenerjik blokör guanidinler	Adrenergic blocking agent guanidines
+51262600	Adrenerjik blokör imidazoller	Adrenergic blocking agent imidazoles
+51262700	Adrenerjik blokör imidazolinler	Adrenergic blocking agent imidazolines
+51262900	Adrenerjik blokör fenoksipropanolaminler	Adrenergic blocking agent phenoxypropanolamines
+51263000	Adrenerjik blokör piperazinler	Adrenergic blocking agent piperazines
+51263100	Adrenerjik blokör propanolaminler	Adrenergic blocking agent propanolamines
+51263400	Adrenerjik blokör pirimidin nükleozitleri ve kuaterner amonyum bileşikleri ve sekologanin triptamin alkaloitleri ve spiro bileşikler ve sülfonamitler	Adrenergic blocking agent pyrimidine nucleosides and quaternary ammonium compounds and secologanin tryptamine alkaloids and spiro compounds and sulfonamides
+51263500	Adrenerjik blokör fenetilaminler ve kinolinler	Adrenergic blocking agent phenethylamines and quinolines
+51263600	Adrenerjik blokör kinazolinler	Adrenergic blocking agent quinazolines
+51263700	Adrenerjik blokör izokinolinler	Adrenergic blocking agent isoquinolines
+51271500	Anestezik alkoller	Anaesthetic alcohols
+51271600	Anestezik amitler	Anaesthetic amides
+51271700	Anestezik amidinler ve benzofuranlar ve bütiratlar ve sinamatlar	Anaesthetic amidines and benzofurans and butyrates and cinnamates
+51271800	Anestezik aminler	Anaesthetic amines
+51271900	Anestezik aminobenzoatlar	Anaesthetic aminobenzoates
+51272000	Anestezik barbitüratlar	Anaesthetic barbiturates
+51272100	Anestezik benzoatlar	Anaesthetic benzoates
+51272200	Anestezik siklo parafinler	Anaesthetic cycloparaffins
+51272300	Anestezik dioksolanlar ve gazlar ve imidazoller ve izokinolinler	Anaesthetic dioxolanes and gases and imidazoles and isoquinolines
+51272400	Anestezik eterler	Anaesthetic ethers
+51272500	Anestezik hidrokarbonlar, halojenli	Anaesthetic hydrocarbons, halogenated
+51272600	Anestezik izonipekotik asitler	Anaesthetic isonipecotic acids
+51272700	Anestezik metiyonin analogları ve türevleri ve morfolinler ve piperazinler ve propiyofenonlar	Anaesthetic methionine/analogs and derivatives and morpholines and piperazines and propiophenones
+51272900	Anestezik fenoller	Anaesthetic phenols
+51273000	Anestezik piperidinler	Anaesthetic piperidines
+51273100	Anestezik pregnanlar	Anaesthetic pregnanes
+51273600	Anestezik kinolinler ve terpenler ve tiyofenler ve tropanlar ve tropanlar	Anaesthetic quinolines and terpenes and thiophenes and tropanes and tropanes
+51285300	Antibakteriyel nitrofuranlar	Antibacterial nitrofurans
+51285600	Antibakteriyel alkoller	Antibacterial alcohols
+51285700	Antibakteriyel amitler	Antibacterial amides
+51285800	Antibakteriyel amidinler	Antibacterial amidines
+51285900	Antibakteriyel aminler	Antibacterial amines
+51286000	Antibakteriyel arsenikli bileşikler	Antibacterial arsenicals
+51286100	Antibakteriyel azoller	Antibacterial azoles
+51286200	Antibakteriyel organofosfor bileşikleri	Antibacterial organophosphorus compounds
+51286300	Antibakteriyel piperazinler	Antibacterial piperazines
+51286400	Antibakteriyel piperidinler	Antibacterial piperidines
+51286500	Antibakteriyel piranlar	Antibacterial pyrans
+51286600	Antibakteriyel piridinler	Antibacterial pyridines
+51286700	Antibakteriyel pirimidinler	Antibacterial pyrimidines
+51286900	Antibakteriyel kinoksalinler	Antibacterial quinoxalines
+51287000	Antibakteriyel sülfonlar	Antibacterial sulfones
+51291500	Antidepresan azoller	Antidepressant azoles
+51291600	Antidepresan akridinler	Antidepressant acridines
+51291700	Antidepresan alkoller	Antidepressant alcohols
+51291800	Antidepresan amitler	Antidepressant amides
+51291900	Antidepresan amidinler ve amino asitler ve aminoakridinler ve kapalı tohumlular	Antidepressant amidines and amino acids and aminoacridines and angiosperms
+51292000	Antidepresan aminler	Antidepressant amines
+51292100	Antidepresan antrasenler	Antidepressant anthracenes
+51292200	Antidepresan benzamitler	Antidepressant benzamides
+51292300	Antidepresan benzazepinler ve benzoatlar ve benzotiyazoller ve benzilaminler	Antidepressant benzazepines and benzoates and benzothiazoles and benzylamines
+51292400	Antidepresan benzen türevleri	Antidepressant benzene derivatives
+51292500	Antidepresan benzimidazoller	Antidepressant benzimidazoles
+51292600	Antidepresan benzodiazepinler	Antidepressant benzodiazepines
+51292700	Antidepresan bisiklo bileşikler ve karbamatlar ve karbolinler ve sinamatlar	Antidepressant bicyclo compounds and carbamates and carbolines and cinnamates
+51292800	Antidepresan siklo parafinler ve dibenzoksazepinler ve dibenzoksepinler ve ergolinler	Antidepressant cycloparaffins and dibenzoxazepines and dibenzoxepins and ergolines
+51292900	Antidepresan dibenzazepinler	Antidepressant dibenzazepines
+51293000	Antidepresan dibenzosikloheptenler	Antidepressant dibenzocycloheptenes
+51293100	Antidepresan glikolatlar	Antidepressant glycolates
+51293200	Antidepresan hidrazinler	Antidepressant hydrazines
+51293400	Antidepresan imidazoller ve izonikotinik asitler ve ketonlar ve orfenadrin analogları ve türevleri ve fenantrenler	Antidepressant imidazoles and isonicotinic acids and ketones and orphenadrine/analogs and derivatives and phenanthrenes
+51293500	Antidepresan indenler	Antidepressant indenes
+51293600	Antidepresan indoller	Antidepressant indoles
+51293700	Antidepresan izokinolinler	Antidepressant isoquinolines
+51293800	Antidepresan pirazinler	Antidepressant pyrazines
+51293900	Antidepresan metilaminler	Antidepressant methylamines
+51294000	Antidepresan morfolinler	Antidepressant morpholines
+51294100	Antidepresan naftalinler	Antidepressant naphthalenes
+51294200	Antidepresan oksazinler	Antidepressant oxazines
+51294300	Antidepresan fenotiyazinler ve pregnanlar ve pirolidinler ve pirolidinonlar	Antidepressant phenothiazines and pregnanes and pyrrolidines and pyrrolidinones
+51294400	Antidepresan piperazinler	Antidepressant piperazines
+51294500	Antidepresan piperidinler	Antidepressant piperidines
+51294600	Antidepresan piridazinler	Antidepressant pyridazines
+51294700	Antidepresan piridinler	Antidepressant pyridines
+51294800	Antidepresan pirimidinler	Antidepressant pyrimidines
+51294900	Antidepresan kükürt bileşikleri	Antidepressant sulfur compounds
+51295000	Antidepresan tiyazoller	Antidepressant thiazoles
+51295300	Antidepresan spiro bileşikler ve tiyofenler ve triazinler	Antidepressant spiro compounds and thiophenes and triazines
+51301600	Antifungal alkoller	Antifungal alcohols
+51301700	Antifungal amitler	Antifungal amides
+51301800	Antifungal aminler	Antifungal amines
+51301900	Antifungal aminoakridinler ve azoller ve benzimidazoller ve benzofuranlar	Antifungal aminoacridines and azoles and benzimidazoles and benzofurans
+51302000	Antifungal karboksilik asitler	Antifungal carboxylic acids
+51302100	Antifungal peptitler	Antifungal peptides
+51302300	Antifungal imidazoller	Antifungal imidazoles
+51302400	Antifungal makrolitler	Antifungal macrolides
+51302500	Antifungal naftalinler	Antifungal naphthalenes
+51302600	Antifungal organofosfor bileşikleri ve oksazinler ve fenil eterler ve piranlar	Antifungal organophosphorus compounds and oxazines and phenyl ethers and pyrans
+51302700	Antifungal fenoller	Antifungal phenols
+51302900	Antifungal piridinler	Antifungal pyridines
+51303000	Antifungal pirimidinler	Antifungal pyrimidines
+51303100	Antifungal piroller ve pirolidinonlar ve kinazolinler ve terpenler	Antifungal pyrroles and pyrrolidinones and quinazolines and terpenes
+51303300	Antifungal tiyazoller	Antifungal thiazoles
+51303400	Antifungal triazoller	Antifungal triazoles
+51311600	Antihistaminik veya H1 blokör 4-kinolonlar ve asetatlar ve aminopiridinler ve azepinler	Antihistamine or H1 blocker 4-quinolones and acetates and aminopyridines and azepines
+51311700	Antihistaminik veya H1 blokör benzhidril bileşikleri	Antihistamine or H1 blocker benzhydryl compounds
+51311800	Antihistaminik veya H1 blokör benzimidazoller	Antihistamine or H1 blocker benzimidazoles
+51311900	Antihistaminik veya H1 blokör benzopiranlar	Antihistamine or H1 blocker benzopyrans
+51312000	Antihistaminik veya H1 blokör bütirofenonlar	Antihistamine or H1 blocker butyrophenones
+51312100	Antihistaminik veya H1 blokör halkalı S-oksitler ve dibenzazepinler ve dibenzoksepinler ve glioksilatlar	Antihistamine or H1 blocker cyclic s-oxides and dibenzazepines and dibenzoxepins and glyoxylates
+51312200	Antihistaminik veya H1 blokör dibenzosikloheptenler	Antihistamine or H1 blocker dibenzocycloheptenes
+51312300	Antihistaminik veya H1 blokör etilaminler	Antihistamine or H1 blocker ethylamines
+51312400	Antihistaminik veya H1 blokör etilendiaminler	Antihistamine or H1 blocker ethylenediamines
+51312500	Antihistaminik veya H1 blokör guanidinler ve indenler ve laktamlar ve peptitler ve kinazolinler	Antihistamine or H1 blocker guanidines and indenes and lactams and peptides and quinazolines
+51312600	Antihistaminik veya H1 blokör imidazoller	Antihistamine or H1 blocker imidazoles
+51312700	Antihistaminik veya H1 blokör pirolidinler	Antihistamine or H1 blocker pyrrolidines
+51312800	Antihistaminik veya H1 blokör fenotiyazinler	Antihistamine or H1 blocker phenothiazines
+51312900	Antihistaminik veya H1 blokör fenantrolinler	Antihistamine or H1 blocker phenanthrolines
+51313000	Antihistaminik veya H1 blokör ftalazinler	Antihistamine or H1 blocker phthalazines
+51313100	Antihistaminik veya H1 blokör piperazinler	Antihistamine or H1 blocker piperazines
+51313200	Antihistaminik veya H1 blokör piperidinler	Antihistamine or H1 blocker piperidines
+51313300	Antihistaminik veya H1 blokör propilaminler	Antihistamine or H1 blocker propylamines
+51313400	Antihistaminik veya H1 blokör piridinler	Antihistamine or H1 blocker pyridines
+51313600	Antihistaminik veya H1 blokör kinolinler	Antihistamine or H1 blocker quinolines
+51313700	Antihistaminik veya H1 blokör kinolizinler ve sülfonamitler ve tiyazinler ve tiyazoller ve tiyofenler	Antihistamine or H1 blocker quinolizines and sulfonamides and thiazines and thiazoles and thiophenes
+51313800	Antihistaminik veya H1 blokör terfenadin analogları ve türevleri	Antihistamine or H1 blocker terfenadine/analogs and derivatives
+51313900	Antihistaminik veya H1 blokör tetrazoller	Antihistamine or H1 blocker tetrazoles
+51314100	Antihistaminik veya H1 blokör pirimidinler	Antihistamine or H1 blocker pyrimidines
+51314200	Antihistaminik veya H1 blokör tropanlar	Antihistamine or H1 blocker tropanes
+51321500	Antihiperlipidemik ve hipokolesterolemik benzen türevleri	Antihyperlipidemic and hypocholesterolemic benzene derivatives
+51321600	Antihiperlipidemik ve hipokolesterolemik alkoller	Antihyperlipidemic and hypocholesterolemic alcohols
+51321700	Antihiperlipidemik ve hipokolesterolemik yağ asitleri	Antihyperlipidemic and hypocholesterolemic fatty acids
+51321800	Antihiperlipidemik ve hipokolesterolemik fibrik asitler	Antihyperlipidemic and hypocholesterolemic fibric acids
+51321900	Antihiperlipidemik ve hipokolesterolemik amitler	Antihyperlipidemic and hypocholesterolemic amides
+51322000	Antihiperlipidemik ve hipokolesterolemik aminler	Antihyperlipidemic and hypocholesterolemic amines
+51322100	Antihiperlipidemik ve hipokolesterolemik amino asitler	Antihyperlipidemic and hypocholesterolemic amino acids
+51322200	Antihiperlipidemik ve hipokolesterolemik azetidinler ve sikloheksanlar ve florobenzenler ve furanlar	Antihyperlipidemic and hypocholesterolemic azetidines and cyclohexanes and fluorobenzenes and furans
+51322300	Antihiperlipidemik ve hipokolesterolemik makromoleküler maddeler	Antihyperlipidemic and hypocholesterolemic macromolecular substances
+51322400	Antihiperlipidemik ve hipokolesterolemik karboksilik asitler	Antihyperlipidemic and hypocholesterolemic carboxylic acids
+51322500	Antihiperlipidemik ve hipokolesterolemik glikozaminoglikanlar ve hormonlar ve indoller ve izokinolinler	Antihyperlipidemic and hypocholesterolemic glycosaminoglycans and hormones and indoles and isoquinolines
+51322600	Antihiperlipidemik ve hipokolesterolemik kükürt bileşikleri	Antihyperlipidemic and hypocholesterolemic sulfur compounds
+51322700	Antihiperlipidemik ve hipokolesterolemik naftalinler	Antihyperlipidemic and hypocholesterolemic naphthalenes
+51322800	Antihiperlipidemik ve hipokolesterolemik nikotinik asitler	Antihyperlipidemic and hypocholesterolemic nicotinic acids
+51322900	Antihiperlipidemik ve hipokolesterolemik fenoksiasetatlar ve pirolidinler ve kinolinler	Antihyperlipidemic and hypocholesterolemic phenoxyacetates and pyrrolidines and quinolines
+51323000	Antihiperlipidemik ve hipokolesterolemik kuaterner amonyum bileşikleri	Antihyperlipidemic and hypocholesterolemic quaternary ammonium compounds
+51323200	Antihiperlipidemik ve hipokolesterolemik aromatik heterosiklikler	Antihyperlipidemic and hypocholesterolemic aromatic heterocyclics
+51331500	Antipsikotik benzen türevleri	Antipsychotic benzene derivatives
+51331600	Antipsikotik alkoller ve aminler ve amino asitler ve benzopiranlar ve halkalı S-oksitler	Antipsychotic alcohols and amines and amino acids and benzopyrans and cyclic s-oxides
+51331700	Antipsikotik amitler	Antipsychotic amides
+51331900	Antipsikotik anyonlar	Antipsychotic anions
+51332000	Antipsikotik azoller	Antipsychotic azoles
+51332100	Antipsikotik benzamitler	Antipsychotic benzamides
+51332200	Antipsikotik benzazepinler	Antipsychotic benzazepines
+51332300	Antipsikotik benzimidazoller	Antipsychotic benzimidazoles
+51332400	Antipsikotik karbamatlar	Antipsychotic carbamates
+51332500	Antipsikotik bütirofenonlar	Antipsychotic butyrophenones
+51332700	Antipsikotik dibenzazepinler	Antipsychotic dibenzazepines
+51332800	Antipsikotik fenotiyazinler	Antipsychotic phenothiazines
+51332900	Antipsikotik ergot alkaloitleri	Antipsychotic ergot alkaloids
+51333000	Antipsikotik indoller	Antipsychotic indoles
+51333100	Antipsikotik izokinolinler ve nikotinik asitler ve oksazoller ve piridinler ve pirolidinler	Antipsychotic isoquinolines and nicotinic acids and oxazoles and pyridines and pyrrolidines
+51333200	Antipsikotik azot hardalı bileşikleri	Antipsychotic nitrogen mustard compounds
+51333400	Antipsikotik piperazinler	Antipsychotic piperazines
+51333500	Antipsikotik piperidinler	Antipsychotic piperidines
+51333600	Antipsikotik pirimidinler	Antipsychotic pyrimidines
+51333700	Antipsikotik kuaterner amonyum bileşikleri ve kinazolinler ve kinolizinler ve kinoksalinler ve tiyazinler	Antipsychotic quaternary ammonium compounds and quinazolines and quinolizines and quinoxalines and thiazines
+51333900	Antipsikotik kinolinler	Antipsychotic quinolines
+51334000	Antipsikotik spiro bileşikler	Antipsychotic spiro compounds
+51334100	Antipsikotik tiyazoller	Antipsychotic thiazoles
+51334200	Antipsikotik tiyepinler	Antipsychotic thiepins
+51334300	Antipsikotik tiyoksantenler	Antipsychotic thioxanthenes
+51334500	Antipsikotik sikloheksanlar ve dibenzosikloheptenler ve dibenzoksazepinler ve indol alkaloitleri	Antipsychotic cyclohexanes and dibenzocycloheptenes and dibenzoxazepines and indole alkaloids
+51341500	Antiviral karboksilik asitler	Antiviral carboxylic acids
+51341600	Antiviral adamantanlar	Antiviral adamantanes
+51341700	Antiviral aldehitler	Antiviral aldehydes
+51341800	Antiviral amitler	Antiviral amides
+51341900	Antiviral amidinler ve aminler ve benzoksazinler ve sikloheksanlar	Antiviral amidines and amines and benzoxazines and cyclohexanes
+51342000	Antiviral azoller	Antiviral azoles
+51342100	Antiviral benzimidazoller	Antiviral benzimidazoles
+51342300	Antiviral guaninler	Antiviral guanines
+51342400	Antiviral izokinolinler	Antiviral isoquinolines
+51342500	Antiviral nükleozitler	Antiviral nucleosides
+51342600	Antiviral kükürt bileşikleri	Antiviral sulfur compounds
+51342700	Antiviral peptitler	Antiviral peptides
+51342800	Antiviral piperazinler	Antiviral piperazines
+51342900	Antiviral purinler	Antiviral purines
+51343000	Antiviral piridinler	Antiviral pyridines
+51343100	Antiviral pirimidinler	Antiviral pyrimidines
+51343200	Antiviral pirolidinonlar ve kinolinler ve tiyazoller	Antiviral pyrrolidinones and quinolines and thiazoles
+51343400	Antiviral siklopentanlar ve dioksolanlar ve florenler ve indolizinler	Antiviral cyclopentanes and dioxolanes and fluorenes and indolizines
+51343500	Antiviral organofosfor bileşikleri	Antiviral organophosphorus compounds
+51343600	Antiviral tiyosemikarbazonlar	Antiviral thiosemicarbazones
+51343700	Antiviral ketonlar ve morfolinler ve nitriller ve piridazinler	Antiviral ketones and morpholines and nitriles and pyridazines
+51351500	Östrojen, progestin veya dahili kontraseptif pregnanlar	Estrogen, progestin, or internal contraceptive pregnanes
+51351600	Östrojen, progestin veya dahili kontraseptif estrenler	Estrogen, progestin, or internal contraceptive estrenes
+51351700	Östrojen, progestin veya dahili kontraseptif androstanlar ve sikloheksankarboksilik asitler ve naftalinler	Estrogen, progestin, or internal contraceptive androstanes and cyclohexanecarboxylic acids and naphthalenes
+51351800	Östrojen, progestin veya dahili kontraseptif gonadal hormonlar	Estrogen, progestin, or internal contraceptive gonadal hormones
+51351900	Östrojen, progestin veya dahili kontraseptif norpregnanlar	Estrogen, progestin, or internal contraceptive norpregnanes
+51352000	Östrojen, progestin veya dahili kontraseptif norpregnenler	Estrogen, progestin, or internal contraceptive norpregnenes
+51352100	Östrojen, progestin veya dahili kontraseptif fenoller	Estrogen, progestin, or internal contraceptive phenols
+51352200	Östrojen, progestin veya dahili kontraseptif stilbenler	Estrogen, progestin, or internal contraceptive stilbenes
+51361500	Hipnotik alkoller	Hypnotic alcohols
+51361600	Hipnotik aldehitler ve amino asitler ve karbamatlar ve imidazoller	Hypnotic aldehydes and amino acids and carbamates and imidazoles
+51361700	Hipnotik amitler	Hypnotic amides
+51361800	Hipnotik azoller	Hypnotic azoles
+51361900	Hipnotik barbitüratlar	Hypnotic barbiturates
+51362000	Hipnotik benzodiazepinler	Hypnotic benzodiazepines
+51362100	Hipnotik bromürler	Hypnotic bromides
+51362200	Hipnotik karboksilik asitler	Hypnotic carboxylic acids
+51362300	Hipnotik piridazinler ve piridinler ve piridonlar ve sekologanin triptamin alkaloitleri	Hypnotic pyridazines and pyridines and pyridones and secologanin tryptamine alkaloids
+51362400	Hipnotik indenler ve nikotinik asitler ve organofosfor bileşikleri ve fenotiyazinler	Hypnotic indenes and nicotinic acids and organophosphorus compounds and phenothiazines
+51362500	Hipnotik piperazinler	Hypnotic piperazines
+51362600	Hipnotik asetatlar	Hypnotic acetates
+51362700	Hipnotik pirolidinler	Hypnotic pyrrolidines
+51362800	Hipnotik kinazolinler	Hypnotic quinazolines
+51363000	Hipnotik tiyazoller ve tiyoksantenler ve üre analogları	Hypnotic thiazoles and thioxanthenes and urea analogs
+51363200	Hipnotik valeratlar	Hypnotic valerates
+51363300	Hipnotik piperidinler	Hypnotic piperidines
+51363400	Hipnotik üreler	Hypnotic ureas
+51363600	Hipnotik oksimler	Hypnotic oximes
+51371500	Kontrole tabi analjezik bütanonlar ve sikloheksankarboksilik asitler ve fenetilaminler ve piridinler ve tetrahidronaftalinler	Controlled substance analgesic butanones and cyclohexanecarboxylic acids and phenethylamines and pyridines and tetrahydronaphthalenes
+51371600	Kontrole tabi analjezik alkoller	Controlled substance analgesic alcohols
+51371700	Kontrole tabi analjezik indol alkaloitleri	Controlled substance analgesic indole alkaloids
+51371800	Kontrole tabi analjezik izonipekotik asitler	Controlled substance analgesic isonipecotic acids
+51371900	Kontrole tabi analjezik metadonlar	Controlled substance analgesic methadones
+51372000	Kontrole tabi analjezik morfinanlar	Controlled substance analgesic morphinans
+51372100	Kontrole tabi analjezik morfin türevleri	Controlled substance analgesic morphine derivatives
+51372200	Kontrole tabi analjezik morfolinler	Controlled substance analgesic morpholines
+51372300	Kontrole tabi analjezik piperidinler	Controlled substance analgesic piperidines
+51372400	Kontrole tabi analjezik propiyonatlar	Controlled substance analgesic propionates
+51372600	Kontrole tabi analjezik amitler ve aminler ve benzofuranlar ve benzilaminler	Controlled substance analgesic amides and amines and benzofurans and benzylamines
+51372700	Kontrole tabi analjezik azepinler	Controlled substance analgesic azepines
+51372800	Kontrole tabi analjezik azosinler	Controlled substanceanalgesic azocines
+51372900	Kontrole tabi analjezik benzimidazoller	Controlled substance analgesic benzimidazoles
+51373000	Kontrole tabi analjezik benzomorfanlar	Controlled substance analgesic benzomorphans
+51373100	Kontrole tabi analjezik tiyofenler	Controlled substance analgesic thiophenes
+51373200	Kontrole tabi analjezik fenoller	Controlled substance analgesic phenols
+51381500	Nonsteroid antiinflamatuvar benzoatlar	Nonsteroidal anti inflammatory benzoates
+51381600	Nonsteroid antiinflamatuvar asetamitler	Nonsteroidal anti inflammatory acetamides
+51381700	Nonsteroid antiinflamatuvar asetanilitler	Nonsteroidal anti inflammatory acetanilides
+51381800	Nonsteroid antiinflamatuvar asetatlar	Nonsteroidal anti inflammatory acetates
+51381900	Nonsteroid antiinflamatuvar azoller	Nonsteroidal anti inflammatory azoles
+51382000	Nonsteroid antiinflamatuvar benzenasetamitler ve benzodiazepinler ve benzoksazoller ve bütanonlar	Nonsteroidal anti inflammatory benzeneacetamides and benzodiazepines and benzoxazoles and butanones
+51382100	Nonsteroid antiinflamatuvar karbazoller	Nonsteroidal anti inflammatory carbazoles
+51382200	Nonsteroid antiinflamatuvar benzofuranlar	Nonsteroidal anti inflammatory benzofurans
+51382300	Nonsteroid antiinflamatuvar benzoik asitler	Nonsteroidal anti inflammatory benzoic acids
+51382400	Nonsteroid antiinflamatuvar benzofenonlar	Nonsteroidal anti inflammatory benzophenones
+51382500	Nonsteroid antiinflamatuvar bütillenmiş hidroksitoluen analogları ve türevleri ve bütirik asitler ve glikozitler ve guanidinler	Nonsteroidal anti inflammatory butylated hydroxytoluene/analogs and derivatives and butyric acids and glycosides and guanidines
+51382600	Nonsteroid antiinflamatuvar karbamatlar	Nonsteroidal anti inflammatory carbamates
+51382700	Nonsteroid antiinflamatuvar indenler	Nonsteroidal anti inflammatory indenes
+51382800	Nonsteroid antiinflamatuvar glikolatlar	Nonsteroidal anti inflammatory glycolates
+51382900	Nonsteroid antiinflamatuvar heksozaminler ve hidroksamik asitler ve izokinolinler ve laktonlar	Nonsteroidal anti inflammatory hexosamines and hydroxamic acids and isoquinolines and lactones
+51383000	Nonsteroid antiinflamatuvar imidazoller	Nonsteroidal anti inflammatory imidazoles
+51383100	Nonsteroid antiinflamatuvar dibenzoksepinler	Nonsteroidal anti inflammatory dibenzoxepins
+51383200	Nonsteroid antiinflamatuvar indanlar	Nonsteroidal anti inflammatory indans
+51383300	Nonsteroid antiinflamatuvar fenilasetatlar	Nonsteroidal anti inflammatory phenylacetates
+51383400	Nonsteroid antiinflamatuvar indolasetik asitler	Nonsteroidal anti inflammatory indoleacetic acids
+51383500	Nonsteroid antiinflamatuvar indoller	Nonsteroidal anti inflammatory indoles
+51383700	Nonsteroid antiinflamatuvar malonatlar ve organoaltın bileşikleri ve piperazinler ve propanoller	Nonsteroidal anti inflammatory malonates and organogold compounds and piperazines and propanols
+51383800	Nonsteroid antiinflamatuvar naftalinler	Nonsteroidal anti inflammatory naphthalenes
+51383900	Nonsteroid antiinflamatuvar nikotinik asitler	Nonsteroidal anti inflammatory nicotinic acids
+51384000	Nonsteroid antiinflamatuvar oksazinler	Nonsteroidal anti inflammatory oxazines
+51384100	Nonsteroid antiinflamatuvar fenilbütiratlar	Nonsteroidal anti inflammatory phenylbutyrates
+51384200	Nonsteroid antiinflamatuvar fenilpropiyonatlar	Nonsteroidal anti inflammatory phenylpropionates
+51384300	Nonsteroid antiinflamatuvar piperidinler	Nonsteroidal anti inflammatory piperidines
+51384500	Nonsteroid antiinflamatuvar propiyonatlar	Nonsteroidal anti inflammatory propionates
+51384600	Nonsteroid antiinflamatuvar pirazoller	Nonsteroidal anti inflammatory pyrazoles
+51384700	Nonsteroid antiinflamatuvar piridazinler	Nonsteroidal anti inflammatory pyridazines
+51384800	Nonsteroid antiinflamatuvar piridinler	Nonsteroidal anti inflammatory pyridines
+51384900	Nonsteroid antiinflamatuvar pirimidinonlar ve piruvatlar ve kinazolinonlar ve sülfonlar	Nonsteroidal anti inflammatory pyrimidinones and pyruvates and quinazolinones and sulfones
+51385000	Nonsteroid antiinflamatuvar piroller	Nonsteroidal anti inflammatory pyrroles
+51385100	Nonsteroid antiinflamatuvar pirolidinler	Nonsteroidal anti inflammatory pyrrolidines
+51385200	Nonsteroid antiinflamatuvar kinazolinler	Nonsteroidal anti inflammatory quinazolines
+51385300	Nonsteroid antiinflamatuvar kinazolinonlar	Nonsteroidal anti inflammatory quinazolinones
+51385400	Nonsteroid antiinflamatuvar kinolinler	Nonsteroidal anti inflammatory quinolines
+51385500	Nonsteroid antiinflamatuvar salisilamitler	Nonsteroidal anti inflammatory salicylamides
+51385600	Nonsteroid antiinflamatuvar salisilatlar	Nonsteroidal anti inflammatory salicylates
+51385700	Nonsteroid antiinflamatuvar sülfonamitler	Nonsteroidal anti inflammatory sulfonamides
+51385800	Nonsteroid antiinflamatuvar tiyazinler	Nonsteroidal anti inflammatory thiazines
+51385900	Nonsteroid antiinflamatuvar tiyazolidinler ve tiyofenler ve triazinler	Nonsteroidal anti inflammatory thiazolidines and thiophenes and triazines
+51386100	Nonsteroid antiinflamatuvar sulindaklar	Nonsteroidal anti inflammatory sulindacs
+51386200	Nonsteroid antiinflamatuvar aminokaproik asitler ve aminosalisilik asitler ve anilin bileşikleri ve antrakinonlar	Nonsteroidal anti inflammatory aminocaproic acids and aminosalicylic acids and aniline compounds and anthraquinones
+51386300	Nonsteroid antiinflamatuvar benzoksazinler	Nonsteroidal anti inflammatory benzoxazines
+51386400	Nonsteroid antiinflamatuvar fenilhidrazinler	Nonsteroidal anti inflammatory phenylhydrazines
+51391500	Sempatomimetik veya adrenerjik alkoller	Sympathomimetic or adrenergic alcohols
+51391600	Sempatomimetik veya adrenerjik aminler	Sympathomimetic or adrenergic amines
+51391700	Sempatomimetik veya adrenerjik amino alkoller	Sympathomimetic or adrenergic amino alcohols
+51391800	Sempatomimetik veya adrenerjik amfetaminler	Sympathomimetic or adrenergic amphetamines
+51391900	Sempatomimetik veya adrenerjik azepinler	Sympathomimetic or adrenergic azepines
+51392000	Sempatomimetik veya adrenerjik benzazepinler ve benzimidazoller ve benzonitriller ve benzil alkoller	Sympathomimetic or adrenergic benzazepines and benzimidazoles and benzonitriles and benzyl alcohols
+51392200	Sempatomimetik veya adrenerjik imidazoller	Sympathomimetic or adrenergic imidazoles
+51392300	Sempatomimetik veya adrenerjik izokinolinler ve izoksazoller ve naftiridinler ve fenoksipropanolaminler	Sympathomimetic or adrenergic isoquinolines and isoxazoles and naphthyridines and phenoxypropanolamines
+51392400	Sempatomimetik veya adrenerjik katekolaminler	Sympathomimetic or adrenergic catecholamines
+51392500	Sempatomimetik veya adrenerjik benzilizokinolinler ve karbamatlar ve katekoller ve siklopentanlar	Sympathomimetic or adrenergic benzylisoquinolines and carbamates and catechols and cyclopentanes
+51392600	Sempatomimetik veya adrenerjik fenilpropanolaminler	Sympathomimetic or adrenergic phenylpropanolamines
+51392700	Sempatomimetik veya adrenerjik piperazinler	Sympathomimetic or adrenergic piperazines
+51392800	Sempatomimetik veya adrenerjik piridazinler	Sympathomimetic or adrenergic pyridazines
+51392900	Sempatomimetik veya adrenerjik piridinler	Sympathomimetic or adrenergic pyridines
+51393000	Sempatomimetik veya adrenerjik kinazolinler	Sympathomimetic or adrenergic quinazolines
+51393100	Sempatomimetik veya adrenerjik kinolinler	Sympathomimetic or adrenergic quinolines
+51393200	Sempatomimetik veya adrenerjik tartaratlar ve tiyofenler ve trimetilsilil bileşikleri	Sympathomimetic or adrenergic tartrates and thiophenes and trimethylsilyl compounds and
+51393400	Sempatomimetik veya adrenerjik ksantinler	Sympathomimetic or adrenergic xanthines
+51393600	Sempatomimetik veya adrenerjik dibenzoksepinler ve dioksolanlar ve glikozitler ve guanidinler	Sympathomimetic or adrenergic dibenzoxepins and dioxolanes and glycosides and guanidines
+51393700	Sempatomimetik veya adrenerjik pirimidinler	Sympathomimetic or adrenergic pyrimidines
+51401500	Sakinleştirici ve antimanik ve anksiyolitik benzodiazepinler	Tranquilizers and antimanic and antianxiety benzodiazepines
+51401600	Sakinleştirici ve antimanik ve anksiyolitik amitler	Tranquilizers and antimanic and antianxiety amides
+51401700	Sakinleştirici ve antimanik ve anksiyolitik aminler ve antrasenler ve barbitüratlar ve benzazepinler ve dipeptitler	Tranquilizers and antimanic and antianxiety amines and anthracenes and barbiturates and benzazepines and dipeptides
+51401800	Sakinleştirici ve antimanik ve anksiyolitik azepinler	Tranquilizers and antimanic and antianxiety azepines
+51401900	Sakinleştirici ve antimanik ve anksiyolitik azoller	Tranquilizers and antimanic and antianxiety azoles
+51402000	Sakinleştirici ve antimanik ve anksiyolitik karbamatlar	Tranquilizers and antimanic and antianxiety carbamates
+51402100	Sakinleştirici ve antimanik ve anksiyolitik tiyazinler	Tranquilizers and antimanic and antianxiety thiazines
+51402200	Sakinleştirici ve antimanik ve anksiyolitik naftiridinler ve oksazinler ve kinolinler ve spiro bileşikler ve kükürt bileşikleri	Tranquilizers and antimanic and antianxiety naphthyridines and oxazines and quinolines and spiro compounds and sulfur compounds
+51402300	Sakinleştirici ve antimanik ve anksiyolitik piperazinler	Tranquilizers and antimanic and antianxiety piperazines
+51402400	Sakinleştirici ve antimanik ve anksiyolitik piperidinler	Tranquilizers and antimanic and antianxiety piperidines
+51402500	Sakinleştirici ve antimanik ve anksiyolitik piridinler	Tranquilizers and antimanic and antianxiety pyridines
+51402600	Sakinleştirici ve antimanik ve anksiyolitik pirimidinler	Tranquilizers and antimanic and antianxiety pyrimidines
+51411500	Vazodilatör karboksilik asitler	Vasodilator carboxylic acids
+51411600	Vazodilatör alkoller	Vasodilator alcohols
+51411700	Vazodilatör alkaloitler	Vasodilator alkaloids
+51411800	Vazodilatör amitler ve azepinler ve ergot alkaloitleri ve eterler	Vasodilator amides and azepines and ergot alkaloids and ethers
+51411900	Vazodilatör aminler	Vasodilator amines
+51412000	Vazodilatör azoller	Vasodilator azoles
+51412100	Vazodilatör benzimidazoller	Vasodilator benzimidazoles
+51412300	Vazodilatör benzofuranlar	Vasodilator benzofurans
+51412400	Vazodilatör benzopiranlar	Vasodilator benzopyrans
+51412500	Vazodilatör fenotiyazinler	Vasodilator phenothiazines
+51412600	Vazodilatör ferrisiyanürler ve hidrazinler ve izokinolinler ve morfolinler ve fenoller	Vasodilator ferricyanides and hydrazines and isoquinolines and morpholines and phenols
+51412700	Vazodilatör furanlar	Vasodilator furans
+51412800	Vazodilatör ketonlar	Vasodilator ketones
+51412900	Vazodilatör nikotinik asitler	Vasodilator nicotinic acids
+51413000	Vazodilatör nitratlar	Vasodilator nitrates
+51413100	Vazodilatör kinazolinler ve kinolinler ve kinolonlar ve sülfonamitler ve triazinler	Vasodilator quinazolines and quinolines and quinolones and sulfonamides and triazines
+51413200	Vazodilatör piperazinler	Vasodilator piperazines
+51413300	Vazodilatör prostaglandinler	Vasodilator prostaglandins
+51413400	Vazodilatör piridazinler	Vasodilator pyridazines
+51413500	Vazodilatör piridinler	Vasodilator pyridines
+51413600	Vazodilatör pirimidinler	Vasodilator pyrimidines
+51413700	Vazodilatör pirolidinler	Vasodilator pyrrolidines
+51413800	Vazodilatör tiyazoller	Vasodilator thiazoles
+51414000	Vazodilatör piperidinler	Vasodilator piperidines
+51414100	Vazodilatör purinler	Vasodilator purines
+51421500	Kortikosteroid androstadienler	Corticosteroid androstadienes
+51421600	Kortikosteroid betametazonlar	Corticosteroid betamethasones
+51421700	Kortikosteroid kortikotropin salgılatıcı hormonlar	Corticosteroid corticotropin-releasing hormones
+51421800	Kortikosteroid glukokortikoitler	Corticosteroid glucocorticoids
+51421900	Kortikosteroid naftokinonlar ve pregnanlar ve pregnenler	Corticosteriod naphthoquinones and pregnanes and pregnenes
+51422000	Kortikosteroid peptit hormonlar	Corticosteroid peptide hormones
+51422100	Kortikosteroid pregnadiendioller	Corticosteroid pregnadienediols
+51422200	Kortikosteroid pregnadienler	Corticosteroid pregnadienes
+51422300	Kortikosteroid pregnadientrioller	Corticosteroid pregnadienetriols
+51422400	Kortikosteroid pregnendionlar	Corticosteroid pregnenediones
+51431500	Antihipertansif akrilatlar ve amitler ve anjiyotensinler ve aromatik amino asitler	Antihypertensive acrylates and amides and angiotensins and aromatic amino acids
+51431600	Antihipertansif aminler	Antihypertensive amines
+51431700	Antihipertansif benzazepinler	Antihypertensive benzazepines
+51431800	Antihipertansif benzen türevleri ve benzimidazoller ve benzofuranlar ve katekolaminler	Antihypertensive benzene derivatives and benzimidazoles and benzofurans and catecholamines
+51431900	Antihipertansif alkoller	Antihypertensive alcohols
+51432000	Antihipertansif siklo parafinler ve indanlar ve izoksazoller ve pregnanlar	Antihypertensive cycloparaffins and indans and isoxazoles and pregnanes
+51432100	Antihipertansif guanidinler	Antihypertensive guanidines
+51432200	Antihipertansif hidralazinler	Antihypertensive hydralazines
+51432300	Antihipertansif imidazoller	Antihypertensive imidazoles
+51432400	Antihipertansif imino asitler	Antihypertensive imino acids
+51432500	Antihipertansif indoller	Antihypertensive indoles
+51432600	Antihipertansif piperazinler	Antihypertensive piperazines
+51432700	Antihipertansif bisiklo bileşikler	Antihypertensive bicyclo compounds
+51432800	Antihipertansif oligopeptitler	Antihypertensive oligopeptides
+51432900	Antihipertansif organofosfor bileşikleri	Antihypertensive organophosphorus compounds
+51433000	Antihipertansif oksazoller	Antihypertensive oxazoles
+51433100	Antihipertansif peptitler	Antihypertensive peptides
+51433200	Antihipertansif fenilpropiyonatlar	Antihypertensive phenylpropionates
+51433300	Antihipertansif ftalazinler	Antihypertensive phthalazines
+51433400	Antihipertansif nikotinik asitler	Antihypertensive nicotinic acids
+51433500	Antihipertansif kinolinler ve kinüklidinler ve tetrahidronaftalinler ve tropanlar ve veratrum alkaloitleri	Antihypertensive quinolines and quinuclidines and tetrahydronaphthalenes and tropanes and veratrum alkaloids
+51433600	Antihipertansif piperidinler	Antihypertensive piperidines
+51433700	Antihipertansif prostaglandinler ve pirazoller ve pirimidinler ve kinazolinler	Antihypertensive prostaglandins and pyrazoles and pyrimidines and quinazolines
+51433800	Antihipertansif piridazinler	Antihypertensive pyridazines
+51433900	Antihipertansif piridinler	Antihypertensive pyridines
+51434000	Antihipertansif pirolidinler	Antihypertensive pyrrolidines
+51434100	Antihipertansif kuaterner amonyum bileşikleri	Antihypertensive quaternary ammonium compounds
+51434200	Antihipertansif sekologanin triptamin alkaloitleri	Antihypertensive secologanin tryptamine alkaloids
+51434300	Antihipertansif sülfonamitler	Antihypertensive sulfonamides
+51434400	Antihipertansif terpenler	Antihypertensive terpenes
+51434500	Antihipertansif tetrazoller	Antihypertensive tetrazoles
+51434600	Antihipertansif tiyazoller	Antihypertensive thiazoles
+51434700	Antihipertansif tiyepinler	Antihypertensive thiepins
+51451500	Antihelmintik klorofenoller	Anthelmintic chlorophenols
+51451600	Antihelmintik benzimidazoller	Anthelmintic benzimidazoles
+51451700	Antihelmintik fenotiyazinler ve piperidinler ve pirolidinler ve kuaterner amonyum bileşikleri ve tiyofenler	Anthelmintic phenothiazines and piperidines and pyrrolidines and quaternary ammonium compounds and thiophenes
+51451800	Antihelmintik diğer bileşenlerden	Anthelmintic from other constituents
+51451900	Antihelmintik amitler	Anthelmintic amides
+51452000	Antihelmintik amidinler ve aminler ve arsenikli bileşikler ve azoller	Anthelmintic amidines and amines and arsenicals and azoles
+51452100	Antihelmintik benzen türevleri	Anthelmintic benzene derivatives
+51452200	Antihelmintik benzoatlar	Anthelmintic benzoates
+51452300	Antihelmintik benzodioksoller ve bütirofenonlar ve bakır bileşikleri ve sikloheksanlar ve naftalinler	Anthelmintic benzodioxoles and butyrophenones and copper compounds and cyclohexanes and naphthalenes
+51452400	Antihelmintik karbamatlar	Anthelmintic carbamates
+51452500	Antihelmintik klorlu hidrokarbonlar	Anthelmintic chlorinated hydrocarbons
+51452600	Antihelmintik guanidinler	Anthelmintic guanidines
+51452700	Antihelmintik izokinolinler	Anthelmintic isoquinolines
+51452800	Antihelmintik makrolitler	Anthelmintic macrolides
+51452900	Antihelmintik organofosfor bileşikleri	Anthelmintic organophosphorus compounds
+51453000	Antihelmintik piperazinler	Anthelmintic piperazines
+51453100	Antihelmintik pirimidinler	Anthelmintic pyrimidines
+51453200	Antihelmintik kinolinler	Anthelmintic quinolines
+51453300	Antihelmintik sülfürler	Anthelmintic sulfides
+51453400	Antihelmintik terpenler	Anthelmintic terpenes
+51453500	Antihelmintik tiyazoller	Anthelmintic thiazoles
+51453600	Antihelmintik tiyosiyanatlar	Anthelmintic thiocyanates
+51453700	Antihelmintik tiyoksantenler	Anthelmintic thioxanthenes
+51471500	Antiseptik alkenler ve amidinler ve aminler ve amonyak esaslı bileşikler	Antiseptic alkenes and amidines and amines and ammonia-based compounds
+51471600	Antiseptik asetatlar	Antiseptic acetates
+51471700	Antiseptik asitler	Antiseptic acids
+51471800	Antiseptik akridinler	Antiseptic acridines
+51471900	Antiseptik alkoller	Antiseptic alcohols
+51472000	Antiseptik aldehitler	Antiseptic aldehydes
+51472100	Antiseptik amitler	Antiseptic amides
+51472300	Antiseptik boratlar ve klor esaslı bileşikler ve ağır metaller ve bitkisel preparatlar	Antiseptic borates and chlorine-based compounds and heavy metals and herbal preparations
+51472400	Antiseptik benzoatlar	Antiseptic benzoates
+51472500	Antiseptik klorobenzenler	Antiseptic chlorobenzenes
+51472600	Antiseptik krezoller	Antiseptic cresols
+51472700	Antiseptik flor bileşikleri	Antiseptic fluorine compounds
+51472800	Antiseptik guanidinler	Antiseptic guanidines
+51472900	Antiseptik halojenler	Antiseptic halogens
+51473000	Antiseptik kuaterner amonyum bileşikleri	Antiseptic quaternary ammonium compounds
+51473100	Antiseptik imidazoller ve ketonlar ve lipitler ve nitrofuranlar	Antiseptic imidazoles and ketones and lipids and nitrofurans
+51473200	Antiseptik organometalik bileşikler	Antiseptic organometallic compounds
+51473300	Antiseptik fenoller	Antiseptic phenols
+51473400	Antiseptik piridinler	Antiseptic pyridines
+51473500	Antiseptik pirimidinler ve gümüş bileşikleri ve üreler ve sular	Antiseptic pyrimidines and silvers and ureas and waters
+51473600	Antiseptik kinolinler	Antiseptic quinolines
+51473700	Antiseptik kükürt bileşikleri	Antiseptic sulfur compounds
+51473800	Antiseptik terpenler	Antiseptic terpenes
+51101600	Amebisitler ve trikomonasitler	Amebicides and trichomonacides
+51101900	Antiprotozoal ilaçlar	Antiprotozoals
+51102800	Kombine antienfektifler	Combination anti-infectives
+51102900	Kombine antimalaryaller	Combination antimalarials
+51103000	Kombine pedikülositler	Combination pediculicides
+51112000	Tirozin kinaz inhibitörleri	Tyrosine kinase inhibitors
+51112100	Antineoplastik ajanlar, immünotoksinler ve keratinosit büyüme faktörleri	Antineoplastic agents, antineoplastic agent immunotoxins and antineoplastic keratinocyte growth factors
+51112200	Kombine antineoplastikler	Combination antineoplastics
+51122400	Kombine antianjinaller	Combination antianginals
+51122500	Kombine antiaritmikler	Combination antiarrhythmics
+51122600	Kombine antilipemik ajanlar	Combination antilipemic agents
+51122700	Kombine kardiyovasküler ajanlar	Combination cardiovascular agents
+51132100	Kombine hematolojik ilaçlar	Combination hematolic drugs
+51132200	Kombine opioid dışı analjezikler	Combination non-opioid analgesics
+51132300	Kombine hacim genişleticiler	Combination volume expanders
+51143000	Nootropikler	Nootropics
+51143100	Salisilatlar	Salicylates
+51143200	Bağımlılık karşıtı ilaçlar	Anti abuse drugs
+51143300	Kombine antikonvülzanlar	Combination anticonvulsants
+51143400	Kombine antimigren ajanlar	Combination antimigraine agents
+51143500	Kombine antiparkinson ajanlar	Combination antiparkinson agents
+51143600	Kombine antivertigo ajanlar	Combination antivertigo agents
+51143700	Kombine merkezi sinir sistemi ilaçları	Combination CNS medications
+51143800	Kombine merkezi sinir sistemi uyarıcıları	Combination CNS stimulants
+51152100	Kombine antimuskarinik ve antispazmodikler	Combination antimuscarinic and antipasmodics
+51152200	Kombine nöromusküler blokör ajanlar	Combination neuromuscular blocking agents
+51152300	Kombine parasempatomimetikler kolinerjikler	Combination parasympathomimetics (cholinergics)
+51152400	Kombine iskelet kası gevşeticileri	Combination skeletal muscle relaxants
+51162000	Kombine antiastım ajanları	Combination antiasthma agents
+51162100	Kombine antitüberkülozlar	Combination antituberculars
+51162200	Kombine bronkodilatörler ve solunum ajanları	Combination bronchodilators and respiratory agents
+51162300	Kombine soğuk algınlığı ilaçları	Combination cold remedies
+51162400	Analjezik veya öksürük kesici içeren kombine dekonjestanlar	Combination decongestants, with analgesics, antitussives, or expectorants
+51162500	Opioidsiz kombine öksürük kesici ve balgam sökürücüler	Combination non-opioid-containing antitussives/expectorants
+51162600	Öksürük kesiciler ve ilgili öksürük ilaçları	Antitussives and associated cough remedies
+51162700	Dekonjestanlar, balgam sökürücüler ve mukolitikler	Decongestants, expectorants, and mucolytics
+51172200	İnterstisyel sistit tedavi ilaçları	Drugs that treat interstitial cystitis
+51172300	Antidotlar ve kusturucular	Antidotes and emetics
+51172400	Kombine antasit, antidiyareik, gaz giderici ve mide preparatları	Combination antacid, antidiarrheal, anti-flatulence, digestive, and gastric preparations
+51172500	Kombine zehir antidotları	Combination poison antidotes
+51172600	Kombine antiemetikler	Combination antiemetics
+51172700	Kombine antispazmodikler	Combination antispasmodics
+51172800	Kombine kariyostatikler, diş veya ağız gargaraları	Combination cariostatics, dental or mouthwashes or oral agents
+51172900	Kombine ürogenital ajanlar	Combination genito-urinary agents
+51173000	Kombine hemoroit preparatları	Combination hemorrhoidal preparations
+51173100	Kombine histamin antagonistleri	Combination histamine antagonists
+51173200	Kombine laksatifler	Combination laxatives
+51173300	Kombine rektal ve lokal diğer	Combination rectal, local other
+51182400	Kalsiyum düzenleyiciler ve kalsiyum tuzları	Calcium regulators and calcium salts
+51182500	Kombine antitiroid ajanlar ve takviyeler	Combination antithyroid agents and supplements
+51182600	Kombine hormonlar, sentetikler ve modifiye ediciler	Combination hormones/synthetics/modifiers
+51182700	Kombine oral hipoglisemik ajanlar	Combination oral hypoglycemic agents
+51182800	Kombine oksitosikler	Combination oxytocics
+51182900	Kombine fosfor preparatları	Combination phosphorus
+51183000	Kombine ön hipofiz preparatları	Combination anterior pituitary
+51191900	Beslenme tedavisi ürünleri	Nutritional therapy products
+51192000	Gut ilaçları	Antigout drugs
+51192100	Kombine antigut ajanlar	Combination antigout agents
+51192200	Kombine diüretikler	Combination diuretics
+51192300	Kombine elektrolit ve mineraller	Combination electrolytes/minerals
+51192400	Kombine beslenme tedavisi ürünleri	Combination nutritional therapy products
+51192500	Kombine prostaglandinler	Combination prostaglandins
+51192600	Kombine koruyucu ajanlar	Combination protective agents
+51202000	Tirozin ve kinaz inhibitörü esaslı immünomodülatör ilaçlar	Immunomodulating drugs based on tyrosine Inhibitors and kinase Inhibitors
+51202100	Kombine toksoitler ve aşılar	Combination toxoids and vaccines
+51204200	Veteriner aşıları ve viroloji ürünleri	Veterinary vaccines and virology products
+51241100	Oftalmik ajanlar	Ophthalmic agents
+51241400	Kombine akne karşıtı ajanlar	Combination antiacne agents
+51241500	Kombine antiglokom ve göz preparatları	Combination antiglaucoma, ophthalmic, and eye-related agents and preparations
+51241600	Kombine antipsoriatikler	Combination antipsoriatics
+51241700	Kombine kontakt lens solüsyonları	Combination contact lens solutions
+51241800	Kombine dermatolojik ürünler	Combination dermatologicals
+51241900	Kombine nemlendiriciler	Combination emollients
+51242000	Kombine keratolitikler ve kostikler	Combination keratolytics/caustics
+51242100	Kombine burun ve boğaz preparatları	Combination nasal and throat preparations
+51242200	Kombine kulak ajanları	Combination otic agents
+51242300	Kombine güneş koruyucular	Combination sun protectants or screens
+51263300	Sentezlenmiş adrenerjik blokörler	Adrenergic blocking agents, synthesized
+51273300	Sentezlenmiş anestezikler	Anaesthetics, synthesized
+51273800	Kombine analjezikler	Combination analgesics
+51273900	Kombine anestezikler ve yardımcıları	Combination anesthetics and adjuncts
+51281500	Antitüberküloz ilaçları	Antitubercular drugs
+51281600	Aminoglikozitler	Aminoglycosides
+51281700	Aminopenisilinler	Aminopenicillins
+51281800	Antrasiklinler	Anthracyclines
+51281900	Antineoplastikler	Antineoplastics
+51282000	Aktinomisinler, basitrasinler, kloramfenikoller, siklik peptit antibakteriyeller ve glisilsiklinler	Actinomycines and bacitracins and chloramphenicols and cyclic peptide antibacterials and glycylcyclines
+51282100	Beta laktamlar	Beta-lactams
+51282200	Sefamisinler	Cephamycins
+51282300	Eritromisinler	Erythromycins
+51282400	Genişletilmiş spektrumlu penisilinler	Extended-spectrum penicillins
+51282500	Birinci kuşak sefalosporinler	First generation cephalosporins
+51282600	Dördüncü kuşak sefalosporinler	Fourth generation cephalosporins
+51282700	Glikopeptitler	Glycopeptides
+51282800	İmidazoller	Imidazoles
+51282900	Kinolon antibakteriyeller	Quinolone antibacterials
+51283000	Linkozamitler	Lincosamides
+51283100	Lipopeptitler	Lipopeptides
+51283200	Makrolitler	Macrolides
+51283300	Oksazolidinonlar	Oxazolidinones
+51283400	Penisilinler	Penicillins
+51283500	Penisilinaza dirençli penisilinler	Penicillinase-resistant penicillins
+51283600	Rifamisin antibakteriyeller	Rifamycin antibacterials
+51283700	İkinci kuşak sefalosporinler	Second generation cephalosporins
+51283800	Streptograminler	Streptogramins
+51283900	Sülfonamit antibakteriyeller	Sulfonamide antibacterials
+51284000	Tetrasiklinler	Tetracyclines
+51284100	Üçüncü kuşak sefalosporinler	Third generation cephalosporins
+51284300	Amfenikoller	Amphenicols
+51284400	Beşinci kuşak sefalosporinler	Fifth generation cephalosporins
+51284500	Linkomisinler, monobaktam, polimiksin ve polisakkarit antibakteriyeller	Lincomycins and monobactam antibacterials and polymyxin antibacterials and polysaccharide antibacterials
+51284600	Karbapenemler	Carbapenems
+51284700	Pleuromutilin antibakteriyeller	Pleuromutilin antibacterials
+51284800	Kombine antibakteriyeller	Combination antibacterials
+51284900	Kombine antimikrobiyaller	Combination antimicrobials
+51285000	Kombine genişletilmiş spektrumlu penisilinler	Combination extended spectrum penicillins
+51285100	Kombine H. pylori ajanları	Combination H. pylori agents
+51285200	Dihidrofolat redüktaz inhibitörü antibakteriyeller	Dihydrofolate reductase inhibitor antibacterials
+51285400	A kuşağı sefalosporinler	A-generational cephalosporins
+51285500	Sentezlenmiş antibakteriyeller	Antibacterials, synthesized
+51286800	Kinolin antibakteriyeller	Quinoline antibacterials
+51295100	Sentezlenmiş antidepresanlar	Antidepressants, synthesized
+51303200	Sentezlenmiş antifungaller	Antifungals, synthesized
+51303600	Kombine antifungaller	Combination antifungals
+51303700	Kombine ostomi koku kontrol ürünleri	Combination odor control products, ostomy
+51313500	Sentezlenmiş antihistaminikler veya H1 blokörler	Antihistamine or H1 blockers, synthesized
+51314300	Analjezik veya dekonjestan içeren kombine antihistaminikler	Combination antihistamines, with analgesics, antitussives, decongestants, or expectorants
+51323100	Sentezlenmiş antihiperlipidemikler ve hipokolesterolemikler	Antihyperlipidemics and hypocholesterolemics, synthesized
+51334400	Sentezlenmiş antipsikotikler	Antipsychotics, synthesized
+51334600	Kombine lityum tuzları	Combination lithium salts
+51343300	Sentezlenmiş antiviraller	Antivirals, synthesized
+51343800	Kombine antiviraller	Combination antivirals
+51352300	Sentezlenmiş östrojenler, progestinler veya dahili kontraseptifler	Estrogens, progestins, or internal contraceptives, synthesized
+51352400	Kombine kontraseptifler ve östrojenler	Combination contraceptives and estrogens
+51363100	Sentezlenmiş hipnotikler	Hypnotics, synthesized
+51363500	Kombine hipnotikler veya sedatifler	Combination hypnotics or sedatives
+51372500	Sentezlenmiş kontrole tabi analjezikler	Controlled substance analgesics, synthesized
+51373300	Kombine opioid analjezikler	Combination opioid analgesics
+51373400	Kombine opioid içeren öksürük kesici ve balgam sökürücüler	Combination opioid-containing antitussives and expectorants
+51386000	Sentezlenmiş nonsteroid antiinflamatuvarlar	Nonsteroidal anti inflammatorys, synthesized
+51386500	Kombine amino asit ve proteinler	Combination amino acids/proteins
+51386600	Kombine antiinflamatuvar ajanlar	Combination anti-inflammatory agents
+51393300	Sentezlenmiş sempatomimetik veya adrenerjik ilaçlar	Sympathomimetic or adrenergic drugs, synthesized
+51393800	Kombine sempatomimetikler adrenerjikler	Combination sympathomimetics (adrenergics)
+51413900	Sentezlenmiş vazodilatörler	Vasodilators, synthesized
+51422500	Sentezlenmiş kortikosteroitler	Corticosteroids, synthesized
+51422600	Kombine glukokortikoitler	Combination glucocorticoids
+51434800	Sentezlenmiş antihipertansif ilaçlar	Antihypertensive drugs, synthesized
+51434900	Kombine antihipertansifler	Combination antihypertensives
+51435000	Kombine kalsiyum kanal blokörleri	Combination calcium channel blockers
+51441500	Tıbbi görüntüleme kontrast maddeleri	Medical imaging contrast media
+51441600	Tanı ajanları ve radyofarmasötikler	Diagnostic agents and radiopharmaceuticals
+51441700	Kombine kontrast maddeler, görüntüleme ajanları ve radyofarmasötikler	Combination contrast media, imaging agents, and radiopharmaceuticals
+51441800	Kombine tanı ajanları	Combination diagnostic agents
+51441900	Benzoik asit esaslı tıbbi görüntüleme ajanları ve izleyicileri	Benzoic acid-based medical imaging agents, media, and tracers
+51442000	Flor esaslı tıbbi görüntüleme ajanları ve izleyicileri	Fluorine-based medical imaging agents, media, and tracers
+51442100	Florokarbon esaslı tıbbi görüntüleme ajanları ve izleyicileri	Fluorocarbon-based medical imaging agents, media, and tracers
+51442200	Gadolinyum esaslı tıbbi görüntüleme ajanları ve izleyicileri	Gadolinium-based medical imaging agents, media, and tracers
+51442300	İndiyum esaslı tıbbi görüntüleme ajanları ve maddeleri	Indium-based medical imaging agents and media
+51442400	İyot esaslı radyofarmasötikler ve görüntüleme ajanları	Iodine-based radiopharmaceuticals, imaging agents, media, and tracers
+51442500	Mangan esaslı radyofarmasötikler ve görüntüleme ajanları	Manganese-based radiopharmaceuticals, imaging agents, media, and tracers
+51442600	Sodyum esaslı radyofarmasötikler ve görüntüleme ajanları	Sodium-based radiopharmaceuticals, imaging agents, media, and tracers
+51442700	Teknesyum esaslı radyofarmasötikler ve görüntüleme ajanları	Technetium-based radiopharmaceuticals, imaging agents, media, and tracers
+51461500	Tıbbi bitkiler	Medicinal herbs
+51461600	Kombine bitkisel ve alternatif tedaviler	Combination herbs/alternative therapies
+51473900	Kombine sabun, şampuan ve sabunsuz temizleyiciler	Combination soaps/shampoos/soap-free cleansers
+51474000	Kombine antiseptikler, serümenolitikler ve dezenfektanlar	Combination antiseptics, ceruminolytics, and disinfectants
