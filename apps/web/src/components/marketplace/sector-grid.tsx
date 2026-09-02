@@ -1,3 +1,4 @@
+import { CategoryImage } from "./category-image";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import type { PublicFacets } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -28,19 +29,22 @@ export function SectorGrid({ facets }: { facets: PublicFacets }) {
           Açık talepler ve ilanlar, Ariba/UNSPSC uyumlu 58 sektör başlığı
           altında sınıflandırılır.
         </p>
-        <ul className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {sectors.map((s) => (
             <li key={s.id}>
               <Link
                 href={`${MARKETPLACE_ROUTES.demands}?kategori=${s.id}`}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-zinc-950/5 transition hover:shadow-md hover:ring-zinc-950/10"
+                className="group block overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
               >
-                <span className="line-clamp-1 font-medium text-zinc-900">
-                  {s.name}
-                </span>
-                <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
-                  {s.count}
-                </span>
+                <CategoryImage categoryIds={[s.id]} ratio="aspect-[3/2]" />
+                <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                  <span className="line-clamp-2 text-sm font-medium text-zinc-900">
+                    {s.name}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+                    {s.count}
+                  </span>
+                </div>
               </Link>
             </li>
           ))}

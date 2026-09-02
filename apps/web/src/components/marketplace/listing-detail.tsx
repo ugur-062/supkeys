@@ -1,6 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "./marketplace-footer";
 import { Badge } from "@/components/catalyst/badge";
+import { CategoryImage } from "./category-image";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
 import { serializeJsonLd } from "@/lib/json-ld";
@@ -195,6 +196,14 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
             <li className="line-clamp-1 text-zinc-900">{listing.title}</li>
           </ol>
         </nav>
+
+        {/* Kategori görseli — ilan fotoğrafı gelene kadar (Faz 3b) sayfanın
+            görsel çıpası. Dar ve geniş: içeriği bastırmasın. */}
+        <CategoryImage
+          categoryIds={listing.categoryIds}
+          ratio="aspect-[6/1] sm:aspect-[8/1]"
+          className="mt-6 rounded-2xl ring-1 ring-zinc-950/5"
+        />
 
         <header className="mt-6">
           <div className="flex flex-wrap items-center gap-3">

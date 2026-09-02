@@ -1,4 +1,5 @@
 import { Badge } from "@/components/catalyst/badge";
+import { CategoryImage } from "./category-image";
 import { formatDate } from "@/lib/format-date";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import {
@@ -52,8 +53,16 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
   return (
     <Link
       href={href}
-      className="group flex h-full flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
     >
+      {/* Görsel: kayıtta fotoğraf yoksa kategori görseli. Gri kutu YOK —
+          envanterin çoğu ALIM ve alıcı fotoğraf yüklemiyor. */}
+      <CategoryImage
+        categoryIds={listing.categories.map((c) => c.id)}
+        className="border-b border-zinc-950/5"
+      />
+
+      <div className="flex flex-1 flex-col p-5">
       <div className="flex items-center justify-between gap-3">
         <Badge color={STATE_COLOR[state]}>
           {state === "open" ? (
@@ -138,6 +147,7 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
             </div>
           ) : null}
         </dl>
+      </div>
       </div>
     </Link>
   );

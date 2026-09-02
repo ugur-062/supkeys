@@ -240,6 +240,21 @@ model Category {
   level      Int
 
   /**
+   * Kategori GÖRSELİ — kart/ızgara arka planı (Faz 3a).
+   *
+   * NULL bırakılabilir ve BÜYÜK İHTİMALLE öyle kalır: boşken web tarafı
+   * segment koduna göre ÜRETİLMİŞ bir görsel basar (yumuşak degrade + o
+   * segmentin ikonu, `lib/public/category-visual.ts`). Yani bu kolon
+   * "eksik veri" değil, gerçek fotoğrafla YÜKSELTME yolu — bir segmente
+   * fotoğraf konduğu an üretilmiş görselin yerini alır.
+   *
+   * Görselsiz kartlarda gri kutu göstermemek için var: envanterin çoğu ALIM
+   * ve alıcı fotoğraf yüklemiyor (bkz. görsel asimetrisi — satan gösterir,
+   * alan tarif eder).
+   */
+  imageUrl   String?
+
+  /**
    * Ariba **Discovery** kataloğunda da var mı?
    * İKİ kaynak dışa aktarımı var ve ölçülen fark YALNIZ L4 yaprakta:
    * tam katalog (158.018) → FİRMA kategori seçimi ("hangi alandasınız")
