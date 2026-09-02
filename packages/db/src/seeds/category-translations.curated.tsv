@@ -10621,3 +10621,167 @@
 81101802	Kimyasal proses mühendisliği hizmeti	Chemical process engineering service
 81101803	Kimya uzmanlık hizmeti	Chemical specialist service
 81101903	Biyoyakıt ekipmanı hizmetleri	Biofuels equipment services
+81101904	Biyoyakıt hammadde temini	Biofuels feedstock provisions
+81102302	Uzay mühendisliği hizmeti	Space engineering service
+81102501	Maden ruhsatlandırma hizmeti	Mine permitting service
+81102502	Yapı ruhsatı mühendislik incelemesi hizmeti	Building consent and permit engineering peer review service
+81102503	Yapı ruhsatı işlem ve destek hizmeti	Building consent processing and support service
+81102601	Kömür numune alma hizmeti	Coal sampling service
+81102701	Yangın ve gaz izleme ve kontrol sistemi mühendislik hizmeti	Fire and gas monitoring and control system engineering service
+81102702	Proses kontrol sistemi tasarım ve mühendislik hizmeti	Process control system design and engineering service
+81102703	Titreşim ve durum izleme hizmeti	Vibration and condition monitoring service
+81102801	Mayın temizliği çevresel etki değerlendirme ÇED hizmeti	Demining environmental impact assessment EIA service
+81102802	Mayın temizliği fizibilite çalışması hizmeti	Demining feasibility study FS service
+81102803	Genel mayın faaliyeti değerlendirme hizmeti	General mine action assessment GMAA service
+81102804	Mayın temizliği teknik olmayan saha araştırması hizmeti	Demining non technical survey NTS service
+81102805	Mayın temizliği operasyonel analiz hizmeti	Demining operational analysis (OA) or operational research service
+81102806	Mayın temizliği sonrası değerlendirme hizmeti	Post mine clearance assessment service
+81102807	Mayın temizliği risk analiz veya değerlendirme hizmeti	Demining risk analysis or assessment or evaluation service
+81102808	Mayın temizliği teknik saha araştırması	Demining technical survey
+81102809	Kara mayını etki araştırması	Mine landmine impact survey LIS
+81102810	El yapımı patlayıcıya karşı koyma eğitimi	Counter improvised explosive device IED training
+81102811	Köpekli patlayıcı tespit ekibi	Canine explosive detection team
+81102901	Kültürel miras yapısı bakım mühendislik hizmeti	Cultural heritage property maintenance engineering service
+81102902	Kültürel miras yapısı tasarım hizmeti	Cultural heritage property design service
+81102903	Deniz teminat sörveyi	Marine warranty survey
+81103001	Havuzlama yerine su altı muayenesi hizmeti	Under water inspection in lieu of dry-docking service
+81103002	Suda sörvey	In water survey
+81103003	Özel periyodik sörvey	Special periodic survey
+81103004	Bağlama hizmeti	Mooring service
+81103005	Deniz ağır kaldırma hizmeti	Marine heavy lifting service
+81103006	Açık deniz bekleme ve destek gemisi hizmetleri	Offshore standby and support vessel services
+81103007	Açık deniz sondaj kulesi konumlandırma hizmeti	Offshore rig positioning service
+81103008	Denizcilik danışmanlık hizmetleri	Marine consultancy services
+81103009	Çapa taşıma hizmetleri	Anchor handling services
+81103010	Gemi klaslama hizmetleri	Vessel classification services
+81103011	Kuru havuz hizmeti	Dry docking service
+81103012	Denizcilik hizmetleri	Marine services
+81103101	Pilot tesis veya demo ünitesi deneysel kurulumu	Pilot plant/demo unit experimental installation
+81103102	Pilot tesis	Pilot plant
+81103201	Araştırma ve geliştirme çalışmaları	Research and development studies
+81103202	Sondaj ve kuyu teknolojisi araştırma ve geliştirme	Research and development drilling & well technology
+81103203	Mühendislik araştırma ve geliştirme hizmeti	Research and development engineering service
+81103204	Bakım araştırma ve geliştirme hizmeti	Research and development maintenance service
+81103205	Dış teknoloji işbirlikleri araştırma ve geliştirme	Research and development external technology collaborations
+81103206	Kurum dışı araştırma hizmeti	Research and development extra-mural research service
+81103207	Dış işbirlikli araştırma hizmeti	Research and development external collaborations research service
+81103301	Açık deniz jeomatik saha karakterizasyonu	Geomatics site characterization offshore
+81103302	Karada jeomatik saha karakterizasyonu	Geomatics site characterization onshore
+81103303	Jeomatik kuyu ve mühendislik teslim hizmetleri	Geomatics well and engineering delivery services
+81103304	Jeomatik varlık bütünlüğü sörveyleri	Geomatics asset integrity surveys
+81103305	Jeomatik muhtelif hizmetler	Geomatics miscellaneous services
+81103306	Jeomatik uzaktan algılama hizmetleri	Geomatics remote sensing services
+81103401	Açık deniz proje yönetim hizmetleri	Offshore project management services
+81103402	Ön mühendislik tasarım hizmetleri	Front-end engineering design services
+81103403	Detay mühendislik hizmetleri	Detailed engineering services
+81103404	Açık deniz mühendislik tedarik ve inşaat hizmetleri	Offshore engineering procurement and construction services
+81103405	Karada mühendislik tedarik ve inşaat hizmetleri	Onshore engineering procurement and construction services
+81103406	Kavramsal mühendislik tasarım hizmetleri	Front-end engineering design services
+81103407	Varlık portföyü hizmeti	Asset portfolio service
+81111511	Sistem veya uygulama programlama yönetim hizmeti	System or application programming management service
+81111512	Bilgisayar grafikleri hizmeti	Computer graphics service
+81111513	İnternet bulut depolama hizmeti	Internet cloud storage service
+81111514	Bulut destek hizmetleri	Cloud support services
+81111515	Bulut birleştirme hizmeti	Cloud fusion service
+81111709	Mayın temizliği coğrafi bilgi sistemi CBS	Demining geographical or geospatial information system GIS
+81111710	Mayın faaliyeti bilgi yönetim sistemi IMSMA	Information management system for mine action IMSMA
+81111806	Veritabanı analiz hizmeti	Database analysis service
+81111808	Sistem analiz hizmeti	System analysis service
+81111809	Sistem kurulum hizmeti	System installation service
+81111810	Yazılım kodlama hizmeti	Software coding service
+81111818	Üçüncü taraf garanti hizmeti	Third party warranty service
+81111902	Çevrimiçi veritabanı bilgi erişim hizmeti	Online database information retrieval service
+81112001	Çevrimiçi veri işleme hizmeti	Online data processing service
+81112011	Veritabanı yönetim yazılımı yayıncılığı	Database management software publishing
+81112012	ANS ve ATM yazılım bakım ve geliştirme hizmetleri	ANS and ATM software maintenance/development services
+81112203	Ürün yazılımı yama veya yükseltme hizmeti	Firmware patching or upgrade service
+81112204	İşletim sistemi yazılım bakımı	Operating system software maintenance
+81112205	Veritabanı yönetim sistemi yazılım bakımı	Database management system software maintenance
+81112206	Bilgi erişim veya arama yazılımı bakımı	Information retrieval or search software maintenance
+81112207	Video konferans yazılımı bakımı	Video conferencing software maintenance
+81112208	Güvenlik ve koruma yazılımı bakımı	Security and protection software maintenance
+81112209	Geliştirme yazılımı bakımı	Development software maintenance
+81112210	Sistem yönetim yazılımı bakımı	System management software maintenance
+81112211	Kurumsal kaynak planlama yazılımı bakımı	Enterprise resource planning software maintenance
+81112212	Müşteri ilişkileri yönetimi yazılımı bakımı	Customer relationship management software maintenance
+81112213	Muhasebe yazılımı bakımı	Accounting software maintenance
+81112214	İçerik oluşturma ve düzenleme yazılımı bakımı	Content authoring and editing software maintenance
+81112215	İçerik yönetim yazılımı bakımı	Content management software maintenance
+81112216	Eğitim veya başvuru yazılımı bakımı	Educational or reference software maintenance
+81112217	Sektöre özel yazılım bakımı	Industry specific software maintenance
+81112218	Ağ uygulama yazılımı bakımı	Network application software maintenance
+81112219	Bilgisayar oyunu veya eğlence yazılımı bakımı	Computer game or entertainment software maintenance
+81112220	Sunucu yazılımı bakımı	Server software maintenance
+81112221	Satış noktası yazılımı bakım hizmeti	Point of sale software maintenance service
+81112222	Tesis işletme ve bakım yönetimi yazılımı bakımı	Facility operation and maintenance management software maintenance
+81112301	Disk depolama sistemi bakımı	Disk storage system maintenance
+81112302	Yakın hat veya yedekleme sistemi bakımı	Nearline or backup system maintenance
+81112303	Ana bilgisayar bakımı	Mainframe computer maintenance
+81112304	UNIX sunucu bakımı	UNIX server maintenance
+81112305	X86 sunucu bakımı	X86 server maintenance
+81112306	Yazıcı tarayıcı ve çok fonksiyonlu cihaz bakımı	Printer, scanner and multifunctional equipment maintenance
+81112307	Masaüstü veya dizüstü bilgisayar bakımı	PC or workstation or notebook maintenance
+81112308	Satış noktası donanımı bakım ve destek hizmeti	Point of sale hardware maintenance and support service
+81112309	Satış noktası donanımı kurulum hizmeti	Point of sale hardware installation or implementation service
+81112310	Bilgisayar kabini bakımı	Computer cabinet maintenance
+81112311	Perakende satış noktası sistemi	Retail point of sale system
+81112401	Bilgisayar donanımı kiralama	Computer hardware rental
+81112501	Bilgisayar yazılımı lisanslama hizmeti	Computer software licensing service
+81112502	Bilgisayar yazılımı kiralama hizmeti	Computer software rental or leasing service
+81112601	Bankacılık ATM ve kiosk atölye onarım hizmeti	Banking ATM and kiosk depot repair service
+81112602	Dizüstü ve masaüstü bilgisayar atölye onarım hizmeti	Laptop and desktop computer depot repair service
+81112603	Ağ ekipmanı atölye onarım hizmeti	Networking equipment depot repair service
+81112604	Yazıcı ekipmanı atölye onarım hizmeti	Printer equipment depot repair service
+81112605	Satış noktası ekipmanı atölye onarım hizmeti	Point of sale equipment depot repair service
+81112606	Bilgisayar sunucusu atölye onarım hizmeti	Computer server depot repair service
+81112607	Bilgisayar depolama ekipmanı atölye onarım hizmeti	Computer storage equipment depot repair service
+81121505	Ekonomik kalkınma danışmanlığı	Economic development consultancy
+81141507	Tank seviye ölçer bakımı	Tank gauge maintenance
+81141508	Sayaç doğrulama üretim testi	Meter proving production test
+81141509	Katalizör test hizmetleri	Catalyst testing services
+81141510	Kalite kontrol ve güvence denetim ve doğrulama hizmetleri	Quality control and quality assurance audit and verification services
+81141511	Kalite kontrol ve güvence danışmanlık hizmetleri	Quality control and quality assurance consultancy services
+81141512	Ekipman muayene ve doğrulama hizmetleri	Equipment inspection and verification services
+81141808	Tesis yönetim hizmeti	Facilities management service
+81141901	Ürün araştırma ve geliştirme hizmeti	Product research and development service
+81141902	Uygulama veya teknoloji araştırma ve geliştirme hizmeti	Application or technology research and development service
+81141903	Yakıt ve yağ test hizmetleri	Fuels and lubricants testing services
+81151605	Uydu görüntüleme ve görüntü işleme hizmeti	Satellite imaging and image processing service
+81151706	Biyostratigrafik analiz danışmanlığı	Consultants biostratigraphic analysis
+81151707	Karot hazırlama ve analiz hizmetleri	Core preparation and analysis services
+81151905	Sahada jeofizik sörvey danışmanlığı	Field based geophysical survey consultants
+81151906	Karada jeofizik veri toplama	Land geophysical acquisition
+81151907	Denizde jeofizik veri toplama	Marine geophysical acquisition
+81151908	Kontrollü kaynak elektromanyetik yöntem	Controlled source electromagnetic method
+81151909	Jeofizik sinyal işleme	Geophysical signal processing
+81151910	Havadan jeofizik veri toplama	Airborne geophysical acquisition
+81151911	Deniz jeofizik sörveyi	Marine geophysical survey
+81151912	Laboratuvar veya ofis tabanlı sörvey danışmanlığı	Lab/office based survey consultants
+81161712	Ağ üzerinden ses hizmeti	Network voice service
+81161713	Havacılık sabit telekomünikasyon ağı hizmetleri	Aeronautical fixed telecommunication network/Aeronautical telecommunications network services
+81161714	Havacılık bilgi hizmeti	Aeronautical information service
+81161715	Yönetilen altyapı hizmet sağlayıcıları	Managed infrastructure service providers
+81161716	Dış kaynaklı olmayan BT ses hizmetleri	IT non outsourced voice services
+81161717	Dış kaynaklı olmayan BT veri ağı	IT non outsourced data network
+81161801	Veri iletişim ekipmanı veya platformu kiralama hizmeti	Data communication equipment or platform rental or leasing service
+81161901	Hizmet olarak iş ekipmanı	Business equipment as a service
+81161902	Hizmet olarak iş istasyonu	Workstation as a service
+81161903	Hizmet olarak baskı	Print as a service
+81162001	Hizmet olarak çağrı merkezi yazılımı	Call center software as a service
+81162002	Hizmet olarak uyumluluk sözlükleri	Compliance dictionaries as a service
+81162003	Hizmet olarak kriptografik anahtar yönetimi	Cryptographics key management as a service
+81162004	Hizmet olarak veritabanı yönetimi	Database management as a service
+81162005	Hizmet olarak sevkiyat yazılımı	Dispatch software as a service
+81162006	Hizmet olarak e-ticaret sistemi yazılımı	E-commerce system software as a service
+81162007	Hizmet olarak e-posta ve takvim yazılımı	E-mailing and calendaring software as a service
+81162008	Hizmet olarak kurumsal kaynak planlama yazılımı	Enterprise resource planning software as a service
+81162009	Hizmet olarak portal yazılımı	Portal software as a service
+81162010	Hizmet olarak UCF eşleyici yazılımı	UCF mapper software as a service
+81162011	Hizmet olarak göz izleme yazılımı	Eye tracking software as a service
+81162012	Hizmet olarak yazılım	Software as a service
+81162101	Hizmet olarak programlama dilleri ve araçları	Programming languages and tools as a service
+81162102	Hizmet olarak ara katman yazılımı	Middleware as a service
+81162103	Hizmet olarak platform yazılımı	Platform software as a service
+81162104	Hizmet olarak platform yazılım bileşenleri	Platform software components as a service
+81162201	Hizmet olarak bulut yedekleme	Cloud backup as a service
+81162202	Hizmet olarak bulut depolama	Cloud storage as a service
