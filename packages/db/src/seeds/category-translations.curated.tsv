@@ -11171,3 +11171,202 @@
 95121640	Boru hattı	Pipeline
 95121641	Pompa istasyonu	Pumping station
 95121642	Kanalizasyon pompa istasyonu	Sewage pumping station
+95121643	Kanalizasyon deşarj yapısı	Sewage outfall
+95121644	Açık otopark	Parking lot
+95121645	Otoyol dinlenme tesisi	Motorway service area
+95121646	Bisiklet park yeri	Bicycle parking rack
+95121647	Yükseltilmiş yol	Elevated roadway or highway
+95121701	Postane	Post office
+95121702	Karakol	Police station
+95121703	Adliye binası	Court building
+95121704	Cezaevi binası	Prison building
+95121705	İtfaiye binası	Fire station
+95121706	Ambulans istasyonu	Ambulance station
+95121707	Dağ kurtarma binası	Mountain rescue building
+95121708	Cankurtaran botu istasyonu	Lifeboat station
+95121709	Sahil güvenlik binası	Coastguard building
+95121710	Kurtarma hizmeti istasyonu	Rescue service station
+95121711	Kültür merkezi	Civic center
+95121712	Sanat galerisi	Art gallery
+95121713	Tarih öncesi anıt	Prehistoric monument
+95121714	Umumi soyunma ve duş tesisi	Public changing room and shower facility
+95121715	Umumi tuvalet tesisi	Public toilet facility
+95121801	Radar istasyonu	Radar station
+95121802	Trafo merkezi	Substation
+95121803	Nükleer santral	Nuclear power station
+95121804	Su kulesi	Water tower
+95121805	Su kuyusu	Well
+95121806	Baz istasyonu	Mobile telephone base station
+95121807	Baraj	Dam
+95121808	Petrol veya gaz platformu	Oil or gas platform
+95121809	Hareketli savak	Movable weir
+95121810	Sulama ve taşkın kontrol tesisi	Irrigation and flood control waterworks
+95121811	Su kemeri veya su iletim yapısı	Aquaduct or other water supply conduit, except pipeline
+95121812	Yüzer yapı	Floating structure
+95121813	Mendirekler	Jetties
+95121901	Teknik okul	Polytechnic school
+95121902	Meslek yüksekokulu	Vocational college
+95121903	Amfi derslik	Lecture theater
+95121904	Kütüphane	Library
+95121905	Dil laboratuvarı	Language laboratory
+95121906	Laboratuvar binası	Laboratory building
+95121907	Meteoroloji istasyonu	Meteorological station
+95121908	Araştırma veya test tesisi	Research or testing facility
+95121909	İlkokul	Elementary school
+95121910	Ortaokul	Junior high or middle school
+95121911	Lise	High school
+95121913	Üniversite	University
+95122001	Poliklinik	Clinic
+95122002	Bakımevi	Nursing home
+95122003	Ameliyathane	Operating room or theater
+95122004	Yoğun bakım ünitesi	Intensive care unit
+95122005	Tanısal tarama odası	Diagnostic screening room
+95122006	Floroskopi odası	Fluoroscopy room
+95122007	Patoloji odası veya laboratuvarı	Pathology room or laboratory
+95122008	Kateter odası	Catheter room
+95122009	Mobil hastane	Mobile hospital
+95122101	Konut	Residential home
+95122102	Daire	Flat or apartment
+95122103	Çocuk yuvası	Childrens home
+95122104	Gündüz bakım merkezi	Daycare center
+95122105	Huzurevi	Retirement home
+95122106	Pansiyon	Hostel
+95122301	Stadyum	Stadium
+95122302	Spor sahası	Sports ground
+95122303	Koşu pisti	Running track
+95122304	Spor salonu	Sports hall
+95122305	Kaplıca tesisi	Spa
+95122306	Jimnastik salonu	Gymnasium
+95122307	Yüzme havuzu	Swimming pool
+95122308	Su sporları tesisi	Water sports facility
+95122401	Atölye	Workshop
+95122402	Soğuk depo tesisi	Cold storage installation
+95122403	Depo mağazası	Warehouse store
+95122501	Ahır	Barn
+95122502	İnek ahırı	Cowshed
+95122503	Sulama kanalı	Irrigation channel
+95122504	Yapay resif	Artificial reef
+95122505	Deniz aktarma istasyonu	Marine transfer station
+95122601	Kilise	Church
+95122602	Hindu tapınağı	Hindu temple
+95122603	Cami	Mosque
+95122604	Sinagog	Synagogue
+95122605	Sih tapınağı	Sikh temple
+95122701	Askeri sığınak	Military bunker
+95122702	Kışla	Barracks
+95122703	Askeri yemekhane	Military mess or mess hall
+95131501	Katlanır tribün	Foldable grandstand
+95131502	Seyyar tribün	Mobile grandstand
+95131503	Taşınabilir tribün	Portable grandstand
+95131601	Taşınabilir bilet gişesi	Portable box office
+95131602	Seyyar tuvalet	Portable toilet
+95131603	Şantiye ofisi	Site office
+95131604	Taşınabilir mutfak ünitesi	Portable kitchen unit
+95131605	Konteyner ev	Shipping container house
+95131606	Taşınabilir satış standı	Portable sales booth
+95131607	Telekom kabini	Telecom shelter
+95131701	Çerçeveli tekstil yapı	Framed textile structure
+95131702	Direkli veya gergili çadır	Pole tent or tension tent
+95141501	Silo	Silo
+95141502	Sera	Greenhouse
+95141601	Ev	House
+95141602	Prefabrik konut	Mobile home
+95141603	Kulübe	Cabin
+95141604	Garaj	Garage
+95141605	Kameriye	Gazebo
+95141606	Ev mutfağı	Home kitchen
+95141607	Prefabrik yaşam alanı	Prefabricated living quarters
+95141608	Prefabrik elektrik binası	Prefabricated Electrical House
+95141701	Tesis içi ofis	In plant office
+95141702	Boya kabini	Spray booth
+95141703	Depo barakası	Storage shed
+95141704	Temiz oda	Clean room
+95141705	Güvenlik kulübesi	Guardhouse
+95141706	Depo	Warehouse
+95141707	Konferans salonu	Auditorium
+95141708	Ofis mutfağı	Office kitchen
+95141709	Kış bahçesi	Conservatory
+95141710	Telefon kulübesi	Phone box or phone booth
+95141711	Gişe kulübesi	Tollbooth
+95141712	Sigara içme odası	Smoking room
+95141713	Prefabrik soğuk iklim konut binası	Prefabricated cold weather residential building
+95141801	Barınak	Shelter
+95141802	Acil durum çadırı veya salonu	Emergency tent or hall
+95141803	Konteyner ünite	Container unit
+95141804	Seyyar depolama ünitesi	Mobile storage unit (MSU)
+95141805	Seyyar depolama ünitesi zemin sistemi	Flooring system for mobile storage unit (MSU)
+95141901	Tıbbi ünite	Medical unit
+95141902	Laboratuvar ünitesi	Laboratory unit
+95141903	Diş ünitesi	Dental unit
+95141904	Cerrahi üniteler	Surgical units
+46101703	Patlayıcı kabı	Explosive container
+46101802	Fişeklik kemeri	Cartridge belt
+46101901	Kılıç	Sword
+46101902	Askeri bıçak veya hançer	Military knife or dagger
+46101903	Kesici silah aksesuarları	Bladed weapon accessories
+46111504	Terk edilmiş patlayıcı mühimmat	Abandoned Explosive Ordnance AXO
+46111505	Savaştan kalma patlayıcı kalıntılar	Explosive remnants of war ERW
+46111506	Patlamamış mühimmat	Unexploded ordnance UXO
+46111703	Kızılötesi aydınlatıcı	Infrared IR illuminator
+46111704	Kızılötesi alıcı	Infrared IR receiver
+46111705	Kızılötesi teleskop	Infrared IR telescope
+46131506	Sondaj roketi	Sounding rocket
+46151508	Kurşun geçirmez kask	Helmet, bullet proof
+46151509	Araca monte balistik kalkan	Vehicle mounted ballistic shield
+46151510	Balistik ve parça tesiri koruma ekipmanı	Ballistic/fragmentation protection equipment
+46151604	Alkol analizörleri	Alcohol analyzers
+46151609	Kimlik kartı ayırt edici	Identification card discriminator
+46151610	Kimlik kartı sarf malzemeleri	Identification card consumables
+46151716	Yalan makinesi	Lie detector
+46151801	Patlama korumalı konteyner	Blast guard container
+46151802	Zırhlı silah saklama konteyneri	Armored weapons storage container
+46151803	Zırhlı konteyner	Armoured container
+46161511	Trafik ikaz feneri	Traffic beacon
+46161512	Trafik zinciri	Traffic chain
+46161513	Trafik güvenlik bariyeri	Traffic safety fence
+46161514	Yol yansıtıcı butonu	Cats eye road stud
+46161515	Darbe emici bariyer	Crash cushion
+46161516	Plaka tanıma sistemi	License plate recognition system
+46161517	Şerit ayırıcı korkuluk	Lane dividing rail
+46161518	Trafik yönlendirme varili	Traffic control channelizer drum
+46161519	Şerit çizgi bandı	Traffic lane tape
+46161520	Değişken mesaj işareti	Variable message sign
+46161521	Otopark giriş çıkış uyarı ışığı	Parking lot entry exit warning light
+46161522	Otopark yaklaşma uyarı ışığı	Parking lot proximity warning light
+46161523	Otopark kar eritici	Parking lot snow melter
+46161524	Trafik akışı analizörü	Traffic flow analyzer
+46161525	Araç algılama loop bobini	Vehicle detection loop coil
+46161526	Yaya sensörü	Pedestrian sensor
+46161527	Trafik akışı sensörü	Traffic flow sensor
+46161528	Havaalanı uyarı ışığı	Airport warning light
+46161529	Görme engelliler için sesli yönlendirme cihazı	Voice guide device for blind person
+46161530	Otopark bariyeri	Parking barrier gate
+46161531	Trafik güvenlik aynası	Traffic safety mirror
+46161532	Açılır kapanır trafik babası	Retracting or moveable traffic bollard
+46161533	Sabit trafik babası	Fixed traffic bollard
+46161534	Araç park içbükey plakası	Vehicle parking concave plate
+46161535	Yaya yolu sınır işaretleyicisi	Pedestrian walkway street boundary marker
+46161536	Trafik bilgisi toplama sistemi	Traffic information acquisition system
+46161537	Takip et yönlendirme işareti	Follow Me guidance sign
+46161538	Araç yükseklik sınırlama barları	Vehicle height restriction bars
+46161539	Ters yönde sürüş algılama ve alarm sistemi	Reverse driving detection and alarm system
+46161605	Can simidi	Life buoy
+46161606	Balıkçı teknesi can giysisi	Life clothes for fishing boat
+46161701	İniş halatı	Descending life line
+46161702	Kurtarma hava yastığı	Rescue air bag
+46161703	Güvenlik hava matı	Safety air mat
+46161704	Kurtarma halatı atıcı	Rescue line launcher
+46161705	Hidrolik kurtarma ekipmanı seti	Hydraulic rescue equipment set
+46161706	Şişme çadır	Air tent
+46161707	Kurtarma kapı açıcı	Rescue door opener
+46161708	Kurtarma ağı	Rescue net
+46161710	Kurtarma ışığı	Rescue light
+46161711	Canlı dedektörü	Life detector
+46161712	Kişisel güvenlik uyarısı	Personal safety alert
+46161713	Duman işaret cihazı	Smoke signal device
+46161714	Can halatı	Life line
+46161715	Kapalı alan kurtarma ekipmanı	Confined space rescue equipment
+46161716	Acil kurtarma ekipmanı	Emergency rescue equipment
+46171518	Elektrikli kilit karşılığı	Electric strike plate
+46171519	Kilit silindiri aksesuarı	Lock cylinder accessory
+46171520	Elektrikli kilit	Electric lock
