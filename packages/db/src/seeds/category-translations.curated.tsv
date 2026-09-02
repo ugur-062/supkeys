@@ -17258,3 +17258,1161 @@
 85921200	Detoksifikasyon tedavileri	Detoxification treatments
 85921300	Psikoterapi ve danışmanlık	Psychotherapy and counseling
 85631100	Deri dokusu, dış erkek ve kadın genital bölgesi, eksternal yaklaşım	Integumentary tissue-external male female genitalia, external approach
+85211500	Kolera tanıları	Diagnoses of cholera
+85211600	Tifo ve paratifo tanıları	Diagnoses of typhoid and paratyphoid fevers
+85211700	Salmonella enfeksiyonu tanıları	Diagnoses of salmonella infections
+85211800	Bakteriyel bağırsak enfeksiyonu tanıları	Diagnoses of bacterial intestinal infections
+85211900	Bakteriyel gıda zehirlenmesi tanıları	Diagnoses of bacterial foodborne intoxications
+85212000	Amipli dizanteri tanıları	Diagnoses of amoebiasis
+85212100	Tüberküloz tanıları	Diagnoses of tuberculosis
+85212200	Bakteriyolojik ve histolojik olarak negatif akciğer tüberkülozu tanıları	Diagnoses of tuberculosis of lung, bacteriologically and histologically negative
+85212300	Kemik ve eklem tüberkülozu tanıları	Diagnoses of tuberculosis of bones and joints
+85212400	Veba, tularemi, şarbon veya bruselloz tanıları	Diagnoses of plague, tularaemia, anthrax or brucellosis
+85212500	Yaygın tularemi tanıları	Diagnoses of generalized tularaemia
+85212600	Yaygın şarbon tanıları	Diagnoses of generalized anthrax
+85212700	Yaygın bruselloz tanıları	Diagnoses of generalized brucellosis
+85212800	Ruam veya melioidoz tanıları	Diagnoses of glanders or melioidosis
+85212900	Subakut ve kronik melioidoz tanıları	Diagnoses of subacute and chronic melioidosis
+85213000	Streptobasilloz tanıları	Diagnoses of streptobacillosis
+85213100	Zoonotik bakteriyel hastalık tanıları	Diagnoses of zoonotic bacterial diseases
+85213200	Cüzam Hansen hastalığı tanıları	Diagnoses of leprosy or hansen disease
+85213300	Listeriyoz tanıları	Diagnoses of listeriosis
+85213400	Tetanoz tanıları	Diagnoses of tetanus
+85213500	Difteri tanıları	Diagnoses of diphtheria
+85213600	Mikobakteri enfeksiyonu tanıları	Diagnoses of infection due to mycobacteria
+85213700	Boğmaca veya kızıl tanıları	Diagnoses of whooping cough or scarlet fever
+85213800	Meningokok enfeksiyonu tanıları	Diagnoses of meningococcal infection
+85213900	Streptokokal sepsis tanıları	Diagnoses of streptococcal sepsis
+85214000	Periferik sepsis tanıları	Diagnoses of peripheral sepsis
+85214100	Aktinomikoz tanıları	Diagnoses of actinomycosis
+85214200	Nokardiyoz tanıları	Diagnoses of nocardiosis
+85214300	Bartonelloz tanıları	Diagnoses of bartonellosis
+85214400	Periferik bakteriyel hastalık tanıları	Diagnoses of peripheral bacterial diseases
+85214500	Konjenital sifiliz tanıları	Diagnoses of congenital syphilis
+85214600	Erken sifiliz tanıları	Diagnoses of early syphilis
+85214700	Geç sifiliz tanıları	Diagnoses of late syphilis
+85214800	Gonokok enfeksiyonu tanıları	Diagnoses of gonococcal infection
+85214900	Periferik cinsel yolla bulaşan klamidya hastalığı tanıları	Diagnoses of peripheral sexually transmitted chlamydial diseases
+85215000	Klamidyal lenfogranülom, granüloma inguinale veya şankroid tanıları	Diagnoses of chlamydial lymphogranuloma or granuloma inguinale or chancroid
+85215100	Anogenital herpes simpleks enfeksiyonu tanıları	Diagnoses of anogenital herpesviral or herpes simplex infection
+85215300	Frengi yaws tanıları	Diagnoses of yaws
+85215400	Pinta veya carate tanıları	Diagnoses of pinta or carate
+85215500	Periferik spiroket enfeksiyonu tanıları	Diagnoses of peripheral spirochaetal infections
+85215600	Trahom tanıları	Diagnoses of trachoma
+85215700	Klamidya kaynaklı periferik hastalık tanıları	Diagnoses of peripheral diseases caused by chlamydiae
+85215800	Tifüs tanıları	Diagnoses of typhus fever
+85215900	Riketsiyoz tanıları	Diagnoses of rickettsioses
+85216000	Akut poliomiyelit tanıları	Diagnoses of acute poliomyelitis
+85216100	Merkezi sinir sistemi atipik virüs enfeksiyonu tanıları	Diagnoses of atypical virus infections of central nervous system
+85216200	Kuduz tanıları	Diagnoses of rabies
+85216300	Ensefalit tanıları	Diagnoses of encephalitis conditions
+85216400	Viral menenjit tanıları	Diagnoses of viral meningitis
+85216500	Merkezi sinir sistemi periferik viral enfeksiyon tanıları	Diagnoses of peripheral viral infections of central nervous system
+85216600	Ateşli hastalık tanıları	Diagnoses of fevers
+85216700	Herpes simpleks enfeksiyonu tanıları	Diagnoses of herpesviral or herpes simplex infections
+85216800	Çiçek, kızamık veya kızamıkçık tanıları	Diagnoses of poxes or measles or rubella
+85216900	Deri ve mukoza lezyonlu periferik viral enfeksiyon tanıları	Diagnoses of peripheral viral infections characterized by skin and mucous membrane lesions
+85217000	Hepatit tanıları	Diagnoses of hepatitus conditions
+85217100	HIV hastalığı ve ilgili durum tanıları	Diagnoses of human immunodeficiency virus hiv disease and related conditions
+85217200	Sitomegalovirüs hastalığı tanıları	Diagnoses of cytomegaloviral disease
+85217300	Kabakulak tanıları	Diagnoses of mumps
+85217400	Enfeksiyöz mononükleoz tanıları	Diagnoses of infectious mononucleosis
+85217500	Viral konjonktivit tanıları	Diagnoses of viral conjunctivitis
+85217600	Periferik viral hastalık tanıları	Diagnoses of peripheral viral diseases
+85221500	Dermatofitoz tanıları	Diagnoses of dermatophytosis
+85221600	Periferik yüzeysel mikoz tanıları	Diagnoses of peripheral superficial mycoses
+85221700	Kandidiyaz tanıları	Diagnoses of candidiasis
+85221800	Koksidiyoidomikoz tanıları	Diagnoses of coccidioidomycosis
+85221900	Histoplazmoz tanıları	Diagnoses of histoplasmosis
+85222000	Blastomikoz tanıları	Diagnoses of blastomycosis
+85222100	Parakoksidiyoidomikoz tanıları	Diagnoses of paracoccidioidomycosis
+85222200	Sporotrikoz tanıları	Diagnoses of sporotrichosis
+85222300	Kromomikoz ve feomikotik apse tanıları	Diagnoses of chromomycosis and phaeomycotic abscess
+85222400	Aspergilloz tanıları	Diagnoses of aspergillosis
+85222500	Kriptokokkoz tanıları	Diagnoses of cryptococcosis
+85222600	Zigomikoz tanıları	Diagnoses of zygomycosis
+85222700	Miçetoma tanıları	Diagnoses of mycetoma
+85222800	Periferik mikoz tanıları	Diagnoses of peripheral mycoses
+85222900	Plazmodyum enfeksiyonu tanıları	Diagnoses of plasmodium conditions
+85223000	Periferik parazitolojik doğrulanmış sıtma tanıları	Diagnoses of peripheral parasitologically confirmed malaria
+85223100	Leyşmanyaz veya Afrika tripanozomiyazı tanıları	Diagnoses of leishmaniasis or african trypanosomiasis
+85223200	Chagas hastalığı tanıları	Diagnoses of chagas disease
+85223300	Toksoplazmoz tanıları	Diagnoses of toxoplasmosis
+85223400	Periferik protozoal hastalık veya trematod enfeksiyonu tanıları	Diagnoses of peripheral protozoal diseases or fluke infections
+85223500	Ekinokokkoz tanıları	Diagnoses of echinococcosis
+85223600	Teniyaz, sistiserkoz veya sestod enfeksiyonu tanıları	Diagnoses of taeniasis or cysticercosis or cestode infections
+85223700	Difilobotriyaz ve sparganoz tanıları	Diagnoses of diphyllobothriasis and sparganosis
+85223800	Drakunkuliyaz, onkoserkiyaz veya trişinelloz tanıları	Diagnoses of dracunculiasis or onchocerciasisor trichinellosis
+85223900	Kancalı kurt hastalığı tanıları	Diagnoses of hookworm diseases
+85224000	Askariyaz, trikuriyaz veya enterobiyaz tanıları	Diagnoses of ascariasisor trichuriasis  or enterobiasis
+85224100	Strongiloidiyaz veya bağırsak helmintiyazı tanıları	Diagnoses of strongyloidiasis or intestinal helminthiases
+85224200	Periferik helmintiyaz tanıları	Diagnoses of peripheral helminthiases
+85224300	Bit ve kasık biti enfestasyonu tanıları	Diagnoses of pediculosis and phthiriasis
+85224400	Pire ve akar enfestasyonu tanıları	Diagnoses of fleas and mite infestations
+85224500	Tüberküloz veya viral hastalık sekelleri tanıları	Diagnoses of sequelae of tuberculosis or viral conditions
+85251500	Dudak, ağız boşluğu ve yutak malign neoplazm tanıları	Diagnoses of malignant neoplasms of lip, oral cavity and pharynx
+85251600	Sindirim organları malign neoplazm tanıları	Diagnoses of malignant neoplasms of digestive organs
+85251700	Solunum ve göğüs içi organ malign neoplazm tanıları	Diagnoses of malignant neoplasms of respiratory and intrathoracic organs
+85251800	Kemik ve eklem kıkırdağı malign neoplazm tanıları	Diagnoses of malignant neoplasms of bone and articular cartilage
+85251900	Melanom ve periferik deri malign neoplazm tanıları	Diagnoses of melanoma and peripheral malignant neoplasms of skin
+85252000	Mezotelyal ve yumuşak doku malign neoplazm tanıları	Diagnoses of malignant neoplasms of mesothelial and soft tissue
+85252100	Meme malign neoplazmı tanıları	Diagnoses of malignant neoplasm of breast
+85252200	Kadın genital organ malign neoplazm tanıları	Diagnoses of malignant neoplasms of female genital organs
+85252300	Erkek genital organ malign neoplazm tanıları	Diagnoses of malignant neoplasms of male genital organs
+85252400	İdrar yolu malign neoplazm tanıları	Diagnoses of malignant neoplasms of urinary tract
+85252500	Göz, beyin ve merkezi sinir sistemi malign neoplazm tanıları	Diagnoses of malignant neoplasms of eye, brain and peripheral parts of central nervous system
+85252600	Tiroit ve periferik endokrin bez malign neoplazm tanıları	Diagnoses of malignant neoplasms of thyroid and peripheral endocrine glands
+85252700	Malign sekonder neoplazm tanıları	Diagnoses of malignant secondary neoplasms
+85252800	Lenfoid, hematopoetik ve ilgili doku primer malign neoplazm tanıları	Diagnoses of malignant neoplasms, stated or presumed to be primary, of lymphoid, haematopoietic and related tissue
+85252900	Ağız boşluğu, özofagus ve mide karsinoma in situ tanıları	Diagnoses of carcinoma in situ of oral cavity, oesophagus and stomach
+85253000	Periferik ve tanımlanmamış sindirim organları karsinoma in situ tanıları	Diagnoses of carcinoma in situ of peripheral and unspecified digestive organs
+85253100	Orta kulak ve solunum sistemi karsinoma in situ tanıları	Diagnoses of carcinoma in situ of middle ear and respiratory system
+85253200	Melanoma in situ tanıları	Diagnoses of melanoma in situ
+85253300	Deri karsinoma in situ tanıları	Diagnoses of carcinoma in situ of skin
+85253400	Meme karsinoma in situ tanıları	Diagnoses of carcinoma in situ of breast
+85253500	Serviks karsinoma in situ tanıları	Diagnoses of carcinoma in situ of cervix uteri
+85253600	Periferik ve tanımlanmamış genital organ karsinoma in situ tanıları	Diagnoses of carcinoma in situ of peripheral and unspecified genital organs
+85253700	Periferik ve tanımlanmamış bölge karsinoma in situ tanıları	Diagnoses of carcinoma in situ of peripheral and unspecified sites
+85253800	Ağız, yutak veya tükürük bezi benign neoplazm tanıları	Diagnoses of benign neoplasm of mouth or pharynx or salivary glands
+85253900	Kolon, rektum, anüs veya anal kanal benign neoplazm tanıları	Diagnoses of benign neoplasm of colon or rectum or anus or anal canal
+85254000	Sindirim sistemi bölümleri benign neoplazm tanıları	Diagnoses of benign neoplasm of parts of digestive system
+85254100	Orta kulak ve solunum sistemi benign neoplazm tanıları	Diagnoses of benign neoplasm of middle ear and respiratory system
+85254200	Göğüs içi organ benign neoplazm tanıları	Diagnoses of benign neoplasm of intrathoracic organs
+85254300	Kemik ve eklem kıkırdağı benign neoplazm tanıları	Diagnoses of benign neoplasm of bone and articular cartilage
+85254400	Benign lipomatöz neoplazm tanıları	Diagnoses of benign lipomatous neoplasm
+85254500	Herhangi bir bölgede hemanjiyom ve lenfanjiyom tanıları	Diagnoses of haemangioma and lymphangioma, any site
+85254600	Mezotelyal doku benign neoplazm tanıları	Diagnoses of benign neoplasm of mesothelial tissue
+85254700	Retroperiton ve periton yumuşak doku benign neoplazm tanıları	Diagnoses of benign neoplasm of soft tissue of retroperitoneum and peritoneum
+85254800	Melanositik nevüs tanıları	Diagnoses of melanocytic naevi
+85254900	Periferik benign deri neoplazm tanıları	Diagnoses of peripheral benign neoplasms of skin
+85255000	Uterus leiomiyomu tanıları	Diagnoses of leiomyoma of uterus
+85255100	Uterus veya over benign neoplazm tanıları	Diagnoses of benign neoplasms of the uterusor the ovary
+85255200	Periferik ve tanımlanmamış kadın genital organ benign neoplazm tanıları	Diagnoses of benign neoplasm of peripheral and unspecified female genital organs
+85255300	Erkek genital organ benign neoplazm tanıları	Diagnoses of benign neoplasm of male genital organs
+85255400	İdrar organları benign neoplazm tanıları	Diagnoses of benign neoplasm of urinary organs
+85255500	Göz ve ekleri benign neoplazm tanıları	Diagnoses of benign neoplasm of eye and adnexa
+85255600	Meninks benign neoplazm tanıları	Diagnoses of benign neoplasm of meninges
+85255700	Beyin ve merkezi sinir sistemi benign neoplazm tanıları	Diagnoses of benign neoplasm of brain and peripheral parts of central nervous system
+85255800	Endokrin bez benign neoplazm tanıları	Diagnoses of benign neoplasm of endocrine glands
+85255900	Lenf düğümleri ve otonom sinir sistemi periferik sinir benign neoplazm tanıları	Diagnoses of benign neoplasm of the lymph nodes and peripheral nerves of the autonomic nervous system
+85256000	Ağız boşluğu ve sindirim organları belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of oral cavity and digestive organs
+85256100	Orta kulak, solunum ve göğüs içi organ belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of middle ear and respiratory and intrathoracic organs
+85256200	Kadın genital organ belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of female genital organs
+85256300	Erkek genital organ belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of male genital organs
+85256400	İdrar organları belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of urinary organs
+85256500	Meninks belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of meninges
+85256600	Beyin ve merkezi sinir sistemi belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of brain and central nervous system
+85256700	Endokrin bez belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of endocrine glands
+85256800	Miyelodisplastik sendrom tanıları	Diagnoses of myelodysplastic syndromes
+85256900	Lenfoid, hematopoetik ve ilgili doku belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasms of uncertain behaviour of lymphoid, haematopoietic and related tissue
+85257000	Periferik ve tanımlanmamış bölge belirsiz davranışlı neoplazm tanıları	Diagnoses of neoplasm of uncertain behaviour of peripheral and unspecified sites
+85261500	Konjenital iyot eksikliği sendromu tanıları	Diagnoses of congenital iodine-deficiency syndrome
+85261600	İyot eksikliğine bağlı tiroit bozukluğu tanıları	Diagnoses of iodine-deficiency-related thyroid disorders and allied conditions
+85261700	Hipotiroidi tanıları	Diagnoses of hypothyroidism conditions
+85261800	Toksik olmayan guatr tanıları	Diagnoses of nontoxic goitre conditions
+85261900	Tirotoksikoz veya hipertiroidi tanıları	Diagnoses of thyrotoxicosis or hyperthyroidism
+85262000	Tiroidit tanıları	Diagnoses of thyroiditis
+85262100	Kalsitonin hipersekresyonu veya dishormonojenik guatr tanıları	Diagnoses of hypersecretion of calcitoninor dyshormogenetic goitre
+85262200	Tip 1 diyabet tanıları	Diagnoses of type 1 diabetes mellitus
+85262300	Tip 2 diyabet tanıları	Diagnoses of type 2 diabetes mellitus
+85262400	Malnütrisyonla ilişkili diyabet tanıları	Diagnoses of malnutrition-related diabetes mellitus
+85262500	Pankreas iç salgı bozukluğu tanıları	Diagnoses of disorders of pancreatic internal secretion
+85262600	Hiperparatiroidi ve paratiroit bezi bozukluğu tanıları	Diagnoses of hyperparathyroidism and disorders of parathyroid gland
+85262700	Hipofiz bezi hiperfonksiyonu tanıları	Diagnoses of hyperfunction of pituitary gland
+85262800	Hipofiz bezi hipofonksiyonu ve periferik bozukluk tanıları	Diagnoses of hypofunction and peripheral disorders of pituitary gland
+85262900	Cushing sendromu tanıları	Diagnoses of cushing syndrome
+85263000	Hiperaldosteronizm tanıları	Diagnoses of hyperaldosteronism
+85263100	Periferik adrenal bez bozukluğu tanıları	Diagnoses of peripheral disorders of adrenal gland
+85263200	Over disfonksiyonu tanıları	Diagnoses of ovarian dysfunction
+85263300	Testis disfonksiyonu tanıları	Diagnoses of testicular dysfunction
+85263400	Ergenlik varyasyonu bozukluğu tanıları	Diagnoses of disorders of puberty variations
+85263500	Poliglandüler disfonksiyon tanıları	Diagnoses of polyglandular dysfunction
+85263600	Timus hastalığı tanıları	Diagnoses of diseases of thymus
+85263700	Periferik endokrin bozukluk tanıları	Diagnoses of peripheral endocrine disorders
+85263800	Endokrin veya tiroit bezi hastalığı tanıları	Diagnoses of disorders of endocrine glands or thyroid glands
+85263900	Kwashiorkor veya beslenme marasmusu tanıları	Diagnoses of kwashiorkor or nutritional marasmus or marasmic kswashiokor
+85264000	Orta ve hafif derecede protein enerji malnütrisyonu tanıları	Diagnoses of protein-energy malnutrition of moderate and mild degree
+85264100	A vitamini eksikliği tanıları	Diagnoses of vitamin a deficiency
+85264200	Tiamin eksikliği tanıları	Diagnoses of thiamine deficiency
+85264300	B ile K arası vitamin eksikliği tanıları	Diagnoses of vitamin b through k deficiency
+85264400	Besin elementi eksikliği tanıları	Diagnoses of deficiency of nutrient elements
+85264500	Periferik beslenme eksikliği tanıları	Diagnoses of peripheral nutritional deficiencies
+85264600	Malnütrisyon ve periferik beslenme eksikliği sekelleri tanıları	Diagnoses of sequelae of malnutrition and peripheral nutritional deficiencies
+85264700	Obezite tanıları	Diagnoses of obesity
+85264800	Aşırı beslenme tanıları	Diagnoses of hyperalimentation
+85264900	Amino asit metabolizması bozukluğu tanıları	Diagnoses of disorders of amino-acid metabolism
+85265000	Dallı zincirli amino asit ve yağ asidi metabolizması bozukluğu tanıları	Diagnoses of disorders of branched-chain amino-acid metabolism and fatty-acid metabolism
+85265100	Laktoz intoleransı tanıları	Diagnoses of lactose intolerance
+85265200	Periferik karbonhidrat metabolizması bozukluğu tanıları	Diagnoses of peripheral disorders of carbohydrate metabolism
+85265300	Sfingolipit metabolizması ve periferik lipit depo bozukluğu tanıları	Diagnoses of disorders of sphingolipid metabolism and peripheral lipid storage disorders
+85265400	Glikozaminoglikan metabolizması bozukluğu tanıları	Diagnoses of disorders of glycosaminoglycan metabolism
+85265500	Glikoprotein metabolizması bozukluğu tanıları	Diagnoses of disorders of glycoprotein metabolism
+85265600	Lipoprotein metabolizması bozukluğu ve periferik lipidemi tanıları	Diagnoses of disorders of lipoprotein metabolism and peripheral lipidaemias
+85265700	Pürin ve pirimidin metabolizması bozukluğu tanıları	Diagnoses of disorders of purine and pyrimidine metabolism
+85265800	Porfirin ve bilirubin metabolizması bozukluğu tanıları	Diagnoses of disorders of porphyrin and bilirubin metabolism
+85265900	Mineral metabolizması bozukluğu tanıları	Diagnoses of disorders of mineral metabolism
+85266000	Alkaloz, hiperkalemi ve karma asit baz dengesi bozukluğu tanıları	Diagnoses of alkalosis, hyperkalaemia and mixed disorder of acid-base balance
+85266100	Metabolik bozukluk tanıları	Diagnoses of metabolic disorders
+85266200	Kistik fibroz tanıları	Diagnoses of cystic fibrosis
+85266300	Amiloidoz tanıları	Diagnoses of amyloidosis
+85266400	Sıvı, elektrolit ve asit baz dengesi bozukluğu tanıları	Diagnoses of disorders of fluid, electrolyte and acid-base balance
+85271500	Demans tanıları	Diagnoses of dementia
+85271600	Alkol ve psikoaktif madde dışı deliryum tanıları	Diagnoses of delirium, not induced by alcohol and peripheral psychoactive substances
+85271700	Beyin hasarı ve bedensel hastalığa bağlı mental bozukluk tanıları	Diagnoses of mental disorders due to brain damage and dysfunction and to physical disease
+85271800	Beyin hastalığına bağlı kişilik ve davranış bozukluğu tanıları	Diagnoses of personality and behavioral disorders due to brain disease, damage and dysfunction
+85271900	Kannabinoit kullanımına bağlı akut entoksikasyon tanıları	Diagnoses of mental and behavioral disorders due to use of cannabinoids acute intoxication
+85272000	Opioid kullanımına bağlı mental ve davranışsal bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of opioids
+85272100	Kannabinoit kullanımına bağlı mental ve davranışsal bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of cannabinoids
+85272200	Sedatif veya hipnotik kullanımına bağlı mental bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of sedatives or hypnotics
+85272300	Kokain kullanımına bağlı mental ve davranışsal bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of cocaine
+85272400	Halüsinojen kullanımına bağlı mental ve davranışsal bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of hallucinogens
+85272500	Tütün kullanımına bağlı mental ve davranışsal bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of tobacco
+85272600	Uçucu solvent kullanımına bağlı mental bozukluk tanıları	Diagnoses of mental and behavioral disorders due to use of volatile solvents
+85272700	Şizofreni tanıları	Diagnoses of schizophrenia
+85272800	Kalıcı sanrılı bozukluk veya şizotipal bozukluk tanıları	Diagnoses of persistent delusional disorders or schizotypal disorder
+85272900	Akut ve geçici psikotik bozukluk tanıları	Diagnoses of acute and transient psychotic disorders
+85273000	Şizoaffektif bozukluk tanıları	Diagnoses of schizoaffective disorders
+85273100	Manik atak tanıları	Diagnoses of manic episode
+85273200	Bipolar duygudurum bozukluğu tanıları	Diagnoses of bipolar affective disorder
+85273300	Depresif atak tanıları	Diagnoses of depressive episode
+85273400	Yineleyen depresif bozukluk tanıları	Diagnoses of recurrent depressive disorder
+85273500	Kalıcı duygudurum bozukluğu tanıları	Diagnoses of persistent mood or affective  disorders
+85273600	Fobik anksiyete bozukluğu tanıları	Diagnoses of phobic anxiety disorders
+85273700	Fobik olmayan anksiyete bozukluğu tanıları	Diagnoses of non phobic anxiety disorders
+85273800	Obsesif kompulsif bozukluk tanıları	Diagnoses of obsessive-compulsive disorder
+85273900	Ağır stres tepkisi ve uyum bozukluğu tanıları	Diagnoses of reaction to severe stress, and adjustment disorders
+85274000	Dissosiyatif veya konversiyon bozukluğu tanıları	Diagnoses of dissociative or conversion  disorders
+85274100	Somatoform bozukluk tanıları	Diagnoses of somatoform disorders
+85274200	Periferik nevrotik bozukluk tanıları	Diagnoses of peripheral neurotic disorders
+85274300	Yeme bozukluğu tanıları	Diagnoses of eating disorders
+85274400	Organik olmayan uyku bozukluğu tanıları	Diagnoses of nonorganic sleep disorders
+85274500	Organik olmayan cinsel işlev bozukluğu tanıları	Diagnoses of sexual dysfunction, not caused by organic disorder or disease
+85274600	Özgül kişilik bozukluğu tanıları	Diagnoses of specific personality disorders
+85274700	Beyin hasarına bağlı olmayan kalıcı kişilik değişimi tanıları	Diagnoses of enduring personality changes, not attributable to brain damage and disease
+85274800	Alışkanlık ve dürtü bozukluğu tanıları	Diagnoses of habit and impulse disorders
+85274900	Cinsiyet kimliği bozukluğu tanıları	Diagnoses of gender identity disorders
+85275000	Cinsel tercih bozukluğu tanıları	Diagnoses of disorders of sexual preference
+85275100	Cinsel gelişim ve yönelimle ilişkili psikolojik bozukluk tanıları	Diagnoses of psychological and behavioral disorders associated with sexual development and orientation
+85275200	Periferik erişkin kişilik ve davranış bozukluğu tanıları	Diagnoses of peripheral disorders of adult personality and behaviour
+85275300	Hafif zihinsel yetersizlik tanıları	Diagnoses of mild mental retardation
+85275400	Orta zihinsel yetersizlik tanıları	Diagnoses of moderate mental retardation
+85275500	Ağır zihinsel yetersizlik tanıları	Diagnoses of severe mental retardation
+85275600	İleri derecede zihinsel yetersizlik tanıları	Diagnoses of profound mental retardation
+85275700	Özgül konuşma ve dil gelişim bozukluğu tanıları	Diagnoses of specific developmental disorders of speech and language
+85275800	Özgül okul becerileri gelişim bozukluğu tanıları	Diagnoses of specific developmental disorders of scholastic skills
+85275900	Yaygın gelişimsel bozukluk tanıları	Diagnoses of pervasive developmental disorders
+85276000	Hiperkinetik bozukluk tanıları	Diagnoses of hyperkinetic disorders
+85276100	Davranım bozukluğu tanıları	Diagnoses of conduct disorders
+85276200	Çocuklukta başlayan duygusal bozukluk tanıları	Diagnoses of emotional disorders with onset specific to childhood
+85276300	Çocukluk ve ergenlikte başlayan sosyal işlev bozukluğu tanıları	Diagnoses of disorders of social functioning with onset specific to childhood and adolescence
+85276400	Tik bozukluğu tanıları	Diagnoses of tic disorders
+85281500	Bakteriyel menenjit tanıları	Diagnoses of bacterial meningitis
+85281600	Bakteriyel olmayan menenjit tanıları	Diagnoses of meningitis due to nonbacterial causes
+85281700	Ensefalit, miyelit ve ensefalomiyelit tanıları	Diagnoses of encephalitis, myelitis and encephalomyelitis
+85281800	Kafa içi ve omurga içi apse ve granülom tanıları	Diagnoses of intracranial and intraspinal abscess and granuloma
+85281900	Huntington hastalığı veya spinal tromboflebit tanıları	Diagnoses of huntington disease or intraspinal phlebitis orthrombophlebitis
+85282000	Kalıtsal ataksi tanıları	Diagnoses of hereditary ataxia
+85282100	Spinal musküler atrofi ve ilgili sendrom tanıları	Diagnoses of spinal muscular atrophy and related syndromes
+85282200	Merkezi sinir sistemini etkileyen sistemik atrofi tanıları	Diagnoses of systemic atrophies primarily affecting central nervous system in diseases classified elsewhere
+85282300	Postpolio sendromu veya Parkinson hastalığı tanıları	Diagnoses of postpolio syndrome or parkinson disease
+85282400	Sekonder parkinsonizm tanıları	Diagnoses of secondary parkinsonism
+85282500	Bazal ganglion dejeneratif hastalık tanıları	Diagnoses of degenerative diseases of basal ganglia
+85282600	Distoni tanıları	Diagnoses of dystonia
+85282700	Ekstrapiramidal ve hareket bozukluğu tanıları	Diagnoses of extrapyramidal and movement disorders
+85282800	Alzheimer hastalığı tanıları	Diagnoses of alzheimer disease
+85282900	Sınırlı beyin atrofisi veya alkole bağlı sinir sistemi hasarı tanıları	Diagnoses of circumscribed brain atrophy or alcohol induced nervous system generation
+85283000	Multipl skleroz tanıları	Diagnoses of multiple sclerosis
+85283100	Yaygın demiyelinizasyon tanıları	Diagnoses of disseminated demyelination conditions
+85283200	Epilepsi tanıları	Diagnoses of epilepsy
+85283300	Status epileptikus tanıları	Diagnoses of status epilepticus
+85283400	Migren tanıları	Diagnoses of migraine
+85283500	Nadir baş ağrısı sendromu tanıları	Diagnoses of exotic headache syndromes
+85283600	Geçici iskemik atak ve ilgili sendrom tanıları	Diagnoses of transient cerebral ischaemic attacks and related syndromes
+85283700	Serebrovasküler hastalıklarda beyin damar sendromu tanıları	Diagnoses of vascular syndromes of brain in cerebrovascular diseases
+85283800	Uyku bozukluğu tanıları	Diagnoses of sleep disorders
+85283900	Trigeminal sinir bozukluğu tanıları	Diagnoses of disorders of trigeminal nerve
+85284000	Fasiyal sinir bozukluğu tanıları	Diagnoses of facial nerve disorders
+85284100	Periferik kraniyal sinir bozukluğu tanıları	Diagnoses of disorders of peripheral cranial nerves
+85284200	Başka hastalıklara bağlı kraniyal sinir bozukluğu tanıları	Diagnoses of cranial nerve disorders in diseases classified elsewhere
+85284300	Sinir kökü ve pleksus bozukluğu tanıları	Diagnoses of nerve root and plexus disorders
+85284400	Başka hastalıklara bağlı sinir kökü ve pleksus basısı tanıları	Diagnoses of nerve root and plexus compressions in diseases classified elsewhere
+85284500	Üst ekstremite mononöropati tanıları	Diagnoses of mononeuropathies of upper limb
+85284600	Alt ekstremite mononöropati tanıları	Diagnoses of mononeuropathies of lower limb
+85284700	İnterkostal veya multipleks mononöropati tanıları	Diagnoses of intercostal or multiplex mononeuropathies
+85284800	Kalıtsal ve idiyopatik nöropati tanıları	Diagnoses of hereditary and idiopathic neuropathy
+85284900	İnflamatuvar polinöropati tanıları	Diagnoses of inflammatory polyneuropathy
+85285000	Periferik polinöropati tanıları	Diagnoses of peripheral polyneuropathies
+85285100	Başka hastalıklara bağlı polinöropati tanıları	Diagnoses of polyneuropathy in diseases classified elsewhere
+85285200	Miyastenia gravis ve periferik miyonöral bozukluk tanıları	Diagnoses of myasthenia gravis and peripheral myoneural disorders
+85285300	Primer kas hastalığı tanıları	Diagnoses of primary disorders of muscles
+85285400	Miyopati tanıları	Diagnoses of myopathies
+85285500	Başka hastalıklara bağlı miyonöral kavşak ve kas bozukluğu tanıları	Diagnoses of disorders of myoneural junction and muscle in diseases classified elsewhere
+85285600	Serebral palsi tanıları	Diagnoses of cerebral palsy
+85285700	Hemipleji tanıları	Diagnoses of hemiplegia
+85285800	Parapleji ve tetrapleji tanıları	Diagnoses of paraplegia and tetraplegia
+85285900	Periferik paralitik sendrom tanıları	Diagnoses of peripheral paralytic syndromes
+85286000	Otonom sinir sistemi bozukluğu tanıları	Diagnoses of disorders of autonomic nervous system
+85286100	Hidrosefali ve toksik ensefalopati tanıları	Diagnoses of hydrocephalus and toxic encephalopathy
+85286200	Periferik beyin bozukluğu tanıları	Diagnoses of peripheral disorders of brain
+85286300	Omurilik hastalığı tanıları	Diagnoses of diseases of the spinal cord
+85286400	Merkezi sinir sistemi sıvısı bozukluğu tanıları	Diagnoses of conditions of central nervous system fluids
+85291500	Arpacık ve şalazyon tanıları	Diagnoses of hordeolum and chalazion
+85291600	Periferik göz kapağı iltihabı tanıları	Diagnoses of peripheral inflammation of eyelid
+85291700	Göz kapağı bozukluğu tanıları	Diagnoses of disorders of the eyelid
+85291800	Gözyaşı sistemi bozukluğu tanıları	Diagnoses of disorders of lacrimal system
+85291900	Orbita bozukluğu tanıları	Diagnoses of disorders of orbit
+85292000	Başka hastalıklara bağlı gözyaşı sistemi ve orbita bozukluğu tanıları	Diagnoses of disorders of lacrimal system and orbit in diseases classified elsewhere
+85292100	Konjonktivit tanıları	Diagnoses of conjunctivitis
+85292200	Sklera bozukluğu tanıları	Diagnoses of disorders of sclera
+85292300	Keratit tanıları	Diagnoses of keratitis
+85292400	Kornea bozukluğu, skar ve opasite tanıları	Diagnoses of disorders of the cornea, corneal scars and opacities
+85292500	İridosiklit tanıları	Diagnoses of iridocyclitis
+85292600	Periferik iris ve siliyer cisim bozukluğu tanıları	Diagnoses of peripheral disorders of iris and ciliary body
+85292700	Katarakt tanıları	Diagnoses of cataracts
+85292800	Periferik lens bozukluğu tanıları	Diagnoses of peripheral disorders of lens
+85292900	Koryoretinal iltihap tanıları	Diagnoses of chorioretinal inflammation
+85293000	Periferik koroid bozukluğu tanıları	Diagnoses of peripheral disorders of choroid
+85293100	Retina dekolmanı ve yırtığı tanıları	Diagnoses of retinal detachments and breaks
+85293200	Retina damar tıkanıklığı tanıları	Diagnoses of retinal vascular occlusions
+85293300	Glokom tanıları	Diagnoses of glaucoma
+85293400	Vitreus bozukluğu tanıları	Diagnoses of disorders of vitreous body
+85293500	Göz küresi bozukluğu tanıları	Diagnoses of disorders of globe
+85293600	Vitreus ve göz küresi bozukluğu tanıları	Diagnoses of disorders of vitreous body and globe
+85293700	Periferik optik sinir ve görme yolları bozukluğu tanıları	Diagnoses of peripheral disorders of optic or 2nd  nerve and visual pathways
+85293800	Şaşılık tanıları	Diagnoses of strabismuscondtions
+85293900	Binoküler hareket bozukluğu tanıları	Diagnoses of disorders of binocular movement
+85294000	Kırma ve akomodasyon bozukluğu tanıları	Diagnoses of disorders of refraction and accommodation
+85294100	Görme bozuklukları tanıları	Diagnoses of visual disturbances
+85294200	Körlük dahil görme kaybı tanıları	Diagnoses of visual impairment including blindness or binocular or monocular
+85294300	Periferik göz ve ekleri bozukluğu tanıları	Diagnoses of peripheral disorders of eye and adnexa
+85301500	Dış kulak iltihabı tanıları	Diagnoses of otitis externa
+85301600	Dış kulak bozukluğu tanıları	Diagnoses of disorders of the external ear
+85301700	Süpüratif olmayan orta kulak iltihabı tanıları	Diagnoses of nonsuppurative otitis media
+85301800	Süpüratif ve tanımlanmamış orta kulak iltihabı tanıları	Diagnoses of suppurative and unspecified otitis media
+85301900	Östaki tüpü iltihabı ve tıkanıklığı tanıları	Diagnoses of eustachian salpingitis and obstruction
+85302000	Mastoidit ve ilgili durum tanıları	Diagnoses of mastoiditis and related conditions
+85302100	Kulak zarı bozukluğu tanıları	Diagnoses of disorders of the tympanic membrane
+85302200	Orta kulak ve mastoit bozukluğu tanıları	Diagnoses of disorders of middle ear and mastoid
+85302300	Otoskleroz, vestibüler bozukluk veya işitme kaybı tanıları	Diagnoses of otosclerosis or disorders of vestibular function or conductive and sensorineural hearing loss or otalgia and effusion of ear
+85311500	Kalp tutulumlu ve tutulumsuz romatizmal ateş tanıları	Diagnoses of rheumatic fever with and without heart involvement
+85311600	Romatizmal kore tanıları	Diagnoses of rheumatic chorea
+85311700	Romatizmal mitral kapak hastalığı tanıları	Diagnoses of rheumatic mitral valve diseases
+85311800	Romatizmal aort kapağı hastalığı tanıları	Diagnoses of rheumatic aortic valve diseases
+85311900	Romatizmal triküspit kapak hastalığı tanıları	Diagnoses of rheumatic tricuspid valve diseases
+85312000	Çoklu kapak hastalığı tanıları	Diagnoses of multiple valve diseases
+85312100	Romatizmal kalp hastalığı tanıları	Diagnoses of rheumatic heart diseases
+85312200	Hipertansif kalp hastalığı tanıları	Diagnoses of hypertensive heart disease
+85312300	Hipertansif böbrek hastalığı tanıları	Diagnoses of hypertensive renal disease
+85312400	Hipertansif kalp ve böbrek hastalığı tanıları	Diagnoses of hypertensive heart and renal disease
+85312500	Sekonder hipertansiyon tanıları	Diagnoses of secondary hypertension
+85312600	Anjina pektoris tanıları	Diagnoses of angina pectoris
+85312700	Akut miyokart enfarktüsü tanıları	Diagnoses of acute myocardial infarction
+85312800	Tekrarlayan miyokart enfarktüsü tanıları	Diagnoses of subsequent myocardial infarction
+85312900	Akut miyokart enfarktüsü komplikasyonu tanıları	Diagnoses of acute myocardial infarction complications
+85313000	Akut iskemik kalp hastalığı tanıları	Diagnoses of acute ischaemic heart diseases
+85313100	Kronik iskemik kalp hastalığı tanıları	Diagnoses of chronic ischaemic heart disease
+85313200	Pulmoner emboli tanıları	Diagnoses of pulmonary embolism
+85313300	Arteriyovenöz fistül veya arter anevrizması tanıları	Diagnoses of arteriovenous fistulas or artery aneurysms
+85313400	Akut perikardit tanıları	Diagnoses of acute pericarditis
+85313500	Perikart hastalığı tanıları	Diagnoses of diseases of pericardium
+85313600	Romatizmal olmayan mitral kapak bozukluğu tanıları	Diagnoses of nonrheumatic mitral valve disorders
+85313700	Romatizmal olmayan aort kapağı bozukluğu tanıları	Diagnoses of nonrheumatic aortic valve disorders
+85313800	Pulmoner kapak bozukluğu tanıları	Diagnoses of pulmonary valve disorders
+85313900	Akut miyokardit tanıları	Diagnoses of acute myocarditis
+85314000	Kardiyomiyopati tanıları	Diagnoses of cardiomyopathy
+85314100	Başka hastalıklara bağlı kardiyomiyopati tanıları	Diagnoses of cardiomyopathy in diseases classified elsewhere
+85314200	Atriyoventriküler ve sol dal bloğu tanıları	Diagnoses of atrioventricular and left bundle-branch block
+85314300	İleti bozukluğu tanıları	Diagnoses of conduction disorders
+85314400	Kalp durması tanıları	Diagnoses of cardiac arrest
+85314500	Paroksismal taşikardi tanıları	Diagnoses of paroxysmal tachycardia
+85314600	Atriyal fibrilasyon ve flutter tanıları	Diagnoses of atrial fibrillation and flutter
+85314700	Periferik kalp ritim bozukluğu tanıları	Diagnoses of preipheral cardiac arrhythmias
+85314800	Kalp yetmezliği tanıları	Diagnoses of heart failure
+85314900	Kalp hastalığı komplikasyonu tanıları	Diagnoses of complications of heart disease
+85315000	Subaraknoid kanama tanıları	Diagnoses of subarachnoid haemorrhage
+85315100	İntraserebral kanama tanıları	Diagnoses of intracerebral haemorrhage
+85315200	Travmatik olmayan kafa içi kanama tanıları	Diagnoses of nontraumatic intracranial haemorrhage
+85315300	Serebral enfarkt tanıları	Diagnoses of cerebral infarction
+85315400	Serebral enfarkta yol açmayan preserebral arter tıkanıklığı tanıları	Diagnoses of occlusion and stenosis of precerebral arteries, not resulting in cerebral infarction
+85315500	Serebral enfarkta yol açmayan serebral arter tıkanıklığı tanıları	Diagnoses of occlusion and stenosis of cerebral arteries, not resulting in cerebral infarction
+85315600	Serebrovasküler hastalık tanıları	Diagnoses of cerebrovascular diseases
+85315700	Serebrovasküler hastalık sekelleri tanıları	Diagnoses of sequelae of cerebrovascular disease
+85315800	Ateroskleroz tanıları	Diagnoses of atherosclerosis
+85315900	Aort anevrizması ve diseksiyonu tanıları	Diagnoses of aortic aneurysm and dissection
+85316000	Arter anevrizması veya diseksiyonu tanıları	Diagnoses of arterial aneurysms or dissections
+85316100	Periferik damar hastalığı tanıları	Diagnoses of peripheral vascular diseases
+85316200	Arteriyel emboli ve tromboz tanıları	Diagnoses of arterial embolism and thrombosis
+85316300	Arter ve arteriyol yapısal bozukluğu tanıları	Diagnoses of structural disorders of arteries and arterioles
+85316400	Kılcal damar hastalığı tanıları	Diagnoses of diseases of capillaries
+85316500	Flebit ve tromboflebit tanıları	Diagnoses of phlebitis and thrombophlebitis
+85316600	Venöz emboli veya tromboz tanıları	Diagnoses of venous embolisms or thrombosis
+85316700	Alt ekstremite varisi tanıları	Diagnoses of varicose veins of lower extremities
+85316800	Özofagus varisi tanıları	Diagnoses of oesophageal varices
+85316900	Varis tanıları	Diagnoses of varicose veins
+85317000	Ven yapısal bozukluğu tanıları	Diagnoses of structural disorders of veins
+85317100	Nonspesifik lenfadenit tanıları	Diagnoses of nonspecific lymphadenitis
+85317200	Hipotansiyon tanıları	Diagnoses of hypotension
+85317300	İşlem sonrası dolaşım sistemi bozukluğu tanıları	Diagnoses of postprocedural disorders of circulatory system
+85321500	Endokrin, beslenme ve metabolizma hastalığı tanıları	Diagnoses of endocrine, nutritional and metabolic diseases
+85321600	Orak hücre hastalığı tanıları	Diagnoses of sickle-cell disorders
+85321700	Kalıtsal hemolitik anemi tanıları	Diagnoses of hereditary haemolytic anaemias
+85321800	Edinsel hemolitik anemi tanıları	Diagnoses of acquired haemolytic anaemia
+85321900	Edinsel saf eritrosit aplazisi tanıları	Diagnoses of acquired pure red cell aplasia or erythroblastopenia
+85322000	Aplastik anemi tanıları	Diagnoses of aplastic anaemias
+85322100	Neoplastik, sideroblastik veya diseritropoetik anemi tanıları	Diagnoses of neoplastic, sideroblastic, or dyserythropoietic anaemia diseases
+85322200	Kalıtsal faktör eksikliği tanıları	Diagnoses of hereditary factor deficiencies
+85322300	Periferik pıhtılaşma bozukluğu tanıları	Diagnoses of peripheral coagulation defects
+85322400	Purpura ve periferik kanama bozukluğu tanıları	Diagnoses of purpura and peripheral haemorrhagic conditions
+85322500	Damar içi pıhtılaşma veya agranülositoz tanıları	Diagnoses of intravascular coagulation or arganulocytosis or functional disorders of polymorhponuclear neutrophils
+85322600	Periferik akyuvar bozukluğu tanıları	Diagnoses of peripheral disorders of white blood cells
+85322700	Dalak hastalığı tanıları	Diagnoses of diseases of spleen
+85322800	Periferik kan ve kan yapıcı organ hastalığı tanıları	Diagnoses of peripheral diseases of blood and blood-forming organs
+85322900	Lenforetiküler ve retikülohistiyositik doku tutulumlu hastalık tanıları	Diagnoses of specified diseases with participation of lymphoreticular and reticulohistiocytic tissue
+85323000	Ağırlıklı antikor kusurlu immün yetmezlik tanıları	Diagnoses of immunodeficiency with predominantly antibody defects
+85323100	Kombine immün yetmezlik tanıları	Diagnoses of combined immunodeficiencies
+85323200	Periferik majör kusurlarla ilişkili immün yetmezlik tanıları	Diagnoses of immunodeficiency associated with peripheral major defects
+85323300	Yaygın değişken immün yetmezlik tanıları	Diagnoses of common variable immunodeficiency
+85323400	Lenfosit veya kompleman sistemi immün yetmezlik tanıları	Diagnoses of lymphocyte or complement system immunodeficiencies
+85323500	Sarkoidoz tanıları	Diagnoses of sarcoidosis
+85323600	Poliklonal hipergamaglobulinemi veya kriyoglobulinemi tanıları	Diagnoses of polyclonal hypergammaglobulinaemia or cryoglobulinaemia or immune reconstitution syndrome
+85331500	Diş gelişimi ve sürmesi bozukluğu tanıları	Diagnoses of disorders of tooth development and eruption
+85331600	Gömülü ve sürmemiş diş tanıları	Diagnoses of embedded and impacted teeth
+85331700	Diş çürüğü tanıları	Diagnoses of dental caries
+85331800	Diş sert doku hastalığı tanıları	Diagnoses of diseases of hard tissues of teeth
+85331900	Pulpa ve periapikal doku hastalığı tanıları	Diagnoses of diseases of pulp and periapical tissues
+85332000	Dişeti iltihabı ve periodontal hastalık tanıları	Diagnoses of gingivitis and periodontal diseases
+85332100	Dişeti oluşumu ve dişsiz alveol kreti bozukluğu tanıları	Diagnoses of disorders of gingiva formation and edentulous alveolar ridge
+85332200	Dentofasiyal anomali tanıları	Diagnoses of dentofacial anomalies
+85332300	Diş ve destek yapı bozukluğu tanıları	Diagnoses of disorders of teeth and supporting structures
+85332400	Ağız bölgesi kist tanıları	Diagnoses of cysts of oral region
+85332500	Çene hastalığı tanıları	Diagnoses of diseases of jaws
+85332600	Tükürük bezi hastalığı tanıları	Diagnoses of diseases of salivary glands
+85332700	Stomatit ve ilgili lezyon tanıları	Diagnoses of stomatitis and related lesions
+85332800	Dudak ve ağız mukozası hastalığı tanıları	Diagnoses of diseases of lip and oral mucosa
+85332900	Dil hastalığı tanıları	Diagnoses of diseases of tongue
+85333000	Gastroözofageal reflü hastalığı tanıları	Diagnoses of gastro-oesophageal reflux disease
+85333100	Özofagus hastalığı tanıları	Diagnoses of diseases and disorders of oesophagus
+85333200	Mide ve peptik ülser tanıları	Diagnoses of gastric and peptic ulcer s
+85333300	Duodenum ülseri tanıları	Diagnoses of duodenal ulcer
+85333400	Gastrojejunal ülser tanıları	Diagnoses of gastrojejunal ulcer
+85333500	Gastrit, duodenit veya dispepsi tanıları	Diagnoses of gastritis or duodenitis or dyspepsia
+85333600	Periferik mide ve duodenum hastalığı tanıları	Diagnoses of peripheral diseases of stomach and duodenum
+85333700	Akut apandisit tanıları	Diagnoses of acute appendicitis
+85333800	Periferik apendiks hastalığı tanıları	Diagnoses of peripheral diseases of appendix
+85333900	Kasık fıtığı tanıları	Diagnoses of inguinal hernia
+85334000	Femoral fıtık tanıları	Diagnoses of femoral hernia
+85334100	Göbek fıtığı tanıları	Diagnoses of umbilical hernia
+85334200	Ventral fıtık tanıları	Diagnoses of ventral hernia
+85334300	Diyafram fıtığı tanıları	Diagnoses of diaphragmatic hernia
+85334400	Crohn hastalığı veya bölgesel enterit tanıları	Diagnoses of crohn disease or regional enteritis
+85334500	Ülseratif kolit tanıları	Diagnoses of ulcerative colitis
+85334600	Periferik enfeksiyöz olmayan gastroenterit ve kolit tanıları	Diagnoses of peripheral noninfective gastroenteritis and colitis
+85334700	Bağırsak damar bozukluğu tanıları	Diagnoses of vascular disorders of intestine
+85334800	Paralitik ileus ve fıtıksız bağırsak tıkanıklığı tanıları	Diagnoses of paralytic ileus and intestinal obstruction without hernia
+85334900	Bağırsak divertikül hastalığı tanıları	Diagnoses of diverticular disease of intestine
+85335000	İrritabl bağırsak sendromu tanıları	Diagnoses of irritable bowel syndrome
+85335100	Periferik işlevsel bağırsak bozukluğu tanıları	Diagnoses of peripheral functional intestinal disorders
+85335200	Anal ve rektal bölge fissür ve fistül tanıları	Diagnoses of fissure and fistula of anal and rectal regions
+85335300	Anal ve rektal bölge apse tanıları	Diagnoses of abscess of anal and rectal regions
+85335400	Periferik anüs ve rektum hastalığı tanıları	Diagnoses of peripheral diseases of anus and rectum
+85335500	Periferik bağırsak hastalığı tanıları	Diagnoses of peripheral diseases of intestine
+85335600	Hemoroit ve perianal venöz tromboz tanıları	Diagnoses of haemorrhoids and perianal venous thrombosis
+85335700	Periton bozukluğu tanıları	Diagnoses of peritoneum disorders
+85335800	Enfeksiyon hastalıklarına bağlı periton bozukluğu tanıları	Diagnoses of disorders of peritoneum in infectious diseases classified elsewhere
+85335900	Alkolik karaciğer hastalığı tanıları	Diagnoses of alcoholic liver disease
+85336000	Toksik karaciğer hastalığı tanıları	Diagnoses of toxic liver disease
+85336100	Karaciğer yetmezliği tanıları	Diagnoses of hepatic failure
+85336200	Karaciğer fibrozu ve sirozu tanıları	Diagnoses of fibrosis and cirrhosis of liver
+85336300	İnflamatuvar karaciğer hastalığı tanıları	Diagnoses of inflammatory liver diseases
+85336400	Periferik karaciğer hastalığı tanıları	Diagnoses of peripheral diseases of liver
+85336500	Safra taşı tanıları	Diagnoses of cholelithiasis
+85336600	Kolesistit tanıları	Diagnoses of cholecystitis
+85336700	Periferik safra kesesi hastalığı tanıları	Diagnoses of peripheral diseases of gallbladder
+85336800	Periferik safra yolu hastalığı tanıları	Diagnoses of peripheral diseases of biliary tract
+85336900	Akut pankreatit tanıları	Diagnoses of acute pancreatitis
+85337000	Periferik pankreas hastalığı tanıları	Diagnoses of peripheral diseases of pancreas
+85337100	Bağırsak emilim bozukluğu tanıları	Diagnoses of intestinal malabsorption
+85337200	İşlem sonrası sindirim sistemi bozukluğu tanıları	Diagnoses of postprocedural disorders of digestive system
+85337300	Periferik sindirim sistemi hastalığı tanıları	Diagnoses of peripheral diseases of digestive system
+85337400	Başka hastalıklara bağlı sindirim organı bozukluğu tanıları	Diagnoses of disorders of peripheral digestive organs in diseases classified elsewhere
+85341500	Akut sinüzit tanıları	Diagnoses of acute sinusitis
+85341600	Farenjit, nazofarenjit veya tonsillit tanıları	Diagnoses of pharyngitis, or nasopharyngitis or tonsillities
+85341700	Akut larenjit ve trakeit tanıları	Diagnoses of acute laryngitis and tracheitis
+85341800	Akut obstrüktif larenjit veya krup tanıları	Diagnoses of acute obstructive laryngitis or croup  or laryngopharyngitis  orepiglottitis
+85341900	Viral grip tanıları	Diagnoses of viral influenza
+85342000	Bakteriyel zatürre tanıları	Diagnoses of bacterial pneumonia
+85342100	Parazit hastalıklarında zatürre tanıları	Diagnoses of pneumonia in parasitics diseases
+85342200	Akut bronşit tanıları	Diagnoses of acute bronchitis
+85342300	Akut bronşiyolit tanıları	Diagnoses of acute bronchiolitis
+85342400	Kronik rinit, nazofarenjit ve farenjit tanıları	Diagnoses of chronic rhinitis, nasopharyngitis and pharyngitis
+85342500	Kronik sinüzit tanıları	Diagnoses of chronic sinusitis
+85342600	Burun polibi tanıları	Diagnoses of nasal polyp
+85342700	Periferik burun ve sinüs bozukluğu tanıları	Diagnoses of peripheral disorders of nose and nasal sinuses
+85342800	Kronik bademcik ve geniz eti hastalığı tanıları	Diagnoses of chronic diseases of tonsils and adenoids
+85342900	Kronik larenjit ve larengotrakeit tanıları	Diagnoses of chronic laryngitis and laryngotracheitis
+85343000	Ses telleri ve larenks hastalığı tanıları	Diagnoses of diseases of vocal cords and larynx
+85343100	Bronşit tanıları	Diagnoses of bronchitis conditions
+85343200	Amfizem veya kronik obstrüktif akciğer hastalığı tanıları	Diagnoses of emphysemaor chronic obstructive pulmonary disease
+85343300	Astım veya bronşektazi tanıları	Diagnoses of asthma or asthmaticus or bronchiectasis
+85343400	Pnömokonyoz tanıları	Diagnoses of pneumoconiosis conditions
+85343500	Organik toza bağlı hava yolu hastalığı tanıları	Diagnoses of airway disease due to specific organic dust
+85343600	Kimyasal, gaz ve buhar solunumuna bağlı solunum hastalığı tanıları	Diagnoses of respiratory conditions due to inhalation of chemicals, gases, fumes and vapours
+85343700	Katı ve sıvı maddelere bağlı pnömonit tanıları	Diagnoses of pneumonitis due to solids and liquids
+85343800	Periferik dış etkenlere bağlı solunum hastalığı tanıları	Diagnoses of respiratory conditions due to peripheral external agents
+85343900	Ağırlıklı interstisyumu etkileyen solunum hastalığı tanıları	Diagnoses of respiratory diseases principally affecting the interstitium
+85344000	Akciğer ve mediasten apsesi tanıları	Diagnoses of abscess of lung and mediastinum
+85344100	Piyotoraks tanıları	Diagnoses of pyothorax
+85344200	Plevral plak veya romatoid akciğer hastalığı tanıları	Diagnoses of pleural plaque or rheumatoid lung disease
+85344300	Periferik plevra hastalığı tanıları	Diagnoses of peripheral pleural conditions
+85344400	İşlem sonrası solunum bozukluğu tanıları	Diagnoses of postprocedural respiratory disorders
+85344500	Restriktif solunum bozukluğu tanıları	Diagnoses of restrictive respiratory disorders
+85351500	Stafilokoksik haşlanmış deri sendromu veya impetigo tanıları	Diagnoses of staphylococcal scalded skin syndromeor impetigo
+85351600	Deri apsesi, çıban ve karbonkül tanıları	Diagnoses of cutaneous abscess, furuncle and carbuncle
+85351700	Selülit tanıları	Diagnoses of cellulitis
+85351800	Akut lenfadenit tanıları	Diagnoses of acute lymphadenitis
+85351900	Pilonidal kist tanıları	Diagnoses of pilonidal cyst
+85352000	Deri ve deri altı doku lokal enfeksiyon tanıları	Diagnoses of local infections of skin and subcutaneous tissue
+85352100	Pemfigus tanıları	Diagnoses of pemphigus
+85352200	Akantolitik bozukluk tanıları	Diagnoses of acantholytic disorders
+85352300	Pemfigoid tanıları	Diagnoses of pemphigoid
+85352400	Büllöz bozukluk tanıları	Diagnoses of bullous disorders
+85352500	Dermatit tanıları	Diagnoses of dermatitis conditions
+85352600	Liken simpleks kronikus ve prurigo tanıları	Diagnoses of lichen simplex chronicus and prurigo
+85352700	Kaşıntı tanıları	Diagnoses of pruritus
+85352800	Sedef hastalığı tanıları	Diagnoses of psoriasis
+85352900	Parapsöriyazis ve pitriyazis rozea tanıları	Diagnoses of parapsoriasis and pityriasis rosea
+85353000	Liken planus tanıları	Diagnoses of lichen planus
+85353100	Papüloskuamöz bozukluk tanıları	Diagnoses of papulosquamous disorders
+85353200	Ürtiker tanıları	Diagnoses of urticaria
+85353300	Eritema multiforme tanıları	Diagnoses of erythema multiforme
+85353400	Eritemli durum tanıları	Diagnoses of erythematous conditions
+85353500	Güneş yanığı tanıları	Diagnoses of sunburn
+85353600	Ultraviyole ışınına bağlı akut deri değişikliği tanıları	Diagnoses of acute skin changes due to ultraviolet radiation
+85353700	İyonlaştırıcı olmayan ışına kronik maruziyet deri değişikliği tanıları	Diagnoses of skin changes due to chronic exposure to nonionizing radiation
+85353800	Radyodermatit tanıları	Diagnoses of radiodermatitis
+85353900	Tırnak bozukluğu tanıları	Diagnoses of nail disorders
+85354000	Alopesi areata tanıları	Diagnoses of alopecia areata
+85354100	İz bırakmayan saç dökülmesi tanıları	Diagnoses of nonscarring hair loss
+85354200	İz bırakan saç dökülmesi tanıları	Diagnoses of cicatricial alopecia or scarring hair loss
+85354300	Saç rengi ve saç teli anormalliği tanıları	Diagnoses of hair colour and hair shaft abnormalities
+85354400	Hipertrikoz tanıları	Diagnoses of hypertrichosis
+85354500	Akne tanıları	Diagnoses of acne
+85354600	Sıyrık akne tanıları	Diagnoses of acné excoriée
+85354700	Deri ve deri altı doku foliküler kist tanıları	Diagnoses of follicular cysts of skin and subcutaneous tissue
+85354800	Foliküler bozukluk tanıları	Diagnoses of follicular disorders
+85354900	Ekrin ter bezi bozukluğu tanıları	Diagnoses of eccrine sweat disorders
+85355000	Apokrin ter bezi bozukluğu tanıları	Diagnoses of apocrine sweat disorders
+85355100	Seboreik keratoz veya akantozis nigrikans tanıları	Diagnoses of seborrhoeic keratosis,or acanthosis nigricans or crons or callosites
+85355200	Epidermal kalınlaşma tanıları	Diagnoses of epidermal thickening
+85355300	Transepidermal atılım bozukluğu tanıları	Diagnoses of transepidermal elimination disorders
+85355400	Bası yarası tanıları	Diagnoses of decubitus ulcer and pressure area
+85355500	Atrofik deri bozukluğu tanıları	Diagnoses of atrophic disorders of skin
+85355600	Deri ve deri altı doku granülomatöz bozukluk tanıları	Diagnoses of granulomatous disorders of skin and subcutaneous tissue
+85355700	Lupus eritematozus tanıları	Diagnoses of lupus erythematosus
+85355800	Lokalize bağ dokusu bozukluğu tanıları	Diagnoses of localized connective tissue disorders
+85355900	Deri kaynaklı vaskülit tanıları	Diagnoses of skin based vasculitis
+85356000	Sınıflandırılmamış deri ve deri altı doku iltihabı tanıları	Diagnoses of unaligned inflammatory disorders of the skin and subcutaneous tissue
+85361500	Akut nefritik sendrom tanıları	Diagnoses of acute nephritic syndrome
+85361600	Hızlı ilerleyen nefritik sendrom tanıları	Diagnoses of rapidly progressive nephritic syndrome
+85361700	Yineleyen ve kalıcı hematüri tanıları	Diagnoses of recurrent and persistent haematuria
+85361800	Kronik nefritik sendrom tanıları	Diagnoses of chronic nephritic syndrome
+85361900	Nefrotik sendrom tanıları	Diagnoses of nephrotic syndrome
+85362000	Morfolojik lezyonlu izole proteinüri tanıları	Diagnoses of isolated proteinuria with specified morphological lesion
+85362100	Periferik glomerül bozukluğu tanıları	Diagnoses of peripheral glomerular disorders
+85362200	Tübülointerstisyel nefrit tanıları	Diagnoses of tubulo-interstitial nephritis conditions
+85362300	Obstrüktif ve reflü üropati tanıları	Diagnoses of obstructive and reflux uropathy
+85362400	İlaç ve ağır metale bağlı tübülointerstisyel durum tanıları	Diagnoses of drug- and heavy-metal-induced tubulo-interstitial and tubular conditions
+85362500	Periferik renal tübülointerstisyel hastalık tanıları	Diagnoses of peripheral renal tubulo-interstitial diseases
+85362600	Başka hastalıklara bağlı renal tübülointerstisyel bozukluk tanıları	Diagnoses of renal tubulo-interstitial disorders in diseases classified elsewhere
+85362700	Akut böbrek yetmezliği tanıları	Diagnoses of acute renal failure
+85362800	Kronik böbrek hastalığı tanıları	Diagnoses of chronic kidney disease
+85362900	Böbrek ve üreter taşı tanıları	Diagnoses of calculus of kidney and ureter
+85363000	Alt idrar yolu taşı tanıları	Diagnoses of calculus of lower urinary tract
+85363100	İdrar yolu taşı veya renal kolik tanıları	Diagnoses of calculus of urinary tract or renal cholic
+85363200	Bozulmuş renal tübüler işleve bağlı bozukluk tanıları	Diagnoses of disorders resulting from impaired renal tubular function
+85363300	Nedeni belirsiz küçük böbrek tanıları	Diagnoses of small kidney of uncertain causes
+85363400	Böbrek ve üreter bozukluğu tanıları	Diagnoses of disorders of kidney and ureter
+85363500	Sistit tanıları	Diagnoses of cystitis
+85363600	Periferik mesane bozukluğu tanıları	Diagnoses of peripheral disorders of bladder
+85363700	Üretrit ve üretral sendrom tanıları	Diagnoses of urethritis and urethral syndrome
+85363800	Üretra bileşenleri bozukluğu tanıları	Diagnoses of disorders of urethra l components
+85363900	Periferik idrar sistemi bozukluğu tanıları	Diagnoses of peripheral disorders of urinary system
+85364000	Prostat iltihabı hastalığı tanıları	Diagnoses of inflammatory diseases of prostate
+85364100	Prostat bozukluğu tanıları	Diagnoses of disorders of prostate
+85364200	Hidrosel ve spermatosel tanıları	Diagnoses of hydrocele and spermatocele
+85364300	Testis torsiyonu veya erkek kısırlığı tanıları	Diagnoses of torsion of testis or male infertility
+85364400	Orşit ve epididimit tanıları	Diagnoses of orchitis and epididymitis
+85364500	Penis bozukluğu tanıları	Diagnoses of disorders of penis
+85364600	Periferik erkek genital organ iltihabı tanıları	Diagnoses of inflammatory disorders of peripheral male genital organs
+85364700	Erkek genital organ atrofi ve damar bozukluğu tanıları	Diagnoses of atrophy and vascular disorders  of male genital organs
+85364800	Benign meme displazisi tanıları	Diagnoses of benign mammary dysplasia
+85364900	Periferik meme bozukluğu tanıları	Diagnoses of peripheral disorders of breast
+85365000	Salpenjit ve ooforit tanıları	Diagnoses of salpingitis and oophoritis
+85365100	Uterus veya serviks iltihabı hastalığı tanıları	Diagnoses of inflammatory disease of uterus, or cervix
+85365200	Kadın pelvik iltihabi hastalık tanıları	Diagnoses of female pelvic inflammatory diseases
+85365300	Bartholin bezi hastalığı tanıları	Diagnoses of diseases of bartholin gland
+85365400	Vajina ve vulva iltihabı hastalığı tanıları	Diagnoses of inflammatory diseases of vagina and vulva
+85365500	Endometriyoz tanıları	Diagnoses of endometriosis
+85365600	Kadın genital organ sarkması tanıları	Diagnoses of female genital prolapse
+85365700	Kadın genital yolu fistülü tanıları	Diagnoses of fistulae involving female genital tract
+85365800	Over, fallop tüpü ve geniş bağ iltihapsız bozukluk tanıları	Diagnoses of noninflammatory disorders of ovary, fallopian tube and broad ligament
+85365900	Kadın genital yolu polibi tanıları	Diagnoses of polyp of female genital tract
+85366000	Uterus veya serviks iltihapsız bozukluk tanıları	Diagnoses of noninflammatory disorders of uterus, or cervix
+85366100	Serviks displazisi tanıları	Diagnoses of dysplasia of cervix uteri
+85366200	Serviks iltihapsız bozukluğu tanıları	Diagnoses of noninflammatory disorders of cervix uteri
+85366300	Vajina iltihapsız bozukluğu tanıları	Diagnoses of noninflammatory disorders of vagina
+85366400	Vulva ve perine iltihapsız bozukluğu tanıları	Diagnoses of noninflammatory disorders of vulva and perineum
+85366500	Adet yokluğu veya azlığı tanıları	Diagnoses of absent, scanty and rare menstruation
+85366600	Aşırı, sık ve düzensiz adet tanıları	Diagnoses of excessive, frequent and irregular menstruation
+85366700	Kadın genital organ ve adet döngüsü ağrı tanıları	Diagnoses of pain and peripheral conditions associated with female genital organs and menstrual cycle
+85366800	Menopoz veya perimenopoz bozukluğu tanıları	Diagnoses of menopausal or perimenopausal disorders
+85366900	Kadın kısırlığı tanıları	Diagnoses of female infertility
+85367000	Yapay döllenme komplikasyonu tanıları	Diagnoses of complications associated with artificial fertilization
+85367100	İşlem sonrası ürogenital sistem bozukluğu tanıları	Diagnoses of postprocedural disorders of genitourinary system,
+85371500	Piyojenik artrit tanıları	Diagnoses of pyogenic arthritis
+85371600	Enfeksiyöz ve paraziter hastalıklara bağlı eklem enfeksiyonu tanıları	Diagnoses of direct infections of joint associated with infectious and parasitic diseases
+85371700	Reaktif artropati tanıları	Diagnoses of reactive arthropathies
+85371800	Seropozitif romatoid artrit tanıları	Diagnoses of seropositive rheumatoid arthritis
+85371900	Psöriyatik ve enteropatik artropati tanıları	Diagnoses of psoriatic and enteropathic arthropathies
+85372000	Juvenil artrit tanıları	Diagnoses of juvenile arthritis
+85372100	Gut tanıları	Diagnoses of gout
+85372200	Kristal veya özgül artropati tanıları	Diagnoses of crystal or specific arthropathies
+85372300	Poliartroz tanıları	Diagnoses of polyarthrosis
+85372400	Koksartroz veya kalça artrozu tanıları	Diagnoses of coxarthrosis or arthrosis of hip
+85372500	Gonartroz veya diz artrozu tanıları	Diagnoses of gonarthrosis or arthrosis of knee
+85372600	Birinci karpometakarpal eklem artrozu tanıları	Diagnoses of arthrosis of first carpometacarpal joint
+85372700	El ve ayak parmağı edinsel deformite tanıları	Diagnoses of acquired deformities of fingers and toes
+85372800	Ekstremite edinsel deformite tanıları	Diagnoses of acquired deformities of limbs
+85372900	Patella bozukluğu tanıları	Diagnoses of disorders of patella
+85373000	Diz iç düzensizliği tanıları	Diagnoses of internal derangement of knee
+85373100	Özgül eklem düzensizliği ve bozukluğu tanıları	Diagnoses of specific joint derangements and disorders
+85373200	Poliarteritis nodoza ve ilgili durum tanıları	Diagnoses of polyarteritis nodosa and related conditions
+85373300	Periferik nekrotizan vaskülopati tanıları	Diagnoses of peripheral necrotizing vasculopathies
+85373400	Sistemik lupus eritematozus tanıları	Diagnoses of systemic lupus erythematosus
+85373500	Dermatopolimiyozit tanıları	Diagnoses of dermatopolymyositis
+85373600	Sistemik skleroz tanıları	Diagnoses of systemic sclerosis
+85373700	Periferik sistemik bağ dokusu tutulumu tanıları	Diagnoses of peripheral systemic involvement of connective tissue
+85373800	Başka hastalıklara bağlı sistemik bağ dokusu bozukluğu tanıları	Diagnoses of systemic disorders of connective tissue in diseases classified elsewhere
+85373900	Servikal veya disk bozukluğu tanıları	Diagnoses of cervical or intervertebral disc disorders
+85374000	Kifoz ve lordoz tanıları	Diagnoses of kyphosis and lordosis
+85374100	Skolyoz tanıları	Diagnoses of scoliosis
+85374200	Spinal osteokondroz tanıları	Diagnoses of spinal osteochondrosis
+85374300	Periferik deforme edici dorsopati tanıları	Diagnoses of peripheral deforming dorsopathies
+85374400	Periferik inflamatuvar spondilopati tanıları	Diagnoses of peripheral inflammatory spondylopathies
+85374500	Periferik spondilopati tanıları	Diagnoses of peripheral spondylopathies
+85374600	Başka hastalıklara bağlı spondilopati tanıları	Diagnoses of spondylopathies in diseases classified elsewhere
+85374700	Periferik dorsopati tanıları	Diagnoses of peripheral dorsopathies
+85374800	Sırt ağrısı tanıları	Diagnoses of dorsalgia
+85374900	Miyozit tanıları	Diagnoses of myositis
+85375000	Kas kireçlenmesi ve kemikleşmesi tanıları	Diagnoses of calcification and ossification of muscle
+85375100	Periferik kas bozukluğu tanıları	Diagnoses of peripheral disorders of muscle
+85375200	Sinovit ve tenosinovit tanıları	Diagnoses of synovitis and tenosynovitis
+85375300	Sinovyum ve tendon spontan yırtığı tanıları	Diagnoses of spontaneous rupture of synovium and tendon
+85375400	Periferik sinovyum ve tendon bozukluğu tanıları	Diagnoses of peripheral disorders of synovium and tendon
+85375500	Aşırı kullanım ve basıya bağlı yumuşak doku bozukluğu tanıları	Diagnoses of soft tissue disorders related to use, overuse and pressure
+85375600	Periferik bursopati tanıları	Diagnoses of peripheral bursopathies
+85375700	Fibroblastik bozukluk tanıları	Diagnoses of fibroblastic disorders
+85375800	Başka hastalıklara bağlı yumuşak doku bozukluğu tanıları	Diagnoses of soft tissue disorders in diseases classified elsewhere
+85375900	Omuz lezyonu tanıları	Diagnoses of shoulder lesions
+85376000	Ayak hariç alt ekstremite entezopati tanıları	Diagnoses of enthesopathies of lower limb, excluding foot
+85376100	Periferik entezopati tanıları	Diagnoses of peripheral enthesopathies
+85376200	Periferik yumuşak doku bozukluğu tanıları	Diagnoses of peripheral soft tissue disorders
+85376300	Patolojik kırıklı osteoporoz tanıları	Diagnoses of osteoporosis with pathological fracture
+85376400	Patolojik kırıksız osteoporoz tanıları	Diagnoses of osteoporosis without pathological fracture
+85376500	Hastalıklara bağlı osteoporoz tanıları	Diagnoses of osteoporosis in diseases
+85376600	Erişkin osteomalazi tanıları	Diagnoses of adult osteomalacia
+85376700	Kemik bütünlüğü bozukluğu tanıları	Diagnoses of disorders of continuity of bone
+85376800	Periferik kemik yoğunluğu ve yapısı bozukluğu tanıları	Diagnoses of peripheral disorders of bone density and structure
+85376900	Osteomiyelit tanıları	Diagnoses of osteomyelitis
+85377000	Osteonekroz tanıları	Diagnoses of osteonecrosis
+85377100	Periferik kemik bozukluğu tanıları	Diagnoses of peripheral disorders of bone
+85377200	Başka hastalıklara bağlı osteopati tanıları	Diagnoses of osteopathies in diseases classified elsewhere
+85377300	Juvenil osteokondroz tanıları	Diagnoses of juvenile osteochondrosis
+85377400	Periferik osteokondropati tanıları	Diagnoses of peripheral osteochondropathies
+85377500	Periferik kıkırdak bozukluğu tanıları	Diagnoses of peripheral disorders of cartilage
+85377600	Periferik edinsel kas iskelet ve bağ dokusu deformite tanıları	Diagnoses of peripheral acquired deformities of musculoskeletal system and connective tissue
+85377700	İşlem sonrası kas iskelet bozukluğu tanıları	Diagnoses of postprocedural musculoskeletal disorders,
+85377800	Biyomekanik lezyon tanıları	Diagnoses of biomechanical lesions
+85381500	Gebelikle ilişkisiz anne durumlarından etkilenen fetüs ve yenidoğan tanıları	Diagnoses of fetus and newborn affected by maternal conditions that may be unrelated to present pregnancy
+85381600	Gebelik komplikasyonlarından etkilenen fetüs ve yenidoğan tanıları	Diagnoses of fetus and newborn affected by maternal complications of pregnancy
+85381700	Plasenta, kordon ve zar komplikasyonlarından etkilenen fetüs ve yenidoğan tanıları	Diagnoses of fetus and newborn affected by complications of placenta, cord and membranes
+85381800	Doğum eylemi komplikasyonlarından etkilenen fetüs ve yenidoğan tanıları	Diagnoses of fetus and newborn affected by peripheral complications of labour and delivery
+85381900	Plasenta veya anne sütü yoluyla zararlı etkilenen fetüs ve yenidoğan tanıları	Diagnoses of fetus and newborn affected by noxious influences transmitted via placenta or breast milk
+85382000	Yavaş fetal büyüme ve fetal malnütrisyon tanıları	Diagnoses of slow fetal growth and fetal malnutrition
+85382100	Kısa gebelik ve düşük doğum ağırlığı bozukluğu tanıları	Diagnoses of disorders related to short gestation and low birth weight
+85382200	Uzun gebelik ve yüksek doğum ağırlığı bozukluğu tanıları	Diagnoses of disorders related to long gestation and high birth weight
+85382300	Doğum travmasına bağlı kafa içi yırtık ve kanama tanıları	Diagnoses of intracranial laceration and haemorrhage due to birth injury
+85382400	Periferik merkezi sinir sistemi doğum travması tanıları	Diagnoses of peripheral birth injuries to central nervous system
+85382500	Saçlı deri doğum travması tanıları	Diagnoses of birth injury to scalp
+85382600	İskelet doğum travması tanıları	Diagnoses of birth injury to skeleton
+85382700	Periferik sinir sistemi doğum travması tanıları	Diagnoses of birth injury to peripheral nervous system
+85382800	Periferik doğum travması tanıları	Diagnoses of peripheral birth injuries
+85382900	Rahim içi hipoksi tanıları	Diagnoses of intrauterine hypoxia
+85383000	Doğum asfiksisi tanıları	Diagnoses of birth asphyxia
+85383100	Yenidoğan solunum sıkıntısı tanıları	Diagnoses of respiratory distress of newborn
+85383200	Konjenital zatürre tanıları	Diagnoses of congenital pneumonia
+85383300	Yenidoğan aspirasyon sendromu tanıları	Diagnoses of neonatal aspiration syndromes
+85383400	Perinatal dönem interstisyel amfizem tanıları	Diagnoses of interstitial emphysema and related conditions originating in the perinatal period
+85383500	Perinatal dönem akciğer kanaması tanıları	Diagnoses of pulmonary haemorrhage originating in the perinatal period
+85383600	Perinatal dönem kronik solunum hastalığı tanıları	Diagnoses of chronic respiratory disease originating in the perinatal period
+85383700	Perinatal dönem periferik solunum durumu tanıları	Diagnoses of peripheral respiratory conditions originating in the perinatal period
+85383800	Konjenital viral hastalık tanıları	Diagnoses of congenital viral diseases
+85383900	Yenidoğan bakteriyel sepsisi tanıları	Diagnoses of bacterial sepsis of newborn
+85384000	Konjenital tüberküloz, toksoplazmoz ve sıtma tanıları	Diagnoses of congenital tuberculosis, toxoplasmosis and falciparum malaria
+85384100	Perinatal döneme özgü periferik enfeksiyon tanıları	Diagnoses of peripheral infections specific to the perinatal period
+85384200	Fetal kan kaybı tanıları	Diagnoses of fetal blood loss
+85384300	Fetüs ve yenidoğan travmatik olmayan kafa içi kanama tanıları	Diagnoses of intracranial nontraumatic haemorrhage of fetus and newborn
+85384400	Periferik yenidoğan kanaması tanıları	Diagnoses of peripheral neonatal haemorrhages
+85384500	Fetüs ve yenidoğan hemolitik hastalığı tanıları	Diagnoses of haemolytic disease of fetus and newborn
+85384600	Hemolitik hastalığa bağlı hidrops fetalis tanıları	Diagnoses of hydrops fetalis due to haemolytic disease
+85384700	Aşırı hemolize bağlı yenidoğan sarılığı tanıları	Diagnoses of neonatal jaundice due to peripheral excessive haemolysis
+85384800	Nedeni belirsiz yenidoğan sarılığı tanıları	Diagnoses of neonatal jaundice from peripheral and unspecified causes
+85384900	Periferik perinatal hematolojik bozukluk tanıları	Diagnoses of peripheral perinatal haematological disorders
+85385000	Fetüs ve yenidoğana özgü geçici karbonhidrat metabolizması bozukluğu tanıları	Diagnoses of transitory disorders of carbohydrate metabolism specific to fetus and newborn
+85385100	Yenidoğan geçici kalsiyum ve magnezyum metabolizması bozukluğu tanıları	Diagnoses of transitory neonatal disorders of calcium and magnesium metabolism
+85385200	Periferik geçici yenidoğan endokrin bozukluğu tanıları	Diagnoses of peripheral transitory neonatal endocrine disorders
+85385300	Periferik geçici yenidoğan elektrolit ve metabolik bozukluk tanıları	Diagnoses of peripheral transitory neonatal electrolyte and metabolic disturbances
+85385400	Periferik yenidoğan bağırsak tıkanıklığı tanıları	Diagnoses of peripheral intestinal obstruction of newborn
+85385500	Periferik perinatal sindirim sistemi bozukluğu tanıları	Diagnoses of peripheral perinatal digestive system disorders
+85385600	Yenidoğan ısı düzenleme bozukluğu tanıları	Diagnoses of hypperipheralmia or disturbances of temperature regulation of newborn
+85385700	Fetüs ve yenidoğana özgü periferik deri durumu tanıları	Diagnoses of peripheral conditions of integument specific to fetus and newborn
+85385800	Periferik yenidoğan serebral durum bozukluğu tanıları	Diagnoses of peripheral disturbances of cerebral status of newborn
+85385900	Yenidoğan beslenme sorunu tanıları	Diagnoses of feeding problems of newborn
+85386000	Yenidoğan kas tonusu bozukluğu tanıları	Diagnoses of disorders of muscle tone of newborn
+85386100	Perinatal dönemde başlayan diğer durum tanıları	Diagnoses of conditions originating in the perinatal period
+85391500	Gebelik ve lohusalıkta önceden var olan hipertansiyon tanıları	Diagnoses of pre-existing hypertension complicating pregnancy, childbirth and the puerperium
+85391600	Gebeliğe bağlı ödem ve proteinüri tanıları	Diagnoses of gestational or pregnancy-induced  oedema and proteinuria without hypertension
+85391700	Preeklampsi tanıları	Diagnoses of pre-eclampsia
+85391800	Eklampsi tanıları	Diagnoses of eclampsia
+85391900	Gebelikte aşırı kusma tanıları	Diagnoses of excessive vomiting in pregnancy
+85392000	Gebelikte venöz komplikasyon ve hemoroit tanıları	Diagnoses of venous complications and haemorrhoids in pregnancy
+85392100	Gebelikte ürogenital yol enfeksiyonu tanıları	Diagnoses of infections of genitourinary tract in pregnancy
+85392200	Gebelikte diyabet tanıları	Diagnoses of diabetes mellitus in pregnancy
+85392300	Gebelikle ilişkili periferik durum veya malformasyon tanıları	Diagnoses of peripheral conditions or malformations associated with pregnancy
+85392400	Dış gebelik tanıları	Diagnoses of ectopic pregnancy
+85392500	Mol hidatiform tanıları	Diagnoses of hydatidiform mole
+85392600	Periferik anormal gebelik ürünü tanıları	Diagnoses of peripheral abnormal products of conception
+85392700	Kendiliğinden veya tehdit altında düşük tanıları	Diagnoses of spontaneous or threatened abortion
+85392800	Tıbbi düşük tanıları	Diagnoses of medical abortion
+85392900	Başarısız düşük girişimi tanıları	Diagnoses of failed attempted abortion
+85393000	Düşük, dış gebelik ve mol gebeliği sonrası komplikasyon tanıları	Diagnoses of complications following abortion and ectopic and molar pregnancy
+85401500	Anensefali ve benzeri malformasyon tanıları	Diagnoses of anencephaly and similar malformations
+85401700	Konjenital hidrosefali tanıları	Diagnoses of congenital hydrocephalus
+85401800	Periferik konjenital beyin malformasyonu tanıları	Diagnoses of peripheral congenital malformations of brain
+85401900	Spina bifida tanıları	Diagnoses of spina bifida
+85402000	Periferik konjenital omurilik malformasyonu tanıları	Diagnoses of peripheral congenital malformations of spinal cord
+85402100	Göz kapağı, gözyaşı aygıtı veya optik sinir konjenital malformasyon tanıları	Diagnoses of congenital malformations of eyelid, lacrimal apparatus or optic nerves or orbit
+85402200	Anoftalmi, mikroftalmi ve makroftalmi tanıları	Diagnoses of anophthalmos, microphthalmos and macrophthalmos
+85402300	Konjenital lens malformasyonu tanıları	Diagnoses of congenital lens malformations
+85402400	Göz ön segmenti konjenital malformasyon tanıları	Diagnoses of congenital malformations of anterior segment of eye
+85402500	Pulmoner ve triküspit kapak konjenital malformasyon tanıları	Diagnoses of congenital malformations of pulmonary and tricuspid valves
+85402600	Aort ve mitral kapak konjenital malformasyon tanıları	Diagnoses of congenital malformations of aortic and mitral valves
+85402700	Periferik konjenital kalp malformasyonu tanıları	Diagnoses of peripheral congenital malformations of heart
+85402800	Büyük arter konjenital malformasyon tanıları	Diagnoses of congenital malformations of great arteries
+85402900	Büyük ven konjenital malformasyon tanıları	Diagnoses of congenital malformations of great veins
+85403000	Periferik damar sistemi konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of peripheral vascular system
+85403100	Periferik dolaşım sistemi konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of circulatory system
+85403200	Burun konjenital malformasyon tanıları	Diagnoses of congenital malformations of nose
+85403300	Larenks konjenital malformasyon tanıları	Diagnoses of congenital malformations of larynx
+85403400	Trakea ve bronş konjenital malformasyon tanıları	Diagnoses of congenital malformations of trachea and bronchus
+85403500	Akciğer konjenital malformasyon tanıları	Diagnoses of congenital malformations of lung
+85403600	Periferik solunum sistemi konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of respiratory system
+85403700	Damak yarığı tanıları	Diagnoses of cleft palate
+85403800	Dudak yarığı tanıları	Diagnoses of cleft lip
+85403900	Damak ve dudak yarığı tanıları	Diagnoses of cleft palate with cleft lip
+85404000	Periferik dil, ağız ve yutak konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of tongue, mouth and pharynx
+85404100	Özofagus konjenital malformasyon tanıları	Diagnoses of congenital malformations of oesophagus
+85404200	Periferik üst sindirim yolu konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of upper alimentary tract
+85404300	İnce bağırsak konjenital yokluğu, atrezi ve darlığı tanıları	Diagnoses of congenital absence, atresia and stenosis of small intestine
+85404400	Kalın bağırsak konjenital yokluğu, atrezi ve darlığı tanıları	Diagnoses of congenital absence, atresia and stenosis of large intestine
+85404500	Periferik bağırsak konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of intestine
+85404600	Safra kesesi, safra yolları ve karaciğer konjenital malformasyon tanıları	Diagnoses of congenital malformations of gallbladder, bile ducts and liver
+85404700	Periferik sindirim sistemi konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of digestive system
+85404800	Over, fallop tüpü ve geniş bağ konjenital malformasyon tanıları	Diagnoses of congenital malformations of ovaries, fallopian tubes and broad ligaments
+85404900	Uterus ve serviks konjenital malformasyon tanıları	Diagnoses of congenital malformations of uterus and cervix
+85405000	Periferik kadın genital organ konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of female genitalia
+85405100	İnmemiş testis tanıları	Diagnoses of undescended testicle
+85405200	Hipospadias tanıları	Diagnoses of hypospadias
+85405300	Periferik erkek genital organ konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of male genital organs
+85405400	Renal agenezi ve periferik böbrek gelişim kusuru tanıları	Diagnoses of renal agenesis and peripheral reduction defects of kidney
+85405500	Kistik böbrek hastalığı tanıları	Diagnoses of cystic kidney disease
+85405600	Renal pelvis obstrüktif kusuru ve üreter konjenital malformasyon tanıları	Diagnoses of congenital obstructive defects of renal pelvis and congenital malformations of ureter
+85405700	Periferik böbrek konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of kidney
+85405800	Periferik idrar sistemi konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of urinary system
+85405900	Kalça konjenital deformite tanıları	Diagnoses of congenital deformities of hip
+85406000	Ayak konjenital deformite tanıları	Diagnoses of congenital deformities of feet
+85406100	Baş, yüz, omurga ve göğüs konjenital kas iskelet deformite tanıları	Diagnoses of congenital musculoskeletal deformities of head, face, spine and chest
+85406200	Periferik konjenital kas iskelet deformite tanıları	Diagnoses of peripheral congenital musculoskeletal deformities
+85406300	Polidaktili tanıları	Diagnoses of polydactyly
+85406400	Sindaktili tanıları	Diagnoses of syndactyly
+85406500	Üst ekstremite gelişim kusuru tanıları	Diagnoses of reduction defects of upper limb
+85406600	Alt ekstremite gelişim kusuru tanıları	Diagnoses of reduction defects of lower limb
+85406700	Periferik ekstremite konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of limb(s
+85406800	Periferik kafatası ve yüz kemiği konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of skull and face bones
+85406900	Omurga ve kemik göğüs kafesi konjenital malformasyon tanıları	Diagnoses of congenital malformations of spine and bony thorax
+85407000	Tübüler kemik ve omurga büyüme kusurlu osteokondrodisplazi tanıları	Diagnoses of osteochondrodysplasia with defects of growth of tubular bones and spine
+85407100	Periferik osteokondrodisplazi tanıları	Diagnoses of peripheral osteochondrodysplasias
+85407200	Kas iskelet sistemi konjenital malformasyon tanıları	Diagnoses of congenital malformations of the musculoskeletal system
+85407300	Konjenital iktiyoz tanıları	Diagnoses of congenital ichthyosis
+85407400	Epidermolizis bülloza tanıları	Diagnoses of epidermolysis bullosa
+85407500	Periferik deri konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of skin
+85407600	Meme konjenital malformasyon tanıları	Diagnoses of congenital malformations of breast
+85407700	Periferik deri konjenital malformasyon durumları tanıları	Diagnoses of peripheral congenital malformations of integument
+85407800	Fakomatoz tanıları	Diagnoses of phakomatoses
+85407900	Bilinen dış nedenlere bağlı konjenital malformasyon sendromu tanıları	Diagnoses of congenital malformation syndromes due to known exogenous causes
+85408000	Çoklu sistemi etkileyen periferik konjenital malformasyon sendromu tanıları	Diagnoses of peripheral specified congenital malformation syndromes affecting multiple systems
+85408100	Periferik konjenital enfeksiyöz ve paraziter hastalık tanıları	Diagnoses of peripheral congenital infectious and parasitic diseases
+85408200	Down sendromu tanıları	Diagnoses of down syndrome
+85408300	Edwards ve Patau sendromu tanıları	Diagnoses of edwards syndrome and patau syndrome
+85408400	Otozom monozomi ve delesyon tanıları	Diagnoses of monosomies and deletions from the autosomes
+85408500	Dengeli yeniden düzenlenme ve yapısal belirteç tanıları	Diagnoses of balanced rearrangements and structural markers
+85408600	Turner sendromu tanıları	Diagnoses of turner syndrome
+85408700	Periferik cinsiyet kromozomu anormalliği, kadın fenotip tanıları	Diagnoses of peripheral sex chromosome abnormalities, female phenotype
+85408800	Periferik cinsiyet kromozomu anormalliği, erkek fenotip tanıları	Diagnoses of peripheral sex chromosome abnormalities, male phenotype
+85408900	Periferik kromozom anormalliği tanıları	Diagnoses of peripheral chromosome abnormalities
+85409000	Göz arka segmenti konjenital malformasyon tanıları	Diagnoses of congenital malformations of posterior segment of eye
+85409100	İşitme kaybına yol açan kulak konjenital malformasyon tanıları	Diagnoses of congenital malformations of ear causing impairment of hearing
+85409200	Periferik kulak konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of ear
+85409300	Periferik yüz ve boyun konjenital malformasyon tanıları	Diagnoses of peripheral congenital malformations of face and neck
+85409400	Kalp boşluğu ve bağlantıları konjenital malformasyon tanıları	Diagnoses of congenital malformations of cardiac chambers and connections
+85409500	Kalp septumu konjenital malformasyon tanıları	Diagnoses of congenital malformations of cardiac septa
+85411500	Kalp atımı anormalliği tanıları	Diagnoses of abnormalities of heart beat
+85411600	Kalp üfürümü ve diğer kalp sesleri tanıları	Diagnoses of cardiac murmurs and other cardiac sounds
+85411700	Tanısız anormal tansiyon ölçümü tanıları	Diagnoses of abnormal blood-pressure reading, without diagnosis
+85411800	Solunum yollarından kanama tanıları	Diagnoses of haemorrhage from respiratory passages
+85411900	Solunum anormalliği tanıları	Diagnoses of abnormalities of breathing
+85412000	Boğaz ve göğüs ağrısı tanıları	Diagnoses of pain in throat and chest
+85412100	Dolaşım ve solunum sistemi diğer belirti ve bulgu tanıları	Diagnoses of other symptoms and signs involving the circulatory and respiratory systems
+85412200	Hepatomegali ve splenomegali tanıları	Diagnoses of hepatomegaly and splenomegaly
+85412300	Sindirim sistemi ve karın belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving the digestive system and abdomen
+85412400	Deri anestezisi tanıları	Diagnoses of anaesthesia of skin
+85412500	Deri ve deri altı doku lokalize şişlik ve kitle tanıları	Diagnoses of localized swelling, mass and lump of skin and subcutaneous tissue
+85412600	Deri değişikliğine yol açan durum tanıları	Diagnoses of conditions causing skin changes
+85412700	Anormal baş hareketi tanıları	Diagnoses of abnormal head movements
+85412800	Yürüyüş ve hareket anormalliği tanıları	Diagnoses of abnormalities of gait and mobility
+85412900	Diğer koordinasyon eksikliği tanıları	Diagnoses of other lack of coordination
+85413000	Sinir ve kas iskelet sistemi belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving the nervous and musculoskeletal systems
+85413100	İdrar sistemi belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving the urinary system
+85413200	Uyuklama, stupor ve koma tanıları	Diagnoses of somnolence, stupor and coma
+85413300	Bilişsel işlev ve farkındalık belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving cognitive functions and awareness
+85413400	Koku ve tat bozukluğu tanıları	Diagnoses of disturbances of smell and taste
+85413500	Genel duyum ve algı belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving general sensations and perceptions
+85413600	Duygudurum belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving emotional state
+85413700	Görünüm ve davranış belirti ve bulgu tanıları	Diagnoses of symptoms and signs involving appearance and behaviour
+85413800	Disleksi ve sembolik işlev bozukluğu tanıları	Diagnoses of dyslexia and symbolic dysfunctions
+85413900	Ses bozukluğu tanıları	Diagnoses of voice disturbances
+85414000	Ağrı tanıları	Diagnoses of pain
+85414100	Ateşli ve diğer havale tanıları	Diagnoses of febrile and other, unspecified convulsions
+85414200	Şok tanıları	Diagnoses of shock
+85414300	Büyümüş lenf düğümü tanıları	Diagnoses of enlarged lymph nodes
+85414400	Ödem tanıları	Diagnoses of oedema
+85414500	Aşırı terleme tanıları	Diagnoses of hyperhidrosis
+85414600	Beklenen normal fizyolojik gelişimin olmaması tanıları	Diagnoses of lack of expected normal physiological development
+85414700	Yiyecek ve sıvı alımına ilişkin belirti ve bulgu tanıları	Diagnoses of symptoms and signs concerning food and fluid intake
+85414800	Sistemik inflamatuvar yanıt sendromu SIRS tanıları	Diagnoses of systemic inflammatory response syndrome SIRS
+85414900	Genel belirti ve bulgu tanıları	Diagnoses of general symptoms and signs
+85415000	Bilinmeyen ve tanımlanmamış hastalık nedeni tanıları	Diagnoses of unknown and unspecified causes of morbidity
+85415100	Yüksek kan şekeri düzeyi tanıları	Diagnoses of elevated blood glucose level
+85415200	Anormal serum enzim düzeyi tanıları	Diagnoses of abnormal serum enzyme levels
+85415300	Anormal serum immünolojik bulgu tanıları	Diagnoses of abnormal immunological findings in serum
+85415400	Plazma proteini anormalliği tanıları	Diagnoses of abnormalities of plasma proteins
+85415500	Kanda normalde bulunmayan ilaç ve madde bulgusu tanıları	Diagnoses of findings of drugs and substances, not normally found in blood
+85415600	Anormal kan kimyası bulgusu tanıları	Diagnoses of abnormal findings of blood chemistry
+85415700	Anormal idrar bulgusu tanıları	Diagnoses of abnormal findings in urine
+85415800	Anormal beyin omurilik sıvısı bulgusu tanıları	Diagnoses of abnormal findings in cerebrospinal fluid
+85415900	Solunum organı ve toraks örneklerinde anormal bulgu tanıları	Diagnoses of abnormal findings in specimens from respiratory organs and thorax
+85416000	Sindirim organı ve karın boşluğu örneklerinde anormal bulgu tanıları	Diagnoses of abnormal findings in specimens from digestive organs and abdominal cavity
+85416100	Erkek genital organ örneklerinde anormal bulgu tanıları	Diagnoses of abnormal findings in specimens from male genital organs
+85416200	Kadın genital organ örneklerinde anormal bulgu tanıları	Diagnoses of abnormal findings in specimens from female genital organs
+85416300	Organ, sistem ve doku örneklerinde anormal bulgu tanıları	Diagnoses of abnormal findings in specimens from organs, systems and tissues
+85416400	Vücut yapıları görüntülemesinde anormal bulgu tanıları	Diagnoses of abnormal findings on diagnostic imaging of body structures
+85416500	Anormal fonksiyon testi sonucu tanıları	Diagnoses of abnormal results of function studies
+85416600	Ani ölüm tanıları	Diagnoses of sudden death
+85421000	Baş yüzeysel yaralanması tanıları	Diagnoses of superficial injury of head
+85421100	Baş açık yarası tanıları	Diagnoses of open wound of head
+85421200	Kafatası ve yüz kemiği kırığı tanıları	Diagnoses of fracture of skull and facial bones
+85421300	Baş eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments of head
+85421400	Kraniyal sinir yaralanması tanıları	Diagnoses of injury of cranial nerves
+85421500	Göz ve orbita yaralanması tanıları	Diagnoses of injury of eye and orbit
+85421600	Kafa içi yaralanma tanıları	Diagnoses of intracranial injury
+85421700	Baş ezilme yaralanması tanıları	Diagnoses of crushing injury of head
+85421800	Baş bölümünün travmatik ampütasyonu tanıları	Diagnoses of traumatic amputation of part of head
+85421900	Diğer baş yaralanmaları tanıları	Diagnoses of other injuries of head
+85422000	Boyun açık yarası tanıları	Diagnoses of open wound of neck
+85422100	Boyun kırığı tanıları	Diagnoses of fracture of neck
+85422200	Boyun düzeyi eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments at neck level
+85422300	Boyun düzeyi sinir ve omurilik yaralanması tanıları	Diagnoses of injury of nerves and spinal cord at neck level
+85422400	Boyun düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at neck level
+85422500	Boyun ezilme yaralanması tanıları	Diagnoses of crushing injury of neck
+85422600	Diğer boyun yaralanmaları tanıları	Diagnoses of other injuries of neck
+85422700	Toraks yüzeysel yaralanmaları tanıları	Diagnoses of superficial injuries of the thorax
+85422800	Toraks açık yarası tanıları	Diagnoses of open wound of thorax
+85422900	Kaburga, sternum ve torasik omurga kırığı tanıları	Diagnoses of fracture of rib or ribs, sternum and thoracic spine
+85423000	Toraks eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments of thorax
+85423100	Toraks düzeyi sinir ve omurilik yaralanması tanıları	Diagnoses of injury of nerves and spinal cord at thorax level
+85423200	Toraks damar yaralanması tanıları	Diagnoses of injury of blood vessels of thorax
+85423300	Kalp yaralanmaları tanıları	Diagnoses of injuries to the heart
+85423400	Diğer göğüs içi organ yaralanması tanıları	Diagnoses of injury to other and unspecified intrathoracic organs
+85423500	Toraks ezilme yaralanması ve travmatik ampütasyon tanıları	Diagnoses of crushing injury of thorax and traumatic amputation of part of thorax
+85423600	Diğer toraks yaralanmaları tanıları	Diagnoses of other injuries of thorax
+85423700	Karın, bel ve pelvis açık yarası tanıları	Diagnoses of open wound of abdomen, lower back and pelvis
+85423800	Lomber omurga ve pelvis kırığı tanıları	Diagnoses of fracture of lumbar spine and pelvis
+85423900	Lomber omurga ve pelvis eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments of lumbar spine and pelvis
+85424000	Karın, bel ve pelvis düzeyi sinir ve omurilik yaralanması tanıları	Diagnoses of injury of nerves and lumbar spinal cord at abdomen, lower back and pelvis level
+85424100	Karın, bel ve pelvis düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at abdomen, lower back and pelvis level
+85424200	Karın içi organ yaralanması tanıları	Diagnoses of injury of intra-abdominal organs
+85424300	İdrar ve pelvis organı yaralanması tanıları	Diagnoses of injury of urinary and pelvic organs
+85424400	Karın, bel ve pelvis ezilme ve travmatik ampütasyon tanıları	Diagnoses of crushing injury and traumatic amputation of part of abdomen, lower back and pelvis
+85424500	Diğer karın, bel ve pelvis yaralanmaları tanıları	Diagnoses of other injuries of abdomen, lower back and pelvis
+85424600	Omuz ve üst kol yüzeysel yaralanması tanıları	Diagnoses of superficial injury of shoulder and upper arm
+85424700	Omuz ve üst kol açık yarası tanıları	Diagnoses of open wound of shoulder and upper arm
+85424800	Omuz ve üst kol kırığı tanıları	Diagnoses of fracture of shoulder and upper arm
+85424900	Omuz kuşağı eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments of shoulder girdle
+85425000	Omuz ve üst kol düzeyi sinir yaralanması tanıları	Diagnoses of injury of nerves at shoulder and upper arm level
+85425100	Omuz ve üst kol düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at shoulder and upper arm level
+85425200	Omuz ve üst kol düzeyi kas ve tendon yaralanması tanıları	Diagnoses of injury of muscle and tendon at shoulder and upper arm level
+85425300	Omuz ve üst kol travmatik ampütasyonu tanıları	Diagnoses of traumatic amputation of shoulder and upper arm
+85425400	Diğer omuz ve üst kol yaralanmaları tanıları	Diagnoses of other, unspecified injuries of shoulder and upper arm
+85425500	Ön kol yüzeysel yaralanması tanıları	Diagnoses of superficial injury of forearm
+85425600	Ön kol açık yarası tanıları	Diagnoses of open wound of forearm
+85425700	Ön kol kırığı tanıları	Diagnoses of fracture of forearm
+85425800	Dirsek eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments of elbow
+85425900	Ön kol düzeyi sinir yaralanması tanıları	Diagnoses of injury of nerves at forearm level
+85426000	Ön kol düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at forearm level
+85426100	Ön kol düzeyi kas ve tendon yaralanması tanıları	Diagnoses of injury of muscle and tendon at forearm level
+85426200	Ön kol ezilme yaralanması tanıları	Diagnoses of crushing injury of forearm
+85426300	Ön kol travmatik ampütasyonu tanıları	Diagnoses of traumatic amputation of forearm
+85426400	Diğer ön kol yaralanmaları tanıları	Diagnoses of other, unspecified injuries of forearm
+85426500	El bileği ve el yüzeysel yaralanması tanıları	Diagnoses of superficial injury of wrist and hand
+85426600	El bileği ve el açık yarası tanıları	Diagnoses of open wound of wrist and hand
+85426700	El bileği ve el düzeyi kırık tanıları	Diagnoses of fracture at wrist and hand level
+85426800	El bileği ve el düzeyi eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments at wrist and hand level
+85426900	El bileği ve el düzeyi sinir yaralanması tanıları	Diagnoses of injury of nerves at wrist and hand level
+85427000	El bileği ve el düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at wrist and hand level
+85427100	El bileği ve el düzeyi kas ve tendon yaralanması tanıları	Diagnoses of injury of muscle and tendon at wrist and hand level
+85427200	El bileği ve el ezilme yaralanması tanıları	Diagnoses of crushing injury of wrist and hand
+85427300	El bileği ve el travmatik ampütasyonu tanıları	Diagnoses of traumatic amputation of wrist and hand
+85427400	Diğer el bileği ve el yaralanmaları tanıları	Diagnoses of other, unspecified injuries of wrist and hand
+85427500	Kalça ve uyluk açık yarası tanıları	Diagnoses of open wound of hip and thigh
+85427600	Femur kırığı tanıları	Diagnoses of fracture of femur
+85427700	Kalça eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joint and ligaments of hip
+85427800	Kalça ve uyluk düzeyi sinir yaralanması tanıları	Diagnoses of injury of nerves at hip and thigh level
+85427900	Kalça ve uyluk düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at hip and thigh level
+85428000	Kalça ve uyluk düzeyi kas ve tendon yaralanması tanıları	Diagnoses of injury of muscle and tendon at hip and thigh level
+85428100	Kalça ve uyluk ezilme yaralanması tanıları	Diagnoses of crushing injury of hip and thigh
+85428200	Kalça ve uyluk travmatik ampütasyonu tanıları	Diagnoses of traumatic amputation of hip and thigh
+85428300	Diğer kalça ve uyluk yaralanmaları tanıları	Diagnoses of other, unspecified injuries of hip and thigh
+85428400	Alt bacak açık yarası tanıları	Diagnoses of open wound of lower leg
+85428500	Ayak bileği dahil alt bacak kırığı tanıları	Diagnoses of fracture of lower leg, including ankle
+85428600	Diz eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments of knee
+85428700	Alt bacak düzeyi sinir yaralanması tanıları	Diagnoses of injury of nerves at lower leg level
+85428800	Alt bacak düzeyi kas ve tendon yaralanması tanıları	Diagnoses of injury of muscle and tendon at lower leg level
+85428900	Alt bacak ezilme yaralanması tanıları	Diagnoses of crushing injury of lower leg
+85429000	Alt bacak travmatik ampütasyonu tanıları	Diagnoses of traumatic amputation of lower leg
+85429100	Diğer alt bacak yaralanmaları tanıları	Diagnoses of other, unspecified injuries of lower leg
+85429200	Ayak bileği ve ayak açık yarası tanıları	Diagnoses of open wound of ankle and foot
+85429300	Ayak bileği hariç ayak kırığı tanıları	Diagnoses of fracture of foot, except ankle
+85429400	Ayak bileği ve ayak düzeyi eklem ve bağ çıkığı, burkulma ve zorlanma tanıları	Diagnoses of dislocation, sprain and strain of joints and ligaments at ankle and foot level
+85429500	Ayak bileği ve ayak düzeyi sinir yaralanması tanıları	Diagnoses of injury of nerves at ankle and foot level
+85429600	Ayak bileği ve ayak düzeyi damar yaralanması tanıları	Diagnoses of injury of blood vessels at ankle and foot level
+85429700	Ayak bileği ve ayak düzeyi kas ve tendon yaralanması tanıları	Diagnoses of injury of muscle and tendon at ankle and foot level
+85429800	Ayak bileği ve ayak ezilme yaralanması tanıları	Diagnoses of crushing injury of ankle and foot
+85429900	Ayak bileği ve ayak travmatik ampütasyonu ve diğer yaralanma tanıları	Diagnoses of traumatic amputation of ankle and foot and other unspecified injuries of ankle and foot
+85431000	Çoklu vücut bölgesi yüzeysel yaralanmaları tanıları	Diagnoses of superficial injuries involving multiple body regions
+85431100	Çoklu vücut bölgesi açık yaraları tanıları	Diagnoses of open wounds involving multiple body regions
+85431200	Çoklu vücut bölgesi kırıkları tanıları	Diagnoses of fractures involving multiple body regions
+85431300	Çoklu vücut bölgesi çıkık, burkulma ve zorlanmaları tanıları	Diagnoses of dislocations, sprains and strains involving multiple body regions
+85431400	Çoklu vücut bölgesi ezilme yaralanmaları tanıları	Diagnoses of crushing injuries involving multiple body regions
+85431500	Çoklu vücut bölgesi travmatik ampütasyonları tanıları	Diagnoses of traumatic amputations involving multiple body regions
+85431600	Çoklu vücut bölgesi yaralanmaları tanıları	Diagnoses of injuries involving multiple body regions
+85431700	Düzeyi belirtilmemiş omurga ve gövde yaralanmaları tanıları	Diagnoses of injuries of spine and trunk, level unspecified
+85431800	Düzeyi belirtilmemiş diğer üst ekstremite yaralanmaları tanıları	Diagnoses of other injuries of upper limb, level unspecified
+85431900	Düzeyi belirtilmemiş alt ekstremite yaralanmaları tanıları	Diagnoses of injuries of lower limb, level unspecified
+85432000	Tanımlanmamış vücut bölgesi yaralanması tanıları	Diagnoses of injury of unspecified body region
+85432100	Solunum yolunda yabancı cisim tanıları	Diagnoses of foreign body in respiratory tract
+85432200	Sindirim yolunda yabancı cisim tanıları	Diagnoses of foreign body in alimentary tract
+85432300	Ürogenital yolda yabancı cisim tanıları	Diagnoses of foreign body in genitourinary tract
+85432400	Vücut bölgesine göre yanık ve korozyon tanıları	Diagnoses of burn and corrosion by body region
+85432500	Vücut bölgesine göre yüzeysel donma tanıları	Diagnoses of superficial frostbite by body region
+85432600	Doku nekrozlu donma tanıları	Diagnoses of frostbite with tissue necrosis
+85432700	Çoklu vücut bölgesi donması tanıları	Diagnoses of frostbite involving multiple body regions and unspecified frostbite
+85432800	Antibiyotik zehirlenmesi tanıları	Diagnoses of poisoning by antibiotics
+85432900	Sistemik antienfektif ve antiparaziter zehirlenmesi tanıları	Diagnoses of poisoning by systemic anti-infectives and antiparasitics
+85433000	Hormon ve sentetik türev zehirlenmesi tanıları	Diagnoses of poisoning by hormones and their synthetic substitutes and antagonists
+85433100	Opioid olmayan analjezik, antipiretik ve antiromatizmal zehirlenmesi tanıları	Diagnoses of poisoning by nonopioid analgesics, antipyretics and antirheumatics
+85433200	Narkotik ve halüsinojen zehirlenmesi tanıları	Diagnoses of poisoning by narcotics and psychodysleptics or hallucinogens
+85433300	Anestezik ve terapötik gaz zehirlenmesi tanıları	Diagnoses of poisoning by anaesthetics and therapeutic gases
+85433400	Antiepileptik, sedatif hipnotik ve antiparkinson ilaç zehirlenmesi tanıları	Diagnoses of poisoning by antiepileptic, sedative-hypnotic and antiparkinsonism drugs
+85433500	Psikotrop ilaç zehirlenmesi tanıları	Diagnoses of poisoning by psychotropic drugs
+85433600	Otonom sinir sistemini etkileyen ilaç zehirlenmesi tanıları	Diagnoses of poisoning by drugs primarily affecting the autonomic nervous system
+85433700	Sistemik ve hematolojik ajan zehirlenmesi tanıları	Diagnoses of poisoning by primarily systemic and haematological agents
+85433800	Kardiyovasküler sistemi etkileyen ajan zehirlenmesi tanıları	Diagnoses of poisoning by agents primarily affecting the cardiovascular system
+85433900	Gastrointestinal sistemi etkileyen ajan zehirlenmesi tanıları	Diagnoses of poisoning by agents primarily affecting the gastrointestinal system
+85434000	Düz ve iskelet kası ile solunum sistemine etkiyen ajan zehirlenmesi tanıları	Diagnoses of poisoning by agents primarily acting on smooth and skeletal muscles and the respiratory system
+85434100	Deri, mukoza ve göz kulak diş ilaçlarıyla zehirlenme tanıları	Diagnoses of poisoning by topical agents primarily affecting skin and mucous membrane and by ophthalmological, otorhinolaryngological and dental drugs
+85434200	Diüretik ve diğer ilaç ve biyolojik madde zehirlenmesi tanıları	Diagnoses of poisoning by diuretics and and exotic drugs, medicaments and biological substances
+85434300	Organik solvent toksik etkisi tanıları	Diagnoses of toxic effect of organic solvents
+85434400	Alifatik ve aromatik hidrokarbon halojen türevi toksik etkisi tanıları	Diagnoses of toxic effect of halogen derivatives of aliphatic and aromatic hydrocarbons
+85434500	Korozif madde toksik etkisi tanıları	Diagnoses of toxic effect of corrosive substances
+85434600	Metal toksik etkisi tanıları	Diagnoses of toxic effect of metals
+85434700	İnorganik madde toksik etkisi tanıları	Diagnoses of toxic effect of inorganic substances
+85434800	Gaz, duman ve buhar toksik etkisi tanıları	Diagnoses of toxic effect of gases, fumes and vapours
+85434900	Pestisit toksik etkisi tanıları	Diagnoses of toxic effect of pesticides
+85435000	Deniz ürünü olarak yenen zararlı madde toksik etkisi tanıları	Diagnoses of toxic effect of noxious substances eaten as seafood
+85435100	Gıda olarak yenen zararlı madde toksik etkisi tanıları	Diagnoses of toxic effect of noxious substances eaten as food
+85435200	Zehirli hayvan teması toksik etkisi tanıları	Diagnoses of toxic effect of contact with venomous animals
+85435300	Diğer madde toksik etkisi tanıları	Diagnoses of toxic effect of other and unspecified substances
+85435400	Isı ve ışık etkileri tanıları	Diagnoses of effects of heat and light
+85435500	Düşük sıcaklık etkileri tanıları	Diagnoses of effects of reduced temperature
+85435600	Hava ve su basıncı etkileri tanıları	Diagnoses of effects of air pressure and water pressure
+85435700	Yoksunluk etkileri tanıları	Diagnoses of effects of deprivation
+85435800	Kötü muamele sendromu tanıları	Diagnoses of maltreatment syndromes
+85435900	Diğer dış neden etkileri tanıları	Diagnoses of effects of other external causes
+85436000	İstenmeyen etki tanıları	Diagnoses of adverse effects
+85436100	Başka yerde sınıflanmamış işlem komplikasyonu tanıları	Diagnoses of complications of procedures not elsewhere classified
+85436200	Kalp ve damar protez, implant ve greft komplikasyonu tanıları	Diagnoses of complications of cardiac and vascular prosthetic devices, implants and grafts
+85436300	Ürogenital protez, implant ve greft komplikasyonu tanıları	Diagnoses of complications of genitourinary prosthetic devices, implants and grafts
+85436400	İç ortopedik protez, implant ve greft komplikasyonu tanıları	Diagnoses of complications of internal orthopaedic prosthetic devices, implants and grafts
+85436500	İç protez, implant ve greft komplikasyonu tanıları	Diagnoses of complications of internal prosthetic devices, implants and grafts
+85436600	Nakledilen organ ve doku yetmezliği ve reddi tanıları	Diagnoses of failure and rejection of transplanted organs and tissues
+85436700	Yeniden takma ve ampütasyona özgü komplikasyon tanıları	Diagnoses of complications peculiar to reattachment and amputation
+85436800	Cerrahi ve tıbbi bakım komplikasyonu tanıları	Diagnoses of complications of surgical and medical care
+85436900	Baş yaralanması sekelleri tanıları	Diagnoses of sequelae of injuries of head
+85437000	Boyun ve gövde yaralanması sekelleri tanıları	Diagnoses of sequelae of injuries of neck and trunk
+85437100	Üst ekstremite yaralanması sekelleri tanıları	Diagnoses of sequelae of injuries of upper limb
+85437200	Alt ekstremite yaralanması sekelleri tanıları	Diagnoses of sequelae of injuries of lower limb
+85437300	Çoklu vücut bölgesi yaralanması sekelleri tanıları	Diagnoses of sequelae of injuries involving multiple and unspecified body regions
+85437400	Yanık, korozyon ve donma sekelleri tanıları	Diagnoses of sequelae of burns, corrosions and frostbite
+85437500	İlaç ve biyolojik madde zehirlenmesi sekelleri tanıları	Diagnoses of sequelae of poisoning by drugs, medicaments and biological substances
+85437600	Diğer dış neden etkilerinin sekelleri tanıları	Diagnoses of sequelae of other and unspecified effects of external causes
+85441000	Bisikletle çarpışmada yaralanan yaya tanıları	Diagnoses of pedestrian injured in collision with pedal cycle
+85441100	İki veya üç tekerlekli motorlu araçla çarpışmada yaralanan yaya tanıları	Diagnoses of pedestrian injured in collision with two- or three-wheeled motor vehicle
+85441200	Otomobil, kamyonet veya minibüsle çarpışmada yaralanan yaya tanıları	Diagnoses of pedestrian injured in collision with car, pick-up truck or van
+85441300	Ağır vasıta veya otobüsle çarpışmada yaralanan yaya tanıları	Diagnoses of pedestrian injured in collision with heavy transport vehicle or bus
+85441400	Tren veya demiryolu aracıyla çarpışmada yaralanan yaya tanıları	Diagnoses of pedestrian injured in collision with railway train or railway vehicle
+85441500	Motorsuz araçla çarpışmada yaralanan yaya tanıları	Diagnoses of pedestrian injured in collision with nonmotor vehicle
+85441600	Diğer ulaşım kazalarında yaralanan yaya tanıları	Diagnoses of pedestrian injured in other, unspecified transport accidents
+85441700	Çarpışmada yaralanan bisikletli tanıları	Diagnoses of pedal cyclist injured in collision with pedestrians, animals, other cyclists, motor vehicles
+85441800	Bisikletliyle çarpışmada yaralanan motosikletli tanıları	Diagnoses of motorcycle rider injured in collisions with pedal cyclists
+85441900	Üç tekerlekli motorlu araç sürücüsü yaralanması tanıları	Diagnoses of occupant of three-wheeled motor vehicle injured in collision with pedal cycle, driver, nontraffic accidents
+85442000	Otomobil sürücüsü yaralanması tanıları	Diagnoses of car occupant injured in collision with pedal cycle, driver, nontraffic accident
+85442100	Kamyonet veya minibüs sürücüsü yaralanması tanıları	Diagnoses of occupant of pick-up truck or van injured in collision with pedal cycle, driver, nontraffic accident
+85442200	Ağır vasıta sürücüsü yaralanması tanıları	Diagnoses of occupant of heavy transport vehicle injured in collision with pedal cycle, driver, nontraffic accidents
+85442300	Otobüs yolcusu yaralanması tanıları	Diagnoses of bus occupant injured in collision with pedal cycle, driver, nontraffic accidents
+85442400	Diğer kara taşımacılığı kazası yaralanmaları tanıları	Diagnoses of injuries from other land transport accidents
+85442500	Su taşımacılığı kazası yaralanmaları tanıları	Diagnoses of injuries from water transport accidents
+85442600	Hava ve uzay taşımacılığı kazası yaralanmaları tanıları	Diagnoses of injuries from air and space transport accidents
+85442700	Düşme yaralanmaları tanıları	Diagnoses of injuries from falls
+85442800	Cansız mekanik kuvvetlere maruziyet yaralanmaları tanıları	Diagnoses of injuries from exposure to inanimate mechanical forces
+85442900	Canlı mekanik kuvvetlere maruziyet yaralanmaları tanıları	Diagnoses of injuries from exposure to animate mechanical forces
+85443000	Kazara boğulma ve suya batma yaralanmaları tanıları	Diagnoses of injuries from accidental drowning and submersion
+85443100	Diğer kazara solunum tehditleri yaralanmaları tanıları	Diagnoses of injuries from other accidental threats to breathing
+85443200	Elektrik akımı, radyasyon ve aşırı ortam sıcaklığı yaralanmaları tanıları	Diagnoses of injuries from exposure to electric current, radiation and extreme ambient air temperature and pressure
+85443300	Duman, ateş ve aleve maruziyet yaralanmaları tanıları	Diagnoses of injuries from exposure to smoke, fire and flames
+85443400	Sıcak madde temasına bağlı yaralanma tanıları	Diagnoses of injuries from contact with heat and hot substances
+85443500	Zehirli hayvan ve bitki temasına bağlı yaralanma tanıları	Diagnoses of injuries from contact with venomous animals and plants
+85443600	Doğa kuvvetlerine maruziyet yaralanmaları tanıları	Diagnoses of injuries from exposure to forces of nature
+85443700	Kazara zehirlenme ve zararlı maddeye maruziyet tanıları	Diagnoses of injuries from accidental poisoning and exposure to noxious substances
+85443800	Aşırı zorlanma, seyahat ve yoksunluk yaralanmaları tanıları	Diagnoses of injuries from overexertion, travel and privation
+85443900	Kasıtlı kendine zarar verme yaralanmaları tanıları	Diagnoses of injuries from intentional self harm
+85444000	Saldırı yaralanmaları tanıları	Diagnoses of injuries from assault
+85444100	İhmal ve terk tanıları	Diagnoses of neglect and abandonment
+85444200	Kötü muamele tanıları	Diagnoses of maltreatment
+85444300	Tanımlanmamış olay, belirsiz kasıt tanıları	Diagnoses of unspecified event, undetermined intent
+85444400	Savaş harekâtı tanıları	Diagnoses of operations of war
+85444500	Sistemik antibiyotik yan etki yaralanmaları tanıları	Diagnoses of injuries from adverse effects of drugs in therapeutic use: systemic antibiotics
+85444600	Sistemik antienfektif ve antiparaziter yan etki tanıları	Diagnoses of systemic anti-infectives and antiparasitics
+85444700	Hormon ve sentetik türev yan etki tanıları	Diagnoses of hormones and their synthetic substitutes and antagonists
+85444800	Ağırlıklı sistemik ajan yan etki tanıları	Diagnoses of primarily systemic agents
+85444900	Kan bileşenlerini etkileyen ajan yan etki tanıları	Diagnoses of agents primarily affecting blood constituents
+85445000	Analjezik, antipiretik ve antiinflamatuvar ilaç yan etki tanıları	Diagnoses of analgesics, antipyretics and anti-inflammatory drugs
+85445100	Antiepileptik ve antiparkinson ilaç yan etki tanıları	Diagnoses of antiepileptics and antiparkinsonism drugs
+85445200	Sedatif, hipnotik ve anksiyolitik ilaç yan etki tanıları	Diagnoses of sedatives, hypnotics and antianxiety drugs
+85445300	Anestezik ve terapötik gaz yan etki tanıları	Diagnoses of anaesthetics and therapeutic gases
+85445400	Psikotrop ilaç yan etki tanıları	Diagnoses of psychotropic drugs
+85445500	Merkezi sinir sistemi uyarıcısı yan etki tanıları	Diagnoses of central nervous system stimulants
+85445600	Otonom sinir sistemini etkileyen ilaç yan etki tanıları	Diagnoses of drugs primarily affecting the autonomic nervous system
+85445700	Kardiyovasküler sistemi etkileyen ajan yan etki tanıları	Diagnoses of agents primarily affecting the cardiovascular system
+85445800	Gastrointestinal sistemi etkileyen ajan yan etki tanıları	Diagnoses of agents primarily affecting the gastrointestinal system
+85445900	Su dengesi ve mineral metabolizmasını etkileyen ajan yan etki tanıları	Diagnoses of agents primarily affecting water-balance and mineral and uric acid metabolism
+85446000	Düz ve iskelet kası ile solunum sistemine etkiyen ajan yan etki tanıları	Diagnoses of agents primarily acting on smooth and skeletal muscles and the respiratory system
+85446100	Deri, mukoza ve göz kulak diş ilaçları yan etki tanıları	Diagnoses of topical agents primarily affecting skin and mucous membrane and ophthalmological, otorhinolaryngological and dental drugs
+85446200	Diğer ilaç ve müstahzar yan etki tanıları	Diagnoses of other, unspecified drugs and medicaments
+85446300	Bakteriyel aşı yan etki tanıları	Diagnoses of bacterial vaccines
+85446400	Diğer aşı ve biyolojik madde yan etki tanıları	Diagnoses of other, unspecified vaccines and biological substances
+85446500	Cerrahi ve tıbbi bakım sırasında hasta hataları tanıları	Diagnoses of misadventures to patients during surgical and medical care
+85446600	Cerrahi ve tıbbi bakım sırasında vücutta unutulan yabancı cisim tanıları	Diagnoses of foreign object accidentally left in body during surgical and medical care
+85446700	Cerrahi ve tıbbi bakımda sterilite önlemi başarısızlığı tanıları	Diagnoses of failure of sterile precautions during surgical and medical care
+85446800	Cerrahi ve tıbbi bakımda doz hatası tanıları	Diagnoses of failure in dosage during surgical and medical care
+85446900	Kontamine tıbbi veya biyolojik madde tanıları	Diagnoses of contaminated medical or biological substances
+85447000	Cerrahi ve tıbbi bakımda diğer hata tanıları	Diagnoses of other misadventures during surgical and medical care
+85447100	Cerrahi ve tıbbi bakımda tanımlanmamış hata tanıları	Diagnoses of other unspecified misadventures during surgical and medical care
+85447200	Advers olayla ilişkili kardiyovasküler cihaz tanıları	Diagnoses of cardiovascular devices associated with adverse incidents
+85447300	Advers olayla ilişkili kulak burun boğaz cihazı tanıları	Diagnoses of otorhinolaryngological devices associated with adverse incidents
+85447400	Advers olayla ilişkili gastroenteroloji ve üroloji cihazı tanıları	Diagnoses of gastroenterology and urology devices associated with adverse incidents
+85447500	Advers olayla ilişkili genel hastane ve kişisel kullanım cihazı tanıları	Diagnoses of general hospital and personal-use devices associated with adverse incidents
+85447600	Advers olayla ilişkili nörolojik cihaz tanıları	Diagnoses of neurological devices associated with adverse incidents
+85447700	Advers olayla ilişkili obstetrik ve jinekolojik cihaz tanıları	Diagnoses of obstetric and gynaecological devices associated with adverse incidents
+85447800	Advers olayla ilişkili oftalmik cihaz tanıları	Diagnoses of ophthalmic devices associated with adverse incidents
+85447900	Advers olayla ilişkili radyolojik cihaz tanıları	Diagnoses of radiological devices associated with adverse incidents
+85448000	Advers olayla ilişkili ortopedik cihaz tanıları	Diagnoses of orthopaedic devices associated with adverse incidents
+85448100	Advers olayla ilişkili fizik tedavi cihazı tanıları	Diagnoses of physical medicine devices associated with adverse incidents
+85448200	Advers olayla ilişkili genel ve plastik cerrahi cihazı tanıları	Diagnoses of general- and plastic-surgery devices associated with adverse incidents
+85448300	Advers olayla ilişkili tanımlanmamış tıbbi cihaz tanıları	Diagnoses of and unspecified medical devices associated with adverse incidents
+85448400	Hastada anormal reaksiyona neden olan cerrahi işlem tanıları	Diagnoses of surgical operation and other surgical procedures as the cause of abnormal reaction of the patient
+85448500	Hastada anormal reaksiyona neden olan diğer tıbbi işlem tanıları	Diagnoses of other medical procedures as the cause of abnormal reaction of the patient, or of later complication, without mention of misadventure at the time of the procedure
+85451000	Şikâyeti olmayan kişilerde genel muayene ve inceleme tanıları	Diagnoses of general examination and investigation of persons without complaint and reported diagnosis
+85451100	Şikâyeti olmayan kişilerde özel muayene ve inceleme tanıları	Diagnoses of other, special examinations and investigations of persons without complaint or reported diagnosis
+85451200	İdari amaçlı muayene ve başvuru tanıları	Diagnoses of examination and encounter for administrative purposes
+85451300	Şüpheli hastalıklar için tıbbi gözlem ve değerlendirme tanıları	Diagnoses of medical observation and evaluation for suspected diseases and conditions
+85451400	Diğer nedenlerle muayene ve gözlem tanıları	Diagnoses of examination and observation for other reasons
+85451500	Malign neoplazm tedavisi sonrası izlem muayenesi tanıları	Diagnoses of follow-up examination after treatment for malignant neoplasms
+85451600	Malign neoplazm dışı durum tedavisi sonrası izlem muayenesi tanıları	Diagnoses of follow-up examination after treatment for conditions other than malignant neoplasms
+85451700	Neoplazm için özel tarama muayenesi tanıları	Diagnoses of special screening examination for neoplasms
+85451800	Diğer hastalıklar için özel tarama muayenesi tanıları	Diagnoses of special screening examination for other diseases and disorders
+85451900	Bulaşıcı hastalıkla temas ve maruziyet tanıları	Diagnoses of contact with and exposure to communicable diseases
+85452000	Enfeksiyon hastalığı taşıyıcılığı tanıları	Diagnoses of carrier of infectious disease
+85452100	Tekil bakteriyel hastalık aşısı gereksinimi tanıları	Diagnoses of need for immunization against single bacterial diseases
+85452200	Belirli tekil viral hastalık aşısı gereksinimi tanıları	Diagnoses of need for immunization against certain single viral diseases
+85452300	Diğer tekil viral hastalık aşısı gereksinimi tanıları	Diagnoses of need for immunization against other single viral diseases
+85452400	Diğer tekil enfeksiyon hastalığı aşısı gereksinimi tanıları	Diagnoses of need for immunization against other single infectious diseases
+85452500	Karma enfeksiyon hastalığı aşısı gereksinimi tanıları	Diagnoses of need for immunization against combinations of infectious diseases
+85452600	Yapılmayan aşılama tanıları	Diagnoses of immunization not carried out
+85452700	Koruyucu önlem gereksinimi tanıları	Diagnoses of need for prophylactic measures
+85452800	Doğum kontrol yönetimi tanıları	Diagnoses of contraceptive management
+85452900	Üreme yönetimi tanıları	Diagnoses of procreative management
+85453000	Gebelik muayenesi ve testi tanıları	Diagnoses of pregnancy examination and test
+85453100	Normal gebelik izlemi tanıları	Diagnoses of supervision of normal pregnancy
+85453200	Yüksek riskli gebelik izlemi tanıları	Diagnoses of supervision of high-risk pregnancy
+85453300	Doğum öncesi tarama tanıları	Diagnoses of antenatal screening
+85453400	Doğum sonucu tanıları	Diagnoses of outcome of delivery
+85453500	Koruyucu cerrahi tanıları	Diagnoses of prophylactic surgery
+85453600	Saç ekimi tanıları	Diagnoses of hair transplant
+85453700	Yapay açıklık bakımı tanıları	Diagnoses of attention to artificial openings
+85453800	Cihaz uygulama ve ayarlama tanıları	Diagnoses of fitting and adjustment of devices
+85453900	Diğer ortopedik izlem bakımı tanıları	Diagnoses of other orthopaedic follow-up care
+85454000	Diğer cerrahi izlem bakımı tanıları	Diagnoses of other surgical follow-up care
+85454100	Diyaliz içeren bakım tanıları	Diagnoses of care involving dialysis
+85454200	Rehabilitasyon işlemleri içeren bakım tanıları	Diagnoses of care involving use of rehabilitation procedures
+85454300	Diğer tıbbi bakım tanıları	Diagnoses of other medical care
+85454400	Organ ve doku vericileri tanıları	Diagnoses of donors of organs and tissues
+85454500	Yapılmayan işlemler için sağlık hizmetine başvuru tanıları	Diagnoses of persons encountering health services for specific procedures, not carried out
+85454600	Nekahet dönemi tanıları	Diagnoses of convalescence
+85454700	Eğitim ve okuryazarlıkla ilgili sorun tanıları	Diagnoses of problems related to education and literacy
+85454800	İstihdam ve işsizlikle ilgili sorun tanıları	Diagnoses of problems related to employment and unemployment
+85454900	Mesleki risk etmenlerine maruziyet tanıları	Diagnoses of occupational exposure to risk-factors
+85455000	Fiziksel çevreyle ilgili sorun tanıları	Diagnoses of problems related to physical environment
+85455100	Sosyoekonomik ve psikososyal koşullara bağlı sağlık riski tanıları	Diagnoses of health hazards related to socioeconomic and psychosocial circumstances
+85455200	Sosyal çevreyle ilgili sorun tanıları	Diagnoses of problems related to social environment
+85455300	Çocuklukta olumsuz yaşam olaylarıyla ilgili sorun tanıları	Diagnoses of problems related to negative life events in childhood
+85455400	Yetiştirilmeyle ilgili diğer sorun tanıları	Diagnoses of other problems related to upbringing
+85455500	Aile koşulları dahil birincil destek grubu sorunları tanıları	Diagnoses of problems related to primary support group, including family circumstances
+85455600	Belirli psikososyal koşullarla ilgili sorun tanıları	Diagnoses of problems related to certain psychosocial circumstances
+85455700	Diğer psikososyal koşullarla ilgili sorun tanıları	Diagnoses of problems related to other psychosocial circumstances
+85455800	Cinsel tutum, davranış ve yönelim danışmanlığı tanıları	Diagnoses of counselling related to sexual attitude, behaviour and orientation
+85455900	Danışmanlık ve tıbbi öneri için sağlık hizmetine başvuru tanıları	Diagnoses of persons encountering health services for counselling and medical advice
+85456000	Yaşam tarzıyla ilgili sorun tanıları	Diagnoses of problems related to lifestyle
+85456100	Yaşam yönetimi güçlüğüyle ilgili sorun tanıları	Diagnoses of problems related to life-management difficulty
+85456200	Bakım verene bağımlılıkla ilgili sorun tanıları	Diagnoses of problems related to care-provider dependency
+85456300	Sağlık tesisi ve bakımıyla ilgili sorun tanıları	Diagnoses of problems related to medical facilities and health care
+85456400	Diğer koşullarda sağlık hizmetine başvuru tanıları	Diagnoses of persons encountering health services in other circumstances
