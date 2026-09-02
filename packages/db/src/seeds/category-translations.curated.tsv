@@ -13013,3 +13013,1731 @@
 80131505	Taşınabilir veya modüler ofis kiralama hizmeti	Portable or modular office rental service
 82112049	Yerinde Ruandaca tercüme hizmeti	In person rwandan interpretation service
 84121609	Bankamatik kira geliri	Automated teller machine rental income
+50102500	Yabani ve yer fıstığı hariç sert kabuklu meyveler	Nuts excluding wild edible nuts and groundnuts
+50111500	Az işlenmiş et ve kanatlı ürünleri	Minimally processed meat and poultry products
+50111600	Organik az işlenmiş et ve kanatlı ürünleri	Organic minimally processed meat and poultry products
+50111700	GDO'suz az işlenmiş et ve kanatlı ürünleri	Non gmo minimally processed meat and poultry products
+50112000	İşlenmiş et ve kanatlı ürünleri	Processed meat and poultry products
+50112100	Organik işlenmiş et ve kanatlı ürünleri	Organic processed meat and poultry products
+50112200	GDO'suz işlenmiş et ve kanatlı ürünleri	Non gmo processed meat and poultry products
+50121900	Tuzlanmış deniz ürünleri	Salt preserved seafoods
+50122000	Doğadan avlanan balık	Wild caught fish
+50122100	Çiftlik balığı	Farm raised fish
+50122400	Doğadan avlanan kabuklu deniz ürünleri	Wild caught shellfish
+50122500	Çiftlik kabuklu deniz ürünleri	Farm raised shellfish
+50151700	Bitkisel mumlar	Vegetable waxes
+50161900	Şeker ürünleri	Sugar products
+50172000	Fermente soya ürünleri	Fermented soybean products
+50193300	Un tortilla	Flour tortillas
+50193400	Gıda sepetleri	Food baskets
+50203100	Taze sebze suyu veya konsantresi	Fresh vegetable juice or concentrate
+50203200	Çiğ süt ürünleri	Raw milk products
+50203300	Hızlı tüketim ürünleri	Fast moving consumer goods
+50221300	Un ve değirmen ürünleri	Flour and milled products
+50301500	Elma	Apples
+50301600	Kayısı	Apricots
+50301700	Muz	Bananas
+50301800	Kadıntuzluğu	Barberries
+50301900	Ayı üzümü	Bearberries
+50302000	Böğürtlen	Blackberries
+50302100	Çoban üzümü	Bilberries
+50302200	Yaban mersini	Blueberries
+50302300	Ekmek ağacı meyvesi	Breadfruit
+50302400	Kremalı elma	Cherimoyas
+50302500	Kiraz	Cherries
+50302600	Ağaç kavunu	Citrons
+50302700	Turna yemişi	Cranberries
+50302800	Frenk üzümü	Currants
+50302900	Hurma	Dates
+50303000	Ejder meyvesi	Dragonfruit
+50303100	İncir	Figs
+50303200	Bektaşi üzümü	Gooseberries
+50303300	Greyfurt	Grapefruit
+50303400	Sofralık üzüm	Table grapes
+50303500	Kuru üzümlük üzüm	Raisin grapes
+50303600	Şaraplık üzüm	Wine grapes
+50303700	Guava	Guavas
+50303800	Çalı yaban mersini	Huckleberries
+50303900	Kivi	Kiwi fruit
+50304000	Kamkat	Kumquats
+50304100	Limon	Lemons
+50304200	Misket limonu	Limes
+50304300	Yenidünya	Loquats
+50304400	Mandalina	Mandarin oranges or tangerines
+50304500	Mango	Mangoes
+50304600	Kavun	Melons
+50304700	Dut	Mulberries
+50304800	Mersin veya mumağacı meyvesi	Bayberries or myrtles
+50304900	Nektarin	Nectarines
+50305000	Portakal	Oranges
+50305100	Papaya	Papayas
+50305200	Çarkıfelek meyvesi	Passion fruit
+50305300	Şeftali	Peaches
+50305400	Armut	Pears
+50305500	Trabzon hurması	Persimmons
+50305600	Ananas	Pineapples
+50305700	Erik kayısı melezi	Plucots
+50305800	Erik	Plums
+50305900	Nar	Pomegranates
+50306000	Pomelo	Pomelos
+50306100	Ayva	Quinces
+50306200	Ahududu	Raspberries
+50306300	Ravent	Rhubarb
+50306400	Kuşburnu	Rose hips
+50306500	Sapote	Sapotes
+50306600	Saskatoon yemişi	Saskatoon berries
+50306700	Çilek	Strawberries
+50306800	Şeker elması	Sugar apple
+50306900	Ağaç domatesi	Tamarillo
+50307000	Adlandırılmış meyveler	Nominant fruits
+50307100	Aronya	Chokeberries
+50307200	Zeytin	Olives
+50307500	Taze meyve yan ürünleri	Fresh fruit byproducts
+50311500	Organik elma	Organic apples
+50311600	Organik kayısı	Organic apricots
+50311700	Organik muz	Organic bananas
+50311800	Organik kadıntuzluğu	Organic barberries
+50311900	Organik ayı üzümü	Organic bearberries
+50312000	Organik böğürtlen	Organic blackberries
+50312100	Organik çoban üzümü	Organic billberries
+50312200	Organik yaban mersini	Organic blueberries
+50312300	Organik ekmek ağacı meyvesi	Organic breadfruit
+50312400	Organik kremalı elma	Organic cherimoyas
+50312500	Organik kiraz	Organic cherries
+50312600	Organik ağaç kavunu	Organic citrons
+50312700	Organik turna yemişi	Organic cranberries
+50312800	Organik frenk üzümü	Organic currants
+50312900	Organik hurma	Organic dates
+50313000	Organik ejder meyvesi	Organic dragonfruit
+50313100	Organik incir	Organic figs
+50313200	Organik bektaşi üzümü	Organic gooseberries
+50313300	Organik greyfurt	Organic grapefruit
+50313400	Organik sofralık üzüm	Organic table grapes
+50313500	Organik kuru üzümlük üzüm	Organic raisin grapes
+50313600	Organik şaraplık üzüm	Organic wine grapes
+50313700	Organik guava	Organic guavas
+50313800	Organik çalı yaban mersini	Organic huckleberries
+50313900	Organik kivi	Organic kiwi fruit
+50314000	Organik kamkat	Organic kumquats
+50314100	Organik limon	Organic lemons
+50314200	Organik misket limonu	Organic limes
+50314300	Organik yenidünya	Organic loquats
+50314400	Organik organik mandalina	Organic mandarin oranges or organic tangerines
+50314500	Organik mango	Organic mangoes
+50314600	Organik kavun	Organic melons
+50314700	Organik dut	Organic mulberries
+50314800	Organik mersin veya mumağacı meyvesi	Organic bayberries or myrtles
+50314900	Organik nektarin	Organic nectarines
+50315000	Organik portakal	Organic oranges
+50315100	Organik papaya	Organic papayas
+50315200	Organik çarkıfelek meyvesi	Organic passion fruit
+50315300	Organik şeftali	Organic peaches
+50315400	Organik armut	Organic pears
+50315500	Organik Trabzon hurması	Organic persimmons
+50315600	Organik ananas	Organic pineapples
+50315700	Organik erik kayısı melezi	Organic plucots
+50315800	Organik erik	Organic plums
+50315900	Organik nar	Organic pommegranates
+50316000	Organik pomelo	Organic pomelos
+50316100	Organik ayva	Organic quinces
+50316200	Organik ahududu	Organic raspberries
+50316300	Organik ravent	Organic rhubarb
+50316400	Organik kuşburnu	Organic rose hips
+50316500	Organik sapote	Organic sapotes
+50316600	Organik saskatoon yemişi	Organic saskatoon berries
+50316700	Organik çilek	Organic strawberries
+50316800	Organik şeker elması	Organic sugar apple
+50316900	Organik ağaç domatesi	Organic tamarillo
+50317000	Adlandırılmış organik meyveler	Nominant organic fruits
+50317100	Organik aronya	Organic chokeberries
+50317200	Organik zeytin	Organic olives
+50321500	Kurutulmuş elma	Dried apples
+50321600	Kurutulmuş kayısı	Dried apricots
+50321700	Kurutulmuş muz	Dried bananas
+50321800	Kurutulmuş kadıntuzluğu	Dried barberries
+50321900	Kurutulmuş ayı üzümü	Dried bearberries
+50322000	Kurutulmuş böğürtlen	Dried blackberries
+50322100	Kurutulmuş çoban üzümü	Dried bilberries
+50322200	Kurutulmuş yaban mersini	Dried blueberries
+50322300	Kurutulmuş ekmek ağacı meyvesi	Dried breadfruit
+50322400	Kurutulmuş kremalı elma	Dried cherimoyas
+50322500	Kurutulmuş kiraz	Dried cherries
+50322600	Kurutulmuş ağaç kavunu	Dried citrons
+50322700	Kurutulmuş turna yemişi	Dried cranberries
+50322800	Kurutulmuş frenk üzümü	Dried currants
+50322900	Kurutulmuş hurma	Dried dates
+50323000	Kurutulmuş ejder meyvesi	Dried dragonfruit
+50323100	Kurutulmuş incir	Dried figs
+50323200	Kurutulmuş bektaşi üzümü	Dried gooseberries
+50323300	Kurutulmuş greyfurt	Dried grapefruit
+50323400	Kurutulmuş sofralık üzüm	Dried table grapes
+50323500	Kurutulmuş kuru üzümlük üzüm	Dried raisin grapes
+50323600	Kurutulmuş şaraplık üzüm	Dried wine grapes
+50323700	Kurutulmuş guava	Dried guavas
+50323800	Kurutulmuş çalı yaban mersini	Dried huckleberries
+50323900	Kurutulmuş kivi	Dried kiwi fruit
+50324000	Kurutulmuş kamkat	Dried kumquats
+50324100	Kurutulmuş limon	Dried lemons
+50324200	Kurutulmuş misket limonu	Dried limes
+50324300	Kurutulmuş yenidünya	Dried loquats
+50324400	Kurutulmuş mandalina	Dried mandarin oranges or tangerines
+50324500	Kurutulmuş mango	Dried mangoes
+50324600	Kurutulmuş kavun	Dried melons
+50324700	Kurutulmuş dut	Dried mulberries
+50324800	Kurutulmuş mersin	Dried myrtle
+50324900	Kurutulmuş nektarin	Dried nectarines
+50325000	Kurutulmuş portakal	Dried oranges
+50325100	Kurutulmuş papaya	Dried papayas
+50325200	Kurutulmuş çarkıfelek meyvesi	Dried passion fruit
+50325300	Kurutulmuş şeftali	Dried peaches
+50325400	Kurutulmuş armut	Dried pears
+50325500	Kurutulmuş Trabzon hurması	Dried persimmons
+50325600	Kurutulmuş ananas	Dried pineapples
+50325700	Kurutulmuş erik kayısı melezi	Dried plucots
+50325800	Kurutulmuş erik	Dried plums
+50325900	Kurutulmuş nar	Dried pomegranates
+50326000	Kurutulmuş pomelo	Dried pomelos
+50326100	Kurutulmuş ayva	Dried quinces
+50326200	Kurutulmuş ahududu	Dried raspberries
+50326300	Kurutulmuş ravent	Dried rhubarb
+50326400	Kurutulmuş kuşburnu	Dried rose hips
+50326500	Kurutulmuş sapote	Dried sapotes
+50326600	Kurutulmuş saskatoon yemişi	Dried saskatoon berries
+50326700	Kurutulmuş çilek	Dried strawberries
+50326800	Kurutulmuş şeker elması	Dried sugar apple
+50326900	Kurutulmuş ağaç domatesi	Dried tamarillo
+50327000	Kurutulmuş adlandırılmış meyveler	Dried nominant fruits
+50327100	Kurutulmuş aronya	Dried chokeberries
+50327200	Kurutulmuş zeytin	Dried olives
+50331500	Kurutulmuş organik elma	Dried organic apples
+50331600	Kurutulmuş organik kayısı	Dried organic apricots
+50331700	Kurutulmuş organik muz	Dried organic bananas
+50331800	Kurutulmuş organik kadıntuzluğu	Dried organic barberries
+50331900	Kurutulmuş organik ayı üzümü	Dried organic bearberries
+50332000	Kurutulmuş organik böğürtlen	Dried organic blackberries
+50332100	Kurutulmuş organik çoban üzümü	Dried organic bilberries
+50332200	Kurutulmuş organik yaban mersini	Dried organic blueberries
+50332300	Kurutulmuş organik ekmek ağacı meyvesi	Dried organic breadfruit
+50332400	Kurutulmuş organik kremalı elma	Dried organic cherimoyas
+50332500	Kurutulmuş organik kiraz	Dried organic cherries
+50332600	Kurutulmuş organik ağaç kavunu	Dried organic citrons
+50332700	Kurutulmuş organik turna yemişi	Dried organic cranberries
+50332800	Kurutulmuş organik frenk üzümü	Dried organic currants
+50332900	Kurutulmuş organik hurma	Dried organic dates
+50333000	Kurutulmuş organik ejder meyvesi	Dried organic dragonfruit
+50333100	Kurutulmuş organik incir	Dried organic figs
+50333200	Kurutulmuş organik bektaşi üzümü	Dried organic gooseberries
+50333300	Kurutulmuş organik greyfurt	Dried organic grapefruit
+50333400	Kurutulmuş organik sofralık üzüm	Dried organic table grapes
+50333500	Kurutulmuş organik kuru üzümlük üzüm	Dried organic raisin grapes
+50333600	Kurutulmuş organik şaraplık üzüm	Dried organic wine grapes
+50333700	Kurutulmuş organik guava	Dried organic guavas
+50333800	Kurutulmuş organik çalı yaban mersini	Dried organic huckleberries
+50333900	Kurutulmuş organik kivi	Dried organic kiwi fruit
+50334000	Kurutulmuş organik kamkat	Dried organic kumquats
+50334100	Kurutulmuş organik limon	Dried organic lemons
+50334200	Kurutulmuş organik misket limonu	Dried organic limes
+50334300	Kurutulmuş organik yenidünya	Dried organic loquats
+50334400	Kurutulmuş organik mandalina	Dried organic mandarin oranges or tangerines
+50334500	Kurutulmuş organik mango	Dried organic mangoes
+50334600	Kurutulmuş organik kavun	Dried organic melons
+50334700	Kurutulmuş organik dut	Dried organic mulberries
+50334800	Kurutulmuş organik mersin veya mumağacı meyvesi	Dried organic bayberries or myrtles
+50334900	Kurutulmuş organik nektarin	Dried organic nectarines
+50335000	Kurutulmuş organik portakal	Dried organic oranges
+50335100	Kurutulmuş organik papaya	Dried organic papayas
+50335200	Kurutulmuş organik çarkıfelek meyvesi	Dried organic passion fruit
+50335300	Kurutulmuş organik şeftali	Dried organic peaches
+50335400	Kurutulmuş organik armut	Dried organic pears
+50335500	Kurutulmuş organik Trabzon hurması	Dried organic persimmons
+50335600	Kurutulmuş organik ananas	Dried organic pineapples
+50335700	Kurutulmuş organik erik kayısı melezi	Dried organic plucots
+50335800	Kurutulmuş organik erik	Dried organic plums
+50335900	Kurutulmuş organik nar	Dried organic pomegranates
+50336000	Kurutulmuş organik pomelo	Dried organic pomelos
+50336100	Kurutulmuş organik ayva	Dried organic quinces
+50336200	Kurutulmuş organik ahududu	Dried organic raspberries
+50336300	Kurutulmuş organik ravent	Dried organic rhubarb
+50336400	Kurutulmuş organik kuşburnu	Dried organic rose hips
+50336500	Kurutulmuş organik sapote	Dried organic sapotes
+50336600	Kurutulmuş organik saskatoon yemişi	Dried organic saskatoon berries
+50336700	Kurutulmuş organik çilek	Dried organic strawberries
+50336800	Kurutulmuş organik şeker elması	Dried organic sugar apple
+50336900	Kurutulmuş organik ağaç domatesi	Dried organic tamarillo
+50337000	Kurutulmuş organik adlandırılmış meyveler	Dried organic nominant fruits
+50337100	Kurutulmuş organik aronya	Dried organic chokeberries
+50337200	Kurutulmuş organik zeytin	Dried organic olives
+50341500	Dondurulmuş elma	Frozen apples
+50341600	Dondurulmuş kayısı	Frozen apricots
+50341700	Dondurulmuş muz	Frozen bananas
+50341800	Dondurulmuş kadıntuzluğu	Frozen barberries
+50341900	Dondurulmuş ayı üzümü	Frozen bearberries
+50342000	Dondurulmuş böğürtlen	Frozen blackberries
+50342100	Dondurulmuş çoban üzümü	Frozen bilberries
+50342200	Dondurulmuş yaban mersini	Frozen blueberries
+50342300	Dondurulmuş ekmek ağacı meyvesi	Frozen breadfruit
+50342400	Dondurulmuş kremalı elma	Frozen cherimoyas
+50342500	Dondurulmuş kiraz	Frozen cherries
+50342600	Dondurulmuş ağaç kavunu	Frozen citrons
+50342700	Dondurulmuş turna yemişi	Frozen cranberries
+50342800	Dondurulmuş frenk üzümü	Frozen currants
+50342900	Dondurulmuş hurma	Frozen dates
+50343000	Dondurulmuş ejder meyvesi	Frozen dragonfruit
+50343100	Dondurulmuş incir	Frozen figs
+50343200	Dondurulmuş bektaşi üzümü	Frozen gooseberries
+50343300	Dondurulmuş greyfurt	Frozen grapefruit
+50343400	Dondurulmuş sofralık üzüm	Frozen table grapes
+50343500	Dondurulmuş kuru üzümlük üzüm	Frozen raisin grapes
+50343600	Dondurulmuş şaraplık üzüm	Frozen wine grapes
+50343700	Dondurulmuş guava	Frozen guavas
+50343800	Dondurulmuş çalı yaban mersini	Frozen huckleberries
+50343900	Dondurulmuş kivi	Frozen kiwi fruit
+50344000	Dondurulmuş kamkat	Frozen kumquats
+50344100	Dondurulmuş limon	Frozen lemons
+50344200	Dondurulmuş misket limonu	Frozen limes
+50344300	Dondurulmuş yenidünya	Frozen loquats
+50344400	Dondurulmuş mandalina	Frozen mandarin oranges or tangerines
+50344500	Dondurulmuş mango	Frozen mangoes
+50344600	Dondurulmuş kavun	Frozen melons
+50344700	Dondurulmuş dut	Frozen mulberries
+50344800	Dondurulmuş mersin veya mumağacı meyvesi	Frozen bayberries or myrtle
+50344900	Dondurulmuş nektarin	Frozen nectarines
+50345000	Dondurulmuş portakal	Frozen oranges
+50345100	Dondurulmuş papaya	Frozen papayas
+50345200	Dondurulmuş çarkıfelek meyvesi	Frozen passion fruit
+50345300	Dondurulmuş şeftali	Frozen peaches
+50345400	Dondurulmuş armut	Frozen pears
+50345500	Dondurulmuş Trabzon hurması	Frozen persimmons
+50345600	Dondurulmuş ananas	Frozen pineapples
+50345700	Dondurulmuş erik kayısı melezi	Frozen plucots
+50345800	Dondurulmuş erik	Frozen plums
+50345900	Dondurulmuş nar	Frozen pomegranates
+50346000	Dondurulmuş pomelo	Frozen pomelos
+50346100	Dondurulmuş ayva	Frozen quinces
+50346200	Dondurulmuş ahududu	Frozen raspberries
+50346300	Dondurulmuş ravent	Frozen rhubarb
+50346400	Dondurulmuş kuşburnu	Frozen rose hips
+50346500	Dondurulmuş sapote	Frozen sapotes
+50346600	Dondurulmuş saskatoon yemişi	Frozen saskatoon berries
+50346700	Dondurulmuş çilek	Frozen strawberries
+50346800	Dondurulmuş şeker elması	Frozen sugar apple
+50346900	Dondurulmuş ağaç domatesi	Frozen tamarillo
+50347000	Dondurulmuş adlandırılmış meyveler	Frozen nominant fruits
+50347100	Dondurulmuş aronya	Frozen chokeberries
+50347200	Dondurulmuş zeytin	Frozen olives
+50351500	Dondurulmuş organik elma	Frozen organic apples
+50351600	Dondurulmuş organik kayısı	Frozen organic apricots
+50351700	Dondurulmuş organik muz	Frozen organic bananas
+50351800	Dondurulmuş organik kadıntuzluğu	Frozen organic barberries
+50351900	Dondurulmuş organik ayı üzümü	Frozen organic bearberries
+50352000	Dondurulmuş organik böğürtlen	Frozen organic blackberries
+50352100	Dondurulmuş organik çoban üzümü	Frozen organic bilberries
+50352200	Dondurulmuş organik yaban mersini	Frozen organic blueberries
+50352300	Dondurulmuş organik ekmek ağacı meyvesi	Frozen organic breadfruit
+50352400	Dondurulmuş organik kremalı elma	Frozen organic cherimoyas
+50352500	Dondurulmuş organik kiraz	Frozen organic cherries
+50352600	Dondurulmuş organik ağaç kavunu	Frozen organic citrons
+50352700	Dondurulmuş organik turna yemişi	Frozen organic cranberries
+50352800	Dondurulmuş organik frenk üzümü	Frozen organic currants
+50352900	Dondurulmuş organik hurma	Frozen organic dates
+50353000	Dondurulmuş organik ejder meyvesi	Frozen organic dragonfruit
+50353100	Dondurulmuş organik incir	Frozen organic figs
+50353200	Dondurulmuş organik bektaşi üzümü	Frozen organic gooseberries
+50353300	Dondurulmuş organik greyfurt	Frozen organic grapefruit
+50353400	Dondurulmuş organik sofralık üzüm	Frozen organic table grapes
+50353500	Dondurulmuş organik kuru üzümlük üzüm	Frozen organic raisin grapes
+50353600	Dondurulmuş organik şaraplık üzüm	Frozen organic wine grapes
+50353700	Dondurulmuş organik guava	Frozen organic guavas
+50353800	Dondurulmuş organik çalı yaban mersini	Frozen organic huckleberries
+50353900	Dondurulmuş organik kivi	Frozen organic kiwi fruit
+50354000	Dondurulmuş organik kamkat	Frozen organic kumquats
+50354100	Dondurulmuş organik limon	Frozen organic lemons
+50354200	Dondurulmuş organik misket limonu	Frozen organic limes
+50354300	Dondurulmuş organik yenidünya	Frozen organic loquats
+50354400	Dondurulmuş organik mandalina	Frozen organic mandarin oranges or tangerines
+50354500	Dondurulmuş organik mango	Frozen organic mangoes
+50354600	Dondurulmuş organik kavun	Frozen organic melons
+50354700	Dondurulmuş organik dut	Frozen organic mulberries
+50354800	Dondurulmuş organik mersin veya mumağacı meyvesi	Frozen organic bayberries or myrtles
+50354900	Dondurulmuş organik nektarin	Frozen organic nectarines
+50355000	Dondurulmuş organik portakal	Frozen organic oranges
+50355100	Dondurulmuş organik papaya	Frozen organic papayas
+50355200	Dondurulmuş organik çarkıfelek meyvesi	Frozen organic passion fruit
+50355300	Dondurulmuş organik şeftali	Frozen organic peaches
+50355400	Dondurulmuş organik armut	Frozen organic pears
+50355500	Dondurulmuş organik Trabzon hurması	Frozen organic persimmons
+50355600	Dondurulmuş organik ananas	Frozen organic pineapples
+50355700	Dondurulmuş organik erik kayısı melezi	Frozen organic plucots
+50355800	Dondurulmuş organik erik	Frozen organic plums
+50355900	Dondurulmuş organik nar	Frozen organic pomegranates
+50356000	Dondurulmuş organik pomelo	Frozen organic pomelos
+50356100	Dondurulmuş organik ayva	Frozen organic quinces
+50356200	Dondurulmuş organik ahududu	Frozen organic raspberries
+50356300	Dondurulmuş organik ravent	Frozen organic rhubarb
+50356400	Dondurulmuş organik kuşburnu	Frozen organic rose hips
+50356500	Dondurulmuş organik sapote	Frozen organic sapotes
+50356600	Dondurulmuş organik saskatoon yemişi	Frozen organic saskatoon berries
+50356700	Dondurulmuş organik çilek	Frozen organic strawberries
+50356800	Dondurulmuş organik şeker elması	Frozen organic sugar apple
+50356900	Dondurulmuş organik ağaç domatesi	Frozen organic tamarillo
+50357000	Dondurulmuş organik adlandırılmış meyveler	Frozen organic nominant fruits
+50357100	Dondurulmuş organik aronya	Frozen organic chokeberries
+50357200	Dondurulmuş organik zeytin	Frozen organic olives
+50361500	Konserve elma	Canned or jarred apples
+50361600	Konserve kayısı	Canned or jarred apricots
+50361700	Konserve muz	Canned or jarred bananas
+50361800	Konserve kadıntuzluğu	Canned or jarred barberries
+50361900	Konserve ayı üzümü	Canned or jarred bearberries
+50362000	Konserve böğürtlen	Canned or jarred blackberries
+50362100	Konserve çoban üzümü	Canned or jarred bilberries
+50362200	Konserve yaban mersini	Canned or jarred blueberries
+50362300	Konserve ekmek ağacı meyvesi	Canned or jarred breadfruit
+50362400	Konserve kremalı elma	Canned or jarred cherimoyas
+50362500	Konserve kiraz	Canned or jarred cherries
+50362600	Konserve ağaç kavunu	Canned or jarred citrons
+50362700	Konserve turna yemişi	Canned or jarred cranberries
+50362800	Konserve frenk üzümü	Canned or jarred currants
+50362900	Konserve hurma	Canned or jarred dates
+50363000	Konserve ejder meyvesi	Canned or jarred dragonfruit
+50363100	Konserve incir	Canned or jarred figs
+50363200	Konserve bektaşi üzümü	Canned or jarred gooseberries
+50363300	Konserve greyfurt	Canned or jarred grapefruit
+50363400	Konserve sofralık üzüm	Canned or jarred table grapes
+50363500	Konserve kuru üzümlük üzüm	Canned or jarred raisin grapes
+50363600	Konserve şaraplık üzüm	Canned or jarred wine grapes
+50363700	Konserve guava	Canned or jarred guavas
+50363800	Konserve çalı yaban mersini	Canned or jarred huckleberries
+50363900	Konserve kivi	Canned or jarred kiwi fruit
+50364000	Konserve kamkat	Canned or jarred kumquats
+50364100	Konserve limon	Canned or jarred lemons
+50364200	Konserve misket limonu	Canned or jarred limes
+50364300	Konserve yenidünya	Canned or jarred loquats
+50364400	Konserve mandalina	Canned or jarred mandarin oranges or tangerines
+50364500	Konserve mango	Canned or jarred mangoes
+50364600	Konserve kavun	Canned or jarred melons
+50364700	Konserve dut	Canned or jarred mulberries
+50364800	Konserve mersin veya mumağacı meyvesi	Canned or jarred bayberries or myrtles
+50364900	Konserve nektarin	Canned or jarred nectarines
+50365000	Konserve portakal	Canned or jarred oranges
+50365100	Konserve papaya	Canned or jarred papayas
+50365200	Konserve çarkıfelek meyvesi	Canned or jarred passion fruit
+50365300	Konserve şeftali	Canned or jarred peaches
+50365400	Konserve armut	Canned or jarred pears
+50365500	Konserve Trabzon hurması	Canned or jarred persimmons
+50365600	Konserve ananas	Canned or jarred pineapples
+50365700	Konserve erik kayısı melezi	Canned or jarred plucots
+50365800	Konserve erik	Canned or jarred plums
+50365900	Konserve nar	Canned or jarred pomegranates
+50366000	Konserve pomelo	Canned or jarred pomelos
+50366100	Konserve ayva	Canned or jarred quinces
+50366200	Konserve ahududu	Canned or jarred raspberries
+50366300	Konserve ravent	Canned or jarred rhubarb
+50366400	Konserve kuşburnu	Canned or jarred rose hips
+50366500	Konserve sapote	Canned or jarred sapotes
+50366600	Konserve saskatoon yemişi	Canned or jarred saskatoon berries
+50366700	Konserve çilek	Canned or jarred strawberries
+50366800	Konserve şeker elması	Canned or jarred sugar apple
+50366900	Konserve ağaç domatesi	Canned or jarred tamarillo
+50367000	Konserve adlandırılmış meyveler	Canned or jarred nominant fruits
+50367100	Konserve aronya	Canned or jarred chokeberries
+50367200	Konserve zeytin	Canned or jarred olives
+50371500	Konserve organik elma	Canned or jarred organic apples
+50371600	Konserve organik kayısı	Canned or jarred organic apricots
+50371700	Konserve organik muz	Canned or jarred organic bananas
+50371800	Konserve organik kadıntuzluğu	Canned or jarred organic barberries
+50371900	Konserve organik ayı üzümü	Canned or jarred organic bearberries
+50372000	Konserve organik böğürtlen	Canned or jarred organic blackberries
+50372100	Konserve organik çoban üzümü	Canned or jarred organic bilberries
+50372200	Konserve organik yaban mersini	Canned or jarred organic blueberries
+50372300	Konserve organik ekmek ağacı meyvesi	Canned or jarred organic breadfruit
+50372400	Konserve organik kremalı elma	Canned or jarred organic cherimoyas
+50372500	Konserve organik kiraz	Canned or jarred organic cherries
+50372600	Konserve organik ağaç kavunu	Canned or jarred organic citrons
+50372700	Konserve organik turna yemişi	Canned or jarred organic cranberries
+50372800	Konserve organik frenk üzümü	Canned or jarred organic currants
+50372900	Konserve organik hurma	Canned or jarred organic dates
+50373000	Konserve organik ejder meyvesi	Canned or jarred organic dragonfruit
+50373100	Konserve organik incir	Canned or jarred organic figs
+50373200	Konserve organik bektaşi üzümü	Canned or jarred organic gooseberries
+50373300	Konserve organik greyfurt	Canned or jarred organic grapefruit
+50373400	Konserve organik sofralık üzüm	Canned or jarred organic table grapes
+50373500	Konserve organik kuru üzümlük üzüm	Canned or jarred organic raisin grapes
+50373600	Konserve organik şaraplık üzüm	Canned or jarred organic wine grapes
+50373700	Konserve organik guava	Canned or jarred organic guavas
+50373800	Konserve organik çalı yaban mersini	Canned or jarred organic huckleberries
+50373900	Konserve organik kivi	Canned or jarred organic kiwi fruit
+50374000	Konserve organik kamkat	Canned or jarred organic kumquats
+50374100	Konserve organik limon	Canned or jarred organic lemons
+50374200	Konserve organik misket limonu	Canned or jarred organic limes
+50374300	Konserve organik yenidünya	Canned or jarred organic loquats
+50374400	Konserve organik mandalina	Canned or jarred organic mandarin oranges or tangerines
+50374500	Konserve organik mango	Canned or jarred organic mangoes
+50374600	Konserve organik kavun	Canned or jarred organic melons
+50374700	Konserve organik dut	Canned or jarred organic mulberries
+50374800	Konserve organik mersin veya mumağacı meyvesi	Canned or jarred organic bayberries or myrtles
+50374900	Konserve organik nektarin	Canned or jarred organic nectarines
+50375000	Konserve organik portakal	Canned or jarred organic oranges
+50375100	Konserve organik papaya	Canned or jarred organic papayas
+50375200	Konserve organik çarkıfelek meyvesi	Canned or jarred organic passion fruit
+50375300	Konserve organik şeftali	Canned or jarred organic peaches
+50375400	Konserve organik armut	Canned or jarred organic pears
+50375500	Konserve organik Trabzon hurması	Canned or jarred organic persimmons
+50375600	Konserve organik ananas	Canned or jarred organic pineapples
+50375700	Konserve organik erik kayısı melezi	Canned or jarred organic plucots
+50375800	Konserve organik erik	Canned or jarred organic plums
+50375900	Konserve organik nar	Canned or jarred organic pomegranates
+50376000	Konserve organik pomelo	Canned or jarred organic pomelos
+50376100	Konserve organik ayva	Canned or jarred organic quinces
+50376200	Konserve organik ahududu	Canned or jarred organic raspberries
+50376300	Konserve organik ravent	Canned or jarred organic rhubarb
+50376400	Konserve organik kuşburnu	Canned or jarred organic rose hips
+50376500	Konserve organik sapote	Canned or jarred organic sapotes
+50376600	Konserve organik saskatoon yemişi	Canned or jarred organic saskatoon berries
+50376700	Konserve organik çilek	Canned or jarred organic strawberries
+50376800	Konserve organik şeker elması	Canned or jarred organic sugar apple
+50376900	Konserve organik ağaç domatesi	Canned or jarred organic tamarillo
+50377000	Konserve organik adlandırılmış meyveler	Canned or jarred organic nominant fruits
+50377100	Konserve organik aronya	Canned or jarred organic chokeberries
+50377200	Konserve organik zeytin	Canned or jarred organic olives
+50381900	Elma püresi	Apple purees
+50382000	Kayısı püresi	Apricot purees
+50382100	Muz püresi	Banana purees
+50382200	Kadıntuzluğu püresi	Barberry purees
+50382300	Ayı üzümü püresi	Bearberry purees
+50382400	Böğürtlen püresi	Blackberry purees
+50382500	Çoban üzümü püresi	Bilberry purees
+50382600	Yaban mersini püresi	Blueberry purees
+50382700	Ekmek ağacı meyvesi püresi	Breadfruit purees
+50382800	Kremalı elma püresi	Cherimoyas purees
+50382900	Kiraz püresi	Cherry purees
+50383000	Ağaç kavunu püresi	Citron purees
+50383100	Turna yemişi püresi	Cranberry purees
+50383200	Frenk üzümü püresi	Currant purees
+50383300	Hurma püresi	Date purees
+50383400	Ejder meyvesi püresi	Dragonfruit purees
+50383500	İncir püresi	Fig purees
+50383600	Bektaşi üzümü püresi	Gooseberry purees
+50383700	Greyfurt püresi	Grapefruit purees
+50383800	Sofralık üzüm püresi	Table grape purees
+50383900	Şaraplık üzüm püresi	Wine grape purees
+50384000	Kuru üzümlük üzüm püresi	Raisin grape purees
+50384100	Guava püresi	Guava purees
+50384200	Çalı yaban mersini püresi	Huckleberry purees
+50384300	Kivi püresi	Kiwi fruit purees
+50384400	Kamkat püresi	Kumquat purees
+50384500	Limon püresi	Lemon purees
+50384600	Misket limonu püresi	Lime purees
+50384700	Yenidünya püresi	Loquat purees
+50384800	Mandalina püresi	Mandarin oranges or tangerine purees
+50384900	Tanjelo püresi	Tangelo purees
+50385000	Mango püresi	Mango purees
+50385100	Kavun püresi	Melon purees
+50385200	Dut püresi	Mulberry purees
+50385300	Mersin ve mumağacı meyvesi püresi	Bayberry and myrtle purees
+50385400	Nektarin püresi	Nectarine purees
+50385500	Portakal püresi	Orange purees
+50385600	Papaya püresi	Papaya purees
+50385700	Çarkıfelek meyvesi püresi	Passion fruit purees
+50385800	Şeftali püresi	Peach purees
+50385900	Armut püresi	Pear purees
+50386000	Trabzon hurması püresi	Persimmon purees
+50386100	Ananas püresi	Pineapple purees
+50386200	Erik kayısı melezi püresi	Plucot purees
+50386300	Erik püresi	Plum purees
+50386400	Nar püresi	Pomegranate purees
+50386500	Pomelo püresi	Pomelo purees
+50386600	Ayva püresi	Quince purees
+50386700	Ahududu püresi	Raspberry purees
+50386800	Ravent püresi	Rhubarb purees
+50386900	Kuşburnu püresi	Rose hip purees
+50387000	Sapote püresi	Sapote purees
+50387100	Saskatoon yemişi püresi	Saskatoon berry purees
+50387200	Çilek püresi	Strawberry purees
+50387300	Şeker elması püresi	Sugar apple purees
+50387400	Ağaç domatesi püresi	Tamarillo purees
+50387500	Adlandırılmış meyve püresi	Nominant fruit purees
+50387600	Aronya püresi	Chokeberry purees
+50387700	Zeytin püresi	Olive purees
+50391500	Organik elma püresi	Organic apple purees
+50391600	Organik kayısı püresi	Organic apricot purees
+50391700	Organik muz püresi	Organic banana purees
+50391800	Organik kadıntuzluğu püresi	Organic barberry purees
+50391900	Organik ayı üzümü püresi	Organic bearberry purees
+50392000	Organik böğürtlen püresi	Organic blackberry purees
+50392100	Organik çoban üzümü püresi	Organic billberry purees
+50392200	Organik yaban mersini püresi	Organic blueberry purees
+50392300	Organik ekmek ağacı meyvesi püresi	Organic breadfruit purees
+50392400	Organik kremalı elma püresi	Organic cherimoya purees
+50392500	Organik kiraz püresi	Organic cherry purees
+50392600	Organik ağaç kavunu püresi	Organic citron purees
+50392700	Organik turna yemişi püresi	Organic cranberry purees
+50392800	Organik frenk üzümü püresi	Organic currant purees
+50392900	Organik hurma püresi	Organic date purees
+50393000	Organik ejder meyvesi püresi	Organic dragonfruit purees
+50393100	Organik incir püresi	Organic fig purees
+50393200	Organik bektaşi üzümü püresi	Organic gooseberry purees
+50393300	Organik greyfurt püresi	Organic grapefruit purees
+50393400	Organik sofralık üzüm püresi	Organic table grape purees
+50393500	Organik kuru üzümlük üzüm püresi	Organic raisin grape purees
+50393600	Organik şaraplık üzüm püresi	Organic wine grape purees
+50393700	Organik guava püresi	Organic guava purees
+50393800	Organik çalı yaban mersini püresi	Organic huckleberry purees
+50393900	Organik kivi püresi	Organic kiwi fruit purees
+50394000	Organik kamkat püresi	Organic kumquat purees
+50394100	Organik limon püresi	Organic lemon purees
+50394200	Organik misket limonu püresi	Organic lime purees
+50394300	Organik yenidünya püresi	Organic loquat purees
+50394400	Organik organik mandalina püresi	Organic mandarin oranges or organic tangerine purees
+50394500	Organik tanjelo püresi	Organic tangelo purees
+50394600	Organik mango püresi	Organic mango purees
+50394700	Organik kavun püresi	Organic melon purees
+50394800	Organik dut püresi	Organic mulberry purees
+50394900	Organik mersin ve mumağacı meyvesi püresi	Organic bayberry and myrtle purees
+50395000	Organik nektarin püresi	Organic nectarine purees
+50395100	Organik portakal püresi	Organic orange purees
+50395200	Organik papaya püresi	Organic papaya purees
+50395300	Organik çarkıfelek meyvesi püresi	Organic passion fruit purees
+50395400	Organik şeftali püresi	Organic peach purees
+50395500	Organik armut püresi	Organic pear purees
+50395600	Organik Trabzon hurması püresi	Organic persimmon purees
+50395700	Organik ananas püresi	Organic pineapple purees
+50395800	Organik erik kayısı melezi püresi	Organic plucot purees
+50395900	Organik erik püresi	Organic plum purees
+50396000	Organik nar püresi	Organic pommegranate purees
+50396100	Organik pomelo püresi	Organic pomelo purees
+50396200	Organik ayva püresi	Organic quince purees
+50396300	Organik ahududu püresi	Organic raspberry purees
+50396400	Organik ravent püresi	Organic rhubarb purees
+50396500	Organik kuşburnu püresi	Organic rose hip purees
+50396600	Organik sapote püresi	Organic sapote purees
+50396700	Organik saskatoon yemişi püresi	Organic saskatoon berry purees
+50396800	Organik çilek püresi	Organic strawberry purees
+50396900	Organik şeker elması püresi	Organic sugar apple purees
+50397000	Organik ağaç domatesi püresi	Organic tamarillo purees
+50397100	Adlandırılmış organik meyve püresi	Nominant organic fruit purees
+50397200	Organik aronya püresi	Organic chokeberry purees
+50397300	Organik zeytin püresi	Organic olive purees
+50401500	Enginar	Artichokes
+50401600	Kuşkonmaz	Asparagus
+50401700	Avokado	Avocados
+50401800	Fasulye	Beans
+50401900	Pancar	Beets
+50402000	Brokoli	Broccoli
+50402100	Brüksel lahanası	Brussel sprouts
+50402200	Taze soğan	Bunching onions
+50402300	Lahana	Cabbages
+50402400	Yabani enginar	Cardoons
+50402500	Havuç	Carrots
+50402600	Karnabahar	Cauliflowers
+50402700	Kereviz	Celery
+50402800	Pazı	Chards
+50402900	Hindiba	Chicories
+50403000	Çin lahanası	Chinese cabbages
+50403100	Frenk soğanı	Chives
+50403200	Mısır	Corn
+50403300	Tere	Cresses
+50403400	Salatalık	Cucumbers
+50403500	Patlıcan	Eggplants
+50403600	Endivya	Endives
+50403700	Rezene	Fennels
+50403800	Sarımsak	Garlics
+50403900	Su kabağı	Gourds
+50404000	Yeşil bezelye	Green peas
+50404100	Aromatik ot	Herbs
+50404200	Kara lahana	Kale
+50404300	Alabaş	Kohlrabi
+50404400	Pırasa	Leeks
+50404500	Mercimek	Lentils
+50404600	Marul	Lettuces
+50404700	Malanga	Malanga
+50404800	Yenilebilir mantar	Mushrooms
+50404900	Hardal otu	Mustards
+50405100	Patlıcangiller	Nightshades
+50405200	Bamya	Okras
+50405300	Soğan	Onions
+50405400	Bezelye	Peas
+50405500	Yer fıstığı	Peanuts
+50405600	Biber	Peppers
+50405700	Patates	Potatoes
+50405800	İsveç şalgamı	Rutabagas
+50405900	Deniz sebzesi	Sea vegetables
+50406000	Arpacık soğanı	Shallots
+50406100	Kuzukulağı	Sorrels
+50406200	Ispanak	Spinaches
+50406300	Yazlık kabak	Summer squashes and summer pumpkins
+50406400	Tatlı patates	Sweet potatoes
+50406500	Domates	Tomatoes
+50406600	Şalgam yaprağı	Turnip greens
+50406700	Kışlık kabak	Winter squashes and winter pumpkins
+50406800	Yam kökü	Yams
+50407000	Adlandırılmış sebzeler	Nominant vegetables
+50407100	Şeker bezelyesi	Sugar peas
+50407200	Yumru kök	Tubers
+50407300	Kökler ve yumrular	Roots and Tubers
+50411500	Organik enginar	Organic artichokes
+50411600	Organik kuşkonmaz	Organic asparagus
+50411700	Organik avokado	Organic avocados
+50411800	Organik fasulye	Organic beans
+50411900	Organik pancar	Organic beets
+50412000	Organik brokoli	Organic broccoli
+50412100	Organik brüksel lahanası	Organic brussel sprouts
+50412200	Organik taze soğan	Organic bunching onions
+50412300	Organik lahana	Organic cabbages
+50412400	Organik yabani enginar	Organic cardoons
+50412500	Organik havuç	Organic carrots
+50412600	Organik karnabahar	Organic cauliflowers
+50412700	Organik kereviz	Organic celery
+50412800	Organik pazı	Organic chards
+50412900	Organik hindiba	Organic chicories
+50413000	Organik Çin lahanası	Organic chinese cabbages
+50413100	Organik frenk soğanı	Organic chives
+50413200	Organik tere	Organic cresses
+50413300	Organik salatalık	Organic cucumbers
+50413400	Organik patlıcan	Organic eggplants
+50413500	Organik endivya	Organic endives
+50413600	Organik rezene	Organic fennels
+50413700	Organik sarımsak	Organic garlics
+50413800	Organik su kabağı	Organic gourds
+50413900	Organik yeşil bezelye	Organic green peas
+50414000	Organik aromatik ot	Organic herbs
+50414100	Organik kara lahana	Organic kale
+50414200	Organik alabaş	Organic kohlrabi
+50414300	Organik pırasa	Organic leeks
+50414400	Organik mercimek	Organic lentils
+50414500	Organik marul	Organic lettuces
+50414600	Organik malanga	Organic malanga
+50414700	Organik mantar	Organic mushrooms
+50414800	Organik hardal otu	Organic mustards
+50415000	Organik patlıcangiller	Organic nightshades
+50415100	Organik bamya	Organic okras
+50415200	Organik soğan	Organic onions
+50415300	Organik yer fıstığı	Organic peanuts
+50415400	Organik bezelye	Organic peas
+50415500	Organik biber	Organic peppers
+50415600	Organik patates	Organic potatoes
+50415700	Organik İsveç şalgamı	Organic rutabagas
+50415800	Organik deniz sebzesi	Organic sea vegetables
+50415900	Organik arpacık soğanı	Organic shallots
+50416000	Organik kuzukulağı	Organic sorrels
+50416100	Organik ıspanak	Organic spinaches
+50416200	Organik yazlık kabak	Organic summer squashes and summer pumpkins
+50416300	Organik tatlı patates	Organic sweet potatoes
+50416400	Organik domates	Organic tomatoes
+50416500	Organik şalgam yaprağı	Organic turnip greens
+50416600	Organik kışlık kabak	Organic winter squashes and winter pumpkins
+50416700	Organik yam kökü	Organic yams
+50416800	Organik mısır	Organic corn
+50417000	Adlandırılmış organik sebzeler	Nominant organic vegetables
+50417100	Organik şeker bezelyesi	Organic sugar peas
+50421500	Kurutulmuş enginar	Dried artichokes
+50421600	Kurutulmuş kuşkonmaz	Dried asparagus
+50421700	Kurutulmuş avokado	Dried avocados
+50421800	Kurutulmuş fasulye	Dried beans
+50421900	Kurutulmuş pancar	Dried beets
+50422000	Kurutulmuş brokoli	Dried broccoli
+50422100	Kurutulmuş brüksel lahanası	Dried brussel sprouts
+50422200	Kurutulmuş taze soğan	Dried bunching onions
+50422300	Kurutulmuş lahana	Dried cabbages
+50422400	Kurutulmuş yabani enginar	Dried cardoons
+50422500	Kurutulmuş havuç	Dried carrots
+50422600	Kurutulmuş karnabahar	Dried cauliflowers
+50422700	Kurutulmuş kereviz	Dried celery
+50422800	Kurutulmuş pazı	Dried chards
+50422900	Kurutulmuş hindiba	Dried chicories
+50423000	Kurutulmuş Çin lahanası	Dried chinese cabbages
+50423100	Kurutulmuş frenk soğanı	Dried chives
+50423200	Kurutulmuş mısır	Dried corn
+50423300	Kurutulmuş tere	Dried cresses
+50423400	Kurutulmuş salatalık	Dried cucumbers
+50423500	Kurutulmuş patlıcan	Dried eggplants
+50423600	Kurutulmuş endivya	Dried endives
+50423700	Kurutulmuş rezene	Dried fennels
+50423800	Kurutulmuş sarımsak	Dried garlics
+50423900	Kurutulmuş su kabağı	Dried gourds
+50424000	Kurutulmuş yeşil bezelye	Dried green peas
+50424100	Kurutulmuş aromatik ot	Dried herbs
+50424200	Kurutulmuş kara lahana	Dried kale
+50424300	Kurutulmuş alabaş	Dried kohlrabi
+50424400	Kurutulmuş pırasa	Dried leeks
+50424500	Kurutulmuş mercimek	Dried lentils
+50424600	Kurutulmuş marul	Dried lettuces
+50424700	Kurutulmuş malanga	Dried malanga
+50424800	Kurutulmuş mantar	Dried mushrooms
+50424900	Kurutulmuş hardal otu	Dried mustards
+50425000	Kurutulmuş patlıcangiller	Dried nightshades
+50425100	Kurutulmuş bamya	Dried okras
+50425200	Kurutulmuş soğan	Dried onions
+50425300	Kurutulmuş yer fıstığı	Dried peanuts
+50425400	Kurutulmuş bezelye	Dried peas
+50425500	Kurutulmuş biber	Dried peppers
+50425600	Kurutulmuş patates	Dried potatoes
+50425700	Kurutulmuş İsveç şalgamı	Dried rutabagas
+50425800	Kurutulmuş deniz sebzesi	Dried sea vegetables
+50425900	Kurutulmuş arpacık soğanı	Dried shallots
+50426000	Kurutulmuş kuzukulağı	Dried sorrels
+50426100	Kurutulmuş ıspanak	Dried spinaches
+50426200	Kurutulmuş yazlık kabak	Dried summer squashes and summer pumpkins
+50426300	Kurutulmuş tatlı patates	Dried sweet potatoes
+50426400	Kurutulmuş domates	Dried tomatoes
+50426500	Kurutulmuş şalgam yaprağı	Dried turnip greens
+50426600	Kurutulmuş kışlık kabak	Dried winter squashes and winter pumpkins
+50426700	Kurutulmuş yam kökü	Dried yams
+50426800	Kurutulmuş adlandırılmış sebzeler	Dried nominant vegetables
+50426900	Kurutulmuş şeker bezelyesi	Dried sugar peas
+50431500	Kurutulmuş organik enginar	Dried organic artichokes
+50431600	Kurutulmuş organik kuşkonmaz	Dried organic asparagus
+50431700	Kurutulmuş organik avokado	Dried organic avocados
+50431800	Kurutulmuş organik fasulye	Dried organic beans
+50431900	Kurutulmuş organik pancar	Dried organic beets
+50432000	Kurutulmuş organik brokoli	Dried organic broccoli
+50432100	Kurutulmuş organik brüksel lahanası	Dried organic brussel sprouts
+50432200	Kurutulmuş organik taze soğan	Dried organic bunching onions
+50432300	Kurutulmuş organik lahana	Dried organic cabbages
+50432400	Kurutulmuş organik yabani enginar	Dried organic cardoons
+50432500	Kurutulmuş organik havuç	Dried organic carrots
+50432600	Kurutulmuş organik karnabahar	Dried organic cauliflowers
+50432700	Kurutulmuş organik kereviz	Dried organic celery
+50432800	Kurutulmuş organik pazı	Dried organic chards
+50432900	Kurutulmuş organik hindiba	Dried organic chicories
+50433000	Kurutulmuş organik Çin lahanası	Dried organic chinese cabbages
+50433100	Kurutulmuş organik frenk soğanı	Dried organic chives
+50433200	Kurutulmuş organik mısır	Dried organic corn
+50433300	Kurutulmuş organik tere	Dried organic cresses
+50433400	Kurutulmuş organik salatalık	Dried organic cucumbers
+50433500	Kurutulmuş organik patlıcan	Dried organic eggplants
+50433600	Kurutulmuş organik endivya	Dried organic endives
+50433700	Kurutulmuş organik rezene	Dried organic fennels
+50433800	Kurutulmuş organik sarımsak	Dried organic garlics
+50433900	Kurutulmuş organik su kabağı	Dried organic gourds
+50434000	Kurutulmuş organik yeşil bezelye	Dried organic green peas
+50434100	Kurutulmuş organik aromatik ot	Dried organic herbs
+50434200	Kurutulmuş organik kara lahana	Dried organic kale
+50434300	Kurutulmuş organik alabaş	Dried organic kohlrabi
+50434400	Kurutulmuş organik pırasa	Dried organic leeks
+50434500	Kurutulmuş organik mercimek	Dried organic lentils
+50434600	Kurutulmuş organik marul	Dried organic lettuces
+50434700	Kurutulmuş organik malanga	Dried organic malanga
+50434800	Kurutulmuş organik mantar	Dried organic mushrooms
+50434900	Kurutulmuş organik hardal otu	Dried organic mustards
+50435000	Kurutulmuş organik patlıcangiller	Dried organic nightshades
+50435100	Kurutulmuş organik bamya	Dried organic okras
+50435200	Kurutulmuş organik soğan	Dried organic onions
+50435300	Kurutulmuş organik yer fıstığı	Dried organic peanuts
+50435400	Kurutulmuş organik bezelye	Dried organic peas
+50435500	Kurutulmuş organik biber	Dried organic peppers
+50435600	Kurutulmuş organik patates	Dried organic potatoes
+50435700	Kurutulmuş organik İsveç şalgamı	Dried organic rutabagas
+50435800	Kurutulmuş organik deniz sebzesi	Dried organic sea vegetables
+50435900	Kurutulmuş organik arpacık soğanı	Dried organic shallots
+50436000	Kurutulmuş organik kuzukulağı	Dried organic sorrels
+50436100	Kurutulmuş organik ıspanak	Dried organic spinaches
+50436200	Kurutulmuş organik yazlık kabak	Dried organic summer squashes and summer pumpkins
+50436300	Kurutulmuş organik tatlı patates	Dried organic sweet potatoes
+50436400	Kurutulmuş organik domates	Dried organic tomatoes
+50436500	Kurutulmuş organik şalgam yaprağı	Dried organic turnip greens
+50436600	Kurutulmuş organik kışlık kabak	Dried organic winter squashes and winter pumpkins
+50436700	Kurutulmuş organik yam kökü	Dried organic yams
+50436800	Kurutulmuş organik adlandırılmış sebzeler	Dried organic nominant vegetables
+50436900	Kurutulmuş organik şeker bezelyesi	Dried organic sugar peas
+50441500	Dondurulmuş enginar	Frozen artichokes
+50441600	Dondurulmuş kuşkonmaz	Frozen asparagus
+50441700	Dondurulmuş avokado	Frozen avocados
+50441800	Dondurulmuş fasulye	Frozen beans
+50441900	Dondurulmuş pancar	Frozen beets
+50442000	Dondurulmuş brokoli	Frozen broccoli
+50442100	Dondurulmuş brüksel lahanası	Frozen brussel sprouts
+50442200	Dondurulmuş taze soğan	Frozen bunching onions
+50442300	Dondurulmuş lahana	Frozen cabbages
+50442400	Dondurulmuş yabani enginar	Frozen cardoons
+50442500	Dondurulmuş havuç	Frozen carrots
+50442600	Dondurulmuş karnabahar	Frozen cauliflowers
+50442700	Dondurulmuş kereviz	Frozen celery
+50442800	Dondurulmuş pazı	Frozen chards
+50442900	Dondurulmuş hindiba	Frozen chicories
+50443000	Dondurulmuş Çin lahanası	Frozen chinese cabbages
+50443100	Dondurulmuş frenk soğanı	Frozen chives
+50443200	Dondurulmuş mısır	Frozen corn
+50443300	Dondurulmuş tere	Frozen cresses
+50443400	Dondurulmuş salatalık	Frozen cucumbers
+50443500	Dondurulmuş patlıcan	Frozen eggplants
+50443600	Dondurulmuş endivya	Frozen endives
+50443700	Dondurulmuş rezene	Frozen fennels
+50443800	Dondurulmuş sarımsak	Frozen garlics
+50443900	Dondurulmuş su kabağı	Frozen gourds
+50444000	Dondurulmuş yeşil bezelye	Frozen green peas
+50444100	Dondurulmuş aromatik ot	Frozen herbs
+50444200	Dondurulmuş kara lahana	Frozen kale
+50444300	Dondurulmuş alabaş	Frozen kohlrabi
+50444400	Dondurulmuş pırasa	Frozen leeks
+50444500	Dondurulmuş mercimek	Frozen lentils
+50444600	Dondurulmuş marul	Frozen lettuces
+50444700	Dondurulmuş malanga	Frozen malanga
+50444800	Dondurulmuş mantar	Frozen mushrooms
+50444900	Dondurulmuş hardal otu	Frozen mustards
+50445000	Dondurulmuş patlıcangiller	Frozen nightshades
+50445100	Dondurulmuş bamya	Frozen okras
+50445200	Dondurulmuş soğan	Frozen onions
+50445300	Dondurulmuş yer fıstığı	Frozen peanuts
+50445400	Dondurulmuş bezelye	Frozen peas
+50445500	Dondurulmuş biber	Frozen peppers
+50445600	Dondurulmuş patates	Frozen potatoes
+50445700	Dondurulmuş İsveç şalgamı	Frozen rutabagas
+50445800	Dondurulmuş deniz sebzesi	Frozen sea vegetables
+50445900	Dondurulmuş arpacık soğanı	Frozen shallots
+50446000	Dondurulmuş kuzukulağı	Frozen sorrels
+50446100	Dondurulmuş ıspanak	Frozen spinaches
+50446200	Dondurulmuş yazlık kabak	Frozen summer squashes and summer pumpkins
+50446300	Dondurulmuş tatlı patates	Frozen sweet potatoes
+50446400	Dondurulmuş domates	Frozen tomatoes
+50446500	Dondurulmuş şalgam yaprağı	Frozen turnip greens
+50446600	Dondurulmuş kışlık kabak	Frozen winter squashes and winter pumpkins
+50446700	Dondurulmuş yam kökü	Frozen yams
+50446800	Dondurulmuş adlandırılmış sebzeler	Frozen nominant vegetables
+50446900	Dondurulmuş şeker bezelyesi	Frozen sugar peas
+50451500	Dondurulmuş organik enginar	Frozen organic artichokes
+50451600	Dondurulmuş organik kuşkonmaz	Frozen organic asparagus
+50451700	Dondurulmuş organik avokado	Frozen organic avocados
+50451800	Dondurulmuş organik fasulye	Frozen organic beans
+50451900	Dondurulmuş organik pancar	Frozen organic beets
+50452000	Dondurulmuş organik brokoli	Frozen organic broccoli
+50452100	Dondurulmuş organik brüksel lahanası	Frozen organic brussel sprouts
+50452200	Dondurulmuş organik taze soğan	Frozen organic bunching onions
+50452300	Dondurulmuş organik lahana	Frozen organic cabbages
+50452400	Dondurulmuş organik yabani enginar	Frozen organic cardoons
+50452500	Dondurulmuş organik havuç	Frozen organic carrots
+50452600	Dondurulmuş organik karnabahar	Frozen organic cauliflowers
+50452700	Dondurulmuş organik kereviz	Frozen organic celery
+50452800	Dondurulmuş organik pazı	Frozen organic chards
+50452900	Dondurulmuş organik hindiba	Frozen organic chicories
+50453000	Dondurulmuş organik Çin lahanası	Frozen organic chinese cabbages
+50453100	Dondurulmuş organik frenk soğanı	Frozen organic chives
+50453200	Dondurulmuş organik mısır	Frozen organic corn
+50453300	Dondurulmuş organik tere	Frozen organic cresses
+50453400	Dondurulmuş organik salatalık	Frozen organic cucumbers
+50453500	Dondurulmuş organik patlıcan	Frozen organic eggplants
+50453600	Dondurulmuş organik endivya	Frozen organic endives
+50453700	Dondurulmuş organik rezene	Frozen organic fennels
+50453800	Dondurulmuş organik sarımsak	Frozen organic garlics
+50453900	Dondurulmuş organik su kabağı	Frozen organic gourds
+50454000	Dondurulmuş organik yeşil bezelye	Frozen organic green peas
+50454100	Dondurulmuş organik aromatik ot	Frozen organic herbs
+50454200	Dondurulmuş organik kara lahana	Frozen organic kale
+50454300	Dondurulmuş organik alabaş	Frozen organic kohlrabi
+50454400	Dondurulmuş organik pırasa	Frozen organic leeks
+50454500	Dondurulmuş organik mercimek	Frozen organic lentils
+50454600	Dondurulmuş organik marul	Frozen organic lettuces
+50454700	Dondurulmuş organik malanga	Frozen organic malanga
+50454800	Dondurulmuş organik mantar	Frozen organic mushrooms
+50454900	Dondurulmuş organik hardal otu	Frozen organic mustards
+50455000	Dondurulmuş organik patlıcangiller	Frozen organic nightshades
+50455100	Dondurulmuş organik bamya	Frozen organic okras
+50455200	Dondurulmuş organik soğan	Frozen organic onions
+50455300	Dondurulmuş organik yer fıstığı	Frozen organic peanuts
+50455400	Dondurulmuş organik bezelye	Frozen organic peas
+50455500	Dondurulmuş organik biber	Frozen organic peppers
+50455600	Dondurulmuş organik patates	Frozen organic potatoes
+50455700	Dondurulmuş organik İsveç şalgamı	Frozen organic rutabagas
+50455800	Dondurulmuş organik deniz sebzesi	Frozen organic sea vegetables
+50455900	Dondurulmuş organik arpacık soğanı	Frozen organic shallots
+50456000	Dondurulmuş organik kuzukulağı	Frozen organic sorrels
+50456100	Dondurulmuş organik ıspanak	Frozen organic spinaches
+50456200	Dondurulmuş organik yazlık kabak	Frozen organic summer squashes and summer pumpkins
+50456300	Dondurulmuş organik tatlı patates	Frozen organic sweet potatoes
+50456400	Dondurulmuş organik domates	Frozen organic tomatoes
+50456500	Dondurulmuş organik şalgam yaprağı	Frozen organic turnip greens
+50456600	Dondurulmuş organik kışlık kabak	Frozen organic winter squashes and winter pumpkins
+50456700	Dondurulmuş organik yam kökü	Frozen organic yams
+50456800	Dondurulmuş organik adlandırılmış sebzeler	Frozen organic nominant vegetables
+50456900	Dondurulmuş organik şeker bezelyesi	Frozen organic sugar peas
+50461500	Konserve enginar	Canned or jarred artichokes
+50461600	Konserve kuşkonmaz	Canned or jarred asparagus
+50461700	Konserve avokado	Canned or jarred avocados
+50461800	Konserve fasulye	Canned or jarred beans
+50461900	Konserve pancar	Canned or jarred beets
+50462000	Konserve brokoli	Canned or jarred broccoli
+50462100	Konserve brüksel lahanası	Canned or jarred brussel sprouts
+50462200	Konserve taze soğan	Canned or jarred bunching onions
+50462300	Konserve lahana	Canned or jarred cabbages
+50462400	Konserve yabani enginar	Canned or jarred cardoons
+50462500	Konserve havuç	Canned or jarred carrots
+50462600	Konserve karnabahar	Canned or jarred cauliflowers
+50462700	Konserve kereviz	Canned or jarred celery
+50462800	Konserve pazı	Canned or jarred chards
+50462900	Konserve hindiba	Canned or jarred chicories
+50463000	Konserve Çin lahanası	Canned or jarred chinese cabbages
+50463100	Konserve frenk soğanı	Canned or jarred chives
+50463200	Konserve mısır	Canned or jarred corn
+50463300	Konserve tere	Canned or jarred cresses
+50463400	Konserve salatalık	Canned or jarred cucumbers
+50463500	Konserve patlıcan	Canned or jarred eggplants
+50463600	Konserve endivya	Canned or jarred endives
+50463700	Konserve rezene	Canned or jarred fennels
+50463800	Konserve sarımsak	Canned or jarred garlics
+50463900	Konserve su kabağı	Canned or jarred gourds
+50464000	Konserve yeşil bezelye	Canned or jarred green peas
+50464100	Konserve aromatik ot	Canned or jarred herbs
+50464200	Konserve kara lahana	Canned or jarred kale
+50464300	Konserve alabaş	Canned or jarred kohlrabi
+50464400	Konserve pırasa	Canned or jarred leeks
+50464500	Konserve mercimek	Canned or jarred lentils
+50464600	Konserve marul	Canned or jarred lettuces
+50464700	Konserve malanga	Canned or jarred malanga
+50464800	Konserve mantar	Canned or jarred mushrooms
+50464900	Konserve hardal otu	Canned or jarred mustards
+50465000	Konserve patlıcangiller	Canned or jarred nightshades
+50465100	Konserve bamya	Canned or jarred okras
+50465200	Konserve soğan	Canned or jarred onions
+50465300	Konserve yer fıstığı	Canned or jarred peanuts
+50465400	Konserve bezelye	Canned or jarred peas
+50465500	Konserve biber	Canned or jarred peppers
+50465600	Konserve patates	Canned or jarred potatoes
+50465700	Konserve İsveç şalgamı	Canned or jarred rutabagas
+50465800	Konserve deniz sebzesi	Canned or jarred sea vegetables
+50465900	Konserve arpacık soğanı	Canned or jarred shallots
+50466000	Konserve kuzukulağı	Canned or jarred sorrels
+50466100	Konserve ıspanak	Canned or jarred spinaches
+50466200	Konserve yazlık kabak	Canned or jarred summer squashes and summer pumpkins
+50466300	Konserve tatlı patates	Canned or jarred sweet potatoes
+50466400	Konserve domates	Canned or jarred tomatoes
+50466500	Konserve şalgam yaprağı	Canned or jarred turnip greens
+50466600	Konserve kışlık kabak	Canned or jarred winter squashes and winter pumpkins
+50466700	Konserve yam kökü	Canned or jarred yams
+50466800	Konserve adlandırılmış sebzeler	Canned or jarred nominant vegetables
+50466900	Konserve şeker bezelyesi	Canned or jarred sugar peas
+50467000	Konserve kimchi	Canned or jarred kimchis
+50471500	Konserve organik enginar	Canned or jarred organic artichokes
+50471600	Konserve organik kuşkonmaz	Canned or jarred organic asparagus
+50471700	Konserve organik avokado	Canned or jarred organic avocados
+50471800	Konserve organik fasulye	Canned or jarred organic beans
+50471900	Konserve organik pancar	Canned or jarred organic beets
+50472000	Konserve organik brokoli	Canned or jarred organic broccoli
+50472100	Konserve organik brüksel lahanası	Canned or jarred organic brussel sprouts
+50472200	Konserve organik taze soğan	Canned or jarred organic bunching onions
+50472300	Konserve organik lahana	Canned or jarred organic cabbages
+50472400	Konserve organik yabani enginar	Canned or jarred organic cardoons
+50472500	Konserve organik havuç	Canned or jarred organic carrots
+50472600	Konserve organik karnabahar	Canned or jarred organic cauliflowers
+50472700	Konserve organik kereviz	Canned or jarred organic celery
+50472800	Konserve organik pazı	Canned or jarred organic chards
+50472900	Konserve organik hindiba	Canned or jarred organic chicories
+50473000	Konserve organik Çin lahanası	Canned or jarred organic chinese cabbages
+50473100	Konserve organik frenk soğanı	Canned or jarred organic chives
+50473200	Konserve organik mısır	Canned or jarred organic corn
+50473300	Konserve organik tere	Canned or jarred organic cresses
+50473400	Konserve organik salatalık	Canned or jarred organic cucumbers
+50473500	Konserve organik patlıcan	Canned or jarred organic eggplants
+50473600	Konserve organik endivya	Canned or jarred organic endives
+50473700	Konserve organik rezene	Canned or jarred organic fennels
+50473800	Konserve organik sarımsak	Canned or jarred organic garlics
+50473900	Konserve organik su kabağı	Canned or jarred organic gourds
+50474000	Konserve organik yeşil bezelye	Canned or jarred organic green peas
+50474100	Konserve organik aromatik ot	Canned or jarred organic herbs
+50474200	Konserve organik kara lahana	Canned or jarred organic kale
+50474300	Konserve organik alabaş	Canned or jarred organic kohlrabi
+50474400	Konserve organik pırasa	Canned or jarred organic leeks
+50474500	Konserve organik mercimek	Canned or jarred organic lentils
+50474600	Konserve organik marul	Canned or jarred organic lettuces
+50474700	Konserve organik malanga	Canned or jarred organic malanga
+50474800	Konserve organik mantar	Canned or jarred organic mushrooms
+50474900	Konserve organik hardal otu	Canned or jarred organic mustards
+50475000	Konserve organik patlıcangiller	Canned or jarred organic nightshades
+50475100	Konserve organik bamya	Canned or jarred organic okras
+50475200	Konserve organik soğan	Canned or jarred organic onions
+50475300	Konserve organik yer fıstığı	Canned or jarred organic peanuts
+50475400	Konserve organik bezelye	Canned or jarred organic peas
+50475500	Konserve organik biber	Canned or jarred organic peppers
+50475600	Konserve organik patates	Canned or jarred organic potatoes
+50475700	Konserve organik İsveç şalgamı	Canned or jarred organic rutabagas
+50475800	Konserve organik deniz sebzesi	Canned or jarred organic sea vegetables
+50475900	Konserve organik arpacık soğanı	Canned or jarred organic shallots
+50476000	Konserve organik kuzukulağı	Canned or jarred organic sorrels
+50476100	Konserve organik ıspanak	Canned or jarred organic spinaches
+50476200	Konserve organik yazlık kabak	Canned or jarred organic summer squashes and summer pumpkins
+50476300	Konserve organik tatlı patates	Canned or jarred organic sweet potatoes
+50476400	Konserve organik domates	Canned or jarred organic tomatoes
+50476500	Konserve organik şalgam yaprağı	Canned or jarred organic turnip greens
+50476600	Konserve organik kışlık kabak	Canned or jarred organic winter squashes and winter pumpkins
+50476700	Konserve organik yam kökü	Canned or jarred organic yams
+50476800	Konserve organik adlandırılmış sebzeler	Canned or jarred organic nominant vegetables
+50476900	Konserve organik şeker bezelyesi	Canned or jarred organic sugar peas
+50481500	Enginar püresi	Artichoke purees
+50481600	Frenk soğanı püresi	Chive purees
+50481700	Kuşkonmaz püresi	Asparagus purees
+50481800	Avokado püresi	Avocado purees
+50481900	Fasulye püresi	Bean purees
+50482000	Pancar püresi	Beet purees
+50482100	Brokoli püresi	Broccoli purees
+50482200	Brüksel lahanası püresi	Brussel sprout purees
+50482300	Taze soğan püresi	Bunching onion purees
+50482400	Lahana püresi	Cabbage purees
+50482500	Yabani enginar püresi	Cardoon purees
+50482600	Havuç püresi	Carrot purees
+50482700	Karnabahar püresi	Cauliflower purees
+50482800	Kereviz püresi	Celery purees
+50482900	Pazı püresi	Chard purees
+50483000	Hindiba püresi	Chicory purees
+50483100	Çin lahanası püresi	Chinese cabbage purees
+50483200	Mısır püresi	Corn purees
+50483300	Tere püresi	Cress purees
+50483400	Salatalık püresi	Cucumber purees
+50483500	Patlıcan püresi	Eggplant purees
+50483600	Endivya püresi	Endive purees
+50483700	Rezene püresi	Fennel purees
+50483800	Sarımsak püresi	Garlic purees
+50483900	Su kabağı püresi	Gourd purees
+50484000	Yeşil bezelye püresi	Green pea purees
+50484100	Aromatik ot püresi	Herb purees
+50484200	Kara lahana püresi	Kale purees
+50484300	Alabaş püresi	Kohlrabi purees
+50484400	Pırasa püresi	Leek purees
+50484500	Mercimek püresi	Lentil purees
+50484600	Marul püresi	Lettuce purees
+50484700	Malanga püresi	Malanga purees
+50484800	Mantar püresi	Mushroom purees
+50484900	Hardal otu püresi	Mustard purees
+50485000	Patlıcangiller püresi	Nightshade purees
+50485100	Bamya püresi	Okra purees
+50485200	Soğan püresi	Onion purees
+50485300	Bezelye püresi	Pea purees
+50485400	Yer fıstığı püresi	Peanut purees
+50485500	Biber püresi	Pepper purees
+50485600	Patates püresi	Potato purees
+50485700	İsveç şalgamı püresi	Rutabaga purees
+50485800	Deniz sebzesi püresi	Sea vegetable purees
+50485900	Arpacık soğanı püresi	Shallot purees
+50486000	Kuzukulağı püresi	Sorrel purees
+50486100	Ispanak püresi	Spinach purees
+50486200	Yazlık kabak püresi	Summer squash and summer pumpkin purees
+50486300	Tatlı patates püresi	Sweet potato purees
+50486400	Domates püresi	Tomato purees
+50486500	Şalgam yaprağı püresi	Turnip green purees
+50486600	Kışlık kabak püresi	Winter squash and winter pumpkin purees
+50486700	Yam kökü püresi	Yam purees
+50486800	Adlandırılmış sebze püresi	Nominant vegetable purees
+50486900	Şeker bezelyesi püresi	Sugar pea purees
+50487000	Yumru kök püresi	Tuber purees
+50491500	Organik enginar püresi	Organic artichoke purees
+50491600	Organik kuşkonmaz püresi	Organic asparagus purees
+50491700	Organik avokado püresi	Organic avocado purees
+50491800	Organik fasulye püresi	Organic bean purees
+50491900	Organik pancar püresi	Organic beet purees
+50492000	Organik brokoli püresi	Organic broccoli purees
+50492100	Organik brüksel lahanası püresi	Organic brussel sprout purees
+50492200	Organik taze soğan püresi	Organic bunching onion purees
+50492300	Organik lahana püresi	Organic cabbage purees
+50492400	Organik yabani enginar püresi	Organic cardoon purees
+50492500	Organik havuç püresi	Organic carrot purees
+50492600	Organik karnabahar püresi	Organic cauliflower purees
+50492700	Organik kereviz püresi	Organic celery purees
+50492800	Organik pazı püresi	Organic chard purees
+50492900	Organik hindiba püresi	Organic chicory purees
+50493000	Organik Çin lahanası püresi	Organic chinese cabbage purees
+50493100	Organik frenk soğanı püresi	Organic chive purees
+50493200	Organik tere püresi	Organic cress purees
+50493300	Organik salatalık püresi	Organic cucumber purees
+50493400	Organik patlıcan püresi	Organic eggplant purees
+50493500	Organik endivya püresi	Organic endive purees
+50493600	Organik rezene püresi	Organic fennel purees
+50493700	Organik sarımsak püresi	Organic garlic purees
+50493800	Organik su kabağı püresi	Organic gourd purees
+50493900	Organik yeşil bezelye püresi	Organic green pea purees
+50494000	Organik aromatik ot püresi	Organic herb purees
+50494100	Organik kara lahana püresi	Organic kale purees
+50494200	Organik alabaş püresi	Organic kohlrabi purees
+50494300	Organik pırasa püresi	Organic leek purees
+50494400	Organik mercimek püresi	Organic lentil purees
+50494500	Organik marul püresi	Organic lettuce purees
+50494600	Organik malanga püresi	Organic malanga purees
+50494700	Organik mantar püresi	Organic mushroom purees
+50494800	Organik hardal otu püresi	Organic mustard purees
+50494900	Organik patlıcangiller püresi	Organic nightshade purees
+50495000	Organik bamya püresi	Organic okra purees
+50495100	Organik soğan püresi	Organic onion purees
+50495200	Organik yer fıstığı püresi	Organic peanut purees
+50495300	Organik bezelye püresi	Organic pea purees
+50495400	Organik biber püresi	Organic pepper purees
+50495500	Organik patates püresi	Organic potato purees
+50495600	Organik İsveç şalgamı püresi	Organic rutabaga purees
+50495700	Organik deniz sebzesi püresi	Organic sea vegetable purees
+50495800	Organik arpacık soğanı püresi	Organic shallot purees
+50495900	Organik kuzukulağı püresi	Organic sorrel purees
+50496000	Organik ıspanak püresi	Organic spinach purees
+50496100	Organik yazlık kabak püresi	Organic summer squash and summer pumpkin purees
+50496200	Organik tatlı patates püresi	Organic sweet potato purees
+50496300	Organik domates püresi	Organic tomato purees
+50496400	Organik şalgam yaprağı püresi	Organic turnip green purees
+50496500	Organik kışlık kabak püresi	Organic winter squash and winter pumpkin purees
+50496600	Organik yam kökü püresi	Organic yam purees
+50496700	Organik mısır püresi	Organic corn purees
+50496800	Organik adlandırılmış sebze püresi	Organic nominant vegetable purees
+50496900	Organik şeker bezelyesi püresi	Organic sugar pea purees
+50501500	Vitamin takviyeleri	Vitamin supplements
+50501600	Mineral takviyeleri	Nutritional mineral supplements
+50501700	Makro besin takviyeleri	Macro nutrient supplements
+50501800	Kombine besin takviyeleri	Combination nutritional supplements
+50501900	Veteriner besin takviyeleri	Veterinary nutritional supplements
+50521500	GDO'suz elma	Non GMO apples
+50521600	GDO'suz kayısı	Non GMO apricots
+50521700	GDO'suz muz	Non GMO bananas
+50521800	GDO'suz kadıntuzluğu	Non GMO barberries
+50521900	GDO'suz ayı üzümü	Non GMO bearberries
+50522000	GDO'suz böğürtlen	Non GMO blackberries
+50522100	GDO'suz çoban üzümü	Non GMO billberries
+50522200	GDO'suz yaban mersini	Non GMO blueberries
+50522300	GDO'suz ekmek ağacı meyvesi	Non GMO breadfruits
+50522400	GDO'suz kremalı elma	Non GMO cherimoyas
+50522500	GDO'suz kiraz	Non GMO cherries
+50522600	GDO'suz ağaç kavunu	Non GMO citrons
+50522700	GDO'suz turna yemişi	Non GMO cranberries
+50522800	GDO'suz frenk üzümü	Non GMO currants
+50522900	GDO'suz hurma	Non GMO dates
+50523000	GDO'suz ejder meyvesi	Non GMO dragonfruits
+50523100	GDO'suz incir	Non GMO figs
+50523200	GDO'suz bektaşi üzümü	Non GMO gooseberries
+50523300	GDO'suz greyfurt	Non GMO grapefruits
+50523400	GDO'suz sofralık üzüm	Non GMO table grapes
+50523500	GDO'suz kuru üzümlük üzüm	Non GMO raisin grapes
+50523600	GDO'suz şaraplık üzüm	Non GMO wine grapes
+50523700	GDO'suz guava	Non GMO guavas
+50523800	GDO'suz çalı yaban mersini	Non GMO huckleberries
+50523900	GDO'suz kivi	Non GMO kiwi fruits
+50524000	GDO'suz kamkat	Non GMO kumquats
+50524100	GDO'suz limon	Non GMO lemons
+50524200	GDO'suz misket limonu	Non GMO limes
+50524300	GDO'suz yenidünya	Non GMO loquats
+50524400	GDO'suz gDO'suz mandalina	Non GMO mandarin oranges or non GMO tangerines
+50524500	GDO'suz mango	Non GMO mangoes
+50524600	GDO'suz kavun	Non GMO melons
+50524700	GDO'suz dut	Non GMO mulberries
+50524800	GDO'suz mersin ve mumağacı meyvesi	Non GMO bayberries and myrtles
+50524900	GDO'suz nektarin	Non GMO nectarines
+50525000	GDO'suz portakal	Non GMO oranges
+50525100	GDO'suz papaya	Non GMO papayas
+50525200	GDO'suz çarkıfelek meyvesi	Non GMO passion fruits
+50525300	GDO'suz şeftali	Non GMO peaches
+50525400	GDO'suz armut	Non GMO pears
+50525500	GDO'suz Trabzon hurması	Non GMO persimmons
+50525600	GDO'suz ananas	Non GMO pineapples
+50525700	GDO'suz erik kayısı melezi	Non GMO plucots
+50525800	GDO'suz erik	Non GMO plums
+50525900	GDO'suz nar	Non GMO pommegranates
+50526000	GDO'suz pomelo	Non GMO pomelos
+50526100	GDO'suz ayva	Non GMO quinces
+50526200	GDO'suz ahududu	Non GMO raspberries
+50526300	GDO'suz ravent	Non GMO rhubarbs
+50526400	GDO'suz kuşburnu	Non GMO rose hips
+50526500	GDO'suz sapote	Non GMO sapotes
+50526600	GDO'suz saskatoon yemişi	Non GMO saskatoon berries
+50526700	GDO'suz çilek	Non GMO strawberries
+50526800	GDO'suz şeker elması	Non GMO sugar apples
+50526900	GDO'suz ağaç domatesi	Non GMO tamarillos
+50527000	Adlandırılmış GDO'suz meyveler	Nominant non GMO fruits
+50527100	GDO'suz aronya	Non GMO chokeberries
+50527200	GDO'suz zeytin	Non GMO olives
+50531500	Kurutulmuş GDO'suz elma	Dried non GMO apples
+50531600	Kurutulmuş GDO'suz kayısı	Dried non GMO apricots
+50531700	Kurutulmuş GDO'suz muz	Dried non GMO bananas
+50531800	Kurutulmuş GDO'suz kadıntuzluğu	Dried non GMO barberries
+50531900	Kurutulmuş GDO'suz ayı üzümü	Dried non GMO bearberries
+50532000	Kurutulmuş GDO'suz böğürtlen	Dried non GMO blackberries
+50532100	Kurutulmuş GDO'suz çoban üzümü	Dried non GMO bilberries
+50532200	Kurutulmuş GDO'suz yaban mersini	Dried non GMO blueberries
+50532300	Kurutulmuş GDO'suz ekmek ağacı meyvesi	Dried non GMO breadfruits
+50532400	Kurutulmuş GDO'suz kremalı elma	Dried non GMO cherimoyas
+50532500	Kurutulmuş GDO'suz kiraz	Dried non GMO cherries
+50532600	Kurutulmuş GDO'suz ağaç kavunu	Dried non GMO citrons
+50532700	Kurutulmuş GDO'suz turna yemişi	Dried non GMO cranberries
+50532800	Kurutulmuş GDO'suz frenk üzümü	Dried non GMO currants
+50532900	Kurutulmuş GDO'suz hurma	Dried non GMO dates
+50533000	Kurutulmuş GDO'suz ejder meyvesi	Dried non GMO dragonfruits
+50533100	Kurutulmuş GDO'suz incir	Dried non GMO figs
+50533200	Kurutulmuş GDO'suz bektaşi üzümü	Dried non GMO gooseberries
+50533300	Kurutulmuş GDO'suz greyfurt	Dried non GMO grapefruits
+50533400	Kurutulmuş GDO'suz sofralık üzüm	Dried non GMO table grapes
+50533500	Kurutulmuş GDO'suz kuru üzümlük üzüm	Dried non GMO raisin grapes
+50533600	Kurutulmuş GDO'suz şaraplık üzüm	Dried non GMO wine grapes
+50533700	Kurutulmuş GDO'suz guava	Dried non GMO guavas
+50533800	Kurutulmuş GDO'suz çalı yaban mersini	Dried non GMO huckleberries
+50533900	Kurutulmuş GDO'suz kivi	Dried non GMO kiwi fruits
+50534000	Kurutulmuş GDO'suz kamkat	Dried non GMO kumquats
+50534100	Kurutulmuş GDO'suz limon	Dried non GMO lemons
+50534200	Kurutulmuş GDO'suz misket limonu	Dried non GMO limes
+50534300	Kurutulmuş GDO'suz yenidünya	Dried non GMO loquats
+50534400	Kurutulmuş GDO'suz mandalina	Dried non GMO mandarin oranges or tangerines
+50534500	Kurutulmuş GDO'suz mango	Dried non GMO mangoes
+50534600	Kurutulmuş GDO'suz kavun	Dried non GMO melons
+50534700	Kurutulmuş GDO'suz dut	Dried non GMO mulberries
+50534800	Kurutulmuş GDO'suz mersin ve mumağacı meyvesi	Dried non GMO bayberries and myrtles
+50534900	Kurutulmuş GDO'suz nektarin	Dried non GMO nectarines
+50535000	Kurutulmuş GDO'suz portakal	Dried non GMO oranges
+50535100	Kurutulmuş GDO'suz papaya	Dried non GMO papayas
+50535200	Kurutulmuş GDO'suz çarkıfelek meyvesi	Dried non GMO passion fruits
+50535300	Kurutulmuş GDO'suz şeftali	Dried non GMO peaches
+50535400	Kurutulmuş GDO'suz armut	Dried non GMO pears
+50535500	Kurutulmuş GDO'suz Trabzon hurması	Dried non GMO persimmons
+50535600	Kurutulmuş GDO'suz ananas	Dried non GMO pineapples
+50535700	Kurutulmuş GDO'suz erik kayısı melezi	Dried non GMO plucots
+50535800	Kurutulmuş GDO'suz erik	Dried non GMO plums
+50535900	Kurutulmuş GDO'suz nar	Dried non GMO pomegranates
+50536000	Kurutulmuş GDO'suz pomelo	Dried non GMO pomelos
+50536100	Kurutulmuş GDO'suz ayva	Dried non GMO quinces
+50536200	Kurutulmuş GDO'suz ahududu	Dried non GMO raspberries
+50536300	Kurutulmuş GDO'suz ravent	Dried non GMO rhubarbs
+50536400	Kurutulmuş GDO'suz kuşburnu	Dried non GMO rose hips
+50536500	Kurutulmuş GDO'suz sapote	Dried non GMO sapotes
+50536600	Kurutulmuş GDO'suz saskatoon yemişi	Dried non GMO saskatoon berries
+50536700	Kurutulmuş GDO'suz çilek	Dried non GMO strawberries
+50536800	Kurutulmuş GDO'suz şeker elması	Dried non GMO sugar apples
+50536900	Kurutulmuş GDO'suz ağaç domatesi	Dried non GMO tamarillos
+50537000	Kurutulmuş GDO'suz adlandırılmış meyveler	Dried non GMO nominant fruits
+50537100	Kurutulmuş GDO'suz aronya	Dried non GMO chokeberries
+50537200	Kurutulmuş GDO'suz zeytin	Dried non GMO olives
+50541500	Dondurulmuş GDO'suz elma	Frozen non GMO apples
+50541600	Dondurulmuş GDO'suz kayısı	Frozen non GMO apricots
+50541700	Dondurulmuş GDO'suz muz	Frozen non GMO bananas
+50541800	Dondurulmuş GDO'suz kadıntuzluğu	Frozen non GMO barberries
+50541900	Dondurulmuş GDO'suz ayı üzümü	Frozen non GMO bearberries
+50542000	Dondurulmuş GDO'suz böğürtlen	Frozen non GMO blackberries
+50542100	Dondurulmuş GDO'suz çoban üzümü	Frozen non GMO bilberries
+50542200	Dondurulmuş GDO'suz yaban mersini	Frozen non GMO blueberries
+50542300	Dondurulmuş GDO'suz ekmek ağacı meyvesi	Frozen non GMO breadfruit
+50542400	Dondurulmuş GDO'suz kremalı elma	Frozen non GMO cherimoyas
+50542500	Dondurulmuş GDO'suz kiraz	Frozen non GMO cherries
+50542600	Dondurulmuş GDO'suz ağaç kavunu	Frozen non GMO citrons
+50542700	Dondurulmuş GDO'suz turna yemişi	Frozen non GMO cranberries
+50542800	Dondurulmuş GDO'suz frenk üzümü	Frozen non GMO currants
+50542900	Dondurulmuş GDO'suz hurma	Frozen non GMO dates
+50543000	Dondurulmuş GDO'suz ejder meyvesi	Frozen non GMO dragonfruits
+50543100	Dondurulmuş GDO'suz incir	Frozen non GMO figs
+50543200	Dondurulmuş GDO'suz bektaşi üzümü	Frozen non GMO gooseberries
+50543300	Dondurulmuş GDO'suz greyfurt	Frozen non GMO grapefruits
+50543400	Dondurulmuş GDO'suz sofralık üzüm	Frozen non GMO table grapes
+50543500	Dondurulmuş GDO'suz kuru üzümlük üzüm	Frozen non GMO raisin grapes
+50543600	Dondurulmuş GDO'suz şaraplık üzüm	Frozen non GMO wine grapes
+50543700	Dondurulmuş GDO'suz guava	Frozen non GMO guavas
+50543800	Dondurulmuş GDO'suz çalı yaban mersini	Frozen non GMO huckleberries
+50543900	Dondurulmuş GDO'suz kivi	Frozen non GMO kiwi fruits
+50544000	Dondurulmuş GDO'suz kamkat	Frozen non GMO kumquats
+50544400	Dondurulmuş GDO'suz mandalina	Frozen non GMO mandarin oranges or tangerines
+50544500	Dondurulmuş GDO'suz mango	Frozen non GMO mangoes
+50544600	Dondurulmuş GDO'suz kavun	Frozen non GMO melons
+50544700	Dondurulmuş GDO'suz dut	Frozen non GMO mulberries
+50544800	Dondurulmuş GDO'suz mersin ve mumağacı meyvesi	Frozen non GMO bayberries and myrtles
+50544900	Dondurulmuş GDO'suz nektarin	Frozen non GMO nectarines
+50545000	Dondurulmuş GDO'suz portakal	Frozen non GMO oranges
+50545100	Dondurulmuş GDO'suz papaya	Frozen non GMO papayas
+50545200	Dondurulmuş GDO'suz çarkıfelek meyvesi	Frozen non GMO passion fruits
+50545300	Dondurulmuş GDO'suz şeftali	Frozen non GMO peaches
+50545400	Dondurulmuş GDO'suz armut	Frozen non GMO pears
+50545500	Dondurulmuş GDO'suz Trabzon hurması	Frozen non GMO persimmons
+50545600	Dondurulmuş GDO'suz ananas	Frozen non GMO pineapples
+50545700	Dondurulmuş GDO'suz erik kayısı melezi	Frozen non GMO plucots
+50545800	Dondurulmuş GDO'suz erik	Frozen non GMO plums
+50545900	Dondurulmuş GDO'suz nar	Frozen non GMO pomegranates
+50546000	Dondurulmuş GDO'suz pomelo	Frozen non GMO pomelos
+50546100	Dondurulmuş GDO'suz ayva	Frozen non GMO quinces
+50546200	Dondurulmuş GDO'suz ahududu	Frozen non GMO raspberries
+50546300	Dondurulmuş GDO'suz ravent	Frozen non GMO rhubarbs
+50546400	Dondurulmuş GDO'suz kuşburnu	Frozen non GMO rose hips
+50546500	Dondurulmuş GDO'suz sapote	Frozen non GMO sapotes
+50546600	Dondurulmuş GDO'suz saskatoon yemişi	Frozen non GMO saskatoon berries
+50546700	Dondurulmuş GDO'suz çilek	Frozen non GMO strawberries
+50546800	Dondurulmuş GDO'suz şeker elması	Frozen non GMO sugar apples
+50546900	Dondurulmuş GDO'suz ağaç domatesi	Frozen non GMO tamarillos
+50547000	Dondurulmuş GDO'suz adlandırılmış meyveler	Frozen non GMO nominant fruits
+50547100	Dondurulmuş GDO'suz aronya	Frozen non GMO chokeberries
+50547200	Dondurulmuş GDO'suz zeytin	Frozen non GMO olives
+50551500	Konserve GDO'suz elma	Canned or jarred non GMO apples
+50551600	Konserve GDO'suz kayısı	Canned or jarred non GMO apricots
+50551700	Konserve GDO'suz muz	Canned or jarred non GMO bananas
+50551800	Konserve GDO'suz kadıntuzluğu	Canned or jarred non GMO barberries
+50551900	Konserve GDO'suz ayı üzümü	Canned or jarred non GMO bearberries
+50552000	Konserve GDO'suz böğürtlen	Canned or jarred non GMO blackberries
+50552100	Konserve GDO'suz çoban üzümü	Canned or jarred non GMO bilberries
+50552200	Konserve GDO'suz yaban mersini	Canned or jarred non GMO blueberries
+50552300	Konserve GDO'suz ekmek ağacı meyvesi	Canned or jarred non GMO breadfruits
+50552400	Konserve GDO'suz kremalı elma	Canned or jarred non GMO cherimoyas
+50552500	Konserve GDO'suz kiraz	Canned or jarred non GMO cherries
+50552600	Konserve GDO'suz ağaç kavunu	Canned or jarred non GMO citrons
+50552700	Konserve GDO'suz turna yemişi	Canned or jarred non GMO cranberries
+50552800	Konserve GDO'suz frenk üzümü	Canned or jarred non GMO currants
+50552900	Konserve GDO'suz hurma	Canned or jarred non GMO dates
+50553000	Konserve GDO'suz ejder meyvesi	Canned or jarred non GMO dragonfruits
+50553100	Konserve GDO'suz incir	Canned or jarred non GMO figs
+50553200	Konserve GDO'suz bektaşi üzümü	Canned or jarred non GMO gooseberries
+50553300	Konserve GDO'suz greyfurt	Canned or jarred non GMO grapefruits
+50553400	Konserve GDO'suz sofralık üzüm	Canned or jarred non GMO table grapes
+50553500	Konserve GDO'suz kuru üzümlük üzüm	Canned or jarred non GMO raisin grapes
+50553600	Konserve GDO'suz şaraplık üzüm	Canned or jarred non GMO wine grapes
+50553700	Konserve GDO'suz guava	Canned or jarred non GMO guavas
+50553800	Konserve GDO'suz çalı yaban mersini	Canned or jarred non GMO huckleberries
+50553900	Konserve GDO'suz kivi	Canned or jarred non GMO kiwi fruits
+50554000	Konserve GDO'suz kamkat	Canned or jarred non GMO kumquats
+50554100	Konserve GDO'suz limon	Canned or jarred non GMO lemons
+50554200	Konserve GDO'suz misket limonu	Canned or jarred non GMO limes
+50554300	Konserve GDO'suz yenidünya	Canned or jarred non GMO loquats
+50554400	Konserve GDO'suz mandalina	Canned or jarred non GMO mandarin oranges or tangerines
+50554500	Konserve GDO'suz mango	Canned or jarred non GMO mangoes
+50554600	Konserve GDO'suz kavun	Canned or jarred non GMO melons
+50554700	Konserve GDO'suz dut	Canned or jarred non GMO mulberries
+50554800	Konserve GDO'suz mersin ve mumağacı meyvesi	Canned or jarred non GMO bayberries and myrtles
+50554900	Konserve GDO'suz nektarin	Canned or jarred non GMO nectarines
+50555000	Konserve GDO'suz portakal	Canned or jarred non GMO oranges
+50555100	Konserve GDO'suz papaya	Canned or jarred non GMO papayas
+50555200	Konserve GDO'suz çarkıfelek meyvesi	Canned or jarred non GMO passion fruits
+50555300	Konserve GDO'suz şeftali	Canned or jarred non GMO peaches
+50555400	Konserve GDO'suz armut	Canned or jarred non GMO pears
+50555500	Konserve GDO'suz Trabzon hurması	Canned or jarred non GMO persimmons
+50555600	Konserve GDO'suz ananas	Canned or jarred non GMO pineapples
+50555700	Konserve GDO'suz erik kayısı melezi	Canned or jarred non GMO plucots
+50555800	Konserve GDO'suz erik	Canned or jarred non GMO plums
+50555900	Konserve GDO'suz nar	Canned or jarred non GMO pomegranates
+50556000	Konserve GDO'suz pomelo	Canned or jarred non GMO pomelos
+50556100	Konserve GDO'suz ayva	Canned or jarred non GMO quinces
+50556200	Konserve GDO'suz ahududu	Canned or jarred non GMO raspberries
+50556300	Konserve GDO'suz ravent	Canned or jarred non GMO rhubarbs
+50556400	Konserve GDO'suz kuşburnu	Canned or jarred non GMO rose hips
+50556500	Konserve GDO'suz sapote	Canned or jarred non GMO sapotes
+50556600	Konserve GDO'suz saskatoon yemişi	Canned or jarred non GMO saskatoon berries
+50556700	Konserve GDO'suz çilek	Canned or jarred non GMO strawberries
+50556800	Konserve GDO'suz şeker elması	Canned or jarred non GMO sugar apples
+50556900	Konserve GDO'suz ağaç domatesi	Canned or jarred non GMO tamarillos
+50557000	Konserve GDO'suz adlandırılmış meyveler	Canned or jarred non GMO nominant fruits
+50557100	Konserve GDO'suz aronya	Canned or jarred non GMO chokeberries
+50557200	Konserve GDO'suz zeytin	Canned or jarred non GMO olives
+50561500	GDO'suz elma püresi	Non GMO apple purees
+50561600	GDO'suz kayısı püresi	Non GMO apricot purees
+50561700	GDO'suz muz püresi	Non GMO banana purees
+50561800	GDO'suz kadıntuzluğu püresi	Non GMO barberry purees
+50561900	GDO'suz böğürtlen püresi	Non GMO blackberry purees
+50562000	GDO'suz çoban üzümü püresi	Non GMO billberry purees
+50562100	GDO'suz yaban mersini püresi	Non GMO blueberry purees
+50562200	GDO'suz ekmek ağacı meyvesi püresi	Non GMO breadfruit purees
+50562300	GDO'suz kremalı elma püresi	Non GMO cherimoya purees
+50562400	GDO'suz kiraz püresi	Non GMO cherry purees
+50562500	GDO'suz ağaç kavunu püresi	Non GMO citron purees
+50562600	GDO'suz turna yemişi püresi	Non GMO cranberry purees
+50562700	GDO'suz frenk üzümü püresi	Non GMO currant purees
+50562800	GDO'suz hurma püresi	Non GMO date purees
+50562900	GDO'suz incir püresi	Non GMO fig purees
+50563000	GDO'suz bektaşi üzümü püresi	Non GMO gooseberry purees
+50563100	GDO'suz greyfurt püresi	Non GMO grapefruit purees
+50563200	GDO'suz sofralık üzüm püresi	Non GMO table grape purees
+50563300	GDO'suz şaraplık üzüm püresi	Non GMO wine grape purees
+50563500	GDO'suz guava püresi	Non GMO guava purees
+50563600	GDO'suz çalı yaban mersini püresi	Non GMO huckleberry purees
+50563700	GDO'suz kivi püresi	Non GMO kiwi fruit purees
+50563800	GDO'suz kamkat püresi	Non GMO kumquat purees
+50563900	GDO'suz limon püresi	Non GMO lemon purees
+50564000	GDO'suz misket limonu püresi	Non GMO lime purees
+50564100	GDO'suz yenidünya püresi	Non GMO loquat purees
+50564200	GDO'suz gDO'suz mandalina püresi	Non GMO mandarin oranges or Non GMO tangerine purees
+50564300	GDO'suz tanjelo püresi	Non GMO tangelo purees
+50564400	GDO'suz mango püresi	Non GMO mango purees
+50564500	GDO'suz kavun püresi	Non GMO melon purees
+50564600	GDO'suz dut püresi	Non GMO mulberry purees
+50564700	GDO'suz mersin ve mumağacı meyvesi püresi	Non GMO bayberry and myrtle purees
+50564800	GDO'suz nektarin püresi	Non GMO nectarine purees
+50564900	GDO'suz portakal püresi	Non GMO orange purees
+50565000	GDO'suz papaya püresi	Non GMO papaya purees
+50565100	GDO'suz çarkıfelek meyvesi püresi	Non GMO passion fruit purees
+50565200	GDO'suz şeftali püresi	Non GMO peach purees
+50565300	GDO'suz armut püresi	Non GMO pear purees
+50565400	GDO'suz Trabzon hurması püresi	Non GMO persimmon purees
+50565500	GDO'suz ananas püresi	Non GMO pineapple purees
+50565600	GDO'suz erik kayısı melezi püresi	Non GMO plucot purees
+50565700	GDO'suz erik püresi	Non GMO plum purees
+50565800	GDO'suz nar püresi	Non GMO pommegranate purees
+50565900	GDO'suz pomelo püresi	Non GMO pomelo purees
+50566000	GDO'suz ayva püresi	Non GMO quince purees
+50566100	GDO'suz ahududu püresi	Non GMO raspberry purees
+50566200	GDO'suz ravent püresi	Non GMO rhubarb purees
+50566300	GDO'suz kuşburnu püresi	Non GMO rose hip purees
+50566400	GDO'suz sapote püresi	Non GMO sapote purees
+50566500	GDO'suz saskatoon yemişi püresi	Non GMO saskatoon berry purees
+50566600	GDO'suz çilek püresi	Non GMO strawberry purees
+50566700	GDO'suz şeker elması püresi	Non GMO sugar apple purees
+50566800	GDO'suz ağaç domatesi püresi	Non GMO tamarillo purees
+50566900	Adlandırılmış GDO'suz meyve püresi	Nominant Non GMO fruit purees
+50567000	GDO'suz aronya püresi	Non GMO chokeberry purees
+50567100	GDO'suz zeytin püresi	Non GMO olive purees
+50567200	GDO'suz ayı üzümü püresi	Non GMO bearberry purees
+50567300	GDO'suz ejder meyvesi püresi	Non GMO dragonfruit purees
+50581500	GDO'suz enginar	Non GMO artichokes
+50581600	GDO'suz kuşkonmaz	Non GMO asparagus
+50581700	GDO'suz avokado	Non GMO avocados
+50581800	GDO'suz fasulye	Non GMO beans
+50581900	GDO'suz pancar	Non GMO beets
+50582000	GDO'suz brokoli	Non GMO broccoli
+50582100	GDO'suz brüksel lahanası	Non GMO brussel sprouts
+50582200	GDO'suz taze soğan	Non GMO bunching onions
+50582300	GDO'suz lahana	Non GMO cabbages
+50582400	GDO'suz yabani enginar	Non GMO cardoons
+50582500	GDO'suz havuç	Non GMO carrots
+50582600	GDO'suz karnabahar	Non GMO cauliflowers
+50582700	GDO'suz kereviz	Non GMO celery
+50582800	GDO'suz pazı	Non GMO chards
+50582900	GDO'suz hindiba	Non GMO chicories
+50583000	GDO'suz Çin lahanası	Non GMO chinese cabbages
+50583100	GDO'suz frenk soğanı	Non GMO chives
+50583200	GDO'suz tere	Non GMO cresses
+50583300	GDO'suz salatalık	Non GMO cucumbers
+50583400	GDO'suz patlıcan	Non GMO eggplants
+50583500	GDO'suz endivya	Non GMO endives
+50583600	GDO'suz rezene	Non GMO fennels
+50583700	GDO'suz sarımsak	Non GMO garlics
+50583800	GDO'suz su kabağı	Non GMO gourds
+50583900	GDO'suz yeşil bezelye	Non GMO green peas
+50584000	GDO'suz aromatik ot	Non GMO herbs
+50584100	GDO'suz kara lahana	Non GMO kale
+50584200	GDO'suz alabaş	Non GMO kohlrabi
+50584300	GDO'suz pırasa	Non GMO leeks
+50584400	GDO'suz mercimek	Non GMO lentils
+50584500	GDO'suz marul	Non GMO lettuces
+50584600	GDO'suz malanga	Non GMO malanga
+50584700	GDO'suz mantar	Non GMO mushrooms
+50584800	GDO'suz hardal otu	Non GMO mustards
+50584900	GDO'suz patlıcangiller	Non GMO nightshades
+50585000	GDO'suz bamya	Non GMO okras
+50585100	GDO'suz soğan	Non GMO onions
+50585200	GDO'suz yer fıstığı	Non GMO peanuts
+50585300	GDO'suz bezelye	Non GMO peas
+50585400	GDO'suz biber	Non GMO peppers
+50585500	GDO'suz patates	Non GMO potatoes
+50585600	GDO'suz İsveç şalgamı	Non GMO rutabagas
+50585700	GDO'suz deniz sebzesi	Non GMO sea vegetables
+50585800	GDO'suz arpacık soğanı	Non GMO shallots
+50585900	GDO'suz kuzukulağı	Non GMO sorrels
+50586000	GDO'suz ıspanak	Non GMO spinaches
+50586100	GDO'suz yazlık kabak	Non GMO summer squashes and summer pumpkins
+50586200	GDO'suz tatlı patates	Non GMO sweet potatoes
+50586300	GDO'suz domates	Non GMO tomatoes
+50586400	GDO'suz şalgam yaprağı	Non GMO turnip greens
+50586500	GDO'suz kışlık kabak	Non GMO winter squashes and winter pumpkins
+50586600	GDO'suz yam kökü	Non GMO yams
+50586700	GDO'suz mısır	Non GMO corn
+50586800	Adlandırılmış GDO'suz sebzeler	Nominant Non GMO vegetables
+50586900	GDO'suz şeker bezelyesi	Non GMO sugar peas
+50591500	Kurutulmuş GDO'suz enginar	Dried Non GMO artichokes
+50591600	Kurutulmuş GDO'suz kuşkonmaz	Dried Non GMO asparagus
+50591700	Kurutulmuş GDO'suz avokado	Dried Non GMO avocados
+50591800	Kurutulmuş GDO'suz fasulye	Dried Non GMO beans
+50591900	Kurutulmuş GDO'suz pancar	Dried Non GMO beets
+50592000	Kurutulmuş GDO'suz brokoli	Dried Non GMO broccoli
+50592100	Kurutulmuş GDO'suz brüksel lahanası	Dried Non GMO brussel sprouts
+50592200	Kurutulmuş GDO'suz taze soğan	Dried Non GMO bunching onions
+50592300	Kurutulmuş GDO'suz lahana	Dried Non GMO cabbages
+50592400	Kurutulmuş GDO'suz yabani enginar	Dried Non GMO cardoons
+50592500	Kurutulmuş GDO'suz havuç	Dried Non GMO carrots
+50592600	Kurutulmuş GDO'suz karnabahar	Dried Non GMO cauliflowers
+50592700	Kurutulmuş GDO'suz kereviz	Dried Non GMO celery
+50592800	Kurutulmuş GDO'suz pazı	Dried Non GMO chards
+50592900	Kurutulmuş GDO'suz hindiba	Dried Non GMO chicories
+50593000	Kurutulmuş GDO'suz Çin lahanası	Dried Non GMO chinese cabbages
+50593100	Kurutulmuş GDO'suz frenk soğanı	Dried Non GMO chives
+50593200	Kurutulmuş GDO'suz mısır	Dried Non GMO corn
+50593300	Kurutulmuş GDO'suz tere	Dried Non GMO cresses
+50593400	Kurutulmuş GDO'suz salatalık	Dried Non GMO cucumbers
+50593500	Kurutulmuş GDO'suz patlıcan	Dried Non GMO eggplants
+50593600	Kurutulmuş GDO'suz endivya	Dried Non GMO endives
+50593700	Kurutulmuş GDO'suz rezene	Dried Non GMO fennels
+50593800	Kurutulmuş GDO'suz sarımsak	Dried Non GMO garlics
+50593900	Kurutulmuş GDO'suz su kabağı	Dried Non GMO gourds
+50594000	Kurutulmuş GDO'suz yeşil bezelye	Dried Non GMO green peas
+50594100	Kurutulmuş GDO'suz aromatik ot	Dried Non GMO herbs
+50594200	Kurutulmuş GDO'suz kara lahana	Dried Non GMO kale
+50594300	Kurutulmuş GDO'suz alabaş	Dried Non GMO kohlrabi
+50594400	Kurutulmuş GDO'suz pırasa	Dried Non GMO leeks
+50594500	Kurutulmuş GDO'suz mercimek	Dried Non GMO lentils
+50594600	Kurutulmuş GDO'suz marul	Dried Non GMO lettuces
+50594700	Kurutulmuş GDO'suz malanga	Dried Non GMO malanga
+50594800	Kurutulmuş GDO'suz mantar	Dried Non GMO mushrooms
+50594900	Kurutulmuş GDO'suz hardal otu	Dried Non GMO mustards
+50595000	Kurutulmuş GDO'suz patlıcangiller	Dried Non GMO nightshades
+50595100	Kurutulmuş GDO'suz bamya	Dried Non GMO okras
+50595200	Kurutulmuş GDO'suz soğan	Dried Non GMO onions
+50595300	Kurutulmuş GDO'suz yer fıstığı	Dried Non GMO peanuts
+50595400	Kurutulmuş GDO'suz bezelye	Dried Non GMO peas
+50595500	Kurutulmuş GDO'suz biber	Dried Non GMO peppers
+50595600	Kurutulmuş GDO'suz patates	Dried Non GMO potatoes
+50595700	Kurutulmuş GDO'suz İsveç şalgamı	Dried Non GMO rutabagas
+50595800	Kurutulmuş GDO'suz deniz sebzesi	Dried Non GMO sea vegetables
+50595900	Kurutulmuş GDO'suz arpacık soğanı	Dried Non GMO shallots
+50596000	Kurutulmuş GDO'suz kuzukulağı	Dried Non GMO sorrels
+50596100	Kurutulmuş GDO'suz ıspanak	Dried Non GMO spinaches
+50596200	Kurutulmuş GDO'suz yazlık kabak	Dried Non GMO summer squashes and summer pumpkins
+50596300	Kurutulmuş GDO'suz tatlı patates	Dried Non GMO sweet potatoes
+50596400	Kurutulmuş GDO'suz domates	Dried Non GMO tomatoes
+50596500	Kurutulmuş GDO'suz şalgam yaprağı	Dried Non GMO turnip greens
+50596600	Kurutulmuş GDO'suz kışlık kabak	Dried Non GMO winter squashes and winter pumpkins
+50596700	Kurutulmuş GDO'suz yam kökü	Dried Non GMO yams
+50596800	Kurutulmuş GDO'suz adlandırılmış sebzeler	Dried Non GMO nominant vegetables
+50596900	Kurutulmuş GDO'suz şeker bezelyesi	Dried Non GMO sugar peas
+50601500	Dondurulmuş GDO'suz enginar	Frozen Non GMO artichokes
+50601600	Dondurulmuş GDO'suz kuşkonmaz	Frozen Non GMO asparagus
+50601700	Dondurulmuş GDO'suz avokado	Frozen Non GMO avocados
+50601800	Dondurulmuş GDO'suz fasulye	Frozen Non GMO beans
+50601900	Dondurulmuş GDO'suz pancar	Frozen Non GMO beets
+50602000	Dondurulmuş GDO'suz brokoli	Frozen Non GMO broccoli
+50602100	Dondurulmuş GDO'suz brüksel lahanası	Frozen Non GMO brussel sprouts
+50602200	Dondurulmuş GDO'suz taze soğan	Frozen Non GMO bunching onions
+50602300	Dondurulmuş GDO'suz lahana	Frozen Non GMO cabbages
+50602400	Dondurulmuş GDO'suz yabani enginar	Frozen Non GMO cardoons
+50602500	Dondurulmuş GDO'suz havuç	Frozen Non GMO carrots
+50602600	Dondurulmuş GDO'suz karnabahar	Frozen Non GMO cauliflowers
+50602700	Dondurulmuş GDO'suz kereviz	Frozen Non GMO celery
+50602800	Dondurulmuş GDO'suz pazı	Frozen Non GMO chards
+50602900	Dondurulmuş GDO'suz hindiba	Frozen Non GMO chicories
+50603000	Dondurulmuş GDO'suz Çin lahanası	Frozen Non GMO chinese cabbages
+50603100	Dondurulmuş GDO'suz frenk soğanı	Frozen Non GMO chives
+50603200	Dondurulmuş GDO'suz mısır	Frozen Non GMO corn
+50603300	Dondurulmuş GDO'suz tere	Frozen Non GMO cresses
+50603400	Dondurulmuş GDO'suz salatalık	Frozen Non GMO cucumbers
+50603500	Dondurulmuş GDO'suz patlıcan	Frozen Non GMO eggplants
+50603600	Dondurulmuş GDO'suz endivya	Frozen Non GMO endives
+50603700	Dondurulmuş GDO'suz rezene	Frozen Non GMO fennels
+50603800	Dondurulmuş GDO'suz sarımsak	Frozen Non GMO garlics
+50603900	Dondurulmuş GDO'suz su kabağı	Frozen Non GMO gourds
+50604000	Dondurulmuş GDO'suz yeşil bezelye	Frozen Non GMO green peas
+50604100	Dondurulmuş GDO'suz aromatik ot	Frozen Non GMO herbs
+50604200	Dondurulmuş GDO'suz kara lahana	Frozen Non GMO kale
+50604300	Dondurulmuş GDO'suz alabaş	Frozen Non GMO kohlrabi
+50604400	Dondurulmuş GDO'suz pırasa	Frozen Non GMO leeks
+50604500	Dondurulmuş GDO'suz mercimek	Frozen Non GMO lentils
+50604600	Dondurulmuş GDO'suz marul	Frozen Non GMO lettuces
+50604700	Dondurulmuş GDO'suz malanga	Frozen Non GMO malanga
+50604800	Dondurulmuş GDO'suz mantar	Frozen Non GMO mushrooms
+50604900	Dondurulmuş GDO'suz hardal otu	Frozen Non GMO mustards
+50605000	Dondurulmuş GDO'suz patlıcangiller	Frozen Non GMO nightshades
+50605100	Dondurulmuş GDO'suz bamya	Frozen Non GMO okras
+50605200	Dondurulmuş GDO'suz soğan	Frozen Non GMO onions
+50605300	Dondurulmuş GDO'suz yer fıstığı	Frozen Non GMO peanuts
+50605400	Dondurulmuş GDO'suz bezelye	Frozen Non GMO peas
+50605500	Dondurulmuş GDO'suz biber	Frozen Non GMO peppers
+50605600	Dondurulmuş GDO'suz patates	Frozen Non GMO potatoes
+50605700	Dondurulmuş GDO'suz İsveç şalgamı	Frozen Non GMO rutabagas
+50605800	Dondurulmuş GDO'suz deniz sebzesi	Frozen Non GMO sea vegetables
+50605900	Dondurulmuş GDO'suz arpacık soğanı	Frozen Non GMO shallots
+50606000	Dondurulmuş GDO'suz kuzukulağı	Frozen Non GMO sorrels
+50606100	Dondurulmuş GDO'suz ıspanak	Frozen Non GMO spinaches
+50606200	Dondurulmuş GDO'suz yazlık kabak	Frozen Non GMO summer squashes and summer pumpkins
+50606300	Dondurulmuş GDO'suz tatlı patates	Frozen Non GMO sweet potatoes
+50606400	Dondurulmuş GDO'suz domates	Frozen Non GMO tomatoes
+50606500	Dondurulmuş GDO'suz şalgam yaprağı	Frozen Non GMO turnip greens
+50606600	Dondurulmuş GDO'suz kışlık kabak	Frozen Non GMO winter squashes and winter pumpkins
+50606700	Dondurulmuş GDO'suz yam kökü	Frozen Non GMO yams
+50606800	Dondurulmuş GDO'suz adlandırılmış sebzeler	Frozen Non GMO nominant vegetables
+50606900	Dondurulmuş GDO'suz şeker bezelyesi	Frozen Non GMO sugar peas
+50611500	Konserve GDO'suz enginar	Canned or jarred Non GMO artichokes
+50611600	Konserve GDO'suz kuşkonmaz	Canned or jarred Non GMO asparagus
+50611700	Konserve GDO'suz avokado	Canned or jarred Non GMO avocados
+50611800	Konserve GDO'suz fasulye	Canned or jarred Non GMO beans
+50611900	Konserve GDO'suz pancar	Canned or jarred Non GMO beets
+50612000	Konserve GDO'suz brokoli	Canned or jarred Non GMO broccoli
+50612100	Konserve GDO'suz brüksel lahanası	Canned or jarred Non GMO brussel sprouts
+50612200	Konserve GDO'suz taze soğan	Canned or jarred Non GMO bunching onions
+50612300	Konserve GDO'suz lahana	Canned or jarred Non GMO cabbages
+50612400	Konserve GDO'suz yabani enginar	Canned or jarred Non GMO cardoons
+50612500	Konserve GDO'suz havuç	Canned or jarred Non GMO carrots
+50612600	Konserve GDO'suz karnabahar	Canned or jarred Non GMO cauliflowers
+50612700	Konserve GDO'suz kereviz	Canned or jarred Non GMO celery
+50612800	Konserve GDO'suz pazı	Canned or jarred Non GMO chards
+50612900	Konserve GDO'suz hindiba	Canned or jarred Non GMO chicories
+50613000	Konserve GDO'suz Çin lahanası	Canned or jarred Non GMO chinese cabbages
+50613100	Konserve GDO'suz frenk soğanı	Canned or jarred Non GMO chives
+50613200	Konserve GDO'suz mısır	Canned or jarred Non GMO corn
+50613300	Konserve GDO'suz tere	Canned or jarred Non GMO cresses
+50613400	Konserve GDO'suz salatalık	Canned or jarred Non GMO cucumbers
+50613500	Konserve GDO'suz patlıcan	Canned or jarred Non GMO eggplants
+50613600	Konserve GDO'suz endivya	Canned or jarred Non GMO endives
+50613700	Konserve GDO'suz rezene	Canned or jarred Non GMO fennels
+50613800	Konserve GDO'suz sarımsak	Canned or jarred Non GMO garlics
+50613900	Konserve GDO'suz su kabağı	Canned or jarred Non GMO gourds
+50614000	Konserve GDO'suz yeşil bezelye	Canned or jarred Non GMO green peas
+50614100	Konserve GDO'suz aromatik ot	Canned or jarred Non GMO herbs
+50614200	Konserve GDO'suz kara lahana	Canned or jarred Non GMO kale
+50614300	Konserve GDO'suz alabaş	Canned or jarred Non GMO kohlrabi
+50614400	Konserve GDO'suz pırasa	Canned or jarred Non GMO leeks
+50614500	Konserve GDO'suz mercimek	Canned or jarred Non GMO lentils
+50614600	Konserve GDO'suz marul	Canned or jarred Non GMO lettuces
+50614700	Konserve GDO'suz malanga	Canned or jarred Non GMO malanga
+50614800	Konserve GDO'suz mantar	Canned or jarred Non GMO mushrooms
+50614900	Konserve GDO'suz hardal otu	Canned or jarred Non GMO mustards
+50615000	Konserve GDO'suz patlıcangiller	Canned or jarred Non GMO nightshades
+50615100	Konserve GDO'suz bamya	Canned or jarred Non GMO okras
+50615200	Konserve GDO'suz soğan	Canned or jarred Non GMO onions
+50615300	Konserve GDO'suz yer fıstığı	Canned or jarred Non GMO peanuts
+50615400	Konserve GDO'suz bezelye	Canned or jarred Non GMO peas
+50615500	Konserve GDO'suz biber	Canned or jarred Non GMO peppers
+50615600	Konserve GDO'suz patates	Canned or jarred Non GMO potatoes
+50615700	Konserve GDO'suz İsveç şalgamı	Canned or jarred Non GMO rutabagas
+50615800	Konserve GDO'suz deniz sebzesi	Canned or jarred Non GMO sea vegetables
+50615900	Konserve GDO'suz arpacık soğanı	Canned or jarred Non GMO shallots
+50616000	Konserve GDO'suz kuzukulağı	Canned or jarred Non GMO sorrels
+50616100	Konserve GDO'suz ıspanak	Canned or jarred Non GMO spinaches
+50616200	Konserve GDO'suz yazlık kabak	Canned or jarred Non GMO summer squashes and summer pumpkins
+50616300	Konserve GDO'suz tatlı patates	Canned or jarred Non GMO sweet potatoes
+50616400	Konserve GDO'suz domates	Canned or jarred Non GMO tomatoes
+50616500	Konserve GDO'suz şalgam yaprağı	Canned or jarred Non GMO turnip greens
+50616600	Konserve GDO'suz kışlık kabak	Canned or jarred Non GMO winter squashes and winter pumpkins
+50616700	Konserve GDO'suz yam kökü	Canned or jarred Non GMO yams
+50616800	Konserve GDO'suz adlandırılmış sebzeler	Canned or jarred Non GMO nominant vegetables
+50616900	Konserve GDO'suz şeker bezelyesi	Canned or jarred Non GMO sugar peas
+50621500	GDO'suz enginar püresi	Non GMO artichoke purees
+50621600	GDO'suz kuşkonmaz püresi	Non GMO asparagus purees
+50621700	GDO'suz avokado püresi	Non GMO avocado purees
+50621800	GDO'suz fasulye püresi	Non GMO bean purees
+50621900	GDO'suz pancar püresi	Non GMO beet purees
+50622000	GDO'suz brokoli püresi	Non GMO broccoli purees
+50622100	GDO'suz brüksel lahanası püresi	Non GMO brussel sprout purees
+50622200	GDO'suz taze soğan püresi	Non GMO bunching onion purees
+50622300	GDO'suz lahana püresi	Non GMO cabbage purees
+50622400	GDO'suz yabani enginar püresi	Non GMO cardoon purees
+50622500	GDO'suz havuç püresi	Non GMO carrot purees
+50622600	GDO'suz karnabahar püresi	Non GMO cauliflower purees
+50622700	GDO'suz kereviz püresi	Non GMO celery purees
+50622800	GDO'suz pazı püresi	Non GMO chard purees
+50622900	GDO'suz hindiba püresi	Non GMO chicory purees
+50623000	GDO'suz Çin lahanası püresi	Non GMO chinese cabbage purees
+50623100	GDO'suz frenk soğanı püresi	Non GMO chive purees
+50623200	GDO'suz tere püresi	Non GMO cress purees
+50623300	GDO'suz salatalık püresi	Non GMO cucumber purees
+50623400	GDO'suz patlıcan püresi	Non GMO eggplant purees
+50623500	GDO'suz endivya püresi	Non GMO endive purees
+50623600	GDO'suz rezene püresi	Non GMO fennel purees
+50623700	GDO'suz sarımsak püresi	Non GMO garlic purees
+50623800	GDO'suz su kabağı püresi	Non GMO gourd purees
+50623900	GDO'suz yeşil bezelye püresi	Non GMO green pea purees
+50624000	GDO'suz aromatik ot püresi	Non GMO herb purees
+50624100	GDO'suz kara lahana püresi	Non GMO kale purees
+50624200	GDO'suz alabaş püresi	Non GMO kohlrabi purees
+50624300	GDO'suz pırasa püresi	Non GMO leek purees
+50624400	GDO'suz mercimek püresi	Non GMO lentil purees
+50624500	GDO'suz marul püresi	Non GMO lettuce purees
+50624600	GDO'suz malanga püresi	Non GMO malanga purees
+50624700	GDO'suz mantar püresi	Non GMO mushroom purees
+50624800	GDO'suz hardal otu püresi	Non GMO mustard purees
+50624900	GDO'suz patlıcangiller püresi	Non GMO nightshade purees
+50625000	GDO'suz bamya püresi	Non GMO okra purees
+50625100	GDO'suz soğan püresi	Non GMO onion purees
+50625200	GDO'suz yer fıstığı püresi	Non GMO peanut purees
+50625300	GDO'suz bezelye püresi	Non GMO pea purees
+50625400	GDO'suz biber püresi	Non GMO pepper purees
+50625500	GDO'suz patates püresi	Non GMO potato purees
+50625600	GDO'suz İsveç şalgamı püresi	Non GMO rutabaga purees
+50625700	GDO'suz deniz sebzesi püresi	Non GMO sea vegetable purees
+50625800	GDO'suz arpacık soğanı püresi	Non GMO shallot purees
+50625900	GDO'suz kuzukulağı püresi	Non GMO sorrel purees
+50626000	GDO'suz ıspanak püresi	Non GMO spinach purees
+50626100	GDO'suz yazlık kabak püresi	Non GMO summer squash and summer pumpkin purees
+50626200	GDO'suz tatlı patates püresi	Non GMO sweet potato purees
+50626300	GDO'suz domates püresi	Non GMO tomato purees
+50626400	GDO'suz şalgam yaprağı püresi	Non GMO turnip green purees
+50626500	GDO'suz kışlık kabak püresi	Non GMO winter squash and winter pumpkin purees
+50626600	GDO'suz yam kökü püresi	Non GMO yam purees
+50626700	GDO'suz mısır püresi	Non GMO corn purees
+50626800	GDO'suz adlandırılmış sebze püresi	Non GMO nominant vegetable purees
+50626900	GDO'suz şeker bezelyesi püresi	Non GMO sugar pea purees
+50630100	Standart	Regular
+50630200	Organik	Organic
+50630300	GDO'suz	Non-GMO
