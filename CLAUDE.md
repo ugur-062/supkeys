@@ -174,7 +174,7 @@ hesap ASLA kilitlenmemeli.
 - `<RequireAuth>` / `<RequireAdminAuth>` / `<RequireSupplierAuth>` boundary
 - Component yolu: `@/components/{ui,brand,providers,dashboard,tenders,orders}/*`
 - **Değerlendirmeler firma bazında gruplu (2026-08-22):** `ReviewSummary` (shared) — genel puan = ortak ortalamalarının ortalaması (her firma bir oy); her ortak tek satır; ad yalnız `CompanyReview.showName` opt-in + platform içi (`revealNames`), herkese açık `/firma/[slug]`'da ASLA ("Doğrulanmış alıcı/tedarikçi"). Tek yardımcı `company-reviews/review-summary.ts` (public-profile + connections + reviews/company aynı). Değerlendirme kartında "Firma adım referans olarak görünsün" kutusu (varsayılan kapalı).
-- **Profilim = yerinde düzenleme (2026-08-22):** `ProfileEditor` + `CompanyProfileView` `edit` slotları (public görünümle tek düzen); görseller `lib/image-resize` ile tarayıcıda küçültülür; logo/kapak/galeri anahtarları her yüklemede benzersiz (R2 object-lock 409 + önbellek). Görsellerin `pub-*.r2.dev` yerine `cdn.rothern.com`'dan servis edilmesi için `scripts/migrate-public-images.ts` (r2.dev TR'de engelli).
+- **Profilim = yerinde düzenleme (2026-08-22):** `ProfileEditor` + `CompanyProfileView` `edit` slotları (public görünümle tek düzen); görseller `lib/image-resize` ile tarayıcıda küçültülür; logo/kapak/galeri anahtarları her yüklemede benzersiz (R2 object-lock 409 + önbellek). Görsellerin `pub-*.r2.dev` yerine `cdn.rothern.com`'dan servis edilmesi için `scripts/migrate-public-images.ts`. **DÜZELTME 2026-09-03:** r2.dev'in yanıtsız kalması coğrafi engel DEĞİL — o bucket'ın Public Development URL ayarı KAPALI (Cloudflare panelinde doğrulandı). Kalıcı çözüm yine custom domain.
 - API çağrıları: `useMutation` / `useQuery` (TanStack Query) + axios instance
 - **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ; XSS'e kapalı). Zustand persist YALNIZ UI snapshot'ı tutar (`user`/`company`), token DEĞİL — persist key'leri `rothern-company-auth` (web) + `rothern-admin-auth` (admin); remember→localStorage, aksi→sessionStorage. Kimlik `/me` ile doğrulanır. Mutating isteklerde CSRF double-submit (`rk_csrf`/`rk_admin_csrf` → `X-CSRF-Token`). **Kayan oturum:** AuthCookieInterceptor her istekte token ömrünün yarısı geçtiyse taze token basar (CSRF değeri korunur) — aktif kullanıcı düşmez, `JWT_EXPIRES_IN` (prod: 7d olmalı) kadar inaktif kalan düşer; "Oturumumu açık bırak" `persistent` claim'iyle taşınır.
 
@@ -710,6 +710,25 @@ Giriş YAPMAMIŞ ziyaretçiye açık ilan/talep vitrini + firma dizini.
 `api.rothern.com/api/public/listings` adresini bilen veriye ulaşırdı. Yalnız
 web açılırsa pazar yeri BOŞ görünür — görünür ve teşhis edilebilir bir hata,
 sessiz sızıntının tersi. Env yoksa KAPALI; yalnız tam olarak `"true"` açar.
+
+### GÖRÜNÜRLÜK ≠ İNDEKSLENME (2026-09-03)
+
+Ürün sayfası (`/firma/<slug>/urun/<slug>`) önce pazar yeri anahtarına
+bağlanmıştı. Sonuç: panel "vitrinde yayımlandı" diyor, verdiği bağlantı
+**404**. Kullanıcı bunu canlıda buldu.
+
+Ayrım şu: ürün, firmanın **zaten herkese açık** olan profilinin ALTINDA
+yaşıyor — görünürlüğü profil kapısına bağlıdır (`publicProductWhere`).
+Anahtarın koruduğu şey **indekslenmedir**, görünürlük değil:
+
+| Yüzey | Pazar yeri anahtarı |
+|-------|---------------------|
+| `/firma/<slug>` profil · `:slug/products` · tekil ürün sayfası | ❌ tabi değil |
+| Ürün **sitemap**'i · `/urunler` dizini · `/public/products*` | ✅ tabi |
+| Ürün sayfasının `robots` etiketi | anahtar kapalıyken `noindex, follow` |
+
+Sözleşme: `public-product.spec.ts` guard metadatasını okur — firma-altı uçlarda
+`MarketplaceLiveGuard` OLMAMALI, sitemap'te OLMALI.
 
 `/public/companies/:slug` ve `/public/companies/sitemap` anahtara TABİ DEĞİL —
 public profil özelliği pazar yerinden eskidir, onu kapatmak var olan bir

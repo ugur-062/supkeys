@@ -11,19 +11,47 @@
 
 Kod tarafı HAZIR ve testli; bu üçü panel/DNS erişimi ister.
 
-### 0a. `cdn.rothern.com` — Cloudflare custom domain · **ürün görsellerini bu bekliyor**
+### 0a. Görseller — İKİ BUCKET birleşmiş durumda · **tek eksik env**
 
-`R2_PUBLIC_BASE_URL` yoksa görsel yükleme **fail-closed** (bilinçli): ürün
-vitrini yayın için en az 1 görsel istiyor, yani bu adım kapanmadan hiçbir ürün
-yayımlanamaz. `pub-*.r2.dev` TR'de engelli olduğu için custom domain
-ZORUNLU — `docs/launch-checklist.md` § R2/CDN.
+**Teşhis düzeltmesi (2026-09-03, kullanıcı Cloudflare panelinde doğruladı):**
+`cdn.rothern.com` ZATEN BAĞLI — `rothern-public` bucket'ına, durum Active.
+Aldığımız 404 "bağlantı yok" değil, "istenen nesne o bucket'ta yok" demekti.
 
-1. Cloudflare → R2 → PUBLIC bucket → Settings → **Custom Domain** → `cdn.rothern.com`
-2. Render + Vercel env: `R2_PUBLIC_BASE_URL=https://cdn.rothern.com`
-   (+ web'de `NEXT_PUBLIC_CDN_URL` — `next/image` allowlist'i buradan türer)
-3. Mevcut `pub-*.r2.dev` URL'lerini taşı:
-   `pnpm --filter @rothern/api migrate:public-images` (script hazır)
-4. Doğrula: launch-checklist'in 200/404 tablosu (public logo 200, private KYC 404)
+| Bucket | İçerik | Public | Custom domain |
+|--------|--------|--------|---------------|
+| `rothern-public` | 1 nesne (`prod/tenant-profile/`) | ✅ açık | ✅ `cdn.rothern.com` |
+| `supkeys-documents` | 153 nesne / ~50 MB — sözleşme, sipariş, ilan/teklif belgeleri, ai-extract | ❌ kapalı | yok (dev URL de kapalı) |
+
+**Kök neden KODDA DEĞİL, ENV'DE:** `storage.service.ts` iki bucket'ı zaten
+biliyor (`BucketKind = "public" | "private"`), ama `R2_PUBLIC_BUCKET`
+tanımlanmamış → `publicBucket = privateBucket` (legacy tek-bucket dalı).
+Yani görseller PRIVATE bucket'a yazılıyor, CDN ise public bucket'ı gösteriyor.
+
+> ⚠️ **`cdn.rothern.com`'u `supkeys-documents`'a BAĞLAMAYIN.** O bucket'ta
+> `company-docs/`, `company-orders/`, `listing-docs/`, `listing-bids/`,
+> `ai-extract/` var; custom domain bağlamak hepsini URL'i bilene açardı.
+> (Bu tuzağa düşen bir öneri verildi ve kullanıcı tarafından reddedildi —
+> doğru karar.)
+
+**Yapılacak (env, üç satır):**
+```
+R2_PUBLIC_BUCKET=rothern-public          # ← ASIL EKSİK OLAN
+R2_PUBLIC_BASE_URL=https://cdn.rothern.com
+NEXT_PUBLIC_CDN_URL=https://cdn.rothern.com   # web (next/image allowlist)
+```
+Kök `.env` + Render (API) + Vercel (web).
+
+**Sonra taşıma:**
+```
+OLD_PUBLIC_BASE_URL=https://pub-<eski>.r2.dev \
+pnpm --filter @rothern/api migrate:public-images            # dry-run
+pnpm --filter @rothern/api migrate:public-images -- --apply
+```
+Script YALNIZ `{env}/tenant-profile/**` prefix'ini kopyalar (hassas belgeler
+ASLA public'e taşınmaz) ve DB'de yalnız eski host'lu URL'leri yeniler.
+**Bucket Lock sorun değil:** yalnız okuma + hedefe kopyalama yapar; kaynakta
+silme/üzerine yazma YOK. Ürün görselleri de aynı prefix'i kullanıyor
+(`kind=product`), dolayısıyla kapsam dahilinde.
 
 ### 0b. Resend domain doğrulaması
 

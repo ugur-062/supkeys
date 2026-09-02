@@ -21,7 +21,6 @@ export async function generateMetadata({
 }: {
   params: Params;
 }): Promise<Metadata> {
-  if (!MARKETPLACE_LIVE) return { robots: { index: false } };
   const { slug, urunSlug } = await params;
   const data = await fetchProduct(slug, urunSlug);
   if (!data) return { title: "Ürün bulunamadı", robots: { index: false } };
@@ -34,6 +33,10 @@ export async function generateMetadata({
   return {
     title: `${product.name} — ${company.name}`,
     description,
+    // Pazar yeri açılmadan İNDEKSLENME kapalı: sayfa görünür (panelin
+    // "yayımlandı" sözü bir bağlantı vermeli) ama arama motoruna girmez.
+    // Sitemap de aynı anahtara bağlı — iki kapı tutarlı.
+    ...(MARKETPLACE_LIVE ? {} : { robots: { index: false, follow: true } }),
     alternates: {
       canonical: `${resolveSiteUrl()}/firma/${slug}/urun/${product.slug}`,
     },
@@ -46,8 +49,15 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * GÖRÜNÜRLÜK ≠ İNDEKSLENME (2026-09-03).
+ *
+ * Sayfa pazar yeri anahtarından BAĞIMSIZ açıktır: ürün, firmanın zaten
+ * herkese açık olan profilinin altında yaşıyor ve panelde "vitrinde
+ * yayımlandı" denen kayıt bir bağlantı vermeli. Anahtar kapalıyken sayfa
+ * `noindex` alır (aşağıda) ve sitemap'e girmez — indekslenme kapalı kalır.
+ */
 export default async function Page({ params }: { params: Params }) {
-  if (!MARKETPLACE_LIVE) notFound();
   const { slug, urunSlug } = await params;
   const data = await fetchProduct(slug, urunSlug);
   if (!data) notFound();

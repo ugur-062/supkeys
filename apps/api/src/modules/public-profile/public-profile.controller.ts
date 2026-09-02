@@ -29,9 +29,13 @@ export class PublicProfileController {
   }
 
   /**
-   * Firmanın vitrindeki ÜRÜNLERİ. Pazar yeri anahtarına TABİ: ürünler yeni
-   * ve SEO içeriğinin omurgası; pazar yeri açılmadan indekslenmemeli.
-   * (`:slug` ve `sitemap` ise ESKİ ve zaten canlı — onlar anahtardan muaf.)
+   * ÜRÜN SİTEMAP'İ — pazar yeri anahtarına TABİ.
+   *
+   * Ayrım (2026-09-03): GÖRÜNÜRLÜK ile İNDEKSLENME farklı sorular.
+   * Ürün sayfası firmanın kendi profilinin ALTINDA yaşıyor ve profil zaten
+   * herkese açık; sayfayı kapatmak, panelde "vitrinde yayımlandı" diyip
+   * bağlantıyı 404 vermek demekti. İndekslenme ise ayrı ve kapalı kalır:
+   * sitemap bu anahtara bağlı, sayfa da anahtar kapalıyken `noindex` alıyor.
    *
    * Statik rotalar ":slug"den ÖNCE tanımlı olmalı.
    */
@@ -42,8 +46,8 @@ export class PublicProfileController {
     return this.service.productSitemap();
   }
 
+  /** Firmanın vitrindeki ürünleri — profil kapısıyla aynı görünürlük. */
   @Get(":slug/products")
-  @UseGuards(MarketplaceLiveGuard)
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
   products(
     @Param("slug") slug: string,
@@ -53,7 +57,6 @@ export class PublicProfileController {
   }
 
   @Get(":slug/products/:productSlug")
-  @UseGuards(MarketplaceLiveGuard)
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
   product(
     @Param("slug") slug: string,

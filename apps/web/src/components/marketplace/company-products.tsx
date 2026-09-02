@@ -1,6 +1,5 @@
 import { ProductCard } from "./product-card";
 import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
-import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
@@ -19,7 +18,9 @@ export async function CompanyProducts({
 }: {
   companySlug: string;
 }) {
-  if (!MARKETPLACE_LIVE) return null;
+  // Görünürlük pazar yeri anahtarına BAĞLI DEĞİL (2026-09-03): ürünler
+  // firmanın zaten açık olan profilinin parçası. İndekslenme ayrı kapı
+  // (sayfa `noindex` + sitemap anahtara bağlı).
   const page = await fetchCompanyProducts(companySlug);
   if (page.items.length === 0) return null;
 

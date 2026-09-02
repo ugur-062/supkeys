@@ -7,6 +7,7 @@
  * İkisi karışırsa ya vitrin işe yaramaz ya alıcının kimliği sızar.
  */
 import { NotFoundException } from "@nestjs/common";
+import { PublicProfileController } from "../../src/modules/public-profile/public-profile.controller";
 import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
@@ -189,5 +190,28 @@ describe("ürün vitrini — arama ve sitemap", () => {
     expect(map).toHaveLength(1);
     expect(map[0].companySlug).toBeTruthy();
     expect(map[0].slug).toBeTruthy();
+  });
+});
+
+describe("pazar yeri anahtarı — GÖRÜNÜRLÜK ≠ İNDEKSLENME", () => {
+  /**
+   * 2026-09-03: ürün sayfası anahtara bağlıydı ve panel "vitrinde yayımlandı"
+   * dedikten sonra bağlantı 404 veriyordu. Ürün firmanın ZATEN AÇIK olan
+   * profilinin altında yaşıyor → görünürlük profil kapısına bağlı. İndeksleme
+   * ise anahtarda kalır: sitemap gated, sayfa `noindex`.
+   */
+  const guardsOf = (method: string): string[] =>
+    (
+      (Reflect.getMetadata("__guards__", PublicProfileController.prototype[method as never]) ??
+        []) as { name: string }[]
+    ).map((g) => g.name);
+
+  it("firma-altı ürün uçları anahtara TABİ DEĞİL", () => {
+    expect(guardsOf("products")).not.toContain("MarketplaceLiveGuard");
+    expect(guardsOf("product")).not.toContain("MarketplaceLiveGuard");
+  });
+
+  it("ürün SİTEMAP'i anahtara TABİ", () => {
+    expect(guardsOf("productSitemap")).toContain("MarketplaceLiveGuard");
   });
 });
