@@ -10423,3 +10423,201 @@
 78101722	Dökme yük dağıtım hizmeti	Bulk shipping distribution service
 78101723	Deniz paket dağıtım hizmeti	Sea pack distribution service
 78101724	Arktik deniz uzman hizmetleri	Arctic marine specialist services
+78101725	Ağır yük taşıma hizmetleri	Heavy lift transport services
+78101806	Uluslararası karayolu taşıma hizmeti	International trucking service
+78101807	Petrol veya kimyasal karayolu taşıma hizmeti	Petroleum or chemical trucking service
+78101808	Kuru dökme yük karayolu taşımacılığı	Road transport of dry bulk
+78101809	Mektup ve koli karayolu taşımacılığı	Road transport of letters and parcels
+78101810	Canlı hayvan karayolu taşımacılığı	Road transport of livestock or live animals
+78101811	Paketli ürün taşımacılığı	Packed products transport
+78102103	Boru hattı iç muayene hizmeti	Pipeline inline inspection service
+78111504	Havadan şehir turu hizmeti	Sightseeing service by air
+78111505	Yolcu uçağı kiralama hizmeti	Passenger aircraft rental or leasing service
+78111506	Ambulans uçakla tıbbi tahliye	Medical evacuation by air ambulance
+78111604	Demiryoluyla şehir turu hizmeti	Sightseeing service by rail
+78111704	Deniz aracı kiralama hizmeti	Marine craft rental or leasing service
+78111705	Açık deniz petrol ve gaz platformu personel taşıma hizmeti	Oil and gas offshore platform personnel transportation service
+78111706	Feribotla kıyı ve okyanus aşırı yolcu taşımacılığı	Coastal and transoceanic water transport of passengers by ferry
+78111707	Feribotla iç su yolcu taşımacılığı	Inland water transport of passengers by ferry
+78111809	Binek otomobil kiralama	Vehicle leasing of sedans or coupes or station wagons
+78111810	Limuzin veya şoförlü araç hizmeti	Limousine or town car service
+78111811	Hafif ticari ve SUV araç kiralama	Vehicle leasing of light trucks and sport utility vehicles
+78111812	Minibüs veya panelvan kiralama	Vehicle leasing of passenger vans or minivans
+78111813	Karayoluyla şehir turu hizmeti	Sightseeing service by land, except rail
+78111814	İnsan veya hayvan çekişli araçla yolcu taşımacılığı	Road transport of passengers by man-or animal-drawn vehicle
+78111815	Ambulansla tıbbi tahliye	Medical evacuation by ambulance
+78112001	Kent ve banliyö karma yolcu taşımacılığı	Mixed mode urban and suburban transportation for passengers
+78121603	Navlun ücreti	Freight fee
+78121604	Forklift kiralama hizmeti	Forklift rental or leasing service
+78131702	Yer üstü depolama veya tanklama hizmeti	Above ground storage or tankage service
+78131703	Üretim değişimi ve işleme hizmetleri	Production exchange and throughput services
+78131704	Ham petrol işleme hizmetleri	Crude throughput services
+78131705	FPSO bakım gideri	FPSO maintenance expense
+78131706	Yüzer üretim sistemi işletme hizmeti	Floating production system operation service
+78131707	Yüzer üretim depolama ve boşaltma tesisi hizmeti	Floating production storage and offloading facilities service
+78131806	Kişisel eşya deposu hizmeti	Self storage or mini storage service
+78131807	Kritik yedek parça depolama hizmeti	Critical spare part storage service
+78131808	Dökme sıvı depolama tankı yapımı ve bakımı	Bulk liquid storage tanks construction and maintenance
+78131809	Paketli yağ ve gres depolama	Packed lubricants and greases warehousing
+78131810	Endüstriyel malzeme depolama	Industrial material warehousing
+78131811	Depolama hizmetleri	Warehouse Services
+78141504	Tedarikçi yönetiminde navlun ve yeniden faturalama	Supplier or vendor managed freight and rebilling
+78141505	Ticari ve özel araçlar için çekici hizmeti	Towing service for commercial and private vehicles
+78141506	Sigorta dahil navlun hizmetleri	Freight, including insurance services
+78141704	Ölü ağırlık ankraj hizmeti	Dead man anchor service
+78141804	Yükleme terminali tesis yönetimi	Loading terminal facility management
+78141805	Havaalanı veya havacılık tesisi işletme hizmeti	Aerodrome or airport or aviation facility operations service
+78141806	Açık deniz petrol ve gaz destek kara üssü hizmeti	Oil and gas offshore support shore base service
+78141807	Hava trafik kontrol hizmeti	Air traffic control service
+78141808	Havacılık ikmal anlaşması hizmeti	Aviation throughput agreement service
+78141809	Uçak veya havacılık tesisi işletme hizmeti	Aircraft or aviation facility operations service
+78141810	Uçağa yakıt ikmali işletmesi	Into plane operation
+78141811	Terminal işletmeciliği	Terminal operations
+78141812	Liman acenteliği hizmetleri	Port Agency Services
+78141901	Depolama sepeti kiralama hizmeti	Storage basket rental service
+78141902	Taşıma kabı kiralama	Tote rental
+78141903	İntermodal kargo konteyneri kiralama hizmeti	Intermodal cargo container rental service
+78142001	Operatörlü kargo uçağı kiralama	Rental of freight aircraft with operator
+78142002	Operatörlü iç su kargo gemisi kiralama	Rental of freight vessel for inland water transport with operator
+78142003	Operatörlü kıyı ve okyanus aşırı kargo gemisi kiralama	Rental of freight vessel for coastal and transoceanic water transport with operator
+78142004	Operatörlü kamyon kiralama	Rental of truck with operator
+78142005	Gemi brokerliği hizmetleri	Ship brokerage services
+78142101	Hasar talebi yönetimi	Claim management
+78142102	Küçük koli hesap yönetimi	Small parcel account management
+78142201	Uçuşa elverişlilik sertifikasyonu	Airworthiness certification
+78142202	Havaalanı bakımı	Airport maintenance
+78142203	Uçuşla kalibrasyon hizmetleri	Flight calibration services
+78142204	Havayolu kabin ve destek hizmeti	Airline cabin and support service
+78142205	Havacılığa özel hizmetler	Aviation-specific services
+78142206	Havacılık güvenlik hizmetleri	Aviation security services
+78142207	Uçuş operasyonları otomasyonu tasarım ve inşası	Flight operations automation, design and construction
+78142208	Hava taşımacılığı talep tahmin hizmeti	Air transport demand forecast service
+78142209	Havacılık emniyet denetim hizmetleri	Aviation-related safety audits services
+78142210	Havacılık emniyet yönetim sistemleri ve ilgili hizmetler	Aviation safety management systems and related services
+78142211	Havacılık ANS ve ATM yazılım bakım ve geliştirme hizmetleri	Aviation ANS & ATM software maintenance/development services
+78142212	WGS-84 ölçüm ve PANS-OPS prosedür hizmetleri	WGS-84 survey and pans/ops procedure services
+78142213	Havacılık kapasite analizi	Aviaition capacity analysis
+78142214	Havaalanı ve yolcu terminali simülasyon modellemesi	Airport and passenger terminals simulation modelling (airside and landside)
+78142215	Havaalanı denetim ve sertifikasyonu	Airport inspection and certification
+78142216	Havaalanı işletmeye hazırlık	Airport operations readiness
+78142217	Havaalanı ve ATS kalite ve çevre yönetim sistemi	Quality and environmental management system or airport & ATS
+78142218	Havaalanı çevresel etki çalışmaları	Airport environmental impact studies
+78142219	Havaalanı harita ve ağ çalışmaları	Airport maps, networks studies
+78142220	Sivil havacılık ana plan geliştirme	Civil aviation master plan development
+78142221	Havacılık sistem entegratörleri	Aviation systems integrators
+78142222	Havaalanı yaban hayatı kontrol hizmetleri	Airport fauna control services
+78181501	Araç kaporta onarım veya boyama hizmeti	Vehicle body repair or painting service
+78181502	Şanzıman onarımı	Transmission repair
+78181503	Yağ veya şanzıman yağı değişim hizmeti	Oil or transmission fluid change service
+78181505	Araç muayene hizmeti	Vehicle inspection service
+78181506	Araç camı değişim hizmeti	Vehicle glass replacement service
+78181507	Otomobil ve hafif ticari araç bakım ve onarımı	Automotive and light truck maintenance and repair
+78181508	Ağır vasıta bakım ve onarımı	Heavy truck maintenance and repair
+78181509	Vagon muayene ve bakım hizmeti	Rail car inspection and maintenance service
+78181510	Araç aydınlatma sistemi bakım hizmeti	Vehicle lighting system maintenance service
+78181511	Araç plaka montaj hizmeti	Vehicle license plate installation service
+78181601	Kaporta düzeltme hizmeti	Panelbeating service
+78181701	Araç yakıt ikmal hizmeti	Vehicle fueling service
+78181702	Taşımacılık depolama hizmeti	Transportation storage service
+78181703	Araç otopark hizmeti	Vehicle parking service
+78181704	Yakıt yükleme veya ön ödemeli yakıt kartı hizmeti	Fuel top up card service / fuel prepaid card service
+78181803	Sabit kanat uçak iniş takımı sistemi onarımı	Aircraft fixed wing landing and nose gear system repair
+78181804	Sabit kanat uçak tekerlek ve fren sistemi onarımı	Aircraft fixed wing wheel and braking system repair
+78181805	Sabit kanat uçak aydınlatma sistemi onarımı	Aircraft fixed wing lighting system repair
+78181806	Sabit kanat uçak kokpit ve kabin basınçlandırma sistemi onarımı	Aircraft fixed wing cockpit and passenger cabin pressurization system repair
+78181807	Sabit kanat uçak klima sistemi onarımı	Aircraft fixed wing air conditioning system repair
+78181808	Sabit kanat uçak yapısal sağlık izleme sistemi onarımı	Aircraft fixed wing structural health monitoring system repair
+78181809	Sabit kanat uçak içme suyu ve atık sistemi onarımı	Aircraft fixed wing potable water and waste repair
+78181810	Sabit kanat uçak yangın koruma ekipmanı onarımı	Aircraft fixed wing fire protection equipment repair
+78181811	Sabit kanat uçak buzlanma önleme sistemi onarımı	Aircraft fixed wing moisture and ice build up protection system repair
+78181812	Sabit kanat uçak pnömatik sistem onarımı	Aircraft fixed wing pneumatic system repair
+78181813	Sabit kanat uçak hidrolik güç onarımı	Aircraft fixed wing hydraulic power repair
+78181814	Sabit kanat uçak jeneratör tahrik onarımı	Aircraft fixed wing electric power generator drive repair
+78181815	Sabit kanat uçak gösterge onarımı	Aircraft fixed wing instrument repair
+78181816	Sabit kanat uçak seyrüsefer sistemi onarımı	Aircraft fixed wing navigation system repair
+78181817	Sabit kanat uçak otopilot sistemi onarımı	Aircraft fixed wing autopilot system repair
+78181818	Sabit kanat uçak haberleşme sistemi onarımı	Aircraft fixed wing communication system repair
+78181819	Sabit kanat uçak yakıt sistemi onarımı	Aircraft fixed wing fuel system repair
+78181820	Sabit kanat uçak azot üretim sistemi onarımı	Aircraft fixed wing nitrogen generation system repair
+78181821	Sabit kanat uçak yardımcı güç ünitesi APU onarımı	Aircraft fixed wing auxiliary power unit APU repair
+78181822	Sabit kanat uçak motor onarımı	Aircraft fixed wing engine power plant repair
+78181823	Sabit kanat uçak motor yakıt ve kontrol sistemi onarımı	Aircraft fixed wing engine fuel and control system repair
+78181824	Sabit kanat uçak yağ depolama dağıtım ve gösterge onarımı	Aircraft fixed wing oil storage distribution and indicator repair
+78181825	Sabit kanat uçak motor ateşleme sistemi onarımı	Aircraft fixed wing engine ignition system repair
+78181826	Sabit kanat uçak yakıt sistemi göstergesi onarımı	Aircraft fixed wing fuel system indicator repair
+78181827	Sabit kanat uçak motor türbini onarımı	Aircraft fixed wing engine turbine repair
+78181828	Sabit kanat uçak motor egzoz sistemi onarımı	Aircraft fixed wing engine exhaust system repair
+78181829	Sabit kanat uçak motor söküm hizmeti	Aircraft fixed wing engine teardown service
+78181830	Sabit kanat uçak motor yıkama hizmeti	Aircraft fixed wing engine wash service
+78181831	Sabit kanat uçak gövde iskeleti onarımı	Aircraft fixed wing airframe repair
+78181832	Sabit kanat uçak gövde ve pencere onarımı	Aircraft fixed wing fuselage and window repair
+78181833	Sabit kanat uçak dış kapı onarımı	Aircraft fixed wing external door repair
+78181834	Sabit kanat uçak motor kaportası ve pilon onarımı	Aircraft fixed wing nacelle and pylon repair
+78181835	Sabit kanat uçak gövde ağır bakım hizmeti	Aircraft fixed wing airframe heavy maintenance service
+78181836	Sabit kanat uçak kaplama ve boyama hizmeti	Aircraft fixed wing coating and painting service
+78181837	Sabit kanat uçak gövdesi söküm hizmeti	Airframe fixed wing teardown service
+78181838	Yapısal hasarlı sabit kanat uçak onarımı	Structurally damaged fixed wing aircraft repair
+78181839	Sabit kanat uçak döşeme ve iç mekân onarımı	Aircraft fixed wing furnishing and interior repair
+78181840	Sabit kanat uçak kabin eğlence sistemi onarımı	Aircraft fixed wing cabin entertainment system repair
+78181841	Sabit kanat uçak flap dümen ve kanat onarımı	Aircraft fixed wing flap stabilizer rudder and wing repair
+78181842	Sabit kanat uçak eğitimi	Aircraft fixed wing training
+78181843	Sabit kanat uçak üçüncü taraf geri ödemesi	Aircraft fixed wing third party reimbursement
+78181844	Sabit kanat uçak sabit ücreti	Aircraft fixed wing standing charge
+78181845	Sabit kanat uçak muhtelif ücreti	Aircraft fixed wing miscellaneous charge
+78181846	Sabit kanat uçak insan gücü hizmeti	Aircraft fixed wing manpower service
+78181847	Sabit kanat uçak sigortası	Aircraft fixed wing insurance
+78181848	Sabit kanat uçak uçuş saati ücreti	Aircraft fixed wing flight hour rate
+78181849	Sabit kanat uçak amortisman oranı	Aircraft fixed wing depreciation rate
+78181850	Sabit kanat uçak tek seferlik ücreti	Aircraft fixed wing adhoc charge
+78181851	Sabit kanat uçak hizmeti	Aircraft fixed wing service
+78181901	Döner kanat uçak tekerlek ve fren sistemi onarımı	Aircraft rotary wing wheel and braking system repair
+78181902	Döner kanat uçak eğitimi	Rotary wing aircraft training
+78181903	Döner kanat uçak üçüncü taraf geri ödemesi	Rotary wing aircraft third party reimbursement
+78181904	Döner kanat uçak sabit ücretleri	Rotary wing aircraft standing charges
+78181905	Döner kanat uçak muhtelif ücreti	Rotary wing aircraft miscellaneous charge
+78181906	Döner kanat uçak insan gücü hizmeti	Rotary wing aircraft manpower service
+78181907	Döner kanat uçak sigortası	Rotary wing aircraft insurance
+78181908	Döner kanat uçak yakıtı	Rotary wing aircraft fuel
+78181909	Döner kanat uçak uçuş saatleri	Rotary wing aircraft flight hours
+78181910	Döner kanat uçak amortisman oranları	Rotary wing aircraft depreciation rates
+78181911	Döner kanat uçak tek seferlik ücretleri	Rotary wing aircraft adhoc charges
+78181912	Döner kanat uçak saatlik teknik bakımı	Rotary wing aircraft  hourly engineering maintenance
+78182001	İç su gemisi kurtarma ve yüzdürme hizmeti	Inland water vessel salvage and refloating service
+78182002	Kıyı ve okyanus aşırı gemi kurtarma ve yüzdürme hizmeti	Coastal and transoceanic water vessel salvage and refloating service
+78182101	Şarj istasyonu işletmecisi	Charging station operator
+78182102	Elektrikli mobilite hizmet sağlayıcısı	Electric mobility service provider
+78182103	Şarj ağı	Charging network
+81101514	Geoteknik veya jeosismik mühendislik	Geotechnical or geoseismic engineering
+81101515	Tesis altyapı mühendisliği	Plant or facility infrastructure engineering
+81101516	Enerji veya altyapı danışmanlık hizmeti	Energy or utility consulting service
+81101517	Peyzaj mimarlığı ve tasarım hizmeti	Landscape architecture and design service
+81101518	Aydınlatma mühendisliği hizmeti	Lighting engineering service
+81101519	Parselasyon planlama hizmeti	Subdivison planning service
+81101520	Hidroloji değerlendirme hizmeti	Hydrology assessment service
+81101521	Hidrojeoloji değerlendirme hizmeti	Hydrogeology assessment service
+81101522	Hafriyat mühendisliği	Earthworks engineering
+81101523	Kentsel tasarım ve mühendislik hizmeti	Urban design and engineering service
+81101524	Kent gelişim planlama hizmeti	City development planning service
+81101525	Sediment kontrol mühendisliği	Sediment control engineering
+81101526	Metraj ve keşif hizmeti	Quantity surveying service
+81101527	Atık su mühendisliği	Wastewater engineering
+81101528	Yağmur suyu mühendisliği	Stormwater engineering
+81101529	Akustik mühendisliği	Acoustic engineering
+81101530	Balıkçılık mühendisliği	Fisheries engineering
+81101531	Sanitasyon mühendisliği hizmeti	Sanitation engineering service
+81101532	Tarım mühendisliği	Agricultural engineering
+81101533	Restorasyon mimarlık hizmeti	Restoration architectural service
+81101606	Gemi mühendisliği	Marine engineering
+81101607	Tekstil mühendisliği hizmeti	Textile engineering service
+81101608	Mekanik tasarım ve analiz hizmetleri	Mechanical design and analysis services
+81101706	Laboratuvar ekipmanı bakımı	Laboratory equipment maintenance
+81101707	Baskı ekipmanı bakımı	Printing equipment maintenance
+81101710	Wafer geri kazanım hizmeti	Wafer reclaiming service
+81101711	Elektronik bileşen üretim hizmeti	Electronic component manufacturing service
+81101713	Elektronik ölçüm ve kayıt cihazı mühendislik ve tasarım hizmeti	Electronic measurement and recording instrument engineering and design service
+81101714	Yarı iletken wafer maske litografi hizmeti	Semiconductor wafer mask lithography service
+81101715	Değişken hızlı sürücü hizmeti	Variable speed drive service
+81101716	Kesintisiz güç kaynağı sistemi hizmeti	Uninterruptible power supply system service
+81101802	Kimyasal proses mühendisliği hizmeti	Chemical process engineering service
+81101803	Kimya uzmanlık hizmeti	Chemical specialist service
+81101903	Biyoyakıt ekipmanı hizmetleri	Biofuels equipment services
