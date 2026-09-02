@@ -7,8 +7,7 @@ import { Prisma } from "@rothern/db";
  * SADECE `PUBLIC_LISTING_SELECT` ile sorgular ve SADECE `toPublicListing`
  * çıktısını döndürür. Prisma `select`'i beyaz listedir — listelenmeyen kolon
  * sorgudan HİÇ dönmez, dolayısıyla mapper'da unutulsa bile sızamaz.
- * `public-marketplace.contract.spec.ts` yanıt ağacını gezip yasaklı anahtar
- * arar; bu dosyaya alan eklerken o test de düşünülmelidir.
+ * `public-marketplace.spec.ts` yanıt ağacını gezip yasaklı anahtar arar; bu dosyaya alan eklerken o test de düşünülmelidir.
  *
  * ── DIŞARIDA BIRAKILANLAR ve GEREKÇELERİ ──────────────────────────────────
  *
@@ -36,9 +35,26 @@ import { Prisma } from "@rothern/db";
  * `logistics` (Json) / `deliveryAddressId` / `billingAddressId`
  *   Adres taşır.
  *
+ * ── İLAN SAHİBİ ANONİM ────────────────────────────────────────────────────
+ * `company.name` / `company.slug` / `company.logoUrl`
+ *   İlanı KİMİN açtığı herkese açık sayfada gösterilmez. Bir alım talebinde
+ *   bu bilgi doğrudan rekabet istihbaratıdır ("X firması 40 ton çelik boru
+ *   arıyor" = X'in üretim planı); satış ilanında da müşteri listesini açık
+ *   eder. Panelin kendi maskeli önizlemesi de aynı kararı veriyor: STANDART
+ *   üye PUBLIC bir ilanda `owner`ı görmüyor (`listingBidEligibility`).
+ *   Anonim ziyaretçi, giriş yapmış ücretsiz üyeden DAHA ÇOĞUNU göremez.
+ *
+ *   Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir:
+ *   orası ayrı, OPT-IN (`publicEnabled`) ve satılan bir özelliktir (BRONZ+).
+ *   İlan sayfasından oraya bağlantı da verilmez — bağlantının kendisi kimliği
+ *   ele verirdi.
+ *
+ *   Kalan alanlar (şehir, ülke, sektör, faaliyet tipi) kimlik değil nitelik:
+ *   teklif verecek tarafın lojistik ve uygunluk kararı için gerekli.
+ *
  * `internalNotes` — tanımı gereği yalnız sahip.
  * `createdById` — kişi kimliği (KVKK).
- * `id` / `companyId` — cuid. Dışarıya `number` ve `slug` verilir; iç
+ * `id` / `companyId` — cuid. Dışarıya YALNIZ ilan `number`ı verilir; iç
  *   tanımlayıcıyı yayımlamak numaralandırma yüzeyi açar.
  * `auctionRateSnapshot` / `bidVisibility` / `autoExtend*` — teklif mekaniği.
  */
@@ -94,17 +110,15 @@ export const PUBLIC_LISTING_SELECT = {
   },
   company: {
     select: {
-      name: true,
-      slug: true,
+      // KİMLİK ALANLARI BİLİNÇLİ OLARAK YOK: `name`, `slug`, `logoUrl`.
+      // İlanı kimin açtığı herkese açık sayfada GÖSTERİLMEZ (aşağıdaki
+      // "İLAN SAHİBİ ANONİM" notu). Select'ten çıkarılmalarının sebebi
+      // yalnız gizlemek değil: Prisma'dan hiç dönmedikleri için mapper,
+      // JSON-LD veya ileride eklenecek bir alan onları kazara yazamaz.
       city: true,
       country: true,
-      logoUrl: true,
       industry: true,
       activities: true,
-      // Aşağıdakiler YANITA GİRMEZ — `hasPublicProfile` hesabı için okunur.
-      publicEnabled: true,
-      tier: true,
-      membershipEndAt: true,
     },
   },
 } satisfies Prisma.ListingSelect;
@@ -113,21 +127,17 @@ export type PublicListingRow = Prisma.ListingGetPayload<{
   select: typeof PUBLIC_LISTING_SELECT;
 }>;
 
+/**
+ * İlan sahibinin ANONİM tarifi. Ad/slug/logo YOK — bkz. "İLAN SAHİBİ ANONİM".
+ * Kalanlar kimlik değil NİTELİK: alıcının hangi şehirde, hangi sektörde ve ne
+ * tür bir firma olduğu, teklif verecek tarafın işine yarar ve tek başına
+ * firmayı işaret etmez.
+ */
 export interface PublicListingCompany {
-  name: string;
-  /** Public profil sayfası varsa slug, yoksa null (bağlantı kurulmaz). */
-  slug: string | null;
   city: string | null;
   country: string | null;
-  logoUrl: string | null;
   industry: string | null;
   activities: string[];
-  /**
-   * `/firma/<slug>` sayfası GERÇEKTEN var mı. Firma profil rızası (publicEnabled)
-   * + efektif paket (BRONZ+) ister — public-profile servisiyle AYNI kapı.
-   * false ise ad düz metin gösterilir; 404'e link verilmez.
-   */
-  hasPublicProfile: boolean;
 }
 
 export interface PublicListingItem {
@@ -234,17 +244,12 @@ export function toPublicItem(
 
 export function toPublicCompany(
   c: PublicListingRow["company"],
-  hasPublicProfile: boolean,
 ): PublicListingCompany {
   return {
-    name: c.name,
-    slug: hasPublicProfile ? c.slug : null,
     city: c.city,
     country: c.country,
-    logoUrl: c.logoUrl,
     industry: c.industry,
     activities: c.activities,
-    hasPublicProfile,
   };
 }
 

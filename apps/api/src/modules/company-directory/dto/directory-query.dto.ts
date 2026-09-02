@@ -11,8 +11,8 @@ import {
   Min,
 } from "class-validator";
 
-/** Firma dizini sorgusu — anonim; her alan dar ve doğrulanmış. */
-export class PublicDirectoryQueryDto {
+/** Firma dizini sorgusu — giriş gerektirir; her alan dar ve doğrulanmış. */
+export class DirectoryQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(120)

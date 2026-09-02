@@ -67,11 +67,18 @@ export function ListingCard({ listing }: { listing: PublicListingCard }) {
 
       <div className="mt-auto pt-4">
         <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-          <div className="flex items-center gap-1">
-            <dt className="sr-only">Firma</dt>
-            <BuildingOffice2Icon aria-hidden className="size-3.5 text-zinc-400" />
-            <dd className="line-clamp-1 max-w-[16ch]">{listing.company.name}</dd>
-          </div>
+          {/* Firma ADI YOK — ilan sahibi anonimdir (bkz. marketplace-api.ts
+              PublicCompanyRef). Yerine sektör/faaliyet gibi NİTELİK yazılır;
+              backend adı zaten döndürmüyor. */}
+          {listing.company.industry ? (
+            <div className="flex items-center gap-1">
+              <dt className="sr-only">Sektör</dt>
+              <BuildingOffice2Icon aria-hidden className="size-3.5 text-zinc-400" />
+              <dd className="line-clamp-1 max-w-[18ch]">
+                {listing.company.industry}
+              </dd>
+            </div>
+          ) : null}
           {listing.company.city ? (
             <div className="flex items-center gap-1">
               <dt className="sr-only">Konum</dt>

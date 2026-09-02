@@ -51,6 +51,7 @@ import { CompanyItemsModule } from "./modules/company-items/company-items.module
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
 import { CompanyProfileModule } from "./modules/company-profile/company-profile.module";
+import { CompanyDirectoryModule } from "./modules/company-directory/company-directory.module";
 import { PublicMarketplaceModule } from "./modules/public-marketplace/public-marketplace.module";
 import { PublicProfileModule } from "./modules/public-profile/public-profile.module";
 import { CompanyUsersModule } from "./modules/company-users/company-users.module";
@@ -199,6 +200,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyDashboardModule,
     CurrencyModule,
     CompanyQuestionTemplatesModule,
+    CompanyDirectoryModule,
     PublicMarketplaceModule,
     PublicProfileModule,
     // Faz AI-0 — AI altyapısı (sağlayıcı adapteri + bütçe + kullanım ekranı)

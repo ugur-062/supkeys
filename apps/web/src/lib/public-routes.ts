@@ -39,9 +39,11 @@ export const PUBLIC_ROUTE_PREFIXES = [
   // kırılır.
   "/alim-talepleri",
   "/satilik",
-  "/tedarikciler",
   "/talep",
   "/ilan",
+  // `/tedarikciler` BİLİNÇLİ OLARAK YOK: firma dizini giriş gerektiriyor
+  // (ürün kararı, 2026-09-02). Oturuma bağlı içerik üreten bir rota public
+  // profile (nonce'suz CSP + statik render) giremez.
   "/nasil-calisir", // eski pazarlama anasayfası (kök pazar yerine döndü)
   "/hakkimizda",
   "/iletisim",

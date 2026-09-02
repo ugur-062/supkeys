@@ -436,11 +436,24 @@ yansır.
 ## Pazar Yeri (herkese açık vitrin) — 2026-09-02
 
 Giriş YAPMAMIŞ ziyaretçiye açık ilan/talep vitrini + firma dizini.
-**Yayın anahtarı KAPALI** — `NEXT_PUBLIC_MARKETPLACE_LIVE=true` + redeploy ile
-açılır (`apps/web/src/lib/public/marketplace-live.ts`). Kapalıyken `/`
-"Çok Yakında" gösterir, pazar yeri rotaları 404, robots `Disallow: /`,
-sitemap boş. Açılış geri alınamaz bir dış etki olduğu için tetiği `git push`
-değil bilinçli bir env kararıdır.
+**Yayın anahtarı KAPALI — İKİ yerde açılır, ikisi de fail-closed:**
+
+| Nerede | Env | Etkisi |
+|--------|-----|--------|
+| Web (Vercel) | `NEXT_PUBLIC_MARKETPLACE_LIVE=true` | `/` "Çok Yakında"dan pazar yerine döner; rotalar 404'ten çıkar; robots/sitemap açılır |
+| API (Render) | `MARKETPLACE_LIVE=true` | `/public/listings*` ve `/public/companies/directory*` 404'ten çıkar |
+
+İkisi ayrı çünkü web anahtarı yalnız SAYFALARI kapatır; uç açık kalsaydı
+`api.rothern.com/api/public/listings` adresini bilen veriye ulaşırdı. Yalnız
+web açılırsa pazar yeri BOŞ görünür — görünür ve teşhis edilebilir bir hata,
+sessiz sızıntının tersi. Env yoksa KAPALI; yalnız tam olarak `"true"` açar.
+
+`/public/companies/:slug` ve `/public/companies/sitemap` anahtara TABİ DEĞİL —
+public profil özelliği pazar yerinden eskidir, onu kapatmak var olan bir
+özelliği geri almak olurdu.
+
+Açılış geri alınamaz bir dış etki olduğu için tetiği `git push` değil bilinçli
+bir env kararıdır.
 
 ### Rotalar
 
@@ -448,7 +461,7 @@ değil bilinçli bir env kararıdır.
 |------|-----|--------|
 | `/` | pazar yeri anasayfası (envanter + arama + sektörler) | ○ statik, ISR 60sn |
 | `/alim-talepleri` · `/satilik` | ALIM/SATIS listeleri, süzgeçli | ƒ dinamik |
-| `/tedarikciler` | firma dizini | ƒ dinamik |
+| `/tedarikciler` | firma dizini — **GİRİŞ GEREKTİRİR** | ƒ dinamik, `noindex` |
 | `/talep/<slug>` · `/ilan/<slug>` | tekil kayıt | ƒ dinamik, ISR 120sn |
 | `/nasil-calisir` | ESKİ pazarlama anasayfası (içerik birebir taşındı) | ○ statik, ISR 1sa |
 
@@ -484,6 +497,35 @@ VİTRİN = PUBLIC ∧ company.publicListingsEnabled ∧ firma aktif/bloksuz
 kapatılan ilanı yayımlamak moderasyonu anlamsız kılardı. Kapanmış ilan sitede
 DURUR (gelen bağlantı kırılmasın) ama `noindex` alır ve sitemap'ten düşer.
 
+İndeks kapısında `company.publicEnabled` **YOKTUR** (2026-09-02 revizyonu): o
+bayrak firmanın PROFİL sayfasını yönetir, ilan sayfası ise sahibinin adını hiç
+göstermiyor. Kimlik açmayan bir sayfayı kimlik rızasına bağlamak, hiçbir şeyi
+korumadan kapsamı daraltmak olurdu.
+
+### İLAN SAHİBİ ANONİM (2026-09-02)
+
+Herkese açık ilan/talep sayfasında firma **adı, logosu ve profil bağlantısı
+GÖSTERİLMEZ**; `PUBLIC_LISTING_SELECT` bu kolonları hiç çekmez, JSON-LD'de de
+`Organization` düğümü yoktur (yapısal veri sayfada olmayanı söyleyemez —
+söylerse gizlemeye çalıştığımız kimliği makine-okunur biçimde geri verir).
+
+Gerekçe: bir alım talebinde "kim alıyor" doğrudan rekabet istihbaratıdır
+("X firması 40 ton çelik boru arıyor" = X'in üretim planı). Panelin kendi
+maskeli önizlemesi de aynı kararı veriyor — STANDART üye PUBLIC ilanda
+`owner`ı görmüyor; anonim ziyaretçi ücretsiz üyeden çoğunu göremez.
+
+Gösterilen: **şehir, ülke, sektör, faaliyet tipi** — kimlik değil nitelik,
+teklif verecek tarafın lojistik/uygunluk kararı için gerekli. Kenar çubuğunda
+"Doğrulanmış alıcı/tedarikçi" + "Firma kimliği yalnız kayıtlı kullanıcılara
+açıktır" ibaresi (eksik değil KURAL olduğu anlaşılsın diye).
+
+Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir: opt-in
+(`publicEnabled`) ve satılan bir özellik (BRONZ+ faydası). **Firma dizini
+`/tedarikciler` giriş gerektirir** — uç `company/directory`,
+`CompanyJwtAuthGuard` arkasında; kapı çerezin varlığı değil sunucu kararıdır.
+Sayfa `noindex`, sitemap ve robots Allow dışı; menüdeki bağlantı duruyor
+(anonim ziyaretçi kayıt ekranına düşer — huni, çıkmaz değil).
+
 ### Kapalı zarf YAPISAL
 
 `dto/public-listing.projection.ts` `PUBLIC_LISTING_SELECT` bir **beyaz
@@ -499,14 +541,20 @@ satış beyanı) · `terms`/`paymentNote` (serbest metin, IBAN/telefon taşıyab
 · `logistics`/adresler · `internalNotes` · `createdById` · cuid `id`'ler.
 `description` DAHİL — sayfanın içeriği odur.
 
-### ⚠️ AÇIK ÜRÜN KARARI: maskeli freemium ↔ pazar yeri çelişkisi
+### Maskeli freemium ile ilişki
 
-`listingBidEligibility` PUBLIC ilanı STANDART üyeye **maskeli** gösteriyor
-(açıklama/sahip adı/anahtar kelime gizli). Pazar yeri açılınca aynı içerik
-ANONİM ziyaretçiye TAM görünecek → **çıkış yapan daha çoğunu görür**, maske
-işlevsizleşir. Karar verilmeli: maske PUBLIC ilanlarda kalksın (kapı
-"görmek"ten "teklif vermek"e taşınsın — zaten BRONZ+/KYC istiyor) ya da pazar
-yeri yalnız maskeli veri göstersin (o zaman ince içerik → SEO değersiz).
+`listingBidEligibility` PUBLIC ilanı STANDART üyeye maskeli gösteriyor:
+`description`, `owner.name`, `keywords`, `terms`, `paymentNote`, fiyatlar
+gizli. Pazar yeri bu maskeyle büyük ölçüde HİZALI — sahip adı, `terms`,
+`paymentNote` ve taban fiyat orada da yok.
+
+Kalan fark: **`description` ve `keywords`** anonim ziyaretçiye açık, STANDART
+üyeye kapalı. Bilinçli: açıklama sayfanın İÇERİĞİDİR, onsuz ince içerik
+üretirdik ve pazar yerinin varlık sebebi kalmazdı. Küçük bir tutarsızlık
+sürüyor (çıkış yapan açıklamayı görür, ücretsiz üye görmez); maskeyi PUBLIC
+ilanlarda tümden kaldırmak — kapıyı "görmek"ten "teklif vermek"e taşımak,
+zaten BRONZ+/KYC istiyor — bunu da kapatır. Yayın öncesi verilecek karar,
+`docs/launch-checklist.md` § Pazar yeri açılışı.
 
 ### Bilinen sınır
 

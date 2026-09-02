@@ -1,5 +1,6 @@
-import { Controller, Get, Header, Param, Query } from "@nestjs/common";
+import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import { MarketplaceLiveGuard } from "../../common/http/marketplace-live.guard";
 import { PublicListQueryDto } from "./dto/public-list-query.dto";
 import { PublicMarketplaceService } from "./public-marketplace.service";
 
@@ -19,6 +20,10 @@ import { PublicMarketplaceService } from "./public-marketplace.service";
  * yükseltildi; okuma-only ve önbelleklenebilir oldukları için risk düşük.
  */
 @Controller("public")
+// Yayın anahtarı: kapalıyken TÜM pazar yeri uçları 404. Web'deki
+// NEXT_PUBLIC_MARKETPLACE_LIVE yalnız sayfaları kapatır; uç açık kalsaydı
+// adresi bilen veriye ulaşırdı.
+@UseGuards(MarketplaceLiveGuard)
 @Throttle({
   default: {
     limit: Number(process.env.THROTTLE_PUBLIC_LIMIT ?? 600),

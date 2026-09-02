@@ -11,6 +11,10 @@
  *     kapıdan geçtiği burada tek tek yazılı.
  */
 import { NotFoundException } from "@nestjs/common";
+import {
+  MarketplaceLiveGuard,
+  isMarketplaceLive,
+} from "../../src/common/http/marketplace-live.guard";
 import { Prisma } from "@rothern/db";
 import { PublicMarketplaceService } from "../../src/modules/public-marketplace/public-marketplace.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
@@ -25,8 +29,6 @@ const service = () =>
  * tek tek yazılı — burada yalnız liste tutuluyor.
  */
 const FORBIDDEN_KEYS = [
-  "id",
-  "companyId",
   "createdById",
   "bids",
   "bidStats",
@@ -71,10 +73,39 @@ function allKeys(value: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
+/**
+ * İlan sahibinin kimliği. Ayrı liste tutmamın sebebi `name`: kalem adı
+ * (`items[].name`) meşru olarak public, firma adı değil. Ağacın tamamında
+ * "name yasak" desem kalem adları da kırardı — kontrol company nesnesine
+ * özel olmalı.
+ */
+const FORBIDDEN_COMPANY_KEYS = ["name", "slug", "logoUrl", "hasPublicProfile"];
+
 function expectNoForbidden(payload: unknown) {
   const keys = allKeys(payload);
   const leaked = FORBIDDEN_KEYS.filter((k) => keys.has(k));
   expect(leaked).toEqual([]);
+}
+
+/** Yanıttaki HER `company` nesnesinde kimlik alanı olmamalı. */
+function expectAnonymousOwner(payload: unknown) {
+  const companies: Record<string, unknown>[] = [];
+  const walk = (v: unknown) => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (v && typeof v === "object" && !(v instanceof Date)) {
+      for (const [k, child] of Object.entries(v)) {
+        if (k === "company" && child && typeof child === "object") {
+          companies.push(child as Record<string, unknown>);
+        }
+        walk(child);
+      }
+    }
+  };
+  walk(payload);
+  expect(companies.length).toBeGreaterThan(0);
+  for (const c of companies) {
+    expect(FORBIDDEN_COMPANY_KEYS.filter((k) => k in c)).toEqual([]);
+  }
 }
 
 let seq = 0;
@@ -93,6 +124,8 @@ async function seedPublicListing(
   const patched = await prisma.company.update({
     where: { id: company.id },
     data: {
+      // Ayırt edici ad: yanıt metninde geçip geçmediğini arayabilelim.
+      name: `Gizli Alici Sanayi ${seq}`,
       city: "İstanbul",
       publicEnabled: true,
       slug: `firma-${seq}-${Math.random().toString(36).slice(2, 8)}`,
@@ -142,6 +175,33 @@ describe("pazar yeri — kapalı zarf yapısal güvence", () => {
     expect(res.items[0]?.name).toBe("Dikişsiz boru");
     expect(JSON.stringify(res)).not.toContain("99000");
     expect(JSON.stringify(res)).not.toContain("120");
+  });
+
+  it("İLAN SAHİBİNİN ADI hiçbir yerde geçmez — detayda", async () => {
+    const { listing } = await seedPublicListing();
+    const res = await service().getByNumber(listing.number as string);
+    expectAnonymousOwner(res);
+    expect(JSON.stringify(res)).not.toContain("Gizli Alici Sanayi");
+    // Nitelik alanları DURUR: teklif verecek taraf lojistik/uygunluk kararını
+    // bunlarla verir ve tek başlarına firmayı işaret etmezler.
+    expect(res.company.city).toBe("İstanbul");
+    expect(res.company.country).toBe("TR");
+  });
+
+  it("İLAN SAHİBİNİN ADI hiçbir yerde geçmez — listede", async () => {
+    await seedPublicListing();
+    const res = await service().list({});
+    expectAnonymousOwner(res);
+    expect(JSON.stringify(res)).not.toContain("Gizli Alici Sanayi");
+  });
+
+  it("firma profil sayfasına bağlantı kurulamaz (slug dönmez)", async () => {
+    // Slug dönseydi ad gizli olsa bile `/firma/<slug>` bağlantısı kimliği
+    // ele verirdi — kimliği gizlemenin yolu adı silmek DEĞİL, ona giden her
+    // tanımlayıcıyı kesmek.
+    const { listing } = await seedPublicListing();
+    const res = await service().getByNumber(listing.number as string);
+    expect("slug" in res.company).toBe(false);
   });
 
   it("liste yanıtında da yasaklı anahtar yok", async () => {
@@ -224,14 +284,14 @@ describe("pazar yeri — indeks kapısı vitrinden DAR", () => {
     await truncateAll();
   });
 
-  it("firma public profil rızası yoksa ilan görünür ama indekslenmez", async () => {
+  it("firma profil rızası (publicEnabled) ilanın indeksini ETKİLEMEZ", async () => {
+    // Bilinçli davranış değişikliği: ilan sayfası firma adını hiç
+    // göstermediği için kimlik rızasına bağlamak kapsamı boş yere daraltırdı.
+    // Rıza iki yerde alınıyor: publicListingsEnabled (vitrin) + publicIndexable.
     const { listing } = await seedPublicListing({}, { publicEnabled: false });
     const detail = await service().getByNumber(listing.number as string);
-    expect(detail.indexable).toBe(false);
-    expect(detail.company.hasPublicProfile).toBe(false);
-    // 404'e link vermemek için slug da gizlenir.
-    expect(detail.company.slug).toBeNull();
-    expect(await service().sitemap()).toHaveLength(0);
+    expect(detail.indexable).toBe(true);
+    expect(await service().sitemap()).toHaveLength(1);
   });
 
   it("ilan bazlı publicIndexable=false sitemap'ten düşürür", async () => {
@@ -256,13 +316,15 @@ describe("pazar yeri — indeks kapısı vitrinden DAR", () => {
     expect(map[0].title).toBe("Çelik Boru Alımı");
   });
 
-  it("STANDART paketli firma indekslenmez (public profil BRONZ+ ister)", async () => {
+  it("STANDART paketli firmanın ilanı da vitrinde ve indekste", async () => {
+    // Paket kapısı `/firma/<slug>` PROFİLİNE aittir; ilan vitrinine değil.
+    // İlan sayfası zaten firmayı adlandırmıyor, dolayısıyla ücretsiz üyenin
+    // ilanını gizlemek envanteri azaltmaktan başka bir şey yapmazdı.
     const { listing } = await seedPublicListing({}, { tier: "STANDART" });
-    const detail = await service().getByNumber(listing.number as string);
-    expect(detail.company.hasPublicProfile).toBe(false);
-    // Vitrinde durur — paket kapısı GÖRÜNMEYİ engellemiyor, yalnız profil
-    // bağlantısını ve public profil sayfasını.
     expect((await service().list({})).items).toHaveLength(1);
+    expect(
+      (await service().getByNumber(listing.number as string)).indexable,
+    ).toBe(true);
   });
 });
 
@@ -317,5 +379,31 @@ describe("pazar yeri — süzgeç ve arama", () => {
     await expect(service().getByNumber("ROT-000000")).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe("yayın anahtarı — sunucu tarafı kapı", () => {
+  const guard = new MarketplaceLiveGuard();
+  const original = process.env.MARKETPLACE_LIVE;
+  afterEach(() => {
+    if (original === undefined) delete process.env.MARKETPLACE_LIVE;
+    else process.env.MARKETPLACE_LIVE = original;
+  });
+
+  it("env yoksa KAPALI (fail-closed)", () => {
+    delete process.env.MARKETPLACE_LIVE;
+    expect(isMarketplaceLive()).toBe(false);
+    // 404 döner (403 değil): kapalıyken ucun VAR OLDUĞUNU bile söylemiyoruz.
+    expect(() => guard.canActivate()).toThrow(NotFoundException);
+  });
+
+  it("yalnız tam olarak \"true\" açar", () => {
+    for (const v of ["false", "1", "TRUE", "yes", ""]) {
+      process.env.MARKETPLACE_LIVE = v;
+      expect(isMarketplaceLive()).toBe(false);
+    }
+    process.env.MARKETPLACE_LIVE = "true";
+    expect(isMarketplaceLive()).toBe(true);
+    expect(guard.canActivate()).toBe(true);
   });
 });

@@ -122,17 +122,23 @@ export function marketplaceListingWhere(now: Date): Prisma.ListingWhereInput {
 }
 
 /**
- * İndeks kapısı = vitrin ∧ ilan bazlı izin ∧ firmanın public profil rızası ∧
- * hâlâ teklife açık. Kapanmış ilan sitede DURUR ama `noindex` alır ve
- * sitemap'ten düşer — süresi geçmiş ilanı indekste tutmak hem ziyaretçiyi
- * yanıltır hem de alan adının güvenilirliğini aşağı çeker.
+ * İndeks kapısı = vitrin ∧ ilan bazlı izin ∧ hâlâ teklife açık.
+ *
+ * `company.publicEnabled` BURADA YOK ve olmamalı: o bayrak firmanın PROFİL
+ * sayfasını (`/firma/<slug>`) yönetir, ilan sayfası ise ilan sahibinin adını
+ * hiç göstermez (bkz. `public-listing.projection.ts` "İLAN SAHİBİ ANONİM").
+ * Kimliği açmayan bir sayfayı kimlik rızasına bağlamak, hiçbir şeyi korumadan
+ * kapsamı daraltmak olurdu. Rıza zaten iki yerde alınıyor: firma düzeyinde
+ * `publicListingsEnabled` (vitrin), ilan düzeyinde `publicIndexable`.
+ *
+ * Kapanmış ilan sitede DURUR ama `noindex` alır ve sitemap'ten düşer — süresi
+ * geçmiş ilanı indekste tutmak hem ziyaretçiyi yanıltır hem de alan adının
+ * güvenilirliğini aşağı çeker.
  */
 export function marketplaceIndexableWhere(now: Date): Prisma.ListingWhereInput {
-  const base = marketplaceListingWhere(now);
   return {
-    ...base,
+    ...marketplaceListingWhere(now),
     status: "OPEN",
     publicIndexable: true,
-    company: { ...(base.company as object), publicEnabled: true },
   };
 }

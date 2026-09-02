@@ -215,6 +215,31 @@ launch-blocker. Tedarikçi VERIFIED olmadan **teklif veremez**, firma PAKET olma
       ⚠️ **RİSK:** tenant-bağlamı geçmeyen bir yol prod'da BOŞ döner (fail-closed = iyi, sessiz
       yanlış-tenant değil) — ama bu bir kritik akışı sessizce kırabilir; #7 canlı testi bu yüzden şart.
 
+## Pazar yeri açılışı (2026-09-02 — İKİ anahtar, ikisi de fail-closed)
+
+Pazar yeri kodu HAZIR ve testli ama **KAPALI**. Açmak için İKİ env, İKİ
+platform — ikisi de `"true"` olmadan açılmaz, biri eksikse pazar yeri boş
+görünür (görünür hata; sessiz sızıntının tersi).
+
+- [ ] **Vercel** → `NEXT_PUBLIC_MARKETPLACE_LIVE=true` + redeploy
+      (build zamanı okunur — `NEXT_PUBLIC_` öneki bunu zorunlu kılar)
+- [ ] **Render** → `MARKETPLACE_LIVE=true`
+- [ ] **Envanter kontrolü — AÇMADAN ÖNCE.** Bugün yalnız **1** açık PUBLIC
+      ilan var. Az içerikle indekslenmek alan adına kalıcı "ince içerik"
+      gölgesi bırakır; açılış geri alınamaz (sayfaları kaldırsak bile indeksten
+      düşme süresi arama motorunun elinde — kendi Aracılık Sözleşmemiz md. 2'de
+      böyle yazılı). Anlamlı bir ilan sayısı biriktikten sonra açılmalı.
+- [ ] **Ürün kararı: maskenin kalan farkı.** Firma adı artık pazar yerinde de
+      gizli (2026-09-02) → maskeyle büyük ölçüde hizalıyız. Kalan fark
+      `description` + `keywords`: anonim ziyaretçi görüyor, STANDART üye
+      görmüyor. Açıklamayı gizlemek pazar yerini anlamsız kılar (ince içerik),
+      dolayısıyla asıl seçenek maskeyi PUBLIC ilanlarda tümden kaldırmak —
+      kapı zaten "teklif vermek"te (BRONZ+/KYC). Detay: `CLAUDE.md` § Pazar Yeri.
+- [ ] **`NEXT_PUBLIC_SITE_URL` doğru mu** — kanonik URL, sitemap ve JSON-LD
+      hepsi buradan okuyor. Yanlışsa Google başka bir alan adını kanonik sanar.
+
+---
+
 ## Netleştirilecek (deploy öncesi karar)
 
 - [ ] **Hosting gerçekte nerede?** `render.yaml` "Render (API) + Vercel (web/admin)"

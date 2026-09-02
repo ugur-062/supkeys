@@ -23,7 +23,7 @@ export async function generateMetadata({
   const canonical = `${resolveSiteUrl()}${listingPath(listing.type, listing.number, listing.title)}`;
   const description =
     listing.description?.replace(/\s+/g, " ").trim().slice(0, 160) ??
-    `${listing.company.name} firmasının ${listing.number} numaralı alım talebi.`;
+    `${listing.number} numaralı alım talebi — ${listing.company.city ?? "Türkiye"}.`;
 
   return {
     title: `${listing.title} — alım talebi ${listing.number}`,

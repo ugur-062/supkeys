@@ -29,7 +29,6 @@ export default function robots(): MetadataRoute.Robots {
           "/firma/",
           "/alim-talepleri",
           "/satilik",
-          "/tedarikciler",
           "/talep/",
           "/ilan/",
           "/nasil-calisir",

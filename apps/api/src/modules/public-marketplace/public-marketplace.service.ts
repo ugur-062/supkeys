@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { tokenizeQuery } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { effectiveTier } from "../../common/company/effective-tier";
 import {
   marketplaceIndexableWhere,
   marketplaceListingWhere,
@@ -36,20 +35,6 @@ const FACET_SCAN_CAP = 5000;
 export class PublicMarketplaceService {
   constructor(private readonly prisma: PrismaBypassService) {}
 
-  /**
-   * `/firma/<slug>` sayfası GERÇEKTEN var mı — public-profile servisiyle AYNI
-   * kapı (publicEnabled ∧ isActive ∧ !isBlocked ∧ efektif BRONZ+). Ayrı
-   * yazılmasının sebebi: burada firma zaten ilanla birlikte çekildi, ikinci
-   * sorgu atmak N+1 olurdu. Kapı değişirse İKİSİ birlikte değişmeli.
-   */
-  private hasPublicProfile(c: PublicListingRow["company"]): boolean {
-    return (
-      !!c.slug &&
-      c.publicEnabled &&
-      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ")
-    );
-  }
-
   private async resolveCategories(
     codes: string[],
   ): Promise<Map<string, { id: string; name: string; level: number }>> {
@@ -80,7 +65,7 @@ export class PublicMarketplaceService {
       itemCount: row.items.length,
       excerpt: excerptOf(row.description),
       buyNowPrice: row.buyNowPrice?.toString() ?? null,
-      company: toPublicCompany(row.company, this.hasPublicProfile(row.company)),
+      company: toPublicCompany(row.company),
       categories: row.categoryIds
         .map((id) => cats.get(id))
         .filter((c): c is NonNullable<typeof c> => !!c),
@@ -121,16 +106,13 @@ export class PublicMarketplaceService {
       closesAt: row.closesAt?.toISOString() ?? null,
       publishedAt: row.publishedAt?.toISOString() ?? null,
       updatedAt: row.updatedAt.toISOString(),
-      // Sahip izin vermiş olsa bile ilan kapandıysa dizinlenmez: kapı
-      // `marketplaceIndexableWhere` ile AYNI mantık (status OPEN ∧ bayrak ∧
-      // firma rızası). Sayfa bunu okuyup `noindex` basar.
-      indexable:
-        row.publicIndexable &&
-        row.status === "OPEN" &&
-        row.company.publicEnabled,
+      // `marketplaceIndexableWhere` ile AYNI mantık: ilan bazlı izin ∧ hâlâ
+      // teklife açık. Sahip izin vermiş olsa bile kapanmış ilan dizinlenmez.
+      // Sayfa bunu okuyup `noindex` basar; sitemap zaten sorguda süzüyor.
+      indexable: row.publicIndexable && row.status === "OPEN",
       itemCount: row.items.length,
       items: row.items.map(toPublicItem),
-      company: toPublicCompany(row.company, this.hasPublicProfile(row.company)),
+      company: toPublicCompany(row.company),
       categories: row.categoryIds
         .map((id) => cats.get(id))
         .filter((c): c is NonNullable<typeof c> => !!c),
@@ -149,29 +131,26 @@ export class PublicMarketplaceService {
   }> {
     const now = new Date();
     const page = Math.max(1, q.page ?? 1);
+    const gate = marketplaceListingWhere(now);
+    // Şehir süzgeci kapının firma koşullarının ÜSTÜNE katılır, YANINA değil.
+    // Ayrı bir `company:` spread'i olarak yazılsaydı kapının
+    // publicListingsEnabled/isActive/isBlocked koşullarını ezer ve süzgeç
+    // kullanan her sorguda kapı sessizce açılırdı.
+    const company: Prisma.CompanyWhereInput = {
+      ...(gate.company as Prisma.CompanyWhereInput),
+      ...(q.city ? { city: q.city } : {}),
+    };
     const where: Prisma.ListingWhereInput = {
-      ...marketplaceListingWhere(now),
+      ...gate,
+      company,
       ...(q.type ? { type: q.type } : {}),
       // Varsayılan: yalnız teklife AÇIK olanlar. Kapanmışlar `state=all` ile
       // istenirse gelir (arşiv sayfaları) — ama asla varsayılan değildir,
       // ziyaretçiye ölü ilan göstermek en kötü ilk izlenim.
       ...(q.state === "all" ? {} : { status: "OPEN" }),
       ...(q.category ? { categoryIds: { has: q.category } } : {}),
-      ...(q.city ? { company: { is: { city: q.city } } } : {}),
       ...this.searchWhere(q.q),
     };
-    // `city` süzgeci `company` nesnesini EZERDİ (spread sırası) — kapıdaki
-    // firma koşullarını geri bindir.
-    if (q.city) {
-      where.company = {
-        is: {
-          city: q.city,
-          publicListingsEnabled: true,
-          isActive: true,
-          isBlocked: false,
-        },
-      };
-    }
 
     const [total, rows] = await Promise.all([
       this.prisma.listing.count({ where }),

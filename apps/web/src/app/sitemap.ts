@@ -66,11 +66,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.9,
         changeFrequency: "hourly" as const,
       },
-      {
-        path: MARKETPLACE_ROUTES.companies,
-        priority: 0.8,
-        changeFrequency: "daily" as const,
-      },
+      // MARKETPLACE_ROUTES.companies BURADA YOK: firma dizini giriş
+      // gerektiriyor ve `noindex`. Tekil `/firma/<slug>` profilleri aşağıda
+      // duruyor — onlar opt-in ve herkese açık kalmaya devam ediyor.
       {
         path: "/nasil-calisir",
         priority: 0.6,

@@ -14,15 +14,20 @@ import type { PublicListingType } from "./marketplace";
  * Sunucu günlüğüne yazılır ki sessiz kalmasın.
  */
 
+/**
+ * İlan sahibinin ANONİM tarifi — ad/slug/logo YOK.
+ *
+ * Bir alım talebinde "kim alıyor" doğrudan rekabet istihbaratıdır; panelin
+ * kendi maskeli önizlemesi de STANDART üyeye sahip adını göstermiyor, anonim
+ * ziyaretçi ondan çoğunu göremez. Firma adı yalnız opt-in `/firma/<slug>`
+ * profilinde ve firma dizininde görünür. Backend bu alanları zaten
+ * DÖNDÜRMÜYOR (`PUBLIC_LISTING_SELECT`), tip de onu yansıtıyor.
+ */
 export interface PublicCompanyRef {
-  name: string;
-  slug: string | null;
   city: string | null;
   country: string | null;
-  logoUrl: string | null;
   industry: string | null;
   activities: string[];
-  hasPublicProfile: boolean;
 }
 
 export interface PublicCategoryRef {
@@ -246,16 +251,43 @@ export interface DirectoryParams {
   page?: number;
 }
 
-const EMPTY_DIRECTORY: PublicDirectoryPage = {
-  items: [],
-  total: 0,
-  page: 1,
-  pageSize: 24,
-};
+/**
+ * Firma dizini — GİRİŞ GEREKTİRİR. Diğer pazar yeri çağrılarından üç farkı
+ * var ve üçü de aynı sebepten:
+ *
+ *  · çerez TAŞINIR (`cookie` başlığı elle iletilir; sunucu bileşeninde
+ *    tarayıcının çerezi kendiliğinden gitmez),
+ *  · `cache: "no-store"` — yanıt oturuma bağlı; `next.revalidate` ile
+ *    paylaşılan veri önbelleğine yazmak onu BAŞKA ziyaretçiye servis ederdi,
+ *  · 401 hata değil BEKLENEN durum → `null` döner, sayfa "kaydolun" gösterir.
+ */
+export type DirectoryResult =
+  | { authenticated: false }
+  | { authenticated: true; page: PublicDirectoryPage; facets: PublicDirectoryFacets };
 
-export function fetchDirectory(
+async function getAuthedJson<T>(
+  path: string,
+  cookie: string,
+): Promise<T | null> {
+  const base = resolveApiBaseUrl();
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base}${path}`, {
+      cache: "no-store",
+      headers: { accept: "application/json", cookie },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch (err) {
+    console.error(`[dizin] ${path} çağrısı başarısız`, err);
+    return null;
+  }
+}
+
+export async function fetchDirectory(
+  cookie: string,
   params: DirectoryParams = {},
-): Promise<PublicDirectoryPage> {
+): Promise<DirectoryResult> {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.city) sp.set("city", params.city);
@@ -263,17 +295,20 @@ export function fetchDirectory(
   if (params.activity) sp.set("activity", params.activity);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
-  return getJson(
-    `/public/companies/directory${qs ? `?${qs}` : ""}`,
-    EMPTY_DIRECTORY,
-    120,
-  );
-}
 
-export function fetchDirectoryFacets(): Promise<PublicDirectoryFacets> {
-  return getJson<PublicDirectoryFacets>(
-    "/public/companies/directory/facets",
-    { cities: [], activities: [] },
-    300,
-  );
+  const [page, facets] = await Promise.all([
+    getAuthedJson<PublicDirectoryPage>(
+      `/company/directory${qs ? `?${qs}` : ""}`,
+      cookie,
+    ),
+    getAuthedJson<PublicDirectoryFacets>("/company/directory/facets", cookie),
+  ]);
+  // Sayfa gelmediyse kapı kapalı sayılır. Kapıyı çerezin VARLIĞINA değil
+  // API'nin yanıtına bağlıyoruz: sahte bir çerez basmak yetmesin.
+  if (!page) return { authenticated: false };
+  return {
+    authenticated: true,
+    page,
+    facets: facets ?? { cities: [], activities: [] },
+  };
 }

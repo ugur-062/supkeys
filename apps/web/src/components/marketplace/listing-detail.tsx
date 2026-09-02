@@ -88,22 +88,22 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
           priceCurrency: listing.primaryCurrency,
         }
       : {}),
-    [isDemand ? "buyer" : "offeredBy"]: {
-      "@type": "Organization",
-      name: listing.company.name,
-      ...(listing.company.slug
-        ? { url: `${site}/firma/${listing.company.slug}` }
-        : {}),
-      ...(listing.company.city
-        ? {
+    // İlan sahibi ANONİM: `Organization` düğümüne ad/URL YAZILMAZ. Yapısal
+    // veri sayfada görünmeyen bir şeyi söyleyemez — hem yanlış olur hem de
+    // gizlemeye çalıştığımız kimliği makine-okunur biçimde geri verirdi.
+    // Yalnız konum kalır (sayfada da görünüyor, lojistik için anlamlı).
+    ...(listing.company.city
+      ? {
+          areaServed: {
+            "@type": "Place",
             address: {
               "@type": "PostalAddress",
               addressLocality: listing.company.city,
               addressCountry: listing.company.country ?? "TR",
             },
-          }
-        : {}),
-    },
+          },
+        }
+      : {}),
   };
   delete offerOrDemand.seller;
 
@@ -336,8 +336,11 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-2xl border border-zinc-200 p-5">
               <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                {isDemand ? "Alıcı firma" : "Satıcı firma"}
+                {isDemand ? "Alıcı" : "Satıcı"}
               </h2>
+              {/* Firma ADI ve LOGOSU gösterilmez — ilan sahibi anonimdir.
+                  Ziyaretçiye eksik bir şey değil, KURAL olduğunu söylüyoruz;
+                  aksi hâlde "yüklenmedi mi?" diye okunur. */}
               <div className="mt-3 flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
                   <BuildingOffice2Icon
@@ -346,18 +349,9 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                   />
                 </span>
                 <div className="min-w-0">
-                  {listing.company.slug ? (
-                    <Link
-                      href={`/firma/${listing.company.slug}`}
-                      className="text-sm font-semibold text-zinc-950 hover:text-blue-700"
-                    >
-                      {listing.company.name}
-                    </Link>
-                  ) : (
-                    <p className="text-sm font-semibold text-zinc-950">
-                      {listing.company.name}
-                    </p>
-                  )}
+                  <p className="text-sm font-semibold text-zinc-950">
+                    {isDemand ? "Doğrulanmış alıcı" : "Doğrulanmış tedarikçi"}
+                  </p>
                   {listing.company.industry ? (
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {listing.company.industry}
@@ -377,6 +371,9 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                   ) : null}
                 </div>
               </div>
+              <p className="mt-4 text-xs/5 text-zinc-500">
+                Firma kimliği yalnız kayıtlı kullanıcılara açıktır.
+              </p>
 
               <div className="mt-5 border-t border-zinc-200 pt-5">
                 {state === "open" ? (
