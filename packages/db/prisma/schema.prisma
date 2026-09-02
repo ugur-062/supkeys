@@ -46,27 +46,27 @@ model EmailVerificationCode {
 }
 
 model PlatformAdmin {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id               String    @id @default(cuid())
+  email            String    @unique
   // Supabase Auth bridge — `auth.users.id` (UUID).
-  authId       String?   @unique
-  passwordHash String?
-  firstName    String
-  lastName     String
-  role         AdminRole @default(SUPPORT)
-  isActive     Boolean   @default(true)
+  authId           String?   @unique
+  passwordHash     String?
+  firstName        String
+  lastName         String
+  role             AdminRole @default(SUPPORT)
+  isActive         Boolean   @default(true)
   // 2FA (TOTP) — admin panel yüksek yetkili: firma tarafındaki authenticator
   // akışının portu (Faz 7).
-  twoFactorEnabled Boolean @default(false)
+  twoFactorEnabled Boolean   @default(false)
   // AES-256-GCM şifreli (`enc:v1:` — common/auth/totp-secret-cipher.ts); eski
   // düz-metin kayıtlar okurken şeffaf (denetim 2026-08-23 #4).
   twoFactorSecret  String?
   // Oturum iptali (denetim 2026-08-23 #3): parola değişimi/reset/2FA değişimi
   // artırır; JWT `tv` claim'i eşleşmezse 401 (company ile parite).
-  tokenVersion Int       @default(0)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  tokenVersion     Int       @default(0)
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@map("platform_admins")
 }
@@ -217,12 +217,12 @@ enum TwoFactorMethod {
 }
 
 model Category {
-  id     String @id @default(cuid())
+  id         String @id @default(cuid())
   /**
    * UNSPSC 8-haneli kod (10000000=segment, 10100000=family, 10101500=class, 10101501=commodity)
    */
-  code   String @unique
-  nameTr String
+  code       String @unique
+  nameTr     String
   /**
    * TR-katlanmış arama metni (foldSearchText(nameTr)) — 'İ'/aksan sorunsuz
    * substring arama için. Seed yazar; sorgu tarafı da aynı fold'dan geçer.
@@ -233,26 +233,23 @@ model Category {
    * kaynak: packages/db/src/seeds/category-keywords.tsv. searchText'e
    * katlanarak dahil edilir; arama yalnız searchText'ten yapılır.
    */
-  keywords String @default("")
+  keywords   String @default("")
   /**
    * 1=Segment, 2=Family, 3=Class, 4=Commodity
    */
-  level  Int
+  level      Int
 
   /**
    * Ariba **Discovery** kataloğunda da var mı?
-   *
    * İKİ kaynak dışa aktarımı var ve ölçülen fark YALNIZ L4 yaprakta:
-   *   tam katalog (158.018) → FİRMA kategori seçimi ("hangi alandasınız")
-   *   discovery  (158.005)  → TALEP ve İLAN kategorisi
+   * tam katalog (158.018) → FİRMA kategori seçimi ("hangi alandasınız")
+   * discovery  (158.005)  → TALEP ve İLAN kategorisi
    * L1 (58 segment), L2 (558 aile) ve L3 (7.966 sınıf) kod ve ad olarak birebir
    * aynı; fark 13 yaprakla sınırlı. Bu yüzden ayrı tablo/ayrı ağaç YOK — tek
    * katalog, kod başına tek satır, bu bayrakla süzülüyor.
-   *
    * Kapı BACKEND'de: talep/ilan kategori doğrulaması `inDiscovery: true` ŞART
    * koşar (`company-listings.service.ts`); firma seçimi koşmaz
    * (`category-selection.helper.ts`) — tam kataloğu görür.
-   *
    * `seed-categories` yazar, kaynağı `ariba-categories.tsv` 6. sütunu.
    */
   inDiscovery Boolean @default(true)
@@ -290,7 +287,7 @@ model CategorySearchMiss {
 
   /// foldSearchText'ten geçmiş biçim — "Abkant", "abkant" ve "ABKANT" TEK
   /// satırda toplanır, sayaç gerçek talebi gösterir.
-  query String @unique
+  query    String @unique
   /// Kullanıcının yazdığı son ham hâli — kürasyon yaparken bağlam (aksan,
   /// büyük harf, yazım hatası deseni burada görünür).
   rawQuery String
@@ -437,14 +434,22 @@ model AiChatSession {
   companyId            String
   userId               String
   title                String?
-  /** Kayan pencere taşınca üretilen tek özet (maliyet kontrolü). */
+  /**
+   * Kayan pencere taşınca üretilen tek özet (maliyet kontrolü).
+   */
   summary              String?
-  /** Özetin hangi mesaj seq'ine kadar kapsadığı (tekrar özetleme önlenir). */
+  /**
+   * Özetin hangi mesaj seq'ine kadar kapsadığı (tekrar özetleme önlenir).
+   */
   summarizedThroughSeq Int             @default(0)
-  /** Kullanıcı turu sayısı (tur sınırı önerisi + seq üretimi). */
+  /**
+   * Kullanıcı turu sayısı (tur sınırı önerisi + seq üretimi).
+   */
   turnCount            Int             @default(0)
-  /** Faz AI-3 — oturum boyunca biriken ihale taslağı (AiTenderDraft JSON);
-   *  belge + konuşma birleşiminin tek kaynağı. Kullanıcı wizard'a taşıyınca kullanılır. */
+  /**
+   * Faz AI-3 — oturum boyunca biriken ihale taslağı (AiTenderDraft JSON);
+   * belge + konuşma birleşiminin tek kaynağı. Kullanıcı wizard'a taşıyınca kullanılır.
+   */
   tenderDraft          Json?
   /**
    * Faz AI-4 — onay bekleyen aksiyon (tek kayıt; {id,type,params,summary,
@@ -464,11 +469,15 @@ model AiChatMessage {
   id        String        @id @default(cuid())
   sessionId String
   session   AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  /** Oturum içi sıra (1'den artan). */
+  /**
+   * Oturum içi sıra (1'den artan).
+   */
   seq       Int
   role      AiChatRole
   content   String
-  /** Asistan turunda kullanılan araç izleri (ad + özet) — teşhis/gösterim. */
+  /**
+   * Asistan turunda kullanılan araç izleri (ad + özet) — teşhis/gösterim.
+   */
   toolTrace Json?
   createdAt DateTime      @default(now())
 
@@ -542,43 +551,49 @@ model Company {
   membershipEndAt DateTime?
 
   // KYC / doğrulama
-  companyVerificationStatus CompanyVerificationStatus @default(UNVERIFIED)
-  companyVerifiedAt         DateTime?
-  companyRejectionReason    String? // genel red özeti (REJECTED → firmaya gösterilir; belge bazlı gerekçe ayrıca)
+  companyVerificationStatus  CompanyVerificationStatus @default(UNVERIFIED)
+  companyVerifiedAt          DateTime?
+  companyRejectionReason     String? // genel red özeti (REJECTED → firmaya gösterilir; belge bazlı gerekçe ayrıca)
   // Her belge: URL(key) + inceleme durumu + belge bazlı red gerekçesi.
-  docTaxPlateUrl            String?
-  docTaxPlateStatus        KycDocStatus @default(PENDING)
-  docTaxPlateReason        String?
-  docTradeRegistryUrl       String?
-  docTradeRegistryStatus   KycDocStatus @default(PENDING)
-  docTradeRegistryReason   String?
-  docSignatureCircularUrl   String?
-  docSignatureCircularStatus KycDocStatus @default(PENDING)
+  docTaxPlateUrl             String?
+  docTaxPlateStatus          KycDocStatus              @default(PENDING)
+  docTaxPlateReason          String?
+  docTradeRegistryUrl        String?
+  docTradeRegistryStatus     KycDocStatus              @default(PENDING)
+  docTradeRegistryReason     String?
+  docSignatureCircularUrl    String?
+  docSignatureCircularStatus KycDocStatus              @default(PENDING)
   docSignatureCircularReason String?
-  docActivityCertUrl        String?
-  docActivityCertStatus    KycDocStatus @default(PENDING)
-  docActivityCertReason    String?
-  docIdFrontUrl            String?
-  docIdFrontStatus         KycDocStatus @default(PENDING)
-  docIdFrontReason         String?
-  docIdBackUrl             String?
-  docIdBackStatus          KycDocStatus @default(PENDING)
-  docIdBackReason          String?
-  onboardingCompletedAt     DateTime?
+  docActivityCertUrl         String?
+  docActivityCertStatus      KycDocStatus              @default(PENDING)
+  docActivityCertReason      String?
+  docIdFrontUrl              String?
+  docIdFrontStatus           KycDocStatus              @default(PENDING)
+  docIdFrontReason           String?
+  docIdBackUrl               String?
+  docIdBackStatus            KycDocStatus              @default(PENDING)
+  docIdBackReason            String?
+  onboardingCompletedAt      DateTime?
 
   // Public profil (sadece PAKET görünür)
-  publicEnabled     Boolean  @default(false)
-  aboutText         String?
-  logoUrl           String?
-  coverImageUrl     String?
-  linkedinUrl       String?
-  instagramUrl      String?
-  services          String[] @default([])
-  photos            String[] @default([]) // herkese açık profil galeri görselleri
-  certificateImages String[] @default([]) // sertifika belge/görselleri
-  foundedYear       Int?
-  employeeCount     String?
-  certifications    String[] @default([])
+  publicEnabled         Boolean  @default(false)
+  // Pazar yeri ana anahtarı: firmanın PUBLIC ilanları GİRİŞ YAPMAMIŞ ziyaretçiye
+  // gösterilsin mi. `publicEnabled` ile karıştırma — o PROFİL sayfasını yönetir,
+  // bu İLANLARI. Varsayılan açık: `visibility=PUBLIC` seçen firma zaten "herkes
+  // görsün" dedi; bu anahtar o kararı geri almak isteyene tek yer verir.
+  // Arama motoru indeksi AYRI kapıdır (Listing.publicIndexable + publicEnabled).
+  publicListingsEnabled Boolean  @default(true)
+  aboutText             String?
+  logoUrl               String?
+  coverImageUrl         String?
+  linkedinUrl           String?
+  instagramUrl          String?
+  services              String[] @default([])
+  photos                String[] @default([]) // herkese açık profil galeri görselleri
+  certificateImages     String[] @default([]) // sertifika belge/görselleri
+  foundedYear           Int?
+  employeeCount         String?
+  certifications        String[] @default([])
 
   // Durum
   isActive      Boolean   @default(true)
@@ -619,8 +634,8 @@ model Company {
   membershipEvents     CompanyMembershipEvent[]
   adminNotes           CompanyAdminNote[]
   kycRevisions         CompanyKycRevision[]
-  reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
-  reviewsReceived      CompanyReview[]    @relation("ReviewsReceived")
+  reviewsGiven         CompanyReview[]           @relation("ReviewsGiven")
+  reviewsReceived      CompanyReview[]           @relation("ReviewsReceived")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -901,77 +916,77 @@ model CompanyOrder {
   buyerCompanyId  String
   buyer           Company  @relation("OrderBuyer", fields: [buyerCompanyId], references: [id], onDelete: Restrict)
 
-  amount         Decimal                   @db.Decimal(18, 2)
+  amount                 Decimal                   @db.Decimal(18, 2)
   // Tutarın para birimi = KAZANAN TEKLİFİN birimi (çoklu-birim RFQ'da ilanın
   // ana biriminden farklı olabilir). Award anında yazılır; legacy → TRY.
   // Currency enum (String değil) — bid/approval/exchangeRate ile tutarlı,
   // DB-seviyesinde geçersiz değer ("try"/yazım hatası) engellenir.
-  currency       Currency                  @default(TRY)
-  status         CompanyOrderStatus        @default(PENDING)
-  paymentTiming  CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
+  currency               Currency                  @default(TRY)
+  status                 CompanyOrderStatus        @default(PENDING)
+  paymentTiming          CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
   // Award anında ilandan snapshot — true ise satıcı onaydan önce teminat
   // mektubu yüklemek zorunda (accept guard'ı).
-  requireGuaranteeLetter Boolean @default(false)
+  requireGuaranteeLetter Boolean                   @default(false)
   // Award anında ilandan ödeme planı + teslim şekli snapshot'ı — ilan silinse
   // de (listing SetNull) sipariş kendi şartlarını bilir; Faz 3 adım motorunun
   // veri kaynağı. Legacy backfill: ilanı duranlar ilandan, öksüzler kendi
   // paymentTiming'inden (BEFORE→Peşin %100, AFTER→Açık Hesap).
-  paymentCategory ListingPaymentCategory @default(OPEN_ACCOUNT)
-  advancePercent  Int?
-  paymentDays     Int?
-  lcType          LcType?
-  lcConfirmed     Boolean              @default(false)
-  paymentNote     String?
-  deliveryTerm    ListingDeliveryTerm?
-  rejectedReason String?
-  cancelReason   String?
+  paymentCategory        ListingPaymentCategory    @default(OPEN_ACCOUNT)
+  advancePercent         Int?
+  paymentDays            Int?
+  lcType                 LcType?
+  lcConfirmed            Boolean                   @default(false)
+  paymentNote            String?
+  deliveryTerm           ListingDeliveryTerm?
+  rejectedReason         String?
+  cancelReason           String?
   // Teslimat adresi snapshot'ı (award anında: ALIM→ilanın adresi, SATIS→kazanan
   // teklifin adresi). Adres defteri sonradan değişse de sipariş sabit kalır.
   // { title, contactName, phone, country, city, district, addressLine, postalCode }
-  deliveryAddress Json?
+  deliveryAddress        Json?
 
   // ── Adım verileri (eski sistemle birebir) ──
   // KABUL (PENDING→ACCEPTED): satıcı tahmini teslim + banka + not girer.
-  acceptedAt           DateTime?
-  acceptedNote         String?
-  bankAccountHolder    String?
-  bankIban             String?
-  expectedDeliveryDate DateTime?
+  acceptedAt               DateTime?
+  acceptedNote             String?
+  bankAccountHolder        String?
+  bankIban                 String?
+  expectedDeliveryDate     DateTime?
   // AKREDİTİF adımları (paymentCategory=LETTER_OF_CREDIT, Faz 3): alıcı LC
   // açtırır (LC belgesi zorunlu) → satıcı kabul eder (gönderim kilidi açılır)
   // → satıcı "banka ödedi" der (sistem onaylı tam-tutar ödeme kaydı üretir).
-  lcOpenedAt   DateTime?
-  lcAcceptedAt DateTime?
-  lcPaidAt     DateTime?
+  lcOpenedAt               DateTime?
+  lcAcceptedAt             DateTime?
+  lcPaidAt                 DateTime?
   // Vade hatırlatması idempotency (S7 cron): teslim + paymentDays yaklaşırken
   // alıcıya BİR KEZ bildirim.
   paymentDueReminderSentAt DateTime?
   // GÖNDER (ACCEPTED→IN_DELIVERY): satıcı fatura no (zorunlu) + gönderim notu.
-  invoiceNumber        String?
-  deliveryStartedAt    DateTime?
-  deliveryNote         String?
+  invoiceNumber            String?
+  deliveryStartedAt        DateTime?
+  deliveryNote             String?
   // TESLİM / TAMAMLA: alıcı teslim alır, tamamlar.
-  deliveredAt          DateTime?
-  completedAt          DateTime?
-  completedNote        String?
+  deliveredAt              DateTime?
+  completedAt              DateTime?
+  completedNote            String?
   // Timeline için sonlandırma damgaları (sebepler ayrı alanlarda).
-  rejectedAt           DateTime?
-  cancelledAt          DateTime?
+  rejectedAt               DateTime?
+  cancelledAt              DateTime?
   // A1 — SATICI iptal talebi (yalnız ACCEPTED): satıcı çıkış talep eder, alıcı
   // onaylar (→CANCELLED) ya da reddeder (→DISPUTED). Açık talep işareti =
   // status===ACCEPTED && cancelRequestedAt!=null. Tam kanıt izi audit_logs'ta.
-  cancelRequestedAt    DateTime?
-  cancelRequestReason  String?
-  cancelRequestById    String?
+  cancelRequestedAt        DateTime?
+  cancelRequestReason      String?
+  cancelRequestById        String?
   // İhtilaf damgası (ACCEPTED→DISPUTED): saat durur, iki-yönlü çıkış açık.
-  disputedAt           DateTime?
+  disputedAt               DateTime?
   // TTK 23 — ayıp ihbarı: alıcı teslimden sonra 8 gün içinde ayıp ihbar eder →
   // DISPUTED. defectNotifiedAt varlığı bu ihtilafı A1 (satıcı iptal talebi)
   // ihtilafından ayırır; disputePrevStatus geri çekmede önceki duruma (DELIVERED
   // veya COMPLETED) döndürür. Platform kaydeder; çözüm taraflar arasında.
-  defectNotifiedAt     DateTime?
-  defectReason         String?
-  disputePrevStatus    CompanyOrderStatus?
+  defectNotifiedAt         DateTime?
+  defectReason             String?
+  disputePrevStatus        CompanyOrderStatus?
 
   items     CompanyOrderItem[]
   payments  CompanyOrderPayment[]
@@ -1006,22 +1021,22 @@ enum OrderRevisionStatus {
  * expectedDeliveryDate + CompanyOrderItem satırları güncellenir.
  */
 model OrderRevision {
-  id                  String              @id @default(cuid())
-  orderId             String
-  order               CompanyOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                   String              @id @default(cuid())
+  orderId              String
+  order                CompanyOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   // Öneriyi yapan firma (satıcı) — audit; taraf servis seviyesinde doğrulanır.
-  proposedByCompanyId String
-  proposedByUserId    String?
-  status              OrderRevisionStatus @default(PENDING)
+  proposedByCompanyId  String
+  proposedByUserId     String?
+  status               OrderRevisionStatus @default(PENDING)
   // Önerilen order-level değerler (snapshot). amount kalemlerden hesaplanır.
-  amount               Decimal   @db.Decimal(18, 2)
-  currency             Currency  @default(TRY)
+  amount               Decimal             @db.Decimal(18, 2)
+  currency             Currency            @default(TRY)
   expectedDeliveryDate DateTime?
   note                 String? // satıcının revizyon açıklaması
   rejectReason         String? // alıcının ret gerekçesi
   decidedByUserId      String?
   decidedAt            DateTime?
-  createdAt            DateTime  @default(now())
+  createdAt            DateTime            @default(now())
 
   items OrderRevisionItem[]
 
@@ -1094,16 +1109,16 @@ model CompanyOrderPayment {
 
 // Sipariş kalemi — kazandırma anındaki snapshot (ad/miktar/birim fiyat).
 model CompanyOrderItem {
-  id        String       @id @default(cuid())
-  orderId   String
-  order     CompanyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  name      String
-  quantity  Decimal      @db.Decimal(18, 3)
-  unit      String
+  id           String           @id @default(cuid())
+  orderId      String
+  order        CompanyOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name         String
+  quantity     Decimal          @db.Decimal(18, 3)
+  unit         String
   // Award anında kalemden kopyalanan kanonik birim kodu (snapshot).
   // Geçmiş siparişlerin birimi DEĞİŞTİRİLMEZ; yalnız yeni kayıtlar doldurur.
-  unitCode  String?
-  unitPrice Decimal      @db.Decimal(18, 2)
+  unitCode     String?
+  unitPrice    Decimal          @db.Decimal(18, 2)
   // Kalem-özel teslim tarihi — award anında kazanan teklifin kalem tarihinden
   // (ListingBidItem.deliveryDate) snapshot'lanır; boşsa order-level
   // expectedDeliveryDate geçerli. Kalem notu da teklifin kalem notundan gelir.
@@ -1125,21 +1140,21 @@ model ListingBid {
   bidderCompany   Company @relation("BidderCompany", fields: [bidderCompanyId], references: [id], onDelete: Cascade)
 
   // Toplam tutar (tek-tutar teklif VEYA kalem teklifleri toplamı).
-  amount      Decimal          @db.Decimal(18, 2)
-  currency    Currency         @default(TRY)
-  note        String?
+  amount         Decimal          @db.Decimal(18, 2)
+  currency       Currency         @default(TRY)
+  note           String?
   // Hemen-Al ile verilen teklif (tavan fiyattan). Yine de sahip onaylar.
-  isBuyNow    Boolean          @default(false)
-  status      ListingBidStatus @default(SUBMITTED)
-  round       Int              @default(1) // hangi turda verildi/güncellendi
+  isBuyNow       Boolean          @default(false)
+  status         ListingBidStatus @default(SUBMITTED)
+  round          Int              @default(1) // hangi turda verildi/güncellendi
   // Pazarlıkta AKTİF gönderimin yapıldığı tur — "turda tek teklif" hakkı bunu
   // sayar. Yeni-tur taşıması (carry-over) round'u ilerletir ama BUNA dokunmaz:
   // taşınan teklif hak yakmaz. NULL = kural öncesi legacy / hiç aktif gönderim.
   activeBidRound Int?
-  createdById String // CompanyUser (teklifi veren kişi)
+  createdById    String // CompanyUser (teklifi veren kişi)
 
   // Zenginleştirme (eski Bid ile paralel).
-  version              Int       @default(1) // taslak güncellemede artar
+  version              Int              @default(1) // taslak güncellemede artar
   submittedAt          DateTime? // SUBMITTED'a geçiş anı
   // ALIM: satıcının taahhüt ettiği teslim tarihi. SATIS: alıcının İSTEDİĞİ
   // teslim tarihi. LEGACY (2026-08-02'den önce) — yeni teklifler süre girer.
@@ -1148,7 +1163,7 @@ model ListingBid {
   // Gönderimde zorunlu (kalemlerin tamamı kendi süresini taşımıyorsa).
   deliveryTime         BidDeliveryTime?
   validityDays         Int? // teklif geçerlilik süresi (gönderimde zorunlu)
-  exchangeRateSnapshot Decimal?  @db.Decimal(18, 6) // TRY dışı teklifte TCMB kuru
+  exchangeRateSnapshot Decimal?         @db.Decimal(18, 6) // TRY dışı teklifte TCMB kuru
   eliminationReason    String? // alıcı eleme sebebi
   eliminatedAt         DateTime?
 
@@ -1252,8 +1267,8 @@ model ListingDocument {
    * AYRI bir tablo açmak yerine bu kolon: yetki kapısı, R2 doğrulaması,
    * indirme imzası, denetim izi ve tavan mantığı TEK yerde kalır.
    */
-  itemId              String?
-  item                ListingItem?   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String?
+  item   ListingItem? @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
   @@index([itemId])
@@ -1363,51 +1378,58 @@ enum ListingQuestionAnswerType {
 }
 
 model Listing {
-  id                    String            @id @default(cuid())
+  id                       String             @id @default(cuid())
   // SİSTEM GENELİNDE benzersiz ilan numarası (ROT-NNNNNN). Global Postgres
   // sequence'tan üretilir → A ve B firmasının ilanı asla aynı numarayı almaz.
   // Sıra büyüdükçe hane sayısı kendiliğinden artar (çok-haneli destek).
-  number                String?           @unique
-  companyId             String // açan firma
-  company               Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  type                  ListingType
+  number                   String?            @unique
+  companyId                String // açan firma
+  company                  Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type                     ListingType
   // Yurtiçi (false) / Uluslararası (true).
-  isInternational       Boolean           @default(false)
+  isInternational          Boolean            @default(false)
   // Sınır ötesi hedef ülkeler (ISO kodları). Boş + isInternational=true =
   // tüm yabancı ülkeler; dolu = yalnızca listelenen ülkeler görür.
-  targetCountries       String[]          @default([])
+  targetCountries          String[]           @default([])
   // ALIM için format (RFQ/İngiliz Usulü). SATIS'ta null (her zaman forward).
-  format                ListingFormat?
-  visibility            ListingVisibility @default(CONNECTIONS)
+  format                   ListingFormat?
+  visibility               ListingVisibility  @default(CONNECTIONS)
+  // Bu ilan ARAMA MOTORLARINA açık mı (ilan bazında devre dışı bırakma).
+  // İndeks kapısı ÜÇ koşulun kesişimidir ve üçü de gerekir:
+  //   visibility=PUBLIC  ∧  company.publicEnabled  ∧  publicIndexable
+  // Sitede GÖRÜNMEK ayrı ve daha gevşek bir karardır (visibility=PUBLIC ∧
+  // company.publicListingsEnabled) — indekslenmeyen ilan sitede görünmeye
+  // devam eder, sayfası `noindex` alır.
+  publicIndexable          Boolean            @default(true)
   // Kalem "hedef/istenen birim fiyat"ı (targetPrice) teklif verebilen karşı
   // tarafa gösterilsin mi? Varsayılan GİZLİ (opt-in) — açık göstermek fiyat
   // çıpalaması yaratır; sahip bilerek bütçe paylaşmak isterse açar.
-  showTargetToSuppliers Boolean           @default(false)
-  title                 String
-  description           String?
+  showTargetToSuppliers    Boolean            @default(false)
+  title                    String
+  description              String?
   // SATIS fiyatlandırma kapsamı: TOPLU (ilan geneli taban/hemen-al) veya
   // KALEM (her kalemin kendi minUnitPrice/buyNowUnitPrice'ı). null = TOPLU
   // (legacy). ALIM'da anlamsız.
-  priceScope            ListingPriceScope?
+  priceScope               ListingPriceScope?
   // SATIS + TOPLU için: taban (min) fiyat + hemen-al fiyatı.
-  minPrice              Decimal?          @db.Decimal(18, 2)
-  buyNowPrice           Decimal?          @db.Decimal(18, 2)
-  status                ListingStatus     @default(OPEN)
-  closesAt              DateTime?
-  cancelReason          String? // iptal/kazansız-kapatma gerekçesi
+  minPrice                 Decimal?           @db.Decimal(18, 2)
+  buyNowPrice              Decimal?           @db.Decimal(18, 2)
+  status                   ListingStatus      @default(OPEN)
+  closesAt                 DateTime?
+  cancelReason             String? // iptal/kazansız-kapatma gerekçesi
   // Teslimat/fatura adresi — CompanyAddress id (firma adres defterinden seçilir).
-  deliveryAddressId     String?
-  billingAddressId      String?
-  createdById           String // CompanyUser id (açan kişi)
+  deliveryAddressId        String?
+  billingAddressId         String?
+  createdById              String // CompanyUser id (açan kişi)
   // Yaşam döngüsü damgaları (eski Tender ile paralel).
-  publishedAt           DateTime? // OPEN'a geçiş anı
-  awardedAt             DateTime? // AWARDED anı
-  closingReminderSentAt DateTime? // kapanış hatırlatma idempotency
+  publishedAt              DateTime? // OPEN'a geçiş anı
+  awardedAt                DateTime? // AWARDED anı
+  closingReminderSentAt    DateTime? // kapanış hatırlatma idempotency
   // Değerlendirme (IN_AWARD) uzarken "teklif geçerlilikleri dolmak üzere"
   // sahip hatırlatması idempotency damgası (cron bir kez gönderir).
   evaluationReminderSentAt DateTime?
   // İngiliz Usulü çok-turlu eksiltme — alıcı tur tur ilerletir (eski yeni-tur).
-  currentRound          Int               @default(1)
+  currentRound             Int                @default(1)
 
   // İhale (ALIM) zenginleştirme — eski alıcı paneli kuralları.
   categoryIds        String[]   @default([]) // UNGM UNSPSC TR kategori kodları
@@ -1420,38 +1442,38 @@ model Listing {
   allowedCurrencies  Currency[] @default([])
 
   // Wizard zenginleştirme (eski tender wizard birebir) — hepsi opsiyonel/default.
-  isSealedBid   Boolean              @default(true) // kapalı zarf
-  isLogistics   Boolean              @default(false) // lojistik ihalesi katmanı
-  logistics     Json? // taşıma modu/adres/kargo/ağırlık vb. (LogisticsFormData)
-  deliveryTerm  ListingDeliveryTerm?
+  isSealedBid            Boolean                @default(true) // kapalı zarf
+  isLogistics            Boolean                @default(false) // lojistik ihalesi katmanı
+  logistics              Json? // taşıma modu/adres/kargo/ağırlık vb. (LogisticsFormData)
+  deliveryTerm           ListingDeliveryTerm?
   // Ödeme planı — kategori + kategoriye göre koşullu alanlar. paymentDays tek
   // "vade günü" alanıdır: DEFERRED/CHEQUE vadesi, LC-USANCE vadesi ve kısmi
   // peşinde kalan tutarın vadesi (opsiyonel).
-  paymentCategory ListingPaymentCategory @default(OPEN_ACCOUNT)
-  advancePercent  Int? // yalnız ADVANCE (1-100); uluslararası ilanda hep 100
-  paymentDays     Int?
-  lcType          LcType? // yalnız LETTER_OF_CREDIT
-  lcConfirmed     Boolean @default(false) // teyitli akreditif
-  paymentNote     String? // serbest ödeme şartı notu — CUSTOM'da zorunlu
+  paymentCategory        ListingPaymentCategory @default(OPEN_ACCOUNT)
+  advancePercent         Int? // yalnız ADVANCE (1-100); uluslararası ilanda hep 100
+  paymentDays            Int?
+  lcType                 LcType? // yalnız LETTER_OF_CREDIT
+  lcConfirmed            Boolean                @default(false) // teyitli akreditif
+  paymentNote            String? // serbest ödeme şartı notu — CUSTOM'da zorunlu
   // TÜRETİLMİŞ zamanlama (kullanıcıya sorulmaz): ADVANCE/LC → BEFORE_DELIVERY,
   // diğerleri → AFTER_DELIVERY (derivePaymentTiming, @rothern/shared). Belge
   // pencereleri/complete kapısı bunu okumaya devam eder (Faz 3'e köprü).
-  paymentTiming ListingPaymentTiming @default(AFTER_DELIVERY)
+  paymentTiming          ListingPaymentTiming   @default(AFTER_DELIVERY)
   // Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? İlan sahibi
   // seçer (BEFORE_DELIVERY'de sistem önerir); yalnız BEFORE_DELIVERY'de anlamlı.
-  requireGuaranteeLetter Boolean @default(false)
-  bidsOpenAt    DateTime?
+  requireGuaranteeLetter Boolean                @default(false)
+  bidsOpenAt             DateTime?
   // Açılış duyurusu damgası — gelecek-tarihli açılışta (embargo) ilan sahibi
   // dışında kimse İLANI GÖREMEZ ve yayın bildirimleri açılış anına ertelenir;
   // duyuruyu yapan (publish ya da açılış cron'u) bu alanı damgalar.
-  openNotifiedAt DateTime?
+  openNotifiedAt         DateTime?
 
   // İngiliz Usulü açık eksiltme ayarları.
-  bidVisibility          ListingBidVisibility   @default(OWN_ONLY)
-  decimalPlaces          Int                    @default(2)
-  sendClosingReminder    Boolean                @default(false)
+  bidVisibility          ListingBidVisibility @default(OWN_ONLY)
+  decimalPlaces          Int                  @default(2)
+  sendClosingReminder    Boolean              @default(false)
   reminderMinutesBefore  Int?
-  autoExtendOnLateBid    Boolean                @default(false)
+  autoExtendOnLateBid    Boolean              @default(false)
   autoExtendThresholdMin Int?
   autoExtendByMinutes    Int?
   // Açık eksiltme/artırma kur damgası — { "USD": 46.89, ... } (birim başına TRY,
@@ -1499,24 +1521,26 @@ model ListingTemplate {
 /**
  * KALEM KATALOĞU (Faz 2) — firma-içi tekrar kullanılabilir kalem kartları.
  * SAP "Material Master"ın bu ürüne uyarlanmış, sadeleştirilmiş hâli.
- *
  * TASARIM: ilan kalemiyle arasında FK YOKTUR — katalogdan ihaleye KOPYALANIR.
  * FK olsaydı katalogdaki bir düzeltme yayınlanmış ihaleyi geriye dönük
  * değiştirirdi; denetim boyunca tam olarak bu sınıf hatayı kovaladık
  * (snapshot'lar dondurulur, canlı bağ kurulmaz).
- *
  * Silme yerine `isActive=false` (pasifleştirme): geçmiş ilanlar kopya taşıdığı
  * için zaten etkilenmez, ama kullanıcı yanlışlıkla sildiğini geri alabilmeli.
  */
 model CompanyItem {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   companyId     String
-  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  /** Firma-içi stok kodu — OPSİYONEL (KOBİ kullanıcısı kod tutmuyor olabilir). */
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /**
+   * Firma-içi stok kodu — OPSİYONEL (KOBİ kullanıcısı kod tutmuyor olabilir).
+   */
   code          String?
   name          String
   description   String?
-  /** Uzun teknik metin (SAP long text karşılığı) — Faz 3'te ilan kalemine de gelecek. */
+  /**
+   * Uzun teknik metin (SAP long text karşılığı) — Faz 3'te ilan kalemine de gelecek.
+   */
   specification String?
   /**
    * Kanonik ölçü birimi (@rothern/shared UNITS). İlan kalemiyle AYNI kural:
@@ -1525,21 +1549,29 @@ model CompanyItem {
    * hâle getirirdi — liste bilinçli olarak kapalı değil.
    */
   unitCode      String?
-  /** Serbest metin karşılığı — okuma `unitCode ?? unit` sırasıyla. */
+  /**
+   * Serbest metin karşılığı — okuma `unitCode ?? unit` sırasıyla.
+   */
   unit          String
-  /** UNSPSC kategorisi (L3+) — yeni taksonomi ÜRETİLMEZ, mevcut ağaca bağlanır. */
+  /**
+   * UNSPSC kategorisi (L3+) — yeni taksonomi ÜRETİLMEZ, mevcut ağaca bağlanır.
+   */
   categoryId    String?
   brand         String?
-  /** Üretici parça numarası. */
+  /**
+   * Üretici parça numarası.
+   */
   mpn           String?
-  targetPrice   Decimal? @db.Decimal(18, 2)
-  isActive      Boolean  @default(true)
-  /** "En sık kullanılan üstte" sıralaması — katalogdan ihaleye her eklemede artar. */
-  usageCount    Int      @default(0)
+  targetPrice   Decimal?  @db.Decimal(18, 2)
+  isActive      Boolean   @default(true)
+  /**
+   * "En sık kullanılan üstte" sıralaması — katalogdan ihaleye her eklemede artar.
+   */
+  usageCount    Int       @default(0)
   lastUsedAt    DateTime?
   createdById   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now()) @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 
   // Kod verilmişse firma içinde tekil (null'lar çakışmaz — Postgres davranışı).
   @@unique([companyId, code])
@@ -1586,28 +1618,40 @@ model ListingItem {
   requiredByDate  DateTime? // istenen teslim tarihi
 
   // ── Faz 3: kalem detayları ────────────────────────────────────────────
-  /** Marka — "şu markanın şu parçası" teklif kıyasının temeli. */
-  brand           String?
-  /** Üretici parça numarası (MPN). */
-  mpn             String?
+  /**
+   * /** Marka — "şu markanın şu parçası" teklif kıyasının temeli.
+   */
+  brand              String?
+  /**
+   * Üretici parça numarası (MPN).
+   */
+  mpn                String?
   /**
    * MUADİL/EŞDEĞER teklif kabul edilir mi? Klasik satınalma alanı: teklifin
    * kapsamını belirler. Tedarikçi tarafındaki karşılığı `ListingBidItem`
    * `isAlternative`/`offeredBrand`/`offeredMpn` — o olmadan alıcı gelen
    * tekliflerin AYNI ürüne mi ait olduğunu göremez.
    */
-  alternativeAllowed Boolean @default(true)
-  /** Uzun teknik şartname (SAP long text karşılığı). `description` kısa özet. */
-  specification   String?
-  /** Garanti süresi (ay) — tekliflerde kıyaslanabilir olsun. */
-  warrantyMonths  Int?
-  /** GTİP/HS kodu — yalnız uluslararası ilanlarda anlamlı. */
-  hsCode          String?
-  awardedQuantity Decimal?  @db.Decimal(18, 3) // kısmi kazandırmada verilen miktar
+  alternativeAllowed Boolean  @default(true)
+  /**
+   * Uzun teknik şartname (SAP long text karşılığı). `description` kısa özet.
+   */
+  specification      String?
+  /**
+   * Garanti süresi (ay) — tekliflerde kıyaslanabilir olsun.
+   */
+  warrantyMonths     Int?
+  /**
+   * GTİP/HS kodu — yalnız uluslararası ilanlarda anlamlı.
+   */
+  hsCode             String?
+  awardedQuantity    Decimal? @db.Decimal(18, 3) // kısmi kazandırmada verilen miktar
 
   bidItems  ListingBidItem[]
   questions ListingItemQuestion[]
-  /** Kalem-bazlı teknik resim/çizim (Faz 3) — ilan belgeleriyle AYNI tablo. */
+  /**
+   * Kalem-bazlı teknik resim/çizim (Faz 3) — ilan belgeleriyle AYNI tablo.
+   */
   documents ListingDocument[]
 
   createdAt DateTime @default(now())
@@ -1696,21 +1740,23 @@ model ListingBidItem {
   // teklif edebiliyorsa NE teklif ettiğini söyleyebilmeli. Bunlar olmadan
   // alıcı, gelen üç teklifin aynı ürüne mi farklı ürünlere mi ait olduğunu
   // göremez ve karşılaştırma yanıltıcı olur.
-  /** Teklif edilen ürün ALICININ istediğinden farklı mı (muadil/eşdeğer)? */
-  isAlternative Boolean @default(false)
+  /**
+   * /** Teklif edilen ürün ALICININ istediğinden farklı mı (muadil/eşdeğer)?
+   */
+  isAlternative Boolean          @default(false)
   offeredBrand  String?
   offeredMpn    String?
-  note      String?
+  note          String?
   // Kalem-özel teslim tarihi — LEGACY (2026-08-02'den önce); yeni teklifler süre girer.
-  deliveryDate DateTime?
+  deliveryDate  DateTime?
   // Kalem-özel teslim SÜRESİ (opsiyonel) — boşsa teklifin genel süresi geçerli.
-  deliveryTime BidDeliveryTime?
+  deliveryTime  BidDeliveryTime?
   // Kalem para birimi (madde 9, 2026-08-02) — null = teklifin ana birimi.
   // Yalnız kapalı zarf ALIM ihalelerinde; award'da para birimi başına ayrı sipariş.
-  currency Currency?
+  currency      Currency?
   // Kalem birimi → teklifin ana birimi çevrim damgası (submit anı, TCMB çaprazı).
   // null = 1 (aynı birim). S5 nöbetçisi bid.amount'u AYNI damgayla yeniden hesaplar.
-  fxToBase Decimal? @db.Decimal(18, 6)
+  fxToBase      Decimal?         @db.Decimal(18, 6)
 
   @@unique([bidId, itemId])
   @@index([bidId])
@@ -1730,36 +1776,36 @@ model CompanyUser {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  isActive            Boolean   @default(true)
-  emailVerifiedAt     DateTime?
-  twoFactorEnabled    Boolean   @default(false)
-  twoFactorEnabledAt  DateTime?
+  isActive               Boolean         @default(true)
+  emailVerifiedAt        DateTime?
+  twoFactorEnabled       Boolean         @default(false)
+  twoFactorEnabledAt     DateTime?
   // 2FA yöntemi: AUTHENTICATOR (TOTP uygulaması) veya EMAIL (girişte e-postaya kod).
-  twoFactorMethod     TwoFactorMethod @default(AUTHENTICATOR)
-  twoFactorSecret     String? // TOTP secret (base32) — AUTHENTICATOR yönteminde dolu
+  twoFactorMethod        TwoFactorMethod @default(AUTHENTICATOR)
+  twoFactorSecret        String? // TOTP secret (base32) — AUTHENTICATOR yönteminde dolu
   // Kurtarma kodları (SHA-256 hash) — enable'da üretilir, BİR KEZ gösterilir;
   // her kod tek kullanımlık (girişte/kapatmada tüketilir).
-  twoFactorRecoveryCodes String[] @default([])
+  twoFactorRecoveryCodes String[]        @default([])
   // Oturum sürümü — parola değişince artar; eski JWT'ler geçersizleşir
   // (strategy her istekte DB'den doğrular).
-  tokenVersion Int @default(0)
-  permissionsOverride Json? // { added?: string[], removed?: string[] }
-  notificationPrefs   Json?
-  invitedById         String?
-  invitedAt           DateTime?
-  lastLoginAt         DateTime?
-  deletedAt           DateTime? // iş çıkışı — soft delete (geçmiş korunur, KVKK)
+  tokenVersion           Int             @default(0)
+  permissionsOverride    Json? // { added?: string[], removed?: string[] }
+  notificationPrefs      Json?
+  invitedById            String?
+  invitedAt              DateTime?
+  lastLoginAt            DateTime?
+  deletedAt              DateTime? // iş çıkışı — soft delete (geçmiş korunur, KVKK)
 
   // Kayıt sözleşme/rıza kayıtları (KVKK denetim izi).
-  termsAcceptedAt          DateTime? // kullanıcı sözleşmesi
-  mediationAcceptedAt      DateTime? // platform aracılık ve kullanım sözleşmesi
-  kvkkAcceptedAt           DateTime? // KVKK aydınlatma bilgilendirmesi
-  marketingConsent         Boolean   @default(false) // pazarlama/analitik (ticari ileti)
-  profileImprovementConsent Boolean  @default(false) // profil/hizmet iyileştirme
+  termsAcceptedAt           DateTime? // kullanıcı sözleşmesi
+  mediationAcceptedAt       DateTime? // platform aracılık ve kullanım sözleşmesi
+  kvkkAcceptedAt            DateTime? // KVKK aydınlatma bilgilendirmesi
+  marketingConsent          Boolean   @default(false) // pazarlama/analitik (ticari ileti)
+  profileImprovementConsent Boolean   @default(false) // profil/hizmet iyileştirme
 
-  passwordResetTokens   PasswordResetToken[]
+  passwordResetTokens    PasswordResetToken[]
   emailVerificationCodes EmailVerificationCode[]
-  notifications         Notification[]
+  notifications          Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1809,20 +1855,20 @@ model CompanyUserInvitation {
  * anahtarına eşlenir (kapatılabilir olanlar pref'e saygı duyar).
  */
 model Notification {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   companyUserId String
   companyUser   CompanyUser @relation(fields: [companyUserId], references: [id], onDelete: Cascade)
   companyId     String // denormalize — firma kapsamı/temizlik için
 
-  type     String // ör. listing_category_match, listing_invitation, bid_awarded
+  type      String // ör. listing_category_match, listing_invitation, bid_awarded
   // Bildirim hangi portala ait: "satinalma" | "satis" | null (ortak — bağlantı
   // gibi). Zil/sayaç AKTİF portalı (+ ortak) gösterir; satış bildirimi saf
   // satın almacıya HİÇ oluşturulmaz (alıcı filtresi üretim anında uygular).
-  portal   String?
-  title    String
-  body     String
-  ctaUrl   String?
-  ctaLabel String?
+  portal    String?
+  title     String
+  body      String
+  ctaUrl    String?
+  ctaLabel  String?
   listingId String? // bağlam referansı (opsiyonel)
 
   readAt    DateTime?
@@ -1905,28 +1951,28 @@ model ApprovalFlowStep {
 
 // Çalışma anı onay isteği (ilan yayın/kazandırma anında oluşur).
 model ApprovalRequest {
-  id          String                @id @default(cuid())
-  companyId   String
-  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  listingId   String
-  listing     Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  type        ApprovalType
-  status      ApprovalRequestStatus @default(PENDING)
+  id             String                @id @default(cuid())
+  companyId      String
+  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  listingId      String
+  listing        Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  type           ApprovalType
+  status         ApprovalRequestStatus @default(PENDING)
   // İnsan-okur onay numarası: APR-YYYY-NNNN (firma bazında benzersiz).
-  requestNo   String?
-  amount      Decimal               @db.Decimal(18, 2) // snapshot (kural sonradan değişse de bağımsız)
-  currency    Currency              @default(TRY)
+  requestNo      String?
+  amount         Decimal               @db.Decimal(18, 2) // snapshot (kural sonradan değişse de bağımsız)
+  currency       Currency              @default(TRY)
   // Onaylanınca tetiklenecek işlemin verisi (örn. kazandırma seçimleri).
-  payload     Json?
+  payload        Json?
   // Başlatanın onaycılara notu (yayın/kazandırma anında girilir).
-  initiatorNote String?
-  steps       ApprovalRequestStep[]
-  createdById String
-  decidedAt   DateTime?
+  initiatorNote  String?
+  steps          ApprovalRequestStep[]
+  createdById    String
+  decidedAt      DateTime?
   // Bekleyen onay hatırlatması — günde-bir-kez dedup için son gönderim damgası.
   lastReminderAt DateTime?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   @@unique([companyId, requestNo])
   @@index([companyId, status, type])
@@ -2047,24 +2093,24 @@ model TimeSavingsConfig {
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   /// RFQ mailini hazırlama — dk × davet edilen tedarikçi.
-  rfqMailPrepMin      Decimal @default(6) @db.Decimal(6, 2)
+  rfqMailPrepMin     Decimal  @default(6) @db.Decimal(6, 2)
   /// Takip/hatırlatma — dk × tedarikçi × tur. NOT: hatırlatma turu takibi
   /// olmadığı için v1 hesabına KATILMAZ (parametre ileriye dönük durur).
-  followupMin         Decimal @default(3) @db.Decimal(6, 2)
+  followupMin        Decimal  @default(3) @db.Decimal(6, 2)
   /// Teklifi Excel'e işleme — dk × teklif (kalem katsayılı).
-  bidToExcelMin       Decimal @default(4) @db.Decimal(6, 2)
+  bidToExcelMin      Decimal  @default(4) @db.Decimal(6, 2)
   /// Kalem katsayısı: teklif başına süre × (1 + factor × (kalem-1)).
-  bidItemFactor       Decimal @default(0.15) @db.Decimal(4, 2)
+  bidItemFactor      Decimal  @default(0.15) @db.Decimal(4, 2)
   /// Karşılaştırma tablosu — dk × ihale.
-  comparisonTableMin  Decimal @default(15) @db.Decimal(6, 2)
+  comparisonTableMin Decimal  @default(15) @db.Decimal(6, 2)
   /// Revizyon turu — dk × tedarikçi × tur (round>1 + version>1 sinyali).
-  revisionRoundMin    Decimal @default(5) @db.Decimal(6, 2)
+  revisionRoundMin   Decimal  @default(5) @db.Decimal(6, 2)
   /// Onay mail döngüsü — dk × onaya düşen ihale.
-  approvalLoopMin     Decimal @default(20) @db.Decimal(6, 2)
+  approvalLoopMin    Decimal  @default(20) @db.Decimal(6, 2)
   /// PO hazırlama + gönderme — dk × sipariş.
-  poPrepMin           Decimal @default(10) @db.Decimal(6, 2)
+  poPrepMin          Decimal  @default(10) @db.Decimal(6, 2)
   /// Saatlik iş gücü maliyeti (₺) — NULL ise TL karşılığı hiç gösterilmez.
-  hourlyLaborCost     Decimal? @db.Decimal(10, 2)
+  hourlyLaborCost    Decimal? @db.Decimal(10, 2)
 
   updatedById String? // PlatformAdmin id (global) / CompanyUser id (override)
   createdAt   DateTime @default(now())
