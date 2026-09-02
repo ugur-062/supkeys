@@ -8694,3 +8694,222 @@
 41111812	Gama ışını radyografi muayene ekipmanı	Gamma ray radiography examination equipment
 41111813	Endüstriyel radyograf inceleme negatoskopu	Industrial radiograph viewing illuminator
 41111814	Nötron radyografi muayene ekipmanı	Neutron radiography examination equipment
+41111815	Donatı metal dedektörü	Reinforcement metal detector
+41111816	Yer değiştirme ölçüm aleti	Displacement measuring instrument
+41111817	Pirinç tadı ölçüm sistemi	Rice taste measuring system
+41111818	Tahribatsız muayene reaktifi	Non destructive examination reagent
+41111819	Çelik halat test cihazı	Wire rope tester
+41111820	Floresan dedektörü	Fluorescence detector
+41111821	Terahertz radyasyon muayene ekipmanı	Terahertz radiation inspection equipment
+41111949	Çalışma saati sayacı	Hour meter
+41111950	Seviye göstergesi	Level indicator
+41111951	Higrostat	Humidistat
+41111952	Hidrojen sülfür sensörü	Hydrogen sulfide sensor
+41111953	Hava yastığı ateşleme sensörü	Supplemental inflator restraint arming sensor
+41111954	Sıvı sensörü	Liquid sensor
+41111955	Güneş sensörü	Solar sensor
+41111956	Kızılötesi sıcaklık sensörü	Infrared temperature sensor
+41111957	Yağ basıncı sensörü	Oil pressure sensor
+41111958	Manifold ortam basıncı sensörü	Manifold ambient pressure sensor
+41111959	Yakıt basıncı sensörü	Fuel pressure sensor
+41111960	Ultrasonik sensör	Ultrasonic sensor
+41111961	Yolcu algılama sensörü	Occupant sensor
+41111962	Fren balatası aşınma sensörü	Brake wear sensor
+41111963	Yakıt seviyesi sensörü	Fuel level sensor
+41111964	Emniyet kemeri gerginlik ölçüm sensörü	Seat belt tension sensor
+41111965	Su sensörü	Water sensor
+41111966	Nem sensörü	Humidity sensor
+41111967	Yanal ve savrulma sensörü	Lateral long yaw sensor
+41111969	Gerilim kontrol sensörü	Voltage control sensor
+41111970	Sıcaklık sensörü	Temperature sensor
+41111971	İkili sayıcı	Binary counter
+41111972	Hava yastığı SIR bobin takımı sensörü	Supplemental inflator restraint SIR or airbag coil assembly sensor
+41111973	Parçacık sayıcı	Particle counter
+41111974	Isıtma sensörü test cihazı	Heating sensor tester
+41111975	Manyetik alan monitörü	Magnetic field monitor
+41111976	Su sayacı kontrol sistemi	Water meter check system
+41111977	İyon sayıcı	Ion counter
+41111978	Manuel mikrohematokrit tüp okuyucusu	Manual microhematocrit tube reader
+41111979	Klinik sıcaklık kontrollü ekipman için veri kaydedici	Data logger for clinical temperature controlled equipment
+41111980	Klinik sıcaklık kontrollü ekipman için uzaktan izleme sistemi	Remote monitoring system for clinical temperature controlled equipment
+41111981	Kan kullanımı yönetim sistemi	Blood utilization management system
+41112109	Akım transdüseri	Current transducer
+41112110	Basınç transdüseri	Pressure transducer
+41112111	Yer değiştirme transdüseri	Displacement transducer
+41112112	Elektrik gücü transdüseri	Electric power transducer
+41112113	Mekanik enerji transdüseri	Mechanical energy transducer
+41112114	Sıcaklık nem vericisi	Thermo hygro transmitter
+41112222	Sıcaklık göstergesi	Temperature gauge
+41112223	Bileşik gösterge	Compound gauge
+41112224	Kızılötesi termometre	Infrared thermometer
+41112225	Direnç sıcaklık dedektörü RTD	Resistance temperature detector RTD
+41112226	Düşük sıcaklık termokupl sensörü	Low temperature thermocouple sensor
+41112227	Yüksek sıcaklık termokupl sensörü	High temperature thermocouple sensor
+41112228	Yanma verimi analizörü	Combustion efficiency analyzer
+41112229	Isı sayacı	Heat meter
+41112230	Pirometre kalibratörü	Pyrometer calibrator
+41112231	Yağ bulutlanma ve akma noktası test cihazı	Oil cloud and pour point tester
+41112232	Donma noktası ölçüm aleti	Freezing point measuring instrument
+41112233	Erime noktası ölçüm aleti	Melting point measuring instrument
+41112234	Isı akış ölçer	Heat flowmeter
+41112235	Özgül ısı ölçüm aleti	Specific heat measuring instrument
+41112236	Asfalt yumuşama noktası test cihazı	Asphalt softening point tester
+41112237	Çiy noktası termometresi	Dewpoint thermometer
+41112238	Damlama noktası test cihazı	Dropping point tester
+41112239	Cam termometre	Glass thermometer
+41112240	Kan ünitesi sıcaklık doğrulama şeridi	Blood unit temperature verification strip
+41112241	Laboratuvar fırını termometresi	Laboratory oven thermometer
+41112242	Laboratuvar su banyosu termometresi	Laboratory waterbath thermometer
+41112243	Laboratuvar ısı bloğu termometresi	Laboratory heat block thermometer
+41112244	Kalibrasyon referans termometresi	Calibration reference thermometer
+41112306	Nem kalibratörü	Humidity calibrator
+41112307	Çimento su tutma test cihazı	Cement water retentivity tester
+41112412	Basınç göstergesi	Pressure gauge
+41112413	Fark basınç göstergesi	Differentialpressure gauge
+41112414	Basınç kalibratörü	Pressure calibrator
+41112415	Warburg cihazı	Warburg apparatus
+41112416	Patlama basıncı test cihazı	Bursting pressure tester
+41112417	Buhar basıncı ölçüm aleti	Vapor pressure measuring instrument
+41112418	Kılcal basınç test cihazı	Capillary pressure tester
+41112419	Sigara filtresi çekiş direnci ölçer	Cigarette filter draw resistance meter
+41112420	Basınç düşümü göstergesi	Pressure drop gauge
+41112421	Meyve sertliği test cihazı	Fruit hardness tester
+41112422	Hidrolik basınç test cihazı	Hydraulic pressure tester
+41112423	Basınç altimetresi	Pressure altimeter
+41112424	Şamandıra haznesi seviye aleti	Displacer chamber level instrument
+41112425	Manyetik seviye göstergesi	Magnetic level gauge
+41112517	Optik debimetre ve aksesuarları	Optical flowmeter and accessories
+41112518	Pompa verimi test ekipmanı	Pump efficiency testing equipment
+41112519	Pitot göstergesi	Pitot gauge
+41112520	Yangın pompası debimetresi	Fire pump flow meter
+41112521	Kalibrasyon kolonu	Calibration column
+41112522	Su sayacı test cihazı	Water meter tester
+41112523	Yakıt debimetresi	Fuel flowmeter
+41112804	Ray aşınması ölçüm ekipmanı	Rail abrasion measuring equipment
+41112805	Ray çökme ölçüm aleti	Rail downthrow measuring instrument
+41112806	Ray birleşim boşluğu ölçüm aleti	Rail joint gap measuring instrument
+41112807	Travers tutma kuvveti ölçüm aleti	Rail sleeper holding force measuring instrument
+41112808	Elektrikli vagon test cihazı	Electric rail car tester
+41112809	Taksimetre test cihazı	Taximeter tester
+41112905	Kızılötesi işaret vericisi	Infrared beacon
+41112906	Radyo işaret vericisi	Radio beacon
+41112907	Telsiz şamandıra	Radio buoy
+41112908	Ekosonder	Echo sounder
+41113038	Alkolmetre	Alcoholometer
+41113039	Ozmometre aksesuarları	Osmometer accessories
+41113040	Koloni sayıcı	Colony counter
+41113041	Elementel analizör	Elemental analyzer
+41113042	Süt analizörü	Milk analyzer
+41113043	Diyet lifi tayin sistemi	Dietary fiber determination system
+41113044	Alkol hidrometresi	Alcohol hydrometer
+41113045	Yağ filmi test cihazı	Oil film tester
+41113046	Yapışma test cihazı	Adhesion tester
+41113047	Yağ köpürme özellikleri test cihazı	Oil foaming characteristics tester
+41113048	Renk haslığı test cihazı	Color fastness tester
+41113049	Yanma analizörü	Combustion analyzer
+41113050	Arsenik dedektörü	Arsenic detector
+41113051	Oksidasyon indirgeme test cihazı	Oxidation reduction tester
+41113052	Kireçlenme test cihazı	Chalking tester
+41113053	Pas önleme test cihazı	Rust prevention tester
+41113054	Demülsifikasyon test cihazı	Demulsibility tester
+41113055	Yakıt zamk test cihazı	Fuel gum tester
+41113056	Alev deneyi teli	Flame experiment wire
+41113057	Çamur yoğunluk ölçer	Sludge densitometer
+41113120	Karbonmonoksit analizörü	Carbon monoxide analyzer
+41113121	Araç buhar gazı analiz sistemi	Vehicle vapor gas analyzing system
+41113122	Olfaktometre	Olfactometer
+41113123	Duman test cihazı	Smoke tester
+41113124	Respirometre	Respirometer
+41113324	Boya örtücülük test cihazı	Paint concealment force tester
+41113325	Yıkanabilirlik test cihazı	Washability tester
+41113326	Boya tanesi ölçüm aleti	Paint grain measuring instrument
+41113327	Film aplikatörü	Film applicator
+41113328	Cıva analizörü	Mercury analyzer
+41113329	Askıda katı madde SS test cihazı	Suspended solids SS tester
+41113330	Çamur kalınlığı ölçüm aleti	Sludge thickness measuring instrument
+41113331	Donma ve çözülme test cihazı	Freezing and thawing tester
+41113332	Sıvı rasyon analizörü	Liquid ration analyzer
+41113333	Zeta potansiyeli analizörü	Zeta potential analyzer
+41113334	Boya kaplama test ekipmanı	Paint coating test equipment
+41113335	Çözünmüş bileşikler çoklu bileşen analizörü	Dissolved compounds multiple component analyzer
+41113336	Buhar emülsiyon sayısı test cihazı	Steam emulsion number tester
+41113337	Dispersiyon veya tane boyutu test cihazı	Dispersion or grain size tester
+41113338	Biyokimyasal oksijen ihtiyacı BOİ ölçer	Biochemical oxygen demand BOD meter
+41113339	Kimyasal oksijen ihtiyacı KOİ ölçer	Chemical oxygen demand COD meter
+41113407	Röntgen mikroanalizörleri	X ray microanalyzers
+41113649	Psofometre	Psophometer
+41113650	Fonksiyonel test cihazı	Functional tester
+41113651	Süreklilik test kartı	Ring out board
+41113652	Kablo demeti montaj panosu	Wire assembly board
+41113653	Devre içi test cihazı ICT	In circuit tester ICT
+41113654	Akım döngüsü ölçer	Current loop meter
+41113655	Jeneratör test seti	Generator test set
+41113656	Servo sistem test cihazı	Servo system tester
+41113657	Devre kesici test cihazı	Circuit breaker tester
+41113658	Anahtar dayanıklılık test cihazı	Switch durability tester
+41113659	Reaktif güç ölçer	Var meter
+41113660	Osilatör test cihazı	Oscillator tester
+41113661	Gerilim regülatörü test cihazı	Voltage regulator tester
+41113662	Kavite rezonatörü	Cavity resonator
+41113663	Transformatör test cihazı	Transformer tester
+41113664	Faz sırası göstergesi	Phase sequence indicator
+41113665	Kontak direnci test cihazı	Contact resistance tester
+41113666	Parafudr test cihazı	Arrester tester
+41113667	Elektrik sayacı test ekipmanı	Watt hour meter test equipment
+41113668	Kondansatör test cihazı	Capacitor tester
+41113669	Hat gerilimi dedektörü	Line voltage detector
+41113670	Direnç test ekipmanı	Resister test equipment
+41113671	Akım bölücü	Current divider
+41113672	Röle test cihazı	Relay tester
+41113673	Pano ve dağıtım tablosu ölçer	Panel and switchboard meter
+41113674	Ateşleme makinesi test cihazı	Blasting machine tester
+41113675	Frekans kontrol test ekipmanı	Frequency control test equipment
+41113676	Alçak gerilim test cihazı	Low voltage tester
+41113677	Dielektrik dayanım test cihazı	Withstand voltage tester
+41113678	Pens ampermetre	Clamp tester
+41113679	Akım ve gerilim transformatörü test ekipmanı	Current transformer and potential transformer test equipment
+41113680	Güç faktörü ölçer	Power factor meter
+41113681	Kombi test cihazı	Combi tester
+41113682	Elektrik gücü test cihazı	Electric power tester
+41113683	Lamba test cihazı	Lamp tester
+41113684	Gerilim ve akım ölçer kalibratörü	Voltage and current meter calibrator
+41113685	Statik elektrik ölçüm ekipmanı	Static electricity measuring equipment
+41113686	Darbe ölçer	Pulse meter
+41113687	Fren test makinesi	Brake testing machine
+41113688	Konvertör test ekipmanı	Converter testing equipment
+41113690	Frekans ve zaman ölçüm ekipmanı	Frequency and time measuring equipment
+41113719	Optik kayıp test cihazı	Optical loss tester
+41113720	Trafik yoğunluğu test ekipmanı	Traffic intensity testing equipment
+41113721	Video sinyali ölçüm aleti	Video signal measuring instrument
+41113722	Elektromanyetik girişim EMI test cihazı	Electromagnetic interference EMI tester
+41113723	Telsiz ekipmanı test cihazı	Radio equipment tester
+41113724	Telefon test seti	Telephone test set
+41113725	Optik güç ölçer	Optical power meter
+41113726	Isı direnci test cihazı	Heat resistance tester
+41113727	Distorsiyon ölçer	Distortion meter
+41113728	Elektromanyetik ekranlı test kabini	Electromagnetic shield environmental chamber
+41113729	Yükselteç çıkış ölçer	Amplifier output meter
+41113730	Televizyon test cihazı	Television tester
+41113731	Kristal test cihazı	Crystal tester
+41113732	Yükselteç test cihazı	Amplifier tester
+41113733	Anten test cihazı	Antenna tester
+41113734	Frekans sapması ölçer	Frequency deviation meter
+41113735	Mikrodalga ekipmanı test cihazı	Microwave equipment tester
+41113736	Elektronik ve haberleşme refraktometresi	Electronic and communication refractometer
+41113737	Gürültü ölçer	Noise meter
+41113738	Haberleşme hattı bakım test cihazı	Communication line overhaul tester
+41113739	Elektromanyetik duyarlılık test cihazı	Electromagnetic susceptibility tester
+41113740	Ses veri video kablosu test cihazı	Voice data video cable tester
+41113809	Yer altı radarı	Ground penetrating radar
+41113810	Hidrotermal test ekipmanı	Hydrothermal testing equipment
+41113811	Katı yatak test cihazı	Solid bearing tester
+41113812	Zemin sürtünme test cihazı	Ground friction tester
+41113813	Standart agrega	Standard aggregate
+41113814	Zemin plastik limit test cihazı	Soil plastic limit tester
+41113815	Zemin büzülme limiti test cihazı	Soil shrinkage limit tester
+41113816	Konsolidasyon test cihazı	Consolidation tester
+41113817	Zemin likit limit test cihazı	Soil liquid limit tester
+41113818	Plaka yükleme test cihazı	Plate bearing tester
+41113819	Zemin analizörü	Soil analyzer
+41113820	Agrega özgül ağırlık test cihazı	Aggregate specific gravity tester
+41113821	Zemin penetrasyon test cihazı	Soil penetration tester
