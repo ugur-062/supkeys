@@ -5470,3 +5470,86 @@
 24122003	Cam şişe ve flakonlar	Glass bottles or vials
 24131508	Dolap tipi buzdolabı	Cabinet refrigerator
 24131509	Tezgah altı buzdolabı	Under counter refrigerator
+
+# Mineraller, cevherler, ara ürünler, ahşap, lifler, iplik, kumaş.
+11101510	Asbest	Asbestos
+11101519	Ham elmas	Rough diamond
+11101528	Aktif alümina	Activated alumina
+11101529	Zeolit	Zeolite
+11101530	Kalsit	Calcite
+11101531	Serpantin	Serpentine
+11101532	Peridot	Peridot
+11101533	Pirofillit	Pyrophyllite
+11101534	İşlenmiş elmas	Polished diamond
+11101535	Halit (kaya tuzu)	Halite
+11101624	Manyetit cevheri	Magnetite ore
+11101625	Boksit cevheri	Bauxite ore
+11101901	Demir cevheri konsantresi	Iron ore concentrate
+11101902	Nikel konsantresi	Nickel concentrate
+11101903	Nikel briket	Nickel briquette or compact
+11101904	Nikel mat	Nickel matte
+11101905	Sıvı alüminyum	Aluminum liquid
+11101906	Bakır konsantresi	Copper concentrate
+11101907	Bakır katot	Copper cathode
+11101908	Manganez sinter veya pelet	Manganese sinter or pellet
+11101909	Manganez tozu	Manganese fines
+11101910	Manganez parça cevheri	Manganese lumps
+11101911	Demir cevheri peleti	Iron ore pellets
+11101912	Demir cevheri parça	Iron ore lumps
+11101913	Demir cevheri tozu	Iron ore fines
+11101914	Kobalt cevheri matı	Cobalt ore matte
+11101915	Çinko tozu veya pulu	Zinc dust or powder or flakes
+11101916	Nikel tozu veya pulu	Nickel powder or flakes
+11101917	Bakır tozu veya pulu	Copper powder or flakes
+11101919	Bakır matı	Copper matte
+11101920	Pik demir	Pig iron
+11101921	Çimento klinkeri	Cement clinker
+11101922	Alüminyum tozu veya pulu	Aluminum powder or flakes
+11101923	Çinko konsantresi	Zinc concentrate
+11101924	Kurşun konsantresi	Lead concentrate
+11111504	Kristal toprak	Crystal soil
+11111505	Yapay toprak	Artificial soil
+11111612	Kireç taşı tozu veya maden taş tozu	Limestone dust or mine rock dust
+11111613	Volastonit	Wollastonite
+11111811	Haydit (genleştirilmiş kil)	Haydite
+11111812	Vermikülit	Vermiculite
+11111901	Dere taşı	River rock
+11121614	Tik ağacı	Teak wood
+11121616	Çam ağacı	Pine wood
+11121617	Meşe ağacı	Oak wood
+11121618	Akçaağaç	Maple wood
+11121619	Kiraz ağacı	Cherry wood
+11121620	Tornillo ağacı	Tornillo wood
+11121621	Pashaco ağacı	Pashaco wood
+11121622	Catahua ağacı	Catahua wood
+11121623	Capirona ağacı	Capirona wood
+11121624	Kopaiba ağacı	Copaiba wood
+11121625	Okaliptüs ağacı	Eucalyptus wood
+11121626	Utucuro ağacı	Utucuro wood
+11121627	Ceiba ağacı	Ceiba wood
+11121628	Mohena ağacı	Mohena wood
+11121811	Pamuk linteri	Cotton linter
+11122001	Kontrplak	Plywood
+11122002	Yonga levha (sunta)	Particleboard
+11122003	Orta yoğunlukta lif levha (MDF)	Medium density fiberboard
+11122004	Ahşap kaplamalar	Wood veneers
+11122005	Tutkallı lamine kereste	Glued laminated timber
+11122006	Emprenyeli kereste	Treated timber
+11122007	Yoğunlaştırılmış ahşap	Densified wood
+11122008	Çapraz lamine kereste (CLT)	Cross laminated timber
+11131609	Sığır sperması	Bovine semen
+11151516	Poliüretan lif (spandeks)	Polyurethane fiber or spandex
+11151517	Polivinil alkol lif	Polyvinyl alcohol fiber
+11151518	Polietilen lif	Polyethylene fiber
+11151519	Taş yünü veya mineral yün	Rock wool or mineral wool
+11151520	İşlenmiş insan saçı	Human hair worked
+11151521	İşlenmemiş insan saçı	Human hair unworked
+11151716	Karışım iplik	Blended yarn
+11151717	Sarmalı iplik	Gimped yarn
+11151718	Metalize iplik	Metalicized yarn
+11161605	Taranmış yün	Carded wool
+11161606	Yün döküntüsü	Noil of wool
+11161607	Yağı alınmış veya karbonize taranmamış yün	Wool degreased or carbonized and not carded or combed
+11161608	Pamuklu havlu kumaş	Cotton terry towelling
+11161706	Pamuklu şönil	Cotton chenille
+11161707	Taranmış veya penye pamuk	Cotton carded or combed
