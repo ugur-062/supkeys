@@ -16963,7 +16963,7 @@
 85801800	Ekstremiteler, çıkarma - B bölümü	Extremities, removal-part B
 85801900	Ekstremiteler, çıkarma - C bölümü	Extremities, removal-part C
 85802000	Ekstremiteler, traksiyon	Extremities, traction
-85802100	Baş ve boyun	Head and neck
+85802100	Baş ve boyun (yerleştirme girişimi)	Head and neck
 85802200	Alt gövde - A bölümü	Lower trunk and torso-part A
 85802300	Alt gövde - B bölümü	Lower trunk and torso-part B
 85802400	Üst gövde	Upper trunk and torso
@@ -17102,7 +17102,7 @@
 85871200	Damar sistemi, kalp, koroner arterler ve baypas greftleri - A bölümü	Vascular system-heart and coronary arteries and related bypass grafts-part A
 85871300	Damar sistemi, kalp, koroner arterler ve baypas greftleri - B bölümü	Vascular system-heart and coronary arteries and related bypass grafts-part B
 85871400	Göğüs ve gövde boşlukları	Cavities of the chest and trunk
-85871500	Deri, deri altı doku ve meme	Skin, subcutaneous tissue and breast
+85871500	Deri, deri altı doku ve meme (görüntüleme)	Skin, subcutaneous tissue and breast
 85871600	Damar sistemi, santral arteriyel	Vascular system-central arterial
 85871700	Damar sistemi, serebral arteriyel, subklavyen	Vascular system-cerebral arterial-subclavian
 85871800	Damar sistemi, serebral arteriyel, karotis - A bölümü	Vascular system-cerebral arterial-carotid, part A
@@ -17168,23 +17168,23 @@
 85877800	Kas iskelet sistemi, tüm anatomik bölgeler	Musculoskeletal system-all anatomical regions
 85881000	Kas iskelet sistemi	Musculoskeletal system
 85881100	Hepatobiliyer sistem ve pankreas	Hepatobiliary system and pancreas
-85881200	Deri, deri altı doku ve meme	Skin, subcutaneous tissue and breast
+85881200	Deri, deri altı doku ve meme (nükleer tıp)	Skin, subcutaneous tissue and breast
 85881300	Kulak, burun, ağız ve boğaz	Ear, nose, mouth and throat
-85881400	Gözler	Eyes
+85881400	Gözler (nükleer tıp)	Eyes
 85881500	Üriner sistem	Urinary system
 85881600	Sinir sistemi	Nervous system
 85881700	Lenfatik ve hematolojik sistem	Lymphatic and hematologic system
 85881800	Damar sistemi, venler	Vascular system-veins
 85881900	Damar sistemi, kalp	Vascular system-heart
 85882000	Anatomik bölgeler	Anatomical regions
-85882100	Anatomik bölgeler, tüm vücut	Anatomic regions-whole body
-85882200	Üreme sistemi, erkek	Reproductive system-male
+85882100	Anatomik bölgeler, tüm vücut (nükleer tıp)	Anatomic regions-whole body
+85882200	Üreme sistemi, erkek (nükleer tıp)	Reproductive system-male
 85882300	Solunum sistemi	Respiratory system
-85882400	Göğüs ve toraks	Chest and thorax
+85882400	Göğüs ve toraks (nükleer tıp)	Chest and thorax
 85882500	Gastrointestinal sistem	Gastrointestinal system
 85882600	Endokrin sistem	Endocrine system
 85882700	Ekstremiteler, üst ve alt	Extremities-upper and lower
-85882800	Karın ve pelvis	Abdomen and pelvis
+85882800	Karın ve pelvis (nükleer tıp)	Abdomen and pelvis
 85891000	Merkezi ve periferik sinir sistemi - A bölümü	Central and peripheral nervous system, part A
 85891100	Merkezi ve periferik sinir sistemi - B bölümü	Central and peripheral nervous system, part B
 85891200	Kas iskelet sistemi - A bölümü	Musculoskeletal system, part A
@@ -17194,13 +17194,13 @@
 85891600	Lenfatik ve hematolojik sistem - C bölümü	Lymphatic and hematologic system, part C
 85891700	Endokrin sistem - A bölümü	Endocrine system, part A
 85891800	Endokrin sistem - B bölümü	Endocrine system, part B
-85891900	Baş ve boyun	Head and neck
+85891900	Baş ve boyun (radyoterapi)	Head and neck
 85892000	Kulak, burun, ağız ve boğaz - A bölümü	Ear, nose, mouth and throat, part A
 85892100	Kulak, burun, ağız ve boğaz - B bölümü	Ear, nose, mouth and throat, Part B
 85892200	Kulak, burun, ağız ve boğaz - C bölümü	Ear, nose, mouth and throat, part C
 85892300	Kulak, burun, ağız ve boğaz - D bölümü	Ear, nose, mouth and throat, part D
-85892400	Gözler	Eyes
-85892500	Göğüs ve toraks	Chest and thorax
+85892400	Gözler (radyoterapi)	Eyes
+85892500	Göğüs ve toraks (radyoterapi)	Chest and thorax
 85892600	Solunum sistemi - A bölümü	Respiratory system, part A
 85892700	Solunum sistemi - B bölümü	Respiratory system, part B
 85892800	Solunum sistemi - C bölümü	Respiratory system, part C
@@ -17210,12 +17210,12 @@
 85893200	Gastrointestinal sistem - B bölümü	Gastrointestinal system, part B
 85893300	Gastrointestinal sistem - C bölümü	Gastrointestinal system, part C
 85893400	Deri	Skin
-85893500	Karın ve pelvis	Abdomen and pelvis
+85893500	Karın ve pelvis (radyoterapi)	Abdomen and pelvis
 85893600	Üriner sistem - A bölümü	Urinary system, part A
 85893700	Üriner sistem - B bölümü	Urinary system, part B
-85893800	Üreme sistemi, erkek	Reproductive system-male
+85893800	Üreme sistemi, erkek (radyoterapi)	Reproductive system-male
 85893900	Üreme sistemi, kadın	Reproductive system-female
-85894000	Anatomik bölgeler, tüm vücut	Anatomic regions-whole body
+85894000	Anatomik bölgeler, tüm vücut (radyoterapi)	Anatomic regions-whole body
 85901000	Koklear implant tedavisi	Cochlear implant-treatment
 85901100	Tanısal odyoloji - A bölümü	Diagnostic audiology, part A
 85901200	Tanısal odyoloji - B bölümü	Diagnostic audiology, part B
@@ -18641,3 +18641,61 @@
 72151006	Kazan basınç kontrol ünitesi bakım veya onarım hizmeti	Boiler pressure controller maintenance or repair or operation
 90151503	Hayvanat bahçesi	Zoological garden or zoo
 95121510	Bahçe	Garden
+12141707	Kadmiyum Cd	Kadmiyum Ca
+12141742	Teknetyum Tc	Teknetyum Te
+12141757	Ununnilyum Uun	Ununnilyum Uum
+12141802	Fransiyum Fr	Fransiyum Fm
+11101623	Zirkonyum cevheri	Zikronyum cevheri
+25173900	Elektrikli aksamlar	Eletrikli aksamlar
+40151534	Kriyojenik pompalar	Kryojenik pompalar
+41112602	Otomatik swab test kitleri	Atomatik swab test kitleri
+42291602	Cerrahi cıvata veya kablo veya pim veya tel kesme aletleri	Cerrahi civata veya kablo veya pin veya tel kesme aletleri
+42294204	Mikro veya hassas veya plastik cerrahi alet setleri	Mikro veya hassa veya plastik cerrahi alet setleri
+60104600	Mekanik fizik materyalleri	Mekanik fiziyi materyalleri
+60106400	Elektronik eğitimi malzemeleri ve ekipmanları	Elektronim eğitimi malzemeleri ve ekipmanları
+60106402	Elektronik eğitimi malzemeleri	Elektronim eğitimi malzemeleri
+60122009	Dantel işleme veya el işi aksesuarları	Dantel işleme veya el işi akseuarları
+60122402	Vitray yapım aletleri ve aksesuarları	Vitray yapım aletleri ve akseuarları
+60124402	Alüminyum şekillendirme folyosu	Aluminyum şekillendirme folyosu
+60124403	Alüminyum tel	Aluminyum tel
+60131100	Pirinç müzik enstrümanları	Pirinç müzik entrümanları
+60141200	Aktif oyun ekipmanı ve aksesuarları	Aktif oyun ekipmanı ve aksesurları
+60141400	Dramatik oyun ekipmanı ve aksesuarları	Dramatik oyun ekipmanı ve aksesurları
+78102202	Posta kutusu hizmetleri	Posta kutusu hzimetleri
+60122008	Çıkrık	irmak
+55121500	Asma etiketler	Etiketler
+55121600	Yapışkan etiketler	Etiketler
+23241800	Metal delme tezgahları	Metal delme makineleri
+23241900	Metal delik büyütme ve broşlama makineleri	Metal delme makineleri
+84131700	Kurumsal emeklilik fonları	Emeklilik fonları
+84131800	Bireysel emeklilik fonları	Emeklilik fonları
+31171500	Rulmanlar ve yataklar	Yataklar
+11151600	Tekstil iplikleri	İpler
+31151500	Halatlar ve ipler	İpler
+12171500	Boyarmaddeler	Boyalar
+56112100	Oturma birimleri	Koltuklar
+27111721	Anahtar manivelaları	Manivelalar
+22101507	Zemin sıkıştırma tokmakları	Tokmaklar
+30161801	Ahşap dolaplar	Dolaplar
+40161602	Hava arıtma filtreleri	Hava filtreleri
+49161703	Atletizm diskleri	Diskler
+21101513	Tarım diskleri	Diskler
+23281500	Metal kaplama makineleri	Kaplama makineleri
+23151502	Plastik kaplama makineleri	Kaplama makineleri
+44122114	Kırtasiye vidaları	Vidalar
+22101709	İş makinesi kancaları	Kancalar
+27112807	Torna aynaları	Aynalar
+60103907	Su bitkisi örnekleri	Su bitkileri
+60121001	Sanat boyaları	Boyalar
+23101508	Ağaç, taş ve seramik kesme makineleri	Kesme makineleri
+45101901	Baskı bantlama makineleri	Bantlama makineleri
+26101412	Elektrik motoru tamir kiti	Motor tamir kiti
+44121618	Ofis makasları	Makaslar
+48102109	Streç film	Plastik folyo
+31191513	Cam bilya aşındırıcı	Cam boncuk
+44121622	Zarf nemlendiriciler	Nemlendiriciler
+60104707	Eğitim manometreleri	Manometreler
+46171607	Çanlar	Ziller
+56101703	Çalışma masaları	Masalar
+71161105	Üretim kuyusu perforasyon hizmetleri	Kuyu perforasyon hizmetleri
+70111600	Çiçekli bitki yetiştirme hizmetleri	Çiçekli bitkiler
