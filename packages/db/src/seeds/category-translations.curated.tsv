@@ -4786,3 +4786,142 @@
 20142407	Petrol kuyusu üretim ağacı	Oil well christmas tree
 20142410	Kılavuz hatlı denizaltı üretim ağacı	Subsea christmas tree guideline
 20142411	Kılavuz hatsız denizaltı üretim ağacı	Subsea christmas tree guideline less
+
+# Araçlar: kara, deniz, demiryolu, hava.
+25101509	Elektrikli araç	Electrically powered vehicle
+25101510	Zırhlı motorlu araç	Armored motor vehicle
+25101512	Hidrojenli araç	Hydrogen powered vehicle
+25101513	Hidrojenli binek otomobiller	Hydrogen passenger cars
+25101514	Hidrojenli SUV araçlar	Hydrogen sport utility vehicles
+25101515	Hidrojenli minivan veya panelvanlar	Hydrogen minivans or vans
+25101516	Hidrojenli otobüsler	Hydrogen busses
+25101517	Hidrojenli minibüs	Hydrogen minibus
+25101518	Elektrikli SUV araçlar	Electric sport utility vehicles
+25101519	Elektrikli minivan veya panelvanlar	Electric minivans or vans
+25101520	Elektrikli otobüsler	Electric busses
+25101521	Elektrikli minibüsler	Electric minibuses
+25101612	Beton mikseri kamyonu	Concrete transport truck
+25101613	Beton pompası kamyonu	Concrete pump truck
+25101614	Yük motosikleti	Load motovan
+25101615	Platform kaldırma sistemli kamyon	Platform lifting system truck
+25101616	Hidrojenli damperli kamyonlar	Hydrogen dump trucks
+25101617	Hidrojenli kargo kamyonları	Hydrogen cargo trucks
+25101618	Elektrikli damperli kamyonlar	Electric dump trucks
+25101619	Elektrikli kamyonlar	Electric trucks
+25101704	İtfaiye pompa aracı	Fire fighting pump truck
+25101705	İtfaiye su tankeri	Fire fighting water tank truck
+25101706	İtfaiye kimyasal aracı	Fire fighting chemical truck
+25101707	İtfaiye merdivenli aracı	Fire fighting ladder truck
+25101708	Kurtarma aracı	Rescue truck
+25101709	Duman tahliye aracı	Smoke exhaust truck
+25101710	Aydınlatmalı duman tahliye aracı	Smoke exhaust truck with lighting
+25101711	Uzaktan kumandalı monitörlü itfaiye aracı	Fire fighting truck with remote control nozzle
+25101712	Yangın inceleme aracı	Fire investigation car
+25101713	Zırhlı ambulans	Armored ambulance
+25101714	Zırhlı kurtarma aracı	Armored recovery vehicle
+25101804	Motosiklet sepeti	Motorcycle sidecar
+25101909	Amfibi araç	Amphibious vehicle
+25101910	Sulama aracı	Water sprinkling truck
+25101911	Sepetli platform aracı	Aerial working platform truck
+25101912	Merdivenli asansör aracı	Ladder lift truck
+25101913	Frigorifik kamyon	Refrigerator truck
+25101914	Çöp toplama aracı	Waste collection vehicle or garbage truck
+25101915	Akaryakıt tankeri	Oil tank truck
+25101916	Silobas kamyon	Hopper truck
+25101917	Açık kasa kamyon	Flatbed truck
+25101918	Site içi elektrikli araç (NEV)	Neighborhood electric vehicle NEV
+25101919	Yol süpürme aracı	Road sweeper
+25101920	Tanker kamyonlar	Tank trucks
+25101921	Panelvan kamyonlar	Van trucks
+25101922	Yol bakım aracı	Road repair truck
+25101924	Otokorkuluk temizleme aracı	Guard rail cleaning vehicle
+25101925	Levha montaj aracı	Sign truck
+25101926	Kar küreme aracı	Snow plow truck
+25101927	Tuz serpme aracı	Salt spreader truck
+25101928	Mobil medya aracı	Mobile media truck
+25101929	Mobil ofis aracı	Mobile office van
+25101930	Aydınlatma aracı	Lighting truck
+25101931	Naklen yayın aracı	Outside broadcasting van
+25101932	Toplumsal olaylara müdahale aracı	Crowd control truck
+25101933	Vinçli kamyon	Crane truck
+25101934	Cenaze aracı	Funeral vehicle or hearse
+25101935	İlaçlama aracı	Spray truck
+25101936	Vidanjör	Vacuum truck
+25101937	Mobil sağlık tarama aracı	Medical examination and treatment bus
+25101938	Kan bağış aracı	Bloodmobile
+25101940	Arazi görev aracı (UTV/ROV)	Utility task vehicle UTV or recreational off highway vehicle ROV
+25101941	Mobil laboratuvar	Mobile laboratory
+25101942	Sondaj kamyonu	Drilling truck
+25101943	Mobil atölye aracı	Mobile work shop truck
+25101946	Pist lastik izi temizleme makinesi	Runway rubber removal machine
+25101947	Pist yıkama aracı	Runway scrubber
+25101948	Su tankeri	Water tanker
+25101950	Atölye kamyonu	Workshop truck
+25101951	Araç üstü dal öğütücü	Vehicle wood chipper
+25111514	Buzkıran	Icebreaker
+25111515	Sıvılaştırılmış gaz taşıyıcı	Liquified gas carrier
+25111516	Şişme bot	Inflatable rubber boat
+25111517	Hoverkraft	Hovercraft
+25111518	Hastane gemisi	Hospital ship
+25111519	Yarış teknesi	Racing boat or shell
+25111520	Şamandıra	Buoy
+25111521	Gemi çıpası	Marine anchor
+25111522	Kimyasal tanker	Chemical tanker carrier
+25111523	Fabrika gemisi	Factory ship
+25111524	Dökme yük gemisi	Bulk carrier
+25111525	Araç taşıyıcı veya ro-ro gemisi	Pure car carrier or roll on roll off ship
+25111526	Sondaj gemisi	Drill ship
+25111527	Kürekli sandal	Row boat
+25111528	Karantina botu	Quarantine boat
+25111529	Meteoroloji gemisi	Weather ship
+25111530	Kılavuz botu	Pilot boat
+25111531	Hidrografik araştırma gemisi	Hydrographical survey ship
+25111532	Atık toplama gemisi	Debris collection vessel
+25111533	Eğitim gemisi	Training ship
+25111534	Araştırma gemisi	Research vessel
+25111535	Kablo döşeme gemileri	Cable laying ships
+25111536	İnsansız su üstü aracı	Unmanned surface vessel or ship
+25111537	İşaret şamandırası	Marker buoy
+25111722	Sahil güvenlik botu	Coast guard boat or cutter
+25111723	Balıkçılık devriye botu	Fishery patrol boat
+25111724	Balıkçılık eğitim gemisi	Fishery training ship
+25111725	Balıkçılık araştırma gemisi	Fishery research ship
+25111726	Deniz kirliliği kontrol gemisi	Marine pollution control ship
+25111727	Genel gemi kumanya ve ekipmanı	General ships equipment chandlery
+25111809	Küçük yelkenli tekne	Skiff
+25111936	Gemi manevra iticisi	Marine thruster
+25111937	Direk körüğü	Mast boot
+25111938	Gemi dümen donanımı	Marine steering gear
+25111939	Gemi tatlı su jeneratörü	Marine fresh water generator
+25111940	Gemi seyir simülatörü	Ship navigation simulator
+25111941	Yolcu gemisi koltuğu	Passenger ship seat
+25111942	Bağlama babaları	Mooring posts
+25111943	Tek şamandıra bağlama sistemi	Single buoy mooring
+25111944	Bağlama şamandırası	Mooring buoy
+25111945	Bağlama düzeneği çelik halatı	Mooring arrangement wire rope
+25111946	Kauçuk usturmaça	Rubber fender
+25111947	Gemi bakım ürünleri	Ship care products
+25111948	Bağlama halatı bağı	Mooring hawser lace
+25111949	Bağlama halatı radansası	Mooring hawser thimble
+25111950	Bağlama zinciri takımı ve bileşenleri	Mooring chain assembly and components
+25121505	Demiryolu ve tramvay lokomotif ve vagon parçaları	Parts of railway or tramway locomotives or rolling stock
+25121607	Demiryolu veya tramvay bakım aracı	Railway or tramway maintenance or service vehicle
+25121708	Ağır demiryolu rayı	Heavy railway rail
+25121709	Ağır demiryolu kullanılmış rayı	Heavy railway relay rail
+25121710	Hafif demiryolu rayı	Light railway rail
+25121711	Hafif demiryolu kullanılmış rayı	Light railway relay rail
+25121712	Çelik demiryolu traversi	Steel railway tie
+25121713	Ray elektrik kontak bağı	Electrical rail contact bond
+25121714	Ağır ray makası	Heavy rail turnout switch
+25121715	Hafif ray makası	Light rail turnout switch
+25121717	Ray bağlantı iletkeni	Rail bond
+25121719	Vagon genel hizmetleri	Railcar General Services
+25131509	Sabit kanatlı eğitim uçağı	Fixed wing training aircraft or trainer
+25131605	Döner kanatlı eğitim hava aracı	Rotary wing training aircraft or helicopter trainer
+25131606	Hidrant çukuru valfi	Hydrant pit valve
+25131607	Apron çukuru kapağı ve çerçeveleri	Apron pit cover and frames
+25131802	Model uçak	Model aircraft
+25131803	Uçuş kontrol uçağı	Flight inspection aircraft
+25132101	Tarımsal drone	Agricultural drone
+25132102	Askeri drone	Military drone
+25132103	Hobi drone	Recreational drone
