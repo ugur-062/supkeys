@@ -193,6 +193,11 @@ yazmadan önce burada karşılığı var mı diye bak.
 | İlan görünürlüğü | `common/company/listing-visibility.ts` |
 | Pazar yeri sözcükleri/rotaları (web) | `lib/public/marketplace.ts` |
 | Pazar yeri yayın anahtarı (web) | `lib/public/marketplace-live.ts` |
+| Ürün skoru + yayın kapısı | `common/company/product-completion.ts` |
+| Kategori nitelik çözümleyici | `common/company/category-attributes.ts` |
+| Kategori ata zinciri | `@rothern/shared` `helpers/category-code.ts` |
+| Public görsel yükleme | `common/company/public-image-upload.ts` |
+| Public profil kapısı | `common/company/public-profile-gate.ts` |
 | Bağlantı geçerliliği | `common/company/valid-connection.ts` |
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
 | Kimlik yolunda Company select | `common/company/auth-company-select.ts` |
@@ -433,6 +438,89 @@ kod) → firma/ilan seçimleri korunur. 2026-09-02 geçişinde ölçüldü: 42 i
 NOT: web-dev ve prod API AYNI Supabase DB'yi kullanıyor — tek koşum ikisine de
 yansır.
 
+## Ürün Kataloğu (firma vitrini) — 2026-09-02
+
+`CompanyItem` iç kullanımlık "kalem kısayolu"ydu; Faz 2 onu firmanın HERKESE
+AÇIK vitrini yaptı. Ayrı varlık AÇILMADI — aynı kayıt hem ilana eklenir hem
+vitrinde durur; ikiye bölmek aynı ürünü iki yerde güncelleme borcu üretirdi.
+
+| Yüzey | Adres |
+|-------|-------|
+| Panel | `/company/satis/urunlerim` (SATIŞ portalı — ürün "ne sattığım" beyanı) |
+| Public | `/firma/<slug>/urun/<slug>` — URL firmanın ALTINDA (firma otoritesinden beslensin) |
+
+### İlanla ürün arasındaki KİMLİK ayrımı
+
+| | Ne | Sahip |
+|---|-----|-------|
+| İlan | işlem (süreli, teklif toplar) | **ANONİM** |
+| Ürün | vitrin (kalıcı, opt-in) | **firma adıyla** |
+
+Bir alım talebinde "kim alıyor" rekabet istihbaratıdır; ürün sayfası ise
+firmanın kendi opt-in vitrini ve satılan bir özelliktir (BRONZ+). Sözleşme
+testleri ikisini birlikte kilitliyor (`public-product.spec.ts`).
+
+### Fiyat — üç mod, hiçbiri yalan gerektirmez
+
+`CompanyItemPriceMode`: `FIXED` | `TIERED` | `ON_REQUEST` (varsayılan).
+
+Europages'te fiyat tek zorunlu sayı kutusu ve fiyatını açmak istemeyen
+satıcıların çoğu "1,00 €" yazıp geçiyor → alan dolu ama içi yalan, sıralanamaz.
+Üç modda dürüst seçenek var, **ve tamamlanma skorunda ÜÇÜ DE TAM PUAN alır** —
+dürüst seçeneği cezalandırmak kullanıcıyı tam da o sahte fiyata iterdi.
+
+### Kategori → nitelik matrisi (MİRASLI)
+
+`CategoryAttribute`: kategori düğümünde tanımlanır, ALT düğümler DEVRALIR.
+Bir ürünün nitelikleri = kodunun ata zincirindeki tüm satırlar
+(`categoryAncestors`, @rothern/shared — tedarikçi eşleştirmesi de aynı
+fonksiyondan okur). Aynı `groupKey` daha spesifik düğümde varsa O KAZANIR.
+
+Böylece 158.018 kategoriye tek tek satır yazmak gerekmiyor: 58 segment +
+birkaç yüz aile yeter. **İlk tur 15 kategori / 61 nitelik** dolduruldu
+(`src/seeds/category-attributes.ts` → `seed-category-attributes.ts`).
+Doldurulmamış kategoride form nitelik SORMAZ ve yine çalışır.
+
+### Skor ≠ yayın kapısı
+
+`common/company/product-completion.ts` ikisini AYRI tutar:
+- **skor** (0-100) yönlendirir, engellemez;
+- **`productPublishBlockers`** engeller: ad, kategori, ≥100 karakter açıklama,
+  ≥1 görsel, ≥1 anahtar kelime. Fiyat ve nitelikler kapıda YOK (meşru biçimde
+  bilinmeyebilir).
+
+Skoru kapı yapmak ters teper: "80 puan olmadan yayımlayamazsın" demek
+kullanıcıyı puan için alan uydurmaya iter.
+
+### Slug DONAR
+
+Yayımlandıktan sonra ad değişse bile URL korunur — başlık düzeltmesi yüzünden
+gelen bağlantıyı ve arama sıralamasını çöpe atmamak için.
+
+### ⛔ WEB SİTESİNDEN ÜRÜN ÇEKME — BİLİNÇLİ OLARAK YAPILMAYACAK
+
+Katalog doldurma sürtünmesini azaltmak için önerilmişti, **reddedildi**
+(2026-09-02, kullanıcı kararı). Üç gerekçe:
+
+1. **Sahiplik doğrulanamaz.** Kullanıcı rakibinin URL'ini yapıştırırsa onun
+   fotoğraflarını ve açıklamalarını `cdn.rothern.com`'a kopyalayıp başka bir
+   firma adı altında yayımlarız — o noktada YAYINCI biziz.
+2. **Uydurulmuş veri ticari beyan olur.** Rastgele HTML'den AI çıkarımı makul
+   ama yanlış fiyat/MOQ üretir; ürün sayfasındaki yanlış fiyat yazım hatası
+   değil FİYAT TEKLİFİDİR.
+3. **Prompt injection.** Canlı web sitesi bizim denetimimizde olmayan düşmanca
+   bir yüzey; AI-1'in belge sınırı orada geçerli değil.
+
+YERİNE: **kullanıcının YÜKLEDİĞİ katalog** (Excel/PDF). Dosyayı kullanıcı
+veriyor → zımni sahiplik beyanı + kimin ne yüklediğinin kaydı. Boru hattı
+zaten var (AI-1 PDF'i doğrudan okur); çıktı TASLAK olarak düşer, kullanıcı
+onaylamadan yayımlanmaz.
+
+> NOT: `common/website-import.ts` bu karardan ETKİLENMEZ — o, firmanın KENDİ
+> sitesinden logo/OG görseli/hakkımızda metni çeken profil zenginleştirmesidir
+> (SSRF korumalı, onboarding'de kullanıcının kendi girdiği adres). Ürün
+> kataloğuyla ilgisi yok.
+
 ## Pazar Yeri (herkese açık vitrin) — 2026-09-02
 
 Giriş YAPMAMIŞ ziyaretçiye açık ilan/talep vitrini + firma dizini.
@@ -566,13 +654,16 @@ not var). Doğru çözüm başlık değil ROTA BİÇİMİ: süzgeci yol parças�
 
 ## Migration Durumu
 
-**Bekleyen YOK** — `migrate status` "up to date" (2026-09-02, 69 migration).
+**Bekleyen YOK** — `migrate status` "up to date" (2026-09-02, 71 migration).
 Kategori geçişinin iki migration'ı canlıya uygulandı:
 - `20260902100000_category_in_discovery` — `Category.inDiscovery` kolonu
 - `20260902100100_category_search_trgm` — `pg_trgm` + `searchText`/`nameTr`
   GIN indeksi (canlıda doğrulandı: `Bitmap Index Scan`, 1,35 ms)
 - `20260902130000_marketplace_public_flags` — `Company.publicListingsEnabled`
   + `Listing.publicIndexable` (iki ADD COLUMN, sabit DEFAULT → kilit anlık)
+- `20260902160000_category_image_url` — `Category.imageUrl` (nullable)
+- `20260902170000_product_catalog` — `CompanyItem` vitrin kolonları +
+  `CategoryAttribute` tablosu + iki enum (tablo 0 satır → kilit anlık)
 
 > ⚠️ **`render.yaml` `autoDeploy: true`** — main'e push edilen API kodu prod'a
 > KENDİLİĞİNDEN gider. Şema kullanan bir değişikliği push ettiysen migration'ı
