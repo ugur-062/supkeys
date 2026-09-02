@@ -6142,3 +6142,155 @@
 72154049	Güneş kırıcı hizmeti	Sun screen service
 72154050	Alışveriş arabası bakım-onarım hizmeti	Shopping cart maintenance or repair service
 72154051	Mezar nakil hizmeti	Grave relocation service
+
+# Tıbbi cihazlar: veteriner, hasta/personel giysileri, elektroterapi, iğne/şırınga.
+42121504	Veteriner stereotaksik ekipman	Veterinary stereotaxic equipment
+42121506	Veteriner cerrahi alet ve malzeme setleri	Veterinary surgical instrument and supply sets
+42121507	Veteriner enjeksiyon veya aspirasyon ünitesi	Veterinary injection or suction unit
+42121511	Veteriner alet ruloları	Veterinary instrument rolls for instruments
+42121516	Veteriner kırkma setleri	Veterinary hair clipping sets
+42121517	Veteriner tırnak bakım alet setleri	Veterinary hoof treatment instrument sets
+42121518	Veteriner tıbbi ekipman setleri	Veterinary medical equipment sets
+42121519	Veteriner enjeksiyon veya aspirasyon ünitesi aksesuarları	Veterinary injection or suction unit accessories
+42121520	Veteriner alet rulosu aksesuarları	Veterinary instrument rolls for instruments accessories
+42121606	Veteriner dermatolojik veya antiprotozoal ürünler	Dermatological or antiprotozoa veterinary products
+42121801	Veteriner suni tohumlama makinesi	Veterinary artificial inseminating machine
+42121802	Veteriner sperma toplama aletleri	Veterinary semen collection instruments
+42121803	Veteriner elektroejakülasyon cihazları	Veterinary electric ejaculation stimulators
+42121804	Veteriner sperma paketleme aletleri	Veterinary semen packaging instruments
+42131507	Hasta terliği veya çorabı	Patient slippers or socks
+42131511	Hidroterapi giysileri	Hydrotherapy garments
+42131512	Bebek hasta bonesi ve malzemesi	Patient infant caps or hats or material for infant caps
+42131513	Hasta şortu	Patient shorts
+42131514	Hasta cerrahi iç giysisi	Patient surgical undergarments
+42131609	Tıbbi personel galoş veya botu	Medical staff shoe covers or boots
+42131613	Tıbbi personel göz siperi	Medical staff eye shields or visors
+42131614	Tıbbi personel önlüğü	Medical staff dresses
+42131615	Kemoterapi kişisel koruyucu donanımı	Chemotherapy personal protective equipment
+42131616	Tıbbi personel koruyucu giysi seti	Medical staff personal protective apparel kit
+42131706	Cerrahi tulum	Surgical jumpsuits and coveralls
+42131707	Cerrahi izolasyon tulumu, kaskı veya siperi	Surgical isolation suit or helmet or shield
+42131708	Ameliyathane temizlik ve hazırlık setleri	Surgical cleanup or room turnover packs or kits
+42131709	Cerrahi kolluk	Surgical sleeves
+42131710	Cerrahi önlük	Surgical dresses
+42131711	Cerrahi bone	Surgical headcovers
+42131713	Cerrahi izolasyon maskesi	Surgical isolation or surgical masks
+42131716	Cerrahi galoş	Surgical shoe covers
+42131717	Cerrahi kol koruyucu	Surgical sleeve protection
+42131719	Cerrah bonesi veya başlığı	Surgical surgeon caps or hoods
+42131721	Cerrahi alet kesesi	Surgical instrument pouches
+42131722	Cerrahi izolasyon tulumu ve kask aksesuarları	Surgical isolation suits or helmets or shields accessories
+42131723	Cerrahi soğutma yeleği	Surgical cooling vest
+42132104	Hastane yastıkları	Hospital pillows
+42132105	Hastane çarşafı veya yatak kılıfı	Hospital bed sheets or mattress covers
+42132106	Hastane yatak örtüsü veya nevresim	Hospital bedspreads or duvet covers
+42132107	Hastane battaniye veya yorganı	Hospital blankets or duvets or quilts
+42132108	Hastane yastık kılıfı	Hospital pillow covers or pillowcases
+42132109	Hastane banyo paspası	Hospital bath mats
+42132110	Hastane yatak eteği	Hospital bed skirts or dust ruffles
+42132112	Hastane çamaşır torbası	Hospital blockade or hamper or laundry bags
+42132113	Hastane oda temizlik ve hazırlık setleri	Hospital cleanup or room turnover kits
+42132114	Hastane havluları	Hospital towels
+42132115	Hastane duvar kaplamaları	Hospital wall coverings
+42132116	Hastane pencere kaplamaları	Hospital window treatments
+42132117	Ameliyat öncesi veya ameliyat pedleri	Surgical pre-operative or operating pads
+42132206	Cerrahi eldiven pudrası	Surgical dusting powders
+42141501	Pamuk veya elyaf topları	Cotton or fiber balls
+42141504	İlaçlı aplikatör, emici veya çubuk	Medicated applicators or absorbents or swabstick
+42141505	Aplikatör çubukları	Applicator sticks
+42141506	Alkol pompası veya dispenseri	Alcohol pumps or dispensers
+42141507	Alkol ve klorheksidinli antiseptik mendil	Antiseptic wipe with alcohol & chlorhexidine
+42141602	Sürgüler	Bedpans
+42141603	Kusma kabı, torbası veya dispenseri	Emesis basin or bag or bag dispenser
+42141606	Tıbbi çok amaçlı kaplar	Medical multipurpose basins or sponge bowls
+42141607	Hasta ördekleri	Patient urinals
+42141608	Sürgü poşeti	Bedpan liners or bags
+42141609	Sürgü kapağı	Bedpan covers
+42141610	Sürgü ve ördek kurutma rafı	Bedpan and urinal drying racks
+42141611	Hasta eşya torbası	Patient belonging bags
+42141612	Sürgü ve ördek setleri	Bedpan and urinal sets
+42141613	Klinik bardak veya sürahi	Clinical amenity cups or bedside pitchers or liners
+42141705	Hasta pozisyonlama minderi veya yastığı	Patient positioning cushion or pad or pillow
+42141706	Tıbbi havalı minder	Medical flotation cushions
+42141802	Elektroterapi elektrotları	Electrotherapy electrodes
+42141806	Diyatermi üniteleri	Diathermy units
+42141810	İyontoforez elektrotları	Iontophoresis electrodes
+42141811	Vücut dışı şok dalga tedavi sistemleri (ESWT)	Extracorporeal shock wave therapy systems
+42141812	Elektrostimülasyon için statik elektrik jeneratörleri	Static electricity generators for electric stimulation
+42141813	Elektrokonvülsif tedavi cihazları	Electroconvulsive devices
+42141814	Statik elektrik uyarıcıları	Static electricity stimulators
+42141815	Yüksek frekanslı elektromanyetik dalga uyarıcıları	High frequency electromagnetic wave stimulators
+42141816	Elektromanyetik terapi uyarıcıları	Electromagnetic therapy stimulators
+42141817	Manyetoterapi darbe uyarıcıları	Magnetotherapy pulse stimulators
+42141818	Kaçınma koşullama cihazları	Aversive conditioning devices
+42141819	Kraniyal elektroterapi uyarıcıları	Cranial electrotherapy stimulators
+42141820	Elektroterapi aplikatör veya probları	Electrotherapy applicators or probes
+42141821	Elektroterapi ünitesi aksesuarları	Electrotherapy unit accessories
+42141822	Elektroterapi lazer sistemleri	Electrotherapy laser systems
+42141823	Elektroterapi vakum elektrot sistemleri	Electrotherapy vacuum electrode systems
+42141824	Elektroterapi elektrot aksesuarları	Electrotherapy electrode accessories
+42141825	Elektroterapi üniteleri	Electrotherapy units
+42141826	İyontoforez sistemi aksesuarları	Iontophoresis system accessories
+42141827	İyontoforez sistemleri	Iontophoresis systems
+42141903	Lavman setleri	Enema kits
+42141904	Lavman aksesuarları	Enema accessories
+42142102	Tıbbi soğuk saklama üniteleri	Medical cold storage chilling units
+42142103	Tıbbi ısı lambaları	Medical heat lamps
+42142104	Tıbbi sıcak kompres ünitesi	Medical hydrocollators
+42142112	Terapötik parafin banyoları	Therapeutic paraffin baths
+42142120	Kriyo kompresyon tedavi manşonları	Therapeutic cryo compression therapy cuffs
+42142121	Nemli buhar kabinleri	Moist steam cabinets
+42142122	Hipertermi monitörleri	Hyperthermia monitors
+42142123	Kriyoterapi kuru buz setleri	Cryotherapeutic dry ice sets
+42142124	Tıbbi ısı lambası aksesuarları	Medical heat lamp accessories
+42142125	Tıbbi sıcak kompres ünitesi aksesuarları	Medical hydrocollator accessories
+42142126	Terapötik ısıtma veya soğutma sistemi aksesuarları	Therapeutic heating or cooling unit or system accessories
+42142127	Kriyo kompresyon tedavi sistemi aksesuarları	Therapeutic cryo compression therapy system accessories
+42142128	Terapötik parafin banyosu aksesuarları	Therapeutic paraffin bath accessories
+42142129	Tıbbi soğuk saklama ünitesi aksesuarları	Medical cold storage chilling unit accessories
+42142130	Fototerapi lazerleri	Phototherapy lasers
+42142131	Fizik tedavi nemli ısı cihazı	Physical therapy moist heat apparatus
+42142132	Topuk ısıtıcıları	Heel warmers
+42142205	Hidroterapi hidromasaj yatakları	Hydrotherapy hydromassage beds or tables
+42142206	Hidroterapi banyo dezenfeksiyon sistemleri	Hydrotherapy bath or tank disinfection systems
+42142302	Tıbbi kağıt kayıt sistemleri	Medical paper charting systems
+42142303	Hasta kimlik ve bilgi ürünleri	Patient identification and information products
+42142304	Tıbbi kayıt kağıtları ve formları	Medical chart papers and forms
+42142305	Tıbbi kağıt kayıt sistemi aksesuarları	Medical paper charting system accessories
+42142306	Elektronik sağlık kaydı yazılımı ve ilgili ürünler	Electronic health or medical record charting system software and related products
+42142307	Tıbbi elektronik kayıt sistemi aksesuarları	Medical electronic charting system accessories
+42142308	Cerrahi alet RFID envanter takip sistemleri	Surgical instrument inventory RFID tracking systems
+42142309	Hasta bakımı ve tıbbi muayene	Patient care and medical exams
+42142511	İğne kapağı veya koruma cihazları	Needle caps or protection devices
+42142518	Biyopsi aspiratör ürünleri	Biopsy aspirator products
+42142520	Dozajlama pimi veya iğnesi	Dispensing pins or needles
+42142523	Enjektör iğnesi	Hypodermic needle
+42142532	Perikardiyosentez iğneleri veya setleri	Pericardiocentesis needles or kits
+42142534	İntraosseöz iğneler	Intraosseous needles
+42142535	Anestezi sinir bloğu seti	Anesthesia nerve block kit or tray
+42142536	Torasentez veya parasentez iğne ve kateterleri	Thoracentesis or paracentesis needles and catheters
+42142537	Torasentez setleri	Thoracentesis sets or trays
+42142538	Parasentez setleri	Paracentesis sets or trays
+42142539	Diyaliz iğneleri	Dialysis needles
+42142540	İmplante intraosseöz portlar	Implanted intraosseous ports
+42142541	Spinal aspirasyon iğneleri	Spinal aspiration needles
+42142542	Perikardiyosentez iğne ve set aksesuarları	Pericardiocentesis needle or kit accessories
+42142543	Biyopsi aspiratör ürün aksesuarları	Biopsy aspirator product accessories
+42142544	Damar sabitleme cihazları	Vein stabilization devices
+42142545	İğne kapağı ve koruma cihazı aksesuarları	Needle cap or protection device accessories
+42142546	Mikroemülsifiye iğneler	Microemulsifying needles
+42142547	Kelebek infüzyon iğne seti	Winged infusion needle set
+42142548	İğne gövde uzatıcısı	Needle shaft extender
+42142608	İğnesiz tıbbi şırıngalar	Medical syringes without needle
+42142609	İğneli tıbbi şırıngalar	Medical syringes with needle
+42142610	Oral veya enteral sıvı ilaç şırıngası	Oral or enteral liquid medication syringe
+42142614	Deri altı enjeksiyon cihazı	Hypodermic injection apparatus
+42142619	Ön dolumlu yıkama şırıngaları	Prefilled flush syringes
+42142620	İntraosseöz iğne sürücüleri veya enjeksiyon tabancaları	Intraosseous needle drivers or injection guns
+42142621	Aspirasyon tabancaları	Aspirating guns
+42142622	Damar bulma cihazları	Vein location devices or lights
+42142623	Deri altı enjeksiyon cihazı aksesuarları	Hypodermic injection apparatus accessories
+42142624	Enjeksiyon kalemleri	Injection pens
+42142625	Enjeksiyon tabancası aksesuarları	Injection gun accessories
+42142626	Aspirasyon tabancası aksesuarları	Aspirating gun accessories
+42142627	İnsülin şırıngası	Insulin syringe
