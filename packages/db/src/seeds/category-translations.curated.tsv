@@ -10226,3 +10226,200 @@
 22110105	Bağlama zinciri	Mooring chain
 22110106	Bağlama çelik halatı	Mooring wire rope
 22110107	Bağlama sentetik halatı	Mooring synthetic rope
+22110108	Sürüklenen çapalar	Drag anchors
+22110109	Kazık çapalar	Pile anchors
+22110110	Babalar ve hızlı bırakma kancaları	Bollards and quick release hooks
+22110111	Dolfen yapısı	Dolphin structure
+22110201	Boşaltma hortumu makarası	Offloading hose reel
+22110202	Boşaltma hortumları	Offloading hoses
+22110203	Boşaltma hortumu yardımcı ekipmanı	Offloading hose ancillary equipment
+22110204	Tandem bağlama ekipmanı	Tandem mooring equipment
+72154052	Afet sonrası yenileme ve onarım hizmeti	Post disaster renovation and repair service
+72154053	Yayın istasyonu onarım hizmeti	Broadcasting station repair service
+72154054	Katalizör yükleme veya boşaltma hizmeti	Catalyst loading or removal service
+72154055	Tank temizleme hizmeti	Tank cleaning service
+72154056	Tank bakım veya onarım hizmeti	Tank maintenance or repair service
+72154057	Depolama tankı kiralama hizmeti	Storage tank rental service
+72154058	Tank ve hat test hizmeti	Tank and line testing service
+72154059	Kaçak tespit sızdırmazlık ve onarım hizmeti	Leak detection sealing and repair service
+72154060	Gaz alma hizmeti	Degassing service
+72154061	Hava filtrasyon hizmeti	Air filtration service
+72154062	Basınç altında delme hizmeti	Hot tapping service
+72154063	Hat durdurma hizmeti	Stopple or line stopping service
+72154064	Taşınabilir aydınlatma ekipmanı kiralama hizmeti	Portable lighting equipment rental service
+72154065	Elektrikli kopyalama ekipmanı bakımı	Electrical copying equipment maintenance
+72154066	Genel ofis ekipmanı bakımı	General office equipment maintenance
+72154067	Geçici sahne ve platform kiralama ve kurulumu	Temporary theatrical stage and platform rental and installation
+72154068	Grafiti temizleme ve işlem hizmeti	Graffiti removal and treatment service
+72154069	Çit ve korkuluk hizmeti	Fencing and railing service
+72154101	Hava kompresörü kiralama ve bakım hizmeti	Air compressor rental and maintenance service
+72154102	Isı değiştirici bakım veya onarım hizmeti	Heat exchanger maintenance or repair service
+72154103	Rotorlu pompa bakım veya onarım hizmeti	Rotary pump maintenance or repair service
+72154104	Redüktör bakım ve onarım hizmeti	Gearbox maintenance and repair service
+72154105	Kontrol vanası bakım ve onarım hizmeti	Control valve maintenance and repair service
+72154106	Pistonlu kompresör kiralama ve bakım hizmeti	Reciprocating compressor rental and maintenance service
+72154107	Santrifüj kompresör kiralama ve bakım hizmeti	Centrifugal compressor rental and maintenance service
+72154108	Pistonlu pompa bakım veya onarım hizmeti	Reciprocating pump maintenance or repair service
+72154109	Santrifüj pompa bakım veya onarım hizmeti	Centrifugal pump maintenance or repair service
+72154110	Kanatlı fanlı soğutma kulesi bakım ve onarım hizmeti	Fin fan cooling tower maintenance and repair service
+72154201	Enstrüman veya sayaç bakım ve onarım hizmeti	Instrument or meter maintenance and repair service
+72154202	Saha enstrümantasyonu bakımı	Field instrumentation maintenance
+72154301	Türbin ekipmanı bakım veya onarım hizmeti	Turbine equipment maintenance or repair service
+72154302	Motor kurulum ve bakım hizmeti	Motor installation and maintenance service
+72154303	Buhar türbini bakım hizmeti	Steam turbine maintenance service
+72154401	Boru tesisatı imalat hizmeti	Pipefitting fabrication service
+72154402	Boru tesisatı bakım veya onarım hizmeti	Pipefitting maintenance or repair service
+72154501	Ağır iş makinesi bakım ve onarım hizmeti	Heavy equipment maintenance and repair service
+72154502	Vinç bakım ve onarım hizmeti	Crane maintenance and repair service
+72154503	Vinç kiralama hizmeti	Crane rental service
+72154504	Tesis ekipmanı taşıma hizmetleri	Plant equipment handling services
+72154601	Kuşlar için hayvanat bahçesi yaşam alanı yapımı	Construction of zoo habitat and enclosure for birds and flying species
+72154602	Böcekler ve omurgasızlar için hayvanat bahçesi yaşam alanı yapımı	Construction of zoo habitat and enclosure for insects and invertebrates
+72154603	Kara memelileri ve primatlar için hayvanat bahçesi yaşam alanı yapımı	Construction of zoo habitat and enclosure for land mammals and primates
+72154604	Su ve amfibi türleri için hayvanat bahçesi yaşam alanı yapımı	Construction of zoo habitat and enclosure for aquatic and amphibious species
+72154605	Sürüngenler için hayvanat bahçesi yaşam alanı yapımı	Construction of zoo habitat and enclosure for reptiles
+73101506	Rafinaj araştırma ve geliştirme hizmetleri	Research and development refining services
+73101507	Yakıt rafinajı araştırma ve geliştirme	Research and Development refining fuels
+73121510	Katalizör yaşam döngüsü	Catalyst lifecycle
+73121511	Değerli metal hizmeti	Precious metal service
+73121614	Tahribatsız muayene hizmeti	Non destructive testing service
+73121615	Metalurjik muayene	Metallurgical inspection
+73151503	Özgün tasarım ve üretim hizmeti	Original design and manufacturing service
+73151504	Elektronik üretim hizmeti	Electronics manufacturing service
+73151505	Sıralı teslimat hizmeti	Sequenced delivery service
+73151506	Nihai veya alt montaj hizmeti	Final or sub-assembly service
+73151608	Kitleme paketleme hizmeti	Kitting pack service
+73151704	Alüminyum eloksal hizmeti	Aluminum anodizing service
+73151705	Eloksal yüzey işleme hizmeti	Anodizing material treatment surfacing service
+73151706	Yağ işleme hizmeti	Oil treatment service
+73151707	Kimyasal tedariki hariç yağ işleme hizmeti	Oil treatment service excluding chemical supply
+73151708	Gaz işleme hizmeti	Gas treatment service
+73151709	Kimyasal tedariki hariç gaz işleme hizmeti	Gas treatment service excluding chemical supply
+73152005	Yağlama yağı hizmeti	Lubrication oil service
+73152006	Fason yağ harmanlama hizmeti	Toll blending lubricant service
+73152104	Ambalaj ekipmanı bakım ve onarım hizmeti	Packaging equipment maintenance and repair service
+73152105	Test ekipmanı yenileme	Test equipment refurbishment
+73152106	Pişirme ve ısıtma ekipmanı bakım ve onarım hizmeti	Baking and heating equipment maintenance and repair service
+73152107	Talaşlı imalat ekipmanı revizyon ve yenileme hizmeti	Machining equipment rebuild and refurbishment service
+73152108	Elektrikli ekipman bakım ve onarım hizmeti	Electrical equipment maintenance and repair service
+73152109	Endüstriyel kantar bakım ve kiralama hizmeti	Industrial weight scale maintenance and rental service
+73152112	Vana veya vana parçası test bakım veya onarım hizmeti	Valve or valve part testing maintenance or repair service
+73152113	Hava filtrasyon veya arıtma ekipmanı bakım ve onarım hizmeti	Air filtration or purification equipment maintenance and repair service
+73152114	Döner ekipman tasarımı	Design rotating equipment
+73152115	Gaz veya dizel motor hizmeti	Gas/diesel engine service
+73152116	Gaz türbini hizmeti	Gas turbine service
+73152117	Turbo ekspander hizmeti	Turbo expander service
+73152118	Pompa hizmeti	Pump service
+73152119	Buhar türbini hizmeti	Steam turbine service
+73152120	Değişimli revizyon hizmetleri	Overhaul by exchange services
+73152121	Makine bakım ve hizalama hizmetleri	Machine maintenance and alignment services
+73152122	Mekanik salmastra hizmeti	Mechanical seal service
+73152123	Titreşim kontrol hizmeti	Vibration check service
+73152124	Kompresör hizmetleri	Compressor services
+73181024	Talaşlı imalat hizmeti	Machining service
+73181107	Çinko alaşımı tambur kaplama hizmeti	Zinc alloy barrel plating service
+73181108	Kalay kaplama hizmeti	Tin plating service
+73181109	Nikel kaplama hizmeti	Nickel plating service
+73181110	Kimyasal nikel kaplama hizmeti	Electroless nickel plating service
+73181111	Değerli metal kaplama hizmeti	Precious metals plating service
+73181112	Teflon kaplama hizmeti	Teflon coating service
+73181113	Çinko alüminyum organik kaplama hizmeti	Zinc aluminum organic coating service
+73181114	Tambur elektro kaplama hizmeti	Barrel electro coating service
+73181115	Nikel krom kaplama hizmeti	Nickel chrome plating service
+73181116	İnce sert krom kaplama hizmeti	Thin dense chrome coating service
+73181117	Yaş püskürtme kaplama hizmeti	Wet spray coating service
+73181118	Askılı elektro kaplama hizmeti	Rack electro coating service
+73181119	Toz boya kaplama hizmeti	Powdercoat coating service
+73181120	Çinko tambur kaplama hizmeti	Zinc barrel plating service
+73181121	Çinko alaşımı askılı kaplama hizmeti	Zinc alloy rack plating service
+73181122	Üst kaplamalı çinko askılı kaplama hizmeti	Zinc with top coat rack coating service
+73181123	Üst kaplamalı çinko tambur kaplama hizmeti	Zinc with top coat barrel coating service
+73181124	Fosfat kaplama hizmeti	Phoscoating service
+73181125	Elmas benzeri kaplama hizmeti	Diamond like coating service
+73181126	Boru hattı yüzey kaplama hizmeti	Pipeline coating service
+73181305	Sert lehim ısıl işlem hizmeti	Braze heat treat service
+73181306	Su verme ve menevişleme ısıl işlem hizmeti	Quench and temper heat treat service
+73181308	Karbonitrürleme ısıl işlem hizmeti	Carbonitride heat treat service
+73181309	Nitrürleme ısıl işlem hizmeti	Nitride heat treat service
+73181310	Vakumlu su verme ve menevişleme ısıl işlem hizmeti	Vacuum quench and temper heat treat service
+73181311	Vakumlu tavlama ısıl işlem hizmeti	Vacuum anneal heat treat service
+73181312	Sementasyon ısıl işlem hizmeti	Carburizing heat treat service
+73181313	İndüksiyonla ısıl işlem hizmeti	Induction heat treat service
+73181314	Ostemperleme ısıl işlem hizmeti	Austemper heat treat service
+73181315	Isıl işlem hizmeti	Heat treatment service
+76101602	Asbest sökümü veya kapsülleme	Asbestos removal or encapsulation
+76101603	Kurşun bazlı boya sökümü veya kapsülleme	Lead based paint abatement or encapsulation
+76101604	Küf giderme hizmeti	Mold abatement service
+76101605	Karbon bazlı filtrasyon ve dekontaminasyon hizmeti	Carbon based filtration and decontamination service
+76101606	Kimyasal bazlı ekipman temizleme hizmeti	Chemical based equipment cleaning service
+76111507	Park ve açık alan temizlik hizmetleri	Cleaning services for parks and outdoor public venues
+76121504	Lastik toplama ve bertaraf	Tire collection and disposal
+76121505	İnorganik atık toplama ve bertaraf	Inorganic waste collection and disposal
+76121506	Terk edilmiş araç kaldırma ve bertaraf hizmeti	Abandoned vehicle recovery and disposal service
+76121507	Etkinlik sonrası çöp toplama ve temizlik hizmeti	Post event refuse collection and clean up service
+76121508	Çöp toplama ekipmanı	Refuse collecting equipment
+76121904	Tehlikeli atık su bertarafı	Hazardous waste water disposal
+76121905	İnorganik tehlikeli atık toplama ve bertarafı	Inorganic hazardous waste collection and disposal
+76121906	Sondaj atığı taşıma işleme ve bertarafı	Drilling waste handling, treatment, and disposal
+76122001	Tehlikesiz genel atık düzenli depolama	Landfill for non hazardous generic waste
+76122002	Tehlikesiz özel atık düzenli depolama	Landfill for non hazardous special waste
+76122003	Tehlikeli atık düzenli depolama	Landfill for hazardous waste
+76122004	Düşük riskli tehlikeli atık düzenli depolama	Landfill for low risk hazardous or universal waste
+76122101	Tehlikesiz genel atık yakıt harmanlama	Fuel blending for non hazardous generic waste
+76122102	Tehlikesiz özel atık yakıt harmanlama	Fuel blending for non hazardous special waste
+76122103	Tehlikeli atık yakıt harmanlama	Fuel blending for hazardous waste
+76122201	Tehlikesiz genel atık yakma	Incineration for non hazardous generic waste
+76122202	Tehlikesiz özel atık yakma	Incineration for non hazardous special waste
+76122203	Tehlikeli atık yakma	Incineration for hazardous waste
+76122301	Solvent geri dönüşümü	Recycling of solvents
+76122302	Atık yağ geri dönüşümü	Recycling of used oil
+76122303	Temizlik bezi geri dönüşümü	Recycling of cleaning rags
+76122304	Tehlikeli atık geri dönüşümü	Recycling of hazardous waste
+76122305	Bilgisayar ürünleri geri dönüşümü	Recycling of computer based products
+76122306	Kâğıt geri dönüşümü	Recycling of paper
+76122307	Oluklu mukavva geri dönüşümü	Recycling of corrugated cardboard
+76122308	Ahşap geri dönüşümü	Recycling of wood
+76122309	Plastik geri dönüşümü	Recycling of plastic
+76122310	Metal geri dönüşümü	Recycling of metal
+76122311	Cam geri dönüşümü	Recycling of glass
+76122312	Strafor geri dönüşümü	Recycling of styrofoam
+76122313	Vinil geri dönüşümü	Recycling of vinyl
+76122314	Floresan lamba geri dönüşümü	Recycling of fluorescent lamps
+76122315	Lamba balastı geri dönüşümü	Recycling of lamp ballasts
+76122316	Geri dönüştürülemeyen atık bertarafı	Disposal of non-recyclable or residual waste
+76122318	Organik atık geri dönüşümü	Recycling of organic waste.
+76122401	Demuraj ücreti	Demurrage fee
+76122402	Ekipman kullanım ücreti	Equipment usage fee
+76122403	Yakıt bedeli	Fuel recovery fee
+76122404	Tehlikeli atık ücreti	Hazardous waste fee
+76122405	İşçilik ücreti	Labor fee
+76122406	Kişisel koruyucu donanım ücreti	Personal protective equipment fee
+76122407	Çöp nakliye ücreti	Refuse transportation fee
+76122408	Yerel atık veya geri dönüşüm harcı	State county local waste or recycle fee
+78101504	Mektup ve koli havayolu taşımacılığı	Air transport of letters and parcels
+78101505	Canlı hayvan havayolu taşımacılığı	Air transport of livestock or live animals
+78101605	Demiryolu tank vagonu kiralama hizmeti	Rail tankcar leasing service
+78101606	Demiryolu kapalı veya yük vagonu kiralama hizmeti	Rail boxcar or cargo car leasing service
+78101607	Demiryolu itme veya çekme hizmeti	Railway pushing or towing service
+78101608	Mektup ve koli demiryolu taşıma hizmetleri	Railway transport services of letters and parcels
+78101609	Tank vagonuyla demiryolu taşımacılığı	Railway transport by tanker car
+78101610	Soğutmalı vagonla demiryolu taşımacılığı	Railway transport by refrigerator car
+78101706	Açık deniz petrol ve gaz platformu ikmal gemisi hizmeti	Oil and gas offshore platform supply vessel service
+78101707	Tankerlerle iç su taşımacılığı	Inland water transport by tankers
+78101708	Soğutmalı gemilerle iç su taşımacılığı	Inland water transport by refrigerator vessels
+78101709	Tankerlerle kıyı ve okyanus aşırı taşımacılık	Coastal and transoceanic transport by tankers
+78101710	Soğutmalı gemilerle kıyı ve okyanus aşırı taşımacılık	Coastal and transoceanic water transport by refrigerator vessels
+78101711	Canlı hayvan deniz taşımacılığı	Marine transport of livestock or live animals
+78101712	Deniz kargo güvence ve kayıp kontrol hizmetleri	Marine cargo assurance, loss control, and expediting services
+78101713	Açık deniz ağır yük taşıma hizmetleri	Offshore heavy transportation services
+78101714	Yüzdürerek yerleştirme	Floatover Installation
+78101715	Deniz lojistik hizmeti	Marine logistics service
+78101716	Deniz römorkaj hizmeti	Marine towing service
+78101717	Deniz konaklama hizmetleri	Marine accommodation services
+78101718	Açık deniz ikmal gemisi hizmeti	Offshore supply vessel service
+78101719	Açık deniz ikmal gemisi	Offshore supply vessel
+78101720	Deniz hidrokarbon taşıma hizmetleri	Marine hydrocarbon transport services
+78101721	Açık deniz römorkaj ve ikmal gemisi hizmeti	Offshore towing and supply vessel service
+78101722	Dökme yük dağıtım hizmeti	Bulk shipping distribution service
+78101723	Deniz paket dağıtım hizmeti	Sea pack distribution service
+78101724	Arktik deniz uzman hizmetleri	Arctic marine specialist services
