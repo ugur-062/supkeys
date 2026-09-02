@@ -16,12 +16,16 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-// CSP nonce → dinamik render ZORUNLU: statik prerender'da per-request nonce
-// enjekte edilemez → statik HTML'deki framework script'leri nonce'suz kalır,
-// strict-dynamic altında BLOKLANIR. Root layout'ta force-dynamic tüm rotalara
-// iner (public SEO sayfaları dahil — demo fazında dinamik render kabul edildi).
-// (bkz. src/middleware.ts)
-export const dynamic = "force-dynamic";
+// BURADA `force-dynamic` YOK — bilinçli. Eskiden root layout'ta duruyordu ve
+// public SEO sayfalarını da dinamik render'a zorluyordu; SEO/GEO önceliğe
+// alınınca kaldırıldı (statik/ISR + CDN önbelleği olmadan crawl bütçesi ve
+// TTFB kaybediliyordu). Nonce'lı CSP ile statik prerender bağdaşmadığı için
+// dinamik render artık rota bazında zorunlu kılınır:
+//   · /company/*      → app/company/layout.tsx
+//   · /davet-kapat    → app/davet-kapat/layout.tsx
+//   · /reset-password → app/reset-password/page.tsx
+// Hangi rotanın hangi tarafta olduğunun tek kaynağı: lib/public-routes.ts
+// (bkz. src/middleware.ts, public-routes.test.ts).
 
 export const metadata: Metadata = {
   title: {

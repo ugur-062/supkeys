@@ -3,6 +3,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ResetPasswordForm } from "./reset-password-form";
 
+/**
+ * Public rota DEĞİL (SEO'ya kapalı, nonce'lı CSP alır) → statik prerender
+ * edilirse nonce'suz kalır ve script'leri bloke olur. Bkz. `@/lib/public-routes`.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Parola Sıfırla — Rothern",
 };
