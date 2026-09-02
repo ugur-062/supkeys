@@ -1,3 +1,9 @@
+import {
+  categoryAncestors,
+  categorySegment,
+  isCategoryCode,
+} from "@rothern/shared";
+
 /**
  * İhale kategorilerinden (8-haneli UNSPSC kodları) tedarikçi-eşleşme adaylarını
  * türetir. Tedarikçinin ANA (segment) kategorisi veya ALT (family/class/commodity)
@@ -8,13 +14,18 @@ export function deriveCategoryMatchCandidates(tenderCategoryCodes: string[]): {
   segmentIds: string[];
   subCandidates: string[];
 } {
-  const codes = tenderCategoryCodes.filter((c) => /^\d{8}$/.test(c));
+  // Ata zinciri TEK KAYNAK: @rothern/shared `categoryAncestors`. Nitelik
+  // mirası (CategoryAttribute) da aynı zinciri kullanıyor — ikisi ayrışırsa
+  // "eşleşen kategori" ile "sorulan nitelik" farklı ağaçlar olurdu.
+  const codes = tenderCategoryCodes.filter(isCategoryCode);
   const segmentIds = Array.from(
-    new Set(codes.map((c) => c.slice(0, 2) + "000000")),
+    new Set(codes.map((c) => categorySegment(c)).filter((c): c is string => !!c)),
   );
+  // Segment (L1) ayrı döndüğü için alt adaylardan çıkarılır — eski davranış
+  // birebir korunur (L2/L3/kendisi).
   const subCandidates = Array.from(
     new Set(
-      codes.flatMap((c) => [c, c.slice(0, 6) + "00", c.slice(0, 4) + "0000"]),
+      codes.flatMap((c) => categoryAncestors(c).filter((a) => !a.endsWith("000000"))),
     ),
   );
   return { segmentIds, subCandidates };

@@ -1,3 +1,4 @@
+export * from "./helpers/category-code";
 export * from "./helpers/slug";
 export * from "./helpers/short-code";
 export * from "./helpers/company-identity";

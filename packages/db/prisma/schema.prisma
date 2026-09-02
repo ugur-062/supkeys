@@ -1543,6 +1543,35 @@ model ListingTemplate {
  * Silme yerine `isActive=false` (pasifleştirme): geçmiş ilanlar kopya taşıdığı
  * için zaten etkilenmez, ama kullanıcı yanlışlıkla sildiğini geri alabilmeli.
  */
+/**
+ * Ürün fiyat modu (Faz 2).
+ *
+ * Europages'in kusurundan kaçınmak için var: orada fiyat tek zorunlu sayı
+ * kutusu ve satıcıların çoğu fiyatını açmak istemediği için "1,00 €" yazıp
+ * geçiyor. Sonuç: fiyat alanı dolu ama içi yalan — sıralanamaz, süzülemez,
+ * karşılaştırılamaz.
+ *
+ * Bizde satıcı ÜÇ moddan birini seçmek ZORUNDA; hiçbiri boş bırakılamaz ama
+ * hiçbiri yalan söylemeyi de gerektirmez. Fiyatını açmak istemeyen
+ * ON_REQUEST seçer — böylece fiyat süzgeci yalnız gerçekten fiyat verenler
+ * arasında çalışır ve güvenilir kalır.
+ */
+enum CompanyItemPriceMode {
+  FIXED // tek birim fiyat
+  TIERED // miktar kademeli tablo (B2B'de fiyat zaten miktara göre değişir)
+  ON_REQUEST // "fiyat için teklif isteyin" — açık beyan, kaçamak değil
+}
+
+/**
+ * Kategoriye bağlı nitelik tipi (Faz 2).
+ */
+enum CategoryAttributeType {
+  SINGLE_SELECT // kapalı listeden tek seçim
+  MULTI_SELECT // kapalı listeden çoklu seçim
+  NUMBER // sayı (+ birim)
+  TEXT // serbest kısa metin — SON ÇARE, süzülemez
+}
+
 model CompanyItem {
   id            String    @id @default(cuid())
   companyId     String
@@ -1584,15 +1613,141 @@ model CompanyItem {
    */
   usageCount    Int       @default(0)
   lastUsedAt    DateTime?
+  // ── Faz 2: KAMUYA AÇIK ÜRÜN KATALOĞU ───────────────────────────────────
+  // `CompanyItem` doğduğunda iç kullanımlıktı ("ilan açarken kalem seçmeyi
+  // hızlandıran kısayol katalog"). Faz 2 onu firmanın herkese açık VİTRİNİ
+  // yapıyor. Yeni varlık AÇMADIK: aynı kalem hem ilana eklenir hem vitrinde
+  // durur; ikiye bölmek aynı ürünü iki yerde güncelleme borcu üretirdi.
+  /**
+   * Vitrinde görünsün mü. Varsayılan KAPALI: mevcut satırlar (bugün 0) ve
+   * ilan açarken hızlıca yazılan kalemler kazara yayımlanmasın. Yayımlama
+   * ayrı ve bilinçli bir jesttir (taslak/yayınla ayrımı).
+   */
+  isPublic      Boolean   @default(false)
+  publishedAt   DateTime?
+  /**
+   * URL parçası — `/firma/<firma-slug>/urun/<slug>`. Firma İÇİNDE tekil.
+   * Ürün URL'i firmanın altında yaşıyor ki firma otoritesinden beslensin.
+   */
+  slug          String?
+  /**
+   * Görseller (R2 URL) — İLKİ KAPAK. Vitrine çıkan üründe en az 1 zorunlu
+   * (kural serviste; şemada zorunlu tutmak taslakları imkânsız kılardı).
+   */
+  images        String[]  @default([])
+  videoUrl      String?
+  /**
+   * Ek belgeler: [{ url, title }]. Katalog/broşür PDF'i.
+   */
+  documents     Json?
+  /**
+   * Arama ve uzun kuyruk için etiketler (1-15). Ürün sayfasında GÖRÜNÜR bir
+   * bölüm olarak da yayımlanır.
+   */
+  keywords      String[]  @default([])
+  /**
+   * Kategoriye bağlı nitelikler: { "<groupKey>": ["değer", ...] }.
+   * Hangi grupların sorulacağını `CategoryAttribute` belirler ve kategori
+   * ağacında YUKARIDAN MİRAS alınır (bkz. o modelin yorumu).
+   */
+  attributes    Json?
+  /** Kendi sitesindeki ürün sayfası — dış bağlantı. */
+  externalUrl   String?
+
+  // ── Fiyat: üç moddan biri ZORUNLU (yalan söylemeye gerek kalmasın) ──
+  priceMode     CompanyItemPriceMode @default(ON_REQUEST)
+  /** FIXED modunda birim fiyat. */
+  priceAmount   Decimal?  @db.Decimal(18, 2)
+  /** TIERED modunda [{ minQty, unitPrice }] — miktar arttıkça birim düşer. */
+  priceTiers    Json?
+  priceCurrency Currency  @default(TRY)
+  /** Minimum sipariş miktarı. */
+  moq           Decimal?  @db.Decimal(18, 3)
+
+  /**
+   * 0-100. Kullanıcıyı zorlamadan veri kalitesini yükselten en ucuz mekanizma
+   * (Europages'in "Product Completion Score"u). Serviste hesaplanır, formda
+   * canlı gösterilir; sıralamada da kullanılabilir.
+   */
+  completionScore Int     @default(0)
+  /**
+   * TR-katlanmış arama metni — `Category.searchText` ile AYNI kural
+   * (foldSearchText). Vitrindeki ürün araması yalnız buradan okur.
+   */
+  searchText    String    @default("")
+
   createdById   String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
   // Kod verilmişse firma içinde tekil (null'lar çakışmaz — Postgres davranışı).
   @@unique([companyId, code])
+  // Slug da firma içinde tekil — URL çakışması olmasın.
+  @@unique([companyId, slug])
   @@index([companyId, isActive])
   @@index([companyId, categoryId])
+  // Vitrin sorgusu: yayımlanmış ürünler, yeni önce.
+  @@index([isPublic, publishedAt])
   @@map("company_items")
+}
+
+/**
+ * KATEGORİ → NİTELİK MATRİSİ (Faz 2).
+ *
+ * Nitelik = o ürün tipine özel, YAPILANDIRILMIŞ alan (elektrik panosunda
+ * "IP koruma sınıfı", çelik boruda "et kalınlığı"). Serbest açıklama değil;
+ * süzülebilir, karşılaştırılabilir veri. Europages'in asıl gücü tasarımı
+ * değil, bu matrisin sıkılığı.
+ *
+ * ── MİRAS: neden her kategoriye ayrı satır yazmıyoruz ──────────────────
+ * Bizde 158.018 kategori var (Europages'te 111 sektör). Kod başına nitelik
+ * yazmak 158 bin satırlık elle küratörlük demek — bitmez. Onun yerine
+ * nitelik ÜST seviyede tanımlanır, alt seviyeler DEVRALIR:
+ *
+ *   40170000 (aile) → çap · et kalınlığı · malzeme · standart
+ *   ↓ altındaki yüzlerce yaprak (dikişsiz çelik boru, PVC boru…) bunu alır
+ *   40171501 (yaprak) → yalnız kendine özgü "üretim yöntemi" eklenir
+ *
+ * Çözüm: bir ürünün nitelikleri = kodunun ATA ZİNCİRİNDEKİ tüm satırlar.
+ * Zincir koddan türer (`categoryAncestors`, @rothern/shared) — 4 tam eşleşme
+ * sorgusu, ağaçta gezinme yok.
+ *
+ * Böylece 58 segment + birkaç yüz aile doldurmak yeter. Doldurulmamış
+ * kategoride form nitelik SORMAZ ve yine çalışır — matris eksikken ürün
+ * eklenemez hâle gelmemeli.
+ */
+model CategoryAttribute {
+  id         String   @id @default(cuid())
+  /**
+   * Hangi kategori düğümünde TANIMLI (Category.id = 8 haneli kod). Altındaki
+   * her düğüm bunu devralır.
+   */
+  categoryId String
+  /**
+   * Makine adı — ürünün `attributes` JSON'ında anahtar olarak kullanılır.
+   * Ada göre değil ANAHTARA göre eşleşiriz ki etiket çevrilse bile veri
+   * bozulmasın.
+   */
+  groupKey   String
+  nameTr     String
+  type       CategoryAttributeType
+  /** SINGLE_SELECT / MULTI_SELECT için kapalı değer listesi. */
+  options    String[] @default([])
+  /** NUMBER için birim ("mm", "V", "kg"). */
+  unit       String?
+  /**
+   * Zorunlu nitelik ürünün yayımlanmasını ENGELLEMEZ; yalnız tamamlanma
+   * skorunu düşürür. Zorlamak yerine ödüllendirmek katalogu daha hızlı
+   * dolduruyor (Europages'in ölçtüğü davranış).
+   */
+  isRequired Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@unique([categoryId, groupKey])
+  @@index([categoryId])
+  @@map("category_attributes")
 }
 
 model SupplierTemplate {
