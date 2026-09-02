@@ -5839,3 +5839,154 @@
 22101722	Kepçe dişi	Bucket tooth
 22101723	Kepçe yan kesici	Bucket side cutter
 22101724	Hidrolik kırıcı keskisi	Hydraulic breaker chisel
+
+# Kağıt ürünleri + inşaat alt yüklenici hizmetleri.
+14111538	Dijital baskı kağıdı	Digital paper
+14111539	Tıbbi kayıt veya termal kağıt	Medical monitoring or tracing or recording or thermal paper
+14111540	Damga pulu kağıdı	Stamp paper
+14111541	Optik okuyucu kağıdı	Optical mark reader paper
+14111542	Kore kırtasiye kağıdı	Korean paper for stationery
+14111543	Mürekkep taşı	Inkstone
+14111544	Güvenlikli kağıt	Security paper
+14111545	Geniş format yazıcı kağıdı	Wide format printer paper
+14111617	Leathack kağıdı	Leathack paper
+14111618	Kent kağıdı	Kent paper
+14111819	Rezervasyon formları veya defterleri	Booking forms or reservation books
+14111820	Şans oyunu formları veya kuponları	Game of chance forms or coupons
+14111821	Sipariş formları veya defterleri	Order forms or order books
+14111822	İrsaliye formları veya defterleri	Delivery forms or delivery books
+14111823	Kontrol formları veya defterleri	Control forms or control books
+14111824	Reçete bloğu veya güvenlikli kağıt	Pharmacy prescription pad or tamper resistant security paper
+14111825	Menü	Menu
+14111826	Doğum belgesi	Birth certificate
+14111827	Ölüm belgesi	Death certificate
+14111828	Antetli kağıt	Business letterhead paper
+14111829	Baskılı not bloğu	Pre-printed notepad
+14111830	Resmi belge kağıdı	Engrossing paper
+14111831	Ziyaretçi defteri	Visitor or guest book
+14121506	Oluklu mukavva veya kutu kartonu	Corrugated fiberboard or container board CCM
+14121507	Uçucu korozyon önleyici (VCI) kağıt	Volatile corrosion inhibitor or VCI paper
+14121508	Kaolin kaplı karton	Kaolin treated paperboard
+14121509	Kaplamasız kompozit kağıt veya karton	Composite paper or paperboard without surface coating
+14121510	Test liner karton	Test liner paperboard
+14121703	Lamine alüminyum folyo kağıt	Laminated aluminum foil paper
+14121813	Saten kağıt	Satin paper
+14122107	Oluklu baz kağıt	Corrugated base paper
+14122108	Ambalaj krepon kağıdı	Wrapping crepe
+14122202	Çay poşeti kağıdı	Tea bag paper
+14122203	Transfer kağıdı	Transfer paper
+14122204	Kabartma damgalı kağıt	Impressed stamp paper
+72141205	Drenaj sistemi inşaat hizmeti	Drainage system construction service
+72141206	Tarama hizmeti	Dredging service
+72141207	Liman inşaat hizmeti	Harbor construction service
+72141209	Sedde inşaat hizmeti	Levee construction service
+72141210	Marina inşaat hizmeti	Marina construction service
+72141211	İskele inşaat hizmeti	Pier construction service
+72141212	Gölet inşaat hizmeti	Pond construction service
+72141213	Su yolu inşaat hizmeti	Waterway construction service
+72141214	Palplanş çakma hizmeti	Sheet pile driving service
+72141215	Su altı inşaat hizmeti	Underwater construction service
+72141216	Açık deniz inşaat gemisi hizmeti	Offshore construction vessel service
+72141217	Buz yönetimi teknik hizmetleri	Ice management technical services
+72141401	Ceza infaz kurumu inşaat hizmeti	Detention facility construction service
+72141402	Ceza infaz kurumu tadilat ve onarımı	Detention facility remodeling and repair
+72141502	İnşaat öncesi arazi değerlendirme hizmeti	Land pre-construction assessment service
+72141503	Kaya sökme hizmeti	Rock removal service
+72141504	Ağaç sökme hizmeti	Timber removal service
+72141505	Hafriyat hizmeti	Earthmoving service
+72141507	Kazık çakma hizmeti	Pile driving service
+72141508	Patlatma hizmeti (bina yıkımı hariç)	Blasting service except building demolition
+72141509	Hendek kazma hizmeti	Trenching service
+72141510	Yıkım hizmetleri	Demolition services
+72141511	Kazı hizmetleri	Digging services
+72141601	Hafif raylı sistem inşaat hizmeti	Light rail construction service
+72141602	Güzergah açma hizmeti	Right of way cutting service
+72141603	Demiryolu altyapı inşaat hizmeti	Railroad and railway roadbed construction service
+72141604	Metro inşaat hizmeti	Subway construction service
+72141605	Demiryolu ray döşeme hizmeti	Railway track laying service
+72141606	Demiryolu ray onarım hizmetleri	Rail track repair services
+72141701	İnşaat makinesi kiralama hizmeti	Construction machinery rental or leasing service
+72141702	İnşaat ekipmanı kiralama hizmeti	Construction equipment rental or leasing service
+72151003	Isıtma sistemi bakım-onarım hizmeti	Heating system maintenance and repair service
+72151004	Sulu ısıtma sistemi bakım-onarım hizmeti	Hydronics heating system maintenance and repair service
+72151101	Fosseptik sistemi yapım hizmeti	Septic system construction service
+72151201	HVAC mekanik tesisat yapım hizmeti	HVAC mechanical construction service
+72151202	HVAC proses boru tesisatı yapım hizmeti	HVAC process piping construction service
+72151203	HVAC güneş enerjisi yapım hizmeti	HVAC solar energy construction service
+72151204	HVAC havalandırma ve kanal yapım hizmeti	HVAC ventilation and duct work construction service
+72151205	HVAC soğutma yapım hizmeti	HVAC refrigeration construction service
+72151206	HVAC ısıtma sistemi yapım hizmeti	HVAC heating system construction service
+72151207	HVAC montaj ve bakım hizmeti	Heating and cooling and air conditioning HVAC installation and maintenance service
+72151301	Konut boya hizmeti	Residential painting service
+72151302	Ticari boya hizmeti	Commercial painting service
+72151303	Endüstriyel boya hizmeti	Industrial painting service
+72151304	Uçak boyama hizmeti	Aircraft painting service
+72151305	Köprü boyama hizmeti	Bridge painting service
+72151306	Yol çizgi çizme hizmeti	Pavement marking service
+72151307	Gemi boyama hizmeti	Ship painting service
+72151308	Duvar kağıdı kaplama hizmeti	Paper hanging service
+72151401	Ticari duvar kaplama hizmeti	Commercial wall covering construction service
+72151402	Konut duvar kaplama hizmeti	Residential wall covering construction service
+72151403	Halatla erişim çalışma hizmeti	Rope access work positioning service
+72151501	Aydınlatma montaj hizmetleri	Lighting installation services
+72151502	Elektrik güç sistemi yapım hizmeti	Electric power system construction service
+72151503	Kojenerasyon tesisi inşaat hizmeti	Cogeneration plant construction service
+72151504	Bilgisayar güç şartlandırma hizmeti	Computer power conditioning service
+72151505	Yedek veya acil güç montaj hizmeti	Standby or emergency power installation service
+72151506	Şalt sistemi montaj hizmeti	Switchgear and related devices installation service
+72151507	Elektronik kumanda montaj hizmeti	Electronic controls installation service
+72151508	Bilgisayarlı kumanda montaj hizmeti	Computerized controls installation service
+72151509	Enerji yönetim kontrolü montaj hizmeti	Energy management controls installation service
+72151510	Çevresel sistem kontrol montaj hizmeti	Environmental system control installation service
+72151511	Aydınlatma sistemi bakım-onarım hizmeti	Lighting system maintenance or repair service
+72151514	Yedek veya acil güç bakım hizmeti	Standby or emergency power maintenance service
+72151515	Elektrik muayene hizmeti	Electrical inspection service
+72151516	Jeneratör bakım hizmetleri	Generator maintenance services
+72151517	Transformatör bakım hizmetleri	Transformer maintenance services
+72151518	Elektrik enerjisi tedarik hizmeti	Electric power supply service
+72151519	Elektrik motoru servisi	Electric motor service
+72151520	Pano bakım hizmetleri	Switchboards maintenance services
+72151521	Elektrik enstrümantasyon haberleşme kablosu hizmeti	Electric instrumentation communication cable service
+72151522	Elektrik armatür hizmeti	Electrical luminary service
+72151523	Katodik koruma hizmetleri	Cathodic protection services
+72151524	Endüstriyel elektrik hizmeti	Industrial electrical service
+72151601	Kablo televizyon montaj hizmeti	Cable television installation service
+72151602	Fiber optik kablo montaj hizmeti	Fiber optic cable installation service
+72151603	Özel ses ekipmanı montaj hizmeti	Specialized sound equipment installation service
+72151604	Telefon ve telefon ekipmanı montaj hizmeti	Telephone and telephone equipment installation service
+72151605	Ses, veri ve görüntü kablolama hizmeti	Voice and data and video wiring service
+72151606	Haberleşme ekipmanı yeraltı mühendisliği	Underground engineering for communication equipment
+72151607	Haberleşme ekipmanı yer üstü mühendisliği	Overground engineering for communication equipment
+72151608	Uydu sistemi bakım-onarım hizmeti	Satellite system maintenance or repair service
+72151609	Uydu sistemi merkez destek hizmeti	Satellite system hub support service
+72151701	Geçiş kontrol sistemi montaj hizmeti	Access control system installation service
+72151702	Kapalı devre kamera sistemi montaj hizmeti	Closed circuit television system installation service
+72151704	Emniyet enstrümanlı sistem montaj ve bakım hizmeti	Safety instrumented system installation and maintenance service
+72151705	Gözetim ve elektronik güvenlik sistemi bakım hizmeti	Surveillance and electronic security system equipment maintenance service
+72151706	İnşaat İSG-Ç yönetim hizmeti	Construction HSE management service
+72151707	Teknik güvenlik ve proses güvenliği hizmeti	Technical safety and process safety HSE service
+72151801	ATM montaj ve bakımı	Banking machine installation and maintenance
+72151802	Makine bileşeni yenileme ve onarım hizmeti	Machinery component refurbishing and repair service
+72151803	Otomat montaj ve bakım hizmeti	Vending machine installation and maintenance service
+72151901	Temel yapım hizmeti	Foundation building service
+72151903	Tuğla örme hizmeti	Bricklaying service
+72151904	Baca yapım ve bakım hizmeti	Chimney construction and maintenance service
+72151905	Beton blok duvar hizmeti	Concrete block masonry service
+72151906	Drenaj künkü döşeme hizmeti	Drain tile installation service
+72151907	Dış cephe mermer kaplama hizmeti	Exterior marble masonry service
+72151908	Refrakter veya asit tuğlası örme hizmeti	Refractory or acid brick masonry service
+72151909	Taş duvar hizmeti	Stone masonry service
+72151910	Derz dolgu veya restorasyon hizmeti	Mortar tuckpointing or restoration service
+72151911	Parke taşı döşeme hizmeti	Unit paver installation service
+72152001	Alçıpan montaj ve onarım hizmeti	Drywall installation and repair service
+72152002	Fresk uygulama ve onarım hizmeti	Fresco installation and repair service
+72152003	Şömine çerçevesi montaj ve onarım hizmeti	Mantel installation and repair service
+72152004	Düz veya süslemeli sıva hizmeti	Plain or ornamental plastering service
+72152005	Dış cephe sıva uygulama ve onarım hizmeti	Stucco installation and repair service
+72152101	Akustik ve asma tavan hizmeti	Acoustical and ceiling work service
+72152102	Dış cephe yalıtım ve kaplama hizmeti	Exterior insulation and finishing service
+72152103	Bina yalıtım hizmeti	Building insulation service
+72152104	Güneş yansıtıcı yalıtım filmi hizmeti	Solar reflecting insulation film service
+72152201	İç mekan mermer döşeme hizmeti	Interior marble installation service
+72152202	Mozaik yapım ve onarım hizmeti	Mosaic creation and repair service
+72152203	Karo mozaik döşeme ve onarım hizmeti	Terrazzo installation and repair service
