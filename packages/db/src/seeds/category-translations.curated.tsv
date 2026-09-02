@@ -5067,3 +5067,129 @@
 72141202	Kanal inşaat hizmeti	Canal construction service
 72141203	Baraj inşaat hizmeti	Dam construction service
 72141204	Rıhtım inşaat hizmeti	Dock construction service
+
+# Denizaltı üretim sistemleri + araç bileşenleri.
+20142412	Kara platformu kuyu başı ekipmanı yedek parça ve aksesuarları	Onshore platform wellhead equipment spare parts and accessories
+20142602	Üretim kuyusu kontrol ünitesi	Production well control unit
+20142704	Pompalama çerçevesi ve uzatma takımı	Pumping frame and extension assembly
+20142705	Krank kolu takımı	Crank arm assembly
+20142706	Dengeleyici biyel takımı	Equalizer pitman assembly
+20142707	At başı takımı	Horsehead assembly
+20142708	Samson direği takımı	Samson post assembly
+20142709	Denge kirişi takımı	Walking beam assembly
+20142710	Askı çubuğu takımı	Hanger bar assembly
+20142711	Dinamometre	Dynamometer
+20142712	Kill kızağı pompa ünitesi	Kill skid pump unit
+20142802	Petrol-gaz separatörleri	Oil gas separators
+20142803	Düşük sıcaklık ayırma üniteleri	Low temperature separation units
+20142902	Fiberglas depolama tankı	Fiberglass holding tank
+20142903	Çelik depolama tankı	Steel holding tank
+20142904	Plastik depolama tankı	Plastic holding tank
+20142905	Hava tankı	Air receiver tank
+20143003	Sürekli emme çubuğu	Continuous sucker rod
+20143004	Sürekli emme çubuğu pim ucu	Continuous sucker rod pin end
+20143005	Emme çubuğu kesme kaplini	Sucker rod shear coupling
+20143006	Helisel rotorlu pompa emme çubuğu	Progressive cavity pump sucker rod
+20143007	Emme çubuğu anahtarı	Sucker rod wrench
+20143008	Parlak çubuk ve kaplini	Polished rods and coupling
+20143009	Parlak çubuk salmastra kutusu	Polished rod stuffing box
+20143301	Boru hattı pig	Pipeline pig
+20143302	Boru hattı iç muayene ekipmanı	Interior pipeline inspection equipment
+20143303	Boru hattı içi robotik kesici	Interior pipeline robotic cutter
+20143304	Akıllı pigler	Intelligent pigs
+20143305	Pig sinyalizatörleri	Pig signalers
+20143401	Umbilikal sonlandırma takımı	Umbilical termination assembly
+20143402	Umbilikal riser ve akış hattı	Umbilical riser and flowline
+20143403	Umbilikal ünite	Umbilical unit
+20143404	Denizaltı jumper takımı	Subsea jumper assembly
+20143501	Denizaltı indirme aleti	Subsea running tool
+20143502	Denizaltı manifoldu	Subsea manifold
+20143503	Denizaltı bağlantı sistemi	Subsea connection system
+20143504	Denizaltı jumper montaj aleti	Subsea jumper installation tool
+20143505	Denizaltı üretim ekipmanı	Subsea production equipment
+20143506	Deniz tabanı askı sistemi	Mudline suspension system
+20143507	Denizaltı üretim sistemi	Subsea production system
+20143601	Denizaltı esnek riser	Subsea flexible riser
+20143602	Denizaltı esnek boru veya hat	Subsea flexible pipe or pipeline
+20143701	Denizaltı hat borusu	Subsea line pipe
+20143702	Denizaltı boru kaplama, yalıtım ve katodik koruma	Subsea pipe coating and insulation and cathodic protection
+20143703	Denizaltı yüzdürme ekipmanı veya modülü	Subsea buoyancy equipment or module
+20143704	Denizaltı flanşı	Subsea flange
+20143705	Denizaltı bağlantı elemanı	Subsea fitting
+20143706	Girdap kaynaklı titreşim (VIV) bastırma ekipmanı	Vortex induced vibration VIV suppression equipment
+20143803	Denizaltı ıslak gaz ölçer	Subsea wet gas meter
+25132104	Kolluk drone	Law enforcement drone
+25132105	Teslimat drone	Delivery drone
+25161510	Dört tekerlekli bisiklet	Four wheel bicycle or quadricycle
+25171508	Silecek motoru	Windshield wiper motor
+25171509	Motosiklet sileceği	Motorcycle windshield wiper
+25171604	Motosiklet buğu çözücü	Motorcycle defroster
+25171720	Çift devreli fren	Dual circuit brake
+25171721	Mekanik veya el freni	Mechanical or parking brake
+25171722	Fren hava alma vidası kapağı	Brake bleed screw cap
+25171723	Kilitlenme önleyici fren sistemi (ABS)	Antilock braking system ABS
+25171724	ABS bobini	Antilock braking system ABS coil
+25171725	Bantlı fren	Band brake
+25171726	Motosiklet fren sistemi	Motorcycle braking system
+25171727	Kampana fren teker silindiri	Drum brake wheel cylinder
+25171728	Egzoz freni	Exhaust brake
+25171906	Jant kapağı	Automotive wheel cover
+25171907	Demiryolu kumlama desteği	Railway sander support or base
+25171908	Demiryolu kumlama cihazı	Railway sander
+25172012	Kayar plaka	Slip plate
+25172013	Salıncak kolu	Automotive control arm
+25172014	Aktif süspansiyon sistemi	Active suspension system
+25172015	Motosiklet süspansiyon sistemi	Motorcycle suspension system
+25172115	Merkezi kilit sistemi	Central locking system
+25172116	Lastik zinciri	Tire chains
+25172117	Hava yastığı kapak takımı	Airbag cover assembly
+25172118	Hava yastığı kumaş takımı	Airbag fabric assembly
+25172119	Hava yastığı kumaşı	Airbag fabric
+25172120	Hava yastığı şişirici	Airbag inflator
+25172121	Sürücü hava yastığı şişiricisi	Driver airbag inflator
+25172122	Yolcu hava yastığı şişiricisi	Passenger airbag inflator
+25172123	Diz hava yastığı şişiricisi	Knee airbag inflator
+25172124	Yan hava yastığı şişiricisi	Side airbag inflator
+25172125	Perde hava yastığı şişiricisi	Curtain airbag inflator
+25172126	Emniyet kemeri kolanı	Seat belt webbing
+25172127	Koltuk hava kesesi	Seat bladder
+25172128	Emniyet kemeri gerginlik sensörü	Seat belt tension sensor BTS
+25172129	Sürücü bilgi sistemi	Driver information system
+25172130	Anahtarsız giriş kumandası	Vehicle keyless entry control or fob
+25172131	İmmobilizer	Immobilizer
+25172132	Sürücü koruma bölmesi	Driver protection wall or partition
+25172133	Dijital anahtar	Digital key
+25172134	Araç güvenlik aksesuarları ve yedek parçaları	Vehicle safety accessories and spare parts
+25172206	Tren kapısı ve bileşenleri	Train door and components
+25172304	Cam kaldırma mekanizması	Window lift or regulator assembly
+25172305	İki tekerlekli araç ön camı	Windshield for two wheeled vehicle
+25172409	Yakıt modülü	Fuel module
+25172410	Enjektör o-ringi	Fuel injector o ring
+25172411	Yakıt deposu şamandırası	Fuel tank float
+25172412	Yakıt hattı	Fuel line
+25172509	Ağır vasıta iç lastiği	Heavy truck tire tube
+25172510	Köpük dolgulu lastik	Foam tire
+25172511	Lastik tamir seti	Tire repair kit
+25172512	Motosiklet lastiği	Motorcycle tire
+25172513	Kaplama lastik	Retreaded pneumatic rubber tire
+25172514	Motosiklet iç lastiği	Motorcycle tire inner tube
+25172609	Çamurluk paçalığı	Mud flap
+25172610	Plaka	License plate
+25172611	Tampon koruyucu	Vehicle bumper guard
+25172612	Motosiklet yan marşpiyel ve basamağı	Motorcycle side sill and stirrup
+25172613	Araç stepne taşıyıcısı	Vehicle tire carrier
+25172615	Kamyon branda örtüsü	Truck cover sheet
+25172705	Petrol bariyeri	Oil fence
+25172706	Sediment perdesi	Silt protector
+25172707	Yağ sıyırıcı	Oil skimmer
+25172708	Yosun kontrol makinesi	Algae control machine
+25172709	Araç kliması	Vehicle air conditioner
+25172710	Araç ısıtıcısı	Vehicle heater
+25172711	Araç hava temizleyicisi	Vehicle air purifier
+25172806	Hidrolik servis ünitesi	Hydraulic servicing unit
+25172908	Araç arka lambası	Vehicle rear light
+25172909	Motosiklet dış aydınlatması	Motorcycle exterior lighting
+25172910	Araç dış aydınlatma camları	Vehicle exterior lighting lenses
+25172911	Araç dış aydınlatma muhafazası	Vehicle exterior lighting bonnet
+25173006	Kaplamasız araç içi aydınlatma camı	Uncoated vehicle interior lighting lense
+25173007	Kaplamalı araç içi aydınlatma camı	Coated vehicle interior lighting lense
