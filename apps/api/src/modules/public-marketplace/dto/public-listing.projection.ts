@@ -22,9 +22,15 @@ import { Prisma } from "@rothern/db";
  *
  * `minPrice` / `minUnitPrice` (SATIS taban fiyat)
  *   Satıcının pazarlık tabanı. Teklif verebilen tarafa gösterilmesi ayrı bir
- *   karar; rakibin görebileceği kalıcı bir sayfaya yazmak ayrı. `buyNow*`
- *   fiyatları DAHİL — onlar "bu fiyata satarım" beyanı, yani doğası gereği
- *   kamuya açık ticari teklif (schema.org Offer/price da onu kullanır).
+ *   karar; rakibin görebileceği kalıcı bir sayfaya yazmak ayrı.
+ *
+ * `buyNowPrice` / `buyNowUnitPrice` (hemen-al) — 2026-09-04'e kadar DAHİLDİ
+ *   ("bu fiyata satarım" beyanı). Görünürlük katmanıyla çıktı: anonim
+ *   ziyaretçi HİÇBİR fiyat görmez, fiyat üyeye. Sayfa "Fiyat için giriş
+ *   yapın" gösterir; JSON-LD Offer fiyatsız kalır (olmayan fiyat yazılmaz).
+ *
+ * `items[]` gövdesi (miktar/marka/şartname/tarih) — 2026-09-04'te çıktı.
+ *   Ziyaretçi yalnız `itemCount` + ilk 3 kalem ADI görür (`itemPreview`).
  *
  * `terms` / `paymentNote` (serbest metin)
  *   Sahip buraya IBAN, telefon, e-posta yazabiliyor; panelde maskeli
@@ -66,7 +72,6 @@ export const PUBLIC_LISTING_SELECT = {
   status: true,
   format: true,
   priceScope: true,
-  buyNowPrice: true,
   primaryCurrency: true,
   allowedCurrencies: true,
   isInternational: true,
@@ -91,22 +96,12 @@ export const PUBLIC_LISTING_SELECT = {
   publicIndexable: true,
   coverImageUrl: true,
   items: {
+    // Yalnız kapak türetimi + kapsam önizlemesi için: ad ve görsel. Miktar,
+    // marka, şartname, hemen-al fiyatı SELECT'TE YOK — sızamaz.
     select: {
       lineNo: true,
       images: true,
       name: true,
-      description: true,
-      quantity: true,
-      unit: true,
-      unitCode: true,
-      brand: true,
-      mpn: true,
-      alternativeAllowed: true,
-      specification: true,
-      warrantyMonths: true,
-      hsCode: true,
-      requiredByDate: true,
-      buyNowUnitPrice: true,
     },
     orderBy: { lineNo: "asc" },
   },
@@ -142,24 +137,18 @@ export interface PublicListingCompany {
   activities: string[];
 }
 
-export interface PublicListingItem {
-  lineNo: number;
-  images: string[];
-  name: string;
-  description: string | null;
-  quantity: string;
-  unit: string;
-  unitCode: string | null;
-  brand: string | null;
-  mpn: string | null;
-  alternativeAllowed: boolean;
-  specification: string | null;
-  warrantyMonths: number | null;
-  hsCode: string | null;
-  requiredByDate: string | null;
-  buyNowUnitPrice: string | null;
-}
-
+/**
+ * KALEM LİSTESİ ANONİME KAPALI (görünürlük katmanı, 2026-09-04).
+ *
+ * Miktar/marka/şartname/hemen-al birim fiyatı bir alım talebinin ticari
+ * özüdür ("40 ton çelik boru" = üretim planı). Ziyaretçi KAPSAMI görür:
+ * kalem SAYISI + ilk üç kalemin ADI (SEO için yeterli, istihbarat için
+ * değil). Tam liste panelde (`GET company/listings/:id`). Aynı gerekçeyle
+ * `buyNowPrice` (hemen-al) de yanıttan çıktı: ziyaretçiye fiyat yok.
+ *
+ * Prisma select'te `items` DURUR — kapak türetimi (`deriveCover`) ve sayım
+ * oradan; yanıta yalnız `itemCount` + `itemPreview` çıkar.
+ */
 export interface PublicListing {
   number: string;
   type: "ALIM" | "SATIS";
@@ -168,7 +157,6 @@ export interface PublicListing {
   status: string;
   format: string | null;
   priceScope: string | null;
-  buyNowPrice: string | null;
   primaryCurrency: string;
   allowedCurrencies: string[];
   isInternational: boolean;
@@ -198,7 +186,8 @@ export interface PublicListing {
   /** Arama motoru dizinlemesine sahip tarafından izin verildi mi. */
   indexable: boolean;
   itemCount: number;
-  items: PublicListingItem[];
+  /** İlk üç kalemin adı — kapsam, miktar değil. */
+  itemPreview: string[];
   company: PublicListingCompany;
   /** Kategori kodlarının çözülmüş adları (kod → ad); eksik kod atlanır. */
   categories: { id: string; name: string; level: number }[];
@@ -216,40 +205,25 @@ export type PublicListingCard = Pick<
   | "primaryCurrency"
   | "isInternational"
   | "itemCount"
+  | "itemPreview"
   | "company"
   | "categories"
   | "coverImageUrl"
 > & {
   /** İlk ~200 karakter — kart özeti; tam metin detayda. */
   excerpt: string | null;
-  buyNowPrice: string | null;
 };
 
-const decimalToString = (v: Prisma.Decimal | null): string | null =>
-  v === null ? null : v.toString();
 
-const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
-
-export function toPublicItem(
-  i: PublicListingRow["items"][number],
-): PublicListingItem {
-  return {
-    lineNo: i.lineNo,
-    images: i.images,
-    name: i.name,
-    description: i.description,
-    quantity: i.quantity.toString(),
-    unit: i.unit,
-    unitCode: i.unitCode,
-    brand: i.brand,
-    mpn: i.mpn,
-    alternativeAllowed: i.alternativeAllowed,
-    specification: i.specification,
-    warrantyMonths: i.warrantyMonths,
-    hsCode: i.hsCode,
-    requiredByDate: iso(i.requiredByDate),
-    buyNowUnitPrice: decimalToString(i.buyNowUnitPrice),
-  };
+/** Kapsam önizlemesi — ad dışında hiçbir kalem alanı taşımaz. */
+export function itemPreviewOf(
+  items: { lineNo: number; name: string }[],
+  max = 3,
+): string[] {
+  return [...items]
+    .sort((a, b) => a.lineNo - b.lineNo)
+    .slice(0, max)
+    .map((i) => i.name);
 }
 
 export function toPublicCompany(

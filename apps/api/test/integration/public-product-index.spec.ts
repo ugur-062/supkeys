@@ -26,6 +26,11 @@ const FORBIDDEN = [
   "companyId",
   "isPublic",
   "isActive",
+  // Görünürlük katmanı (2026-09-04): fiyat/MOQ anonim ziyaretçiye gitmez.
+  "priceAmount",
+  "priceTiers",
+  "priceCurrency",
+  "moq",
   "searchText",
 ];
 

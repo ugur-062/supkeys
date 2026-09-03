@@ -46,6 +46,16 @@ export class PublicProfileController {
     return this.service.productSitemap();
   }
 
+  /**
+   * Anonim dizin özeti — sayı + kategori dağılımı, kimlik yok. Dizinin
+   * kendisi `company/directory` (JWT). Statik rota ":slug"den ÖNCE.
+   */
+  @Get("summary")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=3600")
+  summary() {
+    return this.service.directorySummary();
+  }
+
   /** Firmanın vitrindeki ürünleri — profil kapısıyla aynı görünürlük. */
   @Get(":slug/products")
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")

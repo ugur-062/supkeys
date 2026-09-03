@@ -49,7 +49,8 @@ async function makePublicProduct(over: Record<string, unknown> = {}) {
       ...over,
     },
   });
-  return { company, user, item };
+  // `company` update ÖNCESİ nesne — slug'ı elle taşı (tekil ürün testleri okur).
+  return { company: { ...company, slug: `vitrin-disc-${seq}` }, user, item };
 }
 
 describe("keşif — ürünler", () => {
@@ -101,5 +102,43 @@ describe("keşif — ürünler", () => {
     // 48 tavanı: istemci 1000 istese de sorgu şişmez.
     const rows = await items().discoverProducts(me.auth, { limit: 1000 });
     expect(rows.length).toBeLessThanOrEqual(48);
+  });
+});
+
+/**
+ * ÜYE katmanı ürün sayfası (2026-09-04): fiyat/MOQ herkese açık uçtan çıktı,
+ * panel bu uçtan okur. Kapı public uçla aynı — taslak/kapalı firma 404.
+ */
+describe("keşif — tekil ürün (üye katmanı)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("üye fiyatı ve MOQ'yu görür, firma kimliği açık", async () => {
+    const { company, item } = await makePublicProduct({
+      priceMode: "FIXED",
+      priceAmount: "1250.5",
+      priceCurrency: "TRY",
+      moq: "10",
+    });
+    const me = await makeCompanyWithUser(prisma);
+    const res = await items().discoverProduct(me.auth, company.slug as string, item.slug as string);
+    expect(res.product.priceAmount).toBe("1250.5");
+    expect(res.product.moq).toBe("10");
+    expect(res.company.name).toMatch(/^Vitrin /);
+    expect(res.company).toHaveProperty("verified");
+  });
+
+  it("taslak ürün ve kapalı firma 404", async () => {
+    const draft = await makePublicProduct({ isPublic: false, publishedAt: null });
+    const me = await makeCompanyWithUser(prisma);
+    await expect(
+      items().discoverProduct(me.auth, draft.company.slug as string, draft.item.slug as string),
+    ).rejects.toThrow(/bulunamadı/);
+    const closed = await makePublicProduct();
+    await prisma.company.update({ where: { id: closed.company.id }, data: { publicEnabled: false } });
+    await expect(
+      items().discoverProduct(me.auth, closed.company.slug as string, closed.item.slug as string),
+    ).rejects.toThrow(/bulunamadı/);
   });
 });

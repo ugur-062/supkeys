@@ -23,6 +23,13 @@ import { Prisma } from "@rothern/db";
  * `completionScore` — iç kalite ölçütü; ziyaretçiye "bu ürün %60 dolu"
  *                 demek satıcıyı küçük düşürür, alıcıya bir şey söylemez.
  * `id` (cuid)   — dışarıya `slug` verilir.
+ *
+ * ── FİYAT / MOQ ANONİME KAPALI (görünürlük katmanı, 2026-09-04) ──────────
+ * Fiyat tutarı, kademe tablosu, para birimi ve MOQ herkese açık uçtan
+ * DÖNMEZ. Fiyat, kazıyıcı ve rakip için en değerli alan; ziyaretçi "Fiyat
+ * için giriş yapın" görür, üye panelde (`company/items/discover`) fiyatı
+ * görür. Yalnız `priceMode` kalır: "fiyat listesi VAR ama giriş ister" ile
+ * "satıcı fiyat açıklamıyor, teklif isteyin" ayrımı dürüst kalsın diye.
  */
 export const PUBLIC_PRODUCT_SELECT = {
   slug: true,
@@ -41,10 +48,6 @@ export const PUBLIC_PRODUCT_SELECT = {
   keywords: true,
   attributes: true,
   priceMode: true,
-  priceAmount: true,
-  priceTiers: true,
-  priceCurrency: true,
-  moq: true,
   publishedAt: true,
   updatedAt: true,
 } satisfies Prisma.CompanyItemSelect;
@@ -70,33 +73,14 @@ export interface PublicProduct {
   keywords: string[];
   attributes: unknown;
   priceMode: string;
-  priceAmount: string | null;
-  priceTiers: unknown;
-  priceCurrency: string;
-  moq: string | null;
   publishedAt: string | null;
   updatedAt: string;
 }
 
-/**
- * Kart — detayın dar alt kümesi (şartname/nitelik gövdesi taşımaz).
- *
- * `priceTiers` DAHİL: kademeli fiyatlı bir ürünün kartı, tabloyu taşımazsa
- * "fiyat için teklif isteyin" gösterirdi ve bu YANLIŞ olurdu — fiyatı var,
- * yalnız miktara bağlı. Kademe listesi zaten küçük (tavan 10 satır).
- */
+/** Kart — detayın dar alt kümesi (şartname/nitelik gövdesi taşımaz). */
 export type PublicProductCard = Pick<
   PublicProduct,
-  | "slug"
-  | "name"
-  | "images"
-  | "priceMode"
-  | "priceAmount"
-  | "priceTiers"
-  | "priceCurrency"
-  | "moq"
-  | "unit"
-  | "categoryId"
+  "slug" | "name" | "images" | "priceMode" | "unit" | "categoryId"
 > & { excerpt: string | null };
 
 export function toPublicProduct(r: PublicProductRow): PublicProduct {
@@ -117,10 +101,6 @@ export function toPublicProduct(r: PublicProductRow): PublicProduct {
     keywords: r.keywords,
     attributes: r.attributes,
     priceMode: r.priceMode,
-    priceAmount: r.priceAmount?.toString() ?? null,
-    priceTiers: r.priceTiers,
-    priceCurrency: r.priceCurrency,
-    moq: r.moq?.toString() ?? null,
     publishedAt: r.publishedAt?.toISOString() ?? null,
     updatedAt: r.updatedAt.toISOString(),
   };
@@ -133,10 +113,6 @@ export function toPublicProductCard(r: PublicProductRow): PublicProductCard {
     name: r.name,
     images: r.images,
     priceMode: r.priceMode,
-    priceAmount: r.priceAmount?.toString() ?? null,
-    priceTiers: r.priceTiers,
-    priceCurrency: r.priceCurrency,
-    moq: r.moq?.toString() ?? null,
     unit: r.unit,
     categoryId: r.categoryId,
     excerpt: flat ? (flat.length <= 160 ? flat : `${flat.slice(0, 159)}…`) : null,

@@ -14,7 +14,7 @@ import {
   deriveCover,
   excerptOf,
   toPublicCompany,
-  toPublicItem,
+  itemPreviewOf,
 } from "./dto/public-listing.projection";
 import type { PublicListQueryDto } from "./dto/public-list-query.dto";
 import type { PublicProductQueryDto } from "./dto/public-product-query.dto";
@@ -78,7 +78,7 @@ export class PublicMarketplaceService {
       itemCount: row.items.length,
       coverImageUrl: deriveCover(row),
       excerpt: excerptOf(row.description),
-      buyNowPrice: row.buyNowPrice?.toString() ?? null,
+      itemPreview: itemPreviewOf(row.items),
       company: toPublicCompany(row.company),
       categories: row.categoryIds
         .map((id) => cats.get(id))
@@ -98,7 +98,6 @@ export class PublicMarketplaceService {
       status: row.status,
       format: row.format,
       priceScope: row.priceScope,
-      buyNowPrice: row.buyNowPrice?.toString() ?? null,
       primaryCurrency: row.primaryCurrency,
       allowedCurrencies: row.allowedCurrencies,
       isInternational: row.isInternational,
@@ -126,7 +125,7 @@ export class PublicMarketplaceService {
       // Sayfa bunu okuyup `noindex` basar; sitemap zaten sorguda süzüyor.
       indexable: row.publicIndexable && row.status === "OPEN",
       itemCount: row.items.length,
-      items: row.items.map(toPublicItem),
+      itemPreview: itemPreviewOf(row.items),
       company: toPublicCompany(row.company),
       categories: row.categoryIds
         .map((id) => cats.get(id))

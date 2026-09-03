@@ -13,7 +13,15 @@ import {
   tokenizeQuery,
 } from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
-import { publicProductWhere } from "../../common/company/public-profile-gate";
+import {
+  hasPublicProfile,
+  publicProductWhere,
+} from "../../common/company/public-profile-gate";
+import { labelAttributes } from "../../common/company/category-attributes";
+import {
+  PUBLIC_PRODUCT_SELECT,
+  toPublicProduct,
+} from "../public-profile/dto/public-product.projection";
 import {
   requestPublicDocumentUpload,
   requestPublicImageUpload,
@@ -406,6 +414,81 @@ export class CompanyItemsService {
       data: { usageCount: { increment: 1 }, lastUsedAt: new Date() },
     });
     return { updated: res.count };
+  }
+
+  /**
+   * PANEL İÇİ ÜRÜN SAYFASI — ÜYE katmanı (görünürlük katmanı, 2026-09-04).
+   *
+   * Herkese açık uç (`public/companies/:slug/products/:slug`) artık fiyat,
+   * kademe tablosu ve MOQ döndürmüyor — anonim ziyaretçi "Fiyat için giriş
+   * yapın" görür. Panel eskiden AYNI ucu okuyordu; bu uç olmasaydı üye de
+   * fiyatı kaybederdi. Kapı (`publicProductWhere` + firma profil kapısı)
+   * public uçla AYNI kaynak: panelde görünen ürün profilde de var.
+   */
+  async discoverProduct(
+    user: AuthenticatedCompanyUser,
+    companySlug: string,
+    productSlug: string,
+  ) {
+    const company = await this.prisma.company.findUnique({
+      where: { slug: companySlug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        city: true,
+        country: true,
+        logoUrl: true,
+        industry: true,
+        activities: true,
+        publicEnabled: true,
+        isActive: true,
+        isBlocked: true,
+        tier: true,
+        membershipEndAt: true,
+        companyVerificationStatus: true,
+      },
+    });
+    if (!company || !hasPublicProfile({ ...company, tier: company.tier as string })) {
+      throw new NotFoundException("Ürün bulunamadı");
+    }
+    const row = await this.prisma.companyItem.findFirst({
+      where: {
+        ...publicProductWhere(),
+        companyId: company.id,
+        slug: productSlug,
+      },
+      select: {
+        ...PUBLIC_PRODUCT_SELECT,
+        priceAmount: true,
+        priceTiers: true,
+        priceCurrency: true,
+        moq: true,
+      },
+    });
+    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    const attributeDefs = await resolveCategoryAttributes(this.prisma, row.categoryId);
+    void user;
+    return {
+      product: {
+        ...toPublicProduct(row),
+        attributeList: labelAttributes(row.attributes, attributeDefs),
+        priceAmount: row.priceAmount?.toString() ?? null,
+        priceTiers: row.priceTiers as unknown,
+        priceCurrency: row.priceCurrency,
+        moq: row.moq?.toString() ?? null,
+      },
+      company: {
+        name: company.name,
+        slug: company.slug,
+        city: company.city,
+        country: company.country,
+        logoUrl: company.logoUrl,
+        industry: company.industry,
+        activities: company.activities,
+        verified: company.companyVerificationStatus === "VERIFIED",
+      },
+    };
   }
 
   /**

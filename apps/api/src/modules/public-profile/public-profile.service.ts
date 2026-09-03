@@ -13,11 +13,7 @@ import {
   labelAttributes,
   resolveCategoryAttributes,
 } from "../../common/company/category-attributes";
-import {
-  REVIEW_SUMMARY_SELECT,
-  REVIEW_SUMMARY_TAKE,
-  buildReviewSummary,
-} from "../company-reviews/review-summary";
+import { publicExcerpt } from "../../common/company/public-text-quality";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
@@ -33,6 +29,25 @@ import {
 export class PublicProfileService {
   constructor(private readonly prisma: PrismaBypassService) {}
 
+  /**
+   * ANONİM ziyaretçi projeksiyonu (görünürlük katmanı, 2026-09-04).
+   *
+   * Herkese açık sayfalar statik/ISR üretilir ve oturum tanımaz; bu uç
+   * yalnız ZİYARETÇİ katmanını döndürür. Üye görünümü panelde
+   * (`/company/firma/[id]`, `company-connections` ucu) — orada bugün ne
+   * görünüyorsa o kalır.
+   *
+   * DIŞARIDA (rakip analizi / kazıyıcı değeri taşır, SEO'ya katkısı yok):
+   *   rothernId · foundedYear · employeeCount · değerlendirme puanı ve
+   *   dağılımı · sipariş sayıları · hizmetler · sertifikalar · web/sosyal
+   *   bağlantılar · tam "Hakkında".
+   * İÇERİDE (arama motoruna yeten kimlik): ad · şehir/ülke · sektör ·
+   *   faaliyet tipi · kategoriler · logo/kapak/galeri · Hakkında'nın ilk
+   *   2 satırı · Doğrulanmış / Gold Üye rozetleri.
+   *
+   * "Hakkında" düzyazı sezgisinden geçmiyorsa (test verisi) HİÇ dönmez —
+   * `common/company/public-text-quality.ts`.
+   */
   async getBySlug(slug: string) {
     const c = await this.prisma.company.findUnique({
       where: { slug },
@@ -40,7 +55,6 @@ export class PublicProfileService {
         id: true,
         name: true,
         slug: true,
-        rothernId: true,
         industry: true,
         activities: true,
         city: true,
@@ -48,15 +62,9 @@ export class PublicProfileService {
         logoUrl: true,
         coverImageUrl: true,
         aboutText: true,
-        services: true,
-        certifications: true,
         photos: true,
-        certificateImages: true,
-        foundedYear: true,
-        employeeCount: true,
-        website: true,
-        linkedinUrl: true,
-        instagramUrl: true,
+        buyerCategoryIds: true,
+        sellerCategoryIds: true,
         publicEnabled: true,
         isActive: true,
         isBlocked: true,
@@ -73,49 +81,104 @@ export class PublicProfileService {
     if (!c || !hasPublicProfile({ ...c, tier: c.tier as string })) {
       throw new NotFoundException("Profil bulunamadı");
     }
-    // 2026-08-22: firma bazında gruplu özet; HERKESE AÇIK uçta değerlendiren
-    // adı ASLA (revealNames=false) — "X, Y'den alım yapmış" ticari ilişki
-    // haritasıdır; "Doğrulanmış alıcı/tedarikçi" + rol + tarih yeter.
-    const reviewRows = await this.prisma.companyReview.findMany({
-      where: { targetCompanyId: c.id },
-      select: REVIEW_SUMMARY_SELECT,
-      orderBy: { createdAt: "desc" },
-      take: REVIEW_SUMMARY_TAKE,
-    });
-    const reviewSummary = buildReviewSummary(reviewRows, { revealNames: false });
-    const {
-      id,
-      publicEnabled,
-      isActive,
-      isBlocked,
-      tier,
-      membershipEndAt,
-      companyVerificationStatus,
-      ...pub
-    } =
-      c;
-    void id;
-    void publicEnabled;
-    void isActive;
-    void isBlocked;
-    void tier;
-    void membershipEndAt; // INV-TIER-1 iç hesap alanı — public yanıtta sızmaz
+    const about = publicExcerpt(c.aboutText);
+    const categories = await this.resolveCategoryNames([
+      ...c.sellerCategoryIds,
+      ...c.buyerCategoryIds,
+    ]);
     return {
-      ...pub,
+      name: c.name,
+      slug: c.slug,
+      industry: c.industry,
+      activities: c.activities,
+      city: c.city,
+      country: c.country,
+      logoUrl: c.logoUrl,
+      coverImageUrl: c.coverImageUrl,
+      photos: c.photos,
+      aboutExcerpt: about.excerpt,
+      aboutTruncated: about.truncated,
+      categories,
+      updatedAt: c.updatedAt,
       // Faz T: "Gold Üye" rozeti (yalnız GOLD; güven iddiası TAŞIMAZ —
       // adlandırma bilinçli "Gold Üye").
       goldMember:
-        effectiveTier(tier as string, membershipEndAt as Date | null) ===
+        effectiveTier(c.tier as string, c.membershipEndAt as Date | null) ===
         "GOLD",
       // KYC tamam — "Doğrulanmış" rozeti (Europages'in Verified'ı). Yalnız
       // admin `setVerification` ile VERIFIED yazar; otomatik yol yok.
-      verified: companyVerificationStatus === "VERIFIED",
-      // rating: geriye uyumlu kısa biçim (firma-ağırlıklı ortalama + sipariş sayısı).
-      rating: { avg: reviewSummary.avg, count: reviewSummary.orders },
-      reviewSummary,
+      verified: c.companyVerificationStatus === "VERIFIED",
     };
   }
 
+  /**
+   * Kategori kodlarını L1 segment adına indirger (firma beyanı L1'de;
+   * alt kategori beyanları ayrı alanda ve ziyaretçiye basılmaz).
+   */
+  private async resolveCategoryNames(ids: string[]) {
+    const uniq = [...new Set(ids.filter((id) => /^\d{8}$/.test(id)))].slice(
+      0,
+      12,
+    );
+    if (uniq.length === 0) return [] as { id: string; name: string }[];
+    const rows = await this.prisma.category.findMany({
+      where: { id: { in: uniq } },
+      select: { id: true, nameTr: true },
+    });
+    const byId = new Map(rows.map((r) => [r.id, r.nameTr]));
+    return uniq
+      .filter((id) => byId.has(id))
+      .map((id) => ({ id, name: byId.get(id) as string }));
+  }
+
+  /**
+   * FİRMA DİZİNİ ÖZETİ — anonim ziyaretçiye liste yerine SAYI.
+   *
+   * Dizin girişli (`company/directory`); ziyaretçi "kimler var" sorusuna
+   * kimlik görmeden cevap alır: doğrulanmış firma sayısı + en çok temsil
+   * edilen 8 üst kategori. Kapı dizinle aynı küme DEĞİL, bilinçli: sayı
+   * platformun tamamını anlatır (profil açmamış doğrulanmış firma da sayılır),
+   * kimseyi işaret etmez.
+   */
+  async directorySummary() {
+    const [verifiedCompanies, rows] = await Promise.all([
+      this.prisma.company.count({
+        where: {
+          companyVerificationStatus: "VERIFIED",
+          isActive: true,
+          isBlocked: false,
+        },
+      }),
+      this.prisma.company.findMany({
+        where: { isActive: true, isBlocked: false },
+        select: { sellerCategoryIds: true, buyerCategoryIds: true },
+        take: 5000,
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      const seen = new Set<string>();
+      for (const id of [...r.sellerCategoryIds, ...r.buyerCategoryIds]) {
+        if (!/^\d{8}$/.test(id)) continue;
+        const seg = `${id.slice(0, 2)}000000`;
+        if (seen.has(seg)) continue;
+        seen.add(seg);
+        counts.set(seg, (counts.get(seg) ?? 0) + 1);
+      }
+    }
+    const top = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+    const names = await this.resolveCategoryNames(top.map(([id]) => id));
+    const nameById = new Map(names.map((n) => [n.id, n.name]));
+    return {
+      verifiedCompanies,
+      topCategories: top
+        .filter(([id]) => nameById.has(id))
+        .map(([id, count]) => ({ id, name: nameById.get(id) as string, count })),
+    };
+  }
 
   /* ================================================================== */
   /* HERKESE AÇIK ÜRÜNLER (Faz 2)                                        */

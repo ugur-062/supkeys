@@ -227,6 +227,16 @@ export class CompanyItemsController {
     });
   }
 
+  /** Panel içi ürün sayfası — ÜYE katmanı (fiyat/MOQ dahil). */
+  @Get("discover/:companySlug/:productSlug")
+  discoverProduct(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("companySlug") companySlug: string,
+    @Param("productSlug") productSlug: string,
+  ) {
+    return this.service.discoverProduct(user, companySlug, productSlug);
+  }
+
   @Post("images/upload-url")
   @RequireCompanyPermission("templates:manage")
   imageUploadUrl(

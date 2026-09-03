@@ -17,7 +17,8 @@ import { Prisma } from "@rothern/db";
  *
  * Dışarıda kalanlar `public-product.projection.ts` ile aynı gerekçelerle:
  * `code` (envanter yapısı), `targetPrice` (ALIŞ hedefi = maliyet),
- * `completionScore` (iç kalite ölçütü), cuid `id`.
+ * `completionScore` (iç kalite ölçütü), cuid `id` — ve fiyat/MOQ: anonim
+ * ziyaretçiye fiyat DÖNMEZ (gerekçe `public-product.projection.ts`).
  */
 export const PRODUCT_INDEX_SELECT = {
   slug: true,
@@ -27,10 +28,6 @@ export const PRODUCT_INDEX_SELECT = {
   unit: true,
   categoryId: true,
   priceMode: true,
-  priceAmount: true,
-  priceTiers: true,
-  priceCurrency: true,
-  moq: true,
   publishedAt: true,
   company: {
     select: {
@@ -55,10 +52,6 @@ export interface ProductIndexCard {
   unit: string;
   categoryId: string | null;
   priceMode: string;
-  priceAmount: string | null;
-  priceTiers: unknown;
-  priceCurrency: string;
-  moq: string | null;
   company: {
     name: string;
     slug: string;
@@ -77,10 +70,6 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
     unit: r.unit,
     categoryId: r.categoryId,
     priceMode: r.priceMode,
-    priceAmount: r.priceAmount?.toString() ?? null,
-    priceTiers: r.priceTiers,
-    priceCurrency: r.priceCurrency,
-    moq: r.moq?.toString() ?? null,
     company: {
       // Kapı (`publicProductWhere`) slug'sız firmayı zaten eliyor; boş dize
       // yalnız tip daraltması için.
