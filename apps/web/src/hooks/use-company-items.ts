@@ -148,7 +148,10 @@ export interface ProductShowcase {
   priceTiers: PriceTier[] | null;
   priceCurrency: string;
   moq: string | null;
-  /** 0-100 + eksik maddeler. Formda canlı gösterilir. */
+  /** Satış birimi — vitrin formundan düzenlenir. */
+  unit: string;
+  unitCode: string | null;
+  /** 0-100 + eksik maddeler. Sunucunun son kayıttaki hesabı; form canlı hesaplar. */
   completion: {
     score: number;
     missing: { key: string; label: string; points: number }[];
@@ -159,6 +162,8 @@ export interface ProductShowcase {
 }
 
 export interface ShowcasePatch {
+  unit?: string;
+  unitCode?: string | null;
   categoryId?: string | null;
   images?: string[];
   videoUrl?: string | null;
@@ -274,6 +279,29 @@ export function useUploadProductImage() {
       if (!put.ok) throw new Error("Görsel yüklenemedi");
       const { data } = await companyApi.post<{ url: string }>(
         "/company/items/images/resolve",
+        { key: signed.key },
+      );
+      return data.url;
+    },
+  });
+}
+
+/** Ürün belgesi (PDF) — görselle aynı iki adım, ayrı allowlist. */
+export function useUploadProductDocument() {
+  return useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      const { data: signed } = await companyApi.post<{ url: string; key: string }>(
+        "/company/items/documents/upload-url",
+        { fileName: file.name, mimeType: file.type },
+      );
+      const put = await fetch(signed.url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!put.ok) throw new Error("Belge yüklenemedi");
+      const { data } = await companyApi.post<{ url: string }>(
+        "/company/items/documents/resolve",
         { key: signed.key },
       );
       return data.url;

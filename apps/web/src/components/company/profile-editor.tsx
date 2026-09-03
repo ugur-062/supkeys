@@ -1,5 +1,6 @@
 "use client";
 
+import { MissingFields } from "@/components/ui/missing-fields";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
 import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
@@ -330,11 +331,7 @@ export function ProfileEditor({
         onTogglePublic={(v) => set({ publicEnabled: v })}
         pct={completeness.pct}
       />
-      {completeness.missing.length > 0 ? (
-        <p className="text-xs text-zinc-500">
-          Eksik: {completeness.missing.join(" · ")}
-        </p>
-      ) : null}
+      <MissingFields items={completeness.missing} />
 
       <CompanyProfileView profile={viewData} edit={slots} />
 

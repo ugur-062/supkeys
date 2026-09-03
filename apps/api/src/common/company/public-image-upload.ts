@@ -32,6 +32,9 @@ import {
  *    yazmak görselin çeyrek saat sonra ölmesi demek. CDN tabanı yoksa hata.
  */
 const IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"];
+/** Ürün belgeleri (katalog/teknik föy) — yalnız PDF; ofis biçimleri makro taşır. */
+const DOCUMENT_MIME = ["application/pdf"];
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
 export type PublicImageKind = "logo" | "cover" | "gallery" | "product";
 
@@ -53,6 +56,55 @@ export async function requestPublicImageUpload(
   );
   const url = await storage.generatePresignedPut("public", key, mimeType);
   return { url, key };
+}
+
+/**
+ * Ürün BELGESİ (PDF) yükleme — görsel yoluyla aynı iskelet (presigned PUT →
+ * yükleme sonrası gerçek MIME/boyut doğrulaması), farklı allowlist. Aynı
+ * fonksiyonu tip parametresiyle genişletmek yerine ayrı tutuldu: iki
+ * allowlist'in karışması public CDN'de HTML/SVG barındırmak demek.
+ */
+export async function requestPublicDocumentUpload(
+  storage: StorageService,
+  companyId: string,
+  fileName: string,
+  mimeType: string,
+): Promise<{ url: string; key: string }> {
+  if (!DOCUMENT_MIME.includes(mimeType)) {
+    throw new BadRequestException("Yalnızca PDF yüklenebilir");
+  }
+  const key = storage.buildTenantProfileKey(
+    companyId,
+    "document",
+    randomUUID(),
+    fileName,
+  );
+  const url = await storage.generatePresignedPut("public", key, mimeType);
+  return { url, key };
+}
+
+export async function resolvePublicDocument(
+  storage: StorageService,
+  companyId: string,
+  key: string,
+): Promise<{ url: string }> {
+  if (!key.startsWith(storage.buildTenantProfilePrefix(companyId))) {
+    throw new ForbiddenException("Bu belge anahtarına erişim yetkiniz yok");
+  }
+  await assertUploadedObjectValid(
+    storage,
+    "public",
+    key,
+    MAX_DOCUMENT_BYTES,
+    DOCUMENT_MIME,
+  );
+  const url = storage.getPublicUrl(key);
+  if (!url) {
+    throw new ServiceUnavailableException(
+      "Belge yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — belge yüklenemedi. Lütfen sistem yöneticinize bildirin.",
+    );
+  }
+  return { url };
 }
 
 export async function resolvePublicImage(

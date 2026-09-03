@@ -193,7 +193,7 @@ yazmadan önce burada karşılığı var mı diye bak.
 | İlan görünürlüğü | `common/company/listing-visibility.ts` |
 | Pazar yeri sözcükleri/rotaları (web) | `lib/public/marketplace.ts` |
 | Pazar yeri yayın anahtarı (web) | `lib/public/marketplace-live.ts` |
-| Ürün skoru + yayın kapısı | `common/company/product-completion.ts` |
+| Ürün skoru + yayın kapısı | `@rothern/shared` `helpers/product-completion.ts` (API'de ince re-export `common/company/product-completion.ts`; web formu AYNI kuralları canlı çalıştırır) |
 | Kategori nitelik çözümleyici | `common/company/category-attributes.ts` |
 | Kategori ata zinciri | `@rothern/shared` `helpers/category-code.ts` |
 | Public görsel yükleme | `common/company/public-image-upload.ts` |

@@ -58,9 +58,12 @@ describe("SellerHealthCards", () => {
     wrap(<SellerHealthCards />);
     const expected = profileCompleteness(PROFILE);
     expect(await screen.findByText(`Profil %${expected.pct} tamam`)).toBeInTheDocument();
-    expect(
-      screen.getByText(`Eksik: ${expected.missing.slice(0, 3).join(", ")} +${expected.missing.length - 3}`),
-    ).toBeInTheDocument();
+    // Ortak MissingFields: ilk 3 çip + "+N".
+    for (const m of expected.missing.slice(0, 3)) {
+      expect(screen.getByText(m)).toBeInTheDocument();
+    }
+    expect(screen.getByText(`+${expected.missing.length - 3}`)).toBeInTheDocument();
+    expect(screen.queryByText(expected.missing[3]!)).toBeNull();
     expect(screen.getByRole("link", { name: /Profili tamamla/ })).toHaveAttribute(
       "href",
       "/company/satis/profilim",

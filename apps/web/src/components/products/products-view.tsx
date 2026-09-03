@@ -13,13 +13,21 @@ import {
 } from "@/hooks/use-company-items";
 import { Badge } from "@/components/catalyst/badge";
 import { EmptyState } from "@/components/list";
-import {
-  ArrowLeftIcon,
-  MagnifyingGlassIcon,
-  PhotoIcon,
-} from "@heroicons/react/20/solid";
+import { CategoryImage } from "@/components/marketplace/category-image";
+import { useCategoriesByIds } from "@/hooks/use-categories";
+import { formatDate } from "@/lib/format-date";
+import { ArrowLeftIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Package } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+/** Fiyat modu → kısa etiket (form seçenekleriyle aynı sözcükler). */
+const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
+  FIXED: "Sabit fiyat",
+  TIERED: "Kademeli",
+  ON_REQUEST: "Teklif isteyin",
+};
+
+type ProductTab = "all" | "published" | "draft";
 
 /**
  * ÜRÜNLERİM — firmanın herkese açık vitrini.
@@ -51,6 +59,8 @@ const EMPTY_PRODUCT: ProductShowcase = {
   priceTiers: null,
   priceCurrency: "TRY",
   moq: null,
+  unit: "adet",
+  unitCode: "PCE",
   completion: { score: 0, missing: [] },
   publishBlockers: [],
   attributeDefs: [],
@@ -58,6 +68,7 @@ const EMPTY_PRODUCT: ProductShowcase = {
 
 export function ProductsView() {
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState<ProductTab>("all");
   const [importOpen, setImportOpen] = useState(false);
   /** Yeni ürün: AYNI tek-sayfa form, boş kayıtla. */
   const [creating, setCreating] = useState(false);
@@ -67,6 +78,17 @@ export function ProductsView() {
   } | null>(null);
   const { data, isLoading } = useCatalogItems(q);
   const save = useUpdateShowcase();
+  const items = useMemo(() => data?.items ?? [], [data]);
+  // Sekme süzgeci istemcide (liste zaten geldi); SAYAÇLAR sunucudan ve firma
+  // geneli — arama daraltınca sekme sayısı değişmez, panoyla aynı sayı.
+  // Hook'lar erken dönüşlerden (yeni/düzenle görünümleri) ÖNCE.
+  const visible = useMemo(
+    () =>
+      tab === "all"
+        ? items
+        : items.filter((i) => (tab === "published" ? i.isPublic : !i.isPublic)),
+    [items, tab],
+  );
 
   /**
    * Vitrin alanları liste yanıtında YOK (kalem listesi dar tutuldu). Düzenlemeye
@@ -149,7 +171,12 @@ export function ProductsView() {
     );
   }
 
-  const items = data?.items ?? [];
+  const counts = data?.counts;
+  const tabs: { key: ProductTab; label: string; count?: number }[] = [
+    { key: "all", label: "Tümü", count: counts ? counts.published + counts.draft : undefined },
+    { key: "published", label: "Yayında", count: counts?.published },
+    { key: "draft", label: "Taslak", count: counts?.draft },
+  ];
 
   return (
     <PageContainer>
@@ -199,23 +226,58 @@ export function ProductsView() {
         />
       </div>
 
+      {/* Sekmeler: Tümü / Yayında / Taslak — sayaç firma geneli. */}
+      <div className="mt-4 inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+              tab === t.key
+                ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5"
+                : "text-zinc-500 hover:text-zinc-900"
+            }`}
+          >
+            {t.label}
+            {t.count != null ? (
+              <span className="ml-1.5 text-xs font-medium tabular-nums text-zinc-400">
+                {t.count}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <p className="mt-8 text-sm text-zinc-500">Yükleniyor…</p>
-      ) : items.length === 0 ? (
+      ) : visible.length === 0 ? (
         /* Ortak EmptyState (1d): ikon + başlık + tek satır + TEK eylem.
            "Toplu ekle" başlıkta zaten var; burada ikinci kez sunulmaz. */
         <EmptyState
           icon={Package}
-          title={q ? "Eşleşen ürün yok." : "Henüz ürün yok."}
+          title={
+            q
+              ? "Eşleşen ürün yok."
+              : tab === "published"
+                ? "Yayında ürün yok."
+                : tab === "draft"
+                  ? "Taslak ürün yok."
+                  : "Henüz ürün yok."
+          }
           description={
             q
               ? "Aramayı değiştirip tekrar deneyin."
-              : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
+              : tab === "published"
+                ? "Taslak ürünleri düzenleyip 'Kaydet ve yayınla' ile vitrine çıkarın."
+                : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
           }
-          variant={q ? "no-results" : "no-data"}
+          variant={q || tab !== "all" ? "no-results" : "no-data"}
           className="mt-4"
           action={
-            q ? undefined : (
+            q || tab !== "all" ? undefined : (
               <button
                 type="button"
                 onClick={() => setCreating(true)}
@@ -227,32 +289,7 @@ export function ProductsView() {
           }
         />
       ) : (
-        <ul className="mt-8 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => void openEditor(item)}
-                className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-zinc-50"
-              >
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
-                  <PhotoIcon aria-hidden className="size-5 text-zinc-400" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-zinc-950">
-                    {item.name}
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                    {item.code ? `${item.code} · ` : ""}
-                    {item.unit}
-                    {item.brand ? ` · ${item.brand}` : ""}
-                  </span>
-                </span>
-                <Badge color="zinc">Düzenle</Badge>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <ProductRows items={visible} onOpen={(item) => void openEditor(item)} />
       )}
 
       {data?.truncated ? (
@@ -261,5 +298,66 @@ export function ProductsView() {
         </p>
       ) : null}
     </PageContainer>
+  );
+}
+
+/**
+ * Satırlar: küçük görsel · ad · kategori · durum rozeti · fiyat modu · son
+ * güncelleme. Eskiden yalnız "ad · birim · Düzenle" vardı — taslak mı
+ * yayında mı, fiyatı var mı listeden okunamıyordu.
+ */
+function ProductRows({
+  items,
+  onOpen,
+}: {
+  items: CatalogItem[];
+  onOpen: (item: CatalogItem) => void;
+}) {
+  const ids = useMemo(
+    () => [...new Set(items.map((i) => i.categoryId).filter((c): c is string => !!c))],
+    [items],
+  );
+  const cats = useCategoriesByIds(ids);
+  const catName = (id: string | null) =>
+    id ? (cats.data?.find((c) => c.id === id)?.nameTr ?? null) : null;
+
+  return (
+    <ul className="mt-6 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      {items.map((item) => (
+        <li key={item.id}>
+          <button
+            type="button"
+            onClick={() => onOpen(item)}
+            className="flex w-full items-center gap-4 px-5 py-3.5 text-left transition hover:bg-zinc-50"
+          >
+            <CategoryImage
+              src={item.thumbnailUrl}
+              categoryIds={item.categoryId ? [item.categoryId] : []}
+              alt={item.name}
+              ratio="aspect-square"
+              className="size-12 shrink-0 overflow-hidden rounded-lg"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-semibold text-zinc-950">{item.name}</span>
+                <Badge color={item.isPublic ? "emerald" : "zinc"}>
+                  {item.isPublic ? "Yayında" : "Taslak"}
+                </Badge>
+              </span>
+              <span className="mt-0.5 block truncate text-xs text-zinc-500">
+                {catName(item.categoryId) ?? "Kategori seçilmedi"}
+                {" · "}
+                {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode}
+                {" · "}
+                {item.unit}
+              </span>
+            </span>
+            <span className="hidden shrink-0 text-xs text-zinc-400 sm:block">
+              {formatDate(item.updatedAt, "short")}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

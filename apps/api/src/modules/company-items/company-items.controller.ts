@@ -82,6 +82,14 @@ class ShowcaseDto {
 
   @IsOptional() @Trim() @IsString() @MaxLength(20) categoryId?: string;
 
+  /**
+   * Satış birimi vitrin formundan da yazılır (2026-09-03): ürün sayfasındaki
+   * fiyat/MOQ satırı bu birimle okunur, kullanıcı onu formda görmeli.
+   */
+  @IsOptional() @Trim() @IsString() @MaxLength(20) unit?: string;
+  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  unitCode?: string;
+
   /** İLKİ KAPAK. Tavan 8 — daha fazlası kart/galeri düzenini bozar. */
   @IsOptional() @IsArray() @ArrayMaxSize(8)
   @IsString({ each: true }) @MaxLength(500, { each: true })
@@ -120,12 +128,8 @@ class ShowcaseDto {
   @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) moq?: number;
 }
 
-/** Yeni ürün — vitrin alanları + kalemin ölçü birimi. */
-class NewProductDto extends ShowcaseDto {
-  @IsOptional() @Trim() @IsString() @MaxLength(20) unit?: string;
-  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
-  unitCode?: string;
-}
+/** Yeni ürün — vitrin alanları (birim ShowcaseDto'da). */
+class NewProductDto extends ShowcaseDto {}
 
 
 
@@ -243,6 +247,29 @@ export class CompanyItemsController {
     @Body() dto: ResolveImageDto,
   ) {
     return this.service.resolveImage(user.companyId, dto.key);
+  }
+
+  /** Ürün belgesi (PDF katalog/teknik föy) — görselle aynı iki adım. */
+  @Post("documents/upload-url")
+  @RequireCompanyPermission("templates:manage")
+  documentUploadUrl(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ImageUploadDto,
+  ) {
+    return this.service.requestDocumentUpload(
+      user.companyId,
+      dto.fileName,
+      dto.mimeType,
+    );
+  }
+
+  @Post("documents/resolve")
+  @RequireCompanyPermission("templates:manage")
+  documentResolve(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ResolveImageDto,
+  ) {
+    return this.service.resolveDocument(user.companyId, dto.key);
   }
 
   @Get("attributes/:categoryId")

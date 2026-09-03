@@ -1,5 +1,6 @@
 "use client";
 
+import { MissingFields } from "@/components/ui/missing-fields";
 import { useCatalogCounts } from "@/hooks/use-company-items";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
@@ -41,17 +42,17 @@ function ProfileHealthCard({
   }
   const c = profileCompleteness(profile.data);
   const complete = c.pct === 100;
-  const shown = c.missing.slice(0, 3);
-  const rest = c.missing.length - shown.length;
   return (
     <HealthCard
       title="Profil"
       headline={complete ? "Profil tamam" : `Profil %${c.pct} tamam`}
       pct={c.pct}
       body={
-        complete
-          ? "Eksik alan yok — alıcılar firma sayfanızı tam görüyor."
-          : `Eksik: ${shown.join(", ")}${rest > 0 ? ` +${rest}` : ""}`
+        complete ? (
+          "Eksik alan yok — alıcılar firma sayfanızı tam görüyor."
+        ) : (
+          <MissingFields items={c.missing} max={3} />
+        )
       }
       href="/company/satis/profilim"
       cta={complete ? "Profili gör" : "Profili tamamla"}
@@ -117,7 +118,7 @@ function HealthCard({
           />
         </div>
       ) : null}
-      <p className="mt-2 text-sm text-slate-500">{body}</p>
+      <div className="mt-2 text-sm text-slate-500">{body}</div>
       <Link
         href={href}
         className="mt-auto inline-flex items-center gap-1 self-start pt-4 text-sm font-semibold text-zinc-900 hover:text-zinc-600"

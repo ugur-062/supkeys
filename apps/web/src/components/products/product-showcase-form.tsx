@@ -12,20 +12,26 @@ import {
   useCreateProduct,
   usePublishProduct,
   useUpdateShowcase,
+  useUploadProductDocument,
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
 import { ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/20/solid";
-/**
- * Yayın kapısının açıklama eşiği — backend'le AYNI sayı olmalı, yoksa form
- * "yeterli" derken sunucu reddeder. Tek kaynak `product-completion.ts`;
- * burada sabit kopya, çünkü o dosya API paketinde.
- */
-const MIN_DESCRIPTION = 100;
-import { useEffect, useMemo, useState } from "react";
+import {
+  COMMON_UNIT_CODES,
+  MIN_DESCRIPTION,
+  UNITS,
+  getUnit,
+  productCompletion,
+  productPublishBlockers,
+  type ProductLike,
+} from "@rothern/shared";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const MAX_KEYWORDS = 15;
+/** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
+const MAX_DOCUMENTS = 3;
 
 /**
  * ÜRÜN VİTRİN FORMU.
@@ -80,11 +86,23 @@ export function ProductShowcaseForm({
   const [priceCurrency, setPriceCurrency] = useState(product.priceCurrency);
   const [moq, setMoq] = useState(product.moq ?? "");
   const [externalUrl, setExternalUrl] = useState(product.externalUrl ?? "");
+  // Birim: ürün kaydından; kaydı olmayan (yeni) üründe prop'tan.
+  const [unitCode, setUnitCode] = useState(
+    product.unitCode ?? getUnit(product.unit || unit)?.code ?? "PCE",
+  );
+  const [documents, setDocuments] = useState<{ url: string; title: string }[]>(
+    product.documents ?? [],
+  );
+  const docInput = useRef<HTMLInputElement>(null);
 
   const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
   const save = useUpdateShowcase();
   const create = useCreateProduct();
   const publish = usePublishProduct();
+  const uploadDoc = useUploadProductDocument();
+
+  const unitDef = getUnit(unitCode);
+  const unitLabel = unitDef?.nameTr ?? unit;
 
   /**
    * Kategori DEĞİŞİNCE eski nitelikler taşınmaz: yeni kategoride tanımsız
@@ -115,9 +133,52 @@ export function ProductShowcaseForm({
       priceCurrency,
       moq: moq ? Number(moq) : null,
       externalUrl: externalUrl.trim() || null,
+      documents,
+      unitCode,
+      unit: unitLabel,
     }),
-    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl],
+    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, documents, unitCode, unitLabel],
   );
+
+  /**
+   * CANLI tamamlanma + yayın kapısı — sunucuyla AYNI kurallar
+   * (`@rothern/shared` product-completion). Eskiden halka sunucunun son
+   * kayıttaki anlık görüntüsünü gösteriyordu: yeni üründe %0'ın altında
+   * "Tüm alanlar dolu" yazıyor, yazdıkça hiçbir şey değişmiyordu.
+   */
+  const live = useMemo(() => {
+    const like: ProductLike = {
+      name: patch.name,
+      categoryId: patch.categoryId,
+      description: patch.description,
+      images,
+      keywords,
+      priceMode,
+      priceAmount: patch.priceAmount,
+      priceTiers: patch.priceTiers,
+      moq: patch.moq,
+      attributes,
+    };
+    return {
+      completion: productCompletion(like, {
+        requiredAttributeKeys: attributeDefs.filter((d) => d.isRequired).map((d) => d.key),
+      }),
+      blockers: productPublishBlockers(like),
+    };
+  }, [patch, images, keywords, priceMode, attributes, attributeDefs]);
+
+  const addDocument = async (file: File | undefined) => {
+    if (!file || documents.length >= MAX_DOCUMENTS) return;
+    try {
+      const url = await uploadDoc.mutateAsync(file);
+      const title = file.name.replace(/\.pdf$/i, "").slice(0, 200) || "Belge";
+      setDocuments((d) => [...d, { url, title }]);
+    } catch {
+      toast.error("Belge yüklenemedi — yalnız PDF, en fazla 10 MB");
+    } finally {
+      if (docInput.current) docInput.current.value = "";
+    }
+  };
 
   const addKeyword = () => {
     const k = keywordDraft.trim().toLowerCase();
@@ -267,7 +328,7 @@ export function ProductShowcaseForm({
           amount={priceAmount}
           tiers={priceTiers}
           currency={priceCurrency}
-          unit={unit}
+          unit={unitLabel}
           onChange={(n) => {
             if (n.mode) setPriceMode(n.mode);
             if (n.amount !== undefined) setPriceAmount(n.amount);
@@ -276,20 +337,43 @@ export function ProductShowcaseForm({
           }}
         />
 
-        <Field>
-          <Label>Minimum sipariş miktarı</Label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              step="0.001"
-              value={moq}
-              onChange={(e) => setMoq(e.target.value)}
-              className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-            />
-            <span className="text-sm text-zinc-500">{unit}</span>
-          </div>
-        </Field>
+        {/* BİRİM ve MİKTAR yan yana: MOQ birimsiz okunmaz ("500 ne?"). Birim
+            eskiden bu formda görünmüyordu — kalem kaydından geliyordu. */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <Field hint="Fiyat ve minimum sipariş bu birimle okunur.">
+            <Label>Satış birimi</Label>
+            <select
+              value={unitCode}
+              onChange={(e) => setUnitCode(e.target.value)}
+              aria-label="Satış birimi"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            >
+              {UNITS.filter(
+                (u) =>
+                  (COMMON_UNIT_CODES as readonly string[]).includes(u.code) ||
+                  u.code === unitCode,
+              ).map((u) => (
+                <option key={u.code} value={u.code}>
+                  {u.nameTr} ({u.symbol})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field>
+            <Label>Minimum sipariş miktarı</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                step="0.001"
+                value={moq}
+                onChange={(e) => setMoq(e.target.value)}
+                className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+              />
+              <span className="text-sm text-zinc-500">{unitLabel}</span>
+            </div>
+          </Field>
+        </div>
 
         {attributeDefs.length > 0 ? (
           <div>
@@ -309,6 +393,63 @@ export function ProductShowcaseForm({
           </div>
         ) : null}
 
+        {/* DOKÜMANLAR — PDF katalog/teknik föy, en fazla 3. Ürün sayfasında
+            "Belgeler" bölümü olarak yayımlanır. Zorunlu değil. */}
+        <div>
+          <Label>Dokümanlar</Label>
+          <p className="mt-1 text-xs text-zinc-500">
+            PDF katalog veya teknik föy — en fazla {MAX_DOCUMENTS}, her biri 10 MB.
+          </p>
+          {documents.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {documents.map((d, i) => (
+                <li key={d.url} className="flex items-center gap-2">
+                  <input
+                    value={d.title}
+                    onChange={(e) =>
+                      setDocuments((docs) =>
+                        docs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                      )
+                    }
+                    maxLength={200}
+                    aria-label={`Belge ${i + 1} başlığı`}
+                    className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  />
+                  <a
+                    href={d.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-zinc-600 underline hover:text-zinc-900"
+                  >
+                    Aç
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setDocuments((docs) => docs.filter((_, j) => j !== i))}
+                    aria-label={`${d.title} belgesini kaldır`}
+                    className="text-zinc-400 hover:text-zinc-900"
+                  >
+                    <XMarkIcon aria-hidden className="size-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {documents.length < MAX_DOCUMENTS ? (
+            <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+              {uploadDoc.isPending ? "Yükleniyor…" : "PDF ekle"}
+              <input
+                ref={docInput}
+                type="file"
+                accept="application/pdf"
+                className="sr-only"
+                disabled={uploadDoc.isPending}
+                onChange={(e) => void addDocument(e.target.files?.[0])}
+              />
+            </label>
+          ) : null}
+        </div>
+
         <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
           <Label>Ürün sayfası bağlantısı</Label>
           <input
@@ -322,16 +463,16 @@ export function ProductShowcaseForm({
       </div>
 
       <aside className="lg:sticky lg:top-6 lg:self-start">
-        <CompletionRing completion={product.completion} />
+        <CompletionRing completion={live.completion} />
 
-        {product.publishBlockers.length > 0 ? (
+        {live.blockers.length > 0 ? (
           <div className="mt-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-600/20">
             <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
               <ExclamationTriangleIcon aria-hidden className="size-4" />
               Yayımlamak için gerekli
             </p>
             <ul className="mt-2 space-y-1 text-sm text-amber-800">
-              {product.publishBlockers.map((b) => (
+              {live.blockers.map((b) => (
                 <li key={b}>· {b}</li>
               ))}
             </ul>

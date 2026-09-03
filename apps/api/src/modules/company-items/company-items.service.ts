@@ -15,7 +15,9 @@ import {
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { publicProductWhere } from "../../common/company/public-profile-gate";
 import {
+  requestPublicDocumentUpload,
   requestPublicImageUpload,
+  resolvePublicDocument,
   resolvePublicImage,
 } from "../../common/company/public-image-upload";
 import { StorageService } from "../storage/storage.service";
@@ -57,6 +59,8 @@ export interface ProductShowcase {
   priceTiers: unknown;
   priceCurrency: string;
   moq: string | null;
+  unit: string;
+  unitCode: string | null;
   completion: { score: number; missing: { key: string; label: string; points: number }[] };
   publishBlockers: string[];
   attributeDefs: {
@@ -75,6 +79,9 @@ export interface ShowcaseInput {
   /** Ürün adı — vitrin formundan da yazılabilir (2026-09-03). */
   name?: string;
   description?: string;
+  /** Satış birimi — vitrin formundan da yazılabilir; `normalize` ile AYNI kural. */
+  unit?: string;
+  unitCode?: string | null;
   categoryId?: string | null;
   images?: string[];
   videoUrl?: string | null;
@@ -612,6 +619,14 @@ export class CompanyItemsService {
     return resolvePublicImage(this.storage, companyId, key);
   }
 
+  async requestDocumentUpload(companyId: string, fileName: string, mimeType: string) {
+    return requestPublicDocumentUpload(this.storage, companyId, fileName, mimeType);
+  }
+
+  async resolveDocument(companyId: string, key: string) {
+    return resolvePublicDocument(this.storage, companyId, key);
+  }
+
   /** Ürünün vitrin alanlarını günceller (görsel, fiyat, nitelik, etiket…). */
   async updateShowcase(
     user: AuthenticatedCompanyUser,
@@ -775,9 +790,20 @@ export class CompanyItemsService {
     const description =
       input.description === undefined ? undefined : input.description.trim() || null;
 
+    // Birim: kalem yoluyla (`normalize`) AYNI kural — tanınan kodda katalog
+    // adına normalize, tanınmayanda serbest metin aynen.
+    let unitPatch: { unit: string; unitCode: string | null } | null = null;
+    if (input.unit !== undefined || input.unitCode != null) {
+      const unit = input.unit?.trim() || "adet";
+      const unitCode = input.unitCode ?? normalizeUnit(unit);
+      const known = getUnit(unitCode);
+      unitPatch = { unit: known?.nameTr ?? unit, unitCode: known ? known.code : null };
+    }
+
     return {
       ...(name ? { name } : {}),
       ...(description !== undefined ? { description } : {}),
+      ...(unitPatch ?? {}),
       ...(input.categoryId !== undefined ? { categoryId } : {}),
       images,
       keywords,
@@ -846,6 +872,8 @@ export class CompanyItemsService {
     externalUrl: string | null;
     documents: Prisma.JsonValue | null;
     priceCurrency: string;
+    unit: string;
+    unitCode: string | null;
   }): Promise<ProductShowcase> {
     const like = this.toProductLike(r);
     const defs = await this.resolveAttributes(r.categoryId);
@@ -875,6 +903,8 @@ export class CompanyItemsService {
       priceTiers: r.priceTiers,
       priceCurrency: r.priceCurrency,
       moq: r.moq?.toString() ?? null,
+      unit: r.unit,
+      unitCode: r.unitCode,
       completion,
       publishBlockers: productPublishBlockers(like),
       attributeDefs: defs,

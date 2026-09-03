@@ -190,7 +190,7 @@ export class StorageService implements OnModuleInit {
    */
   buildTenantProfileKey(
     tenantId: string,
-    kind: "cover" | "logo" | "gallery" | "product",
+    kind: "cover" | "logo" | "gallery" | "product" | "document",
     id: string,
     originalFilename: string,
   ): string {

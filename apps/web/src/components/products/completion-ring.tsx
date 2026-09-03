@@ -1,5 +1,6 @@
 "use client";
 
+import { MissingFields } from "@/components/ui/missing-fields";
 import type { ProductShowcase } from "@/hooks/use-company-items";
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 
@@ -47,19 +48,11 @@ export function CompletionRing({ completion }: { completion: ProductShowcase["co
 
       {missing.length > 0 ? (
         <div className="mt-5 border-t border-zinc-950/5 pt-4">
-          <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-            Puanını artırmak için
-          </p>
-          <ul className="mt-3 space-y-2">
-            {missing.map((m) => (
-              <li key={m.key} className="flex items-start justify-between gap-3">
-                <span className="text-sm text-zinc-600">{m.label}</span>
-                <span className="shrink-0 text-xs font-medium text-zinc-400">
-                  +{m.points}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {/* Profilim'deki "Eksik: …" ile AYNI bileşen; puan çipin içinde. */}
+          <MissingFields
+            label="Eksik"
+            items={missing.map((m) => `${m.label} (+${m.points})`)}
+          />
         </div>
       ) : (
         <p className="mt-5 flex items-center gap-2 border-t border-zinc-950/5 pt-4 text-sm text-emerald-700">
