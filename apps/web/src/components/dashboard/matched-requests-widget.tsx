@@ -73,14 +73,14 @@ export function MatchedRequestsWidget() {
           <EmptyState
             icon={Inbox}
             title="Eşleşen açık talep yok."
-            description="Eşleşme profil sektörlerinize göre yapılır."
+            description="Eşleşme, satış kategorilerinize göre yapılır."
             className="py-8"
             action={
               <Link
                 href={SECTOR_EDIT_HREF}
                 className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
-                Sektörleri düzenle
+                Satış kategorilerini düzenle
               </Link>
             }
           />

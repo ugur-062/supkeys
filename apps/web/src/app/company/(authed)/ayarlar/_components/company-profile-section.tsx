@@ -135,7 +135,9 @@ export function CompanyProfileSection() {
           </DescriptionDetails>
           <DescriptionTerm>Yasal Unvan</DescriptionTerm>
           <DescriptionDetails>{profile.legalName ?? "—"}</DescriptionDetails>
-          <DescriptionTerm>Firma Türü</DescriptionTerm>
+          {/* "Firma Türü" faaliyet tipiyle (Üretici/Distribütör…) karışıyordu —
+              bu alan HUKUKİ yapı. */}
+          <DescriptionTerm>Hukuki Yapı</DescriptionTerm>
           <DescriptionDetails>
             {profile.companyType === "JOINT_STOCK"
               ? "Anonim Şirket"
@@ -333,8 +335,9 @@ export function CompanyProfileSection() {
             </div>
           </div>
 
-          {/* Ne alırım / ne satarım */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Ne alırım / ne satarım — pano ve liste boş durumlarındaki
+              "kategorileri düzenle" bağlantısı buraya iner (#kategoriler). */}
+          <div id="kategoriler" className="grid scroll-mt-24 grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-sm font-medium text-zinc-950">
                 🔵 Ne alırım (alış kategorileri)

@@ -257,12 +257,12 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
 export const PORTAL_ORDER: PortalKey[] = ["satinalma", "satis"];
 
 /**
- * "Sektörleri düzenle" hedefi — açık talep eşleşmesi firmanın kategori
- * beyanına dayanır ve o beyan bugün Ayarlar → Firma Bilgileri'nde. Profilim'e
- * taşındığında (adım 6) YALNIZ bu satır değişir; pano widget'ı ve Açık
- * Talepler boş durumu buradan okur.
+ * "Kategorileri düzenle" hedefi — açık talep/ilan eşleşmesi firmanın
+ * kategori beyanına dayanır ve o beyan TEK yerde: Ayarlar → Firma Bilgileri
+ * "Ne alırım / Ne satarım" bölümü (v2 4c). Pano seçkileri ve liste boş
+ * durumları buradan okur; "profilinizde güncelleyin" denmez — veri orada değil.
  */
-export const SECTOR_EDIT_HREF = "/company/ayarlar/firma";
+export const SECTOR_EDIT_HREF = "/company/ayarlar/firma#kategoriler";
 
 /** URL'den aktif portalı türetir (kaynak: pathname). */
 export function activePortalFromPath(pathname: string | null): PortalKey | null {

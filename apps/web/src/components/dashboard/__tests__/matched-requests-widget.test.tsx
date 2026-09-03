@@ -108,11 +108,11 @@ describe("MatchedRequestsWidget", () => {
     h.get.mockResolvedValue({ data: [] });
     wrap(<MatchedRequestsWidget />);
     expect(await screen.findByText("Eşleşen açık talep yok.")).toBeInTheDocument();
-    const edit = screen.getByRole("link", { name: "Sektörleri düzenle" });
+    const edit = screen.getByRole("link", { name: "Satış kategorilerini düzenle" });
     expect(edit).toHaveAttribute("href", SECTOR_EDIT_HREF);
     expect(screen.queryByText(/Bağlantı Kur/)).toBeNull();
     // "Tüm açık talepleri gör" dışında ikinci bir eylem yok.
     const links = screen.getAllByRole("link").map((a) => a.textContent?.trim());
-    expect(links).toEqual(["Sektörleri düzenle", "Tüm açık talepleri gör"]);
+    expect(links).toEqual(["Satış kategorilerini düzenle", "Tüm açık talepleri gör"]);
   });
 });

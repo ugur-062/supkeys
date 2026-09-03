@@ -20,22 +20,31 @@ import type { ReactNode } from "react";
  * — burada yeniden hesap YOK. Ürün sayaçları listeden değil sunucudaki
  * firma-geneli sayımdan (`counts`), Ürünlerim sekmeleriyle aynı sayı.
  */
-export function SellerHealthCards() {
+export function SellerHealthCards({
+  mode = "both",
+  profileHref = "/company/satis/profilim",
+}: {
+  /** Satınalma panosunda katalog kartı anlamsız (alıcı ürün satmaz) → yalnız profil. */
+  mode?: "both" | "profile";
+  profileHref?: string;
+} = {}) {
   const profile = useCompanyProfile();
-  const counts = useCatalogCounts();
+  const counts = useCatalogCounts(mode === "both");
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <ProfileHealthCard profile={profile} />
-      <CatalogHealthCard counts={counts} />
+      <ProfileHealthCard profile={profile} href={profileHref} />
+      {mode === "both" ? <CatalogHealthCard counts={counts} /> : null}
     </div>
   );
 }
 
 function ProfileHealthCard({
   profile,
+  href,
 }: {
   profile: ReturnType<typeof useCompanyProfile>;
+  href: string;
 }) {
   if (profile.isLoading || !profile.data) {
     return <HealthSkeleton />;
@@ -54,7 +63,7 @@ function ProfileHealthCard({
           <MissingFields items={c.missing} max={3} />
         )
       }
-      href="/company/satis/profilim"
+      href={href}
       cta={complete ? "Profili gör" : "Profili tamamla"}
     />
   );

@@ -16,9 +16,8 @@ import {
   useTenders,
   type TenderListItem,
 } from "@/hooks/use-company-tenders";
-import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, Plus, User as UserIcon } from "lucide-react";
+import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, User as UserIcon } from "lucide-react";
 import Link from "next/link";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -87,9 +86,6 @@ export function IhalelerView({
   // nesnesini çiziyor ve metinler ALIM tarafına sabitlenmişti.
   const t = listingTerms(isSatis ? "SATIS" : "ALIM");
   const secondary = PORTAL_SECONDARY_HREFS[isSatis ? "satis" : "satinalma"];
-  const canCreate = useHasCompanyPermission(
-    isSatis ? "sell:listing:create" : "buy:listing:create",
-  );
   const list = useTenders(listingType);
   const all = useMemo(() => list.data ?? [], [list.data]);
 
@@ -247,19 +243,9 @@ export function IhalelerView({
                 Raporlar
               </Button>
             </Link>
-            {/* F7: ilan açma buy|sell:listing:create ister (yalnız SA/ST taşır) —
-                etiket-only gözetimde buton görünmez; liste salt-okunur kalır.
-                SATIŞTA başlıkta YOK (2026-09-03): aynı eylem sol menüdeki yeşil
-                düğmede zaten var; üçüncü kopyası buradaydı. Liste boşken boş
-                durum kendi CTA'sını gösterir (IhaleListView). */}
-            {canCreate && !isSatis ? (
-              <Link href="/company/satinalma/taleplerim/yeni">
-                <Button variant="primary">
-                  <Plus className="h-4 w-4" />
-                  Yeni Satın Alma Talebi Aç
-                </Button>
-              </Link>
-            ) : null}
+            {/* Başlıkta "Yeni …" CTA'sı YOK (v2 3b): aynı eylem sol menüdeki
+                renkli düğmede — sayfa başına tek primary. Liste boşken boş
+                durum kendi CTA'sını gösterir (IhaleListView, F7 rol kapısıyla). */}
           </div>
         }
       />

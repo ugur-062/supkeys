@@ -292,7 +292,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     // TEK boş durum, TEK eylem: "Bağlantı Kur" Bağlantılar sayfasının işi.
     expect(screen.getByText("Aktif açık talep yok.")).toBeInTheDocument();
     expect(screen.getByText("Kapananlar için Durum → Geçmiş.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sektörleri düzenle" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Satış kategorilerini düzenle" })).toBeInTheDocument();
     expect(screen.queryByText("Bağlantı Kur")).not.toBeInTheDocument();
     unmount();
 

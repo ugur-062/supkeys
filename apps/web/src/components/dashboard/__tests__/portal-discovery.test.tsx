@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 /**
- * Keşif bloğu — YÖN sözleşmesi (yalnız SATINALMA panosu).
+ * Satınalma panosu "size uygun" seçkisi — YÖN + ÖZET sözleşmesi.
  *
- * En kritik iddia: satınalma paneli SATIŞ ilanlarını ister. Yön ters dönerse
- * kullanıcı kendi tarafındaki kayıtları "fırsat" sanır ve blok tamamen yanlış
- * bir dünya gösterir. Satış panosunun karşılığı `matched-requests-widget`
- * (kendi testi var) — bu blok orada artık kullanılmıyor (2026-09-03).
+ * En kritik iddia: satınalma paneli SATIŞ ilanlarını ister (yön ters dönerse
+ * kullanıcı kendi tarafındaki kayıtları "fırsat" sanır). İkincisi: anasayfa
+ * LİSTE değil SEÇKİ — arama kutusu, sekme, süzgeç ve "Talep aç" YOK; her
+ * blok en fazla 3 kart + tek "Tümü" çıkışı. Satış panosunun karşılığı
+ * `matched-requests-widget` (kendi testi var).
  */
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,7 +23,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/company/satinalma",
 }));
 
-import { PortalDiscovery } from "../portal-discovery";
+import { DISCOVERY_LIMIT, PortalDiscovery } from "../portal-discovery";
 
 function wrap(ui: React.ReactElement) {
   const qc = new QueryClient({
@@ -60,123 +60,96 @@ const LISTING = {
   buyNowPrice: null,
 };
 
+const PRODUCT = {
+  slug: "dagitim-panosu",
+  name: "Dağıtım Panosu 400A",
+  excerpt: null,
+  images: ["https://cdn/p.webp"],
+  unit: "adet",
+  categoryId: "39000000",
+  priceMode: "ON_REQUEST",
+  priceAmount: null,
+  priceTiers: null,
+  priceCurrency: "TRY",
+  moq: null,
+  company: { name: "İkinci Firma", slug: "ikinci-firma", city: "Bursa", verified: true, activities: ["MANUFACTURER"] },
+};
+
 beforeEach(() => {
   h.get.mockReset();
   h.get.mockImplementation((url: string) => {
-    if (url.includes("discover-facets")) {
-      return Promise.resolve({
-        data: { segments: [{ id: "40000000", name: "Dağıtım Sistemleri", count: 2 }], total: 2 },
-      });
-    }
     if (url.includes("seller-tenders")) return Promise.resolve({ data: [LISTING] });
+    if (url.includes("items/discover")) return Promise.resolve({ data: [PRODUCT] });
     return Promise.resolve({ data: [] });
   });
 });
 
-describe("PortalDiscovery", () => {
-  it("SATINALMA paneli SATIŞ ilanlarını ister", async () => {
+describe("PortalDiscovery (satınalma seçkisi)", () => {
+  it("SATIŞ ilanlarını ister — en fazla 3, yalnız açık olanlar; ALIM asla", async () => {
     wrap(<PortalDiscovery />);
     await screen.findByText("Paslanmaz çelik boru");
     const urls = h.get.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.includes("seller-tenders?type=SATIS"))).toBe(true);
+    expect(DISCOVERY_LIMIT).toBe(3);
+    expect(
+      urls.some(
+        (u) =>
+          u.includes("seller-tenders?type=SATIS") &&
+          u.includes("limit=3") &&
+          u.includes("openOnly=true"),
+      ),
+    ).toBe(true);
     expect(urls.some((u) => u.includes("type=ALIM"))).toBe(false);
+    expect(urls.some((u) => u.includes("items/discover") && u.includes("limit=3"))).toBe(true);
   });
 
-  it("şeritte 6 kart ister — sıralama sunucuda, kırpma da orada", async () => {
+  it("özet: arama kutusu, sekme ve 'Talep aç' YOK; iki bloğun tek çıkışı var", async () => {
     wrap(<PortalDiscovery />);
     await screen.findByText("Paslanmaz çelik boru");
-    expect(
-      h.get.mock.calls.some((c) => String(c[0]).includes("limit=6")),
-    ).toBe(true);
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /ürün/i })).toBeNull();
+    expect(screen.queryByText(/Talep aç/)).toBeNull();
+    expect(screen.getByRole("link", { name: /Tüm ilanlar/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/satin-al",
+    );
+    expect(screen.getByRole("link", { name: /Tüm ürünler/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/urunler",
+    );
   });
 
-  it("davet ve eşleşme sinyalleri kartta görünür", async () => {
+  it("ilan kartı: davet ve eşleşme rozetleri, şehir; kapak yoksa GÖRSEL ALANI YOK", async () => {
     wrap(<PortalDiscovery />);
     expect(await screen.findByText("Size özel davet")).toBeInTheDocument();
+    expect(screen.getByText("Profilinizle eşleşti")).toBeInTheDocument();
     // Şehir kimlik değil nitelik — maskeli kartta bile kalır.
     expect(screen.getByText(/İzmir/)).toBeInTheDocument();
+    // Görsel kuralı: kapaksız ilan kartında img/placeholder alanı yok.
+    const card = screen.getByRole("link", { name: /Paslanmaz çelik boru/ });
+    expect(card.querySelector("img")).toBeNull();
   });
 
-  it("sektör kutuları sayaçla çizilir", async () => {
+  it("ürün kartı PANEL rotasına gider ve firma rozetlerini taşır", async () => {
     wrap(<PortalDiscovery />);
-    expect(await screen.findByText("Dağıtım Sistemleri")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-  });
-
-  it("ÜRÜN sekmesi 'Ürünlerim' ile karışmaz", async () => {
-    // Ad "Tedarikçi ürünleri": satıştaki "Ürünlerim" firmanın KENDİ kataloğu,
-    // buradaki başkalarının vitrini — menüde yan yana okunduğunda ayırt
-    // edilemiyordu (kullanıcı geri bildirimi).
-    wrap(<PortalDiscovery />);
-    expect(
-      await screen.findByRole("button", { name: "Tedarikçi ürünleri" }),
-    ).toBeInTheDocument();
-  });
-
-  it("yalnız TEKLİFE AÇIK ilanlar istenir (openOnly)", async () => {
-    // Uç varsayılan olarak katıldığım KAPANMIŞ ilanları da döndürür (liste
-    // sayfası Aktif/Geçmiş sekmesiyle ayırır). Şerit "teklif bekleyen" diye
-    // başlıklanıyor: süzgeç olmadan açık ilan bitince kapanmış/karara
-    // bağlanmış kayıtlarla dolar ve "Tümünü gör" 0 sonuç gösterirdi.
-    wrap(<PortalDiscovery />);
-    await screen.findByText("Paslanmaz çelik boru");
-    const urls = h.get.mock.calls.map((c) => String(c[0]));
-    expect(
-      urls.some((u) => u.includes("seller-tenders") && u.includes("openOnly=true")),
-    ).toBe(true);
-  });
-
-  it("ürün kartı PANEL rotasına gider — herkese açık sayfaya DEĞİL", async () => {
-    // Kart `/firma/<slug>/urun/<slug>`e gitseydi giriş yapmış kullanıcı paneli
-    // terk eder, oturumu okumayan public layout'ta "Giriş Yap / Kaydol"
-    // duvarına çarpardı (canlıda gerçekleşti).
-    h.get.mockImplementation((url: string) => {
-      if (url.includes("discover-facets")) {
-        return Promise.resolve({ data: { segments: [], total: 0 } });
-      }
-      if (url.includes("items/discover")) {
-        return Promise.resolve({
-          data: [
-            {
-              slug: "dagitim-panosu",
-              name: "Dağıtım Panosu 400A",
-              excerpt: null,
-              images: [],
-              unit: "adet",
-              categoryId: "39000000",
-              priceMode: "ON_REQUEST",
-              priceAmount: null,
-              priceTiers: null,
-              priceCurrency: "TRY",
-              moq: null,
-              company: { name: "İkinci Firma", slug: "ikinci-firma", city: "Bursa" },
-            },
-          ],
-        });
-      }
-      return Promise.resolve({ data: [] });
-    });
-    const user = userEvent.setup();
-    wrap(<PortalDiscovery />);
-    await user.click(
-      await screen.findByRole("button", { name: "Tedarikçi ürünleri" }),
-    );
     const link = await screen.findByRole("link", { name: /Dağıtım Panosu 400A/ });
     expect(link).toHaveAttribute(
       "href",
       "/company/satinalma/urunler/ikinci-firma/dagitim-panosu",
     );
+    expect(screen.getByText("Doğrulanmış")).toBeInTheDocument();
+    expect(screen.getByText("Üretici")).toBeInTheDocument();
   });
 
-  it("boş envanterde hayalet ızgara değil, tek satır + yönlendirme", async () => {
-    h.get.mockImplementation((url: string) =>
-      url.includes("discover-facets")
-        ? Promise.resolve({ data: { segments: [], total: 0 } })
-        : Promise.resolve({ data: [] }),
-    );
+  it("boş envanterde tek cümle + tek eylem (kategori düzenle / Ürün Ara)", async () => {
+    h.get.mockImplementation(() => Promise.resolve({ data: [] }));
     wrap(<PortalDiscovery />);
-    expect(
-      await screen.findByText("Şu an size uygun satılık ilan yok."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Size özel ilan yok.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Alış kategorilerini düzenle" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/firma#kategoriler",
+    );
+    expect(screen.getByText("Eşleşen ürün yok.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ürün Ara" })).toBeInTheDocument();
   });
 });

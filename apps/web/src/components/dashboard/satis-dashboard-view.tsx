@@ -6,6 +6,8 @@ import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
+import { useCatalogCounts } from "@/hooks/use-company-items";
+import { useTenders } from "@/hooks/use-company-tenders";
 
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
@@ -45,6 +47,30 @@ export function SatisDashboardView() {
   // dönemsizdir ("bugün ne durumdayım"). Analitikten yalnız delta/spark ve
   // yanıtsız davet sayısı okunur — varsayılan dönemle.
   const analytics = useSatisAnalytics({ period: "month" });
+  // Başlangıç listesi girdileri: ürün sayacı (sunucu) + kendi satış ilanlarım.
+  const catalog = useCatalogCounts();
+  const myListings = useTenders("SATIS");
+  const onboarding = [
+    {
+      key: "profile",
+      label: "Profili tamamla",
+      done: !!company?.publicEnabled,
+      href: "/company/satis/profilim",
+    },
+    {
+      key: "product",
+      label: "İlk ürünü ekle",
+      done: (catalog.data ? catalog.data.published + catalog.data.draft : 0) > 0,
+      href: "/company/satis/urunlerim",
+    },
+    {
+      key: "listing",
+      label: "İlk satış ilanını aç",
+      done: (myListings.data?.length ?? 0) > 0,
+      href: "/company/satis/ilanlarim/yeni",
+    },
+  ];
+  const onboardingReady = !!catalog.data && !!myListings.data;
   // Faz 7.3: yükleme artık iskeletle çözülür (aşağıda) — kartlara gelindiyse
   // veri var; "—" yalnız "değer gerçekten yok" anlamında kalır.
   const val = (n: number | undefined) => n ?? 0;
@@ -73,36 +99,11 @@ export function SatisDashboardView() {
         <TcmbRatesChip />
       </header>
 
-      {/* Faz 8.3 — yeni satıcı: boş kart yığını yerine ilk-çalıştırma listesi
-          (satınalma ile aynı bileşen; tamamlanınca kendiliğinden kaybolur). */}
-      {s &&
-      s.invitations.active === 0 &&
-      s.bids.active === 0 &&
-      s.wonTenders === 0 &&
-      s.orders.pending === 0 &&
-      s.revenue.total === 0 ? (
-        <OnboardingChecklist
-          steps={[
-            {
-              key: "profile",
-              label: "Firma profilini tamamla",
-              done: !!company?.publicEnabled,
-              href: "/company/satis/profilim",
-            },
-            {
-              key: "discover",
-              label: "Açık talepleri keşfet",
-              done: false,
-              href: "/company/satis/acik-talepler",
-            },
-            {
-              key: "bid",
-              label: "İlk teklifini ver",
-              done: false,
-              href: "/company/satis/acik-talepler",
-            },
-          ]}
-        />
+      {/* Başlangıç listesi (v2 3a — satınalmayla aynı bileşen): Profili
+          tamamla · İlk ürünü ekle · İlk satış ilanını aç. Adımlar GERÇEK
+          veriden işaretlenir; hepsi bitince kendiliğinden kaybolur. */}
+      {onboardingReady && onboarding.some((st) => !st.done) ? (
+        <OnboardingChecklist steps={onboarding} />
       ) : null}
 
       {/* Bekleyen işler ÖNCE: "bugün ne yapmalıyım" — tip başına çip (davet,

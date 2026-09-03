@@ -20,6 +20,12 @@ vi.mock("@/hooks/use-company-dashboard", () => ({
   useSatisAnalytics: () => ({ data: h.analytics, isLoading: false }),
   useSatisStats: () => ({ data: h.stats, isLoading: h.statsLoading }),
 }));
+vi.mock("@/hooks/use-company-items", () => ({
+  useCatalogCounts: () => ({ data: { published: 1, draft: 0 } }),
+}));
+vi.mock("@/hooks/use-company-tenders", () => ({
+  useTenders: () => ({ data: [{ id: "l1" }] }),
+}));
 vi.mock("@/hooks/use-company-orders", () => ({
   useOrders: () => ({ data: [] }),
 }));

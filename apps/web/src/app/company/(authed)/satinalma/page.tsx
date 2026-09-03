@@ -10,7 +10,9 @@ import { ActionStrip } from "@/components/dashboard/action-center";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import Link from "next/link";
 import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
+import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { ArrowRight } from "lucide-react";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -81,10 +83,9 @@ export default function SatinalmaDashboardPage() {
         />
       ) : null}
 
-      {/* PAZAR YERİ ÖNCE (2026-09-03 kullanıcı kararı): ilk ekran "piyasada
-          ne var" olmalı. Bekleyen işler kaybolmuyor, altında tek satır. */}
-      <PortalDiscovery />
-
+      {/* Özet sırası (v2 3a — satışla aynı iskelet): şerit → 4 KPI → "size
+          uygun" seçkisi → profil sağlığı → Raporlar bağlantısı. Liste/arama/
+          süzgeç yok. */}
       <ActionStrip portal="satinalma" />
 
       {/* DÖNEMSİZ 4 SAYI — "bugün ne durumdayım". Grafikler ve dönem
@@ -128,16 +129,19 @@ export default function SatinalmaDashboardPage() {
         </div>
       )}
 
-      <p className="text-sm text-zinc-500">
-        Detaylı analiz ve grafikler{" "}
-        <Link
-          href="/company/satinalma/raporlar"
-          className="font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
-        >
-          Raporlar
-        </Link>{" "}
-        bölümünde.
-      </p>
+      <PortalDiscovery />
+
+      {/* Eşleşme kalitesinin girdisi: profil tamlığı (yüzde Profilim'le aynı
+          fonksiyondan). Katalog kartı alıcıda yok. */}
+      <SellerHealthCards mode="profile" profileHref="/company/satinalma/profilim" />
+
+      <Link
+        href="/company/satinalma/raporlar"
+        className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
+      >
+        Detaylı analiz ve grafikler Raporlar&apos;da
+        <ArrowRight aria-hidden className="size-4" />
+      </Link>
     </div>
   );
 }
