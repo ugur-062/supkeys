@@ -84,6 +84,13 @@ const nextConfig: NextConfig = {
    */
   async redirects() {
     return [
+      // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →
+      // `/firmalar`. Eski adres e-posta/dış bağlantılarda olabilir.
+      {
+        source: "/tedarikciler/:path*",
+        destination: "/firmalar/:path*",
+        permanent: true,
+      },
       {
         source: "/company/satinalma/ihalelerim/:path*",
         destination: "/company/satinalma/taleplerim/:path*",

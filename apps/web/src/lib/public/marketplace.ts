@@ -40,7 +40,7 @@ export const MARKETPLACE_ROUTES = {
    * duruyor çünkü menü/altbilgi hâlâ bağlantı veriyor: anonim ziyaretçi
    * "kaydolun" ekranını görür — dönüşüm hunisi, çıkmaz değil.
    */
-  companies: "/tedarikciler",
+  companies: "/firmalar",
   /** Tekil ALIM ilanı. */
   demand: "/talep",
   /** Tekil SATIS ilanı. */

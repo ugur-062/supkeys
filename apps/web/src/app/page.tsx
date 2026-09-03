@@ -141,6 +141,7 @@ export default async function HomePage() {
               companyName={p.company.name}
               companyCity={p.company.city}
               product={p}
+              priceGated
             />
           ))}
           emptyTitle="Şu an yayımlanmış ürün yok."

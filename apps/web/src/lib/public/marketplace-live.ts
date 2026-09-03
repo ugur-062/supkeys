@@ -2,7 +2,7 @@
  * YAYIN ANAHTARI — pazar yeri herkese açık mı.
  *
  * `false` iken kök `/` "yakında" sayfasını gösterir ve pazar yeri rotaları
- * (`/alim-talepleri`, `/satilik`, `/tedarikciler`, `/talep/*`, `/ilan/*`)
+ * (`/alim-talepleri`, `/satilik`, `/firmalar`, `/talep/*`, `/ilan/*`)
  * 404 döner; sitemap yalnız kurumsal sayfaları listeler ve robots.txt her
  * şeyi kapatır. Panel, giriş, kayıt ve sözleşmeler ETKİLENMEZ.
  *

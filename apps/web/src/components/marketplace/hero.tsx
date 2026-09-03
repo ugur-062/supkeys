@@ -43,9 +43,9 @@ export function MarketplaceHero() {
             Alım talebini bul, teklifini ver
           </Heading>
           <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-pretty text-zinc-500">
-            Firmaların herkese açık alım taleplerini ve satılık ilanlarını
-            inceleyin. Görmek için üyelik gerekmez; teklif vermek ücretsiz
-            hesapla.
+            Firmaların herkese açık alım taleplerini, satılık ilanlarını ve
+            ürünlerini inceleyin. İncelemek ücretsiz; teklif vermek ve firma
+            detayları için hesap gerekir.
           </p>
 
           <div className="mx-auto mt-9 max-w-2xl">

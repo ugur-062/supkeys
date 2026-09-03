@@ -286,6 +286,7 @@ export async function ProductIndex({
                     companyName={p.company.name}
                     companyCity={p.company.city}
                     product={p}
+                    priceGated
                   />
                 ))}
               </div>

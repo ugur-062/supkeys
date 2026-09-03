@@ -5,8 +5,10 @@ import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
 import { Pagination } from "@/components/marketplace/pagination";
 import { SearchForm } from "@/components/marketplace/search-form";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { fetchDirectory } from "@/lib/public/marketplace-api";
+import { fetchDirectory, fetchDirectorySummary } from "@/lib/public/marketplace-api";
+import { categoryPath } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
+import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import { companyActivityLabel } from "@rothern/shared";
 import { LockClosedIcon } from "@heroicons/react/20/solid";
 import type { Metadata } from "next";
@@ -43,19 +45,45 @@ interface SP {
   sayfa?: string;
 }
 
-/** Giriş yapmamış ziyaretçiye gösterilen kapı. */
-function SignInWall() {
+/**
+ * Giriş yapmamış ziyaretçiye gösterilen kapı — liste yerine SAYI (görünürlük
+ * katmanı): "N doğrulanmış firma · en çok temsil edilen kategoriler". Kimlik
+ * yok, ama sayfa boş bir duvar da değil.
+ */
+async function SignInWall() {
+  const summary = await fetchDirectorySummary();
   return (
-    <div className="mx-auto max-w-2xl rounded-2xl border border-zinc-200 bg-zinc-50/60 px-6 py-16 text-center">
+    <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-zinc-50/60 px-6 py-14 text-center">
       <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white ring-1 ring-zinc-200">
         <LockClosedIcon aria-hidden className="size-6 text-zinc-400" />
       </span>
       <h2 className="mt-6 text-xl font-semibold text-zinc-950">
         Firma dizini üyelere açık
       </h2>
-      <p className="mx-auto mt-3 max-w-md text-base/7 text-zinc-600">
-        Alıcı ve tedarikçi firmaları sektör, şehir ve faaliyet tipine göre
-        incelemek için giriş yapın. Kaydolmak ücretsiz.
+      {summary.verifiedCompanies > 0 ? (
+        <p className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950">
+          {summary.verifiedCompanies.toLocaleString("tr-TR")}
+          <span className="ml-2 text-base font-medium text-zinc-500">doğrulanmış firma</span>
+        </p>
+      ) : null}
+      {summary.topCategories.length > 0 ? (
+        <ul className="mx-auto mt-4 flex max-w-xl flex-wrap justify-center gap-2">
+          {summary.topCategories.map((c) => (
+            <li key={c.id}>
+              <Link
+                href={categoryPath(c.id, c.name)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm text-zinc-700 ring-1 ring-zinc-200 transition hover:ring-zinc-400"
+              >
+                {c.name}
+                <span className="text-xs text-zinc-400">{c.count}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="mx-auto mt-5 max-w-md text-base/7 text-zinc-600">
+        Firma adları, şehir ve faaliyet tipine göre süzülebilir dizin kayıtlı
+        kullanıcılara açıktır. Kaydolmak ücretsiz.
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <Link
@@ -65,10 +93,10 @@ function SignInWall() {
           Ücretsiz kaydol
         </Link>
         <Link
-          href="/company/login"
+          href={loginHref(PANEL_TARGET.directory)}
           className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-white"
         >
-          Giriş yap
+          Dizini görmek için giriş yapın
         </Link>
       </div>
       <p className="mt-8 text-sm text-zinc-500">

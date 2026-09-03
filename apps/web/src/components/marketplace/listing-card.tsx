@@ -11,7 +11,6 @@ import {
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
-import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import {
   BuildingOffice2Icon,
@@ -399,19 +398,17 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
         ) : null}
 
         <div className="mt-auto pt-5">
-          {/* Fiyat varsa vurgulu satır; yoksa kalem sayısı — kart hep aynı
-              yükseklikte "bir şey" gösterir, boşluk bırakmaz. */}
+          {/* Kapsam satırı: kalem sayısı + ilk kalem adı. Fiyat anonim
+              ziyaretçiye YOK (görünürlük katmanı) — kart hep aynı yükseklikte
+              "bir şey" gösterir, boşluk bırakmaz. */}
           <div className="flex items-baseline justify-between gap-3 border-t border-zinc-950/5 pt-3">
-            {listing.buyNowPrice ? (
-              <p className="text-lg font-semibold tracking-tight text-zinc-950">
-                {currencySymbol(listing.primaryCurrency)}
-                {Number(listing.buyNowPrice).toLocaleString("tr-TR")}
-                <span className="ml-1.5 text-xs font-normal text-zinc-400">hemen al</span>
-              </p>
-            ) : (
-              <p className="text-sm font-medium text-zinc-700">{listing.itemCount} kalem</p>
-            )}
-            <span className="font-mono text-[11px] text-zinc-400">{listing.number}</span>
+            <p className="min-w-0 truncate text-sm font-medium text-zinc-700">
+              {listing.itemCount} kalem
+              {listing.itemPreview[0] ? (
+                <span className="font-normal text-zinc-500"> · {listing.itemPreview[0]}</span>
+              ) : null}
+            </p>
+            <span className="shrink-0 font-mono text-[11px] text-zinc-400">{listing.number}</span>
           </div>
 
           <dl className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">

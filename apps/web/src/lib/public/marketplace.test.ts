@@ -133,7 +133,7 @@ describe("yayın anahtarı kapsamı", () => {
   const PAGES = [
     "alim-talepleri/page.tsx",
     "satilik/page.tsx",
-    "tedarikciler/page.tsx",
+    "firmalar/page.tsx",
     "talep/[slug]/page.tsx",
     "ilan/[slug]/page.tsx",
     "firma/[slug]/urun/[urunSlug]/page.tsx",

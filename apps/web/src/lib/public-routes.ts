@@ -43,7 +43,7 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/talep",
   "/talep-onayla", // misafir talebi doğrulama (noindex, force-dynamic)
   "/ilan",
-  // `/tedarikciler` BİLİNÇLİ OLARAK YOK: firma dizini giriş gerektiriyor
+  // `/firmalar` BİLİNÇLİ OLARAK YOK: firma dizini giriş gerektiriyor
   // (ürün kararı, 2026-09-02). Oturuma bağlı içerik üreten bir rota public
   // profile (nonce'suz CSP + statik render) giremez.
   "/nasil-calisir", // eski pazarlama anasayfası (kök pazar yerine döndü)

@@ -25,7 +25,7 @@ export async function CompanyProducts({
   if (page.items.length === 0) return null;
 
   return (
-    <section className="mt-12">
+    <section id="urunler" className="mt-12 scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
           Ürünler ve hizmetler
@@ -33,9 +33,9 @@ export async function CompanyProducts({
             {page.total.toLocaleString("tr-TR")}
           </span>
         </h2>
-        {page.total > page.items.length ? (
+        {page.total > 8 ? (
           <Link
-            href={`/firma/${companySlug}/urunler`}
+            href={`/firma/${companySlug}#urunler`}
             className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
           >
             Tümünü gör
@@ -45,8 +45,8 @@ export async function CompanyProducts({
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {page.items.slice(0, 8).map((p) => (
-          <ProductCard key={p.slug} companySlug={companySlug} product={p} />
+        {page.items.map((p) => (
+          <ProductCard key={p.slug} companySlug={companySlug} product={p} priceGated />
         ))}
       </div>
     </section>

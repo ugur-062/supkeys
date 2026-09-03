@@ -51,28 +51,11 @@ export interface PublicListingCard {
   primaryCurrency: string;
   isInternational: boolean;
   itemCount: number;
+  /** İlk üç kalemin ADI — kapsam; miktar/marka/şartname üyelere (görünürlük katmanı). */
+  itemPreview: string[];
   excerpt: string | null;
-  buyNowPrice: string | null;
   company: PublicCompanyRef;
   categories: PublicCategoryRef[];
-}
-
-export interface PublicListingItem {
-  lineNo: number;
-  images: string[];
-  name: string;
-  description: string | null;
-  quantity: string;
-  unit: string;
-  unitCode: string | null;
-  brand: string | null;
-  mpn: string | null;
-  alternativeAllowed: boolean;
-  specification: string | null;
-  warrantyMonths: number | null;
-  hsCode: string | null;
-  requiredByDate: string | null;
-  buyNowUnitPrice: string | null;
 }
 
 export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> {
@@ -97,7 +80,6 @@ export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> 
   lcConfirmed: boolean;
   updatedAt: string;
   indexable: boolean;
-  items: PublicListingItem[];
 }
 
 export interface PublicListPage {
@@ -328,19 +310,28 @@ export interface PriceTier {
   unitPrice: number;
 }
 
+/**
+ * Herkese açık ürün kartı — FİYATSIZ (görünürlük katmanı, 2026-09-04).
+ * `priceMode` kalır: "fiyat listesi var, giriş ister" ile "satıcı fiyat
+ * açıklamıyor" ayrımı dürüst kalsın. Fiyatlı üye tipi `MemberProduct`
+ * (`hooks/use-portal-discovery`).
+ */
 export interface PublicProductCard {
   slug: string;
   name: string;
   images: string[];
   priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
-  priceAmount: string | null;
-  /** Kartta da var: kademeli fiyatlı ürün "teklif isteyin" göstermemeli. */
-  priceTiers: PriceTier[] | null;
-  priceCurrency: string;
-  moq: string | null;
   unit: string;
   categoryId: string | null;
   excerpt: string | null;
+}
+
+/** Üye katmanının fiyat alanları — panel uçları döndürür, public uç DÖNDÜRMEZ. */
+export interface ProductPriceFields {
+  priceAmount: string | null;
+  priceTiers: PriceTier[] | null;
+  priceCurrency: string;
+  moq: string | null;
 }
 
 export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
@@ -485,6 +476,20 @@ export function fetchCompanyProducts(
     `/public/companies/${encodeURIComponent(companySlug)}/products${qs ? `?${qs}` : ""}`,
     EMPTY_PRODUCTS,
     300,
+  );
+}
+
+/** Anonim dizin özeti — sayı + kategori dağılımı, kimlik yok. */
+export interface DirectorySummary {
+  verifiedCompanies: number;
+  topCategories: { id: string; name: string; count: number }[];
+}
+
+export function fetchDirectorySummary(): Promise<DirectorySummary> {
+  return getJson<DirectorySummary>(
+    "/public/companies/summary",
+    { verifiedCompanies: 0, topCategories: [] },
+    600,
   );
 }
 

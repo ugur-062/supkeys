@@ -1,6 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "./marketplace-footer";
 import { CategoryImage } from "./category-image";
+import { GatedField } from "./gated-field";
 import { InquiryButton } from "./inquiry-button";
 import { Badge } from "@/components/catalyst/badge";
 import { Heading } from "@/components/catalyst/heading";
@@ -8,9 +9,11 @@ import { serializeJsonLd } from "@/lib/json-ld";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { productPrice } from "@/lib/public/product-price";
 import type {
+  ProductPriceFields,
   PublicProduct,
   PublicProductCompany,
 } from "@/lib/public/marketplace-api";
+import { PANEL_TARGET } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   ArrowTopRightOnSquareIcon,
@@ -41,37 +44,19 @@ export function ProductDetail({
 }) {
   const site = resolveSiteUrl();
   const url = `${site}/firma/${companySlug}/urun/${product.slug}`;
-  const price = productPrice(product);
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
 
   /**
-   * `offers` yalnız GERÇEK fiyat varken yazılır. "Teklif isteyin" durumunda
-   * uydurma bir fiyat koymak yapısal veriyi yalancı yapar ve manuel işleme
-   * yol açar; o durumda `Offer` düğümü fiyatsız `availability` ile durur.
+   * `Offer` FİYATSIZ (görünürlük katmanı, 2026-09-04): fiyat anonim
+   * ziyaretçiye gösterilmiyor, dolayısıyla yapısal veriye de yazılmaz —
+   * sayfada görünmeyen bir fiyatı makine-okunur vermek hem gizlemeyi boşa
+   * çıkarır hem "sayfa ile veri uyuşmuyor" cezasına girer.
    */
   const offer: Record<string, unknown> = {
     "@type": "Offer",
     url,
     availability: "https://schema.org/InStock",
-    priceCurrency: product.priceCurrency,
-    ...(price.hasPrice && product.priceMode === "FIXED" && product.priceAmount
-      ? { price: product.priceAmount }
-      : {}),
-    ...(price.hasPrice && product.priceMode === "TIERED" && product.priceTiers
-      ? {
-          priceSpecification: product.priceTiers.map((t) => ({
-            "@type": "UnitPriceSpecification",
-            price: t.unitPrice,
-            priceCurrency: product.priceCurrency,
-            eligibleQuantity: {
-              "@type": "QuantitativeValue",
-              minValue: t.minQty,
-              unitText: product.unit,
-            },
-          })),
-        }
-      : {}),
     seller: {
       "@type": "Organization",
       name: company.name,
@@ -140,6 +125,20 @@ export function ProductDetail({
           product={product}
           company={company}
           companyHref={`/firma/${companySlug}`}
+          priceBox={
+            product.priceMode === "ON_REQUEST" ? (
+              <p className="text-2xl font-semibold tracking-tight text-zinc-600">
+                Fiyat için teklif isteyin
+              </p>
+            ) : (
+              <GatedField
+                label="Fiyat ve minimum sipariş"
+                size="box"
+                hint="Birim fiyat, kademeli fiyat tablosu ve MOQ kayıtlı firmalara açıktır."
+                redirect={PANEL_TARGET.product(companySlug, product.slug)}
+              />
+            )
+          }
           cta={
             MARKETPLACE_LIVE ? (
               <>
@@ -245,14 +244,27 @@ export function ProductDetailBody({
   company,
   companyHref,
   cta,
+  priceBox,
 }: {
-  product: PublicProduct;
+  /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
+  product: PublicProduct & Partial<ProductPriceFields>;
   company: PublicProductCompany;
   /** Satıcı kartındaki bağlantı — public profil ya da panel firma sayfası. */
   companyHref: string;
   cta: React.ReactNode;
+  /**
+   * Fiyat kutusunun YERİNE basılacak içerik (herkese açık sayfada
+   * `GatedField`). Verilmezse fiyat/MOQ/kademe tablosu çizilir (panel).
+   */
+  priceBox?: React.ReactNode;
 }) {
-  const price = productPrice(product);
+  const price = productPrice({
+    priceMode: product.priceMode,
+    priceAmount: product.priceAmount ?? null,
+    priceTiers: product.priceTiers ?? null,
+    priceCurrency: product.priceCurrency ?? "TRY",
+    unit: product.unit,
+  });
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
 
@@ -389,6 +401,8 @@ export function ProductDetailBody({
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+              {priceBox ?? (
+              <>
               <p
                 className={`text-2xl font-semibold tracking-tight ${
                   price.hasPrice ? "text-zinc-950" : "text-zinc-600"
@@ -428,6 +442,8 @@ export function ProductDetailBody({
                   </tbody>
                 </table>
               ) : null}
+              </>
+              )}
 
               <div className="mt-5 border-t border-zinc-950/5 pt-5">{cta}</div>
             </div>

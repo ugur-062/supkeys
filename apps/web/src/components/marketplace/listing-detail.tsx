@@ -2,6 +2,7 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketplaceFooter } from "./marketplace-footer";
 import { Badge } from "@/components/catalyst/badge";
 import { CategoryImage } from "./category-image";
+import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
 import { serializeJsonLd } from "@/lib/json-ld";
@@ -13,6 +14,7 @@ import {
   publicState,
 } from "@/lib/public/marketplace";
 import type { PublicListingDetail } from "@/lib/public/marketplace-api";
+import { PANEL_TARGET } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   DELIVERY_TERM_LABELS,
@@ -83,14 +85,8 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
       ? {
           seeks: {
             "@type": "Product",
-            name: listing.items[0]?.name ?? listing.title,
+            name: listing.itemPreview[0] ?? listing.title,
           },
-        }
-      : {}),
-    ...(!isDemand && listing.buyNowPrice
-      ? {
-          price: listing.buyNowPrice,
-          priceCurrency: listing.primaryCurrency,
         }
       : {}),
     // İlan sahibi ANONİM: `Organization` düğümüne ad/URL YAZILMAZ. Yapısal
@@ -256,79 +252,36 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
               </section>
             ) : null}
 
-            {listing.items.length > 0 ? (
+            {/* KALEM LİSTESİ ÜYELERE (görünürlük katmanı, 2026-09-04): miktar,
+                marka, şartname ve hemen-al fiyatı HTML'e yazılmaz. Ziyaretçi
+                kapsamı görür — kalem sayısı ve ilk üç kalemin adı. */}
+            {listing.itemCount > 0 ? (
               <section className="mt-12">
                 <h2 className="text-lg font-semibold text-zinc-950">
-                  Kalemler ({listing.items.length})
+                  Kalemler ({listing.itemCount})
                 </h2>
-                <div className="mt-4 overflow-x-auto rounded-2xl ring-1 ring-zinc-950/5">
-                  <table className="w-full min-w-[36rem] text-left text-sm">
-                    <thead className="bg-zinc-50 text-xs tracking-wide text-zinc-500 uppercase">
-                      <tr>
-                        <th className="py-2.5 pr-3 pl-4 font-medium">#</th>
-                        <th className="py-2.5 pr-3 font-medium">Kalem</th>
-                        <th className="py-2.5 pr-3 font-medium">Miktar</th>
-                        <th className="py-2.5 pr-3 font-medium">Marka / MPN</th>
-                        {!isDemand ? (
-                          <th className="py-2.5 pr-4 font-medium">Hemen al</th>
-                        ) : null}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-950/5 bg-white">
-                      {listing.items.map((i) => (
-                        <tr key={i.lineNo} className="align-top">
-                          <td className="py-3 pr-3 pl-4 text-zinc-400">
-                            {i.lineNo}
-                          </td>
-                          <td className="py-3 pr-3">
-                            <div className="flex items-start gap-3">
-                              {i.images.length > 0 ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={i.images[0]}
-                                  alt=""
-                                  loading="lazy"
-                                  className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-zinc-950/5"
-                                />
-                              ) : null}
-                              <div className="min-w-0">
-                            <p className="font-medium text-zinc-900">{i.name}</p>
-                            {i.description ? (
-                              <p className="mt-1 text-xs text-zinc-500">
-                                {i.description}
-                              </p>
-                            ) : null}
-                            {i.specification ? (
-                              <p className="mt-1 text-xs whitespace-pre-line text-zinc-500">
-                                {i.specification}
-                              </p>
-                            ) : null}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-3 whitespace-nowrap text-zinc-700">
-                            {Number(i.quantity).toLocaleString("tr-TR")}{" "}
-                            {i.unitCode ?? i.unit}
-                          </td>
-                          <td className="py-3 pr-3 text-zinc-600">
-                            {i.brand || i.mpn
-                              ? [i.brand, i.mpn].filter(Boolean).join(" · ")
-                              : "—"}
-                          </td>
-                          {!isDemand ? (
-                            <td className="py-3 pr-4 whitespace-nowrap text-zinc-900">
-                              {i.buyNowUnitPrice
-                                ? `${currencySymbol(listing.primaryCurrency)}${Number(
-                                    i.buyNowUnitPrice,
-                                  ).toLocaleString("tr-TR")}`
-                                : "—"}
-                            </td>
-                          ) : null}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {listing.itemPreview.length > 0 ? (
+                  <ul className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
+                    {listing.itemPreview.map((name, i) => (
+                      <li key={`${i}-${name}`} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
+                        <span className="w-5 shrink-0 text-zinc-400">{i + 1}</span>
+                        <span className="font-medium text-zinc-900">{name}</span>
+                      </li>
+                    ))}
+                    {listing.itemCount > listing.itemPreview.length ? (
+                      <li className="bg-zinc-50 px-5 py-3 text-sm text-zinc-500">
+                        + {listing.itemCount - listing.itemPreview.length} kalem daha
+                      </li>
+                    ) : null}
+                  </ul>
+                ) : null}
+                <GatedField
+                  className="mt-4"
+                  size="box"
+                  label="Miktar, marka ve şartname"
+                  hint="Kalem miktarları, marka/parça numaraları, teknik şartname ve ekli belgeler kayıtlı firmalara açıktır."
+                  redirect={PANEL_TARGET.listing(listing.type, listing.number)}
+                />
               </section>
             ) : null}
 

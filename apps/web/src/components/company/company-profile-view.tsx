@@ -47,6 +47,8 @@ export interface ProfileViewData {
    * rozet olarak gösterilir.
    */
   activities?: string[];
+  /** Firma kategori beyanı (L1 ad) — herkese açık profilde çip olarak. */
+  categories?: { id: string; name: string }[];
   city: string | null;
   country: string | null;
   logoUrl: string | null;
@@ -150,16 +152,31 @@ export interface ProfileEditSlots {
  * `actions` (bağlan/engelle) ve `children` (ihaleler) slotları; Profilim
  * editörü ayrıca `edit` slotlarıyla bölgeleri düzenlenebilir kılar.
  */
+/**
+ * KAPILI ALAN slotları (görünürlük katmanı, 2026-09-04) — herkese açık
+ * sayfa gizlenen alanın YERİNE `GatedField` basar. Panel/Profilim vermez.
+ */
+export interface ProfileGateSlots {
+  /** Künye şeridinin sonuna (kuruluş/çalışan/iletişim yerine) satır içi. */
+  stats?: ReactNode;
+  /** Hakkında kesitinin altına ("devamı için giriş yapın"). */
+  about?: ReactNode;
+  /** Sağ sütunun sonuna — sayfadaki TEK büyük kayıt kutusu. */
+  aside?: ReactNode;
+}
+
 export function CompanyProfileView({
   profile: p,
   actions,
   children,
   edit,
+  gate,
 }: {
   profile: ProfileViewData;
   actions?: ReactNode;
   children?: ReactNode;
   edit?: ProfileEditSlots;
+  gate?: ProfileGateSlots;
 }) {
   const services = p.services ?? [];
   const certifications = p.certifications ?? [];
@@ -257,6 +274,8 @@ export function CompanyProfileView({
           p.website ||
           p.linkedinUrl ||
           p.instagramUrl ||
+          p.categories?.length ||
+          gate?.stats ||
           (p.rating && p.rating.count > 0) ? (
             <div className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-zinc-100 pt-4">
               {p.rating && p.rating.count > 0 ? (
@@ -292,11 +311,27 @@ export function CompanyProfileView({
                   ))}
                 </div>
               ) : null}
+              {p.categories?.length ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {p.categories.map((c) => (
+                    <span
+                      key={c.id}
+                      className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"
+                    >
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {gate?.stats ? (
+                <div className="ml-auto">{gate.stats}</div>
+              ) : (
               <div className="ml-auto flex items-center gap-4 text-sm">
                 <ExternalLink href={p.website} label="Web Sitesi" />
                 <ExternalLink href={p.linkedinUrl} label="LinkedIn" />
                 <ExternalLink href={p.instagramUrl} label="Instagram" />
               </div>
+              )}
             </div>
           ) : null}
         </div>
@@ -326,6 +361,7 @@ export function CompanyProfileView({
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
                 {p.aboutText}
               </p>
+              {gate?.about ? <div className="mt-3">{gate.about}</div> : null}
             </section>
           ) : null}
 
@@ -471,6 +507,7 @@ export function CompanyProfileView({
           {p.reviewSummary && p.reviewSummary.orders > 0 ? (
             <ReviewSummarySection s={p.reviewSummary} />
           ) : null}
+          {gate?.aside ?? null}
         </div>
       </div>
     </div>

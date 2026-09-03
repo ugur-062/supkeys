@@ -4,6 +4,7 @@ import { companyApi } from "@/lib/company-auth/api";
 import type {
   PublicProduct,
   PublicProductCompany,
+  ProductPriceFields,
 } from "@/lib/public/marketplace-api";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
@@ -124,17 +125,22 @@ export function useDiscoverProducts(
  *
  * `null` = yok/erişilemez (404) — sayfa "bulunamadı" gösterir.
  */
+/** Üye katmanı ürün — fiyat/MOQ DAHİL; public uç bunları döndürmez. */
+export type MemberProduct = PublicProduct & ProductPriceFields;
+
 export function usePublicProduct(companySlug: string, productSlug: string) {
   return useQuery<{
-    product: PublicProduct;
-    company: PublicProductCompany;
+    product: MemberProduct;
+    company: PublicProductCompany & { verified?: boolean };
   } | null>({
-    queryKey: ["public-product", companySlug, productSlug],
+    queryKey: ["member-product", companySlug, productSlug],
     enabled: !!companySlug && !!productSlug,
     queryFn: async () => {
       try {
+        // Panelin KENDİ ucu (görünürlük katmanı, 2026-09-04): herkese açık
+        // `public/companies/.../products/...` artık fiyat döndürmüyor.
         const { data } = await companyApi.get(
-          `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}`,
+          `/company/items/discover/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}`,
         );
         return data;
       } catch (err) {
