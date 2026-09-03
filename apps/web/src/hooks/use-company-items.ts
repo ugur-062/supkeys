@@ -18,11 +18,24 @@ export interface CatalogItem {
   isActive: boolean;
   usageCount: number;
   lastUsedAt: string | null;
+  /** Vitrin özeti — liste satırındaki durum rozeti/küçük görsel/fiyat modu. */
+  isPublic: boolean;
+  publishedAt: string | null;
+  thumbnailUrl: string | null;
+  priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
+  updatedAt: string;
+}
+
+/** Firma geneli vitrin sayaçları — süzgeçten bağımsız (sunucuda sayılır). */
+export interface CatalogCounts {
+  published: number;
+  draft: number;
 }
 
 export interface CatalogListResult {
   items: CatalogItem[];
   total: number;
+  counts: CatalogCounts;
   /** Sunucu tavanına dayanıldı mı — sessiz kesme yok. */
   truncated: boolean;
 }
@@ -43,6 +56,25 @@ export function useCatalogItems(q: string, enabled = true) {
     enabled,
     // Yazarken önceki sonuçlar ekranda kalsın (skeleton'a flaş atmasın).
     placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Yalnız sayaçlar (pano "N yayında · M taslak"). Liste ucunun en dar çağrısı
+ * (`take=1`) — ayrı bir sayaç ucu açmak, aynı sayımı iki yerde sürdürme
+ * borcu üretirdi; sayaç zaten her liste yanıtında geliyor.
+ */
+export function useCatalogCounts(enabled = true) {
+  return useQuery<CatalogCounts>({
+    queryKey: [...CATALOG_KEY, "counts"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<CatalogListResult>("/company/items", {
+        params: { take: 1 },
+      });
+      return data.counts;
+    },
+    enabled,
+    staleTime: 30_000,
   });
 }
 

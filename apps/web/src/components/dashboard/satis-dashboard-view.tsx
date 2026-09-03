@@ -2,6 +2,7 @@
 
 import { ActionStrip } from "@/components/dashboard/action-center";
 import { MatchedRequestsWidget } from "@/components/dashboard/matched-requests-widget";
+import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
@@ -12,16 +13,21 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatisStats } from "@/hooks/use-company-dashboard";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 /**
- * Satış panosu — karşılama + CTA, aksiyon merkezi, adet KPI satırı + tutar
- * KPI satırı (eski "Performans" kartı — aralığı kart üstünde açıkça yazar);
- * tek kolon. ("Son Aktiviteler" akışı kullanıcı isteğiyle kaldırıldı,
- * 2026-08-03.) Blok sırası satınalma paneliyle hizalı (Faz 7.6);
- * satınalmanın İhale/Tasarruf/Tedarikçi sekmeleri veri örgütü gereği
- * korunur — bilinçli sapma. Görsel dil: zinc/Catalyst.
+ * Satış panosu — ÖZET sayfa (2026-09-03 revizyonu). Sıra yukarıdan aşağı:
+ *   1. başlık (firma, tarih, kur çipi)
+ *   2. bekleyen işler şeridi — tip başına çip, her biri kendi sayfasına
+ *   3. 4 dönemsiz KPI — kart tıklanır, delta rozeti "geçen aya göre"
+ *   4. size uygun açık talepler — en fazla 3, tek çıkış
+ *   5. profil & katalog sağlığı — eşleşme kalitesinin girdileri
+ *   6. Raporlar bağlantısı
+ * Panoda liste/arama/süzgeç YOK; her blok tek "tümünü gör" ile alt sayfaya
+ * gider. ("Son Aktiviteler" akışı kullanıcı isteğiyle kaldırıldı,
+ * 2026-08-03; grafikler Raporlar'a taşındı.) Görsel dil: zinc/Catalyst.
  */
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
@@ -99,11 +105,9 @@ export function SatisDashboardView() {
         />
       ) : null}
 
-      {/* "Anasayfa özet, alt sayfa liste": arama kutusu ve süzgeç Açık
-          Talepler'de; burada yalnız en uygun 3 talep + tek çıkış bağlantısı.
-          Eski keşif kartı o sayfanın kopyasıydı (aynı arama, aynı boş durum). */}
-      <MatchedRequestsWidget />
-
+      {/* Bekleyen işler ÖNCE: "bugün ne yapmalıyım" — tip başına çip (davet,
+          süresi dolan teklif, bilgi talebi, onay bekleyen sipariş…), her çip
+          kendi sayfasına. Hiç iş yoksa şerit çizilmez. */}
       <ActionStrip portal="satis" />
 
       {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
@@ -160,6 +164,7 @@ export function SatisDashboardView() {
           href="/company/satis/tekliflerim"
           accent="emerald"
           deltaPct={analytics.data?.deltas.bidsSubmitted}
+          deltaPeriodLabel="Geçen aya göre"
           spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
         <KpiCard
@@ -178,22 +183,29 @@ export function SatisDashboardView() {
           href="/company/satis/siparisler"
           accent="emerald"
           deltaPct={analytics.data?.deltas.orders}
+          deltaPeriodLabel="Geçen aya göre"
           spark={analytics.data?.kpiSeries.orders}
         />
       </div>
 
+      {/* "Anasayfa özet, alt sayfa liste": arama kutusu ve süzgeç Açık
+          Talepler'de; burada yalnız en uygun 3 talep + tek çıkış bağlantısı.
+          Eski keşif kartı o sayfanın kopyasıydı (aynı arama, aynı boş durum). */}
+      <MatchedRequestsWidget />
+
+      {/* Eşleşme kalitesinin girdileri: profil tamlığı + ürün kategorileri.
+          Yüzde Profilim'le AYNI fonksiyondan; sayaçlar sunucudan. */}
+      <SellerHealthCards />
+
       {/* Tutar/30-gün kartları da Raporlar'a taşındı — dönemsel okuma orada,
           "bugün ne durumdayım" burada. */}
-      <p className="text-sm text-zinc-500">
-        Detaylı analiz ve grafikler{" "}
-        <Link
-          href="/company/satis/raporlar"
-          className="font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
-        >
-          Raporlar
-        </Link>{" "}
-        bölümünde.
-      </p>
+      <Link
+        href="/company/satis/raporlar"
+        className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
+      >
+        Detaylı analiz ve grafikler Raporlar&apos;da
+        <ArrowRight aria-hidden className="size-4" />
+      </Link>
 
       {/* "Son Aktiviteler" akışı anasayfadan KALDIRILDI (kullanıcı isteği,
           2026-08-03) — olay geçmişi bildirim zilinde zaten mevcut. */}

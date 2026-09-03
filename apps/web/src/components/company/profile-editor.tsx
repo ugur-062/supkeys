@@ -1,5 +1,6 @@
 "use client";
 
+import { profileCompleteness } from "@/lib/company/profile-completeness";
 import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
@@ -795,20 +796,16 @@ function GalleryEditor({
   );
 }
 
-function completenessOf(d: Draft, p: CompanyProfile): { pct: number; missing: string[] } {
-  const items: [string, boolean][] = [
-    ["Logo", !!d.logoUrl],
-    ["Kapak", !!d.coverImageUrl],
-    ["Hakkında", !!d.aboutText.trim()],
-    ["Hizmetler", d.services.length > 0],
-    ["Fotoğraflar", d.photos.length > 0],
-    ["Kuruluş yılı", !!d.foundedYear.trim()],
-    ["Çalışan sayısı", !!d.employeeCount.trim()],
-    ["Web sitesi", !!d.website.trim()],
-    ["Sektör", !!d.industry.trim()],
-    ["Şehir", !!p.city],
-    ["Faaliyet kategorileri", (p.buyerCategoryIds?.length ?? 0) + (p.sellerCategoryIds?.length ?? 0) > 0],
-  ];
-  const done = items.filter(([, ok]) => ok).length;
-  return { pct: Math.round((done / items.length) * 100), missing: items.filter(([, ok]) => !ok).map(([l]) => l) };
+/**
+ * Taslak (düzenlenen) + profil (salt okunur alanlar) → ORTAK hesap. Pano
+ * "Profil sağlığı" kartı aynı fonksiyonu API profiliyle çağırır; hesap tek
+ * yerde (`lib/company/profile-completeness.ts`).
+ */
+function completenessOf(d: Draft, p: CompanyProfile) {
+  return profileCompleteness({
+    ...d,
+    city: p.city,
+    buyerCategoryIds: p.buyerCategoryIds,
+    sellerCategoryIds: p.sellerCategoryIds,
+  });
 }

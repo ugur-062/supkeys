@@ -30,10 +30,17 @@ export const DASH_CARD = "rounded-xl border border-slate-200 bg-white p-5 shadow
 export function TrendBadge({
   pct,
   className,
+  periodLabel,
 }: {
   /** null → önceki dönem verisi yok, rozet çizilmez. */
   pct: number | null | undefined;
   className?: string;
+  /**
+   * Neye göre? ("Geçen aya göre") — rozet çıplak "%100" olarak okunuyor ve
+   * kullanıcı bunu tamamlanma/başarı oranı sanıyordu (2026-09-03). Tooltip'te
+   * ve erişilebilir etikette söylenir.
+   */
+  periodLabel?: string;
 }) {
   if (pct == null) return null;
   const up = pct > 0;
@@ -42,6 +49,14 @@ export function TrendBadge({
   // C23: küçük tabandan gelen ham yüzdeler ("%20623") anlamsız — tavan.
   const capped = Math.abs(pct) > 999;
   const pctLabel = capped ? ">999" : String(Math.abs(pct));
+  const basis = periodLabel ?? "Önceki döneme göre";
+  const change = flat ? "değişim yok" : up ? "artış" : "azalış";
+  const title = [
+    `${basis} %${pctLabel} ${change}`,
+    capped ? `Gerçek değer: %${Math.abs(pct)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <span
       className={cn(
@@ -53,8 +68,8 @@ export function TrendBadge({
             : "bg-rose-50 text-rose-700",
         className,
       )}
-      aria-label={`Önceki döneme göre yüzde ${pctLabel} ${flat ? "değişim yok" : up ? "artış" : "azalış"}`}
-      title={capped ? `Gerçek değer: %${Math.abs(pct)}` : undefined}
+      aria-label={`${basis} yüzde ${pctLabel} ${change}`}
+      title={title}
     >
       <Icon className="h-3 w-3" aria-hidden />%{pctLabel}
     </span>
@@ -73,11 +88,14 @@ export function KpiCard({
   hint,
   valueTitle,
   sparkLabels,
+  deltaPeriodLabel,
 }: {
   label: string;
   value: string | number;
   href: string;
   deltaPct?: number | null;
+  /** Delta rozetinin dayanağı — "Geçen aya göre" (TrendBadge tooltip'i). */
+  deltaPeriodLabel?: string;
   /** Son 12 dönem GERÇEK seri — yoksa/boşsa sparkline çizilmez. */
   spark?: { key: string; value: number; label?: string }[];
   /** Panel ana rengi: satınalma blue, satış emerald. */
@@ -119,7 +137,7 @@ export function KpiCard({
       <div className="relative">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium text-slate-500">{label}</p>
-          <TrendBadge pct={deltaPct} />
+          <TrendBadge pct={deltaPct} periodLabel={deltaPeriodLabel} />
         </div>
         <p
           className="mt-2 text-3xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950"

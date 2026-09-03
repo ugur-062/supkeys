@@ -113,6 +113,12 @@ export const ACTION_ROWS: Record<
       text: "sipariş onayınızı bekliyor",
       href: "/company/satis/siparisler",
     },
+    // Ürünlerime gelen, henüz yanıtlanmamış sorular — karşıda bir alıcı
+    // bekliyor (uç: action-center `unansweredInquiries`).
+    unansweredInquiries: {
+      text: "bilgi talebi yanıtınızı bekliyor",
+      href: "/company/satis/bilgi-talepleri",
+    },
     paymentWindow: {
       text: "siparişin ödemesi bekleniyor",
       href: "/company/satis/siparisler",

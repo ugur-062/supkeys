@@ -184,7 +184,7 @@ export class CompanyItemsService {
           }
         : {}),
     };
-    const [rows, total] = await Promise.all([
+    const [rows, total, published, draft] = await Promise.all([
       this.prisma.companyItem.findMany({
         where,
         orderBy: [
@@ -197,12 +197,23 @@ export class CompanyItemsService {
         skip,
       }),
       this.prisma.companyItem.count({ where }),
+      // Vitrin sayaçları SÜZGEÇTEN BAĞIMSIZ (firma geneli): pano "N yayında ·
+      // M taslak" ve Ürünlerim sekme sayaçları aynı sayıyı göstermeli;
+      // arama daraltınca sekme sayacı değişseydi kullanıcı ürününün
+      // "kaybolduğunu" sanırdı.
+      this.prisma.companyItem.count({
+        where: { companyId, isActive: true, isPublic: true },
+      }),
+      this.prisma.companyItem.count({
+        where: { companyId, isActive: true, isPublic: false },
+      }),
     ]);
     return {
       items: rows.map((r) => this.serialize(r)),
       total,
       // Sessiz tavan yok: kullanıcı kesildiğini görür.
       truncated: skip + rows.length < total,
+      counts: { published, draft },
     };
   }
 
@@ -961,6 +972,14 @@ export class CompanyItemsService {
     isActive: boolean;
     usageCount: number;
     lastUsedAt: Date | null;
+    // Vitrin özeti — liste satırında durum rozeti / küçük görsel / fiyat modu
+    // için (Ürünlerim listesi, 2026-09-03). Tam vitrin alanları PATCH/GET
+    // yanıtında; burada yalnız satırın gösterdiği kadarı.
+    isPublic: boolean;
+    publishedAt: Date | null;
+    images: string[];
+    priceMode: string;
+    updatedAt: Date;
   }) {
     return {
       id: r.id,
@@ -977,6 +996,11 @@ export class CompanyItemsService {
       isActive: r.isActive,
       usageCount: r.usageCount,
       lastUsedAt: r.lastUsedAt,
+      isPublic: r.isPublic,
+      publishedAt: r.publishedAt,
+      thumbnailUrl: r.images[0] ?? null,
+      priceMode: r.priceMode,
+      updatedAt: r.updatedAt,
     };
   }
 }

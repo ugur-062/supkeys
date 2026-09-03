@@ -182,6 +182,37 @@ describe("Kalem Kataloğu", () => {
   });
 });
 
+describe("vitrin sayaçları", () => {
+  it("counts süzgeçten BAĞIMSIZ firma geneli yayında/taslak sayısı", async () => {
+    // Pano "N yayında · M taslak" ile Ürünlerim sekme sayaçları aynı sayıyı
+    // göstermeli; arama daraltınca değişseydi ürün "kayboldu" sanılırdı.
+    const { auth, company } = await makeCompanyWithUser(prisma);
+    const svc = new CompanyItemsService(
+      prisma as never,
+      { log: jest.fn() } as never,
+      {} as never,
+    );
+    const a = await svc.create(auth, { name: "Yayında ürün", unit: "adet" });
+    await svc.create(auth, { name: "Taslak ürün", unit: "adet" });
+    const arch = await svc.create(auth, { name: "Arşiv", unit: "adet" });
+    await svc.setActive(auth, arch.id, false);
+    await prisma.companyItem.update({
+      where: { id: a.id },
+      data: { isPublic: true, publishedAt: new Date(), slug: "yayinda" },
+    });
+
+    const all = await svc.list(company.id);
+    expect(all.counts).toEqual({ published: 1, draft: 1 });
+    // Satır vitrin özetini taşır (durum rozeti / küçük görsel için).
+    expect(all.items.find((i) => i.id === a.id)?.isPublic).toBe(true);
+    expect(all.items.find((i) => i.id === a.id)?.thumbnailUrl).toBeNull();
+
+    const narrowed = await svc.list(company.id, { q: "Taslak" });
+    expect(narrowed.items).toHaveLength(1);
+    expect(narrowed.counts).toEqual({ published: 1, draft: 1 });
+  });
+});
+
 describe("arşiv görünümü", () => {
   it("archived=true YALNIZ arşivlenmişleri döndürür", async () => {
     const { auth, company } = await makeCompanyWithUser(prisma);

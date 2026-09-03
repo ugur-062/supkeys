@@ -46,6 +46,10 @@ vi.mock("@/components/dashboard/action-center", () => ({
 vi.mock("@/components/dashboard/matched-requests-widget", () => ({
   MatchedRequestsWidget: () => <div data-testid="matched-requests" />,
 }));
+// Sağlık kartları profil + katalog uçlarından beslenir; ayrı test edilir.
+vi.mock("@/components/dashboard/seller-health-cards", () => ({
+  SellerHealthCards: () => <div data-testid="seller-health" />,
+}));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
 
@@ -99,18 +103,28 @@ describe("SatisDashboardView", () => {
     expect(screen.queryByText("Bağlı Müşteri")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Gelir" })).toBeNull();
     // Yönlendirme kalmalı: veri kaybolmadı, yer değiştirdi.
-    expect(screen.getByRole("link", { name: "Raporlar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Raporlar/ })).toBeInTheDocument();
   });
 
-  it("size uygun açık talepler widget'ı panoda VAR, eski keşif kartı YOK", () => {
+  it("özet sırası: şerit → KPI → size uygun talepler → sağlık → Raporlar; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
-    expect(html.indexOf("matched-requests")).toBeGreaterThan(-1);
-    expect(html.indexOf("portal-discovery")).toBe(-1);
+    const at = (s: string) => html.indexOf(s);
+    expect(at("portal-discovery")).toBe(-1);
+    expect(at("action-strip")).toBeGreaterThan(-1);
+    expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
+    expect(at("Aktif Tekliflerim")).toBeLessThan(at("matched-requests"));
+    expect(at("matched-requests")).toBeLessThan(at("seller-health"));
+    expect(at("seller-health")).toBeLessThan(at("Raporlar"));
     // Anasayfada arama kutusu ve ikinci "İlan aç" YOK (1a/1b).
     expect(screen.queryByRole("searchbox")).toBeNull();
     expect(screen.queryByText(/İlan aç/)).toBeNull();
+    // Alt not artık bağlantı.
+    expect(screen.getByRole("link", { name: /Raporlar/ })).toHaveAttribute(
+      "href",
+      "/company/satis/raporlar",
+    );
   });
 
   it("delta rozeti KPI kartında çizilir (analitikten gelir)", () => {

@@ -252,7 +252,7 @@ export class ActionCenterService {
     const in1d = new Date(now.getTime() + DAY_MS);
     const in3d = new Date(now.getTime() + 3 * DAY_MS);
 
-    const [invitations, myBids, submittedBids, orders] = await Promise.all([
+    const [invitations, myBids, submittedBids, orders, inquiries] = await Promise.all([
       // Açık davetler (teklif verilmemişleri frontend değil BURADA süzüyoruz).
       this.prisma.listingInvitation.findMany({
         where: { invitedCompanyId: companyId, listing: { status: "OPEN" } },
@@ -287,6 +287,13 @@ export class ActionCenterService {
           createdAt: true,
           expectedDeliveryDate: true,
         },
+      }),
+      // Yanıtsız bilgi talepleri: ürünlerime gelen, DOĞRULANMIŞ (satıcıya
+      // iletilmiş) ve henüz hiç yanıtlanmamış sorular. Doğrulanmamış satır
+      // satıcı için var değildir (public-inquiry spam kapısı).
+      this.prisma.publicInquiry.findMany({
+        where: { companyId, verifiedAt: { not: null }, replies: { none: {} } },
+        select: { verifiedAt: true },
       }),
     ]);
 
@@ -328,6 +335,13 @@ export class ActionCenterService {
       row("pendingOrders", "warning", pendingAccept.length, {
         waitingDays: pendingAccept.length
           ? Math.max(...pendingAccept.map((o) => daysAgo(o.createdAt, now)))
+          : null,
+      }),
+      // Karşıda bekleyen bir İNSAN var (alıcı soru sordu) → uyarı; en eski
+      // bekleme süresi gösterilir.
+      row("unansweredInquiries", "warning", inquiries.length, {
+        waitingDays: inquiries.length
+          ? Math.max(...inquiries.map((i) => daysAgo(i.verifiedAt!, now)))
           : null,
       }),
       row("paymentWindow", "info", paymentWindow.length),

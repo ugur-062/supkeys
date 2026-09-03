@@ -102,6 +102,49 @@ describe("ActionCenterService (DB)", () => {
     expect(after.rows.find((r) => r.key === "unansweredInvites")).toBeUndefined();
   });
 
+  it("satış: yanıtsız DOĞRULANMIŞ bilgi talebi unansweredInquiries üretir; yanıtlanınca düşer", async () => {
+    // Karşıda soru sormuş bir alıcı bekliyor — pano şeridinde görünmeli.
+    // Doğrulanmamış satır satıcıya hiç iletilmedi, sayılmaz.
+    const seller = await makeCompanyWithUser(prisma, {});
+    const product = await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id,
+        createdById: seller.user.id,
+        name: "Pano",
+        unit: "adet",
+        slug: "pano",
+      },
+    });
+    const mk = (verified: boolean, tokenHash: string) =>
+      prisma.publicInquiry.create({
+        data: {
+          companyId: seller.company.id,
+          productId: product.id,
+          name: "Ayşe",
+          email: `a-${tokenHash}@example.com`,
+          message: "Fiyat?",
+          tokenHash,
+          expiresAt: new Date(),
+          verifiedAt: verified ? new Date(Date.now() - 2 * DAY_MS) : null,
+        },
+      });
+    const answered = await mk(true, "t1");
+    await mk(true, "t2");
+    await mk(false, "t3");
+
+    const { rows } = await service.satis(seller.company.id);
+    const inq = rows.find((r) => r.key === "unansweredInquiries");
+    expect(inq?.count).toBe(2);
+    expect(inq?.severity).toBe("warning");
+    expect(inq?.waitingDays).toBe(2);
+
+    await prisma.publicInquiryReply.create({
+      data: { inquiryId: answered.id, authorId: seller.user.id, body: "Stokta." },
+    });
+    const after = await service.satis(seller.company.id);
+    expect(after.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(1);
+  });
+
   it("satış: geçerliliği 3 gün içinde dolan SUBMITTED teklif expiringBids üretir", async () => {
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});
