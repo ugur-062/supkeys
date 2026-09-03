@@ -207,6 +207,14 @@ export function BrowseTenderRow({
               >
                 {t.title}
               </span>
+              {/* Eşleşme rozeti BAŞLIKTA (her genişlikte): kategori/sektör
+                  beyanına dayanan eşleşme, kartın "neden buradayım" cevabı —
+                  yalnız xl kolonda kalınca mobilde hiç görünmüyordu. */}
+              {t.categoryMatch ? (
+                <span className="mt-1 block">
+                  <InfoChip tone="blue">Profilinizle eşleşti</InfoChip>
+                </span>
+              ) : null}
             </Link>
           </div>
         </div>
@@ -325,10 +333,6 @@ export function BrowseTenderRow({
                 <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
                   +{t.categories.length + t.extraCategoryCount - 1} kategori
                 </span>
-              ) : t.categoryMatch ? (
-                <span className="mt-0.5 block text-[11px] leading-tight text-blue-500">
-                  Kategorine uygun
-                </span>
               ) : null}
             </>
           ) : (
@@ -386,6 +390,7 @@ export function BrowseTenderRow({
         <span className="text-[11px] text-slate-500">
           Kapanış: {shortDate(t.closesAt)}
         </span>
+        <DaysLeftChip status={t.status} closesAt={t.closesAt} />
         {my ? <span className="text-[11px] text-slate-500">Teklifim: {my}</span> : null}
         {t.categories[0] ? (
           <span className="text-[11px] text-slate-500">
@@ -416,7 +421,7 @@ export function BrowseTenderRow({
             ) : null}
             {t.categoryMatch ? (
               <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-semibold text-blue-700">
-                Kategorine Uygun
+                Profilinizle eşleşti
               </span>
             ) : null}
             {/* "NEDEN GÖSTERİLDİ" — ilgi motorunun kara kutu olmaması için

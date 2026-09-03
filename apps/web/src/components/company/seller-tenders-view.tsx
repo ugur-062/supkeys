@@ -1,6 +1,6 @@
 "use client";
 
-import { MODULE_LABELS } from "@/lib/company/portals";
+import { MODULE_LABELS, SECTOR_EDIT_HREF } from "@/lib/company/portals";
 import { listingTerms } from "@/lib/company/terms";
 import {
   ActiveFilterChips,
@@ -27,10 +27,16 @@ import { useSearchParams } from "next/navigation";
 
 const PAGE_SIZE = 20;
 
+/**
+ * Varsayılan "Size uygun" (2026-09-03): davet › bağlantı › kategori › ilgi
+ * skoru › yakın kapanış. Kapanış tarihi tek başına satıcıya "bana uygun mu"
+ * sorusunu cevaplamıyordu; sunucu skoru zaten hesaplıyor.
+ */
 const SORT_OPTIONS = [
-  { value: "closing-asc", label: "Yakın Biten" },
-  { value: "closing-desc", label: "Uzak Biten" },
-  { value: "newest", label: "En Yeni" },
+  { value: "relevance", label: "Size uygun" },
+  { value: "closing-asc", label: "Yakın biten" },
+  { value: "closing-desc", label: "Uzak biten" },
+  { value: "newest", label: "En yeni" },
 ];
 const TAB_OPTIONS = [
   { value: "active", label: "Aktif" },
@@ -38,7 +44,7 @@ const TAB_OPTIONS = [
   { value: "all", label: "Tümü" },
 ];
 const RANGE_OPTIONS = [
-  { value: "all", label: "Tüm Zamanlar" },
+  { value: "all", label: "Tüm zamanlar" },
   { value: "7", label: "Son 7 gün" },
   { value: "30", label: "Son 30 gün" },
   { value: "90", label: "Son 3 ay" },
@@ -75,7 +81,7 @@ export function SellerTendersView({
   const sp = useSearchParams();
   const [search, setSearch] = useState(sp?.get("q") ?? "");
   const [tab, setTab] = useState("active");
-  const [sort, setSort] = useState("closing-asc");
+  const [sort, setSort] = useState("relevance");
   const [range, setRange] = useState("all");
   const [buyer, setBuyer] = useState("all");
   const [category, setCategory] = useState(sp?.get("kategori") ?? "");
@@ -100,7 +106,7 @@ export function SellerTendersView({
       counts.set(t.owner.id, e);
     }
     return [
-      { value: "all", label: isSatis ? "Tüm Satıcılar" : "Tüm Müşteriler" },
+      { value: "all", label: "Tümü" },
       ...[...counts.entries()]
         .sort((a, b) => b[1].n - a[1].n)
         .map(([id, e]) => ({ value: id, label: `${e.name} (${e.n})` })),
@@ -148,6 +154,11 @@ export function SellerTendersView({
       const ta2 = tier(a.matchScore);
       const tb2 = tier(b.matchScore);
       if (ta2 !== tb2) return tb2 - ta2;
+      // "Size uygun": kademe içinde HAM skor, eşitlikte yakın kapanış.
+      if (sort === "relevance") {
+        const d = (b.matchScore ?? 0) - (a.matchScore ?? 0);
+        if (d !== 0) return d;
+      }
       if (sort === "newest")
         return (
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -214,17 +225,20 @@ export function SellerTendersView({
             onChange={withReset(setSort)}
             options={SORT_OPTIONS}
             ariaLabel="Sıralama"
-            active={sort !== "closing-asc"}
+            active={sort !== "relevance"}
             className="sm:min-w-[160px]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Süzgeç adı düğmede ("Durum: Aktif") — yalnız ikonla "Aktif"
+              neyin aktifi olduğu anlaşılmıyordu. */}
           <FilterSelect
             icon={ListFilter}
             value={tab}
             onChange={withReset(setTab)}
             options={TAB_OPTIONS}
             ariaLabel="Durum"
+            prefix="Durum"
             active={tab !== "active"}
           />
           <FilterSelect
@@ -232,7 +246,8 @@ export function SellerTendersView({
             value={range}
             onChange={withReset(setRange)}
             options={RANGE_OPTIONS}
-            ariaLabel="Tarih aralığı"
+            ariaLabel="Dönem"
+            prefix="Dönem"
             active={range !== "all"}
           />
           <FilterSelect
@@ -240,7 +255,8 @@ export function SellerTendersView({
             value={buyer}
             onChange={withReset(setBuyer)}
             options={buyerOptions}
-            ariaLabel={isSatis ? "Satıcı" : "Müşteri"}
+            ariaLabel={isSatis ? "Satıcı" : "Alıcı"}
+            prefix={isSatis ? "Satıcı" : "Alıcı"}
             active={buyer !== "all"}
           />
           <ResultCount
@@ -266,9 +282,9 @@ export function SellerTendersView({
               ? [
                   {
                     key: "range",
-                    label:
-                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
-                      range,
+                    label: `Dönem: ${
+                      RANGE_OPTIONS.find((r) => r.value === range)?.label ?? range
+                    }`,
                     onRemove: () => withReset(setRange)("all"),
                   },
                 ]
@@ -277,9 +293,9 @@ export function SellerTendersView({
               ? [
                   {
                     key: "buyer",
-                    label:
-                      buyerOptions.find((b) => b.value === buyer)?.label ??
-                      buyer,
+                    label: `${isSatis ? "Satıcı" : "Alıcı"}: ${
+                      buyerOptions.find((b) => b.value === buyer)?.label ?? buyer
+                    }`,
                     onRemove: () => withReset(setBuyer)("all"),
                   },
                 ]
@@ -319,21 +335,21 @@ export function SellerTendersView({
           icon={ClipboardList}
           title={
             isFiltered
-              ? "Sonuç bulunamadı"
-              : tab === "active" && all.length > 0
-                ? `Aktif ${t.unit} yok`
-                : `Henüz ${t.unit} yok`
+              ? "Sonuç bulunamadı."
+              : tab === "active"
+                ? `Aktif ${t.unit} yok.`
+                : `Henüz ${t.unit} yok.`
           }
           description={
             isFiltered
               ? "Filtrelerinizi değiştirerek tekrar deneyin."
-              : tab === "active" && all.length > 0
+              : tab === "active"
                 ? // C57: "Aktif" sekmesi varsayılan — geçmiş kayıtlar sessizce
                   // gizli kalıyordu, boş durum bunu söylemiyordu.
-                  `Şu an açık ${t.indefinite} bulunmuyor. Kapanan ${t.pluralAccusative} görmek için Durum filtresinden Geçmiş'i seçin.`
+                  "Kapananlar için Durum → Geçmiş."
                 : isSatis
-                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ilanı yayınlandığında burada görünür."
-                  : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık talep yayınlandığında burada görünür."
+                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun satış ilanı yayınlandığında burada görünür."
+                  : "Kategorinize uygun talep yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
           action={
@@ -349,18 +365,24 @@ export function SellerTendersView({
                 }}
                 className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
-                Filtreleri Temizle
+                Filtreleri temizle
               </button>
-            ) : (
+            ) : isSatis ? (
               <Link
-                href={
-                  isSatis
-                    ? "/company/satinalma/tedarikcilerim"
-                    : "/company/satis/musterilerim"
-                }
+                href="/company/satinalma/tedarikcilerim"
                 className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
               >
                 Bağlantı Kur
+              </Link>
+            ) : (
+              /* Satışta TEK eylem: eşleşme kategori beyanına dayanır — doğru
+                 düzeltme sektörleri güncellemek. "Bağlantı Kur" Bağlantılar
+                 sayfasının işi; burada ikinci eylem panoyla çelişiyordu. */
+              <Link
+                href={SECTOR_EDIT_HREF}
+                className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              >
+                Sektörleri düzenle
               </Link>
             )
           }

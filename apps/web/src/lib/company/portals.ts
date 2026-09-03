@@ -256,6 +256,14 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
 
 export const PORTAL_ORDER: PortalKey[] = ["satinalma", "satis"];
 
+/**
+ * "Sektörleri düzenle" hedefi — açık talep eşleşmesi firmanın kategori
+ * beyanına dayanır ve o beyan bugün Ayarlar → Firma Bilgileri'nde. Profilim'e
+ * taşındığında (adım 6) YALNIZ bu satır değişir; pano widget'ı ve Açık
+ * Talepler boş durumu buradan okur.
+ */
+export const SECTOR_EDIT_HREF = "/company/ayarlar/firma";
+
 /** URL'den aktif portalı türetir (kaynak: pathname). */
 export function activePortalFromPath(pathname: string | null): PortalKey | null {
   if (!pathname) return null;

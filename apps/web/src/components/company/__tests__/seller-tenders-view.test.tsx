@@ -107,18 +107,25 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     expect(screen.getAllByText("Teklif Gönderildi").length).toBeGreaterThanOrEqual(1);
     // Firma adı xl kolonu + mobil chip satırında — iki kopya normal.
     expect(screen.getAllByText("Alıcı A.Ş.").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("5 gün kaldı")).toBeInTheDocument();
+    // Kalan süre çipi md+ kolonda VE mobil satırda — iki kopya normal.
+    expect(screen.getAllByText("5 gün kaldı").length).toBeGreaterThanOrEqual(1);
     // Sağ uç metrik: benim teklifim (versiyonlu).
     expect(screen.getByText("Verildi · v2")).toBeInTheDocument();
 
     // Kategori artık KOLONDA da görünür (aksiyonların yerine, 2026-08-04) —
     // kolon + mobil chip; genişletmede rozet + kategori tekrar eder.
     expect(screen.getAllByText("Canlı Hayvanlar").length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText("Kategorine Uygun")).not.toBeInTheDocument();
+    // Eşleşme rozeti BAŞLIKTA (her genişlikte); genişletmede bir kez daha.
+    expect(screen.getAllByText("Profilinizle eşleşti")).toHaveLength(1);
     await user.click(
       screen.getByRole("button", { name: "Detayı genişlet" }),
     );
-    expect(screen.getByText("Kategorine Uygun")).toBeInTheDocument();
+    expect(screen.getAllByText("Profilinizle eşleşti").length).toBeGreaterThanOrEqual(2);
+    // Varsayılan sıralama "Size uygun"; süzgeç düğmeleri adını taşır.
+    expect(screen.getByRole("button", { name: "Sıralama" })).toHaveTextContent("Size uygun");
+    expect(screen.getByRole("button", { name: "Durum" })).toHaveTextContent("Durum: Aktif");
+    expect(screen.getByRole("button", { name: "Dönem" })).toHaveTextContent("Dönem: Tüm zamanlar");
+    expect(screen.getByRole("button", { name: "Alıcı" })).toHaveTextContent("Alıcı: Tümü");
   });
 
   it("maskeli satır 'Gizli firma' + Premium çipi gösterir", () => {
@@ -157,7 +164,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     ];
     render(<SellerTendersView />);
 
-    await user.click(screen.getByRole("button", { name: "Müşteri" }));
+    await user.click(screen.getByRole("button", { name: "Alıcı" }));
     const listbox = await screen.findByRole("listbox");
     // Seçenek etiketi sayaçlı: "Firma X (1)".
     await user.click(within(listbox).getByText(/Firma X/));
@@ -275,7 +282,11 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
   it("boş durum + hata durumu", () => {
     h.rows = [];
     const { unmount } = render(<SellerTendersView />);
-    expect(screen.getByText("Henüz açık talep yok")).toBeInTheDocument();
+    // TEK boş durum, TEK eylem: "Bağlantı Kur" Bağlantılar sayfasının işi.
+    expect(screen.getByText("Aktif açık talep yok.")).toBeInTheDocument();
+    expect(screen.getByText("Kapananlar için Durum → Geçmiş.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sektörleri düzenle" })).toBeInTheDocument();
+    expect(screen.queryByText("Bağlantı Kur")).not.toBeInTheDocument();
     unmount();
 
     h.isError = true;

@@ -25,6 +25,12 @@ interface Props {
   active?: boolean;
   disabled?: boolean;
   className?: string;
+  /**
+   * Düğmede etiketin önüne yazılan süzgeç adı ("Durum: Aktif"). Seçenek
+   * listesinde YOK — orada süzgeç adı zaten belli, tekrar gürültü olurdu.
+   * Ne süzüldüğü yalnız ikondan anlaşılmıyordu ("Aktif" neyin aktifi?).
+   */
+  prefix?: string;
 }
 
 /**
@@ -42,6 +48,7 @@ export function FilterSelect({
   active = false,
   disabled = false,
   className,
+  prefix,
 }: Props) {
   const selected =
     options.find((o) => o.value === value) ?? options[0] ?? null;
@@ -67,7 +74,9 @@ export function FilterSelect({
               )}
             />
           ) : null}
-          <span className="truncate">{selected?.label ?? ""}</span>
+          <span className="truncate">
+            {prefix ? `${prefix}: ${selected?.label ?? ""}` : (selected?.label ?? "")}
+          </span>
           <ChevronDownIcon
             className={cn(
               "pointer-events-none absolute right-2 h-4 w-4",

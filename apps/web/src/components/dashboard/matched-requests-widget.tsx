@@ -3,6 +3,7 @@
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
 import { EmptyState } from "@/components/list";
 import { useDiscoverListings } from "@/hooks/use-portal-discovery";
+import { SECTOR_EDIT_HREF } from "@/lib/company/portals";
 import { ArrowRight, Inbox } from "lucide-react";
 import Link from "next/link";
 
@@ -27,12 +28,7 @@ import Link from "next/link";
  */
 export const MATCHED_REQUESTS_LIMIT = 3;
 
-/**
- * Faaliyet kategorileri bugün Ayarlar → Firma Bilgileri'nde düzenleniyor;
- * Profilim'e taşındığında (adım 6) bu adres onunla birlikte değişir. Tek
- * sabit — yarın hedef değişince tek satır.
- */
-export const SECTOR_EDIT_HREF = "/company/ayarlar/firma";
+export { SECTOR_EDIT_HREF };
 
 export function MatchedRequestsWidget() {
   const listings = useDiscoverListings("ALIM", MATCHED_REQUESTS_LIMIT);
