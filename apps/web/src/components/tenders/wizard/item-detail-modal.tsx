@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -33,6 +35,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
     formState: { errors },
   } = useFormContext<TenderFormData>();
   const isSatis = watch("listingType") === "SATIS";
+  const L = entityLabels(isSatis);
   const showTarget = watch("showTargetToSuppliers");
 
   const itemErrors = errors.items?.[index];
@@ -118,7 +121,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
             error={itemErrors?.targetUnitPrice?.message}
             hint={
               showTarget
-                ? `${isSatis ? "Alıcılar" : "Tedarikçiler"} bu fiyatı görecek (Satın Alma Talebi Kuralları'nda açık).`
+                ? `${L.counterpartyPlural} bu fiyatı görecek (${L.rules}'nda açık).`
                 : "Yalnız sizin için — karşı tarafa gösterilmez."
             }
           >

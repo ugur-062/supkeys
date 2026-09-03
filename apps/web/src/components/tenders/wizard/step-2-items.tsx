@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -56,6 +58,7 @@ export function Step2Items() {
   // KALEM seçilirse her kalem satırında taban/hemen-al girişleri açılır.
   const stepListingType = useWatch({ control, name: "listingType" });
   const isSatisStep = stepListingType === "SATIS";
+  const L = entityLabels(isSatisStep);
   const stepPriceScope = useWatch({ control, name: "priceScope" });
   // Denetim 2026-08-26 Parça 10 #7: burada `useWatch({ name: "items" })`
   // vardı. RHF ad-önekiyle abone olduğu için `items.7.quantity` değişimi bu
@@ -146,7 +149,7 @@ export function Step2Items() {
           <Label required>Fiyatlandırma</Label>
           <p className="mb-3 mt-0.5 text-xs text-slate-500">
             Kalem Bazlı seçerseniz her kalemin üzerinde taban / hemen-al birim
-            fiyatı girersiniz; Toplu&apos;da ihale geneli tek fiyat Genel Bilgi
+            fiyatı girersiniz; Toplu&apos;da {L.shortLower} geneli tek fiyat Genel Bilgi
             adımında sorulur.
           </p>
           <Controller
@@ -163,7 +166,7 @@ export function Step2Items() {
                   <p className="text-sm font-semibold text-zinc-900">
                     Toplu
                     <span className="block text-xs font-normal text-zinc-500">
-                      Satın Alma Talebi geneli tek taban + tek hemen-al fiyatı.
+                      {L.entityShort} geneli tek taban + tek hemen-al fiyatı.
                     </span>
                   </p>
                 </div>
@@ -252,6 +255,7 @@ export function Step2Items() {
         onApply={applyImported}
       />
       <CatalogPickerDialog
+        isSatis={isSatisStep}
         open={catalogOpen}
         onClose={() => setCatalogOpen(false)}
         onPick={applyCatalog}

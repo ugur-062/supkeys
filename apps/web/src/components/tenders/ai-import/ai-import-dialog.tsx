@@ -67,7 +67,7 @@ export function AiImportDialog({
       </DialogTitle>
       <DialogDescription>
         Şartname, teklif talebi, sipariş listesi ya da serbest Excel tablosu
-        yükleyin — AI ihale formunu doldurur; siz kontrol edip eksikleri
+        yükleyin — AI formu doldurur; siz kontrol edip eksikleri
         tamamlarsınız. İhaleyi her zaman SİZ oluşturursunuz. (Şablon Excel için
         Kalemler adımındaki “Excel ile İçe Aktar” daha kesindir.)
       </DialogDescription>

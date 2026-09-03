@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { Radio, RadioGroup } from "@headlessui/react";
@@ -89,6 +91,7 @@ export function Step0TypeScope() {
   // SATIS: aynı format mantığı satış yönüne uyarlanır — RFQ = kapalı zarf
   // teklif toplama (en yüksek kazanır), pazarlık = canlı AÇIK ARTIRMA.
   const isSatis = watch("listingType") === "SATIS";
+  const L = entityLabels(isSatis);
   const isAuction = watch("type") === "ENGLISH_AUCTION";
 
   return (
@@ -97,9 +100,9 @@ export function Step0TypeScope() {
         /* Pazarlığa aktarılmış ihale (yalnız düzenlemede görülür) — format
            bilgisi burada gösterilmeye devam eder; değiştirilemez. */
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Satın Alma Talebi Türü</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">{L.entity} Türü</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Bu ihale &apos;Pazarlığa Geç&apos; ile pazarlık (açık eksiltme)
+            Bu {L.entityLower} &apos;Pazarlığa Geç&apos; ile pazarlık (açık eksiltme)
             aşamasına aktarılmış.
           </p>
           <div className="mt-5 card p-6">
@@ -130,7 +133,7 @@ export function Step0TypeScope() {
         <div className="flex items-start gap-3 rounded-xl border border-zinc-950/10 bg-white px-4 py-3 text-sm text-zinc-600">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
           <p>
-            Satın Alma Talebiniz <strong>kapalı zarf</strong> usulüyle açılır —{" "}
+            {L.yours} <strong>kapalı zarf</strong> usulüyle açılır —{" "}
             {isSatis ? "alıcılar" : "tedarikçiler"} birbirinin teklifini görmez.
             Kapanıştan sonra dilerseniz “Yeni Tur” ile canlı pazarlığa
             ({isSatis ? "açık artırma" : "açık eksiltme"}) taşıyabilirsiniz.
@@ -164,10 +167,10 @@ export function Step0TypeScope() {
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Uluslararası ihaleniz{" "}
+            Uluslararası {L.yoursLower}{" "}
             {isSatis ? "yurt dışındaki tüm alıcılara" : "yurt dışındaki tüm tedarikçilere"}{" "}
             açık olur; <strong>kendi ülkenizdeki firmalara görünmez</strong>.
-            Yurtiçinden de teklif almak istiyorsanız ayrı bir yurtiçi ihale
+            Yurtiçinden de teklif almak istiyorsanız ayrı bir yurtiçi {L.entityLower}
             açabilirsiniz. (Doğrudan davet ettiğiniz firmalar her durumda görür.)
           </p>
         </div>

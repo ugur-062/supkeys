@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -31,7 +33,9 @@ export function SaveTemplateDialog({
   onSave,
   isSaving,
   defaultName,
-}: Props) {
+  isSatis = false,
+}: Props & { isSatis?: boolean }) {
+  const L = entityLabels(isSatis);
   const [name, setName] = useState(defaultName ?? "");
   // Dialog hep mount olduğundan ilk-state bayatlar: açılışta güncel başlıkla doldur.
   useEffect(() => {
@@ -55,7 +59,7 @@ export function SaveTemplateDialog({
         <div>
           <DialogTitle>Şablon olarak kaydet</DialogTitle>
           <DialogDescription>
-            Bu satın alma talebini tekrar kullanmak üzere şablonlayın
+            Bu {L.acc} tekrar kullanmak üzere şablonlayın
           </DialogDescription>
         </div>
       </div>
@@ -76,7 +80,7 @@ export function SaveTemplateDialog({
         </Field>
         <p className="text-xs text-zinc-500">
           Kalemler, kategoriler ve ayarlar şablona dahil edilir. Kapanış tarihi
-          ve davetli tedarikçiler her satın alma talebinde yeniden seçilir.
+          ve davetli {L.counterpartyPluralLower} her {L.loc} yeniden seçilir.
         </p>
       </DialogBody>
 

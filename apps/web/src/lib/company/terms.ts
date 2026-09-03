@@ -47,6 +47,87 @@ export const LISTING_TERMS = {
 
 export type ListingTermKey = keyof typeof LISTING_TERMS;
 
+/**
+ * VARLIK SÖZLÜĞÜ — sihirbaz, ilan detayı, liste satırı, boş durum ve rapor
+ * lejantı metinleri YALNIZ buradan (2026-09-03, v2 denetimi).
+ *
+ * Gerekçe: satış sihirbazı satın alma sihirbazının kopyasıydı; alıcı/satıcı
+ * sözcükleri değişmiş ama VARLIK adı değişmemişti ("Satış İlanı" ekranında
+ * "Satın Alma Talebi Adı", "Satın Alma Talebiniz kapalı zarf…"). Kullanıcı
+ * bunu "kırık ürün" olarak okuyor.
+ *
+ * Türkçe hâller AÇIKÇA yazılır (kod ek yapıştırmaz): talep→talebi/talebin,
+ * ilan→ilanı/ilanın. Satış tarafında kısa biçim "ilan", satınalmada "talep".
+ */
+export const ENTITY_LABELS = {
+  satinalma: {
+    entity: "Satın Alma Talebi",
+    entityLower: "satın alma talebi",
+    entityShort: "Talep",
+    shortLower: "talep",
+    /** "Talebi Yayınla" — kısa biçimin belirtme hâli. */
+    shortAcc: "Talebi",
+    acc: "satın alma talebini",
+    gen: "satın alma talebinin",
+    genCap: "Satın Alma Talebinin",
+    dat: "satın alma talebine",
+    loc: "satın alma talebinde",
+    pluralLoc: "satın alma taleplerinde",
+    yours: "Satın Alma Talebiniz",
+    yoursLower: "satın alma talebiniz",
+    yoursAcc: "satın alma talebinizi",
+    yoursGen: "Satın Alma Talebinizin",
+    yoursDat: "Satın Alma Talebinize",
+    scopeDesc: "Satın alma talebinin kapsamı",
+    counterparty: "Tedarikçi",
+    counterpartyPlural: "Tedarikçiler",
+    counterpartyPluralLower: "tedarikçiler",
+    counterpartyPluralGen: "Tedarikçilerin",
+    counterpartyPluralDat: "Tedarikçilere",
+    /** Kaydı açan kişinin ROLÜ (menü/izin dili). Liste kolonunda "Sorumlu". */
+    owner: "Satın Almacı",
+    docs: "Talep Dokümanları",
+    rules: "Satın Alma Talebi Kuralları",
+  },
+  satis: {
+    entity: "Satış İlanı",
+    entityLower: "satış ilanı",
+    entityShort: "İlan",
+    shortLower: "ilan",
+    shortAcc: "İlanı",
+    acc: "satış ilanını",
+    gen: "satış ilanının",
+    genCap: "İlanın",
+    dat: "ilana",
+    loc: "ilanda",
+    pluralLoc: "satış ilanlarında",
+    yours: "Satış ilanınız",
+    yoursLower: "satış ilanınız",
+    yoursAcc: "satış ilanınızı",
+    yoursGen: "İlanınızın",
+    yoursDat: "İlanınıza",
+    scopeDesc: "Satış ilanının kapsamı",
+    counterparty: "Alıcı",
+    counterpartyPlural: "Alıcılar",
+    counterpartyPluralLower: "alıcılar",
+    counterpartyPluralGen: "Alıcıların",
+    counterpartyPluralDat: "Alıcılara",
+    owner: "Satış Sorumlusu",
+    docs: "İlan Dokümanları",
+    rules: "Teklif Kuralları",
+  },
+} as const;
+
+export type EntityLabels = (typeof ENTITY_LABELS)[keyof typeof ENTITY_LABELS];
+
+/** Sihirbaz/detay bileşenleri `isSatis` bayrağıyla çağırır. */
+export function entityLabels(isSatis: boolean): EntityLabels {
+  return isSatis ? ENTITY_LABELS.satis : ENTITY_LABELS.satinalma;
+}
+
+/** Liste kolonu: kaydı açan kişi — iki portalda da nötr "Sorumlu". */
+export const OWNER_COLUMN_LABEL = "Sorumlu";
+
 export function listingTerms(type: ListingTermKey) {
   return LISTING_TERMS[type];
 }

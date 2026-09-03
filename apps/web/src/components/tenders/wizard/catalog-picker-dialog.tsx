@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { useMemo, useState } from "react";
 import { Search, PackageSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,11 +46,14 @@ export function CatalogPickerDialog({
   open,
   onClose,
   onPick,
+  isSatis = false,
 }: {
   open: boolean;
   onClose: () => void;
   onPick: (items: PickedCatalogItem[]) => void;
+  isSatis?: boolean;
 }) {
+  const L = entityLabels(isSatis);
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 300);
   // Modal kapalıyken ağ isteği atma.
@@ -118,7 +123,7 @@ export function CatalogPickerDialog({
             <p className="mt-2 text-sm text-zinc-600">
               {q
                 ? "Aramanızla eşleşen kalem yok."
-                : "Katalogunuz henüz boş. Bir satın alma talebi oluşturduktan sonra “Kalemleri kataloğa kaydet” ile doldurabilirsiniz."}
+                : `Kataloğunuz henüz boş. Bir ${L.entityLower} oluşturduktan sonra “Kalemleri kataloğa kaydet” ile doldurabilirsiniz.`}
             </p>
           </div>
         ) : (

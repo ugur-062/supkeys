@@ -2,6 +2,7 @@
 
 import { formatDate } from "@/lib/format-date";
 import { MODULE_LABELS } from "@/lib/company/portals";
+import { OWNER_COLUMN_LABEL } from "@/lib/company/terms";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
@@ -280,7 +281,7 @@ export function IhaleListRow({
         {/* Talep sahibi. "Detayı aç" linki KALDIRILDI (çiftti: başlık zaten
             detay linki + sağda duruma göre birincil aksiyon var). */}
         <div className="min-w-0 px-3 py-2.5">
-          <ColLabel>{isSatis ? "Satışçı" : "Satın Almacı"}</ColLabel>
+          <ColLabel>{OWNER_COLUMN_LABEL}</ColLabel>
           <span
             className="mt-1 block truncate text-[13px] font-semibold leading-tight text-slate-900"
             title={`${t.createdBy.firstName} ${t.createdBy.lastName}`}

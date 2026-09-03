@@ -335,14 +335,14 @@ export function IhalelerView({
             options={[
               {
                 value: "",
-                label: isSatis ? "Tüm Satışçılar" : "Tüm Satın Almacılar",
+                label: "Tüm Sorumlular",
               },
               ...buyers.map((b) => ({
                 value: b.id,
                 label: `${b.firstName} ${b.lastName} (${b.count})`,
               })),
             ]}
-            ariaLabel={isSatis ? "Satışçı filtresi" : "Satın almacı filtresi"}
+            ariaLabel="Sorumlu filtresi"
             active={!!createdById}
           />
           <ResultCount

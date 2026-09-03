@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { TIER_LABELS } from "@/lib/company/labels";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -57,11 +59,14 @@ function InviteByEmailModal({
   open,
   onClose,
   onInvited,
+  isSatis,
 }: {
   open: boolean;
   onClose: () => void;
   onInvited: (email: string) => void;
+  isSatis: boolean;
 }) {
+  const L = entityLabels(isSatis);
   const [email, setEmail] = useState("");
   const invite = useInviteByEmail();
 
@@ -88,7 +93,7 @@ function InviteByEmailModal({
       <DialogTitle>Yeni Firma Davet Et</DialogTitle>
       <DialogDescription>
         Firmanın e-posta adresini girin; Rothern'e davet / bağlantı isteği
-        gönderilir. Kabul edince bağlantılarınıza eklenir ve ihaleye davet
+        gönderilir. Kabul edince bağlantılarınıza eklenir ve {L.dat} davet
         edebilirsiniz.
       </DialogDescription>
       <DialogBody>
@@ -120,11 +125,14 @@ function SaveTemplateModal({
   open,
   onClose,
   memberCompanyIds,
+  isSatis,
 }: {
   open: boolean;
   onClose: () => void;
   memberCompanyIds: string[];
+  isSatis: boolean;
 }) {
+  const L = entityLabels(isSatis);
   const [name, setName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const create = useCreateSupplierTemplate();
@@ -150,7 +158,7 @@ function SaveTemplateModal({
       <DialogTitle>Şablon Olarak Kaydet</DialogTitle>
       <DialogDescription>
         Seçili {memberCompanyIds.length} firmayı bir grup şablonu olarak
-        kaydet; sonraki ihalelerde tek tıkla davet et.
+        kaydet; sonraki {L.pluralLoc} tek tıkla davet et.
       </DialogDescription>
       <DialogBody className="space-y-3">
         <Field>
@@ -202,6 +210,7 @@ export function Step3Suppliers() {
   const isPublic = visibility === "PUBLIC";
   // SATIS ihalede davet edilenler ALICI firmalardır (satın almacılar teklif verir).
   const isSatis = useWatch({ control, name: "listingType" }) === "SATIS";
+  const L = entityLabels(isSatis);
   const roleWord = isSatis ? "alıcı" : "tedarikçi";
   const RoleWord = isSatis ? "Alıcı" : "Tedarikçi";
   const [search, setSearch] = useState("");
@@ -350,7 +359,7 @@ export function Step3Suppliers() {
                 <p className="text-sm text-zinc-500">
                   {isPublic
                     ? "Opsiyonel — Rothern'de olmayan bir firmayı e-posta ile davet edebilirsiniz."
-                    : "Bu satın alma talebine kimler teklif verebilir?"}
+                    : `Bu ${L.dat} kimler teklif verebilir?`}
                 </p>
               </div>
             </div>
@@ -368,16 +377,16 @@ export function Step3Suppliers() {
               <p className="text-sm text-zinc-600">
                 {visibility === "PUBLIC" ? (
                   <>
-                    Bu satın alma talebi <strong>Herkese Açık</strong>: kategorinize uygun
+                    Bu {L.entityLower} <strong>Herkese Açık</strong>: kategorinize uygun
                     premium {roleWord === "alıcı" ? "alıcılar" : "tedarikçiler"} davet beklemeden görüp teklif verebilir.
                     Bu adım <strong>opsiyonel</strong> — çalışmak istediğiniz
                     firma henüz Rothern&apos;de değilse buradan e-posta ile
                     davet edebilirsiniz; kayıt olup davetinizi kabul ettiğinde
-                    ihalenizi görür ve teklif verebilir.
+                    {L.yoursAcc} görür ve teklif verebilir.
                   </>
                 ) : (
                   <>
-                    Bu satın alma talebi <strong>Davetli (Kapalı)</strong>: yalnızca aşağıdan
+                    Bu {L.entityLower} <strong>Davetli (Kapalı)</strong>: yalnızca aşağıdan
                     seçtiğiniz firmalar görüp teklif verebilir. Görünürlüğü Genel Bilgi
                     adımından değiştirebilirsiniz.
                   </>
@@ -521,7 +530,7 @@ export function Step3Suppliers() {
                 <p className="text-sm text-zinc-500">
                   {search
                     ? `"${search}" için sonuç yok`
-                    : "Henüz bağlantınız yok — satın alma talebine davet için önce firma ekleyin."}
+                    : `Henüz bağlantınız yok — ${L.dat} davet için önce firma ekleyin.`}
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={() => setInviteOpen(true)}>
@@ -685,7 +694,7 @@ export function Step3Suppliers() {
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-amber-700">
-                  Davet kabul edilince bağlantılarınıza eklenir; sonra ihaleye
+                  Davet kabul edilince bağlantılarınıza eklenir; sonra {L.dat}
                   davet edebilirsiniz.
                 </p>
               </div>
@@ -695,8 +704,8 @@ export function Step3Suppliers() {
             <div className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
               <p>
-                Yayınlayınca seçili firmalara &ldquo;Yeni İhale Daveti&rdquo;
-                e-postası gönderilir. Davet etmeden de ihaleyi oluşturabilir,
+                Yayınlayınca seçili firmalara davet e-postası gönderilir. Davet
+                etmeden de {L.acc} oluşturabilir,
                 sonra davet gönderebilirsiniz.
               </p>
             </div>
@@ -708,6 +717,7 @@ export function Step3Suppliers() {
               categoryIds={wizCategoryIds}
             />
             <InviteByEmailModal
+              isSatis={isSatis}
               open={inviteOpen}
               onClose={() => setInviteOpen(false)}
               onInvited={(email) =>
@@ -717,6 +727,7 @@ export function Step3Suppliers() {
               }
             />
             <SaveTemplateModal
+              isSatis={isSatis}
               open={saveOpen}
               onClose={() => setSaveOpen(false)}
               memberCompanyIds={selectedCompanies.map((c) => c.id)}

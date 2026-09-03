@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -41,7 +43,8 @@ export function PublishConfirmDialog({
   isSatis = false,
 }: Props) {
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const rolDat = isSatis ? "Alıcılara" : "Tedarikçilere";
+  const L = entityLabels(isSatis);
+  const rolDat = L.counterpartyPluralDat;
   const rolSingleDat = isSatis ? "alıcıya" : "tedarikçiye";
   const rolSingle = isSatis ? "alıcı" : "tedarikçi";
   return (
@@ -57,7 +60,7 @@ export function PublishConfirmDialog({
           <Send className="h-5 w-5 text-success-600" />
         </div>
         <div>
-          <DialogTitle>Satın Alma Talebini Yayınla</DialogTitle>
+          <DialogTitle>{L.shortAcc} Yayınla</DialogTitle>
           <DialogDescription>{rolDat} davet gönderilecek</DialogDescription>
         </div>
       </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { Badge } from "@/components/catalyst/badge";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Button } from "@/components/catalyst/button";
@@ -25,10 +27,14 @@ export interface StagedListingDoc {
 export function StagedDocuments({
   docs,
   onChange,
+  isSatis = false,
 }: {
   docs: StagedListingDoc[];
   onChange: (docs: StagedListingDoc[]) => void;
+  /** Varlık adı sözlükten (satış ilanı / satın alma talebi). */
+  isSatis?: boolean;
 }) {
+  const L = entityLabels(isSatis);
   const [kind, setKind] = useState<ListingDocKind>("IDARI_SARTNAME");
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,7 +72,7 @@ export function StagedDocuments({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
             <FileText className="h-4 w-4 text-zinc-700" />
           </div>
-          <h3 className="font-semibold text-zinc-900">Satın Alma Talebi Dökümanları</h3>
+          <h3 className="font-semibold text-zinc-900">{L.docs}</h3>
           {docs.length > 0 ? <Badge color="zinc">{docs.length}</Badge> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -100,7 +106,7 @@ export function StagedDocuments({
 
       {docs.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Bölüm seçip şartname, teknik resim vb. ekleyin — dosyalar ihale
+          Bölüm seçip şartname, teknik resim vb. ekleyin — dosyalar {L.shortLower}
           kaydedilirken (taslak veya yayın) yüklenir.
         </p>
       ) : (
@@ -142,7 +148,7 @@ export function StagedDocuments({
             </div>
           ))}
           <p className="text-xs text-zinc-400">
-            Dosyalar ihale kaydedilirken (taslak veya yayın) yüklenir.
+            Dosyalar {L.shortLower} kaydedilirken (taslak veya yayın) yüklenir.
           </p>
         </div>
       )}

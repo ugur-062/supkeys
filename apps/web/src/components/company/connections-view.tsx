@@ -453,7 +453,7 @@ export function ConnectionsView() {
             E-posta ile davet — kalıcı
           </Subheading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Tedarikçinin e-postası: kayıtlıysa istek gider, değilse davet
+            Firmanın e-postası: kayıtlıysa istek gider, değilse davet
             e-postası; kaydolunca kalıcı bağlanırsınız.
           </Text>
           <div className="mt-3 space-y-2">

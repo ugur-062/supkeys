@@ -83,7 +83,7 @@ const TOOLTIP_TOP5 =
 const TOOLTIP_CATEGORY =
   "Kategori bazında ortalama tasarruf oranı (en az 1 kazandırılmış satın alma talebi olan kategoriler).";
 const TOOLTIP_CURRENCY =
-  "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY equivalent baz alınır).";
+  "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY karşılığı baz alınır).";
 
 export function TasarrufTab({ data, period, savings, analytics }: Props) {
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).

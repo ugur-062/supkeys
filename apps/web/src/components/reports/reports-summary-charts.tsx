@@ -157,7 +157,12 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
                   iconSize={8}
                   wrapperStyle={{ fontSize: 11 }}
                 />
-                <Bar dataKey="listings" name="Satın Alma Talebi" fill={ZINC_900} radius={[3, 3, 0, 0]} />
+                <Bar
+                  dataKey="listings"
+                  name={isAlim ? "Satın Alma Talebi" : "Açık Talep"}
+                  fill={ZINC_900}
+                  radius={[3, 3, 0, 0]}
+                />
                 <Bar
                   dataKey="bids"
                   name={isAlim ? "Gelen Teklif" : "Verilen Teklif"}

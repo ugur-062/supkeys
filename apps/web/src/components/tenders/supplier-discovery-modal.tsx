@@ -280,7 +280,7 @@ export function SupplierDiscoveryModal({
                 </Button>
               </div>
               <p className="mt-2 text-xs text-zinc-400">
-                AI, ihale kategorinize uygun firmaları web&apos;de arar. E-posta
+                AI, talebinizin kategorisine uygun firmaları web&apos;de arar. E-posta
                 yalnız açıkça yayınlanmışsa gelir — göndermeden önce siz
                 doğrularsınız.
               </p>
@@ -479,7 +479,7 @@ export function SupplierDiscoveryModal({
 
           <div className="border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3 text-xs text-zinc-500">
             Davet kabul edilince firma bağlantılarınıza eklenir; davetli
-            ihalenize buradan davet edebilir, herkese açık ihalenizi zaten
+            talebinize buradan davet edebilir, herkese açık talebinizi zaten
             görebilir hâle gelir.
           </div>
         </DialogPanel>

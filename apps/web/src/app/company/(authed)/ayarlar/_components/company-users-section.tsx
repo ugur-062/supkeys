@@ -72,7 +72,7 @@ import { InviteUserDialog } from "./invite-user-dialog";
 
 const ROLES: { key: CompanyRole; label: string; desc: string }[] = [
   { key: "YONETICI", label: "Yönetici", desc: "Hesap, kullanıcı, ayar ve bağlantı yönetimi" },
-  { key: "SATIN_ALMACI", label: "Satın Almacı", desc: "Alış satın alma taleplerini açma, teklif değerlendirme, kazandırma" },
+  { key: "SATIN_ALMACI", label: "Satın Almacı", desc: "Satın alma taleplerini açma, teklif değerlendirme, kazandırma" },
   { key: "SATISCI", label: "Satışçı", desc: "Satış ilanları, satın alma taleplerine teklif verme" },
   { key: "ONAYLAYICI", label: "Onaylayıcı", desc: "Onay zincirinde onay/ret" },
 ];

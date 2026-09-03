@@ -555,7 +555,7 @@ export default function TeklifVerPage() {
         title={
           isSatis
             ? "Satış ilanına teklif (alış) için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin"
-            : "Alış satın alma talebine teklif (satış) için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
+            : "Açık talebe teklif için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
         }
         detailHref={detailHref}
       />

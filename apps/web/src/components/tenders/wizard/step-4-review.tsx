@@ -1,5 +1,7 @@
 "use client";
 
+import { entityLabels } from "@/lib/company/terms";
+
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useConnections } from "@/hooks/use-company-connections";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
@@ -30,6 +32,7 @@ const fmtDate = formatDateTime;
 export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   const { watch } = useFormContext<TenderFormData>();
   const d = watch();
+  const L = entityLabels(d.listingType === "SATIS");
   const connections = useConnections();
 
   const invited = (d.invitedSupplierIds ?? [])
@@ -45,7 +48,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   return (
     <div className="space-y-5">
       <Section title="Genel Bilgi" onEdit={() => onEditStep(2)}>
-        <Row label="Satın Alma Talebi Adı" value={d.title || "—"} />
+        <Row label={`${L.entityShort} Adı`} value={d.title || "—"} />
         <Row
           label="Tip"
           value={
@@ -126,7 +129,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         {d.bidsOpenAt ? <Row label="Açılış" value={fmtDate(d.bidsOpenAt)} /> : null}
         {stagedDocsCount != null && stagedDocsCount > 0 ? (
           <Row
-            label="Satın Alma Talebi Dökümanları"
+            label={L.docs}
             value={`${stagedDocsCount} dosya — yayınlanınca yüklenecek`}
           />
         ) : null}
@@ -197,7 +200,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
             {/* PUBLIC'te davetsizlik doğal durumdur — "davetli yok" uyarı gibi
                 okunuyordu; ihalenin zaten herkese açık olduğu söylenir. */}
             {d.visibility === "PUBLIC"
-              ? `Satın Alma Talebi herkese açık — davet gerekmez; kategorinize uygun premium ${
+              ? `${L.entity} herkese açık — davet gerekmez; kategorinize uygun premium ${
                   d.listingType === "SATIS" ? "alıcılar" : "tedarikçiler"
                 } görüp teklif verebilir. İsterseniz sonradan da davet gönderebilirsiniz.`
               : "Davetli firma yok — sonra davet gönderebilirsiniz."}

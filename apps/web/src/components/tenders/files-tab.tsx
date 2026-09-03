@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { FileText, Lock, Paperclip, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { entityLabels } from "@/lib/company/terms";
 import { toast } from "sonner";
 
 export function FilesTab({
@@ -24,15 +25,19 @@ export function FilesTab({
   isOwner,
   canEdit = false,
   masked = false,
+  isSatis = false,
 }: {
   listingId: string;
   isOwner: boolean;
+  /** Başlık ve boş durum varlık sözlüğünden ("İlan Dosyaları" / "Talep Dosyaları"). */
+  isSatis?: boolean;
   // İhale belgeleri yalnızca ilan düzenlenebilirken (TASLAK / teklifsiz AÇIK)
   // değiştirilebilir; kapandıktan sonra salt-okunur.
   canEdit?: boolean;
   // Maskeli önizleme (standart + bağsız): şartname/dosyalar kilitli gösterilir.
   masked?: boolean;
 }) {
+  const L = entityLabels(isSatis);
   const confirm = useConfirm();
   const docs = useListingDocuments(listingId, !masked);
   const upload = useUploadListingDoc(listingId);
@@ -90,7 +95,7 @@ export function FilesTab({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
             <FileText className="h-4 w-4 text-zinc-700" />
           </div>
-          <h3 className="font-semibold text-zinc-900">Satın Alma Talebi Dosyaları</h3>
+          <h3 className="font-semibold text-zinc-900">{L.entityShort} Dosyaları</h3>
         </div>
         {isOwner && canEdit ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -158,7 +163,7 @@ export function FilesTab({
           <p className="mt-3 text-sm text-zinc-500">
             {isOwner && canEdit
               ? "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsiniz."
-              : "Bu satın alma talebine dosya eklenmemiş."}
+              : `Bu ${L.dat} dosya eklenmemiş.`}
           </p>
         </div>
       ) : (

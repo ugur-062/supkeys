@@ -601,7 +601,7 @@ export default function OrderDetailPage() {
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
                           {o.listingType === "ALIM"
-                            ? "Alış satın alma talebi"
+                            ? "Satın alma talebi"
                             : "satış ilanı"}
                         </span>
                       ) : null}

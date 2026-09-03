@@ -1595,7 +1595,7 @@ export default function ListingDetailPage() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
             {isAlim
-              ? "Bu alış satın alma talebine teklif (satış) vermek için hesabınızda "
+              ? "Bu açık talebe teklif vermek için hesabınızda "
               : "Bu satış ilanına teklif (alış) vermek için hesabınızda "}
             <strong>{isAlim ? "Satışçı" : "Satın Almacı"}</strong> rolü gerekir
             — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
@@ -1992,6 +1992,7 @@ export default function ListingDetailPage() {
                 isOwner={!!l.isOwner}
                 canEdit={false}
                 masked={!!l.masked}
+                isSatis={l.type === "SATIS"}
               />
             </TabPanel>
           </TabPanels>
@@ -2184,7 +2185,13 @@ export default function ListingDetailPage() {
               <GeneralInfoTab l={l} />
             </TabPanel>
             <TabPanel className="outline-none">
-              <FilesTab listingId={l.id} isOwner={false} canEdit={false} masked={!!l.masked} />
+              <FilesTab
+                listingId={l.id}
+                isOwner={false}
+                canEdit={false}
+                masked={!!l.masked}
+                isSatis={l.type === "SATIS"}
+              />
             </TabPanel>
           </TabPanels>
         </TabGroup>

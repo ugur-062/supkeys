@@ -39,6 +39,7 @@ import { SaveTemplateDialog } from "./save-template-dialog";
 import type { StagedListingDoc } from "./staged-documents";
 import type { AiTenderExtractResult } from "@rothern/shared";
 import { AiFlagsBanner } from "../ai-import/ai-flags-banner";
+import { entityLabels } from "@/lib/company/terms";
 import { Step0TypeScope } from "./step-0-type-scope";
 import { Step1Info } from "./step-1-info";
 import { Step2Items } from "./step-2-items";
@@ -48,9 +49,7 @@ import { Step4Review } from "./step-4-review";
 function stepMeta(isSatis: boolean) {
   return [
     // B11: adımda tür seçimi yok (tür portaldan gelir) — ad içerikle uyumlu.
-    isSatis
-      ? { title: "Kapsam", desc: "satış ilanının kapsamı" }
-      : { title: "Kapsam", desc: "Satın Alma Talebinin kapsamı" },
+    { title: "Kapsam", desc: entityLabels(isSatis).scopeDesc },
     { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
     { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
     isSatis
@@ -78,7 +77,7 @@ function WizardSteps({
   meta: { title: string; desc: string }[];
 }) {
   return (
-    <nav aria-label="Satın Alma Talebi adımları">
+    <nav aria-label="Adımlar">
       <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 bg-white sm:grid-cols-5 sm:divide-x sm:divide-y-0">
         {meta.map((s, idx) => {
           const isDone = current > idx;
@@ -296,6 +295,7 @@ export function TenderWizard({
   // Yön form değerinden CANLI türetilir — şablon yüklemesi listingType'ı
   // değiştirebilir; başlık/adım/çıkış rotası statik prop'a bağlanamaz.
   const isSatis = form.watch("listingType") === "SATIS";
+  const L = entityLabels(isSatis);
   // Adım değişiminde başlığa odak — klavye/ekran okuyucu yeni adımı duysun.
   const headingRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -339,7 +339,7 @@ export function TenderWizard({
     }
     if (failed > 0) {
       toast.warning(
-        `${failed} döküman yüklenemedi — Düzenle ekranından tekrar ekleyebilirsiniz`,
+        `${failed} doküman yüklenemedi — Düzenle ekranından tekrar ekleyebilirsiniz`,
       );
     }
   };
@@ -499,7 +499,7 @@ export function TenderWizard({
     // başlığı zorunlu tutuyor (company-listings.service `if (dto.asDraft) return`).
     const ok = await form.trigger(["type", "title"]);
     if (!ok) {
-      toast.error("Taslak için en azından satın alma talebi türü ve başlık gerekli");
+      toast.error(`Taslak için en azından ${L.entityLower} türü ve başlık gerekli`);
       jumpToFirstError();
       return;
     }
@@ -521,21 +521,21 @@ export function TenderWizard({
     if (isEdit && listingId) {
       try {
         await update.mutateAsync(input);
-        toast.success("Satın Alma Talebi güncellendi");
+        toast.success(`${L.entity} güncellendi`);
         router.push(`/company/ilan/${listingId}`);
       } catch (err) {
-        toast.error(extractErrorMessage(err, "Satın Alma Talebi güncellenemedi"));
+        toast.error(extractErrorMessage(err, `${L.entity} güncellenemedi`));
       }
       return;
     }
     try {
       const listing = await create.mutateAsync(input);
       await uploadStagedDocs(listing.id);
-      toast.success("Satın Alma Talebi oluşturuldu");
+      toast.success(`${L.entity} oluşturuldu`);
       setPublishOpen(false);
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Satın Alma Talebi oluşturulamadı"));
+      toast.error(extractErrorMessage(err, `${L.entity} oluşturulamadı`));
     }
   };
 
@@ -585,18 +585,12 @@ export function TenderWizard({
         {/* Başlık */}
         <div ref={headingRef} tabIndex={-1} className="outline-none">
           <Heading>
-            {isEdit
-              ? isSatis
-                ? "Satış İlanıni Düzenle"
-                : "Satın Alma Talebini Düzenle"
-              : isSatis
-                ? "Yeni Satış İlanı"
-                : "Yeni Satın Alma Talebi"}
+            {isEdit ? `${L.shortAcc} Düzenle` : `Yeni ${L.entity}`}
           </Heading>
           <Text className="mt-1 text-sm text-zinc-500">
             {isEdit
               ? "Değişiklikleri yapıp kaydedin. Teklif geldikten sonra düzenlenemez."
-              : "Adımları tamamlayıp satın alma talebini yayınlayın."}
+              : `Adımları tamamlayıp ${L.acc} yayınlayın.`}
           </Text>
         </div>
 
@@ -666,7 +660,7 @@ export function TenderWizard({
                   loading={submitting}
                 >
                   <Send className="h-4 w-4" />
-                  {isEdit ? "Değişiklikleri Kaydet" : "Satın Alma Talebini Yayınla"}
+                  {isEdit ? "Değişiklikleri Kaydet" : `${L.shortAcc} Yayınla`}
                 </Button>
               </div>
             )}
@@ -683,6 +677,7 @@ export function TenderWizard({
         isSatis={isSatis}
       />
       <SaveTemplateDialog
+        isSatis={isSatis}
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
         onSave={handleSaveTemplate}

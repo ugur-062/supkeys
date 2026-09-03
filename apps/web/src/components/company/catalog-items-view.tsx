@@ -81,7 +81,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
         </Link>
         <Heading className="mt-2">Kalem Kataloğu</Heading>
         <Text>
-          Sık kullandığınız kalemleri saklayın; ihale açarken{" "}
+          Sık kullandığınız kalemleri saklayın; talep veya ilan açarken{" "}
           <strong>Katalogdan Ekle</strong> ile saniyede listeleyin. Katalog,
           satın alma talebi detayındaki <strong>Kataloğa Kaydet</strong> ile kendiliğinden
           dolar.

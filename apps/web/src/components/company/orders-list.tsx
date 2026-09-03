@@ -228,7 +228,7 @@ function sourceMeta(
     return type === "ALIM"
       ? {
           label: "Kendi Satın Alma Talebim",
-          hint: "Açtığınız alış satın alma talebini kazandırdınız — bu onun siparişi.",
+          hint: "Açtığınız satın alma talebini kazandırdınız — bu onun siparişi.",
           cls: "border-blue-200 bg-blue-50 text-blue-700",
         }
       : {
