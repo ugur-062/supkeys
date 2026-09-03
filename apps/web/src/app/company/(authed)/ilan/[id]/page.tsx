@@ -108,6 +108,7 @@ function MetaItem({
   value,
   className,
   title,
+  multiline = false,
 }: {
   icon: typeof Layers;
   label: string;
@@ -116,6 +117,12 @@ function MetaItem({
   /** Değer truncate ile kırpılabilir — uzun listelerde (ör. çoklu para
    *  birimi) hover'da tamamı görünsün diye native tooltip. */
   title?: string;
+  /** ÇOK SATIRLI değer (ör. Kapanış = tarih + saat, iki `block` span).
+   *  `truncate` white-space:nowrap DA kurar ve bunu çocuklara MİRAS bırakır;
+   *  `overflow:hidden` ile birleşince tarih ellipsis bile göstermeden sert
+   *  kırpılıyordu ("28 Ağu 202" — 2026-09-03 kullanıcı geri bildirimi).
+   *  Tek satırlık değerlerde truncate DOĞRU davranış, o yüzden opt-in. */
+  multiline?: boolean;
 }) {
   return (
     <div
@@ -129,7 +136,10 @@ function MetaItem({
           {label}
         </p>
         <p
-          className="truncate text-sm font-semibold text-zinc-900"
+          className={cn(
+            "text-sm font-semibold text-zinc-900",
+            multiline ? "min-w-0" : "truncate",
+          )}
           title={title}
         >
           {value}
@@ -1906,7 +1916,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={Layers}
               label="Kalem"
-              value={`${l.items?.length ?? 0} kalem`}
+              value={`${l.items?.length ?? 0}`}
             />
             <MetaItem
               icon={Wallet}
@@ -1921,6 +1931,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={CalendarClock}
               label="Kapanış"
+              multiline
               value={
                 l.closesAt ? (
                   <>
@@ -2124,7 +2135,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={Layers}
               label="Kalem"
-              value={`${l.itemCount ?? l.items?.length ?? 0} kalem`}
+              value={`${l.itemCount ?? l.items?.length ?? 0}`}
             />
             <MetaItem
               icon={Wallet}

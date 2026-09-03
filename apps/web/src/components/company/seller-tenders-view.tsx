@@ -181,8 +181,8 @@ export function SellerTendersView({
         title={isSatis ? MODULE_LABELS.satinalma.satinAl : MODULE_LABELS.satis.acikIhaleler}
         description={
           isSatis
-            ? "Bağlı olduğunuz satıcıların ve herkese açık satış satın alma taleplerinin listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
-            : "Bağlı olduğunuz alıcı firmaların ve herkese açık satın alma taleplerin listesi — teklif verin, sonuçları takip edin."
+            ? "Bağlı olduğunuz satıcıların ve herkese açık satış ilanlarının listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
+            : "Bağlı olduğunuz alıcı firmaların ve herkese açık satın alma taleplerinin listesi — teklif verin, sonuçları takip edin."
         }
       />
 
@@ -327,7 +327,7 @@ export function SellerTendersView({
                   // gizli kalıyordu, boş durum bunu söylemiyordu.
                   "Şu an açık satın alma talebi bulunmuyor. Kapanan satın alma talepleri için Durum filtresinden Geçmiş'i seçin."
                 : isSatis
-                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış satın alma talebi yayınlandığında burada görünür."
+                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ilanı yayımlandığında burada görünür."
                   : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık satın alma talebi yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}

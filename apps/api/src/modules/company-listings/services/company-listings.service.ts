@@ -2243,11 +2243,21 @@ export class CompanyListingsService {
    * Teklifçi listesi. `limit` verilirse SIRALAMADAN SONRA kırpılır — pano
    * keşif şeridi 6 kart gösteriyor ama sıralama tüm kümeden çıkmalı, yoksa
    * "en uygun 6" değil "rastgele 6" gösterirdik.
+   *
+   * `openOnly` — pano KEŞİF şeridi için. Liste sayfasının Aktif/Geçmiş/Tümü
+   * tabı var, o yüzden varsayılan olarak KATILDIĞIM kapanmış ilanlar da döner.
+   * Keşif şeridinde böyle bir tab YOK ve şerit "fırsat" vaat ediyor: kapanmış
+   * (AWARDED / CLOSED_NO_AWARD) bir ilanı oraya koymak, teklif verilemeyecek
+   * bir kaydı fırsat gibi göstermekti — üstelik yanındaki sektör sayaçları
+   * (`discoverFacets` → `sellerVisibleWhere`) YALNIZ açıkları saydığı için
+   * "kutularda 0, şeritte 6 kart" çelişkisi çıkıyordu. Açık ilanı olmayan
+   * firma şeritte kendi KAZANDIĞI eski ilanları "piyasada ne var" diye
+   * görüyordu (2026-09-03 kullanıcı geri bildirimi).
    */
   async sellerTenders(
     user: AuthenticatedCompanyUser,
     type: ListingType = "ALIM",
-    opts: { limit?: number } = {},
+    opts: { limit?: number; openOnly?: boolean } = {},
   ) {
     const companyId = user.companyId;
     const [connectedIds, blockedIds, myCompany] = await Promise.all([
@@ -2326,7 +2336,10 @@ export class CompanyListingsService {
       // katılmadığın bir ilan kapandıysa listeden düşer; onu ancak teklif
       // verdiysen (tekliflerim/geçmiş) ya da sipariş çıktıysa (siparişlerim)
       // görürsün. Kendi ilanlarını (kapanmış dahil) ownerTenders gösterir.
-      this.prisma.listing.findMany({
+      // `openOnly` (keşif şeridi) bu dalı HİÇ sormaz — sorgu da tasarruf.
+      opts.openOnly
+        ? []
+        : this.prisma.listing.findMany({
         where: {
           ...baseWhere,
           status: { notIn: ["OPEN", "DRAFT", "IN_APPROVAL"] },

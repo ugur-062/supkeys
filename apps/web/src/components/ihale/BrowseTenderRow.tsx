@@ -187,11 +187,10 @@ export function BrowseTenderRow({
         {/* 4 — Kalem + para birimi (lg+) — sayı büyük/koyu, birim çipte. */}
         <div className="hidden px-3 py-2.5 lg:block">
           <ColLabel>Kalem</ColLabel>
-          <span className="mt-0.5 flex items-baseline gap-1">
+          <span className="mt-0.5 block">
             <span className="text-[15px] font-semibold tabular-nums leading-tight text-slate-900">
               {t.itemCount}
             </span>
-            <span className="text-[11px] text-slate-400">kalem</span>
           </span>
           <span className="mt-1 inline-flex rounded border border-slate-200 bg-white px-1 py-px font-mono text-[10px] font-semibold text-slate-500">
             {t.currency}

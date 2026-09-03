@@ -514,7 +514,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         description={
           isSeller
             ? "Satışlarınız — kazandığınız satın alma taleplerinden ve satışlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
-            : "Alış siparişleriniz — kazandırdığınız satın alma taleplerinden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
+            : "Alış siparişleriniz — kazandırdığınız taleplerden ve Hemen Al alımlarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
         }
       />
 

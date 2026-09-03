@@ -35,7 +35,10 @@ const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
   { value: "3m", label: "Son 3 Ay" },
   { value: "6m", label: "Son 6 Ay" },
   { value: "12m", label: "Son 1 Yıl" },
-  { value: "all", label: "Tümü" },
+  // İKİ "Tümü" yan yana durmasın: durum süzgeci zaten "Tümü (N)" basıyor,
+  // ikisi ayırt edilemiyordu (kullanıcı geri bildirimi). Diğer listelerde
+  // (SellerTendersView, MyBidsList) bu seçenek zaten "Tüm Zamanlar".
+  { value: "all", label: "Tüm Zamanlar" },
 ];
 // C4: varsayılan "Tümü" — "Son 3 Ay" sessizce eski ihaleleri gizliyordu ve
 // isFiltered mantığını ters çeviriyordu (Tümü seçince "filtrelenmiş" yazıyordu).
@@ -223,7 +226,7 @@ export function IhalelerView({
         title={isSatis ? MODULE_LABELS.satis.ilanlarim : MODULE_LABELS.satinalma.ihalelerim}
         description={
           isSatis
-            ? "satış ilanlarınızı yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
+            ? "Satış ilanlarınızı yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
             : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         }
         action={
@@ -276,7 +279,11 @@ export function IhalelerView({
           <SearchInput
             value={search}
             onChange={reset(setSearch)}
-            placeholder="Satın Alma Talebi adı veya numarası ara…"
+            placeholder={
+              isSatis
+                ? "İlan adı veya numarası ara…"
+                : "Talep adı veya numarası ara…"
+            }
             className="flex-1"
           />
           <FilterSelect

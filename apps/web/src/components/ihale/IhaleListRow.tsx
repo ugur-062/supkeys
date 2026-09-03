@@ -251,10 +251,12 @@ export function IhaleListRow({
           </span>
         </div>
 
-        {/* 5 — Davetli (lg+) — sayı büyük/koyu; 0 davetli soluk kalır. */}
+        {/* 5 — Davetli (lg+) — sayı büyük/koyu; 0 davetli soluk kalır.
+            Sütun başlığı zaten "Davetli": değerin yanına bir daha "davetli"
+            yazmak "DAVETLİ / 2 davetli" okutuyordu (2026-09-03). */}
         <div className="hidden px-3 py-2.5 lg:block">
           <ColLabel>Davetli</ColLabel>
-          <span className="mt-0.5 flex items-baseline gap-1">
+          <span className="mt-0.5 block">
             <span
               className={cn(
                 "text-[15px] font-semibold tabular-nums leading-tight",
@@ -263,7 +265,6 @@ export function IhaleListRow({
             >
               {t.invitationCount}
             </span>
-            <span className="text-[11px] text-slate-400">davetli</span>
           </span>
         </div>
 

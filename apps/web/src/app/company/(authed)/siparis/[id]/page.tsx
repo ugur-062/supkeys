@@ -839,7 +839,7 @@ export default function OrderDetailPage() {
               <SummaryRow label={isSeller ? "Alıcı" : "Satıcı"}>
                 <span className="block truncate">{o.counterparty}</span>
               </SummaryRow>
-              <SummaryRow label="Kalem">{o.items.length} kalem</SummaryRow>
+              <SummaryRow label="Kalem">{o.items.length}</SummaryRow>
               <SummaryRow label="Sipariş tarihi">
                 {formatDate(o.createdAt)}
               </SummaryRow>

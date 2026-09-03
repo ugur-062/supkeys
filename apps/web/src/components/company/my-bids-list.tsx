@@ -136,7 +136,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               </span>
               {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
               <Badge color={isAlim ? "blue" : "emerald"}>
-                {isAlim ? "Alış Satın Alma Talebi" : "Satış İlanı"}
+                {isAlim ? "Alım Talebi" : "Satış İlanı"}
               </Badge>
             </div>
             <h3

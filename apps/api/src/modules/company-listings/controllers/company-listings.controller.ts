@@ -66,15 +66,23 @@ export class CompanyListingsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("type") type?: string,
     @Query("limit") limit?: string,
+    @Query("openOnly") openOnly?: string,
   ) {
     // `limit` SIRALAMADAN SONRA kırpar (serviste) — pano keşif şeridi 6 kart
     // gösterir ama sıralama tüm kümeden çıkar; sorguyu kırpsaydık "en uygun 6"
     // değil "rastgele 6" gösterirdik. Tavan 24: şerit bundan fazlasını çizmez.
+    //
+    // `openOnly=1` — keşif şeridi: KAPANMIŞ ilan fırsat değildir. Liste
+    // sayfasının Aktif/Geçmiş tabı var, şeridin yok; bayraksız çağrıda
+    // davranış AYNEN korunur (liste sayfaları etkilenmez).
     const n = Number(limit);
     return this.service.sellerTenders(
       user,
       type === "SATIS" ? "SATIS" : "ALIM",
-      { limit: Number.isFinite(n) && n > 0 ? Math.min(Math.trunc(n), 24) : undefined },
+      {
+        limit: Number.isFinite(n) && n > 0 ? Math.min(Math.trunc(n), 24) : undefined,
+        openOnly: openOnly === "1" || openOnly === "true",
+      },
     );
   }
 

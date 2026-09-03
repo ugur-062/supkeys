@@ -43,8 +43,12 @@ export function useDiscoverListings(type: "ALIM" | "SATIS", limit = 6) {
   return useQuery<SellerTenderRow[]>({
     queryKey: ["company-listings", "discover", type, limit],
     queryFn: async () => {
+      // `openOnly=1`: şerit FIRSAT vaat ediyor — kapanmış (AWARDED /
+      // CLOSED_NO_AWARD) ilan oraya girmemeli. Yanındaki sektör sayaçları
+      // zaten yalnız açıkları sayıyor; bayraksızken "kutularda 0, şeritte
+      // 6 kart" çelişkisi çıkıyordu.
       const { data } = await companyApi.get<SellerTenderRow[]>(
-        `/company/listings/seller-tenders?type=${type}&limit=${limit}`,
+        `/company/listings/seller-tenders?type=${type}&limit=${limit}&openOnly=1`,
       );
       return data;
     },

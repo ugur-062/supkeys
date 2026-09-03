@@ -8,8 +8,12 @@ import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
  * ← Siparişler" tarzı kaymalar buradan kapanır.
  */
 export const TERMS = {
-  TENDER_SELL: "satış satın alma talebi",
-  TENDER_BUY: "alış satın alma talebi",
+  // Satış tarafında kayıt "ilan"dır (orada firma SATAR); alış tarafında
+  // "talep". 2026-09-01 yeniden adlandırmasında "ihale"→"satın alma talebi"
+  // toptan değiştirildiği için burada "satış satın alma talebi" / "alış satın
+  // alma talebi" gibi kendini tekrar eden ibareler kalmıştı.
+  TENDER_SELL: "satış ilanı",
+  TENDER_BUY: "alım talebi",
 } as const;
 
 /** Rota → sidebar etiketi (tam eşleşme). Bulunamazsa null. */
