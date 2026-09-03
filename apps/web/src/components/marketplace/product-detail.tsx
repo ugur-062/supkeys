@@ -5,6 +5,7 @@ import { InquiryButton } from "./inquiry-button";
 import { Badge } from "@/components/catalyst/badge";
 import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { productPrice } from "@/lib/public/product-price";
 import type {
   PublicProduct,
@@ -140,25 +141,50 @@ export function ProductDetail({
           company={company}
           companyHref={`/firma/${companySlug}`}
           cta={
-            <>
-              {/* Hesap SORMUYOR — misafir talebi. Kayıt yanıtı okumak için
-                  gerekiyor; kullanıcı o noktada zaten emek vermiş olur. */}
-              <InquiryButton
-                companySlug={companySlug}
-                productSlug={product.slug}
-                productName={product.name}
-                companyName={company.name}
-              />
-              <p className="mt-2 text-center text-xs text-zinc-500">
-                Hesabınız var mı?{" "}
+            MARKETPLACE_LIVE ? (
+              <>
+                {/* Hesap SORMUYOR — misafir talebi. Kayıt yanıtı okumak için
+                    gerekiyor; kullanıcı o noktada zaten emek vermiş olur. */}
+                <InquiryButton
+                  companySlug={companySlug}
+                  productSlug={product.slug}
+                  productName={product.name}
+                  companyName={company.name}
+                />
+                <p className="mt-2 text-center text-xs text-zinc-500">
+                  Hesabınız var mı?{" "}
+                  <Link
+                    href="/company/login"
+                    className="font-medium text-zinc-700 hover:underline"
+                  >
+                    Giriş yapın
+                  </Link>
+                </p>
+              </>
+            ) : (
+              <>
+                {/* Pazar yeri anahtarı KAPALIYKEN misafir talebi ucu 404 döner
+                    (`MarketplaceLiveGuard`). Ürün sayfası ise açık — görünürlük
+                    ≠ indekslenme. Düğmeyi bırakmak, tıklayınca hata veren bir
+                    kutu göstermek olurdu: kullanıcı mesajını yazıyor,
+                    "gönder"de patlıyor. Anahtar açılınca üstteki dal döner. */}
                 <Link
                   href="/company/login"
-                  className="font-medium text-zinc-700 hover:underline"
+                  className="block w-full rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
                 >
-                  Giriş yapın
+                  Giriş yapıp talep gönderin
                 </Link>
-              </p>
-            </>
+                <p className="mt-2 text-center text-xs text-zinc-500">
+                  Hesabınız yok mu?{" "}
+                  <Link
+                    href="/company/kayit"
+                    className="font-medium text-zinc-700 hover:underline"
+                  >
+                    Ücretsiz kaydolun
+                  </Link>
+                </p>
+              </>
+            )
           }
         />
       </main>

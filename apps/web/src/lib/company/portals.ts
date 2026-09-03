@@ -73,6 +73,10 @@ export const MODULE_LABELS = {
     // kataloğu; ikisi menüde yan yana okunduğunda ayırt edilemiyordu
     // (kullanıcı geri bildirimi 2026-09-03) → burada FİİL kullanıyoruz.
     urunAra: "Ürün Ara",
+    // Satıştaki "Bilgi Talepleri" ile karıştırılmamalı: orası ürünlerime
+    // GELEN sorular, burası benim GÖNDERDİKLERİM. Ayrımı iyelik kipi taşıyor
+    // ("Ürünlerim"/"Ürün Ara" ile aynı kural).
+    bilgiTaleplerim: "Bilgi Taleplerim",
     teklifler: "Tekliflerim",
     siparisler: "Siparişlerim",
   },
@@ -124,6 +128,15 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: CubeIcon,
         label: MODULE_LABELS.satinalma.urunAra,
         href: "/company/satinalma/urunler",
+      },
+      {
+        // Ürün aramanın hemen ALTINDA: talep o akışın çıktısı — "ürünü buldum,
+        // sordum, yanıtı nerede?" sorusu menüde bir satır aşağı bakınca
+        // cevaplanmalı. Paket kapısı YOK: soru sormak satılan bir özellik
+        // değil, satıcı için gelen taleptir.
+        icon: EnvelopeIcon,
+        label: MODULE_LABELS.satinalma.bilgiTaleplerim,
+        href: "/company/satinalma/bilgi-taleplerim",
       },
       {
         icon: TagIcon,

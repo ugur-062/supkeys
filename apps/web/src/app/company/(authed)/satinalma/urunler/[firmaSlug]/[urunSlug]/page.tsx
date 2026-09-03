@@ -5,10 +5,12 @@ import {
   ProductBreadcrumb,
   ProductDetailBody,
 } from "@/components/marketplace/product-detail";
+import { PanelInquiryDialog } from "@/components/inquiries/panel-inquiry-dialog";
 import { usePublicProduct } from "@/hooks/use-portal-discovery";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 
 /**
  * PANEL içi ürün sayfası — `Ürün Ara`dan açılan kartın hedefi.
@@ -24,6 +26,7 @@ import { useParams } from "next/navigation";
  */
 export default function PanelProductPage() {
   const params = useParams<{ firmaSlug: string; urunSlug: string }>();
+  const [inquiryOpen, setInquiryOpen] = useState(false);
   const firmaSlug = params?.firmaSlug ?? "";
   const urunSlug = params?.urunSlug ?? "";
   const { data, isLoading, isError } = usePublicProduct(firmaSlug, urunSlug);
@@ -79,20 +82,38 @@ export default function PanelProductPage() {
           <>
             {/* Kimlik SORULMAZ — kullanıcı zaten giriş yapmış. Misafir
                 "Teklif iste" formu (ad/e-posta/firma/telefon) burada yanlış
-                olurdu; ayrıca o uç `MARKETPLACE_LIVE` kapalıyken 404 döner.
-                Bağlantı/mesaj eylemleri firma sayfasında toplu duruyor. */}
+                olurdu; ayrıca o uç `MARKETPLACE_LIVE` kapalıyken 404 döner. */}
+            <button
+              type="button"
+              onClick={() => setInquiryOpen(true)}
+              className="w-full rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Bilgi / teklif iste
+            </button>
             <Link
               href={companyHref}
-              className="flex w-full items-center justify-center rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              className="mt-2 block w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-center text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
             >
-              Firmayla iletişime geç
+              Firma sayfası
             </Link>
-            <p className="mt-2 text-center text-xs text-zinc-500">
-              Firma sayfasından bağlantı daveti gönderebilir ya da mesaj
-              yazabilirsiniz.
-            </p>
           </>
         }
+      />
+
+      <PanelInquiryDialog
+        open={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+        companySlug={firmaSlug}
+        productSlug={urunSlug}
+        productName={product.name}
+        companyName={company.name}
+        seed={{
+          productName: product.name,
+          unit: product.unit,
+          categoryId: product.categoryId,
+          keywords: product.keywords,
+          companyName: company.name,
+        }}
       />
     </PageContainer>
   );

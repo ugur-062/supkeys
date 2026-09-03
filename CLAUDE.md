@@ -621,6 +621,45 @@ menüde olmayan her sayfa gerekçesiyle listede olmalı, ve `MODULE_LABELS`teki
 her ad bir menü satırında kullanılmalı (bağlanmamış etiket, "sayfa var ama
 ulaşılamıyor" hatasının erken işareti).
 
+### Bilgi talepleri — İKİ PORTAL, İKİ YÖN (2026-09-03)
+
+Canlıda bulunan iki hata aynı kökten geliyordu: giriş yapmış kullanıcı panel
+içi ürün sayfasında **misafir formuyla** (ad/e-posta/firma/telefon) karşılaşıyor
+ve gönderdiği talepler **satış** panelinin "Gönderdiklerim" sekmesinde
+yaşıyordu — satın alma panelinde bilgi talebi diye bir şey yoktu.
+
+| Portal | Sayfa | Ne |
+|--------|-------|-----|
+| Satınalma | `satinalma/bilgi-taleplerim` — **"Bilgi Taleplerim"** | GÖNDERDİĞİM sorular + yanıtlar |
+| Satış | `satis/bilgi-talepleri` — **"Bilgi Talepleri"** | ürünlerime GELEN sorular |
+
+Tek bileşen (`InquiriesView portal=…`), tek veri katmanı; karşı yönün sorgusu
+o portalda hiç açılmaz. Ayrımı iyelik kipi taşıyor (Ürünlerim/Ürün Ara kuralı).
+
+**Kayıtlı alıcı yolu AYRI uç:** `POST company/inquiries` (auth'lu, SATIN_ALMACI
+rolü, KYC yok — mesaj sınıfı eylem). Misafir yolundan üç farkı tek sebebe
+dayanır, kimlik zaten kanıtlı: doğrulama jetonu yok (satır `verifiedAt` +
+`claimedCompanyId` ile doğar), bot savunması yok, kimlik alanı sorulmaz
+(ad/e-posta/firma oturumdan). Misafir tavanı (3/gün/e-posta) UYGULANMAZ —
+gerçek satın almacı günde üçten çok tedarikçiye sorar; frenler: aynı ürüne
+24 saatte tek talep + firma başına 30/gün. Kendi ürününe talep 400.
+
+**Yanıt bildirimi alıcının kayıtlı olup olmadığına göre ayrışır:** misafire
+"hesap açın" + `/company/kayit`; kayıtlıya "Bilgi Taleplerim'den okuyun" +
+`appRoutes.inquiriesSent`. Aynı metni ikisine göndermek hesabı olan kullanıcıyı
+kayıt ekranına atıyordu. İçerik iki dalda da e-postaya konmaz.
+
+**Ürün → talep köprüsü:** kutudaki ikinci eylem "Bu ürünü satın alma talebime
+ekle" ürünü sihirbaza İLK KALEM olarak taşır (`map-product-to-form.ts`,
+`sessionStorage` anahtarı AI taslağından AYRI — aynı anahtar olsaydı "AI
+doldurdu" bandı basılırdı). Miktar ve fiyat TAŞINMAZ: MOQ satıcının tabanı,
+vitrin fiyatı müzakereyi çıpalar.
+
+Herkese açık ürün sayfasında `MARKETPLACE_LIVE` kapalıyken misafir kutusu
+ÇİZİLMEZ (uç 404 döner; yazıp "gönder"de patlayan kutu yerine "Giriş yapıp
+talep gönderin"). Sözleşmeler: `public-inquiry.spec.ts` "KAYITLI alıcı" bloğu,
+`inquiries-portal.test.tsx`.
+
 ### Skor ≠ yayın kapısı
 
 `common/company/product-completion.ts` ikisini AYRI tutar:

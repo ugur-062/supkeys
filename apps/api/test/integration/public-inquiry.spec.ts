@@ -436,6 +436,197 @@ describe("satıcı tarafı — okuma, yanıtlama, hesaba bağlama", () => {
   });
 });
 
+describe("KAYITLI alıcı talebi — doğrulama adımı YOK", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  function svcWith() {
+    const mail = makeEmail();
+    return {
+      mail,
+      svc: new PublicInquiryService(
+        prisma as unknown as PrismaBypassService,
+        mail as never,
+      ),
+    };
+  }
+
+  async function buyer() {
+    const b = await makeCompanyWithUser(prisma);
+    return b;
+  }
+
+  it("talep ANINDA satıcıya iletilir ve alıcının 'gönderdiklerim'inde görünür", async () => {
+    // Misafir yolunda iletim jetona bağlı; burada kimlik zaten kanıtlı
+    // (hesap açarken e-posta doğrulandı), o yüzden ikinci bir kapı olmaz.
+    const { svc, mail } = svcWith();
+    const { company, product } = await seedProduct();
+    const b = await buyer();
+
+    await svc.createAsCompany({
+      companyId: b.company.id,
+      email: b.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      message: "Bu ürün için fiyat ve teslim süresi bilgisi rica ederim.",
+      quantity: "500 adet",
+    });
+
+    // Satıcı GÖRÜR (doğrulama beklemeden).
+    const received = await svc.listForCompany(company.id);
+    expect(received.total).toBe(1);
+    expect(received.items[0].name).toBe("Ayşe Demir");
+    expect(received.items[0].companyName).toBe(b.company.name);
+    expect(received.items[0].hasAccount).toBe(true);
+
+    // Alıcı da GÖRÜR — satır claimedCompanyId ile DOĞDU, kayıt sonrası
+    // tembel bağlamayı beklemedi.
+    const sent = await svc.listClaimed(b.company.id, b.user.email);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].quantity).toBe("500 adet");
+
+    // Ziyaretçiye "önce doğrula" e-postası GİTMEZ; yalnız satıcı bildirimi.
+    expect(mail.sent.some((m) => m.type === "public_inquiry_verify")).toBe(false);
+    expect(mail.sent.some((m) => m.type === "public_inquiry_received")).toBe(true);
+  });
+
+  it("kendi ürününe talep gönderilemez", async () => {
+    const { svc } = svcWith();
+    const { company, product } = await seedProduct();
+    await expect(
+      svc.createAsCompany({
+        companyId: company.id,
+        email: "x@example.com",
+        fullName: "Kendi Kullanıcı",
+        companySlug: company.slug as string,
+        productSlug: product.slug as string,
+        message: "Kendi ürünüme soru soruyorum, olmamalı.",
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("aynı ürüne 24 saatte ikinci talep engellenir", async () => {
+    // Yanıt gecikince kullanıcı tekrar gönderir; satıcının kutusunda aynı
+    // sorunun kopyası birikmesin.
+    const { svc } = svcWith();
+    const { company, product } = await seedProduct();
+    const b = await buyer();
+    const payload = {
+      companyId: b.company.id,
+      email: b.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      message: "Fiyat ve teslim süresi bilgisi rica ederim.",
+    };
+    await svc.createAsCompany(payload);
+    await expect(svc.createAsCompany(payload)).rejects.toThrow(
+      /zaten bir talep/i,
+    );
+  });
+
+  it("misafir günlük tavanı (3/e-posta) kayıtlı alıcıya UYGULANMAZ", async () => {
+    // Gerçek bir satın almacı gün içinde üçten fazla tedarikçiye soru sorar;
+    // dördüncüde kilitlenmek ürünü kullanılmaz yapardı.
+    const { svc } = svcWith();
+    const b = await buyer();
+    for (let i = 0; i < 4; i++) {
+      const { company, product } = await seedProduct();
+      await svc.createAsCompany({
+        companyId: b.company.id,
+        email: b.user.email,
+        fullName: "Ayşe Demir",
+        companySlug: company.slug as string,
+        productSlug: product.slug as string,
+        message: `Dördüncüsü de geçmeli — talep ${i}.`,
+      });
+    }
+    const sent = await svc.listClaimed(b.company.id, b.user.email);
+    expect(sent).toHaveLength(4);
+  });
+
+  it("KAYITLI alıcıya gelen yanıt bildirimi 'hesap aç' DEMEZ", async () => {
+    // Yanıt bildirimi misafir için yazılmıştı ("ücretsiz hesabınızı
+    // oluşturun" + kayıt ekranına CTA). Hesabı OLAN alıcıya aynı metni
+    // göndermek onu kayıt ekranına atar ve yanıtın hangi sayfada beklediğini
+    // hiç söylemez.
+    const { svc, mail } = svcWith();
+    const { company, product } = await seedProduct();
+    const seller = await prisma.companyUser.findFirst({
+      where: { companyId: company.id },
+      select: { id: true },
+    });
+    const b = await buyer();
+
+    const inq = await svc.createAsCompany({
+      companyId: b.company.id,
+      email: b.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      message: "Fiyat ve teslim süresi bilgisi rica ederim.",
+    });
+
+    mail.sent.length = 0;
+    await svc.reply(company.id, seller!.id, inq.id, "Stokta var, fiyat ektedir.");
+    await new Promise((r) => setTimeout(r, 50)); // bildirim fire-and-forget
+
+    const note = mail.sent.find((m) => m.type === "public_inquiry_reply");
+    expect(note?.to).toBe(b.user.email.toLowerCase());
+    expect(note!.body).not.toMatch(/hesabınızı oluştur|company\/kayit/i);
+    expect(note!.body).toContain("/company/satinalma/bilgi-taleplerim");
+    // İçerik İKİ dalda da taşınmaz — yazışma platformda kalsın.
+    expect(note!.body).not.toContain("Stokta var");
+  });
+
+  it("MİSAFİR alıcıya gelen yanıt bildirimi hâlâ kayda çağırır", async () => {
+    // Karşı dal: hesabı olmayan ziyaretçi için yanıtı okumanın tek yolu kayıt.
+    const { svc, mail } = svcWith();
+    const { company, product } = await seedProduct();
+    const seller = await prisma.companyUser.findFirst({
+      where: { companyId: company.id },
+      select: { id: true },
+    });
+    await svc.create({
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      ...VALID,
+    });
+    const token = /t=([a-f0-9]{64})/.exec(mail.sent[0].body)?.[1] as string;
+    await svc.verify(token);
+    const row = await prisma.publicInquiry.findFirstOrThrow();
+
+    mail.sent.length = 0;
+    await svc.reply(company.id, seller!.id, row.id, "Stokta var.");
+    await new Promise((r) => setTimeout(r, 50));
+
+    const note = mail.sent.find((m) => m.type === "public_inquiry_reply");
+    expect(note!.body).toContain("/company/kayit");
+  });
+
+  it("yayımda olmayan ürüne talep gönderilemez (misafirle AYNI kapı)", async () => {
+    const { svc } = svcWith();
+    const { company, product } = await seedProduct();
+    await prisma.companyItem.update({
+      where: { id: product.id },
+      data: { isPublic: false },
+    });
+    const b = await buyer();
+    await expect(
+      svc.createAsCompany({
+        companyId: b.company.id,
+        email: b.user.email,
+        fullName: "Ayşe Demir",
+        companySlug: company.slug as string,
+        productSlug: product.slug as string,
+        message: "Vitrinden çekilmiş ürüne soru sorulamamalı.",
+      }),
+    ).rejects.toThrow(NotFoundException);
+  });
+});
+
 describe("hesaba bağlama — TEMBEL ve idempotent", () => {
   beforeEach(async () => {
     await truncateAll();

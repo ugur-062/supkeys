@@ -18,4 +18,9 @@ export const appRoutes = {
   premium: (base: string) => `${base}/company/premium`,
   messagesWith: (base: string, companyId: string) =>
     `${base}/company/mesajlar?with=${companyId}`,
+  /** Ürünlerime GELEN bilgi talepleri (satıcı gözü). */
+  inquiriesReceived: (base: string) => `${base}/company/satis/bilgi-talepleri`,
+  /** GÖNDERDİĞİM bilgi talepleri (alıcı gözü) — ayrı portal, ayrı rota. */
+  inquiriesSent: (base: string) =>
+    `${base}/company/satinalma/bilgi-taleplerim`,
 } as const;

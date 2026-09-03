@@ -3,11 +3,12 @@
 import { InquiriesView } from "@/components/inquiries/inquiries-view";
 
 /**
- * Bilgi Talepleri (Faz 1) — misafir ziyaretçilerin ürün sayfalarından
- * gönderdiği sorular ve kullanıcının kendi gönderdikleri.
+ * Bilgi Talepleri (SATIŞ) — ürünlerime GELEN sorular.
  *
- * SATIŞ portalında: gelen talepler firmanın ÜRÜNLERİNE ait.
+ * "Gönderdiklerim" sekmesi buradan KALKTI: alıcı olarak gönderdiğin talepler
+ * satın alma panelindeki "Bilgi Taleplerim" sayfasında. Satış panelinde
+ * durmaları rol sınırının sızmasıydı.
  */
 export default function BilgiTalepleriPage() {
-  return <InquiriesView />;
+  return <InquiriesView portal="satis" />;
 }

@@ -43,8 +43,10 @@ export interface SentInquiry {
 
 export const INQUIRY_KEY = ["company-inquiries"] as const;
 
-export function useReceivedInquiries() {
+/** `enabled=false` → karşı portalda gereksiz istek atılmaz. */
+export function useReceivedInquiries(enabled = true) {
   return useQuery<{ items: ReceivedInquiry[]; total: number }>({
+    enabled,
     queryKey: [...INQUIRY_KEY, "received"],
     queryFn: async () => {
       const { data } = await companyApi.get("/company/inquiries/received");
@@ -53,8 +55,9 @@ export function useReceivedInquiries() {
   });
 }
 
-export function useSentInquiries() {
+export function useSentInquiries(enabled = true) {
   return useQuery<SentInquiry[]>({
+    enabled,
     queryKey: [...INQUIRY_KEY, "sent"],
     queryFn: async () => {
       const { data } = await companyApi.get<SentInquiry[]>(
@@ -72,6 +75,33 @@ export function useReplyInquiry() {
       const { data } = await companyApi.post<InquiryReply>(
         `/company/inquiries/${id}/reply`,
         { body },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: INQUIRY_KEY });
+    },
+  });
+}
+
+/**
+ * KAYITLI alıcının bilgi talebi. Misafir yolundan (`/public/inquiries`)
+ * ayrıdır ve ayrı olması zorunlu: o uç pazar yeri anahtarına tabi (kapalıyken
+ * 404) ve kimlik alanlarını GÖVDEDEN alıyor. Burada ad/e-posta/firma
+ * oturumdan gelir — kullanıcıya kendi bildiğimiz bilgiyi yazdırmayız.
+ */
+export function useSendInquiry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      companySlug: string;
+      productSlug: string;
+      message: string;
+      quantity?: string;
+    }) => {
+      const { data } = await companyApi.post<{ id: string }>(
+        "/company/inquiries",
+        input,
       );
       return data;
     },

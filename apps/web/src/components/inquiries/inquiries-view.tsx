@@ -12,45 +12,76 @@ import {
   type SentInquiry,
 } from "@/hooks/use-inquiries";
 import { InboxIcon, PaperAirplaneIcon } from "@heroicons/react/20/solid";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
 /**
- * BİLGİ TALEPLERİ ekranı — iki sekme.
+ * BİLGİ TALEPLERİ ekranı — PORTAL YÖNÜ içeriği belirler.
  *
- * "Gelen" satıcı gözü, "Gönderdiklerim" alıcı gözü. İkisi aynı tabloyu okur;
- * ayrı ekranlara bölmek kullanıcıyı iki menü satırı arasında gezdirirdi.
+ * Eskiden tek ekranda iki sekme vardı ("Gelen" + "Gönderdiklerim") ve o ekran
+ * yalnız SATIŞ portalındaydı. Sonuç: alıcı olarak gönderdiğin talepler satış
+ * panelinin altında yaşıyordu — satın alma panelinde bilgi talebi diye bir şey
+ * yoktu. Rol sınırının sızması buydu.
+ *
+ * Artık aynı bileşen iki yerde, tek yön gösterir:
+ *   satis     → "Gelen"          (ürünlerime gelen sorular)
+ *   satinalma → "Gönderdiklerim" (benim sorduklarım)
+ * Veri katmanı ORTAK; bölünen yalnız hangi ucun okunduğu. Karşı yönün sorgusu
+ * hiç açılmaz — rolü olmayan portalda gereksiz istek atmanın anlamı yok.
  *
  * Ziyaretçinin e-postası ve telefonu GÖSTERİLMEZ — uç zaten döndürmüyor
  * (satıcı doğrudan yazıp platformu atlamasın diye).
  */
-export function InquiriesView() {
-  const [tab, setTab] = useState<"received" | "sent">("received");
-  const received = useReceivedInquiries();
-  const sent = useSentInquiries();
+export function InquiriesView({
+  portal = "satis",
+}: {
+  portal?: "satis" | "satinalma";
+} = {}) {
+  const isSeller = portal === "satis";
+  const received = useReceivedInquiries(isSeller);
+  const sent = useSentInquiries(!isSeller);
+  const tab: "received" | "sent" = isSeller ? "received" : "sent";
 
   return (
     <PageContainer>
       <PageHeader
-        title="Bilgi Talepleri"
-        description="Ürünleriniz hakkında gelen sorular ve sizin gönderdikleriniz."
+        title={isSeller ? "Bilgi Talepleri" : "Bilgi Taleplerim"}
+        description={
+          isSeller
+            ? "Ürünleriniz hakkında gelen sorular — yanıtladıkça alıcı panelinde görünür."
+            : "Tedarikçi ürünleri hakkında gönderdiğiniz sorular ve gelen yanıtlar."
+        }
+        action={
+          isSeller ? undefined : (
+            <Link
+              href="/company/satinalma/urunler"
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
+            >
+              Ürün ara
+            </Link>
+          )
+        }
       />
 
       <div className="mt-6 flex gap-2">
-        <TabButton
-          active={tab === "received"}
-          onClick={() => setTab("received")}
-          icon={InboxIcon}
-          label="Gelen"
-          count={received.data?.total}
-        />
-        <TabButton
-          active={tab === "sent"}
-          onClick={() => setTab("sent")}
-          icon={PaperAirplaneIcon}
-          label="Gönderdiklerim"
-          count={sent.data?.length}
-        />
+        {isSeller ? (
+          <TabButton
+            active
+            onClick={() => undefined}
+            icon={InboxIcon}
+            label="Gelen"
+            count={received.data?.total}
+          />
+        ) : (
+          <TabButton
+            active
+            onClick={() => undefined}
+            icon={PaperAirplaneIcon}
+            label="Gönderdiklerim"
+            count={sent.data?.length}
+          />
+        )}
       </div>
 
       <div className="mt-8">
@@ -74,7 +105,7 @@ export function InquiriesView() {
         ) : (sent.data?.length ?? 0) === 0 ? (
           <Empty
             title="Gönderdiğiniz talep yok."
-            body="Pazar yerinde bir ürün sayfasından soru gönderdiyseniz ve aynı e-postayla kaydolduysanız burada görünür."
+            body="Ürün Ara'dan bir ürüne girip 'Bilgi / teklif iste' ile soru gönderin; yanıtlar burada birikir."
           />
         ) : (
           <ul className="space-y-4">

@@ -7,6 +7,11 @@ import { TenderWizard } from "@/components/tenders/wizard/tender-wizard";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
+import {
+  PRODUCT_SEED_KEY,
+  mapProductToForm,
+  type ProductSeed,
+} from "@/lib/tenders/map-product-to-form";
 import type { AiTenderExtractResult } from "@rothern/shared";
 import { Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -16,9 +21,12 @@ export default function YeniIhalePage() {
   const params = useSearchParams();
   const fromId = params.get("from") ?? "";
   const fromAi = params.get("ai") === "1";
+  /** Ürün sayfasından "talebime ekle" ile gelindi. */
+  const fromProduct = params.get("urun") === "1";
   const { data: source, isLoading } = useListingDetail(fromId);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResult, setAiResult] = useState<AiTenderExtractResult | null>(null);
+  const [productSeed, setProductSeed] = useState<ProductSeed | null>(null);
 
   // AI-3: asistandan gelen taslak sessionStorage'da → wizard'a taşı.
   useEffect(() => {
@@ -34,6 +42,22 @@ export default function YeniIhalePage() {
     }
   }, [fromAi]);
 
+  // Ürün tohumu — AI taslağıyla AYNI taşıma tekniği (sessionStorage), AYRI
+  // anahtar. Aynı anahtarı paylaşsalardı ürün tohumu `AiTenderExtractResult`
+  // gibi ayrıştırılır ve sayfaya "AI doldurdu" bandı basılırdı; burada AI yok.
+  useEffect(() => {
+    if (!fromProduct) return;
+    const raw = sessionStorage.getItem(PRODUCT_SEED_KEY);
+    if (raw) {
+      try {
+        setProductSeed(JSON.parse(raw) as ProductSeed);
+      } catch {
+        /* bozuk payload — yok say */
+      }
+      sessionStorage.removeItem(PRODUCT_SEED_KEY);
+    }
+  }, [fromProduct]);
+
   if (fromId && isLoading) {
     return <Text className="text-sm text-zinc-500">Kopyalanıyor…</Text>;
   }
@@ -42,6 +66,15 @@ export default function YeniIhalePage() {
   if (fromId && source && source.isOwner && source.type === "ALIM") {
     return (
       <TenderWizard initialValues={mapDetailToForm(source, { forCopy: true })} />
+    );
+  }
+
+  if (productSeed) {
+    return (
+      <TenderWizard
+        key="product-seed"
+        initialValues={mapProductToForm(productSeed)}
+      />
     );
   }
 

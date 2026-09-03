@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { appRoutes } from "../../common/company/app-routes";
 import { hasPublicProfile } from "../../common/company/public-profile-gate";
 import { EmailService } from "../email/email.service";
 
@@ -39,8 +40,10 @@ export class PublicInquiryService {
   private static readonly MAX_PER_IP_HOUR = 5;
   /** Aynı IP'den bekleyen (doğrulanmamış) talep tavanı — kuyruk şişmesin. */
   private static readonly MAX_PENDING_PER_IP = 10;
-  /** Aynı e-postadan günlük tavan. */
+  /** Aynı e-postadan günlük tavan (MİSAFİR yolu). */
   private static readonly MAX_PER_EMAIL_DAY = 3;
+  /** Kayıtlı firmadan günlük tavan — misafir tavanı burada geçersiz. */
+  private static readonly MAX_PER_COMPANY_DAY = 30;
 
   async create(input: {
     companySlug: string;
@@ -134,6 +137,126 @@ export class PublicInquiryService {
   }
 
   /* ================================================================== */
+  /* KAYITLI ALICI                                                       */
+  /* ================================================================== */
+
+  /**
+   * GİRİŞ YAPMIŞ firmanın bilgi talebi.
+   *
+   * Misafir yolundan üç yerde ayrılır ve üçü de aynı sebebe dayanır: KİMLİK
+   * ZATEN KANITLI.
+   *
+   *  1. **Doğrulama adımı YOK** — talep anında satıcıya iletilir
+   *     (`verifiedAt` hemen). Misafir yolundaki jeton, e-posta kutusunun
+   *     sahibi olduğunu kanıtlatmak içindi; hesap açarken o kanıt zaten
+   *     verildi (6 haneli kod) ve doğrulanmamış e-postayla giriş kapalı.
+   *  2. **Bot savunması YOK** (tuzak alan, süre ölçümü, IP tavanı). Bunlar
+   *     anonim yazma ucunun savunmasıydı; burada oturum var.
+   *  3. **Kimlik alanları SORULMAZ** — ad/e-posta/firma oturumdan gelir.
+   *     Sormak, kullanıcıya kendi bildiğimiz bilgiyi yeniden yazdırmak olurdu
+   *     (canlıda tam olarak bu oluyordu: giriş yapmış kullanıcı ürün
+   *     sayfasında misafir formuyla karşılaşıyordu).
+   *
+   * Satır `claimedCompanyId` ile DOĞAR: misafir yolunda bu alan kayıt sonrası
+   * tembel bağlamayla doluyor, burada gönderen zaten belli. `sent` listesi
+   * (alıcı gözü) bu alanı okuduğu için talep anında orada görünür.
+   *
+   * `tokenHash` şemada zorunlu ve tekil; hiçbir zaman e-postalanmayan rastgele
+   * bir değer yazılır. Kolonu nullable yapmak için migration açmak, canlı
+   * tabloya yalnız bu yol için dokunmak demekti — jeton zaten "kullanılmış"
+   * sayılıyor (`expiresAt` geçmiş).
+   */
+  async createAsCompany(input: {
+    companyId: string;
+    email: string;
+    fullName: string;
+    companySlug: string;
+    productSlug: string;
+    message: string;
+    quantity?: string;
+  }): Promise<{ id: string }> {
+    const product = await this.requireTarget(
+      input.companySlug,
+      input.productSlug,
+    );
+
+    // Kendi ürününe talep: satıcıya kendi kendine bildirim gider, "gelen
+    // talepler" kendi satırıyla kirlenir.
+    if (product.companyId === input.companyId) {
+      throw new BadRequestException(
+        "Kendi ürününüz için bilgi talebi gönderemezsiniz",
+      );
+    }
+
+    await this.assertCompanyWithinLimits(input.companyId, product.id);
+
+    // Alıcı firma adı OTURUMDAN değil VERİTABANINDAN: JWT'de yok ve olsaydı
+    // bile bayatlardı — satıcının gördüğü ad her zaman güncel olmalı.
+    const buyer = await this.prisma.company.findUnique({
+      where: { id: input.companyId },
+      select: { name: true },
+    });
+
+    const inquiry = await this.prisma.publicInquiry.create({
+      data: {
+        companyId: product.companyId,
+        productId: product.id,
+        name: input.fullName,
+        email: input.email.trim().toLowerCase(),
+        companyName: buyer?.name ?? null,
+        message: input.message.trim(),
+        quantity: input.quantity?.trim() || null,
+        // Jeton hiç kullanılmaz — satır doğrulanmış doğuyor.
+        tokenHash: hashToken(randomBytes(32).toString("hex")),
+        expiresAt: new Date(),
+        verifiedAt: new Date(),
+        claimedCompanyId: input.companyId,
+        claimedAt: new Date(),
+      },
+      select: { id: true, name: true },
+    });
+
+    // Misafir yolundaki İLETİM adımının aynısı — tek fark, doğrulamayı
+    // beklemeden burada olması.
+    void this.notifySeller(product.companyId, product.name, inquiry.name);
+
+    return { id: inquiry.id };
+  }
+
+  /**
+   * Kayıtlı alıcı tavanları. Misafir tavanları (3/gün/e-posta) BURAYA
+   * UYGULANMAZ: gerçek bir satın almacı gün içinde üçten fazla tedarikçiye
+   * soru sorar ve dördüncüde kilitlenmek ürünü kullanılmaz yapardı.
+   *
+   * İki fren kalıyor:
+   *  · aynı ÜRÜNE 24 saat içinde ikinci talep — satıcının kutusunda aynı
+   *    sorunun kopyası birikmesin (kullanıcı yanıt gelmedi diye tekrar
+   *    gönderir; doğru yol mevcut talebe bakmak),
+   *  · firma başına günlük tavan — hesap ele geçirilirse zarar sınırlı kalsın.
+   */
+  private async assertCompanyWithinLimits(companyId: string, productId: string) {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [sameProduct, dayTotal] = await Promise.all([
+      this.prisma.publicInquiry.count({
+        where: { claimedCompanyId: companyId, productId, createdAt: { gte: dayAgo } },
+      }),
+      this.prisma.publicInquiry.count({
+        where: { claimedCompanyId: companyId, createdAt: { gte: dayAgo } },
+      }),
+    ]);
+    if (sameProduct > 0) {
+      throw new BadRequestException(
+        "Bu ürün için zaten bir talep gönderdiniz — yanıtı Bilgi Taleplerim sayfasından takip edebilirsiniz",
+      );
+    }
+    if (dayTotal >= PublicInquiryService.MAX_PER_COMPANY_DAY) {
+      throw new BadRequestException(
+        "Bugün için talep sınırına ulaştınız — yarın tekrar deneyebilirsiniz",
+      );
+    }
+  }
+
+  /* ================================================================== */
   /* SATICI TARAFI                                                       */
   /* ================================================================== */
 
@@ -195,11 +318,12 @@ export class PublicInquiryService {
   }
 
   /**
-   * Satıcının yanıtı. Ziyaretçiye giden bildirim İÇERİK TAŞIMAZ — yalnız
-   * "yanıt geldi, okumak için hesap açın" der.
+   * Satıcının yanıtı. Alıcıya giden bildirim İÇERİK TAŞIMAZ — yalnız "yanıt
+   * geldi" der. İçeriği koysaydık platform ücretsiz bir e-posta rölesine
+   * dönerdi; ilişkiyi de göremezdik.
    *
-   * İçeriği koysaydık kayıt için bir sebep kalmaz ve platform ücretsiz bir
-   * e-posta rölesine dönerdi; ilişkiyi de göremezdik.
+   * Bildirimin geri kalanı alıcının KAYITLI olup olmamasına göre ayrışır
+   * (`notifyVisitorOfReply`).
    */
   async reply(
     companyId: string,
@@ -213,6 +337,8 @@ export class PublicInquiryService {
         id: true,
         name: true,
         email: true,
+        // Talebi KAYITLI bir alıcı mı gönderdi — bildirimin dili buna bağlı.
+        claimedCompanyId: true,
         product: { select: { name: true } },
         company: { select: { name: true } },
       },
@@ -233,6 +359,7 @@ export class PublicInquiryService {
       inquiry.name,
       inquiry.product.name,
       inquiry.company.name,
+      inquiry.claimedCompanyId != null,
     );
 
     return {
@@ -242,12 +369,25 @@ export class PublicInquiryService {
     };
   }
 
+  /**
+   * Yanıt bildirimi — ALICI KAYITLI MI, dil ona göre.
+   *
+   * Misafire "hesap açın" demek doğru: yanıtı okumasının tek yolu bu ve
+   * içeriği e-postaya koymak platformu ücretsiz bir röleye çevirirdi. Aynı
+   * metni KAYITLI alıcıya göndermek ise düpedüz yanlış — hesabı zaten var,
+   * "Hesabımı oluştur" düğmesi onu kayıt ekranına atar ve yanıtın hangi
+   * sayfada beklediğini hiç söylemez.
+   *
+   * İçerik iki dalda da TAŞINMAZ: satıcı bildirimi de içerik taşımıyor,
+   * yazışma platformda kalsın diye (aynı model notu).
+   */
   private async notifyVisitorOfReply(
     replyId: string,
     email: string,
     name: string,
     productName: string,
     companyName: string,
+    claimed: boolean,
   ) {
     try {
       const res = await this.email.send({
@@ -259,11 +399,15 @@ export class PublicInquiryService {
             heading: "Yanıtınız hazır",
             paragraphs: [
               `${companyName}, "${productName}" hakkındaki talebinizi yanıtladı.`,
-              // İÇERİK BİLİNÇLİ OLARAK YOK — yanıtı okumak hesapla olur.
-              "Yanıtı okumak için ücretsiz hesabınızı oluşturun; bu talebiniz ve gelen yanıtlar hesabınıza bağlanacak.",
+              // İÇERİK BİLİNÇLİ OLARAK YOK.
+              claimed
+                ? "Yanıtı Bilgi Taleplerim sayfanızdan okuyabilirsiniz."
+                : "Yanıtı okumak için ücretsiz hesabınızı oluşturun; bu talebiniz ve gelen yanıtlar hesabınıza bağlanacak.",
             ],
-            ctaLabel: "Hesabımı oluştur ve yanıtı oku",
-            ctaUrl: `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
+            ctaLabel: claimed ? "Yanıtı oku" : "Hesabımı oluştur ve yanıtı oku",
+            ctaUrl: claimed
+              ? appRoutes.inquiriesSent(webBase())
+              : `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
           },
         },
         context: { type: "public_inquiry_reply", id: replyId },
@@ -449,7 +593,7 @@ export class PublicInquiryService {
                 "Talebi panelinizden görüntüleyip yanıtlayabilirsiniz.",
               ],
               ctaLabel: "Talebi görüntüle",
-              ctaUrl: `${webBase()}/company/satis/bilgi-talepleri`,
+              ctaUrl: appRoutes.inquiriesReceived(webBase()),
             },
           },
           context: { type: "public_inquiry_received", id: companyId },
