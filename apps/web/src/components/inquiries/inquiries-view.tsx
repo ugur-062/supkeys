@@ -44,6 +44,13 @@ export function InquiriesView({
   const received = useReceivedInquiries(isSeller);
   const sent = useSentInquiries(!isSeller);
   const tab: "received" | "sent" = isSeller ? "received" : "sent";
+  // Satıcı sekmeleri gerçek bir ayrım taşır: yanıt BEKLEYEN ↔ YANITLANAN (tek
+  // sekmeli çubuk anlamsızdı — v2 7d). Alıcıda sekme çubuğu yok.
+  const [sellerTab, setSellerTab] = useState<"open" | "answered">("open");
+  const receivedItems = received.data?.items ?? [];
+  const openItems = receivedItems.filter((i) => i.replies.length === 0);
+  const answeredItems = receivedItems.filter((i) => i.replies.length > 0);
+  const shownReceived = sellerTab === "open" ? openItems : answeredItems;
 
   return (
     <PageContainer>
@@ -66,39 +73,44 @@ export function InquiriesView({
         }
       />
 
-      <div className="mt-6 flex gap-2">
-        {isSeller ? (
+      {isSeller ? (
+        <div className="mt-6 flex gap-2">
           <TabButton
-            active
-            onClick={() => undefined}
+            active={sellerTab === "open"}
+            onClick={() => setSellerTab("open")}
             icon={InboxIcon}
             label="Gelen"
-            count={received.data?.total}
+            count={received.data ? openItems.length : undefined}
           />
-        ) : (
           <TabButton
-            active
-            onClick={() => undefined}
+            active={sellerTab === "answered"}
+            onClick={() => setSellerTab("answered")}
             icon={PaperAirplaneIcon}
-            label="Gönderdiklerim"
-            count={sent.data?.length}
+            label="Yanıtlanan"
+            count={received.data ? answeredItems.length : undefined}
           />
-        )}
-      </div>
+        </div>
+      ) : null}
 
       <div className="mt-8">
         {tab === "received" ? (
           received.isLoading ? (
             <Loading />
-          ) : (received.data?.items.length ?? 0) === 0 ? (
+          ) : receivedItems.length === 0 ? (
             <EmptyState
               icon={Inbox}
               title="Henüz bilgi talebi yok."
               description="Ürünlerinizi vitrine çıkardığınızda ziyaretçiler buradan soru sorabilir."
             />
+          ) : shownReceived.length === 0 ? (
+            <EmptyState
+              icon={sellerTab === "open" ? Inbox : Send}
+              title={sellerTab === "open" ? "Yanıt bekleyen talep yok." : "Henüz yanıtlanan talep yok."}
+              variant="no-results"
+            />
           ) : (
             <ul className="space-y-4">
-              {received.data?.items.map((i) => (
+              {shownReceived.map((i) => (
                 <ReceivedCard key={i.id} inquiry={i} />
               ))}
             </ul>

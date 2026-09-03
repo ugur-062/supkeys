@@ -106,7 +106,10 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.getByText(/2\/12/)).toBeInTheDocument();
     expect((screen.getByLabelText("Hakkında") as HTMLTextAreaElement).value).toBe("Biz demo firmayız.");
     // Kontroller
-    expect(screen.getByLabelText("Logoyu değiştir")).toBeInTheDocument();
+    // Logo/kapak üstünde TEK "Düzenle" menüsü (v2 7g) — değiştir/kaldır içeride.
+    fireEvent.click(screen.getByLabelText("Logoyu düzenle"));
+    expect(screen.getByRole("menuitem", { name: "Logoyu değiştir" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Logoyu kaldır" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Kapak görseli ekle/ })).toBeInTheDocument();
     // Temizken kaydet çubuğu yok
     expect(screen.queryByText(/Kaydedilmemiş değişiklikler/)).not.toBeInTheDocument();

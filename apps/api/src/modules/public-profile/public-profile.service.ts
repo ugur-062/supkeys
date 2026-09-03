@@ -62,6 +62,7 @@ export class PublicProfileService {
         isBlocked: true,
         tier: true,
         membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için (yanıtta sızmaz)
+        companyVerificationStatus: true,
         updatedAt: true,
       },
     });
@@ -82,7 +83,16 @@ export class PublicProfileService {
       take: REVIEW_SUMMARY_TAKE,
     });
     const reviewSummary = buildReviewSummary(reviewRows, { revealNames: false });
-    const { id, publicEnabled, isActive, isBlocked, tier, membershipEndAt, ...pub } =
+    const {
+      id,
+      publicEnabled,
+      isActive,
+      isBlocked,
+      tier,
+      membershipEndAt,
+      companyVerificationStatus,
+      ...pub
+    } =
       c;
     void id;
     void publicEnabled;
@@ -97,6 +107,9 @@ export class PublicProfileService {
       goldMember:
         effectiveTier(tier as string, membershipEndAt as Date | null) ===
         "GOLD",
+      // KYC tamam — "Doğrulanmış" rozeti (Europages'in Verified'ı). Yalnız
+      // admin `setVerification` ile VERIFIED yazar; otomatik yol yok.
+      verified: companyVerificationStatus === "VERIFIED",
       // rating: geriye uyumlu kısa biçim (firma-ağırlıklı ortalama + sipariş sayısı).
       rating: { avg: reviewSummary.avg, count: reviewSummary.orders },
       reviewSummary,

@@ -37,6 +37,8 @@ export interface ProfileViewData {
   name: string;
   /** Faz T: "Gold Üye" rozeti — yalnız GOLD kademe (güven iddiası taşımaz). */
   goldMember?: boolean;
+  /** KYC doğrulaması tamam — "Doğrulanmış" rozeti (Firma Bilgileri / Doğrulama Belgeleri'nden). */
+  verified?: boolean;
   rothernId?: string | null;
   industry: string | null;
   /**
@@ -205,6 +207,14 @@ export function CompanyProfileView({
               <div className="mb-1.5 min-w-0">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
                   {p.name}
+                  {p.verified ? (
+                    <span
+                      className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
+                      title="Kimliği doğrulanmış firma"
+                    >
+                      Doğrulanmış
+                    </span>
+                  ) : null}
                   {p.goldMember ? (
                     <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
                       Gold Üye

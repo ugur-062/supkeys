@@ -68,7 +68,8 @@ import {
   Wallet, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useScrolledPast } from "@/hooks/use-scrolled-past";
 import { toast } from "sonner";
 import { useImportListingToCatalog } from "@/hooks/use-company-items";
 
@@ -266,6 +267,10 @@ export default function ListingDetailPage() {
 
   // WS: bu ilanın odasına abone ol — teklif/durum değişimi anında düşer.
   useEffect(() => subscribeRealtime("listing", id), [id]);
+  // Yapışkan eylem şeridi YALNIZ başlık görünümden çıkınca (v2 7b): sayfa
+  // başındayken başlıktaki durum rozetiyle ikinci kez görünüyordu.
+  const headerRef = useRef<HTMLDivElement>(null);
+  const pastHeader = useScrolledPast(headerRef);
 
   const handleAward = async (bidId: string, bidderName: string) => {
     // Tıklama-anı ön kontrol: bu teklif BU TUTARDA onaya takılır mı? Sunucu,
@@ -1817,7 +1822,12 @@ export default function ListingDetailPage() {
             (backend publishListing→assertListingManageRole birebir). */}
         {/* B2: top-14 = topbar (h-14) ile hizalı — top-16'daki 8px açık şerit
             + yarı saydam zemin, altta kayan chip'leri gösteriyordu (opak bg). */}
-        <div className="sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4">
+        <div
+          className={cn(
+            "sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4",
+            !pastHeader && "invisible h-0 overflow-hidden border-0 py-0 shadow-none",
+          )}
+        >
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
@@ -1849,7 +1859,7 @@ export default function ListingDetailPage() {
         {orderStrip}
 
         <div className="card p-5">
-          <div className="min-w-0">{header}</div>
+          <div className="min-w-0" ref={headerRef}>{header}</div>
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
               canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}
@@ -2046,7 +2056,12 @@ export default function ListingDetailPage() {
             kez" kuralı gereği yalnız burada). */}
         {/* B2: top-14 = topbar (h-14) ile hizalı — top-16'daki 8px açık şerit
             + yarı saydam zemin, altta kayan chip'leri gösteriyordu (opak bg). */}
-        <div className="sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4">
+        <div
+          className={cn(
+            "sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4",
+            !pastHeader && "invisible h-0 overflow-hidden border-0 py-0 shadow-none",
+          )}
+        >
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
@@ -2075,7 +2090,7 @@ export default function ListingDetailPage() {
 
         <div className="card p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">{header}</div>
+            <div className="min-w-0 flex-1" ref={headerRef}>{header}</div>
             {biddingOpen && l.closesAt ? (
               <div className="shrink-0 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-right">
                 <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">

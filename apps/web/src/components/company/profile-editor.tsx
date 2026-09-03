@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
 import { Switch } from "@/components/catalyst/switch";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
   CompanyProfileView,
@@ -26,16 +27,7 @@ import { PROFILE_IMAGE_LIMITS, resizeImageFile } from "@/lib/image-resize";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import {
-  Camera,
-  GripVertical,
-  ImagePlus,
-  Loader2,
-  Plus,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Camera, GripVertical, ImagePlus, Loader2, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -169,6 +161,7 @@ export function ProfileEditor({
     rothernId: profile.rothernId,
     industry: draft.industry || null,
     activities: profile.activities,
+    verified: profile.companyVerificationStatus === "VERIFIED",
     city: profile.city,
     country: profile.country,
     logoUrl: draft.logoUrl || null,
@@ -531,24 +524,17 @@ function CoverControls({ value, onChange }: { value: string; onChange: (v: strin
         onChange={(e) => void handle(e.target.files)}
       />
       {value ? (
-        <div className="absolute bottom-3 right-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={pick}
-            disabled={upload.isPending}
-            className="inline-flex items-center gap-1.5 rounded-md bg-white/90 px-2.5 py-1.5 text-xs font-medium text-zinc-800 shadow hover:bg-white"
-          >
-            {upload.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
-            Kapağı değiştir
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="inline-flex items-center gap-1 rounded-md bg-white/90 px-2 py-1.5 text-xs font-medium text-zinc-700 shadow hover:bg-white"
-            aria-label="Kapağı kaldır"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
+        // Tek "Düzenle" menüsü (v2 7g): kapakta iki, logoda iki ayrı overlay
+        // düğme üst üste biniyordu.
+        <div className="absolute bottom-3 right-3">
+          <OverlayMenu
+            label="Kapağı düzenle"
+            busy={upload.isPending}
+            items={[
+              { label: "Kapağı değiştir", onClick: pick },
+              { label: "Kapağı kaldır", onClick: () => onChange(""), danger: true },
+            ]}
+          />
         </div>
       ) : (
         <button
@@ -577,26 +563,30 @@ function LogoControls({ value, onChange }: { value: string; onChange: (v: string
         aria-label="Logo seç"
         onChange={(e) => void handle(e.target.files)}
       />
-      <button
-        type="button"
-        onClick={pick}
-        disabled={upload.isPending}
-        title={value ? "Logoyu değiştir" : "Logo yükle"}
-        aria-label={value ? "Logoyu değiştir" : "Logo yükle"}
-        className="absolute -bottom-1 -right-1 inline-flex size-8 items-center justify-center rounded-full bg-zinc-900 text-white shadow ring-2 ring-white hover:bg-zinc-700"
-      >
-        {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-      </button>
       {value ? (
+        <div className="absolute -bottom-1 -right-1">
+          <OverlayMenu
+            label="Logoyu düzenle"
+            busy={upload.isPending}
+            compact
+            items={[
+              { label: "Logoyu değiştir", onClick: pick },
+              { label: "Logoyu kaldır", onClick: () => onChange(""), danger: true },
+            ]}
+          />
+        </div>
+      ) : (
         <button
           type="button"
-          onClick={() => onChange("")}
-          aria-label="Logoyu kaldır"
-          className="absolute -left-1 -top-1 inline-flex size-6 items-center justify-center rounded-full bg-white text-zinc-600 shadow ring-1 ring-zinc-950/10 hover:text-zinc-900"
+          onClick={pick}
+          disabled={upload.isPending}
+          title="Logo yükle"
+          aria-label="Logo yükle"
+          className="absolute -bottom-1 -right-1 inline-flex size-8 items-center justify-center rounded-full bg-zinc-900 text-white shadow ring-2 ring-white hover:bg-zinc-700"
         >
-          <X className="size-3.5" />
+          {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
         </button>
-      ) : null}
+      )}
     </>
   );
 }
@@ -964,5 +954,59 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
         Düzenle → Firma Bilgileri
       </Link>
     </div>
+  );
+}
+
+/**
+ * Görsel üstü TEK menü — "Düzenle" düğmesi açılır: değiştir / kaldır.
+ * Headless UI Menu (Catalyst ile aynı kütüphane); klavye ve odak yerleşik.
+ */
+function OverlayMenu({
+  label,
+  items,
+  busy,
+  compact,
+}: {
+  label: string;
+  items: { label: string; onClick: () => void; danger?: boolean }[];
+  busy?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <Menu>
+      <MenuButton
+        aria-label={label}
+        disabled={busy}
+        className={cn(
+          "inline-flex items-center gap-1.5 bg-white/95 text-xs font-medium text-zinc-800 shadow ring-1 ring-zinc-950/10 hover:bg-white",
+          compact ? "size-8 justify-center rounded-full" : "rounded-md px-2.5 py-1.5",
+        )}
+      >
+        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
+        {compact ? null : "Düzenle"}
+      </MenuButton>
+      {/* modal={false}: Headless UI v2 varsayılanı sayfanın kalanını inert
+          yapar (FilterSelect'teki ListboxOptions ile aynı karar). */}
+      <MenuItems
+        modal={false}
+        anchor="bottom end"
+        className="z-50 mt-1 w-44 rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg focus:outline-none"
+      >
+        {items.map((it) => (
+          <MenuItem key={it.label}>
+            <button
+              type="button"
+              onClick={it.onClick}
+              className={cn(
+                "block w-full rounded-lg px-2.5 py-1.5 text-left text-sm data-focus:bg-zinc-100",
+                it.danger ? "text-rose-700" : "text-zinc-800",
+              )}
+            >
+              {it.label}
+            </button>
+          </MenuItem>
+        ))}
+      </MenuItems>
+    </Menu>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
+import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { Prisma } from "@rothern/db";
 import {
   PrismaService,
@@ -47,6 +48,8 @@ const COMPANY_CARD_SELECT = {
   country: true,
   industry: true,
   activities: true,
+  logoUrl: true,
+  companyVerificationStatus: true,
   users: {
     where: { isActive: true, deletedAt: null },
     take: 1,
@@ -675,6 +678,26 @@ export class CompanyConnectionsService {
       },
       orderBy: { decidedAt: "desc" },
     });
+    // Kart zenginleştirme (v2 6f): yayındaki ürünlerden ilk 3 küçük resim +
+    // toplam — TEK sorgu, firma başına gruplanır (N+1 yok). Kapı vitrinle
+    // aynı (`publicProductWhere`): profilde görünmeyen ürün kartta da yok.
+    const otherIds = rows.map((r) =>
+      r.inviterCompanyId === companyId ? r.inviteeCompanyId : r.inviterCompanyId,
+    );
+    const products = otherIds.length
+      ? await this.prisma.companyItem.findMany({
+          where: { ...publicProductWhere(), companyId: { in: otherIds } },
+          select: { companyId: true, images: true },
+          orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+        })
+      : [];
+    const preview = new Map<string, { thumbnails: string[]; total: number }>();
+    for (const p of products) {
+      const e = preview.get(p.companyId) ?? { thumbnails: [], total: 0 };
+      e.total += 1;
+      if (e.thumbnails.length < 3 && p.images[0]) e.thumbnails.push(p.images[0]);
+      preview.set(p.companyId, e);
+    }
     return rows
       .filter(
         // Bağlantı, onu KURAN (davet eden) taraf PAKET kaldığı sürece aktif —
@@ -711,6 +734,10 @@ export class CompanyConnectionsService {
               ? `${contact.firstName} ${contact.lastName}`.trim()
               : null,
             contactEmail: contact?.email ?? null,
+            logoUrl: other.logoUrl,
+            verified: other.companyVerificationStatus === "VERIFIED",
+            activities: other.activities,
+            productPreview: preview.get(other.id) ?? null,
           },
           decidedAt: r.decidedAt,
         };
@@ -998,6 +1025,7 @@ export class CompanyConnectionsService {
       isActive: true,
       isBlocked: true,
       tier: true,
+      companyVerificationStatus: true,
       membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
       // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
       // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
@@ -1140,6 +1168,7 @@ export class CompanyConnectionsService {
         // Faz T: "Gold Üye" rozeti (adlandırma bilinçli — güven iddiası taşımaz).
         goldMember:
           effectiveTier(c.tier, c.membershipEndAt) === "GOLD",
+        verified: c.companyVerificationStatus === "VERIFIED",
         industry: c.industry,
         city: c.city,
         country: c.country,

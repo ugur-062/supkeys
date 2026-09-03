@@ -1,6 +1,6 @@
 "use client";
 
-import { tierAtLeast } from "@rothern/shared";
+import { companyActivityLabel, tierAtLeast } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -21,6 +21,7 @@ import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
+import { Thumb } from "@/components/ui/thumb";
 import {
   useCancelReferralInvite,
   useConnections,
@@ -50,19 +51,7 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import {
-  Check,
-  ChevronRight,
-  Ban,
-  Compass,
-  Copy,
-  Flag,
-  Inbox,
-  Mail,
-  MoreVertical,
-  Unlink,
-  Users,
-} from "lucide-react";
+import { Ban, Building2, Check, ChevronRight, Compass, Copy, Flag, Inbox, Mail, MoreVertical, Unlink, Users } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -93,21 +82,36 @@ const STATUS_BADGE: Partial<
 
 type TabKey = "discover" | "mine" | "incoming";
 
-/** Tıklanabilir firma kartı → herkese açık profil. */
+/**
+ * Firma kartı (v2 6f — Europages firma kartı anatomisi): logo · ad ·
+ * Rothern ID · Doğrulanmış/Premium/Platform rozeti · faaliyet tipi · şehir ·
+ * ilk 3 ürün küçük resmi + "+N ürün" · "Profili gör". Rothern ID kutusu
+ * YALNIZ burada kalır (paylaşım amaçlı); Profilim/Firma Bilgileri'nde küçük
+ * salt-okunur etiket.
+ */
 function CompanyCard({
   rothernId,
   name,
   industry,
   city,
   badge,
+  logoUrl,
+  verified,
+  activities,
+  productPreview,
 }: {
   rothernId: string | null;
   name: string;
   industry: string | null;
   city: string | null;
   badge?: { label: string; color: React.ComponentProps<typeof Badge>["color"] };
+  logoUrl?: string | null;
+  verified?: boolean;
+  activities?: string[];
+  productPreview?: { thumbnails: string[]; total: number } | null;
 }) {
   const meta = [industry, city].filter(Boolean).join(" · ");
+  const acts = (activities ?? []).slice(0, 2);
   return (
     <Link
       href={rothernId ? `/company/firma/${rothernId}` : "#"}
@@ -115,30 +119,68 @@ function CompanyCard({
       onClick={(e) => {
         if (!rothernId) e.preventDefault();
       }}
-      className="flex items-center gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition hover:bg-zinc-50"
+      className="group flex flex-col gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition hover:bg-zinc-50"
     >
-      <AvatarInitials name={name} size="md" />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-zinc-900">
-          {name}
-        </div>
-        <div className="truncate text-xs text-zinc-500">
-          {/* C47: sektör/şehir boşsa başıboş "—" basma — yalnız ikisi de
-              yokken ve ID de yokken tire görünür. */}
-          {meta || (rothernId ? "" : "—")}
-          {rothernId ? (
-            <span className={cn("font-mono slashed-zero text-zinc-400", meta && "ml-2")}>
-              {meta ? " " : ""}
-              {rothernId}
-            </span>
+      <div className="flex items-center gap-3">
+        {logoUrl ? (
+          <Thumb src={logoUrl} size="md" fallbackIcon={Building2} className="bg-white" />
+        ) : (
+          <AvatarInitials name={name} size="md" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate text-sm font-semibold text-zinc-900">{name}</span>
+            {verified ? (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
+                title="Kimliği doğrulanmış firma"
+              >
+                Doğrulanmış
+              </span>
+            ) : null}
+          </div>
+          <div className="truncate text-xs text-zinc-500">
+            {/* C47: sektör/şehir boşsa başıboş "—" basma — yalnız ikisi de
+                yokken ve ID de yokken tire görünür. */}
+            {meta || (rothernId ? "" : "—")}
+            {rothernId ? (
+              <span className={cn("font-mono slashed-zero text-zinc-400", meta && "ml-2")}>
+                {meta ? " " : ""}
+                {rothernId}
+              </span>
+            ) : null}
+          </div>
+          {acts.length > 0 ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {acts.map((a) => (
+                <span
+                  key={a}
+                  className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+                >
+                  {companyActivityLabel(a)}
+                </span>
+              ))}
+            </div>
           ) : null}
         </div>
+        {badge ? <Badge color={badge.color}>{badge.label}</Badge> : null}
       </div>
-      {badge ? (
-        <Badge color={badge.color}>{badge.label}</Badge>
-      ) : (
-        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
-      )}
+      {productPreview && productPreview.total > 0 ? (
+        <div className="flex items-center gap-2">
+          {productPreview.thumbnails.map((src) => (
+            <Thumb key={src} src={src} size="sm" />
+          ))}
+          <span className="text-xs text-zinc-500">
+            {productPreview.total > productPreview.thumbnails.length
+              ? `+${productPreview.total - productPreview.thumbnails.length} ürün`
+              : `${productPreview.total} ürün`}
+          </span>
+        </div>
+      ) : null}
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 group-hover:text-zinc-950">
+        Profili gör
+        <ChevronRight className="h-3.5 w-3.5" />
+      </span>
     </Link>
   );
 }
@@ -149,11 +191,14 @@ function ConnectionRow({
   rothernId,
   name,
   badge,
+  card,
 }: {
   connectionId: string;
   rothernId: string | null;
   name: string;
   badge?: { label: string; color: React.ComponentProps<typeof Badge>["color"] };
+  /** v2 6f: zengin firma kartı — verilirse eski avatar+ad satırının yerine. */
+  card?: React.ReactNode;
 }) {
   const disconnect = useDisconnect();
   const block = useBlockCompany();
@@ -209,6 +254,9 @@ function ConnectionRow({
 
   return (
     <div className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-white pr-2 transition hover:bg-zinc-50">
+      {card ? (
+        <div className="min-w-0 flex-1 [&>a]:border-0 [&>a]:hover:bg-transparent">{card}</div>
+      ) : (
       <Link
         href={rothernId ? `/company/firma/${rothernId}` : "#"}
         aria-disabled={!rothernId}
@@ -230,6 +278,7 @@ function ConnectionRow({
         </div>
         {badge ? <Badge color={badge.color}>{badge.label}</Badge> : null}
       </Link>
+      )}
       {canManageConn ? (
       <Dropdown>
         <DropdownButton plain aria-label="Daha fazla">
@@ -665,6 +714,19 @@ export function ConnectionsView() {
                   rothernId={c.company.rothernId}
                   name={c.company.name}
                   badge={ORIGIN_BADGE[c.origin]}
+                  card={
+                    <CompanyCard
+                      rothernId={c.company.rothernId}
+                      name={c.company.name}
+                      industry={c.company.industry ?? null}
+                      city={c.company.city ?? null}
+                      badge={ORIGIN_BADGE[c.origin]}
+                      logoUrl={c.company.logoUrl}
+                      verified={c.company.verified}
+                      activities={c.company.activities}
+                      productPreview={c.company.productPreview}
+                    />
+                  }
                 />
               ))}
             </div>

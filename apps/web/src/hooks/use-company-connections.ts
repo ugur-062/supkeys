@@ -17,6 +17,12 @@ export interface ConnectionCompany {
   industry?: string | null;
   contactName?: string | null;
   contactEmail?: string | null;
+  /** Kart zenginleştirme (v2 6f) — eklemeli alanlar. */
+  logoUrl?: string | null;
+  verified?: boolean;
+  activities?: string[];
+  /** Yayındaki ürünlerden ilk 3 küçük resim + toplam. */
+  productPreview?: { thumbnails: string[]; total: number } | null;
 }
 
 export interface Connection {

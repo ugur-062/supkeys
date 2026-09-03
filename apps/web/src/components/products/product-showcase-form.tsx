@@ -86,6 +86,7 @@ export function ProductShowcaseForm({
   const [priceCurrency, setPriceCurrency] = useState(product.priceCurrency);
   const [moq, setMoq] = useState(product.moq ?? "");
   const [externalUrl, setExternalUrl] = useState(product.externalUrl ?? "");
+  const [videoUrl, setVideoUrl] = useState(product.videoUrl ?? "");
   // Birim: ürün kaydından; kaydı olmayan (yeni) üründe prop'tan.
   const [unitCode, setUnitCode] = useState(
     product.unitCode ?? getUnit(product.unit || unit)?.code ?? "PCE",
@@ -133,11 +134,12 @@ export function ProductShowcaseForm({
       priceCurrency,
       moq: moq ? Number(moq) : null,
       externalUrl: externalUrl.trim() || null,
+      videoUrl: videoUrl.trim() || null,
       documents,
       unitCode,
       unit: unitLabel,
     }),
-    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, documents, unitCode, unitLabel],
+    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, videoUrl, documents, unitCode, unitLabel],
   );
 
   /**
@@ -224,7 +226,7 @@ export function ProductShowcaseForm({
             ekranda YOKTU; kullanıcı ≥100 karakter açıklama isteyen yayın
             kapısını geçemiyordu çünkü açıklamayı yazacak alan hiçbir yerde
             görünmüyordu. */}
-        <Field>
+        <Field hint="Kısa ve aranabilir bir başlık — en fazla 128 karakter önerilir (Europages kuralı).">
           <Label required>Ürün adı</Label>
           <input
             value={name}
@@ -233,6 +235,11 @@ export function ProductShowcaseForm({
             placeholder="Dağıtım panosu 400A IP54"
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
           />
+          <p
+            className={`mt-1 text-xs ${name.trim().length > 128 ? "text-amber-700" : "text-zinc-500"}`}
+          >
+            {name.trim().length} / 128 karakter
+          </p>
         </Field>
 
         <Field
@@ -254,7 +261,7 @@ export function ProductShowcaseForm({
                 : "text-zinc-500"
             }`}
           >
-            {description.trim().length} / {MIN_DESCRIPTION} karakter
+            {description.trim().length} / {MIN_DESCRIPTION}–5000 karakter
           </p>
         </Field>
 
@@ -449,6 +456,17 @@ export function ProductShowcaseForm({
             </label>
           ) : null}
         </div>
+
+        <Field hint="YouTube veya Vimeo bağlantısı — ürün sayfasında gömülü oynatılır.">
+          <Label>Video bağlantısı</Label>
+          <input
+            type="url"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=…"
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          />
+        </Field>
 
         <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
           <Label>Ürün sayfası bağlantısı</Label>
