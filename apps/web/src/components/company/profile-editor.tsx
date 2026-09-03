@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
 import { Switch } from "@/components/catalyst/switch";
@@ -336,14 +337,6 @@ export function ProfileEditor({
 
       <CompanyProfileView profile={viewData} edit={slots} />
 
-      <p className="text-xs text-zinc-400">
-        Ticari bilgiler (unvan, VKN, MERSİS…) ve şehir{" "}
-        <a href="/company/ayarlar/firma" className="font-semibold text-zinc-600 underline hover:text-zinc-900">
-          Ayarlar → Firma Bilgileri
-        </a>{" "}
-        üzerinden güncellenir.
-      </p>
-
       {/* Yapışkan kaydet çubuğu — yalnız kirliyken. */}
       {dirty ? (
         <div
@@ -385,10 +378,20 @@ function EditorHeader({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Profilim</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Başkalarının gördüğü profil — doğrudan üstünde düzenleyin, sonra Kaydet.
+          Firma sayfanız — başkalarının gördüğü hâli, doğrudan üstünde düzenleyin, sonra Kaydet.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
+        {/* Ticari kayıt (unvan/adres/VKN) AYRI sayfada ve KYC kilidine tabi
+            (profile/settings split). Eskiden bu ayrım sayfanın en altındaki
+            uzun bir notla anlatılıyordu; kullanıcı unvanını değiştirmek için
+            nereye gideceğini bulamıyordu. Başlıkta ikincil bağlantı. */}
+        <Link
+          href="/company/ayarlar/firma"
+          className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
+        >
+          Firma bilgileri (unvan, adres, VKN)
+        </Link>
         <span
           className={cn(
             "rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",

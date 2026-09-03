@@ -70,13 +70,14 @@ const GROUPS: SettingsGroup[] = [
     subtitle: "Firmanızı, ekip üyelerini ve süreçleri yönetin",
     items: [
       {
-        // 2026-08-22 menü sadeleştirmesi: "Profilim" sol menüden kalktı; vitrin
-        // (herkese açık profil) buradan açılır. Firma Bilgileri = ticari kayıt,
-        // Firma Profili = vitrin — ayrım korunur (bkz. profile/settings split).
+        // Firma Bilgileri = ticari kayıt, Firma Profili = Profilim sayfası —
+        // ayrım korunur (bkz. profile/settings split). İki kartın açıklaması
+        // eskiden aynı sözcükleri taşıyordu ("vitrin"/"kategoriler"), kullanıcı
+        // hangisine gideceğini bilemiyordu; bu kart yalnız Profilim'e köprü.
         href: PROFILE_CARD_HREF,
         icon: Store,
         title: "Firma Profili",
-        description: "Herkese açık vitrin — logo, tanıtım, kategoriler, değerlendirmeler",
+        description: "Profilim sayfasını aç — logo, tanıtım, galeri, hizmetler",
       },
       {
         href: "/company/ayarlar/firma",

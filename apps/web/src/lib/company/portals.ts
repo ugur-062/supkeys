@@ -206,6 +206,16 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         minTier: "BRONZ",
       },
       {
+        // Satışta Profilim MENÜDE (2026-09-03): satıcının vitrini ürünleri
+        // kadar günlük iş — Ayarlar'ın altında aranması gerekmemeli. Satınalma
+        // tarafında hesap menüsünde kalır (orada alıcı profili düzenlemez).
+        icon: IdentificationIcon,
+        label: "Profilim",
+        href: "/company/satis/profilim",
+        // Herkese açık profil/dizin görünürlüğü Bronz'dan başlar.
+        minTier: "BRONZ",
+      },
+      {
         icon: EnvelopeIcon,
         label: MODULE_LABELS.satis.bilgiTalepleri,
         href: "/company/satis/bilgi-talepleri",
@@ -239,13 +249,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         label: "Şablonlar",
         href: "/company/satis/sablonlar",
         minTier: "SILVER",
-      },
-      {
-        icon: IdentificationIcon,
-        label: "Profilim",
-        href: "/company/satis/profilim",
-        // Herkese açık profil/dizin görünürlüğü Bronz'dan başlar.
-        minTier: "BRONZ",
       },
     ],
   },
@@ -314,7 +317,11 @@ export function allPortalRoutes(def: PortalDef): PortalNavItem[] {
   return [...def.nav, ...def.secondaryNav];
 }
 
-/** Portala göre Profilim / Raporlar / Şablonlar adresleri (menü dışı giriş noktaları). */
+/**
+ * Portala göre Profilim / Raporlar / Şablonlar adresleri (Ayarlar kartı,
+ * hesap menüsü, sayfa başlıkları). Satışta Profilim artık ana menüde de var;
+ * bu tablo giriş noktalarının ORTAK adres kaynağı olmaya devam eder.
+ */
 export const PORTAL_SECONDARY_HREFS: Record<
   PortalKey,
   { profilim: string; raporlar: string; sablonlar: string }

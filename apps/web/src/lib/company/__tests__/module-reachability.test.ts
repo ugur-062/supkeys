@@ -19,7 +19,6 @@ const APP_DIR = path.join(process.cwd(), "src/app/company/(authed)");
 /** Menüde OLMAMASI bilinçli olan rotalar — her biri gerekçesiyle. */
 const NOT_IN_MENU: Record<string, string> = {
   "satinalma/profilim": "Sağ üst hesap menüsünde (2026-09-03).",
-  "satis/profilim": "Sağ üst hesap menüsünde (2026-09-03).",
   "satinalma/raporlar": "secondaryNav — hub sayfası, menü sadeleştirmesi 2026-08-22.",
   "satis/raporlar": "secondaryNav — hub sayfası.",
   "satinalma/sablonlar": "secondaryNav — Taleplerim sayfasından açılır.",

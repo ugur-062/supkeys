@@ -121,7 +121,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
   });
 
-  it("satış: Satış İlanlarım→Açık Talepler→Satış Tekliflerim→Satışlarım→Bağlantılar; ikincil sayfalar menüde YOK", () => {
+  it("satış: Satış İlanlarım→Açık Talepler→Ürünlerim→Profilim→Satış Tekliflerim→Satışlarım→Bağlantılar; Raporlar/Şablonlar menüde YOK", () => {
     h.auth.user = { roles: ["SATISCI"] };
     h.canAct = false;
     render(<CompanySidebarContent expanded showPin={false} />);
@@ -131,12 +131,14 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     const idx = (t: string) => labels.indexOf(t);
     expect(idx("Satış İlanlarım")).toBeGreaterThan(idx("Anasayfa"));
     expect(idx("Açık Talepler")).toBeGreaterThan(idx("Satış İlanlarım"));
-    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Açık Talepler"));
+    // Profilim Ürünlerim'in hemen altında (2026-09-03) — vitrin ürünle yan yana.
+    expect(idx("Ürünlerim")).toBeGreaterThan(idx("Açık Talepler"));
+    expect(idx("Profilim")).toBe(idx("Ürünlerim") + 1);
+    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Profilim"));
     expect(idx("Satışlarım")).toBeGreaterThan(idx("Satış Tekliflerim"));
     expect(idx("Bağlantılar")).toBeGreaterThan(idx("Satışlarım"));
     expect(screen.queryByText("Raporlar")).not.toBeInTheDocument();
     expect(screen.queryByText("Şablonlar")).not.toBeInTheDocument();
-    expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
   });
 });
 

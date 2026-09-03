@@ -270,7 +270,8 @@ export function CompanySidebarContent({
       ) : null}
 
       {/* Nav — DÜZ liste, iç içe/akordeon yok (2026-08-22 sadeleştirme):
-          Raporlar/Şablonlar İhalelerim sayfasından, Profilim Ayarlar'dan açılır. */}
+          Raporlar/Şablonlar İhalelerim sayfasından açılır; Profilim satışta
+          menüde, satınalmada hesap menüsünde. */}
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">
         {(minimal ? [] : portal.nav).map((item) => (
             <RailItem
