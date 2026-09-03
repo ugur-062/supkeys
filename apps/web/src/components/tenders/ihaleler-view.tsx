@@ -227,7 +227,7 @@ export function IhalelerView({
         title={isSatis ? MODULE_LABELS.satis.ilanlarim : MODULE_LABELS.satinalma.ihalelerim}
         description={
           isSatis
-            ? "satış ilanlarınızı yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
+            ? "Satış ilanlarınızı yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
             : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         }
         action={
