@@ -22,7 +22,7 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
   const [lead, ...rest] = categories;
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
+    <section id="kategoriler" className="mx-auto max-w-7xl scroll-mt-24 px-6 py-16 lg:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">

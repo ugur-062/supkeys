@@ -41,7 +41,7 @@ export default async function Page({
     <PublicLayout>
         <ProductIndex
           title={MARKETPLACE_LABELS.products}
-          lead="Firmaların vitrinlerine koyduğu ürünler. İlanlardan farkı: süreli değil, kalıcı — ürünü beğendiğiniz firmayla doğrudan iletişime geçin."
+          lead="Firmaların vitrinlerine koyduğu ürünler. Kategori, şehir ve faaliyet tipine göre süzün; fiyat ve bilgi talebi için ücretsiz hesap açın."
           searchParams={sp}
         />
     </PublicLayout>

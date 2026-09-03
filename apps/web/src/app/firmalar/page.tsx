@@ -1,5 +1,5 @@
 import { CompanyCard } from "@/components/marketplace/company-card";
-import { EmptyListings } from "@/components/marketplace/listing-card";
+import { PublicEmptyState } from "@/components/marketplace/public-empty-state";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { Pagination } from "@/components/marketplace/pagination";
 import { SearchForm } from "@/components/marketplace/search-form";
@@ -245,18 +245,7 @@ export default async function Page({
                     : "Firma yok"}
                 </p>
                 {result.page.items.length === 0 ? (
-                  <EmptyListings
-                    title={
-                      hasFilter
-                        ? "Bu süzgeçlerle eşleşen firma yok."
-                        : "Henüz herkese açık firma profili yok."
-                    }
-                    hint={
-                      hasFilter
-                        ? "Süzgeçleri gevşetip yeniden deneyin."
-                        : "Firmalar profillerini açtıkça burada görünür."
-                    }
-                  />
+                  <PublicEmptyState noun="Firma" clearHref={hasFilter ? base : undefined} />
                 ) : (
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     {result.page.items.map((c) => (

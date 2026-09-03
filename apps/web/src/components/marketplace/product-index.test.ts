@@ -15,6 +15,11 @@ describe("toProductParams", () => {
     ).toEqual({ q: "boru", category: undefined, city: "İstanbul", page: 3 });
   });
 
+  it("faaliyet tipi yalnız tanınan kodla geçer", () => {
+    expect(toProductParams({ faaliyet: "MANUFACTURER" }).activity).toBe("MANUFACTURER");
+    expect(toProductParams({ faaliyet: "hacker" }).activity).toBeUndefined();
+  });
+
   it("kategori YOLDAN gelir, sorgudan değil", () => {
     expect(toProductParams({}, "39000000").category).toBe("39000000");
     // 8 hane olmayan kod sessizce düşer.

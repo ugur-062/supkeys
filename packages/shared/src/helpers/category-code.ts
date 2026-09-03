@@ -46,6 +46,23 @@ export function categoryLevel(code: string): number {
   return 4;
 }
 
+/**
+ * Kodun ALT AĞACINI yakalayan önek — `startsWith` / `LIKE 'x%'` süzgeçleri
+ * için. Seviyeye göre 2/4/6/8 hane:
+ *   `40000000` → `40` · `40170000` → `4017` · `39122200` → `391222` · yaprak → kendisi.
+ *
+ * NEDEN sondaki sıfırları kırpmak YETMEZ: `40000000`.replace(/0+$/) = `4`,
+ * yani "Dağıtım sistemleri" süzgeci 41-49 arası dokuz segmenti de yakalardı
+ * (Laboratuvar, Tıp, Bilgisayar…). 2026-09-04 denetiminde bulundu; dört
+ * çağrı yeri (ürün dizini, firma altı ürünler, panel keşfi, nitelik facet'i)
+ * aynı hatayı taşıyordu — tek kaynağa alındı.
+ */
+export function categoryPrefix(code: string): string | null {
+  const level = categoryLevel(code);
+  if (level === 0) return null;
+  return code.slice(0, level * 2);
+}
+
 /** Kodun segmenti (L1) — `39122215` → `39000000`. */
 export function categorySegment(code: string): string | null {
   return isCategoryCode(code) ? `${code.slice(0, 2)}000000` : null;

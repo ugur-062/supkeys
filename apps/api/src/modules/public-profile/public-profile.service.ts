@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { isCategoryCode, tokenizeQuery } from "@rothern/shared";
+import { categoryPrefix, isCategoryCode, tokenizeQuery } from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -211,7 +211,7 @@ export class PublicProfileService {
       ...(q?.categoryId && isCategoryCode(q.categoryId)
         ? // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik"
           // seçen ziyaretçi altındaki yaprakları da görür.
-          { categoryId: { startsWith: q.categoryId.replace(/0+$/, "") } }
+          { categoryId: { startsWith: categoryPrefix(q.categoryId) as string } }
         : {}),
       ...(tokens.length
         ? { AND: tokens.map((t) => ({ searchText: { contains: t } })) }

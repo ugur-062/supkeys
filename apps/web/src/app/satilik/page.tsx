@@ -41,7 +41,7 @@ export default async function Page({
         <ListingIndex
           type="SATIS"
           title={MARKETPLACE_LABELS.offers}
-          lead="Firmaların satışa açtığı ürün, malzeme ve hizmet ilanları. Kategoriye ve şehre göre süzün, ilgilendiğiniz ilana kaydolup teklif verin."
+          lead="Firmaların satışa açtığı ürün, malzeme ve hizmetler. Kategori, şehir ve kapsama göre süzün; teklif vermek için ücretsiz hesap açın."
           searchParams={sp}
         />
     </PublicLayout>

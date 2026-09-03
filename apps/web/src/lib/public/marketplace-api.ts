@@ -93,6 +93,7 @@ export interface PublicFacets {
   categories: (PublicCategoryRef & { count: number })[];
   cities: { city: string; count: number }[];
   types: { type: string; count: number }[];
+  scopes: { scope: "domestic" | "international"; count: number }[];
   truncated: boolean;
 }
 
@@ -144,6 +145,8 @@ export interface ListParams {
   category?: string;
   city?: string;
   state?: "open" | "all";
+  /** Yurtiçi / uluslararası — `isInternational`. */
+  scope?: "domestic" | "international";
   page?: number;
 }
 
@@ -155,6 +158,7 @@ function toQuery(params: ListParams): string {
   if (params.city) sp.set("city", params.city);
   if (params.state) sp.set("state", params.state);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
+  if (params.scope) sp.set("scope", params.scope);
   const s = sp.toString();
   return s ? `?${s}` : "";
 }
@@ -190,6 +194,7 @@ const EMPTY_FACETS: PublicFacets = {
   categories: [],
   cities: [],
   types: [],
+  scopes: [],
   truncated: false,
 };
 
@@ -414,6 +419,7 @@ export interface ProductAttributeFacet {
 export interface ProductFacets {
   categories: { id: string; name: string; level: number; count: number }[];
   cities: { city: string; count: number }[];
+  activities: { activity: string; count: number }[];
   /** YALNIZ kategori seçiliyken dolu — nitelikler kategoriye özgü. */
   attributes: ProductAttributeFacet[];
   truncated: boolean;
@@ -425,6 +431,8 @@ export interface ProductListParams {
   city?: string;
   /** `anahtar:değer` çiftleri — uçta tekrarlanan `attr` parametresine döner. */
   attr?: string[];
+  /** Satıcının faaliyet tipi kodu. */
+  activity?: string;
   page?: number;
 }
 
@@ -438,6 +446,7 @@ const EMPTY_PRODUCT_INDEX: ProductIndexPage = {
 const EMPTY_PRODUCT_FACETS: ProductFacets = {
   categories: [],
   cities: [],
+  activities: [],
   attributes: [],
   truncated: false,
 };
@@ -449,6 +458,7 @@ export function fetchProducts(
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
   if (params.city) sp.set("city", params.city);
+  if (params.activity) sp.set("activity", params.activity);
   // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
   // ilk ayraçlı seçenekte sessizce bölerdi.
   for (const a of params.attr ?? []) sp.append("attr", a);

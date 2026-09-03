@@ -36,6 +36,12 @@ export class PublicProductQueryDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
+  /** Satıcının faaliyet tipi (CompanyActivity kodu); tanınmayan kod yok sayılır. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  activity?: string;
+
   /**
    * Nitelik süzgeci — `anahtar:değer` çiftleri, tekrarlanabilir
    * (`?attr=malzeme:Çelik&attr=koruma_sinifi:IP65`).

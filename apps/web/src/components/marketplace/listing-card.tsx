@@ -447,35 +447,3 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
   );
 }
 
-/**
- * Boş liste — 200 döner, 404 değil.
- *
- * Kesikli kutu yerine kompakt ve AKSİYONLU bir yüzey: ziyaretçiye ne
- * yapacağını söylüyor. Envanteri az bir pazar yerinde bu fark büyük.
- */
-export function EmptyListings({
-  title,
-  hint,
-  action,
-}: {
-  title: string;
-  hint?: string;
-  action?: { label: string; href: string };
-}) {
-  return (
-    <div className="flex flex-col items-start gap-4 rounded-2xl bg-white px-6 py-8 shadow-sm ring-1 ring-zinc-950/5 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="text-sm font-semibold text-zinc-900">{title}</p>
-        {hint ? <p className="mt-1 text-sm text-zinc-500">{hint}</p> : null}
-      </div>
-      {action ? (
-        <Link
-          href={action.href}
-          className="shrink-0 rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          {action.label}
-        </Link>
-      ) : null}
-    </div>
-  );
-}

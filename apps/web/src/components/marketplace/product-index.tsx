@@ -1,23 +1,25 @@
-import { EmptyListings } from "./listing-card";
-import { FacetGroup, FilterChip } from "./facets";
+import { FacetGroup } from "./facets";
 import { Pagination } from "./pagination";
 import { ProductCard } from "./product-card";
-import { SearchForm } from "./search-form";
-import { Heading } from "@/components/catalyst/heading";
+import { PublicEmptyState } from "./public-empty-state";
+import { PublicListPage, ResultGrid } from "./public-list-page";
 import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 import {
   fetchProductFacets,
   fetchProducts,
   type ProductListParams,
 } from "@/lib/public/marketplace-api";
+import { companyActivityLabel, isCompanyActivity } from "@rothern/shared";
 import Link from "next/link";
 
 /**
  * ÜRÜN DİZİNİ — firmalar arası vitrin.
  *
- * `ListingIndex`in ikizi ama üç yerde bilinçli olarak ayrılır:
+ * `ListingIndex` ile aynı iskelet (`PublicListPage`) ama üç yerde bilinçli
+ * olarak ayrılır:
  *  · kart FİRMA ADINI gösterir (ilan anonim, ürün vitrin),
- *  · "durum" süzgeci yok — ürün açılıp kapanmaz,
+ *  · "durum" süzgeci yok — ürün açılıp kapanmaz; yerine FAALİYET TİPİ var
+ *    (üretici / bayi / hizmet…),
  *  · kategori süzgeci SORGU değil YOL üretir (`/urunler/kategori/<kod>-<ad>`):
  *    o sayfalar statik üretilebiliyor ve tek tek indekslenebiliyor.
  */
@@ -28,6 +30,8 @@ export interface ProductSearchParams {
   sayfa?: string;
   /** Nitelik süzgeci — `anahtar:değer`, tekrarlanabilir. */
   nitelik?: string | string[];
+  /** Satıcının faaliyet tipi kodu. */
+  faaliyet?: string;
 }
 
 /** Tekrarlanan parametre tek dize de gelebilir — her zaman diziye indirge. */
@@ -47,6 +51,7 @@ export function toProductParams(
     q: sp.q?.trim() || undefined,
     category: /^\d{8}$/.test(fixedCategory ?? "") ? fixedCategory : undefined,
     city: sp.il?.trim() || undefined,
+    ...(sp.faaliyet && isCompanyActivity(sp.faaliyet) ? { activity: sp.faaliyet } : {}),
     ...(attr.length ? { attr } : {}),
     page: Number.isFinite(page) && page > 1 ? Math.trunc(page) : undefined,
   };
@@ -78,27 +83,24 @@ export async function ProductIndex({
   ]);
 
   const activeCity = params.city;
+  const activeActivity = params.activity;
   const activeAttrs = params.attr ?? [];
-  const hasFilter = !!(params.q || activeCity || activeAttrs.length);
-  const showFacets =
-    page.items.length > 0 ||
-    hasFilter ||
-    facets.categories.length + facets.cities.length >= 4;
+  const hasFilter = !!(params.q || activeCity || activeActivity || activeAttrs.length);
 
   /**
-   * Sorgu süzgeçleri (arama + şehir + nitelik) korunur; kategori YOLDA.
-   *
-   * `attrs` verilmezse mevcut nitelik seçimleri aynen taşınır: sektör
+   * Sorgu süzgeçleri (arama + şehir + faaliyet + nitelik) korunur; kategori
+   * YOLDA. `attrs` verilmezse mevcut nitelik seçimleri aynen taşınır: sektör
    * değiştiren ya da sayfa çeviren ziyaretçi seçtiği nitelikleri kaybetmemeli.
    */
   const withQuery = (
     path: string,
-    patch: { q?: string; il?: string } = {},
+    patch: { q?: string; il?: string; faaliyet?: string } = {},
     attrs: string[] = activeAttrs,
   ) => {
     const next: Record<string, string | undefined> = {
       q: searchParams.q,
       il: searchParams.il,
+      faaliyet: activeActivity,
       ...patch,
     };
     const sp = new URLSearchParams();
@@ -107,7 +109,7 @@ export async function ProductIndex({
     const s = sp.toString();
     return s ? `${path}?${s}` : path;
   };
-  const filterHref = (patch: { q?: string; il?: string } = {}) =>
+  const filterHref = (patch: { q?: string; il?: string; faaliyet?: string } = {}) =>
     withQuery(basePath, patch);
   /** Bir nitelik değerini açar/kapatır (aynı bağlantı iki yönlü çalışır). */
   const attrHref = (key: string, value: string) => {
@@ -118,192 +120,132 @@ export async function ProductIndex({
     return withQuery(basePath, {}, next);
   };
 
-  return (
-    <>
-      <header className="border-b border-zinc-950/5 bg-white pt-28 pb-10">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <Heading
-            level={1}
-            className="text-3xl font-semibold tracking-tight !text-zinc-950 sm:text-4xl"
-          >
-            {title}
-          </Heading>
-          <p className="mt-3 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
-          <div className="mt-7 max-w-3xl">
-            <SearchForm
-              action={basePath}
-              defaultValue={searchParams.q}
-              hidden={{ il: searchParams.il }}
-              hiddenList={{ nitelik: activeAttrs }}
-              placeholder="Ürün, marka veya parça numarası arayın"
-            />
-          </div>
-        </div>
-      </header>
+  const chips = [
+    ...(params.q ? [{ key: "q", label: `"${params.q}"`, href: filterHref({ q: undefined }) }] : []),
+    ...(activeCity ? [{ key: "il", label: activeCity, href: filterHref({ il: undefined }) }] : []),
+    ...(activeActivity
+      ? [{ key: "faaliyet", label: companyActivityLabel(activeActivity), href: filterHref({ faaliyet: undefined }) }]
+      : []),
+    // Etiket olarak DEĞER gösterilir: "Paslanmaz çelik" tek başına okunur,
+    // "malzeme:Paslanmaz çelik" makine dili gibi durur.
+    ...activeAttrs.map((a) => ({
+      key: a,
+      label: a.slice(a.indexOf(":") + 1),
+      href: withQuery(basePath, {}, activeAttrs.filter((x) => x !== a)),
+    })),
+  ];
 
-      <div className="mx-auto max-w-7xl px-6 pt-8 pb-24 lg:px-8">
-        {category ? (
-          <nav aria-label="Konum" className="text-sm text-zinc-500">
-            <Link
-              href={MARKETPLACE_ROUTES.products}
-              className="hover:text-zinc-900"
-            >
+  return (
+    <PublicListPage
+      title={title}
+      lead={lead}
+      breadcrumb={
+        category ? (
+          <nav aria-label="Konum" className="mb-3 text-sm text-zinc-500">
+            <Link href={MARKETPLACE_ROUTES.products} className="hover:text-zinc-900">
               Ürünler
             </Link>
-            <span aria-hidden className="mx-2">
-              /
-            </span>
+            <span aria-hidden className="mx-2">/</span>
             <span className="text-zinc-900">{category.name}</span>
           </nav>
-        ) : null}
-
-        {hasFilter ? (
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-zinc-500">Süzgeçler:</span>
-            {params.q ? (
-              <FilterChip
-                href={filterHref({ q: undefined })}
-                label={`"${params.q}"`}
-              />
-            ) : null}
-            {activeCity ? (
-              <FilterChip href={filterHref({ il: undefined })} label={activeCity} />
-            ) : null}
-            {activeAttrs.map((a) => {
-              // Etiket olarak DEĞER gösterilir: "Paslanmaz çelik" tek başına
-              // okunur, "malzeme:Paslanmaz çelik" makine dili gibi durur.
-              const value = a.slice(a.indexOf(":") + 1);
-              return (
-                <FilterChip
-                  key={a}
-                  href={withQuery(
-                    basePath,
-                    {},
-                    activeAttrs.filter((x) => x !== a),
-                  )}
-                  label={value}
-                />
-              );
-            })}
-            <Link
-              href={basePath}
-              className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
-            >
-              Tümünü temizle
-            </Link>
-          </div>
-        ) : null}
-
-        <div
-          className={`mt-8 grid grid-cols-1 gap-10 ${
-            showFacets ? "lg:grid-cols-[16rem_1fr]" : ""
-          }`}
-        >
-          {showFacets ? (
-            <aside className="lg:sticky lg:top-24 lg:self-start">
-              <FacetGroup
-                heading="Sektör"
-                items={facets.categories.slice(0, 12).map((c) => ({
-                  key: c.id,
-                  label: c.name,
-                  count: c.count,
-                  // Kategori bağlantısı YOL üretir — o sayfa statik ve
-                  // indekslenebilir; sorgu parametresi ikisini de veremezdi.
-                  // Arama/şehir süzgeci KORUNUR: sektör değiştirmek aramayı
-                  // sıfırlarsa ziyaretçi her seferinde baştan yazar.
-                  href: withQuery(categoryPath(c.id, c.name)),
-                  active: category?.id === c.id,
-                }))}
-              />
-              <FacetGroup
-                heading="Şehir"
-                items={facets.cities.slice(0, 12).map((c) => ({
-                  key: c.city,
-                  label: c.city,
-                  count: c.count,
-                  href: filterHref({ il: c.city }),
-                  active: activeCity === c.city,
-                }))}
-              />
-
-              {/* Nitelik süzgeçleri yalnız kategori sayfasında dolu gelir —
-                  nitelikler kategoriye özgü; kategorisiz listede her ürün
-                  başka bir alan kümesi taşır ve süzgeç anlamsızlaşır. */}
-              {facets.attributes.map((a) => (
-                <FacetGroup
-                  key={a.key}
-                  heading={a.unit ? `${a.nameTr} (${a.unit})` : a.nameTr}
-                  items={a.values.map((v) => ({
-                    key: `${a.key}:${v.value}`,
-                    label: v.value,
-                    count: v.count,
-                    href: attrHref(a.key, v.value),
-                    active: activeAttrs.includes(`${a.key}:${v.value}`),
-                  }))}
-                />
-              ))}
-            </aside>
-          ) : null}
-
-          <div>
-            {page.total > 0 ? (
-              <p className="mb-4 text-sm text-zinc-500">
-                {page.total.toLocaleString("tr-TR")} ürün
-              </p>
-            ) : null}
-            {page.items.length === 0 ? (
-              <EmptyListings
-                title={
-                  hasFilter || category
-                    ? "Bu süzgeçlerle eşleşen ürün yok."
-                    : "Şu an yayımlanmış ürün yok."
-                }
-                hint={
-                  hasFilter || category
-                    ? "Süzgeçleri gevşetip yeniden deneyin."
-                    : "Firmalar vitrinlerini doldurdukça ürünler burada görünür."
-                }
-                action={
-                  hasFilter || category
-                    ? { label: "Tüm ürünler", href: MARKETPLACE_ROUTES.products }
-                    : { label: "Satılık ilanlara bak", href: MARKETPLACE_ROUTES.offers }
-                }
-              />
-            ) : (
-              <div
-                className={`grid grid-cols-1 gap-5 ${
-                  page.items.length >= 3
-                    ? "sm:grid-cols-2 xl:grid-cols-3"
-                    : page.items.length === 2
-                      ? "sm:grid-cols-2"
-                      : "sm:max-w-sm"
-                }`}
-              >
-                {page.items.map((p) => (
-                  <ProductCard
-                    key={`${p.company.slug}/${p.slug}`}
-                    companySlug={p.company.slug}
-                    companyName={p.company.name}
-                    companyCity={p.company.city}
-                    product={p}
-                    priceGated
-                  />
-                ))}
-              </div>
-            )}
-            {/* Sayfalama nitelik seçimlerini de taşır: 2. sayfaya geçen
-                ziyaretçi süzgeçlerini kaybetmemeli. */}
-            <Pagination
-              page={page.page}
-              total={page.total}
-              pageSize={page.pageSize}
-              basePath={basePath}
-              params={{ q: searchParams.q, il: searchParams.il }}
-              repeated={{ nitelik: activeAttrs }}
+        ) : undefined
+      }
+      search={{
+        action: basePath,
+        defaultValue: searchParams.q,
+        hidden: { il: searchParams.il, faaliyet: activeActivity },
+        hiddenList: { nitelik: activeAttrs },
+        placeholder: "Ürün, marka veya parça numarası arayın",
+      }}
+      chips={chips}
+      clearHref={category ? MARKETPLACE_ROUTES.products : basePath}
+      summary={page.total > 0 ? `${page.total.toLocaleString("tr-TR")} ürün` : undefined}
+      sidebar={
+        <>
+          <FacetGroup
+            heading="Kategori"
+            items={facets.categories.slice(0, 12).map((c) => ({
+              key: c.id,
+              label: c.name,
+              count: c.count,
+              // Kategori bağlantısı YOL üretir — o sayfa statik ve
+              // indekslenebilir; sorgu parametresi ikisini de veremezdi.
+              // Arama/şehir süzgeci KORUNUR: sektör değiştirmek aramayı
+              // sıfırlarsa ziyaretçi her seferinde baştan yazar.
+              href: category?.id === c.id
+                ? withQuery(MARKETPLACE_ROUTES.products)
+                : withQuery(categoryPath(c.id, c.name)),
+              active: category?.id === c.id,
+            }))}
+          />
+          <FacetGroup
+            heading="Şehir"
+            items={facets.cities.slice(0, 12).map((c) => ({
+              key: c.city,
+              label: c.city,
+              count: c.count,
+              href: filterHref({ il: activeCity === c.city ? undefined : c.city }),
+              active: activeCity === c.city,
+            }))}
+          />
+          <FacetGroup
+            heading="Faaliyet tipi"
+            items={facets.activities.map((a) => ({
+              key: a.activity,
+              label: companyActivityLabel(a.activity),
+              count: a.count,
+              href: filterHref({ faaliyet: activeActivity === a.activity ? undefined : a.activity }),
+              active: activeActivity === a.activity,
+            }))}
+          />
+          {/* Nitelik süzgeçleri yalnız kategori sayfasında dolu gelir —
+              nitelikler kategoriye özgü; kategorisiz listede her ürün
+              başka bir alan kümesi taşır ve süzgeç anlamsızlaşır. */}
+          {facets.attributes.map((a) => (
+            <FacetGroup
+              key={a.key}
+              heading={a.unit ? `${a.nameTr} (${a.unit})` : a.nameTr}
+              items={a.values.map((v) => ({
+                key: `${a.key}:${v.value}`,
+                label: v.value,
+                count: v.count,
+                href: attrHref(a.key, v.value),
+                active: activeAttrs.includes(`${a.key}:${v.value}`),
+              }))}
             />
-          </div>
-        </div>
-      </div>
-    </>
+          ))}
+        </>
+      }
+    >
+      {page.items.length === 0 ? (
+        <PublicEmptyState
+          noun="Ürün"
+          clearHref={hasFilter || category ? MARKETPLACE_ROUTES.products : undefined}
+        />
+      ) : (
+        <ResultGrid count={page.items.length}>
+          {page.items.map((p) => (
+            <ProductCard
+              key={`${p.company.slug}/${p.slug}`}
+              companySlug={p.company.slug}
+              companyName={p.company.name}
+              companyCity={p.company.city}
+              product={p}
+              priceGated
+            />
+          ))}
+        </ResultGrid>
+      )}
+      {/* Sayfalama nitelik seçimlerini de taşır: 2. sayfaya geçen
+          ziyaretçi süzgeçlerini kaybetmemeli. */}
+      <Pagination
+        page={page.page}
+        total={page.total}
+        pageSize={page.pageSize}
+        basePath={basePath}
+        params={{ q: searchParams.q, il: searchParams.il, faaliyet: activeActivity }}
+        repeated={{ nitelik: activeAttrs }}
+      />
+    </PublicListPage>
   );
 }

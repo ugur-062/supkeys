@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { tokenizeQuery } from "@rothern/shared";
+import { tokenizeQuery, categoryPrefix, isCompanyActivity } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
   marketplaceIndexableWhere,
@@ -162,7 +162,8 @@ export class PublicMarketplaceService {
       // istenirse gelir (arşiv sayfaları) — ama asla varsayılan değildir,
       // ziyaretçiye ölü ilan göstermek en kötü ilk izlenim.
       ...(q.state === "all" ? {} : { status: "OPEN" }),
-      ...(q.category ? { categoryIds: { has: q.category } } : {}),
+      ...(await this.listingCategoryWhere(q.category)),
+      ...(q.scope ? { isInternational: q.scope === "international" } : {}),
       ...this.searchWhere(q.q),
     };
 
@@ -188,6 +189,32 @@ export class PublicMarketplaceService {
       page,
       pageSize: PAGE_SIZE,
     };
+  }
+
+  /**
+   * İlan kategori süzgeci ALT AĞACI kapsar (2026-09-04 düzeltmesi).
+   *
+   * Eskiden `categoryIds: { has: kod }` idi; facet L1 segment sayıyor, ilan
+   * ise L3+ kod taşıyor → ziyaretçi kenar çubuğunda "Elektrik (12)" görüp
+   * tıklayınca SIFIR sonuç alıyordu. Prisma dizi kolonunda önek eşleşmesi
+   * yok; eşleşen ilan kimlikleri ham SQL ile alınır (`unnest` + `LIKE`),
+   * sorgu `id IN (...)` ile daralır. Tavan 5000 — facet tarama tavanıyla
+   * aynı ölçek. Yaprak kod verilirse doğrudan `has`.
+   */
+  private async listingCategoryWhere(
+    code?: string,
+  ): Promise<Prisma.ListingWhereInput> {
+    if (!code) return {};
+    const prefix = categoryPrefix(code);
+    if (!prefix) return {};
+    if (prefix.length === 8) return { categoryIds: { has: code } };
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT l.id FROM listings l
+      WHERE EXISTS (
+        SELECT 1 FROM unnest(l."categoryIds") AS c WHERE c LIKE ${`${prefix}%`}
+      )
+      LIMIT 5000`;
+    return { id: { in: rows.map((r) => r.id) } };
   }
 
   /**
@@ -233,6 +260,7 @@ export class PublicMarketplaceService {
     categories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
     types: { type: string; count: number }[];
+    scopes: { scope: "domestic" | "international"; count: number }[];
     truncated: boolean;
   }> {
     const now = new Date();
@@ -241,6 +269,7 @@ export class PublicMarketplaceService {
       select: {
         type: true,
         categoryIds: true,
+        isInternational: true,
         company: { select: { city: true } },
       },
       take: FACET_SCAN_CAP + 1,
@@ -251,8 +280,10 @@ export class PublicMarketplaceService {
     const catCount = new Map<string, number>();
     const cityCount = new Map<string, number>();
     const typeCount = new Map<string, number>();
+    let international = 0;
     for (const r of scanned) {
       typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
+      if (r.isInternational) international += 1;
       const city = r.company.city?.trim();
       if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
       // Kategori sayımı SEGMENT (L1) düzeyinde: ilan L3/L4 kod taşır, ama
@@ -278,6 +309,12 @@ export class PublicMarketplaceService {
         .map(([city, count]) => ({ city, count }))
         .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
       types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
+      // Kapsam süzgeci (yurtiçi / uluslararası) — sayfa açıklaması bunu vaat
+      // ediyordu, süzgeç yoktu.
+      scopes: [
+        { scope: "domestic" as const, count: scanned.length - international },
+        { scope: "international" as const, count: international },
+      ].filter((s) => s.count > 0),
       truncated,
     };
   }
@@ -291,12 +328,13 @@ export class PublicMarketplaceService {
    * altındaki her yaprağı görmeli. Hiyerarşi koddan türediği için bu, kod
    * önekiyle eşleşmeye iner — ayrı bir ağaç sorgusu gerekmez.
    *
-   * `40000000` → önek `4`  · `40170000` → önek `4017` · `40171501` → tam kod.
-   * Sondaki sıfırları atmak sağlam: kodun anlamlı kısmı hep başta.
+   * `40000000` → önek `40` · `40170000` → `4017` · `40171501` → tam kod
+   * (`categoryPrefix`, shared — tek sıfır kırpma 41-49'u da yakalıyordu).
    */
   private productCategoryWhere(code?: string): Prisma.CompanyItemWhereInput {
-    if (!code || !/^\d{8}$/.test(code)) return {};
-    return { categoryId: { startsWith: code.replace(/0+$/, "") } };
+    const prefix = code ? categoryPrefix(code) : null;
+    if (!prefix) return {};
+    return { categoryId: { startsWith: prefix } };
   }
 
   /**
@@ -353,6 +391,9 @@ export class PublicMarketplaceService {
       // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
       // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz.
       ...(q.city ? [{ company: { city: q.city } }] : []),
+      ...(q.activity && isCompanyActivity(q.activity)
+        ? [{ company: { activities: { has: q.activity } } }]
+        : []),
       ...this.attributeClauses(q.attr),
     ];
     const where: Prisma.CompanyItemWhereInput = {
@@ -385,6 +426,7 @@ export class PublicMarketplaceService {
   async productFacets(category?: string): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
+    activities: { activity: string; count: number }[];
     attributes: {
       key: string;
       nameTr: string;
@@ -402,7 +444,7 @@ export class PublicMarketplaceService {
       select: {
         categoryId: true,
         attributes: true,
-        company: { select: { city: true } },
+        company: { select: { city: true, activities: true } },
       },
       take: FACET_SCAN_CAP + 1,
     });
@@ -411,9 +453,14 @@ export class PublicMarketplaceService {
 
     const catCount = new Map<string, number>();
     const cityCount = new Map<string, number>();
+    const actCount = new Map<string, number>();
     for (const r of scanned) {
       const city = r.company.city?.trim();
       if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+      // Faaliyet tipi (üretici/bayi/hizmet…) — ürün "NE", bu "NASIL".
+      for (const a of r.company.activities) {
+        actCount.set(a, (actCount.get(a) ?? 0) + 1);
+      }
       // SEGMENT (L1) düzeyinde sayım: ürün L3/L4 kod taşır ama ziyaretçiye
       // 158 bin satırlık süzgeç sunulamaz (ilan facet'iyle aynı karar).
       if (r.categoryId && r.categoryId.length === 8) {
@@ -434,13 +481,16 @@ export class PublicMarketplaceService {
       cities: [...cityCount.entries()]
         .map(([city, count]) => ({ city, count }))
         .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+      activities: [...actCount.entries()]
+        .map(([activity, count]) => ({ activity, count }))
+        .sort((a, b) => b.count - a.count),
       attributes: await this.attributeFacets(
         category,
         // Nitelik sayımı YALNIZ o daldaki ürünlerden: kod öneki, kategori
         // süzgecinin (ata zinciri) bellek karşılığı.
         category
           ? scanned.filter((r) =>
-              (r.categoryId ?? "").startsWith(category.replace(/0+$/, "")),
+              (r.categoryId ?? "").startsWith(categoryPrefix(category) ?? category),
             )
           : [],
       ),

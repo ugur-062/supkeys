@@ -49,6 +49,11 @@ export class PublicListQueryDto {
   @IsIn(["open", "all"])
   state?: "open" | "all";
 
+  /** Kapsam: yurtiçi / uluslararası (`isInternational`). */
+  @IsOptional()
+  @IsIn(["domestic", "international"])
+  scope?: "domestic" | "international";
+
   @IsOptional()
   @Transform(({ value }) => {
     const n = Number(value);

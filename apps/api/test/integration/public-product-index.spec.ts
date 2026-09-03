@@ -138,6 +138,14 @@ describe("ürün dizini — kapı", () => {
     for (const f of FORBIDDEN) expect([...keys]).not.toContain(f);
   });
 
+  it("segment öneki KOMŞU segmenti yakalamaz (40 ≠ 41)", async () => {
+    // Eski kırpma `40000000` → `4` idi ve 41-49'u da getiriyordu.
+    await seedProduct({}, { categoryId: "41101500" });
+    await seedProduct({}, { categoryId: "40171501" });
+    expect((await service().listProducts({ category: "40000000" })).total).toBe(1);
+    expect((await service().listProducts({ category: "41000000" })).total).toBe(1);
+  });
+
   it("kategori süzgeci ATA ZİNCİRİNİ kapsar", async () => {
     await seedProduct({}, { categoryId: "39121000" }); // L3
     await seedProduct({}, { categoryId: "40171501" }); // başka segment

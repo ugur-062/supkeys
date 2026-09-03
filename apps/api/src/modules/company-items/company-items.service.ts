@@ -10,8 +10,7 @@ import {
   isCategoryCode,
   normalizeUnit,
   slugifyText,
-  tokenizeQuery,
-} from "@rothern/shared";
+  tokenizeQuery, categoryPrefix } from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import {
   hasPublicProfile,
@@ -514,7 +513,7 @@ export class CompanyItemsService {
         ...publicProductWhere(),
         companyId: { not: user.companyId },
         ...(opts.category && isCategoryCode(opts.category)
-          ? { categoryId: { startsWith: opts.category.replace(/0+$/, "") } }
+          ? { categoryId: { startsWith: categoryPrefix(opts.category) as string } }
           : {}),
         ...(tokens.length
           ? { AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })) }

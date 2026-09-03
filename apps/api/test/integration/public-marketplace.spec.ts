@@ -352,6 +352,12 @@ describe("pazar yeri — süzgeç ve arama", () => {
     await seedPublicListing({ categoryIds: ["31000000"] });
     await seedPublicListing({ categoryIds: ["50000000"], title: "Gıda alımı" });
     const res = await service().list({ category: "50000000" });
+    // L1 seçimi ALT AĞACI kapsar: L3 kod taşıyan ilan segment süzgecine girer
+    // (eskiden `has` tam eşleşme → facet "12 ilan" derken liste boş çıkıyordu).
+    await seedPublicListing({ categoryIds: ["50131700"], title: "Meyve alımı" });
+    expect((await service().list({ category: "50000000" })).total).toBe(2);
+    expect((await service().list({ category: "51000000" })).total).toBe(0);
+    expect((await service().list({ category: "50131700" })).total).toBe(1);
     expect(res.items).toHaveLength(1);
     expect(res.items[0]?.title).toBe("Gıda alımı");
   });
