@@ -1,5 +1,6 @@
 "use client";
 
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { ImportDialog } from "./import-dialog";
 import { ProductShowcaseForm } from "./product-showcase-form";
 import { PageContainer } from "@/components/list/page-container";
@@ -152,7 +153,15 @@ export function ProductsView() {
     <PageContainer>
       <PageHeader
         title="Ürünlerim"
-        description="Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde ve arama motorlarında görünür."
+        // "Arama motorlarında görünür" SÖZÜ pazar yeri anahtarına bağlı:
+        // ürün sayfası anahtar kapalıyken de AÇIK (görünürlük ≠ indekslenme,
+        // 2026-09-03) ama `noindex` alır ve sitemap'e girmez. Anahtar kapalıyken
+        // o cümle yalan olur — kullanıcı ürününü Google'da arar, bulamaz.
+        description={
+          MARKETPLACE_LIVE
+            ? "Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde ve arama motorlarında görünür."
+            : "Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde görünür; arama motorlarına açılma pazar yeri yayınıyla başlar."
+        }
         action={
           <div className="flex flex-wrap gap-2">
             <button

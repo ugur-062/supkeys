@@ -470,6 +470,30 @@ describe("keşfet + profil", () => {
   });
 });
 
+describe("firma profili — adres biçimi", () => {
+  it("rothernId ile de public profil SLUG'ı ile de çözülür", async () => {
+    // Panel içi ürün sayfası firmayı SLUG ile tanıyor (ürün adresi
+    // `<firma-slug>/<urun-slug>`); "Firmayla iletişime geç" bağlantısı
+    // panelden çıkmamalı. Slug reddedilseydi o bağlantı yine herkese açık
+    // sayfaya kaçardı. İki biçim ayrık: kısa kod kalıbı vs kebab-case.
+    const { service } = rig();
+    const { a, b, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { publicEnabled: true, slug: "ikinci-firma" },
+    });
+
+    const byCode = await service.getProfile(a.auth, bCode);
+    const bySlug = await service.getProfile(a.auth, "ikinci-firma");
+    expect(bySlug.profile.rothernId).toBe(byCode.profile.rothernId);
+    expect(bySlug.profile.slug).toBe("ikinci-firma");
+
+    await expect(service.getProfile(a.auth, "olmayan-firma")).rejects.toThrow(
+      /bulunamadı/i,
+    );
+  });
+});
+
 describe("STANDARD premium kapıları — davet + dizin", () => {
   it("STANDARD e-posta ile davet gönderemez (tekli + toplu)", async () => {
     const { service } = rig();

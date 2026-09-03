@@ -1,6 +1,7 @@
 "use client";
 
 import { MODULE_LABELS } from "@/lib/company/portals";
+import { listingTerms } from "@/lib/company/terms";
 import {
   ActiveFilterChips,
   EmptyState,
@@ -61,6 +62,9 @@ export function SellerTendersView({
   listingType?: "ALIM" | "SATIS";
 } = {}) {
   const isSatis = listingType === "SATIS";
+  // Kayıt tipi sözlüğü: bu sayfa SATIS modunda satış İLANLARINI listeler;
+  // "satın alma talebi" demek satış tarafında TERSTİR.
+  const t = listingTerms(isSatis ? "SATIS" : "ALIM");
   const tenders = useSellerTenders(listingType);
   // Arama/kategori URL'DEN başlar: pano keşif bloğu buraya `?q=` / `?kategori=`
   // ile devrediyor. URL'siz başlasaydı devredilen terim sessizce kaybolurdu;
@@ -181,14 +185,14 @@ export function SellerTendersView({
         title={isSatis ? MODULE_LABELS.satinalma.satinAl : MODULE_LABELS.satis.acikIhaleler}
         description={
           isSatis
-            ? "Bağlı olduğunuz satıcıların ve herkese açık satış satın alma taleplerinin listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
-            : "Bağlı olduğunuz alıcı firmaların ve herkese açık satın alma taleplerin listesi — teklif verin, sonuçları takip edin."
+            ? "Bağlı olduğunuz satıcıların ve herkese açık satış ilanlarının listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
+            : "Bağlı olduğunuz alıcı firmaların ve herkese açık satın alma taleplerinin listesi — teklif verin, sonuçları takip edin."
         }
       />
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 300 satın alma talebi gösteriliyor — daha fazlası varsa arama ve
+          En fazla 300 {t.unit} gösteriliyor — daha fazlası varsa arama ve
           filtrelerle daraltın.
         </div>
       ) : null}
@@ -200,7 +204,7 @@ export function SellerTendersView({
           <SearchInput
             value={search}
             onChange={withReset(setSearch)}
-            placeholder="Satın Alma Talebi adı, numarası veya firma ara…"
+            placeholder={`${t.searchNoun} adı, numarası veya firma ara…`}
             className="flex-1"
           />
           <FilterSelect
@@ -241,7 +245,7 @@ export function SellerTendersView({
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit="satın alma talebi"
+            unit={t.unit}
             isLoading={tenders.isLoading}
             className="ml-auto"
           />
@@ -316,8 +320,8 @@ export function SellerTendersView({
             isFiltered
               ? "Sonuç bulunamadı"
               : tab === "active" && all.length > 0
-                ? "Aktif satın alma talebi yok"
-                : "Henüz satın alma talebi yok"
+                ? `Aktif ${t.unit} yok`
+                : `Henüz ${t.unit} yok`
           }
           description={
             isFiltered
@@ -325,9 +329,9 @@ export function SellerTendersView({
               : tab === "active" && all.length > 0
                 ? // C57: "Aktif" sekmesi varsayılan — geçmiş kayıtlar sessizce
                   // gizli kalıyordu, boş durum bunu söylemiyordu.
-                  "Şu an açık satın alma talebi bulunmuyor. Kapanan satın alma talepleri için Durum filtresinden Geçmiş'i seçin."
+                  `Şu an açık ${t.indefinite} bulunmuyor. Kapanan ${t.pluralAccusative} görmek için Durum filtresinden Geçmiş'i seçin.`
                 : isSatis
-                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış satın alma talebi yayınlandığında burada görünür."
+                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ilanı yayınlandığında burada görünür."
                   : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık satın alma talebi yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
@@ -364,7 +368,7 @@ export function SellerTendersView({
         <>
           {/* Tek görünüm: yoğun satır listesi — İhalelerim ile aynı dil;
               talep sahibi FİRMA kolonu (kullanıcı isteği, 2026-08-03). */}
-          <div className="space-y-2" role="table" aria-label="Satın Alma Talebi listesi">
+          <div className="space-y-2" role="table" aria-label={`${t.searchNoun} listesi`}>
             {pageRows.map((t) => (
               <BrowseTenderRow key={t.id} t={t} listingType={listingType} />
             ))}

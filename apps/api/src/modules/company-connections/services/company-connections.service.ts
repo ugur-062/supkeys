@@ -963,9 +963,17 @@ export class CompanyConnectionsService {
    * PRIVATE yalnız o ilana DAVETLİYE (bağlı olmak davetli olmak değildir).
    */
   async getProfile(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
+    // Adres ya rothernId (`K7X9-3M2P`) ya da public profil slug'ıdır. İkisi
+    // biçim olarak ayrık (kısa kod kalıbı vs kebab-case) → belirsizlik yok.
+    // Slug kabul etmek ŞART: panel içi ürün sayfası ürünü slug'la çözüyor ve
+    // "firmayla iletişime geç" bağlantısı panelden çıkmamalı; slug'ı burada
+    // reddetseydik o bağlantı yine herkese açık sayfaya kaçardı.
     const code = normalizeShortCode(rothernIdRaw);
-    const c = await this.prisma.company.findUnique({
-      where: { rothernId: code },
+    const where = validateShortCode(code)
+      ? { rothernId: code }
+      : { slug: rothernIdRaw.trim().toLowerCase() };
+    const c = await this.prisma.company.findFirst({
+      where,
       select: {
         id: true,
         rothernId: true,

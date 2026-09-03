@@ -66,15 +66,25 @@ export class CompanyListingsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("type") type?: string,
     @Query("limit") limit?: string,
+    @Query("openOnly") openOnly?: string,
   ) {
     // `limit` SIRALAMADAN SONRA kırpar (serviste) — pano keşif şeridi 6 kart
     // gösterir ama sıralama tüm kümeden çıkar; sorguyu kırpsaydık "en uygun 6"
     // değil "rastgele 6" gösterirdik. Tavan 24: şerit bundan fazlasını çizmez.
+    //
+    // `openOnly=true` — yalnız TEKLİFE AÇIK ilanlar. Pano keşif şeridi bunu
+    // ister: varsayılan yanıt geçmiş katılımlarımı da taşır ve şerit "teklif
+    // bekleyen açık talepler" diye başlıklandığı için o kayıtlar orada YALAN
+    // söyler. Liste sayfası parametresiz çağırır (Aktif/Geçmiş sekmeleri
+    // ikisini de gösterir).
     const n = Number(limit);
     return this.service.sellerTenders(
       user,
       type === "SATIS" ? "SATIS" : "ALIM",
-      { limit: Number.isFinite(n) && n > 0 ? Math.min(Math.trunc(n), 24) : undefined },
+      {
+        limit: Number.isFinite(n) && n > 0 ? Math.min(Math.trunc(n), 24) : undefined,
+        openOnly: openOnly === "true",
+      },
     );
   }
 

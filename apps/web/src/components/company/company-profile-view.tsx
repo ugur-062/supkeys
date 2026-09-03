@@ -4,6 +4,7 @@ import { StarIcon } from "@heroicons/react/20/solid";
 import { companyActivityLabel, type ReviewSummary } from "@rothern/shared";
 
 import { safeExternalUrl } from "@/lib/safe-url";
+import { CompanyLogo } from "@/components/company/company-logo";
 import { SafeCoverImage } from "@/components/company/safe-cover-image";
 
 /**
@@ -181,18 +182,16 @@ export function CompanyProfileView({
           <div className="relative z-10 -mt-14 flex flex-wrap items-end justify-between gap-4">
             <div className="flex items-end gap-4">
               <div className="relative rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5">
-                {p.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.logoUrl}
-                    alt={`${p.name} logosu`}
-                    className="h-24 w-24 rounded-2xl object-cover sm:h-28 sm:w-28"
-                  />
-                ) : (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-950 text-4xl font-bold text-white sm:h-28 sm:w-28">
-                    {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
-                  </div>
-                )}
+                <CompanyLogo
+                  src={p.logoUrl}
+                  alt={`${p.name} logosu`}
+                  className="h-24 w-24 rounded-2xl object-cover sm:h-28 sm:w-28"
+                  fallback={
+                    <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-950 text-4xl font-bold text-white sm:h-28 sm:w-28">
+                      {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
+                    </div>
+                  }
+                />
                 {edit?.logo ?? null}
               </div>
               <div className="mb-1.5 min-w-0">

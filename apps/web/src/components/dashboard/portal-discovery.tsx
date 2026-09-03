@@ -203,6 +203,7 @@ export function PortalDiscovery({ portal }: Props) {
           <ProductStrip
             rows={products.data ?? []}
             loading={products.isLoading}
+            hrefBase={copy.productsHref ?? "/company/satinalma/urunler"}
             emptyTitle="Vitrine çıkmış ürün yok."
             emptyHint="Firmalar ürünlerini yayımladıkça burada görünür."
           />
@@ -337,14 +338,22 @@ function ListingTile({
   );
 }
 
+/**
+ * `hrefBase` PANEL rotasıdır, pazar yerinin herkese açık adresi değil.
+ * Kart doğrudan `/firma/<slug>/urun/<slug>`e gitseydi giriş yapmış kullanıcı
+ * paneli terk eder ve "Giriş Yap / Kaydol" duvarına çarpardı (o layout oturumu
+ * hiç okumuyor). Aynı ürün içeriği panel kabuğunda gösterilir.
+ */
 function ProductStrip({
   rows,
   loading,
+  hrefBase,
   emptyTitle,
   emptyHint,
 }: {
   rows: DiscoverProduct[];
   loading: boolean;
+  hrefBase: string;
   emptyTitle: string;
   emptyHint: string;
 }) {
@@ -357,7 +366,7 @@ function ProductStrip({
         return (
           <Link
             key={`${p.company.slug}/${p.slug}`}
-            href={`/firma/${p.company.slug}/urun/${p.slug}`}
+            href={`${hrefBase}/${p.company.slug}/${p.slug}`}
             className="group flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
           >
             <CategoryImage

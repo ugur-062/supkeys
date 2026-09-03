@@ -1,3 +1,4 @@
+import { CompanyLogo } from "@/components/company/company-logo";
 import { companyActivityLabel } from "@rothern/shared";
 import type { PublicDirectoryCompany } from "@/lib/public/marketplace-api";
 import { BuildingOffice2Icon, MapPinIcon } from "@heroicons/react/20/solid";
@@ -14,23 +15,16 @@ export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
   const inner = (
     <>
       <div className="flex items-center gap-3">
-        {company.logoUrl ? (
-          // `next/image` DEĞİL: logolar R2/CDN'den geliyor ve
-          // `images.remotePatterns` yapılandırılmamış — profil sayfası da aynı
-          // sebeple düz <img> kullanıyor (company-profile-view.tsx).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={company.logoUrl}
-            alt=""
-            width={48}
-            height={48}
-            className="size-12 shrink-0 rounded-lg object-contain ring-1 ring-zinc-950/5"
-          />
-        ) : (
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5">
-            <BuildingOffice2Icon aria-hidden className="size-6 text-zinc-400" />
-          </span>
-        )}
+        <CompanyLogo
+          src={company.logoUrl}
+          alt=""
+          className="size-12 shrink-0 rounded-lg object-contain ring-1 ring-zinc-950/5"
+          fallback={
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5">
+              <BuildingOffice2Icon aria-hidden className="size-6 text-zinc-400" />
+            </span>
+          }
+        />
         <div className="min-w-0">
           <h3 className="line-clamp-1 text-base font-semibold text-zinc-950 group-hover:text-zinc-600">
             {company.name}

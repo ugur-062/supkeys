@@ -84,7 +84,10 @@ export function DiscoverProductsView() {
             return (
               <Link
                 key={`${p.company.slug}/${p.slug}`}
-                href={`/firma/${p.company.slug}/urun/${p.slug}`}
+                // PANEL rotası — herkese açık `/firma/...` sayfası DEĞİL.
+                // Public layout oturumu okumaz; giriş yapmış kullanıcıyı
+                // "Giriş Yap / Kaydol" duvarına çarpardı.
+                href={`/company/satinalma/urunler/${p.company.slug}/${p.slug}`}
                 className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-lg"
               >
                 <CategoryImage

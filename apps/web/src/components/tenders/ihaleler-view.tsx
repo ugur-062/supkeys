@@ -1,6 +1,7 @@
 "use client";
 
 import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
+import { listingTerms } from "@/lib/company/terms";
 import {
   FilterSelect,
   PageHeader,
@@ -82,6 +83,9 @@ export function IhalelerView({
   listingType?: "ALIM" | "SATIS";
 } = {}) {
   const isSatis = listingType === "SATIS";
+  // Sayaç/arama metinleri kayıt tipine göre — bu sayfa iki farklı iş
+  // nesnesini çiziyor ve metinler ALIM tarafına sabitlenmişti.
+  const t = listingTerms(isSatis ? "SATIS" : "ALIM");
   const secondary = PORTAL_SECONDARY_HREFS[isSatis ? "satis" : "satinalma"];
   const canCreate = useHasCompanyPermission(
     isSatis ? "sell:listing:create" : "buy:listing:create",
@@ -265,7 +269,7 @@ export function IhalelerView({
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 500 satın alma talebi gösteriliyor — daha fazlası varsa arama ve
+          En fazla 500 {t.unit} gösteriliyor — daha fazlası varsa arama ve
           filtrelerle daraltın.
         </div>
       ) : null}
@@ -276,7 +280,7 @@ export function IhalelerView({
           <SearchInput
             value={search}
             onChange={reset(setSearch)}
-            placeholder="Satın Alma Talebi adı veya numarası ara…"
+            placeholder={`${t.searchNoun} adı veya numarası ara…`}
             className="flex-1"
           />
           <FilterSelect
@@ -347,7 +351,7 @@ export function IhalelerView({
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit="satın alma talebi"
+            unit={t.unit}
             isLoading={list.isLoading}
             className="ml-auto"
           />

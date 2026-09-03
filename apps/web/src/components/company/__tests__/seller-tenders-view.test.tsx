@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { listingTerms } from "@/lib/company/terms";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   render as rtlRender,
@@ -170,7 +171,11 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     render(<SellerTendersView />);
 
     await user.type(
-      screen.getByPlaceholderText("Satın Alma Talebi adı, numarası veya firma ara…"),
+      // Metin kayıt tipi sözlüğünden geliyor (lib/company/terms.ts) — testte
+      // elle yazsaydık sözlük değiştiğinde bu test sözlükle ayrışırdı.
+      screen.getByPlaceholderText(
+        `${listingTerms("ALIM").searchNoun} adı, numarası veya firma ara…`,
+      ),
       "çelik",
     );
     // SearchInput debounce'lı (300ms) → filtrenin uygulanmasını bekle.

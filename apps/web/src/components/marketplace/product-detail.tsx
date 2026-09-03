@@ -18,6 +18,7 @@ import {
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { Fragment } from "react";
 
 /**
  * Ürün sayfası — SUNUCU bileşeni.
@@ -126,24 +127,110 @@ export function ProductDetail({
       <MarketingHeader />
 
       <main className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
-        <nav aria-label="Yol" className="text-sm text-zinc-500">
-          <ol className="flex flex-wrap items-center gap-1">
-            <li>
-              <Link href="/" className="hover:text-zinc-900">
-                Anasayfa
-              </Link>
-            </li>
-            <li aria-hidden>/</li>
-            <li>
-              <Link href={`/firma/${companySlug}`} className="hover:text-zinc-900">
-                {company.name}
-              </Link>
-            </li>
-            <li aria-hidden>/</li>
-            <li className="line-clamp-1 text-zinc-900">{product.name}</li>
-          </ol>
-        </nav>
+        <ProductBreadcrumb
+          trail={[
+            { label: "Anasayfa", href: "/" },
+            { label: company.name, href: `/firma/${companySlug}` },
+          ]}
+          current={product.name}
+        />
 
+        <ProductDetailBody
+          product={product}
+          company={company}
+          companyHref={`/firma/${companySlug}`}
+          cta={
+            <>
+              {/* Hesap SORMUYOR — misafir talebi. Kayıt yanıtı okumak için
+                  gerekiyor; kullanıcı o noktada zaten emek vermiş olur. */}
+              <InquiryButton
+                companySlug={companySlug}
+                productSlug={product.slug}
+                productName={product.name}
+                companyName={company.name}
+              />
+              <p className="mt-2 text-center text-xs text-zinc-500">
+                Hesabınız var mı?{" "}
+                <Link
+                  href="/company/login"
+                  className="font-medium text-zinc-700 hover:underline"
+                >
+                  Giriş yapın
+                </Link>
+              </p>
+            </>
+          }
+        />
+      </main>
+      <MarketplaceFooter />
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * Yol (breadcrumb) — public sayfada `Anasayfa > Firma > Ürün`, panelde
+ * `Ürün Ara > Firma > Ürün`. Tek bileşen: iki yüzeyde iki ayrı işaretleme
+ * yazsaydık biri güncellenir diğeri unutulurdu.
+ */
+export function ProductBreadcrumb({
+  trail,
+  current,
+}: {
+  trail: { label: string; href: string }[];
+  current: string;
+}) {
+  return (
+    <nav aria-label="Yol" className="text-sm text-zinc-500">
+      <ol className="flex flex-wrap items-center gap-1">
+        {trail.map((t) => (
+          <Fragment key={t.href}>
+            <li>
+              <Link href={t.href} className="hover:text-zinc-900">
+                {t.label}
+              </Link>
+            </li>
+            <li aria-hidden>/</li>
+          </Fragment>
+        ))}
+        <li className="line-clamp-1 text-zinc-900">{current}</li>
+      </ol>
+    </nav>
+  );
+}
+
+/**
+ * Ürün sayfasının GÖVDESİ — herkese açık pazar yeri sayfası ve PANEL içi ürün
+ * sayfası bunu paylaşır.
+ *
+ * Neden paylaşılıyor: panel kartı eskiden doğrudan `/firma/<slug>/urun/<slug>`
+ * adresine gidiyordu; o layout oturumu okumadığı için giriş yapmış kullanıcı
+ * sol menüyü kaybedip "Giriş Yap / Kaydol" duvarına çarpıyordu. İçeriği
+ * kopyalamak yerine kabuk (header/footer/JSON-LD) ve eylem (CTA) dışarıdan
+ * veriliyor — ürün gövdesi tek yerde kalıyor.
+ *
+ * SUNUCU bileşeni: `cta` bir slot olduğu için panel tarafı oraya istemci
+ * bileşeni geçebilir.
+ */
+export function ProductDetailBody({
+  product,
+  company,
+  companyHref,
+  cta,
+}: {
+  product: PublicProduct;
+  company: PublicProductCompany;
+  /** Satıcı kartındaki bağlantı — public profil ya da panel firma sayfası. */
+  companyHref: string;
+  cta: React.ReactNode;
+}) {
+  const price = productPrice(product);
+  // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
+  const attrs = product.attributeList ?? [];
+
+  return (
         <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_20rem]">
           <div>
             {/* Galeri: ilk görsel büyük, kalanlar şerit. Görsel yayın kapısında
@@ -316,25 +403,7 @@ export function ProductDetail({
                 </table>
               ) : null}
 
-              <div className="mt-5 border-t border-zinc-950/5 pt-5">
-                {/* Hesap SORMUYOR — misafir talebi. Kayıt yanıtı okumak için
-                    gerekiyor; kullanıcı o noktada zaten emek vermiş olur. */}
-                <InquiryButton
-                  companySlug={companySlug}
-                  productSlug={product.slug}
-                  productName={product.name}
-                  companyName={company.name}
-                />
-                <p className="mt-2 text-center text-xs text-zinc-500">
-                  Hesabınız var mı?{" "}
-                  <Link
-                    href="/company/login"
-                    className="font-medium text-zinc-700 hover:underline"
-                  >
-                    Giriş yapın
-                  </Link>
-                </p>
-              </div>
+              <div className="mt-5 border-t border-zinc-950/5 pt-5">{cta}</div>
             </div>
 
             <div className="mt-6 rounded-2xl bg-zinc-50 p-5 ring-1 ring-zinc-950/5">
@@ -347,7 +416,7 @@ export function ProductDetail({
                 </span>
                 <div className="min-w-0">
                   <Link
-                    href={`/firma/${companySlug}`}
+                    href={companyHref}
                     className="text-sm font-semibold text-zinc-950 hover:text-zinc-600"
                   >
                     {company.name}
@@ -376,9 +445,6 @@ export function ProductDetail({
               ) : null}
             </div>
           </aside>
-        </div>
-      </main>
-      <MarketplaceFooter />
     </div>
   );
 }

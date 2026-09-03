@@ -1,7 +1,12 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import type {
+  PublicProduct,
+  PublicProductCompany,
+} from "@/lib/public/marketplace-api";
 import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import type { SellerTenderRow } from "./use-seller-tenders";
 
 /**
@@ -38,13 +43,21 @@ export interface DiscoverProduct {
 /**
  * Şeritteki ilanlar. `limit` sunucuda SIRALAMADAN SONRA uygulanır — "en uygun
  * 6", "rastgele 6" değil.
+ *
+ * `openOnly=true` ZORUNLU: uç varsayılan olarak açık ilanların YANINDA benim
+ * katıldığım kapanmış ilanları da döndürür (liste sayfası ikisini Aktif/Geçmiş
+ * sekmesiyle ayırır). Şerit ise "teklif bekleyen" diye başlıklanıyor; süzgeç
+ * olmadan açık ilan bitince şerit sessizce kapanmış/karara bağlanmış
+ * kayıtlarla dolar ve "Tümünü gör" tıklandığında liste 0 sonuç gösterir.
+ * Süzgeci istemcide yapmak da yanlış olurdu: `limit` sunucuda uygulandığı
+ * için elemeden sonra 6 yerine 2 kart kalırdı.
  */
 export function useDiscoverListings(type: "ALIM" | "SATIS", limit = 6) {
   return useQuery<SellerTenderRow[]>({
     queryKey: ["company-listings", "discover", type, limit],
     queryFn: async () => {
       const { data } = await companyApi.get<SellerTenderRow[]>(
-        `/company/listings/seller-tenders?type=${type}&limit=${limit}`,
+        `/company/listings/seller-tenders?type=${type}&limit=${limit}&openOnly=true`,
       );
       return data;
     },
@@ -85,6 +98,43 @@ export function useDiscoverProducts(
       return data;
     },
     enabled,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * PANEL içi tekil ürün. Herkese açık uçtan okur — ve bu, "pazar yerinin
+ * herkese açık uçları panelde KULLANILMAZ" kuralının bilinçli istisnasıdır.
+ *
+ * O kuralın üç gerekçesi vardı ve üçü de İLANLAR içindi: (1) uç
+ * `MARKETPLACE_LIVE` kapalıyken boş döner, (2) maskeleme/davet/bağlantı
+ * görünürlüğünü taşımaz, (3) bağlantıya özel ilanlar orada hiç yok.
+ * Üründe hiçbiri geçerli değil: firma-altı ürün ucunda `MarketplaceLiveGuard`
+ * YOKTUR (sözleşme `public-product.spec.ts` bunu kilitliyor — "görünürlük ≠
+ * indekslenme"), üründe maskeleme ekseni yok, ve kapı iki tarafta da AYNI tek
+ * kaynaktır (`publicProductWhere`). Panele ayrı bir detay ucu yazmak, aynı
+ * mapper'ın ikinci bir kopyasını üretirdi.
+ *
+ * `null` = yok/erişilemez (404) — sayfa "bulunamadı" gösterir.
+ */
+export function usePublicProduct(companySlug: string, productSlug: string) {
+  return useQuery<{
+    product: PublicProduct;
+    company: PublicProductCompany;
+  } | null>({
+    queryKey: ["public-product", companySlug, productSlug],
+    enabled: !!companySlug && !!productSlug,
+    queryFn: async () => {
+      try {
+        const { data } = await companyApi.get(
+          `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}`,
+        );
+        return data;
+      } catch (err) {
+        if (isAxiosError(err) && err.response?.status === 404) return null;
+        throw err;
+      }
+    },
     staleTime: 60_000,
   });
 }

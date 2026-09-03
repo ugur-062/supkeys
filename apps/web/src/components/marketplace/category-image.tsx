@@ -1,9 +1,19 @@
+"use client";
+
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { optimizable } from "@/lib/public/image-host";
 import Image from "next/image";
+import { useState } from "react";
 
 /**
  * Kart görseli — gerçek fotoğraf varsa o, yoksa ÜRETİLMİŞ kategori görseli.
+ *
+ * İSTEMCİ bileşeni olmasının TEK sebebi `onError`: görselin YOK olması ile
+ * YÜKLENEMEMESİ ayrı hâller ve ikincisi canlıda gerçekleşti — `cdn.rothern.com`
+ * altındaki eski anahtarlar 404, `pub-*.r2.dev` 503 döndü. `src` dolu olduğu
+ * için yedek çizilmiyor, tarayıcı da kırık görselin yerine ÇIPLAK ALT METNİ
+ * basıyordu ("Dağıtım Panosu 400A IP54" yazan gri kutu). Yükleme başarısız
+ * olursa aynı üretilmiş kategori görseline düşülür.
  *
  * Gri boş kutu YOK: envanterin çoğu ALIM ve alıcı fotoğraf yüklemiyor
  * (satan gösterir, alan tarif eder). Kategori her kayıtta var, dolayısıyla
@@ -27,7 +37,11 @@ export function CategoryImage({
   className?: string;
   ratio?: string;
 }) {
-  if (src) {
+  // Yükleme hatası → üretilmiş görsele düş. `src` değişirse (aynı kartın
+  // yeniden kullanımı) hata durumu sıfırlanmalı; anahtar olarak src kullanılır.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (src && failedSrc !== src) {
     return (
       <div className={`relative overflow-hidden ${ratio} ${className}`}>
         {optimizable(src) ? (
@@ -39,6 +53,7 @@ export function CategoryImage({
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover"
+            onError={() => setFailedSrc(src)}
           />
         ) : (
           // Tanımsız host (harici görsel, yapılandırılmamış ortam) →
@@ -50,6 +65,7 @@ export function CategoryImage({
             alt={alt}
             loading="lazy"
             className="size-full object-cover"
+            onError={() => setFailedSrc(src)}
           />
         )}
       </div>

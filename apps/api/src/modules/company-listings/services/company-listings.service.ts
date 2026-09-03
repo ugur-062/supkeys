@@ -2243,11 +2243,19 @@ export class CompanyListingsService {
    * Teklifçi listesi. `limit` verilirse SIRALAMADAN SONRA kırpılır — pano
    * keşif şeridi 6 kart gösteriyor ama sıralama tüm kümeden çıkmalı, yoksa
    * "en uygun 6" değil "rastgele 6" gösterirdik.
+   *
+   * `openOnly` — geçmiş dalı HİÇ sorgulanmaz. Bu uç iki küme döndürür (açık
+   * ilanlar + benim katıldığım kapanmışlar); liste sayfası ikisini sekmeyle
+   * ayırdığı için ikisini de ister, pano keşif şeridi ise yalnız "teklif
+   * bekleyen" olanı gösterir. Süzgeci İSTEMCİYE bırakmak yanlış olurdu:
+   * `limit` sunucuda sıralamadan sonra kırpıyor, dolayısıyla istemci
+   * kapanmışları elediğinde 6 yerine 2 kart kalır — üstelik açık ilan 0
+   * olduğunda şerit sessizce geçmiş kayıtlarla dolar ve başlığı yalan söyler.
    */
   async sellerTenders(
     user: AuthenticatedCompanyUser,
     type: ListingType = "ALIM",
-    opts: { limit?: number } = {},
+    opts: { limit?: number; openOnly?: boolean } = {},
   ) {
     const companyId = user.companyId;
     const [connectedIds, blockedIds, myCompany] = await Promise.all([
@@ -2326,22 +2334,24 @@ export class CompanyListingsService {
       // katılmadığın bir ilan kapandıysa listeden düşer; onu ancak teklif
       // verdiysen (tekliflerim/geçmiş) ya da sipariş çıktıysa (siparişlerim)
       // görürsün. Kendi ilanlarını (kapanmış dahil) ownerTenders gösterir.
-      this.prisma.listing.findMany({
-        where: {
-          ...baseWhere,
-          status: { notIn: ["OPEN", "DRAFT", "IN_APPROVAL"] },
-          OR: [
-            invitedClause,
-            { bids: { some: { bidderCompanyId: companyId } } },
-          ],
-        },
-        select,
-        orderBy: { updatedAt: "desc" },
-        take: 200,
-      }),
+      opts.openOnly
+        ? null
+        : this.prisma.listing.findMany({
+            where: {
+              ...baseWhere,
+              status: { notIn: ["OPEN", "DRAFT", "IN_APPROVAL"] },
+              OR: [
+                invitedClause,
+                { bids: { some: { bidderCompanyId: companyId } } },
+              ],
+            },
+            select,
+            orderBy: { updatedAt: "desc" },
+            take: 200,
+          }),
     ]);
     const byId = new Map(
-      [...openRows, ...pastRows].map((l) => [l.id, l] as const),
+      [...openRows, ...(pastRows ?? [])].map((l) => [l.id, l] as const),
     );
     const all = [...byId.values()];
     const ids = all.map((l) => l.id);

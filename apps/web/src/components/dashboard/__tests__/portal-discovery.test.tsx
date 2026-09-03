@@ -7,6 +7,7 @@
  * "fırsat" sanır ve blok tamamen yanlış bir dünya gösterir.
  */
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -121,6 +122,61 @@ describe("PortalDiscovery", () => {
     wrap(<PortalDiscovery portal="satis" />);
     await screen.findByText("Paslanmaz çelik boru");
     expect(screen.queryByRole("button", { name: /ürün/i })).toBeNull();
+  });
+
+  it("yalnız TEKLİFE AÇIK ilanlar istenir (openOnly)", async () => {
+    // Uç varsayılan olarak katıldığım KAPANMIŞ ilanları da döndürür (liste
+    // sayfası Aktif/Geçmiş sekmesiyle ayırır). Şerit "teklif bekleyen" diye
+    // başlıklanıyor: süzgeç olmadan açık ilan bitince kapanmış/karara
+    // bağlanmış kayıtlarla dolar ve "Tümünü gör" 0 sonuç gösterirdi.
+    wrap(<PortalDiscovery portal="satis" />);
+    await screen.findByText("Paslanmaz çelik boru");
+    const urls = h.get.mock.calls.map((c) => String(c[0]));
+    expect(
+      urls.some((u) => u.includes("seller-tenders") && u.includes("openOnly=true")),
+    ).toBe(true);
+  });
+
+  it("ürün kartı PANEL rotasına gider — herkese açık sayfaya DEĞİL", async () => {
+    // Kart `/firma/<slug>/urun/<slug>`e gitseydi giriş yapmış kullanıcı paneli
+    // terk eder, oturumu okumayan public layout'ta "Giriş Yap / Kaydol"
+    // duvarına çarpardı (canlıda gerçekleşti).
+    h.get.mockImplementation((url: string) => {
+      if (url.includes("discover-facets")) {
+        return Promise.resolve({ data: { segments: [], total: 0 } });
+      }
+      if (url.includes("items/discover")) {
+        return Promise.resolve({
+          data: [
+            {
+              slug: "dagitim-panosu",
+              name: "Dağıtım Panosu 400A",
+              excerpt: null,
+              images: [],
+              unit: "adet",
+              categoryId: "39000000",
+              priceMode: "ON_REQUEST",
+              priceAmount: null,
+              priceTiers: null,
+              priceCurrency: "TRY",
+              moq: null,
+              company: { name: "İkinci Firma", slug: "ikinci-firma", city: "Bursa" },
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+    const user = userEvent.setup();
+    wrap(<PortalDiscovery portal="satinalma" />);
+    await user.click(
+      await screen.findByRole("button", { name: "Tedarikçi ürünleri" }),
+    );
+    const link = await screen.findByRole("link", { name: /Dağıtım Panosu 400A/ });
+    expect(link).toHaveAttribute(
+      "href",
+      "/company/satinalma/urunler/ikinci-firma/dagitim-panosu",
+    );
   });
 
   it("boş envanterde hayalet ızgara değil, tek satır + yönlendirme", async () => {

@@ -1,16 +1,42 @@
 import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
 
 /**
- * P2 (frontend denetimi §8.3) — terminoloji TEK kaynak. "İlan" kelimesi
- * üründen kaldırıldı: satış tarafı "satış satın alma talebi", alış tarafı "alış
- * ihalesi". Rota→etiket sözlüğü sidebar nav'ından (PORTALS) türetilir —
- * sayfa başlığı, breadcrumb ve geri linki aynı adı kullanır; "Satışlarım /
- * ← Siparişler" tarzı kaymalar buradan kapanır.
+ * KAYIT TİPİ SÖZLÜĞÜ — sayaç, arama kutusu ve boş-durum metinleri buradan.
+ *
+ * Gerekçe: tek bir generic liste bileşeni İKİ farklı iş nesnesini çiziyor
+ * (ALIM = satın alma talebi, SATIS = satış ilanı) ve metinler ALIM tarafına
+ * sabitlenmişti. Sonuç: "Satış İlanlarım" sayfasında sayaç "1 satın alma
+ * talebi" yazıyor, "Satın Al" sayfası "herkese açık satış satın alma
+ * talepleri" gibi bozuk bir cümleye dönüşüyordu — ürün dili kararının
+ * (2026-09-01) tam tersi: satış tarafında firma SATIYOR, orada "talep" TERS.
+ *
+ * Türkçe notu: `talep` son sesi yumuşar (talebi/talebe); `ilan` yumuşamaz.
+ * Bu yüzden çekimli biçimler tek tek yazılır, kod ek YAPIŞTIRMAZ.
  */
-export const TERMS = {
-  TENDER_SELL: "satış satın alma talebi",
-  TENDER_BUY: "alış satın alma talebi",
+export const LISTING_TERMS = {
+  ALIM: {
+    /** "1 satın alma talebi" — sayaç birimi. */
+    unit: "satın alma talebi",
+    /** "…adı veya numarası ara…" */
+    searchNoun: "Satın alma talebi",
+    /** "…açık satın alma talebi yayınlandığında" */
+    indefinite: "satın alma talebi",
+    /** Belirtme hâli: "…kapanan satın alma taleplerini" */
+    pluralAccusative: "satın alma taleplerini",
+  },
+  SATIS: {
+    unit: "satış ilanı",
+    searchNoun: "Satış ilanı",
+    indefinite: "satış ilanı",
+    pluralAccusative: "satış ilanlarını",
+  },
 } as const;
+
+export type ListingTermKey = keyof typeof LISTING_TERMS;
+
+export function listingTerms(type: ListingTermKey) {
+  return LISTING_TERMS[type];
+}
 
 /** Rota → sidebar etiketi (tam eşleşme). Bulunamazsa null. */
 const ROUTE_LABELS: Record<string, string> = Object.fromEntries(

@@ -148,6 +148,42 @@ describe("sellerTenders", () => {
     expect(pastRow?.status).toBe("AWARDED");
   });
 
+  it("openOnly: geçmiş katılımlarım DIŞARIDA — pano şeridi 'teklif bekleyen' der", async () => {
+    // Varsayılan yanıt açık ilanların yanında KATILDIĞIM kapanmışları da
+    // taşır (liste sayfası Aktif/Geçmiş sekmesiyle ayırır). Pano keşif şeridi
+    // "teklif bekleyen açık talepler" diye başlıklanıyor: süzgeç olmadan açık
+    // ilan bitince şerit sessizce AWARDED/CLOSED kayıtlarla doluyor ve
+    // "Tümünü gör" tıklandığında liste (varsayılan Aktif sekmesi) 0 gösteriyordu.
+    const { service } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    await connect(prisma, buyer.company.id, seller.company.id, buyer.user.id);
+    const base = {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM" as const,
+      visibility: "CONNECTIONS" as const,
+    };
+
+    const open = await makeListing(prisma, base);
+    const past = await makeListing(prisma, { ...base, status: "AWARDED" });
+    await makeBid(prisma, {
+      listingId: past.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      amount: 500,
+      status: "WON",
+    });
+
+    const all = await service.sellerTenders(seller.auth);
+    expect(all.map((r) => r.id).sort()).toEqual([open.id, past.id].sort());
+
+    const openOnly = await service.sellerTenders(seller.auth, "ALIM", {
+      openOnly: true,
+    });
+    expect(openOnly.map((r) => r.id)).toEqual([open.id]);
+  });
+
   it("kategori eşleşmesi: ilan class kodu satıcının segmentine türer", async () => {
     const { service } = makeService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });
