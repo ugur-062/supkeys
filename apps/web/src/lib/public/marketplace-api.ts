@@ -479,6 +479,17 @@ export function fetchCompanyProducts(
   );
 }
 
+/** L1 segmentler (58) — `categories/segments`, anahtara tabi değil. */
+export interface CategorySegment {
+  id: string;
+  nameTr: string;
+  childCount?: number;
+}
+
+export function fetchSegments(): Promise<CategorySegment[]> {
+  return getJson<CategorySegment[]>("/categories/segments", [], 3600);
+}
+
 /** Anonim dizin özeti — sayı + kategori dağılımı, kimlik yok. */
 export interface DirectorySummary {
   verifiedCompanies: number;

@@ -1,5 +1,4 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import {
   ProductIndex,
   type ProductSearchParams,
@@ -39,16 +38,12 @@ export default async function Page({
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   return (
-    <div className="min-h-dvh bg-white">
-      <MarketingHeader />
-      <main>
+    <PublicLayout>
         <ProductIndex
           title={MARKETPLACE_LABELS.products}
           lead="Firmaların vitrinlerine koyduğu ürünler. İlanlardan farkı: süreli değil, kalıcı — ürünü beğendiğiniz firmayla doğrudan iletişime geçin."
           searchParams={sp}
         />
-      </main>
-      <MarketplaceFooter />
-    </div>
+    </PublicLayout>
   );
 }

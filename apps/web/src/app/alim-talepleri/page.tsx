@@ -1,5 +1,4 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import {
   ListingIndex,
   type MarketplaceSearchParams,
@@ -38,17 +37,13 @@ export default async function Page({
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   return (
-    <div className="min-h-dvh bg-white">
-      <MarketingHeader />
-      <main>
+    <PublicLayout>
         <ListingIndex
           type="ALIM"
           title={MARKETPLACE_LABELS.demands}
           lead="Firmaların herkese açık yayımladığı satın alma talepleri. Kategoriye ve şehre göre süzün, ilgilendiğiniz talebe kaydolup teklif verin."
           searchParams={sp}
         />
-      </main>
-      <MarketplaceFooter />
-    </div>
+    </PublicLayout>
   );
 }

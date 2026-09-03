@@ -1,5 +1,5 @@
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import { OPERATOR } from "@/lib/company-info";
-import Link from "next/link";
 
 export const metadata = { title: "İletişim ve Künye — Rothern" };
 
@@ -16,16 +16,14 @@ const rows: Array<{ label: string; value: string }> = [
 
 export default function Page() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
-      <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900">
-        ← Ana sayfa
-      </Link>
-      <h1 className="mt-4 text-2xl font-bold text-zinc-900">
+    <PublicLayout>
+    <div className="mx-auto max-w-3xl px-6 pt-28 pb-16">
+      <h1 className="text-2xl font-bold text-zinc-900">
         İletişim ve Künye
       </h1>
       <p className="mt-2 text-sm text-zinc-600">
-        Rothern, {OPERATOR.legalName} tarafından işletilen B2B e-tedarik ve
-        e-ihale platformudur. Sorularınız için{" "}
+        Rothern, {OPERATOR.legalName} tarafından işletilen B2B tedarik
+        platformudur. Sorularınız için{" "}
         <a
           href={`mailto:${OPERATOR.supportEmail}`}
           className="underline hover:text-zinc-900"
@@ -52,6 +50,7 @@ export default function Page() {
           </div>
         ))}
       </dl>
-    </main>
+    </div>
+    </PublicLayout>
   );
 }

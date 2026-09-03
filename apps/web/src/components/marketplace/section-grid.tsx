@@ -1,20 +1,15 @@
-import { EmptyListings } from "./listing-card";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * Anasayfadaki "son kayıtlar" bölümü — İLAN ve ÜRÜN bölümleri ORTAK kullanır.
+ * Anasayfadaki envanter bölümü — İLAN ve ÜRÜN bölümleri ORTAK kullanır.
  *
- * Kartları `cards` olarak alır (kendi tipini bilmez): ilan kartı ile ürün
- * kartı farklı veri taşır ama bölüm ÇERÇEVESİ aynı olmalı. İki ayrı bölüm
- * bileşeni yazılsaydı biri "tümünü gör" bağlantısını başka yere koyar, öteki
- * boş durumu farklı gösterirdi ve anasayfa iki farklı ritim konuşurdu.
- *
- * Envanter azken ızgara BOŞ HÜCRE bırakmasın diye sütun sayısı içerik
- * sayısıyla sınırlanır: tek kayıt tek sütunda, iki kayıt iki sütunda durur.
- * Sabit `lg:grid-cols-3` bıraksaydık tek kart üçte birlik bir şeridin
- * solunda öksüz kalır ve sayfa "yüklenememiş" gibi okunurdu.
+ * EŞİK ALTINDA HİÇ BASILMAZ (2026-09-04): eskiden üç bölüm art arda boş
+ * kutu gösteriyor, ziyaretçi üç kez "şu an yok" okuyordu. Boş bölüm yerine
+ * her zaman dolu bölümler var (kategori ızgarası, güven bandı, nasıl
+ * çalışır). Eşik: ürün ≥ 8, ilan ≥ 3 — tek kart üçte birlik şeridin solunda
+ * öksüz kalır ve "yüklenememiş" gibi okunur.
  */
 export function SectionGrid({
   heading,
@@ -22,25 +17,17 @@ export function SectionGrid({
   href,
   hrefLabel,
   cards,
-  emptyTitle,
-  emptyHint,
-  emptyAction,
+  min,
 }: {
   heading: string;
   lead: string;
   href: string;
   hrefLabel: string;
   cards: ReactNode[];
-  emptyTitle: string;
-  emptyHint?: string;
-  emptyAction?: { label: string; href: string };
+  /** Bu sayının altında bölüm çizilmez. */
+  min: number;
 }) {
-  const cols =
-    cards.length >= 3
-      ? "sm:grid-cols-2 lg:grid-cols-3"
-      : cards.length === 2
-        ? "sm:grid-cols-2"
-        : "sm:max-w-sm";
+  if (cards.length < min) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
@@ -51,26 +38,16 @@ export function SectionGrid({
           </h2>
           <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
         </div>
-        {cards.length > 0 ? (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
-          >
-            {hrefLabel}
-            <ArrowRightIcon aria-hidden className="size-4" />
-          </Link>
-        ) : null}
+        <Link
+          href={href}
+          className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
+        >
+          {hrefLabel}
+          <ArrowRightIcon aria-hidden className="size-4" />
+        </Link>
       </div>
-      <div className="mt-8">
-        {cards.length === 0 ? (
-          <EmptyListings
-            title={emptyTitle}
-            hint={emptyHint}
-            action={emptyAction}
-          />
-        ) : (
-          <div className={`grid grid-cols-1 gap-5 ${cols}`}>{cards}</div>
-        )}
+      <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {cards}
       </div>
     </section>
   );

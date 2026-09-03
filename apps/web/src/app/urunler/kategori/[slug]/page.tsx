@@ -1,5 +1,4 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import {
   ProductIndex,
   type ProductSearchParams,
@@ -89,17 +88,13 @@ export default async function Page({
 
   const sp = await searchParams;
   return (
-    <div className="min-h-dvh bg-white">
-      <MarketingHeader />
-      <main>
+    <PublicLayout>
         <ProductIndex
           title={cat.name}
           lead={`${cat.name} kategorisinde ${cat.count.toLocaleString("tr-TR")} ürün. Firmaların vitrinlerinden; teklif için doğrudan iletişime geçin.`}
           searchParams={sp}
           category={{ id: cat.id, name: cat.name }}
         />
-      </main>
-      <MarketplaceFooter />
-    </div>
+    </PublicLayout>
   );
 }

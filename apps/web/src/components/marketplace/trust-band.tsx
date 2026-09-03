@@ -1,10 +1,8 @@
 import {
-  ArrowRightIcon,
   CheckBadgeIcon,
   LockClosedIcon,
   UsersIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
 
 /**
  * "Nasıl çalışır" + güven bandı — AÇIK zemin (`bg-zinc-50`).
@@ -33,17 +31,20 @@ const STEPS = [
   },
 ];
 
+/** Adımlar dışa açık — `/nasil-calisir` aynı üç adımı basar (tek kaynak). */
+export const HOW_IT_WORKS_STEPS = STEPS;
+
 export function TrustBand() {
   return (
-    <section className="border-t border-zinc-950/5 bg-zinc-50">
+    <section id="nasil-calisir" className="scroll-mt-24 border-t border-zinc-950/5 bg-zinc-50">
       <div className="mx-auto max-w-7xl px-6 py-20 sm:py-24 lg:px-8">
         <p className="text-sm/6 font-semibold text-emerald-600">Nasıl çalışır</p>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
           Talepten teklife, tekliften siparişe
         </h2>
         <p className="mt-4 max-w-2xl text-lg/8 text-pretty text-zinc-500">
-          Görmek üyelik istemez. Teklif vermek ücretsiz hesapla; komisyon
-          alınmaz.
+          İncelemek ücretsiz. Teklif vermek ve firma detayları için ücretsiz
+          hesap; komisyon alınmaz.
         </p>
 
         {/* Application UI — Data display / Stats / "with shared borders":
@@ -65,22 +66,6 @@ export function TrustBand() {
             </li>
           ))}
         </ol>
-
-        <div className="mt-10 flex flex-wrap items-center gap-4">
-          <Link
-            href="/company/kayit"
-            className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            Ücretsiz kaydol
-          </Link>
-          <Link
-            href="/nasil-calisir"
-            className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 transition hover:text-zinc-600"
-          >
-            Ürünü ve paketleri incele
-            <ArrowRightIcon aria-hidden className="size-4" />
-          </Link>
-        </div>
       </div>
     </section>
   );

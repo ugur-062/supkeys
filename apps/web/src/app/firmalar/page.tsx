@@ -1,7 +1,6 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { CompanyCard } from "@/components/marketplace/company-card";
 import { EmptyListings } from "@/components/marketplace/listing-card";
-import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import { Pagination } from "@/components/marketplace/pagination";
 import { SearchForm } from "@/components/marketplace/search-form";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -152,9 +151,8 @@ export default async function Page({
   const hasFilter = !!(sp.q || sp.il || sp.kategori || sp.faaliyet);
 
   return (
-    <div className="min-h-dvh bg-white">
-      <MarketingHeader />
-      <main className="mx-auto max-w-7xl px-6 pt-28 pb-24 lg:px-8">
+    <PublicLayout>
+      <div className="mx-auto max-w-7xl px-6 pt-28 pb-24 lg:px-8">
         <header>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
             Firmalar
@@ -282,8 +280,7 @@ export default async function Page({
             </div>
           </>
         )}
-      </main>
-      <MarketplaceFooter />
-    </div>
+      </div>
+    </PublicLayout>
   );
 }

@@ -1,5 +1,4 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "./marketplace-footer";
+import { PublicLayout } from "./public-layout";
 import { Badge } from "@/components/catalyst/badge";
 import { CategoryImage } from "./category-image";
 import { GatedField } from "./gated-field";
@@ -163,7 +162,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
   ];
 
   return (
-    <div className="min-h-dvh bg-white">
+    <PublicLayout>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(offerOrDemand) }}
@@ -172,9 +171,8 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumb) }}
       />
-      <MarketingHeader />
 
-      <main className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
+      <div className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
         <nav aria-label="Yol" className="text-sm text-zinc-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
@@ -444,8 +442,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
             </ul>
           </aside>
         </div>
-      </main>
-      <MarketplaceFooter />
-    </div>
+      </div>
+    </PublicLayout>
   );
 }

@@ -1,5 +1,4 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "./marketplace-footer";
+import { PublicLayout } from "./public-layout";
 import { CategoryImage } from "./category-image";
 import { GatedField } from "./gated-field";
 import { InquiryButton } from "./inquiry-button";
@@ -101,7 +100,7 @@ export function ProductDetail({
   };
 
   return (
-    <div className="min-h-dvh bg-white">
+    <PublicLayout>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
@@ -110,9 +109,8 @@ export function ProductDetail({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumb) }}
       />
-      <MarketingHeader />
 
-      <main className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
+      <div className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
         <ProductBreadcrumb
           trail={[
             { label: "Anasayfa", href: "/" },
@@ -186,9 +184,8 @@ export function ProductDetail({
             )
           }
         />
-      </main>
-      <MarketplaceFooter />
-    </div>
+      </div>
+    </PublicLayout>
   );
 }
 

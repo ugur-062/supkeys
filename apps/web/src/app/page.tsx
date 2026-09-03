@@ -1,20 +1,23 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MarketplaceHero } from "@/components/marketplace/hero";
+import { TrustStrip } from "@/components/marketplace/trust-strip";
+import { CategoryGrid } from "@/components/marketplace/category-grid";
 import { TrustBand } from "@/components/marketplace/trust-band";
+import { ClosingCta } from "@/components/marketplace/closing-cta";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { SectionGrid } from "@/components/marketplace/section-grid";
-import { SectorGrid } from "@/components/marketplace/sector-grid";
 import { serializeJsonLd } from "@/lib/json-ld";
+import { buildShowcase } from "@/lib/public/category-showcase";
 import {
   MARKETPLACE_LABELS,
   MARKETPLACE_ROUTES,
 } from "@/lib/public/marketplace";
 import {
-  fetchFacets,
   fetchListings,
+  fetchProductFacets,
   fetchProducts,
+  fetchSegments,
 } from "@/lib/public/marketplace-api";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
@@ -24,11 +27,15 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 /**
  * PAZAR YERİ ANASAYFASI — sunucu bileşeni, ISR.
  *
- * Eski pazarlama anasayfası `/nasil-calisir`e taşındı (içerik aynen duruyor).
- * Gerekçe: pazar yeri anasayfası ÜRÜNÜ değil ENVANTERİ göstermeli — ziyaretçi
- * "burada ne var" sorusuna ilk ekranda yanıt almalı, ürün anlatısı bir tık
- * ötede durabilir. Arama motoru tarafında da fark var: envanter sayfası her
- * revalidate'te tazelenen içerik üretir, pazarlama sayfası statik kalır.
+ * Bölüm sırası (2026-09-04 revizyonu, ekran görüntülü denetim):
+ *   1. header · 2. hero (iki tarafa + sekmeli arama) · 3. güven bandı ·
+ *   4. kategoriye göre keşfet · 5. öne çıkan ürünler (≥ 8) ·
+ *   6. açık alım talepleri (≥ 3) · 7. satılık ilanlar (≥ 3) ·
+ *   8. nasıl çalışır · 9. kapanış CTA · 10. footer.
+ *
+ * Eşik altındaki envanter bölümü HİÇ çizilmez — boş kutu yok. Her zaman
+ * dolu olan bölümler (3, 4, 8, 9) sayfayı sıfır envanterde de ayakta tutar.
+ * Kayıt CTA'sı üç: header, hero altı, kapanış.
  *
  * `force-dynamic` YOK — bu rota public listede (bkz. lib/public-routes.ts) ve
  * nonce'suz CSP alıyor; statik/ISR üretilebilmesi SEO'nun ön koşulu.
@@ -37,15 +44,19 @@ export const revalidate = 60;
 
 const SITE = resolveSiteUrl();
 
+/** Eşikler — tek kart öksüz kalır, boş bölüm "boş market" der. */
+const MIN_PRODUCTS = 8;
+const MIN_LISTINGS = 3;
+
 const LIVE_METADATA: Metadata = {
-  title: "Rothern — B2B pazar yeri: açık alım talepleri ve satılık ilanlar",
+  title: "Rothern — B2B pazar yeri: ürünler, alım talepleri ve satılık ilanlar",
   description:
-    "Firmaların açık alım taleplerini ve satılık ilanlarını inceleyin. Kapalı zarf teklif toplama, sipariş takibi ve firma keşfi tek panelde. Kaydolmak ücretsiz.",
+    "Doğrulanmış firmaların ürünlerini, açık alım taleplerini ve satılık ilanlarını inceleyin. Kapalı zarf teklif, sipariş takibi ve firma keşfi tek hesapta. Kaydolmak ücretsiz.",
   alternates: { canonical: `${SITE}/` },
   openGraph: {
     title: "Rothern — B2B pazar yeri",
     description:
-      "Açık alım talepleri, satılık ilanlar ve doğrulanmış firmalar tek yerde.",
+      "Ürünler, açık alım talepleri, satılık ilanlar ve doğrulanmış firmalar tek yerde.",
     url: `${SITE}/`,
     type: "website",
   },
@@ -65,14 +76,26 @@ export default async function HomePage() {
   // istemiyor ve boşuna istek atmak build'i API'ye bağımlı yapardı.
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
 
-  // Dört çağrı paralel: biri düşerse diğerleri sayfayı taşımaya devam eder
+  // Beş çağrı paralel: biri düşerse diğerleri sayfayı taşımaya devam eder
   // (veri katmanı hata YUTAR ve boş döner — bkz. marketplace-api.ts).
-  const [demands, offers, facets, products] = await Promise.all([
+  // `categories/segments` anahtara tabi DEĞİL: kategori ızgarası API'de
+  // MARKETPLACE_LIVE kapalıyken bile dolu çıkar.
+  const [demands, offers, products, productFacets, segments] = await Promise.all([
     fetchListings({ type: "ALIM", page: 1 }),
     fetchListings({ type: "SATIS", page: 1 }),
-    fetchFacets(),
     fetchProducts({ page: 1 }),
+    fetchProductFacets(),
+    fetchSegments(),
   ]);
+
+  const showcase = buildShowcase({
+    segments: segments.map((s) => ({ id: s.id, name: s.nameTr })),
+    counts: productFacets.categories.map((c) => ({ id: c.id, count: c.count })),
+    productCovers: products.items.map((p) => ({
+      categoryId: p.categoryId,
+      image: p.images[0],
+    })),
+  });
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -84,75 +107,66 @@ export default async function HomePage() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${SITE}${MARKETPLACE_ROUTES.demands}?q={search_term_string}`,
+        // Varsayılan arama sekmesi ÜRÜNLER — SearchAction da oraya gider.
+        urlTemplate: `${SITE}${MARKETPLACE_ROUTES.products}?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
   };
 
   return (
-    <div className="min-h-dvh bg-white">
+    <PublicLayout>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
-      <MarketingHeader />
 
-      <main>
-        <MarketplaceHero />
+      <MarketplaceHero />
+      <TrustStrip />
+      <CategoryGrid categories={showcase} />
 
-        <SectionGrid
-          heading={MARKETPLACE_LABELS.demands}
-          lead="Firmaların herkese açık yayımladığı, teklif bekleyen satın alma talepleri."
-          href={MARKETPLACE_ROUTES.demands}
-          hrefLabel="Tüm talepler"
-          cards={demands.items.slice(0, 6).map((l) => (
-            <ListingCard key={l.number} listing={l} />
-          ))}
-          emptyTitle="Şu an teklife açık bir alım talebi yok."
-          emptyHint="Yeni talepler yayımlandıkça burada görünür. Kendi talebinizi açmak için ücretsiz hesap yeterli."
-          emptyAction={{ label: "Talep aç", href: "/company/kayit" }}
-        />
+      <SectionGrid
+        heading="Öne çıkan ürünler"
+        lead="Firmaların vitrinlerindeki ürünler — süreli bir ilan değil, kalıcı katalog."
+        href={MARKETPLACE_ROUTES.products}
+        hrefLabel="Tüm ürünler"
+        min={MIN_PRODUCTS}
+        cards={products.items.slice(0, 8).map((p) => (
+          <ProductCard
+            key={`${p.company.slug}/${p.slug}`}
+            companySlug={p.company.slug}
+            companyName={p.company.name}
+            companyCity={p.company.city}
+            product={p}
+            priceGated
+          />
+        ))}
+      />
 
-        <SectorGrid facets={facets} />
+      <SectionGrid
+        heading={`Açık ${MARKETPLACE_LABELS.demands.toLocaleLowerCase("tr-TR")}`}
+        lead="Firmaların herkese açık yayımladığı, teklif bekleyen satın alma talepleri."
+        href={MARKETPLACE_ROUTES.demands}
+        hrefLabel="Tüm talepler"
+        min={MIN_LISTINGS}
+        cards={demands.items.slice(0, 8).map((l) => (
+          <ListingCard key={l.number} listing={l} />
+        ))}
+      />
 
-        <SectionGrid
-          heading={MARKETPLACE_LABELS.offers}
-          lead="Firmaların satışa açtığı ürün, malzeme ve hizmetler."
-          href={MARKETPLACE_ROUTES.offers}
-          hrefLabel="Tüm ilanlar"
-          cards={offers.items.slice(0, 6).map((l) => (
-            <ListingCard key={l.number} listing={l} />
-          ))}
-          emptyTitle="Şu an satılık ilan yok."
-          emptyHint="Ürün ve hizmetlerinizi yayımlamak için ücretsiz hesap yeterli."
-          emptyAction={{ label: "İlan aç", href: "/company/kayit" }}
-        />
+      <SectionGrid
+        heading={MARKETPLACE_LABELS.offers}
+        lead="Firmaların satışa açtığı ürün, malzeme ve hizmetler."
+        href={MARKETPLACE_ROUTES.offers}
+        hrefLabel="Tüm ilanlar"
+        min={MIN_LISTINGS}
+        cards={offers.items.slice(0, 8).map((l) => (
+          <ListingCard key={l.number} listing={l} />
+        ))}
+      />
 
-        <SectionGrid
-          heading={MARKETPLACE_LABELS.products}
-          lead="Firmaların vitrinlerindeki ürünler — süreli bir ilan değil, kalıcı katalog."
-          href={MARKETPLACE_ROUTES.products}
-          hrefLabel="Tüm ürünler"
-          cards={products.items.slice(0, 6).map((p) => (
-            <ProductCard
-              key={`${p.company.slug}/${p.slug}`}
-              companySlug={p.company.slug}
-              companyName={p.company.name}
-              companyCity={p.company.city}
-              product={p}
-              priceGated
-            />
-          ))}
-          emptyTitle="Şu an yayımlanmış ürün yok."
-          emptyHint="Firmalar vitrinlerini doldurdukça ürünler burada görünür."
-          emptyAction={{ label: "Vitrin aç", href: "/company/kayit" }}
-        />
-
-        <TrustBand />
-      </main>
-
-      <MarketplaceFooter />
-    </div>
+      <TrustBand />
+      <ClosingCta />
+    </PublicLayout>
   );
 }

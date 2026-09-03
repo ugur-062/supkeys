@@ -1,5 +1,4 @@
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketplaceFooter } from "@/components/marketplace/marketplace-footer";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import {
@@ -68,9 +67,8 @@ export default async function Page({
   const ok = "ok" in result;
 
   return (
-    <div className="min-h-dvh bg-white">
-      <MarketingHeader />
-      <main className="mx-auto max-w-2xl px-6 pt-32 pb-24 lg:px-8">
+    <PublicLayout>
+      <div className="mx-auto max-w-2xl px-6 pt-32 pb-24 lg:px-8">
         {ok ? (
           <>
             <span className="flex size-12 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-600/20">
@@ -132,8 +130,7 @@ export default async function Page({
             </Link>
           </>
         )}
-      </main>
-      <MarketplaceFooter />
-    </div>
+      </div>
+    </PublicLayout>
   );
 }
