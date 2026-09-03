@@ -7,7 +7,14 @@ import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { useCatalogCounts } from "@/hooks/use-company-items";
+import { useMyBids } from "@/hooks/use-company-listings";
+import { useOrders } from "@/hooks/use-company-orders";
 import { useTenders } from "@/hooks/use-company-tenders";
+import {
+  selectActiveOffers,
+  selectActiveOrders,
+  selectWonOffers,
+} from "@/lib/company/kpi-selectors";
 
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
@@ -71,6 +78,17 @@ export function SatisDashboardView() {
     },
   ];
   const onboardingReady = !!catalog.data && !!myListings.data;
+  // KPI'lar liste sayfalarıyla AYNI seçiciden (kpi-selectors): sunucu sayımı
+  // ilan tipini süzmüyordu — satın alma tarafında verilen teklifler satış
+  // panosuna sayılıyor, sipariş kutusu listenin "Aktif" kümesinden farklı bir
+  // statü kümesi kullanıyordu (4 ↔ 2, 4 ↔ 3, 0 ↔ 1).
+  const bids = useMyBids();
+  const orders = useOrders();
+  const activeOffers = bids.data ? selectActiveOffers(bids.data, "ALIM").length : undefined;
+  const wonOffers = bids.data ? selectWonOffers(bids.data, "ALIM").length : undefined;
+  const activeOrders = orders.data
+    ? selectActiveOrders(orders.data, "seller").length
+    : undefined;
   // Faz 7.3: yükleme artık iskeletle çözülür (aşağıda) — kartlara gelindiyse
   // veri var; "—" yalnız "değer gerçekten yok" anlamında kalır.
   const val = (n: number | undefined) => n ?? 0;
@@ -161,26 +179,28 @@ export function SatisDashboardView() {
         />
         <KpiCard
           label="Aktif Tekliflerim"
-          value={val(s?.bids.active)}
+          value={val(activeOffers)}
           href="/company/satis/tekliflerim"
           accent="emerald"
+          hint="Karar bekleyen teklifleriniz"
           deltaPct={analytics.data?.deltas.bidsSubmitted}
           deltaPeriodLabel="Geçen aya göre"
           spark={analytics.data?.kpiSeries.bidsSubmitted}
         />
         <KpiCard
           label="Kazandığım İşler"
-          value={val(s?.wonTenders)}
-          href="/company/satis/tekliflerim"
+          value={val(wonOffers)}
+          href="/company/satis/tekliflerim?status=WON"
           accent="emerald"
+          hint="Kısmi kazanım dahil"
           spark={analytics.data?.kpiSeries.won}
         />
-        {/* C9: sayım onay/gönderim öncesi siparişleri kapsıyor (PENDING/
-            ACCEPTED/CREATED) — "Aktif" adı Siparişler sayfasının daha geniş
-            Aktif kümesiyle çelişiyordu. */}
+        {/* Satışlarım "Aktif" kutusuyla AYNI küme (PENDING…DELIVERED) —
+            eski "Bekleyen Sipariş" yalnız onay öncesini sayıyor, liste 1
+            derken pano 0 gösteriyordu. */}
         <KpiCard
-          label="Bekleyen Sipariş"
-          value={val(s?.orders.pending)}
+          label="Aktif Sipariş"
+          value={val(activeOrders)}
           href="/company/satis/siparisler"
           accent="emerald"
           deltaPct={analytics.data?.deltas.orders}

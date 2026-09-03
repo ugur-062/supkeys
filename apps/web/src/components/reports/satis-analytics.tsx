@@ -1,5 +1,7 @@
 "use client";
 
+import { pctChange } from "@/lib/dashboard/delta";
+
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { PeriodControls } from "@/components/dashboard/period-controls";
 import { formatCompactMoney, formatMoney } from "@/components/ui/money";
@@ -88,14 +90,9 @@ export function SatisAnalytics() {
             href="/company/satis/tekliflerim"
             accent="emerald"
             deltaPct={
-              s && s.last30Days.prevBidsSubmitted > 0
-                ? Math.round(
-                    ((s.last30Days.bidsSubmitted - s.last30Days.prevBidsSubmitted) /
-                      s.last30Days.prevBidsSubmitted) *
-                      100,
-                  )
-                : undefined
+              s ? pctChange(s.last30Days.bidsSubmitted, s.last30Days.prevBidsSubmitted) : undefined
             }
+            deltaPeriodLabel="Önceki 30 güne göre"
             hint="son 30 gün · önceki 30 güne göre"
           />
           <KpiCard
@@ -104,13 +101,8 @@ export function SatisAnalytics() {
             valueTitle={formatMoney(s?.revenue.total ?? 0)}
             href="/company/satis/siparisler"
             accent="emerald"
-            deltaPct={
-              s && s.revenue.prev30 > 0
-                ? Math.round(
-                    ((s.revenue.last30 - s.revenue.prev30) / s.revenue.prev30) * 100,
-                  )
-                : undefined
-            }
+            deltaPct={s ? pctChange(s.revenue.last30, s.revenue.prev30) : undefined}
+            deltaPeriodLabel="Önceki 30 güne göre"
             hint="tüm zamanlar · yalnız TRY"
           />
           <KpiCard

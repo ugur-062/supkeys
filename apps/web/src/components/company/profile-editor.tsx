@@ -1,11 +1,10 @@
 "use client";
 
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
-import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { MissingFields } from "@/components/ui/missing-fields";
 import { Thumb } from "@/components/ui/thumb";
 import { useCatalogItems } from "@/hooks/use-company-items";
-import { COMPANY_ACTIVITIES, MAX_COMPANY_ACTIVITIES } from "@rothern/shared";
+import { companyActivityLabel } from "@rothern/shared";
+import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
 import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
@@ -47,11 +46,6 @@ const MAX_CHIPS = 20;
 /** Editörün taslak alanları — PATCH /company/profile ile birebir (public profil alanları). */
 interface Draft {
   publicEnabled: boolean;
-  /** Faaliyet tipi (üretici/bayi/…) — kategori NE'yi, bu NASIL'ı söyler. */
-  activities: string[];
-  /** Satış faaliyet alanları (L1) + alt kırılım — açık talep eşleşmesinin girdisi. */
-  sellerCategoryIds: string[];
-  sellerSubCategoryIds: string[];
   logoUrl: string;
   coverImageUrl: string;
   industry: string;
@@ -70,9 +64,6 @@ interface Draft {
 function toDraft(p: CompanyProfile): Draft {
   return {
     publicEnabled: p.publicEnabled,
-    activities: p.activities ?? [],
-    sellerCategoryIds: p.sellerCategoryIds ?? [],
-    sellerSubCategoryIds: p.sellerSubCategoryIds ?? [],
     logoUrl: p.logoUrl ?? "",
     coverImageUrl: p.coverImageUrl ?? "",
     industry: p.industry ?? "",
@@ -150,9 +141,6 @@ export function ProfileEditor({
     try {
       await update.mutateAsync({
         publicEnabled: draft.publicEnabled,
-        activities: draft.activities,
-        sellerCategoryIds: draft.sellerCategoryIds,
-        sellerSubCategoryIds: draft.sellerSubCategoryIds,
         logoUrl: draft.logoUrl,
         coverImageUrl: draft.coverImageUrl,
         industry: draft.industry,
@@ -180,7 +168,7 @@ export function ProfileEditor({
     name: profile.name,
     rothernId: profile.rothernId,
     industry: draft.industry || null,
-    activities: draft.activities,
+    activities: profile.activities,
     city: profile.city,
     country: profile.country,
     logoUrl: draft.logoUrl || null,
@@ -211,7 +199,8 @@ export function ProfileEditor({
   const findability = {
     about: !!draft.aboutText.trim(),
     industry: !!draft.industry.trim(),
-    category: draft.sellerCategoryIds.length + draft.sellerSubCategoryIds.length > 0,
+    category:
+      (profile.sellerCategoryIds?.length ?? 0) + (profile.sellerSubCategoryIds?.length ?? 0) > 0,
   };
 
   if (!canEdit) {
@@ -231,75 +220,11 @@ export function ProfileEditor({
   }
 
   const slots: ProfileEditSlots = {
-    classification: (
-      <div className="space-y-5">
-        <div>
-          <p className="text-sm font-medium text-zinc-900">Firma türü</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            En fazla {MAX_COMPANY_ACTIVITIES}. Alıcı için çoğu zaman sektörden daha
-            belirleyici — ünvanınızın altında rozet olarak görünür.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Firma türü">
-            {COMPANY_ACTIVITIES.map((a) => {
-              const on = draft.activities.includes(a.code);
-              const full = !on && draft.activities.length >= MAX_COMPANY_ACTIVITIES;
-              return (
-                <button
-                  key={a.code}
-                  type="button"
-                  aria-pressed={on}
-                  disabled={full}
-                  title={a.hintTr}
-                  onClick={() =>
-                    set({
-                      activities: on
-                        ? draft.activities.filter((c) => c !== a.code)
-                        : [...draft.activities, a.code],
-                    })
-                  }
-                  className={cn(
-                    "rounded-full px-3 py-1 text-sm ring-1 ring-inset transition disabled:cursor-not-allowed disabled:opacity-40",
-                    on
-                      ? "bg-zinc-900 text-white ring-zinc-900"
-                      : "bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50",
-                  )}
-                >
-                  {a.nameTr}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-zinc-900">Faaliyet kategorileri</p>
-          <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-            Açık talep eşleşmesi bu seçime göre yapılır; ürünlerinizle aynı kategori ağacı.
-          </p>
-          <SegmentOnlyPicker
-            value={draft.sellerCategoryIds}
-            onChange={(ids) => set({ sellerCategoryIds: ids })}
-            title="Satış faaliyet alanları"
-            description="Tedarik edebileceğiniz ana kategorileri seçin — açık talep önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
-          />
-          <div className="mt-3">
-            <span className="block text-xs font-medium text-zinc-500">
-              Alt kategoriler (isteğe bağlı)
-            </span>
-            <p className="mt-0.5 mb-2 text-xs text-zinc-400">
-              Tedarik ettiğiniz ürünleri tek tek işaretleyin — talepler önce bu
-              kırılıma göre karşınıza çıkar.
-            </p>
-            <CategorySelectorButton
-              value={draft.sellerSubCategoryIds}
-              onChange={(ids) => set({ sellerSubCategoryIds: ids })}
-              maxSelection={50}
-              modalTitle="Satış alt kategorileri"
-              placeholder="Alt kategori seçin"
-            />
-          </div>
-        </div>
-      </div>
-    ),
+    // SALT OKUNUR (v2 4c): eşleşmeyi belirleyen kategori/faaliyet beyanı TEK
+    // yerde düzenlenir — Ayarlar → Firma Bilgileri. Aynı veriyi burada da
+    // düzenletmek "iki yerden iki kayıt" hissi veriyordu (kullanıcı üç sayfa
+    // arasında dolaşıyordu); Profilim gösterir, düzenlemeye yönlendirir.
+    classification: <ClassificationSummary profile={profile} />,
     aside: <MyProductsCard />,
     cover: (
       <CoverControls
@@ -977,5 +902,67 @@ function MyProductsCard() {
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Firma türü + faaliyet kategorileri — Profilim'de SALT OKUNUR özet.
+ * Veri Firma Bilgileri'ndekiyle aynı kayıttan; düzenleme oraya gider.
+ * "Eksik: Faaliyet kategorileri" de aynı veriden beslenir.
+ */
+function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
+  const ids = [...(profile.sellerCategoryIds ?? []), ...(profile.sellerSubCategoryIds ?? [])];
+  const cats = useCategoriesByIds(ids);
+  const names = ids
+    .map((id) => cats.data?.find((c) => c.id === id)?.nameTr)
+    .filter((n): n is string => !!n);
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-medium text-zinc-500">Firma türü</p>
+        {profile.activities?.length ? (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {profile.activities.map((code) => (
+              <span
+                key={code}
+                className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"
+              >
+                {companyActivityLabel(code)}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-zinc-400">Seçilmedi</p>
+        )}
+      </div>
+      <div>
+        <p className="text-xs font-medium text-zinc-500">
+          Faaliyet kategorileri{ids.length ? ` (${ids.length})` : ""}
+        </p>
+        {ids.length === 0 ? (
+          <p className="mt-1 text-sm text-zinc-400">
+            Seçilmedi — açık talep eşleşmesi bu seçime göre yapılır.
+          </p>
+        ) : (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {names.slice(0, 8).map((n) => (
+              <span
+                key={n}
+                className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"
+              >
+                {n}
+              </span>
+            ))}
+            {ids.length > 8 ? <span className="text-xs text-zinc-400">+{ids.length - 8}</span> : null}
+          </div>
+        )}
+      </div>
+      <Link
+        href="/company/ayarlar/firma#kategoriler"
+        className="inline-flex items-center text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
+      >
+        Düzenle → Firma Bilgileri
+      </Link>
+    </div>
   );
 }

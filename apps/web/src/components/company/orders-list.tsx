@@ -3,6 +3,11 @@
 import { formatDate } from "@/lib/format-date";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import {
+  selectActiveOrders,
+  selectAwaitingPayment,
+  selectTerminalIssues,
+} from "@/lib/company/kpi-selectors";
+import {
   ActiveFilterChips,
   EmptyState,
   FilterSelect,
@@ -482,23 +487,14 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     // B4 — MECE: Aktif + Tamamlanan + İptal/Sorunlu = Toplam (DELIVERED
     // "teslim alındı ama kapanmadı" = hâlâ canlı sipariş → Aktif'te sayılır;
     // önceden hiçbir kutuda değildi, toplam tutmuyordu).
-    const active = all.filter((o) =>
-      ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY", "DELIVERED"].includes(
-        o.status,
-      ),
-    ).length;
-    const terminalIssues = all.filter((o) =>
-      ["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status),
-    ).length;
+    // Kümeler kpi-selectors'tan — panodaki "Aktif Sipariş" ile birebir.
+    const active = selectActiveOrders(all, role).length;
+    const terminalIssues = selectTerminalIssues(all, role).length;
     // Yaşam döngüsü ayrımı: "Ödeme Bekleyen" DELIVERED sayısı DEĞİL —
     // türetilen ödeme durumundan (paymentSettled=false), status'tan bağımsız.
-    // Terminal/ihtilaf hariç (borç kapanmamış canlı siparişler). Diğer
-    // kutularla KESİŞİR — MECE setinin parçası değil, kart altında not var.
-    const awaitingPayment = all.filter(
-      (o) =>
-        o.paymentSettled === false &&
-        !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status),
-    ).length;
+    // Terminal/ihtilaf hariç. Diğer kutularla KESİŞİR — MECE setinin parçası
+    // değil, kart altında not var.
+    const awaitingPayment = selectAwaitingPayment(all, role).length;
     const completed = counts["COMPLETED"] ?? 0;
     return { active, awaitingPayment, completed, terminalIssues };
   }, [all, counts]);

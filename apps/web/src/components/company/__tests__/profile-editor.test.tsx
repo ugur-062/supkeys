@@ -121,10 +121,6 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(h.update.mock.calls[0]![0]).toMatchObject({
       aboutText: "Yeni tanıtım",
       publicEnabled: true,
-      // Profilim'den düzenlenen sınıflandırma alanları da AYNI PATCH'te.
-      activities: [],
-      sellerCategoryIds: [],
-      sellerSubCategoryIds: [],
       services: ["Kablo", "Pano"],
       photos: ["https://cdn/p1.jpg", "https://cdn/p2.jpg"],
       foundedYear: 2015,
@@ -159,17 +155,14 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(h.update).not.toHaveBeenCalled();
   });
 
-  it("firma türü çipi (en fazla 3) taslağa ve PATCH'e yansır", async () => {
+  it("firma türü / faaliyet kategorileri SALT OKUNUR; düzenleme Firma Bilgileri'ne gider", () => {
+    // Kategori beyanı TEK yerde düzenlenir (v2 4c) — Profilim gösterir.
     render(<ProfileEditor profile={PROFILE} canEdit />);
-    const group = screen.getByRole("group", { name: "Firma türü" });
-    fireEvent.click(within(group).getByRole("button", { name: "Üretici" }));
-    expect(within(group).getByRole("button", { name: "Üretici" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(screen.queryByRole("group", { name: "Firma türü" })).toBeNull();
+    expect(screen.getByRole("link", { name: /Düzenle → Firma Bilgileri/ })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/firma#kategoriler",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
-    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
-    expect(h.update.mock.calls[0]![0]).toMatchObject({ activities: ["MANUFACTURER"] });
   });
 
   it("Ürünlerim (N) kartı yayındaki ürünleri sayar ve yönetime bağlar; önizleme mevcut public rotaya", async () => {

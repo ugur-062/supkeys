@@ -43,7 +43,9 @@ export function monthWindows(now: Date): { start: Date; end: Date; key: string; 
 
 /** Önceki eşit-uzunluklu döneme göre % değişim (önceki 0 ise null). */
 export function deltaPct(current: number, previous: number): number | null {
-  if (previous <= 0) return null;
+  // Önceki dönem 0 → tanımsız. ŞİMDİKİ 0 → "%100 düşüş" matematik olarak
+  // doğru ama kart üstünde "0 ↘ %100" anlamsız okunuyor (v2 4b); rozet yok.
+  if (previous <= 0 || current <= 0) return null;
   return Math.round(((current - previous) / previous) * 100);
 }
 

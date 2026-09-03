@@ -26,8 +26,30 @@ vi.mock("@/hooks/use-company-items", () => ({
 vi.mock("@/hooks/use-company-tenders", () => ({
   useTenders: () => ({ data: [{ id: "l1" }] }),
 }));
+// KPI'lar liste verisinden AYNI seçiciyle sayılır: satın alma tarafındaki
+// (SATIS ilanına) teklifler satış panosuna sayılMAZ; sipariş "Aktif" kümesi
+// Satışlarım ile birebir.
+vi.mock("@/hooks/use-company-listings", () => ({
+  useMyBids: () => ({
+    data: [
+      { id: "b1", status: "SUBMITTED", listing: { type: "ALIM", status: "OPEN" } },
+      { id: "b2", status: "SUBMITTED", listing: { type: "ALIM", status: "IN_AWARD" } },
+      { id: "b3", status: "SUBMITTED", listing: { type: "ALIM", status: "AWARDED" } },
+      { id: "b4", status: "SUBMITTED", listing: { type: "SATIS", status: "OPEN" } },
+      { id: "b5", status: "WON", listing: { type: "ALIM", status: "AWARDED" } },
+      { id: "b6", status: "AWARDED_PARTIAL", listing: { type: "ALIM", status: "AWARDED" } },
+      { id: "b7", status: "WON", listing: { type: "SATIS", status: "AWARDED" } },
+    ],
+  }),
+}));
 vi.mock("@/hooks/use-company-orders", () => ({
-  useOrders: () => ({ data: [] }),
+  useOrders: () => ({
+    data: [
+      { id: "o1", role: "seller", status: "DELIVERED", paymentSettled: false },
+      { id: "o2", role: "seller", status: "COMPLETED", paymentSettled: true },
+      { id: "o3", role: "buyer", status: "PENDING", paymentSettled: false },
+    ],
+  }),
 }));
 vi.mock("@/hooks/use-company-messages", () => ({
   useUnreadMessages: () => ({ data: { count: 0 } }),
@@ -94,10 +116,13 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("Satış paneli")).toBeInTheDocument();
     expect(screen.getByText("Yanıt Bekleyen Davet")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
-    // Sözlük düzeltmesi (2026-09-03): satış panelinde "Satın Alma Talebi"
-    // KAZANILMAZ — kazanılan şey teklif/iştir.
-    expect(screen.getByText("Kazandığım İşler")).toBeInTheDocument();
-    expect(screen.getByText("5")).toBeInTheDocument();
+    // Seçici (kpi-selectors): 2 aktif teklif (ALIM + açık ilan; AWARDED'daki
+    // ve SATIS ilanındaki sayılmaz), 2 kazanım (kısmi dahil; SATIS hariç),
+    // 1 aktif satış siparişi (DELIVERED canlı, COMPLETED değil, alıcı rolü hariç).
+    expect(screen.getByText("Aktif Tekliflerim").closest("a")).toHaveTextContent("2");
+    expect(screen.getByText("Kazandığım İşler").closest("a")).toHaveTextContent("2");
+    expect(screen.getByText("Aktif Sipariş").closest("a")).toHaveTextContent("1");
+    expect(screen.queryByText("Bekleyen Sipariş")).toBeNull();
     expect(screen.getByTestId("tcmb")).toBeInTheDocument();
   });
 

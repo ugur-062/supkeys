@@ -202,18 +202,21 @@ export class CompanyDashboardService {
           },
         },
       }),
-      // Verilmiş + değerlendirilen teklifler.
+      // Verilmiş + değerlendirilen teklifler — YALNIZ satış tarafı (ALIM
+      // ilanına verilen). Tip süzgeci yokken satın alma tarafında verilen
+      // (SATIS ilanına) teklifler satış panosuna sayılıyordu (v2 4a).
       this.prisma.listingBid.count({
         where: {
           bidderCompanyId: companyId,
           status: "SUBMITTED",
-          listing: { status: { in: ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] } },
+          listing: { type: "ALIM", status: { in: ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] } },
         },
       }),
       this.prisma.listingBid.count({
         where: {
           bidderCompanyId: companyId,
           status: { in: ["WON", "AWARDED_PARTIAL"] },
+          listing: { type: "ALIM" },
         },
       }),
       // Teslimat başlatılmamış satıcı siparişleri.

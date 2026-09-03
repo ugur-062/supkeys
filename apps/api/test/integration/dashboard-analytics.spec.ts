@@ -24,8 +24,9 @@ describe("analitik saf yardımcılar", () => {
     expect(+w[1]!.start).toBe(+w[0]!.end);
   });
 
-  it("deltaPct: önceki 0 → null; artış/azalış yüzdesi", () => {
+  it("deltaPct: önceki 0 → null; şimdiki 0 → null ('0 ↘ %100' yok); artış/azalış yüzdesi", () => {
     expect(deltaPct(5, 0)).toBeNull();
+    expect(deltaPct(0, 5)).toBeNull();
     expect(deltaPct(6, 4)).toBe(50);
     expect(deltaPct(2, 4)).toBe(-50);
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { MODULE_LABELS } from "@/lib/company/portals";
+import { selectActiveOffers, selectWonOffers } from "@/lib/company/kpi-selectors";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -346,6 +347,20 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
         }
         description={description}
       />
+      {/* Sayaçlar panodaki KPI ile AYNI seçiciden (kpi-selectors) — iki sayfa
+          iki farklı sayı gösteriyordu. */}
+      {all.length > 0 ? (
+        <p className="text-sm text-zinc-500" aria-label="Teklif özeti">
+          <span className="font-semibold text-zinc-900">
+            {selectActiveOffers(all, listingType).length}
+          </span>{" "}
+          karar bekleyen ·{" "}
+          <span className="font-semibold text-zinc-900">
+            {selectWonOffers(all, listingType).length}
+          </span>{" "}
+          kazanılan (kısmi dahil)
+        </p>
+      ) : null}
 
       {/* Arama + filtreler — diğer listelerle aynı düzen: üstte tam-genişlik
           arama + sıralama, altta ikonlu filtre pill'leri + sonuç sayacı. */}
