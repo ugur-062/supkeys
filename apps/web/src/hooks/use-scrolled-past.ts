@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Referans verilen öğe görünümden ÇIKTI mı (yukarı kaydırıldı mı)?
@@ -12,12 +12,19 @@ import { useEffect, useState, type RefObject } from "react";
  * IntersectionObserver yoksa (test/eski tarayıcı) `true` döner — şerit her
  * zaman görünür, eski davranış. Fail-open: eylem şeridini kaybetmek, çift
  * rozetten kötüdür.
+ *
+ * Öğe STATE olarak verilir (callback ref ile `setEl`), RefObject değil:
+ * başlık veri gelince render edildiğinden effect ilk koşumda ref'i boş bulur
+ * ve bir daha koşmazdı — şerit hep görünür kalırdı (ilk doğrulamada yakalandı).
  */
-export function useScrolledPast(ref: RefObject<HTMLElement | null>, topOffsetPx = 56): boolean {
+export function useScrolledPast(el: HTMLElement | null, topOffsetPx = 56): boolean {
   const [past, setPast] = useState(false);
   useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === "undefined") {
+    if (!el) {
+      setPast(false);
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") {
       setPast(true);
       return;
     }
@@ -31,6 +38,6 @@ export function useScrolledPast(ref: RefObject<HTMLElement | null>, topOffsetPx 
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [ref, topOffsetPx]);
+  }, [el, topOffsetPx]);
   return past;
 }

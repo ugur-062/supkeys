@@ -516,6 +516,64 @@ aynı iki adım, ayrı allowlist (yalnız PDF, 10 MB), `documents` Json'a yazıl
 adet / teslim süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet
 tipi. Kolon yok — eklemeli migration onaylanınca form/API/ürün sayfası.
 
+### v2 denetimi — görsel kuralı, kart ailesi, sözlük, KPI (2026-09-03/04)
+
+Europages referanslı ikinci tur (ekran görüntülü bulgular). Yedi iş, her
+biri ayrı commit (cd29f7f9 … fca760ea). Kalıcı kararlar:
+
+**Varlık sözlüğü** `lib/company/terms.ts` `ENTITY_LABELS` /
+`entityLabels(isSatis)`: sihirbaz, dosyalar sekmesi, yayın onayı, şablon/
+katalog diyalogları metni YALNIZ buradan. Satış sihirbazı satın alma
+sihirbazının kopyasıydı ve varlık adı değişmemişti. `no-entity-leak.test`
+kaynak taraması yapar: sihirbaz dosyalarında sabit "Satın Alma Talebi"/
+"ihale" dizesi KALAMAZ (yorumlar hariç). Liste kolonu "Sorumlu" (rol adı
+değil). Rol adları (Satışçı/Satın Almacı) ürün sözlüğü — dokunulmadı.
+
+**Görsel kuralı — üç varlık, üç muamele (kartta, listede, detayda AYNI):**
+
+| Varlık | Görsel | Kaynak | Kartta |
+|--------|--------|--------|--------|
+| Ürün | zorunlu (yayın kapısı) | ürün formu | her zaman 4:3 kapak |
+| Satış ilanı | opsiyonel | katalogdan eklenen ilk ürünün kapağı (`items[].images` → `coverImageUrl ?? items[0].images[0]`) | varsa 4:3, yoksa kompakt |
+| Satın alma talebi | YOK | — | görsel alanı hiç ayrılmaz (kategori ikonu + metin) |
+
+Sihirbazda görsel yükleme alanı YOK — kapak ürün kaydından otomatik gelir;
+TODO "Kapağı değiştir". Herkese açık pazar yeri kartı kategori görselini
+korur (SEO yüzeyi, "gri kutu yok" kararı) — panel kuralı oraya uygulanmaz.
+
+**Kart ailesi:** `marketplace/product-card.tsx` (`tile` Europages
+anatomisi / `row`), `marketplace/listing-card.tsx` (`ListingCardData`
+normalize; `tile`/`row`/`dense`), `ui/thumb.tsx` küçük resim. IhaleListRow
+(kendi kaydım) ve BrowseTenderRow (başkasının) ADAPTÖR — kolon kümesi
+onların, düzen kartın. Beyaz boş görsel kutusu hiçbir yerde kalmaz.
+
+**KPI tek kaynak** `lib/company/kpi-selectors.ts`: pano, Tekliflerim,
+Satışlarım aynı seçici. Kök neden: sunucu sayımı ilan TİPİNİ süzmüyordu.
+"Aktif Sipariş" = Satışlarım "Aktif" kümesi. Delta: önceki VEYA şimdiki 0 →
+rozet yok (`deltaPct` API + `pctChange` web).
+
+**Kategori/faaliyet beyanı TEK yerde:** Ayarlar → Firma Bilgileri
+`#kategoriler`. Profilim salt-okunur özet + bağlantı; pano/liste boş
+durumları "Satış/Alış kategorilerini düzenle" → `SECTOR_EDIT_HREF`.
+"Firma Türü" (hukuki) etiketi → "Hukuki Yapı".
+
+**Pano iskeleti (iki modül):** şerit → 4 KPI → "size uygun" seçkisi (3 kart,
+arama/sekme/CTA yok) → profil sağlığı → Raporlar bağlantısı; başlangıç
+listesi gerçek veriden, hepsi bitince gizli. Sayfa başına tek primary CTA
+(sol menü).
+
+**Bağlantılar kartı** (logo · Doğrulanmış · faaliyet · şehir · 3 ürün küçük
+resmi · "Profili gör") — API bağlantı listesi eklemeli alanlar
+(`productPreview` tek gruplu sorgu, `publicProductWhere` kapısı).
+
+**PAZAR YERİ AÇILDI (2026-09-03, kullanıcı kararı):** Vercel
+`NEXT_PUBLIC_MARKETPLACE_LIVE=true` + `NEXT_PUBLIC_SITE_URL` (eksikti —
+onsuz canlı build fail-loud) CLI ile yazıldı, redeploy edildi. Render
+`MARKETPLACE_LIVE` kullanıcıda (o an 404 dönüyordu).
+
+**ŞEMA BEKLEYEN:** ürün öne çıkan özellikler / paket içi adet / teslim
+süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet tipi.
+
 ### Sözlük kalıntıları temizlendi (2026-09-03)
 
 2026-09-01 yeniden adlandırması satış tarafında yanlış oturmuştu:

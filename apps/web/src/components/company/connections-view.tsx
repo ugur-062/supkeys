@@ -255,7 +255,9 @@ function ConnectionRow({
   return (
     <div className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-white pr-2 transition hover:bg-zinc-50">
       {card ? (
-        <div className="min-w-0 flex-1 [&>a]:border-0 [&>a]:hover:bg-transparent">{card}</div>
+        // Kartın kendi kenarlığı yok — satırın kenarlığı tek çerçeve (iç içe
+        // iki kutu görünmesin).
+        <div className="min-w-0 flex-1 [&>a]:rounded-none [&>a]:border-0 [&>a]:bg-transparent">{card}</div>
       ) : (
       <Link
         href={rothernId ? `/company/firma/${rothernId}` : "#"}
