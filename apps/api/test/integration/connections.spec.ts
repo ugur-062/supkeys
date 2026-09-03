@@ -491,6 +491,15 @@ describe("firma profili — adres biçimi", () => {
     await expect(service.getProfile(a.auth, "olmayan-firma")).rejects.toThrow(
       /bulunamadı/i,
     );
+
+    // Kısa kod KALIBINA uyan bir slug da bulunmalı: biçim yalnız denemenin
+    // SIRASINI belirler, tek dallı bir çözüm bu firmayı sessizce 404'lerdi.
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { slug: "star-4x4z" },
+    });
+    const codeShaped = await service.getProfile(a.auth, "star-4x4z");
+    expect(codeShaped.profile.rothernId).toBe(byCode.profile.rothernId);
   });
 });
 

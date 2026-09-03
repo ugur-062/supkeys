@@ -969,46 +969,55 @@ export class CompanyConnectionsService {
     // "firmayla iletişime geç" bağlantısı panelden çıkmamalı; slug'ı burada
     // reddetseydik o bağlantı yine herkese açık sayfaya kaçardı.
     const code = normalizeShortCode(rothernIdRaw);
-    const where = validateShortCode(code)
-      ? { rothernId: code }
-      : { slug: rothernIdRaw.trim().toLowerCase() };
-    const c = await this.prisma.company.findFirst({
-      where,
-      select: {
-        id: true,
-        rothernId: true,
-        slug: true,
-        name: true,
-        industry: true,
-        city: true,
-        country: true,
-        logoUrl: true,
-        coverImageUrl: true,
-        aboutText: true,
-        services: true,
-        certifications: true,
-        photos: true,
-        certificateImages: true,
-        foundedYear: true,
-        employeeCount: true,
-        website: true,
-        linkedinUrl: true,
-        instagramUrl: true,
-        publicEnabled: true,
-        isActive: true,
-        isBlocked: true,
-        tier: true,
-        membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
-        // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
-        // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
-        legalName: true,
-        taxNumber: true,
-        taxOffice: true,
-        mersisNo: true,
-        tradeRegistryNo: true,
-        kepAddress: true,
-      },
-    });
+    const slug = rothernIdRaw.trim().toLowerCase();
+    // Biçim yalnız SIRAYI belirler, tek denemeyi değil: kısa kod kalıbına
+    // uyan bir slug ("star-4x4z") ya da tersi, tek dallı bir çözümde sessizce
+    // 404 verirdi. İkinci sorgu YALNIZ ıskalayınca koşar — o dal zaten 404'e
+    // gidiyordu, maliyeti yok.
+    const select = {
+      id: true,
+      rothernId: true,
+      slug: true,
+      name: true,
+      industry: true,
+      city: true,
+      country: true,
+      logoUrl: true,
+      coverImageUrl: true,
+      aboutText: true,
+      services: true,
+      certifications: true,
+      photos: true,
+      certificateImages: true,
+      foundedYear: true,
+      employeeCount: true,
+      website: true,
+      linkedinUrl: true,
+      instagramUrl: true,
+      publicEnabled: true,
+      isActive: true,
+      isBlocked: true,
+      tier: true,
+      membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
+      // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
+      // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
+      legalName: true,
+      taxNumber: true,
+      taxOffice: true,
+      mersisNo: true,
+      tradeRegistryNo: true,
+      kepAddress: true,
+    } as const;
+    const looksLikeCode = validateShortCode(code);
+    const c =
+      (await this.prisma.company.findFirst({
+        where: looksLikeCode ? { rothernId: code } : { slug },
+        select,
+      })) ??
+      (await this.prisma.company.findFirst({
+        where: looksLikeCode ? { slug } : { rothernId: code },
+        select,
+      }));
     // Admin-bloklu firma dizin/doğrudan-id yolundan da görünmez (arama zaten
     // filtreliyor; doğrudan rothernId erişimi bu filtreyi atlıyordu).
     if (!c || !c.isActive || c.isBlocked) {
