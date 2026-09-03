@@ -478,6 +478,44 @@ yanında). `secondaryNav` kaydı DURUYOR: o liste sol menüyü değil rota kayd�
 (breadcrumb + başlık + tier kapısı) besliyor; silinseydi profil sayfasının
 başlığı "Anasayfa"ya düşerdi.
 
+### Satış paneli revizyonu (2026-09-03, Europages referanslı)
+
+Kullanıcı geri bildirimi: aynı içerik birden fazla sayfada. Altı adım, her
+biri ayrı commit (91cc1a06 … profilim):
+
+| Tekrar | Çözüm |
+|--------|-------|
+| Anasayfa "Ne satıyorsunuz?" = Açık Talepler kopyası | `MatchedRequestsWidget` — 3 talep, arama/CTA yok; satır `BrowseTenderRow compact` (ikinci kart YOK); `PortalDiscovery` yalnız satınalma |
+| "Yeni Satış İlanı" üç yerde | Yalnız sol menü; İlanlarım'da liste boşken boş durumda |
+| Profil düzenleme iki giriş | Satış menüsünde **Profilim**; Ayarlar kartı "Profilim sayfasını aç"; başlıkta "Firma bilgileri" ikincil bağlantı |
+| "açık talep" / "satın alma talebi" karışık | Satış tarafı TEK terim **açık talep** — `listingTerms("ACIK_TALEP")` |
+| Boş durumlar farklı | Hepsi `EmptyState`: ikon + 1 başlık + ≤1 satır + ≤1 eylem; satışta tek eylem "Sektörleri düzenle" (`SECTOR_EDIT_HREF`), "Bağlantı Kur" Bağlantılar'ın işi |
+
+**Pano sırası (satış):** şerit → 4 KPI → uygun talepler → profil/katalog
+sağlığı → Raporlar bağlantısı. Aynı gün önce "pazar yeri önde" denmişti;
+Europages promptu ile ters çevrildi (satınalma panosuna dokunulmadı).
+Şeride `unansweredInquiries` çipi eklendi (action-center). KPI delta rozeti
+"Geçen aya göre" tooltip'i taşır — çıplak "%100" tamamlanma sanılıyordu.
+
+**Tek kaynaklar:** profil tamamlanma `lib/company/profile-completeness.ts`
+(Profilim + pano kartı); ürün tamamlanma `@rothern/shared`
+`product-completion.ts` (API kapı + web formu CANLI — eskiden yeni üründe
+%0 halkanın altında "Tüm alanlar dolu" yazıyordu); eksik listesi
+`components/ui/missing-fields.tsx`; ürün sayaçları liste ucundaki `counts`
+(firma geneli, süzgeçten bağımsız — pano, Ürünlerim sekmeleri, Profilim kartı
+aynı sayı).
+
+**İlan satırı (`IhaleListRow`):** xl altında KART (kod+ad · rozet sağda ·
+Davetli/Kapsam/Yayın/Kapanış), tüm kart tıklanır, "›" oku yok; xl+ yoğun
+tablo korunur.
+
+**Ürün belgesi:** `company/items/documents/{upload-url,resolve}` — görselle
+aynı iki adım, ayrı allowlist (yalnız PDF, 10 MB), `documents` Json'a yazılır.
+
+**ŞEMA BEKLEYEN (migration kararı):** ürün öne çıkan özellikler / paket içi
+adet / teslim süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet
+tipi. Kolon yok — eklemeli migration onaylanınca form/API/ürün sayfası.
+
 ### Sözlük kalıntıları temizlendi (2026-09-03)
 
 2026-09-01 yeniden adlandırması satış tarafında yanlış oturmuştu:
