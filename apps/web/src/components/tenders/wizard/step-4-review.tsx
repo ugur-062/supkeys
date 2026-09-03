@@ -33,6 +33,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   const { watch } = useFormContext<TenderFormData>();
   const d = watch();
   const L = entityLabels(d.listingType === "SATIS");
+  const coverItem = (d.items ?? []).find((it) => (it.images?.length ?? 0) > 0);
   const connections = useConnections();
 
   const invited = (d.invitedSupplierIds ?? [])
@@ -49,6 +50,12 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
     <div className="space-y-5">
       <Section title="Genel Bilgi" onEdit={() => onEditStep(2)}>
         <Row label={`${L.entityShort} Adı`} value={d.title || "—"} />
+        {/* Kapak: katalogdan eklenen İLK ürünün görselinden türer; kullanıcı
+            burada görür. TODO(2b-ikinci aşama): "Kapağı değiştir" ile
+            katalogdaki başka bir ürün görseli seçilebilsin. */}
+        {coverItem ? (
+          <Row label="Kapak" value={`${coverItem.name} görselinden`} />
+        ) : null}
         <Row
           label="Tip"
           value={

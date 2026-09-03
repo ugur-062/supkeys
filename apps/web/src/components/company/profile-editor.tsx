@@ -3,6 +3,7 @@
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { MissingFields } from "@/components/ui/missing-fields";
+import { Thumb } from "@/components/ui/thumb";
 import { useCatalogItems } from "@/hooks/use-company-items";
 import { COMPANY_ACTIVITIES, MAX_COMPANY_ACTIVITIES } from "@rothern/shared";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
@@ -969,12 +970,7 @@ function MyProductsCard() {
         <ul className="mt-3 divide-y divide-zinc-950/5">
           {published.map((p) => (
             <li key={p.id} className="flex items-center gap-3 py-2">
-              {p.thumbnailUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.thumbnailUrl} alt="" className="size-9 rounded-md object-cover" />
-              ) : (
-                <span className="size-9 rounded-md bg-zinc-100" aria-hidden />
-              )}
+              <Thumb src={p.thumbnailUrl} size="sm" />
               <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{p.name}</span>
             </li>
           ))}

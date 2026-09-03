@@ -144,6 +144,11 @@ export const tenderItemSchema = z.object({
   unit: z.string().min(1, "Birim zorunlu").max(20, "Maksimum 20 karakter"),
   /** Faz 1: kanonik birim kodu; "listede yok" seçilirse null kalır. */
   unitCode: z.string().nullable().optional(),
+  /**
+   * Katalogdan eklenen ürünün görselleri (ilk = kapak). Sihirbazda yükleme
+   * alanı YOK — kapak ürün kaydından otomatik gelir; serbest kalemde boş.
+   */
+  images: z.array(z.string().max(500)).max(8).optional(),
   // ── Faz 3: kalem detayları (hepsi opsiyonel, katlanır panelde) ──────────
   brand: z.string().max(100, "Maksimum 100 karakter").optional(),
   mpn: z.string().max(100, "Maksimum 100 karakter").optional(),

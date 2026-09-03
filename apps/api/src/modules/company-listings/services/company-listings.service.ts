@@ -1379,6 +1379,7 @@ export class CompanyListingsService {
               buyNowUnitPrice:
                 priceScope === "KALEM" ? (it.buyNowUnitPrice ?? null) : null,
               materialCode: it.materialCode?.trim() || null,
+              images: (it.images ?? []).map((u) => u.trim()).filter(Boolean),
               requiredByDate: it.requiredByDate
                 ? new Date(it.requiredByDate)
                 : null,
@@ -1674,6 +1675,7 @@ export class CompanyListingsService {
               buyNowUnitPrice:
                 priceScope === "KALEM" ? (it.buyNowUnitPrice ?? null) : null,
               materialCode: it.materialCode?.trim() || null,
+              images: (it.images ?? []).map((u) => u.trim()).filter(Boolean),
               requiredByDate: it.requiredByDate
                 ? new Date(it.requiredByDate)
                 : null,

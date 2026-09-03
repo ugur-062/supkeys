@@ -186,6 +186,8 @@ function mapToInput(d: TenderFormData): CreateListingInput {
       buyNowUnitPrice:
         isSatis && d.priceScope === "KALEM" ? it.buyNowUnitPrice : undefined,
       materialCode: it.materialCode?.trim() || undefined,
+      // Kapak boru hattı: katalog ürününün görseli kaleme, oradan ilana.
+      images: it.images?.length ? it.images : undefined,
       requiredByDate: toIso(it.requiredByDate),
       // Faz 3 — kalem detayları. Payload'a EKLENMEZSE form alanları sessizce
       // düşerdi (kullanıcı doldurur, hiçbir yere yazılmaz).

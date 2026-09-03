@@ -121,6 +121,7 @@ export function Step2Items() {
         targetUnitPrice: p.targetPrice,
         minUnitPrice: null,
         buyNowUnitPrice: null,
+        images: p.images,
       })),
       "append",
     );

@@ -1,7 +1,7 @@
 "use client";
 
 import { CategoryImage } from "@/components/marketplace/category-image";
-import { productPrice } from "@/lib/public/product-price";
+import { ProductCard } from "@/components/marketplace/product-card";
 import {
   useDiscoverFacets,
   useDiscoverListings,
@@ -331,40 +331,14 @@ function ProductStrip({
   if (rows.length === 0) return <EmptyStrip title={emptyTitle} hint={emptyHint} />;
   return (
     <div className={`grid grid-cols-1 gap-4 ${gridCols(rows.length)}`}>
-      {rows.map((p) => {
-        const price = productPrice(p);
-        return (
-          <Link
-            key={`${p.company.slug}/${p.slug}`}
-            href={`${hrefBase}/${p.company.slug}/${p.slug}`}
-            className="group flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
-          >
-            <CategoryImage
-              src={p.images[0]}
-              categoryIds={p.categoryId ? [p.categoryId] : []}
-              alt={p.name}
-              ratio="aspect-[4/3]"
-              className="border-b border-zinc-950/5"
-            />
-            <div className="flex flex-1 flex-col p-4">
-              <h3 className="line-clamp-2 text-sm/5 font-semibold text-zinc-950">
-                {p.name}
-              </h3>
-              <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
-                {p.company.name}
-                {p.company.city ? ` · ${p.company.city}` : ""}
-              </p>
-              <p
-                className={`mt-auto pt-3 text-sm font-semibold ${
-                  price.hasPrice ? "text-zinc-950" : "text-zinc-500"
-                }`}
-              >
-                {price.headline}
-              </p>
-            </div>
-          </Link>
-        );
-      })}
+      {rows.map((p) => (
+        <ProductCard
+          key={`${p.company.slug}/${p.slug}`}
+          product={p}
+          company={p.company}
+          href={`${hrefBase}/${p.company.slug}/${p.slug}`}
+        />
+      ))}
     </div>
   );
 }

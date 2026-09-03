@@ -37,7 +37,14 @@ export interface DiscoverProduct {
   priceTiers: { minQty: number; unitPrice: number }[] | null;
   priceCurrency: string;
   moq: string | null;
-  company: { name: string; slug: string; city: string | null };
+  company: {
+    name: string;
+    slug: string;
+    city: string | null;
+    /** KYC doğrulaması tamam — kartta "Doğrulanmış" rozeti. */
+    verified: boolean;
+    activities: string[];
+  };
 }
 
 /**

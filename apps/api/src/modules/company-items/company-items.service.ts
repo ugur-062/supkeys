@@ -145,7 +145,14 @@ export interface DiscoverProductRow {
   priceTiers: unknown;
   priceCurrency: string;
   moq: string | null;
-  company: { name: string; slug: string; city: string | null };
+  company: {
+    name: string;
+    slug: string;
+    city: string | null;
+    /** KYC doğrulaması tamam — kartta "Doğrulanmış" rozeti (Europages'in Verified'ı). */
+    verified: boolean;
+    activities: string[];
+  };
 }
 
 @Injectable()
@@ -442,7 +449,15 @@ export class CompanyItemsService {
         priceTiers: true,
         priceCurrency: true,
         moq: true,
-        company: { select: { name: true, slug: true, city: true } },
+        company: {
+          select: {
+            name: true,
+            slug: true,
+            city: true,
+            companyVerificationStatus: true,
+            activities: true,
+          },
+        },
       },
       orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
       take,
@@ -465,6 +480,8 @@ export class CompanyItemsService {
           name: r.company.name,
           slug: r.company.slug ?? "",
           city: r.company.city,
+          verified: r.company.companyVerificationStatus === "VERIFIED",
+          activities: r.company.activities,
         },
       };
     });

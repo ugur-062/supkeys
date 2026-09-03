@@ -1,10 +1,9 @@
 "use client";
 
-import { CategoryImage } from "@/components/marketplace/category-image";
+import { ProductCard } from "@/components/marketplace/product-card";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { useDiscoverProducts } from "@/hooks/use-portal-discovery";
-import { productPrice } from "@/lib/public/product-price";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -79,48 +78,18 @@ export function DiscoverProductsView() {
         </div>
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {rows.map((p) => {
-            const price = productPrice(p);
-            return (
-              <Link
-                key={`${p.company.slug}/${p.slug}`}
-                // PANEL rotası — herkese açık `/firma/...` sayfası DEĞİL.
-                // Public layout oturumu okumaz; giriş yapmış kullanıcıyı
-                // "Giriş Yap / Kaydol" duvarına çarpardı.
-                href={`/company/satinalma/urunler/${p.company.slug}/${p.slug}`}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                <CategoryImage
-                  src={p.images[0]}
-                  categoryIds={p.categoryId ? [p.categoryId] : []}
-                  alt={p.name}
-                  ratio="aspect-[4/3]"
-                  className="border-b border-zinc-950/5"
-                />
-                <div className="flex flex-1 flex-col p-4">
-                  <h3 className="line-clamp-2 text-sm/5 font-semibold text-zinc-950">
-                    {p.name}
-                  </h3>
-                  <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
-                    {p.company.name}
-                    {p.company.city ? ` · ${p.company.city}` : ""}
-                  </p>
-                  {p.excerpt ? (
-                    <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-500">
-                      {p.excerpt}
-                    </p>
-                  ) : null}
-                  <p
-                    className={`mt-auto pt-3 text-sm font-semibold ${
-                      price.hasPrice ? "text-zinc-950" : "text-zinc-500"
-                    }`}
-                  >
-                    {price.headline}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
+          {rows.map((p) => (
+            <ProductCard
+              key={`${p.company.slug}/${p.slug}`}
+              product={p}
+              company={p.company}
+              // PANEL rotası — herkese açık `/firma/...` sayfası DEĞİL.
+              // Public layout oturumu okumaz; giriş yapmış kullanıcıyı
+              // "Giriş Yap / Kaydol" duvarına çarpardı.
+              href={`/company/satinalma/urunler/${p.company.slug}/${p.slug}`}
+              cta="Bilgi iste"
+            />
+          ))}
         </div>
       )}
     </PageContainer>

@@ -196,6 +196,18 @@ export class ListingItemDto {
   @MaxLength(50)
   materialCode?: string;
 
+  /**
+   * Kalem görselleri — katalogdan eklenen ürünün kapağı (ilk = kapak). İlanın
+   * kart kapağı buradan TÜRER (`coverImageUrl ?? items[0].images[0]`).
+   * Sihirbazda yükleme alanı yok; yalnız ürün kaydından taşınır.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  images?: string[];
+
   @IsOptional()
   @IsISO8601()
   requiredByDate?: string;

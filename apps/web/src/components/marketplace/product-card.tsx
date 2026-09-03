@@ -1,43 +1,148 @@
+"use client";
+
 import { CategoryImage } from "./category-image";
+import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
 import type { PublicProductCard } from "@/lib/public/marketplace-api";
-import { ChevronRightIcon } from "@heroicons/react/20/solid";
+import { cn } from "@/lib/utils";
+import { CheckBadgeIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
+import { companyActivityLabel } from "@rothern/shared";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 /**
- * Ürün kartı — SUNUCU bileşeni.
+ * ÜRÜN KARTI — TEK bileşen, iki varyant (v2 denetimi, 2026-09-03).
  *
- * İlan kartıyla aynı yüzey dili (`ring-1` + `shadow-sm`) ama iki farkı var:
- *  · görsel ZORUNLU olduğu için gerçek fotoğraf gösterilir (yoksa kategori
- *    görseline düşer — taslaktan yayına geçen kayıtta boşluk kalmasın),
- *  · fiyat her zaman bir CÜMLE gösterir; "teklif isteyin" de bir fiyattır.
+ * Eskiden aynı ürün dört yerde dört kartla çiziliyordu (pazar yeri, Ürün Ara,
+ * pano şeridi, Ürünlerim satırı) ve görseli her biri farklı ele alıyordu
+ * (kategori ampulü / bomboş beyaz / gri kutu). Şimdi:
+ *
+ *  · `tile` — Europages ürün kartı anatomisi: 4:3 kapak → ad → 3 madde öne
+ *    çıkan özellik (yoksa açıklamanın ilk 2 satırı) → firma + Doğrulanmış
+ *    rozeti + faaliyet tipi → fiyat ("teklif isteyin" de bir fiyattır) →
+ *    MOQ → tek CTA.
+ *  · `row` — liste satırı: küçük resim (Thumb) · ad · meta · rozet · sağ metin.
+ *
+ * Ürünün görseli ZORUNLU (yayın kapısı); kapak = ilk görsel. Kapak yoksa
+ * (taslak/eski kayıt) kategori görseline düşülür — beyaz boşluk kalmaz.
+ * Sunucu bileşenlerinden de çağrılır (pazar yeri) — prop'lar serileştirilebilir
+ * kalmalı; `onClick` yalnız panel satırında.
  */
+export type ProductCardProduct = Pick<
+  PublicProductCard,
+  "slug" | "name" | "images" | "categoryId" | "unit" | "priceMode"
+> &
+  Partial<Pick<PublicProductCard, "excerpt" | "priceAmount" | "priceTiers" | "priceCurrency" | "moq">>;
+
+export interface ProductCardCompany {
+  name: string;
+  city?: string | null;
+  /** KYC doğrulaması tamam — "Doğrulanmış" rozeti. */
+  verified?: boolean;
+  /** Faaliyet tipi kodları (CompanyActivity) — ilk ikisi gösterilir. */
+  activities?: string[];
+}
+
 export function ProductCard({
+  product,
   companySlug,
   companyName,
   companyCity,
-  product,
+  company,
+  href,
+  variant = "tile",
+  features,
+  cta,
+  badge,
+  meta,
+  trailing,
+  onClick,
+  className,
 }: {
-  companySlug: string;
-  /**
-   * Yalnız DİZİNDE verilir. Firma sayfasındaki listede firma zaten bellidir;
-   * her kartta adını tekrarlamak gürültüdür. Dizinde ise zorunlu: hangi ürünün
-   * kimden geldiğini göstermeyen liste, tıklamadan karar verdirmez.
-   */
+  product: ProductCardProduct;
+  /** Herkese açık rota için (`/firma/<slug>/urun/<slug>`); `href` verilirse kullanılmaz. */
+  companySlug?: string;
+  /** Eski çağrı biçimi — dizinde firma adı; `company` verilmişse yok sayılır. */
   companyName?: string;
   companyCity?: string | null;
-  product: PublicProductCard;
+  company?: ProductCardCompany;
+  /** Panel rotası gibi farklı hedef. */
+  href?: string;
+  variant?: "tile" | "row";
+  /** Öne çıkan özellikler — ilk 3 madde. Yoksa `excerpt`. */
+  features?: string[];
+  /** Tek CTA etiketi (tile) — "Bilgi iste". Yalnız görsel; tıklama kartındır. */
+  cta?: string;
+  /** Row: durum rozeti (Taslak/Yayında). */
+  badge?: ReactNode;
+  /** Row: ad altındaki meta satırı (kategori · fiyat modu · birim). */
+  meta?: ReactNode;
+  /** Row: sağ uç (son güncelleme vb.). */
+  trailing?: ReactNode;
+  /** Row: bağlantı yerine düğme (panel içi düzenleme). */
+  onClick?: () => void;
+  className?: string;
 }) {
-  const price = productPrice(product);
-  const cover = product.images[0];
+  const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
+  const firm: ProductCardCompany | undefined =
+    company ?? (companyName ? { name: companyName, city: companyCity } : undefined);
+
+  if (variant === "row") {
+    const inner = (
+      <>
+        <Thumb src={product.images[0]} alt="" size="md" />
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-sm font-semibold text-zinc-950">{product.name}</span>
+            {badge}
+          </span>
+          {meta ? (
+            <span className="mt-0.5 block truncate text-xs text-zinc-500">{meta}</span>
+          ) : null}
+        </span>
+        {trailing ? (
+          <span className="hidden shrink-0 text-xs text-zinc-400 sm:block">{trailing}</span>
+        ) : null}
+      </>
+    );
+    const rowCls = cn(
+      "flex w-full items-center gap-4 px-5 py-3.5 text-left transition hover:bg-zinc-50",
+      className,
+    );
+    if (onClick) {
+      return (
+        <button type="button" onClick={onClick} className={rowCls}>
+          {inner}
+        </button>
+      );
+    }
+    return (
+      <Link href={target ?? "#"} className={rowCls}>
+        {inner}
+      </Link>
+    );
+  }
+
+  const price = productPrice({
+    priceMode: product.priceMode,
+    priceAmount: product.priceAmount ?? null,
+    priceTiers: product.priceTiers ?? null,
+    priceCurrency: product.priceCurrency ?? "TRY",
+    unit: product.unit,
+  });
+  const bullets = (features ?? []).filter(Boolean).slice(0, 3);
+  const activities = (firm?.activities ?? []).slice(0, 2);
 
   return (
     <Link
-      href={`/firma/${companySlug}/urun/${product.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+      href={target ?? "#"}
+      className={cn(
+        "group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950",
+        className,
+      )}
     >
       <CategoryImage
-        src={cover}
+        src={product.images[0]}
         categoryIds={product.categoryId ? [product.categoryId] : []}
         alt={product.name}
         ratio="aspect-[4/3]"
@@ -49,32 +154,56 @@ export function ProductCard({
           <h3 className="line-clamp-2 text-sm/5 font-semibold tracking-tight text-zinc-950">
             {product.name}
           </h3>
-          <ChevronRightIcon
-            aria-hidden
-            className="mt-0.5 size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
-          />
+          {cta ? null : (
+            <ChevronRightIcon
+              aria-hidden
+              className="mt-0.5 size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
+            />
+          )}
         </div>
 
-        {companyName ? (
-          <p className="mt-1 truncate text-xs font-medium text-zinc-500">
-            {companyName}
-            {companyCity ? (
-              <span className="text-zinc-400"> · {companyCity}</span>
+        {bullets.length > 0 ? (
+          <ul className="mt-1.5 space-y-0.5 text-xs/5 text-zinc-600">
+            {bullets.map((f) => (
+              <li key={f} className="flex gap-1.5">
+                <span aria-hidden className="text-zinc-300">
+                  •
+                </span>
+                <span className="line-clamp-1">{f}</span>
+              </li>
+            ))}
+          </ul>
+        ) : product.excerpt ? (
+          <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-500">{product.excerpt}</p>
+        ) : null}
+
+        {firm ? (
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-zinc-500">
+            <span className="truncate font-medium text-zinc-700">{firm.name}</span>
+            {firm.verified ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-emerald-700"
+                title="Kimliği doğrulanmış firma"
+              >
+                <CheckBadgeIcon aria-hidden className="size-3.5" />
+                Doğrulanmış
+              </span>
             ) : null}
-          </p>
+            {firm.city ? <span className="text-zinc-400">· {firm.city}</span> : null}
+            {activities.map((a) => (
+              <span
+                key={a}
+                className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+              >
+                {companyActivityLabel(a)}
+              </span>
+            ))}
+          </div>
         ) : null}
 
-        {product.excerpt ? (
-          <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-500">
-            {product.excerpt}
-          </p>
-        ) : null}
-
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-3">
           <p
-            className={`text-sm font-semibold ${
-              price.hasPrice ? "text-zinc-950" : "text-zinc-500"
-            }`}
+            className={`text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-500"}`}
           >
             {price.headline}
           </p>
@@ -82,6 +211,11 @@ export function ProductCard({
             <p className="mt-0.5 text-xs text-zinc-400">
               Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
             </p>
+          ) : null}
+          {cta ? (
+            <span className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800 transition group-hover:bg-zinc-950 group-hover:text-white">
+              {cta}
+            </span>
           ) : null}
         </div>
       </div>

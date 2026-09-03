@@ -13,7 +13,7 @@ import {
 } from "@/hooks/use-company-items";
 import { Badge } from "@/components/catalyst/badge";
 import { EmptyState } from "@/components/list";
-import { CategoryImage } from "@/components/marketplace/category-image";
+import { ProductCard } from "@/components/marketplace/product-card";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { formatDate } from "@/lib/format-date";
 import { ArrowLeftIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
@@ -325,37 +325,29 @@ function ProductRows({
     <ul className="mt-6 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
       {items.map((item) => (
         <li key={item.id}>
-          <button
-            type="button"
+          {/* Tek kart ailesi: pazar yeri/Ürün Ara'daki ProductCard'ın `row`
+              varyantı — küçük resim Thumb'dan (beyaz boş kutu yok). */}
+          <ProductCard
+            variant="row"
+            product={{
+              slug: item.id,
+              name: item.name,
+              images: item.thumbnailUrl ? [item.thumbnailUrl] : [],
+              categoryId: item.categoryId,
+              unit: item.unit,
+              priceMode: item.priceMode,
+            }}
             onClick={() => onOpen(item)}
-            className="flex w-full items-center gap-4 px-5 py-3.5 text-left transition hover:bg-zinc-50"
-          >
-            <CategoryImage
-              src={item.thumbnailUrl}
-              categoryIds={item.categoryId ? [item.categoryId] : []}
-              alt={item.name}
-              ratio="aspect-square"
-              className="size-12 shrink-0 overflow-hidden rounded-lg"
-            />
-            <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-sm font-semibold text-zinc-950">{item.name}</span>
-                <Badge color={item.isPublic ? "emerald" : "zinc"}>
-                  {item.isPublic ? "Yayında" : "Taslak"}
-                </Badge>
-              </span>
-              <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                {catName(item.categoryId) ?? "Kategori seçilmedi"}
-                {" · "}
-                {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode}
-                {" · "}
-                {item.unit}
-              </span>
-            </span>
-            <span className="hidden shrink-0 text-xs text-zinc-400 sm:block">
-              {formatDate(item.updatedAt, "short")}
-            </span>
-          </button>
+            badge={
+              <Badge color={item.isPublic ? "emerald" : "zinc"}>
+                {item.isPublic ? "Yayında" : "Taslak"}
+              </Badge>
+            }
+            meta={`${catName(item.categoryId) ?? "Kategori seçilmedi"} · ${
+              PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode
+            } · ${item.unit}`}
+            trailing={formatDate(item.updatedAt, "short")}
+          />
         </li>
       ))}
     </ul>

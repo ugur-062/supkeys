@@ -9,6 +9,8 @@ import { toast } from "sonner";
 /** Vitrin kartında iyi görünen asgari kenar — Europages'in eşiğiyle aynı. */
 const MIN_EDGE = 800;
 const MAX_IMAGES = 8;
+/** Kural metniyle aynı sayı; üstü reddedilmez, küçültülür (uyarıyla). */
+const MAX_BYTES = 5 * 1024 * 1024;
 
 /**
  * ÜRÜN GÖRSELLERİ — ilki KAPAK.
@@ -35,6 +37,12 @@ export function ImageUploader({
   const upload = useUploadProductImage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  /**
+   * Satır altı uyarılar (v2): toast kaybolunca kullanıcı hangi dosyanın
+   * neden reddedildiğini göremiyordu. Kural metni alanın altında, hatalar
+   * dosya adıyla listelenir; yeni seçimde temizlenir.
+   */
+  const [notices, setNotices] = useState<string[]>([]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -45,24 +53,37 @@ export function ImageUploader({
     }
     setBusy(true);
     const added: string[] = [];
+    const next: string[] = [];
     for (const file of Array.from(files).slice(0, room)) {
       try {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+          next.push(`${file.name}: yalnız JPG, PNG veya WebP yüklenebilir.`);
+          continue;
+        }
+        if (file.size > MAX_BYTES) {
+          // Telefon fotoğrafı sık sık 5 MB'ı aşar; reddetmek yerine küçültüp
+          // yüklüyoruz, kullanıcıya söylüyoruz.
+          next.push(
+            `${file.name}: ${(file.size / 1024 / 1024).toFixed(1)} MB — 5 MB üstü, otomatik küçültüldü.`,
+          );
+        }
         const dims = await readDimensions(file);
-        if (dims && (dims.w < MIN_EDGE || dims.h < MIN_EDGE * 0.6)) {
-          toast.warning(
-            `${file.name}: ${dims.w}×${dims.h}px — kartta bulanık görünebilir (önerilen en az ${MIN_EDGE}px)`,
+        if (dims && (dims.w < MIN_EDGE || dims.h < MIN_EDGE * 0.75)) {
+          next.push(
+            `${file.name}: ${dims.w}×${dims.h}px — kartta bulanık görünebilir (en az ${MIN_EDGE}×${MIN_EDGE * 0.75} px önerilir).`,
           );
         }
         const resized = await resizeImageFile(file, { maxEdge: 1600 });
         added.push(await upload.mutateAsync(resized));
       } catch (e) {
-        toast.error(
+        next.push(
           e instanceof ImageProcessingError
-            ? e.message
-            : `${file.name} yüklenemedi`,
+            ? `${file.name}: ${e.message}`
+            : `${file.name} yüklenemedi.`,
         );
       }
     }
+    setNotices(next);
     setBusy(false);
     if (added.length) onChange([...images, ...added]);
     if (inputRef.current) inputRef.current.value = "";
@@ -77,10 +98,14 @@ export function ImageUploader({
             ({images.length}/{MAX_IMAGES})
           </span>
         </p>
-        {images.length > 0 ? (
-          <p className="text-xs text-zinc-500">İlk görsel kapak olarak kullanılır</p>
-        ) : null}
+        <p className="text-xs text-zinc-500">
+          {images.length > 0 ? "İlk görsel kapak — " : ""}3–8 görsel önerilir
+        </p>
       </div>
+      <p className="mt-1 text-xs text-zinc-400">
+        JPG, PNG veya WebP · en az {MIN_EDGE}×{MIN_EDGE * 0.75} px · en fazla 5 MB
+        (büyükler otomatik küçültülür). Yayımlamak için en az 1 görsel gerekir.
+      </p>
 
       <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
         {images.map((src, i) => (
@@ -138,6 +163,13 @@ export function ImageUploader({
           </li>
         ) : null}
       </ul>
+      {notices.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-xs text-amber-800" role="status">
+          {notices.map((n) => (
+            <li key={n}>· {n}</li>
+          ))}
+        </ul>
+      ) : null}
 
       <input
         ref={inputRef}

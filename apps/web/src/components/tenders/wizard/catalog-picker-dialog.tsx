@@ -30,6 +30,11 @@ export interface PickedCatalogItem {
   materialCode: string | null;
   quantity: number;
   targetPrice: number | null;
+  /**
+   * Ürünün kapak görseli — ilanın kapağı buradan TÜRER (backend: sahibin
+   * seçtiği yoksa ilk kalemin ilk görseli). Serbest girilen kalemde boş.
+   */
+  images: string[];
 }
 
 /**
@@ -87,6 +92,7 @@ export function CatalogPickerDialog({
         materialCode: it.code,
         quantity: selected[it.id] ?? 1,
         targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
+        images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
       }));
     if (picked.length > 0) {
       onPick(picked);
