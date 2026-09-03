@@ -5,7 +5,7 @@
   "scripts": {
     "migrate:public-images": "tsx scripts/migrate-public-images.ts",
     "dev": "concurrently -k -n tsc,node -c blue,green \"tsc -w --preserveWatchOutput\" \"nodemon --watch dist --delay 300ms dist/main.js\"",
-    "build": "tsc",
+    "build": "tsc --incremental false",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",

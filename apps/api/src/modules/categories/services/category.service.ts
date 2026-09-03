@@ -322,22 +322,42 @@ export class CategoryService {
 
     const segmentMap = new Map<string, SegmentAcc>();
 
+    /**
+     * Ata zincirindeki düğümlerin YALNIZ kullanılan alanları.
+     *
+     * Eskiden `typeof cat.parent` yazılıyordu; o tip include derinliğini de
+     * taşıdığı için `family.parent` (bir seviye SIĞ) `segment`e atanamıyordu
+     * ve `tsc` TAM derlemede patlıyordu. Yerelde fark edilmiyordu: artımlı
+     * derleme (`tsbuildinfo`) değişmeyen bu dosyayı yeniden denetlemiyor,
+     * Docker'daki temiz build ise her dosyayı denetliyor → her deploy düştü
+     * (2026-09-03). Yapısal tip derinlikten bağımsız: her seviye bu alanları
+     * taşır.
+     */
+    type CatNode = {
+      id: string;
+      code: string;
+      nameTr: string;
+      level: number;
+      segmentLetter: string | null;
+      sortOrder: number;
+    };
+
     for (const cat of matched) {
       // Tüm match level 3 veya 4. Parent zinciri 4-seviye yukarı çıkar.
-      let segment: typeof cat.parent | null = null;
-      let family: typeof cat.parent | null = null;
-      let cls: typeof cat | typeof cat.parent | null = null;
-      let commodity: typeof cat | null = null;
+      let segment: CatNode | null = null;
+      let family: CatNode | null = null;
+      let cls: CatNode | null = null;
+      let commodity: CatNode | null = null;
 
       if (cat.level === 4) {
         commodity = cat;
         cls = cat.parent;
-        family = cls?.parent ?? null;
-        segment = family?.parent ?? null;
+        family = cat.parent?.parent ?? null;
+        segment = cat.parent?.parent?.parent ?? null;
       } else if (cat.level === 3) {
         cls = cat;
-        family = (cat as typeof cat & { parent: typeof cat.parent }).parent;
-        segment = family?.parent ?? null;
+        family = cat.parent;
+        segment = cat.parent?.parent ?? null;
       }
 
       if (!segment || !family || !cls) continue;
