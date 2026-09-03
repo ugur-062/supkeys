@@ -1,7 +1,9 @@
 "use client";
 
-import { CategoryImage } from "@/components/marketplace/category-image";
+import { ListingCard } from "@/components/marketplace/listing-card";
 import { ProductCard } from "@/components/marketplace/product-card";
+import { InfoChip } from "@/components/ihale/IhaleListRow";
+import { deriveSellerTenderState } from "@/lib/tenders/seller-state";
 import {
   useDiscoverFacets,
   useDiscoverListings,
@@ -270,41 +272,46 @@ function remaining(closesAt: string | null): string | null {
   return `${hours} saat`;
 }
 
+/**
+ * Pano tile'ı — `ListingCard` tile ADAPTÖRÜ. Görsel kuralı kartta: satış
+ * ilanı (kind="ilan") kapak varsa 4:3 kapak, yoksa kompakt; dev 16:9
+ * placeholder yok.
+ */
 function ListingTile({ row }: { row: SellerTenderRow }) {
   const left = remaining(row.closesAt);
+  const state = deriveSellerTenderState(row.status, row.myBidStatus, row.invited);
   return (
-    <Link
-      href={`/company/ilan/${row.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
-    >
-      <CategoryImage
-        src={row.coverImageUrl}
-        categoryIds={row.categories.map((c) => c.code)}
-        alt={row.title}
-        ratio="aspect-[16/9]"
-        className="border-b border-zinc-950/5"
-      />
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {row.invited ? <Badge tone="blue">Size özel davet</Badge> : null}
-          {row.myBidStatus ? <Badge tone="emerald">Teklif verdiniz</Badge> : null}
-          {row.masked ? <Badge tone="amber">Paket gerekli</Badge> : null}
-          {left ? <Badge tone="zinc">{left} kaldı</Badge> : null}
-        </div>
-        <h3 className="mt-2 line-clamp-2 text-sm/5 font-semibold text-zinc-950">
-          {row.title}
-        </h3>
-        <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
-          {/* Maskeli kartta sahip adı YOK ama şehir var — kimlik değil nitelik. */}
-          {row.owner?.name ?? "Satıcı firma"}
-          {row.ownerCity ? ` · ${row.ownerCity}` : ""}
-          {row.itemCount > 0 ? ` · ${row.itemCount} kalem` : ""}
-        </p>
-        {row.matchReason ? (
-          <p className="mt-auto pt-3 text-xs text-zinc-400">{row.matchReason}</p>
-        ) : null}
-      </div>
-    </Link>
+    <ListingCard
+      variant="tile"
+      data={{
+        id: row.id,
+        href: `/company/ilan/${row.id}`,
+        number: row.number,
+        title: row.title,
+        kind: "ilan",
+        coverImageUrl: row.coverImageUrl,
+        categoryIds: row.categories.map((c) => c.code),
+        status: { label: state.label, className: state.className },
+        timeNote: left ? `${left} kaldı` : null,
+        chips: (
+          <>
+            {row.invited ? <InfoChip tone="amber">Size özel davet</InfoChip> : null}
+            {row.myBidStatus ? <InfoChip tone="emerald">Teklif verdiniz</InfoChip> : null}
+            {row.categoryMatch ? <InfoChip tone="blue">Profilinizle eşleşti</InfoChip> : null}
+            {row.masked ? <InfoChip tone="amber">Paket gerekli</InfoChip> : null}
+          </>
+        ),
+        // Maskeli kartta sahip adı YOK ama şehir var — kimlik değil nitelik.
+        subtitle: [
+          row.owner?.name ?? "Satıcı firma",
+          row.ownerCity,
+          row.itemCount > 0 ? `${row.itemCount} kalem` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        facts: [],
+      }}
+    />
   );
 }
 
@@ -340,27 +347,5 @@ function ProductStrip({
         />
       ))}
     </div>
-  );
-}
-
-function Badge({
-  tone,
-  children,
-}: {
-  tone: "blue" | "emerald" | "amber" | "zinc";
-  children: React.ReactNode;
-}) {
-  const cls = {
-    blue: "bg-blue-50 text-blue-700 ring-blue-600/20",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-    amber: "bg-amber-50 text-amber-800 ring-amber-600/20",
-    zinc: "bg-zinc-100 text-zinc-600 ring-zinc-950/5",
-  }[tone];
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${cls}`}
-    >
-      {children}
-    </span>
   );
 }

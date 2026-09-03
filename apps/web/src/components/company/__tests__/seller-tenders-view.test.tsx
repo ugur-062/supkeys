@@ -19,6 +19,13 @@ const h = vi.hoisted(() => ({
   get: vi.fn<(url: string) => Promise<{ data: unknown }>>(),
 }));
 
+// Satır artık tüm kartı tıklanır yapmak için app router ister (ListingCard
+// row) — test ortamında router yok, mock'lanır.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/company/satis/acik-talepler",
+}));
 vi.mock("@/hooks/use-seller-tenders", () => ({
   useSellerTenders: () => ({
     data: h.rows,
@@ -118,7 +125,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     // Eşleşme rozeti BAŞLIKTA (her genişlikte); genişletmede bir kez daha.
     expect(screen.getAllByText("Profilinizle eşleşti")).toHaveLength(1);
     await user.click(
-      screen.getByRole("button", { name: "Detayı genişlet" }),
+      screen.getByRole("button", { name: "Kalemler" }),
     );
     expect(screen.getAllByText("Profilinizle eşleşti").length).toBeGreaterThanOrEqual(2);
     // Varsayılan sıralama "Size uygun"; süzgeç düğmeleri adını taşır.
@@ -222,14 +229,14 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     const user = userEvent.setup();
     h.rows = [row({ invited: false, connected: true })];
     const { unmount } = render(<SellerTendersView />);
-    await user.click(screen.getByRole("button", { name: "Detayı genişlet" }));
-    expect(screen.getByText("Bağlantılı")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kalemler" }));
+    expect(screen.getAllByText("Bağlantılı")[0]).toBeInTheDocument();
     unmount();
 
     // Davetli aynı zamanda bağlantılı olsa da 'Davetlisiniz' baskın rozet.
     h.rows = [row({ invited: true, connected: true })];
     render(<SellerTendersView />);
-    await user.click(screen.getByRole("button", { name: "Detayı genişlet" }));
+    await user.click(screen.getByRole("button", { name: "Kalemler" }));
     expect(screen.getByText("Davetlisiniz")).toBeInTheDocument();
     expect(screen.queryByText("Bağlantılı")).not.toBeInTheDocument();
   });
@@ -259,7 +266,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
     // Liste yüklendi ama satır kapalı → kalem isteği YOK (tembel yükleme).
     expect(h.get).not.toHaveBeenCalled();
 
-    const toggle = screen.getByRole("button", { name: "Detayı genişlet" });
+    const toggle = screen.getByRole("button", { name: "Kalemler" });
     await user.click(toggle);
     expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith(

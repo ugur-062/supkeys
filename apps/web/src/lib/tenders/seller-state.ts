@@ -146,3 +146,17 @@ export function closingUrgency(
     days > 0 ? `${days} gün kaldı` : days === 0 ? "Bugün biter" : "Süre doldu";
   return { text, className };
 }
+
+/**
+ * "Süresi doldu · N gün önce" — kapanış geçmiş ama karar verilmemiş kayıt
+ * (v2 4d). "Değerlendirmede" rozeti tek başına 6 gündür kapalı bir talebi
+ * hâlâ açık gibi okutuyordu; zaman notu durumun yanına gelir.
+ */
+export function expiredNote(status: string, closesAt: string | null): string | null {
+  if (!closesAt) return null;
+  if (!["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"].includes(status)) return null;
+  const days = daysUntil(closesAt);
+  if (days == null || days >= 0) return null;
+  const ago = -days;
+  return ago === 0 ? "Süresi doldu · bugün" : `Süresi doldu · ${ago} gün önce`;
+}

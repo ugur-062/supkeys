@@ -52,17 +52,20 @@ describe("IhaleListRow", () => {
     render(
       <IhaleListRow t={ROW} listingType="SATIS" favorite={false} onToggleFavorite={vi.fn()} />,
     );
-    // Kod ve ad (xl tablo + kart iki düzende de basılır → en az bir kopya).
-    expect(screen.getAllByText("ROT-000055").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Paslanmaz çelik boru satışı").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(statusStyle("IN_AWARD").label).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("ROT-000055")).toBeInTheDocument();
+    expect(screen.getByText("Paslanmaz çelik boru satışı")).toBeInTheDocument();
+    expect(screen.getByText(statusStyle("IN_AWARD").label)).toBeInTheDocument();
+    // Kapanış geçmiş + karar yok → zaman notu (4d).
+    expect(screen.getByText(/Süresi doldu/)).toBeInTheDocument();
 
-    // Kart düzeninin (xl altı) 4 sütunu bu SIRAYLA.
+    // Sabit sütunlar bu SIRAYLA (v2 7c): Sorumlu · Davetli · Kapsam · Yayın ·
+    // Kapanış · Kategori; Teklifler sağ altta metrik.
     const card = document.querySelector("dl")!;
     const labels = within(card)
       .getAllByRole("term")
       .map((dt) => dt.textContent?.trim());
-    expect(labels).toEqual(["Davetli", "Kapsam", "Yayın", "Kapanış"]);
+    expect(labels).toEqual(["Sorumlu", "Davetli", "Kapsam", "Yayın", "Kapanış", "Kategori"]);
+    expect(screen.getByText("Teklifler:")).toBeInTheDocument();
 
     expect(screen.queryByRole("button", { name: "Detayı genişlet" })).toBeNull();
   });
@@ -74,11 +77,11 @@ describe("IhaleListRow", () => {
       <IhaleListRow t={ROW} listingType="SATIS" favorite={false} onToggleFavorite={onFav} />,
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Favorilere ekle" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Favorilere ekle" }));
     expect(onFav).toHaveBeenCalledWith("l55");
     expect(h.push).not.toHaveBeenCalled();
 
-    await user.click(screen.getAllByRole("button", { name: "Kalemler" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Kalemler" }));
     expect(screen.getByTestId("items-panel")).toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
 
