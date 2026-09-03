@@ -136,7 +136,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               </span>
               {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
               <Badge color={isAlim ? "blue" : "emerald"}>
-                {isAlim ? "Alış Satın Alma Talebi" : "Satış İlanı"}
+                {isAlim ? "Açık Talep" : "Satış İlanı"}
               </Badge>
             </div>
             <h3
@@ -211,7 +211,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
         {canRebid ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-            Satın Alma Talebi hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
+            Talep hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
           </p>
         ) : null}
 
@@ -239,9 +239,9 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               </span>
             ) : !won ? (
               <span className="text-zinc-400">
-                {/* C51: Değerlendirmede rozetiyle "Satın Alma Talebi kapandı" çelişkili
-                    okunuyordu — gönderilmiş teklifte süreç dili. */}
-                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "Satın Alma Talebi kapandı"}
+                {/* C51: Değerlendirmede rozetiyle "kapandı" çelişkili okunuyordu —
+                    gönderilmiş teklifte süreç dili. */}
+                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "Talep kapandı"}
               </span>
             ) : null}
             {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu. */}
@@ -285,10 +285,10 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
   const isPurchase = listingType === "SATIS";
   const description = isPurchase
     ? "Satıcıların ilanlarına verdiğiniz teklifler ve sonuçları."
-    : "Açık satın alma taleplerine verdiğiniz tüm teklifler ve sonuçları.";
+    : "Açık taleplere verdiğiniz tüm teklifler ve sonuçları.";
   const emptyHint = isPurchase
     ? "Satın Al ekranından bir ilana teklif verdiğinizde burada görünür."
-    : "Açık satın alma talepleri ekranından bir satın alma talebine teklif verdiğinizde burada görünür.";
+    : "Açık Talepler ekranından bir talebe teklif verdiğinizde burada görünür.";
   const fromHref = isPurchase
     ? "/company/satinalma/tekliflerim"
     : "/company/satis/tekliflerim";
@@ -357,7 +357,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
             placeholder={
               isPurchase
                 ? "İlan adı, numarası veya satıcı ara…"
-                : "Satın Alma Talebi adı, numarası veya alıcı ara…"
+                : "Talep adı, numarası veya alıcı ara…"
             }
             className="flex-1"
           />

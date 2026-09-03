@@ -209,7 +209,7 @@ function sym(currency: string | undefined): string {
  * İhalesi/Satış İlanı" etiketi kafa karıştırıyordu: alıcı portalında "Satış
  * İlanı" gören kullanıcı kendi alışını satış sanıyordu).
  *  - Alıcı: ALIM → "Kendi Satın Alma Talebim", SATIS → "Satın Alım"
- *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan Satın Alma Talebi"
+ *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan Açık Talep"
  * İlan silinmişse (listingType null) nötr "İlan silinmiş" gösterilir —
  * etiketi hiç olmayan sipariş kalmaz.
  */
@@ -244,8 +244,8 @@ function sourceMeta(
         cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
       }
     : {
-        label: "Kazanılan Satın Alma Talebi",
-        hint: "Bir alıcının satın alma talebine verdiğiniz teklif kazandı.",
+        label: "Kazanılan Açık Talep",
+        hint: "Bir alıcının açık talebine verdiğiniz teklif kazandı.",
         cls: "border-blue-200 bg-blue-50 text-blue-700",
       };
 }
@@ -504,7 +504,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   }, [all, counts]);
 
   const emptyHint = isSeller
-    ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya satın alma talebi teklifiniz kazandığında burada görünür."
+    ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya açık talebe verdiğiniz teklif kazandığında burada görünür."
     : "Henüz alış siparişiniz yok. Bir satın alma talebinizi kazandırdığınızda veya satın aldığınızda burada görünür.";
 
   return (
@@ -513,7 +513,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         title={isSeller ? MODULE_LABELS.satis.siparisler : MODULE_LABELS.satinalma.siparisler}
         description={
           isSeller
-            ? "Satışlarınız — kazandığınız satın alma taleplerinden ve satışlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
+            ? "Satışlarınız — kazandığınız açık taleplerden ve satış ilanlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
             : "Alış siparişleriniz — kazandırdığınız satın alma taleplerinden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
         }
       />
@@ -623,7 +623,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                 ? [
                     { value: "all", label: "Tüm Kaynaklar" },
                     { value: "SATIS", label: "Satış İlanlarımdan" },
-                    { value: "ALIM", label: "Kazanılan Satın Alma Taleplerinden" },
+                    { value: "ALIM", label: "Kazanılan Açık Taleplerden" },
                   ]
                 : [
                     { value: "all", label: "Tüm Kaynaklar" },
@@ -692,7 +692,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                       (isSeller
                         ? {
                             SATIS: "Satış İlanlarımdan",
-                            ALIM: "Kazanılan Satın Alma Taleplerinden",
+                            ALIM: "Kazanılan Açık Taleplerden",
                           }
                         : {
                             ALIM: "Kendi İhalelerimden",

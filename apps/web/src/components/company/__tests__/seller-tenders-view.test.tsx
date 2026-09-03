@@ -174,7 +174,7 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
       // Metin kayıt tipi sözlüğünden geliyor (lib/company/terms.ts) — testte
       // elle yazsaydık sözlük değiştiğinde bu test sözlükle ayrışırdı.
       screen.getByPlaceholderText(
-        `${listingTerms("ALIM").searchNoun} adı, numarası veya firma ara…`,
+        `${listingTerms("ACIK_TALEP").searchNoun} adı, numarası veya firma ara…`,
       ),
       "çelik",
     );
@@ -275,11 +275,11 @@ describe("SellerTendersView (yoğun satır görünümü)", () => {
   it("boş durum + hata durumu", () => {
     h.rows = [];
     const { unmount } = render(<SellerTendersView />);
-    expect(screen.getByText("Henüz satın alma talebi yok")).toBeInTheDocument();
+    expect(screen.getByText("Henüz açık talep yok")).toBeInTheDocument();
     unmount();
 
     h.isError = true;
     render(<SellerTendersView />);
-    expect(screen.getByText("Satın Alma Talepleri yüklenemedi")).toBeInTheDocument();
+    expect(screen.getByText("Açık talepler yüklenemedi.")).toBeInTheDocument();
   });
 });

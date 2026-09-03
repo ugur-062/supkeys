@@ -99,7 +99,7 @@ describe("OrdersList — durum katmanları", () => {
     h.orders = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
     render(<OrdersList role="seller" />);
     expect(
-      screen.getByText(/Satışlarınız — kazandığınız satın alma taleplerinden/),
+      screen.getByText(/Satışlarınız — kazandığınız açık taleplerden/),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Açık Taleplere Göz At" }),

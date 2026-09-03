@@ -741,7 +741,7 @@ export function ListingTemplatesView({
                       (önceden yalnız silme vardı, satır işlevsizdi). */}
                   <div className="flex shrink-0 items-center gap-1">
                     <Link
-                      href={`${isAlim ? "/company/satinalma/satın alma taleplerim/yeni" : "/company/satis/ilanlarim/yeni"}?template=${t.id}`}
+                      href={`${isAlim ? "/company/satinalma/taleplerim/yeni" : "/company/satis/ilanlarim/yeni"}?template=${t.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
                     >
                       Sihirbazda Kullan

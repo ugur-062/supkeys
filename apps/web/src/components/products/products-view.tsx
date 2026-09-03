@@ -12,11 +12,13 @@ import {
   type ProductShowcase,
 } from "@/hooks/use-company-items";
 import { Badge } from "@/components/catalyst/badge";
+import { EmptyState } from "@/components/list";
 import {
   ArrowLeftIcon,
   MagnifyingGlassIcon,
   PhotoIcon,
 } from "@heroicons/react/20/solid";
+import { Package } from "lucide-react";
 import { useState } from "react";
 
 /**
@@ -200,16 +202,20 @@ export function ProductsView() {
       {isLoading ? (
         <p className="mt-8 text-sm text-zinc-500">Yükleniyor…</p>
       ) : items.length === 0 ? (
-        <div className="mt-8 rounded-2xl bg-zinc-50 px-6 py-10 text-center ring-1 ring-zinc-950/5">
-          <p className="text-sm font-semibold text-zinc-900">
-            {q ? "Eşleşen ürün yok." : "Henüz ürün yok."}
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Kalem kataloğunuza eklediğiniz her kalem burada ürüne
-            dönüştürülebilir.
-          </p>
-          {!q ? (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+        /* Ortak EmptyState (1d): ikon + başlık + tek satır + TEK eylem.
+           "Toplu ekle" başlıkta zaten var; burada ikinci kez sunulmaz. */
+        <EmptyState
+          icon={Package}
+          title={q ? "Eşleşen ürün yok." : "Henüz ürün yok."}
+          description={
+            q
+              ? "Aramayı değiştirip tekrar deneyin."
+              : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
+          }
+          variant={q ? "no-results" : "no-data"}
+          className="mt-4"
+          action={
+            q ? undefined : (
               <button
                 type="button"
                 onClick={() => setCreating(true)}
@@ -217,16 +223,9 @@ export function ProductsView() {
               >
                 Yeni ürün ekle
               </button>
-              <button
-                type="button"
-                onClick={() => setImportOpen(true)}
-                className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
-              >
-                Excel veya katalogdan toplu ekle
-              </button>
-            </div>
-          ) : null}
-        </div>
+            )
+          }
+        />
       ) : (
         <ul className="mt-8 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
           {items.map((item) => (

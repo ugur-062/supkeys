@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/list";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { Badge } from "@/components/catalyst/badge";
@@ -12,6 +13,7 @@ import {
   type SentInquiry,
 } from "@/hooks/use-inquiries";
 import { InboxIcon, PaperAirplaneIcon } from "@heroicons/react/20/solid";
+import { Inbox, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -89,9 +91,10 @@ export function InquiriesView({
           received.isLoading ? (
             <Loading />
           ) : (received.data?.items.length ?? 0) === 0 ? (
-            <Empty
+            <EmptyState
+              icon={Inbox}
               title="Henüz bilgi talebi yok."
-              body="Ürünlerinizi vitrine çıkardığınızda ziyaretçiler buradan soru sorabilir."
+              description="Ürünlerinizi vitrine çıkardığınızda ziyaretçiler buradan soru sorabilir."
             />
           ) : (
             <ul className="space-y-4">
@@ -103,9 +106,10 @@ export function InquiriesView({
         ) : sent.isLoading ? (
           <Loading />
         ) : (sent.data?.length ?? 0) === 0 ? (
-          <Empty
+          <EmptyState
+            icon={Send}
             title="Gönderdiğiniz talep yok."
-            body="Ürün Ara'dan bir ürüne girip 'Bilgi / teklif iste' ile soru gönderin; yanıtlar burada birikir."
+            description="Ürün Ara'dan bir ürüne girip 'Bilgi / teklif iste' ile soru gönderin; yanıtlar burada birikir."
           />
         ) : (
           <ul className="space-y-4">
@@ -290,11 +294,3 @@ function Loading() {
   return <p className="text-sm text-zinc-500">Yükleniyor…</p>;
 }
 
-function Empty({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-2xl bg-zinc-50 px-6 py-10 text-center ring-1 ring-zinc-950/5">
-      <p className="text-sm font-semibold text-zinc-900">{title}</p>
-      <p className="mt-1 text-sm text-zinc-500">{body}</p>
-    </div>
-  );
-}

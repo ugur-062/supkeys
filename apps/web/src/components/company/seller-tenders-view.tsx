@@ -62,9 +62,10 @@ export function SellerTendersView({
   listingType?: "ALIM" | "SATIS";
 } = {}) {
   const isSatis = listingType === "SATIS";
-  // Kayıt tipi sözlüğü: bu sayfa SATIS modunda satış İLANLARINI listeler;
-  // "satın alma talebi" demek satış tarafında TERSTİR.
-  const t = listingTerms(isSatis ? "SATIS" : "ALIM");
+  // Kayıt tipi sözlüğü: SATIS modunda satış İLANLARI (satınalma → Satın Al),
+  // ALIM modunda başkalarının AÇIK TALEPLERİ (satış → Açık Talepler). Satış
+  // tarafında "satın alma talebi" denmez — tek terim "açık talep".
+  const t = listingTerms(isSatis ? "SATIS" : "ACIK_TALEP");
   const tenders = useSellerTenders(listingType);
   // Arama/kategori URL'DEN başlar: pano keşif bloğu buraya `?q=` / `?kategori=`
   // ile devrediyor. URL'siz başlasaydı devredilen terim sessizce kaybolurdu;
@@ -186,7 +187,7 @@ export function SellerTendersView({
         description={
           isSatis
             ? "Bağlı olduğunuz satıcıların ve herkese açık satış ilanlarının listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
-            : "Bağlı olduğunuz alıcı firmaların ve herkese açık satın alma taleplerinin listesi — teklif verin, sonuçları takip edin."
+            : "Bağlı olduğunuz alıcıların ve herkese açık taleplerin listesi — teklif verin, sonuçları takip edin."
         }
       />
 
@@ -299,7 +300,7 @@ export function SellerTendersView({
         <div className="space-y-3">
           <EmptyState
             icon={ClipboardList}
-            title="Satın Alma Talepleri yüklenemedi"
+            title={isSatis ? "Satış ilanları yüklenemedi." : "Açık talepler yüklenemedi."}
             description="Bir hata oluştu — tekrar deneyin."
             variant="no-results"
           />
@@ -332,7 +333,7 @@ export function SellerTendersView({
                   `Şu an açık ${t.indefinite} bulunmuyor. Kapanan ${t.pluralAccusative} görmek için Durum filtresinden Geçmiş'i seçin.`
                 : isSatis
                   ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun herkese açık satış ilanı yayınlandığında burada görünür."
-                  : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık satın alma talebi yayınlandığında burada görünür."
+                  : "Alıcılarla bağlantı kurduğunuzda veya kategorinize uygun herkese açık talep yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
           action={

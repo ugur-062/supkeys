@@ -30,6 +30,19 @@ export const LISTING_TERMS = {
     indefinite: "satış ilanı",
     pluralAccusative: "satış ilanlarını",
   },
+  /**
+   * BAŞKA firmaların ALIM kayıtları, SATIŞ portalından bakınca — "Açık
+   * Talepler". Satış tarafında tek terim "açık talep" (2026-09-03): "satın
+   * alma talebi" satınalma modülünün sözcüğüdür; satıcıya aynı kaydı iki
+   * adla göstermek (menüde "Açık Talepler", sayaçta "satın alma talebi")
+   * iki farklı şey sanılmasına yol açıyordu.
+   */
+  ACIK_TALEP: {
+    unit: "açık talep",
+    searchNoun: "Açık talep",
+    indefinite: "açık talep",
+    pluralAccusative: "açık talepleri",
+  },
 } as const;
 
 export type ListingTermKey = keyof typeof LISTING_TERMS;

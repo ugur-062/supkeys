@@ -108,11 +108,17 @@ export function IhaleListView({
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Henüz satın alma talebi yok"
+        title={
+          listingType === "SATIS" ? "Henüz satış ilanı yok." : "Henüz satın alma talebi yok."
+        }
         description={
           canCreate
-            ? "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
-            : "Satın Alma Talebi açma işlem rolü (Satın Almacı/Satışçı) gerektirir."
+            ? listingType === "SATIS"
+              ? "İlk satış ilanınızı birkaç dakikada açabilirsiniz — kalemleri girin, fiyatı belirleyin, yayınlayın."
+              : "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
+            : listingType === "SATIS"
+              ? "İlan açma işlem rolü (Satışçı) gerektirir."
+              : "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir."
         }
         variant="no-data"
         action={

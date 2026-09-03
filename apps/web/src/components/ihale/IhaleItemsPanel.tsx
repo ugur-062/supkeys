@@ -110,7 +110,7 @@ export function IhaleItemsPanel({
         {heading}
         <p className="mt-2 flex items-center gap-1.5 text-[12px] text-slate-400">
           <PackageOpen className="h-4 w-4" aria-hidden />
-          Bu satın alma talebinde kalem tanımlanmamış.
+          Bu ilanda kalem tanımlanmamış.
         </p>
       </div>
     );
