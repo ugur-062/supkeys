@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 /**
- * Keşif bloğu — PORTAL YÖNÜ sözleşmesi.
+ * Keşif bloğu — YÖN sözleşmesi (yalnız SATINALMA panosu).
  *
- * En kritik iddia: satınalma paneli SATIŞ ilanlarını, satış paneli ALIM
- * taleplerini ister. Yön ters dönerse kullanıcı kendi tarafındaki kayıtları
- * "fırsat" sanır ve blok tamamen yanlış bir dünya gösterir.
+ * En kritik iddia: satınalma paneli SATIŞ ilanlarını ister. Yön ters dönerse
+ * kullanıcı kendi tarafındaki kayıtları "fırsat" sanır ve blok tamamen yanlış
+ * bir dünya gösterir. Satış panosunun karşılığı `matched-requests-widget`
+ * (kendi testi var) — bu blok orada artık kullanılmıyor (2026-09-03).
  */
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -74,23 +75,15 @@ beforeEach(() => {
 
 describe("PortalDiscovery", () => {
   it("SATINALMA paneli SATIŞ ilanlarını ister", async () => {
-    wrap(<PortalDiscovery portal="satinalma" />);
+    wrap(<PortalDiscovery />);
     await screen.findByText("Paslanmaz çelik boru");
     const urls = h.get.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes("seller-tenders?type=SATIS"))).toBe(true);
     expect(urls.some((u) => u.includes("type=ALIM"))).toBe(false);
   });
 
-  it("SATIŞ paneli ALIM taleplerini ister", async () => {
-    wrap(<PortalDiscovery portal="satis" />);
-    await screen.findByText("Paslanmaz çelik boru");
-    const urls = h.get.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.includes("seller-tenders?type=ALIM"))).toBe(true);
-    expect(urls.some((u) => u.includes("type=SATIS"))).toBe(false);
-  });
-
   it("şeritte 6 kart ister — sıralama sunucuda, kırpma da orada", async () => {
-    wrap(<PortalDiscovery portal="satis" />);
+    wrap(<PortalDiscovery />);
     await screen.findByText("Paslanmaz çelik boru");
     expect(
       h.get.mock.calls.some((c) => String(c[0]).includes("limit=6")),
@@ -98,30 +91,26 @@ describe("PortalDiscovery", () => {
   });
 
   it("davet ve eşleşme sinyalleri kartta görünür", async () => {
-    wrap(<PortalDiscovery portal="satis" />);
+    wrap(<PortalDiscovery />);
     expect(await screen.findByText("Size özel davet")).toBeInTheDocument();
     // Şehir kimlik değil nitelik — maskeli kartta bile kalır.
     expect(screen.getByText(/İzmir/)).toBeInTheDocument();
   });
 
   it("sektör kutuları sayaçla çizilir", async () => {
-    wrap(<PortalDiscovery portal="satis" />);
+    wrap(<PortalDiscovery />);
     expect(await screen.findByText("Dağıtım Sistemleri")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("ÜRÜN sekmesi yalnız satınalmada var ve 'Ürünlerim' ile karışmaz", async () => {
+  it("ÜRÜN sekmesi 'Ürünlerim' ile karışmaz", async () => {
     // Ad "Tedarikçi ürünleri": satıştaki "Ürünlerim" firmanın KENDİ kataloğu,
     // buradaki başkalarının vitrini — menüde yan yana okunduğunda ayırt
     // edilemiyordu (kullanıcı geri bildirimi).
-    const { unmount } = wrap(<PortalDiscovery portal="satinalma" />);
+    wrap(<PortalDiscovery />);
     expect(
       await screen.findByRole("button", { name: "Tedarikçi ürünleri" }),
     ).toBeInTheDocument();
-    unmount();
-    wrap(<PortalDiscovery portal="satis" />);
-    await screen.findByText("Paslanmaz çelik boru");
-    expect(screen.queryByRole("button", { name: /ürün/i })).toBeNull();
   });
 
   it("yalnız TEKLİFE AÇIK ilanlar istenir (openOnly)", async () => {
@@ -129,7 +118,7 @@ describe("PortalDiscovery", () => {
     // sayfası Aktif/Geçmiş sekmesiyle ayırır). Şerit "teklif bekleyen" diye
     // başlıklanıyor: süzgeç olmadan açık ilan bitince kapanmış/karara
     // bağlanmış kayıtlarla dolar ve "Tümünü gör" 0 sonuç gösterirdi.
-    wrap(<PortalDiscovery portal="satis" />);
+    wrap(<PortalDiscovery />);
     await screen.findByText("Paslanmaz çelik boru");
     const urls = h.get.mock.calls.map((c) => String(c[0]));
     expect(
@@ -168,7 +157,7 @@ describe("PortalDiscovery", () => {
       return Promise.resolve({ data: [] });
     });
     const user = userEvent.setup();
-    wrap(<PortalDiscovery portal="satinalma" />);
+    wrap(<PortalDiscovery />);
     await user.click(
       await screen.findByRole("button", { name: "Tedarikçi ürünleri" }),
     );
@@ -185,9 +174,9 @@ describe("PortalDiscovery", () => {
         ? Promise.resolve({ data: { segments: [], total: 0 } })
         : Promise.resolve({ data: [] }),
     );
-    wrap(<PortalDiscovery portal="satis" />);
+    wrap(<PortalDiscovery />);
     expect(
-      await screen.findByText("Şu an size uygun açık talep yok."),
+      await screen.findByText("Şu an size uygun satılık ilan yok."),
     ).toBeInTheDocument();
   });
 });

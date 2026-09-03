@@ -83,7 +83,7 @@ export default function SatinalmaDashboardPage() {
 
       {/* PAZAR YERİ ÖNCE (2026-09-03 kullanıcı kararı): ilk ekran "piyasada
           ne var" olmalı. Bekleyen işler kaybolmuyor, altında tek satır. */}
-      <PortalDiscovery portal="satinalma" />
+      <PortalDiscovery />
 
       <ActionStrip portal="satinalma" />
 

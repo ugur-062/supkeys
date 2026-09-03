@@ -26,63 +26,44 @@ import { useState } from "react";
  * Keşfi en üste almak, kendi işini kaçıran kullanıcıya önce rakip ilanı
  * göstermek olurdu.
  *
- * ── PORTAL YÖNÜ İÇERİĞİ BELİRLER ─────────────────────────────────────────
+ * ── YALNIZ SATINALMA PANOSU (2026-09-03) ────────────────────────────────
  * Satınalma firma ALIR → başkalarının SATIŞ ilanları + firmaların ürünleri.
- * Satış firma SATAR → başkalarının ALIM talepleri.
- * Kendi kayıtların şeritte YOK; onlar zaten KPI'larda ve "Taleplerim/
- * İlanlarım"da. Şerit dışarıyı gösterir.
+ * Satış panosu bu bloğu artık KULLANMIYOR: orada arama kutulu kart Açık
+ * Talepler sayfasının kopyasıydı; yerini özet widget'ı aldı
+ * (`matched-requests-widget.tsx` — 3 talep, arama/süzgeç yok).
+ * Kendi kayıtların şeritte YOK; onlar zaten KPI'larda ve "Taleplerim"de.
+ * Şerit dışarıyı gösterir.
  *
  * Veri panelin KENDİ auth'lu uçlarından (maskeleme/davet/bağlantı kuralları
  * korunur); pazar yerinin herkese açık uçları burada kullanılmaz.
  */
 
-interface Props {
-  portal: "satinalma" | "satis";
-}
-
 const COPY = {
-  satinalma: {
-    heading: "Ne satın alıyorsunuz?",
-    lead: "Tedarikçilerin satışa açtığı ilanlar ve vitrinlerindeki ürünler.",
-    placeholder: "Ürün, malzeme veya hizmet arayın",
-    listingsHref: "/company/satinalma/satin-al",
-    productsHref: "/company/satinalma/urunler",
-    ctaLabel: "Talep aç",
-    ctaHref: "/company/satinalma/taleplerim/yeni",
-    listingsTab: "Satılık ilanlar",
-    emptyTitle: "Şu an size uygun satılık ilan yok.",
-    emptyHint: "Sektör kutularından göz atabilir ya da kendi talebinizi açabilirsiniz.",
-  },
-  satis: {
-    heading: "Ne satıyorsunuz?",
-    lead: "Alıcıların yayımladığı, teklif bekleyen açık talepler.",
-    placeholder: "Talep, sektör veya alıcı arayın",
-    listingsHref: "/company/satis/acik-talepler",
-    productsHref: null,
-    ctaLabel: "İlan aç",
-    ctaHref: "/company/satis/ilanlarim/yeni",
-    listingsTab: "Açık talepler",
-    emptyTitle: "Şu an size uygun açık talep yok.",
-    emptyHint: "Sektörlerinizi profilinizde güncelleyin; eşleşen talepler burada görünür.",
-  },
+  heading: "Ne satın alıyorsunuz?",
+  lead: "Tedarikçilerin satışa açtığı ilanlar ve vitrinlerindeki ürünler.",
+  placeholder: "Ürün, malzeme veya hizmet arayın",
+  listingsHref: "/company/satinalma/satin-al",
+  productsHref: "/company/satinalma/urunler",
+  ctaLabel: "Talep aç",
+  ctaHref: "/company/satinalma/taleplerim/yeni",
+  listingsTab: "Satılık ilanlar",
+  emptyTitle: "Şu an size uygun satılık ilan yok.",
+  emptyHint: "Sektör kutularından göz atabilir ya da kendi talebinizi açabilirsiniz.",
 } as const;
 
-export function PortalDiscovery({ portal }: Props) {
-  const copy = COPY[portal];
-  // Satınalma ALIYOR → karşı taraf SATIŞ ilanı açar. Satış SATIYOR → karşı
-  // taraf ALIM talebi açar. Yön tersine dönerse kullanıcı kendi tarafındaki
-  // kayıtları "fırsat" sanır.
-  const listingType = portal === "satinalma" ? "SATIS" : "ALIM";
+/** Yalnız satınalma panosu — satış panosunun kendi özet widget'ı var. */
+export function PortalDiscovery() {
+  const copy = COPY;
+  // Satınalma ALIYOR → karşı taraf SATIŞ ilanı açar. Yön tersine dönerse
+  // kullanıcı kendi tarafındaki kayıtları "fırsat" sanır.
+  const listingType = "SATIS" as const;
   const [tab, setTab] = useState<"listings" | "products">("listings");
   const [q, setQ] = useState("");
   const router = useRouter();
 
   const listings = useDiscoverListings(listingType, 6);
   const facets = useDiscoverFacets(listingType);
-  const products = useDiscoverProducts(
-    { limit: 6 },
-    portal === "satinalma" && tab === "products",
-  );
+  const products = useDiscoverProducts({ limit: 6 }, tab === "products");
 
   const rows = listings.data ?? [];
   const segments = facets.data?.segments ?? [];
@@ -170,33 +151,31 @@ export function PortalDiscovery({ portal }: Props) {
         </div>
       ) : null}
 
-      {/* Satınalmada iki akış: ilan SÜRELİ bir işlem, ürün KALICI bir vitrin
-          kaydı. Tek listede karıştırmak "bu ne zaman kapanıyor?" sorusunu
+      {/* İki akış: ilan SÜRELİ bir işlem, ürün KALICI bir vitrin kaydı. Tek
+          listede karıştırmak "bu ne zaman kapanıyor?" sorusunu
           belirsizleştirirdi. */}
-      {portal === "satinalma" ? (
-        <div className="mt-5 inline-flex gap-1 rounded-xl bg-zinc-100 p-1">
-          {(
-            [
-              ["listings", copy.listingsTab],
-              ["products", "Tedarikçi ürünleri"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              aria-pressed={tab === key}
-              className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-                tab === key
-                  ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5"
-                  : "text-zinc-500 hover:text-zinc-900"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div className="mt-5 inline-flex gap-1 rounded-xl bg-zinc-100 p-1">
+        {(
+          [
+            ["listings", copy.listingsTab],
+            ["products", "Tedarikçi ürünleri"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            aria-pressed={tab === key}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+              tab === key
+                ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5"
+                : "text-zinc-500 hover:text-zinc-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="mt-5">
         {tab === "products" ? (
@@ -213,7 +192,6 @@ export function PortalDiscovery({ portal }: Props) {
             loading={listings.isLoading}
             emptyTitle={copy.emptyTitle}
             emptyHint={copy.emptyHint}
-            portal={portal}
           />
         )}
       </div>
@@ -264,20 +242,18 @@ function ListingStrip({
   loading,
   emptyTitle,
   emptyHint,
-  portal,
 }: {
   rows: SellerTenderRow[];
   loading: boolean;
   emptyTitle: string;
   emptyHint: string;
-  portal: "satinalma" | "satis";
 }) {
   if (loading) return <StripSkeleton />;
   if (rows.length === 0) return <EmptyStrip title={emptyTitle} hint={emptyHint} />;
   return (
     <div className={`grid grid-cols-1 gap-4 ${gridCols(rows.length)}`}>
       {rows.map((r) => (
-        <ListingTile key={r.id} row={r} portal={portal} />
+        <ListingTile key={r.id} row={r} />
       ))}
     </div>
   );
@@ -294,13 +270,7 @@ function remaining(closesAt: string | null): string | null {
   return `${hours} saat`;
 }
 
-function ListingTile({
-  row,
-  portal,
-}: {
-  row: SellerTenderRow;
-  portal: "satinalma" | "satis";
-}) {
+function ListingTile({ row }: { row: SellerTenderRow }) {
   const left = remaining(row.closesAt);
   return (
     <Link
@@ -326,7 +296,7 @@ function ListingTile({
         </h3>
         <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
           {/* Maskeli kartta sahip adı YOK ama şehir var — kimlik değil nitelik. */}
-          {row.owner?.name ?? (portal === "satinalma" ? "Satıcı firma" : "Alıcı firma")}
+          {row.owner?.name ?? "Satıcı firma"}
           {row.ownerCity ? ` · ${row.ownerCity}` : ""}
           {row.itemCount > 0 ? ` · ${row.itemCount} kalem` : ""}
         </p>

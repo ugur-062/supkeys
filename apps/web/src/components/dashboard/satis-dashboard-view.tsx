@@ -1,7 +1,7 @@
 "use client";
 
 import { ActionStrip } from "@/components/dashboard/action-center";
-import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
+import { MatchedRequestsWidget } from "@/components/dashboard/matched-requests-widget";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
@@ -61,8 +61,9 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
-        {/* CTA keşif bloğunda ("İlan aç") — başlıkta ikinci bir çağrı
-            tutmak aynı işi iki yerde tekrarlıyordu. Kur çipi kalır. */}
+        {/* İlan açma CTA'sı YALNIZ sol menüde (yeşil düğme). Başlıkta ve
+            keşif kartında ikinci/üçüncü kopyası vardı; aynı eylem üç yerde
+            sayfayı kalabalıklaştırıyordu (2026-09-03). Kur çipi kalır. */}
         <TcmbRatesChip />
       </header>
 
@@ -84,7 +85,7 @@ export function SatisDashboardView() {
             },
             {
               key: "discover",
-              label: "Açık satın alma taleplerini keşfet",
+              label: "Açık talepleri keşfet",
               done: false,
               href: "/company/satis/acik-talepler",
             },
@@ -98,10 +99,10 @@ export function SatisDashboardView() {
         />
       ) : null}
 
-      {/* PAZAR YERİ ÖNCE (2026-09-03 kullanıcı kararı): anasayfanın ilk
-          ekranı "piyasada ne var" olmalı. Bekleyen işler kaybolmuyor, hemen
-          altta TEK SATIR şeride iniyor. */}
-      <PortalDiscovery portal="satis" />
+      {/* "Anasayfa özet, alt sayfa liste": arama kutusu ve süzgeç Açık
+          Talepler'de; burada yalnız en uygun 3 talep + tek çıkış bağlantısı.
+          Eski keşif kartı o sayfanın kopyasıydı (aynı arama, aynı boş durum). */}
+      <MatchedRequestsWidget />
 
       <ActionStrip portal="satis" />
 

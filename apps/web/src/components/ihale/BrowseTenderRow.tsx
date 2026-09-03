@@ -55,10 +55,18 @@ function myBidLabel(t: SellerTenderRow): string | null {
 export function BrowseTenderRow({
   t,
   listingType,
+  compact = false,
 }: {
   t: SellerTenderRow;
   /** SATIS = Satın Al sayfası (mor aksan), ALIM = Açık İhaleler (yeşil). */
   listingType: "ALIM" | "SATIS";
+  /**
+   * KOMPAKT satır — pano özet widget'ı için (ad · firma · kapanış · eylem).
+   * Genişletme, kalem/kapsam/kategori sütunları ve rozetler YOK: pano özet
+   * gösterir, tam liste alt sayfadadır. AYNI bileşen, çünkü iki ayrı kart
+   * zamanla ayrışır (bağlantı hedefi, durum dili, maskeleme kuralı).
+   */
+  compact?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isSatis = listingType === "SATIS";
@@ -84,6 +92,66 @@ export function BrowseTenderRow({
           : "border-l-emerald-500";
 
   const my = myBidLabel(t);
+
+  if (compact) {
+    // Eylem etiketi duruma göre TEK sözcük: teklifim varsa ona, verilebiliyorsa
+    // "Teklif ver", maskeli/kapalıysa yalnız incele. Hepsi detay sayfasına
+    // gider — teklif formu orada, satırda ikinci bir akış açılmaz.
+    const action = my ? "Teklifim" : t.canBid ? "Teklif ver" : "İncele";
+    const ownerLabel = t.owner ? t.owner.name : "Gizli firma";
+    return (
+      <div
+        role="row"
+        className={cn(
+          "group/row rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
+          strip,
+        )}
+      >
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-2.5 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_auto_auto]">
+          <Link href={detailHref} className={cn("min-w-0 rounded", IHALE_VIEW_FOCUS)}>
+            <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] tabular-nums leading-tight text-zinc-600">
+              {t.number ?? "—"}
+            </span>
+            <span
+              className={cn(
+                "mt-1 line-clamp-1 text-[13px] font-semibold leading-tight text-slate-900 transition-colors",
+                isSatis ? "group-hover/row:text-violet-700" : "group-hover/row:text-emerald-700",
+              )}
+              title={t.title}
+            >
+              {t.title}
+            </span>
+          </Link>
+          <span
+            className="hidden min-w-0 truncate text-[13px] text-slate-600 sm:block"
+            title={ownerLabel}
+          >
+            {ownerLabel}
+          </span>
+          <span
+            className="hidden whitespace-nowrap text-[12px] text-slate-500 sm:block"
+            title={fullDate(t.closesAt)}
+          >
+            Kapanış {shortDate(t.closesAt)}
+          </span>
+          <Link
+            href={detailHref}
+            className={cn(
+              "whitespace-nowrap rounded text-[13px] font-semibold hover:underline",
+              isSatis ? "text-violet-700" : "text-emerald-700",
+              IHALE_VIEW_FOCUS,
+            )}
+          >
+            {action}
+          </Link>
+        </div>
+        {/* sm altı: firma + kapanış tek satırda */}
+        <p className="truncate px-3 pb-2 text-[11px] text-slate-500 sm:hidden">
+          {ownerLabel} · Kapanış {shortDate(t.closesAt)}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -248,18 +248,15 @@ export function IhalelerView({
               </Button>
             </Link>
             {/* F7: ilan açma buy|sell:listing:create ister (yalnız SA/ST taşır) —
-                etiket-only gözetimde buton görünmez; liste salt-okunur kalır. */}
-            {canCreate ? (
-              <Link
-                href={
-                  isSatis
-                    ? "/company/satis/ilanlarim/yeni"
-                    : "/company/satinalma/taleplerim/yeni"
-                }
-              >
+                etiket-only gözetimde buton görünmez; liste salt-okunur kalır.
+                SATIŞTA başlıkta YOK (2026-09-03): aynı eylem sol menüdeki yeşil
+                düğmede zaten var; üçüncü kopyası buradaydı. Liste boşken boş
+                durum kendi CTA'sını gösterir (IhaleListView). */}
+            {canCreate && !isSatis ? (
+              <Link href="/company/satinalma/taleplerim/yeni">
                 <Button variant="primary">
                   <Plus className="h-4 w-4" />
-                  {isSatis ? "Yeni Satış İlanı" : "Yeni Satın Alma Talebi Aç"}
+                  Yeni Satın Alma Talebi Aç
                 </Button>
               </Link>
             ) : null}

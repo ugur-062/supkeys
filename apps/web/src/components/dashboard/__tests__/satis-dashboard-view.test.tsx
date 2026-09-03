@@ -40,11 +40,11 @@ vi.mock("@/components/dashboard/action-center", () => ({
   ActionCenter: () => <div data-testid="action-center" />,
   ActionStrip: () => <div data-testid="action-strip" />,
 }));
-// Keşif bloğu kendi uçlarından beslenir (seller-tenders/discover-facets) ve
-// ayrı test edilir; burada varlığını gözlemleyen hafif mock — aksi hâlde
+// "Size uygun açık talepler" widget'ı kendi ucundan beslenir (seller-tenders)
+// ve ayrı test edilir; burada varlığını gözlemleyen hafif mock — aksi hâlde
 // gerçek `useQuery` sağlayıcısız çalışıp bu suite'i kırar.
-vi.mock("@/components/dashboard/portal-discovery", () => ({
-  PortalDiscovery: () => <div data-testid="portal-discovery" />,
+vi.mock("@/components/dashboard/matched-requests-widget", () => ({
+  MatchedRequestsWidget: () => <div data-testid="matched-requests" />,
 }));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
@@ -102,14 +102,15 @@ describe("SatisDashboardView", () => {
     expect(screen.getByRole("link", { name: "Raporlar" })).toBeInTheDocument();
   });
 
-  it("pazar yeri bloğu bekleyen işlerden ÖNCE gelir", () => {
+  it("size uygun açık talepler widget'ı panoda VAR, eski keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
-    expect(html.indexOf("portal-discovery")).toBeGreaterThan(-1);
-    expect(html.indexOf("portal-discovery")).toBeLessThan(
-      html.indexOf("action-strip"),
-    );
+    expect(html.indexOf("matched-requests")).toBeGreaterThan(-1);
+    expect(html.indexOf("portal-discovery")).toBe(-1);
+    // Anasayfada arama kutusu ve ikinci "İlan aç" YOK (1a/1b).
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByText(/İlan aç/)).toBeNull();
   });
 
   it("delta rozeti KPI kartında çizilir (analitikten gelir)", () => {
