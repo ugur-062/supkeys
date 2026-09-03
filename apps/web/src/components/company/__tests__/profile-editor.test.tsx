@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyProfile } from "@/hooks/use-company-profile";
 
@@ -7,13 +8,22 @@ const h = vi.hoisted(() => ({
   update: vi.fn(),
   upload: vi.fn(),
   updatePending: false,
+  get: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-company-profile", () => ({
   useUpdateCompanyProfile: () => ({ mutateAsync: h.update, isPending: h.updatePending }),
   useUploadProfileImage: () => ({ mutateAsync: h.upload, isPending: false }),
 }));
-vi.mock("@/lib/company-auth/api", () => ({ companyApi: { post: vi.fn() } }));
+vi.mock("@/lib/company-auth/api", () => ({ companyApi: { post: vi.fn(), get: h.get } }));
+// Kategori seçiciler + Ürünlerim kartı sorgu atar (segmentler, kataloğum).
+vi.mock("@/lib/api", () => ({ api: { get: h.get } }));
+
+/** Profilim artık sorgu atıyor (kategori/katalog) → sağlayıcı şart. */
+function render(ui: React.ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return rtlRender(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
@@ -71,6 +81,21 @@ describe("ProfileEditor — yerinde düzenleme", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     h.update.mockResolvedValue(PROFILE);
+    h.get.mockImplementation((url: string) =>
+      url.includes("/company/items")
+        ? Promise.resolve({
+            data: {
+              items: [
+                { id: "p1", name: "Dağıtım panosu", isPublic: true, thumbnailUrl: null },
+                { id: "p2", name: "Taslak ürün", isPublic: false, thumbnailUrl: null },
+              ],
+              total: 2,
+              truncated: false,
+              counts: { published: 1, draft: 1 },
+            },
+          })
+        : Promise.resolve({ data: [] }),
+    );
   });
 
   it("profil görünümü + düzenleme kontrolleri aynı ekranda; kaydet çubuğu yalnız değişiklik olunca", () => {
@@ -96,6 +121,10 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(h.update.mock.calls[0]![0]).toMatchObject({
       aboutText: "Yeni tanıtım",
       publicEnabled: true,
+      // Profilim'den düzenlenen sınıflandırma alanları da AYNI PATCH'te.
+      activities: [],
+      sellerCategoryIds: [],
+      sellerSubCategoryIds: [],
       services: ["Kablo", "Pano"],
       photos: ["https://cdn/p1.jpg", "https://cdn/p2.jpg"],
       foundedYear: 2015,
@@ -128,6 +157,38 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     await new Promise((r) => setTimeout(r, 0));
     expect(h.update).not.toHaveBeenCalled();
+  });
+
+  it("firma türü çipi (en fazla 3) taslağa ve PATCH'e yansır", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const group = screen.getByRole("group", { name: "Firma türü" });
+    fireEvent.click(within(group).getByRole("button", { name: "Üretici" }));
+    expect(within(group).getByRole("button", { name: "Üretici" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update.mock.calls[0]![0]).toMatchObject({ activities: ["MANUFACTURER"] });
+  });
+
+  it("Ürünlerim (N) kartı yayındaki ürünleri sayar ve yönetime bağlar; önizleme mevcut public rotaya", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const card = await screen.findByRole("region", { name: "Ürünlerim" });
+    expect(await within(card).findByText("Dağıtım panosu")).toBeInTheDocument();
+    expect(within(card).getByRole("heading")).toHaveTextContent("Ürünlerim (1)");
+    expect(within(card).queryByText("Taslak ürün")).toBeNull();
+    expect(within(card).getByRole("link", { name: "Ürünleri yönet" })).toHaveAttribute(
+      "href",
+      "/company/satis/urunlerim",
+    );
+    expect(screen.getByRole("link", { name: "Herkese açık görünümü önizle" })).toHaveAttribute(
+      "href",
+      "/firma/demo-firma",
+    );
+    // Rehber (kapı değil): kategori seçilmemiş → eksik olarak listelenir.
+    expect(screen.getByText(/Alıcıların sizi bulması için/)).toBeInTheDocument();
+    expect(screen.getByText(/En az 1 kategori/)).toBeInTheDocument();
   });
 
   it("yetkisiz kullanıcı: salt görünüm, düzenleme kontrolü yok", () => {

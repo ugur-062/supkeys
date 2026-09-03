@@ -132,6 +132,14 @@ export interface ProfileEditSlots {
   gallery?: ReactNode;
   services?: ReactNode;
   certifications?: ReactNode;
+  /**
+   * Firma türü + faaliyet kategorileri düzenleyicisi (Profilim, 2026-09-03).
+   * Herkese açık görünümde karşılığı hero'daki faaliyet rozetleri; kategori
+   * beyanı eşleşme girdisidir, ziyaretçiye ayrı bir bölüm olarak basılmaz.
+   */
+  classification?: ReactNode;
+  /** Sağ kolonun başı — Profilim'de "Ürünlerim (N)" önizleme kartı. */
+  aside?: ReactNode;
 }
 
 /**
@@ -289,6 +297,14 @@ export function CompanyProfileView({
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-6">
+          {edit?.classification ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">
+                Firma türü ve faaliyet alanları
+              </h2>
+              <div className="mt-3">{edit.classification}</div>
+            </section>
+          ) : null}
           {edit?.about ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">Hakkında</h2>
@@ -372,6 +388,7 @@ export function CompanyProfileView({
         </div>
 
         <div className="space-y-6">
+          {edit?.aside}
           {edit?.services ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>

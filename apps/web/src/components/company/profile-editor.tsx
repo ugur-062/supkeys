@@ -1,6 +1,10 @@
 "use client";
 
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { MissingFields } from "@/components/ui/missing-fields";
+import { useCatalogItems } from "@/hooks/use-company-items";
+import { COMPANY_ACTIVITIES, MAX_COMPANY_ACTIVITIES } from "@rothern/shared";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
 import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
@@ -42,6 +46,11 @@ const MAX_CHIPS = 20;
 /** Editörün taslak alanları — PATCH /company/profile ile birebir (public profil alanları). */
 interface Draft {
   publicEnabled: boolean;
+  /** Faaliyet tipi (üretici/bayi/…) — kategori NE'yi, bu NASIL'ı söyler. */
+  activities: string[];
+  /** Satış faaliyet alanları (L1) + alt kırılım — açık talep eşleşmesinin girdisi. */
+  sellerCategoryIds: string[];
+  sellerSubCategoryIds: string[];
   logoUrl: string;
   coverImageUrl: string;
   industry: string;
@@ -60,6 +69,9 @@ interface Draft {
 function toDraft(p: CompanyProfile): Draft {
   return {
     publicEnabled: p.publicEnabled,
+    activities: p.activities ?? [],
+    sellerCategoryIds: p.sellerCategoryIds ?? [],
+    sellerSubCategoryIds: p.sellerSubCategoryIds ?? [],
     logoUrl: p.logoUrl ?? "",
     coverImageUrl: p.coverImageUrl ?? "",
     industry: p.industry ?? "",
@@ -137,6 +149,9 @@ export function ProfileEditor({
     try {
       await update.mutateAsync({
         publicEnabled: draft.publicEnabled,
+        activities: draft.activities,
+        sellerCategoryIds: draft.sellerCategoryIds,
+        sellerSubCategoryIds: draft.sellerSubCategoryIds,
         logoUrl: draft.logoUrl,
         coverImageUrl: draft.coverImageUrl,
         industry: draft.industry,
@@ -164,7 +179,7 @@ export function ProfileEditor({
     name: profile.name,
     rothernId: profile.rothernId,
     industry: draft.industry || null,
-    activities: profile.activities,
+    activities: draft.activities,
     city: profile.city,
     country: profile.country,
     logoUrl: draft.logoUrl || null,
@@ -190,6 +205,13 @@ export function ProfileEditor({
   };
 
   const completeness = completenessOf(draft, profile);
+  // Alıcının sizi BULMASI için gerekenler — kapı değil, rehber (backend'de
+  // içerik kapısı yok; yayın anahtarı Bronz+ ile açılır).
+  const findability = {
+    about: !!draft.aboutText.trim(),
+    industry: !!draft.industry.trim(),
+    category: draft.sellerCategoryIds.length + draft.sellerSubCategoryIds.length > 0,
+  };
 
   if (!canEdit) {
     return (
@@ -199,6 +221,7 @@ export function ProfileEditor({
           publicEnabled={saved.publicEnabled}
           onTogglePublic={undefined}
           pct={completeness.pct}
+          findability={findability}
         />
         <CompanyProfileView profile={viewData} />
         <p className="text-xs text-zinc-400">Düzenleme için firma yönetimi yetkisi gerekir.</p>
@@ -207,6 +230,76 @@ export function ProfileEditor({
   }
 
   const slots: ProfileEditSlots = {
+    classification: (
+      <div className="space-y-5">
+        <div>
+          <p className="text-sm font-medium text-zinc-900">Firma türü</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            En fazla {MAX_COMPANY_ACTIVITIES}. Alıcı için çoğu zaman sektörden daha
+            belirleyici — ünvanınızın altında rozet olarak görünür.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Firma türü">
+            {COMPANY_ACTIVITIES.map((a) => {
+              const on = draft.activities.includes(a.code);
+              const full = !on && draft.activities.length >= MAX_COMPANY_ACTIVITIES;
+              return (
+                <button
+                  key={a.code}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={full}
+                  title={a.hintTr}
+                  onClick={() =>
+                    set({
+                      activities: on
+                        ? draft.activities.filter((c) => c !== a.code)
+                        : [...draft.activities, a.code],
+                    })
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1 text-sm ring-1 ring-inset transition disabled:cursor-not-allowed disabled:opacity-40",
+                    on
+                      ? "bg-zinc-900 text-white ring-zinc-900"
+                      : "bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50",
+                  )}
+                >
+                  {a.nameTr}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-zinc-900">Faaliyet kategorileri</p>
+          <p className="mt-0.5 mb-2 text-xs text-zinc-500">
+            Açık talep eşleşmesi bu seçime göre yapılır; ürünlerinizle aynı kategori ağacı.
+          </p>
+          <SegmentOnlyPicker
+            value={draft.sellerCategoryIds}
+            onChange={(ids) => set({ sellerCategoryIds: ids })}
+            title="Satış faaliyet alanları"
+            description="Tedarik edebileceğiniz ana kategorileri seçin — açık talep önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
+          />
+          <div className="mt-3">
+            <span className="block text-xs font-medium text-zinc-500">
+              Alt kategoriler (isteğe bağlı)
+            </span>
+            <p className="mt-0.5 mb-2 text-xs text-zinc-400">
+              Tedarik ettiğiniz ürünleri tek tek işaretleyin — talepler önce bu
+              kırılıma göre karşınıza çıkar.
+            </p>
+            <CategorySelectorButton
+              value={draft.sellerSubCategoryIds}
+              onChange={(ids) => set({ sellerSubCategoryIds: ids })}
+              maxSelection={50}
+              modalTitle="Satış alt kategorileri"
+              placeholder="Alt kategori seçin"
+            />
+          </div>
+        </div>
+      </div>
+    ),
+    aside: <MyProductsCard />,
     cover: (
       <CoverControls
         value={draft.coverImageUrl}
@@ -330,6 +423,7 @@ export function ProfileEditor({
         publicEnabled={draft.publicEnabled}
         onTogglePublic={(v) => set({ publicEnabled: v })}
         pct={completeness.pct}
+        findability={findability}
       />
       <MissingFields items={completeness.missing} />
 
@@ -365,13 +459,22 @@ function EditorHeader({
   publicEnabled,
   onTogglePublic,
   pct,
+  findability,
 }: {
   profile: CompanyProfile;
   publicEnabled: boolean;
   onTogglePublic?: (v: boolean) => void;
   pct: number;
+  /** Alıcının sizi bulması için gerekenler — rehber, kapı değil. */
+  findability: { about: boolean; industry: boolean; category: boolean };
 }) {
+  const need: [string, boolean][] = [
+    ["Hakkında", findability.about],
+    ["Sektör", findability.industry],
+    ["En az 1 kategori", findability.category],
+  ];
   return (
+    <div className="space-y-2">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Profilim</h1>
@@ -399,6 +502,9 @@ function EditorHeader({
         >
           %{pct} tamam
         </span>
+        {/* Önizleme MEVCUT herkese açık rotaya gider (yeni rota yok); o rota
+            yalnız yayındaki profili sunar — yayında değilken bağlantı yerine
+            neden olmadığı söylenir. */}
         {profile.publicEnabled && profile.slug ? (
           <a
             href={`/firma/${profile.slug}`}
@@ -406,9 +512,13 @@ function EditorHeader({
             rel="noreferrer"
             className="text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
           >
-            Yayındaki profili aç
+            Herkese açık görünümü önizle
           </a>
-        ) : null}
+        ) : (
+          <span className="text-xs text-zinc-400" title="Herkese açık sayfa yalnız yayındayken sunulur">
+            Önizleme yayına alınca
+          </span>
+        )}
         <label className="flex items-center gap-2 rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm">
           <span className={publicEnabled ? "text-emerald-700" : "text-zinc-600"}>
             {publicEnabled ? "Yayında" : "Yayında değil"}
@@ -421,6 +531,24 @@ function EditorHeader({
           />
         </label>
       </div>
+    </div>
+    {/* Kapı DEĞİL rehber: backend'de içerik kapısı yok (yayın Bronz+ ile
+        açılır). Olmayan bir kapıyı "yayınlamak için" diye yazmak yalan olurdu;
+        bunlar alıcının sizi bulmasını sağlayan üç alan. */}
+    {need.some(([, ok]) => !ok) ? (
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+        <span className="font-medium text-zinc-600">Alıcıların sizi bulması için:</span>
+        {need.map(([label, ok]) => (
+          <span
+            key={label}
+            className={ok ? "text-emerald-700 line-through decoration-emerald-300" : ""}
+          >
+            {ok ? "✓ " : "○ "}
+            {label}
+          </span>
+        ))}
+      </p>
+    ) : null}
     </div>
   );
 }
@@ -805,4 +933,53 @@ function completenessOf(d: Draft, p: CompanyProfile) {
     buyerCategoryIds: p.buyerCategoryIds,
     sellerCategoryIds: p.sellerCategoryIds,
   });
+}
+
+/**
+ * "Ürünlerim (N)" — Profilim sağ kolonu. Europages'te profil = hakkında +
+ * ürünler + iletişim; burada da yayındaki ilk 3 ürün + yönetim bağlantısı.
+ * Veri panelin kendi katalog ucundan (herkese açık uç değil); N sunucunun
+ * firma-geneli sayacı — Ürünlerim sekmesi ve pano kartıyla aynı sayı.
+ */
+function MyProductsCard() {
+  const { data, isLoading } = useCatalogItems("");
+  const published = (data?.items ?? []).filter((i) => i.isPublic).slice(0, 3);
+  const n = data?.counts?.published ?? published.length;
+  return (
+    <section className="card p-6" aria-label="Ürünlerim">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-zinc-900">
+          Ürünlerim{isLoading ? "" : ` (${n})`}
+        </h2>
+        <Link
+          href="/company/satis/urunlerim"
+          className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
+        >
+          Ürünleri yönet
+        </Link>
+      </div>
+      {isLoading ? (
+        <div className="mt-3 h-16 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
+      ) : published.length === 0 ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          Yayında ürün yok — vitrine çıkan ürünler firma sayfanızda görünür ve
+          açık talep eşleşmesini besler.
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-zinc-950/5">
+          {published.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-2">
+              {p.thumbnailUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.thumbnailUrl} alt="" className="size-9 rounded-md object-cover" />
+              ) : (
+                <span className="size-9 rounded-md bg-zinc-100" aria-hidden />
+              )}
+              <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{p.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
