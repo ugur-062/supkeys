@@ -169,12 +169,20 @@ export function CompanyProfileView({
   profile: p,
   actions,
   children,
+  main,
   edit,
   gate,
 }: {
   profile: ProfileViewData;
   actions?: ReactNode;
+  /** Hero ile ızgara ARASINA, tam genişlik (panel: ilanlar). */
   children?: ReactNode;
+  /**
+   * SOL sütunun sonuna (Hakkında'nın altına) — herkese açık sayfada ürün
+   * portföyü. Sol geniş (Hakkında + Ürünler), sağ dar (özet kart); sütunlar
+   * yapışkan değil, sol kısa kalırsa sağ doğal akar (2026-09-04).
+   */
+  main?: ReactNode;
   edit?: ProfileEditSlots;
   gate?: ProfileGateSlots;
 }) {
@@ -200,7 +208,7 @@ export function CompanyProfileView({
             // P0: kırık R2 URL'inde çıplak kırık-görsel ikonu yerine koyu zemine
             // sessizce düş — onError işleyicisi İSTEMCİ bileşeninde (bu dosya
             // herkese açık sayfada sunucu bileşeni; RSC'de <img onError> 500 verir).
-            <SafeCoverImage src={p.coverImageUrl} alt={`${p.name} kapak görseli`} />
+            <SafeCoverImage src={p.coverImageUrl} alt={`${p.name} kapak görseli`} logoSrc={p.logoUrl} />
           ) : null}
           {edit?.cover ?? null}
         </div>
@@ -365,6 +373,8 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
+          {main}
+
           {/* Ticari sicil bilgileri — kamuya açık tüzel kişi verileri; güven
               göstergesi (IBAN/TCKN gibi hassas veriler burada ASLA yer almaz). */}
           {p.trade &&
@@ -425,6 +435,8 @@ export function CompanyProfileView({
                     src={src}
                     alt={`${p.name} görsel ${i + 1}`}
                     loading="lazy"
+                    width={400}
+                    height={300}
                     className="aspect-[4/3] w-full rounded-xl object-cover ring-1 ring-zinc-950/5 transition hover:opacity-90"
                   />
                 ))}

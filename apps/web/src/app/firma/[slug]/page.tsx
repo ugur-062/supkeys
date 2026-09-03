@@ -1,12 +1,12 @@
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
 import { GatedField } from "@/components/marketplace/gated-field";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { PANEL_TARGET } from "@/lib/public/visibility";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const revalidate = 300;
@@ -133,7 +133,7 @@ export default async function PublicCompanyProfile({
   };
 
   return (
-    <main className="min-h-screen bg-zinc-50">
+    <PublicLayout className="bg-zinc-50">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
@@ -143,34 +143,7 @@ export default async function PublicCompanyProfile({
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbLd) }}
       />
 
-      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="Rothern" className="-m-1.5 p-1.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/rothern-logo-trans.png"
-              alt="Rothern"
-              className="h-10 w-auto"
-            />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/company/login"
-              className="px-3 py-1.5 text-sm font-semibold text-zinc-600 transition hover:text-zinc-900"
-            >
-              Giriş Yap
-            </Link>
-            <Link
-              href="/company/kayit"
-              className="rounded-full bg-zinc-950 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Kaydol
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 pb-16 pt-28 sm:px-6">
         {/* Kimlik ÖNCE (logo, ad, rozet, şehir, faaliyet, kategori), ürünler
             sonra — ziyaretçi kimin sayfasında olduğunu ürünlerden önce
             öğrenmeli. Sayfadaki TEK büyük kayıt kutusu sağ sütunun sonunda
@@ -216,22 +189,9 @@ export default async function PublicCompanyProfile({
               />
             ),
           }}
-        >
-          <CompanyProducts companySlug={p.slug ?? ""} />
-        </CompanyProfileView>
-
-        <footer className="mt-10 flex flex-col items-center gap-2 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/rothern-logo-trans.png"
-            alt="Rothern"
-            className="h-5 w-auto opacity-50"
-          />
-          <p className="text-xs text-zinc-400">
-            Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu
-          </p>
-        </footer>
+          main={<CompanyProducts companySlug={p.slug ?? ""} />}
+        />
       </div>
-    </main>
+    </PublicLayout>
   );
 }

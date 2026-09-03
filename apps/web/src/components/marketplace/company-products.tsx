@@ -25,7 +25,7 @@ export async function CompanyProducts({
   if (page.items.length === 0) return null;
 
   return (
-    <section id="urunler" className="mt-12 scroll-mt-24">
+    <section id="urunler" className="scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
           Ürünler ve hizmetler
@@ -44,7 +44,7 @@ export async function CompanyProducts({
         ) : null}
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {page.items.map((p) => (
           <ProductCard key={p.slug} companySlug={companySlug} product={p} priceGated />
         ))}
