@@ -627,6 +627,25 @@ doğrulandı (meta head içinde). `htmlLimitedBots`i elle yazmayın: varsayılan
 listeyi EZER (Googlebot düşer). `/firma` 76: firmanın logo/kapağı ölü
 `pub-*.r2.dev` host'unda 30 sn askıda — veri sorunu, `migrate-public-images`.
 
+### Demo doluluk — pazar yeri (2026-09-04, kullanıcı kararı)
+
+`packages/db/prisma/scripts/seed-marketplace-demo.ts` (`pnpm --filter
+@rothern/db seed-marketplace-demo`): 20 firma (19'u paketli+doğrulanmış+
+herkese açık; 1 STANDART örnek), 55 yayında ürün (görselli, fiyatlı/kademeli/
+teklifle), 16 herkese açık ALIM talebi (5–25 gün açık), 8 SATIŞ ilanı, 16
+bağlantı, 8 teklif. dev=prod DB olduğundan **canlıda da görünür** — bilinçli.
+İşaret: sahip e-postası `@demofill.local`; giriş `<key>@demofill.local /
+Demo1234!`. Görseller `loremflickr.com` (anahtar kelimeli, `lock` ile sabit).
+
+**İdempotent ama SİLMEZ:** eski demo firmaların siparişleri FK ile bağlı
+(`company_orders_buyerCompanyId_fkey`) → firma güncellenir, ürünler ve
+teklifsiz açık ilanlar yeniden kurulur. Kaldırmak: `cleanup-marketplace-demo`
+(ürün/ilan siler, teklifli ilanı iptal eder, vitrini kapatır; firma kalır).
+
+Kategori kodları katalogda doğrulanır (`resolveCat`: kod → anahtar kelime →
+segmentin ilk L3). Ariba adları noisy ("Reçeller ve jöleler ve fındık…") —
+popüler kategori çipleri bu yüzden uzun okunabilir.
+
 ### Üye ↔ ziyaretçi TUTARLILIĞI (2026-09-04, gece)
 
 Kullanıcı bulgusu: panel firma sayfası herkese açık profilden farklı

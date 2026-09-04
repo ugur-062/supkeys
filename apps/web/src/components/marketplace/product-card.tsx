@@ -189,7 +189,7 @@ export function ProductCard({
                 Doğrulanmış
               </span>
             ) : null}
-            {firm.city ? <span className="text-zinc-400">· {firm.city}</span> : null}
+            {firm.city ? <span className="text-zinc-500">· {firm.city}</span> : null}
             {activities.map((a) => (
               <span
                 key={a}
