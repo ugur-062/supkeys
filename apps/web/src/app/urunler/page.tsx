@@ -18,6 +18,10 @@ import { notFound } from "next/navigation";
  */
 export const revalidate = 300;
 
+/**
+ * Kanonik: süzgeçli varyantlar `/urunler`e işaret eder (ince içerik
+ * yığını indekslenmesin). Kategori yol sayfaları kendi kanoniklerini taşır.
+ */
 export const metadata: Metadata = {
   title: `${MARKETPLACE_LABELS.products} — firmaların ürün vitrini`,
   description:

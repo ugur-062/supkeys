@@ -338,6 +338,10 @@ export interface PublicStats {
   companies: number;
   categories: number;
   openDemands: number;
+  /** Hareket metrikleri (v3). */
+  productsThisWeek: number;
+  bidsLast24h: number;
+  verifiedCompanies: number;
   /** Ürün sayısı en yüksek 20 alt kategori (arama logu yok). */
   popularCategories: { id: string; name: string; count: number }[];
 }
@@ -345,7 +349,7 @@ export interface PublicStats {
 export function fetchStats(): Promise<PublicStats> {
   return getJson<PublicStats>(
     "/public/stats",
-    { products: 0, companies: 0, categories: 0, openDemands: 0, popularCategories: [] },
+    { products: 0, companies: 0, categories: 0, openDemands: 0, productsThisWeek: 0, bidsLast24h: 0, verifiedCompanies: 0, popularCategories: [] },
     600,
   );
 }
@@ -439,6 +443,9 @@ export interface ProductFacets {
   categories: { id: string; name: string; level: number; count: number }[];
   cities: { city: string; count: number }[];
   activities: { activity: string; count: number }[];
+  /** v3: bağlama duyarlı sayaçlar. */
+  verified: number;
+  price: { has: number; request: number };
   /** YALNIZ kategori seçiliyken dolu — nitelikler kategoriye özgü. */
   attributes: ProductAttributeFacet[];
   truncated: boolean;
@@ -450,11 +457,14 @@ export interface ProductListParams {
   city?: string;
   /** `anahtar:değer` çiftleri — uçta tekrarlanan `attr` parametresine döner. */
   attr?: string[];
-  /** Satıcının faaliyet tipi kodu. */
+  /** Satıcının faaliyet tipi kodu — virgüllü çoklu. */
   activity?: string;
-  sort?: "relevance" | "newest" | "price";
+  sort?: "relevance" | "newest" | "price" | "price_desc";
   verified?: boolean;
   price?: "has" | "request";
+  priceMin?: number;
+  priceMax?: number;
+  moqMax?: number;
   page?: number;
 }
 
@@ -469,6 +479,8 @@ const EMPTY_PRODUCT_FACETS: ProductFacets = {
   categories: [],
   cities: [],
   activities: [],
+  verified: 0,
+  price: { has: 0, request: 0 },
   attributes: [],
   truncated: false,
 };
@@ -484,6 +496,9 @@ export function fetchProducts(
   if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
   if (params.verified) sp.set("verified", "1");
   if (params.price) sp.set("price", params.price);
+  if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
+  if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
+  if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
   // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
   // ilk ayraçlı seçenekte sessizce bölerdi.
   for (const a of params.attr ?? []) sp.append("attr", a);
@@ -493,9 +508,17 @@ export function fetchProducts(
   return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300);
 }
 
-export function fetchProductFacets(category?: string): Promise<ProductFacets> {
-  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
-  return getJson(`/public/products/facets${qs}`, EMPTY_PRODUCT_FACETS, 600);
+/** Facet sayaçları BAĞLAMA DUYARLI: diğer seçimler de gönderilir. */
+export function fetchProductFacets(params: Pick<ProductListParams, "category" | "q" | "city" | "activity" | "verified" | "price"> = {}): Promise<ProductFacets> {
+  const sp = new URLSearchParams();
+  if (params.category) sp.set("category", params.category);
+  if (params.q) sp.set("q", params.q);
+  if (params.city) sp.set("city", params.city);
+  if (params.activity) sp.set("activity", params.activity);
+  if (params.verified) sp.set("verified", "1");
+  if (params.price) sp.set("price", params.price);
+  const qs = sp.toString();
+  return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300);
 }
 
 export function fetchCompanyProducts(

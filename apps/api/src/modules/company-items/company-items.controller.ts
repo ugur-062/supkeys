@@ -240,24 +240,50 @@ export class CompanyItemsController {
     @Query("sort") sort?: string,
     @Query("page") page?: string,
     @Query("attr") attr?: string | string[],
+    @Query("priceMin") priceMin?: string,
+    @Query("priceMax") priceMax?: string,
+    @Query("moqMax") moqMax?: string,
   ) {
     const n = Number(page);
+    const num = (v?: string) => {
+      const x = Number(v);
+      return v != null && v !== "" && Number.isFinite(x) && x >= 0 ? Math.trunc(x) : undefined;
+    };
     return this.service.discoverSearch(user, {
       q: q?.slice(0, 120),
       category: category && /^\d{8}$/.test(category) ? category : undefined,
-      city: city?.slice(0, 60) || undefined,
-      activity: activity?.slice(0, 40) || undefined,
+      city: city?.slice(0, 400) || undefined,
+      activity: activity?.slice(0, 200) || undefined,
       verified: verified === "1",
       price: price === "has" || price === "request" ? price : undefined,
-      sort: sort === "newest" || sort === "price" ? sort : undefined,
+      priceMin: num(priceMin),
+      priceMax: num(priceMax),
+      moqMax: num(moqMax),
+      sort: sort === "newest" || sort === "price" || sort === "price_desc" ? sort : undefined,
       attr: attr == null ? undefined : (Array.isArray(attr) ? attr : [attr]).slice(0, 6),
       page: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
     });
   }
 
+  /** Süzgeç sayaçları — public facet ile aynı bağlama duyarlı sayım. */
   @Get("discover/facets")
-  discoverFacets(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.discoverFacets(user);
+  discoverFacets(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("category") category?: string,
+    @Query("q") q?: string,
+    @Query("city") city?: string,
+    @Query("activity") activity?: string,
+    @Query("verified") verified?: string,
+    @Query("price") price?: string,
+  ) {
+    return this.service.discoverFacets(user, {
+      category: category && /^\d{8}$/.test(category) ? category : undefined,
+      q: q?.slice(0, 120),
+      city: city?.slice(0, 400) || undefined,
+      activity: activity?.slice(0, 200) || undefined,
+      verified: verified === "1",
+      price: price === "has" || price === "request" ? price : undefined,
+    });
   }
 
   /** Panel içi ürün sayfası — ÜYE katmanı (fiyat/MOQ dahil). */

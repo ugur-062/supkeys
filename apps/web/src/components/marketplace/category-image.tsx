@@ -29,6 +29,7 @@ export function CategoryImage({
   alt = "",
   className = "",
   ratio = "aspect-[16/9]",
+  priority = false,
 }: {
   /** `Category.imageUrl` — doluysa üretilmiş görselin yerine geçer. */
   src?: string | null;
@@ -36,6 +37,8 @@ export function CategoryImage({
   alt?: string;
   className?: string;
   ratio?: string;
+  /** LCP adayı — lazy değil, öncelikli. */
+  priority?: boolean;
 }) {
   // Yükleme hatası → üretilmiş görsele düş. `src` değişirse (aynı kartın
   // yeniden kullanımı) hata durumu sıfırlanmalı; anahtar olarak src kullanılır.
@@ -53,6 +56,7 @@ export function CategoryImage({
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover"
+            priority={priority}
             onError={() => setFailedSrc(src)}
           />
         ) : (
@@ -63,7 +67,8 @@ export function CategoryImage({
           <img
             src={src}
             alt={alt}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
             className="size-full object-cover"
             onError={() => setFailedSrc(src)}
           />

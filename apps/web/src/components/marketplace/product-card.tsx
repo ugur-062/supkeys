@@ -57,6 +57,7 @@ export function ProductCard({
   meta,
   trailing,
   onClick,
+  priority = false,
   className,
 }: {
   product: ProductCardProduct;
@@ -81,6 +82,8 @@ export function ProductCard({
   trailing?: ReactNode;
   /** Row: bağlantı yerine düğme (panel içi düzenleme). */
   onClick?: () => void;
+  /** LCP: görünümdeki ilk kartların görseli öncelikli yüklensin. */
+  priority?: boolean;
   className?: string;
 }) {
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
@@ -147,6 +150,7 @@ export function ProductCard({
         alt={product.name}
         ratio="aspect-[4/3]"
         className="border-b border-zinc-950/5"
+        priority={priority}
       />
 
       <div className="flex flex-1 flex-col p-4">

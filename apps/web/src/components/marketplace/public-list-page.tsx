@@ -24,6 +24,7 @@ export function PublicListPage({
   clearHref,
   sidebar,
   summary,
+  chipsNode,
   children,
 }: {
   title: string;
@@ -42,6 +43,12 @@ export function PublicListPage({
   sidebar: ReactNode;
   /** "12 ürün" gibi sayı satırı. */
   summary?: ReactNode;
+  /**
+   * Süzgeç v3: çip şeridi/sıralama/mobil düğme istemci bileşenlerinden
+   * gelir (`chipsNode`); verilirse `chips`/`clearHref` yok sayılır ve aside
+   * mobilde GİZLENİR (çekmece var).
+   */
+  chipsNode?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -63,7 +70,8 @@ export function PublicListPage({
       </header>
 
       <div className="mx-auto max-w-7xl px-6 pt-8 pb-24 lg:px-8">
-        {chips.length > 0 ? (
+        {chipsNode ?? null}
+        {!chipsNode && chips.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-zinc-500">Süzgeçler:</span>
             {chips.map((c) => (
@@ -79,7 +87,14 @@ export function PublicListPage({
         ) : null}
 
         <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[16rem_1fr]">
-          <aside className="lg:sticky lg:top-24 lg:self-start">{sidebar}</aside>
+          {/* Sticky sidebar viewport'tan uzunsa kendi içinde kaydırılır —
+              eskiden ~1450 px sabit kalıyor, alttaki gruplar görünmüyordu (A1). */}
+          <aside
+            aria-label="Süzgeçler"
+            className={`${chipsNode ? "hidden lg:block" : ""} lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]`}
+          >
+            {sidebar}
+          </aside>
           <div>
             {summary ? <p className="mb-4 text-sm text-zinc-500">{summary}</p> : null}
             {children}

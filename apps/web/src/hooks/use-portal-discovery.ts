@@ -173,6 +173,9 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number })
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);
       if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
+      if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
+      if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
+      if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
       for (const a of params.attr ?? []) sp.append("attr", a);
       if (params.page && params.page > 1) sp.set("page", String(params.page));
       const qs = sp.toString();
@@ -184,14 +187,23 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number })
   });
 }
 
-export function useDiscoverProductFacets() {
-  return useQuery<Omit<ProductFacets, "attributes" | "truncated">>({
-    queryKey: ["company-items", "discover-facets"],
+export function useDiscoverProductFacets(params: Pick<ProductListParams, "category" | "q" | "city" | "activity" | "verified" | "price"> = {}) {
+  return useQuery<ProductFacets>({
+    queryKey: ["company-items", "discover-facets", params],
     queryFn: async () => {
-      const { data } = await companyApi.get("/company/items/discover/facets");
+      const sp = new URLSearchParams();
+      if (params.category) sp.set("category", params.category);
+      if (params.q) sp.set("q", params.q);
+      if (params.city) sp.set("city", params.city);
+      if (params.activity) sp.set("activity", params.activity);
+      if (params.verified) sp.set("verified", "1");
+      if (params.price) sp.set("price", params.price);
+      const qs = sp.toString();
+      const { data } = await companyApi.get<ProductFacets>(`/company/items/discover/facets${qs ? `?${qs}` : ""}`);
       return data;
     },
-    staleTime: 300_000,
+    placeholderData: (prev) => prev,
+    staleTime: 120_000,
   });
 }
 

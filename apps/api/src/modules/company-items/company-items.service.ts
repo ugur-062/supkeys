@@ -25,9 +25,10 @@ import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../public-marketplace/
 import {
   PRODUCT_FACET_SCAN_CAP,
   PRODUCT_PAGE_SIZE,
-  productFacetCounts,
+  contextualFacetCounts,
   productIndexOrderBy,
   productIndexWhere,
+  productSearchClauses,
   type ProductIndexParams,
 } from "../../common/company/product-index";
 import {
@@ -445,26 +446,61 @@ export class CompanyItemsService {
     return { items: rows.map(toProductIndexCard), total, page, pageSize: PRODUCT_PAGE_SIZE };
   }
 
-  /** Ürün Ara süzgeç sayaçları — public facet ile aynı sayım, kendi ürünler hariç. */
-  async discoverFacets(user: AuthenticatedCompanyUser) {
+  /** Ürün Ara süzgeç sayaçları — public ile AYNI bağlama duyarlı sayım; kendi ürünler hariç. */
+  async discoverFacets(user: AuthenticatedCompanyUser, q: ProductIndexParams = {}) {
     const rows = await this.prisma.companyItem.findMany({
-      where: { ...publicProductWhere(), companyId: { not: user.companyId } },
-      select: { categoryId: true, company: { select: { city: true, activities: true } } },
+      where: {
+        ...publicProductWhere(),
+        companyId: { not: user.companyId },
+        ...(q.q ? { AND: productSearchClauses(q.q) } : {}),
+      },
+      select: {
+        categoryId: true,
+        priceMode: true,
+        attributes: true,
+        company: { select: { city: true, activities: true, companyVerificationStatus: true } },
+      },
       take: PRODUCT_FACET_SCAN_CAP,
     });
-    const counts = productFacetCounts(rows);
-    const ids = counts.categories.map(([id]) => id);
+    const prefix = q.category ? categoryPrefix(q.category) : null;
+    const inCategory = prefix ? rows.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : rows;
+    const ctx = contextualFacetCounts(inCategory, q);
+    const catCounts = contextualFacetCounts(rows, q).categories;
+    const ids = catCounts.map(([id]) => id);
     const cats = ids.length
       ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true, level: true } })
       : [];
     const byId = new Map(cats.map((c) => [c.id, c]));
+    // Nitelik facet'i kategori seçiliyken — public ile aynı tanım kaynağı.
+    let attributes: { key: string; nameTr: string; unit: string | null; values: { value: string; count: number }[] }[] = [];
+    if (q.category && /^\d{8}$/.test(q.category)) {
+      const defs = (await resolveCategoryAttributes(this.prisma, q.category)).filter((d) => d.type === "SELECT" || d.type === "MULTISELECT");
+      attributes = defs
+        .map((d) => {
+          const m = new Map<string, number>();
+          for (const r of inCategory) {
+            const a = r.attributes;
+            if (!a || typeof a !== "object" || Array.isArray(a)) continue;
+            const raw = (a as Record<string, unknown>)[d.key];
+            for (const v of Array.isArray(raw) ? raw : raw == null ? [] : [raw]) {
+              if (typeof v === "string" && v.trim()) m.set(v, (m.get(v) ?? 0) + 1);
+            }
+          }
+          return { key: d.key, nameTr: d.nameTr, unit: d.unit, values: [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count).slice(0, 12) };
+        })
+        .filter((f) => f.values.length > 0);
+    }
     return {
-      categories: counts.categories
+      categories: catCounts
         .map(([id, count]) => (byId.has(id) ? { id, name: byId.get(id)!.nameTr, level: byId.get(id)!.level, count } : null))
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
-      cities: counts.cities,
-      activities: counts.activities,
+      cities: ctx.cities,
+      activities: ctx.activities,
+      verified: ctx.verified,
+      price: ctx.price,
+      attributes,
+      truncated: false,
     };
   }
 
