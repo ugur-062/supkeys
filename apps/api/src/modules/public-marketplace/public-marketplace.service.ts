@@ -573,15 +573,39 @@ export class PublicMarketplaceService {
   /** Anasayfa sayı şeridi — gerçek sayımlar; eşiği web uygular. */
   async stats() {
     const now = new Date();
-    const [products, companies, categories, openDemands] = await Promise.all([
+    const [products, companies, categories, openDemands, catRows] = await Promise.all([
       this.prisma.companyItem.count({ where: publicProductWhere() }),
       this.prisma.company.count({
         where: { publicEnabled: true, isActive: true, isBlocked: false, slug: { not: null }, ...anyPackageWhere() },
       }),
       this.prisma.category.count({ where: { inDiscovery: true, level: 1 } }),
       this.prisma.listing.count({ where: { ...marketplaceListingWhere(now), status: "OPEN", type: "ALIM" } }),
+      this.prisma.companyItem.findMany({
+        where: publicProductWhere(),
+        select: { categoryId: true },
+        take: FACET_SCAN_CAP,
+      }),
     ]);
-    return { products, companies, categories, openDemands };
+    // "Popüler aramalar" — arama logu YOK; yedek: ürün sayısı en yüksek 20
+    // ALT kategori (L3 sınıf). Etiket web'de "Popüler kategoriler".
+    const l3 = new Map<string, number>();
+    for (const r of catRows) {
+      if (r.categoryId && r.categoryId.length === 8) {
+        const cls = `${r.categoryId.slice(0, 6)}00`;
+        l3.set(cls, (l3.get(cls) ?? 0) + 1);
+      }
+    }
+    const top = [...l3.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+    const names = await this.resolveCategories(top.map(([id]) => id));
+    return {
+      products,
+      companies,
+      categories,
+      openDemands,
+      popularCategories: top
+        .map(([id, count]) => ({ id, name: names.get(id)?.name ?? null, count }))
+        .filter((c): c is { id: string; name: string; count: number } => !!c.name),
+    };
   }
 
   /**

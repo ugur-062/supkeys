@@ -117,6 +117,7 @@ export const PUBLIC_LISTING_SELECT = {
       country: true,
       industry: true,
       activities: true,
+      companyVerificationStatus: true,
     },
   },
 } satisfies Prisma.ListingSelect;
@@ -136,6 +137,8 @@ export interface PublicListingCompany {
   country: string | null;
   industry: string | null;
   activities: string[];
+  /** KYC tamam — "Doğrulanmış alıcı/tedarikçi" rozeti (kimlik değil nitelik). */
+  verified: boolean;
 }
 
 /**
@@ -251,6 +254,7 @@ export function toPublicCompany(
     country: c.country,
     industry: c.industry,
     activities: c.activities,
+    verified: c.companyVerificationStatus === "VERIFIED",
   };
 }
 

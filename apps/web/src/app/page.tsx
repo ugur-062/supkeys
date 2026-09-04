@@ -1,62 +1,60 @@
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MarketplaceHero } from "@/components/marketplace/hero";
-import { TrustStrip } from "@/components/marketplace/trust-strip";
+import { StatsStrip } from "@/components/marketplace/stats-strip";
+import { RfqBanner } from "@/components/marketplace/rfq-banner";
+import { ProductCarousel } from "@/components/marketplace/product-carousel";
 import { CategoryGrid } from "@/components/marketplace/category-grid";
+import { ListingTeaserCard } from "@/components/marketplace/listing-teaser-card";
+import { TwoCards } from "@/components/marketplace/two-cards";
+import { CompanyGrid } from "@/components/marketplace/company-grid";
 import { TrustBand } from "@/components/marketplace/trust-band";
-import { ClosingCta } from "@/components/marketplace/closing-cta";
-import { ListingCard } from "@/components/marketplace/listing-card";
-import { ProductCard } from "@/components/marketplace/product-card";
-import { SectionGrid } from "@/components/marketplace/section-grid";
+import { PopularChips } from "@/components/marketplace/popular-chips";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { buildShowcase } from "@/lib/public/category-showcase";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import {
-  MARKETPLACE_LABELS,
-  MARKETPLACE_ROUTES,
-} from "@/lib/public/marketplace";
-import {
+  fetchFeaturedProducts,
   fetchListings,
   fetchProductFacets,
   fetchProducts,
+  fetchPublicDirectory,
   fetchSegments,
+  fetchStats,
 } from "@/lib/public/marketplace-api";
+import { signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ComingSoon } from "@/components/marketplace/coming-soon";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 
 /**
- * PAZAR YERİ ANASAYFASI — sunucu bileşeni, ISR.
+ * PAZAR YERİ ANASAYFASI v2 — Europages kalıbı (2026-09-04).
  *
- * Bölüm sırası (2026-09-04 revizyonu, ekran görüntülü denetim):
- *   1. header · 2. hero (iki tarafa + sekmeli arama) · 3. güven bandı ·
- *   4. kategoriye göre keşfet · 5. öne çıkan ürünler (≥ 8) ·
- *   6. açık alım talepleri (≥ 3) · 7. satılık ilanlar (≥ 3) ·
- *   8. nasıl çalışır · 9. kapanış CTA · 10. footer.
+ *  1 header · 2 hero (iki sekmeli arama + RFQ şeridi + güven bandı) ·
+ *  3 sayı şeridi (ürün ≥50 ∧ firma ≥20) · 4 talep aç bannerı (her zaman) ·
+ *  5 öne çıkan ürünler (≥8) · 6 kategoriye göre keşfet (her zaman) ·
+ *  7 son eklenen ürünler (≥8) · 8 açık alım talepleri (≥3; altında tek satır) ·
+ *  9 iki kart (her zaman) · 10 firmalar (≥4) · 11 nasıl çalışır ·
+ * 12 popüler kategoriler · 13 SEO paragrafı + footer.
  *
- * Eşik altındaki envanter bölümü HİÇ çizilmez — boş kutu yok. Her zaman
- * dolu olan bölümler (3, 4, 8, 9) sayfayı sıfır envanterde de ayakta tutar.
- * Kayıt CTA'sı üç: header, hero altı, kapanış.
- *
- * `force-dynamic` YOK — bu rota public listede (bkz. lib/public-routes.ts) ve
- * nonce'suz CSP alıyor; statik/ISR üretilebilmesi SEO'nun ön koşulu.
+ * Sıfır veride görünen: 1, 2, 4, 6, 9, 11, 13. Boş kutu YOK. Satılık İlanlar
+ * anasayfada YOK (footer). Kayıt CTA'sı üç: header · hero şeridi · iki kart.
+ * `force-dynamic` YOK — public liste, nonce'suz CSP, ISR.
  */
 export const revalidate = 60;
 
 const SITE = resolveSiteUrl();
-
-/** Eşikler — tek kart öksüz kalır, boş bölüm "boş market" der. */
-const MIN_PRODUCTS = 8;
-const MIN_LISTINGS = 3;
+const MIN_DEMANDS = 3;
 
 const LIVE_METADATA: Metadata = {
-  title: "Rothern — B2B pazar yeri: ürünler, alım talepleri ve satılık ilanlar",
+  title: "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
   description:
-    "Doğrulanmış firmaların ürünlerini, açık alım taleplerini ve satılık ilanlarını inceleyin. Kapalı zarf teklif, sipariş takibi ve firma keşfi tek hesapta. Kaydolmak ücretsiz.",
+    "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
   alternates: { canonical: `${SITE}/` },
   openGraph: {
     title: "Rothern — B2B pazar yeri",
-    description:
-      "Ürünler, açık alım talepleri, satılık ilanlar ve doğrulanmış firmalar tek yerde.",
+    description: "Ürünler, doğrulanmış firmalar ve açık alım talepleri tek yerde.",
     url: `${SITE}/`,
     type: "website",
   },
@@ -66,35 +64,28 @@ export const metadata: Metadata = MARKETPLACE_LIVE
   ? LIVE_METADATA
   : {
       title: "Çok Yakında",
-      description:
-        "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz.",
+      description: "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz.",
       robots: { index: false, follow: false },
     };
 
 export default async function HomePage() {
-  // Anahtar kapalıyken API'ye HİÇ gitmiyoruz: "yakında" sayfası veri
-  // istemiyor ve boşuna istek atmak build'i API'ye bağımlı yapardı.
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
 
-  // Beş çağrı paralel: biri düşerse diğerleri sayfayı taşımaya devam eder
-  // (veri katmanı hata YUTAR ve boş döner — bkz. marketplace-api.ts).
-  // `categories/segments` anahtara tabi DEĞİL: kategori ızgarası API'de
-  // MARKETPLACE_LIVE kapalıyken bile dolu çıkar.
-  const [demands, offers, products, productFacets, segments] = await Promise.all([
-    fetchListings({ type: "ALIM", page: 1 }),
-    fetchListings({ type: "SATIS", page: 1 }),
-    fetchProducts({ page: 1 }),
+  // Paralel; biri düşerse diğerleri sayfayı taşır (veri katmanı hata yutar).
+  const [featured, newest, productFacets, segments, demands, directory, stats] = await Promise.all([
+    fetchFeaturedProducts(),
+    fetchProducts({ sort: "newest", page: 1 }),
     fetchProductFacets(),
     fetchSegments(),
+    fetchListings({ type: "ALIM", page: 1 }),
+    fetchPublicDirectory({ hasProducts: true }),
+    fetchStats(),
   ]);
 
   const showcase = buildShowcase({
     segments: segments.map((s) => ({ id: s.id, name: s.nameTr })),
     counts: productFacets.categories.map((c) => ({ id: c.id, count: c.count })),
-    productCovers: products.items.map((p) => ({
-      categoryId: p.categoryId,
-      image: p.images[0],
-    })),
+    productCovers: [...featured, ...newest.items].map((p) => ({ categoryId: p.categoryId, image: p.images[0] })),
   });
 
   const jsonLd = {
@@ -105,67 +96,85 @@ export default async function HomePage() {
     inLanguage: "tr-TR",
     potentialAction: {
       "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        // Varsayılan arama sekmesi ÜRÜNLER — SearchAction da oraya gider.
-        urlTemplate: `${SITE}${MARKETPLACE_ROUTES.products}?q={search_term_string}`,
-      },
+      target: { "@type": "EntryPoint", urlTemplate: `${SITE}${MARKETPLACE_ROUTES.products}?q={search_term_string}` },
       "query-input": "required name=search_term_string",
     },
   };
 
+  const demandCards = demands.items.slice(0, 6);
+
   return (
     <PublicLayout>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
 
       <MarketplaceHero />
-      <TrustStrip />
+      <StatsStrip stats={stats} />
+      <RfqBanner />
+
+      <ProductCarousel
+        heading="Öne çıkan ürünler"
+        lead="Doğrulanmış firmaların vitrinlerinden — fiyat ve minimum sipariş bilgisiyle."
+        items={featured}
+        href={MARKETPLACE_ROUTES.products}
+      />
+
       <CategoryGrid categories={showcase} />
 
-      <SectionGrid
-        heading="Öne çıkan ürünler"
-        lead="Firmaların vitrinlerindeki ürünler — süreli bir ilan değil, kalıcı katalog."
-        href={MARKETPLACE_ROUTES.products}
-        hrefLabel="Tüm ürünler"
-        min={MIN_PRODUCTS}
-        cards={products.items.slice(0, 8).map((p) => (
-          <ProductCard
-            key={`${p.company.slug}/${p.slug}`}
-            companySlug={p.company.slug}
-            companyName={p.company.name}
-            companyCity={p.company.city}
-            product={p}
-          />
-        ))}
+      <ProductCarousel
+        heading="Son eklenen ürünler"
+        items={newest.items}
+        href={`${MARKETPLACE_ROUTES.products}?sirala=yeni`}
+        hrefLabel="Yeni ürünler"
+        tone="zinc"
       />
 
-      <SectionGrid
-        heading={`Açık ${MARKETPLACE_LABELS.demands.toLocaleLowerCase("tr-TR")}`}
-        lead="Firmaların herkese açık yayımladığı, teklif bekleyen satın alma talepleri."
-        href={MARKETPLACE_ROUTES.demands}
-        hrefLabel="Tüm talepler"
-        min={MIN_LISTINGS}
-        cards={demands.items.slice(0, 8).map((l) => (
-          <ListingCard key={l.number} listing={l} />
-        ))}
-      />
+      {/* Açık alım talepleri — gizli ama cezbedici: ölçek görünür, kimlik üyeye. */}
+      <section className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+              Alıcılar şu an bunları arıyor
+            </h2>
+            <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">
+              Tedarikçiler teklif vermek için kaydolur; alıcı bilgileri yalnız üyelere açılır.
+            </p>
+          </div>
+          {demandCards.length >= MIN_DEMANDS ? (
+            <Link href={MARKETPLACE_ROUTES.demands} className="text-sm font-semibold text-zinc-900 hover:text-zinc-600">
+              Tüm talepler →
+            </Link>
+          ) : null}
+        </div>
+        {demandCards.length >= MIN_DEMANDS ? (
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {demandCards.map((l) => (
+              <ListingTeaserCard key={l.number} listing={l} />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
+            Talepler kaydolduktan sonra panelinizde kategorinize göre eşleşir.
+            <Link href={signupHref("teklif")} className="font-semibold text-zinc-950 underline underline-offset-2 hover:text-zinc-600">
+              Kaydol
+            </Link>
+          </p>
+        )}
+      </section>
 
-      <SectionGrid
-        heading={MARKETPLACE_LABELS.offers}
-        lead="Firmaların satışa açtığı ürün, malzeme ve hizmetler."
-        href={MARKETPLACE_ROUTES.offers}
-        hrefLabel="Tüm ilanlar"
-        min={MIN_LISTINGS}
-        cards={offers.items.slice(0, 8).map((l) => (
-          <ListingCard key={l.number} listing={l} />
-        ))}
-      />
-
+      <TwoCards />
+      <CompanyGrid companies={directory.items} />
       <TrustBand />
-      <ClosingCta />
+      <PopularChips items={stats.popularCategories} />
+
+      {/* SEO paragrafı — iki cümle, sayfanın ne olduğunu düz metinle söyler. */}
+      <section className="mx-auto max-w-7xl px-6 pb-14 lg:px-8">
+        <p className="max-w-3xl text-sm/6 text-zinc-500">
+          Rothern, Türkiye&apos;deki üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat
+          ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan
+          B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek, bilgi istemek ve
+          alıcı bilgilerini görmek için ücretsiz hesap gerekir.
+        </p>
+      </section>
     </PublicLayout>
   );
 }

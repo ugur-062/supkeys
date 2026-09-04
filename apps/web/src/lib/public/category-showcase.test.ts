@@ -37,6 +37,7 @@ describe("anasayfa kategori seçkisi", () => {
   });
   it("limit uygulanır ve tekrar yok", () => {
     const out = buildShowcase({ segments, counts: [{ id: "23000000", count: 1 }], productCovers: [], limit: 2 });
+    expect(buildShowcase({ segments, counts: [], productCovers: [] })).toHaveLength(4); // varsayılan tavan 11, segment 4
     expect(out).toHaveLength(2);
     expect(new Set(out.map((c) => c.id)).size).toBe(2);
   });

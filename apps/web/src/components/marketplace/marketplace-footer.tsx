@@ -22,6 +22,7 @@ const COLUMNS = [
             { label: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
             { label: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
             { label: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+            { label: "Kategoriler", href: "/#kategoriler" },
           ],
         },
       ]

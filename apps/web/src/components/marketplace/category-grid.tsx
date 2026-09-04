@@ -9,8 +9,9 @@ import Link from "next/link";
  * "KATEGORİYE GÖRE KEŞFET" — anasayfanın görsel ağırlığı (2026-09-04).
  *
  * "Aradığınız kalem kataloğun içinde" metin bandının YERİNE: ziyaretçiye
- * ağacı anlatmak yerine ağacı GÖSTERİYORUZ. Solda bir büyük kart (2×2), sağda
- * 4×2 ızgara = 9 üst kategori; 6 sütunlu iki satır tam dolar. Her zaman görünür — sıfır envanterde de katalog
+ * ağacı anlatmak yerine ağacı GÖSTERİYORUZ. Solda bir büyük kart (2×2: en çok
+ * ürünlü kategori — "N ürün / ad / Keşfet"), sağda 5×2 ızgara = 11 üst
+ * kategori; 7 sütunlu iki satır tam dolar. Her zaman görünür — sıfır envanterde de katalog
  * gerçek ve gezilebilir; sayı yalnız > 0 ise basılır.
  *
  * Görsel kademesi `category-showcase.ts` + `category-photos.ts`: fotoğraf →
@@ -43,9 +44,9 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
         </Link>
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:grid-rows-2">
+      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7 lg:grid-rows-2">
         <Tile category={lead} large />
-        {rest.slice(0, 8).map((c) => (
+        {rest.slice(0, 10).map((c) => (
           <Tile key={c.id} category={c} />
         ))}
       </div>
@@ -77,10 +78,16 @@ function Tile({ category: c, large = false }: { category: ShowcaseCategory; larg
         />
       )}
       <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-        <span
-          className={`line-clamp-2 font-medium text-zinc-900 ${large ? "text-base" : "text-sm"}`}
-        >
-          {c.name}
+        <span className={`min-w-0 ${large ? "" : ""}`}>
+          {large && c.count > 0 ? (
+            <span className="block text-xs font-semibold text-emerald-700">
+              {c.count.toLocaleString("tr-TR")} ürün
+            </span>
+          ) : null}
+          <span className={`line-clamp-2 font-medium text-zinc-900 ${large ? "text-base" : "text-sm"}`}>
+            {c.name}
+          </span>
+          {large ? <span className="block text-xs text-zinc-500">Keşfet →</span> : null}
         </span>
         {c.count > 0 ? (
           <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">

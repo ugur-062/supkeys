@@ -28,6 +28,8 @@ export interface PublicCompanyRef {
   country: string | null;
   industry: string | null;
   activities: string[];
+  /** KYC tamam — "Doğrulanmış alıcı/tedarikçi" (kimlik değil nitelik). */
+  verified: boolean;
 }
 
 export interface PublicCategoryRef {
@@ -330,10 +332,16 @@ export interface PublicStats {
   companies: number;
   categories: number;
   openDemands: number;
+  /** Ürün sayısı en yüksek 20 alt kategori (arama logu yok). */
+  popularCategories: { id: string; name: string; count: number }[];
 }
 
 export function fetchStats(): Promise<PublicStats> {
-  return getJson<PublicStats>("/public/stats", { products: 0, companies: 0, categories: 0, openDemands: 0 }, 600);
+  return getJson<PublicStats>(
+    "/public/stats",
+    { products: 0, companies: 0, categories: 0, openDemands: 0, popularCategories: [] },
+    600,
+  );
 }
 
 export interface SuggestResult {

@@ -9,7 +9,9 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 
 /**
  * Kök `/` pazar yerine dönünce pazarlama çapaları (#ozellikler/#fiyatlar/#sss)
@@ -20,12 +22,13 @@ import { useEffect, useState } from "react";
 const navigation = [
   // Pazar yeri satırları yalnız yayın anahtarı AÇIKKEN görünür; kapalıyken
   // 404'e link vermiş olurduk.
+  // v2 sırası: Ürünler · Firmalar · Alım Talepleri. "Satılık İlanlar" header'da
+  // DEĞİL (footer + /urunler yan bağlantısı) — anasayfa ürün/firma/talep odaklı.
   ...(MARKETPLACE_LIVE
     ? [
-        { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
-        { name: MARKETPLACE_LABELS.offers, href: MARKETPLACE_ROUTES.offers },
         { name: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
         { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+        { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
       ]
     : []),
   { name: "Nasıl Çalışır", href: "/nasil-calisir" },
@@ -49,6 +52,9 @@ export function MarketingHeader({
   const dark = tone === "dark";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // Kompakt arama yalnız hero DIŞINDAKİ sayfalarda (anasayfada büyük kutu var).
+  const pathname = usePathname();
+  const showSearch = MARKETPLACE_LIVE && pathname !== "/";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -110,6 +116,20 @@ export function MarketingHeader({
           ))}
         </div>
         <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-3">
+          {showSearch ? (
+            <form action={MARKETPLACE_ROUTES.products} method="get" role="search" className="relative">
+              <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="search"
+                name="q"
+                aria-label="Ürün ara"
+                placeholder="Ürün ara"
+                className={`h-8 w-40 rounded-full pr-3 pl-8 text-sm outline-none ring-1 ring-inset transition focus:w-56 ${
+                  dark ? "bg-zinc-900 text-white ring-zinc-700 placeholder:text-zinc-500" : "bg-zinc-50 text-zinc-900 ring-zinc-200 placeholder:text-zinc-400"
+                }`}
+              />
+            </form>
+          ) : null}
           <Link
             href="/company/login"
             className={`text-sm/6 font-semibold whitespace-nowrap transition ${
