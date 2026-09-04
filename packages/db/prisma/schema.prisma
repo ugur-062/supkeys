@@ -286,6 +286,11 @@ model Category {
   @@index([parentId, sortOrder])
   @@index([level, sortOrder])
   @@index([code])
+  // pg_trgm GIN — migration 20260902100100 ile kuruldu; burada BEYAN edilmezse
+  // CI'daki drift kapısı (migrate diff --exit-code) her push'ta düşer.
+  // Uzantı (`CREATE EXTENSION pg_trgm`) migration'da; Prisma modellemez.
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "categories_searchText_trgm_idx")
+  @@index([nameTr(ops: raw("gin_trgm_ops"))], type: Gin, map: "categories_nameTr_trgm_idx")
   @@map("categories")
 }
 
@@ -660,6 +665,8 @@ model Company {
   @@index([tier, isActive, country])
   // Perf: admin KYC kuyruğu (where companyVerificationStatus) + groupBy.
   @@index([companyVerificationStatus])
+  // Faaliyet tipi dizisi — migration 20260901120000 GIN; drift kapısı için beyan.
+  @@index([activities], type: Gin, map: "companies_activities_idx")
   @@map("companies")
 }
 

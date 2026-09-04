@@ -78,7 +78,7 @@ async function main() {
   console.log(`Silinen (bayat) : ${stale.length}`);
   console.log(`Kategori sayısı : ${codes.length}`);
   for (const f of found.sort((a, b) => a.id.localeCompare(b.id))) {
-    const n = CATEGORY_ATTRIBUTES[f.id].length;
+    const n = CATEGORY_ATTRIBUTES[f.id]?.length ?? 0;
     console.log(`  L${f.level} ${f.id}  ${n} nitelik  — ${f.nameTr}`);
   }
 }
