@@ -743,6 +743,57 @@ son değerle başlar (JS/hareket yoksa "0 ülke" kalmıyor).
 görünürlük ≠ indekslenme kararı. Kategori fotoğrafları (58). Üye görünümü
 ekran görüntüsü alınamadı (test hesabı parolası `CLAUDE.md.local`ta yok).
 
+### Anasayfa & ürün süzgeci v3 (2026-09-04)
+
+Kullanıcının A1–A7 / B1–B9 listesi; A (süzgeç) 1eb52c1a+c5731daf, B üç
+commit (d6166305 kartlar · ea877ba7 anasayfa · 90d0b0d7 header/yüzen CTA).
+
+**Süzgeç durumu URL'DE, tek kaynak `lib/public/product-filter-params.ts`**
+(`?q&kategori&sehir=a,b&faaliyet=a,b&dogrulanmis=1&fiyat=var|teklif&fiyatMin&
+fiyatMax&moqMax&sirala=yeni|fiyat|fiyat-azalan&nitelik&sayfa`). Kabuk
+`components/marketplace/filter-shell.tsx`: `update()` → `startTransition(
+router.replace(…, {scroll:false}))`, geçişte liste soluk (`FilterResults`),
+`ResultCount` aria-live; mobilde Headless UI çekmecesi + "Sonuçları göster
+(n)". Süzgeç bileşenleri `product-filters.tsx` (fieldset/legend, bölüm başına
+sayı + Temizle, katlanır — `localStorage rothern.filters.<key>`, 6'dan sonra
+"Tümünü göster", kategori arama kutusu, fiyat aralığı + MOQ, sıralamada yön
+oku). **Facet sayıları BAĞLAMSAL**: `contextualFacetCounts` kendi boyutu
+hariç seçili süzgeçlerle sayar; 0 → soluk + disabled. Panel **Ürün Ara**
+AYNI kabuk ve AYNI bileşenler (`company/items/discover/{search,facets}`) —
+public ile panel bir daha ayrışmasın.
+
+**Anasayfa sırası:** hero (çipler: 6 popüler alt kategori) → hareket şeridi
+→ alıcı akışı (3 adım) → açık alım talepleri → sekmeli ürün kaydırıcısı →
+kategori listesi → iki kart → firmalar → TrustBand (tedarikçi akışı) →
+popüler çipler → SEO paragrafı. Yüzen "Talep aç" ve header araması YALNIZ
+hero görünümden çıkınca (`useHeroGone`, `[data-hero-search]` sentinel).
+
+**Sayı şeridi = HAREKET, envanter değil.** "56 ürün / 20 firma" azlığı ilan
+ediyordu; "bu hafta 9 ürün · 24 saatte 8 teklif" pazarın yaşadığını söyler.
+0 satır basılmaz, <2 satırda şerit yok; envanter eşiği (ürün ≥50 ∧ firma
+≥20) korunur.
+
+**Kart kuralları:** talep kartında büyük sayı YALNIZ birimli miktar (çıplak
+"3" ne olduğu belirsizdi), kalem sayısı meta; ≤3 gün rose / ≤7 amber; kart
+tamamı tıklanır (başlık bağlantısı `after:inset-0`, "Teklif ver" z-10).
+Ürün kartında stok görsel (loremflickr/picsum/unsplash — `isStockImage`)
+"Temsili görsel" etiketi taşır; görselsiz ÜRÜN nötr gri (`fallback="neutral"`)
+— ürün görseli zorunlu, yokluğu eksikliktir, tonlu kutu onu saklardı (ilan/
+talep tonlu kategori görselini korur). Fiyat sembolü tek kaynak
+`currencySymbol` ("41.000 ₺ / adet"). Firma kartında ad + ✓ aynı satır.
+
+**Sekmeli kaydırıcı (`product-showcase.tsx`)** tek liste, üç sekme (Öne çıkan
+≥8 · Yeni · Fiyatı yazılı ≥4); WAI tabs klavye; `tabpanel` rolü `<ul>`'a
+verilemez (aria-allowed-role) — sarmalayıcı div. **`scroll-pl-*` ŞART:**
+scroll-snap'li listede ilk kartın snap noktası scrollLeft=0'da değilse Chrome
+yüklenişte 24px kaydırır; o scroll olayı LCP raporunu keser (Lighthouse
+NO_LCP, CrUX'ta kayıp metrik) — 2026-09-04'te ölçüldü ve düzeltildi.
+
+Lighthouse (prod build, lokal): anasayfa perf 88 · a11y 97 (kalan
+color-contrast bulguları bu turda kapatıldı) · SEO 100; `/urunler` 75
+(loremflickr görselleri). Küçük metinde `text-zinc-400` KULLANMA —
+beyazda 2,6:1; en az zinc-500 (zinc-100 zeminde zinc-600).
+
 ### Sözlük kalıntıları temizlendi (2026-09-03)
 
 2026-09-01 yeniden adlandırması satış tarafında yanlış oturmuştu:
