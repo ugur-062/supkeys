@@ -12,6 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
+import { useHeroGone } from "@/hooks/use-hero-gone";
 
 /**
  * Kök `/` pazar yerine dönünce pazarlama çapaları (#ozellikler/#fiyatlar/#sss)
@@ -52,9 +53,11 @@ export function MarketingHeader({
   const dark = tone === "dark";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  // Kompakt arama yalnız hero DIŞINDAKİ sayfalarda (anasayfada büyük kutu var).
+  // Kompakt arama: hero'lu sayfada büyük kutu görünümden ÇIKINCA (B8), diğer
+  // sayfalarda hep. İkisi aynı anda ekrandayken çift arama kutusu olurdu.
   const pathname = usePathname();
-  const showSearch = MARKETPLACE_LIVE && pathname !== "/";
+  const heroGone = useHeroGone();
+  const showSearch = MARKETPLACE_LIVE && (pathname !== "/" || heroGone);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);

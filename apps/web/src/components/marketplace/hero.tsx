@@ -50,7 +50,9 @@ export function MarketplaceHero({
             Türkiye&apos;nin alıcı ve tedarikçiyi tek hesapta buluşturan B2B pazar yeri.
           </p>
 
-          <div className="mx-auto mt-9 max-w-2xl">
+          {/* `data-hero-search`: header ve yüzen CTA bu kutuyu gözler — kutu
+              görünümden çıkınca kompakt arama ve "Talep aç" belirir (B8). */}
+          <div data-hero-search className="mx-auto mt-9 max-w-2xl">
             <HeroSearch tabs={tabs} />
           </div>
 

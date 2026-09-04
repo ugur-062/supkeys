@@ -3,6 +3,7 @@ import { MarketplaceHero } from "@/components/marketplace/hero";
 import { StatsStrip } from "@/components/marketplace/stats-strip";
 import { HowItWorksFlow } from "@/components/marketplace/how-it-works-flow";
 import { ProductShowcase } from "@/components/marketplace/product-showcase";
+import { FloatingCta } from "@/components/marketplace/floating-cta";
 import { CategoryGrid } from "@/components/marketplace/category-grid";
 import { ListingTeaserCard } from "@/components/marketplace/listing-teaser-card";
 import { TwoCards } from "@/components/marketplace/two-cards";
@@ -178,6 +179,7 @@ export default async function HomePage() {
       <CompanyGrid companies={directory.items} />
       <TrustBand />
       <PopularChips items={stats.popularCategories} />
+      <FloatingCta href={signupHref("talep")} />
 
       {/* SEO paragrafı — iki cümle, sayfanın ne olduğunu düz metinle söyler. */}
       <section className="mx-auto max-w-7xl px-6 pb-14 lg:px-8">
