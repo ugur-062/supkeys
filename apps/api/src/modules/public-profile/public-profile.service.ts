@@ -434,14 +434,21 @@ export class PublicProfileService {
     // Nitelikler ETİKETLENEREK döner: ziyaretçiye ham anahtar
     // ("koruma_sinifi") göstermek bir hata ekranı gibi okunur. Çözümleyici
     // panelle AYNI kaynak — sorulan alanla gösterilen etiket ayrışamaz.
-    const attributeDefs = await resolveCategoryAttributes(
-      this.prisma,
-      row.categoryId,
-    );
+    const [attributeDefs, category] = await Promise.all([
+      resolveCategoryAttributes(this.prisma, row.categoryId),
+      row.categoryId
+        ? this.prisma.category.findUnique({
+            where: { id: row.categoryId },
+            select: { id: true, nameTr: true },
+          })
+        : null,
+    ]);
     return {
       product: {
         ...toPublicProduct(row),
         attributeList: labelAttributes(row.attributes, attributeDefs),
+        // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
+        category: category ? { id: category.id, name: category.nameTr } : null,
       },
       company: {
         name: company.name,
@@ -451,6 +458,7 @@ export class PublicProfileService {
         logoUrl: company.logoUrl,
         industry: company.industry,
         activities: company.activities,
+        verified: company.companyVerificationStatus === "VERIFIED",
       },
     };
   }
@@ -496,6 +504,7 @@ export class PublicProfileService {
         logoUrl: true,
         industry: true,
         activities: true,
+        companyVerificationStatus: true,
         publicEnabled: true,
         isActive: true,
         isBlocked: true,

@@ -1,5 +1,5 @@
 import { ProductDetail } from "@/components/marketplace/product-detail";
-import { fetchProduct } from "@/lib/public/marketplace-api";
+import { fetchProduct, fetchRelatedProducts } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
@@ -59,10 +59,11 @@ export async function generateMetadata({
  */
 export default async function Page({ params }: { params: Params }) {
   const { slug, urunSlug } = await params;
-  const data = await fetchProduct(slug, urunSlug);
+  const [data, related] = await Promise.all([fetchProduct(slug, urunSlug), fetchRelatedProducts(slug, urunSlug)]);
   if (!data) notFound();
   return (
     <ProductDetail
+      related={related}
       product={data.product}
       company={data.company}
       companySlug={slug}

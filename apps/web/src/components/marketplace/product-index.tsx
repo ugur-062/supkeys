@@ -9,6 +9,7 @@ import {
   fetchProducts,
   type ProductListParams,
 } from "@/lib/public/marketplace-api";
+import { signupHref } from "@/lib/public/visibility";
 import { companyActivityLabel, isCompanyActivity } from "@rothern/shared";
 import Link from "next/link";
 
@@ -32,7 +33,16 @@ export interface ProductSearchParams {
   nitelik?: string | string[];
   /** Satıcının faaliyet tipi kodu. */
   faaliyet?: string;
+  /** `yeni` | `fiyat` (varsayılan uygunluk). */
+  sirala?: string;
+  /** `1` = yalnız doğrulanmış firmalar. */
+  dogrulanmis?: string;
+  /** `var` = fiyatı yazılı, `teklif` = teklifle. */
+  fiyat?: string;
 }
+
+const SORT: Record<string, ProductListParams["sort"]> = { yeni: "newest", fiyat: "price" };
+const PRICE: Record<string, ProductListParams["price"]> = { var: "has", teklif: "request" };
 
 /** Tekrarlanan parametre tek dize de gelebilir — her zaman diziye indirge. */
 function attrList(v: string | string[] | undefined): string[] {
@@ -52,6 +62,9 @@ export function toProductParams(
     category: /^\d{8}$/.test(fixedCategory ?? "") ? fixedCategory : undefined,
     city: sp.il?.trim() || undefined,
     ...(sp.faaliyet && isCompanyActivity(sp.faaliyet) ? { activity: sp.faaliyet } : {}),
+    ...(sp.sirala && SORT[sp.sirala] ? { sort: SORT[sp.sirala] } : {}),
+    ...(sp.dogrulanmis === "1" ? { verified: true } : {}),
+    ...(sp.fiyat && PRICE[sp.fiyat] ? { price: PRICE[sp.fiyat] } : {}),
     ...(attr.length ? { attr } : {}),
     page: Number.isFinite(page) && page > 1 ? Math.trunc(page) : undefined,
   };
@@ -85,22 +98,25 @@ export async function ProductIndex({
   const activeCity = params.city;
   const activeActivity = params.activity;
   const activeAttrs = params.attr ?? [];
-  const hasFilter = !!(params.q || activeCity || activeActivity || activeAttrs.length);
+  const activeSort = sp_sort(searchParams.sirala);
+  const activeVerified = params.verified === true;
+  const activePrice = searchParams.fiyat && PRICE[searchParams.fiyat] ? searchParams.fiyat : undefined;
+  const hasFilter = !!(params.q || activeCity || activeActivity || activeAttrs.length || activeVerified || activePrice);
 
   /**
    * Sorgu süzgeçleri (arama + şehir + faaliyet + nitelik) korunur; kategori
    * YOLDA. `attrs` verilmezse mevcut nitelik seçimleri aynen taşınır: sektör
    * değiştiren ya da sayfa çeviren ziyaretçi seçtiği nitelikleri kaybetmemeli.
    */
-  const withQuery = (
-    path: string,
-    patch: { q?: string; il?: string; faaliyet?: string } = {},
-    attrs: string[] = activeAttrs,
-  ) => {
+  type Patch = { q?: string; il?: string; faaliyet?: string; sirala?: string; dogrulanmis?: string; fiyat?: string };
+  const withQuery = (path: string, patch: Patch = {}, attrs: string[] = activeAttrs) => {
     const next: Record<string, string | undefined> = {
       q: searchParams.q,
       il: searchParams.il,
       faaliyet: activeActivity,
+      sirala: activeSort,
+      dogrulanmis: activeVerified ? "1" : undefined,
+      fiyat: activePrice,
       ...patch,
     };
     const sp = new URLSearchParams();
@@ -109,8 +125,7 @@ export async function ProductIndex({
     const s = sp.toString();
     return s ? `${path}?${s}` : path;
   };
-  const filterHref = (patch: { q?: string; il?: string; faaliyet?: string } = {}) =>
-    withQuery(basePath, patch);
+  const filterHref = (patch: Patch = {}) => withQuery(basePath, patch);
   /** Bir nitelik değerini açar/kapatır (aynı bağlantı iki yönlü çalışır). */
   const attrHref = (key: string, value: string) => {
     const entry = `${key}:${value}`;
@@ -125,6 +140,10 @@ export async function ProductIndex({
     ...(activeCity ? [{ key: "il", label: activeCity, href: filterHref({ il: undefined }) }] : []),
     ...(activeActivity
       ? [{ key: "faaliyet", label: companyActivityLabel(activeActivity), href: filterHref({ faaliyet: undefined }) }]
+      : []),
+    ...(activeVerified ? [{ key: "dogrulanmis", label: "Doğrulanmış", href: filterHref({ dogrulanmis: undefined }) }] : []),
+    ...(activePrice
+      ? [{ key: "fiyat", label: activePrice === "var" ? "Fiyatı yazılı" : "Teklifle", href: filterHref({ fiyat: undefined }) }]
       : []),
     // Etiket olarak DEĞER gösterilir: "Paslanmaz çelik" tek başına okunur,
     // "malzeme:Paslanmaz çelik" makine dili gibi durur.
@@ -159,9 +178,38 @@ export async function ProductIndex({
       }}
       chips={chips}
       clearHref={category ? MARKETPLACE_ROUTES.products : basePath}
-      summary={page.total > 0 ? `${page.total.toLocaleString("tr-TR")} ürün` : undefined}
+      summary={
+        <span className="flex flex-wrap items-center justify-between gap-3">
+          <span>{page.total > 0 ? `${page.total.toLocaleString("tr-TR")} ürün` : ""}</span>
+          <span className="flex items-center gap-1 text-xs">
+            <span className="text-zinc-400">Sırala:</span>
+            {[
+              { k: undefined, l: "Uygunluk" },
+              { k: "yeni", l: "En yeni" },
+              { k: "fiyat", l: "Fiyat" },
+            ].map((o) => (
+              <Link
+                key={o.l}
+                href={filterHref({ sirala: o.k })}
+                aria-current={activeSort === o.k ? "true" : undefined}
+                className={`rounded-full px-2.5 py-1 font-medium transition ${
+                  activeSort === o.k ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100"
+                }`}
+              >
+                {o.l}
+              </Link>
+            ))}
+          </span>
+        </span>
+      }
       sidebar={
         <>
+          <FacetGroup
+            heading="Firma profili"
+            items={[
+              { key: "v", label: "Doğrulanmış", count: page.total, href: filterHref({ dogrulanmis: activeVerified ? undefined : "1" }), active: activeVerified },
+            ]}
+          />
           <FacetGroup
             heading="Kategori"
             items={facets.categories.slice(0, 12).map((c) => ({
@@ -198,6 +246,13 @@ export async function ProductIndex({
               active: activeActivity === a.activity,
             }))}
           />
+          <FacetGroup
+            heading="Fiyat"
+            items={[
+              { key: "var", label: "Fiyatı yazılı", count: page.total, href: filterHref({ fiyat: activePrice === "var" ? undefined : "var" }), active: activePrice === "var" },
+              { key: "teklif", label: "Teklifle", count: page.total, href: filterHref({ fiyat: activePrice === "teklif" ? undefined : "teklif" }), active: activePrice === "teklif" },
+            ]}
+          />
           {/* Nitelik süzgeçleri yalnız kategori sayfasında dolu gelir —
               nitelikler kategoriye özgü; kategorisiz listede her ürün
               başka bir alan kümesi taşır ve süzgeç anlamsızlaşır. */}
@@ -214,6 +269,12 @@ export async function ProductIndex({
               }))}
             />
           ))}
+          {/* Süreli satış ilanları header'dan çıktı (v2) — yan bağlantı burada. */}
+          <p className="mt-2 text-sm">
+            <Link href={MARKETPLACE_ROUTES.offers} className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
+              Süreli satış ilanları →
+            </Link>
+          </p>
         </>
       }
     >
@@ -221,6 +282,10 @@ export async function ProductIndex({
         <PublicEmptyState
           noun="Ürün"
           clearHref={hasFilter || category ? MARKETPLACE_ROUTES.products : undefined}
+          extra={{
+            label: params.q ? `"${params.q}" için talep aç` : "Bu ürün için talep aç",
+            href: signupHref("talep", params.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(params.q)}` : undefined),
+          }}
         />
       ) : (
         <ResultGrid count={page.items.length}>
@@ -228,9 +293,9 @@ export async function ProductIndex({
             <ProductCard
               key={`${p.company.slug}/${p.slug}`}
               companySlug={p.company.slug}
-              companyName={p.company.name}
-              companyCity={p.company.city}
+              company={{ name: p.company.name, city: p.company.city, verified: p.company.verified, activities: p.company.activities }}
               product={p}
+              cta="Bilgi iste"
             />
           ))}
         </ResultGrid>
@@ -242,9 +307,20 @@ export async function ProductIndex({
         total={page.total}
         pageSize={page.pageSize}
         basePath={basePath}
-        params={{ q: searchParams.q, il: searchParams.il, faaliyet: activeActivity }}
+        params={{ q: searchParams.q, il: searchParams.il, faaliyet: activeActivity, sirala: activeSort, dogrulanmis: activeVerified ? "1" : undefined, fiyat: activePrice }}
         repeated={{ nitelik: activeAttrs }}
       />
+      {/* Yüzen "Talep aç" (Europages "Get quotes") — listeyi gezen alıcı için. */}
+      <Link
+        href={signupHref("talep", params.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(params.q)}` : undefined)}
+        className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-zinc-800"
+      >
+        Talep aç
+      </Link>
     </PublicListPage>
   );
+}
+
+function sp_sort(v: string | undefined): string | undefined {
+  return v && SORT[v] ? v : undefined;
 }

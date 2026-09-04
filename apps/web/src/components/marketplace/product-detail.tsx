@@ -5,14 +5,23 @@ import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { productPrice } from "@/lib/public/product-price";
 import type {
+  ProductIndexCard,
   ProductPriceFields,
   PublicProduct,
   PublicProductCompany,
+  RelatedProducts,
 } from "@/lib/public/marketplace-api";
+import { categoryPath } from "@/lib/public/marketplace";
+import { CompanyLogo } from "@/components/company/company-logo";
+import { GatedField } from "./gated-field";
+import { RfqBanner } from "./rfq-banner";
+import { ProductCard } from "./product-card";
+import { companyActivityLabel } from "@rothern/shared";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
-  ArrowTopRightOnSquareIcon,
+  ArrowRightIcon,
+  CheckBadgeIcon,
   BuildingOffice2Icon,
   DocumentTextIcon,
   MapPinIcon,
@@ -33,10 +42,12 @@ export function ProductDetail({
   product,
   company,
   companySlug,
+  related = { fromCompany: { items: [], total: 0 }, similar: [], popular: [] },
 }: {
   product: PublicProduct;
   company: PublicProductCompany;
   companySlug: string;
+  related?: RelatedProducts;
 }) {
   const site = resolveSiteUrl();
   const url = `${site}/firma/${companySlug}/urun/${product.slug}`;
@@ -124,6 +135,9 @@ export function ProductDetail({
         <ProductBreadcrumb
           trail={[
             { label: "Anasayfa", href: "/" },
+            ...(product.category
+              ? [{ label: product.category.name, href: categoryPath(product.category.id, product.category.name) }]
+              : []),
             { label: company.name, href: `/firma/${companySlug}` },
           ]}
           current={product.name}
@@ -133,6 +147,9 @@ export function ProductDetail({
           product={product}
           company={company}
           companyHref={`/firma/${companySlug}`}
+          sellerSite={
+            <GatedField label="Firmanın web sitesi" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
+          }
           cta={
             <>
               {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası panelin
@@ -157,7 +174,22 @@ export function ProductDetail({
             </>
           }
         />
+
+        {/* İLİŞKİLİ BLOKLAR (Europages): firmanın diğerleri · benzer ürünler ·
+            kategoride yeni (görüntülenme verisi yok — "popüler" denmez). */}
+        <RelatedRow
+          heading={`Bu firmanın diğer ürünleri${related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}`}
+          items={related.fromCompany.items}
+          href={`/firma/${companySlug}#urunler`}
+          hrefLabel="Tümünü gör"
+        />
+        <RelatedRow heading="Benzer ürünler" items={related.similar} />
+        <RelatedRow
+          heading={product.category ? `${product.category.name} içinde yeni` : "Kategoride yeni"}
+          items={related.popular}
+        />
       </div>
+      <RfqBanner prefill={product.name} />
     </PublicLayout>
   );
 }
@@ -215,6 +247,7 @@ export function ProductDetailBody({
   companyHref,
   cta,
   priceBox,
+  sellerSite,
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
   product: PublicProduct & Partial<ProductPriceFields>;
@@ -227,6 +260,8 @@ export function ProductDetailBody({
    * `GatedField`). Verilmezse fiyat/MOQ/kademe tablosu çizilir (panel).
    */
   priceBox?: React.ReactNode;
+  /** "Firmanın web sitesi" satırı — public sayfada kapılı, panelde gerçek bağlantı. */
+  sellerSite?: React.ReactNode;
 }) {
   const price = productPrice({
     priceMode: product.priceMode,
@@ -389,6 +424,7 @@ export function ProductDetailBody({
                   {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
                 </p>
               ) : null}
+              {price.hasPrice ? <p className="mt-1 text-xs text-zinc-400">KDV hariç</p> : null}
 
               {price.tiers ? (
                 <table className="mt-4 w-full text-left text-sm">
@@ -423,15 +459,25 @@ export function ProductDetailBody({
                 Satıcı
               </h2>
               <div className="mt-3 flex items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-zinc-950/5">
-                  <BuildingOffice2Icon aria-hidden className="size-5 text-zinc-400" />
-                </span>
+                <CompanyLogo
+                  src={company.logoUrl}
+                  alt=""
+                  className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-zinc-950/5"
+                  fallback={
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-zinc-950/5">
+                      <BuildingOffice2Icon aria-hidden className="size-5 text-zinc-400" />
+                    </span>
+                  }
+                />
                 <div className="min-w-0">
                   <Link
                     href={companyHref}
-                    className="text-sm font-semibold text-zinc-950 hover:text-zinc-600"
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-950 hover:text-zinc-600"
                   >
                     {company.name}
+                    {company.verified ? (
+                      <CheckBadgeIcon aria-label="Doğrulanmış firma" className="size-4 text-emerald-600" />
+                    ) : null}
                   </Link>
                   {company.industry ? (
                     <p className="mt-0.5 text-xs text-zinc-500">{company.industry}</p>
@@ -442,21 +488,64 @@ export function ProductDetailBody({
                       {company.city}
                     </p>
                   ) : null}
+                  {company.activities.length > 0 ? (
+                    <p className="mt-2 flex flex-wrap gap-1">
+                      {company.activities.slice(0, 3).map((a) => (
+                        <span key={a} className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-950/5">
+                          {companyActivityLabel(a)}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null}
                 </div>
               </div>
-              {product.externalUrl ? (
-                <a
-                  href={product.externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-zinc-700 hover:text-zinc-950"
-                >
-                  Üreticinin ürün sayfası
-                  <ArrowTopRightOnSquareIcon aria-hidden className="size-3.5" />
-                </a>
+              {/* Web sitesi / dış bağlantı ÜYEYE (görünürlük v2) — varlığı
+                  söylenir, tıklaması giriş ister. */}
+              {product.externalUrl || sellerSite ? (
+                <div className="mt-4">{sellerSite ?? null}</div>
               ) : null}
             </div>
           </aside>
     </div>
+  );
+}
+
+
+/** Yatay ilişkili ürün satırı — boşsa çizilmez. */
+function RelatedRow({
+  heading,
+  items,
+  href,
+  hrefLabel,
+}: {
+  heading: string;
+  items: ProductIndexCard[];
+  href?: string;
+  hrefLabel?: string;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="mt-14">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-950">{heading}</h2>
+        {href ? (
+          <Link href={href} className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600">
+            {hrefLabel}
+            <ArrowRightIcon aria-hidden className="size-4" />
+          </Link>
+        ) : null}
+      </div>
+      <ul className="-mx-6 mt-5 flex snap-x gap-4 overflow-x-auto px-6 pb-2 lg:-mx-8 lg:px-8 [scrollbar-width:thin]">
+        {items.map((p) => (
+          <li key={`${p.company.slug}/${p.slug}`} className="w-60 shrink-0 snap-start">
+            <ProductCard
+              product={p}
+              companySlug={p.company.slug}
+              company={{ name: p.company.name, city: p.company.city, verified: p.company.verified, activities: p.company.activities }}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

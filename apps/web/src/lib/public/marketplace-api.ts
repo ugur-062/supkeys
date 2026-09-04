@@ -260,6 +260,8 @@ export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
    * Kategori tanımı bulunamayan anahtar bu listede YOKTUR.
    */
   attributeList: { key: string; label: string; value: string; unit: string | null }[];
+  /** Kırıntı için kategori adı. */
+  category?: { id: string; name: string } | null;
   publishedAt: string | null;
   updatedAt: string;
 }
@@ -272,6 +274,7 @@ export interface PublicProductCompany {
   logoUrl: string | null;
   industry: string | null;
   activities: string[];
+  verified?: boolean;
 }
 
 export interface PublicProductPage {
