@@ -46,7 +46,6 @@ const FORBIDDEN_KEYS = [
   // Görünürlük katmanı (2026-09-04): ziyaretçiye fiyat ve kalem gövdesi yok.
   "buyNowPrice",
   "buyNowUnitPrice",
-  "quantity",
   "specification",
   "brand",
   "mpn",
@@ -178,9 +177,11 @@ describe("pazar yeri — kapalı zarf yapısal güvence", () => {
     const res = await service().getByNumber(listing.number as string);
     expectNoForbidden(res);
     expect(res.title).toBe("Çelik Boru Alımı");
-    // Kalem ADI gider (kapsam) ama gövdesi ve alıcının bütçesi GİTMEZ.
-    expect(res.itemPreview[0]).toBe("Dikişsiz boru");
-    expect(res).not.toHaveProperty("items");
+    // v2: kalem MİKTARI gider (ölçek), ADI ve gövdesi GİTMEZ.
+    expect(res.items[0]).not.toHaveProperty("name");
+    expect(res.items[0].quantity).toBeDefined();
+    expect(res.itemSummary.count).toBe(res.items.length);
+    expect(JSON.stringify(res)).not.toContain("Dikişsiz boru");
     expect(JSON.stringify(res)).not.toContain("99000");
     expect(JSON.stringify(res)).not.toContain("120");
   });

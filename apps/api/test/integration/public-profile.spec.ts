@@ -54,15 +54,15 @@ describe("PublicProfile getBySlug — INV-TIER-1 (T7)", () => {
 });
 
 /**
- * GÖRÜNÜRLÜK KATMANI (2026-09-04): herkese açık profil YALNIZ anonim
- * katmanı döndürür. Rakip analizi / kazıyıcı değeri taşıyan alanlar
- * (Rothern ID, kuruluş, çalışan, puan, hizmet, sertifika, iletişim) panelde.
+ * GÖRÜNÜRLÜK v2 (2026-09-04): profil TAMAMEN gezilebilir (kuruluş, çalışan,
+ * Hakkında, hizmet, sertifika, ortalama puan). ÜYEYE kalan: Rothern ID,
+ * iletişim/web, puan dağılımı, sipariş sayıları, değerlendirme metinleri.
  */
-describe("PublicProfile getBySlug — anonim katman", () => {
+describe("PublicProfile getBySlug — v2 anonim katman", () => {
   const PROSE =
-    "Endüstriyel elektrik panoları ve şalt malzemeleri üretiyoruz. 1998'den beri OSB'lerde anahtar teslim projeler yürütüyoruz.\nİkinci satır: İstanbul ve Kocaeli'de iki tesisimiz var.\nÜçüncü satır buraya sığmamalı.";
+    "Endüstriyel elektrik panoları ve şalt malzemeleri üretiyoruz. 1998'den beri OSB'lerde anahtar teslim projeler yürütüyoruz.";
 
-  it("kimlik ve ölçüm alanları yanıtta YOK", async () => {
+  it("açık alanlar VAR, üye alanları YOK", async () => {
     const slug = await publicCompany({
       aboutText: PROSE,
       foundedYear: 1998,
@@ -72,41 +72,24 @@ describe("PublicProfile getBySlug — anonim katman", () => {
       website: "https://ornek.com",
     });
     const res = (await svc.getBySlug(slug)) as Record<string, unknown>;
-    for (const k of [
-      "rothernId",
-      "foundedYear",
-      "employeeCount",
-      "services",
-      "certifications",
-      "certificateImages",
-      "website",
-      "linkedinUrl",
-      "instagramUrl",
-      "rating",
-      "reviewSummary",
-      "aboutText",
-    ]) {
+    expect(res.aboutText).toBe(PROSE);
+    expect(res.foundedYear).toBe(1998);
+    expect(res.employeeCount).toBe("50-100");
+    expect(res.services).toEqual(["Montaj"]);
+    expect(res.certifications).toEqual(["ISO 9001"]);
+    expect(res).toHaveProperty("ratingAvg");
+    expect(res).toHaveProperty("productCount");
+    for (const k of ["rothernId", "website", "linkedinUrl", "instagramUrl", "rating", "reviewSummary"]) {
       expect(res).not.toHaveProperty(k);
     }
-    expect(res.name).toBeTruthy();
-    expect(res).toHaveProperty("verified");
-    expect(res).toHaveProperty("goldMember");
-  });
-
-  it("Hakkında yalnız ilk 2 satır + kesildi bayrağı", async () => {
-    const slug = await publicCompany({ aboutText: PROSE });
-    const res = (await svc.getBySlug(slug)) as { aboutExcerpt: string; aboutTruncated: boolean };
-    expect(res.aboutTruncated).toBe(true);
-    expect(res.aboutExcerpt).not.toContain("Üçüncü satır");
-    expect(res.aboutExcerpt).toContain("Endüstriyel elektrik");
   });
 
   it("test verisi (anlamsız harf dizisi) Hakkında olarak HİÇ dönmez", async () => {
     const slug = await publicCompany({
       aboutText: "PSKDFMOKANDFASJNMFOJKANSFOJMAPSKDFMOKANDFASJNMFOJKANSFOJMA",
     });
-    const res = (await svc.getBySlug(slug)) as { aboutExcerpt: string | null };
-    expect(res.aboutExcerpt).toBeNull();
+    const res = (await svc.getBySlug(slug)) as { aboutText: string | null };
+    expect(res.aboutText).toBeNull();
   });
 
   it("kategoriler L1 adıyla çözülür", async () => {
@@ -120,6 +103,47 @@ describe("PublicProfile getBySlug — anonim katman", () => {
     const slug = await publicCompany({ sellerCategoryIds: ["39000000"] });
     const res = (await svc.getBySlug(slug)) as { categories: { id: string; name: string }[] };
     expect(res.categories).toEqual([{ id: "39000000", name: "Elektrik Malzemeleri" }]);
+  });
+});
+
+describe("PublicProfile publicDirectory — listelenme koşulu", () => {
+  const PROSE =
+    "Endüstriyel elektrik panoları ve şalt malzemeleri üretiyoruz. 1998'den beri OSB'lerde anahtar teslim projeler yürütüyoruz.";
+
+  it("boş profil listelenmez; tamlık ≥ %60 VEYA yayında ürün listelenir", async () => {
+    await publicCompany({ name: "Boş Firma" }); // tamlık düşük, ürün yok
+    await publicCompany({
+      name: "Dolu Firma",
+      aboutText: PROSE,
+      logoUrl: "l.png",
+      coverImageUrl: "c.png",
+      services: ["Montaj"],
+      photos: ["p.png"],
+      foundedYear: 1998,
+      employeeCount: "10-50",
+      city: "İzmir",
+      industry: "Elektrik",
+    });
+    const res = await svc.publicDirectory({});
+    expect(res.items.map((i) => i.name)).toEqual(["Dolu Firma"]);
+    expect(res.items[0]).not.toHaveProperty("rothernId");
+    expect(res.items[0]).toHaveProperty("productCount");
+    expect(res.items[0]).toHaveProperty("verified");
+  });
+
+  it("test verili Hakkında tamlığa sayılmaz", async () => {
+    await publicCompany({
+      name: "Sahte Firma",
+      aboutText: "PSKDFMOKANDFASJNMFOJKANSFOJMAPSKDFMOKANDFASJNMFOJKANSFOJMA",
+      logoUrl: "l.png",
+      coverImageUrl: "c.png",
+      services: ["Montaj"],
+      photos: ["p.png"],
+      foundedYear: 1998,
+      employeeCount: "10-50",
+    });
+    // 11 alanın 6'sı dolu (Hakkında sayılmadı) → %55 < 60 → listelenmez.
+    expect((await svc.publicDirectory({})).total).toBe(0);
   });
 });
 
@@ -138,7 +162,6 @@ describe("PublicProfile directorySummary — sayı var, kimlik yok", () => {
     const res = await svc.directorySummary();
     expect(res.verifiedCompanies).toBe(2);
     expect(res.topCategories).toEqual([{ id: "39000000", name: "Elektrik Malzemeleri", count: 2 }]);
-    // Firma adı/slug'ı yok — özet kimlik taşımaz.
     expect(JSON.stringify(res)).not.toMatch(/firma-\d+/);
   });
 });

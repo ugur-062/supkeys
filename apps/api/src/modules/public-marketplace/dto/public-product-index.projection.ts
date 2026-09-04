@@ -17,8 +17,7 @@ import { Prisma } from "@rothern/db";
  *
  * Dışarıda kalanlar `public-product.projection.ts` ile aynı gerekçelerle:
  * `code` (envanter yapısı), `targetPrice` (ALIŞ hedefi = maliyet),
- * `completionScore` (iç kalite ölçütü), cuid `id` — ve fiyat/MOQ: anonim
- * ziyaretçiye fiyat DÖNMEZ (gerekçe `public-product.projection.ts`).
+ * `completionScore` (iç kalite ölçütü), cuid `id`. Fiyat/MOQ AÇIK (v2).
  */
 export const PRODUCT_INDEX_SELECT = {
   slug: true,
@@ -28,7 +27,12 @@ export const PRODUCT_INDEX_SELECT = {
   unit: true,
   categoryId: true,
   priceMode: true,
+  priceAmount: true,
+  priceTiers: true,
+  priceCurrency: true,
+  moq: true,
   publishedAt: true,
+  completionScore: true,
   company: {
     select: {
       name: true,
@@ -36,6 +40,8 @@ export const PRODUCT_INDEX_SELECT = {
       city: true,
       country: true,
       industry: true,
+      activities: true,
+      companyVerificationStatus: true,
     },
   },
 } satisfies Prisma.CompanyItemSelect;
@@ -52,11 +58,18 @@ export interface ProductIndexCard {
   unit: string;
   categoryId: string | null;
   priceMode: string;
+  priceAmount: string | null;
+  priceTiers: unknown;
+  priceCurrency: string;
+  moq: string | null;
   company: {
     name: string;
     slug: string;
     city: string | null;
     country: string | null;
+    activities: string[];
+    /** KYC tamam — kartta "Doğrulanmış" tiki. */
+    verified: boolean;
   };
 }
 
@@ -70,6 +83,10 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
     unit: r.unit,
     categoryId: r.categoryId,
     priceMode: r.priceMode,
+    priceAmount: r.priceAmount?.toString() ?? null,
+    priceTiers: r.priceTiers,
+    priceCurrency: r.priceCurrency,
+    moq: r.moq?.toString() ?? null,
     company: {
       // Kapı (`publicProductWhere`) slug'sız firmayı zaten eliyor; boş dize
       // yalnız tip daraltması için.
@@ -77,6 +94,8 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
       slug: r.company.slug ?? "",
       city: r.company.city,
       country: r.company.country,
+      activities: r.company.activities,
+      verified: r.company.companyVerificationStatus === "VERIFIED",
     },
   };
 }

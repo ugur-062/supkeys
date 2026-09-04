@@ -1,5 +1,11 @@
 import { Prisma } from "@rothern/db";
-import { categoryPrefix, isCategoryCode, tokenizeQuery } from "@rothern/shared";
+import {
+  categoryPrefix,
+  isCategoryCode,
+  isCompanyActivity,
+  profileCompleteness,
+  tokenizeQuery,
+} from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -13,7 +19,12 @@ import {
   labelAttributes,
   resolveCategoryAttributes,
 } from "../../common/company/category-attributes";
-import { publicExcerpt } from "../../common/company/public-text-quality";
+import { looksLikeProse } from "../../common/company/public-text-quality";
+import {
+  REVIEW_SUMMARY_SELECT,
+  REVIEW_SUMMARY_TAKE,
+  buildReviewSummary,
+} from "../company-reviews/review-summary";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
@@ -30,22 +41,16 @@ export class PublicProfileService {
   constructor(private readonly prisma: PrismaBypassService) {}
 
   /**
-   * ANONİM ziyaretçi projeksiyonu (görünürlük katmanı, 2026-09-04).
+   * HERKESE AÇIK FİRMA PROFİLİ — v2 (2026-09-04, Europages kalıbı, kullanıcı
+   * kararı): profil TAMAMEN gezilebilir. Ziyaretçi ad, şehir, faaliyet tipi,
+   * kategoriler, logo/kapak/galeri, Hakkında (tam), hizmetler, sertifikalar,
+   * kuruluş yılı, çalışan aralığı ve ORTALAMA puanı (tek sayı) görür.
    *
-   * Herkese açık sayfalar statik/ISR üretilir ve oturum tanımaz; bu uç
-   * yalnız ZİYARETÇİ katmanını döndürür. Üye görünümü panelde
-   * (`/company/firma/[id]`, `company-connections` ucu) — orada bugün ne
-   * görünüyorsa o kalır.
+   * ÜYEYE KALAN: Rothern ID, web/sosyal/iletişim, puan DAĞILIMI ve sipariş
+   * sayıları, değerlendirme metinleri, açık talep/ilan listesi. Bunlar
+   * projeksiyonda YOK — `null` bile değil (anahtar adı RSC yüküne düşer).
    *
-   * DIŞARIDA (rakip analizi / kazıyıcı değeri taşır, SEO'ya katkısı yok):
-   *   rothernId · foundedYear · employeeCount · değerlendirme puanı ve
-   *   dağılımı · sipariş sayıları · hizmetler · sertifikalar · web/sosyal
-   *   bağlantılar · tam "Hakkında".
-   * İÇERİDE (arama motoruna yeten kimlik): ad · şehir/ülke · sektör ·
-   *   faaliyet tipi · kategoriler · logo/kapak/galeri · Hakkında'nın ilk
-   *   2 satırı · Doğrulanmış / Gold Üye rozetleri.
-   *
-   * "Hakkında" düzyazı sezgisinden geçmiyorsa (test verisi) HİÇ dönmez —
+   * Test verisi (düzyazı sezgisinden geçmeyen Hakkında) HİÇ dönmez:
    * `common/company/public-text-quality.ts`.
    */
   async getBySlug(slug: string) {
@@ -62,7 +67,12 @@ export class PublicProfileService {
         logoUrl: true,
         coverImageUrl: true,
         aboutText: true,
+        services: true,
+        certifications: true,
+        certificateImages: true,
         photos: true,
+        foundedYear: true,
+        employeeCount: true,
         buyerCategoryIds: true,
         sellerCategoryIds: true,
         publicEnabled: true,
@@ -75,17 +85,23 @@ export class PublicProfileService {
       },
     });
     // Kapı TEK KAYNAK (`common/company/public-profile-gate.ts`): sitemap ve
-    // pazar yeri kartındaki ad bağlantısı AYNI kararı verir. Admin bloğu da
-    // buradan geçer — blok yalnız isBlocked set eder, isActive/publicEnabled'a
-    // dokunmaz.
+    // pazar yeri kartındaki ad bağlantısı AYNI kararı verir.
     if (!c || !hasPublicProfile({ ...c, tier: c.tier as string })) {
       throw new NotFoundException("Profil bulunamadı");
     }
-    const about = publicExcerpt(c.aboutText);
-    const categories = await this.resolveCategoryNames([
-      ...c.sellerCategoryIds,
-      ...c.buyerCategoryIds,
+    const [categories, reviewRows, productCount] = await Promise.all([
+      this.resolveCategoryNames([...c.sellerCategoryIds, ...c.buyerCategoryIds]),
+      this.prisma.companyReview.findMany({
+        where: { targetCompanyId: c.id },
+        select: REVIEW_SUMMARY_SELECT,
+        orderBy: { createdAt: "desc" },
+        take: REVIEW_SUMMARY_TAKE,
+      }),
+      this.prisma.companyItem.count({
+        where: { ...publicProductWhere(), companyId: c.id },
+      }),
     ]);
+    const summary = buildReviewSummary(reviewRows, { revealNames: false });
     return {
       name: c.name,
       slug: c.slug,
@@ -96,19 +112,184 @@ export class PublicProfileService {
       logoUrl: c.logoUrl,
       coverImageUrl: c.coverImageUrl,
       photos: c.photos,
-      aboutExcerpt: about.excerpt,
-      aboutTruncated: about.truncated,
+      aboutText: looksLikeProse(c.aboutText) ? c.aboutText : null,
+      services: c.services,
+      certifications: c.certifications,
+      certificateImages: c.certificateImages,
+      foundedYear: c.foundedYear,
+      employeeCount: c.employeeCount,
       categories,
+      productCount,
+      // Ortalama TEK SAYI; dağılım ve sipariş sayıları üyeye (ticari ilişki
+      // haritası). Değerlendirme yoksa null — "0,0" yazmak puan kırar.
+      ratingAvg: summary.orders > 0 ? summary.avg : null,
       updatedAt: c.updatedAt,
-      // Faz T: "Gold Üye" rozeti (yalnız GOLD; güven iddiası TAŞIMAZ —
-      // adlandırma bilinçli "Gold Üye").
+      // Faz T: "Gold Üye" rozeti (yalnız GOLD; güven iddiası TAŞIMAZ).
       goldMember:
         effectiveTier(c.tier as string, c.membershipEndAt as Date | null) ===
         "GOLD",
-      // KYC tamam — "Doğrulanmış" rozeti (Europages'in Verified'ı). Yalnız
-      // admin `setVerification` ile VERIFIED yazar; otomatik yol yok.
+      // KYC tamam — "Doğrulanmış" rozeti. Yalnız admin `setVerification`.
       verified: c.companyVerificationStatus === "VERIFIED",
     };
+  }
+
+  /**
+   * HERKESE AÇIK FİRMA DİZİNİ (v2, 2026-09-04 — kullanıcı kararı; 2 Eylül'de
+   * girişli yapılmıştı). Listelenme koşulu profil kapısı + (≥1 yayında ürün
+   * VEYA profil tamlığı ≥ %60): boş profil dizini şişirmez, test verili
+   * profil görünmez. Tamlık `@rothern/shared` `profileCompleteness` — Profilim
+   * ile AYNI hesap. Süzme bellekte (tamlık hesaplanan bir değer, tavan 5000).
+   */
+  async publicDirectory(q: {
+    q?: string;
+    city?: string;
+    category?: string;
+    activity?: string;
+    verified?: boolean;
+    hasProducts?: boolean;
+    page?: number;
+  }) {
+    const pageSize = 24;
+    const page = Math.max(1, q.page ?? 1);
+    const tokens = q.q ? tokenizeQuery(q.q) : [];
+    const rows = await this.prisma.company.findMany({
+      where: {
+        publicEnabled: true,
+        isActive: true,
+        isBlocked: false,
+        slug: { not: null },
+        ...anyPackageWhere(),
+        ...(q.city ? { city: q.city } : {}),
+        ...(q.activity && isCompanyActivity(q.activity)
+          ? { activities: { has: q.activity } }
+          : {}),
+        ...(q.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
+        ...(q.category && isCategoryCode(q.category)
+          ? {
+              OR: [
+                { buyerCategoryIds: { has: q.category } },
+                { buyerSubCategoryIds: { has: q.category } },
+                { sellerCategoryIds: { has: q.category } },
+                { sellerSubCategoryIds: { has: q.category } },
+              ],
+            }
+          : {}),
+        ...(tokens.length
+          ? {
+              AND: tokens.map((t) => ({
+                OR: [
+                  { name: { contains: t, mode: "insensitive" as const } },
+                  { industry: { contains: t, mode: "insensitive" as const } },
+                  { aboutText: { contains: t, mode: "insensitive" as const } },
+                  { services: { has: t } },
+                ],
+              })),
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        city: true,
+        country: true,
+        industry: true,
+        activities: true,
+        logoUrl: true,
+        coverImageUrl: true,
+        aboutText: true,
+        services: true,
+        photos: true,
+        foundedYear: true,
+        employeeCount: true,
+        website: true,
+        buyerCategoryIds: true,
+        sellerCategoryIds: true,
+        companyVerificationStatus: true,
+        updatedAt: true,
+        items: {
+          where: publicProductWhere(),
+          select: { slug: true, name: true, images: true },
+          orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+          take: 3,
+        },
+        _count: { select: { items: { where: publicProductWhere() } } },
+      },
+      orderBy: [{ updatedAt: "desc" }],
+      take: 5000,
+    });
+    const eligible = rows.filter((r) => {
+      const productCount = r._count.items;
+      if (q.hasProducts && productCount === 0) return false;
+      if (productCount > 0) return true;
+      return profileCompleteness({ ...r, aboutText: looksLikeProse(r.aboutText) ? r.aboutText : null }).pct >= 60;
+    });
+    const total = eligible.length;
+    const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
+    const catNames = await this.resolveCategoryNames(
+      slice.flatMap((r) => [...r.sellerCategoryIds, ...r.buyerCategoryIds].slice(0, 1)),
+    );
+    const nameById = new Map(catNames.map((c) => [c.id, c.name]));
+    return {
+      items: slice.map((r) => {
+        const main = [...r.sellerCategoryIds, ...r.buyerCategoryIds].find((id) => nameById.has(id));
+        return {
+          name: r.name,
+          slug: r.slug as string,
+          city: r.city,
+          country: r.country,
+          industry: r.industry,
+          activities: r.activities,
+          logoUrl: r.logoUrl,
+          verified: r.companyVerificationStatus === "VERIFIED",
+          mainCategory: main ? { id: main, name: nameById.get(main) as string } : null,
+          productCount: r._count.items,
+          productPreview: r.items.map((i) => ({ slug: i.slug ?? "", name: i.name, image: i.images[0] ?? null })),
+        };
+      }),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /** Dizin süzgeç sayaçları — listelenme koşulundan geçenler üzerinden. */
+  async publicDirectoryFacets() {
+    const rows = await this.publicDirectoryAll();
+    const cities = new Map<string, number>();
+    const activities = new Map<string, number>();
+    let verified = 0;
+    let withProducts = 0;
+    for (const r of rows) {
+      const city = r.city?.trim();
+      if (city) cities.set(city, (cities.get(city) ?? 0) + 1);
+      for (const a of new Set(r.activities)) activities.set(a, (activities.get(a) ?? 0) + 1);
+      if (r.verified) verified += 1;
+      if (r.productCount > 0) withProducts += 1;
+    }
+    return {
+      total: rows.length,
+      verified,
+      withProducts,
+      cities: [...cities.entries()]
+        .map(([city, count]) => ({ city, count }))
+        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+      activities: [...activities.entries()]
+        .map(([activity, count]) => ({ activity, count }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
+  /** Listelenme koşulundan geçen tüm kartlar (facet ve anasayfa seçkisi için). */
+  async publicDirectoryAll() {
+    const first = await this.publicDirectory({ page: 1 });
+    const pages = Math.ceil(first.total / first.pageSize);
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(0, Math.min(pages, 10) - 1) }, (_, i) =>
+        this.publicDirectory({ page: i + 2 }),
+      ),
+    );
+    return [...first.items, ...rest.flatMap((r) => r.items)];
   }
 
   /**

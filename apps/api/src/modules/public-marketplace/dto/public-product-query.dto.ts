@@ -1,6 +1,7 @@
 import { Transform } from "class-transformer";
 import {
   ArrayMaxSize,
+  IsIn,
   IsArray,
   IsInt,
   IsOptional,
@@ -35,6 +36,21 @@ export class PublicProductQueryDto {
   @MaxLength(60)
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
+
+  /** Sıralama — `relevance` (tamamlanma + yeni), `newest`, `price` (artan; fiyatsızlar sonda). */
+  @IsOptional()
+  @IsIn(["relevance", "newest", "price"])
+  sort?: "relevance" | "newest" | "price";
+
+  /** Yalnız kimliği doğrulanmış firmaların ürünleri. */
+  @IsOptional()
+  @IsIn(["1"])
+  verified?: string;
+
+  /** `has` = fiyatı yazılı ürünler, `request` = teklifle. */
+  @IsOptional()
+  @IsIn(["has", "request"])
+  price?: "has" | "request";
 
   /** Satıcının faaliyet tipi (CompanyActivity kodu); tanınmayan kod yok sayılır. */
   @IsOptional()

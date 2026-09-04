@@ -1,6 +1,7 @@
 import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common";
 import { MarketplaceLiveGuard } from "../../common/http/marketplace-live.guard";
 import { PublicProductQueryDto } from "./dto/public-product-query.dto";
+import { PublicDirectoryQueryDto } from "./dto/public-directory-query.dto";
 import { Throttle } from "@nestjs/throttler";
 import { PublicProfileService } from "./public-profile.service";
 
@@ -47,9 +48,28 @@ export class PublicProfileController {
   }
 
   /**
-   * Anonim dizin özeti — sayı + kategori dağılımı, kimlik yok. Dizinin
-   * kendisi `company/directory` (JWT). Statik rota ":slug"den ÖNCE.
+   * HERKESE AÇIK FİRMA DİZİNİ (v2) — pazar yeri anahtarına tabi. Listelenme
+   * koşulu serviste. Statik rotalar ":slug"den ÖNCE.
    */
+  @Get("directory")
+  @UseGuards(MarketplaceLiveGuard)
+  @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
+  directory(@Query() q: PublicDirectoryQueryDto) {
+    return this.service.publicDirectory({
+      ...q,
+      verified: q.verified === "1",
+      hasProducts: q.hasProducts === "1",
+    });
+  }
+
+  @Get("directory/facets")
+  @UseGuards(MarketplaceLiveGuard)
+  @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=1800")
+  directoryFacets() {
+    return this.service.publicDirectoryFacets();
+  }
+
+  /** Anonim dizin özeti — sayı + kategori dağılımı. Statik rota ":slug"den ÖNCE. */
   @Get("summary")
   @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=3600")
   summary() {

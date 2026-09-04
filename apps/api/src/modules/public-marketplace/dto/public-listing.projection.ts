@@ -29,8 +29,8 @@ import { Prisma } from "@rothern/db";
  *   ziyaretçi HİÇBİR fiyat görmez, fiyat üyeye. Sayfa "Fiyat için giriş
  *   yapın" gösterir; JSON-LD Offer fiyatsız kalır (olmayan fiyat yazılmaz).
  *
- * `items[]` gövdesi (miktar/marka/şartname/tarih) — 2026-09-04'te çıktı.
- *   Ziyaretçi yalnız `itemCount` + ilk 3 kalem ADI görür (`itemPreview`).
+ * `items[]` gövdesi — v2 (2026-09-04): satır = sıra + miktar + birim; AD,
+ *   marka, şartname, tarih üyeye. Toplam miktar özeti `itemSummary`.
  *
  * `terms` / `paymentNote` (serbest metin)
  *   Sahip buraya IBAN, telefon, e-posta yazabiliyor; panelde maskeli
@@ -101,7 +101,8 @@ export const PUBLIC_LISTING_SELECT = {
     select: {
       lineNo: true,
       images: true,
-      name: true,
+      quantity: true,
+      unit: true,
     },
     orderBy: { lineNo: "asc" },
   },
@@ -138,17 +139,26 @@ export interface PublicListingCompany {
 }
 
 /**
- * KALEM LİSTESİ ANONİME KAPALI (görünürlük katmanı, 2026-09-04).
+ * KALEM SATIRLARI — MİKTAR AÇIK, AD GİZLİ (v2, 2026-09-04 kullanıcı kararı).
  *
- * Miktar/marka/şartname/hemen-al birim fiyatı bir alım talebinin ticari
- * özüdür ("40 ton çelik boru" = üretim planı). Ziyaretçi KAPSAMI görür:
- * kalem SAYISI + ilk üç kalemin ADI (SEO için yeterli, istihbarat için
- * değil). Tam liste panelde (`GET company/listings/:id`). Aynı gerekçeyle
- * `buyNowPrice` (hemen-al) de yanıttan çıktı: ziyaretçiye fiyat yok.
- *
- * Prisma select'te `items` DURUR — kapak türetimi (`deriveCover`) ve sayım
- * oradan; yanıta yalnız `itemCount` + `itemPreview` çıkar.
+ * Ziyaretçi "Kalem 1 · 500 adet" görür: kapsamı ve ölçeği anlar, ne
+ * istendiğini bilmez — ad, marka, şartname, hemen-al fiyatı üyeye. Özet
+ * (`itemSummary`) toplam miktarı YALNIZ tüm kalemler aynı birimdeyse verir;
+ * karışık birimde toplam uydurulmaz, yalnız sayı.
  */
+export interface PublicListingItemRow {
+  lineNo: number;
+  quantity: string;
+  unit: string;
+}
+
+export interface PublicListingItemSummary {
+  count: number;
+  /** Tüm kalemler aynı birimdeyse toplam; değilse null. */
+  totalQuantity: string | null;
+  unit: string | null;
+}
+
 export interface PublicListing {
   number: string;
   type: "ALIM" | "SATIS";
@@ -186,8 +196,9 @@ export interface PublicListing {
   /** Arama motoru dizinlemesine sahip tarafından izin verildi mi. */
   indexable: boolean;
   itemCount: number;
-  /** İlk üç kalemin adı — kapsam, miktar değil. */
-  itemPreview: string[];
+  itemSummary: PublicListingItemSummary;
+  /** Satırlar: sıra + miktar + birim; AD YOK. */
+  items: PublicListingItemRow[];
   company: PublicListingCompany;
   /** Kategori kodlarının çözülmüş adları (kod → ad); eksik kod atlanır. */
   categories: { id: string; name: string; level: number }[];
@@ -205,7 +216,7 @@ export type PublicListingCard = Pick<
   | "primaryCurrency"
   | "isInternational"
   | "itemCount"
-  | "itemPreview"
+  | "itemSummary"
   | "company"
   | "categories"
   | "coverImageUrl"
@@ -215,15 +226,21 @@ export type PublicListingCard = Pick<
 };
 
 
-/** Kapsam önizlemesi — ad dışında hiçbir kalem alanı taşımaz. */
-export function itemPreviewOf(
-  items: { lineNo: number; name: string }[],
-  max = 3,
-): string[] {
+type ItemQty = { lineNo: number; quantity: Prisma.Decimal; unit: string };
+
+export function itemRowsOf(items: ItemQty[]): PublicListingItemRow[] {
   return [...items]
     .sort((a, b) => a.lineNo - b.lineNo)
-    .slice(0, max)
-    .map((i) => i.name);
+    .map((i) => ({ lineNo: i.lineNo, quantity: i.quantity.toString(), unit: i.unit }));
+}
+
+export function itemSummaryOf(items: ItemQty[]): PublicListingItemSummary {
+  const units = new Set(items.map((i) => i.unit));
+  if (items.length === 0 || units.size !== 1) {
+    return { count: items.length, totalQuantity: null, unit: null };
+  }
+  const total = items.reduce((s, i) => s.plus(i.quantity), new Prisma.Decimal(0));
+  return { count: items.length, totalQuantity: total.toString(), unit: items[0].unit };
 }
 
 export function toPublicCompany(

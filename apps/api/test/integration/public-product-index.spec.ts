@@ -26,11 +26,6 @@ const FORBIDDEN = [
   "companyId",
   "isPublic",
   "isActive",
-  // Görünürlük katmanı (2026-09-04): fiyat/MOQ anonim ziyaretçiye gitmez.
-  "priceAmount",
-  "priceTiers",
-  "priceCurrency",
-  "moq",
   "searchText",
 ];
 
@@ -129,6 +124,14 @@ describe("ürün dizini — kapı", () => {
   it("slug'ı olmayan ürün listede yok — URL'i kurulamaz", async () => {
     await seedProduct({}, { slug: null });
     expect((await service().listProducts({})).total).toBe(0);
+  });
+
+  it("fiyat, MOQ ve Doğrulanmış tiki kartta VAR (v2 — vitrin fiyatıyla vitrindir)", async () => {
+    await seedProduct({}, { priceMode: "FIXED", priceAmount: "41000", priceCurrency: "TRY", moq: "5" });
+    const res = await service().listProducts({});
+    expect(res.items[0].priceAmount).toBe("41000");
+    expect(res.items[0].moq).toBe("5");
+    expect(res.items[0].company).toHaveProperty("verified");
   });
 
   it("maliyet ve iç ölçütler karta SIZMAZ", async () => {
@@ -274,5 +277,65 @@ describe("ürün dizini — kapı", () => {
     const f = await service().productFacets();
     expect(f.cities.find((c) => c.city === "Bursa")?.count).toBe(1);
     expect(f.truncated).toBe(false);
+  });
+});
+
+/** v2 uçları: seçki, ilişkili bloklar, öneri, sayı şeridi. */
+describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("seçki: aynı firmadan en fazla 2, doğrulanmış önce", async () => {
+    const { company } = await seedProduct({ companyVerificationStatus: "UNVERIFIED" }, { name: "A1" });
+    await prisma.companyItem.create({
+      data: {
+        companyId: company.id, createdById: (await prisma.companyUser.findFirstOrThrow({ where: { companyId: company.id } })).id,
+        name: "A2", unit: "adet", slug: "a2", isPublic: true, publishedAt: new Date(), images: ["x.webp"], searchText: "a2",
+      },
+    });
+    await prisma.companyItem.create({
+      data: {
+        companyId: company.id, createdById: (await prisma.companyUser.findFirstOrThrow({ where: { companyId: company.id } })).id,
+        name: "A3", unit: "adet", slug: "a3", isPublic: true, publishedAt: new Date(), images: ["x.webp"], searchText: "a3",
+      },
+    });
+    await seedProduct({ companyVerificationStatus: "VERIFIED" }, { name: "B1" });
+    const out = await service().featuredProducts(10);
+    expect(out[0].name).toBe("B1");
+    expect(out.filter((c) => c.company.slug === company.slug)).toHaveLength(2);
+  });
+
+  it("ilişkili: firmanın diğerleri + benzer (farklı firma) + kategoride yeni", async () => {
+    const { company, product } = await seedProduct({}, { categoryId: "39121000", slug: "base" });
+    await prisma.companyItem.create({
+      data: {
+        companyId: company.id, createdById: (await prisma.companyUser.findFirstOrThrow({ where: { companyId: company.id } })).id,
+        name: "Aynı firma", unit: "adet", slug: "ayni", isPublic: true, publishedAt: new Date(), images: ["x.webp"], searchText: "ayni", categoryId: "39121000",
+      },
+    });
+    await seedProduct({}, { categoryId: "39121500", name: "Benzer" });
+    await seedProduct({}, { categoryId: "40171501", name: "Uzak" });
+    const rel = await service().relatedProducts(company.slug as string, product.slug as string);
+    expect(rel.fromCompany.total).toBe(1);
+    expect(rel.similar.map((c) => c.name)).toEqual(["Benzer"]);
+    expect(rel.popular.map((c) => c.name)).not.toContain("Uzak");
+    await expect(service().relatedProducts("yok", "yok")).rejects.toThrow(/bulunamadı/);
+  });
+
+  it("öneri: ürün + firma; kısa sorgu boş", async () => {
+    await seedProduct({ name: "Pano Sanayi" }, { name: "Dağıtım panosu", searchText: "dagitim panosu" });
+    const s = await service().suggest("pano");
+    expect(s.products.map((p) => p.name)).toContain("Dağıtım panosu");
+    expect(s.companies.map((c) => c.name)).toContain("Pano Sanayi");
+    expect(await service().suggest("p")).toEqual({ products: [], categories: [], companies: [] });
+  });
+
+  it("sayı şeridi gerçek sayımlar", async () => {
+    await seedProduct();
+    const st = await service().stats();
+    expect(st.products).toBe(1);
+    expect(st.companies).toBe(1);
+    expect(st).toHaveProperty("openDemands");
   });
 });

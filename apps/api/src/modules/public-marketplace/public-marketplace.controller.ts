@@ -44,6 +44,34 @@ export class PublicMarketplaceController {
     return this.service.list(q);
   }
 
+  /** Anasayfa sayı şeridi — 10 dk önbellek. */
+  @Get("stats")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=1800")
+  stats() {
+    return this.service.stats();
+  }
+
+  /** Hero arama önerisi — kısa önbellek, sorgu başına. */
+  @Get("suggest")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=120, stale-while-revalidate=600")
+  suggest(@Query("q") q?: string) {
+    return this.service.suggest((q ?? "").slice(0, 80));
+  }
+
+  /** Anasayfa ürün seçkisi — doğrulanmış önce, firma başına 2. */
+  @Get("products/featured")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
+  featured() {
+    return this.service.featuredProducts();
+  }
+
+  /** Ürün sayfası ilişkili bloklar (firmanın diğerleri / benzer / kategoride yeni). */
+  @Get("products/:companySlug/:productSlug/related")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
+  related(@Param("companySlug") c: string, @Param("productSlug") p: string) {
+    return this.service.relatedProducts(c, p);
+  }
+
   /** Süzgeç sayaçları. Liste kadar sık değişmez → daha uzun önbellek. */
   @Get("listings/facets")
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")

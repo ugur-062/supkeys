@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { tokenizeQuery, categoryPrefix, isCompanyActivity } from "@rothern/shared";
+import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
   marketplaceIndexableWhere,
@@ -14,11 +14,13 @@ import {
   deriveCover,
   excerptOf,
   toPublicCompany,
-  itemPreviewOf,
+  itemRowsOf,
+  itemSummaryOf,
 } from "./dto/public-listing.projection";
 import type { PublicListQueryDto } from "./dto/public-list-query.dto";
 import type { PublicProductQueryDto } from "./dto/public-product-query.dto";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { anyPackageWhere } from "../../common/company/effective-tier";
 import {
   PRODUCT_INDEX_SELECT,
   toProductIndexCard,
@@ -78,7 +80,7 @@ export class PublicMarketplaceService {
       itemCount: row.items.length,
       coverImageUrl: deriveCover(row),
       excerpt: excerptOf(row.description),
-      itemPreview: itemPreviewOf(row.items),
+      itemSummary: itemSummaryOf(row.items),
       company: toPublicCompany(row.company),
       categories: row.categoryIds
         .map((id) => cats.get(id))
@@ -125,7 +127,8 @@ export class PublicMarketplaceService {
       // Sayfa bunu okuyup `noindex` basar; sitemap zaten sorguda süzüyor.
       indexable: row.publicIndexable && row.status === "OPEN",
       itemCount: row.items.length,
-      itemPreview: itemPreviewOf(row.items),
+      itemSummary: itemSummaryOf(row.items),
+      items: itemRowsOf(row.items),
       company: toPublicCompany(row.company),
       categories: row.categoryIds
         .map((id) => cats.get(id))
@@ -394,6 +397,14 @@ export class PublicMarketplaceService {
       ...(q.activity && isCompanyActivity(q.activity)
         ? [{ company: { activities: { has: q.activity } } }]
         : []),
+      ...(q.verified === "1"
+        ? [{ company: { companyVerificationStatus: "VERIFIED" as const } }]
+        : []),
+      ...(q.price === "has"
+        ? [{ priceMode: { in: ["FIXED" as const, "TIERED" as const] } }]
+        : q.price === "request"
+          ? [{ priceMode: "ON_REQUEST" as const }]
+          : []),
       ...this.attributeClauses(q.attr),
     ];
     const where: Prisma.CompanyItemWhereInput = {
@@ -407,15 +418,170 @@ export class PublicMarketplaceService {
       this.prisma.companyItem.findMany({
         where,
         select: PRODUCT_INDEX_SELECT,
-        // Eksiksiz ürün vitrinin yüzü — firma altı listeyle AYNI sıralama,
-        // ziyaretçi iki yerde farklı bir düzen görmesin.
-        orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+        // Varsayılan "uygunluk": eksiksiz ürün vitrinin yüzü — firma altı
+        // listeyle AYNI sıralama. `price` artan: fiyatsız (null) SONDA.
+        orderBy:
+          q.sort === "newest"
+            ? [{ publishedAt: "desc" }, { completionScore: "desc" }]
+            : q.sort === "price"
+              ? [{ priceAmount: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }]
+              : [{ completionScore: "desc" }, { publishedAt: "desc" }],
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
       }),
     ]);
 
     return { items: rows.map(toProductIndexCard), total, page, pageSize: PAGE_SIZE };
+  }
+
+  /**
+   * ANASAYFA ÜRÜN SEÇKİSİ — doğrulanmış firma önce, sonra tamamlanma ve tarih;
+   * aynı firmadan en fazla 2 ürün (tek firmanın kaydırıcıyı doldurmasın).
+   */
+  async featuredProducts(limit = 12): Promise<ProductIndexCard[]> {
+    const rows = await this.prisma.companyItem.findMany({
+      where: publicProductWhere(),
+      select: PRODUCT_INDEX_SELECT,
+      orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+      take: Math.min(limit * 6, 200),
+    });
+    const cards = rows.map(toProductIndexCard);
+    cards.sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
+    const perCompany = new Map<string, number>();
+    const out: ProductIndexCard[] = [];
+    for (const c of cards) {
+      const n = perCompany.get(c.company.slug) ?? 0;
+      if (n >= 2) continue;
+      perCompany.set(c.company.slug, n + 1);
+      out.push(c);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /**
+   * ÜRÜN SAYFASI İLİŞKİLİ BLOKLARI — tek uç, üç liste:
+   *   fromCompany: aynı firmanın diğer ürünleri (+ toplam),
+   *   similar: aynı alt kategori (L3 → L2 → L1 genişler), FARKLI firma,
+   *            doğrulanmış önce,
+   *   popular: kategoride "popüler" — görüntülenme verisi YOK, yedek EN YENİ
+   *            (uydurma sıralama yerine dürüst etiket: web "Kategoride yeni").
+   */
+  async relatedProducts(companySlug: string, productSlug: string) {
+    const base = await this.prisma.companyItem.findFirst({
+      where: { ...publicProductWhere(), slug: productSlug, company: { slug: companySlug } },
+      select: { id: true, companyId: true, categoryId: true },
+    });
+    if (!base) throw new NotFoundException("Ürün bulunamadı");
+    const [fromCompany, fromTotal] = await Promise.all([
+      this.prisma.companyItem.findMany({
+        where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
+        select: PRODUCT_INDEX_SELECT,
+        orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+        take: 8,
+      }),
+      this.prisma.companyItem.count({
+        where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
+      }),
+    ]);
+    let similar: typeof fromCompany = [];
+    const code = base.categoryId;
+    if (code && /^\d{8}$/.test(code)) {
+      for (const level of [`${code.slice(0, 6)}00`, `${code.slice(0, 4)}0000`, `${code.slice(0, 2)}000000`]) {
+        similar = await this.prisma.companyItem.findMany({
+          where: {
+            ...publicProductWhere(),
+            ...this.productCategoryWhere(level),
+            companyId: { not: base.companyId },
+          },
+          select: PRODUCT_INDEX_SELECT,
+          orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+          take: 8,
+        });
+        if (similar.length >= 4) break;
+      }
+    }
+    const popular = code
+      ? await this.prisma.companyItem.findMany({
+          where: {
+            ...publicProductWhere(),
+            ...this.productCategoryWhere(`${code.slice(0, 2)}000000`),
+            id: { not: base.id },
+          },
+          select: PRODUCT_INDEX_SELECT,
+          orderBy: [{ publishedAt: "desc" }],
+          take: 8,
+        })
+      : [];
+    const cards = (rows: typeof fromCompany) => {
+      const c = rows.map(toProductIndexCard);
+      c.sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
+      return c;
+    };
+    return {
+      fromCompany: { items: fromCompany.map(toProductIndexCard), total: fromTotal },
+      similar: cards(similar),
+      popular: popular.map(toProductIndexCard),
+    };
+  }
+
+  /**
+   * ARAMA ÖNERİSİ — hero kutusunda yazarken: ürün + kategori + firma.
+   * Kapılar liste uçlarıyla aynı; kategori yalnız discovery L2+.
+   */
+  async suggest(raw: string) {
+    const q = raw.trim();
+    if (q.length < 2) return { products: [], categories: [], companies: [] };
+    const tokens = tokenizeQuery(q);
+    const [products, categories, companies] = await Promise.all([
+      this.prisma.companyItem.findMany({
+        where: { ...publicProductWhere(), ...(tokens.length ? { AND: this.productSearchClauses(q) } : {}) },
+        select: { name: true, slug: true, company: { select: { slug: true } } },
+        orderBy: [{ completionScore: "desc" }],
+        take: 5,
+      }),
+      this.prisma.category.findMany({
+        where: {
+          inDiscovery: true,
+          level: { gte: 2 },
+          AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })),
+        },
+        select: { id: true, nameTr: true, level: true },
+        orderBy: [{ level: "asc" }],
+        take: 5,
+      }),
+      this.prisma.company.findMany({
+        where: {
+          publicEnabled: true,
+          isActive: true,
+          isBlocked: false,
+          slug: { not: null },
+          ...anyPackageWhere(),
+          name: { contains: q, mode: "insensitive" },
+        },
+        select: { name: true, slug: true, city: true },
+        take: 5,
+      }),
+    ]);
+    return {
+      products: products.map((p) => ({ name: p.name, slug: p.slug ?? "", companySlug: p.company.slug ?? "" })),
+      categories: categories.map((c) => ({ id: c.id, name: c.nameTr, level: c.level })),
+      companies: companies.map((c) => ({ name: c.name, slug: c.slug as string, city: c.city })),
+    };
+  }
+
+  /** Anasayfa sayı şeridi — gerçek sayımlar; eşiği web uygular. */
+  async stats() {
+    const now = new Date();
+    const [products, companies, categories, openDemands] = await Promise.all([
+      this.prisma.companyItem.count({ where: publicProductWhere() }),
+      this.prisma.company.count({
+        where: { publicEnabled: true, isActive: true, isBlocked: false, slug: { not: null }, ...anyPackageWhere() },
+      }),
+      this.prisma.category.count({ where: { inDiscovery: true, level: 1 } }),
+      this.prisma.listing.count({ where: { ...marketplaceListingWhere(now), status: "OPEN", type: "ALIM" } }),
+    ]);
+    return { products, companies, categories, openDemands };
   }
 
   /**
