@@ -820,6 +820,28 @@ color-contrast bulguları bu turda kapatıldı) · SEO 100; `/urunler` 75
 (loremflickr görselleri). Küçük metinde `text-zinc-400` KULLANMA —
 beyazda 2,6:1; en az zinc-500 (zinc-100 zeminde zinc-600).
 
+### Anasayfa hydration uyarısı = ÖLÜ GÖRSEL ADRESİ (2026-09-04, canlıda teşhis)
+
+www.rothern.com **anasayfasında** React #418 (kurtarılabilir hydration
+uyarısı) çıkıyor; diğer herkese açık sayfalar temiz. Kök neden veri:
+**iki firmanın logo/kapak adresi kapalı `pub-*.r2.dev` host'unda**
+(Demo Firma A.Ş., İkinci Firma Ltd). Tarayıcı görseli yükleyemiyor,
+`CompanyLogo` yedeğe düşüyor, sunucu HTML'i ile istemci render'ı ayrışıyor →
+React o ağacı yeniden çiziyor. Son DOM DOĞRU (düğüm düzeyinde birebir
+karşılaştırıldı), görünür kırık yok; maliyet fazladan bir istemci render'ı.
+
+Teşhis yolu (tekrar gerekirse): JS'siz sayfa DOM'u ile hydration sonrası
+DOM'u ÖZNİTELİK düzeyinde karşılaştır — fark doğrudan `<img src=…>` →
+yedek `<span>` olarak görünür. Elenen adaylar: sayılar/tarih metinleri,
+JSON-LD dizesi, `useId`, geçersiz HTML iç içeliği, önbellek bayatlığı,
+UA'ya göre farklı HTML (hepsi eşleşti).
+
+**Kalıcı çözüm veri tarafında:** `packages/db/prisma/scripts/
+migrate-public-images.ts` + Cloudflare custom domain (nesneler
+`cdn.rothern.com` üzerinden de 404 — bağlama/kopyalama adımı yapılmamış).
+Kod tarafında yamanacaksa doğru yer: herkese açık projeksiyonun
+yapılandırılmış public taban dışındaki görsel adreslerini hiç DÖNMEMESİ.
+
 ### Kategori fotoğrafları — 58/58 (2026-09-04, akşam)
 
 Kullanıcı: "kategori fotoğraflarını daha iyi yap". Tonlu ikon kutuları

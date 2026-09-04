@@ -36,11 +36,18 @@ export function ProductShowcase({
   lead?: string;
   groups: ShowcaseGroup[];
   /**
-   * Sekme/panel `id` ÖNEKİ — SABİT, `useId()` DEĞİL. Gerekçe (2026-09-04,
-   * canlıda ölçüldü): Next 15 akışlı metadata ile sunucunun ürettiği
-   * `useId` değeri (`_R_39brb_`) istemcide tutmuyor, React tüm bloğu
-   * yeniden çiziyor ve anasayfa hydration hatası (#418) veriyordu. Sayfada
-   * tek vitrin var; iki tane olacaksa çağıran farklı önek verir.
+   * Sekme/panel `id` ÖNEKİ — SABİT, `useId()` DEĞİL.
+   *
+   * DÜZELTME (2026-09-04): önce anasayfadaki hydration hatasının (#418)
+   * sebebi sanıldı, DEĞİLDİ — hata sürdü. Gerçek sebep ÖLÜ GÖRSEL ADRESİ:
+   * iki firmanın logo/kapağı kapalı `pub-*.r2.dev` host'unda; tarayıcı
+   * görseli yükleyemeyince `CompanyLogo` yedeğe düşüyor ve React sunucu
+   * HTML'iyle uyuşmazlık bildiriyor. Kalıcı çözüm veri tarafında
+   * (`scripts/migrate-public-images.ts` + Cloudflare custom domain).
+   *
+   * Sabit önek yine de KALIYOR: `useId` değeri her build'de değişir ve
+   * anlamsız bir sözleşmedir; sayfada tek vitrin var, iki tane olacaksa
+   * çağıran farklı önek verir.
    */
   idPrefix?: string;
 }) {

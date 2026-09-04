@@ -410,67 +410,67 @@ function BidsPreview() {
   );
 }
 
-function SaleListingPreview() {
-  // Kazandır sabit — satışta en YÜKSEK teklif kazanır (animasyon yok).
-  const offers = [
-    { n: "Alıcı X", a: "62.000 ₺", best: false },
-    { n: "Alıcı Y", a: "71.500 ₺", best: false },
-    { n: "Alıcı Z", a: "80.000 ₺", best: true },
+function ShowcasePreview() {
+  // Satış tarafı artık ÜRÜN VİTRİNİ: firma ürününü fiyat + minimum siparişle
+  // yayımlar, alıcı bilgi talebi gönderir. (Satış ilanı 2026-09-04'te kaldırıldı.)
+  const inquiries = [
+    { n: "Alıcı X", t: "Numune ve teslim süresi?", fresh: false },
+    { n: "Alıcı Y", t: "500 adet için fiyat?", fresh: true },
   ];
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
         <div>
-          <div className="tabular-nums text-xs font-medium text-zinc-400">
-            SATIŞ · ROT-000142
+          <div className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
+            Ürün vitrini
           </div>
           <div className="text-sm font-semibold text-zinc-900">
-            Fazla bakır · 5 ton
+            Bakır levha 2 mm · 1000×2000
           </div>
         </div>
         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-          Açık
+          Yayında
         </span>
       </div>
       <div className="mt-3 flex gap-2">
         <div className="flex-1 rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
-          <div className="text-xs text-zinc-400">Taban</div>
-          <div className="text-sm font-semibold text-zinc-900">50.000 ₺</div>
+          <div className="text-xs text-zinc-500">Fiyat</div>
+          <div className="text-sm font-semibold tabular-nums text-zinc-900">
+            860 ₺ / kg
+          </div>
         </div>
-        <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-          <div className="text-xs text-emerald-600">Hemen Al</div>
-          <div className="text-sm font-semibold text-emerald-800">80.000 ₺</div>
+        <div className="flex-1 rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+          <div className="text-xs text-zinc-500">Min. sipariş</div>
+          <div className="text-sm font-semibold tabular-nums text-zinc-900">
+            250 kg
+          </div>
         </div>
       </div>
       <div className="mt-4 text-xs font-medium text-zinc-500">
-        Size gelen teklifler
+        Gelen bilgi talepleri
       </div>
       <div className="mt-1.5 space-y-1.5">
-        {offers.map((o) => (
+        {inquiries.map((q) => (
           <div
-            key={o.n}
+            key={q.n}
             className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
-              o.best
-                ? "border-emerald-300 bg-emerald-50"
-                : "border-zinc-200"
+              q.fresh ? "border-emerald-300 bg-emerald-50" : "border-zinc-200"
             }`}
           >
-            <span className="text-xs font-medium text-zinc-700">{o.n}</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-zinc-900">{o.a}</span>
-              {o.best ? (
-                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-medium text-white">
-                  Kazandır
-                </span>
-              ) : null}
-            </div>
+            <span className="min-w-0 truncate text-xs text-zinc-700">
+              <span className="font-medium">{q.n}</span> · {q.t}
+            </span>
+            {q.fresh ? (
+              <span className="ml-2 shrink-0 rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-medium text-white">
+                Yanıtla
+              </span>
+            ) : null}
           </div>
         ))}
       </div>
     </div>
   );
 }
-
 function OrderTimelinePreview() {
   const tl = [
     { t: "Sipariş oluştu", state: "done" },
@@ -845,15 +845,15 @@ export default function HomePage() {
             {/* 1 — Tedarikçiysen sat (span-3) */}
             <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50 ring-1 ring-zinc-200 lg:col-span-3">
               <div className="p-6 pb-0">
-                <SaleListingPreview />
+                <ShowcasePreview />
               </div>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-zinc-950">
-                  Ürününü en yükseğe sat
+                  Ürününü vitrine koy
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
-                  Satış ilanı aç, taban ve hemen-al fiyatını belirle. Alıcılar
-                  yarışsın; en yüksek teklifi sen kazandır.
+                  Ürünlerini fiyat ve minimum siparişle yayımla; alıcılar bilgi
+                  talebi göndersin, açık taleplere teklif ver.
                 </p>
               </div>
             </div>
@@ -1061,8 +1061,8 @@ export default function HomePage() {
               Her ihtiyaca uygun format
             </p>
             <p className="mt-6 text-lg/8 text-zinc-600">
-              Alışta teklif toplama ya da pazarlık (açık eksiltme), satışta taban + hemen-al; doğru
-              formatı seç, kazandırma öncesi onay zincirini panel yönetsin.
+              Teklif toplama ya da pazarlık (açık eksiltme); doğru formatı seç,
+              kazandırma öncesi onay zincirini panel yönetsin.
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2">
@@ -1126,19 +1126,19 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Satış ilanı */}
+            {/* Ürün vitrini */}
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
               <div className="flex gap-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-100">
-                  <div className="text-xs text-zinc-400">Taban fiyat</div>
-                  <div className="text-sm font-semibold text-zinc-900">
-                    50.000 ₺
+                  <div className="text-xs text-zinc-500">Fiyat</div>
+                  <div className="text-sm font-semibold tabular-nums text-zinc-900">
+                    860 ₺ / kg
                   </div>
                 </div>
-                <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-                  <div className="text-xs text-emerald-600">Hemen Al</div>
-                  <div className="text-sm font-semibold text-emerald-800">
-                    80.000 ₺
+                <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-100">
+                  <div className="text-xs text-zinc-500">Min. sipariş</div>
+                  <div className="text-sm font-semibold tabular-nums text-zinc-900">
+                    250 kg
                   </div>
                 </div>
               </div>
@@ -1146,10 +1146,10 @@ export default function HomePage() {
                 Satış
               </span>
               <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                Satış ilanı
+                Ürün vitrini
               </h3>
               <p className="mt-1.5 text-sm/6 text-zinc-600">
-                Fazlanı ya da ürününü sat; taban fiyatını belirle.
+                Ürünlerini yayımla; alıcılar bulsun, bilgi talebi göndersin.
               </p>
             </div>
 
