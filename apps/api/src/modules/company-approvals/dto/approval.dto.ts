@@ -28,7 +28,6 @@ export enum ApprovalFlowStatusDto {
 
 export enum ListingTypeDto {
   ALIM = "ALIM",
-  SATIS = "SATIS",
 }
 
 export enum CompanyRoleDto {

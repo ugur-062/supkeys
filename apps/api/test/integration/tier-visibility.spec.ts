@@ -24,12 +24,12 @@ const bid = (itemId: string, unitPrice = 100) =>
     validityDays: 30,
   }) as never;
 
-async function publicListing(type: "ALIM" | "SATIS" = "ALIM") {
+async function publicListing() {
   const owner = await makeCompanyWithUser(prisma, { country: "TR" });
   const listing = await makeListing(prisma, {
     companyId: owner.company.id,
     createdById: owner.user.id,
-    type,
+    type: "ALIM",
     status: "OPEN",
     visibility: "PUBLIC",
     closesAt: FUTURE,

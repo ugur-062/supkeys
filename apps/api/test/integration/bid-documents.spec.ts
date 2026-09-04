@@ -117,42 +117,4 @@ describe("teklif belgeleri op-rol kapısı (ALIM → Satışçı)", () => {
       service.remove(bidder.auth, listing.id, docId),
     ).resolves.toMatchObject({ ok: true });
   });
-
-  it("kardeş simetrisi: SATIS ilanında kapı Satın Almacı'ya döner (placeBid kuralıyla aynı)", async () => {
-    const { service } = makeDocsRig();
-    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
-    const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
-    const listing = await makeListing(prisma, {
-      companyId: seller.company.id,
-      createdById: seller.user.id,
-      type: "SATIS",
-      status: "OPEN",
-      visibility: "PUBLIC",
-      format: "RFQ",
-      closesAt: FUTURE,
-    });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: bidder.company.id,
-      createdById: bidder.user.id,
-      amount: 500,
-      status: "DRAFT", // bkz. setup() — rol kapısı sınanıyor, gönderim kilidi değil
-    });
-    // Yalnız Satışçı rolü taşıyan üye SATIS ilanının teklif belgesine dokunamaz.
-    await expect(
-      service.requestUploadUrl(
-        withRoles(bidder.auth, [CompanyRole.SATISCI]),
-        listing.id,
-        { fileName: "a.pdf", mimeType: "application/pdf" },
-      ),
-    ).rejects.toThrow(/Satın Almacı rolü gerekir/);
-    // Satın Almacı geçer.
-    await expect(
-      service.requestUploadUrl(
-        withRoles(bidder.auth, [CompanyRole.SATIN_ALMACI]),
-        listing.id,
-        { fileName: "a.pdf", mimeType: "application/pdf" },
-      ),
-    ).resolves.toHaveProperty("key");
-  });
 });

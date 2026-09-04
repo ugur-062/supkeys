@@ -4,7 +4,7 @@
  * Sözleşme: (1) bid.amount ANA BİRİMDE Σ (kayıtlı fxToBase damgasıyla,
  * satır-başı 2 hane yuvarlama); (2) award'da para birimi başına AYRI sipariş
  * (sipariş tutarı KENDİ biriminde, çevrimsiz kesin Σ); (3) yalnız kapalı zarf
- * ALIM — açık eksiltme ve SATIS reddeder; (4) kur alınamazsa fail-closed.
+ * ALIM — açık eksiltme reddeder; (4) kur alınamazsa fail-closed.
  */
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
@@ -80,7 +80,7 @@ describe("kalem bazlı para birimi — placeBid", () => {
     expect(tryRow.fxToBase).toBeNull();
   });
 
-  it("kur alınamazsa FAIL-CLOSED reddedilir; açık eksiltme ve SATIS'ta kalem birimi yasak", async () => {
+  it("kur alınamazsa FAIL-CLOSED reddedilir; açık eksiltmede kalem birimi yasak", async () => {
     const { service, mocks, bidder, listing, item1, item2 } = await setup();
     mocks.exchangeRates.getFreshRate.mockRejectedValue(new Error("TCMB down"));
     await expect(

@@ -127,7 +127,7 @@ export class AssistantActionsService {
     sessionId: string,
     args: Record<string, unknown>,
   ): Promise<ProposeOutcome> {
-    const type = args.type === "SATIS" ? "SATIS" : "ALIM";
+    const type = "ALIM" as const;
     // Davetli (kapalı) yayın en az 1 davetli firma ister (iş kuralı) —
     // yalnız BAĞLANTILI firmalar davet edilebilir; burada önden doğrula.
     const rawCodes = Array.isArray(args.rothernIds)
@@ -492,7 +492,7 @@ export class AssistantActionsService {
   /** Taslak → CreateListingDto. Dönen string = kullanıcıya açıklanacak engel. */
   private async draftToCreateDto(
     user: AuthenticatedCompanyUser,
-    type: "ALIM" | "SATIS",
+    type: "ALIM",
     d: ReturnType<typeof sanitizeAiDraft>["draft"],
   ): Promise<CreateListingDto | string> {
     // Varsayılan teslimat adresi — ilan formunun zorunlu tuttuğu alan.

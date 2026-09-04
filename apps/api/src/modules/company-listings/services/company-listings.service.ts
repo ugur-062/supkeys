@@ -9,7 +9,6 @@ import {
 } from "@nestjs/common";
 import {
   CompanyRole,
-  ListingPriceScope,
   ListingType,
   Prisma,
   type Currency,
@@ -77,7 +76,7 @@ import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-ca
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
-import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
+import { PlaceBidDto } from "../dto/place-bid.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasFullReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
@@ -858,11 +857,6 @@ export class CompanyListingsService {
   private validateListingDates(dto: CreateListingDto) {
     if (dto.asDraft) return;
     if (!dto.closesAt) {
-      // Madde 23: SATIS ilanı SÜRESİZ açılabilir (kapanışsız). Cron
-      // `closesAt <= now` filtresi null'ı hiç yakalamaz, isListingClosedAt
-      // null'da "hiç kapanmaz" der — yaşam döngüsü sahibin manuel
-      // kapatması/kazandırmasıyla biter. ALIM'da kapanış zorunlu kalır.
-      if (dto.type === "SATIS") return;
       throw new BadRequestException("Kapanış tarihi zorunlu");
     }
     const close = new Date(dto.closesAt);
@@ -884,64 +878,8 @@ export class CompanyListingsService {
 
   /**
    * İlan oluştur. PAKET üyelik gerektirir (STANDARD yalnızca teklif verir,
-   * ilan/ihale açamaz). Rol-korumalı: ALIM → SATIN_ALMACI, SATIS → SATISCI.
+   * talep açamaz). Rol-korumalı: SATIN_ALMACI.
    */
-
-  /**
-   * SATIS fiyatlandırma doğrulaması (create + update ortak).
-   * TOPLU: ilan geneli taban zorunlu, hemen-al ≥ taban.
-   * KALEM: her kalemin taban BİRİM fiyatı zorunlu; kalem hemen-al ≥ kalem taban;
-   *        ilan geneli minPrice/buyNowPrice KULLANILMAZ (null yazılır).
-   */
-  private validateSatisPricing(dto: CreateListingDto): {
-    priceScope: ListingPriceScope;
-    minPrice: number | null;
-    buyNowPrice: number | null;
-  } {
-    const priceScope = (dto.priceScope ?? "TOPLU") as ListingPriceScope;
-    if (priceScope === "KALEM") {
-      if (!dto.items?.length) {
-        throw new BadRequestException(
-          "Kalem bazlı fiyatlandırma için en az bir kalem girin",
-        );
-      }
-      for (const it of dto.items) {
-        if (!it.minUnitPrice || it.minUnitPrice <= 0) {
-          throw new BadRequestException(
-            `"${it.name}" kalemi için taban birim fiyat girin`,
-          );
-        }
-        // KESİN büyük: eşitlikte taban ≤ teklif < hemen-al aralığı boş kalır
-        // ve hiçbir normal teklif verilemezdi (yalnız Hemen-Al mümkün olurdu).
-        if (
-          it.buyNowUnitPrice != null &&
-          it.buyNowUnitPrice <= it.minUnitPrice
-        ) {
-          throw new BadRequestException(
-            `"${it.name}" kaleminde hemen-al fiyatı taban fiyattan büyük olmalı`,
-          );
-        }
-      }
-      return { priceScope, minPrice: null, buyNowPrice: null };
-    }
-    // TOPLU
-    if (!dto.minPrice || dto.minPrice <= 0) {
-      throw new BadRequestException("Satış ilanı için taban fiyat girin");
-    }
-    // KESİN büyük — eşitlikte normal teklif aralığı boş kalır (yukarıdaki
-    // kalem kuralıyla aynı gerekçe).
-    if (dto.buyNowPrice != null && dto.buyNowPrice <= dto.minPrice) {
-      throw new BadRequestException(
-        "Hemen-al fiyatı taban fiyattan büyük olmalı",
-      );
-    }
-    return {
-      priceScope,
-      minPrice: dto.minPrice,
-      buyNowPrice: dto.buyNowPrice ?? null,
-    };
-  }
-
   /**
    * Ödeme planını doğrula + normalize et (create/update ortak, Faz 2).
    * Zamanlama kullanıcıdan ALINMAZ — plandan türetilir (derivePaymentTiming).
@@ -1073,13 +1011,10 @@ export class CompanyListingsService {
       lcConfirmed: category === "LETTER_OF_CREDIT" && (dto.lcConfirmed ?? false),
       paymentNote: note,
       paymentTiming: derivePaymentTiming(category),
-      // Teminat şartı yalnız ALIM + PEŞİN'de anlamlı (LC'de garanti zaten
-      // bankada; SATIS'ta kaldırıldı — madde 22). Diğer kombinasyonlarda
-      // sessizce false'a normalize (bayat bayrak sızmasın).
+      // Teminat şartı yalnız PEŞİN'de anlamlı (LC'de garanti zaten bankada).
+      // Diğer kombinasyonlarda sessizce false'a normalize (bayat bayrak sızmasın).
       requireGuaranteeLetter:
-        category === "ADVANCE" &&
-        dto.type !== "SATIS" &&
-        (dto.requireGuaranteeLetter ?? false),
+        category === "ADVANCE" && (dto.requireGuaranteeLetter ?? false),
     };
   }
 
@@ -1228,18 +1163,12 @@ export class CompanyListingsService {
       );
     }
 
-    // Tipe göre format / fiyat doğrulama. Format her iki yönde de zorunlu:
-    // ALIM'da İngiliz usulü DÜŞEN eksiltme, SATIS'ta YÜKSELEN artırma.
+    // Format zorunlu: İngiliz usulü DÜŞEN eksiltme.
     let format: ListingFormat | null = null;
-    let minPrice: number | null = null;
-    let buyNowPrice: number | null = null;
-    let priceScope: ListingPriceScope | null = null;
 
     if (!dto.format) {
       throw new BadRequestException(
-        type === "ALIM"
-          ? "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)"
-          : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
+        "Satın alma talebi için format seçin (Teklif Toplama / Pazarlık)",
       );
     }
     // İngiliz usulü doğrudan AÇILAMAZ — tek yol RFQ turu kapanınca "Yeni Tur"
@@ -1247,18 +1176,10 @@ export class CompanyListingsService {
     // soğuk-başlangıç eksiltme/artırma olmaz.
     if (dto.format === "ENGLISH_AUCTION") {
       throw new BadRequestException(
-        type === "ALIM"
-          ? "Pazarlık doğrudan açılamaz — ilanı teklif toplama olarak açın, 'Pazarlığa Geç' ile açık eksiltme turuna aktarın"
-          : "Açık artırma doğrudan açılamaz — ilanı teklif toplama olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık artırmaya aktarın",
+        "Pazarlık doğrudan açılamaz — talebi teklif toplama olarak açın, 'Pazarlığa Geç' ile açık eksiltme turuna aktarın",
       );
     }
     format = dto.format as ListingFormat;
-    if (type === "SATIS") {
-      const pricing = this.validateSatisPricing(dto);
-      priceScope = pricing.priceScope;
-      minPrice = pricing.minPrice;
-      buyNowPrice = pricing.buyNowPrice;
-    }
 
     const number = await this.nextListingNumber();
 
@@ -1303,9 +1224,6 @@ export class CompanyListingsService {
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
-          priceScope,
-          minPrice,
-          buyNowPrice,
           visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
@@ -1374,10 +1292,6 @@ export class CompanyListingsService {
               warrantyMonths: it.warrantyMonths ?? null,
               hsCode: it.hsCode?.trim() || null,
               targetPrice: it.targetPrice ?? null,
-              minUnitPrice:
-                priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
-              buyNowUnitPrice:
-                priceScope === "KALEM" ? (it.buyNowUnitPrice ?? null) : null,
               materialCode: it.materialCode?.trim() || null,
               images: (it.images ?? []).map((u) => u.trim()).filter(Boolean),
               requiredByDate: it.requiredByDate
@@ -1425,7 +1339,7 @@ export class CompanyListingsService {
 
   /**
    * İlanı düzenle (eski sistemdeki updateDraft kuralı): ilanı açan doğru-taraf
-   * operatörü (ALIM→Satın Almacı, SATIS→Satışçı) veya firma sahibi; ilan
+   * operatörü (Satın Almacı) veya firma sahibi; talep
    * AÇIK/TASLAK ve henüz SUBMITTED teklif gelmemişken. İlk teklif gelince
    * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler ve davetler
    * tamamen yeniden yazılır (sil-ve-oluştur).
@@ -1492,8 +1406,6 @@ export class CompanyListingsService {
     // Tür değişmez — mevcut türe göre format/fiyat doğrula (create ile aynı).
     const type = existing.type;
     let format: ListingFormat | null = null;
-    let minPrice: number | null = null;
-    let buyNowPrice: number | null = null;
     if (!dto.format) {
       throw new BadRequestException(
         type === "ALIM"
@@ -1514,13 +1426,6 @@ export class CompanyListingsService {
       );
     }
     format = dto.format as ListingFormat;
-    let priceScope: ListingPriceScope | null = null;
-    if (type === "SATIS") {
-      const pricing = this.validateSatisPricing(dto);
-      priceScope = pricing.priceScope;
-      minPrice = pricing.minPrice;
-      buyNowPrice = pricing.buyNowPrice;
-    }
 
     // Davet edilecek firmaları çöz (create ile aynı kural).
     let inviteCompanyIds: string[] = [];
@@ -1586,9 +1491,6 @@ export class CompanyListingsService {
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
-          priceScope,
-          minPrice,
-          buyNowPrice,
           visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
@@ -1670,10 +1572,6 @@ export class CompanyListingsService {
               warrantyMonths: it.warrantyMonths ?? null,
               hsCode: it.hsCode?.trim() || null,
               targetPrice: it.targetPrice ?? null,
-              minUnitPrice:
-                priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
-              buyNowUnitPrice:
-                priceScope === "KALEM" ? (it.buyNowUnitPrice ?? null) : null,
               materialCode: it.materialCode?.trim() || null,
               images: (it.images ?? []).map((u) => u.trim()).filter(Boolean),
               requiredByDate: it.requiredByDate
@@ -1805,13 +1703,7 @@ export class CompanyListingsService {
     // (a) kapanış tarihi zorunlu + gelecekte — yoksa cron kapatamaz / anında
     //     kapanır; (b) PRIVATE ilan en az 1 davetli olmadan yayınlanamaz
     //     (kimsenin göremeyeceği açık ilan olmasın).
-    // Madde 23: SATIS ilanı kapanışsız (süresiz) yayınlanabilir.
-    if (listing.closesAt && listing.closesAt.getTime() <= Date.now()) {
-      throw new BadRequestException(
-        "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
-      );
-    }
-    if (!listing.closesAt && listing.type !== "SATIS") {
+    if (!listing.closesAt || listing.closesAt.getTime() <= Date.now()) {
       throw new BadRequestException(
         "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
       );
@@ -2047,9 +1939,7 @@ export class CompanyListingsService {
       status: b.status,
       round: b.round,
       version: b.version,
-      isBuyNow: b.isBuyNow,
       createdAt: b.createdAt,
-      // ALIM: taahhüt edilen teslim; SATIS: istenen teslim (yön etiketi UI'da).
       deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
       deliveryTime: b.deliveryTime,
       orderId: orderByListing.get(b.listingId) ?? null,
@@ -2298,9 +2188,6 @@ export class CompanyListingsService {
       closesAt: true,
       createdAt: true,
       companyId: true,
-      priceScope: true,
-      minPrice: true,
-      buyNowPrice: true,
       company: { select: { name: true, city: true } },
       _count: { select: { items: true } },
       // Kapak: sahibin seçtiği görsel, yoksa ilk kalemin ilk görseli
@@ -2445,10 +2332,6 @@ export class CompanyListingsService {
         connected,
         myBidStatus: bid?.status ?? null,
         myBidVersion: bid?.version ?? null,
-        // SATIS: taban + hemen-al (maskelide fiyat sızdırılmaz).
-        priceScope: l.priceScope,
-        minPrice: masked ? null : (l.minPrice?.toString() ?? null),
-        buyNowPrice: masked ? null : (l.buyNowPrice?.toString() ?? null),
         categoryMatch: matchesMyCategories(l.categoryIds),
         categories: l.categoryIds
           .slice(0, 2)
@@ -2732,11 +2615,7 @@ export class CompanyListingsService {
       ? englishAgg.filter((b) => bidCoversAllItems(b.items.length, items.length))
       : null;
     const englishRanked = englishComparable
-      ? this.rankAuctionBids(
-          englishComparable,
-          listing.auctionRateSnapshot,
-          listing.type === "SATIS",
-        )
+      ? this.rankAuctionBids(englishComparable, listing.auctionRateSnapshot, false)
       : null;
     const englishBest = englishRanked?.[0] ?? null;
     const english:
@@ -2784,13 +2663,10 @@ export class CompanyListingsService {
       hsCode: it.hsCode,
       // CC-1: hedef/istenen fiyat non-owner'a YALNIZCA sahip opt-in ettiyse
       // gösterilir (varsayılan gizli — çıpalama riski). Sahip yolu (detail) ayrı,
-      // hep görür. minUnitPrice/buyNowUnitPrice (SATIS tabanı) bilerek açık kalır.
+      // hep görür.
       targetPrice: listing.showTargetToSuppliers
         ? (it.targetPrice?.toString() ?? null)
         : null,
-      // SATIS + KALEM fiyatlandırma (maskeli görünümde items zaten boş).
-      minUnitPrice: it.minUnitPrice?.toString() ?? null,
-      buyNowUnitPrice: it.buyNowUnitPrice?.toString() ?? null,
       materialCode: it.materialCode,
       requiredByDate: it.requiredByDate ? it.requiredByDate.toISOString() : null,
       questions: it.questions.map((q) => ({
@@ -2820,8 +2696,6 @@ export class CompanyListingsService {
       hsCode: null,
       description: null,
       targetPrice: null,
-      minUnitPrice: null,
-      buyNowUnitPrice: null,
       materialCode: null,
       requiredByDate: null,
       questions: [] as { id: string; text: string; answerType: string; required: boolean }[],
@@ -2906,11 +2780,7 @@ export class CompanyListingsService {
       // (rankAuctionBids: Decimal + TRY-normalize). Eski ham `Number(a.amount)-
       // Number(b.amount)` karışık kurda kur normalize ETMEDEN sıralıyordu → 100 USD
       // (~3000 TRY) 3000 TRY'nin altında görünüp sahip yanlış firmaya kazandırırdı.
-      const rankedBids = this.rankAuctionBids(
-        bids,
-        listing.auctionRateSnapshot,
-        listing.type === "SATIS",
-      );
+      const rankedBids = this.rankAuctionBids(bids, listing.auctionRateSnapshot, false);
       return {
         ...this.detail(listing, false),
         // İstemci bunu bir sonraki istekte If-None-Match ile geri gönderir.
@@ -2971,11 +2841,9 @@ export class CompanyListingsService {
                   ?.toFixed(2) ?? null
               : null,
           note: b.note,
-          isBuyNow: b.isBuyNow,
           status: b.status,
           round: b.round,
           createdAt: b.createdAt,
-          // ALIM: satıcının taahhüdü; SATIS: alıcının istediği teslim.
           deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
           deliveryTime: b.deliveryTime,
           validityDays: b.validityDays,
@@ -3140,7 +3008,7 @@ export class CompanyListingsService {
       const ownLast =
         myBid && myBid.status === "SUBMITTED" ? myBid.amount : null;
       nextBidConstraint = {
-        direction: listing.type === "SATIS" ? "UP" : "DOWN",
+        direction: "DOWN" as const,
         currencyLocked: ownLast != null,
         ownCurrency: ownLast != null ? myBid!.currency : null,
         ownLastTotal: ownLast?.toString() ?? null,
@@ -3182,7 +3050,6 @@ export class CompanyListingsService {
             amount: myBid.amount.toString(),
             note: myBid.note,
             status: myBid.status,
-            isBuyNow: myBid.isBuyNow,
             version: myBid.version,
             submittedAt: myBid.submittedAt
               ? myBid.submittedAt.toISOString()
@@ -3411,12 +3278,8 @@ export class CompanyListingsService {
     const comparable = rows.filter((b) =>
       bidCoversAllItems(b.items.length, listingItemCount),
     );
-    // ALIM = ters eksiltme (düşük en iyi), SATIS = açık artırma (yüksek en iyi).
-    const bids = this.rankAuctionBids(
-      comparable,
-      listingRateSnapshot,
-      listingType === "SATIS",
-    );
+    // Ters eksiltme: düşük en iyi.
+    const bids = this.rankAuctionBids(comparable, listingRateSnapshot, false);
     const wantsBest =
       visibility === "BEST_PRICE" ||
       visibility === "BEST_AND_OWN_RANK" ||
@@ -3468,47 +3331,6 @@ export class CompanyListingsService {
       "DPU",
       "DDP",
     ]);
-
-  /**
-   * SATIS teklifindeki alıcı teslimat adresini doğrular; upsert'e yazılacak
-   * id'yi döner. ALIM'da adres kabul edilmez (teslimat adresi ilanın kendisinde).
-   */
-  private async resolveBidDeliveryAddress(
-    companyId: string,
-    listingType: ListingType,
-    deliveryTerm: string | null,
-    dtoAddressId: string | undefined,
-    isDraft: boolean,
-  ): Promise<string | null> {
-    let addressId: string | null = null;
-    if (dtoAddressId) {
-      if (listingType !== "SATIS") {
-        throw new BadRequestException(
-          "Teslimat adresi yalnız satış ilanına verilen teklifte girilir",
-        );
-      }
-      const addr = await this.prisma.companyAddress.findUnique({
-        where: { id: dtoAddressId },
-        select: { companyId: true, type: true },
-      });
-      if (!addr || addr.companyId !== companyId || addr.type === "FATURA") {
-        throw new BadRequestException("Geçersiz teslimat adresi");
-      }
-      addressId = dtoAddressId;
-    }
-    if (
-      !isDraft &&
-      listingType === "SATIS" &&
-      deliveryTerm &&
-      CompanyListingsService.BUYER_ADDRESS_REQUIRED_TERMS.has(deliveryTerm) &&
-      !addressId
-    ) {
-      throw new BadRequestException(
-        "Bu ilanda teslim şekli adrese teslim — teklif göndermek için teslimat adresi seçin",
-      );
-    }
-    return addressId;
-  }
 
   /**
    * İlana yazılan teslimat/fatura adres id'leri istek sahibinin KENDİ adres
@@ -3596,8 +3418,6 @@ export class CompanyListingsService {
         status: true,
         requireAllItems: true,
         requireBidDocument: true,
-        minPrice: true,
-        buyNowPrice: true,
         currentRound: true,
         primaryCurrency: true,
         allowedCurrencies: true,
@@ -3841,9 +3661,7 @@ export class CompanyListingsService {
       !(isAuctionFormat && carriedHasDelivery)
     ) {
       throw new BadRequestException(
-        listing.type === "SATIS"
-          ? "İstenen teslim süresi zorunlu (süre girmediğiniz kalemler için)"
-          : "Teslim süresi zorunlu (süre girmediğiniz kalemler için)",
+        "Teslim süresi zorunlu (süre girmediğiniz kalemler için)",
       );
     }
     // Gönderimde teslim tarihi geçmişte olamaz.
@@ -3854,16 +3672,8 @@ export class CompanyListingsService {
     ) {
       throw new BadRequestException("Teslim tarihi geçmişte olamaz");
     }
-    // SATIS: alıcının teslimat adresi. Verilmişse sahiplik + tip doğrulanır
-    // (IDOR); adrese-teslim şartlı ilanda gönderimde zorunlu — satıcı "nakliye
-    // dahil" taahhüt etti, nereye teslim edeceğini bilmeli.
-    const deliveryAddressId = await this.resolveBidDeliveryAddress(
-      user.companyId,
-      listing.type,
-      listing.deliveryTerm,
-      dto.deliveryAddressId,
-      isDraft,
-    );
+    // Teslimat adresi: yalnız eski satış ilanı tekliflerinde vardı (kaldırıldı).
+    const deliveryAddressId: string | null = null;
     // Gönderimde belge zorunluysa teklifin en az bir belgesi olmalı
     // (akış: taslak kaydet → belge yükle → gönder).
     if (!isDraft && listing.requireBidDocument) {
@@ -3889,8 +3699,6 @@ export class CompanyListingsService {
         id: true,
         name: true,
         quantity: true,
-        minUnitPrice: true,
-        buyNowUnitPrice: true,
         // Faz 3: muadil izni — tedarikçinin beyanı buna göre kabul/düşürülür.
         alternativeAllowed: true,
         questions: { select: { id: true, required: true, text: true } },
@@ -4166,70 +3974,8 @@ export class CompanyListingsService {
         toListingCurrency = bidRate.div(listingRate);
       }
     }
-    const needsFloorCheck =
-      !isDraft &&
-      listing.type === "SATIS" &&
-      (listing.minPrice != null ||
-        listing.buyNowPrice != null ||
-        listingItems.some(
-          (li) => li.minUnitPrice != null || li.buyNowUnitPrice != null,
-        ));
-    if (needsFloorCheck && toListingCurrency == null) {
-      throw new BadRequestException(
-        "Güncel kur bilgisi yok (TCMB) — teklifiniz taban fiyatla karşılaştırılamıyor. Lütfen daha sonra tekrar deneyin veya teklifi ilanın para biriminde verin",
-      );
-    }
-    const inListingCur = (v: Prisma.Decimal | number): Prisma.Decimal =>
-      new Prisma.Decimal(v).mul(toListingCurrency ?? 1);
-
-    // SATIS: taban fiyatın ALTINDA gönderilmiş teklif kabul edilmez
-    // (taslakta serbest — kullanıcı formda düzeltir).
-    if (
-      needsFloorCheck &&
-      listing.minPrice != null &&
-      inListingCur(amount).lt(listing.minPrice)
-    ) {
-      throw new BadRequestException(
-        `Teklif taban fiyatın (${Number(listing.minPrice).toLocaleString("tr-TR")} ${curSym}) altında olamaz`,
-      );
-    }
-    // SATIS + hemen-al: hemen-al fiyatı tavandır — ona eşit/üzeri teklif
-    // yerine Hemen Al kullanılır (anında o fiyattan teklif oluşturur).
-    if (
-      needsFloorCheck &&
-      listing.buyNowPrice != null &&
-      inListingCur(amount).gte(listing.buyNowPrice)
-    ) {
-      throw new BadRequestException(
-        `Teklifiniz Hemen-Al fiyatına (${Number(listing.buyNowPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu fiyattan almak için Hemen Al'ı kullanın`,
-      );
-    }
-    // SATIS + KALEM fiyatlandırma: fiyatlanan her kalem kendi tabanının
-    // altına inemez; kalem hemen-al fiyatına eşit/üzeri birim fiyat yerine
-    // o kalem Hemen Al ile alınır. (Taslakta serbest.)
-    if (needsFloorCheck && bidItemsData.length > 0) {
-      for (const bi of bidItemsData) {
-        const li = itemById.get(bi.itemId);
-        if (!li) continue;
-        const unitPriceCmp = inListingCur(bi.unitPrice);
-        if (li.minUnitPrice != null && unitPriceCmp.lt(li.minUnitPrice)) {
-          throw new BadRequestException(
-            `"${li.name}" kaleminde birim fiyat tabanın (${Number(li.minUnitPrice).toLocaleString("tr-TR")} ${curSym}) altında olamaz`,
-          );
-        }
-        if (
-          li.buyNowUnitPrice != null &&
-          unitPriceCmp.gte(li.buyNowUnitPrice)
-        ) {
-          throw new BadRequestException(
-            `"${li.name}" kaleminde teklif Hemen-Al fiyatına (${Number(li.buyNowUnitPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu kalemi Hemen Al ile alın`,
-          );
-        }
-      }
-    }
-
     // Pazarlık: GÖNDERİLEN teklif kendi önceki teklifinden KESİN daha iyi
-    // olmalı (ALIM'da düşük, SATIS'ta yüksek; eşitlik yok) — başka sınır YOK.
+    // olmalı (düşük; eşitlik yok) — başka sınır YOK.
     // Minimum azaltma payı KALDIRILDI (2026-07-13): zorunlu pay çıpa etkisi
     // yaratıyordu (herkes tam %X iner, fazlasını vermez); turda-tek-teklif
     // kuralı sembolik indirimi zaten caydırır. Rakip referansı da yok —
@@ -4237,7 +3983,7 @@ export class CompanyListingsService {
     // gizli görünürlükte sızıntı riski taşıyordu). Birim kilidi sayesinde
     // kıyas hep teklifçinin kendi biriminde; kur çevirisi gerekmez.
     if (!isDraft && listing.format === "ENGLISH_AUCTION") {
-      const isAscending = listing.type === "SATIS";
+      const isAscending = false;
       const ownLast: Prisma.Decimal | null =
         existingBid?.status === "SUBMITTED" ? existingBid.amount : null;
       if (ownLast != null) {
@@ -4496,326 +4242,6 @@ export class CompanyListingsService {
         );
     }
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
-  }
-
-  /**
-   * Hemen-Al — SATIS ilanında tavan (buyNow) fiyattan teklif oluşturur.
-   * DİREKT SİPARİŞ DEĞİL: sahip yine onaylar (kazandırır). isBuyNow=true bayraklı.
-   */
-  async buyNow(user: AuthenticatedCompanyUser, listingId: string, input?: BuyNowDto) {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: {
-        id: true,
-        companyId: true,
-        type: true,
-        visibility: true,
-        status: true,
-        priceScope: true,
-        buyNowPrice: true,
-        requireAllItems: true,
-        requireBidDocument: true,
-        primaryCurrency: true,
-        deliveryTerm: true,
-        currentRound: true,
-        closesAt: true,
-        bidsOpenAt: true,
-        isInternational: true,
-        targetCountries: true,
-        company: { select: { country: true } },
-        items: {
-          select: {
-            id: true,
-            name: true,
-            quantity: true,
-            buyNowUnitPrice: true,
-          },
-        },
-      },
-    });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
-    const isKalem = listing.priceScope === "KALEM";
-    const buyableItems = listing.items.filter(
-      (it) => it.buyNowUnitPrice != null,
-    );
-    if (
-      listing.type !== "SATIS" ||
-      (!isKalem && !listing.buyNowPrice) ||
-      (isKalem && buyableItems.length === 0)
-    ) {
-      throw new BadRequestException("Bu ilanda hemen-al seçeneği yok");
-    }
-    if (listing.companyId === user.companyId) {
-      throw new BadRequestException("Kendi ilanınız");
-    }
-    // Erişim kontrolleri (404/403) durum 400'lerinden ÖNCE — placeBid ile aynı
-    // sızıntı-önleme sırası; davet her görünürlükte hak verir + ülkeyi aşar.
-    const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
-    if (blockedIds.includes(user.companyId)) {
-      throw new NotFoundException("İlan bulunamadı");
-    }
-    const [connectedIds, invitedCount] = await Promise.all([
-      this.connectedCompanyIds(user.companyId),
-      this.prisma.listingInvitation.count({
-        where: { listingId, invitedCompanyId: user.companyId },
-      }),
-    ]);
-    const connected = connectedIds.includes(listing.companyId);
-    const isInvited = invitedCount > 0;
-    const visible = isListingVisibleToViewer(listing.visibility, {
-      isInvited,
-      connectedToOwner: connected,
-    });
-    if (!visible) throw new NotFoundException("İlan bulunamadı");
-    if (
-      !isInvited &&
-      !this.isCountryEligible(
-        user.country,
-        listing.company.country,
-        listing.isInternational,
-        listing.targetCountries,
-      )
-    ) {
-      throw new NotFoundException("İlan bulunamadı");
-    }
-    const { canBid } = listingBidEligibility(listing.visibility, {
-      isInvited,
-      connectedToOwner: connected,
-      viewerTier: user.tier,
-    });
-    if (!canBid) {
-      throw new ForbiddenException("Bu ilana teklif için premium gerekir");
-    }
-    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
-      throw new ForbiddenException("Hemen-Al için Satın Almacı rolü gerekir");
-    }
-    // INV-KYC-1: Hemen-Al da bağlayıcı SUBMITTED tekliftir (placeBid kardeşi) —
-    // denetim 2026-08-23 P2 #3 (erişim kapılarından SONRA, durum 400'lerinden önce).
-    // 2026-09-01: placeBid ile AYNI daraltma — davetli/bağlantılı firmadan
-    // belge istenmez (alıcı onu zaten tanıyor); kapı yalnız PUBLIC'e
-    // tanımadan erişen tarafta. İki kardeş yolun ayrışması sessiz bir tutarsızlık
-    // olurdu: aynı ilana placeBid ile belgesiz, Hemen-Al ile belgeli.
-    if (!isInvited && !connected) {
-      this.assertVerified(user, "teklif veremezsiniz");
-    }
-
-    if (listing.status !== "OPEN") {
-      throw new BadRequestException("İlan teklife kapalı");
-    }
-    if (listing.bidsOpenAt && Date.now() < listing.bidsOpenAt.getTime()) {
-      throw new BadRequestException(
-        "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
-      );
-    }
-    if (isListingClosedAt(listing.closesAt)) {
-      throw new BadRequestException("Teklif süresi doldu");
-    }
-
-    // Hemen-al da bir TEKLİF gönderimidir — normal gönderimle aynı detaylar
-    // zorunlu (teslim SÜRESİ + geçerlilik); teklif-ver ekranından girilir.
-    // Legacy deliveryDate de kabul edilir (API geriye-uyumlu).
-    // (Erişim kontrollerinden SONRA — davetsiz prober'a bilgi sızmaz.)
-    if ((!input?.deliveryTime && !input?.deliveryDate) || !input?.validityDays) {
-      throw new BadRequestException(
-        "Hemen-Al için istenen teslim süresi ve geçerlilik süresi zorunlu",
-      );
-    }
-    // Teslim tarihi (legacy) geçmişte olamaz (placeBid ile aynı; DTO ISO8601
-    // doğruladığı için new Date güvenli).
-    if (
-      input.deliveryDate &&
-      new Date(input.deliveryDate).getTime() < Date.now() - 86_400_000
-    ) {
-      throw new BadRequestException("Teslim tarihi geçmişte olamaz");
-    }
-    // Alıcının teslimat adresi — normal teklif gönderimiyle aynı kural
-    // (adrese-teslim şartlı ilanda zorunlu; sahiplik/tip doğrulanır).
-    const deliveryAddressId = await this.resolveBidDeliveryAddress(
-      user.companyId,
-      listing.type,
-      listing.deliveryTerm,
-      input.deliveryAddressId,
-      false,
-    );
-
-    // Mükerrer/kural koruması: gönderilmiş Hemen-Al tekrarlanamaz; geri
-    // çekilen teklif Hemen-Al ile de diriltilemez (placeBid ile aynı kural).
-    const existing = await this.prisma.listingBid.findUnique({
-      where: {
-        listingId_bidderCompanyId: {
-          listingId,
-          bidderCompanyId: user.companyId,
-        },
-      },
-      select: { status: true, isBuyNow: true },
-    });
-    if (existing?.status === "WITHDRAWN") {
-      throw new BadRequestException("Geri çekilen teklif yeniden verilemez");
-    }
-    // SUBMITTED teklif (normal VEYA hemen-al) kilitlidir — hemen-al ile üzerine
-    // yazılıp kapsamı/tutarı değiştirilemez (kural #6: gönderilmiş teklif
-    // editlenmez/geri çekilemez). Aksi halde KALEM modda itemIds alt-kümesiyle
-    // kilitli teklifin kapsamı daraltılabiliyordu.
-    if (existing?.status === "SUBMITTED") {
-      throw new BadRequestException(
-        existing.isBuyNow
-          ? "Hemen-Al teklifiniz zaten gönderildi — satıcı onayı bekleniyor"
-          : "Gönderilmiş teklifiniz var — Hemen-Al ile değiştirilemez",
-      );
-    }
-
-    // Belge zorunlu ihalede hemen-al da belgesiz gönderilemez (normal teklifle
-    // aynı kural; teklif-ver akışı: taslak → belge → hemen-al onayı).
-    if (listing.requireBidDocument) {
-      const docCount = existing
-        ? await this.prisma.listingBidDocument.count({
-            where: {
-              bid: { listingId, bidderCompanyId: user.companyId },
-            },
-          })
-        : 0;
-      if (docCount === 0) {
-        throw new BadRequestException(
-          "Bu satın alma talebinde teklif belgesi zorunlu — önce belge yükleyin",
-        );
-      }
-    }
-
-    // Tutar + kalemler: KALEM modda seçilen kalemler hemen-al birim
-    // fiyatlarından; TOPLU modda ilan geneli hemen-al tutarı.
-    let amount: Prisma.Decimal;
-    let buyItems: { itemId: string; unitPrice: number }[] = [];
-    if (isKalem) {
-      const buyableById = new Map(buyableItems.map((it) => [it.id, it]));
-      const selectedIds =
-        input.itemIds && input.itemIds.length > 0
-          ? [...new Set(input.itemIds)]
-          : buyableItems.map((it) => it.id);
-      for (const itemId of selectedIds) {
-        if (!buyableById.has(itemId)) {
-          throw new BadRequestException(
-            "Seçilen kalemlerden biri hemen-al ile alınamıyor",
-          );
-        }
-      }
-      if (
-        listing.requireAllItems &&
-        selectedIds.length < listing.items.length
-      ) {
-        throw new BadRequestException(
-          buyableItems.length < listing.items.length
-            ? "Bu satın alma talebinde tüm kalemlere teklif zorunlu; hemen-al fiyatı olmayan kalemler nedeniyle Hemen Al kullanılamaz — normal teklif verin"
-            : "Bu satın alma talebinde tüm kalemlere teklif zorunlu — tüm kalemleri seçin",
-        );
-      }
-      amount = selectedIds.reduce((sum, itemId) => {
-        const it = buyableById.get(itemId)!;
-        return sum.plus(
-          new Prisma.Decimal(it.buyNowUnitPrice!).mul(it.quantity),
-        );
-      }, new Prisma.Decimal(0));
-      buyItems = selectedIds.map((itemId) => ({
-        itemId,
-        unitPrice: Number(buyableById.get(itemId)!.buyNowUnitPrice),
-      }));
-    } else {
-      amount = new Prisma.Decimal(listing.buyNowPrice!);
-    }
-
-    // Taşma koruması (placeBid ile aynı) — kalem hemen-al birim fiyatları ×
-    // miktar toplamı Decimal(18,2) kolonunu aşmasın.
-    if (amount.gt(MAX_MONEY)) {
-      throw new BadRequestException("Toplam tutar çok büyük");
-    }
-
-    const deliveryDate = input.deliveryDate ? new Date(input.deliveryDate) : null;
-    const deliveryTime =
-      (input.deliveryTime as BidDeliveryTime | undefined) ?? null;
-    // Hemen-Al teklifi HER ZAMAN ilanın ana para birimindedir; TRY dışıysa
-    // TRY karşılığı gösterimi için kur snapshot'lanır (placeBid ile aynı).
-    const exchangeRateSnapshot =
-      listing.primaryCurrency !== "TRY"
-        ? await this.exchangeRates
-            .getFreshRate(listing.primaryCurrency) // taze kur (P2 #10)
-            .catch(() => null)
-        : null;
-    const bid = await runTenantTx(this.prisma, async (tx) => {
-      const b = await tx.listingBid.upsert({
-        where: {
-          listingId_bidderCompanyId: {
-            listingId,
-            bidderCompanyId: user.companyId,
-          },
-        },
-        create: {
-          listingId,
-          bidderCompanyId: user.companyId,
-          amount,
-          currency: listing.primaryCurrency,
-          exchangeRateSnapshot,
-          isBuyNow: true,
-          createdById: user.userId,
-          status: "SUBMITTED",
-          submittedAt: new Date(),
-          note: input.note?.trim() || null,
-          deliveryDate,
-          deliveryTime,
-          validityDays: input.validityDays ?? null,
-          deliveryAddressId,
-          round: listing.currentRound,
-        },
-        update: {
-          // Eski taslak/teklifin kalıntıları (yabancı currency, bayat
-          // submittedAt, eski tur damgası) hemen-al fiyatını bozmasın.
-          amount,
-          isBuyNow: true,
-          status: "SUBMITTED",
-          currency: listing.primaryCurrency,
-          exchangeRateSnapshot,
-          submittedAt: new Date(),
-          version: { increment: 1 },
-          note: input.note?.trim() || null,
-          deliveryDate,
-          deliveryTime,
-          validityDays: input.validityDays ?? null,
-          deliveryAddressId,
-          round: listing.currentRound,
-        },
-      });
-      // KALEM modda kalem teklifleri hemen-al fiyatlarıyla yenilenir.
-      if (isKalem) {
-        await tx.listingBidItem.deleteMany({ where: { bidId: b.id } });
-        await tx.listingBidItem.createMany({
-          data: buyItems.map((bi) => ({
-            bidId: b.id,
-            itemId: bi.itemId,
-            unitPrice: bi.unitPrice,
-          })),
-        });
-      }
-      return b;
-    });
-    // INV-AUDIT-1: Hemen-Al gönderimi de finansal taahhüt → delil (placeBid ile simetri).
-    await this.audit.log({
-      action: "company.bid.submitted",
-      actorType: "company",
-      actorId: user.userId,
-      actorEmail: user.email,
-      tenantId: user.companyId,
-      entityType: "listing_bid",
-      entityId: bid.id,
-      critical: true,
-      metadata: {
-        listingId,
-        listingType: listing.type,
-        amount: Number(bid.amount),
-        currency: bid.currency,
-        round: listing.currentRound,
-        isBuyNow: true,
-      },
-    });
-    this.realtime?.pingListing(listingId, [listing.companyId]);
-    return { id: bid.id, amount: bid.amount.toString(), isBuyNow: true };
   }
 
   /**
@@ -6426,13 +5852,8 @@ export class CompanyListingsService {
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
     const portal = this.bidderPortal(listing.type);
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const isSatis = listing.type === "SATIS";
     const roundName =
-      listing.format === "ENGLISH_AUCTION"
-        ? isSatis
-          ? "açık artırma turu"
-          : "açık eksiltme turu"
-        : "yeni tur";
+      listing.format === "ENGLISH_AUCTION" ? "açık eksiltme turu" : "yeni tur";
     const opensInFuture = opensAt != null && opensAt.getTime() > Date.now();
     const opensText = opensInFuture
       ? `Açılışa (${opensAt.toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}) kadar`
@@ -6447,7 +5868,7 @@ export class CompanyListingsService {
     );
     for (const c of carried) {
       const recipient = recipients.get(c.companyId) ?? null;
-      const body = `${label} satın alma talebinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı ${isSatis ? "artırabilirsiniz" : "düşürebilirsiniz"}.`;
+      const body = `${label} satın alma talebinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz.`;
       if (recipient) {
         this.notify(
           recipient,
@@ -6784,7 +6205,7 @@ export class CompanyListingsService {
       where: { listingId },
       orderBy: [{ round: "desc" }, { amount: "asc" }],
     });
-    const desc = listing.type === "SATIS";
+    const desc = false;
     const sortKey = (x: { amount: Prisma.Decimal; amountTry: Prisma.Decimal | null }) =>
       Number(x.amountTry ?? x.amount);
     const byRound = new Map<
@@ -7144,7 +6565,7 @@ export class CompanyListingsService {
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
     const portal = this.ownerPortal(listing.type);
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const body = `${label} satın alma talebi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da ${listing.type === "SATIS" ? "alıcılardan" : "tedarikçilerden"} geçerlilik uzatması isteyin.`;
+    const body = `${label} satın alma talebi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da tedarikçilerden geçerlilik uzatması isteyin.`;
     const recipient = await this.companyRecipient(listing.companyId, portal);
     if (recipient) {
       this.notify(
@@ -7485,9 +6906,6 @@ export class CompanyListingsService {
       isInternational: boolean;
       targetCountries: string[];
       format: ListingFormat | null;
-      priceScope: ListingPriceScope | null;
-      minPrice: { toString(): string } | null;
-      buyNowPrice: { toString(): string } | null;
       visibility: ListingVisibility;
       title: string;
       description: string | null;
@@ -7536,10 +6954,6 @@ export class CompanyListingsService {
       isInternational: l.isInternational,
       targetCountries: l.targetCountries,
       format: l.format,
-      priceScope: l.priceScope,
-      // Maskeli önizlemede fiyat bilgisi sızmaz (taban/hemen-al).
-      minPrice: masked ? null : (l.minPrice?.toString() ?? null),
-      buyNowPrice: masked ? null : (l.buyNowPrice?.toString() ?? null),
       visibility: l.visibility,
       title: l.title,
       description: masked ? null : l.description,
@@ -7638,8 +7052,7 @@ export class CompanyListingsService {
     type: ListingType;
     isInternational: boolean;
     format: ListingFormat | null;
-    minPrice: { toString(): string } | null;
-    buyNowPrice: { toString(): string } | null;
+    
     visibility: ListingVisibility;
     title: string;
     description: string | null;
@@ -7653,8 +7066,7 @@ export class CompanyListingsService {
       type: l.type,
       isInternational: l.isInternational,
       format: l.format,
-      minPrice: l.minPrice?.toString() ?? null,
-      buyNowPrice: l.buyNowPrice?.toString() ?? null,
+      
       visibility: l.visibility,
       title: l.title,
       description: l.description,

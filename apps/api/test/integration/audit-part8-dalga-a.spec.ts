@@ -95,7 +95,7 @@ describe("#1 — rapor/pano kalem hesabı TEK BAZ (TRY)", () => {
     });
 
     const svc = new CompanyReportsService(prisma as never);
-    const res = (await svc.savings(owner.company.id, "ALIM", {
+    const res = (await svc.savings(owner.company.id, {
       rangeStart: new Date(Date.now() - 86_400_000).toISOString(),
       rangeEnd: new Date(Date.now() + 86_400_000).toISOString(),
     } as never)) as {
@@ -145,7 +145,7 @@ describe("#2 — yanıt oranı %100'ü aşmaz (payda davetliler, pay davetli yan
       });
     }
     const svc = new CompanyReportsService(prisma as never);
-    const res = (await svc.general(owner.company.id, "ALIM", {
+    const res = (await svc.general(owner.company.id, {
       mode: "SINGLE",
       listingId: listing.id,
     } as never)) as {
@@ -186,8 +186,8 @@ describe("#3 — pano ödeme evreni COMPLETED siparişleri içerir", () => {
   });
 });
 
-describe("#4 — ilan tipi doğrulaması istemciden okunmaz", () => {
-  it("ALIM ihalesi type:'SATIS' gönderilerek kapanışsız bırakılamaz", async () => {
+describe("#4 — kapanış tarihi istemciden kaldırılamaz", () => {
+  it("ALIM ihalesi closesAt:null gönderilerek kapanışsız bırakılamaz", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const listing = await makeListing(prisma, {
@@ -201,7 +201,7 @@ describe("#4 — ilan tipi doğrulaması istemciden okunmaz", () => {
     });
     await expect(
       service.updateListing(owner.auth, listing.id, {
-        type: "SATIS",
+        type: "ALIM",
         format: "RFQ",
         title: "Kapanışsız denemesi",
         closesAt: null,

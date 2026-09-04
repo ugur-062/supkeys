@@ -68,12 +68,12 @@ const bid = (itemId: string, unitPrice = 100) =>
   }) as never;
 
 /** PUBLIC OPEN ilan + kalem (teklif hedefi). */
-async function openListing(type: "ALIM" | "SATIS") {
+async function openListing() {
   const owner = await makeCompanyWithUser(prisma, { country: "TR" });
   const listing = await makeListing(prisma, {
     companyId: owner.company.id,
     createdById: owner.user.id,
-    type,
+    type: "ALIM",
     status: "OPEN",
     visibility: "PUBLIC",
     closesAt: FUTURE,
@@ -112,11 +112,11 @@ describe("Faz R — SAHIP-only salt-okunur (etiket işlem vermez)", () => {
       roles: [CompanyRole.SAHIP],
     });
 
-    // Teklif: SATIS ilanına teklif = alım → SATIN_ALMACI ister; SAHIP yetmez.
-    const { listing: satisListing, item } = await openListing("SATIS");
+    // Teklif: ALIM ilanına teklif = satış → SATISCI ister; SAHIP yetmez.
+    const { listing: alimListing, item } = await openListing();
     await expect(
-      service.placeBid(solo.auth, satisListing.id, bid(item.id)),
-    ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+      service.placeBid(solo.auth, alimListing.id, bid(item.id)),
+    ).rejects.toThrow(/Satışçı rolü gerekir/);
 
     // Kazandırma: kendi ALIM ihalesinde bile SAHIP-only yetkisiz (rol kapısı).
     const own = await makeListing(prisma, {
@@ -162,7 +162,7 @@ describe("Faz R — etiket + op-rol komboları işlem yapar", () => {
   it("Kurucu (default SAHIP+SA+ST) teklif verebilir", async () => {
     const { service } = makeService();
     const founder = await makeCompanyWithUser(prisma, { country: "TR" }); // default roller
-    const { listing, item } = await openListing("SATIS"); // alım tarafı → SA
+    const { listing, item } = await openListing(); // satış tarafı → ST
     await expect(
       service.placeBid(founder.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
@@ -174,24 +174,24 @@ describe("Faz R — etiket + op-rol komboları işlem yapar", () => {
       country: "TR",
       roles: [CompanyRole.YONETICI, CompanyRole.SATISCI],
     });
-    const { listing, item } = await openListing("ALIM"); // satış tarafı → ST
+    const { listing, item } = await openListing(); // satış tarafı → ST
     await expect(
       service.placeBid(co.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
   });
 
-  it("ONAYLAYICI+SATIN_ALMACI hem onay yetkisi taşır hem alım yapar", async () => {
+  it("ONAYLAYICI+SATISCI hem onay yetkisi taşır hem teklif verir", async () => {
     const { service } = makeService();
     const co = await makeCompanyWithUser(prisma, {
       country: "TR",
-      roles: [CompanyRole.ONAYLAYICI, CompanyRole.SATIN_ALMACI],
+      roles: [CompanyRole.ONAYLAYICI, CompanyRole.SATISCI],
     });
     expect(
-      permissionsForRoles([CompanyRole.ONAYLAYICI, CompanyRole.SATIN_ALMACI]).has(
+      permissionsForRoles([CompanyRole.ONAYLAYICI, CompanyRole.SATISCI]).has(
         "approval:act",
       ),
     ).toBe(true);
-    const { listing, item } = await openListing("SATIS"); // alım tarafı → SA
+    const { listing, item } = await openListing(); // satış tarafı → ST
     await expect(
       service.placeBid(co.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();

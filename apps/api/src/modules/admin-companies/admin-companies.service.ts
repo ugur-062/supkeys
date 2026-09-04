@@ -474,7 +474,6 @@ export class AdminCompaniesService {
           },
           byType: {
             ALIM: tymap.get("ALIM") ?? 0,
-            SATIS: tymap.get("SATIS") ?? 0,
           },
           /** Gönderilmiş teklif sayısı — platform canlılığı göstergesi. */
           totalBids,

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -9,7 +8,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Response } from "express";
-import type { ListingType } from "@rothern/db";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -27,34 +25,24 @@ import {
 import { ReportsExcelService } from "./reports-excel.service";
 
 /**
- * Raporlar iki portala hizmet eder: type=ALIM (satınalma, buy izni) /
- * type=SATIS (satış, sell izni). POST — kriter gövdede; /download uçları
- * aynı kriterle xlsx döner.
+ * Raporlar satınalma portalına hizmet eder (firmanın kendi alım talepleri,
+ * buy izni). POST — kriter gövdede; /download uçları aynı kriterle xlsx döner.
  */
-function parseType(type?: string): ListingType {
-  if (type === "SATIS") return "SATIS";
-  if (type === "ALIM" || type === undefined) return "ALIM";
-  throw new BadRequestException("Geçersiz rapor tipi");
-}
-
-function assertTypeAllowed(user: AuthenticatedCompanyUser, type: ListingType) {
+function assertAllowed(user: AuthenticatedCompanyUser) {
   // Gözetim muafiyeti (ürün kararı 2026-07-27): Kurucu ve Yönetici, işlem
   // rolü taşımasa da raporları görebilir — raporlar SALT-OKUNUR yönetim
   // çıktısıdır (kapalı-zarf/işlem yetkisi gerektiren bir eylem içermez).
   if (user.isOwner || hasManagementRole(user.roles)) return;
-  const needed = type === "ALIM" ? "buy:bid:review" : "sell:listing:manage";
   if (
     !hasCompanyPermission(
       user.roles,
       user.isOwner,
-      needed,
+      "buy:bid:review",
       user.permissionsOverride,
     )
   ) {
     throw new ForbiddenException(
-      type === "ALIM"
-        ? "Alım raporları için satınalma yetkisi gerekir"
-        : "Satış raporları için satış yetkisi gerekir",
+      "Alım raporları için satınalma yetkisi gerekir",
     );
   }
 }
@@ -79,36 +67,30 @@ export class CompanyReportsController {
     private readonly excel: ReportsExcelService,
   ) {}
 
-  /** Hub özet grafikleri (denetim §10.5) — kriter yok, tip yeter. */
+  /** Hub özet grafikleri (denetim §10.5) — kriter yok. */
   @Post("summary")
-  summary(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: { type?: string },
-  ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    return this.service.summary(user.companyId, t);
+  summary(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    assertAllowed(user);
+    return this.service.summary(user.companyId);
   }
 
   @Post("general")
   general(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: GeneralReportInput & { type?: string },
+    @Body() body: GeneralReportInput,
   ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    return this.service.general(user.companyId, t, body);
+    assertAllowed(user);
+    return this.service.general(user.companyId, body);
   }
 
   @Post("general/download")
   async generalDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: GeneralReportInput & { type?: string },
+    @Body() body: GeneralReportInput,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    const data = await this.service.general(user.companyId, t, body);
+    assertAllowed(user);
+    const data = await this.service.general(user.companyId, body);
     const buf = await this.excel.general(data);
     return xlsx(res, `genel-rapor-${stamp()}.xlsx`, buf);
   }
@@ -116,49 +98,41 @@ export class CompanyReportsController {
   @Post("savings")
   savings(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: SavingsReportInput & { type?: string },
+    @Body() body: SavingsReportInput,
   ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    return this.service.savings(user.companyId, t, body);
+    assertAllowed(user);
+    return this.service.savings(user.companyId, body);
   }
 
   @Post("savings/download")
   async savingsDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: SavingsReportInput & { type?: string },
+    @Body() body: SavingsReportInput,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    const data = await this.service.savings(user.companyId, t, body);
+    assertAllowed(user);
+    const data = await this.service.savings(user.companyId, body);
     const buf = await this.excel.savings(data);
-    return xlsx(
-      res,
-      `${t === "ALIM" ? "tasarruf" : "kazanc"}-raporu-${stamp()}.xlsx`,
-      buf,
-    );
+    return xlsx(res, `tasarruf-raporu-${stamp()}.xlsx`, buf);
   }
 
   @Post("bid-comparison")
   bidComparison(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: BidComparisonInput & { type?: string },
+    @Body() body: BidComparisonInput,
   ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    return this.service.bidComparison(user.companyId, t, body);
+    assertAllowed(user);
+    return this.service.bidComparison(user.companyId, body);
   }
 
   @Post("bid-comparison/download")
   async bidComparisonDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: BidComparisonInput & { type?: string },
+    @Body() body: BidComparisonInput,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const t = parseType(body.type);
-    assertTypeAllowed(user, t);
-    const data = await this.service.bidComparison(user.companyId, t, body);
+    assertAllowed(user);
+    const data = await this.service.bidComparison(user.companyId, body);
     const buf = await this.excel.bidComparison(data);
     return xlsx(res, `teklif-karsilastirma-${stamp()}.xlsx`, buf);
   }

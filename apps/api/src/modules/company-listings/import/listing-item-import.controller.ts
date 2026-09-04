@@ -17,8 +17,8 @@ import {
 } from "./listing-item-import.service";
 
 class TemplateQueryDto {
-  @IsIn(["ALIM", "SATIS"]) listingType!: "ALIM" | "SATIS";
-  @IsOptional() @IsIn(["TOPLU", "KALEM"]) priceScope?: "TOPLU" | "KALEM";
+  /** Yalnız ALIM; parametre eski istemciler için kalır. */
+  @IsOptional() @IsIn(["ALIM"]) listingType?: "ALIM";
 }
 
 class ParseItemImportDto {
@@ -26,8 +26,7 @@ class ParseItemImportDto {
   @IsString() @MaxLength(100) mimeType!: string;
   /** ≤5MB dosya → ≤~7MB base64 (body parser 25MB). Boyut serviste doğrulanır. */
   @IsString() @MaxLength(7_500_000) dataBase64!: string;
-  @IsIn(["ALIM", "SATIS"]) listingType!: "ALIM" | "SATIS";
-  @IsOptional() @IsIn(["TOPLU", "KALEM"]) priceScope?: "TOPLU" | "KALEM";
+  @IsOptional() @IsIn(["ALIM"]) listingType?: "ALIM";
 }
 
 /**
@@ -44,11 +43,8 @@ export class ListingItemImportController {
     @Query() q: TemplateQueryDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const buf = await this.service.buildTemplate(q);
-    const name =
-      q.listingType === "SATIS"
-        ? "rothern-satis-kalem-sablonu.xlsx"
-        : "rothern-satın alma talebi-kalem-sablonu.xlsx";
+    const buf = await this.service.buildTemplate();
+    const name = "rothern-satın alma talebi-kalem-sablonu.xlsx";
     res.set({
       "Content-Type": XLSX_MIME,
       "Content-Disposition": `attachment; filename="${name}"`,

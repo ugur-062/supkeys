@@ -27,7 +27,7 @@ import {
   InternalNotesDto,
   ListingReasonDto,
 } from "../dto/owner-action.dto";
-import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
+import { PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
 import type { Response } from "express";
 
@@ -47,24 +47,17 @@ export class CompanyListingsController {
     return this.service.listMyBids(user.companyId);
   }
 
-  /** İhalelerim/İlanlarım listesi — zengin (type: ALIM varsayılan, SATIS). */
+  /** Taleplerim listesi — zengin. (`type` yalnız ALIM; satış ilanı kaldırıldı.) */
   @Get("tenders")
-  listTenders(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("type") type?: string,
-  ) {
-    return this.service.listTenders(
-      user.companyId,
-      type === "SATIS" ? "SATIS" : "ALIM",
-    );
+  listTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listTenders(user.companyId, "ALIM");
   }
 
-  /** Teklifçi liste — açık + geçmiş, teklif/davet/kategori zengin.
-   *  type=ALIM: satıcının Açık İhaleler'i; type=SATIS: alıcının Satın Al'ı. */
+  /** Teklifçi liste — açık + geçmiş, teklif/davet/kategori zengin
+   *  (satıcının Açık Talepler'i). */
   @Get("seller-tenders")
   sellerTenders(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("type") type?: string,
     @Query("limit") limit?: string,
     @Query("openOnly") openOnly?: string,
   ) {
@@ -80,7 +73,7 @@ export class CompanyListingsController {
     const n = Number(limit);
     return this.service.sellerTenders(
       user,
-      type === "SATIS" ? "SATIS" : "ALIM",
+      "ALIM",
       {
         limit: Number.isFinite(n) && n > 0 ? Math.min(Math.trunc(n), 24) : undefined,
         openOnly: openOnly === "true",
@@ -93,14 +86,8 @@ export class CompanyListingsController {
    * Görünürlük `seller-tenders` ile AYNI fonksiyondan gelir.
    */
   @Get("discover-facets")
-  discoverFacets(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("type") type?: string,
-  ) {
-    return this.service.discoverFacets(
-      user,
-      type === "SATIS" ? "SATIS" : "ALIM",
-    );
+  discoverFacets(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.discoverFacets(user, "ALIM");
   }
 
   /**
@@ -184,15 +171,6 @@ export class CompanyListingsController {
     @Body() dto: ExtendBidValidityDto,
   ) {
     return this.service.extendBidValidity(user, id, dto.additionalDays);
-  }
-
-  @Post(":id/buy-now")
-  buyNow(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-    @Body() body: BuyNowDto,
-  ) {
-    return this.service.buyNow(user, id, body);
   }
 
   @Post(":id/award")

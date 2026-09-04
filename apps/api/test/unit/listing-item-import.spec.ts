@@ -15,11 +15,8 @@ import {
 
 const svc = new ListingItemImportService();
 
-async function fillTemplate(
-  opts: { listingType: "ALIM" | "SATIS"; priceScope?: "TOPLU" | "KALEM" },
-  rows: unknown[][],
-): Promise<string> {
-  const tpl = await svc.buildTemplate(opts);
+async function fillTemplate(rows: unknown[][]): Promise<string> {
+  const tpl = await svc.buildTemplate();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(tpl as unknown as ArrayBuffer);
   const ws = wb.getWorksheet(ITEM_IMPORT_SHEET)!;
@@ -33,8 +30,8 @@ async function fillTemplate(
 }
 
 describe("şablon üretimi", () => {
-  it("ALIM şablonu: Kalemler + Nasıl Doldurulur + Örnek; başlıklar parser'ın tanıdığı adlar", async () => {
-    const buf = await svc.buildTemplate({ listingType: "ALIM" });
+  it("şablon (tek sütun kümesi — satış ilanı kaldırıldı): Kalemler + Nasıl Doldurulur + Örnek; başlıklar parser'ın tanıdığı adlar", async () => {
+    const buf = await svc.buildTemplate();
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buf as unknown as ArrayBuffer);
     expect(wb.worksheets.map((w) => w.name)).toEqual([
@@ -55,25 +52,11 @@ describe("şablon üretimi", () => {
       "targetUnitPrice",
     ]);
   });
-
-  it("SATIS+KALEM şablonu taban/hemen-al sütunlarını içerir; SATIS+TOPLU içermez", async () => {
-    const kalem = await svc.buildTemplate({ listingType: "SATIS", priceScope: "KALEM" });
-    const toplu = await svc.buildTemplate({ listingType: "SATIS", priceScope: "TOPLU" });
-    const cols = async (b: Buffer) => {
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(b as unknown as ArrayBuffer);
-      const out: string[] = [];
-      wb.getWorksheet(ITEM_IMPORT_SHEET)!.getRow(1).eachCell((c) => out.push(String(matchImportColumn(c.value))));
-      return out;
-    };
-    expect(await cols(kalem)).toEqual(expect.arrayContaining(["minUnitPrice", "buyNowUnitPrice"]));
-    expect(await cols(toplu)).not.toEqual(expect.arrayContaining(["minUnitPrice"]));
-  });
 });
 
 describe("round-trip: doldurulmuş şablon → parse", () => {
   it("geçerli satırlar aktarılır; hatalı satırlar errors ile önizlemede kalır; boş satır atlanır", async () => {
-    const b64 = await fillTemplate({ listingType: "ALIM" }, [
+    const b64 = await fillTemplate([
       ['Çelik boru 2"', 120, "m", "ST37", "BRU-200", "15.09.2026", 185],
       ["Dirsek 90°", "12,5", "kg", "", "", new Date(Date.UTC(2026, 8, 30)), "42,50"],
       [], // boş → atlanır
@@ -106,8 +89,6 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
       materialCode: "BRU-200",
       requiredByDate: "2026-09-15",
       targetUnitPrice: 185,
-      minUnitPrice: null,
-      buyNowUnitPrice: null,
     });
     // TR ondalık + Excel tarih hücresi (UTC) + para metni
     expect(r2!.item).toMatchObject({ quantity: 12.5, requiredByDate: "2026-09-30", targetUnitPrice: 42.5 });
@@ -123,7 +104,7 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
   });
 
   it("Faz 1: birim ile ÇELİŞEN miktar reddedilir (12,5 adet)", async () => {
-    const b64 = await fillTemplate({ listingType: "ALIM" }, [
+    const b64 = await fillTemplate([
       ["Vida", "12,5", "adet"], // adet ondalık kabul etmez
       ["Tel", "12,5", "kg"], // kg kabul eder
       ["Bobin", "12,5", "bobin"], // bilinmeyen birim → kural uygulanmaz
@@ -141,29 +122,6 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     // Bilinmeyen birim satırı GEÇERLİ kalır (liste kapalı değil) ama kodsuz.
     expect(c!.errors).toEqual([]);
     expect(c!.item.unitCode).toBeNull();
-  });
-
-  it("SATIS+KALEM: hemen-al < taban → satır hatası; ALIM'da taban/hemen-al sütunları yok sayılır", async () => {
-    const b64 = await fillTemplate({ listingType: "SATIS", priceScope: "KALEM" }, [
-      ["Ürün A", 10, "adet", "", "", "", "", 100, 80],
-      ["Ürün B", 10, "adet", "", "", "", "", 100, 120],
-    ]);
-    const res = await svc.parse({
-      fileName: "s.xlsx",
-      mimeType: "x",
-      dataBase64: b64,
-      listingType: "SATIS",
-      priceScope: "KALEM",
-    });
-    expect(res.rows[0]!.errors).toEqual(["Hemen-Al fiyatı tabandan küçük olamaz"]);
-    expect(res.rows[1]!.errors).toEqual([]);
-    expect(res.rows[1]!.item).toMatchObject({ minUnitPrice: 100, buyNowUnitPrice: 120 });
-
-    // Aynı dosya ALIM olarak okunursa taban/hemen-al sütunları allowed dışı → eşlenmez, hata yok.
-    const alim = await svc.parse({ fileName: "s.xlsx", mimeType: "x", dataBase64: b64, listingType: "ALIM" });
-    expect(alim.columns).not.toContain("minUnitPrice");
-    expect(alim.rows[0]!.errors).toEqual([]);
-    expect(alim.rows[0]!.item.minUnitPrice).toBeNull();
   });
 
   it("şablon dışı ama başlıkları uyumlu kendi listesi (alias + farklı sıra + üstte başlık satırları) okunur", async () => {

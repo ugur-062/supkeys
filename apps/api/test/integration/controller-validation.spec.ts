@@ -203,12 +203,14 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
   });
 
   describe("Parasal tavan (@Max MAX_MONEY) — tekil değer alanları", () => {
-    it("CreateListingDto minPrice/targetPrice tavanı aşan red", async () => {
+    it("CreateListingDto targetPrice tavanı aşan red; type:'SATIS' geçersiz (ilan tipi yalnız ALIM)", async () => {
+      // Satış ilanı tipi kaldırıldı (2026-09-04): enum yalnız ALIM — eski
+      // istemcinin gönderdiği "SATIS" doğrulamada düşer, servise ulaşmaz.
       await expect(
         validate(CreateListingDto, {
           type: "SATIS",
           title: "Test ihale",
-          minPrice: MAX_MONEY + 1,
+          items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
         }),
       ).rejects.toBeDefined();
       await expect(

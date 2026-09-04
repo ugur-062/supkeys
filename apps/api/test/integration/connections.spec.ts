@@ -435,7 +435,7 @@ describe("keşfet + profil", () => {
         {
           companyId: b.company.id,
           createdById: b.user.id,
-          type: "SATIS",
+          type: "ALIM",
           title: "Public ilan",
           status: "OPEN",
           visibility: "PUBLIC",
@@ -443,7 +443,7 @@ describe("keşfet + profil", () => {
         {
           companyId: b.company.id,
           createdById: b.user.id,
-          type: "SATIS",
+          type: "ALIM",
           title: "Bağlantılara özel",
           status: "OPEN",
           visibility: "CONNECTIONS",

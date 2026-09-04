@@ -113,11 +113,6 @@ export class CompanyDashboardController {
     return this.service.satinalma(user);
   }
 
-  @Get("satis")
-  satis(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.satis(user);
-  }
-
   @Get("satis/stats")
   satisStats(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satisStats(user);

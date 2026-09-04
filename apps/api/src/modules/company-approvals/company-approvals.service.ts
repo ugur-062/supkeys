@@ -532,7 +532,7 @@ export class CompanyApprovalsService {
     input: {
       listingId: string;
       type: ApprovalType;
-      listingType: "ALIM" | "SATIS";
+      listingType: "ALIM";
       amount: number | Prisma.Decimal;
       currency: string;
       payload?: Prisma.InputJsonValue;
@@ -654,7 +654,7 @@ export class CompanyApprovalsService {
   private findMatchingFlow(
     user: AuthenticatedCompanyUser,
     type: ApprovalType,
-    listingType: "ALIM" | "SATIS",
+    listingType: "ALIM",
   ) {
     // BK-1 (Faz R sonrası): SAHIP rol-kapsamlı onay akışından MUAF DEĞİLDİR.
     // Eski SAHIP→op-rol GENİŞLETMESİ kaldırıldı — Faz R'de SAHIP'in işlem
@@ -746,7 +746,7 @@ export class CompanyApprovalsService {
     user: AuthenticatedCompanyUser,
     input: {
       type: ApprovalType;
-      listingType: "ALIM" | "SATIS";
+      listingType: "ALIM";
       amount: Prisma.Decimal | number;
       forceRequireApproval?: boolean;
     },

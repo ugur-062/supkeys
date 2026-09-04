@@ -469,14 +469,6 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
         amount: 500,
       }),
     ).toBe(false);
-    // SATIS ilanına uygulanmaz.
-    expect(
-      await service.wouldRequireApproval(buyerAuth, {
-        type: "LISTING_AWARD",
-        listingType: "SATIS",
-        amount: 50_000,
-      }),
-    ).toBe(false);
     // Satışçı başlatıcı rolde değil → akış onu yakalamaz.
     const seller = await makeUser(prisma, owner.company.id, [
       "SATISCI",

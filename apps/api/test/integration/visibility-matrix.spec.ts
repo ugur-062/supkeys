@@ -3,7 +3,6 @@
  *  1) getOne görüntüleme+maskeleme (PUBLIC premium/STANDARD/bağlı, CONNECTIONS
  *     bağlı-olmayan premium DAHİL 404, PRIVATE davetli/davetsiz).
  *  2) İngiliz Usulü BEST_AND_OWN_RANK modu (hem en iyi hem kendi sıra).
- *  3) buyNow yetki matrisi (bağlantı/premium/rol).
  */
 import { CompanyRole } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
@@ -158,62 +157,5 @@ describe("İngiliz Usulü — BEST_AND_OWN_RANK", () => {
     expect(res.auctionView.bestTotal).toBe("800");
     expect(res.auctionView.myRank).toBe(2);
     expect(res.auctionView.allBids).toBeNull();
-  });
-});
-
-describe("buyNow — yetki matrisi", () => {
-  async function satis(visibility: "PUBLIC" | "CONNECTIONS") {
-    const { service } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const l = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      status: "OPEN",
-      visibility,
-      buyNowPrice: "5000",
-      closesAt: FUTURE,
-    });
-    return { service, owner, l };
-  }
-
-  it("CONNECTIONS + bağlı-değil → görünmez (reddedilir)", async () => {
-    const { service, l } = await satis("CONNECTIONS");
-    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
-    await expect(service.buyNow(v.auth, l.id)).rejects.toThrow();
-  });
-
-  it("PUBLIC + STANDARD bağlı-değil → premium gerekir (reddedilir)", async () => {
-    const { service, l } = await satis("PUBLIC");
-    const v = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
-    await expect(service.buyNow(v.auth, l.id)).rejects.toThrow(/premium/i);
-  });
-
-  it("PUBLIC + STANDARD ama BAĞLI → izin verilir", async () => {
-    const { service, owner, l } = await satis("PUBLIC");
-    const v = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
-    await connect(prisma, owner.company.id, v.company.id, owner.user.id);
-    await expect(
-      service.buyNow(v.auth, l.id, {
-        deliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-        validityDays: 30,
-      }),
-    ).resolves.toBeDefined();
-  });
-
-  it("yanlış rol (Satın Almacı değil) → reddedilir", async () => {
-    const { service, l } = await satis("PUBLIC");
-    const v = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "GOLD",
-      roles: [CompanyRole.SATISCI],
-    });
-    await expect(service.buyNow(v.auth, l.id)).rejects.toThrow(/rol/i);
   });
 });

@@ -343,52 +343,6 @@ describe("sellerTenders", () => {
     expect(shownDetail.items[0]?.targetPrice).toBe("100");
   });
 
-  it("CC-1 getOne (SATIS kardeşi): targetPrice gizli/opt-in; taban (minUnitPrice) HER ZAMAN görünür", async () => {
-    // Kardeş-yol simetrisi: SATIS ilanı da AYNI itemsOut gating'ini kullanır.
-    // Biri SATIS dalını değiştirirse bu test kırılır. targetPrice bayrağa bağlı;
-    // minUnitPrice (satıcı tabanı, A3 bilinçli) ASLA gizlenmez.
-    const { service } = makeService();
-    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyerViewer = await makeCompanyWithUser(prisma, { country: "TR" });
-    await connect(
-      prisma,
-      seller.company.id,
-      buyerViewer.company.id,
-      seller.user.id,
-    );
-
-    // Varsayılan gizli: SATIS sahibi=satıcı, non-owner=alıcı.
-    const hidden = await makeListing(prisma, {
-      companyId: seller.company.id,
-      createdById: seller.user.id,
-      type: "SATIS",
-      visibility: "CONNECTIONS",
-    });
-    await makeItem(prisma, hidden.id, { targetPrice: 100, minUnitPrice: 80 });
-    const hiddenDetail = (await service.getOne(
-      buyerViewer.auth,
-      hidden.id,
-    )) as {
-      items: { targetPrice: string | null; minUnitPrice: string | null }[];
-    };
-    expect(hiddenDetail.items[0]?.targetPrice).toBeNull(); // gated
-    expect(hiddenDetail.items[0]?.minUnitPrice).toBe("80"); // taban bilerek açık
-
-    // Opt-in açık → targetPrice görünür (SATIS'ta da kilit aynı).
-    const shown = await makeListing(prisma, {
-      companyId: seller.company.id,
-      createdById: seller.user.id,
-      type: "SATIS",
-      visibility: "CONNECTIONS",
-      showTargetToSuppliers: true,
-    });
-    await makeItem(prisma, shown.id, { targetPrice: 100, minUnitPrice: 80 });
-    const shownDetail = (await service.getOne(buyerViewer.auth, shown.id)) as {
-      items: { targetPrice: string | null }[];
-    };
-    expect(shownDetail.items[0]?.targetPrice).toBe("100");
-  });
-
   it("getOne: myBid version/submittedAt/eliminationReason döner", async () => {
     const { service } = makeService();
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -424,7 +378,7 @@ describe("sellerTenders", () => {
     expect(detail.myBid?.submittedAt).toBeTruthy();
   });
 
-  it("kendi ilanı ve SATIS ilanları listede yer almaz", async () => {
+  it("kendi ilanı listede yer almaz; bağlantılı firmanın ilanı yer alır", async () => {
     const { service } = makeService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -436,58 +390,15 @@ describe("sellerTenders", () => {
       type: "ALIM",
       visibility: "PUBLIC",
     });
-    const satis = await makeListing(prisma, {
+    const theirs = await makeListing(prisma, {
       companyId: buyer.company.id,
       createdById: buyer.user.id,
-      type: "SATIS",
+      type: "ALIM",
       visibility: "CONNECTIONS",
     });
 
     const rows = await service.sellerTenders(seller.auth);
     expect(rows.find((r) => r.id === own.id)).toBeUndefined();
-    expect(rows.find((r) => r.id === satis.id)).toBeUndefined();
-  });
-
-  it("SATIS yönü (Satın Al): alıcı satış ilanlarını görür — taban/hemen-al + ALIM kategori eşleşmesi", async () => {
-    const { service } = makeService();
-    const sellerCo = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyerCo = await makeCompanyWithUser(prisma, { country: "TR" });
-    await connect(prisma, sellerCo.company.id, buyerCo.company.id, sellerCo.user.id);
-    // Alıcının ALIM kategorisi — SATIS yönünde eşleşme buna bakar.
-    await prisma.company.update({
-      where: { id: buyerCo.company.id },
-      data: { buyerCategoryIds: ["10000000"] },
-    });
-
-    const satis = await makeListing(prisma, {
-      companyId: sellerCo.company.id,
-      createdById: sellerCo.user.id,
-      type: "SATIS",
-      visibility: "CONNECTIONS",
-      categoryIds: ["10101500"], // → segment 10000000
-      minPrice: "1000",
-      buyNowPrice: "5000",
-      closesAt: new Date(Date.now() + 3 * 86_400_000),
-    });
-    const alim = await makeListing(prisma, {
-      companyId: sellerCo.company.id,
-      createdById: sellerCo.user.id,
-      type: "ALIM",
-      visibility: "CONNECTIONS",
-    });
-
-    const rows = (await service.sellerTenders(buyerCo.auth, "SATIS")) as {
-      id: string;
-      categoryMatch: boolean;
-      minPrice: string | null;
-      buyNowPrice: string | null;
-    }[];
-    const row = rows.find((r) => r.id === satis.id);
-    expect(row).toBeDefined();
-    expect(row!.categoryMatch).toBe(true);
-    expect(Number(row!.minPrice)).toBe(1000);
-    expect(Number(row!.buyNowPrice)).toBe(5000);
-    // ALIM ilanı SATIS yönünde listelenmez.
-    expect(rows.find((r) => r.id === alim.id)).toBeUndefined();
+    expect(rows.find((r) => r.id === theirs.id)).toBeDefined();
   });
 });

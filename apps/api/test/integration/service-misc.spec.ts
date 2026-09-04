@@ -35,7 +35,7 @@ describe("çok-kiracılı scope", () => {
     await makeListing(prisma, {
       companyId: a.company.id,
       createdById: a.user.id,
-      type: "SATIS",
+      type: "ALIM",
     });
     await makeListing(prisma, {
       companyId: b.company.id,
@@ -46,9 +46,10 @@ describe("çok-kiracılı scope", () => {
     expect(mine).toHaveLength(2);
   });
 
-  it("listTenders tipe göre ayrışır: varsayılan ALIM, SATIS istenince satış ilanları", async () => {
+  it("listTenders firmanın ALIM ilanlarını döner (tek tip — satış ilanı kaldırıldı)", async () => {
     const { service } = makeService();
     const a = await makeCompanyWithUser(prisma, { country: "TR" });
+    const b = await makeCompanyWithUser(prisma, { country: "TR" });
     await makeListing(prisma, {
       companyId: a.company.id,
       createdById: a.user.id,
@@ -57,14 +58,16 @@ describe("çok-kiracılı scope", () => {
     await makeListing(prisma, {
       companyId: a.company.id,
       createdById: a.user.id,
-      type: "SATIS",
+      type: "ALIM",
+    });
+    await makeListing(prisma, {
+      companyId: b.company.id,
+      createdById: b.user.id,
+      type: "ALIM",
     });
     const tenders = await service.listTenders(a.company.id);
-    expect(tenders).toHaveLength(1);
-    expect(tenders[0]!.type).toBe("ALIM");
-    const satis = await service.listTenders(a.company.id, "SATIS");
-    expect(satis).toHaveLength(1);
-    expect(satis[0]!.type).toBe("SATIS");
+    expect(tenders).toHaveLength(2);
+    expect(tenders.every((t) => t.type === "ALIM")).toBe(true);
   });
 
   it("listMyBids yalnızca firmanın verdiği teklifler", async () => {

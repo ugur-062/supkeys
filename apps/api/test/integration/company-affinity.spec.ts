@@ -224,22 +224,6 @@ describe("CompanyAffinityService — yön ayrımı", () => {
     expect(row!.buyScore).toBeGreaterThan(0);
     expect(row!.sellScore).toBe(0);
   });
-
-  it("SATIS ilanı yayınlamak SATIŞ ilgisi üretir", async () => {
-    const seller = await makeCompanyWithUser(prisma);
-    await makeListing(prisma, {
-      companyId: seller.company.id,
-      createdById: seller.user.id,
-      type: "SATIS",
-      categoryIds: [LEAF],
-    });
-
-    await service().recomputeAll();
-
-    const row = await scoreOf(seller.company.id, LEAF);
-    expect(row!.sellScore).toBeGreaterThan(0);
-    expect(row!.buyScore).toBe(0);
-  });
 });
 
 describe("CompanyAffinityService — yeniden hesap", () => {

@@ -46,16 +46,11 @@ const LOCKED_FILL = "FAFAFA";
 const XLSX_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-export interface TemplateOptions {
-  listingType: "ALIM" | "SATIS";
-  priceScope?: "TOPLU" | "KALEM";
-}
-
 @Injectable()
 export class ListingItemImportService {
   // ------------------------------------------------------------ ŞABLON
-  async buildTemplate(opts: TemplateOptions): Promise<Buffer> {
-    const cols = itemImportColumnsFor(opts);
+  async buildTemplate(): Promise<Buffer> {
+    const cols = itemImportColumnsFor();
     const wb = new ExcelJS.Workbook();
     wb.creator = "Rothern";
     wb.created = new Date();
@@ -147,8 +142,6 @@ export class ListingItemImportService {
         materialCode: "BRU-200",
         requiredByDate: "15.09.2026",
         targetUnitPrice: 185,
-        minUnitPrice: 150,
-        buyNowUnitPrice: 210,
       },
       {
         name: "Dirsek 90° 2\"",
@@ -158,8 +151,6 @@ export class ListingItemImportService {
         materialCode: "DRS-290",
         requiredByDate: "",
         targetUnitPrice: 42.5,
-        minUnitPrice: 35,
-        buyNowUnitPrice: 50,
       },
       {
         name: "Flanş DN50 PN16",
@@ -169,8 +160,6 @@ export class ListingItemImportService {
         materialCode: "",
         requiredByDate: "30.09.2026",
         targetUnitPrice: "",
-        minUnitPrice: "",
-        buyNowUnitPrice: "",
       },
     ];
     for (const s of samples) {
@@ -188,8 +177,7 @@ export class ListingItemImportService {
     fileName: string;
     mimeType: string;
     dataBase64: string;
-    listingType: "ALIM" | "SATIS";
-    priceScope?: "TOPLU" | "KALEM";
+    listingType?: "ALIM";
   }): Promise<ItemImportResult> {
     const buffer = decodeBase64Strict(input.dataBase64);
     if (buffer.length === 0) throw new BadRequestException("Dosya boş");
@@ -197,7 +185,7 @@ export class ListingItemImportService {
       throw new BadRequestException("Dosya çok büyük (5 MB sınırı)");
     }
     const ws = await this.readWorksheet(buffer, input.fileName, input.mimeType);
-    const allowed = itemImportColumnsFor(input);
+    const allowed = itemImportColumnsFor();
     return parseWorksheet(ws, allowed);
   }
 
@@ -506,11 +494,6 @@ function validateRow(
   }
 
   const targetUnitPrice = money("targetUnitPrice", "Hedef Birim Fiyat");
-  const minUnitPrice = money("minUnitPrice", "Taban Birim Fiyat");
-  const buyNowUnitPrice = money("buyNowUnitPrice", "Hemen-Al Birim Fiyat");
-  if (minUnitPrice != null && buyNowUnitPrice != null && buyNowUnitPrice < minUnitPrice) {
-    errors.push("Hemen-Al fiyatı tabandan küçük olamaz");
-  }
 
   // Faz 1: serbest metin birimi kanonik koda çevir. Tanınmazsa satır GEÇERLİ
   // kalır (kod null) — Excel'de "ad." yazan kullanıcıyı durdurmuyoruz, ama
@@ -538,8 +521,6 @@ function validateRow(
     materialCode,
     requiredByDate,
     targetUnitPrice,
-    minUnitPrice,
-    buyNowUnitPrice,
   };
   return { rowNumber, item, errors };
 }

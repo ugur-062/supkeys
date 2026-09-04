@@ -112,12 +112,13 @@ export class AssistantService {
 
     // Belge yüklendiyse ihale çıkarımı yap, mevcut taslakla birleştir.
     if (dto.fileKeys && dto.fileKeys.length > 0) {
-      const listingType: "ALIM" | "SATIS" = allowedPortals(user.roles).has("satinalma")
-        ? "ALIM"
-        : "SATIS";
+      // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
+      if (!allowedPortals(user.roles).has("satinalma")) {
+        throw new ForbiddenException("Belgeden talep taslağı yalnız satın alma portalında çıkarılır");
+      }
       const extracted = await this.tenderExtract.extract(user, {
         fileKeys: dto.fileKeys,
-        listingType,
+        listingType: "ALIM",
       });
       draft = draft ? this.mergeDrafts(draft, extracted) : extracted;
       draftTouched = true;
@@ -482,12 +483,12 @@ export class AssistantService {
     try {
       switch (call.name) {
         case TOOL_NAMES.listMyTenders: {
-          const type = call.args.type === "SATIS" ? "SATIS" : "ALIM";
+          const type = "ALIM" as const;
           if (!canListMyTenders(portals, type)) return { ...NEUTRAL_ERROR };
           return trimList(await this.listings.listTenders(user.companyId, type));
         }
         case TOOL_NAMES.searchOpenTenders: {
-          const type = call.args.type === "SATIS" ? "SATIS" : "ALIM";
+          const type = "ALIM" as const;
           if (!canSearchOpen(portals, type)) return { ...NEUTRAL_ERROR };
           const res = (await this.listings.sellerTenders(user, type)) as unknown;
           return this.capObject(res);

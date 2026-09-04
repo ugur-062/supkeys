@@ -34,8 +34,8 @@ class TenderExtractDto {
   @IsString({ each: true })
   fileKeys!: string[];
 
-  @IsIn(["ALIM", "SATIS"])
-  listingType!: "ALIM" | "SATIS";
+  @IsIn(["ALIM"])
+  listingType!: "ALIM";
 }
 
 class TenderRefineDto {

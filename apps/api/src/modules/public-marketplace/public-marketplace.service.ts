@@ -107,7 +107,6 @@ export class PublicMarketplaceService {
       description: row.description,
       status: row.status,
       format: row.format,
-      priceScope: row.priceScope,
       primaryCurrency: row.primaryCurrency,
       allowedCurrencies: row.allowedCurrencies,
       isInternational: row.isInternational,

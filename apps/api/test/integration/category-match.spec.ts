@@ -1,6 +1,6 @@
 /**
  * PUBLIC ilan → kategori eşleşmeli bildirim (notifyCategoryMatchedCompanies).
- * İki yön: ALIM→satıcılar (sellerCategoryIds), SATIS→alıcılar (buyerCategoryIds).
+ * Yön: ALIM→satıcılar (sellerCategoryIds). (Satış ilanı tipi kaldırıldı.)
  * billingEmail yoksa ilk aktif kullanıcıya düşer (kapsama boşluğu fix'i).
  *
  * NOT: Gerçek DB'de Category.id = 8-haneli kod (seed-categories id:c.code). Firma
@@ -178,50 +178,6 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
       createdById: owner.user.id,
       type: "ALIM",
       visibility: "CONNECTIONS",
-      categoryIds: [CLASS],
-    });
-    const matched = await service.notifyCategoryMatchedCompanies(listing.id);
-    expect(matched).toEqual([]);
-    expect(email.send).not.toHaveBeenCalled();
-  });
-});
-
-describe("notifyCategoryMatchedCompanies — SATIS → alıcılar (yeni simetri)", () => {
-  it("PUBLIC SATIS ilanı → buyerCategoryIds eşleşen PAKET+SATIN_ALMACI alıcıya bildirim", async () => {
-    const { service, email } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
-    await prisma.company.update({
-      where: { id: buyer.company.id },
-      data: { buyerCategoryIds: [SEG], billingEmail: "alici@firma.com" },
-    });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      visibility: "PUBLIC",
-      categoryIds: [CLASS],
-    });
-
-    const matched = await service.notifyCategoryMatchedCompanies(listing.id);
-    expect(matched).toHaveLength(1);
-    expect(sentEmails(email)).toEqual(["alici@firma.com"]);
-  });
-
-  it("SATIS ilanı satıcı-kategorisiyle eşleşen firmaya GİTMEZ (yön ayrımı)", async () => {
-    const { service, email } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
-    // Sadece sellerCategoryIds var; SATIS ilanı alıcıları hedefler → eşleşmez.
-    await prisma.company.update({
-      where: { id: seller.company.id },
-      data: { sellerCategoryIds: [SEG], billingEmail: "s@firma.com" },
-    });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      visibility: "PUBLIC",
       categoryIds: [CLASS],
     });
     const matched = await service.notifyCategoryMatchedCompanies(listing.id);

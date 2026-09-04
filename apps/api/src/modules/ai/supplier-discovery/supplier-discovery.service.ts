@@ -79,7 +79,7 @@ export class SupplierDiscoveryService {
   async discoverExternal(
     user: AuthenticatedCompanyUser,
     input: {
-      type: "ALIM" | "SATIS";
+      type: "ALIM";
       categoryIds: string[];
       itemNames?: string[];
       region?: string;
@@ -94,7 +94,7 @@ export class SupplierDiscoveryService {
     ).map((c) => c.nameTr);
     if (catNames.length === 0) return { companies: [] };
     const items = (input.itemNames ?? []).filter(Boolean).slice(0, 15);
-    const role = input.type === "ALIM" ? "tedarikçi/üretici" : "kurumsal alıcı";
+    const role = "tedarikçi/üretici";
     const region = (input.region ?? "").trim().slice(0, 60);
 
     const research = await this.ai.callAi(user, {
@@ -148,14 +148,14 @@ export class SupplierDiscoveryService {
 
   async discoverRegistered(
     user: AuthenticatedCompanyUser,
-    input: { type: "ALIM" | "SATIS"; categoryIds: string[] },
+    input: { type: "ALIM"; categoryIds: string[] },
   ): Promise<{ candidates: DiscoveryCandidate[] }> {
     const codes = (input.categoryIds ?? []).filter((c) => /^\d{8}$/.test(c));
     if (codes.length === 0) return { candidates: [] };
     const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(codes);
 
-    // ALIM ihalesi → satıcı adayları (sellerCategoryIds); SATIS → alıcılar.
-    const field = input.type === "ALIM" ? "sellerCategoryIds" : "buyerCategoryIds";
+    // Satın alma talebi → satıcı adayları (sellerCategoryIds).
+    const field = "sellerCategoryIds" as const;
 
     // Bloklar (iki yön) + mevcut bağlantılar (her durumda) hariç tutulur.
     const [blocks, conns] = await Promise.all([
@@ -220,7 +220,7 @@ export class SupplierDiscoveryService {
     const subSet = new Set(subCandidates);
     const segSet = new Set(segmentIds);
     const scored = rows.map((r) => {
-      const cats = input.type === "ALIM" ? r.sellerCategoryIds : r.buyerCategoryIds;
+      const cats = r.sellerCategoryIds;
       const strong = cats.some((c) => subSet.has(c));
       const matched = cats.filter((c) => subSet.has(c) || segSet.has(c)).slice(0, 3);
       return { r, strong, matched };

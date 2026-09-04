@@ -66,13 +66,11 @@ export const EXTRACT_RESPONSE_SCHEMA = {
 
 /** Belge metnini VERİ sınırı içine alır (TEXT yolu). */
 export function buildExtractPrompt(opts: {
-  listingType: "ALIM" | "SATIS";
+  listingType?: "ALIM";
   documentText?: string;
 }): string {
   const direction =
-    opts.listingType === "ALIM"
-      ? "Bu bir ALIM satın alma talebi (satın alma talebi) — belge, alınacak mal/hizmeti tarif ediyor."
-      : "Bu bir SATIŞ satın alma talebi — belge, satılacak mal/hizmeti tarif ediyor.";
+    "Bu bir satın alma talebi — belge, alınacak mal/hizmeti tarif ediyor.";
   const doc = opts.documentText
     ? `\n\n<belge>\n${opts.documentText}\n</belge>`
     : "\n\nBelge ekli dosyalarda (görüntü/PDF).";

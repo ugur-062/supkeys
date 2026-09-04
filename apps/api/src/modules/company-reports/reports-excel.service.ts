@@ -59,19 +59,12 @@ export class ReportsExcelService {
   }
 
   async general(data: GeneralResult): Promise<Buffer> {
-    const isAlim = data.type === "ALIM";
-    const deltaWord = isAlim ? "Tasarruf" : "Rekabet Kazancı";
+    const deltaWord = "Tasarruf";
     const wb = new ExcelJS.Workbook();
     wb.creator = "Rothern";
     wb.created = new Date();
-    const ws = wb.addWorksheet(
-      isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel İlan Raporu",
-    );
-    this.title(
-      ws,
-      isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel Satış İlanı Raporu",
-      data.generatedAt,
-    );
+    const ws = wb.addWorksheet("Genel Satın Alma Talebi Raporu");
+    this.title(ws, "Genel Satın Alma Talebi Raporu", data.generatedAt);
     if (data.mode === "RANGE" && data.rangeStart && data.rangeEnd) {
       ws.addRow([
         `Aralık: ${format(new Date(data.rangeStart), "dd.MM.yyyy", { locale: tr })} – ${format(new Date(data.rangeEnd), "dd.MM.yyyy", { locale: tr })}`,
@@ -90,11 +83,11 @@ export class ReportsExcelService {
       "Davetli",
       "Teklif",
       "Yanıt %",
-      isAlim ? "Hedef Toplam" : "Taban",
+      "Hedef Toplam",
       "En Düşük (TRY)",
       "En Yüksek (TRY)",
       "Kazanan (TRY)",
-      isAlim ? "Kazanan Tedarikçi" : "Kazanan Alıcı",
+      "Kazanan Tedarikçi",
       `${deltaWord} (TRY)`,
       "Oluşturan",
     ]);
@@ -127,14 +120,14 @@ export class ReportsExcelService {
     ws.addRow(["Özet"]).font = { bold: true, size: 13, color: { argb: INK } };
     (
       [
-        [isAlim ? "Toplam Satın Alma Talebi" : "Toplam İlan", s.totalListings],
+        ["Toplam Satın Alma Talebi", s.totalListings],
         ["Kazandırılan", s.awardedListings],
         ["İptal", s.cancelledListings],
         ["Toplam Davet", s.totalInvited],
         ["Toplam Teklif", s.totalSubmittedBids],
         ["Yanıt Oranı", `${s.overallResponseRate}%`],
         ["Ort. Teklif / Satın Alma Talebi", s.avgBidsPerListing],
-        [isAlim ? "Hedef Toplam" : "Taban Toplam", s.totalEstimated],
+        ["Hedef Toplam", s.totalEstimated],
         ["Kazanan Toplam (TRY)", s.totalAwardedValue],
         [`Toplam ${deltaWord} (TRY)`, s.totalDelta],
       ] as Array<[string, string | number]>
@@ -154,19 +147,14 @@ export class ReportsExcelService {
   }
 
   async savings(data: SavingsResult): Promise<Buffer> {
-    const isAlim = data.type === "ALIM";
-    const deltaWord = isAlim ? "Tasarruf" : "Kazanç";
-    const partyWord = isAlim ? "Tedarikçi" : "Alıcı";
+    const deltaWord = "Tasarruf";
+    const partyWord = "Tedarikçi";
     const wb = new ExcelJS.Workbook();
     wb.creator = "Rothern";
     wb.created = new Date();
 
     const ws = wb.addWorksheet(`${deltaWord} Raporu`);
-    this.title(
-      ws,
-      isAlim ? "Tasarruf Raporu" : "Rekabet Kazancı Raporu",
-      data.generatedAt,
-    );
+    this.title(ws, "Tasarruf Raporu", data.generatedAt);
     ws.addRow([
       `Aralık: ${format(new Date(data.rangeStart), "dd.MM.yyyy", { locale: tr })} – ${format(new Date(data.rangeEnd), "dd.MM.yyyy", { locale: tr })}`,
     ]);
@@ -253,10 +241,10 @@ export class ReportsExcelService {
       "Kalem",
       "Birim",
       "Kazanan Adet",
-      isAlim ? "Hedef Birim" : "Taban Birim",
+      "Hedef Birim",
       "Kazanan Birim",
       `Kazanan ${partyWord}`,
-      isAlim ? "Hedef Tutar" : "Taban Tutar",
+      "Hedef Tutar",
       "Kazanan Tutar",
       deltaWord,
     ]);
@@ -282,8 +270,7 @@ export class ReportsExcelService {
   }
 
   async bidComparison(data: BidComparisonResult): Promise<Buffer> {
-    const isAlim = data.type === "ALIM";
-    const partyWord = isAlim ? "Tedarikçi" : "Alıcı";
+    const partyWord = "Tedarikçi";
     const wb = new ExcelJS.Workbook();
     wb.creator = "Rothern";
     wb.created = new Date();
@@ -300,16 +287,17 @@ export class ReportsExcelService {
       `${data.listing.number ?? "-"} · ${data.listing.currency} · Tur ${data.listing.round}`,
     ]).font = { italic: true, color: { argb: "64748B" } };
     if (data.includePrice && data.listing.referenceTotal > 0)
-      ws.addRow([
-        `${isAlim ? "Hedef" : "Taban"} Toplam: ${data.listing.referenceTotal}`,
-      ]).font = { bold: true, color: { argb: INK } };
+      ws.addRow([`Hedef Toplam: ${data.listing.referenceTotal}`]).font = {
+        bold: true,
+        color: { argb: INK },
+      };
     ws.addRow([]);
 
     const headerCells: string[] = [
       "Kalem",
       "Birim",
       "Adet",
-      isAlim ? "Hedef Birim" : "Taban Birim",
+      "Hedef Birim",
     ];
     data.parties.forEach((p) => {
       if (data.includePrice) {
@@ -359,14 +347,9 @@ export class ReportsExcelService {
     if (data.includePrice) {
       ws.addRow([]);
       const totalRow: (string | number)[] = ["GENEL TOPLAM", "", "", ""];
-      const rankRow: (string | number)[] = [
-        isAlim ? "SIRA (en ucuz=1)" : "SIRA (en yüksek=1)",
-        "",
-        "",
-        "",
-      ];
+      const rankRow: (string | number)[] = ["SIRA (en ucuz=1)", "", "", ""];
       const deltaRow: (string | number)[] = [
-        isAlim ? "Hedefe Göre Tasarruf" : "Taban Üstü Kazanç",
+        "Hedefe Göre Tasarruf",
         "",
         "",
         "",
@@ -398,11 +381,10 @@ export class ReportsExcelService {
 
       if (data.recommendedAwards.length > 0) {
         ws.addRow([]);
-        ws.addRow([
-          isAlim
-            ? "Önerilen Kazanan (kalem bazında en düşük)"
-            : "Önerilen Kazanan (kalem bazında en yüksek)",
-        ]).font = { bold: true, color: { argb: INK } };
+        ws.addRow(["Önerilen Kazanan (kalem bazında en düşük)"]).font = {
+          bold: true,
+          color: { argb: INK },
+        };
         const recHeader = ws.addRow(["Kalem", partyWord, "Birim Fiyat"]);
         recHeader.eachCell((cell) => {
           cell.font = { bold: true };

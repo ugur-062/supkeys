@@ -34,7 +34,7 @@ export class CompanyDashboardService {
   async satinalma(user: AuthenticatedCompanyUser) {
     const companyId = user.companyId;
 
-    const [openListings, awarded, ongoingOrders, invitedPending] =
+    const [openListings, awarded, ongoingOrders] =
       await Promise.all([
         this.prisma.listing.findMany({
           where: { companyId, type: "ALIM", status: "OPEN" },
@@ -62,24 +62,9 @@ export class CompanyDashboardService {
             },
           },
         }),
-        // Davet edilip henüz teklif verilmemiş açık SATIŞ ihaleleri (satış
-        // tarafındaki activeInvitations'ın simetriği — alıcı olarak davet).
-        this.prisma.listingInvitation.count({
-          where: {
-            invitedCompanyId: companyId,
-            listing: {
-              status: "OPEN",
-              type: "SATIS",
-              bids: {
-                none: {
-                  bidderCompanyId: companyId,
-                  status: { in: ["DRAFT", "SUBMITTED"] },
-                },
-              },
-            },
-          },
-        }),
       ]);
+    // Satış ilanı kaldırıldı (2026-09-04): alıcı olarak davet kavramı yok.
+    const invitedPending = 0;
 
     const openIds = openListings.map((l) => l.id);
     const bidsReceived =
@@ -105,59 +90,6 @@ export class CompanyDashboardService {
       ongoingOrders,
       // Davet edilip teklif verilmemiş açık SATIŞ ihalesi sayısı (anasayfa uyarısı).
       invitedPending,
-      openTendersOwn: openListings
-        .filter((l) => l.createdById === user.userId)
-        .map(row),
-      openTendersCompany: openListings.map(row),
-    };
-  }
-
-  /** Satış panosu — İlan sekmesi verisi (SATIS ilanları). */
-  async satis(user: AuthenticatedCompanyUser) {
-    const companyId = user.companyId;
-
-    const [openListings, awarded, ongoingOrders, myBids] = await Promise.all([
-      this.prisma.listing.findMany({
-        where: { companyId, type: "SATIS", status: "OPEN" },
-        select: {
-          id: true,
-          number: true,
-          title: true,
-          createdAt: true,
-          closesAt: true,
-          createdById: true,
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.listing.count({
-        where: { companyId, type: "SATIS", status: "AWARDED" },
-      }),
-      this.prisma.companyOrder.count({
-        where: {
-          sellerCompanyId: companyId,
-          status: {
-            in: ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY", "DELIVERED"],
-          },
-        },
-      }),
-      this.prisma.listingBid.count({
-        where: { bidderCompanyId: companyId, status: "SUBMITTED" },
-      }),
-    ]);
-
-    const row = (l: (typeof openListings)[number]) => ({
-      id: l.id,
-      tenderNumber: l.number ?? "—",
-      title: l.title,
-      openedAt: l.createdAt,
-      closesAt: l.closesAt ?? l.createdAt,
-    });
-
-    return {
-      openCount: openListings.length,
-      activeBids: myBids,
-      awarded,
-      ongoingOrders,
       openTendersOwn: openListings
         .filter((l) => l.createdById === user.userId)
         .map(row),

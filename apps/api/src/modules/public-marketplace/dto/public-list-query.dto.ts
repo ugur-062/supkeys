@@ -18,9 +18,10 @@ import {
  * pahalı bir tarama tetiklemeye (ve önbelleği zehirlemeye) açık kapı bırakır.
  */
 export class PublicListQueryDto {
+  /** Yalnız ALIM (satış ilanı kaldırıldı); parametre geriye uyum için kalır. */
   @IsOptional()
-  @IsIn(["ALIM", "SATIS"])
-  type?: "ALIM" | "SATIS";
+  @IsIn(["ALIM"])
+  type?: "ALIM";
 
   /** Serbest arama. */
   @IsOptional()

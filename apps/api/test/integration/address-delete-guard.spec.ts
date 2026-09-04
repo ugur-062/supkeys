@@ -1,6 +1,6 @@
 /**
  * B2 (CL kör-nokta denetimi): adres silme guard'ı yalnız İLANLARI sayıyordu,
- * gönderilmiş TEKLİFLERİ değil. SATIS ilanına verilen SUBMITTED teklifin
+ * gönderilmiş TEKLİFLERİ değil. İlana verilen SUBMITTED teklifin
  * deliveryAddressId'si silinen adrese (onDelete:SetNull) işaret ederse bid
  * adressiz kalır, award'da order teslim-adressiz doğardı. Guard artık aktif
  * (SUBMITTED) teklifleri de kilitler; WON/AWARDED_PARTIAL zaten order'a
@@ -25,7 +25,9 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-// SATIS ilanına teklif veren firma + kendi teslimat adresine bağlı bir teklif.
+// İlana teklif veren firma + kendi teslimat adresine bağlı bir teklif.
+// (Satış ilanı tipi kaldırıldı; ListingBid.deliveryAddressId kolonu ve guard
+// sözleşmesi duruyor — ALIM ilanıyla sınanır.)
 async function setup(bidStatus: string) {
   const seller = await makeCompanyWithUser(prisma, { country: "TR" });
   const buyer = await makeCompanyWithUser(prisma, { country: "TR" }); // teklif veren
@@ -42,7 +44,7 @@ async function setup(bidStatus: string) {
   const listing = await makeListing(prisma, {
     companyId: seller.company.id,
     createdById: seller.user.id,
-    type: "SATIS",
+    type: "ALIM",
     status: "OPEN",
     closesAt: FUTURE,
   });

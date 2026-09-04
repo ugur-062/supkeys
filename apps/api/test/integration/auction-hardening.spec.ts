@@ -1,8 +1,8 @@
 /**
  * Pazarlık sertleştirme — regresyon testleri: çoklu para birimi kur damgası,
- * SUBMITTED→DRAFT bypass reddi, buyNow tur damgası, turda tek aktif gönderim,
- * eleme sonrası yeniden katılım, auto-extend default'ları, taban=hemen-al
- * reddi, teslim şekli × kapsam doğrulaması. (Minimum pay 2026-07-13'te
+ * SUBMITTED→DRAFT bypass reddi, turda tek aktif gönderim, eleme sonrası
+ * yeniden katılım, auto-extend default'ları, teslim şekli × kapsam
+ * doğrulaması. (Satış ilanı tipi kaldırıldı — pazarlık ALIM üzerinde sınanır.) (Minimum pay 2026-07-13'te
  * kaldırıldı — adım testleri tur-hakkı testlerine evrildi.)
  */
 import { prisma, truncateAll } from "./test-db";
@@ -34,13 +34,12 @@ async function sellerAndBuyers() {
 }
 
 const auctionDto = (over: Record<string, unknown> = {}) => ({
-  type: "SATIS",
+  type: "ALIM",
   format: "ENGLISH_AUCTION",
   isInternational: false,
   visibility: "CONNECTIONS",
-  title: "Hurda bakır — açık artırma",
+  title: "Bakır hurda alımı — açık eksiltme",
   closesAt: future(3).toISOString(),
-  minPrice: 100,
   bidVisibility: "BEST_PRICE",
   items: [{ name: "Bakır hurda", quantity: 1, unit: "ton" }],
   ...over,
@@ -147,27 +146,6 @@ describe("Auction — SUBMITTED teklif taslağa çekilemez", () => {
   });
 });
 
-describe("Auction — buyNow tur damgası", () => {
-  it("Hemen-Al teklifi ilanın GÜNCEL turuyla damgalanır (round=1 default'una düşmez)", async () => {
-    const { service, seller, b1 } = await sellerAndBuyers();
-    // Aktarım turu currentRound'u doğal olarak 2'ye çeker.
-    const l = await createAuction(service, seller.auth, { buyNowPrice: 5000 });
-
-    await service.buyNow(b1.auth, l.id, {
-      deliveryDate: future(7).toISOString(),
-      validityDays: 30,
-    });
-    const dbBid = await prisma.listingBid.findFirstOrThrow({
-      where: { listingId: l.id, bidderCompanyId: b1.company.id },
-    });
-    expect(dbBid.round).toBe(2);
-    // Para birimi de ilanın ana birimi olmalı (create yolunda TRY default'una
-    // düşme regresyonu).
-    expect(dbBid.currency).toBe("TRY");
-    expect(dbBid.isBuyNow).toBe(true);
-  });
-});
-
 describe("Auction — turda tek aktif gönderim", () => {
   it("aynı turda ikinci gönderim reddedilir (minimum pay yok — caydırıcılık tur hakkı)", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
@@ -220,22 +198,6 @@ describe("Auction — auto-extend default'ları", () => {
     expect(db.autoExtendOnLateBid).toBe(true);
     expect(db.autoExtendThresholdMin).toBe(2);
     expect(db.autoExtendByMinutes).toBe(2);
-  });
-});
-
-describe("SATIS fiyat doğrulaması — taban/hemen-al eşitliği", () => {
-  it("hemen-al == taban reddedilir (normal teklif aralığı boş kalırdı)", async () => {
-    const { service, seller } = await sellerAndBuyers();
-    await expect(
-      service.create(
-        seller.auth,
-        auctionDto({
-          format: "RFQ",
-          minPrice: 1000,
-          buyNowPrice: 1000,
-        }) as never,
-      ),
-    ).rejects.toThrow(/büyük olmalı/);
   });
 });
 

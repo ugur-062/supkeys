@@ -342,11 +342,11 @@ describe("pazar yeri — süzgeç ve arama", () => {
     await truncateAll();
   });
 
-  it("tipe göre süzer", async () => {
+  it("type=ALIM süzgeci (tek tip — satış ilanı kaldırıldı) listeyi daraltmaz", async () => {
     await seedPublicListing({ type: "ALIM" });
-    await seedPublicListing({ type: "SATIS", title: "Vinç Satılık" });
-    expect((await service().list({ type: "SATIS" })).items[0]?.title).toBe("Vinç Satılık");
-    expect((await service().list({ type: "ALIM" })).items).toHaveLength(1);
+    await seedPublicListing({ type: "ALIM", title: "Vinç alımı" });
+    expect((await service().list({ type: "ALIM" })).items).toHaveLength(2);
+    expect((await service().list({})).items).toHaveLength(2);
   });
 
   it("kategori koduna göre süzer", async () => {

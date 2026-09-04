@@ -981,9 +981,11 @@ model CompanyBlock {
   @@map("company_blocks")
 }
 
+// Yalnız ALIM (2026-09-04): "satış ilanı" (SATIS, forward açık artırma)
+// özelliği sistemden TAMAMEN kaldırıldı — kullanıcı kararı. Enum tek değerli
+// kaldı ki `type: "ALIM"` süzgeçleri ve kolon aynen çalışsın.
 enum ListingType {
-  ALIM // alım ilanı (reverse — fiyat iner, en ucuz kazanır)
-  SATIS // satış ilanı (forward — fiyat çıkar, en yüksek kazanır)
+  ALIM // satın alma talebi (reverse — fiyat iner, en ucuz kazanır)
 }
 
 enum ListingBidStatus {
@@ -1056,7 +1058,7 @@ model CompanyOrder {
   deliveryTerm           ListingDeliveryTerm?
   rejectedReason         String?
   cancelReason           String?
-  // Teslimat adresi snapshot'ı (award anında: ALIM→ilanın adresi, SATIS→kazanan
+  // Teslimat adresi snapshot'ı (award anında: ilanın adresi; eski SATIS→kazanan
   // teklifin adresi). Adres defteri sonradan değişse de sipariş sabit kalır.
   // { title, contactName, phone, country, city, district, addressLine, postalCode }
   deliveryAddress        Json?
@@ -1260,7 +1262,6 @@ model ListingBid {
   currency       Currency         @default(TRY)
   note           String?
   // Hemen-Al ile verilen teklif (tavan fiyattan). Yine de sahip onaylar.
-  isBuyNow       Boolean          @default(false)
   status         ListingBidStatus @default(SUBMITTED)
   round          Int              @default(1) // hangi turda verildi/güncellendi
   // Pazarlıkta AKTİF gönderimin yapıldığı tur — "turda tek teklif" hakkı bunu
@@ -1272,8 +1273,8 @@ model ListingBid {
   // Zenginleştirme (eski Bid ile paralel).
   version              Int              @default(1) // taslak güncellemede artar
   submittedAt          DateTime? // SUBMITTED'a geçiş anı
-  // ALIM: satıcının taahhüt ettiği teslim tarihi. SATIS: alıcının İSTEDİĞİ
-  // teslim tarihi. LEGACY (2026-08-02'den önce) — yeni teklifler süre girer.
+  // Satıcının taahhüt ettiği teslim tarihi. LEGACY (2026-08-02'den önce) —
+  // yeni teklifler süre girer.
   deliveryDate         DateTime?
   // Teslim SÜRESİ (2026-08-02): tarih yerine merdiven (stoktan/1-2 hafta/…).
   // Gönderimde zorunlu (kalemlerin tamamı kendi süresini taşımıyorsa).
@@ -1283,9 +1284,8 @@ model ListingBid {
   eliminationReason    String? // alıcı eleme sebebi
   eliminatedAt         DateTime?
 
-  // SATIS: alıcının teslimat adresi (kendi adres defterinden). Adrese-teslim
-  // şartlarında (DOMESTIC_DELIVERED/ON_VEHICLE/CARRIER_COLLECT, DAP/DPU/DDP)
-  // gönderimde zorunlu; award anında siparişe snapshot'lanır.
+  // LEGACY (satış ilanı kaldırıldı 2026-09-04): eski SATIS tekliflerinde
+  // alıcının teslimat adresiydi. Yeni teklif yazmaz; kolon eski kayıtlar için.
   deliveryAddressId String?
   deliveryAddress   CompanyAddress? @relation("BidDeliveryAddress", fields: [deliveryAddressId], references: [id], onDelete: SetNull)
 
@@ -1402,11 +1402,6 @@ enum BidDeliveryTime {
   M3_PLUS // 3 aydan uzun
 }
 
-enum ListingPriceScope {
-  TOPLU // ilan geneli tek taban + tek hemen-al
-  KALEM // kalem başına taban/hemen-al birim fiyatlar
-}
-
 enum ListingStatus {
   DRAFT // taslak — düzenlenebilir, yayınlanmadı
   IN_APPROVAL // yayın onayı bekliyor (onay akışı varsa)
@@ -1507,7 +1502,7 @@ model Listing {
   // Sınır ötesi hedef ülkeler (ISO kodları). Boş + isInternational=true =
   // tüm yabancı ülkeler; dolu = yalnızca listelenen ülkeler görür.
   targetCountries          String[]           @default([])
-  // ALIM için format (RFQ/İngiliz Usulü). SATIS'ta null (her zaman forward).
+  // Format (RFQ/İngiliz Usulü).
   format                   ListingFormat?
   visibility               ListingVisibility  @default(CONNECTIONS)
   // Bu ilan ARAMA MOTORLARINA açık mı (ilan bazında devre dışı bırakma).
@@ -1522,9 +1517,8 @@ model Listing {
    * o da yoksa kategori görseline düşülür (`lib/public/category-visual.ts`).
    * Ayrıca "bir de kapak seç" diye ekstra iş çıkarmıyoruz.
    *
-   * ALIM'da opsiyonel, SATIS'ta yayın kapısında istenir — görsel asimetrisi:
-   * SATAN gösterir, ALAN tarif eder. Alıcı henüz sahip olmadığı 40 kalemi
-   * fotoğraflayamaz; zorunlu tutmak o talebi hiç yayımlanamaz hâle getirirdi.
+   * Opsiyonel: alıcı henüz sahip olmadığı 40 kalemi fotoğraflayamaz; zorunlu
+   * tutmak o talebi hiç yayımlanamaz hâle getirirdi.
    */
   coverImageUrl            String?
   // Kalem "hedef/istenen birim fiyat"ı (targetPrice) teklif verebilen karşı
@@ -1533,13 +1527,6 @@ model Listing {
   showTargetToSuppliers    Boolean            @default(false)
   title                    String
   description              String?
-  // SATIS fiyatlandırma kapsamı: TOPLU (ilan geneli taban/hemen-al) veya
-  // KALEM (her kalemin kendi minUnitPrice/buyNowUnitPrice'ı). null = TOPLU
-  // (legacy). ALIM'da anlamsız.
-  priceScope               ListingPriceScope?
-  // SATIS + TOPLU için: taban (min) fiyat + hemen-al fiyatı.
-  minPrice                 Decimal?           @db.Decimal(18, 2)
-  buyNowPrice              Decimal?           @db.Decimal(18, 2)
   status                   ListingStatus      @default(OPEN)
   closesAt                 DateTime?
   cancelReason             String? // iptal/kazansız-kapatma gerekçesi
@@ -1894,9 +1881,6 @@ model ListingItem {
   // kalır ve serbest metin `unit` geçerlidir — liste bilinçli olarak KAPALI DEĞİL.
   unitCode        String?
   targetPrice     Decimal?  @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
-  // SATIS + kalem-bazlı fiyatlandırma: kalem taban / hemen-al BİRİM fiyatları.
-  minUnitPrice    Decimal?  @db.Decimal(18, 2)
-  buyNowUnitPrice Decimal?  @db.Decimal(18, 2)
   materialCode    String? // malzeme/stok kodu
   requiredByDate  DateTime? // istenen teslim tarihi
 
@@ -2201,7 +2185,7 @@ enum ApprovalStepStatus {
   SKIPPED // bütçe eşiği altı — atlandı
 }
 
-// Firma genelinde tanımlı onay kuralı (ALIM + SATIS).
+// Firma genelinde tanımlı onay kuralı.
 model ApprovalFlow {
   id             String             @id @default(cuid())
   companyId      String
@@ -2209,7 +2193,8 @@ model ApprovalFlow {
   name           String
   type           ApprovalType
   status         ApprovalFlowStatus @default(DRAFT)
-  // Sadece bu ilan tipine uygulanır (null = her ikisi).
+  // Yalnız ALIM var; null = tümü. (SATIS kaldırıldı 2026-09-04 — kolon, eski
+  // akış kayıtları bozulmasın diye duruyor.)
   listingType    ListingType?
   // Bu akışı başlatabilen roller (boşsa kısıt yok).
   initiatorRoles CompanyRole[]      @default([])

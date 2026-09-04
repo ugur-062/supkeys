@@ -1,6 +1,6 @@
 /**
- * Yaşam döngüsü & onay akışı: publish/award onay dalları, SATIS kazandırma
- * yönü, withdraw, erken kapatma, kazansız kapatma, yeni tur, scheduler.
+ * Yaşam döngüsü & onay akışı: publish/award onay dalları, withdraw, erken
+ * kapatma, kazansız kapatma, yeni tur, scheduler.
  */
 import { prisma, truncateAll } from "./test-db";
 import { ListingScheduler } from "../../src/modules/company-listings/schedulers/listing.scheduler";
@@ -111,35 +111,6 @@ describe("onay akışı (approval) dalları", () => {
     expect(l.status).toBe("OPEN");
     // Kapı geri gelmesin: yayın onay servisini ÇAĞIRMAMALI.
     expect(approvals.requestApproval).not.toHaveBeenCalled();
-  });
-});
-
-describe("SATIS kazandırma yönü", () => {
-  it("SATIS: sipariş satıcı=sahip, alıcı=teklifçi (ALIM'in tersi)", async () => {
-    const { service } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      status: "OPEN",
-      closesAt: FUTURE,
-    });
-    const item = await makeItem(prisma, listing.id);
-    const b = await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: buyer.company.id,
-      createdById: buyer.user.id,
-      amount: 2000,
-      items: [{ itemId: item.id, unitPrice: 2000 }],
-    });
-    await service.award(owner.auth, listing.id, b.id);
-    const order = await prisma.companyOrder.findFirstOrThrow({
-      where: { listingId: listing.id },
-    });
-    expect(order.sellerCompanyId).toBe(owner.company.id);
-    expect(order.buyerCompanyId).toBe(buyer.company.id);
   });
 });
 

@@ -17,8 +17,8 @@ import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tie
 import { SupplierDiscoveryService } from "./supplier-discovery.service";
 
 class DiscoveryDto {
-  @IsIn(["ALIM", "SATIS"])
-  type!: "ALIM" | "SATIS";
+  @IsIn(["ALIM"])
+  type!: "ALIM";
 
   @IsArray()
   @ArrayMinSize(1)

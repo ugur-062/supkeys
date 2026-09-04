@@ -20,14 +20,8 @@ import { Prisma } from "@rothern/db";
  *   Alıcının bütçesi. `showTargetToSuppliers` açık olsa bile o izin
  *   TEDARİKÇİYE verilmiştir, açık web'e değil. Bayraktan bağımsız dışarıda.
  *
- * `minPrice` / `minUnitPrice` (SATIS taban fiyat)
- *   Satıcının pazarlık tabanı. Teklif verebilen tarafa gösterilmesi ayrı bir
- *   karar; rakibin görebileceği kalıcı bir sayfaya yazmak ayrı.
- *
- * `buyNowPrice` / `buyNowUnitPrice` (hemen-al) — 2026-09-04'e kadar DAHİLDİ
- *   ("bu fiyata satarım" beyanı). Görünürlük katmanıyla çıktı: anonim
- *   ziyaretçi HİÇBİR fiyat görmez, fiyat üyeye. Sayfa "Fiyat için giriş
- *   yapın" gösterir; JSON-LD Offer fiyatsız kalır (olmayan fiyat yazılmaz).
+ * (Satış ilanına özgü taban/hemen-al fiyat kolonları 2026-09-04'te şemadan
+ *   kaldırıldı — özellik yok.)
  *
  * `items[]` gövdesi — v2 (2026-09-04): satır = sıra + miktar + birim; AD,
  *   marka, şartname, tarih üyeye. Toplam miktar özeti `itemSummary`.
@@ -71,7 +65,6 @@ export const PUBLIC_LISTING_SELECT = {
   description: true,
   status: true,
   format: true,
-  priceScope: true,
   primaryCurrency: true,
   allowedCurrencies: true,
   isInternational: true,
@@ -164,12 +157,11 @@ export interface PublicListingItemSummary {
 
 export interface PublicListing {
   number: string;
-  type: "ALIM" | "SATIS";
+  type: "ALIM";
   title: string;
   description: string | null;
   status: string;
   format: string | null;
-  priceScope: string | null;
   primaryCurrency: string;
   allowedCurrencies: string[];
   isInternational: boolean;

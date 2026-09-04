@@ -80,8 +80,8 @@ yapıldı (623+ dize, 4 rota, 308 yönlendirmelerle).
 | Bağlam | Ne demek | Sözcük |
 |--------|----------|--------|
 | Satınalma | Firmanın KENDİ satın alma talepleri | **talep** ("Taleplerim") |
-| Satış — kendi sattıkları | Firma satıyor | **ilan** ("Satış İlanlarım") |
 | Satış — teklif verilecekler | BAŞKA firmaların talepleri | **talep** ("Açık Talepler") |
+| Satış — kendi sattıkları | Firma satıyor | **ürün** ("Ürünlerim" — vitrin; "satış ilanı" KALDIRILDI, bkz. aşağı) |
 
 Satış tarafına "satın alma talebi" demek TERSTİR (orada firma satıyor).
 Tek kaynak: `apps/web/src/lib/company/portals.ts` `MODULE_LABELS` —
@@ -108,10 +108,38 @@ alınamaz):
 | `/company/satinalma/ihalelerim` | `/company/satinalma/taleplerim` |
 | `/company/satis/acik-ihaleler` | `/company/satis/acik-talepler` |
 | `/company/satinalma/sablonlar/ihale` | `.../sablonlar/talep` |
-| `/company/satis/sablonlar/ihale` | `.../sablonlar/ilan` |
+| `/company/satis/sablonlar/ihale` | (kaldırıldı — satış ilanı şablonu yok) |
 
-`/company/ilan/[id]` DEĞİŞMEDİ — "ilan" nötr terim (hem alım hem satış
-kaydının detay sayfası).
+`/company/ilan/[id]` DEĞİŞMEDİ — "ilan" nötr terim (talep kaydının detay
+sayfası; rota adı tarihsel).
+
+## Satış ilanı KALDIRILDI (2026-09-04, kullanıcı kararı)
+
+`ListingType.SATIS` (forward açık artırma, taban/hemen-al fiyat, "Satış
+İlanlarım", `/satilik`, `/ilan/<slug>`, Satın Al sayfası, satış raporları,
+satış ilanı şablonu, Hemen Al) sistemden **TAMAMEN** çıkarıldı; mevcut 11
+kayıt migration ile silindi (`20260904200000_remove_satis_listings`).
+Gerekçe: "böyle bir özellik olmayacak" — firma ne sattığını **ürün
+vitriniyle** (Ürünlerim) gösterir, alıcı **satın alma talebi** açar; tek yön.
+
+Kalıcı hâl:
+- Şema: `enum ListingType { ALIM }` (tek değerli, `type` kolonu ve `type:
+  "ALIM"` süzgeçleri aynen çalışsın diye kaldı); `Listing.priceScope/
+  minPrice/buyNowPrice`, `ListingItem.minUnitPrice/buyNowUnitPrice`,
+  `ListingBid.isBuyNow`, `enum ListingPriceScope` DROP. `ListingBid.
+  deliveryAddressId` LEGACY (yeni teklif yazmaz). `ApprovalFlow.listingType`
+  yalnız ALIM/null.
+- API: `POST listings/:id/buy-now`, `GET dashboard/satis` yok; `tenders`/
+  `seller-tenders`/`discover-facets`/raporlar `type` almaz; `PlaceBidDto.
+  deliveryAddressId` ve `BuyNowDto` yok; AI araçları `type` almaz;
+  `itemImportColumnsFor()` tek sütun kümesi.
+- Web: `/satilik` → `/urunler`, `/ilan/*` → `/urunler` (308); satış portalı
+  menüsünde Açık Talepler · Tekliflerim · Ürünlerim · Satışlarım · Bilgi
+  Talepleri · Müşterilerim · Profilim; satınalma menüsünde "Satın Al" ve
+  "Tekliflerim" yok. `entityLabels()` tek sözlük (ALIM). Satınalma keşif
+  şeridi yalnız ürün gösterir.
+- `SATISCI` rolü, `sell:*` izinleri ve `/company/satis` portalı DURUYOR —
+  satış portalı başkalarının taleplerine teklif verme + ürün vitrini.
 
 ## Kayıt Ülkeleri — SEKİZ ülke (2026-09-01)
 
@@ -145,7 +173,7 @@ KEFİL OLDUĞU yerde istenir.**
 | Aksiyon | VERIFIED şart mı |
 |---------|------------------|
 | Gezinme · bağlantı · mesaj · TASLAK | ❌ |
-| **Davetli/bağlantılı** talebe teklif · Hemen-Al | ❌ — alıcı firmayı zaten tanıyor, riski bilerek alıyor |
+| **Davetli/bağlantılı** talebe teklif | ❌ — alıcı firmayı zaten tanıyor, riski bilerek alıyor |
 | PUBLIC talebe **tanımadan** teklif | ✅ — oraya sokan platform (ayrıca BRONZ+ ister) |
 | Talep yayınlama · kazandırma | ✅ (ayrıca SILVER+ ister) |
 | **Paket satın alma** | ✅ — asıl kapı burası (+2FA +web sitesi) |
@@ -486,7 +514,7 @@ biri ayrı commit (91cc1a06 … profilim):
 | Tekrar | Çözüm |
 |--------|-------|
 | Anasayfa "Ne satıyorsunuz?" = Açık Talepler kopyası | `MatchedRequestsWidget` — 3 talep, arama/CTA yok; satır `BrowseTenderRow compact` (ikinci kart YOK); `PortalDiscovery` yalnız satınalma |
-| "Yeni Satış İlanı" üç yerde | Yalnız sol menü; İlanlarım'da liste boşken boş durumda |
+| "Yeni Satış İlanı" üç yerde | (Satış ilanı sonradan tümden kaldırıldı — 2026-09-04) |
 | Profil düzenleme iki giriş | Satış menüsünde **Profilim**; Ayarlar kartı "Profilim sayfasını aç"; başlıkta "Firma bilgileri" ikincil bağlantı |
 | "açık talep" / "satın alma talebi" karışık | Satış tarafı TEK terim **açık talep** — `listingTerms("ACIK_TALEP")` |
 | Boş durumlar farklı | Hepsi `EmptyState`: ikon + 1 başlık + ≤1 satır + ≤1 eylem; satışta tek eylem "Sektörleri düzenle" (`SECTOR_EDIT_HREF`), "Bağlantı Kur" Bağlantılar'ın işi |
@@ -534,7 +562,6 @@ değil). Rol adları (Satışçı/Satın Almacı) ürün sözlüğü — dokunul
 | Varlık | Görsel | Kaynak | Kartta |
 |--------|--------|--------|--------|
 | Ürün | zorunlu (yayın kapısı) | ürün formu | her zaman 4:3 kapak |
-| Satış ilanı | opsiyonel | katalogdan eklenen ilk ürünün kapağı (`items[].images` → `coverImageUrl ?? items[0].images[0]`) | varsa 4:3, yoksa kompakt |
 | Satın alma talebi | YOK | — | görsel alanı hiç ayrılmaz (kategori ikonu + metin) |
 
 Sihirbazda görsel yükleme alanı YOK — kapak ürün kaydından otomatik gelir;
@@ -580,7 +607,7 @@ Aynı gün ikinci prompt; sabahki "görünürlük katmanı" kararlarının bir k
 TERSİNE çevirdi (kullanıcı kararı). Commit'ler b641702c … (a11y).
 
 **İlke:** ürün ve firma TAMAMEN açık ve gezilebilir; alım talebi GİZLİ ama
-cezbedici; anasayfada Satış İlanları YOK (footer + `/urunler` yan bağlantı).
+cezbedici; Satış İlanları özelliği sonradan tümden kaldırıldı (2026-09-04).
 Tablo `lib/public/visibility.ts` (tek kaynak).
 
 | Yüzey | Anonim GÖRÜR | Üyeye |
@@ -727,9 +754,9 @@ da yakalıyordu → `@rothern/shared` `categoryPrefix()` (seviye × 2 hane),
 dört çağrı yeri tek kaynağa. Facet dizileri `?? []` ile okunur: kenar
 önbelleğindeki eski yanıt alan eksikse sayfa çökmez (doğrulamada 500 verdi).
 
-**Kayıt niyeti `lib/company/signup-intent.ts`:** `?intent=talep|ilan|vitrin`
+**Kayıt niyeti `lib/company/signup-intent.ts`:** `?intent=talep|vitrin`
 formda ön seçili; doğrulama sonrası `sessionStorage`, `/company` kökü
-tüketip sihirbaza (`taleplerim/yeni`, `ilanlarim/yeni`, `urunlerim?yeni=1`)
+tüketip sihirbaza (`taleplerim/yeni`, `urunlerim?yeni=1`)
 yönlendirir — onboarding araya girse de kaybolmaz.
 
 **Sözlük kilidi:** `lib/public/public-terms.test.ts` public dizinlerde
@@ -842,8 +869,8 @@ edilemiyordu (kullanıcı geri bildirimi). Keşif bloğundaki sekme:
 
 | Panel | Şeritte ne var | Uç |
 |-------|----------------|-----|
-| Satınalma (firma ALIR) | başkalarının **SATIŞ ilanları** + firmaların **ürünleri** | `seller-tenders?type=SATIS` · `company/items/discover` |
-| Satış (firma SATAR) | başkalarının **ALIM talepleri** | `seller-tenders?type=ALIM` |
+| Satınalma (firma ALIR) | firmaların **ürünleri** (satış ilanı kaldırıldı 2026-09-04) | `company/items/discover` |
+| Satış (firma SATAR) | başkalarının **ALIM talepleri** | `seller-tenders` |
 
 Yön ters dönerse kullanıcı kendi tarafındaki kayıtları "fırsat" sanır —
 sözleşme testi `portal-discovery.test.tsx` bunu kilitler. Kendi kayıtların
@@ -1128,17 +1155,16 @@ bir env kararıdır.
 | Rota | Ne | Render |
 |------|-----|--------|
 | `/` | pazar yeri anasayfası (envanter + arama + sektörler) | ○ statik, ISR 60sn |
-| `/alim-talepleri` · `/satilik` | ALIM/SATIS listeleri, süzgeçli | ○ statik, ISR 60sn |
+| `/alim-talepleri` | ALIM listesi, süzgeçli (`/satilik` → `/urunler` 308) | ○ statik, ISR 60sn |
 | `/urunler` | ÜRÜN dizini (firmalar arası vitrin) | ○ statik, ISR 5dk |
 | `/urunler/kategori/<kod>-<ad>` | kategori kırılımı — long-tail | ● SSG, ISR 10dk |
 | `/tedarikciler` | firma dizini — **GİRİŞ GEREKTİRİR** | ƒ dinamik, `noindex` |
-| `/talep/<slug>` · `/ilan/<slug>` | tekil kayıt | ƒ dinamik, ISR 120sn |
+| `/talep/<slug>` | tekil kayıt (`/ilan/*` → `/urunler` 308) | ƒ dinamik, ISR 120sn |
 | `/nasil-calisir` | ESKİ pazarlama anasayfası (içerik birebir taşındı) | ○ statik, ISR 1sa |
 
 Slug: **numara ÖNDE** (`/talep/rot-000042-celik-boru`). Ayrıştırma tek regex'e
 iner; numara sonda olsaydı başlığı "…-rot-9" ile biten kayıt sessizce YANLIŞ
-ilanı açardı. Eski slug ve yanlış taban (`/talep` altında SATIS) **308** ile
-kanoniğe yönlenir. Sitemap ve sayfanın kanonik etiketi AYNI `listingPath`ten
+ilanı açardı. Eski slug **308** ile kanoniğe yönlenir. Sitemap ve sayfanın kanonik etiketi AYNI `listingPath`ten
 üretilir — ayrı kurulsalardı Google ikisini de güvensiz sayardı.
 
 ### ÜÇÜNCÜ sözcük çerçevesi
@@ -1149,7 +1175,6 @@ uymaz. Tek kaynak `apps/web/src/lib/public/marketplace.ts`:
 | kayıt | satınalma | satış | **pazar yeri** |
 |-------|-----------|-------|----------------|
 | ALIM | "Taleplerim" | "Açık Talepler" | **"Alım Talepleri"** |
-| SATIS | — | "Satış İlanlarım" | **"Satış İlanları"** (2026-09-04: "Satılık" değil) |
 | ÜRÜN | — | "Ürünlerim" | **"Ürünler"** |
 
 **Ürün ≠ ilan.** İlan süreli bir işlemdir, ürün firmanın kalıcı vitrinidir;
@@ -1443,7 +1468,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - ✅ **Faz AI-2 (2026-07-24): Asistan sohbeti BİTTİ** — `POST /company/ai/assistant/message` (+sessions CRUD); asistan sistemin OKUMA servislerini kullanıcı kimliğiyle IN-PROCESS çağırır (ham DB YOK) → yetki katmanı (rol/tier/görünürlük/kapalı-zarf/Faz O) bedava çalışır. 6-7 okuma aracı (Gemini function-calling), BAĞLAYICI YAZMA YOK (sayfaya yönlendirir). Portal-yönlü kısıt (SA satış/ST alım verisi göremez), araç hatası → nötr `unavailable` (bilgi sızmaz), kayan pencere (son 8 tur + tek özet), 90 gün TTL cron, kullanıcıya-scope'lu kalıcı oturum. Frontend: sağ-alt floating launcher + slide-over (Silver+ ∧ SA/ST). GOTCHA: Gemini 3 function-calling **thought signature** ZORUNLU — modelin functionCall part'ındaki `thoughtSignature` geri beslemede korunmazsa 400; ayrıca fnResponse turundan sonra boş user turu EKLEME (mesajı history'ye koy, prompt="").
 - ✅ **Faz AI-1 (2026-07-24): Belge/fotoğraf → satın alma talebi formu BİTTİ** — `POST /company/ai/tender-extract` (+uploads/url, +tender-refine); girdi yönlendirici (metinli PDF→TEXT bedava çıkarım; taranmış/karışık PDF→Gemini'ye DOĞRUDAN inlineData ~258 tok/sayfa; foto→sharp ≤1500px, HEIC destekli); sayfa tavanı `AI_MAX_PAGES=20`; "bir kez oku, JSON'la konuş" (refine belgeyi yeniden okumaz); AI çıktısı shared-limits sanitizer'dan geçer (geçmeyen null+flag), vision'da miktar/birim/tarih/para birimi varsayılan işaretli; KDV-dahil uyarısı; prompt-injection sınırı (<belge> VERİ + şema-kısıtlı çıktı); wizard'a giriş noktası "Belgeden Doldur (AI)" + AiFlagsBanner + refine kutusu. AI satın alma talebi AÇMAZ — oluşturma normal kapılardan. NOT: `pnpm test` artık `NODE_OPTIONS=--experimental-vm-modules` ile koşar (pdfjs fake-worker dynamic import); tek spec koşarken de bu env gerekli: `NODE_OPTIONS=--experimental-vm-modules npx jest <spec>`.
 - ✅ **Faz AI-0 (2026-07-24): AI altyapısı BİTTİ** — Gemini adapter (sağlayıcı-soyut `BaseAiProvider`), USD-bazlı firma bütçesi (Silver $6 / Gold $25, takvim ayı UTC), ön-rezervasyon + FOR UPDATE (yarış kapalı), tavanlar (kullanıcı %50, günlük %25, istek-başı %5, premium alt-bütçe %20), model yükseltme = KOD kararı (eşik/feature/retry — kullanıcı seçemez), `/company/ai/usage` + `ayarlar/ai-kullanim` ekranı (yalnız yüzde). `GEMINI_API_KEY` yoksa AI kapalı (503, prod'da gürültülü); fiyat tablosu `apps/api/src/modules/ai/ai.config.ts`, her satır costUsd snapshot. AI-1/AI-2 özellikleri `AiService.callAi` kapısından geçecek.
-- ✅ **Excel ile kalem içe aktarma — Faz 1 (2026-08-22):** AI'sız, deterministik, her pakete açık. `GET /company/listing-item-import/template` (xlsx: Kalemler + Nasıl Doldurulur + Örnek; SATIS+KALEM'de taban/hemen-al sütunları) + `POST .../parse` (base64 gövde ≤5MB, xlsx/csv, yalnız ÖNİZLEME döner — satır-hata listesi; yazmaz). Sütun tanımı TEK KAYNAK `@rothern/shared` `item-import.ts` (başlık/alias/limit). Web: Kalemler adımında "Excel ile İçe Aktar" (önizleme → ekle/değiştir). AI "Belgeden Doldur" artık serbest Excel/CSV'yi de okur (router: sheet→metin tablo, TEXT yolu). **Faz 2 (2026-08-22) BİTTİ — tedarikçi fiyat içe aktarma:** `GET /company/listings/:id/bid-import/template` (satın alma talebine özel xlsx: kalemler ön-dolu + GİZLİ ItemId, yalnız fiyat/para birimi/teslim/not açık; AI'sız, her paket) + `POST .../bid-import/parse` (ItemId ile KESİN eşleme) + `POST /company/ai/bid-price-extract` (Silver+, feature `bid_price_extract`; model yalnız belge SATIRLARINI okur, fiyat uyduramaz; EŞLEŞTİRME KODDA `bid-matching.ts`: kod→ad→Dice/kapsama benzerliği ≥0.85 high / ≥0.60 medium / model ipucu ≥0.35; toplam÷miktar türetme, miktar/birim/para birimi/KDV uyarıları; teslim metni→BidDeliveryTime). Sözleşme `@rothern/shared bid-import.ts` (`BidImportResult`: her kalem için match + unmatchedDocRows + notices). Web: teklif-ver "Kalem Fiyatları" başlığında "Excel Şablonu ile Fiyatla" + "Belgeden Fiyatla (AI)" → tek önizleme dialog'u (güven rozeti, elle eşleme, uygula-kutusu) → yalnız itemState dolar; gönderme normal akış. Hiçbir uç teklif YAZMAZ.
+- ✅ **Excel ile kalem içe aktarma — Faz 1 (2026-08-22):** AI'sız, deterministik, her pakete açık. `GET /company/listing-item-import/template` (xlsx: Kalemler + Nasıl Doldurulur + Örnek; (taban/hemen-al sütunları satış ilanıyla birlikte kaldırıldı)) + `POST .../parse` (base64 gövde ≤5MB, xlsx/csv, yalnız ÖNİZLEME döner — satır-hata listesi; yazmaz). Sütun tanımı TEK KAYNAK `@rothern/shared` `item-import.ts` (başlık/alias/limit). Web: Kalemler adımında "Excel ile İçe Aktar" (önizleme → ekle/değiştir). AI "Belgeden Doldur" artık serbest Excel/CSV'yi de okur (router: sheet→metin tablo, TEXT yolu). **Faz 2 (2026-08-22) BİTTİ — tedarikçi fiyat içe aktarma:** `GET /company/listings/:id/bid-import/template` (satın alma talebine özel xlsx: kalemler ön-dolu + GİZLİ ItemId, yalnız fiyat/para birimi/teslim/not açık; AI'sız, her paket) + `POST .../bid-import/parse` (ItemId ile KESİN eşleme) + `POST /company/ai/bid-price-extract` (Silver+, feature `bid_price_extract`; model yalnız belge SATIRLARINI okur, fiyat uyduramaz; EŞLEŞTİRME KODDA `bid-matching.ts`: kod→ad→Dice/kapsama benzerliği ≥0.85 high / ≥0.60 medium / model ipucu ≥0.35; toplam÷miktar türetme, miktar/birim/para birimi/KDV uyarıları; teslim metni→BidDeliveryTime). Sözleşme `@rothern/shared bid-import.ts` (`BidImportResult`: her kalem için match + unmatchedDocRows + notices). Web: teklif-ver "Kalem Fiyatları" başlığında "Excel Şablonu ile Fiyatla" + "Belgeden Fiyatla (AI)" → tek önizleme dialog'u (güven rozeti, elle eşleme, uygula-kutusu) → yalnız itemState dolar; gönderme normal akış. Hiçbir uç teklif YAZMAZ.
 - AI agent layer (event-bus, MCP entegrasyonu, action endpoint'leri `/api/agents/v1/...`)
 - "Tercihlerimi Getir" preset, "Önceki Satın Alma Taleplerinden Ekle" template
 - Akıllı şartname motoru, manipülasyon tespiti

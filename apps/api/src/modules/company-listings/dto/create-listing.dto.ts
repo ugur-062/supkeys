@@ -25,9 +25,9 @@ import { Trim } from "../../../common/decorators/trim.decorator";
 /** DTO `@IsIn` için kod listesi — TEK KAYNAK UNITS. */
 const UNIT_CODES = UNITS.map((u) => u.code);
 
+/** Yalnız ALIM — satış ilanı (SATIS) 2026-09-04'te sistemden kaldırıldı. */
 export enum ListingTypeDto {
   ALIM = "ALIM",
-  SATIS = "SATIS",
 }
 
 export enum ListingVisibilityDto {
@@ -176,20 +176,6 @@ export class ListingItemDto {
   @Min(0)
   @Max(MAX_MONEY)
   targetPrice?: number;
-
-  /** SATIS + KALEM fiyatlandırma: kalem taban birim fiyatı. */
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
-  @Max(MAX_MONEY)
-  minUnitPrice?: number;
-
-  /** SATIS + KALEM: kalem hemen-al birim fiyatı (≥ taban). */
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
-  @Max(MAX_MONEY)
-  buyNowUnitPrice?: number;
 
   @IsOptional()
   @IsString()
@@ -349,23 +335,6 @@ export class CreateListingDto {
   @IsOptional()
   @IsEnum(ListingFormatDto, { message: "Geçersiz format" })
   format?: ListingFormatDto;
-
-  /** SATIS fiyatlandırma kapsamı: TOPLU (varsayılan) | KALEM. */
-  @IsOptional()
-  @IsIn(["TOPLU", "KALEM"])
-  priceScope?: "TOPLU" | "KALEM";
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
-  @Max(MAX_MONEY)
-  minPrice?: number;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
-  @Max(MAX_MONEY)
-  buyNowPrice?: number;
 
   @IsOptional()
   @IsEnum(ListingVisibilityDto, { message: "Geçersiz görünürlük" })

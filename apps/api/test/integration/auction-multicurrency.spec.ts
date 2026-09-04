@@ -436,58 +436,6 @@ describe("Onay eşiği — TEK BAZ + X3 fail-closed (INV-FX-1)", () => {
   });
 });
 
-describe("Taban kontrolü — TEK BAZ (INV-FX-1 Faz 3)", () => {
-  it("SATIS auction: taban kıyası AÇILIŞ damgasından yapılır (getFreshRate DEĞİL)", async () => {
-    const { service, exchangeRates, bidder, listing } = await auction({
-      type: "SATIS",
-      minPrice: "1000", // ₺ taban
-    }); // damga { TRY:1, EUR:50, USD:40 }
-    // getFreshRate damgadan çok farklı — kullanılmadığını ispatlar: 1 olsaydı
-    // 25 € × 1 = 25 ₺ < 1000 taban → red olurdu. Damga (50) ile 1250 ₺ → kabul.
-    exchangeRates.getFreshRate.mockResolvedValue(1);
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(25, "EUR")),
-    ).resolves.toBeDefined();
-    expect(exchangeRates.getFreshRate).not.toHaveBeenCalled(); // damga vardı → taze kur sorulmadı
-  });
-
-  it("SATIS auction: damga bazlı taban ALTINDA teklif reddedilir", async () => {
-    const { service, exchangeRates, bidder, listing } = await auction({
-      type: "SATIS",
-      minPrice: "1000",
-    });
-    // getFreshRate kullanılsaydı 15 × 999 = 14985 ≥ 1000 kabul edilirdi; damga
-    // (50) ile 15 € = 750 ₺ < 1000 → RED. Damganın enforce edildiğini ispatlar.
-    exchangeRates.getFreshRate.mockResolvedValue(999);
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(15, "EUR")),
-    ).rejects.toThrow(/taban fiyat/);
-  });
-
-  it("RFQ (damga yok) SATIS: taban kıyası getFreshRate strict — kur yoksa RED", async () => {
-    // RFQ'da açılış damgası üretilmez → tek-baz per-bid/taze kur. Taban money
-    // gate'i getFreshRate strict kalır: kur null → fail-closed (yanlış kıyas yok).
-    const { service, exchangeRates, owner, bidder } = await auction();
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      status: "OPEN",
-      visibility: "PUBLIC",
-      format: "RFQ",
-      closesAt: FUTURE,
-      primaryCurrency: "TRY",
-      allowedCurrencies: ["TRY", "EUR"] as never,
-      minPrice: "1000",
-      // auctionRateSnapshot YOK (RFQ)
-    });
-    exchangeRates.getFreshRate.mockResolvedValue(null); // TCMB taze kur yok
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(50, "EUR")),
-    ).rejects.toThrow(/kur bilgisi yok|karşılaştırılamıyor/i);
-  });
-});
-
 describe("Tie-break — eşit fiyat (INV-FX-1 X6)", () => {
   it("eşit teklifte EN ERKEN submittedAt üstte (DB/insert sırasından bağımsız)", async () => {
     const { service, bidder, listing } = await auction({ bidVisibility: "ALL" });

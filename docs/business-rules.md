@@ -33,7 +33,7 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   firma (geçerlilik uzatma) görür | 🟡 tasarım
 - **A7 — ALIM'da taban/rezerv fiyat YOK:** ters eksiltmede alıcı zaten en düşük fiyatı
   ister; taban koruması yalnız SATIS (satıcı) tarafının ihtiyacı — `buildPaymentPlan`/floor
-  yalnız `listing.type === "SATIS"` | 🟡 **bilinçli** (Grup 4'te teyit; bug değil)
+  yalnız `listing.type === "SATIS"` | ⚫ **KALKTI** — satış ilanı 2026-09-04'te kaldırıldı
 - **priceDecrement\* (Type/Value/Basis) DEAD:** hiçbir kuralda enforce edilmiyor,
   frontend göstermiyor (BAFO/minimum-pay kaldırma kalıntısı). Ölü `placeBid` select
   kaldırıldı; kolonlar `schema.prisma`'da DEAD işaretli, batched drop migration'a

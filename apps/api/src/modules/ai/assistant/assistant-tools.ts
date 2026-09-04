@@ -25,16 +25,16 @@ export function hasSeatRole(roles: CompanyRole[]): boolean {
 
 /**
  * Portal → izinli listeleme YÖNÜ:
- * - satinalma (SATIN_ALMACI): kendi ALIM ihaleleri; açık SATIŞ ilanları (Satın Al).
- * - satis (SATISCI): kendi SATIŞ ilanları; açık ALIM ihaleleri (Açık İhaleler) + teklifler.
+ * - satinalma (SATIN_ALMACI): kendi satın alma talepleri.
+ * - satis (SATISCI): açık talepler (başkalarının) + teklifler.
+ * (Satış ilanı 2026-09-04'te kaldırıldı; tek yön ALIM.)
  */
-export function canListMyTenders(portals: Set<Portal>, type: "ALIM" | "SATIS"): boolean {
-  return type === "ALIM" ? portals.has("satinalma") : portals.has("satis");
+export function canListMyTenders(portals: Set<Portal>, _type: "ALIM" = "ALIM"): boolean {
+  return portals.has("satinalma");
 }
-export function canSearchOpen(portals: Set<Portal>, type: "ALIM" | "SATIS"): boolean {
-  // sellerTenders(ALIM) = satıcının Açık İhaleler'i (teklif → satis);
-  // sellerTenders(SATIS) = alıcının Satın Al'ı (→ satinalma).
-  return type === "ALIM" ? portals.has("satis") : portals.has("satinalma");
+export function canSearchOpen(portals: Set<Portal>, _type: "ALIM" = "ALIM"): boolean {
+  // sellerTenders = satıcının Açık Talepler'i (teklif → satis).
+  return portals.has("satis");
 }
 export function canListMyBids(portals: Set<Portal>): boolean {
   return portals.has("satis"); // teklif verme satış operasyonu
@@ -119,25 +119,19 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     {
       name: TOOL_NAMES.listMyTenders,
       description:
-        "Firmanın kendi açtığı satın alma talebi/ilanları listeler. type=ALIM: satın alma satın alma talepleriniz; type=SATIS: satış ilanlarınız. Yalnız erişiminiz olan tarafı sorun.",
+        "Firmanın kendi açtığı satın alma taleplerini listeler (satın alma portalı).",
       parameters: {
         type: "object",
-        properties: {
-          type: { type: "string", enum: ["ALIM", "SATIS"] },
-        },
-        required: ["type"],
+        properties: {},
       },
     },
     {
       name: TOOL_NAMES.searchOpenTenders,
       description:
-        "Piyasadaki, firmanızın görebildiği açık satın alma talebi/ilanları arar (görünürlük ve maskeleme otomatik uygulanır). type=ALIM: teklif verebileceğiniz açık alım satın alma taleplerini; type=SATIS: satın alabileceğiniz satış ilanları.",
+        "Piyasadaki, firmanızın görebildiği ve teklif verebileceği açık satın alma taleplerini arar (görünürlük ve maskeleme otomatik uygulanır).",
       parameters: {
         type: "object",
-        properties: {
-          type: { type: "string", enum: ["ALIM", "SATIS"] },
-        },
-        required: ["type"],
+        properties: {},
       },
     },
     {
@@ -208,7 +202,6 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["ALIM", "SATIS"], description: "Satın Alma Talebi yönü" },
           rothernIds: {
             type: "array",
             items: { type: "string" },

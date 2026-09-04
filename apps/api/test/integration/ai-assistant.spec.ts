@@ -255,31 +255,6 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     expect(allText).not.toContain("GIZLI-B-IHALESI");
   });
 
-  it("SA kullanıcı list_my_tenders type=SATIS isterse reddedilir — satış verisi gitmez", async () => {
-    const provider = new FakeProvider();
-    const a = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
-    // Aynı firmanın bir SATIS ilanı — companyId scope'unda GÖRÜNÜR ama portal-kısıt engeller.
-    await makeListing(prisma, {
-      companyId: a.company.id,
-      createdById: a.user.id,
-      type: "SATIS",
-      status: "OPEN",
-      title: "SATIS-ILANIM-GIZLI",
-    });
-    provider.steps = [
-      { toolCalls: [{ name: "list_my_tenders", args: { type: "SATIS" } }] },
-      { text: "Satış tarafına erişiminiz yok." },
-    ];
-    const { svc } = build(makeCfg(), provider);
-    const saAuth = authFor(a.user, a.company.id, [CompanyRole.SATIN_ALMACI]);
-
-    await svc.message(saAuth, { message: "satış ilanlarımı göster" });
-
-    const responses = toolResponses(provider.calls[1]!);
-    expect(responses).toContainEqual({ error: "unavailable" });
-    expect(JSON.stringify(provider.calls)).not.toContain("SATIS-ILANIM-GIZLI");
-  });
-
   it("SA kullanıcı kendi ALIM ihalelerini görebilir (portal-izinli)", async () => {
     const provider = new FakeProvider();
     const a = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });

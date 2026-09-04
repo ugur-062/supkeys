@@ -97,7 +97,7 @@ export class TenderExtractService {
 
   async extract(
     user: AuthenticatedCompanyUser,
-    dto: { fileKeys: string[]; listingType: "ALIM" | "SATIS" },
+    dto: { fileKeys: string[]; listingType?: "ALIM" },
   ): Promise<AiTenderExtractResult> {
     // Erişim kapısı EN BAŞTA — yetkisiz istek için dosya işlemeyiz bile.
     this.ai.assertAiAccess(user);

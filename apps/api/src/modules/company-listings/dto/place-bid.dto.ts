@@ -124,19 +124,13 @@ export class PlaceBidDto {
   @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
   deliveryDate?: string;
 
-  // Gönderimde zorunlu: teslim SÜRESİ (ALIM: satıcının taahhüdü, SATIS:
-  // alıcının istediği süre) — kalemlerin tamamı kendi süresini taşımıyorsa.
+  // Gönderimde zorunlu: teslim SÜRESİ (satıcının taahhüdü) — kalemlerin
+  // tamamı kendi süresini taşımıyorsa.
   @IsOptional()
   @IsIn(BID_DELIVERY_TIMES as readonly string[], {
     message: "Geçersiz teslim süresi",
   })
   deliveryTime?: BidDeliveryTime;
-
-  // SATIS: alıcının teslimat adresi (kendi adres defterinden). Adrese-teslim
-  // şartlı ilanlarda gönderimde zorunlu.
-  @IsOptional()
-  @IsString()
-  deliveryAddressId?: string;
 
   @IsOptional()
   @IsInt()
@@ -148,38 +142,4 @@ export class PlaceBidDto {
   @IsOptional()
   @IsEnum(BidCurrencyDto)
   currency?: BidCurrencyDto;
-}
-
-/** Hemen Al — placeBid ile aynı validasyon sınırları (eskiden DTO yoktu). */
-export class BuyNowDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  note?: string;
-
-  @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
-  deliveryDate?: string;
-
-  @IsOptional()
-  @IsIn(BID_DELIVERY_TIMES as readonly string[], {
-    message: "Geçersiz teslim süresi",
-  })
-  deliveryTime?: BidDeliveryTime;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(365)
-  validityDays?: number;
-
-  @IsOptional()
-  @IsString()
-  deliveryAddressId?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @ArrayMaxSize(500) // ilan kalem tavanıyla (500) birebir
-  itemIds?: string[];
 }

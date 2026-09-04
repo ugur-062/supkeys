@@ -819,82 +819,6 @@ describe("awardByItem — kalem bazlı", () => {
     ]);
     expect((res as { count?: number }).count).toBe(2);
   });
-
-  it("SATIS kalem-bazlı: her kazanan firmanın teslim adresi doğru snapshot'lanır (batch)", async () => {
-    const { service } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyer1 = await makeCompanyWithUser(prisma, { country: "TR" });
-    const buyer2 = await makeCompanyWithUser(prisma, { country: "TR" });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      status: "OPEN",
-      visibility: "PUBLIC",
-      closesAt: FUTURE,
-    });
-    const i1 = await makeItem(prisma, listing.id, { lineNo: 1 });
-    const i2 = await makeItem(prisma, listing.id, { lineNo: 2 });
-    const addr1 = await prisma.companyAddress.create({
-      data: {
-        companyId: buyer1.company.id,
-        type: "TESLIMAT",
-        title: "Depo 1",
-        contactName: "Ali",
-        country: "TR",
-        city: "İstanbul",
-        addressLine: "Adres 1",
-      },
-    });
-    const addr2 = await prisma.companyAddress.create({
-      data: {
-        companyId: buyer2.company.id,
-        type: "TESLIMAT",
-        title: "Depo 2",
-        contactName: "Veli",
-        country: "TR",
-        city: "Ankara",
-        addressLine: "Adres 2",
-      },
-    });
-    const bid1 = await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: buyer1.company.id,
-      createdById: buyer1.user.id,
-      amount: 100,
-      items: [{ itemId: i1.id, unitPrice: 100 }],
-    });
-    const bid2 = await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: buyer2.company.id,
-      createdById: buyer2.user.id,
-      amount: 200,
-      items: [{ itemId: i2.id, unitPrice: 200 }],
-    });
-    await prisma.listingBid.update({
-      where: { id: bid1.id },
-      data: { deliveryAddressId: addr1.id },
-    });
-    await prisma.listingBid.update({
-      where: { id: bid2.id },
-      data: { deliveryAddressId: addr2.id },
-    });
-
-    await service.awardByItem(owner.auth, listing.id, [
-      { itemId: i1.id, bidId: bid1.id },
-      { itemId: i2.id, bidId: bid2.id },
-    ]);
-
-    // Her firmanın siparişi kendi teslim adresi snapshot'ını taşır.
-    const o1 = await prisma.companyOrder.findFirstOrThrow({
-      where: { listingId: listing.id, buyerCompanyId: buyer1.company.id },
-    });
-    const o2 = await prisma.companyOrder.findFirstOrThrow({
-      where: { listingId: listing.id, buyerCompanyId: buyer2.company.id },
-    });
-    expect((o1.deliveryAddress as { city: string }).city).toBe("İstanbul");
-    expect((o2.deliveryAddress as { city: string }).city).toBe("Ankara");
-  });
 });
 
 describe("eliminate — state machine", () => {
@@ -1106,29 +1030,6 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       expect(
         await errOf(service.updateListing(withRole, listing.id, {} as never)),
       ).not.toMatch(DENY);
-    });
-
-    it("SATIS ilanı taraf-duyarlı: açan SATISCI geçer, SATIN_ALMACI reddedilir", async () => {
-      const { service, company, creator, listing, opRole } = await setup("SATIS", "DRAFT");
-      const okAuth = authFor(company, {
-        id: creator.id,
-        email: creator.email,
-        roles: [opRole],
-      });
-      expect(await errOf(service.publishListing(okAuth, listing.id))).not.toMatch(DENY);
-
-      const { service: s2, company: c2, listing: l2 } = await setup("SATIS", "DRAFT");
-      const buyer = await makeUser(prisma, c2.id, [CompanyRole.SATIN_ALMACI]);
-      await prisma.listing.update({
-        where: { id: l2.id },
-        data: { createdById: buyer.id },
-      });
-      const badAuth = authFor(c2, {
-        id: buyer.id,
-        email: buyer.email,
-        roles: [CompanyRole.SATIN_ALMACI],
-      });
-      await expect(s2.publishListing(badAuth, l2.id)).rejects.toThrow(DENY);
     });
   });
 

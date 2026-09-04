@@ -102,18 +102,4 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
     expect(res.candidates).toHaveLength(1);
     expect(res.candidates[0]!.connectionStatus).toBe("PENDING");
   });
-
-  it("SATIS ihalesi alıcı adaylarını (buyerCategoryIds) arar", async () => {
-    const seller = await makeCompanyWithUser(prisma);
-    const buyerCo = await makeCompanyWithUser(prisma, { name: "Alıcı AŞ", tier: "SILVER" });
-    await prisma.company.update({
-      where: { id: buyerCo.company.id },
-      data: { buyerCategoryIds: ["30000000"], sellerCategoryIds: [] },
-    });
-    const res = await svc().discoverRegistered(seller.auth, {
-      type: "SATIS",
-      categoryIds: ["30991500"],
-    });
-    expect(res.candidates.map((c) => c.name)).toEqual(["Alıcı AŞ"]);
-  });
 });

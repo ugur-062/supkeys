@@ -1,7 +1,7 @@
 /**
- * Raporlama motoru (eski sistem portu) — Genel (SINGLE/RANGE), Tasarruf/
- * Kazanç, Teklif Karşılaştırma. Tip-farkında hesaplar + kiracı izolasyonu +
- * kapalı zarf (yalnız sahip) doğrulanır.
+ * Raporlama motoru (eski sistem portu) — Genel (SINGLE/RANGE), Tasarruf,
+ * Teklif Karşılaştırma. Hesaplar + kiracı izolasyonu + kapalı zarf (yalnız
+ * sahip) doğrulanır.
  */
 import { CompanyReportsService } from "../../src/modules/company-reports/company-reports.service";
 import { ReportsExcelService } from "../../src/modules/company-reports/reports-excel.service";
@@ -80,7 +80,7 @@ describe("Genel rapor", () => {
     const outsider = await makeCompanyWithUser(prisma, { country: "TR" });
     const { listing } = await awardedAlim(owner);
 
-    const r = await service.general(owner.company.id, "ALIM", {
+    const r = await service.general(owner.company.id, {
       mode: "SINGLE",
       listingId: listing.id,
     });
@@ -94,21 +94,21 @@ describe("Genel rapor", () => {
     expect(row.estimatedTotal).toBe(900);
 
     await expect(
-      service.general(outsider.company.id, "ALIM", {
+      service.general(outsider.company.id, {
         mode: "SINGLE",
         listingId: listing.id,
       }),
     ).rejects.toThrow(/bulunamadı/);
   });
 
-  it("RANGE: tarih aralığı + tip süzer; başka firmanın verisi karışmaz", async () => {
+  it("RANGE: tarih aralığı süzer; başka firmanın verisi karışmaz", async () => {
     const service = svc();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const other = await makeCompanyWithUser(prisma, { country: "TR" });
     await awardedAlim(owner);
     await awardedAlim(other);
 
-    const r = await service.general(owner.company.id, "ALIM", {
+    const r = await service.general(owner.company.id, {
       mode: "RANGE",
       rangeStart: past(7),
       rangeEnd: future(1),
@@ -119,7 +119,7 @@ describe("Genel rapor", () => {
     expect(r.summary.totalDelta).toBe(200);
 
     // Aralık dışı → boş.
-    const empty = await service.general(owner.company.id, "ALIM", {
+    const empty = await service.general(owner.company.id, {
       mode: "RANGE",
       rangeStart: past(30),
       rangeEnd: past(14),
@@ -128,13 +128,13 @@ describe("Genel rapor", () => {
   });
 });
 
-describe("Tasarruf/Kazanç raporu", () => {
-  it("ALIM: tasarruf = en yüksek − kazanan; kalem detayı hedef-vs-kazanan", async () => {
+describe("Tasarruf raporu", () => {
+  it("tasarruf = en yüksek − kazanan; kalem detayı hedef-vs-kazanan", async () => {
     const service = svc();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     await awardedAlim(owner);
 
-    const r = await service.savings(owner.company.id, "ALIM", {
+    const r = await service.savings(owner.company.id, {
       rangeStart: past(7),
       rangeEnd: future(1),
     });
@@ -147,51 +147,6 @@ describe("Tasarruf/Kazanç raporu", () => {
     expect(row.items[0]!.winningUnitPrice).toBe(800);
     expect(row.items[0]!.delta).toBe(100); // hedef 900 − kazanan 800
     expect(r.summary.grandDelta).toBe(200);
-  });
-
-  it("SATIS: kazanç = kazanan − en düşük; kalem referansı taban", async () => {
-    const service = svc();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const b1 = await makeCompanyWithUser(prisma, { country: "TR" });
-    const b2 = await makeCompanyWithUser(prisma, { country: "TR" });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "SATIS",
-      status: "AWARDED",
-      awardedAt: new Date(),
-    });
-    const item = await makeItem(prisma, listing.id, {
-      quantity: 1,
-      minUnitPrice: 1000,
-    } as never);
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: b1.company.id,
-      createdById: b1.user.id,
-      amount: 1500,
-      status: "WON",
-      items: [{ itemId: item.id, unitPrice: 1500 }],
-    });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: b2.company.id,
-      createdById: b2.user.id,
-      amount: 1100,
-      status: "LOST",
-      items: [{ itemId: item.id, unitPrice: 1100 }],
-    });
-
-    const r = await service.savings(owner.company.id, "SATIS", {
-      rangeStart: past(7),
-      rangeEnd: future(1),
-    });
-    const row = r.rows[0]!;
-    expect(row.lowestBid).toBe(1100);
-    expect(row.winningTotal).toBe(1500);
-    expect(row.delta).toBe(400); // kazanan − en düşük
-    expect(row.items[0]!.referenceUnitPrice).toBe(1000); // taban
-    expect(row.items[0]!.delta).toBe(500); // kazanan − taban
   });
 });
 
@@ -210,7 +165,7 @@ describe("Teklif Karşılaştırma raporu", () => {
       },
     });
 
-    const r = await service.bidComparison(owner.company.id, "ALIM", {
+    const r = await service.bidComparison(owner.company.id, {
       listingId: listing.id,
       criteria: "PRICE",
       includeNonBidders: false,
@@ -228,7 +183,7 @@ describe("Teklif Karşılaştırma raporu", () => {
     // Hedefe göre tasarruf (hedef 900 − kazanan 800 = 100).
     expect(p1.deltaVsReference).toBe(100);
 
-    const withNon = await service.bidComparison(owner.company.id, "ALIM", {
+    const withNon = await service.bidComparison(owner.company.id, {
       listingId: listing.id,
       criteria: "PRICE",
       includeNonBidders: true,
@@ -246,15 +201,15 @@ describe("Teklif Karşılaştırma raporu", () => {
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const { listing } = await awardedAlim(owner);
 
-    const g = await service.general(owner.company.id, "ALIM", {
+    const g = await service.general(owner.company.id, {
       mode: "SINGLE",
       listingId: listing.id,
     });
-    const s = await service.savings(owner.company.id, "ALIM", {
+    const s = await service.savings(owner.company.id, {
       rangeStart: past(7),
       rangeEnd: future(1),
     });
-    const c = await service.bidComparison(owner.company.id, "ALIM", {
+    const c = await service.bidComparison(owner.company.id, {
       listingId: listing.id,
       criteria: "BOTH",
     });
