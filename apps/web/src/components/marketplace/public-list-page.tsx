@@ -2,6 +2,7 @@ import { FilterChip } from "./facets";
 import { SearchForm } from "./search-form";
 import { Heading } from "@/components/catalyst/heading";
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 /**
@@ -25,10 +26,13 @@ export function PublicListPage({
   sidebar,
   summary,
   chipsNode,
+  image,
   children,
 }: {
   title: string;
   lead: string;
+  /** Başlığın sağında 3:2 fotoğraf (kategori sayfası: segment fotoğrafı). */
+  image?: string | null;
   search: {
     action: string;
     defaultValue?: string;
@@ -56,15 +60,24 @@ export function PublicListPage({
       <header className="border-b border-zinc-950/5 bg-white pt-28 pb-10">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           {breadcrumb}
-          <Heading
-            level={1}
-            className="text-3xl font-semibold tracking-tight !text-zinc-950 sm:text-4xl"
-          >
-            {title}
-          </Heading>
-          <p className="mt-3 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
-          <div className="mt-7 max-w-3xl">
-            <SearchForm {...search} />
+          <div className={image ? "grid items-start gap-8 lg:grid-cols-[1fr_20rem]" : ""}>
+            <div>
+              <Heading
+                level={1}
+                className="text-3xl font-semibold tracking-tight !text-zinc-950 sm:text-4xl"
+              >
+                {title}
+              </Heading>
+              <p className="mt-3 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
+              <div className="mt-7 max-w-3xl">
+                <SearchForm {...search} />
+              </div>
+            </div>
+            {image ? (
+              <div className="relative hidden aspect-[3/2] overflow-hidden rounded-2xl ring-1 ring-zinc-950/5 lg:block">
+                <Image src={image} alt="" fill sizes="20rem" priority className="object-cover" />
+              </div>
+            ) : null}
           </div>
         </div>
       </header>
@@ -96,7 +109,9 @@ export function PublicListPage({
             {sidebar}
           </aside>
           <div>
-            {summary ? <p className="mb-4 text-sm text-zinc-500">{summary}</p> : null}
+            {/* <div>: summary içinde <p aria-live> ve <div> (SortControl) var —
+                <p> içine koymak geçersiz HTML ve hydration hatasıydı (React #418). */}
+            {summary ? <div className="mb-4 text-sm text-zinc-500">{summary}</div> : null}
             {children}
           </div>
         </div>
