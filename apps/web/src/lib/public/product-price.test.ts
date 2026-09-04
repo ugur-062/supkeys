@@ -6,7 +6,7 @@ const base = { priceCurrency: "TRY", unit: "adet" };
 describe("ürün fiyat gösterimi", () => {
   it("sabit fiyatı birim ile gösterir", () => {
     const r = productPrice({ ...base, priceMode: "FIXED", priceAmount: "450", priceTiers: null });
-    expect(r.headline).toBe("450 TRY / adet");
+    expect(r.headline).toBe("450 ₺ / adet");
     expect(r.hasPrice).toBe(true);
   });
 
@@ -23,7 +23,7 @@ describe("ürün fiyat gösterimi", () => {
         { minQty: 100, unitPrice: 450 },
       ],
     });
-    expect(r.headline).toBe("420 TRY / adet");
+    expect(r.headline).toBe("420 ₺ / adet");
     expect(r.note).toBe("500 adet ve üzeri için");
     expect(r.tiers?.map((t) => t.minQty)).toEqual([1, 100, 500]); // sıralı
   });

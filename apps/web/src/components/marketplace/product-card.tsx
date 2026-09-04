@@ -2,6 +2,7 @@
 
 import { CategoryImage } from "./category-image";
 import { Thumb } from "@/components/ui/thumb";
+import { isStockImage } from "@/lib/public/image-host";
 import { productPrice } from "@/lib/public/product-price";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
@@ -151,6 +152,8 @@ export function ProductCard({
         ratio="aspect-[4/3]"
         className="border-b border-zinc-950/5"
         priority={priority}
+        fallback="neutral"
+        label={isStockImage(product.images[0]) ? "Temsili görsel" : undefined}
       />
 
       <div className="flex flex-1 flex-col p-4">
@@ -182,37 +185,42 @@ export function ProductCard({
         ) : null}
 
         {firm ? (
-          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-zinc-500">
-            <span className="truncate font-medium text-zinc-700">{firm.name}</span>
-            {firm.verified ? (
-              <span
-                className="inline-flex items-center gap-0.5 text-emerald-700"
-                title="Kimliği doğrulanmış firma"
-              >
-                <CheckBadgeIcon aria-hidden className="size-3.5" />
-                Doğrulanmış
-              </span>
+          <div className="mt-2 min-w-0 text-xs text-zinc-500">
+            {/* Tek satır: firma · şehir; taşarsa ÜÇ NOKTA — kart yüksekliği
+                firma adının uzunluğuna göre oynamasın (B5). */}
+            <p className="flex min-w-0 items-center gap-1">
+              <span className="truncate font-medium text-zinc-700">{firm.name}</span>
+              {firm.verified ? (
+                <CheckBadgeIcon
+                  aria-label="Doğrulanmış firma"
+                  className="size-3.5 shrink-0 text-emerald-600"
+                />
+              ) : null}
+              {firm.city ? <span className="shrink-0 whitespace-nowrap">· {firm.city}</span> : null}
+            </p>
+            {activities.length > 0 ? (
+              <p className="mt-1 flex gap-1 overflow-hidden whitespace-nowrap">
+                {activities.map((a) => (
+                  <span
+                    key={a}
+                    className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+                  >
+                    {companyActivityLabel(a)}
+                  </span>
+                ))}
+              </p>
             ) : null}
-            {firm.city ? <span className="text-zinc-500">· {firm.city}</span> : null}
-            {activities.map((a) => (
-              <span
-                key={a}
-                className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
-              >
-                {companyActivityLabel(a)}
-              </span>
-            ))}
           </div>
         ) : null}
 
         <div className="mt-auto pt-3">
           <p
-            className={`text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-500"}`}
+            className={`text-sm font-semibold tabular-nums ${price.hasPrice ? "text-zinc-950" : "text-zinc-500"}`}
           >
             {price.headline}
           </p>
           {product.moq ? (
-            <p className="mt-0.5 text-xs text-zinc-500">
+            <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
               Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
             </p>
           ) : null}

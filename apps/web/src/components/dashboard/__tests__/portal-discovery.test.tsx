@@ -137,7 +137,8 @@ describe("PortalDiscovery (satınalma seçkisi)", () => {
       "href",
       "/company/satinalma/urunler/ikinci-firma/dagitim-panosu",
     );
-    expect(screen.getByText("Doğrulanmış")).toBeInTheDocument();
+    // Rozet ikon + erişilebilir ad (B7: ad ile aynı satırda, metin yok).
+    expect(screen.getByLabelText("Doğrulanmış firma")).toBeInTheDocument();
     expect(screen.getByText("Üretici")).toBeInTheDocument();
   });
 

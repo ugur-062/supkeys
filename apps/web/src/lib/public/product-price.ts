@@ -1,4 +1,5 @@
 import type { PriceTier } from "./marketplace-api";
+import { currencySymbol } from "@/lib/tenders/labels";
 
 /**
  * ÜRÜN FİYAT GÖSTERİMİ — tek kaynak.
@@ -22,11 +23,12 @@ export interface PriceDisplay {
   hasPrice: boolean;
 }
 
+/** "41.000 ₺" — sembol tek kaynaktan (`CURRENCY_SYMBOL`); bilinmeyen kod olduğu gibi. */
 function fmt(amount: number, currency: string): string {
   return `${amount.toLocaleString("tr-TR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  })} ${currency}`;
+  })} ${currencySymbol(currency)}`;
 }
 
 export function productPrice(p: {

@@ -39,8 +39,10 @@ export function CompanyCard({
           }
         />
         <div className="min-w-0">
-          <h3 className="flex flex-wrap items-center gap-1.5 text-base font-semibold text-zinc-950">
-            <span className="line-clamp-1">{c.name}</span>
+          {/* Ad + ✓ AYNI satırda: ad taşarsa ad kısalır, rozet alt satıra
+              düşmez (B7). */}
+          <h3 className="flex min-w-0 items-center gap-1.5 text-base font-semibold whitespace-nowrap text-zinc-950">
+            <span className="truncate">{c.name}</span>
             {c.verified ? (
               <CheckBadgeIcon aria-label="Doğrulanmış firma" className="size-4 shrink-0 text-emerald-600" />
             ) : null}

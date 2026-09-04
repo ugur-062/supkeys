@@ -2,6 +2,7 @@
 
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { optimizable } from "@/lib/public/image-host";
+import { ImageOff } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -30,6 +31,8 @@ export function CategoryImage({
   className = "",
   ratio = "aspect-[16/9]",
   priority = false,
+  fallback = "category",
+  label,
 }: {
   /** `Category.imageUrl` — doluysa üretilmiş görselin yerine geçer. */
   src?: string | null;
@@ -39,6 +42,14 @@ export function CategoryImage({
   ratio?: string;
   /** LCP adayı — lazy değil, öncelikli. */
   priority?: boolean;
+  /**
+   * Görsel yoksa ne çizilir: `category` = tonlu segment ikonu (ilan/talep —
+   * kategori görseli meşru içerik); `neutral` = nötr gri + görsel-yok ikonu
+   * (ÜRÜN — görsel zorunlu, yokluğu bir eksikliktir; tonlu kutu onu saklardı).
+   */
+  fallback?: "category" | "neutral";
+  /** Görselin köşesine küçük etiket — "Temsili görsel" (stok fotoğraf). */
+  label?: string;
 }) {
   // Yükleme hatası → üretilmiş görsele düş. `src` değişirse (aynı kartın
   // yeniden kullanımı) hata durumu sıfırlanmalı; anahtar olarak src kullanılır.
@@ -73,6 +84,24 @@ export function CategoryImage({
             onError={() => setFailedSrc(src)}
           />
         )}
+        {label ? (
+          <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+            {label}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (fallback === "neutral") {
+    return (
+      <div
+        aria-hidden={alt === "" ? true : undefined}
+        role={alt === "" ? undefined : "img"}
+        aria-label={alt || undefined}
+        className={`relative flex items-center justify-center overflow-hidden bg-neutral-100 ${ratio} ${className}`}
+      >
+        <ImageOff aria-hidden strokeWidth={1.25} className="size-8 text-neutral-400" />
       </div>
     );
   }
