@@ -11,8 +11,6 @@ import {
   IdentificationIcon,
   InboxArrowDownIcon,
   ShoppingBagIcon,
-  ShoppingCartIcon,
-  TagIcon,
   UsersIcon,
 } from "@heroicons/react/20/solid";
 import type { ComponentType, SVGProps } from "react";
@@ -68,7 +66,6 @@ export const MODULE_LABELS = {
     // Portal bağlamı zaten "Satınalma" — menüde kısa biçim yeterli ve
     // "Taleplerim" sol menüde taşıyordu.
     ihalelerim: "Taleplerim",
-    satinAl: "Satın Al",
     // BAŞKA firmaların vitrinleri. Satıştaki "Ürünlerim" firmanın KENDİ
     // kataloğu; ikisi menüde yan yana okunduğunda ayırt edilemiyordu
     // (kullanıcı geri bildirimi 2026-09-03) → burada FİİL kullanıyoruz.
@@ -77,20 +74,12 @@ export const MODULE_LABELS = {
     // GELEN sorular, burası benim GÖNDERDİKLERİM. Ayrımı iyelik kipi taşıyor
     // ("Ürünlerim"/"Ürün Ara" ile aynı kural).
     bilgiTaleplerim: "Bilgi Taleplerim",
-    teklifler: "Tekliflerim",
     siparisler: "Siparişlerim",
   },
   satis: {
-    // ÖNEMLİ AYRIM (yeniden adlandırma, 2026-09-01): satış portalında iki
-    // farklı şey var ve ikisi AYNI sözcükle anılamaz —
-    //   · `ilanlarim`  = firmanın KENDİ sattığı şeyler → "ilan"
-    //   · `acikTalepler` = BAŞKA firmaların satın alma talepleri, teklif
-    //     verilecek olanlar → "talep"
-    // Eskiden ikisine de "ihale" deniyordu; düz çeviri "Satış Satın Alma
-    // Taleplerim" gibi anlamsız bir başlık üretiyordu.
-    ilanlarim: "Satış İlanlarım",
-    // Faz 2 — ilandan AYRI: ilan süreli bir işlem, ürün kalıcı bir vitrin
-    // kaydı. Aynı sözcükle anılsalardı kullanıcı hangisini açacağını bilemezdi.
+    // Satış portalında BAŞKA firmaların satın alma talepleri "talep"tir
+    // ("Açık Talepler"); firmanın kendi sattıkları ÜRÜN kataloğundadır
+    // ("Ürünlerim"). Satış ilanı özelliği kaldırıldı (2026-09-04).
     urunler: "Ürünlerim",
     // Misafir ziyaretçilerin ürün sayfalarından gönderdiği sorular (Faz 1) —
     // "mesaj" DEĞİL: mesajlaşma firma↔firma, bu kanalda gönderenin hesabı
@@ -119,12 +108,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satinalma/taleplerim",
       },
       {
-        icon: ShoppingCartIcon,
-        label: MODULE_LABELS.satinalma.satinAl,
-        href: "/company/satinalma/satin-al",
-        minTier: "SILVER",
-      },
-      {
         icon: CubeIcon,
         label: MODULE_LABELS.satinalma.urunAra,
         href: "/company/satinalma/urunler",
@@ -137,11 +120,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: EnvelopeIcon,
         label: MODULE_LABELS.satinalma.bilgiTaleplerim,
         href: "/company/satinalma/bilgi-taleplerim",
-      },
-      {
-        icon: TagIcon,
-        label: MODULE_LABELS.satinalma.teklifler,
-        href: "/company/satinalma/tekliflerim",
       },
       {
         icon: ShoppingBagIcon,
@@ -182,13 +160,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
     accent: "emerald",
     nav: [
       { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
-      {
-        icon: TagIcon,
-        label: MODULE_LABELS.satis.ilanlarim,
-        href: "/company/satis/ilanlarim",
-        // Satış ilanı açma Silver+ (kilit ikonu + segment layout kapısı).
-        minTier: "SILVER",
-      },
       {
         icon: InboxArrowDownIcon,
         label: MODULE_LABELS.satis.acikIhaleler,
@@ -237,20 +208,9 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satis/musterilerim",
       },
     ],
-    secondaryNav: [
-      {
-        icon: ChartBarIcon,
-        label: "Raporlar",
-        href: "/company/satis/raporlar",
-        minTier: "SILVER",
-      },
-      {
-        icon: DocumentDuplicateIcon,
-        label: "Şablonlar",
-        href: "/company/satis/sablonlar",
-        minTier: "SILVER",
-      },
-    ],
+    // Satışta ikincil sayfa yok: Raporlar ve Şablonlar satış ilanı
+    // sihirbazına aitti, o özellikle birlikte kaldırıldı (2026-09-04).
+    secondaryNav: [],
   },
 };
 
@@ -329,11 +289,12 @@ export function allPortalRoutes(def: PortalDef): PortalNavItem[] {
  * Portala göre Profilim / Raporlar / Şablonlar adresleri (Ayarlar kartı,
  * hesap menüsü, sayfa başlıkları). Satışta Profilim artık ana menüde de var;
  * bu tablo giriş noktalarının ORTAK adres kaynağı olmaya devam eder.
+ * Raporlar/Şablonlar yalnız satınalmada (satış ilanı kaldırıldı, 2026-09-04).
  */
-export const PORTAL_SECONDARY_HREFS: Record<
-  PortalKey,
-  { profilim: string; raporlar: string; sablonlar: string }
-> = {
+export const PORTAL_SECONDARY_HREFS: {
+  satinalma: { profilim: string; raporlar: string; sablonlar: string };
+  satis: { profilim: string };
+} = {
   satinalma: {
     profilim: "/company/satinalma/profilim",
     raporlar: "/company/satinalma/raporlar",
@@ -341,7 +302,5 @@ export const PORTAL_SECONDARY_HREFS: Record<
   },
   satis: {
     profilim: "/company/satis/profilim",
-    raporlar: "/company/satis/raporlar",
-    sablonlar: "/company/satis/sablonlar",
   },
 };

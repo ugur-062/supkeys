@@ -165,10 +165,4 @@ describe("SavingsReportView", () => {
     expect(h.toast.success).toHaveBeenCalledWith("tasarruf.xlsx indiriliyor");
   });
 
-  it("SATIS varyantı 'Rekabet Kazancı Raporu' başlığı + Kazanç sözcüğü", () => {
-    h.reportData = { ...(result([row()]) as object), type: "SATIS" } as unknown;
-    render(<SavingsReportView type="SATIS" basePath="/company/satis/raporlar" />);
-    expect(screen.getByText("Rekabet Kazancı Raporu")).toBeInTheDocument();
-    expect(screen.getByText("Toplam Kazanç")).toBeInTheDocument();
-  });
 });

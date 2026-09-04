@@ -34,7 +34,6 @@ describe("pazar yeri rotaları ⇔ public rota listesi", () => {
   it("pazar yeri rotaları ve alt yolları public sayılır", () => {
     expect(isPublicRoute(MARKETPLACE_ROUTES.demands)).toBe(true);
     expect(isPublicRoute(`${MARKETPLACE_ROUTES.demand}/rot-42-celik`)).toBe(true);
-    expect(isPublicRoute(`${MARKETPLACE_ROUTES.offers}?sayfa=2`)).toBe(true);
   });
 
   it("panel rotası /company/ilan pazar yerine SIZMAZ", () => {
@@ -73,9 +72,8 @@ describe("slug — numara önde", () => {
     expect(parseListingNumber("rot-1-yedek-parca-rot-9")).toBe("ROT-1");
   });
 
-  it("tipe göre doğru tabana yazar", () => {
-    expect(listingPath("ALIM", "ROT-1", "Boru")).toBe("/talep/rot-1-boru");
-    expect(listingPath("SATIS", "ROT-2", "Vinç")).toBe("/ilan/rot-2-vinc");
+  it("talep tabanına yazar", () => {
+    expect(listingPath("ROT-1", "Boru")).toBe("/talep/rot-1-boru");
   });
 });
 
@@ -114,10 +112,8 @@ describe("yayın anahtarı kapsamı", () => {
   const APP = path.resolve(__dirname, "../../app");
   const PAGES = [
     "alim-talepleri/page.tsx",
-    "satilik/page.tsx",
     "firmalar/page.tsx",
     "talep/[slug]/page.tsx",
-    "ilan/[slug]/page.tsx",
     "firma/[slug]/urun/[urunSlug]/page.tsx",
     "page.tsx", // anasayfa
   ];

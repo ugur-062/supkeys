@@ -44,14 +44,12 @@ import { toast } from "sonner";
 export function SupplierDiscoveryModal({
   isOpen,
   onClose,
-  type,
   categoryIds,
   itemNames = [],
   listingId,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  type: "ALIM" | "SATIS";
   categoryIds: string[];
   /** Faz B — web aramasına bağlam (kalem adları). */
   itemNames?: string[];
@@ -108,7 +106,7 @@ export function SupplierDiscoveryModal({
   useEffect(() => {
     if (!isOpen || effCategoryIds.length === 0) return;
     discovery
-      .mutateAsync({ type, categoryIds: effCategoryIds })
+      .mutateAsync({ type: "ALIM", categoryIds: effCategoryIds })
       .then(setCandidates)
       .catch(() => toast.error("Öneriler yüklenemedi — tekrar deneyin"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,7 +116,7 @@ export function SupplierDiscoveryModal({
     if (external.isPending || effCategoryIds.length === 0) return;
     try {
       const res = await external.mutateAsync({
-        type,
+        type: "ALIM",
         categoryIds: effCategoryIds,
         itemNames: effItemNames.slice(0, 15),
         region: region.trim() || undefined,
@@ -200,7 +198,6 @@ export function SupplierDiscoveryModal({
     }
   };
 
-  const counterpart = type === "ALIM" ? "tedarikçi" : "alıcı";
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[60]">
@@ -218,7 +215,7 @@ export function SupplierDiscoveryModal({
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-zinc-950">
-                  Daha fazla {counterpart}ye eriş
+                  Daha fazla tedarikçiye eriş
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   Satın Alma Talebi kategorilerinize göre platformda eşleşen, henüz bağlantınız

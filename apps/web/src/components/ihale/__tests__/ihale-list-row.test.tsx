@@ -27,7 +27,7 @@ const ROW = {
   id: "l55",
   tenderNumber: "ROT-000055",
   title: "Paslanmaz çelik boru satışı",
-  type: "SATIS",
+  type: "ALIM",
   format: null,
   status: "IN_AWARD",
   isInternational: false,
@@ -50,7 +50,7 @@ beforeEach(() => {
 describe("IhaleListRow", () => {
   it("kart sırası: kod+ad, rozet, sonra Davetli / Kapsam / Yayın / Kapanış; '›' oku yok", () => {
     render(
-      <IhaleListRow t={ROW} listingType="SATIS" favorite={false} onToggleFavorite={vi.fn()} />,
+      <IhaleListRow t={ROW} favorite={false} onToggleFavorite={vi.fn()} />,
     );
     expect(screen.getByText("ROT-000055")).toBeInTheDocument();
     expect(screen.getByText("Paslanmaz çelik boru satışı")).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("IhaleListRow", () => {
     const user = userEvent.setup();
     const onFav = vi.fn();
     render(
-      <IhaleListRow t={ROW} listingType="SATIS" favorite={false} onToggleFavorite={onFav} />,
+      <IhaleListRow t={ROW} favorite={false} onToggleFavorite={onFav} />,
     );
 
     await user.click(screen.getByRole("button", { name: "Favorilere ekle" }));

@@ -287,108 +287,22 @@ describe("tenderFormSchema — sınır tavanları (F2/F3, backend DTO birebir)",
   });
 });
 
-describe("tenderFormSchema — SATIS (satış satın alma talebi)", () => {
-  it("SATIS: taban fiyat zorunlu; verilince geçer", () => {
-    const noMin = tenderFormSchema.safeParse(
-      validForm({ listingType: "SATIS" }),
-    );
-    expect(noMin.success).toBe(false);
-    expect(
-      noMin.success
-        ? ""
-        : noMin.error.issues.map((i) => i.path.join(".")).join(","),
-    ).toContain("minPrice");
-
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({ listingType: "SATIS", minPrice: 1000 }),
-      ).success,
-    ).toBe(true);
-  });
-
-  it("SATIS: hemen-al taban fiyattan düşük olamaz", () => {
-    const bad = tenderFormSchema.safeParse(
-      validForm({ listingType: "SATIS", minPrice: 1000, buyNowPrice: 500 }),
-    );
-    expect(bad.success).toBe(false);
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({ listingType: "SATIS", minPrice: 1000, buyNowPrice: 1500 }),
-      ).success,
-    ).toBe(true);
-  });
-
-  it("ALIM'da taban fiyat kuralları uygulanmaz", () => {
-    expect(
-      tenderFormSchema.safeParse(validForm({ listingType: "ALIM" })).success,
-    ).toBe(true);
-  });
-
-  it("SATIS + İngiliz usulü (açık artırma): artış adımı ARANMAZ (minimum pay kaldırıldı)", () => {
+describe("tenderFormSchema — İngiliz usulü (açık eksiltme)", () => {
+  it("artış adımı ARANMAZ (minimum pay kaldırıldı)", () => {
     // Minimum pay 2026-07-13'te kaldırıldı — paysız pazarlık formu geçerli.
     expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          listingType: "SATIS",
-          minPrice: 1000,
-          type: "ENGLISH_AUCTION",
-        }),
-      ).success,
+      tenderFormSchema.safeParse(validForm({ type: "ENGLISH_AUCTION" })).success,
     ).toBe(true);
   });
 
-  it("KALEM fiyatlandırma: kalem tabanı zorunlu, hemen-al ≥ taban; toplu taban aranmaz", () => {
-    const noItemFloor = tenderFormSchema.safeParse(
-      validForm({ listingType: "SATIS", priceScope: "KALEM" }),
+  it("bilinmeyen fiyat alanları (taban/hemen-al) forma sızmaz", () => {
+    const res = tenderFormSchema.safeParse(
+      validForm({ minPrice: 1000, buyNowPrice: 1500 } as unknown as Partial<TenderFormData>),
     );
-    expect(noItemFloor.success).toBe(false);
-    expect(
-      noItemFloor.success
-        ? ""
-        : noItemFloor.error.issues.map((i) => i.path.join(".")).join(","),
-    ).toContain("minUnitPrice");
-
-    const badBuyNow = tenderFormSchema.safeParse(
-      validForm({
-        listingType: "SATIS",
-        priceScope: "KALEM",
-        items: [
-          {
-            name: "Kalem",
-            quantity: 1,
-            unit: "adet",
-            minUnitPrice: 100,
-            buyNowUnitPrice: 50,
-          },
-        ],
-      }),
-    );
-    expect(badBuyNow.success).toBe(false);
-
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          listingType: "SATIS",
-          priceScope: "KALEM",
-          items: [
-            {
-              name: "Kalem",
-              quantity: 1,
-              unit: "adet",
-              minUnitPrice: 100,
-              buyNowUnitPrice: 150,
-            },
-          ],
-        }),
-      ).success,
-    ).toBe(true);
-  });
-
-  it("SATIS + RFQ: artış adımı gerektirmez", () => {
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({ listingType: "SATIS", minPrice: 1000, type: "RFQ" }),
-      ).success,
-    ).toBe(true);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect("minPrice" in res.data).toBe(false);
+      expect("buyNowPrice" in res.data).toBe(false);
+    }
   });
 });

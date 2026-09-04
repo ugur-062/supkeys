@@ -88,10 +88,7 @@ function StepGroup({
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
-  // SATIS: aynı format mantığı satış yönüne uyarlanır — RFQ = kapalı zarf
-  // teklif toplama (en yüksek kazanır), pazarlık = canlı AÇIK ARTIRMA.
-  const isSatis = watch("listingType") === "SATIS";
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const isAuction = watch("type") === "ENGLISH_AUCTION";
 
   return (
@@ -112,12 +109,10 @@ export function Step0TypeScope() {
               </span>
               <div>
                 <p className="text-base font-semibold text-zinc-900">
-                  {isSatis ? "Pazarlık (Açık Artırma)" : "Pazarlık (Açık Eksiltme)"}
+                  Pazarlık (Açık Eksiltme)
                 </p>
                 <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
-                  {isSatis
-                    ? "Canlı açık artırma; alıcı sıralaması ve fiyat artış kuralları aktif — fiyat yükselir."
-                    : "Canlı açık eksiltme; tedarikçi sıralaması ve fiyat azaltma kuralları aktif."}
+                  Canlı açık eksiltme; tedarikçi sıralaması ve fiyat azaltma kuralları aktif.
                 </p>
               </div>
             </div>
@@ -134,9 +129,9 @@ export function Step0TypeScope() {
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
           <p>
             {L.yours} <strong>kapalı zarf</strong> usulüyle açılır —{" "}
-            {isSatis ? "alıcılar" : "tedarikçiler"} birbirinin teklifini görmez.
+            {L.counterpartyPluralLower} birbirinin teklifini görmez.
             Kapanıştan sonra dilerseniz “Yeni Tur” ile canlı pazarlığa
-            ({isSatis ? "açık artırma" : "açık eksiltme"}) taşıyabilirsiniz.
+            (açık eksiltme) taşıyabilirsiniz.
           </p>
         </div>
       )}
@@ -168,7 +163,7 @@ export function Step0TypeScope() {
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Uluslararası {L.yoursLower}{" "}
-            {isSatis ? "yurt dışındaki tüm alıcılara" : "yurt dışındaki tüm tedarikçilere"}{" "}
+            yurt dışındaki tüm {L.counterpartyPluralDat.toLocaleLowerCase("tr-TR")}{" "}
             açık olur; <strong>kendi ülkenizdeki firmalara görünmez</strong>.
             Yurtiçinden de teklif almak istiyorsanız ayrı bir yurtiçi {L.entityLower}
             açabilirsiniz. (Doğrudan davet ettiğiniz firmalar her durumda görür.)

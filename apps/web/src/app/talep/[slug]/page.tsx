@@ -20,7 +20,7 @@ export async function generateMetadata({
   const listing = number ? await fetchListing(number) : null;
   if (!listing) return { title: "İlan bulunamadı", robots: { index: false } };
 
-  const canonical = `${resolveSiteUrl()}${listingPath(listing.type, listing.number, listing.title)}`;
+  const canonical = `${resolveSiteUrl()}${listingPath(listing.number, listing.title)}`;
   const description =
     listing.description?.replace(/\s+/g, " ").trim().slice(0, 160) ??
     `${listing.number} numaralı alım talebi — ${listing.company.city ?? "Türkiye"}.`;

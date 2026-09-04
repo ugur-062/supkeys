@@ -52,9 +52,7 @@ export default function BidDetailPage() {
   // B4: ihale detayındaki kapının AYNISI (backend assertListingManageRole
   // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
   const { user } = useCompanyAuth();
-  const hasManagePermission = useHasCompanyPermission(
-    l?.type === "SATIS" ? "sell:listing:manage" : "buy:listing:manage",
-  );
+  const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
   const canManage = canManageListing({
     hasManagePermission,
     createdById: l?.createdById,
@@ -160,7 +158,6 @@ export default function BidDetailPage() {
               ) : (
                 <Badge color="blue">Değerlendirmede</Badge>
               )}
-              {bid.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
               {bid.round ? <Badge color="zinc">Tur {bid.round}</Badge> : null}
             </div>
             <Heading>{bid.bidderName}</Heading>
@@ -181,7 +178,7 @@ export default function BidDetailPage() {
             ) : null}
             {bid.bidderCompanyId ? (
               <Link
-                href={`/company/mesajlar?with=${bid.bidderCompanyId}&portal=${l.type === "SATIS" ? "satis" : "satinalma"}`}
+                href={`/company/mesajlar?with=${bid.bidderCompanyId}&portal=satinalma`}
                 className="text-xs font-semibold text-blue-600 hover:underline"
               >
                 Mesaj Gönder
@@ -206,15 +203,12 @@ export default function BidDetailPage() {
         ) : null}
       </div>
 
-      {/* Teslim & geçerlilik — ALIM: satıcının taahhüdü; SATIS: alıcının
-          İSTEDİĞİ tarih (kesin tarihi satıcı sipariş onayında verir). */}
+      {/* Teslim & geçerlilik — satıcının taahhüdü. */}
       <section className="card p-5">
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-xs text-zinc-500">
-              {l.type === "SATIS"
-                ? "Alıcının İstediği Teslim"
-                : "Taahhüt Edilen Teslim"}
+              Taahhüt Edilen Teslim
             </dt>
             <dd className="font-medium text-zinc-900">
               {bidDeliveryTimeLabel(bid.deliveryTime) ??
@@ -229,35 +223,6 @@ export default function BidDetailPage() {
               {bid.validityDays ? `${bid.validityDays} gün` : "—"}
             </dd>
           </div>
-          {l.type === "SATIS" ? (
-            <div className="col-span-2 sm:col-span-1">
-              <dt className="text-xs text-zinc-500">
-                Alıcının Teslimat Adresi
-              </dt>
-              <dd className="font-medium text-zinc-900">
-                {bid.deliveryAddress ? (
-                  <>
-                    {bid.deliveryAddress.title} —{" "}
-                    {bid.deliveryAddress.addressLine}
-                    {bid.deliveryAddress.district
-                      ? `, ${bid.deliveryAddress.district}`
-                      : ""}
-                    {bid.deliveryAddress.city
-                      ? `, ${bid.deliveryAddress.city}`
-                      : ""}
-                    {bid.deliveryAddress.contactName
-                      ? ` · ${bid.deliveryAddress.contactName}`
-                      : ""}
-                    {bid.deliveryAddress.phone
-                      ? ` · ${bid.deliveryAddress.phone}`
-                      : ""}
-                  </>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-          ) : null}
         </dl>
       </section>
 
@@ -294,9 +259,7 @@ export default function BidDetailPage() {
                         {it.name}
                         {bi?.deliveryTime || bi?.deliveryDate ? (
                           <span className="block text-xs text-zinc-500">
-                            {l.type === "SATIS"
-                              ? "İstenen kalem teslimi:"
-                              : "Kalem teslimi:"}{" "}
+                            Kalem teslimi:{" "}
                             {bidDeliveryTimeLabel(bi.deliveryTime) ??
                               (bi.deliveryDate
                                 ? formatDate(bi.deliveryDate, "short")
@@ -385,7 +348,7 @@ export default function BidDetailPage() {
         onClose={() => setEliminateOpen(false)}
         onSubmit={submitEliminate}
         title="Teklifi ele"
-        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe ${l.type === "SATIS" ? "alıcıya" : "tedarikçiye"} GÖSTERİLİR.`}
+        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`}
         confirmLabel="Ele"
         destructive
         pending={eliminate.isPending}

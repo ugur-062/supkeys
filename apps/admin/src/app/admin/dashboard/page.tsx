@@ -296,8 +296,7 @@ function ListingsCard({
           note="yayınlanmış ilanlar"
           total={l.published}
           rows={[
-            { label: "Alım satın alma talebi", value: l.byType.ALIM },
-            { label: "Satış ilanı", value: l.byType.SATIS },
+            { label: "Satın alma talebi", value: l.byType.ALIM },
           ]}
         />
       </div>

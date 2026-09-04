@@ -61,7 +61,7 @@ export interface CompanyOrder {
   counterpartyCompanyId: string;
   listingId: string | null;
   listingTitle: string | null;
-  listingType: "ALIM" | "SATIS" | null;
+  listingType: "ALIM" | null;
   listingNumber: string | null;
   // Yaşam döngüsü ayrımı: ödeme durumu türetilir (status'tan bağımsız). Liste
   // rozeti/KPI status yerine bunu kullanır. paymentDueDate = vade (varsa).
@@ -86,7 +86,7 @@ export interface CounterpartyProfile {
   rothernId: string | null;
 }
 
-/** Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→kazanan teklif). */
+/** Teslimat adresi snapshot'ı (award anında talepten alınır). */
 export interface OrderDeliveryAddress {
   title: string;
   contactName: string | null;

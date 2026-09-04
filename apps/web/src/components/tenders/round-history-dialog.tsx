@@ -22,14 +22,11 @@ export function RoundHistoryDialog({
   id,
   open,
   onClose,
-  isSatis = false,
   currency,
 }: {
   id: string;
   open: boolean;
   onClose: () => void;
-  /** SATIS artırma: karşı taraf alıcıdır, en YÜKSEK teklif en iyidir. */
-  isSatis?: boolean;
   currency?: string;
 }) {
   const history = useRoundHistory(id, open);
@@ -66,7 +63,7 @@ export function RoundHistoryDialog({
                 <Table dense>
                   <TableHead>
                     <TableRow>
-                      <TableHeader>{isSatis ? "Alıcı" : "Tedarikçi"}</TableHeader>
+                      <TableHeader>Tedarikçi</TableHeader>
                       <TableHeader className="text-right">Teklif</TableHeader>
                     </TableRow>
                   </TableHead>

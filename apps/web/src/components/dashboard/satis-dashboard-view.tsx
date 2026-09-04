@@ -9,7 +9,6 @@ import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { useCatalogCounts } from "@/hooks/use-company-items";
 import { useMyBids } from "@/hooks/use-company-listings";
 import { useOrders } from "@/hooks/use-company-orders";
-import { useTenders } from "@/hooks/use-company-tenders";
 import {
   selectActiveOffers,
   selectActiveOrders,
@@ -22,8 +21,6 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatisStats } from "@/hooks/use-company-dashboard";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 /**
@@ -33,10 +30,10 @@ import { useEffect, useState } from "react";
  *   3. 4 dönemsiz KPI — kart tıklanır, delta rozeti "geçen aya göre"
  *   4. size uygun açık talepler — en fazla 3, tek çıkış
  *   5. profil & katalog sağlığı — eşleşme kalitesinin girdileri
- *   6. Raporlar bağlantısı
  * Panoda liste/arama/süzgeç YOK; her blok tek "tümünü gör" ile alt sayfaya
  * gider. ("Son Aktiviteler" akışı kullanıcı isteğiyle kaldırıldı,
- * 2026-08-03; grafikler Raporlar'a taşındı.) Görsel dil: zinc/Catalyst.
+ * 2026-08-03; satış raporları satış ilanı özelliğiyle birlikte kaldırıldı,
+ * 2026-09-04.) Görsel dil: zinc/Catalyst.
  */
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
@@ -54,9 +51,8 @@ export function SatisDashboardView() {
   // dönemsizdir ("bugün ne durumdayım"). Analitikten yalnız delta/spark ve
   // yanıtsız davet sayısı okunur — varsayılan dönemle.
   const analytics = useSatisAnalytics({ period: "month" });
-  // Başlangıç listesi girdileri: ürün sayacı (sunucu) + kendi satış ilanlarım.
+  // Başlangıç listesi girdileri: profil bayrağı + ürün sayacı (sunucu).
   const catalog = useCatalogCounts();
-  const myListings = useTenders("SATIS");
   const onboarding = [
     {
       key: "profile",
@@ -70,22 +66,16 @@ export function SatisDashboardView() {
       done: (catalog.data ? catalog.data.published + catalog.data.draft : 0) > 0,
       href: "/company/satis/urunlerim",
     },
-    {
-      key: "listing",
-      label: "İlk satış ilanını aç",
-      done: (myListings.data?.length ?? 0) > 0,
-      href: "/company/satis/ilanlarim/yeni",
-    },
   ];
-  const onboardingReady = !!catalog.data && !!myListings.data;
+  const onboardingReady = !!catalog.data;
   // KPI'lar liste sayfalarıyla AYNI seçiciden (kpi-selectors): sunucu sayımı
   // ilan tipini süzmüyordu — satın alma tarafında verilen teklifler satış
   // panosuna sayılıyor, sipariş kutusu listenin "Aktif" kümesinden farklı bir
   // statü kümesi kullanıyordu (4 ↔ 2, 4 ↔ 3, 0 ↔ 1).
   const bids = useMyBids();
   const orders = useOrders();
-  const activeOffers = bids.data ? selectActiveOffers(bids.data, "ALIM").length : undefined;
-  const wonOffers = bids.data ? selectWonOffers(bids.data, "ALIM").length : undefined;
+  const activeOffers = bids.data ? selectActiveOffers(bids.data).length : undefined;
+  const wonOffers = bids.data ? selectWonOffers(bids.data).length : undefined;
   const activeOrders = orders.data
     ? selectActiveOrders(orders.data, "seller").length
     : undefined;
@@ -111,15 +101,14 @@ export function SatisDashboardView() {
             ) : null}
           </p>
         </div>
-        {/* İlan açma CTA'sı YALNIZ sol menüde (yeşil düğme). Başlıkta ve
-            keşif kartında ikinci/üçüncü kopyası vardı; aynı eylem üç yerde
-            sayfayı kalabalıklaştırıyordu (2026-09-03). Kur çipi kalır. */}
+        {/* Başlıkta CTA yok — sayfa başına tek primary (sol menü). Kur
+            çipi kalır. */}
         <TcmbRatesChip />
       </header>
 
       {/* Başlangıç listesi (v2 3a — satınalmayla aynı bileşen): Profili
-          tamamla · İlk ürünü ekle · İlk satış ilanını aç. Adımlar GERÇEK
-          veriden işaretlenir; hepsi bitince kendiliğinden kaybolur. */}
+          tamamla · İlk ürünü ekle. Adımlar GERÇEK veriden işaretlenir; hepsi
+          bitince kendiliğinden kaybolur. */}
       {onboardingReady && onboarding.some((st) => !st.done) ? (
         <OnboardingChecklist steps={onboarding} />
       ) : null}
@@ -217,16 +206,6 @@ export function SatisDashboardView() {
       {/* Eşleşme kalitesinin girdileri: profil tamlığı + ürün kategorileri.
           Yüzde Profilim'le AYNI fonksiyondan; sayaçlar sunucudan. */}
       <SellerHealthCards />
-
-      {/* Tutar/30-gün kartları da Raporlar'a taşındı — dönemsel okuma orada,
-          "bugün ne durumdayım" burada. */}
-      <Link
-        href="/company/satis/raporlar"
-        className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
-      >
-        Detaylı analiz ve grafikler Raporlar&apos;da
-        <ArrowRight aria-hidden className="size-4" />
-      </Link>
 
       {/* "Son Aktiviteler" akışı anasayfadan KALDIRILDI (kullanıcı isteği,
           2026-08-03) — olay geçmişi bildirim zilinde zaten mevcut. */}

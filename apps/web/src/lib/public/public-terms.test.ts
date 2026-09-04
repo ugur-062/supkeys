@@ -15,12 +15,10 @@ const SRC = path.resolve(__dirname, "../..");
 const PUBLIC_DIRS = [
   "app/page.tsx",
   "app/alim-talepleri",
-  "app/satilik",
   "app/urunler",
   "app/firmalar",
   "app/firma",
   "app/talep",
-  "app/ilan",
   "app/nasil-calisir",
   "app/hakkimizda",
   "app/iletisim",

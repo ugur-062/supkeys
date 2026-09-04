@@ -63,7 +63,6 @@ const ROW = {
   categories: [{ code: "40171501", name: "Çelik boru" }],
   extraCategoryCount: 0,
   minPrice: null,
-  buyNowPrice: null,
 };
 
 beforeEach(() => {
@@ -85,7 +84,6 @@ describe("MatchedRequestsWidget", () => {
           u.includes("openOnly=true"),
       ),
     ).toBe(true);
-    expect(urls.some((u) => u.includes("type=SATIS"))).toBe(false);
   });
 
   it("kompakt satır: alıcı, kapanış ve 'Teklif ver' bağlantısı — arama/CTA yok", async () => {

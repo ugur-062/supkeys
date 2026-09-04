@@ -32,7 +32,7 @@ const fmtDate = formatDateTime;
 export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   const { watch } = useFormContext<TenderFormData>();
   const d = watch();
-  const L = entityLabels(d.listingType === "SATIS");
+  const L = entityLabels();
   const coverItem = (d.items ?? []).find((it) => (it.images?.length ?? 0) > 0);
   const connections = useConnections();
 
@@ -59,39 +59,11 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         <Row
           label="Tip"
           value={
-            d.listingType === "SATIS"
-              ? d.type === "ENGLISH_AUCTION"
-                ? "Satış İlanı — Pazarlık (Açık Artırma — en yüksek kazanır)"
-                : "Satış İlanı — Teklif Toplama (en yüksek kazanır)"
-              : d.type === "ENGLISH_AUCTION"
-                ? "Pazarlık (Açık Eksiltme)"
-                : "Teklif Toplama (Kapalı Zarf)"
+            d.type === "ENGLISH_AUCTION"
+              ? "Pazarlık (Açık Eksiltme)"
+              : "Teklif Toplama (Kapalı Zarf)"
           }
         />
-        {d.listingType === "SATIS" ? (
-          d.priceScope === "KALEM" ? (
-            <Row label="Fiyatlandırma" value="Kalem Bazlı (taban/hemen-al kalemlerde)" />
-          ) : (
-            <>
-              <Row
-                label="Taban Fiyat"
-                value={
-                  d.minPrice != null
-                    ? `${d.minPrice.toLocaleString("tr-TR")} ${sym}`
-                    : "—"
-                }
-              />
-              <Row
-                label="Hemen Al Fiyatı"
-                value={
-                  d.buyNowPrice != null
-                    ? `${d.buyNowPrice.toLocaleString("tr-TR")} ${sym}`
-                    : "Yok"
-                }
-              />
-            </>
-          )
-        ) : null}
         <Row label="Kapsam" value={d.isInternational ? "Uluslararası" : "Yurtiçi"} />
         {d.isInternational ? (
           <Row
@@ -156,16 +128,8 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
                 <th scope="col" className="px-3 py-2 text-left font-medium">Kalem</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">Miktar</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">
-                  {d.listingType === "SATIS" ? "İstenen Fiyat" : "Hedef Fiyat"}
+                  Hedef Fiyat
                 </th>
-                {d.listingType === "SATIS" && d.priceScope === "KALEM" ? (
-                  <>
-                    <th scope="col" className="px-3 py-2 text-right font-medium">Taban</th>
-                    <th scope="col" className="px-3 py-2 text-right font-medium">
-                      Hemen Al
-                    </th>
-                  </>
-                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -180,20 +144,6 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
                       ? `${sym}${it.targetUnitPrice.toLocaleString("tr-TR")}`
                       : "—"}
                   </td>
-                  {d.listingType === "SATIS" && d.priceScope === "KALEM" ? (
-                    <>
-                      <td className="px-3 py-2 text-right font-mono text-zinc-600">
-                        {it.minUnitPrice != null
-                          ? `${sym}${it.minUnitPrice.toLocaleString("tr-TR")}`
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono text-zinc-600">
-                        {it.buyNowUnitPrice != null
-                          ? `${sym}${it.buyNowUnitPrice.toLocaleString("tr-TR")}`
-                          : "—"}
-                      </td>
-                    </>
-                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -207,9 +157,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
             {/* PUBLIC'te davetsizlik doğal durumdur — "davetli yok" uyarı gibi
                 okunuyordu; ihalenin zaten herkese açık olduğu söylenir. */}
             {d.visibility === "PUBLIC"
-              ? `${L.entity} herkese açık — davet gerekmez; kategorinize uygun premium ${
-                  d.listingType === "SATIS" ? "alıcılar" : "tedarikçiler"
-                } görüp teklif verebilir. İsterseniz sonradan da davet gönderebilirsiniz.`
+              ? `${L.entity} herkese açık — davet gerekmez; kategorinize uygun premium ${L.counterpartyPluralLower} görüp teklif verebilir. İsterseniz sonradan da davet gönderebilirsiniz.`
               : "Davetli firma yok — sonra davet gönderebilirsiniz."}
           </p>
         ) : (

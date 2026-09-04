@@ -46,18 +46,14 @@ import { Step2Items } from "./step-2-items";
 import { Step3Suppliers } from "./step-3-suppliers";
 import { Step4Review } from "./step-4-review";
 
-function stepMeta(isSatis: boolean) {
-  return [
-    // B11: adımda tür seçimi yok (tür portaldan gelir) — ad içerikle uyumlu.
-    { title: "Kapsam", desc: entityLabels(isSatis).scopeDesc },
-    { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
-    { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
-    isSatis
-      ? { title: "Alıcılar", desc: "Davet edilecekler" }
-      : { title: "Tedarikçiler", desc: "Davet edilecekler" },
-    { title: "Özet & Yayınla", desc: "Kontrol et ve yayınla" },
-  ];
-}
+const STEP_META = [
+  // B11: adımda tür seçimi yok — ad içerikle uyumlu.
+  { title: "Kapsam", desc: entityLabels().scopeDesc },
+  { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
+  { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
+  { title: entityLabels().counterpartyPlural, desc: "Davet edilecekler" },
+  { title: "Özet & Yayınla", desc: "Kontrol et ve yayınla" },
+];
 const LAST_STEP = 4;
 
 /** Üst adım göstergesi — numara + başlık + açıklama. Mobilde dikey, masaüstünde
@@ -147,15 +143,10 @@ function toIso(v: string | undefined): string | undefined {
 
 /** Form → backend (CreateListingInput) eşlemesi. */
 function mapToInput(d: TenderFormData): CreateListingInput {
-  const isSatis = d.listingType === "SATIS";
   return {
-    type: d.listingType,
-    // Format iki yönde de var: ALIM'da RFQ/eksiltme, SATIS'ta RFQ/açık artırma.
+    type: "ALIM",
+    // Format: RFQ / açık eksiltme.
     format: d.type,
-    priceScope: isSatis ? d.priceScope : undefined,
-    minPrice: isSatis && d.priceScope !== "KALEM" ? d.minPrice : undefined,
-    buyNowPrice:
-      isSatis && d.priceScope !== "KALEM" ? d.buyNowPrice : undefined,
     isInternational: d.isInternational,
     targetCountries: d.isInternational ? d.targetCountries : [],
     deliveryAddressId: d.deliveryAddressId || undefined,
@@ -169,8 +160,7 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     visibility: d.visibility,
     title: d.title.trim(),
     description: d.description?.trim() || undefined,
-    // Madde 23: süresiz SATIS ilanında kapanış gönderilmez (null = süresiz).
-    closesAt: d.noCloseDate ? undefined : toIso(d.bidsCloseAt),
+    closesAt: toIso(d.bidsCloseAt),
     bidsOpenAt: toIso(d.bidsOpenAt),
     items: d.items.map((it) => ({
       name: it.name.trim(),
@@ -181,10 +171,6 @@ function mapToInput(d: TenderFormData): CreateListingInput {
       // türetir, ama "listede yok" kaçışında niyet kaybolurdu.
       unitCode: it.unitCode ?? undefined,
       targetPrice: it.targetUnitPrice,
-      minUnitPrice:
-        isSatis && d.priceScope === "KALEM" ? it.minUnitPrice : undefined,
-      buyNowUnitPrice:
-        isSatis && d.priceScope === "KALEM" ? it.buyNowUnitPrice : undefined,
       materialCode: it.materialCode?.trim() || undefined,
       // Kapak boru hattı: katalog ürününün görseli kaleme, oradan ilana.
       images: it.images?.length ? it.images : undefined,
@@ -239,15 +225,12 @@ export function TenderWizard({
   mode = "create",
   listingId,
   initialValues,
-  listingType = "ALIM",
   aiImport,
   belowStepsSlot,
 }: {
   mode?: "create" | "edit";
   listingId?: string;
   initialValues?: TenderFormData;
-  /** SATIS: satış ihalesi — format adımı yok, taban/hemen-al fiyat var. */
-  listingType?: "ALIM" | "SATIS";
   /** Faz AI-1 — form AI ile belgeden doldurulduysa çıkarım sonucu (bant + refine). */
   aiImport?: AiTenderExtractResult;
   /** Adım göstergesinin hemen altında render edilir (örn. "Belgeden Doldur" kartı). */
@@ -282,22 +265,13 @@ export function TenderWizard({
     resolver: zodResolver(tenderFormSchema),
     defaultValues: initialValues ?? {
       ...DEFAULT_FORM_VALUES,
-      listingType,
       // Açılış tarihi "şimdi" ile dolu gelir (boş = belirsizlik; kullanıcı
       // ileri tarih seçerse embargo devreye girer).
       bidsOpenAt: nowLocalDateTimeValue(),
-      // Madde 25 kök nedeni: SATIS ilanı PRIVATE varsayılanla yayınlanınca
-      // "Satın Al" listesinde KİMSE görmüyordu (davet-only + kategori
-      // bildirimi de gitmez). Satış ilanı keşfedilebilir olsun diye
-      // varsayılan HERKESE AÇIK; ALIM'da davetli-kapalı varsayılan korunur.
-      visibility: listingType === "SATIS" ? "PUBLIC" : DEFAULT_FORM_VALUES.visibility,
     },
     mode: "onTouched",
   });
-  // Yön form değerinden CANLI türetilir — şablon yüklemesi listingType'ı
-  // değiştirebilir; başlık/adım/çıkış rotası statik prop'a bağlanamaz.
-  const isSatis = form.watch("listingType") === "SATIS";
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   // Adım değişiminde başlığa odak — klavye/ekran okuyucu yeni adımı duysun.
   const headingRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -352,21 +326,21 @@ export function TenderWizard({
     if (!id) return;
     const tpl = (templates.data ?? []).find((t) => t.id === id);
     if (!tpl) return;
-    // Tarih/davetliler şablonda saklanmaz; yön mevcut sihirbazın yönünde kalır.
-    // `type` da uygulanmaz: format artık sihirbazda seçilmez (İngiliz usulüne
-    // tek geçiş yolu "Yeni Tur") — eski auction şablonu formatı ezmesin.
+    // Tarih/davetliler şablonda saklanmaz. `type` da uygulanmaz: format artık
+    // sihirbazda seçilmez (İngiliz usulüne tek geçiş yolu "Yeni Tur") — eski
+    // auction şablonu formatı ezmesin. Eski şablonlarda kalmış satış ilanı
+    // alanları (listingType/priceScope/taban/hemen-al) şemada yok — zod
+    // ayıklar, forma sızmaz.
     const {
       bidsCloseAt: _c,
       bidsOpenAt: _o,
       invitedSupplierIds: _i,
-      listingType: _t,
       type: _ty,
       ...payload
     } = tpl.payload as Partial<TenderFormData>;
     form.reset({
       ...DEFAULT_FORM_VALUES,
       ...payload,
-      listingType: form.getValues("listingType"),
       type: form.getValues("type"),
     });
     setStep(0);
@@ -421,10 +395,7 @@ export function TenderWizard({
   const goBackOrExit = () => {
     if (step > 0) goPrev();
     else if (isEdit && listingId) router.push(`/company/ilan/${listingId}`);
-    else
-      router.push(
-        isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/taleplerim",
-      );
+    else router.push("/company/satinalma/taleplerim");
   };
 
   // Yayınla'ya basınca doğrudan publish-confirm. Hedef fiyat opsiyoneldir —
@@ -554,11 +525,7 @@ export function TenderWizard({
             <ArrowLeft className="h-4 w-4" />
             {/* C33: adım 1'de modül adı sözlükten (sidebar ile birebir); sonraki
                 adımlarda "Geri". */}
-            {step > 0
-              ? "Geri"
-              : isSatis
-                ? MODULE_LABELS.satis.ilanlarim
-                : MODULE_LABELS.satinalma.ihalelerim}
+            {step > 0 ? "Geri" : MODULE_LABELS.satinalma.ihalelerim}
           </button>
           <div className="flex flex-wrap items-center gap-2">
             {templates.data && templates.data.length > 0 ? (
@@ -597,7 +564,7 @@ export function TenderWizard({
         </div>
 
         {/* Üstte adım göstergesi */}
-        <WizardSteps current={step} furthest={furthest} onStepClick={setStep} meta={stepMeta(isSatis)} />
+        <WizardSteps current={step} furthest={furthest} onStepClick={setStep} meta={STEP_META} />
 
         {/* Sayfaya özel band (AI "Belgeden Doldur" kartı) — Tür & Kapsam ve
             KALEMLER adımlarında (kalemleri belgeden doldurmak tam bu adımın
@@ -676,10 +643,8 @@ export function TenderWizard({
         onConfirm={doSubmit}
         invitedCount={form.getValues("invitedSupplierIds")?.length ?? 0}
         isSubmitting={submitting}
-        isSatis={isSatis}
       />
       <SaveTemplateDialog
-        isSatis={isSatis}
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
         onSave={handleSaveTemplate}

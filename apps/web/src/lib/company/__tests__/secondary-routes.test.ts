@@ -22,19 +22,20 @@ describe("ikincil rotalar — menü dışı ama etiketli", () => {
 
   it("breadcrumb + routeLabel ikincil rotaları çözer", () => {
     expect(getCompanyBreadcrumb("/company/satinalma/raporlar")).toBe("Raporlar");
-    expect(getCompanyBreadcrumb("/company/satis/sablonlar")).toBe("Şablonlar");
+    expect(getCompanyBreadcrumb("/company/satinalma/sablonlar")).toBe("Şablonlar");
     expect(getCompanyBreadcrumb("/company/satis/profilim")).toBe("Profilim");
     expect(routeLabel("/company/satinalma/sablonlar")).toBe("Şablonlar");
-    expect(routeLabel("/company/satis/raporlar")).toBe("Raporlar");
+    expect(routeLabel("/company/satinalma/raporlar")).toBe("Raporlar");
   });
 
   it("PORTAL_SECONDARY_HREFS rota kaydıyla tutarlı", () => {
-    for (const key of ["satinalma", "satis"] as const) {
-      const hrefs = new Set(allPortalRoutes(PORTALS[key]).map((i) => i.href));
-      const s = PORTAL_SECONDARY_HREFS[key];
-      expect(hrefs.has(s.profilim)).toBe(true);
-      expect(hrefs.has(s.raporlar)).toBe(true);
-      expect(hrefs.has(s.sablonlar)).toBe(true);
-    }
+    const sa = new Set(allPortalRoutes(PORTALS.satinalma).map((i) => i.href));
+    expect(sa.has(PORTAL_SECONDARY_HREFS.satinalma.profilim)).toBe(true);
+    expect(sa.has(PORTAL_SECONDARY_HREFS.satinalma.raporlar)).toBe(true);
+    expect(sa.has(PORTAL_SECONDARY_HREFS.satinalma.sablonlar)).toBe(true);
+    // Satışta Raporlar/Şablonlar YOK (satış ilanı kaldırıldı, 2026-09-04).
+    const st = new Set(allPortalRoutes(PORTALS.satis).map((i) => i.href));
+    expect(st.has(PORTAL_SECONDARY_HREFS.satis.profilim)).toBe(true);
+    expect(PORTALS.satis.secondaryNav).toEqual([]);
   });
 });

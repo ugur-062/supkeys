@@ -46,7 +46,7 @@ async function refreshListingDetail(qc: QueryClient, id: string) {
   invalidateListingCaches(qc);
 }
 
-export type ListingType = "ALIM" | "SATIS";
+export type ListingType = "ALIM";
 export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 export type ListingVisibility = "PUBLIC" | "CONNECTIONS" | "PRIVATE";
 export type ListingStatus =
@@ -66,8 +66,6 @@ export interface Listing {
   type: ListingType;
   isInternational: boolean;
   format: ListingFormat | null;
-  minPrice: string | null;
-  buyNowPrice: string | null;
   visibility: ListingVisibility;
   title: string;
   description: string | null;
@@ -101,9 +99,6 @@ export interface ListingItemInput {
   quantity: number;
   unit: string;
   targetPrice?: number;
-  /** SATIS + KALEM fiyatlandırma. */
-  minUnitPrice?: number;
-  buyNowUnitPrice?: number;
   materialCode?: string;
   requiredByDate?: string;
   questions?: ItemQuestionInput[];
@@ -116,16 +111,13 @@ export interface CreateListingInput {
   targetCountries?: string[]; // sınır ötesi hedef ülkeler (boş = tümü)
   deliveryAddressId?: string;
   billingAddressId?: string;
-  format?: ListingFormat; // ALIM
-  priceScope?: "TOPLU" | "KALEM"; // SATIS fiyatlandırma kapsamı
-  minPrice?: number; // SATIS
-  buyNowPrice?: number; // SATIS
+  format?: ListingFormat;
   visibility: ListingVisibility;
   title: string;
   description?: string;
   closesAt?: string;
   bidsOpenAt?: string;
-  // İhale (ALIM) zenginleştirme
+  // Talep zenginleştirme
   items?: ListingItemInput[];
   invitations?: string[]; // davet edilen rothernId'ler
   categoryIds?: string[]; // UNGM UNSPSC TR kategori kodları
@@ -178,9 +170,8 @@ export interface MyBid {
     | "LOST";
   round: number;
   version: number;
-  isBuyNow: boolean;
   createdAt: string;
-  /** ALIM: taahhüt edilen teslim; SATIS: istenen teslim tarihi (LEGACY). */
+  /** Taahhüt edilen teslim tarihi (LEGACY). */
   deliveryDate: string | null;
   /** Teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası teklifler). */
   deliveryTime?: string | null;
@@ -193,7 +184,7 @@ export interface MyBid {
     type: ListingType;
     status: ListingStatus;
     closesAt: string | null;
-    /** İlan sahibi (ALIM'da alıcı, SATIS'ta satıcı) firma adı. */
+    /** Talep sahibi (alıcı) firma adı. */
     ownerName: string;
   };
 }
@@ -242,9 +233,6 @@ export interface ListingItemRow {
   warrantyMonths?: number | null;
   hsCode?: string | null;
   targetPrice: string | null;
-  /** SATIS + KALEM fiyatlandırma. */
-  minUnitPrice?: string | null;
-  buyNowUnitPrice?: string | null;
   materialCode?: string | null;
   requiredByDate?: string | null;
   questions?: ListingItemQuestionRow[];
@@ -265,18 +253,6 @@ export interface ListingBidItemRow {
   offeredMpn?: string | null;
 }
 
-/** SATIS teklifinde alıcının teslimat adresi (satıcıya gösterilir). */
-export interface BidDeliveryAddress {
-  title: string;
-  contactName: string | null;
-  phone: string | null;
-  country: string;
-  city: string | null;
-  district: string | null;
-  addressLine: string;
-  postalCode: string | null;
-}
-
 export interface ListingBidRow {
   id: string;
   bidderName: string;
@@ -293,18 +269,16 @@ export interface ListingBidRow {
   exchangeRateSnapshot?: string | null;
   amountTry?: string | null;
   note: string | null;
-  isBuyNow: boolean;
   status: string;
   round?: number;
   createdAt: string;
-  /** ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ teslim (LEGACY tarih). */
+  /** Satıcının taahhüt ettiği teslim (LEGACY tarih). */
   deliveryDate?: string | null;
   /** Teslim SÜRESİ (BID_DELIVERY_TIMES). */
   deliveryTime?: string | null;
   validityDays?: number | null;
   /** Geçerlilik rozeti: son geçerlilik = submittedAt + validityDays. */
   submittedAt?: string | null;
-  deliveryAddress?: BidDeliveryAddress | null;
   items?: ListingBidItemRow[];
   answers?: { questionId: string; value: string }[];
 }
@@ -338,9 +312,6 @@ export interface ListingDetail {
   isInternational: boolean;
   targetCountries: string[];
   format: ListingFormat | null;
-  priceScope: "TOPLU" | "KALEM" | null;
-  minPrice: string | null;
-  buyNowPrice: string | null;
   visibility: ListingVisibility;
   title: string;
   description: string | null;
@@ -405,14 +376,13 @@ export interface ListingDetail {
   // sahip değil:
   masked?: boolean;
   canBid?: boolean;
-  /** Rol kapısı: ALIM'a teklif SATISCI, SATIS'a teklif SATIN_ALMACI ister. */
+  /** Rol kapısı: teklif SATISCI rolü ister. */
   roleAllowsBid?: boolean;
   invited?: boolean;
   myBid?: {
     amount: string;
     note: string | null;
     status: string;
-    isBuyNow?: boolean;
     version?: number;
     submittedAt?: string | null;
     eliminationReason?: string | null;
@@ -421,8 +391,6 @@ export interface ListingDetail {
     deliveryDate?: string | null;
     deliveryTime?: string | null;
     validityDays?: number | null;
-    /** SATIS: alıcının seçtiği teslimat adresi (kendi adres defterinden). */
-    deliveryAddressId?: string | null;
     currency?: string | null;
     items?: ListingBidItemRow[];
     answers?: { questionId: string; value: string }[];
@@ -451,11 +419,11 @@ export interface ListingDetail {
       | { rank: number; total: string; currency?: string; isMine: boolean }[]
       | null;
   } | null;
-  /** Pazarlık hedefi — sunucunun "kaça inmeliyim/çıkmalıyım" cevabı (placeBid
+  /** Pazarlık hedefi — sunucunun "kaça inmeliyim" cevabı (placeBid
    *  doğrulamasıyla tek kaynak). Görünürlük en iyi teklifi gizliyorsa hedef
    *  sayıları null gelir (disclosed=false). */
   nextBidConstraint?: {
-    direction: "DOWN" | "UP";
+    direction: "DOWN";
     /** SUBMITTED teklif sonrası birim kilitli. */
     currencyLocked: boolean;
     ownCurrency: string | null;
@@ -492,14 +460,14 @@ export function useListingDetail(id: string) {
       if (status === 304 && prev) return prev;
       return data;
     },
-    // Canlı güncelleme: açık artırma/eksiltmede 4sn; diğer AÇIK ilanlarda
+    // Canlı güncelleme: açık eksiltmede 4sn; diğer AÇIK ilanlarda
     // 10sn (yeni teklif/eleme/durum değişikliği yenilemeden görünsün).
     // Kapanmış ilan poll'lanmaz.
     refetchInterval: (query) => {
       const d = query.state.data;
       if (!d || d.status !== "OPEN") return false;
       if (!d.english?.isEnglishAuction) return 10_000;
-      // Açık artırma/eksiltme: kapanışa son 2 dk'da 1.5sn (snipe/oto-uzatma
+      // Açık eksiltme: kapanışa son 2 dk'da 1.5sn (snipe/oto-uzatma
       // hassas), aksi 4sn.
       const msLeft = d.closesAt ? new Date(d.closesAt).getTime() - Date.now() : null;
       return msLeft != null && msLeft > 0 && msLeft < 120_000 ? 1500 : 4000;
@@ -526,7 +494,6 @@ export function usePlaceBid(id: string) {
       deliveryDate?: string;
       deliveryTime?: string;
       validityDays?: number;
-      deliveryAddressId?: string;
       currency?: string;
     }) => {
       const { data } = await companyApi.post(
@@ -541,34 +508,6 @@ export function usePlaceBid(id: string) {
       // aktif gösteriyordu. ÖNCE tek doğrudan GET + setQueryData (geniş
       // invalidation'lar bağlantı kuyruğunu doldurmadan); mutateAsync bu
       // bitmeden çözülmez, dönüş taze veriyle açılır (yeni-tur deseni).
-      const { data } = await companyApi.get<ListingDetail>(
-        `/company/listings/${id}`,
-      );
-      qc.setQueryData(["company-listings", "detail", id], data);
-      invalidateListingCaches(qc, { myBids: true });
-    },
-  });
-}
-
-export function useBuyNow(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input?: {
-      note?: string;
-      deliveryDate?: string;
-      deliveryTime?: string;
-      validityDays?: number;
-      deliveryAddressId?: string;
-      itemIds?: string[];
-    }) => {
-      const { data } = await companyApi.post(
-        `/company/listings/${id}/buy-now`,
-        input ?? {},
-      );
-      return data;
-    },
-    onSuccess: async () => {
-      // placeBid ile aynı desen — dönüşte bayat 'Hemen Al/Teklif Ver' kalmasın.
       const { data } = await companyApi.get<ListingDetail>(
         `/company/listings/${id}`,
       );

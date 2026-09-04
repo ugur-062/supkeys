@@ -175,13 +175,4 @@ describe("GeneralReportView", () => {
     expect(h.toast.error).toHaveBeenCalled();
   });
 
-  it("SATIS varyantı 'Genel İlan Raporu' başlığı gösterir", () => {
-    render(
-      <GeneralReportView type="SATIS" basePath="/company/satis/raporlar" />,
-    );
-    expect(screen.getByText("Genel İlan Raporu")).toBeInTheDocument();
-    // Özet için sonuç yok; sadece kriter kartı.
-    const criteria = screen.getByText("Raporlama Kriteri");
-    expect(within(criteria.parentElement as HTMLElement).getByText(/Tek bir ilanı/)).toBeInTheDocument();
-  });
 });

@@ -124,15 +124,6 @@ export const tenderItemQuestionSchema = z.object({
 export type TenderItemQuestion = z.infer<typeof tenderItemQuestionSchema>;
 
 export const tenderItemSchema = z.object({
-  // SATIS + KALEM fiyatlandırma: kalem taban / hemen-al birim fiyatları.
-  minUnitPrice: money(
-    z
-      .number({ invalid_type_error: "Geçersiz fiyat" })
-      .min(0.01, "Taban birim fiyat 0'dan büyük olmalı"),
-  ).optional(),
-  buyNowUnitPrice: money(
-    z.number({ invalid_type_error: "Geçersiz fiyat" }).min(0.01),
-  ).optional(),
   name: z.string().min(1, "Kalem adı zorunlu").max(200, "Maksimum 200 karakter"),
   description: z.string().max(2000, "Maksimum 2000 karakter").optional(),
   // F3: backend create-listing.dto ile birebir (@Min 0.001, @Max 1e9, 3 ondalık).
@@ -172,20 +163,6 @@ export const tenderItemSchema = z.object({
 });
 
 const baseTenderSchema = z.object({
-  // İlan yönü: ALIM (ihale, teklif toplar) / SATIS (satış ihalesi — taban +
-  // hemen-al fiyatlı, en yüksek teklif kazanır; İngiliz usulü YOK).
-  listingType: z.enum(["ALIM", "SATIS"]),
-  // SATIS fiyatlandırma kapsamı: TOPLU (ilan geneli) | KALEM (kalem başına).
-  priceScope: z.enum(["TOPLU", "KALEM"]).default("TOPLU"),
-  // Satış ihalesi fiyatları (yalnız SATIS)
-  minPrice: z
-    .number({ invalid_type_error: "Geçersiz fiyat" })
-    .min(0.01, "Taban fiyat 0'dan büyük olmalı")
-    .optional(),
-  buyNowPrice: z
-    .number({ invalid_type_error: "Geçersiz fiyat" })
-    .min(0.01)
-    .optional(),
   // Adım 1
   categoryIds: z
     .array(z.string().min(1))
@@ -209,7 +186,7 @@ const baseTenderSchema = z.object({
   deliveryAddressId: z.string().optional(),
   billingAddressId: z.string().optional(),
   // Fatura adresi = teslimat adresi tiki (varsayılan işaretli). Kaldırılırsa
-  // billingAddressId zorunlu olur (refine aşağıda; yalnız ALIM'da anlamlı).
+  // billingAddressId zorunlu olur (refine aşağıda).
   billingSameAsDelivery: z.boolean(),
   visibility: z.enum(VISIBILITY_VALUES),
   isLogistics: z.boolean(),
@@ -259,10 +236,8 @@ const baseTenderSchema = z.object({
   // önerir/işaretler; kullanıcı kaldırabilir. Diğer kategorilerde anlamsız.)
   requireGuaranteeLetter: z.boolean(),
   termsAndConditions: z.string().max(10000).optional(),
-  // Madde 23: SATIS ilanı süresiz olabilir — zorunluluk superRefine'da
-  // (noCloseDate işaretliyse kapanış istenmez).
+  // Kapanış zorunlu — superRefine'da (gelecekte + en fazla 2 yıl).
   bidsCloseAt: z.string(),
-  noCloseDate: z.boolean(),
   bidsOpenAt: z.string().optional(),
 
   // İngiliz Usulü açık eksiltme (minimum pay kaldırıldı 2026-07-13)
@@ -303,12 +278,8 @@ export const tenderFormSchema = baseTenderSchema
     path: ["deliveryTerm"],
   })
   .refine(
-    // Fatura adresi: "teslimatla aynı" tiki kaldırıldıysa seçim zorunlu
-    // (yalnız ALIM — SATIS'ta fatura adresi alanı yok, faturayı satıcı keser).
-    (d) =>
-      d.listingType === "SATIS" ||
-      d.billingSameAsDelivery ||
-      !!d.billingAddressId,
+    // Fatura adresi: "teslimatla aynı" tiki kaldırıldıysa seçim zorunlu.
+    (d) => d.billingSameAsDelivery || !!d.billingAddressId,
     { message: "Fatura adresi seçin", path: ["billingAddressId"] },
   )
   .refine(
@@ -374,9 +345,7 @@ export const tenderFormSchema = baseTenderSchema
     },
   )
   // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — tek kaynak helper.
-  // Madde 23: SATIS + süresiz işaretliyse kapanış hiç istenmez.
   .superRefine((d, ctx) => {
-    if (d.listingType === "SATIS" && d.noCloseDate) return;
     if (!d.bidsCloseAt) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -402,50 +371,6 @@ export const tenderFormSchema = baseTenderSchema
     },
     { message: "Açılış tarihi kapanıştan önce olmalı", path: ["bidsOpenAt"] },
   )
-  .refine(
-    (d) =>
-      d.listingType !== "SATIS" ||
-      d.priceScope === "KALEM" ||
-      (d.minPrice ?? 0) > 0,
-    { message: "satış ilanı için taban fiyat zorunlu", path: ["minPrice"] },
-  )
-  .refine(
-    (d) =>
-      d.listingType !== "SATIS" ||
-      d.priceScope === "KALEM" ||
-      d.buyNowPrice == null ||
-      // Kesin büyük: eşitlikte taban ile hemen-al arası boş kalır, normal
-      // teklif verilemez (backend de aynı kuralı zorlar).
-      d.buyNowPrice > (d.minPrice ?? 0),
-    {
-      message: "Hemen-al fiyatı taban fiyattan büyük olmalı",
-      path: ["buyNowPrice"],
-    },
-  )
-  .superRefine((d, ctx) => {
-    // KALEM fiyatlandırma: her kalemde taban zorunlu; hemen-al ≥ taban.
-    if (d.listingType !== "SATIS" || d.priceScope !== "KALEM") return;
-    d.items.forEach((it, i) => {
-      if (!it.minUnitPrice || it.minUnitPrice <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Taban birim fiyat zorunlu",
-          path: ["items", i, "minUnitPrice"],
-        });
-      }
-      if (
-        it.buyNowUnitPrice != null &&
-        it.minUnitPrice != null &&
-        it.buyNowUnitPrice <= it.minUnitPrice
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Hemen-al, tabandan büyük olmalı",
-          path: ["items", i, "buyNowUnitPrice"],
-        });
-      }
-    });
-  })
   .refine((d) => !d.isLogistics || !!d.logistics?.originCity?.trim(), {
     message: "Çıkış ili zorunlu",
     path: ["logistics", "originCity"],
@@ -464,9 +389,8 @@ export type TenderFormData = z.infer<typeof tenderFormSchema>;
 export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
   // Faz 1 — yalnızca tür + kapsam
   1: ["type", "isInternational"],
-  // Faz 2 — kalemler + SATIS fiyatlandırma kapsamı (TOPLU/KALEM; kalem-bazlı
-  // fiyat girişleri kalem satırlarında olduğundan kapsam kararı bu adımda).
-  2: ["items", "priceScope"],
+  // Faz 2 — kalemler
+  2: ["items"],
   // Faz 3 — genel bilgi: kategori ("AI ile bul" girdisi = 2. adımın kalemleri),
   // kurallar, teslimat, ödeme, zamanlama; lojistik kategori seçiminden türer.
   3: [
@@ -493,10 +417,7 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "paymentNote",
     "termsAndConditions",
     "bidsCloseAt",
-    "noCloseDate",
     "bidsOpenAt",
-    "minPrice",
-    "buyNowPrice",
     "bidVisibility",
     "decimalPlaces",
     "autoExtendOnLateBid",
@@ -519,10 +440,6 @@ export function nowLocalDateTimeValue(): string {
 }
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {
-  listingType: "ALIM",
-  priceScope: "TOPLU",
-  minPrice: undefined,
-  buyNowPrice: undefined,
   categoryIds: [],
   title: "",
   description: "",
@@ -572,7 +489,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   requireGuaranteeLetter: false,
   termsAndConditions: "",
   bidsCloseAt: "",
-  noCloseDate: false,
   bidsOpenAt: "",
   bidVisibility: "OWN_RANK",
   decimalPlaces: 2,

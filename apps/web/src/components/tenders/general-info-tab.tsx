@@ -174,21 +174,9 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
           </Fact>
           <Fact label="Format">
             {l.format === "ENGLISH_AUCTION"
-              ? l.type === "SATIS"
-                ? "Pazarlık (Açık Artırma)"
-                : "Pazarlık (Açık Eksiltme)"
+              ? "Pazarlık (Açık Eksiltme)"
               : "Teklif Toplama (Kapalı Zarf)"}
           </Fact>
-          {l.type === "SATIS" && l.minPrice ? (
-            <Fact label="Taban Fiyat">
-              {Number(l.minPrice).toLocaleString("tr-TR")} {CURRENCY_SYMBOL[cur]}
-            </Fact>
-          ) : null}
-          {l.type === "SATIS" && l.buyNowPrice ? (
-            <Fact label="Hemen Al Fiyatı">
-              {Number(l.buyNowPrice).toLocaleString("tr-TR")} {CURRENCY_SYMBOL[cur]}
-            </Fact>
-          ) : null}
           {l.isInternational ? (
             <Fact label="Hedef Ülkeler" full>
               {(l.targetCountries ?? []).length === 0
@@ -221,12 +209,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             </Fact>
           ) : null}
           {l.deliveryAddress ? (
-            <Fact
-              label={
-                l.type === "SATIS" ? "Teslim / Yükleme Noktası" : "Teslimat Adresi"
-              }
-              full
-            >
+            <Fact label="Teslimat Adresi" full>
               <span className="font-medium">{l.deliveryAddress.title}</span> —{" "}
               {l.deliveryAddress.addressLine}
               {l.deliveryAddress.district
@@ -253,11 +236,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
         <div className="flex flex-wrap gap-2">
           <RuleChip
             active={!!l.isSealedBid}
-            label={
-              l.type === "SATIS"
-                ? "Kapalı zarf (alıcılar arası gizlilik)"
-                : "Kapalı zarf (tedarikçiler arası gizlilik)"
-            }
+            label="Kapalı zarf (tedarikçiler arası gizlilik)"
           />
           <RuleChip
             active={!!l.requireAllItems}
@@ -270,26 +249,18 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
         </div>
       </Section>
 
-      {/* Açık Eksiltme/Artırma Ayarları */}
+      {/* Açık Eksiltme Ayarları */}
       {l.format === "ENGLISH_AUCTION" ? (
-        <Section
-          title={
-            l.type === "SATIS"
-              ? "Açık Artırma Ayarları"
-              : "Açık Eksiltme Ayarları"
-          }
-          icon={Gavel}
-        >
+        <Section title="Açık Eksiltme Ayarları" icon={Gavel}>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
-            <Fact label={l.type === "SATIS" ? "Alıcı Görünürlüğü" : "Tedarikçi Görünürlüğü"}>
+            <Fact label="Tedarikçi Görünürlüğü">
               {l.bidVisibility
                 ? (BID_VISIBILITY_LABELS[l.bidVisibility] ?? "—")
                 : "—"}
             </Fact>
             {/* Minimum pay kaldırıldı (2026-07-13) — kural sabit metin. */}
             <Fact label="Teklif Kuralı">
-              Tur başına 1 teklif · kendi öncekinden{" "}
-              {l.type === "SATIS" ? "yüksek" : "düşük"} olmalı
+              Tur başına 1 teklif · kendi öncekinden düşük olmalı
             </Fact>
             <Fact label="Ondalık Basamak">
               {String(l.decimalPlaces ?? 2)}

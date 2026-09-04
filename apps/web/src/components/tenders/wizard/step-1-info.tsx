@@ -17,7 +17,6 @@ import { companyApi } from "@/lib/company-auth/api";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/date-time-input";
-import { MoneyInputNumber } from "@/components/ui/money-input";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -193,7 +192,7 @@ const INTERNATIONAL_DELIVERY_TERMS: DeliveryTerm[] = [
 function KeywordsInput() {
   const { setValue, watch, formState: { errors } } = useFormContext<TenderFormData>();
   const keywords = watch("keywords") ?? [];
-  const Rol = watch("listingType") === "SATIS" ? "Alıcı" : "Tedarikçi";
+  const Rol = "Tedarikçi";
 
   const addKeyword = (raw: string) => {
     const trimmed = raw.trim().slice(0, 50);
@@ -596,18 +595,15 @@ export function Step1Info({
   const tenderType = watch("type");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
-  const isSatis = watch("listingType") === "SATIS";
-  const L = entityLabels(isSatis);
-  // SATIS'ta karşı taraf ALICI'dır; İngiliz usulünde fiyat YÜKSELİR (artırma).
-  const rol = isSatis ? "alıcı" : "tedarikçi";
-  const rolPl = isSatis ? "alıcılar" : "tedarikçiler";
-  const rolDat = isSatis ? "alıcıya" : "tedarikçiye";
-  const Rol = isSatis ? "Alıcı" : "Tedarikçi";
-  const RolDat = isSatis ? "Alıcıya" : "Tedarikçiye";
-  const RolPl = isSatis ? "Alıcılar" : "Tedarikçiler";
-  const RolPlDat = isSatis ? "Alıcılara" : "Tedarikçilere";
-  const RolPlGen = isSatis ? "Alıcıların" : "Tedarikçilerin";
-  const auctionName = isSatis ? "artırma" : "eksiltme";
+  const L = entityLabels();
+  const rol = "tedarikçi";
+  const rolPl = L.counterpartyPluralLower;
+  const Rol = L.counterparty;
+  const RolDat = "Tedarikçiye";
+  const RolPl = L.counterpartyPlural;
+  const RolPlDat = L.counterpartyPluralDat;
+  const RolPlGen = L.counterpartyPluralGen;
+  const auctionName = "eksiltme";
   const isInternational = watch("isInternational");
 
   const categoryIds = watch("categoryIds") ?? [];
@@ -691,8 +687,6 @@ export function Step1Info({
   );
   const billingAddrs = (addresses ?? []).filter((a) => a.type === "FATURA");
   const deliveryTerm = watch("deliveryTerm");
-  // Madde 23: SATIS süresiz ihale — kapanış alanı gizlenir.
-  const noCloseDate = watch("noCloseDate");
   const deliveryTermOptions = isInternational
     ? INTERNATIONAL_DELIVERY_TERMS
     : DOMESTIC_DELIVERY_TERMS;
@@ -733,10 +727,9 @@ export function Step1Info({
     const prev = prevPaymentCategoryRef.current;
     prevPaymentCategoryRef.current = paymentCategory;
     if (prev === paymentCategory) return;
-    // SATIS'ta teminat mektubu seçeneği YOK (madde 22) — öneri de yapılmaz.
     setValue(
       "requireGuaranteeLetter",
-      !isSatis && paymentCategory === "ADVANCE",
+      paymentCategory === "ADVANCE",
       {
         shouldValidate: false,
         shouldDirty: true,
@@ -909,64 +902,6 @@ export function Step1Info({
       {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}
       {isLogistics ? <LogisticsSection /> : null}
 
-      {/* SATIS — Satış Fiyatları: toplu alanlar (kapsam Kalemler adımında seçildi) */}
-      {isSatis ? (
-        <section>
-          <SectionHeader
-            icon={Wallet}
-            title="Satış Fiyatları"
-            description="Taban fiyatın altındaki teklifler kabul edilmez. Hemen-al fiyatı verirseniz alıcı o fiyattan anında teklif oluşturabilir (onayınızla sipariş olur)."
-          />
-          {watch("priceScope") === "KALEM" ? (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-slate-700">
-              Kalem Bazlı fiyatlandırma seçtiniz — taban ve hemen-al birim
-              fiyatları <strong>Kalemler adımında</strong> kalem üzerinde
-              girilir.
-            </div>
-          ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field error={errors.minPrice?.message as string | undefined}>
-              <Label required htmlFor="satis-min-price">
-                Taban Fiyat ({primaryCurrency})
-              </Label>
-              <Controller
-                control={control}
-                name="minPrice"
-                render={({ field }) => (
-                  <MoneyInputNumber
-                    id="satis-min-price"
-                    hasError={!!errors.minPrice}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-            </Field>
-            <Field
-              error={errors.buyNowPrice?.message as string | undefined}
-              hint="Boş bırakılabilir — verilirse taban fiyattan düşük olamaz."
-            >
-              <Label htmlFor="satis-buynow-price">
-                Hemen Al Fiyatı ({primaryCurrency})
-              </Label>
-              <Controller
-                control={control}
-                name="buyNowPrice"
-                render={({ field }) => (
-                  <MoneyInputNumber
-                    id="satis-buynow-price"
-                    hasError={!!errors.buyNowPrice}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-            </Field>
-          </div>
-          )}
-        </section>
-      ) : null}
-
       {/* V2-7 — SECTION: Teklif ve Sıralama Görünürlüğü (sadece İngiliz Usulü) */}
       {isAuction ? (
         <section>
@@ -1037,22 +972,14 @@ export function Step1Info({
                     checked
                     disabled
                     className="mt-0.5"
-                    aria-label={
-                      isSatis
-                        ? "Fiyatlar sürekli artar (sabit kural)"
-                        : "Fiyatlar sürekli azalır (sabit kural)"
-                    }
+                    aria-label="Fiyatlar sürekli azalır (sabit kural)"
                   />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-brand-900">
-                      {isSatis
-                        ? "Alıcıların verdiği teklif fiyatları sürekli artar."
-                        : "Tedarikçilerin verdiği teklif fiyatları sürekli azalır."}
+                      {`${RolPlGen} verdiği teklif fiyatları sürekli azalır.`}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      {isSatis
-                        ? "Her yeni teklif, o firmanın kendi önceki teklifinden yüksek olmalıdır."
-                        : "Her yeni teklif, o firmanın kendi önceki teklifinden düşük olmalıdır."}
+                      Her yeni teklif, o firmanın kendi önceki teklifinden düşük olmalıdır.
                     </p>
                   </div>
                 </div>
@@ -1180,11 +1107,11 @@ export function Step1Info({
               ve auction'da aynı; varsayılan kapalı (çıpalama riski). */}
           <FormCheckbox name="showTargetToSuppliers">
             <p>
-              Hedef fiyatları {isSatis ? "alıcılara" : "tedarikçilere"} göster
+              Hedef fiyatları tedarikçilere göster
             </p>
             <p className="text-xs font-normal text-zinc-500">
               Kapalı (varsayılan): kalem hedef/istenen birim fiyatları yalnız
-              sizde kalır. Açarsanız {isSatis ? "alıcılar" : "tedarikçiler"} bu
+              sizde kalır. Açarsanız {rolPl} bu
               fiyatı görür — teklifler o rakama yakınsayabilir.
             </p>
           </FormCheckbox>
@@ -1198,7 +1125,7 @@ export function Step1Info({
           title={isAuction ? `${L.entityShort} Para Ayarları` : "Para Birimleri"}
           description={
             isAuction
-              ? `${RolPlGen} kendi para biriminde ${isSatis ? "artırır" : "azaltır"} — pay, açılış günü TCMB kuruyla birimine çevrilir. Ondalık basamak fiyat gösteriminde kullanılır.`
+              ? `${RolPlGen} kendi para biriminde azaltır — pay, açılış günü TCMB kuruyla birimine çevrilir. Ondalık basamak fiyat gösteriminde kullanılır.`
               : `${RolPlGen} hangi para birimlerinde teklif verebileceğini belirleyin. Birden fazla seçebilirsiniz; ★ ana para birimi TRY karşılığı kıyaslamasının temelidir.`
           }
         />
@@ -1256,10 +1183,9 @@ export function Step1Info({
               </div>
               {allowedCurrencies.length > 1 ? (
                 <p className="text-xs text-slate-500">
-                  {isSatis ? "Artış" : "Azaltma"} payı ★ ana birimde tanımlanır;
-                  tur açılışında o günün TCMB kuruyla diğer birimlere sabitlenir
-                  — her {rol} yalnız kendi biriminde{" "}
-                  {isSatis ? "artırır" : "azaltır"}.
+                  Azaltma payı ★ ana birimde tanımlanır; tur açılışında o günün
+                  TCMB kuruyla diğer birimlere sabitlenir — her {rol} yalnız
+                  kendi biriminde azaltır.
                 </p>
               ) : null}
             </div>
@@ -1305,7 +1231,7 @@ export function Step1Info({
                     </p>
                     <p className="text-success-800/80">
                       Ana para birimi olarak {primaryCurrency} seçildi. Diğer
-                      birimlerdeki teklifler {rol === "alıcı" ? "alıcının" : "tedarikçinin"} gönderim tarihindeki
+                      birimlerdeki teklifler tedarikçinin gönderim tarihindeki
                       TCMB kuruyla TRY'ye çevrilerek karşılaştırılır.
                     </p>
                   </div>
@@ -1354,14 +1280,10 @@ export function Step1Info({
             hint={
               deliveryAddrs.length === 0
                 ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
-                : isSatis
-                  ? "Opsiyonel — malın bulunduğu / yükleneceği adres; davetli alıcılar görür."
-                  : `Opsiyonel — hizmet ${L.loc} boş bırakabilirsiniz. Seçilirse davet edilen ${rolPl} görür.`
+                : `Opsiyonel — hizmet ${L.loc} boş bırakabilirsiniz. Seçilirse davet edilen ${rolPl} görür.`
             }
           >
-            <Label htmlFor="deliveryAddressId">
-              {isSatis ? "Teslim / Yükleme Noktası" : "Teslimat Adresi"}
-            </Label>
+            <Label htmlFor="deliveryAddressId">Teslimat Adresi</Label>
             <Select id="deliveryAddressId" {...register("deliveryAddressId")}>
               <option value="">— Seçiniz —</option>
               {deliveryAddrs.map((a) => (
@@ -1373,10 +1295,9 @@ export function Step1Info({
             </Select>
           </Field>
 
-          {/* SATIS'ta fatura adresi anlamsız: faturayı SİZ kesersiniz, size
-              kesilecek fatura yok — alan yalnız ALIM'da. Varsayılan: fatura
-              adresi = teslimat adresi (tik); tik kaldırılırsa seçim zorunlu. */}
-          {isSatis ? null : (
+          {/* Varsayılan: fatura adresi = teslimat adresi (tik); tik
+              kaldırılırsa seçim zorunlu. */}
+          {(
             <div className="space-y-3">
               <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
                 <input
@@ -1429,11 +1350,7 @@ export function Step1Info({
         <SectionHeader
           icon={Wallet}
           title="Ödeme Koşulları"
-          description={
-            isSatis
-              ? "Alıcının faturayı nasıl ödeyeceğini belirtin."
-              : "Faturanın nasıl ödeneceğini belirtin."
-          }
+          description="Faturanın nasıl ödeneceğini belirtin."
         />
         <div className="space-y-4">
           <Field error={errors.paymentCategory?.message}>
@@ -1533,9 +1450,7 @@ export function Step1Info({
                   ? "Çekin vadesi kaç gün olacak?"
                   : paymentCategory === "SENET"
                     ? "Senedin vadesi kaç gün olacak?"
-                    : isSatis
-                      ? "Alıcı faturayı kaç gün vadede ödeyecek?"
-                      : "Faturayı kaç gün vadede ödeyeceksiniz?"
+                    : "Faturayı kaç gün vadede ödeyeceksiniz?"
               }
             >
               <Label htmlFor="paymentDays" required>
@@ -1680,10 +1595,10 @@ export function Step1Info({
             . Ayrıca sorulmaz.
           </p>
 
-          {/* Teminat mektubu seçeneği — yalnız ALIM + PEŞİN'de: alıcı parayı
-              önden verdiği için sistem teslimat garantisi ÖNERİR (otomatik
-              işaretli), karar ilan sahibinindir. SATIS'ta kaldırıldı (madde 22). */}
-          {!isSatis && paymentCategory === "ADVANCE" ? (
+          {/* Teminat mektubu seçeneği — yalnız PEŞİN'de: alıcı parayı önden
+              verdiği için sistem teslimat garantisi ÖNERİR (otomatik
+              işaretli), karar talep sahibinindir. */}
+          {paymentCategory === "ADVANCE" ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
@@ -1699,21 +1614,10 @@ export function Step1Info({
                     </span>
                   </span>
                   <br />
-                  {isSatis ? (
-                    <>
-                      Peşin ödemede parayı önden alan taraf sizsiniz —
-                      işaretlerseniz siparişi onaylamadan önce{" "}
-                      <strong>teminat mektubu</strong> yüklemeniz gerekir
-                      (teslimat garantisi, alıcıya güven verir).
-                    </>
-                  ) : (
-                    <>
-                      İşaretlerseniz <strong>kazanan tedarikçi</strong> siparişi
-                      onaylamadan önce <strong>teminat mektubu</strong> yüklemek
-                      zorunda olur (teslimat garantisi). İşaretlemezseniz
-                      teminat istenmez.
-                    </>
-                  )}
+                  İşaretlerseniz <strong>kazanan tedarikçi</strong> siparişi
+                  onaylamadan önce <strong>teminat mektubu</strong> yüklemek
+                  zorunda olur (teslimat garantisi). İşaretlemezseniz
+                  teminat istenmez.
                 </span>
               </label>
             </div>
@@ -1755,7 +1659,6 @@ export function Step1Info({
           <FilesTab listingId={listingId} isOwner canEdit />
         ) : (
           <StagedDocuments
-            isSatis={isSatis}
             docs={stagedDocs}
             onChange={(d) => onStagedDocsChange?.(d)}
           />
@@ -1794,24 +1697,7 @@ export function Step1Info({
               )}
             />
           </Field>
-          {/* Madde 23: SATIS ilanı SÜRESİZ açılabilir — kapanış tarihi yok,
-              ilan sahibi kapatana/kazandırana kadar açık kalır. */}
-          {isSatis ? (
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
-              <input
-                type="checkbox"
-                {...register("noCloseDate")}
-                className="h-4 w-4 rounded border-zinc-300"
-              />
-              Süresiz {L.shortLower} (kapanış tarihi yok)
-            </label>
-          ) : null}
-          {isSatis && noCloseDate ? (
-            <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-              {L.entity} süresiz açık kalır — siz kapatana ya da kazandırana kadar
-              teklif alınır.
-            </p>
-          ) : (
+          {(
             <Field
               error={errors.bidsCloseAt?.message}
               hint={`Saat seçmezseniz ${L.shortLower} gün sonunda (23:59) kapanır.`}

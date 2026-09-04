@@ -107,9 +107,6 @@ export function TenderTypeBadge({
 }: {
   format: ListingFormat | null;
   className?: string;
-  /** SATIS'ta pazarlık AÇIK ARTIRMA yönündedir (fiyat yükselir) — rozet
-   *  etiketi iki yönde de "Pazarlık"; prop geriye uyumluluk için duruyor. */
-  listingType?: "ALIM" | "SATIS";
 }) {
   const meta = FORMAT_META[format ?? "RFQ"];
   const label = meta.label;

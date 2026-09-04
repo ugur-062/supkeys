@@ -1,8 +1,6 @@
 "use client";
 
-import { entityLabels } from "@/lib/company/terms";
 
-import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -23,9 +21,7 @@ import { toast } from "sonner";
 import { FileSpreadsheet } from "lucide-react";
 import { ExcelImportDialog } from "@/components/tenders/excel-import/excel-import-dialog";
 import type { ItemImportItem } from "@rothern/shared";
-import { MoneyInputNumber } from "@/components/ui/money-input";
 import {
-  Controller,
   useFieldArray,
   useFormContext,
   useWatch,
@@ -54,12 +50,6 @@ export function Step2Items() {
 
   const itemsArrayError = errors.items?.message ?? errors.items?.root?.message;
 
-  // SATIS: fiyatlandırma kapsamı (TOPLU/KALEM) kalemlerle birlikte seçilir —
-  // KALEM seçilirse her kalem satırında taban/hemen-al girişleri açılır.
-  const stepListingType = useWatch({ control, name: "listingType" });
-  const isSatisStep = stepListingType === "SATIS";
-  const L = entityLabels(isSatisStep);
-  const stepPriceScope = useWatch({ control, name: "priceScope" });
   // Denetim 2026-08-26 Parça 10 #7: burada `useWatch({ name: "items" })`
   // vardı. RHF ad-önekiyle abone olduğu için `items.7.quantity` değişimi bu
   // izleyiciyi de tetikliyor → HER TUŞ VURUŞU tüm kalem satırlarını yeniden
@@ -80,8 +70,6 @@ export function Step2Items() {
       materialCode: it.materialCode ?? "",
       requiredByDate: it.requiredByDate ?? "",
       targetUnitPrice: it.targetUnitPrice ?? undefined,
-      minUnitPrice: it.minUnitPrice ?? undefined,
-      buyNowUnitPrice: it.buyNowUnitPrice ?? undefined,
       customQuestion: "",
       questions: [],
     }));
@@ -119,8 +107,6 @@ export function Step2Items() {
         materialCode: p.materialCode,
         requiredByDate: null,
         targetUnitPrice: p.targetPrice,
-        minUnitPrice: null,
-        buyNowUnitPrice: null,
         images: p.images,
       })),
       "append",
@@ -145,52 +131,6 @@ export function Step2Items() {
 
   return (
     <div className="space-y-6">
-      {isSatisStep ? (
-        <Field className="rounded-xl border border-slate-200 p-4">
-          <Label required>Fiyatlandırma</Label>
-          <p className="mb-3 mt-0.5 text-xs text-slate-500">
-            Kalem Bazlı seçerseniz her kalemin üzerinde taban / hemen-al birim
-            fiyatı girersiniz; Toplu&apos;da {L.shortLower} geneli tek fiyat Genel Bilgi
-            adımında sorulur.
-          </p>
-          <Controller
-            control={control}
-            name="priceScope"
-            render={({ field }) => (
-              <RadioGroup
-                value={field.value ?? "TOPLU"}
-                onChange={field.onChange}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-              >
-                <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
-                  <Radio value="TOPLU" aria-label="Toplu fiyat" className="mt-0.5" />
-                  <p className="text-sm font-semibold text-zinc-900">
-                    Toplu
-                    <span className="block text-xs font-normal text-zinc-500">
-                      {L.entityShort} geneli tek taban + tek hemen-al fiyatı.
-                    </span>
-                  </p>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
-                  <Radio
-                    value="KALEM"
-                    aria-label="Kalem bazlı fiyat"
-                    className="mt-0.5"
-                  />
-                  <p className="text-sm font-semibold text-zinc-900">
-                    Kalem Bazlı
-                    <span className="block text-xs font-normal text-zinc-500">
-                      Her kaleme ayrı taban + hemen-al birim fiyatı (aşağıda
-                      girilir).
-                    </span>
-                  </p>
-                </div>
-              </RadioGroup>
-            )}
-          />
-        </Field>
-      ) : null}
-
       {itemsArrayError ? (
         <p className="text-sm text-danger-600">{itemsArrayError}</p>
       ) : null}
@@ -248,15 +188,10 @@ export function Step2Items() {
       <ExcelImportDialog
         open={excelOpen}
         onClose={() => setExcelOpen(false)}
-        scope={{
-          listingType: isSatisStep ? "SATIS" : "ALIM",
-          priceScope: isSatisStep ? (stepPriceScope ?? "TOPLU") : undefined,
-        }}
         existingCount={fields.length}
         onApply={applyImported}
       />
       <CatalogPickerDialog
-        isSatis={isSatisStep}
         open={catalogOpen}
         onClose={() => setCatalogOpen(false)}
         onPick={applyCatalog}
@@ -284,14 +219,6 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
   const unitCodeValue = useWatch({ control, name: `items.${index}.unitCode` });
   // GTİP alanı yalnız uluslararası ilanda görünür (Faz 3 kararı).
   const isInternational = useWatch({ control, name: "isInternational" });
-  // SATIS + KALEM fiyatlandırma: kalem başına taban/hemen-al girişleri açılır.
-  // Her iki useWatch KOŞULSUZ çağrılmalı — `&&` içinde kısa-devre edilirse
-  // hook sırası render'lar arası değişir (rules-of-hooks; listingType SATIS↔
-  // değişince React "fewer hooks" hatası verir).
-  const listingType = useWatch({ control, name: "listingType" });
-  const priceScope = useWatch({ control, name: "priceScope" });
-  const isKalemPricing = listingType === "SATIS" && priceScope === "KALEM";
-
   const [detailOpen, setDetailOpen] = useState(false);
   const [questionOpen, setQuestionOpen] = useState(false);
 
@@ -534,57 +461,6 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           ) : null}
         </div>
       </details>
-
-      {/* SATIS + KALEM: kalem taban / hemen-al birim fiyatları */}
-      {isKalemPricing ? (
-        <div className="mt-3 grid grid-cols-1 gap-3 border-t border-emerald-100 pt-3 pl-11 sm:grid-cols-2">
-          <Field
-            error={
-              (errors.items?.[index] as Record<string, { message?: string }>)
-                ?.minUnitPrice?.message
-            }
-          >
-            <Label htmlFor={`items.${index}.minUnitPrice`} required>
-              Taban Birim Fiyat
-            </Label>
-            <Controller
-              control={control}
-              name={`items.${index}.minUnitPrice`}
-              render={({ field }) => (
-                <MoneyInputNumber
-                  id={`items.${index}.minUnitPrice`}
-                  placeholder="0,00"
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </Field>
-          <Field
-            error={
-              (errors.items?.[index] as Record<string, { message?: string }>)
-                ?.buyNowUnitPrice?.message
-            }
-            hint="Boş bırakılabilir — verilirse alıcı bu kalemi anında bu fiyattan alabilir."
-          >
-            <Label htmlFor={`items.${index}.buyNowUnitPrice`}>
-              Hemen Al Birim Fiyatı
-            </Label>
-            <Controller
-              control={control}
-              name={`items.${index}.buyNowUnitPrice`}
-              render={({ field }) => (
-                <MoneyInputNumber
-                  id={`items.${index}.buyNowUnitPrice`}
-                  placeholder=""
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </Field>
-        </div>
-      ) : null}
 
       {/* 2 ayrı buton + chip özeti */}
       <div className="mt-3 pt-3 border-t border-slate-100 pl-11 flex items-center gap-2 flex-wrap">

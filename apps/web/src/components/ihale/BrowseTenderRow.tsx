@@ -17,12 +17,12 @@ import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import { DaysLeftChip, InfoChip } from "./IhaleListRow";
 
 /**
- * Başkalarının ihaleleri için yoğun SATIR görünümü (Açık İhaleler / Satın Al)
- * — İhalelerim'deki IhaleListRow ile aynı görsel dil; fark: talep sahibi
+ * Başkalarının talepleri için yoğun SATIR görünümü (Açık Talepler) —
+ * Taleplerim'deki IhaleListRow ile aynı görsel dil; fark: talep sahibi
  * kişi değil FİRMA (owner.name; maskeli listede "Gizli firma · Premium") ve
  * sağ uç metrik benim teklifim. Kart görünümü kaldırıldı (tek görünüm bu,
- * kullanıcı isteği 2026-08-03). Rozet kalabalığı (davet/bağlantı/kategori/
- * taban/hemen-al) genişletme satırında.
+ * kullanıcı isteği 2026-08-03). Rozet kalabalığı (davet/bağlantı/kategori)
+ * genişletme satırında.
  */
 
 // B9: tek tarih dili — kanonik formatlayıcı (yıl her yerde görünür).
@@ -47,33 +47,25 @@ function myBidLabel(t: SellerTenderRow): string | null {
 }
 
 /**
- * BAŞKASININ ilanı/talebi — `ListingCard` row ADAPTÖRÜ (Açık Talepler /
- * Satın Al / pano widget'ı). Düzen kartta; burada SellerTenderRow → sütun
- * kümesi: Firma · Kalem · Kapsam · Kapanış · Kategori, sağ altta Teklifim ya
- * da "Teklif ver". Rozet kalabalığı (davet/bağlantı/eşleşme/fiyat) başlık
- * altında; genişletmede tembel kalem tablosu.
+ * BAŞKASININ talebi — `ListingCard` row ADAPTÖRÜ (Açık Talepler / pano
+ * widget'ı). Düzen kartta; burada SellerTenderRow → sütun kümesi: Firma ·
+ * Kalem · Kapsam · Kapanış · Kategori, sağ altta Teklifim ya da "Teklif ver".
+ * Rozet kalabalığı (davet/bağlantı/eşleşme) başlık altında; genişletmede
+ * tembel kalem tablosu.
  */
 export function BrowseTenderRow({
   t,
-  listingType,
   compact = false,
 }: {
   t: SellerTenderRow;
-  /** SATIS = Satın Al sayfası (mor aksan), ALIM = Açık Talepler (yeşil). */
-  listingType: "ALIM" | "SATIS";
   /** Pano özet widget'ı — tek satır (firma · kapanış · eylem), panel yok. */
   compact?: boolean;
 }) {
-  const isSatis = listingType === "SATIS";
   const state = deriveSellerTenderState(t.status, t.myBidStatus, t.invited);
   const urgency = closingUrgency(t.status, t.closesAt);
 
-  const fromHref = isSatis
-    ? "/company/satinalma/satin-al"
-    : "/company/satis/acik-talepler";
-  const fromLabel = isSatis
-    ? MODULE_LABELS.satinalma.satinAl
-    : MODULE_LABELS.satis.acikIhaleler;
+  const fromHref = "/company/satis/acik-talepler";
+  const fromLabel = MODULE_LABELS.satis.acikIhaleler;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   const strip =
@@ -93,16 +85,8 @@ export function BrowseTenderRow({
     label: "Firma",
     value: t.owner ? (
       <span className="flex min-w-0 items-center gap-1.5">
-        <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-md",
-            isSatis ? "bg-violet-50" : "bg-emerald-50",
-          )}
-        >
-          <Building2
-            className={cn("h-3 w-3", isSatis ? "text-violet-600" : "text-emerald-600")}
-            aria-hidden
-          />
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
+          <Building2 className="h-3 w-3 text-emerald-600" aria-hidden />
         </span>
         <span className="truncate font-semibold text-slate-900" title={t.owner.name}>
           {t.owner.name}
@@ -203,17 +187,14 @@ export function BrowseTenderRow({
     href: detailHref,
     number: t.number,
     title: t.title,
-    kind: isSatis ? "ilan" : "talep",
+    kind: "talep",
     coverImageUrl: t.coverImageUrl,
     categoryIds: t.categories.map((c) => c.code),
     status: { label: state.label, className: state.className },
     strip,
     timeNote: expiredNote(t.status, t.closesAt),
     leading: (
-      <FileText
-        className={cn("mt-0.5 h-4 w-4 shrink-0", isSatis ? "text-violet-500" : "text-emerald-500")}
-        aria-hidden
-      />
+      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
     ),
     // Eşleşme rozeti BAŞLIKTA (her genişlikte): kartın "neden buradayım"
     // cevabı — yalnız kategori kolonunda kalınca mobilde hiç görünmüyordu.
@@ -274,24 +255,9 @@ export function BrowseTenderRow({
                 {t.matchReason ? (
                   <span
                     className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-slate-600"
-                    title="Bu ilan geçmiş etkinliğinize göre önceliklendirildi"
+                    title="Bu talep geçmiş etkinliğinize göre önceliklendirildi"
                   >
                     {t.matchReason}
-                  </span>
-                ) : null}
-                {isSatis && t.priceScope === "KALEM" ? (
-                  <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
-                    Kalem Bazlı Fiyat
-                  </span>
-                ) : null}
-                {isSatis && t.minPrice ? (
-                  <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
-                    Taban {Number(t.minPrice).toLocaleString("tr-TR")}
-                  </span>
-                ) : null}
-                {isSatis && t.buyNowPrice ? (
-                  <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-amber-700">
-                    Hemen Al {Number(t.buyNowPrice).toLocaleString("tr-TR")}
                   </span>
                 ) : null}
                 {t.categories.map((c) => (

@@ -57,22 +57,15 @@ function isPast(status: string): boolean {
 }
 
 /**
- * Satıcı İhaleler listesi — eski tedarikçi paneli paritesi: durum tabı
+ * Açık Talepler listesi — eski tedarikçi paneli paritesi: durum tabı
  * (Aktif/Geçmiş/Tümü) + sıralama + tarih aralığı + müşteri + kategori filtresi,
  * zengin kartlar (durum rozeti, aciliyet, kategori eşleşme, teklif versiyonu).
  */
-export function SellerTendersView({
-  listingType = "ALIM",
-}: {
-  /** SATIS: alıcının "Satın Al" listesi — satış ilanlarına teklif verilir. */
-  listingType?: "ALIM" | "SATIS";
-} = {}) {
-  const isSatis = listingType === "SATIS";
-  // Kayıt tipi sözlüğü: SATIS modunda satış İLANLARI (satınalma → Satın Al),
-  // ALIM modunda başkalarının AÇIK TALEPLERİ (satış → Açık Talepler). Satış
-  // tarafında "satın alma talebi" denmez — tek terim "açık talep".
-  const t = listingTerms(isSatis ? "SATIS" : "ACIK_TALEP");
-  const tenders = useSellerTenders(listingType);
+export function SellerTendersView() {
+  // Kayıt tipi sözlüğü: başkalarının AÇIK TALEPLERİ (satış → Açık Talepler).
+  // Satış tarafında "satın alma talebi" denmez — tek terim "açık talep".
+  const t = listingTerms("ACIK_TALEP");
+  const tenders = useSellerTenders();
   // Arama/kategori URL'DEN başlar: pano keşif bloğu buraya `?q=` / `?kategori=`
   // ile devrediyor. URL'siz başlasaydı devredilen terim sessizce kaybolurdu;
   // ayrıca sayfa artık paylaşılabilir/yer imlenebilir.
@@ -111,7 +104,7 @@ export function SellerTendersView({
         .sort((a, b) => b[1].n - a[1].n)
         .map(([id, e]) => ({ value: id, label: `${e.name} (${e.n})` })),
     ];
-  }, [all, isSatis]);
+  }, [all]);
 
 
   const filtered = useMemo(() => {
@@ -141,7 +134,7 @@ export function SellerTendersView({
     rows.sort((a, b) => {
       // Öncelik (seçilen sıralama modunun ÜSTÜNDE):
       //   1) DAVET EDİLENLER (beni özel çağıran — en güçlü sinyal)
-      //   2) BAĞLANTILI firma ihaleleri (iş ilişkim olan firma)
+      //   2) BAĞLANTILI firma talepleri (iş ilişkim olan firma)
       //   3) Kategori eşleşenler (sektörüme uygun herkese açık)
       if (a.invited !== b.invited) return a.invited ? -1 : 1;
       if (a.connected !== b.connected) return a.connected ? -1 : 1;
@@ -194,12 +187,8 @@ export function SellerTendersView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isSatis ? MODULE_LABELS.satinalma.satinAl : MODULE_LABELS.satis.acikIhaleler}
-        description={
-          isSatis
-            ? "Bağlı olduğunuz satıcıların ve herkese açık satış ilanlarının listesi — teklif verin ya da Hemen Al'ı kullanın, sonuçları takip edin."
-            : "Bağlı olduğunuz alıcıların ve herkese açık taleplerin listesi — teklif verin, sonuçları takip edin."
-        }
+        title={MODULE_LABELS.satis.acikIhaleler}
+        description="Bağlı olduğunuz alıcıların ve herkese açık taleplerin listesi — teklif verin, sonuçları takip edin."
       />
 
       {atCap ? (
@@ -209,7 +198,7 @@ export function SellerTendersView({
         </div>
       ) : null}
 
-      {/* Arama + filtreler — İhalelerim düzeni: üstte tam-genişlik arama +
+      {/* Arama + filtreler — Taleplerim düzeni: üstte tam-genişlik arama +
           sıralama, altta filtre pill'leri + sonuç sayacı. */}
       <div className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -255,8 +244,8 @@ export function SellerTendersView({
             value={buyer}
             onChange={withReset(setBuyer)}
             options={buyerOptions}
-            ariaLabel={isSatis ? "Satıcı" : "Alıcı"}
-            prefix={isSatis ? "Satıcı" : "Alıcı"}
+            ariaLabel="Alıcı"
+            prefix="Alıcı"
             active={buyer !== "all"}
           />
           <ResultCount
@@ -293,7 +282,7 @@ export function SellerTendersView({
               ? [
                   {
                     key: "buyer",
-                    label: `${isSatis ? "Satıcı" : "Alıcı"}: ${
+                    label: `Alıcı: ${
                       buyerOptions.find((b) => b.value === buyer)?.label ?? buyer
                     }`,
                     onRemove: () => withReset(setBuyer)("all"),
@@ -316,7 +305,7 @@ export function SellerTendersView({
         <div className="space-y-3">
           <EmptyState
             icon={ClipboardList}
-            title={isSatis ? "Satış ilanları yüklenemedi." : "Açık talepler yüklenemedi."}
+            title="Açık talepler yüklenemedi."
             description="Bir hata oluştu — tekrar deneyin."
             variant="no-results"
           />
@@ -347,9 +336,7 @@ export function SellerTendersView({
                 ? // C57: "Aktif" sekmesi varsayılan — geçmiş kayıtlar sessizce
                   // gizli kalıyordu, boş durum bunu söylemiyordu.
                   "Kapananlar için Durum → Geçmiş."
-                : isSatis
-                  ? "Satıcılarla bağlantı kurduğunuzda veya alış kategorinize uygun satış ilanı yayınlandığında burada görünür."
-                  : "Kategorinize uygun talep yayınlandığında burada görünür."
+                : "Kategorinize uygun talep yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
           action={
@@ -367,13 +354,6 @@ export function SellerTendersView({
               >
                 Filtreleri temizle
               </button>
-            ) : isSatis ? (
-              <Link
-                href="/company/satinalma/tedarikcilerim"
-                className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-              >
-                Bağlantı Kur
-              </Link>
             ) : (
               /* Satışta TEK eylem: eşleşme kategori beyanına dayanır — doğru
                  düzeltme sektörleri güncellemek. "Bağlantı Kur" Bağlantılar
@@ -389,11 +369,11 @@ export function SellerTendersView({
         />
       ) : (
         <>
-          {/* Tek görünüm: yoğun satır listesi — İhalelerim ile aynı dil;
+          {/* Tek görünüm: yoğun satır listesi — Taleplerim ile aynı dil;
               talep sahibi FİRMA kolonu (kullanıcı isteği, 2026-08-03). */}
           <div className="space-y-2" role="table" aria-label={`${t.searchNoun} listesi`}>
             {pageRows.map((t) => (
-              <BrowseTenderRow key={t.id} t={t} listingType={listingType} />
+              <BrowseTenderRow key={t.id} t={t} />
             ))}
           </div>
           {totalPages > 1 ? (

@@ -33,7 +33,6 @@ export function mapProductToForm(seed: ProductSeed): TenderFormData {
   const base = DEFAULT_FORM_VALUES;
   return {
     ...base,
-    listingType: "ALIM",
     title: seed.productName.slice(0, 120),
     keywords: seed.keywords.slice(0, 10),
     // Kategori ÖN-SEÇİM: talep/ilan kategorisi en az L3 ve discovery

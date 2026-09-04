@@ -68,9 +68,8 @@ interface Props {
 
 export async function ListingIndex({ type, title, lead, searchParams }: Props) {
   const params = toListParams(searchParams, type);
-  const basePath =
-    type === "ALIM" ? MARKETPLACE_ROUTES.demands : MARKETPLACE_ROUTES.offers;
-  const noun = type === "ALIM" ? MARKETPLACE_LABELS.demandOne : MARKETPLACE_LABELS.offerOne;
+  const basePath = MARKETPLACE_ROUTES.demands;
+  const noun = MARKETPLACE_LABELS.demandOne;
 
   const [page, facets] = await Promise.all([
     fetchListings(params),

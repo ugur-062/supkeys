@@ -210,49 +210,35 @@ function sym(currency: string | undefined): string {
 }
 
 /**
- * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır (ham "Alış
- * İhalesi/Satış İlanı" etiketi kafa karıştırıyordu: alıcı portalında "Satış
- * İlanı" gören kullanıcı kendi alışını satış sanıyordu).
- *  - Alıcı: ALIM → "Kendi Satın Alma Talebim", SATIS → "Satın Alım"
- *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan Açık Talep"
- * İlan silinmişse (listingType null) nötr "İlan silinmiş" gösterilir —
+ * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır:
+ *  - Alıcı: "Kendi Satın Alma Talebim"
+ *  - Satıcı: "Kazanılan Açık Talep"
+ * Talep silinmişse (listingType null) nötr "Talep silinmiş" gösterilir —
  * etiketi hiç olmayan sipariş kalmaz.
  */
 function sourceMeta(
   role: "buyer" | "seller",
-  type: "ALIM" | "SATIS" | null,
+  type: "ALIM" | null,
 ): { label: string; hint: string; cls: string } {
   if (!type) {
     return {
-      label: "İlan silinmiş",
-      hint: "Bu siparişin bağlı olduğu ilan kaydı artık yok.",
+      label: "Talep silinmiş",
+      hint: "Bu siparişin bağlı olduğu talep kaydı artık yok.",
       cls: "border-zinc-200 bg-zinc-50 text-zinc-500",
     };
   }
   if (role === "buyer") {
-    return type === "ALIM"
-      ? {
-          label: "Kendi Satın Alma Talebim",
-          hint: "Açtığınız satın alma talebini kazandırdınız — bu onun siparişi.",
-          cls: "border-blue-200 bg-blue-50 text-blue-700",
-        }
-      : {
-          label: "Satın Alım",
-          hint: "Bir satıcının satış ilanından satın aldınız.",
-          cls: "border-violet-200 bg-violet-50 text-violet-700",
-        };
+    return {
+      label: "Kendi Satın Alma Talebim",
+      hint: "Açtığınız satın alma talebini kazandırdınız — bu onun siparişi.",
+      cls: "border-blue-200 bg-blue-50 text-blue-700",
+    };
   }
-  return type === "SATIS"
-    ? {
-        label: "Satış İlanım",
-        hint: "Açtığınız satış ilanını kazandırdınız — bu onun siparişi.",
-        cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      }
-    : {
-        label: "Kazanılan Açık Talep",
-        hint: "Bir alıcının açık talebine verdiğiniz teklif kazandı.",
-        cls: "border-blue-200 bg-blue-50 text-blue-700",
-      };
+  return {
+    label: "Kazanılan Açık Talep",
+    hint: "Bir alıcının açık talebine verdiğiniz teklif kazandı.",
+    cls: "border-blue-200 bg-blue-50 text-blue-700",
+  };
 }
 
 /** Tek satırlık sipariş kutusu (İhalelerim listesiyle aynı desen). */
@@ -411,8 +397,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const [sort, setSort] = useState("newest");
   const [range, setRange] = useState<RangeKey>("all");
   const [counterparty, setCounterparty] = useState("");
-  // Kaynak ilan tipi: kendi ihalemden mi (ALIM) satış ilanından mı (SATIS).
-  const [srcType, setSrcType] = useState("all");
   const [page, setPage] = useState(1);
   const [view, setView] = useListView(
     isSeller ? "rothern-view-satislar" : "rothern-view-siparisler",
@@ -443,7 +427,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     const q = search.trim().toLocaleLowerCase("tr");
     const rows = all.filter((o) => {
       if (status !== "all" && o.status !== status) return false;
-      if (srcType !== "all" && o.listingType !== srcType) return false;
       if (counterparty && o.counterparty !== counterparty) return false;
       if (minDate && new Date(o.createdAt).getTime() < minDate) return false;
       if (q && !matchesSearch(o, q)) return false;
@@ -460,12 +443,11 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }
     return out;
-  }, [all, status, srcType, counterparty, range, search, sort]);
+  }, [all, status, counterparty, range, search, sort]);
 
   const isFiltered =
     search !== "" ||
     status !== "all" ||
-    srcType !== "all" ||
     range !== "all" ||
     counterparty !== "";
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -609,28 +591,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             active={status !== "all"}
           />
           <FilterSelect
-            icon={Package}
-            value={srcType}
-            onChange={reset(setSrcType)}
-            options={
-              // Kaynak filtresi portala göre adlandırılır (ham tip adı kafa
-              // karıştırıyordu) — değerler yine listingType.
-              isSeller
-                ? [
-                    { value: "all", label: "Tüm Kaynaklar" },
-                    { value: "SATIS", label: "Satış İlanlarımdan" },
-                    { value: "ALIM", label: "Kazanılan Açık Taleplerden" },
-                  ]
-                : [
-                    { value: "all", label: "Tüm Kaynaklar" },
-                    { value: "ALIM", label: "Kendi İhalelerimden" },
-                    { value: "SATIS", label: "Satın Alımlarım" },
-                  ]
-            }
-            ariaLabel="Sipariş kaynağı"
-            active={srcType !== "all"}
-          />
-          <FilterSelect
             icon={CalendarRange}
             value={range}
             onChange={(v) => reset(setRange)(v as RangeKey)}
@@ -680,24 +640,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   },
                 ]
               : []),
-            ...(srcType !== "all"
-              ? [
-                  {
-                    key: "src",
-                    label:
-                      (isSeller
-                        ? {
-                            SATIS: "Satış İlanlarımdan",
-                            ALIM: "Kazanılan Açık Taleplerden",
-                          }
-                        : {
-                            ALIM: "Kendi İhalelerimden",
-                            SATIS: "Satın Alımlarım",
-                          })[srcType as "ALIM" | "SATIS"] ?? srcType,
-                    onRemove: () => reset(setSrcType)("all"),
-                  },
-                ]
-              : []),
             ...(range !== "all"
               ? [
                   {
@@ -722,7 +664,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           onClearAll={() => {
             setSearch("");
             setStatus("all");
-            setSrcType("all");
             setRange("all");
             setCounterparty("");
             setPage(1);
@@ -759,7 +700,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   onClick={() => {
                     setSearch("");
                     setStatus("all");
-                    setSrcType("all");
                     setRange("all");
                     setCounterparty("");
                     setPage(1);
@@ -777,7 +717,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   }
                   className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
                 >
-                  {isSeller ? "Açık Taleplere Göz At" : "İhalelerime Git"}
+                  {isSeller ? "Açık Taleplere Göz At" : "Taleplerime Git"}
                 </Link>
               )
             }

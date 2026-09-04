@@ -67,7 +67,7 @@ export function GeneralReportView({
   const [status, setStatus] = useState("");
   const [currency, setCurrency] = useState("");
 
-  const myTenders = useTenders(type);
+  const myTenders = useTenders();
   const report = useGeneralReport();
   const download = useDownloadGeneralReport();
 

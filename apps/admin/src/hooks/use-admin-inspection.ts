@@ -9,7 +9,7 @@ export interface AdminListingRow {
   id: string;
   number: string | null;
   title: string;
-  type: "ALIM" | "SATIS";
+  type: "ALIM";
   format: string | null;
   status: string;
   visibility: string;
@@ -37,7 +37,7 @@ export interface AdminListingDetail {
   number: string | null;
   title: string;
   description: string | null;
-  type: "ALIM" | "SATIS";
+  type: "ALIM";
   format: string | null;
   status: string;
   visibility: string;
@@ -54,8 +54,6 @@ export interface AdminListingDetail {
     name: string;
     quantity: string;
     unit: string;
-    minUnitPrice: string | null;
-    buyNowUnitPrice: string | null;
   }[];
   invitations: {
     id: string;
@@ -69,7 +67,6 @@ export interface AdminListingDetail {
     status: string;
     version: number;
     round: number;
-    isBuyNow: boolean;
     submittedAt: string | null;
     deliveryDate: string | null;
     eliminationReason: string | null;

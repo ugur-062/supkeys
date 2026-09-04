@@ -42,7 +42,7 @@ const ZINC_400 = "#a1a1aa";
 const ZINC_200 = "#e4e4e7";
 const EMERALD = "#10b981";
 
-export function useReportsSummary(type: "ALIM" | "SATIS") {
+export function useReportsSummary(type: "ALIM") {
   return useQuery({
     queryKey: ["reports-summary", type],
     queryFn: async () => {
@@ -98,7 +98,7 @@ function CategoryTick({
 }
 
 
-export function ReportsSummaryCharts({ type }: { type: "ALIM" | "SATIS" }) {
+export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
   const { data, isLoading, isError } = useReportsSummary(type);
   // Paket kapısı / hata: bölüm görünmez (hub kartları etkilenmez).
   if (isError) return null;

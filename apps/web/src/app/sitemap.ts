@@ -72,11 +72,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "hourly" as const,
       },
       {
-        path: MARKETPLACE_ROUTES.offers,
-        priority: 0.9,
-        changeFrequency: "hourly" as const,
-      },
-      {
         path: MARKETPLACE_ROUTES.companies,
         priority: 0.8,
         changeFrequency: "daily" as const,
@@ -117,7 +112,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const listingRoutes: MetadataRoute.Sitemap = listings.map((l) => ({
-    url: `${siteUrl}${listingPath(l.type, l.number, l.title)}`,
+    url: `${siteUrl}${listingPath(l.number, l.title)}`,
     lastModified: new Date(l.updatedAt),
     changeFrequency: "daily",
     priority: 0.7,

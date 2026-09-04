@@ -63,7 +63,6 @@ export interface PublicListingCard {
 export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> {
   description: string | null;
   format: string | null;
-  priceScope: string | null;
   allowedCurrencies: string[];
   targetCountries: string[];
   categoryIds: string[];

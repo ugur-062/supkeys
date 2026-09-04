@@ -120,7 +120,6 @@ export function DaysLeftChip({
 
 export interface IhaleListRowProps {
   t: TenderListItem;
-  listingType: "ALIM" | "SATIS";
   favorite: boolean;
   onToggleFavorite: (id: string) => void;
 }
@@ -133,19 +132,13 @@ export interface IhaleListRowProps {
  */
 export function IhaleListRow({
   t,
-  listingType,
   favorite,
   onToggleFavorite,
 }: IhaleListRowProps) {
-  const isSatis = listingType === "SATIS";
   const st = statusStyle(t.status);
 
-  const fromHref = isSatis
-    ? "/company/satis/ilanlarim"
-    : "/company/satinalma/taleplerim";
-  const fromLabel = isSatis
-    ? MODULE_LABELS.satis.ilanlarim
-    : MODULE_LABELS.satinalma.ihalelerim;
+  const fromHref = "/company/satinalma/taleplerim";
+  const fromLabel = MODULE_LABELS.satinalma.ihalelerim;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   // Kapanışa < 3 gün → tarih vurgusu (yalnız açık ihalede).
@@ -159,7 +152,7 @@ export function IhaleListRow({
     href: detailHref,
     number: t.tenderNumber,
     title: t.title,
-    kind: isSatis ? "ilan" : "talep",
+    kind: "talep",
     categoryIds: t.categoryIds,
     status: { label: st.label, className: st.box },
     strip: st.strip,
@@ -167,7 +160,7 @@ export function IhaleListRow({
     leading: (
       <div className="flex shrink-0 flex-col items-center gap-1 pt-0.5">
         <FileText
-          className={cn("h-4 w-4", isSatis ? "text-emerald-500" : "text-blue-500")}
+          className="h-4 w-4 text-blue-500"
           aria-hidden
         />
         <button

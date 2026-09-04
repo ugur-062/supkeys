@@ -25,19 +25,16 @@ export function FilesTab({
   isOwner,
   canEdit = false,
   masked = false,
-  isSatis = false,
 }: {
   listingId: string;
   isOwner: boolean;
-  /** Başlık ve boş durum varlık sözlüğünden ("İlan Dosyaları" / "Talep Dosyaları"). */
-  isSatis?: boolean;
   // İhale belgeleri yalnızca ilan düzenlenebilirken (TASLAK / teklifsiz AÇIK)
   // değiştirilebilir; kapandıktan sonra salt-okunur.
   canEdit?: boolean;
   // Maskeli önizleme (standart + bağsız): şartname/dosyalar kilitli gösterilir.
   masked?: boolean;
 }) {
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const confirm = useConfirm();
   const docs = useListingDocuments(listingId, !masked);
   const upload = useUploadListingDoc(listingId);

@@ -25,18 +25,12 @@ import {
   type BidDocKind,
 } from "@/hooks/use-bid-documents";
 import {
-  useBuyNow,
   useListingDetail,
   usePlaceBid,
   type ListingDetail,
   type ListingItemRow,
 } from "@/hooks/use-company-listings";
-import { useAddresses } from "@/hooks/use-company-addresses";
-import {
-  BUYER_ADDRESS_REQUIRED_TERMS,
-  KDV_HARIC_NOTE,
-} from "@/lib/tenders/labels";
-import type { DeliveryTerm } from "@/lib/tenders/types";
+import { KDV_HARIC_NOTE } from "@/lib/tenders/labels";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
@@ -54,7 +48,6 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   FileText,
-  Info,
   Lock,
   Paperclip,
   Sparkles,
@@ -66,7 +59,7 @@ import { BidImportDialog, type BidImportApplyRow, type BidImportVariant } from "
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { tierAtLeast } from "@rothern/shared";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -77,7 +70,6 @@ import {
 } from "../_components/auction-bid-workbench";
 import {
   cmpDecimal,
-  decAdd,
   decSub,
   exactTotal,
   unitStep,
@@ -173,10 +165,8 @@ export default function TeklifVerPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
-  const searchParams = useSearchParams();
   const detail = useListingDetail(id);
   const placeBid = usePlaceBid(id);
-  const buyNow = useBuyNow(id);
   const bidDocs = useBidDocuments(id);
   const uploadDoc = useUploadBidDoc(id);
   const deleteDoc = useDeleteBidDoc(id);
@@ -184,28 +174,12 @@ export default function TeklifVerPage() {
 
   const l = detail.data;
   const detailHref = `/company/ilan/${id}`;
-  // SATIS ihalede teklifçi ALICI'dır; ilan sahibi satıcıdır ve en yüksek
-  // teklif kazanır (taban fiyat altı kabul edilmez).
-  const isSatis = l?.type === "SATIS";
-  const isKalemPricing = isSatis && l?.priceScope === "KALEM";
-  // Hemen Al modu: fiyatlar hemen-al değerleriyle KİLİTLİ; alıcı yalnızca
-  // detayları (teslim/geçerlilik/not/belge) girer; gönderim buyNow ile.
-  const isBuyNowMode =
-    searchParams.get("hemenAl") === "1" &&
-    !!l &&
-    isSatis &&
-    (isKalemPricing
-      ? (l.items ?? []).some((it) => it.buyNowUnitPrice != null)
-      : l.buyNowPrice != null);
 
   // ── Form durumu ──
   const [itemState, setItemState] = useState<Record<string, ItemState>>({});
   const [singleAmount, setSingleAmount] = useState("");
   // Teslim SÜRESİ (2026-08-02; tarih yerine merdiven) — "" = seçilmedi.
   const [deliveryTime, setDeliveryTime] = useState("");
-  // SATIS: alıcının teslimat adresi (kendi adres defterinden) — adrese-teslim
-  // şartlı ilanda gönderimde zorunlu.
-  const [deliveryAddressId, setDeliveryAddressId] = useState("");
   const [validityDays, setValidityDays] = useState("30");
   const [currency, setCurrency] = useState("");
   const [note, setNote] = useState("");
@@ -226,7 +200,7 @@ export default function TeklifVerPage() {
   // Sürükle-bırak alanı görsel geri bildirimi.
   const [dragActive, setDragActive] = useState(false);
 
-  // WS: canlı artırma/eksiltme — rakip teklifi anında yansısın.
+  // WS: canlı eksiltme — rakip teklifi anında yansısın.
   useEffect(() => subscribeRealtime("listing", id), [id]);
 
   // İlan değişirse (client-side geçiş) önceki formun state'i taşınmasın.
@@ -235,7 +209,6 @@ export default function TeklifVerPage() {
     setItemState({});
     setSingleAmount("");
     setDeliveryTime("");
-    setDeliveryAddressId("");
     setValidityDays("30");
     setCurrency("");
     setNote("");
@@ -259,21 +232,8 @@ export default function TeklifVerPage() {
       for (const q of it.questions ?? []) {
         answers[q.id] = answerByQ.get(q.id) ?? "";
       }
-      // Hemen Al modunda kalem fiyatı hemen-al değeriyle sabitlenir;
-      // hemen-al fiyatı olmayan kalem otomatik kapsam dışı (null = opt-out).
-      const buyNowSeed =
-        isBuyNowMode && l.priceScope === "KALEM"
-          ? it.buyNowUnitPrice != null
-            ? String(Number(it.buyNowUnitPrice))
-            : null
-          : undefined;
       next[it.id] = {
-        price:
-          buyNowSeed !== undefined
-            ? buyNowSeed
-            : bi
-              ? String(Number(bi.unitPrice))
-              : "",
+        price: bi ? String(Number(bi.unitPrice)) : "",
         deliveryTime: bi?.deliveryTime ?? "",
         currency: bi?.currency ?? "",
         answers,
@@ -291,19 +251,14 @@ export default function TeklifVerPage() {
       if (stt.price) initP[iid] = stt.price;
     }
     setInitialPrices(initP);
-    if (isBuyNowMode && !l.items?.length && l.buyNowPrice) {
-      setSingleAmount(String(Number(l.buyNowPrice)));
-    }
     if (bid) {
-      if (!l.items?.length && !isBuyNowMode)
-        setSingleAmount(String(Number(bid.amount)));
+      if (!l.items?.length) setSingleAmount(String(Number(bid.amount)));
       if (bid.deliveryTime) setDeliveryTime(bid.deliveryTime);
       if (bid.validityDays) setValidityDays(String(bid.validityDays));
-      if (bid.deliveryAddressId) setDeliveryAddressId(bid.deliveryAddressId);
       if (bid.note) setNote(bid.note);
       if (bid.currency) setCurrency(bid.currency);
     }
-  }, [l, seeded, isBuyNowMode]);
+  }, [l, seeded]);
 
   const items = l?.items ?? [];
   const hasItems = items.length > 0;
@@ -326,24 +281,11 @@ export default function TeklifVerPage() {
   };
   const effectiveCurrency =
     currency || l?.primaryCurrency || "TRY";
-  // Madde 9 — kalem bazlı para birimi: yalnız kapalı zarf ALIM ihalesinde ve
-  // ilan birden çok birime izin veriyorsa (backend aynı kuralı zorlar).
+  // Madde 9 — kalem bazlı para birimi: yalnız kapalı zarf talebinde ve
+  // talep birden çok birime izin veriyorsa (backend aynı kuralı zorlar).
   const canItemCurrency =
-    !isSatis &&
-    !isBuyNowMode &&
     (l?.allowedCurrencies?.length ?? 0) > 1 &&
     !l?.english?.isEnglishAuction;
-
-  // SATIS: teslimat adresi seçimi. Adres defterinden TESLIMAT/ILETISIM tipli
-  // adresler; adrese-teslim şartlı ilanda gönderimde zorunlu.
-  const { data: myAddresses } = useAddresses();
-  const deliveryAddrs = (myAddresses ?? []).filter(
-    (a) => a.type === "TESLIMAT" || a.type === "ILETISIM",
-  );
-  const addressRequired =
-    isSatis &&
-    !!l?.deliveryTerm &&
-    BUYER_ADDRESS_REQUIRED_TERMS.includes(l.deliveryTerm as DeliveryTerm);
 
   const pricedItems = useMemo(
     () =>
@@ -354,12 +296,8 @@ export default function TeklifVerPage() {
     [items, itemState],
   );
 
-  // Teklif verilen kalemler (Hemen Al'da fiyatı olanlar, normalde pricedItems).
-  const bidItemsForDelivery = !hasItems
-    ? []
-    : isBuyNowMode
-      ? items.filter((it) => itemState[it.id]?.price !== null)
-      : pricedItems;
+  // Teklif verilen kalemler.
+  const bidItemsForDelivery = hasItems ? pricedItems : [];
   // Genel teslim süresi, teklif verilen HER kalemin kendi süresi varsa
   // GEREKSİZ (tedarikçi ayrı ayrı girdi) → zorunlu değil, gizlenir.
   const everyBidItemHasDelivery =
@@ -368,23 +306,19 @@ export default function TeklifVerPage() {
     bidItemsForDelivery.every((it) => !!itemState[it.id]?.deliveryTime);
 
   const total = useMemo(() => {
-    // Hemen Al TOPLU: tutar ilan geneli hemen-al fiyatıdır (kalem fiyatı yok).
-    if (isBuyNowMode && l?.priceScope !== "KALEM") {
-      return Number(l?.buyNowPrice ?? 0);
-    }
     if (!hasItems) return Number(singleAmount) || 0;
     return pricedItems.reduce((sum, it) => {
       const p = Number(itemState[it.id]?.price ?? 0);
       return sum + (Number.isFinite(p) ? p * Number(it.quantity) : 0);
     }, 0);
-  }, [hasItems, singleAmount, pricedItems, itemState, isBuyNowMode, l]);
+  }, [hasItems, singleAmount, pricedItems, itemState]);
 
   // Madde 9 — birim bazında ara toplamlar: karma birimli teklifte tek sayı
   // toplamak yanıltıcı olur; birim başına gösterilir, ana birime çevrimi
   // sunucu kur damgasıyla yapar (bid.amount).
   const totalsByCurrency = useMemo(() => {
     const m = new Map<string, number>();
-    if (!hasItems || isBuyNowMode) return m;
+    if (!hasItems) return m;
     for (const it of pricedItems) {
       const st = itemState[it.id];
       const p = Number(st?.price ?? 0);
@@ -393,7 +327,7 @@ export default function TeklifVerPage() {
       m.set(cur, (m.get(cur) ?? 0) + p * Number(it.quantity));
     }
     return m;
-  }, [hasItems, isBuyNowMode, pricedItems, itemState, effectiveCurrency]);
+  }, [hasItems, pricedItems, itemState, effectiveCurrency]);
   const mixedCurrency = totalsByCurrency.size > 1;
   const totalLabel = mixedCurrency
     ? [...totalsByCurrency.entries()]
@@ -404,12 +338,11 @@ export default function TeklifVerPage() {
   // ── Pazarlık çalışma masası hesapları ──
   // Minimum pay kaldırıldı (2026-07-13): tek kural "kendi öncekinden kesin
   // iyi" + turda tek aktif gönderim. Hedef = kendi son teklifinin bir adım
-  // altı/üstü; toplam kıyasları kesin aritmetikle (float drifti sunucunun
+  // altı; toplam kıyasları kesin aritmetikle (float drifti sunucunun
   // Decimal doğrulamasıyla çelişmesin).
   const isAuction = !!l?.english?.isEnglishAuction;
-  const auctionItemsMode = isAuction && hasItems && !isBuyNowMode;
+  const auctionItemsMode = isAuction && hasItems;
   const decimals = l?.decimalPlaces ?? 2;
-  const direction: "DOWN" | "UP" = isSatis ? "UP" : "DOWN";
   // Kendi son toplam — birim kilidi gereği hep teklifçinin kendi biriminde;
   // kilit yokken (ilk teklif) zaten null.
   const ownLastTotal =
@@ -427,7 +360,7 @@ export default function TeklifVerPage() {
   }, [items, itemState]);
 
   const exactTotalStr = useMemo(() => {
-    if (!isAuction || isBuyNowMode) return "0";
+    if (!isAuction) return "0";
     if (!hasItems) {
       return singleAmount && Number(singleAmount) > 0 ? singleAmount : "0";
     }
@@ -437,7 +370,7 @@ export default function TeklifVerPage() {
         unitPrice: itemState[it.id]?.price ?? "0",
       })),
     );
-  }, [isAuction, isBuyNowMode, hasItems, singleAmount, pricedItems, itemState]);
+  }, [isAuction, hasItems, singleAmount, pricedItems, itemState]);
 
   // KIYAS AYNI KALEMLER BAZINDA: monotonluk, önceki teklifte FİYATLANMIŞ
   // kalemlerin yeni ara toplamına bakar — önceki toplam da yalnız onları
@@ -474,14 +407,12 @@ export default function TeklifVerPage() {
     pricedItems.some((it) => !prevPricedIds.has(it.id));
 
   // Efektif hedef = monotonluk sınırı: kendi son teklifinin bir adım
-  // altı/üstü ("kesin daha iyi" kuralının sayısal karşılığı). İlk teklifte
+  // altı ("kesin daha iyi" kuralının sayısal karşılığı). İlk teklifte
   // (ownLast yok) hedef kısıtı yoktur.
   const effectiveTarget = useMemo(() => {
     if (!ownLastTotal) return null;
-    return direction === "DOWN"
-      ? decSub(ownLastTotal, unitStep(decimals))
-      : decAdd(ownLastTotal, unitStep(decimals));
-  }, [ownLastTotal, direction, decimals]);
+    return decSub(ownLastTotal, unitStep(decimals));
+  }, [ownLastTotal, decimals]);
 
   const workbenchTarget: WorkbenchTarget = useMemo(() => {
     // met/kalan kıyası AYNI KALEMLER ara toplamıyla (kapsam genişletme
@@ -490,9 +421,7 @@ export default function TeklifVerPage() {
     const met =
       effectiveTarget != null &&
       hasAmount &&
-      (direction === "DOWN"
-        ? cmpDecimal(comparableTotalStr, effectiveTarget) <= 0
-        : cmpDecimal(comparableTotalStr, effectiveTarget) >= 0);
+      cmpDecimal(comparableTotalStr, effectiveTarget) <= 0;
     return {
       effectiveTarget,
       ownLastTotal,
@@ -501,19 +430,11 @@ export default function TeklifVerPage() {
       met,
       remaining:
         effectiveTarget != null && !met && hasAmount
-          ? direction === "DOWN"
-            ? decSub(comparableTotalStr, effectiveTarget)
-            : decSub(effectiveTarget, comparableTotalStr)
+          ? decSub(comparableTotalStr, effectiveTarget)
           : "0",
       noReference: !ownLastTotal,
     };
-  }, [
-    effectiveTarget,
-    ownLastTotal,
-    exactTotalStr,
-    comparableTotalStr,
-    direction,
-  ]);
+  }, [effectiveTarget, ownLastTotal, exactTotalStr, comparableTotalStr]);
 
   if (detail.isLoading) {
     return (
@@ -523,7 +444,7 @@ export default function TeklifVerPage() {
     );
   }
   if (!l) {
-    // İlan yüklenemedi — tipi (ALIM/SATIS) bilinmediğinden nötr hedef.
+    // Talep yüklenemedi — nötr hedef.
     return <Blocked title="Satın Alma Talebi bulunamadı" detailHref="/company" />;
   }
 
@@ -552,11 +473,7 @@ export default function TeklifVerPage() {
   if (l.roleAllowsBid === false) {
     return (
       <Blocked
-        title={
-          isSatis
-            ? "Satış ilanına teklif (alış) için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin"
-            : "Açık talebe teklif için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
-        }
+        title="Açık talebe teklif için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
         detailHref={detailHref}
       />
     );
@@ -566,15 +483,10 @@ export default function TeklifVerPage() {
   // verildi / tur hakkı doldu) router.push tamamlanmadan devreye girip
   // "Satın Alma Talebi Detayına Dön" ekranı flaşlıyordu. Pending dahil tek durum
   // ekranı göster; dönüş otomatik.
-  if (
-    placeBid.isPending ||
-    placeBid.isSuccess ||
-    buyNow.isPending ||
-    buyNow.isSuccess
-  ) {
+  if (placeBid.isPending || placeBid.isSuccess) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-zinc-500">
-        {placeBid.isSuccess || buyNow.isSuccess
+        {placeBid.isSuccess
           ? "Teklifin gönderildi — satın alma talebi detayına dönülüyor…"
           : "Teklifin gönderiliyor…"}
       </div>
@@ -591,22 +503,10 @@ export default function TeklifVerPage() {
       />
     );
   }
-  if (isBuyNowMode && l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow) {
+  if (l.myBid?.status === "SUBMITTED" && !l.english?.isEnglishAuction) {
     return (
       <Blocked
-        title="Hemen Al teklifin zaten gönderildi — satıcı onayı bekleniyor"
-        detailHref={detailHref}
-      />
-    );
-  }
-  if (
-    !isBuyNowMode &&
-    l.myBid?.status === "SUBMITTED" &&
-    !l.english?.isEnglishAuction
-  ) {
-    return (
-      <Blocked
-        title={`Teklif zaten verildi — değişiklik için ${isSatis ? "satıcıyla" : "alıcıyla"} iletişime geçin`}
+        title="Teklif zaten verildi — değişiklik için alıcıyla iletişime geçin"
         detailHref={detailHref}
       />
     );
@@ -614,7 +514,6 @@ export default function TeklifVerPage() {
   // Pazarlıkta turda tek aktif gönderim: hak kullanıldıysa form kapalı.
   // Taşınan (carry-over) teklif hak yakmaz — sunucu ayrımı yapar (canBidThisRound).
   if (
-    !isBuyNowMode &&
     l.english?.isEnglishAuction &&
     l.myBid?.status === "SUBMITTED" &&
     !canBidThisRound
@@ -630,13 +529,11 @@ export default function TeklifVerPage() {
   const isRebidAfterLoss = l.myBid?.status === "LOST";
   const isAuctionRebid =
     l.myBid?.status === "SUBMITTED" && !!l.english?.isEnglishAuction;
-  const pageTitle = isBuyNowMode
-    ? "Hemen Al"
-    : isAuctionRebid
-      ? "Yeni Teklif Ver"
-      : isRebidAfterLoss
-        ? "Yeniden Teklif Ver"
-        : "Teklif Ver";
+  const pageTitle = isAuctionRebid
+    ? "Yeni Teklif Ver"
+    : isRebidAfterLoss
+      ? "Yeniden Teklif Ver"
+      : "Teklif Ver";
 
   const days = daysUntil(l.closesAt);
   const deadlineClass =
@@ -666,9 +563,9 @@ export default function TeklifVerPage() {
           ...prev,
           price: String(r.unitPrice),
           // Kalem bazlı para birimi YALNIZ `canItemCurrency` koşullarında
-          // geçerli (Madde 9: kapalı zarf ALIM + çok birimli ilan). Eskiden
-          // yalnız `multiCurrency` bakılıyordu; SATIS/pazarlık/hemen-al
-          // ilanlarında forma birim yazılıp gönderim backend kapısına takılıyordu
+          // geçerli (Madde 9: kapalı zarf + çok birimli talep). Eskiden
+          // yalnız `multiCurrency` bakılıyordu; pazarlık taleplerinde forma
+          // birim yazılıp gönderim backend kapısına takılıyordu
           // (denetim 2026-08-24 Parça 6).
           currency: canItemCurrency && r.currency ? r.currency : prev.currency,
           deliveryTime: r.deliveryTime ?? prev.deliveryTime,
@@ -682,7 +579,7 @@ export default function TeklifVerPage() {
     );
   };
   const bidImportButtons =
-    hasItems && !isBuyNowMode && l ? (
+    hasItems && l ? (
       <div className="flex flex-wrap items-center gap-2">
         <Button outline onClick={() => setBidImport("excel")}>
           <FileSpreadsheet className="h-4 w-4" />
@@ -745,11 +642,7 @@ export default function TeklifVerPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {isAuctionRebid ? null : (
         <Field>
-          <Label>
-            {isSatis
-              ? "Kalem İçin İstenen Teslim Süresi (opsiyonel)"
-              : "Kalem Teslim Süresi (opsiyonel)"}
-          </Label>
+          <Label>Kalem Teslim Süresi (opsiyonel)</Label>
           <Select
             aria-label={`${it.name} teslim süresi`}
             value={st?.deliveryTime ?? ""}
@@ -855,14 +748,12 @@ export default function TeklifVerPage() {
     // Form mevcut tekliften henüz tohumlanmadıysa susmalı — boş state'e
     // bakıp "fiyat gir / bırakılamaz" gibi SAHTE hatalar flaşlıyordu.
     if (!seeded) return problems;
-    // Hemen Al modunda fiyatlar sabittir — fiyat problemleri üretilmez;
-    // yalnızca detaylar (teslim/geçerlilik/belge/zorunlu soru) doğrulanır.
-    if (hasItems && !isBuyNowMode) {
+    if (hasItems) {
       if (pricedItems.length === 0)
         problems.push("En az bir kaleme birim fiyat girin.");
       if (l.requireAllItems && pricedItems.length < items.length)
         problems.push("Bu satın alma talebinde tüm kalemlere teklif vermelisiniz.");
-    } else if (!hasItems && !isBuyNowMode) {
+    } else {
       // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend place-bid.dto birebir).
       if (!singleAmount) problems.push("Geçerli bir tutar girin.");
       else {
@@ -871,10 +762,7 @@ export default function TeklifVerPage() {
       }
     }
     if (hasItems) {
-      const scope = isBuyNowMode
-        ? items.filter((it) => itemState[it.id]?.price !== null)
-        : pricedItems;
-      for (const it of scope) {
+      for (const it of pricedItems) {
         for (const q of it.questions ?? []) {
           if (q.required && !(itemState[it.id]?.answers[q.id] ?? "").trim()) {
             problems.push(`"${it.name}" kalemi için zorunlu soru cevaplanmadı.`);
@@ -882,12 +770,6 @@ export default function TeklifVerPage() {
           }
         }
       }
-      if (isBuyNowMode && l.requireAllItems && scope.length < items.length)
-        problems.push(
-          "Bu satın alma talebinde tüm kalemlere teklif zorunlu — kalem kapsam dışı bırakılamaz.",
-        );
-    }
-    if (hasItems && !isBuyNowMode) {
       // F4: fiyatlanan her kalem >0 + 2 ondalık + MAX_MONEY (backend unitPrice birebir).
       for (const it of pricedItems) {
         const e = moneyInputError(Number(itemState[it.id]?.price ?? 0));
@@ -902,56 +784,18 @@ export default function TeklifVerPage() {
     // yeniden istenmez (backend de mevcut değeri korur).
     if (!isAuctionRebid && !everyBidItemHasDelivery && !deliveryTime)
       problems.push(
-        isSatis
-          ? "İstenen teslim süresi zorunlu (süre girmediğiniz kalemler için)."
-          : "Teslim süresi zorunlu (süre girmediğiniz kalemler için).",
-      );
-    if (addressRequired && !deliveryAddressId)
-      problems.push(
-        "Bu ilanda teslim şekli adrese teslim — teslimat adresi seçin.",
+        "Teslim süresi zorunlu (süre girmediğiniz kalemler için).",
       );
     // Madde 15: pazarlıkta geçerlilik sorulmaz — teklif süresizdir.
     if (!isAuction && (!validityDays || Number(validityDays) < 1))
       problems.push("Geçerlilik süresi zorunlu.");
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
       problems.push("Bu satın alma talebinde teklif dosyası zorunlu.");
-    // SATIS: taban/hemen-al kıyası yalnız ilanın kendi para biriminde anlamlı.
-    if (
-      isSatis &&
-      !isBuyNowMode &&
-      effectiveCurrency === (l.primaryCurrency ?? "TRY")
-    ) {
-      if (l.minPrice && total > 0 && total < Number(l.minPrice))
-        problems.push(
-          `Toplam teklif taban fiyatın (${money(Number(l.minPrice), effectiveCurrency)}) altında olamaz.`,
-        );
-      if (l.buyNowPrice && total >= Number(l.buyNowPrice))
-        problems.push(
-          `Teklif Hemen Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — satın alma talebi detayından Hemen Al kullanın.`,
-        );
-      // KALEM fiyatlandırma: kalem tabanı/hemen-al'ı gönderimden ÖNCE yakala
-      // (backend de aynı kuralı zorlar — 400 yerine anlık geri bildirim).
-      if (l.priceScope === "KALEM") {
-        for (const it of pricedItems) {
-          const p = Number(itemState[it.id]?.price ?? 0);
-          if (!(p > 0)) continue; // fiyat problemi ayrıca üretiliyor
-          if (it.minUnitPrice != null && p < Number(it.minUnitPrice))
-            problems.push(
-              `"${it.name}" birim fiyatı tabanın (${money(Number(it.minUnitPrice), effectiveCurrency)}) altında olamaz.`,
-            );
-          if (it.buyNowUnitPrice != null && p >= Number(it.buyNowUnitPrice))
-            problems.push(
-              `"${it.name}" birim fiyatı Hemen Al fiyatına (${money(Number(it.buyNowUnitPrice), effectiveCurrency)}) ulaştı — bu kalemi Hemen Al ile alın.`,
-            );
-        }
-      }
-    }
     // İngiliz usulü yeniden teklif: monotonluk ön-kontrolü AYNI KALEMLER
-    // ara toplamıyla (ALIM'da düşmeli, SATIS'ta yükselmeli) — yeni eklenen
-    // kalem kıyasa girmez, önceden fiyatlanmış kalem bırakılamaz (sunucu da
-    // aynı kuralları zorlar; burada anlık geri bildirim).
+    // ara toplamıyla (düşmeli) — yeni eklenen kalem kıyasa girmez, önceden
+    // fiyatlanmış kalem bırakılamaz (sunucu da aynı kuralları zorlar; burada
+    // anlık geri bildirim).
     if (
-      !isBuyNowMode &&
       l.english?.isEnglishAuction &&
       l.myBid?.status === "SUBMITTED" &&
       effectiveCurrency === (l.myBid.currency ?? l.primaryCurrency ?? "TRY")
@@ -971,19 +815,15 @@ export default function TeklifVerPage() {
         ? "önceden fiyatladığınız kalemlerin toplamı"
         : "yeni teklifin";
       if (cmpDecimal(comparableTotalStr, "0") === 1) {
-        if (isSatis && cmpDecimal(comparableTotalStr, l.myBid.amount) <= 0)
-          problems.push(
-            `Açık artırma: ${scopeNote} önceki teklifinin (${money(own, effectiveCurrency)}) üzerinde olmalı.`,
-          );
-        if (!isSatis && cmpDecimal(comparableTotalStr, l.myBid.amount) >= 0)
+        if (cmpDecimal(comparableTotalStr, l.myBid.amount) >= 0)
           problems.push(
             `Açık eksiltme: ${scopeNote} önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
           );
       }
     }
     // NOT: eski "toplam en fazla X olabilir" (sınır = öncekinin 1 kuruş
-    // altı/üstü) uyarısı kaldırıldı — yukarıdaki "öncekinden düşük/yüksek
-    // olmalı" kuralının kafa karıştıran kuruşlu tekrarıydı; kuruş-altı uç
+    // altı) uyarısı kaldırıldı — yukarıdaki "öncekinden düşük olmalı"
+    // kuralının kafa karıştıran kuruşlu tekrarıydı; kuruş-altı uç
     // durumda sunucu kesin Decimal kıyasla zaten reddeder.
     return problems;
   };
@@ -1023,7 +863,6 @@ export default function TeklifVerPage() {
     deliveryTime: deliveryTime || undefined,
     validityDays:
       isAuction ? undefined : validityDays ? Number(validityDays) : undefined,
-    deliveryAddressId: (isSatis && deliveryAddressId) || undefined,
     currency: currency || undefined,
     ...(hasItems
       ? {
@@ -1090,28 +929,8 @@ export default function TeklifVerPage() {
         const up = await uploadStaged();
         if (!up.ok) return; // staged korunur; kullanıcı tekrar dener
       }
-      if (isBuyNowMode) {
-        // Hemen Al: fiyatlar sunucuda hemen-al değerlerinden hesaplanır —
-        // istemci fiyatı güvenilmez. KALEM modda kapsam = fiyatı açık kalemler.
-        await buyNow.mutateAsync({
-          note: note.trim() || undefined,
-          deliveryTime: deliveryTime || undefined,
-          validityDays: validityDays ? Number(validityDays) : undefined,
-          deliveryAddressId: deliveryAddressId || undefined,
-          itemIds:
-            l && l.priceScope === "KALEM"
-              ? items
-                  .filter((it) => itemState[it.id]?.price !== null)
-                  .map((it) => it.id)
-              : undefined,
-        });
-        toast.success(
-          "Hemen Al teklifin gönderildi — satıcı onayı bekleniyor",
-        );
-      } else {
-        await placeBid.mutateAsync(buildPayload(false));
-        toast.success("Teklifiniz gönderildi");
-      }
+      await placeBid.mutateAsync(buildPayload(false));
+      toast.success("Teklifiniz gönderildi");
       router.push(detailHref);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Teklif gönderilemedi"));
@@ -1132,7 +951,7 @@ export default function TeklifVerPage() {
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
-        if (problems.length === 0 && !placeBid.isPending && !buyNow.isPending) {
+        if (problems.length === 0 && !placeBid.isPending) {
           setConfirmOpen(true);
         }
       }}
@@ -1172,51 +991,6 @@ export default function TeklifVerPage() {
         </div>
       ) : null}
 
-      {isSatis && l.priceScope === "KALEM" && !isBuyNowMode ? (
-        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <p>
-            <span className="font-semibold">Kalem bazlı taban fiyat:</span>{" "}
-            her kalemin birim fiyatı kendi tabanının altına inemez; hemen-al
-            fiyatlı kalemler o fiyattan anında alınabilir. En yüksek teklif
-            kazanır.
-          </p>
-        </div>
-      ) : null}
-      {isSatis && l.priceScope !== "KALEM" && l.minPrice ? (
-        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <p>
-            <span className="font-semibold">
-              Taban fiyat: {money(Number(l.minPrice), l.primaryCurrency ?? "TRY")}
-            </span>{" "}
-            — altındaki teklifler kabul edilmez.
-            {effectiveCurrency !== (l.primaryCurrency ?? "TRY")
-              ? " Farklı para birimi seçtiniz — taban kıyası sunucuda yapılır."
-              : ""}
-            {l.buyNowPrice
-              ? ` Hemen Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine satın alma talebi detayındaki Hemen Al kullanılır).`
-              : ""}{" "}
-            En yüksek teklif kazanır.
-          </p>
-        </div>
-      ) : null}
-
-      {isBuyNowMode ? (
-        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <p>
-            <span className="font-semibold">Hemen Al modu:</span> fiyatlar
-            hemen-al değerleriyle sabittir, değiştirilemez.{" "}
-            {l.priceScope === "KALEM"
-              ? "İstemediğiniz kalemi kapsam dışı bırakabilirsiniz (✕); hemen-al fiyatı olmayan kalemler zaten kapsam dışıdır."
-              : ""}
-            İstenen teslim tarihini ve geçerlilik süresini girip onayla —
-            satıcı kazandırınca sipariş oluşur.
-          </p>
-        </div>
-      ) : null}
-
       {l.english?.isEnglishAuction ? (
         <AuctionLiveCard l={l} bidderCurrency={effectiveCurrency} />
       ) : null}
@@ -1224,11 +998,11 @@ export default function TeklifVerPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Sol — form */}
         <div className="space-y-5 lg:col-span-2">
-          {/* İhale özeti */}
+          {/* Talep özeti */}
           <section className="card p-5">
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
-                <dt className="text-xs text-zinc-500">{isSatis ? "Satıcı" : "Alıcı"}</dt>
+                <dt className="text-xs text-zinc-500">Alıcı</dt>
                 <dd className="truncate font-medium text-zinc-900">
                   {l.owner?.name ?? "Gizli firma"}
                 </dd>
@@ -1252,7 +1026,7 @@ export default function TeklifVerPage() {
             </dl>
             {(l.allowedCurrencies?.length ?? 0) <= 1 ? (
               <Text className="mt-2 text-xs text-zinc-400">
-                Para birimi {isSatis ? "satıcı" : "alıcı"} tarafından belirlendi.
+                Para birimi alıcı tarafından belirlendi.
               </Text>
             ) : null}
           </section>
@@ -1291,13 +1065,11 @@ export default function TeklifVerPage() {
                 toggleLock={toggleLock}
                 currency={effectiveCurrency}
                 decimals={decimals}
-                direction={direction}
                 target={workbenchTarget}
                 defaultPercent="5"
                 requireAllItems={!!l.requireAllItems}
                 mandatoryIds={prevPricedIds}
                 rowMeta={workbenchRowMeta}
-                isSatis={isSatis}
                 renderItemExtras={renderItemExtras}
               />
             </section>
@@ -1357,40 +1129,19 @@ export default function TeklifVerPage() {
                             {Number(it.quantity)} {it.unit}
                             {it.materialCode ? ` · ${it.materialCode}` : ""}
                             {it.targetPrice
-                              ? ` · ${isSatis ? "İstenen" : "Hedef"}: ${money(Number(it.targetPrice), effectiveCurrency)}`
-                              : ""}
-                            {it.minUnitPrice != null
-                              ? ` · Taban: ${money(Number(it.minUnitPrice), effectiveCurrency)}`
-                              : ""}
-                            {it.buyNowUnitPrice != null
-                              ? ` · Hemen Al: ${money(Number(it.buyNowUnitPrice), effectiveCurrency)}`
+                              ? ` · Hedef: ${money(Number(it.targetPrice), effectiveCurrency)}`
                               : ""}
                           </p>
                         </div>
 
                         {optedOut ? (
-                          // Hemen Al modunda: fiyat hemen-al değeriyle geri
-                          // gelir; hemen-al fiyatı olmayan kalem kapsama hiç
-                          // alınamaz (buton yok) — backend zaten reddeder.
-                          !isBuyNowMode || it.buyNowUnitPrice != null ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setItem(it.id, {
-                                  price: isBuyNowMode
-                                    ? String(Number(it.buyNowUnitPrice))
-                                    : "",
-                                })
-                              }
-                              className="text-xs font-semibold text-blue-600 hover:underline"
-                            >
-                              {isBuyNowMode ? "Kapsama al" : "Kalemi geri ekle"}
-                            </button>
-                          ) : (
-                            <span className="text-xs text-zinc-400">
-                              Hemen-al fiyatı yok
-                            </span>
-                          )
+                          <button
+                            type="button"
+                            onClick={() => setItem(it.id, { price: "" })}
+                            className="text-xs font-semibold text-blue-600 hover:underline"
+                          >
+                            Kalemi geri ekle
+                          </button>
                         ) : (
                           <div className="flex items-start gap-2">
                             <div className="w-36">
@@ -1399,7 +1150,6 @@ export default function TeklifVerPage() {
                                 <MoneyInput
                                   aria-label={`${it.name} birim fiyat`}
                                   value={st?.price ?? ""}
-                                  disabled={isBuyNowMode}
                                   onChange={(raw) =>
                                     setItem(it.id, { price: raw })
                                   }
@@ -1435,11 +1185,7 @@ export default function TeklifVerPage() {
                         <div className="mt-3 grid grid-cols-1 gap-3 border-t border-zinc-50 pt-3 sm:grid-cols-2">
                           {isAuctionRebid ? null : (
                           <Field>
-                            <Label>
-                              {isSatis
-                                ? "Kalem İçin İstenen Teslim Süresi (opsiyonel)"
-                                : "Kalem Teslim Süresi (opsiyonel)"}
-                            </Label>
+                            <Label>Kalem Teslim Süresi (opsiyonel)</Label>
                             <Select
                               aria-label={`${it.name} teslim süresi`}
                               value={st?.deliveryTime ?? ""}
@@ -1509,13 +1255,9 @@ export default function TeklifVerPage() {
               <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
                 <Field>
                   <Label>Tutar ({effectiveCurrency})</Label>
-                  <MoneyInput
-                    value={singleAmount}
-                    disabled={isBuyNowMode}
-                    onChange={setSingleAmount}
-                  />
+                  <MoneyInput value={singleAmount} onChange={setSingleAmount} />
                 </Field>
-                {isAuction && !isBuyNowMode && effectiveTarget ? (
+                {isAuction && effectiveTarget ? (
                   <p
                     className={cn(
                       "mt-2 text-xs",
@@ -1524,11 +1266,9 @@ export default function TeklifVerPage() {
                         : "text-amber-700",
                     )}
                   >
-                    Önceki teklifinden {direction === "DOWN" ? "düşük" : "yüksek"}{" "}
-                    olmalı:{" "}
+                    Önceki teklifinden düşük olmalı:{" "}
                     <strong className="tabular-nums">
-                      {direction === "DOWN" ? "≤" : "≥"}{" "}
-                      {money(Number(effectiveTarget), effectiveCurrency)}
+                      ≤ {money(Number(effectiveTarget), effectiveCurrency)}
                     </strong>
                     {workbenchTarget.met ? " — uygun ✓" : ""}
                   </p>
@@ -1537,14 +1277,13 @@ export default function TeklifVerPage() {
             </section>
           )}
 
-          {/* Teslim & geçerlilik — SATIS'ta teslim eden SATICI'dır (ilan
-              sahibi); alıcı tarih taahhüt etmez, İSTEDİĞİ tarihi belirtir. */}
+          {/* Teslim & geçerlilik */}
           <section className="space-y-3">
             <Subheading>Teslim &amp; Geçerlilik</Subheading>
             <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 sm:grid-cols-3">
               <Field>
                 <Label>
-                  {isSatis ? "İstenen Teslim Süresi" : "Genel Teslim Süresi"}
+                  Genel Teslim Süresi
                   {everyBidItemHasDelivery || isAuctionRebid ? "" : " *"}
                 </Label>
                 {isAuctionRebid ? (
@@ -1562,9 +1301,7 @@ export default function TeklifVerPage() {
                     <Select
                       value={deliveryTime}
                       onChange={(e) => setDeliveryTime(e.target.value)}
-                      aria-label={
-                        isSatis ? "İstenen teslim süresi" : "Genel teslim süresi"
-                      }
+                      aria-label="Genel teslim süresi"
                     >
                       <option value="">Seçin…</option>
                       {BID_DELIVERY_TIMES.map((t) => (
@@ -1619,50 +1356,15 @@ export default function TeklifVerPage() {
                   </Select>
                   {isAuctionRebid ? (
                     <p className="mt-1 text-xs text-zinc-400">
-                      Açık {isSatis ? "artırmada" : "eksiltmede"} para birimi
-                      ilk teklifle kilitlenir.
+                      Açık eksiltmede para birimi ilk teklifle kilitlenir.
                     </p>
                   ) : null}
                 </Field>
               ) : null}
             </div>
-            {isSatis ? (
-              <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
-                <Field>
-                  <Label>
-                    Teslimat Adresiniz{addressRequired ? " *" : ""}
-                  </Label>
-                  <Select
-                    value={deliveryAddressId}
-                    onChange={(e) => setDeliveryAddressId(e.target.value)}
-                  >
-                    <option value="">
-                      {deliveryAddrs.length === 0
-                        ? "Adres defterinizde teslimat adresi yok"
-                        : addressRequired
-                          ? "— Seçiniz —"
-                          : "— Seçiniz (opsiyonel) —"}
-                    </option>
-                    {deliveryAddrs.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.title}
-                        {a.city ? ` — ${a.city}` : ""}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Text className="mt-2 text-xs text-zinc-400">
-                  {addressRequired
-                    ? "Bu ilanda teslim şekli adrese teslim — satıcı bu adrese gönderir. "
-                    : "Satıcının teslimatı planlaması için (opsiyonel). "}
-                  Adres yoksa Ayarlar → Adresler&apos;den ekleyin.
-                </Text>
-              </div>
-            ) : null}
             <Text className="text-xs text-zinc-400">
-              {isSatis
-                ? "İstenen teslim tarihi satıcıya iletilir; kesin teslim tarihini satıcı sipariş onayında verir."
-                : "Kalem-özel teslim tarihi girilmeyen kalemler için genel teslim tarihi geçerlidir."}
+              Kalem-özel teslim tarihi girilmeyen kalemler için genel teslim
+              tarihi geçerlidir.
             </Text>
           </section>
 
@@ -1675,13 +1377,13 @@ export default function TeklifVerPage() {
                 maxLength={1000}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={`${isSatis ? "Satıcıya" : "Alıcıya"} iletmek istediğiniz not (opsiyonel)`}
+                placeholder="Alıcıya iletmek istediğiniz not (opsiyonel)"
               />
             </div>
           </section>
 
           {/* Teklif dosyaları — sürükle-bırak + dosya başına kategori. Teminat
-              burada YOK; ihale sonrası sipariş aşamasında yüklenir. */}
+              burada YOK; kazandırma sonrası sipariş aşamasında yüklenir. */}
           <section className="space-y-3">
             <Subheading>
               Teklif Dosyaları{l.requireBidDocument ? " (zorunlu)" : ""}
@@ -1846,27 +1548,19 @@ export default function TeklifVerPage() {
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {totalLabel}
               </p>
-              {/* Sınır yerine YAPILAN indirim/artış (öncekine göre). */}
-              {isAuction &&
-              !isBuyNowMode &&
-              effectiveTarget &&
-              workbenchTarget.ownLastTotal ? (
+              {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
+              {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
                 <p className="mt-1 text-xs text-emerald-200">
                   {workbenchTarget.met ? (
                     <>
-                      {direction === "DOWN" ? "İndirim" : "Artış"}:{" "}
+                      İndirim:{" "}
                       <span className="tabular-nums">
                         {money(
                           Number(
-                            direction === "DOWN"
-                              ? decSub(
-                                  workbenchTarget.ownLastTotal,
-                                  workbenchTarget.comparableTotalStr,
-                                )
-                              : decSub(
-                                  workbenchTarget.comparableTotalStr,
-                                  workbenchTarget.ownLastTotal,
-                                ),
+                            decSub(
+                              workbenchTarget.ownLastTotal,
+                              workbenchTarget.comparableTotalStr,
+                            ),
                           ),
                           effectiveCurrency,
                         )}
@@ -1876,7 +1570,7 @@ export default function TeklifVerPage() {
                   ) : (
                     <>
                       Öncekinden ({money(Number(workbenchTarget.ownLastTotal), effectiveCurrency)}){" "}
-                      {direction === "DOWN" ? "düşük" : "yüksek"} olmalı
+                      düşük olmalı
                     </>
                   )}
                 </p>
@@ -1899,16 +1593,14 @@ export default function TeklifVerPage() {
             <Button
               color="emerald"
               className="w-full"
-              disabled={
-                problems.length > 0 || placeBid.isPending || buyNow.isPending
-              }
+              disabled={problems.length > 0 || placeBid.isPending}
               onClick={() => setConfirmOpen(true)}
             >
-              {isBuyNowMode ? "Hemen Al" : "Teklif Gönder"}
+              Teklif Gönder
             </Button>
             {/* Auction'da GÖNDERİLMİŞ teklif taslağa çekilemez (yarıştan
                 düşürürdü) — rebid'de taslak butonu gizli; backend de reddeder. */}
-            {!isBuyNowMode && !isAuctionRebid ? (
+            {!isAuctionRebid ? (
               <Button
                 outline
                 className="w-full"
@@ -1947,8 +1639,7 @@ export default function TeklifVerPage() {
                 notu RFQ'da kalır. */}
             {!l.english?.isEnglishAuction ? (
               <p className="text-center text-xs text-zinc-400">
-                Kapalı zarf: teklifin diğer{" "}
-                {isSatis ? "alıcılara" : "tedarikçilere"} gösterilmez.
+                Kapalı zarf: teklifin diğer tedarikçilere gösterilmez.
               </p>
             ) : null}
           </div>
@@ -1964,11 +1655,8 @@ export default function TeklifVerPage() {
           <p className="text-base font-bold text-zinc-950 tabular-nums">
             {totalLabel}
           </p>
-          {/* Sınır yerine YAPILAN indirim/artış (öncekine göre). */}
-          {isAuction &&
-          !isBuyNowMode &&
-          effectiveTarget &&
-          workbenchTarget.ownLastTotal ? (
+          {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
+          {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
             <p
               className={cn(
                 "text-xs tabular-nums",
@@ -1976,32 +1664,25 @@ export default function TeklifVerPage() {
               )}
             >
               {workbenchTarget.met
-                ? `${direction === "DOWN" ? "İndirim" : "Artış"}: ${money(
+                ? `İndirim: ${money(
                     Number(
-                      direction === "DOWN"
-                        ? decSub(
-                            workbenchTarget.ownLastTotal,
-                            workbenchTarget.comparableTotalStr,
-                          )
-                        : decSub(
-                            workbenchTarget.comparableTotalStr,
-                            workbenchTarget.ownLastTotal,
-                          ),
+                      decSub(
+                        workbenchTarget.ownLastTotal,
+                        workbenchTarget.comparableTotalStr,
+                      ),
                     ),
                     effectiveCurrency,
                   )} ✓`
-                : `Öncekinden ${direction === "DOWN" ? "düşük" : "yüksek"} olmalı`}
+                : "Öncekinden düşük olmalı"}
             </p>
           ) : null}
         </div>
         <Button
           color="emerald"
-          disabled={
-            problems.length > 0 || placeBid.isPending || buyNow.isPending
-          }
+          disabled={problems.length > 0 || placeBid.isPending}
           onClick={() => setConfirmOpen(true)}
         >
-          {isBuyNowMode ? "Hemen Al" : "Teklif Gönder"}
+          Teklif Gönder
         </Button>
       </div>
       {/* Yapışkan çubuk içeriği örtmesin */}
@@ -2010,11 +1691,9 @@ export default function TeklifVerPage() {
       {/* Gönderim onayı */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>
-          {isBuyNowMode
-            ? "Hemen Al — Onayla"
-            : isAuctionRebid || isRebidAfterLoss
-              ? "Teklifi Revize Et"
-              : "Teklif Gönder"}
+          {isAuctionRebid || isRebidAfterLoss
+            ? "Teklifi Revize Et"
+            : "Teklif Gönder"}
         </DialogTitle>
         <DialogBody>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
@@ -2029,7 +1708,7 @@ export default function TeklifVerPage() {
               </p>
             ) : null}
           </div>
-          {!isBuyNowMode && l.english?.isEnglishAuction ? (
+          {l.english?.isEnglishAuction ? (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               <AlertTriangle
                 className="mt-0.5 h-4 w-4 shrink-0"
@@ -2039,8 +1718,8 @@ export default function TeklifVerPage() {
                 <span className="font-semibold">
                   Bu turda tek teklif hakkın var.
                 </span>{" "}
-                Gönderdikten sonra bu turda değiştiremezsin — yeni fiyat ancak{" "}
-                {isSatis ? "satıcı" : "alıcı"} yeni tur açarsa verilebilir.
+                Gönderdikten sonra bu turda değiştiremezsin — yeni fiyat ancak
+                alıcı yeni tur açarsa verilebilir.
               </p>
             </div>
           ) : (
@@ -2054,16 +1733,8 @@ export default function TeklifVerPage() {
           <Button plain onClick={() => setConfirmOpen(false)}>
             Vazgeç
           </Button>
-          <Button
-            color="emerald"
-            onClick={submit}
-            disabled={placeBid.isPending || buyNow.isPending}
-          >
-            {placeBid.isPending || buyNow.isPending
-              ? "Gönderiliyor…"
-              : isBuyNowMode
-                ? "Hemen Al"
-                : "Teklifi Gönder"}
+          <Button color="emerald" onClick={submit} disabled={placeBid.isPending}>
+            {placeBid.isPending ? "Gönderiliyor…" : "Teklifi Gönder"}
           </Button>
         </DialogActions>
       </Dialog>

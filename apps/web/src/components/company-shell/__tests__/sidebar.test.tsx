@@ -85,7 +85,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
 });
 
 describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", () => {
-  it("satınalma: sıra Anasayfa→Taleplerim→Satın Al→Tekliflerim→Siparişlerim→Bağlantılar→Onaylar→Ayarlar; Raporlar/Şablonlar/Profilim menüde YOK", () => {
+  it("satınalma: sıra Anasayfa→Taleplerim→Siparişlerim→Bağlantılar→Onaylar→Ayarlar; Satın Al/Tekliflerim (satış ilanı) YOK; Raporlar/Şablonlar/Profilim menüde YOK", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
@@ -109,8 +109,6 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(nav).toEqual([
       "Anasayfa",
       "Taleplerim",
-      "Satın Al",
-      "Tekliflerim",
       "Siparişlerim",
       "Bağlantılar",
       "Onaylar",
@@ -121,7 +119,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
   });
 
-  it("satış: Satış İlanlarım→Açık Talepler→Ürünlerim→Profilim→Satış Tekliflerim→Satışlarım→Bağlantılar; Raporlar/Şablonlar menüde YOK", () => {
+  it("satış: Açık Talepler→Ürünlerim→Profilim→Satış Tekliflerim→Satışlarım→Bağlantılar; Satış İlanlarım/Raporlar/Şablonlar menüde YOK", () => {
     h.auth.user = { roles: ["SATISCI"] };
     h.canAct = false;
     render(<CompanySidebarContent expanded showPin={false} />);
@@ -129,8 +127,8 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
       .getAllByRole("link")
       .map((a) => a.textContent?.trim());
     const idx = (t: string) => labels.indexOf(t);
-    expect(idx("Satış İlanlarım")).toBeGreaterThan(idx("Anasayfa"));
-    expect(idx("Açık Talepler")).toBeGreaterThan(idx("Satış İlanlarım"));
+    expect(idx("Satış İlanlarım")).toBe(-1);
+    expect(idx("Açık Talepler")).toBeGreaterThan(idx("Anasayfa"));
     // Profilim Ürünlerim'in hemen altında (2026-09-03) — vitrin ürünle yan yana.
     expect(idx("Ürünlerim")).toBeGreaterThan(idx("Açık Talepler"));
     expect(idx("Profilim")).toBe(idx("Ürünlerim") + 1);

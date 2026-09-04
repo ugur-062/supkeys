@@ -5,7 +5,7 @@ import type { AiTenderExtractResult } from "@rothern/shared";
 import { useMutation } from "@tanstack/react-query";
 
 /**
- * Faz AI-1 — belge → ihale formu. Akış: presigned PUT (dosya API'den geçmez) →
+ * Faz AI-1 — belge → talep formu. Akış: presigned PUT (dosya API'den geçmez) →
  * extract (backend işler + Gemini). refine yalnız taslak JSON + mesaj gönderir
  * (belge yeniden okunmaz — "bir kez oku, JSON'la konuş").
  */
@@ -26,18 +26,12 @@ async function uploadOne(file: File): Promise<string> {
 
 export function useAiTenderExtract() {
   return useMutation({
-    mutationFn: async ({
-      files,
-      listingType,
-    }: {
-      files: File[];
-      listingType: "ALIM" | "SATIS";
-    }) => {
+    mutationFn: async ({ files }: { files: File[] }) => {
       const fileKeys: string[] = [];
       for (const f of files) fileKeys.push(await uploadOne(f));
       const { data } = await companyApi.post<AiTenderExtractResult>(
         "/company/ai/tender-extract",
-        { fileKeys, listingType },
+        { fileKeys, listingType: "ALIM" },
         // Vision çıkarımı (çok sayfalı PDF) global 45sn'yi aşabilir.
         { timeout: 180_000 },
       );

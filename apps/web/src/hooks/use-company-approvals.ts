@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type ApprovalType = "LISTING_PUBLISH" | "LISTING_AWARD";
 export type ApprovalFlowStatus = "DRAFT" | "ACTIVE" | "PASSIVE";
-export type ApprovalListingType = "ALIM" | "SATIS";
+export type ApprovalListingType = "ALIM";
 
 export interface ApprovalFlowStep {
   order: number;

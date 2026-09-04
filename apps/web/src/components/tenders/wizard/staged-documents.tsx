@@ -27,14 +27,11 @@ export interface StagedListingDoc {
 export function StagedDocuments({
   docs,
   onChange,
-  isSatis = false,
 }: {
   docs: StagedListingDoc[];
   onChange: (docs: StagedListingDoc[]) => void;
-  /** Varlık adı sözlükten (satış ilanı / satın alma talebi). */
-  isSatis?: boolean;
 }) {
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const [kind, setKind] = useState<ListingDocKind>("IDARI_SARTNAME");
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {

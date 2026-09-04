@@ -42,7 +42,7 @@ export interface WorkbenchTarget {
    *  ara toplamı — yeni eklenen kalem kıyasa girmez. Kapsam genişlemediyse
    *  exactTotalStr ile aynı. */
   comparableTotalStr: string;
-  /** Sınır karşılandı mı (DOWN: ≤, UP: ≥). */
+  /** Sınır karşılandı mı (≤). */
   met: boolean;
   /** Sınıra kalan pozitif fark (karşılanmadıysa). */
   remaining: string;
@@ -51,7 +51,7 @@ export interface WorkbenchTarget {
 }
 
 /**
- * Pazarlık çalışma masası — çok kalemli açık eksiltme/artırmada tedarikçinin
+ * Pazarlık çalışma masası — çok kalemli açık eksiltmede tedarikçinin
  * hedefe hesap makinesisiz inmesini sağlar: canlı hedef çubuğu, kalem seçimi
  * (yuvarlak işaret; hepsi seçili başlar, % aracı yalnız seçililere uygulanır),
  * arama/filtre'li kompakt tablo. Tüm toplam kıyasları kesin aritmetik
@@ -69,11 +69,9 @@ export function AuctionBidWorkbench({
   toggleLock,
   currency,
   decimals,
-  direction,
   target,
   defaultPercent,
   requireAllItems,
-  isSatis,
   mandatoryIds,
   rowMeta,
   renderItemExtras,
@@ -89,12 +87,10 @@ export function AuctionBidWorkbench({
   toggleLock: (itemId: string) => void;
   currency: string;
   decimals: number;
-  direction: "DOWN" | "UP";
   target: WorkbenchTarget;
   /** % aracının başlangıç değeri (ilanın yüzde adımı varsa o). */
   defaultPercent: string;
   requireAllItems: boolean;
-  isSatis: boolean;
   /** Pazarlıkta bırakılamayan kalemler (önceki teklifte fiyatlanmış) —
    *  kapsam-dışı bırakma (X) gizlenir; sunucu da reddeder. */
   mandatoryIds?: Set<string>;
@@ -122,15 +118,11 @@ export function AuctionBidWorkbench({
       ),
   );
 
-  const down = direction === "DOWN";
-
-  // Yapılan indirim/artış — kendi öncekine göre, AYNI KALEMLER ara
-  // toplamıyla (yeni eklenen kalem kıyasa girmez). Tutar kesin aritmetik;
-  // % yalnız gösterim.
+  // Yapılan indirim — kendi öncekine göre, AYNI KALEMLER ara toplamıyla
+  // (yeni eklenen kalem kıyasa girmez). Tutar kesin aritmetik; % yalnız
+  // gösterim.
   const madeDiff = target.ownLastTotal
-    ? down
-      ? decSub(target.ownLastTotal, target.comparableTotalStr)
-      : decSub(target.comparableTotalStr, target.ownLastTotal)
+    ? decSub(target.ownLastTotal, target.comparableTotalStr)
     : "0";
   const scopeExpanded =
     cmpDecimal(target.comparableTotalStr, target.exactTotalStr) !== 0;
@@ -156,8 +148,6 @@ export function AuctionBidWorkbench({
         quantity: it.quantity,
         unitPrice: prices[it.id]!,
         locked: lockedIds.has(it.id),
-        minUnitPrice: it.minUnitPrice ?? null,
-        maxUnitPriceExclusive: it.buyNowUnitPrice ?? null,
       }));
   }, [items, prices, lockedIds]);
 
@@ -202,10 +192,10 @@ export function AuctionBidWorkbench({
       return;
     }
     applyPrices(
-      applyPercentToItems({ items: distItems, percent, direction, decimals }),
+      applyPercentToItems({ items: distItems, percent, decimals }),
     );
     toast.success(
-      `${allSelected ? "Tüm kalemlere" : "Seçili kalemlere"} %${percent} ${down ? "indirim" : "artış"} uygulandı`,
+      `${allSelected ? "Tüm kalemlere" : "Seçili kalemlere"} %${percent} indirim uygulandı`,
     );
   };
 
@@ -257,7 +247,7 @@ export function AuctionBidWorkbench({
         {target.noReference ? (
           <span>
             İlk teklifin — sınır yok, fiyatlarını serbestçe gir. Sonraki
-            teklifler bunun {down ? "altında" : "üzerinde"} olmak zorunda.
+            teklifler bunun altında olmak zorunda.
           </span>
         ) : target.effectiveTarget ? (
           <>
@@ -267,13 +257,13 @@ export function AuctionBidWorkbench({
                 {money(target.ownLastTotal ?? "0", currency)}
               </strong>
             </span>
-            {/* Sınır/"Gönderilebilir" yerine YAPILAN indirim/artış: tutar + %
+            {/* Sınır/"Gönderilebilir" yerine YAPILAN indirim: tutar + %
                 (öncekine göre; kesin aritmetik, % yalnız gösterim). Kapsam
                 genişletildiyse kıyas önceki kalemlerin ara toplamıyla. */}
             {target.met ? (
               <span className="inline-flex items-center gap-1 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                {down ? "İndirim" : "Artış"}:{" "}
+                İndirim:{" "}
                 <strong className="tabular-nums">
                   {money(madeDiff, currency)}
                   {madePct != null ? ` (%${madePct})` : ""}
@@ -284,8 +274,7 @@ export function AuctionBidWorkbench({
                 {scopeExpanded
                   ? "Önceden fiyatladığınız kalemlerin toplamı öncekinden"
                   : "Öncekinden"}{" "}
-                {down ? "düşük" : "yüksek"} olmalı — henüz{" "}
-                {down ? "indirim" : "artış"} yok.
+                düşük olmalı — henüz indirim yok.
               </span>
             )}
             {scopeExpanded ? (
@@ -314,7 +303,7 @@ export function AuctionBidWorkbench({
             />
           </div>
           <Button outline onClick={applyPercent}>
-            {percentScopeLabel} %{percent || "…"} {down ? "indirim" : "artış"}
+            {percentScopeLabel} %{percent || "…"} indirim
           </Button>
         </div>
         <Button outline onClick={reset} disabled={changedIds.size === 0}>
@@ -407,14 +396,8 @@ export function AuctionBidWorkbench({
                         <p className="truncate text-xs text-zinc-400">
                           {[
                             it.materialCode,
-                            it.minUnitPrice != null
-                              ? `Taban: ${money(it.minUnitPrice, currency)}`
-                              : null,
-                            it.buyNowUnitPrice != null
-                              ? `Hemen Al: ${money(it.buyNowUnitPrice, currency)}`
-                              : null,
                             it.targetPrice
-                              ? `${isSatis ? "İstenen" : "Hedef"}: ${money(it.targetPrice, currency)}`
+                              ? `Hedef: ${money(it.targetPrice, currency)}`
                               : null,
                             meta?.note ?? null,
                           ]

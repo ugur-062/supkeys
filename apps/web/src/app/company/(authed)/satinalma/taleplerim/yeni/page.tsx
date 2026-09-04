@@ -82,7 +82,7 @@ export default function YeniIhalePage() {
     return (
       <TenderWizard
         key="ai-import"
-        initialValues={mapAiDraftToForm(aiResult.draft, "ALIM")}
+        initialValues={mapAiDraftToForm(aiResult.draft)}
         aiImport={aiResult}
       />
     );
@@ -116,7 +116,6 @@ export default function YeniIhalePage() {
       <AiImportDialog
         open={aiOpen}
         onClose={() => setAiOpen(false)}
-        listingType="ALIM"
         onResult={(r) => {
           setAiOpen(false);
           setAiResult(r);

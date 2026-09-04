@@ -20,16 +20,6 @@ async function main() {
 
   const samples = [
     {
-      number: "ROT-900101",
-      type: "SATIS" as const,
-      title: "Endüstriyel CNC Tezgah Stok Satışı",
-      description:
-        "İkinci el bakımlı CNC dik işleme merkezleri — partiler hâlinde satışa sunulmuştur.",
-      minPrice: "450000.00",
-      buyNowPrice: "520000.00",
-      closesAt: new Date(now + 7 * day),
-    },
-    {
       number: "ROT-900102",
       type: "ALIM" as const,
       format: "RFQ" as const,
@@ -37,15 +27,6 @@ async function main() {
       description:
         "Muhtelif kalınlıklarda paslanmaz çelik sac alımı için teklif toplanmaktadır.",
       closesAt: new Date(now + 10 * day),
-    },
-    {
-      number: "ROT-900103",
-      type: "SATIS" as const,
-      title: "Ofis Mobilyası Toplu Tasfiye",
-      description:
-        "Yenileme nedeniyle çıkan ofis mobilyaları (masa, dolap, sandalye) toplu satış.",
-      minPrice: "75000.00",
-      closesAt: new Date(now + 14 * day),
     },
   ];
 
@@ -68,8 +49,6 @@ async function main() {
         status: "OPEN",
         title: s.title,
         description: s.description,
-        minPrice: s.minPrice ?? null,
-        buyNowPrice: s.buyNowPrice ?? null,
         closesAt: s.closesAt,
       },
     });

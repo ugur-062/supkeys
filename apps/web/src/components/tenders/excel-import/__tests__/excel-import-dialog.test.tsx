@@ -32,8 +32,6 @@ const RESULT: ItemImportResult = {
         materialCode: "BRU-200",
         requiredByDate: null,
         targetUnitPrice: null,
-        minUnitPrice: null,
-        buyNowUnitPrice: null,
       },
       errors: [],
     },
@@ -47,8 +45,6 @@ const RESULT: ItemImportResult = {
         materialCode: null,
         requiredByDate: null,
         targetUnitPrice: null,
-        minUnitPrice: null,
-        buyNowUnitPrice: null,
       },
       errors: ["Kalem Adı boş"],
     },
@@ -75,10 +71,10 @@ describe("ExcelImportDialog", () => {
 
   it("şablon indirme butonu hook'u çağırır (AI yok)", () => {
     render(
-      <ExcelImportDialog open onClose={() => {}} scope={{ listingType: "ALIM" }} existingCount={1} onApply={() => {}} />,
+      <ExcelImportDialog open onClose={() => {}} existingCount={1} onApply={() => {}} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Şablonu indir" }));
-    expect(h.download).toHaveBeenCalledWith({ listingType: "ALIM" });
+    expect(h.download).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/AI kullanılmaz/)).toBeInTheDocument();
   });
 
@@ -86,11 +82,11 @@ describe("ExcelImportDialog", () => {
     const onApply = vi.fn();
     const onClose = vi.fn();
     render(
-      <ExcelImportDialog open onClose={onClose} scope={{ listingType: "ALIM" }} existingCount={1} onApply={onApply} />,
+      <ExcelImportDialog open onClose={onClose} existingCount={1} onApply={onApply} />,
     );
     pickFile();
     await waitFor(() => expect(h.parse).toHaveBeenCalled());
-    expect(h.parse.mock.calls[0]![0]).toMatchObject({ scope: { listingType: "ALIM" } });
+    expect(h.parse.mock.calls[0]![0]).toHaveProperty("file");
 
     await screen.findByText("1 satır hazır");
     expect(screen.getByText(/1 hatalı satır/)).toBeInTheDocument();
@@ -111,7 +107,7 @@ describe("ExcelImportDialog", () => {
   it("hiç geçerli satır yoksa Aktar devre dışı", async () => {
     h.parse.mockResolvedValue({ ...RESULT, rows: [RESULT.rows[1]!], validCount: 0, invalidCount: 1 });
     render(
-      <ExcelImportDialog open onClose={() => {}} scope={{ listingType: "ALIM" }} existingCount={0} onApply={() => {}} />,
+      <ExcelImportDialog open onClose={() => {}} existingCount={0} onApply={() => {}} />,
     );
     pickFile();
     await screen.findByText(/Aktarılabilir satır yok/);

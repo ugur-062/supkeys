@@ -454,15 +454,9 @@ function BackNav({ basePath }: { basePath: string }) {
   );
 }
 
-/** Tedarikçi (ALIM) / Alıcı (SATIS) Grupları — bağımsız alt sayfa. */
-export function GroupTemplatesView({
-  type,
-  basePath,
-}: {
-  type: "ALIM" | "SATIS";
-  basePath: string;
-}) {
-  const partyWord = type === "ALIM" ? "Tedarikçi" : "Alıcı";
+/** Tedarikçi Grupları — bağımsız alt sayfa. */
+export function GroupTemplatesView({ basePath }: { basePath: string }) {
+  const partyWord = "Tedarikçi";
   // F7: şablon yazma templates:manage ister (Kurucu/Yönetici) — izinsiz
   // üye listeleri salt-okunur görür.
   const canManageTpl = useHasCompanyPermission("templates:manage");
@@ -667,29 +661,24 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
   );
 }
 
-/** İhale/İlan Şablonları — bağımsız alt sayfa (portal tipine göre süzülür). */
-export function ListingTemplatesView({
-  type,
-  basePath,
-}: {
-  type: "ALIM" | "SATIS";
-  basePath: string;
-}) {
-  const isAlim = type === "ALIM";
+/** Satın Alma Talebi Şablonları — bağımsız alt sayfa. */
+export function ListingTemplatesView({ basePath }: { basePath: string }) {
   // F7: şablon silme templates:manage ister.
   const canManageTpl = useHasCompanyPermission("templates:manage");
   const listingTpls = useListingTemplates();
   const deleteListingTpl = useDeleteTemplate();
   const del = useDeleteWithConfirm();
 
+  // Eski satış ilanı şablonları (payload.listingType = "SATIS") listelenmez:
+  // o özellik kaldırıldı (2026-09-04), şablon sihirbaza yüklenemez.
   const myListingTpls = useMemo(
     () =>
       (listingTpls.data ?? []).filter(
         (t) =>
           ((t.payload as { listingType?: string })?.listingType ?? "ALIM") ===
-          type,
+          "ALIM",
       ),
-    [listingTpls.data, type],
+    [listingTpls.data],
   );
 
   return (
@@ -697,10 +686,8 @@ export function ListingTemplatesView({
       <BackNav basePath={basePath} />
       <Section
         icon={FileText}
-        title={isAlim ? "Satın Alma Talebi Şablonları" : "İlan Şablonları"}
-        description={`Sihirbazda "Şablon Olarak Kaydet" ile oluşur; yeni ${
-          isAlim ? "satın alma talebinde" : "ilanda"
-        } "Şablondan Yükle" menüsünden uygulanır.`}
+        title="Satın Alma Talebi Şablonları"
+        description='Sihirbazda "Şablon Olarak Kaydet" ile oluşur; yeni satın alma talebinde "Şablondan Yükle" menüsünden uygulanır.'
       >
         {listingTpls.isLoading ? (
           <ListSkeleton rows={3} />
@@ -727,9 +714,6 @@ export function ListingTemplatesView({
                         <p className="truncate font-medium text-zinc-900">
                           {t.name}
                         </p>
-                        <Badge color={isAlim ? "blue" : "emerald"}>
-                          {isAlim ? "Alış" : "Satış"}
-                        </Badge>
                       </div>
                       <p className="mt-0.5 truncate text-xs text-zinc-400">
                         {p.items?.length ? `${p.items.length} kalem` : "—"}
@@ -741,7 +725,7 @@ export function ListingTemplatesView({
                       (önceden yalnız silme vardı, satır işlevsizdi). */}
                   <div className="flex shrink-0 items-center gap-1">
                     <Link
-                      href={`${isAlim ? "/company/satinalma/taleplerim/yeni" : "/company/satis/ilanlarim/yeni"}?template=${t.id}`}
+                      href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
                     >
                       Sihirbazda Kullan

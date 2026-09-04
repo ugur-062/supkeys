@@ -53,11 +53,6 @@ export function mapDetailToForm(
   const primary = (l.primaryCurrency as Currency) ?? "TRY";
   return {
     ...DEFAULT_FORM_VALUES,
-    listingType: (l.type as TenderFormData["listingType"]) ?? "ALIM",
-    priceScope:
-      (l.priceScope as TenderFormData["priceScope"]) ?? "TOPLU",
-    minPrice: l.minPrice != null ? Number(l.minPrice) : undefined,
-    buyNowPrice: l.buyNowPrice != null ? Number(l.buyNowPrice) : undefined,
     categoryIds: l.categoryIds ?? [],
     title: forCopy ? copyTitle(l.title) : l.title,
     description: l.description ?? "",
@@ -109,8 +104,6 @@ export function mapDetailToForm(
     termsAndConditions: l.terms ?? "",
     // Kopyada kapanış boş (kullanıcı yeniden seçer); açılış "şimdi" öntanımlı.
     bidsCloseAt: forCopy ? "" : toLocalInput(l.closesAt),
-    // Madde 23: kapanışsız (süresiz) SATIS ilanı düzenlenirken işaret korunur.
-    noCloseDate: !forCopy && !l.closesAt,
     bidsOpenAt: forCopy ? nowLocalDateTimeValue() : toLocalInput(l.bidsOpenAt),
     bidVisibility:
       (l.bidVisibility as TenderFormData["bidVisibility"]) ?? "OWN_ONLY",
@@ -136,12 +129,6 @@ export function mapDetailToForm(
             requiredByDate: toDateInput(it.requiredByDate),
             targetUnitPrice:
               it.targetPrice != null ? Number(it.targetPrice) : undefined,
-            minUnitPrice:
-              it.minUnitPrice != null ? Number(it.minUnitPrice) : undefined,
-            buyNowUnitPrice:
-              it.buyNowUnitPrice != null
-                ? Number(it.buyNowUnitPrice)
-                : undefined,
             customQuestion: "",
             questions: (it.questions ?? []).map((q) => ({
               id: q.id,

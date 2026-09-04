@@ -37,7 +37,7 @@ const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
   { value: "12m", label: "Son 1 Yıl" },
   { value: "all", label: "Tümü" },
 ];
-// C4: varsayılan "Tümü" — "Son 3 Ay" sessizce eski ihaleleri gizliyordu ve
+// C4: varsayılan "Tümü" — "Son 3 Ay" sessizce eski talepleri gizliyordu ve
 // isFiltered mantığını ters çeviriyordu (Tümü seçince "filtrelenmiş" yazıyordu).
 const DEFAULT_RANGE: RangeKey = "all";
 const RANGE_DAYS: Record<RangeKey, number | null> = {
@@ -59,7 +59,7 @@ type TabKey =
   | "AWARDED"
   | "CLOSED_NO_AWARD"
   | "CANCELLED";
-// IN_AWARD = "Değerlendirmede" — kapanan ihale doğrudan bu duruma geçer
+// IN_AWARD = "Değerlendirmede" — kapanan talep doğrudan bu duruma geçer
 // (ayrı "Teklife Kapalı" ara durumu 2026-07-13'te kaldırıldı).
 const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
   { value: "all", label: "Tüm Durumlar" },
@@ -75,18 +75,11 @@ const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
 
 const PAGE_SIZE = 20;
 
-export function IhalelerView({
-  listingType = "ALIM",
-}: {
-  /** SATIS: Satış İlanlarım — aynı zengin liste, satış rotaları/etiketleri. */
-  listingType?: "ALIM" | "SATIS";
-} = {}) {
-  const isSatis = listingType === "SATIS";
-  // Sayaç/arama metinleri kayıt tipine göre — bu sayfa iki farklı iş
-  // nesnesini çiziyor ve metinler ALIM tarafına sabitlenmişti.
-  const t = listingTerms(isSatis ? "SATIS" : "ALIM");
-  const secondary = PORTAL_SECONDARY_HREFS[isSatis ? "satis" : "satinalma"];
-  const list = useTenders(listingType);
+export function IhalelerView() {
+  // Sayaç/arama metinleri kayıt tipi sözlüğünden (tek kaynak).
+  const t = listingTerms("ALIM");
+  const secondary = PORTAL_SECONDARY_HREFS.satinalma;
+  const list = useTenders();
   const all = useMemo(() => list.data ?? [], [list.data]);
 
   // Faz 4.2 — KPI drill-down: ?status=OPEN gibi bir başlangıç filtresi kabul
@@ -132,7 +125,7 @@ export function IhalelerView({
     return c;
   }, [facetRows]);
 
-  // Açan kişiler (ALIM'da satın almacılar, SATIS'ta satışçılar)
+  // Açan kişiler (satın almacılar)
   const buyers = useMemo(() => {
     const m = new Map<
       string,
@@ -220,12 +213,8 @@ export function IhalelerView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isSatis ? MODULE_LABELS.satis.ilanlarim : MODULE_LABELS.satinalma.ihalelerim}
-        description={
-          isSatis
-            ? "Satış ilanlarınızı yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
-            : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
-        }
+        title={MODULE_LABELS.satinalma.ihalelerim}
+        description="Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         action={
           <div className="flex flex-wrap items-center gap-2">
             {/* Sol menü sadeleştirmesi (2026-08-22): Şablonlar + Raporlar
@@ -348,8 +337,7 @@ export function IhalelerView({
         isLoading={list.isLoading}
         isError={list.isError}
         onRetry={() => list.refetch()}
-        listingType={listingType}
-        emptyCtaLabel={isSatis ? "Satış İlanı Aç" : "Satın Alma Talebi Aç"}
+        emptyCtaLabel="Satın Alma Talebi Aç"
       />
 
       {totalPages > 1 ? (

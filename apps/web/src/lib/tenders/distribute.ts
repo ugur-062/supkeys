@@ -6,8 +6,7 @@
  * (0.1+0.2) sapması "hedefe ulaştın" derken sunucunun 400 dönmesine yol
  * açabilirdi. Buradaki karşılaştırmalar sunucununkiyle bit-bit aynıdır.
  *
- * Yön: ALIM pazarlığı "DOWN" (toplam hedefin ALTINA/eşitine iner),
- * SATIS açık artırması "UP" (toplam hedefin ÜSTÜNE/eşitine çıkar).
+ * Yön tek: açık eksiltme pazarlığında toplam hedefin ALTINA/eşitine iner.
  */
 
 /** İç ölçek: tüm tutarlar 10^12 ile çarpılmış BigInt olarak taşınır. */
@@ -64,14 +63,10 @@ export interface DistributeItem {
   unitPrice: string | number;
   /** Kilitli kalemin fiyatına dokunulmaz. */
   locked?: boolean;
-  /** Alt sınır (SATIS kalem tabanı) — fiyat bunun altına İNEMEZ (dahil). */
-  minUnitPrice?: string | number | null;
-  /** Üst sınır (kalem hemen-al) — fiyat buna ULAŞAMAZ (hariç). */
-  maxUnitPriceExclusive?: string | number | null;
 }
 
 export interface DistributeResult {
-  /** Hedefe ulaşıldı mı (DOWN: toplam ≤ hedef, UP: toplam ≥ hedef). */
+  /** Hedefe ulaşıldı mı (toplam ≤ hedef). */
   ok: boolean;
   /** Kalem id → yeni birim fiyat (ondalık string, `decimals` hanede). */
   prices: Record<string, string>;
@@ -105,33 +100,28 @@ function formatDec2S(n2S: bigint): string {
 }
 
 /**
- * Kalan indirim/artırım tutarını kilitsiz kalemlere satır-tutarı ağırlığıyla
- * dağıtır; taban/tavan sınırına çarpan kalemin artığı kalanlara aktarılır.
- * Birim fiyatlar `decimals` haneye HEDEFİ SAĞLAYAN yöne yuvarlanır, yuvarlama
- * artığı adım adım geri eklenir (toplam hedefe en yakın geçerli değerde biter).
- * Fiyatlar hiçbir kalemde orijinalin "yanlış yönüne" geçmez (DOWN'da artmaz,
- * UP'ta düşmez) ve pozitif kalır.
+ * Kalan indirim tutarını kilitsiz kalemlere satır-tutarı ağırlığıyla dağıtır;
+ * alt sınıra (en küçük pozitif adım) çarpan kalemin artığı kalanlara
+ * aktarılır. Birim fiyatlar `decimals` haneye HEDEFİ SAĞLAYAN yöne (aşağı)
+ * yuvarlanır, yuvarlama artığı adım adım geri eklenir (toplam hedefe en yakın
+ * geçerli değerde biter). Fiyatlar hiçbir kalemde orijinalin üstüne çıkmaz ve
+ * pozitif kalır.
  */
 export function distributeToTarget(opts: {
   items: DistributeItem[];
   targetTotal: string | number;
-  direction: "DOWN" | "UP";
   /** Birim fiyat hane sayısı (ilan `decimalPlaces`), varsayılan 2. */
   decimals?: number;
 }): DistributeResult {
   const d = Math.min(Math.max(opts.decimals ?? 2, 0), 6);
   const step = 10n ** BigInt(S - d); // birim fiyat adım büyüklüğü (S ölçek)
-  // İşaretli uzay: dir=+1 (DOWN) değerler olduğu gibi; dir=-1 (UP) tüm
-  // tutarlar negatiflenir. Böylece iki yön tek "azalt" algoritmasına iner:
-  // signed fiyat hep AŞAĞI iner, signed toplam ≤ signed hedef aranır.
-  const dir = opts.direction === "DOWN" ? 1n : -1n;
 
   interface Row {
     id: string;
     qty: bigint; // S ölçek, > 0
-    orig: bigint; // işaretli orijinal fiyat (S ölçek)
-    cur: bigint; // işaretli güncel fiyat
-    floor: bigint; // işaretli alt sınır (bu değerin altına inilemez)
+    orig: bigint; // orijinal fiyat (S ölçek)
+    cur: bigint; // güncel fiyat
+    floor: bigint; // alt sınır (bu değerin altına inilemez)
     mutable: boolean;
   }
 
@@ -140,31 +130,18 @@ export function distributeToTarget(opts: {
     const qty = parseDec(it.quantity);
     const price = parseDec(it.unitPrice);
     if (qty <= 0n) continue;
-    // İşaretli alt sınır: DOWN'da gerçek taban (yoksa en küçük pozitif adım —
-    // gönderimde birim fiyat > 0 şartı var); UP'ta hemen-al tavanının bir adım
-    // altı (tavan HARİÇ), tavan yoksa sınırsız (pratikte çok geniş sabit).
-    let floorSigned: bigint;
-    if (dir === 1n) {
-      const min = parseDec(it.minUnitPrice);
-      floorSigned = min > 0n ? ceilToStep(min, step) : step;
-    } else {
-      const cap = parseDec(it.maxUnitPriceExclusive);
-      floorSigned =
-        cap > 0n
-          ? -floorToStep(cap - step, step)
-          : -(10n ** BigInt(S + 15)); // fiilen sınırsız
-    }
+    // Alt sınır: en küçük pozitif adım — gönderimde birim fiyat > 0 şartı var.
     rows.push({
       id: it.id,
       qty,
-      orig: dir * price,
-      cur: dir * price,
-      floor: floorSigned,
+      orig: price,
+      cur: price,
+      floor: step,
       mutable: !it.locked && price > 0n,
     });
   }
 
-  const target2S = dir * parseDec(opts.targetTotal) * ONE;
+  const target2S = parseDec(opts.targetTotal) * ONE;
   const total2S = () => rows.reduce((s, r) => s + r.cur * r.qty, 0n);
 
   // Faz 1 — orantılı dağıtım: gereken kesinti satır tutarı ağırlığıyla pay
@@ -221,27 +198,26 @@ export function distributeToTarget(opts: {
     }
   }
 
-  const finalSigned = total2S();
+  const finalTotal = total2S();
   const prices: Record<string, string> = {};
-  for (const r of rows) prices[r.id] = formatDec(dir * r.cur);
-  const over = finalSigned - target2S;
+  for (const r of rows) prices[r.id] = formatDec(r.cur);
+  const over = finalTotal - target2S;
   return {
     ok: over <= 0n,
     prices,
-    achievedTotal: formatDec2S(dir * finalSigned),
+    achievedTotal: formatDec2S(finalTotal),
     remaining: over > 0n ? formatDec2S(over) : "0",
   };
 }
 
 /**
- * Tüm kilitsiz kalemlere aynı yüzdeyi uygular (DOWN: indirim, UP: artırım).
- * Fiyatlar hedef yöne yuvarlanır, taban/tavana klamplanır; kilitli kalem ve
- * fiyatsız (opt-out) kalem atlanır. Kalem id → yeni birim fiyat döner.
+ * Tüm kilitsiz kalemlere aynı indirim yüzdesini uygular. Fiyatlar aşağı
+ * yuvarlanır, en küçük pozitif adıma klamplanır; kilitli kalem ve fiyatsız
+ * (opt-out) kalem atlanır. Kalem id → yeni birim fiyat döner.
  */
 export function applyPercentToItems(opts: {
   items: DistributeItem[];
   percent: number | string; // ör. 5 ya da "2.5" → %
-  direction: "DOWN" | "UP";
   decimals?: number;
 }): Record<string, string> {
   const d = Math.min(Math.max(opts.decimals ?? 2, 0), 6);
@@ -254,22 +230,8 @@ export function applyPercentToItems(opts: {
     if (it.locked) continue;
     const price = parseDec(it.unitPrice);
     if (price <= 0n) continue;
-    const factor =
-      opts.direction === "DOWN" ? HUNDRED - pct : HUNDRED + pct;
-    let next = (price * factor) / HUNDRED;
-    if (opts.direction === "DOWN") {
-      next = floorToStep(next, step);
-      const min = parseDec(it.minUnitPrice);
-      const floor = min > 0n ? ceilToStep(min, step) : step;
-      if (next < floor) next = floor;
-    } else {
-      next = ceilToStep(next, step);
-      const cap = parseDec(it.maxUnitPriceExclusive);
-      if (cap > 0n) {
-        const max = floorToStep(cap - step, step);
-        if (next > max) next = max;
-      }
-    }
+    let next = floorToStep((price * (HUNDRED - pct)) / HUNDRED, step);
+    if (next < step) next = step;
     out[it.id] = formatDec(next);
   }
   return out;
@@ -278,9 +240,4 @@ export function applyPercentToItems(opts: {
 function floorToStep(v: bigint, step: bigint): bigint {
   const r = v % step;
   return r === 0n ? v : r > 0n ? v - r : v - r - step;
-}
-
-function ceilToStep(v: bigint, step: bigint): bigint {
-  const r = v % step;
-  return r === 0n ? v : r > 0n ? v - r + step : v - r;
 }

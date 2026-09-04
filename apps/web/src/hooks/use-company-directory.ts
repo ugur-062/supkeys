@@ -78,7 +78,7 @@ export function useCompanySearchFacets(enabled = true) {
 export interface ProfileListing {
   id: string;
   number: string | null;
-  type: "ALIM" | "SATIS";
+  type: "ALIM";
   format: "RFQ" | "ENGLISH_AUCTION" | null;
   title: string;
   status: string;

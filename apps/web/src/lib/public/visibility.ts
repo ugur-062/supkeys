@@ -75,16 +75,6 @@ export const VISIBILITY = {
     bid: "member", // ayrıca BRONZ+/KYC panel kapıları
     buyerOtherListings: "member",
   },
-  offer: {
-    title: "anon",
-    category: "anon",
-    scope: "anon",
-    itemSummary: "anon",
-    closesAt: "anon",
-    items: "member",
-    buyNowPrice: "member",
-    sellerName: "member",
-  },
 } as const;
 
 export type Entity = keyof typeof VISIBILITY;
@@ -122,10 +112,8 @@ export const PANEL_TARGET = {
   product: (companySlug: string, productSlug: string) =>
     `/company/satinalma/urunler/${companySlug}/${productSlug}`,
   company: (companySlug: string) => `/company/firma/${companySlug}`,
-  /** Panel ilan sayfası cuid ister; numarayla açık talepler listesinde aranır. */
-  listing: (type: "ALIM" | "SATIS", number: string) =>
-    type === "ALIM"
-      ? `/company/satis/acik-talepler?q=${encodeURIComponent(number)}`
-      : `/company/satinalma/urunler?q=${encodeURIComponent(number)}`,
+  /** Panel talep sayfası cuid ister; numarayla açık talepler listesinde aranır. */
+  listing: (number: string) =>
+    `/company/satis/acik-talepler?q=${encodeURIComponent(number)}`,
   directory: "/company/satinalma/tedarikcilerim",
 } as const;

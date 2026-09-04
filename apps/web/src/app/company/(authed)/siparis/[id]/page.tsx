@@ -681,8 +681,7 @@ export default function OrderDetailPage() {
             </section>
           </div>
 
-          {/* Teslimat adresi — award anındaki snapshot (ALIM: ilanın adresi,
-              SATIS: kazanan alıcının teklifte seçtiği adres). */}
+          {/* Teslimat adresi — award anındaki snapshot (talebin adresi). */}
           {o.deliveryAddress ? (
             <section className="card p-5">
               <div className="mb-3 flex items-center gap-2">

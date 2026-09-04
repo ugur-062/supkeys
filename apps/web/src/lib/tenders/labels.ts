@@ -147,17 +147,6 @@ export const DELIVERY_TERM_LABELS: Record<DeliveryTerm, string> = {
   CIF: "CIF (Cost, Insurance and Freight) — Mal + navlun + sigorta",
 };
 
-// SATIS teklifinde alıcının teslimat adresi zorunlu olan (adrese-teslim)
-// şartlar — backend BUYER_ADDRESS_REQUIRED_TERMS ile eş tutulmalı.
-export const BUYER_ADDRESS_REQUIRED_TERMS: DeliveryTerm[] = [
-  "DOMESTIC_DELIVERED",
-  "DOMESTIC_ON_VEHICLE",
-  "DOMESTIC_CARRIER_COLLECT",
-  "DAP",
-  "DPU",
-  "DDP",
-];
-
 // Ödeme planı (Faz 2) — kategori etiketleri + tek satırlık özet formatlayıcı.
 export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
   ADVANCE: "Peşin",

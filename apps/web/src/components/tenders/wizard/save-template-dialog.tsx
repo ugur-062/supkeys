@@ -33,9 +33,8 @@ export function SaveTemplateDialog({
   onSave,
   isSaving,
   defaultName,
-  isSatis = false,
-}: Props & { isSatis?: boolean }) {
-  const L = entityLabels(isSatis);
+}: Props) {
+  const L = entityLabels();
   const [name, setName] = useState(defaultName ?? "");
   // Dialog hep mount olduğundan ilk-state bayatlar: açılışta güncel başlıkla doldur.
   useEffect(() => {

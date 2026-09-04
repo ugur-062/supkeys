@@ -31,7 +31,7 @@ export const MATCHED_REQUESTS_LIMIT = 3;
 export { SECTOR_EDIT_HREF };
 
 export function MatchedRequestsWidget() {
-  const listings = useDiscoverListings("ALIM", MATCHED_REQUESTS_LIMIT);
+  const listings = useDiscoverListings(MATCHED_REQUESTS_LIMIT);
   const rows = listings.data ?? [];
 
   return (
@@ -87,7 +87,7 @@ export function MatchedRequestsWidget() {
         ) : (
           <div role="table" aria-label="Size uygun açık talepler" className="space-y-2">
             {rows.map((r) => (
-              <BrowseTenderRow key={r.id} t={r} listingType="ALIM" compact />
+              <BrowseTenderRow key={r.id} t={r} compact />
             ))}
           </div>
         )}

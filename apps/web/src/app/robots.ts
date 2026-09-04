@@ -28,9 +28,7 @@ export default function robots(): MetadataRoute.Robots {
           "/",
           "/firma/",
           "/alim-talepleri",
-          "/satilik",
           "/talep/",
-          "/ilan/",
           "/nasil-calisir",
         ],
         // `/company/` panelin tamamı (login/kayıt dahil) — dizinlenecek içerik

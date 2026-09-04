@@ -4,18 +4,21 @@ import { slugifyText } from "@rothern/shared";
  * PAZAR YERİ SÖZLÜĞÜ — giriş YAPMAMIŞ ziyaretçinin gördüğü her ad buradan.
  *
  * Neden `company/portals.ts` MODULE_LABELS'a eklenmedi: o sözlük iyelik
- * kipiyle yazılmıştır ("Taleplerim", "Satış İlanlarım") ve portal anahtarına
+ * kipiyle yazılmıştır ("Taleplerim", "Ürünlerim") ve portal anahtarına
  * (satinalma/satis) bağlıdır. Ziyaretçinin ne alıcısı ne satıcısı vardır;
  * ÜÇÜNCÜ bir çerçeve gerekir:
  *
  *   kayıt          | satınalma portalı | satış portalı   | PAZAR YERİ (burası)
  *   ---------------|-------------------|-----------------|--------------------
  *   ALIM listing   | "Taleplerim"      | "Açık Talepler" | "Alım Talepleri"
- *   SATIS listing  | —                 | "Satış İlanlarım"| "Satış İlanları"
+ *   ürün           | "Ürün Ara"        | "Ürünlerim"     | "Ürünler"
  *
  * Aynı kaydın üç adı olması gevşeklik değil, iyelik kipinin zorunlu sonucu:
  * ziyaretçiye "Taleplerim" demek yanlış, "Açık Talepler" ise "bana açık"
  * imasıyla yanlış olur.
+ *
+ * Satış ilanı (SATIS) özelliği 2026-09-04'te kaldırıldı: `/satilik` ve
+ * `/ilan/*` `next.config.ts` ile `/urunler`e 308 yönlenir.
  */
 
 /* ------------------------------------------------------------------ */
@@ -32,32 +35,26 @@ export const MARKETPLACE_ROUTES = {
   demands: "/alim-talepleri",
   /** Firmalar-arası ÜRÜN dizini (vitrin). */
   products: "/urunler",
-  /** SATIS ilanları listesi. */
-  offers: "/satilik",
   /** Firma dizini — HERKESE AÇIK (görünürlük v2, 2026-09-04); sitemap'te. */
   companies: "/firmalar",
-  /** Tekil ALIM ilanı. */
+  /** Tekil ALIM talebi. */
   demand: "/talep",
-  /** Tekil SATIS ilanı. */
-  offer: "/ilan",
 } as const;
 
 export const MARKETPLACE_LABELS = {
   demands: "Alım Talepleri",
-  offers: "Satış İlanları",
   /**
-   * ÜRÜN ≠ İLAN. İlan süreli bir işlemdir ("Satış İlanları"), ürün firmanın
-   * kalıcı vitrinidir. Ziyaretçiye "ilan" demek, kapanmayan bir kaydı süreli
-   * sanmasına yol açar.
+   * ÜRÜN ≠ TALEP. Talep süreli bir işlemdir, ürün firmanın kalıcı vitrinidir.
+   * Ziyaretçiye ürüne "ilan" demek, kapanmayan bir kaydı süreli sanmasına yol
+   * açar.
    */
   products: "Ürünler",
   companies: "Firmalar",
   /** Tekil kayıt için başlık öneki (sayfa H1'inde değil, listelerde rozet). */
   demandOne: "Alım talebi",
-  offerOne: "Satış ilanı",
 } as const;
 
-export type PublicListingType = "ALIM" | "SATIS";
+export type PublicListingType = "ALIM";
 
 /* ------------------------------------------------------------------ */
 /* Slug — numara ÖNDE                                                  */
@@ -88,14 +85,8 @@ export function parseListingNumber(slug: string): string | null {
   return m ? m[1].toUpperCase() : null;
 }
 
-export function listingPath(
-  type: PublicListingType,
-  number: string,
-  title: string,
-): string {
-  const base =
-    type === "ALIM" ? MARKETPLACE_ROUTES.demand : MARKETPLACE_ROUTES.offer;
-  return `${base}/${listingSlug(number, title)}`;
+export function listingPath(number: string, title: string): string {
+  return `${MARKETPLACE_ROUTES.demand}/${listingSlug(number, title)}`;
 }
 
 /* ------------------------------------------------------------------ */

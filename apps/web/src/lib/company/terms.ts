@@ -3,15 +3,13 @@ import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
 /**
  * KAYIT TİPİ SÖZLÜĞÜ — sayaç, arama kutusu ve boş-durum metinleri buradan.
  *
- * Gerekçe: tek bir generic liste bileşeni İKİ farklı iş nesnesini çiziyor
- * (ALIM = satın alma talebi, SATIS = satış ilanı) ve metinler ALIM tarafına
- * sabitlenmişti. Sonuç: "Satış İlanlarım" sayfasında sayaç "1 satın alma
- * talebi" yazıyor, "Satın Al" sayfası "herkese açık satış satın alma
- * talepleri" gibi bozuk bir cümleye dönüşüyordu — ürün dili kararının
- * (2026-09-01) tam tersi: satış tarafında firma SATIYOR, orada "talep" TERS.
+ * Tek iş nesnesi var (ALIM = satın alma talebi) ama İKİ bakış açısı: firma
+ * kendi taleplerine "satın alma talebi", başkalarının taleplerine satış
+ * portalından "açık talep" der. Satış ilanı (SATIS) özelliği kaldırıldı
+ * (2026-09-04) — satış tarafı yalnız teklif verir.
  *
- * Türkçe notu: `talep` son sesi yumuşar (talebi/talebe); `ilan` yumuşamaz.
- * Bu yüzden çekimli biçimler tek tek yazılır, kod ek YAPIŞTIRMAZ.
+ * Türkçe notu: `talep` son sesi yumuşar (talebi/talebe). Bu yüzden çekimli
+ * biçimler tek tek yazılır, kod ek YAPIŞTIRMAZ.
  */
 export const LISTING_TERMS = {
   ALIM: {
@@ -23,12 +21,6 @@ export const LISTING_TERMS = {
     indefinite: "satın alma talebi",
     /** Belirtme hâli: "…kapanan satın alma taleplerini" */
     pluralAccusative: "satın alma taleplerini",
-  },
-  SATIS: {
-    unit: "satış ilanı",
-    searchNoun: "Satış ilanı",
-    indefinite: "satış ilanı",
-    pluralAccusative: "satış ilanlarını",
   },
   /**
    * BAŞKA firmaların ALIM kayıtları, SATIŞ portalından bakınca — "Açık
@@ -48,16 +40,12 @@ export const LISTING_TERMS = {
 export type ListingTermKey = keyof typeof LISTING_TERMS;
 
 /**
- * VARLIK SÖZLÜĞÜ — sihirbaz, ilan detayı, liste satırı, boş durum ve rapor
+ * VARLIK SÖZLÜĞÜ — sihirbaz, talep detayı, liste satırı, boş durum ve rapor
  * lejantı metinleri YALNIZ buradan (2026-09-03, v2 denetimi).
  *
- * Gerekçe: satış sihirbazı satın alma sihirbazının kopyasıydı; alıcı/satıcı
- * sözcükleri değişmiş ama VARLIK adı değişmemişti ("Satış İlanı" ekranında
- * "Satın Alma Talebi Adı", "Satın Alma Talebiniz kapalı zarf…"). Kullanıcı
- * bunu "kırık ürün" olarak okuyor.
- *
- * Türkçe hâller AÇIKÇA yazılır (kod ek yapıştırmaz): talep→talebi/talebin,
- * ilan→ilanı/ilanın. Satış tarafında kısa biçim "ilan", satınalmada "talep".
+ * Türkçe hâller AÇIKÇA yazılır (kod ek yapıştırmaz): talep→talebi/talebin.
+ * Tek varlık kaldı (satış ilanı 2026-09-04'te kaldırıldı); sözlük yine tek
+ * kaynak — metin değişikliği tek satırdır.
  */
 export const ENTITY_LABELS = {
   satinalma: {
@@ -89,43 +77,16 @@ export const ENTITY_LABELS = {
     docs: "Talep Dokümanları",
     rules: "Satın Alma Talebi Kuralları",
   },
-  satis: {
-    entity: "Satış İlanı",
-    entityLower: "satış ilanı",
-    entityShort: "İlan",
-    shortLower: "ilan",
-    shortAcc: "İlanı",
-    acc: "satış ilanını",
-    gen: "satış ilanının",
-    genCap: "İlanın",
-    dat: "ilana",
-    loc: "ilanda",
-    pluralLoc: "satış ilanlarında",
-    yours: "Satış ilanınız",
-    yoursLower: "satış ilanınız",
-    yoursAcc: "satış ilanınızı",
-    yoursGen: "İlanınızın",
-    yoursDat: "İlanınıza",
-    scopeDesc: "Satış ilanının kapsamı",
-    counterparty: "Alıcı",
-    counterpartyPlural: "Alıcılar",
-    counterpartyPluralLower: "alıcılar",
-    counterpartyPluralGen: "Alıcıların",
-    counterpartyPluralDat: "Alıcılara",
-    owner: "Satış Sorumlusu",
-    docs: "İlan Dokümanları",
-    rules: "Teklif Kuralları",
-  },
 } as const;
 
 export type EntityLabels = (typeof ENTITY_LABELS)[keyof typeof ENTITY_LABELS];
 
-/** Sihirbaz/detay bileşenleri `isSatis` bayrağıyla çağırır. */
-export function entityLabels(isSatis: boolean): EntityLabels {
-  return isSatis ? ENTITY_LABELS.satis : ENTITY_LABELS.satinalma;
+/** Sihirbaz/detay bileşenleri buradan okur. */
+export function entityLabels(): EntityLabels {
+  return ENTITY_LABELS.satinalma;
 }
 
-/** Liste kolonu: kaydı açan kişi — iki portalda da nötr "Sorumlu". */
+/** Liste kolonu: kaydı açan kişi — nötr "Sorumlu". */
 export const OWNER_COLUMN_LABEL = "Sorumlu";
 
 export function listingTerms(type: ListingTermKey) {

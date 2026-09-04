@@ -15,40 +15,32 @@ import { IHALE_VIEW_FOCUS, IhaleListRow } from "./IhaleListRow";
  * Seçim + favori yalnız istemci durumudur (favori localStorage'da kalıcı —
  * sunucu alanı yok; toplu sunucu işlemi de yok, bar seçimle sınırlı).
  */
-function favKey(listingType: "ALIM" | "SATIS") {
-  return listingType === "SATIS"
-    ? "satis_satın alma talepleri_favorites"
-    : "satın alma talepleri_favorites";
-}
+const FAV_KEY = "satın alma talepleri_favorites";
 
 export function IhaleListView({
   items,
   isLoading,
   isError,
   onRetry,
-  listingType = "ALIM",
   emptyCtaLabel = "Satın Alma Talebi Aç",
 }: {
   items: TenderListItem[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  listingType?: "ALIM" | "SATIS";
   emptyCtaLabel?: string;
 }) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const canCreate = useHasCompanyPermission(
-    listingType === "SATIS" ? "sell:listing:create" : "buy:listing:create",
-  );
+  const canCreate = useHasCompanyPermission("buy:listing:create");
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(favKey(listingType));
+      const raw = localStorage.getItem(FAV_KEY);
       if (raw) setFavorites(new Set(JSON.parse(raw) as string[]));
     } catch {
       /* bozuk kayıt → boş başla */
     }
-  }, [listingType]);
+  }, []);
 
   const toggleFavorite = (id: string) => {
     setFavorites((cur) => {
@@ -56,7 +48,7 @@ export function IhaleListView({
       if (next.has(id)) next.delete(id);
       else next.add(id);
       try {
-        localStorage.setItem(favKey(listingType), JSON.stringify([...next]));
+        localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
       } catch {
         /* kalıcılık olmadan devam */
       }
@@ -101,24 +93,15 @@ export function IhaleListView({
   }
 
   if (items.length === 0) {
-    const createHref =
-      listingType === "SATIS"
-        ? "/company/satis/ilanlarim/yeni"
-        : "/company/satinalma/taleplerim/yeni";
+    const createHref = "/company/satinalma/taleplerim/yeni";
     return (
       <EmptyState
         icon={ClipboardList}
-        title={
-          listingType === "SATIS" ? "Henüz satış ilanı yok." : "Henüz satın alma talebi yok."
-        }
+        title="Henüz satın alma talebi yok."
         description={
           canCreate
-            ? listingType === "SATIS"
-              ? "İlk satış ilanınızı birkaç dakikada açabilirsiniz — kalemleri girin, fiyatı belirleyin, yayınlayın."
-              : "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
-            : listingType === "SATIS"
-              ? "İlan açma işlem rolü (Satışçı) gerektirir."
-              : "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir."
+            ? "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
+            : "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir."
         }
         variant="no-data"
         action={
@@ -147,7 +130,6 @@ export function IhaleListView({
         <IhaleListRow
           key={t.id}
           t={t}
-          listingType={listingType}
           favorite={favorites.has(t.id)}
           onToggleFavorite={toggleFavorite}
         />

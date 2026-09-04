@@ -50,8 +50,6 @@ interface Props {
   closesAt: string | null;
   internalNotes: string | null;
   canEdit?: boolean;
-  /** SATIS: rotalar satış portalına, metinler alıcı/artırma yönüne uyarlanır. */
-  listingType?: "ALIM" | "SATIS";
   /** İlanın ana para birimi — tur geçmişi tutarları bu birimle gösterilir. */
   currency?: string;
   /** İzinli para birimleri — azaltma payının diğer birim karşılıkları
@@ -80,12 +78,10 @@ export function TenderActionsMenu({
   closesAt,
   internalNotes,
   canEdit,
-  listingType = "ALIM",
   currency,
   allowedCurrencies = [],
   carryableBidCount = 0,
 }: Props) {
-  const isSatis = listingType === "SATIS";
   const router = useRouter();
   const confirm = useConfirm();
   const changeClosing = useChangeClosing(id);
@@ -115,7 +111,7 @@ export function TenderActionsMenu({
     isInEvaluation ||
     (isAuction && status === "OPEN");
   const canInvite = status === "DRAFT" || status === "OPEN";
-  // Pazarlığa Geç: RFQ'yu açık eksiltme/artırma turuna aktarır (createNextRound
+  // Pazarlığa Geç: RFQ'yu açık eksiltme turuna aktarır (createNextRound
   // ENGLISH_AUCTION). Zaten pazarlıktaysa Yeni Tur devam turlarını yönetir.
   const canStartNegotiation =
     !isAuction && (status === "OPEN" || canNewRound);
@@ -133,7 +129,7 @@ export function TenderActionsMenu({
     try {
       await deleteListing.mutateAsync(id);
       toast.success("Taslak silindi");
-      router.push(isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/taleplerim");
+      router.push("/company/satinalma/taleplerim");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Silinemedi"));
     }
@@ -314,7 +310,7 @@ export function TenderActionsMenu({
       {/* Karma: önemli aksiyonlar görünür buton, kalanı ⋮ menüsünde (eski sistem) */}
       <div className="flex flex-wrap items-center gap-2">
         {canEdit ? (
-          <Button outline href={isSatis ? `/company/satis/ilanlarim/${id}/duzenle` : `/company/satinalma/taleplerim/${id}/duzenle`}>
+          <Button outline href={`/company/satinalma/taleplerim/${id}/duzenle`}>
             Satın Alma Talebini Düzenle
           </Button>
         ) : null}
@@ -371,9 +367,7 @@ export function TenderActionsMenu({
           <DropdownMenu anchor="bottom end">
             {canInvite ? (
               <DropdownItem onClick={() => setInviteOpen(true)}>
-                <DropdownLabel>
-                  {isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}
-                </DropdownLabel>
+                <DropdownLabel>Tedarikçi Davet Et</DropdownLabel>
               </DropdownItem>
             ) : null}
             {canInvite ? (
@@ -385,7 +379,7 @@ export function TenderActionsMenu({
               <DropdownLabel>İç Notlar</DropdownLabel>
             </DropdownItem>
             <DropdownItem
-              href={isSatis ? `/company/satis/ilanlarim/yeni?from=${id}` : `/company/satinalma/taleplerim/yeni?from=${id}`}
+              href={`/company/satinalma/taleplerim/yeni?from=${id}`}
             >
               <DropdownLabel>Satın Alma Talebini Kopyala</DropdownLabel>
             </DropdownItem>
@@ -443,7 +437,6 @@ export function TenderActionsMenu({
       <SupplierDiscoveryModal
         isOpen={discoveryOpen}
         onClose={() => setDiscoveryOpen(false)}
-        type={isSatis ? "SATIS" : "ALIM"}
         categoryIds={[]}
         listingId={id}
       />
@@ -478,9 +471,9 @@ export function TenderActionsMenu({
 
       {/* İç notlar */}
       <Dialog open={notesOpen} onClose={() => setNotesOpen(false)}>
-        <DialogTitle>İhale Notları (şirket içi)</DialogTitle>
+        <DialogTitle>Talep Notları (şirket içi)</DialogTitle>
         <DialogDescription>
-          Bu notları sadece firmandaki kullanıcılar görür; {isSatis ? "alıcılar" : "tedarikçiler"} görmez.
+          Bu notları sadece firmandaki kullanıcılar görür; tedarikçiler görmez.
         </DialogDescription>
         <DialogBody>
           <Textarea
@@ -515,8 +508,8 @@ export function TenderActionsMenu({
         </DialogTitle>
         <DialogDescription>
           {nextRoundMode === "auction"
-            ? `Aynı kalem ve davetlilerle pazarlık (${isSatis ? "açık artırma" : "açık eksiltme"}) turu başlar${isOpen ? "; mevcut teklif alımı kapanır" : ""}. Teklifler kurala göre taşınabilir.`
-            : `Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak Pazarlık seçersen satın alma talebi ${isSatis ? "açık artırmaya" : "açık eksiltmeye"} dönüşür.`}
+            ? `Aynı kalem ve davetlilerle pazarlık (açık eksiltme) turu başlar${isOpen ? "; mevcut teklif alımı kapanır" : ""}. Teklifler kurala göre taşınabilir.`
+            : "Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak Pazarlık seçersen satın alma talebi açık eksiltmeye dönüşür."}
         </DialogDescription>
         <DialogBody className="space-y-4">
           {nextRoundMode === "free" ? (
@@ -529,24 +522,21 @@ export function TenderActionsMenu({
                 options={[
                   {
                     value: "ENGLISH_AUCTION",
-                    label: isSatis
-                      ? "Pazarlık (Açık Artırma)"
-                      : "Pazarlık (Açık Eksiltme)",
+                    label: "Pazarlık (Açık Eksiltme)",
                   },
                   { value: "RFQ", label: "Teklif Toplama (Kapalı Zarf)" },
                 ]}
               />
             </Field>
           ) : null}
-          {/* Teklifsiz aktarma uyarısı: taşınacak teklif yoksa eksiltme/artırma
+          {/* Teklifsiz aktarma uyarısı: taşınacak teklif yoksa eksiltme
               taban fiyat olmadan başlar — engellemiyoruz, bilgilendiriyoruz. */}
           {nrType === "ENGLISH_AUCTION" && carryableBidCount === 0 ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Bu turda taşınabilir teklif yok —{" "}
-              {isSatis ? "açık artırma" : "açık eksiltme"} taban fiyat olmadan
-              başlar; katılımcılar ilk tekliflerini serbestçe verir.{" "}
-              {isSatis ? "Artış" : "Azaltma"} kuralları sonraki tekliflerde
-              işler.
+              açık eksiltme taban fiyat olmadan başlar; katılımcılar ilk
+              tekliflerini serbestçe verir. Azaltma kuralları sonraki
+              tekliflerde işler.
             </div>
           ) : null}
           {/* Madde 13: "Önceki Teklifler" seçimi kaldırıldı — teklifler her
@@ -576,7 +566,7 @@ export function TenderActionsMenu({
               onChange={(e) => setNrEliminate(e.target.checked)}
               className="h-4 w-4 rounded border-zinc-300"
             />
-            Önceki turda teklif vermeyen {isSatis ? "alıcıları" : "tedarikçileri"} ele
+            Önceki turda teklif vermeyen tedarikçileri ele
           </label>
 
           {nrType === "ENGLISH_AUCTION" ? (
@@ -587,7 +577,7 @@ export function TenderActionsMenu({
             <p>
               <span className="font-semibold">Pazarlık kuralları:</span> her
               firma tur başına <strong>bir teklif</strong> verir ve yeni
-              teklifi kendi öncekinden {isSatis ? "yüksek" : "düşük"} olmak
+              teklifi kendi öncekinden düşük olmak
               zorundadır. Önceki turdan taşınan teklif, sahibinin bu turdaki
               teklif hakkını yakmaz — firma dilerse turda bir kez fiyatını
               iyileştirebilir.
@@ -648,7 +638,6 @@ export function TenderActionsMenu({
         id={id}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        isSatis={isSatis}
         currency={currency}
       />
 
@@ -658,7 +647,7 @@ export function TenderActionsMenu({
         onClose={() => setCancelOpen(false)}
         onSubmit={handleCancel}
         title="Satın Alma Talebini İptal Et"
-        description={`İptal gerekçesi davetli ${isSatis ? "alıcılara" : "tedarikçilere"} iletilir. Bu işlem geri alınamaz.`}
+        description="İptal gerekçesi davetli tedarikçilere iletilir. Bu işlem geri alınamaz."
         confirmLabel="Satın Alma Talebini İptal Et"
         minLength={10}
         pending={cancelListing.isPending}
@@ -677,7 +666,7 @@ export function TenderActionsMenu({
 
       {/* Tedarikçi davet ekle */}
       <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} size="lg">
-        <DialogTitle>{isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}</DialogTitle>
+        <DialogTitle>Tedarikçi Davet Et</DialogTitle>
         <DialogDescription>
           Bağlı firmalarından bu satın alma talebine davet etmek istediklerini seç.
         </DialogDescription>

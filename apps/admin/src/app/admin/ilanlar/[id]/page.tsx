@@ -178,11 +178,6 @@ function ListingInspection({ id }: { id: string }) {
                       >
                         {b.bidderCompany.name}
                       </Link>
-                      {b.isBuyNow ? (
-                        <Badge color="amber" className="ml-1.5">
-                          Hemen Al
-                        </Badge>
-                      ) : null}
                     </TableCell>
                     <TableCell className="text-admin-text text-sm font-semibold tabular-nums">
                       {fmtMoney(b.amount, b.currency)}

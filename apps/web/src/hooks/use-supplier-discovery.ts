@@ -25,7 +25,7 @@ export interface ExternalCandidate {
 export function useExternalSupplierDiscovery() {
   return useMutation({
     mutationFn: async (input: {
-      type: "ALIM" | "SATIS";
+      type: "ALIM";
       categoryIds: string[];
       itemNames?: string[];
       region?: string;
@@ -63,7 +63,7 @@ export function useExternalTenderInvite() {
 export function useSupplierDiscovery() {
   return useMutation({
     mutationFn: async (input: {
-      type: "ALIM" | "SATIS";
+      type: "ALIM";
       categoryIds: string[];
     }) => {
       const { data } = await companyApi.post<{ candidates: DiscoveryCandidate[] }>(

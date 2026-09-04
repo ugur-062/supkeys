@@ -64,12 +64,12 @@ export interface DiscoverProduct {
  * Süzgeci istemcide yapmak da yanlış olurdu: `limit` sunucuda uygulandığı
  * için elemeden sonra 6 yerine 2 kart kalırdı.
  */
-export function useDiscoverListings(type: "ALIM" | "SATIS", limit = 6) {
+export function useDiscoverListings(limit = 6) {
   return useQuery<SellerTenderRow[]>({
-    queryKey: ["company-listings", "discover", type, limit],
+    queryKey: ["company-listings", "discover", "ALIM", limit],
     queryFn: async () => {
       const { data } = await companyApi.get<SellerTenderRow[]>(
-        `/company/listings/seller-tenders?type=${type}&limit=${limit}&openOnly=true`,
+        `/company/listings/seller-tenders?type=ALIM&limit=${limit}&openOnly=true`,
       );
       return data;
     },
@@ -77,12 +77,12 @@ export function useDiscoverListings(type: "ALIM" | "SATIS", limit = 6) {
   });
 }
 
-export function useDiscoverFacets(type: "ALIM" | "SATIS") {
+export function useDiscoverFacets() {
   return useQuery<DiscoverFacets>({
-    queryKey: ["company-listings", "discover-facets", type],
+    queryKey: ["company-listings", "discover-facets", "ALIM"],
     queryFn: async () => {
       const { data } = await companyApi.get<DiscoverFacets>(
-        `/company/listings/discover-facets?type=${type}`,
+        "/company/listings/discover-facets?type=ALIM",
       );
       return data;
     },

@@ -149,7 +149,6 @@ export function CompanySidebarContent({
   // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:create");
-  const canCreateSellListing = useHasCompanyPermission("sell:listing:create");
   const available = accessiblePortals(roles, company?.tier);
   // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel gösterilir;
   // giremediği panel kilitli görünür. Tıklayınca PortalGuard uygun ekranı açar
@@ -232,32 +231,19 @@ export function CompanySidebarContent({
         </div>
       ) : null}
 
-      {/* Madde 19: "Satın Alma Talebi Aç" — ana menüde belirgin CTA (aktif portala
-          göre satınalma ihalesi / satış ilanı; izin + portal erişimi şart). */}
+      {/* Madde 19: "Satın Alma Talebi Aç" — yalnız satınalma portalında belirgin
+          CTA (izin + portal erişimi şart). Satış portalında ana CTA yok: satış
+          ilanı kaldırıldı (2026-09-04); ürün ekleme Ürünlerim sayfasında. */}
       {!minimal &&
       available.includes(active) &&
-      (active === "satinalma" ? canCreateBuyListing : canCreateSellListing) ? (
+      active === "satinalma" &&
+      canCreateBuyListing ? (
         <div className="mt-3 px-2">
           <Link
-            href={
-              active === "satinalma"
-                ? "/company/satinalma/taleplerim/yeni"
-                : "/company/satis/ilanlarim/yeni"
-            }
+            href="/company/satinalma/taleplerim/yeni"
             onClick={onNavigate}
-            title={
-              expanded
-                ? undefined
-                : active === "satinalma"
-                  ? "Satın Alma Talebi Aç"
-                  : "Satış İlanı Aç"
-            }
-            className={cn(
-              "flex h-9 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition",
-              active === "satinalma"
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-emerald-600 hover:bg-emerald-700",
-            )}
+            title={expanded ? undefined : "Satın Alma Talebi Aç"}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <PlusIcon className="size-4 shrink-0" aria-hidden />
             {expanded ? (

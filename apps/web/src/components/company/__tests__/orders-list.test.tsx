@@ -86,12 +86,12 @@ describe("OrdersList — durum katmanları", () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it("boş liste (alıcı) → 'Henüz sipariş yok' + İhalelerime Git aksiyonu", () => {
+  it("boş liste (alıcı) → 'Henüz sipariş yok' + Taleplerime Git aksiyonu", () => {
     h.orders = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
     render(<OrdersList role="buyer" />);
     expect(screen.getByText("Henüz sipariş yok")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "İhalelerime Git" }),
+      screen.getByRole("link", { name: "Taleplerime Git" }),
     ).toBeInTheDocument();
   });
 

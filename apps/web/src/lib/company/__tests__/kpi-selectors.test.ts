@@ -14,7 +14,7 @@ import {
  * karar verilmiş ilandaki SUBMITTED teklif aktif değildir, sipariş "Aktif"
  * kümesi Satışlarım ile birebir.
  */
-const bid = (o: Partial<MyBid> & { status: MyBid["status"]; type: "ALIM" | "SATIS"; ls: string }) =>
+const bid = (o: Partial<MyBid> & { status: MyBid["status"]; type: "ALIM"; ls: string }) =>
   ({
     id: Math.random().toString(36),
     status: o.status,
@@ -30,21 +30,18 @@ describe("kpi-selectors", () => {
       bid({ status: "SUBMITTED", type: "ALIM", ls: "OPEN" }),
       bid({ status: "SUBMITTED", type: "ALIM", ls: "IN_AWARD_APPROVAL" }),
       bid({ status: "SUBMITTED", type: "ALIM", ls: "AWARDED" }), // karar verildi → aktif değil
-      bid({ status: "SUBMITTED", type: "SATIS", ls: "OPEN" }), // satın alma tarafı → sayılmaz
       bid({ status: "DRAFT", type: "ALIM", ls: "OPEN" }),
     ];
-    expect(selectActiveOffers(bids, "ALIM")).toHaveLength(2);
-    expect(selectActiveOffers(bids, "SATIS")).toHaveLength(1);
+    expect(selectActiveOffers(bids)).toHaveLength(2);
   });
 
   it("kazanılan: WON + AWARDED_PARTIAL (kısmi dahil), tip süzülür", () => {
     const bids = [
       bid({ status: "WON", type: "ALIM", ls: "AWARDED" }),
       bid({ status: "AWARDED_PARTIAL", type: "ALIM", ls: "AWARDED" }),
-      bid({ status: "WON", type: "SATIS", ls: "AWARDED" }),
       bid({ status: "LOST", type: "ALIM", ls: "AWARDED" }),
     ];
-    expect(selectWonOffers(bids, "ALIM")).toHaveLength(2);
+    expect(selectWonOffers(bids)).toHaveLength(2);
   });
 
   it("aktif sipariş: PENDING…DELIVERED (DELIVERED canlı), rol süzülür; ödeme bekleyen türetilmiş", () => {

@@ -23,12 +23,10 @@ import { toast } from "sonner";
 export function AiImportDialog({
   open,
   onClose,
-  listingType,
   onResult,
 }: {
   open: boolean;
   onClose: () => void;
-  listingType: "ALIM" | "SATIS";
   onResult: (result: AiTenderExtractResult) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
@@ -43,7 +41,7 @@ export function AiImportDialog({
 
   const run = async () => {
     try {
-      const result = await extract.mutateAsync({ files, listingType });
+      const result = await extract.mutateAsync({ files });
       setFiles([]);
       onResult(result);
     } catch (err) {

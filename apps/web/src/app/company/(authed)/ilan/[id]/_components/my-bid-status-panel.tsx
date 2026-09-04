@@ -96,11 +96,10 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   // Uzatma backend'le aynı pencerede serbest: OPEN (kapanış geçmemişse) +
   // değerlendirme aşamaları — alıcı karar veremezken teklifin dolmaması
   // tam da bu akışın amacı (extendBidValidity ile birebir). Rol kapısı da
-  // birebir: teklif-yanı op-rol şart (ALIM→Satışçı, SATIS→Satın Almacı);
-  // SAHIP muafiyeti yok — Kurucu ihalede salt-gözlemci.
-  const extendRole = l.type === "ALIM" ? "SATISCI" : "SATIN_ALMACI";
+  // birebir: teklif-yanı op-rol şart (Satışçı); SAHIP muafiyeti yok — Kurucu
+  // talepte salt-gözlemci.
   const canExtend =
-    (user?.roles ?? []).includes(extendRole) &&
+    (user?.roles ?? []).includes("SATISCI") &&
     validUntil != null &&
     (bid.status === "SUBMITTED" || bid.status === "DRAFT") &&
     (l.status === "OPEN"
@@ -377,14 +376,10 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
 export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   const bid = l.myBid;
   const open = l.status === "OPEN";
-  // Kazanınca oluşan sipariş, teklifçinin kendi portalında listelenir:
-  // ALIM ihalesinde teklifçi SATICI, SATIS ihalesinde ALICI'dır.
-  const ordersHref =
-    l.type === "SATIS"
-      ? "/company/satinalma/siparisler"
-      : "/company/satis/siparisler";
-  const ordersLabel =
-    l.type === "SATIS" ? "Siparişlerimi Görüntüle" : "Satışlarımı Görüntüle";
+  // Kazanınca oluşan sipariş, teklifçinin (satıcının) kendi portalında
+  // listelenir.
+  const ordersHref = "/company/satis/siparisler";
+  const ordersLabel = "Satışlarımı Görüntüle";
 
   if (!bid) {
     return open ? null : (
@@ -408,20 +403,12 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   } else if (bid.status === "WON" || bid.status === "AWARDED_PARTIAL") {
     // P2 (denetim §10.4): kazanma banner'ı — üç başarı sembolü (Check+Trophy+
     // emoji) teke indi (Trophy amber), gradient zemin + "sırada ne var" 3 adım
-    // + TEK birincil aksiyon. ALIM'ı kazanan SATICI (siparişi kendisi onaylar),
-    // SATIS'ı kazanan ALICI (satıcı onayını bekler) — adımlar yöne duyarlı.
-    const bidderSells = l.type !== "SATIS";
-    const steps = bidderSells
-      ? [
-          "Sipariş oluşturuldu — onayın bekleniyor.",
-          "Onayla, teslim et ve fatura no ile tamamla.",
-          "Ödemeyi sipariş sayfasından izle.",
-        ]
-      : [
-          "Sipariş oluşturuldu — satıcının onayı bekleniyor.",
-          "Teslimatı sipariş sayfasından izle, teslim alınca onayla.",
-          "Ödemeni aynı sayfadan bildir.",
-        ];
+    // + TEK birincil aksiyon. Kazanan SATICI (siparişi kendisi onaylar).
+    const steps = [
+      "Sipariş oluşturuldu — onayın bekleniyor.",
+      "Onayla, teslim et ve fatura no ile tamamla.",
+      "Ödemeyi sipariş sayfasından izle.",
+    ];
     alerts.push(
       <div
         key="won"
@@ -515,7 +502,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         title="Teklifiniz değerlendiriliyor"
       >
         <p>
-          {l.type === "SATIS" ? "Satıcı" : "Alıcı"} teklifleri değerlendirmeye
+          Alıcı teklifleri değerlendirmeye
           aldı — sonuç açıklandığında bilgilendirileceksiniz.
         </p>
       </StatusAlert>,

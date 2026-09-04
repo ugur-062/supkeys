@@ -113,9 +113,24 @@ const nextConfig: NextConfig = {
         destination: "/company/satinalma/sablonlar/talep/:path*",
         permanent: true,
       },
+      // Satış ilanı KALDIRILDI (2026-09-04): eski herkese açık liste/detay
+      // adresleri ve panel şablonu ürün dizinine/Ürünlerim'e döner — gönderilmiş
+      // e-posta ve dış bağlantılar 404 yerine anlamlı bir sayfaya insin.
+      { source: "/satilik", destination: "/urunler", permanent: true },
+      { source: "/ilan/:path*", destination: "/urunler", permanent: true },
       {
-        source: "/company/satis/sablonlar/ihale/:path*",
-        destination: "/company/satis/sablonlar/ilan/:path*",
+        source: "/company/satis/ilanlarim/:path*",
+        destination: "/company/satis/urunlerim",
+        permanent: true,
+      },
+      {
+        source: "/company/satis/sablonlar/:path*",
+        destination: "/company/satis/urunlerim",
+        permanent: true,
+      },
+      {
+        source: "/company/satinalma/satin-al/:path*",
+        destination: "/company/satinalma/urunler",
         permanent: true,
       },
     ];

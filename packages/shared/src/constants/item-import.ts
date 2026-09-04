@@ -47,9 +47,7 @@ export type ItemImportColumnKey =
   | "description"
   | "materialCode"
   | "requiredByDate"
-  | "targetUnitPrice"
-  | "minUnitPrice"
-  | "buyNowUnitPrice";
+  | "targetUnitPrice";
 
 export interface ItemImportColumn {
   key: ItemImportColumnKey;
@@ -61,8 +59,6 @@ export interface ItemImportColumn {
   width: number;
   kind: "text" | "number" | "money" | "date";
   maxLen?: number;
-  /** Yalnız SATIS + KALEM fiyatlandırmada şablona eklenir. */
-  satisKalemOnly?: boolean;
   /** Başlık eşleşmesinde kabul edilen ek adlar (İngilizce anahtar dahil). */
   aliases: string[];
 }
@@ -135,35 +131,15 @@ export const ITEM_IMPORT_COLUMNS: ItemImportColumn[] = [
     kind: "money",
     aliases: ["targetunitprice", "hedef fiyat", "hedef birim fiyat", "bütçe", "butce"],
   },
-  {
-    key: "minUnitPrice",
-    header: "Taban Birim Fiyat",
-    required: false,
-    hint: "satış ilanı (kalem bazlı): kalemin taban birim fiyatı (KDV hariç).",
-    width: 18,
-    kind: "money",
-    satisKalemOnly: true,
-    aliases: ["minunitprice", "taban fiyat", "taban birim fiyat"],
-  },
-  {
-    key: "buyNowUnitPrice",
-    header: "Hemen-Al Birim Fiyat",
-    required: false,
-    hint: "satış ilanı (kalem bazlı): hemen-al birim fiyatı; tabandan küçük olamaz.",
-    width: 20,
-    kind: "money",
-    satisKalemOnly: true,
-    aliases: ["buynowunitprice", "hemen al", "hemen-al", "hemen al fiyatı", "hemen al birim fiyat"],
-  },
 ];
 
-/** Şablonda hangi sütunlar yer alır (SATIS+KALEM'de taban/hemen-al eklenir). */
-export function itemImportColumnsFor(opts: {
-  listingType: "ALIM" | "SATIS";
-  priceScope?: "TOPLU" | "KALEM";
-}): ItemImportColumn[] {
-  const satisKalem = opts.listingType === "SATIS" && opts.priceScope === "KALEM";
-  return ITEM_IMPORT_COLUMNS.filter((c) => !c.satisKalemOnly || satisKalem);
+/**
+ * Şablonda yer alan sütunlar. Tek küme: satış ilanı (taban/hemen-al sütunları)
+ * 2026-09-04'te sistemden kaldırıldı; imza çağrı yerleri bozulmasın diye
+ * korunuyor.
+ */
+export function itemImportColumnsFor(_opts?: Record<string, unknown>): ItemImportColumn[] {
+  return ITEM_IMPORT_COLUMNS;
 }
 
 /**
@@ -199,10 +175,8 @@ export function matchImportColumn(rawHeader: unknown): ItemImportColumnKey | nul
   return null;
 }
 
-/** Satış ihalesi kalem fiyatları dahil içe aktarılan kalem (AI taslak kalemi + SATIS alanları). */
+/** İçe aktarılan kalem (AI taslak kalemi + birim kodu). */
 export interface ItemImportItem extends AiTenderDraftItem {
-  minUnitPrice: number | null;
-  buyNowUnitPrice: number | null;
   /**
    * Serbest metin birimden türetilen kanonik kod (Faz 1). Tanınmazsa `null`
    * ve satır YİNE DE geçerlidir — kullanıcı `notices` ile uyarılır. Birim

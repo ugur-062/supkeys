@@ -8,19 +8,17 @@ import { useMutation } from "@tanstack/react-query";
  * Kalem Excel içe aktarma (2026-08-22) — AI YOK, deterministik, her pakete
  * açık. Şablon indir (blob) + doldurulmuş dosyayı base64 gövdeyle gönder →
  * yalnız ÖNİZLEME döner (hiçbir şey yazılmaz; kalemler forma kullanıcı
- * "Aktar" deyince girer, ihale normal Yayınla ile açılır).
+ * "Aktar" deyince girer, talep normal Yayınla ile açılır).
  */
 
-export interface ItemImportScope {
-  listingType: "ALIM" | "SATIS";
-  priceScope?: "TOPLU" | "KALEM";
-}
+/** Kayıt tipi tek: satın alma talebi. */
+const IMPORT_SCOPE = { listingType: "ALIM" } as const;
 
 export function useDownloadItemTemplate() {
   return useMutation({
-    mutationFn: async (scope: ItemImportScope) => {
+    mutationFn: async () => {
       const res = await companyApi.get("/company/listing-item-import/template", {
-        params: scope,
+        params: IMPORT_SCOPE,
         responseType: "blob",
       });
       const dispo = String(res.headers["content-disposition"] ?? "");
@@ -51,7 +49,7 @@ function fileToBase64(file: File): Promise<string> {
 
 export function useParseItemImport() {
   return useMutation({
-    mutationFn: async ({ file, scope }: { file: File; scope: ItemImportScope }) => {
+    mutationFn: async ({ file }: { file: File }) => {
       const dataBase64 = await fileToBase64(file);
       const { data } = await companyApi.post<ItemImportResult>(
         "/company/listing-item-import/parse",
@@ -59,7 +57,7 @@ export function useParseItemImport() {
           fileName: file.name,
           mimeType: file.type || "application/octet-stream",
           dataBase64,
-          ...scope,
+          ...IMPORT_SCOPE,
         },
         { timeout: 60_000 },
       );

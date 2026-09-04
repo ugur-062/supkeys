@@ -30,8 +30,6 @@ interface Props {
   onConfirm: () => void;
   invitedCount: number;
   isSubmitting: boolean;
-  /** SATIS'ta davet edilen taraf ALICI'dır. */
-  isSatis?: boolean;
 }
 
 export function PublishConfirmDialog({
@@ -40,13 +38,12 @@ export function PublishConfirmDialog({
   onConfirm,
   invitedCount,
   isSubmitting,
-  isSatis = false,
 }: Props) {
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const rolDat = L.counterpartyPluralDat;
-  const rolSingleDat = isSatis ? "alıcıya" : "tedarikçiye";
-  const rolSingle = isSatis ? "alıcı" : "tedarikçi";
+  const rolSingleDat = "tedarikçiye";
+  const rolSingle = "tedarikçi";
   return (
     <Dialog
       open={open}

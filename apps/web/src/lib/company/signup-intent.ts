@@ -2,7 +2,7 @@
  * KAYIT NİYETİ — anasayfa CTA'sı ile kayıt sonrası ilk sayfa arasındaki köprü
  * (2026-09-04).
  *
- * "Talep aç / İlan aç / Vitrin aç" üç farklı niyetle kayda gelir; hepsi
+ * "Talep aç / Vitrin aç" farklı niyetlerle kayda gelir; hepsi
  * `/company/kayit?intent=…`. Kayıt formu niyeti ön seçili gösterir, doğrulama
  * bitince `sessionStorage`'a yazar; onboarding (Kurucu) araya girse de
  * `/company` köküne dönüldüğünde `consumeSignupIntent` okur, ilgili sihirbaza
@@ -15,11 +15,6 @@ export const SIGNUP_INTENTS = {
     label: "Alım talebi açmak",
     hint: "Satın alma talebi yayımla, kapalı zarf teklif topla.",
     href: "/company/satinalma/taleplerim/yeni",
-  },
-  ilan: {
-    label: "Ürün veya ilan yayınlamak",
-    hint: "Satış ilanı aç, teklif ya da hemen-al ile sat.",
-    href: "/company/satis/ilanlarim/yeni",
   },
   vitrin: {
     label: "Vitrin açmak",

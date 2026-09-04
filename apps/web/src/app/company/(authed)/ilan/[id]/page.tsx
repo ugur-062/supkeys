@@ -228,19 +228,13 @@ export default function ListingDetailPage() {
     const fromPortal = activePortalFromPath(fromHref);
     const rolePortal = l
       ? l.isOwner
-        ? l.type === "SATIS"
-          ? ("satis" as const)
-          : ("satinalma" as const)
-        : l.type === "SATIS"
-          ? ("satinalma" as const)
-          : ("satis" as const)
+        ? ("satinalma" as const)
+        : ("satis" as const)
       : null;
     const portal = fromPortal ?? rolePortal;
     if (portal) setLastPortal(portal);
   }, [fromHref, l, setLastPortal]);
-  const hasManagePermission = useHasCompanyPermission(
-    l?.type === "SATIS" ? "sell:listing:manage" : "buy:listing:manage",
-  );
+  const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
@@ -385,9 +379,8 @@ export default function ListingDetailPage() {
     if (
       !(await confirm({
         title: "Satın Alma Talebini yayınla",
-        description: `Satın Alma Talebi yayınlansın mı? Yayınlandıktan sonra ${
-          l?.type === "SATIS" ? "alıcılar" : "tedarikçiler"
-        } görebilir.`,
+        description:
+          "Satın Alma Talebi yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir.",
         confirmLabel: "Yayınla",
       }))
     )
@@ -400,8 +393,8 @@ export default function ListingDetailPage() {
     }
   };
 
-  // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize; ALIM'da
-  // artan — en düşük önde/ön-seçili, SATIS'ta azalan — en yüksek önde).
+  // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize; artan —
+  // en düşük önde/ön-seçili).
   // Karşılaştırma TRY üzerinden; gösterim her teklifin kendi birimiyle.
   const bidsForItem = (itemId: string) =>
     (l?.bids ?? [])
@@ -421,11 +414,10 @@ export default function ListingDetailPage() {
       })
       .filter((o) => o.price > 0)
       // Kur'suz (null) satırlar kıyaslanamaz → listenin SONUNA (ön-seçilmez).
-      .sort((a, b) =>
-        l?.type === "SATIS"
-          ? (b.priceTry ?? -1) - (a.priceTry ?? -1)
-          : (a.priceTry ?? Number.MAX_SAFE_INTEGER) -
-            (b.priceTry ?? Number.MAX_SAFE_INTEGER),
+      .sort(
+        (a, b) =>
+          (a.priceTry ?? Number.MAX_SAFE_INTEGER) -
+          (b.priceTry ?? Number.MAX_SAFE_INTEGER),
       );
 
   const startItemAward = () => {
@@ -582,8 +574,7 @@ export default function ListingDetailPage() {
     );
   }
 
-  const isAlim = l.type === "ALIM";
-  // İhalenin para birimi sembolü (kalem/matris değerleri bununla gösterilir).
+  // Talebin para birimi sembolü (kalem/matris değerleri bununla gösterilir).
   const sym =
     CURRENCY_SYMBOL[(l.primaryCurrency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";
@@ -667,26 +658,12 @@ export default function ListingDetailPage() {
       .map((b) => amountTryOf(b))
       .filter((x): x is number => x != null && x > 0);
     if (fullTotals.length === 0) return null;
-    const bestTotal = isAlim
-      ? Math.min(...fullTotals)
-      : Math.max(...fullTotals);
-    const pct =
-      ((isAlim ? bestTotal - itemized : itemized - bestTotal) / bestTotal) *
-      100;
+    const bestTotal = Math.min(...fullTotals);
+    const pct = ((bestTotal - itemized) / bestTotal) * 100;
     return { kind: "ok", bestTotal, itemized, pct };
   })();
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
   const biddingOpen = l.status === "OPEN";
-  // Hemen-al mevcut mu: TOPLU'da ilan fiyatı, KALEM'de en az bir kalemde.
-  // requireAllItems + hemen-al'sız kalem varsa Hemen Al kullanılamaz (backend
-  // "tüm kalemlere teklif zorunlu" ile reddeder) — ölü uç butonu gösterme.
-  const hasBuyNow =
-    !isAlim &&
-    (l.priceScope === "KALEM"
-      ? (l.items ?? []).some((it) => it.buyNowUnitPrice != null) &&
-        (!l.requireAllItems ||
-          (l.items ?? []).every((it) => it.buyNowUnitPrice != null))
-      : l.buyNowPrice != null);
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
 
   const visibleItems = (l.items ?? []).filter((it) =>
@@ -773,7 +750,7 @@ export default function ListingDetailPage() {
                 <TableHeader>Kalem</TableHeader>
                 <TableHeader className="text-right">Miktar</TableHeader>
                 <TableHeader className="text-right">
-                  {isAlim ? "Hedef Fiyat" : "İstenen Fiyat"}
+                  Hedef Fiyat
                 </TableHeader>
                 {showMyPriceCol ? (
                   <TableHeader className="text-right">
@@ -853,7 +830,7 @@ export default function ListingDetailPage() {
     l.isOwner && l.invitations && l.invitations.length > 0 ? (
       <section className="space-y-2">
         <Subheading>
-          Davetli {isAlim ? "Tedarikçiler" : "Alıcılar"} ({l.invitations.length})
+          Davetli Tedarikçiler ({l.invitations.length})
         </Subheading>
         <div className="flex flex-wrap gap-2">
           {l.invitations.map((iv) => (
@@ -932,14 +909,10 @@ export default function ListingDetailPage() {
       .filter((b) => b.status === "SUBMITTED" && cmpFullCovered(b.id))
       .map((b) => totalTryById.get(b.id))
       .filter((x): x is number => x != null && x > 0);
-    return vals.length
-      ? isAlim
-        ? Math.min(...vals)
-        : Math.max(...vals)
-      : null;
+    return vals.length ? Math.min(...vals) : null;
   })();
-  // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
-  // SATIS→en yüksek; karşılaştırma TRY karşılığı üzerinden (çok para birimi).
+  // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında en düşük;
+  // karşılaştırma TRY karşılığı üzerinden (çok para birimi).
   // "En iyi" rozeti filtre/sıraya değil buna bağlanır. Kalemli ilanda kıyasa
   // yalnız TAM kapsamlı teklifler girer — 2/4 kalem fiyatlamış teklifin düşük
   // toplamı "en iyi" değildir (toplam satırı/tasarruf kutusuyla aynı ilke).
@@ -951,10 +924,8 @@ export default function ListingDetailPage() {
         cmpFullCovered(b.id),
     );
     if (subs.length === 0) return null;
-    const sorted = [...subs].sort((a, b) =>
-      isAlim
-        ? amountTryOf(a)! - amountTryOf(b)!
-        : amountTryOf(b)! - amountTryOf(a)!,
+    const sorted = [...subs].sort(
+      (a, b) => amountTryOf(a)! - amountTryOf(b)!,
     );
     return sorted[0]?.id ?? null;
   })();
@@ -1116,15 +1087,11 @@ export default function ListingDetailPage() {
                     };
                   });
                   // En iyi TRY karşılığı vurgulanır (birimler arası adil):
-                  // ALIM'da en düşük, SATIS'ta en yüksek.
+                  // en düşük.
                   const validTry = cells
                     .map((c) => c.priceTry)
                     .filter((p): p is number => p != null && p > 0);
-                  const minTry = validTry.length
-                    ? isAlim
-                      ? Math.min(...validTry)
-                      : Math.max(...validTry)
-                    : null;
+                  const minTry = validTry.length ? Math.min(...validTry) : null;
                   return (
                     <TableRow key={it.id}>
                       <TableCell className="sticky left-0 z-[1] bg-white whitespace-normal text-zinc-900">
@@ -1246,16 +1213,15 @@ export default function ListingDetailPage() {
             <div className="flex items-start gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
               <p>
-                Kalem bazlı dağıtım ek {isAlim ? "tasarruf" : "gelir"}{" "}
-                sağlamıyor — en {isAlim ? "düşük" : "yüksek"} toplu teklif (
+                Kalem bazlı dağıtım ek tasarruf sağlamıyor — en düşük toplu
+                teklif (
                 <strong>
                   {itemSavings.bestTotal.toLocaleString("tr-TR", {
                     maximumFractionDigits: 2,
                   })}{" "}
                   ₺
                 </strong>
-                ) ile <strong>toplu kazandırma</strong> en{" "}
-                {isAlim ? "ekonomik" : "kazançlı"} seçenek.
+                ) ile <strong>toplu kazandırma</strong> en ekonomik seçenek.
                 <span className="ml-1 text-xs text-zinc-500">
                   (TRY karşılığıyla)
                 </span>
@@ -1272,7 +1238,7 @@ export default function ListingDetailPage() {
                   })}{" "}
                   ₺
                 </strong>
-                {" · "}En {isAlim ? "düşük" : "yüksek"} toplu teklif:{" "}
+                {" · "}En düşük toplu teklif:{" "}
                 <strong>
                   {itemSavings.bestTotal.toLocaleString("tr-TR", {
                     maximumFractionDigits: 2,
@@ -1285,7 +1251,7 @@ export default function ListingDetailPage() {
                   {itemSavings.pct.toLocaleString("tr-TR", {
                     maximumFractionDigits: 1,
                   })}{" "}
-                  {isAlim ? "tasarruf" : "ek gelir"}
+                  tasarruf
                 </strong>
                 <span className="ml-1 text-xs text-emerald-700/80">
                   (TRY karşılığıyla)
@@ -1425,7 +1391,6 @@ export default function ListingDetailPage() {
                   <Badge color="green">Kısmen Kazandı</Badge>
                 ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
-                {b.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
                 {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
                     görsün (son gün = submittedAt + validityDays). */}
                 {b.status === "SUBMITTED" &&
@@ -1471,7 +1436,7 @@ export default function ListingDetailPage() {
                 </span>
                 {b.bidderCompanyId ? (
                   <Link
-                    href={`/company/mesajlar?with=${b.bidderCompanyId}&portal=${isAlim ? "satinalma" : "satis"}`}
+                    href={`/company/mesajlar?with=${b.bidderCompanyId}&portal=satinalma`}
                     className="text-xs font-semibold text-blue-600 hover:underline"
                   >
                     Mesaj
@@ -1599,15 +1564,12 @@ export default function ListingDetailPage() {
         // Rol kapısı: sessiz buton yokluğu yerine açık yönlendirme.
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            {isAlim
-              ? "Bu açık talebe teklif vermek için hesabınızda "
-              : "Bu satış ilanına teklif (alış) vermek için hesabınızda "}
-            <strong>{isAlim ? "Satışçı" : "Satın Almacı"}</strong> rolü gerekir
+            Bu açık talebe teklif vermek için hesabınızda{" "}
+            <strong>Satışçı</strong> rolü gerekir
             — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
           </Text>
         </div>
-      ) : (!isAlim && biddingOpen && hasBuyNow) ||
-        (l.myBid?.status === "SUBMITTED" &&
+      ) : (l.myBid?.status === "SUBMITTED" &&
           biddingOpen &&
           !l.english?.isEnglishAuction) ||
         !l.english?.isEnglishAuction ||
@@ -1615,48 +1577,15 @@ export default function ListingDetailPage() {
         // İçeriksiz beyaz kutu render etme (pazarlıkta çoğu not yok —
         // CTA sekmenin en üstünde).
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
-          {/* SATIS + hemen-al: detaylar (teslim/geçerlilik/belge) teklif
-              ekranında girilir — buton oraya yönlendirir. Gönderilmiş
-              Hemen Al varken tekrar gösterilmez. */}
-          {!isAlim && biddingOpen && hasBuyNow ? (
-            l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow ? (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                ✓ Hemen Al teklifin gönderildi (
-                {formatMoney(l.myBid.amount, l.primaryCurrency ?? "TRY")}) —
-                satıcı onayı bekleniyor.
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-                <div>
-                  <div className="text-sm font-semibold text-emerald-900">
-                    {l.priceScope === "KALEM"
-                      ? "Hemen Al — kalem bazlı fiyatlarla"
-                      : `Hemen Al — ${formatMoney(l.buyNowPrice ?? 0, l.primaryCurrency ?? "TRY")}`}
-                  </div>
-                  <div className="text-xs text-emerald-700">
-                    Hemen-al fiyatından teklif ver; teslim ve diğer detayları
-                    sonraki ekranda gireceksin. Satıcı yine de onaylar.
-                  </div>
-                </div>
-                <Button
-                  color="emerald"
-                  href={`/company/ilan/${l.id}/teklif-ver?hemenAl=1`}
-                >
-                  Hemen Al
-                </Button>
-              </div>
-            )
-          ) : null}
           {/* CTA butonu sekmenin EN ÜSTÜNE taşındı (aşağıdaki panel) —
-              burada yalnız Hemen Al / RFQ notları / belgeler kalır. */}
+              burada yalnız RFQ notları / belgeler kalır. */}
           {l.myBid?.status === "SUBMITTED" &&
           biddingOpen &&
           !l.english?.isEnglishAuction ? (
             <>
               <Text className="text-xs text-zinc-500">
                 Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için{" "}
-                {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç. {isAlim ? "Alıcı" : "Satıcı"}{" "}
-                teklifinizi elerse yeniden teklif verebilirsiniz.
+                alıcıyla iletişime geç. Alıcı teklifinizi elerse yeniden teklif verebilirsiniz.
               </Text>
               <div className="rounded-lg bg-zinc-50 px-3 py-2">
                 <Text className="text-sm">
@@ -1726,9 +1655,7 @@ export default function ListingDetailPage() {
 
       {/* Tanım rozetleri — emojisiz, anlamsal renkler */}
       <div className="flex flex-wrap items-center gap-2">
-        <Badge color={isAlim ? "blue" : "emerald"}>
-          {isAlim ? "Alış" : "Satış"}
-        </Badge>
+        <Badge color="blue">Alış</Badge>
         <Badge color="zinc">
           {l.isInternational ? (
             <Globe className="size-3.5" />
@@ -1739,11 +1666,7 @@ export default function ListingDetailPage() {
         </Badge>
         {l.format ? (
           <Badge color="purple">
-            {l.format === "RFQ"
-              ? "Teklif Toplama"
-              : isAlim
-                ? "Pazarlık (Eksiltme)"
-                : "Pazarlık (Artırma)"}
+            {l.format === "RFQ" ? "Teklif Toplama" : "Pazarlık (Eksiltme)"}
           </Badge>
         ) : null}
       </div>
@@ -1772,17 +1695,6 @@ export default function ListingDetailPage() {
         </span>
       </Text>
 
-      {!isAlim && l.minPrice ? (
-        <Text className="text-sm text-zinc-600">
-          Taban:{" "}
-          <strong>
-            {formatMoney(l.minPrice ?? 0, l.primaryCurrency ?? "TRY")}
-          </strong>
-          {l.buyNowPrice
-            ? ` · Hemen Al: ${formatMoney(l.buyNowPrice, l.primaryCurrency ?? "TRY")}`
-            : ""}
-        </Text>
-      ) : null}
       {l.description ? (
         <Text className="whitespace-pre-wrap text-sm text-zinc-600">
           {l.description}
@@ -1794,12 +1706,8 @@ export default function ListingDetailPage() {
   // Varsayılan geri hedefi bağlama göre: sahip kendi listesine, teklifçi
   // ilanı gördüğü listeye döner (?from= her zaman öncelikli).
   const defaultBack = l.isOwner
-    ? isAlim
-      ? { href: "/company/satinalma/taleplerim", label: "Taleplerim" }
-      : { href: "/company/satis/ilanlarim", label: "Satış İlanlarım" }
-    : isAlim
-      ? { href: "/company/satis/acik-talepler", label: "Açık Talepler" }
-      : { href: "/company/satinalma/satin-al", label: "Satın Al" };
+    ? { href: "/company/satinalma/taleplerim", label: "Taleplerim" }
+    : { href: "/company/satis/acik-talepler", label: "Açık Talepler" };
   const breadcrumb = (
     <Link
       href={fromHref ?? defaultBack.href}
@@ -1810,7 +1718,7 @@ export default function ListingDetailPage() {
     </Link>
   );
 
-  // ───────────── SAHİP: sekmeli ihale detayı (ALIM + SATIS) ─────────────
+  // ───────────── SAHİP: sekmeli talep detayı ─────────────
   if (l.isOwner) {
     return (
       <div className="space-y-5">
@@ -1872,7 +1780,6 @@ export default function ListingDetailPage() {
               closesAt={l.closesAt}
               internalNotes={l.internalNotes ?? null}
               canEdit={l.canEdit}
-              listingType={isAlim ? "ALIM" : "SATIS"}
               currency={l.primaryCurrency}
               allowedCurrencies={l.allowedCurrencies ?? []}
               carryableBidCount={
@@ -1949,7 +1856,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={Users}
               label="Davetli"
-              value={`${l.invitations?.length ?? 0} ${isAlim ? "tedarikçi" : "alıcı"}`}
+              value={`${l.invitations?.length ?? 0} tedarikçi`}
             />
             <MetaItem
               icon={Gavel}
@@ -2002,7 +1909,6 @@ export default function ListingDetailPage() {
                 isOwner={!!l.isOwner}
                 canEdit={false}
                 masked={!!l.masked}
-                isSatis={l.type === "SATIS"}
               />
             </TabPanel>
           </TabPanels>
@@ -2015,7 +1921,7 @@ export default function ListingDetailPage() {
           title="Teklifi ele"
           description={
             eliminateTarget
-              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe ${isAlim ? "tedarikçiye" : "alıcıya"} GÖSTERİLİR.`
+              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`
               : undefined
           }
           confirmLabel="Ele"
@@ -2041,10 +1947,10 @@ export default function ListingDetailPage() {
     );
   }
 
-  // ───────────── SAHİP DEĞİL: sekmeli teklifçi görünümü (ALIM + SATIS) ─────
+  // ───────────── SAHİP DEĞİL: sekmeli teklifçi görünümü ─────
   // Eski tedarikçi paneli paritesi: başlık kartı (geri sayım) + canlı
-  // eksiltme/artırma kartı + meta şeridi + Teklifim/Kalemler/Genel
-  // Bilgi/Dosyalar sekmeleri. ALIM'da teklifçi satıcıdır, SATIS'ta alıcıdır.
+  // eksiltme kartı + meta şeridi + Teklifim/Kalemler/Genel
+  // Bilgi/Dosyalar sekmeleri. Teklifçi satıcıdır.
   // Kapalı zarf: davetliler/teklifler sekmesi YOK — yalnızca kendi teklifi.
   {
     return (
@@ -2116,7 +2022,7 @@ export default function ListingDetailPage() {
             <p className="flex items-start gap-2">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               Bu herkese açık ihale önizleme modunda — kalemleri görüyorsunuz
-              ama {isAlim ? "alıcı" : "satıcı"} firma, fiyatlar ve dosyalar
+              ama alıcı firma, fiyatlar ve dosyalar
               gizli. Detayı görmek ve teklif vermek için paket alın (Bronz+).
             </p>
             <Button href="/company/premium" className="shrink-0">
@@ -2134,7 +2040,7 @@ export default function ListingDetailPage() {
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-4">
             <MetaItem
               icon={Building2}
-              label={isAlim ? "Alıcı Firma" : "Satıcı Firma"}
+              label="Alıcı Firma"
               value={l.owner?.name ?? "Gizli firma"}
             />
             <MetaItem
@@ -2205,7 +2111,6 @@ export default function ListingDetailPage() {
                 isOwner={false}
                 canEdit={false}
                 masked={!!l.masked}
-                isSatis={l.type === "SATIS"}
               />
             </TabPanel>
           </TabPanels>

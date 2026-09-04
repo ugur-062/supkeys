@@ -81,10 +81,6 @@ export function AuctionLiveCard({
 
   if (!l.english?.isEnglishAuction) return null;
 
-  // Yön ilan tipine bağlı: ALIM = ters eksiltme (düşük kazanır), SATIS =
-  // açık artırma (yüksek kazanır).
-  const isSatis = l.type === "SATIS";
-
   const closesMs = l.closesAt ? new Date(l.closesAt).getTime() - now : null;
   const urgent = closesMs !== null && closesMs > 0 && closesMs < 5 * 60_000;
   const view = l.auctionView;
@@ -125,7 +121,7 @@ export function AuctionLiveCard({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
           <Gavel className="h-3.5 w-3.5" aria-hidden="true" />
-          {isSatis ? "Pazarlık (Açık Artırma)" : "Pazarlık (Açık Eksiltme)"} · Tur {l.english.currentRound}
+          Pazarlık (Açık Eksiltme) · Tur {l.english.currentRound}
         </span>
         {closesMs !== null ? (
           <span
@@ -178,9 +174,9 @@ export function AuctionLiveCard({
           value={canBidThisRound ? "1 teklif" : "Kullanıldı"}
           sub={
             canBidThisRound
-              ? `Öncekinden ${isSatis ? "yüksek" : "düşük"} olmalı`
+              ? "Öncekinden düşük olmalı"
               : // Yeni tur garanti değil — söz vermeden anlat.
-                `Bu turdaki teklifiniz kesin — ${isSatis ? "satıcı" : "alıcı"} yeni tur açarsa güncelleyebilirsiniz`
+                "Bu turdaki teklifiniz kesin — alıcı yeni tur açarsa güncelleyebilirsiniz"
           }
           highlight={!canBidThisRound}
         />
@@ -215,7 +211,7 @@ export function AuctionLiveCard({
                 )}
               >
                 <span className="text-zinc-500">
-                  #{b.rank} {b.isMine ? "(Sen)" : isSatis ? "Alıcı" : "Tedarikçi"}
+                  #{b.rank} {b.isMine ? "(Sen)" : "Tedarikçi"}
                 </span>
                 <span className="text-zinc-900 tabular-nums">
                   {money(b.total, b.currency ?? l.primaryCurrency)}

@@ -51,14 +51,12 @@ export function CatalogPickerDialog({
   open,
   onClose,
   onPick,
-  isSatis = false,
 }: {
   open: boolean;
   onClose: () => void;
   onPick: (items: PickedCatalogItem[]) => void;
-  isSatis?: boolean;
 }) {
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 300);
   // Modal kapalıyken ağ isteği atma.

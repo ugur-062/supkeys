@@ -2,7 +2,7 @@
  * PAZAR YERİ DEMO DOLULUĞU (2026-09-04) — herkese açık vitrin "dolu" görünsün:
  * 20 firma (paketli, doğrulanmış, herkese açık profil, kapak görselli, kategori
  * ve faaliyet beyanlı), ~56 yayında ürün (görselli, fiyatlı/kademeli/teklifle),
- * 16 herkese açık ALIM talebi (kalemli, 5–25 gün açık), 8 SATIŞ ilanı,
+ * 16 herkese açık ALIM talebi (kalemli, 5–25 gün açık),
  * bağlantılar ve birkaç teklif.
  *
  * `seed-demo-fill.ts`in yerine geçer (aynı `@demofill.local` işareti): her
@@ -213,11 +213,11 @@ const PRODUCTS: Pr[] = [
 ];
 
 /* ───────────────────────── İlanlar ───────────────────────── */
-type Item = { name: string; quantity: number; unit: string; targetPrice?: number; buyNow?: number; img?: string };
+type Item = { name: string; quantity: number; unit: string; targetPrice?: number; img?: string };
 type L = {
-  owner: string; type: "ALIM" | "SATIS"; title: string; desc: string; cat: string; catKw?: string; items: Item[];
+  owner: string; type: "ALIM"; title: string; desc: string; cat: string; catKw?: string; items: Item[];
   closesInDays: number; intl?: boolean; deliveryTerm?: "EXW" | "FCA" | "DAP" | "DDP" | "FOB" | "CIF";
-  minPrice?: number; buyNowPrice?: number; keywords?: string[]; requireAll?: boolean;
+  keywords?: string[]; requireAll?: boolean;
 };
 const LISTINGS: L[] = [
   { owner: "anadolu", type: "ALIM", closesInDays: 14, cat: "30111500", catKw: "beton", title: "Şantiye için inşaat demiri ve çimento alımı", desc: "Ankara Yenimahalle'deki konut projemiz için 6 aylık demir ve çimento tedariki. Teslimat şantiyeye, aylık partiler hâlinde; TSE belgeli üretici veya yetkili bayi teklifleri değerlendirilecektir.", deliveryTerm: "DAP", keywords: ["inşaat demiri", "çimento", "hazır beton"], requireAll: true,
@@ -252,23 +252,6 @@ const LISTINGS: L[] = [
     items: [{ name: "MDF 18 mm 210x280 (FSC)", quantity: 6000, unit: "adet" }, { name: "Laminat kaplı sunta 18 mm", quantity: 4000, unit: "adet" }, { name: "PVC kenar bandı 22x1 mm", quantity: 50000, unit: "m" }] },
   { owner: "trakya-elektrik", type: "ALIM", closesInDays: 6, cat: "39111500", title: "Fabrika aydınlatma projesi için LED armatür alımı", desc: "Çerkezköy'de 8.000 m² üretim alanı LED dönüşümü. Yüksek tavan armatürleri DALI uyumlu, 5 yıl garanti; kurulum ayrı teklif olarak istenebilir.", deliveryTerm: "DAP", keywords: ["LED highbay", "aydınlatma projesi", "DALI"],
     items: [{ name: "LED highbay 150 W 150 lm/W", quantity: 220, unit: "adet" }, { name: "LED etanj armatür 1500 mm 50 W", quantity: 180, unit: "adet" }, { name: "Acil aydınlatma kiti", quantity: 60, unit: "adet" }] },
-  // SATIŞ ilanları
-  { owner: "ege", type: "SATIS", closesInDays: 16, cat: "11162100", catKw: "kumaş", title: "Parti sonu pamuklu kumaş satışı (200 top)", desc: "Sezon sonu stok: 180 g/m² süprem pamuklu kumaş, karışık renk, 25–30 kg toplar. Toplu satış tercih edilir; İzmir depodan teslim, hemen al fiyatı tüm parti için.", deliveryTerm: "EXW", minPrice: 80000, buyNowPrice: 120000, keywords: ["parti sonu", "pamuklu kumaş", "stok"],
-    items: [{ name: "Pamuklu süprem kumaş topu (karışık renk)", quantity: 200, unit: "top", buyNow: 600, img: "cotton,fabric" }] },
-  { owner: "marmara", type: "SATIS", closesInDays: 13, cat: "50192400", catKw: "konserve", title: "Toptan konserve gıda satışı (raf ömrü 18 ay+)", desc: "Fazla üretim: domates konservesi ve bezelye, palet bazında toptan satış. Bursa depodan teslim; ihracat evrakı hazırlanabilir.", deliveryTerm: "EXW", minPrice: 150000, keywords: ["konserve", "toptan gıda", "palet"],
-    items: [{ name: "Domates konservesi 400 g", quantity: 20000, unit: "adet", buyNow: 14, img: "canned,tomato" }, { name: "Bezelye konservesi 400 g", quantity: 10000, unit: "adet", buyNow: 21, img: "canned,peas" }] },
-  { owner: "metal", type: "SATIS", closesInDays: 12, cat: "30264800", catKw: "sac", title: "Stok fazlası paslanmaz sac satışı (304, 1,5 mm)", desc: "Proje iptali nedeniyle 8 ton AISI 304 2B paslanmaz sac, 1250x2500, PVC filmli, 3.1 sertifikalı. Konya depodan forkliftle yükleme.", deliveryTerm: "EXW", minPrice: 900000, buyNowPrice: 1050000, keywords: ["paslanmaz sac", "stok fazlası", "304"],
-    items: [{ name: "Paslanmaz sac 304 2B 1,5 mm 1250x2500", quantity: 270, unit: "adet", buyNow: 3890, img: "stainless,sheet" }] },
-  { owner: "izmir-makina", type: "SATIS", closesInDays: 25, cat: "23181500", catKw: "tank", title: "İkinci el paslanmaz proses tankı 3.000 L (revizyonlu)", desc: "2019 model AISI 316L ceketli karıştırıcılı tank, tam revizyonlu, yeni conta ve motor. Çalışır durumda görülebilir; İzmir tesisten teslim, montaj opsiyonel.", deliveryTerm: "EXW", minPrice: 380000, buyNowPrice: 450000, keywords: ["ikinci el", "proses tankı", "paslanmaz"],
-    items: [{ name: "Paslanmaz ceketli tank 3.000 L (revizyonlu)", quantity: 1, unit: "adet", buyNow: 450000, img: "stainless,tank" }] },
-  { owner: "bursa-oto", type: "SATIS", closesInDays: 14, cat: "25172400", catKw: "fren", title: "Aftermarket fren diski stok satışı (2.000 adet)", desc: "Model değişikliği nedeniyle 300 mm havalı fren diski stoku; ECE R90 belgeli, orijinal kolisinde. Bursa depodan palet bazında.", deliveryTerm: "EXW", minPrice: 2400000, keywords: ["fren diski", "stok", "aftermarket"],
-    items: [{ name: "Havalı fren diski 300 mm", quantity: 2000, unit: "adet", buyNow: 1350, img: "brake,disc" }] },
-  { owner: "kocaeli-plastik", type: "SATIS", closesInDays: 9, cat: "24121800", catKw: "bidon", title: "HDPE bidon 20 L stok satışı (UN onaylı, 6.000 adet)", desc: "Müşteri iptali: lacivert 20 L UN 3H1 bidon, DIN 61 kapaklı, paletli. Kocaeli fabrikadan teslim; 500'lük partilerle satılabilir.", deliveryTerm: "EXW", minPrice: 330000, buyNowPrice: 390000, keywords: ["HDPE bidon", "UN onaylı", "stok"],
-    items: [{ name: "HDPE bidon 20 L UN 3H1", quantity: 6000, unit: "adet", buyNow: 65, img: "plastic,container" }] },
-  { owner: "trakya-elektrik", type: "SATIS", closesInDays: 11, cat: "26121600", title: "Proje artığı NYY kablo satışı (4x16, 3.200 m)", desc: "Tamamlanan şantiyeden artan 500 m makaralarda NYY 4x16 mm² kablo, TSE, 2025 üretim. Çerkezköy depodan teslim; makara bazında satılır.", deliveryTerm: "EXW", minPrice: 1050000, buyNowPrice: 1180000, keywords: ["NYY kablo", "proje artığı", "4x16"],
-    items: [{ name: "NYY kablo 4x16 mm² (500 m makara)", quantity: 3200, unit: "m", buyNow: 368, img: "electric,cable" }] },
-  { owner: "kayseri-mobilya", type: "SATIS", closesInDays: 18, cat: "56112100", catKw: "masa", title: "Teşhir ürünü ofis mobilyası satışı (40 masa + 40 koltuk)", desc: "Fuar ve showroom teşhir ürünleri, sıfıra yakın; masa 160x80 metal ayak, koltuk fileli ergonomik. Kayseri'den teslim, toplu alımda montaj dahil.", deliveryTerm: "DAP", minPrice: 260000, buyNowPrice: 320000, keywords: ["ofis mobilyası", "teşhir", "toplu"],
-    items: [{ name: "Ofis masası 160x80 (teşhir)", quantity: 40, unit: "adet", buyNow: 4200, img: "office,desk" }, { name: "Ergonomik koltuk (teşhir)", quantity: 40, unit: "adet", buyNow: 3800, img: "office,chair" }] },
 ];
 
 const BIDS: { bidder: string; owner: string; titleIncludes: string; amount: number }[] = [
@@ -418,10 +401,9 @@ async function main() {
     const categoryId = await resolveCat(l.cat, l.catKw);
     const listing = await prisma.listing.create({
       data: {
-        number, companyId: o.companyId, createdById: o.ownerId, type: l.type, format: l.type === "ALIM" ? "RFQ" : null,
+        number, companyId: o.companyId, createdById: o.ownerId, type: l.type, format: "RFQ",
         visibility: "PUBLIC", title: l.title, description: l.desc, status: "OPEN", publishedAt: days(-Math.floor(Math.random() * 5)),
         closesAt: days(l.closesInDays), primaryCurrency: "TRY", paymentTiming: "AFTER_DELIVERY",
-        priceScope: l.type === "SATIS" ? "TOPLU" : "KALEM", minPrice: l.minPrice ?? null, buyNowPrice: l.buyNowPrice ?? null,
         categoryIds: [categoryId], keywords: l.keywords ?? [], isInternational: l.intl ?? false,
         deliveryTerm: l.deliveryTerm ?? null, requireAllItems: l.requireAll ?? false, publicIndexable: true,
       },
@@ -431,13 +413,13 @@ async function main() {
       await prisma.listingItem.create({
         data: {
           listingId: listing.id, lineNo: i + 1, name: it.name, quantity: it.quantity, unit: it.unit,
-          targetPrice: it.targetPrice ?? null, buyNowUnitPrice: it.buyNow ?? null, images: it.img ? [img(it.img, pLock++)] : [],
+          targetPrice: it.targetPrice ?? null, images: it.img ? [img(it.img, pLock++)] : [],
         },
       });
     }
     listingRef.push({ owner: l.owner, title: l.title, listingId: listing.id });
   }
-  console.log(`  📋 ${LISTINGS.length} ilan (${LISTINGS.filter((l) => l.type === "ALIM").length} alım talebi, ${LISTINGS.filter((l) => l.type === "SATIS").length} satış ilanı)`);
+  console.log(`  📋 ${LISTINGS.length} alım talebi`);
 
   let bidCount = 0;
   for (const b of BIDS) {

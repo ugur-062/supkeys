@@ -59,14 +59,12 @@ function InviteByEmailModal({
   open,
   onClose,
   onInvited,
-  isSatis,
 }: {
   open: boolean;
   onClose: () => void;
   onInvited: (email: string) => void;
-  isSatis: boolean;
 }) {
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const [email, setEmail] = useState("");
   const invite = useInviteByEmail();
 
@@ -125,14 +123,12 @@ function SaveTemplateModal({
   open,
   onClose,
   memberCompanyIds,
-  isSatis,
 }: {
   open: boolean;
   onClose: () => void;
   memberCompanyIds: string[];
-  isSatis: boolean;
 }) {
-  const L = entityLabels(isSatis);
+  const L = entityLabels();
   const [name, setName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const create = useCreateSupplierTemplate();
@@ -208,11 +204,9 @@ export function Step3Suppliers() {
   const deleteTemplate = useDeleteSupplierTemplate();
   const visibility = useWatch({ control, name: "visibility" });
   const isPublic = visibility === "PUBLIC";
-  // SATIS ihalede davet edilenler ALICI firmalardır (satın almacılar teklif verir).
-  const isSatis = useWatch({ control, name: "listingType" }) === "SATIS";
-  const L = entityLabels(isSatis);
-  const roleWord = isSatis ? "alıcı" : "tedarikçi";
-  const RoleWord = isSatis ? "Alıcı" : "Tedarikçi";
+  const L = entityLabels();
+  const roleWord = "tedarikçi";
+  const RoleWord = L.counterparty;
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
@@ -334,7 +328,7 @@ export function Step3Suppliers() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-zinc-900">
-                  AI ile daha fazla {isSatis ? "alıcıya" : "tedarikçiye"} eriş
+                  AI ile daha fazla tedarikçiye eriş
                 </p>
                 <p className="text-xs text-zinc-500">
                   Kategorine uygun bağlantısız firmaları ve web&apos;deki
@@ -378,7 +372,7 @@ export function Step3Suppliers() {
                 {visibility === "PUBLIC" ? (
                   <>
                     Bu {L.entityLower} <strong>Herkese Açık</strong>: kategorinize uygun
-                    premium {roleWord === "alıcı" ? "alıcılar" : "tedarikçiler"} davet beklemeden görüp teklif verebilir.
+                    premium {L.counterpartyPluralLower} davet beklemeden görüp teklif verebilir.
                     Bu adım <strong>opsiyonel</strong> — çalışmak istediğiniz
                     firma henüz Rothern&apos;de değilse buradan e-posta ile
                     davet edebilirsiniz; kayıt olup davetinizi kabul ettiğinde
@@ -538,11 +532,7 @@ export function Step3Suppliers() {
                     {`Yeni ${RoleWord} Davet Et`}
                   </Button>
                   <Link
-                    href={
-                      isSatis
-                        ? "/company/satis/musterilerim"
-                        : "/company/satinalma/tedarikcilerim"
-                    }
+                    href="/company/satinalma/tedarikcilerim"
                     className="text-sm font-semibold text-zinc-900 hover:text-zinc-600"
                   >
                     Bağlantılar →
@@ -635,7 +625,7 @@ export function Step3Suppliers() {
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold text-zinc-900">
-                  Seçilen {RoleWord === "Alıcı" ? "Alıcılar" : "Tedarikçiler"} ({selected.size})
+                  Seçilen {L.counterpartyPlural} ({selected.size})
                 </p>
                 {selected.size > 0 ? (
                   <button
@@ -713,11 +703,9 @@ export function Step3Suppliers() {
             <SupplierDiscoveryModal
               isOpen={discoveryOpen}
               onClose={() => setDiscoveryOpen(false)}
-              type={isSatis ? "SATIS" : "ALIM"}
               categoryIds={wizCategoryIds}
             />
             <InviteByEmailModal
-              isSatis={isSatis}
               open={inviteOpen}
               onClose={() => setInviteOpen(false)}
               onInvited={(email) =>
@@ -727,7 +715,6 @@ export function Step3Suppliers() {
               }
             />
             <SaveTemplateModal
-              isSatis={isSatis}
               open={saveOpen}
               onClose={() => setSaveOpen(false)}
               memberCompanyIds={selectedCompanies.map((c) => c.id)}

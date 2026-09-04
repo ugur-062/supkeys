@@ -11,7 +11,7 @@ export interface TenderListItem {
   id: string;
   tenderNumber: string;
   title: string;
-  type: "ALIM" | "SATIS";
+  type: "ALIM";
   format: ListingFormat | null;
   status: ListingStatus;
   isInternational: boolean;
@@ -28,13 +28,13 @@ export interface TenderListItem {
   createdAt: string;
 }
 
-/** İhalelerim/İlanlarım — zengin liste; filtre/sıralama frontend'de. */
-export function useTenders(type: "ALIM" | "SATIS" = "ALIM") {
+/** Taleplerim — zengin liste; filtre/sıralama frontend'de. */
+export function useTenders() {
   return useQuery<TenderListItem[]>({
-    queryKey: ["company-tenders", type],
+    queryKey: ["company-tenders", "ALIM"],
     queryFn: async () => {
       const { data } = await companyApi.get<TenderListItem[]>(
-        `/company/listings/tenders?type=${type}`,
+        "/company/listings/tenders?type=ALIM",
       );
       return data;
     },

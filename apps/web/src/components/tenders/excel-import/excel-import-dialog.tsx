@@ -12,7 +12,6 @@ import { Dropzone } from "@/components/ui/dropzone";
 import {
   useDownloadItemTemplate,
   useParseItemImport,
-  type ItemImportScope,
 } from "@/hooks/use-listing-item-import";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
@@ -40,13 +39,11 @@ export type ExcelImportMode = "append" | "replace";
 export function ExcelImportDialog({
   open,
   onClose,
-  scope,
   existingCount,
   onApply,
 }: {
   open: boolean;
   onClose: () => void;
-  scope: ItemImportScope;
   /** Formdaki mevcut kalem sayısı — "değiştir" seçeneği metni için. */
   existingCount: number;
   onApply: (items: ItemImportItem[], mode: ExcelImportMode) => void;
@@ -72,7 +69,7 @@ export function ExcelImportDialog({
   const run = async (f: File) => {
     setFile(f);
     try {
-      const r = await parse.mutateAsync({ file: f, scope });
+      const r = await parse.mutateAsync({ file: f });
       setResult(r);
       if (r.rows.length === 0) toast.info("Dosyada kalem satırı bulunamadı");
     } catch (err) {
@@ -125,7 +122,7 @@ export function ExcelImportDialog({
                 disabled={busy}
                 onClick={() =>
                   download
-                    .mutateAsync(scope)
+                    .mutateAsync()
                     .catch((e) => toast.error(extractErrorMessage(e, "Şablon indirilemedi")))
                 }
               >

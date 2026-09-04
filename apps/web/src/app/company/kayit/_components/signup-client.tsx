@@ -58,7 +58,7 @@ export function CompanySignupClient() {
   // yalnız bu davet ACTIVE bağlantı olur; diğer davetler PENDING istek kalır.
   const searchParams = useSearchParams();
   const referralToken = searchParams.get("ref") ?? undefined;
-  // Anasayfa CTA'sından gelen niyet (`?intent=talep|ilan|vitrin`) ön seçili;
+  // Anasayfa CTA'sından gelen niyet (`?intent=talep|vitrin`) ön seçili;
   // ziyaretçi değiştirebilir. Doğrulama bitince sessionStorage'a yazılır,
   // `/company` kökü okuyup ilgili sihirbaza yönlendirir.
   const [intent, setIntent] = useState<SignupIntent>(
@@ -278,7 +278,7 @@ export function CompanySignupClient() {
         <fieldset>
           <legend className="text-sm font-medium text-zinc-900">Ne yapmak istiyorsunuz?</legend>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {(["talep", "ilan", "vitrin", "ikisi"] as SignupIntent[]).map((k) => {
+            {(["talep", "vitrin", "ikisi"] as SignupIntent[]).map((k) => {
               const on = intent === k;
               return (
                 <label

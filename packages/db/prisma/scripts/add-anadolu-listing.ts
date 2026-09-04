@@ -75,7 +75,6 @@ async function main() {
       closesAt: days(17),
       primaryCurrency: "TRY",
       paymentTiming: "BEFORE_DELIVERY", // teslim öncesi → kazanan satıcı teminat + banka hesabı ile onaylar
-      priceScope: "KALEM",
       categoryIds: [cat.code],
     },
   });

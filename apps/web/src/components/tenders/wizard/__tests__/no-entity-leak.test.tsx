@@ -2,11 +2,13 @@
 /**
  * VARLIK ADI SIZINTISI — regresyon (v2 denetimi, 2026-09-03).
  *
- * Satış ilanı sihirbazı satın alma sihirbazının kopyasıydı ve varlık adı
- * değişmemişti ("Satış İlanı" ekranında "Satın Alma Talebi Adı"). İki katman:
+ * Sihirbaz metni YALNIZ `entityLabels()` sözlüğünden gelir; varlık adı tek
+ * yerde değişir. Satış ilanı sihirbazı 2026-09-04'te kaldırıldı — sözlük tek
+ * girdiye indi ama kural kalır (yeni bir varlık eklenirse kopya-yapıştır
+ * sızıntısı yine buradan yakalanır). İki katman:
  *  1. KAYNAK taraması: sihirbaz dosyalarında sabit "Satın Alma Talebi"/"ihale"
- *     dizesi kalmaz — metin YALNIZ `entityLabels()` sözlüğünden gelir.
- *  2. DOM: satış modunda render edilen adımlarda bu sözcükler görünmez.
+ *     dizesi kalmaz.
+ *  2. DOM: render edilen adımlarda "ihale"/"ilan" görünmez, sözlük adı görünür.
  */
 import { render } from "@testing-library/react";
 import fs from "node:fs";
@@ -51,11 +53,9 @@ function Harness({
 }
 
 describe("varlık adı sızıntısı", () => {
-  it("sözlük: satış girdilerinde 'satın alma'/'ihale' yok, satınalma girdilerinde 'ilan' yok", () => {
-    for (const v of Object.values(ENTITY_LABELS.satis)) {
-      expect(v).not.toMatch(FORBIDDEN);
-    }
+  it("sözlük: girdilerde 'ihale' ve 'ilan' yok", () => {
     for (const v of Object.values(ENTITY_LABELS.satinalma)) {
+      expect(v).not.toMatch(/(?<![.\w])ihale/i);
       expect(v).not.toMatch(/\bilan/i);
     }
   });
@@ -77,36 +77,25 @@ describe("varlık adı sızıntısı", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("SATIŞ modunda render: Kapsam + Özet + yayın onayı + dokümanlar 'Satın Alma Talebi'/'ihale' içermez", () => {
+  it("render: Kapsam + Özet + yayın onayı + dokümanlar 'ihale'/'ilan' demez, sözlük adını kullanır", () => {
     const { container } = render(
-      <Harness values={{ listingType: "SATIS", title: "Çelik boru satışı" }}>
+      <Harness values={{ title: "Çelik boru alımı" }}>
         <Step0TypeScope />
         <Step4Review onEditStep={vi.fn()} stagedDocsCount={2} />
-        <StagedDocuments docs={[]} onChange={vi.fn()} isSatis />
+        <StagedDocuments docs={[]} onChange={vi.fn()} />
         <PublishConfirmDialog
           open
           onClose={vi.fn()}
           onConfirm={vi.fn()}
           invitedCount={0}
           isSubmitting={false}
-          isSatis
         />
       </Harness>,
     );
     const text = `${container.textContent ?? ""} ${document.body.textContent ?? ""}`;
-    expect(text).not.toMatch(FORBIDDEN);
-    expect(text).toContain("Satış İlanı");
-    expect(text).toContain("İlan Dokümanları");
-  });
-
-  it("SATINALMA modunda aynı adımlar 'ilan' demez", () => {
-    const { container } = render(
-      <Harness values={{ listingType: "ALIM", title: "Çelik boru alımı" }}>
-        <Step0TypeScope />
-        <Step4Review onEditStep={vi.fn()} stagedDocsCount={1} />
-      </Harness>,
-    );
-    expect(container.textContent ?? "").not.toMatch(/\bilan/i);
-    expect(container.textContent ?? "").toContain("Satın Alma Talebi");
+    expect(text).not.toMatch(/(?<![.\w])ihale/i);
+    expect(text).not.toMatch(/\bilan/i);
+    expect(text).toContain("Satın Alma Talebi");
+    expect(text).toContain("Talep Dokümanları");
   });
 });

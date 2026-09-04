@@ -41,11 +41,8 @@ const STATE_COLOR: Record<string, "emerald" | "amber" | "zinc"> = {
 };
 
 /**
- * Tekil ilan sayfası — SUNUCU bileşeni, ALIM ve SATIS ortak.
- *
- * İki tip aynı gövdeyi paylaşır çünkü ziyaretçi için fark yalnız yön (kim
- * alıyor / kim satıyor) ve JSON-LD tipi. Ayrı iki bileşen yazmak, aynı
- * alanları iki yerde güncelleme borcu üretirdi.
+ * Tekil alım talebi sayfası — SUNUCU bileşeni. (Satış ilanı 2026-09-04'te
+ * kaldırıldı; tek tip ALIM.)
  */
 export function ListingDetail({
   listing,
@@ -56,21 +53,13 @@ export function ListingDetail({
   similar?: PublicListingCard[];
 }) {
   const state = publicState(listing.status);
-  const isDemand = listing.type === "ALIM";
   const site = resolveSiteUrl();
-  const canonical = `${site}${listingPath(listing.type, listing.number, listing.title)}`;
-  const indexBase = isDemand
-    ? MARKETPLACE_ROUTES.demands
-    : MARKETPLACE_ROUTES.offers;
-  const indexLabel = isDemand
-    ? MARKETPLACE_LABELS.demands
-    : MARKETPLACE_LABELS.offers;
+  const canonical = `${site}${listingPath(listing.number, listing.title)}`;
+  const indexBase = MARKETPLACE_ROUTES.demands;
+  const indexLabel = MARKETPLACE_LABELS.demands;
 
   /**
-   * JSON-LD — alım talebi `Demand`, satış ilanı `Offer` olarak işaretlenir.
-   * `Offer`da fiyat YALNIZ `buyNowPrice` varsa yazılır: taban fiyat public
-   * yanıtta yok (pazarlık tabanı, bkz. projeksiyon) ve olmayan bir fiyatı
-   * uydurmak yapısal veriyi yalancı yapar — o da manuel cezaya götürür.
+   * JSON-LD — alım talebi `Demand` olarak işaretlenir; fiyat yazılmaz.
    *
    * `validThrough` = son teklif tarihi. Süresi geçmiş kayıtta sayfa zaten
    * `noindex` alıyor; yine de yazıyoruz ki bir şekilde indekslenirse arama
@@ -78,7 +67,7 @@ export function ListingDetail({
    */
   const offerOrDemand: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@type": isDemand ? "Demand" : "Offer",
+    "@type": "Demand",
     name: listing.title,
     url: canonical,
     identifier: listing.number,
@@ -89,14 +78,10 @@ export function ListingDetail({
         ? "https://schema.org/InStock"
         : "https://schema.org/Discontinued",
     seller: undefined,
-    ...(isDemand
-      ? {
-          seeks: {
-            "@type": "Product",
-            name: listing.title,
-          },
-        }
-      : {}),
+    seeks: {
+      "@type": "Product",
+      name: listing.title,
+    },
     // İlan sahibi ANONİM: `Organization` düğümüne ad/URL YAZILMAZ. Yapısal
     // veri sayfada görünmeyen bir şeyi söyleyemez — hem yanlış olur hem de
     // gizlemeye çalıştığımız kimliği makine-okunur biçimde geri verirdi.
@@ -217,11 +202,7 @@ export function ListingDetail({
         <header className="mt-6">
           <div className="flex flex-wrap items-center gap-3">
             <Badge color={STATE_COLOR[state]}>{STATE_LABEL[state]}</Badge>
-            <Badge color="zinc">
-              {isDemand
-                ? MARKETPLACE_LABELS.demandOne
-                : MARKETPLACE_LABELS.offerOne}
-            </Badge>
+            <Badge color="zinc">{MARKETPLACE_LABELS.demandOne}</Badge>
             <span className="font-mono text-xs text-zinc-500">
               {listing.number}
             </span>
@@ -289,7 +270,7 @@ export function ListingDetail({
                   size="box"
                   label="Kalem adları, alıcı firma ve şartname"
                   hint="Alıcı adını, kalem adlarını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok."
-                  redirect={PANEL_TARGET.listing(listing.type, listing.number)}
+                  redirect={PANEL_TARGET.listing(listing.number)}
                 />
               </section>
             ) : null}
@@ -340,7 +321,7 @@ export function ListingDetail({
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                {isDemand ? "Alıcı" : "Satıcı"}
+                Alıcı
               </h2>
               {/* Firma ADI ve LOGOSU gösterilmez — ilan sahibi anonimdir.
                   Ziyaretçiye eksik bir şey değil, KURAL olduğunu söylüyoruz;
@@ -354,9 +335,7 @@ export function ListingDetail({
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-zinc-950">
-                    {listing.company.verified
-                      ? isDemand ? "Doğrulanmış alıcı" : "Doğrulanmış tedarikçi"
-                      : isDemand ? "Alıcı firma" : "Satıcı firma"}
+                    {listing.company.verified ? "Doğrulanmış alıcı" : "Alıcı firma"}
                   </p>
                   {listing.company.activities.length > 0 ? (
                     <p className="mt-0.5 text-xs text-zinc-500">
@@ -391,7 +370,7 @@ export function ListingDetail({
                   <>
                     {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
                     <Link
-                      href={signupHref("teklif", listingPath(listing.type, listing.number, listing.title))}
+                      href={signupHref("teklif", listingPath(listing.number, listing.title))}
                       className="block rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
                     >
                       Bu talebe teklif vermek için ücretsiz kaydol
@@ -412,7 +391,7 @@ export function ListingDetail({
                     <p className="mt-3 text-center text-xs text-zinc-500">
                       Hesabınız var mı?{" "}
                       <Link
-                        href={loginHref(PANEL_TARGET.listing(listing.type, listing.number))}
+                        href={loginHref(PANEL_TARGET.listing(listing.number))}
                         className="font-medium text-zinc-700 hover:underline"
                       >
                         Giriş yapın
@@ -422,7 +401,7 @@ export function ListingDetail({
                 ) : (
                   <>
                     <p className="text-sm text-zinc-600">
-                      Bu {isDemand ? "talep" : "ilan"} teklife kapalı.
+                      Bu talep teklife kapalı.
                     </p>
                     <Link
                       href={indexBase}
@@ -476,7 +455,7 @@ export function ListingDetail({
         </div>
 
         {/* Benzer açık talepler — kayıt sonrası ne bulacağını gösterir. */}
-        {isDemand && similar.length > 0 ? (
+        {similar.length > 0 ? (
           <section className="mt-16">
             <h2 className="text-xl font-semibold tracking-tight text-zinc-950">Benzer açık talepler</h2>
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -27,7 +27,7 @@ vi.mock("@/hooks/use-company-tenders", () => ({
   useTenders: () => ({ data: [{ id: "l1" }] }),
 }));
 // KPI'lar liste verisinden AYNI seçiciyle sayılır: satın alma tarafındaki
-// (SATIS ilanına) teklifler satış panosuna sayılMAZ; sipariş "Aktif" kümesi
+// sipariş "Aktif" kümesi
 // Satışlarım ile birebir.
 vi.mock("@/hooks/use-company-listings", () => ({
   useMyBids: () => ({
@@ -35,10 +35,8 @@ vi.mock("@/hooks/use-company-listings", () => ({
       { id: "b1", status: "SUBMITTED", listing: { type: "ALIM", status: "OPEN" } },
       { id: "b2", status: "SUBMITTED", listing: { type: "ALIM", status: "IN_AWARD" } },
       { id: "b3", status: "SUBMITTED", listing: { type: "ALIM", status: "AWARDED" } },
-      { id: "b4", status: "SUBMITTED", listing: { type: "SATIS", status: "OPEN" } },
       { id: "b5", status: "WON", listing: { type: "ALIM", status: "AWARDED" } },
       { id: "b6", status: "AWARDED_PARTIAL", listing: { type: "ALIM", status: "AWARDED" } },
-      { id: "b7", status: "WON", listing: { type: "SATIS", status: "AWARDED" } },
     ],
   }),
 }));
@@ -116,8 +114,8 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("Satış paneli")).toBeInTheDocument();
     expect(screen.getByText("Yanıt Bekleyen Davet")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
-    // Seçici (kpi-selectors): 2 aktif teklif (ALIM + açık ilan; AWARDED'daki
-    // ve SATIS ilanındaki sayılmaz), 2 kazanım (kısmi dahil; SATIS hariç),
+    // Seçici (kpi-selectors): 2 aktif teklif (açık talep; AWARDED'daki
+    // sayılmaz), 2 kazanım (kısmi dahil),
     // 1 aktif satış siparişi (DELIVERED canlı, COMPLETED değil, alıcı rolü hariç).
     expect(screen.getByText("Aktif Tekliflerim").closest("a")).toHaveTextContent("2");
     expect(screen.getByText("Kazandığım İşler").closest("a")).toHaveTextContent("2");
@@ -126,18 +124,17 @@ describe("SatisDashboardView", () => {
     expect(screen.getByTestId("tcmb")).toBeInTheDocument();
   });
 
-  it("GRAFİKLER ve dönemsel tutar kartları panoda YOK — Raporlar'a taşındı", () => {
-    // Anasayfa artık pazar yeriyle açılıyor; dönemsel okuma Raporlar'da.
+  it("GRAFİKLER ve dönemsel tutar kartları panoda YOK (satış raporları da kaldırıldı)", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
     expect(screen.queryByText("Toplam Gelir")).not.toBeInTheDocument();
     expect(screen.queryByText("Bağlı Müşteri")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Gelir" })).toBeNull();
-    // Yönlendirme kalmalı: veri kaybolmadı, yer değiştirdi.
-    expect(screen.getByRole("link", { name: /Raporlar/ })).toBeInTheDocument();
+    // Satış raporları satış ilanıyla birlikte kaldırıldı — bağlantı da yok.
+    expect(screen.queryByRole("link", { name: /Raporlar/ })).toBeNull();
   });
 
-  it("özet sırası: şerit → KPI → size uygun talepler → sağlık → Raporlar; keşif kartı YOK", () => {
+  it("özet sırası: şerit → KPI → size uygun talepler → sağlık; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
@@ -147,15 +144,9 @@ describe("SatisDashboardView", () => {
     expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
     expect(at("Aktif Tekliflerim")).toBeLessThan(at("matched-requests"));
     expect(at("matched-requests")).toBeLessThan(at("seller-health"));
-    expect(at("seller-health")).toBeLessThan(at("Raporlar"));
     // Anasayfada arama kutusu ve ikinci "İlan aç" YOK (1a/1b).
     expect(screen.queryByRole("searchbox")).toBeNull();
     expect(screen.queryByText(/İlan aç/)).toBeNull();
-    // Alt not artık bağlantı.
-    expect(screen.getByRole("link", { name: /Raporlar/ })).toHaveAttribute(
-      "href",
-      "/company/satis/raporlar",
-    );
   });
 
   it("delta rozeti KPI kartında çizilir (analitikten gelir)", () => {

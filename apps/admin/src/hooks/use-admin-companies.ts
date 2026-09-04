@@ -97,7 +97,7 @@ export interface AdminCompanyStats {
     awarded: number;
     closedNoAward: number;
     byVisibility: { PUBLIC: number; CONNECTIONS: number; PRIVATE: number };
-    byType: { ALIM: number; SATIS: number };
+    byType: { ALIM: number };
     totalBids: number;
   };
 }

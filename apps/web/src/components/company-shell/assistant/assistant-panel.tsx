@@ -346,11 +346,9 @@ export function AssistantPanel({
   const openTenderForm = (draft: AiTenderExtractResult) => {
     const isBuyer = !!user?.roles.includes(SEAT.buy as never);
     sessionStorage.setItem("ai-tender-draft", JSON.stringify(draft));
-    router.push(
-      isBuyer
-        ? "/company/satinalma/taleplerim/yeni?ai=1"
-        : "/company/satis/ilanlarim/yeni?ai=1",
-    );
+    // Belgeden yalnız satın alma talebi çıkar (satış ilanı kaldırıldı).
+    void isBuyer;
+    router.push("/company/satinalma/taleplerim/yeni?ai=1");
   };
 
   const addFiles = (list: FileList | null) => {

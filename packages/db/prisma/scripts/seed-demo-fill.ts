@@ -94,9 +94,9 @@ const TEAM_ROLES: { suffix: string; roles: CompanyRole[]; label: string }[] = [
 
 type Item = { name: string; quantity: number; unit: string; targetPrice?: number };
 type L = {
-  owner: string; type: "ALIM" | "SATIS"; visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE";
+  owner: string; type: "ALIM"; visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE";
   title: string; items: Item[]; closesInDays: number;
-  minPrice?: number; buyNowPrice?: number; invite?: string[];
+  invite?: string[];
   // Ödeme zamanı — teminat mektubu YALNIZ "BEFORE_DELIVERY"de istenir
   // (alıcı teslimden önce öder → satıcı teslimatı garanti eder). Verilmezse
   // "AFTER_DELIVERY" (teslim sonrası ödeme, teminat yok).
@@ -129,11 +129,6 @@ const LISTINGS: L[] = [
   // PRIVATE — yalnız davetli
   { owner: "metal", type: "ALIM", visibility: "PRIVATE", closesInDays: 11, title: "Özel CNC talaşlı imalat hizmeti", invite: ["demir"],
     items: [{ name: "CNC frezeleme", quantity: 200, unit: "saat" }, { name: "Talaşlı imalat parçası", quantity: 150, unit: "adet" }] },
-  // SATIS (herkese açık satış) — GOLD firmalar
-  { owner: "ege", type: "SATIS", visibility: "PUBLIC", closesInDays: 16, title: "Parti sonu kumaş satışı", minPrice: 80000, buyNowPrice: 120000,
-    items: [{ name: "Pamuklu kumaş topu", quantity: 200, unit: "top" }, { name: "Polyester astar", quantity: 500, unit: "m" }] },
-  { owner: "marmara", type: "SATIS", visibility: "PUBLIC", closesInDays: 13, title: "Toptan konserve gıda satışı", minPrice: 150000,
-    items: [{ name: "Domates konservesi 400 g", quantity: 20000, unit: "adet" }, { name: "Bezelye konservesi 400 g", quantity: 10000, unit: "adet" }] },
 ];
 
 // bidder → listing (owner + title anahtarı) → tutar
@@ -232,12 +227,10 @@ async function main() {
     const listing = await prisma.listing.create({
       data: {
         number, companyId: o.companyId, createdById: o.ownerId,
-        type: l.type, format: l.type === "ALIM" ? "RFQ" : null,
+        type: l.type, format: "RFQ",
         visibility: l.visibility, title: l.title, status: "OPEN", publishedAt: new Date(),
         closesAt: days(l.closesInDays), primaryCurrency: "TRY",
         paymentTiming: l.paymentTiming ?? "AFTER_DELIVERY",
-        priceScope: l.type === "SATIS" ? "TOPLU" : "KALEM",
-        minPrice: l.minPrice ?? null, buyNowPrice: l.buyNowPrice ?? null,
         categoryIds: [cat(Math.floor(Math.random() * cats.length))],
       },
     });

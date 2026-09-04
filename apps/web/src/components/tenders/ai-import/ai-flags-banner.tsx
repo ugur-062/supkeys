@@ -135,16 +135,12 @@ export function AiFlagsBanner({
       const updated = await refine.mutateAsync({ draft: result.draft, message: m });
       // Formu güncellenmiş taslakla tazele — AMA mevcut değerler TABAN alınır:
       // AI'nın dokunmadığı alanlar (teslimat adresi, davetliler, görünürlük,
-      // kalem soruları, açılış tarihi, SATIS fiyatları) korunur. Eskiden taban
+      // kalem soruları, açılış tarihi) korunur. Eskiden taban
       // DEFAULT_FORM_VALUES'tı ve bu alanlar uyarısız siliniyordu (denetim
       // 2026-08-24 Parça 6).
       const currentValues = form.getValues();
       form.reset(
-        mapAiDraftToForm(
-          updated.draft,
-          currentValues.listingType,
-          currentValues,
-        ),
+        mapAiDraftToForm(updated.draft, currentValues),
       );
       onResult(updated);
       setMessage("");

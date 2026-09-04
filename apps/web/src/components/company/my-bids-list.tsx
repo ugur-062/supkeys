@@ -15,11 +15,7 @@ import {
   SearchInput,
 } from "@/components/list";
 import { CountdownFull } from "@/components/tenders/countdown-full";
-import {
-  useMyBids,
-  type ListingType,
-  type MyBid,
-} from "@/hooks/use-company-listings";
+import { useMyBids, type MyBid } from "@/hooks/use-company-listings";
 import { closingUrgency } from "@/lib/tenders/seller-state";
 import { formatMoney } from "@/components/ui/money";
 import { bidDeliveryTimeLabel } from "@rothern/shared";
@@ -98,10 +94,9 @@ function matchesSearch(b: MyBid, q: string) {
   );
 }
 
-/** Teklif kartı — Satın Al / Açık İhaleler kart dilinin teklif sürümü. */
+/** Teklif kartı — Açık Talepler kart dilinin teklif sürümü. */
 function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
-  const isAlim = b.listing.type === "ALIM";
   const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
   const canRebid = b.status === "LOST" && b.listing.status === "OPEN";
   const urgency =
@@ -115,8 +110,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover",
-        isAlim ? "hover:border-blue-300" : "hover:border-emerald-300",
+        "group relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover", "hover:border-blue-300",
       )}
     >
         {/* C52: sol şerit STATÜ rengi (tek harita) — önceden ihale TİPİ
@@ -136,16 +130,13 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 {b.listing.number ?? "—"}
               </span>
               {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
-              <Badge color={isAlim ? "blue" : "emerald"}>
-                {isAlim ? "Açık Talep" : "Satış İlanı"}
+              <Badge color="blue">Açık Talep
               </Badge>
             </div>
             <h3
               className={cn(
                 "mt-1.5 line-clamp-2 text-[15px] leading-snug font-semibold text-zinc-950 transition-colors",
-                isAlim
-                  ? "group-hover:text-blue-700"
-                  : "group-hover:text-emerald-700",
+                "group-hover:text-blue-700",
               )}
             >
               <Link
@@ -167,16 +158,14 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               <Building2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
             </span>
             <span className="truncate font-medium">
-              {isAlim ? "Alıcı: " : "Satıcı: "}
+              {"Alıcı: "}
               {b.listing.ownerName}
             </span>
           </span>
           <span
             className={cn(
               "inline-flex items-center rounded-lg px-2.5 py-1 font-mono text-sm font-bold tabular-nums ring-1",
-              isAlim
-                ? "bg-blue-50 text-blue-700 ring-blue-100"
-                : "bg-emerald-50 text-emerald-700 ring-emerald-100",
+              "bg-blue-50 text-blue-700 ring-blue-100",
             )}
           >
             {formatMoney(b.amount, b.currency)}
@@ -188,14 +177,13 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
             <span className="text-xs text-zinc-400">
-              {isAlim ? "Taahhüt teslim:" : "İstenen teslim:"}{" "}
+              Taahhüt teslim:{" "}
               {bidDeliveryTimeLabel(b.deliveryTime) ??
                 (b.deliveryDate
                   ? formatDate(b.deliveryDate, "short")
                   : "")}
             </span>
           ) : null}
-          {b.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
             <span className="text-xs text-zinc-400">Tur {b.round}</span>
@@ -269,12 +257,8 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   );
 }
 
-/**
- * Firmanın verdiği teklifler. `listingType` ile portala göre süzülür:
- * - SATIS → satıcıların ilanlarına verilen (Satın Al) teklifler (satınalma paneli)
- * - ALIM  → açık ihalelere verilen teklifler (satış paneli)
- */
-export function MyBidsList({ listingType }: { listingType: ListingType }) {
+/** Firmanın açık taleplere verdiği teklifler (satış paneli). */
+export function MyBidsList() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState("newest");
@@ -283,21 +267,12 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
 
   const { data, isLoading } = useMyBids();
 
-  const isPurchase = listingType === "SATIS";
-  const description = isPurchase
-    ? "Satıcıların ilanlarına verdiğiniz teklifler ve sonuçları."
-    : "Açık taleplere verdiğiniz tüm teklifler ve sonuçları.";
-  const emptyHint = isPurchase
-    ? "Satın Al ekranından bir ilana teklif verdiğinizde burada görünür."
-    : "Açık Talepler ekranından bir talebe teklif verdiğinizde burada görünür.";
-  const fromHref = isPurchase
-    ? "/company/satinalma/tekliflerim"
-    : "/company/satis/tekliflerim";
+  const description = "Açık taleplere verdiğiniz tüm teklifler ve sonuçları.";
+  const emptyHint =
+    "Açık Talepler ekranından bir talebe teklif verdiğinizde burada görünür.";
+  const fromHref = "/company/satis/tekliflerim";
 
-  const all = useMemo(
-    () => (data ?? []).filter((b) => b.listing.type === listingType),
-    [data, listingType],
-  );
+  const all = useMemo(() => data ?? [], [data]);
 
   const filtered = useMemo(() => {
     const rangeMs = range === "all" ? null : Number(range) * 86_400_000;
@@ -340,11 +315,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={
-          isPurchase
-            ? MODULE_LABELS.satinalma.teklifler
-            : MODULE_LABELS.satis.teklifler
-        }
+        title={MODULE_LABELS.satis.teklifler}
         description={description}
       />
       {/* Sayaçlar panodaki KPI ile AYNI seçiciden (kpi-selectors) — iki sayfa
@@ -352,11 +323,11 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
       {all.length > 0 ? (
         <p className="text-sm text-zinc-500" aria-label="Teklif özeti">
           <span className="font-semibold text-zinc-900">
-            {selectActiveOffers(all, listingType).length}
+            {selectActiveOffers(all).length}
           </span>{" "}
           karar bekleyen ·{" "}
           <span className="font-semibold text-zinc-900">
-            {selectWonOffers(all, listingType).length}
+            {selectWonOffers(all).length}
           </span>{" "}
           kazanılan (kısmi dahil)
         </p>
@@ -369,11 +340,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
           <SearchInput
             value={search}
             onChange={resetToFirstPage(setSearch)}
-            placeholder={
-              isPurchase
-                ? "İlan adı, numarası veya satıcı ara…"
-                : "Talep adı, numarası veya alıcı ara…"
-            }
+            placeholder="Talep adı, numarası veya alıcı ara…"
             className="flex-1"
           />
           <FilterSelect
@@ -480,14 +447,10 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
               </button>
             ) : (
               <Link
-                href={
-                  isPurchase
-                    ? "/company/satinalma/satin-al"
-                    : "/company/satis/acik-talepler"
-                }
+                href="/company/satis/acik-talepler"
                 className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
               >
-                {isPurchase ? "Satın Al'a Göz At" : "Açık Taleplere Göz At"}
+                Açık Taleplere Göz At
               </Link>
             )
           }

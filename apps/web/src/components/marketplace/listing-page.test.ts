@@ -9,7 +9,7 @@ const { resolveListingPage } = await import("./listing-page");
 
 const listing = (over: Record<string, unknown> = {}) => ({
   number: "ROT-000057",
-  type: "SATIS",
+  type: "ALIM",
   title: "ABB Şalt Malzeme",
   ...over,
 });
@@ -35,27 +35,16 @@ describe("resolveListingPage", () => {
 
   it("kanonik slug'da doğrudan gösterir", async () => {
     fetchListing.mockResolvedValue(listing());
-    const res = await resolveListingPage("rot-000057-abb-salt-malzeme", "SATIS");
+    const res = await resolveListingPage("rot-000057-abb-salt-malzeme", "ALIM");
     expect(res.kind).toBe("ok");
   });
 
   it("başlık değişmişse kanonik adrese yönlendirir", async () => {
     fetchListing.mockResolvedValue(listing());
-    const res = await resolveListingPage("rot-000057-eski-baslik", "SATIS");
+    const res = await resolveListingPage("rot-000057-eski-baslik", "ALIM");
     expect(res).toEqual({
       kind: "redirect",
-      to: "/ilan/rot-000057-abb-salt-malzeme",
-    });
-  });
-
-  it("yanlış tabandaki kayıt doğru tabana yönlendirilir", async () => {
-    // SATIS kaydı /talep altında istendi → /ilan'a taşınır. Aksi hâlde aynı
-    // içerik iki adreste yaşar ve kanonik belirsizleşir.
-    fetchListing.mockResolvedValue(listing());
-    const res = await resolveListingPage("rot-000057-abb-salt-malzeme", "ALIM");
-    expect(res).toEqual({
-      kind: "redirect",
-      to: "/ilan/rot-000057-abb-salt-malzeme",
+      to: "/talep/rot-000057-abb-salt-malzeme",
     });
   });
 
@@ -66,7 +55,7 @@ describe("resolveListingPage", () => {
 
   it("numarayı büyük harfe çevirip sorar (URL küçük harfli)", async () => {
     fetchListing.mockResolvedValue(listing());
-    await resolveListingPage("rot-000057-abb-salt-malzeme", "SATIS");
+    await resolveListingPage("rot-000057-abb-salt-malzeme", "ALIM");
     expect(fetchListing).toHaveBeenCalledWith("ROT-000057");
   });
 });

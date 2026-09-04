@@ -6,7 +6,7 @@ import { BarChart3 } from "lucide-react";
 
 /**
  * Rapor sayfaları rol kapısı — backend `assertTypeAllowed` ile BİREBİR:
- * ALIM raporları `buy:bid:review`, SATIS raporları `sell:listing:manage` ister.
+ * raporlar `buy:bid:review` ister (satış raporları özellikle birlikte kaldırıldı).
  *
  * Denetim 2026-08-26 Parça 10 B3: 2026-07-27 ürün kararıyla backend'e
  * "GÖZETİM MUAFİYETİ" eklendi (Kurucu ve Yönetici işlem rolü taşımasa da

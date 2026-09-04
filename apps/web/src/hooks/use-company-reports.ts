@@ -3,7 +3,7 @@
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation } from "@tanstack/react-query";
 
-export type ReportType = "ALIM" | "SATIS";
+export type ReportType = "ALIM";
 
 /* ── Genel rapor ── */
 
@@ -146,7 +146,6 @@ export interface ComparisonParty {
   companyName: string;
   submitted: boolean;
   status: string;
-  isBuyNow: boolean;
   totalAmount: number | null;
   totalTry: number | null;
   bidCurrency: string | null;

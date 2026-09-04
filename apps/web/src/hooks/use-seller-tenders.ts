@@ -24,7 +24,7 @@ export interface SellerTenderRow {
   masked: boolean;
   canBid: boolean;
   invited: boolean;
-  /** İhaleyi açan firma bağlantım mı (aktif iş ilişkisi) — sıralama sinyali. */
+  /** Talebi açan firma bağlantım mı (aktif iş ilişkisi) — sıralama sinyali. */
   connected: boolean;
   myBidStatus: string | null;
   myBidVersion: number | null;
@@ -38,19 +38,15 @@ export interface SellerTenderRow {
   matchScore?: number;
   categories: { code: string; name: string }[];
   extraCategoryCount: number;
-  /** SATIS fiyatlandırma kapsamı (TOPLU/KALEM). */
-  priceScope?: "TOPLU" | "KALEM" | null;
-  /** SATIS ilanlarında taban + hemen-al (maskelide null). */
-  minPrice: string | null;
-  buyNowPrice: string | null;
 }
 
-export function useSellerTenders(type: "ALIM" | "SATIS" = "ALIM") {
+/** Başka firmaların AÇIK ALIM talepleri (Açık Talepler). */
+export function useSellerTenders() {
   return useQuery<SellerTenderRow[]>({
-    queryKey: ["company-listings", "seller-tenders", type],
+    queryKey: ["company-listings", "seller-tenders", "ALIM"],
     queryFn: async () => {
       const { data } = await companyApi.get<SellerTenderRow[]>(
-        `/company/listings/seller-tenders?type=${type}`,
+        "/company/listings/seller-tenders?type=ALIM",
       );
       return data;
     },

@@ -64,7 +64,7 @@ export interface ListingCardData {
   href: string;
   number: string | null;
   title: string;
-  /** SATIS kaydı = "ilan" (kapak taşıyabilir), ALIM kaydı = "talep" (asla görsel). */
+  /** "ilan" = kapak taşıyabilen kayıt (tarihsel; satış ilanı kaldırıldı), "talep" = asla görsel. */
   kind: "ilan" | "talep";
   coverImageUrl?: string | null;
   categoryIds: string[];
@@ -351,7 +351,7 @@ function PanelRow({
 
 function PublicTile({ listing }: { listing: PublicListingCard }) {
   const state = publicState(listing.status);
-  const href = listingPath(listing.type, listing.number, listing.title);
+  const href = listingPath(listing.number, listing.title);
   const primaryCategory =
     listing.categories.find((c) => c.level >= 3) ?? listing.categories[0];
 

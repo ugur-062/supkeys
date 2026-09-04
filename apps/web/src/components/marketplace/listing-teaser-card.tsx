@@ -28,7 +28,7 @@ function leftTone(left: number): string {
 }
 
 export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }) {
-  const href = listingPath(l.type, l.number, l.title);
+  const href = listingPath(l.number, l.title);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
   const activity = l.company.activities[0];

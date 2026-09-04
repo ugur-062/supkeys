@@ -38,11 +38,9 @@ export const PUBLIC_ROUTE_PREFIXES = [
   // İki liste `public/marketplace.test.ts` ile karşılaştırılır — ayrışırsa test
   // kırılır.
   "/alim-talepleri",
-  "/satilik",
   "/urunler", // firmalar-arası ürün dizini + kategori sayfaları
   "/talep",
   "/talep-onayla", // misafir talebi doğrulama (noindex, force-dynamic)
-  "/ilan",
   "/firmalar", // firma dizini — HERKESE AÇIK (görünürlük v2, 2026-09-04)
   "/nasil-calisir", // eski pazarlama anasayfası (kök pazar yerine döndü)
   "/hakkimizda",

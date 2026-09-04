@@ -57,7 +57,7 @@ export function BidComparisonView({
   const [showBidCurrencies, setShowBidCurrencies] = useState(false);
   const [includeRoundHistory, setIncludeRoundHistory] = useState(false);
 
-  const myTenders = useTenders(type);
+  const myTenders = useTenders();
   const report = useBidComparisonReport();
   const download = useDownloadBidComparisonReport();
 
@@ -234,10 +234,6 @@ export function BidComparisonView({
                       {!p.submitted ? (
                         <span className="text-xs font-normal text-zinc-400">
                           teklif yok
-                        </span>
-                      ) : p.isBuyNow ? (
-                        <span className="text-xs font-normal text-emerald-600">
-                          Hemen Al
                         </span>
                       ) : null}
                     </TableHeader>

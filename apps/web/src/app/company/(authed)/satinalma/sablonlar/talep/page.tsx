@@ -4,6 +4,6 @@ import { ListingTemplatesView } from "@/components/company/templates-view";
 
 export default function Page() {
   return (
-    <ListingTemplatesView type="ALIM" basePath="/company/satinalma/sablonlar" />
+    <ListingTemplatesView basePath="/company/satinalma/sablonlar" />
   );
 }
