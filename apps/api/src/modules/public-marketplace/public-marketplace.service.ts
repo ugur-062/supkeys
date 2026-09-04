@@ -18,12 +18,12 @@ import {
   itemSummaryOf,
 } from "./dto/public-listing.projection";
 import type { PublicListQueryDto } from "./dto/public-list-query.dto";
-import type { PublicProductQueryDto } from "./dto/public-product-query.dto";
+import type { PublicProductFacetQueryDto, PublicProductQueryDto } from "./dto/public-product-query.dto";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { anyPackageWhere } from "../../common/company/effective-tier";
 import {
+  contextualFacetCounts,
   productCategoryWhere,
-  productFacetCounts,
   productSearchClauses,
   productIndexOrderBy,
   productIndexWhere,
@@ -444,7 +444,9 @@ export class PublicMarketplaceService {
   /** Anasayfa sayı şeridi — gerçek sayımlar; eşiği web uygular. */
   async stats() {
     const now = new Date();
-    const [products, companies, categories, openDemands, catRows] = await Promise.all([
+    const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+    const dayAgo = new Date(now.getTime() - 86_400_000);
+    const [products, companies, categories, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
       this.prisma.companyItem.count({ where: publicProductWhere() }),
       this.prisma.company.count({
         where: { publicEnabled: true, isActive: true, isBlocked: false, slug: { not: null }, ...anyPackageWhere() },
@@ -455,6 +457,13 @@ export class PublicMarketplaceService {
         where: publicProductWhere(),
         select: { categoryId: true },
         take: FACET_SCAN_CAP,
+      }),
+      // HAREKET metrikleri (2026-09-04): mutlak sayılar erken aşamada küçük;
+      // "bu hafta eklenen" ve "son 24 saatte teklif" canlılığı gösterir.
+      this.prisma.companyItem.count({ where: { ...publicProductWhere(), publishedAt: { gte: weekAgo } } }),
+      this.prisma.listingBid.count({ where: { submittedAt: { gte: dayAgo }, listing: marketplaceListingWhere(now) } }),
+      this.prisma.company.count({
+        where: { companyVerificationStatus: "VERIFIED", publicEnabled: true, isActive: true, isBlocked: false, slug: { not: null }, ...anyPackageWhere() },
       }),
     ]);
     // "Popüler aramalar" — arama logu YOK; yedek: ürün sayısı en yüksek 20
@@ -473,6 +482,9 @@ export class PublicMarketplaceService {
       companies,
       categories,
       openDemands,
+      productsThisWeek,
+      bidsLast24h,
+      verifiedCompanies,
       popularCategories: top
         .map(([id, count]) => ({ id, name: names.get(id)?.name ?? null, count }))
         .filter((c): c is { id: string; name: string; count: number } => !!c.name),
@@ -484,10 +496,12 @@ export class PublicMarketplaceService {
    * kapı tek kaynak bir Prisma `where`; ham SQL'e çevirmek onu kopyalamak
    * olurdu. Tavan aşılırsa `truncated` döner — sessizce eksik sayılmaz.
    */
-  async productFacets(category?: string): Promise<{
+  async productFacets(q: PublicProductFacetQueryDto = {}): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
     activities: { activity: string; count: number }[];
+    verified: number;
+    price: { has: number; request: number };
     attributes: {
       key: string;
       nameTr: string;
@@ -496,44 +510,41 @@ export class PublicMarketplaceService {
     }[];
     truncated: boolean;
   }> {
-    // Tarama KATEGORİDEN BAĞIMSIZ: sektör ve şehir sayaçları TÜM vitrini
-    // göstermeli, yoksa kategori sayfasındaki "Sektör" listesi yalnız o
-    // sektörü gösterir ve ziyaretçi başka sektöre geçemez. Kategoriye özgü
-    // olan tek şey NİTELİK sayımı; o, aynı taramadan bellekte süzülür.
+    // Sert süzgeçler (arama + kategori) sorguda/bellekte; şehir/faaliyet/
+    // doğrulanmış/fiyat "diğer boyutlar" mantığıyla (`contextualFacetCounts`).
+    // Sektör listesi kategoriden BAĞIMSIZ kalır (kategori sayfasında başka
+    // sektöre geçilebilsin) → tek tarama, kategori süzgeci bellekte.
     const rows = await this.prisma.companyItem.findMany({
-      where: publicProductWhere(),
+      where: { ...publicProductWhere(), ...(q.q ? { AND: productSearchClauses(q.q) } : {}) },
       select: {
         categoryId: true,
+        priceMode: true,
         attributes: true,
-        company: { select: { city: true, activities: true } },
+        company: { select: { city: true, activities: true, companyVerificationStatus: true } },
       },
       take: FACET_SCAN_CAP + 1,
     });
     const truncated = rows.length > FACET_SCAN_CAP;
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
-
-    const counts = productFacetCounts(scanned);
-    const cats = await this.resolveCategories(counts.categories.map(([id]) => id));
+    const prefix = q.category ? categoryPrefix(q.category) : null;
+    const inCategory = prefix ? scanned.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : scanned;
+    const sel = { city: q.city, activity: q.activity, verified: q.verified === "1", price: q.price };
+    const ctx = contextualFacetCounts(inCategory, sel);
+    const catCounts = contextualFacetCounts(scanned, sel).categories;
+    const cats = await this.resolveCategories(catCounts.map(([id]) => id));
     return {
-      categories: counts.categories
+      categories: catCounts
         .map(([id, count]) => {
           const c = cats.get(id);
           return c ? { ...c, count } : null;
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
-      cities: counts.cities,
-      activities: counts.activities,
-      attributes: await this.attributeFacets(
-        category,
-        // Nitelik sayımı YALNIZ o daldaki ürünlerden: kod öneki, kategori
-        // süzgecinin (ata zinciri) bellek karşılığı.
-        category
-          ? scanned.filter((r) =>
-              (r.categoryId ?? "").startsWith(categoryPrefix(category) ?? category),
-            )
-          : [],
-      ),
+      cities: ctx.cities,
+      activities: ctx.activities,
+      verified: ctx.verified,
+      price: ctx.price,
+      attributes: await this.attributeFacets(q.category, inCategory),
       truncated,
     };
   }

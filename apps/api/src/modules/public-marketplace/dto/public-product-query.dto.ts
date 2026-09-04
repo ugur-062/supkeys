@@ -31,16 +31,40 @@ export class PublicProductQueryDto {
   @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
   category?: string;
 
+  /** Şehir — tek ya da virgüllü çoklu ("İstanbul,İzmir"). */
   @IsOptional()
   @IsString()
-  @MaxLength(60)
+  @MaxLength(400)
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
-  /** Sıralama — `relevance` (tamamlanma + yeni), `newest`, `price` (artan; fiyatsızlar sonda). */
+  /** Sıralama — `relevance`, `newest`, `price` (artan), `price_desc` (azalan); fiyatsızlar sonda. */
   @IsOptional()
-  @IsIn(["relevance", "newest", "price"])
-  sort?: "relevance" | "newest" | "price";
+  @IsIn(["relevance", "newest", "price", "price_desc"])
+  sort?: "relevance" | "newest" | "price" | "price_desc";
+
+  /** Birim fiyat aralığı (TRY). */
+  @IsOptional()
+  @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  priceMin?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  priceMax?: number;
+
+  /** Min. sipariş tavanı — bu miktarı aşan MOQ'lar dışarıda. */
+  @IsOptional()
+  @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  @Max(1_000_000_000)
+  moqMax?: number;
 
   /** Yalnız kimliği doğrulanmış firmaların ürünleri. */
   @IsOptional()
@@ -52,10 +76,10 @@ export class PublicProductQueryDto {
   @IsIn(["has", "request"])
   price?: "has" | "request";
 
-  /** Satıcının faaliyet tipi (CompanyActivity kodu); tanınmayan kod yok sayılır. */
+  /** Faaliyet tipi kodu — tek ya da virgüllü çoklu; tanınmayan kod yok sayılır. */
   @IsOptional()
   @IsString()
-  @MaxLength(40)
+  @MaxLength(200)
   activity?: string;
 
   /**
@@ -104,4 +128,29 @@ export class PublicProductFacetQueryDto {
   @IsOptional()
   @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
   category?: string;
+
+  /** v3 (2026-09-04): BAĞLAMA DUYARLI sayım — diğer seçimler bu alanlarla gelir. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  q?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  activity?: string;
+
+  @IsOptional()
+  @IsIn(["1"])
+  verified?: string;
+
+  @IsOptional()
+  @IsIn(["has", "request"])
+  price?: "has" | "request";
 }

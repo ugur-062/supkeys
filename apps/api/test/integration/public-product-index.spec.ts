@@ -213,9 +213,9 @@ describe("ürün dizini — kapı", () => {
     await seedProduct({}, { categoryId: "39121000", attributes: { koruma_sinifi: "IP54" } });
 
     // Kategorisiz: nitelik süzgeci gösterilmez.
-    expect((await service().productFacets()).attributes).toEqual([]);
+    expect((await service().productFacets({})).attributes).toEqual([]);
 
-    const f = await service().productFacets("39000000");
+    const f = await service().productFacets({ category: "39000000" });
     expect(f.attributes).toHaveLength(1);
     expect(f.attributes[0].key).toBe("koruma_sinifi");
     expect(f.attributes[0].values).toEqual([
@@ -243,7 +243,7 @@ describe("ürün dizini — kapı", () => {
       categoryId: "40171501",
       attributes: { malzeme: ["Çelik"], tolerans: "±0,1 mm" },
     });
-    const f = await service().productFacets("40000000");
+    const f = await service().productFacets({ category: "40000000" });
     expect(f.attributes.map((a) => a.key)).toEqual(["malzeme"]); // TEXT sayılmaz
     expect(f.attributes[0].values).toEqual([{ value: "Çelik", count: 1 }]);
   });
@@ -258,7 +258,7 @@ describe("ürün dizini — kapı", () => {
     });
     await seedProduct({}, { categoryId: "39121000", attributes: {} });
     // Hiçbir ürün doldurmamış → hiçbir şeyi daraltmayan satır gösterilmez.
-    expect((await service().productFacets("39000000")).attributes).toEqual([]);
+    expect((await service().productFacets({ category: "39000000" })).attributes).toEqual([]);
   });
 
   it("kategori sayfasında SEKTÖR listesi daralmaz — başka sektöre geçilebilmeli", async () => {
@@ -267,14 +267,14 @@ describe("ürün dizini — kapı", () => {
     await seedProduct({}, { categoryId: "39121000" });
     await seedProduct({}, { categoryId: "40171501" });
     // Elektrik kategorisindeyken bile iki sektör de sayaçta görünmeli.
-    const f = await service().productFacets("39000000");
+    const f = await service().productFacets({ category: "39000000" });
     expect(f.categories.map((c) => c.id).sort()).toEqual(["39000000", "40000000"]);
   });
 
   it("facet sayaçları yalnız kapıdan geçenleri sayar", async () => {
     await seedProduct({ city: "Bursa" });
     await seedProduct({ city: "Bursa", publicEnabled: false });
-    const f = await service().productFacets();
+    const f = await service().productFacets({});
     expect(f.cities.find((c) => c.city === "Bursa")?.count).toBe(1);
     expect(f.truncated).toBe(false);
   });
@@ -337,5 +337,39 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     expect(st.products).toBe(1);
     expect(st.companies).toBe(1);
     expect(st).toHaveProperty("openDemands");
+  });
+});
+
+/** Bağlama duyarlı facet + çoklu seçim + fiyat aralığı (2026-09-04, süzgeç v3). */
+describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("şehir ve faaliyet virgüllü çoklu (OR); fiyat aralığı ve MOQ tavanı", async () => {
+    await seedProduct({ city: "İstanbul", activities: ["MANUFACTURER"] }, { name: "A", priceMode: "FIXED", priceAmount: "100", moq: "5" });
+    await seedProduct({ city: "İzmir", activities: ["DISTRIBUTOR"] }, { name: "B", priceMode: "FIXED", priceAmount: "900", moq: "500" });
+    await seedProduct({ city: "Ankara", activities: ["SERVICE_PROVIDER"] }, { name: "C" });
+    expect((await service().listProducts({ city: "İstanbul,İzmir" })).total).toBe(2);
+    expect((await service().listProducts({ activity: "MANUFACTURER,DISTRIBUTOR" })).total).toBe(2);
+    expect((await service().listProducts({ priceMin: 500 })).items.map((p) => p.name)).toEqual(["B"]);
+    expect((await service().listProducts({ priceMax: 500 })).items.map((p) => p.name)).toEqual(["A"]);
+    // MOQ tavanı: MOQ'suz ürün (C) de geçer.
+    expect((await service().listProducts({ moqMax: 10 })).items.map((p) => p.name).sort()).toEqual(["A", "C"]);
+    expect((await service().listProducts({ sort: "price_desc" })).items[0].name).toBe("B");
+  });
+
+  it("facet sayıları diğer seçimlere göre; kendi boyutu hariç", async () => {
+    await seedProduct({ city: "İstanbul", activities: ["MANUFACTURER"] }, { name: "A" });
+    await seedProduct({ city: "İzmir", activities: ["MANUFACTURER"] }, { name: "B" });
+    await seedProduct({ city: "İzmir", activities: ["DISTRIBUTOR"] }, { name: "C" });
+    const f = await service().productFacets({ activity: "MANUFACTURER" });
+    // Şehir sayaçları faaliyet süzgeciyle daralır (C düşer).
+    expect([...f.cities].sort((a, b) => a.city.localeCompare(b.city))).toEqual([
+      { city: "İstanbul", count: 1 },
+      { city: "İzmir", count: 1 },
+    ]);
+    // Faaliyet sayaçları KENDİ seçimini hariç tutar: DISTRIBUTOR hâlâ görünür.
+    expect(f.activities.find((a) => a.activity === "DISTRIBUTOR")?.count).toBe(1);
   });
 });

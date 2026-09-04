@@ -13,12 +13,24 @@ import { publicProductWhere } from "./public-profile-gate";
 export interface ProductIndexParams {
   q?: string;
   category?: string;
+  /** Tek değer ya da virgüllü liste ("İstanbul,İzmir") — ÇOKLU seçim. */
   city?: string;
+  /** Tek kod ya da virgüllü liste — ÇOKLU seçim. */
   activity?: string;
   verified?: boolean;
   price?: "has" | "request";
+  /** TRY cinsinden birim fiyat aralığı (yalnız fiyatı yazılı ürünler). */
+  priceMin?: number;
+  priceMax?: number;
+  /** "Min. sipariş ≤ X" — MOQ'su bu değerden küçük/eşit ya da hiç olmayanlar. */
+  moqMax?: number;
   attr?: string[];
-  sort?: "relevance" | "newest" | "price";
+  sort?: "relevance" | "newest" | "price" | "price_desc";
+}
+
+/** Virgüllü çoklu değer → dizi (boşlar düşer, tavan 10). */
+export function multi(v?: string): string[] {
+  return (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 }
 
 export const PRODUCT_PAGE_SIZE = 24;
@@ -65,20 +77,27 @@ export function productIndexWhere(
   q: ProductIndexParams,
   extra: Prisma.CompanyItemWhereInput[] = [],
 ): Prisma.CompanyItemWhereInput {
+  const cities = multi(q.city);
+  const activities = multi(q.activity).filter(isCompanyActivity);
   const and: Prisma.CompanyItemWhereInput[] = [
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
-    // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz.
-    ...(q.city ? [{ company: { city: q.city } }] : []),
-    ...(q.activity && isCompanyActivity(q.activity)
-      ? [{ company: { activities: { has: q.activity } } }]
-      : []),
+    // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz. Çoklu seçim
+    // = OR (İstanbul VEYA İzmir).
+    ...(cities.length ? [{ company: { city: { in: cities } } }] : []),
+    ...(activities.length ? [{ company: { activities: { hasSome: activities } } }] : []),
     ...(q.verified ? [{ company: { companyVerificationStatus: "VERIFIED" as const } }] : []),
     ...(q.price === "has"
       ? [{ priceMode: { in: ["FIXED" as const, "TIERED" as const] } }]
       : q.price === "request"
         ? [{ priceMode: "ON_REQUEST" as const }]
         : []),
+    // Fiyat aralığı yalnız yazılı birim fiyatı olanlara uygulanır (sabit fiyat;
+    // kademeli ürünlerin tabanı priceAmount'ta yok — kapsam dışı, bilinçli).
+    ...(q.priceMin != null || q.priceMax != null
+      ? [{ priceAmount: { ...(q.priceMin != null ? { gte: q.priceMin } : {}), ...(q.priceMax != null ? { lte: q.priceMax } : {}) } }]
+      : []),
+    ...(q.moqMax != null ? [{ OR: [{ moq: null }, { moq: { lte: q.moqMax } }] }] : []),
     ...attributeClauses(q.attr),
     ...extra,
   ];
@@ -95,12 +114,55 @@ export function productIndexOrderBy(
 ): Prisma.CompanyItemOrderByWithRelationInput[] {
   if (sort === "newest") return [{ publishedAt: "desc" }, { completionScore: "desc" }];
   if (sort === "price") return [{ priceAmount: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }];
+  if (sort === "price_desc") return [{ priceAmount: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }];
   return [{ completionScore: "desc" }, { publishedAt: "desc" }];
 }
 
 export interface ProductFacetRow {
   categoryId: string | null;
-  company: { city: string | null; activities: string[] };
+  priceMode?: string;
+  company: { city: string | null; activities: string[]; companyVerificationStatus?: string };
+}
+
+/**
+ * BAĞLAMA DUYARLI facet sayımı (klasik faceted search): her boyutun sayısı,
+ * DİĞER seçili süzgeçler uygulanmış küme üzerinden hesaplanır; kendi boyutu
+ * hariç tutulur ki çoklu seçimde "İzmir (4)" seçili İstanbul'a rağmen doğru
+ * kalsın. Satırlar zaten arama + kategori (sert süzgeçler) ile daraltılmış
+ * gelir; şehir/faaliyet/doğrulanmış/fiyat burada bellekte uygulanır.
+ */
+export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndexParams) {
+  const cities = new Set(multi(sel.city));
+  const acts = new Set(multi(sel.activity));
+  const okCity = (r: ProductFacetRow) => cities.size === 0 || (!!r.company.city && cities.has(r.company.city));
+  const okAct = (r: ProductFacetRow) => acts.size === 0 || r.company.activities.some((a) => acts.has(a));
+  const okVer = (r: ProductFacetRow) => !sel.verified || r.company.companyVerificationStatus === "VERIFIED";
+  const okPrice = (r: ProductFacetRow) =>
+    !sel.price || (sel.price === "has" ? r.priceMode !== "ON_REQUEST" : r.priceMode === "ON_REQUEST");
+  const count = (rs: ProductFacetRow[], key: (r: ProductFacetRow) => string[]) => {
+    const m = new Map<string, number>();
+    for (const r of rs) for (const k of new Set(key(r))) m.set(k, (m.get(k) ?? 0) + 1);
+    return m;
+  };
+  const forCity = rows.filter((r) => okAct(r) && okVer(r) && okPrice(r));
+  const forAct = rows.filter((r) => okCity(r) && okVer(r) && okPrice(r));
+  const forVer = rows.filter((r) => okCity(r) && okAct(r) && okPrice(r));
+  const forPrice = rows.filter((r) => okCity(r) && okAct(r) && okVer(r));
+  const forCat = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r));
+  return {
+    categories: [...count(forCat, (r) => (r.categoryId && r.categoryId.length === 8 ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
+    cities: [...count(forCity, (r) => (r.company.city?.trim() ? [r.company.city.trim()] : [])).entries()]
+      .map(([city, count]) => ({ city, count }))
+      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+    activities: [...count(forAct, (r) => r.company.activities).entries()]
+      .map(([activity, count]) => ({ activity, count }))
+      .sort((a, b) => b.count - a.count),
+    verified: forVer.filter((r) => r.company.companyVerificationStatus === "VERIFIED").length,
+    price: {
+      has: forPrice.filter((r) => r.priceMode !== "ON_REQUEST").length,
+      request: forPrice.filter((r) => r.priceMode === "ON_REQUEST").length,
+    },
+  };
 }
 
 /** Sektör (L1) / şehir / faaliyet sayaçları — kategori adı çağıran çözer. */

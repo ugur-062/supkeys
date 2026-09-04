@@ -102,7 +102,7 @@ export class PublicMarketplaceController {
   @Get("products/facets")
   @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=1800")
   productFacets(@Query() q: PublicProductFacetQueryDto) {
-    return this.service.productFacets(q.category);
+    return this.service.productFacets(q);
   }
 
   /**
