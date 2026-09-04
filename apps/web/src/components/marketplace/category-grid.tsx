@@ -8,8 +8,8 @@ import Link from "next/link";
  * "KATEGORİYE GÖRE KEŞFET" — anasayfanın görsel ağırlığı (2026-09-04).
  *
  * "Aradığınız kalem kataloğun içinde" metin bandının YERİNE: ziyaretçiye
- * ağacı anlatmak yerine ağacı GÖSTERİYORUZ. Solda bir büyük kart, sağda 5×2
- * ızgara = 11 üst kategori. Her zaman görünür — sıfır envanterde de katalog
+ * ağacı anlatmak yerine ağacı GÖSTERİYORUZ. Solda bir büyük kart (2×2), sağda
+ * 4×2 ızgara = 9 üst kategori; 6 sütunlu iki satır tam dolar. Her zaman görünür — sıfır envanterde de katalog
  * gerçek ve gezilebilir; sayı yalnız > 0 ise basılır.
  *
  * Görsel kademesi `category-showcase.ts` + `category-photos.ts`: fotoğraf →
@@ -44,7 +44,7 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
 
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:grid-rows-2">
         <Tile category={lead} large />
-        {rest.slice(0, 10).map((c) => (
+        {rest.slice(0, 8).map((c) => (
           <Tile key={c.id} category={c} />
         ))}
       </div>

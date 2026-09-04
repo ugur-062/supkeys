@@ -54,15 +54,20 @@ export interface ProfileViewData {
   logoUrl: string | null;
   coverImageUrl: string | null;
   aboutText: string | null;
-  services: string[];
-  certifications: string[];
-  certificateImages: string[];
-  photos: string[];
-  foundedYear: number | null;
-  employeeCount: string | null;
-  website: string | null;
-  linkedinUrl: string | null;
-  instagramUrl: string | null;
+  /**
+   * Aşağıdakiler OPSİYONEL: herkese açık sayfa (anonim katman) bu alanları
+   * HİÇ vermez — `null` bile yazılsa RSC yüküne anahtar adı düşer ve "gizli
+   * alan HTML'de yok" sözleşmesi grep'te kırılır (2026-09-04).
+   */
+  services?: string[];
+  certifications?: string[];
+  certificateImages?: string[];
+  photos?: string[];
+  foundedYear?: number | null;
+  employeeCount?: string | null;
+  website?: string | null;
+  linkedinUrl?: string | null;
+  instagramUrl?: string | null;
   rating?: { avg: number; count: number } | null;
   /**
    * 2026-08-22 — firma bazında gruplu değerlendirme özeti (api → shared

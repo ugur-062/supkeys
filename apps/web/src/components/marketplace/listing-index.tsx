@@ -147,7 +147,7 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
           />
           <FacetGroup
             heading="Kapsam"
-            items={facets.scopes.map((s) => ({
+            items={(facets.scopes ?? []).map((s) => ({
               key: s.scope,
               label: SCOPE_LABEL[s.scope],
               count: s.count,

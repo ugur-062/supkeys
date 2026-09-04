@@ -190,7 +190,7 @@ export async function ProductIndex({
           />
           <FacetGroup
             heading="Faaliyet tipi"
-            items={facets.activities.map((a) => ({
+            items={(facets.activities ?? []).map((a) => ({
               key: a.activity,
               label: companyActivityLabel(a.activity),
               count: a.count,

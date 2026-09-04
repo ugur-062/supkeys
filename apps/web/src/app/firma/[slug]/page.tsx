@@ -161,17 +161,10 @@ export default async function PublicCompanyProfile({
             logoUrl: p.logoUrl,
             coverImageUrl: p.coverImageUrl,
             aboutText: p.aboutExcerpt,
-            services: [],
-            certifications: [],
-            certificateImages: [],
             photos: p.photos ?? [],
-            foundedYear: null,
-            employeeCount: null,
-            website: null,
-            linkedinUrl: null,
-            instagramUrl: null,
-            rating: null,
-            reviewSummary: null,
+            // Kapılı alanlar (kuruluş, çalışan, iletişim, hizmet, sertifika,
+            // puan) BURAYA YAZILMAZ — null bile değil; anahtar adı RSC
+            // yüküne düşerdi.
           }}
           gate={{
             stats: (

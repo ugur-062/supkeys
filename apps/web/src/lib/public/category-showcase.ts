@@ -47,7 +47,9 @@ export function buildShowcase(input: {
   productCovers: { categoryId: string | null; image: string | undefined }[];
   limit?: number;
 }): ShowcaseCategory[] {
-  const limit = input.limit ?? 11;
+  // 1 büyük (2×2) + 8 küçük = 6 sütunlu iki satır tam dolar; 11 iken iki
+  // kart üçüncü satıra taşıyordu (ekran görüntüsünde görüldü).
+  const limit = input.limit ?? 9;
   const nameById = new Map(input.segments.map((s) => [s.id, s.name]));
   const countById = new Map(input.counts.map((c) => [c.id, c.count]));
   const coverBySeg = new Map<string, string>();
