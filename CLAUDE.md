@@ -709,8 +709,8 @@ engellenmez. 2026-09-04 taraması: 1 kayıt (İkinci Firma Ltd, PNTT-9XP5,
 **Anasayfa sırası:** hero (iki taraf: "Al, sat, tek hesap." + SEKMELİ arama,
 varsayılan Ürünler, JS'siz de çalışır) → güven bandı → **kategori ızgarası
 (1 büyük + 8, her zaman dolu; `category-showcase.ts` + `category-photos.ts`
-— fotoğraf → ilk ürün kapağı → üretilmiş görsel; manifest BOŞ: 58 segmentin
-fotoğrafı yok, `public/categories/<kod>.jpg` + manifeste kod)** → eşikli
+— fotoğraf → ilk ürün kapağı → üretilmiş görsel; **2026-09-04 akşamı 58
+segmentin HEPSİNE fotoğraf eklendi**, bkz. § Kategori fotoğrafları)** → eşikli
 envanter (ürün ≥8, ilan ≥3; altında bölüm HİÇ çizilmez, boş kutu YOK) →
 nasıl çalışır → kapanış CTA. Kayıt CTA'sı 8 → 3. `SectionGrid`in boş
 durumu ve `EmptyListings` silindi; listelerde tek `PublicEmptyState`
@@ -738,10 +738,9 @@ yönlendirir — onboarding araya girse de kaybolmaz.
 sayaçları tek kaynaktan (58 segment, `registrationCountries()`), `CountUp`
 son değerle başlar (JS/hareket yoksa "0 ülke" kalmıyor).
 
-**AÇIK:** Render `MARKETPLACE_LIVE` hâlâ yazılmamış (public listings/products
-404) — `/urunler` boşken firma altı ürün görünür; kod hatası değil,
-görünürlük ≠ indekslenme kararı. Kategori fotoğrafları (58). Üye görünümü
-ekran görüntüsü alınamadı (test hesabı parolası `CLAUDE.md.local`ta yok).
+**AÇIK (o günkü durum, sonra kapandı):** Render `MARKETPLACE_LIVE` kullanıcı
+tarafından açıldı (2026-09-04); kategori fotoğrafları 58/58 eklendi (aynı gün
+akşamı); üye görünümü `CLAUDE.md.local`taki hesapla doğrulandı.
 
 ### Anasayfa & ürün süzgeci v3 (2026-09-04)
 
@@ -793,6 +792,38 @@ Lighthouse (prod build, lokal): anasayfa perf 88 · a11y 97 (kalan
 color-contrast bulguları bu turda kapatıldı) · SEO 100; `/urunler` 75
 (loremflickr görselleri). Küçük metinde `text-zinc-400` KULLANMA —
 beyazda 2,6:1; en az zinc-500 (zinc-100 zeminde zinc-600).
+
+### Kategori fotoğrafları — 58/58 (2026-09-04, akşam)
+
+Kullanıcı: "kategori fotoğraflarını daha iyi yap". Tonlu ikon kutuları
+(`category-visual.ts`) yerine her üst kategoriye GERÇEK fotoğraf:
+`apps/web/public/categories/<segment kodu>.webp` × 58 (1200×800, `fit:
+cover` + `position: attention`, ≤140 KB, toplam 4,4 MB — repo'da, CDN'de
+değil: build ile gelir, `next/image` yerel dosyayı optimize eder).
+
+**Kaynak ve lisans:** Openverse araması, YALNIZ `license=cc0,pdm` (atıf
+zorunlu değil). Kayıt `docs/category-photo-credits.md` (kod · başlık ·
+yaratıcı · lisans · kaynak bağlantısı) — kaynak değişirse diff'lenebilsin.
+Seçim gözle: aday kontak sayfaları (3 tur, ~450 aday) tek tek bakılarak
+seçildi; anahtar kelime İngilizce, sade (2 sözcük); `aspect_ratio=wide`
+dışında süzgeç koymak sonuçları boşaltıyor.
+
+**Kademe (tek kaynak `category-photos.ts`):** kaydın kendi görseli →
+`segmentPhotoSrc(categoryIds)` (herhangi seviyedeki koddan ilk iki hane +
+altı sıfır) → üretilmiş ikon (yalnız bilinmeyen kod). Çağıranlar:
+`CategoryImage` (ilan/talep kartı + detay bandı + `category` fallback),
+`CategoryVisualBox` (talep teaser bandı, alt degrade + çipler),
+`CategoryGrid` (anasayfa listesi küçük resmi), kategori sayfası başlığı
+(`PublicListPage image=`). **ÜRÜN bu kademeyi ATLAR** (`fallback="neutral"`):
+ürün görseli zorunlu, yokluğu kategori fotoğrafıyla saklanmamalı.
+`category-photos.test.ts` manifest ↔ dosya birebirliğini ve 58 segment =
+ikon eşlemesi kümesini kilitler.
+
+**Aynı turda bulunan hata:** `/urunler` ve kategori sayfasında React #418
+hydration — `PublicListPage` özet satırı `<p>` içinde `<p aria-live>` +
+`<div>` taşıyordu (süzgeç v3 kalıntısı). Sarmalayıcı `<div>` oldu. Hydration
+teşhisi için `next dev -p 3005` + Playwright console dinleme: prod build
+yalnız "#418" der, dev tam ağacı basar.
 
 ### Sözlük kalıntıları temizlendi (2026-09-03)
 
