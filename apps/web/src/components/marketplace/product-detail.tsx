@@ -175,18 +175,12 @@ export function ProductDetail({
           }
         />
 
-        {/* İLİŞKİLİ BLOKLAR (Europages): firmanın diğerleri · benzer ürünler ·
-            kategoride yeni (görüntülenme verisi yok — "popüler" denmez). */}
-        <RelatedRow
-          heading={`Bu firmanın diğer ürünleri${related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}`}
-          items={related.fromCompany.items}
-          href={`/firma/${companySlug}#urunler`}
-          hrefLabel="Tümünü gör"
-        />
-        <RelatedRow heading="Benzer ürünler" items={related.similar} />
-        <RelatedRow
-          heading={product.category ? `${product.category.name} içinde yeni` : "Kategoride yeni"}
-          items={related.popular}
+        {/* İLİŞKİLİ BLOKLAR (Europages) — panel aynı bileşeni panel adresleriyle kullanır. */}
+        <RelatedRows
+          related={related}
+          categoryName={product.category?.name ?? null}
+          companyHref={`/firma/${companySlug}#urunler`}
+          hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
         />
       </div>
       <RfqBanner prefill={product.name} />
@@ -511,17 +505,50 @@ export function ProductDetailBody({
 }
 
 
+/**
+ * İLİŞKİLİ BLOKLAR — firmanın diğerleri · benzer ürünler · kategoride yeni.
+ * Public sayfa ve PANEL aynı bileşen; yalnız bağlantı hedefi (`hrefFor`)
+ * değişir. Görüntülenme verisi yok → "popüler" değil "kategoride yeni".
+ */
+export function RelatedRows({
+  related,
+  categoryName,
+  companyHref,
+  hrefFor,
+}: {
+  related: RelatedProducts;
+  categoryName: string | null;
+  companyHref: string;
+  hrefFor: (c: ProductIndexCard) => string;
+}) {
+  return (
+    <>
+      <RelatedRow
+        heading={`Bu firmanın diğer ürünleri${related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}`}
+        items={related.fromCompany.items}
+        href={companyHref}
+        hrefLabel="Tümünü gör"
+        hrefFor={hrefFor}
+      />
+      <RelatedRow heading="Benzer ürünler" items={related.similar} hrefFor={hrefFor} />
+      <RelatedRow heading={categoryName ? `${categoryName} içinde yeni` : "Kategoride yeni"} items={related.popular} hrefFor={hrefFor} />
+    </>
+  );
+}
+
 /** Yatay ilişkili ürün satırı — boşsa çizilmez. */
 function RelatedRow({
   heading,
   items,
   href,
   hrefLabel,
+  hrefFor,
 }: {
   heading: string;
   items: ProductIndexCard[];
   href?: string;
   hrefLabel?: string;
+  hrefFor: (c: ProductIndexCard) => string;
 }) {
   if (items.length === 0) return null;
   return (
@@ -540,7 +567,7 @@ function RelatedRow({
           <li key={`${p.company.slug}/${p.slug}`} className="w-60 shrink-0 snap-start">
             <ProductCard
               product={p}
-              companySlug={p.company.slug}
+              href={hrefFor(p)}
               company={{ name: p.company.name, city: p.company.city, verified: p.company.verified, activities: p.company.activities }}
             />
           </li>

@@ -21,6 +21,7 @@ import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
+import { CompanyCard as DirectoryCard } from "@/components/marketplace/company-card";
 import { Thumb } from "@/components/ui/thumb";
 import {
   useCancelReferralInvite,
@@ -44,6 +45,7 @@ import {
 import { useFileComplaint } from "@/hooks/use-company-complaints";
 import {
   useCompanySearch,
+  useCompanySearchFacets,
   type DirectoryConnectionStatus,
 } from "@/hooks/use-company-directory";
 import { ListSkeleton } from "@/components/list";
@@ -353,8 +355,9 @@ export function ConnectionsView() {
   // F7: bağlantı mutasyonları connections:manage ister (Kurucu/Yönetici) —
   // izinsiz üye listeleri salt-okunur görür, davet/karar butonları gizli.
   const canManageConn = useHasCompanyPermission("connections:manage");
-  // Keşfet premium — STANDARD'da o sekme yok; URL'den gelse de Bağlantılarım'a düş.
-  const shownTab: TabKey = !isPaid && tab === "discover" ? "mine" : tab;
+  // Keşfet (dizin) HERKESE AÇIK (2026-09-04): görmek ücretsiz, listelenmek
+  // ücretli — anonim ziyaretçi /firmalar'ı görüyorken üyeden gizlenmezdi.
+  const shownTab: TabKey = tab;
   const [q, setQ] = useState("");
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
@@ -372,8 +375,10 @@ export function ConnectionsView() {
   // kullanıcıların çoğu "Bağlantılarım"da kalıyor. Sekme açılınca inerler
   // (sonrası önbellekten). Rozet besleyen sorgular (connections/incoming/
   // outgoing/referral) açılışta kalır — onlar gerçekten gerekli.
-  const discoverTabOpen = shownTab === "discover" && isPaid;
-  const search = useCompanySearch(debouncedQ, discoverTabOpen);
+  const discoverTabOpen = shownTab === "discover";
+  const [dirFilter, setDirFilter] = useState<{ activity?: string; verified?: boolean; hasProducts?: boolean }>({});
+  const search = useCompanySearch({ q: debouncedQ || undefined, ...dirFilter }, discoverTabOpen);
+  const dirFacets = useCompanySearchFacets(discoverTabOpen);
   const outgoing = useOutgoingInvites();
   const discover = useDiscover(discoverTabOpen);
   const cancelReferral = useCancelReferralInvite();
@@ -447,10 +452,7 @@ export function ConnectionsView() {
   const TABS: { key: TabKey; label: string; icon: typeof Users; count?: number }[] =
     [
       { key: "mine", label: "Bağlantılarım", icon: Users, count: connCount },
-      // Keşfet (dizin arama + kategori keşfi) premium — STANDARD'da gizli.
-      ...(isPaid
-        ? [{ key: "discover" as const, label: "Keşfet", icon: Compass }]
-        : []),
+      { key: "discover" as const, label: "Keşfet", icon: Compass },
       {
         key: "incoming",
         label: "İstekler",
@@ -593,7 +595,7 @@ export function ConnectionsView() {
       </div>
 
       {/* Keşfet — arama + dizin (yalnız premium) */}
-      {shownTab === "discover" && isPaid ? (
+      {shownTab === "discover" ? (
         <section
           id="baglantilar-panel-discover"
           role="tabpanel"
@@ -650,30 +652,64 @@ export function ConnectionsView() {
               </p>
             </div>
           ) : null}
+          {/* Süzgeçler — herkese açık /firmalar ile aynı küme (faaliyet,
+              doğrulanmış, ürünü olan); kart da aynı bileşen. */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {[
+              { k: "verified" as const, l: "Doğrulanmış", n: dirFacets.data?.verified },
+              { k: "hasProducts" as const, l: "Ürünü olan", n: dirFacets.data?.withProducts },
+            ].map((f) => (
+              <button
+                key={f.k}
+                type="button"
+                onClick={() => setDirFilter((d) => ({ ...d, [f.k]: d[f.k] ? undefined : true }))}
+                aria-pressed={!!dirFilter[f.k]}
+                className={cn("rounded-full px-3 py-1 font-medium transition", dirFilter[f.k] ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200")}
+              >
+                {f.l}{f.n ? <span className="ml-1 opacity-70">{f.n}</span> : null}
+              </button>
+            ))}
+            {(dirFacets.data?.activities ?? []).map((a) => (
+              <button
+                key={a.activity}
+                type="button"
+                onClick={() => setDirFilter((d) => ({ ...d, activity: d.activity === a.activity ? undefined : a.activity }))}
+                aria-pressed={dirFilter.activity === a.activity}
+                className={cn("rounded-full px-3 py-1 font-medium transition", dirFilter.activity === a.activity ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200")}
+              >
+                {companyActivityLabel(a.activity)}<span className="ml-1 opacity-70">{a.count}</span>
+              </button>
+            ))}
+          </div>
           {search.isLoading ? (
             <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
-          ) : !search.data || search.data.length === 0 ? (
+          ) : !search.data || search.data.items.length === 0 ? (
             <EmptyBox
               title="Firma bulunamadı"
               desc={
                 q
                   ? `"${q}" ile eşleşen firma yok.`
-                  : "Henüz keşfedilecek herkese açık firma yok."
+                  : "Henüz listelenen firma yok."
               }
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {search.data.map((c) => (
-                <CompanyCard
-                  key={c.rothernId ?? c.name}
-                  rothernId={c.rothernId}
-                  name={c.name}
-                  industry={c.industry}
-                  city={c.city}
-                  badge={STATUS_BADGE[c.connectionStatus]}
-                />
-              ))}
-            </div>
+            <>
+              <p className="text-xs text-zinc-500">{search.data.total.toLocaleString("tr-TR")} firma</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {search.data.items.map((c) => (
+                  <DirectoryCard
+                    key={c.slug}
+                    company={c}
+                    href={c.rothernId ? `/company/firma/${c.rothernId}` : `/company/firma/${c.slug}`}
+                    badge={
+                      STATUS_BADGE[c.connectionStatus] ? (
+                        <Badge color={STATUS_BADGE[c.connectionStatus]!.color}>{STATUS_BADGE[c.connectionStatus]!.label}</Badge>
+                      ) : null
+                    }
+                  />
+                ))}
+              </div>
+            </>
           )}
         </section>
       ) : null}

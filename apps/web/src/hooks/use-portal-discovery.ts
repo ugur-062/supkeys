@@ -5,6 +5,10 @@ import type {
   PublicProduct,
   PublicProductCompany,
   ProductPriceFields,
+  ProductListParams,
+  ProductIndexPage,
+  ProductFacets,
+  RelatedProducts,
 } from "@/lib/public/marketplace-api";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
@@ -131,7 +135,7 @@ export type MemberProduct = PublicProduct & ProductPriceFields;
 export function usePublicProduct(companySlug: string, productSlug: string) {
   return useQuery<{
     product: MemberProduct;
-    company: PublicProductCompany & { verified?: boolean };
+    company: PublicProductCompany & { verified?: boolean; website?: string | null };
   } | null>({
     queryKey: ["member-product", companySlug, productSlug],
     enabled: !!companySlug && !!productSlug,
@@ -149,5 +153,59 @@ export function usePublicProduct(companySlug: string, productSlug: string) {
       }
     },
     staleTime: 60_000,
+  });
+}
+
+
+/**
+ * ÜRÜN ARA — herkese açık `/urunler` ile AYNI süzgeç/sıralama (API tek
+ * kaynak `product-index.ts`), sayfalı; kendi ürünler hariç.
+ */
+export function useDiscoverSearch(params: ProductListParams & { page?: number }) {
+  return useQuery<ProductIndexPage>({
+    queryKey: ["company-items", "discover-search", params],
+    queryFn: async () => {
+      const sp = new URLSearchParams();
+      if (params.q) sp.set("q", params.q);
+      if (params.category) sp.set("category", params.category);
+      if (params.city) sp.set("city", params.city);
+      if (params.activity) sp.set("activity", params.activity);
+      if (params.verified) sp.set("verified", "1");
+      if (params.price) sp.set("price", params.price);
+      if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
+      for (const a of params.attr ?? []) sp.append("attr", a);
+      if (params.page && params.page > 1) sp.set("page", String(params.page));
+      const qs = sp.toString();
+      const { data } = await companyApi.get<ProductIndexPage>(`/company/items/discover/search${qs ? `?${qs}` : ""}`);
+      return data;
+    },
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
+
+export function useDiscoverProductFacets() {
+  return useQuery<Omit<ProductFacets, "attributes" | "truncated">>({
+    queryKey: ["company-items", "discover-facets"],
+    queryFn: async () => {
+      const { data } = await companyApi.get("/company/items/discover/facets");
+      return data;
+    },
+    staleTime: 300_000,
+  });
+}
+
+/** İlişkili bloklar — firma altı public uç (anahtara tabi değil), panel de okur. */
+export function useRelatedProducts(companySlug: string, productSlug: string) {
+  return useQuery<RelatedProducts>({
+    queryKey: ["public-product", "related", companySlug, productSlug],
+    enabled: !!companySlug && !!productSlug,
+    queryFn: async () => {
+      const { data } = await companyApi.get<RelatedProducts>(
+        `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}/related`,
+      );
+      return data;
+    },
+    staleTime: 300_000,
   });
 }

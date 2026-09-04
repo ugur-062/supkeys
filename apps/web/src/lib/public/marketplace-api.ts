@@ -327,7 +327,7 @@ export function fetchFeaturedProducts(): Promise<ProductIndexCard[]> {
 
 export function fetchRelatedProducts(companySlug: string, productSlug: string): Promise<RelatedProducts> {
   return getJson<RelatedProducts>(
-    `/public/products/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}/related`,
+    `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}/related`,
     { fromCompany: { items: [], total: 0 }, similar: [], popular: [] },
     300,
   );

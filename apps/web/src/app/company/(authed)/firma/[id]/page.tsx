@@ -11,6 +11,7 @@ import {
 } from "@/components/catalyst/dropdown";
 import { Text } from "@/components/catalyst/text";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
+import { ProductCard } from "@/components/marketplace/product-card";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import {
@@ -63,7 +64,7 @@ export default function CompanyProfilePage() {
     );
   }
 
-  const { profile: p, connectionStatus, connectionId, connected, listings } =
+  const { profile: p, connectionStatus, connectionId, connected, listings, products, productCount } =
     data;
 
   const handleConnect = async () => {
@@ -172,10 +173,33 @@ export default function CompanyProfilePage() {
     </>
   );
 
+  // ÜRÜNLER — herkese açık profildeki ızgarayla AYNI kart ve kapı; üye fiyatı görür.
+  const productsBlock =
+    products.length > 0 ? (
+      <section id="urunler" className="scroll-mt-24">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
+            Ürünler ve hizmetler
+            <span className="ml-2 text-base font-normal text-zinc-400">{productCount.toLocaleString("tr-TR")}</span>
+          </h2>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          {products.map((pr) => (
+            <ProductCard
+              key={pr.slug}
+              product={pr}
+              href={`/company/satinalma/urunler/${pr.company.slug}/${pr.slug}`}
+              cta="Bilgi iste"
+            />
+          ))}
+        </div>
+      </section>
+    ) : null;
+
   const tenders = (
     <section className="card p-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-zinc-900">Açık Satın Alma Taleplerini</h2>
+        <h2 className="text-base font-semibold text-zinc-900">Açık Satın Alma Talepleri</h2>
         {!connected ? (
           <span className="inline-flex items-center gap-2 text-xs text-zinc-400">
             <Lock className="h-3.5 w-3.5" />
@@ -231,9 +255,20 @@ export default function CompanyProfilePage() {
   return (
     <div className="space-y-6">
       <BackLink />
-      <CompanyProfileView profile={p} actions={actions}>
-        {tenders}
-      </CompanyProfileView>
+      {/* Herkese açık `/firma/<slug>` ile AYNI düzen (tek bileşen): kimlik →
+          Hakkında → ürünler → açık talepler (üyeye özel) · sağda hizmet,
+          sertifika, değerlendirmeler. Üye ek olarak Rothern ID, iletişim ve
+          puan dağılımını görür. */}
+      <CompanyProfileView
+        profile={p}
+        actions={actions}
+        main={
+          <>
+            {productsBlock}
+            {tenders}
+          </>
+        }
+      />
 
       <ReasonDialog
         open={blockOpen}

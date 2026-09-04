@@ -4,9 +4,11 @@ import { PageContainer } from "@/components/list/page-container";
 import {
   ProductBreadcrumb,
   ProductDetailBody,
+  RelatedRows,
 } from "@/components/marketplace/product-detail";
 import { PanelInquiryDialog } from "@/components/inquiries/panel-inquiry-dialog";
-import { usePublicProduct } from "@/hooks/use-portal-discovery";
+import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discovery";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -30,6 +32,7 @@ export default function PanelProductPage() {
   const firmaSlug = params?.firmaSlug ?? "";
   const urunSlug = params?.urunSlug ?? "";
   const { data, isLoading, isError } = usePublicProduct(firmaSlug, urunSlug);
+  const related = useRelatedProducts(firmaSlug, urunSlug);
 
   if (isLoading) {
     return (
@@ -69,6 +72,9 @@ export default function PanelProductPage() {
       <ProductBreadcrumb
         trail={[
           { label: "Ürün Ara", href: "/company/satinalma/urunler" },
+          ...(product.category
+            ? [{ label: product.category.name, href: `/company/satinalma/urunler?kategori=${product.category.id}` }]
+            : []),
           { label: company.name, href: companyHref },
         ]}
         current={product.name}
@@ -78,6 +84,19 @@ export default function PanelProductPage() {
         product={product}
         company={company}
         companyHref={companyHref}
+        sellerSite={
+          company.website ? (
+            <a
+              href={company.website}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700 hover:text-zinc-950"
+            >
+              Firmanın web sitesi
+              <ArrowTopRightOnSquareIcon aria-hidden className="size-3.5" />
+            </a>
+          ) : null
+        }
         cta={
           <>
             {/* Kimlik SORULMAZ — kullanıcı zaten giriş yapmış. Misafir
@@ -115,6 +134,14 @@ export default function PanelProductPage() {
           companyName: company.name,
         }}
       />
+      {related.data ? (
+        <RelatedRows
+          related={related.data}
+          categoryName={product.category?.name ?? null}
+          companyHref={companyHref}
+          hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
+        />
+      ) : null}
     </PageContainer>
   );
 }
