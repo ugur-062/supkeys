@@ -364,7 +364,10 @@ async function main() {
     }
     // Eski demo ürünleri ve TEKLİFSİZ açık ilanları temizle (yeniden kurulacak).
     await prisma.companyItem.deleteMany({ where: { companyId } });
-    await prisma.listing.deleteMany({ where: { companyId, status: "OPEN", bids: { none: {} }, orders: { none: {} } } });
+    // Demo teklifleri de sil (hepsi demo firmalardan) — yoksa teklifli ilan
+    // kalır ve yeniden oluşturulan ilanla ÇİFTLENİR (2026-09-04'te yaşandı).
+    await prisma.listingBid.deleteMany({ where: { listing: { companyId, status: "OPEN", orders: { none: {} } } } });
+    await prisma.listing.deleteMany({ where: { companyId, status: "OPEN", orders: { none: {} } } });
     id[d.key] = { companyId, ownerId, slug };
     console.log(`  🏢 ${existingUser ? "güncellendi" : "oluşturuldu"} ${d.name} [${d.tier}] /firma/${slug}`);
   }

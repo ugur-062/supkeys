@@ -207,7 +207,7 @@ export async function ProductIndex({
           <FacetGroup
             heading="Firma profili"
             items={[
-              { key: "v", label: "Doğrulanmış", count: page.total, href: filterHref({ dogrulanmis: activeVerified ? undefined : "1" }), active: activeVerified },
+              { key: "v", label: "Doğrulanmış", href: filterHref({ dogrulanmis: activeVerified ? undefined : "1" }), active: activeVerified },
             ]}
           />
           <FacetGroup
@@ -249,8 +249,8 @@ export async function ProductIndex({
           <FacetGroup
             heading="Fiyat"
             items={[
-              { key: "var", label: "Fiyatı yazılı", count: page.total, href: filterHref({ fiyat: activePrice === "var" ? undefined : "var" }), active: activePrice === "var" },
-              { key: "teklif", label: "Teklifle", count: page.total, href: filterHref({ fiyat: activePrice === "teklif" ? undefined : "teklif" }), active: activePrice === "teklif" },
+              { key: "var", label: "Fiyatı yazılı", href: filterHref({ fiyat: activePrice === "var" ? undefined : "var" }), active: activePrice === "var" },
+              { key: "teklif", label: "Teklifle", href: filterHref({ fiyat: activePrice === "teklif" ? undefined : "teklif" }), active: activePrice === "teklif" },
             ]}
           />
           {/* Nitelik süzgeçleri yalnız kategori sayfasında dolu gelir —

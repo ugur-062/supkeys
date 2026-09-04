@@ -29,7 +29,8 @@ export function FacetGroup({
   items: {
     key: string;
     label: string;
-    count: number;
+    /** Sayaç; verilmezse yalnız etiket (toplamı tekrar etmek yanıltıcıydı). */
+    count?: number;
     href: string;
     active: boolean;
   }[];
@@ -53,7 +54,9 @@ export function FacetGroup({
               aria-current={i.active ? "true" : undefined}
             >
               <span className="line-clamp-1">{i.label}</span>
-              <span className="shrink-0 text-xs text-zinc-500">{i.count}</span>
+              {i.count != null ? (
+                <span className="shrink-0 text-xs text-zinc-500">{i.count}</span>
+              ) : null}
             </Link>
           </li>
         ))}

@@ -157,7 +157,6 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
             items={(["7", "30"] as const).map((d) => ({
               key: d,
               label: `${d} gün içinde kapanacak`,
-              count: page.total,
               href: toggle("sure", d, activeWithin === d),
               active: activeWithin === d,
             }))}

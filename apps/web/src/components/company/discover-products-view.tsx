@@ -126,7 +126,7 @@ export function DiscoverProductsView() {
           />
           <FacetGroup
             heading="Firma profili"
-            items={[{ key: "v", label: "Doğrulanmış", count: data?.total ?? 0, href: toggle("dogrulanmis", "1", verified), active: verified }]}
+            items={[{ key: "v", label: "Doğrulanmış", href: toggle("dogrulanmis", "1", verified), active: verified }]}
           />
           <FacetGroup
             heading="Faaliyet tipi"
@@ -145,8 +145,8 @@ export function DiscoverProductsView() {
           <FacetGroup
             heading="Fiyat"
             items={[
-              { key: "var", label: "Fiyatı yazılı", count: data?.total ?? 0, href: toggle("fiyat", "var", price === "var"), active: price === "var" },
-              { key: "teklif", label: "Teklifle", count: data?.total ?? 0, href: toggle("fiyat", "teklif", price === "teklif"), active: price === "teklif" },
+              { key: "var", label: "Fiyatı yazılı", href: toggle("fiyat", "var", price === "var"), active: price === "var" },
+              { key: "teklif", label: "Teklifle", href: toggle("fiyat", "teklif", price === "teklif"), active: price === "teklif" },
             ]}
           />
         </aside>
