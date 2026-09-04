@@ -28,7 +28,7 @@ const PUBLIC_DIRS = [
   "components/marketplace",
   "components/marketing",
 ];
-const FORBIDDEN = /\b(e-ihale|ihale\w*|Satışçı)\b/iu;
+const FORBIDDEN = /\b(e-ihale|ihale\w*|Satışçı|Satılık)\b/iu;
 
 function files(p: string): string[] {
   const full = path.join(SRC, p);
@@ -41,7 +41,7 @@ function stripComments(src: string): string {
 }
 
 describe("herkese açık yüzeyde yasak terimler", () => {
-  it("ihale / e-ihale / Satışçı geçmez", () => {
+  it("ihale / e-ihale / Satışçı / Satılık geçmez (satış ilanı denir)", () => {
     const hits: string[] = [];
     for (const dir of PUBLIC_DIRS) {
       for (const f of files(dir)) {

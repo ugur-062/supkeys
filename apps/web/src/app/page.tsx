@@ -38,7 +38,7 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
  *  9 iki kart (her zaman) · 10 firmalar (≥4) · 11 nasıl çalışır ·
  * 12 popüler kategoriler · 13 SEO paragrafı + footer.
  *
- * Sıfır veride görünen: 1, 2, 4, 6, 9, 11, 13. Boş kutu YOK. Satılık İlanlar
+ * Sıfır veride görünen: 1, 2, 4, 6, 9, 11, 13. Boş kutu YOK. Satış İlanları
  * anasayfada YOK (footer). Kayıt CTA'sı üç: header · hero şeridi · iki kart.
  * `force-dynamic` YOK — public liste, nonce'suz CSP, ISR.
  */

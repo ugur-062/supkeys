@@ -13,7 +13,7 @@ export function PublicEmptyState({
   clearHref,
   extra,
 }: {
-  /** "Ürün", "Alım talebi", "Satılık ilan", "Firma" */
+  /** "Ürün", "Alım talebi", "Satış ilanı", "Firma" */
   noun: string;
   /** Süzgeç aktifken temizleme hedefi; yoksa düğme basılmaz. */
   clearHref?: string;

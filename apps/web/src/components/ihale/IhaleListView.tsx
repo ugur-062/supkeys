@@ -27,7 +27,7 @@ export function IhaleListView({
   isError,
   onRetry,
   listingType = "ALIM",
-  emptyCtaLabel = "Yeni Satın Alma Talebi Aç",
+  emptyCtaLabel = "Satın Alma Talebi Aç",
 }: {
   items: TenderListItem[];
   isLoading: boolean;

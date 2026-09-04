@@ -26,7 +26,7 @@ export async function generateMetadata({
     `${listing.number} numaralı satış ilanı — ${listing.company.city ?? "Türkiye"}.`;
 
   return {
-    title: `${listing.title} — satılık ilan ${listing.number}`,
+    title: `${listing.title} — satış ilanı ${listing.number}`,
     description,
     alternates: { canonical },
     // Kapanmış / sahibi dizinlemeyi kapatmış ilan: sayfa DURUR, indeks YOK.

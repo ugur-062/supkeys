@@ -11,7 +11,7 @@ import { slugifyText } from "@rothern/shared";
  *   kayıt          | satınalma portalı | satış portalı   | PAZAR YERİ (burası)
  *   ---------------|-------------------|-----------------|--------------------
  *   ALIM listing   | "Taleplerim"      | "Açık Talepler" | "Alım Talepleri"
- *   SATIS listing  | —                 | "Satış İlanlarım"| "Satılık İlanlar"
+ *   SATIS listing  | —                 | "Satış İlanlarım"| "Satış İlanları"
  *
  * Aynı kaydın üç adı olması gevşeklik değil, iyelik kipinin zorunlu sonucu:
  * ziyaretçiye "Taleplerim" demek yanlış, "Açık Talepler" ise "bana açık"
@@ -44,9 +44,9 @@ export const MARKETPLACE_ROUTES = {
 
 export const MARKETPLACE_LABELS = {
   demands: "Alım Talepleri",
-  offers: "Satılık İlanlar",
+  offers: "Satış İlanları",
   /**
-   * ÜRÜN ≠ İLAN. İlan süreli bir işlemdir ("Satılık İlanlar"), ürün firmanın
+   * ÜRÜN ≠ İLAN. İlan süreli bir işlemdir ("Satış İlanları"), ürün firmanın
    * kalıcı vitrinidir. Ziyaretçiye "ilan" demek, kapanmayan bir kaydı süreli
    * sanmasına yol açar.
    */
@@ -54,7 +54,7 @@ export const MARKETPLACE_LABELS = {
   companies: "Firmalar",
   /** Tekil kayıt için başlık öneki (sayfa H1'inde değil, listelerde rozet). */
   demandOne: "Alım talebi",
-  offerOne: "Satılık ilan",
+  offerOne: "Satış ilanı",
 } as const;
 
 export type PublicListingType = "ALIM" | "SATIS";

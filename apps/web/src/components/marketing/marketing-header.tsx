@@ -22,7 +22,7 @@ import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 const navigation = [
   // Pazar yeri satırları yalnız yayın anahtarı AÇIKKEN görünür; kapalıyken
   // 404'e link vermiş olurduk.
-  // v2 sırası: Ürünler · Firmalar · Alım Talepleri. "Satılık İlanlar" header'da
+  // v2 sırası: Ürünler · Firmalar · Alım Talepleri. "Satış İlanları" header'da
   // DEĞİL (footer + /urunler yan bağlantısı) — anasayfa ürün/firma/talep odaklı.
   ...(MARKETPLACE_LIVE
     ? [

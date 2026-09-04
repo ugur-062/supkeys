@@ -18,7 +18,7 @@ export const SIGNUP_INTENTS = {
   },
   ilan: {
     label: "Ürün veya ilan yayınlamak",
-    hint: "Satılık ilan aç, teklif ya da hemen-al ile sat.",
+    hint: "Satış ilanı aç, teklif ya da hemen-al ile sat.",
     href: "/company/satis/ilanlarim/yeni",
   },
   vitrin: {

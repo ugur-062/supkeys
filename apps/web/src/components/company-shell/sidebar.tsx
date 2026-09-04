@@ -146,7 +146,7 @@ export function CompanySidebarContent({
   const roles = user?.roles ?? [];
   const canAct = useHasCompanyPermission("approval:act");
   const { data: pendingCount } = usePendingApprovalCount(canAct);
-  // Madde 19: ana menü "Yeni Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
+  // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:create");
   const canCreateSellListing = useHasCompanyPermission("sell:listing:create");
@@ -232,7 +232,7 @@ export function CompanySidebarContent({
         </div>
       ) : null}
 
-      {/* Madde 19: "Yeni Satın Alma Talebi Aç" — ana menüde belirgin CTA (aktif portala
+      {/* Madde 19: "Satın Alma Talebi Aç" — ana menüde belirgin CTA (aktif portala
           göre satınalma ihalesi / satış ilanı; izin + portal erişimi şart). */}
       {!minimal &&
       available.includes(active) &&
@@ -249,8 +249,8 @@ export function CompanySidebarContent({
               expanded
                 ? undefined
                 : active === "satinalma"
-                  ? "Yeni Satın Alma Talebi Aç"
-                  : "Yeni Satış İlanı"
+                  ? "Satın Alma Talebi Aç"
+                  : "Satış İlanı Aç"
             }
             className={cn(
               "flex h-9 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition",
@@ -262,7 +262,7 @@ export function CompanySidebarContent({
             <PlusIcon className="size-4 shrink-0" aria-hidden />
             {expanded ? (
               <span className="truncate">
-                {active === "satinalma" ? "Yeni Satın Alma Talebi Aç" : "Yeni Satış İlanı"}
+                {active === "satinalma" ? "Satın Alma Talebi Aç" : "Satış İlanı Aç"}
               </span>
             ) : null}
           </Link>

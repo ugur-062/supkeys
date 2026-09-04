@@ -580,7 +580,7 @@ Aynı gün ikinci prompt; sabahki "görünürlük katmanı" kararlarının bir k
 TERSİNE çevirdi (kullanıcı kararı). Commit'ler b641702c … (a11y).
 
 **İlke:** ürün ve firma TAMAMEN açık ve gezilebilir; alım talebi GİZLİ ama
-cezbedici; anasayfada Satılık İlanlar YOK (footer + `/urunler` yan bağlantı).
+cezbedici; anasayfada Satış İlanları YOK (footer + `/urunler` yan bağlantı).
 Tablo `lib/public/visibility.ts` (tek kaynak).
 
 | Yüzey | Anonim GÖRÜR | Üyeye |
@@ -1048,7 +1048,7 @@ uymaz. Tek kaynak `apps/web/src/lib/public/marketplace.ts`:
 | kayıt | satınalma | satış | **pazar yeri** |
 |-------|-----------|-------|----------------|
 | ALIM | "Taleplerim" | "Açık Talepler" | **"Alım Talepleri"** |
-| SATIS | — | "Satış İlanlarım" | **"Satılık İlanlar"** |
+| SATIS | — | "Satış İlanlarım" | **"Satış İlanları"** (2026-09-04: "Satılık" değil) |
 | ÜRÜN | — | "Ürünlerim" | **"Ürünler"** |
 
 **Ürün ≠ ilan.** İlan süreli bir işlemdir, ürün firmanın kalıcı vitrinidir;

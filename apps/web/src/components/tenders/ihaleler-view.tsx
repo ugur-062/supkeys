@@ -349,7 +349,7 @@ export function IhalelerView({
         isError={list.isError}
         onRetry={() => list.refetch()}
         listingType={listingType}
-        emptyCtaLabel={isSatis ? "Yeni Satış İlanı" : "Yeni Satın Alma Talebi Aç"}
+        emptyCtaLabel={isSatis ? "Satış İlanı Aç" : "Satın Alma Talebi Aç"}
       />
 
       {totalPages > 1 ? (

@@ -31,7 +31,7 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
             Kategoriye göre keşfet
           </h2>
           <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">
-            Ürünler, alım talepleri ve satılık ilanlar 58 üst kategori altında
+            Ürünler, alım talepleri ve satış ilanları 58 üst kategori altında
             sınıflandırılır. Aradığınız dalı seçin.
           </p>
         </div>
