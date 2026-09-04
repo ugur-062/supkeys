@@ -65,13 +65,6 @@ export class PublicMarketplaceController {
     return this.service.featuredProducts();
   }
 
-  /** Ürün sayfası ilişkili bloklar (firmanın diğerleri / benzer / kategoride yeni). */
-  @Get("products/:companySlug/:productSlug/related")
-  @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
-  related(@Param("companySlug") c: string, @Param("productSlug") p: string) {
-    return this.service.relatedProducts(c, p);
-  }
-
   /** Süzgeç sayaçları. Liste kadar sık değişmez → daha uzun önbellek. */
   @Get("listings/facets")
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")

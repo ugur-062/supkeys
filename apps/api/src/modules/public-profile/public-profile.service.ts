@@ -1,11 +1,5 @@
 import { Prisma } from "@rothern/db";
-import {
-  categoryPrefix,
-  isCategoryCode,
-  isCompanyActivity,
-  profileCompleteness,
-  tokenizeQuery,
-} from "@rothern/shared";
+import { categoryPrefix, isCategoryCode, tokenizeQuery } from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -20,6 +14,8 @@ import {
   resolveCategoryAttributes,
 } from "../../common/company/category-attributes";
 import { looksLikeProse } from "../../common/company/public-text-quality";
+import { buildDirectory, directoryFacets, type DirectoryParams } from "../../common/company/company-directory";
+import { relatedProducts } from "../../common/company/related-products";
 import {
   REVIEW_SUMMARY_SELECT,
   REVIEW_SUMMARY_TAKE,
@@ -133,163 +129,20 @@ export class PublicProfileService {
     };
   }
 
-  /**
-   * HERKESE AÇIK FİRMA DİZİNİ (v2, 2026-09-04 — kullanıcı kararı; 2 Eylül'de
-   * girişli yapılmıştı). Listelenme koşulu profil kapısı + (≥1 yayında ürün
-   * VEYA profil tamlığı ≥ %60): boş profil dizini şişirmez, test verili
-   * profil görünmez. Tamlık `@rothern/shared` `profileCompleteness` — Profilim
-   * ile AYNI hesap. Süzme bellekte (tamlık hesaplanan bir değer, tavan 5000).
-   */
-  async publicDirectory(q: {
-    q?: string;
-    city?: string;
-    category?: string;
-    activity?: string;
-    verified?: boolean;
-    hasProducts?: boolean;
-    page?: number;
-  }) {
-    const pageSize = 24;
-    const page = Math.max(1, q.page ?? 1);
-    const tokens = q.q ? tokenizeQuery(q.q) : [];
-    const rows = await this.prisma.company.findMany({
-      where: {
-        publicEnabled: true,
-        isActive: true,
-        isBlocked: false,
-        slug: { not: null },
-        ...anyPackageWhere(),
-        ...(q.city ? { city: q.city } : {}),
-        ...(q.activity && isCompanyActivity(q.activity)
-          ? { activities: { has: q.activity } }
-          : {}),
-        ...(q.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
-        ...(q.category && isCategoryCode(q.category)
-          ? {
-              OR: [
-                { buyerCategoryIds: { has: q.category } },
-                { buyerSubCategoryIds: { has: q.category } },
-                { sellerCategoryIds: { has: q.category } },
-                { sellerSubCategoryIds: { has: q.category } },
-              ],
-            }
-          : {}),
-        ...(tokens.length
-          ? {
-              AND: tokens.map((t) => ({
-                OR: [
-                  { name: { contains: t, mode: "insensitive" as const } },
-                  { industry: { contains: t, mode: "insensitive" as const } },
-                  { aboutText: { contains: t, mode: "insensitive" as const } },
-                  { services: { has: t } },
-                ],
-              })),
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        city: true,
-        country: true,
-        industry: true,
-        activities: true,
-        logoUrl: true,
-        coverImageUrl: true,
-        aboutText: true,
-        services: true,
-        photos: true,
-        foundedYear: true,
-        employeeCount: true,
-        website: true,
-        buyerCategoryIds: true,
-        sellerCategoryIds: true,
-        companyVerificationStatus: true,
-        updatedAt: true,
-        items: {
-          where: publicProductWhere(),
-          select: { slug: true, name: true, images: true },
-          orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
-          take: 3,
-        },
-        _count: { select: { items: { where: publicProductWhere() } } },
-      },
-      orderBy: [{ updatedAt: "desc" }],
-      take: 5000,
-    });
-    const eligible = rows.filter((r) => {
-      const productCount = r._count.items;
-      if (q.hasProducts && productCount === 0) return false;
-      if (productCount > 0) return true;
-      return profileCompleteness({ ...r, aboutText: looksLikeProse(r.aboutText) ? r.aboutText : null }).pct >= 60;
-    });
-    const total = eligible.length;
-    const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
-    const catNames = await this.resolveCategoryNames(
-      slice.flatMap((r) => [...r.sellerCategoryIds, ...r.buyerCategoryIds].slice(0, 1)),
-    );
-    const nameById = new Map(catNames.map((c) => [c.id, c.name]));
-    return {
-      items: slice.map((r) => {
-        const main = [...r.sellerCategoryIds, ...r.buyerCategoryIds].find((id) => nameById.has(id));
-        return {
-          name: r.name,
-          slug: r.slug as string,
-          city: r.city,
-          country: r.country,
-          industry: r.industry,
-          activities: r.activities,
-          logoUrl: r.logoUrl,
-          verified: r.companyVerificationStatus === "VERIFIED",
-          mainCategory: main ? { id: main, name: nameById.get(main) as string } : null,
-          productCount: r._count.items,
-          productPreview: r.items.map((i) => ({ slug: i.slug ?? "", name: i.name, image: i.images[0] ?? null })),
-        };
-      }),
-      total,
-      page,
-      pageSize,
-    };
+  /** Herkese açık firma dizini — TEK KAYNAK `common/company/company-directory.ts` (panel de okur). */
+  async publicDirectory(q: DirectoryParams) {
+    const res = await buildDirectory(this.prisma, q);
+    // Kimlik alanları public karttan DÜŞER (Rothern ID üyeye).
+    return { ...res, items: res.items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
   }
 
-  /** Dizin süzgeç sayaçları — listelenme koşulundan geçenler üzerinden. */
-  async publicDirectoryFacets() {
-    const rows = await this.publicDirectoryAll();
-    const cities = new Map<string, number>();
-    const activities = new Map<string, number>();
-    let verified = 0;
-    let withProducts = 0;
-    for (const r of rows) {
-      const city = r.city?.trim();
-      if (city) cities.set(city, (cities.get(city) ?? 0) + 1);
-      for (const a of new Set(r.activities)) activities.set(a, (activities.get(a) ?? 0) + 1);
-      if (r.verified) verified += 1;
-      if (r.productCount > 0) withProducts += 1;
-    }
-    return {
-      total: rows.length,
-      verified,
-      withProducts,
-      cities: [...cities.entries()]
-        .map(([city, count]) => ({ city, count }))
-        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
-      activities: [...activities.entries()]
-        .map(([activity, count]) => ({ activity, count }))
-        .sort((a, b) => b.count - a.count),
-    };
+  publicDirectoryFacets() {
+    return directoryFacets(this.prisma);
   }
 
-  /** Listelenme koşulundan geçen tüm kartlar (facet ve anasayfa seçkisi için). */
-  async publicDirectoryAll() {
-    const first = await this.publicDirectory({ page: 1 });
-    const pages = Math.ceil(first.total / first.pageSize);
-    const rest = await Promise.all(
-      Array.from({ length: Math.max(0, Math.min(pages, 10) - 1) }, (_, i) =>
-        this.publicDirectory({ page: i + 2 }),
-      ),
-    );
-    return [...first.items, ...rest.flatMap((r) => r.items)];
+  /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */
+  related(companySlug: string, productSlug: string) {
+    return relatedProducts(this.prisma, companySlug, productSlug);
   }
 
   /**

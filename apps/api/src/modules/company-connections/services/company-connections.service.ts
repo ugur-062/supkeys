@@ -12,8 +12,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
+import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
+import { buildDirectory, directoryFacets, type DirectoryParams } from "../../../common/company/company-directory";
+import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
 import { Prisma } from "@rothern/db";
 import {
   PrismaService,
@@ -932,56 +934,39 @@ export class CompanyConnectionsService {
   }
 
   /** Firma dizini araması — public profilli (PAKET) aktif firmalar. */
-  async searchCompanies(user: AuthenticatedCompanyUser, qRaw?: string) {
-    // Firma dizini araması premium özelliğidir — STANDARD firma dizinde arama
-    // yapamaz, yalnızca mevcut bağlantılarını görür (Bağlantılarım sekmesi).
-    if (!tierAtLeast(user.tier, "BRONZ")) return [];
-    const q = (qRaw ?? "").trim();
+  /**
+   * PANEL FİRMA DİZİNİ — herkese açık `/firmalar` ile AYNI kaynak
+   * (`common/company/company-directory.ts`): aynı listelenme koşulu, aynı
+   * kart. Üyeye ek: Rothern ID + bağlantı durumu. Kendisi ve engelledikleri
+   * hariç. Görüntülemek ÜCRETSİZ (2026-09-04): eskiden STANDART boş alıyordu
+   * — anonim ziyaretçinin gördüğü dizini ücretsiz üye göremiyordu. Ücretli
+   * olan LİSTELENMEK (publicEnabled + PAKET), görmek değil.
+   */
+  async searchCompanies(
+    user: AuthenticatedCompanyUser,
+    qRaw?: string,
+    q: Omit<DirectoryParams, "q"> = {},
+  ) {
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
-    const text = q
-      ? {
-          OR: [
-            { name: { contains: q, mode: "insensitive" as const } },
-            { rothernId: { contains: normalizeShortCode(q) } },
-            { industry: { contains: q, mode: "insensitive" as const } },
-          ],
-        }
-      : {};
-    const rows = await this.prisma.company.findMany({
-      where: {
-        id: { notIn: [user.companyId, ...blockedIds] },
-        isActive: true,
-        isBlocked: false,
-        publicEnabled: true,
-        // INV-TIER-1: efektif PAKET (dizin aramasında süresi-dolmuş PAKET çıkmasın).
-        ...anyPackageWhere(),
-        ...text,
-      },
-      select: {
-        id: true,
-        rothernId: true,
-        slug: true,
-        name: true,
-        industry: true,
-        city: true,
-        logoUrl: true,
-      },
-      orderBy: { name: "asc" },
-      take: 50,
-    });
-    const statusMap = await this.connectionStatusMap(
-      user.companyId,
-      rows.map((r) => r.id),
+    const res = await buildDirectory(
+      this.prisma,
+      { ...q, q: (qRaw ?? "").trim() || undefined },
+      { excludeIds: [user.companyId, ...blockedIds] },
     );
-    return rows.map((r) => ({
-      rothernId: r.rothernId,
-      slug: r.slug,
-      name: r.name,
-      industry: r.industry,
-      city: r.city,
-      logoUrl: r.logoUrl,
-      connectionStatus: statusMap.get(r.id) ?? ("none" as const),
-    }));
+    const statusMap = await this.connectionStatusMap(user.companyId, res.items.map((r) => r.id));
+    return {
+      ...res,
+      items: res.items.map(({ id, ...card }) => ({
+        ...card,
+        connectionStatus: statusMap.get(id) ?? ("none" as const),
+      })),
+    };
+  }
+
+  /** Dizin süzgeç sayaçları (panel) — public ile aynı küme. */
+  async searchFacets(user: AuthenticatedCompanyUser) {
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
+    return directoryFacets(this.prisma, { excludeIds: [user.companyId, ...blockedIds] });
   }
 
   /**
@@ -1025,6 +1010,9 @@ export class CompanyConnectionsService {
       isActive: true,
       isBlocked: true,
       tier: true,
+      activities: true,
+      sellerCategoryIds: true,
+      buyerCategoryIds: true,
       companyVerificationStatus: true,
       membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
       // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
@@ -1083,21 +1071,21 @@ export class CompanyConnectionsService {
 
     // Görünürlük kuralı:
     // - İlişkili (kendisi / bağlı / bekleyen / gelen istek) → her zaman görür.
-    // - Aksi halde yalnızca "herkese açık" profil: hedef PAKET + publicEnabled
-    //   VE izleyen de PAKET (dizin). STANDARD firma yalnız BAĞLANTILARINA görünür;
-    //   STANDARD izleyen yalnız ilişkili firmayı görür. Varlığı sızdırmamak için 404.
+    // - Aksi halde "herkese açık" profil: `hasPublicProfile` — /firma/<slug>
+    //   ile AYNI kapı. İzleyenin paketi ARANMAZ (2026-09-04): anonim ziyaretçi
+    //   profili görüyorken ücretsiz üyeye 404 vermek tutarsızdı. STANDART
+    //   HEDEF firma (paketsiz) yine yalnız bağlantılarına görünür.
     const related = isSelf || connectionStatus !== "none";
-    // INV-TIER-1: hedefin EFEKTİF tier'ı (süresi-dolmuş PAKET profili public
-    // dizinde görünmesin). user.tier zaten JWT'den efektif.
+    // `hasPublicProfile` eksi slug şartı: panel rothernId ile de açar, slug
+    // yalnız herkese açık URL için gerekir.
     const publiclyListed =
-      tierAtLeast(user.tier, "BRONZ") &&
-      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ") &&
-      c.publicEnabled;
+      c.publicEnabled &&
+      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ");
     if (!related && !publiclyListed) {
       throw new NotFoundException("Firma profili bulunamadı");
     }
 
-    const [listings, reviewRows] = await Promise.all([
+    const [listings, reviewRows, products, productCount, catRows] = await Promise.all([
       this.prisma.listing.findMany({
         where: {
           companyId: c.id,
@@ -1157,8 +1145,25 @@ export class CompanyConnectionsService {
         orderBy: { createdAt: "desc" },
         take: REVIEW_SUMMARY_TAKE,
       }),
+      // ÜRÜNLER — herkese açık profildeki ızgarayla AYNI kapı ve sıra
+      // (`publicProductWhere`); üye katmanı fiyatı da görür.
+      this.prisma.companyItem.findMany({
+        where: { ...publicProductWhere(), companyId: c.id },
+        select: PRODUCT_INDEX_SELECT,
+        orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+        take: 24,
+      }),
+      this.prisma.companyItem.count({ where: { ...publicProductWhere(), companyId: c.id } }),
+      this.prisma.category.findMany({
+        where: { id: { in: [...c.sellerCategoryIds, ...c.buyerCategoryIds].filter(isCategoryCode).slice(0, 12) } },
+        select: { id: true, nameTr: true },
+      }),
     ]);
     const reviewSummary = buildReviewSummary(reviewRows, { revealNames: true });
+    const catName = new Map(catRows.map((r) => [r.id, r.nameTr]));
+    const categories = [...new Set([...c.sellerCategoryIds, ...c.buyerCategoryIds])]
+      .filter((id) => catName.has(id))
+      .map((id) => ({ id, name: catName.get(id) as string }));
 
     return {
       profile: {
@@ -1170,11 +1175,15 @@ export class CompanyConnectionsService {
           effectiveTier(c.tier, c.membershipEndAt) === "GOLD",
         verified: c.companyVerificationStatus === "VERIFIED",
         industry: c.industry,
+        activities: c.activities,
+        categories,
         city: c.city,
         country: c.country,
         logoUrl: c.logoUrl,
         coverImageUrl: c.coverImageUrl,
-        aboutText: c.aboutText,
+        // Başka firmanın test verisi (anlamsız dizi) üyeye de gösterilmez —
+        // public ile aynı düzyazı sezgisi; kendi profilinde ham kalır (düzeltsin).
+        aboutText: isSelf || looksLikeProse(c.aboutText) ? c.aboutText : null,
         services: c.services,
         certifications: c.certifications,
         photos: c.photos,
@@ -1199,6 +1208,8 @@ export class CompanyConnectionsService {
       connectionId,
       connected,
       listings,
+      products: products.map(toProductIndexCard),
+      productCount,
     };
   }
 

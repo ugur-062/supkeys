@@ -21,6 +21,15 @@ import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
 } from "../public-profile/dto/public-product.projection";
+import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../public-marketplace/dto/public-product-index.projection";
+import {
+  PRODUCT_FACET_SCAN_CAP,
+  PRODUCT_PAGE_SIZE,
+  productFacetCounts,
+  productIndexOrderBy,
+  productIndexWhere,
+  type ProductIndexParams,
+} from "../../common/company/product-index";
 import {
   requestPublicDocumentUpload,
   requestPublicImageUpload,
@@ -416,6 +425,50 @@ export class CompanyItemsService {
   }
 
   /**
+   * PANEL "ÜRÜN ARA" — herkese açık `/urunler` ile AYNI süzgeç/sıralama
+   * (`common/company/product-index.ts`); tek fark KENDİ ürünlerin hariç.
+   * Sayfalı döner; pano şeridi eski `discoverProducts` (dizi) ile devam eder.
+   */
+  async discoverSearch(user: AuthenticatedCompanyUser, q: ProductIndexParams & { page?: number }) {
+    const page = Math.max(1, q.page ?? 1);
+    const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }]);
+    const [total, rows] = await Promise.all([
+      this.prisma.companyItem.count({ where }),
+      this.prisma.companyItem.findMany({
+        where,
+        select: PRODUCT_INDEX_SELECT,
+        orderBy: productIndexOrderBy(q.sort),
+        skip: (page - 1) * PRODUCT_PAGE_SIZE,
+        take: PRODUCT_PAGE_SIZE,
+      }),
+    ]);
+    return { items: rows.map(toProductIndexCard), total, page, pageSize: PRODUCT_PAGE_SIZE };
+  }
+
+  /** Ürün Ara süzgeç sayaçları — public facet ile aynı sayım, kendi ürünler hariç. */
+  async discoverFacets(user: AuthenticatedCompanyUser) {
+    const rows = await this.prisma.companyItem.findMany({
+      where: { ...publicProductWhere(), companyId: { not: user.companyId } },
+      select: { categoryId: true, company: { select: { city: true, activities: true } } },
+      take: PRODUCT_FACET_SCAN_CAP,
+    });
+    const counts = productFacetCounts(rows);
+    const ids = counts.categories.map(([id]) => id);
+    const cats = ids.length
+      ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true, level: true } })
+      : [];
+    const byId = new Map(cats.map((c) => [c.id, c]));
+    return {
+      categories: counts.categories
+        .map(([id, count]) => (byId.has(id) ? { id, name: byId.get(id)!.nameTr, level: byId.get(id)!.level, count } : null))
+        .filter((c): c is NonNullable<typeof c> => !!c)
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
+      cities: counts.cities,
+      activities: counts.activities,
+    };
+  }
+
+  /**
    * PANEL İÇİ ÜRÜN SAYFASI — ÜYE katmanı (görünürlük katmanı, 2026-09-04).
    *
    * Herkese açık uç (`public/companies/:slug/products/:slug`) artık fiyat,
@@ -440,6 +493,7 @@ export class CompanyItemsService {
         logoUrl: true,
         industry: true,
         activities: true,
+        website: true,
         publicEnabled: true,
         isActive: true,
         isBlocked: true,
@@ -486,6 +540,8 @@ export class CompanyItemsService {
         industry: company.industry,
         activities: company.activities,
         verified: company.companyVerificationStatus === "VERIFIED",
+        // Üye katmanı: web sitesi bağlantısı (public sayfada kapılı).
+        website: company.website,
       },
     };
   }

@@ -86,6 +86,16 @@ export class PublicProfileController {
     return this.service.listPublicProducts(slug, q);
   }
 
+  /**
+   * İlişkili bloklar (firmanın diğerleri / benzer / kategoride yeni) — firma
+   * altı, anahtara TABİ DEĞİL (ürün sayfası gibi); panel de bunu okur.
+   */
+  @Get(":slug/products/:productSlug/related")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
+  related(@Param("slug") slug: string, @Param("productSlug") productSlug: string) {
+    return this.service.related(slug, productSlug);
+  }
+
   @Get(":slug/products/:productSlug")
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
   product(

@@ -515,35 +515,49 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     ).rejects.toThrow(/Bronz/i);
   });
 
-  it("STANDARD firma dizininde arama yapamaz — boş döner", async () => {
+  it("dizin GÖRMEK ücretsiz (2026-09-04): STANDART firma da listelenen PAKET firmayı bulur", async () => {
+    // Anonim ziyaretçi /firmalar'ı görüyorken ücretsiz üyeye boş dönmek
+    // tutarsızdı. Listelenme koşulu public ile aynı: ≥1 ürün ∨ tamlık ≥ %60.
     const { service } = rig();
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    // Aranabilir public bir PAKET firma olsa bile STANDARD boş alır.
     const target = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await giveRothernId(target.company.id);
     await prisma.company.update({
       where: { id: target.company.id },
-      data: { publicEnabled: true },
+      data: {
+        publicEnabled: true,
+        slug: `hedef-${target.company.id.slice(-6)}`,
+        aboutText: "Endüstriyel elektrik panoları ve şalt malzemeleri üretiyoruz. OSB'lerde anahtar teslim projeler.",
+        logoUrl: "l.png", coverImageUrl: "c.png", services: ["Montaj"], photos: ["p.png"],
+        foundedYear: 1998, employeeCount: "10-50", city: "İzmir", industry: "Elektrik",
+      },
     });
-    expect(await service.searchCompanies(std.auth)).toEqual([]);
+    const res = await service.searchCompanies(std.auth);
+    expect(res.items.map((c) => c.name)).toEqual([target.company.name]);
+    expect(res.items[0]).toHaveProperty("rothernId");
+    expect(res.items[0].connectionStatus).toBe("none");
   });
 
-  it("STANDARD yalnız ilişkili firmanın profilini görür — yabancı 404, bağlı OK", async () => {
+  it("herkese açık PAKET profili STANDART izleyen de görür (public ile aynı kapı); ürünler ve kategoriler döner", async () => {
     const { service } = rig();
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const other = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const otherCode = await giveRothernId(other.company.id);
     await prisma.company.update({
       where: { id: other.company.id },
-      data: { publicEnabled: true },
+      data: { publicEnabled: true, slug: `diger-${other.company.id.slice(-6)}` },
     });
+    const prof = await service.getProfile(std.auth, otherCode);
+    expect(prof.connectionStatus).toBe("none");
+    expect(prof).toHaveProperty("products");
+    expect(prof).toHaveProperty("productCount");
+    expect(prof.profile).toHaveProperty("categories");
 
-    // İlişkisiz → 404 (varlığı sızdırmaz).
-    await expect(service.getProfile(std.auth, otherCode)).rejects.toThrow(
-      /bulunamadı/i,
-    );
+    // publicEnabled KAPALI ve ilişkisiz → 404 (varlığı sızdırmaz).
+    await prisma.company.update({ where: { id: other.company.id }, data: { publicEnabled: false } });
+    await expect(service.getProfile(std.auth, otherCode)).rejects.toThrow(/bulunamadı/i);
 
-    // Bağlantı kurulunca görebilir (tedarikçi olarak kabul ettiği alıcı).
+    // Bağlantı kurulunca yine görebilir.
     await prisma.companyConnection.create({
       data: {
         inviterCompanyId: other.company.id,
@@ -554,8 +568,7 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
         decidedAt: new Date(),
       },
     });
-    const prof = await service.getProfile(std.auth, otherCode);
-    expect(prof.connectionStatus).toBe("active");
+    expect((await service.getProfile(std.auth, otherCode)).connectionStatus).toBe("active");
   });
 
   it("STANDARD HEDEF firma yalnız bağlantılarına görünür — PAKET izleyen bağlı değilse 404", async () => {

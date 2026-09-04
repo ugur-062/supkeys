@@ -22,6 +22,14 @@ import type { PublicProductQueryDto } from "./dto/public-product-query.dto";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { anyPackageWhere } from "../../common/company/effective-tier";
 import {
+  productCategoryWhere,
+  productFacetCounts,
+  productSearchClauses,
+  productIndexOrderBy,
+  productIndexWhere,
+} from "../../common/company/product-index";
+import { relatedProducts } from "../../common/company/related-products";
+import {
   PRODUCT_INDEX_SELECT,
   toProductIndexCard,
   type ProductIndexCard,
@@ -329,62 +337,12 @@ export class PublicMarketplaceService {
   /* ÜRÜN DİZİNİ (firmalar arası)                                       */
   /* ---------------------------------------------------------------- */
 
-  /**
-   * Kategori süzgeci ATA ZİNCİRİNİ kapsar: ziyaretçi "Elektrik" (L1) seçtiğinde
-   * altındaki her yaprağı görmeli. Hiyerarşi koddan türediği için bu, kod
-   * önekiyle eşleşmeye iner — ayrı bir ağaç sorgusu gerekmez.
-   *
-   * `40000000` → önek `40` · `40170000` → `4017` · `40171501` → tam kod
-   * (`categoryPrefix`, shared — tek sıfır kırpma 41-49'u da yakalıyordu).
-   */
-  private productCategoryWhere(code?: string): Prisma.CompanyItemWhereInput {
-    const prefix = code ? categoryPrefix(code) : null;
-    if (!prefix) return {};
-    return { categoryId: { startsWith: prefix } };
-  }
 
   /**
    * Arama koşulları — AND dizisi olarak döner (tek nesne değil): şehir süzgeci
    * de `company` anahtarını kullanıyor ve tek nesnede iki `company` alanı
    * olamaz. Hepsi tek bir `AND` altında birleşir.
    */
-  private productSearchClauses(raw?: string): Prisma.CompanyItemWhereInput[] {
-    const tokens = raw ? tokenizeQuery(raw) : [];
-    // `searchText` = fold(ad + marka + mpn + anahtar kelimeler); tokenler
-    // AND'lenir, sıra önemsiz (kategori aramasıyla aynı kural).
-    return tokens.map((t) => ({ searchText: { contains: t } }));
-  }
-
-  /**
-   * Nitelik süzgeci — `attributes` JSON'ı üzerinde.
-   *
-   * Değer İKİ biçimde saklanabiliyor: tekli seçimde dize ("Çelik"), çoklu
-   * seçimde dizi (["Çelik","Alüminyum"]). Tek bir eşleşme biçimi seçseydik
-   * süzgeç, kategorinin yarısında sessizce boş dönerdi — bu yüzden ikisi de
-   * OR'lanıyor.
-   *
-   * Bilinen sınır: `attributes` üzerinde indeks YOK. Kapı (`publicProductWhere`)
-   * kümeyi zaten daraltıyor ve canlıda ürün sayısı üç haneli değil; ölçmeden
-   * GIN indeksi eklemek erken. Ürün sayısı büyüdüğünde ilk bakılacak yer.
-   */
-  private attributeClauses(raw?: string[]): Prisma.CompanyItemWhereInput[] {
-    const out: Prisma.CompanyItemWhereInput[] = [];
-    for (const entry of raw ?? []) {
-      const i = entry.indexOf(":");
-      if (i <= 0) continue;
-      const key = entry.slice(0, i);
-      const value = entry.slice(i + 1).trim();
-      if (!value) continue;
-      out.push({
-        OR: [
-          { attributes: { path: [key], equals: value } },
-          { attributes: { path: [key], array_contains: [value] } },
-        ],
-      });
-    }
-    return out;
-  }
-
   async listProducts(q: PublicProductQueryDto): Promise<{
     items: ProductIndexCard[];
     total: number;
@@ -392,48 +350,19 @@ export class PublicMarketplaceService {
     pageSize: number;
   }> {
     const page = Math.max(1, q.page ?? 1);
-    const and: Prisma.CompanyItemWhereInput[] = [
-      ...this.productSearchClauses(q.q),
-      // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
-      // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz.
-      ...(q.city ? [{ company: { city: q.city } }] : []),
-      ...(q.activity && isCompanyActivity(q.activity)
-        ? [{ company: { activities: { has: q.activity } } }]
-        : []),
-      ...(q.verified === "1"
-        ? [{ company: { companyVerificationStatus: "VERIFIED" as const } }]
-        : []),
-      ...(q.price === "has"
-        ? [{ priceMode: { in: ["FIXED" as const, "TIERED" as const] } }]
-        : q.price === "request"
-          ? [{ priceMode: "ON_REQUEST" as const }]
-          : []),
-      ...this.attributeClauses(q.attr),
-    ];
-    const where: Prisma.CompanyItemWhereInput = {
-      ...publicProductWhere(),
-      ...this.productCategoryWhere(q.category),
-      ...(and.length ? { AND: and } : {}),
-    };
-
+    // Where/orderBy TEK KAYNAK (`common/company/product-index.ts`) — panelin
+    // "Ürün Ara"sı aynı fonksiyonu okur.
+    const where = productIndexWhere({ ...q, verified: q.verified === "1" });
     const [total, rows] = await Promise.all([
       this.prisma.companyItem.count({ where }),
       this.prisma.companyItem.findMany({
         where,
         select: PRODUCT_INDEX_SELECT,
-        // Varsayılan "uygunluk": eksiksiz ürün vitrinin yüzü — firma altı
-        // listeyle AYNI sıralama. `price` artan: fiyatsız (null) SONDA.
-        orderBy:
-          q.sort === "newest"
-            ? [{ publishedAt: "desc" }, { completionScore: "desc" }]
-            : q.sort === "price"
-              ? [{ priceAmount: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }]
-              : [{ completionScore: "desc" }, { publishedAt: "desc" }],
+        orderBy: productIndexOrderBy(q.sort),
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
       }),
     ]);
-
     return { items: rows.map(toProductIndexCard), total, page, pageSize: PAGE_SIZE };
   }
 
@@ -462,70 +391,9 @@ export class PublicMarketplaceService {
     return out;
   }
 
-  /**
-   * ÜRÜN SAYFASI İLİŞKİLİ BLOKLARI — tek uç, üç liste:
-   *   fromCompany: aynı firmanın diğer ürünleri (+ toplam),
-   *   similar: aynı alt kategori (L3 → L2 → L1 genişler), FARKLI firma,
-   *            doğrulanmış önce,
-   *   popular: kategoride "popüler" — görüntülenme verisi YOK, yedek EN YENİ
-   *            (uydurma sıralama yerine dürüst etiket: web "Kategoride yeni").
-   */
-  async relatedProducts(companySlug: string, productSlug: string) {
-    const base = await this.prisma.companyItem.findFirst({
-      where: { ...publicProductWhere(), slug: productSlug, company: { slug: companySlug } },
-      select: { id: true, companyId: true, categoryId: true },
-    });
-    if (!base) throw new NotFoundException("Ürün bulunamadı");
-    const [fromCompany, fromTotal] = await Promise.all([
-      this.prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
-        select: PRODUCT_INDEX_SELECT,
-        orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
-        take: 8,
-      }),
-      this.prisma.companyItem.count({
-        where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
-      }),
-    ]);
-    let similar: typeof fromCompany = [];
-    const code = base.categoryId;
-    if (code && /^\d{8}$/.test(code)) {
-      for (const level of [`${code.slice(0, 6)}00`, `${code.slice(0, 4)}0000`, `${code.slice(0, 2)}000000`]) {
-        similar = await this.prisma.companyItem.findMany({
-          where: {
-            ...publicProductWhere(),
-            ...this.productCategoryWhere(level),
-            companyId: { not: base.companyId },
-          },
-          select: PRODUCT_INDEX_SELECT,
-          orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
-          take: 8,
-        });
-        if (similar.length >= 4) break;
-      }
-    }
-    const popular = code
-      ? await this.prisma.companyItem.findMany({
-          where: {
-            ...publicProductWhere(),
-            ...this.productCategoryWhere(`${code.slice(0, 2)}000000`),
-            id: { not: base.id },
-          },
-          select: PRODUCT_INDEX_SELECT,
-          orderBy: [{ publishedAt: "desc" }],
-          take: 8,
-        })
-      : [];
-    const cards = (rows: typeof fromCompany) => {
-      const c = rows.map(toProductIndexCard);
-      c.sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
-      return c;
-    };
-    return {
-      fromCompany: { items: fromCompany.map(toProductIndexCard), total: fromTotal },
-      similar: cards(similar),
-      popular: popular.map(toProductIndexCard),
-    };
+  /** Ürün sayfası ilişkili bloklar — `common/company/related-products.ts`. */
+  relatedProducts(companySlug: string, productSlug: string) {
+    return relatedProducts(this.prisma, companySlug, productSlug);
   }
 
   /**
@@ -538,7 +406,7 @@ export class PublicMarketplaceService {
     const tokens = tokenizeQuery(q);
     const [products, categories, companies] = await Promise.all([
       this.prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), ...(tokens.length ? { AND: this.productSearchClauses(q) } : {}) },
+        where: { ...publicProductWhere(), ...(tokens.length ? { AND: productSearchClauses(q) } : {}) },
         select: { name: true, slug: true, company: { select: { slug: true } } },
         orderBy: [{ completionScore: "desc" }],
         take: 5,
@@ -644,39 +512,18 @@ export class PublicMarketplaceService {
     const truncated = rows.length > FACET_SCAN_CAP;
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
 
-    const catCount = new Map<string, number>();
-    const cityCount = new Map<string, number>();
-    const actCount = new Map<string, number>();
-    for (const r of scanned) {
-      const city = r.company.city?.trim();
-      if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
-      // Faaliyet tipi (üretici/bayi/hizmet…) — ürün "NE", bu "NASIL".
-      for (const a of r.company.activities) {
-        actCount.set(a, (actCount.get(a) ?? 0) + 1);
-      }
-      // SEGMENT (L1) düzeyinde sayım: ürün L3/L4 kod taşır ama ziyaretçiye
-      // 158 bin satırlık süzgeç sunulamaz (ilan facet'iyle aynı karar).
-      if (r.categoryId && r.categoryId.length === 8) {
-        const seg = `${r.categoryId.slice(0, 2)}000000`;
-        catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
-      }
-    }
-
-    const cats = await this.resolveCategories([...catCount.keys()]);
+    const counts = productFacetCounts(scanned);
+    const cats = await this.resolveCategories(counts.categories.map(([id]) => id));
     return {
-      categories: [...catCount.entries()]
+      categories: counts.categories
         .map(([id, count]) => {
           const c = cats.get(id);
           return c ? { ...c, count } : null;
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
-      cities: [...cityCount.entries()]
-        .map(([city, count]) => ({ city, count }))
-        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
-      activities: [...actCount.entries()]
-        .map(([activity, count]) => ({ activity, count }))
-        .sort((a, b) => b.count - a.count),
+      cities: counts.cities,
+      activities: counts.activities,
       attributes: await this.attributeFacets(
         category,
         // Nitelik sayımı YALNIZ o daldaki ürünlerden: kod öneki, kategori

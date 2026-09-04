@@ -227,6 +227,39 @@ export class CompanyItemsController {
     });
   }
 
+  /** Ürün Ara — public `/urunler` ile aynı süzgeç/sıralama, sayfalı. */
+  @Get("discover/search")
+  discoverSearch(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("q") q?: string,
+    @Query("category") category?: string,
+    @Query("city") city?: string,
+    @Query("activity") activity?: string,
+    @Query("verified") verified?: string,
+    @Query("price") price?: string,
+    @Query("sort") sort?: string,
+    @Query("page") page?: string,
+    @Query("attr") attr?: string | string[],
+  ) {
+    const n = Number(page);
+    return this.service.discoverSearch(user, {
+      q: q?.slice(0, 120),
+      category: category && /^\d{8}$/.test(category) ? category : undefined,
+      city: city?.slice(0, 60) || undefined,
+      activity: activity?.slice(0, 40) || undefined,
+      verified: verified === "1",
+      price: price === "has" || price === "request" ? price : undefined,
+      sort: sort === "newest" || sort === "price" ? sort : undefined,
+      attr: attr == null ? undefined : (Array.isArray(attr) ? attr : [attr]).slice(0, 6),
+      page: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
+    });
+  }
+
+  @Get("discover/facets")
+  discoverFacets(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.discoverFacets(user);
+  }
+
   /** Panel içi ürün sayfası — ÜYE katmanı (fiyat/MOQ dahil). */
   @Get("discover/:companySlug/:productSlug")
   discoverProduct(
