@@ -41,6 +41,11 @@ NEXT_PUBLIC_CDN_URL=https://cdn.rothern.com   # web (next/image allowlist)
 ```
 Kök `.env` + Render (API) + Vercel (web).
 
+> ✅ **YAPILDI (2026-09-05).** Env üç satır dolu; taşıma koşuldu:
+> `{prod,dev}/tenant-profile/**` → `rothern-public` (15 nesne), DB'de 2 firma
+> × 4 alan `cdn.rothern.com`'a çevrildi, `r2.dev` adresi sıfır. Doğrulandı:
+> dört adres de 200 + geçerli görsel; canlıda kırık görsel kalmadı.
+
 **Sonra taşıma:**
 ```
 OLD_PUBLIC_BASE_URL=https://pub-<eski>.r2.dev \

@@ -820,27 +820,34 @@ color-contrast bulguları bu turda kapatıldı) · SEO 100; `/urunler` 75
 (loremflickr görselleri). Küçük metinde `text-zinc-400` KULLANMA —
 beyazda 2,6:1; en az zinc-500 (zinc-100 zeminde zinc-600).
 
-### Anasayfa hydration uyarısı = ÖLÜ GÖRSEL ADRESİ (2026-09-04, canlıda teşhis)
+### Anasayfa hydration hatası — İKİ sebep, ikisi de kapandı (2026-09-05)
 
-www.rothern.com **anasayfasında** React #418 (kurtarılabilir hydration
-uyarısı) çıkıyor; diğer herkese açık sayfalar temiz. Kök neden veri:
-**iki firmanın logo/kapak adresi kapalı `pub-*.r2.dev` host'unda**
-(Demo Firma A.Ş., İkinci Firma Ltd). Tarayıcı görseli yükleyemiyor,
-`CompanyLogo` yedeğe düşüyor, sunucu HTML'i ile istemci render'ı ayrışıyor →
-React o ağacı yeniden çiziyor. Son DOM DOĞRU (düğüm düzeyinde birebir
-karşılaştırıldı), görünür kırık yok; maliyet fazladan bir istemci render'ı.
+www.rothern.com **anasayfası** her yüklemede React #418 veriyordu (yalnız
+orada; diğer herkese açık sayfalar temizdi). İki ayrı sebep vardı:
 
-Teşhis yolu (tekrar gerekirse): JS'siz sayfa DOM'u ile hydration sonrası
-DOM'u ÖZNİTELİK düzeyinde karşılaştır — fark doğrudan `<img src=…>` →
-yedek `<span>` olarak görünür. Elenen adaylar: sayılar/tarih metinleri,
-JSON-LD dizesi, `useId`, geçersiz HTML iç içeliği, önbellek bayatlığı,
-UA'ya göre farklı HTML (hepsi eşleşti).
+**1. `usePathname()` statik/ISR üretimde "/" DÖNMÜYOR (asıl sebep).**
+`MarketingHeader` kompakt aramayı `pathname !== "/" || heroGone` ile
+gösteriyordu; sunucu HTML'i arama kutusunu BASIYOR, istemci basmıyordu →
+uyuşmazlık → React tüm ağacı yeniden çiziyordu. Düzeltme: koşul yalnız
+`useHeroGone()` — sunucu HER ZAMAN aramasız basar, kutuyu istemci gösterir.
+**Kural: yol adına göre RENDER DALLANMASI yapma** (statik sayfada sunucu ile
+istemci ayrışır); "şu an neredeyim" bilgisini istemci efektinden al.
 
-**Kalıcı çözüm veri tarafında:** `packages/db/prisma/scripts/
-migrate-public-images.ts` + Cloudflare custom domain (nesneler
-`cdn.rothern.com` üzerinden de 404 — bağlama/kopyalama adımı yapılmamış).
-Kod tarafında yamanacaksa doğru yer: herkese açık projeksiyonun
-yapılandırılmış public taban dışındaki görsel adreslerini hiç DÖNMEMESİ.
+**2. Ölü görsel adresi (ikincil).** İki firmanın logo/kapağı kapalı
+`pub-*.r2.dev` host'undaydı; yüklenemeyince `CompanyLogo` yedeğe düşüyor ve
+aynı uyarıyı üretiyordu. **Taşıma YAPILDI (2026-09-05):**
+`migrate:public-images` ile `{prod,dev}/tenant-profile/**` `rothern-public`
+kovasına kopyalandı (15 nesne) ve DB'deki 4 alan `cdn.rothern.com`'a
+çevrildi. Artık DB'de `r2.dev` adresi YOK, dördü de 200 dönüyor. NOT: Demo
+Firma'nın logosu 1×1 piksel bir test yüklemesi — geçerli ama görsel olarak
+boş; gerçek logo (`logo-…-arsa.jpeg`) kovada duruyor, istenirse profilden
+yeniden yüklenir.
+
+Teşhis yolu (tekrar gerekirse): JS'siz DOM ile hydration sonrası DOM'u
+ÖZNİTELİK düzeyinde karşılaştır — fark doğrudan görünür. `main` ile
+sınırlama, header/footer dışarıda kalır. Elenen adaylar: sayılar, tarih
+metinleri, JSON-LD, `useId`, HTML iç içeliği, önbellek bayatlığı, UA'ya göre
+farklı HTML.
 
 ### Kategori fotoğrafları — 58/58 (2026-09-04, akşam)
 

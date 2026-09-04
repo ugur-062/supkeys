@@ -9,7 +9,6 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { useHeroGone } from "@/hooks/use-hero-gone";
@@ -53,11 +52,19 @@ export function MarketingHeader({
   const dark = tone === "dark";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  // Kompakt arama: hero'lu sayfada büyük kutu görünümden ÇIKINCA (B8), diğer
-  // sayfalarda hep. İkisi aynı anda ekrandayken çift arama kutusu olurdu.
-  const pathname = usePathname();
+  /**
+   * Kompakt arama: hero'daki büyük kutu görünümde DEĞİLKEN. `useHeroGone`
+   * sentinel yoksa (hero'suz sayfa) hydration sonrası hemen `true` döner,
+   * dolayısıyla ayrıca yol adına bakmaya gerek yok.
+   *
+   * `usePathname()` KULLANMA (2026-09-05, canlıda ölçüldü): statik/ISR
+   * üretimde sunucu tarafında "/" DÖNMÜYOR, dolayısıyla sunucu HTML'i arama
+   * kutusunu basıp istemci basmıyordu → anasayfada her yüklemede React #418
+   * ve tüm ağacın yeniden çizilmesi. Sunucu artık HER ZAMAN aramasız basar;
+   * kutuyu istemci karar verip gösterir.
+   */
   const heroGone = useHeroGone();
-  const showSearch = MARKETPLACE_LIVE && (pathname !== "/" || heroGone);
+  const showSearch = MARKETPLACE_LIVE && heroGone;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
