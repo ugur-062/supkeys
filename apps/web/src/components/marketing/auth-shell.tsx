@@ -25,7 +25,7 @@ function Mini({
 
 const cards = [
   { c: "top-[13%] left-[3%]", f: "rt-float", dot: "bg-blue-500", t: "Çelik alımı · 3 teklif" },
-  { c: "top-[43%] left-[6%]", f: "rt-float-slow", t: "🌍 98 ülke · sınır ötesi" },
+  { c: "top-[43%] left-[6%]", f: "rt-float-slow", t: "🌍 Yurtiçi + sınır ötesi" },
   { c: "bottom-[13%] left-[4%]", f: "rt-float-slow", dot: "bg-emerald-500", t: "Bakır satışı · hemen-al" },
   { c: "top-[15%] right-[3%]", f: "rt-float-slow", dot: "bg-emerald-500", t: "Sipariş kargolandı" },
   { c: "top-[45%] right-[6%]", f: "rt-float", dot: "bg-blue-500", t: "Kapalı zarf · gizli teklif" },

@@ -574,6 +574,83 @@ onsuz canlı build fail-loud) CLI ile yazıldı, redeploy edildi. Render
 **ŞEMA BEKLEYEN:** ürün öne çıkan özellikler / paket içi adet / teslim
 süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet tipi.
 
+### Herkese açık yüzey v3 — görünürlük katmanı + tek kabuk (2026-09-04)
+
+Ekran görüntülü denetim (3 Eylül, giriş yapmadan). Beş iş, her biri ayrı
+commit (1b875c03 … 30397b3e). Kalıcı kararlar:
+
+**Görünürlük katmanı — TEK KAYNAK `lib/public/visibility.ts`** (`VISIBILITY`
+tablosu, `canSee`, `loginHref` → `?next=`, `PANEL_TARGET`). Herkese açık
+sayfalar statik/ISR ve oturum tanımaz: `viewer` HER ZAMAN `anon`; üye/
+bağlantılı katmanları PANELDE yaşar, tablo onları belgeler ve `GatedField`
+bağlantısını nereye atacağımızı söyler. Gizlenen alan HTML'e HİÇ yazılmaz
+(API projeksiyonu döndürmez; `null` bile RSC yüküne anahtar adı düşürür —
+bu yüzden `ProfileViewData`'nın kapılı alanları opsiyonel ve public sayfa
+onları hiç geçmez). `GatedField` (satır içi) / `size="box"` (sayfa başına
+EN FAZLA BİR).
+
+| Yüzey | Anonim GÖRÜR | Anonim GÖRMEZ |
+|-------|--------------|---------------|
+| İlan/talep | başlık, kategori, kapsam (kalem SAYISI + ilk 3 kalem ADI `itemPreview`), kalan süre, şehir, açıklama | kalem gövdesi (miktar/marka/şartname), `buyNowPrice`, sahip (HİÇBİR katmanda) |
+| Ürün | görsel, ad, kategori, açıklama, **firma adı** (opt-in vitrin) | `priceAmount`/`priceTiers`/`priceCurrency`/`moq` — yalnız `priceMode` kalır ("Fiyat için giriş yapın" ↔ "teklif isteyin" dürüst kalsın) |
+| Firma profili | ad, şehir, faaliyet, kategoriler (L1), logo/kapak/galeri, Hakkında ilk 2 satır, Doğrulanmış/Gold Üye | Rothern ID, kuruluş, çalışan, puan/dağılım, sipariş sayıları, hizmet, sertifika, web/sosyal |
+| Firma dizini `/firmalar` | `public/companies/summary`: doğrulanmış firma SAYISI + en çok temsil edilen 8 kategori | liste (JWT, `company/directory`) |
+
+**Panel fiyatı KAYBETMESİN diye ayrı uç:** panel ürün sayfası eskiden
+public ucu okuyordu → `GET company/items/discover/:companySlug/:productSlug`
+(üye katmanı, fiyat/MOQ dahil; kapı `publicProductWhere` + profil kapısı,
+public uçla aynı). Web tipi `MemberProduct = PublicProduct & ProductPriceFields`.
+
+**Test verisi herkese açık yüzeyde ÇIKMAZ:** `common/company/
+public-text-quality.ts` `looksLikeProse` (≥40 karakter, ≥3 sözcük, %60
+sesli, ort. sözcük ≤14) — geçmeyen "Hakkında" hiç dönmez, yazma
+engellenmez. 2026-09-04 taraması: 1 kayıt (İkinci Firma Ltd, PNTT-9XP5,
+"PSKDFMOKAND…"), gizlendi.
+
+**Tek kabuk `components/marketplace/public-layout.tsx`:** her public sayfa
+(liste, detay, `/firma`, `/firmalar`, `/nasil-calisir`, `/hakkimizda`,
+`/iletisim`, `/talep-onayla`) aynı header/footer. Üç ayrı şablon vardı;
+`/hakkimizda` ve `/iletisim`in hiç header'ı yoktu. `/tedarikciler` →
+`/firmalar` (308, `next.config`), `/giris` → `/company/login`, `/kayit` →
+`/company/kayit`.
+
+**Anasayfa sırası:** hero (iki taraf: "Al, sat, tek hesap." + SEKMELİ arama,
+varsayılan Ürünler, JS'siz de çalışır) → güven bandı → **kategori ızgarası
+(1 büyük + 8, her zaman dolu; `category-showcase.ts` + `category-photos.ts`
+— fotoğraf → ilk ürün kapağı → üretilmiş görsel; manifest BOŞ: 58 segmentin
+fotoğrafı yok, `public/categories/<kod>.jpg` + manifeste kod)** → eşikli
+envanter (ürün ≥8, ilan ≥3; altında bölüm HİÇ çizilmez, boş kutu YOK) →
+nasıl çalışır → kapanış CTA. Kayıt CTA'sı 8 → 3. `SectionGrid`in boş
+durumu ve `EmptyListings` silindi; listelerde tek `PublicEmptyState`
+("{Tür} bulunamadı." + Filtreleri temizle + Kategorilere göz at) — boş
+sayfadan boş sayfaya bağlantı yok.
+
+**Liste iskeleti `PublicListPage`** (ilan+ürün): sol süzgeç HER ZAMAN.
+Yeni süzgeçler: ilan `?kapsam=yurtici|uluslararasi` (`scope`), ürün
+`?faaliyet=` (`activity`) + facet sayaçları. **İki süzgeç hatası
+düzeltildi:** (a) ilan kategori süzgeci `has` tam eşleşmeydi, facet L1
+sayıyor, ilan L3+ taşıyor → tıklayınca SIFIR sonuç; artık `unnest`+`LIKE`
+ile alt ağaç; (b) `code.replace(/0+$/)` `40000000`ı "4"e indiriyor, 41-49'u
+da yakalıyordu → `@rothern/shared` `categoryPrefix()` (seviye × 2 hane),
+dört çağrı yeri tek kaynağa. Facet dizileri `?? []` ile okunur: kenar
+önbelleğindeki eski yanıt alan eksikse sayfa çökmez (doğrulamada 500 verdi).
+
+**Kayıt niyeti `lib/company/signup-intent.ts`:** `?intent=talep|ilan|vitrin`
+formda ön seçili; doğrulama sonrası `sessionStorage`, `/company` kökü
+tüketip sihirbaza (`taleplerim/yeni`, `ilanlarim/yeni`, `urunlerim?yeni=1`)
+yönlendirir — onboarding araya girse de kaybolmaz.
+
+**Sözlük kilidi:** `lib/public/public-terms.test.ts` public dizinlerde
+"ihale/e-ihale/Satışçı" arar (yorumlar hariç). Fiyat kartlarında koltuklar
+"satış koltuğu" biçiminde; rol adları panelde kalır. `/nasil-calisir`
+sayaçları tek kaynaktan (58 segment, `registrationCountries()`), `CountUp`
+son değerle başlar (JS/hareket yoksa "0 ülke" kalmıyor).
+
+**AÇIK:** Render `MARKETPLACE_LIVE` hâlâ yazılmamış (public listings/products
+404) — `/urunler` boşken firma altı ürün görünür; kod hatası değil,
+görünürlük ≠ indekslenme kararı. Kategori fotoğrafları (58). Üye görünümü
+ekran görüntüsü alınamadı (test hesabı parolası `CLAUDE.md.local`ta yok).
+
 ### Sözlük kalıntıları temizlendi (2026-09-03)
 
 2026-09-01 yeniden adlandırması satış tarafında yanlış oturmuştu:
