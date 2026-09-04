@@ -33,7 +33,7 @@ export function ComingSoon() {
           </a>
         </p>
       </main>
-      <footer className="pb-8 text-center text-xs text-zinc-400">
+      <footer className="pb-8 text-center text-xs text-zinc-500">
         © 2026 Rothern
       </footer>
     </div>

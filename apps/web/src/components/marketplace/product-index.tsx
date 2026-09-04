@@ -182,7 +182,7 @@ export async function ProductIndex({
         <span className="flex flex-wrap items-center justify-between gap-3">
           <span>{page.total > 0 ? `${page.total.toLocaleString("tr-TR")} ürün` : ""}</span>
           <span className="flex items-center gap-1 text-xs">
-            <span className="text-zinc-400">Sırala:</span>
+            <span className="text-zinc-500">Sırala:</span>
             {[
               { k: undefined, l: "Uygunluk" },
               { k: "yeni", l: "En yeni" },

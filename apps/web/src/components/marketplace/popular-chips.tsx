@@ -22,7 +22,7 @@ export function PopularChips({ items }: { items: { id: string; name: string; cou
           <li key={c.id}>
             <Link href={categoryPath(c.id, c.name)} className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-200">
               {c.name}
-              <span className="text-xs text-zinc-400">{c.count}</span>
+              <span className="text-xs text-zinc-500">{c.count}</span>
             </Link>
           </li>
         ))}

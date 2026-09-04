@@ -216,7 +216,7 @@ function GroupTemplateDialog({
                     <span className="block truncate text-sm font-medium text-zinc-900">
                       {c.company.name}
                     </span>
-                    <span className="block truncate text-xs text-zinc-400">
+                    <span className="block truncate text-xs text-zinc-500">
                       {[c.company.city, c.company.industry]
                         .filter(Boolean)
                         .join(" · ") || c.company.rothernId || ""}
@@ -509,7 +509,7 @@ export function GroupTemplatesView({
                     <p className="truncate font-medium text-zinc-900">
                       {g.name}
                     </p>
-                    <p className="mt-0.5 text-xs text-zinc-400">
+                    <p className="mt-0.5 text-xs text-zinc-500">
                       {g.memberCount} firma ·{" "}
                       {formatDate(g.updatedAt, "short")}
                     </p>
@@ -600,7 +600,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                       <p className="truncate font-medium text-zinc-900">
                         {t.name}
                       </p>
-                      <p className="mt-0.5 text-xs text-zinc-400">
+                      <p className="mt-0.5 text-xs text-zinc-500">
                         {t.itemCount} soru
                         {t.createdAt
                           ? ` · ${formatDate(t.createdAt, "short")}`
@@ -646,7 +646,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                       </li>
                     ))}
                     {t.itemCount > t.preview.length ? (
-                      <li className="pl-3 text-xs text-zinc-400">
+                      <li className="pl-3 text-xs text-zinc-500">
                         +{t.itemCount - t.preview.length} soru daha
                       </li>
                     ) : null}
@@ -731,7 +731,7 @@ export function ListingTemplatesView({
                           {isAlim ? "Alış" : "Satış"}
                         </Badge>
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">
+                      <p className="mt-0.5 truncate text-xs text-zinc-500">
                         {p.items?.length ? `${p.items.length} kalem` : "—"}
                         {p.title ? ` · ${p.title}` : ""}
                       </p>

@@ -191,7 +191,7 @@ function PanelTile({
           >
             {d.status.label}
           </span>
-          {d.timeNote ? <span className="text-xs text-zinc-400">{d.timeNote}</span> : null}
+          {d.timeNote ? <span className="text-xs text-zinc-500">{d.timeNote}</span> : null}
         </div>
       </div>
     </Link>

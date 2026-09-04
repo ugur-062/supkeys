@@ -98,7 +98,7 @@ function TradeRow({
 }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </dt>
       <dd
@@ -115,7 +115,7 @@ function TradeRow({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </div>
       <div className="mt-0.5 text-sm font-semibold text-zinc-900">{value}</div>
@@ -296,7 +296,7 @@ export function CompanyProfileView({
             <div className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-zinc-100 pt-4">
               {p.rating && p.rating.count > 0 ? (
                 <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                     Değerlendirme
                   </div>
                   <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
@@ -310,7 +310,7 @@ export function CompanyProfileView({
               ) : null}
               {p.ratingAvg != null && !(p.rating && p.rating.count > 0) ? (
                 <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                     Değerlendirme
                   </div>
                   <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
@@ -617,7 +617,7 @@ function ReviewSummarySection({ s }: { s: ReviewSummary }) {
                     {pt.name ?? roleLabel(pt.role)}
                   </span>
                   {pt.name ? (
-                    <span className="ml-2 text-xs text-zinc-400">{roleLabel(pt.role).replace("Doğrulanmış ", "")}</span>
+                    <span className="ml-2 text-xs text-zinc-500">{roleLabel(pt.role).replace("Doğrulanmış ", "")}</span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-500">
@@ -638,7 +638,7 @@ function ReviewSummarySection({ s }: { s: ReviewSummary }) {
                   <ul className="mt-2 space-y-2">
                     {rest.map((c, j) => (
                       <li key={j} className="text-sm text-zinc-600">
-                        <span className="mr-2 text-xs text-zinc-400">{monthYear(c.createdAt)} · {c.rating}/5</span>
+                        <span className="mr-2 text-xs text-zinc-500">{monthYear(c.createdAt)} · {c.rating}/5</span>
                         <span className="whitespace-pre-wrap">{c.comment}</span>
                       </li>
                     ))}

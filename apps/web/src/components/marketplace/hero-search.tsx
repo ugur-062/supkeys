@@ -148,7 +148,7 @@ export function HeroSearch({ tabs }: { tabs: HeroSearchTab[] }) {
 function SugGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-zinc-950/5 py-1 last:border-b-0">
-      <p className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">{label}</p>
+      <p className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">{label}</p>
       <ul>{children}</ul>
     </div>
   );
@@ -159,7 +159,7 @@ function SugRow({ href, label, meta }: { href: string; label: string; meta?: str
     <li>
       <Link href={href} className="flex items-center justify-between gap-3 px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50">
         <span className="line-clamp-1">{label}</span>
-        {meta ? <span className="shrink-0 text-xs text-zinc-400">{meta}</span> : null}
+        {meta ? <span className="shrink-0 text-xs text-zinc-500">{meta}</span> : null}
       </Link>
     </li>
   );

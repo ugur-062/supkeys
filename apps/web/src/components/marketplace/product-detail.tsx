@@ -424,7 +424,7 @@ export function ProductDetailBody({
                   {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
                 </p>
               ) : null}
-              {price.hasPrice ? <p className="mt-1 text-xs text-zinc-400">KDV hariç</p> : null}
+              {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">KDV hariç</p> : null}
 
               {price.tiers ? (
                 <table className="mt-4 w-full text-left text-sm">

@@ -182,12 +182,12 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             {formatMoney(b.amount, b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
-            <span className="font-mono text-xs text-zinc-400 tabular-nums">
+            <span className="font-mono text-xs text-zinc-500 tabular-nums">
               ≈ {formatMoney(b.amountTry, "TRY")}
             </span>
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-zinc-500">
               {isAlim ? "Taahhüt teslim:" : "İstenen teslim:"}{" "}
               {bidDeliveryTimeLabel(b.deliveryTime) ??
                 (b.deliveryDate
@@ -198,11 +198,11 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           {b.isBuyNow ? <Badge color="emerald">Hemen Al</Badge> : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
-            <span className="text-xs text-zinc-400">Tur {b.round}</span>
+            <span className="text-xs text-zinc-500">Tur {b.round}</span>
           ) : null}
           {b.version > 1 ? (
             <span
-              className="text-xs text-zinc-400"
+              className="text-xs text-zinc-500"
               title={`Bu teklifin ${b.version}. revizyonu`}
             >
               Revizyon {b.version}

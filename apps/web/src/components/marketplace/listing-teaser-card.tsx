@@ -65,7 +65,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         ) : null}
       </dl>
       <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-        <span className="text-xs text-zinc-400">Kapalı zarf · {l.number}</span>
+        <span className="text-xs text-zinc-500">Kapalı zarf · {l.number}</span>
         <Link
           href={signupHref("teklif", href)}
           className="rounded-full bg-zinc-950 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-800"

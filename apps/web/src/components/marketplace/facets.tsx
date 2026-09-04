@@ -53,7 +53,7 @@ export function FacetGroup({
               aria-current={i.active ? "true" : undefined}
             >
               <span className="line-clamp-1">{i.label}</span>
-              <span className="shrink-0 text-xs text-zinc-400">{i.count}</span>
+              <span className="shrink-0 text-xs text-zinc-500">{i.count}</span>
             </Link>
           </li>
         ))}

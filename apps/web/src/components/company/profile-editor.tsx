@@ -207,7 +207,7 @@ export function ProfileEditor({
           findability={findability}
         />
         <CompanyProfileView profile={viewData} />
-        <p className="text-xs text-zinc-400">Düzenleme için firma yönetimi yetkisi gerekir.</p>
+        <p className="text-xs text-zinc-500">Düzenleme için firma yönetimi yetkisi gerekir.</p>
       </div>
     );
   }
@@ -237,7 +237,7 @@ export function ProfileEditor({
         />
         <span>{[profile.city, profile.country].filter(Boolean).join(", ")}</span>
         {profile.rothernId ? (
-          <span className="font-mono text-xs text-zinc-400">{profile.rothernId}</span>
+          <span className="font-mono text-xs text-zinc-500">{profile.rothernId}</span>
         ) : null}
       </div>
     ),
@@ -434,7 +434,7 @@ function EditorHeader({
             Herkese açık görünümü önizle
           </a>
         ) : (
-          <span className="text-xs text-zinc-400" title="Herkese açık sayfa yalnız yayındayken sunulur">
+          <span className="text-xs text-zinc-500" title="Herkese açık sayfa yalnız yayındayken sunulur">
             Önizleme yayına alınca
           </span>
         )}
@@ -475,7 +475,7 @@ function EditorHeader({
 function MiniField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</div>
+      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</div>
       {children}
     </div>
   );
@@ -643,7 +643,7 @@ function AboutEditor({
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-zinc-400">{value.length} karakter</span>
+        <span className="text-xs text-zinc-500">{value.length} karakter</span>
         <Button
           outline
           onClick={() => void enrich()}
@@ -770,8 +770,8 @@ function GalleryEditor({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</span>
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</span>
+        <span className="text-xs text-zinc-500">
           {values.length}/{MAX_GALLERY}
           {hint ? ` · ${hint}` : ""}
         </span>
@@ -943,7 +943,7 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
                 {n}
               </span>
             ))}
-            {ids.length > 8 ? <span className="text-xs text-zinc-400">+{ids.length - 8}</span> : null}
+            {ids.length > 8 ? <span className="text-xs text-zinc-500">+{ids.length - 8}</span> : null}
           </div>
         )}
       </div>

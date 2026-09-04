@@ -101,7 +101,7 @@ export function ProductCard({
           ) : null}
         </span>
         {trailing ? (
-          <span className="hidden shrink-0 text-xs text-zinc-400 sm:block">{trailing}</span>
+          <span className="hidden shrink-0 text-xs text-zinc-500 sm:block">{trailing}</span>
         ) : null}
       </>
     );
@@ -208,7 +208,7 @@ export function ProductCard({
             {price.headline}
           </p>
           {product.moq ? (
-            <p className="mt-0.5 text-xs text-zinc-400">
+            <p className="mt-0.5 text-xs text-zinc-500">
               Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
             </p>
           ) : null}
