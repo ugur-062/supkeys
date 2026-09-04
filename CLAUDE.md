@@ -574,6 +574,59 @@ onsuz canlı build fail-loud) CLI ile yazıldı, redeploy edildi. Render
 **ŞEMA BEKLEYEN:** ürün öne çıkan özellikler / paket içi adet / teslim
 süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet tipi.
 
+### Herkese açık pazar yeri v2 — Europages kalıbı (2026-09-04, akşam)
+
+Aynı gün ikinci prompt; sabahki "görünürlük katmanı" kararlarının bir kısmını
+TERSİNE çevirdi (kullanıcı kararı). Commit'ler b641702c … (a11y).
+
+**İlke:** ürün ve firma TAMAMEN açık ve gezilebilir; alım talebi GİZLİ ama
+cezbedici; anasayfada Satılık İlanlar YOK (footer + `/urunler` yan bağlantı).
+Tablo `lib/public/visibility.ts` (tek kaynak).
+
+| Yüzey | Anonim GÖRÜR | Üyeye |
+|-------|--------------|-------|
+| Ürün | galeri, ad, kategori, **fiyat/aralık/"teklif isteyin"**, MOQ, "KDV hariç", nitelik tablosu, açıklama, doküman adı, firma adı+logo+Doğrulanmış+faaliyet+şehir, firmanın diğerleri, benzer, kategoride yeni | "Bilgi iste" (giriş → panel ürün sayfası), web sitesi, doküman indirme |
+| Firma | logo/kapak/ad/rozet/şehir/faaliyet/kategori, Hakkında (düzyazı sezgisi), hizmet, sertifika, galeri, kuruluş, çalışan, **ortalama puan (tek sayı)**, tüm ürünler | Rothern ID, iletişim/web/sosyal, puan dağılımı, sipariş sayıları, talep/ilan listesi |
+| Dizin `/firmalar` | **HERKESE AÇIK** (`public/companies/directory`, ISR, sitemap): koşul profil kapısı ∧ (≥1 yayında ürün ∨ tamlık ≥ %60); `profileCompleteness` @rothern/shared'a taşındı (Profilim ile aynı hesap); test verili Hakkında tamlığa sayılmaz | Rothern ID, iletişim |
+| Alım talebi | başlık, kategori, kapsam, **kalem SAYISI + miktar** ("2 kalem · 1.200 adet"; toplam yalnız aynı birimde), satırlar "Kalem 1 · 500 adet" (AD YOK), alıcı şehri + faaliyet tipi, Doğrulanmış alıcı (gerçek bayrak), kalan süre, kapalı zarf | alıcı adı, kalem adları, şartname, dosyalar, teklif |
+
+**"N tedarikçi inceledi" YOK** — görüntülenme kolonu yok; kural 1 (şema
+dokunulmaz) + kural 2 (uydurma veri yok) → sayaç basılmaz. Tek kolonluk
+migration onaylanırsa eklenir. Aynı sebeple "Hızlı yanıt veren", "Yakınımda
+yarıçap", "teslimat bölgesi", "görüntülenmeye göre popüler" YOK; yedekler:
+il seçimi, "kategoride yeni", ürün sayısına göre popüler kategoriler.
+
+**Kanonik adresler DEĞİŞMEDİ:** ürün `/firma/<firma>/urun/<ürün>` (slug
+firma içinde tekil — `/urun/<slug>` çakışırdı); talep `/talep/rot-…`
+(`/alim-talepleri/<numara>` → 308).
+
+**Anasayfa sırası:** header (Ürünler · Firmalar · Alım Talepleri · Nasıl
+Çalışır + hero dışında kompakt arama) → hero (iki sekmeli arama + öneri
+`public/suggest`, RFQ şeridi, güven bandı) → sayı şeridi (ürün ≥50 ∧ firma
+≥20) → RFQ bannerı → öne çıkan ürünler (`products/featured`: doğrulanmış
+önce, firma başına 2; ≥8) → kategori ızgarası 1+10 (7 sütun) → son eklenen
+(≥8) → alım talebi teaser'ları (≥3, altında tek satır) → iki kart → firmalar
+(≥4) → nasıl çalışır → popüler kategoriler (`stats.popularCategories`, L3
+ürün sayısı) → SEO paragrafı → footer. Sıfır veride 1,2,4,6,9,11,13 görünür.
+
+**Yeni API uçları:** `public/companies/directory(+/facets)`,
+`public/products/featured`, `public/products/:firma/:urun/related`,
+`public/suggest`, `public/stats`; `public/products` `?sort=&verified=1&
+price=has|request`; `public/listings` `?closesWithin=7|30`.
+
+**Kayıt niyeti:** `teklif` + `redirect` (yalnız site içi) — "Teklif ver" /
+"Bilgi iste" kayıt+onboarding sonrası geldiği kaydın PANEL karşılığına döner.
+
+**Doğrulama (lokal üretim build, Lighthouse mobil):** `/` 91·100·96·100,
+`/urunler` 89·96→100·96·92, ürün 92·97→100·96·92, `/firma` 76·96·96·92,
+`/firmalar` 91·100·96·92, `/alim-talepleri` 96·100·100·92. **SEO 92 =
+ölçüm artefaktı:** Next 15 dinamik sayfada `<meta description>`ı gövdeye
+akıtır, Lighthouse `<head>`e bakar; bot UA (Googlebot VE Chrome-Lighthouse
+varsayılan `htmlLimitedBots` listesinde) bloklayan metadata alır — curl ile
+doğrulandı (meta head içinde). `htmlLimitedBots`i elle yazmayın: varsayılan
+listeyi EZER (Googlebot düşer). `/firma` 76: firmanın logo/kapağı ölü
+`pub-*.r2.dev` host'unda 30 sn askıda — veri sorunu, `migrate-public-images`.
+
 ### Herkese açık yüzey v3 — görünürlük katmanı + tek kabuk (2026-09-04)
 
 Ekran görüntülü denetim (3 Eylül, giriş yapmadan). Beş iş, her biri ayrı
