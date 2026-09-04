@@ -41,7 +41,7 @@ export default async function Page({
         <ListingIndex
           type="ALIM"
           title={MARKETPLACE_LABELS.demands}
-          lead="Firmaların herkese açık yayımladığı satın alma talepleri. Kategori, şehir ve kapsama göre süzün; teklif vermek için ücretsiz hesap açın."
+          lead="Firmaların herkese açık alım talepleri. Kalemleri ve alıcıyı görmek, teklif vermek için ücretsiz hesap."
           searchParams={sp}
         />
     </PublicLayout>

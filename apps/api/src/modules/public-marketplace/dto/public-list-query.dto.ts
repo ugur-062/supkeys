@@ -49,6 +49,11 @@ export class PublicListQueryDto {
   @IsIn(["open", "all"])
   state?: "open" | "all";
 
+  /** Kalan süre: 7 ya da 30 gün içinde kapanacaklar. */
+  @IsOptional()
+  @IsIn(["7", "30"])
+  closesWithin?: "7" | "30";
+
   /** Kapsam: yurtiçi / uluslararası (`isInternational`). */
   @IsOptional()
   @IsIn(["domestic", "international"])

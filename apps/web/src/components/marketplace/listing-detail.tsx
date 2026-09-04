@@ -12,8 +12,10 @@ import {
   listingPath,
   publicState,
 } from "@/lib/public/marketplace";
-import type { PublicListingDetail } from "@/lib/public/marketplace-api";
-import { PANEL_TARGET } from "@/lib/public/visibility";
+import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
+import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
+import { ListingTeaserCard } from "./listing-teaser-card";
+import { companyActivityLabel } from "@rothern/shared";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   DELIVERY_TERM_LABELS,
@@ -45,7 +47,14 @@ const STATE_COLOR: Record<string, "emerald" | "amber" | "zinc"> = {
  * alıyor / kim satıyor) ve JSON-LD tipi. Ayrı iki bileşen yazmak, aynı
  * alanları iki yerde güncelleme borcu üretirdi.
  */
-export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
+export function ListingDetail({
+  listing,
+  similar = [],
+}: {
+  listing: PublicListingDetail;
+  /** "Benzer açık talepler" — kayıt sonrası ne bulacağını gösterir (3 kart). */
+  similar?: PublicListingCard[];
+}) {
   const state = publicState(listing.status);
   const isDemand = listing.type === "ALIM";
   const site = resolveSiteUrl();
@@ -345,8 +354,15 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-zinc-950">
-                    {isDemand ? "Doğrulanmış alıcı" : "Doğrulanmış tedarikçi"}
+                    {listing.company.verified
+                      ? isDemand ? "Doğrulanmış alıcı" : "Doğrulanmış tedarikçi"
+                      : isDemand ? "Alıcı firma" : "Satıcı firma"}
                   </p>
+                  {listing.company.activities.length > 0 ? (
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {listing.company.activities.slice(0, 2).map(companyActivityLabel).join(" · ")}
+                    </p>
+                  ) : null}
                   {listing.company.industry ? (
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {listing.company.industry}
@@ -373,16 +389,30 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
               <div className="mt-5 border-t border-zinc-950/5 pt-5">
                 {state === "open" ? (
                   <>
+                    {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
                     <Link
-                      href="/company/kayit"
+                      href={signupHref("teklif", listingPath(listing.type, listing.number, listing.title))}
                       className="block rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
                     >
-                      Teklif vermek için kaydol
+                      Bu talebe teklif vermek için ücretsiz kaydol
                     </Link>
-                    <p className="mt-2 text-center text-xs text-zinc-500">
+                    <p className="mt-2 text-center text-xs text-zinc-500">2 dakika · kredi kartı yok</p>
+                    <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
+                      {[
+                        "Alıcı adı, kalem adları ve şartname",
+                        "Kapalı zarf teklif — rakipler görmez",
+                        "Kategorinle eşleşen yeni talepler e-postana",
+                      ].map((t) => (
+                        <li key={t} className="flex gap-2">
+                          <CheckBadgeIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-3 text-center text-xs text-zinc-500">
                       Hesabınız var mı?{" "}
                       <Link
-                        href="/company/login"
+                        href={loginHref(PANEL_TARGET.listing(listing.type, listing.number))}
                         className="font-medium text-zinc-700 hover:underline"
                       >
                         Giriş yapın
@@ -444,6 +474,18 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
             </ul>
           </aside>
         </div>
+
+        {/* Benzer açık talepler — kayıt sonrası ne bulacağını gösterir. */}
+        {isDemand && similar.length > 0 ? (
+          <section className="mt-16">
+            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">Benzer açık talepler</h2>
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {similar.slice(0, 3).map((l) => (
+                <ListingTeaserCard key={l.number} listing={l} />
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </PublicLayout>
   );

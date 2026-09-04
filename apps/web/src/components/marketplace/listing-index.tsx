@@ -1,4 +1,5 @@
 import { ListingCard } from "./listing-card";
+import { ListingTeaserCard } from "./listing-teaser-card";
 import { FacetGroup } from "./facets";
 import { Pagination } from "./pagination";
 import { PublicEmptyState } from "./public-empty-state";
@@ -30,6 +31,8 @@ export interface MarketplaceSearchParams {
   durum?: string;
   /** `yurtici` | `uluslararasi` */
   kapsam?: string;
+  /** Kalan süre: `7` | `30` gün */
+  sure?: string;
 }
 
 const SCOPE: Record<string, ListParams["scope"]> = {
@@ -51,6 +54,7 @@ export function toListParams(
     city: sp.il?.trim() || undefined,
     state: sp.durum === "hepsi" ? "all" : undefined,
     scope: sp.kapsam ? SCOPE[sp.kapsam] : undefined,
+    closesWithin: sp.sure === "7" || sp.sure === "30" ? sp.sure : undefined,
     page: Number.isFinite(page) && page > 1 ? Math.trunc(page) : undefined,
   };
 }
@@ -76,7 +80,8 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
   const activeCategory = params.category;
   const activeCity = params.city;
   const activeScope = params.scope;
-  const hasFilter = !!(params.q || activeCategory || activeCity || activeScope);
+  const activeWithin = params.closesWithin;
+  const hasFilter = !!(params.q || activeCategory || activeCity || activeScope || activeWithin);
 
   /** Süzgeç bağlantısı — mevcut süzgeçleri korur, sayfayı 1'e döndürür. */
   const filterHref = (patch: Partial<MarketplaceSearchParams>) => {
@@ -86,6 +91,7 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
       il: searchParams.il,
       durum: searchParams.durum,
       kapsam: searchParams.kapsam,
+      sure: searchParams.sure,
       ...patch,
     };
     const sp = new URLSearchParams();
@@ -109,6 +115,7 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
     ...(activeScope
       ? [{ key: "kapsam", label: SCOPE_LABEL[activeScope], href: filterHref({ kapsam: undefined }) }]
       : []),
+    ...(activeWithin ? [{ key: "sure", label: `${activeWithin} gün içinde`, href: filterHref({ sure: undefined }) }] : []),
   ];
 
   return (
@@ -118,7 +125,7 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
       search={{
         action: basePath,
         defaultValue: searchParams.q,
-        hidden: { kategori: searchParams.kategori, il: searchParams.il, kapsam: searchParams.kapsam },
+        hidden: { kategori: searchParams.kategori, il: searchParams.il, kapsam: searchParams.kapsam, sure: searchParams.sure },
       }}
       chips={chips}
       clearHref={basePath}
@@ -146,6 +153,16 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
             }))}
           />
           <FacetGroup
+            heading="Kalan süre"
+            items={(["7", "30"] as const).map((d) => ({
+              key: d,
+              label: `${d} gün içinde kapanacak`,
+              count: page.total,
+              href: toggle("sure", d, activeWithin === d),
+              active: activeWithin === d,
+            }))}
+          />
+          <FacetGroup
             heading="Kapsam"
             items={(facets.scopes ?? []).map((s) => ({
               key: s.scope,
@@ -162,9 +179,13 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
         <PublicEmptyState noun={noun} clearHref={hasFilter ? basePath : undefined} />
       ) : (
         <ResultGrid count={page.items.length}>
-          {page.items.map((l) => (
-            <ListingCard key={l.number} listing={l} />
-          ))}
+          {page.items.map((l) =>
+            type === "ALIM" ? (
+              <ListingTeaserCard key={l.number} listing={l} />
+            ) : (
+              <ListingCard key={l.number} listing={l} />
+            ),
+          )}
         </ResultGrid>
       )}
       <Pagination
@@ -178,6 +199,7 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
           il: searchParams.il,
           durum: searchParams.durum,
           kapsam: searchParams.kapsam,
+          sure: searchParams.sure,
         }}
       />
     </PublicListPage>

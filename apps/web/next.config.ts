@@ -93,6 +93,9 @@ const nextConfig: NextConfig = {
       },
       // Kısa yollar — public header `/company/login` ve `/company/kayit`e
       // bağlanıyor; ziyaretçi elle `/giris` `/kayit` yazınca 404 alıyordu.
+      // Talep detayı kanonik adresi `/talep/rot-000042-başlık` (numara önde,
+      // sitemap ile aynı). `/alim-talepleri/<numara>` kısa yolu oraya döner.
+      { source: "/alim-talepleri/:number(rot-\\d+)", destination: "/talep/:number", permanent: true },
       { source: "/giris", destination: "/company/login", permanent: true },
       { source: "/kayit", destination: "/company/kayit", permanent: true },
       {

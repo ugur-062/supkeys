@@ -167,6 +167,9 @@ export class PublicMarketplaceService {
       ...(q.state === "all" ? {} : { status: "OPEN" }),
       ...(await this.listingCategoryWhere(q.category)),
       ...(q.scope ? { isInternational: q.scope === "international" } : {}),
+      ...(q.closesWithin
+        ? { closesAt: { gte: now, lte: new Date(now.getTime() + Number(q.closesWithin) * 86_400_000) } }
+        : {}),
       ...this.searchWhere(q.q),
     };
 

@@ -151,6 +151,8 @@ export interface ListParams {
   state?: "open" | "all";
   /** Yurtiçi / uluslararası — `isInternational`. */
   scope?: "domestic" | "international";
+  /** 7 ya da 30 gün içinde kapanacaklar. */
+  closesWithin?: "7" | "30";
   page?: number;
 }
 
@@ -163,6 +165,7 @@ function toQuery(params: ListParams): string {
   if (params.state) sp.set("state", params.state);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   if (params.scope) sp.set("scope", params.scope);
+  if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
   const s = sp.toString();
   return s ? `?${s}` : "";
 }
