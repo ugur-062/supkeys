@@ -1,8 +1,8 @@
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MarketplaceHero } from "@/components/marketplace/hero";
 import { StatsStrip } from "@/components/marketplace/stats-strip";
-import { RfqBanner } from "@/components/marketplace/rfq-banner";
-import { ProductCarousel } from "@/components/marketplace/product-carousel";
+import { HowItWorksFlow } from "@/components/marketplace/how-it-works-flow";
+import { ProductShowcase } from "@/components/marketplace/product-showcase";
 import { CategoryGrid } from "@/components/marketplace/category-grid";
 import { ListingTeaserCard } from "@/components/marketplace/listing-teaser-card";
 import { TwoCards } from "@/components/marketplace/two-cards";
@@ -32,9 +32,9 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
  * PAZAR YERİ ANASAYFASI v2 — Europages kalıbı (2026-09-04).
  *
  *  1 header · 2 hero (iki sekmeli arama + RFQ şeridi + güven bandı) ·
- *  3 sayı şeridi (ürün ≥50 ∧ firma ≥20) · 4 talep aç bannerı (her zaman) ·
- *  5 öne çıkan ürünler (≥8) · 6 kategoriye göre keşfet (her zaman) ·
- *  7 son eklenen ürünler (≥8) · 8 açık alım talepleri (≥3; altında tek satır) ·
+ *  3 hareket şeridi (ürün ≥50 ∧ firma ≥20) · 4 alıcı akışı üç adım (her zaman) ·
+ *  5 açık alım talepleri (≥3; altında tek satır) · 6 sekmeli ürün kaydırıcısı
+ *  (öne çıkan ≥8 · yeni · fiyatı yazılı) · 7 kategori listesi (her zaman) ·
  *  9 iki kart (her zaman) · 10 firmalar (≥4) · 11 nasıl çalışır ·
  * 12 popüler kategoriler · 13 SEO paragrafı + footer.
  *
@@ -72,9 +72,10 @@ export default async function HomePage() {
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
 
   // Paralel; biri düşerse diğerleri sayfayı taşır (veri katmanı hata yutar).
-  const [featured, newest, productFacets, segments, demands, directory, stats] = await Promise.all([
+  const [featured, newest, priced, productFacets, segments, demands, directory, stats] = await Promise.all([
     fetchFeaturedProducts(),
     fetchProducts({ sort: "newest", page: 1 }),
+    fetchProducts({ price: "has", sort: "price", page: 1 }),
     fetchProductFacets(),
     fetchSegments(),
     fetchListings({ type: "ALIM", page: 1 }),
@@ -86,6 +87,7 @@ export default async function HomePage() {
     segments: segments.map((s) => ({ id: s.id, name: s.nameTr })),
     counts: productFacets.categories.map((c) => ({ id: c.id, count: c.count })),
     productCovers: [...featured, ...newest.items].map((p) => ({ categoryId: p.categoryId, image: p.images[0] })),
+    limit: 12,
   });
 
   // "Son eklenen" seçkide zaten görünenleri tekrar etmesin (skorlar eşitken
@@ -115,9 +117,9 @@ export default async function HomePage() {
     <PublicLayout>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
 
-      <MarketplaceHero />
+      <MarketplaceHero popular={stats.popularCategories} />
       <StatsStrip stats={stats} />
-      <RfqBanner />
+      <HowItWorksFlow />
 
       {/* AÇIK ALIM TALEPLERİ — gizli ama cezbedici; ürünlerden ÖNCE (kullanıcı
           kararı: talepler öne çıksın). Ölçek açık, kimlik üyeye. */}
@@ -160,22 +162,17 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <ProductCarousel
-        heading="Öne çıkan ürünler"
+      <ProductShowcase
+        heading="Ürünler"
         lead="Doğrulanmış firmaların vitrinlerinden — fiyat ve minimum sipariş bilgisiyle."
-        items={featured}
-        href={MARKETPLACE_ROUTES.products}
+        groups={[
+          { key: "one-cikan", label: "Öne çıkan", items: featured, href: MARKETPLACE_ROUTES.products, hrefLabel: "Tüm ürünler" },
+          { key: "yeni", label: "Yeni", items: newestOnly, href: `${MARKETPLACE_ROUTES.products}?sirala=yeni`, hrefLabel: "Yeni ürünler" },
+          { key: "fiyatli", label: "Fiyatı yazılı", items: priced.items, href: `${MARKETPLACE_ROUTES.products}?fiyat=var&sirala=fiyat`, hrefLabel: "Fiyatlı ürünler" },
+        ]}
       />
 
       <CategoryGrid categories={showcase} />
-
-      <ProductCarousel
-        heading="Son eklenen ürünler"
-        items={newestOnly}
-        href={`${MARKETPLACE_ROUTES.products}?sirala=yeni`}
-        hrefLabel="Yeni ürünler"
-        tone="zinc"
-      />
 
       <TwoCards />
       <CompanyGrid companies={directory.items} />

@@ -1,7 +1,7 @@
 import { HeroSearch } from "./hero-search";
 import { TrustStrip } from "./trust-strip";
 import { Heading } from "@/components/catalyst/heading";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -13,7 +13,12 @@ import Link from "next/link";
  * Firmalar); altında "Talep aç" şeridi (RFQ) ve güven bandı. Sayfadaki kayıt
  * CTA'ları: header · bu şerit · iki-kart bölümü (en fazla 3).
  */
-export function MarketplaceHero() {
+export function MarketplaceHero({
+  popular = [],
+}: {
+  /** Arama kutusunun altındaki hızlı çipler — ürün sayısı en yüksek alt kategoriler. */
+  popular?: { id: string; name: string; count: number }[];
+} = {}) {
   const tabs = [
     {
       key: "products" as const,
@@ -37,7 +42,7 @@ export function MarketplaceHero() {
         <div className="mx-auto max-w-3xl text-center">
           <Heading
             level={1}
-            className="text-4xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-6xl"
+            className="text-4xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-5xl xl:text-6xl"
           >
             Ürünü bul, tedarikçiyle konuş, teklifi kapalı zarfta al.
           </Heading>
@@ -48,6 +53,21 @@ export function MarketplaceHero() {
           <div className="mx-auto mt-9 max-w-2xl">
             <HeroSearch tabs={tabs} />
           </div>
+
+          {popular.length > 0 ? (
+            <nav aria-label="Popüler kategoriler" className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-xs">
+              <span className="text-zinc-500">Popüler:</span>
+              {popular.slice(0, 6).map((c) => (
+                <Link
+                  key={c.id}
+                  href={categoryPath(c.id, c.name)}
+                  className="max-w-[14rem] truncate rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 transition hover:bg-zinc-950 hover:text-white"
+                >
+                  {c.name}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
 
           {/* RFQ şeridi — Europages "Post your request → Get quotes". */}
           <p className="mx-auto mt-6 inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full bg-zinc-50 px-4 py-2 text-sm text-zinc-600 ring-1 ring-zinc-950/5">

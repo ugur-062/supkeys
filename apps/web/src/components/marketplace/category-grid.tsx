@@ -1,27 +1,23 @@
-import { CategoryImage } from "./category-image";
-import { CategoryVisualBox } from "./category-visual-box";
 import { categoryPath } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
+import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
 /**
- * "KATEGORİYE GÖRE KEŞFET" — anasayfanın görsel ağırlığı (2026-09-04).
+ * "KATEGORİYE GÖRE KEŞFET" — ikon + ad + sayı LİSTESİ (B6, 2026-09-04).
  *
- * "Aradığınız kalem kataloğun içinde" metin bandının YERİNE: ziyaretçiye
- * ağacı anlatmak yerine ağacı GÖSTERİYORUZ. Solda bir büyük kart (2×2: en çok
- * ürünlü kategori — "N ürün / ad / Keşfet"), sağda 5×2 ızgara = 11 üst
- * kategori; 7 sütunlu iki satır tam dolar. Her zaman görünür — sıfır envanterde de katalog
- * gerçek ve gezilebilir; sayı yalnız > 0 ise basılır.
- *
- * Görsel kademesi `category-showcase.ts` + `category-photos.ts`: fotoğraf →
- * o kategorideki ilk ürün kapağı → üretilmiş ikon+ton. Tıklama kategori
- * kırılım sayfasına (`/urunler/kategori/<kod>-<ad>`, SSG) — süzgeç sorgu
- * parametresi değil yol parçası, gerekçe CLAUDE.md § Ürün dizini.
+ * Görselli ızgara (büyük kart + 10 küçük) yerine tarama listesi: her satır
+ * segment ikonu (tonlu), ad ve o daldaki ürün sayısı. Foto ızgarası 11
+ * kutuya bir ekran harcıyordu ve fotoğraf kategoriyi adından iyi anlatmıyordu;
+ * liste 12 kategoriyi yarım ekranda okutur, sayı hangi dalın dolu olduğunu
+ * söyler. Her zaman görünür — sıfır envanterde de katalog gezilebilir; sayı
+ * yalnız > 0 ise basılır. Tıklama kategori kırılım sayfasına
+ * (`/urunler/kategori/<kod>-<ad>`, SSG) — süzgeç sorgu parametresi değil yol
+ * parçası, gerekçe CLAUDE.md § Ürün dizini.
  */
 export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] }) {
   if (categories.length === 0) return null;
-  const [lead, ...rest] = categories;
 
   return (
     <section id="kategoriler" className="mx-auto max-w-7xl scroll-mt-24 px-6 py-16 lg:px-8">
@@ -44,62 +40,40 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
         </Link>
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7 lg:grid-rows-2">
-        <Tile category={lead} large />
-        {rest.slice(0, 10).map((c) => (
-          <Tile key={c.id} category={c} />
+      <ul className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {categories.slice(0, 12).map((c) => (
+          <li key={c.id}>
+            <Row category={c} />
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
 
-function Tile({ category: c, large = false }: { category: ShowcaseCategory; large?: boolean }) {
+function Row({ category: c }: { category: ShowcaseCategory }) {
+  const { icon: Icon, tone } = categoryVisual([c.id]);
+  const t = TONE_CLASS[tone];
   return (
     <Link
       href={categoryPath(c.id, c.name)}
-      className={`group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10 ${
-        large ? "col-span-2 row-span-2 sm:col-span-3 lg:col-span-2" : ""
-      }`}
+      className="group flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
     >
-      {c.imageSrc ? (
-        <CategoryImage
-          src={c.imageSrc}
-          categoryIds={[c.id]}
-          ratio={large ? "aspect-[4/3] lg:aspect-auto lg:flex-1" : "aspect-[3/2]"}
-          className="border-b border-zinc-950/5"
-        />
-      ) : (
-        // Fotoğraf yoksa SUNUCU bileşeni — hydrate edilecek bir şey yok.
-        <CategoryVisualBox
-          categoryIds={[c.id]}
-          ratio={large ? "aspect-[4/3] lg:aspect-auto lg:flex-1" : "aspect-[3/2]"}
-          className="border-b border-zinc-950/5"
-        />
-      )}
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-        <span className={`min-w-0 ${large ? "" : ""}`}>
-          {large && c.count > 0 ? (
-            <span className="block text-xs font-semibold text-emerald-700">
-              {c.count.toLocaleString("tr-TR")} ürün
-            </span>
-          ) : null}
-          <span className={`line-clamp-2 font-medium text-zinc-900 ${large ? "text-base" : "text-sm"}`}>
-            {c.name}
-          </span>
-          {large ? <span className="block text-xs text-zinc-500">Keşfet →</span> : null}
-        </span>
+      <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${t.surface}`}>
+        <Icon aria-hidden strokeWidth={1.5} className={`size-5 ${t.icon}`} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-zinc-900">{c.name}</span>
         {c.count > 0 ? (
-          <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
-            {c.count.toLocaleString("tr-TR")}
-          </span>
+          <span className="block text-xs text-zinc-500 tabular-nums">{c.count.toLocaleString("tr-TR")} ürün</span>
         ) : (
-          <ArrowRightIcon
-            aria-hidden
-            className="size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
-          />
+          <span className="block text-xs text-zinc-500">Keşfet</span>
         )}
-      </div>
+      </span>
+      <ArrowRightIcon
+        aria-hidden
+        className="size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
+      />
     </Link>
   );
 }
