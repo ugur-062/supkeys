@@ -4,7 +4,7 @@ import { ProductCard } from "./product-card";
 import type { ProductIndexCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * SEKMELİ ÜRÜN KAYDIRICISI — TEK kaydırıcı, üç sekme (B5, 2026-09-04):
@@ -26,13 +26,30 @@ export interface ShowcaseGroup {
   hrefLabel: string;
 }
 
-export function ProductShowcase({ heading, lead, groups }: { heading: string; lead?: string; groups: ShowcaseGroup[] }) {
+export function ProductShowcase({
+  heading,
+  lead,
+  groups,
+  idPrefix = "urun-vitrini",
+}: {
+  heading: string;
+  lead?: string;
+  groups: ShowcaseGroup[];
+  /**
+   * Sekme/panel `id` ÖNEKİ — SABİT, `useId()` DEĞİL. Gerekçe (2026-09-04,
+   * canlıda ölçüldü): Next 15 akışlı metadata ile sunucunun ürettiği
+   * `useId` değeri (`_R_39brb_`) istemcide tutmuyor, React tüm bloğu
+   * yeniden çiziyor ve anasayfa hydration hatası (#418) veriyordu. Sayfada
+   * tek vitrin var; iki tane olacaksa çağıran farklı önek verir.
+   */
+  idPrefix?: string;
+}) {
   const tabs = groups.filter((g, i) => g.items.length >= (i === 0 ? SHOWCASE_MIN : TAB_MIN));
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [edge, setEdge] = useState({ start: true, end: false });
-  const uid = useId();
+  const uid = idPrefix;
 
   const syncEdge = useCallback(() => {
     const el = listRef.current;
