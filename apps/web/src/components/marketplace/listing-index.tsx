@@ -176,7 +176,7 @@ export async function ListingIndex({ type, title, lead, searchParams }: Props) {
       {page.items.length === 0 ? (
         <PublicEmptyState noun={noun} clearHref={hasFilter ? basePath : undefined} />
       ) : (
-        <ResultGrid count={page.items.length}>
+        <ResultGrid count={page.items.length} heading="Talep sonuçları">
           {page.items.map((l) =>
             type === "ALIM" ? (
               <ListingTeaserCard key={l.number} listing={l} />

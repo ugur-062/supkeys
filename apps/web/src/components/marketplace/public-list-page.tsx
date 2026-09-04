@@ -121,8 +121,26 @@ export function PublicListPage({
 }
 
 /** Sonuç ızgarası — sütun sayısı içerik sayısıyla sınırlı (tek kart öksüz kalmasın). */
-export function ResultGrid({ count, children }: { count: number; children: ReactNode }) {
+export function ResultGrid({
+  count,
+  heading = "Sonuçlar",
+  children,
+}: {
+  count: number;
+  /** Ekran okuyucuya sonuç bölgesinin adı; kartlardaki h3'ten ÖNCE h2 gerekir. */
+  heading?: string;
+  children: ReactNode;
+}) {
   const cols =
     count >= 3 ? "sm:grid-cols-2 xl:grid-cols-3" : count === 2 ? "sm:grid-cols-2" : "sm:max-w-sm";
-  return <div className={`grid grid-cols-1 gap-5 ${cols}`}>{children}</div>;
+  return (
+    <section aria-labelledby="sonuclar">
+      {/* Görsel olmayan h2: sayfa h1'inden kart h3'lerine atlamak başlık
+          sırasını bozuyordu (Lighthouse heading-order, /urunler'de ölçüldü). */}
+      <h2 id="sonuclar" className="sr-only">
+        {heading}
+      </h2>
+      <div className={`grid grid-cols-1 gap-5 ${cols}`}>{children}</div>
+    </section>
+  );
 }

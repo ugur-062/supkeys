@@ -95,7 +95,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
               extra={{ label: "Talep aç — tedarikçiler teklif versin", href: talepHref }}
             />
           ) : (
-            <ResultGrid count={page.items.length}>
+            <ResultGrid count={page.items.length} heading="Ürün sonuçları">
               {page.items.map((p, i) => (
                 <ProductCard
                   key={`${p.company.slug}/${p.slug}`}
