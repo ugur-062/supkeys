@@ -627,6 +627,26 @@ doğrulandı (meta head içinde). `htmlLimitedBots`i elle yazmayın: varsayılan
 listeyi EZER (Googlebot düşer). `/firma` 76: firmanın logo/kapağı ölü
 `pub-*.r2.dev` host'unda 30 sn askıda — veri sorunu, `migrate-public-images`.
 
+### Üye ↔ ziyaretçi TUTARLILIĞI (2026-09-04, gece)
+
+Kullanıcı bulgusu: panel firma sayfası herkese açık profilden farklı
+diziliyor, ürün ızgarası yok; Ürün Ara yalnız arama kutusu; dizin ücretsiz
+üyeye kapalıyken ziyaretçiye açık. Kural: **üye, ziyaretçinin gördüğü her
+şeyi AYNI bileşenle görür + üyeye özel alanlar.** Tek kaynaklar:
+
+| Yüzey | Tek kaynak | Public | Panel |
+|-------|-----------|--------|-------|
+| Firma dizini | `common/company/company-directory.ts` `buildDirectory` (koşul ≥1 ürün ∨ tamlık ≥ %60) | `public/companies/directory` | `company/directory/search` (+rothernId, bağlantı durumu; kendisi+engelledikleri hariç) |
+| Ürün dizini süzgeç/sıra/facet | `common/company/product-index.ts` | `public/products` | `company/items/discover/search` (+`/facets`; kendi ürünler hariç) |
+| İlişkili ürün blokları | `common/company/related-products.ts` | `public/companies/:s/products/:p/related` (anahtara tabi DEĞİL) | aynı uç (`useRelatedProducts`) |
+| Firma profili düzeni | `CompanyProfileView` (`main` slotu: ürünler + açık talepler) | `/firma/[slug]` | `/company/firma/[id]` |
+| Test verisi Hakkında | `@rothern/shared` `looksLikeProse` | gizli | başkasının profilinde gizli, KENDİ profilinde ham |
+
+**Görmek ücretsiz, listelenmek ücretli:** `searchCompanies` STANDART'a boş
+dönmüyor; `getProfile` izleyenin paketine bakmıyor (`publicEnabled ∧ hedef
+PAKET`); Keşfet sekmesi her üyeye açık. Eski davranış anonim ziyaretçinin
+gördüğünü ücretsiz üyeden saklıyordu.
+
 ### Herkese açık yüzey v3 — görünürlük katmanı + tek kabuk (2026-09-04)
 
 Ekran görüntülü denetim (3 Eylül, giriş yapmadan). Beş iş, her biri ayrı
