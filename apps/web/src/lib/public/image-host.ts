@@ -32,18 +32,3 @@ export function optimizable(src: string): boolean {
   }
 }
 
-/**
- * Stok/temsilî görsel mi — demo doluluk seti (`seed-marketplace-demo`)
- * loremflickr'dan çekiyor; kartta "Temsili görsel" etiketi basılır ki ziyaretçi
- * fotoğrafı ürünün kendisi sanmasın. Firma yüklemesi (CDN) etiket ALMAZ.
- */
-const STOCK_HOSTS = ["loremflickr.com", "picsum.photos", "images.unsplash.com", "source.unsplash.com"];
-
-export function isStockImage(src: string | null | undefined): boolean {
-  if (!src) return false;
-  try {
-    return STOCK_HOSTS.includes(new URL(src).hostname);
-  } catch {
-    return false;
-  }
-}

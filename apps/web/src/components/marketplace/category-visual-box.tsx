@@ -1,6 +1,4 @@
-import { segmentPhotoSrc } from "@/lib/public/category-photos";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
-import Image from "next/image";
 
 /**
  * ÜRETİLMİŞ kategori görseli — SUNUCU bileşeni (hook yok, olay yok).
@@ -21,17 +19,6 @@ export function CategoryVisualBox({
 }) {
   const { icon: Icon, tone } = categoryVisual(categoryIds);
   const t = TONE_CLASS[tone];
-  const photo = segmentPhotoSrc(categoryIds);
-  if (photo) {
-    // Fotoğraf bandı: alt kenara doğru koyulaşan degrade, üstüne binen
-    // çipler (kategori adı, kalan gün) her fotoğrafta okunsun diye.
-    return (
-      <div aria-hidden className={`relative overflow-hidden ${ratio} ${className}`}>
-        <Image src={photo} alt="" fill sizes="(max-width: 640px) 100vw, 33vw" className="object-cover" />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-zinc-950/45 via-zinc-950/10 to-transparent" />
-      </div>
-    );
-  }
   return (
     <div
       aria-hidden

@@ -808,14 +808,14 @@ Seçim gözle: aday kontak sayfaları (3 tur, ~450 aday) tek tek bakılarak
 seçildi; anahtar kelime İngilizce, sade (2 sözcük); `aspect_ratio=wide`
 dışında süzgeç koymak sonuçları boşaltıyor.
 
-**Kademe (tek kaynak `category-photos.ts`):** kaydın kendi görseli →
-`segmentPhotoSrc(categoryIds)` (herhangi seviyedeki koddan ilk iki hane +
-altı sıfır) → üretilmiş ikon (yalnız bilinmeyen kod). Çağıranlar:
-`CategoryImage` (ilan/talep kartı + detay bandı + `category` fallback),
-`CategoryVisualBox` (talep teaser bandı, alt degrade + çipler),
-`CategoryGrid` (anasayfa listesi küçük resmi), kategori sayfası başlığı
-(`PublicListPage image=`). **ÜRÜN bu kademeyi ATLAR** (`fallback="neutral"`):
-ürün görseli zorunlu, yokluğu kategori fotoğrafıyla saklanmamalı.
+**KURAL (kullanıcı kararı, aynı akşam revize):** gerçek fotoğraf YALNIZ
+iki yerde — **ürün** (firma yükler; "Temsili görsel" etiketi ve
+`isStockImage` KALDIRILDI) ve **kategori** (`CategoryGrid` anasayfa
+kartları 16:10 + kategori sayfası başlığı, `PublicListPage image=`).
+**Satın alma talebi fotoğraf TAŞIMAZ**: kart, teaser bandı ve detay bandı
+tonlu segment ikonunda kalır (`CategoryImage`/`CategoryVisualBox` segment
+fotoğrafına DÜŞMEZ — ilk sürüm düşüyordu, geri alındı). Tek kaynak
+`category-photos.ts` `segmentPhotoSrc`; çağıran yalnız kategori sayfası.
 `category-photos.test.ts` manifest ↔ dosya birebirliğini ve 58 segment =
 ikon eşlemesi kümesini kilitler.
 

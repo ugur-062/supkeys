@@ -2,7 +2,6 @@
 
 import { CategoryImage } from "./category-image";
 import { Thumb } from "@/components/ui/thumb";
-import { isStockImage } from "@/lib/public/image-host";
 import { productPrice } from "@/lib/public/product-price";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
@@ -153,7 +152,6 @@ export function ProductCard({
         className="border-b border-zinc-950/5"
         priority={priority}
         fallback="neutral"
-        label={isStockImage(product.images[0]) ? "Temsili görsel" : undefined}
       />
 
       <div className="flex flex-1 flex-col p-4">

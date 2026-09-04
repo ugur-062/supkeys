@@ -6,11 +6,11 @@ import Image from "next/image";
 import Link from "next/link";
 
 /**
- * "KATEGORİYE GÖRE KEŞFET" — fotoğraf + ad + sayı LİSTESİ (B6, 2026-09-04).
+ * "KATEGORİYE GÖRE KEŞFET" — fotoğraf kartları (2026-09-04, akşam).
  *
- * Görselli ızgara (büyük kart + 10 küçük) yerine tarama listesi: her satır
- * segment FOTOĞRAFI (3:2 küçük resim; yoksa tonlu ikon), ad ve o daldaki
- * ürün sayısı. Foto ızgarası 11
+ * 12 kart, 4 sütun: üstte segment FOTOĞRAFI (16:10; yoksa tonlu ikon),
+ * altta ad + o daldaki ürün sayısı. Önce ikon+ad listesi denendi; 58
+ * fotoğraf gelince 48 px küçük resim fotoğrafı boşa harcıyordu. Foto ızgarası 11
  * kutuya bir ekran harcıyordu ve fotoğraf kategoriyi adından iyi anlatmıyordu;
  * liste 12 kategoriyi yarım ekranda okutur, sayı hangi dalın dolu olduğunu
  * söyler. Her zaman görünür — sıfır envanterde de katalog gezilebilir; sayı
@@ -42,7 +42,7 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
         </Link>
       </div>
 
-      <ul className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {categories.slice(0, 12).map((c) => (
           <li key={c.id}>
             <Row category={c} />
@@ -59,29 +59,39 @@ function Row({ category: c }: { category: ShowcaseCategory }) {
   return (
     <Link
       href={categoryPath(c.id, c.name)}
-      className="group flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
     >
+      {/* Fotoğraf ÜSTTE, 16:10 — 48 px'lik yan küçük resim fotoğrafı
+          okunmaz kılıyordu (kullanıcı: "yüksekliği çok düşük"). */}
       {c.imageSrc ? (
-        <span className="relative h-12 w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5">
-          <Image src={c.imageSrc} alt="" fill sizes="72px" className="object-cover transition duration-300 group-hover:scale-105" />
+        <span className="relative block aspect-[16/10] overflow-hidden bg-zinc-100">
+          <Image
+            src={c.imageSrc}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover transition duration-500 group-hover:scale-105"
+          />
         </span>
       ) : (
-        <span className={`flex h-12 w-[4.5rem] shrink-0 items-center justify-center rounded-xl ${t.surface}`}>
-          <Icon aria-hidden strokeWidth={1.5} className={`size-5 ${t.icon}`} />
+        <span className={`flex aspect-[16/10] items-center justify-center ${t.surface}`}>
+          <Icon aria-hidden strokeWidth={1.25} className={`size-10 ${t.icon}`} />
         </span>
       )}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-zinc-900">{c.name}</span>
-        {c.count > 0 ? (
-          <span className="block text-xs text-zinc-500 tabular-nums">{c.count.toLocaleString("tr-TR")} ürün</span>
-        ) : (
-          <span className="block text-xs text-zinc-500">Keşfet</span>
-        )}
+      <span className="flex items-center gap-3 px-4 py-3">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-zinc-900">{c.name}</span>
+          {c.count > 0 ? (
+            <span className="block text-xs text-zinc-500 tabular-nums">{c.count.toLocaleString("tr-TR")} ürün</span>
+          ) : (
+            <span className="block text-xs text-zinc-500">Keşfet</span>
+          )}
+        </span>
+        <ArrowRightIcon
+          aria-hidden
+          className="size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
+        />
       </span>
-      <ArrowRightIcon
-        aria-hidden
-        className="size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500"
-      />
     </Link>
   );
 }
