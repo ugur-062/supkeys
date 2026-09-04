@@ -133,6 +133,19 @@ const nextConfig: NextConfig = {
         destination: "/company/satinalma/urunler",
         permanent: true,
       },
+      {
+        // Satınalma "Tekliflerim" = SATIŞ ilanlarına verdiğim teklifler
+        // sayfasıydı; satış tarafındaki "Satış Tekliflerim" duruyor.
+        source: "/company/satinalma/tekliflerim/:path*",
+        destination: "/company/satis/tekliflerim",
+        permanent: true,
+      },
+      {
+        // Satış raporları = SATIŞ ilanı raporlarıydı; satın alma raporları kaldı.
+        source: "/company/satis/raporlar/:path*",
+        destination: "/company/satinalma/raporlar",
+        permanent: true,
+      },
     ];
   },
 };
