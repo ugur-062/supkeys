@@ -1,5 +1,6 @@
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
+import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { serializeJsonLd } from "@/lib/json-ld";
@@ -95,7 +96,9 @@ export default async function PublicCompanyProfile({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const p = await fetchProfile(slug);
+  // Profil ve ürünler PARALEL: ürün bileşeni kendi çekiyordu, profil bitmeden
+  // başlamıyordu → TTFB 1,5 sn (Lighthouse). Sonuç prop'la iner.
+  const [p, products] = await Promise.all([fetchProfile(slug), fetchCompanyProducts(slug)]);
   if (!p) notFound();
 
   const site = resolveSiteUrl();
@@ -182,7 +185,7 @@ export default async function PublicCompanyProfile({
               />
             ),
           }}
-          main={<CompanyProducts companySlug={p.slug ?? ""} />}
+          main={<CompanyProducts companySlug={p.slug ?? ""} page={products} />}
         />
       </div>
     </PublicLayout>

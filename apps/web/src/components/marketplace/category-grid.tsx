@@ -1,4 +1,5 @@
 import { CategoryImage } from "./category-image";
+import { CategoryVisualBox } from "./category-visual-box";
 import { categoryPath } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -60,12 +61,21 @@ function Tile({ category: c, large = false }: { category: ShowcaseCategory; larg
         large ? "col-span-2 row-span-2 sm:col-span-3 lg:col-span-2" : ""
       }`}
     >
-      <CategoryImage
-        src={c.imageSrc}
-        categoryIds={[c.id]}
-        ratio={large ? "aspect-[4/3] lg:aspect-auto lg:flex-1" : "aspect-[3/2]"}
-        className="border-b border-zinc-950/5"
-      />
+      {c.imageSrc ? (
+        <CategoryImage
+          src={c.imageSrc}
+          categoryIds={[c.id]}
+          ratio={large ? "aspect-[4/3] lg:aspect-auto lg:flex-1" : "aspect-[3/2]"}
+          className="border-b border-zinc-950/5"
+        />
+      ) : (
+        // Fotoğraf yoksa SUNUCU bileşeni — hydrate edilecek bir şey yok.
+        <CategoryVisualBox
+          categoryIds={[c.id]}
+          ratio={large ? "aspect-[4/3] lg:aspect-auto lg:flex-1" : "aspect-[3/2]"}
+          className="border-b border-zinc-950/5"
+        />
+      )}
       <div className="flex items-center justify-between gap-2 px-3 py-2.5">
         <span
           className={`line-clamp-2 font-medium text-zinc-900 ${large ? "text-base" : "text-sm"}`}

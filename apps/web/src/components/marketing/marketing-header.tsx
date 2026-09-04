@@ -72,8 +72,9 @@ export function MarketingHeader({
         }`}
       >
         <div className="flex lg:flex-1">
+          {/* Logonun alt metni "Rothern" — ayrıca sr-only metin KOYMA:
+              ekran okuyucu adı iki kez okur (Lighthouse image-redundant-alt). */}
           <Link href="/" className="-m-1.5 p-1.5">
-            <span className="sr-only">Rothern</span>
             <RothernLogo
               variant={dark ? "full" : "full-light"}
               size={scrolled ? "sm" : "md"}

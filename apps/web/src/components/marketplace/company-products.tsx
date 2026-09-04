@@ -1,5 +1,5 @@
 import { ProductCard } from "./product-card";
-import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
+import { fetchCompanyProducts, type PublicProductPage } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
@@ -15,13 +15,16 @@ import Link from "next/link";
  */
 export async function CompanyProducts({
   companySlug,
+  page: given,
 }: {
   companySlug: string;
+  /** Sayfa profil ile paralel çektiyse verir; yoksa bileşen kendi çeker. */
+  page?: PublicProductPage;
 }) {
   // Görünürlük pazar yeri anahtarına BAĞLI DEĞİL (2026-09-03): ürünler
   // firmanın zaten açık olan profilinin parçası. İndekslenme ayrı kapı
   // (sayfa `noindex` + sitemap anahtara bağlı).
-  const page = await fetchCompanyProducts(companySlug);
+  const page = given ?? (await fetchCompanyProducts(companySlug));
   if (page.items.length === 0) return null;
 
   return (

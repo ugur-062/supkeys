@@ -38,7 +38,7 @@ export function TrustBand() {
   return (
     <section id="nasil-calisir" className="scroll-mt-24 border-t border-zinc-950/5 bg-zinc-50">
       <div className="mx-auto max-w-7xl px-6 py-20 sm:py-24 lg:px-8">
-        <p className="text-sm/6 font-semibold text-emerald-600">Nasıl çalışır</p>
+        <p className="text-sm/6 font-semibold text-emerald-700">Nasıl çalışır</p>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
           Talepten teklife, tekliften siparişe
         </h2>
