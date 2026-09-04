@@ -2,13 +2,15 @@ import { categoryPath } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
+import Image from "next/image";
 import Link from "next/link";
 
 /**
- * "KATEGORİYE GÖRE KEŞFET" — ikon + ad + sayı LİSTESİ (B6, 2026-09-04).
+ * "KATEGORİYE GÖRE KEŞFET" — fotoğraf + ad + sayı LİSTESİ (B6, 2026-09-04).
  *
  * Görselli ızgara (büyük kart + 10 küçük) yerine tarama listesi: her satır
- * segment ikonu (tonlu), ad ve o daldaki ürün sayısı. Foto ızgarası 11
+ * segment FOTOĞRAFI (3:2 küçük resim; yoksa tonlu ikon), ad ve o daldaki
+ * ürün sayısı. Foto ızgarası 11
  * kutuya bir ekran harcıyordu ve fotoğraf kategoriyi adından iyi anlatmıyordu;
  * liste 12 kategoriyi yarım ekranda okutur, sayı hangi dalın dolu olduğunu
  * söyler. Her zaman görünür — sıfır envanterde de katalog gezilebilir; sayı
@@ -59,9 +61,15 @@ function Row({ category: c }: { category: ShowcaseCategory }) {
       href={categoryPath(c.id, c.name)}
       className="group flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
     >
-      <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${t.surface}`}>
-        <Icon aria-hidden strokeWidth={1.5} className={`size-5 ${t.icon}`} />
-      </span>
+      {c.imageSrc ? (
+        <span className="relative h-12 w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5">
+          <Image src={c.imageSrc} alt="" fill sizes="72px" className="object-cover transition duration-300 group-hover:scale-105" />
+        </span>
+      ) : (
+        <span className={`flex h-12 w-[4.5rem] shrink-0 items-center justify-center rounded-xl ${t.surface}`}>
+          <Icon aria-hidden strokeWidth={1.5} className={`size-5 ${t.icon}`} />
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-zinc-900">{c.name}</span>
         {c.count > 0 ? (

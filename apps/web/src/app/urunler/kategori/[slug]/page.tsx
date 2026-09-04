@@ -10,6 +10,7 @@ import {
 } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets } from "@/lib/public/marketplace-api";
+import { segmentPhotoSrc } from "@/lib/public/category-photos";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -94,6 +95,7 @@ export default async function Page({
           lead={`${cat.name} kategorisinde ${cat.count.toLocaleString("tr-TR")} ürün. Firmaların vitrinlerinden; teklif için doğrudan iletişime geçin.`}
           searchParams={sp}
           category={{ id: cat.id, name: cat.name }}
+          image={segmentPhotoSrc([cat.id])}
         />
     </PublicLayout>
   );

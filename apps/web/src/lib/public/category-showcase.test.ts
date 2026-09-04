@@ -12,7 +12,8 @@ describe("anasayfa kategori seçkisi", () => {
   it("sıfır envanterde de ızgara dolu — küratörlü sıra", () => {
     const out = buildShowcase({ segments, counts: [], productCovers: [] });
     expect(out.map((c) => c.id)).toEqual(["23000000", "31000000", "39000000", "50000000"]);
-    expect(out.every((c) => c.count === 0 && c.imageSrc === null)).toBe(true);
+    // 58 segmentin hepsinin fotoğrafı var — envanter sıfırken de görsel dolu.
+    expect(out.every((c) => c.count === 0 && c.imageSrc === `/categories/${c.id}.webp`)).toBe(true);
   });
   it("ürünü olan kategori öne geçer, sayı taşır", () => {
     const out = buildShowcase({
@@ -23,17 +24,19 @@ describe("anasayfa kategori seçkisi", () => {
     expect(out.map((c) => c.id).slice(0, 2)).toEqual(["50000000", "39000000"]);
     expect(out[0].count).toBe(7);
   });
-  it("kapak yaprak koddan segmente türer, ilk kapak kazanır", () => {
+  it("fotoğraf ürün kapağını EZER; fotoğrafsız segmentte kapak yaprak koddan türer, ilk kapak kazanır", () => {
     const out = buildShowcase({
-      segments,
+      segments: [...segments, { id: "99000000", name: "Fotoğrafsız" }],
       counts: [],
       productCovers: [
         { categoryId: "39121000", image: "a.webp" },
-        { categoryId: "39121500", image: "b.webp" },
+        { categoryId: "99121000", image: "n1.webp" },
+        { categoryId: "99121500", image: "n2.webp" },
         { categoryId: null, image: "x.webp" },
       ],
     });
-    expect(out.find((c) => c.id === "39000000")?.imageSrc).toBe("a.webp");
+    expect(out.find((c) => c.id === "39000000")?.imageSrc).toBe("/categories/39000000.webp");
+    expect(out.find((c) => c.id === "99000000")?.imageSrc).toBe("n1.webp");
   });
   it("limit uygulanır ve tekrar yok", () => {
     const out = buildShowcase({ segments, counts: [{ id: "23000000", count: 1 }], productCovers: [], limit: 2 });

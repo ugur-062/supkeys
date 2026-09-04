@@ -1,5 +1,6 @@
 "use client";
 
+import { segmentPhotoSrc } from "@/lib/public/category-photos";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { optimizable } from "@/lib/public/image-host";
 import { ImageOff } from "lucide-react";
@@ -54,6 +55,33 @@ export function CategoryImage({
   // Yükleme hatası → üretilmiş görsele düş. `src` değişirse (aynı kartın
   // yeniden kullanımı) hata durumu sıfırlanmalı; anahtar olarak src kullanılır.
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  // Kaydın kendi görseli yoksa (ya da yüklenemediyse) SEGMENT fotoğrafı —
+  // 58 üst kategorinin hepsinin fotoğrafı var (`category-photos.ts`). Yerel
+  // dosya olduğu için `next/image` optimize eder. Ürün (`neutral`) bu
+  // kademeyi ATLAR: ürün görseli zorunlu, yokluğu kategori fotoğrafıyla
+  // saklanmamalı.
+  const photo = fallback === "category" && (!src || failedSrc === src) ? segmentPhotoSrc(categoryIds) : null;
+  if (photo && failedSrc !== photo) {
+    return (
+      <div className={`relative overflow-hidden ${ratio} ${className}`}>
+        <Image
+          src={photo}
+          alt={alt}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover"
+          priority={priority}
+          onError={() => setFailedSrc(photo)}
+        />
+        {label ? (
+          <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+            {label}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
 
   if (src && failedSrc !== src) {
     return (

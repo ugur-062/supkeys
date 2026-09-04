@@ -32,9 +32,11 @@ interface Props {
   searchParams: SearchParamsLike;
   /** Kategori yol sayfasında sabit kod. */
   category?: { id: string; name: string };
+  /** Kategori sayfası: segment fotoğrafı (başlık yanında). */
+  image?: string | null;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category }: Props) {
+export async function ProductIndex({ title, lead, searchParams, category, image }: Props) {
   const state = parseProductFilters(searchParams, category?.id);
   const params = toProductListParams(state);
   const basePath = MARKETPLACE_ROUTES.products;
@@ -51,6 +53,7 @@ export async function ProductIndex({ title, lead, searchParams, category }: Prop
       <PublicListPage
         title={title}
         lead={lead}
+        image={image}
         breadcrumb={
           category ? (
             <nav aria-label="Konum" className="mb-3 text-sm text-zinc-500">
