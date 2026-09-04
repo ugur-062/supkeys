@@ -12,6 +12,8 @@
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "seed-demo-fill": "tsx prisma/scripts/seed-demo-fill.ts",
+    "seed-marketplace-demo": "tsx prisma/scripts/seed-marketplace-demo.ts",
+    "cleanup-marketplace-demo": "tsx prisma/scripts/cleanup-marketplace-demo.ts",
     "create-test-company": "tsx prisma/scripts/create-test-company.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "seed-category-attributes": "tsx prisma/scripts/seed-category-attributes.ts",

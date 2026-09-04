@@ -101,7 +101,10 @@ export default async function HomePage() {
     },
   };
 
-  const demandCards = demands.items.slice(0, 6);
+  // Yakında kapanacaklar önce — aciliyet cezbeder.
+  const demandCards = [...demands.items]
+    .sort((a, b) => (a.closesAt ? new Date(a.closesAt).getTime() : Infinity) - (b.closesAt ? new Date(b.closesAt).getTime() : Infinity))
+    .slice(0, 6);
 
   return (
     <PublicLayout>
@@ -110,6 +113,47 @@ export default async function HomePage() {
       <MarketplaceHero />
       <StatsStrip stats={stats} />
       <RfqBanner />
+
+      {/* AÇIK ALIM TALEPLERİ — gizli ama cezbedici; ürünlerden ÖNCE (kullanıcı
+          kararı: talepler öne çıksın). Ölçek açık, kimlik üyeye. */}
+      <section className="border-y border-zinc-950/5 bg-zinc-50">
+        <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm/6 font-semibold text-emerald-700">Açık alım talepleri</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+                Alıcılar şu an bunları arıyor
+              </h2>
+              <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">
+                Doğrulanmış alıcıların açık talepleri. Miktar ve kapsam herkese açık; alıcı adı, kalem
+                adları ve şartname yalnız üyelere. Teklif vermek ücretsiz hesapla.
+              </p>
+            </div>
+            {demandCards.length >= MIN_DEMANDS ? (
+              <Link
+                href={MARKETPLACE_ROUTES.demands}
+                className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
+              >
+                Tüm talepler{demands.total > 0 ? ` (${demands.total})` : ""} →
+              </Link>
+            ) : null}
+          </div>
+          {demandCards.length >= MIN_DEMANDS ? (
+            <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {demandCards.map((l) => (
+                <ListingTeaserCard key={l.number} listing={l} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
+              Talepler kaydolduktan sonra panelinizde kategorinize göre eşleşir.
+              <Link href={signupHref("teklif")} className="font-semibold text-zinc-950 underline underline-offset-2 hover:text-zinc-600">
+                Kaydol
+              </Link>
+            </p>
+          )}
+        </div>
+      </section>
 
       <ProductCarousel
         heading="Öne çıkan ürünler"
@@ -127,39 +171,6 @@ export default async function HomePage() {
         hrefLabel="Yeni ürünler"
         tone="zinc"
       />
-
-      {/* Açık alım talepleri — gizli ama cezbedici: ölçek görünür, kimlik üyeye. */}
-      <section className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-              Alıcılar şu an bunları arıyor
-            </h2>
-            <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">
-              Tedarikçiler teklif vermek için kaydolur; alıcı bilgileri yalnız üyelere açılır.
-            </p>
-          </div>
-          {demandCards.length >= MIN_DEMANDS ? (
-            <Link href={MARKETPLACE_ROUTES.demands} className="text-sm font-semibold text-zinc-900 hover:text-zinc-600">
-              Tüm talepler →
-            </Link>
-          ) : null}
-        </div>
-        {demandCards.length >= MIN_DEMANDS ? (
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {demandCards.map((l) => (
-              <ListingTeaserCard key={l.number} listing={l} />
-            ))}
-          </div>
-        ) : (
-          <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
-            Talepler kaydolduktan sonra panelinizde kategorinize göre eşleşir.
-            <Link href={signupHref("teklif")} className="font-semibold text-zinc-950 underline underline-offset-2 hover:text-zinc-600">
-              Kaydol
-            </Link>
-          </p>
-        )}
-      </section>
 
       <TwoCards />
       <CompanyGrid companies={directory.items} />
