@@ -2,7 +2,6 @@
 
 import { CategoryImage } from "./category-image";
 import { Thumb } from "@/components/ui/thumb";
-import { GatedText } from "./gated-field";
 import { productPrice } from "@/lib/public/product-price";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
@@ -58,7 +57,6 @@ export function ProductCard({
   meta,
   trailing,
   onClick,
-  priceGated = false,
   className,
 }: {
   product: ProductCardProduct;
@@ -83,12 +81,6 @@ export function ProductCard({
   trailing?: ReactNode;
   /** Row: bağlantı yerine düğme (panel içi düzenleme). */
   onClick?: () => void;
-  /**
-   * HERKESE AÇIK yüzey (görünürlük katmanı): fiyat/MOQ HTML'e yazılmaz,
-   * yerine "Fiyat için giriş yapın". Public uç fiyatı zaten döndürmüyor;
-   * bayrak olmadan kart FIXED fiyatlı ürünü "teklif isteyin" sanırdı.
-   */
-  priceGated?: boolean;
   className?: string;
 }) {
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
@@ -210,26 +202,16 @@ export function ProductCard({
         ) : null}
 
         <div className="mt-auto pt-3">
-          {priceGated ? (
-            product.priceMode === "ON_REQUEST" ? (
-              <p className="text-sm font-semibold text-zinc-500">Fiyat için teklif isteyin</p>
-            ) : (
-              <GatedText label="Fiyat" />
-            )
-          ) : (
-            <>
-              <p
-                className={`text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-500"}`}
-              >
-                {price.headline}
-              </p>
-              {product.moq ? (
-                <p className="mt-0.5 text-xs text-zinc-400">
-                  Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
-                </p>
-              ) : null}
-            </>
-          )}
+          <p
+            className={`text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-500"}`}
+          >
+            {price.headline}
+          </p>
+          {product.moq ? (
+            <p className="mt-0.5 text-xs text-zinc-400">
+              Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
+            </p>
+          ) : null}
           {cta ? (
             <span className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800 transition group-hover:bg-zinc-950 group-hover:text-white">
               {cta}

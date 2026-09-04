@@ -69,6 +69,8 @@ export interface ProfileViewData {
   linkedinUrl?: string | null;
   instagramUrl?: string | null;
   rating?: { avg: number; count: number } | null;
+  /** Herkese açık profil (v2): yalnız ortalama, sayı ve dağılım üyeye. */
+  ratingAvg?: number | null;
   /**
    * 2026-08-22 — firma bazında gruplu değerlendirme özeti (api → shared
    * ReviewSummary). Ad yalnız opt-in + platform içi; herkese açıkta null.
@@ -289,6 +291,7 @@ export function CompanyProfileView({
           p.instagramUrl ||
           p.categories?.length ||
           gate?.stats ||
+          p.ratingAvg != null ||
           (p.rating && p.rating.count > 0) ? (
             <div className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-zinc-100 pt-4">
               {p.rating && p.rating.count > 0 ? (
@@ -302,6 +305,17 @@ export function CompanyProfileView({
                     <span className="font-normal text-zinc-400">
                       ({p.rating.count})
                     </span>
+                  </div>
+                </div>
+              ) : null}
+              {p.ratingAvg != null && !(p.rating && p.rating.count > 0) ? (
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                    Değerlendirme
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
+                    <StarIcon className="size-4 text-rating" aria-hidden />
+                    {p.ratingAvg.toFixed(1)}
                   </div>
                 </div>
               ) : null}

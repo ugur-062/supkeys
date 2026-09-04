@@ -1,82 +1,79 @@
 import { CompanyLogo } from "@/components/company/company-logo";
+import { Thumb } from "@/components/ui/thumb";
+import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
+import { BuildingOffice2Icon, CheckBadgeIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import { companyActivityLabel } from "@rothern/shared";
-import type { PublicDirectoryCompany } from "@/lib/public/marketplace-api";
-import { BuildingOffice2Icon, MapPinIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
 /**
- * Firma dizini kartı — SUNUCU bileşeni.
- *
- * `slug` her zaman dolu (API kapısı `slug: { not: null }` istiyor), yine de
- * tipte null olabilir; bu durumda kart bağlantısız düz kutu olur — 404'e
- * bağlantı vermektense tıklanamaz kart göstermek doğru.
+ * FİRMA DİZİNİ KARTI — herkese açık (görünürlük v2, Europages kalıbı):
+ * logo · ad · Doğrulanmış · şehir · faaliyet tipi · ana kategori · ürün
+ * sayısı · 3 ürün küçük resmi · "Profili gör". Rothern ID ve iletişim YOK.
  */
-export function CompanyCard({ company }: { company: PublicDirectoryCompany }) {
-  const inner = (
-    <>
-      <div className="flex items-center gap-3">
+export function CompanyCard({ company: c }: { company: PublicDirectoryCard }) {
+  const activities = c.activities.slice(0, 2);
+  return (
+    <Link
+      href={`/firma/${c.slug}`}
+      className="group flex h-full flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
+    >
+      <div className="flex items-start gap-3">
         <CompanyLogo
-          src={company.logoUrl}
+          src={c.logoUrl}
           alt=""
-          className="size-12 shrink-0 rounded-lg object-contain ring-1 ring-zinc-950/5"
+          className="size-12 shrink-0 rounded-xl object-cover ring-1 ring-zinc-950/5"
           fallback={
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
               <BuildingOffice2Icon aria-hidden className="size-6 text-zinc-400" />
             </span>
           }
         />
         <div className="min-w-0">
-          <h3 className="line-clamp-1 text-base font-semibold text-zinc-950 group-hover:text-zinc-600">
-            {company.name}
+          <h3 className="flex flex-wrap items-center gap-1.5 text-base font-semibold text-zinc-950">
+            <span className="line-clamp-1">{c.name}</span>
+            {c.verified ? (
+              <CheckBadgeIcon aria-label="Doğrulanmış firma" className="size-4 shrink-0 text-emerald-600" />
+            ) : null}
           </h3>
-          {company.city ? (
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
-              <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
-              {company.city}
-            </p>
-          ) : null}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+            {c.city ? (
+              <span className="inline-flex items-center gap-1">
+                <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
+                {c.city}
+              </span>
+            ) : null}
+            {c.mainCategory ? <span className="line-clamp-1">{c.mainCategory.name}</span> : null}
+          </p>
         </div>
       </div>
 
-      {company.industry ? (
-        <p className="mt-3 line-clamp-1 text-xs font-medium text-zinc-500">
-          {company.industry}
-        </p>
-      ) : null}
-
-      {company.aboutText ? (
-        <p className="mt-2 line-clamp-3 text-sm/6 text-zinc-600">
-          {company.aboutText}
-        </p>
-      ) : null}
-
-      {company.activities.length > 0 ? (
-        <ul className="mt-4 flex flex-wrap gap-1.5">
-          {company.activities.map((a) => (
-            <li
-              key={a}
-              className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600"
-            >
+      {activities.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {activities.map((a) => (
+            <span key={a} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
               {companyActivityLabel(a)}
-            </li>
+            </span>
           ))}
-        </ul>
+        </div>
       ) : null}
-    </>
-  );
 
-  const className =
-    "group flex h-full flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition duration-200";
+      {c.productPreview.length > 0 ? (
+        <div className="mt-4 flex items-center gap-2">
+          {c.productPreview.map((p) => (
+            <Thumb key={p.slug} src={p.image ?? undefined} alt="" size="md" />
+          ))}
+          {c.productCount > c.productPreview.length ? (
+            <span className="text-xs font-medium text-zinc-500">+{c.productCount - c.productPreview.length}</span>
+          ) : null}
+        </div>
+      ) : null}
 
-  if (!company.slug) {
-    return <div className={className}>{inner}</div>;
-  }
-  return (
-    <Link
-      href={`/firma/${company.slug}`}
-      className={`${className} hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950`}
-    >
-      {inner}
+      <div className="mt-auto flex items-center justify-between pt-4 text-sm">
+        <span className="text-zinc-500">
+          {c.productCount > 0 ? `${c.productCount.toLocaleString("tr-TR")} ürün` : "Profil"}
+        </span>
+        <span className="font-semibold text-zinc-900 group-hover:text-zinc-600">Profili gör →</span>
+      </div>
     </Link>
   );
 }

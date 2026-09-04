@@ -49,7 +49,7 @@ export async function CompanyProducts({
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {page.items.map((p) => (
-          <ProductCard key={p.slug} companySlug={companySlug} product={p} priceGated />
+          <ProductCard key={p.slug} companySlug={companySlug} product={p} />
         ))}
       </div>
     </section>

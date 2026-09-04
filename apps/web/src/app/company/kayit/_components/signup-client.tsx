@@ -64,6 +64,9 @@ export function CompanySignupClient() {
   const [intent, setIntent] = useState<SignupIntent>(
     parseSignupIntent(searchParams.get("intent")) ?? "ikisi",
   );
+  // "Teklif ver" / "Bilgi iste"den gelen geri dönüş yolu — kayıt + onboarding
+  // sonrası aynı kayda döner (yalnız site içi; sessionStorage'a yazılır).
+  const redirect = searchParams.get("redirect");
   const signup = useCompanySignup();
   const verify = useVerifyEmail();
   const resend = useResendEmailCode();
@@ -164,7 +167,7 @@ export function CompanySignupClient() {
         return;
       }
       setAuth({ user: res.user, company: res.company });
-      rememberSignupIntent(intent);
+      rememberSignupIntent(intent, redirect);
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, "Kod doğrulanamadı"));
@@ -275,7 +278,7 @@ export function CompanySignupClient() {
         <fieldset>
           <legend className="text-sm font-medium text-zinc-900">Ne yapmak istiyorsunuz?</legend>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {(Object.keys(SIGNUP_INTENTS) as SignupIntent[]).map((k) => {
+            {(["talep", "ilan", "vitrin", "ikisi"] as SignupIntent[]).map((k) => {
               const on = intent === k;
               return (
                 <label

@@ -31,30 +31,46 @@ export const SIGNUP_INTENTS = {
     hint: "Tek hesapla hem al hem sat — panelden başla.",
     href: null,
   },
+  /** "Teklif ver" / "Bilgi iste" — geldiği kaydın PANEL karşılığına döner (`redirect`). */
+  teklif: {
+    label: "Teklif vermek",
+    hint: "Açık alım taleplerine kapalı zarf teklif ver.",
+    href: "/company/satis/acik-talepler",
+  },
 } as const;
 
 export type SignupIntent = keyof typeof SIGNUP_INTENTS;
 
 const KEY = "rothern.signup-intent";
+const REDIRECT_KEY = "rothern.signup-redirect";
 
 export function parseSignupIntent(raw: string | null | undefined): SignupIntent | null {
   return raw && raw in SIGNUP_INTENTS ? (raw as SignupIntent) : null;
 }
 
-export function rememberSignupIntent(intent: SignupIntent) {
+/** Yalnız site içi yol; açık yönlendirme yok (visibility.ts ile aynı kural). */
+function safe(redirect?: string | null): string | null {
+  return redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
+}
+
+export function rememberSignupIntent(intent: SignupIntent, redirect?: string | null) {
   try {
     if (SIGNUP_INTENTS[intent].href) sessionStorage.setItem(KEY, intent);
+    const r = safe(redirect);
+    if (r) sessionStorage.setItem(REDIRECT_KEY, r);
   } catch {
     /* özel pencere / depolama kapalı — yönlendirme olmaz, kayıt olur */
   }
 }
 
-/** Okur ve SİLER — tek kullanımlık. Hedef yoksa null. */
+/** Okur ve SİLER — tek kullanımlık. `redirect` niyet hedefinden ÖNCE gelir. */
 export function consumeSignupIntent(): string | null {
   try {
+    const redirect = safe(sessionStorage.getItem(REDIRECT_KEY));
     const intent = parseSignupIntent(sessionStorage.getItem(KEY));
     sessionStorage.removeItem(KEY);
-    return intent ? SIGNUP_INTENTS[intent].href : null;
+    sessionStorage.removeItem(REDIRECT_KEY);
+    return redirect ?? (intent ? SIGNUP_INTENTS[intent].href : null);
   } catch {
     return null;
   }

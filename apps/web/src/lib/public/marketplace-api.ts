@@ -51,8 +51,8 @@ export interface PublicListingCard {
   primaryCurrency: string;
   isInternational: boolean;
   itemCount: number;
-  /** İlk üç kalemin ADI — kapsam; miktar/marka/şartname üyelere (görünürlük katmanı). */
-  itemPreview: string[];
+  /** Kapsam özeti — sayı + (aynı birimde) toplam miktar. Ad yok. */
+  itemSummary: { count: number; totalQuantity: string | null; unit: string | null };
   excerpt: string | null;
   company: PublicCompanyRef;
   categories: PublicCategoryRef[];
@@ -80,6 +80,8 @@ export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> 
   lcConfirmed: boolean;
   updatedAt: string;
   indexable: boolean;
+  /** Satırlar: sıra + miktar + birim — AD ÜYEYE (görünürlük v2). */
+  items: { lineNo: number; quantity: string; unit: string }[];
 }
 
 export interface PublicListPage {
@@ -210,104 +212,9 @@ export function fetchListingSitemap(): Promise<PublicSitemapRow[]> {
 /* Firma dizini                                                        */
 /* ------------------------------------------------------------------ */
 
-export interface PublicDirectoryCompany {
-  name: string;
-  slug: string | null;
-  city: string | null;
-  country: string | null;
-  industry: string | null;
-  activities: string[];
-  logoUrl: string | null;
-  aboutText: string | null;
-  services: string[];
-  foundedYear: number | null;
-  updatedAt: string;
-}
+/* Girişli dizin (`company/directory`) web'den ÇIKTI (görünürlük v2): dizin
+   herkese açık — `fetchPublicDirectory` aşağıda. */
 
-export interface PublicDirectoryPage {
-  items: PublicDirectoryCompany[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface PublicDirectoryFacets {
-  cities: { city: string; count: number }[];
-  activities: { activity: string; count: number }[];
-}
-
-export interface DirectoryParams {
-  q?: string;
-  city?: string;
-  category?: string;
-  activity?: string;
-  page?: number;
-}
-
-/**
- * Firma dizini — GİRİŞ GEREKTİRİR. Diğer pazar yeri çağrılarından üç farkı
- * var ve üçü de aynı sebepten:
- *
- *  · çerez TAŞINIR (`cookie` başlığı elle iletilir; sunucu bileşeninde
- *    tarayıcının çerezi kendiliğinden gitmez),
- *  · `cache: "no-store"` — yanıt oturuma bağlı; `next.revalidate` ile
- *    paylaşılan veri önbelleğine yazmak onu BAŞKA ziyaretçiye servis ederdi,
- *  · 401 hata değil BEKLENEN durum → `null` döner, sayfa "kaydolun" gösterir.
- */
-export type DirectoryResult =
-  | { authenticated: false }
-  | { authenticated: true; page: PublicDirectoryPage; facets: PublicDirectoryFacets };
-
-async function getAuthedJson<T>(
-  path: string,
-  cookie: string,
-): Promise<T | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(`${base}${path}`, {
-      cache: "no-store",
-      headers: { accept: "application/json", cookie },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch (err) {
-    console.error(`[dizin] ${path} çağrısı başarısız`, err);
-    return null;
-  }
-}
-
-export async function fetchDirectory(
-  cookie: string,
-  params: DirectoryParams = {},
-): Promise<DirectoryResult> {
-  const sp = new URLSearchParams();
-  if (params.q) sp.set("q", params.q);
-  if (params.city) sp.set("city", params.city);
-  if (params.category) sp.set("category", params.category);
-  if (params.activity) sp.set("activity", params.activity);
-  if (params.page && params.page > 1) sp.set("page", String(params.page));
-  const qs = sp.toString();
-
-  const [page, facets] = await Promise.all([
-    getAuthedJson<PublicDirectoryPage>(
-      `/company/directory${qs ? `?${qs}` : ""}`,
-      cookie,
-    ),
-    getAuthedJson<PublicDirectoryFacets>("/company/directory/facets", cookie),
-  ]);
-  // Sayfa gelmediyse kapı kapalı sayılır. Kapıyı çerezin VARLIĞINA değil
-  // API'nin yanıtına bağlıyoruz: sahte bir çerez basmak yetmesin.
-  if (!page) return { authenticated: false };
-  return {
-    authenticated: true,
-    page,
-    facets: facets ?? { cities: [], activities: [] },
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* Ürün vitrini (Faz 2)                                                */
 /* ------------------------------------------------------------------ */
 
 export interface PriceTier {
@@ -315,13 +222,16 @@ export interface PriceTier {
   unitPrice: number;
 }
 
-/**
- * Herkese açık ürün kartı — FİYATSIZ (görünürlük katmanı, 2026-09-04).
- * `priceMode` kalır: "fiyat listesi var, giriş ister" ile "satıcı fiyat
- * açıklamıyor" ayrımı dürüst kalsın. Fiyatlı üye tipi `MemberProduct`
- * (`hooks/use-portal-discovery`).
- */
-export interface PublicProductCard {
+/** Fiyat alanları — v2'de herkese açık uç da döndürür. */
+export interface ProductPriceFields {
+  priceAmount: string | null;
+  priceTiers: PriceTier[] | null;
+  priceCurrency: string;
+  moq: string | null;
+}
+
+/** Herkese açık ürün kartı — FİYATLI (görünürlük v2, Europages kalıbı). */
+export interface PublicProductCard extends ProductPriceFields {
   slug: string;
   name: string;
   images: string[];
@@ -329,14 +239,6 @@ export interface PublicProductCard {
   unit: string;
   categoryId: string | null;
   excerpt: string | null;
-}
-
-/** Üye katmanının fiyat alanları — panel uçları döndürür, public uç DÖNDÜRMEZ. */
-export interface ProductPriceFields {
-  priceAmount: string | null;
-  priceTiers: PriceTier[] | null;
-  priceCurrency: string;
-  moq: string | null;
 }
 
 export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
@@ -399,7 +301,110 @@ export interface ProductIndexCard extends PublicProductCard {
     slug: string;
     city: string | null;
     country: string | null;
+    activities: string[];
+    verified: boolean;
   };
+}
+
+export interface RelatedProducts {
+  fromCompany: { items: ProductIndexCard[]; total: number };
+  similar: ProductIndexCard[];
+  /** Görüntülenme verisi yok — "kategoride yeni" (dürüst etiket). */
+  popular: ProductIndexCard[];
+}
+
+export function fetchFeaturedProducts(): Promise<ProductIndexCard[]> {
+  return getJson<ProductIndexCard[]>("/public/products/featured", [], 300);
+}
+
+export function fetchRelatedProducts(companySlug: string, productSlug: string): Promise<RelatedProducts> {
+  return getJson<RelatedProducts>(
+    `/public/products/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}/related`,
+    { fromCompany: { items: [], total: 0 }, similar: [], popular: [] },
+    300,
+  );
+}
+
+export interface PublicStats {
+  products: number;
+  companies: number;
+  categories: number;
+  openDemands: number;
+}
+
+export function fetchStats(): Promise<PublicStats> {
+  return getJson<PublicStats>("/public/stats", { products: 0, companies: 0, categories: 0, openDemands: 0 }, 600);
+}
+
+export interface SuggestResult {
+  products: { name: string; slug: string; companySlug: string }[];
+  categories: { id: string; name: string; level: number }[];
+  companies: { name: string; slug: string; city: string | null }[];
+}
+
+/** Herkese açık dizin kartı (v2) — kimlik yok (Rothern ID/iletişim üyeye). */
+export interface PublicDirectoryCard {
+  name: string;
+  slug: string;
+  city: string | null;
+  country: string | null;
+  industry: string | null;
+  activities: string[];
+  logoUrl: string | null;
+  verified: boolean;
+  mainCategory: { id: string; name: string } | null;
+  productCount: number;
+  productPreview: { slug: string; name: string; image: string | null }[];
+}
+
+export interface PublicDirectoryResult {
+  items: PublicDirectoryCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PublicDirectoryFacets {
+  total: number;
+  verified: number;
+  withProducts: number;
+  cities: { city: string; count: number }[];
+  activities: { activity: string; count: number }[];
+}
+
+export interface PublicDirectoryParams {
+  q?: string;
+  city?: string;
+  category?: string;
+  activity?: string;
+  verified?: boolean;
+  hasProducts?: boolean;
+  page?: number;
+}
+
+export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promise<PublicDirectoryResult> {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.city) sp.set("city", params.city);
+  if (params.category) sp.set("category", params.category);
+  if (params.activity) sp.set("activity", params.activity);
+  if (params.verified) sp.set("verified", "1");
+  if (params.hasProducts) sp.set("hasProducts", "1");
+  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  const qs = sp.toString();
+  return getJson<PublicDirectoryResult>(
+    `/public/companies/directory${qs ? `?${qs}` : ""}`,
+    { items: [], total: 0, page: 1, pageSize: 24 },
+    300,
+  );
+}
+
+export function fetchPublicDirectoryFacets(): Promise<PublicDirectoryFacets> {
+  return getJson<PublicDirectoryFacets>(
+    "/public/companies/directory/facets",
+    { total: 0, verified: 0, withProducts: 0, cities: [], activities: [] },
+    600,
+  );
 }
 
 export interface ProductIndexPage {
@@ -433,6 +438,9 @@ export interface ProductListParams {
   attr?: string[];
   /** Satıcının faaliyet tipi kodu. */
   activity?: string;
+  sort?: "relevance" | "newest" | "price";
+  verified?: boolean;
+  price?: "has" | "request";
   page?: number;
 }
 
@@ -459,6 +467,9 @@ export function fetchProducts(
   if (params.category) sp.set("category", params.category);
   if (params.city) sp.set("city", params.city);
   if (params.activity) sp.set("activity", params.activity);
+  if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
+  if (params.verified) sp.set("verified", "1");
+  if (params.price) sp.set("price", params.price);
   // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
   // ilk ayraçlı seçenekte sessizce bölerdi.
   for (const a of params.attr ?? []) sp.append("attr", a);

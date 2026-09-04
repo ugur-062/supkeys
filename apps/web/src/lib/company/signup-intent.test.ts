@@ -19,6 +19,12 @@ describe("kayıt niyeti", () => {
     expect(consumeSignupIntent()).toBe(SIGNUP_INTENTS.vitrin.href);
     expect(consumeSignupIntent()).toBeNull();
   });
+  it("redirect niyet hedefinden önce gelir, dış adres yok sayılır", () => {
+    rememberSignupIntent("teklif", "/talep/rot-000001-x");
+    expect(consumeSignupIntent()).toBe("/talep/rot-000001-x");
+    rememberSignupIntent("teklif", "https://kotu.example");
+    expect(consumeSignupIntent()).toBe(SIGNUP_INTENTS.teklif.href);
+  });
   it("'ikisi de' hedef üretmez — panel varsayılanı", () => {
     rememberSignupIntent("ikisi");
     expect(consumeSignupIntent()).toBeNull();

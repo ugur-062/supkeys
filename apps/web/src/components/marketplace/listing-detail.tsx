@@ -84,7 +84,7 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
       ? {
           seeks: {
             "@type": "Product",
-            name: listing.itemPreview[0] ?? listing.title,
+            name: listing.title,
           },
         }
       : {}),
@@ -250,34 +250,36 @@ export function ListingDetail({ listing }: { listing: PublicListingDetail }) {
               </section>
             ) : null}
 
-            {/* KALEM LİSTESİ ÜYELERE (görünürlük katmanı, 2026-09-04): miktar,
-                marka, şartname ve hemen-al fiyatı HTML'e yazılmaz. Ziyaretçi
-                kapsamı görür — kalem sayısı ve ilk üç kalemin adı. */}
+            {/* KALEMLER — MİKTAR AÇIK, AD GİZLİ (görünürlük v2): ziyaretçi
+                ölçeği görür ("Kalem 1 · 500 adet"), ne istendiğini üye görür.
+                Bulanıklaştırma yok; ad HTML'e hiç yazılmaz. */}
             {listing.itemCount > 0 ? (
               <section className="mt-12">
                 <h2 className="text-lg font-semibold text-zinc-950">
                   Kalemler ({listing.itemCount})
+                  {listing.itemSummary.totalQuantity ? (
+                    <span className="ml-2 text-base font-normal text-zinc-500">
+                      toplam {Number(listing.itemSummary.totalQuantity).toLocaleString("tr-TR")}{" "}
+                      {listing.itemSummary.unit}
+                    </span>
+                  ) : null}
                 </h2>
-                {listing.itemPreview.length > 0 ? (
-                  <ul className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
-                    {listing.itemPreview.map((name, i) => (
-                      <li key={`${i}-${name}`} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
-                        <span className="w-5 shrink-0 text-zinc-400">{i + 1}</span>
-                        <span className="font-medium text-zinc-900">{name}</span>
-                      </li>
-                    ))}
-                    {listing.itemCount > listing.itemPreview.length ? (
-                      <li className="bg-zinc-50 px-5 py-3 text-sm text-zinc-500">
-                        + {listing.itemCount - listing.itemPreview.length} kalem daha
-                      </li>
-                    ) : null}
-                  </ul>
-                ) : null}
+                <ul className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
+                  {listing.items.map((row) => (
+                    <li key={row.lineNo} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
+                      <span className="w-16 shrink-0 font-medium text-zinc-900">Kalem {row.lineNo}</span>
+                      <span className="inline-block h-3 w-40 max-w-[40%] rounded bg-zinc-100" aria-hidden />
+                      <span className="ml-auto shrink-0 tabular-nums text-zinc-700">
+                        {Number(row.quantity).toLocaleString("tr-TR")} {row.unit}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
                 <GatedField
                   className="mt-4"
                   size="box"
-                  label="Miktar, marka ve şartname"
-                  hint="Kalem miktarları, marka/parça numaraları, teknik şartname ve ekli belgeler kayıtlı firmalara açıktır."
+                  label="Kalem adları, alıcı firma ve şartname"
+                  hint="Alıcı adını, kalem adlarını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok."
                   redirect={PANEL_TARGET.listing(listing.type, listing.number)}
                 />
               </section>

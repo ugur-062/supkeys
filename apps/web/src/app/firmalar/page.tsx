@@ -1,39 +1,36 @@
 import { CompanyCard } from "@/components/marketplace/company-card";
+import { FacetGroup } from "@/components/marketplace/facets";
+import { Pagination } from "@/components/marketplace/pagination";
 import { PublicEmptyState } from "@/components/marketplace/public-empty-state";
 import { PublicLayout } from "@/components/marketplace/public-layout";
-import { Pagination } from "@/components/marketplace/pagination";
-import { SearchForm } from "@/components/marketplace/search-form";
-import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { fetchDirectory, fetchDirectorySummary } from "@/lib/public/marketplace-api";
-import { categoryPath } from "@/lib/public/marketplace";
+import { PublicListPage, ResultGrid } from "@/components/marketplace/public-list-page";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { fetchPublicDirectory, fetchPublicDirectoryFacets } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
-import { companyActivityLabel } from "@rothern/shared";
-import { LockClosedIcon } from "@heroicons/react/20/solid";
+import { resolveSiteUrl } from "@/lib/site-url";
+import { companyActivityLabel, isCompanyActivity } from "@rothern/shared";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /**
- * FİRMA DİZİNİ — GİRİŞ GEREKTİRİR (ürün kararı 2026-09-02).
+ * FİRMA DİZİNİ — HERKESE AÇIK (görünürlük v2, 2026-09-04 kullanıcı kararı;
+ * 2 Eylül'de girişli yapılmıştı). Listelenme koşulu API'de: profil kapısı +
+ * (≥1 yayında ürün VEYA tamlık ≥ %60). Rothern ID ve iletişim üyeye.
  *
- * Pazar yerinin diğer sayfalarından ayrılıyor: burada firma ADLARI var ve
- * bunlar anonim ziyaretçiye açılmıyor. Sonuçları:
- *   · rota `PUBLIC_ROUTE_PREFIXES`te DEĞİL → nonce'lı sıkı CSP alır,
- *   · bu yüzden `force-dynamic` ZORUNLU (nonce statik HTML'e gömülemez),
- *   · `noindex` + sitemap dışı → arama motoru "kaydolun" ekranını indekslemez.
- *
- * Menüde/altbilgide bağlantısı DURUYOR: anonim ziyaretçi kayıt ekranına
- * düşer, bu bir çıkmaz değil dönüşüm hunisidir.
+ * Public rota → `PUBLIC_ROUTE_PREFIXES`te, ISR, nonce'suz CSP, sitemap'te.
  */
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Firmalar",
+  title: `${MARKETPLACE_LABELS.companies} — doğrulanmış alıcı ve tedarikçi firmalar`,
   description:
-    "Rothern'de kayıtlı alıcı ve tedarikçi firmaları sektör, şehir ve faaliyet tipine göre inceleyin. Dizin kayıtlı kullanıcılara açıktır.",
-  robots: { index: false, follow: true },
+    "Rothern'deki alıcı ve tedarikçi firmalar: faaliyet tipi, şehir ve kategoriye göre süzün; ürünlerini ve profillerini inceleyin.",
+  alternates: { canonical: `${resolveSiteUrl()}${MARKETPLACE_ROUTES.companies}` },
+  openGraph: {
+    title: `${MARKETPLACE_LABELS.companies} — Rothern`,
+    url: `${resolveSiteUrl()}${MARKETPLACE_ROUTES.companies}`,
+    type: "website",
+  },
 };
 
 interface SP {
@@ -41,97 +38,25 @@ interface SP {
   il?: string;
   kategori?: string;
   faaliyet?: string;
+  dogrulanmis?: string;
+  urunlu?: string;
   sayfa?: string;
 }
 
-/**
- * Giriş yapmamış ziyaretçiye gösterilen kapı — liste yerine SAYI (görünürlük
- * katmanı): "N doğrulanmış firma · en çok temsil edilen kategoriler". Kimlik
- * yok, ama sayfa boş bir duvar da değil.
- */
-async function SignInWall() {
-  const summary = await fetchDirectorySummary();
-  return (
-    <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-zinc-50/60 px-6 py-14 text-center">
-      <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white ring-1 ring-zinc-200">
-        <LockClosedIcon aria-hidden className="size-6 text-zinc-400" />
-      </span>
-      <h2 className="mt-6 text-xl font-semibold text-zinc-950">
-        Firma dizini üyelere açık
-      </h2>
-      {summary.verifiedCompanies > 0 ? (
-        <p className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950">
-          {summary.verifiedCompanies.toLocaleString("tr-TR")}
-          <span className="ml-2 text-base font-medium text-zinc-500">doğrulanmış firma</span>
-        </p>
-      ) : null}
-      {summary.topCategories.length > 0 ? (
-        <ul className="mx-auto mt-4 flex max-w-xl flex-wrap justify-center gap-2">
-          {summary.topCategories.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={categoryPath(c.id, c.name)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm text-zinc-700 ring-1 ring-zinc-200 transition hover:ring-zinc-400"
-              >
-                {c.name}
-                <span className="text-xs text-zinc-400">{c.count}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <p className="mx-auto mt-5 max-w-md text-base/7 text-zinc-600">
-        Firma adları, şehir ve faaliyet tipine göre süzülebilir dizin kayıtlı
-        kullanıcılara açıktır. Kaydolmak ücretsiz.
-      </p>
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <Link
-          href="/company/kayit"
-          className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Ücretsiz kaydol
-        </Link>
-        <Link
-          href={loginHref(PANEL_TARGET.directory)}
-          className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-white"
-        >
-          Dizini görmek için giriş yapın
-        </Link>
-      </div>
-      <p className="mt-8 text-sm text-zinc-500">
-        Açık alım talepleri ve satılık ilanlar üyelik olmadan görünür —{" "}
-        <Link
-          href={MARKETPLACE_ROUTES.demands}
-          className="font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
-        >
-          pazar yerine göz atın
-        </Link>
-        .
-      </p>
-    </div>
-  );
-}
-
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<SP>;
-}) {
+export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   const pageNo = Number(sp.sayfa);
-
-  // Çerezi elle iletiyoruz: sunucu bileşeninde tarayıcının çerezi API'ye
-  // kendiliğinden gitmez. Kapının kendisi API'de (CompanyJwtAuthGuard) —
-  // burada yalnız taşıyoruz, karar vermiyoruz.
-  const cookieHeader = (await cookies()).toString();
-  const result = await fetchDirectory(cookieHeader, {
+  const params = {
     q: sp.q?.trim() || undefined,
     city: sp.il?.trim() || undefined,
     category: /^\d{8}$/.test(sp.kategori ?? "") ? sp.kategori : undefined,
-    activity: sp.faaliyet || undefined,
+    activity: sp.faaliyet && isCompanyActivity(sp.faaliyet) ? sp.faaliyet : undefined,
+    verified: sp.dogrulanmis === "1",
+    hasProducts: sp.urunlu === "1",
     page: Number.isFinite(pageNo) && pageNo > 1 ? Math.trunc(pageNo) : undefined,
-  });
+  };
+  const [result, facets] = await Promise.all([fetchPublicDirectory(params), fetchPublicDirectoryFacets()]);
 
   const base = MARKETPLACE_ROUTES.companies;
   const href = (patch: Partial<SP>) => {
@@ -140,6 +65,8 @@ export default async function Page({
       il: sp.il,
       kategori: sp.kategori,
       faaliyet: sp.faaliyet,
+      dogrulanmis: sp.dogrulanmis,
+      urunlu: sp.urunlu,
       ...patch,
     };
     const usp = new URLSearchParams();
@@ -147,129 +74,81 @@ export default async function Page({
     const s = usp.toString();
     return s ? `${base}?${s}` : base;
   };
+  const hasFilter = !!(params.q || params.city || params.category || params.activity || params.verified || params.hasProducts);
 
-  const hasFilter = !!(sp.q || sp.il || sp.kategori || sp.faaliyet);
+  const chips = [
+    ...(params.q ? [{ key: "q", label: `"${params.q}"`, href: href({ q: undefined }) }] : []),
+    ...(params.city ? [{ key: "il", label: params.city, href: href({ il: undefined }) }] : []),
+    ...(params.activity
+      ? [{ key: "faaliyet", label: companyActivityLabel(params.activity), href: href({ faaliyet: undefined }) }]
+      : []),
+    ...(params.verified ? [{ key: "dogrulanmis", label: "Doğrulanmış", href: href({ dogrulanmis: undefined }) }] : []),
+    ...(params.hasProducts ? [{ key: "urunlu", label: "Ürünü olan", href: href({ urunlu: undefined }) }] : []),
+  ];
 
   return (
     <PublicLayout>
-      <div className="mx-auto max-w-7xl px-6 pt-28 pb-24 lg:px-8">
-        <header>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
-            Firmalar
-          </h1>
-          <p className="mt-3 max-w-2xl text-base/7 text-zinc-600">
-            Kayıtlı alıcı ve tedarikçi firmalar. Faaliyet tipine ve şehre göre
-            süzün, profilinden doğrudan iletişime geçin.
-          </p>
-        </header>
-
-        {!result.authenticated ? (
-          <div className="mt-12">
-            <SignInWall />
-          </div>
-        ) : (
+      <PublicListPage
+        title={MARKETPLACE_LABELS.companies}
+        lead="Rothern'deki alıcı ve tedarikçi firmalar. Faaliyet tipi, şehir ve kategoriye göre süzün; profil ve ürünleri inceleyin. İletişim için ücretsiz hesap."
+        search={{
+          action: base,
+          defaultValue: sp.q,
+          placeholder: "Firma adı, sektör veya hizmet",
+          hidden: { il: sp.il, kategori: sp.kategori, faaliyet: sp.faaliyet, dogrulanmis: sp.dogrulanmis, urunlu: sp.urunlu },
+        }}
+        chips={chips}
+        clearHref={base}
+        summary={result.total > 0 ? `${result.total.toLocaleString("tr-TR")} firma` : undefined}
+        sidebar={
           <>
-            <div className="mt-8 max-w-3xl">
-              <SearchForm
-                action={base}
-                defaultValue={sp.q}
-                placeholder="Firma adı, sektör veya hizmet"
-                hidden={{
-                  il: sp.il,
-                  kategori: sp.kategori,
-                  faaliyet: sp.faaliyet,
-                }}
-              />
-            </div>
-
-            {result.facets.activities.length > 0 ? (
-              <div className="mt-6 flex flex-wrap gap-2">
-                {result.facets.activities.map((a) => (
-                  <Link
-                    key={a.activity}
-                    href={href({
-                      faaliyet:
-                        sp.faaliyet === a.activity ? undefined : a.activity,
-                    })}
-                    aria-current={sp.faaliyet === a.activity ? "true" : undefined}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                      sp.faaliyet === a.activity
-                        ? "bg-zinc-950 text-white"
-                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-                    }`}
-                  >
-                    {companyActivityLabel(a.activity)}
-                    <span className="ml-1.5 text-xs opacity-70">{a.count}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[16rem_1fr]">
-              <aside className="lg:sticky lg:top-28 lg:self-start">
-                {result.facets.cities.length > 0 ? (
-                  <section>
-                    <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                      Şehir
-                    </h2>
-                    <ul className="mt-3 space-y-1">
-                      {result.facets.cities.slice(0, 15).map((c) => (
-                        <li key={c.city}>
-                          <Link
-                            href={href({
-                              il: sp.il === c.city ? undefined : c.city,
-                            })}
-                            aria-current={sp.il === c.city ? "true" : undefined}
-                            className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
-                              sp.il === c.city
-                                ? "bg-zinc-950 font-medium text-white"
-                                : "text-zinc-700 hover:bg-zinc-100"
-                            }`}
-                          >
-                            <span className="line-clamp-1">{c.city}</span>
-                            <span className="shrink-0 text-xs text-zinc-400">
-                              {c.count}
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-              </aside>
-
-              <div>
-                <p className="mb-4 text-sm text-zinc-500">
-                  {result.page.total > 0
-                    ? `${result.page.total.toLocaleString("tr-TR")} firma`
-                    : "Firma yok"}
-                </p>
-                {result.page.items.length === 0 ? (
-                  <PublicEmptyState noun="Firma" clearHref={hasFilter ? base : undefined} />
-                ) : (
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {result.page.items.map((c) => (
-                      <CompanyCard key={c.slug ?? c.name} company={c} />
-                    ))}
-                  </div>
-                )}
-                <Pagination
-                  page={result.page.page}
-                  total={result.page.total}
-                  pageSize={result.page.pageSize}
-                  basePath={base}
-                  params={{
-                    q: sp.q,
-                    il: sp.il,
-                    kategori: sp.kategori,
-                    faaliyet: sp.faaliyet,
-                  }}
-                />
-              </div>
-            </div>
+            <FacetGroup
+              heading="Firma profili"
+              items={[
+                { key: "v", label: "Doğrulanmış", count: facets.verified, href: href({ dogrulanmis: params.verified ? undefined : "1" }), active: params.verified },
+                { key: "p", label: "Ürünü olan", count: facets.withProducts, href: href({ urunlu: params.hasProducts ? undefined : "1" }), active: params.hasProducts },
+              ].filter((i) => i.count > 0 || i.active)}
+            />
+            <FacetGroup
+              heading="Faaliyet tipi"
+              items={facets.activities.map((a) => ({
+                key: a.activity,
+                label: companyActivityLabel(a.activity),
+                count: a.count,
+                href: href({ faaliyet: params.activity === a.activity ? undefined : a.activity }),
+                active: params.activity === a.activity,
+              }))}
+            />
+            <FacetGroup
+              heading="Şehir"
+              items={facets.cities.slice(0, 15).map((c) => ({
+                key: c.city,
+                label: c.city,
+                count: c.count,
+                href: href({ il: params.city === c.city ? undefined : c.city }),
+                active: params.city === c.city,
+              }))}
+            />
           </>
+        }
+      >
+        {result.items.length === 0 ? (
+          <PublicEmptyState noun="Firma" clearHref={hasFilter ? base : undefined} />
+        ) : (
+          <ResultGrid count={result.items.length}>
+            {result.items.map((c) => (
+              <CompanyCard key={c.slug} company={c} />
+            ))}
+          </ResultGrid>
         )}
-      </div>
+        <Pagination
+          page={result.page}
+          total={result.total}
+          pageSize={result.pageSize}
+          basePath={base}
+          params={{ q: sp.q, il: sp.il, kategori: sp.kategori, faaliyet: sp.faaliyet, dogrulanmis: sp.dogrulanmis, urunlu: sp.urunlu }}
+        />
+      </PublicListPage>
     </PublicLayout>
   );
 }

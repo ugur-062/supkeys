@@ -34,12 +34,7 @@ export const MARKETPLACE_ROUTES = {
   products: "/urunler",
   /** SATIS ilanları listesi. */
   offers: "/satilik",
-  /**
-   * Firma dizini — GİRİŞ GEREKTİRİR (ürün kararı 2026-09-02), bu yüzden
-   * `PUBLIC_ROUTE_PREFIXES`te YOKTUR ve sitemap'e girmez. Rota sabiti burada
-   * duruyor çünkü menü/altbilgi hâlâ bağlantı veriyor: anonim ziyaretçi
-   * "kaydolun" ekranını görür — dönüşüm hunisi, çıkmaz değil.
-   */
+  /** Firma dizini — HERKESE AÇIK (görünürlük v2, 2026-09-04); sitemap'te. */
   companies: "/firmalar",
   /** Tekil ALIM ilanı. */
   demand: "/talep",

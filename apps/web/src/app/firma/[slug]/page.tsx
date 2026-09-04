@@ -4,7 +4,7 @@ import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { serializeJsonLd } from "@/lib/json-ld";
-import { PANEL_TARGET } from "@/lib/public/visibility";
+import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
@@ -13,10 +13,9 @@ import { notFound } from "next/navigation";
 export const revalidate = 300;
 
 /**
- * ANONİM katman (görünürlük katmanı, 2026-09-04) — API yalnız bunu döndürür.
- * Rothern ID, kuruluş, çalışan, puan, hizmet, sertifika, iletişim panelde
- * (`/company/firma/<slug>`). Tip API projeksiyonunu yansıtır; alan eklemek
- * için önce `public-profile.service.ts`.
+ * HERKESE AÇIK PROFİL v2 (2026-09-04): tamamen gezilebilir — Hakkında,
+ * hizmet, sertifika, kuruluş, çalışan, ortalama puan. Rothern ID, iletişim,
+ * puan dağılımı, sipariş sayıları, talep/ilan listesi ÜYEYE (API döndürmez).
  */
 interface PublicProfile {
   name: string;
@@ -31,8 +30,14 @@ interface PublicProfile {
   logoUrl: string | null;
   coverImageUrl: string | null;
   photos: string[];
-  aboutExcerpt: string | null;
-  aboutTruncated: boolean;
+  aboutText: string | null;
+  services: string[];
+  certifications: string[];
+  certificateImages: string[];
+  foundedYear: number | null;
+  employeeCount: string | null;
+  ratingAvg: number | null;
+  productCount: number;
 }
 
 async function fetchProfile(slug: string): Promise<PublicProfile | null> {
@@ -61,7 +66,7 @@ export async function generateMetadata({
 
   const title = `${p.name} — Rothern`;
   const description = (
-    p.aboutExcerpt?.replace(/\s+/g, " ").slice(0, 160) ||
+    p.aboutText?.replace(/\s+/g, " ").slice(0, 160) ||
     `${p.name}${p.industry ? ` · ${p.industry}` : ""}${
       p.city ? ` · ${p.city}` : ""
     } — Rothern üzerinde tedarik profili.`
@@ -105,8 +110,7 @@ export default async function PublicCompanyProfile({
   const url = `${site}/firma/${slug}`;
   const panelHref = PANEL_TARGET.company(slug);
 
-  // Yapısal veri sayfada GÖRÜNENİ söyler: kuruluş yılı ve dış bağlantılar
-  // artık anonime gösterilmiyor, JSON-LD'ye de yazılmaz.
+  // Yapısal veri sayfada GÖRÜNENİ söyler: dış bağlantılar üyeye, JSON-LD'de yok.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -114,7 +118,8 @@ export default async function PublicCompanyProfile({
     url,
     ...(p.logoUrl ? { logo: p.logoUrl } : {}),
     ...(p.coverImageUrl ? { image: p.coverImageUrl } : {}),
-    ...(p.aboutExcerpt ? { description: p.aboutExcerpt } : {}),
+    ...(p.aboutText ? { description: p.aboutText.slice(0, 500) } : {}),
+    ...(p.foundedYear ? { foundingDate: String(p.foundedYear) } : {}),
     ...(p.city
       ? {
           address: {
@@ -163,24 +168,33 @@ export default async function PublicCompanyProfile({
             country: p.country,
             logoUrl: p.logoUrl,
             coverImageUrl: p.coverImageUrl,
-            aboutText: p.aboutExcerpt,
+            aboutText: p.aboutText,
             photos: p.photos ?? [],
-            // Kapılı alanlar (kuruluş, çalışan, iletişim, hizmet, sertifika,
-            // puan) BURAYA YAZILMAZ — null bile değil; anahtar adı RSC
+            services: p.services ?? [],
+            certifications: p.certifications ?? [],
+            certificateImages: p.certificateImages ?? [],
+            foundedYear: p.foundedYear,
+            employeeCount: p.employeeCount,
+            ratingAvg: p.ratingAvg,
+            // Kapılı alanlar (Rothern ID, web/sosyal, puan dağılımı, sipariş
+            // sayıları) BURAYA YAZILMAZ — null bile değil; anahtar adı RSC
             // yüküne düşerdi.
           }}
+          actions={
+            <a
+              href={loginHref(panelHref)}
+              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Bağlantı isteği gönder
+            </a>
+          }
           gate={{
-            stats: (
-              <GatedField label="Kuruluş, çalışan sayısı ve iletişim" redirect={panelHref} />
-            ),
-            about: p.aboutTruncated ? (
-              <GatedField label="Devamı" redirect={panelHref} />
-            ) : null,
+            stats: <GatedField label="Rothern ID ve iletişim" redirect={panelHref} />,
             aside: (
               <GatedField
                 size="box"
-                label="Değerlendirmeler, sertifikalar ve hizmetler"
-                hint={`${p.name} ile bağlantı kurmak, teklif almak ve firma detaylarını görmek için hesap gerekir.`}
+                label="Puan dağılımı, sipariş geçmişi ve açık talepler"
+                hint={`${p.name} ile bağlantı kurmak, mesajlaşmak ve teklif almak için ücretsiz hesap — 2 dakika, kredi kartı yok.`}
                 redirect={panelHref}
               />
             ),

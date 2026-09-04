@@ -55,10 +55,11 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/davet-kapat")).toBe(false);
   });
 
-  it("segment sınırına saygılıdır — /firma öneki /firmalar'ı AÇMAZ", () => {
+  it("segment sınırına saygılıdır — /firma öneki /firmaxyz'yi AÇMAZ", () => {
     // Aksi hâlde ileride eklenecek /firmalar dizini sessizce nonce'suz CSP
     // alır; bu test o kaymayı yakalar.
-    expect(isPublicRoute("/firmalar")).toBe(false);
+    // (`/firmalar` v2'de kendi başına public; sınır testi başka bir örnekle.)
+    expect(isPublicRoute("/firmaxyz")).toBe(false);
     expect(isPublicRoute("/firma-rehberi")).toBe(false);
   });
 

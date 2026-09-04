@@ -1,18 +1,15 @@
 import { PublicLayout } from "./public-layout";
 import { CategoryImage } from "./category-image";
-import { GatedField } from "./gated-field";
-import { InquiryButton } from "./inquiry-button";
 import { Badge } from "@/components/catalyst/badge";
 import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
-import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { productPrice } from "@/lib/public/product-price";
 import type {
   ProductPriceFields,
   PublicProduct,
   PublicProductCompany,
 } from "@/lib/public/marketplace-api";
-import { PANEL_TARGET } from "@/lib/public/visibility";
+import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   ArrowTopRightOnSquareIcon,
@@ -46,16 +43,29 @@ export function ProductDetail({
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
 
+  const price = productPrice(product);
   /**
-   * `Offer` FİYATSIZ (görünürlük katmanı, 2026-09-04): fiyat anonim
-   * ziyaretçiye gösterilmiyor, dolayısıyla yapısal veriye de yazılmaz —
-   * sayfada görünmeyen bir fiyatı makine-okunur vermek hem gizlemeyi boşa
-   * çıkarır hem "sayfa ile veri uyuşmuyor" cezasına girer.
+   * `offers` yalnız GERÇEK fiyat varken fiyat taşır (v2: fiyat herkese açık).
+   * "Teklif isteyin"de uydurma fiyat yazılmaz — yapısal veri sayfayı söyler.
    */
   const offer: Record<string, unknown> = {
     "@type": "Offer",
     url,
     availability: "https://schema.org/InStock",
+    priceCurrency: product.priceCurrency,
+    ...(price.hasPrice && product.priceMode === "FIXED" && product.priceAmount
+      ? { price: product.priceAmount }
+      : {}),
+    ...(price.hasPrice && product.priceMode === "TIERED" && product.priceTiers
+      ? {
+          priceSpecification: product.priceTiers.map((t) => ({
+            "@type": "UnitPriceSpecification",
+            price: t.unitPrice,
+            priceCurrency: product.priceCurrency,
+            eligibleQuantity: { "@type": "QuantitativeValue", minValue: t.minQty, unitText: product.unit },
+          })),
+        }
+      : {}),
     seller: {
       "@type": "Organization",
       name: company.name,
@@ -123,65 +133,28 @@ export function ProductDetail({
           product={product}
           company={company}
           companyHref={`/firma/${companySlug}`}
-          priceBox={
-            product.priceMode === "ON_REQUEST" ? (
-              <p className="text-2xl font-semibold tracking-tight text-zinc-600">
-                Fiyat için teklif isteyin
-              </p>
-            ) : (
-              <GatedField
-                label="Fiyat ve minimum sipariş"
-                size="box"
-                hint="Birim fiyat, kademeli fiyat tablosu ve MOQ kayıtlı firmalara açıktır."
-                redirect={PANEL_TARGET.product(companySlug, product.slug)}
-              />
-            )
-          }
           cta={
-            MARKETPLACE_LIVE ? (
-              <>
-                {/* Hesap SORMUYOR — misafir talebi. Kayıt yanıtı okumak için
-                    gerekiyor; kullanıcı o noktada zaten emek vermiş olur. */}
-                <InquiryButton
-                  companySlug={companySlug}
-                  productSlug={product.slug}
-                  productName={product.name}
-                  companyName={company.name}
-                />
-                <p className="mt-2 text-center text-xs text-zinc-500">
-                  Hesabınız var mı?{" "}
-                  <Link
-                    href="/company/login"
-                    className="font-medium text-zinc-700 hover:underline"
-                  >
-                    Giriş yapın
-                  </Link>
-                </p>
-              </>
-            ) : (
-              <>
-                {/* Pazar yeri anahtarı KAPALIYKEN misafir talebi ucu 404 döner
-                    (`MarketplaceLiveGuard`). Ürün sayfası ise açık — görünürlük
-                    ≠ indekslenme. Düğmeyi bırakmak, tıklayınca hata veren bir
-                    kutu göstermek olurdu: kullanıcı mesajını yazıyor,
-                    "gönder"de patlıyor. Anahtar açılınca üstteki dal döner. */}
+            <>
+              {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası panelin
+                  ürün sayfasına döner, oradaki form kimlik sormaz. Misafir
+                  formu kalktı — kimlik zaten oturumdan geliyor. */}
+              <Link
+                href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
+                className="block w-full rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Bilgi iste
+              </Link>
+              <p className="mt-2 text-center text-xs text-zinc-500">
+                Hesabınız yok mu?{" "}
                 <Link
-                  href="/company/login"
-                  className="block w-full rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  href={signupHref("teklif", PANEL_TARGET.product(companySlug, product.slug))}
+                  className="font-medium text-zinc-700 hover:underline"
                 >
-                  Giriş yapıp talep gönderin
-                </Link>
-                <p className="mt-2 text-center text-xs text-zinc-500">
-                  Hesabınız yok mu?{" "}
-                  <Link
-                    href="/company/kayit"
-                    className="font-medium text-zinc-700 hover:underline"
-                  >
-                    Ücretsiz kaydolun
-                  </Link>
-                </p>
-              </>
-            )
+                  Ücretsiz kaydolun
+                </Link>{" "}
+                · 2 dakika, kredi kartı yok
+              </p>
+            </>
           }
         />
       </div>

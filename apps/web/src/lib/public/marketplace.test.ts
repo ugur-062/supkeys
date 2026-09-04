@@ -19,34 +19,16 @@ describe("pazar yeri rotaları ⇔ public rota listesi", () => {
    * aktaramaz (edge runtime'a @rothern/shared zinciri sokmamak için). İki
    * liste elle senkron tutuluyor; ayrışmayı burada yakalıyoruz.
    */
-  /**
-   * `companies` (firma dizini) BİLİNÇLİ OLARAK public DEĞİL: giriş gerektiriyor
-   * ve oturuma bağlı içerik üretiyor. Kalan pazar yeri rotalarının hepsi
-   * public olmak ZORUNDA — biri listeden düşerse nonce'lı CSP alır, statik
-   * üretilemez ve SEO'nun ön koşulu kaybolur.
-   */
-  const PUBLIC_MARKETPLACE_ROUTES = Object.entries(MARKETPLACE_ROUTES)
-    .filter(([key]) => key !== "companies")
-    .map(([, route]) => route);
+  /** v2 (2026-09-04): firma dizini de HERKESE AÇIK — her pazar yeri rotası public listede. */
+  const PUBLIC_MARKETPLACE_ROUTES = Object.values(MARKETPLACE_ROUTES);
 
-  it("firma dizini DIŞINDA her pazar yeri rotası public listede VAR", () => {
+  it("her pazar yeri rotası public listede VAR", () => {
     for (const route of PUBLIC_MARKETPLACE_ROUTES) {
       expect(
         (PUBLIC_ROUTE_PREFIXES as readonly string[]).includes(route),
         `${route} PUBLIC_ROUTE_PREFIXES'te yok — nonce'lı CSP alır, statik üretilemez`,
       ).toBe(true);
     }
-  });
-
-  it("firma dizini public listede YOK (giriş gerektiriyor)", () => {
-    // Listeye eklenirse sayfa nonce'suz CSP alır ve statik üretilmeye
-    // çalışılır — oturuma bağlı içerik için ikisi de yanlış.
-    expect(
-      (PUBLIC_ROUTE_PREFIXES as readonly string[]).includes(
-        MARKETPLACE_ROUTES.companies,
-      ),
-    ).toBe(false);
-    expect(isPublicRoute(MARKETPLACE_ROUTES.companies)).toBe(false);
   });
 
   it("pazar yeri rotaları ve alt yolları public sayılır", () => {

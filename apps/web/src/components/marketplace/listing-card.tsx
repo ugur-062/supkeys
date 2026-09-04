@@ -403,9 +403,12 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
               "bir şey" gösterir, boşluk bırakmaz. */}
           <div className="flex items-baseline justify-between gap-3 border-t border-zinc-950/5 pt-3">
             <p className="min-w-0 truncate text-sm font-medium text-zinc-700">
-              {listing.itemCount} kalem
-              {listing.itemPreview[0] ? (
-                <span className="font-normal text-zinc-500"> · {listing.itemPreview[0]}</span>
+              {listing.itemSummary.count} kalem
+              {listing.itemSummary.totalQuantity ? (
+                <span className="font-normal text-zinc-500">
+                  {" "}· {Number(listing.itemSummary.totalQuantity).toLocaleString("tr-TR")}{" "}
+                  {listing.itemSummary.unit}
+                </span>
               ) : null}
             </p>
             <span className="shrink-0 font-mono text-[11px] text-zinc-400">{listing.number}</span>
