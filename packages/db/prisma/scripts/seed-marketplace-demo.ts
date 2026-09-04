@@ -399,7 +399,7 @@ async function main() {
         companyId: o.companyId, createdById: o.ownerId, name: p.name, description: p.desc, specification: p.spec ?? null,
         brand: p.brand ?? null, mpn: p.mpn ?? null, unit: p.unit, categoryId, keywords: p.kw, images: like.images,
         priceMode, priceAmount: p.price ?? null, priceTiers: (p.tiers ?? undefined) as Prisma.InputJsonValue | undefined,
-        priceCurrency: p.cur ?? "TRY", moq: p.moq ?? null, isPublic: true, publishedAt: days(-Math.floor(Math.random() * 40)),
+        priceCurrency: p.cur ?? "TRY", moq: p.moq ?? null, isPublic: true, publishedAt: new Date(Date.now() - Math.floor(Math.random() * 60 * 24) * 3_600_000),
         slug, completionScore: score, searchText: foldSearchText([p.name, p.brand ?? "", p.mpn ?? "", ...p.kw].join(" ")),
       },
     });

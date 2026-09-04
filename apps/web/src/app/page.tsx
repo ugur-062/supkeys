@@ -88,6 +88,11 @@ export default async function HomePage() {
     productCovers: [...featured, ...newest.items].map((p) => ({ categoryId: p.categoryId, image: p.images[0] })),
   });
 
+  // "Son eklenen" seçkide zaten görünenleri tekrar etmesin (skorlar eşitken
+  // iki liste birebir çakışıyordu).
+  const featuredKeys = new Set(featured.map((p) => `${p.company.slug}/${p.slug}`));
+  const newestOnly = newest.items.filter((p) => !featuredKeys.has(`${p.company.slug}/${p.slug}`));
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -166,7 +171,7 @@ export default async function HomePage() {
 
       <ProductCarousel
         heading="Son eklenen ürünler"
-        items={newest.items}
+        items={newestOnly}
         href={`${MARKETPLACE_ROUTES.products}?sirala=yeni`}
         hrefLabel="Yeni ürünler"
         tone="zinc"
