@@ -25,7 +25,7 @@ describe("görünürlük katmanı", () => {
     expect(canSee("connected", "company", "rothernId")).toBe(true);
   });
   it("giriş bağlantısı yalnız site içi yola yönlendirir", () => {
-    expect(loginHref("/company/firma/x")).toBe("/company/login?redirect=%2Fcompany%2Ffirma%2Fx");
+    expect(loginHref("/company/firma/x")).toBe("/company/login?next=%2Fcompany%2Ffirma%2Fx");
     expect(loginHref("https://kotu.example")).toBe("/company/login");
     expect(loginHref("//kotu.example")).toBe("/company/login");
     expect(loginHref()).toBe("/company/login");

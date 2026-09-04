@@ -91,7 +91,8 @@ export function canSee<E extends Entity>(
  */
 export function loginHref(redirect?: string): string {
   const safe = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
-  return safe ? `/company/login?redirect=${encodeURIComponent(safe)}` : "/company/login";
+  // Giriş sayfası `?next=` okur (`safeNextPath`) — aynı parametre.
+  return safe ? `/company/login?next=${encodeURIComponent(safe)}` : "/company/login";
 }
 
 /** Panel karşılıkları — GatedField hedefleri buradan. */

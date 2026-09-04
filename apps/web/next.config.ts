@@ -91,6 +91,10 @@ const nextConfig: NextConfig = {
         destination: "/firmalar/:path*",
         permanent: true,
       },
+      // Kısa yollar — public header `/company/login` ve `/company/kayit`e
+      // bağlanıyor; ziyaretçi elle `/giris` `/kayit` yazınca 404 alıyordu.
+      { source: "/giris", destination: "/company/login", permanent: true },
+      { source: "/kayit", destination: "/company/kayit", permanent: true },
       {
         source: "/company/satinalma/ihalelerim/:path*",
         destination: "/company/satinalma/taleplerim/:path*",

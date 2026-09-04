@@ -6,6 +6,7 @@ import {
 } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { accessiblePortals } from "@/lib/company/portals";
+import { consumeSignupIntent } from "@/lib/company/signup-intent";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -17,6 +18,13 @@ export default function CompanyHome() {
 
   useEffect(() => {
     if (!user) return;
+    // Kayıt niyeti (Talep aç / İlan aç / Vitrin aç) — tek kullanımlık; kayıt
+    // ve onboarding bittikten sonra ilk gelişte ilgili sihirbaza düşer.
+    const intentHref = consumeSignupIntent();
+    if (intentHref) {
+      router.replace(intentHref);
+      return;
+    }
     const available = accessiblePortals(user.roles, company?.tier);
     const target =
       lastPortal && available.includes(lastPortal)

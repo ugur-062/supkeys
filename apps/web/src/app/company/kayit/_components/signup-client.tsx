@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  SIGNUP_INTENTS,
+  parseSignupIntent,
+  rememberSignupIntent,
+  type SignupIntent,
+} from "@/lib/company/signup-intent";
+
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
@@ -51,6 +58,12 @@ export function CompanySignupClient() {
   // yalnız bu davet ACTIVE bağlantı olur; diğer davetler PENDING istek kalır.
   const searchParams = useSearchParams();
   const referralToken = searchParams.get("ref") ?? undefined;
+  // Anasayfa CTA'sından gelen niyet (`?intent=talep|ilan|vitrin`) ön seçili;
+  // ziyaretçi değiştirebilir. Doğrulama bitince sessionStorage'a yazılır,
+  // `/company` kökü okuyup ilgili sihirbaza yönlendirir.
+  const [intent, setIntent] = useState<SignupIntent>(
+    parseSignupIntent(searchParams.get("intent")) ?? "ikisi",
+  );
   const signup = useCompanySignup();
   const verify = useVerifyEmail();
   const resend = useResendEmailCode();
@@ -151,6 +164,7 @@ export function CompanySignupClient() {
         return;
       }
       setAuth({ user: res.user, company: res.company });
+      rememberSignupIntent(intent);
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, "Kod doğrulanamadı"));
@@ -257,6 +271,36 @@ export function CompanySignupClient() {
             sonradan başka bir kullanıcıya devredebilirsiniz.
           </span>
         </div>
+        {/* Ne yapmak istiyorsunuz? — kayıt sonrası ilk sayfayı belirler. */}
+        <fieldset>
+          <legend className="text-sm font-medium text-zinc-900">Ne yapmak istiyorsunuz?</legend>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(Object.keys(SIGNUP_INTENTS) as SignupIntent[]).map((k) => {
+              const on = intent === k;
+              return (
+                <label
+                  key={k}
+                  className={`flex cursor-pointer flex-col rounded-lg border px-3 py-2 text-left transition ${
+                    on ? "border-zinc-950 bg-zinc-950 text-white" : "border-zinc-200 bg-white hover:border-zinc-400"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="intent"
+                    value={k}
+                    checked={on}
+                    onChange={() => setIntent(k)}
+                    className="sr-only"
+                  />
+                  <span className="text-sm font-medium">{SIGNUP_INTENTS[k].label}</span>
+                  <span className={`mt-0.5 text-xs ${on ? "text-zinc-300" : "text-zinc-500"}`}>
+                    {SIGNUP_INTENTS[k].hint}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>Ad</Label>

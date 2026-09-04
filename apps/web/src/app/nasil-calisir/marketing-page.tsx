@@ -1,8 +1,10 @@
 "use client";
 
 import { RothernLogo } from "@/components/brand/logo";
-import { OPERATOR } from "@/lib/company-info";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { PublicLayout } from "@/components/marketplace/public-layout";
+import { TrustBand } from "@/components/marketplace/trust-band";
+import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
+import { registrationCountries } from "@rothern/shared";
 import {
   Disclosure,
   DisclosureButton,
@@ -16,11 +18,17 @@ import { ArrowTrendingDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+/**
+ * Sayılar TEK KAYNAKTAN (2026-09-04): "13.305 kategori" bayattı (katalog
+ * 158.018), "98 ülke" ise adres defteri listesiydi — kayıt yalnız
+ * `registrationCountries()` kadar ülkeden alınıyor; iki farklı sayı aynı
+ * sayfada çelişiyordu. Sektör sayısı görsel eşlemesinden (58 segment).
+ */
 const stats = [
-  { prefix: "", value: 13305, suffix: "", l: "Kategoride hassas eşleşme (UNSPSC)" },
-  { prefix: "", value: 98, suffix: " ülke", l: "Yurtiçi + uluslararası erişim" },
+  { prefix: "", value: MAPPED_SEGMENTS.length, suffix: "", l: "Sektör başlığı — dört seviyeli kategori ağacı" },
+  { prefix: "", value: registrationCountries().length, suffix: " ülke", l: "Kayıt açık ülke" },
   { prefix: "%", value: 0, suffix: "", l: "Komisyon — maliyetsiz ulaş" },
-  { text: "∞", l: "Firmayla tek panelde buluş" },
+  { text: "1", l: "Hesap — alıcı ve satıcı tek panelde" },
 ];
 
 /**
@@ -58,7 +66,7 @@ const pricingTiers = [
       "Bağlantı daveti gönderme",
       "Herkese açık satın alma taleplerine sınırsız teklif",
       "Sipariş, teslim & ödeme adımı takibi",
-      "2 kullanıcı koltuğu (Satışçı)",
+      "2 satış koltuğu",
     ],
     cta: "Bronz'a Başla",
     accent: {
@@ -76,7 +84,7 @@ const pricingTiers = [
       "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
       "Raporlar, şablonlar & onay akışları",
       "Yapay zekâ: belgeden satın alma talebi taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
-      "4 kullanıcı koltuğu (Satın Almacı & Satışçı)",
+      "4 kullanıcı koltuğu (satın alma ve satış)",
     ],
     cta: "Silver'a Başla",
     accent: {
@@ -95,7 +103,7 @@ const pricingTiers = [
       "Raporlar, şablonlar & onay akışları",
       "Yapay zekâ — yükseltilmiş kullanım limitiyle: belgeden satın alma talebi taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
       "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
-      "8 kullanıcı koltuğu (Satın Almacı & Satışçı)",
+      "8 kullanıcı koltuğu (satın alma ve satış)",
     ],
     cta: "Gold'a Başla",
     accent: {
@@ -109,7 +117,7 @@ const pricingTiers = [
 const faqs = [
   {
     q: "Alıcı ve tedarikçi ayrı mı kayıt oluyor?",
-    a: "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alış hem satış yapar. Kişilere atadığınız roller (Satın Almacı / Satışçı) neyi görüp yapabileceğini belirler.",
+    a: "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alış hem satış yapar. Kişilere atadığınız roller (satın alma / satış) neyi görüp yapabileceğini belirler.",
   },
   {
     q: "Tedarikçiler birbirinin teklifini görür mü?",
@@ -126,50 +134,6 @@ const faqs = [
   {
     q: "Siparişten sonra ne oluyor?",
     a: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Gönderim ve teslim adımlarını panelden takip eder, teslim belgesini (irsaliye/konşimento) yükler, ödemeyi 'ödendi' olarak işaretlersiniz. Ödeme taraflar arasında yapılır.",
-  },
-];
-
-const footerNav = {
-  urun: [
-    { name: "Özellikler", href: "#ozellikler" },
-    { name: "Nasıl Çalışır", href: "#nasil" },
-    { name: "Fiyatlar", href: "#fiyatlar" },
-    { name: "SSS", href: "#sss" },
-  ],
-  hesap: [
-    { name: "Giriş Yap", href: "/company/login" },
-    { name: "Kaydol", href: "/company/kayit" },
-  ],
-  yasal: [
-    { name: "Hakkımızda", href: "/hakkimizda" },
-    { name: "Kullanıcı Sözleşmesi", href: "/sozlesmeler/kullanici" },
-    { name: "Aracılık Sözleşmesi", href: "/sozlesmeler/aracilik" },
-    { name: "Gizlilik Politikası", href: "/sozlesmeler/gizlilik" },
-    { name: "KVKK Aydınlatma Metni", href: "/sozlesmeler/kvkk" },
-    { name: "Mesafeli Satış Sözleşmesi", href: "/sozlesmeler/mesafeli-satis" },
-    { name: "Teslimat, İptal ve İade", href: "/sozlesmeler/iade" },
-    { name: "İletişim ve Künye", href: "/iletisim" },
-  ],
-};
-
-const social = [
-  {
-    name: "LinkedIn",
-    href: "#",
-    icon: (props: React.ComponentProps<"svg">) => (
-      <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
-        <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.55V9h3.57v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.22.79 24 1.77 24h20.45c.98 0 1.78-.78 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />
-      </svg>
-    ),
-  },
-  {
-    name: "X",
-    href: "#",
-    icon: (props: React.ComponentProps<"svg">) => (
-      <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
-        <path d="M13.6823 10.6218L20.2391 3H18.6854L12.9921 9.61788L8.44486 3H3.2002L10.0765 13.0074L3.2002 21H4.75404L10.7663 14.0113L15.5685 21H20.8131L13.6819 10.6218H13.6823ZM11.5541 13.0956L10.8574 12.0991L5.31391 4.16971H7.70053L12.1742 10.5689L12.8709 11.5655L18.6861 19.8835H16.2995L11.5541 13.096V13.0956Z" />
-      </svg>
-    ),
   },
 ];
 
@@ -277,12 +241,16 @@ function CountUp({
   suffix?: string;
   duration?: number;
 }) {
-  const [n, setN] = useState(0);
+  // SON değerle başlar: JS/IntersectionObserver yoksa ya da hareket azaltma
+  // açıksa "0 ülke" diye kalıyordu (2026-09-04 denetimi). Animasyon yalnız
+  // görünüme girince ve hareket serbestse 0'dan sayar.
+  const [n, setN] = useState(value);
   const ref = useRef<HTMLSpanElement>(null);
   const started = useRef(false);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !started.current) {
@@ -683,7 +651,7 @@ function PublicProfilePreview() {
           ticareti. Açık satın alma taleplerimize teklif verin.
         </p>
         <div className="mt-5 text-xs font-medium text-zinc-500">
-          Açık satın alma taleplerini
+          Açık satın alma talepleri
         </div>
         <div className="mt-1.5 space-y-1.5">
           {tenders.map((x) => (
@@ -710,8 +678,8 @@ function PublicProfilePreview() {
 function SignupPreview() {
   const roles = [
     { n: "Yönetici", on: true },
-    { n: "Satın Almacı", on: true },
-    { n: "Satışçı", on: true },
+    { n: "Satın alma", on: true },
+    { n: "Satış", on: true },
     { n: "Onaylayıcı", on: false },
   ];
   return (
@@ -760,9 +728,7 @@ function SignupPreview() {
 
 export default function HomePage() {
   return (
-    <div className="bg-white">
-      <MarketingHeader tone="dark" />
-
+    <PublicLayout>
       {/* Hero — sade beyaz zemin (grid deseni + gradient + uçuşan kartlar kaldırıldı) */}
       <section className="relative isolate overflow-hidden bg-white px-6 pb-20 lg:px-8">
         <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-36">
@@ -798,6 +764,9 @@ export default function HomePage() {
           <AppPreview />
         </div>
       </section>
+
+      {/* Nasıl çalışır — anasayfadakiyle AYNI üç adım (tek bileşen). */}
+      <TrustBand />
 
       {/* Pazar & erişim */}
       <section className="relative isolate overflow-hidden bg-zinc-950 py-24 sm:py-32">
@@ -972,7 +941,7 @@ export default function HomePage() {
                   Ekibini davet et, rolleri ata
                 </h3>
                 <p className="mt-4 text-lg/8 text-zinc-600">
-                  Yönetici, Satın Almacı, Satışçı, Onaylayıcı — sınırsız
+                  Yönetici, satın alma, satış, onaylayıcı rolleri — sınırsız
                   kullanıcı, kullanıcı-başı ücret yok. İş çıkışında erişim tek tıkla
                   kapanır.
                 </p>
@@ -1052,7 +1021,7 @@ export default function HomePage() {
               <p className="mt-6 text-lg/8 text-zinc-600">
                 Premium üyelikte firmanız herkese açık bir profile kavuşur:
                 doğrulanmış rozet, sektörleriniz, hakkında metniniz ve açık
-                ihaleleriniz. Alıcılar sizi bulur, ihalelerinize teklif verir.
+                satın alma talepleriniz. Alıcılar sizi bulur, taleplerinize teklif verir.
               </p>
               <ul className="mt-6 space-y-3">
                 {[
@@ -1389,87 +1358,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-zinc-950">
-        <div className="mx-auto max-w-7xl px-6 pt-16 pb-10 lg:px-8">
-          <div className="xl:grid xl:grid-cols-3 xl:gap-8">
-            <div className="space-y-6">
-              <RothernLogo variant="full" size="md" />
-              <p className="max-w-xs text-sm/6 text-zinc-400">
-                Alıcı ve tedarikçiyi tek hesapta birleştiren, şeffaf B2B
-                ticaret platformu.
-              </p>
-              <div className="flex gap-x-5">
-                {social.map((item) => (
-                  <a
-                    key={item.name}
-                    href={item.href}
-                    className="text-zinc-400 transition hover:text-white"
-                  >
-                    <span className="sr-only">{item.name}</span>
-                    <item.icon aria-hidden="true" className="size-5" />
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div className="mt-12 grid grid-cols-2 gap-8 sm:grid-cols-3 xl:col-span-2 xl:mt-0">
-              <div>
-                <h3 className="text-sm/6 font-semibold text-white">Ürün</h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {footerNav.urun.map((item) => (
-                    <li key={item.name}>
-                      <a
-                        href={item.href}
-                        className="text-sm/6 text-zinc-400 transition hover:text-white"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-sm/6 font-semibold text-white">Hesap</h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {footerNav.hesap.map((item) => (
-                    <li key={item.name}>
-                      <Link
-                        href={item.href}
-                        className="text-sm/6 text-zinc-400 transition hover:text-white"
-                      >
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-sm/6 font-semibold text-white">Yasal</h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {footerNav.yasal.map((item) => (
-                    <li key={item.name}>
-                      <a
-                        href={item.href}
-                        className="text-sm/6 text-zinc-400 transition hover:text-white"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="mt-16 flex flex-col gap-4 border-t border-white/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm/6 text-zinc-400">
-              © 2026 Rothern · B2B ticaret platformu ·{" "}
-              {OPERATOR.legalName}
-            </p>
-            {/* Ödeme sağlayıcısı logo bandı, anlaşma tamamlanınca eklenecek —
-                sağlayıcının markası yalnız üye işyeri olduktan sonra kullanılır. */}
-          </div>
-        </div>
-      </footer>
-    </div>
+    </PublicLayout>
   );
 }

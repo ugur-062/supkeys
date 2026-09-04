@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { ImportDialog } from "./import-dialog";
 import { ProductShowcaseForm } from "./product-showcase-form";
@@ -70,8 +72,12 @@ export function ProductsView() {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<ProductTab>("all");
   const [importOpen, setImportOpen] = useState(false);
-  /** Yeni ürün: AYNI tek-sayfa form, boş kayıtla. */
-  const [creating, setCreating] = useState(false);
+  /**
+   * Yeni ürün: AYNI tek-sayfa form, boş kayıtla. `?yeni=1` ile açılır —
+   * kayıt niyeti "Vitrin aç" ve pano CTA'sı buraya düşer.
+   */
+  const searchParams = useSearchParams();
+  const [creating, setCreating] = useState(searchParams?.get("yeni") === "1");
   const [editing, setEditing] = useState<{
     item: CatalogItem;
     showcase: ProductShowcase;
