@@ -26,7 +26,7 @@ import Link from "next/link";
  * Talepler sayfasındaki "Bağlantı Kur" burada tekrarlanmaz — iki sayfa iki
  * farklı eylem önerince kullanıcı hangisinin işe yaradığını bilemiyordu.
  */
-export const MATCHED_REQUESTS_LIMIT = 3;
+export const MATCHED_REQUESTS_LIMIT = 5;
 
 export { SECTOR_EDIT_HREF };
 
@@ -35,13 +35,22 @@ export function MatchedRequestsWidget() {
   const rows = listings.data ?? [];
 
   return (
-    <section
-      aria-label="Size uygun açık talepler"
-      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 sm:p-6"
-    >
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
-        Size uygun açık talepler
-      </h2>
+    <section aria-label="Size uygun açık talepler">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
+            Size uygun açık talepler
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">Davet › bağlantı › kategori sırasıyla en uygunlar; süzgeç Açık Talepler&apos;de.</p>
+        </div>
+        <Link
+          href="/company/satis/acik-talepler"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
+        >
+          Tüm açık talepleri gör
+          <ArrowRight aria-hidden className="size-4" />
+        </Link>
+      </div>
 
       <div className="mt-4">
         {listings.isLoading ? (
@@ -93,15 +102,6 @@ export function MatchedRequestsWidget() {
         )}
       </div>
 
-      <div className="mt-4 flex justify-end">
-        <Link
-          href="/company/satis/acik-talepler"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
-        >
-          Tüm açık talepleri gör
-          <ArrowRight aria-hidden className="size-4" />
-        </Link>
-      </div>
     </section>
   );
 }

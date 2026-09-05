@@ -24,7 +24,7 @@ import Link from "next/link";
  * uçları burada kullanılmaz. Satış panosunun karşılığı
  * `matched-requests-widget.tsx`.
  */
-export const DISCOVERY_LIMIT = 3;
+export const DISCOVERY_LIMIT = 4;
 
 const PRODUCTS_HREF = "/company/satinalma/urunler";
 
@@ -91,15 +91,14 @@ function Block({
   children: React.ReactNode;
 }) {
   return (
-    <section
-      aria-label={title}
-      className="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 sm:p-6"
-    >
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{title}</h2>
-      <div className="mt-4 flex-1">
-        {loading ? <StripSkeleton /> : count === 0 ? empty : children}
-      </div>
-      <div className="mt-4 flex justify-end">
+    // Kutusuz bölüm — kategori vitrini ve tedarikçi bloğuyla AYNI ritim
+    // (başlık solda, çıkış bağlantısı sağda, altında ızgara).
+    <section aria-label={title}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{title}</h2>
+          <p className="mt-1 text-sm text-zinc-500">Satış kategorilerinize göre eşleşen vitrin ürünleri.</p>
+        </div>
         <Link
           href={allHref}
           className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
@@ -108,13 +107,14 @@ function Block({
           <ArrowRight aria-hidden className="size-4" />
         </Link>
       </div>
+      <div className="mt-4">{loading ? <StripSkeleton /> : count === 0 ? empty : children}</div>
     </section>
   );
 }
 
 function StripSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: DISCOVERY_LIMIT }).map((_, i) => (
         <div key={i} className="h-40 animate-pulse rounded-xl bg-zinc-100" />
       ))}
@@ -124,7 +124,8 @@ function StripSkeleton() {
 
 /** Envanter azken hayalet ızgara çizme — pazar yerindeki kararın aynısı. */
 function gridCols(n: number): string {
-  if (n >= 3) return "sm:grid-cols-3";
+  if (n >= 4) return "sm:grid-cols-2 lg:grid-cols-4";
+  if (n === 3) return "sm:grid-cols-3";
   if (n === 2) return "sm:grid-cols-2";
   return "sm:max-w-sm";
 }

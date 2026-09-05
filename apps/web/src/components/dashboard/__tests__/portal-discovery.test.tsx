@@ -57,12 +57,12 @@ beforeEach(() => {
 });
 
 describe("PortalDiscovery (satınalma seçkisi)", () => {
-  it("yalnız ürün ister — en fazla 3; ilan/talep ucu HİÇ çağrılmaz", async () => {
+  it("yalnız ürün ister — en fazla 4; ilan/talep ucu HİÇ çağrılmaz", async () => {
     wrap(<PortalDiscovery />);
     await screen.findByText("Dağıtım Panosu 400A");
     const urls = h.get.mock.calls.map((c) => String(c[0]));
-    expect(DISCOVERY_LIMIT).toBe(3);
-    expect(urls.some((u) => u.includes("items/discover") && u.includes("limit=3"))).toBe(true);
+    expect(DISCOVERY_LIMIT).toBe(4);
+    expect(urls.some((u) => u.includes("items/discover") && u.includes("limit=4"))).toBe(true);
     expect(urls.some((u) => u.includes("seller-tenders"))).toBe(false);
     expect(urls.some((u) => u.includes("type=ALIM"))).toBe(false);
   });

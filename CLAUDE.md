@@ -871,10 +871,23 @@ testi `secondaryNav`ı da sayar). Satış menüsünde "Açık Talepler" DURUYOR
 (kullanıcı yalnız Ürün Ara'yı kaldırmayı söyledi; liste sayfasında Aktif/
 Geçmiş sekmeleri var, kutu onun yerini tutmaz).
 
-**Pano sırası değişti** (2026-09-03 "şerit önde" kararı bilinçli olarak
-tersine): satınalma = arama → size uygun ürünler → şerit → 4 KPI → sağlık →
-Raporlar; satış = arama → size uygun talepler → şerit → 4 KPI → sağlık.
-Pazar yeri hissi ilk ekranda, "bugün ne yapmalıyım" hemen altında.
+**Pano sırası (2026-09-05 ikinci revizyon — "Europages gibi düşün, Rothern
+tarzını koru", "Başlangıç" listesi KALDIRILDI):**
+
+| # | Satınalma | Satış | Bileşen |
+|---|-----------|-------|---------|
+| 1 | Arama (öneri: ürün 5 + kategori 3) | Arama (öneri: açık talep 5 + sektör 3) | `PanelHeroSearch` (kutusuz hero, `suggestions`+`onQueryChange` çağırandan) |
+| 2 | Kategoriye göre keşfet — 8 fotoğraflı kart | Talep olan sektörler — 8 fotoğraflı kart | `CategoryShowcasePanel` (+`buildShowcase`, `category-photos`) |
+| 3 | Size uygun ürünler (4) | Size uygun açık talepler (5) | `PortalDiscovery` / `MatchedRequestsWidget` (kutusuz) |
+| 4 | Doğrulanmış tedarikçiler (4 firma kartı) | Talep açan alıcılar (4, `seller-tenders`ten türetilir) | `FeaturedCompaniesBlock` / `BuyersBlock` |
+| 5 | BUGÜN: şerit + 4 KPI | BUGÜN: şerit + 4 KPI | `TodayBand` |
+| 6 | "Talep aç" şeridi (ikincil — primary sol menüde) | "Ürün ekle" şeridi (primary — satış menüsünde CTA yok) | `CtaBand` |
+| 7 | Profil sağlığı + Raporlar | Katalog/profil sağlığı | mevcut |
+
+Bölüm ritmi tek: başlık solda + tek satır açıklama, çıkış bağlantısı sağda,
+altında ızgara; kutu yalnız kartlarda. Öneri ve sayaçlar panelin kendi
+uçlarından (`items/discover`, `discover-facets`, `seller-tenders`,
+`categories/segments`); herkese açık `public/suggest` panelde YASAK.
 
 ### Kategori fotoğrafları — 58/58 (2026-09-04, akşam)
 

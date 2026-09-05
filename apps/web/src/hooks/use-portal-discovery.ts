@@ -221,3 +221,16 @@ export function useRelatedProducts(companySlug: string, productSlug: string) {
     staleTime: 300_000,
   });
 }
+
+/** 58 üst kategori (L1) — kategori vitrini için doldurma listesi. Herkese
+ *  açık `categories/segments` ucu; panelden de aynı adres. 1 saat taze. */
+export function useCategorySegments() {
+  return useQuery<{ id: string; nameTr: string }[]>({
+    queryKey: ["categories", "segments"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<{ id: string; nameTr: string }[]>("/categories/segments");
+      return data;
+    },
+    staleTime: 60 * 60_000,
+  });
+}

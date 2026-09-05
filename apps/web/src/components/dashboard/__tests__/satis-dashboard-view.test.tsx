@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -74,6 +74,20 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
     data: { segments: [{ id: "39000000", name: "Elektrik", count: 4 }, { id: "23000000", name: "Makine", count: 0 }], total: 4 },
     isLoading: false,
   }),
+  useCategorySegments: () => ({
+    data: [{ id: "39000000", nameTr: "Elektrik" }, { id: "23000000", nameTr: "Makine" }, { id: "31000000", nameTr: "Bileşen" }],
+    isLoading: false,
+  }),
+}));
+vi.mock("@/hooks/use-seller-tenders", () => ({
+  useSellerTenders: () => ({
+    data: [
+      { id: "t1", number: "ROT-000001", title: "Kablo alımı", status: "OPEN", masked: false, owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
+      { id: "t2", number: "ROT-000002", title: "Pano alımı", status: "OPEN", masked: false, owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
+      { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", masked: false, owner: { id: "c2", name: "Alıcı B" }, ownerCity: null, categories: [] },
+    ],
+    isLoading: false,
+  }),
 }));
 vi.mock("@/components/dashboard/matched-requests-widget", () => ({
   MatchedRequestsWidget: () => <div data-testid="matched-requests" />,
@@ -146,20 +160,42 @@ describe("SatisDashboardView", () => {
     expect(screen.getByRole("heading", { name: "Hangi talebe teklif vereceksiniz?" })).toBeInTheDocument();
     const form = screen.getByRole("search");
     expect(form).toHaveAttribute("action", "/company/satis/acik-talepler");
-    expect(screen.getByRole("link", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis/acik-talepler?kategori=39000000");
-    // Sayısı 0 olan sektör çip olmaz.
-    expect(screen.queryByRole("link", { name: /Makine/ })).toBeNull();
+    const cips = within(screen.getByRole("navigation", { name: "Talep olan sektörler" }));
+    expect(cips.getByRole("link", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis/acik-talepler?kategori=39000000");
+    // Sayısı 0 olan sektör ÇİP olmaz (vitrin kartı olabilir).
+    expect(cips.queryByRole("link", { name: /Makine/ })).toBeNull();
   });
 
-  it("özet sırası: arama → size uygun talepler → şerit → KPI → sağlık; keşif kartı YOK", () => {
+  it("sektör kartları fotoğraflı ve hedefli; alıcı bloğu yalnız AÇIK talebi olan sahipleri sayar", () => {
+    h.stats = fullStats();
+    render(<SatisDashboardView />);
+    // 8 segmentten dolu olan önde (Elektrik 4), sayısı 0 olan da kart olur ("Keşfet").
+    const sektor = screen.getByRole("region", { name: "Talep olan sektörler" });
+    expect(sektor.querySelector("a[href='/company/satis/acik-talepler?kategori=39000000']")).not.toBeNull();
+    expect(sektor.querySelector("img")?.getAttribute("src")).toContain("categories");
+    // Alıcı A iki açık talep; Alıcı B'nin talebi AWARDED → listede yok.
+    const alici = screen.getByRole("region", { name: "Talep açan alıcılar" });
+    expect(alici).toHaveTextContent("Alıcı A");
+    expect(alici).toHaveTextContent("2 açık talep");
+    expect(alici).not.toHaveTextContent("Alıcı B");
+    expect(within(alici).getByRole("link", { name: /Alıcı A/ })).toHaveAttribute("href", "/company/satis/acik-talepler?q=Al%C4%B1c%C4%B1%20A");
+    // Başlangıç listesi KALDIRILDI; "Bugün" bandı ve ürün ekle şeridi var.
+    expect(screen.queryByText(/Başlangıç/)).toBeNull();
+    expect(screen.getByRole("heading", { name: "Bugün" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ürün ekle/ })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
+  });
+
+  it("özet sırası: arama → sektörler → size uygun talepler → alıcılar → şerit → KPI → sağlık; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
     const at = (s: string) => html.indexOf(s);
     expect(at("portal-discovery")).toBe(-1);
     expect(at("action-strip")).toBeGreaterThan(-1);
-    expect(at("Hangi talebe teklif")).toBeLessThan(at("matched-requests"));
-    expect(at("matched-requests")).toBeLessThan(at("action-strip"));
+    expect(at("Hangi talebe teklif")).toBeLessThan(at("Talep olan sektörler"));
+    expect(at("Talep olan sektörler")).toBeLessThan(at("matched-requests"));
+    expect(at("matched-requests")).toBeLessThan(at("Talep açan alıcılar"));
+    expect(at("Talep açan alıcılar")).toBeLessThan(at("action-strip"));
     expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
     expect(at("Aktif Tekliflerim")).toBeLessThan(at("seller-health"));
     // TEK arama kutusu (hero); ikinci "İlan aç" YOK.

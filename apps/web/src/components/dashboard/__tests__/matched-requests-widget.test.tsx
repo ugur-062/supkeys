@@ -4,7 +4,7 @@
  *
  * Kilitlenen iddialar:
  *  · satış panosu ALIM taleplerini ister (yön ters dönerse kullanıcı kendi
- *    ilanlarını "fırsat" sanır) ve en fazla 3 tane;
+ *    ilanlarını "fırsat" sanır) ve en fazla 5 tane;
  *  · panoda arama kutusu ve "İlan aç" YOK — bunlar Açık Talepler sayfası ve
  *    sol menünün işi; kopyası eski keşif kartındaydı;
  *  · boş durum TEK eylem ("Sektörleri düzenle") — "Bağlantı Kur" burada
@@ -70,17 +70,17 @@ beforeEach(() => {
 });
 
 describe("MatchedRequestsWidget", () => {
-  it("ALIM taleplerini, en fazla 3 tane ve yalnız açık olanları ister", async () => {
+  it("ALIM taleplerini, en fazla 5 tane ve yalnız açık olanları ister", async () => {
     h.get.mockResolvedValue({ data: [ROW] });
     wrap(<MatchedRequestsWidget />);
     await screen.findByText("Paslanmaz çelik boru");
     const urls = h.get.mock.calls.map((c) => String(c[0]));
-    expect(MATCHED_REQUESTS_LIMIT).toBe(3);
+    expect(MATCHED_REQUESTS_LIMIT).toBe(5);
     expect(
       urls.some(
         (u) =>
           u.includes("seller-tenders?type=ALIM") &&
-          u.includes("limit=3") &&
+          u.includes("limit=5") &&
           u.includes("openOnly=true"),
       ),
     ).toBe(true);
@@ -111,6 +111,8 @@ describe("MatchedRequestsWidget", () => {
     expect(screen.queryByText(/Bağlantı Kur/)).toBeNull();
     // "Tüm açık talepleri gör" dışında ikinci bir eylem yok.
     const links = screen.getAllByRole("link").map((a) => a.textContent?.trim());
-    expect(links).toEqual(["Satış kategorilerini düzenle", "Tüm açık talepleri gör"]);
+    // "Tüm…" bağlantısı bölüm başlığında (2026-09-05, kutusuz ritim) — boş
+    // durumun tek eylemi yine "Sektörleri düzenle".
+    expect(links).toEqual(["Tüm açık talepleri gör", "Satış kategorilerini düzenle"]);
   });
 });
