@@ -1114,6 +1114,28 @@ kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
 - Sözleşmeler: `approval-detail.spec`, `approver-context.spec` (yeniden
   yazıldı), `notifications-audience.spec`.
 
+**Faz 3 — Yüzler (2026-09-06, BİTTİ):**
+- **Portal pilleri izinden:** pil yalnız GÖRÜNTÜLEME izni olan portallar için
+  çizilir (`buy:view`/`sell:view`); izni olmayan portal menüde HİÇ yok
+  (kilitli pil yok). Tek istisna paket kapısı: satınalma izni var ama kademe
+  < Silver → kilitli pil (PortalGuard paket ekranı). Tek portal → pil satırı
+  çizilmez. Şirketim menü satırları `permission` alanıyla süzülür (Ziyaret
+  Edenler `insights:view`, Raporlar `buy:reports:view`).
+- **Sayfa düzeyi izin kapıları** `components/company/permission-gate.tsx`
+  (`PermissionGate`, dizi = any-of; `/me` yoksa rol setine düşer) — `layout.tsx`
+  ile: `sirketim/*` (yönetim ∨ bir görüntüleme), `sirketim/ziyaretciler`
+  (`insights:view`), `sirketim/raporlar` (Silver + `buy:reports:view`),
+  `ayarlar/{firma,dogrulama}` (`company:manage`), `adresler`
+  (`addresses:manage`), `banka-hesaplari` (`billing:manage`), `kullanicilar`
+  (`users:manage`), `aktivite` (yönetim), `ai-kullanim` (yönetim ∨ koltuk),
+  `ilan/[id]`, `siparis/[id]`, `firma/[id]`, `mesajlar` (bir görüntüleme),
+  `taleplerim/yeni` ve `[id]/duzenle` (`buy:listing:manage`),
+  `satinalma/sablonlar` (Silver). Ayarlar hub kartları aynı izinlerle
+  süzülür (`managerOnly` yerine `permission`). Eskiden bu sayfalar herkese
+  açıktı; yalnız düğmeler kapalıydı.
+- Ürün formunda kaydet/yayımla/vitrinden çek düğmeleri `sell:product:manage`
+  yoksa çizilmez (salt okuma notu).
+
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı
 nesnesi `/me`'den `permissions` taşır, yoksa rol setine düşer (test mock'ları

@@ -31,6 +31,8 @@ export interface PortalNavItem {
   href: string;
   /** En az bu kademede aktif (altındakine kilitli teaser). Faz T. */
   minTier?: "BRONZ" | "SILVER";
+  /** Yetki tablosu Faz 3: bu izin(ler)den biri yoksa satır menüde HİÇ çizilmez. */
+  permission?: string | readonly string[];
 }
 
 export interface PortalDef {
@@ -92,9 +94,10 @@ export const COMPANY_AREA: CompanyAreaDef = {
     { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
     // Herkese açık profil PAKET özelliği (BRONZ+) — eski Profilim kapısıyla aynı.
     { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil`, minTier: "BRONZ" },
-    // Sayılar herkese açık, kimlikli liste Bronz+ (sayfa içinde kilit) — menüde kapı yok.
-    { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler` },
-    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER" },
+    // Sayılar herkese açık, kimlikli liste Bronz+ (sayfa içinde kilit); menüde
+    // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
+    { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
+    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: "buy:reports:view" },
   ],
   secondaryNav: [],
 };

@@ -1,6 +1,8 @@
 "use client";
 
-import { isManagementUser } from "@/lib/company/permissions";
+import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
+
+import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
@@ -26,7 +28,7 @@ interface SettingsCard {
    * yönetim ETİKETİNE bakar; bazı kartların ucu ise operasyon rollerine de
    * açıktır — denetim 2026-08-26 Parça 10 B5.
    */
-  permission?: string;
+  permission?: string | readonly string[];
 }
 
 interface SettingsGroup {
@@ -85,6 +87,7 @@ const GROUPS: SettingsGroup[] = [
         icon: Building2,
         title: "Firma Bilgileri",
         description: "Unvan, adres, KEP ve faaliyet kategorileri",
+        permission: "company:manage",
       },
       {
         href: "/company/ayarlar/adresler",
@@ -103,14 +106,14 @@ const GROUPS: SettingsGroup[] = [
         icon: Landmark,
         title: "Banka Hesapları",
         description: "Sipariş onayında seçilen ödeme hesapları",
-        managerOnly: true,
+        permission: "billing:manage",
       },
       {
         href: "/company/ayarlar/kullanicilar",
         icon: UserPlus2,
         title: "Kullanıcı Yönetimi",
         description: "Ekip üyeleri, roller ve izinler",
-        managerOnly: true,
+        permission: "users:manage",
       },
       {
         // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
@@ -118,7 +121,7 @@ const GROUPS: SettingsGroup[] = [
         icon: Activity,
         title: "Aktivite Logu",
         description: "Firmanızda kim ne yaptı — eylem kayıtları",
-        managerOnly: true,
+        permission: ["users:manage", "company:manage"],
       },
       {
         // Faz AI-0 — AI kullanım ekranı (Silver+). managerOnly DEĞİL: SA/ST
@@ -127,6 +130,7 @@ const GROUPS: SettingsGroup[] = [
         icon: Sparkles,
         title: "AI Kullanımı",
         description: "Aylık AI bütçe kullanımınız — yüzde bazında",
+        permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
       },
       {
         // Onay akışları artık Onaylar sayfasından yönetiliyor — kısayol.
@@ -134,14 +138,14 @@ const GROUPS: SettingsGroup[] = [
         icon: Workflow,
         title: "Onay Akışları",
         description: "Kazanan onayı akışlarını Onaylar sayfasından tanımlayın",
-        managerOnly: true,
+        permission: "approvals:manage",
       },
       {
         href: "/company/ayarlar/dogrulama",
         icon: BadgeCheck,
         title: "Doğrulama Belgeleri",
         description: "Vergi levhası, sicil, imza sirküleri (premium için gerekli)",
-        managerOnly: true,
+        permission: "company:manage",
       },
     ],
   },
@@ -155,8 +159,6 @@ export default function AyarlarPage() {
       ? PORTAL_SECONDARY_HREFS[activePortal].profilim
       : href;
   const isManager = isManagementUser(user);
-  /** İzin-kapılı kartlar için efektif izin listesi (Faz R: fallback YOK). */
-  const permissions = user?.permissions ?? [];
 
   // P2 (denetim §10.5): karta durum rozeti — YALNIZ store'da hazır veriden
   // (ekstra istek yok). Durum bilinmiyorsa rozet basmayız.
@@ -191,7 +193,7 @@ export default function AyarlarPage() {
         {GROUPS.map((group) => {
           const items = group.items.filter((i) =>
             i.permission
-              ? permissions.includes(i.permission)
+              ? userHasPermission(user, i.permission)
               : !i.managerOnly || isManager,
           );
           if (items.length === 0) return null;

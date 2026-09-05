@@ -7,6 +7,7 @@ import {
 } from "@/hooks/use-company-auth";
 import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
 import { usePortalStore } from "@/lib/company/portal-store";
+import { userHasPermission } from "@/lib/company/permissions";
 import {
   COMPANY_AREA,
   PORTALS,
@@ -145,26 +146,19 @@ export function CompanySidebarContent({
   const togglePinned = usePortalStore((s) => s.toggleSidebarPinned);
   const tier = company?.tier ?? "STANDART";
 
-  const roles = user?.roles ?? [];
   const canAct = useHasCompanyPermission("approval:act");
   const { data: pendingCount } = usePendingApprovalCount(canAct);
   // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   const available = accessiblePortals(user, company?.tier);
-  // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel gösterilir;
-  // giremediği panel kilitli görünür. Tıklayınca PortalGuard uygun ekranı açar
-  // (rol yoksa yetki ekranı, kademe düşükse paket kapısı) — eski topbar mantığı.
-  const canPurchase =
-    roles.includes("SAHIP") ||
-    roles.includes("YONETICI") ||
-    roles.includes("SATIN_ALMACI");
-  const canSell =
-    roles.includes("SAHIP") ||
-    roles.includes("YONETICI") ||
-    roles.includes("SATISCI");
-  const visiblePortals: PortalKey[] =
-    canPurchase || canSell ? [...PORTAL_ORDER] : available;
+  // Yetki tablosu Faz 3: pil yalnız GÖRÜNTÜLEME izni olan portallar için
+  // çizilir; izni olmayan portal menüde hiç yoktur (kilitli pil yok). Tek
+  // istisna paket kapısı: satınalma izni var ama kademe < Silver → kilitli pil
+  // (tıklayınca PortalGuard paket ekranını açar). Tek portal → pil satırı yok.
+  const visiblePortals: PortalKey[] = PORTAL_ORDER.filter((p) =>
+    userHasPermission(user, p === "satinalma" ? "buy:view" : "sell:view"),
+  );
   const lastPortal = usePortalStore((s) => s.lastPortal);
   // Portal-nötr rotalarda (/company/ilan, /company/onaylar…) SON portalda kal.
   const active: PortalKey =
@@ -253,9 +247,7 @@ export function CompanySidebarContent({
           >
             <PlusIcon className="size-4 shrink-0" aria-hidden />
             {expanded ? (
-              <span className="truncate">
-                {active === "satinalma" ? "Satın Alma Talebi Aç" : "Satış İlanı Aç"}
-              </span>
+              <span className="truncate">Satın Alma Talebi Aç</span>
             ) : null}
           </Link>
         </div>
@@ -288,7 +280,9 @@ export function CompanySidebarContent({
             ) : null}
           </div>
         ) : null}
-        {(inCompanyArea ? COMPANY_AREA.nav : minimal ? [] : portal.nav).map((item) => (
+        {(inCompanyArea ? COMPANY_AREA.nav : minimal ? [] : portal.nav)
+          .filter((item) => !item.permission || userHasPermission(user, item.permission))
+          .map((item) => (
             <RailItem
               key={item.href}
               href={item.href}

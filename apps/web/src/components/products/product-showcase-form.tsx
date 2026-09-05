@@ -1,5 +1,6 @@
 "use client";
 
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { AttributeFields } from "./attribute-fields";
 import { CompletionRing } from "./completion-ring";
 import { ImageUploader } from "./image-uploader";
@@ -100,6 +101,8 @@ export function ProductShowcaseForm({
   const save = useUpdateShowcase();
   const create = useCreateProduct();
   const publish = usePublishProduct();
+  // Kaydet/yayımla = "Ürün ve vitrin yönetimi" işlem izni (API aynası); izinsiz salt okur.
+  const canManage = useHasCompanyPermission("sell:product:manage");
   const uploadDoc = useUploadProductDocument();
 
   const unitDef = getUnit(unitCode);
@@ -497,6 +500,7 @@ export function ProductShowcaseForm({
           </div>
         ) : null}
 
+        {canManage ? (
         <div className="mt-4 space-y-2">
           <button
             type="button"
@@ -528,6 +532,11 @@ export function ProductShowcaseForm({
             </button>
           ) : null}
         </div>
+        ) : (
+          <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">
+            Ürünü kaydetmek ve yayımlamak için “Ürün ve vitrin yönetimi” yetkisi gerekir.
+          </p>
+        )}
 
         <p className="mt-4 text-xs/5 text-zinc-500">
           Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları
