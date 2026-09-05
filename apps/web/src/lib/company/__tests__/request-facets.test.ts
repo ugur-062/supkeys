@@ -95,6 +95,9 @@ describe("passes — her boyut", () => {
     expect(passes(r, F({ q: "çelik vida" }), NOW)).toBe(false);
     expect(matchedItemName(r, "flanş dn100")).toBe("Flanş DN100");
     expect(matchedItemName(r, "dirsek dn100")).toBe("Dirsek 90°");
+    // Türkçe ek toleransı: "boruları" → "boru"; "flanşı" → "flan…" (ön ek).
+    expect(passes(r, F({ q: "çelik boruları" }), NOW)).toBe(true);
+    expect(matchedItemName(r, "flanşları")).toBe("Flanş DN100");
   });
 });
 

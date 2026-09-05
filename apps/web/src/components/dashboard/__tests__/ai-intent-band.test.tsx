@@ -67,6 +67,9 @@ describe("AiIntentBand", () => {
     expect(screen.getByText("Sonuç vermediği için kaldırıldı: kategori (Kompanzasyon panoları), şehir.")).toBeInTheDocument();
     // Kaldırılan kategori için ayrıca "bulunamadı" uyarısı basılmaz.
     expect(screen.queryByText(/Kategori bulunamadı/)).toBeNull();
+    // Arama kısaltıldıysa kalan terim söylenir.
+    render(<AiIntentBand intent={{ ...intent, query: "pano", category: null, relaxed: ["query"], relaxedCategoryName: null }} onDismiss={() => {}} />);
+    expect(screen.getByText('Sonuç vermediği için kaldırıldı: arama kısaltıldı ("pano" kaldı).')).toBeInTheDocument();
   });
 
   it("satışta talep aç düğmesi YOK; bulunamayan kategori ipucu görünür", () => {

@@ -191,6 +191,9 @@ describe("keşif — Ürün Ara (discoverSearch)", () => {
     expect((await items().discoverSearch(me.auth, { q: "trakya" })).items.map((i) => i.name)).toEqual(["Çelik Boru"]);
     expect((await items().discoverSearch(me.auth, { q: "ÇELİK" })).items.map((i) => i.name)).toEqual(["Çelik Boru"]);
     expect((await items().discoverSearch(me.auth, { q: "pano" })).items.map((i) => i.name)).toEqual([other.item.name]);
+    // Türkçe ek toleransı: "boruları" → "boru" ön ekiyle bulunur; "panosu" → "pano".
+    expect((await items().discoverSearch(me.auth, { q: "çelik boruları" })).items.map((i) => i.name)).toEqual(["Çelik Boru"]);
+    expect((await items().discoverSearch(me.auth, { q: "panosu" })).items.map((i) => i.name)).toEqual([other.item.name]);
   });
 });
 

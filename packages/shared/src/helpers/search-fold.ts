@@ -66,3 +66,27 @@ export function tokenizeQuery(input: string): string[] {
       return !STOPWORDS.has(foldSearchText(t));
     });
 }
+
+/**
+ * Türkçe ek toleransı — katlanmış (ASCII) token'dan SON EK düşer:
+ * "borulari" → "boru", "panosu" → "pano", "sistemleri" → "sistem",
+ * "kablolar" → "kablo"; eki olmayan ("elektrik", "kompanzasyon") olduğu gibi.
+ * Kör ön ek kesmek yerine ek listesi: "elektrik" → "elek" gibi kısaltmalar
+ * "elektronik"i de yakalıyordu. Yalnız ≥6 karakterde ve kalan ≥4 ise.
+ * Tek kaynak — kategori ipucu çözümleyici, ürün araması ve açık talep
+ * araması (liste + AI gevşetme sayımı) aynı kuralı okur.
+ */
+const TR_SUFFIXES = [
+  "larini", "lerini", "larina", "lerine", "lari", "leri", "sini", "sunu", "nden", "ndan",
+  "lar", "ler", "nin", "nun", "dan", "den", "tan", "ten",
+  "si", "su", "ni", "nu", "in", "un", "da", "de", "ta", "te", "ya", "ye",
+  "i", "u", "a", "e",
+].sort((a, b) => b.length - a.length);
+
+export function stemPrefix(token: string): string {
+  if (token.length < 6) return token;
+  for (const suf of TR_SUFFIXES) {
+    if (token.endsWith(suf) && token.length - suf.length >= 4) return token.slice(0, token.length - suf.length);
+  }
+  return token;
+}

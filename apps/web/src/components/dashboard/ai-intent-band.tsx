@@ -18,13 +18,18 @@ const RELAXED_LABEL: Record<AiSearchRelaxed, string> = {
   activity: "faaliyet tipi",
   verifiedOnly: "doğrulanmış firma",
   city: "şehir",
+  query: "arama kısaltıldı",
 };
 
 /** "Sonuç vermediği için kaldırıldı: kategori (Kompanzasyon panoları), şehir" */
 export function relaxedNote(r: AiSearchIntentResult): string | null {
   if (!r.relaxed?.length) return null;
   const parts = r.relaxed.map((k) =>
-    k === "category" && r.relaxedCategoryName ? `${RELAXED_LABEL[k]} (${r.relaxedCategoryName})` : RELAXED_LABEL[k],
+    k === "category" && r.relaxedCategoryName
+      ? `${RELAXED_LABEL[k]} (${r.relaxedCategoryName})`
+      : k === "query" && r.query
+        ? `${RELAXED_LABEL[k]} ("${r.query}" kaldı)`
+        : RELAXED_LABEL[k],
   );
   return `Sonuç vermediği için kaldırıldı: ${parts.join(", ")}.`;
 }

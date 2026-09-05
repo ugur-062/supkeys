@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Optional, ServiceUnavailableException 
 import {
   foldSearchText,
   isCompanyActivity,
+  stemPrefix,
   tokenizeQuery,
   type AiSearchIntentResult,
   type AiSearchPortal,
@@ -171,7 +172,8 @@ export class SearchIntentService {
       ),
     }));
     const count = async (x: Filters) => {
-      const ts = x.query ? tokenizeQuery(x.query).map((t) => foldSearchText(t)) : [];
+      // Web listesiyle AYNI kural: kelimeler AND, ek toleranslı (`stemPrefix`).
+      const ts = x.query ? tokenizeQuery(x.query).map((t) => stemPrefix(foldSearchText(t))) : [];
       const seg = x.category?.id.slice(0, 2);
       const city = x.city ? foldSearchText(x.city) : null;
       return hay.filter(
@@ -195,15 +197,45 @@ interface Filters {
   quantity: number | null;
 }
 
-/** En az güvenilenden en çok güvenilene: kategori (ipucu çözümü) → tavanlar → nitelikler → şehir. */
-const PRODUCT_RELAX_ORDER: AiSearchRelaxed[] = ["category", "priceMax", "quantity", "activity", "verifiedOnly", "city"];
-const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "city"];
+/**
+ * En az güvenilenden en çok güvenilene: kategori (ipucu çözümü) → tavanlar →
+ * nitelikler → şehir → EN SON arama kelimeleri (kısaltılır, tümden kalkmaz).
+ */
+const PRODUCT_RELAX_ORDER: AiSearchRelaxed[] = ["category", "priceMax", "quantity", "activity", "verifiedOnly", "city", "query"];
+const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "city", "query"];
+
+const queryTokens = (q: string | null) => (q ? tokenizeQuery(q) : []);
 
 const isSet = (f: Filters, k: AiSearchRelaxed) =>
-  k === "verifiedOnly" ? f.verifiedOnly : f[k] != null;
+  k === "verifiedOnly" ? f.verifiedOnly : k === "query" ? queryTokens(f.query).length > 1 : f[k] != null;
 
 function without(f: Filters, k: AiSearchRelaxed): Filters {
   return k === "verifiedOnly" ? { ...f, verifiedOnly: false } : { ...f, [k]: null };
+}
+
+/**
+ * Arama kelimeleri "BİRİ HARİÇ" denenerek kısaltılır: n kelimeden en çok
+ * sonuç veren (n-1)'lik alt küme seçilir, gerekirse tekrar — tek kelime
+ * kalana dek. Sondan kırpmak yanlış kelimeyi düşürebilirdi ("elektrik panosu
+ * kompanzasyon"da anahtar kelime ortadaki).
+ */
+async function shrinkQuery(f: Filters, count: (x: Filters) => Promise<number>): Promise<{ f: Filters; n: number }> {
+  let tokens = queryTokens(f.query);
+  let cur = f;
+  let n = 0;
+  while (tokens.length > 1) {
+    let best: { tokens: string[]; n: number } | null = null;
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const cand = tokens.filter((_, j) => j !== i);
+      const c = await count({ ...cur, query: cand.join(" ") });
+      if (!best || c > best.n) best = { tokens: cand, n: c };
+    }
+    tokens = best!.tokens;
+    cur = { ...cur, query: tokens.join(" ") };
+    n = best!.n;
+    if (n > 0) break;
+  }
+  return { f: cur, n };
 }
 
 async function relax(
@@ -218,6 +250,13 @@ async function relax(
   for (const k of order) {
     if (n > 0) break;
     if (!isSet(cur, k)) continue;
+    if (k === "query") {
+      const r = await shrinkQuery(cur, count);
+      cur = r.f;
+      n = r.n;
+      relaxed.push("query");
+      continue;
+    }
     cur = without(cur, k);
     relaxed.push(k);
     n = await count(cur);

@@ -179,6 +179,25 @@ describe("AI arama — search-intent", () => {
     expect(listings.sellerTenders).toHaveBeenCalledWith(auth, "ALIM", { openOnly: true });
   });
 
+  it("SATICI sorgu kısaltma: 'elektrik panosu kompanzasyon' → biri hariç deneme → 'panosu' (ek toleransıyla 'pano alımı'nı bulur)", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const rows = [
+      { title: "Trafo merkezi için trafo, kablo ve pano alımı", number: "ROT-2", owner: { name: "Alıcı B" }, ownerCity: "Bursa", itemNames: ["Dağıtım panosu"], categories: [{ code: "39121500", name: "Panolar" }] },
+      { title: "Şantiye için inşaat demiri", number: "ROT-3", owner: { name: "Alıcı C" }, ownerCity: "Bursa", itemNames: [], categories: [{ code: "30100000", name: "İnşaat" }] },
+    ];
+    const listings = { sellerTenders: jest.fn().mockResolvedValue(rows) };
+    const { service } = rig(
+      { summary: "Anladığım: elektrik panosu satışı", query: "elektrik panosu kompanzasyon" },
+      undefined,
+      listings as unknown as Partial<CompanyListingsService>,
+    );
+    const r = await service.interpret(auth, { text: "Elektrik panoları ve kompanzasyon sistemleri üretiyoruz", portal: "satis" });
+    expect(r.relaxed).toEqual(["query"]);
+    // 3 kelime → 0; "biri hariç": {elektrik panosu}=0, {elektrik kompanzasyon}=0, {panosu kompanzasyon}=0
+    // → en iyi eşitlikte sondaki düşer → 2 kelime → yine biri hariç: {panosu}=1 (pano alımı) kazanır.
+    expect(r.query).toBe("panosu");
+  });
+
   it("ALICI gevşetme: kategori → … → şehir sırasıyla, ilk sonuçta durur; arama terimi asla kalkmaz", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
     await makeCategory("39121500", "Kompanzasyon panoları", 3);

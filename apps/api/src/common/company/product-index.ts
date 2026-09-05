@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { categoryPrefix, foldSearchText, isCompanyActivity, tokenizeQuery } from "@rothern/shared";
+import { categoryPrefix, foldSearchText, isCompanyActivity, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import { publicProductWhere } from "./public-profile-gate";
 
 /**
@@ -43,9 +43,10 @@ export function productSearchClauses(raw?: string): Prisma.CompanyItemWhereInput
   // KATLANIR — ham "Çelik" katlanmış "celik" metninde hiç eşleşmiyordu
   // (2026-09-05 düzeltmesi). Firma ADI da aranır: tek kutu "ürün ya da
   // firma" (Europages) — "Trakya Elektrik" yazan o firmanın ürünlerini bulur.
+  // Türkçe ek toleransı (`stemPrefix`): "boruları" → "boru", "panosu" → "pano".
   return tokens.map((t) => ({
     OR: [
-      { searchText: { contains: foldSearchText(t) } },
+      { searchText: { contains: stemPrefix(foldSearchText(t)) } },
       { company: { name: { contains: t, mode: "insensitive" as const } } },
     ],
   }));

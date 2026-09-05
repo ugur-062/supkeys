@@ -1,4 +1,4 @@
-import { foldSearchText, tokenizeQuery } from "@rothern/shared";
+import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import type { PrismaService } from "../../common/prisma/prisma.service";
 
 /**
@@ -25,9 +25,6 @@ export interface ResolvedCategory {
 }
 
 type Candidate = { id: string; nameTr: string; level: number; searchText: string | null };
-
-/** Türkçe ekleri hoş gör: "panosu"/"panoları" → "pano", "kompanzasyon" → "kompanzas". */
-export const stemPrefix = (t: string): string => (t.length >= 5 ? t.slice(0, Math.max(4, t.length - 3)) : t);
 
 const tokensOf = (h: string) => tokenizeQuery(h).map((t) => foldSearchText(t)).filter(Boolean);
 

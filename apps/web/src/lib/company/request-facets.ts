@@ -1,4 +1,5 @@
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { foldSearchText, stemPrefix } from "@rothern/shared";
 import {
   CLOSING_WINDOWS,
   PERIOD_WINDOWS,
@@ -54,26 +55,33 @@ export function rowSegments(row: SellerTenderRow): string[] {
   return [...new Set(row.categories.map((c) => segmentOf(c.code)))];
 }
 
-/** Arama samanlığı: başlık · numara · alıcı · KALEM adları · kategori adları. */
+/**
+ * Arama samanlığı: başlık · numara · alıcı · KALEM adları · kategori adları —
+ * KATLANMIŞ (aksan/İ sorunu yok; ürün aramasıyla aynı `foldSearchText`).
+ */
 export function searchHaystack(row: SellerTenderRow): string {
-  return [
-    row.title,
-    row.number ?? "",
-    row.owner?.name ?? "",
-    ...(row.itemNames ?? []),
-    ...row.categories.map((c) => c.name),
-  ]
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
+  return foldSearchText(
+    [
+      row.title,
+      row.number ?? "",
+      row.owner?.name ?? "",
+      ...(row.itemNames ?? []),
+      ...row.categories.map((c) => c.name),
+    ].join(" "),
+  );
 }
 
-/** Sorgu kelimelere bölünür, HEPSİ aranır, sıra önemsiz (ürün aramasıyla aynı kural). */
+/**
+ * Sorgu kelimelere bölünür, HEPSİ aranır, sıra önemsiz; Türkçe ek toleransı
+ * (`stemPrefix`: "panosu" → "pano") — ürün aramasıyla ve AI gevşetmesiyle
+ * AYNI kural (sunucu sayımı ile liste ayrışmasın).
+ */
 export function queryTokens(q: string): string[] {
-  return q
-    .toLocaleLowerCase("tr-TR")
+  return foldSearchText(q)
     .split(/[\s,;/]+/)
     .map((t) => t.trim())
-    .filter((t) => t.length >= 2);
+    .filter((t) => t.length >= 2)
+    .map(stemPrefix);
 }
 
 function textHit(row: SellerTenderRow, q: string): boolean {
@@ -87,7 +95,7 @@ function textHit(row: SellerTenderRow, q: string): boolean {
 export function matchedItemName(row: SellerTenderRow, q: string): string | null {
   const ts = queryTokens(q);
   if (ts.length === 0) return null;
-  const names = (row.itemNames ?? []).map((n) => ({ n, l: n.toLocaleLowerCase("tr-TR") }));
+  const names = (row.itemNames ?? []).map((n) => ({ n, l: foldSearchText(n) }));
   return (
     names.find(({ l }) => ts.every((t) => l.includes(t)))?.n ??
     names.find(({ l }) => ts.some((t) => l.includes(t)))?.n ??
