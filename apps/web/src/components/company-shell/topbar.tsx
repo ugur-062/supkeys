@@ -1,7 +1,6 @@
 "use client";
 
 import { RoleBadge } from "@/components/ui/role-badge";
-import { TIER_LABELS } from "@/lib/company/labels";
 import { RothernLogo } from "@/components/brand/logo";
 import { Avatar } from "@/components/catalyst/avatar";
 import {
@@ -55,7 +54,6 @@ export function CompanyTopbar({
   const canMessage =
     canUseMessaging(user?.roles ?? [], "satinalma") ||
     canUseMessaging(user?.roles ?? [], "satis");
-  const tier = company?.tier ?? "STANDART";
   const pathname = usePathname();
   const inCompanyArea = isCompanyAreaPath(pathname);
 
@@ -92,41 +90,24 @@ export function CompanyTopbar({
 
 
       {/* Sağa yaslı: Şirketim düğmesi (eski arama kutusunun yerinde) */}
-      <div className="ml-auto flex min-w-0 items-center">
-      {/* ŞİRKETİM — sağ kümenin önünde (2026-09-05, kullanıcı kararı: üst çubuk
-          araması kaldırıldı, yerine firma düğmesi). Tıklayınca firma alanı
-          açılır, sol menü firma menüsüne döner; dar ekranda hesap menüsünde. */}
+      <div className="ml-auto mr-1 flex min-w-0 items-center">
+      {/* ŞİRKETİM — sağ kümenin önünde, mesaj/bildirim düğmeleriyle AYNI dil
+          (2026-09-05, kullanıcı: "tuş olduğu belli değil, Gold orada saçma"):
+          h-10 · rounded-lg · zinc ikon + etiket · ince çerçeve; rozet ve
+          firma adı YOK (ad sol menüdeki firma kartında ve sayfa başlığında). */}
       <Link
         href={COMPANY_AREA_BASE}
-        aria-label={`${COMPANY_AREA.label} — ${company?.name ?? ""}`}
+        aria-label={COMPANY_AREA.label}
         aria-current={inCompanyArea ? "page" : undefined}
         className={cn(
-          "group hidden min-w-0 items-center gap-2 rounded-lg py-1 pr-2 pl-2 transition sm:flex",
-          inCompanyArea ? "bg-zinc-100" : "hover:bg-zinc-100",
+          "hidden h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:inline-flex",
+          inCompanyArea
+            ? "bg-zinc-100 text-zinc-900 ring-zinc-950/10"
+            : "bg-white text-zinc-600 ring-zinc-950/10 hover:bg-zinc-950/5 hover:text-zinc-900",
         )}
       >
-        <BuildingOffice2Icon className="size-4 shrink-0 text-zinc-500" aria-hidden />
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-            {COMPANY_AREA.label}
-          </span>
-          <span className="truncate text-sm font-semibold text-zinc-900">
-            {company?.name ?? "—"}
-          </span>
-        </span>
-        <span
-          className={cn(
-            // C21: uppercase kalktı — rozet her yüzeyde "Gold" kasasıyla yazılır.
-            "ml-1 rounded-full px-2 py-0.5 text-xs font-semibold tracking-wide",
-            tier === "GOLD"
-              ? "bg-amber-100 text-amber-700"
-              : tier === "STANDART"
-                ? "bg-zinc-100 text-zinc-600"
-                : "bg-blue-100 text-blue-700",
-          )}
-        >
-          {TIER_LABELS[tier] ?? tier}
-        </span>
+        <BuildingOffice2Icon className="size-5" aria-hidden />
+        {COMPANY_AREA.label}
       </Link>
       </div>
 
