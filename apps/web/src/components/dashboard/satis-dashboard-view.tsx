@@ -1,6 +1,8 @@
 "use client";
 
 import { ActionStrip } from "@/components/dashboard/action-center";
+import { PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
+import { useDiscoverFacets } from "@/hooks/use-portal-discovery";
 import { MatchedRequestsWidget } from "@/components/dashboard/matched-requests-widget";
 import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
@@ -53,6 +55,13 @@ export function SatisDashboardView() {
   const analytics = useSatisAnalytics({ period: "month" });
   // Başlangıç listesi girdileri: profil bayrağı + ürün sayacı (sunucu).
   const catalog = useCatalogCounts();
+  // Arama kutusu çipleri: açık taleplerin en dolu sektörleri (discover-facets;
+  // sayı `seller-tenders` ile AYNI görünürlük fonksiyonundan).
+  const facets = useDiscoverFacets();
+  const chips = (facets.data?.segments ?? [])
+    .filter((c) => c.count > 0)
+    .slice(0, 6)
+    .map((c) => ({ id: c.id, name: c.name, count: c.count, href: `/company/satis/acik-talepler?kategori=${c.id}` }));
   const onboarding = [
     {
       key: "profile",
@@ -106,6 +115,18 @@ export function SatisDashboardView() {
         <TcmbRatesChip />
       </header>
 
+      {/* PAZAR YERİ ÖNDE (2026-09-05, kullanıcı kararı): büyük arama kutusu
+          açık alım taleplerini arar; altında size uygun talepler. */}
+      <PanelHeroSearch
+        title="Hangi talebe teklif vereceksiniz?"
+        lead="Kategorinize uygun açık satın alma talepleri — kapalı zarf, birbirini görmeyen teklifler."
+        placeholder="Ürün, kalem veya talep başlığı arayın"
+        action="/company/satis/acik-talepler"
+        chips={chips}
+        chipsLabel="Talep olan sektörler"
+        accent="emerald"
+      />
+
       {/* Başlangıç listesi (v2 3a — satınalmayla aynı bileşen): Profili
           tamamla · İlk ürünü ekle. Adımlar GERÇEK veriden işaretlenir; hepsi
           bitince kendiliğinden kaybolur. */}
@@ -116,6 +137,11 @@ export function SatisDashboardView() {
       {/* Bekleyen işler ÖNCE: "bugün ne yapmalıyım" — tip başına çip (davet,
           süresi dolan teklif, bilgi talebi, onay bekleyen sipariş…), her çip
           kendi sayfasına. Hiç iş yoksa şerit çizilmez. */}
+      {/* Aramanın hemen altında "size uygun" talepler (2026-09-05): pazar
+          yeri hissi ilk ekranda. Süzgeç Açık Talepler'de; burada en uygun
+          3 talep + tek çıkış bağlantısı. */}
+      <MatchedRequestsWidget />
+
       <ActionStrip portal="satis" />
 
       {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
@@ -197,11 +223,6 @@ export function SatisDashboardView() {
           spark={analytics.data?.kpiSeries.orders}
         />
       </div>
-
-      {/* "Anasayfa özet, alt sayfa liste": arama kutusu ve süzgeç Açık
-          Talepler'de; burada yalnız en uygun 3 talep + tek çıkış bağlantısı.
-          Eski keşif kartı o sayfanın kopyasıydı (aynı arama, aynı boş durum). */}
-      <MatchedRequestsWidget />
 
       {/* Eşleşme kalitesinin girdileri: profil tamlığı + ürün kategorileri.
           Yüzde Profilim'le AYNI fonksiyondan; sayaçlar sunucudan. */}

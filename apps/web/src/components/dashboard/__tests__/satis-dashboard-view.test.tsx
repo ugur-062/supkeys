@@ -69,6 +69,12 @@ vi.mock("@/components/dashboard/action-center", () => ({
 // "Size uygun açık talepler" widget'ı kendi ucundan beslenir (seller-tenders)
 // ve ayrı test edilir; burada varlığını gözlemleyen hafif mock — aksi hâlde
 // gerçek `useQuery` sağlayıcısız çalışıp bu suite'i kırar.
+vi.mock("@/hooks/use-portal-discovery", () => ({
+  useDiscoverFacets: () => ({
+    data: { segments: [{ id: "39000000", name: "Elektrik", count: 4 }, { id: "23000000", name: "Makine", count: 0 }], total: 4 },
+    isLoading: false,
+  }),
+}));
 vi.mock("@/components/dashboard/matched-requests-widget", () => ({
   MatchedRequestsWidget: () => <div data-testid="matched-requests" />,
 }));
@@ -134,18 +140,30 @@ describe("SatisDashboardView", () => {
     expect(screen.queryByRole("link", { name: /Raporlar/ })).toBeNull();
   });
 
-  it("özet sırası: şerit → KPI → size uygun talepler → sağlık; keşif kartı YOK", () => {
+  it("arama kutusu ilk ekranda: açık talepleri arar, çipler sektörlere gider (2026-09-05)", () => {
+    h.stats = fullStats();
+    render(<SatisDashboardView />);
+    expect(screen.getByRole("heading", { name: "Hangi talebe teklif vereceksiniz?" })).toBeInTheDocument();
+    const form = screen.getByRole("search");
+    expect(form).toHaveAttribute("action", "/company/satis/acik-talepler");
+    expect(screen.getByRole("link", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis/acik-talepler?kategori=39000000");
+    // Sayısı 0 olan sektör çip olmaz.
+    expect(screen.queryByRole("link", { name: /Makine/ })).toBeNull();
+  });
+
+  it("özet sırası: arama → size uygun talepler → şerit → KPI → sağlık; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
     const at = (s: string) => html.indexOf(s);
     expect(at("portal-discovery")).toBe(-1);
     expect(at("action-strip")).toBeGreaterThan(-1);
+    expect(at("Hangi talebe teklif")).toBeLessThan(at("matched-requests"));
+    expect(at("matched-requests")).toBeLessThan(at("action-strip"));
     expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
-    expect(at("Aktif Tekliflerim")).toBeLessThan(at("matched-requests"));
-    expect(at("matched-requests")).toBeLessThan(at("seller-health"));
-    // Anasayfada arama kutusu ve ikinci "İlan aç" YOK (1a/1b).
-    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(at("Aktif Tekliflerim")).toBeLessThan(at("seller-health"));
+    // TEK arama kutusu (hero); ikinci "İlan aç" YOK.
+    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
     expect(screen.queryByText(/İlan aç/)).toBeNull();
   });
 

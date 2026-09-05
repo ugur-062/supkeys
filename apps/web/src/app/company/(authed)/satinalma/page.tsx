@@ -10,6 +10,8 @@ import { ActionStrip } from "@/components/dashboard/action-center";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import Link from "next/link";
 import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
+import { PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
+import { useDiscoverProductFacets } from "@/hooks/use-portal-discovery";
 import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { ArrowRight } from "lucide-react";
@@ -24,6 +26,13 @@ export default function SatinalmaDashboardPage() {
   // dönemsizdir. Analitik yalnız "her şey boş mu" kontrolü için okunur.
   const ihale = useSatinalmaDashboard();
   const analytics = useSatinalmaAnalytics({ period: "month" });
+  // Arama kutusunun altındaki çipler: en çok ürünü olan üst kategoriler
+  // (ürün dizininin facet'i — aynı sayaç süzgeçte de görünür).
+  const facets = useDiscoverProductFacets();
+  const chips = (facets.data?.categories ?? [])
+    .filter((c) => c.count > 0)
+    .slice(0, 6)
+    .map((c) => ({ id: c.id, name: c.name, count: c.count, href: `/company/satinalma/urunler?kategori=${c.id}` }));
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -54,6 +63,20 @@ export default function SatinalmaDashboardPage() {
         </div>
       </header>
 
+      {/* PAZAR YERİ ÖNDE (2026-09-05, kullanıcı kararı): herkese açık
+          anasayfadaki gibi büyük arama kutusu ilk ekranda. "Ürün Ara" sol
+          menüden kalktı — giriş noktası bu kutu; sonuç sayfası
+          /satinalma/urunler (süzgeçli) aynen duruyor. */}
+      <PanelHeroSearch
+        title="Ne arıyorsunuz?"
+        lead="Ürün, marka veya parça numarası — doğrulanmış tedarikçilerin vitrininden."
+        placeholder="Ürün, marka veya parça numarası arayın"
+        action="/company/satinalma/urunler"
+        chips={chips}
+        chipsLabel="Popüler kategoriler"
+        accent="blue"
+      />
+
       {/* Firma verisi tamamen boşsa: aksiyon/grafik yerine başlangıç listesi. */}
       {analytics.data &&
       analytics.data.funnel.every((f) => f.count === 0) &&
@@ -83,9 +106,11 @@ export default function SatinalmaDashboardPage() {
         />
       ) : null}
 
-      {/* Özet sırası (v2 3a — satışla aynı iskelet): şerit → 4 KPI → "size
-          uygun" seçkisi → profil sağlığı → Raporlar bağlantısı. Liste/arama/
-          süzgeç yok. */}
+      {/* Sıra (2026-09-05): arama → "size uygun" seçkisi → bekleyen işler
+          şeridi → 4 KPI → profil sağlığı → Raporlar. Pazar yeri hissi ilk
+          ekranda; "bugün ne yapmalıyım" hemen altında. */}
+      <PortalDiscovery />
+
       <ActionStrip portal="satinalma" />
 
       {/* DÖNEMSİZ 4 SAYI — "bugün ne durumdayım". Grafikler ve dönem
@@ -128,8 +153,6 @@ export default function SatinalmaDashboardPage() {
           ))}
         </div>
       )}
-
-      <PortalDiscovery />
 
       {/* Eşleşme kalitesinin girdisi: profil tamlığı (yüzde Profilim'le aynı
           fonksiyondan). Katalog kartı alıcıda yok. */}

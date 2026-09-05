@@ -108,15 +108,10 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satinalma/taleplerim",
       },
       {
-        icon: CubeIcon,
-        label: MODULE_LABELS.satinalma.urunAra,
-        href: "/company/satinalma/urunler",
-      },
-      {
-        // Ürün aramanın hemen ALTINDA: talep o akışın çıktısı — "ürünü buldum,
-        // sordum, yanıtı nerede?" sorusu menüde bir satır aşağı bakınca
-        // cevaplanmalı. Paket kapısı YOK: soru sormak satılan bir özellik
-        // değil, satıcı için gelen taleptir.
+        // Bilgi talepleri "ürünü buldum, sordum, yanıtı nerede?" sorusunun
+        // cevabı. Paket kapısı YOK: soru sormak satılan bir özellik değil,
+        // satıcı için gelen taleptir. ("Ürün Ara" menüde DEĞİL — anasayfadaki
+        // arama kutusu, 2026-09-05; rota secondaryNav'da.)
         icon: EnvelopeIcon,
         label: MODULE_LABELS.satinalma.bilgiTaleplerim,
         href: "/company/satinalma/bilgi-taleplerim",
@@ -133,6 +128,15 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
     ],
     secondaryNav: [
+      {
+        // Sol menüde DEĞİL (2026-09-05, kullanıcı kararı): anasayfadaki
+        // Europages tarzı "Ne arıyorsunuz?" kutusu tek giriş; sonuç sayfası
+        // (süzgeçli) burada kayıtlı kalır — breadcrumb, başlık, keşif seçkisi
+        // "Tüm ürünler" bağlantısı.
+        icon: CubeIcon,
+        label: MODULE_LABELS.satinalma.urunAra,
+        href: "/company/satinalma/urunler",
+      },
       {
         icon: ChartBarIcon,
         label: "Raporlar",

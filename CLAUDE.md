@@ -849,6 +849,33 @@ sınırlama, header/footer dışarıda kalır. Elenen adaylar: sayılar, tarih
 metinleri, JSON-LD, `useId`, HTML iç içeliği, önbellek bayatlığı, UA'ya göre
 farklı HTML.
 
+### Panel anasayfaları — "Ne arıyorsunuz?" kutusu önde (2026-09-05, kullanıcı kararı)
+
+Kullanıcı: "Satınalma anasayfası www.rothern.com'daki ilk açıldığı tarzda
+olacak; ürün ara direkt anasayfada, sol menüden kalkacak; Europages'teki
+'ne ararsınız' kutusu; satış kısmında da alım talepleri gözükecek."
+
+Tek bileşen `components/dashboard/panel-hero-search.tsx` (`PanelHeroSearch`):
+başlık + büyük yuvarlak arama kutusu + altında en dolu 6 kategori çipi.
+Düz `<form method="get">` (JS'siz `?q=` ile sonuç sayfasına gider), JS'de
+`router.push`. Çip sayıları GERÇEK envanterden (arama logu yok).
+
+| Panel | Kutu neyi arar | Sonuç sayfası | Çipler |
+|-------|----------------|---------------|--------|
+| Satınalma | ürün (`?q=`) | `/company/satinalma/urunler` (süzgeçli, DURUYOR) | ürün dizini facet'i, L1 → `?kategori=` |
+| Satış | açık alım talebi (`?q=`) | `/company/satis/acik-talepler` | `discover-facets` segmentleri → `?kategori=` |
+
+**"Ürün Ara" SOL MENÜDEN KALKTI** — `portals.ts`te `nav`dan `secondaryNav`a
+taşındı (rota kaydı, breadcrumb ve başlık korunur; `module-reachability`
+testi `secondaryNav`ı da sayar). Satış menüsünde "Açık Talepler" DURUYOR
+(kullanıcı yalnız Ürün Ara'yı kaldırmayı söyledi; liste sayfasında Aktif/
+Geçmiş sekmeleri var, kutu onun yerini tutmaz).
+
+**Pano sırası değişti** (2026-09-03 "şerit önde" kararı bilinçli olarak
+tersine): satınalma = arama → size uygun ürünler → şerit → 4 KPI → sağlık →
+Raporlar; satış = arama → size uygun talepler → şerit → 4 KPI → sağlık.
+Pazar yeri hissi ilk ekranda, "bugün ne yapmalıyım" hemen altında.
+
 ### Kategori fotoğrafları — 58/58 (2026-09-04, akşam)
 
 Kullanıcı: "kategori fotoğraflarını daha iyi yap". Tonlu ikon kutuları
