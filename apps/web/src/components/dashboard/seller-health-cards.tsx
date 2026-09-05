@@ -22,7 +22,7 @@ import type { ReactNode } from "react";
  */
 export function SellerHealthCards({
   mode = "both",
-  profileHref = "/company/satis/profilim",
+  profileHref = "/company/sirketim/profil",
 }: {
   /** Satınalma panosunda katalog kartı anlamsız (alıcı ürün satmaz) → yalnız profil. */
   mode?: "both" | "profile";

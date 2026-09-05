@@ -66,7 +66,7 @@ describe("SellerHealthCards", () => {
     expect(screen.queryByText(expected.missing[3]!)).toBeNull();
     expect(screen.getByRole("link", { name: /Profili tamamla/ })).toHaveAttribute(
       "href",
-      "/company/satis/profilim",
+      "/company/sirketim/profil",
     );
   });
 

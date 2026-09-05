@@ -3,9 +3,11 @@
 import { useCompanyAuth, useCompanyMe } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
+  COMPANY_AREA,
   PORTALS,
   accessiblePortals,
   activePortalFromPath,
+  isCompanyAreaPath,
   type PortalKey,
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
@@ -79,7 +81,11 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         >
           <div className="flex h-14 items-center justify-between border-b border-zinc-100 px-4">
             <span className="text-sm font-semibold text-zinc-900">
-              {available.length === 0 ? "Menü" : PORTALS[activePortal].label}
+              {isCompanyAreaPath(pathname)
+                ? COMPANY_AREA.label
+                : available.length === 0
+                  ? "Menü"
+                  : PORTALS[activePortal].label}
             </span>
             <Headless.CloseButton
               aria-label="Menüyü kapat"

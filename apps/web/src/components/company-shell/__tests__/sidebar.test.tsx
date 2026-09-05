@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
+  pathname: "/company/onaylar",
   auth: {
     user: { roles: [] as string[] } as { roles: string[] } | null,
     company: { tier: "GOLD" } as { tier?: string } | undefined,
@@ -34,12 +35,13 @@ vi.mock("@/lib/company/portal-store", () => ({
     }),
 }));
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/company/onaylar",
+  usePathname: () => h.pathname,
 }));
 
 import { CompanySidebarContent } from "../sidebar";
 
 beforeEach(() => {
+  h.pathname = "/company/onaylar";
   vi.clearAllMocks();
   h.canAct = false;
   h.auth.company = { tier: "GOLD" };
@@ -130,14 +132,29 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(idx("Satış İlanlarım")).toBe(-1);
     // Açık Talepler anasayfaya katıldı (2026-09-05) — menüde YOK.
     expect(idx("Açık Talepler")).toBe(-1);
-    // Profilim Ürünlerim'in hemen altında (2026-09-03) — vitrin ürünle yan yana.
+    // Profilim ŞİRKETİM alanında (2026-09-05) — satış menüsünde yok.
     expect(idx("Ürünlerim")).toBeGreaterThan(idx("Anasayfa"));
-    expect(idx("Profilim")).toBe(idx("Ürünlerim") + 1);
-    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Profilim"));
+    expect(idx("Profilim")).toBe(-1);
+    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Ürünlerim"));
     expect(idx("Satışlarım")).toBeGreaterThan(idx("Satış Tekliflerim"));
     expect(idx("Bağlantılar")).toBeGreaterThan(idx("Satışlarım"));
     expect(screen.queryByText("Raporlar")).not.toBeInTheDocument();
     expect(screen.queryByText("Şablonlar")).not.toBeInTheDocument();
   });
-});
 
+  it("ŞİRKETİM alanı (2026-09-05): sol menü firma menüsüne döner, portal geçişi üstte kalır, CTA yok", () => {
+    h.auth.user = { roles: ["SAHIP", "SATIN_ALMACI", "SATISCI"] };
+    h.pathname = "/company/sirketim/profil";
+    render(<CompanySidebarContent expanded showPin={false} />);
+    const labels = Array.from(document.querySelectorAll("nav a")).map((a) => a.textContent?.trim());
+    expect(labels).toEqual(["Genel Bakış", "Profil", "Raporlar"]);
+    expect(screen.getByText("Şirketim")).toBeInTheDocument();
+    expect(screen.queryByText("Ürünlerim")).not.toBeInTheDocument();
+    expect(screen.queryByText("Taleplerim")).not.toBeInTheDocument();
+    expect(screen.queryByText("Satın Alma Talebi Aç")).not.toBeInTheDocument();
+    // Portal geçişi duruyor (panele dönüş).
+    expect(screen.getByRole("link", { name: "Satınalma paneline geç" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Satış paneline geç" })).toBeInTheDocument();
+    expect(screen.getByText("Ayarlar")).toBeInTheDocument();
+  });
+});

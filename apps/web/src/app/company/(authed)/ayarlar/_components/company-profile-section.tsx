@@ -430,7 +430,7 @@ export function CompanyProfileSection() {
 
       {/* Herkese açık profil → Profilim */}
       <Link
-        href="/company/satinalma/profilim"
+        href="/company/sirketim/profil"
         className="flex items-center justify-between gap-4 rounded-xl border border-zinc-950/10 bg-white p-5 transition hover:bg-zinc-50"
       >
         <div className="flex items-center gap-3">

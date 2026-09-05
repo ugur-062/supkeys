@@ -14,8 +14,10 @@ import {
 } from "@/components/catalyst/dropdown";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
+  COMPANY_AREA,
+  COMPANY_AREA_BASE,
   canUseMessaging,
-  profilePath,
+  isCompanyAreaPath,
   type PortalKey,
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
@@ -23,9 +25,10 @@ import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
-  IdentificationIcon,
+  BuildingOffice2Icon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 import { TopbarSearch } from "./topbar-search";
@@ -54,6 +57,8 @@ export function CompanyTopbar({
     canUseMessaging(user?.roles ?? [], "satinalma") ||
     canUseMessaging(user?.roles ?? [], "satis");
   const tier = company?.tier ?? "STANDART";
+  const pathname = usePathname();
+  const inCompanyArea = isCompanyAreaPath(pathname);
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
@@ -86,16 +91,31 @@ export function CompanyTopbar({
         />
       </Link>
 
-      {/* Firma kimliği */}
-      <div className="hidden min-w-0 items-center gap-3 sm:flex">
-        <div className="h-6 w-px bg-zinc-200" aria-hidden />
-        <span className="truncate text-sm font-semibold text-zinc-900">
-          {company?.name ?? "—"}
+      {/* ŞİRKETİM — firma kimliği bir DÜĞME (2026-09-05, Europages "My Company"):
+          tıklayınca firma alanı açılır, sol menü firma menüsüne döner. */}
+      <Link
+        href={COMPANY_AREA_BASE}
+        aria-label={`${COMPANY_AREA.label} — ${company?.name ?? ""}`}
+        aria-current={inCompanyArea ? "page" : undefined}
+        className={cn(
+          "group hidden min-w-0 items-center gap-2 rounded-lg py-1 pr-2 pl-3 transition sm:flex",
+          inCompanyArea ? "bg-zinc-100" : "hover:bg-zinc-100",
+        )}
+      >
+        <span className="h-6 w-px bg-zinc-200" aria-hidden />
+        <BuildingOffice2Icon className="size-4 shrink-0 text-zinc-500" aria-hidden />
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            {COMPANY_AREA.label}
+          </span>
+          <span className="truncate text-sm font-semibold text-zinc-900">
+            {company?.name ?? "—"}
+          </span>
         </span>
         <span
           className={cn(
             // C21: uppercase kalktı — rozet her yüzeyde "Gold" kasasıyla yazılır.
-            "rounded-full px-2 py-0.5 text-xs font-semibold tracking-wide",
+            "ml-1 rounded-full px-2 py-0.5 text-xs font-semibold tracking-wide",
             tier === "GOLD"
               ? "bg-amber-100 text-amber-700"
               : tier === "STANDART"
@@ -105,7 +125,7 @@ export function CompanyTopbar({
         >
           {TIER_LABELS[tier] ?? tier}
         </span>
-      </div>
+      </Link>
 
       {/* Orta: portal duyarlı arama (hero görünümden çıkınca) */}
       <div className="ml-auto flex min-w-0 items-center">
@@ -161,12 +181,11 @@ export function CompanyTopbar({
                 <p className="truncate text-xs text-slate-400">{user.email}</p>
               </div>
               <DropdownDivider />
-              {/* Profilim sol menüden buraya taşındı (2026-09-03): kimlik
-                  ayarları Ayarlar'la aynı yerde. Rota AKTİF PORTALA göre —
-                  profil tek kayıt ama her portalın kendi adresi var. */}
-              <DropdownItem href={profilePath(activePortal)}>
-                <IdentificationIcon data-slot="icon" />
-                <DropdownLabel>Profilim</DropdownLabel>
+              {/* Şirketim: masaüstünde sol üst düğme; dar ekranda o düğme
+                  gizli olduğu için giriş buradan (2026-09-05). */}
+              <DropdownItem href={COMPANY_AREA_BASE} className="sm:hidden">
+                <BuildingOffice2Icon data-slot="icon" />
+                <DropdownLabel>{COMPANY_AREA.label}</DropdownLabel>
               </DropdownItem>
               <DropdownItem href="/company/ayarlar">
                 <Cog6ToothIcon data-slot="icon" />

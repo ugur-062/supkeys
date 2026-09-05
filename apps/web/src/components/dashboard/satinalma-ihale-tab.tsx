@@ -109,7 +109,7 @@ export function SatinalmaIhaleTab({
             label="Gerçekleşen Tasarruf"
             value={formatCompactMoney(analytics.money.realizedSavings)}
             valueTitle={formatMoney(analytics.money.realizedSavings)}
-            href="/company/satinalma/raporlar/tasarruf"
+            href="/company/sirketim/raporlar/tasarruf"
             accent="blue"
             deltaPct={analytics.money.deltas.realizedSavings}
             spark={analytics.savingsTrend}

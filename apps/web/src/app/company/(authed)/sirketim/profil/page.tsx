@@ -2,6 +2,6 @@
 
 import { MyProfileView } from "@/components/company/my-profile-view";
 
-export default function ProfilimPage() {
+export default function SirketimProfilPage() {
   return <MyProfileView />;
 }

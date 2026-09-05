@@ -1,6 +1,7 @@
 import { tierAtLeast } from "@rothern/shared";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import {
+  BuildingOffice2Icon,
   BuildingStorefrontIcon,
   ChartBarIcon,
   ClipboardDocumentListIcon,
@@ -59,7 +60,40 @@ export interface PortalDef {
  * sayfasının başlığı "Anasayfa"ya düşerdi. Değişen yalnız GİRİŞ NOKTASI:
  * eskiden yalnız Ayarlar kartından bulunuyordu, şimdi avatar menüsünde.
  */
-export const profilePath = (portal: PortalKey) => `/company/${portal}/profilim`;
+export const profilePath = (_portal: PortalKey) => `${COMPANY_AREA_BASE}/profil`;
+
+/**
+ * ŞİRKETİM — firma alanı (2026-09-05, Europages "My Company" kalıbı, kullanıcı
+ * kararı). Üst çubuktaki firma adı bu alana girer; içindeyken sol menü
+ * DEĞİŞİR: Genel Bakış · Profil · Raporlar (· Ziyaret Edenler, Faz 2).
+ * Satınalma | Satış geçişi üstte kalır (panele tek tıkla dönüş). Portal-nötr
+ * rota (`/company/sirketim/*`); Profilim'in iki portal adresi ve satınalma
+ * raporları buraya taşındı (eski adresler 308).
+ */
+export const COMPANY_AREA_BASE = "/company/sirketim";
+
+export interface CompanyAreaDef {
+  label: string;
+  basePath: string;
+  nav: PortalNavItem[];
+  /** Menüde değil, rota kaydında (breadcrumb/başlık). */
+  secondaryNav: PortalNavItem[];
+}
+
+export const COMPANY_AREA: CompanyAreaDef = {
+  label: "Şirketim",
+  basePath: COMPANY_AREA_BASE,
+  nav: [
+    { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
+    // Herkese açık profil PAKET özelliği (BRONZ+) — eski Profilim kapısıyla aynı.
+    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil`, minTier: "BRONZ" },
+    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER" },
+  ],
+  secondaryNav: [],
+};
+
+export const isCompanyAreaPath = (pathname: string | null): boolean =>
+  !!pathname && (pathname === COMPANY_AREA_BASE || pathname.startsWith(`${COMPANY_AREA_BASE}/`));
 
 export const MODULE_LABELS = {
   satinalma: {
@@ -126,22 +160,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       // "Ürün Ara" ROTASI YOK (2026-09-05): başka firmaların vitrini
       // satınalma ANASAYFASINA gömülü (arama + kenar süzgeçli liste);
       // ürün detayı `urunler/<firma>/<ürün>` altında yaşamaya devam eder.
-      {
-        icon: ChartBarIcon,
-        label: "Raporlar",
-        href: "/company/satinalma/raporlar",
-        minTier: "SILVER",
-      },
+      // Raporlar ve Profilim ŞİRKETİM alanına taşındı (2026-09-05, Europages
+      // "My Company" kalıbı) — bkz. COMPANY_AREA.
       {
         icon: DocumentDuplicateIcon,
         label: "Şablonlar",
         href: "/company/satinalma/sablonlar",
         minTier: "SILVER",
-      },
-      {
-        icon: IdentificationIcon,
-        label: "Profilim",
-        href: "/company/satinalma/profilim",
       },
     ],
   },
@@ -164,16 +189,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         // Vitrin herkese açık bir yüzey — profil kapısıyla aynı eşik.
         minTier: "BRONZ",
       },
-      {
-        // Satışta Profilim MENÜDE (2026-09-03): satıcının vitrini ürünleri
-        // kadar günlük iş — Ayarlar'ın altında aranması gerekmemeli. Satınalma
-        // tarafında hesap menüsünde kalır (orada alıcı profili düzenlemez).
-        icon: IdentificationIcon,
-        label: "Profilim",
-        href: "/company/satis/profilim",
-        // Herkese açık profil/dizin görünürlüğü Bronz'dan başlar.
-        minTier: "BRONZ",
-      },
+      // Profilim ŞİRKETİM alanına taşındı (2026-09-05) — bkz. COMPANY_AREA.
       {
         icon: EnvelopeIcon,
         label: MODULE_LABELS.satis.bilgiTalepleri,
@@ -284,11 +300,11 @@ export const PORTAL_SECONDARY_HREFS: {
   satis: { profilim: string };
 } = {
   satinalma: {
-    profilim: "/company/satinalma/profilim",
-    raporlar: "/company/satinalma/raporlar",
+    profilim: "/company/sirketim/profil",
+    raporlar: "/company/sirketim/raporlar",
     sablonlar: "/company/satinalma/sablonlar",
   },
   satis: {
-    profilim: "/company/satis/profilim",
+    profilim: "/company/sirketim/profil",
   },
 };

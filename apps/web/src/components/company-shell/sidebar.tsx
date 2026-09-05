@@ -8,15 +8,18 @@ import {
 import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
+  COMPANY_AREA,
   PORTALS,
   PORTAL_ORDER,
   accessiblePortals,
   activePortalFromPath,
+  isCompanyAreaPath,
   isPortalItemActive,
   type PortalKey,
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
+  BuildingOffice2Icon,
   BuildingStorefrontIcon,
   Cog6ToothIcon,
   LockClosedIcon,
@@ -176,6 +179,9 @@ export function CompanySidebarContent({
   // YONETICI/SAHIP etiketi accessiblePortals'ın manager dalıyla panel aldığı
   // için salt-okunur gözetim (Faz R) DEĞİŞMEZ.
   const minimal = available.length === 0;
+  // ŞİRKETİM alanı (2026-09-05): üst çubuktaki firma adından girilir; sol menü
+  // firma menüsüne döner, portal geçişi üstte KALIR (panele tek tıkla dönüş).
+  const inCompanyArea = isCompanyAreaPath(pathname);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -193,7 +199,7 @@ export function CompanySidebarContent({
             {PORTAL_ORDER.filter((p) => visiblePortals.includes(p)).map((p) => {
               const def = PORTALS[p];
               const allowedP = available.includes(p);
-              const on = p === active;
+              const on = p === active && !inCompanyArea;
               const Icon =
                 p === "satinalma" ? ShoppingCartIcon : BuildingStorefrontIcon;
               return (
@@ -235,6 +241,7 @@ export function CompanySidebarContent({
           CTA (izin + portal erişimi şart). Satış portalında ana CTA yok: satış
           ilanı kaldırıldı (2026-09-04); ürün ekleme Ürünlerim sayfasında. */}
       {!minimal &&
+      !inCompanyArea &&
       available.includes(active) &&
       active === "satinalma" &&
       canCreateBuyListing ? (
@@ -259,14 +266,30 @@ export function CompanySidebarContent({
           Raporlar/Şablonlar İhalelerim sayfasından açılır; Profilim satışta
           menüde, satınalmada hesap menüsünde. */}
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">
-        {(minimal ? [] : portal.nav).map((item) => (
+        {inCompanyArea ? (
+          <div
+            className={cn(
+              "mb-1 flex h-8 items-center gap-2 px-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase",
+              expanded ? "" : "justify-center",
+            )}
+            title={expanded ? undefined : COMPANY_AREA.label}
+          >
+            <BuildingOffice2Icon className="size-4 shrink-0 text-zinc-400" aria-hidden />
+            {expanded ? <span className="truncate">{COMPANY_AREA.label}</span> : null}
+          </div>
+        ) : null}
+        {(inCompanyArea ? COMPANY_AREA.nav : minimal ? [] : portal.nav).map((item) => (
             <RailItem
               key={item.href}
               href={item.href}
               icon={item.icon}
               label={item.label}
-              active={isPortalItemActive(item.href, pathname)}
-              accent={portal.accent}
+              active={
+                inCompanyArea && item.href === COMPANY_AREA.basePath
+                  ? pathname === COMPANY_AREA.basePath
+                  : isPortalItemActive(item.href, pathname)
+              }
+              accent={inCompanyArea ? "zinc" : portal.accent}
               expanded={expanded}
               locked={!!item.minTier && !tierAtLeast(tier, item.minTier)}
               onClick={onNavigate}

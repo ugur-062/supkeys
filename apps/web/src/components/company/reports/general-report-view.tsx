@@ -55,7 +55,7 @@ export function GeneralReportView({
   basePath,
 }: {
   type: ReportType;
-  basePath: string; // "/company/satinalma/raporlar" | "/company/satis/raporlar"
+  basePath: string; // "/company/sirketim/raporlar"
 }) {
   const isAlim = type === "ALIM";
   const deltaWord = isAlim ? "Tasarruf" : "Kazanç";

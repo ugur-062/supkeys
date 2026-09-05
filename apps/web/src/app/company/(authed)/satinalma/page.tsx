@@ -219,10 +219,10 @@ export default function SatinalmaDashboardPage() {
 
       {/* Eşleşme kalitesinin girdisi: profil tamlığı (yüzde Profilim'le aynı
           fonksiyondan). Katalog kartı alıcıda yok. */}
-      <SellerHealthCards mode="profile" profileHref="/company/satinalma/profilim" />
+      <SellerHealthCards mode="profile" profileHref="/company/sirketim/profil" />
 
       <Link
-        href="/company/satinalma/raporlar"
+        href="/company/sirketim/raporlar"
         className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
       >
         Detaylı analiz ve grafikler Raporlar&apos;da

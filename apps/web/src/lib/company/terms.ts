@@ -1,4 +1,4 @@
-import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
+import { COMPANY_AREA, PORTALS, allPortalRoutes } from "@/lib/company/portals";
 
 /**
  * KAYIT TİPİ SÖZLÜĞÜ — sayaç, arama kutusu ve boş-durum metinleri buradan.
@@ -98,11 +98,12 @@ export function listingTerms(type: ListingTermKey) {
 }
 
 /** Rota → sidebar etiketi (tam eşleşme). Bulunamazsa null. */
-const ROUTE_LABELS: Record<string, string> = Object.fromEntries(
-  Object.values(PORTALS).flatMap((p) =>
+const ROUTE_LABELS: Record<string, string> = Object.fromEntries([
+  ...Object.values(PORTALS).flatMap((p) =>
     allPortalRoutes(p).map((item) => [item.href, item.label]),
   ),
-);
+  ...[...COMPANY_AREA.nav, ...COMPANY_AREA.secondaryNav].map((item) => [item.href, item.label]),
+]);
 
 export function routeLabel(href: string): string | null {
   return ROUTE_LABELS[href] ?? null;

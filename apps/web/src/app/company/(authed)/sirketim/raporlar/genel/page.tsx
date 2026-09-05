@@ -4,6 +4,6 @@ import { GeneralReportView } from "@/components/company/reports/general-report-v
 
 export default function Page() {
   return (
-    <GeneralReportView type="ALIM" basePath="/company/satinalma/raporlar" />
+    <GeneralReportView type="ALIM" basePath="/company/sirketim/raporlar" />
   );
 }

@@ -4,6 +4,6 @@ import { SavingsReportView } from "@/components/company/reports/savings-report-v
 
 export default function Page() {
   return (
-    <SavingsReportView type="ALIM" basePath="/company/satinalma/raporlar" />
+    <SavingsReportView type="ALIM" basePath="/company/sirketim/raporlar" />
   );
 }

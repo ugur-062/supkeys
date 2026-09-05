@@ -4,6 +4,6 @@ import { BidComparisonView } from "@/components/company/reports/bid-comparison-v
 
 export default function Page() {
   return (
-    <BidComparisonView type="ALIM" basePath="/company/satinalma/raporlar" />
+    <BidComparisonView type="ALIM" basePath="/company/sirketim/raporlar" />
   );
 }
