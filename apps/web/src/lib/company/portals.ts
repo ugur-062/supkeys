@@ -85,7 +85,6 @@ export const MODULE_LABELS = {
     // "mesaj" DEĞİL: mesajlaşma firma↔firma, bu kanalda gönderenin hesabı
     // olmayabilir. Aynı sözcüğü kullanmak iki farklı akışı karıştırırdı.
     bilgiTalepleri: "Bilgi Talepleri",
-    acikIhaleler: "Açık Talepler",
     // C32: iki portalda aynı H1 ("Tekliflerim") ayırt edilemiyordu — satış
     // tarafı portal-önekli (Satış İlanlarım/Satışlarım deseniyle aynı).
     teklifler: "Satış Tekliflerim",
@@ -164,11 +163,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
     accent: "emerald",
     nav: [
       { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
-      {
-        icon: InboxArrowDownIcon,
-        label: MODULE_LABELS.satis.acikIhaleler,
-        href: "/company/satis/acik-talepler",
-      },
       {
         // GAP FIX (2026-09-03): sayfa Faz 2'de yazılmıştı ama menüye HİÇ
         // eklenmemişti — kullanıcı ürününü nereden ekleyeceğini soramaz hâle

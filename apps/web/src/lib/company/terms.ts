@@ -13,6 +13,7 @@ import { PORTALS, allPortalRoutes } from "@/lib/company/portals";
  */
 export const LISTING_TERMS = {
   ALIM: {
+    title: "Satın Alma Talepleri",
     /** "1 satın alma talebi" — sayaç birimi. */
     unit: "satın alma talebi",
     /** "…adı veya numarası ara…" */
@@ -30,6 +31,9 @@ export const LISTING_TERMS = {
    * iki farklı şey sanılmasına yol açıyordu.
    */
   ACIK_TALEP: {
+    /** Bölüm/geri-bağlantı başlığı — eski "Açık Talepler" sayfası anasayfaya
+     *  katıldı (2026-09-05); ad tek yerden. */
+    title: "Açık Talepler",
     unit: "açık talep",
     searchNoun: "Açık talep",
     indefinite: "açık talep",

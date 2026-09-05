@@ -13,7 +13,7 @@ import { useState, type FormEvent } from "react";
  *
  *  · Satınalma → ürün arar (`/company/satinalma/urunler?q=`); "Ürün Ara"
  *    sol menüden KALKTI, giriş noktası bu kutu.
- *  · Satış     → açık alım taleplerini arar (`/company/satis/acik-talepler?q=`).
+ *  · Satış     → açık alım taleplerini arar (`/company/satis?q=` — liste anasayfada).
  *
  * Düz `<form method="get">`: JavaScript gelmeden de çalışır (sonuç sayfası
  * `?q=` okur); JS'de `router.push` ile tam sayfa yenileme olmaz. Yazarken

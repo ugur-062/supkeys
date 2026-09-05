@@ -36,7 +36,7 @@ export function BuyersBlock() {
           <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Talep açan alıcılar</h2>
           <p className="mt-1 text-sm text-zinc-500">Şu an açık talebi olan firmalar; kart o alıcının taleplerini açar.</p>
         </div>
-        <Link href="/company/satis/acik-talepler" className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600">
+        <Link href="/company/satis#acik-talepler" className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600">
           Tüm açık talepler
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
@@ -52,7 +52,7 @@ export function BuyersBlock() {
           {buyers.map((b) => (
             <li key={b.id}>
               <Link
-                href={`/company/satis/acik-talepler?q=${encodeURIComponent(b.name)}`}
+                href={`/company/satis?q=${encodeURIComponent(b.name)}#acik-talepler`}
                 className="group flex h-full flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
               >
                 <span className="flex items-start gap-3">

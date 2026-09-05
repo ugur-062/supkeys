@@ -555,9 +555,8 @@ export class CompanyListingsService {
       ranked.map((c) => c.id),
       matchPortal,
     );
-    const url = `${this.webUrl()}${
-      isBuyDemand ? "/company/satis/acik-talepler" : "/company/satinalma/satin-al"
-    }`;
+    // Açık talepler satış ANASAYFASINDA (2026-09-05); satın-al sayfası yok.
+    const url = `${this.webUrl()}/company/satis#acik-talepler`;
     const label = isBuyDemand ? "satın alma talebi" : "satış ilanı";
     const verb = isBuyDemand ? "Sattığınız" : "Aldığınız";
     const action = isBuyDemand ? "teklif vermek" : "satın almak";

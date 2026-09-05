@@ -867,9 +867,24 @@ Düz `<form method="get">` (JS'siz `?q=` ile sonuç sayfasına gider), JS'de
 
 **"Ürün Ara" SOL MENÜDEN KALKTI** — `portals.ts`te `nav`dan `secondaryNav`a
 taşındı (rota kaydı, breadcrumb ve başlık korunur; `module-reachability`
-testi `secondaryNav`ı da sayar). Satış menüsünde "Açık Talepler" DURUYOR
-(kullanıcı yalnız Ürün Ara'yı kaldırmayı söyledi; liste sayfasında Aktif/
-Geçmiş sekmeleri var, kutu onun yerini tutmaz).
+testi `secondaryNav`ı da sayar).
+
+**"Açık Talepler" SAYFASI DA KALKTI — liste satış ANASAYFASINDA (2026-09-05,
+kullanıcı kararı; "filtreleme her şeyiyle eksiksiz").** `SellerTendersView
+embedded` panoya gömülü: arama, durum/dönem/alıcı/kategori süzgeçleri,
+sıralama, çipler, sayaç ve sayfalama AYNEN; yalnız sayfa başlığı düşer,
+bölüm `id="acik-talepler"`. Hero kutusu ve sektör kartları aynı sayfayı
+`?q=` / `?kategori=` ile süzer (liste URL'den okur). Rota
+`/company/satis/acik-talepler/*` → `/company/satis` (308, sorgu taşınır);
+iç bağlantılar `/company/satis#acik-talepler`. `MODULE_LABELS.satis.
+acikIhaleler` silindi; ad tek kaynak `LISTING_TERMS.ACIK_TALEP.title`.
+`MatchedRequestsWidget` ve `satis-chart-tabs` (ölü) silindi. Bildirim
+e-postasındaki CTA (`company-listings.service` kategori eşleşmesi) de
+anasayfaya gider.
+
+Öneri dengesi (asistan notu): Açık Talepler'i menüde tutmayı önermiştim
+(iş listesi, arama sonucu değil); kullanıcı birleştirmeyi seçti — liste
+anasayfada tam işlevli olduğu için kayıp yok, yalnız sayfa derinliği arttı.
 
 **Pano sırası (2026-09-05 ikinci revizyon — "Europages gibi düşün, Rothern
 tarzını koru", "Başlangıç" listesi KALDIRILDI):**

@@ -89,8 +89,10 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
     isLoading: false,
   }),
 }));
-vi.mock("@/components/dashboard/matched-requests-widget", () => ({
-  MatchedRequestsWidget: () => <div data-testid="matched-requests" />,
+vi.mock("@/components/company/seller-tenders-view", () => ({
+  SellerTendersView: ({ embedded }: { embedded?: boolean }) => (
+    <div data-testid="seller-tenders" data-embedded={embedded ? "1" : "0"} />
+  ),
 }));
 // Sağlık kartları profil + katalog uçlarından beslenir; ayrı test edilir.
 vi.mock("@/components/dashboard/seller-health-cards", () => ({
@@ -159,9 +161,9 @@ describe("SatisDashboardView", () => {
     render(<SatisDashboardView />);
     expect(screen.getByRole("heading", { name: "Hangi talebe teklif vereceksiniz?" })).toBeInTheDocument();
     const form = screen.getByRole("search");
-    expect(form).toHaveAttribute("action", "/company/satis/acik-talepler");
+    expect(form).toHaveAttribute("action", "/company/satis");
     const cips = within(screen.getByRole("navigation", { name: "Talep olan sektörler" }));
-    expect(cips.getByRole("link", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis/acik-talepler?kategori=39000000");
+    expect(cips.getByRole("link", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis?kategori=39000000");
     // Sayısı 0 olan sektör ÇİP olmaz (vitrin kartı olabilir).
     expect(cips.queryByRole("link", { name: /Makine/ })).toBeNull();
   });
@@ -171,21 +173,30 @@ describe("SatisDashboardView", () => {
     render(<SatisDashboardView />);
     // 8 segmentten dolu olan önde (Elektrik 4), sayısı 0 olan da kart olur ("Keşfet").
     const sektor = screen.getByRole("region", { name: "Talep olan sektörler" });
-    expect(sektor.querySelector("a[href='/company/satis/acik-talepler?kategori=39000000']")).not.toBeNull();
+    expect(sektor.querySelector("a[href='/company/satis?kategori=39000000']")).not.toBeNull();
     expect(sektor.querySelector("img")?.getAttribute("src")).toContain("categories");
     // Alıcı A iki açık talep; Alıcı B'nin talebi AWARDED → listede yok.
     const alici = screen.getByRole("region", { name: "Talep açan alıcılar" });
     expect(alici).toHaveTextContent("Alıcı A");
     expect(alici).toHaveTextContent("2 açık talep");
     expect(alici).not.toHaveTextContent("Alıcı B");
-    expect(within(alici).getByRole("link", { name: /Alıcı A/ })).toHaveAttribute("href", "/company/satis/acik-talepler?q=Al%C4%B1c%C4%B1%20A");
+    expect(within(alici).getByRole("link", { name: /Alıcı A/ })).toHaveAttribute("href", "/company/satis?q=Al%C4%B1c%C4%B1%20A#acik-talepler");
     // Başlangıç listesi KALDIRILDI; "Bugün" bandı ve ürün ekle şeridi var.
     expect(screen.queryByText(/Başlangıç/)).toBeNull();
     expect(screen.getByRole("heading", { name: "Bugün" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ürün ekle/ })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
   });
 
-  it("özet sırası: arama → sektörler → size uygun talepler → alıcılar → şerit → KPI → sağlık; keşif kartı YOK", () => {
+  it("Açık Talepler listesi anasayfada GÖMÜLÜ ve tüm süzgeçleriyle (2026-09-05)", () => {
+    h.stats = fullStats();
+    render(<SatisDashboardView />);
+    expect(screen.getByTestId("seller-tenders")).toHaveAttribute("data-embedded", "1");
+    // Hero ve sektör kartları aynı sayfayı süzer: ayrı rota yok.
+    expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satis");
+    expect(screen.getByRole("region", { name: "Talep olan sektörler" }).querySelector("ul li a")?.getAttribute("href")).toMatch(/^\/company\/satis\?kategori=/);
+  });
+
+  it("özet sırası: arama → sektörler → açık talepler listesi → alıcılar → şerit → KPI → sağlık; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
@@ -193,8 +204,8 @@ describe("SatisDashboardView", () => {
     expect(at("portal-discovery")).toBe(-1);
     expect(at("action-strip")).toBeGreaterThan(-1);
     expect(at("Hangi talebe teklif")).toBeLessThan(at("Talep olan sektörler"));
-    expect(at("Talep olan sektörler")).toBeLessThan(at("matched-requests"));
-    expect(at("matched-requests")).toBeLessThan(at("Talep açan alıcılar"));
+    expect(at("Talep olan sektörler")).toBeLessThan(at("seller-tenders"));
+    expect(at("seller-tenders")).toBeLessThan(at("Talep açan alıcılar"));
     expect(at("Talep açan alıcılar")).toBeLessThan(at("action-strip"));
     expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
     expect(at("Aktif Tekliflerim")).toBeLessThan(at("seller-health"));

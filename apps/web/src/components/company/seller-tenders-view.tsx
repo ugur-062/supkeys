@@ -61,7 +61,13 @@ function isPast(status: string): boolean {
  * (Aktif/Geçmiş/Tümü) + sıralama + tarih aralığı + müşteri + kategori filtresi,
  * zengin kartlar (durum rozeti, aciliyet, kategori eşleşme, teklif versiyonu).
  */
-export function SellerTendersView() {
+/**
+ * `embedded` (2026-09-05): satış ANASAYFASINA gömülü — "Açık Talepler" ayrı
+ * sayfa olmaktan çıktı (kullanıcı kararı). Gömülü hâlde yalnız sayfa başlığı
+ * düşer; arama, durum/dönem/alıcı/kategori süzgeçleri, sıralama, çipler,
+ * sayaç ve sayfalama EKSİKSİZ kalır ("filtreleme her şeyiyle" — kullanıcı).
+ */
+export function SellerTendersView({ embedded = false }: { embedded?: boolean } = {}) {
   // Kayıt tipi sözlüğü: başkalarının AÇIK TALEPLERİ (satış → Açık Talepler).
   // Satış tarafında "satın alma talebi" denmez — tek terim "açık talep".
   const t = listingTerms("ACIK_TALEP");
@@ -186,10 +192,19 @@ export function SellerTendersView() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={MODULE_LABELS.satis.acikIhaleler}
-        description="Bağlı olduğunuz alıcıların ve herkese açık taleplerin listesi — teklif verin, sonuçları takip edin."
-      />
+      {embedded ? (
+        <div id="acik-talepler" className="scroll-mt-20">
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{t.title}</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin.
+          </p>
+        </div>
+      ) : (
+        <PageHeader
+          title={t.title}
+          description="Bağlı olduğunuz alıcıların ve herkese açık taleplerin listesi — teklif verin, sonuçları takip edin."
+        />
+      )}
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">

@@ -103,7 +103,7 @@ export const ACTION_ROWS: Record<
     },
     unansweredInvites: {
       text: "davete henüz teklif vermediniz",
-      href: "/company/satis/acik-talepler",
+      href: "/company/satis#acik-talepler",
     },
     expiringBids: {
       text: "teklifinizin geçerliliği dolmak üzere",

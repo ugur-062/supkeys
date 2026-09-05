@@ -1707,7 +1707,7 @@ export default function ListingDetailPage() {
   // ilanı gördüğü listeye döner (?from= her zaman öncelikli).
   const defaultBack = l.isOwner
     ? { href: "/company/satinalma/taleplerim", label: "Taleplerim" }
-    : { href: "/company/satis/acik-talepler", label: "Açık Talepler" };
+    : { href: "/company/satis#acik-talepler", label: "Açık Talepler" };
   const breadcrumb = (
     <Link
       href={fromHref ?? defaultBack.href}

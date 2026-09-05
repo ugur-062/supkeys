@@ -712,7 +712,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                 <Link
                   href={
                     isSeller
-                      ? "/company/satis/acik-talepler"
+                      ? "/company/satis#acik-talepler"
                       : "/company/satinalma/taleplerim"
                   }
                   className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"

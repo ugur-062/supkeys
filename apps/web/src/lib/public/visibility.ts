@@ -114,6 +114,6 @@ export const PANEL_TARGET = {
   company: (companySlug: string) => `/company/firma/${companySlug}`,
   /** Panel talep sayfası cuid ister; numarayla açık talepler listesinde aranır. */
   listing: (number: string) =>
-    `/company/satis/acik-talepler?q=${encodeURIComponent(number)}`,
+    `/company/satis?q=${encodeURIComponent(number)}#acik-talepler`,
   directory: "/company/satinalma/tedarikcilerim",
 } as const;

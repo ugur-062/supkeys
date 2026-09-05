@@ -447,7 +447,7 @@ export function MyBidsList() {
               </button>
             ) : (
               <Link
-                href="/company/satis/acik-talepler"
+                href="/company/satis#acik-talepler"
                 className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
               >
                 Açık Taleplere Göz At

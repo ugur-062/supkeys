@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDate } from "@/lib/format-date";
-import { MODULE_LABELS } from "@/lib/company/portals";
+import { listingTerms } from "@/lib/company/terms";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import {
   closingUrgency,
@@ -64,8 +64,9 @@ export function BrowseTenderRow({
   const state = deriveSellerTenderState(t.status, t.myBidStatus, t.invited);
   const urgency = closingUrgency(t.status, t.closesAt);
 
-  const fromHref = "/company/satis/acik-talepler";
-  const fromLabel = MODULE_LABELS.satis.acikIhaleler;
+  // Açık talepler artık satış ANASAYFASINDA (2026-09-05) — geri bağlantı oraya.
+  const fromHref = "/company/satis#acik-talepler";
+  const fromLabel = listingTerms("ACIK_TALEP").title;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   const strip =

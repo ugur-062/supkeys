@@ -105,7 +105,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/company/satis/acik-ihaleler/:path*",
-        destination: "/company/satis/acik-talepler/:path*",
+        destination: "/company/satis",
         permanent: true,
       },
       {
@@ -138,6 +138,13 @@ const nextConfig: NextConfig = {
         // sayfasıydı; satış tarafındaki "Satış Tekliflerim" duruyor.
         source: "/company/satinalma/tekliflerim/:path*",
         destination: "/company/satis/tekliflerim",
+        permanent: true,
+      },
+      {
+        // Açık Talepler sayfası satış ANASAYFASINA katıldı (2026-09-05);
+        // sorgu (?q=, ?kategori=) aynen taşınır.
+        source: "/company/satis/acik-talepler/:path*",
+        destination: "/company/satis",
         permanent: true,
       },
       {

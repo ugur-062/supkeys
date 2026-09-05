@@ -9,7 +9,7 @@ import { TodayBand } from "@/components/dashboard/today-band";
 import { useCategorySegments, useDiscoverFacets } from "@/hooks/use-portal-discovery";
 import { useSellerTenders } from "@/hooks/use-seller-tenders";
 import { buildShowcase } from "@/lib/public/category-showcase";
-import { MatchedRequestsWidget } from "@/components/dashboard/matched-requests-widget";
+import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
@@ -75,7 +75,7 @@ export function SatisDashboardView() {
   const chips = (facets.data?.segments ?? [])
     .filter((c) => c.count > 0)
     .slice(0, 6)
-    .map((c) => ({ id: c.id, name: c.name, count: c.count, href: `/company/satis/acik-talepler?kategori=${c.id}` }));
+    .map((c) => ({ id: c.id, name: c.name, count: c.count, href: `/company/satis?kategori=${c.id}` }));
 
   // Yazarken öneri: açık talepler (başlık/no/alıcı) + sektörler — liste zaten
   // çekili (`seller-tenders`), ayrı uç yok.
@@ -93,7 +93,7 @@ export function SatisDashboardView() {
     const secs = (facets.data?.segments ?? [])
       .filter((c) => c.count > 0 && hit(c.name))
       .slice(0, 3)
-      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} açık talep`, href: `/company/satis/acik-talepler?kategori=${c.id}` }));
+      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} açık talep`, href: `/company/satis?kategori=${c.id}` }));
     return [
       { label: "Açık talepler", rows },
       { label: "Sektörler", rows: secs },
@@ -147,7 +147,7 @@ export function SatisDashboardView() {
         title="Hangi talebe teklif vereceksiniz?"
         lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
         placeholder="Ürün, kalem, talep numarası veya alıcı arayın"
-        action="/company/satis/acik-talepler"
+        action="/company/satis"
         chips={chips}
         chipsLabel="Talep olan sektörler"
         accent="emerald"
@@ -159,13 +159,16 @@ export function SatisDashboardView() {
         title="Talep olan sektörler"
         lead="Açık talebi olan dallar önde; tıklayınca o sektörün talepleri."
         items={showcase}
-        hrefFor={(id) => `/company/satis/acik-talepler?kategori=${id}`}
+        hrefFor={(id) => `/company/satis?kategori=${id}`}
         countNoun="açık talep"
-        allHref="/company/satis/acik-talepler"
+        allHref="/company/satis#acik-talepler"
         allLabel="Tüm açık talepler"
       />
 
-      <MatchedRequestsWidget />
+      {/* AÇIK TALEPLER ANASAYFADA (2026-09-05, kullanıcı kararı): ayrı sayfa
+          ve menü satırı kaldırıldı; liste TÜM süzgeçleriyle burada. Hero ve
+          sektör kartları `?q=` / `?kategori=` ile bu listeyi süzer. */}
+      <SellerTendersView embedded />
 
       <BuyersBlock />
 
@@ -194,7 +197,7 @@ export function SatisDashboardView() {
           <KpiCard
             label="Yanıt Bekleyen Davet"
             value={val(analytics.data?.actions.unansweredInvites)}
-            href="/company/satis/acik-talepler"
+            href="/company/satis#acik-talepler"
             accent="emerald"
             attention={(analytics.data?.actions.unansweredInvites ?? 0) > 0}
             hint={

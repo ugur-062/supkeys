@@ -30,7 +30,7 @@ export const SIGNUP_INTENTS = {
   teklif: {
     label: "Teklif vermek",
     hint: "Açık alım taleplerine kapalı zarf teklif ver.",
-    href: "/company/satis/acik-talepler",
+    href: "/company/satis#acik-talepler",
   },
 } as const;
 
