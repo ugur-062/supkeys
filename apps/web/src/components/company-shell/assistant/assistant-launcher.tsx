@@ -108,7 +108,7 @@ export function AssistantLauncher() {
               </p>
               <p className="mt-1 pr-3 text-sm text-zinc-600">
                 {user.firstName ? `Merhaba ${user.firstName}.` : "Merhaba."}{" "}
-                Size nasıl yardımcı olabilirim? İhale açabilir, belge okuyabilir
+                Size nasıl yardımcı olabilirim? Satın alma talebi açabilir, belge okuyabilir
                 ya da sorularınızı yanıtlayabilirim.
               </p>
             </button>

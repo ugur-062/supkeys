@@ -89,7 +89,10 @@ export function PanelHeroSearch({
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
 
+        {/* `data-hero-search`: üst çubuk araması bu kutuyu gözler — kutu
+            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür. */}
         <form
+          data-hero-search
           action={action}
           method="get"
           role="search"

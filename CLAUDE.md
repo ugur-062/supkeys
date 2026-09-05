@@ -863,7 +863,7 @@ Düz `<form method="get">` (JS'siz `?q=` ile sonuç sayfasına gider), JS'de
 | Panel | Kutu neyi arar | Sonuç sayfası | Çipler |
 |-------|----------------|---------------|--------|
 | Satınalma | ürün (`?q=`) | `/company/satinalma/urunler` (süzgeçli, DURUYOR) | ürün dizini facet'i, L1 → `?kategori=` |
-| Satış | açık alım talebi (`?q=`) | `/company/satis/acik-talepler` | `discover-facets` segmentleri → `?kategori=` |
+| Satış | açık alım talebi (`?q=`) | `/company/satis` (liste anasayfada, `#acik-talepler`) | `discover-facets` segmentleri → `?kategori=` |
 
 **"Ürün Ara" SOL MENÜDEN KALKTI** — `portals.ts`te `nav`dan `secondaryNav`a
 taşındı (rota kaydı, breadcrumb ve başlık korunur; `module-reachability`
@@ -885,6 +885,24 @@ anasayfaya gider.
 Öneri dengesi (asistan notu): Açık Talepler'i menüde tutmayı önermiştim
 (iş listesi, arama sonucu değil); kullanıcı birleştirmeyi seçti — liste
 anasayfada tam işlevli olduğu için kayıp yok, yalnız sayfa derinliği arttı.
+
+**Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
+`components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:
+satınalma → `/company/satinalma/urunler?q=` "Ürün ara", satış →
+`/company/satis?q=` "Açık talep ara"), md+ ekranda, düz `<form method="get">`.
+Menüden kalkan "Ürün Ara"/"Açık Talepler" satırlarının yerini bu doldurur:
+anasayfadaki büyük kutu ilk ekran deneyimi, üst çubuktaki küçük kutu iç
+sayfalarda sürer. Hero (`[data-hero-search]`) ekrandayken ÇİZİLMEZ — aynı
+görünümde iki arama kutusu olmasın.
+
+> ⚠️ `useHeroGone` kancası 2026-09-05'te iki yönden düzeltildi: (a) panel
+> kabuğu (üst çubuk) sayfadan ÖNCE mount olur — auth kapısı sayfayı sonradan
+> basar — ve kanca sentinel'i bulamayınca "hero yok" sayıp kutuyu anasayfada
+> da gösteriyordu; şimdi 4 sn `MutationObserver` ile geç gelen sentinel'i
+> yakalar. (b) Üst çubuk kalıcı, sayfa değişir: `usePathname` YALNIZ efekt
+> bağımlılığı (render dallanması değil — bkz. hydration #418 notu), her
+> rotada yeniden değerlendirir. Public `MarketingHeader` aynı kancayı
+> kullanır, aynı düzeltmeden yararlanır.
 
 **Pano sırası (2026-09-05 ikinci revizyon — "Europages gibi düşün, Rothern
 tarzını koru", "Başlangıç" listesi KALDIRILDI):**

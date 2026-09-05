@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
+import { TopbarSearch } from "./topbar-search";
 
 function initialsOf(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "?";
@@ -106,8 +107,13 @@ export function CompanyTopbar({
         </span>
       </div>
 
+      {/* Orta: portal duyarlı arama (hero görünümden çıkınca) */}
+      <div className="ml-auto flex min-w-0 items-center">
+        <TopbarSearch portal={activePortal} />
+      </div>
+
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
-      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-1">
         {canMessage ? <MessagesPopover portal={activePortal} /> : null}
 
         {/* Zil TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte,
