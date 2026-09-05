@@ -93,17 +93,17 @@ export function CompanyTopbar({
       <div className="ml-auto mr-1 flex min-w-0 items-center">
       {/* ŞİRKETİM — sağ kümenin önünde, mesaj/bildirim düğmeleriyle AYNI dil
           (2026-09-05, kullanıcı: "tuş olduğu belli değil, Gold orada saçma"):
-          h-10 · rounded-lg · zinc ikon + etiket · ince çerçeve; rozet ve
+          h-10 · rounded-lg · zinc ikon + etiket · çerçevesiz/dolgusuz; rozet ve
           firma adı YOK (ad sol menüdeki firma kartında ve sayfa başlığında). */}
       <Link
         href={COMPANY_AREA_BASE}
         aria-label={COMPANY_AREA.label}
         aria-current={inCompanyArea ? "page" : undefined}
+        // Bildirim/mesaj düğmesiyle BİREBİR: çerçeve ve dolgu yok, yalnız
+        // ikon + etiket; hover'da aynı hafif zemin; aktifken koyu metin.
         className={cn(
-          "hidden h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:inline-flex",
-          inCompanyArea
-            ? "bg-zinc-100 text-zinc-900 ring-zinc-950/10"
-            : "bg-white text-zinc-600 ring-zinc-950/10 hover:bg-zinc-950/5 hover:text-zinc-900",
+          "hidden h-10 shrink-0 items-center gap-2 rounded-lg px-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:inline-flex",
+          inCompanyArea ? "text-zinc-900" : "text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900",
         )}
       >
         <BuildingOffice2Icon className="size-5" aria-hidden />
