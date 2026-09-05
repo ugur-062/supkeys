@@ -27,6 +27,8 @@ const intent: AiSearchIntentResult = {
   quantity: null,
   unit: null,
   keywords: [],
+  relaxed: [],
+  relaxedCategoryName: null,
   draft: { draft: { title: "x" } as never, flags: [], missingRequired: [], route: "text", downgraded: false, warned: false },
   downgraded: false,
   warned: false,
@@ -57,6 +59,14 @@ describe("AiIntentBand", () => {
     expect(h.push).toHaveBeenCalledWith("/company/satinalma/taleplerim/yeni?ai=1");
     await user.click(screen.getByRole("button", { name: "AI yorumunu kapat" }));
     expect(onDismiss).toHaveBeenCalled();
+  });
+
+  it("gevşetme notu: kaldırılan süzgeçler adıyla söylenir", () => {
+    h.search = "q=pano";
+    render(<AiIntentBand intent={{ ...intent, category: null, city: null, relaxed: ["category", "city"], relaxedCategoryName: "Kompanzasyon panoları" }} onDismiss={() => {}} />);
+    expect(screen.getByText("Sonuç vermediği için kaldırıldı: kategori (Kompanzasyon panoları), şehir.")).toBeInTheDocument();
+    // Kaldırılan kategori için ayrıca "bulunamadı" uyarısı basılmaz.
+    expect(screen.queryByText(/Kategori bulunamadı/)).toBeNull();
   });
 
   it("satışta talep aç düğmesi YOK; bulunamayan kategori ipucu görünür", () => {

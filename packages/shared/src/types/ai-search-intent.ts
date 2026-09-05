@@ -9,6 +9,9 @@ import type { AiTenderExtractResult } from "./ai-tender-draft";
  */
 export type AiSearchPortal = "satinalma" | "satis";
 
+/** Sonuç vermediği için sunucuda KALDIRILAN süzgeçler (bantta söylenir). */
+export type AiSearchRelaxed = "category" | "priceMax" | "quantity" | "activity" | "verifiedOnly" | "city";
+
 export interface AiSearchIntentResult {
   portal: AiSearchPortal;
   /** "Anladığım: …" — kullanıcıya gösterilen tek cümle. */
@@ -30,6 +33,15 @@ export interface AiSearchIntentResult {
   quantity: number | null;
   unit: string | null;
   keywords: string[];
+  /**
+   * Sunucu, süzgeçlerin tamamı 0 sonuç verirse en az güvenilenden başlayarak
+   * (kategori → fiyat tavanı → adet → faaliyet → doğrulanmış → şehir) kaldırır;
+   * kaldırılanlar burada, ilgili alanlar null/false döner. Arama terimi asla
+   * kaldırılmaz.
+   */
+  relaxed: AiSearchRelaxed[];
+  /** Kaldırılan kategorinin adı (bantta "… sonuç vermedi" için). */
+  relaxedCategoryName: string | null;
   /** Satınalma: aynı tanımla talep taslağı (sihirbaz köprüsü); satışta null. */
   draft: AiTenderExtractResult | null;
   downgraded: boolean;

@@ -1,13 +1,17 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
 import {
   foldSearchText,
   isCompanyActivity,
+  tokenizeQuery,
   type AiSearchIntentResult,
   type AiSearchPortal,
+  type AiSearchRelaxed,
   type AiTenderExtractResult,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { productIndexWhere } from "../../../common/company/product-index";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
 import { AiService, type AiCallResult } from "../ai.service";
 import { resolveCategoryHints } from "../category-hint-resolver";
 import {
@@ -29,6 +33,8 @@ export class SearchIntentService {
   constructor(
     private readonly ai: AiService,
     private readonly prisma: PrismaService,
+    /** Satış: açık talep sayımı için (gevşetme). Test rig'inde olmayabilir. */
+    @Optional() private readonly listings?: CompanyListingsService,
   ) {}
 
   async interpret(
@@ -75,25 +81,45 @@ export class SearchIntentService {
     ]);
     const category = s.categoryHint ? (resolved.get(s.categoryHint) ?? null) : null;
 
+    // Taslak, GEVŞETMEDEN ÖNCEKİ çözümle kurulur: kategori ürün listesinde
+    // sonuç vermese de talep için doğru öneri olabilir (kullanıcı formda görür).
     const draft =
       portal === "satinalma" && (s.itemName || s.query)
         ? buildDraft(text, s, category, result)
         : null;
 
-    return {
-      portal,
-      summary: s.summary,
+    // GEVŞETME: süzgeçlerin tamamı 0 sonuç veriyorsa en az güvenilenden
+    // başlayarak kaldır — AI araması "hiçbir şey bulunamadı" ile bitmesin.
+    const filters: Filters = {
       query: s.query,
       category,
-      categoryHint: s.categoryHint,
       city,
       verifiedOnly: s.verifiedOnly,
       activity: s.activity,
       priceMax: s.priceMax,
-      currency: s.currency,
       quantity: s.quantity,
+    };
+    const { applied, relaxed } =
+      portal === "satinalma"
+        ? await this.relaxProducts(user, filters)
+        : await this.relaxRequests(user, filters);
+
+    return {
+      portal,
+      summary: s.summary,
+      query: applied.query,
+      category: applied.category,
+      categoryHint: s.categoryHint,
+      city: applied.city,
+      verifiedOnly: applied.verifiedOnly,
+      activity: applied.activity,
+      priceMax: applied.priceMax,
+      currency: s.currency,
+      quantity: applied.quantity,
       unit: s.unit,
       keywords: s.keywords,
+      relaxed,
+      relaxedCategoryName: relaxed.includes("category") ? (category?.nameTr ?? null) : null,
       draft,
       downgraded: result.downgraded,
       warned: result.warned,
@@ -112,7 +138,93 @@ export class SearchIntentService {
     const hit = rows.map((r) => r.city).find((c) => c && foldSearchText(c) === want);
     return hit ?? raw;
   }
+
+  /** Ürün dizini: sayım gerçek süzgeç motorundan (`productIndexWhere`) — liste ile aynı kural. */
+  private async relaxProducts(user: AuthenticatedCompanyUser, f: Filters) {
+    const count = (x: Filters) =>
+      this.prisma.companyItem.count({
+        where: productIndexWhere(
+          {
+            q: x.query ?? undefined,
+            category: x.category?.id,
+            city: x.city ?? undefined,
+            activity: x.activity ?? undefined,
+            verified: x.verifiedOnly || undefined,
+            priceMax: x.priceMax ?? undefined,
+            moqMax: x.quantity != null ? Math.max(1, Math.trunc(x.quantity)) : undefined,
+          },
+          [{ companyId: { not: user.companyId } }],
+        ),
+      });
+    return relax(f, PRODUCT_RELAX_ORDER, count);
+  }
+
+  /** Açık talepler: satıcının görebildiği açık talepler (liste ile AYNI kaynak) üzerinde sayım. */
+  private async relaxRequests(user: AuthenticatedCompanyUser, f: Filters) {
+    if (!this.listings) return { applied: f, relaxed: [] as AiSearchRelaxed[] };
+    const rows = await this.listings.sellerTenders(user, "ALIM", { openOnly: true });
+    const hay = rows.map((r) => ({
+      seg: r.categories.map((c) => c.code.slice(0, 2)),
+      city: r.ownerCity ?? null,
+      text: foldSearchText(
+        [r.title, r.number ?? "", r.owner?.name ?? "", ...(r.itemNames ?? []), ...r.categories.map((c) => c.name)].join(" "),
+      ),
+    }));
+    const count = async (x: Filters) => {
+      const ts = x.query ? tokenizeQuery(x.query).map((t) => foldSearchText(t)) : [];
+      const seg = x.category?.id.slice(0, 2);
+      const city = x.city ? foldSearchText(x.city) : null;
+      return hay.filter(
+        (h) =>
+          ts.every((t) => h.text.includes(t)) &&
+          (!seg || h.seg.includes(seg)) &&
+          (!city || (h.city != null && foldSearchText(h.city) === city)),
+      ).length;
+    };
+    return relax(f, REQUEST_RELAX_ORDER, count);
+  }
 }
+
+interface Filters {
+  query: string | null;
+  category: { id: string; nameTr: string } | null;
+  city: string | null;
+  verifiedOnly: boolean;
+  activity: string | null;
+  priceMax: number | null;
+  quantity: number | null;
+}
+
+/** En az güvenilenden en çok güvenilene: kategori (ipucu çözümü) → tavanlar → nitelikler → şehir. */
+const PRODUCT_RELAX_ORDER: AiSearchRelaxed[] = ["category", "priceMax", "quantity", "activity", "verifiedOnly", "city"];
+const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "city"];
+
+const isSet = (f: Filters, k: AiSearchRelaxed) =>
+  k === "verifiedOnly" ? f.verifiedOnly : f[k] != null;
+
+function without(f: Filters, k: AiSearchRelaxed): Filters {
+  return k === "verifiedOnly" ? { ...f, verifiedOnly: false } : { ...f, [k]: null };
+}
+
+async function relax(
+  f: Filters,
+  order: AiSearchRelaxed[],
+  count: (x: Filters) => Promise<number>,
+): Promise<{ applied: Filters; relaxed: AiSearchRelaxed[] }> {
+  const relaxed: AiSearchRelaxed[] = [];
+  let cur = f;
+  if (!order.some((k) => isSet(cur, k))) return { applied: cur, relaxed };
+  let n = await count(cur);
+  for (const k of order) {
+    if (n > 0) break;
+    if (!isSet(cur, k)) continue;
+    cur = without(cur, k);
+    relaxed.push(k);
+    n = await count(cur);
+  }
+  return { applied: cur, relaxed };
+}
+
 
 interface SanitizedIntent {
   summary: string;

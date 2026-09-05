@@ -90,6 +90,11 @@ describe("passes — her boyut", () => {
     expect(passes(r, F({ q: "kablo" }), NOW)).toBe(true);
     expect(matchedItemName(r, "dn100")).toBe("Flanş DN100");
     expect(matchedItemName(r, "çelik")).toBeNull();
+    // Çok kelimeli sorgu: kelimeler AND, sıra önemsiz (AI araması 2-4 kelime üretir).
+    expect(passes(r, F({ q: "boru çelik" }), NOW)).toBe(true);
+    expect(passes(r, F({ q: "çelik vida" }), NOW)).toBe(false);
+    expect(matchedItemName(r, "flanş dn100")).toBe("Flanş DN100");
+    expect(matchedItemName(r, "dirsek dn100")).toBe("Dirsek 90°");
   });
 });
 

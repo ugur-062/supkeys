@@ -16,6 +16,8 @@ const base: AiSearchIntentResult = {
   quantity: 50,
   unit: "adet",
   keywords: ["kompanzasyon"],
+  relaxed: [],
+  relaxedCategoryName: null,
   draft: null,
   downgraded: false,
   warned: false,

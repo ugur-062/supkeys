@@ -982,6 +982,20 @@ sunucuda kurulur: başlık, kalem (ad/adet/birim etiketi), açıklama = metin,
 açılır". Sözleşmeler: `search-intent.spec.ts` (API), `ai-search.test`,
 `ai-intent-band.test`, `panel-hero-search.test` (web).
 
+İlk canlı denemede iki bulgu, ikisi de kapatıldı: (1) "kompanzasyon panosu"
+ipucu ANAHTAR KELİMESİ yüzünden bir montaj HİZMETİ kategorisine düşüyordu
+→ çözümleyici artık **ad öncelikli + Türkçe ek toleranslı** (`stemPrefix`:
+≥5 karakterli token ön ekiyle aranır; tam ad › adda ön ek › searchText ›
+searchText ön ek; havuz 2000). (2) Yedi süzgecin toplamı 0 ürün veriyordu
+→ **sunucuda gevşetme**: sayım gerçek motorla (`productIndexWhere` /
+`sellerTenders`) yapılır, 0 ise kategori → fiyat tavanı → adet → faaliyet →
+doğrulanmış → şehir sırasıyla kaldırılır (arama terimi ASLA), sonuç
+`relaxed` + `relaxedCategoryName` ile döner, bant "Sonuç vermediği için
+kaldırıldı: …" der. Taslak gevşetmeden ÖNCEKİ kategoriyle kurulur. Satış
+liste araması artık kelimelere bölünüp AND'lenir (AI 2-4 kelime üretir;
+tam-ifade araması hiç eşleşmiyordu). Yerel `GEMINI_API_KEY` ön ödemeli
+kredisi bitmiş (429) — AI yalnız canlıda (Vertex) doğrulanır.
+
 **Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
 `components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:
 satınalma → `/company/satinalma/urunler?q=` "Ürün ara", satış →

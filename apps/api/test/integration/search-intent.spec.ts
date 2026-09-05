@@ -7,10 +7,11 @@ import { foldSearchText } from "@rothern/shared";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import type { AiService } from "../../src/modules/ai/ai.service";
 import { SearchIntentService, parseModelNumber } from "../../src/modules/ai/search-intent/search-intent.service";
+import type { CompanyListingsService } from "../../src/modules/company-listings/services/company-listings.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
-function rig(modelJson: unknown | string, second?: unknown | string) {
+function rig(modelJson: unknown | string, second?: unknown | string, listings?: Partial<CompanyListingsService>) {
   const reply = (v: unknown | string) => ({
     text: typeof v === "string" ? v : JSON.stringify(v),
     downgraded: false,
@@ -23,15 +24,41 @@ function rig(modelJson: unknown | string, second?: unknown | string) {
   const service = new SearchIntentService(
     { assertAiAccess, callAi } as unknown as AiService,
     prisma as unknown as PrismaService,
+    listings as CompanyListingsService | undefined,
   );
   return { service, callAi, assertAiAccess };
 }
 
-async function makeCategory(code: string, nameTr: string, level: number, inDiscovery = true) {
+async function makeCategory(code: string, nameTr: string, level: number, inDiscovery = true, keywords = "") {
   await prisma.category.create({
     data: {
-      id: code, code, nameTr, keywords: "", searchText: foldSearchText(nameTr),
+      id: code, code, nameTr, keywords, searchText: foldSearchText(`${nameTr} ${keywords}`),
       level, parentId: null, isActive: true, sortOrder: 0, inDiscovery,
+    },
+  });
+}
+
+let pseq = 0;
+/** Yayında ürün (kapı: firma public + slug; ürün public + görselli). */
+async function makePublicProduct(over: {
+  categoryId: string; city?: string; verified?: boolean; name?: string; activities?: string[]; priceAmount?: number;
+}) {
+  pseq += 1;
+  const { company, user } = await makeCompanyWithUser(prisma);
+  await prisma.company.update({
+    where: { id: company.id },
+    data: {
+      name: `Vitrin ${pseq}`, slug: `vitrin-si-${pseq}`, city: over.city ?? "İzmir", publicEnabled: true,
+      ...(over.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
+      ...(over.activities ? { activities: over.activities as never } : {}),
+    },
+  });
+  return prisma.companyItem.create({
+    data: {
+      companyId: company.id, createdById: user.id, name: over.name ?? `Ürün ${pseq}`, unit: "adet",
+      slug: `urun-si-${pseq}`, categoryId: over.categoryId, isPublic: true, publishedAt: new Date(),
+      images: ["a.webp"], keywords: ["pano"], searchText: foldSearchText(`${over.name ?? "urun"} kompanzasyon panosu pano`),
+      ...(over.priceAmount != null ? { priceMode: "FIXED", priceAmount: over.priceAmount } : {}),
     },
   });
 }
@@ -46,12 +73,20 @@ describe("AI arama — search-intent", () => {
     const other = await makeCompanyWithUser(prisma);
     await prisma.company.update({ where: { id: other.company.id }, data: { city: "İstanbul" } });
     await makeCategory("39121500", "Kompanzasyon panoları", 3);
+    // Canlı bulgu: anahtar kelimesi "kompanzasyon panosu" olan bir HİZMET
+    // kategorisi ada göre önce gelmemeli (ad önceliği + ek toleransı).
+    await makeCategory("72151509", "Enerji yönetim kontrolü montaj hizmeti", 4, true, "kompanzasyon panosu montajı");
+    // Tüm süzgeçleri karşılayan ürün: İstanbul, doğrulanmış ÜRETİCİ, 1.200 TL (≤ tavan), MOQ yok.
+    await makePublicProduct({
+      categoryId: "39121503", city: "İstanbul", verified: true, name: "Kompanzasyon Panosu 400 kVAr",
+      activities: ["MANUFACTURER"], priceAmount: 1200,
+    });
     const { service, callAi, assertAiAccess } = rig({
       summary: "Anladığım: 50 adet 400 kVAr kompanzasyon panosu, İstanbul, doğrulanmış üretici",
       title: "400 kVAr kompanzasyon panosu alımı",
       query: "kompanzasyon panosu",
       itemName: "Kompanzasyon panosu 400 kVAr",
-      categoryHint: "kompanzasyon panoları",
+      categoryHint: "kompanzasyon panosu",
       city: "istanbul",
       verifiedOnly: true,
       activity: "MANUFACTURER",
@@ -79,6 +114,9 @@ describe("AI arama — search-intent", () => {
     expect(r.quantity).toBe(50);
     expect(r.unit).toBe("adet");
     expect(r.keywords).toEqual(["kompanzasyon", "pano", "reaktif"]);
+    // Ürün var (İstanbul, doğrulanmış, 39121503 ⊂ 39121500) → gevşetme yok.
+    expect(r.relaxed).toEqual([]);
+    expect(r.relaxedCategoryName).toBeNull();
     // Taslak: kalem + önerilen kategori + açıklama olarak metin.
     expect(r.draft?.draft.title).toBe("400 kVAr kompanzasyon panosu alımı");
     expect(r.draft?.draft.items).toEqual([
@@ -115,15 +153,49 @@ describe("AI arama — search-intent", () => {
     expect(r2.categoryHint).toBe("uzay asansörü");
   });
 
-  it("SATICI: taslak yok, portal 'satis'; talep kategorisi discovery kapısına tabi DEĞİL", async () => {
+  it("SATICI: taslak yok, portal 'satis'; talep kategorisi discovery kapısına tabi DEĞİL; gevşetme açık taleplerde", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
     await makeCategory("39121600", "Şalt malzemeleri", 3, false);
-    const { service, callAi } = rig({ summary: "Anladığım: şalt malzemesi satışı", query: "şalt", categoryHint: "şalt malzemeleri", title: "x", itemName: "y" });
+    const rows = [
+      { title: "Trafo merkezi tedariki", number: "ROT-1", owner: { name: "Alıcı A" }, ownerCity: "Bursa", itemNames: ["Şalt malzemesi seti"], categories: [{ code: "26101500", name: "Trafolar" }] },
+    ];
+    const listings = { sellerTenders: jest.fn().mockResolvedValue(rows) };
+    const { service, callAi } = rig(
+      { summary: "Anladığım: şalt malzemesi satışı", query: "şalt malzemesi", categoryHint: "şalt malzemeleri", city: "İzmir", title: "x", itemName: "y" },
+      undefined,
+      listings as unknown as Partial<CompanyListingsService>,
+    );
     const r = await service.interpret(auth, { text: "Şalt malzemesi üretiyoruz", portal: "satis" });
     expect(r.portal).toBe("satis");
     expect(r.draft).toBeNull();
-    expect(r.category?.id).toBe("39121600");
     expect(String(callAi.mock.calls[0][1].prompt)).toContain("SATICI");
+    // Kategori 39 (talep 26'da) ve şehir İzmir (talep Bursa) sonuç vermedi →
+    // ikisi de kaldırıldı; arama terimi (çok kelimeli, kalem adında) kaldı.
+    expect(r.relaxed).toEqual(["category", "city"]);
+    expect(r.relaxedCategoryName).toBe("Şalt malzemeleri");
+    expect(r.category).toBeNull();
+    expect(r.city).toBeNull();
+    expect(r.query).toBe("şalt malzemesi");
+    expect(listings.sellerTenders).toHaveBeenCalledWith(auth, "ALIM", { openOnly: true });
+  });
+
+  it("ALICI gevşetme: kategori → … → şehir sırasıyla, ilk sonuçta durur; arama terimi asla kalkmaz", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    await makeCategory("39121500", "Kompanzasyon panoları", 3);
+    await makePublicProduct({ categoryId: "39121503", city: "İzmir", verified: false });
+    const { service } = rig({
+      summary: "Anladığım: pano", query: "pano", categoryHint: "kompanzasyon panoları", city: "İstanbul", verifiedOnly: true,
+    });
+    const r = await service.interpret(auth, { text: "İstanbul'da doğrulanmış firmadan kompanzasyon panosu", portal: "satinalma" });
+    // Ürün: İzmir, doğrulanmamış, kategori uyuyor. Sıra: kategori (0) → doğrulanmış (0) → şehir (1 → dur).
+    expect(r.relaxed).toEqual(["category", "verifiedOnly", "city"]);
+    expect(r.relaxedCategoryName).toBe("Kompanzasyon panoları");
+    expect(r.category).toBeNull();
+    expect(r.verifiedOnly).toBe(false);
+    expect(r.city).toBeNull();
+    expect(r.query).toBe("pano");
+    // Taslak gevşetmeden etkilenmez: önerilen kategori taslakta durur.
+    expect(r.draft?.draft.suggestedCategoryIds).toEqual(["39121500"]);
   });
 
   it("kısa metin 400; bozuk JSON bir kez premium ile denenir, yine bozuksa 503", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { AI_TENDER_DRAFT_KEY, intentChips } from "@/lib/company/ai-search";
-import type { AiSearchIntentResult } from "@rothern/shared";
+import type { AiSearchIntentResult, AiSearchRelaxed } from "@rothern/shared";
 import { SparklesIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -11,6 +11,24 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
  * güncellenir). Satınalmada "Bu tanımla talep aç" sihirbazı taslakla açar
  * (mevcut AI taslak köprüsü). Kara kutu yok: her parça görünür ve geri alınır.
  */
+const RELAXED_LABEL: Record<AiSearchRelaxed, string> = {
+  category: "kategori",
+  priceMax: "fiyat tavanı",
+  quantity: "adet",
+  activity: "faaliyet tipi",
+  verifiedOnly: "doğrulanmış firma",
+  city: "şehir",
+};
+
+/** "Sonuç vermediği için kaldırıldı: kategori (Kompanzasyon panoları), şehir" */
+export function relaxedNote(r: AiSearchIntentResult): string | null {
+  if (!r.relaxed?.length) return null;
+  const parts = r.relaxed.map((k) =>
+    k === "category" && r.relaxedCategoryName ? `${RELAXED_LABEL[k]} (${r.relaxedCategoryName})` : RELAXED_LABEL[k],
+  );
+  return `Sonuç vermediği için kaldırıldı: ${parts.join(", ")}.`;
+}
+
 export function AiIntentBand({
   intent,
   onDismiss,
@@ -67,7 +85,8 @@ export function AiIntentBand({
           ) : (
             <p className="text-xs text-zinc-500">Uygulanan süzgeç kalmadı — liste tamamını gösteriyor.</p>
           )}
-          {intent.categoryHint && !intent.category ? (
+          {relaxedNote(intent) ? <p className="text-xs text-zinc-600">{relaxedNote(intent)}</p> : null}
+          {intent.categoryHint && !intent.category && !intent.relaxed?.includes("category") ? (
             <p className="text-xs text-zinc-600">
               Kategori bulunamadı: &ldquo;{intent.categoryHint}&rdquo; — kenar süzgecinden seçebilirsiniz.
             </p>

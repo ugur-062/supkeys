@@ -67,15 +67,32 @@ export function searchHaystack(row: SellerTenderRow): string {
     .toLocaleLowerCase("tr-TR");
 }
 
-function textHit(row: SellerTenderRow, q: string): boolean {
-  return searchHaystack(row).includes(q.toLocaleLowerCase("tr-TR"));
+/** Sorgu kelimelere bölünür, HEPSİ aranır, sıra önemsiz (ürün aramasıyla aynı kural). */
+export function queryTokens(q: string): string[] {
+  return q
+    .toLocaleLowerCase("tr-TR")
+    .split(/[\s,;/]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
 }
 
-/** Arama kalem adında geçtiyse o kalem (öneri satırı "Kalem: …" der). */
+function textHit(row: SellerTenderRow, q: string): boolean {
+  const ts = queryTokens(q);
+  if (ts.length === 0) return true;
+  const hay = searchHaystack(row);
+  return ts.every((t) => hay.includes(t));
+}
+
+/** Arama kalem adında geçtiyse o kalem (öneri satırı "Kalem: …" der) — tüm kelimeleri taşıyan, yoksa herhangi birini. */
 export function matchedItemName(row: SellerTenderRow, q: string): string | null {
-  const needle = q.trim().toLocaleLowerCase("tr-TR");
-  if (!needle) return null;
-  return (row.itemNames ?? []).find((n) => n.toLocaleLowerCase("tr-TR").includes(needle)) ?? null;
+  const ts = queryTokens(q);
+  if (ts.length === 0) return null;
+  const names = (row.itemNames ?? []).map((n) => ({ n, l: n.toLocaleLowerCase("tr-TR") }));
+  return (
+    names.find(({ l }) => ts.every((t) => l.includes(t)))?.n ??
+    names.find(({ l }) => ts.some((t) => l.includes(t)))?.n ??
+    null
+  );
 }
 
 export function closesWithin(row: SellerTenderRow, days: number, now: number): boolean {
