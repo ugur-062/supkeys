@@ -2,19 +2,17 @@
 
 import { ActionStrip } from "@/components/dashboard/action-center";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
-import { CategoryShowcasePanel } from "@/components/dashboard/category-showcase-panel";
-import { BuyersBlock } from "@/components/dashboard/buyers-block";
 import { CtaBand } from "@/components/dashboard/cta-band";
 import { TodayBand } from "@/components/dashboard/today-band";
-import { useCategorySegments, useDiscoverFacets } from "@/hooks/use-portal-discovery";
+import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { useSellerTenders } from "@/hooks/use-seller-tenders";
-import { buildShowcase } from "@/lib/public/category-showcase";
 import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { PackagePlus } from "lucide-react";
 import { useMyBids } from "@/hooks/use-company-listings";
+import { rowSegments } from "@/lib/company/request-facets";
 import { useOrders } from "@/hooks/use-company-orders";
 import {
   selectActiveOffers,
@@ -31,16 +29,15 @@ import { tr } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 
 /**
- * Satış panosu — ÖZET sayfa (2026-09-03 revizyonu). Sıra yukarıdan aşağı:
+ * Satış panosu (2026-09-05 revizyonu). Sıra yukarıdan aşağı:
  *   1. başlık (firma, tarih, kur çipi)
- *   2. bekleyen işler şeridi — tip başına çip, her biri kendi sayfasına
- *   3. 4 dönemsiz KPI — kart tıklanır, delta rozeti "geçen aya göre"
- *   4. size uygun açık talepler — en fazla 3, tek çıkış
- *   5. profil & katalog sağlığı — eşleşme kalitesinin girdileri
- * Panoda liste/arama/süzgeç YOK; her blok tek "tümünü gör" ile alt sayfaya
- * gider. ("Son Aktiviteler" akışı kullanıcı isteğiyle kaldırıldı,
- * 2026-08-03; satış raporları satış ilanı özelliğiyle birlikte kaldırıldı,
- * 2026-09-04.) Görsel dil: zinc/Catalyst.
+ *   2. arama kutusu — açık talepleri arar (`?q=`), yazarken öneri
+ *   3. AÇIK TALEPLER — kenar süzgeçli TAM liste (ayrı sayfa yok)
+ *   4. BUGÜN: bekleyen işler şeridi + 4 dönemsiz KPI
+ *   5. ürün ekle şeridi (primary — satış menüsünde CTA yok)
+ *   6. profil & katalog sağlığı — eşleşme kalitesinin girdileri
+ * Grafikler Raporlar'da; "Son Aktiviteler" (2026-08-03), "Başlangıç" listesi,
+ * sektör çipleri/kartları ve alıcı bloğu kullanıcı isteğiyle kaldırıldı.
  */
 export function SatisDashboardView() {
   const { company } = useCompanyAuth();
@@ -58,28 +55,25 @@ export function SatisDashboardView() {
   // dönemsizdir ("bugün ne durumdayım"). Analitikten yalnız delta/spark ve
   // yanıtsız davet sayısı okunur — varsayılan dönemle.
   const analytics = useSatisAnalytics({ period: "month" });
-  // Sektör vitrini + çipler: açık taleplerin segment sayaçları (discover-facets,
-  // `seller-tenders` ile AYNI görünürlük) + 58 segment doldurma listesi.
-  const facets = useDiscoverFacets();
+  // Öneri için sektör sayaçları: listenin KENDİSİNDEN (aynı görünürlük, ek
+  // uç yok). Sektör çipleri ve fotoğraflı sektör kartları KALDIRILDI
+  // (2026-09-05, kullanıcı: "gerek yok" — kategori süzgeci listenin
+  // kenarında, sayaçlı).
   const segments = useCategorySegments();
-  const showcase = useMemo(
-    () =>
-      buildShowcase({
-        segments: (segments.data ?? []).map((sg) => ({ id: sg.id, name: sg.nameTr })),
-        counts: (facets.data?.segments ?? []).map((c) => ({ id: c.id, count: c.count })),
-        productCovers: [],
-        limit: 8,
-      }),
-    [segments.data, facets.data],
-  );
-  const chips = (facets.data?.segments ?? [])
-    .filter((c) => c.count > 0)
-    .slice(0, 6)
-    .map((c) => ({ id: c.id, name: c.name, count: c.count, href: `/company/satis?kategori=${c.id}` }));
+  const tenders = useSellerTenders();
+  const sectorCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const row of tenders.data ?? []) {
+      if (row.status !== "OPEN") continue;
+      for (const seg of rowSegments(row)) m.set(seg, (m.get(seg) ?? 0) + 1);
+    }
+    return [...m.entries()]
+      .map(([id, count]) => ({ id, name: segments.data?.find((sg) => sg.id === id)?.nameTr ?? id, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [tenders.data, segments.data]);
 
   // Yazarken öneri: açık talepler (başlık/no/alıcı) + sektörler — liste zaten
   // çekili (`seller-tenders`), ayrı uç yok.
-  const tenders = useSellerTenders();
   const [term, setTerm] = useState("");
   const q = term.trim();
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
@@ -90,15 +84,15 @@ export function SatisDashboardView() {
       .filter((t) => t.status === "OPEN" && (hit(t.title) || hit(t.number ?? "") || hit(t.owner?.name ?? "")))
       .slice(0, 5)
       .map((t) => ({ key: t.id, label: t.title, meta: t.owner?.name ?? undefined, href: `/company/ilan/${t.id}` }));
-    const secs = (facets.data?.segments ?? [])
-      .filter((c) => c.count > 0 && hit(c.name))
+    const secs = sectorCounts
+      .filter((c) => hit(c.name))
       .slice(0, 3)
       .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} açık talep`, href: `/company/satis?kategori=${c.id}` }));
     return [
       { label: "Açık talepler", rows },
       { label: "Sektörler", rows: secs },
     ];
-  }, [q, tenders.data, facets.data]);
+  }, [q, tenders.data, sectorCounts]);
 
   // KPI'lar liste sayfalarıyla AYNI seçiciden (kpi-selectors): sunucu sayımı
   // ilan tipini süzmüyordu — satın alma tarafında verilen teklifler satış
@@ -138,39 +132,24 @@ export function SatisDashboardView() {
         <TcmbRatesChip />
       </header>
 
-      {/* PAZAR YERİ ÖNDE (2026-09-05, kullanıcı kararı — satınalmayla aynı
-          düzen): arama (öneriyle) → talep olan sektörler (fotoğraflı 8 kart) →
-          size uygun açık talepler → talep açan alıcılar → BUGÜN → ürün ekle
-          şeridi → katalog/profil sağlığı. "Başlangıç" listesi KALDIRILDI. */}
+      {/* SIRA (2026-09-05, ikinci revizyon — kullanıcı kararı): arama (öneriyle)
+          → AÇIK TALEPLER (kenar süzgeçli tam liste) → BUGÜN → ürün ekle şeridi
+          → katalog/profil sağlığı. Sektör çipleri, fotoğraflı sektör kartları
+          ve "Talep açan alıcılar" bloğu KALDIRILDI: kategori ve alıcı artık
+          listenin kenar süzgecinde sayaçlı — aynı bilgiyi ikinci kez basmak
+          sayfayı kalabalıklaştırıyordu. */}
       <PanelHeroSearch
         eyebrow="Açık satın alma talepleri"
         title="Hangi talebe teklif vereceksiniz?"
         lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
         placeholder="Ürün, kalem, talep numarası veya alıcı arayın"
         action="/company/satis"
-        chips={chips}
-        chipsLabel="Talep olan sektörler"
         accent="emerald"
         suggestions={suggestions}
         onQueryChange={setTerm}
       />
 
-      <CategoryShowcasePanel
-        title="Talep olan sektörler"
-        lead="Açık talebi olan dallar önde; tıklayınca o sektörün talepleri."
-        items={showcase}
-        hrefFor={(id) => `/company/satis?kategori=${id}`}
-        countNoun="açık talep"
-        allHref="/company/satis#acik-talepler"
-        allLabel="Tüm açık talepler"
-      />
-
-      {/* AÇIK TALEPLER ANASAYFADA (2026-09-05, kullanıcı kararı): ayrı sayfa
-          ve menü satırı kaldırıldı; liste TÜM süzgeçleriyle burada. Hero ve
-          sektör kartları `?q=` / `?kategori=` ile bu listeyi süzer. */}
-      <SellerTendersView embedded />
-
-      <BuyersBlock />
+      <SellerTendersView />
 
       <TodayBand lead="Bekleyen işleriniz ve dönemsiz dört sayı.">
         <ActionStrip portal="satis" />

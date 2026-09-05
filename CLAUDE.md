@@ -886,6 +886,36 @@ anasayfaya gider.
 (iş listesi, arama sonucu değil); kullanıcı birleştirmeyi seçti — liste
 anasayfada tam işlevli olduğu için kayıp yok, yalnız sayfa derinliği arttı.
 
+**Satış anasayfası — üçüncü revizyon (2026-09-05, kullanıcı: "filtreleme
+daha iyi olsun; talepler üstünde ikinci arama kutusu neden var; sektör
+çipleri ve fotoğraflı kategori kartları gerek yok; tüm talepler burada").**
+Sıra: arama (öneriyle) → **Açık Talepler kenar süzgeçli TAM liste** → BUGÜN
+→ ürün ekle şeridi → sağlık kartları. Sektör çipleri, `CategoryShowcasePanel`
+(satışta) ve `BuyersBlock` (silindi) kalktı — kategori ve alıcı artık listenin
+kenar süzgecinde SAYAÇLI; aynı bilgiyi ikinci kez basmak sayfayı
+kalabalıklaştırıyordu. Listenin kendi arama kutusu YOK: hero `?q=` yazar,
+listede yalnız "Arama: …" çipi (kaldırılabilir).
+
+| Parça | Tek kaynak |
+|-------|-----------|
+| URL şeması (`?q&durum&uygunluk&kategori&kapsam&kapanis&alici&sehir&para&usul&donem&sirala&sayfa`) | `lib/company/request-filter-params.ts` |
+| Süzme/sıralama/**bağlamsal** facet sayımı (istemci — uç zaten tüm listeyi verir, tavan 300) | `lib/company/request-facets.ts` |
+| Kenar süzgeci, çipler, sıralama | `components/company/request-filters.tsx` |
+| Yapı taşları (Group/Check/ShowMore/FilterChipBar) — ürün süzgeciyle ORTAK | `components/marketplace/filter-primitives.tsx` |
+| Kabuk: `FilterShellCore<S>` (durumdan bağımsız) + ürün sarmalayıcısı `FilterShell` | `components/marketplace/filter-shell.tsx` |
+
+Kategori süzgeci SEGMENT düzeyinde (`kategori=39000000,23000000`, çoklu);
+öneri/çipten gelen tam kod segmentine indirgenir. Uygunluk grubu (davet /
+bağlantılı / kategorime uygun / teklif verdiklerim) grup içi VEYA. İlgi
+merdiveni (davetli › bağlantılı › kategori › skor kademesi) seçilen
+sıralamanın ÜSTÜNDE kalır (eski karar, `sortRequests`). "Tümünü temizle"
+aramayı DA sıfırlar (kutusu hero'da, listeden uzakta); sıralama kalır.
+`PanelHeroSearch` hedef sayfa mevcut sayfaysa seçili süzgeçleri KORUR
+(yalnız `q` ve `sayfa` değişir). Kabuk genellemesinde bulunan hata: `update({
+page })` her zaman 1. sayfaya düşüyordu → panel Ürün Ara'da "Sonraki"
+çalışmıyordu; sayfa artık yalnız açıkça istenince korunur. Sözleşmeler:
+`request-filter-params.test`, `request-facets.test`, `seller-tenders-view.test`.
+
 **Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
 `components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:
 satınalma → `/company/satinalma/urunler?q=` "Ürün ara", satış →

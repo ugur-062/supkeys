@@ -70,10 +70,6 @@ vi.mock("@/components/dashboard/action-center", () => ({
 // ve ayrı test edilir; burada varlığını gözlemleyen hafif mock — aksi hâlde
 // gerçek `useQuery` sağlayıcısız çalışıp bu suite'i kırar.
 vi.mock("@/hooks/use-portal-discovery", () => ({
-  useDiscoverFacets: () => ({
-    data: { segments: [{ id: "39000000", name: "Elektrik", count: 4 }, { id: "23000000", name: "Makine", count: 0 }], total: 4 },
-    isLoading: false,
-  }),
   useCategorySegments: () => ({
     data: [{ id: "39000000", nameTr: "Elektrik" }, { id: "23000000", nameTr: "Makine" }, { id: "31000000", nameTr: "Bileşen" }],
     isLoading: false,
@@ -90,9 +86,7 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
   }),
 }));
 vi.mock("@/components/company/seller-tenders-view", () => ({
-  SellerTendersView: ({ embedded }: { embedded?: boolean }) => (
-    <div data-testid="seller-tenders" data-embedded={embedded ? "1" : "0"} />
-  ),
+  SellerTendersView: () => <div data-testid="seller-tenders" />,
 }));
 // Sağlık kartları profil + katalog uçlarından beslenir; ayrı test edilir.
 vi.mock("@/components/dashboard/seller-health-cards", () => ({
@@ -156,57 +150,30 @@ describe("SatisDashboardView", () => {
     expect(screen.queryByRole("link", { name: /Raporlar/ })).toBeNull();
   });
 
-  it("arama kutusu ilk ekranda: açık talepleri arar, çipler sektörlere gider (2026-09-05)", () => {
+  it("arama kutusu ilk ekranda açık talepleri arar; sektör çipleri ve fotoğraflı sektör kartları YOK (2026-09-05)", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
     expect(screen.getByRole("heading", { name: "Hangi talebe teklif vereceksiniz?" })).toBeInTheDocument();
-    const form = screen.getByRole("search");
-    expect(form).toHaveAttribute("action", "/company/satis");
-    const cips = within(screen.getByRole("navigation", { name: "Talep olan sektörler" }));
-    expect(cips.getByRole("link", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis?kategori=39000000");
-    // Sayısı 0 olan sektör ÇİP olmaz (vitrin kartı olabilir).
-    expect(cips.queryByRole("link", { name: /Makine/ })).toBeNull();
-  });
-
-  it("sektör kartları fotoğraflı ve hedefli; alıcı bloğu yalnız AÇIK talebi olan sahipleri sayar", () => {
-    h.stats = fullStats();
-    render(<SatisDashboardView />);
-    // 8 segmentten dolu olan önde (Elektrik 4), sayısı 0 olan da kart olur ("Keşfet").
-    const sektor = screen.getByRole("region", { name: "Talep olan sektörler" });
-    expect(sektor.querySelector("a[href='/company/satis?kategori=39000000']")).not.toBeNull();
-    expect(sektor.querySelector("img")?.getAttribute("src")).toContain("categories");
-    // Alıcı A iki açık talep; Alıcı B'nin talebi AWARDED → listede yok.
-    const alici = screen.getByRole("region", { name: "Talep açan alıcılar" });
-    expect(alici).toHaveTextContent("Alıcı A");
-    expect(alici).toHaveTextContent("2 açık talep");
-    expect(alici).not.toHaveTextContent("Alıcı B");
-    expect(within(alici).getByRole("link", { name: /Alıcı A/ })).toHaveAttribute("href", "/company/satis?q=Al%C4%B1c%C4%B1%20A#acik-talepler");
-    // Başlangıç listesi KALDIRILDI; "Bugün" bandı ve ürün ekle şeridi var.
+    expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satis");
+    expect(screen.queryByRole("navigation", { name: "Talep olan sektörler" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Talep olan sektörler" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Talep açan alıcılar" })).toBeNull();
     expect(screen.queryByText(/Başlangıç/)).toBeNull();
+    // Liste anasayfada; "Bugün" bandı ve ürün ekle şeridi var.
+    expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Bugün" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ürün ekle/ })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
   });
 
-  it("Açık Talepler listesi anasayfada GÖMÜLÜ ve tüm süzgeçleriyle (2026-09-05)", () => {
-    h.stats = fullStats();
-    render(<SatisDashboardView />);
-    expect(screen.getByTestId("seller-tenders")).toHaveAttribute("data-embedded", "1");
-    // Hero ve sektör kartları aynı sayfayı süzer: ayrı rota yok.
-    expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satis");
-    expect(screen.getByRole("region", { name: "Talep olan sektörler" }).querySelector("ul li a")?.getAttribute("href")).toMatch(/^\/company\/satis\?kategori=/);
-  });
-
-  it("özet sırası: arama → sektörler → açık talepler listesi → alıcılar → şerit → KPI → sağlık; keşif kartı YOK", () => {
+  it("özet sırası: arama → açık talepler listesi → şerit → KPI → sağlık; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
     const at = (s: string) => html.indexOf(s);
     expect(at("portal-discovery")).toBe(-1);
     expect(at("action-strip")).toBeGreaterThan(-1);
-    expect(at("Hangi talebe teklif")).toBeLessThan(at("Talep olan sektörler"));
-    expect(at("Talep olan sektörler")).toBeLessThan(at("seller-tenders"));
-    expect(at("seller-tenders")).toBeLessThan(at("Talep açan alıcılar"));
-    expect(at("Talep açan alıcılar")).toBeLessThan(at("action-strip"));
+    expect(at("Hangi talebe teklif")).toBeLessThan(at("seller-tenders"));
+    expect(at("seller-tenders")).toBeLessThan(at("action-strip"));
     expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
     expect(at("Aktif Tekliflerim")).toBeLessThan(at("seller-health"));
     // TEK arama kutusu (hero); ikinci "İlan aç" YOK.

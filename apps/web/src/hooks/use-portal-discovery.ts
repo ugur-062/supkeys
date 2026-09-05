@@ -24,12 +24,6 @@ import type { SellerTenderRow } from "./use-seller-tenders";
  * hiç yok.
  */
 
-/** Sektör kutusu — segment başına açık ilan sayısı. */
-export interface DiscoverFacets {
-  segments: { id: string; name: string; count: number }[];
-  total: number;
-}
-
 export interface DiscoverProduct {
   slug: string;
   name: string;
@@ -74,21 +68,6 @@ export function useDiscoverListings(limit = 6) {
       return data;
     },
     staleTime: 30_000,
-  });
-}
-
-export function useDiscoverFacets() {
-  return useQuery<DiscoverFacets>({
-    queryKey: ["company-listings", "discover-facets", "ALIM"],
-    queryFn: async () => {
-      const { data } = await companyApi.get<DiscoverFacets>(
-        "/company/listings/discover-facets?type=ALIM",
-      );
-      return data;
-    },
-    // Sayaçlar listeden seyrek değişir; her pano açılışında yeniden sormaya
-    // gerek yok.
-    staleTime: 120_000,
   });
 }
 

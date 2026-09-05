@@ -3,9 +3,10 @@
 import { useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
-import { ChevronDownIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { Check, FilterChipBar, Group, SHOW, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
 import { companyActivityLabel } from "@rothern/shared";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * ÜRÜN SÜZGEÇLERİ — istemci, checkbox tabanlı, ÇOKLU seçim (süzgeç v3).
@@ -18,8 +19,6 @@ import { useEffect, useId, useMemo, useState } from "react";
  * · Durum URL'de (`filter-shell.tsx`); herkese açık `/urunler` ve panel
  *   "Ürün Ara" AYNI bileşeni kullanır.
  */
-const SHOW = 6;
-
 export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFacets; idPrefix?: string }) {
   const { state, update } = useFilters();
   return (
@@ -81,149 +80,9 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
   );
 }
 
-/* ───────── Gruplar ───────── */
-function useOpenState(storageKey: string, initial = true) {
-  const [open, setOpen] = useState(initial);
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(`rothern.filters.${storageKey}`);
-      if (v === "0") setOpen(false);
-    } catch {
-      /* depolama yok */
-    }
-  }, [storageKey]);
-  const toggle = (next: boolean) => {
-    setOpen(next);
-    try {
-      localStorage.setItem(`rothern.filters.${storageKey}`, next ? "1" : "0");
-    } catch {
-      /* depolama yok */
-    }
-  };
-  return [open, toggle] as const;
-}
 
-function Group({
-  title,
-  count,
-  onClear,
-  storageKey,
-  children,
-}: {
-  title: string;
-  count: number;
-  onClear: () => void;
-  storageKey: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useOpenState(storageKey);
-  const id = useId();
-  return (
-    <fieldset className="border-t border-zinc-950/5 pt-4 first:border-t-0 first:pt-0">
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={() => setOpen(!open)}
-          className="flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
-        >
-          <legend className="contents">
-            {title}
-            {count > 0 ? <span className="ml-1 normal-case text-zinc-950">({count})</span> : null}
-          </legend>
-          <ChevronDownIcon aria-hidden className={`ml-auto size-4 transition ${open ? "" : "-rotate-90"}`} />
-        </button>
-        {count > 0 ? (
-          <button type="button" onClick={onClear} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-            Temizle
-          </button>
-        ) : null}
-      </div>
-      <div id={id} hidden={!open} className="mt-3 space-y-1">
-        {children}
-      </div>
-    </fieldset>
-  );
-}
 
-function Check({
-  id,
-  label,
-  count,
-  checked,
-  onChange,
-  type = "checkbox",
-  name,
-}: {
-  id: string;
-  label: string;
-  count?: number;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  type?: "checkbox" | "radio";
-  name?: string;
-}) {
-  const disabled = count === 0 && !checked;
-  return (
-    <label
-      htmlFor={id}
-      className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-zinc-100 ${
-        checked ? "font-medium text-zinc-950" : "text-zinc-700"
-      } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <input
-          id={id}
-          name={name}
-          type={type}
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="size-4 shrink-0 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
-        />
-        <span className="line-clamp-1">{label}</span>
-      </span>
-      {count != null ? <span className="shrink-0 text-xs text-zinc-500">{count}</span> : null}
-    </label>
-  );
-}
 
-function ShowMore({
-  items,
-  selected,
-  idPrefix,
-  onToggle,
-}: {
-  items: { key: string; label: string; count: number }[];
-  selected: string[];
-  idPrefix: string;
-  onToggle: (key: string, on: boolean) => void;
-}) {
-  const [all, setAll] = useState(false);
-  // Seçili olanlar her zaman görünür (kısıtlı listede kaybolmasın).
-  const visible = all ? items : items.filter((i, idx) => idx < SHOW || selected.includes(i.key));
-  if (items.length === 0) return <p className="px-2 text-xs text-zinc-400">Seçenek yok</p>;
-  return (
-    <>
-      {visible.map((i) => (
-        <Check
-          key={i.key}
-          id={`${idPrefix}-${i.key}`}
-          label={i.label}
-          count={i.count}
-          checked={selected.includes(i.key)}
-          onChange={(on) => onToggle(i.key, on)}
-        />
-      ))}
-      {items.length > SHOW ? (
-        <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
-          {all ? "Daha az göster" : `Tümünü göster (${items.length})`}
-        </button>
-      ) : null}
-    </>
-  );
-}
 
 function CategoryGroup({
   facets,
@@ -233,7 +92,7 @@ function CategoryGroup({
 }: {
   facets: ProductFacets;
   state: ProductFilterState;
-  update: ReturnType<typeof useFilters>["update"];
+  update: ReturnType<typeof useFilters<ProductFilterState>>["update"];
   idPrefix: string;
 }) {
   const [q, setQ] = useState("");
@@ -270,45 +129,12 @@ function CategoryGroup({
         selected={state.category}
         idPrefix={`${idPrefix}-cat`}
         onSelect={(k) => update({ category: state.category === k ? undefined : k, attrs: [] })}
+        emptyText="Eşleşen kategori yok"
       />
     </Group>
   );
 }
 
-function ShowMoreRadio({
-  items,
-  selected,
-  idPrefix,
-  onSelect,
-}: {
-  items: { key: string; label: string; count: number }[];
-  selected?: string;
-  idPrefix: string;
-  onSelect: (key: string) => void;
-}) {
-  const [all, setAll] = useState(false);
-  const visible = all ? items : items.filter((i, idx) => idx < SHOW || i.key === selected);
-  if (items.length === 0) return <p className="px-2 text-xs text-zinc-400">Eşleşen kategori yok</p>;
-  return (
-    <>
-      {visible.map((i) => (
-        <Check
-          key={i.key}
-          id={`${idPrefix}-${i.key}`}
-          label={i.label}
-          count={i.count}
-          checked={selected === i.key}
-          onChange={() => onSelect(i.key)}
-        />
-      ))}
-      {items.length > SHOW ? (
-        <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
-          {all ? "Daha az göster" : `Tümünü göster (${items.length})`}
-        </button>
-      ) : null}
-    </>
-  );
-}
 
 function PriceGroup({
   facets,
@@ -318,7 +144,7 @@ function PriceGroup({
 }: {
   facets: ProductFacets;
   state: ProductFilterState;
-  update: ReturnType<typeof useFilters>["update"];
+  update: ReturnType<typeof useFilters<ProductFilterState>>["update"];
   idPrefix: string;
 }) {
   const [min, setMin] = useState(state.priceMin?.toString() ?? "");
@@ -361,7 +187,7 @@ function PriceGroup({
 /** Aktif süzgeç çipleri — sticky şerit (grid'in üstünde). */
 export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   const { state, update, clear } = useFilters();
-  const chips: { key: string; label: string; onRemove: () => void }[] = [];
+  const chips: FilterChip[] = [];
   if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? state.category, onRemove: () => update({ category: undefined, attrs: [] }) });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: companyActivityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
@@ -370,28 +196,7 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   if (state.priceMin != null || state.priceMax != null) chips.push({ key: "pr", label: `${state.priceMin ?? 0} – ${state.priceMax ?? "∞"} ₺`, onRemove: () => update({ priceMin: undefined, priceMax: undefined }) });
   if (state.moqMax != null) chips.push({ key: "moq", label: `Min. sipariş ≤ ${state.moqMax}`, onRemove: () => update({ moqMax: undefined }) });
   for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: a.slice(a.indexOf(":") + 1), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
-  if (chips.length === 0) return null;
-  return (
-    <div className="sticky top-20 z-20 -mx-2 mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-white/90 px-2 py-2 text-sm ring-1 ring-zinc-950/5 backdrop-blur">
-      <span className="text-zinc-500">Süzgeçler:</span>
-      {chips.map((c) => (
-        <button
-          key={c.key}
-          type="button"
-          onClick={c.onRemove}
-          className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200"
-        >
-          {c.label}
-          <XMarkIcon aria-hidden className="size-3.5" />
-          <span className="sr-only">süzgecini kaldır</span>
-        </button>
-      ))}
-      <button type="button" onClick={clear} className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600">
-        Tümünü temizle
-      </button>
-      <span className="sr-only">{activeFilterCount(state)} süzgeç aktif</span>
-    </div>
-  );
+  return <FilterChipBar chips={chips} activeCount={activeFilterCount(state)} onClearAll={clear} />;
 }
 
 /** Sıralama — masaüstü çipler (fiyatta yön oku), mobilde <select>. */

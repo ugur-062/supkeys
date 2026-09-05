@@ -2,7 +2,7 @@
 
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 /**
@@ -59,13 +59,23 @@ export function PanelHeroSearch({
   onQueryChange?: (q: string) => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const term = q.trim();
     setOpen(false);
-    router.push(term ? `${action}?q=${encodeURIComponent(term)}` : action);
+    // Sonuç listesi AYNI sayfadaysa (satış: açık talepler anasayfada) seçili
+    // süzgeçler korunur, yalnız arama ve sayfa değişir — başka sayfaya
+    // giderken temiz `?q=`.
+    const keep = new URLSearchParams(action === pathname ? (sp?.toString() ?? "") : "");
+    keep.delete("q");
+    keep.delete("sayfa");
+    const parts = [...keep.entries()].map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    if (term) parts.push(`q=${encodeURIComponent(term)}`);
+    router.push(parts.length ? `${action}?${parts.join("&")}` : action);
   };
   const hasSug = q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
   const tone =

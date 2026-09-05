@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import { PanelHeroSearch } from "../panel-hero-search";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
+const h = vi.hoisted(() => ({ pathname: "/company/satinalma", search: "" }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn() }),
+  usePathname: () => h.pathname,
+  useSearchParams: () => new URLSearchParams(h.search),
+}));
 
 describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
   it("JS'siz de çalışır: form GET ile sonuç sayfasına ?q= gönderir", () => {
@@ -32,5 +37,20 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     expect(screen.getByRole("link", { name: /Kat 0/ })).toHaveAttribute("href", "/x?kategori=0");
     rerender(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" chips={[]} />);
     expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
+  it("sonuç listesi AYNI sayfadaysa seçili süzgeçler korunur, yalnız q ve sayfa değişir", () => {
+    h.pathname = "/company/satis";
+    h.search = "durum=tumu&alici=c1&sayfa=3&q=eski";
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/company/satis" />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "kablo" } });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(push).toHaveBeenLastCalledWith("/company/satis?durum=tumu&alici=c1&q=kablo");
+    // Boş terim: q düşer, süzgeçler kalır.
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(push).toHaveBeenLastCalledWith("/company/satis?durum=tumu&alici=c1");
+    h.pathname = "/company/satinalma";
+    h.search = "";
   });
 });
