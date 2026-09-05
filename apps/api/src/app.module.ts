@@ -31,6 +31,7 @@ import { CompanyListingDocumentsModule } from "./modules/company-listing-documen
 import { CompanyBlocksModule } from "./modules/company-blocks/company-blocks.module";
 import { CompanyComplaintsModule } from "./modules/company-complaints/company-complaints.module";
 import { CompanyConnectionsModule } from "./modules/company-connections/company-connections.module";
+import { CompanyViewsModule } from "./modules/company-views/company-views.module";
 import { CompanyDashboardModule } from "./modules/company-dashboard/company-dashboard.module";
 import { CurrencyModule } from "./modules/currency/currency.module";
 import { CompanyInboxModule } from "./modules/company-inbox/company-inbox.module";
@@ -199,6 +200,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyInboxModule,
     CompanyMessagesModule,
     CompanyDashboardModule,
+    CompanyViewsModule,
     CurrencyModule,
     CompanyQuestionTemplatesModule,
     CompanyDirectoryModule,

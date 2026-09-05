@@ -4,7 +4,7 @@ import { HubList } from "@/components/company/hub-list";
 import { SatinalmaAnalytics } from "@/components/reports/satinalma-analytics";
 import { TimeSavingsStrip } from "@/components/dashboard/time-savings-strip";
 import dynamic from "next/dynamic";
-import { FileText, GitCompare, TrendingUp } from "lucide-react";
+import { Eye, FileText, GitCompare, TrendingUp } from "lucide-react";
 
 // Grafikler (recharts) rota paketine girmesin — tembel + yalnız istemci.
 const ReportsSummaryCharts = dynamic(
@@ -20,8 +20,17 @@ export default function SatinalmaRaporlarPage() {
     <div className="space-y-8">
     <HubList
       title="Raporlar"
-      description="Bir rapor tipi seçin, kriterleri doldurun; sonucu web'de görüntüleyin ya da Excel olarak indirin."
+      description="İş Analizi ile görünürlüğünüzü izleyin; satın alma raporlarında kriterleri doldurup sonucu web'de görün ya da Excel olarak indirin."
       items={[
+        {
+          // İş Analizi (2026-09-05, Europages "Business Insights"): görünürlük,
+          // ziyaretçi, alıcı bağlantıları, teklif/kazanma — Silver+.
+          href: "/company/sirketim/raporlar/is-analizi",
+          label: "İş Analizi",
+          description:
+            "Profil ve ürün görüntülenmeleri, kimliği bilinen ziyaretçiler, bilgi talepleri ve yanıt süresi, davetler, teklif ve kazanma oranı.",
+          icon: Eye,
+        },
         {
           href: "/company/sirketim/raporlar/genel",
           label: "Genel Satın Alma Talebi Raporu",

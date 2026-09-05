@@ -10,6 +10,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
@@ -21,6 +22,7 @@ import {
   PrismaService,
   PrismaBypassService,
 } from "../../../common/prisma/prisma.service";
+import { CompanyViewsService } from "../../company-views/company-views.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -72,6 +74,8 @@ export class CompanyConnectionsService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
     private readonly audit: AuditService,
+    /** Ziyaret Edenler kaydı — SONDA ve isteğe bağlı (elle kurulan test rig'leri kırılmasın). */
+    @Optional() private readonly views?: CompanyViewsService,
   ) {}
 
   /** Kendi Rothern ID. */
@@ -1068,6 +1072,9 @@ export class CompanyConnectionsService {
             : ("pending" as const);
     const connectionId = conn?.id ?? null;
     const connected = connectionStatus === "active" || isSelf;
+    // Ziyaret Edenler: üye başkasının profilini açtı — kimlikli görüntülenme
+    // (erişim denetimlerinden SONRA; fire-and-forget, okumayı düşürmez).
+    if (!isSelf) void this.views?.recordPanelView(user, { companyId: c.id });
 
     // Görünürlük kuralı:
     // - İlişkili (kendisi / bağlı / bekleyen / gelen istek) → her zaman görür.

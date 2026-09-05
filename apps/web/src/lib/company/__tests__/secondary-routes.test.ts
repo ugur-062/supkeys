@@ -40,7 +40,7 @@ describe("ikincil rotalar — menü dışı ama etiketli", () => {
     const sa = new Set(allPortalRoutes(PORTALS.satinalma).map((i) => i.href));
     expect(sa.has(PORTAL_SECONDARY_HREFS.satinalma.sablonlar)).toBe(true);
     expect(PORTALS.satis.secondaryNav).toEqual([]);
-    // Şirketim menüsü: Genel Bakış › Profil › Raporlar (Ziyaret Edenler Faz 2).
-    expect(COMPANY_AREA.nav.map((i) => i.label)).toEqual(["Genel Bakış", "Profil", "Raporlar"]);
+    // Şirketim menüsü: Genel Bakış › Profil › Ziyaret Edenler › Raporlar.
+    expect(COMPANY_AREA.nav.map((i) => i.label)).toEqual(["Genel Bakış", "Profil", "Ziyaret Edenler", "Raporlar"]);
   });
 });

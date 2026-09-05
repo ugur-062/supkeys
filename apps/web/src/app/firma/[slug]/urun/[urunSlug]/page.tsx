@@ -1,3 +1,4 @@
+import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { ProductDetail } from "@/components/marketplace/product-detail";
 import { fetchProduct, fetchRelatedProducts } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -62,11 +63,14 @@ export default async function Page({ params }: { params: Params }) {
   const [data, related] = await Promise.all([fetchProduct(slug, urunSlug), fetchRelatedProducts(slug, urunSlug)]);
   if (!data) notFound();
   return (
+    <>
+    <ViewBeacon type="product" companySlug={slug} productSlug={urunSlug} />
     <ProductDetail
       related={related}
       product={data.product}
       company={data.company}
       companySlug={slug}
     />
+    </>
   );
 }

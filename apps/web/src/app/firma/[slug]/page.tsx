@@ -1,3 +1,4 @@
+import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
 import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
@@ -156,6 +157,7 @@ export default async function PublicCompanyProfile({
             sonra — ziyaretçi kimin sayfasında olduğunu ürünlerden önce
             öğrenmeli. Sayfadaki TEK büyük kayıt kutusu sağ sütunun sonunda
             (`gate.aside`); diğer kapılar satır içi bağlantı. */}
+        <ViewBeacon type="profile" companySlug={slug} />
         <CompanyProfileView
           profile={{
             name: p.name,

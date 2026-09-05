@@ -75,6 +75,11 @@ export class UpdateCompanyProfileDto {
   @IsBoolean()
   publicEnabled?: boolean;
 
+  /** Ziyaretlerim karşı tarafa görünsün (Ziyaret Edenler) — varsayılan açık. */
+  @IsOptional()
+  @IsBoolean()
+  visitsVisible?: boolean;
+
   // Herkese açık profil — zengin alanlar
   @IsOptional()
   @IsString()

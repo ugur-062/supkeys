@@ -5,6 +5,7 @@ import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useCompanyUsers } from "@/hooks/use-company-users";
+import { useVisitors } from "@/hooks/use-company-views";
 import { useReceivedInquiries } from "@/hooks/use-inquiries";
 import { TIER_LABELS } from "@/lib/company/labels";
 import { COMPANY_AREA_BASE } from "@/lib/company/portals";
@@ -15,6 +16,7 @@ import {
   ChartBarIcon,
   CheckBadgeIcon,
   EnvelopeIcon,
+  EyeIcon,
   ShieldExclamationIcon,
   UsersIcon,
 } from "@heroicons/react/20/solid";
@@ -30,7 +32,7 @@ import Link from "next/link";
  *   · Profil tamlığı + vitrin sayıları: `SellerHealthCards` (satış panosuyla
  *     AYNI bileşen, AYNI hesap)
  *   · Bilgi talepleri (yanıt bekleyen), Ekip, Doğrulama, Raporlar
- * Faz 2: Ziyaretçiler kartı (görüntülenme kaydı gelince).
+ *   · Ziyaretçiler (30 gün): `useVisitors` — Ziyaret Edenler ile aynı uç
  */
 export function CompanyOverview() {
   const { company, user } = useCompanyAuth();
@@ -41,6 +43,7 @@ export function CompanyOverview() {
   const tier = profile.data?.tier ?? company?.tier ?? "STANDART";
   const inquiries = useReceivedInquiries(canSell && tierAtLeast(tier, "BRONZ"));
   const users = useCompanyUsers();
+  const visitors = useVisitors(30);
   const p = profile.data;
   const verified = p?.companyVerificationStatus === "VERIFIED";
   const inquiryList = Array.isArray(inquiries.data) ? [] : (inquiries.data?.items ?? []);
@@ -108,6 +111,19 @@ export function CompanyOverview() {
       <SellerHealthCards mode={canSell ? "both" : "profile"} profileHref={`${COMPANY_AREA_BASE}/profil`} />
 
       <section aria-label="Firma özeti" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={EyeIcon}
+          label="Ziyaretçiler (30 gün)"
+          value={visitors.isLoading ? null : (visitors.data?.total ?? 0)}
+          hint={
+            visitors.data
+              ? visitors.data.identified > 0
+                ? `${visitors.data.identified} firma kimliğiyle`
+                : "profil ve ürün görüntülenmesi"
+              : "profil ve ürün görüntülenmesi"
+          }
+          href={`${COMPANY_AREA_BASE}/ziyaretciler`}
+        />
         {canSell && tierAtLeast(tier, "BRONZ") ? (
           <StatCard
             icon={EnvelopeIcon}

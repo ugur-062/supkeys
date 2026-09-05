@@ -214,6 +214,7 @@ yazmadan önce burada karşılığı var mı diye bak.
 
 | Konu | Tek kaynak |
 |------|-----------|
+| Firma alanı menüsü (Şirketim) | `lib/company/portals.ts` `COMPANY_AREA`, `isCompanyAreaPath` |
 | Para/kur bazı (rapor+pano) | `common/company/report-currency.ts` |
 | Kalem toplamı / yuvarlama | `common/company/bid-items.ts` (`roundMoney`, `sumLineTotals*`) |
 | Ödeme durumu | `common/company/order-payments.ts` |
@@ -1002,6 +1003,55 @@ arama kısaltıldı ("pano" kaldı)" der. Taslak gevşetmeden ÖNCEKİ kategoriy
 liste araması artık kelimelere bölünüp AND'lenir (AI 2-4 kelime üretir;
 tam-ifade araması hiç eşleşmiyordu). Yerel `GEMINI_API_KEY` ön ödemeli
 kredisi bitmiş (429) — AI yalnız canlıda (Vertex) doğrulanır.
+
+## Şirketim alanı (2026-09-05, Europages "My Company" kalıbı, kullanıcı kararı)
+
+Üst çubukta sol üstteki firma adı + paket rozeti bir DÜĞME ("Şirketim") — dar
+ekranda hesap menüsünde. İçindeyken sol menü firma menüsüne döner
+(`COMPANY_AREA`, `lib/company/portals.ts`): **Genel Bakış · Profil · Ziyaret
+Edenler · Raporlar**; Satınalma | Satış geçişi üstte KALIR (panele tek tıkla
+dönüş), "Talep aç" CTA'sı çizilmez. Rota portal-nötr: `/company/sirketim/*`.
+Taşınanlar (eski adresler 308): `satinalma/profilim` ve `satis/profilim` →
+`sirketim/profil` (PremiumOnly BRONZ aynen); `satinalma/raporlar/*` →
+`sirketim/raporlar/*`. `profilePath()` ve `PORTAL_SECONDARY_HREFS` yeni
+adresleri döner; sağ üst menüden "Profilim" kalktı. `module-reachability`
+testi `sirketim/` sayfalarını `COMPANY_AREA` menüsüne karşı da denetler.
+
+**Genel Bakış** bir pano DEĞİL: kimlik başlığı (logo, ad, Rothern ID, paket,
+Doğrulanmış) + `SellerHealthCards` (profil tamlığı/vitrin — satış panosuyla
+AYNI hesap) + tek çıkışlı özet kartlar (ziyaretçiler 30 gün, bilgi talepleri,
+ekip, doğrulama, raporlar). Liste/tablo/grafik yok — "aynı içerik iki yerde"
+kuralı.
+
+**Ziyaret Edenler + İş Analizi** (`modules/company-views/`, tablo
+`company_views`, migrasyon `20260905210000_company_views` — eklemeli):
+- Kayıt iki yüzey. PANEL: üye başkasının profilini (`getProfile`) ya da
+  ürününü (`discoverProduct`) açınca kimlikli (`recordPanelView`, servislere
+  `@Optional()` SON parametre — rig-stub kırılmasın); ziyaretçi
+  `Company.visitsVisible=false` dediyse anonimleştirilir (sayı doğru, kimlik
+  yok). PUBLIC: herkese açık profil/ürün sayfası **beacon**'ı
+  (`components/marketplace/view-beacon.tsx` → `POST public/views`, 60/dk/IP,
+  pazar yeri anahtarına tabi değil): sayfa ISR olduğu için sayım istemciden;
+  3 sn okuma + görünür sekme, sekme başına bir kez, `navigator.webdriver`
+  atlanır, **çerezsiz** (giriş yapmış üye burada anonim — kimliği panelde),
+  sunucu bot ajanlarını süzer, ip+ua+gün hash'i ile günlük tekil. **IP'den
+  firma tahmini YOK** (KVKK; Europages "Website Leads" kapsam dışı).
+- Tekilleştirme `dedupeKey` (`c:<firma>|o:<hash>|a:<hash>:<ürün|profile>:<gün>`)
+  + unique, `createMany skipDuplicates`; kendi görüntülemesi kaydedilmez;
+  180 gün sonra cron siler (04:20).
+- `GET company/views/visitors?days=7|30|90&page=`: sayılar HERKESE (toplam,
+  profil/ürün, kimlikli, anonim); kimlikli LİSTE **Bronz+** (Standart'ta
+  `locked` + kaç firma). Satır: firma (logo, ad, şehir, faaliyet, Doğrulanmış),
+  ne baktı (profil / ürün adları), son ziyaret, ziyaret sayısı, Bağlantılı.
+- `GET company/views/insights?days=`: **Silver+** (Raporlar kapısı). Profil/
+  ürün görüntülenmesi ve kimlikli ziyaretçi (önceki dönemle), en çok bakılan 5
+  ürün, ziyaretçi şehirleri, bilgi talebi + ortanca ilk yanıt süresi, gelen
+  bağlantı/talep davetleri, verilen/kazanılan teklif. Sayfa
+  `sirketim/raporlar/is-analizi` (hub'da ilk sıra).
+- Gizlilik anahtarı Profil düzenleyicide ("Ziyaretlerim karşı tarafa
+  görünsün", varsayılan açık) — `UpdateCompanyProfileDto.visitsVisible`.
+Sözleşmeler: `company-views.spec.ts` (API), `visitors-view.test`,
+`view-beacon.test`, `sidebar.test` (Şirketim modu), `secondary-routes.test`.
 
 **Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
 `components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:

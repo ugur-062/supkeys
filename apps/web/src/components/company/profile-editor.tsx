@@ -38,6 +38,7 @@ const MAX_CHIPS = 20;
 /** Editörün taslak alanları — PATCH /company/profile ile birebir (public profil alanları). */
 interface Draft {
   publicEnabled: boolean;
+  visitsVisible: boolean;
   logoUrl: string;
   coverImageUrl: string;
   industry: string;
@@ -56,6 +57,7 @@ interface Draft {
 function toDraft(p: CompanyProfile): Draft {
   return {
     publicEnabled: p.publicEnabled,
+    visitsVisible: p.visitsVisible ?? true,
     logoUrl: p.logoUrl ?? "",
     coverImageUrl: p.coverImageUrl ?? "",
     industry: p.industry ?? "",
@@ -133,6 +135,7 @@ export function ProfileEditor({
     try {
       await update.mutateAsync({
         publicEnabled: draft.publicEnabled,
+        visitsVisible: draft.visitsVisible,
         logoUrl: draft.logoUrl,
         coverImageUrl: draft.coverImageUrl,
         industry: draft.industry,
@@ -345,6 +348,24 @@ export function ProfileEditor({
         findability={findability}
       />
       <MissingFields items={completeness.missing} />
+
+      {/* Gizlilik: Ziyaret Edenler'de karşı tarafa görünürlük (2026-09-05).
+          Kapalıysa görüntülemelerim yine sayılır ama adım yazılmaz. */}
+      <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5">
+        <input
+          type="checkbox"
+          checked={draft.visitsVisible}
+          disabled={!canEdit}
+          onChange={(e) => set({ visitsVisible: e.target.checked })}
+          className="mt-0.5 size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
+        />
+        <span className="text-sm">
+          <span className="font-medium text-zinc-950">Ziyaretlerim karşı tarafa görünsün</span>
+          <span className="mt-0.5 block text-xs text-zinc-500">
+            İncelediğiniz firmalar, Ziyaret Edenler listesinde firmanızı adıyla görür. Kapatırsanız ziyaretiniz yalnız sayı olarak kalır.
+          </span>
+        </span>
+      </label>
 
       <CompanyProfileView profile={viewData} edit={slots} />
 

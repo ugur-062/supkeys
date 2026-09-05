@@ -43,6 +43,7 @@ const PROFILE: CompanyProfile = {
   postalCode: null,
   aboutText: "Biz demo firmayız.",
   publicEnabled: true,
+      visitsVisible: true,
   logoUrl: "https://cdn/logo.png",
   coverImageUrl: null,
   linkedinUrl: null,

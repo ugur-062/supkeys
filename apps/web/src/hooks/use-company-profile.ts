@@ -16,6 +16,8 @@ export interface CompanyProfile {
   postalCode: string | null;
   aboutText: string | null;
   publicEnabled: boolean;
+  /** Ziyaretlerim karşı tarafa görünsün (Ziyaret Edenler) — varsayılan açık. */
+  visitsVisible: boolean;
   logoUrl: string | null;
   coverImageUrl: string | null;
   linkedinUrl: string | null;
@@ -65,6 +67,7 @@ export type CompanyProfileUpdate = Partial<
     | "postalCode"
     | "aboutText"
     | "publicEnabled"
+    | "visitsVisible"
     | "logoUrl"
     | "coverImageUrl"
     | "linkedinUrl"

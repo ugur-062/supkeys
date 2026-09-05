@@ -667,6 +667,11 @@ model Company {
   @@index([companyVerificationStatus])
   // Faaliyet tipi dizisi — migration 20260901120000 GIN; drift kapısı için beyan.
   @@index([activities], type: Gin, map: "companies_activities_idx")
+  /** Ziyaretlerim karşı tarafa görünsün (Ziyaret Edenler) — kapalıysa görüntüleme anonim sayılır. */
+  visitsVisible          Boolean @default(true)
+  viewsReceived          CompanyView[] @relation("ViewTarget")
+  viewsMade              CompanyView[] @relation("ViewViewer")
+
   @@map("companies")
 }
 
@@ -1788,6 +1793,8 @@ model CompanyItem {
   @@index([companyId, categoryId])
   // Vitrin sorgusu: yayımlanmış ürünler, yeni önce.
   @@index([isPublic, publishedAt])
+  views CompanyView[]
+
   @@map("company_items")
 }
 
@@ -2394,3 +2401,37 @@ model TimeSavingsConfig {
 
   @@map("time_savings_configs")
 }
+
+// ─── Ziyaret Edenler (2026-09-05, Europages "Your Visitors") ──────────────────
+enum CompanyViewSurface {
+  PANEL
+  PUBLIC
+}
+
+/**
+ * Profil/ürün görüntülenmesi. PANEL: giriş yapmış üye (kimlikli — viewer
+ * dolu; ziyaretçi "görünmesin" dediyse anonimleştirilir). PUBLIC: herkese
+ * açık sayfa beacon'ı (anonim). Aynı ziyaretçi aynı gün aynı sayfayı bir kez
+ * sayılır (`dedupeKey`); kendi görüntülemesi kaydedilmez; 180 gün sonra silinir.
+ */
+model CompanyView {
+  id              String             @id @default(cuid())
+  targetCompanyId String
+  targetCompany   Company            @relation("ViewTarget", fields: [targetCompanyId], references: [id], onDelete: Cascade)
+  viewerCompanyId String?
+  viewerCompany   Company?           @relation("ViewViewer", fields: [viewerCompanyId], references: [id], onDelete: SetNull)
+  viewerUserId    String?
+  productId       String?
+  product         CompanyItem?       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  surface         CompanyViewSurface
+  /** `<c:viewerCompanyId|o:hash|a:hash>:<productId|profile>:<YYYY-MM-DD>` */
+  dedupeKey       String
+  viewedAt        DateTime           @default(now())
+
+  @@unique([targetCompanyId, dedupeKey])
+  @@index([targetCompanyId, viewedAt])
+  @@index([viewerCompanyId, viewedAt])
+  @@index([productId])
+  @@map("company_views")
+}
+

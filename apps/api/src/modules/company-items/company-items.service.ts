@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { Prisma, type CompanyItemPriceMode, type Currency } from "@rothern/db";
 import {
@@ -44,6 +45,7 @@ import {
   type ProductLike,
 } from "../../common/company/product-completion";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { CompanyViewsService } from "../company-views/company-views.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
@@ -181,6 +183,8 @@ export class CompanyItemsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly storage: StorageService,
+    /** Ziyaret Edenler kaydı — SONDA ve isteğe bağlı (elle kurulan test rig'leri kırılmasın). */
+    @Optional() private readonly views?: CompanyViewsService,
   ) {}
 
   /** Arama + sayfalama. Sıralama: sık kullanılan ve yakında kullanılan üstte. */
@@ -606,6 +610,7 @@ export class CompanyItemsService {
       },
       select: {
         ...PUBLIC_PRODUCT_SELECT,
+        id: true,
         priceAmount: true,
         priceTiers: true,
         priceCurrency: true,
@@ -614,7 +619,8 @@ export class CompanyItemsService {
     });
     if (!row) throw new NotFoundException("Ürün bulunamadı");
     const attributeDefs = await resolveCategoryAttributes(this.prisma, row.categoryId);
-    void user;
+    // Ziyaret Edenler: üye ürünü açtı — kimlikli görüntülenme (fire-and-forget).
+    void this.views?.recordPanelView(user, { companyId: company.id, productId: row.id });
     return {
       product: {
         ...toPublicProduct(row),

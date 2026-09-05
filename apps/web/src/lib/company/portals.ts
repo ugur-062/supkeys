@@ -2,6 +2,7 @@ import { tierAtLeast } from "@rothern/shared";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import {
   BuildingOffice2Icon,
+  EyeIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
   ClipboardDocumentListIcon,
@@ -65,7 +66,7 @@ export const profilePath = (_portal: PortalKey) => `${COMPANY_AREA_BASE}/profil`
 /**
  * ŞİRKETİM — firma alanı (2026-09-05, Europages "My Company" kalıbı, kullanıcı
  * kararı). Üst çubuktaki firma adı bu alana girer; içindeyken sol menü
- * DEĞİŞİR: Genel Bakış · Profil · Raporlar (· Ziyaret Edenler, Faz 2).
+ * DEĞİŞİR: Genel Bakış · Profil · Ziyaret Edenler · Raporlar.
  * Satınalma | Satış geçişi üstte kalır (panele tek tıkla dönüş). Portal-nötr
  * rota (`/company/sirketim/*`); Profilim'in iki portal adresi ve satınalma
  * raporları buraya taşındı (eski adresler 308).
@@ -87,6 +88,8 @@ export const COMPANY_AREA: CompanyAreaDef = {
     { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
     // Herkese açık profil PAKET özelliği (BRONZ+) — eski Profilim kapısıyla aynı.
     { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil`, minTier: "BRONZ" },
+    // Sayılar herkese açık, kimlikli liste Bronz+ (sayfa içinde kilit) — menüde kapı yok.
+    { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler` },
     { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER" },
   ],
   secondaryNav: [],

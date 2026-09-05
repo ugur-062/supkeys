@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CompanyViewsModule } from "../company-views/company-views.module";
 import { CompanyAuthModule } from "../company-auth/company-auth.module";
 import { CompanyBlocksModule } from "../company-blocks/company-blocks.module";
 import { EmailModule } from "../email/email.module";
@@ -9,7 +10,7 @@ import { CompanyDirectoryController } from "./controllers/company-directory.cont
 import { CompanyConnectionsService } from "./services/company-connections.service";
 
 @Module({
-  imports: [CompanyAuthModule, CompanyBlocksModule, EmailModule, NotificationModule],
+  imports: [CompanyAuthModule, CompanyBlocksModule, EmailModule, NotificationModule, CompanyViewsModule],
   controllers: [CompanyConnectionsController, CompanyDirectoryController, ReferralOptOutController],
   providers: [CompanyConnectionsService],
   // Faz AI-2: asistan araçları bu servisi kullanıcı kimliğiyle çağırır.

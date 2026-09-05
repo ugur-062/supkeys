@@ -44,6 +44,7 @@ const SELECT = {
   postalCode: true,
   aboutText: true,
   publicEnabled: true,
+  visitsVisible: true,
   logoUrl: true,
   coverImageUrl: true,
   linkedinUrl: true,
@@ -207,6 +208,7 @@ export class CompanyProfileService {
     if (dto.aboutText !== undefined)
       data.aboutText = dto.aboutText.trim() || null;
     if (dto.publicEnabled !== undefined) data.publicEnabled = dto.publicEnabled;
+    if (dto.visitsVisible !== undefined) data.visitsVisible = dto.visitsVisible;
     if (dto.logoUrl !== undefined) data.logoUrl = dto.logoUrl.trim() || null;
     if (dto.coverImageUrl !== undefined)
       data.coverImageUrl = dto.coverImageUrl.trim() || null;

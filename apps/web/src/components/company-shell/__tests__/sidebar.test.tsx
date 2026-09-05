@@ -147,7 +147,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     h.pathname = "/company/sirketim/profil";
     render(<CompanySidebarContent expanded showPin={false} />);
     const labels = Array.from(document.querySelectorAll("nav a")).map((a) => a.textContent?.trim());
-    expect(labels).toEqual(["Genel Bakış", "Profil", "Raporlar"]);
+    expect(labels).toEqual(["Genel Bakış", "Profil", "Ziyaret Edenler", "Raporlar"]);
     expect(screen.getByText("Şirketim")).toBeInTheDocument();
     expect(screen.queryByText("Ürünlerim")).not.toBeInTheDocument();
     expect(screen.queryByText("Taleplerim")).not.toBeInTheDocument();
