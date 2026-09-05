@@ -10,7 +10,7 @@ import { useState, type FormEvent } from "react";
 /**
  * ÜST ÇUBUK ARAMASI — Europages'in her sayfada duran arama kutusunun panel
  * karşılığı (2026-09-05, kullanıcı kararı). Portal duyarlı:
- *   satinalma → ürün arar     (`/company/satinalma/urunler?q=`)
+ *   satinalma → ürün/firma arar (`/company/satinalma?q=` — liste anasayfada)
  *   satis     → açık talep arar (`/company/satis?q=` — liste anasayfada)
  *
  * Anasayfalarda büyük kutu (`PanelHeroSearch`, `[data-hero-search]`)
@@ -20,7 +20,7 @@ import { useState, type FormEvent } from "react";
  * sayfadan tek tıkla aramaya ulaşılır.
  */
 export const TOPBAR_SEARCH: Record<PortalKey, { action: string; placeholder: string }> = {
-  satinalma: { action: "/company/satinalma/urunler", placeholder: "Ürün ara" },
+  satinalma: { action: "/company/satinalma", placeholder: "Ürün veya firma ara" },
   satis: { action: "/company/satis", placeholder: "Açık talep ara" },
 };
 

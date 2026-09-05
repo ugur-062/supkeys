@@ -66,10 +66,6 @@ export const MODULE_LABELS = {
     // Portal bağlamı zaten "Satınalma" — menüde kısa biçim yeterli ve
     // "Taleplerim" sol menüde taşıyordu.
     ihalelerim: "Taleplerim",
-    // BAŞKA firmaların vitrinleri. Satıştaki "Ürünlerim" firmanın KENDİ
-    // kataloğu; ikisi menüde yan yana okunduğunda ayırt edilemiyordu
-    // (kullanıcı geri bildirimi 2026-09-03) → burada FİİL kullanıyoruz.
-    urunAra: "Ürün Ara",
     // Satıştaki "Bilgi Talepleri" ile karıştırılmamalı: orası ürünlerime
     // GELEN sorular, burası benim GÖNDERDİKLERİM. Ayrımı iyelik kipi taşıyor
     // ("Ürünlerim"/"Ürün Ara" ile aynı kural).
@@ -127,15 +123,9 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
     ],
     secondaryNav: [
-      {
-        // Sol menüde DEĞİL (2026-09-05, kullanıcı kararı): anasayfadaki
-        // Europages tarzı "Ne arıyorsunuz?" kutusu tek giriş; sonuç sayfası
-        // (süzgeçli) burada kayıtlı kalır — breadcrumb, başlık, keşif seçkisi
-        // "Tüm ürünler" bağlantısı.
-        icon: CubeIcon,
-        label: MODULE_LABELS.satinalma.urunAra,
-        href: "/company/satinalma/urunler",
-      },
+      // "Ürün Ara" ROTASI YOK (2026-09-05): başka firmaların vitrini
+      // satınalma ANASAYFASINA gömülü (arama + kenar süzgeçli liste);
+      // ürün detayı `urunler/<firma>/<ürün>` altında yaşamaya devam eder.
       {
         icon: ChartBarIcon,
         label: "Raporlar",

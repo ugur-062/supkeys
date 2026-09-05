@@ -213,6 +213,62 @@ describe("sellerTenders", () => {
     expect(rows.find((r) => r.id === noMatch.id)?.categoryMatch).toBe(false);
   });
 
+  it("ÜRÜN eşleşmesi: katalog ürünü kategoriyle (L3 ata) ve kalem adıyla eşler; itemNames döner; sırada kategori eşleşenin üstünde", async () => {
+    const { service } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    await connect(prisma, buyer.company.id, seller.company.id, buyer.user.id);
+    // Beyan: segment 20 (madencilik). Katalog: elektrik panosu (39121501).
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { sellerCategoryIds: ["20000000"] },
+    });
+    await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id,
+        createdById: seller.user.id,
+        name: "Kompanzasyon Panosu 400 kVAr",
+        unit: "adet",
+        categoryId: "39121501",
+        keywords: ["kompanzasyon"],
+      },
+    });
+    const mk = (over: Record<string, unknown>) =>
+      makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        type: "ALIM",
+        visibility: "CONNECTIONS",
+        ...over,
+      });
+    // Aynı L3 sınıfı (39121500) → kategori yoluyla ürün eşleşmesi.
+    const byCategory = await mk({ title: "Elektrik malzemesi alımı", categoryIds: ["39121503"] });
+    // Kategori uzak, kalem adı ürünle örtüşüyor → metin yoluyla.
+    const byText = await mk({ title: "Trafo merkezi tedariki", categoryIds: ["26101500"] });
+    await makeItem(prisma, byText.id, { name: "Kompanzasyon panosu 200 kVAr" });
+    // Yalnız beyan edilen segment eşleşir (categoryMatch), ürün eşleşmez.
+    const declaredOnly = await mk({ title: "Madencilik ekipmanı", categoryIds: ["20101500"] });
+    const none = await mk({ title: "Kağıt alımı", categoryIds: ["14111500"] });
+
+    const rows = await service.sellerTenders(seller.auth);
+    const row = (id: string) => rows.find((r) => r.id === id)!;
+    expect(row(byCategory.id).productMatch).toBe(true);
+    expect(row(byCategory.id).matchedProduct).toBe("Kompanzasyon Panosu 400 kVAr");
+    expect(row(byCategory.id).matchReason).toBe("Ürününüz bu kategoride: Kompanzasyon Panosu 400 kVAr");
+    expect(row(byText.id).productMatch).toBe(true);
+    expect(row(byText.id).matchReason).toBe("Ürününüzle eşleşiyor: Kompanzasyon Panosu 400 kVAr");
+    expect(row(byText.id).itemNames).toEqual(["Kompanzasyon panosu 200 kVAr"]);
+    expect(row(declaredOnly.id).productMatch).toBe(false);
+    expect(row(declaredOnly.id).categoryMatch).toBe(true);
+    expect(row(none.id).productMatch).toBe(false);
+    expect(row(none.id).itemNames).toEqual([]);
+    // Merdiven: ürün eşleşmesi › kategori eşleşmesi › gerisi.
+    const idx = (id: string) => rows.findIndex((r) => r.id === id);
+    expect(idx(byCategory.id)).toBeLessThan(idx(declaredOnly.id));
+    expect(idx(byText.id)).toBeLessThan(idx(declaredOnly.id));
+    expect(idx(declaredOnly.id)).toBeLessThan(idx(none.id));
+  });
+
   it("öncelik sıralaması: davetli > bağlantılı > herkese açık (connected alanı döner)", async () => {
     const { service } = makeService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });

@@ -38,6 +38,12 @@ export interface SellerTenderRow {
   matchScore?: number;
   categories: { code: string; name: string }[];
   extraCategoryCount: number;
+  /** İlk 20 kalem adı — arama "kalem" ile de bulsun (2026-09-05). */
+  itemNames?: string[];
+  /** Kataloğumdaki bir ürün talebin kategorisi/kalemleriyle eşleşiyor. */
+  productMatch?: boolean;
+  /** Eşleşen ürünün adı (kullanıcı yüzü). */
+  matchedProduct?: string | null;
 }
 
 /** Başka firmaların AÇIK ALIM talepleri (Açık Talepler). */

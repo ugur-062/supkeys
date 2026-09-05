@@ -243,8 +243,10 @@ export class CompanyItemsController {
     @Query("priceMin") priceMin?: string,
     @Query("priceMax") priceMax?: string,
     @Query("moqMax") moqMax?: string,
+    @Query("pageSize") pageSize?: string,
   ) {
     const n = Number(page);
+    const ps = Number(pageSize);
     const num = (v?: string) => {
       const x = Number(v);
       return v != null && v !== "" && Number.isFinite(x) && x >= 0 ? Math.trunc(x) : undefined;
@@ -262,6 +264,7 @@ export class CompanyItemsController {
       sort: sort === "newest" || sort === "price" || sort === "price_desc" ? sort : undefined,
       attr: attr == null ? undefined : (Array.isArray(attr) ? attr : [attr]).slice(0, 6),
       page: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
+      pageSize: Number.isFinite(ps) && ps > 0 ? Math.trunc(ps) : undefined,
     });
   }
 

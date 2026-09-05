@@ -116,6 +116,9 @@ const nextConfig: NextConfig = {
       // Satış ilanı KALDIRILDI (2026-09-04): eski herkese açık liste/detay
       // adresleri ve panel şablonu ürün dizinine/Ürünlerim'e döner — gönderilmiş
       // e-posta ve dış bağlantılar 404 yerine anlamlı bir sayfaya insin.
+      // Ürün Ara sayfası satınalma ANASAYFASINA gömüldü (2026-09-05) — sorgu
+      // (?q=&kategori=…) aynen taşınır; ürün detayı (`urunler/<firma>/<ürün>`) durur.
+      { source: "/company/satinalma/urunler", destination: "/company/satinalma", permanent: true },
       { source: "/satilik", destination: "/urunler", permanent: true },
       { source: "/ilan/:path*", destination: "/urunler", permanent: true },
       {

@@ -430,20 +430,77 @@ export class CompanyItemsService {
    * (`common/company/product-index.ts`); tek fark KENDİ ürünlerin hariç.
    * Sayfalı döner; pano şeridi eski `discoverProducts` (dizi) ile devam eder.
    */
-  async discoverSearch(user: AuthenticatedCompanyUser, q: ProductIndexParams & { page?: number }) {
+  async discoverSearch(
+    user: AuthenticatedCompanyUser,
+    q: ProductIndexParams & { page?: number; pageSize?: number },
+  ) {
     const page = Math.max(1, q.page ?? 1);
+    const size = Math.min(Math.max(q.pageSize ?? PRODUCT_PAGE_SIZE, 1), 48);
     const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }]);
-    const [total, rows] = await Promise.all([
+    const orderBy = productIndexOrderBy(q.sort);
+    const skip = (page - 1) * size;
+    // ALICIYA GÖRE UYGUNLUK (2026-09-05): sıralama seçilmemişse ("uygunluk")
+    // firmanın ALIM kategorileriyle (ana + alt) örtüşen ürünler ÖNCE gelir —
+    // "size uygun ürünler" ayrı bir blok değil, listenin varsayılan düzeni.
+    // Açık sıralamada (en yeni / fiyat) karışmaz. Sayfalama iki kümenin
+    // birleşimi üzerinden: önce eşleşenler tükenir, sonra kalanlar.
+    const prefixes = q.sort ? [] : await this.buyerCategoryPrefixes(user.companyId);
+    if (prefixes.length === 0) {
+      const [total, rows] = await Promise.all([
+        this.prisma.companyItem.count({ where }),
+        this.prisma.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
+      ]);
+      return { items: rows.map(toProductIndexCard), total, page, pageSize: size };
+    }
+    const matchClause: Prisma.CompanyItemWhereInput = {
+      OR: prefixes.map((p) => ({ categoryId: { startsWith: p } })),
+    };
+    const matchWhere: Prisma.CompanyItemWhereInput = { AND: [where, matchClause] };
+    const restWhere: Prisma.CompanyItemWhereInput = { AND: [where, { NOT: matchClause }] };
+    const [total, matched] = await Promise.all([
       this.prisma.companyItem.count({ where }),
-      this.prisma.companyItem.findMany({
-        where,
-        select: PRODUCT_INDEX_SELECT,
-        orderBy: productIndexOrderBy(q.sort),
-        skip: (page - 1) * PRODUCT_PAGE_SIZE,
-        take: PRODUCT_PAGE_SIZE,
-      }),
+      this.prisma.companyItem.count({ where: matchWhere }),
     ]);
-    return { items: rows.map(toProductIndexCard), total, page, pageSize: PRODUCT_PAGE_SIZE };
+    const head =
+      skip < matched
+        ? await this.prisma.companyItem.findMany({
+            where: matchWhere,
+            select: PRODUCT_INDEX_SELECT,
+            orderBy,
+            skip,
+            take: Math.min(size, matched - skip),
+          })
+        : [];
+    const need = size - head.length;
+    const tail =
+      need > 0
+        ? await this.prisma.companyItem.findMany({
+            where: restWhere,
+            select: PRODUCT_INDEX_SELECT,
+            orderBy,
+            skip: Math.max(0, skip - matched),
+            take: need,
+          })
+        : [];
+    return {
+      items: [
+        ...head.map((r) => ({ ...toProductIndexCard(r), matchesProfile: true })),
+        ...tail.map((r) => ({ ...toProductIndexCard(r), matchesProfile: false })),
+      ],
+      total,
+      page,
+      pageSize: size,
+    };
+  }
+
+  /** Firmanın ALIM kategorileri (L1 ana + L2-4 alt) → kod ön ekleri. */
+  private async buyerCategoryPrefixes(companyId: string): Promise<string[]> {
+    const c = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { buyerCategoryIds: true, buyerSubCategoryIds: true },
+    });
+    const codes = [...(c?.buyerCategoryIds ?? []), ...(c?.buyerSubCategoryIds ?? [])];
+    return [...new Set(codes.map((k) => categoryPrefix(k)).filter((p): p is string => !!p))].slice(0, 60);
   }
 
   /** Ürün Ara süzgeç sayaçları — public ile AYNI bağlama duyarlı sayım; kendi ürünler hariç. */

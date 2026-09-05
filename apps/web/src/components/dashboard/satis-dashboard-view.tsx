@@ -12,7 +12,7 @@ import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { PackagePlus } from "lucide-react";
 import { useMyBids } from "@/hooks/use-company-listings";
-import { rowSegments } from "@/lib/company/request-facets";
+import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/request-facets";
 import { useOrders } from "@/hooks/use-company-orders";
 import {
   selectActiveOffers,
@@ -80,16 +80,40 @@ export function SatisDashboardView() {
     if (q.length < 2) return [];
     const lower = q.toLocaleLowerCase("tr-TR");
     const hit = (t: string) => t.toLocaleLowerCase("tr-TR").includes(lower);
-    const rows = (tenders.data ?? [])
-      .filter((t) => t.status === "OPEN" && (hit(t.title) || hit(t.number ?? "") || hit(t.owner?.name ?? "")))
+    // Talep: başlık · numara · alıcı · KALEM adı · kategori adı (samanlık
+    // listeyle AYNI fonksiyondan). Kalemden bulunduysa satır "Kalem: …" der.
+    const open = (tenders.data ?? []).filter((t) => t.status === "OPEN");
+    const rows = open
+      .filter((t) => searchHaystack(t).includes(lower))
       .slice(0, 5)
-      .map((t) => ({ key: t.id, label: t.title, meta: t.owner?.name ?? undefined, href: `/company/ilan/${t.id}` }));
+      .map((t) => {
+        const item = matchedItemName(t, q);
+        return {
+          key: t.id,
+          label: t.title,
+          meta: item ? `Kalem: ${item}` : (t.owner?.name ?? undefined),
+          href: `/company/ilan/${t.id}`,
+        };
+      });
+    // Alıcı firmalar (açık talep sayısıyla) → listeyi o alıcıya süzer.
+    const buyerMap = new Map<string, { name: string; n: number }>();
+    for (const t of open) {
+      if (!t.owner?.id || !hit(t.owner.name)) continue;
+      const e = buyerMap.get(t.owner.id) ?? { name: t.owner.name, n: 0 };
+      e.n += 1;
+      buyerMap.set(t.owner.id, e);
+    }
+    const buyers = [...buyerMap.entries()]
+      .sort((a, b) => b[1].n - a[1].n)
+      .slice(0, 3)
+      .map(([id, e]) => ({ key: id, label: e.name, meta: `${e.n} açık talep`, href: `/company/satis?alici=${id}#acik-talepler` }));
     const secs = sectorCounts
       .filter((c) => hit(c.name))
       .slice(0, 3)
-      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} açık talep`, href: `/company/satis?kategori=${c.id}` }));
+      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} açık talep`, href: `/company/satis?kategori=${c.id}#acik-talepler` }));
     return [
       { label: "Açık talepler", rows },
+      { label: "Alıcılar", rows: buyers },
       { label: "Sektörler", rows: secs },
     ];
   }, [q, tenders.data, sectorCounts]);

@@ -13,8 +13,8 @@ describe("TopbarSearch — üst çubukta portal duyarlı arama", () => {
 
   it("satınalma: ürün arar; satış: açık talep arar (anasayfa listesi)", () => {
     const { rerender } = render(<TopbarSearch portal="satinalma" />);
-    expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satinalma/urunler");
-    expect(screen.getByRole("searchbox", { name: "Ürün ara" })).toBeInTheDocument();
+    expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satinalma");
+    expect(screen.getByRole("searchbox", { name: "Ürün veya firma ara" })).toBeInTheDocument();
     rerender(<TopbarSearch portal="satis" />);
     expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satis");
     expect(screen.getByRole("searchbox", { name: "Açık talep ara" })).toBeInTheDocument();

@@ -140,7 +140,7 @@ export function usePublicProduct(companySlug: string, productSlug: string) {
  * ÜRÜN ARA — herkese açık `/urunler` ile AYNI süzgeç/sıralama (API tek
  * kaynak `product-index.ts`), sayfalı; kendi ürünler hariç.
  */
-export function useDiscoverSearch(params: ProductListParams & { page?: number }) {
+export function useDiscoverSearch(params: ProductListParams & { page?: number; pageSize?: number }) {
   return useQuery<ProductIndexPage>({
     queryKey: ["company-items", "discover-search", params],
     queryFn: async () => {
@@ -157,6 +157,7 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number })
       if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
       for (const a of params.attr ?? []) sp.append("attr", a);
       if (params.page && params.page > 1) sp.set("page", String(params.page));
+      if (params.pageSize) sp.set("pageSize", String(params.pageSize));
       const qs = sp.toString();
       const { data } = await companyApi.get<ProductIndexPage>(`/company/items/discover/search${qs ? `?${qs}` : ""}`);
       return data;

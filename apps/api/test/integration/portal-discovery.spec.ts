@@ -142,3 +142,55 @@ describe("keşif — tekil ürün (üye katmanı)", () => {
     ).rejects.toThrow(/bulunamadı/);
   });
 });
+
+describe("keşif — Ürün Ara (discoverSearch)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("uygunluk: alıcının ALIM kategorisiyle örtüşen ürünler ÖNCE (matchesProfile); açık sıralamada karışmaz", async () => {
+    const t0 = new Date("2026-09-01T00:00:00Z");
+    const t1 = new Date("2026-09-02T00:00:00Z");
+    const el = await makePublicProduct({ categoryId: "39121000", completionScore: 40, publishedAt: t0 }); // elektrik
+    const kg = await makePublicProduct({ categoryId: "14111500", completionScore: 90, publishedAt: t1 }); // kağıt, daha eksiksiz
+    const me = await makeCompanyWithUser(prisma);
+    await prisma.company.update({
+      where: { id: me.company.id },
+      data: { buyerCategoryIds: ["39000000"] },
+    });
+    const rel = await items().discoverSearch(me.auth, {});
+    expect(rel.items.map((i) => i.name)).toEqual([el.item.name, kg.item.name]);
+    expect(rel.items.map((i) => i.matchesProfile)).toEqual([true, false]);
+    expect(rel.total).toBe(2);
+    const newest = await items().discoverSearch(me.auth, { sort: "newest" });
+    expect(newest.items.map((i) => i.name)).toEqual([kg.item.name, el.item.name]);
+    expect("matchesProfile" in newest.items[0]).toBe(false);
+    // Alım kategorisi beyan etmemiş alıcı: düz sıralama (eksiksiz önce).
+    const other = await makeCompanyWithUser(prisma);
+    expect((await items().discoverSearch(other.auth, {})).items.map((i) => i.name)).toEqual([kg.item.name, el.item.name]);
+  });
+
+  it("sayfalama iki kümeyi birleştirir: pageSize=1 → 1. sayfa eşleşen, 2. sayfa kalan", async () => {
+    const el = await makePublicProduct({ categoryId: "39121000" });
+    const kg = await makePublicProduct({ categoryId: "14111500" });
+    const me = await makeCompanyWithUser(prisma);
+    await prisma.company.update({ where: { id: me.company.id }, data: { buyerSubCategoryIds: ["39120000"] } });
+    const p1 = await items().discoverSearch(me.auth, { page: 1, pageSize: 1 });
+    const p2 = await items().discoverSearch(me.auth, { page: 2, pageSize: 1 });
+    expect(p1.items.map((i) => i.name)).toEqual([el.item.name]);
+    expect(p2.items.map((i) => i.name)).toEqual([kg.item.name]);
+    expect(p1.pageSize).toBe(1);
+    expect(p1.total).toBe(2);
+  });
+
+  it("arama: firma ADIYLA da bulur; Türkçe karakter katlanır (ÇELİK → celik)", async () => {
+    const a = await makePublicProduct({ name: "Çelik Boru", searchText: "celik boru" });
+    await prisma.company.update({ where: { id: a.company.id }, data: { name: "Trakya Elektrik" } });
+    const other = await makePublicProduct();
+    const me = await makeCompanyWithUser(prisma);
+    expect((await items().discoverSearch(me.auth, { q: "trakya" })).items.map((i) => i.name)).toEqual(["Çelik Boru"]);
+    expect((await items().discoverSearch(me.auth, { q: "ÇELİK" })).items.map((i) => i.name)).toEqual(["Çelik Boru"]);
+    expect((await items().discoverSearch(me.auth, { q: "pano" })).items.map((i) => i.name)).toEqual([other.item.name]);
+  });
+});
+

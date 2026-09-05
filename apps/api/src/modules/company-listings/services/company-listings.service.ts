@@ -24,6 +24,7 @@ import {
   type ListingVisibility,
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
+import { buildProductMatcher, productMatchReason } from "../../../common/company/product-request-match";
 import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
@@ -2149,7 +2150,7 @@ export class CompanyListingsService {
     opts: { limit?: number; openOnly?: boolean } = {},
   ) {
     const companyId = user.companyId;
-    const [connectedIds, blockedIds, myCompany] = await Promise.all([
+    const [connectedIds, blockedIds, myCompany, myProducts] = await Promise.all([
       this.connectedCompanyIds(companyId),
       this.blocks.blockedCompanyIds(companyId),
       this.prisma.company.findUnique({
@@ -2161,7 +2162,18 @@ export class CompanyListingsService {
           buyerSubCategoryIds: true,
         },
       }),
+      // ÜRÜN EŞLEŞMESİ (2026-09-05): satıcının katalog ürünleri (taslak dahil
+      // — ne sattığının beyanı) talebin kategorisi/kalemleriyle karşılaştırılır.
+      type === "ALIM"
+        ? this.prisma.companyItem.findMany({
+            where: { companyId, isActive: true },
+            select: { name: true, categoryId: true, keywords: true },
+            orderBy: { updatedAt: "desc" },
+            take: 500,
+          })
+        : Promise.resolve([]),
     ]);
+    const productMatcher = buildProductMatcher(myProducts);
     const myCountry = user.country;
 
     const baseWhere = {
@@ -2193,11 +2205,12 @@ export class CompanyListingsService {
       // (pazar yerindeki `deriveCover` ile AYNI kural — iki yerde farklı
       // kapak göstermek aynı ilanı iki farklı kayıt gibi okuturdu).
       coverImageUrl: true,
+      // Kalemler: kapak (ilk görselli kalem) + kalem ADLARI (arama ve ürün
+      // eşleşmesi — "kalem" araması 2026-09-05; ilk 60 satır).
       items: {
-        where: { images: { isEmpty: false } },
-        select: { images: true },
+        select: { name: true, images: true },
         orderBy: { lineNo: "asc" as const },
-        take: 1,
+        take: 60,
       },
     };
 
@@ -2292,6 +2305,10 @@ export class CompanyListingsService {
       const connected = connectedIds.includes(l.companyId);
       const invited = invitedSet.has(l.id);
       const bid = bidByListing.get(l.id);
+      const pm = productMatcher.match(
+        l.categoryIds,
+        `${l.title} ${l.items.map((i) => i.name).join(" ")}`,
+      );
       const masked =
         listingBidEligibility(l.visibility, {
           isInvited: invited,
@@ -2322,7 +2339,10 @@ export class CompanyListingsService {
         // Şehir kimlik DEĞİL nitelik: maskeli kartta da kalır (teklif verecek
         // tarafın lojistik kararı için gerekli, pazar yeriyle aynı çizgi).
         ownerCity: l.company.city,
-        coverImageUrl: l.coverImageUrl ?? l.items[0]?.images[0] ?? null,
+        coverImageUrl:
+          l.coverImageUrl ?? l.items.find((i) => i.images.length > 0)?.images[0] ?? null,
+        // Kalem adları (ilk 20): satış anasayfası araması "kalem" ile bulsun.
+        itemNames: l.items.slice(0, 20).map((i) => i.name),
         masked,
         canBid,
         invited,
@@ -2332,6 +2352,11 @@ export class CompanyListingsService {
         myBidStatus: bid?.status ?? null,
         myBidVersion: bid?.version ?? null,
         categoryMatch: matchesMyCategories(l.categoryIds),
+        // Katalog ürünüyle eşleşme (kategori ata zinciri ya da ad/anahtar
+        // kelime ↔ başlık/kalem adı) — "ilgili ürünlerine göre".
+        productMatch: pm.matched,
+        matchedProduct: pm.product,
+        _productReason: productMatchReason(pm),
         categories: l.categoryIds
           .slice(0, 2)
           .map((code) => ({ code, name: catName.get(code) ?? code })),
@@ -2388,21 +2413,26 @@ export class CompanyListingsService {
       }
     }
 
+    // Merdiven: açık › davetli › bağlantılı › ÜRÜN eşleşmesi (kataloğumdaki
+    // somut ürün — beyan edilen kategoriden daha özgül) › kategori eşleşmesi
+    // › ilgi skoru.
     rows.sort(
       (a, b) =>
         Number(b._open) - Number(a._open) ||
         Number(b.invited) - Number(a.invited) ||
         Number(b.connected) - Number(a.connected) ||
+        Number(b.productMatch) - Number(a.productMatch) ||
         Number(b.categoryMatch) - Number(a.categoryMatch) ||
         (affinityByListing.get(b.id)?.score ?? 0) -
           (affinityByListing.get(a.id)?.score ?? 0) ||
         0,
     );
-    // Yardımcı alan dışarı sızmasın; ilgi gerekçesi kullanıcıya çıkar.
-    const mapped = rows.map(({ _open, ...r }) => ({
+    // Yardımcı alanlar dışarı sızmasın; gerekçe: ürün eşleşmesi varsa ürün
+    // ADIYLA (somut), yoksa ilgi motorunun metni.
+    const mapped = rows.map(({ _open, _productReason, ...r }) => ({
       ...r,
       matchScore: affinityByListing.get(r.id)?.score ?? 0,
-      matchReason: affinityByListing.get(r.id)?.reason ?? null,
+      matchReason: _productReason ?? affinityByListing.get(r.id)?.reason ?? null,
     }));
     return opts.limit && opts.limit > 0 ? mapped.slice(0, opts.limit) : mapped;
   }

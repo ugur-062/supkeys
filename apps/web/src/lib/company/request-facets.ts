@@ -40,6 +40,8 @@ export function rowFits(row: SellerTenderRow, fit: RequestFit): boolean {
       return row.invited;
     case "baglanti":
       return row.connected;
+    case "urun":
+      return row.productMatch === true;
     case "kategori":
       return row.categoryMatch;
     case "teklif":
@@ -52,11 +54,28 @@ export function rowSegments(row: SellerTenderRow): string[] {
   return [...new Set(row.categories.map((c) => segmentOf(c.code)))];
 }
 
+/** Arama samanlığı: başlık · numara · alıcı · KALEM adları · kategori adları. */
+export function searchHaystack(row: SellerTenderRow): string {
+  return [
+    row.title,
+    row.number ?? "",
+    row.owner?.name ?? "",
+    ...(row.itemNames ?? []),
+    ...row.categories.map((c) => c.name),
+  ]
+    .join(" ")
+    .toLocaleLowerCase("tr-TR");
+}
+
 function textHit(row: SellerTenderRow, q: string): boolean {
-  const needle = q.toLocaleLowerCase("tr-TR");
-  return `${row.title} ${row.number ?? ""} ${row.owner?.name ?? ""}`
-    .toLocaleLowerCase("tr-TR")
-    .includes(needle);
+  return searchHaystack(row).includes(q.toLocaleLowerCase("tr-TR"));
+}
+
+/** Arama kalem adında geçtiyse o kalem (öneri satırı "Kalem: …" der). */
+export function matchedItemName(row: SellerTenderRow, q: string): string | null {
+  const needle = q.trim().toLocaleLowerCase("tr-TR");
+  if (!needle) return null;
+  return (row.itemNames ?? []).find((n) => n.toLocaleLowerCase("tr-TR").includes(needle)) ?? null;
 }
 
 export function closesWithin(row: SellerTenderRow, days: number, now: number): boolean {
@@ -104,8 +123,9 @@ export function passes(
 
 /**
  * Sıralama: kullanıcı seçiminin ÜSTÜNDE ilgi merdiveni (davetli › bağlantılı
- * › kategori eşleşen › ilgi kademesi) — "beni özel çağıran" talep, sırf
- * kapanışı uzak diye aşağı düşmez. Kademe içinde seçim geçerli.
+ * › ÜRÜN eşleşen › kategori eşleşen › ilgi kademesi; API ile AYNI sıra) —
+ * "beni özel çağıran" talep, sırf kapanışı uzak diye aşağı düşmez. Kademe
+ * içinde seçim geçerli.
  */
 export function sortRequests(rows: SellerTenderRow[], sort?: RequestSort): SellerTenderRow[] {
   const time = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
@@ -113,6 +133,9 @@ export function sortRequests(rows: SellerTenderRow[], sort?: RequestSort): Selle
   return [...rows].sort((a, b) => {
     if (a.invited !== b.invited) return a.invited ? -1 : 1;
     if (a.connected !== b.connected) return a.connected ? -1 : 1;
+    const pa = a.productMatch === true;
+    const pb = b.productMatch === true;
+    if (pa !== pb) return pa ? -1 : 1;
     if (a.categoryMatch !== b.categoryMatch) return a.categoryMatch ? -1 : 1;
     const dt = tier(b.matchScore) - tier(a.matchScore);
     if (dt !== 0) return dt;
@@ -198,6 +221,7 @@ export function requestFacets(
     fit: {
       davet: count(fit, (r) => rowFits(r, "davet")),
       baglanti: count(fit, (r) => rowFits(r, "baglanti")),
+      urun: count(fit, (r) => rowFits(r, "urun")),
       kategori: count(fit, (r) => rowFits(r, "kategori")),
       teklif: count(fit, (r) => rowFits(r, "teklif")),
     },

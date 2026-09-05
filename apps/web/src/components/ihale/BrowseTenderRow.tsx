@@ -203,6 +203,11 @@ export function BrowseTenderRow({
       <>
         {t.invited ? <InfoChip tone="amber">Size özel davet</InfoChip> : null}
         {!t.invited && t.connected ? <InfoChip tone="violet">Bağlantılı</InfoChip> : null}
+        {t.productMatch ? (
+          <span title={t.matchedProduct ? `Kataloğunuzdaki ürün: ${t.matchedProduct}` : undefined}>
+            <InfoChip tone="emerald">Ürününüzle eşleşti</InfoChip>
+          </span>
+        ) : null}
         {t.categoryMatch ? <InfoChip tone="blue">Profilinizle eşleşti</InfoChip> : null}
         {t.masked ? <InfoChip tone="amber">Paket gerekli</InfoChip> : null}
       </>
@@ -243,6 +248,11 @@ export function BrowseTenderRow({
                 {t.visibility === "PUBLIC" ? (
                   <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
                     Herkese Açık
+                  </span>
+                ) : null}
+                {t.productMatch ? (
+                  <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
+                    {t.matchedProduct ? `Ürününüz: ${t.matchedProduct}` : "Ürününüzle eşleşti"}
                   </span>
                 ) : null}
                 {t.categoryMatch ? (

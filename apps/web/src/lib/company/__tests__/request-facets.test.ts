@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import { EMPTY_REQUEST_FILTERS, type RequestFilterState } from "../request-filter-params";
-import { passes, requestFacets, sortRequests } from "../request-facets";
+import { matchedItemName, passes, requestFacets, sortRequests } from "../request-facets";
 
 const NOW = Date.parse("2026-09-05T10:00:00Z");
 const DAY = 86_400_000;
@@ -79,12 +79,17 @@ describe("passes — her boyut", () => {
     expect(passes(old, F({ period: 90 }), NOW)).toBe(true);
   });
 
-  it("arama başlık/numara/alıcıda, Türkçe küçük harf duyarsız; `except` boyutu atlar", () => {
-    const r = row({ title: "Çelik Boru Alımı" });
+  it("arama başlık/numara/alıcı/KALEM/kategori adında, Türkçe küçük harf duyarsız; `except` boyutu atlar", () => {
+    const r = row({ title: "Çelik Boru Alımı", itemNames: ["Dirsek 90°", "Flanş DN100"] });
     expect(passes(r, F({ q: "ÇELİK" }), NOW)).toBe(true);
-    expect(passes(r, F({ q: "kablo" }), NOW)).toBe(false);
-    expect(passes(r, F({ q: "kablo" }), NOW, "q")).toBe(true);
+    expect(passes(r, F({ q: "vida" }), NOW)).toBe(false);
+    expect(passes(r, F({ q: "vida" }), NOW, "q")).toBe(true);
     expect(passes(r, F({ q: "alıcı a" }), NOW)).toBe(true);
+    // Kalem adı ve kategori adı da samanlıkta ("kalem" araması — 2026-09-05).
+    expect(passes(r, F({ q: "flanş" }), NOW)).toBe(true);
+    expect(passes(r, F({ q: "kablo" }), NOW)).toBe(true);
+    expect(matchedItemName(r, "dn100")).toBe("Flanş DN100");
+    expect(matchedItemName(r, "çelik")).toBeNull();
   });
 });
 
@@ -123,7 +128,7 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
     expect(fx.buyers.map((b) => `${b.label}:${b.count}`)).toEqual(["Alıcı A:1", "Alıcı B:1"]);
     expect(fx.closing).toEqual({ 3: 1, 7: 1, 30: 2 });
     expect(fx.period).toEqual({ 7: 1, 30: 1, 90: 2 });
-    expect(fx.fit).toEqual({ davet: 0, baglanti: 0, kategori: 0, teklif: 0 });
+    expect(fx.fit).toEqual({ davet: 0, baglanti: 0, urun: 0, kategori: 0, teklif: 0 });
     expect(fx.scope).toEqual({ yurtici: 2, uluslararasi: 0 });
     expect(fx.format).toEqual({ teklif: 2, pazarlik: 0 });
   });

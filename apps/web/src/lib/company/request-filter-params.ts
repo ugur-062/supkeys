@@ -15,7 +15,7 @@
  * anlamlı; öneri/çipten gelen tam kod (L3+) segmentine indirgenir.
  */
 export type RequestStatusFilter = "aktif" | "gecmis" | "tumu";
-export type RequestFit = "davet" | "baglanti" | "kategori" | "teklif";
+export type RequestFit = "davet" | "baglanti" | "urun" | "kategori" | "teklif";
 export type RequestScope = "yurtici" | "uluslararasi";
 export type RequestFormat = "teklif" | "pazarlik";
 export type RequestSort = "yakin" | "uzak" | "yeni";
@@ -27,6 +27,7 @@ export const PERIOD_WINDOWS: readonly PeriodWindow[] = [7, 30, 90];
 export const FIT_OPTIONS: readonly { key: RequestFit; label: string }[] = [
   { key: "davet", label: "Davet edildim" },
   { key: "baglanti", label: "Bağlantılı alıcı" },
+  { key: "urun", label: "Ürünlerimle eşleşen" },
   { key: "kategori", label: "Kategorime uygun" },
   { key: "teklif", label: "Teklif verdiklerim" },
 ];

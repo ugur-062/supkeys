@@ -862,12 +862,11 @@ Düz `<form method="get">` (JS'siz `?q=` ile sonuç sayfasına gider), JS'de
 
 | Panel | Kutu neyi arar | Sonuç sayfası | Çipler |
 |-------|----------------|---------------|--------|
-| Satınalma | ürün (`?q=`) | `/company/satinalma/urunler` (süzgeçli, DURUYOR) | ürün dizini facet'i, L1 → `?kategori=` |
+| Satınalma | ürün + firma (`?q=`) | `/company/satinalma` (liste anasayfada, `#urunler`) | (çipler kalktı — kategori kartları aynı işi görür) |
 | Satış | açık alım talebi (`?q=`) | `/company/satis` (liste anasayfada, `#acik-talepler`) | `discover-facets` segmentleri → `?kategori=` |
 
-**"Ürün Ara" SOL MENÜDEN KALKTI** — `portals.ts`te `nav`dan `secondaryNav`a
-taşındı (rota kaydı, breadcrumb ve başlık korunur; `module-reachability`
-testi `secondaryNav`ı da sayar).
+**"Ürün Ara" SOL MENÜDEN KALKTI** (önce `secondaryNav`a taşındı; aynı gün
+dördüncü turda SAYFA da kalktı — liste satınalma anasayfasında, bkz. aşağı).
 
 **"Açık Talepler" SAYFASI DA KALKTI — liste satış ANASAYFASINDA (2026-09-05,
 kullanıcı kararı; "filtreleme her şeyiyle eksiksiz").** `SellerTendersView
@@ -915,6 +914,50 @@ aramayı DA sıfırlar (kutusu hero'da, listeden uzakta); sıralama kalır.
 page })` her zaman 1. sayfaya düşüyordu → panel Ürün Ara'da "Sonraki"
 çalışmıyordu; sayfa artık yalnız açıkça istenince korunur. Sözleşmeler:
 `request-filter-params.test`, `request-facets.test`, `seller-tenders-view.test`.
+
+**İki anasayfa — dördüncü tur (2026-09-05, kullanıcı: "Europages gibi
+kaliteli; filtreleme her şeyiyle tam; ürünlerine ve verdiği tekliflere göre
+talepler uygun çıksın; arama şirket/kalem/ürün her türlü").**
+
+*Satınalma anasayfası:* arama (öneri: **ürün 5 · firma 3 · kategori 3**) →
+kategoriye göre keşfet (8 fotoğraflı kart; tıklayınca AYNI sayfadaki liste
+`?kategori=…#urunler` ile süzülür) → **ÜRÜNLER: kenar süzgeçli tam dizin
+gömülü** (`components/company/product-discovery-section.tsx`; herkese açık
+`/urunler` ile aynı `ProductFilters`/URL şeması; sayfa boyutu 12) →
+doğrulanmış tedarikçiler → BUGÜN → talep aç şeridi → profil → Raporlar.
+Hero çipleri ve "Size uygun ürünler" bloğu (`PortalDiscovery`, silindi)
+kalktı; **"Ürün Ara" sayfası kalktı** (`/company/satinalma/urunler` → 308
+`/company/satinalma`, sorgu taşınır; ürün DETAYI `urunler/<firma>/<ürün>`
+duruyor). Üst çubuk araması satınalmada anasayfaya `?q=` yazar ("Ürün veya
+firma ara").
+
+*Uygunluk (API):*
+- `items/discover/search`: sıralama seçilmemişse firmanın **ALIM
+  kategorileriyle** (L1 ana + L2-4 alt, kod ön eki) örtüşen ürünler ÖNCE
+  (`matchesProfile` bayrağı → kartta "Alım kategorinizle eşleşiyor"
+  rozeti); sayfalama iki kümenin birleşimi; açık sıralamada (en yeni/fiyat)
+  karışmaz. `pageSize` (≤48) parametresi.
+- `productSearchClauses`: token artık KATLANIR ("Çelik" → "celik" — ham
+  token katlanmış `searchText`te hiç eşleşmiyordu, gizli hata) ve **firma
+  adı** da aranır (tek kutu "ürün ya da firma").
+- `seller-tenders`: satırda `itemNames` (ilk 20 kalem adı) + `productMatch`
+  / `matchedProduct` — satıcının **katalog ürünleri** (aktif; taslak dahil)
+  talebin kategori ata zinciriyle (L2+) ya da adı/anahtar kelimesiyle
+  başlık+kalem adlarında eşleşir (`common/company/product-request-match.ts`;
+  jenerik sözcük listesi). Merdiven: açık › davetli › bağlantılı › **ürün** ›
+  kategori › ilgi skoru (web `sortRequests` AYNI sıra). `matchReason` ürün
+  adıyla ("Ürününüz bu kategoride: …" / "Ürününüzle eşleşiyor: …"), yoksa
+  ilgi motoru metni (geçmiş teklif/sipariş). Kapak görseli aynı `items`
+  seçiminden (ilk görselli kalem).
+
+*Satış anasayfası araması:* samanlık başlık · numara · alıcı · **kalem
+adları** · kategori adları (`searchHaystack`, liste ve öneri AYNI); öneri
+grupları **Açık talepler** (kalemden bulunduysa "Kalem: …") · **Alıcılar**
+(`?alici=`) · **Sektörler** (`?kategori=`). Uygunluk süzgecine "Ürünlerimle
+eşleşen"; satırda "Ürününüzle eşleşti" çipi (başlık ipucu ürün adı).
+
+*Kabuk genellemesinde bulunan hata:* `update({ page })` 1. sayfaya
+düşüyordu → düzeltildi (canlıda doğrulandı).
 
 **Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
 `components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:

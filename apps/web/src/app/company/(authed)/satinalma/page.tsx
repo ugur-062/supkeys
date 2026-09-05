@@ -5,7 +5,7 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatinalmaDashboard } from "@/hooks/use-company-dashboard";
 import { ActionStrip } from "@/components/dashboard/action-center";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
-import { PortalDiscovery } from "@/components/dashboard/portal-discovery";
+import { ProductDiscoverySection } from "@/components/company/product-discovery-section";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CategoryShowcasePanel } from "@/components/dashboard/category-showcase-panel";
 import { FeaturedCompaniesBlock } from "@/components/dashboard/featured-companies-block";
@@ -17,6 +17,7 @@ import {
   useDiscoverProductFacets,
   useDiscoverProducts,
 } from "@/hooks/use-portal-discovery";
+import { useCompanySearch } from "@/hooks/use-company-directory";
 import { buildShowcase } from "@/lib/public/category-showcase";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ArrowRight, ClipboardList } from "lucide-react";
@@ -25,19 +26,25 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 
-const PRODUCTS = "/company/satinalma/urunler";
+const HOME = "/company/satinalma";
+const PRODUCT_DETAIL = "/company/satinalma/urunler";
 
 /**
  * SATINALMA ANASAYFASI — Europages kalıbı, Rothern dili (2026-09-05,
- * kullanıcı kararı: "www.rothern.com'daki ilk açıldığı tarzda").
+ * kullanıcı kararı: "www.rothern.com'daki ilk açıldığı tarzda"; ikinci
+ * revizyon aynı gün: "filtreleme her şeyiyle tam, arama şirket/ürün/her
+ * türlü").
  *
- * Sıra: arama (öneriyle) → kategoriye göre keşfet (fotoğraflı 8 kart) →
- * size uygun ürünler (4) → doğrulanmış tedarikçiler (4) → BUGÜN (bekleyen
- * işler şeridi + 4 KPI) → talep aç şeridi → profil sağlığı → Raporlar.
+ * Sıra: arama (öneri: ürün · firma · kategori) → kategoriye göre keşfet
+ * (fotoğraflı 8 kart — aynı sayfayı süzer) → ÜRÜNLER (kenar süzgeçli tam
+ * dizin, alım kategorisine uygun olanlar önde) → doğrulanmış tedarikçiler
+ * (4) → BUGÜN (bekleyen işler şeridi + 4 KPI) → talep aç şeridi → profil
+ * sağlığı → Raporlar.
  *
- * "Başlangıç" listesi KALDIRILDI (kullanıcı kararı). Sayfada TEK primary CTA
- * (sol menü "Satın Alma Talebi Aç"); şerit ikincil stil. Herkese açık uçlar
- * panelde KULLANILMAZ: arama/öneri/kategori sayıları panelin kendi uçları.
+ * "Ürün Ara" ayrı sayfa olmaktan çıktı (308 → buraya); hero'nun altındaki
+ * kategori çipleri kalktı (kartlar aynı bilgiyi taşıyor); "Size uygun
+ * ürünler" bloğu kalktı (uygunluk listenin varsayılan sırası). Sayfada TEK
+ * primary CTA (sol menü). Herkese açık uçlar panelde KULLANILMAZ.
  */
 export default function SatinalmaDashboardPage() {
   const { company } = useCompanyAuth();
@@ -61,33 +68,40 @@ export default function SatinalmaDashboardPage() {
       }),
     [segments.data, facets.data],
   );
-  const chips = (facets.data?.categories ?? [])
-    .filter((c) => c.count > 0)
-    .slice(0, 6)
-    .map((c) => ({ id: c.id, name: c.name, count: c.count, href: `${PRODUCTS}?kategori=${c.id}` }));
-
-  // Yazarken öneri: ürünler panel keşif ucundan (5), kategoriler facet'ten (3).
+  // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
+  // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
   const [term, setTerm] = useState("");
   const q = term.trim();
   const sugProducts = useDiscoverProducts({ q, limit: 5 }, q.length >= 2);
+  const sugCompanies = useCompanySearch({ q }, q.length >= 2);
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
     if (q.length < 2) return [];
     const lower = q.toLocaleLowerCase("tr-TR");
     const cats = (facets.data?.categories ?? [])
       .filter((c) => c.name.toLocaleLowerCase("tr-TR").includes(lower))
       .slice(0, 3)
-      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} ürün`, href: `${PRODUCTS}?kategori=${c.id}` }));
+      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} ürün`, href: `${HOME}?kategori=${c.id}#urunler` }));
     const prods = (sugProducts.data ?? []).slice(0, 5).map((p) => ({
       key: `${p.company.slug}/${p.slug}`,
       label: p.name,
       meta: p.company.name,
-      href: `${PRODUCTS}/${p.company.slug}/${p.slug}`,
+      href: `${PRODUCT_DETAIL}/${p.company.slug}/${p.slug}`,
     }));
+    const firms = (sugCompanies.data?.items ?? [])
+      .filter((c) => c.connectionStatus !== "self" && c.rothernId)
+      .slice(0, 3)
+      .map((c) => ({
+        key: c.slug,
+        label: c.name,
+        meta: [c.city, c.verified ? "Doğrulanmış" : null].filter(Boolean).join(" · ") || undefined,
+        href: `/company/firma/${c.rothernId}`,
+      }));
     return [
       { label: "Ürünler", rows: prods },
+      { label: "Firmalar", rows: firms },
       { label: "Kategoriler", rows: cats },
     ];
-  }, [q, facets.data, sugProducts.data]);
+  }, [q, facets.data, sugProducts.data, sugCompanies.data]);
 
   return (
     <div className="space-y-10">
@@ -114,11 +128,9 @@ export default function SatinalmaDashboardPage() {
       <PanelHeroSearch
         eyebrow="Tedarikçi ürün vitrini"
         title="Ne arıyorsunuz?"
-        lead="Ürün, marka veya parça numarası — doğrulanmış tedarikçilerin vitrininden, fiyat ve minimum sipariş bilgisiyle."
-        placeholder="Ürün, marka veya parça numarası arayın"
-        action={PRODUCTS}
-        chips={chips}
-        chipsLabel="Popüler kategoriler"
+        lead="Ürün, marka, parça numarası veya firma — doğrulanmış tedarikçilerin vitrininden, fiyat ve minimum sipariş bilgisiyle."
+        placeholder="Ürün, marka, parça numarası veya firma arayın"
+        action={HOME}
         accent="blue"
         suggestions={suggestions}
         onQueryChange={setTerm}
@@ -126,15 +138,15 @@ export default function SatinalmaDashboardPage() {
 
       <CategoryShowcasePanel
         title="Kategoriye göre keşfet"
-        lead="En çok ürünü olan dallar önde; tıklayınca süzgeçli sonuçlar."
+        lead="En çok ürünü olan dallar önde; tıklayınca aşağıdaki liste o kategoriye süzülür."
         items={showcase}
-        hrefFor={(id) => `${PRODUCTS}?kategori=${id}`}
+        hrefFor={(id) => `${HOME}?kategori=${id}#urunler`}
         countNoun="ürün"
-        allHref={PRODUCTS}
+        allHref={`${HOME}#urunler`}
         allLabel="Tüm ürünler"
       />
 
-      <PortalDiscovery />
+      <ProductDiscoverySection />
 
       <FeaturedCompaniesBlock />
 

@@ -303,6 +303,8 @@ const EMPTY_PRODUCTS: PublicProductPage = {
  * ilan kartına yanlışlıkla firma eklenmesi derleme hatası vermeli.
  */
 export interface ProductIndexCard extends PublicProductCard {
+  /** Panel Ürün Ara (uygunluk sırası): alıcının ALIM kategorisiyle örtüşüyor. */
+  matchesProfile?: boolean;
   company: {
     name: string;
     slug: string;

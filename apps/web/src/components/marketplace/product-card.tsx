@@ -153,6 +153,8 @@ export function ProductCard({
         priority={priority}
         fallback="neutral"
       />
+      {/* Rozet (ör. "Alım kategorinizle eşleşiyor") görselin üstünde, sol üst. */}
+      {badge ? <span className="pointer-events-none absolute top-3 left-3 z-10">{badge}</span> : null}
 
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-2">
