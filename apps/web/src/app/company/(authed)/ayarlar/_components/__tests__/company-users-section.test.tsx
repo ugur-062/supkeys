@@ -29,7 +29,29 @@ vi.mock("@/hooks/use-company-users", () => ({
   useRemoveUser: () => ({ mutateAsync: h.removeUser, isPending: false }),
   useUpdateUser: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  usePermissionCatalog: () => ({ data: undefined }),
+  useSetUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // Yetki tablosu (Faz 4): davet dialogu kataloğun hazır setiyle dolar.
+  usePermissionCatalog: () => ({
+    data: {
+      catalog: [
+        { key: "buy:view", label: "Satınalma görüntüleme", group: "buy", seat: false },
+        { key: "buy:listing:manage", label: "Talep açma ve yönetme", group: "buy", seat: true },
+        { key: "sell:view", label: "Satış görüntüleme", group: "sell", seat: false },
+        { key: "sell:bid:submit", label: "Teklif verme", group: "sell", seat: true },
+        { key: "approval:act", label: "Onaylama", group: "approval", seat: false },
+        { key: "users:manage", label: "Kullanıcı ve yetki", group: "management", seat: false, ownerGrantsOnly: true },
+      ],
+      groups: { buy: "Satınalma", sell: "Satış", approval: "Onay", management: "Yönetim" },
+      presets: {
+        SATIN_ALMACI: ["buy:view", "buy:listing:manage"],
+        SATISCI: ["sell:view", "sell:bid:submit"],
+        ONAYLAYICI: ["approval:act"],
+        YONETICI: ["buy:view", "sell:view", "approval:act", "users:manage"],
+        GORUNTULEYICI: ["buy:view", "sell:view"],
+      },
+      roleDefaults: {},
+    },
+  }),
   useSeats: () => ({ data: undefined }),
   useSeatSelection: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -105,7 +127,7 @@ describe("CompanyUsersSection", () => {
 
     expect(h.invite).toHaveBeenCalledWith({
       email: "yeni@firma.com",
-      roles: ["SATIN_ALMACI"],
+      permissions: expect.arrayContaining(["buy:listing:manage"]),
     });
   });
 

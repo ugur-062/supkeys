@@ -114,6 +114,11 @@ export class CompanyUsersService {
         isActive: u.isActive,
         lastLoginAt: u.lastLoginAt,
         permissions,
+        // Yetki tablosu: hazır setten sapmış (kişiye özel tik) mi?
+        custom:
+          !isOwner &&
+          ([...stored].some((k) => !preset.has(k)) ||
+            [...preset].some((k) => !stored.has(k))),
         // Rol-varsayılan izinleri + fark (UI toggle hesabı için).
         rolePermissions: [...preset],
         permissionsOverride: {
@@ -129,23 +134,29 @@ export class CompanyUsersService {
   // kullanıcı adını/parolasını kendisi belirler, sözleşmeleri kendisi onaylar.
   // ============================================================
 
-  /** Ekibe davet gönder — 7 gün geçerli tek kullanımlık kabul linki e-postalanır. */
+  /**
+   * Ekibe davet gönder — 7 gün geçerli tek kullanımlık kabul linki e-postalanır.
+   * Yetki tablosu (Faz 4): davet AÇIK izin listesi taşır (`permissions`);
+   * eski istemci rol seti gönderirse hazır setten türetilir. Rol etiketleri
+   * listeden türetilip davette de saklanır (kabul ekranı gösterir).
+   */
   async invite(actor: AuthenticatedCompanyUser, dto: InviteCompanyUserDto) {
-    const roles = dto.roles as CompanyRole[];
-    // Sahiplik davetle verilemez — mevcut bir kullanıcıya devir ile aktarılır.
-    if (roles.includes("SAHIP")) {
+    const requested = (dto.roles ?? []) as CompanyRole[];
+    if (requested.includes("SAHIP")) {
       throw new BadRequestException(
         "Kuruculuk davetle verilemez; mevcut bir kullanıcıya devredin",
       );
     }
-    this.assertValidRoleCombo(roles);
-    // Davet yolu da güncelleme yolu gibi rol-verme kontrolünü uygulamalı:
-    // admin OLMAYAN (users:manage override'lı) bir kullanıcı, davetle YONETICI/
-    // ONAYLAYICI atayıp kendine admin suç ortağı üretemesin.
+    const permissions = this.resolveGrantedPermissions(dto.permissions, requested);
+    if (permissions.length === 0) {
+      throw new BadRequestException("En az bir yetki seçin");
+    }
+    const roles = rolesFromPermissions(permissions, false) as CompanyRole[];
+    // Yetki üretim kapısı: "Kullanıcı ve yetki" tikini yalnız Kurucu verir;
+    // rol atama yalnız yönetim (users:manage) — guard zaten kapıda.
+    this.assertCanGrantPermissions(actor, permissions, []);
     this.assertCanGrantRoles(actor, roles);
-    // Faz K: SA/ST daveti koltuk kontrolünden geçer — bekleyen SA/ST davetleri
-    // de sayılır (davet-yağmuruyla aşım kapalı). Danışma kontrolü; asıl
-    // yarış-güvenli kapı kabulde (tx + FOR UPDATE).
+    // Faz K: koltuk daveti kapıdan geçer — bekleyen koltuk davetleri de sayılır.
     if (this.rolesConsumeSeat(roles)) {
       await this.assertSeatAvailable(this.prisma, actor.companyId, {
         includePending: true,
@@ -180,8 +191,8 @@ export class CompanyUsersService {
       data: {
         companyId: actor.companyId,
         email,
-        roles: dto.roles as CompanyRole[],
-        permissions: permissionsForRoles(dto.roles),
+        roles,
+        permissions,
         token: crypto.randomBytes(32).toString("hex"),
         expiresAt: new Date(
           Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -189,8 +200,68 @@ export class CompanyUsersService {
         invitedById: actor.userId,
       },
     });
+    // INV-AUDIT-1: ilk yetki verilişi (davet) iz bırakır — e-posta (PII)
+    // metadata'ya YAZILMAZ, davet id + verilen izinler.
+    await this.audit.log({
+      action: "company.user.invited",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user_invitation",
+      entityId: inv.id,
+      critical: true,
+      metadata: { roles, permissions },
+    });
     await this.sendInvitationEmail(inv.id);
     return { id: inv.id, email: inv.email, expiresAt: inv.expiresAt };
+  }
+
+  /**
+   * Davet/tablo girdisinden kanonik izin listesi: açık liste verildiyse o
+   * (normalize), yoksa rol hazır setleri. Geçersiz/ölü anahtar 400.
+   */
+  private resolveGrantedPermissions(
+    permissions: string[] | undefined,
+    roles: CompanyRole[],
+  ): string[] {
+    if (permissions && permissions.length > 0) {
+      this.assertKnownPermissions(permissions);
+      return normalizePermissions(permissions);
+    }
+    return permissionsForRoles(roles);
+  }
+
+  private assertKnownPermissions(keys: readonly string[]) {
+    const valid = new Set(ALL_COMPANY_PERMISSIONS);
+    const canon = (k: string) =>
+      k in LEGACY_PERMISSION_MAP ? LEGACY_PERMISSION_MAP[k] : k;
+    const invalid = keys.filter((k) => {
+      const c = canon(k);
+      return !c || !valid.has(c);
+    });
+    if (invalid.length > 0) {
+      throw new BadRequestException(`Geçersiz izin: ${invalid[0]}`);
+    }
+  }
+
+  /**
+   * Yetki tablosu kuralı: "Kullanıcı ve yetki" (users:manage) tikini yalnız
+   * Kurucu VERİR (yönetim sızması kapısı — bir yönetici on kişiye dağıtırsa
+   * herkes yönetici olur). KALDIRMAK herhangi bir users:manage sahibine açık
+   * (son yetki sahibi koruması ayrı katmanda).
+   */
+  private assertCanGrantPermissions(
+    actor: AuthenticatedCompanyUser,
+    next: readonly string[],
+    current: readonly string[],
+  ) {
+    if (actor.isOwner) return;
+    if (next.includes("users:manage") && !current.includes("users:manage")) {
+      throw new ForbiddenException(
+        "'Kullanıcı ve yetki' tikini yalnızca Kurucu verebilir",
+      );
+    }
   }
 
   /** Bekleyen (ve süresi geçmiş) davetler — süresi dolanlar okumada EXPIRED'a çekilir. */
@@ -358,6 +429,27 @@ export class CompanyUsersService {
       await this.supabaseAuth.deleteUser(authId);
       throw e;
     }
+    // INV-AUDIT-1: kabul = hesabın ve ilk yetkilerin doğuşu (davet eden kişi
+    // metadata'da; e-posta yazılmaz).
+    await this.audit.log({
+      action: "company.user.invitation_accepted",
+      actorType: "company",
+      actorId: userId,
+      actorEmail: inv.email,
+      tenantId: inv.companyId,
+      entityType: "company_user",
+      entityId: userId,
+      critical: true,
+      metadata: {
+        invitationId: inv.id,
+        invitedById: inv.invitedById,
+        roles: inv.roles,
+        permissions:
+          inv.permissions.length > 0
+            ? normalizePermissions(inv.permissions)
+            : permissionsForRoles(inv.roles),
+      },
+    });
     return this.companyAuth.createSession(userId);
   }
 
@@ -484,6 +576,8 @@ export class CompanyUsersService {
       target.roles as CompanyRole[],
     );
     void target;
+    const transferring =
+      roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
       // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
       // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
@@ -523,6 +617,10 @@ export class CompanyUsersService {
       critical: true,
       metadata: this.roleChangeMeta(target.roles as CompanyRole[], roles),
     });
+    if (transferring) {
+      await this.auditOwnershipTransfer(actor, targetId, undefined);
+    }
+    await this.notifyPermissionChange(targetId);
     return { ok: true };
   }
 
@@ -603,6 +701,8 @@ export class CompanyUsersService {
     };
     // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
     if (roles) {
+      const transferring =
+        roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
       await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
         // Faz K: updateRoles ile aynı koltuk kapısı.
         if (
@@ -637,10 +737,155 @@ export class CompanyUsersService {
         critical: true,
         metadata: { before: target.roles, after: roles },
       });
+      if (transferring) {
+        await this.auditOwnershipTransfer(
+          actor,
+          targetId,
+          dto.previousOwnerRoles as CompanyRole[] | undefined,
+        );
+      }
+      await this.notifyPermissionChange(targetId);
     } else {
       await this.prisma.companyUser.update({ where: { id: targetId }, data });
     }
     return { ok: true };
+  }
+
+  /**
+   * INV-AUDIT-1: kuruculuk DEVRİ kendi eylemi olarak iz bırakır (eskiden
+   * yalnız yeni Kurucunun roles_changed'i yazılıyor, eski Kurucunun düşürülmesi
+   * ve ownerUserId değişimi görünmüyordu).
+   */
+  private async auditOwnershipTransfer(
+    actor: AuthenticatedCompanyUser,
+    newOwnerId: string,
+    previousOwnerRoles: CompanyRole[] | undefined,
+  ) {
+    await this.audit.log({
+      action: "company.ownership.transferred",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company",
+      entityId: actor.companyId,
+      critical: true,
+      metadata: {
+        fromUserId: actor.userId,
+        toUserId: newOwnerId,
+        previousOwnerRoles: previousOwnerRoles ?? ["YONETICI"],
+      },
+    });
+  }
+
+  /**
+   * Yetki değişince kişiye bildirim — istemci bu tipi görünce `/me`'yi
+   * yeniler (menü anında değişir; sunucu zaten her istekte taze).
+   */
+  private async notifyPermissionChange(targetId: string) {
+    try {
+      await this.notifications?.pushToUser(targetId, {
+        type: "permissions_changed",
+        title: "Yetkileriniz güncellendi",
+        body: "Firma yöneticiniz yetkilerinizi değiştirdi. Menü ve erişimleriniz yeni yetkilere göre yenilendi.",
+        ctaUrl: "/company",
+        ctaLabel: "Panele git",
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Yetki değişikliği bildirimi yazılamadı (${targetId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Yetki tablosu (Faz 4): kişinin izin listesini OLDUĞU GİBİ yazar.
+   * - Kendi satırı düzenlenemez (Kurucu hariç; Kurucu kendi İŞLEM tiklerini
+   *   düzenler — yönetim/onay/görüntüleme onda örtüktür, yazılmaz).
+   * - "Kullanıcı ve yetki" tikini yalnız Kurucu verir.
+   * - İşlem tiki eklemek koltuk tüketir → kilitli tx'te koltuk kapısı.
+   * - Aktif kişilerde en az bir "kullanıcı ve yetki" kalır.
+   * - Roller listeden türetilir; denetim kaydı + kişiye bildirim.
+   */
+  async setPermissions(
+    actor: AuthenticatedCompanyUser,
+    targetId: string,
+    requested: string[],
+  ) {
+    const target = await this.requireMember(actor.companyId, targetId);
+    this.assertNotSelf(actor, targetId);
+    const company = await this.prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { ownerUserId: true },
+    });
+    const targetIsOwner = company?.ownerUserId === targetId;
+    if (targetIsOwner && !actor.isOwner) {
+      throw new BadRequestException(
+        "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+      );
+    }
+    this.assertKnownPermissions(requested);
+    let next = normalizePermissions(requested);
+    if (targetIsOwner) {
+      // Kurucu kendi satırında yalnız işlem (koltuk) tiklerini yönetir;
+      // yönetim/onay/görüntüleme örtük — listede saklanmaz.
+      next = normalizePermissions(
+        next.filter((k) => ALL_SEAT_PERMISSIONS.includes(k)),
+      );
+    }
+    const before = effectivePermissions({
+      isOwner: false,
+      permissions: target.permissions,
+      roles: target.roles,
+    });
+    this.assertCanGrantPermissions(actor, next, before);
+    this.assertCanModifyAdminTarget(
+      actor,
+      { id: targetId, roles: target.roles as CompanyRole[] },
+      company?.ownerUserId ?? null,
+    );
+    const nextRoles = rolesFromPermissions(next, targetIsOwner) as CompanyRole[];
+    const wasSeat = this.rolesConsumeSeat(target.roles as CompanyRole[]);
+    const willSeat = this.rolesConsumeSeat(nextRoles);
+
+    await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
+      if (!wasSeat && willSeat) {
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          context: "assign",
+        });
+      }
+      await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
+      await tx.companyUser.update({
+        where: { id: targetId },
+        data: { permissions: next, roles: nextRoles },
+      });
+    });
+    const added = next.filter((k) => !before.includes(k));
+    const removed = before.filter((k) => !next.includes(k));
+    await this.audit.log({
+      action: "company.user.permissions_changed",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user",
+      entityId: targetId,
+      critical: true,
+      metadata: {
+        before,
+        after: next,
+        added,
+        removed,
+        rolesBefore: target.roles,
+        rolesAfter: nextRoles,
+      },
+    });
+    if (added.length > 0 || removed.length > 0) {
+      await this.notifyPermissionChange(targetId);
+    }
+    return { ok: true, permissions: next, roles: nextRoles };
   }
 
   /** Kullanıcıyı pasif/aktif yap (soft-delete değil — listede kalır). */
@@ -1078,9 +1323,8 @@ export class CompanyUsersService {
       }
       this.assertValidRoleCombo(demoted);
       // Denetim 2026-08-23 #8: hedef AKTİF olmalı (pasif üyeye devir firmayı
-      // aktif yöneticisiz bırakabiliyordu) ve hedefin izin kısıtı
-      // (permissionsOverride) temizlenmeli — aksi halde yeni Kurucu kendi
-      // "removed" anahtarlarıyla kilitlenip bunu düzeltemiyordu.
+      // aktif yöneticisiz bırakabiliyordu). Yeni Kurucu yönetim/onay/
+      // görüntülemeyi ÖRTÜK taşır (yetki tablosu) — kısıt devralmaz.
       const target = await tx.companyUser.findFirst({
         where: { id: targetId, companyId, deletedAt: null },
         select: { isActive: true },
@@ -1090,10 +1334,6 @@ export class CompanyUsersService {
           "Kuruculuk yalnızca aktif bir kullanıcıya devredilebilir",
         );
       }
-      await tx.companyUser.update({
-        where: { id: targetId },
-        data: { permissionsOverride: Prisma.DbNull },
-      });
       if (currentOwnerId) {
         await tx.companyUser.update({
           where: { id: currentOwnerId },

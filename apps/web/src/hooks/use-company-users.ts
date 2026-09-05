@@ -16,6 +16,8 @@ export interface CompanyTeamUser {
   lastLoginAt: string | null;
   /** Efektif izin listesi (yetki tablosu; kurucu örtük izinleri dahil). */
   permissions?: string[];
+  /** Hazır setten sapmış (kişiye özel tik) — listede "Özel" rozeti. */
+  custom?: boolean;
   // Rol-varsayılan izinleri + kişi-bazlı fark (UI toggle hesabı).
   rolePermissions: string[];
   permissionsOverride: { added: string[]; removed: string[] };
@@ -24,18 +26,30 @@ export interface CompanyTeamUser {
 export interface PermissionCatalogItem {
   key: string;
   label: string;
-  group: string;
+  group: "buy" | "sell" | "approval" | "management";
+  /** İşlem izni — koltuk tüketir. */
+  seat: boolean;
+  /** Yalnız Kurucu verir ("Kullanıcı ve yetki"). */
+  ownerGrantsOnly?: boolean;
 }
 
 export interface PermissionCatalog {
   catalog: PermissionCatalogItem[];
+  groups: Record<PermissionCatalogItem["group"], string>;
+  /** Rol çipleri + Görüntüleyici hazır setleri. */
+  presets: Record<
+    "SATIN_ALMACI" | "SATISCI" | "ONAYLAYICI" | "YONETICI" | "GORUNTULEYICI",
+    string[]
+  >;
   roleDefaults: Record<CompanyRole, string[]>;
 }
 
 /** Token'lı davet — hesap kabulde açılır; admin yalnızca e-posta + rol girer. */
 export interface InviteUserInput {
   email: string;
-  roles: CompanyRole[];
+  /** Yetki tablosu (Faz 4): açık izin listesi; verilirse roller yok sayılır. */
+  permissions?: string[];
+  roles?: CompanyRole[];
 }
 
 export interface PendingInvitation {
@@ -167,6 +181,22 @@ export function useUpdateUserPermissions() {
         `/company/users/${id}/permissions`,
         { added, removed },
       );
+      return data;
+    },
+    onSuccess: () => invalidateUserCaches(qc),
+  });
+}
+
+/** Yetki tablosu (Faz 4): kişinin izin listesini olduğu gibi yazar. */
+export function useSetUserPermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, permissions }: { id: string; permissions: string[] }) => {
+      const { data } = await companyApi.put<{
+        ok: boolean;
+        permissions: string[];
+        roles: CompanyRole[];
+      }>(`/company/users/${id}/permissions`, { permissions });
       return data;
     },
     onSuccess: () => invalidateUserCaches(qc),

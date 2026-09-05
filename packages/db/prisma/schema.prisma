@@ -2076,7 +2076,6 @@ model CompanyUser {
   // Oturum sürümü — parola değişince artar; eski JWT'ler geçersizleşir
   // (strategy her istekte DB'den doğrular).
   tokenVersion           Int             @default(0)
-  permissionsOverride    Json? // LEGACY — artık okunmaz (permissions listesine katıldı); Faz 4'te düşer
   notificationPrefs      Json?
   invitedById            String?
   invitedAt              DateTime?

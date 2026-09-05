@@ -1027,8 +1027,8 @@ yalnız re-export + `hasManagementRole` (etiket işleri için).
   `CompanyUserInvitation.permissions`). `roles` ETİKET: yazarken hazır setten
   gelir, listeden yeniden türetilir (YONETICI ⇐ users:manage ∨ company:manage;
   SATIN_ALMACI/SATISCI ⇐ grupta ≥1 işlem izni; ONAYLAYICI ⇐ approval:act ∧
-  ¬yönetici; SAHIP ⇐ ownerUserId). `permissionsOverride` kolonu LEGACY — artık
-  okunmaz (backfill listeye kattı), Faz 4'te düşer.
+  ¬yönetici; SAHIP ⇐ ownerUserId). `permissionsOverride` kolonu Faz 4'te DÜŞTÜ
+  (backfill listeye katmıştı).
 - Kurucu: yönetim + onay + görüntüleme + sahibe-özel ÖRTÜK (kısılamaz, listede
   yazılı olmasa da); İŞLEM izinleri açıkça yazılır (koltuk).
 - **Geçiş emniyeti:** liste boş + roller dolu → rol hazır seti
@@ -1135,6 +1135,39 @@ kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
   açıktı; yalnız düğmeler kapalıydı.
 - Ürün formunda kaydet/yayımla/vitrinden çek düğmeleri `sell:product:manage`
   yoksa çizilmez (salt okuma notu).
+
+**Faz 4 — Yetki tablosu ekranı (2026-09-06, BİTTİ):**
+- **Yazma yolu** `PUT company/users/:id/permissions { permissions[] }`
+  (`CompanyUsersService.setPermissions`): kişinin listesini OLDUĞU GİBİ yazar,
+  roller türetilir. Kurallar: kendi satırı yok (Kurucu hariç — Kurucu yalnız
+  kendi İŞLEM tiklerini yönetir; yönetim/onay/görüntüleme örtük, listede
+  saklanmaz), "Kullanıcı ve yetki" (`users:manage`) tikini yalnız Kurucu VERİR
+  (kaldırmak serbest; `assertCanGrantPermissions`), işlem tiki eklemek kilitli
+  tx'te koltuk kapısından geçer, son `users:manage` sahibi koruması, geçersiz/
+  ölü anahtar 400 (eski anahtar eşlenir). Denetim
+  `company.user.permissions_changed` (before/after/added/removed/roller) +
+  kişiye `permissions_changed` bildirimi → web `live-toasts` bu tipte `/me`'yi
+  yeniler (menü anında değişir). Eski `PATCH :id/permissions {added,removed}`
+  (yalnız Kurucu) uyumluluk için duruyor.
+- **Davet** `POST company/users { email, permissions[] }` (eski `roles` seti de
+  çalışır → hazır set); davet satırı hem `permissions` hem türetilmiş `roles`
+  taşır; kabulde liste kişiye aynen yazılır. Denetim: `company.user.invited`
+  (PII yok), `company.user.invitation_accepted`,
+  `company.ownership.transferred` (devir artık kendi eylemi). Admin paneli
+  "kullanıcı ekle" koltuk kapısından geçer.
+- **Katalog ucu** `GET company/users/permission-catalog`: `catalog`
+  (group/seat/ownerGrantsOnly), `groups`, `presets` (SATIN_ALMACI, SATISCI,
+  ONAYLAYICI, YONETICI, GORUNTULEYICI), `roleDefaults` (eski).
+- **Web** `components/company/permission-table.tsx` (`PermissionTable`): hazır
+  set çipleri + 4 grup tik tablosu; koltuk işareti; işlem tiki grubun
+  görüntülemesini otomatik ekler; `users:manage` Kurucu değilse kilitli
+  ("Yalnız Kurucu verir"); koltuk doluysa koltuksuz kişide işlem tikleri
+  kilitli ("Koltuk dolu"); Kurucu satırında yönetim örtük (işaretli, kilitli).
+  Kullanıcılar › Düzenle ve Üye Davet Et aynı tabloyu kullanır (rol kartları
+  ve +/- override editörü KALKTI). Listede rol rozetleri türetilmiş roller,
+  "Görüntüleyici" (rolsüz ama izinli) ve "Özel" (hazır setten sapmış) rozeti.
+- `permissionsOverride` kolonu DROP (`20260906010000_drop_permissions_override`).
+- Sözleşme: `permission-table.spec.ts`.
 
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı

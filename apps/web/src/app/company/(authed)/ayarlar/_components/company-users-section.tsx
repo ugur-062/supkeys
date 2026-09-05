@@ -42,8 +42,8 @@ import {
   useSeats,
   useSeatSelection,
   useSetUserActive,
+  useSetUserPermissions,
   useUpdateUser,
-  useUpdateUserPermissions,
   type CompanyTeamUser,
 } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
@@ -52,38 +52,21 @@ import { SelectMenu } from "@/components/ui/select-menu";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
-  ClipboardCheck,
   Crown,
   MailPlus,
   MoreVertical,
   Pencil,
   Power,
   PowerOff,
-  Settings2,
-  ShoppingCart,
-  Store,
   Trash2,
   Users2,
-  type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { InviteUserDialog } from "./invite-user-dialog";
+import { PermissionTable } from "@/components/company/permission-table";
 
-const ROLES: { key: CompanyRole; label: string; desc: string }[] = [
-  { key: "YONETICI", label: "Yönetici", desc: "Hesap, kullanıcı, ayar ve bağlantı yönetimi" },
-  { key: "SATIN_ALMACI", label: "Satın Almacı", desc: "Satın alma taleplerini açma, teklif değerlendirme, kazandırma" },
-  { key: "SATISCI", label: "Satışçı", desc: "Satış ilanları, satın alma taleplerine teklif verme" },
-  { key: "ONAYLAYICI", label: "Onaylayıcı", desc: "Onay zincirinde onay/ret" },
-];
 const ROLE_LABEL = ROLE_LABELS;
-const ROLE_ICON: Record<CompanyRole, LucideIcon> = {
-  SAHIP: Crown,
-  YONETICI: Settings2,
-  SATIN_ALMACI: ShoppingCart,
-  SATISCI: Store,
-  ONAYLAYICI: ClipboardCheck,
-};
 
 export function CompanyUsersSection({
   canManage,
@@ -219,16 +202,23 @@ export function CompanyUsersSection({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {u.roles.length ? (
+                        {u.roles.filter((r) => !(u.isOwner && r === "SAHIP")).length ? (
                           // C49: Kurucu ad yanında rozet — listede tekrarlamaz.
                           u.roles
                             .filter((r) => !(u.isOwner && r === "SAHIP"))
                             .map((r) => (
                             <RoleBadge key={r} role={r} />
                           ))
-                        ) : (
-                          <span className="text-xs text-zinc-400">Rol yok</span>
+                        ) : (u.permissions ?? []).length > 0 && !u.isOwner ? (
+                          <Badge color="zinc">Görüntüleyici</Badge>
+                        ) : u.isOwner ? null : (
+                          <span className="text-xs text-zinc-400">Yetki yok</span>
                         )}
+                        {u.custom ? (
+                          <Badge color="amber" title="Hazır setten farklı, kişiye özel yetkiler">
+                            Özel
+                          </Badge>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -520,75 +510,25 @@ function EditUserModal({
   onClose: () => void;
 }) {
   const update = useUpdateUser();
-  const updatePerms = useUpdateUserPermissions();
-  const { data: catalogData } = usePermissionCatalog();
-  const catalog = useMemo(() => catalogData?.catalog ?? [], [catalogData]);
-  const roleDefaultsMap = catalogData?.roleDefaults;
+  const setPermissions = useSetUserPermissions();
+  const { data: catalog } = usePermissionCatalog();
+  const { data: seats } = useSeats();
 
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
   const [phone, setPhone] = useState(user.phone ?? "");
-  const [roles, setRoles] = useState<CompanyRole[]>(user.roles);
-
-  // İzin editörü (yalnızca sahip, sahip-olmayan hedefte).
-  const showPerms = viewerIsOwner && !user.isOwner;
-
-  // Verilen roller için varsayılan izin kümesi (eski ROLE_DEFAULT_PERMISSIONS).
-  const defaultsFor = (rs: CompanyRole[]) => {
-    const set = new Set<string>();
-    for (const r of rs) for (const p of roleDefaultsMap?.[r] ?? []) set.add(p);
-    return set;
-  };
-  const liveDefaults = useMemo(
-    () => defaultsFor(roles),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [roles, roleDefaultsMap],
+  // Yetki tablosu: açılışta kişinin EFEKTİF izin listesi (Kurucuda örtükler dahil).
+  const initialPerms = useMemo(
+    () => user.permissions ?? user.rolePermissions,
+    [user],
   );
-
-  // Açılışta kullanıcının ETKİN izinleri (rol ∪ added − removed).
-  const effective = useMemo(() => {
-    const set = new Set(user.rolePermissions);
-    for (const k of user.permissionsOverride.added) set.add(k);
-    for (const k of user.permissionsOverride.removed) set.delete(k);
-    return set;
-  }, [user]);
-  const [perms, setPerms] = useState<Record<string, boolean>>({});
-  const initialPerms = useMemo(() => {
-    const m: Record<string, boolean> = {};
-    for (const c of catalog) m[c.key] = effective.has(c.key);
-    return m;
-  }, [catalog, effective]);
-  const permState = Object.keys(perms).length ? perms : initialPerms;
-
-  const applyDefaults = (rs: CompanyRole[]) => {
-    const def = defaultsFor(rs);
-    const m: Record<string, boolean> = {};
-    for (const c of catalog) m[c.key] = def.has(c.key);
-    setPerms(m);
-  };
-
-  // Kombo kuralları: SAHIP yalnız SA/ST ile birleşir; YONETICI+ONAYLAYICI
-  // birleşemez (Yönetici zaten onay verebilir — backend assertValidRoleCombo
-  // ile birebir). SA/ST + ONAYLAYICI serbest (satın alma müdürü deseni).
-  // Rol değişince izinler yeni kümenin varsayılanına SIFIRLANIR.
-  const toggleRole = (r: CompanyRole) => {
-    const hasSahip = roles.includes("SAHIP");
-    let next: CompanyRole[] = roles.includes(r)
-      ? roles.filter((x) => x !== r)
-      : [...roles, r];
-    // YONETICI seçilirse ONAYLAYICI düşer (Yönetici onayı zaten kapsar).
-    if (r === "YONETICI" && next.includes("YONETICI")) {
-      next = next.filter((x) => x !== "ONAYLAYICI");
-    }
-    if (hasSahip) {
-      next = [
-        "SAHIP",
-        ...next.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI"),
-      ];
-    }
-    setRoles(next);
-    if (next.length > 0) applyDefaults(next);
-  };
+  const [perms, setPerms] = useState<string[]>(initialPerms);
+  const seatsFull =
+    seats?.limit != null && seats.used + seats.pendingSeatInvites >= seats.limit;
+  const hadSeat = user.roles.some((r) => r === "SATIN_ALMACI" || r === "SATISCI");
+  const permsChanged =
+    perms.length !== initialPerms.length ||
+    perms.some((k) => !initialPerms.includes(k));
 
   // Kuruculuk devri — panel açılır, eski Kurucu (siz) yeni rolünü seçer.
   const [transferOpen, setTransferOpen] = useState(false);
@@ -617,28 +557,13 @@ function EditUserModal({
     }
   };
 
-  const isCustomized = useMemo(
-    () => catalog.some((c) => (permState[c.key] ?? false) !== liveDefaults.has(c.key)),
-    [catalog, permState, liveDefaults],
-  );
-
-  const groups = useMemo(() => {
-    const g = new Map<string, typeof catalog>();
-    for (const c of catalog) {
-      const arr = g.get(c.group) ?? [];
-      arr.push(c);
-      g.set(c.group, arr);
-    }
-    return [...g.entries()];
-  }, [catalog]);
-
   const save = async () => {
     if (firstName.trim().length < 2 || lastName.trim().length < 2) {
       toast.error("Ad ve soyad en az 2 karakter");
       return;
     }
-    if (roles.length === 0) {
-      toast.error("En az bir rol seçin");
+    if (!user.isOwner && perms.length === 0) {
+      toast.error("En az bir yetki seçin");
       return;
     }
     try {
@@ -647,18 +572,9 @@ function EditUserModal({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
-        roles,
       });
-      if (showPerms) {
-        const added: string[] = [];
-        const removed: string[] = [];
-        for (const c of catalog) {
-          const on = permState[c.key];
-          const isDefault = liveDefaults.has(c.key);
-          if (on && !isDefault) added.push(c.key);
-          if (!on && isDefault) removed.push(c.key);
-        }
-        await updatePerms.mutateAsync({ id: user.id, added, removed });
+      if (permsChanged) {
+        await setPermissions.mutateAsync({ id: user.id, permissions: perms });
       }
       toast.success("Kullanıcı güncellendi");
       onClose();
@@ -667,11 +583,13 @@ function EditUserModal({
     }
   };
 
+  const busy = update.isPending || setPermissions.isPending;
+
   return (
     <Dialog open onClose={onClose} size="3xl">
       <DialogTitle>Kullanıcıyı Düzenle</DialogTitle>
       <DialogDescription>{user.email}</DialogDescription>
-      {/* Uzun içerik (yetki editörü) viewport'u aşıp üstü header altında
+      {/* Uzun içerik (yetki tablosu) viewport'u aşıp üstü header altında
           kalmasın diye body iç scroll ile sınırlanır; pr/-mr çifti içeriğin
           scrollbar'a yapışmasını önler. */}
       <DialogBody className="-mr-3 max-h-[70vh] space-y-5 overflow-y-auto pr-3">
@@ -693,82 +611,50 @@ function EditUserModal({
           </Field>
         </div>
 
-        {/* Roller (çoklu) */}
+        {/* Yetki tablosu (Faz 4): rol çipleri hazır seti işaretler, tikler
+            kişiye özel. Kurucu satırında yalnız işlem tikleri düzenlenir. */}
         <div>
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-zinc-900">Roller</p>
-            <p className="text-xs text-zinc-500">Birden fazla seçilebilir</p>
+            <p className="text-sm font-semibold text-zinc-900">Yetkiler</p>
+            {seatsFull ? (
+              <p className="text-xs text-amber-700">
+                Kullanıcı hakkı dolu — yeni koltuk verilemez.
+              </p>
+            ) : (
+              <p className="text-xs text-zinc-500">
+                Satınalma/satış işlem tikleri koltuk sayar.
+              </p>
+            )}
           </div>
-          {/* Kurucu ETİKETİ (Faz R): yönetim + billing/silme/devir; İŞLEM
-              yetkisi vermez. Kilitli; yalnız devirle değişir. */}
           {user.isOwner ? (
             <div className="mt-2 flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-3 text-sm">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white">
                 <Crown className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="flex items-center gap-2 font-semibold text-zinc-900">
-                  Kurucu
-                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-violet-700">
-                    Kilitli
-                  </span>
-                </span>
+                <span className="font-semibold text-zinc-900">Kurucu</span>
                 <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
-                  Yönetim etiketi — hesap ve kullanıcı yönetimi, faturalama,
-                  devir. Tek başına işlem yetkisi vermez; ihale açmak veya
-                  teklif vermek için aşağıdan rol ekleyin. Yalnız devirle
-                  değişir.
+                  Yönetim, onay ve görüntüleme yetkileri Kurucuda örtüktür ve
+                  kısılamaz. Yalnız işlem (koltuk) tiklerini değiştirebilirsiniz;
+                  kuruculuk yalnız devirle değişir.
                 </span>
               </span>
             </div>
           ) : null}
-          {/* Faz R: Kurucu'ya SA/ST eklenebilir (etiket işlem vermez);
-              YONETICI etiketini yalnız Kurucu atayabilir. */}
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {(user.isOwner
-              ? ROLES.filter(
-                  (r) => r.key === "SATIN_ALMACI" || r.key === "SATISCI",
-                )
-              : ROLES.filter((r) => r.key !== "YONETICI" || viewerIsOwner)
-            ).map((r) => {
-              const on = roles.includes(r.key);
-              // YONETICI seçiliyken ONAYLAYICI anlamsız (onayı zaten kapsar).
-              const onayLocked =
-                r.key === "ONAYLAYICI" && roles.includes("YONETICI");
-              const Icon = ROLE_ICON[r.key];
-              return (
-                <label
-                  key={r.key}
-                  className={`flex items-start gap-3 rounded-xl p-3 text-sm ring-1 transition ${
-                    on
-                      ? "bg-zinc-50 ring-2 ring-zinc-900"
-                      : "bg-white ring-zinc-950/10 hover:ring-zinc-950/25"
-                  } ${onayLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-                >
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
-                      on ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="font-semibold text-zinc-900">{r.label}</span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
-                      {onayLocked
-                        ? "Yönetici zaten onay verebilir — ayrıca gerekmez"
-                        : r.desc}
-                    </span>
-                  </span>
-                  <Checkbox
-                    checked={on}
-                    disabled={onayLocked}
-                    onChange={() => toggleRole(r.key)}
-                    className="mt-0.5"
-                  />
-                </label>
-              );
-            })}
+          <div className="mt-2">
+            {catalog ? (
+              <PermissionTable
+                catalog={catalog}
+                value={perms}
+                onChange={setPerms}
+                viewerIsOwner={viewerIsOwner}
+                targetIsOwner={user.isOwner}
+                seatsFull={seatsFull}
+                hadSeat={hadSeat}
+              />
+            ) : (
+              <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>
+            )}
           </div>
           {/* Kuruculuk devri — yalnız mevcut Kurucu, başka bir kullanıcıya. */}
           {viewerIsOwner && !user.isOwner ? (
@@ -778,15 +664,14 @@ function EditUserModal({
                   Kuruculuğu {user.firstName} {user.lastName} kişisine devret
                 </p>
                 <p className="text-xs text-violet-700">
-                  Devirden sonra <strong>sizin</strong> rolünüz ne olsun? (Yönetim
-                  ve operasyon aynı anda seçilemez.)
+                  Devirden sonra <strong>sizin</strong> rolünüz ne olsun?
                 </p>
                 <SelectMenu
                   value={myNewRole}
                   onChange={(v) => setMyNewRole(v as typeof myNewRole)}
                   ariaLabel="Devir sonrası rolünüz"
                   options={[
-                    { value: "YONETICI", label: "Yönetici (yönetim; operasyon yok)" },
+                    { value: "YONETICI", label: "Yönetici (yönetim; işlem yok)" },
                     { value: "SATIN_ALMACI", label: "Satın Almacı (yalnız alış)" },
                     { value: "SATISCI", label: "Satışçı (yalnız satış)" },
                     { value: "BOTH", label: "Satın Almacı + Satışçı" },
@@ -823,79 +708,12 @@ function EditUserModal({
             )
           ) : null}
         </div>
-
-        {/* Yetkiler (yalnızca firma sahibi) */}
-        {showPerms && catalog.length ? (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Yetkiler</p>
-                {isCustomized ? (
-                  <p className="mt-0.5 text-xs text-amber-700">
-                    Rol varsayılanından farklı (özelleştirilmiş)
-                  </p>
-                ) : (
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Rolün varsayılan yetkileri uygulanıyor.
-                  </p>
-                )}
-              </div>
-              {isCustomized ? (
-                <button
-                  type="button"
-                  onClick={() => applyDefaults(roles)}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  Varsayılana Dön
-                </button>
-              ) : null}
-            </div>
-            <div className="mt-3 space-y-4">
-              {groups.map(([group, items]) => (
-                <div key={group}>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
-                    {group}
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {(items ?? []).map((c) => {
-                      const isDefault = liveDefaults.has(c.key);
-                      const on = permState[c.key] ?? false;
-                      return (
-                        <label
-                          key={c.key}
-                          className="flex items-center gap-2 text-sm text-zinc-700"
-                        >
-                          <Checkbox
-                            checked={on}
-                            onChange={(checked) =>
-                              setPerms({ ...permState, [c.key]: checked })
-                            }
-                          />
-                          <span>{c.label}</span>
-                          {!isDefault && on ? (
-                            <span className="text-xs font-semibold uppercase text-amber-600">
-                              +
-                            </span>
-                          ) : isDefault && !on ? (
-                            <span className="text-xs font-semibold uppercase text-red-600">
-                              −
-                            </span>
-                          ) : null}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={save} disabled={update.isPending || updatePerms.isPending}>
+        <Button onClick={save} disabled={busy}>
           Kaydet
         </Button>
       </DialogActions>

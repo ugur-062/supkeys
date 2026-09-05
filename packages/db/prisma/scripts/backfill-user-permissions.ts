@@ -27,11 +27,6 @@ import {
 const prisma = new PrismaClient();
 const force = process.argv.includes("--force");
 
-interface Override {
-  added?: string[];
-  removed?: string[];
-}
-
 async function main() {
   const users = await prisma.companyUser.findMany({
     where: { deletedAt: null },
@@ -40,7 +35,6 @@ async function main() {
       email: true,
       roles: true,
       permissions: true,
-      permissionsOverride: true,
       company: { select: { ownerUserId: true } },
     },
   });
@@ -52,10 +46,8 @@ async function main() {
       skipped++;
       continue;
     }
-    const ov = (u.permissionsOverride as Override | null) ?? null;
-    const removed = new Set(ov?.removed ?? []);
-    const base = permissionsForRoles(u.roles).filter((k) => !removed.has(k));
-    const permissions = normalizePermissions([...base, ...(ov?.added ?? [])]);
+    // Override kolonu 2026-09-06'da düştü (Faz 4); geriye kalan tek kaynak rol seti.
+    const permissions = normalizePermissions(permissionsForRoles(u.roles));
     const isOwner = u.company.ownerUserId === u.id;
     const roles = rolesFromPermissions(permissions, isOwner);
     const sameRoles =

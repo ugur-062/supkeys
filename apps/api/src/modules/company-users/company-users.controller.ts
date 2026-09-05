@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
@@ -16,8 +17,10 @@ import {
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import { COMPANY_PERMISSION_GROUP_LABELS, VIEWER_PRESET } from "@rothern/shared";
 import {
   COMPANY_PERMISSION_CATALOG,
+  COMPANY_ROLE_PRESETS,
   COMPANY_ROLE_PERMISSIONS,
 } from "../company-auth/permissions/company-permissions.constants";
 import { CompanyUsersService } from "./company-users.service";
@@ -27,6 +30,7 @@ import {
   SetUserActiveDto,
   UpdateUserDto,
   UpdateUserPermissionsDto,
+  SetUserPermissionsDto,
   UpdateUserRolesDto,
 } from "./dto/company-user.dto";
 
@@ -58,12 +62,24 @@ export class CompanyUsersController {
     return this.service.applySeatSelection(user, dto.keepUserIds);
   }
 
-  /** Atanabilir izin kataloğu + rol-varsayılan izinleri (Ayarlar izin editörü). */
+  /**
+   * Yetki tablosu kataloğu (Faz 4): gruplu satırlar (koltuk işareti, "yalnız
+   * Kurucu verir" bayrağı), grup etiketleri, hazır setler (rol çipleri +
+   * Görüntüleyici). `roleDefaults` eski istemci için aynen.
+   */
   @Get("permission-catalog")
   @RequireCompanyPermission("users:manage")
   permissionCatalog() {
     return {
       catalog: COMPANY_PERMISSION_CATALOG,
+      groups: COMPANY_PERMISSION_GROUP_LABELS,
+      presets: {
+        SATIN_ALMACI: COMPANY_ROLE_PRESETS.SATIN_ALMACI,
+        SATISCI: COMPANY_ROLE_PRESETS.SATISCI,
+        ONAYLAYICI: COMPANY_ROLE_PRESETS.ONAYLAYICI,
+        YONETICI: COMPANY_ROLE_PRESETS.YONETICI,
+        GORUNTULEYICI: VIEWER_PRESET,
+      },
       roleDefaults: COMPANY_ROLE_PERMISSIONS,
     };
   }
@@ -135,7 +151,7 @@ export class CompanyUsersController {
     return this.service.setActive(user, id, dto.active);
   }
 
-  /** Kişi-bazlı izin override — yalnızca firma sahibi (servis içinde doğrulanır). */
+  /** ESKİ: rol setine göre +/- fark (yalnız Kurucu). Yeni istemci PUT kullanır. */
   @Patch(":id/permissions")
   @RequireCompanyPermission("users:manage")
   updatePermissions(
@@ -144,6 +160,22 @@ export class CompanyUsersController {
     @Body() dto: UpdateUserPermissionsDto,
   ) {
     return this.service.updatePermissions(user, id, dto);
+  }
+
+  /**
+   * Yetki tablosu (Faz 4): kişinin izin listesini OLDUĞU GİBİ yazar. Kurallar
+   * serviste: kendi satırı yok (Kurucu hariç), "Kullanıcı ve yetki" tikini
+   * yalnız Kurucu verir, koltuk kapısı, son yetki sahibi koruması, denetim
+   * kaydı + kişiye bildirim.
+   */
+  @Put(":id/permissions")
+  @RequireCompanyPermission("users:manage")
+  setPermissions(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: SetUserPermissionsDto,
+  ) {
+    return this.service.setPermissions(user, id, dto.permissions);
   }
 
   @Delete(":id")

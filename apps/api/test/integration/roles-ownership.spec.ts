@@ -269,18 +269,28 @@ describe("Onay-netliği: YONETICI+ONAYLAYICI kombo engeli", () => {
 });
 
 describe("Denetim 2026-08-23 #8 — kuruculuk devri sertleştirmeleri", () => {
-  it("hedefin permissionsOverride'ı devirde TEMİZLENİR (yeni Kurucu kendi 'removed' anahtarlarıyla kilitlenmez)", async () => {
+  it("devirde yeni Kurucu kısıt devralmaz: yazılı listesi daraltılmış olsa da yönetim ÖRTÜK; devir denetim kaydı yazılır", async () => {
     const svc = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);
-    const member = await makeUser(prisma, owner.company.id, [CompanyRole.YONETICI]);
-    await prisma.companyUser.update({
-      where: { id: member.id },
-      data: { permissionsOverride: { removed: ["users:manage"] } },
+    const member = await makeUser(prisma, owner.company.id, [CompanyRole.YONETICI], {
+      permissions: ["company:manage"], // users:manage bilerek YOK
     });
     await svc.updateRoles(owner.auth, member.id, { roles: [CompanyRole.SAHIP] } as never);
     const newOwner = await prisma.companyUser.findUniqueOrThrow({ where: { id: member.id } });
     expect(newOwner.roles).toEqual([CompanyRole.SAHIP]);
-    expect(newOwner.permissionsOverride).toBeNull();
+    const { hasCompanyPermission } = await import(
+      "../../src/modules/company-auth/permissions/company-permissions.constants"
+    );
+    expect(
+      hasCompanyPermission(
+        { isOwner: true, permissions: newOwner.permissions, roles: newOwner.roles },
+        "users:manage",
+      ),
+    ).toBe(true);
+    const transferRow = await prisma.auditLog.findFirst({
+      where: { action: "company.ownership.transferred", tenantId: owner.company.id },
+    });
+    expect(transferRow?.metadata).toMatchObject({ fromUserId: owner.user.id, toUserId: member.id });
     const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
     expect(company.ownerUserId).toBe(member.id);
   });

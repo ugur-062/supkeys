@@ -10,24 +10,22 @@ import {
 } from "@/components/catalyst/dialog";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { PermissionTable } from "@/components/company/permission-table";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useSeats } from "@/hooks/use-company-users";
-import { useInviteUser } from "@/hooks/use-company-users";
-import type { CompanyRole } from "@/lib/company-auth/types";
+import {
+  useInviteUser,
+  usePermissionCatalog,
+  useSeats,
+} from "@/hooks/use-company-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const ROLES: { key: CompanyRole; label: string; hint: string }[] = [
-  { key: "YONETICI", label: "Yönetici", hint: "Hesap ve ekip yönetimi" },
-  { key: "SATIN_ALMACI", label: "Satın Almacı", hint: "Satın alma taleplerini" },
-  { key: "SATISCI", label: "Satışçı", hint: "Satış ilanları" },
-  { key: "ONAYLAYICI", label: "Onaylayıcı", hint: "Onay süreçleri" },
-];
-
 /**
- * Token'lı davet — yalnızca e-posta + rol girilir. Davetli, e-postadaki linkten
- * adını/parolasını KENDİSİ belirleyip sözleşmeleri onaylayarak katılır.
+ * Token'lı davet — e-posta + YETKİ TABLOSU (Faz 4): davetli hangi tiklerle
+ * katılacaksa burada işaretlenir; hazır set çipleri (Satın Almacı varsayılan)
+ * tabloyu doldurur. Davetli, e-postadaki linkten adını/parolasını KENDİSİ
+ * belirleyip sözleşmeleri onaylayarak katılır.
  */
 export function InviteUserDialog({
   open,
@@ -38,38 +36,28 @@ export function InviteUserDialog({
 }) {
   const invite = useInviteUser();
   const { user: viewer } = useCompanyAuth();
-  // Faz K: koltuk doluysa SA/ST seçenekleri kilitli (UX — asıl kapı backend).
+  const { data: catalog } = usePermissionCatalog();
+  // Faz K: koltuk doluysa işlem tikleri kilitli (UX — asıl kapı backend).
   const { data: seats } = useSeats();
   const seatsFull =
     seats?.limit != null && seats.used + seats.pendingSeatInvites >= seats.limit;
   const [email, setEmail] = useState("");
-  const [roles, setRoles] = useState<CompanyRole[]>(["SATIN_ALMACI"]);
+  const [perms, setPerms] = useState<string[]>([]);
+  // Katalog gelince varsayılan hazır set: Satın Almacı.
+  useEffect(() => {
+    if (catalog && perms.length === 0) setPerms(catalog.presets.SATIN_ALMACI);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog]);
 
-  // Faz R: münhasırlık kalktı — tüm roller birleşebilir (SAHIP davetle zaten
-  // verilemez). YONETICI etiketini yalnız Kurucu atayabilir → seçenek filtreli.
-  const assignableRoles = ROLES.filter(
-    (r) => r.key !== "YONETICI" || !!viewer?.isOwner,
-  );
-  const toggle = (r: CompanyRole) =>
-    setRoles((cur) => {
-      const next = cur.includes(r)
-        ? cur.filter((x) => x !== r)
-        : [...cur, r];
-      // YONETICI + ONAYLAYICI birleşemez — Yönetici zaten onay verebilir.
-      return r === "YONETICI" && next.includes("YONETICI")
-        ? next.filter((x) => x !== "ONAYLAYICI")
-        : next;
-    });
-
-  const canSave = email.includes("@") && roles.length > 0;
+  const canSave = email.includes("@") && perms.length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
     try {
-      await invite.mutateAsync({ email: email.trim(), roles });
+      await invite.mutateAsync({ email: email.trim(), permissions: perms });
       toast.success("Davet e-postası gönderildi — 7 gün geçerli");
       setEmail("");
-      setRoles(["SATIN_ALMACI"]);
+      setPerms(catalog?.presets.SATIN_ALMACI ?? []);
       onClose();
     } catch (err) {
       toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
@@ -77,13 +65,13 @@ export function InviteUserDialog({
   };
 
   return (
-    <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="md">
+    <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="2xl">
       <DialogTitle>Üye Davet Et</DialogTitle>
       <DialogDescription>
         Davetli, e-postasındaki linkten adını ve parolasını kendisi belirleyerek
         ekibe katılır. Davet 7 gün geçerlidir.
       </DialogDescription>
-      <DialogBody className="space-y-4">
+      <DialogBody className="-mr-3 max-h-[70vh] space-y-4 overflow-y-auto pr-3">
         <Field>
           <Label>E-posta</Label>
           <Input
@@ -95,42 +83,26 @@ export function InviteUserDialog({
           />
         </Field>
         <div>
-          <p className="text-sm font-medium text-zinc-900">Rol</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            Roller birleştirilebilir; Yönetici etiketini yalnız Kurucu
-            atayabilir.
-            {seatsFull
-              ? " Kullanıcı hakkı dolu — Satın Almacı/Satışçı için paketi yükseltin."
-              : ""}
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {assignableRoles.map((r) => {
-              const on = roles.includes(r.key);
-              const seatLocked =
-                seatsFull &&
-                !on &&
-                (r.key === "SATIN_ALMACI" || r.key === "SATISCI");
-              const onayLocked =
-                r.key === "ONAYLAYICI" && roles.includes("YONETICI");
-              return (
-                <button
-                  key={r.key}
-                  type="button"
-                  disabled={seatLocked || onayLocked}
-                  onClick={() => toggle(r.key)}
-                  className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                    on
-                      ? "border-zinc-900 bg-zinc-900 text-white"
-                      : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
-                  } ${seatLocked || onayLocked ? "cursor-not-allowed opacity-40" : ""}`}
-                >
-                  <div className="font-semibold">{r.label}</div>
-                  <div className="mt-0.5 text-xs opacity-70">
-                    {onayLocked ? "Yönetici zaten onay verebilir" : r.hint}
-                  </div>
-                </button>
-              );
-            })}
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-sm font-medium text-zinc-900">Yetkiler</p>
+            {seatsFull ? (
+              <p className="text-xs text-amber-700">
+                Kullanıcı hakkı dolu — işlem tikleri için paketi yükseltin.
+              </p>
+            ) : null}
+          </div>
+          <div className="mt-2">
+            {catalog ? (
+              <PermissionTable
+                catalog={catalog}
+                value={perms}
+                onChange={setPerms}
+                viewerIsOwner={!!viewer?.isOwner}
+                seatsFull={seatsFull}
+              />
+            ) : (
+              <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>
+            )}
           </div>
         </div>
       </DialogBody>

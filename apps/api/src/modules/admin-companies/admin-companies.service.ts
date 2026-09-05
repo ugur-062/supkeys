@@ -2014,7 +2014,6 @@ export class AdminCompaniesService {
             twoFactorRecoveryCodes: true,
             authId: true,
             tokenVersion: true,
-            permissionsOverride: true,
           },
         }),
       ),

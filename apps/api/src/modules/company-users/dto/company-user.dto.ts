@@ -31,11 +31,29 @@ export class InviteCompanyUserDto {
   @IsEmail({}, { message: "Geçerli e-posta girin" })
   email!: string;
 
+  /** Rol hazır setleri (eski istemci). `permissions` verilirse yok sayılır. */
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1, { message: "En az bir rol seçin" })
   @ArrayMaxSize(5)
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
-  roles!: CompanyRoleDto[];
+  roles?: CompanyRoleDto[];
+
+  /** Yetki tablosu (Faz 4): davetle verilen AÇIK izin listesi. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(40)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  permissions?: string[];
+}
+
+/** Yetki tablosu (Faz 4): kişinin AÇIK izin listesini olduğu gibi yazar. */
+export class SetUserPermissionsDto {
+  @IsArray()
+  @ArrayMaxSize(40)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  permissions!: string[];
 }
 
 /** Davet kabulü (public) — signup ile aynı kişi/parola/sözleşme kuralları. */

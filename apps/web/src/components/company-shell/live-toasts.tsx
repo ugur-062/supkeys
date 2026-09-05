@@ -182,6 +182,11 @@ export function LiveToasts() {
         .catch(() => [] as ThreadSummary[]);
 
     const showNotification = (n: AppNotification) => {
+      // Yetki tablosu (Faz 4): yetki değişince kimlik anında yenilenir —
+      // menü/kapılar yeni izinlere göre çizilir (sunucu zaten taze).
+      if (n.type === "permissions_changed") {
+        qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+      }
       const chip = n.portal ? PORTALS[n.portal].label : undefined;
       toast.custom(
         (t) => (
