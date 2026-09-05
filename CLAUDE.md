@@ -1006,8 +1006,8 @@ kredisi bitmiş (429) — AI yalnız canlıda (Vertex) doğrulanır.
 
 ## Şirketim alanı (2026-09-05, Europages "My Company" kalıbı, kullanıcı kararı)
 
-Üst çubukta sol üstteki firma adı + paket rozeti bir DÜĞME ("Şirketim") — dar
-ekranda hesap menüsünde. İçindeyken sol menü firma menüsüne döner
+Üst çubukta firma adı + paket rozeti bir DÜĞME ("Şirketim"; sağ kümenin
+önünde, eski arama kutusunun yerinde) — dar ekranda hesap menüsünde. İçindeyken sol menü firma menüsüne döner
 (`COMPANY_AREA`, `lib/company/portals.ts`): **Genel Bakış · Profil · Ziyaret
 Edenler · Raporlar**; Satınalma | Satış geçişi üstte KALIR (panele tek tıkla
 dönüş), "Talep aç" CTA'sı çizilmez. Rota portal-nötr: `/company/sirketim/*`.
@@ -1079,14 +1079,12 @@ talebi → teklif → kazanılan), oran çubuklu sıralama kartları. API
 Sözleşmeler: `company-views.spec.ts` (API), `visitors-view.test`,
 `view-beacon.test`, `sidebar.test` (Şirketim modu), `secondary-routes.test`.
 
-**Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
-`components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:
-satınalma → `/company/satinalma/urunler?q=` "Ürün ara", satış →
-`/company/satis?q=` "Açık talep ara"), md+ ekranda, düz `<form method="get">`.
-Menüden kalkan "Ürün Ara"/"Açık Talepler" satırlarının yerini bu doldurur:
-anasayfadaki büyük kutu ilk ekran deneyimi, üst çubuktaki küçük kutu iç
-sayfalarda sürer. Hero (`[data-hero-search]`) ekrandayken ÇİZİLMEZ — aynı
-görünümde iki arama kutusu olmasın.
+**Üst çubuk araması KALDIRILDI (2026-09-05 gece, kullanıcı kararı):** kısa
+süre iç sayfalarda portal-yönlü küçük bir arama kutusu vardı
+(`topbar-search.tsx`, silindi); yerine **Şirketim düğmesi** geçti (sağ
+kümenin önünde: firma adı + paket rozeti). Arama yalnız anasayfalardaki
+büyük kutuda. `useHeroGone` kancası herkese açık `MarketingHeader`da
+yaşamaya devam eder.
 
 > ⚠️ `useHeroGone` kancası 2026-09-05'te iki yönden düzeltildi: (a) panel
 > kabuğu (üst çubuk) sayfadan ÖNCE mount olur — auth kapısı sayfayı sonradan

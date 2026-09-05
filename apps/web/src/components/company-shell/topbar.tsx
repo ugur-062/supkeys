@@ -31,7 +31,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
-import { TopbarSearch } from "./topbar-search";
 
 function initialsOf(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "?";
@@ -91,18 +90,21 @@ export function CompanyTopbar({
         />
       </Link>
 
-      {/* ŞİRKETİM — firma kimliği bir DÜĞME (2026-09-05, Europages "My Company"):
-          tıklayınca firma alanı açılır, sol menü firma menüsüne döner. */}
+
+      {/* Sağa yaslı: Şirketim düğmesi (eski arama kutusunun yerinde) */}
+      <div className="ml-auto flex min-w-0 items-center">
+      {/* ŞİRKETİM — sağ kümenin önünde (2026-09-05, kullanıcı kararı: üst çubuk
+          araması kaldırıldı, yerine firma düğmesi). Tıklayınca firma alanı
+          açılır, sol menü firma menüsüne döner; dar ekranda hesap menüsünde. */}
       <Link
         href={COMPANY_AREA_BASE}
         aria-label={`${COMPANY_AREA.label} — ${company?.name ?? ""}`}
         aria-current={inCompanyArea ? "page" : undefined}
         className={cn(
-          "group hidden min-w-0 items-center gap-2 rounded-lg py-1 pr-2 pl-3 transition sm:flex",
+          "group hidden min-w-0 items-center gap-2 rounded-lg py-1 pr-2 pl-2 transition sm:flex",
           inCompanyArea ? "bg-zinc-100" : "hover:bg-zinc-100",
         )}
       >
-        <span className="h-6 w-px bg-zinc-200" aria-hidden />
         <BuildingOffice2Icon className="size-4 shrink-0 text-zinc-500" aria-hidden />
         <span className="flex min-w-0 flex-col leading-tight">
           <span className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
@@ -126,10 +128,6 @@ export function CompanyTopbar({
           {TIER_LABELS[tier] ?? tier}
         </span>
       </Link>
-
-      {/* Orta: portal duyarlı arama (hero görünümden çıkınca) */}
-      <div className="ml-auto flex min-w-0 items-center">
-        <TopbarSearch portal={activePortal} />
       </div>
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
