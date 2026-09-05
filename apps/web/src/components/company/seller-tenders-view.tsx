@@ -25,7 +25,7 @@ import {
 import { ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
 /** Liste satış ANASAYFASINDA yaşar; süzgeç durumu bu yolun sorgusunda. */
@@ -44,7 +44,7 @@ const BASE = "/company/satis";
  *  · Kendi arama kutusu YOK: en üstteki kutu (hero) ile aynı sayfada ikinci
  *    kutu tekrar oluyordu; arama burada yalnız çip.
  */
-export function SellerTendersView() {
+export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const tenders = useSellerTenders();
   const segments = useCategorySegments();
   // `useSearchParams` sunucu-öncesi render ve test ortamında NULL dönebilir.
@@ -83,6 +83,7 @@ export function SellerTendersView() {
         state={state}
         rows={filtered}
         facets={facets}
+        banner={banner}
         atCap={all.length >= 300}
         isLoading={tenders.isLoading}
         isError={tenders.isError}
@@ -96,6 +97,7 @@ function RequestList({
   state,
   rows,
   facets,
+  banner,
   atCap,
   isLoading,
   isError,
@@ -104,6 +106,7 @@ function RequestList({
   state: RequestFilterState;
   rows: SellerTenderRow[];
   facets: RequestFacets;
+  banner?: ReactNode;
   atCap: boolean;
   isLoading: boolean;
   isError: boolean;
@@ -133,6 +136,9 @@ function RequestList({
           En fazla 300 {t.unit} gösteriliyor — daha fazlası varsa arama ve süzgeçlerle daraltın.
         </div>
       ) : null}
+
+      {/* AI arama bandı — "AI şöyle anladı" + çipler (sayfa verir). */}
+      {banner}
 
       <RequestActiveChips facets={facets} />
 

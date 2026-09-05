@@ -23,6 +23,8 @@ import { ProfileEnrichController } from "./profile-enrich/profile-enrich.control
 import { ProfileEnrichService } from "./profile-enrich/profile-enrich.service";
 import { SupplierDiscoveryController } from "./supplier-discovery/supplier-discovery.controller";
 import { SupplierDiscoveryService } from "./supplier-discovery/supplier-discovery.service";
+import { SearchIntentController } from "./search-intent/search-intent.controller";
+import { SearchIntentService } from "./search-intent/search-intent.service";
 import { AssistantActionsService } from "./assistant/assistant-actions.service";
 import { AssistantService } from "./assistant/assistant.service";
 import { CompanyListingsModule } from "../company-listings/company-listings.module";
@@ -47,7 +49,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     CompanyOrdersModule,
     CompanyConnectionsModule,
   ],
-  controllers: [AiUsageController, TenderExtractController, BidPriceExtractController, ProductExtractController, AssistantController, SupplierDiscoveryController, ProfileEnrichController],
+  controllers: [AiUsageController, TenderExtractController, BidPriceExtractController, ProductExtractController, AssistantController, SupplierDiscoveryController, ProfileEnrichController, SearchIntentController],
   providers: [
     {
       provide: AI_CONFIG,
@@ -88,6 +90,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     AssistantActionsService,
     SupplierDiscoveryService,
     ProfileEnrichService,
+    SearchIntentService,
   ],
   exports: [AiService, AiBudgetService],
 })

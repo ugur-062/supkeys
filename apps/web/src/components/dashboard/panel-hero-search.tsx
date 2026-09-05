@@ -1,9 +1,13 @@
 "use client";
 
-import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
+import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
+import { MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { toast } from "sonner";
 
 /**
  * PANEL ARAMA BLOĞU — Europages "Ne arıyorsunuz?" kalıbı (2026-09-05,
@@ -33,6 +37,21 @@ export interface PanelSuggestGroup {
   rows: { key: string; label: string; meta?: string; href: string }[];
 }
 
+/**
+ * "AI ile ara" (2026-09-05, Europages kalıbı): kutu doğal dil alır, model
+ * SÜZGEÇ üretir (sonuç değil), sayfa onu listeye uygular ve "AI şöyle
+ * anladı" bandını basar. Silver+ (diğer AI özellikleriyle aynı kapı);
+ * altındaki paketlerde anahtar görünür ama devre dışı — özellik satışa da
+ * hizmet eder.
+ */
+export interface PanelHeroAi {
+  portal: AiSearchPortal;
+  /** Silver+ ∧ koltuk rolü. */
+  enabled: boolean;
+  onResult: (r: AiSearchIntentResult) => void;
+  placeholder?: string;
+}
+
 export function PanelHeroSearch({
   eyebrow,
   title,
@@ -44,6 +63,7 @@ export function PanelHeroSearch({
   accent = "blue",
   suggestions = [],
   onQueryChange,
+  ai,
 }: {
   eyebrow?: string;
   title: string;
@@ -57,16 +77,31 @@ export function PanelHeroSearch({
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
+  ai?: PanelHeroAi;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
+  const intent = useAiSearchIntent();
+  const aiActive = !!ai && aiMode;
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const term = q.trim();
     setOpen(false);
+    if (aiActive && ai) {
+      if (term.length < 3 || intent.isPending) return;
+      intent.mutate(
+        { text: term, portal: ai.portal },
+        {
+          onSuccess: (r) => ai.onResult(r),
+          onError: (err) => toast.error(extractErrorMessage(err, "AI araması başarısız oldu — tekrar deneyin.")),
+        },
+      );
+      return;
+    }
     // Sonuç listesi AYNI sayfadaysa (satış: açık talepler anasayfada) seçili
     // süzgeçler korunur, yalnız arama ve sayfa değişir — başka sayfaya
     // giderken temiz `?q=`.
@@ -77,7 +112,19 @@ export function PanelHeroSearch({
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
     router.push(parts.length ? `${action}?${parts.join("&")}` : action);
   };
-  const hasSug = q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
+  const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
+  // Textarea'da Enter gönderir, Shift+Enter satır ekler.
+  const onAiKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      e.currentTarget.form?.requestSubmit();
+    }
+  };
+  const aiPlaceholder =
+    ai?.placeholder ??
+    (ai?.portal === "satis"
+      ? "Ne sattığınızı anlatın: ürün, kapasite, bölge…"
+      : "Ne aradığınızı anlatın: ürün, adet, şehir, teslim süresi, bütçe…");
   const tone =
     accent === "blue"
       ? { glow: "var(--color-blue-200)", eyebrow: "text-blue-700" }
@@ -99,6 +146,37 @@ export function PanelHeroSearch({
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
 
+        {ai ? (
+          <div className="mt-6 flex items-center justify-center gap-1 text-xs">
+            <div role="group" aria-label="Arama modu" className="inline-flex rounded-full bg-zinc-100 p-0.5">
+              <button
+                type="button"
+                aria-pressed={!aiMode}
+                onClick={() => setAiMode(false)}
+                className={`rounded-full px-3 py-1 font-semibold transition ${!aiMode ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:text-zinc-950"}`}
+              >
+                Ara
+              </button>
+              <button
+                type="button"
+                aria-pressed={aiMode}
+                disabled={!ai.enabled}
+                title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
+                onClick={() => ai.enabled && setAiMode(true)}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${aiMode ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:text-zinc-950"}`}
+              >
+                <SparklesIcon aria-hidden className="size-3.5 text-blue-600" />
+                AI ile ara
+              </button>
+            </div>
+            {!ai.enabled ? (
+              <Link href="/company/ayarlar" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
+                Silver ile açılır
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* `data-hero-search`: üst çubuk araması bu kutuyu gözler — kutu
             görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür. */}
         <form
@@ -110,34 +188,66 @@ export function PanelHeroSearch({
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
           }}
-          className="relative mt-7"
+          className={ai ? "relative mt-4" : "relative mt-7"}
         >
           <div className="flex items-stretch gap-2">
-            <div className="relative flex flex-1 items-center rounded-full bg-white shadow-lg shadow-zinc-950/5 ring-1 ring-zinc-950/10 ring-inset transition focus-within:ring-2 focus-within:ring-zinc-950">
-              <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-4 size-5 text-zinc-400" />
-              <input
-                type="search"
-                name="q"
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  onQueryChange?.(e.target.value);
-                  setOpen(true);
-                }}
-                onFocus={() => setOpen(true)}
-                placeholder={placeholder}
-                aria-label={title}
-                autoComplete="off"
-                className="h-14 w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-              />
+            <div
+              className={`relative flex flex-1 items-center bg-white shadow-lg shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
+                aiActive
+                  ? "rounded-3xl ring-blue-200 focus-within:ring-blue-500"
+                  : "rounded-full ring-zinc-950/10 focus-within:ring-zinc-950"
+              }`}
+            >
+              {aiActive ? (
+                <SparklesIcon aria-hidden className="pointer-events-none absolute top-4 left-4 size-5 text-blue-600" />
+              ) : (
+                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-4 size-5 text-zinc-400" />
+              )}
+              {aiActive ? (
+                <textarea
+                  name="q"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={onAiKey}
+                  rows={2}
+                  placeholder={aiPlaceholder}
+                  aria-label="AI ile ara"
+                  maxLength={500}
+                  className="min-h-14 w-full resize-none rounded-3xl bg-transparent py-3.5 pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                />
+              ) : (
+                <input
+                  type="search"
+                  name="q"
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    onQueryChange?.(e.target.value);
+                    setOpen(true);
+                  }}
+                  onFocus={() => setOpen(true)}
+                  placeholder={placeholder}
+                  aria-label={title}
+                  autoComplete="off"
+                  className="h-14 w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                />
+              )}
             </div>
             <button
               type="submit"
-              className="h-14 shrink-0 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white transition hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+              disabled={aiActive && intent.isPending}
+              className={`h-14 shrink-0 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${
+                aiActive ? "self-end bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-600" : "bg-zinc-950 hover:bg-zinc-800 focus-visible:outline-zinc-950"
+              }`}
             >
-              Ara
+              {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
             </button>
           </div>
+          {aiActive ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              Örnek: &ldquo;İstanbul'a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici&rdquo; — AI süzgeçleri kurar, sonuçlar aşağıda listelenir.
+            </p>
+          ) : null}
 
           {open && hasSug ? (
             <div

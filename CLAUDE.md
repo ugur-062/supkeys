@@ -223,6 +223,7 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Pazar yeri yayın anahtarı (web) | `lib/public/marketplace-live.ts` |
 | Ürün skoru + yayın kapısı | `@rothern/shared` `helpers/product-completion.ts` (API'de ince re-export `common/company/product-completion.ts`; web formu AYNI kuralları canlı çalıştırır) |
 | Kategori nitelik çözümleyici | `common/company/category-attributes.ts` |
+| Model kategori ipucu → kod (AI) | `modules/ai/category-hint-resolver.ts` (ürün çıkarımı + AI arama) |
 | Kategori ata zinciri | `@rothern/shared` `helpers/category-code.ts` |
 | Public görsel yükleme | `common/company/public-image-upload.ts` |
 | Public profil + ürün kapısı | `common/company/public-profile-gate.ts` (`hasPublicProfile`, `publicProductWhere`) |
@@ -958,6 +959,28 @@ eşleşen"; satırda "Ürününüzle eşleşti" çipi (başlık ipucu ürün ad�
 
 *Kabuk genellemesinde bulunan hata:* `update({ page })` 1. sayfaya
 düşüyordu → düzeltildi (canlıda doğrulandı).
+
+**AI ile ara (2026-09-05, kullanıcı: "Europages'teki gibi AI arama").**
+İki anasayfanın arama kutusunda "Ara | ✨ AI ile ara" anahtarı. AI modunda
+kutu doğal dil alır; `POST company/ai/search-intent` (`modules/ai/
+search-intent/`, feature `search_intent`, Silver+ ∧ koltuk rolü —
+`assertAiAccess`; bütçe/tavanlar `callAi` kapısından, thinking "low", tek
+Flash çağrısı) yalnız SÜZGEÇ döner (`@rothern/shared` `AiSearchIntentResult`:
+query, categoryHint→**kod backend'de** `category-hint-resolver.ts` (ürün
+çıkarımıyla ORTAK, tek kaynak; talepte `discoveryOnly`), city (DB'deki il
+yazımına kanonik), verifiedOnly, activity, priceMax, quantity, unit,
+keywords, summary). Model sonuç/kod üretmez, yazma yok; `<metin>` VERİ,
+şema + sanitizer (negatif/kod-gibi ipucu/geçersiz faaliyet düşer) son savunma.
+Web: `lib/company/ai-search.ts` yorumu URL şemasına çevirir (satınalma:
+`?q&kategori&sehir&faaliyet&dogrulanmis&fiyatMax&moqMax` — adet → MOQ
+tavanı; satış: `?q&kategori(segment)&sehir`), sayfa `#urunler` /
+`#acik-talepler`e gider; `AiIntentBand` "AI şöyle anladı" + çipler (URL'de
+duranlar — kaldırılan gerçekten kalkar) + satınalmada "Bu tanımla talep aç"
+(`ai-tender-draft` sessionStorage köprüsü → sihirbaz `?ai=1`; taslak
+sunucuda kurulur: başlık, kalem (ad/adet/birim etiketi), açıklama = metin,
+`suggestedCategoryIds`). Silver altı: anahtar devre dışı + "Silver ile
+açılır". Sözleşmeler: `search-intent.spec.ts` (API), `ai-search.test`,
+`ai-intent-band.test`, `panel-hero-search.test` (web).
 
 **Üst çubuk araması iç sayfalarda devam ettirir (2026-09-05):**
 `components/company-shell/topbar-search.tsx` — portal-yönlü (`TOPBAR_SEARCH`:

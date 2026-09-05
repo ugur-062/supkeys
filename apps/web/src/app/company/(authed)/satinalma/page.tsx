@@ -6,6 +6,10 @@ import { useSatinalmaDashboard } from "@/hooks/use-company-dashboard";
 import { ActionStrip } from "@/components/dashboard/action-center";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { ProductDiscoverySection } from "@/components/company/product-discovery-section";
+import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
+import { intentToProductQuery } from "@/lib/company/ai-search";
+import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
+import { useRouter } from "next/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CategoryShowcasePanel } from "@/components/dashboard/category-showcase-panel";
 import { FeaturedCompaniesBlock } from "@/components/dashboard/featured-companies-block";
@@ -47,8 +51,20 @@ const PRODUCT_DETAIL = "/company/satinalma/urunler";
  * primary CTA (sol menü). Herkese açık uçlar panelde KULLANILMAZ.
  */
 export default function SatinalmaDashboardPage() {
-  const { company } = useCompanyAuth();
+  const { company, user } = useCompanyAuth();
   const ihale = useSatinalmaDashboard();
+  const router = useRouter();
+
+  // AI ile ara: yorum → ürün süzgeci (URL) + bant. Silver+ ∧ koltuk rolü
+  // (asistanla aynı kapı; API `assertAiAccess` aynasıdır).
+  const [intent, setIntent] = useState<AiSearchIntentResult | null>(null);
+  const aiEnabled =
+    !!company && tierAtLeast(company.tier, "SILVER") &&
+    !!user?.roles.some((r) => r === "SATIN_ALMACI" || r === "SATISCI");
+  const onAiResult = (r: AiSearchIntentResult) => {
+    setIntent(r);
+    router.push(`${HOME}${intentToProductQuery(r)}#urunler`);
+  };
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -134,6 +150,7 @@ export default function SatinalmaDashboardPage() {
         accent="blue"
         suggestions={suggestions}
         onQueryChange={setTerm}
+        ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
       />
 
       <CategoryShowcasePanel
@@ -146,7 +163,9 @@ export default function SatinalmaDashboardPage() {
         allLabel="Tüm ürünler"
       />
 
-      <ProductDiscoverySection />
+      <ProductDiscoverySection
+        banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
+      />
 
       <FeaturedCompaniesBlock />
 

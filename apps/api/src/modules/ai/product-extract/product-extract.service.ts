@@ -11,6 +11,7 @@ import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/com
 import { StorageService } from "../../storage/storage.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
 import { AiService, type AiCallResult } from "../ai.service";
+import { resolveCategoryHints } from "../category-hint-resolver";
 import {
   parseModelNumber,
   salvageRows,
@@ -44,9 +45,7 @@ import {
 /** Model çıktısından okunacak en fazla ürün (önizleme + şablon tavanı ile aynı). */
 const MAX_PRODUCTS = PRODUCT_IMPORT_MAX_ROWS;
 /** Katalogda aranacak en fazla FARKLI kategori ifadesi (tek toplu sorgu). */
-const MAX_HINTS = 60;
 /** Toplu adaylık sorgusunun tavanı. */
-const CANDIDATE_TAKE = 600;
 
 const CURRENCIES = new Set(["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"]);
 const PRICE_MODES = new Set(["FIXED", "TIERED", "ON_REQUEST"]);
@@ -152,7 +151,7 @@ export class ProductExtractService {
       );
     }
 
-    const resolved = await this.resolveHints(raw.map((p) => p.categoryHint));
+    const resolved = await resolveCategoryHints(this.prisma, raw.map((p) => p.categoryHint));
     let unresolved = 0;
     const rows: ProductImportRow[] = raw.map((p, i) => {
       const issues: string[] = [];
@@ -197,58 +196,6 @@ export class ProductExtractService {
       "Ürünler TASLAK olarak eklenir; görsel eklemeden vitrine çıkmaz (katalog dosyasındaki görseller aktarılmaz).",
     );
     return { rows, notices };
-  }
-
-  /**
-   * Model ifadelerini GERÇEK kategori koduna çevirir — tek toplu sorgu +
-   * bulunamayan ifade için tekil yedek sorgu.
-   *
-   * Sıralama: önce tam ad eşleşmesi, sonra token eşleşmesi; eşitlikte SINIF
-   * (L3) emtiadan (L4) önce gelir — yanlış giderse genel olan az zarar verir.
-   */
-  private async resolveHints(
-    hints: (string | null)[],
-  ): Promise<Map<string, { id: string; nameTr: string }>> {
-    const out = new Map<string, { id: string; nameTr: string }>();
-    const distinct = [...new Set(hints.filter((h): h is string => !!h))].slice(0, MAX_HINTS);
-    if (distinct.length === 0) return out;
-
-    const tokensOf = (h: string) => tokenizeQuery(h).map((t) => foldSearchText(t)).filter(Boolean);
-    const clauses = distinct
-      .map((h) => tokensOf(h))
-      .filter((ts) => ts.length > 0)
-      .map((ts) => ({ AND: ts.map((t) => ({ searchText: { contains: t } })) }));
-    if (clauses.length === 0) return out;
-
-    const candidates = await this.prisma.category.findMany({
-      where: { isActive: true, level: { in: [3, 4] }, OR: clauses },
-      select: { id: true, nameTr: true, level: true, searchText: true },
-      orderBy: [{ level: "asc" }, { id: "asc" }],
-      take: CANDIDATE_TAKE,
-    });
-
-    for (const hint of distinct) {
-      const ts = tokensOf(hint);
-      if (ts.length === 0) continue;
-      const folded = foldSearchText(hint);
-      const pool = candidates.filter((c) => ts.every((t) => (c.searchText ?? "").includes(t)));
-      const best =
-        pool.find((c) => foldSearchText(c.nameTr) === folded) ??
-        // `orderBy` zaten L3'ü öne aldı; havuzdaki ilk aday en genel olandır.
-        pool[0] ??
-        // Toplu sorgu tavanına takıldıysa (çok popüler bir ifade) tekil dene.
-        (await this.prisma.category.findFirst({
-          where: {
-            isActive: true,
-            level: { in: [3, 4] },
-            AND: ts.map((t) => ({ searchText: { contains: t } })),
-          },
-          select: { id: true, nameTr: true },
-          orderBy: [{ level: "asc" }, { id: "asc" }],
-        }));
-      if (best) out.set(hint, { id: best.id, nameTr: best.nameTr });
-    }
-    return out;
   }
 }
 

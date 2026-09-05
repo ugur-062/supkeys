@@ -15,6 +15,7 @@ export * from "./data/phone-codes";
 export * from "./helpers/tier";
 export * from "./helpers/search-fold";
 export * from "./types/ai-tender-draft";
+export * from "./types/ai-search-intent";
 export * from "./types/ai-assistant";
 export * from "./constants/item-import";
 export * from "./constants/product-import";

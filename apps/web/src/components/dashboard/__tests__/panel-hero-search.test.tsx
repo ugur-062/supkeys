@@ -4,7 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import { PanelHeroSearch } from "../panel-hero-search";
 
 const push = vi.fn();
-const h = vi.hoisted(() => ({ pathname: "/company/satinalma", search: "" }));
+const h = vi.hoisted(() => ({
+  pathname: "/company/satinalma",
+  search: "",
+  mutate: vi.fn(),
+  isPending: false,
+}));
+vi.mock("@/hooks/use-ai-search-intent", () => ({
+  useAiSearchIntent: () => ({ mutate: h.mutate, isPending: h.isPending }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
   usePathname: () => h.pathname,
@@ -52,5 +60,47 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     expect(push).toHaveBeenLastCalledWith("/company/satis?durum=tumu&alici=c1");
     h.pathname = "/company/satinalma";
     h.search = "";
+  });
+
+  it("AI ile ara: anahtar, çok satırlı kutu, Enter gönderir, sonuç sayfaya iletilir; öneri kapalı", () => {
+    const onResult = vi.fn();
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="x"
+        placeholder="p"
+        action="/company/satinalma"
+        ai={{ portal: "satinalma", enabled: true, onResult }}
+        suggestions={[{ label: "Ürünler", rows: [{ key: "a", label: "Pano", href: "/x" }] }]}
+      />,
+    );
+    // Varsayılan klasik mod.
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /AI ile ara/ }));
+    const box = screen.getByRole("textbox", { name: "AI ile ara" });
+    expect(box.tagName).toBe("TEXTAREA");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    fireEvent.change(box, { target: { value: "İstanbul'a 50 adet pano" } });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(h.mutate).toHaveBeenCalledWith(
+      { text: "İstanbul'a 50 adet pano", portal: "satinalma" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+    // Sonuç → sayfa (URL'yi sayfa kurar, kutu kurmaz).
+    const r = { portal: "satinalma", summary: "Anladığım: pano" };
+    h.mutate.mock.calls[0][1].onSuccess(r);
+    expect(onResult).toHaveBeenCalledWith(r);
+    expect(push).not.toHaveBeenCalledWith(expect.stringContaining("pano"));
+    // Kısa metin gönderilmez.
+    h.mutate.mockClear();
+    fireEvent.change(box, { target: { value: "ab" } });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(h.mutate).not.toHaveBeenCalled();
+  });
+
+  it("Silver altı: AI anahtarı devre dışı, 'Silver ile açılır' bağlantısı", () => {
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" ai={{ portal: "satis", enabled: false, onResult: vi.fn() }} />);
+    expect(screen.getByRole("button", { name: /AI ile ara/ })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Silver ile açılır" })).toHaveAttribute("href", "/company/ayarlar");
   });
 });

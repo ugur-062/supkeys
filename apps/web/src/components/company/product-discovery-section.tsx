@@ -7,6 +7,7 @@ import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-
 import { buildProductFilterQuery, parseProductFilters, toProductListParams } from "@/lib/public/product-filter-params";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 
 /**
  * ÜRÜNLER — satınalma ANASAYFASINA gömülü, kenar süzgeçli ürün dizini
@@ -23,7 +24,7 @@ import { useSearchParams } from "next/navigation";
 const BASE = "/company/satinalma";
 export const HOME_PRODUCT_PAGE_SIZE = 12;
 
-export function ProductDiscoverySection() {
+export function ProductDiscoverySection({ banner }: { banner?: ReactNode } = {}) {
   const sp = useSearchParams();
   const state = parseProductFilters(sp ?? new URLSearchParams());
   const params = toProductListParams(state);
@@ -31,7 +32,7 @@ export function ProductDiscoverySection() {
   const total = result.data?.total ?? 0;
   return (
     <FilterShell basePath={BASE} total={total} drawer={<PanelFilters idPrefix="m" />}>
-      <Inner state={state} result={result} />
+      <Inner state={state} result={result} banner={banner} />
     </FilterShell>
   );
 }
@@ -44,7 +45,7 @@ function PanelFilters({ idPrefix }: { idPrefix: string }) {
   return <ProductFilters facets={facets.data} idPrefix={idPrefix} />;
 }
 
-function Inner({ state, result }: { state: ReturnType<typeof parseProductFilters>; result: ReturnType<typeof useDiscoverSearch> }) {
+function Inner({ state, result, banner }: { state: ReturnType<typeof parseProductFilters>; result: ReturnType<typeof useDiscoverSearch>; banner?: ReactNode }) {
   const { update, clear } = useFilters();
   const p = toProductListParams(state);
   const facets = useDiscoverProductFacets({ category: p.category, q: p.q, city: p.city, activity: p.activity, verified: p.verified, price: p.price });
@@ -64,6 +65,9 @@ function Inner({ state, result }: { state: ReturnType<typeof parseProductFilters
           Tedarikçi vitrinlerindeki ürünler — alım kategorinize uygun olanlar önde; süzün, karşılaştırın, bilgi isteyin.
         </p>
       </div>
+
+      {/* AI arama bandı — "AI şöyle anladı" + çipler (sayfa verir). */}
+      {banner}
 
       {facets.data ? <ActiveFilterChips facets={facets.data} /> : null}
       {state.q ? (

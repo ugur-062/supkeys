@@ -57,6 +57,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/company/satis",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
+// Hero'daki "AI ile ara" useMutation kullanır — sağlayıcısız test kırılmasın.
+vi.mock("@/hooks/use-ai-search-intent", () => ({
+  useAiSearchIntent: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesChip: () => <div data-testid="tcmb" />,
 }));

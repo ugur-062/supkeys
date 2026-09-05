@@ -7,6 +7,10 @@ import { TodayBand } from "@/components/dashboard/today-band";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { useSellerTenders } from "@/hooks/use-seller-tenders";
 import { SellerTendersView } from "@/components/company/seller-tenders-view";
+import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
+import { intentToRequestQuery } from "@/lib/company/ai-search";
+import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
+import { useRouter } from "next/navigation";
 import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
@@ -40,8 +44,19 @@ import { useEffect, useMemo, useState } from "react";
  * sektör çipleri/kartları ve alıcı bloğu kullanıcı isteğiyle kaldırıldı.
  */
 export function SatisDashboardView() {
-  const { company } = useCompanyAuth();
+  const { company, user } = useCompanyAuth();
   const stats = useSatisStats();
+  const router = useRouter();
+
+  // AI ile ara: "ne sattığınızı anlatın" → açık talep süzgeci (URL) + bant.
+  const [intent, setIntent] = useState<AiSearchIntentResult | null>(null);
+  const aiEnabled =
+    !!company && tierAtLeast(company.tier, "SILVER") &&
+    !!user?.roles.some((r) => r === "SATIN_ALMACI" || r === "SATISCI");
+  const onAiResult = (r: AiSearchIntentResult) => {
+    setIntent(r);
+    router.push(`/company/satis${intentToRequestQuery(r)}#acik-talepler`);
+  };
 
   // Hydration-safe tarih (sunucu/istemci farkı olmasın).
   const [todayLabel, setTodayLabel] = useState("");
@@ -171,9 +186,12 @@ export function SatisDashboardView() {
         accent="emerald"
         suggestions={suggestions}
         onQueryChange={setTerm}
+        ai={{ portal: "satis", enabled: aiEnabled, onResult: onAiResult }}
       />
 
-      <SellerTendersView />
+      <SellerTendersView
+        banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
+      />
 
       <TodayBand lead="Bekleyen işleriniz ve dönemsiz dört sayı.">
         <ActionStrip portal="satis" />
