@@ -1017,17 +1017,27 @@ Taşınanlar (eski adresler 308): `satinalma/profilim` ve `satis/profilim` →
 adresleri döner; sağ üst menüden "Profilim" kalktı. `module-reachability`
 testi `sirketim/` sayfalarını `COMPANY_AREA` menüsüne karşı da denetler.
 
-**Genel Bakış** bir pano DEĞİL (görsel revizyon aynı gün — kullanıcı: "modern
-değil, Europages gibi çok daha iyi olsun"): kapak bandı (kapak görseli ya da
-yumuşak gradyan) üstüne taşan logo, ad + Doğrulanmış/paket rozetleri,
-Rothern ID kopyalama çipi, şehir/faaliyet çipleri, eylemler (Profili düzenle,
-Herkese açık profil) → sol sütun: **Profil gücü** halkası (`ProgressRing`,
-`profileCompleteness` ile AYNI hesap) + eksik alan çipleri, **Vitrin**
-(yayın oranı çubuğu), **Ziyaretçiler · 30 gün** (`MiniBars` günlük grafik,
-eğilim rozeti, son ziyaretçi logoları) → sağ sütun: tek satırlık kısayol
-kartları (bilgi talepleri, ekip, doğrulama, paket, raporlar). Liste/tablo yok
-— "aynı içerik iki yerde" kuralı. Yüklenirken İSKELET, asla "…" ya da yanlış
-durum (doğrulama "bekliyor") basılmaz.
+**Genel Bakış = firmanın İŞ KOKPİTİ (2026-09-05 üçüncü revizyon, kullanıcı:
+"profil burada olmasın, bekleyen işler ve pazar yeri öncesi pano gibi").**
+Sıra "ne yapmalıyım → nasıl gidiyorum → neden → ne kazandım": (1) ince
+başlık (firma, tarih, kur çipi; sağda "Ziyaret Edenler · N" ve "İş Analizi"
+pilleri) → (2) **Bekleyen işler** (`components/company/company-action-center.tsx`):
+eski Aksiyon Merkezi'nin TAM listesi, iki portal BİRLEŞİK, gruplar aciliyete
+göre Gecikmiş · Bugün · Bu hafta · Bekleyen, satırda portal rozeti, grup
+içinde kritik önce; boşsa tek satır, hata dalı korunur → (3) **Sayılar**: tek
+dönem seçici (`PeriodControls`, URL'de), Satınalma satırı mavi (açık talep,
+gelen teklif, kazandırılan, devam eden sipariş, tasarruf) + Satış satırı
+yeşil (yanıt bekleyen davet, aktif teklif, kazandığım iş, aktif sipariş,
+gelir); adetler `kpi-selectors` ile liste sayfalarıyla AYNI, tutarlar döneme
+göre, delta/sparkline analitikten → (4) **Grafikler**: eski beş sekme
+(Satın Alma Talebi · Tasarruf · Tedarikçi · Gelir · Müşteri; satış sekmeleri
+`satis-chart-tabs.tsx` git'ten geri alındı), tembel recharts, sekme URL'de →
+(5) zaman tasarrufu şeridi. Profil/vitrin/ekip/doğrulama/paket kartları YOK
+(kendi sayfaları var); Raporlar hub'ından özet grafikler ve şerit kalktı
+(tekrar yok). `SatinalmaIhaleTab showKpis={false}` — sayılar ayrı bölümde.
+Rol: yalnız erişilen portalın satırı/sekmeleri; o portalın kancaları
+`enabled=false` ile hiç çağrılmaz (403 tostu yok) — dashboard/listing/order
+kancalarına `enabled` parametresi eklendi.
 
 **Görsel yapı taşları** `components/company/ui/`: `ProgressRing` (SVG halka),
 `MiniBars` + `RatioBar` (SVG günlük çubuk / oran çubuğu — recharts yok),

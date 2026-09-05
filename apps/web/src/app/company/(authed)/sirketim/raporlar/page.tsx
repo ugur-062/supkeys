@@ -1,23 +1,13 @@
 "use client";
 
 import { HubList } from "@/components/company/hub-list";
-import { SatinalmaAnalytics } from "@/components/reports/satinalma-analytics";
-import { TimeSavingsStrip } from "@/components/dashboard/time-savings-strip";
-import dynamic from "next/dynamic";
 import { Eye, FileText, GitCompare, TrendingUp } from "lucide-react";
-
-// Grafikler (recharts) rota paketine girmesin — tembel + yalnız istemci.
-const ReportsSummaryCharts = dynamic(
-  () =>
-    import("@/components/reports/reports-summary-charts").then(
-      (m) => m.ReportsSummaryCharts,
-    ),
-  { ssr: false },
-);
 
 export default function SatinalmaRaporlarPage() {
   return (
     <div className="space-y-8">
+      {/* Özet grafikler ve zaman tasarrufu şeridi Şirketim › Genel Bakış'ta
+          (2026-09-05) — hub yalnız rapor listesi. */}
     <HubList
       title="Raporlar"
       description="İş Analizi ile görünürlüğünüzü izleyin; satın alma raporlarında kriterleri doldurup sonucu web'de görün ya da Excel olarak indirin."
@@ -54,13 +44,6 @@ export default function SatinalmaRaporlarPage() {
         },
       ]}
     />
-      {/* Pano refactor Faz 1: zaman-tasarrufu şeridi anasayfadan buraya taşındı. */}
-      <TimeSavingsStrip />
-      {/* P2 (denetim §10.5): hub özet grafikleri. */}
-      {/* Panodan taşınan analiz — hub listesinin ALTINDA: rapor seçmek
-          birincil iş, analiz ikincil. */}
-      <SatinalmaAnalytics />
-      <ReportsSummaryCharts type="ALIM" />
     </div>
   );
 }

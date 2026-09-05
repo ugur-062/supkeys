@@ -162,9 +162,10 @@ export interface AcceptOrderInput {
   bankAccountId?: string;
 }
 
-export function useOrders() {
+export function useOrders(enabled = true) {
   return useQuery({
     queryKey: ["company-orders", "list"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyOrder[]>("/company/orders");
       return data;

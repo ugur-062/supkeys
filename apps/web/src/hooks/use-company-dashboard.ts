@@ -21,9 +21,10 @@ export interface ActionCenterApiRow {
   waitingDays: number | null;
 }
 
-export function useActionCenter(portal: "satinalma" | "satis") {
+export function useActionCenter(portal: "satinalma" | "satis", enabled = true) {
   return useQuery<{ rows: ActionCenterApiRow[] }>({
     queryKey: ["company-dashboard", "action-center", portal],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<{ rows: ActionCenterApiRow[] }>(
         `/company/dashboard/action-center?portal=${portal}`,
@@ -56,9 +57,10 @@ export interface SatinalmaDashboard {
   openTendersCompany: OpenTenderRow[];
 }
 
-export function useSatinalmaDashboard() {
+export function useSatinalmaDashboard(enabled = true) {
   return useQuery<SatinalmaDashboard>({
     queryKey: ["company-dashboard", "satinalma"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<SatinalmaDashboard>(
         "/company/dashboard/satinalma",
@@ -69,9 +71,10 @@ export function useSatinalmaDashboard() {
   });
 }
 
-export function useSatinalmaTasarruf() {
+export function useSatinalmaTasarruf(enabled = true) {
   return useQuery<TasarrufTabData>({
     queryKey: ["company-dashboard", "satinalma", "tasarruf"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<TasarrufTabData>(
         "/company/dashboard/satinalma/tasarruf",
@@ -82,9 +85,10 @@ export function useSatinalmaTasarruf() {
   });
 }
 
-export function useSatinalmaTedarikci() {
+export function useSatinalmaTedarikci(enabled = true) {
   return useQuery<TedarikciTabData>({
     queryKey: ["company-dashboard", "satinalma", "tedarikci"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<TedarikciTabData>(
         "/company/dashboard/satinalma/tedarikci",
@@ -171,10 +175,11 @@ export interface TimeSavingsData {
 }
 
 /** Zaman Tasarrufu — panel şeridi + Zaman bölümü için TEK toplu istek. */
-export function useTimeSavings(period: PeriodQuery | SavingsPeriod) {
+export function useTimeSavings(period: PeriodQuery | SavingsPeriod, enabled = true) {
   const params = periodParams(period);
   return useQuery({
     queryKey: ["company-dashboard", "time-savings", params],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<TimeSavingsData>(
         "/company/dashboard/time-savings",
@@ -274,10 +279,11 @@ export interface SatisAnalytics {
   deltas: Record<"bidsSubmitted" | "orders" | "revenue", number | null>;
 }
 
-export function useSatinalmaAnalytics(period: PeriodQuery | SavingsPeriod) {
+export function useSatinalmaAnalytics(period: PeriodQuery | SavingsPeriod, enabled = true) {
   const params = periodParams(period);
   return useQuery({
     queryKey: ["company-dashboard", "satinalma-analytics", params],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<SatinalmaAnalytics>(
         "/company/dashboard/satinalma/analytics",
@@ -289,10 +295,11 @@ export function useSatinalmaAnalytics(period: PeriodQuery | SavingsPeriod) {
   });
 }
 
-export function useSatisAnalytics(period: PeriodQuery | SavingsPeriod) {
+export function useSatisAnalytics(period: PeriodQuery | SavingsPeriod, enabled = true) {
   const params = periodParams(period);
   return useQuery({
     queryKey: ["company-dashboard", "satis-analytics", params],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<SatisAnalytics>(
         "/company/dashboard/satis/analytics",

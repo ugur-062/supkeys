@@ -1,403 +1,293 @@
 "use client";
 
-import { CompanyLogo } from "@/components/company/company-logo";
-import { MiniBars } from "@/components/company/ui/mini-bars";
-import { ProgressRing } from "@/components/company/ui/progress-ring";
-import { SectionHead, StatTile } from "@/components/company/ui/stat-tile";
-import { useCatalogCounts } from "@/hooks/use-company-items";
+import { CompanyActionCenter } from "@/components/company/company-action-center";
+import { KpiCard } from "@/components/dashboard/analytics-primitives";
+import { PeriodControls } from "@/components/dashboard/period-controls";
+import { TimeSavingsStrip } from "@/components/dashboard/time-savings-strip";
+import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
+import { ErrorState } from "@/components/ui/error-state";
+import { formatCompactMoney } from "@/components/ui/money";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useCompanyProfile } from "@/hooks/use-company-profile";
-import { useCompanyUsers } from "@/hooks/use-company-users";
-import { useVisitors } from "@/hooks/use-company-views";
-import { useReceivedInquiries } from "@/hooks/use-inquiries";
-import { pctChange } from "@/lib/dashboard/delta";
-import { TIER_LABELS } from "@/lib/company/labels";
-import { COMPANY_AREA_BASE } from "@/lib/company/portals";
-import { profileCompleteness } from "@/lib/company/profile-completeness";
-import { cn } from "@/lib/utils";
-import { companyActivityLabel, tierAtLeast } from "@rothern/shared";
 import {
-  ArrowRightIcon,
-  ArrowTopRightOnSquareIcon,
-  ChartBarIcon,
-  CheckBadgeIcon,
-  CheckCircleIcon,
-  ClipboardDocumentIcon,
-  CubeIcon,
-  EnvelopeIcon,
-  EyeIcon,
-  PencilSquareIcon,
-  ShieldCheckIcon,
-  ShieldExclamationIcon,
-  SparklesIcon,
-  UsersIcon,
-} from "@heroicons/react/20/solid";
+  useSatinalmaAnalytics,
+  useSatinalmaDashboard,
+  useSatinalmaTasarruf,
+  useSatinalmaTedarikci,
+  useSatisAnalytics,
+  useTimeSavings,
+} from "@/hooks/use-company-dashboard";
+import { useMyBids } from "@/hooks/use-company-listings";
+import { useOrders } from "@/hooks/use-company-orders";
+import { useVisitors } from "@/hooks/use-company-views";
+import { useDashboardParams } from "@/hooks/use-dashboard-params";
+import { selectActiveOffers, selectActiveOrders, selectWonOffers } from "@/lib/company/kpi-selectors";
+import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
+import { cn } from "@/lib/utils";
+import { tierAtLeast } from "@rothern/shared";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+import { ChartBarIcon, EyeIcon } from "@heroicons/react/20/solid";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
- * ŞİRKETİM › GENEL BAKIŞ (2026-09-05; görsel revizyon aynı gün — "Europages
- * gibi, daha iyi"). Bir pano DEĞİL: kimlik kartı + her biri tek çıkışlı özet
- * kartlar; liste/tablo yok ("aynı içerik iki yerde" kuralı).
+ * ŞİRKETİM › GENEL BAKIŞ = firmanın İŞ KOKPİTİ (2026-09-05, kullanıcı kararı:
+ * "profil burada olmasın; bekleyen işler ve pazar yeri öncesi pano gibi").
  *
- * Düzen: kapak bandı + logo/ad/rozetler/eylemler → sol sütun (Profil gücü
- * halkası + eksikler, Vitrin, Ziyaretçiler mini grafik + son ziyaretçi
- * logoları) → sağ sütun (bilgi talepleri, ekip, doğrulama, paket, raporlar).
- * Veri mevcut kancalardan; yüklenirken iskelet, ASLA yanlış durum (doğrulama
- * "bekliyor" gibi) basılmaz.
+ * Sıra "ne yapmalıyım → nasıl gidiyorum → neden → ne kazandım":
+ *   1. ince başlık (firma, tarih, kur çipi; sağda Ziyaret Edenler · N ve İş Analizi)
+ *   2. BEKLEYEN İŞLER — iki portal birleşik, aciliyete göre gruplu tam liste
+ *   3. SAYILAR — tek dönem seçici; Satınalma satırı (mavi) + Satış satırı (yeşil)
+ *   4. GRAFİKLER — eski beş sekme (Satın Alma Talebi · Tasarruf · Tedarikçi ·
+ *      Gelir · Müşteri), tembel recharts, aynı dönem seçicisine bağlı
+ *   5. ZAMAN TASARRUFU şeridi
+ * Profil, vitrin, ekip, doğrulama, paket burada YOK — hepsinin kendi sayfası
+ * var. Portal anasayfaları pazar yeri; tam iş listesi ve grafikler yalnız
+ * burada (Raporlar hub'ından özet grafikler kaldırıldı — tekrar yok).
+ * Rol: yalnız erişilen portalın satırı/sekmeleri çizilir; o portalın uçları
+ * hiç çağrılmaz (`enabled=false` — 403 tostu yok).
  */
+const TabLoading = () => (
+  <div className="space-y-4" aria-hidden>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-zinc-100" />)}
+    </div>
+    <div className="h-64 animate-pulse rounded-xl bg-zinc-100" />
+  </div>
+);
+const SatinalmaIhaleTab = dynamic(() => import("@/components/dashboard/satinalma-ihale-tab").then((m) => m.SatinalmaIhaleTab), { ssr: false, loading: () => <TabLoading /> });
+const TasarrufTab = dynamic(() => import("@/components/dashboard/tasarruf-tab").then((m) => m.TasarrufTab), { ssr: false, loading: () => <TabLoading /> });
+const TedarikciTab = dynamic(() => import("@/components/dashboard/tedarikci-tab").then((m) => m.TedarikciTab), { ssr: false, loading: () => <TabLoading /> });
+const SatisGelirTab = dynamic(() => import("@/components/dashboard/satis-chart-tabs").then((m) => m.SatisGelirTab), { ssr: false, loading: () => <TabLoading /> });
+const SatisMusteriTab = dynamic(() => import("@/components/dashboard/satis-chart-tabs").then((m) => m.SatisMusteriTab), { ssr: false, loading: () => <TabLoading /> });
+
+const TABS: readonly { value: string; label: string; portal: PortalKey }[] = [
+  { value: "satın alma talebi", label: "Satın Alma Talebi", portal: "satinalma" },
+  { value: "tasarruf", label: "Tasarruf", portal: "satinalma" },
+  { value: "tedarikci", label: "Tedarikçi", portal: "satinalma" },
+  { value: "gelir", label: "Gelir", portal: "satis" },
+  { value: "musteri", label: "Müşteri", portal: "satis" },
+];
+
+const TRIGGER = cn(
+  "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold whitespace-nowrap transition-all",
+  "text-zinc-500 hover:text-zinc-900",
+  "data-selected:bg-white data-selected:text-zinc-950 data-selected:shadow-sm data-selected:ring-1 data-selected:ring-zinc-950/5",
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/30",
+);
+
 export function CompanyOverview() {
   const { company, user } = useCompanyAuth();
-  const profile = useCompanyProfile();
   const roles = user?.roles ?? [];
-  const isManager = roles.includes("SAHIP") || roles.includes("YONETICI");
-  const canSell = isManager || roles.includes("SATISCI");
-  const tier = profile.data?.tier ?? company?.tier ?? "STANDART";
-  const paid = tierAtLeast(tier, "BRONZ");
-  const inquiries = useReceivedInquiries(canSell && paid);
-  const users = useCompanyUsers();
+  const tier = company?.tier ?? "STANDART";
+  const portals = accessiblePortals(roles, tier);
+  const hasSa = portals.includes("satinalma");
+  const hasSt = portals.includes("satis");
+  const tabs = TABS.filter((t) => portals.includes(t.portal));
+  const { period, from, to, tab, setParams } = useDashboardParams(
+    tabs[0]?.value ?? "satın alma talebi",
+    tabs.map((t) => t.value),
+  );
+  const periodQuery = { period, from, to };
+
+  const ihale = useSatinalmaDashboard(hasSa);
+  const tasarruf = useSatinalmaTasarruf(hasSa);
+  const tedarikci = useSatinalmaTedarikci(hasSa);
+  const savings = useTimeSavings(periodQuery, hasSa);
+  const saAnalytics = useSatinalmaAnalytics(periodQuery, hasSa);
+  const stAnalytics = useSatisAnalytics(periodQuery, hasSt);
+  const bids = useMyBids(hasSt);
+  const orders = useOrders(hasSt);
   const visitors = useVisitors(30);
-  const counts = useCatalogCounts(canSell);
-  const p = profile.data;
-  const completeness = p ? profileCompleteness(p) : null;
-  const verified = p?.companyVerificationStatus === "VERIFIED";
-  const inquiryList = Array.isArray(inquiries.data) ? [] : (inquiries.data?.items ?? []);
-  const pendingInquiries = inquiryList.filter((i) => i.replies.length === 0).length;
-  const initials = (company?.name ?? "?")
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toLocaleUpperCase("tr-TR") ?? "")
-    .join("");
-  const v = visitors.data;
+
+  const [todayLabel, setTodayLabel] = useState("");
+  useEffect(() => {
+    setTodayLabel(format(new Date(), "d MMMM yyyy, EEEE", { locale: tr }));
+  }, []);
+
+  const periodWord = period === "month" ? "bu ay" : period === "quarter" ? "bu çeyrek" : period === "year" ? "bu yıl" : "seçili aralık";
+  const savingsMetrics = tasarruf.data ? (period === "month" ? tasarruf.data.month : tasarruf.data.year) : null;
+  const revenue = stAnalytics.data ? stAnalytics.data.revenueTrend.reduce((n, p) => n + (p.value ?? 0), 0) : null;
+  const selectedIndex = Math.max(0, tabs.findIndex((t) => t.value === tab));
 
   return (
     <div className="space-y-8">
-      {/* ── Kimlik kartı ── */}
-      <section aria-label="Firma kimliği" className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-        <div
-          className="h-28 w-full bg-cover bg-center sm:h-32"
-          style={{
-            backgroundImage: p?.coverImageUrl
-              ? `url(${p.coverImageUrl})`
-              : "linear-gradient(120deg, #dbeafe 0%, #eef2ff 45%, #d1fae5 100%)",
-          }}
-          aria-hidden
-        />
-        <div className="px-5 pb-5 sm:px-7 sm:pb-6">
-          {/* Logo kapak bandına taşar; ad bloğu dar ekranda bandın ALTINA sarar
-              (kapak üstüne yazı binmesin). */}
-          <div className="flex flex-wrap items-end gap-4">
-            <CompanyLogo
-              src={p?.logoUrl}
-              alt=""
-              className="-mt-10 size-20 rounded-2xl bg-white object-cover shadow-md ring-4 ring-white sm:-mt-12 sm:size-24"
-              fallback={
-                <span className="-mt-10 flex size-20 items-center justify-center rounded-2xl bg-zinc-900 text-2xl font-semibold text-white shadow-md ring-4 ring-white sm:-mt-12 sm:size-24">
-                  {initials}
-                </span>
-              }
-            />
-            <div className="min-w-0 flex-1 pb-1 pt-2 sm:pt-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  {company?.name ?? "—"}
-                </h1>
-                {p ? (
-                  verified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                      <CheckBadgeIcon aria-hidden className="size-4" />
-                      Doğrulanmış
-                    </span>
-                  ) : null
-                ) : null}
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                    tier === "GOLD"
-                      ? "bg-amber-100 text-amber-700"
-                      : tier === "STANDART"
-                        ? "bg-zinc-100 text-zinc-600"
-                        : "bg-blue-100 text-blue-700",
-                  )}
-                >
-                  {TIER_LABELS[tier] ?? tier} üye
-                </span>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
-                {p?.rothernId ? <RothernIdChip id={p.rothernId} /> : null}
-                {p?.city ? <span>{p.city}</span> : null}
-                {(p?.activities ?? []).slice(0, 3).map((a) => (
-                  <span key={a} className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-                    {companyActivityLabel(a)}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 pb-1">
-              {paid ? (
-                <Link
-                  href={`${COMPANY_AREA_BASE}/profil`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  <PencilSquareIcon aria-hidden className="size-4" />
-                  Profili düzenle
-                </Link>
-              ) : null}
-              {p?.slug && p.publicEnabled ? (
-                <Link
-                  href={`/firma/${p.slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-                >
-                  Herkese açık profil
-                  <ArrowTopRightOnSquareIcon aria-hidden className="size-4" />
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* ── Sol sütun ── */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Profil gücü */}
-          <section aria-label="Profil gücü" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 sm:p-6">
-            {!p || !completeness ? (
-              <div className="h-28 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
-            ) : (
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <ProgressRing value={completeness.pct} size={88} label={`%${completeness.pct}`} className="shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-zinc-600">Profil gücü</p>
-                  <p className="mt-0.5 text-lg font-semibold tracking-tight text-zinc-950">
-                    {completeness.pct >= 100
-                      ? "Profiliniz eksiksiz"
-                      : completeness.pct >= 60
-                        ? "İyi — birkaç alan daha"
-                        : "Alıcılar sizi tam göremiyor"}
-                  </p>
-                  {completeness.missing.length > 0 ? (
-                    <ul className="mt-2 flex flex-wrap gap-1.5">
-                      {completeness.missing.slice(0, 4).map((m) => (
-                        <li key={m} className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                          {m}
-                        </li>
-                      ))}
-                      {completeness.missing.length > 4 ? (
-                        <li className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
-                          +{completeness.missing.length - 4}
-                        </li>
-                      ) : null}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 inline-flex items-center gap-1 text-sm text-emerald-700">
-                      <CheckCircleIcon aria-hidden className="size-4" />
-                      Eksik alan yok — alıcılar firma sayfanızı tam görüyor.
-                    </p>
-                  )}
-                </div>
-                <Link
-                  href={paid ? `${COMPANY_AREA_BASE}/profil` : "/company/ayarlar/firma"}
-                  className="inline-flex items-center gap-1 self-start rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 sm:self-auto"
-                >
-                  {completeness.pct >= 100 ? "Profili gör" : "Tamamla"}
-                  <ArrowRightIcon aria-hidden className="size-4" />
-                </Link>
-              </div>
-            )}
-          </section>
-
-          {/* Vitrin + Ziyaretçiler */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            {canSell && counts.isLoading ? (
-              <div className="h-44 animate-pulse rounded-2xl bg-zinc-100" aria-hidden />
-            ) : canSell ? (
-              <StatTile
-                icon={CubeIcon}
-                tone="emerald"
-                label="Vitrin"
-                value={`${counts.data?.published ?? 0} ürün`}
-                hint={
-                  counts.data
-                    ? counts.data.draft > 0
-                      ? `${counts.data.published} yayında · ${counts.data.draft} taslak`
-                      : counts.data.published > 0
-                        ? "Tümü yayında"
-                        : "Henüz ürün yok — ilkini ekleyin"
-                    : undefined
-                }
-                href="/company/satis/urunlerim"
-                cta={counts.data && counts.data.published === 0 ? "Ürün ekle" : "Ürünlerim"}
-              >
-                {counts.data && counts.data.published + counts.data.draft > 0 ? (
-                  <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
-                    <span
-                      className="h-full bg-emerald-500"
-                      style={{ width: `${Math.round((counts.data.published / (counts.data.published + counts.data.draft)) * 100)}%` }}
-                    />
-                  </div>
-                ) : null}
-              </StatTile>
+      {/* 1 · İnce başlık */}
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="mb-1 truncate text-2xl font-semibold tracking-tight text-zinc-950">{company?.name ?? "—"}</h1>
+          <p className="text-[15px] text-zinc-500">
+            Genel Bakış
+            {todayLabel ? (
+              <>
+                <span className="mx-2 text-zinc-300">·</span>
+                <span>{todayLabel}</span>
+              </>
             ) : null}
-            {visitors.isLoading ? (
-              <div className="h-44 animate-pulse rounded-2xl bg-zinc-100" aria-hidden />
-            ) : (
-            <StatTile
-              icon={EyeIcon}
-              tone="blue"
-              label="Ziyaretçiler · 30 gün"
-              value={(v?.total ?? 0).toLocaleString("tr-TR")}
-              deltaPct={v ? pctChange(v.total, v.previous.total) : undefined}
-              deltaLabel="Önceki 30 güne göre"
-              hint={
-                v
-                  ? v.identified > 0
-                    ? `${v.identified} firma kimliğiyle · ${v.anonymous} anonim`
-                    : "Profil ve ürün görüntülenmesi"
-                  : undefined
-              }
-              href={`${COMPANY_AREA_BASE}/ziyaretciler`}
-              cta="Ziyaret Edenler"
-            >
-              {v && v.total > 0 ? <MiniBars data={v.daily} height={40} accent="blue" /> : null}
-              {v && !v.locked && v.items.length > 0 ? (
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {v.items.slice(0, 4).map((it) => (
-                      <CompanyLogo
-                        key={it.company.id}
-                        src={it.company.logoUrl}
-                        alt={it.company.name}
-                        className="size-7 rounded-full bg-white object-cover ring-2 ring-white"
-                        fallback={
-                          <span className="flex size-7 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700 ring-2 ring-white">
-                            {it.company.name.slice(0, 1)}
-                          </span>
-                        }
-                      />
-                    ))}
-                  </div>
-                  <span className="truncate text-xs text-zinc-500">
-                    Son: {v.items.slice(0, 2).map((it) => it.company.name).join(", ")}
-                  </span>
-                </div>
-              ) : null}
-            </StatTile>
-            )}
-          </div>
+          </p>
         </div>
-
-        {/* ── Sağ sütun ── */}
-        <div className="space-y-4">
-          {canSell && paid ? (
-            inquiries.isLoading ? (
-              <SideSkeleton />
-            ) : (
-              <SideRow
-                icon={EnvelopeIcon}
-                tone={pendingInquiries > 0 ? "amber" : "zinc"}
-                title="Bilgi talepleri"
-                value={pendingInquiries > 0 ? `${pendingInquiries} yanıt bekliyor` : "Yanıt bekleyen yok"}
-                href="/company/satis/bilgi-talepleri"
-              />
-            )
-          ) : null}
-          {isManager ? (
-            users.isLoading ? (
-              <SideSkeleton />
-            ) : (
-              <SideRow icon={UsersIcon} tone="violet" title="Ekip" value={`${users.data?.length ?? 0} kullanıcı`} href="/company/ayarlar/kullanicilar" />
-            )
-          ) : null}
-          {p ? (
-            <SideRow
-              icon={verified ? ShieldCheckIcon : ShieldExclamationIcon}
-              tone={verified ? "emerald" : "amber"}
-              title="Doğrulama"
-              value={verified ? "Kimlik doğrulandı" : "Belgeler bekleniyor"}
-              href="/company/ayarlar/dogrulama"
-            />
-          ) : (
-            <SideSkeleton />
-          )}
-          <SideRow
-            icon={SparklesIcon}
-            tone={tier === "GOLD" ? "amber" : "blue"}
-            title="Paket"
-            value={tier === "GOLD" ? "Gold — tüm özellikler açık" : `${TIER_LABELS[tier] ?? tier} — yükseltin`}
-            href="/company/ayarlar"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <TcmbRatesChip />
+          <Link
+            href={`${COMPANY_AREA_BASE}/ziyaretciler`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50"
+          >
+            <EyeIcon aria-hidden className="size-4 text-blue-600" />
+            Ziyaret Edenler
+            {visitors.data ? <span className="rounded-full bg-zinc-100 px-1.5 tabular-nums text-zinc-700">{visitors.data.total}</span> : null}
+          </Link>
           {tierAtLeast(tier, "SILVER") ? (
-            <SideRow icon={ChartBarIcon} tone="zinc" title="Raporlar" value="İş Analizi ve satın alma raporları" href={`${COMPANY_AREA_BASE}/raporlar`} />
+            <Link
+              href={`${COMPANY_AREA_BASE}/raporlar/is-analizi`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50"
+            >
+              <ChartBarIcon aria-hidden className="size-4 text-emerald-600" />
+              İş Analizi
+            </Link>
           ) : null}
         </div>
-      </div>
+      </header>
+
+      {/* 2 · Bekleyen işler */}
+      {portals.length > 0 ? <CompanyActionCenter portals={portals} /> : null}
+
+      {/* 3 · Sayılar */}
+      {portals.length > 0 ? (
+        <section aria-labelledby="sayilar" className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="sayilar" className="text-lg font-semibold tracking-tight text-zinc-950">Sayılar</h2>
+              <p className="mt-1 text-sm text-zinc-500">Adetler anlık; tutarlar ve grafikler seçili döneme göre.</p>
+            </div>
+            <PeriodControls period={period} from={from} to={to} onChange={setParams} />
+          </div>
+
+          {hasSa ? (
+            <KpiRow label="Satınalma" tone="blue">
+              {ihale.data ? (
+                <>
+                  <KpiCard label="Açık Taleplerim" value={ihale.data.openCount} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
+                  <KpiCard label="Gelen Teklifler" value={ihale.data.bidsReceived} href="/company/satinalma/taleplerim?status=IN_AWARD" accent="blue" />
+                  <KpiCard label="Kazandırılan" value={ihale.data.awarded} href="/company/satinalma/taleplerim?status=AWARDED" accent="blue" />
+                  <KpiCard label="Devam Eden Sipariş" value={ihale.data.ongoingOrders} href="/company/satinalma/siparisler" accent="blue" />
+                  <KpiCard
+                    label="Tasarruf"
+                    value={savingsMetrics ? formatCompactMoney(savingsMetrics.totalSavings, "TRY") : "—"}
+                    valueTitle={savingsMetrics ? `${savingsMetrics.totalSavings.toLocaleString("tr-TR")} ₺` : undefined}
+                    href={`${COMPANY_AREA_BASE}/raporlar/tasarruf`}
+                    accent="blue"
+                    hint={savingsMetrics ? `${period === "month" ? "bu ay" : "bu yıl"} · %${Math.round(savingsMetrics.averageSavingsRate)} ortalama · yalnız TRY` : "hesaplanıyor"}
+                  />
+                </>
+              ) : ihale.isError ? (
+                <ErrorState title="Satınalma sayıları alınamadı" onRetry={() => void ihale.refetch()} />
+              ) : (
+                <RowSkeleton />
+              )}
+            </KpiRow>
+          ) : null}
+
+          {hasSt ? (
+            <KpiRow label="Satış" tone="emerald">
+              {bids.data && orders.data ? (
+                <>
+                  <KpiCard
+                    label="Yanıt Bekleyen Davet"
+                    value={stAnalytics.data?.actions.unansweredInvites ?? 0}
+                    href="/company/satis#acik-talepler"
+                    accent="emerald"
+                    attention={(stAnalytics.data?.actions.unansweredInvites ?? 0) > 0}
+                    hint={(stAnalytics.data?.actions.unansweredInvites ?? 0) > 0 ? "Teklifinizi bekliyor" : undefined}
+                  />
+                  <KpiCard label="Aktif Tekliflerim" value={selectActiveOffers(bids.data).length} href="/company/satis/tekliflerim" accent="emerald" deltaPct={stAnalytics.data?.deltas.bidsSubmitted} deltaPeriodLabel={`Önceki döneme göre (${periodWord})`} spark={stAnalytics.data?.kpiSeries.bidsSubmitted} />
+                  <KpiCard label="Kazandığım İşler" value={selectWonOffers(bids.data).length} href="/company/satis/tekliflerim?status=WON" accent="emerald" hint="Kısmi kazanım dahil" spark={stAnalytics.data?.kpiSeries.won} />
+                  <KpiCard label="Aktif Sipariş" value={selectActiveOrders(orders.data, "seller").length} href="/company/satis/siparisler" accent="emerald" deltaPct={stAnalytics.data?.deltas.orders} deltaPeriodLabel={`Önceki döneme göre (${periodWord})`} spark={stAnalytics.data?.kpiSeries.orders} />
+                  <KpiCard
+                    label="Gelir"
+                    value={revenue != null ? formatCompactMoney(revenue, "TRY") : "—"}
+                    valueTitle={revenue != null ? `${revenue.toLocaleString("tr-TR")} ₺` : undefined}
+                    href="/company/satis/siparisler"
+                    accent="emerald"
+                    deltaPct={stAnalytics.data?.deltas.revenue}
+                    deltaPeriodLabel={`Önceki döneme göre (${periodWord})`}
+                    spark={stAnalytics.data?.kpiSeries.revenue}
+                    sparkLabels={{ valueSuffix: " ₺" }}
+                    hint={`${periodWord} · tamamlanan sipariş · TRY`}
+                  />
+                </>
+              ) : bids.isError || orders.isError ? (
+                <ErrorState title="Satış sayıları alınamadı" onRetry={() => { void bids.refetch(); void orders.refetch(); }} />
+              ) : (
+                <RowSkeleton />
+              )}
+            </KpiRow>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* 4 · Grafikler */}
+      {tabs.length > 0 ? (
+        <section aria-labelledby="grafikler" className="space-y-4">
+          <div>
+            <h2 id="grafikler" className="text-lg font-semibold tracking-tight text-zinc-950">Grafikler</h2>
+            <p className="mt-1 text-sm text-zinc-500">Seçili dönem için; sekme adresle paylaşılır.</p>
+          </div>
+          <TabGroup selectedIndex={selectedIndex} onChange={(i) => setParams({ tab: tabs[i]?.value ?? tabs[0]!.value })}>
+            <TabList className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-zinc-200/60 p-1 ring-1 ring-zinc-950/5" aria-label="Grafik sekmeleri">
+              {tabs.map((t) => (
+                <Tab key={t.value} className={TRIGGER}>
+                  <span aria-hidden className={cn("size-1.5 rounded-full", t.portal === "satinalma" ? "bg-blue-500" : "bg-emerald-500")} />
+                  {t.label}
+                </Tab>
+              ))}
+            </TabList>
+            <TabPanels className="mt-4">
+              {tabs.map((t) => (
+                <TabPanel key={t.value} className="outline-none">
+                  {t.value === "satın alma talebi" ? (
+                    ihale.data ? <SatinalmaIhaleTab data={ihale.data} analytics={saAnalytics.data} showKpis={false} /> : ihale.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void ihale.refetch()} /> : <TabLoading />
+                  ) : t.value === "tasarruf" ? (
+                    tasarruf.data ? <TasarrufTab data={tasarruf.data} period={period === "custom" ? "year" : period} savings={savings.data} analytics={saAnalytics.data} /> : tasarruf.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void tasarruf.refetch()} /> : <TabLoading />
+                  ) : t.value === "tedarikci" ? (
+                    tedarikci.data ? <TedarikciTab data={tedarikci.data} /> : tedarikci.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void tedarikci.refetch()} /> : <TabLoading />
+                  ) : t.value === "gelir" ? (
+                    <SatisGelirTab analytics={stAnalytics.data} loading={stAnalytics.isLoading} />
+                  ) : (
+                    <SatisMusteriTab analytics={stAnalytics.data} loading={stAnalytics.isLoading} />
+                  )}
+                </TabPanel>
+              ))}
+            </TabPanels>
+          </TabGroup>
+        </section>
+      ) : null}
+
+      {/* 5 · Zaman tasarrufu */}
+      {hasSa ? <TimeSavingsStrip /> : null}
     </div>
   );
 }
 
-function SideSkeleton() {
-  return <div className="h-[4.5rem] animate-pulse rounded-2xl bg-zinc-100" aria-hidden />;
-}
-
-function RothernIdChip({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
+function KpiRow({ label, tone, children }: { label: string; tone: "blue" | "emerald"; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={() => {
-        void navigator.clipboard?.writeText(id).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      title="Rothern ID'yi kopyala"
-      className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-700 hover:bg-zinc-200"
-    >
-      {id}
-      <ClipboardDocumentIcon aria-hidden className="size-3.5 text-zinc-400" />
-      <span className="sr-only">{copied ? "Kopyalandı" : "Kopyala"}</span>
-    </button>
+    <div className="space-y-2">
+      <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+        <span aria-hidden className={cn("size-2 rounded-full", tone === "blue" ? "bg-blue-500" : "bg-emerald-500")} />
+        {label}
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">{children}</div>
+    </div>
   );
 }
 
-function SideRow({
-  icon: Icon,
-  tone,
-  title,
-  value,
-  href,
-}: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  tone: "zinc" | "blue" | "emerald" | "amber" | "violet";
-  title: string;
-  value: string;
-  href: string;
-}) {
-  const iconCls = {
-    zinc: "bg-zinc-100 text-zinc-600",
-    blue: "bg-blue-50 text-blue-600",
-    emerald: "bg-emerald-50 text-emerald-600",
-    amber: "bg-amber-50 text-amber-600",
-    violet: "bg-violet-50 text-violet-600",
-  }[tone];
+function RowSkeleton() {
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
-    >
-      <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", iconCls)}>
-        <Icon aria-hidden className="size-5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-medium text-zinc-500">{title}</span>
-        <span className="block truncate text-sm font-semibold text-zinc-950">{value}</span>
-      </span>
-      <ArrowRightIcon aria-hidden className="size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500" />
-    </Link>
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+      ))}
+    </>
   );
 }
-
-export { SectionHead };

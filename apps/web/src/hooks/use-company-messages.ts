@@ -112,9 +112,10 @@ export function useSendMessage(portal: MessagePortal, otherPartyId: string) {
 }
 
 /** Okunmamış mesaj — AKTİF portal (verilmezse iki portal toplamı). */
-export function useUnreadMessages(portal?: MessagePortal) {
+export function useUnreadMessages(portal?: MessagePortal, enabled = true) {
   return useQuery<{ count: number }>({
     queryKey: [...MESSAGE_KEYS.unread, portal ?? "all"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<{ count: number }>(
         "/company/messages/unread-count",

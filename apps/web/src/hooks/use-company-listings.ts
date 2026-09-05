@@ -190,9 +190,10 @@ export interface MyBid {
 }
 
 /** Firmanın verdiği tüm teklifler — Tekliflerim ekranı. */
-export function useMyBids() {
+export function useMyBids(enabled = true) {
   return useQuery({
     queryKey: ["company-my-bids"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<MyBid[]>(
         "/company/listings/my-bids",

@@ -52,9 +52,12 @@ const FUNNEL_STAGE_HREF: Record<string, string> = {
 export function SatinalmaIhaleTab({
   data,
   analytics,
+  showKpis = true,
 }: {
   data: SatinalmaDashboard;
   analytics?: SatinalmaAnalytics;
+  /** Şirketim › Genel Bakış: sayılar ayrı bölümde — burada yalnız grafik/tablo. */
+  showKpis?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTab>("own");
   // Faz 6.2 — varsayılan sıralama KAPANIŞA göre artan (ihale no değil);
@@ -71,6 +74,8 @@ export function SatinalmaIhaleTab({
 
   return (
     <div className="space-y-6">
+      {showKpis ? (
+        <>
       {/* Faz 4.1 — birincil satır TUTAR (TRY-only, etiketle söylenir);
           adet kartları ikinci satıra indi. */}
       {analytics ? (
@@ -162,6 +167,9 @@ export function SatinalmaIhaleTab({
       </div>
 
       {/* Ana grafik: süreç hunisi + döngü süresi trendi. */}
+        </>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Süreç Hunisi"
