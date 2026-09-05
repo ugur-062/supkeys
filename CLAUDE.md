@@ -1007,8 +1007,10 @@ kredisi bitmiş (429) — AI yalnız canlıda (Vertex) doğrulanır.
 ## Şirketim alanı (2026-09-05, Europages "My Company" kalıbı, kullanıcı kararı)
 
 Üst çubukta "Şirketim" DÜĞMESİ (sağ kümenin önünde, mesaj/bildirim
-düğmeleriyle aynı dil: h-10, rounded-lg, ince çerçeve, bina ikonu + etiket;
-paket rozeti ve firma adı YOK — "Gold" orada saçma duruyordu, kullanıcı) —
+düğmeleriyle BİREBİR aynı dil: h-10, rounded-lg, çerçevesiz ve dolgusuz,
+zinc bina ikonu + etiket, hover'da hafif zemin; paket rozeti ve firma adı
+YOK — "Gold" orada saçma duruyordu, çerçeveli/gri hâli de "farklı"
+duruyordu, kullanıcı) —
 dar ekranda hesap menüsünde. İçindeyken sol menü firma menüsüne döner
 (`COMPANY_AREA`, `lib/company/portals.ts`): **Genel Bakış · Profil · Ziyaret
 Edenler · Raporlar**; Satınalma | Satış geçişi üstte KALIR (panele tek tıkla
