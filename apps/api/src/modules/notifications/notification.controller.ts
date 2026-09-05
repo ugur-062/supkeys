@@ -42,12 +42,16 @@ export class NotificationController {
     @Query("take") take?: string,
     @Query("before") before?: string,
   ) {
-    return this.service.listForUser(user.userId, {
-      unreadOnly: unread === "1" || unread === "true",
-      portal: parsePortal(portal),
-      take: take ? Number.parseInt(take, 10) || undefined : undefined,
-      before: parseBefore(before),
-    });
+    return this.service.listForUser(
+      user.userId,
+      {
+        unreadOnly: unread === "1" || unread === "true",
+        portal: parsePortal(portal),
+        take: take ? Number.parseInt(take, 10) || undefined : undefined,
+        before: parseBefore(before),
+      },
+      user,
+    );
   }
 
   @Get("unread-count")
@@ -56,7 +60,11 @@ export class NotificationController {
     @Query("portal") portal?: string,
   ) {
     return {
-      count: await this.service.unreadCount(user.userId, parsePortal(portal)),
+      count: await this.service.unreadCount(
+        user.userId,
+        parsePortal(portal),
+        user,
+      ),
     };
   }
 
@@ -76,7 +84,11 @@ export class NotificationController {
     @Query("portal") portal?: string,
   ) {
     return {
-      updated: await this.service.markAllRead(user.userId, parsePortal(portal)),
+      updated: await this.service.markAllRead(
+        user.userId,
+        parsePortal(portal),
+        user,
+      ),
     };
   }
 }

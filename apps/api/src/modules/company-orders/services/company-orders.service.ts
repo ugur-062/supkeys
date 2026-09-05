@@ -39,7 +39,8 @@ import type {
 import { EmailService } from "../../email/email.service";
 import {
   NotificationService,
-  rolesForPortal,
+  pickCompanyRecipients,
+  viewPermissionForPortal,
   type NotificationPortal,
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
@@ -86,26 +87,15 @@ export class CompanyOrdersService {
     companyId: string,
     portal?: NotificationPortal,
   ): Promise<{ email: string; name: string } | null> {
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      select: { name: true, billingEmail: true },
-    });
-    if (!company) return null;
-    if (company.billingEmail) {
-      return { email: company.billingEmail, name: company.name };
-    }
-    const user = await this.prisma.companyUser.findFirst({
-      where: {
-        companyId,
-        isActive: true,
-        deletedAt: null,
-        ...(portal ? { roles: { hasSome: rolesForPortal(portal) } } : {}),
-      },
-      orderBy: { createdAt: "asc" },
-      select: { email: true, firstName: true, lastName: true },
-    });
-    if (!user) return null;
-    return { email: user.email, name: `${user.firstName} ${user.lastName}` };
+    // Yetki tablosu: portalı GÖRÜNTÜLEME izni taşıyan en eski aktif üye
+    // (billingEmail önce) — tek kaynak pickCompanyRecipients.
+    const m = await pickCompanyRecipients(
+      this.prisma,
+      [companyId],
+      portal ? [viewPermissionForPortal(portal)] : null,
+    );
+    const r = m.get(companyId);
+    return r ? { email: r.email, name: r.name } : null;
   }
 
   /**
@@ -1468,18 +1458,8 @@ export class CompanyOrdersService {
     // buy:view, satıcı yanı sell:view (tek kaynak full-read-context).
     const side = order.sellerCompanyId === user.companyId ? "sell" : "buy";
     if (hasReadContext(user, side)) return;
-    const listingId = order.listingId;
-    if (listingId) {
-      const linked = await this.prisma.approvalRequest.findFirst({
-        where: {
-          listingId,
-          companyId: user.companyId,
-          steps: { some: { approverUserId: user.userId } },
-        },
-        select: { id: true },
-      });
-      if (linked) return;
-    }
+    // Onay bağı istisnası kalktı (yetki tablosu Faz 2): onaylayıcı-only üye
+    // sipariş detayını görmez; karar bağlamı onay projeksiyonunda.
     throw new NotFoundException("Sipariş bulunamadı");
   }
 

@@ -542,6 +542,8 @@ export class CompanyConnectionsService {
     void this.notifications
       .pushToCompany(target.id, {
         type: "connection_request",
+        // Yetki tablosu: bağlantı işi "Bağlantılar" tikine (onaylayıcı-only almaz).
+        audience: ["connections:manage"],
         title: "Yeni bağlantı isteği",
         body: `${me?.name ?? "Bir firma"} sizinle bağlantı kurmak istiyor. Bağlantılar sayfasındaki Gelen İstekler'den yanıtlayabilirsiniz.`,
       })
@@ -1272,6 +1274,7 @@ export class CompanyConnectionsService {
     void this.notifications
       .pushToCompany(conn.inviterCompanyId, {
         type: "connection_accepted",
+        audience: ["connections:manage"],
         title: "Bağlantı isteğiniz kabul edildi",
         body: `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık satın alma taleplerini görebilirsiniz.`,
       })

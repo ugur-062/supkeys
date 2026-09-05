@@ -156,4 +156,18 @@ export class CompanyApprovalsController {
   ) {
     return this.service.cancelRequest(user, id);
   }
+
+  /**
+   * Onay DETAYI — onaycının karar bağlamı (kazanan, tutar, rekabet özeti,
+   * kalemler, adımlar). Statik rotalardan SONRA tanımlı (":id" onları yutmasın).
+   * Erişim serviste: adımdaki onaycı, başlatan ya da akış yöneticisi.
+   */
+  @Get(":id")
+  @RequireCompanyPermission(["approval:act", "approvals:manage", "buy:award"])
+  detail(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.getDetail(user, id);
+  }
 }

@@ -14,6 +14,12 @@ import { PrismaService, PrismaBypassService } from "../../common/prisma/prisma.s
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { hasReadContext } from "../../common/company/full-read-context";
+import {
+  OWNER_VISIBLE_BID_STATUSES,
+  lineTotal,
+  roundMoney,
+} from "../../common/company/bid-items";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
@@ -330,6 +336,25 @@ export class CompanyApprovalsService {
         },
       },
     });
+    // INV-AUDIT-1: akış OLUŞTURMA da yetki kararıdır (denetim 2026-09-05: yalnız
+    // güncelleme/durum/silme iz bırakıyordu — yeni akış izsiz kurulabiliyordu).
+    await this.audit.log({
+      action: "company.approval_flow.created",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "approval_flow",
+      entityId: flow.id,
+      critical: true,
+      metadata: {
+        name: dto.name.trim(),
+        type: dto.type,
+        listingType: dto.listingType ?? null,
+        stepCount: dto.steps.length,
+        approverUserIds: dto.steps.map((s) => s.approverUserId),
+      },
+    });
     return { id: flow.id };
   }
 
@@ -517,6 +542,17 @@ export class CompanyApprovalsService {
           })),
         },
       },
+    });
+    await this.audit.log({
+      action: "company.approval_flow.duplicated",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "approval_flow",
+      entityId: copy.id,
+      critical: true,
+      metadata: { sourceFlowId: src.id, stepCount: src.steps.length },
     });
     return { id: copy.id };
   }
@@ -1505,6 +1541,277 @@ export class CompanyApprovalsService {
         note: s.note,
         decidedAt: s.decidedAt,
       })),
+    };
+  }
+
+  /**
+   * Onay DETAYI — onaycının KARAR BAĞLAMI (yetki tablosu Faz 2, 2026-09-05).
+   *
+   * Onaylayıcı-only üye talep detayını (rakip tekliflerin tamamı, tedarikçi
+   * iletişim/adres bilgileri, davetliler) GÖREMEZ; kararı için gereken bilgi
+   * BU projeksiyondan gelir: kazanan firma + doğrulanmış rozeti + tutar,
+   * kalem-bazlıysa satırlar ve kazanan özetleri, geçerli teklif sayısı, en
+   * düşük / ikinci toplam ve kazananın sırası (aynı para biriminde), kalem
+   * sayısı ve toplam miktar (tek birimdeyse), başlatan notu, adım çizelgesi.
+   * Tedarikçi iletişim/adres bilgisi TAŞIMAZ.
+   *
+   * Erişim: isteğin adımındaki onaycı (bekleyen ya da karar vermiş), başlatan
+   * ya da onay akışı yöneticisi. Aksi 404 (varlık sızdırmaz).
+   */
+  async getDetail(user: AuthenticatedCompanyUser, id: string) {
+    const r = await this.prisma.approvalRequest.findFirst({
+      where: { id, companyId: user.companyId },
+      include: {
+        steps: { orderBy: { order: "asc" } },
+        listing: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            type: true,
+            categoryIds: true,
+            closesAt: true,
+            items: {
+              orderBy: { lineNo: "asc" },
+              select: {
+                id: true,
+                lineNo: true,
+                name: true,
+                quantity: true,
+                unit: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!r) throw new NotFoundException("Onay isteği bulunamadı");
+    const isStepApprover = r.steps.some(
+      (s) => s.approverUserId === user.userId,
+    );
+    if (
+      !isStepApprover &&
+      r.createdById !== user.userId &&
+      !hasCompanyPermission(user, "approvals:manage")
+    ) {
+      throw new NotFoundException("Onay isteği bulunamadı");
+    }
+
+    const [bids, people] = await Promise.all([
+      this.prisma.listingBid.findMany({
+        where: {
+          listingId: r.listingId,
+          status: { in: [...OWNER_VISIBLE_BID_STATUSES] },
+        },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          status: true,
+          deliveryTime: true,
+          deliveryDate: true,
+          bidderCompany: {
+            select: { name: true, companyVerificationStatus: true },
+          },
+          items: { select: { itemId: true, unitPrice: true, currency: true } },
+        },
+      }),
+      this.prisma.companyUser.findMany({
+        where: {
+          id: {
+            in: [
+              ...new Set([
+                r.createdById,
+                ...r.steps.map((s) => s.approverUserId),
+              ]),
+            ],
+          },
+        },
+        select: { id: true, firstName: true, lastName: true },
+      }),
+    ]);
+    const nameById = new Map(
+      people.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim()]),
+    );
+    const bidById = new Map(bids.map((b) => [b.id, b]));
+    const itemById = new Map(r.listing.items.map((i) => [i.id, i]));
+    type Bid = (typeof bids)[number];
+    const bidView = (b: Bid) => ({
+      bidId: b.id,
+      companyName: b.bidderCompany.name,
+      verified: b.bidderCompany.companyVerificationStatus === "VERIFIED",
+      amount: Number(b.amount),
+      currency: b.currency,
+      deliveryTime: b.deliveryTime,
+      deliveryDate: b.deliveryDate,
+      itemsCovered: b.items.length,
+    });
+
+    const payload = (r.payload ?? null) as
+      | { kind: "full"; bidId: string }
+      | {
+          kind: "by-item";
+          itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[];
+        }
+      | null;
+
+    let award:
+      | { kind: "full"; winner: ReturnType<typeof bidView> | null }
+      | {
+          kind: "by-item";
+          lines: {
+            lineNo: number | null;
+            itemName: string;
+            quantity: number;
+            unit: string;
+            companyName: string;
+            verified: boolean;
+            unitPrice: number | null;
+            lineTotal: number | null;
+            currency: string;
+          }[];
+          winners: {
+            bidId: string;
+            companyName: string;
+            verified: boolean;
+            total: number;
+            currency: string;
+            lineCount: number;
+          }[];
+        }
+      | { kind: null } = { kind: null };
+    let winnerBidIds: string[] = [];
+    let winnerCurrency: string | null = null;
+
+    if (payload?.kind === "full") {
+      const w = bidById.get(payload.bidId);
+      award = { kind: "full", winner: w ? bidView(w) : null };
+      winnerBidIds = [payload.bidId];
+      winnerCurrency = w?.currency ?? null;
+    } else if (payload?.kind === "by-item") {
+      const perBid = new Map<
+        string,
+        { total: Prisma.Decimal; currency: string; lineCount: number }
+      >();
+      const lines = payload.itemAwards.map((a) => {
+        const item = itemById.get(a.itemId);
+        const b = bidById.get(a.bidId);
+        const bi = b?.items.find((x) => x.itemId === a.itemId);
+        const qty = a.awardedQuantity ?? (item ? Number(item.quantity) : 0);
+        const currency = bi?.currency ?? b?.currency ?? r.currency;
+        const total = bi ? roundMoney(lineTotal(bi.unitPrice, qty)) : null;
+        if (b && total) {
+          const cur = perBid.get(b.id) ?? {
+            total: new Prisma.Decimal(0),
+            currency,
+            lineCount: 0,
+          };
+          cur.total = cur.total.plus(total);
+          cur.lineCount += 1;
+          perBid.set(b.id, cur);
+        }
+        return {
+          lineNo: item?.lineNo ?? null,
+          itemName: item?.name ?? "—",
+          quantity: qty,
+          unit: item?.unit ?? "",
+          companyName: b?.bidderCompany.name ?? "—",
+          verified: b?.bidderCompany.companyVerificationStatus === "VERIFIED",
+          unitPrice: bi ? Number(bi.unitPrice) : null,
+          lineTotal: total ? Number(total) : null,
+          currency,
+        };
+      });
+      const winners = [...perBid.entries()].map(([bidId, v]) => {
+        const b = bidById.get(bidId)!;
+        return {
+          bidId,
+          companyName: b.bidderCompany.name,
+          verified: b.bidderCompany.companyVerificationStatus === "VERIFIED",
+          total: Number(v.total),
+          currency: v.currency,
+          lineCount: v.lineCount,
+        };
+      });
+      award = { kind: "by-item", lines, winners };
+      winnerBidIds = [...perBid.keys()];
+      const curs = new Set(winners.map((w) => w.currency));
+      winnerCurrency = curs.size === 1 ? [...curs][0]! : null;
+    }
+
+    // Rekabet özeti — yalnız kazananla AYNI para birimindeki teklifler sıralanır
+    // (kur çevirisi yapılmaz; karışıksa dürüstçe işaretlenir).
+    const currencyMixed =
+      winnerCurrency != null && bids.some((b) => b.currency !== winnerCurrency);
+    const comparable = winnerCurrency
+      ? bids
+          .filter((b) => b.currency === winnerCurrency)
+          .sort((a, b) => Number(a.amount) - Number(b.amount))
+      : [];
+    const winnerRank =
+      award.kind === "full" && winnerBidIds[0]
+        ? comparable.findIndex((b) => b.id === winnerBidIds[0]) + 1 || null
+        : null;
+
+    const units = new Set(r.listing.items.map((i) => i.unit));
+    const totalQuantity =
+      units.size === 1
+        ? {
+            amount: r.listing.items.reduce(
+              (s, i) => s + Number(i.quantity),
+              0,
+            ),
+            unit: [...units][0]!,
+          }
+        : null;
+
+    return {
+      id: r.id,
+      requestNo: r.requestNo,
+      type: r.type,
+      status: r.status,
+      amount: Number(r.amount),
+      currency: r.currency,
+      initiatorNote: r.initiatorNote,
+      createdBy: nameById.get(r.createdById) ?? "—",
+      createdAt: r.createdAt,
+      decidedAt: r.decidedAt,
+      listing: {
+        id: r.listing.id,
+        number: r.listing.number,
+        title: r.listing.title,
+        type: r.listing.type,
+        categoryIds: r.listing.categoryIds,
+        closesAt: r.listing.closesAt,
+        itemCount: r.listing.items.length,
+        totalQuantity,
+        items: r.listing.items.map((i) => ({
+          lineNo: i.lineNo,
+          name: i.name,
+          quantity: Number(i.quantity),
+          unit: i.unit,
+        })),
+      },
+      award,
+      competition: {
+        validBidCount: bids.length,
+        currency: winnerCurrency,
+        currencyMixed,
+        lowestTotal: comparable[0] ? Number(comparable[0].amount) : null,
+        secondLowestTotal: comparable[1] ? Number(comparable[1].amount) : null,
+        winnerRank,
+      },
+      steps: r.steps.map((s) => ({
+        order: s.order,
+        approverName: nameById.get(s.approverUserId) ?? "—",
+        displayLabel: s.displayLabel,
+        status: s.status,
+        note: s.note,
+        decidedAt: s.decidedAt,
+        mine: s.approverUserId === user.userId,
+      })),
+      /** Talep detayı bağlantısı yalnız satınalma görüntüleme iznine. */
+      canOpenListing: hasReadContext(user, "buy"),
     };
   }
 

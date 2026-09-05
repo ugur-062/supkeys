@@ -1010,8 +1010,7 @@ kredisi bitmiş (429) — AI yalnız canlıda (Vertex) doğrulanır.
 Kullanıcı isteği: "rollere göre görünüm farklı olmalı; onaylayıcı yalnız
 onaylasın; yetki tablosu, tikler, kişi bazında özelleştirme; satınalma ve satış
 her biri bir koltuk". Beş fazlı plan; **Faz 1 = katalog + veri modeli + kapı
-haritası** bu bölüm. Faz 2 (onaylayıcı yüzü: onay detayı projeksiyonu, izne göre
-bildirim), Faz 3 (portal görünürlüğü/pilsiz tek portal, Şirketim ve Ayarlar
+haritası** bu bölüm. Faz 2 (BİTTİ, aşağıda), Faz 3 (portal görünürlüğü/pilsiz tek portal, Şirketim ve Ayarlar
 kapıları, kapısız sayfa/düğmeler), Faz 4 (Kullanıcılar'da tik tablosu + davet),
 Faz 5 (gruba göre koltuk, Standart 2, onboarding kutuları) SIRADA.
 
@@ -1079,6 +1078,41 @@ geçer; AI ürün çıkarımı `sell:product:manage`, profil zenginleştirme
 `company:manage` (`callAi` `anyOf`); dış talep daveti `buy:listing:manage`;
 kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
 `assertNotSelf`).
+
+**Faz 2 — Onaylayıcı yüzü (2026-09-06, BİTTİ):**
+- **Onay detayı projeksiyonu** `GET company/approvals/:id`
+  (`CompanyApprovalsService.getDetail`): kazanan firma + Doğrulanmış rozeti +
+  tutar, kalem-bazlıysa satırlar ve kazanan özetleri, rekabet özeti (geçerli
+  teklif sayısı, en düşük/ikinci toplam, kazananın sırası — yalnız kazananla
+  AYNI para birimindeki teklifler sıralanır, karışıksa `currencyMixed`), kalem
+  sayısı/toplam miktar (tek birimdeyse), adım çizelgesi (`mine`),
+  `canOpenListing` (= buy:view). Tedarikçi iletişim/adres bilgisi TAŞIMAZ
+  (spec regex ile kilitli). Erişim: adımdaki onaycı, başlatan ya da
+  approvals:manage; aksi 404. Rota statik rotalardan SONRA (`:id` yutmasın).
+- **Onay bağı istisnası KALKTI:** onaylayıcı-only üye talep detayını
+  (rakip teklifler, tedarikçi kimlikleri, adresler), tur geçmişini, teklif
+  belgelerini ve siparişi onaya bağlı olsa da GÖREMEZ (404) — eski Faz O
+  "dar bağlam" tam sahip görünümü açıyordu (fazla). Kararı için gereken her
+  şey projeksiyonda. Web: Onaylar kartında "Detay" düğmesi
+  (`ApprovalDetailPanel`), talep bağlantısı yalnız `buy:view` olana;
+  `/company/onaylar` `ApprovalsGate` (approval:act ∨ approvals:manage) ile
+  kapılı (eskiden herkese açıktı). Üst çubukta Şirketim düğmesi yönetim ya da
+  bir portalı görüntüleyene; onaylayıcı-only kabukta çan + hesap kalır.
+- **Bildirim alıcıları izinden** (`notification.service` `pushToCompanies`):
+  `portal` → o portalı GÖRÜNTÜLEYENLER (`viewPermissionForPortal`);
+  `audience` (yeni, any-of) → bağlantı isteği/kabulü `connections:manage`,
+  admin duyurusu yönetim + koltuk (onaylayıcı-only ALMAZ); ikisi de yoksa
+  herkes (hesap/güvenlik sınıfı). `rolesForPortal` SİLİNDİ. Çan sunucuda
+  kişinin GÜNCEL izniyle süzer (`viewer` parametresi; izni kalkan portalın
+  eski satırları görünmez, silinmez). E-posta alıcısı tek kaynak
+  `pickCompanyRecipients(prisma, ids, preferAnyOf, fallbackAnyOf)`
+  (billingEmail önce; listings/orders görüntüleme izni; mesaj e-postası
+  YANITLAYABİLECEK kişiye — önce tarafın gönderme izni, sonra görüntüleme;
+  eskiden firmanın en eski kullanıcısına gidiyordu, rolsüz olsa da).
+- Onay akışı oluşturma/kopyalama artık denetim kaydında
+  (`company.approval_flow.created/duplicated`).
+- Sözleşmeler: `approval-detail.spec`, `approver-context.spec` (yeniden
+  yazıldı), `notifications-audience.spec`.
 
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı

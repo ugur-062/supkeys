@@ -14,6 +14,7 @@ import { hasCompanyPermission } from "../company-auth/permissions/company-permis
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
+import { pickCompanyRecipients } from "../notifications/notification.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { appRoutes } from "../../common/company/app-routes";
 
@@ -46,26 +47,24 @@ export class CompanyMessagesService {
     companyId: string,
     senderCompanyId: string,
     senderName: string,
+    /** Alıcı firmanın konuşmadaki tarafı — alıcıysa "buy", satıcıysa "sell". */
+    recipientSide: "buy" | "sell",
   ) {
     try {
-      const c = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          name: true,
-          billingEmail: true,
-          users: {
-            where: { isActive: true, deletedAt: null },
-            select: { email: true, firstName: true, lastName: true },
-            orderBy: { createdAt: "asc" },
-            take: 1,
-          },
-        },
-      });
-      const email = c?.billingEmail || c?.users[0]?.email;
-      if (!c || !email) return;
-      const name = c.users[0]
-        ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
-        : c.name;
+      // Yetki tablosu (2026-09-05): e-posta YANITLAYABİLECEK kişiye gider —
+      // önce tarafın gönderme izni (satınalma: talep yönetme, satış: teklif
+      // verme), yoksa o tarafı görüntüleyen; billingEmail varsa o (kurumsal).
+      // Eskiden firmanın en eski kullanıcısına (rolsüz olsa da) gidiyordu.
+      const recipients = await pickCompanyRecipients(
+        this.prisma,
+        [companyId],
+        recipientSide === "buy" ? ["buy:listing:manage"] : ["sell:bid:submit"],
+        recipientSide === "buy" ? ["buy:view"] : ["sell:view"],
+      );
+      const to = recipients.get(companyId);
+      if (!to) return;
+      const email = to.email;
+      const name = to.name;
       const baseUrl =
         resolveWebUrl(this.config);
       const subject = `${senderName} size mesaj gönderdi`;
@@ -403,6 +402,8 @@ export class CompanyMessagesService {
         otherCompanyId,
         user.companyId,
         message.senderName,
+        // Karşı taraf: ben satınalmadaysam o SATICI, satıştaysam o ALICI.
+        portal === "satinalma" ? "sell" : "buy",
       );
     }
 

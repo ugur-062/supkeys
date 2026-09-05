@@ -1,8 +1,11 @@
 /**
- * Faz O — Onaylayıcı dar-bağlam: ONAYLAYICI-only (ve rolsüz) üye, firmasının
- * owner-detayını (rakip teklifler + iç notlar) ve siparişlerini yalnız
- * KENDİSİNE DÜŞMÜŞ (bekleyen veya karar verilmiş) onaya bağlı ise görür;
- * aksi 404. FULL_READ (etiket/işlem rolleri) daraltılmaz.
+ * Yetki tablosu Faz 2 (2026-09-05) — onaylayıcı dar bağlamı.
+ *
+ * ONAYLAYICI-only (ve görüntüleme izni olmayan) üye firmasının talep
+ * detayını (rakip teklifler, tedarikçi kimlikleri, adresler, iç notlar) ve
+ * siparişlerini GÖRMEZ — onaya bağlı olsa da (eski Faz O istisnası KALKTI).
+ * Karar bağlamı `approvals/:id` projeksiyonundan gelir (approval-detail.spec).
+ * Görüntüleme izni (buy:view) olan üye daraltılmaz; roles=[] üye 404.
  */
 import { CompanyRole } from "@rothern/db";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
@@ -74,8 +77,8 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-describe("Faz O — ihale owner-detayı dar-bağlam", () => {
-  it("ONAYLAYICI-only: onay bağı yoksa 404; PENDING adımı varsa TAM detay; karar verdiği (geçmiş) de erişilir", async () => {
+describe("Faz 2 — talep owner-detayı: onaylayıcı-only HER ZAMAN 404", () => {
+  it("onay bağı olsa da (bekleyen ya da karar verilmiş) talep detayı 404; görüntüleme izni olan görür", async () => {
     const { service } = makeService();
     const co = await makeCompanyWithUser(prisma, { country: "TR" });
     const approver = await makeUser(prisma, co.company.id, [
@@ -99,20 +102,32 @@ describe("Faz O — ihale owner-detayı dar-bağlam", () => {
     await expect(service.getOne(approverAuth, l1.id)).rejects.toThrow(
       /bulunamadı/,
     );
-
-    // PENDING adım → tam owner-detayı (isOwner görünümü, bids alanı mevcut).
+    // PENDING adım → YİNE 404 (Faz 2: rakip teklifler onaylayıcıya açılmaz).
     await seedApproval(co.company.id, l1.id, co.user.id, approver.id);
-    const detail = (await service.getOne(approverAuth, l1.id)) as {
-      isOwner: boolean;
-    };
-    expect(detail.isOwner).toBe(true);
-
-    // Kararını VERMİŞ olduğu istek (geçmiş) → hâlâ erişilir.
+    await expect(service.getOne(approverAuth, l1.id)).rejects.toThrow(
+      /bulunamadı/,
+    );
+    // Karar verilmiş istek (geçmiş) → 404.
     await seedApproval(co.company.id, l2.id, co.user.id, approver.id, "APPROVED");
-    await expect(service.getOne(approverAuth, l2.id)).resolves.toBeTruthy();
+    await expect(service.getOne(approverAuth, l2.id)).rejects.toThrow(
+      /bulunamadı/,
+    );
+    // Tur geçmişi de kapalı.
+    await expect(service.roundHistory(approverAuth, l1.id)).rejects.toThrow();
+
+    // Görüntüleme izni olan (buy:view — açık liste) daraltılmaz; kurucu görür.
+    const viewer = await makeUser(prisma, co.company.id, [], {
+      permissions: ["buy:view"],
+    });
+    const viewerAuth = {
+      ...(authFor(viewer, co.company.id, []) as object),
+      permissions: ["buy:view"],
+    } as never;
+    await expect(service.getOne(viewerAuth, l1.id)).resolves.toBeTruthy();
+    await expect(service.getOne(co.auth, l1.id)).resolves.toBeTruthy();
   });
 
-  it("FULL_READ daraltılmaz: SA-rollü üye ve rolsüz-Kurucu her owner-detayı görür; roles=[] üye 404", async () => {
+  it("Satın Almacı ve rolsüz-Kurucu owner-detayını görür; roles=[] üye 404", async () => {
     const { service } = makeService();
     const co = await makeCompanyWithUser(prisma, { country: "TR" });
     const listing = await makeListing(prisma, {
@@ -120,7 +135,6 @@ describe("Faz O — ihale owner-detayı dar-bağlam", () => {
       createdById: co.user.id,
       status: "OPEN",
     });
-
     const buyer = await makeUser(prisma, co.company.id, [
       CompanyRole.SATIN_ALMACI,
     ]);
@@ -130,8 +144,10 @@ describe("Faz O — ihale owner-detayı dar-bağlam", () => {
         listing.id,
       ),
     ).resolves.toBeTruthy();
-
-    // roles=[] (seat-selection sonrası) → onay bağı yoksa 404.
+    // Kurucu (örtük görüntüleme) — koltuğu olmasa da okur.
+    const soloOwner = { ...(co.auth as object), roles: ["SAHIP"] } as never;
+    await expect(service.getOne(soloOwner, listing.id)).resolves.toBeTruthy();
+    // roles=[] (seat-selection sonrası) → 404.
     const bare = await makeUser(prisma, co.company.id, []);
     await expect(
       service.getOne(authFor(bare, co.company.id, []), listing.id),
@@ -139,8 +155,8 @@ describe("Faz O — ihale owner-detayı dar-bağlam", () => {
   });
 });
 
-describe("Faz O — sipariş dar-bağlam", () => {
-  it("ONAYLAYICI-only: onaya bağlı ihalenin siparişini görür; bağsız siparişe 404; SA-rollü tam görür", async () => {
+describe("Faz 2 — sipariş dar-bağlam", () => {
+  it("ONAYLAYICI-only: onaya bağlı olsa da sipariş 404; alım tarafını görüntüleyen görür", async () => {
     const orders = ordersService();
     const co = await makeCompanyWithUser(prisma, { country: "TR" });
     const other = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -166,22 +182,26 @@ describe("Faz O — sipariş dar-bağlam", () => {
         status: "PENDING",
       },
     });
-    const bareOrder = await prisma.companyOrder.create({
-      data: {
-        buyerCompanyId: co.company.id,
-        sellerCompanyId: other.company.id,
-        amount: 500,
-        status: "PENDING",
-      },
-    });
 
-    await expect(
-      orders.getOne(approverAuth, linkedOrder.id),
-    ).resolves.toBeTruthy();
-    await expect(orders.getOne(approverAuth, bareOrder.id)).rejects.toThrow(
+    await expect(orders.getOne(approverAuth, linkedOrder.id)).rejects.toThrow(
       /bulunamadı/,
     );
-    // FULL_READ (kurucu auth'u) her ikisini de görür.
-    await expect(orders.getOne(co.auth, bareOrder.id)).resolves.toBeTruthy();
+    // Liste de boş döner (görebildiği taraf yok).
+    expect(await orders.list(approverAuth)).toEqual([]);
+    // Alım tarafını görüntüleyen (buy:view) alıcı siparişini görür; satış tarafı görmez.
+    const buyerViewer = {
+      ...(approverAuth as object),
+      permissions: ["buy:view"],
+    } as never;
+    await expect(orders.getOne(buyerViewer, linkedOrder.id)).resolves.toBeTruthy();
+    const sellerViewer = {
+      ...(approverAuth as object),
+      permissions: ["sell:view"],
+    } as never;
+    await expect(orders.getOne(sellerViewer, linkedOrder.id)).rejects.toThrow(
+      /bulunamadı/,
+    );
+    // Kurucu her ikisini de görür.
+    await expect(orders.getOne(co.auth, linkedOrder.id)).resolves.toBeTruthy();
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { RothernLogo } from "@/components/brand/logo";
 import { Avatar } from "@/components/catalyst/avatar";
@@ -56,6 +57,11 @@ export function CompanyTopbar({
     canUseMessaging(user, "satis");
   const pathname = usePathname();
   const inCompanyArea = isCompanyAreaPath(pathname);
+  // Şirketim: yönetim ya da en az bir portalı görüntüleyen görür; onaylayıcı-
+  // only kabukta yalnız çan + hesap kalır (yetki tablosu Faz 2).
+  const showCompanyArea =
+    isManagementUser(user) ||
+    userHasPermission(user, ["buy:view", "sell:view"]);
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
@@ -95,6 +101,7 @@ export function CompanyTopbar({
           (2026-09-05, kullanıcı: "tuş olduğu belli değil, Gold orada saçma"):
           h-10 · rounded-lg · zinc ikon + etiket · çerçevesiz/dolgusuz; rozet ve
           firma adı YOK (ad sol menüdeki firma kartında ve sayfa başlığında). */}
+      {showCompanyArea ? (
       <Link
         href={COMPANY_AREA_BASE}
         aria-label={COMPANY_AREA.label}
@@ -109,6 +116,7 @@ export function CompanyTopbar({
         <BuildingOffice2Icon className="size-5" aria-hidden />
         {COMPANY_AREA.label}
       </Link>
+      ) : null}
       </div>
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
@@ -162,10 +170,12 @@ export function CompanyTopbar({
               <DropdownDivider />
               {/* Şirketim: masaüstünde sol üst düğme; dar ekranda o düğme
                   gizli olduğu için giriş buradan (2026-09-05). */}
+              {showCompanyArea ? (
               <DropdownItem href={COMPANY_AREA_BASE} className="sm:hidden">
                 <BuildingOffice2Icon data-slot="icon" />
                 <DropdownLabel>{COMPANY_AREA.label}</DropdownLabel>
               </DropdownItem>
+              ) : null}
               <DropdownItem href="/company/ayarlar">
                 <Cog6ToothIcon data-slot="icon" />
                 <DropdownLabel>Ayarlar</DropdownLabel>

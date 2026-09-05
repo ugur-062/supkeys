@@ -190,11 +190,8 @@ export class CompanyBidDocumentsService {
 
   private async assertOwnerReadContext(user: AuthenticatedCompanyUser, listingId: string): Promise<void> {
     if (hasReadContext(user, "buy")) return; // tek kaynak: full-read-context
-    const linked = await this.prisma.approvalRequest.findFirst({
-      where: { listingId, companyId: user.companyId, steps: { some: { approverUserId: user.userId } } },
-      select: { id: true },
-    });
-    if (!linked) throw new NotFoundException("İlan bulunamadı");
+    void listingId; // onay bağı istisnası kalktı (yetki tablosu Faz 2)
+    throw new NotFoundException("İlan bulunamadı");
   }
 
   /** İlan sahibi tüm teklif belgelerini; teklifçi yalnızca kendi belgelerini görür. */

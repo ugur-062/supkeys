@@ -69,7 +69,8 @@ import { ExchangeRateService } from "../../currency/services/exchange-rate.servi
 import { EmailService } from "../../email/email.service";
 import {
   NotificationService,
-  rolesForPortal,
+  pickCompanyRecipients,
+  viewPermissionForPortal,
   type NotificationPortal,
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
@@ -176,87 +177,25 @@ export class CompanyListingsService {
     companyId: string,
     portal?: NotificationPortal,
   ): Promise<Recipient | null> {
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      select: { name: true, billingEmail: true },
-    });
-    if (!company) return null;
-    if (company.billingEmail) {
-      // Firma-seviyesi fatura adresi → kullanıcı tercihi yok (tümü gider).
-      return { email: company.billingEmail, name: company.name, prefs: null };
-    }
-    const user = await this.prisma.companyUser.findFirst({
-      where: {
-        companyId,
-        isActive: true,
-        deletedAt: null,
-        ...(portal ? { roles: { hasSome: rolesForPortal(portal) } } : {}),
-      },
-      orderBy: { createdAt: "asc" },
-      select: {
-        email: true,
-        firstName: true,
-        lastName: true,
-        notificationPrefs: true,
-      },
-    });
-    if (!user) return null;
-    return {
-      email: user.email,
-      name: `${user.firstName} ${user.lastName}`,
-      prefs: user.notificationPrefs as Record<string, boolean> | null,
-    };
+    const m = await this.companyRecipients([companyId], portal);
+    return m.get(companyId) ?? null;
   }
 
   /**
-   * Çok sayıda firmanın bildirim alıcısını TEK seferde çözer (N+1 yerine 2 sorgu):
-   * billingEmail olanlar doğrudan; olmayanlar için tek toplu kullanıcı sorgusu.
-   * `portal` verilirse kullanıcı fallback'i o portala erişimli rollerle süzülür.
+   * Çok sayıda firmanın bildirim alıcısını TEK seferde çözer (N+1 yerine 2
+   * sorgu): billingEmail olanlar doğrudan; olmayanlar için portalı GÖRÜNTÜLEME
+   * izni taşıyan en eski aktif üye (yetki tablosu 2026-09-05 — tek kaynak
+   * `pickCompanyRecipients`). Portal yoksa ilk aktif üye.
    */
   private async companyRecipients(
     companyIds: string[],
     portal?: NotificationPortal,
   ): Promise<Map<string, Recipient>> {
-    const ids = [...new Set(companyIds)];
-    const out = new Map<string, Recipient>();
-    if (ids.length === 0) return out;
-    const companies = await this.prisma.company.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true, billingEmail: true },
-    });
-    const needUser: string[] = [];
-    for (const c of companies) {
-      if (c.billingEmail)
-        out.set(c.id, { email: c.billingEmail, name: c.name, prefs: null });
-      else needUser.push(c.id);
-    }
-    if (needUser.length > 0) {
-      const users = await this.prisma.companyUser.findMany({
-        where: {
-          companyId: { in: needUser },
-          isActive: true,
-          deletedAt: null,
-          ...(portal ? { roles: { hasSome: rolesForPortal(portal) } } : {}),
-        },
-        orderBy: { createdAt: "asc" },
-        select: {
-          companyId: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          notificationPrefs: true,
-        },
-      });
-      for (const u of users) {
-        if (out.has(u.companyId)) continue; // ilk aktif (portala erişimli) kullanıcı
-        out.set(u.companyId, {
-          email: u.email,
-          prefs: u.notificationPrefs as Record<string, boolean> | null,
-          name: `${u.firstName} ${u.lastName}`,
-        });
-      }
-    }
-    return out;
+    return pickCompanyRecipients(
+      this.prisma,
+      companyIds,
+      portal ? [viewPermissionForPortal(portal)] : null,
+    );
   }
 
   /**
@@ -6829,16 +6768,12 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
   ): Promise<void> {
+    // Yetki tablosu Faz 2 (2026-09-05): onay bağı İSTİSNASI KALKTI — onaylayıcı
+    // kararı için gereken bağlamı `approvals/:id` projeksiyonundan alır;
+    // rakip teklifler/tedarikçi kimlikleri/adresler ona açılmaz.
     if (hasReadContext(user, "buy")) return; // Faz O tek kaynak (buy:view)
-    const linked = await this.prisma.approvalRequest.findFirst({
-      where: {
-        listingId,
-        companyId: user.companyId,
-        steps: { some: { approverUserId: user.userId } },
-      },
-      select: { id: true },
-    });
-    if (!linked) throw new NotFoundException("İlan bulunamadı");
+    void listingId;
+    throw new NotFoundException("İlan bulunamadı");
   }
 
   private assertListingManageRole(

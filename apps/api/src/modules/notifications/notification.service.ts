@@ -1,8 +1,12 @@
 import { Injectable, Optional, Logger } from "@nestjs/common";
-import { CompanyRole, Prisma } from "@rothern/db";
+import { Prisma } from "@rothern/db";
 import { RealtimeService } from "../realtime/realtime.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
+import {
+  hasCompanyPermission,
+  type PermissionSubject,
+} from "../company-auth/permissions/company-permissions.constants";
 
 export type NotificationPortal = "satinalma" | "satis";
 
@@ -15,12 +19,25 @@ export interface InAppPayload {
   ctaLabel?: string | null;
   listingId?: string | null;
   /**
-   * Bildirimin ait olduğu portal. Belirtilmezse ORTAK (null) — her iki portalda
-   * görünür (ör. bağlantı istekleri). Portal verilirse yalnız o portala erişimi
-   * olan roldeki kullanıcılara oluşturulur: satış bildirimi saf satın almacıya
-   * hiç yazılmaz (ve tersine).
+   * Bildirimin ait olduğu portal. Verilirse alıcılar o portalı GÖRÜNTÜLEME
+   * izni taşıyanlarla süzülür (satış bildirimi saf satın almacıya hiç
+   * yazılmaz, ve tersine). Belirtilmezse ORTAK (null) — her iki portalda
+   * görünür (ör. bağlantı istekleri); kimin alacağını `audience` söyler.
    */
   portal?: NotificationPortal;
+  /**
+   * Yetki tablosu (2026-09-05): portal-dışı bildirimin alıcı kümesi — bu
+   * izinlerden HERHANGİ BİRİNİ taşıyan aktif üyeler (kurucu örtük izinleri
+   * dahil). Verilmezse ve portal da yoksa firmanın TÜM aktif üyeleri alır
+   * (yalnız hesap/güvenlik sınıfı bildirimler böyle olmalı — onaylayıcı-only
+   * üye pazar bildirimi almasın).
+   */
+  audience?: readonly string[];
+}
+
+/** Portalın görüntüleme izni — fan-out + e-posta alıcı seçimi (tek kaynak). */
+export function viewPermissionForPortal(portal: NotificationPortal): string {
+  return portal === "satis" ? "sell:view" : "buy:view";
 }
 
 /**
@@ -38,28 +55,110 @@ function isMissingRecipientError(err: unknown): boolean {
   );
 }
 
-/** Portala erişim veren roller — fan-out + e-posta alıcı filtresi (paylaşılan). */
-export function rolesForPortal(portal: NotificationPortal): CompanyRole[] {
-  // Kurucu (SAHIP) her iki portalı da kapsar → tüm portal bildirimlerini alır.
-  return portal === "satis"
-    ? [CompanyRole.SAHIP, CompanyRole.SATISCI, CompanyRole.YONETICI]
-    : [CompanyRole.SAHIP, CompanyRole.SATIN_ALMACI, CompanyRole.YONETICI];
+/** Firma e-posta alıcısı — billingEmail ya da izinli ilk aktif üye. */
+export interface CompanyRecipient {
+  email: string;
+  name: string;
+  /** null = firma fatura adresi (kullanıcı tercihi uygulanmaz). */
+  prefs: Record<string, boolean> | null;
 }
 
-/** Okuma tarafı: aktif portal + ORTAK (null) bildirimler. */
+type RecipientCandidate = {
+  id: string;
+  companyId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  notificationPrefs: unknown;
+  permissions: string[];
+  roles: string[];
+};
+
+/**
+ * Firmaların e-posta alıcısını çözer (N+1 yerine 2 sorgu): `billingEmail`
+ * olanlar doğrudan; olmayanlarda `preferAnyOf` izinlerinden birini taşıyan
+ * en eski aktif üye, o da yoksa `fallbackAnyOf` (ör. önce gönderme izni, sonra
+ * görüntüleme). İzin listesi `null` → ilk aktif üye (kısıtsız).
+ */
+export async function pickCompanyRecipients(
+  prisma: PrismaService,
+  companyIds: readonly string[],
+  preferAnyOf: readonly string[] | null,
+  fallbackAnyOf: readonly string[] | null = null,
+): Promise<Map<string, CompanyRecipient>> {
+  const ids = [...new Set(companyIds.filter(Boolean))];
+  const out = new Map<string, CompanyRecipient>();
+  if (ids.length === 0) return out;
+  const companies = await prisma.company.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, billingEmail: true, ownerUserId: true },
+  });
+  const ownerOf = new Map(companies.map((c) => [c.id, c.ownerUserId]));
+  const needUser: string[] = [];
+  for (const c of companies) {
+    if (c.billingEmail)
+      out.set(c.id, { email: c.billingEmail, name: c.name, prefs: null });
+    else needUser.push(c.id);
+  }
+  if (needUser.length === 0) return out;
+  const users: RecipientCandidate[] = await prisma.companyUser.findMany({
+    where: { companyId: { in: needUser }, isActive: true, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      companyId: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      notificationPrefs: true,
+      permissions: true,
+      roles: true,
+    },
+  });
+  const subject = (u: RecipientCandidate): PermissionSubject => ({
+    isOwner: ownerOf.get(u.companyId) === u.id,
+    permissions: u.permissions,
+    roles: u.roles,
+  });
+  const pick = (anyOf: readonly string[] | null) => {
+    for (const u of users) {
+      if (out.has(u.companyId)) continue;
+      if (anyOf && !hasCompanyPermission(subject(u), anyOf)) continue;
+      out.set(u.companyId, {
+        email: u.email,
+        name: `${u.firstName} ${u.lastName}`.trim(),
+        prefs: u.notificationPrefs as Record<string, boolean> | null,
+      });
+    }
+  };
+  pick(preferAnyOf);
+  if (fallbackAnyOf) pick(fallbackAnyOf);
+  return out;
+}
+
+/**
+ * Okuma tarafı süzgeci: istenen portal (+ ORTAK) ∩ kişinin GÖREBİLDİĞİ
+ * portallar. Rol/izin değişince eski satırlar görünmez olur (silinmez).
+ */
 function portalReadFilter(
+  viewer: PermissionSubject | undefined,
   portal?: NotificationPortal,
 ): Prisma.NotificationWhereInput {
-  if (!portal) return {}; // portal verilmezse hepsi (geriye uyum)
-  return { OR: [{ portal }, { portal: null }] };
+  const allowed: NotificationPortal[] = viewer
+    ? (["satinalma", "satis"] as const).filter((p) =>
+        hasCompanyPermission(viewer, viewPermissionForPortal(p)),
+      )
+    : ["satinalma", "satis"];
+  const visible = portal ? allowed.filter((p) => p === portal) : allowed;
+  return { OR: [{ portal: null }, { portal: { in: visible } }] };
 }
 
 /**
  * Uygulama-içi bildirim servisi — KULLANICI bazında. Bir firmaya bildirim, o
- * firmanın YALNIZCA ilgili portala erişimi olan aktif kullanıcılarına fan-out
- * edilir (satış/satınalma ayrımı). Her kullanıcının `notificationPrefs` tercihi
- * ayrı kontrol edilir; transactional tipler her zaman gider. E-posta gönderimi
- * ayrı kanaldır (EmailService).
+ * firmanın YALNIZCA ilgili portalı görebilen (ya da `audience` iznini taşıyan)
+ * aktif kullanıcılarına fan-out edilir. Her kullanıcının `notificationPrefs`
+ * tercihi ayrı kontrol edilir; transactional tipler her zaman gider. E-posta
+ * gönderimi ayrı kanaldır (EmailService).
  */
 @Injectable()
 export class NotificationService {
@@ -70,7 +169,7 @@ export class NotificationService {
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
-  /** Tek firmanın (portala erişimli) aktif kullanıcılarına in-app bildirim. */
+  /** Tek firmanın (izinli) aktif kullanıcılarına in-app bildirim. */
   async pushToCompany(companyId: string, payload: InAppPayload): Promise<number> {
     return this.pushToCompanies([companyId], payload);
   }
@@ -127,8 +226,9 @@ export class NotificationService {
   }
 
   /**
-   * Çok firmanın (portala erişimli) aktif kullanıcılarına in-app bildirim
-   * (2 sorgu, fan-out). Portal verilmişse alıcı rolleri o portala göre süzülür.
+   * Çok firmanın aktif kullanıcılarına in-app bildirim (2 sorgu, fan-out).
+   * Alıcı kümesi: `audience` verildiyse o izinlerden birini taşıyanlar; yoksa
+   * `portal` verildiyse o portalı görüntüleyenler; ikisi de yoksa herkes.
    */
   async pushToCompanies(
     companyIds: string[],
@@ -136,19 +236,41 @@ export class NotificationService {
   ): Promise<number> {
     const ids = [...new Set(companyIds.filter(Boolean))];
     if (ids.length === 0) return 0;
-    const users = await this.prisma.companyUser.findMany({
-      where: {
-        companyId: { in: ids },
-        isActive: true,
-        deletedAt: null,
-        // Portal verildiyse yalnız o portala erişimi olan roldeki kullanıcılar.
-        ...(payload.portal
-          ? { roles: { hasSome: rolesForPortal(payload.portal) } }
-          : {}),
-      },
-      select: { id: true, companyId: true, notificationPrefs: true },
-    });
+    const required: readonly string[] | null =
+      payload.audience ??
+      (payload.portal ? [viewPermissionForPortal(payload.portal)] : null);
+    const [users, companies] = await Promise.all([
+      this.prisma.companyUser.findMany({
+        where: { companyId: { in: ids }, isActive: true, deletedAt: null },
+        select: {
+          id: true,
+          companyId: true,
+          notificationPrefs: true,
+          permissions: true,
+          roles: true,
+        },
+      }),
+      required
+        ? this.prisma.company.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, ownerUserId: true },
+          })
+        : Promise.resolve([] as { id: string; ownerUserId: string | null }[]),
+    ]);
+    const ownerOf = new Map(companies.map((c) => [c.id, c.ownerUserId]));
     const rows = users
+      .filter(
+        (u) =>
+          !required ||
+          hasCompanyPermission(
+            {
+              isOwner: ownerOf.get(u.companyId) === u.id,
+              permissions: u.permissions,
+              roles: u.roles,
+            },
+            required,
+          ),
+      )
       .filter((u) =>
         isNotificationEnabled(
           u.notificationPrefs as Record<string, boolean> | null,
@@ -187,7 +309,10 @@ export class NotificationService {
     return rows.length;
   }
 
-  /** Kullanıcının bildirimleri (aktif portal + ortak; en yeni önce). */
+  /**
+   * Kullanıcının bildirimleri (görebildiği portallar + ortak; en yeni önce).
+   * `viewer` verilirse portal süzgeci kişinin GÜNCEL izinleriyle kesişir.
+   */
   listForUser(
     userId: string,
     opts: {
@@ -197,6 +322,7 @@ export class NotificationService {
       /** Bu satırdan ESKİsini getir (sayfalama imleci). */
       before?: { createdAt: Date; id: string };
     } = {},
+    viewer?: PermissionSubject,
   ) {
     const take = Math.min(Math.max(opts.take ?? 30, 1), 100);
     // Dalga B (P7): `before` imleci eklendi. Eskiden yalnız son 30 satır
@@ -208,7 +334,7 @@ export class NotificationService {
       where: {
         companyUserId: userId,
         ...(opts.unreadOnly ? { readAt: null } : {}),
-        ...portalReadFilter(opts.portal),
+        ...portalReadFilter(viewer, opts.portal),
         ...(opts.before
           ? {
               OR: [
@@ -229,12 +355,13 @@ export class NotificationService {
   async unreadCount(
     userId: string,
     portal?: NotificationPortal,
+    viewer?: PermissionSubject,
   ): Promise<number> {
     return this.prisma.notification.count({
       where: {
         companyUserId: userId,
         readAt: null,
-        ...portalReadFilter(portal),
+        ...portalReadFilter(viewer, portal),
       },
     });
   }
@@ -254,12 +381,13 @@ export class NotificationService {
   async markAllRead(
     userId: string,
     portal?: NotificationPortal,
+    viewer?: PermissionSubject,
   ): Promise<number> {
     const res = await this.prisma.notification.updateMany({
       where: {
         companyUserId: userId,
         readAt: null,
-        ...portalReadFilter(portal),
+        ...portalReadFilter(viewer, portal),
       },
       data: { readAt: new Date() },
     });

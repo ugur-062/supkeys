@@ -16,6 +16,7 @@ import {
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { ApprovalFlowsSection } from "@/app/company/(authed)/ayarlar/_components/approval-flows-section";
+import { ApprovalDetailPanel } from "@/components/company/approval-detail-panel";
 import {
   useAllApprovals,
   useApprovalHistory,
@@ -37,6 +38,7 @@ import {
   CheckCircle2,
   Circle,
   ClipboardCheck,
+  Info,
   MinusCircle,
   Search,
   Workflow,
@@ -167,12 +169,15 @@ function RequestCard({
   canCancel,
   onCancel,
   cancelPending,
+  canOpenListing,
 }: {
   h: ApprovalHistoryItem;
   canCancel: boolean;
   onCancel: (h: ApprovalHistoryItem) => void;
   /** Yalnız BU kart iptal edilirken true — tüm listeyi kilitlemez. */
   cancelPending: boolean;
+  /** Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana. */
+  canOpenListing: boolean;
 }) {
   const st = REQ_STATUS[h.status];
   return (
@@ -192,12 +197,16 @@ function RequestCard({
             <Badge color={st.color}>{st.label}</Badge>
             {h.mine ? <Badge color="zinc">Talebim</Badge> : null}
           </div>
-          <Link
-            href={`/company/ilan/${h.listing.id}`}
-            className="mt-1 block truncate font-medium text-zinc-950 hover:text-blue-600 hover:underline"
-          >
-            {h.listing.title}
-          </Link>
+          {canOpenListing ? (
+            <Link
+              href={`/company/ilan/${h.listing.id}`}
+              className="mt-1 block truncate font-medium text-zinc-950 hover:text-blue-600 hover:underline"
+            >
+              {h.listing.title}
+            </Link>
+          ) : (
+            <p className="mt-1 truncate font-medium text-zinc-950">{h.listing.title}</p>
+          )}
           <div className="mt-1 text-xs text-zinc-500">
             {h.createdBy}
             <span className="mx-1.5 text-zinc-300">·</span>
@@ -258,6 +267,10 @@ export default function OnaylarPage() {
   const isManager =
     !!user && (user.isOwner || userHasPermission(user, "approvals:manage"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
+  // Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana; onaylayıcı
+  // kararını kart içindeki onay detayından verir (yetki tablosu Faz 2).
+  const canOpenListing = userHasPermission(user, "buy:view");
+  const [openDetailId, setOpenDetailId] = useState<string | null>(null);
   // Boolean "intent" + consume: bölüm remount olduğunda (sekmeye tekrar
   // girildiğinde) sihirbaz KENDİLİĞİNDEN açılmasın diye tüketilince sıfırlanır.
   const [openNewFlow, setOpenNewFlow] = useState(false);
@@ -457,12 +470,18 @@ export default function OnaylarPage() {
                         {p.listing.number ?? "—"}
                       </span>
                     </div>
-                    <Link
-                      href={`/company/ilan/${p.listing.id}`}
-                      className="mt-1 block truncate font-medium text-zinc-950 hover:text-blue-600 hover:underline"
-                    >
-                      {p.listing.title}
-                    </Link>
+                    {canOpenListing ? (
+                      <Link
+                        href={`/company/ilan/${p.listing.id}`}
+                        className="mt-1 block truncate font-medium text-zinc-950 hover:text-blue-600 hover:underline"
+                      >
+                        {p.listing.title}
+                      </Link>
+                    ) : (
+                      <p className="mt-1 truncate font-medium text-zinc-950">
+                        {p.listing.title}
+                      </p>
+                    )}
                     <div className="mt-1 text-xs text-zinc-500">
                       {p.createdBy} başlattı
                       <span className="mx-1.5 text-zinc-300">·</span>
@@ -487,6 +506,17 @@ export default function OnaylarPage() {
                   <div className="flex shrink-0 items-center gap-2">
                     <Button
                       plain
+                      aria-expanded={openDetailId === p.id}
+                      aria-controls={`onay-detay-${p.id}`}
+                      onClick={() =>
+                        setOpenDetailId((cur) => (cur === p.id ? null : p.id))
+                      }
+                    >
+                      <Info className="h-4 w-4" aria-hidden />
+                      {openDetailId === p.id ? "Detayı gizle" : "Detay"}
+                    </Button>
+                    <Button
+                      plain
                       onClick={() => setRejecting(p)}
                       disabled={decide.isPending && actingId === p.id}
                     >
@@ -504,6 +534,14 @@ export default function OnaylarPage() {
                     </Button>
                   </div>
                 </div>
+                {openDetailId === p.id ? (
+                  <div
+                    id={`onay-detay-${p.id}`}
+                    className="mt-4 border-t border-zinc-950/5 pt-4"
+                  >
+                    <ApprovalDetailPanel id={p.id} />
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -532,6 +570,7 @@ export default function OnaylarPage() {
                 canCancel={h.mine || isManager}
                 onCancel={cancelRequest}
                 cancelPending={cancel.isPending && actingId === h.id}
+                canOpenListing={canOpenListing}
               />
             ))}
           </div>
@@ -599,6 +638,7 @@ export default function OnaylarPage() {
                   canCancel={h.mine || isManager}
                   onCancel={cancelRequest}
                   cancelPending={cancel.isPending && actingId === h.id}
+                canOpenListing={canOpenListing}
                 />
               ))}
             </div>

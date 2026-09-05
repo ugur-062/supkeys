@@ -1,3 +1,4 @@
+import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { PAID_TIERS, maskIban } from "@rothern/shared";
 import {
   BadRequestException,
@@ -1797,6 +1798,9 @@ export class AdminCompaniesService {
     const message = input.message.trim();
     const pushPayload = {
       type: "admin_announcement",
+      // Yetki tablosu: duyuru yönetim ve koltuk sahiplerine; onaylayıcı-only
+      // üye yalnız onay bildirimi alır (kullanıcı kararı 2026-09-05).
+      audience: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
       title: subject,
       body: message,
       ctaLabel: "Rothern'e Git",

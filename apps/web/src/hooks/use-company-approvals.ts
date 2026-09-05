@@ -157,6 +157,101 @@ export function usePendingApprovals() {
   });
 }
 
+/** Onay DETAYI — onaycının karar bağlamı (yetki tablosu Faz 2). */
+export interface ApprovalDetail {
+  id: string;
+  requestNo: string | null;
+  type: ApprovalType;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  amount: number;
+  currency: string;
+  initiatorNote: string | null;
+  createdBy: string;
+  createdAt: string;
+  decidedAt: string | null;
+  listing: {
+    id: string;
+    number: string | null;
+    title: string;
+    type: string;
+    categoryIds: string[];
+    closesAt: string | null;
+    itemCount: number;
+    totalQuantity: { amount: number; unit: string } | null;
+    items: { lineNo: number; name: string; quantity: number; unit: string }[];
+  };
+  award:
+    | {
+        kind: "full";
+        winner: {
+          bidId: string;
+          companyName: string;
+          verified: boolean;
+          amount: number;
+          currency: string;
+          deliveryTime: string | null;
+          deliveryDate: string | null;
+          itemsCovered: number;
+        } | null;
+      }
+    | {
+        kind: "by-item";
+        lines: {
+          lineNo: number | null;
+          itemName: string;
+          quantity: number;
+          unit: string;
+          companyName: string;
+          verified: boolean;
+          unitPrice: number | null;
+          lineTotal: number | null;
+          currency: string;
+        }[];
+        winners: {
+          bidId: string;
+          companyName: string;
+          verified: boolean;
+          total: number;
+          currency: string;
+          lineCount: number;
+        }[];
+      }
+    | { kind: null };
+  competition: {
+    validBidCount: number;
+    currency: string | null;
+    currencyMixed: boolean;
+    lowestTotal: number | null;
+    secondLowestTotal: number | null;
+    winnerRank: number | null;
+  };
+  steps: {
+    order: number;
+    approverName: string;
+    displayLabel: string | null;
+    status: "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
+    note: string | null;
+    decidedAt: string | null;
+    mine: boolean;
+  }[];
+  /** Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana. */
+  canOpenListing: boolean;
+}
+
+export function useApprovalDetail(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["company-approvals", "detail", id],
+    enabled,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await companyApi.get<ApprovalDetail>(
+        `/company/approvals/${id}`,
+      );
+      return data;
+    },
+  });
+}
+
 export function usePendingApprovalCount(enabled: boolean) {
   return useQuery({
     queryKey: ["company-approvals", "pending", "count"],
