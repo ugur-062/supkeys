@@ -319,7 +319,7 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
         fileName: "x.pdf",
         mimeType: "application/pdf",
       }),
-    ).rejects.toThrow(/Satın Almacı veya Satışçı/);
+    ).rejects.toThrow(/işlem yetkisi taşıyan/);
     expect(provider.calls).toHaveLength(0);
   });
 

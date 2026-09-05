@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   hasPerm: false,
-  user: { isOwner: false, roles: ["SATIN_ALMACI"] } as {
+  user: { isOwner: false, roles: [], permissions: [] as string[] } as {
     isOwner: boolean;
     roles: string[];
+    permissions?: string[];
   } | null,
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
@@ -18,7 +19,8 @@ import { ReportsRoleGate } from "../reports-role-gate";
 
 beforeEach(() => {
   h.hasPerm = false;
-  h.user = { isOwner: false, roles: ["SATIN_ALMACI"] };
+  // Yetki tablosu: kapı `/me` izin listesini okur (rol yalnız geçiş yedeği).
+  h.user = { isOwner: false, roles: [], permissions: [] };
 });
 
 describe("ReportsRoleGate (F7 — backend assertTypeAllowed aynası)", () => {
@@ -29,14 +31,12 @@ describe("ReportsRoleGate (F7 — backend assertTypeAllowed aynası)", () => {
       </ReportsRoleGate>,
     );
     expect(screen.queryByText("RAPOR FORMU")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Raporlar işlem rolü gerektirir"),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Satın Almacı rolü/)).toBeInTheDocument();
+    expect(screen.getByText("Raporlar yetki gerektirir")).toBeInTheDocument();
+    expect(screen.getByText(/Satınalma raporları/)).toBeInTheDocument();
   });
 
-  it("izinli: içerik render edilir", () => {
-    h.hasPerm = true;
+  it("izinli: içerik render edilir (buy:reports:view tiki)", () => {
+    h.user = { isOwner: false, roles: [], permissions: ["buy:reports:view"] };
     render(
       <ReportsRoleGate portal="satis">
         <div>RAPOR FORMU</div>
@@ -51,9 +51,8 @@ describe("ReportsRoleGate (F7 — backend assertTypeAllowed aynası)", () => {
    * yönetim çıktısı). Bu kapı eski kuralda kalmıştı → işlem-rolsüz Kurucu
    * API'den 200 alırken arayüzde duvara çarpıyordu.
    */
-  it("işlem rolü olmayan Kurucu raporları görebilir (gözetim muafiyeti)", () => {
-    h.hasPerm = false;
-    h.user = { isOwner: true, roles: ["SAHIP"] };
+  it("işlem rolü olmayan Kurucu raporları görebilir (örtük yönetim seti)", () => {
+    h.user = { isOwner: true, roles: ["SAHIP"], permissions: [] };
     render(
       <ReportsRoleGate portal="satinalma">
         <div>RAPOR FORMU</div>
@@ -62,8 +61,7 @@ describe("ReportsRoleGate (F7 — backend assertTypeAllowed aynası)", () => {
     expect(screen.getByText("RAPOR FORMU")).toBeInTheDocument();
   });
 
-  it("işlem rolü olmayan Yönetici de görebilir", () => {
-    h.hasPerm = false;
+  it("işlem rolü olmayan Yönetici de görebilir (hazır set raporları içerir)", () => {
     h.user = { isOwner: false, roles: ["YONETICI"] };
     render(
       <ReportsRoleGate portal="satis">

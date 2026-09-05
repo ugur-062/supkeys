@@ -12,6 +12,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyReviewsService } from "./company-reviews.service";
 
@@ -36,11 +38,12 @@ class UpsertReviewDto {
 }
 
 @Controller("company/reviews")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyReviewsController {
   constructor(private readonly service: CompanyReviewsService) {}
 
   @Post()
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   upsert(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: UpsertReviewDto,
@@ -49,6 +52,7 @@ export class CompanyReviewsController {
   }
 
   @Get("order/:orderId")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   forOrder(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("orderId") orderId: string,
@@ -57,6 +61,7 @@ export class CompanyReviewsController {
   }
 
   @Get("company/:companyId")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   forCompany(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("companyId") companyId: string,

@@ -12,6 +12,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { ListingBidDocKind } from "@rothern/db";
 import { CompanyBidDocumentsService } from "./company-bid-documents.service";
@@ -51,11 +53,12 @@ class RegisterDto {
 }
 
 @Controller("company/listings/:id/bid-documents")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyBidDocumentsController {
   constructor(private readonly service: CompanyBidDocumentsService) {}
 
   @Get()
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   list(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -64,6 +67,7 @@ export class CompanyBidDocumentsController {
   }
 
   @Post("upload-url")
+  @RequireCompanyPermission("sell:bid:submit")
   uploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -73,6 +77,7 @@ export class CompanyBidDocumentsController {
   }
 
   @Post()
+  @RequireCompanyPermission("sell:bid:submit")
   register(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -82,6 +87,7 @@ export class CompanyBidDocumentsController {
   }
 
   @Delete(":docId")
+  @RequireCompanyPermission("sell:bid:submit")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

@@ -3,6 +3,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import {
   AcceptOrderDto,
@@ -17,16 +19,18 @@ import {
 import { CompanyOrdersService } from "../services/company-orders.service";
 
 @Controller("company/orders")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyOrdersController {
   constructor(private readonly service: CompanyOrdersService) {}
 
   @Get()
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.list(user.companyId);
+    return this.service.list(user);
   }
 
   @Get(":id")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -37,6 +41,7 @@ export class CompanyOrdersController {
   // ---- Satıcı: sipariş kabul/ret ----
 
   @Post(":id/accept")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   accept(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -46,6 +51,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/reject")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   reject(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -57,6 +63,7 @@ export class CompanyOrdersController {
   // ---- Teslimat akışı ----
 
   @Post(":id/ship")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   ship(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -66,6 +73,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/receive")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   receive(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -75,6 +83,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/complete")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   complete(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -84,6 +93,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/cancel")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -95,6 +105,7 @@ export class CompanyOrdersController {
   // ---- A1: Satıcı iptal talebi + DISPUTED (yalnız ACCEPTED) ----
 
   @Post(":id/cancel-request")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   requestCancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -104,6 +115,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/cancel-request/withdraw")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   withdrawCancelRequest(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -112,6 +124,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/cancel-request/approve")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   approveCancelRequest(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -120,6 +133,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/cancel-request/reject")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   rejectCancelRequest(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -131,6 +145,7 @@ export class CompanyOrdersController {
   // ---- TTK 23: Muayene/ayıp ihbarı (alıcı, teslimden sonra 8 gün) ----
 
   @Post(":id/defect-notice")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   raiseDefectNotice(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -140,6 +155,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/defect-notice/withdraw")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   withdrawDefectNotice(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -150,6 +166,7 @@ export class CompanyOrdersController {
   // ---- Ödeme kayıtları ----
 
   @Post(":id/payments")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   recordPayment(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -159,6 +176,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/payments/:paymentId/confirm")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   confirmPayment(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -168,6 +186,7 @@ export class CompanyOrdersController {
   }
 
   @Post(":id/payments/:paymentId/reject")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   rejectPayment(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -181,6 +200,7 @@ export class CompanyOrdersController {
 
   /** Alıcı: akreditif açıldı (LC belgesi yüklenmiş olmalı). */
   @Post(":id/lc/opened")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   lcOpened(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -190,6 +210,7 @@ export class CompanyOrdersController {
 
   /** Satıcı: akreditifi kabul etti (gönderim kilidini açar). */
   @Post(":id/lc/accept")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   lcAccept(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -199,6 +220,7 @@ export class CompanyOrdersController {
 
   /** Satıcı: akreditif ödemesi bankadan alındı. */
   @Post(":id/lc/paid")
+  @RequireCompanyPermission(["buy:order:manage", "sell:order:manage"])
   lcPaid(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

@@ -197,7 +197,7 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     } as typeof valid.auth;
     await expect(
       service.extendBidValidity(labelOnlyOwner, listing.id, 30),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Teklif verme' yetkisi gerekir/);
     // ONAYLAYICI-only üye de uzatamaz.
     const approver: typeof valid.auth = {
       ...valid.auth,
@@ -206,7 +206,7 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     } as typeof valid.auth;
     await expect(
       service.extendBidValidity(approver, listing.id, 30),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Teklif verme' yetkisi gerekir/);
     // Satışçı rolü taşıyan aynı üye geçer.
     const res = await service.extendBidValidity(valid.auth, listing.id, 30);
     expect(res.ok).toBe(true);

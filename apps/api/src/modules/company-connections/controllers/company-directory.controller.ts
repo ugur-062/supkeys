@@ -3,17 +3,20 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyConnectionsService } from "../services/company-connections.service";
 
 /** Firma dizini — arama + herkese açık profil. Salt-okunur. */
 @Controller("company/directory")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyDirectoryController {
   constructor(private readonly service: CompanyConnectionsService) {}
 
   /** Dizin — public `/firmalar` ile aynı süzgeçler; üyeye rothernId + bağlantı durumu. */
   @Get("search")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   search(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("q") q?: string,
@@ -36,11 +39,13 @@ export class CompanyDirectoryController {
   }
 
   @Get("search/facets")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   searchFacets(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.searchFacets(user);
   }
 
   @Get("companies/:rothernId")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   profile(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("rothernId") rothernId: string,

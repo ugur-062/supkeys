@@ -29,7 +29,7 @@ function actor(
     tier: "STANDART" as AuthenticatedCompanyUser["tier"],
     country: "TR",
     isOwner: false,
-    permissionsOverride: null,
+    permissions: [],
     ...overrides,
   };
 }

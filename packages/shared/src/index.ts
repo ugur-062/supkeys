@@ -25,3 +25,4 @@ export * from "./constants/company-activities";
 export * from "./types/review-summary";
 export * from "./constants/category-catalog";
 export * from "./helpers/product-completion";
+export * from "./constants/company-permissions";

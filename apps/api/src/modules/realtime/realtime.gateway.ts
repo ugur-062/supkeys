@@ -15,6 +15,7 @@ import type { Server, Socket } from "socket.io";
 import { AUTH_COOKIE, parseCookies } from "../../common/auth/cookie";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { CompanyJwtPayload } from "../company-auth/strategies/company-jwt.strategy";
+import { effectivePermissions } from "../company-auth/permissions/company-permissions.constants";
 import { RealtimeService } from "./realtime.service";
 
 /**
@@ -125,6 +126,13 @@ export class RealtimeGateway
       }
 
       client.data.companyId = payload.companyId;
+      // Yetki tablosu: oda aboneliği portal görüntüleme iznine bağlı (REST
+      // kapısıyla aynı) — efektif liste handshake'te bir kez hesaplanır.
+      client.data.permissions = effectivePermissions({
+        isOwner: user.company.ownerUserId === user.id,
+        permissions: user.permissions,
+        roles: user.roles,
+      });
       await client.join(`company:${payload.companyId}`);
 
       // Süresiz-soket kapatması (INV-SD-1): açık soket token doğal ömrünü
@@ -191,29 +199,35 @@ export class RealtimeGateway
     // (listings/bids/orders/invitations) bağlamsız okumak RLS açıldığında TÜM
     // abonelikleri sessizce reddeder. Handshake'te doğrulanmış companyId ile
     // bağlamı burada kurarız.
+    const perms = (client.data.permissions as string[] | undefined) ?? [];
     const allowed = await runWithTenantContext(
       { companyId, realm: "company" },
       () =>
         body.kind === "order"
-          ? this.canSubscribeOrder(companyId, body.id)
-          : this.canSubscribeListing(companyId, body.id),
+          ? this.canSubscribeOrder(companyId, perms, body.id)
+          : this.canSubscribeListing(companyId, perms, body.id),
     );
     if (!allowed) return;
     await client.join(`${body.kind}:${body.id}`);
   }
 
-  /** Sipariş odası: yalnız alıcı veya satıcı. */
+  /**
+   * Sipariş odası: yalnız alıcı veya satıcı firma VE kişinin o tarafı
+   * görüntüleme izni (alıcı yanı buy:view, satıcı yanı sell:view).
+   */
   private async canSubscribeOrder(
     companyId: string,
+    perms: readonly string[],
     orderId: string,
   ): Promise<boolean> {
-    const count = await this.prisma.companyOrder.count({
-      where: {
-        id: orderId,
-        OR: [{ buyerCompanyId: companyId }, { sellerCompanyId: companyId }],
-      },
+    const order = await this.prisma.companyOrder.findUnique({
+      where: { id: orderId },
+      select: { buyerCompanyId: true, sellerCompanyId: true },
     });
-    return count > 0;
+    if (!order) return false;
+    if (order.sellerCompanyId === companyId) return perms.includes("sell:view");
+    if (order.buyerCompanyId === companyId) return perms.includes("buy:view");
+    return false;
   }
 
   /**
@@ -223,6 +237,7 @@ export class RealtimeGateway
    */
   private async canSubscribeListing(
     companyId: string,
+    perms: readonly string[],
     listingId: string,
   ): Promise<boolean> {
     const listing = await this.prisma.listing.findUnique({
@@ -234,7 +249,9 @@ export class RealtimeGateway
       },
     });
     if (!listing) return false;
-    if (listing.companyId === companyId) return true; // sahip
+    // Sahip firma: talep ALIM tarafı → buy:view; başkasının talebi → sell:view.
+    if (listing.companyId === companyId) return perms.includes("buy:view");
+    if (!perms.includes("sell:view")) return false;
 
     // Denetim 2026-08-24 Parça 7: oda kapısı REST görünürlüğünü aynalamalı.
     // Eski hâli üç sınıfı içeri alıyordu: (a) PRIVATE ilanda davetsiz ama

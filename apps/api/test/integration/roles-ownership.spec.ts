@@ -49,19 +49,20 @@ describe("Firma Sahibi rolü + izinler", () => {
     });
     expect(u.roles).toContain(CompanyRole.SAHIP);
     // Kurucu (SAHIP) = TAM YETKİ: yönetim + sahibe-özel + tüm operasyonlar.
-    expect(hasCompanyPermission(u.roles, true, "billing:manage")).toBe(true);
-    expect(hasCompanyPermission(u.roles, true, "company:delete")).toBe(true);
-    expect(hasCompanyPermission(u.roles, true, "users:manage")).toBe(true);
+    expect(hasCompanyPermission({ isOwner: true, roles: u.roles }, "billing:manage")).toBe(true);
+    expect(hasCompanyPermission({ isOwner: true, roles: u.roles }, "company:delete")).toBe(true);
+    expect(hasCompanyPermission({ isOwner: true, roles: u.roles }, "users:manage")).toBe(true);
     // Operasyon izinleri de var (ilan açma + teklif verme).
-    expect(hasCompanyPermission(u.roles, true, "sell:bid:submit")).toBe(true);
-    expect(hasCompanyPermission(u.roles, true, "buy:listing:create")).toBe(true);
-    expect(hasCompanyPermission(u.roles, true, "sell:listing:create")).toBe(true);
+    expect(hasCompanyPermission({ isOwner: true, roles: u.roles }, "sell:bid:submit")).toBe(true);
+    expect(hasCompanyPermission({ isOwner: true, roles: u.roles }, "buy:listing:create")).toBe(true);
+    // Satış ilanı 2026-09-04'te kaldırıldı → ölü anahtar hiçbir kimliğe verilmez.
+    expect(hasCompanyPermission({ isOwner: true, roles: u.roles }, "sell:listing:create")).toBe(false);
     // Salt YONETICI'de sahibe-özel + operasyon YOK.
     expect(
-      hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.YONETICI] }, "billing:manage"),
     ).toBe(false);
     expect(
-      hasCompanyPermission([CompanyRole.YONETICI], false, "sell:bid:submit"),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.YONETICI] }, "sell:bid:submit"),
     ).toBe(false);
   });
 });

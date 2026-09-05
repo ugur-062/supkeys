@@ -18,7 +18,7 @@ export function useActivePortal(): PortalKey {
   const pathname = usePathname();
   const { user, company } = useCompanyAuth();
   const lastPortal = usePortalStore((s) => s.lastPortal);
-  const available = accessiblePortals(user?.roles ?? [], company?.tier);
+  const available = accessiblePortals(user, company?.tier);
   return (
     activePortalFromPath(pathname) ??
     (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??

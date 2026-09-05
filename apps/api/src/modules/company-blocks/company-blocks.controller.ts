@@ -36,6 +36,7 @@ export class CompanyBlocksController {
   constructor(private readonly service: CompanyBlocksService) {}
 
   @Get()
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user);
   }

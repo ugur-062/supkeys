@@ -1,5 +1,6 @@
 "use client";
 
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -43,6 +44,8 @@ export default function CompanyProfilePage() {
   const confirmDialog = useConfirm();
   const [blockOpen, setBlockOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
+  // Bağlantı/engelleme/şikayet = "Bağlantılar" yetkisi (API aynası; Bağlantılar sayfasıyla aynı kural).
+  const canManageConn = useHasCompanyPermission("connections:manage");
 
   if (isLoading) {
     return (
@@ -132,13 +135,13 @@ export default function CompanyProfilePage() {
         <Button href="/company/satinalma/tedarikcilerim" outline>
           Size istek gönderdi — Yanıtla
         </Button>
-      ) : connectionStatus === "none" ? (
+      ) : connectionStatus === "none" && canManageConn ? (
         <Button onClick={handleConnect} disabled={invite.isPending}>
           Bağlantı İsteği Gönder
         </Button>
       ) : null}
 
-      {connectionStatus !== "self" ? (
+      {connectionStatus !== "self" && canManageConn ? (
         <Dropdown>
           <DropdownButton plain aria-label="Daha fazla">
             <MoreVertical className="h-5 w-5" />

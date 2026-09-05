@@ -80,7 +80,10 @@ export class ProductExtractService {
     user: AuthenticatedCompanyUser,
     dto: { fileKeys: string[] },
   ): Promise<ProductImportResult> {
-    this.ai.assertAiAccess(user);
+    const PRODUCT_EXTRACT_ACCESS = ["sell:product:manage"] as const;
+    // Ürün kataloğu yazma izni (controller dekoratörüyle aynı; callAi de
+    // aynı `anyOf` ile geçer — saf Satışçı'yı koltuk kapısı düşürmesin).
+    this.ai.assertAiAccess(user, PRODUCT_EXTRACT_ACCESS);
     if (dto.fileKeys.length === 0) throw new BadRequestException("En az bir dosya seçin");
     if (dto.fileKeys.length > this.config.maxPages) {
       throw new BadRequestException(`Çok fazla dosya (en fazla ${this.config.maxPages})`);
@@ -96,6 +99,7 @@ export class ProductExtractService {
 
     const callOptions = {
       feature: "product_extract",
+      anyOf: PRODUCT_EXTRACT_ACCESS,
       prompt: buildProductExtractPrompt(routed.documentText),
       system: PRODUCT_EXTRACT_SYSTEM_PROMPT,
       vision: routed.route !== "text",

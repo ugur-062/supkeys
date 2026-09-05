@@ -1,31 +1,30 @@
-import { CompanyRole } from "@rothern/db";
+import { hasCompanyPermission } from "../../modules/company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../../modules/company-auth/strategies/company-jwt.strategy";
 
 /**
- * Faz O — "geniş okuma bağlamı" TEK KAYNAK.
+ * Faz O — okuma bağlamı TEK KAYNAK (2026-09-05: izin tabanlı).
  *
- * Kurucu/Yönetici ve işlem rolleri (Satın Almacı/Satışçı) firmanın ticari
- * verisini bütün olarak görür; YALNIZ onaylayıcı (ONAYLAYICI) ya da hiç rolü
- * olmayan üye DAR bağlamdadır — yalnız kendi onay adımına bağlı kaydı görür.
- *
- * Aynı yordam listings (assertOwnerReadContext), sipariş (assertOrderReadContext)
- * ve teklif belgelerinde kopyalanmıştı; pano/analitik uçlarında ise hiç yoktu
- * (denetim 2026-08-23 Parça 4) — kopyalar buradan okur.
+ * Firmanın ALIM tarafı verisini (kendi talepleri, gelen teklifler, alım
+ * siparişleri) `buy:view`; SATIŞ tarafı verisini (verdiği teklifler, açık
+ * talepler, satış siparişleri) `sell:view` taşıyanlar bütün olarak görür.
+ * İkisini de taşımayan üye (yalnız onaylayıcı vb.) DAR bağlamdadır — yalnız
+ * kendi onay adımına bağlı kaydı görür (assertOwnerReadContext /
+ * assertOrderReadContext).
  */
-const FULL_READ_ROLES: readonly CompanyRole[] = [
-  CompanyRole.SAHIP,
-  CompanyRole.YONETICI,
-  CompanyRole.SATIN_ALMACI,
-  CompanyRole.SATISCI,
-];
+export type ReadSide = "buy" | "sell";
 
-export function hasFullReadContext(user: {
-  isOwner?: boolean;
-  roles: CompanyRole[];
-}): boolean {
-  return (
-    !!user.isOwner || user.roles.some((r) => FULL_READ_ROLES.includes(r))
-  );
+export function hasReadContext(
+  user: Pick<AuthenticatedCompanyUser, "isOwner" | "permissions" | "roles">,
+  side: ReadSide,
+): boolean {
+  return hasCompanyPermission(user, side === "buy" ? "buy:view" : "sell:view");
+}
+
+/** Herhangi bir portalı görebiliyor mu (onaylayıcı-only için false). */
+export function hasAnyReadContext(
+  user: Pick<AuthenticatedCompanyUser, "isOwner" | "permissions" | "roles">,
+): boolean {
+  return hasReadContext(user, "buy") || hasReadContext(user, "sell");
 }
 
 export type { AuthenticatedCompanyUser };

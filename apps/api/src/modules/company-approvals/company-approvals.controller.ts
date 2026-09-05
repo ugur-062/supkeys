@@ -107,6 +107,7 @@ export class CompanyApprovalsController {
    * istekleri görür (başlattıkları + onaycısı olduğu sonuçlanmışlar).
    */
   @Get("history")
+  @RequireCompanyPermission("approval:act")
   listHistory(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listHistory(user);
   }
@@ -116,6 +117,7 @@ export class CompanyApprovalsController {
    * ekipteki herkes süreçleri izleyebilir; karar yetkisi ayrı — approval:act).
    */
   @Get("all")
+  @RequireCompanyPermission(["approval:act", "approvals:manage"])
   listAll(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("status") status?: string,
@@ -147,6 +149,7 @@ export class CompanyApprovalsController {
 
   /** İsteği başlatan (veya sahip) bekleyen onay isteğini iptal eder. */
   @Post(":id/cancel")
+  @RequireCompanyPermission(["approvals:manage", "buy:award"])
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

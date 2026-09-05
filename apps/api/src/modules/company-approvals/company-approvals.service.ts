@@ -12,6 +12,7 @@ import { CompanyRole, Prisma } from "@rothern/db";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService, PrismaBypassService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
@@ -1013,11 +1014,9 @@ export class CompanyApprovalsService {
     if (!req || req.companyId !== user.companyId) {
       throw new NotFoundException("Onay isteği bulunamadı");
     }
-    // Eski sistem paritesi: başlatan VEYA yönetim (Kurucu/Yönetici) iptal eder.
-    const isManager =
-      user.isOwner ||
-      user.roles.includes(CompanyRole.SAHIP) ||
-      user.roles.includes(CompanyRole.YONETICI);
+    // Başlatan VEYA "Onay akışı tanımlama" yetkisi taşıyan (Kurucu/Yönetici
+    // hazır setinde) iptal eder — etiket değil izin (yetki tablosu 2026-09-05).
+    const isManager = hasCompanyPermission(user, "approvals:manage");
     if (req.createdById !== user.userId && !isManager) {
       throw new ForbiddenException(
         "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
@@ -1256,12 +1255,21 @@ export class CompanyApprovalsService {
     excludeIds: string[],
     client: Prisma.TransactionClient = this.prisma,
   ): Promise<string | null> {
+    // Onaylayabilen = "Onaylama" (approval:act) izni taşıyan. İzin kolonu boş
+    // eski satırlarda etiket sayılır (geçiş emniyeti; effectivePermissions ile
+    // aynı kural).
     const u = await client.companyUser.findFirst({
       where: {
         companyId,
         isActive: true,
         deletedAt: null,
-        roles: { hasSome: ["SAHIP", "YONETICI", "ONAYLAYICI"] },
+        OR: [
+          { permissions: { has: "approval:act" } },
+          {
+            permissions: { isEmpty: true },
+            roles: { hasSome: ["SAHIP", "YONETICI", "ONAYLAYICI"] },
+          },
+        ],
         id: { notIn: excludeIds },
       },
       orderBy: { createdAt: "asc" },
@@ -1533,25 +1541,41 @@ export class CompanyApprovalsService {
   private async assertApproversValid(companyId: string, ids: string[]) {
     const uniq = [...new Set(ids)];
     // Onaycılar firmaya ait + aktif olmalı (pasif onaycı zinciri tıkar).
-    const rows = await this.prisma.companyUser.findMany({
-      where: { id: { in: uniq }, companyId, deletedAt: null, isActive: true },
-      select: { id: true, roles: true, firstName: true, lastName: true },
-    });
+    const [rows, company] = await Promise.all([
+      this.prisma.companyUser.findMany({
+        where: { id: { in: uniq }, companyId, deletedAt: null, isActive: true },
+        select: {
+          id: true,
+          roles: true,
+          permissions: true,
+          firstName: true,
+          lastName: true,
+        },
+      }),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { ownerUserId: true },
+      }),
+    ]);
     if (rows.length !== uniq.length) {
       throw new BadRequestException("Geçersiz veya pasif onaycı kullanıcı");
     }
-    // Eski sistem kuralı: onaycı YONETICI veya ONAYLAYICI rolünde olmalı —
-    // operasyon rolleri (satın almacı/satışçı) onay zincirinde karar veremez.
-    // Kurucu (SAHIP) ⊇ Yönetici → onaycı olabilir.
+    // Onaycı = "Onaylama" (approval:act) izni taşıyan (Kurucu/Yönetici hazır
+    // setinde var; Onaylayıcı seti tam bu). İşlem izni tek başına yetmez.
     const bad = rows.find(
       (u) =>
-        !u.roles.includes(CompanyRole.SAHIP) &&
-        !u.roles.includes(CompanyRole.YONETICI) &&
-        !u.roles.includes(CompanyRole.ONAYLAYICI),
+        !hasCompanyPermission(
+          {
+            isOwner: company?.ownerUserId === u.id,
+            permissions: u.permissions,
+            roles: u.roles,
+          },
+          "approval:act",
+        ),
     );
     if (bad) {
       throw new BadRequestException(
-        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycı Kurucu, Yönetici veya Onaylayıcı rolünde olmalı`,
+        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycının "Onaylama" yetkisi olmalı`,
       );
     }
   }

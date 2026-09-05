@@ -31,7 +31,7 @@ export function IhaleListView({
   emptyCtaLabel?: string;
 }) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const canCreate = useHasCompanyPermission("buy:listing:create");
+  const canCreate = useHasCompanyPermission("buy:listing:manage");
 
   useEffect(() => {
     try {

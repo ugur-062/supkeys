@@ -25,6 +25,7 @@
     "check-category-translations": "tsx prisma/scripts/check-category-translations.ts",
     "apply-category-translations": "tsx prisma/scripts/apply-category-translations.ts",
     "repair-owner-labels": "tsx prisma/scripts/repair-owner-labels.ts",
+    "backfill-user-permissions": "tsx prisma/scripts/backfill-user-permissions.ts",
     "backfill-rothern-ids": "tsx prisma/scripts/backfill-rothern-ids.ts",
     "format": "prisma format",
     "typecheck": "tsc --noEmit"

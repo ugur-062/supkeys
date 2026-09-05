@@ -1,3 +1,4 @@
+import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import {
   Body,
   Controller,
@@ -18,6 +19,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
 import { AssistantActionsService } from "./assistant-actions.service";
@@ -40,7 +43,7 @@ class AssistantMessageDto {
  * kullanıcı kimliğiyle çağırır — yetki katmanı bedava çalışır; bağlayıcı yazma YOK.
  */
 @Controller("company/ai/assistant")
-@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class AssistantController {
   constructor(
     private readonly service: AssistantService,
@@ -52,6 +55,7 @@ export class AssistantController {
    * yalnız kullanıcı jesti (CSRF'li mutasyon) tetikler. Tek kullanımlık.
    */
   @Post("sessions/:id/actions/:actionId/confirm")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   confirmAction(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -61,6 +65,7 @@ export class AssistantController {
   }
 
   @Post("sessions/:id/actions/:actionId/reject")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   rejectAction(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -70,6 +75,7 @@ export class AssistantController {
   }
 
   @Post("message")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   message(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: AssistantMessageDto,
@@ -78,11 +84,13 @@ export class AssistantController {
   }
 
   @Get("sessions")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   listSessions(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listSessions(user);
   }
 
   @Get("sessions/:id")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   getSession(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -91,6 +99,7 @@ export class AssistantController {
   }
 
   @Delete("sessions/:id")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   deleteSession(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

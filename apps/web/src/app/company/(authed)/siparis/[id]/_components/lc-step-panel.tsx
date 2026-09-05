@@ -24,7 +24,7 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   const isSeller = order.role === "seller";
   // F7: LC adımları tarafın işlem rolünü ister (assertOrderRole aynası).
   const { user } = useCompanyAuth();
-  const canAct = canActOnOrder(order.role, user?.roles);
+  const canAct = canActOnOrder(order.role, user);
   const opened = useLcStep(id, "opened");
   const accept = useLcStep(id, "accept");
   const paid = useLcStep(id, "paid");

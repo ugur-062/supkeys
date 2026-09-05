@@ -52,8 +52,8 @@ export function CompanyTopbar({
   // Birleşik mesaj kutusu (2026-08-02): ikon, HERHANGİ bir işlem rolü
   // (Satın Almacı VEYA Satışçı) olana görünür; rozet iki tarafın toplamı.
   const canMessage =
-    canUseMessaging(user?.roles ?? [], "satinalma") ||
-    canUseMessaging(user?.roles ?? [], "satis");
+    canUseMessaging(user, "satinalma") ||
+    canUseMessaging(user, "satis");
   const pathname = usePathname();
   const inCompanyArea = isCompanyAreaPath(pathname);
 

@@ -4,10 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { CompanyRole } from "@rothern/db";
 import { tierAtLeast } from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
   REVIEW_SUMMARY_SELECT,
@@ -55,14 +55,12 @@ export class CompanyReviewsService {
     // adına KALICI itibar beyanını siparişin tarafı olan işlem rolü yazar
     // (alıcı yanı Satın Almacı, satıcı yanı Satışçı). Etiket-only/rolsüz
     // üye yazamaz (Faz R: SAHIP muaf değil).
-    const neededRole = isBuyer
-      ? CompanyRole.SATIN_ALMACI
-      : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    const needed = isBuyer ? "buy:order:manage" : "sell:order:manage";
+    if (!hasCompanyPermission(user, needed)) {
       throw new ForbiddenException(
         isBuyer
-          ? "Değerlendirme yazmak için Satın Almacı rolü gerekir"
-          : "Değerlendirme yazmak için Satışçı rolü gerekir",
+          ? "Değerlendirme yazmak için 'Alım siparişi işlemleri' yetkisi gerekir"
+          : "Değerlendirme yazmak için 'Satış siparişi işlemleri' yetkisi gerekir",
       );
     }
     const targetCompanyId = isBuyer

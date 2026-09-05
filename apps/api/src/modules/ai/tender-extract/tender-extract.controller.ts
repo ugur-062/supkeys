@@ -1,3 +1,4 @@
+import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import { Type } from "class-transformer";
 import {
@@ -16,6 +17,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
 import { CategorySuggestService } from "./category-suggest.service";
@@ -64,7 +67,7 @@ class CategorySuggestDto {
  * akışından geçer.
  */
 @Controller("company/ai")
-@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class TenderExtractController {
   constructor(
     private readonly service: TenderExtractService,
@@ -77,6 +80,7 @@ export class TenderExtractController {
    * durumunda boş liste döner, form akışı bozulmaz.
    */
   @Post("tender-extract/category-suggest")
+  @RequireCompanyPermission("buy:listing:manage")
   categorySuggestForItems(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CategorySuggestDto,
@@ -85,6 +89,7 @@ export class TenderExtractController {
   }
 
   @Post("uploads/url")
+  @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   uploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: AiUploadUrlDto,
@@ -93,6 +98,7 @@ export class TenderExtractController {
   }
 
   @Post("tender-extract")
+  @RequireCompanyPermission("buy:listing:manage")
   extract(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: TenderExtractDto,
@@ -101,6 +107,7 @@ export class TenderExtractController {
   }
 
   @Post("tender-refine")
+  @RequireCompanyPermission("buy:listing:manage")
   refine(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: TenderRefineDto,

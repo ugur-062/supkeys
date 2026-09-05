@@ -11,6 +11,7 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyMessagesService } from "./company-messages.service";
@@ -26,6 +27,7 @@ export class CompanyMessagesController {
 
   /** Portal gelen kutusu (satinalma | satis). */
   @Get("threads")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   threads(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("portal") portal: string,
@@ -35,6 +37,7 @@ export class CompanyMessagesController {
 
   /** Nav rozeti — AKTİF portalın okunmamış mesaj sayısı (portal verilmezse toplam). */
   @Get("unread-count")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   unread(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("portal") portal?: string,
@@ -44,6 +47,7 @@ export class CompanyMessagesController {
 
   /** Bir firmayla bu portaldaki konuşma. */
   @Get("with/:otherCompanyId")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   thread(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("otherCompanyId") otherCompanyId: string,
@@ -54,6 +58,7 @@ export class CompanyMessagesController {
 
   /** Mesaj gönder. */
   @Post("with/:otherCompanyId")
+  @RequireCompanyPermission(["buy:listing:manage", "sell:bid:submit"])
   send(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("otherCompanyId") otherCompanyId: string,

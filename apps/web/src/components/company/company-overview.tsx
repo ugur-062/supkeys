@@ -80,9 +80,8 @@ const TRIGGER = cn(
 
 export function CompanyOverview() {
   const { company, user } = useCompanyAuth();
-  const roles = user?.roles ?? [];
   const tier = company?.tier ?? "STANDART";
-  const portals = accessiblePortals(roles, tier);
+  const portals = accessiblePortals(user, tier);
   const hasSa = portals.includes("satinalma");
   const hasSt = portals.includes("satis");
   const tabs = TABS.filter((t) => portals.includes(t.portal));

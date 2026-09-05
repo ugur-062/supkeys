@@ -7,6 +7,7 @@
  * Çalıştırma: `pnpm --filter @rothern/db repair-owner-labels`
  */
 import { PrismaClient } from "@prisma/client";
+import { permissionsForRoles } from "@rothern/shared";
 
 const prisma = new PrismaClient();
 
@@ -19,12 +20,19 @@ async function main() {
   for (const c of companies) {
     const owner = await prisma.companyUser.findUnique({
       where: { id: c.ownerUserId! },
-      select: { id: true, email: true, roles: true },
+      select: { id: true, email: true, roles: true, permissions: true },
     });
     if (!owner || owner.roles.includes("SAHIP")) continue;
+    const roles = ["SAHIP", ...owner.roles] as typeof owner.roles;
     await prisma.companyUser.update({
       where: { id: owner.id },
-      data: { roles: ["SAHIP", ...owner.roles] },
+      // İzin listesi boşsa (eski satır) hazır setten doldur; doluysa dokunma.
+      data: {
+        roles,
+        ...(owner.permissions.length === 0
+          ? { permissions: permissionsForRoles(roles) }
+          : {}),
+      },
     });
     fixed++;
     console.log(`   ✓ ${c.name} — ${owner.email}: [${owner.roles.join(", ")}] → [SAHIP, …]`);

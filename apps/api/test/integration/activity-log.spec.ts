@@ -81,7 +81,7 @@ describe("Faz O — aktivite logu", () => {
       const u = await makeUser(prisma, co.company.id, roles);
       await expect(
         svc.list(authFor(u, co.company.id, roles), {}),
-      ).rejects.toThrow(/Kurucu veya Yönetici/);
+      ).rejects.toThrow(/yönetim yetkisi/);
     }
   });
 

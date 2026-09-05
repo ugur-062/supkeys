@@ -171,7 +171,7 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
       svc.message(authFor(approver, co.company.id, [CompanyRole.ONAYLAYICI]), {
         message: "merhaba",
       }),
-    ).rejects.toThrow(/Satın Almacı veya Satışçı/);
+    ).rejects.toThrow(/işlem yetkisi taşıyan/);
     expect(provider.calls).toHaveLength(0);
   });
 
@@ -194,7 +194,7 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
 
 describe("Faz AI-2 — araç kümesi (bağlayıcı yazma YOK)", () => {
   it("DOĞRUDAN yazma aracı YOK; yazma yalnız onay-kartılı request_* önerileriyle", () => {
-    const defs = toolDefsForUser(allowedPortals([CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI]));
+    const defs = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI] }));
     const names = defs.map((d) => d.name);
     // AI-4 sonrası da değişmez: model hiçbir işlemi doğrudan yürütemez —
     // place_bid/create/award gibi araçlar asla sunulmaz. request_* araçları
@@ -446,10 +446,10 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
   });
 
   it("propose_tender_draft yalnız SA/ST portallı kullanıcıya sunulur", () => {
-    const withSeat = toolDefsForUser(allowedPortals([CompanyRole.SATIN_ALMACI])).map((d) => d.name);
+    const withSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI] })).map((d) => d.name);
     expect(withSeat).toContain("propose_tender_draft");
     // Portal yok (etiket-only — pratikte AI erişimi de yok) → taslak aracı da yok.
-    const noSeat = toolDefsForUser(allowedPortals([])).map((d) => d.name);
+    const noSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [] })).map((d) => d.name);
     expect(noSeat).not.toContain("propose_tender_draft");
   });
 });

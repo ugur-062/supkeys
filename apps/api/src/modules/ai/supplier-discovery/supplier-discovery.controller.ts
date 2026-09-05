@@ -12,6 +12,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
 import { SupplierDiscoveryService } from "./supplier-discovery.service";
@@ -45,11 +47,12 @@ class ExternalDiscoveryDto extends DiscoveryDto {
  * zaten Silver+); yalnız firmaların kendi ilan ettiği profil alanları okunur.
  */
 @Controller("company/ai/supplier-discovery")
-@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class SupplierDiscoveryController {
   constructor(private readonly service: SupplierDiscoveryService) {}
 
   @Post()
+  @RequireCompanyPermission("buy:listing:manage")
   discover(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: DiscoveryDto,
@@ -59,6 +62,7 @@ export class SupplierDiscoveryController {
 
   /** Faz B — web araması (Google Search grounding, AI bütçesinden). */
   @Post("external")
+  @RequireCompanyPermission("buy:listing:manage")
   discoverExternal(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ExternalDiscoveryDto,

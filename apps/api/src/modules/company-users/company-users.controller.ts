@@ -60,6 +60,7 @@ export class CompanyUsersController {
 
   /** Atanabilir izin kataloğu + rol-varsayılan izinleri (Ayarlar izin editörü). */
   @Get("permission-catalog")
+  @RequireCompanyPermission("users:manage")
   permissionCatalog() {
     return {
       catalog: COMPANY_PERMISSION_CATALOG,

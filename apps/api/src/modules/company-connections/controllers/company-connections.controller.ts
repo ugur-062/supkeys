@@ -28,27 +28,32 @@ export class CompanyConnectionsController {
   constructor(private readonly service: CompanyConnectionsService) {}
 
   @Get()
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
   }
 
   @Get("self")
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   self(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.getSelf(user);
   }
 
   @Get("referral-invites")
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   referralInvites(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listReferralInvites(user.companyId);
   }
 
   @Get("incoming")
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   incoming(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listIncoming(user.companyId);
   }
 
   /** Gönderdiğim bekleyen istekler — iptal için :id/disconnect kullanılır. */
   @Get("outgoing")
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   outgoing(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listOutgoing(user.companyId);
   }
@@ -63,6 +68,7 @@ export class CompanyConnectionsController {
   }
 
   @Get("discover")
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   discover(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.discover(user);
   }
@@ -78,7 +84,7 @@ export class CompanyConnectionsController {
 
   /** Faz C — dış ihale daveti (limitli; frenler serviste). */
   @Post("external-tender-invite")
-  @RequireCompanyPermission("connections:manage")
+  @RequireCompanyPermission("buy:listing:manage")
   @Throttle({ auth: { limit: 3, ttl: 60_000 } })
   externalTenderInvite(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,

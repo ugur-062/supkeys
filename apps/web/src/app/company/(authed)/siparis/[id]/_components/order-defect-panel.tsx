@@ -22,7 +22,7 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
   const isSeller = order.role === "seller";
   // F7: geri-çekme tarafın işlem rolünü ister (assertOrderRole aynası).
   const { user } = useCompanyAuth();
-  const canAct = canActOnOrder(order.role, user?.roles);
+  const canAct = canActOnOrder(order.role, user);
   const active = order.status === "DISPUTED" && !!order.defectNotifiedAt;
   const withdraw = useWithdrawDefectNotice(order.id);
 

@@ -1,10 +1,18 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { hasFullReadContext } from "../../common/company/full-read-context";
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { hasReadContext } from "../../common/company/full-read-context";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyDashboardService } from "./company-dashboard.service";
 import {
   TimeSavingsService,
@@ -47,8 +55,13 @@ function resolvePeriod(
   return { p: "year" };
 }
 
+/**
+ * Pano uçları — yetki tablosu 2026-09-05: satınalma panosu `buy:view`, satış
+ * panosu `sell:view` (görüntüleme izni; koltuk gerekmez). Onaylayıcı-only ve
+ * portalı olmayan üye 403 alır — eskiden yalnız giriş yetiyordu.
+ */
 @Controller("company/dashboard")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyDashboardController {
   constructor(
     private readonly service: CompanyDashboardService,
@@ -59,17 +72,23 @@ export class CompanyDashboardController {
 
   /** Aksiyon Merkezi — severity + zaman bilgili tek uyarı listesi (Faz 2). */
   @Get("action-center")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   actionCenterRows(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("portal") portal?: string,
   ) {
-    return portal === "satis"
+    const side = portal === "satis" ? "sell" : "buy";
+    if (!hasReadContext(user, side)) {
+      throw new ForbiddenException("Bu panoyu görüntüleme yetkiniz yok");
+    }
+    return side === "sell"
       ? this.actionCenter.satis(user.companyId)
       : this.actionCenter.satinalma(user.companyId);
   }
 
   /** Pano analitiği — panel başına TEK toplu yanıt (grafik/aksiyon serileri). */
   @Get("satinalma/analytics")
+  @RequireCompanyPermission("buy:view")
   satinalmaAnalytics(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
@@ -77,15 +96,12 @@ export class CompanyDashboardController {
     @Query("to") to?: string,
   ) {
     const { p, range } = resolvePeriod(period, from, to);
-    return this.analytics.satinalma(
-      user.companyId,
-      p,
-      range,
-      !hasFullReadContext(user),
-    );
+    // Dar bağlam artık uca giremez (buy:view kapısı) → maske gerekmez.
+    return this.analytics.satinalma(user.companyId, p, range, false);
   }
 
   @Get("satis/analytics")
+  @RequireCompanyPermission("sell:view")
   satisAnalytics(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
@@ -98,6 +114,7 @@ export class CompanyDashboardController {
 
   /** Zaman Tasarrufu — panel şeridi + Zaman alt bölümü için TEK toplu yanıt. */
   @Get("time-savings")
+  @RequireCompanyPermission("buy:view")
   timeSavingsSummary(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
@@ -109,16 +126,19 @@ export class CompanyDashboardController {
   }
 
   @Get("satinalma")
+  @RequireCompanyPermission("buy:view")
   satinalma(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satinalma(user);
   }
 
   @Get("satis/stats")
+  @RequireCompanyPermission("sell:view")
   satisStats(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satisStats(user);
   }
 
   @Get("satis/aktivite")
+  @RequireCompanyPermission("sell:view")
   satisAktivite(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("limit") limit?: string,
@@ -128,11 +148,13 @@ export class CompanyDashboardController {
   }
 
   @Get("satinalma/tasarruf")
+  @RequireCompanyPermission("buy:view")
   satinalmaTasarruf(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satinalmaTasarruf(user);
   }
 
   @Get("satinalma/tedarikci")
+  @RequireCompanyPermission("buy:view")
   satinalmaTedarikci(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satinalmaTedarikci(user);
   }

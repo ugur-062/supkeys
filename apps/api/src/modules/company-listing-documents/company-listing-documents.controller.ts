@@ -11,15 +11,18 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyListingDocumentsService } from "./company-listing-documents.service";
 
 @Controller("company/listings/:id/documents")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyListingDocumentsController {
   constructor(private readonly service: CompanyListingDocumentsService) {}
 
   @Get()
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   list(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -28,6 +31,7 @@ export class CompanyListingDocumentsController {
   }
 
   @Post("upload-url")
+  @RequireCompanyPermission("buy:listing:manage")
   uploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -37,6 +41,7 @@ export class CompanyListingDocumentsController {
   }
 
   @Post()
+  @RequireCompanyPermission("buy:listing:manage")
   register(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -54,6 +59,7 @@ export class CompanyListingDocumentsController {
   }
 
   @Delete(":docId")
+  @RequireCompanyPermission("buy:listing:manage")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

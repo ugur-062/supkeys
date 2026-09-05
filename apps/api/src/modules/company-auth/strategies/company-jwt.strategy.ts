@@ -11,7 +11,7 @@ import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { AUTH_COMPANY_SELECT } from "../../../common/company/auth-company-select";
-import type { CompanyPermissionOverride } from "../permissions/company-permissions.constants";
+import { effectivePermissions } from "../permissions/company-permissions.constants";
 
 export interface CompanyJwtPayload {
   sub: string;
@@ -41,7 +41,11 @@ export interface AuthenticatedCompanyUser {
   companyVerificationStatus: CompanyVerificationStatus;
   country: string;
   isOwner: boolean;
-  permissionsOverride: CompanyPermissionOverride | null;
+  /**
+   * EFEKTİF izin listesi — her istekte DB'den (kurucu örtük izinleri dahil,
+   * eski anahtarlar eşlenmiş). Kapılar ve servisler yalnız bunu okur.
+   */
+  permissions: string[];
 }
 
 @Injectable()
@@ -116,8 +120,11 @@ export class CompanyJwtStrategy extends PassportStrategy(
       companyVerificationStatus: user.company.companyVerificationStatus,
       country: user.company.country,
       isOwner,
-      permissionsOverride:
-        (user.permissionsOverride as CompanyPermissionOverride | null) ?? null,
+      permissions: effectivePermissions({
+        isOwner,
+        permissions: user.permissions,
+        roles: user.roles,
+      }),
     };
   }
 }

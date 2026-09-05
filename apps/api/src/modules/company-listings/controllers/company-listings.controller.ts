@@ -15,6 +15,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { AwardByItemDto } from "../dto/award-by-item.dto";
 import { AwardListingDto } from "../dto/award-listing.dto";
@@ -32,23 +34,26 @@ import { CompanyListingsService } from "../services/company-listings.service";
 import type { Response } from "express";
 
 @Controller("company/listings")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyListingsController {
   constructor(private readonly service: CompanyListingsService) {}
 
   @Get()
+  @RequireCompanyPermission("buy:view")
   listMine(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listMine(user.companyId);
   }
 
   /** Firmanın başka ilanlara verdiği tüm teklifler (Tekliflerim ekranı). */
   @Get("my-bids")
+  @RequireCompanyPermission("sell:view")
   listMyBids(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listMyBids(user.companyId);
   }
 
   /** Taleplerim listesi — zengin. (`type` yalnız ALIM; satış ilanı kaldırıldı.) */
   @Get("tenders")
+  @RequireCompanyPermission("buy:view")
   listTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listTenders(user.companyId, "ALIM");
   }
@@ -56,6 +61,7 @@ export class CompanyListingsController {
   /** Teklifçi liste — açık + geçmiş, teklif/davet/kategori zengin
    *  (satıcının Açık Talepler'i). */
   @Get("seller-tenders")
+  @RequireCompanyPermission("sell:view")
   sellerTenders(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("limit") limit?: string,
@@ -86,6 +92,7 @@ export class CompanyListingsController {
    * Görünürlük `seller-tenders` ile AYNI fonksiyondan gelir.
    */
   @Get("discover-facets")
+  @RequireCompanyPermission("sell:view")
   discoverFacets(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.discoverFacets(user, "ALIM");
   }
@@ -99,6 +106,7 @@ export class CompanyListingsController {
    * parmak izini ondan SONRA hesaplar. Yetkisiz istek 404 alır, 304 değil.
    */
   @Get(":id")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   async getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -118,6 +126,7 @@ export class CompanyListingsController {
   }
 
   @Post()
+  @RequireCompanyPermission("buy:listing:manage")
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CreateListingDto,
@@ -127,6 +136,7 @@ export class CompanyListingsController {
 
   /** İlanı düzenle — sahip, açık ve teklif gelmemişken. Tür değişmez. */
   @Patch(":id")
+  @RequireCompanyPermission("buy:listing:manage")
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -137,6 +147,7 @@ export class CompanyListingsController {
 
   /** Taslağı yayınla (DRAFT → OPEN). Yayın onayı kaldırıldı. */
   @Post(":id/publish")
+  @RequireCompanyPermission("buy:listing:manage")
   publish(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -146,6 +157,7 @@ export class CompanyListingsController {
 
   /** Taslak ilanı sil. */
   @Delete(":id")
+  @RequireCompanyPermission("buy:listing:manage")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -154,6 +166,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/bids")
+  @RequireCompanyPermission("sell:bid:submit")
   placeBid(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -165,6 +178,7 @@ export class CompanyListingsController {
   /** Kendi teklifinin geçerlilik süresini uzatır (fiyat değişmeden);
    *  taşımada süresi dolduğu için taslağa düşmüş teklifi canlandırabilir. */
   @Post(":id/bids/extend-validity")
+  @RequireCompanyPermission("sell:bid:submit")
   extendBidValidity(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -174,6 +188,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/award")
+  @RequireCompanyPermission("buy:award")
   award(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -185,6 +200,7 @@ export class CompanyListingsController {
   // Ön kontrol: bu teklifi kazandırmak (bu tutarda) onaya takılır mı? Frontend
   // "Onaya Gönder" dialogunu yalnız requiresApproval=true ise gösterir. Salt-okunur.
   @Post(":id/award/preview")
+  @RequireCompanyPermission("buy:award")
   awardPreview(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -194,6 +210,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/award-by-item")
+  @RequireCompanyPermission("buy:award")
   awardByItem(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -204,6 +221,7 @@ export class CompanyListingsController {
 
   // Ön kontrol (kalem-bazlı): seçilen kalem dağılımı bu tutarda onaya takılır mı?
   @Post(":id/award-by-item/preview")
+  @RequireCompanyPermission("buy:award")
   awardByItemPreview(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -213,6 +231,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/new-round")
+  @RequireCompanyPermission("buy:listing:manage")
   newRound(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -222,6 +241,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/invitations")
+  @RequireCompanyPermission("buy:listing:manage")
   addInvitations(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -231,6 +251,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/bids/:bidId/eliminate")
+  @RequireCompanyPermission("buy:listing:manage")
   eliminate(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -241,6 +262,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/cancel")
+  @RequireCompanyPermission("buy:listing:manage")
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -260,6 +282,7 @@ export class CompanyListingsController {
    * close-early kaldırıldı — kapanan ihale zaten değerlendirmededir.)
    */
   @Post(":id/start-evaluation")
+  @RequireCompanyPermission("buy:listing:manage")
   startEvaluation(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -268,6 +291,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/change-closing")
+  @RequireCompanyPermission("buy:listing:manage")
   changeClosing(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -277,6 +301,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/internal-notes")
+  @RequireCompanyPermission("buy:listing:manage")
   internalNotes(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -286,6 +311,7 @@ export class CompanyListingsController {
   }
 
   @Post(":id/close-no-award")
+  @RequireCompanyPermission("buy:listing:manage")
   closeNoAward(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -295,6 +321,7 @@ export class CompanyListingsController {
   }
 
   @Get(":id/rounds")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   rounds(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

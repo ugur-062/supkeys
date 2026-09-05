@@ -14,6 +14,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { BidImportService } from "./bid-import.service";
 import { XLSX_MIME } from "./listing-item-import.service";
@@ -29,11 +31,12 @@ class ParseBidTemplateDto {
  * kalem görünürlüğü serviste `getOne` üzerinden (blok/görünürlük/teaser aynen).
  */
 @Controller("company/listings/:id/bid-import")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class BidImportController {
   constructor(private readonly service: BidImportService) {}
 
   @Get("template")
+  @RequireCompanyPermission("sell:bid:submit")
   async template(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -48,6 +51,7 @@ export class BidImportController {
   }
 
   @Post("parse")
+  @RequireCompanyPermission("sell:bid:submit")
   parse(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

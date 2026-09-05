@@ -1,5 +1,6 @@
 "use client";
 
+import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { ActionStrip } from "@/components/dashboard/action-center";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CtaBand } from "@/components/dashboard/cta-band";
@@ -52,7 +53,7 @@ export function SatisDashboardView() {
   const [intent, setIntent] = useState<AiSearchIntentResult | null>(null);
   const aiEnabled =
     !!company && tierAtLeast(company.tier, "SILVER") &&
-    !!user?.roles.some((r) => r === "SATIN_ALMACI" || r === "SATISCI");
+    hasAnySeatPermission(user);
   const onAiResult = (r: AiSearchIntentResult) => {
     setIntent(r);
     router.push(`/company/satis${intentToRequestQuery(r)}#acik-talepler`);

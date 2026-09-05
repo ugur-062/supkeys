@@ -1,5 +1,6 @@
 "use client";
 
+import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { tierAtLeast } from "@rothern/shared";
@@ -22,8 +23,6 @@ const AssistantPanel = dynamic(
   () => import("./assistant-panel").then((m) => m.AssistantPanel),
   { ssr: false },
 );
-
-const SEAT_ROLES = ["SATIN_ALMACI", "SATISCI"];
 
 /** Karşılama balonu oturumda BİR KEZ gösterilir (sayfa geçişlerinde tekrar
  *  çıkıp rahatsız etmesin); ~6sn sonra kendiliğinden kaybolur (Faz 8.2:
@@ -56,7 +55,7 @@ export function AssistantLauncher() {
     !!user &&
     !!company &&
     tierAtLeast(company.tier, "SILVER") &&
-    user.roles.some((r) => SEAT_ROLES.includes(r));
+    hasAnySeatPermission(user);
 
   // İlk girişte karşılama balonu — kısa gecikmeyle belirir, 12sn sonra gider.
   // "Görüldü" işareti balon fiilen GÖSTERİLİNCE yazılır (StrictMode'un çift

@@ -40,7 +40,7 @@ export function OrderCancelRequestPanel({
   // F7: karar/geri-çekme butonları tarafın işlem rolünü ister (assertOrderRole
   // aynası) — etiket-only üye paneli salt-okunur görür.
   const { user } = useCompanyAuth();
-  const canAct = canActOnOrder(order.role, user?.roles);
+  const canAct = canActOnOrder(order.role, user);
   const pending = order.status === "ACCEPTED" && !!order.cancelRequestedAt;
   // A1 (satıcı iptal talebi) DISPUTED'ı — ayıp ihbarı DISPUTED'ını (defectNotifiedAt
   // dolu) DIŞLA; onun kendi paneli (OrderDefectPanel) var.

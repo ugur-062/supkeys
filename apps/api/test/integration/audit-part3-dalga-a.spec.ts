@@ -219,7 +219,7 @@ describe("#6 — ödeme sinyali: detay paymentSettled ile liste birebir", () => 
     expect(detail.paymentTotals.pending).toBe("1000.00");
     expect(detail.paymentTotals.remaining).toBe("0.00"); // bildirilebilir kalan
     expect(detail.paymentSettled).toBe(false); // borç KAPANMADI
-    const list = (await orders.list(buyer.company.id)) as {
+    const list = (await orders.list(buyer.auth)) as {
       id: string;
       paymentSettled: boolean;
     }[];

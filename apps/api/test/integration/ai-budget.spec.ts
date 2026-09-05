@@ -159,7 +159,7 @@ describe("Faz AI-0 — erişim kapısı", () => {
     const approver = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
       ai.callAi(authFor(approver, co.company.id, [CompanyRole.ONAYLAYICI]), CALL),
-    ).rejects.toThrow(/Satın Almacı veya Satışçı/);
+    ).rejects.toThrow(/işlem yetkisi taşıyan/);
 
     // Etiket-only Kurucu (Faz R: SAHIP op-izin vermez) → AI yok.
     const owner = await makeUser(prisma, co.company.id, [CompanyRole.SAHIP]);
@@ -168,7 +168,7 @@ describe("Faz AI-0 — erişim kapısı", () => {
         authFor(owner, co.company.id, [CompanyRole.SAHIP], { isOwner: true }),
         CALL,
       ),
-    ).rejects.toThrow(/Satın Almacı veya Satışçı/);
+    ).rejects.toThrow(/işlem yetkisi taşıyan/);
 
     expect(provider.calls).toHaveLength(0);
   });

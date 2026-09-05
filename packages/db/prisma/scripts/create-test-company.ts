@@ -12,7 +12,7 @@
 
 import { CompanyRole, PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
-import { generateShortCode } from "@rothern/shared";
+import { generateShortCode, permissionsForRoles } from "@rothern/shared";
 
 const prisma = new PrismaClient();
 
@@ -120,6 +120,11 @@ async function main() {
           CompanyRole.SATIN_ALMACI,
           CompanyRole.SATISCI,
         ],
+        permissions: permissionsForRoles([
+          CompanyRole.YONETICI,
+          CompanyRole.SATIN_ALMACI,
+          CompanyRole.SATISCI,
+        ]),
         companyId: company.id,
         emailVerifiedAt: new Date(),
       },

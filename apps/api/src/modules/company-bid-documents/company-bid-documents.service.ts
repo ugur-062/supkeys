@@ -8,8 +8,10 @@ import {
 import * as crypto from "node:crypto";
 import { ListingBidDocKind, type ListingType } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
+import { hasReadContext } from "../../common/company/full-read-context";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
-import { bidderOpRole } from "../company-listings/bidder-op-role";
+import { bidderPermission } from "../company-listings/bidder-op-role";
 import { StorageService } from "../storage/storage.service";
 import {
   assertReportedSize,
@@ -63,12 +65,9 @@ export class CompanyBidDocumentsService {
     user: AuthenticatedCompanyUser,
     listingType: ListingType,
   ) {
-    const needed = bidderOpRole(listingType);
-    if (!user.roles.includes(needed)) {
+    if (!hasCompanyPermission(user, bidderPermission(listingType))) {
       throw new ForbiddenException(
-        listingType === "ALIM"
-          ? "Teklif belgeleri için Satışçı rolü gerekir"
-          : "Teklif belgeleri için Satın Almacı rolü gerekir",
+        "Teklif belgeleri için 'Teklif verme' yetkisi gerekir",
       );
     }
   }
@@ -190,10 +189,7 @@ export class CompanyBidDocumentsService {
   }
 
   private async assertOwnerReadContext(user: AuthenticatedCompanyUser, listingId: string): Promise<void> {
-    const fullRead =
-      user.isOwner ||
-      user.roles.some((r) => (["SAHIP", "YONETICI", "SATIN_ALMACI", "SATISCI"] as string[]).includes(r));
-    if (fullRead) return;
+    if (hasReadContext(user, "buy")) return; // tek kaynak: full-read-context
     const linked = await this.prisma.approvalRequest.findFirst({
       where: { listingId, companyId: user.companyId, steps: { some: { approverUserId: user.userId } } },
       select: { id: true },
@@ -213,6 +209,10 @@ export class CompanyBidDocumentsService {
     // rolsüz üyesi teklifçi belgelerini yalnız onay bağı varsa görür
     // (CompanyListingsService.assertOwnerReadContext aynası).
     if (isOwner) await this.assertOwnerReadContext(user, listingId);
+    // Teklifçi firmanın üyesi kendi belgelerini SATIŞ görüntüleme iznyle görür.
+    else if (!hasReadContext(user, "sell")) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
 
     const docs = await this.prisma.listingBidDocument.findMany({
       where: isOwner

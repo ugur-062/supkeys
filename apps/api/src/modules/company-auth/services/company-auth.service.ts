@@ -36,9 +36,8 @@ import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto } from "../dto/onboarding.dto";
 import {
-  ALL_KNOWN_PERMISSIONS,
-  hasCompanyPermission,
-  type CompanyPermissionOverride,
+  effectivePermissions,
+  permissionsForRoles,
 } from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 import { resolveWebUrl } from "../../../common/config/web-url";
@@ -136,6 +135,13 @@ export class CompanyAuthService {
               CompanyRole.SATIN_ALMACI,
               CompanyRole.SATISCI,
             ],
+            // Yetki tablosu: açık izin listesi (kurucu örtük yönetim + iki
+            // koltuk seti; Faz 5'te kayıtta sorulacak).
+            permissions: permissionsForRoles([
+              CompanyRole.SAHIP,
+              CompanyRole.SATIN_ALMACI,
+              CompanyRole.SATISCI,
+            ]),
             companyId: company.id,
             emailVerifiedAt: null, // 6-haneli kod ile doğrulanacak
             // Zorunlu sözleşme + opsiyonel rıza denetim izi.
@@ -494,7 +500,7 @@ export class CompanyAuthService {
       });
       await tx.companyUser.update({
         where: { id: userId },
-        data: { roles },
+        data: { roles, permissions: permissionsForRoles(roles) },
       });
       // Eski onboarding adres kayıtlarını temizle (idempotent tekrar).
       await tx.companyAddress.deleteMany({ where: { companyId } });
@@ -1392,11 +1398,9 @@ export class CompanyAuthService {
   }
 
   private serializeUser(user: CompanyUser, isOwner: boolean) {
-    // Efektif izinler (rol + override + sahiplik) — UI kapıları bunu kullanır.
-    // Faz R: evren ALL_KNOWN_PERMISSIONS (katalog DEĞİL) — işlem izinleri
-    // katalogdan çıktı ama SA/ST rolü taşıyanın /me'sinde görünmeye devam etmeli.
-    const override =
-      (user.permissionsOverride as CompanyPermissionOverride | null) ?? null;
+    // Efektif izinler — UI kapıları bunu okur. Doğruluk kaynağı kişinin açık
+    // izin listesi (kurucu örtük izinleri + eski anahtar eşlemesi
+    // effectivePermissions'ta; boş liste + rol → hazır set geçiş emniyeti).
     // Sahiplik normalizasyonu (strategy ile aynı kural): sahibin efektif rol
     // kümesi HER ZAMAN SAHIP etiketini içerir — eski/tutarsız veri UI'da
     // portal/rol ekranlarını kırmasın.
@@ -1404,9 +1408,11 @@ export class CompanyAuthService {
       isOwner && !user.roles.includes("SAHIP")
         ? (["SAHIP", ...user.roles] as typeof user.roles)
         : user.roles;
-    const permissions = ALL_KNOWN_PERMISSIONS.filter((p) =>
-      hasCompanyPermission(roles, isOwner, p, override),
-    );
+    const permissions = effectivePermissions({
+      isOwner,
+      permissions: user.permissions,
+      roles: user.roles,
+    });
     return {
       id: user.id,
       email: user.email,

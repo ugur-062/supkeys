@@ -1,26 +1,27 @@
-import { CompanyRole } from "@rothern/db";
-import { SEAT_ROLES } from "@rothern/shared";
+import { BUY_SEAT_PERMISSIONS, SELL_SEAT_PERMISSIONS } from "@rothern/shared";
+import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import type { AiToolDef } from "../providers/ai-provider.interface";
 
 /**
  * Faz AI-2 — asistan OKUMA araçları (az sayı: her tanım her istekte token yer).
  * Hepsi mevcut servis metoduna köprüdür; BAĞLAYICI YAZMA ARACI YOK. Portal-yönlü
  * kısıt: SA satış verisi / ST alım verisi göremez — araç kümesi + `type` param'ı
- * kullanıcının rollerinden türetilen izinli portallara KISITLANIR.
+ * kullanıcının İŞLEM izinlerinden türetilen portallara KISITLANIR (yetki
+ * tablosu 2026-09-05: etiket değil izin; görüntüleme tek başına asistanı açmaz).
  */
 
 export type Portal = "satinalma" | "satis";
 
-/** Kullanıcının rollerinden erişebildiği portallar (SEAT rolleri; etiket AI'ya girmez). */
-export function allowedPortals(roles: CompanyRole[]): Set<Portal> {
+/** Kullanıcının işlem izinlerinden erişebildiği portallar. */
+export function allowedPortals(user: {
+  isOwner: boolean;
+  permissions?: readonly string[] | null;
+  roles?: readonly string[] | null;
+}): Set<Portal> {
   const s = new Set<Portal>();
-  if (roles.includes(CompanyRole.SATIN_ALMACI)) s.add("satinalma");
-  if (roles.includes(CompanyRole.SATISCI)) s.add("satis");
+  if (hasCompanyPermission(user, BUY_SEAT_PERMISSIONS)) s.add("satinalma");
+  if (hasCompanyPermission(user, SELL_SEAT_PERMISSIONS)) s.add("satis");
   return s;
-}
-
-export function hasSeatRole(roles: CompanyRole[]): boolean {
-  return roles.some((r) => (SEAT_ROLES as readonly string[]).includes(r));
 }
 
 /**

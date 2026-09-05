@@ -92,16 +92,19 @@ beforeEach(async () => {
 
 describe("Faz R — SAHIP-only salt-okunur (etiket işlem vermez)", () => {
   it("izin yüzeyi: SAHIP-only'de buy:*/sell:* YOK; yönetim + OWNER_ONLY var", () => {
+    // Yetki tablosu: `buy:listing:create` → `buy:listing:manage` eşlenir,
+    // `sell:listing:manage` ölü anahtar (asla) — ikisi de Kurucu'da YOK.
     for (const p of [
       "buy:listing:create",
+      "buy:listing:manage",
       "buy:award",
       "sell:bid:submit",
       "sell:listing:manage",
     ]) {
-      expect(hasCompanyPermission([CompanyRole.SAHIP], true, p)).toBe(false);
+      expect(hasCompanyPermission({ isOwner: true, roles: [CompanyRole.SAHIP] }, p)).toBe(false);
     }
     for (const p of ["users:manage", "billing:manage", "approval:act"]) {
-      expect(hasCompanyPermission([CompanyRole.SAHIP], true, p)).toBe(true);
+      expect(hasCompanyPermission({ isOwner: true, roles: [CompanyRole.SAHIP] }, p)).toBe(true);
     }
   });
 
@@ -116,7 +119,7 @@ describe("Faz R — SAHIP-only salt-okunur (etiket işlem vermez)", () => {
     const { listing: alimListing, item } = await openListing();
     await expect(
       service.placeBid(solo.auth, alimListing.id, bid(item.id)),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Teklif verme' yetkisi gerekir/);
 
     // Kazandırma: kendi ALIM ihalesinde bile SAHIP-only yetkisiz (rol kapısı).
     const own = await makeListing(prisma, {
@@ -153,7 +156,7 @@ describe("Faz R — SAHIP-only salt-okunur (etiket işlem vermez)", () => {
       orders.accept(solo.auth, order.id, {
         expectedDeliveryDate: FUTURE.toISOString(),
       } as never),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Satış siparişi işlemleri' yetkisi gerekir/);
     await expect(orders.getOne(solo.auth, order.id)).resolves.toBeTruthy();
   });
 });
@@ -187,7 +190,7 @@ describe("Faz R — etiket + op-rol komboları işlem yapar", () => {
       roles: [CompanyRole.ONAYLAYICI, CompanyRole.SATISCI],
     });
     expect(
-      permissionsForRoles([CompanyRole.ONAYLAYICI, CompanyRole.SATISCI]).has(
+      permissionsForRoles([CompanyRole.ONAYLAYICI, CompanyRole.SATISCI]).includes(
         "approval:act",
       ),
     ).toBe(true);
@@ -264,13 +267,13 @@ describe("Faz Y — addresses:manage izin yüzeyi", () => {
       [CompanyRole.SATISCI],
       [CompanyRole.YONETICI],
     ]) {
-      expect(hasCompanyPermission(roles, false, "addresses:manage")).toBe(true);
+      expect(hasCompanyPermission({ isOwner: false, roles: roles }, "addresses:manage")).toBe(true);
     }
     expect(
-      hasCompanyPermission([CompanyRole.SAHIP], true, "addresses:manage"),
+      hasCompanyPermission({ isOwner: true, roles: [CompanyRole.SAHIP] }, "addresses:manage"),
     ).toBe(true); // SAHIP ⊇ YONETICI seti
     expect(
-      hasCompanyPermission([CompanyRole.ONAYLAYICI], false, "addresses:manage"),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.ONAYLAYICI] }, "addresses:manage"),
     ).toBe(false);
   });
 });

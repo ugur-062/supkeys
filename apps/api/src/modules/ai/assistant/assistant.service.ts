@@ -113,7 +113,7 @@ export class AssistantService {
     // Belge yüklendiyse ihale çıkarımı yap, mevcut taslakla birleştir.
     if (dto.fileKeys && dto.fileKeys.length > 0) {
       // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
-      if (!allowedPortals(user.roles).has("satinalma")) {
+      if (!allowedPortals(user).has("satinalma")) {
         throw new ForbiddenException("Belgeden talep taslağı yalnız satın alma portalında çıkarılır");
       }
       const extracted = await this.tenderExtract.extract(user, {
@@ -127,7 +127,7 @@ export class AssistantService {
     const stored = await this.loadMessages(session.id);
     const plan = planWindow(stored, session.summary, session.summarizedThroughSeq);
 
-    const portals = allowedPortals(user.roles);
+    const portals = allowedPortals(user);
     const toolDefs = toolDefsForUser(portals);
 
     // AI-3: taslak varsa modele context ver (system prompt'a eklenir).
@@ -503,7 +503,7 @@ export class AssistantService {
           return this.capObject(await this.listings.getOne(user, id));
         }
         case TOOL_NAMES.listMyOrders:
-          return trimList(await this.orders.list(user.companyId));
+          return trimList(await this.orders.list(user));
         case TOOL_NAMES.getOrderDetail: {
           const id = String(call.args.id ?? "");
           if (!id) return { ...NEUTRAL_ERROR };

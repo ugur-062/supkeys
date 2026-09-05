@@ -9,6 +9,7 @@ import {
   PrismaClient,
 } from "@rothern/db";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
+import { permissionsForRoles } from "@rothern/shared";
 
 let counter = 0;
 const uniq = () => `${Date.now().toString(36)}-${counter++}`;
@@ -61,6 +62,8 @@ export async function makeUser(
       firstName: "Test",
       lastName: "User",
       roles,
+      // Yetki tablosu: açık izin listesi rol hazır setinden (prod signup ile aynı).
+      permissions: permissionsForRoles(roles),
       isActive: true,
       ...over,
     },
@@ -106,6 +109,10 @@ export async function makeCompanyWithUser(
     companyId: company.id,
     email: user.email,
     roles,
+    // BİLİNÇLİ: auth nesnesine `permissions` YAZILMAZ — spec'ler persona'yı
+    // `{ ...auth, roles: [...] }` ile türetir; liste boşken kapılar rol hazır
+    // setine düşer (effectivePermissions geçiş emniyeti) ve rol-override
+    // persona'ları anlamlı kalır. Açık liste isteyen spec `permissions` verir.
     country: company.country,
     tier: company.tier,
     // INV-KYC-1: auth objesi firmanın efektif doğrulama durumunu taşır (para

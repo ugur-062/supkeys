@@ -1,5 +1,6 @@
 "use client";
 
+import { userHasPermission } from "@/lib/company/permissions";
 import Link from "next/link";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -112,16 +113,14 @@ export function ApprovalFlowsSection({
     }
   }, [openNew, onConsumeOpenNew]);
 
-  // Onaycı yalnızca AKTİF Yönetici/Onaylayıcı olabilir (backend de zorlar).
+  // Onaycı = AKTİF ve "Onaylama" (approval:act) izni taşıyan (backend de zorlar).
   const approvers: ApproverOption[] = useMemo(
     () =>
       (users ?? [])
         .filter(
           (u) =>
             u.isActive &&
-            (u.roles.includes("SAHIP") ||
-              u.roles.includes("YONETICI") ||
-              u.roles.includes("ONAYLAYICI")),
+            (u.isOwner || userHasPermission(u, "approval:act")),
         )
         .map((u) => ({
           id: u.id,

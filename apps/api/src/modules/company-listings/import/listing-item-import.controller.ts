@@ -10,6 +10,8 @@ import {
 } from "@nestjs/common";
 import { IsIn, IsOptional, IsString, MaxLength } from "class-validator";
 import type { Response } from "express";
+import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import {
   ListingItemImportService,
@@ -34,11 +36,12 @@ class ParseItemImportDto {
  * Ayrı prefix: `company/listings/:id` ile param çakışmasın.
  */
 @Controller("company/listing-item-import")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class ListingItemImportController {
   constructor(private readonly service: ListingItemImportService) {}
 
   @Get("template")
+  @RequireCompanyPermission("buy:listing:manage")
   async template(
     @Query() q: TemplateQueryDto,
     @Res({ passthrough: true }) res: Response,
@@ -53,6 +56,7 @@ export class ListingItemImportController {
   }
 
   @Post("parse")
+  @RequireCompanyPermission("buy:listing:manage")
   parse(@Body() dto: ParseItemImportDto) {
     return this.service.parse(dto);
   }

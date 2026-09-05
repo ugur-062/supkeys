@@ -887,7 +887,7 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       tier: company.tier,
       companyVerificationStatus: company.companyVerificationStatus,
       isOwner: company.ownerUserId === user.id,
-      permissionsOverride: null,
+      permissions: [],
       ...over,
     } as AuthenticatedCompanyUser;
   }
@@ -1015,13 +1015,15 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       await expect(
         service.updateListing(authFor(company, base), listing.id, {} as never),
       ).rejects.toThrow(DENY);
-      // override ile buy:listing:manage eklense DE reddedilir (katalog dışı).
+      // Yetki tablosu (2026-09-05): AÇIK izin listesinde buy:listing:manage
+      // varsa yetki gelir — kapı etikete değil izne bakar (eski override
+      // modeli katalog dışı diye reddediyordu; artık izin tablonun tiki).
       const granted = authFor(company, base, {
-        permissionsOverride: { added: ["buy:listing:manage"], removed: [] },
+        permissions: ["buy:listing:manage"],
       });
-      await expect(
-        service.updateListing(granted, listing.id, {} as never),
-      ).rejects.toThrow(DENY);
+      expect(
+        await errOf(service.updateListing(granted, listing.id, {} as never)),
+      ).not.toMatch(DENY);
       // Doğru yol: SATIN_ALMACI rolü ata → yetki gelir.
       const withRole = authFor(company, {
         ...base,

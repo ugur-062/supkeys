@@ -73,6 +73,7 @@ export class ProductImportController {
   ) {}
 
   @Get("template")
+  @RequireCompanyPermission("sell:product:manage")
   async template(@Res() res: Response) {
     const buf = await this.importer.buildTemplate();
     res.setHeader("Content-Type", XLSX_MIME);
@@ -84,13 +85,13 @@ export class ProductImportController {
   }
 
   @Post("parse")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   parse(@Body() dto: ParseDto) {
     return this.importer.parse(dto);
   }
 
   @Post("commit")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   commit(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CommitDto,

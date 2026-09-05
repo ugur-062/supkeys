@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { hasReadContext } from "../../common/company/full-read-context";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 export interface InboxItem {
@@ -21,6 +22,10 @@ export class CompanyInboxService {
   async inbox(user: AuthenticatedCompanyUser): Promise<InboxItem[]> {
     const companyId = user.companyId;
     const items: InboxItem[] = [];
+    // Yetki tablosu: yalnız görebildiği tarafın işleri (alım: buy:view,
+    // satış: sell:view); bağlantı davetleri her iki tarafın da işi.
+    const canBuy = hasReadContext(user, "buy");
+    const canSell = hasReadContext(user, "sell");
 
     // 1. Gelen bağlantı davetleri
     const invites = await this.prisma.companyConnection.findMany({
@@ -37,11 +42,13 @@ export class CompanyInboxService {
       });
     }
 
-    // 2. İlanlarıma gelen teklifler (OPEN + SUBMITTED teklif var)
-    const myOpen = await this.prisma.listing.findMany({
-      where: { companyId, status: "OPEN" },
-      select: { id: true, title: true, type: true },
-    });
+    // 2. İlanlarıma gelen teklifler (OPEN + SUBMITTED teklif var) — alım tarafı
+    const myOpen = canBuy
+      ? await this.prisma.listing.findMany({
+          where: { companyId, status: "OPEN" },
+          select: { id: true, title: true, type: true },
+        })
+      : [];
     const ids = myOpen.map((l) => l.id);
     const groups =
       ids.length > 0
@@ -77,6 +84,7 @@ export class CompanyInboxService {
     });
     for (const o of orders) {
       const isSeller = o.sellerCompanyId === companyId;
+      if (isSeller ? !canSell : !canBuy) continue;
       const name = o.listing?.title ?? "Sipariş";
       const href = `/company/siparis/${o.id}`;
       if (isSeller && o.status === "PENDING") {

@@ -70,7 +70,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const isSeller = order.role === "seller";
   // F7: ödeme kaydet/onayla tarafın işlem rolünü ister (assertOrderRole aynası).
   const { user } = useCompanyAuth();
-  const canAct = canActOnOrder(order.role, user?.roles);
+  const canAct = canActOnOrder(order.role, user);
   const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);

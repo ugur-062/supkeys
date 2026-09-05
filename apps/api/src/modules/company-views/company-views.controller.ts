@@ -6,16 +6,19 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyViewsService } from "./company-views.service";
 
 /** Ziyaret Edenler + İş Analizi (panel). */
 @Controller("company/views")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyViewsController {
   constructor(private readonly service: CompanyViewsService) {}
 
   @Get("visitors")
+  @RequireCompanyPermission("insights:view")
   visitors(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("days") days?: string,
@@ -25,6 +28,7 @@ export class CompanyViewsController {
   }
 
   @Get("insights")
+  @RequireCompanyPermission("insights:view")
   insights(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Query("days") days?: string) {
     return this.service.insights(user, { days: Number(days) || undefined });
   }

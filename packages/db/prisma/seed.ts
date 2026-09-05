@@ -1,4 +1,5 @@
 import { type CompanyRole, type CompanyTier, PrismaClient } from "@prisma/client";
+import { permissionsForRoles } from "@rothern/shared";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const prisma = new PrismaClient();
@@ -235,6 +236,7 @@ async function ensureCompany(
       firstName: name.split(" ")[0] ?? name,
       lastName: "Demo",
       roles: OWNER_ROLES,
+      permissions: permissionsForRoles(OWNER_ROLES),
       companyId: company.id,
       emailVerifiedAt: new Date(),
     },

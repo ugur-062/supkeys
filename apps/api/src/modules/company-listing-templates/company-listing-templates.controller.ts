@@ -41,6 +41,7 @@ export class CompanyListingTemplatesController {
 
   // Okuma her role açık; yazma templates:manage ister (ONAYLAYICI vb. CRUD yapamaz).
   @Get()
+  @RequireCompanyPermission("buy:view")
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
   }

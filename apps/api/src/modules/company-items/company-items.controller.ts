@@ -168,6 +168,7 @@ export class CompanyItemsController {
   constructor(private readonly service: CompanyItemsService) {}
 
   @Get()
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   list(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("q") q?: string,
@@ -213,6 +214,7 @@ export class CompanyItemsController {
    * gerektirmez: keşif okuma, katalog yazma değil.
    */
   @Get("discover")
+  @RequireCompanyPermission("buy:view")
   discover(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("q") q?: string,
@@ -229,6 +231,7 @@ export class CompanyItemsController {
 
   /** Ürün Ara — public `/urunler` ile aynı süzgeç/sıralama, sayfalı. */
   @Get("discover/search")
+  @RequireCompanyPermission("buy:view")
   discoverSearch(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("q") q?: string,
@@ -270,6 +273,7 @@ export class CompanyItemsController {
 
   /** Süzgeç sayaçları — public facet ile aynı bağlama duyarlı sayım. */
   @Get("discover/facets")
+  @RequireCompanyPermission("buy:view")
   discoverFacets(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("category") category?: string,
@@ -291,6 +295,7 @@ export class CompanyItemsController {
 
   /** Panel içi ürün sayfası — ÜYE katmanı (fiyat/MOQ dahil). */
   @Get("discover/:companySlug/:productSlug")
+  @RequireCompanyPermission("buy:view")
   discoverProduct(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("companySlug") companySlug: string,
@@ -300,7 +305,7 @@ export class CompanyItemsController {
   }
 
   @Post("images/upload-url")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   imageUploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ImageUploadDto,
@@ -313,7 +318,7 @@ export class CompanyItemsController {
   }
 
   @Post("images/resolve")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   imageResolve(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ResolveImageDto,
@@ -323,7 +328,7 @@ export class CompanyItemsController {
 
   /** Ürün belgesi (PDF katalog/teknik föy) — görselle aynı iki adım. */
   @Post("documents/upload-url")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   documentUploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ImageUploadDto,
@@ -336,7 +341,7 @@ export class CompanyItemsController {
   }
 
   @Post("documents/resolve")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   documentResolve(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ResolveImageDto,
@@ -345,12 +350,13 @@ export class CompanyItemsController {
   }
 
   @Get("attributes/:categoryId")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   attributes(@Param("categoryId") categoryId: string) {
     return this.service.resolveAttributes(categoryId);
   }
 
   @Patch(":id/showcase")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   updateShowcase(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -360,7 +366,7 @@ export class CompanyItemsController {
   }
 
   @Post(":id/publish")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   publish(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -369,7 +375,7 @@ export class CompanyItemsController {
   }
 
   @Post(":id/unpublish")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   unpublish(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -382,7 +388,7 @@ export class CompanyItemsController {
    * Kayıt TASLAK doğar; yayımlamak ayrı adım.
    */
   @Post("product")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   createProduct(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: NewProductDto,
@@ -391,7 +397,7 @@ export class CompanyItemsController {
   }
 
   @Post()
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CatalogItemDto,
@@ -400,7 +406,7 @@ export class CompanyItemsController {
   }
 
   @Patch(":id")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -411,7 +417,7 @@ export class CompanyItemsController {
 
   /** Silme YOK — arşivle/geri al. */
   @Patch(":id/active")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   setActive(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -422,7 +428,7 @@ export class CompanyItemsController {
 
   /** Ters yön: bir ilanın kalemlerini kataloğa al. */
   @Post("import-from-listing/:listingId")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("buy:listing:manage")
   importFromListing(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("listingId") listingId: string,
@@ -432,6 +438,7 @@ export class CompanyItemsController {
 
   /** Katalogdan sihirbaza eklendi — "sık kullanılan" sıralamasını besler. */
   @Post("mark-used")
+  @RequireCompanyPermission("buy:listing:manage")
   markUsed(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: MarkUsedDto,

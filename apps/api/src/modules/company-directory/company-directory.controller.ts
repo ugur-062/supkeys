@@ -1,4 +1,6 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { DirectoryQueryDto } from "./dto/directory-query.dto";
 import { CompanyDirectoryService } from "./company-directory.service";
@@ -14,16 +16,18 @@ import { CompanyDirectoryService } from "./company-directory.service";
  * paylaşımlı önbelleğe yazılırsa anonim ziyaretçiye servis edilebilirdi.
  */
 @Controller("company/directory")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyDirectoryController {
   constructor(private readonly service: CompanyDirectoryService) {}
 
   @Get()
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   list(@Query() q: DirectoryQueryDto) {
     return this.service.listPublic(q);
   }
 
   @Get("facets")
+  @RequireCompanyPermission(["buy:view", "sell:view"])
   facets() {
     return this.service.directoryFacets();
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { isManagementUser } from "@/lib/company/permissions";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
@@ -153,11 +154,7 @@ export default function AyarlarPage() {
     href === PROFILE_CARD_HREF
       ? PORTAL_SECONDARY_HREFS[activePortal].profilim
       : href;
-  const isManager =
-    !!user &&
-    (user.isOwner ||
-      user.roles.includes("SAHIP") ||
-      user.roles.includes("YONETICI"));
+  const isManager = isManagementUser(user);
   /** İzin-kapılı kartlar için efektif izin listesi (Faz R: fallback YOK). */
   const permissions = user?.permissions ?? [];
 

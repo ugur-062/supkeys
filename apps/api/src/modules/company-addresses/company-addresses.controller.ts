@@ -24,6 +24,7 @@ export class CompanyAddressesController {
   constructor(private readonly service: CompanyAddressesService) {}
 
   @Get()
+  @RequireCompanyPermission(["addresses:manage", "buy:view", "sell:view"])
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
   }

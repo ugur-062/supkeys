@@ -510,10 +510,10 @@ describe("yetki değişimi audit'i", () => {
       },
     });
     expect(row.actorId).toBe(owner.user.id);
-    const meta = row.metadata as {
-      after: { added: string[]; removed: string[] };
-    };
-    expect(meta.after.added).toContain("templates:manage");
+    // Yetki tablosu: metadata `after` = yeni AÇIK liste, `added` = istenen ekler.
+    const meta = row.metadata as { after: string[]; added: string[] };
+    expect(meta.after).toContain("templates:manage");
+    expect(meta.added).toContain("templates:manage");
   });
 
   it("pasifleştirme → active_changed iz (active=false)", async () => {
@@ -1029,10 +1029,23 @@ describe("denial audit'i — reddedilen yetki eylemleri", () => {
 
   it("assertNotLastAdmin tetiği → company.user.last_admin_denied iz + 400", async () => {
     const svc = makeUsersService();
-    // Sahipsiz firma + TEK yönetici (kendini düşürmeye çalışır → son admin gider).
+    // Sahipsiz firma + TEK yönetici. Yetki tablosu (2026-09-05): kimse KENDİ
+    // satırını düzenleyemez, bu yüzden düşürmeyi DB'de olmayan (sayılmayan)
+    // sentetik bir yönetici aktör dener → son-yönetici nöbetçisi tetiklenir.
+    // Kendi-satır kapısı ayrıca doğrulanır.
     const company = await makeCompany(prisma);
     const soleAdmin = await makeUser(prisma, company.id, [CompanyRole.YONETICI]);
-    const adminAuth = authFor(soleAdmin, company.id, [CompanyRole.YONETICI]);
+    const selfAuth = authFor(soleAdmin, company.id, [CompanyRole.YONETICI]);
+    await expect(
+      svc.updateRoles(selfAuth, soleAdmin.id, {
+        roles: [CompanyRole.SATISCI],
+      } as never),
+    ).rejects.toThrow(/Kendi yetkilerinizi düzenleyemezsiniz/);
+    const adminAuth = {
+      ...selfAuth,
+      userId: "ghost-admin",
+      email: "ghost-admin@test.local",
+    } as typeof selfAuth;
     await expect(
       svc.updateRoles(adminAuth, soleAdmin.id, {
         roles: [CompanyRole.SATISCI],
@@ -1043,7 +1056,7 @@ describe("denial audit'i — reddedilen yetki eylemleri", () => {
       action: "company.user.last_admin_denied",
       entityId: soleAdmin.id,
     });
-    expect(row.actorId).toBe(soleAdmin.id);
+    expect(row.actorId).toBe("ghost-admin");
     expect(row.tenantId).toBe(company.id);
     expect(row.metadata).toMatchObject({
       attemptedRoles: [CompanyRole.SATISCI],

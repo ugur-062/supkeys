@@ -14,7 +14,9 @@ export interface CompanyTeamUser {
   isOwner: boolean;
   isActive: boolean;
   lastLoginAt: string | null;
-  // Rol-varsayılan izinleri + kişi-bazlı override (UI toggle hesabı).
+  /** Efektif izin listesi (yetki tablosu; kurucu örtük izinleri dahil). */
+  permissions?: string[];
+  // Rol-varsayılan izinleri + kişi-bazlı fark (UI toggle hesabı).
   rolePermissions: string[];
   permissionsOverride: { added: string[]; removed: string[] };
 }

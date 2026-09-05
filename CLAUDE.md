@@ -214,6 +214,7 @@ yazmadan önce burada karşılığı var mı diye bak.
 
 | Konu | Tek kaynak |
 |------|-----------|
+| Firma içi izin kataloğu / hazır setler / türetme | `@rothern/shared` `constants/company-permissions.ts` (API: `company-permissions.constants.ts` re-export; web: `lib/company/permissions.ts`) |
 | Firma alanı menüsü (Şirketim) | `lib/company/portals.ts` `COMPANY_AREA`, `isCompanyAreaPath` |
 | Para/kur bazı (rapor+pano) | `common/company/report-currency.ts` |
 | Kalem toplamı / yuvarlama | `common/company/bid-items.ts` (`roundMoney`, `sumLineTotals*`) |
@@ -1003,6 +1004,89 @@ arama kısaltıldı ("pano" kaldı)" der. Taslak gevşetmeden ÖNCEKİ kategoriy
 liste araması artık kelimelere bölünüp AND'lenir (AI 2-4 kelime üretir;
 tam-ifade araması hiç eşleşmiyordu). Yerel `GEMINI_API_KEY` ön ödemeli
 kredisi bitmiş (429) — AI yalnız canlıda (Vertex) doğrulanır.
+
+## Yetki Tablosu — izin modeli (2026-09-05, Faz 1 BİTTİ; kullanıcı kararı)
+
+Kullanıcı isteği: "rollere göre görünüm farklı olmalı; onaylayıcı yalnız
+onaylasın; yetki tablosu, tikler, kişi bazında özelleştirme; satınalma ve satış
+her biri bir koltuk". Beş fazlı plan; **Faz 1 = katalog + veri modeli + kapı
+haritası** bu bölüm. Faz 2 (onaylayıcı yüzü: onay detayı projeksiyonu, izne göre
+bildirim), Faz 3 (portal görünürlüğü/pilsiz tek portal, Şirketim ve Ayarlar
+kapıları, kapısız sayfa/düğmeler), Faz 4 (Kullanıcılar'da tik tablosu + davet),
+Faz 5 (gruba göre koltuk, Standart 2, onboarding kutuları) SIRADA.
+
+**TEK KAYNAK `@rothern/shared` `constants/company-permissions.ts`:** katalog
+(19 anahtar, 4 grup + sahibe özel 3), rol hazır setleri (`COMPANY_ROLE_PRESETS`),
+`VIEWER_PRESET`, `normalizePermissions` (eski anahtar → yeni, bilinmeyen düşer,
+işlem izni grubun görüntülemesini ÖRTÜK ekler), `rolesFromPermissions`,
+`effectivePermissions`, `hasCompanyPermission(user, key | key[])` (dizi =
+any-of). API yüzeyi `company-auth/permissions/company-permissions.constants.ts`
+yalnız re-export + `hasManagementRole` (etiket işleri için).
+
+**Model:**
+- Doğruluk kaynağı `CompanyUser.permissions String[]` (ve
+  `CompanyUserInvitation.permissions`). `roles` ETİKET: yazarken hazır setten
+  gelir, listeden yeniden türetilir (YONETICI ⇐ users:manage ∨ company:manage;
+  SATIN_ALMACI/SATISCI ⇐ grupta ≥1 işlem izni; ONAYLAYICI ⇐ approval:act ∧
+  ¬yönetici; SAHIP ⇐ ownerUserId). `permissionsOverride` kolonu LEGACY — artık
+  okunmaz (backfill listeye kattı), Faz 4'te düşer.
+- Kurucu: yönetim + onay + görüntüleme + sahibe-özel ÖRTÜK (kısılamaz, listede
+  yazılı olmasa da); İŞLEM izinleri açıkça yazılır (koltuk).
+- **Geçiş emniyeti:** liste boş + roller dolu → rol hazır seti
+  (`effectivePermissions`). Eski bir script `permissions` yazmasa da kimse
+  kilitlenmez; `assertNotLastAdmin`/`findEligibleApprover` sorguları da
+  `permissions isEmpty ∧ roles hasSome` dalıyla aynı emniyeti taşır.
+- Migration `20260905230000_company_user_permissions` (eklemeli, DEFAULT '{}')
+  + `pnpm --filter @rothern/db backfill-user-permissions` (roller +
+  override → liste; `--force` dolu satırı da yeniden hesaplar).
+
+| Grup | Anahtarlar | Koltuk |
+|------|-----------|--------|
+| Satınalma | `buy:view` · `buy:listing:manage` (talep açma VE yönetme; `buy:listing:create` kalktı) · `buy:award` · `buy:order:manage` · `buy:inquiry:send` · `buy:reports:view` (eski `buy:bid:review`) | görüntüleme/raporlar hariç |
+| Satış | `sell:view` · `sell:bid:submit` · `sell:order:manage` · `sell:product:manage` (YENİ — eskiden `templates:manage` gerekiyordu, saf Satışçı ürün yayınlayamıyordu) · `sell:inquiry:reply` (YENİ — eskiden kapısızdı) | görüntüleme hariç |
+| Onay | `approval:act` · `approvals:manage` | — |
+| Yönetim | `company:manage` · `users:manage` (yalnız Kurucu verir — Faz 4) · `connections:manage` (engelleme/şikayet dahil) · `templates:manage` · `addresses:manage` · `insights:view` (YENİ: Ziyaret Edenler + İş Analizi) | — |
+| Sahibe özel | `billing:manage` · `company:delete` · `ownership:transfer` | işaretlenemez |
+
+Ölü anahtarlar KALDIRILDI: `sell:listing:create/manage`, `sell:award`, Satın
+Almacı'nın `sell:bid:submit`i. Hazır setler: SA = satınalma tümü + şablonlar +
+bağlantılar + adres; ST = satış tümü + bağlantılar + adres + iş analizi;
+ONAYLAYICI = onaylama; YONETICI/SAHIP = iki görüntüleme + raporlar + onay +
+yönetim; Görüntüleyici (Faz 4 çipi) = iki görüntüleme + raporlar.
+
+**Kapı haritası (Faz 1):** `company*` prefix'li HER handler statik
+`@RequireCompanyPermission` taşır (dizi = any-of; taraf daraltma serviste) —
+`test/unit/company-permission-drift.spec.ts` controller metadata'sını okur,
+izinsiz handler = kırmızı; allowlist yalnız CompanyAuth (kendi hesabı),
+Notification (kendi satırları), CompanyInvitations (token, anonim). Rol adıyla
+yazılmış ~20 kapı izne bağlandı (`bidderPermission`, `assertOrderRole`,
+`listingManageDenial`, mesaj, değerlendirme, bilgi talebi, onay iptali/onaycı
+geçerliliği, AI `assertAiAccess(user, anyOf)`, aktivite, raporlar). Faz O
+dar-bağlam `common/company/full-read-context.ts` artık TARAF bilir:
+`hasReadContext(user, "buy"|"sell")` — sahip firma dalı `buy:view`, teklifçi
+dalı `sell:view`; sipariş listesi ve gelen kutusu yalnız görebildiği tarafı
+döner; onaylayıcı-only yalnız onay-bağlı kaydı görür (eski davranış).
+**Onaylayıcı-only artık pano/ziyaretçi/dizin/ürün/talep-listesi/sipariş/
+bağlantı/şablon uçlarından 403 alır** (eskiden yalnız giriş yetiyordu — denetim
+2026-09-05: 45 uç). Canlı oda aboneliği de görüntüleme iznine bağlı.
+
+**Kural değişiklikleri (kullanıcı onaylı):** mesaj OKUMA görüntüleme iznine
+açıldı (Kurucu/Yönetici/görüntüleyici okur; Ağustos'taki "yalnız işlem rolü
+okur" kararı değişti), GÖNDERME işlem izni (satınalma `buy:listing:manage`,
+satış `sell:bid:submit`); raporlar için yönetim muafiyeti yerine
+`buy:reports:view` (hazır setlerde); kazandırma ÖNİZLEMESİ de yönetim kapısından
+geçer; AI ürün çıkarımı `sell:product:manage`, profil zenginleştirme
+`company:manage` (`callAi` `anyOf`); dış talep daveti `buy:listing:manage`;
+kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
+`assertNotSelf`).
+
+**Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
+`userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı
+nesnesi `/me`'den `permissions` taşır, yoksa rol setine düşer (test mock'ları
+yalnız `roles` verir). `accessiblePortals(user, tier)`, `canUseMessaging(user,
+portal)` (okuma = görüntüleme), `canSendMessages` (işlem), `canActOnOrder(side,
+user)`, `ReportsRoleGate` (`buy:reports:view`), ürün/bilgi-talebi/firma-sayfası
+düğmeleri izne kapılı. Sol menü pilleri ve kabuk yüzleri Faz 3'te.
 
 ## Şirketim alanı (2026-09-05, Europages "My Company" kalıbı, kullanıcı kararı)
 

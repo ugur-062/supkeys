@@ -306,7 +306,7 @@ describe("Faz K — downgrade aşkın durum + kurucu seçimi", () => {
       tier: "BRONZ",
     } as never;
     await expect(orders.accept(u2Auth, order.id, acceptInput)).rejects.toThrow(
-      /Satışçı rolü/,
+      /'Satış siparişi işlemleri' yetkisi/,
     );
     await expect(
       orders.accept(co.auth, order.id, acceptInput),

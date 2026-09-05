@@ -143,7 +143,7 @@ export function LiveToasts() {
     // Mesaj kartları yalnız işlem rolü olan portallardan (API aynası: rolsüz
     // portalın threads ucu 403 verir).
     const portals = PORTAL_ORDER.filter((p) =>
-      canUseMessaging(user.roles ?? [], p),
+      canUseMessaging(user, p),
     );
     const socket = connectRealtime();
 

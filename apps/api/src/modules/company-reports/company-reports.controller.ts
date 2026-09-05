@@ -15,7 +15,8 @@ import {
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
-import { hasCompanyPermission, hasManagementRole } from "../company-auth/permissions/company-permissions.constants";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import {
   CompanyReportsService,
   type BidComparisonInput,
@@ -25,24 +26,17 @@ import {
 import { ReportsExcelService } from "./reports-excel.service";
 
 /**
- * Raporlar satınalma portalına hizmet eder (firmanın kendi alım talepleri,
- * buy izni). POST — kriter gövdede; /download uçları aynı kriterle xlsx döner.
+ * Raporlar satınalma portalına hizmet eder (firmanın kendi alım talepleri).
+ * İzin: "Satınalma raporları" (`buy:reports:view`) — Satın Almacı, Yönetici
+ * ve Kurucu hazır setlerinde var; salt-okunur, koltuk tüketmez. POST —
+ * kriter gövdede; /download uçları aynı kriterle xlsx döner.
  */
+const REPORTS_PERMISSION = "buy:reports:view";
+
 function assertAllowed(user: AuthenticatedCompanyUser) {
-  // Gözetim muafiyeti (ürün kararı 2026-07-27): Kurucu ve Yönetici, işlem
-  // rolü taşımasa da raporları görebilir — raporlar SALT-OKUNUR yönetim
-  // çıktısıdır (kapalı-zarf/işlem yetkisi gerektiren bir eylem içermez).
-  if (user.isOwner || hasManagementRole(user.roles)) return;
-  if (
-    !hasCompanyPermission(
-      user.roles,
-      user.isOwner,
-      "buy:bid:review",
-      user.permissionsOverride,
-    )
-  ) {
+  if (!hasCompanyPermission(user, REPORTS_PERMISSION)) {
     throw new ForbiddenException(
-      "Alım raporları için satınalma yetkisi gerekir",
+      "Alım raporları için 'Satınalma raporları' yetkisi gerekir",
     );
   }
 }
@@ -59,6 +53,7 @@ function xlsx(res: Response, filename: string, buffer: Buffer) {
 const stamp = () => new Date().toISOString().slice(0, 10);
 
 @Controller("company/reports")
+@RequireCompanyPermission(REPORTS_PERMISSION)
 // Raporlar premium özelliğidir — STANDARD firma erişemez (yalnız teklif verir).
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard, CompanyPaidTierGuard)
 export class CompanyReportsController {

@@ -74,7 +74,7 @@ describe("teklif belgeleri op-rol kapısı (ALIM → Satışçı)", () => {
   it("etiket-only/rolsüz personalar upload-url + register + remove'da 403; Satışçı geçer", async () => {
     const { service } = makeDocsRig();
     const { bidder, listing } = await setup();
-    const DENY = /Satışçı rolü gerekir/;
+    const DENY = /'Teklif verme' yetkisi gerekir/;
     const upload = { fileName: "sartname.pdf", mimeType: "application/pdf" };
 
     const personas: [string, AuthenticatedCompanyUser][] = [

@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Post,
@@ -9,11 +8,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { CompanyRole } from "@rothern/db";
 import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { PublicInquiryService } from "./public-inquiry.service";
 
@@ -47,11 +47,13 @@ class CreateCompanyInquiryDto {
  * ettiği bir mesajı göremez hâle gelirdi.
  */
 @Controller("company/inquiries")
-@UseGuards(CompanyJwtAuthGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyInquiryController {
   constructor(private readonly service: PublicInquiryService) {}
 
+  /** Ürünlerime gelen talepler — satış tarafı görüntüleme. */
   @Get("received")
+  @RequireCompanyPermission("sell:view")
   received(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("page") page?: string,
@@ -68,27 +70,24 @@ export class CompanyInquiryController {
    * TEMBEL yapılır (gerekçe serviste) — sayfaya her giriş idempotenttir.
    */
   @Get("sent")
+  @RequireCompanyPermission("buy:view")
   sent(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listClaimed(user.companyId, user.email);
   }
 
   /**
-   * Kayıtlı alıcının talebi. Rol kapısı mesajlaşmayla AYNI mantıkta: talep
-   * göndermek ALIM tarafı bir iştir, Kurucu/Yönetici etiketi tek başına
-   * yetmez (Faz R). KYC istenmiyor — bu bir para taahhüdü değil, mesaj
-   * sınıfından bir eylem (CLAUDE.md KYC kapısı tablosu).
+   * Kayıtlı alıcının talebi. İzin: "Bilgi talebi gönderme" (ALIM tarafı işlem
+   * izni; Kurucu/Yönetici etiketi tek başına yetmez — Faz R). KYC istenmiyor —
+   * bu bir para taahhüdü değil, mesaj sınıfından bir eylem (CLAUDE.md KYC
+   * kapısı tablosu).
    */
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @RequireCompanyPermission("buy:inquiry:send")
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CreateCompanyInquiryDto,
   ) {
-    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
-      throw new ForbiddenException(
-        "Bilgi talebi göndermek için Satın Almacı rolü gerekir",
-      );
-    }
     return this.service.createAsCompany({
       companyId: user.companyId,
       email: user.email,
@@ -100,7 +99,9 @@ export class CompanyInquiryController {
     });
   }
 
+  /** Yanıt firma adına gider — "Bilgi taleplerini yanıtlama" işlem izni. */
   @Post(":id/reply")
+  @RequireCompanyPermission("sell:inquiry:reply")
   reply(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

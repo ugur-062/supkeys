@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type { CompanyRole } from "@rothern/db";
+import { permissionsForRoles } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
@@ -220,6 +221,8 @@ export class AdminCompanyUsersService {
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
         roles: [input.role as CompanyRole],
+        // Yetki tablosu: rol etiketinin hazır seti açık liste olarak yazılır.
+        permissions: permissionsForRoles([input.role]),
         companyId,
         // Admin eliyle açıldı — doğrulama adımı atlanır (kimlik telefonda).
         emailVerifiedAt: new Date(),

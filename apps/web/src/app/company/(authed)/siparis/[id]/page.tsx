@@ -132,7 +132,7 @@ export default function OrderDetailPage() {
   const isSeller = o.role === "seller";
   // F7: aksiyon butonları tarafın işlem rolünü ister (assertOrderRole aynası) —
   // etiket-only Kurucu/Yönetici sayfayı SALT-OKUNUR görür (Faz R gözetimi).
-  const canAct = canActOnOrder(o.role, user?.roles);
+  const canAct = canActOnOrder(o.role, user);
   const curSym =
     CURRENCY_SYMBOL[(o.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";

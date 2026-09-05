@@ -129,7 +129,6 @@ function TypewriterMarkdown({
   );
 }
 
-const SEAT = { buy: "SATIN_ALMACI", sell: "SATISCI" };
 // Metinler aynen korunur (submit'e aynı string gider) — yalnız ikon eşleşir.
 const SUGGESTIONS = [
   { label: "Satın Alma Taleplerimi göster", icon: Gavel },
@@ -344,10 +343,8 @@ export function AssistantPanel({
 
   // AI-3: taslak hazır → wizard'a taşı (portal'a göre yeni ihale/ilan sayfası).
   const openTenderForm = (draft: AiTenderExtractResult) => {
-    const isBuyer = !!user?.roles.includes(SEAT.buy as never);
     sessionStorage.setItem("ai-tender-draft", JSON.stringify(draft));
     // Belgeden yalnız satın alma talebi çıkar (satış ilanı kaldırıldı).
-    void isBuyer;
     router.push("/company/satinalma/taleplerim/yeni?ai=1");
   };
 

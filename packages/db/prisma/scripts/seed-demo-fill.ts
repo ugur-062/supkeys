@@ -20,6 +20,7 @@ for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split(
 
 import { PrismaClient, type CompanyRole, type CompanyTier } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
+import { permissionsForRoles } from "@rothern/shared";
 
 const prisma = new PrismaClient();
 const supabase = createClient(
@@ -182,7 +183,7 @@ async function main() {
     });
     const firstName = d.name.split(" ")[0] ?? d.name;
     const user = await prisma.companyUser.create({
-      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, companyId: company.id, emailVerifiedAt: new Date() },
+      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date() },
     });
     await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
     id[d.key] = { companyId: company.id, ownerId: user.id };

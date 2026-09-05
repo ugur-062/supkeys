@@ -83,7 +83,7 @@ describe("sipariş para birimi + yeni liste/detay alanları", () => {
     await service.award(owner.auth, listing.id, bid.id);
 
     // Liste (alıcı gözünden): para birimi USD + yeni alanlar.
-    const mine = await orders.list(owner.company.id);
+    const mine = await orders.list(owner.auth);
     expect(mine).toHaveLength(1);
     const row = mine[0]!;
     expect(row.currency).toBe("USD");
@@ -104,7 +104,7 @@ describe("sipariş para birimi + yeni liste/detay alanları", () => {
     });
 
     // Satıcı gözünden aynı sipariş: role seller, karşı taraf = alıcı firma.
-    const theirs = await orders.list(seller.company.id);
+    const theirs = await orders.list(seller.auth);
     expect(theirs[0]!.role).toBe("seller");
     expect(theirs[0]!.counterpartyCompanyId).toBe(owner.company.id);
   });
@@ -129,7 +129,7 @@ describe("list() — daraltılmış select serialize alanlarını KORUR", () => 
       },
     });
 
-    const rows = await orders.list(seller.company.id);
+    const rows = await orders.list(seller.auth);
     expect(rows).toHaveLength(1);
     const r = rows[0]!;
     // Eskiden full-include ile gelen, artık explicit select'teki alanlar:

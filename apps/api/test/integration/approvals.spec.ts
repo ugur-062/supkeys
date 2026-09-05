@@ -123,7 +123,7 @@ describe("Akış doğrulama (eski sistem kuralları)", () => {
 
     await expect(
       approvals.createFlow(owner.auth, flowInput([buyerOnly.user.id]) as never),
-    ).rejects.toThrow(/Yönetici veya Onaylayıcı/);
+    ).rejects.toThrow(/"Onaylama" yetkisi olmalı/);
 
     await expect(
       approvals.createFlow(
@@ -644,13 +644,19 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       // approval:act roldeyse added'dan sadeleşir.
       { added: ["templates:manage", "approval:act"], removed: [] } as never,
     );
+    // Yetki tablosu (2026-09-05): sonuç AÇIK liste olarak yazılır; roller
+    // listeden türetilir (templates:manage tek başına Yönetici etiketi vermez).
     const u = await prisma.companyUser.findUniqueOrThrow({
       where: { id: member.user.id },
-      select: { permissionsOverride: true },
+      select: { permissions: true, roles: true },
     });
-    const ov = u.permissionsOverride as { added: string[]; removed: string[] };
-    expect(ov.added).toContain("templates:manage");
-    expect(ov.added).not.toContain("approval:act"); // rolde zaten var
+    expect(u.permissions).toContain("templates:manage");
+    expect(u.permissions).toContain("approval:act");
+    expect(u.roles).toEqual(["ONAYLAYICI"]);
+    // Eski düzenleyici uyumu: liste ucu farkı added/removed olarak verir.
+    const row = (await svc.list(owner.company.id)).find((x) => x.id === member.user.id)!;
+    expect(row.permissionsOverride.added).toContain("templates:manage");
+    expect(row.permissionsOverride.added).not.toContain("approval:act"); // rolde zaten var
   });
 
   it("yükseltme koruması: devredilen users:manage ile operasyon rollü kullanıcı kendini YONETICI yapamaz", async () => {
@@ -667,8 +673,17 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       { added: ["users:manage"], removed: [] } as never,
     );
     // staff kendini/başkasını YONETICI YAPAMAZ (Faz R: etiketi yalnız Kurucu verir).
+    // Yetki tablosu: kendi satırını düzenleme ZATEN kapalı (Kurucu hariç) —
+    // etiket kapısından önce "kendinizi düzenleyemezsiniz" düşer.
     await expect(
       svc.updateRoles(staff.auth, staff.user.id, {
+        roles: ["YONETICI"],
+      } as never),
+    ).rejects.toThrow(/Kendi yetkilerinizi düzenleyemezsiniz/);
+    // Başkasını da YONETICI yapamaz (etiketi yalnız Kurucu verir).
+    const peer = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    await expect(
+      svc.updateRoles(staff.auth, peer.user.id, {
         roles: ["YONETICI"],
       } as never),
     ).rejects.toThrow(/Yönetici etiketini yalnızca Kurucu/);

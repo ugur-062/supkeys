@@ -1,5 +1,6 @@
 "use client";
 
+import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatinalmaDashboard } from "@/hooks/use-company-dashboard";
@@ -60,7 +61,7 @@ export default function SatinalmaDashboardPage() {
   const [intent, setIntent] = useState<AiSearchIntentResult | null>(null);
   const aiEnabled =
     !!company && tierAtLeast(company.tier, "SILVER") &&
-    !!user?.roles.some((r) => r === "SATIN_ALMACI" || r === "SATISCI");
+    hasAnySeatPermission(user);
   const onAiResult = (r: AiSearchIntentResult) => {
     setIntent(r);
     router.push(`${HOME}${intentToProductQuery(r)}#urunler`);

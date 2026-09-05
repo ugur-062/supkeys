@@ -114,31 +114,31 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
     ]) {
       await expect(
         svc.send(p, "satinalma", b.company.id, "merhaba"),
-      ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+      ).rejects.toThrow(/'Talep açma ve yönetme' yetkisi gerekir/);
     }
     // Portal-yönlü: satinalma'da yalnız-Satışçı da gönderemez (yön uyuşmaz).
     await expect(
       svc.send(withRoles(["SATISCI"]), "satinalma", b.company.id, "m"),
-    ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+    ).rejects.toThrow(/'Talep açma ve yönetme' yetkisi gerekir/);
     await expect(
       svc.send(withRoles(["SATIN_ALMACI"]), "satis", b.company.id, "m"),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Teklif verme' yetkisi gerekir/);
 
     // Doğru yön geçer.
     await svc.send(withRoles(["SATIN_ALMACI"]), "satinalma", b.company.id, "merhaba");
 
-    // Okuma uçları da rol kapısının arkasında (kullanıcı isteği 2026-08-02):
-    // rolsüz Kurucu konuşmayı OKUYAMAZ, gelen kutusunu LİSTELEYEMEZ.
+    // Yetki tablosu (2026-09-05): OKUMA = portalı görüntüleme izni. Kurucu
+    // (örtük görüntüleme) konuşmayı OKUR ama gönderemez; görüntüleme izni
+    // olmayan (rolsüz) üye listeleyemez; yön uyuşmayan rol de okuyamaz.
     await expect(
       svc.getThread(withRoles(["SAHIP"], true), "satinalma", b.company.id),
-    ).rejects.toThrow(/görüntülemek için Satın Almacı rolü gerekir/);
+    ).resolves.toBeDefined();
     await expect(
       svc.listThreads(withRoles([]), "satinalma"),
-    ).rejects.toThrow(/görüntülemek için Satın Almacı rolü gerekir/);
-    // Yön uyuşmayan rol de okuyamaz (satis rozetiyle satınalma kutusu açılmaz).
+    ).rejects.toThrow(/görüntülemek için 'Satınalma görüntüleme' yetkisi gerekir/);
     await expect(
       svc.listThreads(withRoles(["SATISCI"]), "satinalma"),
-    ).rejects.toThrow(/görüntülemek için Satın Almacı rolü gerekir/);
+    ).rejects.toThrow(/görüntülemek için 'Satınalma görüntüleme' yetkisi gerekir/);
 
     // Rozet ucu hata üretmez: rolsüz portal 0 sayılır, rollü portal sayar.
     const bAuth = { ...b.auth, roles: ["SATISCI"] } as typeof b.auth;
@@ -146,9 +146,9 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
     expect(
       (await svc.unreadCount(withRoles(["SAHIP"], true), "satinalma")).count,
     ).toBe(0);
-    // Portal'sız toplam yalnız rollü tarafları sayar.
+    // Portal'sız toplam yalnız görebildiği tarafları sayar (rolsüz, sahip değil → 0).
     expect(
-      (await svc.unreadCount({ ...b.auth, roles: [] } as typeof b.auth)).count,
+      (await svc.unreadCount({ ...b.auth, roles: [], isOwner: false } as typeof b.auth)).count,
     ).toBe(0);
     const read = await svc.getThread(
       withRoles(["SATIN_ALMACI"]),

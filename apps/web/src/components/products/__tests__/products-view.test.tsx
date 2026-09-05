@@ -13,6 +13,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ get: vi.fn() }));
 
+// Ürün ekleme düğmeleri "Ürün ve vitrin yönetimi" iznine kapılı (yetki tablosu).
+vi.mock("@/hooks/use-company-auth", () => ({
+  useHasCompanyPermission: () => true,
+  useCompanyAuth: () => ({ user: { roles: ["SATISCI"], permissions: ["sell:product:manage"] }, company: null }),
+}));
 vi.mock("@/lib/company-auth/api", () => ({
   companyApi: { get: h.get, post: vi.fn(), patch: vi.fn() },
 }));

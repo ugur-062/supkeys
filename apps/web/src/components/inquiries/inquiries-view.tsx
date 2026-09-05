@@ -1,5 +1,6 @@
 "use client";
 
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { EmptyState } from "@/components/list";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
@@ -170,6 +171,8 @@ function TabButton({
 
 function ReceivedCard({ inquiry }: { inquiry: ReceivedInquiry }) {
   const [body, setBody] = useState("");
+  // Yanıt = "Bilgi taleplerini yanıtlama" işlem izni (API aynası); izinsiz okur.
+  const canReply = useHasCompanyPermission("sell:inquiry:reply");
   const reply = useReplyInquiry();
 
   const send = async () => {
@@ -232,7 +235,7 @@ function ReceivedCard({ inquiry }: { inquiry: ReceivedInquiry }) {
         </ul>
       ) : null}
 
-      <div className="mt-4 border-t border-zinc-950/5 pt-4">
+      <div className="mt-4 border-t border-zinc-950/5 pt-4" hidden={!canReply}>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}

@@ -20,14 +20,10 @@ export class CompanyProfileController {
   constructor(private readonly service: CompanyProfileService) {}
 
   @Get()
+  @RequireCompanyPermission(["company:manage", "buy:view", "sell:view"])
   get(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     // Hassas alanlar (TCKN/IBAN/fatura tel) yalnız company:manage yetkisinde döner.
-    const canSeeSensitive = hasCompanyPermission(
-      user.roles,
-      user.isOwner,
-      "company:manage",
-      user.permissionsOverride,
-    );
+    const canSeeSensitive = hasCompanyPermission(user, "company:manage");
     return this.service.get(user.companyId, canSeeSensitive);
   }
 

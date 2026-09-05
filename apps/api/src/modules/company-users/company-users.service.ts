@@ -10,7 +10,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
-import { SEAT_LIMITS, SEAT_ROLES } from "@rothern/shared";
+import { ALL_SEAT_PERMISSIONS, SEAT_LIMITS, SEAT_ROLES } from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -19,10 +19,13 @@ import { CompanyAuthService } from "../company-auth/services/company-auth.servic
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
   ALL_COMPANY_PERMISSIONS,
-  type CompanyPermissionOverride,
+  effectivePermissions,
   hasManagementRole,
+  normalizePermissions,
   permissionsForRoles,
+  rolesFromPermissions,
 } from "../company-auth/permissions/company-permissions.constants";
+import { LEGACY_PERMISSION_MAP } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
@@ -86,8 +89,20 @@ export class CompanyUsersService {
       }),
     ]);
     return users.map((u) => {
-      const override =
-        (u.permissionsOverride as CompanyPermissionOverride | null) ?? null;
+      const isOwner = company?.ownerUserId === u.id;
+      // Efektif liste (kurucu örtük izinleri dahil) — yetki tablosu bunu okur.
+      const permissions = effectivePermissions({
+        isOwner,
+        permissions: u.permissions,
+        roles: u.roles,
+      });
+      // Eski düzenleyici uyumu: rol hazır setine göre +/- farkı.
+      const preset = new Set(permissionsForRoles(u.roles));
+      const stored = new Set(
+        u.permissions.length > 0
+          ? normalizePermissions(u.permissions)
+          : [...preset],
+      );
       return {
         id: u.id,
         email: u.email,
@@ -95,14 +110,15 @@ export class CompanyUsersService {
         lastName: u.lastName,
         phone: u.phone,
         roles: u.roles,
-        isOwner: company?.ownerUserId === u.id,
+        isOwner,
         isActive: u.isActive,
         lastLoginAt: u.lastLoginAt,
-        // Rol-varsayılan izinleri + override (UI toggle hesabı için).
-        rolePermissions: [...permissionsForRoles(u.roles)],
+        permissions,
+        // Rol-varsayılan izinleri + fark (UI toggle hesabı için).
+        rolePermissions: [...preset],
         permissionsOverride: {
-          added: override?.added ?? [],
-          removed: override?.removed ?? [],
+          added: [...stored].filter((k) => !preset.has(k)),
+          removed: [...preset].filter((k) => !stored.has(k)),
         },
       };
     });
@@ -165,6 +181,7 @@ export class CompanyUsersService {
         companyId: actor.companyId,
         email,
         roles: dto.roles as CompanyRole[],
+        permissions: permissionsForRoles(dto.roles),
         token: crypto.randomBytes(32).toString("hex"),
         expiresAt: new Date(
           Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -318,6 +335,11 @@ export class CompanyUsersService {
             lastName: dto.lastName.trim(),
             phone: dto.phone?.trim() || null,
             roles: inv.roles,
+            // Davetle verilen açık liste; eski davetlerde (boş) rol hazır seti.
+            permissions:
+              inv.permissions.length > 0
+                ? normalizePermissions(inv.permissions)
+                : permissionsForRoles(inv.roles),
             companyId: inv.companyId,
             // Davet linki e-postaya gitti — e-posta bu yolla doğrulanmış sayılır.
             emailVerifiedAt: now,
@@ -431,6 +453,7 @@ export class CompanyUsersService {
     dto: UpdateUserRolesDto,
   ) {
     const target = await this.requireMember(actor.companyId, targetId);
+    this.assertNotSelf(actor, targetId);
     const company = await this.prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { ownerUserId: true },
@@ -482,7 +505,11 @@ export class CompanyUsersService {
         roles,
       );
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
-      await tx.companyUser.update({ where: { id: targetId }, data: { roles } });
+      // Roller ETİKET: yazılan doğruluk kaynağı hazır setlerin birleşimi.
+      await tx.companyUser.update({
+        where: { id: targetId },
+        data: { roles, permissions: permissionsForRoles(roles) },
+      });
     });
     // INV-AUDIT-1: yetki geçişi (rol değişimi) — commit SONRASI, before/after.
     await this.audit.log({
@@ -535,6 +562,7 @@ export class CompanyUsersService {
     },
   ) {
     const target = await this.requireMember(actor.companyId, targetId);
+    if (dto.roles) this.assertNotSelf(actor, targetId);
     const company = await this.prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { ownerUserId: true },
@@ -571,7 +599,7 @@ export class CompanyUsersService {
         : {}),
       ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
       ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
-      ...(roles ? { roles } : {}),
+      ...(roles ? { roles, permissions: permissionsForRoles(roles) } : {}),
     };
     // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
     if (roles) {
@@ -682,8 +710,12 @@ export class CompanyUsersService {
   }
 
   /**
-   * Kişi-bazlı izin override — yalnızca FİRMA SAHİBİ, başka kullanıcıların
-   * rol-varsayılan izinlerini artırır/azaltır. Sahibin kendi izinleri kısıtlanamaz.
+   * Kişi-bazlı izin düzenleme (yetki tablosu, Faz 1 arka ucu) — yalnızca
+   * FİRMA SAHİBİ, başka kullanıcıların izin listesini rol hazır setine göre
+   * artırır/azaltır (`added`/`removed`). Sonuç AÇIK LİSTE olarak yazılır,
+   * rol etiketleri listeden türetilir. İşlem izni eklemek koltuk tüketir →
+   * koltuk kapısı kilitli tx'te (updateRoles ile aynı). Sahibin kendi
+   * izinleri kısıtlanamaz.
    */
   async updatePermissions(
     actor: AuthenticatedCompanyUser,
@@ -706,36 +738,50 @@ export class CompanyUsersService {
       );
     }
 
-    // Anahtarları katalogla doğrula; geçersizleri reddet.
+    // Anahtarları katalogla doğrula (eski anahtar yenisine eşlenir); geçersizleri reddet.
     const valid = new Set(ALL_COMPANY_PERMISSIONS);
-    const clean = (arr: string[]) =>
-      [...new Set(arr)].filter((k) => valid.has(k));
-    const added = clean(dto.added);
-    const removed = clean(dto.removed).filter((k) => !added.includes(k));
-    const invalid = [...dto.added, ...dto.removed].filter((k) => !valid.has(k));
+    const canon = (k: string) =>
+      k in LEGACY_PERMISSION_MAP ? LEGACY_PERMISSION_MAP[k] : k;
+    const invalid = [...dto.added, ...dto.removed].filter((k) => {
+      const c = canon(k);
+      return !c || !valid.has(c);
+    });
     if (invalid.length > 0) {
       throw new BadRequestException(`Geçersiz izin: ${invalid[0]}`);
     }
+    const added = new Set(dto.added.map(canon) as string[]);
+    const removed = new Set(
+      (dto.removed.map(canon) as string[]).filter((k) => !added.has(k)),
+    );
 
-    // Rol-varsayılanıyla aynı sonucu veren override'ı sadeleştir:
-    // - role'de OLAN izni added'dan düş (gereksiz), OLMAYAN izni removed'dan düş.
-    const roleSet = permissionsForRoles(target.roles);
-    const effectiveAdded = added.filter((k) => !roleSet.has(k));
-    const effectiveRemoved = removed.filter((k) => roleSet.has(k));
-
-    // before-override (requireMember seçmiyor) — audit için ayrı oku.
-    const beforeRow = await this.prisma.companyUser.findUnique({
-      where: { id: targetId },
-      select: { permissionsOverride: true },
+    const before = effectivePermissions({
+      isOwner: false,
+      permissions: target.permissions,
+      roles: target.roles,
     });
+    const base = permissionsForRoles(target.roles);
+    const next = normalizePermissions([
+      ...base.filter((k) => !removed.has(k)),
+      ...added,
+    ]);
+    const nextRoles = rolesFromPermissions(next, false) as CompanyRole[];
+    const wasSeat = this.rolesConsumeSeat(target.roles as CompanyRole[]);
+    const willSeat = this.rolesConsumeSeat(nextRoles);
 
-    await this.prisma.companyUser.update({
-      where: { id: targetId },
-      data: {
-        permissionsOverride: { added: effectiveAdded, removed: effectiveRemoved },
-      },
+    await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
+      // Faz K: koltuksuz kişiye işlem izni eklenirken kapı (tx + FOR UPDATE).
+      if (!wasSeat && willSeat) {
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          context: "assign",
+        });
+      }
+      await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
+      await tx.companyUser.update({
+        where: { id: targetId },
+        data: { permissions: next, roles: nextRoles },
+      });
     });
-    // INV-AUDIT-1: kişi-bazlı izin override — yetki tarafı, before/after.
+    // INV-AUDIT-1: kişi-bazlı izin değişimi — yetki tarafı, before/after.
     await this.audit.log({
       action: "company.user.permissions_overridden",
       actorType: "company",
@@ -747,10 +793,11 @@ export class CompanyUsersService {
       critical: true,
       metadata: {
         roles: target.roles,
-        before:
-          (beforeRow?.permissionsOverride as CompanyPermissionOverride | null) ??
-          null,
-        after: { added: effectiveAdded, removed: effectiveRemoved },
+        rolesAfter: nextRoles,
+        before,
+        after: next,
+        added: [...added],
+        removed: [...removed],
       },
     });
     return { ok: true };
@@ -859,10 +906,29 @@ export class CompanyUsersService {
   private async requireMember(companyId: string, userId: string) {
     const u = await this.prisma.companyUser.findFirst({
       where: { id: userId, companyId, deletedAt: null },
-      select: { id: true, roles: true, email: true, authId: true },
+      select: {
+        id: true,
+        roles: true,
+        permissions: true,
+        email: true,
+        authId: true,
+      },
     });
     if (!u) throw new NotFoundException("Kullanıcı bulunamadı");
     return u;
+  }
+
+  /**
+   * Yetki tablosu kuralı: kimse KENDİ rol/izin satırını düzenleyemez — Kurucu
+   * hariç (kendine koltuk ekleyip/bırakabilir). Aksi hâlde users:manage
+   * taşıyan bir Yönetici kendine sessizce koltuk (işlem yetkisi) eklerdi.
+   */
+  private assertNotSelf(actor: AuthenticatedCompanyUser, targetId: string) {
+    if (targetId === actor.userId && !actor.isOwner) {
+      throw new BadRequestException(
+        "Kendi yetkilerinizi düzenleyemezsiniz — Kurucu veya başka bir yönetici yapmalı",
+      );
+    }
   }
 
   /**
@@ -1031,7 +1097,7 @@ export class CompanyUsersService {
       if (currentOwnerId) {
         await tx.companyUser.update({
           where: { id: currentOwnerId },
-          data: { roles: demoted },
+          data: { roles: demoted, permissions: permissionsForRoles(demoted) },
         });
       }
       await tx.company.update({
@@ -1166,7 +1232,7 @@ export class CompanyUsersService {
           isActive: true,
           roles: { hasSome: seatRoles },
         },
-        select: { id: true, email: true, roles: true },
+        select: { id: true, email: true, roles: true, permissions: true },
       });
       const holderIds = new Set(holders.map((h) => h.id));
       for (const id of keep) {
@@ -1181,9 +1247,15 @@ export class CompanyUsersService {
         const newRoles = (h.roles as CompanyRole[]).filter(
           (r) => !(SEAT_ROLES as readonly string[]).includes(r),
         );
+        // İzin listesinden İŞLEM anahtarları düşer (görüntüleme/yönetim kalır).
+        const perms = effectivePermissions({
+          isOwner: false,
+          permissions: h.permissions,
+          roles: h.roles,
+        }).filter((k) => !ALL_SEAT_PERMISSIONS.includes(k));
         await tx.companyUser.update({
           where: { id: h.id },
-          data: { roles: newRoles },
+          data: { roles: newRoles, permissions: perms },
         });
       }
       return {
@@ -1267,7 +1339,9 @@ export class CompanyUsersService {
     targetId: string,
     newRoles: CompanyRole[],
   ) {
-    // Yönetim yetkisi = Kurucu VEYA Yönetici.
+    // Yönetim yetkisi = Kurucu VEYA "kullanıcı ve yetki" (users:manage) tiki
+    // (YONETICI etiketi bundan türer). Eski satırlar (izin kolonu boş) için
+    // etiket de sayılır — geçiş emniyeti.
     if (newRoles.includes("SAHIP") || newRoles.includes("YONETICI")) return;
     const otherActiveAdmins = await tx.companyUser.count({
       where: {
@@ -1275,7 +1349,10 @@ export class CompanyUsersService {
         deletedAt: null,
         isActive: true,
         id: { not: targetId },
-        roles: { hasSome: ["SAHIP", "YONETICI"] },
+        OR: [
+          { permissions: { has: "users:manage" } },
+          { permissions: { isEmpty: true }, roles: { hasSome: ["SAHIP", "YONETICI"] } },
+        ],
       },
     });
     if (otherActiveAdmins === 0) {

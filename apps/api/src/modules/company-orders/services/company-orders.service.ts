@@ -8,7 +8,6 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
-  CompanyRole,
   Prisma,
   type CompanyOrderPaymentTiming,
   type CompanyOrderStatus,
@@ -29,6 +28,8 @@ import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { MAX_MONEY } from "../../../common/constants/money";
 import { sumPaymentsByStatus } from "../../../common/company/order-payments";
 import { AuditService } from "../../audit/audit.service";
+import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
+import { hasReadContext } from "../../../common/company/full-read-context";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type {
   AcceptOrderDto,
@@ -1457,21 +1458,17 @@ export class CompanyOrdersService {
    */
   private async assertOrderReadContext(
     user: AuthenticatedCompanyUser,
-    listingId: string | null,
+    order: {
+      listingId: string | null;
+      buyerCompanyId: string;
+      sellerCompanyId: string;
+    },
   ): Promise<void> {
-    const fullRead =
-      user.isOwner ||
-      user.roles.some((r) =>
-        (
-          [
-            CompanyRole.SAHIP,
-            CompanyRole.YONETICI,
-            CompanyRole.SATIN_ALMACI,
-            CompanyRole.SATISCI,
-          ] as CompanyRole[]
-        ).includes(r),
-      );
-    if (fullRead) return;
+    // Yetki tablosu: siparişin firmamızdaki TARAFI belirler — alıcı yanı
+    // buy:view, satıcı yanı sell:view (tek kaynak full-read-context).
+    const side = order.sellerCompanyId === user.companyId ? "sell" : "buy";
+    if (hasReadContext(user, side)) return;
+    const listingId = order.listingId;
     if (listingId) {
       const linked = await this.prisma.approvalRequest.findFirst({
         where: {
@@ -1491,13 +1488,13 @@ export class CompanyOrdersService {
     side: "seller" | "buyer",
   ): void {
     const needed =
-      side === "seller" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
-    // Faz R: SAHIP muafiyeti kaldırıldı — sipariş adımı yalnız taraf-rolüyle.
-    if (!user.roles.includes(needed)) {
+      side === "seller" ? "sell:order:manage" : "buy:order:manage";
+    // Faz R: SAHIP muafiyeti yok — sipariş adımı yalnız tarafın işlem izniyle.
+    if (!hasCompanyPermission(user, needed)) {
       throw new ForbiddenException(
         side === "seller"
-          ? "Bu işlem için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
-          : "Bu işlem için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin",
+          ? "Bu işlem için 'Satış siparişi işlemleri' yetkisi gerekir — firma yöneticinizden isteyin"
+          : "Bu işlem için 'Alım siparişi işlemleri' yetkisi gerekir — firma yöneticinizden isteyin",
       );
     }
   }
@@ -1545,7 +1542,7 @@ export class CompanyOrdersService {
     }
     // Faz O — dar-bağlam okuma kapısı (getOne ile simetrik; mutasyonlar ayrıca
     // assertOrderRole ile kapılı, bu yalnız okuma sızıntısını kapatır).
-    await this.assertOrderReadContext(user, order.listingId);
+    await this.assertOrderReadContext(user, order);
     return order;
   }
 
@@ -1867,11 +1864,17 @@ export class CompanyOrdersService {
    * liste render'ı hissedilir yavaşlayınca OrdersList server-driven'a taşınmalı
    * (filtre/arama/sıralama/KPI/sayaçlar backend'e). Bkz. docs/perf-notes.md.
    */
-  async list(companyId: string) {
+  async list(user: AuthenticatedCompanyUser) {
+    const companyId = user.companyId;
+    // Yetki tablosu: yalnız görebildiği TARAFIN siparişleri (alıcı yanı
+    // buy:view, satıcı yanı sell:view); ikisi de yoksa boş liste.
+    const sides = [
+      ...(hasReadContext(user, "buy") ? [{ buyerCompanyId: companyId }] : []),
+      ...(hasReadContext(user, "sell") ? [{ sellerCompanyId: companyId }] : []),
+    ];
+    if (sides.length === 0) return [];
     const rows = await this.prisma.companyOrder.findMany({
-      where: {
-        OR: [{ sellerCompanyId: companyId }, { buyerCompanyId: companyId }],
-      },
+      where: { OR: sides },
       select: {
         id: true,
         number: true,
@@ -1956,7 +1959,7 @@ export class CompanyOrdersService {
       throw new NotFoundException("Sipariş bulunamadı");
     }
     // Faz O — dar-bağlam okuma kapısı (listing getOne ile simetrik).
-    await this.assertOrderReadContext(user, o.listingId);
+    await this.assertOrderReadContext(user, o);
     const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
 
     // S3: gösterim toplamları tek-kaynak reducer'dan (eskiden inline döngü

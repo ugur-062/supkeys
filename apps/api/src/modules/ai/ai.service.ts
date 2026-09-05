@@ -7,8 +7,8 @@ import {
   Optional,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { SEAT_ROLES, tierAtLeast } from "@rothern/shared";
-import { hasManagementRole } from "../company-auth/permissions/company-permissions.constants";
+import { ALL_SEAT_PERMISSIONS, tierAtLeast } from "@rothern/shared";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { NotificationService } from "../notifications/notification.service";
@@ -36,6 +36,8 @@ export interface AiCallOptions {
   feature: string;
   prompt: string;
   system?: string;
+  /** Erişim: özelliğin istediği izinler (any-of). Boş → herhangi bir işlem izni. */
+  anyOf?: readonly string[];
   /** AI-1: fotoğraf/taranmış belge → vision model varyantı. */
   vision?: boolean;
   /**
@@ -93,8 +95,17 @@ export class AiService {
     @Optional() private readonly notifications?: NotificationService,
   ) {}
 
-  /** Erişim kapısı — AI-1 özellik servisleri de BURADAN geçer (tek kapı). */
-  assertAiAccess(user: AuthenticatedCompanyUser): void {
+  /**
+   * Erişim kapısı — AI-1 özellik servisleri de BURADAN geçer (tek kapı).
+   * `anyOf`: özelliğin istediği izinler (herhangi biri yeter). Varsayılan:
+   * herhangi bir İŞLEM izni (koltuk) — yetki tablosu 2026-09-05; etiket-only
+   * Kurucu/Yönetici, Onaylayıcı ve salt görüntüleyici → 403. Ürün çıkarımı
+   * `sell:product:manage`, profil zenginleştirme `company:manage` geçirir.
+   */
+  assertAiAccess(
+    user: AuthenticatedCompanyUser,
+    anyOf: readonly string[] = ALL_SEAT_PERMISSIONS,
+  ): void {
     if (!this.config.enabled || !this.provider) {
       // Fail-closed ama SESSİZ DEĞİL: anahtar yoksa özellik kapalı, net 503.
       throw new ServiceUnavailableException(
@@ -106,9 +117,9 @@ export class AiService {
         "AI özellikleri Silver veya üzeri paket gerektirir.",
       );
     }
-    if (!user.roles.some((r) => (SEAT_ROLES as readonly string[]).includes(r))) {
+    if (!hasCompanyPermission(user, anyOf)) {
       throw new ForbiddenException(
-        "AI özelliklerini yalnızca Satın Almacı veya Satışçı rolü taşıyan kullanıcılar kullanabilir.",
+        "AI özelliklerini yalnızca bu alanda işlem yetkisi taşıyan kullanıcılar kullanabilir.",
       );
     }
   }
@@ -121,7 +132,7 @@ export class AiService {
     user: AuthenticatedCompanyUser,
     options: AiCallOptions,
   ): Promise<AiCallResult> {
-    this.assertAiAccess(user);
+    this.assertAiAccess(user, options.anyOf);
     const provider = this.provider!;
     const { models, upgrade } = this.config;
 
@@ -251,13 +262,14 @@ export class AiService {
    * - Diğerleri (ONAYLAYICI vb.): 403.
    */
   async usageView(user: AuthenticatedCompanyUser) {
-    const isManagement = user.isOwner || hasManagementRole(user.roles);
-    const hasSeat = user.roles.some((r) =>
-      (SEAT_ROLES as readonly string[]).includes(r),
-    );
+    const isManagement = hasCompanyPermission(user, [
+      "users:manage",
+      "company:manage",
+    ]);
+    const hasSeat = hasCompanyPermission(user, ALL_SEAT_PERMISSIONS);
     if (!isManagement && !hasSeat) {
       throw new ForbiddenException(
-        "AI kullanımını yalnızca Kurucu/Yönetici veya işlem rolü taşıyan kullanıcılar görüntüleyebilir.",
+        "AI kullanımını yalnızca yönetim ya da işlem yetkisi taşıyan kullanıcılar görüntüleyebilir.",
       );
     }
 

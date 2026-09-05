@@ -16,8 +16,10 @@ class ProductExtractDto {
 
 /**
  * "Katalogdan ürün ekle (AI)" — guard zinciri diğer AI çıkarımlarıyla aynı
- * (JWT + Silver+), ek olarak katalog yazma izni (`templates:manage`): bu uç
- * yalnız önizleme dönse de ürün kataloğunu doldurma akışının parçası.
+ * (JWT + Silver+), ek olarak ürün yazma izni (`sell:product:manage`): bu uç
+ * yalnız önizleme dönse de ürün kataloğunu doldurma akışının parçası. (Eski
+ * `templates:manage` kapısı saf Satışçı'yı dışarıda bırakıyordu — yetki
+ * tablosu 2026-09-05.)
  *
  * Dosyalar `POST company/ai/uploads/url` presign'ıyla yüklenir (aynı anahtar
  * alanı). Yazma YOK — kullanıcı önizlemeyi onaylayınca
@@ -29,7 +31,7 @@ export class ProductExtractController {
   constructor(private readonly service: ProductExtractService) {}
 
   @Post("product-extract")
-  @RequireCompanyPermission("templates:manage")
+  @RequireCompanyPermission("sell:product:manage")
   extract(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ProductExtractDto,

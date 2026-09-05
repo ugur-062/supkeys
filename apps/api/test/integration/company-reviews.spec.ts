@@ -52,13 +52,13 @@ describe("değerlendirme op-rol kapısı", () => {
       withRoles(buyer.auth, []),
     ]) {
       await expect(svc.upsert(p, input)).rejects.toThrow(
-        /Satın Almacı rolü gerekir/,
+        /'Alım siparişi işlemleri' yetkisi gerekir/,
       );
     }
     // Yön uyuşmayan işlem rolü de yazamaz (alıcı yanında yalnız-Satışçı).
     await expect(
       svc.upsert(withRoles(buyer.auth, [CompanyRole.SATISCI]), input),
-    ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+    ).rejects.toThrow(/'Alım siparişi işlemleri' yetkisi gerekir/);
 
     // Doğru roller geçer (factory kurucu SA+ST taşır).
     await expect(svc.upsert(buyer.auth, input)).resolves.toMatchObject({
@@ -70,6 +70,6 @@ describe("değerlendirme op-rol kapısı", () => {
     // Satıcı yanında etiket-only yazamaz.
     await expect(
       svc.upsert(withRoles(seller.auth, [CompanyRole.SAHIP], true), input),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Satış siparişi işlemleri' yetkisi gerekir/);
   });
 });

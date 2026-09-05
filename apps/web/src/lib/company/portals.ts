@@ -1,4 +1,8 @@
 import { tierAtLeast } from "@rothern/shared";
+import {
+  userHasPermission,
+  type PermissionSubject,
+} from "@/lib/company/permissions";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import {
   BuildingOffice2Icon,
@@ -249,31 +253,48 @@ export function activePortalFromPath(pathname: string | null): PortalKey | null 
  * altındaki kademeler yalnızca satış (teklif) tarafına erişir.
  */
 export function accessiblePortals(
-  roles: CompanyRole[],
+  user: PermissionSubject | null | undefined,
   tier?: string,
 ): PortalKey[] {
-  // Kurucu (SAHIP) ⊇ Yönetici — her iki portalı da görür.
-  const isManager = roles.includes("YONETICI") || roles.includes("SAHIP");
+  // Yetki tablosu (2026-09-05): portal = o tarafın GÖRÜNTÜLEME izni
+  // (işlem izni görüntülemeyi örtük içerir; Kurucu/Yönetici hazır setinde
+  // ikisi de var). Satınalma ayrıca paket kuralına tabi (Silver+).
   const out: PortalKey[] = [];
   if (
-    (isManager || roles.includes("SATIN_ALMACI")) &&
+    userHasPermission(user, "buy:view") &&
     tierAtLeast(tier ?? "STANDART", "SILVER")
   )
     out.push("satinalma");
-  if (isManager || roles.includes("SATISCI")) out.push("satis");
+  if (userHasPermission(user, "sell:view")) out.push("satis");
   return out;
 }
 
 /**
- * Mesajlaşma = operasyon rolü işi: portalın işlem rolü (satınalma→Satın
- * Almacı, satış→Satışçı) olmayan kullanıcı — Kurucu/Yönetici dahil — o
- * portalda mesajlaşamaz ve gelen kutusunu göremez (API aynası: 403).
+ * Mesaj kutusunu OKUMA = portalı görüntüleme izni (API `listThreads` aynası:
+ * Kurucu/Yönetici/görüntüleyici de okur). GÖNDERME ayrı: `canSendMessages`.
  */
 export function canUseMessaging(
-  roles: CompanyRole[],
+  user: PermissionSubject | null | undefined,
   portal: PortalKey,
 ): boolean {
-  return roles.includes(PORTALS[portal].role);
+  return userHasPermission(
+    user,
+    portal === "satinalma" ? "buy:view" : "sell:view",
+  );
+}
+
+/**
+ * Mesaj GÖNDERME = işlem izni (API `send` aynası): satınalmada "talep açma
+ * ve yönetme", satışta "teklif verme". Etiket-only ve görüntüleyici gönderemez.
+ */
+export function canSendMessages(
+  user: PermissionSubject | null | undefined,
+  portal: PortalKey,
+): boolean {
+  return userHasPermission(
+    user,
+    portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit",
+  );
 }
 
 export function isPortalItemActive(

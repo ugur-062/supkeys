@@ -28,7 +28,7 @@ for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split(
 
 import { PrismaClient, type CompanyActivity, type CompanyTier, type Prisma } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
-import { foldSearchText, generateSlug, productCompletion } from "@rothern/shared";
+import { foldSearchText, generateSlug, permissionsForRoles, productCompletion } from "@rothern/shared";
 
 const prisma = new PrismaClient();
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -330,7 +330,7 @@ async function main() {
       slug = existingUser.company.slug ?? generateSlug(d.name);
       while ((await prisma.company.count({ where: { slug, id: { not: existingUser.companyId } } })) > 0) slug = `${slug}-${Math.floor(Math.random() * 90 + 10)}`;
       await prisma.company.update({ where: { id: existingUser.companyId }, data: { ...data, slug } });
-      await prisma.companyUser.update({ where: { id: existingUser.id }, data: { authId, roles: ["SAHIP"], isActive: true, deletedAt: null, emailVerifiedAt: new Date() } });
+      await prisma.companyUser.update({ where: { id: existingUser.id }, data: { authId, roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), isActive: true, deletedAt: null, emailVerifiedAt: new Date() } });
       companyId = existingUser.companyId; ownerId = existingUser.id;
     } else {
       let code = genCode();
@@ -340,7 +340,7 @@ async function main() {
       const company = await prisma.company.create({ data: { ...data, rothernId: code, slug } });
       const firstName = d.name.split(" ")[0] ?? d.name;
       const user = await prisma.companyUser.create({
-        data: { email, authId, firstName, lastName: "Yetkili", roles: ["SAHIP"], companyId: company.id, emailVerifiedAt: new Date() },
+        data: { email, authId, firstName, lastName: "Yetkili", roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), companyId: company.id, emailVerifiedAt: new Date() },
       });
       await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
       companyId = company.id; ownerId = user.id;

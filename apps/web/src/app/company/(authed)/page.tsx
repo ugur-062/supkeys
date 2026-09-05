@@ -25,7 +25,7 @@ export default function CompanyHome() {
       router.replace(intentHref);
       return;
     }
-    const available = accessiblePortals(user.roles, company?.tier);
+    const available = accessiblePortals(user, company?.tier);
     const target =
       lastPortal && available.includes(lastPortal)
         ? lastPortal

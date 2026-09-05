@@ -37,6 +37,7 @@ export class CompanyComplaintsController {
   constructor(private readonly service: CompanyComplaintsService) {}
 
   @Get()
+  @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.listMine(user);
   }

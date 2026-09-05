@@ -48,7 +48,7 @@ export function CompanyInboxView() {
   const { user } = useCompanyAuth();
   // Kullanıcının mesajlaşabildiği taraflar (işlem rolü olan portallar).
   const myPortals = PORTAL_ORDER.filter((p) =>
-    canUseMessaging(user?.roles ?? [], p),
+    canUseMessaging(user, p),
   );
   const allowed = myPortals.length > 0;
   const connections = useConnections();

@@ -1,5 +1,6 @@
 "use client";
 
+import { canSendMessages } from "@/lib/company/portals";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
@@ -49,9 +50,7 @@ export function CompanyMessageThread({
   // F7: gönderme portal-yönlü işlem rolü ister (backend send() birebir:
   // satinalma→Satın Almacı, satis→Satışçı) — rolsüz okur, composer gizli.
   const { user } = useCompanyAuth();
-  const canSend = (user?.roles ?? []).includes(
-    portal === "satis" ? "SATISCI" : "SATIN_ALMACI",
-  );
+  const canSend = canSendMessages(user, portal);
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);

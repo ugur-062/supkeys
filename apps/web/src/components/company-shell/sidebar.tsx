@@ -150,8 +150,8 @@ export function CompanySidebarContent({
   const { data: pendingCount } = usePendingApprovalCount(canAct);
   // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
-  const canCreateBuyListing = useHasCompanyPermission("buy:listing:create");
-  const available = accessiblePortals(roles, company?.tier);
+  const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
+  const available = accessiblePortals(user, company?.tier);
   // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel gösterilir;
   // giremediği panel kilitli görünür. Tıklayınca PortalGuard uygun ekranı açar
   // (rol yoksa yetki ekranı, kademe düşükse paket kapısı) — eski topbar mantığı.

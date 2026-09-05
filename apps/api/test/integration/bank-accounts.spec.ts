@@ -212,10 +212,10 @@ describe("IBAN maskeleme — liste yalnız yetkiliye tam döner", () => {
   it("controller kapısı: tam görüm billing:manage'e (OWNER_ONLY) bağlıdır", () => {
     // list() handler'ı canSeeFullIban'ı bu izinden türetir — CRUD ile aynı eşik.
     expect(
-      hasCompanyPermission([CompanyRole.SAHIP], true, "billing:manage"),
+      hasCompanyPermission({ isOwner: true, roles: [CompanyRole.SAHIP] }, "billing:manage"),
     ).toBe(true);
     expect(
-      hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.YONETICI] }, "billing:manage"),
     ).toBe(false);
   });
 });
@@ -301,20 +301,16 @@ describe("banka hesabı yönetimi — yalnız Kurucu (billing:manage)", () => {
     // Controller create/update/delete = @RequireCompanyPermission("billing:manage").
     // billing:manage OWNER_ONLY → yalnız Kurucu (isOwner); rol yetmez.
     expect(
-      hasCompanyPermission([CompanyRole.SAHIP], true, "billing:manage"),
+      hasCompanyPermission({ isOwner: true, roles: [CompanyRole.SAHIP] }, "billing:manage"),
     ).toBe(true);
     expect(
-      hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.YONETICI] }, "billing:manage"),
     ).toBe(false);
     expect(
-      hasCompanyPermission([CompanyRole.SATISCI], false, "billing:manage"),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.SATISCI] }, "billing:manage"),
     ).toBe(false);
     expect(
-      hasCompanyPermission(
-        [CompanyRole.YONETICI, CompanyRole.SATISCI],
-        false,
-        "billing:manage",
-      ),
+      hasCompanyPermission({ isOwner: false, roles: [CompanyRole.YONETICI, CompanyRole.SATISCI] }, "billing:manage"),
     ).toBe(false);
   });
 });

@@ -33,7 +33,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const [hovered, setHovered] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const available = accessiblePortals(user?.roles ?? [], company?.tier);
+  const available = accessiblePortals(user, company?.tier);
   const activePortal: PortalKey =
     activePortalFromPath(pathname) ??
     (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??

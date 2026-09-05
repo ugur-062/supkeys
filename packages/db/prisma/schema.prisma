@@ -2053,7 +2053,12 @@ model CompanyUser {
   lastName  String
   phone     String?
 
+  // ETİKET — izin listesinden türetilir (rolesFromPermissions); tek başına yetki vermez.
   roles CompanyRole[] @default([])
+  // DOĞRULUK KAYNAĞI (2026-09-05 yetki tablosu): kişinin açık izin anahtarları
+  // (@rothern/shared company-permissions kataloğu). Boş + roller doluysa
+  // kapılar rol hazır setine düşer (geçiş emniyeti).
+  permissions String[] @default([])
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -2071,7 +2076,7 @@ model CompanyUser {
   // Oturum sürümü — parola değişince artar; eski JWT'ler geçersizleşir
   // (strategy her istekte DB'den doğrular).
   tokenVersion           Int             @default(0)
-  permissionsOverride    Json? // { added?: string[], removed?: string[] }
+  permissionsOverride    Json? // LEGACY — artık okunmaz (permissions listesine katıldı); Faz 4'te düşer
   notificationPrefs      Json?
   invitedById            String?
   invitedAt              DateTime?
@@ -2113,9 +2118,11 @@ model CompanyUserInvitation {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  email  String
-  roles  CompanyRole[]           @default([])
-  token  String                  @unique // crypto.randomBytes(32).hex — kabul linki
+  email       String
+  roles       CompanyRole[]           @default([])
+  // Davetle verilen izin listesi (kabulde kişiye aynen yazılır; boşsa rol seti).
+  permissions String[]                @default([])
+  token       String                  @unique // crypto.randomBytes(32).hex — kabul linki
   status CompanyInvitationStatus @default(PENDING)
 
   expiresAt   DateTime

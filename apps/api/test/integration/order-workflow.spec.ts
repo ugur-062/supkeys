@@ -793,13 +793,13 @@ describe("taraf ve durum guard'ları", () => {
 
     await expect(
       orders.accept(seller.auth, order.id, acceptInput as never),
-    ).rejects.toThrow(/Satışçı rolü/);
+    ).rejects.toThrow(/'Satış siparişi işlemleri' yetkisi/);
     await expect(
       orders.receive(buyer.auth, order.id, {} as never),
-    ).rejects.toThrow(/Satın Almacı rolü/);
+    ).rejects.toThrow(/'Alım siparişi işlemleri' yetkisi/);
     await expect(
       orders.recordPayment(buyer.auth, order.id, { amount: 100 } as never),
-    ).rejects.toThrow(/Satın Almacı rolü/);
+    ).rejects.toThrow(/'Alım siparişi işlemleri' yetkisi/);
   });
 
   it("reddedilen sipariş gerekçesiyle tek yazmada REJECTED olur", async () => {

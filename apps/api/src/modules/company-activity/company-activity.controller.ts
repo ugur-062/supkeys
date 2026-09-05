@@ -5,6 +5,8 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyActivityService } from "./company-activity.service";
@@ -50,11 +52,12 @@ class ActivityLogQueryDto {
  * kayıtları, sanitize projeksiyon (ip/userAgent yok).
  */
 @Controller("company/activity-log")
-@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanyActivityController {
   constructor(private readonly service: CompanyActivityService) {}
 
   @Get()
+  @RequireCompanyPermission(["users:manage", "company:manage"])
   list(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query() query: ActivityLogQueryDto,

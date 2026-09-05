@@ -1,5 +1,6 @@
 "use client";
 
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -72,6 +73,8 @@ export function ProductsView() {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<ProductTab>("all");
   const [importOpen, setImportOpen] = useState(false);
+  // Ürün ekleme/yayın = "Ürün ve vitrin yönetimi" işlem izni (API aynası).
+  const canManage = useHasCompanyPermission("sell:product:manage");
   /**
    * Yeni ürün: AYNI tek-sayfa form, boş kayıtla. `?yeni=1` ile açılır —
    * kayıt niyeti "Vitrin aç" ve pano CTA'sı buraya düşer.
@@ -198,7 +201,7 @@ export function ProductsView() {
             : "Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde görünür; arama motorlarına açılma pazar yeri yayınıyla başlar."
         }
         action={
-          <div className="flex flex-wrap gap-2">
+          !canManage ? undefined : <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setImportOpen(true)}
@@ -283,7 +286,7 @@ export function ProductsView() {
           variant={q || tab !== "all" ? "no-results" : "no-data"}
           className="mt-4"
           action={
-            q || tab !== "all" ? undefined : (
+            q || tab !== "all" || !canManage ? undefined : (
               <button
                 type="button"
                 onClick={() => setCreating(true)}

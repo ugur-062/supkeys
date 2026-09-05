@@ -154,9 +154,13 @@ export class ProfileEnrichService {
       "Şunları üret: aboutText (firmanın ne yaptığını anlatan 2-4 paragraf, 400-1200 karakter); services (sunduğu ürün/hizmet başlıkları, en fazla 12, kısa); city (merkez şehir); foundedYear (kuruluş yılı, sitede açıkça yazıyorsa); linkedinUrl/instagramUrl (sitede link varsa).",
     ].join("\n");
 
+    // Profil zenginleştirme = firma profili yazma işi → `company:manage`
+    // (yetki tablosu: üreten ile kaydeden aynı kişi olabilsin; koltuk şart değil).
+    const PROFILE_ENRICH_ACCESS = ["company:manage"] as const;
     const result = await this.ai
       .callAi(user, {
         feature: "profile_enrich",
+        anyOf: PROFILE_ENRICH_ACCESS,
         system,
         prompt: ask,
         ...(usingSearch
@@ -179,6 +183,7 @@ export class ProfileEnrichService {
       // için iki aşama zorunlu, ama ikisi de gerçek token harcıyor.
       const parsed = await this.ai.callAi(user, {
         feature: "profile_enrich",
+        anyOf: PROFILE_ENRICH_ACCESS,
         system:
           "Verilen metni şemaya uygun JSON'a dönüştür; metinde olmayanı null bırak, EKLEME.",
         prompt: `<metin>\n${result.text.slice(0, 10_000)}\n</metin>`,

@@ -1,5 +1,6 @@
 "use client";
 
+import { userHasPermission } from "@/lib/company/permissions";
 import { useSearchParams } from "next/navigation";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
@@ -253,11 +254,9 @@ export default function OnaylarPage() {
     window.history.replaceState(null, "", u.toString());
   };
   const { user } = useCompanyAuth();
+  // Onay isteğini iptal: başlatan VEYA "Onay akışı tanımlama" yetkisi (API aynası).
   const isManager =
-    !!user &&
-    (user.isOwner ||
-      user.roles.includes("SAHIP") ||
-      user.roles.includes("YONETICI"));
+    !!user && (user.isOwner || userHasPermission(user, "approvals:manage"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
   // Boolean "intent" + consume: bölüm remount olduğunda (sekmeye tekrar
   // girildiğinde) sihirbaz KENDİLİĞİNDEN açılmasın diye tüketilince sıfırlanır.

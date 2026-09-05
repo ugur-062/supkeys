@@ -101,7 +101,7 @@ describe("placeBid — görünürlük/uygunluk", () => {
     });
     await expect(
       service.placeBid(buyerOnly.auth, listing.id, bid(item.id)),
-    ).rejects.toThrow(/rol|Satışçı/i);
+    ).rejects.toThrow(/yetkisi gerekir|Teklif verme/);
   });
 
   it("Faz R: SAHIP-only teklif VEREMEZ (etiket op-izin vermez); SAHIP+ST verir", async () => {
@@ -113,7 +113,7 @@ describe("placeBid — görünürlük/uygunluk", () => {
     });
     await expect(
       service.placeBid(soloFounder.auth, listing.id, bid(item.id)),
-    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    ).rejects.toThrow(/'Teklif verme' yetkisi gerekir/);
 
     // Kurucu kendine ST eklerse (yeni model) teklif verebilir.
     const opFounder = await makeCompanyWithUser(prisma, {

@@ -135,31 +135,42 @@ describe("#3 — değerlendirme özeti ucu görünürlük kapısı", () => {
   });
 });
 
-describe("#4 — izin override'ı KATALOGLA sınırlı", () => {
-  it("katalog dışı (legacy) işlem anahtarı yetki VERMEZ; katalog içi verir; removed her zaman keser", () => {
-    // Faz R: işlem izinleri (buy:*/sell:*) katalogdan ÇIKARILDI — override ile
-    // verilemez. Rolsüz kullanıcıya legacy anahtar yazılmış olsa da etkisiz.
+describe("#4 — açık izin listesi KATALOGLA sınırlı (yetki tablosu 2026-09-05)", () => {
+  it("katalog içi anahtar (işlem dahil) yetki verir; ölü anahtar asla; eski anahtar yenisine eşlenir", () => {
+    // Yetki tablosu: işlem izinleri artık tablonun tikidir — açık listede
+    // yazılıysa yetki verir (eski override modeli katalog dışı diye
+    // reddediyordu). Normalizasyon: eski anahtar → yeni, ölü/bilinmeyen düşer.
     expect(
-      hasCompanyPermission([], false, "buy:listing:create", {
-        added: ["buy:listing:create"],
-      } as never),
-    ).toBe(false);
-    expect(
-      hasCompanyPermission([], false, "buy:award", {
-        added: ["buy:award"],
-      } as never),
-    ).toBe(false);
-    // Katalog içi (yönetim/onay) anahtar — override çalışmaya devam eder.
-    expect(
-      hasCompanyPermission([], false, "users:manage", {
-        added: ["users:manage"],
-      } as never),
+      hasCompanyPermission(
+        { isOwner: false, permissions: ["buy:award"], roles: [] },
+        "buy:award",
+      ),
     ).toBe(true);
-    // removed filtrelenmez (fail-closed): rolün verdiği izni de keser.
     expect(
-      hasCompanyPermission([CompanyRole.SATIN_ALMACI], false, "buy:award", {
-        removed: ["buy:award"],
-      } as never),
+      hasCompanyPermission(
+        { isOwner: false, permissions: ["buy:listing:create"], roles: [] },
+        "buy:listing:manage",
+      ),
+    ).toBe(true);
+    expect(
+      hasCompanyPermission(
+        { isOwner: false, permissions: ["sell:listing:manage", "bilinmeyen"], roles: [] },
+        "sell:listing:manage",
+      ),
+    ).toBe(false);
+    expect(
+      hasCompanyPermission(
+        { isOwner: false, permissions: ["users:manage"], roles: [] },
+        "users:manage",
+      ),
+    ).toBe(true);
+    // Açık liste doluysa rol hazır seti DEVREYE GİRMEZ: SA etiketi olsa da
+    // listede buy:award yoksa kazandıramaz (fail-closed).
+    expect(
+      hasCompanyPermission(
+        { isOwner: false, permissions: ["buy:view"], roles: [CompanyRole.SATIN_ALMACI] },
+        "buy:award",
+      ),
     ).toBe(false);
   });
 });

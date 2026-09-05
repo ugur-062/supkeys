@@ -7,9 +7,10 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { CompanyRole, Prisma } from "@rothern/db";
+import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
@@ -118,29 +119,43 @@ export class CompanyMessagesService {
     return portal;
   }
 
-  private portalRole(portal: MessagePortal): CompanyRole {
-    return portal === "satinalma"
-      ? CompanyRole.SATIN_ALMACI
-      : CompanyRole.SATISCI;
+  /**
+   * Portalın OKUMA izni (görüntüleme) — yetki tablosu 2026-09-05: gelen
+   * kutusunu portalı görebilen herkes okur (Kurucu/Yönetici/görüntüleyici
+   * dahil; Ağustos'taki "yalnız işlem rolü okur" kararı kullanıcı onayıyla
+   * değişti). GÖNDERME ise işlem izni ister — mesaj karşı firmaya gider,
+   * e-posta tetikler, taahhüt izlenimi yaratır (salt-okunur garanti #4).
+   */
+  private portalViewPermission(portal: MessagePortal): string {
+    return portal === "satinalma" ? "buy:view" : "sell:view";
   }
 
-  /**
-   * Mesajlaşma = operasyon rolü işi (kullanıcı isteği 2026-08-02): Kurucu/
-   * Yönetici etiketi tek başına yetmez — kendine Satın Almacı/Satışçı rolü
-   * vermeyen kurucu mesajları OKUYAMAZ da. Portal tarafı rolü belirler
-   * (satinalma=alıcı→Satın Almacı, satis=satıcı→Satışçı).
-   */
+  private portalSendPermission(portal: MessagePortal): string {
+    return portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit";
+  }
+
+  private canReadPortal(user: AuthenticatedCompanyUser, portal: MessagePortal) {
+    return hasCompanyPermission(user, this.portalViewPermission(portal));
+  }
+
   private requirePortalRole(
     user: AuthenticatedCompanyUser,
     portal: MessagePortal,
     action: "read" | "send",
   ) {
-    if (user.roles.includes(this.portalRole(portal))) return;
-    const roleLabel = portal === "satinalma" ? "Satın Almacı" : "Satışçı";
+    if (action === "read") {
+      if (this.canReadPortal(user, portal)) return;
+      throw new ForbiddenException(
+        portal === "satinalma"
+          ? "Mesajları görüntülemek için 'Satınalma görüntüleme' yetkisi gerekir"
+          : "Mesajları görüntülemek için 'Satış görüntüleme' yetkisi gerekir",
+      );
+    }
+    if (hasCompanyPermission(user, this.portalSendPermission(portal))) return;
     throw new ForbiddenException(
-      action === "send"
-        ? `Mesaj göndermek için ${roleLabel} rolü gerekir`
-        : `Mesajları görüntülemek için ${roleLabel} rolü gerekir`,
+      portal === "satinalma"
+        ? "Mesaj göndermek için 'Talep açma ve yönetme' yetkisi gerekir"
+        : "Mesaj göndermek için 'Teklif verme' yetkisi gerekir",
     );
   }
 
@@ -153,7 +168,7 @@ export class CompanyMessagesService {
   async listThreads(user: AuthenticatedCompanyUser, portalRaw: string) {
     if (portalRaw === "all") {
       const portals = (["satinalma", "satis"] as MessagePortal[]).filter((p) =>
-        user.roles.includes(this.portalRole(p)),
+        this.canReadPortal(user, p),
       );
       const lists = await Promise.all(
         portals.map((p) => this.listThreadsFor(user, p)),
@@ -411,7 +426,7 @@ export class CompanyMessagesService {
       portalRaw === "satinalma" || portalRaw === "satis" ? portalRaw : null;
     const asked: MessagePortal[] = portal ? [portal] : ["satinalma", "satis"];
     const sides = asked
-      .filter((p) => user.roles.includes(this.portalRole(p)))
+      .filter((p) => this.canReadPortal(user, p))
       .map((p) =>
         p === "satinalma"
           ? { buyerCompanyId: user.companyId }

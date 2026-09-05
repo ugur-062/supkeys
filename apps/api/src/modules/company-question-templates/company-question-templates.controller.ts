@@ -27,11 +27,13 @@ export class CompanyQuestionTemplatesController {
 
   // Okuma her role açık; yazma templates:manage ister.
   @Get()
+  @RequireCompanyPermission("buy:view")
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
   }
 
   @Get(":id")
+  @RequireCompanyPermission("buy:view")
   getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

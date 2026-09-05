@@ -25,16 +25,12 @@ export class CompanyBankAccountsController {
   constructor(private readonly service: CompanyBankAccountsService) {}
 
   @Get()
+  @RequireCompanyPermission(["billing:manage", "company:manage", "buy:view", "sell:view"])
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     // Tam IBAN yalnız billing:manage'e (OWNER_ONLY → fiilen SAHIP) döner;
     // diğer üyeler maskeli görür (profildeki canSeeSensitive deseniyle aynı).
     // Sipariş-accept seçimi id ile gider, snapshot DB'den okunur → maske bozmaz.
-    const canSeeFullIban = hasCompanyPermission(
-      user.roles,
-      user.isOwner,
-      "billing:manage",
-      user.permissionsOverride,
-    );
+    const canSeeFullIban = hasCompanyPermission(user, "billing:manage");
     return this.service.list(user.companyId, canSeeFullIban);
   }
 

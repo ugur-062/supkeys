@@ -28,7 +28,7 @@ import { buildProductMatcher, productMatchReason } from "../../../common/company
 import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
-import { bidderOpRole } from "../bidder-op-role";
+import { bidderPermission } from "../bidder-op-role";
 import {
   LISTING_MANAGE_DENY_MESSAGE,
   listingManageDenial,
@@ -79,7 +79,7 @@ import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
-import { hasFullReadContext } from "../../../common/company/full-read-context";
+import { hasReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
 import { reportToSentry } from "../../../instrument";
 import {
@@ -1150,16 +1150,12 @@ export class CompanyListingsService {
       this.assertVerified(user, "ilan yayınlayamazsınız");
     }
 
-    const neededRole =
-      type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-
-    // Faz R: SAHIP etikettir, işlem-rol muafiyeti YOK — Kurucu ilan açmak için
-    // kendine SATIN_ALMACI/SATISCI rolü ekler.
-    if (!user.roles.includes(neededRole)) {
+    // Yetki tablosu: talep açma = "Talep açma ve yönetme" izni (etiket değil;
+    // Faz R: SAHIP muafiyeti yok — Kurucu koltuk izni taşımalı).
+    void type;
+    if (!hasCompanyPermission(user, "buy:listing:manage")) {
       throw new ForbiddenException(
-        type === "ALIM"
-          ? "Alım ilanı açmak için Satın Almacı rolü gerekir"
-          : "Satış ilanı açmak için Satışçı rolü gerekir",
+        "Talep açmak için 'Talep açma ve yönetme' yetkisi gerekir",
       );
     }
 
@@ -2902,6 +2898,11 @@ export class CompanyListingsService {
       };
     }
 
+    // Yetki tablosu: başkasının talebini okumak SATIŞ tarafı iştir → sell:view
+    // (onaylayıcı-only / yalnız-alım üyesi 404 alır; varlık sızdırmaz).
+    if (!hasReadContext(user, "sell")) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
     // Bağımsız non-owner okumaları tek turda (görünürlük/blok kapısı sonuçlar
     // gelince değerlendirilir; over-fetch ucuz, seri tur sayısı düşer — P1).
     const [invitedCount, blockedIds, myBid, auctionView, myOrder] =
@@ -3013,8 +3014,9 @@ export class CompanyListingsService {
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
     // Faz R: SAHIP muafiyeti kaldırıldı — UI bayrağı placeBid kapısıyla birebir.
-    const roleAllowsBid = user.roles.includes(
-      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
+    const roleAllowsBid = hasCompanyPermission(
+      user,
+      bidderPermission(listing.type),
     );
     // Pazarlık durumu — teklifçinin TUR HAKKI + kendi önceki toplamı.
     // Minimum azaltma payı KALDIRILDI (2026-07-13): tek kural "kendi önceki
@@ -3541,12 +3543,9 @@ export class CompanyListingsService {
 
     // Rol (işleme göre): ALIM ilanı → teklifçi SATAR → Satışçı; SATIS → ALIR → Satın Almacı.
     // Faz R: SAHIP muafiyeti yok — Kurucu teklif için op-rol taşımalı.
-    const neededRole = bidderOpRole(listing.type);
-    if (!user.roles.includes(neededRole)) {
+    if (!hasCompanyPermission(user, bidderPermission(listing.type))) {
       throw new ForbiddenException(
-        listing.type === "ALIM"
-          ? "Alım ilanına teklif (satış) için Satışçı rolü gerekir"
-          : "Satış ilanına teklif (alım) için Satın Almacı rolü gerekir",
+        "Teklif vermek için 'Teklif verme' yetkisi gerekir",
       );
     }
 
@@ -4306,9 +4305,7 @@ export class CompanyListingsService {
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
-    const neededRole =
-      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    if (!hasCompanyPermission(user, "buy:award")) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
@@ -4804,9 +4801,7 @@ export class CompanyListingsService {
     }
     // Kalem-bazlı kazandırma her iki yönde: ALIM'da kalemler farklı satıcılara,
     // SATIS'ta farklı alıcılara verilebilir (rol, tam kazandırmayla aynı).
-    const neededRole =
-      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    if (!hasCompanyPermission(user, "buy:award")) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
@@ -4906,6 +4901,7 @@ export class CompanyListingsService {
         companyId: true,
         type: true,
         status: true,
+        createdById: true,
         auctionRateSnapshot: true,
       },
     });
@@ -4916,11 +4912,12 @@ export class CompanyListingsService {
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
-    const neededRole =
-      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    if (!hasCompanyPermission(user, "buy:award")) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
+    // Önizleme de yönetim kapısından geçer (award ile simetri): oluşturan
+    // olmayan operatör başkasının ilanında eşik yoklayamaz.
+    this.assertListingManageRole(user, listing);
 
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
@@ -4969,6 +4966,7 @@ export class CompanyListingsService {
         companyId: true,
         type: true,
         status: true,
+        createdById: true,
         auctionRateSnapshot: true,
       },
     });
@@ -4979,11 +4977,10 @@ export class CompanyListingsService {
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
-    const neededRole =
-      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    if (!hasCompanyPermission(user, "buy:award")) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
+    this.assertListingManageRole(user, listing);
 
     const total = await this.itemAwardTotal(
       listingId,
@@ -6015,12 +6012,9 @@ export class CompanyListingsService {
     // Teklif-yanı op-rol kapısı — placeBid ile AYNI (Faz R: SAHIP muafiyeti
     // yok; Kurucu ihalede salt-gözlemcidir). Uzatma bağlayıcı taahhüdü
     // sürdürür, DRAFT-canlandırma fiilen yeniden gönderimdir.
-    const neededRole = bidderOpRole(listing.type);
-    if (!user.roles.includes(neededRole)) {
+    if (!hasCompanyPermission(user, bidderPermission(listing.type))) {
       throw new ForbiddenException(
-        listing.type === "ALIM"
-          ? "Teklif geçerliliğini uzatmak için Satışçı rolü gerekir"
-          : "Teklif geçerliliğini uzatmak için Satın Almacı rolü gerekir",
+        "Teklif geçerliliğini uzatmak için 'Teklif verme' yetkisi gerekir",
       );
     }
     if (bid.status !== "SUBMITTED" && bid.status !== "DRAFT") {
@@ -6835,7 +6829,7 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
   ): Promise<void> {
-    if (hasFullReadContext(user)) return; // Faz O tek kaynak
+    if (hasReadContext(user, "buy")) return; // Faz O tek kaynak (buy:view)
     const linked = await this.prisma.approvalRequest.findFirst({
       where: {
         listingId,
