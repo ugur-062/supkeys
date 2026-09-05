@@ -19,7 +19,6 @@ import {
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
-  BuildingOffice2Icon,
   BuildingStorefrontIcon,
   Cog6ToothIcon,
   LockClosedIcon,
@@ -269,13 +268,24 @@ export function CompanySidebarContent({
         {inCompanyArea ? (
           <div
             className={cn(
-              "mb-1 flex h-8 items-center gap-2 px-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase",
-              expanded ? "" : "justify-center",
+              "mb-2 flex items-center gap-2.5 rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5",
+              expanded ? "px-2.5 py-2" : "justify-center p-1.5",
             )}
             title={expanded ? undefined : COMPANY_AREA.label}
           >
-            <BuildingOffice2Icon className="size-4 shrink-0 text-zinc-400" aria-hidden />
-            {expanded ? <span className="truncate">{COMPANY_AREA.label}</span> : null}
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-semibold text-white">
+              {(company?.name ?? "?")
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((w) => w[0]?.toLocaleUpperCase("tr-TR") ?? "")
+                .join("")}
+            </span>
+            {expanded ? (
+              <span className="min-w-0">
+                <span className="block text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">{COMPANY_AREA.label}</span>
+                <span className="block truncate text-sm font-semibold text-zinc-900">{company?.name ?? "—"}</span>
+              </span>
+            ) : null}
           </div>
         ) : null}
         {(inCompanyArea ? COMPANY_AREA.nav : minimal ? [] : portal.nav).map((item) => (

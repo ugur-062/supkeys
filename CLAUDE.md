@@ -1017,11 +1017,27 @@ Taşınanlar (eski adresler 308): `satinalma/profilim` ve `satis/profilim` →
 adresleri döner; sağ üst menüden "Profilim" kalktı. `module-reachability`
 testi `sirketim/` sayfalarını `COMPANY_AREA` menüsüne karşı da denetler.
 
-**Genel Bakış** bir pano DEĞİL: kimlik başlığı (logo, ad, Rothern ID, paket,
-Doğrulanmış) + `SellerHealthCards` (profil tamlığı/vitrin — satış panosuyla
-AYNI hesap) + tek çıkışlı özet kartlar (ziyaretçiler 30 gün, bilgi talepleri,
-ekip, doğrulama, raporlar). Liste/tablo/grafik yok — "aynı içerik iki yerde"
-kuralı.
+**Genel Bakış** bir pano DEĞİL (görsel revizyon aynı gün — kullanıcı: "modern
+değil, Europages gibi çok daha iyi olsun"): kapak bandı (kapak görseli ya da
+yumuşak gradyan) üstüne taşan logo, ad + Doğrulanmış/paket rozetleri,
+Rothern ID kopyalama çipi, şehir/faaliyet çipleri, eylemler (Profili düzenle,
+Herkese açık profil) → sol sütun: **Profil gücü** halkası (`ProgressRing`,
+`profileCompleteness` ile AYNI hesap) + eksik alan çipleri, **Vitrin**
+(yayın oranı çubuğu), **Ziyaretçiler · 30 gün** (`MiniBars` günlük grafik,
+eğilim rozeti, son ziyaretçi logoları) → sağ sütun: tek satırlık kısayol
+kartları (bilgi talepleri, ekip, doğrulama, paket, raporlar). Liste/tablo yok
+— "aynı içerik iki yerde" kuralı. Yüklenirken İSKELET, asla "…" ya da yanlış
+durum (doğrulama "bekliyor") basılmaz.
+
+**Görsel yapı taşları** `components/company/ui/`: `ProgressRing` (SVG halka),
+`MiniBars` + `RatioBar` (SVG günlük çubuk / oran çubuğu — recharts yok),
+`StatTile` (ikon rozeti + sayı + `TrendBadge` + ipucu + alt içerik) ve
+`SectionHead`. Ziyaret Edenler: eğilim rozetli 4 kart + günlük grafik +
+tablo-satırlar (Firma · Baktığı çipleri · Ziyaret · Son · Profili gör);
+Standart pakette bulanık örnek satırlar üstünde kilit kartı. İş Analizi:
+sparkline'lı KPI'lar (`series`), **alıcı hunisi** (görüntülenme → bilgi
+talebi → teklif → kazanılan), oran çubuklu sıralama kartları. API
+`visitors` `previous` + `daily`, `insights` `series` döner (`dailySeries`).
 
 **Ziyaret Edenler + İş Analizi** (`modules/company-views/`, tablo
 `company_views`, migrasyon `20260905210000_company_views` — eklemeli):

@@ -137,12 +137,25 @@ export class CompanyViewsService {
     const days = clampDays(opts.days);
     const page = Math.max(1, opts.page ?? 1);
     const since = daysAgo(days);
-    const rows = await this.prisma.companyView.findMany({
-      where: { targetCompanyId: user.companyId, viewedAt: { gte: since } },
-      select: { viewerCompanyId: true, productId: true, viewedAt: true },
-      orderBy: { viewedAt: "desc" },
-      take: SCAN_CAP,
-    });
+    const prevSince = daysAgo(days * 2);
+    const [rows, prevRows] = await Promise.all([
+      this.prisma.companyView.findMany({
+        where: { targetCompanyId: user.companyId, viewedAt: { gte: since } },
+        select: { viewerCompanyId: true, productId: true, viewedAt: true },
+        orderBy: { viewedAt: "desc" },
+        take: SCAN_CAP,
+      }),
+      this.prisma.companyView.findMany({
+        where: { targetCompanyId: user.companyId, viewedAt: { gte: prevSince, lt: since } },
+        select: { viewerCompanyId: true },
+        take: SCAN_CAP,
+      }),
+    ]);
+    const previous = {
+      total: prevRows.length,
+      identified: new Set(prevRows.map((r) => r.viewerCompanyId).filter(Boolean)).size,
+    };
+    const daily = dailySeries(rows.map((r) => r.viewedAt), days);
     const total = rows.length;
     const profileViews = rows.filter((r) => !r.productId).length;
     type G = { visits: number; last: Date; profileViews: number; productIds: Set<string> };
@@ -159,7 +172,7 @@ export class CompanyViewsService {
     const identified = groups.size;
     const anonymous = rows.filter((r) => !r.viewerCompanyId).length;
     const locked = !tierAtLeast(user.tier, "BRONZ");
-    const base = { days, total, profileViews, productViews: total - profileViews, identified, anonymous, locked, page, pageSize: VISITORS_PAGE_SIZE };
+    const base = { days, total, profileViews, productViews: total - profileViews, identified, anonymous, previous, daily, locked, page, pageSize: VISITORS_PAGE_SIZE };
     if (locked || identified === 0) return { ...base, totalItems: identified, items: [] as VisitorItem[] };
 
     const ordered = [...groups.entries()].sort((a, b) => b[1].last.getTime() - a[1].last.getTime());
@@ -262,6 +275,21 @@ export class CompanyViewsService {
           select: { status: true },
         }),
       ]);
+    const periodRows = await this.prisma.companyView.findMany({
+      where: { targetCompanyId: me, viewedAt: { gte: since } },
+      select: { productId: true, viewedAt: true },
+      take: SCAN_CAP * 4,
+    });
+    const series = dailySeries(periodRows.filter((r) => !r.productId).map((r) => r.viewedAt), days).map((d, i) => ({
+      date: d.date,
+      profile: d.views,
+      product: 0,
+      i,
+    }));
+    for (const d of dailySeries(periodRows.filter((r) => !!r.productId).map((r) => r.viewedAt), days)) {
+      const hit = series.find((x) => x.date === d.date);
+      if (hit) hit.product = d.views;
+    }
     const productIds = topRaw.map((t) => t.productId).filter((x): x is string => !!x);
     const products = productIds.length
       ? await this.prisma.companyItem.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true, slug: true } })
@@ -281,6 +309,7 @@ export class CompanyViewsService {
     return {
       days,
       generatedAt: now.toISOString(),
+      series: series.map(({ date, profile, product }) => ({ date, profile, product })),
       views: {
         profile: { current: profileCur, previous: profilePrev },
         product: { current: productCur, previous: productPrev },
@@ -316,6 +345,21 @@ export class CompanyViewsService {
     const res = await this.prisma.companyView.deleteMany({ where: { viewedAt: { lt: daysAgo(VIEW_RETENTION_DAYS) } } });
     return res.count;
   }
+}
+
+/** Gün başına sayım — dönemdeki HER gün için satır (boş günler 0), eskiden yeniye. */
+export function dailySeries(dates: Date[], days: number): { date: string; views: number }[] {
+  const out: { date: string; views: number }[] = [];
+  const counts = new Map<string, number>();
+  for (const d of dates) {
+    const k = d.toISOString().slice(0, 10);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  for (let i = days - 1; i >= 0; i--) {
+    const k = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+    out.push({ date: k, views: counts.get(k) ?? 0 });
+  }
+  return out;
 }
 
 function clampDays(v: number | undefined): number {

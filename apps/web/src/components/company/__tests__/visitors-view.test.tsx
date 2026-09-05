@@ -12,6 +12,8 @@ import { VisitorsView } from "../visitors-view";
 
 const base = (over: Partial<VisitorsResponse> = {}): VisitorsResponse => ({
   days: 30, total: 12, profileViews: 8, productViews: 4, identified: 2, anonymous: 5, locked: false, page: 1, pageSize: 20, totalItems: 2,
+  previous: { total: 6, identified: 1 },
+  daily: Array.from({ length: 30 }, (_, i) => ({ date: `2026-08-${String(i + 1).padStart(2, "0")}`, views: i === 29 ? 12 : 0 })),
   items: [
     { company: { id: "c1", rothernId: "ABCD-1234", name: "Ziyaretçi A", slug: "za", city: "Bursa", activities: ["MANUFACTURER"], verified: true, logoUrl: null }, visits: 3, lastViewedAt: "2026-09-05T10:00:00Z", profileViews: 1, products: [{ id: "p1", name: "Kompanzasyon Panosu", slug: "kp" }], connected: true },
     { company: { id: "c2", rothernId: null, name: "Ziyaretçi B", slug: null, city: null, activities: [], verified: false, logoUrl: null }, visits: 1, lastViewedAt: "2026-09-04T10:00:00Z", profileViews: 1, products: [], connected: false },
@@ -26,11 +28,14 @@ describe("VisitorsView", () => {
     h.data = base();
     render(<VisitorsView />);
     expect(screen.getByRole("heading", { name: "Ziyaret Edenler" })).toBeInTheDocument();
-    expect(screen.getByText("Toplam görüntülenme").nextSibling).toHaveTextContent("12");
+    expect(screen.getByText("Toplam görüntülenme").closest(".rounded-2xl")).toHaveTextContent("12");
     expect(screen.getByText("+ 5 anonim ziyaret")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ziyaretçi A" })).toHaveAttribute("href", "/company/firma/ABCD-1234");
-    expect(screen.getByText((_, el) => el?.tagName === "P" && el.textContent === "Baktığı: Profil, Kompanzasyon Panosu")).toBeInTheDocument();
-    expect(screen.getByText("3 ziyaret")).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === "P" && el.textContent === "Baktığı: ProfilKompanzasyon Panosu")).toBeInTheDocument();
+    // Eğilim: 12 vs 6 → %100 artış rozeti.
+    expect(screen.getAllByText(/%100/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("img", { name: "Günlük görüntülenme" })).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === "P" && el.textContent?.replace(/\s+/g, " ").trim() === "3 ziyaret")).toBeInTheDocument();
     expect(screen.getByText("Bağlantılı")).toBeInTheDocument();
     // Rothern ID'si olmayan firma bağlantısız satır.
     expect(screen.queryByRole("link", { name: "Ziyaretçi B" })).toBeNull();
@@ -40,7 +45,7 @@ describe("VisitorsView", () => {
   it("Standart paket: sayılar var, liste kilitli + paket bağlantısı", () => {
     h.data = base({ locked: true, items: [] });
     render(<VisitorsView />);
-    expect(screen.getByText("Kimliği bilinen firma").nextSibling).toHaveTextContent("2");
+    expect(screen.getByText("Kimliği bilinen firma").closest(".rounded-2xl")).toHaveTextContent("2");
     expect(screen.getByText(/2 firma profilinizi inceledi/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/ayarlar");
     expect(screen.queryByText("Ziyaretçi A")).toBeNull();

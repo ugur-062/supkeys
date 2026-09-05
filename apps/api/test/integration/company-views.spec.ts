@@ -93,7 +93,11 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
       await s.recordPublicView({ type: "profile", companySlug: t.slug, ip: "5.5.5.5", userAgent: "Mozilla/5.0 Chrome/128" });
     }
     const locked = await s.visitors(standard.auth, { days: 30 });
-    expect(locked).toMatchObject({ total: 4, profileViews: 3, productViews: 1, identified: 2, anonymous: 1, locked: true, totalItems: 2 });
+    expect(locked).toMatchObject({ total: 4, profileViews: 3, productViews: 1, identified: 2, anonymous: 1, locked: true, totalItems: 2, previous: { total: 0, identified: 0 } });
+    // Günlük seri: dönemdeki her gün bir satır, bugün 4.
+    expect(locked.daily).toHaveLength(30);
+    expect(locked.daily[29]!.views).toBe(4);
+    expect(locked.daily.reduce((n, d) => n + d.views, 0)).toBe(4);
     expect(locked.items).toEqual([]);
 
     const open = await s.visitors(bronz.auth, { days: 30 });
@@ -123,6 +127,8 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
     await connect(prisma, v1.company.id, me.company.id, v1.user.id);
     const r = await s.insights(me.auth, { days: 30 });
     expect(r.views.profile).toEqual({ current: 1, previous: 1 });
+    expect(r.series).toHaveLength(30);
+    expect(r.series[29]).toMatchObject({ profile: 1, product: 1 });
     expect(r.views.product).toEqual({ current: 1, previous: 0 });
     expect(r.views.identifiedVisitors).toEqual({ current: 1, previous: 0 });
     expect(r.topProducts).toEqual([{ id: me.item.id, name: me.item.name, slug: me.item.slug, views: 1 }]);

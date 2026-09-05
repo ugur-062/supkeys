@@ -30,6 +30,10 @@ export interface VisitorsResponse {
   productViews: number;
   identified: number;
   anonymous: number;
+  /** Önceki dönem (aynı uzunlukta) — eğilim rozeti. */
+  previous: { total: number; identified: number };
+  /** Gün başına görüntülenme, eskiden yeniye (dönemdeki her gün). */
+  daily: { date: string; views: number }[];
   /** Standart paket: kimlikli liste kilitli (sayılar açık). */
   locked: boolean;
   page: number;
@@ -41,6 +45,8 @@ export interface VisitorsResponse {
 export interface InsightsResponse {
   days: number;
   generatedAt: string;
+  /** Gün başına profil/ürün görüntülenmesi, eskiden yeniye. */
+  series: { date: string; profile: number; product: number }[];
   views: {
     profile: { current: number; previous: number };
     product: { current: number; previous: number };
