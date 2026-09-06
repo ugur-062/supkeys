@@ -12,23 +12,21 @@ import type { ReactNode } from "react";
  * `/hakkimizda` ve `/iletisim` de (eskiden hiç header/footer'ları yoktu —
  * ziyaretçi sayfadan çıkamıyordu).
  *
- * Header `fixed`; içerik üst boşluğunu SAYFA verir (hero kendi `pt-32`sini
- * taşır, düz sayfalar `pt-28`). Kabuk oturum OKUMAZ — public rotalar
+ * Header `fixed` (iki katman, 100 px); içerik üst boşluğunu SAYFA verir
+ * (hero kendi `pt-32`sini taşır, düz sayfalar `pt-28`). Kabuk oturum OKUMAZ — public rotalar
  * statik/ISR ve nonce'suz CSP ile çalışır (bkz. lib/public-routes.ts).
  */
 export function PublicLayout({
   children,
-  tone = "light",
   className = "bg-white",
 }: {
   children: ReactNode;
-  tone?: "light" | "dark";
   /** Gövde zemini — pazar yeri beyaz, firma profili `bg-zinc-50`. */
   className?: string;
 }) {
   return (
     <div className={`min-h-dvh ${className}`}>
-      <MarketingHeader tone={tone} />
+      <MarketingHeader />
       <main>{children}</main>
       <MarketplaceFooter />
     </div>

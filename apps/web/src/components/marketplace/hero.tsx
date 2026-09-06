@@ -1,7 +1,7 @@
-import { HeroSearch } from "./hero-search";
+import { SearchTypeahead } from "./search-typeahead";
 import { TrustStrip } from "./trust-strip";
 import { Heading } from "@/components/catalyst/heading";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
+import { categoryPath } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -19,21 +19,6 @@ export function MarketplaceHero({
   /** Arama kutusunun altındaki hızlı çipler — ürün sayısı en yüksek alt kategoriler. */
   popular?: { id: string; name: string; count: number }[];
 } = {}) {
-  const tabs = [
-    {
-      key: "products" as const,
-      label: MARKETPLACE_LABELS.products,
-      action: MARKETPLACE_ROUTES.products,
-      placeholder: "Ürün, marka veya parça numarası",
-    },
-    {
-      key: "companies" as const,
-      label: MARKETPLACE_LABELS.companies,
-      action: MARKETPLACE_ROUTES.companies,
-      placeholder: "Firma adı, sektör veya hizmet",
-    },
-  ];
-
   return (
     <div className="relative isolate overflow-hidden bg-white">
       <GradientBlob className="-top-40 sm:-top-80" position="left" />
@@ -53,7 +38,7 @@ export function MarketplaceHero({
           {/* `data-hero-search`: header ve yüzen CTA bu kutuyu gözler — kutu
               görünümden çıkınca kompakt arama ve "Talep aç" belirir (B8). */}
           <div data-hero-search className="mx-auto mt-9 max-w-2xl">
-            <HeroSearch tabs={tabs} />
+            <SearchTypeahead size="lg" scopes={["products", "companies"]} />
           </div>
 
           {popular.length > 0 ? (

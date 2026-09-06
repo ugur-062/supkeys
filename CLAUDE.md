@@ -826,6 +826,34 @@ URL şemaları mevcut hâliyle sabit.
   OPSİYONEL okur (eski kenar önbelleği kartı çökertmez). `Badge` tabanı
   `shrink-0` taşır — daralması gereken rozete `shrink` verilmeli (twMerge
   ezer), yoksa yan rozet kırpılır. Sözleşme: `card-family.test.tsx`.
+- **PROMPT 6:** üst çubuk İKİ KATMAN — ince siyah şerit (iki tarafın giriş
+  cümlesi + Nasıl çalışır/Fiyatlar/TR; `md` altında çizilmez) + ana satır
+  (logo · **Kategoriler ▾ mega menü** · ortada arama · Alım Talepleri ·
+  Giriş Yap · Ücretsiz Kaydol). Header `fixed` KALDI (iki katman 100 px;
+  sayfaların `pt-28`/`pt-32` boşluğu elden geçmesin). Mobilde `ui/sheet`
+  çekmecesi: arama, kategori akordeonu, bağlantılar, sabit CTA'lar. Kabuk
+  `tone="dark"` dalı SİLİNDİ (hiçbir sayfa geçmiyordu).
+  · **`SearchTypeahead` TEK bileşen, iki boyut** (`lg` hero / `sm` üst
+  çubuk): hero'nun kendi arama uygulaması (`hero-search.tsx`) silindi.
+  Kapsam seçici (Ürünler/Firmalar/Talepler) hem formun `action`ını hem
+  sorgunun kapsamını değiştirir; 250 ms debounce, WAI combobox (↑↓/Enter/
+  Esc), gruplar Kategoriler·Ürünler(küçük resim+firma)·Firmalar(avatar+
+  şehir)·Alım talepleri, son 5 arama `localStorage` (try/catch). JS'siz
+  form yine `?q=` ile liste sayfasına gider — hidrasyondan ÖNCE `select`
+  değişimi React'e ULAŞMAZ (e2e'de `networkidle` beklenir).
+  · **`MegaMenu`**: sol 58 segment (ikon+sayı), sağda L2 aileler 3 sütun +
+  "Tüm {segment} ürünleri →"; Ariba'da bazı segmentlerin yalnız 3-4 ailesi
+  var → 6'dan az ise altta "Ürünü olan dallar" çipleri. Ağaç İSTEMCİDE bir
+  kez çekilir (`suggest-client.ts` modül önbelleği) — kabuk her public
+  sayfada çizildiği için sunucuda beklemek hepsini yavaşlatırdı. Hover açar,
+  TIK SABİTLER (hover açıkken tık kapatmaz — "düğme çalışmıyor" hissi),
+  Esc/dış tık kapatır.
+  · **API (eklemeli):** `public/suggest` `scope=products|companies|listings`
+  (yoksa hepsi) + ürün satırında `image`/`companyName`, firmada `logoUrl`,
+  yeni `listings` grubu (yalnız AÇIK ve vitrin kapısından geçen talepler,
+  sahip ADI YOK); yeni `GET public/categories/menu` (L1+L2, ürün sayısıyla,
+  15 dk önbellek). Sözleşmeler: `public-product-index.spec` (kapsam + menü),
+  web `search-typeahead.test` / `mega-menu.test`, e2e `public-header.spec`.
 
 ### Anasayfa & ürün süzgeci v3 (2026-09-04)
 

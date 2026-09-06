@@ -2,10 +2,16 @@
 
 Browser-based UI tests for the rothern web app.
 
-> **Durum (2026-09-06):** `public-products-filters.spec.ts` — herkese açık
-> `/urunler` süzgeç senaryosu (şehir seç → URL → sayaç → geri tuşu; 7 yuvalı
-> sayfalama). Pazar yeri anahtarı açık bir web sunucusu ister:
-> `PLAYWRIGHT_BASE_URL=http://localhost:3005 npx playwright test e2e/public-products-filters.spec.ts`.
+> **Durum (2026-09-06):** herkese açık spec'ler —
+> `public-products-filters.spec.ts` (`/urunler`: şehir seç → URL → sayaç →
+> geri tuşu; 7 yuvalı sayfalama), `public-lists-filters.spec.ts`
+> (`/firmalar` + `/alim-talepleri` aynı kabuk) ve `public-header.spec.ts`
+> (mega menü + typeahead + 390 px'te yatay taşma yok). Pazar yeri anahtarı
+> AÇIK bir web sunucusu ister (`NEXT_PUBLIC_MARKETPLACE_LIVE=true`):
+> `PLAYWRIGHT_BASE_URL=http://localhost:3000 npx playwright test e2e/public-header.spec.ts`.
+> Not: header spec'i typeahead'i hidrasyondan sonra sürer — `next dev`
+> koşarken `pnpm build` ÇALIŞTIRMA, aynı `.next` dizinini ezer ve sayfa
+> hidrate olmaz (süzgeç tıklamaları sessizce ölür).
 > `company-tenders.spec.ts` panel smoke'u (giriş ister).
 
 ## Prerequisites

@@ -379,9 +379,26 @@ export function fetchStats(): Promise<PublicStats> {
 }
 
 export interface SuggestResult {
-  products: { name: string; slug: string; companySlug: string }[];
+  products: {
+    name: string;
+    slug: string;
+    companySlug: string;
+    /* PROMPT 6 typeahead satırı — eski yanıt taşımayabilir. */
+    companyName?: string;
+    image?: string | null;
+  }[];
   categories: { id: string; name: string; level: number }[];
-  companies: { name: string; slug: string; city: string | null }[];
+  companies: { name: string; slug: string; city: string | null; logoUrl?: string | null }[];
+  /** Açık alım talepleri (kapsam: talepler). Sahip ADI YOK — anonimlik. */
+  listings?: { number: string; title: string; closesAt: string | null }[];
+}
+
+/** Mega menü kategori ağacı — L1 segment + L2 aile, ürün sayısıyla. */
+export interface CategoryMenuNode {
+  id: string;
+  name: string;
+  count: number;
+  children: { id: string; name: string; count: number }[];
 }
 
 /** Herkese açık dizin kartı (v2) — kimlik yok (Rothern ID/iletişim üyeye). */
