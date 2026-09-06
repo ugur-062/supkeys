@@ -17,9 +17,8 @@ import { BaseAiProvider } from "../providers/ai-provider.interface";
 import { AiService } from "../ai.service";
 
 /**
- * "Rothern profilini web sitenden AI ile oluştur" — BRONZ+ özelliği (Bronz
- * satış paketi profilden en çok yararlanan kesim; PaidTierGuard SILVER olduğu
- * için kapı burada). Sonuç TASLAKTIR: kaydetmez, kullanıcı önizleyip düzenler
+ * "Rothern profilini web sitenden AI ile oluştur" — SILVER+ özelliği (üç paket:
+ * profil satış paketinin parçası; kapı burada, controller JWT-only). Sonuç TASLAKTIR: kaydetmez, kullanıcı önizleyip düzenler
  * ve mevcut profil formundan kaydeder.
  *
  * BÜTÇE (2026-09-01 düzeltmesi): eskiden firma AI bütçesine DOKUNMUYORDU —
@@ -78,9 +77,9 @@ export class ProfileEnrichService {
     user: AuthenticatedCompanyUser,
     input: { website?: string },
   ): Promise<ProfileDraft> {
-    if (!tierAtLeast(user.tier, "BRONZ")) {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Profili AI ile oluşturmak için bir paket (Bronz+) gerekir.",
+        "Profili AI ile oluşturmak için bir paket (Silver+) gerekir.",
       );
     }
     if (!this.config.enabled || !this.provider) {
@@ -100,9 +99,8 @@ export class ProfileEnrichService {
       );
     }
 
-    // Günlük DENEME sınırı — bu uç bilinçli olarak AI bütçesinin dışında
-    // (BRONZ'un USD havuzu yok), dolayısıyla sağlayıcı harcamasına karşı TEK
-    // fren burasıdır. Denetim 2026-08-24 Parça 6: eski hâli üç yoldan
+    // Günlük DENEME sınırı — bütçe kapısı callAi'de; bu sayaç dış site
+    // çekimine karşı ek fren. Denetim 2026-08-24 Parça 6: eski hâli üç yoldan
     // aşılabiliyordu — sayaç yalnız BAŞARIDA, çağrıdan SONRA ve hata yutan
     // `void audit.log` ile artıyordu (başarısız/pahalı denemeler bedava), ve
     // oku-sonra-yaz arasında kilit olmadığı için eşzamanlı isteklerin hepsi

@@ -12,7 +12,7 @@ import { Prisma } from "@rothern/db";
  * ── İLAN KARTIYLA KASITLI ZITLIK ──────────────────────────────────────────
  * `PUBLIC_LISTING_SELECT` firma adını HİÇ çekmez (ilan = işlem → anonim).
  * Burada tam tersi: ürün = vitrin → firma adıyla, opt-in (`publicEnabled`) ve
- * satılan bir özellik (BRONZ+). İki kart yan yana durduğu için ayrım
+ * satılan bir özellik (SILVER+). İki kart yan yana durduğu için ayrım
  * sözleşme testiyle kilitlenir (`public-product-index.spec.ts`).
  *
  * Dışarıda kalanlar `public-product.projection.ts` ile aynı gerekçelerle:

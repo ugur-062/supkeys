@@ -58,7 +58,7 @@ export interface DiscoveryCandidate {
  * "AI ile daha fazla tedarikçiye eriş" — Faz A: PLATFORM DİZİNİ keşfi.
  * Deterministik kategori eşleşmesi (notifyCategoryMatchedCompanies ile AYNI
  * helper — drift yok): ihale kategorilerinden segment+alt adayları türetilir,
- * karşı-taraf rolünün kategori alanlarıyla kesişen, dizinde görünür (BRONZ+),
+ * karşı-taraf rolünün kategori alanlarıyla kesişen, dizinde görünür (SILVER+),
  * bağlantısız firmalar dönülür. Kapalı-zarf/gizlilik etkisi yok — yalnız
  * firmaların KENDİ ilan ettiği profil alanları okunur.
  */

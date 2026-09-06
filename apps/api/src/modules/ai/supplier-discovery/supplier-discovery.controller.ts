@@ -1,3 +1,4 @@
+import { RequireTier } from "../../company-auth/decorators/require-tier.decorator";
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import {
   ArrayMaxSize,
@@ -47,6 +48,7 @@ class ExternalDiscoveryDto extends DiscoveryDto {
  * zaten Silver+); yalnız firmaların kendi ilan ettiği profil alanları okunur.
  */
 @Controller("company/ai/supplier-discovery")
+@RequireTier("GOLD")
 @UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class SupplierDiscoveryController {
   constructor(private readonly service: SupplierDiscoveryService) {}

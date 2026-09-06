@@ -11,7 +11,7 @@ import { makeCompanyWithUser, connect } from "./factories";
 
 const svc = () => new CompanyViewsService(prisma as unknown as PrismaService);
 let pseq = 0;
-async function publicCompany(over: { city?: string; tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD" } = {}) {
+async function publicCompany(over: { city?: string; tier?: "STANDART" | "SILVER" | "SILVER" | "GOLD" } = {}) {
   pseq += 1;
   const r = await makeCompanyWithUser(prisma, over.tier ? { tier: over.tier } : {});
   await prisma.company.update({
@@ -78,9 +78,9 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
     await truncateAll();
   });
 
-  it("STANDART: sayılar döner, liste KİLİTLİ; BRONZ: ziyaretçi firmalar gruplanır (ziyaret, son, ürünler, bağlantı)", async () => {
+  it("STANDART: sayılar döner, liste KİLİTLİ; SILVER: ziyaretçi firmalar gruplanır (ziyaret, son, ürünler, bağlantı)", async () => {
     const standard = await publicCompany({ tier: "STANDART" });
-    const bronz = await publicCompany({ tier: "BRONZ" });
+    const bronz = await publicCompany({ tier: "SILVER" });
     const a = await makeCompanyWithUser(prisma);
     const b = await makeCompanyWithUser(prisma);
     await prisma.company.update({ where: { id: a.company.id }, data: { name: "Ziyaretçi A", city: "Bursa" } });
@@ -111,7 +111,7 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
   });
 
   it("İş Analizi: Silver+ kapısı; görüntülenme dönem/önceki dönem, en çok bakılan ürün, ziyaretçi şehri, davet/teklif sayıları", async () => {
-    const bronz = await publicCompany({ tier: "BRONZ" });
+    const bronz = await publicCompany({ tier: "STANDART" });
     await expect(svc().insights(bronz.auth)).rejects.toBeInstanceOf(ForbiddenException);
 
     const me = await publicCompany({ tier: "SILVER" });

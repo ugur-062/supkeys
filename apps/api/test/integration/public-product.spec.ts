@@ -100,7 +100,7 @@ describe("ürün vitrini — kapı", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("STANDART paketli firmanın vitrini kapalı (profil BRONZ+ ister)", async () => {
+  it("STANDART paketli firmanın vitrini kapalı (profil SILVER+ ister)", async () => {
     const { company } = await seedCompanyWithProduct({ tier: "STANDART" });
     await expect(
       service().listPublicProducts(company.slug as string),

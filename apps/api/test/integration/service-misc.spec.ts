@@ -264,15 +264,15 @@ describe("addInvitations / roundHistory / updateListing — guard'lar", () => {
     });
     await expect(
       service.publishListing(owner.auth, draft.id),
-    ).rejects.toThrow(/Silver veya üzeri/i);
+    ).rejects.toThrow(/Gold paket/);
     await expect(
       service.addInvitations(owner.auth, open.id, ["ROT-0001"]),
-    ).rejects.toThrow(/Silver veya üzeri/i);
+    ).rejects.toThrow(/Gold paket/);
     await expect(
       service.createNextRound(owner.auth, open.id, {
         closesAt: FUTURE,
       } as never),
-    ).rejects.toThrow(/Silver veya üzeri/i);
+    ).rejects.toThrow(/Gold paket/);
   });
 
   it("roundHistory sahip-dışı reddi + boş geçmiş []", async () => {

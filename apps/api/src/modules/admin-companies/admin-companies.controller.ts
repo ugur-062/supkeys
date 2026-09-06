@@ -59,7 +59,7 @@ class ListCompaniesDto {
   country?: string;
 
   @IsOptional()
-  @IsIn(["STANDART", "BRONZ", "SILVER", "GOLD"])
+  @IsIn(["STANDART", "SILVER", "GOLD"])
   tier?: string;
 
   /** "oldest" = KYC kuyruğu için en-eski-önce (varsayılan: en yeni). */
@@ -200,8 +200,8 @@ class UpdateCompanyProfileDto {
 }
 
 class SetTierDto {
-  @IsIn(["STANDART", "BRONZ", "SILVER", "GOLD"])
-  tier!: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+  @IsIn(["STANDART", "SILVER", "GOLD"])
+  tier!: "STANDART" | "SILVER" | "GOLD";
 
   @IsOptional()
   @IsInt()
@@ -266,8 +266,8 @@ class AnnounceDto {
   message!: string;
 
   @IsOptional()
-  @IsIn(["STANDART", "BRONZ", "SILVER", "GOLD"])
-  tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+  @IsIn(["STANDART", "SILVER", "GOLD"])
+  tier?: "STANDART" | "SILVER" | "GOLD";
 
   @IsOptional()
   @IsString()

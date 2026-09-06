@@ -30,7 +30,7 @@ export function hasPublicProfile(c: {
     c.publicEnabled &&
     c.isActive &&
     !c.isBlocked &&
-    tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ")
+    tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER")
   );
 }
 

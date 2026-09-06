@@ -6,10 +6,10 @@ import {
 } from "@rothern/shared";
 
 /**
- * Efektif tier — INV-TIER-1 TEK KAYNAK (Faz T: 4 kademe STANDART/BRONZ/SILVER/GOLD).
+ * Efektif tier — INV-TIER-1 TEK KAYNAK (üç paket 2026-09-06: STANDART/SILVER/GOLD).
  *
  * Ham `Company.tier` doğrudan yetki/gösterim kararında KULLANILMAZ: paralı
- * kademelerde (BRONZ/SILVER/GOLD) üyelik süresi (`membershipEndAt`) geçmişse
+ * kademelerde (SILVER/GOLD) üyelik süresi (`membershipEndAt`) geçmişse
  * firma DB'de hâlâ paketli görünse de efektif olarak STANDART'tır (lazy —
  * 03:00 downgrade cron'unu beklemez; cron kaçarsa süresi bitmiş firma paket
  * yetkisiyle işlem yapamasın). Boundary `< Date.now()` JWT + cron ile birebir
@@ -19,7 +19,7 @@ import {
  * Bu fonksiyonu ÇAĞIRAN her yüzey (JWT strategy, /me serializeCompany, profil
  * get, bağlantı-geçerlilik filtresi) aynı sonucu verir → web/api ıraksaması olmaz.
  */
-export type EffectiveTier = TierName; // "STANDART" | "BRONZ" | "SILVER" | "GOLD"
+export type EffectiveTier = TierName; // "STANDART" | "SILVER" | "GOLD"
 
 export function effectiveTier(
   tier: string,
@@ -58,7 +58,7 @@ export function tierAtLeastWhere(min: TierName, now: Date = new Date()) {
   };
 }
 
-/** Herhangi bir pakette (efektif BRONZ+) — dizin/keşfet/sitemap/duyuru filtresi. */
+/** Herhangi bir pakette (efektif SILVER+; üç paket 2026-09-06) — dizin/keşfet/sitemap/duyuru filtresi. */
 export function anyPackageWhere(now: Date = new Date()) {
-  return tierAtLeastWhere("BRONZ", now);
+  return tierAtLeastWhere("SILVER", now);
 }

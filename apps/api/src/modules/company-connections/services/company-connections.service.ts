@@ -92,9 +92,9 @@ export class CompanyConnectionsService {
    * Sadece PAKET gönderebilir; premium bitince bu bağlantı pasifleşir.
    */
   async invite(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
-    if (!tierAtLeast(user.tier, "BRONZ")) {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek için bir paket (Bronz+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+        "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
       );
     }
     const code = normalizeShortCode(rothernIdRaw);
@@ -117,9 +117,9 @@ export class CompanyConnectionsService {
    * (signup hook) otomatik INVITE bağlantı kurulur.
    */
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
-    if (!tierAtLeast(user.tier, "BRONZ")) {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek için bir paket (Bronz+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+        "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
       );
     }
     const email = emailRaw.trim().toLowerCase();
@@ -224,9 +224,9 @@ export class CompanyConnectionsService {
     listingId: string,
     emailsRaw: string[],
   ) {
-    if (!tierAtLeast(user.tier, "BRONZ")) {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Davet göndermek için bir paket (Bronz+) gerekir.",
+        "Davet göndermek için bir paket (Silver+) gerekir.",
       );
     }
     const listing = await this.prisma.listing.findFirst({
@@ -400,9 +400,9 @@ export class CompanyConnectionsService {
   }
 
   async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
-    if (!tierAtLeast(user.tier, "BRONZ")) {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek için bir paket (Bronz+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+        "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
       );
     }
     // Normalize + sıra korumalı dedupe.
@@ -718,7 +718,7 @@ export class CompanyConnectionsService {
           r.origin === "ADMIN" ||
           tierAtLeast(
             effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
-            "BRONZ",
+            "SILVER",
           ),
       )
       .map((r) => {
@@ -758,7 +758,7 @@ export class CompanyConnectionsService {
    * Skor: (ben alırım ∩ o satar) + (ben satarım ∩ o alır). Bağlı/davetli hariç.
    */
   async discover(user: AuthenticatedCompanyUser) {
-    if (!tierAtLeast(user.tier, "BRONZ")) {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       return { locked: true as const, companies: [] };
     }
     const me = await this.prisma.company.findUnique({
@@ -1089,7 +1089,7 @@ export class CompanyConnectionsService {
     // yalnız herkese açık URL için gerekir.
     const publiclyListed =
       c.publicEnabled &&
-      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ");
+      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER");
     if (!related && !publiclyListed) {
       throw new NotFoundException("Firma profili bulunamadı");
     }

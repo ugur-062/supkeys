@@ -1,8 +1,8 @@
 /**
  * Koltuk sistemi — Faz 5 (2026-09-06, kullanıcı kararı "her biri bir koltuk"):
  * koltuk = (kişi, grup). Satınalma işlem izni 1, satış işlem izni 1; aynı
- * kişide ikisi 2. Limit STANDART 2 / BRONZ 2 / SILVER 4 / GOLD 8 (ücretli
- * sayılar sonraya). Kapılar: davet (bekleyenler grup bazında dahil), kabul
+ * kişide ikisi 2. Limit STANDART 2 / SILVER 4 / GOLD 6 (üç paket,
+ * 2026-09-06). Kapılar: davet (bekleyenler grup bazında dahil), kabul
  * (tx + FOR UPDATE — TOCTOU), rol/izin atama (yeni grup başına 1), reaktivasyon.
  * Aşkın durum TÜRETİLİR (flag yok); kurucu seçimi (kişi, grup) çiftleriyle.
  */
@@ -75,7 +75,7 @@ beforeEach(async () => {
 describe("Faz 5 — koltuk sayımı (kişi, grup)", () => {
   it("SA+ST taşıyan kurucu 2 koltuk (satınalma 1 + satış 1); ONAYLAYICI/YONETICI/görüntüleyici tüketmez", async () => {
     const { svc } = makeUsersService();
-    const co = await makeCompanyWithUser(prisma, { tier: "BRONZ" }); // SAHIP+SA+ST
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // SAHIP+SA+ST
     await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await makeUser(prisma, co.company.id, [CompanyRole.YONETICI]);
     await makeUser(prisma, co.company.id, [], { permissions: ["buy:view", "sell:view"] });
@@ -103,11 +103,11 @@ describe("Faz 5 — koltuk sayımı (kişi, grup)", () => {
   });
 });
 
-describe("Faz 5 — kapılar (BRONZ 2 koltuk)", () => {
+describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
   it("dolu: koltuk daveti + rol ataması + ikinci grup + reaktivasyon reddedilir; ONAYLAYICI serbest", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
-      tier: "BRONZ",
+      tier: "STANDART",
       roles: ["SAHIP", "SATIN_ALMACI"] as never,
     }); // 1/2
     const second = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]); // 2/2 dolu
@@ -150,7 +150,7 @@ describe("Faz 5 — kapılar (BRONZ 2 koltuk)", () => {
   it("bekleyen koltuk davetleri grup bazında sayılır (davet-yağmuru kapalı)", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
-      tier: "BRONZ",
+      tier: "STANDART",
       roles: ["SAHIP", "SATIN_ALMACI"] as never,
     }); // 1/2
     await seedInvitation(co.company.id, co.user.id, [CompanyRole.SATISCI], "bekleyen@x.com"); // 1 + 1 bekleyen = 2
@@ -161,7 +161,7 @@ describe("Faz 5 — kapılar (BRONZ 2 koltuk)", () => {
     ).rejects.toThrow(/bekleyen davet/);
     // İki gruplu davet 2 koltuk ister.
     const wide = await makeCompanyWithUser(prisma, {
-      tier: "BRONZ",
+      tier: "STANDART",
       roles: ["SAHIP"] as never,
     }); // 0/2
     await expect(
@@ -179,7 +179,7 @@ describe("Faz 5 — kapılar (BRONZ 2 koltuk)", () => {
   it("TOCTOU: son koltuk için iki eşzamanlı kabul → tam 1 kazanır, kaybedenin daveti PENDING kalır", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
-      tier: "BRONZ",
+      tier: "STANDART",
       roles: ["SAHIP", "SATIN_ALMACI"] as never,
     }); // 1/2 → 1 boş koltuk
     const invA = await seedInvitation(co.company.id, co.user.id, [CompanyRole.SATISCI], "a@yaris.com");
@@ -199,7 +199,7 @@ describe("Faz 5 — kapılar (BRONZ 2 koltuk)", () => {
 });
 
 describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (kişi, grup)", () => {
-  it("GOLD→BRONZ: mevcutlar aktif kalır; seçilmeyen koltuğun işlem izinleri düşer (etiket/görüntüleme kalır); açık sipariş kalan koltukluyla tamamlanır; upgrade kapıyı açar", async () => {
+  it("GOLD→STANDART: mevcutlar aktif kalır; seçilmeyen koltuğun işlem izinleri düşer (etiket/görüntüleme kalır); açık sipariş kalan koltukluyla tamamlanır; upgrade kapıyı açar", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // kurucu SA+ST = 2
     const u2 = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI, CompanyRole.YONETICI]); // +1 = 3
@@ -207,7 +207,7 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
 
     await prisma.company.update({
       where: { id: co.company.id },
-      data: { tier: "BRONZ", membershipEndAt: new Date(Date.now() + 86_400_000) },
+      data: { tier: "STANDART", membershipEndAt: new Date(Date.now() + 86_400_000) },
     });
     const over = await svc.seatUsage(co.company.id);
     expect(over).toMatchObject({ limit: 2, used: 4, usedBuy: 2, usedSell: 2, overflow: 2 });
@@ -302,7 +302,7 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
       isOwner: false,
       companyVerificationStatus: "VERIFIED",
       country: "TR",
-      tier: "BRONZ",
+      tier: "STANDART",
     } as never;
     await expect(orders.accept(u2Auth, order.id, acceptInput)).rejects.toThrow(
       /'Satış siparişi işlemleri' yetkisi/,
@@ -323,7 +323,7 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
 
   it("seçim doğrulamaları: limit üstü seçim + koltuksuz çift reddedilir; eski istemci keepUserIds kişinin tüm gruplarını korur", async () => {
     const { svc } = makeUsersService();
-    const co = await makeCompanyWithUser(prisma, { tier: "BRONZ" }); // kurucu 2 koltuk
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // kurucu 2 koltuk
     const a = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
     const approver = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(

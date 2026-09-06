@@ -1,3 +1,4 @@
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
   Body,
   Controller,
@@ -53,6 +54,7 @@ function xlsx(res: Response, filename: string, buffer: Buffer) {
 const stamp = () => new Date().toISOString().slice(0, 10);
 
 @Controller("company/reports")
+@RequireTier("GOLD")
 @RequireCompanyPermission(REPORTS_PERMISSION)
 // Raporlar premium özelliğidir — STANDARD firma erişemez (yalnız teklif verir).
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard, CompanyPaidTierGuard)

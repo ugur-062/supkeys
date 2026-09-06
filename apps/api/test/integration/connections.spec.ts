@@ -177,7 +177,7 @@ describe("bağlantı yaşam döngüsü", () => {
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const { bCode } = await twoCompanies();
     await expect(service.invite(std.auth, bCode)).rejects.toThrow(
-      /Bronz/i,
+      /Silver/i,
     );
   });
 });
@@ -509,10 +509,10 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     await expect(
       service.inviteByEmail(std.auth, "biri@firma.com"),
-    ).rejects.toThrow(/Bronz/i);
+    ).rejects.toThrow(/Silver/i);
     await expect(
       service.inviteByEmailBatch(std.auth, ["biri@firma.com"]),
-    ).rejects.toThrow(/Bronz/i);
+    ).rejects.toThrow(/Silver/i);
   });
 
   it("dizin GÖRMEK ücretsiz (2026-09-04): STANDART firma da listelenen PAKET firmayı bulur", async () => {

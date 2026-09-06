@@ -22,7 +22,7 @@ describe("Teklifte KYC kapısı", () => {
   async function setup(opts: {
     visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE";
     sellerVerified: boolean;
-    sellerTier?: "STANDART" | "BRONZ";
+    sellerTier?: "STANDART" | "SILVER";
   }) {
     const buyer = await makeCompanyWithUser(prisma);
     const seller = await makeCompanyWithUser(prisma, {
@@ -98,7 +98,7 @@ describe("Teklifte KYC kapısı", () => {
     const { seller, listing, item } = await setup({
       visibility: "PUBLIC",
       sellerVerified: false,
-      sellerTier: "BRONZ",
+      sellerTier: "SILVER",
     });
     await expect(
       bid(service, seller.auth as never, listing.id, item.id),
@@ -110,7 +110,7 @@ describe("Teklifte KYC kapısı", () => {
     const { seller, listing, item } = await setup({
       visibility: "PUBLIC",
       sellerVerified: true,
-      sellerTier: "BRONZ",
+      sellerTier: "SILVER",
     });
     await expect(
       bid(service, seller.auth as never, listing.id, item.id),

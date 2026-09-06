@@ -45,7 +45,7 @@ import { Prisma } from "@rothern/db";
  *   Anonim ziyaretçi, giriş yapmış ücretsiz üyeden DAHA ÇOĞUNU göremez.
  *
  *   Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir:
- *   orası ayrı, OPT-IN (`publicEnabled`) ve satılan bir özelliktir (BRONZ+).
+ *   orası ayrı, OPT-IN (`publicEnabled`) ve satılan bir özelliktir (SILVER+).
  *   İlan sayfasından oraya bağlantı da verilmez — bağlantının kendisi kimliği
  *   ele verirdi.
  *

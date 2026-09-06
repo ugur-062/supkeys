@@ -31,11 +31,11 @@ export function isListingVisibleToViewer(
 /**
  * Faz T — teklif-uygunluğu + maske TEK KAYNAK (üçüncü tanım yasak; getOne,
  * sellerTenders, placeBid, buyNow aynı formülü buradan okur):
- * - canBid: davet ∨ (CONNECTIONS ∧ bağlı) ∨ (PUBLIC ∧ (bağlı ∨ BRONZ+)).
+ * - canBid: davet ∨ (CONNECTIONS ∧ bağlı) ∨ (PUBLIC ∧ (bağlı ∨ SILVER+)).
  * - masked: PUBLIC ∧ bağlı-değil ∧ davetsiz ∧ paket yok (STANDART) →
  *   freemium önizleme: liste/detay GÖRÜNÜR ama kısıtlı, teklif kapalı
- *   ("Bronz+ gerekir" CTA'sı). Eski STANDARD maskeli-önizleme davranışının
- *   devamı — eşik PAKET→BRONZ.
+ *   ("Silver+ gerekir" CTA'sı). Eski STANDARD maskeli-önizleme davranışının
+ *   devamı — eşik PAKET→SILVER.
  */
 export function listingBidEligibility(
   visibility: string,
@@ -45,7 +45,7 @@ export function listingBidEligibility(
     viewerTier: string;
   },
 ): { canBid: boolean; masked: boolean } {
-  const paid = tierAtLeast(opts.viewerTier, "BRONZ");
+  const paid = tierAtLeast(opts.viewerTier, "SILVER");
   const canBid =
     opts.isInvited ||
     (visibility === "CONNECTIONS" && opts.connectedToOwner) ||

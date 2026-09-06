@@ -119,7 +119,7 @@ describe("Denetim Dalga B-1", () => {
     it("anyPackageWhere süresi DOLMUŞ paketliyi dışarıda bırakır", async () => {
       const now = new Date();
       const expired = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-      const live = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
+      const live = await makeCompanyWithUser(prisma, { tier: "SILVER" });
       await prisma.company.update({
         where: { id: expired.company.id },
         data: { membershipEndAt: new Date(now.getTime() - 86_400_000) },

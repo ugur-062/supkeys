@@ -24,7 +24,7 @@ export class CompanyDirectoryService {
    * çerez basmak yetmesin diye karar sunucuda veriliyor.
    *
    * Kapı `getBySlug` ile AYNI (publicEnabled ∧ isActive ∧ !isBlocked ∧ efektif
-   * BRONZ+): dizinde görünen her satırın tıklanabilir bir profil sayfası
+   * SILVER+): dizinde görünen her satırın tıklanabilir bir profil sayfası
    * OLMAK ZORUNDA. Kapıyı gevşetip daha kalabalık bir dizin üretmek, 404'e
    * giden bağlantılarla dolu bir sayfa üretirdi.
    *

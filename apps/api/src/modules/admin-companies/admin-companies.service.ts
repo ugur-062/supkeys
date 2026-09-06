@@ -194,7 +194,7 @@ export class AdminCompaniesService {
     if (query.country) where.country = query.country.trim().toUpperCase();
     if (query.tier) {
       // DTO @IsIn ile 4 kademeye doğrulanmış.
-      where.tier = query.tier as "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+      where.tier = query.tier as "STANDART" | "SILVER" | "GOLD";
     }
     if (query.q) {
       const q = query.q.trim();
@@ -412,7 +412,6 @@ export class AdminCompaniesService {
       openComplaints,
       tierBreakdown: {
         STANDART: tmap.get("STANDART") ?? 0,
-        BRONZ: tmap.get("BRONZ") ?? 0,
         SILVER: tmap.get("SILVER") ?? 0,
         GOLD: tmap.get("GOLD") ?? 0,
       },
@@ -1182,7 +1181,7 @@ export class AdminCompaniesService {
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */
   async setTier(
     id: string,
-    tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD",
+    tier: "STANDART" | "SILVER" | "GOLD",
     months?: number,
     adminId?: string,
     reason?: string,
@@ -1295,7 +1294,7 @@ export class AdminCompaniesService {
     if (!c) throw new NotFoundException("Firma bulunamadı");
     if (c.tier === "STANDART") {
       throw new BadRequestException(
-        "Uzatma yalnız paketli üyelikte — önce bir paket (Bronz/Silver/Gold) verin",
+        "Uzatma yalnız paketli üyelikte — önce bir paket (Silver/Gold) verin",
       );
     }
     // Dalga B-3: SÜRESİZ üyelik uzatılamaz. Eskiden `membershipEndAt === null`
@@ -1727,7 +1726,7 @@ export class AdminCompaniesService {
     input: {
       subject: string;
       message: string;
-      tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+      tier?: "STANDART" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
       /**

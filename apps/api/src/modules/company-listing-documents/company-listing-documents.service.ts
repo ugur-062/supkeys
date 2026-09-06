@@ -95,7 +95,7 @@ export class CompanyListingDocumentsService {
 
     // Denetim 2026-08-24 Parça 7: "bağlantılı mı" sorusu ham `ACTIVE` sayımıyla
     // yanıtlanıyordu; ilan tarafındaki kural (bağlantıyı KURAN taraf efektif
-    // BRONZ+ olmalı — INV-TIER-1) uygulanmıyordu. Sonuç: davet eden firma
+    // SILVER+ olmalı — INV-TIER-1) uygulanmıyordu. Sonuç: davet eden firma
     // paketten düşünce ilan detayı 404 verirken şartname/çizim dosyaları
     // indirilmeye devam ediyordu. Artık tek kaynak `hasValidConnection`.
     const [connected, invitedCount] = await Promise.all([
@@ -113,7 +113,7 @@ export class CompanyListingDocumentsService {
 
     let allowed: boolean;
     if (listing.visibility === "PUBLIC") {
-      allowed = connected || tierAtLeast(user.tier, "BRONZ");
+      allowed = connected || tierAtLeast(user.tier, "SILVER");
     } else if (listing.visibility === "CONNECTIONS") {
       allowed = connected;
     } else {

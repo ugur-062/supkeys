@@ -28,7 +28,7 @@ export function isConnectionValid(row: ConnectionRowForValidity): boolean {
       row.inviter.tier as never,
       row.inviter.membershipEndAt,
     ) as never,
-    "BRONZ",
+    "SILVER",
   );
 }
 

@@ -53,7 +53,7 @@ describe("#1 — 'geçerli bağlantı' TEK KAYNAK (belge ucu ilan detayıyla ayn
     expect(
       isConnectionValid({
         origin: "INVITE",
-        inviter: { tier: "BRONZ", membershipEndAt: past },
+        inviter: { tier: "SILVER", membershipEndAt: past },
       }),
     ).toBe(false);
     expect(

@@ -278,7 +278,7 @@ export class RealtimeGateway
         where: { listingId, invitedCompanyId: companyId },
       }),
       // Denetim 2026-08-24 Parça 7: ham ACTIVE sayımı yerine TEK KAYNAK
-      // geçerlilik kuralı (bağlantıyı kuran taraf efektif BRONZ+ olmalı) —
+      // geçerlilik kuralı (bağlantıyı kuran taraf efektif SILVER+ olmalı) —
       // ilan tarafındaki kapı ile aynı, kardeş-yol driftı kapandı.
       hasValidConnection(this.prisma as never, companyId, listing.companyId),
     ]);

@@ -25,7 +25,7 @@ import {
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import { buildProductMatcher, productMatchReason } from "../../../common/company/product-request-match";
-import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode ,
+import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderPermission } from "../bidder-op-role";
@@ -1048,9 +1048,9 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     action: string,
   ) {
-    if (!tierAtLeast(user.tier, "SILVER")) {
+    if (!tierAtLeast(user.tier, BUYING_TIER)) {
       throw new ForbiddenException(
-        `${action} için Silver veya üzeri paket gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.`,
+        `${action} için Gold paket (satınalma paneli) gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.`,
       );
     }
   }
@@ -1076,9 +1076,10 @@ export class CompanyListingsService {
     const type = dto.type as ListingType;
     this.validateListingDates(dto);
 
-    if (!tierAtLeast(user.tier, "SILVER")) {
+    // Üç paket (2026-09-06): satınalma paneli = GOLD (Silver yalnız satış).
+    if (!tierAtLeast(user.tier, BUYING_TIER)) {
       throw new ForbiddenException(
-        "İlan/satın alma talebi açmak için Silver veya üzeri paket gerekir.",
+        "Satın alma talebi açmak için Gold paket (satınalma paneli) gerekir.",
       );
     }
     // BK-A (kör-nokta denetimi): asDraft:false doğrudan status:OPEN üretir =
@@ -3540,7 +3541,7 @@ export class CompanyListingsService {
     // talep kapanıyor. Kaybeden yalnız tedarikçi değil — alıcı da davet
     // ettiği firmadan teklif alamıyor.
     //
-    // NOT: PUBLIC yolu zaten BRONZ+ paket istiyor ve paket alma VERIFIED
+    // NOT: PUBLIC yolu zaten SILVER+ paket istiyor ve paket alma VERIFIED
     // istiyor, yani doğrulama zincirle de uygulanıyor. Buradaki açık kontrol
     // savunma derinliği: admin `setTier` ile elle paket verebiliyor ve o yol
     // doğrulamayı atlıyor.

@@ -40,7 +40,7 @@ export class CompanySupplierTemplatesService {
         r.origin === "ADMIN" ||
         tierAtLeast(
           effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
-          "BRONZ",
+          "SILVER",
         );
       if (!valid) continue;
       set.add(

@@ -130,7 +130,7 @@ export class CompanyViewsService {
   }
 
   /**
-   * Ziyaret Edenler. Sayılar herkese; KİMLİKLİ liste Bronz+ (Europages'te
+   * Ziyaret Edenler. Sayılar herkese; KİMLİKLİ liste Silver+ (Europages'te
    * ödemeli). Standart pakette `locked` + kaç firma olduğu döner (satır yok).
    */
   async visitors(user: AuthenticatedCompanyUser, opts: { days?: number; page?: number } = {}) {
@@ -171,7 +171,7 @@ export class CompanyViewsService {
     }
     const identified = groups.size;
     const anonymous = rows.filter((r) => !r.viewerCompanyId).length;
-    const locked = !tierAtLeast(user.tier, "BRONZ");
+    const locked = !tierAtLeast(user.tier, "SILVER");
     const base = { days, total, profileViews, productViews: total - profileViews, identified, anonymous, previous, daily, locked, page, pageSize: VISITORS_PAGE_SIZE };
     if (locked || identified === 0) return { ...base, totalItems: identified, items: [] as VisitorItem[] };
 

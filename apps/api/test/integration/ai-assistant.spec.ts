@@ -154,14 +154,14 @@ beforeEach(async () => {
 });
 
 describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
-  it("Bronz 403 + ONAYLAYICI 403 — sağlayıcıya gitmez", async () => {
+  it("Standart 403 + ONAYLAYICI 403 — sağlayıcıya gitmez", async () => {
     const provider = new FakeProvider();
     const { svc } = build(makeCfg(), provider);
-    const co = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
 
     await expect(
       svc.message(
-        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier: "BRONZ" }),
+        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier: "STANDART" }),
         { message: "merhaba" },
       ),
     ).rejects.toThrow(/Silver/);

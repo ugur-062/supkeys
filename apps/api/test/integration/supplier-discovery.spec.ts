@@ -1,6 +1,6 @@
 /**
  * "AI ile daha fazla tedarikçiye eriş" — Faz A dizin keşfi sözleşmesi:
- * kategori eşleşmesi (segment + alt), BRONZ+ görünürlük, bağlantılı/bloklu/
+ * kategori eşleşmesi (segment + alt), SILVER+ görünürlük, bağlantılı/bloklu/
  * kendisi hariç, PENDING etiketi, güçlü-eşleşme sıralaması.
  */
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
@@ -19,10 +19,10 @@ beforeEach(async () => {
 });
 
 describe("SupplierDiscoveryService.discoverRegistered", () => {
-  it("segment/alt eşleşen BRONZ+ firmalar döner; STANDART, bağlantılı, bloklu ve kendisi dönmez", async () => {
+  it("segment/alt eşleşen SILVER+ firmalar döner; STANDART, bağlantılı, bloklu ve kendisi dönmez", async () => {
     const buyer = await makeCompanyWithUser(prisma);
     // Alt-kategori (class) eşleşmesi → güçlü
-    const strong = await makeCompanyWithUser(prisma, { name: "Güçlü AŞ", tier: "BRONZ" });
+    const strong = await makeCompanyWithUser(prisma, { name: "Güçlü AŞ", tier: "SILVER" });
     await prisma.company.update({
       where: { id: strong.company.id },
       data: { sellerCategoryIds: ["30991500"], city: "İstanbul" },
@@ -81,7 +81,7 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
 
   it("bizim gönderdiğimiz PENDING istek listede kalır ve etiketlenir", async () => {
     const buyer = await makeCompanyWithUser(prisma);
-    const pending = await makeCompanyWithUser(prisma, { name: "Beklemede AŞ", tier: "BRONZ" });
+    const pending = await makeCompanyWithUser(prisma, { name: "Beklemede AŞ", tier: "SILVER" });
     await prisma.company.update({
       where: { id: pending.company.id },
       data: { sellerCategoryIds: ["30000000"] },

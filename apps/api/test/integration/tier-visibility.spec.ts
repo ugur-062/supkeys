@@ -1,7 +1,7 @@
 /**
  * Faz T kabul — STANDART maskeli-önizleme (freemium):
  * STANDART, PUBLIC ihaleyi LİSTEDE görür + detayı MASKELİ açar (404 değil) ama
- * teklif VEREMEZ; davet/bağlantı → tam görünüm + teklif. BRONZ+ → PUBLIC
+ * teklif VEREMEZ; davet/bağlantı → tam görünüm + teklif. SILVER+ → PUBLIC
  * maskesiz + teklif. Formüllerin tek kaynağı listingBidEligibility
  * (listing-visibility.ts) — getOne/sellerTenders/placeBid aynı kuralı okur.
  */
@@ -127,12 +127,12 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     ).resolves.toBeDefined();
   });
 
-  it("BRONZ aynı PUBLIC'i MASKESIZ görür + teklif verir (yeni kademe eşiği)", async () => {
+  it("SILVER aynı PUBLIC'i MASKESIZ görür + teklif verir (yeni kademe eşiği)", async () => {
     const { service } = makeService();
     const { listing, item } = await publicListing();
     const bronz = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "BRONZ",
+      tier: "SILVER",
     });
 
     const rows = (await service.sellerTenders(bronz.auth)) as {
@@ -155,12 +155,12 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     ).resolves.toBeDefined();
   });
 
-  it("süresi DOLMUŞ BRONZ efektif STANDART gibi maskelenir (INV-TIER-1 lazy)", async () => {
+  it("süresi DOLMUŞ SILVER efektif STANDART gibi maskelenir (INV-TIER-1 lazy)", async () => {
     const { service } = makeService();
     const { listing } = await publicListing();
     const expired = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "BRONZ",
+      tier: "SILVER",
     });
     await prisma.company.update({
       where: { id: expired.company.id },

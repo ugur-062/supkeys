@@ -1,3 +1,4 @@
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
   Body,
   Controller,
@@ -68,6 +69,7 @@ class UpdateSupplierTemplateDto {
 }
 
 @Controller("company/supplier-templates")
+@RequireTier("GOLD")
 // Tedarikçi şablonları premium özelliğidir — STANDARD firma erişemez.
 @UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanySupplierTemplatesController {

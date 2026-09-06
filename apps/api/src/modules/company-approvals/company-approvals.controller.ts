@@ -1,3 +1,4 @@
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
   Body,
   Controller,
@@ -38,6 +39,7 @@ export class CompanyApprovalsController {
   }
 
   @Post("flows")
+  @RequireTier("GOLD")
   // Faz T: YENİ akış kurma Silver+ (mevcut akışları yönetme/karar tier'sız —
   // pakete düşen firma açık süreçlerini tamamlayabilir, yenisini kuramaz).
   @UseGuards(CompanyPaidTierGuard)
@@ -70,6 +72,7 @@ export class CompanyApprovalsController {
   }
 
   @Post("flows/:id/duplicate")
+  @RequireTier("GOLD")
   @UseGuards(CompanyPaidTierGuard)
   @RequireCompanyPermission("approvals:manage")
   duplicateFlow(

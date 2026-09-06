@@ -152,10 +152,10 @@ export class CompanyReviewsService {
         },
       });
       const publiclyListed =
-        tierAtLeast(user.tier, "BRONZ") &&
+        tierAtLeast(user.tier, "SILVER") &&
         tierAtLeast(
           effectiveTier(target.tier, target.membershipEndAt),
-          "BRONZ",
+          "SILVER",
         ) &&
         target.publicEnabled;
       if (relation === 0 && !publiclyListed) {

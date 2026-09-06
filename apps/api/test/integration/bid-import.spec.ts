@@ -282,9 +282,9 @@ describe("Belgeden Fiyatla (AI)", () => {
     expect(await prisma.listingBid.count()).toBe(0);
   });
 
-  it("Bronz firma AI yoluna giremez (403) — şablon yolu ise açık", async () => {
+  it("Standart (paketsiz) firma AI yoluna giremez (403) — şablon yolu ise açık", async () => {
     const { listing, svc } = await setup();
-    const bronz = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
+    const bronz = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const provider = new FakeProvider();
     const storage = new FakeStorage();
     const ai = makeAi(provider, storage, svc);

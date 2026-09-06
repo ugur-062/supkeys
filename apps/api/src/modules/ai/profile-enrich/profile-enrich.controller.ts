@@ -16,7 +16,7 @@ class EnrichDto {
   website?: string;
 }
 
-/** Rothern profilini web sitesinden AI ile oluştur — BRONZ+ (kapı serviste). */
+/** Rothern profilini web sitesinden AI ile oluştur — SILVER+ (kapı serviste). */
 @Controller("company/ai/profile-enrich")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class ProfileEnrichController {

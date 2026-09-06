@@ -9,7 +9,7 @@
  * - AI çıktısı shared validation'dan geçer (geçmeyen null + flag).
  * - Vision yolunda kritik alanlar (miktar/birim/tarih/para birimi) işaretli.
  * - Prompt injection: belge metni VERİ (delimiter içinde), sistem prompt değişmez.
- * - Erişim: Bronz/ONAYLAYICI 403 (AI-0 kapısı) — oluşturma normal kapılardan.
+ * - Erişim: Standart/ONAYLAYICI 403 (AI-0 kapısı) — oluşturma normal kapılardan.
  */
 import "reflect-metadata";
 import { CompanyRole, Prisma } from "@rothern/db";
@@ -300,15 +300,15 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
-  it("Bronz 403 (Silver+ şartı) + ONAYLAYICI 403 (SA/ST şartı) — dosya bile işlenmez", async () => {
+  it("Standart 403 (Silver+ şartı) + ONAYLAYICI 403 (SA/ST şartı) — dosya bile işlenmez", async () => {
     const provider = new FakeProvider();
     const storage = new FakeStorage();
     const svc = makeService(makeCfg(), provider, storage);
-    const co = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
 
     await expect(
       svc.extract(
-        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier: "BRONZ" }),
+        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier: "STANDART" }),
         { fileKeys: [keyFor(co.company.id, "x.pdf")], listingType: "ALIM" },
       ),
     ).rejects.toThrow(/Silver/);

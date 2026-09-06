@@ -1,3 +1,4 @@
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
   Body,
   Controller,
@@ -20,6 +21,7 @@ import { CompanyQuestionTemplatesService } from "./company-question-templates.se
 import { SaveQuestionTemplateDto } from "./dto/save-question-template.dto";
 
 @Controller("company/question-templates")
+@RequireTier("GOLD")
 // Soru seti şablonları premium özelliğidir — STANDARD firma erişemez.
 @UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanyQuestionTemplatesController {

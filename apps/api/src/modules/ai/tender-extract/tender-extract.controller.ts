@@ -1,3 +1,4 @@
+import { RequireTier } from "../../company-auth/decorators/require-tier.decorator";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import { Type } from "class-transformer";
@@ -67,6 +68,7 @@ class CategorySuggestDto {
  * akışından geçer.
  */
 @Controller("company/ai")
+@RequireTier("GOLD")
 @UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class TenderExtractController {
   constructor(

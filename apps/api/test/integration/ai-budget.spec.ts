@@ -5,7 +5,7 @@
  * - Bütçe kontrolü ÇAĞRIDAN ÖNCE: bütçe doluysa sağlayıcıya istek GİTMEZ.
  * - Ön-rezervasyon + FOR UPDATE: iki eşzamanlı istek son bütçeyi PAYLAŞAMAZ.
  * - Tavanlar: kullanıcı %50, günlük %25, istek-başı %5, premium alt-bütçe %20.
- * - Erişim: SA/ST koltuk sahibi + Silver+ (etiket-only, ONAYLAYICI, Bronz → 403).
+ * - Erişim: SA/ST koltuk sahibi + Silver+ (etiket-only, ONAYLAYICI, Standart → 403).
  * - Maliyet: girdi/çıktı/cache AYRI fiyatlanır, doğru MODELİN fiyatıyla.
  * - Bakiye TÜRETİLİR (SUM) — stored bakiye yok; FAILED(0) etkisiz, timeout tahmini korur.
  * - Kullanıcı model SEÇEMEZ; yükseltme kod kararıdır (eşik/feature/retry).
@@ -173,11 +173,11 @@ describe("Faz AI-0 — erişim kapısı", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
-  it("BRONZ/STANDART 403 (Silver+ şartı)", async () => {
+  it("STANDART/STANDART 403 (Silver+ şartı)", async () => {
     const provider = new FakeProvider();
     const ai = makeAi(makeCfg(), provider);
-    const co = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
-    for (const tier of ["BRONZ", "STANDART"]) {
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    for (const tier of ["STANDART", "STANDART"]) {
       await expect(
         ai.callAi(
           authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier, isOwner: true }),
