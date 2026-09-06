@@ -51,11 +51,21 @@ export class PublicMarketplaceController {
     return this.service.stats();
   }
 
-  /** Hero arama önerisi — kısa önbellek, sorgu başına. */
+  /**
+   * Arama önerisi (hero + üst çubuk typeahead) — kısa önbellek, sorgu başına.
+   * `scope` = products | companies | listings (yoksa hepsi; eski çağrı biçimi).
+   */
   @Get("suggest")
   @Header("Cache-Control", "public, max-age=0, s-maxage=120, stale-while-revalidate=600")
-  suggest(@Query("q") q?: string) {
-    return this.service.suggest((q ?? "").slice(0, 80));
+  suggest(@Query("q") q?: string, @Query("scope") scope?: string) {
+    return this.service.suggest((q ?? "").slice(0, 80), (scope ?? "").slice(0, 20) || undefined);
+  }
+
+  /** Mega menü kategori ağacı (L1 + L2) — katalog yavaş değişir, 15 dk. */
+  @Get("categories/menu")
+  @Header("Cache-Control", "public, max-age=0, s-maxage=900, stale-while-revalidate=3600")
+  categoryMenu() {
+    return this.service.categoryMenu();
   }
 
   /** Anasayfa ürün seçkisi — doğrulanmış önce, firma başına 2. */

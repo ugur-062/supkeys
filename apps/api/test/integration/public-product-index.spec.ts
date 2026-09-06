@@ -338,7 +338,44 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     const s = await service().suggest("pano");
     expect(s.products.map((p) => p.name)).toContain("Dağıtım panosu");
     expect(s.companies.map((c) => c.name)).toContain("Pano Sanayi");
-    expect(await service().suggest("p")).toEqual({ products: [], categories: [], companies: [] });
+    // Kart satırı için görsel + firma adı (PROMPT 6 typeahead).
+    expect(s.products[0]).toMatchObject({ image: "a.webp", companyName: "Pano Sanayi" });
+    expect(await service().suggest("p")).toEqual({ products: [], categories: [], companies: [], listings: [] });
+  });
+
+  it("öneri kapsamı: scope yalnız o grubu sorgular (kategori her kapsamda)", async () => {
+    await seedProduct({ name: "Pano Sanayi" }, { name: "Dağıtım panosu", searchText: "dagitim panosu" });
+    const onlyCompanies = await service().suggest("pano", "companies");
+    expect(onlyCompanies.companies.map((c) => c.name)).toContain("Pano Sanayi");
+    expect(onlyCompanies.products).toEqual([]);
+    const onlyProducts = await service().suggest("pano", "products");
+    expect(onlyProducts.products.map((p) => p.name)).toContain("Dağıtım panosu");
+    expect(onlyProducts.companies).toEqual([]);
+  });
+
+  it("mega menü: L1 + L2, sayı yalnız yayında ürünlerden", async () => {
+    // Katalog test DB'sinde boş — menü kaynağı Category tablosudur.
+    await prisma.category.createMany({
+      data: [
+        { id: "39000000", code: "39000000", nameTr: "Elektrik Sistemleri", level: 1 },
+        { id: "39120000", code: "39120000", nameTr: "Panolar", level: 2, parentId: "39000000" },
+        { id: "31000000", code: "31000000", nameTr: "Üretim Bileşenleri", level: 1 },
+      ],
+    });
+    await seedProduct({}, { categoryId: "39121000" });
+    await seedProduct({}, { categoryId: "39121500", isPublic: false, publishedAt: null });
+    const menu = await service().categoryMenu();
+    const seg = menu.find((m) => m.id === "39000000");
+    expect(seg).toBeTruthy();
+    // Yayında OLMAYAN ürün sayıya girmez.
+    expect(seg?.count).toBe(1);
+    const fam = seg?.children.find((c) => c.id === "39120000");
+    expect(fam?.count).toBe(1);
+    // Ürünü olmayan segment de listelenir (katalog gezilebilir), sayısı 0.
+    const other = menu.find((m) => m.id !== "39000000");
+    expect(other?.count).toBe(0);
+    // Sıra: ürünü olan segment ÖNCE.
+    expect(menu[0]?.id).toBe("39000000");
   });
 
   it("sayı şeridi gerçek sayımlar", async () => {

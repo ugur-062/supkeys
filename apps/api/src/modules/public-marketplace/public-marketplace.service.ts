@@ -434,17 +434,31 @@ export class PublicMarketplaceService {
    * ARAMA ÖNERİSİ — hero kutusunda yazarken: ürün + kategori + firma.
    * Kapılar liste uçlarıyla aynı; kategori yalnız discovery L2+.
    */
-  async suggest(raw: string) {
+  async suggest(raw: string, scope?: string) {
     const q = raw.trim();
-    if (q.length < 2) return { products: [], categories: [], companies: [] };
+    const empty = { products: [], categories: [], companies: [], listings: [] };
+    if (q.length < 2) return empty;
     const tokens = tokenizeQuery(q);
-    const [products, categories, companies] = await Promise.all([
-      this.prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), ...(tokens.length ? { AND: productSearchClauses(q) } : {}) },
-        select: { name: true, slug: true, company: { select: { slug: true } } },
-        orderBy: [{ completionScore: "desc" }],
-        take: 5,
-      }),
+    // Kapsam seçiciyle (PROMPT 6) yalnız o grup sorgulanır; kapsam yoksa
+    // hepsi (eski çağrı biçimi — hero araması scope göndermiyordu).
+    const want = (g: "products" | "companies" | "listings") => !scope || scope === "all" || scope === g;
+    const now = new Date();
+    const [products, categories, companies, listings] = await Promise.all([
+      want("products")
+        ? this.prisma.companyItem.findMany({
+            where: { ...publicProductWhere(), ...(tokens.length ? { AND: productSearchClauses(q) } : {}) },
+            select: {
+              name: true,
+              slug: true,
+              images: true,
+              company: { select: { slug: true, name: true } },
+            },
+            orderBy: [{ completionScore: "desc" }],
+            take: 5,
+          })
+        : [],
+      // Kategori önerisi HER kapsamda: kategori hem ürün hem talep listesini
+      // süzer, kullanıcının aradığı çoğu zaman dalın kendisidir.
       this.prisma.category.findMany({
         where: {
           inDiscovery: true,
@@ -455,20 +469,95 @@ export class PublicMarketplaceService {
         orderBy: [{ level: "asc" }],
         take: 5,
       }),
-      this.prisma.company.findMany({
-        where: {
-          ...PUBLIC_PROFILE_WHERE,
-          name: { contains: q, mode: "insensitive" },
-        },
-        select: { name: true, slug: true, city: true },
-        take: 5,
-      }),
+      want("companies")
+        ? this.prisma.company.findMany({
+            where: {
+              ...PUBLIC_PROFILE_WHERE,
+              name: { contains: q, mode: "insensitive" },
+            },
+            select: { name: true, slug: true, city: true, logoUrl: true },
+            take: 5,
+          })
+        : [],
+      want("listings")
+        ? this.prisma.listing.findMany({
+            // Vitrin kapısı + AÇIK: kapanmış talebi öneri olarak sunmak
+            // "teklif ver" beklentisi yaratır. Sahip ADI YOK (anonimlik).
+            where: { ...marketplaceListingWhere(now), status: "OPEN", ...this.searchWhere(q) },
+            select: { number: true, title: true, closesAt: true },
+            orderBy: [{ publishedAt: "desc" }],
+            take: 5,
+          })
+        : [],
     ]);
     return {
-      products: products.map((p) => ({ name: p.name, slug: p.slug ?? "", companySlug: p.company.slug ?? "" })),
+      products: products.map((p) => ({
+        name: p.name,
+        slug: p.slug ?? "",
+        companySlug: p.company.slug ?? "",
+        companyName: p.company.name,
+        image: p.images[0] ?? null,
+      })),
       categories: categories.map((c) => ({ id: c.id, name: c.nameTr, level: c.level })),
-      companies: companies.map((c) => ({ name: c.name, slug: c.slug as string, city: c.city })),
+      companies: companies.map((c) => ({
+        name: c.name,
+        slug: c.slug as string,
+        city: c.city,
+        logoUrl: c.logoUrl,
+      })),
+      listings: listings.map((l) => ({
+        number: l.number,
+        title: l.title,
+        closesAt: l.closesAt?.toISOString() ?? null,
+      })),
     };
+  }
+
+  /**
+   * MEGA MENÜ — L1 segmentler + L2 aileler, ürün sayısıyla (PROMPT 6).
+   *
+   * Katalog GERÇEK ve gezilebilir: ürünü olmayan dal da listelenir, sayı
+   * yalnız > 0 ise basılır (kategori kartıyla aynı kural — "0 ürün" yazmak
+   * envanterin azlığını duyurur). Sıra: ürünü olan segment önce, sonra ad.
+   */
+  async categoryMenu(): Promise<
+    { id: string; name: string; count: number; children: { id: string; name: string; count: number }[] }[]
+  > {
+    const [rows, cats] = await Promise.all([
+      this.prisma.companyItem.findMany({
+        where: publicProductWhere(),
+        select: { categoryId: true },
+        take: FACET_SCAN_CAP,
+      }),
+      this.prisma.category.findMany({
+        where: { inDiscovery: true, level: { lte: 2 } },
+        select: { id: true, nameTr: true, level: true },
+      }),
+    ]);
+    const segCount = new Map<string, number>();
+    const famCount = new Map<string, number>();
+    for (const r of rows) {
+      const id = r.categoryId ?? "";
+      if (id.length !== 8) continue;
+      const seg = `${id.slice(0, 2)}000000`;
+      const fam = `${id.slice(0, 4)}0000`;
+      segCount.set(seg, (segCount.get(seg) ?? 0) + 1);
+      famCount.set(fam, (famCount.get(fam) ?? 0) + 1);
+    }
+    const families = cats.filter((c) => c.level === 2);
+    return cats
+      .filter((c) => c.level === 1)
+      .map((seg) => ({
+        id: seg.id,
+        name: seg.nameTr,
+        count: segCount.get(seg.id) ?? 0,
+        children: families
+          .filter((f) => f.id.slice(0, 2) === seg.id.slice(0, 2))
+          .map((f) => ({ id: f.id, name: f.nameTr, count: famCount.get(f.id) ?? 0 }))
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"))
+          .slice(0, 12),
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
   }
 
   /** Anasayfa sayı şeridi — gerçek sayımlar; eşiği web uygular. */
