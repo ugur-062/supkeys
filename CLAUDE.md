@@ -1169,6 +1169,35 @@ kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
 - `permissionsOverride` kolonu DROP (`20260906010000_drop_permissions_override`).
 - Sözleşme: `permission-table.spec.ts`.
 
+**Faz 5 — Koltuk (2026-09-06, BİTTİ):**
+- **Koltuk = (kişi, grup).** Satınalma grubunda bir işlem izni 1, satış
+  grubunda bir işlem izni 1; aynı kişide ikisi 2 (eski sayım "kişi başı 1"
+  idi). Görüntüleme/rapor/onay/yönetim tüketmez. Tek kaynak `@rothern/shared`
+  `seatGroupsOf(user)` + `countSeats(users)`; `seatUsage` `{limit, used,
+  usedBuy, usedSell, pendingSeatInvites, pendingBuy, pendingSell, overflow}`.
+- **Limit** `SEAT_LIMITS`: STANDART **2** (kullanıcı kararı; kurucu iki
+  koltuğu da alırsa paket dolar) · BRONZ 2 · SILVER 4 · GOLD 8 — ücretli
+  sayılar SONRAYA ("Paketlere sonra bakacağız"); `null` limitsiz artık yok.
+- **Kapı** `assertSeatAvailable(db, companyId, { need, includePending,
+  context })`: `need` = YENİ grup sayısı (`newSeatCount(before, after)`);
+  davet/kabul/rol-izin atama/reaktivasyon/setPermissions aynı kapı; bekleyen
+  davetler grup bazında rezerve; admin "kullanıcı ekle" `countSeats` ile.
+- **Düşüş seçimi** `POST company/users/seat-selection { keep: [{userId,
+  group}] }` (eski `keepUserIds` kişinin tüm gruplarını korur): seçilmeyen
+  çiftin o gruptaki İŞLEM izinleri düşer, görüntüleme/onay/yönetim ve hesap
+  kalır; Kurucu satırında yalnız işlem tikleri yazılır; denetim
+  `roles_changed{reason: seat_selection, droppedGroups}` + toplu iz + bildirim.
+- **Kayıt**: onboarding son adımında iki kutu ("Satın alma talebi de
+  açacağım" / "Teklif verip ürün satacağım", ikisi işaretli gelir) →
+  `CompleteOnboardingDto.buyerSeat/sellerSeat`; Kurucu ikisini de kaldırırsa
+  yalnız yönetir. Signup hâlâ SAHIP+SA+ST yazar, onboarding yeniden yazar.
+- **Web**: koltuk barı "Koltuk: used/limit (satınalma X · satış Y · bekleyen
+  davet N)"; `PermissionTable` `freeSeats` + `hadGroups` — yeni grup açmak
+  1 koltuk ister, boş koltuk kalmayınca o grubun işlem tikleri kilitlenir
+  ("Koltuk dolu"); "Kalacak Koltukları Seç" diyaloğu (kişi · satınalma/satış)
+  satırlarıyla.
+- Sözleşme: `seats.spec.ts` (yeniden yazıldı), `onboarding.spec` koltuk seçimi.
+
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı
 nesnesi `/me`'den `permissions` taşır, yoksa rol setine düşer (test mock'ları

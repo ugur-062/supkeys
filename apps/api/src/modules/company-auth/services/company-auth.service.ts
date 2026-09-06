@@ -462,12 +462,14 @@ export class CompanyAuthService {
       dto.subCategoryIds ?? [],
     );
 
-    // Faz R: SAHIP etiketi işlem yetkisi vermez — Kurucu default op-rollerle
-    // (signup ile aynı; onboarding yeniden yazar, o yüzden burada da eksiksiz).
+    // Faz 5 (yetki tablosu): Kurucu koltuklarını KAYITTA seçer — "Bu hesapla
+    // talep de açacak mısınız, teklif de verecek misiniz?" İki kutu, iki
+    // koltuk; ikisi de kapalıysa Kurucu yalnız yönetir (SAHIP etiketi işlem
+    // yetkisi vermez; onboarding roller/izinleri yeniden yazar).
     const roles: CompanyRole[] = [
       CompanyRole.SAHIP,
-      CompanyRole.SATIN_ALMACI,
-      CompanyRole.SATISCI,
+      ...(dto.buyerSeat !== false ? [CompanyRole.SATIN_ALMACI] : []),
+      ...(dto.sellerSeat !== false ? [CompanyRole.SATISCI] : []),
     ];
     const deliverySame = dto.deliverySameAsBilling !== false;
 

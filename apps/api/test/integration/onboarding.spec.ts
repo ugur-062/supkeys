@@ -87,6 +87,23 @@ describe("completeOnboarding", () => {
     expect(addrs.map((a) => a.type).sort()).toEqual(["FATURA", "TESLIMAT"]);
   });
 
+  it("Faz 5: kurucu kayıtta koltuk seçer — sellerSeat=false → yalnız SAHIP+SATIN_ALMACI, izin listesi ona göre", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      { ...dto(cat.id), sellerSeat: false } as never,
+    );
+    const u = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    expect(u.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATIN_ALMACI]);
+    expect(u.permissions).toContain("buy:listing:manage");
+    expect(u.permissions).not.toContain("sell:bid:submit");
+  });
+
   it("geçersiz TCKN → reddedilir", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

@@ -10,7 +10,15 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
-import { ALL_SEAT_PERMISSIONS, SEAT_LIMITS, SEAT_ROLES } from "@rothern/shared";
+import {
+  ALL_SEAT_PERMISSIONS,
+  BUY_SEAT_PERMISSIONS,
+  SELL_SEAT_PERMISSIONS,
+  SEAT_LIMITS,
+  countSeats,
+  seatGroupsOf,
+  type SeatGroup,
+} from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -156,13 +164,13 @@ export class CompanyUsersService {
     // rol atama yalnız yönetim (users:manage) — guard zaten kapıda.
     this.assertCanGrantPermissions(actor, permissions, []);
     this.assertCanGrantRoles(actor, roles);
-    // Faz K: koltuk daveti kapıdan geçer — bekleyen koltuk davetleri de sayılır.
-    if (this.rolesConsumeSeat(roles)) {
-      await this.assertSeatAvailable(this.prisma, actor.companyId, {
-        includePending: true,
-        context: "invite",
-      });
-    }
+    // Faz K/5: koltuk daveti kapıdan geçer (grup başına 1) — bekleyen koltuk
+    // davetleri de sayılır.
+    await this.assertSeatAvailable(this.prisma, actor.companyId, {
+      need: seatGroupsOf({ permissions }).size,
+      includePending: true,
+      context: "invite",
+    });
     const email = dto.email.toLowerCase().trim();
 
     const existing = await this.prisma.companyUser.findUnique({
@@ -321,12 +329,16 @@ export class CompanyUsersService {
     // bir daha bakılmıyordu). Koltuk kapısı da aynı nedenle burada.
     const roles = inv.roles as CompanyRole[];
     this.assertCanGrantRoles(actor, roles);
-    if (this.rolesConsumeSeat(roles)) {
-      await this.assertSeatAvailable(this.prisma, actor.companyId, {
-        includePending: true,
-        context: "invite",
-      });
-    }
+    this.assertCanGrantPermissions(
+      actor,
+      inv.permissions.length > 0 ? inv.permissions : permissionsForRoles(roles),
+      [],
+    );
+    await this.assertSeatAvailable(this.prisma, actor.companyId, {
+      need: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }).size,
+      includePending: true,
+      context: "invite",
+    });
     await this.prisma.companyUserInvitation.update({
       where: { id: inv.id },
       data: {
@@ -385,11 +397,10 @@ export class CompanyUsersService {
         // kalır (upgrade sonrası yeniden kabul edilebilir); Supabase-user
         // telafisi dışarıdaki catch'te.
         await tx.$queryRaw`SELECT id FROM companies WHERE id = ${inv.companyId} FOR UPDATE`;
-        if (this.rolesConsumeSeat(inv.roles as CompanyRole[])) {
-          await this.assertSeatAvailable(tx, inv.companyId, {
-            context: "accept",
-          });
-        }
+        await this.assertSeatAvailable(tx, inv.companyId, {
+          need: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }).size,
+          context: "accept",
+        });
         // Yarış: davet hâlâ PENDING mi? (çift kabul / bu arada iptal)
         const claimed = await tx.companyUserInvitation.updateMany({
           where: { id: inv.id, status: "PENDING" },
@@ -581,14 +592,13 @@ export class CompanyUsersService {
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
       // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
       // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
-      if (
-        !this.rolesConsumeSeat(target.roles as CompanyRole[]) &&
-        this.rolesConsumeSeat(roles)
-      ) {
-        await this.assertSeatAvailable(tx, actor.companyId, {
-          context: "assign",
-        });
-      }
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        need: this.newSeatCount(
+          seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+          seatGroupsOf({ permissions: permissionsForRoles(roles) }),
+        ),
+        context: "assign",
+      });
       // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
       // son-yönetici garantisi.
       await this.resolveOwnership(
@@ -705,14 +715,13 @@ export class CompanyUsersService {
         roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
       await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
         // Faz K: updateRoles ile aynı koltuk kapısı.
-        if (
-          !this.rolesConsumeSeat(target.roles as CompanyRole[]) &&
-          this.rolesConsumeSeat(roles)
-        ) {
-          await this.assertSeatAvailable(tx, actor.companyId, {
-            context: "assign",
-          });
-        }
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          need: this.newSeatCount(
+            seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+            seatGroupsOf({ permissions: permissionsForRoles(roles) }),
+          ),
+          context: "assign",
+        });
         await this.resolveOwnership(
           tx,
           actor.companyId,
@@ -847,15 +856,16 @@ export class CompanyUsersService {
       company?.ownerUserId ?? null,
     );
     const nextRoles = rolesFromPermissions(next, targetIsOwner) as CompanyRole[];
-    const wasSeat = this.rolesConsumeSeat(target.roles as CompanyRole[]);
-    const willSeat = this.rolesConsumeSeat(nextRoles);
+    const needSeats = this.newSeatCount(
+      seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+      seatGroupsOf({ permissions: next }),
+    );
 
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
-      if (!wasSeat && willSeat) {
-        await this.assertSeatAvailable(tx, actor.companyId, {
-          context: "assign",
-        });
-      }
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        need: needSeats,
+        context: "assign",
+      });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
       await tx.companyUser.update({
         where: { id: targetId },
@@ -921,11 +931,14 @@ export class CompanyUsersService {
           data: { isActive: false },
         });
       });
-    } else if (this.rolesConsumeSeat(target.roles as CompanyRole[])) {
-      // Faz K: SA/ST taşıyan kişinin reaktivasyonu koltuk tüketir — kilitli
-      // tx'te kapı (aşkın firmada reaktivasyon da kilitli kalır).
+    } else if (
+      seatGroupsOf({ permissions: target.permissions, roles: target.roles }).size > 0
+    ) {
+      // Faz K/5: koltuk taşıyan kişinin reaktivasyonu koltuklarını yeniden
+      // tüketir — kilitli tx'te kapı (aşkın firmada reaktivasyon da kilitli).
       await this.lockedAdminTx(actor.companyId, async (tx) => {
         await this.assertSeatAvailable(tx, actor.companyId, {
+          need: seatGroupsOf({ permissions: target.permissions, roles: target.roles }).size,
           context: "assign",
         });
         await tx.companyUser.update({
@@ -1010,16 +1023,17 @@ export class CompanyUsersService {
       ...added,
     ]);
     const nextRoles = rolesFromPermissions(next, false) as CompanyRole[];
-    const wasSeat = this.rolesConsumeSeat(target.roles as CompanyRole[]);
-    const willSeat = this.rolesConsumeSeat(nextRoles);
+    const needSeats = this.newSeatCount(
+      seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+      seatGroupsOf({ permissions: next }),
+    );
 
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
-      // Faz K: koltuksuz kişiye işlem izni eklenirken kapı (tx + FOR UPDATE).
-      if (!wasSeat && willSeat) {
-        await this.assertSeatAvailable(tx, actor.companyId, {
-          context: "assign",
-        });
-      }
+      // Faz K/5: yeni koltuk grubu eklenirken kapı (tx + FOR UPDATE).
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        need: needSeats,
+        context: "assign",
+      });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
       await tx.companyUser.update({
         where: { id: targetId },
@@ -1359,71 +1373,89 @@ export class CompanyUsersService {
   // zaten reddeder, mevcutlar aktif kalır (zorla silme yok).
   // ============================================================
 
-  /** Verilen roller koltuk tüketir mi (SA/ST içeriyor mu)? */
-  private rolesConsumeSeat(roles: readonly CompanyRole[]): boolean {
-    return roles.some((r) =>
-      (SEAT_ROLES as readonly string[]).includes(r),
-    );
+  /** Yeni koltuk sayısı: `after` gruplarından `before`da olmayanlar. */
+  private newSeatCount(
+    before: ReadonlySet<SeatGroup>,
+    after: ReadonlySet<SeatGroup>,
+  ): number {
+    let n = 0;
+    for (const g of after) if (!before.has(g)) n++;
+    return n;
   }
 
-  /** Koltuk kullanımı — controller (GET seats) + kapılar tek kaynaktan okur. */
+  /**
+   * Koltuk kullanımı — controller (GET seats) + kapılar tek kaynaktan okur.
+   * Faz 5: koltuk = (kişi, grup); satınalma ve satış ayrı sayılır, aynı kişide
+   * ikisi 2 koltuk. Bekleyen davetler de grup bazında rezerve eder.
+   */
   async seatUsage(
     companyId: string,
     db: Prisma.TransactionClient = this.prisma,
   ) {
     const company = await db.company.findUnique({
       where: { id: companyId },
-      select: { tier: true, membershipEndAt: true },
+      select: { tier: true, membershipEndAt: true, ownerUserId: true },
     });
     if (!company) throw new NotFoundException("Firma bulunamadı");
     const limit =
       SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
-    const seatRoles = [...SEAT_ROLES] as CompanyRole[];
-    const [used, pendingSeatInvites] = await Promise.all([
-      db.companyUser.count({
-        where: {
-          companyId,
-          deletedAt: null,
-          isActive: true,
-          roles: { hasSome: seatRoles },
-        },
+    const [users, invites] = await Promise.all([
+      db.companyUser.findMany({
+        where: { companyId, deletedAt: null, isActive: true },
+        select: { id: true, roles: true, permissions: true },
       }),
-      db.companyUserInvitation.count({
-        where: {
-          companyId,
-          status: "PENDING",
-          expiresAt: { gt: new Date() },
-          roles: { hasSome: seatRoles },
-        },
+      db.companyUserInvitation.findMany({
+        where: { companyId, status: "PENDING", expiresAt: { gt: new Date() } },
+        select: { roles: true, permissions: true },
       }),
     ]);
+    const active = countSeats(
+      users.map((u) => ({
+        isOwner: company.ownerUserId === u.id,
+        permissions: u.permissions,
+        roles: u.roles,
+      })),
+    );
+    const pending = countSeats(
+      invites.map((i) => ({ permissions: i.permissions, roles: i.roles })),
+    );
     return {
       limit,
-      used,
-      pendingSeatInvites,
-      overflow: limit == null ? 0 : Math.max(0, used - limit),
+      used: active.total,
+      usedBuy: active.buy,
+      usedSell: active.sell,
+      pendingSeatInvites: pending.total,
+      pendingBuy: pending.buy,
+      pendingSell: pending.sell,
+      overflow: limit == null ? 0 : Math.max(0, active.total - limit),
     };
   }
 
   /**
-   * Koltuk kapısı — +1 koltuk sığmıyorsa reddeder. YARIŞ GÜVENLİĞİ: koltuk
-   * tüketen yazımlar company-satırı FOR UPDATE kilidi altındaki tx'ten çağırır
-   * (lockedAdminTx / acceptInvitation tx'i); davet-GÖNDERME kilitsiz danışma
-   * kontrolüdür (asıl kapı kabulde) ve bekleyen SA/ST davetlerini de sayar
-   * (davet-yağmuruyla limit aşımı kapalı).
+   * Koltuk kapısı — `need` yeni koltuk sığmıyorsa reddeder. YARIŞ GÜVENLİĞİ:
+   * koltuk tüketen yazımlar company-satırı FOR UPDATE kilidi altındaki tx'ten
+   * çağırır (lockedAdminTx / acceptInvitation tx'i); davet-GÖNDERME kilitsiz
+   * danışma kontrolüdür (asıl kapı kabulde) ve bekleyen koltuk davetlerini de
+   * sayar (davet-yağmuruyla limit aşımı kapalı).
    */
   private async assertSeatAvailable(
     db: Prisma.TransactionClient,
     companyId: string,
-    opts: { includePending?: boolean; context: "invite" | "accept" | "assign" },
+    opts: {
+      need?: number;
+      includePending?: boolean;
+      context: "invite" | "accept" | "assign";
+    },
   ) {
+    const need = opts.need ?? 1;
+    if (need <= 0) return;
     const { limit, used, pendingSeatInvites } = await this.seatUsage(
       companyId,
       db,
     );
-    if (limit == null) return; // STANDART — limitsiz
+    if (limit == null) return; // limitsiz kademe (bugün yok)
     const occupied = used + (opts.includePending ? pendingSeatInvites : 0);
-    if (occupied + 1 > limit) {
+    if (occupied + need > limit) {
       if (opts.context === "accept") {
         throw new ConflictException(
           "Koltuk dolu — davet şu an kabul edilemiyor; firma yöneticinize başvurun",
@@ -1431,87 +1463,125 @@ export class CompanyUsersService {
       }
       throw new BadRequestException(
         opts.includePending && pendingSeatInvites > 0
-          ? `Koltuk dolu (${used} aktif + ${pendingSeatInvites} bekleyen davet / ${limit}) — Satın Almacı/Satışçı için paketi yükseltin veya bir koltuğu boşaltın`
-          : `Koltuk dolu (${used}/${limit}) — Satın Almacı/Satışçı için paketi yükseltin veya bir koltuğu boşaltın`,
+          ? `Koltuk dolu (${used} aktif + ${pendingSeatInvites} bekleyen davet / ${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`
+          : `Koltuk dolu (${used}/${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`,
       );
     }
   }
 
   /**
-   * Faz K — kurucu koltuk seçimi (downgrade sonrası aşkın durum): kalacak
-   * SA/ST sahipleri `keepUserIds`; kalanların SA/ST rolleri DÜŞER, kişiler
-   * AKTİF kalır (etiket/ONAYLAYICI korunur; roller boşalabilir → roles=[]).
-   * Sistem-yazımı: assertValidRoleCombo bilinçli çağrılmaz. Kurucu kendini
-   * dışarıda bırakabilir (koltuk garantisi yok — Faz R salt-okunur modeli).
+   * Kurucu koltuk seçimi (paket düşüşü sonrası aşkın durum) — Faz 5: seçim
+   * (kişi, grup) çiftleri üzerinden. Seçilmeyen çiftin o gruptaki İŞLEM
+   * izinleri düşer (görüntüleme/onay/yönetim kalır), kişi AKTİF kalır, roller
+   * listeden türetilir. Eski istemci `keepUserIds` gönderirse o kişilerin
+   * tuttuğu tüm gruplar korunur.
    */
   async applySeatSelection(
     actor: AuthenticatedCompanyUser,
-    keepUserIds: string[],
+    keepInput: { userId: string; group: SeatGroup }[] | string[],
   ) {
     if (!actor.isOwner) {
       throw new ForbiddenException(
         "Koltuk seçimini yalnızca Kurucu yapabilir",
       );
     }
-    const keep = [...new Set(keepUserIds)];
-    const seatRoles = [...SEAT_ROLES] as CompanyRole[];
     const result = await this.lockedAdminTx(actor.companyId, async (tx) => {
       const { limit } = await this.seatUsage(actor.companyId, tx);
       if (limit == null) {
         throw new BadRequestException("Bu pakette koltuk sınırı yok");
       }
-      if (keep.length > limit) {
-        throw new BadRequestException(
-          `En fazla ${limit} kişi seçebilirsiniz (paket limiti)`,
-        );
-      }
-      const holders = await tx.companyUser.findMany({
-        where: {
-          companyId: actor.companyId,
-          deletedAt: null,
-          isActive: true,
-          roles: { hasSome: seatRoles },
-        },
-        select: { id: true, email: true, roles: true, permissions: true },
+      const company = await tx.company.findUnique({
+        where: { id: actor.companyId },
+        select: { ownerUserId: true },
       });
-      const holderIds = new Set(holders.map((h) => h.id));
-      for (const id of keep) {
-        if (!holderIds.has(id)) {
-          throw new BadRequestException(
-            "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
-          );
+      const holders = (
+        await tx.companyUser.findMany({
+          where: { companyId: actor.companyId, deletedAt: null, isActive: true },
+          select: { id: true, email: true, roles: true, permissions: true },
+        })
+      )
+        .map((h) => ({
+          ...h,
+          groups: seatGroupsOf({
+            isOwner: company?.ownerUserId === h.id,
+            permissions: h.permissions,
+            roles: h.roles,
+          }),
+        }))
+        .filter((h) => h.groups.size > 0);
+      // Seçimi (kişi, grup) çiftine indir.
+      const keep = new Set<string>();
+      for (const k of keepInput) {
+        if (typeof k === "string") {
+          const h = holders.find((x) => x.id === k);
+          if (!h) {
+            throw new BadRequestException(
+              "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+            );
+          }
+          for (const g of h.groups) keep.add(`${k}:${g}`);
+        } else {
+          const h = holders.find((x) => x.id === k.userId);
+          if (!h || !h.groups.has(k.group)) {
+            throw new BadRequestException(
+              "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+            );
+          }
+          keep.add(`${k.userId}:${k.group}`);
         }
       }
-      const dropped = holders.filter((h) => !keep.includes(h.id));
-      for (const h of dropped) {
-        const newRoles = (h.roles as CompanyRole[]).filter(
-          (r) => !(SEAT_ROLES as readonly string[]).includes(r),
+      if (keep.size > limit) {
+        throw new BadRequestException(
+          `En fazla ${limit} koltuk seçebilirsiniz (paket limiti)`,
         );
-        // İzin listesinden İŞLEM anahtarları düşer (görüntüleme/yönetim kalır).
+      }
+      const dropped: {
+        id: string;
+        email: string;
+        before: CompanyRole[];
+        after: CompanyRole[];
+        droppedGroups: SeatGroup[];
+      }[] = [];
+      for (const h of holders) {
+        const droppedGroups = [...h.groups].filter(
+          (g) => !keep.has(`${h.id}:${g}`),
+        );
+        if (droppedGroups.length === 0) continue;
+        const dropKeys = new Set<string>([
+          ...(droppedGroups.includes("buy") ? BUY_SEAT_PERMISSIONS : []),
+          ...(droppedGroups.includes("sell") ? SELL_SEAT_PERMISSIONS : []),
+        ]);
+        const isOwner = company?.ownerUserId === h.id;
         const perms = effectivePermissions({
           isOwner: false,
           permissions: h.permissions,
           roles: h.roles,
-        }).filter((k) => !ALL_SEAT_PERMISSIONS.includes(k));
+        }).filter((k) => !dropKeys.has(k));
+        const nextRoles = rolesFromPermissions(perms, isOwner) as CompanyRole[];
         await tx.companyUser.update({
           where: { id: h.id },
-          data: { roles: newRoles, permissions: perms },
+          data: {
+            roles: nextRoles,
+            // Kurucu satırında yalnız işlem tikleri yazılır (gerisi örtük).
+            permissions: isOwner
+              ? normalizePermissions(
+                  perms.filter((k) => ALL_SEAT_PERMISSIONS.includes(k)),
+                )
+              : perms,
+          },
         });
-      }
-      return {
-        limit,
-        dropped: dropped.map((h) => ({
+        dropped.push({
           id: h.id,
           email: h.email,
           before: h.roles as CompanyRole[],
-        })),
-      };
+          after: nextRoles,
+          droppedGroups,
+        });
+      }
+      return { limit, keptCount: keep.size, dropped };
     });
     // Commit SONRASI: kişi başına roles_changed + toplu iz + best-effort bildirim.
     for (const d of result.dropped) {
-      const after = d.before.filter(
-        (r) => !(SEAT_ROLES as readonly string[]).includes(r),
-      );
       await this.audit.log({
         action: "company.user.roles_changed",
         actorType: "company",
@@ -1522,15 +1592,16 @@ export class CompanyUsersService {
         entityId: d.id,
         critical: true,
         metadata: {
-          ...this.roleChangeMeta(d.before, after),
+          ...this.roleChangeMeta(d.before, d.after),
           reason: "seat_selection",
+          droppedGroups: d.droppedGroups,
         },
       });
       void this.notifications
         ?.pushToUser(d.id, {
           type: "seat_selection",
-          title: "İşlem rolleriniz kaldırıldı",
-          body: "Paket küçültmesi nedeniyle Satın Almacı/Satışçı rolleriniz kaldırıldı. Hesabınız ve diğer yetkileriniz aynen devam ediyor.",
+          title: "İşlem yetkileriniz kaldırıldı",
+          body: "Paket küçültmesi nedeniyle bazı işlem yetkileriniz (koltuk) kaldırıldı. Hesabınız, görüntüleme ve diğer yetkileriniz aynen devam ediyor.",
         } as never)
         .catch((err: unknown) =>
           this.logger.warn(
@@ -1551,7 +1622,7 @@ export class CompanyUsersService {
       critical: true,
       metadata: {
         limit: result.limit,
-        keptCount: keep.length,
+        keptCount: result.keptCount,
         droppedCount: result.dropped.length,
       },
     });

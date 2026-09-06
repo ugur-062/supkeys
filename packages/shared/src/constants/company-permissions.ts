@@ -216,6 +216,37 @@ export function permissionsForRoles(roles: readonly string[]): string[] {
   return normalizePermissions(out);
 }
 
+/** Kişinin tuttuğu koltuk grupları — efektif izinlerden (rol yedeğiyle). */
+export function seatGroupsOf(user: {
+  isOwner?: boolean;
+  permissions?: readonly string[] | null;
+  roles?: readonly string[] | null;
+}): Set<"buy" | "sell"> {
+  const perms = effectivePermissions({ isOwner: !!user.isOwner, permissions: user.permissions, roles: user.roles });
+  const out = new Set<"buy" | "sell">();
+  if (hasBuySeat(perms)) out.add("buy");
+  if (hasSellSeat(perms)) out.add("sell");
+  return out;
+}
+
+/** Bir kişi listesinin toplam koltuk sayımı (grup bazında). */
+export function countSeats(
+  users: readonly {
+    isOwner?: boolean;
+    permissions?: readonly string[] | null;
+    roles?: readonly string[] | null;
+  }[],
+): { buy: number; sell: number; total: number } {
+  let buy = 0;
+  let sell = 0;
+  for (const u of users) {
+    const g = seatGroupsOf(u);
+    if (g.has("buy")) buy++;
+    if (g.has("sell")) sell++;
+  }
+  return { buy, sell, total: buy + sell };
+}
+
 export function hasBuySeat(perms: readonly string[]): boolean {
   return BUY_SEAT_PERMISSIONS.some((k) => perms.includes(k));
 }

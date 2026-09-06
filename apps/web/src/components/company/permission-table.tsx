@@ -14,7 +14,6 @@ import {
   Store,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo } from "react";
 
 const GROUP_ORDER: PermissionCatalogItem["group"][] = [
   "buy",
@@ -58,8 +57,8 @@ export function PermissionTable({
   onChange,
   viewerIsOwner,
   targetIsOwner = false,
-  seatsFull = false,
-  hadSeat = false,
+  freeSeats = null,
+  hadGroups = { buy: false, sell: false },
   disabled = false,
 }: {
   catalog: PermissionCatalog;
@@ -68,19 +67,24 @@ export function PermissionTable({
   viewerIsOwner: boolean;
   /** Hedef Kurucu: işlem tikleri düzenlenir, gerisi örtük. */
   targetIsOwner?: boolean;
-  /** Paket koltukları dolu (yeni koltuk verilemez). */
-  seatsFull?: boolean;
-  /** Kişi zaten koltuk taşıyor (koltuk kilidi uygulanmaz). */
-  hadSeat?: boolean;
+  /** Boş koltuk sayısı (null = sınırsız). Yeni bir grup açmak 1 koltuk ister. */
+  freeSeats?: number | null;
+  /** Kişinin ZATEN tuttuğu gruplar (onlara koltuk kilidi uygulanmaz). */
+  hadGroups?: { buy: boolean; sell: boolean };
   disabled?: boolean;
 }) {
   const has = (k: string) => value.includes(k);
-  const seatKeys = useMemo(
-    () => catalog.catalog.filter((c) => c.seat).map((c) => c.key),
-    [catalog],
-  );
-  const holdsSeatNow = value.some((k) => seatKeys.includes(k));
-  const seatLocked = seatsFull && !hadSeat && !holdsSeatNow;
+  const groupHasOp = (g: "buy" | "sell") =>
+    catalog.catalog.some((c) => c.group === g && c.seat && has(c.key));
+  // Bu düzenlemede yeni açılan gruplar (koltuk isteyen).
+  const newGroupsTicked = (["buy", "sell"] as const).filter(
+    (g) => !hadGroups[g] && groupHasOp(g),
+  ).length;
+  const seatLockedFor = (g: "buy" | "sell") =>
+    freeSeats != null &&
+    !hadGroups[g] &&
+    !groupHasOp(g) &&
+    freeSeats - newGroupsTicked <= 0;
 
   const set = (next: Set<string>) => {
     // İşlem tiki → grubun görüntülemesi örtük.
@@ -106,18 +110,15 @@ export function PermissionTable({
     if (!viewerIsOwner) next.delete("users:manage");
     set(next);
   };
-  const activePreset = useMemo(
-    () =>
-      PRESETS.find((p) =>
-        sameSet(
-          value,
-          (catalog.presets[p.key] ?? []).filter(
-            (k) => viewerIsOwner || k !== "users:manage",
-          ),
+  const activePreset =
+    PRESETS.find((p) =>
+      sameSet(
+        value,
+        (catalog.presets[p.key] ?? []).filter(
+          (k) => viewerIsOwner || k !== "users:manage",
         ),
-      )?.key ?? null,
-    [value, catalog, viewerIsOwner],
-  );
+      ),
+    )?.key ?? null;
 
   const groups = GROUP_ORDER.map((g) => ({
     key: g,
@@ -187,7 +188,11 @@ export function PermissionTable({
                   const implicitOwner =
                     targetIsOwner && !c.seat; // Kurucu: örtük, kilitli
                   const ownerOnly = !!c.ownerGrantsOnly && !viewerIsOwner && !has(c.key);
-                  const seatBlock = c.seat && seatLocked && !has(c.key);
+                  const seatBlock =
+                    c.seat &&
+                    (c.group === "buy" || c.group === "sell") &&
+                    seatLockedFor(c.group) &&
+                    !has(c.key);
                   const viewImplied =
                     !c.seat &&
                     VIEW_OF[c.group] === c.key &&

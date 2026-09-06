@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type { CompanyRole } from "@rothern/db";
-import { SEAT_LIMITS, SEAT_ROLES, permissionsForRoles } from "@rothern/shared";
+import { SEAT_LIMITS, SEAT_ROLES, countSeats, permissionsForRoles } from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -207,14 +207,12 @@ export class AdminCompanyUsersService {
       const limit =
         SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
       if (limit != null) {
-        const used = await this.prisma.companyUser.count({
-          where: {
-            companyId,
-            deletedAt: null,
-            isActive: true,
-            roles: { hasSome: [...SEAT_ROLES] as CompanyRole[] },
-          },
+        // Faz 5: koltuk = (kişi, grup) — grup bazında sayım (tek kaynak countSeats).
+        const rows = await this.prisma.companyUser.findMany({
+          where: { companyId, deletedAt: null, isActive: true },
+          select: { roles: true, permissions: true },
         });
+        const used = countSeats(rows).total;
         if (used + 1 > limit) {
           throw new BadRequestException(
             `Koltuk dolu (${used}/${limit}) — bu rol için firmanın paketi yükseltilmeli`,

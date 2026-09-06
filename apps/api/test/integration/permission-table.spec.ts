@@ -65,7 +65,7 @@ describe("setPermissions — kişi başına açık liste", () => {
     const owner = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
     const sa = await makeUser(prisma, owner.company.id, [CompanyRole.SATIN_ALMACI]);
     const before = await svc.seatUsage(owner.company.id);
-    expect(before.used).toBe(2); // kurucu (SA+ST) + sa
+    expect(before.used).toBe(3); // kurucu (SA+ST = 2 koltuk) + sa (1) — Faz 5 grup sayımı
 
     const res = await svc.setPermissions(owner.auth, sa.id, [
       "buy:view",
@@ -76,7 +76,7 @@ describe("setPermissions — kişi başına açık liste", () => {
     const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: sa.id } });
     expect(row.roles).toEqual([]);
     expect(row.permissions).toEqual(["buy:view", "buy:reports:view"]);
-    expect((await svc.seatUsage(owner.company.id)).used).toBe(1);
+    expect((await svc.seatUsage(owner.company.id)).used).toBe(2);
 
     const audit = await prisma.auditLog.findFirst({
       where: { action: "company.user.permissions_changed", entityId: sa.id },
@@ -94,8 +94,7 @@ describe("setPermissions — kişi başına açık liste", () => {
 
   it("işlem tiki eklemek koltuk ister: Bronz'da koltuk doluyken onaylayıcıya 'Teklif verme' 400", async () => {
     const svc = makeUsersService();
-    const owner = await makeCompanyWithUser(prisma, { tier: "BRONZ" }); // 1 koltuk
-    await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]); // 2/2
+    const owner = await makeCompanyWithUser(prisma, { tier: "BRONZ" }); // kurucu SA+ST = 2/2 dolu
     const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
       svc.setPermissions(owner.auth, approver.id, ["approval:act", "sell:bid:submit"]),

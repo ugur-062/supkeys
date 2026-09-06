@@ -39,8 +39,11 @@ export function InviteUserDialog({
   const { data: catalog } = usePermissionCatalog();
   // Faz K: koltuk doluysa işlem tikleri kilitli (UX — asıl kapı backend).
   const { data: seats } = useSeats();
-  const seatsFull =
-    seats?.limit != null && seats.used + seats.pendingSeatInvites >= seats.limit;
+  const freeSeats =
+    seats?.limit == null
+      ? null
+      : Math.max(0, seats.limit - seats.used - seats.pendingSeatInvites);
+  const seatsFull = freeSeats === 0;
   const [email, setEmail] = useState("");
   const [perms, setPerms] = useState<string[]>([]);
   // Katalog gelince varsayılan hazır set: Satın Almacı.
@@ -98,7 +101,7 @@ export function InviteUserDialog({
                 value={perms}
                 onChange={setPerms}
                 viewerIsOwner={!!viewer?.isOwner}
-                seatsFull={seatsFull}
+                freeSeats={freeSeats}
               />
             ) : (
               <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>

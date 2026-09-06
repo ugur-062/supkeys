@@ -1,3 +1,4 @@
+import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -6,11 +7,13 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from "class-validator";
 
 export enum CompanyRoleDto {
@@ -103,11 +106,31 @@ export class AcceptCompanyInvitationDto {
   profileImprovementConsent?: boolean;
 }
 
-/** Faz K — kurucu koltuk seçimi: kalacak SA/ST sahipleri. */
+/** Koltuk seçiminde (kişi, grup) çifti — Faz 5. */
+export class SeatKeepDto {
+  @IsString()
+  userId!: string;
+
+  @IsIn(["buy", "sell"])
+  group!: "buy" | "sell";
+}
+
+/**
+ * Kurucu koltuk seçimi: kalacak koltuklar. Faz 5: `keep` (kişi, grup)
+ * çiftleri; eski istemci `keepUserIds` (kişinin tüm grupları korunur).
+ */
 export class SeatSelectionDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => SeatKeepDto)
+  keep?: SeatKeepDto[];
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  keepUserIds!: string[];
+  keepUserIds?: string[];
 }
 
 export class UpdateUserRolesDto {

@@ -252,9 +252,20 @@ export function useRemoveUser() {
 /** Faz K — koltuk kullanımı (limit null = STANDART limitsiz). */
 export interface SeatUsage {
   limit: number | null;
+  /** Toplam koltuk = satınalma + satış (aynı kişide ikisi 2). */
   used: number;
+  usedBuy: number;
+  usedSell: number;
   pendingSeatInvites: number;
+  pendingBuy: number;
+  pendingSell: number;
   overflow: number;
+}
+
+export type SeatGroup = "buy" | "sell";
+export interface SeatKeep {
+  userId: string;
+  group: SeatGroup;
 }
 
 export function useSeats() {
@@ -271,11 +282,11 @@ export function useSeats() {
 export function useSeatSelection() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (keepUserIds: string[]) => {
+    mutationFn: async (keep: SeatKeep[]) => {
       const { data } = await companyApi.post<{
         ok: boolean;
         droppedCount: number;
-      }>("/company/users/seat-selection", { keepUserIds });
+      }>("/company/users/seat-selection", { keep });
       return data;
     },
     onSuccess: () => {

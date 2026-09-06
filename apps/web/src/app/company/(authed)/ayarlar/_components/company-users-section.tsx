@@ -45,6 +45,7 @@ import {
   useSetUserPermissions,
   useUpdateUser,
   type CompanyTeamUser,
+  type SeatKeep,
 } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -85,7 +86,8 @@ export function CompanyUsersSection({
   const [deleting, setDeleting] = useState<CompanyTeamUser | null>(null);
   // Faz K — kurucu koltuk seçimi (aşkın durum).
   const [seatSelOpen, setSeatSelOpen] = useState(false);
-  const [keepIds, setKeepIds] = useState<string[]>([]);
+  const [keep, setKeep] = useState<SeatKeep[]>([]);
+  const keepKey = (k: SeatKeep) => `${k.userId}:${k.group}`;
 
   const meIsOwner = (users ?? []).find((u) => u.id === meId)?.isOwner ?? false;
 
@@ -126,30 +128,34 @@ export function CompanyUsersSection({
       {/* Faz K — koltuk barı: SA/ST taşıyan aktif kişi sayısı / paket limiti. */}
       {seats && seats.limit != null ? (
         <div className="border-b border-zinc-950/5 px-5 py-2.5 text-xs text-zinc-600">
-          Kullanıcı hakkı: <strong>{seats.used}/{seats.limit}</strong>
-          {seats.pendingSeatInvites > 0
-            ? ` · bekleyen davet: ${seats.pendingSeatInvites}`
-            : ""}
+          Koltuk: <strong>{seats.used}/{seats.limit}</strong>
           <span className="ml-1 text-zinc-400">
-            (Satın Almacı/Satışçı rolü taşıyan aktif kişiler)
+            (satınalma {seats.usedBuy} · satış {seats.usedSell}
+            {seats.pendingSeatInvites > 0
+              ? ` · bekleyen davet ${seats.pendingSeatInvites}`
+              : ""}
+            )
+          </span>
+          <span className="ml-1 text-zinc-400">
+            — satınalma ve satış işlem yetkisi ayrı koltuk sayar
           </span>
         </div>
       ) : null}
       {seats && seats.overflow > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
           <span>
-            Paketinizde <strong>{seats.limit}</strong> kullanıcı hakkı var,{" "}
-            <strong>{seats.overflow}</strong> kişi fazla — yeni Satın Almacı/
-            Satışçı atanamaz. Mevcut kullanıcılar çalışmaya devam eder.
+            Paketinizde <strong>{seats.limit}</strong> koltuk var,{" "}
+            <strong>{seats.overflow}</strong> koltuk fazla — yeni işlem yetkisi
+            verilemez. Mevcut kullanıcılar çalışmaya devam eder.
           </span>
           {meIsOwner ? (
             <Button
               onClick={() => {
-                setKeepIds([]);
+                setKeep([]);
                 setSeatSelOpen(true);
               }}
             >
-              Kalacak Kullanıcıları Seç
+              Kalacak Koltukları Seç
             </Button>
           ) : null}
         </div>
@@ -333,29 +339,31 @@ export function CompanyUsersSection({
         onClose={() => setSeatSelOpen(false)}
         size="lg"
       >
-        <DialogTitle>Kalacak Kullanıcıları Seç</DialogTitle>
+        <DialogTitle>Kalacak Koltukları Seç</DialogTitle>
         <DialogDescription>
-          Paketinizde {seats?.limit ?? 0} kullanıcı hakkı var. Kalacak Satın Almacı/
-          Satışçı kullanıcılarını seçin — seçilmeyenlerin işlem rolleri
-          kaldırılır (hesapları ve diğer yetkileri aynen kalır; açık işlemleri
-          kalan ekip tamamlayabilir).
+          Paketinizde {seats?.limit ?? 0} koltuk var. Kalacak koltukları
+          (kişi · satınalma/satış) seçin — seçilmeyen koltuğun o gruptaki
+          işlem yetkileri kaldırılır; hesap, görüntüleme ve diğer yetkiler
+          aynen kalır, açık işleri kalan ekip tamamlayabilir.
         </DialogDescription>
         <DialogBody className="space-y-2">
           {(users ?? [])
-            .filter(
-              (u) =>
-                u.isActive &&
-                u.roles.some(
-                  (r) => r === "SATIN_ALMACI" || r === "SATISCI",
-                ),
+            .filter((u) => u.isActive)
+            .flatMap((u) =>
+              (["buy", "sell"] as const)
+                .filter((g) =>
+                  u.roles.includes(g === "buy" ? "SATIN_ALMACI" : "SATISCI"),
+                )
+                .map((g) => ({ u, g })),
             )
-            .map((u) => {
-              const on = keepIds.includes(u.id);
+            .map(({ u, g }) => {
+              const k = { userId: u.id, group: g };
+              const on = keep.some((x) => keepKey(x) === keepKey(k));
               const full =
-                !on && seats?.limit != null && keepIds.length >= seats.limit;
+                !on && seats?.limit != null && keep.length >= seats.limit;
               return (
                 <label
-                  key={u.id}
+                  key={keepKey(k)}
                   className={`flex cursor-pointer items-center gap-3 rounded-lg p-2.5 text-sm ring-1 ${
                     on ? "bg-zinc-50 ring-2 ring-zinc-900" : "ring-zinc-950/10"
                   } ${full ? "opacity-50" : ""}`}
@@ -364,10 +372,10 @@ export function CompanyUsersSection({
                     checked={on}
                     disabled={full}
                     onChange={() =>
-                      setKeepIds((cur) =>
-                        cur.includes(u.id)
-                          ? cur.filter((x) => x !== u.id)
-                          : [...cur, u.id],
+                      setKeep((cur) =>
+                        cur.some((x) => keepKey(x) === keepKey(k))
+                          ? cur.filter((x) => keepKey(x) !== keepKey(k))
+                          : [...cur, k],
                       )
                     }
                   />
@@ -377,7 +385,7 @@ export function CompanyUsersSection({
                       {u.isOwner ? " (Kurucu)" : ""}
                     </span>
                     <span className="block truncate text-xs text-zinc-500">
-                      {u.email} · {u.roles.map((r) => ROLE_LABEL[r]).join(", ")}
+                      {u.email} · {g === "buy" ? "Satınalma koltuğu" : "Satış koltuğu"}
                     </span>
                   </span>
                 </label>
@@ -389,12 +397,12 @@ export function CompanyUsersSection({
             Vazgeç
           </Button>
           <Button
-            disabled={seatSelection.isPending || keepIds.length === 0}
+            disabled={seatSelection.isPending || keep.length === 0}
             onClick={async () => {
               try {
-                const res = await seatSelection.mutateAsync(keepIds);
+                const res = await seatSelection.mutateAsync(keep);
                 toast.success(
-                  `Kullanıcı seçimi uygulandı — ${res.droppedCount} kişinin işlem rolleri kaldırıldı`,
+                  `Koltuk seçimi uygulandı — ${res.droppedCount} kişinin işlem yetkileri kaldırıldı`,
                 );
                 setSeatSelOpen(false);
               } catch (err) {
@@ -523,9 +531,15 @@ function EditUserModal({
     [user],
   );
   const [perms, setPerms] = useState<string[]>(initialPerms);
-  const seatsFull =
-    seats?.limit != null && seats.used + seats.pendingSeatInvites >= seats.limit;
-  const hadSeat = user.roles.some((r) => r === "SATIN_ALMACI" || r === "SATISCI");
+  const freeSeats =
+    seats?.limit == null
+      ? null
+      : Math.max(0, seats.limit - seats.used - seats.pendingSeatInvites);
+  const hadGroups = {
+    buy: user.roles.includes("SATIN_ALMACI"),
+    sell: user.roles.includes("SATISCI"),
+  };
+  const seatsFull = freeSeats === 0;
   const permsChanged =
     perms.length !== initialPerms.length ||
     perms.some((k) => !initialPerms.includes(k));
@@ -649,8 +663,8 @@ function EditUserModal({
                 onChange={setPerms}
                 viewerIsOwner={viewerIsOwner}
                 targetIsOwner={user.isOwner}
-                seatsFull={seatsFull}
-                hadSeat={hadSeat}
+                freeSeats={freeSeats}
+                hadGroups={hadGroups}
               />
             ) : (
               <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>

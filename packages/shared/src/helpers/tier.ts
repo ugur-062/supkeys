@@ -25,18 +25,23 @@ export function tierAtLeast(t: string, min: TierName): boolean {
 }
 
 /**
- * Faz K — Koltuk: yalnız İŞLEM rolleri (SA/ST) koltuk tüketir; SA+ST taşıyan
- * KİŞİ 1 koltuktur (rol sayısı değil). Etiketler (SAHIP/YONETICI) ve
- * ONAYLAYICI koltuk tüketmez.
+ * Koltuk (yetki tablosu Faz 5, 2026-09-06 — kullanıcı kararı "her biri bir
+ * koltuk"): koltuk = (kişi, grup) çifti. Satınalma grubunda bir İŞLEM izni
+ * 1 koltuk, satış grubunda bir işlem izni 1 koltuk; aynı kişide ikisi = 2.
+ * Görüntüleme, raporlar, onay ve yönetim tüketmez. Rol etiketleri
+ * SATIN_ALMACI/SATISCI bu gruplardan türer (eski sayım "kişi başı 1"di).
  */
 export const SEAT_ROLES = ["SATIN_ALMACI", "SATISCI"] as const;
+export const SEAT_GROUPS = ["buy", "sell"] as const;
+export type SeatGroup = (typeof SEAT_GROUPS)[number];
 
 /**
- * Kademe başına koltuk limiti — `null` = limitsiz (STANDART: koltuk kavramı
- * paket kapasitesidir; paketsiz firma zaten işlem-kapılı, sayım anlamsız).
+ * Kademe başına TOPLAM koltuk limiti. STANDART 2 (kullanıcı kararı —
+ * kurucu iki koltuğu da alırsa paket dolar). Ücretli sayılar sonraya
+ * bırakıldı ("Paketlere sonra bakacağız"); `null` = limitsiz (bugün yok).
  */
 export const SEAT_LIMITS: Record<TierName, number | null> = {
-  STANDART: null,
+  STANDART: 2,
   BRONZ: 2,
   SILVER: 4,
   GOLD: 8,

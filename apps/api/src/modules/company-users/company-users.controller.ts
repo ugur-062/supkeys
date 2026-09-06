@@ -59,7 +59,7 @@ export class CompanyUsersController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: SeatSelectionDto,
   ) {
-    return this.service.applySeatSelection(user, dto.keepUserIds);
+    return this.service.applySeatSelection(user, dto.keep ?? dto.keepUserIds ?? []);
   }
 
   /**

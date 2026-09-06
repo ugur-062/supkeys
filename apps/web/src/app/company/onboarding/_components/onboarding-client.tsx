@@ -74,6 +74,9 @@ export function OnboardingClient() {
     mainCategoryIds: [] as string[],
     subCategoryIds: [] as string[],
     activities: [] as string[],
+    // Faz 5 (yetki tablosu): kurucu koltuklarını kayıtta seçer — ikisi işaretli gelir.
+    buyerSeat: true,
+    sellerSeat: true,
     declarationAccepted: false,
   });
   const isTR = f.country === "TR";
@@ -171,6 +174,8 @@ export function OnboardingClient() {
         mainCategoryIds: f.mainCategoryIds,
         subCategoryIds: f.subCategoryIds,
         activities: f.activities,
+        buyerSeat: f.buyerSeat,
+        sellerSeat: f.sellerSeat,
         declarationAccepted: f.declarationAccepted,
       });
       toast.success("Firma doğrulaması tamamlandı");
@@ -561,7 +566,10 @@ export function OnboardingClient() {
                 }
               />
               <Summary label="Yetkili" value={`${user?.firstName} ${user?.lastName}`} />
-              <Summary label="Rol" value="Kurucu (tam yetki)" />
+              <Summary
+                label="Rol"
+                value={`Kurucu${f.buyerSeat ? " · satınalma koltuğu" : ""}${f.sellerSeat ? " · satış koltuğu" : ""}`}
+              />
               <Summary
                 label="Sektörler"
                 value={(roots.data ?? [])
@@ -586,6 +594,31 @@ export function OnboardingClient() {
                 gönderin. Belgeleriniz ekibimizce elle incelenir.
               </p>
             </div>
+            {/* Faz 5: Kurucu koltukları — her biri bir koltuk sayar (Standart 2).
+                Kurucu yalnız yönetecekse ikisini de kaldırır; sonradan
+                Ayarlar › Kullanıcılar'dan değiştirilebilir. */}
+            <fieldset className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-sm text-zinc-700">
+              <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Bu hesapla ne yapacaksınız?
+              </legend>
+              <label className="flex cursor-pointer items-start gap-2 py-1">
+                <Checkbox aria-label="Satın alma talebi de açacağım" checked={f.buyerSeat} onChange={(v) => set("buyerSeat")(v)} className="mt-0.5" />
+                <span>
+                  Satın alma talebi de açacağım
+                  <span className="block text-xs text-zinc-500">Satınalma koltuğu — talep açma, kazandırma, alım siparişi</span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 py-1">
+                <Checkbox aria-label="Teklif verip ürün satacağım" checked={f.sellerSeat} onChange={(v) => set("sellerSeat")(v)} className="mt-0.5" />
+                <span>
+                  Teklif verip ürün satacağım
+                  <span className="block text-xs text-zinc-500">Satış koltuğu — teklif verme, ürün yayımlama, satış siparişi</span>
+                </span>
+              </label>
+              <p className="mt-1 text-xs text-zinc-500">
+                Her seçim bir koltuk sayar; ikisini de kaldırırsanız yalnız yönetirsiniz. Sonradan Ayarlar › Kullanıcılar'dan değiştirebilirsiniz.
+              </p>
+            </fieldset>
             <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-sm text-zinc-700">
               <Checkbox aria-label="Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim" checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} className="mt-0.5" />
               Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim.
