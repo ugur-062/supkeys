@@ -7,5 +7,5 @@ import { PremiumOnly } from "@/components/company-shell/premium-only";
  * adres Şirketim alanına taşındı (2026-09-05).
  */
 export default function SirketimProfilLayout({ children }: { children: React.ReactNode }) {
-  return <PremiumOnly minTier="BRONZ">{children}</PremiumOnly>;
+  return <PremiumOnly minTier="SILVER">{children}</PremiumOnly>;
 }

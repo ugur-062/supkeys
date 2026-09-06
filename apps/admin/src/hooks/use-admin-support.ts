@@ -95,7 +95,7 @@ export function useAnnounce() {
     mutationFn: async (input: {
       subject: string;
       message: string;
-      tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+      tier?: "STANDART" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
       /** Göndermeden gerçek hedef sayısını sor (onay ekranı — Dalga B). */

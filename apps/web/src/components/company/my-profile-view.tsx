@@ -27,7 +27,7 @@ export function MyProfileView() {
     );
   }
 
-  if (!tierAtLeast(profile.tier, "BRONZ")) {
+  if (!tierAtLeast(profile.tier, "SILVER")) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Profilim</h1>

@@ -10,7 +10,7 @@ export interface ConnectionCompany {
   name: string;
   rothernId: string | null;
   // İhale daveti adımı için zengin kart alanları (yalnızca bağlantı listesinde dolu).
-  tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+  tier?: "STANDART" | "SILVER" | "GOLD";
   taxNumber?: string | null;
   city?: string | null;
   country?: string | null;

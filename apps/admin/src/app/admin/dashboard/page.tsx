@@ -57,7 +57,7 @@ function DashboardContent() {
           href="/admin/firmalar"
           sub={
             s
-              ? `${s.tierBreakdown.GOLD} gold · ${s.tierBreakdown.SILVER} silver · ${s.tierBreakdown.BRONZ} bronz · ${s.tierBreakdown.STANDART} standart`
+              ? `${s.tierBreakdown.GOLD} gold · ${s.tierBreakdown.SILVER} silver · ${s.tierBreakdown.STANDART} standart`
               : undefined
           }
         />

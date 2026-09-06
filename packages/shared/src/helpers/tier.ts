@@ -1,22 +1,31 @@
 /**
  * Paket kademeleri — TEK KAYNAK (api + web + admin aynı sırayı okur).
- * STANDART = paket almamış pasif üyelik (kaydolur, KYC yapar; PUBLIC ihaleleri
- * MASKELİ görür, teklif veremez; davet/bağlantı ihalelerine teklif verir;
- * dizinde görünmez). BRONZ+ = paketli. Eşikler: dizin/davet/PUBLIC-teklif →
- * BRONZ; satınalma/ihale-açma/rapor/şablon/onay-akışı-kurma/AI → SILVER;
- * "Gold Üye" rozeti → GOLD.
+ *
+ * ÜÇ PAKET (2026-09-06, kullanıcı kararı; Bronz KALDIRILDI, mevcut Bronz
+ * firmalar Silver'a taşındı):
+ * - STANDART (ücretsiz): davetli/bağlantılı taleplere teklif, mesaj, sipariş
+ *   takibi; PUBLIC talepleri maskeli görür, dizinde görünmez. 2 koltuk.
+ * - SILVER (tedarikçi paketi = SATIŞ paneli): dizin + herkese açık profil +
+ *   PUBLIC talebe teklif + bağlantı daveti + ürün vitrini + Ziyaret Edenler +
+ *   İş Analizi + satış AI'ı. Satınalma paneli YOK. 4 koltuk.
+ * - GOLD (iki panel): Silver + satınalma paneli (talep açma, kazandırma, onay
+ *   akışı, raporlar, şablonlar, satınalma AI'ı) + "Gold Üye" rozeti. 6 koltuk.
  */
 export const TIER_ORDER = {
   STANDART: 0,
-  BRONZ: 1,
-  SILVER: 2,
-  GOLD: 3,
+  SILVER: 1,
+  GOLD: 2,
 } as const;
 
 export type TierName = keyof typeof TIER_ORDER;
 
 /** Paralı kademeler — süreli üyelik (membershipEndAt) taşıyanlar. */
-export const PAID_TIERS = ["BRONZ", "SILVER", "GOLD"] as const;
+export const PAID_TIERS = ["SILVER", "GOLD"] as const;
+
+/** Herhangi bir paket (dizin, profil, PUBLIC teklif, bağlantı daveti…). */
+export const PAID_TIER: TierName = "SILVER";
+/** Satınalma paneli kademesi (talep açma, kazandırma, rapor, şablon, onay akışı). */
+export const BUYING_TIER: TierName = "GOLD";
 
 /** `t` en az `min` kademesinde mi? Bilinmeyen değer STANDART sayılır (fail-closed). */
 export function tierAtLeast(t: string, min: TierName): boolean {
@@ -36,13 +45,13 @@ export const SEAT_GROUPS = ["buy", "sell"] as const;
 export type SeatGroup = (typeof SEAT_GROUPS)[number];
 
 /**
- * Kademe başına TOPLAM koltuk limiti. STANDART 2 (kullanıcı kararı —
- * kurucu iki koltuğu da alırsa paket dolar). Ücretli sayılar sonraya
- * bırakıldı ("Paketlere sonra bakacağız"); `null` = limitsiz (bugün yok).
+ * Kademe başına TOPLAM koltuk limiti (kullanıcı kararı 2026-09-06: 2/4/6).
+ * Silver'da satınalma paneli olmadığından 4 koltuğun hepsi satış koltuğu;
+ * Gold'da 6 koltuk iki grubun toplamı (kurucu iki paneli kullanırsa 2 gider).
+ * `null` = limitsiz (bugün yok).
  */
 export const SEAT_LIMITS: Record<TierName, number | null> = {
   STANDART: 2,
-  BRONZ: 2,
   SILVER: 4,
-  GOLD: 8,
+  GOLD: 6,
 };

@@ -49,7 +49,6 @@ import { toast } from "sonner";
 
 const TIER_BADGE = {
   STANDART: "bg-zinc-100 text-zinc-700",
-  BRONZ: "bg-orange-100 text-orange-800",
   SILVER: "bg-slate-200 text-slate-700",
   GOLD: "bg-amber-100 text-amber-800",
 } as const;

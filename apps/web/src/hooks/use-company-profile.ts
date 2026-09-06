@@ -49,7 +49,7 @@ export interface CompanyProfile {
   billingPhoneVerifiedAt: string | null;
   rothernId: string | null;
   slug: string | null;
-  tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+  tier: "STANDART" | "SILVER" | "GOLD";
   companyVerificationStatus: string;
   onboardingCompletedAt: string | null;
 }

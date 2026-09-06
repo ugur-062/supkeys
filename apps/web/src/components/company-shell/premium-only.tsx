@@ -19,7 +19,7 @@ export function PremiumOnly({
   minTier = "SILVER",
 }: {
   children: React.ReactNode;
-  minTier?: "BRONZ" | "SILVER";
+  minTier?: "SILVER" | "GOLD";
 }) {
   const { company } = useCompanyAuth();
   if (company && !tierAtLeast(company.tier, minTier)) return <PremiumGate />;

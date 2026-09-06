@@ -351,7 +351,7 @@ export function ConnectionsView() {
   // STANDARD: davet gönderemez + firma dizininde arama/keşif yapamaz; yalnızca
   // bağlantılarını görür ve gelen daveti kabul edip tedarikçi olabilir.
   const { company } = useCompanyAuth();
-  const isPaid = tierAtLeast(company?.tier ?? "STANDART", "BRONZ");
+  const isPaid = tierAtLeast(company?.tier ?? "STANDART", "SILVER");
   // F7: bağlantı mutasyonları connections:manage ister (Kurucu/Yönetici) —
   // izinsiz üye listeleri salt-okunur görür, davet/karar butonları gizli.
   const canManageConn = useHasCompanyPermission("connections:manage");

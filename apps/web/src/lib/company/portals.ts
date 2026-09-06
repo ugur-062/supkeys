@@ -1,4 +1,4 @@
-import { tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import {
   userHasPermission,
   type PermissionSubject,
@@ -30,7 +30,7 @@ export interface PortalNavItem {
   label: string;
   href: string;
   /** En az bu kademede aktif (altındakine kilitli teaser). Faz T. */
-  minTier?: "BRONZ" | "SILVER";
+  minTier?: "SILVER" | "GOLD";
   /** Yetki tablosu Faz 3: bu izin(ler)den biri yoksa satır menüde HİÇ çizilmez. */
   permission?: string | readonly string[];
 }
@@ -92,12 +92,12 @@ export const COMPANY_AREA: CompanyAreaDef = {
   basePath: COMPANY_AREA_BASE,
   nav: [
     { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
-    // Herkese açık profil PAKET özelliği (BRONZ+) — eski Profilim kapısıyla aynı.
-    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil`, minTier: "BRONZ" },
+    // Herkese açık profil PAKET özelliği (SILVER+) — eski Profilim kapısıyla aynı.
+    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil`, minTier: "SILVER" },
     // Sayılar herkese açık, kimlikli liste Bronz+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
     { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
-    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: "buy:reports:view" },
+    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "GOLD", permission: "buy:reports:view" },
   ],
   secondaryNav: [],
 };
@@ -176,7 +176,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: DocumentDuplicateIcon,
         label: "Şablonlar",
         href: "/company/satinalma/sablonlar",
-        minTier: "SILVER",
+        minTier: "GOLD",
       },
     ],
   },
@@ -197,14 +197,14 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         label: MODULE_LABELS.satis.urunler,
         href: "/company/satis/urunlerim",
         // Vitrin herkese açık bir yüzey — profil kapısıyla aynı eşik.
-        minTier: "BRONZ",
+        minTier: "SILVER",
       },
       // Profilim ŞİRKETİM alanına taşındı (2026-09-05) — bkz. COMPANY_AREA.
       {
         icon: EnvelopeIcon,
         label: MODULE_LABELS.satis.bilgiTalepleri,
         href: "/company/satis/bilgi-talepleri",
-        minTier: "BRONZ",
+        minTier: "SILVER",
       },
       {
         icon: ClipboardDocumentListIcon,
@@ -252,8 +252,8 @@ export function activePortalFromPath(pathname: string | null): PortalKey | null 
  * birden sahip olabilir (ikisi de açılır).
  */
 /**
- * Erişilebilir portallar. Satınalma (alıcı/ihale açma) = **Silver+**;
- * altındaki kademeler yalnızca satış (teklif) tarafına erişir.
+ * Erişilebilir portallar. Üç paket (2026-09-06): satınalma paneli = **Gold**
+ * (BUYING_TIER); Standart ve Silver yalnız satış tarafına erişir.
  */
 export function accessiblePortals(
   user: PermissionSubject | null | undefined,
@@ -265,7 +265,7 @@ export function accessiblePortals(
   const out: PortalKey[] = [];
   if (
     userHasPermission(user, "buy:view") &&
-    tierAtLeast(tier ?? "STANDART", "SILVER")
+    tierAtLeast(tier ?? "STANDART", BUYING_TIER)
   )
     out.push("satinalma");
   if (userHasPermission(user, "sell:view")) out.push("satis");

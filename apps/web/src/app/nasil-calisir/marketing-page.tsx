@@ -32,12 +32,14 @@ const stats = [
 ];
 
 /**
- * Paket kartları — yetenekler tier.ts tek-kaynağıyla hizalı:
- * BRONZ = dizin + davet + PUBLIC teklif (2 Satışçı koltuğu); SILVER = +
- * satınalma paneli/ihale açma/rapor/şablon/onay akışı/AI (4 koltuk); GOLD =
- * + rozet, yükseltilmiş AI, 8 koltuk. Fiyatlar YILLIK ödemede aylık
- * gösterim; ayrıca 6 aylık dönem seçeneği var (aylık faturalama yok).
- * accent: pakete hafif renk kimliği — kart gövdesi monokrom kalır.
+ * Paket kartları — yetenekler tier.ts tek-kaynağıyla hizalı (üç paket,
+ * 2026-09-06): STANDART = davetli/bağlantılı taleplere teklif (2 koltuk);
+ * SILVER = tedarikçi paketi (satış paneli): dizin + profil + PUBLIC teklif +
+ * davet + vitrin + satış AI'ı (4 koltuk); GOLD = iki panel: + satınalma
+ * paneli (talep açma, kazandırma, onay akışı, rapor/şablon, talep AI'ı) +
+ * rozet (6 koltuk). Fiyatlar YILLIK ödemede aylık gösterim; ayrıca 6 aylık
+ * dönem seçeneği var (aylık faturalama yok). accent: pakete hafif renk
+ * kimliği — kart gövdesi monokrom kalır.
  */
 const pricingTiers = [
   {
@@ -45,10 +47,11 @@ const pricingTiers = [
     price: null,
     tagline: "Ağına bağlan, çevren içinde al-sat.",
     features: [
-      "Firma hesabı, sınırsız kullanıcı ve rol",
+      "Firma hesabı, roller ve yetki tablosu",
       "Davet edildiğiniz satın alma taleplerine teklif verme",
       "Bağlantılı firmalarla al-sat ve mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
+      "2 koltuk",
     ],
     cta: "Ücretsiz Başla",
     accent: {
@@ -58,33 +61,16 @@ const pricingTiers = [
     },
   },
   {
-    name: "Bronz",
-    price: 70,
-    tagline: "Satış tarafını büyüt: görün, davet al, teklif ver.",
-    features: [
-      "Firma dizininde görünürlük & herkese açık profil",
-      "Bağlantı daveti gönderme",
-      "Herkese açık satın alma taleplerine sınırsız teklif",
-      "Sipariş, teslim & ödeme adımı takibi",
-      "2 satış koltuğu",
-    ],
-    cta: "Bronz'a Başla",
-    accent: {
-      top: "border-t-amber-600/70",
-      pill: "bg-amber-50 text-amber-800 ring-amber-200",
-      check: "text-amber-700",
-    },
-  },
-  {
     name: "Silver",
     price: 160,
-    tagline: "Tam alış & satış gücü: satın alma talebi aç, süreci yönet.",
+    tagline: "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
     features: [
-      "Firma dizininde görünürlük, davet & herkese açık satın alma taleplerine teklif",
-      "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
-      "Raporlar, şablonlar & onay akışları",
-      "Yapay zekâ: belgeden satın alma talebi taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
-      "4 kullanıcı koltuğu (satın alma ve satış)",
+      "Firma dizininde görünürlük & herkese açık profil",
+      "Herkese açık satın alma taleplerine sınırsız teklif",
+      "Bağlantı daveti gönderme, ürün vitrini & bilgi talepleri",
+      "Ziyaret Edenler ve İş Analizi",
+      "Yapay zekâ: belgeden fiyatlama, katalogdan ürün çıkarma, AI ile talep arama",
+      "4 satış koltuğu",
     ],
     cta: "Silver'a Başla",
     accent: {
@@ -96,14 +82,14 @@ const pricingTiers = [
   {
     name: "Gold",
     price: 230,
-    tagline: "Yüksek hacim ve geniş ekipler için.",
+    tagline: "İki panel birden: alış & satışı tek hesapta yönet.",
     features: [
-      "Firma dizininde görünürlük, davet & herkese açık satın alma taleplerine teklif",
+      "Silver'ın tamamı",
       "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
-      "Raporlar, şablonlar & onay akışları",
-      "Yapay zekâ — yükseltilmiş kullanım limitiyle: belgeden satın alma talebi taslağı, sohbet asistanı, kategori & anahtar kelime önerisi",
+      "Kazandırma, onay akışları, raporlar & şablonlar",
+      "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
       "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
-      "8 kullanıcı koltuğu (satın alma ve satış)",
+      "6 koltuk (satınalma ve satış)",
     ],
     cta: "Gold'a Başla",
     accent: {

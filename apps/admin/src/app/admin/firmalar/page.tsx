@@ -133,14 +133,14 @@ function FirmalarView() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const [prompt, setPrompt] = useState<
-    | { kind: "tierMonths"; id: string; tier: "BRONZ" | "SILVER" | "GOLD" }
+    | { kind: "tierMonths"; id: string; tier: "SILVER" | "GOLD" }
     | { kind: "suspendReason"; id: string }
     | null
   >(null);
 
   const runTier = (
     id: string,
-    tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD",
+    tier: "STANDART" | "SILVER" | "GOLD",
     months?: number,
   ) =>
     tierAct.mutate(
@@ -215,7 +215,6 @@ function FirmalarView() {
             { value: "", label: "Tüm üyelikler" },
             { value: "GOLD", label: "Gold" },
             { value: "SILVER", label: "Silver" },
-            { value: "BRONZ", label: "Bronz" },
             { value: "STANDART", label: "Standart" },
           ]}
         />

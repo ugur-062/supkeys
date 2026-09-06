@@ -514,10 +514,9 @@ enum CompanyRole {
 }
 
 enum CompanyTier {
-  STANDART // paketsiz-pasif: PUBLIC'i maskeli görür, teklif veremez; davet/bağlantı ihalesine teklif; dizinde görünmez
-  BRONZ // tedarikçi paketi: dizinde görünür, davet gönderir, PUBLIC'e teklif verir
-  SILVER // + satınalma paneli, ihale açma, rapor/şablon, onay-akışı, AI
-  GOLD // + "Gold Üye" rozeti (eski PAKET buraya eşlendi)
+  STANDART // ücretsiz: PUBLIC talepleri maskeli görür; davet/bağlantı talebine teklif; dizinde görünmez; 2 koltuk
+  SILVER // tedarikçi paketi (SATIŞ paneli): dizin, profil, PUBLIC'e teklif, davet, vitrin, satış AI'ı; 4 koltuk
+  GOLD // iki panel: + satınalma paneli (talep açma, kazandırma, onay akışı, rapor/şablon, talep AI'ı) + rozet; 6 koltuk
 }
 
 model Company {

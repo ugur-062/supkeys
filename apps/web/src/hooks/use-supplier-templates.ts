@@ -21,7 +21,7 @@ export interface SupplierTemplateDetail {
     id: string;
     name: string;
     rothernId: string | null;
-    tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+    tier: "STANDART" | "SILVER" | "GOLD";
   }[];
 }
 

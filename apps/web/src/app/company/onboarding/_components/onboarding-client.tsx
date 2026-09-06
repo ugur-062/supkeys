@@ -616,7 +616,7 @@ export function OnboardingClient() {
                 </span>
               </label>
               <p className="mt-1 text-xs text-zinc-500">
-                Her seçim bir koltuk sayar; ikisini de kaldırırsanız yalnız yönetirsiniz. Sonradan Ayarlar › Kullanıcılar'dan değiştirebilirsiniz.
+                Her seçim bir koltuk sayar; ikisini de kaldırırsanız yalnız yönetirsiniz. Talep açmak Gold paket ister; koltuk seçimi paket alınca geçerli olur. Sonradan Ayarlar › Kullanıcılar'dan değiştirebilirsiniz.
               </p>
             </fieldset>
             <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-sm text-zinc-700">

@@ -21,7 +21,6 @@ export function roleLabel(code: string): string {
 /** Üyelik kademesi etiketleri — rozet/kolon her yerde aynı kasa (C21). */
 export const TIER_LABELS: Record<string, string> = {
   STANDART: "Standart",
-  BRONZ: "Bronz",
   SILVER: "Silver",
   GOLD: "Gold",
 };

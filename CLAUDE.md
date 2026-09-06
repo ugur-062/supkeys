@@ -60,7 +60,7 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 
 1. **2 auth realm'i:** Company (`apps/web /company/*` — TEK firma hesabı hem alıcı hem satıcı, iki portal `satinalma`/`satis`; rol/izin/tier kapıları) + Admin (`apps/admin`). JWT payload `type: "company" | "admin"`; cookie realm'leri `rk_company`/`rk_admin` (+ `rk_csrf`/`rk_admin_csrf`). Her realm'in kendi store'u + axios instance + 401 interceptor'ı.
 2. **Multi-tenant veri izolasyonu:** Tüm sorgular tenantId scope'unda, servis seviyesinde filtrelenir.
-3. **Firma self-signup VAR (3 aşama):** signup → e-posta doğrulama (6 haneli kod, hesap-bazlı 5/saat üretim tavanı) → onboarding (yalnız Kurucu) → panel içi kapılar (KYC/doğrulama belgeleri admin onayı; satın alma talebi açma Silver+, satış teklifi Bronz+ — bkz. Faz T/Y). Davetle katılım (firma-kullanıcı daveti + referral/dış davet) ayrıca var.
+3. **Firma self-signup VAR (3 aşama):** signup → e-posta doğrulama (6 haneli kod, hesap-bazlı 5/saat üretim tavanı) → onboarding (yalnız Kurucu) → panel içi kapılar (KYC/doğrulama belgeleri admin onayı; satın alma talebi açma Gold, PUBLIC talebe teklif Silver+ (üç paket 2026-09-06) — bkz. Faz T/Y). Davetle katılım (firma-kullanıcı daveti + referral/dış davet) ayrıca var.
 4. **Bağlantı modeli:** firmalar arası bağlantı (invite/accept, blok), ilan görünürlüğü PUBLIC/CONNECTIONS/PRIVATE — tek kaynak `listing-visibility.ts`.
 5. **Kapalı zarf:** Teklifçiler birbirinin tekliflerini ASLA göremez; ilan sahibi her zaman görür. `GET /company/listings/:id` non-owner dalı `invitations`/`bids`/`bidStats` içermez; yalnız `myInvitation` + `myBid` (+ pazarlıkta ayarlı `auctionView`). Sözleşme testleri: closed-envelope/visibility-matrix spec'leri.
 6. **SUBMITTED bid editlenmez VE geri çekilemez** (Geri Çek kaldırıldı). Tek değişiklik yolu: alıcıyla iletişim → alıcı eleme yapar LOST → tedarikçi yeniden teklif verebilir (version++). WITHDRAWN yalnız legacy kayıtlarda.
@@ -174,8 +174,8 @@ KEFİL OLDUĞU yerde istenir.**
 |---------|------------------|
 | Gezinme · bağlantı · mesaj · TASLAK | ❌ |
 | **Davetli/bağlantılı** talebe teklif | ❌ — alıcı firmayı zaten tanıyor, riski bilerek alıyor |
-| PUBLIC talebe **tanımadan** teklif | ✅ — oraya sokan platform (ayrıca BRONZ+ ister) |
-| Talep yayınlama · kazandırma | ✅ (ayrıca SILVER+ ister) |
+| PUBLIC talebe **tanımadan** teklif | ✅ — oraya sokan platform (ayrıca SILVER+ ister) |
+| Talep yayınlama · kazandırma | ✅ (ayrıca GOLD ister — satınalma paneli) |
 | **Paket satın alma** | ✅ — asıl kapı burası (+2FA +web sitesi) |
 | Sipariş kabulü | ❌ bugün — platform parayı TAŞIMIYOR (bildir/onayla). **Escrow gelirse kapı buraya taşınmalı** |
 
@@ -220,6 +220,7 @@ yazmadan önce burada karşılığı var mı diye bak.
 | Kalem toplamı / yuvarlama | `common/company/bid-items.ts` (`roundMoney`, `sumLineTotals*`) |
 | Ödeme durumu | `common/company/order-payments.ts` |
 | Efektif paket (INV-TIER-1) | `common/company/effective-tier.ts` (`effectiveTier`, `tierAtLeastWhere`, `anyPackageWhere`) |
+| Paket kademeleri / koltuk limitleri | `@rothern/shared` `helpers/tier.ts` (`TIER_ORDER`, `PAID_TIER`, `BUYING_TIER`, `SEAT_LIMITS`) |
 | İlan görünürlüğü | `common/company/listing-visibility.ts` |
 | Pazar yeri sözcükleri/rotaları (web) | `lib/public/marketplace.ts` |
 | Pazar yeri yayın anahtarı (web) | `lib/public/marketplace-live.ts` |
@@ -1197,6 +1198,30 @@ kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
   ("Koltuk dolu"); "Kalacak Koltukları Seç" diyaloğu (kişi · satınalma/satış)
   satırlarıyla.
 - Sözleşme: `seats.spec.ts` (yeniden yazıldı), `onboarding.spec` koltuk seçimi.
+
+**Üç paket (2026-09-06, kullanıcı kararı; Bronz KALDIRILDI):** tek kaynak
+`@rothern/shared` `helpers/tier.ts` (`TIER_ORDER` STANDART<SILVER<GOLD,
+`PAID_TIER="SILVER"`, `BUYING_TIER="GOLD"`, `SEAT_LIMITS` 2/4/6).
+
+| Paket | Ne | Koltuk |
+|-------|----|--------|
+| STANDART (ücretsiz) | davetli/bağlantılı talebe teklif, mesaj, sipariş takibi; PUBLIC maskeli; dizinde yok | 2 |
+| SILVER (tedarikçi = SATIŞ paneli) | dizin, profil, PUBLIC talebe teklif, bağlantı daveti, vitrin, Ziyaret Edenler, İş Analizi, satış AI'ı; satınalma paneli YOK | 4 (hepsi satış) |
+| GOLD (iki panel) | Silver + satınalma paneli (talep açma, kazandırma, onay akışı, raporlar, şablonlar, talep AI'ı) + "Gold Üye" rozeti | 6 |
+
+- Kapılar: `CompanyPaidTierGuard` artık `@RequireTier("GOLD")` metadata'sını
+  okur (varsayılan SILVER): raporlar, üç şablon controller'ı, onay akışı
+  kur/kopyala, tender-extract, supplier-discovery GOLD; AI/aktivite/ürün
+  SILVER. Talep açma ve yeni ilan işi (`assertPaidForNewListingWork`) GOLD.
+  Eski `"BRONZ"` eşikleri (`listing-visibility`, `public-profile-gate`,
+  `valid-connection`, bağlantı daveti, ziyaretçi listesi, profil AI'ı,
+  `anyPackageWhere`) SILVER'a taşındı. Web: `accessiblePortals` satınalma
+  `BUYING_TIER`; `PremiumOnly minTier "SILVER"|"GOLD"`; raporlar/şablonlar
+  layout'ları GOLD; profil SILVER; fiyat kartları üç paket.
+- Migration `20260906120000_three_tiers`: Bronz firmalar SILVER'a taşındı
+  (yukarı; üyelik süresi korunur), enum yeniden kuruldu (Postgres enum değeri
+  silemez → `CompanyTier_new`). Fiyatlar (Silver 160 / Gold 230) eski
+  kartlardan aynen kaldı — kullanıcı kararı bekliyor.
 
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı

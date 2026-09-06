@@ -59,7 +59,7 @@ export function PremiumGate() {
   const doUpgrade = async () => {
     try {
       await upgrade.mutateAsync();
-      toast.success("Premium'a geçildi — Satınalma paneli açıldı");
+      toast.success("Gold'a geçildi — satınalma paneli açıldı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Premium'a geçilemedi"));
     }
@@ -76,7 +76,7 @@ export function PremiumGate() {
               Rothern Paketleri
             </span>
           </div>
-          <h1 className="mt-2 text-xl font-bold">Bu özellik Silver ve üzeri paketlere özel</h1>
+          <h1 className="mt-2 text-xl font-bold">Bu özellik paketli üyelere özel</h1>
           <p className="mt-1 text-sm text-blue-100">
             Paketsiz üyeler yalnız davet edildikleri ve bağlantılarının
             satın alma taleplerine teklif verebilir. Paket alarak platformun tamamını açın.

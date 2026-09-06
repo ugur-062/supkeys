@@ -11,7 +11,7 @@ export interface AdminCompanyRow {
   country: string;
   stateRegion: string | null;
   city: string | null;
-  tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+  tier: "STANDART" | "SILVER" | "GOLD";
   membershipEndAt: string | null;
   verification: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   isBlocked: boolean;
@@ -66,7 +66,7 @@ export interface AdminCompanyStats {
   pendingReview: number;
   rejected: number;
   openComplaints: number;
-  tierBreakdown: { STANDART: number; BRONZ: number; SILVER: number; GOLD: number };
+  tierBreakdown: { STANDART: number; SILVER: number; GOLD: number };
   countryBreakdown: { country: string; count: number }[];
   last30Days: {
     newCompanies: number;
@@ -155,7 +155,7 @@ export interface AdminCompanyDetail {
   city: string | null;
   addressLine: string | null;
   billingEmail: string | null;
-  tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+  tier: "STANDART" | "SILVER" | "GOLD";
   membershipEndAt: string | null;
   industry: string | null;
   website: string | null;
@@ -366,7 +366,7 @@ export function useSetCompanyTier() {
       reason,
     }: {
       id: string;
-      tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
+      tier: "STANDART" | "SILVER" | "GOLD";
       months?: number;
       reason?: string;
     }) => {

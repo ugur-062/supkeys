@@ -68,7 +68,6 @@ function DuyuruView() {
         message: form.message.trim(),
         tier: (form.tier || undefined) as
           | "STANDART"
-          | "BRONZ"
           | "SILVER"
           | "GOLD"
           | undefined,
@@ -138,7 +137,6 @@ function DuyuruView() {
               <option value="">Tüm üyelikler</option>
               <option value="GOLD">Yalnız Gold</option>
               <option value="SILVER">Yalnız Silver</option>
-              <option value="BRONZ">Yalnız Bronz</option>
               <option value="STANDART">Yalnız Standart</option>
             </Select>
           </label>
@@ -226,8 +224,7 @@ function DuyuruView() {
                     message: form.message.trim(),
                     tier: (form.tier || undefined) as
                       | "STANDART"
-                      | "BRONZ"
-                      | "SILVER"
+                                  | "SILVER"
                       | "GOLD"
                       | undefined,
                     country: form.country || undefined,

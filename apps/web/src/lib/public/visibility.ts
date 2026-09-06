@@ -72,7 +72,7 @@ export const VISIBILITY = {
     specification: "member",
     files: "member",
     targetPrice: "never",
-    bid: "member", // ayrıca BRONZ+/KYC panel kapıları
+    bid: "member", // ayrıca SILVER+/KYC panel kapıları
     buyerOtherListings: "member",
   },
 } as const;

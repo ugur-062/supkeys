@@ -1,7 +1,7 @@
 "use client";
 
 import { userHasPermission } from "@/lib/company/permissions";
-import { tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { PremiumGate } from "@/components/company-shell/premium-gate";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
@@ -34,13 +34,13 @@ export function PortalGuard({
 
   const available = user ? accessiblePortals(user, company?.tier) : [];
   const allowed = available.includes(portal);
-  // Satınalma görüntüleme izni var ama kademe < SILVER → paket kapısı.
+  // Satınalma görüntüleme izni var ama kademe < GOLD (satınalma paneli) → paket kapısı.
   const hasPurchasingRole = userHasPermission(user, "buy:view");
   const premiumLocked =
     portal === "satinalma" &&
     !allowed &&
     hasPurchasingRole &&
-    !tierAtLeast(company?.tier ?? "STANDART", "SILVER");
+    !tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER);
 
   useEffect(() => {
     if (user && allowed) setLastPortal(portal);
