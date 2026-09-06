@@ -134,8 +134,8 @@ export class PublicProfileService {
     return { ...res, items: res.items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
   }
 
-  publicDirectoryFacets() {
-    return directoryFacets(this.prisma);
+  publicDirectoryFacets(q: DirectoryParams = {}) {
+    return directoryFacets(this.prisma, {}, q);
   }
 
   /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */

@@ -773,6 +773,40 @@ son değerle başlar (JS/hareket yoksa "0 ülke" kalmıyor).
 tarafından açıldı (2026-09-04); kategori fotoğrafları 58/58 eklendi (aynı gün
 akşamı); üye görünümü `CLAUDE.md.local`taki hesapla doğrulandı.
 
+### Europages prompt serisi — PROMPT 1-4 (2026-09-06)
+
+Kullanıcının 11 adımlık prompt serisi (`docs/europages-kesif-2026-09-06.md`
+keşif raporu + uyum notları). Kararlar: **palet monokrom siyah kalır**
+(lacivert/altın RED), font yalnız Inter, mevcut bileşen dosyaları korunur,
+URL şemaları mevcut hâliyle sabit.
+
+- **PROMPT 1 (18330126):** token hijyeni — çift `.card`/gölge tekil, 11
+  tanımsız semantik ton eklendi, `ink/canvas/surface/accent/gold` takma adları
+  (renk değişmedi), sınıfsız h1-h3 ölçeği, `@utility tnum`.
+- **PROMPT 2 (2b7e70af):** `components/ui/` primitive'leri — Badge (ton),
+  Chip, Card, Avatar (monogram + pastel), Skeleton, Tabs (hash), Disclosure,
+  Sheet, Tooltip, Breadcrumb, Pagination (7 yuva; sunucu+istemci); Button
+  link/danger/ikon/href; `/dev/ui` galerisi yalnız geliştirmede
+  (`app/dev/layout.tsx` force-dynamic — public-routes değişmezi).
+- **PROMPT 3 (1f1eb1f2):** `/urunler` → ui/pagination (hrefBuilder), Sheet
+  çekmece, Chip şeridi, `loading.tsx` iskeleti; e2e
+  `e2e/public-products-filters.spec.ts`.
+- **PROMPT 4:** `/firmalar` ve `/alim-talepleri` aynı kabuğa
+  (`FilterShellCore` → `list-filter-shells.tsx`); URL şemaları
+  `lib/public/{listing,company}-filter-params.ts` (ortak ilkeller
+  `filter-param-utils.ts`; eski `il=` okunur); süzgeç ağaçları
+  `listing-filters.tsx` / `company-filters.tsx`; genel `sort-bar.tsx`.
+  **API (geriye uyumlu):** `public/listings` `city` çoklu, `closesWithin` 3,
+  `sort=newest|closing`, sayfa 12; `public/listings/facets` BAĞLAMSAL
+  (`PublicListFacetQueryDto`, `within` kovaları); dizin `city/category/
+  activity` çoklu, `gold=1`, `sort=relevance|name|products|newest`, sayfa
+  20; `directory/facets` bağlamsal + `gold` + `categories` (`directoryRows`
+  tek küme). Bağlantı tabanlı `FacetGroup` ve `marketplace/pagination.tsx`
+  silindi (`facets.tsx` yalnız JS'siz `FilterChip`). e2e
+  `e2e/public-lists-filters.spec.ts`. **Dağıtım sırası:** API önce (dizin
+  ucu `forbidNonWhitelisted` — eski API yeni parametreye 400 döner), web
+  sonra.
+
 ### Anasayfa & ürün süzgeci v3 (2026-09-04)
 
 Kullanıcının A1–A7 / B1–B9 listesi; A (süzgeç) 1eb52c1a+c5731daf, B üç

@@ -35,9 +35,10 @@ export class PublicListQueryDto {
   @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
   category?: string;
 
+  /** Şehir — virgüllü çoklu (PROMPT 4, 2026-09-06; tek değer geriye uyumlu). */
   @IsOptional()
   @IsString()
-  @MaxLength(60)
+  @MaxLength(400)
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
@@ -50,15 +51,20 @@ export class PublicListQueryDto {
   @IsIn(["open", "all"])
   state?: "open" | "all";
 
-  /** Kalan süre: 7 ya da 30 gün içinde kapanacaklar. */
+  /** Kalan süre: 3, 7 ya da 30 gün içinde kapanacaklar. */
   @IsOptional()
-  @IsIn(["7", "30"])
-  closesWithin?: "7" | "30";
+  @IsIn(["3", "7", "30"])
+  closesWithin?: "3" | "7" | "30";
 
   /** Kapsam: yurtiçi / uluslararası (`isInternational`). */
   @IsOptional()
   @IsIn(["domestic", "international"])
   scope?: "domestic" | "international";
+
+  /** Sıralama: `newest` (varsayılan, yayın tarihi) | `closing` (süresi yaklaşan). */
+  @IsOptional()
+  @IsIn(["newest", "closing"])
+  sort?: "newest" | "closing";
 
   @IsOptional()
   @Transform(({ value }) => {
@@ -72,4 +78,35 @@ export class PublicListQueryDto {
   // şehir kırılımlarıyla açıyoruz.
   @Max(200)
   page?: number;
+}
+
+/**
+ * Facet sorgusu — BAĞLAMSAL sayaçlar (PROMPT 4): her boyut, diğer seçimler
+ * uygulanmış hâlde sayılır. Liste DTO'su yeniden kullanılmadı: `page`/`sort`
+ * gibi sayımı etkilemeyen alanlar kenar önbelleği anahtarını çoğaltmasın.
+ */
+export class PublicListFacetQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  q?: string;
+
+  @IsOptional()
+  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  city?: string;
+
+  @IsOptional()
+  @IsIn(["domestic", "international"])
+  scope?: "domestic" | "international";
+
+  @IsOptional()
+  @IsIn(["3", "7", "30"])
+  closesWithin?: "3" | "7" | "30";
 }

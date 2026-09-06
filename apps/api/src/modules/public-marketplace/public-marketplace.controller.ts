@@ -1,7 +1,7 @@
 import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { MarketplaceLiveGuard } from "../../common/http/marketplace-live.guard";
-import { PublicListQueryDto } from "./dto/public-list-query.dto";
+import { PublicListQueryDto, PublicListFacetQueryDto } from "./dto/public-list-query.dto";
 import {
   PublicProductFacetQueryDto,
   PublicProductQueryDto,
@@ -68,8 +68,8 @@ export class PublicMarketplaceController {
   /** Süzgeç sayaçları. Liste kadar sık değişmez → daha uzun önbellek. */
   @Get("listings/facets")
   @Header("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=900")
-  facets() {
-    return this.service.facets();
+  facets(@Query() q: PublicListFacetQueryDto) {
+    return this.service.facets(q);
   }
 
   /** Sitemap kaynağı — yalnız DİZİNLENEBİLİR ilanlar. */

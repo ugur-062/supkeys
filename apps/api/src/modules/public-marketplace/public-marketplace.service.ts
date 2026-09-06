@@ -1,3 +1,4 @@
+import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
@@ -37,6 +38,10 @@ import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/p
 
 /** Sayfa başına kart — SEO'da ilk ekranda çok fazla bağlantı istemiyoruz. */
 const PAGE_SIZE = 24;
+/** Talep kartları büyük (teaser) — sayfa başına 12 (PROMPT 4). Ürün dizini 24'te kalır. */
+const LISTING_PAGE_SIZE = 12;
+/** Virgüllü çoklu değer (şehir) → dizi; boşları düşür, tavan 10. */
+const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 /**
  * Facet hesabı BELLEKTE yapılır (kategori kodları `String[]`, Prisma dizi
  * elemanına groupBy yapamaz). Ham SQL yazmamamın sebebi drift: görünürlük
@@ -159,9 +164,10 @@ export class PublicMarketplaceService {
     // Ayrı bir `company:` spread'i olarak yazılsaydı kapının
     // publicListingsEnabled/isActive/isBlocked koşullarını ezer ve süzgeç
     // kullanan her sorguda kapı sessizce açılırdı.
+    const cities = multi(q.city);
     const company: Prisma.CompanyWhereInput = {
       ...(gate.company as Prisma.CompanyWhereInput),
-      ...(q.city ? { city: q.city } : {}),
+      ...(cities.length === 1 ? { city: cities[0] } : cities.length > 1 ? { city: { in: cities } } : {}),
     };
     const where: Prisma.ListingWhereInput = {
       ...gate,
@@ -184,11 +190,14 @@ export class PublicMarketplaceService {
       this.prisma.listing.findMany({
         where,
         select: PUBLIC_LISTING_SELECT,
-        // Yeni yayımlanan üstte; `publishedAt` eşitse numara kararlı ikincil
-        // anahtar (sayfalar arası kayma olmasın).
-        orderBy: [{ publishedAt: "desc" }, { number: "desc" }],
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
+        // Varsayılan: yeni yayımlanan üstte; `closing` = süresi yaklaşan önce.
+        // Numara kararlı ikincil anahtar (sayfalar arası kayma olmasın).
+        orderBy:
+          q.sort === "closing"
+            ? [{ closesAt: "asc" }, { number: "desc" }]
+            : [{ publishedAt: "desc" }, { number: "desc" }],
+        skip: (page - 1) * LISTING_PAGE_SIZE,
+        take: LISTING_PAGE_SIZE,
       }),
     ]);
 
@@ -199,7 +208,7 @@ export class PublicMarketplaceService {
       items: rows.map((r) => this.toCard(r, cats)),
       total,
       page,
-      pageSize: PAGE_SIZE,
+      pageSize: LISTING_PAGE_SIZE,
     };
   }
 
@@ -268,45 +277,67 @@ export class PublicMarketplaceService {
   /* Facet                                                             */
   /* ---------------------------------------------------------------- */
 
-  async facets(): Promise<{
+  /**
+   * Süzgeç sayaçları — BAĞLAMSAL (PROMPT 4, ürün dizini ile aynı kural): her
+   * boyut, DİĞER seçimler uygulanmış hâlde sayılır; seçili boyutun kendisi
+   * serbest kalır ki kullanıcı dal değiştirebilsin. Arama (`q`) hepsine
+   * uygulanır. Kategori sayımı SEGMENT (L1) düzeyinde.
+   */
+  async facets(q: PublicListFacetQueryDto = {}): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
     types: { type: string; count: number }[];
     scopes: { scope: "domestic" | "international"; count: number }[];
+    /** Kalan süre kovaları (3/7/30 gün) — diğer seçimlerle. */
+    within: { "3": number; "7": number; "30": number };
     truncated: boolean;
   }> {
     const now = new Date();
     const rows = await this.prisma.listing.findMany({
-      where: { ...marketplaceListingWhere(now), status: "OPEN" },
+      where: { ...marketplaceListingWhere(now), status: "OPEN", ...this.searchWhere(q.q) },
       select: {
         type: true,
         categoryIds: true,
         isInternational: true,
+        closesAt: true,
         company: { select: { city: true } },
       },
       take: FACET_SCAN_CAP + 1,
     });
     const truncated = rows.length > FACET_SCAN_CAP;
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
+    type Row = (typeof scanned)[number];
+
+    const prefix = q.category ? categoryPrefix(q.category) : null;
+    const cities = multi(q.city);
+    const dayMs = 86_400_000;
+    const inCat = (r: Row) => !prefix || r.categoryIds.some((c) => c.startsWith(prefix));
+    const inCity = (r: Row) => cities.length === 0 || (!!r.company.city && cities.includes(r.company.city.trim()));
+    const inScope = (r: Row) => !q.scope || r.isInternational === (q.scope === "international");
+    const withinDays = (r: Row, d: number) =>
+      !!r.closesAt && r.closesAt.getTime() >= now.getTime() && r.closesAt.getTime() <= now.getTime() + d * dayMs;
+    const inWithin = (r: Row) => !q.closesWithin || withinDays(r, Number(q.closesWithin));
+
+    const forCat = scanned.filter((r) => inCity(r) && inScope(r) && inWithin(r));
+    const forCity = scanned.filter((r) => inCat(r) && inScope(r) && inWithin(r));
+    const forScope = scanned.filter((r) => inCat(r) && inCity(r) && inWithin(r));
+    const forWithin = scanned.filter((r) => inCat(r) && inCity(r) && inScope(r));
 
     const catCount = new Map<string, number>();
-    const cityCount = new Map<string, number>();
-    const typeCount = new Map<string, number>();
-    let international = 0;
-    for (const r of scanned) {
-      typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
-      if (r.isInternational) international += 1;
-      const city = r.company.city?.trim();
-      if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
-      // Kategori sayımı SEGMENT (L1) düzeyinde: ilan L3/L4 kod taşır, ama
-      // ziyaretçiye 158 bin satırlık bir süzgeç sunulamaz. 8 haneli kodun ilk
-      // iki hanesi segmenttir (hiyerarşi koddan türer).
-      for (const seg of new Set(
-        r.categoryIds.filter((c) => c.length === 8).map((c) => `${c.slice(0, 2)}000000`),
-      )) {
+    for (const r of forCat) {
+      // 8 haneli kodun ilk iki hanesi segmenttir (hiyerarşi koddan türer).
+      for (const seg of new Set(r.categoryIds.filter((c) => c.length === 8).map((c) => `${c.slice(0, 2)}000000`))) {
         catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
       }
     }
+    const cityCount = new Map<string, number>();
+    for (const r of forCity) {
+      const city = r.company.city?.trim();
+      if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+    }
+    const typeCount = new Map<string, number>();
+    for (const r of scanned) typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
+    const international = forScope.filter((r) => r.isInternational).length;
 
     const cats = await this.resolveCategories([...catCount.keys()]);
     return {
@@ -324,9 +355,14 @@ export class PublicMarketplaceService {
       // Kapsam süzgeci (yurtiçi / uluslararası) — sayfa açıklaması bunu vaat
       // ediyordu, süzgeç yoktu.
       scopes: [
-        { scope: "domestic" as const, count: scanned.length - international },
+        { scope: "domestic" as const, count: forScope.length - international },
         { scope: "international" as const, count: international },
       ].filter((s) => s.count > 0),
+      within: {
+        "3": forWithin.filter((r) => withinDays(r, 3)).length,
+        "7": forWithin.filter((r) => withinDays(r, 7)).length,
+        "30": forWithin.filter((r) => withinDays(r, 30)).length,
+      },
       truncated,
     };
   }

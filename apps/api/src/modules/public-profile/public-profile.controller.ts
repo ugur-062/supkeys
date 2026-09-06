@@ -59,14 +59,21 @@ export class PublicProfileController {
       ...q,
       verified: q.verified === "1",
       hasProducts: q.hasProducts === "1",
+      gold: q.gold === "1",
     });
   }
 
   @Get("directory/facets")
   @UseGuards(MarketplaceLiveGuard)
   @Header("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=1800")
-  directoryFacets() {
-    return this.service.publicDirectoryFacets();
+  directoryFacets(@Query() q: PublicDirectoryQueryDto) {
+    // Bağlamsal sayaçlar (PROMPT 4): seçili süzgeçler de gönderilir.
+    return this.service.publicDirectoryFacets({
+      ...q,
+      verified: q.verified === "1",
+      hasProducts: q.hasProducts === "1",
+      gold: q.gold === "1",
+    });
   }
 
   /** Anonim dizin özeti — sayı + kategori dağılımı. Statik rota ":slug"den ÖNCE. */
