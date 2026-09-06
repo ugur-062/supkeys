@@ -62,7 +62,6 @@
 
   /* Shadows — nötr, ince, kurumsal */
   --shadow-card:       0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.08);
 
   /* Radius — net/sıkı */
   --radius-lg:  0.5rem;
@@ -91,28 +90,58 @@
   --shadow-table-bottom: 0 -1px 0 0 oklch(0.21 0.006 286 / 0.08);
   --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.12),
                     0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  /* Popover/mega menü gölgesi (Europages serisi sözlüğü). */
+  --shadow-pop: 0 12px 32px rgba(15, 23, 42, 0.16);
   /* Yarıçap rol takma adları: kontrol / kart / overlay */
   --radius-control: 0.5rem;
   --radius-card:    0.75rem;
   --radius-overlay: 1rem;
+
+  /* ── Europages serisi sözlüğü (PROMPT 1, 2026-09-06) — RENK DEĞİŞMEDİ ──
+     Kullanıcı kararı: tema monokrom siyah kalır. `ink/canvas/surface/accent/gold`
+     adları sonraki adımların (kart, süzgeç, header) aynı dili konuşması için
+     MEVCUT palete takma ad; yeni bir ton getirmez. accent = Doğrulanmış
+     yeşili (emerald), gold = Gold Üye amberi. */
+  --color-ink-900: #18181B;  /* zinc-900 — başlık/metin */
+  --color-ink-700: #3F3F46;  /* zinc-700 — gövde metni */
+  --color-ink-500: #71717A;  /* zinc-500 — meta (beyazda 4,6:1) */
+  --color-ink-300: #D4D4D8;  /* zinc-300 — güçlü kenar */
+  --color-ink-200: #E4E4E7;  /* zinc-200 — kenar */
+  --color-ink-100: #F4F4F5;  /* zinc-100 — zemin tonu */
+  --color-canvas:  #FAFAFA;  /* sayfa zemini (= surface-subtle) */
+  --color-surface: #FFFFFF;  /* kart/yüzey (= surface-base) */
+  --color-accent-700: #047857; /* emerald-700 */
+  --color-accent-600: #059669; /* emerald-600 */
+  --color-accent-50:  #ECFDF5; /* emerald-50 */
+  --color-gold-700: #B45309;   /* amber-700 */
+  --color-gold-500: #D97706;   /* amber-600 */
+  --color-gold-50:  #FFFBEB;   /* amber-50 */
+
+  /* Eksik semantik tonlar: bileşenlerde kullanılıyordu ama @theme'de yoktu,
+     Tailwind v4 yalnız tanımlı token için sınıf ürettiğinden CSS çıkmıyordu
+     (keşif raporu §3.7). Değerler Tailwind emerald/amber/red karşılıkları. */
+  --color-success-100: #D1FAE5;
+  --color-success-200: #A7F3D0;
+  --color-success-700: #047857;
+  --color-success-800: #065F46;
+  --color-success-900: #064E3B;
+  --color-warning-100: #FEF3C7;
+  --color-warning-200: #FDE68A;
+  --color-warning-700: #B45309;
+  --color-warning-800: #92400E;
+  --color-danger-300:  #FCA5A5;
+  --color-danger-700:  #B91C1C;
 }
 
-/* Görsel tazeleme — ortak kart dili (tek kaynak): hafif derinlik, slate
-   kenar; etkileşimlide 1px kalkış + yumuşak gölge. Durum renkleri değişmez. */
+/* Etkileşimli kart kalkışı — `.card` TEK tanımlı (aşağıdaki @apply sürümü;
+   2026-09-06'ya dek iki `.card` vardı ve ikincisi sessizce kazanıyordu). */
 @layer components {
-  .card {
-    border-radius: var(--radius-xl, 0.75rem);
-    border: 1px solid rgb(226 232 240 / 0.8); /* slate-200/80 */
-    background-color: #fff;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  }
   .card-hover {
-    transition: all 200ms;
+    transition: transform 200ms, box-shadow 200ms;
   }
   .card-hover:hover {
     transform: translateY(-1px);
-    border-color: rgb(203 213 225); /* slate-300 */
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+    box-shadow: var(--shadow-card-hover);
   }
 }
 
@@ -148,6 +177,29 @@
   html,
   body {
     height: 100%;
+  }
+
+  /* Tipografi ölçeği (PROMPT 1, 2026-09-06): sınıfsız başlıklar için taban.
+     Utility sınıfı taşıyan başlıklar (Catalyst Heading, text-2xl…) bundan
+     etkilenmez — utility > base. Uzun başlıklar dengeli kırılır. */
+  h1 {
+    font-size: 1.875rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h2 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 1.125rem;
+    line-height: 1.4;
+    font-weight: 600;
   }
 
   /* Native kontroller/scrollbar da OS dark tercihinden bağımsız açık kalsın. */
@@ -328,4 +380,9 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Sayısal sütunlar (fiyat, miktar, sayaç) — Europages serisi sözlüğü. */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
 }
