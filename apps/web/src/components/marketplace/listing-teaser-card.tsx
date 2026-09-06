@@ -47,7 +47,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         <CategoryVisualBox categoryIds={l.categories.map((c) => c.id)} ratio="aspect-[5/1]" />
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-4 pb-2">
           {primaryCategory ? (
-            <Badge tone="neutral" size="sm" className="min-w-0 bg-white/90 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-950/5">
+            <Badge tone="neutral" size="sm" className="min-w-0 shrink bg-white/90 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-950/5">
               <span className="truncate">{primaryCategory.name}</span>
             </Badge>
           ) : <span />}

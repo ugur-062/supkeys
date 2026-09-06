@@ -48,7 +48,7 @@ export function CompanyCard({
           <h3 className="flex min-w-0 items-center gap-1.5 text-base font-semibold whitespace-nowrap text-zinc-950">
             <Link
               href={href ?? `/firma/${c.slug}`}
-              className="truncate after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
+              className="min-w-0 truncate after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
             >
               {c.name}
             </Link>
@@ -111,11 +111,12 @@ export function CompanyCard({
         </div>
       ) : null}
 
-      <div className="mt-auto flex items-center justify-between gap-3 pt-4 text-sm">
-        <span className="tnum min-w-0 truncate text-xs text-zinc-500">
-          {facts.length > 0 ? facts.join(" · ") : "Profil"}
-        </span>
-        <span className="shrink-0 font-semibold text-zinc-900 group-hover:text-zinc-600">Profili gör →</span>
+      {/* Olgu satırı KENDİ satırında: "N ürün · Kuruluş 2008 · 50-100 çalışan"
+          üç sütunlu ızgarada CTA ile aynı satıra sığmıyor ve çalışan sayısı
+          kırpılıyordu — kırpılmış veri, gösterilmeyen veriden kötüdür. */}
+      <div className="mt-auto pt-4">
+        {facts.length > 0 ? <p className="tnum truncate text-xs text-zinc-500">{facts.join(" · ")}</p> : null}
+        <p className="mt-1 text-sm font-semibold text-zinc-900 group-hover:text-zinc-600">Profili gör →</p>
       </div>
     </article>
   );
