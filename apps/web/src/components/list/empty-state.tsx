@@ -9,6 +9,8 @@ interface Props {
   title: string;
   description?: string;
   action?: ReactNode;
+  /** İkincil eylem (ör. "Filtreleri temizle") — birincilin yanında, sessiz. */
+  secondaryAction?: ReactNode;
   /**
    * "no-data" — hiç veri yok (renkli accent ile pozitif onboarding tonu)
    * "no-results" — filtre/arama eşleşmedi (nötr ton)
@@ -22,6 +24,7 @@ export function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
   variant = "no-data",
   className,
 }: Props) {
@@ -53,7 +56,12 @@ export function EmptyState({
           {description}
         </p>
       ) : null}
-      {action}
+      {action || secondaryAction ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {action}
+          {secondaryAction}
+        </div>
+      ) : null}
     </div>
   );
 }
