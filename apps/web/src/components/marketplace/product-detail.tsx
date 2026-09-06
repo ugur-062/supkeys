@@ -155,6 +155,12 @@ export function ProductDetail({
               {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası panelin
                   ürün sayfasına döner, oradaki form kimlik sormaz. Misafir
                   formu kalktı — kimlik zaten oturumdan geliyor. */}
+              {company.freeMember ? (
+                <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
+                  Bu tedarikçi ücretsiz üye: sorunuzu görür, yanıt için Silver paketine
+                  geçmesi gerekir. Doğrulanmış tedarikçilerin benzer ürünleri aşağıda.
+                </p>
+              ) : null}
               <Link
                 href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
                 className="block w-full rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"

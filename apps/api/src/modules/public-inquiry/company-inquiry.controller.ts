@@ -13,7 +13,9 @@ import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { PublicInquiryService } from "./public-inquiry.service";
 
@@ -59,10 +61,10 @@ export class CompanyInquiryController {
     @Query("page") page?: string,
   ) {
     const n = Number.parseInt(page ?? "1", 10);
-    return this.service.listForCompany(
-      user.companyId,
-      Number.isFinite(n) ? n : 1,
-    );
+    // Ücretsiz satıcı soruyu görür, kimliği görmez (serviste düşer, 2026-09-06).
+    return this.service.listForCompany(user.companyId, Number.isFinite(n) ? n : 1, {
+      viewerPaid: tierAtLeast(user.tier, PAID_TIER),
+    });
   }
 
   /**
@@ -99,9 +101,14 @@ export class CompanyInquiryController {
     });
   }
 
-  /** Yanıt firma adına gider — "Bilgi taleplerini yanıtlama" işlem izni. */
+  /**
+   * Yanıt firma adına gider — "Bilgi taleplerini yanıtlama" işlem izni.
+   * PAKETLİ (Silver+, 2026-09-06): ücretsiz satıcı soruyu görür ama
+   * yanıtlayamaz — kimlik/iletişim/yanıt Silver'ın karşılığı.
+   */
   @Post(":id/reply")
   @RequireCompanyPermission("sell:inquiry:reply")
+  @UseGuards(CompanyPaidTierGuard)
   reply(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

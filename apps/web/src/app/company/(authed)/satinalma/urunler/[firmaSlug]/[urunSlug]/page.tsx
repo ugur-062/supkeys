@@ -126,6 +126,7 @@ export default function PanelProductPage() {
         productSlug={urunSlug}
         productName={product.name}
         companyName={company.name}
+        sellerFreeMember={company.freeMember === true}
         seed={{
           productName: product.name,
           unit: product.unit,

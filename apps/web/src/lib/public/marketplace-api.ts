@@ -277,6 +277,8 @@ export interface PublicProductCompany {
   industry: string | null;
   activities: string[];
   verified?: boolean;
+  /** Ücretsiz üye satıcı — "yanıtlayamayabilir" notu (2026-09-06). */
+  freeMember?: boolean;
 }
 
 export interface PublicProductPage {

@@ -9,6 +9,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { appRoutes } from "../../common/company/app-routes";
 import { hasPublicProfile } from "../../common/company/public-profile-gate";
+import { effectiveTier } from "../../common/company/effective-tier";
+import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
 
 /**
@@ -218,7 +220,9 @@ export class PublicInquiryService {
 
     // Misafir yolundaki İLETİM adımının aynısı — tek fark, doğrulamayı
     // beklemeden burada olması.
-    void this.notifySeller(product.companyId, product.name, inquiry.name);
+    void this.notifySeller(product.companyId, product.name, inquiry.name, {
+      quantity: input.quantity?.trim() || null,
+    });
 
     return { id: inquiry.id };
   }
@@ -268,7 +272,23 @@ export class PublicInquiryService {
    * dönmez: gösterilseydi satıcı doğrudan yazıp platformu atlar, ilişkiyi
    * göremezdik ve ziyaretçi hiç kaydolmazdı.
    */
-  async listForCompany(companyId: string, page = 1) {
+  /**
+   * Ürünlerime gelen talepler.
+   *
+   * ÜCRETSİZ SATICI (`viewerPaid: false`, 2026-09-06 "premium çekmek için"):
+   * SORUYU görür (ürün, mesaj, adet, alıcının şehri/faaliyeti) ama KİMLİĞİ
+   * görmez — ad ve firma adı sunucuda düşer (`anonymous: true`, yanıt
+   * `locked: true`); yanıtlama ucu da paket kapılı. Çıplak "3 talep var"
+   * sayacı sahte lead kokar, somut soru dönüştürür — içerik bu yüzden açık.
+   * Kimlik/iletişim/yanıt Silver'ın karşılığı. Alıcıya gönderim anında
+   * "ücretsiz üye, yanıtlayamayabilir" notu düşer (ürün sayfası `freeMember`).
+   */
+  async listForCompany(
+    companyId: string,
+    page = 1,
+    opts: { viewerPaid?: boolean } = {},
+  ) {
+    const viewerPaid = opts.viewerPaid ?? true;
     const pageSize = 20;
     const where = { companyId, verifiedAt: { not: null } } as const;
     const [total, rows] = await Promise.all([
@@ -283,6 +303,7 @@ export class PublicInquiryService {
           quantity: true,
           verifiedAt: true,
           claimedAt: true,
+          claimedCompanyId: true,
           product: { select: { name: true, slug: true } },
           replies: {
             select: { id: true, body: true, createdAt: true },
@@ -294,23 +315,43 @@ export class PublicInquiryService {
         take: pageSize,
       }),
     ]);
+    // Kayıtlı alıcının şehri/faaliyeti: kimlik DEĞİL nitelik — anonim kartta
+    // da kalır (satıcının "gerçek bir alıcı mı" kararı için; pazar yeri
+    // ilan kartıyla aynı çizgi). Ayrı sorgu: `claimedCompanyId` ilişki değil.
+    const buyerIds = [...new Set(rows.map((r) => r.claimedCompanyId).filter((id): id is string => !!id))];
+    const buyers = buyerIds.length
+      ? await this.prisma.company.findMany({
+          where: { id: { in: buyerIds } },
+          select: { id: true, city: true, activities: true },
+        })
+      : [];
+    const buyerById = new Map(buyers.map((b) => [b.id, b] as const));
     return {
-      items: rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        companyName: r.companyName,
-        message: r.message,
-        quantity: r.quantity,
-        receivedAt: r.verifiedAt?.toISOString() ?? null,
-        /** Ziyaretçi kaydoldu mu — satıcıya "artık panelden de ulaşabilir". */
-        hasAccount: r.claimedAt != null,
-        product: r.product,
-        replies: r.replies.map((x) => ({
-          id: x.id,
-          body: x.body,
-          createdAt: x.createdAt.toISOString(),
-        })),
-      })),
+      /** Ücretsiz satıcı: kimlik ve yanıt kilitli (web kilit kartı). */
+      locked: !viewerPaid,
+      items: rows.map((r) => {
+        const buyer = r.claimedCompanyId ? buyerById.get(r.claimedCompanyId) : undefined;
+        return {
+          id: r.id,
+          name: viewerPaid ? r.name : null,
+          companyName: viewerPaid ? r.companyName : null,
+          /** Kimlik sunucuda düşürüldü (ücretsiz satıcı). */
+          anonymous: !viewerPaid,
+          buyerCity: buyer?.city ?? null,
+          buyerActivities: buyer?.activities ?? [],
+          message: r.message,
+          quantity: r.quantity,
+          receivedAt: r.verifiedAt?.toISOString() ?? null,
+          /** Ziyaretçi kaydoldu mu — satıcıya "artık panelden de ulaşabilir". */
+          hasAccount: r.claimedAt != null,
+          product: r.product,
+          replies: r.replies.map((x) => ({
+            id: x.id,
+            body: x.body,
+            createdAt: x.createdAt.toISOString(),
+          })),
+        };
+      }),
       total,
       page: Math.max(1, page),
       pageSize,
@@ -569,32 +610,60 @@ export class PublicInquiryService {
   }
 
   /** Satıcının firma kullanıcılarına "yeni bilgi talebi" bildirimi. */
+  /**
+   * Satıcı e-postası. ÜCRETSİZ satıcıya (efektif STANDART) ziyaretçi ADI
+   * yazılmaz — panelde de göremeyeceği kimliği e-postayla vermek kilidi
+   * anlamsız kılardı; metin "yanıtlamak için Silver" der (dönüşüm e-postası).
+   */
   private async notifySeller(
     companyId: string,
     productName: string,
     visitorName: string,
+    extra: { quantity?: string | null } = {},
   ) {
-    const users = await this.prisma.companyUser.findMany({
-      where: { companyId, isActive: true },
-      select: { email: true, firstName: true },
-      take: 5,
-    });
+    const [users, seller] = await Promise.all([
+      this.prisma.companyUser.findMany({
+        where: { companyId, isActive: true },
+        select: { email: true, firstName: true },
+        take: 5,
+      }),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { tier: true, membershipEndAt: true },
+      }),
+    ]);
+    const sellerPaid = seller
+      ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt), PAID_TIER)
+      : true;
+    const qty = extra.quantity ? ` (${extra.quantity})` : "";
+    const data = sellerPaid
+      ? {
+          subject: "Ürününüz için yeni bilgi talebi",
+          heading: "Yeni bilgi talebi",
+          paragraphs: [
+            `${visitorName}, "${productName}" ürününüz hakkında bilgi istedi${qty}.`,
+            "Talebi panelinizden görüntüleyip yanıtlayabilirsiniz.",
+          ],
+          ctaLabel: "Talebi görüntüle",
+          ctaUrl: appRoutes.inquiriesReceived(webBase()),
+        }
+      : {
+          subject: "Ürününüz için yeni bilgi talebi — yanıtlamak için Silver",
+          heading: "Bir alıcı ürününüzü sordu",
+          paragraphs: [
+            `Bir alıcı "${productName}" ürününüz hakkında bilgi istedi${qty}.`,
+            "Ücretsiz üyelikte soruyu görürsünüz; alıcının kimliği, iletişim bilgileri ve yanıt Silver paketiyle açılır.",
+          ],
+          ctaLabel: "Talebi görüntüle",
+          ctaUrl: appRoutes.inquiriesReceived(webBase()),
+        };
     for (const u of users) {
       await this.email
         .send({
           to: { email: u.email, name: u.firstName ?? "" },
           templateData: {
             template: "notification",
-            data: {
-              subject: "Ürününüz için yeni bilgi talebi",
-              heading: "Yeni bilgi talebi",
-              paragraphs: [
-                `${visitorName}, "${productName}" ürününüz hakkında bilgi istedi.`,
-                "Talebi panelinizden görüntüleyip yanıtlayabilirsiniz.",
-              ],
-              ctaLabel: "Talebi görüntüle",
-              ctaUrl: appRoutes.inquiriesReceived(webBase()),
-            },
+            data,
           },
           context: { type: "public_inquiry_received", id: companyId },
         })

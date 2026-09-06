@@ -114,7 +114,7 @@ export type MemberProduct = PublicProduct & ProductPriceFields;
 export function usePublicProduct(companySlug: string, productSlug: string) {
   return useQuery<{
     product: MemberProduct;
-    company: PublicProductCompany & { verified?: boolean; website?: string | null };
+    company: PublicProductCompany & { verified?: boolean; website?: string | null; freeMember?: boolean };
   } | null>({
     queryKey: ["member-product", companySlug, productSlug],
     enabled: !!companySlug && !!productSlug,

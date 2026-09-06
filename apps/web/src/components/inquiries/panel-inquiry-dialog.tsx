@@ -33,6 +33,7 @@ export function PanelInquiryDialog({
   productSlug,
   productName,
   companyName,
+  sellerFreeMember = false,
   seed,
 }: {
   open: boolean;
@@ -41,6 +42,12 @@ export function PanelInquiryDialog({
   productSlug: string;
   productName: string;
   companyName: string;
+  /**
+   * Satıcı ücretsiz üye (2026-09-06): soruyu görür ama yanıtlamak için
+   * Silver'a geçmesi gerekir — alıcıya dürüst not, alternatif doğrulanmış
+   * tedarikçiler ürün sayfasındaki benzer ürünlerde.
+   */
+  sellerFreeMember?: boolean;
   /** Talep sihirbazına taşınacak ürün tohumu. */
   seed: ProductSeed;
 }) {
@@ -136,6 +143,13 @@ export function PanelInquiryDialog({
                 hakkında {companyName} firmasına soru gönderin. Firma adınız
                 talebe eklenir; e-posta adresiniz satıcıya gösterilmez.
               </p>
+              {sellerFreeMember ? (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
+                  Bu tedarikçi ücretsiz üye: sorunuzu görür ama yanıtlamak için Silver
+                  paketine geçmesi gerekir. Hızlı yanıt için ürün sayfasındaki benzer
+                  ürünlerden doğrulanmış tedarikçilere de sorabilirsiniz.
+                </p>
+              ) : null}
 
               <div>
                 <label

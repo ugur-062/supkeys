@@ -1269,7 +1269,21 @@ olduğu anda kilide çarpar.
   ile açılır", CTA paket sayfası (talep bağlantısı verilmez, 403 alırdı).
   Sözleşme: `tier-visibility.spec` (yeniden), `visibility-matrix`,
   `seller-tenders`, `audit-fixes` çevrildi; web `seller-tenders-view.test`.
-- **SIRADA:** Faz 3 anonim bilgi talebi.
+- **Faz 3 — anonim bilgi talebi (BİTTİ):** `listForCompany(companyId, page,
+  { viewerPaid })` ücretsiz satıcıda AD ve FİRMA ADINI sunucuda düşürür
+  (`anonymous: true`, yanıt `locked: true`); mesaj, adet, ürün ve KAYITLI
+  alıcının şehri/faaliyeti (`buyerCity`/`buyerActivities` — kimlik değil
+  nitelik) kalır. Çıplak "3 talep var" sayacı sahte lead kokar, somut soru
+  dönüştürür. `POST company/inquiries/:id/reply` `CompanyPaidTierGuard`
+  (Silver+). Satıcı e-postası ücretsizde ziyaretçi ADI yazmaz, "yanıtlamak
+  için Silver" der. Alıcı tarafı dürüst not: üye ürün sayfası
+  (`discoverProduct` `company.freeMember`) ve herkese açık ürün sayfası
+  (`public/.../products` `company.freeMember`) → "ücretsiz üye, yanıt için
+  Silver'a geçmesi gerekir; doğrulanmış tedarikçilerin benzer ürünleri
+  aşağıda". Web: Bilgi Talepleri'nde `SilverLockCard` + anonim kart (kimlik
+  yer tutucu, şehir/faaliyet çipi, yanıt kutusu HİÇ çizilmez). Sözleşme:
+  `public-inquiry.spec` "ücretsiz satıcı — anonim gelen talep" (kimlik
+  sızmaz, e-posta varyantı, guard metadata); web `inquiries-portal.test`.
 
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı

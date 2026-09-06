@@ -709,3 +709,124 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
     expect(await svc.listClaimed(visitor.company.id, VALID.email)).toEqual([]);
   });
 });
+
+/**
+ * ÜCRETSİZ SATICI — anonim gelen talep (2026-09-06, "premium çekmek için"):
+ * soruyu görür (mesaj, adet, alıcının şehri/faaliyeti), kimliği görmez (ad ve
+ * firma adı sunucuda düşer), yanıt ucu paket kapılı; e-posta adı yazmaz.
+ */
+describe("ücretsiz satıcı — anonim gelen talep", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  async function freeSellerWithProduct() {
+    const { company, user } = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    seq += 1;
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { slug: `ucretsiz-${seq}`, publicEnabled: true, name: `Ücretsiz Satıcı ${seq}` },
+    });
+    const product = await prisma.companyItem.create({
+      data: {
+        companyId: company.id,
+        createdById: user.id,
+        name: "Kompanzasyon panosu",
+        unit: "adet",
+        slug: `komp-${seq}`,
+        isPublic: true,
+        publishedAt: new Date(),
+        description: "x".repeat(120),
+        images: ["a.webp"],
+        keywords: ["pano"],
+      },
+    });
+    return { sellerId: company.id, companySlug: `ucretsiz-${seq}`, productSlug: `komp-${seq}` };
+  }
+
+  it("liste: kimlik düşer, soru/adet/alıcı şehri kalır, locked:true; paketli görünüm kimliği verir", async () => {
+    const mail = makeEmail();
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
+    const seller = await freeSellerWithProduct();
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({ where: { id: buyer.company.id }, data: { city: "İzmir", activities: ["MANUFACTURER"] } });
+    await svc.createAsCompany({
+      companyId: buyer.company.id,
+      email: buyer.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: seller.companySlug,
+      productSlug: seller.productSlug,
+      message: "500 adet için fiyat ve teslim süresi rica ederim.",
+      quantity: "500 adet",
+    });
+
+    const free = await svc.listForCompany(seller.sellerId, 1, { viewerPaid: false });
+    expect(free.locked).toBe(true);
+    expect(free.items).toHaveLength(1);
+    const row = free.items[0]!;
+    expect(row.anonymous).toBe(true);
+    expect(row.name).toBeNull();
+    expect(row.companyName).toBeNull();
+    expect(row.message).toContain("500 adet");
+    expect(row.quantity).toBe("500 adet");
+    expect(row.buyerCity).toBe("İzmir");
+    expect(row.buyerActivities).toEqual(["MANUFACTURER"]);
+    const dump = JSON.stringify(free);
+    expect(dump).not.toContain("Ayşe Demir");
+    expect(dump).not.toContain(buyer.company.name);
+    expect(dump).not.toContain(buyer.user.email);
+
+    const paid = await svc.listForCompany(seller.sellerId, 1, { viewerPaid: true });
+    expect(paid.locked).toBe(false);
+    expect(paid.items[0]!.anonymous).toBe(false);
+    expect(paid.items[0]!.name).toBe("Ayşe Demir");
+    expect(paid.items[0]!.companyName).toBe(buyer.company.name);
+  });
+
+  it("satıcı e-postası: ücretsiz satıcıya ziyaretçi ADI yazılmaz, 'Silver' der; paketliye ad yazılır", async () => {
+    const mail = makeEmail();
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
+    const seller = await freeSellerWithProduct();
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await svc.createAsCompany({
+      companyId: buyer.company.id,
+      email: buyer.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: seller.companySlug,
+      productSlug: seller.productSlug,
+      message: "Fiyat bilgisi rica ederim, teşekkürler.",
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const toSeller = mail.sent.filter((m) => m.type === "public_inquiry_received");
+    expect(toSeller.length).toBeGreaterThan(0);
+    for (const m of toSeller) {
+      expect(m.body).toMatch(/Silver/);
+      expect(m.body).not.toContain("Ayşe Demir");
+    }
+    mail.sent.length = 0;
+
+    const { company: paidSeller, product } = await seedProduct();
+    await svc.createAsCompany({
+      companyId: buyer.company.id,
+      email: buyer.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: paidSeller.slug as string,
+      productSlug: product.slug as string,
+      message: "Fiyat bilgisi rica ederim, teşekkürler.",
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const toPaid = mail.sent.filter((m) => m.type === "public_inquiry_received");
+    expect(toPaid.length).toBeGreaterThan(0);
+    expect(toPaid[0]!.body).toContain("Ayşe Demir");
+    expect(toPaid[0]!.body).not.toMatch(/Silver/);
+  });
+
+  it("yanıt ucu paket kapılı (CompanyPaidTierGuard metadata'sı); okuma ucu değil", async () => {
+    const { CompanyInquiryController } = await import("../../src/modules/public-inquiry/company-inquiry.controller");
+    const { CompanyPaidTierGuard } = await import("../../src/modules/company-auth/guards/company-paid-tier.guard");
+    const replyGuards = (Reflect.getMetadata("__guards__", CompanyInquiryController.prototype.reply) ?? []) as unknown[];
+    expect(replyGuards).toContain(CompanyPaidTierGuard);
+    const readGuards = (Reflect.getMetadata("__guards__", CompanyInquiryController.prototype.received) ?? []) as unknown[];
+    expect(readGuards).not.toContain(CompanyPaidTierGuard);
+  });
+});

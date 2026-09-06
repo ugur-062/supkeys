@@ -1,6 +1,8 @@
 "use client";
 
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { SilverLockCard } from "@/components/company/silver-lock-card";
+import { companyActivityLabel } from "@rothern/shared";
 import { EmptyState } from "@/components/list";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
@@ -73,6 +75,20 @@ export function InquiriesView({
           )
         }
       />
+
+      {/* Ücretsiz satıcı (2026-09-06): soruyu görür, kimlik/iletişim/yanıt Silver ile. */}
+      {isSeller && received.data?.locked ? (
+        <div className="mt-6">
+          <SilverLockCard
+            title={
+              receivedItems.length > 0
+                ? `${receivedItems.length} bilgi talebi — kim sorduğu ve yanıt Silver ile açılır`
+                : "Gelen soruları görürsünüz; kim sorduğu ve yanıt Silver ile açılır"
+            }
+            description="Ücretsiz üyelikte alıcının sorusunu, adedini ve şehrini görürsünüz. Alıcının kimliği, iletişim bilgileri ve yanıt gönderme Silver paketiyle açılır — alıcı, doğrulanmış tedarikçilere yöneliyor."
+          />
+        </div>
+      ) : null}
 
       {isSeller ? (
         <div className="mt-6 flex gap-2">
@@ -191,7 +207,14 @@ function ReceivedCard({ inquiry }: { inquiry: ReceivedInquiry }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-zinc-950">
-            {inquiry.name}
+            {inquiry.anonymous ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden className="inline-block h-3 w-24 rounded bg-zinc-200" />
+                <span className="text-xs font-medium text-zinc-500">Alıcı kimliği Silver ile açılır</span>
+              </span>
+            ) : (
+              inquiry.name
+            )}
             {inquiry.companyName ? (
               <span className="font-normal text-zinc-500">
                 {" "}
@@ -199,6 +222,13 @@ function ReceivedCard({ inquiry }: { inquiry: ReceivedInquiry }) {
               </span>
             ) : null}
           </p>
+          {inquiry.buyerCity || (inquiry.buyerActivities?.length ?? 0) > 0 ? (
+            <p className="mt-0.5 text-xs text-zinc-500">
+              {[inquiry.buyerCity, ...(inquiry.buyerActivities ?? []).map((a) => companyActivityLabel(a))]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
           <p className="mt-0.5 text-xs text-zinc-500">
             {inquiry.product.name}
             {inquiry.quantity ? ` · ${inquiry.quantity}` : ""}
@@ -235,6 +265,13 @@ function ReceivedCard({ inquiry }: { inquiry: ReceivedInquiry }) {
         </ul>
       ) : null}
 
+      {inquiry.anonymous ? (
+        <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+          Yanıtlamak ve alıcının iletişim bilgilerini görmek Silver paketiyle açılır.
+        </p>
+      ) : null}
+      {/* Anonim (ücretsiz satıcı): yanıt kutusu HİÇ çizilmez — kilit notu yukarıda. */}
+      {inquiry.anonymous ? null : (
       <div className="mt-4 border-t border-zinc-950/5 pt-4" hidden={!canReply}>
         <textarea
           value={body}
@@ -262,6 +299,7 @@ function ReceivedCard({ inquiry }: { inquiry: ReceivedInquiry }) {
           </button>
         </div>
       </div>
+      )}
     </li>
   );
 }

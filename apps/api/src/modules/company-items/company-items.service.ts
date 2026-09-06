@@ -11,12 +11,14 @@ import {
   getUnit,
   isCategoryCode,
   normalizeUnit,
+  PAID_TIER,
   PRODUCT_LIMITS,
   PRODUCT_MEDIA_TIER,
   slugifyText,
   tierAtLeast,
   tokenizeQuery, categoryPrefix, type TierName } from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { effectiveTier } from "../../common/company/effective-tier";
 import {
   hasPublicProfile,
   publicProductWhere,
@@ -648,6 +650,9 @@ export class CompanyItemsService {
         industry: company.industry,
         activities: company.activities,
         verified: company.companyVerificationStatus === "VERIFIED",
+        // Ücretsiz satıcı (2026-09-06): alıcıya gönderim anında dürüst not —
+        // "soruyu görür, yanıtlamak için Silver'a geçmesi gerekir".
+        freeMember: !tierAtLeast(effectiveTier(company.tier, company.membershipEndAt), PAID_TIER),
         // Üye katmanı: web sitesi bağlantısı (public sayfada kapılı).
         website: company.website,
       },

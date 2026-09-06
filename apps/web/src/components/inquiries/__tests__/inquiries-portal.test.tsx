@@ -74,6 +74,38 @@ beforeEach(() => {
   );
 });
 
+describe("InquiriesView — ücretsiz satıcı anonim görünüm (2026-09-06)", () => {
+  it("locked: kilit kartı + kimlik gizli + yanıt kutusu yok; soru ve alıcı şehri görünür", async () => {
+    h.get.mockImplementation((url: string) =>
+      url.includes("received")
+        ? Promise.resolve({
+            data: {
+              total: 1,
+              locked: true,
+              items: [
+                {
+                  ...RECEIVED.items[0],
+                  name: null,
+                  companyName: null,
+                  anonymous: true,
+                  buyerCity: "İzmir",
+                  buyerActivities: ["MANUFACTURER"],
+                },
+              ],
+            },
+          })
+        : Promise.resolve({ data: SENT }),
+    );
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByText(/kim sorduğu ve yanıt Silver ile açılır/)).toBeInTheDocument();
+    expect(screen.getByText("Stok var mı?")).toBeInTheDocument();
+    expect(screen.getByText(/İzmir/)).toBeInTheDocument();
+    expect(screen.queryByText("Ayşe Demir")).toBeNull();
+    expect(screen.queryByPlaceholderText("Yanıtınızı yazın…")).toBeNull();
+    expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/nasil-calisir#fiyatlar");
+  });
+});
+
 describe("InquiriesView — portal yönü", () => {
   it("SATIŞ yalnız GELEN'i gösterir ve yalnız o ucu çağırır", async () => {
     wrap(<InquiriesView portal="satis" />);

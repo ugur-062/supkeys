@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { categoryPrefix, isCategoryCode, tokenizeQuery } from "@rothern/shared";
+import { categoryPrefix, isCategoryCode, PAID_TIER, tierAtLeast, tokenizeQuery } from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -310,6 +310,8 @@ export class PublicProfileService {
         industry: company.industry,
         activities: company.activities,
         verified: company.companyVerificationStatus === "VERIFIED",
+        // Ücretsiz satıcı: ziyaretçiye "yanıtlayamayabilir" notu (2026-09-06).
+        freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null), PAID_TIER),
       },
     };
   }

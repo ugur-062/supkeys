@@ -20,8 +20,14 @@ export interface InquiryReply {
 
 export interface ReceivedInquiry {
   id: string;
-  name: string;
+  /** Ücretsiz satıcıda null — kimlik sunucuda düşer (2026-09-06). */
+  name: string | null;
   companyName: string | null;
+  /** Kimlik sunucuda düşürüldü (ücretsiz satıcı). */
+  anonymous?: boolean;
+  /** Kayıtlı alıcının şehri/faaliyeti — kimlik değil nitelik, anonim kartta da kalır. */
+  buyerCity?: string | null;
+  buyerActivities?: string[];
   message: string;
   quantity: string | null;
   receivedAt: string | null;
@@ -45,7 +51,7 @@ export const INQUIRY_KEY = ["company-inquiries"] as const;
 
 /** `enabled=false` → karşı portalda gereksiz istek atılmaz. */
 export function useReceivedInquiries(enabled = true) {
-  return useQuery<{ items: ReceivedInquiry[]; total: number }>({
+  return useQuery<{ items: ReceivedInquiry[]; total: number; locked?: boolean }>({
     enabled,
     queryKey: [...INQUIRY_KEY, "received"],
     queryFn: async () => {
