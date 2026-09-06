@@ -36,6 +36,8 @@ export interface CatalogListResult {
   items: CatalogItem[];
   total: number;
   counts: CatalogCounts;
+  /** Ücretsiz pakette yayında ürün tavanı (null = limitsiz) — `PRODUCT_LIMITS` aynası. */
+  productLimit: number | null;
   /** Sunucu tavanına dayanıldı mı — sessiz kesme yok. */
   truncated: boolean;
 }

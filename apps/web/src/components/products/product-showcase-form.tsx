@@ -1,6 +1,6 @@
 "use client";
 
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { AttributeFields } from "./attribute-fields";
 import { CompletionRing } from "./completion-ring";
 import { ImageUploader } from "./image-uploader";
@@ -21,10 +21,12 @@ import { ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import {
   COMMON_UNIT_CODES,
   MIN_DESCRIPTION,
+  PRODUCT_MEDIA_TIER,
   UNITS,
   getUnit,
   productCompletion,
   productPublishBlockers,
+  tierAtLeast,
   type ProductLike,
 } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -54,6 +56,7 @@ export function ProductShowcaseForm({
   onClose,
   mode = "edit",
   onCreated,
+  publishLimitReached,
 }: {
   product: ProductShowcase;
   /** Kalemin ölçü birimi — fiyat ve MOQ satırlarında gösterilir. */
@@ -68,8 +71,17 @@ export function ProductShowcaseForm({
    */
   mode?: "edit" | "new";
   onCreated?: (created: ProductShowcase) => void;
+  /**
+   * Ücretsiz paket YAYINDA ürün tavanına dayandı (`PRODUCT_LIMITS`, API aynası):
+   * "Kaydet ve yayınla" kilitlenir, taslak kaydetme serbest kalır.
+   */
+  publishLimitReached?: boolean;
 }) {
   const isNew = mode === "new";
+  // Belge (PDF) ve video PAKETLİ (Silver+): ücretsiz firmada alanlar hiç
+  // çizilmez, kısa bir kilit notu çizilir; API de bu alanları dokunmadan bırakır.
+  const { company } = useCompanyAuth();
+  const mediaAllowed = !company || tierAtLeast(company.tier, PRODUCT_MEDIA_TIER);
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? "");
   const [categoryId, setCategoryId] = useState(product.categoryId ?? "");
@@ -192,9 +204,14 @@ export function ProductShowcaseForm({
     setKeywordDraft("");
   };
 
+  const publishLocked = !!publishLimitReached && !product.isPublic;
   const handleSave = async (thenPublish: boolean) => {
     if (!patch.name) {
       toast.error("Ürün adı zorunlu");
+      return;
+    }
+    if (thenPublish && publishLocked) {
+      toast.error("Ücretsiz paket tavanı doldu — daha fazla ürün yayımlamak için Silver paketine geçin.");
       return;
     }
     try {
@@ -403,6 +420,8 @@ export function ProductShowcaseForm({
           </div>
         ) : null}
 
+        {mediaAllowed ? (
+          <>
         {/* DOKÜMANLAR — PDF katalog/teknik föy, en fazla 3. Ürün sayfasında
             "Belgeler" bölümü olarak yayımlanır. Zorunlu değil. */}
         <div>
@@ -470,6 +489,12 @@ export function ProductShowcaseForm({
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
           />
         </Field>
+          </>
+        ) : (
+          <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+            Ürün belgesi (PDF katalog, teknik föy) ve video bağlantısı Silver paketiyle açılır.
+          </p>
+        )}
 
         <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
           <Label>Ürün sayfası bağlantısı</Label>
@@ -502,9 +527,15 @@ export function ProductShowcaseForm({
 
         {canManage ? (
         <div className="mt-4 space-y-2">
+          {publishLocked ? (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
+              Ücretsiz pakette yayında ürün tavanı doldu. Taslak olarak kaydedebilirsiniz; daha
+              fazlasını yayımlamak için Silver paketine geçin.
+            </p>
+          ) : null}
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || publishLocked}
             onClick={() => void handleSave(true)}
             className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
           >

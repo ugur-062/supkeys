@@ -35,12 +35,13 @@ describe("PublicProfile getBySlug — INV-TIER-1 (T7)", () => {
     await expect(svc.getBySlug(slug)).resolves.toBeTruthy();
   });
 
-  it("süresi DOLMUŞ PAKET profil 404 (efektif STANDARD)", async () => {
+  it("süresi DOLMUŞ PAKET profili GÖRÜNÜR kalır (paket şartı yok, 2026-09-06) ama Gold rozeti düşer (efektif STANDART)", async () => {
     const slug = await publicCompany({
       tier: "GOLD",
       membershipEndAt: new Date(Date.now() - 86_400_000),
     });
-    await expect(svc.getBySlug(slug)).rejects.toThrow(/bulunamadı/i);
+    const res = (await svc.getBySlug(slug)) as { goldMember: boolean };
+    expect(res.goldMember).toBe(false);
   });
 
   it("yanıtta membershipEndAt / tier iç alanları sızmaz", async () => {

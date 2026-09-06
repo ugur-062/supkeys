@@ -348,8 +348,8 @@ export function ConnectionsView() {
     else u.searchParams.set("tab", k);
     window.history.replaceState(null, "", u.toString());
   };
-  // STANDARD: davet gönderemez + firma dizininde arama/keşif yapamaz; yalnızca
-  // bağlantılarını görür ve gelen daveti kabul edip tedarikçi olabilir.
+  // STANDART: davet GÖNDEREMEZ (gelen daveti kabul eder); dizin ve öneriler
+  // görmek ücretsiz (2026-09-06) — kilit yalnız davet düğmesinde.
   const { company } = useCompanyAuth();
   const isPaid = tierAtLeast(company?.tier ?? "STANDART", "SILVER");
   // F7: bağlantı mutasyonları connections:manage ister (Kurucu/Yönetici) —

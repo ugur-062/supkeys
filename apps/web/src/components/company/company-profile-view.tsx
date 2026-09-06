@@ -247,6 +247,17 @@ export function CompanyProfileView({
                       Doğrulanmış
                     </span>
                   ) : null}
+                  {p.verified === false ? (
+                    // Ücretsiz/paketsiz firmanın PROFİLİNDE açıkça yazar (2026-09-06,
+                    // kullanıcı kararı). Kartlarda ve dizinde YALNIZ pozitif rozet —
+                    // orada "herkes doğrulanmamış" mesajı pazar yerini zayıflatırdı.
+                    <span
+                      className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-300 ring-inset"
+                      title="Kimlik doğrulaması yapılmamış firma — doğrulama, Silver/Gold paketine geçişin ilk adımıdır"
+                    >
+                      Doğrulanmamış
+                    </span>
+                  ) : null}
                   {p.goldMember ? (
                     <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
                       Gold Üye

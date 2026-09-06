@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { CompanyActivity, Prisma } from "@rothern/db";
 import { tokenizeQuery } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { anyPackageWhere } from "../../common/company/effective-tier";
+import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
 
 /**
  * Firma dizini — kiracılar ARASI okuma (başka firmaları listeler), bu yüzden
@@ -23,8 +23,8 @@ export class CompanyDirectoryService {
    * açılmıyor. Kapı çerezin VARLIĞI değil `CompanyJwtAuthGuard` — sahte bir
    * çerez basmak yetmesin diye karar sunucuda veriliyor.
    *
-   * Kapı `getBySlug` ile AYNI (publicEnabled ∧ isActive ∧ !isBlocked ∧ efektif
-   * SILVER+): dizinde görünen her satırın tıklanabilir bir profil sayfası
+   * Kapı `getBySlug` ile AYNI (`PUBLIC_PROFILE_WHERE`: publicEnabled ∧ isActive
+   * ∧ !isBlocked; paket şartı 2026-09-06'da kalktı): dizinde görünen her satırın tıklanabilir bir profil sayfası
    * OLMAK ZORUNDA. Kapıyı gevşetip daha kalabalık bir dizin üretmek, 404'e
    * giden bağlantılarla dolu bir sayfa üretirdi.
    *
@@ -43,11 +43,7 @@ export class CompanyDirectoryService {
     const page = Math.max(1, q.page ?? 1);
     const tokens = q.q ? tokenizeQuery(q.q) : [];
     const where: Prisma.CompanyWhereInput = {
-      publicEnabled: true,
-      isActive: true,
-      isBlocked: false,
-      slug: { not: null },
-      ...anyPackageWhere(),
+      ...PUBLIC_PROFILE_WHERE,
       ...(q.city ? { city: q.city } : {}),
       ...(q.activity
         ? { activities: { has: q.activity as CompanyActivity } }
@@ -117,13 +113,7 @@ export class CompanyDirectoryService {
   /** Dizin süzgeçleri: şehir ve faaliyet sayaçları (kapıdan geçenler). */
   async directoryFacets() {
     const rows = await this.prisma.company.findMany({
-      where: {
-        publicEnabled: true,
-        isActive: true,
-        isBlocked: false,
-        slug: { not: null },
-        ...anyPackageWhere(),
-      },
+      where: PUBLIC_PROFILE_WHERE,
       select: { city: true, activities: true },
       take: 5000,
     });

@@ -19,7 +19,7 @@ beforeEach(async () => {
 });
 
 describe("SupplierDiscoveryService.discoverRegistered", () => {
-  it("segment/alt eşleşen SILVER+ firmalar döner; STANDART, bağlantılı, bloklu ve kendisi dönmez", async () => {
+  it("segment/alt eşleşen SILVER+ firmalar döner; profilsiz STANDART, bağlantılı, bloklu ve kendisi dönmez", async () => {
     const buyer = await makeCompanyWithUser(prisma);
     // Alt-kategori (class) eşleşmesi → güçlü
     const strong = await makeCompanyWithUser(prisma, { name: "Güçlü AŞ", tier: "SILVER" });
@@ -33,7 +33,8 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       where: { id: seg.company.id },
       data: { sellerCategoryIds: ["30000000"] },
     });
-    // STANDART (dizinde görünmez) — dönmemeli
+    // STANDART ve profilini YAYINLAMAMIŞ (dizinde görünmez) — dönmemeli.
+    // (Profilini yayınlamış ücretsiz firma 2026-09-06'dan beri ADAY — aşağıdaki test.)
     const std = await makeCompanyWithUser(prisma, { name: "Paketsiz", tier: "STANDART" });
     await prisma.company.update({
       where: { id: std.company.id },

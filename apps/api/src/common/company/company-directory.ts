@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@rothern/db";
-import { isCategoryCode, isCompanyActivity, looksLikeProse, profileCompleteness, tokenizeQuery } from "@rothern/shared";
-import { anyPackageWhere } from "./effective-tier";
-import { publicProductWhere } from "./public-profile-gate";
+import { isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
+import { effectiveTier } from "./effective-tier";
+import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 
 type Db = Pick<PrismaClient, "company" | "category">;
 
@@ -20,9 +20,14 @@ export const DIRECTORY_PAGE_SIZE = 24;
 /**
  * FİRMA DİZİNİ — TEK KAYNAK (2026-09-04): herkese açık `/firmalar` ile panelin
  * Bağlantılar › Keşfet sekmesi aynı kümeyi, aynı sırayı ve aynı kartı okur.
- * Listelenme koşulu: profil kapısı (publicEnabled ∧ aktif ∧ bloksuz ∧ PAKET) ∧
- * (≥1 yayında ürün ∨ profil tamlığı ≥ %60). Tamlık `profileCompleteness`
- * (Profilim ile aynı hesap); test verili Hakkında tamlığa SAYILMAZ.
+ * Listelenme koşulu: profil kapısı (publicEnabled ∧ aktif ∧ bloksuz — paket
+ * şartı YOK, 2026-09-06) ∧ (≥1 yayında ürün ∨ profil tamlığı ≥ %60). Tamlık
+ * `profileCompleteness` (Profilim ile aynı hesap); test verili Hakkında
+ * tamlığa SAYILMAZ.
+ *
+ * SIRA: paketli (efektif SILVER+) firmalar ÖNCE, sonra ücretsiz; grup içinde
+ * son güncellenen önce. "Görünmek ücretsiz, öne çıkmak paketli" — paketin
+ * dizindeki karşılığı görünürlük değil öncelik.
  *
  * Panel `excludeIds` (kendisi + engelledikleri) verir ve kartlara rothernId /
  * bağlantı durumu ekler; public bunları düşürür.
@@ -37,11 +42,7 @@ export async function buildDirectory(
   const tokens = q.q ? tokenizeQuery(q.q) : [];
   const rows = await prisma.company.findMany({
     where: {
-      publicEnabled: true,
-      isActive: true,
-      isBlocked: false,
-      slug: { not: null },
-      ...anyPackageWhere(),
+      ...PUBLIC_PROFILE_WHERE,
       ...(opts.excludeIds?.length ? { id: { notIn: opts.excludeIds } } : {}),
       ...(q.city ? { city: q.city } : {}),
       ...(q.activity && isCompanyActivity(q.activity) ? { activities: { has: q.activity } } : {}),
@@ -90,6 +91,8 @@ export async function buildDirectory(
       buyerCategoryIds: true,
       sellerCategoryIds: true,
       companyVerificationStatus: true,
+      tier: true,
+      membershipEndAt: true,
       updatedAt: true,
       items: {
         where: publicProductWhere(),
@@ -102,12 +105,17 @@ export async function buildDirectory(
     orderBy: [{ updatedAt: "desc" }],
     take: 5000,
   });
-  const eligible = rows.filter((r) => {
-    const productCount = r._count.items;
-    if (q.hasProducts && productCount === 0) return false;
-    if (productCount > 0) return true;
-    return profileCompleteness({ ...r, aboutText: looksLikeProse(r.aboutText) ? r.aboutText : null }).pct >= 60;
-  });
+  const paidRank = (r: { tier: string; membershipEndAt: Date | null }) =>
+    tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt), PAID_TIER) ? 0 : 1;
+  const eligible = rows
+    .filter((r) => {
+      const productCount = r._count.items;
+      if (q.hasProducts && productCount === 0) return false;
+      if (productCount > 0) return true;
+      return profileCompleteness({ ...r, aboutText: looksLikeProse(r.aboutText) ? r.aboutText : null }).pct >= 60;
+    })
+    // Kararlı sıralama: paketli önce; grup içinde sorgunun updatedAt sırası korunur.
+    .sort((a, b) => paidRank(a) - paidRank(b));
   const total = eligible.length;
   const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
   const ids = [...new Set(slice.flatMap((r) => [...r.sellerCategoryIds, ...r.buyerCategoryIds].slice(0, 1)))].filter(isCategoryCode);

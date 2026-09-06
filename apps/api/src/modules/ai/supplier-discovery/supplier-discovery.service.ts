@@ -196,8 +196,10 @@ export class SupplierDiscoveryService {
         // filtresi üyelik süresi DOLMUŞ firmayı da aday çıkarıyordu — DB'de
         // hâlâ "GOLD" yazıyor ama efektif kademe STANDART. Kullanıcı bağlantı
         // daveti gönderiyor, karşı taraf paketsiz olduğu için kabul edemiyor.
-        // TEK KAYNAK: anyPackageWhere (membershipEndAt farkında).
-        ...anyPackageWhere(),
+        // TEK KAYNAK: anyPackageWhere (membershipEndAt farkında). 2026-09-06:
+        // profilini yayınlamış ÜCRETSİZ firma da aday — gelen daveti kabul
+        // edebilir (bağlantı, davet eden paketli kaldıkça geçerli).
+        AND: [{ OR: [anyPackageWhere(), { publicEnabled: true }] }],
         OR: [
           { [field]: { hasSome: segmentIds } },
           { [field]: { hasSome: subCandidates } },

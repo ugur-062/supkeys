@@ -116,7 +116,7 @@ export default function DogrulamaPage() {
   return (
     <SettingsShell
       title="Doğrulama Belgeleri"
-      description="Firma doğrulaması için gerekli belge ve bilgileri girin. Paketli üyelik (Bronz ve üzeri) için doğrulama zorunludur."
+      description="Doğrulama, Silver ve Gold paketine geçişin ilk adımıdır: belgeleriniz incelendikten sonra paketiniz açılır ve profilinizde “Doğrulanmış” rozeti görünür. Doğrulanmamış firma profilinde “Doğrulanmamış” yazar."
     >
       {isLoading || !data ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>

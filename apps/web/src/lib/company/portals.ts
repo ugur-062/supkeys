@@ -92,8 +92,9 @@ export const COMPANY_AREA: CompanyAreaDef = {
   basePath: COMPANY_AREA_BASE,
   nav: [
     { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
-    // Herkese açık profil PAKET özelliği (SILVER+) — eski Profilim kapısıyla aynı.
-    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil`, minTier: "SILVER" },
+    // Herkese açık profil HER pakete açık (2026-09-06: ücretsiz firma da
+    // yayınlar; paketin karşılığı dizinde öncelik + "Doğrulanmış" rozeti).
+    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil` },
     // Sayılar herkese açık, kimlikli liste Bronz+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
     { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
@@ -196,15 +197,16 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: CubeIcon,
         label: MODULE_LABELS.satis.urunler,
         href: "/company/satis/urunlerim",
-        // Vitrin herkese açık bir yüzey — profil kapısıyla aynı eşik.
-        minTier: "SILVER",
+        // Vitrin HER pakete açık (2026-09-06); ücretsizde 10 ürün tavanı,
+        // belge/video Silver — kapı sayfa içinde ve API'de, menüde değil.
       },
       // Profilim ŞİRKETİM alanına taşındı (2026-09-05) — bkz. COMPANY_AREA.
       {
         icon: EnvelopeIcon,
         label: MODULE_LABELS.satis.bilgiTalepleri,
         href: "/company/satis/bilgi-talepleri",
-        minTier: "SILVER",
+        // Her pakete açık (2026-09-06): ücretsiz firma gelen soruyu görür,
+        // alıcı kimliği ve yanıt Silver (kilit sayfa içinde).
       },
       {
         icon: ClipboardDocumentListIcon,

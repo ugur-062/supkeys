@@ -30,6 +30,7 @@ import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { CompanyItemsService } from "./company-items.service";
@@ -180,6 +181,7 @@ export class CompanyItemsController {
     return this.service.list(user.companyId, {
       q,
       categoryId,
+      tier: user.tier,
       archived: archived === "1" || archived === "true",
       take: take ? Number.parseInt(take, 10) || undefined : undefined,
       skip: skip ? Number.parseInt(skip, 10) || undefined : undefined,
@@ -326,9 +328,14 @@ export class CompanyItemsController {
     return this.service.resolveImage(user.companyId, dto.key);
   }
 
-  /** Ürün belgesi (PDF katalog/teknik föy) — görselle aynı iki adım. */
+  /**
+   * Ürün belgesi (PDF katalog/teknik föy) — görselle aynı iki adım. PAKETLİ
+   * (`PRODUCT_MEDIA_TIER` = Silver+, 2026-09-06): ücretsiz firma belge
+   * yükleyemez; `updateShowcase` da alanı dokunmadan bırakır.
+   */
   @Post("documents/upload-url")
   @RequireCompanyPermission("sell:product:manage")
+  @UseGuards(CompanyPaidTierGuard)
   documentUploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ImageUploadDto,
@@ -342,6 +349,7 @@ export class CompanyItemsController {
 
   @Post("documents/resolve")
   @RequireCompanyPermission("sell:product:manage")
+  @UseGuards(CompanyPaidTierGuard)
   documentResolve(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ResolveImageDto,

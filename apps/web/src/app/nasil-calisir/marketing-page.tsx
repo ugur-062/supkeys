@@ -45,11 +45,11 @@ const pricingTiers = [
   {
     name: "Standart",
     price: null,
-    tagline: "Ağına bağlan, çevren içinde al-sat.",
+    tagline: "Vitrinini aç, çevren içinde al-sat.",
     features: [
-      "Firma hesabı, roller ve yetki tablosu",
-      "Davet edildiğiniz satın alma taleplerine teklif verme",
-      "Bağlantılı firmalarla al-sat ve mesajlaşma",
+      "Herkese açık firma profili ve 10 ürünlük vitrin — firma dizininde yer",
+      "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme",
+      "Gelen bağlantı davetlerini kabul etme, mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
       "2 koltuk",
     ],
@@ -65,9 +65,10 @@ const pricingTiers = [
     price: 160,
     tagline: "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
     features: [
-      "Firma dizininde görünürlük & herkese açık profil",
+      "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
+      "Sınırsız ürün, ürün belgesi (PDF) ve video",
       "Herkese açık satın alma taleplerine sınırsız teklif",
-      "Bağlantı daveti gönderme, ürün vitrini & bilgi talepleri",
+      "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
       "Ziyaret Edenler ve İş Analizi",
       "Yapay zekâ: belgeden fiyatlama, katalogdan ürün çıkarma, AI ile talep arama",
       "4 satış koltuğu",
@@ -111,7 +112,7 @@ const faqs = [
   },
   {
     q: "Standart üyelikle ne yapabilirim?",
-    a: "Bağlandığınız firmaların ilanlarına teklif verebilir, sipariş ve belge akışını yürütebilirsiniz. Kendi ilanınızı açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek Premium ile gelir.",
+    a: "Profilinizi yayınlar, 10 ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri görmek ve teklif vermek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve “Doğrulanmış” rozeti Silver ile; kendi satın alma talebinizi açmak Gold ile gelir.",
   },
   {
     q: "Platform paraya aracılık ediyor mu?",

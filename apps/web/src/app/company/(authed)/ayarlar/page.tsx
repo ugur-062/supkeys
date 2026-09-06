@@ -144,7 +144,7 @@ const GROUPS: SettingsGroup[] = [
         href: "/company/ayarlar/dogrulama",
         icon: BadgeCheck,
         title: "Doğrulama Belgeleri",
-        description: "Vergi levhası, sicil, imza sirküleri (premium için gerekli)",
+        description: "Vergi levhası, sicil, imza sirküleri — Silver/Gold paketine geçişin ilk adımı",
         permission: "company:manage",
       },
     ],

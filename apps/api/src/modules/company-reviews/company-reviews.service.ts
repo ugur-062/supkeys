@@ -4,8 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { tierAtLeast } from "@rothern/shared";
-import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -151,13 +149,9 @@ export class CompanyReviewsService {
           ],
         },
       });
-      const publiclyListed =
-        tierAtLeast(user.tier, "SILVER") &&
-        tierAtLeast(
-          effectiveTier(target.tier, target.membershipEndAt),
-          "SILVER",
-        ) &&
-        target.publicEnabled;
+      // Görmek ücretsiz, listelenmek opt-in (2026-09-06): ne izleyenin ne hedefin
+      // paketi aranır — profil kapısıyla (hasPublicProfile) aynı karar.
+      const publiclyListed = target.publicEnabled;
       if (relation === 0 && !publiclyListed) {
         throw new NotFoundException("Firma profili bulunamadı");
       }

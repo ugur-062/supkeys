@@ -117,14 +117,24 @@ export function productIndexWhere(
   };
 }
 
-/** Varsayılan "uygunluk": eksiksiz ürün önce; `price` artan, fiyatsız SONDA. */
+/**
+ * Varsayılan "uygunluk": PAKETLİ firma önce (2026-09-06 — "görünmek ücretsiz,
+ * öne çıkmak paketli"), sonra eksiksiz ürün; `newest` de paketli önce.
+ * `price` artan/azalan paketten BAĞIMSIZ (kullanıcı açıkça fiyat istedi),
+ * fiyatsız SONDA.
+ *
+ * Paket sırası DB enum'undan (`CompanyTier` STANDART < SILVER < GOLD →
+ * `desc`); süresi dolmuş paket kademe cron'u düşürene dek paketli sıralanır —
+ * yalnız SIRA (erişim değil), o pencere kabul.
+ */
 export function productIndexOrderBy(
   sort?: ProductIndexParams["sort"],
 ): Prisma.CompanyItemOrderByWithRelationInput[] {
-  if (sort === "newest") return [{ publishedAt: "desc" }, { completionScore: "desc" }];
+  const paidFirst = { company: { tier: "desc" as const } };
+  if (sort === "newest") return [paidFirst, { publishedAt: "desc" }, { completionScore: "desc" }];
   if (sort === "price") return [{ priceAmount: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }];
   if (sort === "price_desc") return [{ priceAmount: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }];
-  return [{ completionScore: "desc" }, { publishedAt: "desc" }];
+  return [paidFirst, { completionScore: "desc" }, { publishedAt: "desc" }];
 }
 
 export interface ProductFacetRow {

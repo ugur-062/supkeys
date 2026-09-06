@@ -754,13 +754,11 @@ export class CompanyConnectionsService {
 
   /**
    * Keşfet — bağlanılacak firmaları kategori-eşleşmesine göre sıralı listeler.
-   * Sadece PAKET keşfedebilir; yalnızca PAKET (görünür) firmalar çıkar.
+   * Görmek ücretsiz (2026-09-06): ücretsiz üye de önerileri görür — davet
+   * GÖNDERMEK paketli (`invite`). Adaylar: paketli ya da profilini yayınlamış firmalar.
    * Skor: (ben alırım ∩ o satar) + (ben satarım ∩ o alır). Bağlı/davetli hariç.
    */
   async discover(user: AuthenticatedCompanyUser) {
-    if (!tierAtLeast(user.tier, "SILVER")) {
-      return { locked: true as const, companies: [] };
-    }
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
       select: { buyerCategoryIds: true, sellerCategoryIds: true },
@@ -790,8 +788,10 @@ export class CompanyConnectionsService {
 
     const companies = await this.prisma.company.findMany({
       where: {
-        // INV-TIER-1: efektif PAKET (keşifte süresi-dolmuş PAKET aday çıkmasın).
-        ...anyPackageWhere(),
+        // Aday: efektif PAKETLİ firma (INV-TIER-1) VEYA profilini yayınlamış
+        // ücretsiz firma (2026-09-06: Standart dizinde görünür; paketli üyenin
+        // ona davet atması ücretsiz üyenin tek bağlantı yolu).
+        OR: [anyPackageWhere(), { publicEnabled: true }],
         isActive: true,
         isBlocked: false,
         id: { notIn: [...exclude] },
@@ -1082,14 +1082,12 @@ export class CompanyConnectionsService {
     // - İlişkili (kendisi / bağlı / bekleyen / gelen istek) → her zaman görür.
     // - Aksi halde "herkese açık" profil: `hasPublicProfile` — /firma/<slug>
     //   ile AYNI kapı. İzleyenin paketi ARANMAZ (2026-09-04): anonim ziyaretçi
-    //   profili görüyorken ücretsiz üyeye 404 vermek tutarsızdı. STANDART
-    //   HEDEF firma (paketsiz) yine yalnız bağlantılarına görünür.
+    //   profili görüyorken ücretsiz üyeye 404 vermek tutarsızdı. Hedefin paketi
+    //   de aranmaz (2026-09-06): ücretsiz firma da profilini yayınlar.
     const related = isSelf || connectionStatus !== "none";
     // `hasPublicProfile` eksi slug şartı: panel rothernId ile de açar, slug
     // yalnız herkese açık URL için gerekir.
-    const publiclyListed =
-      c.publicEnabled &&
-      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER");
+    const publiclyListed = c.publicEnabled;
     if (!related && !publiclyListed) {
       throw new NotFoundException("Firma profili bulunamadı");
     }

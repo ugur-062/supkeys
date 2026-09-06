@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   Optional,
@@ -10,8 +11,11 @@ import {
   getUnit,
   isCategoryCode,
   normalizeUnit,
+  PRODUCT_LIMITS,
+  PRODUCT_MEDIA_TIER,
   slugifyText,
-  tokenizeQuery, categoryPrefix } from "@rothern/shared";
+  tierAtLeast,
+  tokenizeQuery, categoryPrefix, type TierName } from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import {
   hasPublicProfile,
@@ -197,6 +201,8 @@ export class CompanyItemsService {
       skip?: number;
       /** true → yalnız ARŞİVLENMİŞ kalemler (yönetim ekranının arşiv sekmesi). */
       archived?: boolean;
+      /** Efektif paket — yayında ürün tavanını (`PRODUCT_LIMITS`) yanıta koymak için. */
+      tier?: string;
     } = {},
   ) {
     const take = Math.min(Math.max(opts.take ?? 50, 1), 200);
@@ -249,6 +255,9 @@ export class CompanyItemsService {
       // Sessiz tavan yok: kullanıcı kesildiğini görür.
       truncated: skip + rows.length < total,
       counts: { published, draft },
+      // Ücretsiz pakette yayında ürün tavanı (null = limitsiz) — Ürünlerim
+      // "N/10 yayında" ve formdaki "Kaydet ve yayınla" kilidi buradan okur.
+      productLimit: opts.tier ? (PRODUCT_LIMITS[opts.tier as TierName] ?? null) : null,
     };
   }
 
@@ -599,7 +608,7 @@ export class CompanyItemsService {
         companyVerificationStatus: true,
       },
     });
-    if (!company || !hasPublicProfile({ ...company, tier: company.tier as string })) {
+    if (!company || !hasPublicProfile(company)) {
       throw new NotFoundException("Ürün bulunamadı");
     }
     const row = await this.prisma.companyItem.findFirst({
@@ -888,7 +897,22 @@ export class CompanyItemsService {
     input: ShowcaseInput,
   ) {
     const before = await this.requireOwn(user.companyId, id);
-    const patch = await this.normalizeShowcase(before, input);
+    // Belge (PDF) ve video PAKETLİ özellik (`PRODUCT_MEDIA_TIER`, 2026-09-06).
+    // Ücretsiz firmada bu iki alan DOKUNULMADAN kalır: yeni eklenemez (yükleme
+    // ucu da paket kapılı), paketi biten firmanın mevcut belgesi de kaydetme
+    // sırasında sessizce silinmez — fail-closed ama yıkıcı değil. Web formu
+    // alanları hiç çizmez.
+    const mediaAllowed = tierAtLeast(user.tier, PRODUCT_MEDIA_TIER);
+    const patch = await this.normalizeShowcase(
+      before,
+      mediaAllowed
+        ? input
+        : {
+            ...input,
+            videoUrl: before.videoUrl,
+            documents: (before.documents as unknown as { url: string; title: string }[] | null) ?? null,
+          },
+    );
     const row = await this.prisma.companyItem
       .update({ where: { id }, data: patch })
       .catch((e: unknown) => {
@@ -953,6 +977,20 @@ export class CompanyItemsService {
       throw new BadRequestException(
         `Yayımlanamadı — ${blockers.join(", ")}`,
       );
+    }
+    // Ücretsiz pakette YAYINDA ürün tavanı (`PRODUCT_LIMITS`, 2026-09-06).
+    // Zaten yayında olan ürünü yeniden yayımlamak (güncelleme) sayılmaz;
+    // taslak sınırsız — kapı yalnız vitrine ÇIKIŞ anında.
+    const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
+    if (limit != null && !row.isPublic) {
+      const published = await this.prisma.companyItem.count({
+        where: { companyId: user.companyId, isActive: true, isPublic: true },
+      });
+      if (published >= limit) {
+        throw new ForbiddenException(
+          `Ücretsiz pakette en fazla ${limit} ürün yayında olabilir. Daha fazlası için Silver paketine geçin.`,
+        );
+      }
     }
     const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug);
     const updated = await this.prisma.companyItem.update({

@@ -53,3 +53,21 @@ describe("CompanyProfileView — dış bağlantı XSS koruması", () => {
     expect(link?.getAttribute("href")).toBe("https://foo.com/");
   });
 });
+
+describe("CompanyProfileView — doğrulama rozeti", () => {
+  it("verified=false → profilde 'Doğrulanmamış' yazar (2026-09-06, ücretsiz vitrin)", () => {
+    render(<CompanyProfileView profile={{ ...base, verified: false }} />);
+    expect(screen.getByText("Doğrulanmamış")).toBeTruthy();
+    expect(screen.queryByText("Doğrulanmış")).toBeNull();
+  });
+
+  it("verified=true → 'Doğrulanmış'; bilinmiyorsa (undefined) hiçbiri", () => {
+    const { unmount } = render(<CompanyProfileView profile={{ ...base, verified: true }} />);
+    expect(screen.getByText("Doğrulanmış")).toBeTruthy();
+    expect(screen.queryByText("Doğrulanmamış")).toBeNull();
+    unmount();
+    render(<CompanyProfileView profile={base} />);
+    expect(screen.queryByText("Doğrulanmamış")).toBeNull();
+    expect(screen.queryByText("Doğrulanmış")).toBeNull();
+  });
+});

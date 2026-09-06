@@ -105,14 +105,24 @@ describe("ürün dizini — kapı", () => {
     expect(res.items[0].company.slug).toBe(company.slug);
   });
 
-  it("kapıdan geçmeyen firmanın ürünü listeye HİÇ girmez", async () => {
+  it("kapıdan geçmeyen firmanın ürünü listeye HİÇ girmez (paket şartı YOK — Standart da listelenir)", async () => {
     await seedProduct(); // geçerli
     await seedProduct({ publicEnabled: false });
-    await seedProduct({ tier: "STANDART" });
+    await seedProduct({ tier: "STANDART" }); // 2026-09-06: ücretsiz firma da dizinde
     await seedProduct({ isBlocked: true });
     await seedProduct({ isActive: false });
     const res = await service().listProducts({});
-    expect(res.total).toBe(1);
+    expect(res.total).toBe(2);
+  });
+
+  it("SIRA: paketli firmanın ürünü ücretsiz firmanınkinden ÖNCE (uygunluk ve en yeni sıralamada)", async () => {
+    const free = await seedProduct({ tier: "STANDART" }, { completionScore: 100, publishedAt: new Date() });
+    const paid = await seedProduct({ tier: "SILVER" }, { completionScore: 40, publishedAt: new Date(Date.now() - 86_400_000) });
+    const byRelevance = await service().listProducts({});
+    expect(byRelevance.items.map((p) => p.company.slug)).toEqual([paid.company.slug, free.company.slug]);
+    const byNewest = await service().listProducts({ sort: "newest" });
+    expect(byNewest.items.map((p) => p.company.slug)).toEqual([paid.company.slug, free.company.slug]);
+    // Açık fiyat sıralaması paketten bağımsız kalır.
   });
 
   it("TASLAK ürün listede yok", async () => {

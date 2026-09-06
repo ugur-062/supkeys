@@ -1205,8 +1205,8 @@ kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
 
 | Paket | Ne | Koltuk |
 |-------|----|--------|
-| STANDART (ücretsiz) | davetli/bağlantılı talebe teklif, mesaj, sipariş takibi; PUBLIC maskeli; dizinde yok | 2 |
-| SILVER (tedarikçi = SATIŞ paneli) | dizin, profil, PUBLIC talebe teklif, bağlantı daveti, vitrin, Ziyaret Edenler, İş Analizi, satış AI'ı; satınalma paneli YOK | 4 (hepsi satış) |
+| STANDART (ücretsiz) | profil + 10 ürünlük vitrin + dizinde yer (paketlilerden SONRA), firmaları keşfetme; davetli/bağlantılı talebe teklif, mesaj, sipariş takibi; PUBLIC talepleri GÖRMEZ (kilitli sayı), bağlantı daveti GÖNDEREMEZ, gelen bilgi talebi ANONİM, profilde "Doğrulanmamış" — bkz. § Ücretsiz vitrin | 2 |
+| SILVER (tedarikçi = SATIŞ paneli) | dizinde öncelik + "Doğrulanmış" rozeti, sınırsız ürün + belge/video, PUBLIC talepleri görme ve teklif, bağlantı daveti, bilgi taleplerinde alıcı kimliği/yanıt, Ziyaret Edenler, İş Analizi, satış AI'ı; satınalma paneli YOK | 4 (hepsi satış) |
 | GOLD (iki panel) | Silver + satınalma paneli (talep açma, kazandırma, onay akışı, raporlar, şablonlar, talep AI'ı) + "Gold Üye" rozeti | 6 |
 
 - Kapılar: `CompanyPaidTierGuard` artık `@RequireTier("GOLD")` metadata'sını
@@ -1222,6 +1222,37 @@ kimse kendi rol/izin satırını düzenleyemez (Kurucu hariç,
   (yukarı; üyelik süresi korunur), enum yeniden kuruldu (Postgres enum değeri
   silemez → `CompanyTier_new`). Fiyatlar (Silver 160 / Gold 230) eski
   kartlardan aynen kaldı — kullanıcı kararı bekliyor.
+
+**Ücretsiz vitrin — "premium çekmek için" (2026-09-06, kullanıcı kararı; Faz 1
+BİTTİ):** ilke *görünmek ücretsiz, öne çıkmak paketli*. Europages modeli: bedava
+vitrin envanteri büyütür, gelen bilgi talebi/bağlantı daveti gerçek bir alıcı
+olduğu anda kilide çarpar.
+- `hasPublicProfile` / `publicProductWhere` / `PUBLIC_PROFILE_WHERE`
+  (`public-profile-gate.ts`) PAKET ŞARTI TAŞIMAZ; dizin (`buildDirectory`,
+  panel `company/directory`), sitemap, öneri, pazar yeri sayıları, AI tedarikçi
+  keşfi ve Bağlantılar › Keşfet adayları aynı kapıyı okur (`anyPackageWhere`
+  buralarda YOK — kaldı: yeni talep duyurusu, ilan belgesi, bağlantı
+  geçerliliği). `getProfile`/değerlendirmeler ne izleyenin ne hedefin paketine bakar.
+- **Sıra:** `buildDirectory` efektif paketli önce (bellekte, INV-TIER-1);
+  `productIndexOrderBy` uygunluk/en-yeni'de `company.tier desc` önce (DB enum
+  sırası; süresi dolmuş paket cron'a dek paketli sıralanır — yalnız sıra).
+  Fiyat sıralaması paketten bağımsız.
+- **Tavan** `@rothern/shared` `PRODUCT_LIMITS` (STANDART 10 yayında; taslak
+  sınırsız) — kapı `publish` anında 403; liste yanıtı `productLimit`; web
+  "N/10" sayacı + "Kaydet ve yayınla" kilidi. **Belge/video**
+  `PRODUCT_MEDIA_TIER` (Silver+): `documents/{upload-url,resolve}`
+  `CompanyPaidTierGuard`; `updateShowcase` ücretsizde iki alanı DOKUNMADAN
+  bırakır (paketi biten firmanın mevcut belgesi kaydetmede silinmez); form
+  alanları çizmez.
+- **Doğrulanmamış** etiketi yalnız PROFİLDE (`CompanyProfileView`
+  `verified === false`), kartlarda/dizinde yalnız pozitif rozet (ziyaretçiye
+  "herkes doğrulanmamış" mesajı vermemek için). Doğrulama sayfası paket
+  geçişinin ilk adımı olarak çerçevelenir; ücretsiz üyeye ayrı inceleme yolu
+  açılmaz (inceleme + paket birlikte).
+- Menü: Profil / Ürünlerim / Bilgi Talepleri kapısız; `sirketim/profil`
+  layout'u silindi. Sözleşme: `free-tier-showcase.spec.ts`.
+- **SIRADA:** Faz 2 açık talepler kilidi (Standart PUBLIC talebi görmez,
+  kilitli sayı + bulanık örnek), Faz 3 anonim bilgi talebi.
 
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı

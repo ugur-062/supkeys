@@ -418,9 +418,9 @@ describe("keşfet + profil", () => {
     expect(res.companies[0]!.id).toBe(match.company.id);
     expect(res.companies[0]!.matchScore).toBe(2);
 
-    // STANDARD firma için kilitli.
+    // STANDART izleyen de görür (görmek ücretsiz, 2026-09-06) — davet göndermek paketli.
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    expect((await service.discover(std.auth)).locked).toBe(true);
+    expect((await service.discover(std.auth)).locked).toBe(false);
   });
 
   it("profil: bağlı değilken yalnız PUBLIC ihaleler; engellenene profil kapalı", async () => {
@@ -571,22 +571,31 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     expect((await service.getProfile(std.auth, otherCode)).connectionStatus).toBe("active");
   });
 
-  it("STANDARD HEDEF firma yalnız bağlantılarına görünür — PAKET izleyen bağlı değilse 404", async () => {
+  it("STANDART HEDEF: profilini yayınladıysa herkes görür (2026-09-06); yayınlamadıysa yalnız bağlantıları", async () => {
     const { service } = rig();
     const viewer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const target = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const targetCode = await giveRothernId(target.company.id);
-    // publicEnabled açık olsa bile STANDARD firma dizinde/dışarıda görünmez.
+    // Yayınlamamış → bağlı olmayan izleyene 404.
+    await prisma.company.update({
+      where: { id: target.company.id },
+      data: { publicEnabled: false },
+    });
+    await expect(service.getProfile(viewer.auth, targetCode)).rejects.toThrow(
+      /bulunamadı/i,
+    );
+    // Yayınlayınca paket ŞARTI YOK — ücretsiz firma da görünür ("Doğrulanmamış" etiketi profilde).
     await prisma.company.update({
       where: { id: target.company.id },
       data: { publicEnabled: true },
     });
+    expect((await service.getProfile(viewer.auth, targetCode)).connectionStatus).toBe("none");
+    await prisma.company.update({
+      where: { id: target.company.id },
+      data: { publicEnabled: false },
+    });
 
-    await expect(service.getProfile(viewer.auth, targetCode)).rejects.toThrow(
-      /bulunamadı/i,
-    );
-
-    // Bağlanınca görebilir (STANDARD firma yalnız bağlantılarına görünür).
+    // Bağlanınca yayınlamamış olsa da görebilir (bağlantılar her zaman görür).
     await prisma.companyConnection.create({
       data: {
         inviterCompanyId: viewer.company.id,

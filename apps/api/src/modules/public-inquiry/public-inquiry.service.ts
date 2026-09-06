@@ -622,7 +622,7 @@ export class PublicInquiryService {
         membershipEndAt: true,
       },
     });
-    if (!company || !hasPublicProfile({ ...company, tier: company.tier as string })) {
+    if (!company || !hasPublicProfile(company)) {
       throw new NotFoundException("Ürün bulunamadı");
     }
     const product = await this.prisma.companyItem.findFirst({

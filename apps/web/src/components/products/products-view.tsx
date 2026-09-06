@@ -114,6 +114,12 @@ export function ProductsView() {
     }
   };
 
+  // Ücretsiz paket YAYINDA ürün tavanı (API `productLimit`, `PRODUCT_LIMITS`
+  // aynası): sayaç "N/10", form "Kaydet ve yayınla"yı kilitler. null = limitsiz.
+  const productLimit = data?.productLimit ?? null;
+  const publishedCount = data?.counts.published ?? 0;
+  const publishLimitReached = productLimit != null && publishedCount >= productLimit;
+
   if (creating) {
     return (
       <PageContainer>
@@ -134,6 +140,7 @@ export function ProductsView() {
             mode="new"
             product={EMPTY_PRODUCT}
             unit="adet"
+            publishLimitReached={publishLimitReached}
             onClose={() => setCreating(false)}
             onCreated={(created) => {
               // Kayıt oluştu → düzenleme moduna geç: kullanıcı aynı formda
@@ -173,6 +180,7 @@ export function ProductsView() {
           <ProductShowcaseForm
             product={editing.showcase}
             unit={editing.item.unit}
+            publishLimitReached={publishLimitReached}
             onClose={() => setEditing(null)}
           />
         </div>
@@ -253,12 +261,27 @@ export function ProductsView() {
             {t.label}
             {t.count != null ? (
               <span className="ml-1.5 text-xs font-medium tabular-nums text-zinc-400">
-                {t.count}
+                {t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
               </span>
             ) : null}
           </button>
         ))}
       </div>
+
+      {productLimit != null ? (
+        <p
+          className={`mt-3 max-w-2xl rounded-lg px-3 py-2 text-sm ${
+            publishLimitReached ? "bg-amber-50 text-amber-900 ring-1 ring-amber-600/20" : "bg-zinc-50 text-zinc-600"
+          }`}
+        >
+          Ücretsiz pakette en fazla {productLimit} ürün yayında olabilir ({publishedCount}/{productLimit}
+          {" "}kullanıldı). Taslak sınırsız.{" "}
+          <a href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
+            Silver ile sınırsız ürün, belge ve video
+          </a>
+          .
+        </p>
+      ) : null}
 
       {isLoading ? (
         <p className="mt-8 text-sm text-zinc-500">Yükleniyor…</p>

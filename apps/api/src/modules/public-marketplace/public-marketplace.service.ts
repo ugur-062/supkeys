@@ -20,7 +20,6 @@ import {
 import type { PublicListQueryDto } from "./dto/public-list-query.dto";
 import type { PublicProductFacetQueryDto, PublicProductQueryDto } from "./dto/public-product-query.dto";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
-import { anyPackageWhere } from "../../common/company/effective-tier";
 import {
   contextualFacetCounts,
   productCategoryWhere,
@@ -34,7 +33,7 @@ import {
   toProductIndexCard,
   type ProductIndexCard,
 } from "./dto/public-product-index.projection";
-import { publicProductWhere } from "../../common/company/public-profile-gate";
+import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/public-profile-gate";
 
 /** Sayfa başına kart — SEO'da ilk ekranda çok fazla bağlantı istemiyoruz. */
 const PAGE_SIZE = 24;
@@ -422,11 +421,7 @@ export class PublicMarketplaceService {
       }),
       this.prisma.company.findMany({
         where: {
-          publicEnabled: true,
-          isActive: true,
-          isBlocked: false,
-          slug: { not: null },
-          ...anyPackageWhere(),
+          ...PUBLIC_PROFILE_WHERE,
           name: { contains: q, mode: "insensitive" },
         },
         select: { name: true, slug: true, city: true },
@@ -447,9 +442,7 @@ export class PublicMarketplaceService {
     const dayAgo = new Date(now.getTime() - 86_400_000);
     const [products, companies, categories, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
       this.prisma.companyItem.count({ where: publicProductWhere() }),
-      this.prisma.company.count({
-        where: { publicEnabled: true, isActive: true, isBlocked: false, slug: { not: null }, ...anyPackageWhere() },
-      }),
+      this.prisma.company.count({ where: PUBLIC_PROFILE_WHERE }),
       this.prisma.category.count({ where: { inDiscovery: true, level: 1 } }),
       this.prisma.listing.count({ where: { ...marketplaceListingWhere(now), status: "OPEN", type: "ALIM" } }),
       this.prisma.companyItem.findMany({
@@ -462,7 +455,7 @@ export class PublicMarketplaceService {
       this.prisma.companyItem.count({ where: { ...publicProductWhere(), publishedAt: { gte: weekAgo } } }),
       this.prisma.listingBid.count({ where: { submittedAt: { gte: dayAgo }, listing: marketplaceListingWhere(now) } }),
       this.prisma.company.count({
-        where: { companyVerificationStatus: "VERIFIED", publicEnabled: true, isActive: true, isBlocked: false, slug: { not: null }, ...anyPackageWhere() },
+        where: { companyVerificationStatus: "VERIFIED", ...PUBLIC_PROFILE_WHERE },
       }),
     ]);
     // "Popüler aramalar" — arama logu YOK; yedek: ürün sayısı en yüksek 20

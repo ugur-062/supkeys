@@ -7,6 +7,7 @@ import {
 } from "./dto/public-product.projection";
 import {
   hasPublicProfile,
+  PUBLIC_PROFILE_WHERE,
   publicProductWhere,
 } from "../../common/company/public-profile-gate";
 import {
@@ -23,10 +24,7 @@ import {
 } from "../company-reviews/review-summary";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import {
-  effectiveTier,
-  anyPackageWhere,
-} from "../../common/company/effective-tier";
+import { effectiveTier } from "../../common/company/effective-tier";
 
 /**
  * Herkese açık (auth gerektirmeyen) firma profili. SEO sayfası bunu kullanır.
@@ -82,7 +80,7 @@ export class PublicProfileService {
     });
     // Kapı TEK KAYNAK (`common/company/public-profile-gate.ts`): sitemap ve
     // pazar yeri kartındaki ad bağlantısı AYNI kararı verir.
-    if (!c || !hasPublicProfile({ ...c, tier: c.tier as string })) {
+    if (!c || !hasPublicProfile(c)) {
       throw new NotFoundException("Profil bulunamadı");
     }
     const [categories, reviewRows, productCount] = await Promise.all([
@@ -365,7 +363,7 @@ export class PublicProfileService {
         membershipEndAt: true,
       },
     });
-    if (!c || !hasPublicProfile({ ...c, tier: c.tier as string })) {
+    if (!c || !hasPublicProfile(c)) {
       throw new NotFoundException("Profil bulunamadı");
     }
     return c;
@@ -374,14 +372,8 @@ export class PublicProfileService {
   /** Sitemap için yayınlanmış public profillerin slug + son güncelleme. */
   async listPublicSlugs() {
     return this.prisma.company.findMany({
-      where: {
-        publicEnabled: true,
-        isActive: true,
-        isBlocked: false,
-        // INV-TIER-1: efektif PAKET (sitemap'te süresi-dolmuş PAKET olmasın).
-        ...anyPackageWhere(),
-        slug: { not: null },
-      },
+      // Kapı `hasPublicProfile` ile AYNI (paket şartı yok, 2026-09-06).
+      where: PUBLIC_PROFILE_WHERE,
       select: { slug: true, updatedAt: true },
       take: 5000,
       orderBy: { updatedAt: "desc" },
