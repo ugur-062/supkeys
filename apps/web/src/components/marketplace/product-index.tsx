@@ -100,7 +100,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
                 <ProductCard
                   key={`${p.company.slug}/${p.slug}`}
                   companySlug={p.company.slug}
-                  company={{ name: p.company.name, city: p.company.city, verified: p.company.verified, activities: p.company.activities }}
+                  company={p.company}
                   product={p}
                   cta="Bilgi iste"
                   priority={i < 3}

@@ -27,6 +27,10 @@ export const DIRECTORY_PAGE_SIZE = 20;
 
 const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 
+/** Efektif GOLD — süzgeç (`gold=1`), sıra ve kart rozeti aynı hesabı okur. */
+const isGold = (r: { tier: string; membershipEndAt: Date | null }) =>
+  effectiveTier(r.tier as TierName, r.membershipEndAt) === "GOLD";
+
 /**
  * FİRMA DİZİNİ — TEK KAYNAK (2026-09-04): herkese açık `/firmalar` ile panelin
  * Bağlantılar › Keşfet sekmesi aynı kümeyi, aynı sırayı ve aynı kartı okur.
@@ -102,6 +106,7 @@ export async function directoryRows(
       photos: true,
       foundedYear: true,
       employeeCount: true,
+      certifications: true,
       website: true,
       buyerCategoryIds: true,
       sellerCategoryIds: true,
@@ -123,8 +128,6 @@ export async function directoryRows(
   });
   const paidRank = (r: { tier: string; membershipEndAt: Date | null }) =>
     tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt), PAID_TIER) ? 0 : 1;
-  const isGold = (r: { tier: string; membershipEndAt: Date | null }) =>
-    effectiveTier(r.tier as TierName, r.membershipEndAt) === "GOLD";
   const eligible = rows.filter((r) => {
     const productCount = r._count.items;
     if (q.hasProducts && productCount === 0) return false;
@@ -171,6 +174,13 @@ export async function buildDirectory(
         activities: r.activities,
         logoUrl: r.logoUrl,
         verified: r.companyVerificationStatus === "VERIFIED",
+        /** Kartta "Gold Üye" rozeti — `gold=1` süzgeci PROMPT 4'te vardı, karşılığı kartta yoktu. */
+        gold: isGold(r),
+        /** Kart açıklaması; test verisi herkese açık yüzeyde ÇIKMAZ (looksLikeProse). */
+        about: looksLikeProse(r.aboutText) ? (r.aboutText as string) : null,
+        foundedYear: r.foundedYear,
+        employeeCount: r.employeeCount,
+        certifications: r.certifications.slice(0, 3),
         mainCategory: main ? { id: main, name: nameById.get(main) as string } : null,
         productCount: r._count.items,
         productPreview: r.items.map((i) => ({ slug: i.slug ?? "", name: i.name, image: i.images[0] ?? null })),
@@ -197,7 +207,6 @@ export async function directoryFacets(
   const cities = multi(params.city);
   const activities = multi(params.activity).filter(isCompanyActivity);
   const categories = multi(params.category).filter(isCategoryCode);
-  const isGold = (r: Row) => effectiveTier(r.tier as TierName, r.membershipEndAt) === "GOLD";
   const cats = (r: Row) => [...r.sellerCategoryIds, ...r.buyerCategoryIds];
   const inCity = (r: Row) => cities.length === 0 || (!!r.city && cities.includes(r.city.trim()));
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));

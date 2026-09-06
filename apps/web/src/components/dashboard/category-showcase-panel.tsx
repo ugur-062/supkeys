@@ -1,9 +1,8 @@
 "use client";
 
-import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
+import { CategoryTile } from "@/components/marketplace/category-tile";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Image from "next/image";
 import Link from "next/link";
 
 /**
@@ -47,7 +46,7 @@ export function CategoryShowcasePanel({
       <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.slice(0, 8).map((c) => (
           <li key={c.id}>
-            <Tile category={c} href={hrefFor(c.id)} countNoun={countNoun} />
+            <CategoryTile category={c} href={hrefFor(c.id)} countNoun={countNoun} />
           </li>
         ))}
       </ul>
@@ -55,38 +54,3 @@ export function CategoryShowcasePanel({
   );
 }
 
-function Tile({ category: c, href, countNoun }: { category: ShowcaseCategory; href: string; countNoun: string }) {
-  const { icon: Icon, tone } = categoryVisual([c.id]);
-  const t = TONE_CLASS[tone];
-  return (
-    <Link
-      href={href}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10"
-    >
-      {c.imageSrc ? (
-        <span className="relative block aspect-[16/10] overflow-hidden bg-zinc-100">
-          <Image
-            src={c.imageSrc}
-            alt=""
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover transition duration-500 group-hover:scale-105"
-          />
-        </span>
-      ) : (
-        <span className={`flex aspect-[16/10] items-center justify-center ${t.surface}`}>
-          <Icon aria-hidden strokeWidth={1.25} className={`size-9 ${t.icon}`} />
-        </span>
-      )}
-      <span className="flex items-center gap-3 px-4 py-3">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-zinc-900">{c.name}</span>
-          <span className="block text-xs text-zinc-500 tabular-nums">
-            {c.count > 0 ? `${c.count.toLocaleString("tr-TR")} ${countNoun}` : "Keşfet"}
-          </span>
-        </span>
-        <ArrowRightIcon aria-hidden className="size-4 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-zinc-500" />
-      </span>
-    </Link>
-  );
-}

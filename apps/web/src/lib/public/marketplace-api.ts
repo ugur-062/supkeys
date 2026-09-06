@@ -322,6 +322,8 @@ const EMPTY_PRODUCTS: PublicProductPage = {
 export interface ProductIndexCard extends PublicProductCard {
   /** Panel Ürün Ara (uygunluk sırası): alıcının ALIM kategorisiyle örtüşüyor. */
   matchesProfile?: boolean;
+  /** "Yeni" rozeti (≤7 gün). Eski kenar önbelleği taşımayabilir. */
+  publishedAt?: string | null;
   company: {
     name: string;
     slug: string;
@@ -329,6 +331,10 @@ export interface ProductIndexCard extends PublicProductCard {
     country: string | null;
     activities: string[];
     verified: boolean;
+    /** Kart avatarı; yoksa monogram. */
+    logoUrl?: string | null;
+    /** Efektif GOLD — kapakta "Gold Üye". */
+    gold?: boolean;
   };
 }
 
@@ -391,6 +397,14 @@ export interface PublicDirectoryCard {
   mainCategory: { id: string; name: string } | null;
   productCount: number;
   productPreview: { slug: string; name: string; image: string | null }[];
+  /* Kart alanları (PROMPT 5) — eski kenar önbelleği taşımayabilir: OPSİYONEL. */
+  /** Efektif GOLD — "Gold Üye" rozeti (`gold=1` süzgecinin kartsal karşılığı). */
+  gold?: boolean;
+  /** Hakkında özeti; test verisi sunucuda elenir (`looksLikeProse`). */
+  about?: string | null;
+  foundedYear?: number | null;
+  employeeCount?: string | null;
+  certifications?: string[];
 }
 
 export interface PublicDirectoryResult {

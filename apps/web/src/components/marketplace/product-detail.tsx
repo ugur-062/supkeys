@@ -1,6 +1,7 @@
 import { PublicLayout } from "./public-layout";
 import { CategoryImage } from "./category-image";
 import { Badge } from "@/components/catalyst/badge";
+import { Badge as UiBadge } from "@/components/ui/badge";
 import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { productPrice } from "@/lib/public/product-price";
@@ -21,7 +22,6 @@ import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   ArrowRightIcon,
-  CheckBadgeIcon,
   BuildingOffice2Icon,
   DocumentTextIcon,
   MapPinIcon,
@@ -476,7 +476,9 @@ export function ProductDetailBody({
                   >
                     {company.name}
                     {company.verified ? (
-                      <CheckBadgeIcon aria-label="Doğrulanmış firma" className="size-4 text-emerald-600" />
+                      <UiBadge tone="verified" size="sm" className="px-1">
+                        <span className="sr-only">Doğrulanmış firma</span>
+                      </UiBadge>
                     ) : null}
                   </Link>
                   {company.industry ? (
@@ -568,13 +570,14 @@ function RelatedRow({
           </Link>
         ) : null}
       </div>
-      <ul className="-mx-6 mt-5 flex snap-x gap-4 overflow-x-auto px-6 pb-2 lg:-mx-8 lg:px-8 [scrollbar-width:thin]">
+      <ul className="-mx-6 mt-5 flex snap-x scroll-pl-6 gap-4 overflow-x-auto px-6 pb-2 lg:-mx-8 lg:scroll-pl-8 lg:px-8 [scrollbar-width:thin]">
         {items.map((p) => (
           <li key={`${p.company.slug}/${p.slug}`} className="w-60 shrink-0 snap-start">
             <ProductCard
               product={p}
               href={hrefFor(p)}
-              company={{ name: p.company.name, city: p.company.city, verified: p.company.verified, activities: p.company.activities }}
+              company={p.company}
+              variant="compact"
             />
           </li>
         ))}

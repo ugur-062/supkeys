@@ -1,4 +1,6 @@
 import { Prisma } from "@rothern/db";
+import { effectiveTier } from "../../../common/company/effective-tier";
+import type { TierName } from "@rothern/shared";
 
 /**
  * FİRMALAR-ARASI ÜRÜN DİZİNİ — kart yansıtması (beyaz liste).
@@ -41,6 +43,9 @@ export const PRODUCT_INDEX_SELECT = {
       country: true,
       industry: true,
       activities: true,
+      logoUrl: true,
+      tier: true,
+      membershipEndAt: true,
       companyVerificationStatus: true,
     },
   },
@@ -62,14 +67,20 @@ export interface ProductIndexCard {
   priceTiers: unknown;
   priceCurrency: string;
   moq: string | null;
+  /** Kartta "Yeni" rozetinin kaynağı (≤7 gün) — tarihi istemci yorumlar. */
+  publishedAt: string | null;
   company: {
     name: string;
     slug: string;
     city: string | null;
     country: string | null;
     activities: string[];
+    /** Kart avatarı; yoksa ad monogramı. */
+    logoUrl: string | null;
     /** KYC tamam — kartta "Doğrulanmış" tiki. */
     verified: boolean;
+    /** Efektif GOLD — kartta "Gold Üye" rozeti (paketin görünür karşılığı). */
+    gold: boolean;
   };
 }
 
@@ -87,6 +98,7 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
     priceTiers: r.priceTiers,
     priceCurrency: r.priceCurrency,
     moq: r.moq?.toString() ?? null,
+    publishedAt: r.publishedAt?.toISOString() ?? null,
     company: {
       // Kapı (`publicProductWhere`) slug'sız firmayı zaten eliyor; boş dize
       // yalnız tip daraltması için.
@@ -95,7 +107,9 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
       city: r.company.city,
       country: r.company.country,
       activities: r.company.activities,
+      logoUrl: r.company.logoUrl,
       verified: r.company.companyVerificationStatus === "VERIFIED",
+      gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt) === "GOLD",
     },
   };
 }

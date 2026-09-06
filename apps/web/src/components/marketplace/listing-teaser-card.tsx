@@ -1,8 +1,11 @@
 import { CategoryVisualBox } from "./category-visual-box";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { listingPath, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
-import { CheckBadgeIcon, ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
+import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import { companyActivityLabel } from "@rothern/shared";
 import Link from "next/link";
 
@@ -21,10 +24,11 @@ function daysLeft(iso: string | null): number | null {
   return Number.isFinite(d) ? d : null;
 }
 
-function leftTone(left: number): string {
-  if (left <= 3) return "bg-rose-100 text-rose-900 ring-rose-600/20";
-  if (left <= 7) return "bg-amber-100 text-amber-900 ring-amber-600/20";
-  return "bg-white/90 text-zinc-700 ring-zinc-950/5";
+/** Aciliyet = ton: ≤3 gün kırmızı, ≤7 gün amber, ötesi nötr (kart sistemi). */
+function leftTone(left: number): "danger" | "gold" | "neutral" {
+  if (left <= 3) return "danger";
+  if (left <= 7) return "gold";
+  return "neutral";
 }
 
 export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }) {
@@ -43,15 +47,15 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         <CategoryVisualBox categoryIds={l.categories.map((c) => c.id)} ratio="aspect-[5/1]" />
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-4 pb-2">
           {primaryCategory ? (
-            <span className="min-w-0 truncate rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-950/5">
-              {primaryCategory.name}
-            </span>
+            <Badge tone="neutral" size="sm" className="min-w-0 bg-white/90 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-950/5">
+              <span className="truncate">{primaryCategory.name}</span>
+            </Badge>
           ) : <span />}
           {left != null ? (
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 tabular-nums ${leftTone(left)}`}>
+            <Badge tone={leftTone(left)} size="sm" icon={false} className="tnum bg-white/90">
               <ClockIcon aria-hidden className="size-3" />
               {left <= 0 ? "Bugün kapanıyor" : `${left} gün kaldı`}
-            </span>
+            </Badge>
           ) : null}
         </div>
       </div>
@@ -66,20 +70,22 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
 
         {/* Ölçek — kartın en büyük yazısı; yalnız birimli miktar */}
         {qty ? (
-          <p className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950 tabular-nums">
+          <p className="mt-3 tnum text-2xl font-semibold tracking-tight text-zinc-950">
             {qty.toLocaleString("tr-TR")}
             <span className="ml-1 text-base font-medium text-zinc-500">{l.itemSummary.unit}</span>
           </p>
         ) : null}
-        <p className={`text-xs text-zinc-500 tabular-nums ${qty ? "mt-0.5" : "mt-3"}`}>
+        <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>
           {l.itemSummary.count} kalem · kalem adları ve şartname üyelere
         </p>
 
         <dl className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
           {l.company.verified ? (
-            <div className="flex items-center gap-1 font-medium whitespace-nowrap text-emerald-700">
-              <CheckBadgeIcon aria-hidden className="size-3.5" />
-              <dd>Doğrulanmış alıcı</dd>
+            <div className="flex items-center">
+              <dt className="sr-only">Alıcı doğrulaması</dt>
+              <dd>
+                <Badge tone="verified" size="sm">Doğrulanmış alıcı</Badge>
+              </dd>
             </div>
           ) : null}
           {who ? (
@@ -95,19 +101,21 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
             <dd>{l.isInternational ? "Uluslararası" : "Yurtiçi"}</dd>
           </div>
           <div className="flex items-center gap-1">
-            <LockClosedIcon aria-hidden className="size-3.5 text-zinc-300" />
-            <dd>Kapalı zarf</dd>
+            {/* Kapalı zarf bir KURAL — ipucu neyin gizli kaldığını söyler. */}
+            <Tooltip label="Teklifler kapalı zarf: teklifçiler birbirinin fiyatını görmez.">
+              <span className="flex items-center gap-1">
+                <LockClosedIcon aria-hidden className="size-3.5 text-zinc-300" />
+                <dd>Kapalı zarf</dd>
+              </span>
+            </Tooltip>
           </div>
         </dl>
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-          <span className="text-xs font-medium text-zinc-500 tabular-nums">{l.number}</span>
-          <Link
-            href={signupHref("teklif", href)}
-            className="relative z-10 rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
+          <span className="tnum font-mono text-xs font-medium text-zinc-500">{l.number}</span>
+          <Button href={signupHref("teklif", href)} className="relative z-10">
             Teklif ver
-          </Link>
+          </Button>
         </div>
       </div>
     </article>

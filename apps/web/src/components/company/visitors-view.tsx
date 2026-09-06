@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company/company-logo";
 import { PeriodSelect } from "@/components/company/period-select";
 import { MiniBars } from "@/components/company/ui/mini-bars";
@@ -11,7 +12,6 @@ import { formatDate } from "@/lib/format-date";
 import { companyActivityLabel } from "@rothern/shared";
 import {
   BuildingOffice2Icon,
-  CheckBadgeIcon,
   CubeIcon,
   EyeIcon,
   IdentificationIcon,
@@ -174,7 +174,11 @@ function VisitorRow({ v }: { v: VisitorItem }) {
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-zinc-950">
             {href ? <Link href={href} className="hover:underline">{c.name}</Link> : <span>{c.name}</span>}
-            {c.verified ? <CheckBadgeIcon aria-hidden className="size-4 text-emerald-600" /> : null}
+            {c.verified ? (
+              <Badge tone="verified" size="sm" className="px-1">
+                <span className="sr-only">Doğrulanmış firma</span>
+              </Badge>
+            ) : null}
             {v.connected ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">Bağlantılı</span> : null}
           </p>
           <p className="mt-0.5 truncate text-xs text-zinc-500">

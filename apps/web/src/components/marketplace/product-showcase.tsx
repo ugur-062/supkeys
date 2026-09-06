@@ -200,7 +200,7 @@ export function ProductShowcase({
               <ProductCard
                 product={p}
                 companySlug={p.company.slug}
-                company={{ name: p.company.name, city: p.company.city, verified: p.company.verified, activities: p.company.activities }}
+                company={p.company}
                 priority={active === 0 && i < 4}
               />
             </li>
