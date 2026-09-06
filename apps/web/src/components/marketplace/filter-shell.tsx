@@ -1,7 +1,7 @@
 "use client";
 
-import { Dialog, DialogPanel } from "@headlessui/react";
-import { AdjustmentsHorizontalIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { Sheet } from "@/components/ui/sheet";
+import { AdjustmentsHorizontalIcon } from "@heroicons/react/20/solid";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import {
@@ -180,30 +180,33 @@ export function MobileFilterButton() {
 
 function MobileDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
   const { total, clear, isPending } = useFilters();
+  // Sözlük primitive'i (PROMPT 3): alt çekmece, başlıkta "Temizle", altlıkta canlı sayaç.
   return (
-    <Dialog open={open} onClose={onClose} className="lg:hidden">
-      <div className="fixed inset-0 z-50 bg-zinc-950/40" aria-hidden />
-      <DialogPanel className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-950/5 px-5 py-3">
+    <Sheet
+      open={open}
+      onClose={onClose}
+      side="bottom"
+      title="Filtreler"
+      className="lg:hidden"
+      header={
+        <div className="flex flex-1 items-center justify-between gap-3">
           <button type="button" onClick={clear} className="text-sm font-medium text-zinc-600 hover:text-zinc-950">
             Temizle
           </button>
           <p className="text-sm font-semibold text-zinc-900">Filtreler</p>
-          <button type="button" onClick={onClose} aria-label="Kapat" className="-m-2 p-2 text-zinc-500">
-            <XMarkIcon aria-hidden className="size-5" />
-          </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        <div className="border-t border-zinc-950/5 px-5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            {isPending ? "Güncelleniyor…" : `Sonuçları göster (${total.toLocaleString("tr-TR")})`}
-          </button>
-        </div>
-      </DialogPanel>
-    </Dialog>
+      }
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white"
+        >
+          {isPending ? "Güncelleniyor…" : `Sonuçları göster (${total.toLocaleString("tr-TR")})`}
+        </button>
+      }
+    >
+      {children}
+    </Sheet>
   );
 }

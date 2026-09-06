@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronDownIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { Chip } from "@/components/ui/chip";
+
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { useEffect, useId, useState, type ReactNode } from "react";
 
 /**
@@ -229,16 +231,9 @@ export function FilterChipBar({
     >
       <span className="text-zinc-500">Süzgeçler:</span>
       {chips.map((c) => (
-        <button
-          key={c.key}
-          type="button"
-          onClick={c.onRemove}
-          className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200"
-        >
+        <Chip key={c.key} onRemove={c.onRemove} removeLabel={`${c.label} süzgecini kaldır`} className="h-7 text-xs">
           {c.label}
-          <XMarkIcon aria-hidden className="size-3.5" />
-          <span className="sr-only">süzgecini kaldır</span>
-        </button>
+        </Chip>
       ))}
       <button type="button" onClick={onClearAll} className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600">
         Tümünü temizle

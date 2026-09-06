@@ -1,5 +1,5 @@
-"use client";
-
+// Sunucu VE istemci uyumlu: hook yok; `hrefBuilder` sunucu bileşeninden,
+// `onChange` istemci bileşeninden gelir (product-index sunucu, galeri istemci).
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";

@@ -2,10 +2,11 @@
 
 Browser-based UI tests for the rothern web app.
 
-> **Durum:** Eski tenant/supplier sistemine ait `auction.spec.ts` kaldırıldı
-> (sistem söküldü). Şu an aktif e2e spec'i YOK. Birleşik Company sistemi
-> (`/company/satinalma` + `/company/satis`) için yeni spec'ler yazılmalı.
-> Aşağıdaki Playwright kurulumu hazır; spec eklenince çalışır.
+> **Durum (2026-09-06):** `public-products-filters.spec.ts` — herkese açık
+> `/urunler` süzgeç senaryosu (şehir seç → URL → sayaç → geri tuşu; 7 yuvalı
+> sayfalama). Pazar yeri anahtarı açık bir web sunucusu ister:
+> `PLAYWRIGHT_BASE_URL=http://localhost:3005 npx playwright test e2e/public-products-filters.spec.ts`.
+> `company-tenders.spec.ts` panel smoke'u (giriş ister).
 
 ## Prerequisites
 

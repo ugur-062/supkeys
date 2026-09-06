@@ -1,5 +1,5 @@
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
-import { Pagination } from "./pagination";
+import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
 import { ActiveFilterChips, ProductFilters, SortControl } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
@@ -113,14 +113,16 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
           page={page.page}
           total={page.total}
           pageSize={page.pageSize}
-          basePath={category ? `/urunler/kategori/${category.id}` : basePath}
-          params={{
-            q: state.q, kategori: category ? undefined : state.category, sehir: state.cities.join(",") || undefined,
-            faaliyet: state.activities.join(",") || undefined, dogrulanmis: state.verified ? "1" : undefined,
-            fiyat: state.price, fiyatMin: state.priceMin?.toString(), fiyatMax: state.priceMax?.toString(),
-            moqMax: state.moqMax?.toString(), sirala: state.sort,
-          }}
-          repeated={{ nitelik: state.attrs }}
+          className="mt-10 border-t border-zinc-950/5 pt-6"
+          // Kategori yol sayfasında yol korunur, sorgu `kategori` taşımaz; 7 yuva,
+          // gerçek bağlantılar (bot izler, rel=prev/next).
+          hrefBuilder={(p) =>
+            `${category ? `/urunler/kategori/${category.id}` : basePath}${buildProductFilterQuery({
+              ...state,
+              category: category ? undefined : state.category,
+              page: p,
+            })}`
+          }
         />
         {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
         <Link
