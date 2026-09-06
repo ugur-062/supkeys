@@ -11,7 +11,7 @@ export default function Page() {
       sections={[
         {
           paragraphs: [
-            `Bu sayfa, ${OPERATOR.legalName} tarafından işletilen Rothern platformunda satılan dijital üyelik paketlerine (Bronz, Silver, Gold — 6 aylık veya 1 yıllık dönem) ilişkin iptal ve iade koşullarını düzenler. Platform B2B niteliktedir; satın alma ticari faaliyet kapsamında yapılır ve tüketici mevzuatındaki cayma hakkı hükümleri uygulanmaz.`,
+            `Bu sayfa, ${OPERATOR.legalName} tarafından işletilen Rothern platformunda satılan dijital üyelik paketlerine (Silver, Gold — 6 aylık veya 1 yıllık dönem) ilişkin iptal ve iade koşullarını düzenler. Platform B2B niteliktedir; satın alma ticari faaliyet kapsamında yapılır ve tüketici mevzuatındaki cayma hakkı hükümleri uygulanmaz.`,
           ],
         },
         {

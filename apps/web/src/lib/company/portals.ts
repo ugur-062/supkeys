@@ -15,7 +15,6 @@ import {
   EnvelopeIcon,
   HomeIcon,
   IdentificationIcon,
-  InboxArrowDownIcon,
   ShoppingBagIcon,
   UsersIcon,
 } from "@heroicons/react/20/solid";
@@ -95,7 +94,7 @@ export const COMPANY_AREA: CompanyAreaDef = {
     // Herkese açık profil HER pakete açık (2026-09-06: ücretsiz firma da
     // yayınlar; paketin karşılığı dizinde öncelik + "Doğrulanmış" rozeti).
     { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil` },
-    // Sayılar herkese açık, kimlikli liste Bronz+ (sayfa içinde kilit); menüde
+    // Sayılar herkese açık, kimlikli liste Silver+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
     { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
     { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "GOLD", permission: "buy:reports:view" },

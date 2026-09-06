@@ -64,7 +64,7 @@ function MonthsReasonDialog({
   confirmLabel: string;
   onConfirm: (months: number, reason: string, tier: PaidTier) => void;
   onClose: () => void;
-  /** Faz T: paket tanımlarken kademe seçimi (Bronz/Silver/Gold). */
+  /** Faz T: paket tanımlarken kademe seçimi (Silver/Gold). */
   withTierSelect?: boolean;
   initialTier?: PaidTier;
 }) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -119,6 +120,11 @@ export function ProductsView() {
   const productLimit = data?.productLimit ?? null;
   const publishedCount = data?.counts.published ?? 0;
   const publishLimitReached = productLimit != null && publishedCount >= productLimit;
+  // Vitrin kapısı profil yayınına bağlı (`publicProductWhere`): profil yayında
+  // değilse yayımlanan ürün dizinde ve firma sayfasında GÖRÜNMEZ. Kullanıcı 10
+  // ürün yayımlayıp kimsenin görmediğini fark etmesin — açıkça söyle.
+  const profile = useCompanyProfile();
+  const profileHidden = profile.data ? !profile.data.publicEnabled : false;
 
   if (creating) {
     return (
@@ -267,6 +273,17 @@ export function ProductsView() {
           </button>
         ))}
       </div>
+
+      {profileHidden ? (
+        <p className="mt-3 max-w-2xl rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-600/20">
+          Firma profiliniz henüz herkese açık değil: ürünleriniz profil yayınlanana kadar dizinde ve
+          firma sayfanızda görünmez.{" "}
+          <a href="/company/sirketim/profil" className="font-medium underline">
+            Profili yayınla
+          </a>
+          .
+        </p>
+      ) : null}
 
       {productLimit != null ? (
         <p

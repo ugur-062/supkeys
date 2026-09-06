@@ -1250,7 +1250,10 @@ olduğu anda kilide çarpar.
   geçişinin ilk adımı olarak çerçevelenir; ücretsiz üyeye ayrı inceleme yolu
   açılmaz (inceleme + paket birlikte).
 - Menü: Profil / Ürünlerim / Bilgi Talepleri kapısız; `sirketim/profil`
-  layout'u silindi. Sözleşme: `free-tier-showcase.spec.ts`.
+  layout'u silindi. Ürünlerim, profil yayında değilse (`publicEnabled`
+  false) uyarır — vitrin kapısı profil yayınına bağlı, ürün yayımlayıp
+  kimsenin görmediğini fark etmemek en kötü senaryo. Sözleşme:
+  `free-tier-showcase.spec.ts`.
 - **Faz 2 — açık talepler kilidi (BİTTİ):** `listingBidEligibility` artık
   `{ canBid, hidden }` — `hidden` = PUBLIC ∧ bağsız ∧ davetsiz ∧ STANDART:
   `sellerVisibleWhere({viewerPaid})` satırı sorguya HİÇ almaz (liste, sektör

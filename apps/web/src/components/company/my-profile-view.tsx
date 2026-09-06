@@ -10,7 +10,7 @@ import { Lock } from "lucide-react";
  * Profilim — başkalarının gördüğü profil, ÜSTÜNDE düzenlenir (2026-08-22;
  * eski Önizleme/Düzenle sekmeleri + ayrı form kaldırıldı). Düzenleme yetkisi
  * backend PATCH kapısıyla birebir (company:manage). Ticari sicil bilgileri
- * Ayarlar → Firma'dan gelir; herkese açık profil Bronz+ (sayfa layout kapısı
+ * Ayarlar → Firma'dan gelir; herkese açık profil her pakete açık (2026-09-06; eski Bronz+ layout kapısı kalktı
  * satış tarafında PremiumOnly; burada da kilit kartı gösterilir).
  */
 export function MyProfileView() {

@@ -1563,8 +1563,8 @@ export default function ListingDetailPage() {
       {!l.canBid ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            Bu ilana teklif vermek için <strong>bir paket (Bronz+)</strong>
-            gerekir (veya ilanı açan firmayla bağlantı kur).
+            Bu ilana teklif vermek için <strong>Silver paketi</strong>
+            gerekir (ya da ilanı açan firmadan bağlantı daveti alın).
           </Text>
           <Button href="/company/premium" className="shrink-0">
             Paket Al

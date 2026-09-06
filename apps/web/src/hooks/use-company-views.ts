@@ -60,7 +60,7 @@ export interface InsightsResponse {
   bids: { submitted: number; won: number };
 }
 
-/** Ziyaret Edenler — `GET company/views/visitors` (sayılar herkese, liste Bronz+). */
+/** Ziyaret Edenler — `GET company/views/visitors` (sayılar herkese, liste Silver+). */
 export function useVisitors(days: ViewDays, page = 1, enabled = true) {
   return useQuery<VisitorsResponse>({
     queryKey: ["company-views", "visitors", days, page],

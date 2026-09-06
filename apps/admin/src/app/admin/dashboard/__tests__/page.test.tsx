@@ -27,7 +27,7 @@ function statsFixture(over: Record<string, unknown> = {}) {
     pendingReview: 1,
     rejected: 1,
     openComplaints: 3,
-    tierBreakdown: { STANDART: 3, BRONZ: 0, SILVER: 0, GOLD: 1 },
+    tierBreakdown: { STANDART: 3, SILVER: 0, GOLD: 1 },
     countryBreakdown: [
       { country: "TR", count: 3 },
       { country: "DE", count: 1 },

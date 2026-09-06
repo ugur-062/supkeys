@@ -22,7 +22,7 @@ export default function Page() {
         {
           heading: "2. Konu ve Hizmetin Tanımı",
           paragraphs: [
-            "İşbu Sözleşme'nin konusu; Alıcı'nın (üyelik paketini satın alan firma), Satıcı'ya ait Rothern B2B e-tedarik ve e-satın alma talebi platformu üzerinde sunulan dijital üyelik paketlerinden (Bronz, Silver, Gold) birini elektronik ortamda satın almasına ilişkin tarafların hak ve yükümlülükleridir.",
+            "İşbu Sözleşme'nin konusu; Alıcı'nın (üyelik paketini satın alan firma), Satıcı'ya ait Rothern B2B e-tedarik ve e-satın alma talebi platformu üzerinde sunulan dijital üyelik paketlerinden (Silver, Gold) birini elektronik ortamda satın almasına ilişkin tarafların hak ve yükümlülükleridir.",
             "Paketlerin kapsamı, dönem seçenekleri (6 aylık veya 1 yıllık) ve güncel fiyatları platformda ilan edilir; satın alma anında seçilen paket, dönem ve toplam bedel ödeme sayfasında ayrıca gösterilir.",
           ],
         },

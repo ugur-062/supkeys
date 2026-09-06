@@ -191,7 +191,7 @@ export function ProfileEditor({
 
   const completeness = completenessOf(draft, profile);
   // Alıcının sizi BULMASI için gerekenler — kapı değil, rehber (backend'de
-  // içerik kapısı yok; yayın anahtarı Bronz+ ile açılır).
+  // içerik kapısı yok; yayın anahtarı her pakete açık — 2026-09-06).
   const findability = {
     about: !!draft.aboutText.trim(),
     industry: !!draft.industry.trim(),
@@ -472,7 +472,7 @@ function EditorHeader({
         </label>
       </div>
     </div>
-    {/* Kapı DEĞİL rehber: backend'de içerik kapısı yok (yayın Bronz+ ile
+    {/* Kapı DEĞİL rehber: backend'de içerik kapısı yok (yayın her pakete
         açılır). Olmayan bir kapıyı "yayınlamak için" diye yazmak yalan olurdu;
         bunlar alıcının sizi bulmasını sağlayan üç alan. */}
     {need.some(([, ok]) => !ok) ? (

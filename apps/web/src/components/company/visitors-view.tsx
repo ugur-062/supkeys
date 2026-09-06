@@ -24,7 +24,7 @@ import { useState } from "react";
 /**
  * ZİYARET EDENLER (2026-09-05, Europages "Your Visitors"): profilinizi ve
  * ürünlerinizi inceleyen firmalar. Üstte dört eğilim kartı + günlük grafik;
- * altta kimlikli liste (Bronz+; Standart'ta bulanık örnek satırlar + kilit
+ * altta kimlikli liste (Silver+; Standart'ta bulanık örnek satırlar + kilit
  * kartı). Anonim ziyaretçi = herkese açık sayfa; yalnız sayı (IP'den firma
  * tahmini YOK). Satır: kim, ne baktı (Profil / ürün çipleri), son ziyaret,
  * ziyaret sayısı; eylemler profilde.
@@ -143,7 +143,7 @@ function LockedList({ count }: { count: number }) {
         <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
           <LockClosedIcon aria-hidden className="mx-auto mb-2 size-7 text-amber-500" />
           <p className="font-semibold text-amber-900">
-            {count > 0 ? `${count} firma profilinizi inceledi` : "Kimlikli ziyaretçi listesi Bronz ve üzeri paketlerde"}
+            {count > 0 ? `${count} firma profilinizi inceledi` : "Kimlikli ziyaretçi listesi Silver ve üzeri paketlerde"}
           </p>
           <p className="mt-1 text-sm text-amber-800">Firma adı, şehir, faaliyet tipi ve hangi ürünlere baktıkları paketle açılır.</p>
           <Link href="/company/ayarlar" className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
