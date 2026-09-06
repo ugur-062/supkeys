@@ -22,7 +22,6 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     itemCount: 1,
     owner: { id: "c1", name: "Alıcı A" },
     ownerCity: "Bursa",
-    masked: false,
     canBid: true,
     invited: false,
     connected: false,
@@ -61,7 +60,7 @@ describe("passes — her boyut", () => {
     expect(passes(r, F({ currencies: ["USD", "EUR"] }), NOW)).toBe(true);
     expect(passes(r, F({ currencies: ["TRY"] }), NOW)).toBe(false);
     expect(passes(r, F({ buyers: ["c1"] }), NOW)).toBe(true);
-    expect(passes(row({ owner: null, masked: true }), F({ buyers: ["c1"] }), NOW)).toBe(false);
+    expect(passes(row({ owner: null }), F({ buyers: ["c1"] }), NOW)).toBe(false);
     expect(passes(r, F({ cities: ["İzmir"] }), NOW)).toBe(true);
     expect(passes(r, F({ cities: ["Bursa"] }), NOW)).toBe(false);
   });

@@ -68,7 +68,6 @@ function baseDetail(over: Partial<ListingDetail> = {}): ListingDetail {
     title: "Çelik Alımı",
     status: "OPEN",
     isOwner: false,
-    masked: false,
     canBid: true,
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY"],
@@ -116,12 +115,10 @@ describe("TeklifVerPage — kapılar", () => {
     ).toBeInTheDocument();
   });
 
-  it("premium değil → premium kapısı", () => {
-    h.detail = baseDetail({ canBid: false, masked: true, owner: null });
+  it("teklif hakkı yok (ücretsiz, bağsız) → Silver kapısı", () => {
+    h.detail = baseDetail({ canBid: false });
     render(<TeklifVerPage />);
-    expect(
-      screen.getByText(/Teklif için paket \(Bronz\+\) gerekir/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Teklif için Silver paketi gerekir/)).toBeInTheDocument();
   });
 
   it("kapalı satın alma talebi → engellenir", () => {

@@ -13,7 +13,8 @@ import {
 } from "@/components/marketplace/filter-shell";
 import { RequestActiveChips, RequestFilters, RequestSortControl } from "@/components/company/request-filters";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
-import { useSellerTenders, type SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { LockedRequestsCard } from "@/components/company/locked-requests-card";
+import { useLockedRequestsSummary, useSellerTenders, type LockedRequestsSummary, type SellerTenderRow } from "@/hooks/use-seller-tenders";
 import { passes, requestFacets, sortRequests, type RequestFacets } from "@/lib/company/request-facets";
 import {
   activeRequestFilterCount,
@@ -46,6 +47,9 @@ const BASE = "/company/satis";
  */
 export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const tenders = useSellerTenders();
+  // Ücretsiz üye: herkese açık talepler listede YOK; kilit kartı gerçek sayıyı verir.
+  const lockedSummary = useLockedRequestsSummary();
+  const locked = lockedSummary.data?.locked ? lockedSummary.data : null;
   const segments = useCategorySegments();
   // `useSearchParams` sunucu-öncesi render ve test ortamında NULL dönebilir.
   const sp = useSearchParams();
@@ -84,6 +88,7 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         rows={filtered}
         facets={facets}
         banner={banner}
+        locked={locked}
         atCap={all.length >= 300}
         isLoading={tenders.isLoading}
         isError={tenders.isError}
@@ -98,6 +103,7 @@ function RequestList({
   rows,
   facets,
   banner,
+  locked,
   atCap,
   isLoading,
   isError,
@@ -107,6 +113,8 @@ function RequestList({
   rows: SellerTenderRow[];
   facets: RequestFacets;
   banner?: ReactNode;
+  /** Ücretsiz üyenin kilit özeti (paketliye null). */
+  locked: Extract<LockedRequestsSummary, { locked: true }> | null;
   atCap: boolean;
   isLoading: boolean;
   isError: boolean;
@@ -127,9 +135,13 @@ function RequestList({
           {t.title}
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin.
+          {locked
+            ? "Bağlı olduğunuz alıcıların talepleri — herkese açık taleplerin tamamı Silver paketiyle açılır."
+            : "Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin."}
         </p>
       </div>
+
+      {locked ? <LockedRequestsCard summary={locked} /> : null}
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">

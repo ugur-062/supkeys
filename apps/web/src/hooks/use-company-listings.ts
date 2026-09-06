@@ -375,7 +375,6 @@ export interface ListingDetail {
   internalNotes?: string | null;
   invitations?: ListingInvitationRow[];
   // sahip değil:
-  masked?: boolean;
   canBid?: boolean;
   /** Rol kapısı: teklif SATISCI rolü ister. */
   roleAllowsBid?: boolean;

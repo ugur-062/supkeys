@@ -1251,8 +1251,25 @@ olduğu anda kilide çarpar.
   açılmaz (inceleme + paket birlikte).
 - Menü: Profil / Ürünlerim / Bilgi Talepleri kapısız; `sirketim/profil`
   layout'u silindi. Sözleşme: `free-tier-showcase.spec.ts`.
-- **SIRADA:** Faz 2 açık talepler kilidi (Standart PUBLIC talebi görmez,
-  kilitli sayı + bulanık örnek), Faz 3 anonim bilgi talebi.
+- **Faz 2 — açık talepler kilidi (BİTTİ):** `listingBidEligibility` artık
+  `{ canBid, hidden }` — `hidden` = PUBLIC ∧ bağsız ∧ davetsiz ∧ STANDART:
+  `sellerVisibleWhere({viewerPaid})` satırı sorguya HİÇ almaz (liste, sektör
+  sayaçları), `getOne` **403 `{code: "TIER_REQUIRED", minTier}`** (404 değil:
+  talep pazar yerinde teaser olarak zaten açık; derin bağlantıdan gelen üye
+  paket kartı görmeli), `detail()` maske parametresiz, `teaserItems`/`masked`
+  alanı API+web'den SİLİNDİ. Kilit kartı: `GET company/listings/
+  seller-tenders/locked-summary` (`lockedPublicSummary`: Silver olsaydı
+  görecekleri küme — bağlı/davetli olduğu için zaten gördükleri hariç; total,
+  inMyCategories, thisWeek, itemCount, 3 örnek satır teaser alanları, id
+  yok; paketliye `{locked:false}`) → web `LockedRequestsCard` (satış
+  anasayfası liste üstü, bulanık `aria-hidden` örnekler, gerçek sayı; 0'da
+  sayı basılmaz) ve `SilverLockCard` (tek dil: talep detayı 403, teklif
+  sayfası; `PRICING_HREF` = `/nasil-calisir#fiyatlar`). Yeni PUBLIC talep
+  duyurusu (`notifyCategoryMatch`) ücretsiz firmaya da gider — metin "Silver
+  ile açılır", CTA paket sayfası (talep bağlantısı verilmez, 403 alırdı).
+  Sözleşme: `tier-visibility.spec` (yeniden), `visibility-matrix`,
+  `seller-tenders`, `audit-fixes` çevrildi; web `seller-tenders-view.test`.
+- **SIRADA:** Faz 3 anonim bilgi talebi.
 
 **Web aynası:** `lib/company/permissions.ts` (`userPermissions`,
 `userHasPermission`, `hasAnySeatPermission`, `isManagementUser`) — kullanıcı

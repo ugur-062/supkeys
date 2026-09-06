@@ -1,5 +1,6 @@
 "use client";
 
+import { PRICING_HREF } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -452,17 +453,17 @@ export default function TeklifVerPage() {
   if (l.isOwner) {
     return <Blocked title="Kendi ilanınıza teklif veremezsiniz" detailHref={detailHref} />;
   }
-  if (l.masked || !l.canBid) {
+  if (!l.canBid) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <Lock className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
-        <Heading className="mt-3">Teklif için paket (Bronz+) gerekir</Heading>
+        <Heading className="mt-3">Teklif için Silver paketi gerekir</Heading>
         <Text className="mt-2 text-sm text-zinc-500">
-          Bu herkese açık satın alma talebine teklif vermek için firmanızı doğrulayıp bir
-          paket alın veya ilan sahibiyle bağlantı kurun.
+          Herkese açık satın alma taleplerine teklif vermek Silver ile gelir. Bağlantı
+          davetiyle gelen taleplere ücretsiz teklif verirsiniz.
         </Text>
         <div className="mt-5 flex items-center justify-center gap-3">
-          <Button href="/company/premium">Paket Al</Button>
+          <Button href={PRICING_HREF}>Paketleri Gör</Button>
           <Button href={detailHref} outline>
             Satın Alma Talebi Detayına Dön
           </Button>

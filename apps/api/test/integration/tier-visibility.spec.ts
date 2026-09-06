@@ -1,9 +1,11 @@
 /**
- * Faz T kabul — STANDART maskeli-önizleme (freemium):
- * STANDART, PUBLIC ihaleyi LİSTEDE görür + detayı MASKELİ açar (404 değil) ama
- * teklif VEREMEZ; davet/bağlantı → tam görünüm + teklif. SILVER+ → PUBLIC
- * maskesiz + teklif. Formüllerin tek kaynağı listingBidEligibility
- * (listing-visibility.ts) — getOne/sellerTenders/placeBid aynı kuralı okur.
+ * Kademe görünürlüğü — 2026-09-06 revizyonu ("premium çekmek için"):
+ * STANDART, bağlı/davetli OLMADIĞI PUBLIC talebi HİÇ görmez (listede yok,
+ * detay 403 TIER_REQUIRED, teklif 403); kilit özeti (`lockedPublicSummary`)
+ * yalnız gerçek SAYI + örnek satır verir. Davet/bağlantı → tam görünüm + teklif.
+ * SILVER+ → PUBLIC tam + teklif. Eski "maskeli önizleme" KALKTI. Formüllerin
+ * tek kaynağı listingBidEligibility (listing-visibility.ts) —
+ * getOne/sellerTenders/placeBid aynı kuralı okur.
  */
 import { prisma, truncateAll } from "./test-db";
 import {
@@ -46,8 +48,8 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
-  it("STANDART: PUBLIC listede VAR + masked:true + canBid:false; detay maskeli (404 değil)", async () => {
+describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlantı açar", () => {
+  it("STANDART: bağsız PUBLIC listede YOK; detay 403 TIER_REQUIRED; kilit özeti gerçek sayı verir", async () => {
     const { service } = makeService();
     const { listing } = await publicListing();
     const std = await makeCompanyWithUser(prisma, {
@@ -55,24 +57,27 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
       tier: "STANDART",
     });
 
-    const rows = (await service.sellerTenders(std.auth)) as {
-      id: string;
-      masked: boolean;
-      canBid: boolean;
-    }[];
-    const row = rows.find((r) => r.id === listing.id);
-    expect(row).toBeTruthy(); // listeden DÜŞMEZ (freemium önizleme)
-    expect(row!.masked).toBe(true);
-    expect(row!.canBid).toBe(false);
+    const rows = (await service.sellerTenders(std.auth)) as { id: string }[];
+    expect(rows.find((r) => r.id === listing.id)).toBeUndefined();
 
-    const detail = (await service.getOne(std.auth, listing.id)) as {
-      masked: boolean;
-      canBid: boolean;
-      auctionView: unknown;
-    };
-    expect(detail.masked).toBe(true); // 404 DEĞİL — maskeli detay
-    expect(detail.canBid).toBe(false);
-    expect(detail.auctionView).toBeNull(); // maskede hassas bölümler kapalı
+    const err = await service.getOne(std.auth, listing.id).then(
+      () => null,
+      (e: unknown) => e as { getStatus(): number; getResponse(): unknown },
+    );
+    expect(err).not.toBeNull();
+    expect(err!.getStatus()).toBe(403);
+    expect(err!.getResponse()).toMatchObject({ code: "TIER_REQUIRED", minTier: "SILVER" });
+
+    const summary = await service.lockedPublicSummary(std.auth);
+    expect(summary.locked).toBe(true);
+    if (summary.locked) {
+      expect(summary.total).toBe(1);
+      expect(summary.samples[0]?.title).toBe(listing.title);
+      expect(summary.samples[0]).not.toHaveProperty("id");
+      expect(JSON.stringify(summary)).not.toContain(listing.id);
+    }
+    // Sektör sayaçları da aynı kapıyı okur: ücretsize 0.
+    expect((await service.discoverFacets(std.auth)).total).toBe(0);
   });
 
   it("STANDART bağlantısız PUBLIC'e placeBid → 403 (teklif kapısı)", async () => {
@@ -87,7 +92,7 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     ).rejects.toThrow(/premium|paket|bağlantı/i);
   });
 
-  it("STANDART davet edilince TAM görür + teklif verir", async () => {
+  it("STANDART davet edilince TAM görür + teklif verir; kilit özeti onu SAYMAZ", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
     const std = await makeCompanyWithUser(prisma, {
@@ -96,18 +101,25 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     });
     await invite(prisma, listing.id, std.company.id, owner.user.id);
 
+    const rows = (await service.sellerTenders(std.auth)) as { id: string; canBid: boolean; owner: unknown }[];
+    const row = rows.find((r) => r.id === listing.id);
+    expect(row?.canBid).toBe(true);
+    expect(row?.owner).toBeTruthy();
     const detail = (await service.getOne(std.auth, listing.id)) as {
-      masked: boolean;
       canBid: boolean;
+      owner: { name: string } | null;
+      description: unknown;
     };
-    expect(detail.masked).toBe(false);
     expect(detail.canBid).toBe(true);
+    expect(detail.owner?.name).toBeTruthy();
     await expect(
       service.placeBid(std.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
+    const summary = await service.lockedPublicSummary(std.auth);
+    expect(summary.locked && summary.total).toBe(0);
   });
 
-  it("STANDART bağlantısının ihalesini TAM görür + teklif verir", async () => {
+  it("STANDART bağlantısının talebini TAM görür + teklif verir", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
     const std = await makeCompanyWithUser(prisma, {
@@ -116,46 +128,35 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     });
     await connect(prisma, owner.company.id, std.company.id, owner.user.id);
 
-    const detail = (await service.getOne(std.auth, listing.id)) as {
-      masked: boolean;
-      canBid: boolean;
-    };
-    expect(detail.masked).toBe(false);
+    const detail = (await service.getOne(std.auth, listing.id)) as { canBid: boolean };
     expect(detail.canBid).toBe(true);
     await expect(
       service.placeBid(std.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
+    const summary = await service.lockedPublicSummary(std.auth);
+    expect(summary.locked && summary.total).toBe(0);
   });
 
-  it("SILVER aynı PUBLIC'i MASKESIZ görür + teklif verir (yeni kademe eşiği)", async () => {
+  it("SILVER aynı PUBLIC'i görür + teklif verir; kilit özeti locked:false", async () => {
     const { service } = makeService();
     const { listing, item } = await publicListing();
-    const bronz = await makeCompanyWithUser(prisma, {
+    const silver = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "SILVER",
     });
 
-    const rows = (await service.sellerTenders(bronz.auth)) as {
-      id: string;
-      masked: boolean;
-      canBid: boolean;
-    }[];
+    const rows = (await service.sellerTenders(silver.auth)) as { id: string; canBid: boolean }[];
     const row = rows.find((r) => r.id === listing.id);
-    expect(row!.masked).toBe(false);
-    expect(row!.canBid).toBe(true);
-
-    const detail = (await service.getOne(bronz.auth, listing.id)) as {
-      masked: boolean;
-      canBid: boolean;
-    };
-    expect(detail.masked).toBe(false);
+    expect(row?.canBid).toBe(true);
+    const detail = (await service.getOne(silver.auth, listing.id)) as { canBid: boolean };
     expect(detail.canBid).toBe(true);
     await expect(
-      service.placeBid(bronz.auth, listing.id, bid(item.id)),
+      service.placeBid(silver.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
+    expect(await service.lockedPublicSummary(silver.auth)).toEqual({ locked: false });
   });
 
-  it("süresi DOLMUŞ SILVER efektif STANDART gibi maskelenir (INV-TIER-1 lazy)", async () => {
+  it("süresi DOLMUŞ SILVER efektif STANDART gibi görmez (INV-TIER-1 lazy)", async () => {
     const { service } = makeService();
     const { listing } = await publicListing();
     const expired = await makeCompanyWithUser(prisma, {
@@ -168,12 +169,7 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     });
     // JWT strategy efektif tier yazar — testte auth objesini efektifle kur.
     const auth = { ...(expired.auth as object), tier: "STANDART" } as never;
-    const detail = (await service.getOne(auth, listing.id)) as {
-      masked: boolean;
-      canBid: boolean;
-    };
-    expect(detail.masked).toBe(true);
-    expect(detail.canBid).toBe(false);
+    await expect(service.getOne(auth, listing.id)).rejects.toMatchObject({ status: 403 });
   });
 });
 

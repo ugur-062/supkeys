@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { tierAtLeast } from "@rothern/shared";
+import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 
 /**
  * İlan görünürlük kuralı — TEK KAYNAK (X5/X7 drift önleme). Bir izleyici bir
@@ -29,13 +29,15 @@ export function isListingVisibleToViewer(
 }
 
 /**
- * Faz T — teklif-uygunluğu + maske TEK KAYNAK (üçüncü tanım yasak; getOne,
- * sellerTenders, placeBid, buyNow aynı formülü buradan okur):
+ * Teklif-uygunluğu + GİZLİLİK TEK KAYNAK (üçüncü tanım yasak; getOne,
+ * sellerTenders/sellerVisibleWhere, placeBid aynı formülü buradan okur):
  * - canBid: davet ∨ (CONNECTIONS ∧ bağlı) ∨ (PUBLIC ∧ (bağlı ∨ SILVER+)).
- * - masked: PUBLIC ∧ bağlı-değil ∧ davetsiz ∧ paket yok (STANDART) →
- *   freemium önizleme: liste/detay GÖRÜNÜR ama kısıtlı, teklif kapalı
- *   ("Silver+ gerekir" CTA'sı). Eski STANDARD maskeli-önizleme davranışının
- *   devamı — eşik PAKET→SILVER.
+ * - hidden: PUBLIC ∧ bağlı-değil ∧ davetsiz ∧ paket yok (STANDART) → talep
+ *   ücretsiz üyeye HİÇ görünmez: listeye girmez, detay 403 `TIER_REQUIRED`
+ *   (404 değil — pazar yerinde teaser'ı zaten herkese açık, varlığı sır değil;
+ *   derin bağlantıdan gelen üye paket ekranı görmeli). Eski "maskeli önizleme"
+ *   KALDIRILDI (2026-09-06, kullanıcı kararı "premium çekmek için"): ücretsiz
+ *   üye yalnız kilitli SAYI + bulanık örnek görür (`lockedPublicSummary`).
  */
 export function listingBidEligibility(
   visibility: string,
@@ -44,18 +46,18 @@ export function listingBidEligibility(
     connectedToOwner: boolean;
     viewerTier: string;
   },
-): { canBid: boolean; masked: boolean } {
-  const paid = tierAtLeast(opts.viewerTier, "SILVER");
+): { canBid: boolean; hidden: boolean } {
+  const paid = tierAtLeast(opts.viewerTier, PAID_TIER);
   const canBid =
     opts.isInvited ||
     (visibility === "CONNECTIONS" && opts.connectedToOwner) ||
     (visibility === "PUBLIC" && (opts.connectedToOwner || paid));
-  const masked =
+  const hidden =
     visibility === "PUBLIC" &&
     !opts.connectedToOwner &&
     !opts.isInvited &&
     !paid;
-  return { canBid, masked };
+  return { canBid, hidden };
 }
 
 export function visibleOwnerListingWhere(

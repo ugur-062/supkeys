@@ -286,7 +286,7 @@ describe("davetli ülke-bypass + maskeli yanıt kırpma", () => {
     expect(bid.status).toBe("SUBMITTED");
   });
 
-  it("maskeli izleyici fiyat/eksiltme/adres verisi almaz ama kalem SAYISINI görür", async () => {
+  it("ücretsiz (STANDART) bağsız izleyici PUBLIC talebi HİÇ açamaz — 403 TIER_REQUIRED (maskeli teaser kalktı, 2026-09-06)", async () => {
     const { service } = makeService();
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
     const standard = await makeCompanyWithUser(prisma, {
@@ -304,25 +304,14 @@ describe("davetli ülke-bypass + maskeli yanıt kırpma", () => {
     });
     await makeItem(prisma, l.id, { name: "Kalem 1" });
 
-    const d = (await service.getOne(standard.auth, l.id)) as Record<
-      string,
-      unknown
-    >;
-    expect(d.masked).toBe(true);
-    expect(d.english).toBeNull();
-    expect(d.auctionView).toBeNull();
-    expect(d.deliveryAddress).toBeNull();
-    expect(d.keywords).toEqual([]);
-    // Maskeli teaser: kalem adı/miktar/birim GÖRÜNÜR (ne alınıyor belli olsun)
-    // ama fiyat/malzeme kodu/açıklama/sorular GİZLİ (rekabet-hassas veri sızmaz).
-    const items = d.items as Array<Record<string, unknown>>;
-    expect(items).toHaveLength(1);
-    expect(items[0].name).toBe("Kalem 1");
-    expect(items[0].targetPrice).toBeNull();
-    expect(items[0].materialCode).toBeNull();
-    expect(items[0].description).toBeNull();
-    expect(items[0].questions).toEqual([]);
-    expect(d.itemCount).toBe(1); // sayı listeyle tutarlı görünür
+    const err = await service.getOne(standard.auth, l.id).then(
+      () => null,
+      (e: unknown) => e as { getStatus(): number; getResponse(): unknown },
+    );
+    expect(err?.getStatus()).toBe(403);
+    expect(err?.getResponse()).toMatchObject({ code: "TIER_REQUIRED" });
+    // Yanıt yok → eksiltme/adres/anahtar kelime sızıntı yüzeyi yapısal olarak kapalı.
+    expect(JSON.stringify(err?.getResponse())).not.toContain("gizli-anahtar");
   });
 });
 

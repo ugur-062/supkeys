@@ -209,7 +209,6 @@ export function BrowseTenderRow({
           </span>
         ) : null}
         {t.categoryMatch ? <InfoChip tone="blue">Profilinizle eşleşti</InfoChip> : null}
-        {t.masked ? <InfoChip tone="amber">Paket gerekli</InfoChip> : null}
       </>
     ),
     facts: compact ? [firma, kapanis] : [firma, kalem, kapsam, kapanis, kategori],

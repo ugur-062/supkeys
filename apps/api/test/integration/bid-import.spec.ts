@@ -25,7 +25,9 @@ import { BidPriceExtractService } from "../../src/modules/ai/bid-price-extract/b
 import { BidImportService } from "../../src/modules/company-listings/import/bid-import.service";
 import type { StorageService } from "../../src/modules/storage/storage.service";
 import { makeService } from "./make-service";
-import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { makeCompanyWithUser, makeItem, makeListing,
+  invite,
+} from "./factories";
 import { makeSimplePdf } from "./pdf-fixture";
 import { prisma, truncateAll } from "./test-db";
 
@@ -282,9 +284,12 @@ describe("Belgeden Fiyatla (AI)", () => {
     expect(await prisma.listingBid.count()).toBe(0);
   });
 
-  it("Standart (paketsiz) firma AI yoluna giremez (403) — şablon yolu ise açık", async () => {
-    const { listing, svc } = await setup();
+  it("Standart (paketsiz) firma AI yoluna giremez (403) — şablon yolu ise açık (davetliyse)", async () => {
+    const { owner, listing, svc } = await setup();
     const bronz = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // 2026-09-06: ücretsiz firma bağsız/davetsiz PUBLIC talebi hiç göremez —
+    // şablon yolunun açık olması için davetli olmalı (davet her kapıyı açar).
+    await invite(prisma, listing.id, bronz.company.id, owner.user.id);
     const provider = new FakeProvider();
     const storage = new FakeStorage();
     const ai = makeAi(provider, storage, svc);

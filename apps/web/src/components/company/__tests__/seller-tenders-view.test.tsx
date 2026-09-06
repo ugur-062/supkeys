@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   rows: [] as unknown[],
   isLoading: false,
   isError: false,
+  /** Ücretsiz üyenin kilit özeti — varsayılan paketli (kilit yok). */
+  locked: { locked: false } as unknown,
   /** URL sorgusu — süzgeç durumu buradan okunur (`request-filter-params`). */
   search: "",
   replace: vi.fn(),
@@ -31,6 +33,7 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
     isError: h.isError,
     refetch: vi.fn(),
   }),
+  useLockedRequestsSummary: () => ({ data: h.locked }),
 }));
 vi.mock("@/hooks/use-portal-discovery", () => ({
   useCategorySegments: () => ({
@@ -73,7 +76,6 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     itemCount: 3,
     owner: { id: "buyer-1", name: "Alıcı A.Ş." },
     ownerCity: "Bursa",
-    masked: false,
     canBid: true,
     invited: true,
     connected: false,
@@ -143,12 +145,30 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(sidebar().getAllByRole("button", { name: /^(Uygunluk|Durum|Kategori|Kapsam|Kapanış|Alıcı|Alıcı şehri|Para birimi|Usul|Yayın tarihi)( ?\(\d+\))?$/ })).toHaveLength(10);
   });
 
-  it("maskeli satır 'Gizli firma' + Premium çipi gösterir; alıcı süzgecinde yer almaz", () => {
-    h.rows = [row({ masked: true, owner: null, canBid: false, invited: false })];
+  it("ücretsiz üye: kilit kartı GERÇEK sayıları ve bulanık örnekleri gösterir, CTA paket sayfası (2026-09-06)", () => {
+    h.locked = {
+      locked: true,
+      total: 12,
+      inMyCategories: 4,
+      thisWeek: 3,
+      itemCount: 40,
+      samples: [{ title: "Çelik boru alımı", category: "Borular", itemCount: 3, closesAt: null, city: "Bursa", isInternational: false }],
+    };
+    try {
+      render(<SellerTendersView />);
+      expect(screen.getByText("Silver ile açılacak 12 açık talep")).toBeInTheDocument();
+      expect(screen.getByText("4 kategorinizde · 3 bu hafta yeni · toplam 40 kalem")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/nasil-calisir#fiyatlar");
+      expect(screen.getByText(/herkese açık taleplerin tamamı Silver paketiyle açılır/)).toBeInTheDocument();
+    } finally {
+      h.locked = { locked: false };
+    }
+  });
+
+  it("paketli üye: kilit kartı çizilmez", () => {
+    h.rows = [row({})];
     render(<SellerTendersView />);
-    expect(screen.getAllByText("Gizli firma").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Premium")).toBeInTheDocument();
-    expect(group("Alıcı").getByText("Alıcı adı görünen talep yok")).toBeInTheDocument();
+    expect(screen.queryByText(/Silver ile açılacak/)).toBeNull();
   });
 
   it("durum: varsayılan Aktif geçmişi gizler; ?durum=gecmis ile görünür; radyo tıklanınca URL yazılır", async () => {

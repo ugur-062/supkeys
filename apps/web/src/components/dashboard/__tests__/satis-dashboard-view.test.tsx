@@ -82,9 +82,9 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
 vi.mock("@/hooks/use-seller-tenders", () => ({
   useSellerTenders: () => ({
     data: [
-      { id: "t1", number: "ROT-000001", title: "Kablo alımı", status: "OPEN", masked: false, owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
-      { id: "t2", number: "ROT-000002", title: "Pano alımı", status: "OPEN", masked: false, owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
-      { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", masked: false, owner: { id: "c2", name: "Alıcı B" }, ownerCity: null, categories: [] },
+      { id: "t1", number: "ROT-000001", title: "Kablo alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
+      { id: "t2", number: "ROT-000002", title: "Pano alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
+      { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", owner: { id: "c2", name: "Alıcı B" }, ownerCity: null, categories: [] },
     ],
     isLoading: false,
   }),

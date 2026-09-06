@@ -2,6 +2,7 @@
 
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
+import { SilverLockCard } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
@@ -207,6 +208,12 @@ export default function ListingDetailPage() {
   const notFound =
     (error as { response?: { status?: number } } | null)?.response?.status ===
     404;
+  // 403 + TIER_REQUIRED = herkese açık talep, ücretsiz üye (2026-09-06): boş
+  // "ulaşılamıyor" değil paket kartı — derin bağlantıdan gelen üye ne
+  // yapacağını görsün (API `listingBidEligibility.hidden`).
+  const errBody = (error as { response?: { status?: number; data?: { code?: string } } } | null)
+    ?.response;
+  const tierRequired = errBody?.status === 403 && errBody?.data?.code === "TIER_REQUIRED";
   const confirm = useConfirm();
   const award = useAwardListing(id);
   const awardPreview = useAwardPreview(id);
@@ -529,6 +536,16 @@ export default function ListingDetailPage() {
     );
   }
   if (isError) {
+    if (tierRequired) {
+      return (
+        <div className="mx-auto max-w-3xl">
+          <SilverLockCard
+            title="Bu herkese açık talep Silver paketiyle açılır"
+            description="Herkese açık satın alma taleplerini görmek ve teklif vermek Silver ile gelir. Talebin kalemleri, alıcı firma ve dosyalar paketle birlikte açılır."
+          />
+        </div>
+      );
+    }
     if (notFound) {
       return (
         <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
@@ -701,7 +718,7 @@ export default function ListingDetailPage() {
                 önce oturup katalog kurmasını istemek benimsemeyi öldürür —
                 zaten girdiği kalemleri tek tıkla saklayabilmeli. Yalnız ilan
                 sahibi ve yönetebilen kullanıcıya görünür. */}
-            {canManage && !l.masked ? (
+            {canManage ? (
               <Button
                 outline
                 disabled={saveToCatalog.isPending}
@@ -735,13 +752,6 @@ export default function ListingDetailPage() {
             ) : null}
           </div>
         </div>
-        {l.masked ? (
-          <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-            <Lock className="h-3.5 w-3.5 shrink-0" />
-            Ne alındığını görüyorsunuz. <strong>Fiyat, detay ve teklif verme</strong>{" "}
-            için premium&apos;a geçin ya da firmayla bağlantı kurun.
-          </div>
-        ) : null}
         <div className="card px-2 [--gutter:--spacing(4)]">
           <Table dense>
             <TableHead>
@@ -1908,7 +1918,6 @@ export default function ListingDetailPage() {
                 listingId={l.id}
                 isOwner={!!l.isOwner}
                 canEdit={false}
-                masked={!!l.masked}
               />
             </TabPanel>
           </TabPanels>
@@ -2016,22 +2025,7 @@ export default function ListingDetailPage() {
           </div>
         </div>
 
-        {/* Maskeli önizleme (premium olmayan) uyarısı → premium başvurusu */}
-        {l.masked ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <p className="flex items-start gap-2">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              Bu herkese açık ihale önizleme modunda — kalemleri görüyorsunuz
-              ama alıcı firma, fiyatlar ve dosyalar
-              gizli. Detayı görmek ve teklif vermek için paket alın (Bronz+).
-            </p>
-            <Button href="/company/premium" className="shrink-0">
-              Paket Al
-            </Button>
-          </div>
-        ) : null}
-
-        {l.english?.isEnglishAuction && !l.masked ? (
+        {l.english?.isEnglishAuction ? (
           <AuctionLiveCard l={l} />
         ) : null}
 
@@ -2110,7 +2104,6 @@ export default function ListingDetailPage() {
                 listingId={l.id}
                 isOwner={false}
                 canEdit={false}
-                masked={!!l.masked}
               />
             </TabPanel>
           </TabPanels>

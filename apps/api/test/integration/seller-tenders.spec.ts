@@ -41,7 +41,6 @@ describe("sellerTenders", () => {
     expect(row).toBeDefined();
     expect(row!.invited).toBe(true);
     expect(row!.canBid).toBe(true);
-    expect(row!.masked).toBe(false);
   });
 
   it("limit SIRALAMADAN SONRA kırpar — 'en uygun N', 'rastgele N' değil", async () => {
@@ -324,18 +323,14 @@ describe("sellerTenders", () => {
       visibility: "PUBLIC",
     });
 
-    // Standard: listede VAR ama maskeli — alıcı adı gizli, teklif kapalı.
+    // Standart (ücretsiz): bağsız PUBLIC listede HİÇ YOK (2026-09-06 — eski
+    // maskeli önizleme kalktı; kilit kartı sayıyı gösterir).
     const stdRows = await service.sellerTenders(standard.auth);
-    const stdRow = stdRows.find((r) => r.id === l.id);
-    expect(stdRow).toBeDefined();
-    expect(stdRow!.masked).toBe(true);
-    expect(stdRow!.canBid).toBe(false);
-    expect(stdRow!.owner).toBeNull();
+    expect(stdRows.find((r) => r.id === l.id)).toBeUndefined();
 
     const preRows = await service.sellerTenders(premium.auth);
     const row = preRows.find((r) => r.id === l.id);
     expect(row).toBeDefined();
-    expect(row!.masked).toBe(false);
     expect(row!.canBid).toBe(true);
     expect(row!.owner?.name).toBeTruthy();
   });
@@ -356,12 +351,12 @@ describe("sellerTenders", () => {
     await invite(prisma, l.id, standard.company.id, buyer.user.id);
 
     const detail = (await service.getOne(standard.auth, l.id)) as {
-      masked: boolean;
       canBid: boolean;
       invited: boolean;
+      owner: { name: string } | null;
     };
     expect(detail.invited).toBe(true);
-    expect(detail.masked).toBe(false); // davet maskeyi kaldırır
+    expect(detail.owner?.name).toBeTruthy(); // davet kapıyı açar
     expect(detail.canBid).toBe(true); // davetli her görünürlükte teklif verir
   });
 

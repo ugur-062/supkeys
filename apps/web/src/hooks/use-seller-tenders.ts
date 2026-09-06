@@ -21,7 +21,6 @@ export interface SellerTenderRow {
   ownerCity?: string | null;
   /** Kapak görseli: sahibin seçtiği, yoksa ilk kalemin ilk görseli. */
   coverImageUrl?: string | null;
-  masked: boolean;
   canBid: boolean;
   invited: boolean;
   /** Talebi açan firma bağlantım mı (aktif iş ilişkisi) — sıralama sinyali. */
@@ -59,5 +58,41 @@ export function useSellerTenders() {
     staleTime: 10_000,
     refetchInterval: 15_000, // canlı liste — teklif durumu/kapanış tazelensin
     refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * GET /company/listings/seller-tenders/locked-summary — ücretsiz üyenin kilit
+ * kartı (2026-09-06): Silver olsaydı göreceği PUBLIC talep sayıları + bulanık
+ * örnek satırlar (gerçek veri, kimlik yok). Paketliye `{ locked: false }`.
+ */
+export type LockedRequestsSummary =
+  | { locked: false }
+  | {
+      locked: true;
+      total: number;
+      inMyCategories: number;
+      thisWeek: number;
+      itemCount: number;
+      samples: {
+        title: string;
+        category: string | null;
+        itemCount: number;
+        closesAt: string | null;
+        city: string | null;
+        isInternational: boolean;
+      }[];
+    };
+
+export function useLockedRequestsSummary() {
+  return useQuery<LockedRequestsSummary>({
+    queryKey: ["company-listings", "seller-tenders", "locked-summary"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<LockedRequestsSummary>(
+        "/company/listings/seller-tenders/locked-summary",
+      );
+      return data;
+    },
+    staleTime: 60_000,
   });
 }

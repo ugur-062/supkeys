@@ -98,6 +98,17 @@ export class CompanyListingsController {
   }
 
   /**
+   * Ücretsiz üyenin kilit kartı (2026-09-06): Silver ile açılacak PUBLIC talep
+   * sayıları + bulanık örnek satırlar (gerçek veri). Paketliye `{ locked: false }`.
+   * `:id`den ÖNCE bildirilmeli (iki parçalı yol olsa da sıra açık kalsın).
+   */
+  @Get("seller-tenders/locked-summary")
+  @RequireCompanyPermission("sell:view")
+  lockedSummary(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.lockedPublicSummary(user);
+  }
+
+  /**
    * Perf turu (denetim P10): sahip dalı ETag/304 destekler. İstemci elindeki
    * sürümü `If-None-Match` ile gönderir; hiçbir şey değişmemişse gövde HİÇ
    * kurulmaz (ağır teklif→kalem→cevap ağacı okunmaz) ve 304 döner.

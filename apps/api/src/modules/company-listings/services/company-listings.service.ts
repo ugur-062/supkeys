@@ -25,7 +25,7 @@ import {
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import { buildProductMatcher, productMatchReason } from "../../../common/company/product-request-match";
-import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, validateShortCode ,
+import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderPermission } from "../bidder-op-role";
@@ -441,8 +441,9 @@ export class CompanyListingsService {
     const candidates = await this.prisma.company.findMany({
       where: {
         id: { notIn: [listing.companyId, ...blocked] },
-        // INV-TIER-1: efektif PAKET (süresi-dolmuş lazy PAKET'e duyuru gitmesin).
-        ...anyPackageWhere(),
+        // Paket şartı YOK (2026-09-06): ücretsiz firma da haber alır — talep ona
+        // kilitli, duyuru "Silver ile açılır" der (dönüşüm tetiği: gerçek bir
+        // talep, kendi kategorisinde, göremiyor). Efektif kademe aşağıda metni seçer.
         isActive: true,
         // Denetim 2026-08-24 Parça 7: admin tarafından ASKIYA ALINMIŞ firma
         // (isBlocked=true, isActive=true kalabiliyor) iş fırsatı duyurusu
@@ -461,7 +462,7 @@ export class CompanyListingsService {
         },
         OR: catOr,
       },
-      select: { id: true },
+      select: { id: true, tier: true, membershipEndAt: true },
       // Flood-guard (bilinçli). `orderBy` OLMADAN kesme, 300'ü aşan segmentte
       // "kim haber alır"ı tarama sırasına bırakıyordu; en YENİ firmalar hiç
       // haber alamayabiliyordu. Deterministik sıra + sessiz kesmeyi loglama.
@@ -497,37 +498,55 @@ export class CompanyListingsService {
     );
     // Açık talepler satış ANASAYFASINDA (2026-09-05); satın-al sayfası yok.
     const url = `${this.webUrl()}/company/satis#acik-talepler`;
+    const pricingUrl = `${this.webUrl()}/nasil-calisir#fiyatlar`;
     const label = isBuyDemand ? "satın alma talebi" : "satış ilanı";
     const verb = isBuyDemand ? "Sattığınız" : "Aldığınız";
     const action = isBuyDemand ? "teklif vermek" : "satın almak";
+    // Ücretsiz (efektif STANDART) alıcı: talep ona KİLİTLİ — metin dürüst olsun,
+    // CTA paket sayfasına (kilit kartı satış anasayfasında da sayıyı gösterir).
+    const isFree = new Map(
+      candidates.map((c) => [c.id, !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PAID_TIER)] as const),
+    );
+    const lockedText = {
+      subject: `Kategorinizde yeni bir ${label} var — Silver ile açılır`,
+      heading: `Kategorinize uygun yeni ${label}`,
+      paragraphs: [
+        "Merhaba,",
+        `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve ${action} için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.`,
+      ],
+      ctaLabel: "Paketleri Gör",
+      ctaUrl: pricingUrl,
+      footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
+    };
+    const openText = {
+      subject: `Size uygun yeni bir ${label} yayınlandı`,
+      heading: `Kategorinize uygun yeni ${label}`,
+      paragraphs: [
+        "Merhaba,",
+        `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). İncelemek ve ${action} için Rothern'e giriş yapın.`,
+      ],
+      ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
+      ctaUrl: url,
+      footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
+    };
     let sent = 0;
     for (const c of ranked) {
       const to = recipients.get(c.id);
       if (!to) continue;
-      this.notify(
-        to,
-        {
-          subject: `Size uygun yeni bir ${label} yayınlandı`,
-          heading: `Kategorinize uygun yeni ${label}`,
-          paragraphs: [
-            "Merhaba,",
-            `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). İncelemek ve ${action} için Rothern'e giriş yapın.`,
-          ],
-          ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
-          ctaUrl: url,
-          footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
-        },
-        { type: "listing_category_match", id: listingId },
-      );
+      this.notify(to, isFree.get(c.id) ? lockedText : openText, {
+        type: "listing_category_match",
+        id: listingId,
+      });
       sent++;
     }
     // In-app kanal (e-postaya paralel) — eşleşen firmaların YALNIZCA teklifçi
     // portalındaki (ALIM→satış, SATIS→satınalma) aktif kullanıcılarına. Portal
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
-    await this.notifications.pushToCompanies(
-      ranked.map((c) => c.id),
-      {
+    const paidIds = ranked.map((c) => c.id).filter((id) => !isFree.get(id));
+    const freeIds = ranked.map((c) => c.id).filter((id) => isFree.get(id));
+    if (paidIds.length > 0) {
+      await this.notifications.pushToCompanies(paidIds, {
         type: "listing_category_match",
         title: `Kategorinize uygun yeni ${label}`,
         body: `${verb} kategorilerle eşleşen yeni bir ${label}: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}).`,
@@ -535,8 +554,20 @@ export class CompanyListingsService {
         ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
         listingId: listing.id,
         portal: matchPortal,
-      },
-    );
+      });
+    }
+    if (freeIds.length > 0) {
+      // Ücretsiz üyeye talep bağlantısı VERİLMEZ (403 alırdı); satış anasayfası
+      // kilit kartı sayıyı gösterir, CTA paket sayfasına.
+      await this.notifications.pushToCompanies(freeIds, {
+        type: "listing_category_match",
+        title: `Kategorinizde yeni bir ${label} — Silver ile açılır`,
+        body: `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}". Görmek ve ${action} için Silver paketine geçin.`,
+        ctaUrl: pricingUrl,
+        ctaLabel: "Paketleri Gör",
+        portal: matchPortal,
+      });
+    }
     this.logger.log(
       `Kategori eşleşmesi (${listing.number}): ${sent}/${candidates.length} firmaya bildirim (${
         isBuyDemand ? "satıcı" : "alıcı"
@@ -1998,9 +2029,10 @@ export class CompanyListingsService {
    * tıklayınca 5 ilan bulurdu.
    *
    * Kural: kendi ilanın ve bloklu firmanın ilanı HARİÇ; DAVETLİYSEN her şey
-   * görünür, değilsen ülke kapsamı ∧ görünürlük (PUBLIC ya da bağlantılıysan
-   * CONNECTIONS). PUBLIC ilan STANDARD üyeye de listelenir (maskeli önizleme);
-   * teklif/detay hakları `listingBidEligibility` ile ayrıca sınırlanır.
+   * görünür, değilsen ülke kapsamı ∧ görünürlük. PUBLIC: paketli (SILVER+)
+   * izleyene hepsi, ÜCRETSİZ izleyene yalnız BAĞLI olduğu firmanınkiler
+   * (2026-09-06 — eski "maskeli önizleme" kalktı; `listingBidEligibility.hidden`
+   * ile birebir). CONNECTIONS yalnız bağlantılılara.
    */
   private sellerVisibleWhere(o: {
     type: ListingType;
@@ -2008,6 +2040,8 @@ export class CompanyListingsService {
     connectedIds: string[];
     blockedIds: string[];
     country: string | null | undefined;
+    /** İzleyen efektif SILVER+ mı — PUBLIC talepleri bağsız da görür. */
+    viewerPaid: boolean;
   }): Prisma.ListingWhereInput {
     // Ülkesi olmayan (eski) kayıt: yurtiçi eşleşmesi kurulamaz, yalnız
     // uluslararası dal kalır — sessizce herkesle eşleşmesin.
@@ -2052,7 +2086,12 @@ export class CompanyListingsService {
                 },
                 {
                   OR: [
-                    { visibility: "PUBLIC" as const },
+                    o.viewerPaid
+                      ? { visibility: "PUBLIC" as const }
+                      : {
+                          visibility: "PUBLIC" as const,
+                          companyId: { in: o.connectedIds },
+                        },
                     {
                       visibility: "CONNECTIONS" as const,
                       companyId: { in: o.connectedIds },
@@ -2111,6 +2150,7 @@ export class CompanyListingsService {
     ]);
     const productMatcher = buildProductMatcher(myProducts);
     const myCountry = user.country;
+    const viewerPaid = tierAtLeast(user.tier, PAID_TIER);
 
     const baseWhere = {
       type,
@@ -2119,9 +2159,8 @@ export class CompanyListingsService {
     const invitedClause = {
       invitations: { some: { invitedCompanyId: companyId } },
     };
-    // PUBLIC ilanlar STANDARD üyeye de listelenir (MASKELİ önizleme — premium
-    // başvurusuna yönlendirme için); teklif/detay hakları masked/canBid ile
-    // sınırlanır. CONNECTIONS yalnız bağlantılılara.
+    // Görünürlük `sellerVisibleWhere` (ücretsiz üye bağsız PUBLIC'i GÖRMEZ);
+    // teklif hakkı `canBid` ile ayrıca sınırlanır.
     const select = {
       id: true,
       number: true,
@@ -2161,6 +2200,7 @@ export class CompanyListingsService {
           connectedIds,
           blockedIds,
           country: myCountry,
+          viewerPaid,
         }),
         select,
         orderBy: { closesAt: "asc" },
@@ -2245,12 +2285,8 @@ export class CompanyListingsService {
         l.categoryIds,
         `${l.title} ${l.items.map((i) => i.name).join(" ")}`,
       );
-      const masked =
-        listingBidEligibility(l.visibility, {
-          isInvited: invited,
-          connectedToOwner: connected,
-          viewerTier: user.tier,
-        }).masked;
+      // Gizli satır (PUBLIC ∧ ücretsiz ∧ bağsız/davetsiz) sorguya HİÇ girmez
+      // (`sellerVisibleWhere` viewerPaid) — burada yalnız teklif hakkı hesaplanır.
       const { canBid } = listingBidEligibility(l.visibility, {
         isInvited: invited,
         connectedToOwner: connected,
@@ -2269,17 +2305,14 @@ export class CompanyListingsService {
         closesAt: l.closesAt,
         createdAt: l.createdAt,
         itemCount: l._count.items,
-        // id: liste "Müşteri/Satıcı" filtresi companyId'ye göre gruplar
-        // (browse ile aynı shape; maskelide kimlik sızdırılmaz).
-        owner: masked ? null : { id: l.companyId, name: l.company.name },
-        // Şehir kimlik DEĞİL nitelik: maskeli kartta da kalır (teklif verecek
-        // tarafın lojistik kararı için gerekli, pazar yeriyle aynı çizgi).
+        // id: liste "Alıcı" süzgeci companyId'ye göre gruplar (browse ile aynı shape).
+        owner: { id: l.companyId, name: l.company.name },
+        // Şehir: teklif verecek tarafın lojistik kararı için (pazar yeriyle aynı çizgi).
         ownerCity: l.company.city,
         coverImageUrl:
           l.coverImageUrl ?? l.items.find((i) => i.images.length > 0)?.images[0] ?? null,
         // Kalem adları (ilk 20): satış anasayfası araması "kalem" ile bulsun.
         itemNames: l.items.slice(0, 20).map((i) => i.name),
-        masked,
         canBid,
         invited,
         // Bağlantılı firma ihalesi (aktif iş ilişkisi) — sıralamada davetlinin
@@ -2397,6 +2430,7 @@ export class CompanyListingsService {
         connectedIds,
         blockedIds,
         country: user.country,
+        viewerPaid: tierAtLeast(user.tier, PAID_TIER),
       }),
       select: { categoryIds: true },
       take: SELLER_SCAN_CAP,
@@ -2488,6 +2522,83 @@ export class CompanyListingsService {
       addrs._max.updatedAt?.getTime() ?? 0,
     ].join("-");
     return `W/"${createHash("sha1").update(parts).digest("base64url")}"`;
+  }
+
+  /**
+   * ÜCRETSİZ ÜYE KİLİT KARTI (2026-09-06): Standart üye bağsız PUBLIC talepleri
+   * görmez; satış anasayfasında yalnız GERÇEK sayıları ve bulanık örnek
+   * satırları görür ("Silver ile açılacak N talep"). Uydurma veri yok — sayım,
+   * Silver olsaydı `sellerVisibleWhere`in göstereceği kümeden (bağlı/davetli
+   * olduğu için ZATEN gördükleri hariç). Örnek satırlar pazar yeri teaser'ıyla
+   * aynı alanlar (başlık, kategori, kalem sayısı, şehir, kapanış) — kimlik yok.
+   * Paketli üyeye `{ locked: false }`; sayım bile yapılmaz.
+   */
+  async lockedPublicSummary(user: AuthenticatedCompanyUser) {
+    if (tierAtLeast(user.tier, PAID_TIER)) return { locked: false as const };
+    const companyId = user.companyId;
+    const [connectedIds, blockedIds, me] = await Promise.all([
+      this.connectedCompanyIds(companyId),
+      this.blocks.blockedCompanyIds(companyId),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { sellerCategoryIds: true, sellerSubCategoryIds: true },
+      }),
+    ]);
+    const rows = await this.prisma.listing.findMany({
+      where: {
+        ...this.sellerVisibleWhere({
+          type: "ALIM",
+          companyId,
+          connectedIds,
+          blockedIds,
+          country: user.country,
+          viewerPaid: true,
+        }),
+        visibility: "PUBLIC",
+        companyId: { notIn: [companyId, ...blockedIds, ...connectedIds] },
+        invitations: { none: { invitedCompanyId: companyId } },
+      },
+      select: {
+        title: true,
+        categoryIds: true,
+        closesAt: true,
+        publishedAt: true,
+        isInternational: true,
+        company: { select: { city: true } },
+        _count: { select: { items: true } },
+      },
+      orderBy: { publishedAt: "desc" },
+      take: SELLER_SCAN_CAP,
+    });
+    const mySegs = new Set(me?.sellerCategoryIds ?? []);
+    const mySubs = new Set(me?.sellerSubCategoryIds ?? []);
+    const inMyCategories = (codes: string[]) => {
+      if (mySegs.size === 0 && mySubs.size === 0) return false;
+      const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(codes);
+      return segmentIds.some((c) => mySegs.has(c)) || subCandidates.some((c) => mySubs.has(c));
+    };
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    const samples = rows.slice(0, 3);
+    const catIds = [...new Set(samples.map((r) => r.categoryIds[0]).filter((c): c is string => !!c))];
+    const cats = catIds.length
+      ? await this.prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, nameTr: true } })
+      : [];
+    const catName = new Map(cats.map((c) => [c.id, c.nameTr] as const));
+    return {
+      locked: true as const,
+      total: rows.length,
+      inMyCategories: rows.filter((r) => inMyCategories(r.categoryIds)).length,
+      thisWeek: rows.filter((r) => r.publishedAt != null && r.publishedAt.getTime() >= weekAgo).length,
+      itemCount: rows.reduce((sum, r) => sum + r._count.items, 0),
+      samples: samples.map((r) => ({
+        title: r.title,
+        category: r.categoryIds[0] ? (catName.get(r.categoryIds[0]) ?? null) : null,
+        itemCount: r._count.items,
+        closesAt: r.closesAt,
+        city: r.company.city,
+        isInternational: r.isInternational,
+      })),
+    };
   }
 
   async getOne(
@@ -2641,30 +2752,6 @@ export class CompanyListingsService {
         required: q.required,
       })),
     }));
-    // Maskeli görünüm için teaser: NE alınıyor belli olsun (isim/miktar/birim)
-    // ama fiyat/malzeme kodu/teslim tarihi/açıklama/sorular GİZLİ. Standart üye
-    // görüp teklif vermeye özenir; rekabet-hassas veri sızmaz.
-    const teaserItems = items.map((it) => ({
-      id: it.id,
-      lineNo: it.lineNo,
-      name: it.name,
-      quantity: it.quantity.toString(),
-      unit: it.unit,
-      unitCode: it.unitCode,
-      brand: it.brand,
-      mpn: it.mpn,
-      alternativeAllowed: it.alternativeAllowed,
-      // Maskeli (premium olmayan) görünüm: uzun şartname ve ticari detay
-      // gizli kalır — bugünkü `description: null` kararıyla aynı çizgi.
-      specification: null,
-      warrantyMonths: null,
-      hsCode: null,
-      description: null,
-      targetPrice: null,
-      materialCode: null,
-      requiredByDate: null,
-      questions: [] as { id: string; text: string; answerType: string; required: boolean }[],
-    }));
 
     if (isOwner) {
       // Faz O — dar-bağlam okuma kapısı: ONAYLAYICI-only (ve rolsüz) üye,
@@ -2747,7 +2834,7 @@ export class CompanyListingsService {
       // (~3000 TRY) 3000 TRY'nin altında görünüp sahip yanlış firmaya kazandırırdı.
       const rankedBids = this.rankAuctionBids(bids, listing.auctionRateSnapshot, false);
       return {
-        ...this.detail(listing, false),
+        ...this.detail(listing),
         // İstemci bunu bir sonraki istekte If-None-Match ile geri gönderir.
         etag: fp,
         isOwner: true,
@@ -2938,19 +3025,27 @@ export class CompanyListingsService {
       throw new NotFoundException("İlan bulunamadı");
     }
 
-    // Davetli firma her görünürlükte maskesiz görür ve teklif verebilir
-    // (alıcı onu açıkça seçti) — sellerTenders ile aynı kural.
-    const masked =
-      listingBidEligibility(listing.visibility, {
-        isInvited,
-        connectedToOwner: connected,
-        viewerTier: user.tier,
-      }).masked;
-    const { canBid } = listingBidEligibility(listing.visibility, {
+    // Davetli firma her görünürlükte görür ve teklif verebilir (alıcı onu
+    // açıkça seçti) — sellerTenders ile aynı kural.
+    const { canBid, hidden } = listingBidEligibility(listing.visibility, {
       isInvited,
       connectedToOwner: connected,
       viewerTier: user.tier,
     });
+    // Ücretsiz üye, bağlı/davetli olmadığı PUBLIC talebi GÖREMEZ (2026-09-06;
+    // eski maskeli önizleme kalktı). 404 değil 403: talep pazar yerinde zaten
+    // teaser olarak herkese açık, varlığı sır değil; derin bağlantıdan (kayıt →
+    // "Teklif ver") gelen üye boş sayfa yerine paket ekranı görmeli. `code`
+    // web'in dalı — `PremiumGate` benzeri kilit kartı.
+    if (hidden) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        message:
+          "Herkese açık talepleri görmek ve teklif vermek için Silver paketi gerekir. Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
+        code: "TIER_REQUIRED",
+        minTier: PAID_TIER,
+      });
+    }
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
     // Faz R: SAHIP muafiyeti kaldırıldı — UI bayrağı placeBid kapısıyla birebir.
@@ -2973,7 +3068,6 @@ export class CompanyListingsService {
     if (
       listing.format === "ENGLISH_AUCTION" &&
       listing.status === "OPEN" &&
-      !masked &&
       canBid
     ) {
       const ownLast =
@@ -2989,10 +3083,9 @@ export class CompanyListingsService {
         ),
       };
     }
-    // Bidder'a dönen `english` bloğu görünürlükle sınırlanır; MASKELİ izleyici
-    // canlı fiyat/katılımcı verisi almaz (önizleme sızıntısı yok).
+    // Bidder'a dönen `english` bloğu — görünürlük kapısını geçen izleyiciye.
     const englishForBidder =
-      english && !masked
+      english
         ? {
             ...english,
             currentBest: auctionView?.bestTotal ?? null,
@@ -3001,20 +3094,17 @@ export class CompanyListingsService {
           }
         : null;
     return {
-      ...this.detail(listing, masked),
+      ...this.detail(listing),
       isOwner: false,
-      masked,
       canBid,
       roleAllowsBid,
       invited: isInvited,
       english: englishForBidder,
-      auctionView: masked ? null : auctionView,
+      auctionView,
       nextBidConstraint,
-      // Teslimat adresi (PII: ad/telefon) yalnız teklif verebilenlere —
-      // maskeli/premium-kilitli izleyici görmez.
+      // Teslimat adresi (PII: ad/telefon) yalnız teklif verebilenlere.
       deliveryAddress: canBid ? deliveryAddress : null,
-      // Maskeli üye teaser görür (isim/miktar/birim); fiyat/detay gizli.
-      items: masked ? teaserItems : itemsOut,
+      items: itemsOut,
       itemCount: itemsOut.length,
       myBid: myBid
         ? {
@@ -6904,7 +6994,6 @@ export class CompanyListingsService {
       autoExtendThresholdMin: number | null;
       autoExtendByMinutes: number | null;
     },
-    masked: boolean,
   ) {
     return {
       id: l.id,
@@ -6915,7 +7004,7 @@ export class CompanyListingsService {
       format: l.format,
       visibility: l.visibility,
       title: l.title,
-      description: masked ? null : l.description,
+      description: l.description,
       status: l.status,
       // Tur sayacı — "Yeni Tur" diyaloğu mevcut turun taşınabilir teklif
       // sayısını bununla hesaplar (teklifsiz aktarma uyarısı).
@@ -6923,10 +7012,10 @@ export class CompanyListingsService {
       closesAt: l.closesAt,
       cancelReason: l.cancelReason,
       createdAt: l.createdAt,
-      owner: masked ? null : { name: l.company.name },
+      owner: { name: l.company.name },
       categoryIds: l.categoryIds,
-      keywords: masked ? [] : l.keywords,
-      terms: masked ? null : l.terms,
+      keywords: l.keywords,
+      terms: l.terms,
       requireAllItems: l.requireAllItems,
       requireBidDocument: l.requireBidDocument,
       showTargetToSuppliers: l.showTargetToSuppliers,
@@ -6936,17 +7025,16 @@ export class CompanyListingsService {
       bidsOpenAt: l.bidsOpenAt,
       isSealedBid: l.isSealedBid,
       isLogistics: l.isLogistics,
-      logistics: masked ? null : (l.logistics ?? null),
+      logistics: l.logistics ?? null,
       deliveryTerm: l.deliveryTerm,
       paymentCategory: l.paymentCategory,
       advancePercent: l.advancePercent,
       paymentDays: l.paymentDays,
       lcType: l.lcType,
       lcConfirmed: l.lcConfirmed,
-      // BK-B (kör-nokta denetimi): serbest-metin → maskeli PUBLIC teaser'da gizle
-      // (description/terms/minPrice ile tutarlı; sahip IBAN/iletişim yazarsa
-      // bağlantısız/davetsiz izleyiciye sızmasın).
-      paymentNote: masked ? null : l.paymentNote,
+      // Serbest-metin ödeme notu: görünürlük kapısını geçen izleyiciye (ücretsiz
+      // üye bağsız PUBLIC'i hiç açamaz — BK-B sızıntı yüzeyi yapısal kapandı).
+      paymentNote: l.paymentNote,
       paymentTiming: l.paymentTiming,
       // Teslim-öncesi ödemede teminat şartı — teklifçi teklif vermeden görsün.
       requireGuaranteeLetter: l.requireGuaranteeLetter,

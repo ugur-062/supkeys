@@ -48,48 +48,41 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
     const { service, l } = await listing("PUBLIC");
     const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
     const res = (await service.getOne(v.auth, l.id)) as {
-      masked: boolean;
       canBid: boolean;
       items: unknown[];
       paymentNote: unknown;
     };
-    expect(res.masked).toBe(false);
     expect(res.canBid).toBe(true);
     expect(res.items.length).toBe(1);
     // Maskesiz izleyici ödeme notunu görür.
     expect(res.paymentNote).toBe("Ödeme: IBAN TR00 ... 0000, muhasebe@firma.com");
   });
 
-  it("PUBLIC + STANDARD bağlı-değil → görür ama MASKELİ (kalem teaser, teklif veremez)", async () => {
+  it("PUBLIC + STANDART bağlı-değil → GÖRMEZ: 403 TIER_REQUIRED (maskeli önizleme kalktı, 2026-09-06)", async () => {
     const { service, l } = await listing("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDART",
     });
-    const res = (await service.getOne(v.auth, l.id)) as {
-      masked: boolean;
-      canBid: boolean;
-      items: { targetPrice: unknown }[];
-      paymentNote: unknown;
-    };
-    expect(res.masked).toBe(true);
-    expect(res.canBid).toBe(false);
-    // Teaser: kalem görünür (ne alınıyor belli) ama fiyat gizli.
-    expect(res.items.length).toBe(1);
-    expect(res.items[0].targetPrice).toBeNull();
-    // BK-B: serbest-metin ödeme notu maskede sızmaz.
-    expect(res.paymentNote).toBeNull();
+    const err = await service.getOne(v.auth, l.id).then(
+      () => null,
+      (e: unknown) => e as { getStatus(): number; getResponse(): unknown },
+    );
+    expect(err?.getStatus()).toBe(403);
+    expect(err?.getResponse()).toMatchObject({ code: "TIER_REQUIRED" });
+    // BK-B: serbest-metin ödeme notu hiçbir yanıtta yok — yanıt yok.
   });
 
-  it("PUBLIC + STANDARD ama BAĞLI → maskesiz", async () => {
+  it("PUBLIC + STANDART ama BAĞLI → tam görür, teklif verebilir", async () => {
     const { service, owner, l } = await listing("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDART",
     });
     await connect(prisma, owner.company.id, v.company.id, owner.user.id);
-    const res = (await service.getOne(v.auth, l.id)) as { masked: boolean };
-    expect(res.masked).toBe(false);
+    const res = (await service.getOne(v.auth, l.id)) as { canBid: boolean; paymentNote: unknown };
+    expect(res.canBid).toBe(true);
+    expect(res.paymentNote).toBe("Ödeme: IBAN TR00 ... 0000, muhasebe@firma.com");
   });
 
   it("CONNECTIONS + PREMIUM ama bağlı-değil → GÖRMEMELİ (404)", async () => {

@@ -114,7 +114,7 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     expect(email.send).not.toHaveBeenCalled();
   });
 
-  it("F1 (INV-TIER-1): süresi DOLMUŞ PAKET satıcı duyuru ALMAZ (efektif STANDARD)", async () => {
+  it("F1 (INV-TIER-1): süresi DOLMUŞ PAKET satıcı duyuruyu KİLİTLİ varyantla alır (efektif STANDART, 2026-09-06)", async () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -135,9 +135,16 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
       categoryIds: [CLASS],
     });
     const matched = await service.notifyCategoryMatchedCompanies(listing.id);
-    // Ham tier PAKET görünse de efektif STANDARD → aday değil.
-    expect(matched).toEqual([]);
-    expect(email.send).not.toHaveBeenCalled();
+    // Ham tier PAKET görünse de efektif STANDART → aday AMA metin kilitli:
+    // talep ona görünmez, e-posta "Silver ile açılır" der, CTA paket sayfası
+    // (talep bağlantısı VERİLMEZ — 403 alırdı).
+    expect(matched.map((c: { id: string }) => c.id)).toEqual([seller.company.id]);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const sent = (email.send as jest.Mock).mock.calls[0][0] as { subject: string; templateData: unknown };
+    expect(sent.subject).toMatch(/Silver ile açılır/);
+    const payload = JSON.stringify(sent.templateData);
+    expect(payload).toContain("/nasil-calisir#fiyatlar");
+    expect(payload).not.toContain("/company/ilan/");
   });
 
   it("F1 kontrol: GELECEK bitişli PAKET satıcı duyuru ALIR (efektif PAKET)", async () => {
