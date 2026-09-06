@@ -97,6 +97,8 @@ export interface PublicFacets {
   cities: { city: string; count: number }[];
   types: { type: string; count: number }[];
   scopes: { scope: "domestic" | "international"; count: number }[];
+  /** Kalan süre kovaları (bağlamsal; eski yanıtta yok → `?? 0` ile okunur). */
+  within?: { "3": number; "7": number; "30": number };
   truncated: boolean;
 }
 
@@ -150,8 +152,10 @@ export interface ListParams {
   state?: "open" | "all";
   /** Yurtiçi / uluslararası — `isInternational`. */
   scope?: "domestic" | "international";
-  /** 7 ya da 30 gün içinde kapanacaklar. */
-  closesWithin?: "7" | "30";
+  /** 3, 7 ya da 30 gün içinde kapanacaklar. */
+  closesWithin?: "3" | "7" | "30";
+  /** Yayın tarihi (varsayılan) ya da süresi yaklaşan önce. */
+  sort?: "newest" | "closing";
   page?: number;
 }
 
@@ -165,6 +169,7 @@ function toQuery(params: ListParams): string {
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   if (params.scope) sp.set("scope", params.scope);
   if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
+  if (params.sort) sp.set("sort", params.sort);
   const s = sp.toString();
   return s ? `?${s}` : "";
 }
@@ -204,8 +209,18 @@ const EMPTY_FACETS: PublicFacets = {
   truncated: false,
 };
 
-export function fetchFacets(): Promise<PublicFacets> {
-  return getJson("/public/listings/facets", EMPTY_FACETS, 300);
+/** Facet sayaçları BAĞLAMSAL (PROMPT 4): seçili süzgeçler de gönderilir. */
+export function fetchFacets(
+  params: Pick<ListParams, "q" | "category" | "city" | "scope" | "closesWithin"> = {},
+): Promise<PublicFacets> {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.category) sp.set("category", params.category);
+  if (params.city) sp.set("city", params.city);
+  if (params.scope) sp.set("scope", params.scope);
+  if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
+  const qs = sp.toString();
+  return getJson(`/public/listings/facets${qs ? `?${qs}` : ""}`, EMPTY_FACETS, 300);
 }
 
 export function fetchListingSitemap(): Promise<PublicSitemapRow[]> {
@@ -389,17 +404,26 @@ export interface PublicDirectoryFacets {
   total: number;
   verified: number;
   withProducts: number;
+  /** Gold Üye sayısı (bağlamsal; eski yanıtta yok). */
+  gold?: number;
   cities: { city: string; count: number }[];
   activities: { activity: string; count: number }[];
+  /** Firma beyanı kategorileri (L1/L2-4), firma sayısıyla. */
+  categories?: { id: string; name: string; count: number }[];
 }
 
 export interface PublicDirectoryParams {
   q?: string;
+  /** Virgüllü çoklu. */
   city?: string;
+  /** Virgüllü çoklu 8 haneli kod. */
   category?: string;
+  /** Virgüllü çoklu. */
   activity?: string;
   verified?: boolean;
   hasProducts?: boolean;
+  gold?: boolean;
+  sort?: "relevance" | "name" | "products" | "newest";
   page?: number;
 }
 
@@ -411,19 +435,33 @@ export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promis
   if (params.activity) sp.set("activity", params.activity);
   if (params.verified) sp.set("verified", "1");
   if (params.hasProducts) sp.set("hasProducts", "1");
+  if (params.gold) sp.set("gold", "1");
+  if (params.sort) sp.set("sort", params.sort);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
   return getJson<PublicDirectoryResult>(
     `/public/companies/directory${qs ? `?${qs}` : ""}`,
-    { items: [], total: 0, page: 1, pageSize: 24 },
+    { items: [], total: 0, page: 1, pageSize: 20 },
     300,
   );
 }
 
-export function fetchPublicDirectoryFacets(): Promise<PublicDirectoryFacets> {
+/** Facet sayaçları BAĞLAMSAL (PROMPT 4): seçili süzgeçler de gönderilir. */
+export function fetchPublicDirectoryFacets(
+  params: Omit<PublicDirectoryParams, "page" | "sort"> = {},
+): Promise<PublicDirectoryFacets> {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.city) sp.set("city", params.city);
+  if (params.category) sp.set("category", params.category);
+  if (params.activity) sp.set("activity", params.activity);
+  if (params.verified) sp.set("verified", "1");
+  if (params.hasProducts) sp.set("hasProducts", "1");
+  if (params.gold) sp.set("gold", "1");
+  const qs = sp.toString();
   return getJson<PublicDirectoryFacets>(
-    "/public/companies/directory/facets",
-    { total: 0, verified: 0, withProducts: 0, cities: [], activities: [] },
+    `/public/companies/directory/facets${qs ? `?${qs}` : ""}`,
+    { total: 0, verified: 0, withProducts: 0, gold: 0, cities: [], activities: [], categories: [] },
     600,
   );
 }

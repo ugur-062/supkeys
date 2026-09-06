@@ -1,205 +1,100 @@
-import { ListingCard } from "./listing-card";
+import { ListingFilterShell } from "./list-filter-shells";
+import { FilterResults, MobileFilterButton, ResultCount } from "./filter-shell";
+import { ListingActiveChips, ListingFilters, ListingSortBar } from "./listing-filters";
 import { ListingTeaserCard } from "./listing-teaser-card";
-import { FacetGroup } from "./facets";
-import { Pagination } from "./pagination";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
+import { Pagination } from "@/components/ui/pagination";
 import {
-  MARKETPLACE_LABELS,
-  MARKETPLACE_ROUTES,
-  type PublicListingType,
-} from "@/lib/public/marketplace";
-import {
-  fetchFacets,
-  fetchListings,
-  type ListParams,
-} from "@/lib/public/marketplace-api";
+  activeListingFilterCount,
+  buildListingFilterQuery,
+  parseListingFilters,
+  toListingListParams,
+} from "@/lib/public/listing-filter-params";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, type PublicListingType } from "@/lib/public/marketplace";
+import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
+import { signupHref } from "@/lib/public/visibility";
+import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 
 /**
- * TÜRKÇE URL ↔ İNGİLİZCE API sınırı.
- *
- * Ziyaretçinin gördüğü adres Türkçe (`?kategori=31000000&il=İstanbul&sayfa=2`),
- * API sözleşmesi İngilizce. Çeviri TEK yerde, burada; sayfalar ham
- * `searchParams` görmez. Bilinmeyen parametre sessizce düşer — ziyaretçinin
- * uydurduğu bir anahtar sorguya sızmasın.
+ * ALIM TALEBİ DİZİNİ — süzgeç v4 (PROMPT 4, 2026-09-06): ürün dizinindeki
+ * kabuk (URL durumu, geçiş, çekmece, bağlamsal facet, 7 yuvalı sayfalama)
+ * burada da. URL şeması tek kaynak `lib/public/listing-filter-params.ts`
+ * (Türkçe URL ↔ İngilizce API sınırı orada; sayfalar ham `searchParams` görmez).
  */
-export interface MarketplaceSearchParams {
-  q?: string;
-  kategori?: string;
-  il?: string;
-  sayfa?: string;
-  durum?: string;
-  /** `yurtici` | `uluslararasi` */
-  kapsam?: string;
-  /** Kalan süre: `7` | `30` gün */
-  sure?: string;
-}
-
-const SCOPE: Record<string, ListParams["scope"]> = {
-  yurtici: "domestic",
-  uluslararasi: "international",
-};
-const SCOPE_LABEL = { domestic: "Yurtiçi", international: "Uluslararası" } as const;
-const SCOPE_PARAM = { domestic: "yurtici", international: "uluslararasi" } as const;
-
-export function toListParams(
-  sp: MarketplaceSearchParams,
-  type: PublicListingType,
-): ListParams {
-  const page = Number(sp.sayfa);
-  return {
-    type,
-    q: sp.q?.trim() || undefined,
-    category: /^\d{8}$/.test(sp.kategori ?? "") ? sp.kategori : undefined,
-    city: sp.il?.trim() || undefined,
-    state: sp.durum === "hepsi" ? "all" : undefined,
-    scope: sp.kapsam ? SCOPE[sp.kapsam] : undefined,
-    closesWithin: sp.sure === "7" || sp.sure === "30" ? sp.sure : undefined,
-    page: Number.isFinite(page) && page > 1 ? Math.trunc(page) : undefined,
-  };
-}
-
 interface Props {
   type: PublicListingType;
   title: string;
   lead: string;
-  searchParams: MarketplaceSearchParams;
+  searchParams: SearchParamsLike;
 }
 
-export async function ListingIndex({ type, title, lead, searchParams }: Props) {
-  const params = toListParams(searchParams, type);
+export async function ListingIndex({ title, lead, searchParams }: Props) {
+  const state = parseListingFilters(searchParams);
+  const params = toListingListParams(state);
   const basePath = MARKETPLACE_ROUTES.demands;
   const noun = MARKETPLACE_LABELS.demandOne;
 
   const [page, facets] = await Promise.all([
     fetchListings(params),
-    fetchFacets(),
+    fetchFacets({ q: params.q, category: params.category, city: params.city, scope: params.scope, closesWithin: params.closesWithin }),
   ]);
-
-  const activeCategory = params.category;
-  const activeCity = params.city;
-  const activeScope = params.scope;
-  const activeWithin = params.closesWithin;
-  const hasFilter = !!(params.q || activeCategory || activeCity || activeScope || activeWithin);
-
-  /** Süzgeç bağlantısı — mevcut süzgeçleri korur, sayfayı 1'e döndürür. */
-  const filterHref = (patch: Partial<MarketplaceSearchParams>) => {
-    const next: Record<string, string | undefined> = {
-      q: searchParams.q,
-      kategori: searchParams.kategori,
-      il: searchParams.il,
-      durum: searchParams.durum,
-      kapsam: searchParams.kapsam,
-      sure: searchParams.sure,
-      ...patch,
-    };
-    const sp = new URLSearchParams();
-    for (const [k, v] of Object.entries(next)) if (v) sp.set(k, v);
-    const s = sp.toString();
-    return s ? `${basePath}?${s}` : basePath;
-  };
-  const toggle = <K extends keyof MarketplaceSearchParams>(key: K, value: string, active: boolean) =>
-    filterHref({ [key]: active ? undefined : value } as Partial<MarketplaceSearchParams>);
-
-  const chips = [
-    ...(params.q ? [{ key: "q", label: `"${params.q}"`, href: filterHref({ q: undefined }) }] : []),
-    ...(activeCategory
-      ? [{
-          key: "kategori",
-          label: facets.categories.find((c) => c.id === activeCategory)?.name ?? activeCategory,
-          href: filterHref({ kategori: undefined }),
-        }]
-      : []),
-    ...(activeCity ? [{ key: "il", label: activeCity, href: filterHref({ il: undefined }) }] : []),
-    ...(activeScope
-      ? [{ key: "kapsam", label: SCOPE_LABEL[activeScope], href: filterHref({ kapsam: undefined }) }]
-      : []),
-    ...(activeWithin ? [{ key: "sure", label: `${activeWithin} gün içinde`, href: filterHref({ sure: undefined }) }] : []),
-  ];
+  const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
 
   return (
-    <PublicListPage
-      title={title}
-      lead={lead}
-      search={{
-        action: basePath,
-        defaultValue: searchParams.q,
-        hidden: { kategori: searchParams.kategori, il: searchParams.il, kapsam: searchParams.kapsam, sure: searchParams.sure },
-      }}
-      chips={chips}
-      clearHref={basePath}
-      summary={page.total > 0 ? `${page.total.toLocaleString("tr-TR")} kayıt` : undefined}
-      sidebar={
-        <>
-          <FacetGroup
-            heading="Kategori"
-            items={facets.categories.slice(0, 12).map((c) => ({
-              key: c.id,
-              label: c.name,
-              count: c.count,
-              href: toggle("kategori", c.id, activeCategory === c.id),
-              active: activeCategory === c.id,
-            }))}
-          />
-          <FacetGroup
-            heading="Şehir"
-            items={facets.cities.slice(0, 12).map((c) => ({
-              key: c.city,
-              label: c.city,
-              count: c.count,
-              href: toggle("il", c.city, activeCity === c.city),
-              active: activeCity === c.city,
-            }))}
-          />
-          <FacetGroup
-            heading="Kalan süre"
-            items={(["7", "30"] as const).map((d) => ({
-              key: d,
-              label: `${d} gün içinde kapanacak`,
-              href: toggle("sure", d, activeWithin === d),
-              active: activeWithin === d,
-            }))}
-          />
-          <FacetGroup
-            heading="Kapsam"
-            items={(facets.scopes ?? []).map((s) => ({
-              key: s.scope,
-              label: SCOPE_LABEL[s.scope],
-              count: s.count,
-              href: toggle("kapsam", SCOPE_PARAM[s.scope], activeScope === s.scope),
-              active: activeScope === s.scope,
-            }))}
-          />
-        </>
-      }
-    >
-      {page.items.length === 0 ? (
-        <PublicEmptyState noun={noun} clearHref={hasFilter ? basePath : undefined} />
-      ) : (
-        <ResultGrid count={page.items.length} heading="Talep sonuçları">
-          {page.items.map((l) =>
-            type === "ALIM" ? (
-              <ListingTeaserCard key={l.number} listing={l} />
-            ) : (
-              <ListingCard key={l.number} listing={l} />
-            ),
-          )}
-        </ResultGrid>
-      )}
-      <Pagination
-        page={page.page}
-        total={page.total}
-        pageSize={page.pageSize}
-        basePath={basePath}
-        params={{
-          q: searchParams.q,
-          kategori: searchParams.kategori,
-          il: searchParams.il,
-          durum: searchParams.durum,
-          kapsam: searchParams.kapsam,
-          sure: searchParams.sure,
+    <ListingFilterShell total={page.total} drawer={<ListingFilters facets={facets} idPrefix="m" />}>
+      <PublicListPage
+        title={title}
+        lead={lead}
+        search={{
+          action: basePath,
+          defaultValue: state.q,
+          hidden: {
+            kategori: state.category,
+            sehir: state.cities.join(",") || undefined,
+            kapsam: state.scope,
+            sure: state.within,
+            sirala: state.sort,
+          },
+          placeholder: "Talep başlığı, kalem veya kategori arayın",
         }}
-      />
-    </PublicListPage>
+        chips={[]}
+        clearHref={basePath}
+        chipsNode={<ListingActiveChips facets={facets} />}
+        sidebar={<ListingFilters facets={facets} idPrefix="d" />}
+        summary={
+          <span className="flex flex-wrap items-center justify-between gap-3">
+            <span className="flex items-center gap-3">
+              <MobileFilterButton />
+              <ResultCount noun={noun.toLocaleLowerCase("tr-TR")} />
+            </span>
+            <ListingSortBar />
+          </span>
+        }
+      >
+        <FilterResults>
+          {page.items.length === 0 ? (
+            <PublicEmptyState
+              noun={hasFilter ? "Bu kriterlerle açık talep" : "Açık talep"}
+              clearHref={hasFilter ? basePath : undefined}
+              extra={{ label: "Talep aç", href: signupHref("talep") }}
+            />
+          ) : (
+            <ResultGrid count={page.items.length} heading="Talep sonuçları">
+              {page.items.map((l) => (
+                <ListingTeaserCard key={l.number} listing={l} />
+              ))}
+            </ResultGrid>
+          )}
+        </FilterResults>
+        <Pagination
+          page={page.page}
+          total={page.total}
+          pageSize={page.pageSize}
+          className="mt-10 border-t border-zinc-950/5 pt-6"
+          hrefBuilder={(p) => `${basePath}${buildListingFilterQuery({ ...state, page: p })}`}
+        />
+      </PublicListPage>
+    </ListingFilterShell>
   );
 }

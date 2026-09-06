@@ -30,24 +30,15 @@ export interface ProductFilterState {
   page: number;
 }
 
-export type SearchParamsLike = Record<string, string | string[] | undefined> | URLSearchParams;
+import {
+  getAllParams as getAll,
+  getParam as get,
+  listParam as list,
+  numParam as num,
+  type SearchParamsLike,
+} from "./filter-param-utils";
 
-function get(sp: SearchParamsLike, k: string): string | undefined {
-  if (sp instanceof URLSearchParams) return sp.get(k) ?? undefined;
-  const v = sp[k];
-  return Array.isArray(v) ? v[0] : v;
-}
-function getAll(sp: SearchParamsLike, k: string): string[] {
-  if (sp instanceof URLSearchParams) return sp.getAll(k);
-  const v = sp[k];
-  return v == null ? [] : Array.isArray(v) ? v : [v];
-}
-const num = (v?: string) => {
-  if (!v) return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : undefined;
-};
-const list = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
+export type { SearchParamsLike };
 
 export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string): ProductFilterState {
   const cat = fixedCategory ?? get(sp, "kategori");

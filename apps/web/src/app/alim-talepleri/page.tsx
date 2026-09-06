@@ -1,8 +1,6 @@
 import { PublicLayout } from "@/components/marketplace/public-layout";
-import {
-  ListingIndex,
-  type MarketplaceSearchParams,
-} from "@/components/marketplace/listing-index";
+import { ListingIndex } from "@/components/marketplace/listing-index";
+import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_LABELS } from "@/lib/public/marketplace";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -31,7 +29,7 @@ export const metadata: Metadata = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<MarketplaceSearchParams>;
+  searchParams: Promise<SearchParamsLike>;
 }) {
   // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
   if (!MARKETPLACE_LIVE) notFound();

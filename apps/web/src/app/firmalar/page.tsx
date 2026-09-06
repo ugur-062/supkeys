@@ -1,21 +1,32 @@
 import { CompanyCard } from "@/components/marketplace/company-card";
-import { FacetGroup } from "@/components/marketplace/facets";
-import { Pagination } from "@/components/marketplace/pagination";
+import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components/marketplace/company-filters";
+import { FilterResults, MobileFilterButton, ResultCount } from "@/components/marketplace/filter-shell";
+import { CompanyFilterShell } from "@/components/marketplace/list-filter-shells";
 import { PublicEmptyState } from "@/components/marketplace/public-empty-state";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { PublicListPage, ResultGrid } from "@/components/marketplace/public-list-page";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  activeCompanyFilterCount,
+  buildCompanyFilterQuery,
+  parseCompanyFilters,
+  toDirectoryParams,
+} from "@/lib/public/company-filter-params";
+import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchPublicDirectory, fetchPublicDirectoryFacets } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
+import { signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
-import { companyActivityLabel, isCompanyActivity } from "@rothern/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 /**
- * FİRMA DİZİNİ — HERKESE AÇIK (görünürlük v2, 2026-09-04 kullanıcı kararı;
- * 2 Eylül'de girişli yapılmıştı). Listelenme koşulu API'de: profil kapısı +
- * (≥1 yayında ürün VEYA tamlık ≥ %60). Rothern ID ve iletişim üyeye.
+ * FİRMA DİZİNİ — HERKESE AÇIK (görünürlük v2, 2026-09-04 kullanıcı kararı).
+ * Süzgeç v4 (PROMPT 4, 2026-09-06): ürün dizinindeki kabuk — URL durumu,
+ * geçiş, mobil çekmece, bağlamsal facet, 7 yuvalı sayfalama. Şema tek kaynak
+ * `lib/public/company-filter-params.ts`. Listelenme koşulu API'de: profil
+ * kapısı + (≥1 yayında ürün VEYA tamlık ≥ %60). Rothern ID ve iletişim üyeye.
  *
  * Public rota → `PUBLIC_ROUTE_PREFIXES`te, ISR, nonce'suz CSP, sitemap'te.
  */
@@ -33,122 +44,78 @@ export const metadata: Metadata = {
   },
 };
 
-interface SP {
-  q?: string;
-  il?: string;
-  kategori?: string;
-  faaliyet?: string;
-  dogrulanmis?: string;
-  urunlu?: string;
-  sayfa?: string;
-}
-
-export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<SearchParamsLike> }) {
   if (!MARKETPLACE_LIVE) notFound();
-  const sp = await searchParams;
-  const pageNo = Number(sp.sayfa);
-  const params = {
-    q: sp.q?.trim() || undefined,
-    city: sp.il?.trim() || undefined,
-    category: /^\d{8}$/.test(sp.kategori ?? "") ? sp.kategori : undefined,
-    activity: sp.faaliyet && isCompanyActivity(sp.faaliyet) ? sp.faaliyet : undefined,
-    verified: sp.dogrulanmis === "1",
-    hasProducts: sp.urunlu === "1",
-    page: Number.isFinite(pageNo) && pageNo > 1 ? Math.trunc(pageNo) : undefined,
-  };
-  const [result, facets] = await Promise.all([fetchPublicDirectory(params), fetchPublicDirectoryFacets()]);
-
+  const state = parseCompanyFilters(await searchParams);
+  const params = toDirectoryParams(state);
+  const [result, facets] = await Promise.all([
+    fetchPublicDirectory(params),
+    fetchPublicDirectoryFacets({
+      q: params.q, city: params.city, category: params.category, activity: params.activity,
+      verified: params.verified, hasProducts: params.hasProducts, gold: params.gold,
+    }),
+  ]);
   const base = MARKETPLACE_ROUTES.companies;
-  const href = (patch: Partial<SP>) => {
-    const next: Record<string, string | undefined> = {
-      q: sp.q,
-      il: sp.il,
-      kategori: sp.kategori,
-      faaliyet: sp.faaliyet,
-      dogrulanmis: sp.dogrulanmis,
-      urunlu: sp.urunlu,
-      ...patch,
-    };
-    const usp = new URLSearchParams();
-    for (const [k, v] of Object.entries(next)) if (v) usp.set(k, v);
-    const s = usp.toString();
-    return s ? `${base}?${s}` : base;
-  };
-  const hasFilter = !!(params.q || params.city || params.category || params.activity || params.verified || params.hasProducts);
-
-  const chips = [
-    ...(params.q ? [{ key: "q", label: `"${params.q}"`, href: href({ q: undefined }) }] : []),
-    ...(params.city ? [{ key: "il", label: params.city, href: href({ il: undefined }) }] : []),
-    ...(params.activity
-      ? [{ key: "faaliyet", label: companyActivityLabel(params.activity), href: href({ faaliyet: undefined }) }]
-      : []),
-    ...(params.verified ? [{ key: "dogrulanmis", label: "Doğrulanmış", href: href({ dogrulanmis: undefined }) }] : []),
-    ...(params.hasProducts ? [{ key: "urunlu", label: "Ürünü olan", href: href({ urunlu: undefined }) }] : []),
-  ];
+  const hasFilter = activeCompanyFilterCount(state) > 0 || !!state.q;
 
   return (
     <PublicLayout>
-      <PublicListPage
-        title={MARKETPLACE_LABELS.companies}
-        lead="Rothern'deki alıcı ve tedarikçi firmalar. Faaliyet tipi, şehir ve kategoriye göre süzün; profil ve ürünleri inceleyin. İletişim için ücretsiz hesap."
-        search={{
-          action: base,
-          defaultValue: sp.q,
-          placeholder: "Firma adı, sektör veya hizmet",
-          hidden: { il: sp.il, kategori: sp.kategori, faaliyet: sp.faaliyet, dogrulanmis: sp.dogrulanmis, urunlu: sp.urunlu },
-        }}
-        chips={chips}
-        clearHref={base}
-        summary={result.total > 0 ? `${result.total.toLocaleString("tr-TR")} firma` : undefined}
-        sidebar={
-          <>
-            <FacetGroup
-              heading="Firma profili"
-              items={[
-                { key: "v", label: "Doğrulanmış", count: facets.verified, href: href({ dogrulanmis: params.verified ? undefined : "1" }), active: params.verified },
-                { key: "p", label: "Ürünü olan", count: facets.withProducts, href: href({ urunlu: params.hasProducts ? undefined : "1" }), active: params.hasProducts },
-              ].filter((i) => i.count > 0 || i.active)}
-            />
-            <FacetGroup
-              heading="Faaliyet tipi"
-              items={facets.activities.map((a) => ({
-                key: a.activity,
-                label: companyActivityLabel(a.activity),
-                count: a.count,
-                href: href({ faaliyet: params.activity === a.activity ? undefined : a.activity }),
-                active: params.activity === a.activity,
-              }))}
-            />
-            <FacetGroup
-              heading="Şehir"
-              items={facets.cities.slice(0, 15).map((c) => ({
-                key: c.city,
-                label: c.city,
-                count: c.count,
-                href: href({ il: params.city === c.city ? undefined : c.city }),
-                active: params.city === c.city,
-              }))}
-            />
-          </>
-        }
-      >
-        {result.items.length === 0 ? (
-          <PublicEmptyState noun="Firma" clearHref={hasFilter ? base : undefined} />
-        ) : (
-          <ResultGrid count={result.items.length}>
-            {result.items.map((c) => (
-              <CompanyCard key={c.slug} company={c} />
-            ))}
-          </ResultGrid>
-        )}
-        <Pagination
-          page={result.page}
-          total={result.total}
-          pageSize={result.pageSize}
-          basePath={base}
-          params={{ q: sp.q, il: sp.il, kategori: sp.kategori, faaliyet: sp.faaliyet, dogrulanmis: sp.dogrulanmis, urunlu: sp.urunlu }}
-        />
-      </PublicListPage>
+      <CompanyFilterShell total={result.total} drawer={<CompanyFilters facets={facets} idPrefix="m" />}>
+        <PublicListPage
+          title={MARKETPLACE_LABELS.companies}
+          lead="Rothern'deki alıcı ve tedarikçi firmalar. Faaliyet tipi, şehir ve kategoriye göre süzün; profil ve ürünleri inceleyin. İletişim için ücretsiz hesap."
+          search={{
+            action: base,
+            defaultValue: state.q,
+            placeholder: "Firma adı, sektör veya hizmet",
+            hidden: {
+              sehir: state.cities.join(",") || undefined,
+              faaliyet: state.activities.join(",") || undefined,
+              kategori: state.categories.join(",") || undefined,
+              dogrulanmis: state.verified ? "1" : undefined,
+              urunlu: state.hasProducts ? "1" : undefined,
+              gold: state.gold ? "1" : undefined,
+              sirala: state.sort,
+            },
+          }}
+          chips={[]}
+          clearHref={base}
+          chipsNode={<CompanyActiveChips facets={facets} />}
+          sidebar={<CompanyFilters facets={facets} idPrefix="d" />}
+          summary={
+            <span className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-3">
+                <MobileFilterButton />
+                <ResultCount noun="firma" />
+              </span>
+              <CompanySortBar />
+            </span>
+          }
+        >
+          <FilterResults>
+            {result.items.length === 0 ? (
+              <PublicEmptyState
+                noun={hasFilter ? "Bu kriterlerle firma" : "Firma"}
+                clearHref={hasFilter ? base : undefined}
+                extra={{ label: "Firmanı listele", href: signupHref("vitrin") }}
+              />
+            ) : (
+              <ResultGrid count={result.items.length}>
+                {result.items.map((c) => (
+                  <CompanyCard key={c.slug} company={c} />
+                ))}
+              </ResultGrid>
+            )}
+          </FilterResults>
+          <Pagination
+            page={result.page}
+            total={result.total}
+            pageSize={result.pageSize}
+            className="mt-10 border-t border-zinc-950/5 pt-6"
+            hrefBuilder={(p) => `${base}${buildCompanyFilterQuery({ ...state, page: p })}`}
+          />
+        </PublicListPage>
+      </CompanyFilterShell>
     </PublicLayout>
   );
 }
