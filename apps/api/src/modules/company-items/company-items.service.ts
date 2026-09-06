@@ -316,7 +316,23 @@ export class CompanyItemsService {
    * kullanıcı yanlışlıkla kaldırdığını geri alabilmeli.
    */
   async setActive(user: AuthenticatedCompanyUser, id: string, isActive: boolean) {
-    await this.requireOwn(user.companyId, id, { anyState: true });
+    const before = await this.requireOwn(user.companyId, id, { anyState: true });
+    // Ücretsiz paket tavanı ARŞİVDEN GERİ ALMADA da geçerli (denetim 2026-09-06
+    // #2): arşivlenen ürün isPublic'i korur; tavan yalnız publish'te olsaydı
+    // "10 yayımla → arşivle → 10 daha → geri al" 20 yayında ürün üretirdi.
+    if (isActive && before.isPublic) {
+      const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
+      if (limit != null) {
+        const published = await this.prisma.companyItem.count({
+          where: { companyId: user.companyId, isActive: true, isPublic: true },
+        });
+        if (published >= limit) {
+          throw new ForbiddenException(
+            `Ücretsiz pakette en fazla ${limit} ürün yayında olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.`,
+          );
+        }
+      }
+    }
     const row = await this.prisma.companyItem.update({
       where: { id },
       data: { isActive },

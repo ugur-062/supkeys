@@ -1,5 +1,5 @@
-import { tierAtLeast } from "@rothern/shared";
 import { hasValidConnection } from "../../common/company/valid-connection";
+import { isListingVisibleToViewer, listingBidEligibility } from "../../common/company/listing-visibility";
 import {
   BadRequestException,
   ForbiddenException,
@@ -111,14 +111,17 @@ export class CompanyListingDocumentsService {
     // dosyalarını da indirebilmeli (requireBidDocument akışı buna dayanır).
     if (isInvited) return;
 
-    let allowed: boolean;
-    if (listing.visibility === "PUBLIC") {
-      allowed = connected || tierAtLeast(user.tier, "SILVER");
-    } else if (listing.visibility === "CONNECTIONS") {
-      allowed = connected;
-    } else {
-      allowed = false; // PRIVATE → yalnız davetli (yukarıda döndü)
-    }
+    // TEK KAYNAK (denetim 2026-09-06 #3 — eskiden kural burada elle kopyalıydı):
+    // görünürlük `isListingVisibleToViewer` (PUBLIC herkese, CONNECTIONS bağlıya,
+    // PRIVATE yalnız davetliye — yukarıda döndü) ∧ ücretsiz-üye gizliliği
+    // `listingBidEligibility.hidden` (PUBLIC ∧ bağsız ∧ STANDART → yok).
+    let allowed =
+      isListingVisibleToViewer(listing.visibility, { isInvited, connectedToOwner: connected }) &&
+      !listingBidEligibility(listing.visibility, {
+        isInvited,
+        connectedToOwner: connected,
+        viewerTier: user.tier,
+      }).hidden;
 
     // Ülke kapsamı (uluslararası → hedef ülke; yurtiçi → aynı ülke).
     if (allowed) {

@@ -611,6 +611,74 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
   });
 });
 
+describe("profil talep listesi — ücretsiz izleyen (2026-09-06)", () => {
+  it("STANDART bağsız izleyen PAKETLİ firmanın profilinde PUBLIC talebi GÖRMEZ; bağlanınca görür", async () => {
+    const { service } = rig();
+    const target = await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
+    const targetCode = await giveRothernId(target.company.id);
+    await prisma.company.update({ where: { id: target.company.id }, data: { publicEnabled: true } });
+    const listing = await makeListing(prisma, {
+      companyId: target.company.id,
+      createdById: target.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+    });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART", country: "TR" });
+    const before = (await service.getProfile(std.auth, targetCode)) as { listings: { id: string }[] };
+    expect(before.listings.map((l) => l.id)).not.toContain(listing.id);
+
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: target.company.id,
+        inviteeCompanyId: std.company.id,
+        invitedById: target.user.id,
+        status: "ACTIVE",
+        origin: "PREMIUM",
+        decidedAt: new Date(),
+      },
+    });
+    const after = (await service.getProfile(std.auth, targetCode)) as { listings: { id: string }[] };
+    expect(after.listings.map((l) => l.id)).toContain(listing.id);
+
+    const silver = await makeCompanyWithUser(prisma, { tier: "SILVER", country: "TR" });
+    const paidView = (await service.getProfile(silver.auth, targetCode)) as { listings: { id: string }[] };
+    expect(paidView.listings.map((l) => l.id)).toContain(listing.id);
+  });
+
+  it("GEÇERSİZ bağlantı (kuran taraf ücretsiz) profilde talep açmaz — tek kaynak hasValidConnection (denetim #2)", async () => {
+    const { service } = rig();
+    const target = await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
+    const targetCode = await giveRothernId(target.company.id);
+    await prisma.company.update({ where: { id: target.company.id }, data: { publicEnabled: true } });
+    const listing = await makeListing(prisma, {
+      companyId: target.company.id,
+      createdById: target.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+    });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART", country: "TR" });
+    // Bağlantıyı KURAN taraf ücretsiz → bağlantı ACTIVE görünse de geçersiz.
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: std.company.id,
+        inviteeCompanyId: target.company.id,
+        invitedById: std.user.id,
+        status: "ACTIVE",
+        origin: "INVITE",
+        decidedAt: new Date(),
+      },
+    });
+    const prof = (await service.getProfile(std.auth, targetCode)) as {
+      connectionStatus: string;
+      listings: { id: string }[];
+    };
+    expect(prof.connectionStatus).toBe("active"); // UI rozeti ham durumu gösterir
+    expect(prof.listings.map((l) => l.id)).not.toContain(listing.id); // talep listesi geçerli bağlantı ister
+  });
+});
+
 describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif", () => {
   /** ACTIVE bağlantı kur (kuran = inviter). */
   async function connect(

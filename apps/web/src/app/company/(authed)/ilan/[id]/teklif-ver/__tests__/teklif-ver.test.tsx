@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   detail: undefined as unknown,
+  /** Detay isteği hatası (ör. 403 TIER_REQUIRED) — kilit kartı testi. */
+  error: null as unknown,
   isLoading: false,
   mutateAsync: vi.fn(),
   push: vi.fn(),
@@ -25,7 +27,7 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const mod = await importOriginal<Record<string, unknown>>();
   return {
     ...mod,
-    useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading }),
+    useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading, error: h.error }),
     usePlaceBid: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
   };
 });
@@ -113,6 +115,19 @@ describe("TeklifVerPage — kapılar", () => {
     expect(
       screen.getByText(/Teklif zaten verildi/),
     ).toBeInTheDocument();
+  });
+
+  it("herkese açık talep ücretsiz üyeye 403 TIER_REQUIRED → 'bulunamadı' DEĞİL Silver kilit kartı", () => {
+    h.detail = undefined;
+    h.error = { response: { status: 403, data: { code: "TIER_REQUIRED", minTier: "SILVER" } } };
+    try {
+      render(<TeklifVerPage />);
+      expect(screen.getByText(/Bu herkese açık talebe teklif Silver paketiyle açılır/)).toBeInTheDocument();
+      expect(screen.queryByText(/bulunamadı/)).toBeNull();
+      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/nasil-calisir#fiyatlar");
+    } finally {
+      h.error = null;
+    }
   });
 
   it("teklif hakkı yok (ücretsiz, bağsız) → Silver kapısı", () => {

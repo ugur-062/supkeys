@@ -2,7 +2,7 @@
 
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
-import { SilverLockCard } from "@/components/company/silver-lock-card";
+import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
@@ -1566,8 +1566,8 @@ export default function ListingDetailPage() {
             Bu ilana teklif vermek için <strong>Silver paketi</strong>
             gerekir (ya da ilanı açan firmadan bağlantı daveti alın).
           </Text>
-          <Button href="/company/premium" className="shrink-0">
-            Paket Al
+          <Button href={PRICING_HREF} className="shrink-0">
+            Paketleri Gör
           </Button>
         </div>
       ) : l.roleAllowsBid === false ? (

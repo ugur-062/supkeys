@@ -23,6 +23,7 @@ import {
 } from "../company-docs/company-docs.service";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { enforceProductLimit } from "../../common/company/product-limit";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { EmailSuppressionService } from "../email/email-suppression.service";
@@ -1252,12 +1253,18 @@ export class AdminCompaniesService {
           where: { inviterCompanyId: id, status: "PENDING" },
         }),
       ]);
+      // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
+      // taslağa çekilir (silinmez) — üyelik cron'uyla aynı kural.
+      const trimmed = await enforceProductLimit(this.prisma, id, "STANDART").catch(() => ({ unpublished: 0 }));
       void this.notifyCompany(
         id,
         "Paket üyeliğiniz sonlandırıldı",
         [
           "Merhaba,",
-          "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Artık yeni satın alma talebi açamaz, firma davet edemez veya dizinde görünemezsiniz; mevcut ilanlarınızı tamamlayabilir ve gelen davetlere teklif verebilirsiniz.",
+          "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
+          ...(trimmed.unpublished > 0
+            ? [`Tavanı aşan ${trimmed.unpublished} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.`]
+            : []),
           "Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
         ],
         "membership_downgraded",

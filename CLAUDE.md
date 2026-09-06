@@ -1272,6 +1272,26 @@ olduğu anda kilide çarpar.
   ile açılır", CTA paket sayfası (talep bağlantısı verilmez, 403 alırdı).
   Sözleşme: `tier-visibility.spec` (yeniden), `visibility-matrix`,
   `seller-tenders`, `audit-fixes` çevrildi; web `seller-tenders-view.test`.
+- **Denetim turu (2026-09-06, iki okuma ajanı + elle):** (a) Profilim
+  sayfası ücretsiz üyeye hâlâ "premium özelliği" kartı basıyordu — kaldırıldı
+  (Faz 1 ile çelişiyordu); (b) `hidden` kuralına **`hasBid` istisnası**:
+  bağlı/davetliyken teklif vermiş ücretsiz firma bağlantı düşse de kendi
+  teklifinin talebini açar (liste, detay, belge; kilit özeti onu saymaz;
+  `canBid` yine paketli); (c) firma profili talep listesi
+  (`visibleOwnerListingWhere(…, viewerPaid)`) ücretsiz izleyene bağsız PUBLIC'i
+  göstermez ve "bağlı" kararı `hasValidConnection` tek kaynağından (ham ACTIVE
+  değil); (d) ilan belgeleri servisi kuralı kopyalamak yerine
+  `isListingVisibleToViewer` + `hidden` okur; (e) **tavan atlatma**: arşivden
+  geri alma (`setActive(true)`) da tavanı denetler (403); (f) **kademe
+  düşüşü**: `common/company/product-limit.ts` `enforceProductLimit` — üyelik
+  cron'u ve admin `setTier(STANDART)` tavanı aşan yayında ürünleri taslağa
+  çeker (silmez, e-postada sayı), aksi hâlde bir aylık Silver'la 500 ürün
+  ücretsiz kalırdı; (g) kategori duyurusu alıcıyla geçerli bağlantılı ücretsiz
+  firmaya AÇIK metni gönderir; (h) 403 `TIER_REQUIRED` yanıtında genel toast
+  susar (kilit kartı zaten var), talep sayfası CTA'sı ve `PremiumGate`
+  faydaları üç paket diline çevrildi; teklif sayfası 403'te kilit kartı.
+  Bilinen sınırlar: ürün dizini sırası ham `tier` (cron'a dek 1 gün sapma),
+  publish tavanı TOCTOU (kilit yok — kötüye kullanım görülürse tx).
 - **Faz 3 — anonim bilgi talebi (BİTTİ):** `listForCompany(companyId, page,
   { viewerPaid })` ücretsiz satıcıda AD ve FİRMA ADINI sunucuda düşürür
   (`anonymous: true`, yanıt `locked: true`); mesaj, adet, ürün ve KAYITLI
@@ -1362,7 +1382,7 @@ talebi → teklif → kazanılan), oran çubuklu sıralama kartları. API
   + unique, `createMany skipDuplicates`; kendi görüntülemesi kaydedilmez;
   180 gün sonra cron siler (04:20).
 - `GET company/views/visitors?days=7|30|90&page=`: sayılar HERKESE (toplam,
-  profil/ürün, kimlikli, anonim); kimlikli LİSTE **Bronz+** (Standart'ta
+  profil/ürün, kimlikli, anonim); kimlikli LİSTE **Silver+** (Standart'ta
   `locked` + kaç firma). Satır: firma (logo, ad, şehir, faaliyet, Doğrulanmış),
   ne baktı (profil / ürün adları), son ziyaret, ziyaret sayısı, Bağlantılı.
 - `GET company/views/insights?days=`: **Silver+** (Raporlar kapısı). Profil/
@@ -1519,7 +1539,8 @@ vitrinde durur; ikiye bölmek aynı ürünü iki yerde güncelleme borcu üretir
 | Ürün | vitrin (kalıcı, opt-in) | **firma adıyla** |
 
 Bir alım talebinde "kim alıyor" rekabet istihbaratıdır; ürün sayfası ise
-firmanın kendi opt-in vitrini ve satılan bir özelliktir (BRONZ+). Sözleşme
+firmanın kendi opt-in vitrinidir (2026-09-06'dan beri HER pakete açık;
+paketin karşılığı sıralama önceliği, tavan ve belge/video). Sözleşme
 testleri ikisini birlikte kilitliyor (`public-product.spec.ts`).
 
 ### Fiyat — üç mod, hiçbiri yalan gerektirmez
@@ -1798,9 +1819,9 @@ GÖSTERİLMEZ**; `PUBLIC_LISTING_SELECT` bu kolonları hiç çekmez, JSON-LD'de 
 söylerse gizlemeye çalıştığımız kimliği makine-okunur biçimde geri verir).
 
 Gerekçe: bir alım talebinde "kim alıyor" doğrudan rekabet istihbaratıdır
-("X firması 40 ton çelik boru arıyor" = X'in üretim planı). Panelin kendi
-maskeli önizlemesi de aynı kararı veriyor — STANDART üye PUBLIC ilanda
-`owner`ı görmüyor; anonim ziyaretçi ücretsiz üyeden çoğunu göremez.
+("X firması 40 ton çelik boru arıyor" = X'in üretim planı). Panelde ücretsiz
+üye bağsız PUBLIC talebi HİÇ görmez (2026-09-06, eski maskeli önizleme
+kalktı); anonim ziyaretçi teaser görür ama sahibi asla.
 
 Gösterilen: **şehir, ülke, sektör, faaliyet tipi** — kimlik değil nitelik,
 teklif verecek tarafın lojistik/uygunluk kararı için gerekli. Kenar çubuğunda
@@ -1808,7 +1829,8 @@ teklif verecek tarafın lojistik/uygunluk kararı için gerekli. Kenar çubuğun
 açıktır" ibaresi (eksik değil KURAL olduğu anlaşılsın diye).
 
 Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir: opt-in
-(`publicEnabled`) ve satılan bir özellik (BRONZ+ faydası). **Firma dizini
+(`publicEnabled`), her pakete açık (2026-09-06; paketli firma dizinde önce
+sıralanır). **Firma dizini
 `/tedarikciler` giriş gerektirir** — uç `company/directory`,
 `CompanyJwtAuthGuard` arkasında; kapı çerezin varlığı değil sunucu kararıdır.
 Sayfa `noindex`, sitemap ve robots Allow dışı; menüdeki bağlantı duruyor
@@ -1829,20 +1851,18 @@ satış beyanı) · `terms`/`paymentNote` (serbest metin, IBAN/telefon taşıyab
 · `logistics`/adresler · `internalNotes` · `createdById` · cuid `id`'ler.
 `description` DAHİL — sayfanın içeriği odur.
 
-### Maskeli freemium ile ilişki
+### Ücretsiz üye ile ilişki (2026-09-06 — maskeli freemium KALKTI)
 
-`listingBidEligibility` PUBLIC ilanı STANDART üyeye maskeli gösteriyor:
-`description`, `owner.name`, `keywords`, `terms`, `paymentNote`, fiyatlar
-gizli. Pazar yeri bu maskeyle büyük ölçüde HİZALI — sahip adı, `terms`,
-`paymentNote` ve taban fiyat orada da yok.
-
-Kalan fark: **`description` ve `keywords`** anonim ziyaretçiye açık, STANDART
-üyeye kapalı. Bilinçli: açıklama sayfanın İÇERİĞİDİR, onsuz ince içerik
-üretirdik ve pazar yerinin varlık sebebi kalmazdı. Küçük bir tutarsızlık
-sürüyor (çıkış yapan açıklamayı görür, ücretsiz üye görmez); maskeyi PUBLIC
-ilanlarda tümden kaldırmak — kapıyı "görmek"ten "teklif vermek"e taşımak,
-zaten BRONZ+/KYC istiyor — bunu da kapatır. Yayın öncesi verilecek karar,
-`docs/launch-checklist.md` § Pazar yeri açılışı.
+Eski hâl: `listingBidEligibility` PUBLIC ilanı STANDART üyeye MASKELİ
+gösteriyordu (açıklama/sahip/anahtar kelime gizli). Kullanıcı kararıyla
+maske tümden kalktı: ücretsiz üye bağlı/davetli olmadığı PUBLIC talebi
+panelde HİÇ görmez (liste, sayaç, profil talep listesi, detay 403
+`TIER_REQUIRED`); yalnız kilit kartında gerçek SAYI + bulanık örnek görür.
+Anonim ziyaretçi pazar yerinde teaser'ı görmeye devam eder (SEO yüzeyi,
+sahip asla). "Çıkış yapan daha çok görür" tutarsızlığı bilinçli: pazar
+yeri pazarlama yüzeyi, panel satılan yüzey. Tek kaynak `listing-visibility.ts`
+`hidden` + `sellerVisibleWhere({viewerPaid})` + `visibleOwnerListingWhere(
+…, viewerPaid)`.
 
 ### Ürün dizini — süzgeç YOLDA (2026-09-02)
 

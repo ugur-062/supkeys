@@ -9,6 +9,7 @@
 import { ForbiddenException } from "@nestjs/common";
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import { buildDirectory } from "../../src/common/company/company-directory";
+import { enforceProductLimit } from "../../src/common/company/product-limit";
 import { CompanyItemsController } from "../../src/modules/company-items/company-items.controller";
 import { CompanyItemsService } from "../../src/modules/company-items/company-items.service";
 import { CompanyPaidTierGuard } from "../../src/modules/company-auth/guards/company-paid-tier.guard";
@@ -160,5 +161,55 @@ describe("ücretsiz vitrin — profil, dizin ve sıra", () => {
     await prisma.company.update({ where: { id: expired.company.id }, data: { industry: "Güncel" } });
     const dir = await buildDirectory(prisma, {});
     expect(dir.items.map((c) => c.slug)).toEqual(["live-co", "expired-co"]);
+  });
+});
+
+describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026-09-06)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("arşivden GERİ ALMA tavanı denetler: 10 yayında + arşivli public ürün → 403; biri vitrinden çekilince geri alınır", async () => {
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const svc = items();
+    for (let i = 0; i < 10; i += 1) {
+      const d = await draftProduct(std.company.id, std.user.id);
+      await svc.publish(std.auth, d.id);
+    }
+    const archived = await draftProduct(std.company.id, std.user.id, {
+      isPublic: true,
+      publishedAt: new Date(),
+      slug: "arsivli-public",
+      isActive: false,
+    });
+    await expect(svc.setActive(std.auth, archived.id, true)).rejects.toBeInstanceOf(ForbiddenException);
+    const first = await prisma.companyItem.findFirstOrThrow({ where: { companyId: std.company.id, isActive: true, isPublic: true } });
+    await svc.unpublish(std.auth, first.id);
+    await expect(svc.setActive(std.auth, archived.id, true)).resolves.toBeTruthy();
+    const published = await prisma.companyItem.count({ where: { companyId: std.company.id, isActive: true, isPublic: true } });
+    expect(published).toBe(10);
+  });
+
+  it("enforceProductLimit: STANDART'a düşen firmada en iyi 10 ürün kalır, kalanı TASLAĞA çekilir (silinmez); paketli kademede dokunulmaz", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const ids: string[] = [];
+    for (let i = 0; i < 12; i += 1) {
+      const d = await draftProduct(co.company.id, co.user.id, {
+        isPublic: true,
+        publishedAt: new Date(Date.now() - i * 1000),
+        slug: `urun-${i}`,
+        completionScore: 100 - i,
+      });
+      ids.push(d.id);
+    }
+    expect(await enforceProductLimit(prisma, co.company.id, "SILVER")).toMatchObject({ unpublished: 0 });
+    const r = await enforceProductLimit(prisma, co.company.id, "STANDART");
+    expect(r).toMatchObject({ unpublished: 2, kept: 10, limit: 10 });
+    const stillPublic = await prisma.companyItem.findMany({ where: { companyId: co.company.id, isPublic: true }, select: { id: true } });
+    expect(stillPublic.map((x) => x.id).sort()).toEqual(ids.slice(0, 10).sort());
+    // Düşenler silinmedi, slug korunur.
+    const dropped = await prisma.companyItem.findMany({ where: { id: { in: ids.slice(10) } }, select: { isPublic: true, slug: true, isActive: true } });
+    expect(dropped).toHaveLength(2);
+    expect(dropped.every((d) => !d.isPublic && d.isActive && d.slug)).toBe(true);
   });
 });

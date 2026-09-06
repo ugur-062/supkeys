@@ -10,6 +10,7 @@ import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { appRoutes } from "../../../common/company/app-routes";
+import { enforceProductLimit } from "../../../common/company/product-limit";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -135,6 +136,19 @@ export class MembershipScheduler implements OnModuleInit {
     this.logger.log(
       `${ids.length} firmanın premium süresi doldu → STANDARD; giden bekleyen davetler iptal edildi`,
     );
+    // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
+    // taslağa çekilir (silinmez) — sayı e-postada söylenir.
+    const trimmed = new Map<string, number>();
+    for (const c of downgraded) {
+      try {
+        const r = await enforceProductLimit(this.prisma, c.id, "STANDART");
+        if (r.unpublished > 0) trimmed.set(c.id, r.unpublished);
+      } catch (err) {
+        this.logger.warn(
+          `Ürün tavanı uygulanamadı (${c.id}): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
 
     // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
     const baseUrl =
@@ -156,8 +170,13 @@ export class MembershipScheduler implements OnModuleInit {
               heading: "Premium üyeliğiniz sona erdi",
               paragraphs: [
                 "Merhaba,",
-                "Premium (Rothern) üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Artık yeni satın alma talebi açamaz, firma davet edemez veya dizinde görünemezsiniz; mevcut ilanlarınızı tamamlayabilir ve gelen davetlere teklif verebilirsiniz.",
-                "Tekrar premium'a geçmek için hesabınızdan yükseltme yapabilirsiniz.",
+                "Paket üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
+                ...(trimmed.get(c.id)
+                  ? [
+                      `Tavanı aşan ${trimmed.get(c.id)} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.`,
+                    ]
+                  : []),
+                "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
               ],
               ctaLabel: "Premium'a Geç",
               ctaUrl: appRoutes.premium(baseUrl),

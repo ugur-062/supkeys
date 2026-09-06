@@ -147,6 +147,38 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     expect(payload).not.toContain("/company/ilan/");
   });
 
+  it("ücretsiz ama alıcıyla GEÇERLİ bağlantılı satıcı AÇIK metni alır (talebi görebilir) — denetim #5", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { sellerCategoryIds: [SEG], billingEmail: "bagli@firma.com" },
+    });
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: owner.company.id,
+        inviteeCompanyId: seller.company.id,
+        invitedById: owner.user.id,
+        status: "ACTIVE",
+        origin: "PREMIUM",
+        decidedAt: new Date(),
+      },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [CLASS],
+    });
+    await service.notifyCategoryMatchedCompanies(listing.id);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const sent = (email.send as jest.Mock).mock.calls[0][0] as { subject: string; templateData: unknown };
+    expect(sent.subject).not.toMatch(/Silver ile açılır/);
+    expect(JSON.stringify(sent.templateData)).toContain("/company/satis");
+  });
+
   it("F1 kontrol: GELECEK bitişli PAKET satıcı duyuru ALIR (efektif PAKET)", async () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

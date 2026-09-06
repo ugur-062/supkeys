@@ -81,7 +81,11 @@ companyApi.interceptors.response.use(
     }
 
     if (status === 403) {
-      toast.error(pickMessage(data, "Bu işlem için yetkiniz yok"));
+      // Paket kilidi (TIER_REQUIRED): sayfa zaten kilit kartı basıyor — toast
+      // aynı mesajı ikinci kez (ve her odak yenilemesinde) gösterirdi.
+      if ((data as { code?: string } | undefined)?.code !== "TIER_REQUIRED") {
+        toast.error(pickMessage(data, "Bu işlem için yetkiniz yok"));
+      }
       return Promise.reject(error);
     }
 

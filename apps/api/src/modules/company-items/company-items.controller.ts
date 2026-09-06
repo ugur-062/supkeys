@@ -24,12 +24,13 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { MAX_MONEY, UNITS } from "@rothern/shared";
+import { MAX_MONEY, UNITS, PRODUCT_MEDIA_TIER } from "@rothern/shared";
 import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -335,6 +336,7 @@ export class CompanyItemsController {
    */
   @Post("documents/upload-url")
   @RequireCompanyPermission("sell:product:manage")
+  @RequireTier(PRODUCT_MEDIA_TIER)
   @UseGuards(CompanyPaidTierGuard)
   documentUploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
@@ -349,6 +351,7 @@ export class CompanyItemsController {
 
   @Post("documents/resolve")
   @RequireCompanyPermission("sell:product:manage")
+  @RequireTier(PRODUCT_MEDIA_TIER)
   @UseGuards(CompanyPaidTierGuard)
   documentResolve(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,

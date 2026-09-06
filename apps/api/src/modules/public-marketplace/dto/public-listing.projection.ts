@@ -40,12 +40,13 @@ import { Prisma } from "@rothern/db";
  *   İlanı KİMİN açtığı herkese açık sayfada gösterilmez. Bir alım talebinde
  *   bu bilgi doğrudan rekabet istihbaratıdır ("X firması 40 ton çelik boru
  *   arıyor" = X'in üretim planı); satış ilanında da müşteri listesini açık
- *   eder. Panelin kendi maskeli önizlemesi de aynı kararı veriyor: STANDART
- *   üye PUBLIC bir ilanda `owner`ı görmüyor (`listingBidEligibility`).
- *   Anonim ziyaretçi, giriş yapmış ücretsiz üyeden DAHA ÇOĞUNU göremez.
+ *   eder. Panelde ücretsiz (STANDART) üye bağsız PUBLIC talebi HİÇ görmez
+ *   (2026-09-06, `listingBidEligibility.hidden`; eski maskeli önizleme kalktı).
+ *   Anonim ziyaretçi teaser'ı görür (başlık, açıklama, kalem sayısı) ama
+ *   sahibi asla — sahip kimliği hiçbir yüzeyde ücretsiz/anonim tarafa açılmaz.
  *
  *   Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir:
- *   orası ayrı, OPT-IN (`publicEnabled`) ve satılan bir özelliktir (SILVER+).
+ *   orası ayrı, OPT-IN (`publicEnabled`) ve her pakete açık (2026-09-06).
  *   İlan sayfasından oraya bağlantı da verilmez — bağlantının kendisi kimliği
  *   ele verirdi.
  *

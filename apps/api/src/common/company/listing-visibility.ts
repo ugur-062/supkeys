@@ -32,8 +32,11 @@ export function isListingVisibleToViewer(
  * Teklif-uygunluğu + GİZLİLİK TEK KAYNAK (üçüncü tanım yasak; getOne,
  * sellerTenders/sellerVisibleWhere, placeBid aynı formülü buradan okur):
  * - canBid: davet ∨ (CONNECTIONS ∧ bağlı) ∨ (PUBLIC ∧ (bağlı ∨ SILVER+)).
- * - hidden: PUBLIC ∧ bağlı-değil ∧ davetsiz ∧ paket yok (STANDART) → talep
- *   ücretsiz üyeye HİÇ görünmez: listeye girmez, detay 403 `TIER_REQUIRED`
+ * - hidden: PUBLIC ∧ bağlı-değil ∧ davetsiz ∧ TEKLİFSİZ ∧ paket yok (STANDART)
+ *   → talep ücretsiz üyeye HİÇ görünmez: listeye girmez, detay 403 `TIER_REQUIRED`.
+ *   `hasBid` istisnası (denetim 2026-09-06 #4): bağlı/davetliyken teklif vermiş
+ *   firma bağlantı düşünce kendi teklifinin talebini yine açar (Tekliflerim
+ *   zaten listeliyor; geçerliliği uzatma/yeni tur akışları 403 arkasında kalmasın).
  *   (404 değil — pazar yerinde teaser'ı zaten herkese açık, varlığı sır değil;
  *   derin bağlantıdan gelen üye paket ekranı görmeli). Eski "maskeli önizleme"
  *   KALDIRILDI (2026-09-06, kullanıcı kararı "premium çekmek için"): ücretsiz
@@ -45,6 +48,8 @@ export function listingBidEligibility(
     isInvited: boolean;
     connectedToOwner: boolean;
     viewerTier: string;
+    /** İzleyenin bu talepte (herhangi durumda) teklifi var — gizlilik istisnası. */
+    hasBid?: boolean;
   },
 ): { canBid: boolean; hidden: boolean } {
   const paid = tierAtLeast(opts.viewerTier, PAID_TIER);
@@ -56,6 +61,7 @@ export function listingBidEligibility(
     visibility === "PUBLIC" &&
     !opts.connectedToOwner &&
     !opts.isInvited &&
+    !opts.hasBid &&
     !paid;
   return { canBid, hidden };
 }
@@ -63,10 +69,15 @@ export function listingBidEligibility(
 export function visibleOwnerListingWhere(
   viewerCompanyId: string,
   connectedToOwner: boolean,
+  /** İzleyen efektif SILVER+ mı — ücretsiz izleyen bağsız PUBLIC'i GÖRMEZ (hidden kuralı). */
+  viewerPaid = true,
 ): Prisma.ListingWhereInput {
   return {
     OR: [
-      { visibility: "PUBLIC" },
+      ...(connectedToOwner || viewerPaid
+        ? [{ visibility: "PUBLIC" as const }]
+        : // Ücretsiz bağsız izleyen: yalnız TEKLİF VERDİĞİ PUBLIC talepler (hasBid istisnası).
+          [{ visibility: "PUBLIC" as const, bids: { some: { bidderCompanyId: viewerCompanyId } } }]),
       ...(connectedToOwner
         ? [{ visibility: "CONNECTIONS" as const }]
         : []),

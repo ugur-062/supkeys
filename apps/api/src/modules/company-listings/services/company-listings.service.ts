@@ -504,8 +504,17 @@ export class CompanyListingsService {
     const action = isBuyDemand ? "teklif vermek" : "satın almak";
     // Ücretsiz (efektif STANDART) alıcı: talep ona KİLİTLİ — metin dürüst olsun,
     // CTA paket sayfasına (kilit kartı satış anasayfasında da sayıyı gösterir).
+    // Ücretsiz ama alıcıyla GEÇERLİ bağlantısı olan firma talebi görebilir ve
+    // teklif verebilir → ona da açık metin (denetim 2026-09-06 #5).
+    const ownerConnected = new Set(await this.connectedCompanyIds(listing.companyId));
     const isFree = new Map(
-      candidates.map((c) => [c.id, !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PAID_TIER)] as const),
+      candidates.map(
+        (c) =>
+          [
+            c.id,
+            !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PAID_TIER) && !ownerConnected.has(c.id),
+          ] as const,
+      ),
     );
     const lockedText = {
       subject: `Kategorinizde yeni bir ${label} var — Silver ile açılır`,
@@ -2090,7 +2099,11 @@ export class CompanyListingsService {
                       ? { visibility: "PUBLIC" as const }
                       : {
                           visibility: "PUBLIC" as const,
-                          companyId: { in: o.connectedIds },
+                          OR: [
+                            { companyId: { in: o.connectedIds } },
+                            // hasBid istisnası: teklif verdiği talep bağlantı düşse de görünür.
+                            { bids: { some: { bidderCompanyId: o.companyId } } },
+                          ],
                         },
                     {
                       visibility: "CONNECTIONS" as const,
@@ -2557,6 +2570,7 @@ export class CompanyListingsService {
         visibility: "PUBLIC",
         companyId: { notIn: [companyId, ...blockedIds, ...connectedIds] },
         invitations: { none: { invitedCompanyId: companyId } },
+        bids: { none: { bidderCompanyId: companyId } },
       },
       select: {
         title: true,
@@ -3031,6 +3045,7 @@ export class CompanyListingsService {
       isInvited,
       connectedToOwner: connected,
       viewerTier: user.tier,
+      hasBid: !!myBid,
     });
     // Ücretsiz üye, bağlı/davetli olmadığı PUBLIC talebi GÖREMEZ (2026-09-06;
     // eski maskeli önizleme kalktı). 404 değil 403: talep pazar yerinde zaten

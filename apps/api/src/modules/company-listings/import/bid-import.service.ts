@@ -36,7 +36,7 @@ import { assertXlsxSafe, cellText, parseLocaleNumber } from "./listing-item-impo
  *  - fromDocRows: AI'ın okuduğu belge satırları → eşleştirme motoru → önizleme
  *    (AI servisi çağırır; bu servis model bilmez).
  * Kalemler + yetki `CompanyListingsService.getOne` üzerinden (görünürlük,
- * blok, maskeli-freemium aynen uygulanır; teaser'da items boş → net hata).
+ * blok, ücretsiz-üye gizliliği aynen uygulanır (hidden → getOne 403, buraya hiç gelmez)
  * HİÇBİR ŞEY YAZILMAZ — teklif gönderme placeBid'den (ikinci doğrulama orada).
  */
 

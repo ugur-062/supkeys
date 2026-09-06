@@ -7,27 +7,26 @@ import { Check, Lock, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
-/** Premium ile açılan özellikler — kilitli sayfalardaki "reklam" listesi. */
+/**
+ * Paketle açılan özellikler — kilitli sayfalardaki "reklam" listesi (üç paket
+ * 2026-09-06: Silver satış, Gold iki panel; vitrin ve dizin ücretsiz).
+ */
 const BENEFITS = [
   {
-    title: "Satınalma paneli",
+    title: "Herkese açık talepler (Silver)",
+    desc: "Tüm açık satın alma taleplerini gör, sınırsız teklif ver, alıcı kimliğini gör",
+  },
+  {
+    title: "Bağlantı daveti ve öncelik (Silver)",
+    desc: "Firmalara davet gönder, dizinde önce sıralan, sınırsız ürün + belge/video",
+  },
+  {
+    title: "Satınalma paneli (Gold)",
     desc: "Satın Alma Talebi açıp tedarikçilerden teklif topla, en iyi fiyatı yakala",
   },
   {
-    title: "Satış ilanları",
-    desc: "Ürün ve hizmetlerini yayınla, alıcılara doğrudan ulaş",
-  },
-  {
-    title: "Detaylı raporlar",
-    desc: "Tasarruf/kazanç analizi ve teklif karşılaştırma",
-  },
-  {
-    title: "Hazır şablonlar",
-    desc: "Saniyeler içinde satın alma talebi ve ilan oluştur",
-  },
-  {
-    title: "Öne çıkan profil + davet",
-    desc: "Keşfedilebilir ol, firmaları keşfet ve iş ortağı davet et",
+    title: "Raporlar ve şablonlar (Gold)",
+    desc: "Tasarruf/kazanç analizi, teklif karşılaştırma, hazır talep şablonları",
   },
 ];
 
@@ -86,7 +85,7 @@ export function PremiumGate() {
         <div className="p-6">
           {/* Faydalar — Rothern Premium "reklamı" */}
           <p className="text-sm font-semibold text-zinc-900">
-            Premium ile neler açılır?
+            Paketle neler açılır?
           </p>
           <ul className="mt-3 space-y-2.5">
             {BENEFITS.map((b) => (

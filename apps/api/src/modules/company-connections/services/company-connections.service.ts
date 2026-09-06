@@ -13,7 +13,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
+import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -35,6 +35,7 @@ import {
   anyPackageWhere,
 } from "../../../common/company/effective-tier";
 import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
+import { hasValidConnection } from "../../../common/company/valid-connection";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
 
@@ -1074,6 +1075,13 @@ export class CompanyConnectionsService {
             : ("pending" as const);
     const connectionId = conn?.id ?? null;
     const connected = connectionStatus === "active" || isSelf;
+    // Talep LİSTESİ için "bağlı" = GEÇERLİ bağlantı (tek kaynak `hasValidConnection`:
+    // kuran taraf efektif SILVER+ kalmalı) — getOne/sellerTenders ile birebir.
+    // `connectionStatus` UI rozeti olarak ham ACTIVE'i göstermeye devam eder;
+    // aksi hâlde paketi biten davetçinin bağlantısı profilde talep sızdırırdı
+    // (denetim 2026-09-06 #2).
+    const connectedForListings =
+      isSelf || (connected && (await hasValidConnection(this.prisma as never, user.companyId, c.id)));
     // Ziyaret Edenler: üye başkasının profilini açtı — kimlikli görüntülenme
     // (erişim denetimlerinden SONRA; fire-and-forget, okumayı düşürmez).
     if (!isSelf) void this.views?.recordPanelView(user, { companyId: c.id });
@@ -1104,7 +1112,8 @@ export class CompanyConnectionsService {
           // yalnız teklifi olan görür; NOT(gt) NULL tuzağı yok) + ülke kapsamı
           // (getOne/sellerTenders ile aynı). Kendi profili hariç.
           AND: [
-            visibleOwnerListingWhere(user.companyId, connected),
+            // Ücretsiz izleyen (2026-09-06): bağlı değilse PUBLIC talepler profilde de yok.
+            visibleOwnerListingWhere(user.companyId, connectedForListings, tierAtLeast(user.tier, PAID_TIER)),
             ...(c.id === user.companyId
               ? []
               : [

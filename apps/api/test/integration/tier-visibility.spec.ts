@@ -137,6 +137,25 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     expect(summary.locked && summary.total).toBe(0);
   });
 
+  it("hasBid istisnası: teklif vermiş STANDART firma bağlantı düşse de kendi talebini görür, kilit özeti onu saymaz", async () => {
+    const { service } = makeService();
+    const { owner, listing, item } = await publicListing();
+    const std = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    await connect(prisma, owner.company.id, std.company.id, owner.user.id);
+    await expect(service.placeBid(std.auth, listing.id, bid(item.id))).resolves.toBeDefined();
+    // Bağlantı düştü (kuran taraf paketsiz kaldı / silindi).
+    await prisma.companyConnection.deleteMany({ where: { inviteeCompanyId: std.company.id } });
+    await prisma.companyConnection.deleteMany({ where: { inviterCompanyId: std.company.id } });
+
+    const detail = (await service.getOne(std.auth, listing.id)) as { canBid: boolean; myBid: unknown };
+    expect(detail.myBid).toBeTruthy();
+    expect(detail.canBid).toBe(false); // görür ama yeniden teklif kapısı paketli
+    const rows = (await service.sellerTenders(std.auth)) as { id: string }[];
+    expect(rows.find((r) => r.id === listing.id)).toBeTruthy();
+    const summary = await service.lockedPublicSummary(std.auth);
+    expect(summary.locked && summary.total).toBe(0);
+  });
+
   it("SILVER aynı PUBLIC'i görür + teklif verir; kilit özeti locked:false", async () => {
     const { service } = makeService();
     const { listing, item } = await publicListing();

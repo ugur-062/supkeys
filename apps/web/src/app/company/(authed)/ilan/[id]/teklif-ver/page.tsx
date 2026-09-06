@@ -1,6 +1,6 @@
 "use client";
 
-import { PRICING_HREF } from "@/components/company/silver-lock-card";
+import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -445,6 +445,19 @@ export default function TeklifVerPage() {
     );
   }
   if (!l) {
+    // 403 TIER_REQUIRED (ücretsiz üye, herkese açık talep, 2026-09-06): "bulunamadı"
+    // yalan olurdu — talep var, paket yok. Talep sayfasıyla aynı kilit kartı.
+    const err = (detail.error as { response?: { status?: number; data?: { code?: string } } } | null)?.response;
+    if (err?.status === 403 && err.data?.code === "TIER_REQUIRED") {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <SilverLockCard
+            title="Bu herkese açık talebe teklif Silver paketiyle açılır"
+            description="Herkese açık satın alma taleplerini görmek ve teklif vermek Silver ile gelir. Bağlantı davetiyle gelen taleplere ücretsiz teklif verirsiniz."
+          />
+        </div>
+      );
+    }
     // Talep yüklenemedi — nötr hedef.
     return <Blocked title="Satın Alma Talebi bulunamadı" detailHref="/company" />;
   }
