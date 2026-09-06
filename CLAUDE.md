@@ -806,6 +806,26 @@ URL şemaları mevcut hâliyle sabit.
   `e2e/public-lists-filters.spec.ts`. **Dağıtım sırası:** API önce (dizin
   ucu `forbidNonWhitelisted` — eski API yeni parametreye 400 döner), web
   sonra.
+- **PROMPT 5 (4c7717c8 + 9c201f4d):** kart ailesi — `ProductCard`,
+  `CompanyCard`, `ListingTeaserCard` (talep) ve yeni `CategoryTile` tek
+  anatomi; rozet `ui/badge`, logo/monogram `ui/avatar`, ipucu `ui/tooltip`,
+  CTA `ui/button`. Kart artık `<a>` DEĞİL `article` + başlıkta yayılan
+  bağlantı: kapak rozeti kartın İÇİNDE konumlanır (eskiden `absolute` idi
+  ama kart `relative` değildi — panelin "Alım kategorinizle eşleşiyor"
+  rozeti kartın dışına düşüyordu). Ürün kartında FAALİYET TİPİ yok (ürün
+  kararında rol oynamıyor; süzgeçte duruyor), kapakta Gold Üye + ≤7 gün
+  "Yeni", ikincil bağlamlar için `variant="compact"`. Firma kartında
+  Hakkında (`looksLikeProse` süzgecinden), faaliyet rozeti 3 + "+N",
+  sertifikalar ve KENDİ satırında "N ürün · Kuruluş YYYY · X çalışan"
+  (CTA ile aynı satıra sığmıyordu). `CategoryTile` tek dosya — anasayfa
+  ızgarası ile panel vitrini aynı anatomiyi iki yerde yazıyordu.
+  **API (eklemeli projeksiyon, yeni sorgu yok):** ürün dizini kartı
+  `company.logoUrl` + `company.gold` + `publishedAt`; firma dizini kartı
+  `gold` (PROMPT 4'teki `gold=1` süzgecinin kartsal karşılığı yoktu) +
+  `about` + `foundedYear` + `employeeCount` + `certifications`. Web bunları
+  OPSİYONEL okur (eski kenar önbelleği kartı çökertmez). `Badge` tabanı
+  `shrink-0` taşır — daralması gereken rozete `shrink` verilmeli (twMerge
+  ezer), yoksa yan rozet kırpılır. Sözleşme: `card-family.test.tsx`.
 
 ### Anasayfa & ürün süzgeci v3 (2026-09-04)
 
