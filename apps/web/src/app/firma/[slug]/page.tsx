@@ -5,7 +5,9 @@ import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { serializeJsonLd } from "@/lib/json-ld";
+import { StickyCta } from "@/components/marketplace/sticky-cta";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
+import Link from "next/link";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
@@ -98,13 +100,21 @@ export async function generateMetadata({
 
 export default async function PublicCompanyProfile({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  /** `?urun=` — FİRMA İÇİ ürün araması (spec §7). Ayrı bir ada sahip:
+   *  `q` üst çubuktaki genel aramanın parametresi, ikisi karışmamalı. */
+  searchParams?: Promise<{ urun?: string }>;
 }) {
   const { slug } = await params;
   // Profil ve ürünler PARALEL: ürün bileşeni kendi çekiyordu, profil bitmeden
   // başlamıyordu → TTFB 1,5 sn (Lighthouse). Sonuç prop'la iner.
-  const [p, products] = await Promise.all([fetchProfile(slug), fetchCompanyProducts(slug)]);
+  const productQuery = (await searchParams)?.urun?.trim() || undefined;
+  const [p, products] = await Promise.all([
+    fetchProfile(slug),
+    fetchCompanyProducts(slug, { q: productQuery }),
+  ]);
   if (!p) notFound();
 
   const site = resolveSiteUrl();
@@ -158,6 +168,17 @@ export default async function PublicCompanyProfile({
             öğrenmeli. Sayfadaki TEK büyük kayıt kutusu sağ sütunun sonunda
             (`gate.aside`); diğer kapılar satır içi bağlantı. */}
         <ViewBeacon type="profile" companySlug={slug} />
+        {/* Uzun profilde eylem kaybolmasın (spec §7): kimlik kartı ekrandan
+            çıkınca altta ad + "Bilgi iste" şeridi belirir. Ürün sayfasıyla
+            AYNI bileşen — iki yerde iki farklı şerit davranışı olmasın. */}
+        <StickyCta title={p.name}>
+          <Link
+            href={loginHref(panelHref)}
+            className="inline-flex items-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            Bilgi iste
+          </Link>
+        </StickyCta>
         <CompanyProfileView
           profile={{
             name: p.name,
@@ -201,7 +222,9 @@ export default async function PublicCompanyProfile({
               />
             ),
           }}
-          main={<CompanyProducts companySlug={p.slug ?? ""} page={products} />}
+          main={
+            <CompanyProducts companySlug={p.slug ?? ""} page={products} query={productQuery} />
+          }
         />
       </div>
     </PublicLayout>

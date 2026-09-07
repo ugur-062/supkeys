@@ -17,14 +17,31 @@ import Link from "next/link";
  * `gold`/`about`/`foundedYear`/`employeeCount`/`certifications` alanları
  * OPSİYONEL okunur: kenar önbelleğindeki eski dizin yanıtı onları taşımıyorsa
  * satır çizilmez, kart çökmez (PROMPT 4'te facet dizilerinde öğrenilen ders).
+ *
+ * `variant="wide"` (2026-09-07, Europages spec §8.3) — FİRMA DİZİNİ satırı:
+ * solda kimlik sütunu, sağda Hakkında + BÜYÜK ürün şeridi. Aynı veriyi
+ * taşır; fark yoğunluk değil OKUNABİLİRLİK: üç sütunlu ızgarada Hakkında iki
+ * satıra, ürün küçük resimleri 40 px'e sıkışıyor ve "bu firma ne satıyor"
+ * sorusu kartın en zayıf yeri oluyordu. Dizin bir DEĞERLENDİRME ekranı;
+ * anasayfa şeridi ve panel `tile` ile devam eder.
+ *
+ * "Ana kategoriler (5)" gibi SAYILI kategori listesi YOK: dizin yanıtı tek
+ * `mainCategory` taşıyor, kategori başına ürün sayısı hiç hesaplanmıyor.
+ * Spec'te var diye uydurulmadı.
  */
 export function CompanyCard({
   company: c,
   href,
   badge,
   footer,
+  variant = "tile",
+  cta,
 }: {
   company: PublicDirectoryCard;
+  /** `tile` ızgara kartı (varsayılan) · `wide` dizin satırı. */
+  variant?: "tile" | "wide";
+  /** `wide`: birincil eylem etiketi (dizinde "Bilgi iste"). */
+  cta?: { label: string; href: string };
   /** Panel: `/company/firma/<id>`; public: `/firma/<slug>` (varsayılan). */
   href?: string;
   /** Panel: bağlantı durumu rozeti. */
@@ -44,6 +61,114 @@ export function CompanyCard({
     c.foundedYear ? `Kuruluş ${c.foundedYear}` : null,
     c.employeeCount ? `${c.employeeCount} çalışan` : null,
   ].filter(Boolean) as string[];
+
+  const identity = (
+    <>
+      {c.verified ? (
+        <Badge tone="verified" size="sm">
+          Doğrulanmış
+        </Badge>
+      ) : null}
+      {c.gold ? (
+        <Badge tone="gold" size="sm">
+          Gold Üye
+        </Badge>
+      ) : null}
+    </>
+  );
+
+  if (variant === "wide") {
+    return (
+      <article className="group relative flex flex-col gap-5 rounded-lg bg-white p-5 ring-1 ring-zinc-200 transition hover:shadow-md hover:ring-zinc-300 focus-within:ring-2 focus-within:ring-zinc-950 sm:flex-row">
+        {/* SOL — kimlik. Sabit genişlik: satırlar arasında logo ve ad aynı
+            hizada başlasın, göz aşağı süzülebilsin. */}
+        <div className="flex gap-3 sm:w-64 sm:shrink-0 sm:flex-col sm:gap-2">
+          <Avatar name={c.name} src={c.logoUrl} size={64} />
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-zinc-950">
+              <Link
+                href={href ?? `/firma/${c.slug}`}
+                className="line-clamp-2 after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
+              >
+                {c.name}
+              </Link>
+            </h3>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">{identity}</div>
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+              {c.city ? (
+                <span className="inline-flex items-center gap-1">
+                  <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
+                  {c.city}
+                </span>
+              ) : null}
+              {c.mainCategory ? <span className="line-clamp-1">{c.mainCategory.name}</span> : null}
+            </p>
+            {badge ? <div className="mt-2">{badge}</div> : null}
+          </div>
+        </div>
+
+        {/* SAĞ — ne yaptığı ve ne sattığı. */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {activities.length > 0 || certs.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {activities.map((a) => (
+                <Badge key={a} tone="neutral" size="sm">
+                  {companyActivityLabel(a)}
+                </Badge>
+              ))}
+              {more > 0 ? (
+                <Badge tone="neutral" size="sm" className="tnum">
+                  +{more}
+                </Badge>
+              ) : null}
+              {certs.map((x) => (
+                <Badge key={x} tone="neutral" size="sm" className="bg-white ring-1 ring-inset ring-zinc-950/10">
+                  {x}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          {c.about ? <p className="mt-2 line-clamp-2 text-sm/6 text-zinc-500">{c.about}</p> : null}
+
+          {c.productPreview.length > 0 ? (
+            <div className="mt-3 flex items-center gap-2">
+              {c.productPreview.map((pv) => (
+                <Thumb key={pv.slug} src={pv.image ?? undefined} alt="" size="lg" />
+              ))}
+              {c.productCount > c.productPreview.length ? (
+                /* "+22 Ürün" (spec §8.3): şeridin sonunda kalanı sayan kutu —
+                   "bu firmanın kataloğu derin" sinyali. */
+                <span className="tnum flex h-16 items-center rounded-lg bg-zinc-100 px-3 text-xs font-semibold text-zinc-700">
+                  +{c.productCount - c.productPreview.length} ürün
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
+            {facts.length > 0 ? <p className="tnum text-xs text-zinc-500">{facts.join(" · ")}</p> : <span />}
+            {cta ? (
+              /* Kartın yayılmış bağlantısının ÜSTÜNDE ayrı hedef: kart
+                 profili, düğme bilgi isteme akışını açar. Ayrımı `z-10`
+                 yapıyor — bu dosya SUNUCU bileşeni, `onClick` geçilemez
+                 ("Event handlers cannot be passed to Client Component
+                 props"); zaten kartın kendi `onClick`i de yok. */
+              <Link
+                href={cta.href}
+                className="relative z-10 inline-flex items-center rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                {cta.label}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-zinc-900 group-hover:text-zinc-600">Profili gör →</p>
+            )}
+          </div>
+          {footer ? <div className="relative z-10 mt-4 border-t border-zinc-200 pt-3">{footer}</div> : null}
+        </div>
+      </article>
+    );
+  }
 
   return (
     /* Pazar bölgesi dili (2026-09-07): küçük yarıçap, hairline çerçeve,

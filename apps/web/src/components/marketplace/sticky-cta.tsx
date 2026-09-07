@@ -25,8 +25,12 @@ export function StickyCta({
 }: {
   /** Ürün adı — dar ekranda tek satır. */
   title: string;
-  /** Fiyat başlığı ("41.000 ₺ / adet" ya da "Fiyat için teklif isteyin"). */
-  price: { headline: string; hasPrice: boolean };
+  /**
+   * Fiyat başlığı ("41.000 ₺ / adet" ya da "Fiyat için teklif isteyin").
+   * OPSİYONEL: firma sayfasında fiyat diye bir şey yok, orada yalnız ad +
+   * eylem gösterilir.
+   */
+  price?: { headline: string; hasPrice: boolean };
   /** İkinci satır (MOQ) — yoksa yer kaplamaz. */
   meta?: string;
   /** Tek eylem; `cta` slotuyla aynı düğme olabilir. */
@@ -60,15 +64,21 @@ export function StickyCta({
         className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur"
       >
         <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <div className="hidden min-w-0 flex-1 sm:block">
+          {/* Fiyat yoksa ad DAR EKRANDA DA görünür: firma şeridinde tek
+              bilgi odur, gizlenirse şerit anlamsız bir düğmeye iner. */}
+          <div className={`min-w-0 flex-1 ${price ? "hidden sm:block" : ""}`}>
             <p className="truncate text-sm font-medium text-zinc-700">{title}</p>
           </div>
-          <div className="min-w-0 flex-1 sm:flex-none sm:text-right">
-            <p className={`tnum truncate text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-600"}`}>
-              {price.headline}
-            </p>
-            {meta ? <p className="tnum truncate text-xs text-zinc-500">{meta}</p> : null}
-          </div>
+          {price || meta ? (
+            <div className="min-w-0 flex-1 sm:flex-none sm:text-right">
+              {price ? (
+                <p className={`tnum truncate text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-600"}`}>
+                  {price.headline}
+                </p>
+              ) : null}
+              {meta ? <p className="tnum truncate text-xs text-zinc-500">{meta}</p> : null}
+            </div>
+          ) : null}
           <div className="shrink-0">{children}</div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { FilterResults, MobileFilterButton, ResultCount } from "@/components/mar
 import { CompanyFilterShell } from "@/components/marketplace/list-filter-shells";
 import { PublicEmptyState } from "@/components/marketplace/public-empty-state";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
-import { PublicListPage, ResultGrid } from "@/components/marketplace/public-list-page";
+import { PublicListPage } from "@/components/marketplace/public-list-page";
 import { PublicSearchTabs } from "@/components/marketplace/public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
 import { Pagination } from "@/components/ui/pagination";
@@ -112,11 +112,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
                 extra={{ label: "Firmanı listele", href: signupHref("vitrin") }}
               />
             ) : (
-              <ResultGrid count={result.items.length}>
+              /* DİZİN = değerlendirme ekranı → GENİŞ satır (spec §8.3).
+                 Üç sütunlu ızgarada Hakkında ve ürün şeridi sıkışıyordu;
+                 "bu firma ne satıyor" sorusu kartın en zayıf yeriydi.
+                 Izgara kartı (`tile`) anasayfa şeridinde ve panelde sürüyor. */
+              <div className="flex flex-col gap-3">
                 {result.items.map((c) => (
-                  <CompanyCard key={c.slug} company={c} />
+                  <CompanyCard
+                    key={c.slug}
+                    company={c}
+                    variant="wide"
+                    cta={{ label: "Bilgi iste", href: signupHref("teklif", `/firma/${c.slug}`) }}
+                  />
                 ))}
-              </ResultGrid>
+              </div>
             )}
           </FilterResults>
           <Pagination
