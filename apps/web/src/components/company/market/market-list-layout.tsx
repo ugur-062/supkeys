@@ -15,6 +15,19 @@ import type { ReactNode } from "react";
  * ve her grup ilk 6 seçeneği gösterdiği için ray ekrandan taşmaz. `max-h`
  * yine de duruyor — bütün grupları açan kullanıcıda alt gruplar
  * erişilemez kalmasın diye (taşma OLMADIĞINDA çubuk çizilmez).
+ *
+ * RAY `xl`'DE AÇILIR, `lg`'DE DEĞİL (2026-09-07, yoğunluk düzeltmesi).
+ * Panelde ekranı sol menü de paylaşıyor: 1024 px'te menü (256) + ray (256)
+ * + iç boşluk, sonuç sütununa 416 px bırakıyordu — ızgara TEK SÜTUNA
+ * düşüyor ve ~500×380 px kapaklı kartlarla ekrana bir ürün sığıyordu
+ * ("pazar yeri değil blog"). 1024-1280 arasında süzgeçler artık çekmecede;
+ * `MobileFilterButton`/çekmece kırılımı da `xl` (ayrışırsa o bantta ne ray
+ * ne çekmece kalır).
+ *
+ * Sonuç sütunu bir `@container`: ızgara kırılımları GÖRÜNTÜ ALANINA değil
+ * kendi genişliğine bakar. Aynı `lg` görüntü alanı bu sayfada 416 px, aynı
+ * bileşen herkese açık `/urunler`de 900+ px sütun demek — viewport
+ * kırılımı ikisinden birinde her zaman yanlış sütun genişliği üretirdi.
  */
 export function MarketListLayout({
   rail,
@@ -41,17 +54,17 @@ export function MarketListLayout({
   perPage?: PerPage;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[16rem_1fr]">
+    <div className="grid grid-cols-1 gap-8 xl:grid-cols-[16rem_1fr]">
       <aside
         aria-label="Süzgeçler"
-        className="hidden lg:sticky lg:top-20 lg:block lg:max-h-[calc(100svh-6rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1 [scrollbar-width:thin]"
+        className="hidden xl:sticky xl:top-20 xl:block xl:max-h-[calc(100svh-6rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1 [scrollbar-width:thin]"
       >
         {rail}
       </aside>
-      <div className="min-w-0">
+      <div className="@container min-w-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <span className="flex items-center gap-3">
-            <MobileFilterButton />
+            <MobileFilterButton hideAt="xl" />
             {toolbarStart}
           </span>
           {toolbarEnd}
@@ -89,17 +102,41 @@ function PerPageSelect({ value, onChange }: { value: PerPage; onChange: (n: PerP
 }
 
 /**
- * PAZAR IZGARASI — `auto-fill minmax(16rem, 1fr)`: 1440 px'te üç sütun,
- * geniş ekranda dört. Sabit `sm:2 xl:3` sınıflarında panel içeriği 1320 px
- * olduğu için ekranın yarısı boş kalıyordu.
+ * PAZAR IZGARASI — 1 → 2 → 3 → 4 sütun, eşiği SONUÇ SÜTUNUNUN genişliğinde
+ * (`@container`, bkz. `MarketListLayout`).
+ *
+ * `auto-fill minmax(16rem,1fr)` yerine sayılı kırılım: auto-fill sütun
+ * sayısını "16 rem sığıyor mu" diye hesapladığı için 952 px'lik en geniş
+ * sütunda bile üçte takılıyor (4×256+3×20 = 1084 > 952), dar bantlarda ise
+ * TEK sütuna düşüyordu.
+ *
+ * Eşikler ÖLÇÜLEREK seçildi (12 görüntü alanı genişliği, sonuç sütunu
+ * gerçek genişliğiyle) ve tek bir kural gözetildi: **görüntü alanı
+ * genişledikçe sütun sayısı asla azalmamalı.** Ray `xl`'de geri geldiği
+ * için 1280 px'te sonuç sütunu 1152 px'tekinden DAR (656 < 832); 3 sütun
+ * eşiği 40 rem'de olmasaydı pencereyi büyüten kullanıcı bir sütun
+ * kaybederdi. Ölçülen sonuç: 420→1, 540→2, 640→2, 768-1440→3, 1536+→4;
+ * sütun genişliği her kademede 205-390 px, ekranda aynı anda 6-9 ürün.
+ *
+ * `variant`: firma kartı ürün kartından metin-yoğun (Hakkında, sertifika,
+ * "N ürün · Kuruluş · çalışan") — aynı eşiklerde 205 px'e inince satırlar
+ * kırpılmaktan okunmaz hâle gelir; firma dizini bir kademe geniş kalır.
  */
-export function MarketGrid({ children }: { children: ReactNode }) {
-  return (
-    <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]">
-      {children}
-    </div>
-  );
+export function MarketGrid({
+  children,
+  variant = "product",
+}: {
+  children: ReactNode;
+  variant?: "product" | "company";
+}) {
+  return <div className={MARKET_GRID_CLS[variant]}>{children}</div>;
 }
+
+/** Izgara sınıfları — iskelet de AYNISINI kullanır (yükleme zıplamasın). */
+const MARKET_GRID_CLS = {
+  product: "grid grid-cols-1 gap-4 @[28rem]:grid-cols-2 @[40rem]:grid-cols-3 @[56rem]:grid-cols-4",
+  company: "grid grid-cols-1 gap-4 @[30rem]:grid-cols-2 @[52rem]:grid-cols-3",
+} as const;
 
 /**
  * LİSTE GÖRÜNÜMÜ — tek sütun yatay kart (`ProductCard variant="wide"`).
@@ -111,11 +148,17 @@ export function MarketList({ children }: { children: ReactNode }) {
 }
 
 /** Yükleme iskeleti — kart yüksekliğiyle aynı, ızgara zıplamasın. */
-export function MarketGridSkeleton({ count = 9 }: { count?: number }) {
+export function MarketGridSkeleton({
+  count = 12,
+  variant,
+}: {
+  count?: number;
+  variant?: "product" | "company";
+}) {
   return (
-    <MarketGrid>
+    <MarketGrid variant={variant}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-[22rem] animate-pulse rounded-xl bg-zinc-100" aria-hidden />
+        <div key={i} className="h-[22rem] animate-pulse rounded-lg bg-zinc-100" aria-hidden />
       ))}
     </MarketGrid>
   );

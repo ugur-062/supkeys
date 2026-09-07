@@ -51,6 +51,7 @@ export function FilterShellCore<S extends { page: number }>({
   total,
   activeCount,
   drawer,
+  drawerHideAt = "lg",
   children,
 }: {
   state: S;
@@ -62,6 +63,15 @@ export function FilterShellCore<S extends { page: number }>({
   activeCount: number;
   /** Mobil çekmecede çizilecek süzgeç ağacı (masaüstü aside ile aynı bileşen, ikinci örnek). */
   drawer?: ReactNode;
+  /**
+   * Çekmecenin kapandığı (kenar rayının açıldığı) kırılım — kabuğun kendi
+   * `aside` kırılımıyla AYNI olmalı. Herkese açık listelerde `lg`; PANEL
+   * pazarında `xl`, çünkü orada ekranı sol menü de paylaşıyor: 1024 px'te
+   * menü (256) + ray (256) ekranın yarısını yiyor ve sonuç sütunu tek
+   * karta düşüyordu. Ayrışırsa 1024-1280 arasında ne ray ne çekmece
+   * görünür — süzgeçler tamamen erişilemez olur.
+   */
+  drawerHideAt?: "lg" | "xl";
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -99,7 +109,9 @@ export function FilterShellCore<S extends { page: number }>({
   return (
     <FilterCtx.Provider value={value as Ctx<unknown>}>
       {children}
-      <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)}>{drawer}</MobileDrawer>
+      <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} hideAt={drawerHideAt}>
+        {drawer}
+      </MobileDrawer>
     </FilterCtx.Provider>
   );
 }
@@ -115,6 +127,7 @@ export function FilterShell({
   fixedCategory,
   total,
   drawer,
+  drawerHideAt,
   children,
 }: {
   basePath: string;
@@ -122,6 +135,8 @@ export function FilterShell({
   fixedCategory?: string;
   total: number;
   drawer?: ReactNode;
+  /** Bkz. `FilterShellCore` — panel pazarında `xl`. */
+  drawerHideAt?: "lg" | "xl";
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -145,6 +160,7 @@ export function FilterShell({
       total={total}
       activeCount={activeFilterCount(state)}
       drawer={drawer}
+      drawerHideAt={drawerHideAt}
     >
       {children}
     </FilterShellCore>
@@ -182,14 +198,20 @@ export function ResultCount({ noun, loading = false }: { noun: string; loading?:
   );
 }
 
-/** Mobil: "Filtrele (n)" düğmesi. */
-export function MobileFilterButton() {
+/**
+ * Mobil: "Filtrele (n)" düğmesi. `hideAt` kabuğun kenar rayı kırılımıyla
+ * AYNI olmalı (bkz. `FilterShellCore.drawerHideAt`) — sınıflar birebir
+ * yazılır, `lg`/`xl` farklı varyant olduğu için twMerge onları birleştiremez.
+ */
+export function MobileFilterButton({ hideAt = "lg" }: { hideAt?: "lg" | "xl" }) {
   const { activeCount, openMobile } = useFilters();
   return (
     <button
       type="button"
       onClick={openMobile}
-      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-semibold text-zinc-900 lg:hidden"
+      className={`inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-semibold text-zinc-900 ${
+        hideAt === "xl" ? "xl:hidden" : "lg:hidden"
+      }`}
     >
       <AdjustmentsHorizontalIcon aria-hidden className="size-4" />
       Filtrele{activeCount > 0 ? ` (${activeCount})` : ""}
@@ -197,7 +219,17 @@ export function MobileFilterButton() {
   );
 }
 
-function MobileDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+function MobileDrawer({
+  open,
+  onClose,
+  hideAt,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  hideAt: "lg" | "xl";
+  children: ReactNode;
+}) {
   const { total, clear, isPending } = useFilters();
   // Sözlük primitive'i (PROMPT 3): alt çekmece, başlıkta "Temizle", altlıkta canlı sayaç.
   return (
@@ -206,7 +238,7 @@ function MobileDrawer({ open, onClose, children }: { open: boolean; onClose: () 
       onClose={onClose}
       side="bottom"
       title="Filtreler"
-      className="lg:hidden"
+      className={hideAt === "xl" ? "xl:hidden" : "lg:hidden"}
       header={
         <div className="flex flex-1 items-center justify-between gap-3">
           <button type="button" onClick={clear} className="text-sm font-medium text-zinc-600 hover:text-zinc-950">

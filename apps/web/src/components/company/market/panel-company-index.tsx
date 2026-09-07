@@ -50,6 +50,7 @@ export function PanelCompanyIndex() {
       total={total}
       activeCount={activeCompanyFilterCount(state)}
       drawer={<PanelCompanyFilters idPrefix="m" />}
+      drawerHideAt="xl"
     >
       <Inner state={state} result={result} />
     </FilterShellCore>
@@ -105,11 +106,11 @@ function Inner({
         onPage={(page) => update({ page })}
       >
         {result.isLoading ? (
-          <MarketGridSkeleton count={6} />
+          <MarketGridSkeleton count={6} variant="company" />
         ) : !data || data.items.length === 0 ? (
           <MarketEmpty title="Bu kriterlerle firma yok." />
         ) : (
-          <MarketGrid>
+          <MarketGrid variant="company">
             {data.items.map((c) => (
               <PanelCompanyCard key={c.slug} company={c} query={state.q} />
             ))}

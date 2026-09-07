@@ -3,9 +3,11 @@
 import { useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
+import { readViewPreference, writeViewPreference } from "@/lib/public/view-preference";
 import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon, XMarkIcon } from "@heroicons/react/20/solid";
 import { Check, FilterChipBar, Group, SHOW, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
 import { companyActivityLabel } from "@rothern/shared";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 /**
@@ -204,7 +206,9 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
  * IZGARA ↔ LİSTE (2026-09-07). Yoğunluk tercihi kullanıcınındır: ızgara
  * "tarama" (çok ürün, az ayrıntı), liste "karşılaştırma" (fiyat/MOQ tek
  * sütunda alt alta). Tercih URL'de (`gorunum=liste`) — paylaşılan bağlantı
- * aynı düzende açılır ve "Tümünü temizle" onu korur.
+ * aynı düzende açılır ve "Tümünü temizle" onu korur — VE seçim
+ * `localStorage`a yazılır: bir sonraki ziyarette (URL'de `gorunum` yoksa)
+ * geri yüklenir, bkz. `ViewPreferenceSync`.
  */
 export function ViewToggle() {
   const { state, update } = useFilters<ProductFilterState>();
@@ -212,6 +216,10 @@ export function ViewToggle() {
     { k: undefined, l: "Izgara", icon: Squares2X2Icon },
     { k: "liste" as const, l: "Liste", icon: ListBulletIcon },
   ];
+  const pick = (k: ProductFilterState["view"]) => {
+    writeViewPreference(k);
+    update({ view: k });
+  };
   return (
     <div className="hidden items-center gap-1 sm:flex" role="group" aria-label="Görünüm">
       {opts.map((o) => {
@@ -223,7 +231,7 @@ export function ViewToggle() {
             type="button"
             aria-pressed={active}
             title={`${o.l} görünümü`}
-            onClick={() => update({ view: o.k })}
+            onClick={() => pick(o.k)}
             className={`inline-flex size-8 items-center justify-center rounded-lg transition ${
               active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-500 hover:bg-zinc-100"
             }`}
@@ -235,6 +243,31 @@ export function ViewToggle() {
       })}
     </div>
   );
+}
+
+/**
+ * Kayıtlı görünüm tercihini URL'e taşır — çizim üretmez.
+ *
+ * Efektte okunur: `localStorage` sunucu render'ında yok, koşulu render'a
+ * taşımak hydration uyuşmazlığı olurdu. Üç koruma:
+ *  · URL'de `gorunum` VARSA dokunulmaz (paylaşılan bağlantı kazanır);
+ *  · yalnız 1. sayfada uygulanır — `update()` süzgeç değişiminde sayfayı 1'e
+ *    düşürür, `?sayfa=3` ile gelen kullanıcıyı sessizce başa atmayalım;
+ *  · bir kez çalışır (`done`), sonraki tıklar kullanıcının.
+ */
+export function ViewPreferenceSync() {
+  const { state, update } = useFilters<ProductFilterState>();
+  const [done, setDone] = useState(false);
+  const sp = useSearchParams();
+  useEffect(() => {
+    if (done) return;
+    setDone(true);
+    if (sp?.has("gorunum") || state.page !== 1) return;
+    const pref = readViewPreference();
+    if (pref && pref !== state.view) update({ view: pref });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done]);
+  return null;
 }
 
 export function SortControl() {

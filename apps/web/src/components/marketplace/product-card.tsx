@@ -168,7 +168,9 @@ export function ProductCard({
           className,
         )}
       >
-        <div className="relative w-28 shrink-0 sm:w-44">
+        {/* Liste görünümünde kapak SABİT 160 px: kartlar aynı hizada okunur,
+            metin sütunu kalan genişliği alır. */}
+        <div className="relative w-28 shrink-0 sm:w-40">
           <CategoryImage
             src={product.images[0]}
             categoryIds={product.categoryId ? [product.categoryId] : []}
@@ -228,10 +230,33 @@ export function ProductCard({
               ) : null}
             </div>
           ) : null}
+
+          {/* `sm` altı: aynı bilgi, gövdenin altında tek satır. */}
+          <div className="mt-2 flex items-center justify-between gap-2 sm:hidden">
+            <span>
+              <span
+                className={cn("tnum block text-sm font-semibold", price.hasPrice ? "text-zinc-950" : "text-zinc-500")}
+              >
+                {price.headline}
+              </span>
+              {product.moq ? (
+                <span className="tnum block text-xs text-zinc-500">
+                  {`Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`}
+                </span>
+              ) : null}
+            </span>
+            {cta ? (
+              <span className="inline-flex shrink-0 items-center justify-center rounded-lg bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white">
+                {cta}
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        {/* Sağ sütun: fiyat kararı bir arada. Dar ekranda gizlenmez, gövdenin
-            altına akar — mobilde liste görünümü zaten tek sütun. */}
+        {/* Sağ sütun: fiyat kararı bir arada. `sm` altında bu sütun sığmaz —
+            fiyat/MOQ/CTA gövdenin altına akar (aşağıdaki `sm:hidden` blok).
+            Eskiden yalnız gizleniyordu: dar ekranda liste görünümünde fiyat
+            da CTA da hiç görünmüyordu. */}
         <div className="hidden w-40 shrink-0 flex-col justify-center border-l border-zinc-100 pl-4 text-right sm:flex">
           <p className={cn("tnum text-sm font-semibold", price.hasPrice ? "text-zinc-950" : "text-zinc-500")}>
             {price.headline}

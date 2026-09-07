@@ -2,7 +2,13 @@
 
 import { FilterShell, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { ProductCard } from "@/components/marketplace/product-card";
-import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "@/components/marketplace/product-filters";
+import {
+  ActiveFilterChips,
+  ProductFilters,
+  SortControl,
+  ViewPreferenceSync,
+  ViewToggle,
+} from "@/components/marketplace/product-filters";
 import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import {
@@ -69,6 +75,7 @@ export function PanelProductIndex({
       fixedCategory={fixedCategory}
       total={total}
       drawer={<PanelProductFilters idPrefix="m" />}
+      drawerHideAt="xl"
     >
       <Inner state={state} result={result} banner={banner} band={band} footer={footer} />
     </FilterShell>
@@ -146,6 +153,8 @@ function Inner({
       )}
 
       {banner}
+      {/* Kayıtlı ızgara/liste tercihini URL'e taşır (çizim üretmez). */}
+      <ViewPreferenceSync />
       {facets.data ? <ActiveFilterChips facets={facets.data} /> : null}
 
       <MarketListLayout
