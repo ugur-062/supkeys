@@ -21,6 +21,7 @@ import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
 import { StickyCta } from "./sticky-cta";
 import { companyActivityLabel } from "@rothern/shared";
+import { Fragment, type ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
@@ -289,17 +290,64 @@ export function ProductDetailBody({
 
   return (
     <>
-      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_23.75rem]">
-        <div className="min-w-0">
+      {/* ÜST BLOK — Europages ürün sayfası düzeni (2026-09-07, kullanıcı
+          kararı): SOLDA yalnız galeri (yapışkan), SAĞDA kimlik + fiyat +
+          satıcı + eylem. Başlık eskiden görselin ALTINDAydı; görsel
+          küçültülünce yanında ölü boşluk kalıyordu ve "ne satılıyor, kaça"
+          sorusu iki ayrı yere dağılmıştı. Sol sütun galeri genişliği
+          (34 rem) kadar; kalan sağ panele gider (~500 px, kaynaktaki
+          540 px'e yakın). Uzun içerik (sekmeler) ızgaranın ALTINDA tam
+          genişlikte — 500 px'lik sütuna sıkıştırmak okunmaz kılardı. */}
+      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[34rem_minmax(0,1fr)] lg:items-start">
+        <div className="min-w-0 lg:sticky lg:top-28">
           <ProductGallery
             images={product.images}
             alt={product.name}
             categoryIds={product.categoryId ? [product.categoryId] : []}
           />
 
+        </div>
+
+        <aside className="min-w-0">
+          {/* KİMDEN, NE, NEREDEN — başlığın ÜSTÜNDE üst-etiket olarak
+              (Europages): kategori · faaliyet tipi · şehir. Üçü de VAR olan
+              veriden; "teslim alanı" kolonu yok, uydurulmaz.
+
+              Ayraçlar PARÇALARDAN türetilir: her parça kendi "·"sını
+              taşıdığında kategorisi olmayan üründe satır baştaki ayraçla
+              başlıyordu ("· Hizmet sağlayıcı · Samsun"). Başlık altındayken
+              göze batmıyordu, üst-etiket olunca ilk okunan şey oldu. */}
+          {(() => {
+            const parts: { key: string; node: ReactNode }[] = [];
+            if (product.category) {
+              parts.push({ key: "cat", node: <span className="text-zinc-700">{product.category.name}</span> });
+            }
+            if (company.activities.length > 0) {
+              parts.push({
+                key: "act",
+                node: <span>{company.activities.map((a) => companyActivityLabel(a)).join(", ")}</span>,
+              });
+            }
+            if (company.city) parts.push({ key: "city", node: <span>{company.city}</span> });
+            if (parts.length === 0) return null;
+            return (
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-500">
+                {parts.map((p, i) => (
+                  <Fragment key={p.key}>
+                    {i > 0 ? (
+                      <span aria-hidden className="text-zinc-300">
+                        ·
+                      </span>
+                    ) : null}
+                    {p.node}
+                  </Fragment>
+                ))}
+              </p>
+            );
+          })()}
           <Heading
             level={1}
-            className="mt-8 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+            className="mt-2 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
           >
             {product.name}
           </Heading>
@@ -310,25 +358,6 @@ export function ProductDetailBody({
             {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
             {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
           </div>
-
-          {/* KİMDEN, NE, NEREDEN (Europages başlık altı satırı): kategori
-              etiketi + faaliyet tipi + şehir. Üçü de VAR olan veriden;
-              "teslim alanı" kolonu yok, uydurulmaz. */}
-          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-500">
-            {product.category ? <span className="text-zinc-700">{product.category.name}</span> : null}
-            {company.activities.length > 0 ? (
-              <>
-                <span aria-hidden className="text-zinc-300">·</span>
-                <span>{company.activities.map((a) => companyActivityLabel(a)).join(", ")}</span>
-              </>
-            ) : null}
-            {company.city ? (
-              <>
-                <span aria-hidden className="text-zinc-300">·</span>
-                <span>{company.city}</span>
-              </>
-            ) : null}
-          </p>
 
           {/* Anahtar kelimeler başlığın ALTINDA (Europages): hem uzun kuyruk
               SEO hem "bu ürün ne" özeti. Eskiden sayfanın en altındaydı. */}
@@ -342,89 +371,7 @@ export function ProductDetailBody({
             </ul>
           ) : null}
 
-          {/* SEKMELER — hash ile: #aciklama #ozellikler #firma #benzer.
-              Boş sekme çizilmez (Tabs `hidden`). */}
-          <Tabs
-            className="mt-8"
-            hashSync
-            panelClassName="pt-6"
-            items={[
-              {
-                id: "aciklama",
-                label: "Açıklama",
-                hidden: !product.description && !product.specification && !(product.documents ?? []).length,
-                content: (
-                  <div className="max-w-3xl">
-                    {product.description ? (
-                      <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
-                    ) : null}
-                    {product.specification ? (
-                      <section className="mt-8">
-                        <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
-                        <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
-                      </section>
-                    ) : null}
-                    {product.documents && product.documents.length > 0 ? (
-                      <section className="mt-8">
-                        <h3 className="text-sm font-semibold text-zinc-900">Belgeler</h3>
-                        <ul className="mt-3 space-y-2">
-                          {product.documents.map((d) => (
-                            <li key={d.url}>
-                              <a
-                                href={d.url}
-                                target="_blank"
-                                rel="noopener noreferrer nofollow"
-                                className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                              >
-                                <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                                {d.title}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
-                    ) : null}
-                  </div>
-                ),
-              },
-              {
-                id: "ozellikler",
-                label: "Özellikler",
-                hidden: attrs.length === 0,
-                content: <SpecTable rows={attrs} />,
-              },
-              {
-                id: "firma",
-                label: "Firma",
-                content: (
-                  <div className="space-y-6">
-                    {/* Web sitesi satırı YALNIZ sağ panelde — iki yerde
-                        aynı kapılı bağlantı tekrar olurdu. */}
-                    <SellerSummary company={company} companyHref={companyHref} />
-                    {related && related.fromCompany.items.length > 0 && hrefFor ? (
-                      <div>
-                        <h3 className="text-sm font-semibold text-zinc-900">
-                          Bu firmanın diğer ürünleri
-                          {related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}
-                        </h3>
-                        <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                          {related.fromCompany.items.slice(0, 3).map((c) => (
-                            <li key={`${c.company.slug}/${c.slug}`}>
-                              <ProductCard product={c} href={hrefFor(c)} variant="compact" />
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </div>
-
-        <aside className="lg:sticky lg:top-28 lg:self-start">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+          <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             {priceBox ?? (
               <>
                 <p className={`tnum text-2xl font-semibold tracking-tight ${price.hasPrice ? "text-zinc-950" : "text-zinc-600"}`}>
@@ -512,6 +459,86 @@ export function ProductDetailBody({
           </ul>
         </aside>
       </div>
+
+      {/* SEKMELER — hash ile: #aciklama #ozellikler #firma #benzer.
+          Boş sekme çizilmez (Tabs `hidden`). */}
+      <Tabs
+        className="mt-8"
+        hashSync
+        panelClassName="pt-6"
+        items={[
+          {
+            id: "aciklama",
+            label: "Açıklama",
+            hidden: !product.description && !product.specification && !(product.documents ?? []).length,
+            content: (
+              <div className="max-w-3xl">
+                {product.description ? (
+                  <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
+                ) : null}
+                {product.specification ? (
+                  <section className="mt-8">
+                    <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
+                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
+                  </section>
+                ) : null}
+                {product.documents && product.documents.length > 0 ? (
+                  <section className="mt-8">
+                    <h3 className="text-sm font-semibold text-zinc-900">Belgeler</h3>
+                    <ul className="mt-3 space-y-2">
+                      {product.documents.map((d) => (
+                        <li key={d.url}>
+                          <a
+                            href={d.url}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
+                          >
+                            <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
+                            {d.title}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            id: "ozellikler",
+            label: "Özellikler",
+            hidden: attrs.length === 0,
+            content: <SpecTable rows={attrs} />,
+          },
+          {
+            id: "firma",
+            label: "Firma",
+            content: (
+              <div className="space-y-6">
+                {/* Web sitesi satırı YALNIZ sağ panelde — iki yerde
+                    aynı kapılı bağlantı tekrar olurdu. */}
+                <SellerSummary company={company} companyHref={companyHref} />
+                {related && related.fromCompany.items.length > 0 && hrefFor ? (
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-900">
+                      Bu firmanın diğer ürünleri
+                      {related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}
+                    </h3>
+                    <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                      {related.fromCompany.items.slice(0, 3).map((c) => (
+                        <li key={`${c.company.slug}/${c.slug}`}>
+                          <ProductCard product={c} href={hrefFor(c)} variant="compact" />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ),
+          },
+        ]}
+      />
 
     </>
   );
