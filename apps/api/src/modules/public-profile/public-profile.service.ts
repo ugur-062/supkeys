@@ -312,6 +312,12 @@ export class PublicProfileService {
         verified: company.companyVerificationStatus === "VERIFIED",
         // Ücretsiz satıcı: ziyaretçiye "yanıtlayamayabilir" notu (2026-09-06).
         freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null), PAID_TIER),
+        /* Satıcı paneli (PROMPT 7) — kimlik değil NİTELİK: paket rozeti,
+           kuruluş yılı, çalışan aralığı ve sertifikalar. İletişim YOK. */
+        gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null) === "GOLD",
+        foundedYear: company.foundedYear,
+        employeeCount: company.employeeCount,
+        certifications: company.certifications.slice(0, 4),
       },
     };
   }
@@ -363,6 +369,10 @@ export class PublicProfileService {
         isBlocked: true,
         tier: true,
         membershipEndAt: true,
+        /* Satıcı paneli (PROMPT 7): kuruluş · çalışan · sertifika. */
+        foundedYear: true,
+        employeeCount: true,
+        certifications: true,
       },
     });
     if (!c || !hasPublicProfile(c)) {

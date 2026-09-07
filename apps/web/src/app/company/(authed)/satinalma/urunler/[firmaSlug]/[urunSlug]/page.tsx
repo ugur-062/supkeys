@@ -84,6 +84,17 @@ export default function PanelProductPage() {
         product={product}
         company={company}
         companyHref={companyHref}
+        related={related.data}
+        hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
+        mobileCta={
+          <button
+            type="button"
+            onClick={() => setInquiryOpen(true)}
+            className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            Bilgi iste
+          </button>
+        }
         sellerSite={
           company.website ? (
             <a
@@ -139,7 +150,6 @@ export default function PanelProductPage() {
         <RelatedRows
           related={related.data}
           categoryName={product.category?.name ?? null}
-          companyHref={companyHref}
           hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
         />
       ) : null}

@@ -624,6 +624,10 @@ export class CompanyItemsService {
         tier: true,
         membershipEndAt: true,
         companyVerificationStatus: true,
+        /* Satıcı paneli (PROMPT 7) — public sayfayla AYNI alanlar. */
+        foundedYear: true,
+        employeeCount: true,
+        certifications: true,
       },
     });
     if (!company || !hasPublicProfile(company)) {
@@ -669,6 +673,10 @@ export class CompanyItemsService {
         // Ücretsiz satıcı (2026-09-06): alıcıya gönderim anında dürüst not —
         // "soruyu görür, yanıtlamak için Silver'a geçmesi gerekir".
         freeMember: !tierAtLeast(effectiveTier(company.tier, company.membershipEndAt), PAID_TIER),
+        gold: effectiveTier(company.tier, company.membershipEndAt) === "GOLD",
+        foundedYear: company.foundedYear,
+        employeeCount: company.employeeCount,
+        certifications: company.certifications.slice(0, 4),
         // Üye katmanı: web sitesi bağlantısı (public sayfada kapılı).
         website: company.website,
       },

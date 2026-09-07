@@ -294,6 +294,13 @@ export interface PublicProductCompany {
   verified?: boolean;
   /** Ücretsiz üye satıcı — "yanıtlayamayabilir" notu (2026-09-06). */
   freeMember?: boolean;
+  /* Satıcı paneli (PROMPT 7) — nitelik, kimlik DEĞİL. Eski yanıt taşımayabilir. */
+  gold?: boolean;
+  foundedYear?: number | null;
+  employeeCount?: string | null;
+  certifications?: string[];
+  /** Üye katmanı (panel) — public sayfada kapılı. */
+  website?: string | null;
 }
 
 export interface PublicProductPage {

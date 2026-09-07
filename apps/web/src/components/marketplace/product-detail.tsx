@@ -1,7 +1,10 @@
 import { PublicLayout } from "./public-layout";
-import { CategoryImage } from "./category-image";
+import { ProductGallery } from "./product-gallery";
 import { Badge } from "@/components/catalyst/badge";
 import { Badge as UiBadge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { Tabs } from "@/components/ui/tabs";
 import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { productPrice } from "@/lib/public/product-price";
@@ -13,7 +16,6 @@ import type {
   RelatedProducts,
 } from "@/lib/public/marketplace-api";
 import { categoryPath } from "@/lib/public/marketplace";
-import { CompanyLogo } from "@/components/company/company-logo";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
@@ -22,12 +24,13 @@ import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   ArrowRightIcon,
-  BuildingOffice2Icon,
+  CheckBadgeIcon,
+  CurrencyDollarIcon,
   DocumentTextIcon,
+  LockClosedIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { Fragment } from "react";
 
 /**
  * Ürün sayfası — SUNUCU bileşeni.
@@ -131,7 +134,7 @@ export function ProductDetail({
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumb) }}
       />
 
-      <div className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
+      <div className="mx-auto max-w-6xl px-6 pt-28 pb-32 lg:px-8 lg:pb-20">
         <ProductBreadcrumb
           trail={[
             { label: "Anasayfa", href: "/" },
@@ -147,6 +150,16 @@ export function ProductDetail({
           product={product}
           company={company}
           companyHref={`/firma/${companySlug}`}
+          related={related}
+          hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
+          mobileCta={
+            <Link
+              href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
+              className="inline-flex items-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Bilgi iste
+            </Link>
+          }
           sellerSite={
             <GatedField label="Firmanın web sitesi" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
           }
@@ -185,7 +198,6 @@ export function ProductDetail({
         <RelatedRows
           related={related}
           categoryName={product.category?.name ?? null}
-          companyHref={`/firma/${companySlug}#urunler`}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
         />
       </div>
@@ -209,23 +221,7 @@ export function ProductBreadcrumb({
   trail: { label: string; href: string }[];
   current: string;
 }) {
-  return (
-    <nav aria-label="Yol" className="text-sm text-zinc-500">
-      <ol className="flex flex-wrap items-center gap-1">
-        {trail.map((t) => (
-          <Fragment key={t.href}>
-            <li>
-              <Link href={t.href} className="hover:text-zinc-900">
-                {t.label}
-              </Link>
-            </li>
-            <li aria-hidden>/</li>
-          </Fragment>
-        ))}
-        <li className="line-clamp-1 text-zinc-900">{current}</li>
-      </ol>
-    </nav>
-  );
+  return <Breadcrumb items={[...trail, { label: current }]} />;
 }
 
 /**
@@ -248,6 +244,9 @@ export function ProductDetailBody({
   cta,
   priceBox,
   sellerSite,
+  related,
+  hrefFor,
+  mobileCta,
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
   product: PublicProduct & Partial<ProductPriceFields>;
@@ -262,6 +261,15 @@ export function ProductDetailBody({
   priceBox?: React.ReactNode;
   /** "Firmanın web sitesi" satırı — public sayfada kapılı, panelde gerçek bağlantı. */
   sellerSite?: React.ReactNode;
+  /** Firma ve Benzer sekmelerinin içeriği; yoksa o sekmeler çizilmez. */
+  related?: RelatedProducts;
+  /** İlişkili ürün kartının hedefi — public `/firma/…`, panel `/company/…`. */
+  hrefFor?: (c: ProductIndexCard) => string;
+  /**
+   * Mobil alt şeridin eylemi (fiyatın yanında). Verilmezse şerit çizilmez —
+   * `cta` slotunu ikinci kez basmak aynı bağlantıyı iki sekme durağı yapardı.
+   */
+  mobileCta?: React.ReactNode;
 }) {
   const price = productPrice({
     priceMode: product.priceMode,
@@ -274,240 +282,333 @@ export function ProductDetailBody({
   const attrs = product.attributeList ?? [];
 
   return (
-        <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_20rem]">
-          <div>
-            {/* Galeri: ilk görsel büyük, kalanlar şerit. Görsel yayın kapısında
-                zorunlu, yine de kategori görseline düşen bir yedek var. */}
-            <CategoryImage
-              src={product.images[0]}
-              categoryIds={product.categoryId ? [product.categoryId] : []}
-              alt={product.name}
-              ratio="aspect-[16/10]"
-              className="rounded-2xl ring-1 ring-zinc-950/5"
-            />
-            {product.images.length > 1 ? (
-              <ul className="mt-3 grid grid-cols-4 gap-3 sm:grid-cols-6">
-                {product.images.slice(1, 7).map((src) => (
-                  <li key={src}>
-                    <CategoryImage
-                      src={src}
-                      alt=""
-                      ratio="aspect-square"
-                      className="rounded-lg ring-1 ring-zinc-950/5"
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+    <>
+      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_23.75rem]">
+        <div className="min-w-0">
+          <ProductGallery
+            images={product.images}
+            alt={product.name}
+            categoryIds={product.categoryId ? [product.categoryId] : []}
+          />
 
-            <Heading
-              level={1}
-              className="mt-8 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
-            >
-              {product.name}
-            </Heading>
+          <Heading
+            level={1}
+            className="mt-8 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+          >
+            {product.name}
+          </Heading>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
-              {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
-            </div>
-
-            {product.description ? (
-              <section className="mt-8">
-                <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
-                  Bu ürün hakkında
-                </h2>
-                <p className="mt-3 text-base/7 whitespace-pre-line text-zinc-700">
-                  {product.description}
-                </p>
-              </section>
-            ) : null}
-
-            {attrs.length > 0 ? (
-              <section className="mt-10">
-                <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
-                  Ürün özellikleri
-                </h2>
-                {/* Application UI — Description lists / "left-aligned striped" */}
-                <dl className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
-                  {attrs.map((a, i) => (
-                    <div
-                      key={a.key}
-                      className={`px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4 ${
-                        i % 2 === 0 ? "bg-zinc-50" : "bg-white"
-                      }`}
-                    >
-                      <dt className="text-sm/6 font-medium text-zinc-900">
-                        {a.label}
-                      </dt>
-                      <dd className="mt-1 text-sm/6 text-zinc-600 sm:col-span-2 sm:mt-0">
-                        {a.unit ? `${a.value} ${a.unit}` : a.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ) : null}
-
-            {product.specification ? (
-              <section className="mt-10">
-                <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
-                  Teknik şartname
-                </h2>
-                <p className="mt-3 text-sm/7 whitespace-pre-line text-zinc-600">
-                  {product.specification}
-                </p>
-              </section>
-            ) : null}
-
-            {product.documents && product.documents.length > 0 ? (
-              <section className="mt-10">
-                <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
-                  Belgeler
-                </h2>
-                <ul className="mt-4 space-y-2">
-                  {product.documents.map((d) => (
-                    <li key={d.url}>
-                      <a
-                        href={d.url}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                      >
-                        <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                        {d.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
-            {/* Anahtar kelimeler GÖRÜNÜR bir bölüm — hem uzun kuyruk SEO hem
-                site içi arama. Europages'te de böyle. */}
-            {product.keywords.length > 0 ? (
-              <section className="mt-10 border-t border-zinc-950/5 pt-6">
-                <h2 className="text-sm font-semibold text-zinc-900">
-                  Anahtar kelimeler
-                </h2>
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {product.keywords.map((k) => (
-                    <li
-                      key={k}
-                      className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600"
-                    >
-                      {k}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {company.gold ? <UiBadge tone="gold" size="sm">Gold Üye</UiBadge> : null}
+            {isNewProduct(product.publishedAt) ? <UiBadge tone="new" size="sm">Yeni</UiBadge> : null}
+            {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
+            {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
           </div>
 
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
-              {priceBox ?? (
+          {/* Anahtar kelimeler başlığın ALTINDA (Europages): hem uzun kuyruk
+              SEO hem "bu ürün ne" özeti. Eskiden sayfanın en altındaydı. */}
+          {product.keywords.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-1.5">
+              {product.keywords.slice(0, 12).map((k) => (
+                <li key={k} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
+                  {k}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {/* SEKMELER — hash ile: #aciklama #ozellikler #firma #benzer.
+              Boş sekme çizilmez (Tabs `hidden`). */}
+          <Tabs
+            className="mt-8"
+            hashSync
+            panelClassName="pt-6"
+            items={[
+              {
+                id: "aciklama",
+                label: "Açıklama",
+                hidden: !product.description && !product.specification && !(product.documents ?? []).length,
+                content: (
+                  <div className="max-w-3xl">
+                    {product.description ? (
+                      <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
+                    ) : null}
+                    {product.specification ? (
+                      <section className="mt-8">
+                        <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
+                        <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
+                      </section>
+                    ) : null}
+                    {product.documents && product.documents.length > 0 ? (
+                      <section className="mt-8">
+                        <h3 className="text-sm font-semibold text-zinc-900">Belgeler</h3>
+                        <ul className="mt-3 space-y-2">
+                          {product.documents.map((d) => (
+                            <li key={d.url}>
+                              <a
+                                href={d.url}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
+                              >
+                                <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
+                                {d.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+                  </div>
+                ),
+              },
+              {
+                id: "ozellikler",
+                label: "Özellikler",
+                hidden: attrs.length === 0,
+                content: <SpecTable rows={attrs} />,
+              },
+              {
+                id: "firma",
+                label: "Firma",
+                content: (
+                  <div className="space-y-6">
+                    {/* Web sitesi satırı YALNIZ sağ panelde — iki yerde
+                        aynı kapılı bağlantı tekrar olurdu. */}
+                    <SellerSummary company={company} companyHref={companyHref} />
+                    {related && related.fromCompany.items.length > 0 && hrefFor ? (
+                      <div>
+                        <h3 className="text-sm font-semibold text-zinc-900">
+                          Bu firmanın diğer ürünleri
+                          {related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}
+                        </h3>
+                        <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                          {related.fromCompany.items.slice(0, 3).map((c) => (
+                            <li key={`${c.company.slug}/${c.slug}`}>
+                              <ProductCard product={c} href={hrefFor(c)} variant="compact" />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                ),
+              },
+              {
+                id: "benzer",
+                label: "Benzer ürünler",
+                hidden: !related || related.similar.length === 0 || !hrefFor,
+                content: (
+                  <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                    {(related?.similar ?? []).slice(0, 4).map((c) => (
+                      <li key={`${c.company.slug}/${c.slug}`}>
+                        <ProductCard
+                          product={c}
+                          href={hrefFor ? hrefFor(c) : "#"}
+                          company={c.company}
+                          variant="compact"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+            ]}
+          />
+        </div>
+
+        <aside className="lg:sticky lg:top-28 lg:self-start">
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+            {priceBox ?? (
               <>
-              <p
-                className={`text-2xl font-semibold tracking-tight ${
-                  price.hasPrice ? "text-zinc-950" : "text-zinc-600"
-                }`}
-              >
+                <p className={`tnum text-2xl font-semibold tracking-tight ${price.hasPrice ? "text-zinc-950" : "text-zinc-600"}`}>
+                  {price.headline}
+                </p>
+                {price.note ? <p className="mt-1 text-xs text-zinc-500">{price.note}</p> : null}
+                {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">KDV hariç</p> : null}
+                {product.moq ? (
+                  <p className="tnum mt-2 text-sm text-zinc-500">
+                    Minimum sipariş: {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
+                  </p>
+                ) : null}
+
+                {price.tiers ? (
+                  <table className="mt-4 w-full text-left text-sm">
+                    <thead className="text-xs text-zinc-500 uppercase">
+                      <tr>
+                        <th className="pb-1 font-medium">Miktar</th>
+                        <th className="pb-1 text-right font-medium">Birim fiyat</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-950/5">
+                      {price.tiers.map((t) => (
+                        <tr key={t.minQty}>
+                          <td className="tnum py-1.5 text-zinc-700">
+                            {t.minQty.toLocaleString("tr-TR")}+ {product.unit}
+                          </td>
+                          <td className="tnum py-1.5 text-right font-medium text-zinc-950">
+                            {t.unitPrice.toLocaleString("tr-TR")} {product.priceCurrency}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+              </>
+            )}
+
+            {/* SATICI — panelin İÇİNDE (Europages): fiyatla eylem arasında
+                "kimden alıyorum" sorusu duruyor. */}
+            <div className="mt-5 border-t border-zinc-950/5 pt-5">
+              <SellerSummary company={company} companyHref={companyHref} sellerSite={sellerSite} compact />
+            </div>
+
+            <div className="mt-5 border-t border-zinc-950/5 pt-5">{cta}</div>
+          </div>
+
+          {/* Güven şeridi — üç kural, tek satır. */}
+          <ul className="mt-4 space-y-2 px-1 text-xs text-zinc-600">
+            <li className="flex items-center gap-2">
+              <CheckBadgeIcon aria-hidden className="size-4 shrink-0 text-emerald-600" />
+              Firmalar vergi levhası ve sicil belgesiyle doğrulanır
+            </li>
+            <li className="flex items-center gap-2">
+              <LockClosedIcon aria-hidden className="size-4 shrink-0 text-zinc-400" />
+              Teklifler kapalı zarf — rakipler göremez
+            </li>
+            <li className="flex items-center gap-2">
+              <CurrencyDollarIcon aria-hidden className="size-4 shrink-0 text-zinc-400" />
+              Alım-satım bedelinden komisyon alınmaz
+            </li>
+          </ul>
+        </aside>
+      </div>
+
+      {/* MOBİL ALT ŞERİT — fiyat + tek eylem. Panel `lg` altında sayfanın
+          altına düştüğü için karar ekranı ekrandan çıkıyordu. */}
+      {mobileCta ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-3xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className={`tnum truncate text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-600"}`}>
                 {price.headline}
               </p>
-              {price.note ? (
-                <p className="mt-1 text-xs text-zinc-500">{price.note}</p>
-              ) : null}
               {product.moq ? (
-                <p className="mt-2 text-sm text-zinc-500">
-                  Minimum sipariş:{" "}
-                  {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
+                <p className="tnum truncate text-xs text-zinc-500">
+                  Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
                 </p>
               ) : null}
-              {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">KDV hariç</p> : null}
-
-              {price.tiers ? (
-                <table className="mt-4 w-full text-left text-sm">
-                  <thead className="text-xs text-zinc-500 uppercase">
-                    <tr>
-                      <th className="pb-1 font-medium">Miktar</th>
-                      <th className="pb-1 text-right font-medium">Birim fiyat</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-950/5">
-                    {price.tiers.map((t) => (
-                      <tr key={t.minQty}>
-                        <td className="py-1.5 text-zinc-700">
-                          {t.minQty.toLocaleString("tr-TR")}+ {product.unit}
-                        </td>
-                        <td className="py-1.5 text-right font-medium text-zinc-950">
-                          {t.unitPrice.toLocaleString("tr-TR")} {product.priceCurrency}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : null}
-              </>
-              )}
-
-              <div className="mt-5 border-t border-zinc-950/5 pt-5">{cta}</div>
             </div>
+            <div className="shrink-0">{mobileCta}</div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
 
-            <div className="mt-6 rounded-2xl bg-zinc-50 p-5 ring-1 ring-zinc-950/5">
-              <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                Satıcı
-              </h2>
-              <div className="mt-3 flex items-start gap-3">
-                <CompanyLogo
-                  src={company.logoUrl}
-                  alt=""
-                  className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-zinc-950/5"
-                  fallback={
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-zinc-950/5">
-                      <BuildingOffice2Icon aria-hidden className="size-5 text-zinc-400" />
-                    </span>
-                  }
-                />
-                <div className="min-w-0">
-                  <Link
-                    href={companyHref}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-950 hover:text-zinc-600"
-                  >
-                    {company.name}
-                    {company.verified ? (
-                      <UiBadge tone="verified" size="sm" className="px-1">
-                        <span className="sr-only">Doğrulanmış firma</span>
-                      </UiBadge>
-                    ) : null}
-                  </Link>
-                  {company.industry ? (
-                    <p className="mt-0.5 text-xs text-zinc-500">{company.industry}</p>
-                  ) : null}
-                  {company.city ? (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-                      <MapPinIcon aria-hidden className="size-3.5" />
-                      {company.city}
-                    </p>
-                  ) : null}
-                  {company.activities.length > 0 ? (
-                    <p className="mt-2 flex flex-wrap gap-1">
-                      {company.activities.slice(0, 3).map((a) => (
-                        <span key={a} className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-950/5">
-                          {companyActivityLabel(a)}
-                        </span>
-                      ))}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              {/* Web sitesi / dış bağlantı ÜYEYE (görünürlük v2) — varlığı
-                  söylenir, tıklaması giriş ister. */}
-              {product.externalUrl || sellerSite ? (
-                <div className="mt-4">{sellerSite ?? null}</div>
-              ) : null}
-            </div>
-          </aside>
+/** Yayın tarihi ≤ 7 gün → "Yeni" (kart ailesiyle aynı kural). */
+function isNewProduct(publishedAt?: string | null): boolean {
+  if (!publishedAt) return false;
+  const t = new Date(publishedAt).getTime();
+  return Number.isFinite(t) && Date.now() - t <= 7 * 86_400_000;
+}
+
+/**
+ * NİTELİK TABLOSU — iki sütun, zebra. Kaynak ürünün `attributes` alanı
+ * (etiketlenmiş liste); açıklamadan AYRIŞTIRILMAZ — uydurma veri üretirdi.
+ */
+export function SpecTable({ rows }: { rows: { key: string; label: string; value: string; unit: string | null }[] }) {
+  return (
+    <dl className="divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
+      {rows.map((a, i) => (
+        <div
+          key={a.key}
+          className={`px-5 py-3.5 sm:grid sm:grid-cols-3 sm:gap-4 ${i % 2 === 0 ? "bg-zinc-50" : "bg-white"}`}
+        >
+          <dt className="text-sm/6 font-medium text-zinc-900">{a.label}</dt>
+          <dd className="mt-1 text-sm/6 text-zinc-600 sm:col-span-2 sm:mt-0">
+            {a.unit ? `${a.value} ${a.unit}` : a.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * SATICI ÖZETİ — panelde (compact) ve Firma sekmesinde (geniş) AYNI bileşen.
+ * Kimlik değil NİTELİK gösterilir: paket rozeti, faaliyet, sertifika,
+ * kuruluş yılı, çalışan aralığı. İletişim bilgisi üyeye (GatedField).
+ */
+function SellerSummary({
+  company,
+  companyHref,
+  sellerSite,
+  compact = false,
+}: {
+  company: PublicProductCompany;
+  companyHref: string;
+  sellerSite?: React.ReactNode;
+  compact?: boolean;
+}) {
+  const certs = (company.certifications ?? []).slice(0, compact ? 2 : 4);
+  const facts = [
+    company.foundedYear ? `Kuruluş ${company.foundedYear}` : null,
+    company.employeeCount ? `${company.employeeCount} çalışan` : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <div>
+      <div className="flex items-start gap-3">
+        <Avatar name={company.name} src={company.logoUrl} size={48} />
+        <div className="min-w-0">
+          <p className="flex min-w-0 items-center gap-1.5">
+            <Link href={companyHref} className="truncate text-sm font-semibold text-zinc-950 hover:text-zinc-600">
+              {company.name}
+            </Link>
+            {company.verified ? (
+              <UiBadge tone="verified" size="sm" className="px-1">
+                <span className="sr-only">Doğrulanmış firma</span>
+              </UiBadge>
+            ) : null}
+            {company.gold ? (
+              <UiBadge tone="gold" size="sm" className="px-1">
+                <span className="sr-only">Gold Üye</span>
+              </UiBadge>
+            ) : null}
+          </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+            {company.industry ? <span className="line-clamp-1">{company.industry}</span> : null}
+            {company.city ? (
+              <span className="inline-flex items-center gap-1">
+                <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
+                {company.city}
+              </span>
+            ) : null}
+          </p>
+        </div>
+      </div>
+
+      {company.activities.length > 0 || certs.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {company.activities.slice(0, 3).map((a) => (
+            <UiBadge key={a} tone="neutral" size="sm">
+              {companyActivityLabel(a)}
+            </UiBadge>
+          ))}
+          {certs.map((c) => (
+            <UiBadge key={c} tone="neutral" size="sm" className="bg-white ring-1 ring-inset ring-zinc-950/10">
+              {c}
+            </UiBadge>
+          ))}
+        </div>
+      ) : null}
+
+      {facts.length > 0 ? <p className="tnum mt-2 text-xs text-zinc-500">{facts.join(" · ")}</p> : null}
+
+      {/* Web sitesi / dış bağlantı ÜYEYE (görünürlük v2). */}
+      {sellerSite ? <div className="mt-3">{sellerSite}</div> : null}
     </div>
   );
 }
@@ -521,26 +622,21 @@ export function ProductDetailBody({
 export function RelatedRows({
   related,
   categoryName,
-  companyHref,
   hrefFor,
 }: {
   related: RelatedProducts;
   categoryName: string | null;
-  companyHref: string;
   hrefFor: (c: ProductIndexCard) => string;
 }) {
+  // "Firmanın diğerleri" ve "Benzer ürünler" PROMPT 7'de SEKMELERE taşındı
+  // (Firma · Benzer ürünler); burada yalnız keşif satırı kalır — aynı listeyi
+  // hem sekmede hem satırda basmak sayfayı iki kez uzatıyordu.
   return (
-    <>
-      <RelatedRow
-        heading={`Bu firmanın diğer ürünleri${related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}`}
-        items={related.fromCompany.items}
-        href={companyHref}
-        hrefLabel="Tümünü gör"
-        hrefFor={hrefFor}
-      />
-      <RelatedRow heading="Benzer ürünler" items={related.similar} hrefFor={hrefFor} />
-      <RelatedRow heading={categoryName ? `${categoryName} içinde yeni` : "Kategoride yeni"} items={related.popular} hrefFor={hrefFor} />
-    </>
+    <RelatedRow
+      heading={categoryName ? `${categoryName} içinde yeni` : "Kategoride yeni"}
+      items={related.popular}
+      hrefFor={hrefFor}
+    />
   );
 }
 

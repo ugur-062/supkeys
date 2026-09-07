@@ -1,0 +1,112 @@
+// @vitest-environment jsdom
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+
+import { ProductDetailBody } from "../product-detail";
+import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
+
+/**
+ * ÜRÜN SAYFASI GÖVDESİ (PROMPT 7) — sekmeler, satıcı paneli, nitelik tablosu.
+ * Gövde public sayfa ile PANEL arasında paylaşılır; sözleşme ikisini birden
+ * kilitler.
+ */
+const product = {
+  slug: "pano",
+  name: "Kompanzasyon Panosu 400 kVAr",
+  images: ["a.webp", "b.webp"],
+  priceMode: "FIXED",
+  priceAmount: "185000",
+  priceTiers: null,
+  priceCurrency: "TRY",
+  moq: "1",
+  unit: "adet",
+  categoryId: "39121000",
+  description: "Reaktif güç kompanzasyon panosu.",
+  specification: null,
+  brand: null,
+  mpn: null,
+  unitCode: null,
+  videoUrl: null,
+  externalUrl: null,
+  documents: null,
+  keywords: ["kompanzasyon", "pano"],
+  attributes: null,
+  attributeList: [],
+  category: { id: "39121000", name: "Panolar" },
+  publishedAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+} as unknown as PublicProduct;
+
+const company: PublicProductCompany = {
+  name: "Karadeniz Enerji A.Ş.",
+  slug: "karadeniz-enerji",
+  city: "Samsun",
+  country: "TR",
+  logoUrl: null,
+  industry: "Enerji ve elektrik",
+  activities: ["HIZMET_SAGLAYICI"],
+  verified: true,
+  gold: true,
+  foundedYear: 2008,
+  employeeCount: "50-100",
+  certifications: ["ISO 9001", "ISO 45001"],
+};
+
+function Body(extra: Partial<React.ComponentProps<typeof ProductDetailBody>> = {}) {
+  return (
+    <ProductDetailBody
+      product={product}
+      company={company}
+      companyHref="/firma/karadeniz-enerji"
+      cta={<button type="button">Bilgi iste</button>}
+      {...extra}
+    />
+  );
+}
+
+describe("ProductDetailBody", () => {
+  it("satıcı paneli niteliği gösterir: rozet, sertifika, kuruluş, çalışan", () => {
+    render(Body());
+    expect(screen.getAllByText("Karadeniz Enerji A.Ş.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Doğrulanmış firma").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Gold Üye").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("ISO 9001").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Kuruluş 2008 · 50-100 çalışan").length).toBeGreaterThan(0);
+  });
+
+  it("fiyat, KDV notu ve minimum sipariş panelde", () => {
+    render(Body());
+    expect(screen.getAllByText("185.000 ₺ / adet").length).toBeGreaterThan(0);
+    expect(screen.getByText("KDV hariç")).toBeTruthy();
+    expect(screen.getByText("Minimum sipariş: 1 adet")).toBeTruthy();
+  });
+
+  it("nitelik YOKSA Özellikler sekmesi çizilmez", () => {
+    render(Body());
+    expect(screen.getByRole("tab", { name: "Açıklama" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Özellikler" })).toBeNull();
+  });
+
+  it("nitelik VARSA Özellikler sekmesi tabloyu basar (açıklamadan ayrıştırmaz)", async () => {
+    const u = userEvent.setup();
+    render(
+      Body({
+        product: {
+          ...product,
+          attributeList: [{ key: "guc", label: "Güç", value: "400", unit: "kVAr" }],
+        } as PublicProduct,
+      }),
+    );
+    await u.click(screen.getByRole("tab", { name: "Özellikler" }));
+    expect(await screen.findByText("Güç")).toBeTruthy();
+    expect(screen.getByText("400 kVAr")).toBeTruthy();
+  });
+
+  it("mobil şerit YALNIZ eylem verildiğinde çizilir (ikinci sekme durağı olmasın)", () => {
+    const { container, rerender } = render(Body());
+    expect(container.querySelector(".fixed.inset-x-0.bottom-0")).toBeNull();
+    rerender(Body({ mobileCta: <button type="button">Bilgi iste</button> }));
+    expect(container.querySelector(".fixed.inset-x-0.bottom-0")).toBeTruthy();
+  });
+});

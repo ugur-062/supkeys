@@ -854,6 +854,25 @@ URL şemaları mevcut hâliyle sabit.
   sahip ADI YOK); yeni `GET public/categories/menu` (L1+L2, ürün sayısıyla,
   15 dk önbellek). Sözleşmeler: `public-product-index.spec` (kapsam + menü),
   web `search-typeahead.test` / `mega-menu.test`, e2e `public-header.spec`.
+- **PROMPT 7:** ürün detayı Europages düzenine geçti. Kırıntı `ui/breadcrumb`
+  (Anasayfa › Kategori › Firma › Ürün). Üst blok iki sütun
+  (`lg:grid-cols-[1fr_23.75rem]`): solda **kare galeri** (`ProductGallery` —
+  şerit artık SEÇİCİ, ikinci fotoğraf büyük görülebiliyor), başlık, Gold/Yeni
+  rozetleri ve anahtar kelime çipleri (eskiden sayfanın en altındaydı);
+  sağda **satıcı paneli** (`lg:sticky`): fiyat + KDV notu + MOQ + kademe
+  tablosu → satıcı özeti (avatar, Doğrulanmış/Gold, sektör·şehir, faaliyet ve
+  sertifika rozetleri, "Kuruluş YYYY · X çalışan", kapılı web sitesi) → CTA;
+  altında üç maddelik güven şeridi. Gövde sekmeleniyor (`ui/tabs`, hash):
+  **Açıklama · Özellikler · Firma · Benzer ürünler** — nitelik yoksa
+  Özellikler sekmesi ÇİZİLMEZ ve nitelik AÇIKLAMADAN AYRIŞTIRILMAZ (uydurma
+  veri olurdu). `RelatedRows` artık yalnız "kategoride yeni" satırını basar —
+  firmanın diğerleri ve benzerler sekmelere taşındı, aynı listeyi iki kez
+  basmak sayfayı uzatıyordu. Mobilde ekranın altında **yapışkan şerit**
+  (fiyat + tek eylem, `mobileCta` slotu verilirse). Gövde public sayfa ile
+  PANEL arasında paylaşıldığı için panel de aynı düzeni aldı.
+  **API (eklemeli):** ürün sayfasının firma yükü `gold` + `foundedYear` +
+  `employeeCount` + `certifications` taşır (public `getPublicProduct` ve
+  panel `discoverProduct` AYNI alanlar). Sözleşme: `product-detail.test.tsx`.
 
 ### Anasayfa & ürün süzgeci v3 (2026-09-04)
 
