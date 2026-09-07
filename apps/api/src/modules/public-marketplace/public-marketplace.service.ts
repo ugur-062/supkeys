@@ -389,7 +389,7 @@ export class PublicMarketplaceService {
     // Where/orderBy TEK KAYNAK (`common/company/product-index.ts`) — panelin
     // "Ürün Ara"sı aynı fonksiyonu okur.
     const where = productIndexWhere(
-      { ...q, verified: q.verified === "1", priceUnpriced: q.priceUnpriced === "1" },
+      { ...q, verified: q.verified === "1", priceUnpriced: q.priceUnpriced === "1", fastReply: q.fastReply === "1" },
       [],
       { employeeValues: await employeeValuesQuery(this.prisma, q.employees) },
     );
@@ -626,6 +626,7 @@ export class PublicMarketplaceService {
     cities: { city: string; count: number }[];
     activities: { activity: string; count: number }[];
     verified: number;
+    fastReply: number;
     price: { has: number; request: number };
     certifications: { cert: string; count: number }[];
     employees: { key: number; count: number }[];
@@ -663,6 +664,7 @@ export class PublicMarketplaceService {
             companyVerificationStatus: true,
             certifications: true,
             employeeCount: true,
+            medianReplyHours: true,
           },
         },
       },
@@ -681,6 +683,7 @@ export class PublicMarketplaceService {
       employees: q.employees,
       near: q.near,
       radius: q.radius,
+      fastReply: q.fastReply === "1",
     };
     // `attributes` facet'i ham satırı ister (JSON alanı), sayaçlar eşlenmişi.
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);
@@ -704,6 +707,7 @@ export class PublicMarketplaceService {
       cities: ctx.cities,
       activities: ctx.activities,
       verified: ctx.verified,
+      fastReply: ctx.fastReply,
       price: ctx.price,
       certifications: ctx.certifications,
       employees: ctx.employees,

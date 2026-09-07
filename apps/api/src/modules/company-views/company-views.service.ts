@@ -3,6 +3,12 @@ import { tierAtLeast } from "@rothern/shared";
 import { createHash } from "node:crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import {
+  medianFirstReplyHours,
+  REPLY_WINDOW_DAYS,
+  roundReplyHours,
+  type InquiryReplyPair,
+} from "../../common/company/reply-time";
 
 /**
  * ZİYARET EDENLER + İŞ ANALİZİ (2026-09-05, Europages "Your Visitors" /
@@ -301,11 +307,10 @@ export class CompanyViewsService {
       : [];
     const cityCounts = new Map<string, number>();
     for (const c of viewerCompanies) if (c.city) cityCounts.set(c.city, (cityCounts.get(c.city) ?? 0) + 1);
-    const replyHours = inquiries
-      .filter((i) => i.replies[0])
-      .map((i) => (i.replies[0]!.createdAt.getTime() - i.createdAt.getTime()) / 3_600_000)
-      .sort((a, b) => a - b);
-    const median = replyHours.length ? replyHours[Math.floor(replyHours.length / 2)]! : null;
+    // TEK KAYNAK (`common/company/reply-time.ts`): "Hızlı yanıt veren"
+    // süzgecinin gece cron'u AYNI fonksiyonu kullanır — panelde görülen sayı
+    // ile dizinde süzülen ölçü ayrışmasın.
+    const median = medianFirstReplyHours(inquiries);
     return {
       days,
       generatedAt: now.toISOString(),
@@ -326,7 +331,7 @@ export class CompanyViewsService {
       inquiries: {
         received: inquiries.length,
         replied: inquiries.filter((i) => i.replies.length > 0).length,
-        medianFirstReplyHours: median != null ? Math.round(median * 10) / 10 : null,
+        medianFirstReplyHours: roundReplyHours(median),
       },
       connections: {
         invitesReceived: conns.length,
@@ -344,6 +349,49 @@ export class CompanyViewsService {
   async purgeExpired(): Promise<number> {
     const res = await this.prisma.companyView.deleteMany({ where: { viewedAt: { lt: daysAgo(VIEW_RETENTION_DAYS) } } });
     return res.count;
+  }
+
+  /**
+   * "Hızlı yanıt veren" ölçüsünü TÜM firmalar için yeniden hesaplar (gece).
+   *
+   * Firma başına sorgu atmak yerine pencere içindeki TÜM talepleri tek
+   * seferde çekip bellekte gruplar — firma sayısı büyüdükçe N+1'e dönmesin.
+   * Ölçümü olmayan firmaya `null` YAZILIR (eski değer silinir): 90 günlük
+   * pencerenin dışına düşen firma "hâlâ hızlı" görünmemeli.
+   */
+  async recomputeReplyTimes(): Promise<{ scanned: number; updated: number }> {
+    const since = new Date(Date.now() - REPLY_WINDOW_DAYS * 86_400_000);
+    const rows = await this.prisma.publicInquiry.findMany({
+      where: { createdAt: { gte: since } },
+      select: {
+        companyId: true,
+        createdAt: true,
+        replies: { orderBy: { createdAt: "asc" }, take: 1, select: { createdAt: true } },
+      },
+    });
+    const byCompany = new Map<string, InquiryReplyPair[]>();
+    for (const r of rows) {
+      const list = byCompany.get(r.companyId) ?? [];
+      list.push(r);
+      byCompany.set(r.companyId, list);
+    }
+    const now = new Date();
+    let updated = 0;
+    // Ölçüsü DEĞİŞEN firmayı yaz; pencereden düşenleri de temizle.
+    const stale = await this.prisma.company.findMany({
+      where: { medianReplyHours: { not: null } },
+      select: { id: true },
+    });
+    const ids = new Set([...byCompany.keys(), ...stale.map((c) => c.id)]);
+    for (const id of ids) {
+      const value = roundReplyHours(medianFirstReplyHours(byCompany.get(id) ?? []));
+      await this.prisma.company.update({
+        where: { id },
+        data: { medianReplyHours: value, medianReplyComputedAt: now },
+      });
+      updated++;
+    }
+    return { scanned: rows.length, updated };
   }
 }
 

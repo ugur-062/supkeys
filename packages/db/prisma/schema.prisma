@@ -614,6 +614,24 @@ model Company {
   employeeCount         String?
   certifications        String[] @default([])
 
+  /**
+   * "Hızlı yanıt veren" süzgecinin altlığı (2026-09-07).
+   *
+   * Gelen bilgi taleplerine İLK yanıta kadar geçen sürenin ORTANCASI (saat),
+   * son 90 gün. Gece cron'u yazar (`company-views.scheduler`); İş
+   * Analizi'ndeki anlık hesapla AYNI yardımcıdan üretilir
+   * (`medianFirstReplyHours`), iki hesap ayrışmasın.
+   *
+   * Neden denormalize: süzgeç ürün dizininin `where`inde çalışıyor; her
+   * sorguda firma başına bilgi talebi + ilk yanıt taraması yapmak
+   * dizinin maliyetini katlardı.
+   *
+   * `null` = ölçüm YOK (hiç yanıtlanmış talep yok) — süzgeç bunları
+   * DIŞARIDA bırakır, "yavaş" saymaz.
+   */
+  medianReplyHours      Float?
+  medianReplyComputedAt DateTime?
+
   // Durum
   isActive      Boolean   @default(true)
   isBlocked     Boolean   @default(false)

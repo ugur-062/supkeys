@@ -51,13 +51,28 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
     <div className="space-y-3" data-filters>
       <CategoryGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
-      <Group title="Firma profili" count={state.verified ? 1 : 0} onClear={() => update({ verified: false })} storageKey="profil">
+      <Group
+        title="Firma profili"
+        count={(state.verified ? 1 : 0) + (state.fastReply ? 1 : 0)}
+        onClear={() => update({ verified: false, fastReply: false })}
+        storageKey="profil"
+      >
         <Check
           id={`${idPrefix}-verified`}
           label="Doğrulanmış"
           count={facets.verified}
           checked={state.verified}
           onChange={(v) => update({ verified: v })}
+        />
+        {/* Ölçüsü olmayan firma bu süzgece GİRMEZ ("yavaş" saymıyoruz).
+            Kimse ölçülmemişse sayaç 0 olur ve `Check` seçeneği kendiliğinden
+            devre dışı bırakır — kırık değil, "henüz veri yok" görünür. */}
+        <Check
+          id={`${idPrefix}-fast`}
+          label="Hızlı yanıt veren"
+          count={facets.fastReply ?? 0}
+          checked={state.fastReply}
+          onChange={(v) => update({ fastReply: v })}
         />
       </Group>
 
@@ -554,6 +569,7 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   if (state.priceMin != null || state.priceMax != null) chips.push({ key: "pr", label: `${state.priceMin ?? 0} – ${state.priceMax ?? "∞"} ₺`, onRemove: () => update({ priceMin: undefined, priceMax: undefined }) });
   if (state.moqMax != null) chips.push({ key: "moq", label: `Min. sipariş ≤ ${state.moqMax.toLocaleString("tr-TR")}`, onRemove: () => update({ moqMax: undefined }) });
   for (const c of state.certs) chips.push({ key: `cert:${c}`, label: c, onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
+  if (state.fastReply) chips.push({ key: "fast", label: "Hızlı yanıt veren", onRemove: () => update({ fastReply: false }) });
   if (state.near && state.radius) {
     chips.push({
       key: "near",

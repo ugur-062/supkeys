@@ -14,6 +14,7 @@ import {
   tokenizeQuery,
 } from "@rothern/shared";
 import { resolveCategoryAttributes } from "./category-attributes";
+import { FAST_REPLY_HOURS } from "./reply-time";
 import { publicProductWhere } from "./public-profile-gate";
 
 /**
@@ -54,6 +55,8 @@ export interface ProductIndexParams {
   near?: string;
   /** Yarıçap (km) — 25 | 50 | 100 | 250. */
   radius?: number;
+  /** Bilgi taleplerini ortalama bir iş gününde yanıtlayan firmalar. */
+  fastReply?: boolean;
   attr?: string[];
   sort?: "relevance" | "newest" | "price" | "price_desc";
 }
@@ -234,6 +237,9 @@ export function productIndexWhere(
     // süzgeciyle birlikte seçilirse ikisi de uygulanır (kesişim) — iki ayrı
     // koşul, çünkü tek `company` nesnesinde aynı anahtar iki kez olamaz.
     ...(near.length ? [{ company: { city: { in: near } } }] : []),
+    // Ölçümü OLMAYAN firma (null) dışarıda kalır — "yavaş" saymıyoruz,
+    // "bilmiyoruz" diyoruz; kullanıcı hızlı olduğu KANITLI olanı istedi.
+    ...(q.fastReply ? [{ company: { medianReplyHours: { lte: FAST_REPLY_HOURS } } }] : []),
     ...(certs.length ? [{ company: { certifications: { hasSome: certs } } }] : []),
     // ÇALIŞAN KOVASI: kolon serbest metin olduğu için SQL'de kova sorgulanamaz —
     // çağıran, veritabanındaki distinct değerleri kovalayıp EŞLEŞEN DİZELERİ
@@ -295,6 +301,7 @@ export interface ProductFacetRow {
     companyVerificationStatus?: string;
     certifications?: string[];
     employeeCount?: string | null;
+    medianReplyHours?: number | null;
   };
 }
 
@@ -312,6 +319,7 @@ export function toFacetRow(r: {
     companyVerificationStatus?: string;
     certifications?: string[];
     employeeCount?: string | null;
+    medianReplyHours?: number | null;
   };
 }): ProductFacetRow {
   return {
@@ -342,6 +350,8 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
     !sel.price || (sel.price === "has" ? r.priceMode !== "ON_REQUEST" : r.priceMode === "ON_REQUEST");
   const okCert = (r: ProductFacetRow) =>
     certs.size === 0 || (r.company.certifications ?? []).some((c) => certs.has(c.trim()));
+  const okFast = (r: ProductFacetRow) =>
+    !sel.fastReply || (r.company.medianReplyHours != null && r.company.medianReplyHours <= FAST_REPLY_HOURS);
   const okEmp = (r: ProductFacetRow) => {
     if (!empKeys.size) return true;
     const b = employeeBucket(r.company.employeeCount);
@@ -355,10 +365,11 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
   // Her boyut KENDİ seçimi hariç, diğer TÜM seçimler uygulanmış küme üzerinde
   // sayılır. Boyut ekledikçe bu listeler uzuyor; biri unutulursa o boyutun
   // sayacı fazla gösterir ve tıklayınca liste beklenenden dar çıkar.
-  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r);
+  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r) && okFast(r);
   const forCity = rows.filter((r) => okAct(r) && okVer(r) && okPrice(r) && base(r));
   const forAct = rows.filter((r) => okCity(r) && okVer(r) && okPrice(r) && base(r));
   const forVer = rows.filter((r) => okCity(r) && okAct(r) && okPrice(r) && base(r));
+  const forFast = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r));
   const forPrice = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && base(r));
   const forCert = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okEmp(r));
   const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r));
@@ -372,6 +383,9 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
       .map(([activity, count]) => ({ activity, count }))
       .sort((a, b) => b.count - a.count),
     verified: forVer.filter((r) => r.company.companyVerificationStatus === "VERIFIED").length,
+    fastReply: forFast.filter(
+      (r) => r.company.medianReplyHours != null && r.company.medianReplyHours <= FAST_REPLY_HOURS,
+    ).length,
     price: {
       has: forPrice.filter((r) => r.priceMode !== "ON_REQUEST").length,
       request: forPrice.filter((r) => r.priceMode === "ON_REQUEST").length,

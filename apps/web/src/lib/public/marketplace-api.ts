@@ -533,6 +533,8 @@ export interface ProductFacets {
   activities: { activity: string; count: number }[];
   /** v3: bağlama duyarlı sayaçlar. */
   verified: number;
+  /** Bilgi taleplerini ortalama bir iş gününde yanıtlayan firmaların ürünü. */
+  fastReply?: number;
   price: { has: number; request: number };
   /* 2026-09-07 grupları. Hepsi OPSİYONEL okunur: kenar önbelleğindeki eski
      yanıt bu alanları taşımıyor olabilir, alan eksikse sayfa çökmemeli
@@ -578,6 +580,8 @@ export interface ProductListParams {
   near?: string;
   /** Yarıçap (km): 25 | 50 | 100 | 250. */
   radius?: number;
+  /** Hızlı yanıt veren firmalar. */
+  fastReply?: boolean;
   page?: number;
   /** Sayfa başına kart (24 | 48 | 96) — `adet` parametresinin API karşılığı. */
   pageSize?: number;
@@ -595,6 +599,7 @@ const EMPTY_PRODUCT_FACETS: ProductFacets = {
   cities: [],
   activities: [],
   verified: 0,
+  fastReply: 0,
   price: { has: 0, request: 0 },
   certifications: [],
   employees: [],
@@ -625,6 +630,7 @@ export function fetchProducts(
     sp.set("near", params.near);
     sp.set("radius", String(params.radius));
   }
+  if (params.fastReply) sp.set("fastReply", "1");
   // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
   // ilk ayraçlı seçenekte sessizce bölerdi.
   for (const a of params.attr ?? []) sp.append("attr", a);
@@ -644,7 +650,7 @@ export function fetchProducts(
  */
 export type ProductFacetParams = Pick<
   ProductListParams,
-  "category" | "q" | "city" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius"
+  "category" | "q" | "city" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius" | "fastReply"
 >;
 
 /** Facet sayaçları BAĞLAMA DUYARLI: diğer seçimler de gönderilir. */
@@ -662,6 +668,7 @@ export function fetchProductFacets(params: ProductFacetParams = {}): Promise<Pro
     sp.set("near", params.near);
     sp.set("radius", String(params.radius));
   }
+  if (params.fastReply) sp.set("fastReply", "1");
   const qs = sp.toString();
   return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300);
 }

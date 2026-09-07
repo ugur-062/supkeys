@@ -4,6 +4,7 @@ import {
   priceHistogram,
   type ProductFacetRow,
 } from "../../src/common/company/product-index";
+import { FAST_REPLY_HOURS, medianFirstReplyHours, roundReplyHours } from "../../src/common/company/reply-time";
 import { employeeBucket } from "@rothern/shared";
 
 /**
@@ -25,6 +26,7 @@ const row = (o: Partial<ProductFacetRow> & { company?: Partial<ProductFacetRow["
     companyVerificationStatus: "VERIFIED",
     certifications: [],
     employeeCount: null,
+    medianReplyHours: null,
     ...o.company,
   },
 });
@@ -160,5 +162,39 @@ describe("priceHistogram", () => {
   it("fiyatsız (ON_REQUEST) ürünler histograma girmez", () => {
     const rows = [row({ priceAmount: 100 }), row({ priceAmount: 900 }), row({ priceMode: "ON_REQUEST", priceAmount: null })];
     expect(priceHistogram(rows)!.buckets.reduce((a, b) => a + b.count, 0)).toBe(2);
+  });
+});
+
+describe("ilk yanıt süresi — 'Hızlı yanıt veren' altlığı", () => {
+  const h = (n: number) => ({ createdAt: new Date(0), replies: [{ createdAt: new Date(n * 3_600_000) }] });
+
+  it("ORTANCA döner; tek unutulmuş talep sonucu bozmaz", () => {
+    // Ortalama olsaydı 300 saatlik tek talep ölçüyü 60'a çıkarırdı.
+    expect(medianFirstReplyHours([h(1), h(2), h(3), h(4), h(300)])).toBe(3);
+  });
+
+  it("yanıtlanmamış talep hesaba GİRMEZ; hiç yanıt yoksa null (0 DEĞİL)", () => {
+    expect(medianFirstReplyHours([{ createdAt: new Date(0), replies: [] }])).toBeNull();
+    expect(medianFirstReplyHours([])).toBeNull();
+    // "ölçüm yok" ile "anında yanıtlıyor" aynı şey değil.
+    expect(medianFirstReplyHours([h(0)])).toBe(0);
+  });
+
+  it("roundReplyHours bir ondalık; null korunur", () => {
+    expect(roundReplyHours(6.44)).toBe(6.4);
+    expect(roundReplyHours(null)).toBeNull();
+  });
+
+  it("süzgeç: ölçüsü OLMAYAN firma 'hızlı' sayılmaz", () => {
+    const rows = [
+      row({ company: { medianReplyHours: 3 } }),
+      row({ company: { medianReplyHours: FAST_REPLY_HOURS + 1 } }),
+      row({ company: { medianReplyHours: null } }),
+    ];
+    expect(contextualFacetCounts(rows, {}).fastReply).toBe(1);
+    // Kendi boyutunu hariç tutar: seçiliyken de aynı sayıyı verir.
+    expect(contextualFacetCounts(rows, { fastReply: true }).fastReply).toBe(1);
+    // Diğer boyutlar seçimle DARALIR.
+    expect(contextualFacetCounts(rows, { fastReply: true }).cities[0]!.count).toBe(1);
   });
 });

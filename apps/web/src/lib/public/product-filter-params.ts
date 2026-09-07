@@ -42,6 +42,8 @@ export interface ProductFilterState {
   /** "Yakınımda" merkezi (il adı ya da posta kodu) — `radius` ile ANLAMLI. */
   near?: string;
   radius?: number;
+  /** "Hızlı yanıt veren" — firma profili grubunda. */
+  fastReply: boolean;
   sort?: "yeni" | "fiyat" | "fiyat-azalan";
   attrs: string[];
   page: number;
@@ -85,6 +87,7 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     // de yazılmaz) — yarım bir kısıt listeyi sessizce boşaltırdı.
     near: get(sp, "yakin")?.trim() || undefined,
     radius: isRadiusOption(num(get(sp, "mesafe")) ?? 0) ? num(get(sp, "mesafe")) : undefined,
+    fastReply: get(sp, "hizli") === "1",
     sort: sort === "yeni" || sort === "fiyat" || sort === "fiyat-azalan" ? sort : undefined,
     attrs: getAll(sp, "nitelik").filter((a) => a.includes(":")).slice(0, 6),
     page: page && page > 1 ? page : 1,
@@ -108,6 +111,7 @@ export function toProductListParams(f: ProductFilterState): ProductListParams & 
     moqMax: f.moqMax,
     cert: f.certs.length ? f.certs.join(",") : undefined,
     employees: f.employees.length ? f.employees.join(",") : undefined,
+    fastReply: f.fastReply || undefined,
     near: f.near && f.radius ? f.near : undefined,
     radius: f.near && f.radius ? f.radius : undefined,
     sort: f.sort === "yeni" ? "newest" : f.sort === "fiyat" ? "price" : f.sort === "fiyat-azalan" ? "price_desc" : undefined,
@@ -132,6 +136,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.moqMax != null) sp.set("moqMax", String(f.moqMax));
   if (f.certs.length) sp.set("sertifika", f.certs.join(","));
   if (f.employees.length) sp.set("calisan", f.employees.join(","));
+  if (f.fastReply) sp.set("hizli", "1");
   if (f.near && f.radius) {
     sp.set("yakin", f.near);
     sp.set("mesafe", String(f.radius));
@@ -148,7 +153,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
 /** Aktif süzgeç sayısı (arama, sıralama ve sayfa hariç) — "Filtrele (3)". */
 export function activeFilterCount(f: ProductFilterState): number {
   return (
-    (f.category ? 1 : 0) + f.cities.length + f.activities.length + (f.verified ? 1 : 0) + (f.price ? 1 : 0) +
+    (f.category ? 1 : 0) + f.cities.length + f.activities.length + (f.verified ? 1 : 0) + (f.fastReply ? 1 : 0) + (f.price ? 1 : 0) +
     (f.priceMin != null || f.priceMax != null ? 1 : 0) + (f.moqMax != null ? 1 : 0) + f.attrs.length +
     f.certs.length + f.employees.length + (f.near && f.radius ? 1 : 0)
   );
@@ -162,6 +167,7 @@ export const EMPTY_FILTERS: ProductFilterState = {
   certs: [],
   employees: [],
   priceUnpriced: false,
+  fastReply: false,
   page: 1,
 };
 

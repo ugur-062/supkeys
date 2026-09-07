@@ -121,6 +121,11 @@ export class PublicProductQueryDto {
   @IsIn([25, 50, 100, 250])
   radius?: number;
 
+  /** Bilgi taleplerini ortalama bir iş gününde yanıtlayan firmalar. */
+  @IsOptional()
+  @IsIn(["1"])
+  fastReply?: string;
+
   /** Faaliyet tipi kodu — tek ya da virgüllü çoklu; tanınmayan kod yok sayılır. */
   @IsOptional()
   @IsString()
@@ -234,4 +239,9 @@ export class PublicProductFacetQueryDto {
   @IsInt()
   @IsIn([25, 50, 100, 250])
   radius?: number;
+
+  /** Bilgi taleplerini ortalama bir iş gününde yanıtlayan firmalar. */
+  @IsOptional()
+  @IsIn(["1"])
+  fastReply?: string;
 }

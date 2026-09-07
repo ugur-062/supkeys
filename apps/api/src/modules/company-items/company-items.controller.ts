@@ -254,6 +254,7 @@ export class CompanyItemsController {
     @Query("employees") employees?: string,
     @Query("near") near?: string,
     @Query("radius") radius?: string,
+    @Query("fastReply") fastReply?: string,
     @Query("pageSize") pageSize?: string,
   ) {
     const n = Number(page);
@@ -277,6 +278,7 @@ export class CompanyItemsController {
       employees: employeeList(employees),
       near: near?.slice(0, 40) || undefined,
       radius: num(radius),
+      fastReply: fastReply === "1",
       sort: sort === "newest" || sort === "price" || sort === "price_desc" ? sort : undefined,
       attr: attr == null ? undefined : (Array.isArray(attr) ? attr : [attr]).slice(0, 6),
       page: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
@@ -299,6 +301,7 @@ export class CompanyItemsController {
     @Query("employees") employees?: string,
     @Query("near") near?: string,
     @Query("radius") radius?: string,
+    @Query("fastReply") fastReply?: string,
   ) {
     const num = (v?: string) => {
       const x = Number(v);
@@ -317,6 +320,7 @@ export class CompanyItemsController {
       employees: employeeList(employees),
       near: near?.slice(0, 40) || undefined,
       radius: num(radius),
+      fastReply: fastReply === "1",
     });
   }
 

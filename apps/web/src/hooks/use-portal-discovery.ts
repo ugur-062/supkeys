@@ -163,6 +163,7 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number; p
         sp.set("near", params.near);
         sp.set("radius", String(params.radius));
       }
+      if (params.fastReply) sp.set("fastReply", "1");
       for (const a of params.attr ?? []) sp.append("attr", a);
       if (params.page && params.page > 1) sp.set("page", String(params.page));
       if (params.pageSize) sp.set("pageSize", String(params.pageSize));
@@ -192,6 +193,7 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
         sp.set("near", params.near);
         sp.set("radius", String(params.radius));
       }
+      if (params.fastReply) sp.set("fastReply", "1");
       const qs = sp.toString();
       const { data } = await companyApi.get<ProductFacets>(`/company/items/discover/facets${qs ? `?${qs}` : ""}`);
       return data;
