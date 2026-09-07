@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeFilterCount, buildProductFilterQuery, parseProductFilters, toProductListParams } from "./product-filter-params";
+import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseProductFilters, toProductListParams } from "./product-filter-params";
 
 describe("ürün süzgeç URL şeması", () => {
   it("Türkçe sorguyu ayrıştırır: çoklu şehir/faaliyet, aralık, sıralama", () => {
@@ -16,6 +16,17 @@ describe("ürün süzgeç URL şeması", () => {
     expect(parseProductFilters(new URLSearchParams(q))).toEqual(f);
     expect(buildProductFilterQuery(parseProductFilters({}))).toBe("");
   });
+  it("`gorunum` GÖRÜNÜM tercihidir: süzgeç sayılmaz, temizlemede KALIR, API'ye gitmez", () => {
+    const f = parseProductFilters({ gorunum: "liste", sehir: "Bursa", adet: "48" });
+    expect(f.view).toBe("liste");
+    expect(activeFilterCount(f)).toBe(1);
+    expect(clearProductFilters(f)).toMatchObject({ view: "liste", perPage: 48, cities: [] });
+    expect(toProductListParams(f)).not.toHaveProperty("view");
+    expect(buildProductFilterQuery(f)).toContain("gorunum=liste");
+    // Bilinmeyen değer düşer (URL'den gelen her şey veri).
+    expect(parseProductFilters({ gorunum: "kart" }).view).toBeUndefined();
+  });
+
   it("aktif süzgeç sayısı arama/sıralama/sayfayı saymaz", () => {
     expect(activeFilterCount(parseProductFilters({ q: "x", sirala: "yeni", sayfa: "2", sehir: "A,B", dogrulanmis: "1" }))).toBe(3);
   });

@@ -16,7 +16,7 @@ import {
  *
  *   ?q=&kategori=42000000&sehir=İstanbul,İzmir&faaliyet=MANUFACTURER,DISTRIBUTOR
  *   &dogrulanmis=1&fiyat=var|teklif&fiyatMin=&fiyatMax=&moqMax=&sirala=yeni|fiyat|fiyat-azalan
- *   &nitelik=anahtar:değer (tekrarlanır)&adet=24|48|96&sayfa=2
+ *   &nitelik=anahtar:değer (tekrarlanır)&adet=24|48|96&gorunum=liste&sayfa=2
  *
  * Kategori de sorguda: eskiden yalnız yolda (`/urunler/kategori/<kod>-<ad>`)
  * idi ve diğer süzgeçlerle birleşimi tutarsızdı. Yol sayfaları SEO girişi
@@ -37,6 +37,12 @@ export interface ProductFilterState {
   page: number;
   /** Sayfa başına kart. Varsayılan çağırandan gelir, URL'e YALNIZ değişince yazılır. */
   perPage?: PerPage;
+  /**
+   * Izgara (varsayılan) ↔ liste. GÖRÜNÜM tercihi, süzgeç DEĞİL: "Tümünü
+   * temizle" onu korur ve aktif süzgeç sayısına girmez. URL'de olması
+   * paylaşılan bağlantının aynı düzende açılmasını sağlar.
+   */
+  view?: "liste";
 }
 
 export type { SearchParamsLike };
@@ -65,6 +71,7 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     attrs: getAll(sp, "nitelik").filter((a) => a.includes(":")).slice(0, 6),
     page: page && page > 1 ? page : 1,
     perPage: isPerPage(num(get(sp, "adet"))) ? (num(get(sp, "adet")) as PerPage) : undefined,
+    view: get(sp, "gorunum") === "liste" ? "liste" : undefined,
   };
 }
 
@@ -102,6 +109,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.sort) sp.set("sirala", f.sort);
   for (const a of f.attrs) sp.append("nitelik", a);
   if (f.perPage) sp.set("adet", String(f.perPage));
+  if (f.view) sp.set("gorunum", f.view);
   if (f.page > 1) sp.set("sayfa", String(f.page));
   const s = sp.toString();
   return s ? `?${s}` : "";
@@ -123,5 +131,5 @@ export const EMPTY_FILTERS: ProductFilterState = { cities: [], activities: [], v
  * demiyor; sıralama zaten çipte görünür durumda.
  */
 export function clearProductFilters(f: ProductFilterState): ProductFilterState {
-  return { ...EMPTY_FILTERS, q: f.q, sort: f.sort, perPage: f.perPage };
+  return { ...EMPTY_FILTERS, q: f.q, sort: f.sort, perPage: f.perPage, view: f.view };
 }

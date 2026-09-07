@@ -126,14 +126,19 @@ export function AssistantLauncher() {
           // Faz 8.2: scroll'da küçülüp köşeye yaklaşır — tablo son kolonunu
           // daha az kapatır (içerikte pb-24 nefes payı zaten var). B3: küçük
           // modda yarı saydam — geniş tablonun sağ kenarı okunur kalır.
+          // KENAR PAYI = HALKA YAYILIMI (2026-09-07): `animate-ping` öğeyi
+          // 2 katına büyütür, yani buton yarıçapı kadar dışarı taşar (56 px
+          // butonda 28 px). Pay daha küçükken halka görünür alanı aşıyor ve
+          // SİTENİN TAMAMINDA yatay kaydırma çubuğu çıkıyordu (kullanıcı
+          // bulgusu). Pay halka yayılımından büyük tutulur.
           compact
-            ? "bottom-4 right-4 h-11 w-11 opacity-60 hover:opacity-100 focus-visible:opacity-100"
-            : "bottom-5 right-5 h-14 w-14",
+            ? "bottom-6 right-6 h-11 w-11 opacity-60 hover:opacity-100 focus-visible:opacity-100"
+            : "bottom-8 right-8 h-14 w-14",
         )}
       >
         {/* Nefes alan halka — buton kapalıyken sürekli, dikkat çekmeden */}
         {!open ? (
-          <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-brand-500/40 [animation-duration:2.5s]" />
+          <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 animate-ping rounded-full bg-brand-500/40 [animation-duration:2.5s]" />
         ) : null}
         <Sparkles
           className={cn(

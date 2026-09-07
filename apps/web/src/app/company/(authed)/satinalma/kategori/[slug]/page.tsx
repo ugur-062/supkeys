@@ -41,18 +41,29 @@ function CategoryView({ code }: { code: string }) {
       band={({ total, facets }) => {
         // Ad ve alt dallar listenin KENDİ facet yanıtından okunur — ayrı bir
         // istek atmak aynı veriyi iki kez indirmek olurdu.
-        const name = facets?.categories.find((c) => c.id === code)?.name ?? "Kategori";
+        // AD GELENE DEK YER TUTUCU (2026-09-07): eskiden başlık "Kategori",
+        // açıklama "Kategori kategorisindeki tedarikçi ürünleri" ve sekme
+        // "Ürünler 0" basılıp sonra doluyordu — her açılışta yanlış metin
+        // görünüyordu. Slug'daki addan geri üretmek de yanlış: küçük harfe
+        // ve aksansıza indirgenmiş hâli ("tibbi-ekipman") gerçek adı vermez.
+        const name = facets?.categories.find((c) => c.id === code)?.name;
         const subs = facets?.subCategories ?? [];
         return (
         <MarketBand
           breadcrumb={[
             { label: "Satınalma", href: PANEL_MARKET.home },
             { label: "Ürünler", href: PANEL_MARKET.products },
-            { label: name },
+            ...(name ? [{ label: name }] : []),
           ]}
-          title={name}
-          lead={`${name} kategorisindeki tedarikçi ürünleri. Alt dalları seçerek daraltın ya da kenar süzgeçlerini kullanın.`}
-          search={<MarketSearch<ProductFilterState> placeholder={`${name} içinde ara`} />}
+          title={
+            name ?? <span aria-hidden className="inline-block h-7 w-64 animate-pulse rounded bg-white/10 align-middle" />
+          }
+          lead={
+            name
+              ? `${name} kategorisindeki tedarikçi ürünleri. Alt dalları seçerek daraltın ya da kenar süzgeçlerini kullanın.`
+              : undefined
+          }
+          search={<MarketSearch<ProductFilterState> placeholder={name ? `${name} içinde ara` : "Bu kategoride ara"} />}
           aside={
             photo ? (
               <div className="relative hidden aspect-[3/2] overflow-hidden rounded-xl ring-1 ring-white/10 lg:block">
@@ -66,7 +77,7 @@ function CategoryView({ code }: { code: string }) {
                 active="products"
                 productsHref={`${PANEL_MARKET.products}${buildProductFilterQuery(state)}`}
                 companiesHref={`${PANEL_MARKET.companies}?kategori=${code}${state.q ? `&q=${encodeURIComponent(state.q)}` : ""}`}
-                productCount={total}
+                productCount={facets ? total : undefined}
               />
               {subs.length > 0 ? (
                 <ul className="flex flex-wrap gap-2">

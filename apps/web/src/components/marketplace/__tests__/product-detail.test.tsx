@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ProductDetailBody } from "../product-detail";
+import { ProductDetailBody, RelatedRows } from "../product-detail";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
 
 /**
@@ -101,6 +101,69 @@ describe("ProductDetailBody", () => {
     await u.click(screen.getByRole("tab", { name: "Özellikler" }));
     expect(await screen.findByText("Güç")).toBeTruthy();
     expect(screen.getByText("400 kVAr")).toBeTruthy();
+  });
+
+  it("ilişkili satır BAŞKA TEDARİKÇİLERİN ürünlerini basar (aynı firma değil)", () => {
+    render(
+      <RelatedRows
+        related={{
+          fromCompany: { items: [{
+  slug: "kendi-1",
+  name: "kendi-1",
+  images: [],
+  priceMode: "ON_REQUEST",
+  unit: "adet",
+  categoryId: "39121000",
+  company: { slug: "karadeniz-enerji", name: "karadeniz-enerji", verified: true },
+} as never], total: 1 },
+          similar: [{
+  slug: "rakip-1",
+  name: "rakip-1",
+  images: [],
+  priceMode: "ON_REQUEST",
+  unit: "adet",
+  categoryId: "39121000",
+  company: { slug: "ege-pano", name: "ege-pano", verified: true },
+} as never],
+          popular: [{
+  slug: "kendi-2",
+  name: "kendi-2",
+  images: [],
+  priceMode: "ON_REQUEST",
+  unit: "adet",
+  categoryId: "39121000",
+  company: { slug: "karadeniz-enerji", name: "karadeniz-enerji", verified: true },
+} as never],
+        }}
+        categoryName="Panolar"
+        hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
+      />,
+    );
+    expect(screen.getByText("Benzer ürünler — diğer tedarikçilerden")).toBeInTheDocument();
+    expect(screen.getByText("rakip-1")).toBeInTheDocument();
+    // Aynı firmanın ürünü bu satırda YOK — o "Firma" sekmesinde yaşıyor.
+    expect(screen.queryByText("kendi-1")).toBeNull();
+    expect(screen.queryByText("kendi-2")).toBeNull();
+  });
+
+  it("benzer yoksa kategoride yeniye düşer (dar dalda tek tedarikçi)", () => {
+    render(
+      <RelatedRows
+        related={{ fromCompany: { items: [], total: 0 }, similar: [], popular: [{
+  slug: "yeni-1",
+  name: "yeni-1",
+  images: [],
+  priceMode: "ON_REQUEST",
+  unit: "adet",
+  categoryId: "39121000",
+  company: { slug: "ege-pano", name: "ege-pano", verified: true },
+} as never] }}
+        categoryName="Panolar"
+        hrefFor={(c) => `/urun/${c.slug}`}
+      />,
+    );
+    expect(screen.getByText("Panolar içinde yeni")).toBeInTheDocument();
+    expect(screen.getByText("yeni-1")).toBeInTheDocument();
   });
 
   it("mobil şerit YALNIZ eylem verildiğinde çizilir (ikinci sekme durağı olmasın)", () => {

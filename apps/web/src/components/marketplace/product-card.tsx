@@ -20,7 +20,11 @@ import type { ReactNode } from "react";
  *    satırı (avatar + ad + Doğrulanmış + şehir) → fiyat → MOQ → tek CTA.
  *  · `compact` — ikincil bağlamlar (benzer ürünler, firmanın diğerleri):
  *    aynı iskelet, madde/CTA yok, sıkı iç boşluk.
- *  · `row` — liste satırı: küçük resim (Thumb) · ad · meta · rozet · sağ metin.
+ *  · `row` — panel liste satırı: küçük resim (Thumb) · ad · meta · rozet.
+ *  · `wide` — pazar LİSTE görünümü (2026-09-07): yatay kart — 4:3 kapak ·
+ *    rozetler · ad · 3 madde · firma · sağda fiyat/MOQ/CTA. Aynı bilgiyi
+ *    `tile` ile aynı kaynaklardan basar; ızgara/liste geçişi yalnız düzeni
+ *    değiştirir, içeriği değil (kullanıcı "aynı kart mı?" diye şüphelenmesin).
  *
  * PROMPT 5 kararları: rozetler `ui/badge` (Doğrulanmış/Gold/Yeni tek yerde
  * tanımlı), firma logosu `ui/avatar` (yoksa monogram — beyaz boşluk yok),
@@ -88,7 +92,7 @@ export function ProductCard({
   company?: ProductCardCompany;
   /** Panel rotası gibi farklı hedef. */
   href?: string;
-  variant?: "tile" | "compact" | "row";
+  variant?: "tile" | "compact" | "row" | "wide";
   /** Öne çıkan özellikler — ilk 3 madde. Yoksa `excerpt`. */
   features?: string[];
   /** Tek CTA etiketi (tile) — "Bilgi iste". Yalnız görsel; tıklama kartındır. */
@@ -145,7 +149,6 @@ export function ProductCard({
     );
   }
 
-  const compact = variant === "compact";
   const price = productPrice({
     priceMode: product.priceMode,
     priceAmount: product.priceAmount ?? null,
@@ -153,8 +156,103 @@ export function ProductCard({
     priceCurrency: product.priceCurrency ?? "TRY",
     unit: product.unit,
   });
+  const compact = variant === "compact";
   const bullets = compact ? [] : (features ?? []).filter(Boolean).slice(0, 3);
   const fresh = isNew(product.publishedAt);
+
+  if (variant === "wide") {
+    return (
+      <article
+        className={cn(
+          "group relative flex gap-4 overflow-hidden rounded-lg bg-white p-3 ring-1 ring-zinc-200 transition hover:shadow-md hover:ring-zinc-300 focus-within:ring-2 focus-within:ring-zinc-950 sm:gap-5 sm:p-4",
+          className,
+        )}
+      >
+        <div className="relative w-28 shrink-0 sm:w-44">
+          <CategoryImage
+            src={product.images[0]}
+            categoryIds={product.categoryId ? [product.categoryId] : []}
+            alt={product.name}
+            ratio="aspect-[4/3]"
+            className="overflow-hidden rounded-md ring-1 ring-zinc-950/5"
+            priority={priority}
+            fallback="neutral"
+          />
+          {badge ? <span className="pointer-events-none absolute top-1.5 left-1.5 z-10">{badge}</span> : null}
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {firm?.verified ? (
+              <Badge tone="verified" size="sm">
+                Doğrulanmış
+              </Badge>
+            ) : null}
+            {firm?.gold ? (
+              <Badge tone="gold" size="sm">
+                Gold Üye
+              </Badge>
+            ) : null}
+            {fresh ? (
+              <Badge tone="new" size="sm">
+                Yeni
+              </Badge>
+            ) : null}
+          </div>
+          <h3 className="mt-1 line-clamp-2 text-[15px]/5 font-semibold tracking-tight text-zinc-950">
+            <Link
+              href={target ?? "#"}
+              className="after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
+            >
+              {product.name}
+            </Link>
+          </h3>
+          {bullets.length > 0 ? (
+            <ul className="mt-1.5 space-y-0.5 text-xs/5 text-zinc-600">
+              {bullets.map((f) => (
+                <li key={f} className="flex gap-1.5">
+                  <span aria-hidden className="text-zinc-300">
+                    •
+                  </span>
+                  <span className="line-clamp-1">{f}</span>
+                </li>
+              ))}
+            </ul>
+          ) : product.excerpt ? (
+            <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-500">{product.excerpt}</p>
+          ) : null}
+          {firm ? (
+            <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-2 text-xs text-zinc-500">
+              <Avatar name={firm.name} src={firm.logoUrl} size={24} />
+              <span className="truncate font-medium text-zinc-700">{firm.name}</span>
+              {firm.city ? (
+                <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
+                  <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
+                  {firm.city}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Sağ sütun: fiyat kararı bir arada. Dar ekranda gizlenmez, gövdenin
+            altına akar — mobilde liste görünümü zaten tek sütun. */}
+        <div className="hidden w-40 shrink-0 flex-col justify-center border-l border-zinc-100 pl-4 text-right sm:flex">
+          <p className={cn("tnum text-sm font-semibold", price.hasPrice ? "text-zinc-950" : "text-zinc-500")}>
+            {price.headline}
+          </p>
+          <p className="tnum mt-0.5 text-xs text-zinc-500">
+            {product.moq ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}` : "\u00A0"}
+          </p>
+          {cta ? (
+            <span className="mt-3 inline-flex items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-xs font-semibold text-white transition group-hover:bg-zinc-800">
+              {cta}
+            </span>
+          ) : null}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article

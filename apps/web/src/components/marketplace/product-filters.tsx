@@ -3,7 +3,7 @@
 import { useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
-import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon, XMarkIcon } from "@heroicons/react/20/solid";
 import { Check, FilterChipBar, Group, SHOW, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
 import { companyActivityLabel } from "@rothern/shared";
 import { useEffect, useMemo, useState } from "react";
@@ -200,6 +200,43 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
 }
 
 /** Sıralama — masaüstü çipler (fiyatta yön oku), mobilde <select>. */
+/**
+ * IZGARA ↔ LİSTE (2026-09-07). Yoğunluk tercihi kullanıcınındır: ızgara
+ * "tarama" (çok ürün, az ayrıntı), liste "karşılaştırma" (fiyat/MOQ tek
+ * sütunda alt alta). Tercih URL'de (`gorunum=liste`) — paylaşılan bağlantı
+ * aynı düzende açılır ve "Tümünü temizle" onu korur.
+ */
+export function ViewToggle() {
+  const { state, update } = useFilters<ProductFilterState>();
+  const opts = [
+    { k: undefined, l: "Izgara", icon: Squares2X2Icon },
+    { k: "liste" as const, l: "Liste", icon: ListBulletIcon },
+  ];
+  return (
+    <div className="hidden items-center gap-1 sm:flex" role="group" aria-label="Görünüm">
+      {opts.map((o) => {
+        const active = (state.view ?? undefined) === o.k;
+        const Icon = o.icon;
+        return (
+          <button
+            key={o.l}
+            type="button"
+            aria-pressed={active}
+            title={`${o.l} görünümü`}
+            onClick={() => update({ view: o.k })}
+            className={`inline-flex size-8 items-center justify-center rounded-lg transition ${
+              active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-500 hover:bg-zinc-100"
+            }`}
+          >
+            <Icon aria-hidden className="size-4" />
+            <span className="sr-only">{o.l} görünümü</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SortControl() {
   const { state, update } = useFilters();
   const opts: { k: ProductFilterState["sort"]; l: string }[] = [
@@ -210,8 +247,9 @@ export function SortControl() {
   const isPrice = state.sort === "fiyat" || state.sort === "fiyat-azalan";
   return (
     <>
-      <div className="hidden items-center gap-1 text-xs sm:flex">
+      <div className="hidden items-center gap-2 text-xs sm:flex">
         <span className="text-zinc-500">Sırala:</span>
+        <span className="flex items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5 ring-1 ring-zinc-200">
         {opts.map((o) => {
           const active = o.k === state.sort || (o.l.startsWith("Fiyat") && isPrice);
           return (
@@ -220,12 +258,13 @@ export function SortControl() {
               type="button"
               aria-pressed={active}
               onClick={() => update({ sort: o.k })}
-              className={`rounded-lg px-2.5 py-1 font-medium transition ${active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-600 hover:bg-zinc-100"}`}
+              className={`rounded-md px-2.5 py-1 font-medium transition ${active ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-300" : "text-zinc-600 hover:text-zinc-950"}`}
             >
               {o.l}
             </button>
           );
         })}
+        </span>
       </div>
       <label className="text-xs text-zinc-500 sm:hidden">
         <span className="sr-only">Sırala</span>

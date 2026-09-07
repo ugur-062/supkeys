@@ -120,19 +120,35 @@ export function PublicListPage({
   );
 }
 
-/** Sonuç ızgarası — sütun sayısı içerik sayısıyla sınırlı (tek kart öksüz kalmasın). */
+/**
+ * Sonuç ızgarası — sütun sayısı içerik sayısıyla sınırlı (tek kart öksüz
+ * kalmasın). Üçten çok karta `auto-fill minmax(16rem)`: 1280 px'te üç,
+ * 1600 px'te dört sütun. Sabit `xl:grid-cols-3` geniş ekranda kartları
+ * gereksiz büyütüyor, ekranda 3 ürün kalıyordu (panel ızgarasıyla aynı
+ * kural — iki yüzey aynı yoğunlukta okunmalı).
+ *
+ * `layout="list"`: tek sütun yatay kart (`ProductCard variant="wide"`).
+ */
 export function ResultGrid({
   count,
   heading = "Sonuçlar",
+  layout = "grid",
   children,
 }: {
   count: number;
   /** Ekran okuyucuya sonuç bölgesinin adı; kartlardaki h3'ten ÖNCE h2 gerekir. */
   heading?: string;
+  layout?: "grid" | "list";
   children: ReactNode;
 }) {
   const cols =
-    count >= 3 ? "sm:grid-cols-2 xl:grid-cols-3" : count === 2 ? "sm:grid-cols-2" : "sm:max-w-sm";
+    layout === "list"
+      ? "grid-cols-1 gap-3"
+      : count >= 3
+        ? "gap-5 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]"
+        : count === 2
+          ? "grid-cols-1 gap-5 sm:grid-cols-2"
+          : "grid-cols-1 gap-5 sm:max-w-sm";
   return (
     <section aria-labelledby="sonuclar">
       {/* Görsel olmayan h2: sayfa h1'inden kart h3'lerine atlamak başlık
@@ -140,7 +156,7 @@ export function ResultGrid({
       <h2 id="sonuclar" className="sr-only">
         {heading}
       </h2>
-      <div className={`grid grid-cols-1 gap-5 ${cols}`}>{children}</div>
+      <div className={`grid ${cols}`}>{children}</div>
     </section>
   );
 }

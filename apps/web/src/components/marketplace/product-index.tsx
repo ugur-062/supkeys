@@ -1,7 +1,7 @@
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
-import { ActiveFilterChips, ProductFilters, SortControl } from "./product-filters";
+import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -69,6 +69,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
           hidden: {
             kategori: state.category, sehir: state.cities.join(",") || undefined, faaliyet: state.activities.join(",") || undefined,
             dogrulanmis: state.verified ? "1" : undefined, fiyat: state.price, sirala: state.sort,
+            gorunum: state.view,
           },
           hiddenList: { nitelik: state.attrs },
           placeholder: "Ürün, marka veya parça numarası arayın",
@@ -83,7 +84,10 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
               <MobileFilterButton />
               <ResultCount noun="ürün" />
             </span>
-            <SortControl />
+            <span className="flex items-center gap-2">
+              <SortControl />
+              <ViewToggle />
+            </span>
           </span>
         }
       >
@@ -95,9 +99,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
               extra={{ label: "Talep aç — tedarikçiler teklif versin", href: talepHref }}
             />
           ) : (
-            <ResultGrid count={page.items.length} heading="Ürün sonuçları">
+            <ResultGrid
+              count={page.items.length}
+              heading="Ürün sonuçları"
+              layout={state.view === "liste" ? "list" : "grid"}
+            >
               {page.items.map((p, i) => (
                 <ProductCard
+                  variant={state.view === "liste" ? "wide" : "tile"}
                   key={`${p.company.slug}/${p.slug}`}
                   companySlug={p.company.slug}
                   company={p.company}

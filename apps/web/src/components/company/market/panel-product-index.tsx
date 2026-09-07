@@ -2,7 +2,7 @@
 
 import { FilterShell, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { ProductCard } from "@/components/marketplace/product-card";
-import { ActiveFilterChips, ProductFilters, SortControl } from "@/components/marketplace/product-filters";
+import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "@/components/marketplace/product-filters";
 import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import {
@@ -19,7 +19,7 @@ import type { ProductFacets } from "@/lib/public/marketplace-api";
 import type { ReactNode } from "react";
 import { MarketBand, MarketTabs } from "./market-band";
 import { MarketSearch } from "./market-search";
-import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
+import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketList, MarketListLayout } from "./market-list-layout";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
 
 /** Varsayılan sayfa boyutu — `adet` ile 24/48/96 arasında değişir. */
@@ -120,6 +120,8 @@ function Inner({
   // (dizinin toplamı). Aynı sorgu iki tarafta iki sayı gösterir.
   const companies = useCompanySearch({ q: state.q });
   const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
+  // Izgara ↔ liste: aynı kartlar, farklı yoğunluk (`gorunum` URL'de).
+  const Wrap = state.view === "liste" ? MarketList : MarketGrid;
 
   return (
     <div className="space-y-8">
@@ -149,7 +151,12 @@ function Inner({
       <MarketListLayout
         rail={<PanelProductFilters idPrefix="d" />}
         toolbarStart={<ResultCount noun="ürün" loading={result.isLoading} />}
-        toolbarEnd={<SortControl />}
+        toolbarEnd={
+          <span className="flex items-center gap-2">
+            <SortControl />
+            <ViewToggle />
+          </span>
+        }
         page={state.page}
         total={total}
         pageSize={pageSize}
@@ -172,9 +179,10 @@ function Inner({
             }
           />
         ) : (
-          <MarketGrid>
+          <Wrap>
             {data.items.map((item, i) => (
               <ProductCard
+                variant={state.view === "liste" ? "wide" : "tile"}
                 key={`${item.company.slug}/${item.slug}`}
                 product={item}
                 company={item.company}
@@ -191,7 +199,7 @@ function Inner({
                 }
               />
             ))}
-          </MarketGrid>
+          </Wrap>
         )}
       </MarketListLayout>
 

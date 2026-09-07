@@ -15,8 +15,13 @@ type Db = Pick<PrismaClient, "companyItem">;
  *   fromCompany: aynı firmanın diğer ürünleri (+ toplam),
  *   similar: aynı alt kategori (L3 → L2 → L1 genişler), FARKLI firma,
  *            doğrulanmış önce,
- *   popular: kategoride EN YENİ — görüntülenme verisi yok, uydurma sıralama
- *            yerine dürüst etiket ("Kategoride yeni").
+ *   popular: kategoride EN YENİ, FARKLI firma — görüntülenme verisi yok,
+ *            uydurma sıralama yerine dürüst etiket ("Kategoride yeni").
+ *
+ * `popular` de kendi firmasını DIŞLAR (2026-09-07): dışlamayınca üç ürünlü
+ * bir firmanın sayfasında "kategoride yeni" satırı aynı firmanın öbür iki
+ * ürününü basıyordu — alıcı karşılaştıracak başka tedarikçi göremiyordu ve
+ * pazar yeri hissi tam orada kırılıyordu (kullanıcı bulgusu).
  */
 export async function relatedProducts(prisma: Db, companySlug: string, productSlug: string) {
   const base = await prisma.companyItem.findFirst({
@@ -50,7 +55,12 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
   }
   const popular = code
     ? await prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), ...productCategoryWhere(`${code.slice(0, 2)}000000`), id: { not: base.id } },
+        where: {
+          ...publicProductWhere(),
+          ...productCategoryWhere(`${code.slice(0, 2)}000000`),
+          id: { not: base.id },
+          companyId: { not: base.companyId },
+        },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ publishedAt: "desc" }],
         take: 8,

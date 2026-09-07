@@ -330,6 +330,10 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     expect(rel.fromCompany.total).toBe(1);
     expect(rel.similar.map((c) => c.name)).toEqual(["Benzer"]);
     expect(rel.popular.map((c) => c.name)).not.toContain("Uzak");
+    // "Kategoride yeni" KENDİ firmasını basmaz (2026-09-07): dışlanmasaydı
+    // alıcı karşılaştıracak başka tedarikçi göremezdi.
+    expect(rel.popular.map((c) => c.company.slug)).not.toContain(company.slug);
+    expect(rel.popular.map((c) => c.name)).toContain("Benzer");
     await expect(service().relatedProducts("yok", "yok")).rejects.toThrow(/bulunamadı/);
   });
 

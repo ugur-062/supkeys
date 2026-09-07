@@ -26,7 +26,8 @@ export function MarketBand({
   aside,
 }: {
   breadcrumb: { label: string; href?: string }[];
-  title: string;
+  /** Metin ya da iskelet — kategori sayfası ad gelene dek yer tutucu basar. */
+  title: ReactNode;
   lead?: string;
   /** Bandın içindeki arama formu (sayfanın kendi süzgeç kabuğuna yazar). */
   search?: ReactNode;

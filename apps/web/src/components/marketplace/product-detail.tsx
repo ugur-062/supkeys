@@ -394,25 +394,6 @@ export function ProductDetailBody({
                   </div>
                 ),
               },
-              {
-                id: "benzer",
-                label: "Benzer ürünler",
-                hidden: !related || related.similar.length === 0 || !hrefFor,
-                content: (
-                  <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                    {(related?.similar ?? []).slice(0, 4).map((c) => (
-                      <li key={`${c.company.slug}/${c.slug}`}>
-                        <ProductCard
-                          product={c}
-                          href={hrefFor ? hrefFor(c) : "#"}
-                          company={c.company}
-                          variant="compact"
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                ),
-              },
             ]}
           />
         </div>
@@ -628,16 +609,22 @@ export function RelatedRows({
   categoryName: string | null;
   hrefFor: (c: ProductIndexCard) => string;
 }) {
-  // "Firmanın diğerleri" ve "Benzer ürünler" PROMPT 7'de SEKMELERE taşındı
-  // (Firma · Benzer ürünler); burada yalnız keşif satırı kalır — aynı listeyi
-  // hem sekmede hem satırda basmak sayfayı iki kez uzatıyordu.
-  return (
-    <RelatedRow
-      heading={categoryName ? `${categoryName} içinde yeni` : "Kategoride yeni"}
-      items={related.popular}
-      hrefFor={hrefFor}
-    />
-  );
+  // "Firmanın diğerleri" SEKMEDE (Firma); burada BAŞKA TEDARİKÇİLERİN
+  // ürünleri durur — alıcının karşılaştırma yaptığı yer burasıdır
+  // (2026-09-07 kullanıcı bulgusu: satır aynı firmanın ürünlerini
+  // gösteriyordu, pazar yeri hissi orada kırılıyordu). "Benzer ürünler"
+  // sekmesi kaldırıldı: aynı liste hem sekmede hem satırda basılmamalı.
+  //
+  // `similar` = aynı alt kategori, FARKLI firma. Boşsa (dar dalda tek
+  // tedarikçi) kategoride yeni olanlara düşülür — o da artık farklı firma.
+  const others = related.similar.length > 0 ? related.similar : related.popular;
+  const heading =
+    related.similar.length > 0
+      ? "Benzer ürünler — diğer tedarikçilerden"
+      : categoryName
+        ? `${categoryName} içinde yeni`
+        : "Kategoride yeni";
+  return <RelatedRow heading={heading} items={others} hrefFor={hrefFor} />;
 }
 
 /** Yatay ilişkili ürün satırı — boşsa çizilmez. */

@@ -101,6 +101,15 @@ export function MarketGrid({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * LİSTE GÖRÜNÜMÜ — tek sütun yatay kart (`ProductCard variant="wide"`).
+ * Izgara "tarama", liste "karşılaştırma" içindir: fiyat ve MOQ aynı sütunda
+ * alt alta okunur.
+ */
+export function MarketList({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-3">{children}</div>;
+}
+
 /** Yükleme iskeleti — kart yüksekliğiyle aynı, ızgara zıplamasın. */
 export function MarketGridSkeleton({ count = 9 }: { count?: number }) {
   return (
