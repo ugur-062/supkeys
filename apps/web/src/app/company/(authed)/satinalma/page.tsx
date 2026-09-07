@@ -74,11 +74,15 @@ export default function SatinalmaDashboardPage() {
         segments: (segments.data ?? []).map((s) => ({ id: s.id, name: s.nameTr })),
         counts: (facets.data?.categories ?? []).map((c) => ({ id: c.id, count: c.count })),
         productCovers: [],
-        limit: 33,
+        // TÜM ana kategoriler (58 segment) — kullanıcı kararı 2026-09-08.
+        // Sıra `buildShowcase`ten: ürünü olan dallar önce, sonra küratörlü sıra.
+        limit: 100,
       }),
     [segments.data, facets.data],
   );
-  const rows = useMemo(() => toShowcaseRows(showcase), [showcase]);
+  // 6 blok × (1 promo + 10 kategori) = 66 yuva; artan segmentler son bloğun
+  // ızgarasına eklenir (`toShowcaseRows`), hiçbiri düşmez.
+  const rows = useMemo(() => toShowcaseRows(showcase, 6), [showcase]);
   // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
   // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
   const [term, setTerm] = useState("");

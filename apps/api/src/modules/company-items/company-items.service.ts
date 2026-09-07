@@ -582,7 +582,21 @@ export class CompanyItemsService {
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), q);
     const catCounts = contextualFacetCounts(rows.map(toFacetRow), q).categories;
     const subCounts = subCategoryCounts(inCategory, q.category);
-    const ids = [...new Set([...catCounts.map(([id]) => id), ...subCounts.map(([id]) => id)])];
+    /* SEÇİLİ KATEGORİ HER ZAMAN ÇÖZÜLÜR (2026-09-08, kullanıcı bulgusu):
+       süzgeç çipi ve kategori sayfasının başlığı adı `categories` listesinde
+       arıyordu; o liste yalnız L1 segmentleri ve YALNIZ ürünü olanları
+       taşıyor. Sonuç: ürünü olmayan bir dal seçilince çipte ham kod
+       ("45000000") yazıyor, L3 kategori sayfasında başlık iskelet olarak
+       kalıyordu. Ad artık ayrı bir alanda döner — `categories` listesine
+       eklemiyoruz, orası L1 süzgeç seçenekleri (araya L3 girerse süzgeçte
+       öksüz bir satır belirirdi). */
+    const ids = [
+      ...new Set([
+        ...catCounts.map(([id]) => id),
+        ...subCounts.map(([id]) => id),
+        ...(q.category ? [q.category] : []),
+      ]),
+    ];
     const cats = ids.length
       ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true, level: true } })
       : [];
@@ -592,10 +606,15 @@ export class CompanyItemsService {
         .map(([id, count]) => (byId.has(id) ? { id, name: byId.get(id)!.nameTr, level: byId.get(id)!.level, count } : null))
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
+    const selected = q.category ? byId.get(q.category) : undefined;
     return {
       categories: named(catCounts),
       /** Seçili kategorinin bir alt seviyesi — kategori sayfasının çipleri. */
       subCategories: named(subCounts),
+      /** Seçili kategorinin kendisi (ürünü olmasa da) — çip ve sayfa başlığı. */
+      selectedCategory: selected
+        ? { id: selected.id, name: selected.nameTr, level: selected.level }
+        : null,
       cities: ctx.cities,
       activities: ctx.activities,
       verified: ctx.verified,

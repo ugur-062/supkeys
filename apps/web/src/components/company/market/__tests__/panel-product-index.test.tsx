@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   result: { data: undefined as unknown, isLoading: false },
   lastParams: undefined as unknown,
   companyTotal: 20,
+  selectedCategory: null as { id: string; name: string; level: number } | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -25,6 +26,7 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
   useDiscoverProductFacets: () => ({
     data: {
       categories: [{ id: "39000000", name: "Elektrik", level: 1, count: 2 }],
+      selectedCategory: h.selectedCategory,
       subCategories: [],
       cities: [{ city: "Bursa", count: 2 }],
       activities: [{ activity: "MANUFACTURER", count: 2 }],
@@ -59,6 +61,7 @@ const product = (i: number, over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   h.search = "";
+  h.selectedCategory = null;
   h.companyTotal = 20;
   h.result = {
     data: {
@@ -107,6 +110,19 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
 
     await user.click(within(aside).getByLabelText(/^Doğrulanmış/));
     expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?dogrulanmis=1", { scroll: false });
+  });
+
+  it("aktif süzgeç çipi kategori ADINI yazar — ürünü olmayan/L3 dalda da (ham kod DEĞİL)", () => {
+    // 2026-09-08 kullanıcı bulgusu: ürünü olmayan bir dal seçilince çipte
+    // "45000000" yazıyordu. Ad `categories` listesinde aranıyordu; o liste
+    // yalnız L1 segmentleri ve YALNIZ ürünü olanları taşır. Sunucu artık
+    // seçili kategoriyi ayrı alanda döndürüyor.
+    h.search = "kategori=45000000";
+    h.selectedCategory = { id: "45000000", name: "Baskı, Fotoğraf ve Ses-Video", level: 1 };
+    render(<PanelProductIndex />);
+    // Ad hem çipte hem kenar süzgecinde (ve mobil çekmecede) geçer.
+    expect(screen.getAllByText("Baskı, Fotoğraf ve Ses-Video").length).toBeGreaterThan(0);
+    expect(screen.queryByText("45000000")).toBeNull();
   });
 
   it("kenar süzgeci + sayaç + sıralama; uygunluk rozeti ve özellik maddesi yalnız verilende", () => {

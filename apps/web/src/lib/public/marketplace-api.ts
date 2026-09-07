@@ -529,6 +529,13 @@ export interface ProductFacets {
   categories: { id: string; name: string; level: number; count: number }[];
   /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
   subCategories?: { id: string; name: string; level: number; count: number }[];
+  /**
+   * Seçili kategorinin KENDİSİ — ürünü olmasa da adıyla döner (2026-09-08).
+   * `categories` yalnız L1 segmentleri ve yalnız ürünü olanları taşıdığı için
+   * çip ve sayfa başlığı ham kodu ("45000000") basıyordu. OPSİYONEL: eski
+   * kenar önbelleği bu alanı taşımayabilir.
+   */
+  selectedCategory?: { id: string; name: string; level: number } | null;
   cities: { city: string; count: number }[];
   activities: { activity: string; count: number }[];
   /** v3: bağlama duyarlı sayaçlar. */

@@ -10,8 +10,8 @@ import Link from "next/link";
  *
  * Europages'in ana keşif bloğunun Rothern karşılığı (kullanıcı ekran
  * görüntüsü): solda sabit genişlikte tanıtım kartı, sağında iki satır beşer
- * kategori. Blok üç kez tekrarlanır → 3 promo + 30 kategori = "burada her
- * şey var" algısı.
+ * kategori. Blok TÜM ana kategoriler bitene dek tekrarlanır (2026-09-08,
+ * kullanıcı: "tüm ana kategoriler var mı?") — 58 segmentin hepsi anasayfada.
  *
  * RENK: promo kart MAVİ (2026-09-07, kullanıcı kararı). Kaynakta koyu yeşil
  * gradyan; burada satınalma portalının KENDİ vurgu rengi kullanılıyor —
@@ -31,7 +31,17 @@ export interface ShowcaseRow {
   items: ShowcaseCategory[];
 }
 
-/** Düz listeyi satırlara böler: her satır 1 promo + `perRow` kategori. */
+/**
+ * Düz listeyi satırlara böler: her satır 1 promo + `perRow` kategori.
+ *
+ * ARTAN KATEGORİLER DÜŞMEZ (2026-09-08, kullanıcı sorusu "tüm ana
+ * kategoriler var mı?"): eskiden son blok tam dolmuyorsa BÜTÜNÜYLE
+ * atılıyordu ve 58 segmentin sonundakiler anasayfada hiç görünmüyordu.
+ * Artık artanlar SON bloğun ızgarasına eklenir — promo kartı `h-full`
+ * olduğu için ızgara bir satır uzadığında düzen bozulmaz. Hiç tam blok
+ * oluşmadıysa (çok küçük katalog) kısa blok yine de çizilir: boş bırakmak
+ * yerine az kategoriyle göstermek doğru.
+ */
 export function toShowcaseRows(all: ShowcaseCategory[], rows = 3, perRow = 10): ShowcaseRow[] {
   const out: ShowcaseRow[] = [];
   let i = 0;
@@ -41,10 +51,12 @@ export function toShowcaseRows(all: ShowcaseCategory[], rows = 3, perRow = 10): 
     i += 1;
     const items = all.slice(i, i + perRow);
     i += items.length;
-    // Yarım satır çizilmez: ızgara eksik kalırsa blok bozuk görünür.
-    if (items.length < perRow) break;
+    if (items.length === 0) break;
     out.push({ promo, items });
   }
+  // Satır tavanı dolduysa kalanları son ızgaraya ekle — kategori kaybolmasın.
+  const last = out[out.length - 1];
+  if (last && i < all.length) last.items = [...last.items, ...all.slice(i)];
   return out;
 }
 

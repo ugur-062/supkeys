@@ -445,7 +445,10 @@ function CategoryGroup({
     const t = q.trim().toLocaleLowerCase("tr-TR");
     return facets.categories.filter((c) => !t || c.name.toLocaleLowerCase("tr-TR").includes(t));
   }, [facets.categories, q]);
-  const selectedName = facets.categories.find((c) => c.id === state.category)?.name;
+  // Seçili dalın adı: önce sunucunun `selectedCategory` alanı (ürünü olmayan
+  // ya da L1 dışı seçimler de adıyla görünsün), sonra L1 facet listesi.
+  const selectedName =
+    facets.selectedCategory?.name ?? facets.categories.find((c) => c.id === state.category)?.name;
   return (
     <Group title="Kategori" icon={<FolderTree className="size-4" />} count={state.category ? 1 : 0} onClear={() => update({ category: undefined, attrs: [] })} storageKey="kategori">
       {facets.categories.length > SHOW ? (
@@ -620,7 +623,17 @@ function presetRanges(hist: {
 export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   const { state, update, clear } = useFilters();
   const chips: FilterChip[] = [];
-  if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? state.category, onRemove: () => update({ category: undefined, attrs: [] }) });
+  if (state.category)
+    chips.push({
+      key: "cat",
+      // Ad önce SEÇİLİ KATEGORİ alanından (ürünü olmayan/L3 dallar da adıyla
+      // yazılsın); sonra L1 facet listesinden; son çare ham kod.
+      label:
+        facets.selectedCategory?.name ??
+        facets.categories.find((c) => c.id === state.category)?.name ??
+        state.category,
+      onRemove: () => update({ category: undefined, attrs: [] }),
+    });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: companyActivityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
   if (state.verified) chips.push({ key: "v", label: "Doğrulanmış", onRemove: () => update({ verified: false }) });

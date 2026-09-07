@@ -38,7 +38,9 @@ function CategoryView({ code }: { code: string }) {
         //
         // Alt dallar KAYBOLMADI: kenar süzgecindeki KATEGORİ grubu aynı
         // dalları sayaçlarıyla listeliyor, üstelik çoklu seçimle.
-        const name = facets?.categories.find((c) => c.id === code)?.name;
+        // Ad, seçili kategori alanından (her seviye + ürünü olmayan dallar);
+        // eski kenar önbelleği taşımıyorsa L1 listesine düşer.
+        const name = facets?.selectedCategory?.name ?? facets?.categories.find((c) => c.id === code)?.name;
         return (
           <MarketHeader
             breadcrumb={[

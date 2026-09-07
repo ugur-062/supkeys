@@ -123,6 +123,25 @@ describe("panel pazar katmanı — parite", () => {
     expect(none.subCategories).toEqual([]);
   });
 
+  it("SEÇİLİ KATEGORİ adıyla döner — ürünü olmayan dalda bile (çip ham kod yazmasın)", async () => {
+    // 2026-09-08 kullanıcı bulgusu: ürünü olmayan bir dal seçilince panelde
+    // süzgeç çipi "45000000" yazıyordu. `categories` listesi yalnız L1
+    // segmentleri ve YALNIZ ürünü olanları taşır; ad ayrı alandan gelir.
+    await seedSeller();
+    const buyer = await makeCompanyWithUser(prisma);
+    const empty = await items().discoverFacets(
+      { companyId: buyer.company.id, userId: buyer.user.id } as never,
+      { category: "39120000" },
+    );
+    expect(empty.selectedCategory).toEqual({ id: "39120000", name: "Elektrik ekipmanı", level: 2 });
+    // Kategori seçilmemişken alan null — uydurma bir seçim döndürülmez.
+    const none = await items().discoverFacets(
+      { companyId: buyer.company.id, userId: buyer.user.id } as never,
+      {},
+    );
+    expect(none.selectedCategory).toBeNull();
+  });
+
   it("alt kırılım yaprakta boş döner — 'L4'ün altı' uydurulmaz", () => {
     const rows = [{ categoryId: "39121501", company: { city: null, activities: [] } }];
     expect(subCategoryCounts(rows, "39121501")).toEqual([]);

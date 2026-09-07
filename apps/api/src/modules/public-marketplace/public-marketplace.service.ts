@@ -623,6 +623,8 @@ export class PublicMarketplaceService {
   async productFacets(q: PublicProductFacetQueryDto = {}): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
     subCategories: { id: string; name: string; level: number; count: number }[];
+    /** Seçili kategorinin adı — ürünü olmasa da (çip/başlık için). */
+    selectedCategory: { id: string; name: string; level: number } | null;
     cities: { city: string; count: number }[];
     activities: { activity: string; count: number }[];
     verified: number;
@@ -689,8 +691,14 @@ export class PublicMarketplaceService {
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);
     const catCounts = contextualFacetCounts(scanned.map(toFacetRow), sel).categories;
     const subCounts = subCategoryCounts(inCategory, q.category);
+    // Seçili kategori de çözülür: ürünü olmasa bile çipte/başlıkta ADI
+    // yazsın (panel ucuyla aynı kural, bkz. company-items.service).
     const cats = await this.resolveCategories([
-      ...new Set([...catCounts.map(([id]) => id), ...subCounts.map(([id]) => id)]),
+      ...new Set([
+        ...catCounts.map(([id]) => id),
+        ...subCounts.map(([id]) => id),
+        ...(q.category ? [q.category] : []),
+      ]),
     ]);
     const named = (pairs: [string, number][]) =>
       pairs
@@ -700,10 +708,13 @@ export class PublicMarketplaceService {
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
+    const selected = q.category ? cats.get(q.category) : undefined;
     return {
       categories: named(catCounts),
       /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
       subCategories: named(subCounts),
+      /** Seçili kategorinin kendisi (ürünü olmasa da). */
+      selectedCategory: selected ?? null,
       cities: ctx.cities,
       activities: ctx.activities,
       verified: ctx.verified,
