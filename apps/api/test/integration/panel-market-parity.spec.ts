@@ -20,14 +20,17 @@ import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
 const stub = () => ({}) as never;
+/**
+ * Rig: yapıcı (prisma, audit, storage, views?) — `views` VERİLMEZ.
+ *
+ * Eskiden dört stub geçiliyordu: fazladan `{}` opsiyonel `views` yuvasına
+ * düşüyor ve `this.views?.recordPanelView(...)` "is not a function" ile
+ * patlıyordu (ürün detayına dokunan ilk test bunu yakaladı). Yuva boş
+ * kalınca `?.` zinciri kısa devre yapar — CLAUDE.md'deki "rig stub
+ * gotcha"nın (b) biçimi.
+ */
 const items = () =>
-  new CompanyItemsService(
-    prisma as unknown as PrismaBypassService,
-    stub(),
-    stub(),
-    stub(),
-    stub(),
-  );
+  new CompanyItemsService(prisma as unknown as PrismaBypassService, stub(), stub());
 
 async function makeCategory(code: string, nameTr: string, level: number, parentId: string | null = null) {
   await prisma.category.create({
@@ -121,6 +124,22 @@ describe("panel pazar katmanı — parite", () => {
       {},
     );
     expect(none.subCategories).toEqual([]);
+  });
+
+  it("panel ürün detayı KATEGORİ ADINI taşır (kırıntı ve kategori hapı için)", async () => {
+    // 2026-09-08 kullanıcı bulgusu: panelde yol "Ürün Ara › Firma › Ürün"
+    // idi, kategori adımı yoktu. Herkese açık uç kategoriyi çözüyordu, panel
+    // ucu yalnız `categoryId` veriyordu — aynı gövde iki yüzeyde farklı
+    // görünüyordu.
+    const seller = await seedSeller();
+    const item = await prisma.companyItem.findFirstOrThrow({ where: { companyId: seller.id } });
+    const buyer = await makeCompanyWithUser(prisma);
+    const detail = await items().discoverProduct(
+      { companyId: buyer.company.id, userId: buyer.user.id } as never,
+      seller.slug as string,
+      item.slug as string,
+    );
+    expect(detail.product.category).toEqual({ id: "39121000", name: "Dağıtım panoları" });
   });
 
   it("SEÇİLİ KATEGORİ adıyla döner — ürünü olmayan dalda bile (çip ham kod yazmasın)", async () => {

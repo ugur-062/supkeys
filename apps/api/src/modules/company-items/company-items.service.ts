@@ -686,13 +686,27 @@ export class CompanyItemsService {
       },
     });
     if (!row) throw new NotFoundException("Ürün bulunamadı");
-    const attributeDefs = await resolveCategoryAttributes(this.prisma, row.categoryId);
+    /* KATEGORİ ADI da çözülür (2026-09-08, kullanıcı bulgusu: "burada
+       hangi kategori olduğunu göstermiyor"). Herkese açık uç bunu zaten
+       döndürüyordu; panel ucu yalnız `categoryId` veriyordu, dolayısıyla
+       panelde kırıntının kategori adımı ve başlığın üstündeki kategori hapı
+       HİÇ çizilmiyordu — aynı gövde, iki yüzeyde farklı görünüyordu. */
+    const [attributeDefs, category] = await Promise.all([
+      resolveCategoryAttributes(this.prisma, row.categoryId),
+      row.categoryId
+        ? this.prisma.category.findUnique({
+            where: { id: row.categoryId },
+            select: { id: true, nameTr: true },
+          })
+        : null,
+    ]);
     // Ziyaret Edenler: üye ürünü açtı — kimlikli görüntülenme (fire-and-forget).
     void this.views?.recordPanelView(user, { companyId: company.id, productId: row.id });
     return {
       product: {
         ...toPublicProduct(row),
         attributeList: labelAttributes(row.attributes, attributeDefs),
+        category: category ? { id: category.id, name: category.nameTr } : null,
         priceAmount: row.priceAmount?.toString() ?? null,
         priceTiers: row.priceTiers as unknown,
         priceCurrency: row.priceCurrency,

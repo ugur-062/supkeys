@@ -12,6 +12,7 @@ import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discove
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { panelCategoryPath } from "@/lib/company/panel-market";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
@@ -75,8 +76,11 @@ export default function PanelProductPage() {
         accent="blue"
         trail={[
           { label: "Ürün Ara", href: "/company/satinalma/urunler" },
+          /* Kategori adımı KENDİ SAYFASINA gider (`/kategori/<kod>-<ad>`),
+             süzgeçli listeye değil: her kategorinin bir adresi var ve
+             paylaşılabilir olan o. */
           ...(product.category
-            ? [{ label: product.category.name, href: `/company/satinalma/urunler?kategori=${product.category.id}` }]
+            ? [{ label: product.category.name, href: panelCategoryPath(product.category.id, product.category.name) }]
             : []),
           { label: company.name, href: companyHref },
         ]}
