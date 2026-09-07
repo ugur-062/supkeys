@@ -116,7 +116,7 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
     h.search = "q=kablo";
     render(<PanelCompanyIndex />);
     expect(screen.getByText("Aramanıza uyan")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Kablo kanalı" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Kablo kanalı/ })).toHaveAttribute(
       "href",
       "/company/satinalma/urunler/firma-2/kablo",
     );

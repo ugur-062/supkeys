@@ -72,10 +72,15 @@ describe("ProductCard", () => {
     // Kart → ürün sayfası; CTA → aynı sayfanın bilgi isteme çapası. Aynı
     // yere gitselerdi "ayrı düğme" olduğu yalan olurdu.
     render(<ProductCard product={product} companySlug="demir-metal" cta="Bilgi iste" />);
-    const title = screen.getByRole("link", { name: product.name });
-    const ctaLink = screen.getByRole("link", { name: "Bilgi iste" });
+    // Erişilebilir ad "(yeni sekmede açılır)" notunu da taşır (2026-09-07:
+    // ürün bağlantıları yeni sekmede açılıyor) — bu yüzden REGEX.
+    const title = screen.getByRole("link", { name: new RegExp(product.name) });
+    const ctaLink = screen.getByRole("link", { name: /Bilgi iste/ });
     expect(title.getAttribute("href")).toBe("/firma/demir-metal/urun/celik-boru");
+    expect(title).toHaveAttribute("target", "_blank");
+    expect(title).toHaveAttribute("rel", "noopener noreferrer");
     expect(ctaLink.getAttribute("href")).toBe("/firma/demir-metal/urun/celik-boru#bilgi-iste");
+    expect(ctaLink).toHaveAttribute("target", "_blank");
 
     const bubbled = vi.fn();
     const { container } = render(

@@ -39,6 +39,24 @@ import { useState, type ReactNode } from "react";
  * (taslak/eski kayıt) nötr gri zemin — ürün görselinin yokluğu bir eksikliktir,
  * tonlu kutu onu saklardı.
  */
+/**
+ * ÜRÜN YENİ SEKMEDE AÇILIR (2026-09-07, kullanıcı kararı).
+ *
+ * Gerekçe pazar yeri davranışı: alıcı bir listede/vitrinde gezinirken tek tek
+ * ürünleri açıp karşılaştırır; aynı sekmede açmak her seferinde listeye geri
+ * dönmeyi (ve süzgeç/kaydırma konumunu yeniden kurmayı) gerektiriyordu.
+ *
+ * `rel` ŞART: `noopener` olmadan açılan sayfa `window.opener` üzerinden bu
+ * sayfayı yönlendirebilir (tabnabbing). Ekran okuyucu için görünmez bir
+ * "(yeni sekmede açılır)" notu eklenir — beklenmedik sekme açılması aksi
+ * hâlde sessiz kalır.
+ */
+const NEW_TAB = { target: "_blank", rel: "noopener noreferrer" } as const;
+
+function NewTabHint() {
+  return <span className="sr-only"> (yeni sekmede açılır)</span>;
+}
+
 export type ProductCardProduct = Pick<
   PublicProductCard,
   "slug" | "name" | "images" | "categoryId" | "unit" | "priceMode"
@@ -182,8 +200,9 @@ export function ProductCard({
       );
     }
     return (
-      <Link href={target ?? "#"} className={rowCls}>
+      <Link href={target ?? "#"} {...NEW_TAB} className={rowCls}>
         {inner}
+        <NewTabHint />
       </Link>
     );
   }
@@ -242,9 +261,11 @@ export function ProductCard({
           <h3 className="mt-1 line-clamp-2 text-[15px]/5 font-semibold tracking-tight text-zinc-950">
             <Link
               href={target ?? "#"}
+              {...NEW_TAB}
               className="after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
             >
               {product.name}
+              <NewTabHint />
             </Link>
           </h3>
           {bullets.length > 0 ? (
@@ -368,9 +389,11 @@ export function ProductCard({
                 veriyormuş gibi duruyordu. */}
             <Link
               href={target ?? "#"}
+              {...NEW_TAB}
               className="after:absolute after:inset-0 after:content-[''] focus:outline-none group-hover:text-zinc-600"
             >
               {product.name}
+              <NewTabHint />
             </Link>
           </h3>
           {cta || compact ? null : (
@@ -476,6 +499,7 @@ export function ProductCard({
                eklendiğinde iki eylem birden tetiklenirdi). */
             <Link
               href={ctaHref ?? `${target}#bilgi-iste`}
+              {...NEW_TAB}
               onClick={(e) => e.stopPropagation()}
               className={cn(
                 "relative z-10 mt-3 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
@@ -483,6 +507,7 @@ export function ProductCard({
               )}
             >
               {cta}
+              <NewTabHint />
             </Link>
           ) : null}
         </div>

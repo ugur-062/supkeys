@@ -157,9 +157,15 @@ function PanelCompanyCard({ company, query }: { company: DirectoryCompany; query
                 <li key={p.slug}>
                   <Link
                     href={panelProductPath(company.slug, p.slug)}
+                    // Ürün YENİ SEKMEDE (kart ailesiyle aynı kural): firma
+                    // listesinde gezinen alıcı ürünü açıp listeye dönmek
+                    // zorunda kalmasın.
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="line-clamp-1 text-sm text-zinc-700 underline-offset-2 hover:text-zinc-950 hover:underline"
                   >
                     {p.name}
+                    <span className="sr-only"> (yeni sekmede açılır)</span>
                   </Link>
                 </li>
               ))}
