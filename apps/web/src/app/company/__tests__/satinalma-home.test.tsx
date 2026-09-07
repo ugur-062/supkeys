@@ -4,23 +4,16 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * SATINALMA ANASAYFASI = public anasayfanın alıcı yüzü (2026-09-07 kullanıcı
- * kararı) — AYNI bileşenler, PANEL rotaları.
+ * SATINALMA ANASAYFASI (2026-09-08, kullanıcı kararı — geri alındı).
  *
- * Testin kilitlediği iki şey:
- *  1. Bölümler public sıradaki gibi basılır (ürün kaydırıcısı, kategori
- *     ızgarası, firmalar, popüler kategoriler, panel ikilisi).
- *  2. ROTA SIZINTISI YOK: sayfadaki hiçbir bağlantı herkese açık pazar yeri
- *     adresine gitmez (`/urunler`, `/firma/…`, `/kayit`). Public bileşenler
- *     varsayılan olarak o adresleri üretiyor; panel kendi rotalarını prop
- *     geçmezse kullanıcı sol menüsünü kaybeder. Tek istisna `/nasil-calisir`
- *     (bilgi sayfası, panelden de açılır).
+ * Bir tur boyunca sayfa herkese açık anasayfanın kopyasıydı; kullanıcı eski
+ * düzeni geri istedi: hero arama → ÜRÜN ÖNERİSİ şeridi → kategori vitrini
+ * (satır başına 1 tanıtım kartı + 10 kategori) → yeni eklenenler şeridi.
+ * Test iki şeyi kilitler:
+ *  1. Sıra ve bloklar,
+ *  2. "Satınalmada siyah yok" — birincil eylemler MAVİ (kullanıcı kuralı).
  */
-const h = vi.hoisted(() => ({
-  push: vi.fn(),
-  products: [] as unknown[],
-  companies: [] as unknown[],
-}));
+const h = vi.hoisted(() => ({ push: vi.fn(), products: [] as unknown[] }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: h.push, replace: vi.fn() }),
@@ -34,11 +27,17 @@ vi.mock("@/hooks/use-company-auth", () => ({
   }),
 }));
 vi.mock("@/hooks/use-portal-discovery", () => ({
-  useDiscoverSearch: () => ({ data: { items: h.products, total: 56, page: 1, pageSize: 12 } }),
+  useDiscoverSearch: () => ({ data: { items: h.products, total: 56, page: 1, pageSize: 12 }, isLoading: false }),
   useDiscoverProducts: () => ({ data: [] }),
   useDiscoverProductFacets: () => ({
     data: {
-      categories: [{ id: "39000000", name: "Elektrik", level: 1, count: 12 }],
+      // Vitrin satırı 1 tanıtım + 10 kategori ister (yarım satır çizilmez).
+      categories: Array.from({ length: 12 }, (_, i) => ({
+        id: `${39 + i}000000`,
+        name: `Sektör ${i}`,
+        level: 1,
+        count: 12 - i,
+      })),
       subCategories: [],
       cities: [],
       activities: [],
@@ -47,10 +46,12 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
       attributes: [],
     },
   }),
-  useCategorySegments: () => ({ data: [{ id: "39000000", nameTr: "Elektrik" }] }),
+  useCategorySegments: () => ({
+    data: Array.from({ length: 12 }, (_, i) => ({ id: `${39 + i}000000`, nameTr: `Sektör ${i}` })),
+  }),
 }));
 vi.mock("@/hooks/use-company-directory", () => ({
-  useCompanySearch: () => ({ data: { items: h.companies, total: 20, page: 1, pageSize: 20 } }),
+  useCompanySearch: () => ({ data: { items: [], total: 20, page: 1, pageSize: 20 } }),
 }));
 
 import SatinalmaDashboardPage from "../(authed)/satinalma/page";
@@ -70,25 +71,7 @@ const product = (i: number) => ({
   company: { name: `Firma ${i}`, slug: `firma-${i}`, city: "Bursa", country: "TR", activities: [], verified: true },
 });
 
-const company = (i: number) => ({
-  name: `Firma ${i}`,
-  slug: `firma-${i}`,
-  rothernId: `RTH-${i}`,
-  city: "Bursa",
-  country: "TR",
-  industry: null,
-  activities: [],
-  logoUrl: null,
-  verified: true,
-  mainCategory: null,
-  productCount: 3,
-  productPreview: [],
-  connectionStatus: "none",
-});
-
 function renderPage() {
-  // Hero'daki "AI ile ara" bir `useMutation` kurar — sağlayıcı olmadan
-  // React Query patlar (sayfanın kendi veri kancaları mock'lu).
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -98,27 +81,23 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  h.products = Array.from({ length: 8 }, (_, i) => product(i));
-  h.companies = Array.from({ length: 6 }, (_, i) => company(i));
+  h.products = Array.from({ length: 6 }, (_, i) => product(i));
 });
 
 describe("Satınalma anasayfası", () => {
-  it("public anasayfanın bölümlerini basar", () => {
+  it("hero arama + ürün önerisi + kategori vitrini + yeni eklenenler", () => {
     renderPage();
     expect(screen.getByRole("heading", { level: 1, name: "Ne arıyorsunuz?" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ürünler" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Öne çıkan/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Rothern'daki firmalar" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Popüler kategoriler" })).toBeInTheDocument();
-    // Kayıt CTA'sı YOK — üye zaten giriş yapmış; ikili panel eylemlerine bağlı.
-    expect(screen.getByRole("heading", { name: /Talep aç/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Size uygun ürünler|Aramalarınıza göre/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();
+    expect(screen.getAllByText("Şimdi tedarikçi bulun").length).toBeGreaterThan(0);
   });
 
-  it("hiçbir bağlantı herkese açık pazar yeri adresine gitmez", () => {
-    renderPage();
-    const leaks = Array.from(document.querySelectorAll("a[href]"))
-      .map((a) => a.getAttribute("href") ?? "")
-      .filter((href) => href.startsWith("/") && !href.startsWith("/company/") && href !== "/nasil-calisir");
-    expect(leaks).toEqual([]);
+  it("SİYAH dolgu YOK — satınalmada birincil renk mavi (kullanıcı kuralı)", () => {
+    const { container } = renderPage();
+    const black = Array.from(container.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
+      /(^|\s)bg-(zinc-950|black)(\s|$)/.test(el.className),
+    );
+    expect(black.map((el) => el.className)).toEqual([]);
   });
 });

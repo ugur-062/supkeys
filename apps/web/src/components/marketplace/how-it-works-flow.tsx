@@ -12,46 +12,28 @@ import Link from "next/link";
  * Tedarikçi akışı (Kaydol → Kapalı zarf teklif ver → Siparişe dönüştür)
  * aşağıdaki `TrustBand`da — iki bölüm iki tarafı anlatır, kopya değil.
  */
-export interface FlowLinks {
-  /** 1. adım: ürün listesi. */
-  browse: string;
-  /** 2. adım: talep aç (public'te kayıt, panelde sihirbaz). */
-  create: string;
-  /** 3. adım: nasıl çalışır. */
-  help: string;
-}
-
-const PUBLIC_LINKS: FlowLinks = {
-  browse: MARKETPLACE_ROUTES.products,
-  create: signupHref("talep"),
-  help: "/nasil-calisir",
-};
-
 const STEPS = [
   {
     icon: Search,
     title: "Ara",
     body: "Ürünü, firmayı veya kategoriyi bul. Fiyat ve minimum sipariş kartta yazar.",
-    link: "browse" as const,
-    linkLabel: "Ürünlere göz at",
+    link: { label: "Ürünlere göz at", href: MARKETPLACE_ROUTES.products },
   },
   {
     icon: Send,
     title: "Teklif iste",
     body: "Bulduysan firmaya bilgi talebi gönder; bulamadıysan talep aç, kategorinle eşleşen tedarikçiler teklif versin.",
-    link: "create" as const,
-    linkLabel: "Talep aç",
+    link: { label: "Talep aç", href: signupHref("talep") },
   },
   {
     icon: LockKeyhole,
     title: "Kapalı zarfta karşılaştır",
     body: "Teklifçiler birbirini görmez. Tek tabloda karşılaştır, kazandır; sipariş kendiliğinden oluşur.",
-    link: "help" as const,
-    linkLabel: "Nasıl çalışır",
+    link: { label: "Nasıl çalışır", href: "/nasil-calisir" },
   },
 ] as const;
 
-export function HowItWorksFlow({ links = PUBLIC_LINKS }: { links?: FlowLinks } = {}) {
+export function HowItWorksFlow() {
   return (
     <section aria-labelledby="alici-akisi" className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
       <h2 id="alici-akisi" className="sr-only">
@@ -80,10 +62,10 @@ export function HowItWorksFlow({ links = PUBLIC_LINKS }: { links?: FlowLinks } =
               </p>
               <p className="mt-1 text-sm/6 text-zinc-600">{s.body}</p>
               <Link
-                href={links[s.link]}
+                href={s.link.href}
                 className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-zinc-950 hover:text-zinc-600"
               >
-                {s.linkLabel}
+                {s.link.label}
                 <ArrowRightIcon aria-hidden className="size-4" />
               </Link>
             </div>

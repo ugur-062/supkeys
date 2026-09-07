@@ -1,6 +1,6 @@
 "use client";
 
-import { useFilters } from "./filter-shell";
+import { useFilterAccent, useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
 import { readViewPreference, writeViewPreference } from "@/lib/public/view-preference";
@@ -276,6 +276,7 @@ function NearbyControls({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.near]);
   const radius = state.radius ?? 100;
+  const accent = useFilterAccent();
   // Merkez ÇÖZÜLENE dek süzgeç yazılmaz: yarım bir kısıt listeyi boşaltırdı.
   const apply = (nextRadius: number) => {
     if (province) update({ near: province.name, radius: nextRadius });
@@ -311,7 +312,9 @@ function NearbyControls({
         value={Math.max(0, RADIUS_OPTIONS.indexOf(radius as (typeof RADIUS_OPTIONS)[number]))}
         onChange={(e) => apply(RADIUS_OPTIONS[Number(e.target.value)]!)}
         disabled={!province}
-        className="mt-1 w-full accent-zinc-950 disabled:opacity-40"
+        className={`mt-1 w-full disabled:opacity-40 ${
+          accent === "blue" ? "accent-blue-600" : "accent-zinc-950"
+        }`}
       />
       <p className="tnum flex justify-between text-[10px] text-zinc-400">
         {RADIUS_OPTIONS.map((r) => (
@@ -497,6 +500,7 @@ function PriceGroup({
 }) {
   const [min, setMin] = useState(state.priceMin?.toString() ?? "");
   const [max, setMax] = useState(state.priceMax?.toString() ?? "");
+  const accent = useFilterAccent();
   useEffect(() => {
     setMin(state.priceMin?.toString() ?? "");
     setMax(state.priceMax?.toString() ?? "");
@@ -543,7 +547,11 @@ function PriceGroup({
                 type="button"
                 onClick={() => update(on ? { priceMin: undefined, priceMax: undefined } : { priceMin: r.from, priceMax: r.to })}
                 className={`tnum rounded-full px-2.5 py-1 text-xs transition ${
-                  on ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                  on
+                    ? accent === "blue"
+                      ? "bg-blue-600 text-white"
+                      : "bg-zinc-950 text-white"
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
                 }`}
               >
                 {r.label}

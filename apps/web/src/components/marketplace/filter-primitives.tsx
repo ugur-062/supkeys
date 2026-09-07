@@ -1,6 +1,7 @@
 "use client";
 
 import { Chip } from "@/components/ui/chip";
+import { useFilterAccent } from "./filter-shell";
 
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { useEffect, useId, useState, type ReactNode } from "react";
@@ -130,6 +131,8 @@ export function Check({
   name?: string;
 }) {
   const disabled = count === 0 && !checked;
+  // Kutucuk rengi kabuktan (satınalma mavi, herkese açık monokrom).
+  const accent = useFilterAccent();
   return (
     <label
       htmlFor={id}
@@ -145,7 +148,9 @@ export function Check({
           checked={checked}
           disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
-          className="size-4 shrink-0 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
+          className={`size-4 shrink-0 rounded border-zinc-300 ${
+            accent === "blue" ? "text-blue-600 focus:ring-blue-600" : "text-zinc-950 focus:ring-zinc-950"
+          }`}
         />
         {icon ? (
           <span aria-hidden className="inline-flex shrink-0 text-zinc-400">

@@ -73,6 +73,10 @@ export function PanelProductIndex({
       total={total}
       drawer={<PanelProductFilters idPrefix="m" />}
       drawerHideAt="xl"
+      /* Satınalma panelinde birincil renk MAVİ (kullanıcı kararı): kutucuk,
+         fiyat çipi, yarıçap kaydırıcısı ve mobil "Sonuçları göster" düğmesi
+         siyah kalmasın. Herkese açık `/urunler` monokrom kalır. */
+      accent="blue"
       pushFilters
     >
       <Inner state={state} result={result} banner={banner} band={band} footer={footer} />

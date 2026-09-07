@@ -979,33 +979,33 @@ normalde taşmaz, dolayısıyla kaydırma çubuğu çizilmez). Facet başına
 iki farklı yetenekle yaşıyordu (orada süzgeçler yerel `useState`teydi:
 URL'ye yazılmıyor, sayfalama/şehir/kategori/sıralama yok).
 
-**Anasayfa = www.rothern.com anasayfasının ALICI yüzü (2026-09-07, kullanıcı
-kararı: "oradaki ile birebir aynı olsun").** Sıra ve bileşenler herkese açık
-anasayfayla AYNI dosyalardan: panel hero araması → sayı şeridi (`StatsRow`) →
-nasıl çalışır (`HowItWorksFlow`) → sekmeli ürün kaydırıcısı
-(`ProductShowcase`: Öne çıkan | Yeni | Fiyatı yazılı) → kategori ızgarası
-(`CategoryGrid`, 1 büyük + N) → iki kart (`TwoCards variant="panel"`) →
-firmalar (`CompanyGrid`) → popüler kategoriler (`PopularChips`) → tanıtım
-paragrafı. Kopya çıkarılmadı; rota ve metin farkları PROP olarak geçer
-(`hrefFor`/`allHref`/`links`/`variant`) — public ile panel bir daha
-ayrışmasın. Sözleşme: `app/company/__tests__/satinalma-home.test.tsx`
-(bölümler + "hiçbir bağlantı public pazar yeri adresine gitmez"; tek istisna
-`/nasil-calisir`).
+**Anasayfa sırası (2026-09-08'de KESİNLEŞTİ):** hero arama (`PanelHeroSearch`
+— "Ne arıyorsunuz?" + AI anahtarı) → **ürün önerisi şeridi**
+(`PanelRecommendations mode="match"`) → **kategori vitrini**
+(`CategoryShowcaseRows`: satır başına 1 fotoğraflı tanıtım kartı + 10
+kategori kartı, satır satır) → **yeni eklenenler şeridi**
+(`PanelRecommendations mode="fresh"`). Başka blok YOK. AI yorumu ürün
+dizinine `sessionStorage` köprüsüyle taşınır (`stashAiIntent`/`takeAiIntent`;
+taslak köprüsüyle aynı desen, süzgeçler zaten URL'de).
 
-ÜÇ ZORUNLU FARK: (a) veri panelin KENDİ uçlarından — public uçlar panelde
-kullanılmaz; (b) kayıt CTA'sı yok, `TwoCards` panel varyantı "talep aç" ve
-"ürün ekle" der; (c) sayı şeridi HAREKET değil ENVANTER ("pazardaki ürün ·
-vitrini yayında firma · ürün olan sektör") — hareket metrikleri
-`public/stats` ucundan geliyor ve panelde çağrılamaz, uydurma sayı basmak
-yerine ölçülebilen üç gerçek sayı yazılır. Hero PANELİN kendi bloğu kalır
-(kullanıcı kararı): public hero'nun Alıcı/Tedarikçi anahtarı sol menüdeki
-portal pilinin kopyası olurdu, "Kaydol" düğmesi anlamsız; "AI ile ara"
-(Silver+) yalnız panelde var. AI yorumu ürün dizinine `sessionStorage`
-köprüsüyle taşınır (`stashAiIntent`/`takeAiIntent`).
+> ⚠️ **Bir tur bu sayfa herkese açık anasayfanın kopyası yapıldı ve
+> KULLANICI GERİ ALDIRDI (2026-09-08).** "Birebir aynı olsun" isteği
+> `ProductShowcase`/`CategoryGrid`/`TwoCards`/`CompanyGrid`/`PopularChips`
+> bloklarını panele taşımıştı; canlıda görülünce eski düzen istendi
+> (`git revert`). Panel anasayfası public anasayfanın kopyası DEĞİLDİR —
+> tekrar önerilmemeli. Sözleşme: `app/company/__tests__/satinalma-home.test`.
 
-Bu turda ÖLEN bloklar silindi (git'te duruyor): `PanelRecommendations`
-(iki tavsiye şeridi), `CategoryShowcaseRows` (3 satırlık vitrin),
-`PanelFeaturedProducts` (zaten bağlanmamıştı).
+**SATINALMADA SİYAH YOK (2026-09-07/08, kullanıcı kuralı):** panelin
+satınalma yüzeylerinde birincil renk **mavi**, zemin beyaz. Kapsam: hero
+"Ara" düğmesi, kart CTA'ları (`ProductCard accent="blue"`), "Bilgi / teklif
+iste", bilgi talebi diyaloğu, boş sonuç CTA'sı, AI bandı düğmesi, pazar
+bandı ve kategori vitrini. **Süzgeç yüzeyi kabuktan boyanır**:
+`FilterShellCore accent="blue"` → kutucuk, fiyat çipi, yarıçap kaydırıcısı ve
+mobil "Sonuçları göster" düğmesi (tek kaynak `useFilterAccent`; her bileşene
+ayrı prop taşımak biri unutulduğunda tek siyah leke bırakırdı). Herkese açık
+pazar yeri MONOKROM kalır, satış portalı da siyah/emerald kalır — renk
+çağırandan gelir, bileşen portal bilmez. Sözleşme: satınalma anasayfası
+testinde "bg-zinc-950/bg-black YOK" taraması.
 
 **BAŞLIK ŞERİDİ ve "BUGÜN" bandı İKİ ANASAYFADAN DA KALKTI (2026-09-07,
 kullanıcı kararı).** Kalkan: panel adı + firma/tarih + kur çipleri

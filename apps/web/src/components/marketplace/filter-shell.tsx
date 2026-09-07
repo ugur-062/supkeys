@@ -36,6 +36,21 @@ interface Ctx<S> {
   activeCount: number;
   openMobile: () => void;
   closeMobile: () => void;
+  /**
+   * Süzgeç yüzeyinin VURGU rengi (2026-09-08, kullanıcı kararı: "satınalmada
+   * siyah kullanma"). Herkese açık pazar yeri monokrom SİYAH kalır; panelin
+   * satınalma bölgesi MAVİ. Renk kabuktan geçer ki kutucuk, çip, kaydırıcı ve
+   * mobil düğme tek yerden dönsün — her bileşene ayrı prop taşımak, biri
+   * unutulduğunda tek siyah leke bırakırdı.
+   */
+  accent: FilterAccent;
+}
+
+export type FilterAccent = "default" | "blue";
+
+/** Süzgeç yüzeyinin vurgu rengi — bağlam yoksa monokrom. */
+export function useFilterAccent(): FilterAccent {
+  return useContext(FilterCtx)?.accent ?? "default";
 }
 const FilterCtx = createContext<Ctx<unknown> | null>(null);
 export function useFilters<S = ProductFilterState>(): Ctx<S> {
@@ -50,6 +65,7 @@ export function FilterShellCore<S extends { page: number }>({
   clearState,
   total,
   activeCount,
+  accent = "default",
   drawer,
   drawerHideAt = "lg",
   pushFilters = false,
@@ -82,6 +98,8 @@ export function FilterShellCore<S extends { page: number }>({
    * kullanıcı yanlış kutucuğu geri almak için geri tuşunu bekliyor.
    */
   pushFilters?: boolean;
+  /** Vurgu rengi — panel satınalma `blue`, herkese açık pazar yeri monokrom. */
+  accent?: FilterAccent;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -115,6 +133,7 @@ export function FilterShellCore<S extends { page: number }>({
     activeCount,
     openMobile: () => setMobileOpen(true),
     closeMobile: () => setMobileOpen(false),
+    accent,
   };
   return (
     <FilterCtx.Provider value={value as Ctx<unknown>}>
@@ -139,6 +158,7 @@ export function FilterShell({
   drawer,
   drawerHideAt,
   pushFilters,
+  accent,
   children,
 }: {
   basePath: string;
@@ -150,6 +170,8 @@ export function FilterShell({
   drawerHideAt?: "lg" | "xl";
   /** Bkz. `FilterShellCore` — ürün dizininde `true`. */
   pushFilters?: boolean;
+  /** Bkz. `FilterShellCore` — panel satınalmada `blue`. */
+  accent?: FilterAccent;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -175,6 +197,7 @@ export function FilterShell({
       drawer={drawer}
       drawerHideAt={drawerHideAt}
       pushFilters={pushFilters}
+      accent={accent}
     >
       {children}
     </FilterShellCore>
@@ -265,7 +288,7 @@ function MobileDrawer({
   hideAt: "lg" | "xl";
   children: ReactNode;
 }) {
-  const { total, clear, isPending } = useFilters();
+  const { total, clear, isPending, accent } = useFilters();
   // Sözlük primitive'i (PROMPT 3): alt çekmece, başlıkta "Temizle", altlıkta canlı sayaç.
   return (
     <Sheet
@@ -286,7 +309,9 @@ function MobileDrawer({
         <button
           type="button"
           onClick={onClose}
-          className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white"
+          className={`w-full rounded-full px-4 py-2.5 text-sm font-semibold text-white ${
+            accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : "bg-zinc-950 hover:bg-zinc-800"
+          }`}
         >
           {isPending ? "Güncelleniyor…" : `Sonuçları göster (${total.toLocaleString("tr-TR")})`}
         </button>

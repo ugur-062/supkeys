@@ -17,17 +17,7 @@ import Link from "next/link";
  * (`/urunler/kategori/<kod>-<ad>`, SSG) — süzgeç sorgu parametresi değil yol
  * parçası, gerekçe CLAUDE.md § Ürün dizini.
  */
-export function CategoryGrid({
-  categories,
-  hrefFor = (c) => categoryPath(c.id, c.name),
-  allHref = "/urunler",
-}: {
-  categories: ShowcaseCategory[];
-  /** Kategori kartının hedefi — panel kendi kategori rotasını geçer. */
-  hrefFor?: (c: ShowcaseCategory) => string;
-  /** "Tüm ürünler" bağlantısı. */
-  allHref?: string;
-}) {
+export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] }) {
   if (categories.length === 0) return null;
 
   return (
@@ -43,7 +33,7 @@ export function CategoryGrid({
           </p>
         </div>
         <Link
-          href={allHref}
+          href="/urunler"
           className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 transition hover:text-zinc-600"
         >
           Tüm kategoriler
@@ -56,7 +46,7 @@ export function CategoryGrid({
           <li key={c.id}>
             <CategoryTile
               category={c}
-              href={hrefFor(c)}
+              href={categoryPath(c.id, c.name)}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           </li>

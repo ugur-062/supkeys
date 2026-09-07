@@ -51,6 +51,7 @@ export function PanelCompanyIndex() {
       activeCount={activeCompanyFilterCount(state)}
       drawer={<PanelCompanyFilters idPrefix="m" />}
       drawerHideAt="xl"
+      accent="blue"
     >
       <Inner state={state} result={result} />
     </FilterShellCore>
