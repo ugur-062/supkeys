@@ -450,6 +450,10 @@ async function main() {
         brand: p.brand ?? null, mpn: p.mpn ?? null, unit: p.unit, categoryId, keywords: p.kw, images: like.images,
         priceMode, priceAmount: p.price ?? null, priceTiers: (p.tiers ?? undefined) as Prisma.InputJsonValue | undefined,
         priceCurrency: p.cur ?? "TRY", moq: p.moq ?? null, isPublic: true, publishedAt: new Date(Date.now() - Math.floor(Math.random() * 60 * 24) * 3_600_000),
+        // Nitelikler `like`ta hesaba katılıyordu ama KAYDA yazılmıyordu:
+        // ürün sayfasında Özellikler sekmesi ve karttaki özellik satırı
+        // boş kalıyordu (2026-09-07'de yakalandı, veri doğrulamasıyla).
+        attributes: (p.attrs ?? undefined) as Prisma.InputJsonValue | undefined,
         slug, completionScore: score, searchText: foldSearchText([p.name, p.brand ?? "", p.mpn ?? "", ...p.kw].join(" ")),
       },
     });

@@ -94,7 +94,11 @@ export function ProductDetail({
     name: product.name,
     url,
     ...(product.description ? { description: product.description } : {}),
-    ...(product.images.length > 0 ? { image: product.images } : {}),
+    // Yapısal veride görsel MUTLAK adres olmalı; demo görselleri site
+    // köküne göreli (`/categories/...webp`) geldiği için burada tamamlanır.
+    ...(product.images.length > 0
+      ? { image: product.images.map((i) => (i.startsWith("/") ? `${site}${i}` : i)) }
+      : {}),
     ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
     ...(product.mpn ? { mpn: product.mpn } : {}),
     ...(attrs.length > 0

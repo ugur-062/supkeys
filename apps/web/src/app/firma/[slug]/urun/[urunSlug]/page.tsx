@@ -44,7 +44,9 @@ export async function generateMetadata({
     openGraph: {
       title: product.name,
       description,
-      images: product.images.slice(0, 1),
+      // Göreli görsel (`/categories/...webp`) OG'de mutlak olmalı —
+      // metadataBase'e güvenmek yerine açıkça tamamlanır.
+      images: product.images.slice(0, 1).map((i) => (i.startsWith("/") ? `${resolveSiteUrl()}${i}` : i)),
       type: "website",
     },
   };
