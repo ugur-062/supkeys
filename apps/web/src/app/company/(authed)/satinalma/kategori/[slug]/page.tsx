@@ -29,7 +29,7 @@ function CategoryView({ code }: { code: string }) {
   return (
     <PanelProductIndex
       fixedCategory={code}
-      band={({ facets }) => {
+      band={({ total, loaded, facets }) => {
         // KOYU BANT KALDIRILDI (2026-09-07, kullanıcı kararı): kategoriye
         // tıklayan kullanıcı zaten ne aradığını biliyor; başlık + açıklama +
         // arama + sekmeler + alt dal çipleri ürün ızgarasını ekranın altına
@@ -46,6 +46,7 @@ function CategoryView({ code }: { code: string }) {
               { label: "Ürünler", href: PANEL_MARKET.products },
               ...(name ? [{ label: name }] : []),
             ]}
+            count={loaded ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
             title={
               name ?? (
                 <span aria-hidden className="inline-block h-7 w-64 animate-pulse rounded bg-zinc-100 align-middle" />

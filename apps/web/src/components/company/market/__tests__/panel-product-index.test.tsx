@@ -90,6 +90,25 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     );
   });
 
+  it("başlıkta sonuç sayısı ve kartta ülke bayrağı; rayın sonunda 'Tüm filtreleri sıfırla'", async () => {
+    // Sayı BAŞLIĞIN YANINDA (referans kalıbı): araç çubuğundaki "30 ürün
+    // bulundu" satırı listenin üstünde kalıyor, başlıkta katalog büyüklüğü
+    // okunuyor. Bayrak firma adının önünde — KKTC (XN) ISO'da olmadığı için
+    // orada bayrak basılmaz (bkz. `countryFlag`).
+    const user = userEvent.setup();
+    render(<PanelProductIndex />);
+    expect(screen.getByText("30 ürün")).toBeInTheDocument();
+    expect(screen.getAllByTitle("Türkiye").length).toBeGreaterThan(0);
+
+    const aside = screen.getByRole("complementary", { name: "Süzgeçler" });
+    const clearAll = within(aside).getByRole("button", { name: /Tüm filtreleri sıfırla/ });
+    // Süzgeç yokken düğme YERİNDE ama devre dışı (ray hep aynı yerde bitsin).
+    expect(clearAll).toBeDisabled();
+
+    await user.click(within(aside).getByLabelText(/^Doğrulanmış/));
+    expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?dogrulanmis=1", { scroll: false });
+  });
+
   it("kenar süzgeci + sayaç + sıralama; uygunluk rozeti ve özellik maddesi yalnız verilende", () => {
     render(<PanelProductIndex />);
     const aside = screen.getByRole("complementary", { name: "Süzgeçler" });

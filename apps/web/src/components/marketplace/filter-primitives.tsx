@@ -45,6 +45,7 @@ export function useOpenState(storageKey: string, initial = true) {
 
 export function Group({
   title,
+  icon,
   count,
   onClear,
   storageKey,
@@ -52,6 +53,12 @@ export function Group({
   children,
 }: {
   title: string;
+  /**
+   * Başlık ikonu — grubun NE olduğu, başlığı okumadan taranabilsin diye
+   * (Europages süzgeç rayı kalıbı, 2026-09-07). Süsleme: `aria-hidden`
+   * verilir, anlamı legend metni taşır.
+   */
+  icon?: ReactNode;
   count: number;
   onClear: () => void;
   storageKey: string;
@@ -79,6 +86,11 @@ export function Group({
           className="flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
         >
           <legend className="contents">
+            {icon ? (
+              <span aria-hidden className="mr-1 inline-flex text-zinc-400">
+                {icon}
+              </span>
+            ) : null}
             {title}
             {count > 0 ? <span className="ml-1 normal-case text-zinc-950">({count})</span> : null}
           </legend>
@@ -100,6 +112,7 @@ export function Group({
 export function Check({
   id,
   label,
+  icon,
   count,
   checked,
   onChange,
@@ -108,6 +121,8 @@ export function Check({
 }: {
   id: string;
   label: string;
+  /** Seçeneğin ikonu (ör. tedarikçi türü) — süsleme, etiket metni taşır. */
+  icon?: ReactNode;
   count?: number;
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -132,6 +147,11 @@ export function Check({
           onChange={(e) => onChange(e.target.checked)}
           className="size-4 shrink-0 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
         />
+        {icon ? (
+          <span aria-hidden className="inline-flex shrink-0 text-zinc-400">
+            {icon}
+          </span>
+        ) : null}
         <span className="line-clamp-1">{label}</span>
       </span>
       {count != null ? <span className="shrink-0 text-xs text-zinc-500">{count}</span> : null}
@@ -143,6 +163,8 @@ export interface FacetOption {
   key: string;
   label: string;
   count: number;
+  /** Satır ikonu — verilmezse çizilmez (çoğu facet metin listesidir). */
+  icon?: ReactNode;
 }
 
 export function ShowMore({
@@ -169,6 +191,7 @@ export function ShowMore({
           key={i.key}
           id={`${idPrefix}-${i.key}`}
           label={i.label}
+          icon={i.icon}
           count={i.count}
           checked={selected.includes(i.key)}
           onChange={(on) => onToggle(i.key, on)}
@@ -206,6 +229,7 @@ export function ShowMoreRadio({
           key={i.key}
           id={`${idPrefix}-${i.key}`}
           label={i.label}
+          icon={i.icon}
           count={i.count}
           checked={selected === i.key}
           onChange={() => onSelect(i.key)}

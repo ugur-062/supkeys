@@ -19,13 +19,14 @@ import { categoryPath } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
+import { ActivityIcon } from "./activity-icons";
+import { CardCarousel } from "./card-carousel";
 import { StickyCta } from "./sticky-cta";
 import { companyActivityLabel } from "@rothern/shared";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
-  ArrowRightIcon,
   CheckBadgeIcon,
   CurrencyDollarIcon,
   DocumentTextIcon,
@@ -158,6 +159,8 @@ export function ProductDetail({
           companyHref={`/firma/${companySlug}`}
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
+          /* Public kabuk iki katmanlı sabit header taşıyor (~100 px). */
+          stickyTopClass="lg:top-[100px]"
           stickyCta={
             <Link
               href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
@@ -253,6 +256,7 @@ export function ProductDetailBody({
   related,
   hrefFor,
   stickyCta,
+  stickyTopClass,
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
   product: PublicProduct & Partial<ProductPriceFields>;
@@ -271,6 +275,11 @@ export function ProductDetailBody({
   related?: RelatedProducts;
   /** İlişkili ürün kartının hedefi — public `/firma/…`, panel `/company/…`. */
   hrefFor?: (c: ProductIndexCard) => string;
+  /**
+   * `lg`+ ekranda yapışkan şeridin ÜST ofseti (kabuğun sabit çubuğunun
+   * altına oturması için). Public kabuk `lg:top-[100px]`, panel `lg:top-14`.
+   */
+  stickyTopClass?: string;
   /**
    * Yapışkan alt şeridin eylemi (fiyatın yanında). Verilmezse şerit
    * çizilmez. Şerit YALNIZ asıl eylem ekrandan çıkınca görünür — aynı
@@ -309,42 +318,16 @@ export function ProductDetailBody({
         </div>
 
         <aside className="min-w-0">
-          {/* KİMDEN, NE, NEREDEN — başlığın ÜSTÜNDE üst-etiket olarak
-              (Europages): kategori · faaliyet tipi · şehir. Üçü de VAR olan
-              veriden; "teslim alanı" kolonu yok, uydurulmaz.
-
-              Ayraçlar PARÇALARDAN türetilir: her parça kendi "·"sını
-              taşıdığında kategorisi olmayan üründe satır baştaki ayraçla
-              başlıyordu ("· Hizmet sağlayıcı · Samsun"). Başlık altındayken
-              göze batmıyordu, üst-etiket olunca ilk okunan şey oldu. */}
-          {(() => {
-            const parts: { key: string; node: ReactNode }[] = [];
-            if (product.category) {
-              parts.push({ key: "cat", node: <span className="text-zinc-700">{product.category.name}</span> });
-            }
-            if (company.activities.length > 0) {
-              parts.push({
-                key: "act",
-                node: <span>{company.activities.map((a) => companyActivityLabel(a)).join(", ")}</span>,
-              });
-            }
-            if (company.city) parts.push({ key: "city", node: <span>{company.city}</span> });
-            if (parts.length === 0) return null;
-            return (
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-500">
-                {parts.map((p, i) => (
-                  <Fragment key={p.key}>
-                    {i > 0 ? (
-                      <span aria-hidden className="text-zinc-300">
-                        ·
-                      </span>
-                    ) : null}
-                    {p.node}
-                  </Fragment>
-                ))}
-              </p>
-            );
-          })()}
+          {/* KATEGORİ HAP OLARAK (2026-09-07, referans: Europages ürün
+              sayfası): başlığın üstünde tek bir hap. Faaliyet tipi ve şehir
+              buradan KALDIRILDI — aynı iki bilgi hemen altındaki satıcı
+              kartında (ikonlu rozet + pin) zaten duruyor ve iki kez
+              okunuyordu. "Teslim alanı" YOK: o kolon şemada yok, uydurulmaz. */}
+          {product.category ? (
+            <span className="mb-2 inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">
+              {product.category.name}
+            </span>
+          ) : null}
           <Heading
             level={1}
             className="mt-2 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
@@ -359,17 +342,13 @@ export function ProductDetailBody({
             {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
           </div>
 
-          {/* Anahtar kelimeler başlığın ALTINDA (Europages): hem uzun kuyruk
-              SEO hem "bu ürün ne" özeti. Eskiden sayfanın en altındaydı. */}
-          {product.keywords.length > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-1.5">
-              {product.keywords.slice(0, 12).map((k) => (
-                <li key={k} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
-                  {k}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {/* SATICI KİMLİĞİ BAŞLIĞIN HEMEN ALTINDA (2026-09-07, referans
+              sırası: kategori → ad → firma → eylem). Eskiden fiyat kartının
+              İÇİNDEydi: "kimden alıyorum" sorusu fiyatın altına düşüyordu ve
+              kart üç işi birden yapıyordu. Kart artık yalnız fiyat + eylem. */}
+          <div className="mt-4">
+            <SellerSummary company={company} companyHref={companyHref} sellerSite={sellerSite} compact />
+          </div>
 
           <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             {priceBox ?? (
@@ -410,12 +389,6 @@ export function ProductDetailBody({
               </>
             )}
 
-            {/* SATICI — panelin İÇİNDE (Europages): fiyatla eylem arasında
-                "kimden alıyorum" sorusu duruyor. */}
-            <div className="mt-5 border-t border-zinc-950/5 pt-5">
-              <SellerSummary company={company} companyHref={companyHref} sellerSite={sellerSite} compact />
-            </div>
-
             {/* `#bilgi-iste` — ÜRÜN KARTININ CTA'sının hedefi. Kartın kendisi
                 ürün sayfasını açar, "Bilgi iste" düğmesi aynı sayfayı EYLEMİN
                 ÜSTÜNDE açar; ikisi ayrı eylem olsun diye kartta
@@ -426,10 +399,25 @@ export function ProductDetailBody({
             </div>
           </div>
 
+          {/* Anahtar kelimeler (uzun kuyruk SEO + "bu ürün ne" özeti) fiyat
+              kartının ALTINDA: karar satırını (fiyat + eylem) yukarı almak
+              için — eskiden başlıkla fiyat arasındaydı ve CTA'yı aşağı
+              itiyordu. */}
+          {product.keywords.length > 0 ? (
+            <ul className="mt-4 flex flex-wrap gap-1.5">
+              {product.keywords.slice(0, 12).map((k) => (
+                <li key={k} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
+                  {k}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
           {/* YAPIŞKAN ŞERİT — nöbetçi asıl eylemin hemen altında: eylem
               ekrandayken şerit çizilmez. */}
           {stickyCta ? (
             <StickyCta
+              desktopTopClass={stickyTopClass}
               title={product.name}
               price={{ headline: price.headline, hasPrice: price.hasPrice }}
               meta={
@@ -520,19 +508,25 @@ export function ProductDetailBody({
                     aynı kapılı bağlantı tekrar olurdu. */}
                 <SellerSummary company={company} companyHref={companyHref} />
                 {related && related.fromCompany.items.length > 0 && hrefFor ? (
-                  <div>
-                    <h3 className="text-sm font-semibold text-zinc-900">
-                      Bu firmanın diğer ürünleri
-                      {related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""}
-                    </h3>
-                    <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                      {related.fromCompany.items.slice(0, 3).map((c) => (
-                        <li key={`${c.company.slug}/${c.slug}`}>
-                          <ProductCard product={c} href={hrefFor(c)} variant="compact" />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  /* KARUSEL (2026-09-07, referans): 3'lük ızgara firmanın
+                     kataloğunun ne kadar geniş olduğunu göstermiyordu.
+                     Sayı ve "tüm ürünler" bağlantısı başlıkta — kaç ürünü
+                     olduğu kaydırmadan okunur. */
+                  <CardCarousel
+                    heading={`${company.name} ile keşfedilecek daha fazla ürün`}
+                    link={{
+                      href: companyHref,
+                      label: `Tüm ürünleri görüntüle${
+                        related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""
+                      }`,
+                    }}
+                  >
+                    {related.fromCompany.items.map((c) => (
+                      <li key={`${c.company.slug}/${c.slug}`} className="w-56 shrink-0 snap-start sm:w-60">
+                        <ProductCard product={c} href={hrefFor(c)} variant="compact" />
+                      </li>
+                    ))}
+                  </CardCarousel>
                 ) : null}
               </div>
             ),
@@ -629,8 +623,12 @@ function SellerSummary({
 
       {company.activities.length > 0 || certs.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
+          {/* Faaliyet rozeti İKONLU (2026-09-07, referans): "Servis
+              sağlayıcı" bir anahtar sinyal ve metin rozetler arasında
+              kayboluyordu. İkon süsleme — anlam etikette. */}
           {company.activities.slice(0, 3).map((a) => (
-            <UiBadge key={a} tone="neutral" size="sm">
+            <UiBadge key={a} tone="neutral" size="sm" className="gap-1">
+              <ActivityIcon code={a} className="size-3.5 text-zinc-500" />
               {companyActivityLabel(a)}
             </UiBadge>
           ))}
@@ -683,7 +681,7 @@ export function RelatedRows({
   return <RelatedRow heading={heading} items={others} hrefFor={hrefFor} />;
 }
 
-/** Yatay ilişkili ürün satırı — boşsa çizilmez. */
+/** Yatay ilişkili ürün şeridi — oklu karusel; boşsa çizilmez. */
 function RelatedRow({
   heading,
   items,
@@ -699,28 +697,14 @@ function RelatedRow({
 }) {
   if (items.length === 0) return null;
   return (
-    <section className="mt-14">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight text-zinc-950">{heading}</h2>
-        {href ? (
-          <Link href={href} className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600">
-            {hrefLabel}
-            <ArrowRightIcon aria-hidden className="size-4" />
-          </Link>
-        ) : null}
-      </div>
-      <ul className="-mx-6 mt-5 flex snap-x scroll-pl-6 gap-4 overflow-x-auto px-6 pb-2 lg:-mx-8 lg:scroll-pl-8 lg:px-8 [scrollbar-width:thin]">
+    <div className="mt-14">
+      <CardCarousel heading={heading} link={href && hrefLabel ? { href, label: hrefLabel } : undefined}>
         {items.map((p) => (
-          <li key={`${p.company.slug}/${p.slug}`} className="w-60 shrink-0 snap-start">
-            <ProductCard
-              product={p}
-              href={hrefFor(p)}
-              company={p.company}
-              variant="compact"
-            />
+          <li key={`${p.company.slug}/${p.slug}`} className="w-56 shrink-0 snap-start sm:w-60">
+            <ProductCard product={p} href={hrefFor(p)} company={p.company} variant="compact" />
           </li>
         ))}
-      </ul>
-    </section>
+      </CardCarousel>
+    </div>
   );
 }

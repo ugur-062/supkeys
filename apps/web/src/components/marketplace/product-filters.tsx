@@ -6,6 +6,18 @@ import { activeFilterCount, type ProductFilterState } from "@/lib/public/product
 import { readViewPreference, writeViewPreference } from "@/lib/public/view-preference";
 import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon, XMarkIcon } from "@heroicons/react/20/solid";
 import {
+  BadgeCheck,
+  Boxes,
+  Building2,
+  FolderTree,
+  MapPin,
+  ScrollText,
+  SlidersHorizontal,
+  Tag,
+  Users,
+} from "lucide-react";
+import { ActivityIcon } from "./activity-icons";
+import {
   Check,
   FilterChipBar,
   FilterSearch,
@@ -53,6 +65,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
 
       <Group
         title="Firma profili"
+        icon={<BadgeCheck className="size-4" />}
         count={(state.verified ? 1 : 0) + (state.fastReply ? 1 : 0)}
         onClear={() => update({ verified: false, fastReply: false })}
         storageKey="profil"
@@ -60,6 +73,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
         <Check
           id={`${idPrefix}-verified`}
           label="Doğrulanmış"
+          icon={<BadgeCheck className="size-4 text-emerald-600" />}
           count={facets.verified}
           checked={state.verified}
           onChange={(v) => update({ verified: v })}
@@ -78,6 +92,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
 
       <Group
         title="Tedarikçi türü"
+        icon={<Building2 className="size-4" />}
         count={state.activities.length}
         onClear={() => update({ activities: [] })}
         storageKey="faaliyet"
@@ -91,6 +106,9 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
           items={COMPANY_ACTIVITIES.map((a) => ({
             key: a.code,
             label: a.nameTr,
+            // İkon SÜSLEME: anlam etiketin kendisinde; `ActivityIcon`
+            // tanımadığı kodda null döner, satır ikonsuz çizilir.
+            icon: <ActivityIcon code={a.code} />,
             count: facets.activities.find((f) => f.activity === a.code)?.count ?? 0,
           }))}
           selected={state.activities}
@@ -105,6 +123,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
 
       <Group
         title="Çalışan sayısı"
+        icon={<Users className="size-4" />}
         count={state.employees.length}
         onClear={() => update({ employees: [] })}
         storageKey="calisan"
@@ -135,6 +154,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
         <Group
           key={a.key}
           title={a.unit ? `${a.nameTr} (${a.unit})` : a.nameTr}
+          icon={<SlidersHorizontal className="size-4" />}
           count={state.attrs.filter((x) => x.startsWith(`${a.key}:`)).length}
           onClear={() => update((s) => ({ ...s, attrs: s.attrs.filter((x) => !x.startsWith(`${a.key}:`)) }))}
           storageKey={`attr-${a.key}`}
@@ -147,7 +167,35 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
           />
         </Group>
       ))}
+
+      <ClearAllButton />
     </div>
+  );
+}
+
+/**
+ * "TÜM FİLTRELERİ SIFIRLA" — rayın SONUNDA (Europages kalıbı, 2026-09-07).
+ *
+ * Çip şeridindeki "Tümünü temizle" listenin üstünde duruyor; ray dokuz grup
+ * boyunca aşağı inen kullanıcıyı oraya geri götürmek gezinme borcuydu.
+ * Aktif süzgeç yokken düğme YİNE ÇİZİLİR ama devre dışı: yeri sabit kalsın,
+ * ray her sonuçta aynı yükseklikte bitsin (kullanıcı "kayboldu" sanmasın).
+ *
+ * `clear` tek kaynak `clearProductFilters`: süzgeçler gider, ARAMA ve
+ * GÖRÜNÜM tercihleri (sıralama, sayfa başına) kalır.
+ */
+function ClearAllButton() {
+  const { activeCount, clear } = useFilters();
+  return (
+    <button
+      type="button"
+      onClick={clear}
+      disabled={activeCount === 0}
+      className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+    >
+      Tüm filtreleri sıfırla
+      {activeCount > 0 ? <span className="tnum ml-1 text-zinc-500">({activeCount})</span> : null}
+    </button>
   );
 }
 
@@ -183,7 +231,7 @@ function LocationGroup({
     .filter((c) => !q || fold(c.city).includes(fold(q)) || state.cities.includes(c.city))
     .map((c) => ({ key: c.city, label: c.city, count: c.count }));
   return (
-    <Group title="Konum" count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
+    <Group title="Konum" icon={<MapPin className="size-4" />} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
       {facets.cities.length > SHOW ? (
         <FilterSearch id={`${idPrefix}-city-q`} value={q} onChange={setQ} placeholder="İl ara" />
       ) : null}
@@ -309,6 +357,7 @@ function CertificationGroup({
   return (
     <Group
       title="Sertifikalar"
+      icon={<ScrollText className="size-4" />}
       count={state.certs.length}
       onClear={() => update({ certs: [] })}
       storageKey="sertifika"
@@ -347,6 +396,7 @@ function MoqGroup({
   return (
     <Group
       title="Min. sipariş"
+      icon={<Boxes className="size-4" />}
       count={state.moqMax != null ? 1 : 0}
       onClear={() => update({ moqMax: undefined })}
       storageKey="moq"
@@ -394,7 +444,7 @@ function CategoryGroup({
   }, [facets.categories, q]);
   const selectedName = facets.categories.find((c) => c.id === state.category)?.name;
   return (
-    <Group title="Kategori" count={state.category ? 1 : 0} onClear={() => update({ category: undefined, attrs: [] })} storageKey="kategori">
+    <Group title="Kategori" icon={<FolderTree className="size-4" />} count={state.category ? 1 : 0} onClear={() => update({ category: undefined, attrs: [] })} storageKey="kategori">
       {facets.categories.length > SHOW ? (
         <div className="relative mb-2">
           <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-zinc-400" />
@@ -467,6 +517,7 @@ function PriceGroup({
   return (
     <Group
       title="Fiyat"
+      icon={<Tag className="size-4" />}
       count={count}
       onClear={() => update({ price: undefined, priceMin: undefined, priceMax: undefined, priceUnpriced: false })}
       storageKey="fiyat"

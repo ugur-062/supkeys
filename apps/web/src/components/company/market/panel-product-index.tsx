@@ -58,7 +58,7 @@ export function PanelProductIndex({
    * istekten okusun (ikinci bir `useDiscoverProductFacets` çağrısı farklı
    * anahtar üretip aynı veriyi iki kez indirirdi).
    */
-  band?: (ctx: { total: number; facets?: ProductFacets }) => ReactNode;
+  band?: (ctx: { total: number; loaded: boolean; facets?: ProductFacets }) => ReactNode;
   footer?: boolean;
 }) {
   const sp = useSearchParams();
@@ -105,7 +105,7 @@ function Inner({
   state: ProductFilterState;
   result: ReturnType<typeof useDiscoverSearch>;
   banner?: ReactNode;
-  band?: (ctx: { total: number; facets?: ProductFacets }) => ReactNode;
+  band?: (ctx: { total: number; loaded: boolean; facets?: ProductFacets }) => ReactNode;
   footer: boolean;
 }) {
   const { update } = useFilters<ProductFilterState>();
@@ -128,11 +128,12 @@ function Inner({
   return (
     <div className="space-y-8">
       {band ? (
-        band({ total, facets: facets.data })
+        band({ total, loaded: !!data, facets: facets.data })
       ) : (
         <MarketHeader
           breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Ürünler" }]}
           title="Ürünler"
+          count={data ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
           trailing={
             /* Firma dizinine TEK giriş noktası burası: koyu bant kalkınca
                "Ürünler | Firmalar" sekmeleri de kalktı ve /firmalar yalnız
@@ -155,7 +156,11 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelProductFilters idPrefix="d" />}
-        toolbarStart={<ResultCount noun="ürün" loading={result.isLoading} />}
+        toolbarStart={
+          /* Sayı BAŞLIKTA yazılı (MarketHeader `count`); burada yalnız canlı
+             bölge ve "Güncelleniyor…" kalır (`quiet`). */
+          <ResultCount noun="ürün" loading={result.isLoading} quiet />
+        }
         toolbarEnd={
           <span className="flex items-center gap-2">
             <SortControl />

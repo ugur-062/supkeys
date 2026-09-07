@@ -86,6 +86,8 @@ export default function PanelProductPage() {
         companyHref={companyHref}
         related={related.data}
         hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
+        /* Panel kabuğunun sabit üst çubuğu h-14 (56 px). */
+        stickyTopClass="lg:top-14"
         stickyCta={
           <button
             type="button"

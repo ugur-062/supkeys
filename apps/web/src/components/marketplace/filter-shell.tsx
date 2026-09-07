@@ -199,11 +199,32 @@ export function FilterResults({ children }: { children: ReactNode }) {
  * "0" görünüyor ve başlıkta "firma bulunamadı" yazıyordu; iskeletler hâlâ
  * dönerken sayfa boş olduğunu ilan ediyordu.
  */
-export function ResultCount({ noun, loading = false }: { noun: string; loading?: boolean }) {
+/**
+ * Sonuç sayısı — `aria-live` bölgesi (süzgeç değişince ekran okuyucuya kaç
+ * sonuç kaldığını söyler).
+ *
+ * `quiet` (2026-09-07): sayı SAYFA BAŞLIĞINDA da yazılıyorsa metin
+ * görsel olarak gizlenir, canlı bölge KALIR. İki yerde aynı sayıyı basmak
+ * kullanıcının bu oturumda tekrar tekrar işaret ettiği "aynı içerik iki
+ * yerde" hatasıydı; `sr-only`ye almak yerine bileşeni kaldırmak ise
+ * duyuruyu tümden susturur ve süzgeç değişimi sessiz kalırdı.
+ * "Güncelleniyor…" `quiet` modda da GÖRÜNÜR — bekleme geri bildirimi
+ * gözle görülmeli.
+ */
+export function ResultCount({
+  noun,
+  loading = false,
+  quiet = false,
+}: {
+  noun: string;
+  loading?: boolean;
+  quiet?: boolean;
+}) {
   const { total, isPending } = useFilters();
+  const busy = loading || isPending;
   return (
-    <p aria-live="polite" className="text-sm text-zinc-600">
-      {loading || isPending
+    <p aria-live="polite" className={quiet && !busy ? "sr-only" : "text-sm text-zinc-600"}>
+      {busy
         ? "Güncelleniyor…"
         : total > 0
           ? `${total.toLocaleString("tr-TR")} ${noun} bulundu`

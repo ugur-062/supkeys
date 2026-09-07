@@ -177,12 +177,15 @@ describe("ProductDetailBody", () => {
     expect(bar).toHaveAttribute("hidden");
   });
 
-  it("başlık altında kategori · faaliyet · şehir satırı var", () => {
+  it("başlığın üstünde kategori HAPI, altında satıcı kimliği (faaliyet ikonlu, şehir)", () => {
+    // 2026-09-07 (kullanıcı referansı): kategori · faaliyet · şehir üçlüsü
+    // başlığın üstünde tek satırdı ve faaliyet+şehir hemen altındaki satıcı
+    // özetinde İKİNCİ KEZ okunuyordu. Artık üstte yalnız kategori hapı,
+    // firma bilgisi tek yerde (satıcı özeti).
     render(Body());
-    // Satır TEK yerde: kategori · faaliyet · şehir (faaliyet ve şehir satıcı
-    // özetinde de geçtiği için metin değil SATIR denetlenir).
-    const meta = screen.getByText("Panolar").closest("p");
-    expect(meta?.textContent).toContain("Hizmet sağlayıcı");
-    expect(meta?.textContent).toContain("Samsun");
+    expect(screen.getByText("Panolar")).toBeInTheDocument();
+    const seller = screen.getByText("Karadeniz Enerji A.Ş.").closest("div");
+    expect(seller?.textContent).toContain("Samsun");
+    expect(screen.getByText("Hizmet sağlayıcı")).toBeInTheDocument();
   });
 });

@@ -22,6 +22,7 @@ export function StickyCta({
   price,
   meta,
   children,
+  desktopTopClass,
 }: {
   /** Ürün adı — dar ekranda tek satır. */
   title: string;
@@ -35,6 +36,12 @@ export function StickyCta({
   meta?: string;
   /** Tek eylem; `cta` slotuyla aynı düğme olabilir. */
   children: ReactNode;
+  /**
+   * `lg`+ ekranda şeridi ÜSTE taşıyan ofset sınıfı (ör. `lg:top-14`).
+   * Tailwind sınıfı ÇAĞIRANIN dosyasında düz metin olarak geçmeli
+   * (JIT kaynak tarar) — bu yüzden burada birleştirilmez.
+   */
+  desktopTopClass?: string;
 }) {
   const sentinel = useRef<HTMLSpanElement>(null);
   const [show, setShow] = useState(false);
@@ -61,7 +68,9 @@ export function StickyCta({
         // `hidden` özniteliği: JS yokken de kapalı kalır (asıl eylem sayfada
         // zaten var), ekran okuyucuya da iki kez okunmaz.
         hidden={!show}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur"
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur ${
+          desktopTopClass ? `lg:bottom-auto lg:border-t-0 lg:border-b lg:shadow-sm ${desktopTopClass}` : ""
+        }`}
       >
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           {/* Fiyat yoksa ad DAR EKRANDA DA görünür: firma şeridinde tek

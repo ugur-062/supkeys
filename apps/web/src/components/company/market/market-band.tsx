@@ -76,11 +76,18 @@ export function MarketBand({
 export function MarketHeader({
   breadcrumb,
   title,
+  count,
   trailing,
 }: {
   breadcrumb: { label: string; href?: string }[];
   /** Metin ya da iskelet — kategori sayfası ad gelene dek yer tutucu basar. */
   title: ReactNode;
+  /**
+   * Başlığın YANINDAKİ sonuç sayısı ("124 ürün"). Sayı bilinmiyorsa
+   * (ilk yükleme) verilmez — "0 ürün" basıp sonra düzeltmek, boş bir
+   * katalog izlenimi bırakıyordu.
+   */
+  count?: ReactNode;
   /** Başlığın sağındaki ikincil bağlantı (ör. "Firmalar"). */
   trailing?: ReactNode;
 }) {
@@ -88,7 +95,10 @@ export function MarketHeader({
     <div className="pt-1">
       <Breadcrumb items={breadcrumb} />
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>
+          {count ? <span className="tnum text-sm text-zinc-500">{count}</span> : null}
+        </span>
         {trailing}
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
+import { countryFlag, countryName } from "@rothern/shared";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
@@ -50,6 +51,8 @@ export type ProductCardProduct = Pick<
 export interface ProductCardCompany {
   name: string;
   city?: string | null;
+  /** ISO ülke kodu — bayrak için (KKTC/XN'de bayrak basılmaz, bkz. `countryFlag`). */
+  country?: string | null;
   /** KYC doğrulaması tamam — "Doğrulanmış" rozeti. */
   verified?: boolean;
   /** Efektif GOLD — ÜRÜN kartında gösterilmez (firma kartı ve satıcı paneli). */
@@ -261,6 +264,7 @@ export function ProductCard({
           {firm ? (
             <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-2 text-xs text-zinc-500">
               <Avatar name={firm.name} src={firm.logoUrl} size={24} />
+              <CountryFlag code={firm.country} />
               <span className="truncate font-medium text-zinc-700">{firm.name}</span>
               {firm.city ? (
                 <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
@@ -392,7 +396,7 @@ export function ProductCard({
             ))}
           </ul>
         ) : !compact && product.excerpt ? (
-          <p className="mt-1.5 line-clamp-2 text-sm/5 text-zinc-500">{product.excerpt}</p>
+          <p className="mt-1.5 line-clamp-3 text-sm/5 text-zinc-500">{product.excerpt}</p>
         ) : null}
 
         {firm ? (
@@ -410,6 +414,12 @@ export function ProductCard({
             <Avatar name={firm.name} src={firm.logoUrl} size={24} />
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 items-center gap-1">
+                {/* ÜLKE BAYRAĞI (2026-09-07, Europages kalıbı): firma adının
+                    önünde, adı okumadan menşei ayırt edilsin diye. Emoji
+                    çözülemeyen kodda (KKTC/XN, bilinmeyen kod) HİÇ basılmaz —
+                    tofu kutusu basmaktansa yok. Erişilebilirlik: ülke ADI
+                    `title` + `sr-only` ile taşınır, emoji dekoratif. */}
+                <CountryFlag code={firm.country} />
                 <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
                 {firm.verified ? (
                   <Badge tone="verified" size="sm" className="shrink-0 px-1">
@@ -478,6 +488,21 @@ export function ProductCard({
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * Ülke bayrağı — çözülemeyen kodda hiç çizilmez (bkz. `countryFlag`).
+ * Emoji dekoratif; anlamı `sr-only` ülke adı taşır.
+ */
+function CountryFlag({ code }: { code?: string | null }) {
+  const flag = countryFlag(code);
+  if (!flag) return null;
+  return (
+    <span className="shrink-0 text-sm leading-none" title={countryName(code as string)}>
+      <span aria-hidden>{flag}</span>
+      <span className="sr-only">{countryName(code as string)}</span>
+    </span>
   );
 }
 
