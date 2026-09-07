@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ProductDetailBody, RelatedRows } from "../product-detail";
@@ -82,14 +81,17 @@ describe("ProductDetailBody", () => {
     expect(screen.getByText("Minimum sipariş: 1 adet")).toBeTruthy();
   });
 
-  it("nitelik YOKSA Özellikler sekmesi çizilmez", () => {
+  it("SEKME YOK: 'Bu ürün hakkında' doğrudan okunur, nitelik yoksa özellik bloğu çizilmez", () => {
+    // 2026-09-08 (kullanıcı referansı): açıklama ve nitelik tablosu sekme
+    // arkasından çıkarıldı — ürünün iki temel bilgisi tıklama istemeden
+    // görünür. Nitelik yoksa blok HİÇ basılmaz (açıklamadan ayrıştırılmaz).
     render(Body());
-    expect(screen.getByRole("tab", { name: "Açıklama" })).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: "Özellikler" })).toBeNull();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Bu ürün hakkında" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Ürün özellikleri" })).toBeNull();
   });
 
-  it("nitelik VARSA Özellikler sekmesi tabloyu basar (açıklamadan ayrıştırmaz)", async () => {
-    const u = userEvent.setup();
+  it("nitelik VARSA 'Ürün özellikleri' tablosu doğrudan basılır", () => {
     render(
       Body({
         product: {
@@ -98,8 +100,8 @@ describe("ProductDetailBody", () => {
         } as PublicProduct,
       }),
     );
-    await u.click(screen.getByRole("tab", { name: "Özellikler" }));
-    expect(await screen.findByText("Güç")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Ürün özellikleri" })).toBeTruthy();
+    expect(screen.getByText("Güç")).toBeTruthy();
     expect(screen.getByText("400 kVAr")).toBeTruthy();
   });
 

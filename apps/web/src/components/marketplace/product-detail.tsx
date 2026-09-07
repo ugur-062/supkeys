@@ -4,7 +4,6 @@ import { Badge } from "@/components/catalyst/badge";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { Tabs } from "@/components/ui/tabs";
 import { Heading } from "@/components/catalyst/heading";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { productPrice } from "@/lib/public/product-price";
@@ -399,6 +398,56 @@ export function ProductDetailBody({
             </div>
           </div>
 
+          {/* BU ÜRÜN HAKKINDA + ÜRÜN ÖZELLİKLERİ — sağ sütunda, ayraçlarla
+              (2026-09-08, kullanıcı referansı). SEKMELER KALDIRILDI: açıklama
+              ve nitelik tablosu bir ürünün iki temel bilgisi; sekme arkasında
+              saklamak kullanıcıyı tıklamaya zorluyordu ve kaynak kalıpta da
+              ikisi doğrudan okunuyor. Nitelik yoksa "Ürün özellikleri" bloğu
+              HİÇ çizilmez — açıklamadan nitelik AYRIŞTIRILMAZ (uydurma veri). */}
+          {product.description || product.specification || (product.documents ?? []).length > 0 ? (
+            <section className="mt-6 border-t border-zinc-950/5 pt-6">
+              <h2 className="text-base font-semibold text-zinc-900">Bu ürün hakkında</h2>
+              {product.description ? (
+                <p className="mt-3 text-[15px]/7 whitespace-pre-line text-zinc-700">{product.description}</p>
+              ) : null}
+              {product.specification ? (
+                <div className="mt-5">
+                  <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
+                  <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
+                </div>
+              ) : null}
+              {product.documents && product.documents.length > 0 ? (
+                <div className="mt-5">
+                  <h3 className="text-sm font-semibold text-zinc-900">Belgeler</h3>
+                  <ul className="mt-3 space-y-2">
+                    {product.documents.map((d) => (
+                      <li key={d.url}>
+                        <a
+                          href={d.url}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
+                        >
+                          <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
+                          {d.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {attrs.length > 0 ? (
+            <section className="mt-6 border-t border-zinc-950/5 pt-6">
+              <h2 className="text-base font-semibold text-zinc-900">Ürün özellikleri</h2>
+              <div className="mt-3">
+                <SpecTable rows={attrs} />
+              </div>
+            </section>
+          ) : null}
+
           {/* Anahtar kelimeler (uzun kuyruk SEO + "bu ürün ne" özeti) fiyat
               kartının ALTINDA: karar satırını (fiyat + eylem) yukarı almak
               için — eskiden başlıkla fiyat arasındaydı ve CTA'yı aşağı
@@ -448,92 +497,29 @@ export function ProductDetailBody({
         </aside>
       </div>
 
-      {/* SEKMELER — hash ile: #aciklama #ozellikler #firma #benzer.
-          Boş sekme çizilmez (Tabs `hidden`). */}
-      <Tabs
-        className="mt-8"
-        hashSync
-        panelClassName="pt-6"
-        items={[
-          {
-            id: "aciklama",
-            label: "Açıklama",
-            hidden: !product.description && !product.specification && !(product.documents ?? []).length,
-            content: (
-              <div className="max-w-3xl">
-                {product.description ? (
-                  <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
-                ) : null}
-                {product.specification ? (
-                  <section className="mt-8">
-                    <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
-                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
-                  </section>
-                ) : null}
-                {product.documents && product.documents.length > 0 ? (
-                  <section className="mt-8">
-                    <h3 className="text-sm font-semibold text-zinc-900">Belgeler</h3>
-                    <ul className="mt-3 space-y-2">
-                      {product.documents.map((d) => (
-                        <li key={d.url}>
-                          <a
-                            href={d.url}
-                            target="_blank"
-                            rel="noopener noreferrer nofollow"
-                            className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                          >
-                            <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                            {d.title}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-              </div>
-            ),
-          },
-          {
-            id: "ozellikler",
-            label: "Özellikler",
-            hidden: attrs.length === 0,
-            content: <SpecTable rows={attrs} />,
-          },
-          {
-            id: "firma",
-            label: "Firma",
-            content: (
-              <div className="space-y-6">
-                {/* Web sitesi satırı YALNIZ sağ panelde — iki yerde
-                    aynı kapılı bağlantı tekrar olurdu. */}
-                <SellerSummary company={company} companyHref={companyHref} />
-                {related && related.fromCompany.items.length > 0 && hrefFor ? (
-                  /* KARUSEL (2026-09-07, referans): 3'lük ızgara firmanın
-                     kataloğunun ne kadar geniş olduğunu göstermiyordu.
-                     Sayı ve "tüm ürünler" bağlantısı başlıkta — kaç ürünü
-                     olduğu kaydırmadan okunur. */
-                  <CardCarousel
-                    heading={`${company.name} ile keşfedilecek daha fazla ürün`}
-                    link={{
-                      href: companyHref,
-                      label: `Tüm ürünleri görüntüle${
-                        related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""
-                      }`,
-                    }}
-                  >
-                    {related.fromCompany.items.map((c) => (
-                      <li key={`${c.company.slug}/${c.slug}`} className="w-56 shrink-0 snap-start sm:w-60">
-                        <ProductCard product={c} href={hrefFor(c)} variant="compact" />
-                      </li>
-                    ))}
-                  </CardCarousel>
-                ) : null}
-              </div>
-            ),
-          },
-        ]}
-      />
-
+      {/* FİRMANIN DİĞER ÜRÜNLERİ — TAM GENİŞLİK KARUSEL (2026-09-08,
+          kullanıcı referansı). Eskiden "Firma" sekmesinin içindeydi; kaynak
+          kalıpta ürünün altında kendi bölümü var ve kaç ürünü olduğu
+          başlıkta yazıyor. */}
+      {related && related.fromCompany.items.length > 0 && hrefFor ? (
+        <div className="mt-14">
+          <CardCarousel
+            heading={`${company.name} ile keşfedilecek daha fazla ürün`}
+            link={{
+              href: companyHref,
+              label: `Tüm ürünleri görüntüle${
+                related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""
+              }`,
+            }}
+          >
+            {related.fromCompany.items.map((c) => (
+              <li key={`${c.company.slug}/${c.slug}`} className="w-56 shrink-0 snap-start sm:w-60">
+                <ProductCard product={c} href={hrefFor(c)} variant="compact" />
+              </li>
+            ))}
+          </CardCarousel>
+        </div>
+      ) : null}
     </>
   );
 }

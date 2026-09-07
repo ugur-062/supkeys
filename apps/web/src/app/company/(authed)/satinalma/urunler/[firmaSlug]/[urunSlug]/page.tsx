@@ -7,6 +7,7 @@ import {
   RelatedRows,
 } from "@/components/marketplace/product-detail";
 import { PanelInquiryDialog } from "@/components/inquiries/panel-inquiry-dialog";
+import { RfqBanner } from "@/components/marketplace/rfq-banner";
 import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discovery";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
@@ -155,6 +156,14 @@ export default function PanelProductPage() {
           hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
         />
       ) : null}
+
+      {/* TEKLİF TALEBİ BANDI (2026-09-08, kullanıcı referansı): aradığı ürünü
+          bulamayan ya da fiyat karşılaştırmak isteyen alıcı için sayfanın
+          sonundaki tek çıkış. Panel varyantı doğrudan sihirbaza gider
+          (kayıt hunisi değil) ve MAVİ. */}
+      <div className="mt-4">
+        <RfqBanner variant="panel" prefill={product.name} />
+      </div>
     </PageContainer>
   );
 }
