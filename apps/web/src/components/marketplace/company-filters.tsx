@@ -13,11 +13,44 @@ import { companyActivityLabel } from "@rothern/shared";
  * beyanı). Sayaçlar bağlamsal. Sertifika süzgeci veri modeli çipleşmediği
  * için yok (serbest metin dizi).
  */
-export function CompanyFilters({ facets, idPrefix }: { facets: PublicDirectoryFacets; idPrefix: string }) {
+export function CompanyFilters({
+  facets,
+  idPrefix,
+  showConnection = false,
+}: {
+  facets: PublicDirectoryFacets;
+  idPrefix: string;
+  /** Bağlantı durumu grubu — YALNIZ panelde (ziyaretçinin bağlantısı yok). */
+  showConnection?: boolean;
+}) {
   const { state, update } = useFilters<CompanyFilterState>();
   const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
   return (
-    <div className="space-y-1">
+    <div className="space-y-3">
+      {showConnection ? (
+        <Group
+          title="Bağlantı"
+          count={state.connection ? 1 : 0}
+          onClear={() => update({ connection: undefined })}
+          storageKey="dir-connection"
+        >
+          {/* Tek seçim: "bağlı" ve "bağlı değil" birlikte anlamsız olurdu. */}
+          <Check
+            id={`${idPrefix}-conn-yes`}
+            type="radio"
+            label="Bağlı olduklarım"
+            checked={state.connection === "bagli"}
+            onChange={(on) => update({ connection: on ? "bagli" : undefined })}
+          />
+          <Check
+            id={`${idPrefix}-conn-no`}
+            type="radio"
+            label="Henüz bağlı değilim"
+            checked={state.connection === "yeni"}
+            onChange={(on) => update({ connection: on ? "yeni" : undefined })}
+          />
+        </Group>
+      ) : null}
       <Group
         title="Firma profili"
         count={profileCount}
@@ -72,6 +105,12 @@ export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }
   if (state.verified) chips.push({ key: "v", label: "Doğrulanmış", onRemove: () => update({ verified: false }) });
   if (state.hasProducts) chips.push({ key: "p", label: "Ürünü olan", onRemove: () => update({ hasProducts: false }) });
   if (state.gold) chips.push({ key: "g", label: "Gold Üye", onRemove: () => update({ gold: false }) });
+  if (state.connection)
+    chips.push({
+      key: "conn",
+      label: state.connection === "bagli" ? "Bağlı olduklarım" : "Henüz bağlı değilim",
+      onRemove: () => update({ connection: undefined }),
+    });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: companyActivityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const k of state.categories) chips.push({ key: `k:${k}`, label: facets.categories?.find((c) => c.id === k)?.name ?? k, onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });

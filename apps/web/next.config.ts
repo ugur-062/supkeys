@@ -122,9 +122,9 @@ const nextConfig: NextConfig = {
       { source: "/company/satis/profilim", destination: "/company/sirketim/profil", permanent: true },
       { source: "/company/satinalma/raporlar", destination: "/company/sirketim/raporlar", permanent: true },
       { source: "/company/satinalma/raporlar/:path*", destination: "/company/sirketim/raporlar/:path*", permanent: true },
-      // Ürün Ara sayfası satınalma ANASAYFASINA gömüldü (2026-09-05) — sorgu
-      // (?q=&kategori=…) aynen taşınır; ürün detayı (`urunler/<firma>/<ürün>`) durur.
-      { source: "/company/satinalma/urunler", destination: "/company/satinalma", permanent: true },
+      // NOT: `/company/satinalma/urunler` 2026-09-05'te anasayfaya 308'lenmişti;
+      // pazar katmanı brifiyle (2026-09-07) GERİ AÇILDI — ürün dizini yine kendi
+      // sayfası. Yönlendirme KALDIRILDI, yoksa yeni rota kendi kendine 308 verirdi.
       { source: "/satilik", destination: "/urunler", permanent: true },
       { source: "/ilan/:path*", destination: "/urunler", permanent: true },
       {

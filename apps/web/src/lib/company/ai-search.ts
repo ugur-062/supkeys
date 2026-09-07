@@ -10,6 +10,36 @@ import { buildRequestFilterQuery, EMPTY_REQUEST_FILTERS, segmentOf } from "@/lib
  */
 export const AI_TENDER_DRAFT_KEY = "ai-tender-draft";
 
+/**
+ * AI YORUMU KÖPRÜSÜ — arama kutusu anasayfada, sonuç listesi ayrı sayfada.
+ *
+ * Yorum ("AI şöyle anladı" + çipler + gevşetme notu) URL'ye sığmaz ve
+ * sığdırılmamalı (çipler zaten URL'den okunuyor, bu yalnız AÇIKLAMA).
+ * Taslak köprüsüyle aynı desen: `sessionStorage`a yazılır, hedef sayfa
+ * bir kez okuyup SİLER — yenilemede bant geri gelmez, çünkü kullanıcı o
+ * noktada süzgeci kendi düzenlemiş olabilir.
+ */
+export const AI_SEARCH_INTENT_KEY = "ai-search-intent";
+
+export function stashAiIntent(intent: AiSearchIntentResult): void {
+  try {
+    sessionStorage.setItem(AI_SEARCH_INTENT_KEY, JSON.stringify(intent));
+  } catch {
+    // Gizli sekmede depolama kapalı olabilir — bant çizilmez, liste çalışır.
+  }
+}
+
+export function takeAiIntent(): AiSearchIntentResult | null {
+  try {
+    const raw = sessionStorage.getItem(AI_SEARCH_INTENT_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(AI_SEARCH_INTENT_KEY);
+    return JSON.parse(raw) as AiSearchIntentResult;
+  } catch {
+    return null;
+  }
+}
+
 /** Satınalma: ürün dizini süzgeci. Adet → "min. sipariş en fazla" (MOQ tavanı). */
 export function intentToProductQuery(r: AiSearchIntentResult): string {
   return buildProductFilterQuery({

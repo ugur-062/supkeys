@@ -1,15 +1,22 @@
 import { isCompanyActivity } from "@rothern/shared";
 import type { ProductListParams } from "./marketplace-api";
+import {
+  getAllParams as getAll,
+  getParam as get,
+  listParam as list,
+  numParam as num,
+  type SearchParamsLike,
+} from "./filter-param-utils";
 
 /**
  * ÜRÜN SÜZGEÇ URL ŞEMASI — TEK KAYNAK (2026-09-04, süzgeç v3).
  *
  * Türkçe URL ↔ İngilizce API sınırı burada; herkese açık `/urunler` (sunucu)
- * ve panel "Ürün Ara" (istemci) AYNI ayrıştırıcıyı okur, AYNI kurucuyu yazar.
+ * ve panel ürün dizini (istemci) AYNI ayrıştırıcıyı okur, AYNI kurucuyu yazar.
  *
  *   ?q=&kategori=42000000&sehir=İstanbul,İzmir&faaliyet=MANUFACTURER,DISTRIBUTOR
  *   &dogrulanmis=1&fiyat=var|teklif&fiyatMin=&fiyatMax=&moqMax=&sirala=yeni|fiyat|fiyat-azalan
- *   &nitelik=anahtar:değer (tekrarlanır)&sayfa=2
+ *   &nitelik=anahtar:değer (tekrarlanır)&adet=24|48|96&sayfa=2
  *
  * Kategori de sorguda: eskiden yalnız yolda (`/urunler/kategori/<kod>-<ad>`)
  * idi ve diğer süzgeçlerle birleşimi tutarsızdı. Yol sayfaları SEO girişi
@@ -28,17 +35,16 @@ export interface ProductFilterState {
   sort?: "yeni" | "fiyat" | "fiyat-azalan";
   attrs: string[];
   page: number;
+  /** Sayfa başına kart. Varsayılan çağırandan gelir, URL'e YALNIZ değişince yazılır. */
+  perPage?: PerPage;
 }
 
-import {
-  getAllParams as getAll,
-  getParam as get,
-  listParam as list,
-  numParam as num,
-  type SearchParamsLike,
-} from "./filter-param-utils";
-
 export type { SearchParamsLike };
+
+/** "Sayfa başına" seçenekleri — üçü de bir ekranda okunabilir yoğunlukta. */
+export const PER_PAGE_OPTIONS = [24, 48, 96] as const;
+export type PerPage = (typeof PER_PAGE_OPTIONS)[number];
+const isPerPage = (n?: number): n is PerPage => !!n && (PER_PAGE_OPTIONS as readonly number[]).includes(n);
 
 export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string): ProductFilterState {
   const cat = fixedCategory ?? get(sp, "kategori");
@@ -58,6 +64,7 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     sort: sort === "yeni" || sort === "fiyat" || sort === "fiyat-azalan" ? sort : undefined,
     attrs: getAll(sp, "nitelik").filter((a) => a.includes(":")).slice(0, 6),
     page: page && page > 1 ? page : 1,
+    perPage: isPerPage(num(get(sp, "adet"))) ? (num(get(sp, "adet")) as PerPage) : undefined,
   };
 }
 
@@ -76,6 +83,7 @@ export function toProductListParams(f: ProductFilterState): ProductListParams & 
     sort: f.sort === "yeni" ? "newest" : f.sort === "fiyat" ? "price" : f.sort === "fiyat-azalan" ? "price_desc" : undefined,
     attr: f.attrs.length ? f.attrs : undefined,
     page: f.page > 1 ? f.page : undefined,
+    pageSize: f.perPage,
   };
 }
 
@@ -93,6 +101,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.moqMax != null) sp.set("moqMax", String(f.moqMax));
   if (f.sort) sp.set("sirala", f.sort);
   for (const a of f.attrs) sp.append("nitelik", a);
+  if (f.perPage) sp.set("adet", String(f.perPage));
   if (f.page > 1) sp.set("sayfa", String(f.page));
   const s = sp.toString();
   return s ? `?${s}` : "";
@@ -107,3 +116,12 @@ export function activeFilterCount(f: ProductFilterState): number {
 }
 
 export const EMPTY_FILTERS: ProductFilterState = { cities: [], activities: [], verified: false, attrs: [], page: 1 };
+
+/**
+ * "Tümünü temizle" — süzgeçler gider, ARAMA ve GÖRÜNÜM tercihleri (sıralama,
+ * sayfa başına) kalır. Kullanıcı süzgeci temizlerken "96'lık listeye dön"
+ * demiyor; sıralama zaten çipte görünür durumda.
+ */
+export function clearProductFilters(f: ProductFilterState): ProductFilterState {
+  return { ...EMPTY_FILTERS, q: f.q, sort: f.sort, perPage: f.perPage };
+}

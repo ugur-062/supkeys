@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFacets; idPrefix?: string }) {
   const { state, update } = useFilters();
   return (
-    <div className="space-y-6" data-filters>
+    <div className="space-y-3" data-filters>
       <CategoryGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
       <Group title="Firma profili" count={state.verified ? 1 : 0} onClear={() => update({ verified: false })} storageKey="profil">
@@ -220,7 +220,7 @@ export function SortControl() {
               type="button"
               aria-pressed={active}
               onClick={() => update({ sort: o.k })}
-              className={`rounded-full px-2.5 py-1 font-medium transition ${active ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+              className={`rounded-lg px-2.5 py-1 font-medium transition ${active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-600 hover:bg-zinc-100"}`}
             >
               {o.l}
             </button>

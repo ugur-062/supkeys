@@ -21,7 +21,6 @@ import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
-import { CompanyCard as DirectoryCard } from "@/components/marketplace/company-card";
 import { Thumb } from "@/components/ui/thumb";
 import {
   useCancelReferralInvite,
@@ -43,24 +42,19 @@ import {
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { useFileComplaint } from "@/hooks/use-company-complaints";
-import {
-  useCompanySearch,
-  useCompanySearchFacets,
-  type DirectoryConnectionStatus,
-} from "@/hooks/use-company-directory";
 import { ListSkeleton } from "@/components/list";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import { Ban, Building2, Check, ChevronRight, Compass, Copy, Flag, Inbox, Mail, MoreVertical, Unlink, Users } from "lucide-react";
+import { PANEL_MARKET } from "@/lib/company/panel-market";
+import { ArrowRight, Ban, Building2, Check, ChevronRight, Compass, Copy, Flag, Inbox, Mail, MoreVertical, Unlink, Users } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 const TAB_KEYS = ["mine", "discover", "incoming"] as const;
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const ORIGIN_BADGE: Record<
   ConnectionOrigin,
@@ -69,17 +63,6 @@ const ORIGIN_BADGE: Record<
   INVITE: { label: "Referans", color: "blue" },
   PREMIUM: { label: "Premium", color: "purple" },
   ADMIN: { label: "Platform", color: "zinc" },
-};
-
-const STATUS_BADGE: Partial<
-  Record<
-    DirectoryConnectionStatus,
-    { label: string; color: React.ComponentProps<typeof Badge>["color"] }
-  >
-> = {
-  active: { label: "Bağlısınız", color: "green" },
-  pending: { label: "İstek gönderildi", color: "amber" },
-  incoming: { label: "İstek geldi", color: "blue" },
 };
 
 type TabKey = "discover" | "mine" | "incoming";
@@ -358,27 +341,17 @@ export function ConnectionsView() {
   // Keşfet (dizin) HERKESE AÇIK (2026-09-04): görmek ücretsiz, listelenmek
   // ücretli — anonim ziyaretçi /firmalar'ı görüyorken üyeden gizlenmezdi.
   const shownTab: TabKey = tab;
-  const [q, setQ] = useState("");
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [connQ, setConnQ] = useState("");
-  // Perf turu (denetim P10 Dalga B): `q` doğrudan sorguya besleniyordu →
-  // HER TUŞ VURUŞU bir dizin araması isteği. Sunucu tarafında bu arama
-  // indekssiz bir LIKE taraması (bkz. P12 indeks merceği), yani "tedarikçi"
-  // yazmak 9 tam tarama demekti. Repoda zaten kullanılan desen (onaylar
-  // sayfası, kategori modalı) burada eksikti.
-  const debouncedQ = useDebouncedValue(q, 300);
-  // Perf turu (denetim P10): Keşfet'e ait iki sorgu sayfa açılışında
-  // KOŞULSUZ koşuyordu; oysa hiçbir sekme rozetini beslemiyorlar ve
-  // kullanıcıların çoğu "Bağlantılarım"da kalıyor. Sekme açılınca inerler
-  // (sonrası önbellekten). Rozet besleyen sorgular (connections/incoming/
-  // outgoing/referral) açılışta kalır — onlar gerçekten gerekli.
+  // Perf turu (denetim P10): Keşfet'in önerisi sayfa açılışında KOŞULSUZ
+  // iniyordu; oysa sekme rozeti beslemiyor ve kullanıcıların çoğu
+  // "Bağlantılarım"da kalıyor. Sekme açılınca iner (sonrası önbellekten).
+  // Dizin ARAMASI artık burada değil (pazar bölgesine taşındı), o yüzden
+  // borç listesindeki debounce da gerekmiyor.
   const discoverTabOpen = shownTab === "discover";
-  const [dirFilter, setDirFilter] = useState<{ activity?: string; verified?: boolean; hasProducts?: boolean }>({});
-  const search = useCompanySearch({ q: debouncedQ || undefined, ...dirFilter }, discoverTabOpen);
-  const dirFacets = useCompanySearchFacets(discoverTabOpen);
   const outgoing = useOutgoingInvites();
   const discover = useDiscover(discoverTabOpen);
   const cancelReferral = useCancelReferralInvite();
@@ -594,27 +567,23 @@ export function ConnectionsView() {
         })}
       </div>
 
-      {/* Keşfet — arama + dizin (yalnız premium) */}
+      {/* Keşfet — YALNIZ öneri (2026-09-07, pazar katmanı brifi).
+
+          Tam firma listesi buradan KALKTI: aynı dizin iki yerde iki farklı
+          yetenekle yaşıyordu (burada süzgeçler yerel state'te, URL'ye
+          yazılmıyor, sayfalama/şehir/kategori/sıralama yok). Liste artık
+          pazar bölgesinde: /company/satinalma/firmalar. Bağlantılar sayfası
+          İLİŞKİ YÖNETİMİ olarak kalır — öneri, istekler, davet. */}
       {shownTab === "discover" ? (
         <section
           id="baglantilar-panel-discover"
           role="tabpanel"
           aria-labelledby="baglantilar-tab-discover"
-          className="space-y-3"
+          className="space-y-4"
         >
-          <Input
-            aria-label="Firma ara"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Firma adı, sektör veya Rothern ID ara…"
-            className="max-w-md"
-          />
-          {/* Arama boşken: kategori eşleşmesine göre "Sana Uygun Firmalar" */}
-          {!q.trim() &&
-          !discover.isLoading &&
-          discover.data &&
-          !discover.data.locked &&
-          discover.data.companies.length > 0 ? (
+          {discover.isLoading ? (
+            <div className="overflow-hidden card"><ListSkeleton rows={3} /></div>
+          ) : discover.data && !discover.data.locked && discover.data.companies.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 Size uygun firmalar
@@ -646,71 +615,21 @@ export function ConnectionsView() {
                   />
                 ))}
               </div>
-              <div className="h-px bg-zinc-100" aria-hidden />
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Tüm firmalar
-              </p>
             </div>
-          ) : null}
-          {/* Süzgeçler — herkese açık /firmalar ile aynı küme (faaliyet,
-              doğrulanmış, ürünü olan); kart da aynı bileşen. */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            {[
-              { k: "verified" as const, l: "Doğrulanmış", n: dirFacets.data?.verified },
-              { k: "hasProducts" as const, l: "Ürünü olan", n: dirFacets.data?.withProducts },
-            ].map((f) => (
-              <button
-                key={f.k}
-                type="button"
-                onClick={() => setDirFilter((d) => ({ ...d, [f.k]: d[f.k] ? undefined : true }))}
-                aria-pressed={!!dirFilter[f.k]}
-                className={cn("rounded-full px-3 py-1 font-medium transition", dirFilter[f.k] ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200")}
-              >
-                {f.l}{f.n ? <span className="ml-1 opacity-70">{f.n}</span> : null}
-              </button>
-            ))}
-            {(dirFacets.data?.activities ?? []).map((a) => (
-              <button
-                key={a.activity}
-                type="button"
-                onClick={() => setDirFilter((d) => ({ ...d, activity: d.activity === a.activity ? undefined : a.activity }))}
-                aria-pressed={dirFilter.activity === a.activity}
-                className={cn("rounded-full px-3 py-1 font-medium transition", dirFilter.activity === a.activity ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200")}
-              >
-                {companyActivityLabel(a.activity)}<span className="ml-1 opacity-70">{a.count}</span>
-              </button>
-            ))}
-          </div>
-          {search.isLoading ? (
-            <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
-          ) : !search.data || search.data.items.length === 0 ? (
-            <EmptyBox
-              title="Firma bulunamadı"
-              desc={
-                q
-                  ? `"${q}" ile eşleşen firma yok.`
-                  : "Henüz listelenen firma yok."
-              }
-            />
           ) : (
-            <>
-              <p className="text-xs text-zinc-500">{search.data.total.toLocaleString("tr-TR")} firma</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {search.data.items.map((c) => (
-                  <DirectoryCard
-                    key={c.slug}
-                    company={c}
-                    href={c.rothernId ? `/company/firma/${c.rothernId}` : `/company/firma/${c.slug}`}
-                    badge={
-                      STATUS_BADGE[c.connectionStatus] ? (
-                        <Badge color={STATUS_BADGE[c.connectionStatus]!.color}>{STATUS_BADGE[c.connectionStatus]!.label}</Badge>
-                      ) : null
-                    }
-                  />
-                ))}
-              </div>
-            </>
+            <EmptyBox
+              title="Öneri yok"
+              desc="Alış ve satış kategorilerinizi tamamlarsanız size uygun firmaları burada listeleriz."
+            />
           )}
+
+          <Link
+            href={PANEL_MARKET.companies}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          >
+            Tüm firmaları ara
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
         </section>
       ) : null}
 

@@ -25,7 +25,7 @@ export function SortBar<S extends { sort?: string; page: number }>({
               type="button"
               aria-pressed={active}
               onClick={() => update({ sort: o.value } as Partial<S>)}
-              className={`rounded-full px-2.5 py-1 font-medium transition ${active ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+              className={`rounded-lg px-2.5 py-1 font-medium transition ${active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-600 hover:bg-zinc-100"}`}
             >
               {o.label}
             </button>

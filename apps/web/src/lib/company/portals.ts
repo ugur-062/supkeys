@@ -167,9 +167,15 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
     ],
     secondaryNav: [
-      // "Ürün Ara" ROTASI YOK (2026-09-05): başka firmaların vitrini
-      // satınalma ANASAYFASINA gömülü (arama + kenar süzgeçli liste);
-      // ürün detayı `urunler/<firma>/<ürün>` altında yaşamaya devam eder.
+      // PAZAR BÖLGESİ (2026-09-07): ürün ve firma dizinleri ile kategori
+      // sayfaları SOL MENÜDE DEĞİL — anasayfadaki arama, kategori kartları
+      // ve pazar bandındaki Ürünler|Firmalar sekmeleri oraya götürür. Sol
+      // menü panel kimliğidir (Taleplerim, Siparişlerim, Bağlantılar); pazar
+      // onun sağında yaşayan ikinci bölgedir. Burada durmalarının sebebi
+      // rota KAYDI: breadcrumb, sayfa başlığı ve tier kapısı bu listeden
+      // beslenir (`allPortalRoutes`).
+      { icon: CubeIcon, label: "Ürünler", href: "/company/satinalma/urunler" },
+      { icon: BuildingOffice2Icon, label: "Firmalar", href: "/company/satinalma/firmalar" },
       // Raporlar ve Profilim ŞİRKETİM alanına taşındı (2026-09-05, Europages
       // "My Company" kalıbı) — bkz. COMPANY_AREA.
       {

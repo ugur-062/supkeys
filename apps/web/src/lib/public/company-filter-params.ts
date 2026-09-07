@@ -6,9 +6,13 @@ import { isCompanyActivity } from "@rothern/shared";
  * FİRMA DİZİNİ URL ŞEMASI — TEK KAYNAK (PROMPT 4, 2026-09-06).
  *
  * `?q=&sehir=a,b&faaliyet=A,B&kategori=39000000,23000000&dogrulanmis=1
- *  &urunlu=1&gold=1&sirala=ad|urun|yeni&sayfa=2`
+ *  &urunlu=1&gold=1&baglanti=bagli|yeni&sirala=ad|urun|yeni&sayfa=2`
  *
  * Eski `il=` (tek şehir) ve tekil `faaliyet=` okunmaya devam eder.
+ *
+ * `baglanti` YALNIZ panelde anlamlı (ziyaretçinin bağlantısı yoktur), ama
+ * şema tek dosyada durur: iki kopya olsaydı panel "sehir" yazarken public
+ * "il" okumaya devam eder, iki liste sessizce ayrışırdı.
  */
 export interface CompanyFilterState {
   q?: string;
@@ -18,6 +22,8 @@ export interface CompanyFilterState {
   verified: boolean;
   hasProducts: boolean;
   gold: boolean;
+  /** Panel: bağlı olduklarım | henüz bağlı olmadıklarım. */
+  connection?: "bagli" | "yeni";
   sort?: "ad" | "urun" | "yeni";
   page: number;
 }
@@ -34,6 +40,7 @@ export const EMPTY_COMPANY_FILTERS: CompanyFilterState = {
 
 export function parseCompanyFilters(sp: SearchParamsLike): CompanyFilterState {
   const sort = get(sp, "sirala");
+  const conn = get(sp, "baglanti");
   return {
     q: get(sp, "q")?.trim() || undefined,
     cities: list(get(sp, "sehir") ?? get(sp, "il")),
@@ -42,6 +49,7 @@ export function parseCompanyFilters(sp: SearchParamsLike): CompanyFilterState {
     verified: get(sp, "dogrulanmis") === "1",
     hasProducts: get(sp, "urunlu") === "1",
     gold: get(sp, "gold") === "1",
+    connection: conn === "bagli" || conn === "yeni" ? conn : undefined,
     sort: sort === "ad" || sort === "urun" || sort === "yeni" ? sort : undefined,
     page: pageParam(get(sp, "sayfa")),
   };
@@ -61,6 +69,14 @@ export function toDirectoryParams(f: CompanyFilterState): PublicDirectoryParams 
   };
 }
 
+/** Panel dizini — public parametrelere `connection` eklenir. */
+export function toPanelDirectoryParams(f: CompanyFilterState) {
+  return {
+    ...toDirectoryParams(f),
+    connection: f.connection === "bagli" ? ("connected" as const) : f.connection === "yeni" ? ("new" as const) : undefined,
+  };
+}
+
 export function buildCompanyFilterQuery(f: CompanyFilterState): string {
   const sp = new URLSearchParams();
   if (f.q) sp.set("q", f.q);
@@ -70,6 +86,7 @@ export function buildCompanyFilterQuery(f: CompanyFilterState): string {
   if (f.verified) sp.set("dogrulanmis", "1");
   if (f.hasProducts) sp.set("urunlu", "1");
   if (f.gold) sp.set("gold", "1");
+  if (f.connection) sp.set("baglanti", f.connection);
   if (f.sort) sp.set("sirala", f.sort);
   if (f.page > 1) sp.set("sayfa", String(f.page));
   const s = sp.toString();
@@ -80,7 +97,7 @@ export function buildCompanyFilterQuery(f: CompanyFilterState): string {
 export function activeCompanyFilterCount(f: CompanyFilterState): number {
   return (
     f.cities.length + f.activities.length + f.categories.length +
-    (f.verified ? 1 : 0) + (f.hasProducts ? 1 : 0) + (f.gold ? 1 : 0)
+    (f.verified ? 1 : 0) + (f.hasProducts ? 1 : 0) + (f.gold ? 1 : 0) + (f.connection ? 1 : 0)
   );
 }
 

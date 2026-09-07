@@ -55,7 +55,10 @@ export function Group({
   const [open, setOpen] = useOpenState(storageKey);
   const id = useId();
   return (
-    <fieldset className="border-t border-zinc-950/5 pt-4 first:border-t-0 first:pt-0">
+    /* HER FACET AYRI YÜZEY (brif §4.3): tek uzun sütun yerine aralarında
+       boşluk olan kartlar. Ayırıcı çizgili tek blokta gruplar birbirine
+       karışıyor ve rayın nerede bittiği okunmuyordu. */
+    <fieldset className="rounded-lg border border-zinc-200 bg-white px-3 py-3">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -76,7 +79,7 @@ export function Group({
           </button>
         ) : null}
       </div>
-      <div id={id} hidden={!open} className="mt-3 space-y-1">
+      <div id={id} hidden={!open} className="mt-2.5 space-y-0.5">
         {children}
       </div>
     </fieldset>

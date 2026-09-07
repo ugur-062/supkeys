@@ -1,0 +1,208 @@
+"use client";
+
+import { FilterShell, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
+import { ProductCard } from "@/components/marketplace/product-card";
+import { ActiveFilterChips, ProductFilters, SortControl } from "@/components/marketplace/product-filters";
+import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-discovery";
+import { useCompanySearch } from "@/hooks/use-company-directory";
+import {
+  buildProductFilterQuery,
+  parseProductFilters,
+  toProductListParams,
+  type PerPage,
+  type ProductFilterState,
+} from "@/lib/public/product-filter-params";
+import { PANEL_MARKET, panelCategoryPath, panelProductPath } from "@/lib/company/panel-market";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import type { ProductFacets } from "@/lib/public/marketplace-api";
+import type { ReactNode } from "react";
+import { MarketBand, MarketTabs } from "./market-band";
+import { MarketSearch } from "./market-search";
+import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
+import { MarketDiscoveryFooter } from "./market-discovery-footer";
+
+/** Varsayılan sayfa boyutu — `adet` ile 24/48/96 arasında değişir. */
+const DEFAULT_PER_PAGE: PerPage = 24;
+
+/**
+ * PANEL ÜRÜN DİZİNİ — kendi adresi olan tam liste (`/company/satinalma/urunler`).
+ *
+ * 2026-09-05'te bu liste anasayfaya gömülmüştü; pazar katmanı brifiyle geri
+ * kendi sayfasına alındı. Gerekçe kullanıcının canlı incelemesi: anasayfa
+ * hem panel hem pazar olmaya çalışınca ikisi de okunmuyordu ve kategori
+ * kartına tıklamak URL'yi değiştirmediği için filtrelenmiş liste
+ * paylaşılamıyordu. Anasayfa artık pazar GİRİŞİ (arama + kategoriler + öne
+ * çıkanlar), liste burada.
+ *
+ * Herkese açık `/urunler` ile AYNI süzgeç bileşeni, AYNI URL şeması ve AYNI
+ * sunucu kuralı; fark üyeye özel olanlar: kendi ürünler hariç, alıcıya göre
+ * uygunluk sırası (kartta rozet) ve fiyat/MOQ görünür.
+ */
+export function PanelProductIndex({
+  fixedCategory,
+  banner,
+  band,
+  footer = true,
+}: {
+  /** Kategori sayfasından gelen kod — süzgeç yolda sabit. */
+  fixedCategory?: string;
+  /** AI arama bandı ("AI şöyle anladı" + çipler). */
+  banner?: ReactNode;
+  /**
+   * Sayfaya özel başlık bandı; verilmezse ürün dizininin standart bandı.
+   * Facet yanıtı da geçilir — kategori sayfası alt kırılım çiplerini AYNI
+   * istekten okusun (ikinci bir `useDiscoverProductFacets` çağrısı farklı
+   * anahtar üretip aynı veriyi iki kez indirirdi).
+   */
+  band?: (ctx: { total: number; facets?: ProductFacets }) => ReactNode;
+  footer?: boolean;
+}) {
+  const sp = useSearchParams();
+  const state = parseProductFilters(sp ?? new URLSearchParams(), fixedCategory);
+  const params = toProductListParams(state);
+  const result = useDiscoverSearch({ ...params, pageSize: state.perPage ?? DEFAULT_PER_PAGE });
+  const total = result.data?.total ?? 0;
+  return (
+    <FilterShell
+      basePath={PANEL_MARKET.products}
+      fixedCategory={fixedCategory}
+      total={total}
+      drawer={<PanelProductFilters idPrefix="m" />}
+    >
+      <Inner state={state} result={result} banner={banner} band={band} footer={footer} />
+    </FilterShell>
+  );
+}
+
+export function PanelProductFilters({ idPrefix }: { idPrefix: string }) {
+  const { state } = useFilters();
+  const p = toProductListParams(state);
+  const facets = useDiscoverProductFacets({
+    category: p.category,
+    q: p.q,
+    city: p.city,
+    activity: p.activity,
+    verified: p.verified,
+    price: p.price,
+  });
+  if (!facets.data) return <p className="text-sm text-zinc-500">Süzgeçler yükleniyor…</p>;
+  return <ProductFilters facets={facets.data} idPrefix={idPrefix} />;
+}
+
+function Inner({
+  state,
+  result,
+  banner,
+  band,
+  footer,
+}: {
+  state: ProductFilterState;
+  result: ReturnType<typeof useDiscoverSearch>;
+  banner?: ReactNode;
+  band?: (ctx: { total: number; facets?: ProductFacets }) => ReactNode;
+  footer: boolean;
+}) {
+  const { update } = useFilters<ProductFilterState>();
+  const p = toProductListParams(state);
+  const facets = useDiscoverProductFacets({
+    category: p.category,
+    q: p.q,
+    city: p.city,
+    activity: p.activity,
+    verified: p.verified,
+    price: p.price,
+  });
+  const data = result.data;
+  const total = data?.total ?? 0;
+  const pageSize = data?.pageSize ?? state.perPage ?? DEFAULT_PER_PAGE;
+  // Firma sayısı YALNIZ sekme rozetleri için; arama yokken de anlamlı
+  // (dizinin toplamı). Aynı sorgu iki tarafta iki sayı gösterir.
+  const companies = useCompanySearch({ q: state.q });
+  const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
+
+  return (
+    <div className="space-y-8">
+      {band ? (
+        band({ total, facets: facets.data })
+      ) : (
+        <MarketBand
+          breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Ürünler" }]}
+          title="Ürünler"
+          lead="Tedarikçi vitrinlerindeki ürünler. Alım kategorinize uyanlar önde gelir; süzün, karşılaştırın, bilgi isteyin."
+          search={<MarketSearch<ProductFilterState> placeholder="Ürün, marka ya da firma ara" />}
+          tabs={
+            <MarketTabs
+              active="products"
+              productsHref={`${PANEL_MARKET.products}${buildProductFilterQuery(state)}`}
+              companiesHref={`${PANEL_MARKET.companies}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
+              productCount={total}
+              companyCount={companies.data?.total}
+            />
+          }
+        />
+      )}
+
+      {banner}
+      {facets.data ? <ActiveFilterChips facets={facets.data} /> : null}
+
+      <MarketListLayout
+        rail={<PanelProductFilters idPrefix="d" />}
+        toolbarStart={<ResultCount noun="ürün" />}
+        toolbarEnd={<SortControl />}
+        page={state.page}
+        total={total}
+        pageSize={pageSize}
+        perPage={state.perPage ?? DEFAULT_PER_PAGE}
+        onPage={(page) => update({ page })}
+        onPerPage={(perPage) => update({ perPage })}
+      >
+        {result.isLoading ? (
+          <MarketGridSkeleton />
+        ) : !data || data.items.length === 0 ? (
+          <MarketEmpty
+            title="Bu kriterlerle ürün yok."
+            action={
+              <Link
+                href={talepHref}
+                className="rounded-lg bg-zinc-950 px-4 py-2 font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Talep aç — tedarikçiler teklif versin
+              </Link>
+            }
+          />
+        ) : (
+          <MarketGrid>
+            {data.items.map((item, i) => (
+              <ProductCard
+                key={`${item.company.slug}/${item.slug}`}
+                product={item}
+                company={item.company}
+                href={panelProductPath(item.company.slug, item.slug)}
+                features={item.features}
+                cta="Bilgi iste"
+                priority={i < 3}
+                badge={
+                  item.matchesProfile ? (
+                    <span className="inline-flex items-center rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-blue-700 shadow-sm ring-1 ring-blue-200">
+                      Alım kategorinizle eşleşiyor
+                    </span>
+                  ) : undefined
+                }
+              />
+            ))}
+          </MarketGrid>
+        )}
+      </MarketListLayout>
+
+      {footer ? (
+        <MarketDiscoveryFooter
+          cities={facets.data?.cities ?? []}
+          categories={facets.data?.categories ?? []}
+          cityHref={(city) => `${PANEL_MARKET.products}?sehir=${encodeURIComponent(city)}`}
+          categoryHref={(c) => panelCategoryPath(c.id, c.name)}
+        />
+      ) : null}
+    </div>
+  );
+}

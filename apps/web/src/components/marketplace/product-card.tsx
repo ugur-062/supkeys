@@ -7,7 +7,7 @@ import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
-import { ChevronRightIcon } from "@heroicons/react/20/solid";
+import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -159,7 +159,9 @@ export function ProductCard({
   return (
     <article
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-within:ring-2 focus-within:ring-zinc-950 motion-reduce:transform-none",
+        // Pazar bölgesi "katalog" dili: küçük yarıçap, hairline çerçeve, GÖLGE
+        // YOK (yalnız hover). Panel bölgesi yumuşak gölgeli kalır.
+        "group relative flex h-full flex-col overflow-hidden rounded-lg bg-white ring-1 ring-zinc-200 transition duration-200 hover:shadow-md hover:ring-zinc-300 focus-within:ring-2 focus-within:ring-zinc-950",
         className,
       )}
     >
@@ -173,23 +175,37 @@ export function ProductCard({
           priority={priority}
           fallback="neutral"
         />
-        {/* Sol üst: çağıranın rozeti (ör. "Alım kategorinizle eşleşiyor") ya da
-            Gold Üye. Sağ üst: yeni yayımlanan ürün. */}
-        {badge ?? (firm?.gold ? <Badge tone="gold" size="sm">Gold Üye</Badge> : null) ? (
-          <span className="pointer-events-none absolute top-2.5 left-2.5 z-10">
-            {badge ?? <Badge tone="gold" size="sm">Gold Üye</Badge>}
-          </span>
-        ) : null}
-        {fresh ? (
-          <span className="pointer-events-none absolute top-2.5 right-2.5 z-10">
-            <Badge tone="new" size="sm">Yeni</Badge>
+        {/* ROZET HİYERARŞİSİ (2026-09-07): kapakta yalnız çağıranın rozeti
+            (ör. "Alım kategorinizle eşleşiyor") ya da SESSİZ Gold şeridi.
+            Güven sinyali (Doğrulanmış) ve tazelik (Yeni) gövdenin ilk
+            satırına taşındı — ticari seviye rozeti güven rozetinden daha
+            çok dikkat çekiyordu. */}
+        {badge ? (
+          <span className="pointer-events-none absolute top-2 left-2 z-10">{badge}</span>
+        ) : firm?.gold ? (
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-zinc-950/70 to-transparent px-2.5 py-1.5">
+            <span className="text-[11px] font-semibold tracking-wide text-amber-200">Gold Üye</span>
           </span>
         ) : null}
       </div>
 
       <div className={cn("flex flex-1 flex-col", compact ? "p-3" : "p-4")}>
+        {!compact && (firm?.verified || fresh) ? (
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+            {firm?.verified ? (
+              <Badge tone="verified" size="sm">
+                Doğrulanmış
+              </Badge>
+            ) : null}
+            {fresh ? (
+              <Badge tone="new" size="sm">
+                Yeni
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex items-start justify-between gap-2">
-          <h3 className={cn("line-clamp-2 font-semibold tracking-tight text-zinc-950", compact ? "text-[13px]/5" : "text-sm/5")}>
+          <h3 className={cn("line-clamp-2 font-semibold tracking-tight text-zinc-950", compact ? "text-[13px]/5" : "text-[15px]/5")}>
             {/* Yayılmış bağlantı — kartın tamamı bu hedefe gider. */}
             <Link
               href={target ?? "#"}
@@ -227,12 +243,17 @@ export function ProductCard({
           <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
             <Avatar name={firm.name} src={firm.logoUrl} size={24} />
             <span className="truncate font-medium text-zinc-700">{firm.name}</span>
-            {firm.verified ? (
+            {compact && firm.verified ? (
               <Badge tone="verified" size="sm" className="px-1">
                 <span className="sr-only">Doğrulanmış firma</span>
               </Badge>
             ) : null}
-            {firm.city ? <span className="shrink-0 whitespace-nowrap">· {firm.city}</span> : null}
+            {firm.city ? (
+              <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
+                <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
+                {firm.city}
+              </span>
+            ) : null}
           </div>
         ) : null}
 
@@ -240,13 +261,17 @@ export function ProductCard({
           <p className={cn("tnum text-sm font-semibold", price.hasPrice ? "text-zinc-950" : "text-zinc-500")}>
             {price.headline}
           </p>
-          {product.moq ? (
-            <p className="tnum mt-0.5 text-xs text-zinc-500">
-              Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
-            </p>
-          ) : null}
+          {/* MOQ satırı MOQ yokken de yer kaplar: kartlar farklı yüksekliğe
+              düşünce ızgara zıplıyordu ("teklif isteyin" ürünlerinin çoğunda
+              MOQ yok). */}
+          <p className="tnum mt-0.5 text-xs text-zinc-500">
+            {product.moq
+              ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
+              : "\u00A0"}
+          </p>
           {cta && !compact ? (
-            <span className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800 transition group-hover:bg-zinc-950 group-hover:text-white">
+            /* BİRİNCİL EYLEM — tek renk, dolgulu, her ekranda aynı. */
+            <span className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-xs font-semibold text-white transition group-hover:bg-zinc-800">
               {cta}
             </span>
           ) : null}

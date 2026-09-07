@@ -27,12 +27,37 @@ export interface DirectoryCompany extends PublicDirectoryCard {
 
 export interface DirectorySearchParams {
   q?: string;
+  /** Virgüllü çoklu. */
   city?: string;
+  /** Virgüllü çoklu 8 haneli kod. */
   category?: string;
+  /** Virgüllü çoklu faaliyet kodu. */
   activity?: string;
   verified?: boolean;
   hasProducts?: boolean;
+  /** Yalnız Gold Üye firmalar. */
+  gold?: boolean;
+  sort?: "relevance" | "name" | "products" | "newest";
+  /** Bağlantı durumu — panele özel (public dizinde karşılığı yok). */
+  connection?: "connected" | "new";
   page?: number;
+}
+
+/** Süzgeç durumu → uç parametreleri (arama ve facet ucu AYNI kümeyi alır). */
+function directoryQuery(params: DirectorySearchParams): string {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.city) sp.set("city", params.city);
+  if (params.category) sp.set("category", params.category);
+  if (params.activity) sp.set("activity", params.activity);
+  if (params.verified) sp.set("verified", "1");
+  if (params.hasProducts) sp.set("hasProducts", "1");
+  if (params.gold) sp.set("gold", "1");
+  if (params.connection) sp.set("connection", params.connection);
+  if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
+  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
 }
 
 /**
@@ -44,17 +69,8 @@ export function useCompanySearch(params: DirectorySearchParams, enabled = true) 
     enabled,
     queryKey: ["company-directory", "search", params],
     queryFn: async () => {
-      const sp = new URLSearchParams();
-      if (params.q) sp.set("q", params.q);
-      if (params.city) sp.set("city", params.city);
-      if (params.category) sp.set("category", params.category);
-      if (params.activity) sp.set("activity", params.activity);
-      if (params.verified) sp.set("verified", "1");
-      if (params.hasProducts) sp.set("hasProducts", "1");
-      if (params.page && params.page > 1) sp.set("page", String(params.page));
-      const qs = sp.toString();
       const { data } = await companyApi.get<{ items: DirectoryCompany[]; total: number; page: number; pageSize: number }>(
-        `/company/directory/search${qs ? `?${qs}` : ""}`,
+        `/company/directory/search${directoryQuery(params)}`,
       );
       return data;
     },
@@ -63,14 +79,23 @@ export function useCompanySearch(params: DirectorySearchParams, enabled = true) 
   });
 }
 
-export function useCompanySearchFacets(enabled = true) {
+/**
+ * Dizin süzgeç sayaçları — BAĞLAMSAL: uca listeyle aynı parametreler gider
+ * (sayfa hariç). Eskiden hiç parametre göndermiyordu ve "İstanbul (7)"
+ * aramadan bağımsız sayıyordu; tıklayınca liste boş çıkabiliyordu.
+ */
+export function useCompanySearchFacets(params: DirectorySearchParams = {}, enabled = true) {
+  const key = { ...params, page: undefined };
   return useQuery<PublicDirectoryFacets>({
     enabled,
-    queryKey: ["company-directory", "search-facets"],
+    queryKey: ["company-directory", "search-facets", key],
     queryFn: async () => {
-      const { data } = await companyApi.get<PublicDirectoryFacets>("/company/directory/search/facets");
+      const { data } = await companyApi.get<PublicDirectoryFacets>(
+        `/company/directory/search/facets${directoryQuery(key)}`,
+      );
       return data;
     },
+    placeholderData: (prev) => prev,
     staleTime: 300_000,
   });
 }

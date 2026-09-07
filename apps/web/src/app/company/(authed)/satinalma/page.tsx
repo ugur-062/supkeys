@@ -6,9 +6,8 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatinalmaDashboard } from "@/hooks/use-company-dashboard";
 import { ActionStrip } from "@/components/dashboard/action-center";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
-import { ProductDiscoverySection } from "@/components/company/product-discovery-section";
-import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
-import { intentToProductQuery } from "@/lib/company/ai-search";
+import { PanelFeaturedProducts } from "@/components/company/market/panel-featured-products";
+import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "next/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
@@ -25,31 +24,29 @@ import {
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { buildShowcase } from "@/lib/public/category-showcase";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
+import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } from "@/lib/company/panel-market";
 import { ArrowRight, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 
-const HOME = "/company/satinalma";
-const PRODUCT_DETAIL = "/company/satinalma/urunler";
-
 /**
- * SATINALMA ANASAYFASI — Europages kalıbı, Rothern dili (2026-09-05,
- * kullanıcı kararı: "www.rothern.com'daki ilk açıldığı tarzda"; ikinci
- * revizyon aynı gün: "filtreleme her şeyiyle tam, arama şirket/ürün/her
- * türlü").
+ * SATINALMA ANASAYFASI — pazar GİRİŞİ (2026-09-07, pazar katmanı brifi).
  *
- * Sıra: arama (öneri: ürün · firma · kategori) → kategoriye göre keşfet
- * (fotoğraflı 8 kart — aynı sayfayı süzer) → ÜRÜNLER (kenar süzgeçli tam
- * dizin, alım kategorisine uygun olanlar önde) → doğrulanmış tedarikçiler
- * (4) → BUGÜN (bekleyen işler şeridi + 4 KPI) → talep aç şeridi → profil
- * sağlığı → Raporlar.
+ * Anasayfa artık ürün ızgarası TAŞIMAZ: liste kendi adresine taşındı
+ * (`/company/satinalma/urunler`). Gerekçe kullanıcının canlı incelemesi —
+ * sayfa hem panel hem katalog olmaya çalışınca ikisi de okunmuyordu,
+ * kategori kartı yalnız sayfayı kaydırdığı için filtrelenmiş liste
+ * paylaşılamıyordu.
  *
- * "Ürün Ara" ayrı sayfa olmaktan çıktı (308 → buraya); hero'nun altındaki
- * kategori çipleri kalktı (kartlar aynı bilgiyi taşıyor); "Size uygun
- * ürünler" bloğu kalktı (uygunluk listenin varsayılan sırası). Sayfada TEK
- * primary CTA (sol menü). Herkese açık uçlar panelde KULLANILMAZ.
+ * Sıra (brif Faz 2): kompakt KPI şeridi ("bugün ne yapmalıyım") → hero
+ * arama → kategoriler (artık NAVİGASYON: kendi sayfasına gider) → size
+ * uygun ürünler şeridi → doğrulanmış tedarikçiler → talep aç şeridi →
+ * profil sağlığı → Raporlar.
+ *
+ * Sayfada TEK primary CTA (sol menü). Herkese açık uçlar panelde
+ * KULLANILMAZ.
  */
 export default function SatinalmaDashboardPage() {
   const { company, user } = useCompanyAuth();
@@ -58,13 +55,14 @@ export default function SatinalmaDashboardPage() {
 
   // AI ile ara: yorum → ürün süzgeci (URL) + bant. Silver+ ∧ koltuk rolü
   // (asistanla aynı kapı; API `assertAiAccess` aynasıdır).
-  const [intent, setIntent] = useState<AiSearchIntentResult | null>(null);
   const aiEnabled =
     !!company && tierAtLeast(company.tier, "SILVER") &&
     hasAnySeatPermission(user);
   const onAiResult = (r: AiSearchIntentResult) => {
-    setIntent(r);
-    router.push(`${HOME}${intentToProductQuery(r)}#urunler`);
+    // Yorum ("AI şöyle anladı") URL'ye sığmaz; köprüyle taşınır ve ürün
+    // dizini bir kez okur. Süzgeçler URL'de — çipler oradan çizilir.
+    stashAiIntent(r);
+    router.push(`${PANEL_MARKET.products}${intentToProductQuery(r)}`);
   };
 
   const [todayLabel, setTodayLabel] = useState("");
@@ -97,12 +95,12 @@ export default function SatinalmaDashboardPage() {
     const cats = (facets.data?.categories ?? [])
       .filter((c) => c.name.toLocaleLowerCase("tr-TR").includes(lower))
       .slice(0, 3)
-      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} ürün`, href: `${HOME}?kategori=${c.id}#urunler` }));
+      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} ürün`, href: panelCategoryPath(c.id, c.name) }));
     const prods = (sugProducts.data ?? []).slice(0, 5).map((p) => ({
       key: `${p.company.slug}/${p.slug}`,
       label: p.name,
       meta: p.company.name,
-      href: `${PRODUCT_DETAIL}/${p.company.slug}/${p.slug}`,
+      href: panelProductPath(p.company.slug, p.slug),
     }));
     const firms = (sugCompanies.data?.items ?? [])
       .filter((c) => c.connectionStatus !== "self" && c.rothernId)
@@ -111,7 +109,7 @@ export default function SatinalmaDashboardPage() {
         key: c.slug,
         label: c.name,
         meta: [c.city, c.verified ? "Doğrulanmış" : null].filter(Boolean).join(" · ") || undefined,
-        href: `/company/firma/${c.rothernId}`,
+        href: panelCompanyPath(c.rothernId as string),
       }));
     return [
       { label: "Ürünler", rows: prods },
@@ -141,34 +139,6 @@ export default function SatinalmaDashboardPage() {
           <TcmbRatesChip />
         </div>
       </header>
-
-      <PanelHeroSearch
-        eyebrow="Tedarikçi ürün vitrini"
-        title="Ne arıyorsunuz?"
-        lead="Ürün, marka, parça numarası veya firma — doğrulanmış tedarikçilerin vitrininden, fiyat ve minimum sipariş bilgisiyle."
-        placeholder="Ürün, marka, parça numarası veya firma arayın"
-        action={HOME}
-        accent="blue"
-        suggestions={suggestions}
-        onQueryChange={setTerm}
-        ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
-      />
-
-      <CategoryShowcasePanel
-        title="Kategoriye göre keşfet"
-        lead="En çok ürünü olan dallar önde; tıklayınca aşağıdaki liste o kategoriye süzülür."
-        items={showcase}
-        hrefFor={(id) => `${HOME}?kategori=${id}#urunler`}
-        countNoun="ürün"
-        allHref={`${HOME}#urunler`}
-        allLabel="Tüm ürünler"
-      />
-
-      <ProductDiscoverySection
-        banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
-      />
-
-      <FeaturedCompaniesBlock />
 
       <TodayBand lead="Bekleyen işleriniz ve dönemsiz dört sayı.">
         <ActionStrip portal="satinalma" />
@@ -209,6 +179,33 @@ export default function SatinalmaDashboardPage() {
           </div>
         )}
       </TodayBand>
+
+      <PanelHeroSearch
+        eyebrow="Tedarikçi ürün vitrini"
+        title="Ne arıyorsunuz?"
+        lead="Ürün, marka, parça numarası veya firma — doğrulanmış tedarikçilerin vitrininden, fiyat ve minimum sipariş bilgisiyle."
+        placeholder="Ürün, marka, parça numarası veya firma arayın"
+        action={PANEL_MARKET.products}
+        accent="blue"
+        suggestions={suggestions}
+        onQueryChange={setTerm}
+        ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
+      />
+
+      <CategoryShowcasePanel
+        title="Kategoriye göre keşfet"
+        lead="En çok ürünü olan dallar önde; her kategorinin kendi sayfası ve kendi süzgeçleri var."
+        items={showcase}
+        hrefFor={(id) => panelCategoryPath(id, showcase.find((c) => c.id === id)?.name)}
+        countNoun="ürün"
+        allHref={PANEL_MARKET.products}
+        allLabel="Tüm ürünler"
+      />
+
+      <PanelFeaturedProducts />
+
+      <FeaturedCompaniesBlock />
+
 
       <CtaBand
         icon={<ClipboardList aria-hidden className="size-5" strokeWidth={1.75} />}

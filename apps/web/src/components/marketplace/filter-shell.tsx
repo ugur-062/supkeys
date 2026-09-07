@@ -7,6 +7,7 @@ import { createContext, useContext, useState, useTransition, type ReactNode } fr
 import {
   activeFilterCount,
   buildProductFilterQuery,
+  clearProductFilters,
   parseProductFilters,
   type ProductFilterState,
 } from "@/lib/public/product-filter-params";
@@ -67,14 +68,21 @@ export function FilterShellCore<S extends { page: number }>({
   const [isPending, startTransition] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navigate = (next: S) => startTransition(() => router.replace(toUrl(next), { scroll: false }));
+  /**
+   * SÜZGEÇ değişimi `replace` (her tık geçmişe girmesin — "geri" tuşu on
+   * kutucuk geri gitmemeli), SAYFA değişimi `push` (2. sayfadan "geri"
+   * 1. sayfaya dönmeli). İkisi de `scroll: false`: konumu sayfalama
+   * kendi yönetir, süzgeçte sayfa başına zıplamak istenmiyor.
+   */
+  const navigate = (next: S, mode: "replace" | "push" = "replace") =>
+    startTransition(() => router[mode](toUrl(next), { scroll: false }));
   const update: Ctx<S>["update"] = (patch) => {
     const next = typeof patch === "function" ? patch(state) : { ...state, ...patch };
     // Süzgeç değişince 1. sayfaya dönülür; sayfa YALNIZ açıkça istenince
-    // korunur (eskiden `update({ page })` da 1'e düşüyordu — panel Ürün
-    // Ara'da "Sonraki" çalışmıyordu).
+    // korunur (eskiden `update({ page })` da 1'e düşüyordu — panel ürün
+    // dizininde "Sonraki" çalışmıyordu).
     const explicitPage = typeof patch === "function" ? next.page !== state.page : "page" in patch;
-    navigate(explicitPage ? next : { ...next, page: 1 });
+    navigate(explicitPage ? next : { ...next, page: 1 }, explicitPage ? "push" : "replace");
   };
   const clear = () => navigate(clearState(state));
 
@@ -133,7 +141,7 @@ export function FilterShell({
     <FilterShellCore
       state={state}
       toUrl={toUrl}
-      clearState={(s) => ({ cities: [], activities: [], verified: false, attrs: [], page: 1, q: s.q })}
+      clearState={clearProductFilters}
       total={total}
       activeCount={activeFilterCount(state)}
       drawer={drawer}

@@ -42,7 +42,7 @@ export function Pagination({
   const item = (p: number, label: React.ReactNode, opts: { rel?: "prev" | "next"; ariaLabel?: string; active?: boolean } = {}) => {
     const cls = cn(
       "tnum inline-flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-medium transition",
-      opts.active ? "bg-zinc-950 text-white" : "text-zinc-700 hover:bg-zinc-100",
+      opts.active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-700 hover:bg-zinc-100",
     );
     if (hrefBuilder) {
       return (
