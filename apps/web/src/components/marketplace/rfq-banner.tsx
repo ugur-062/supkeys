@@ -35,7 +35,15 @@ export function RfqBanner({
   const blue = variant === "panel";
   return (
     <section className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-      <div className="grid gap-8 rounded-3xl bg-zinc-50 p-8 ring-1 ring-zinc-950/5 lg:grid-cols-[18rem_1fr] lg:items-center lg:p-10">
+      {/* ZEMİN YÜZEYE GÖRE (2026-09-08, kullanıcı sorusu): PANELDE sayfa
+          zemini açık gri, gri bant oraya karışıyordu → beyaz kart (sayfadaki
+          fiyat kartı ve sekme gövdesiyle aynı dil). Herkese açık sayfada
+          zemin BEYAZ; orada beyaz bant kaybolurdu, gri kalır. */}
+      <div
+        className={`grid gap-8 rounded-3xl p-8 ring-1 ring-zinc-950/5 lg:grid-cols-[18rem_1fr] lg:items-center lg:p-10 ${
+          blue ? "bg-white shadow-sm" : "bg-zinc-50"
+        }`}
+      >
         <div aria-hidden className="relative mx-auto hidden h-40 w-40 lg:block">
           <span className={`absolute inset-0 rounded-full ${blue ? "bg-blue-100" : "bg-emerald-100"}`} />
           <span className="absolute inset-4 flex items-center justify-center rounded-full bg-white ring-1 ring-zinc-950/5">
