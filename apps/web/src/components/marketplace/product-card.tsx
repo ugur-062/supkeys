@@ -9,7 +9,7 @@ import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketp
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 /**
  * ÜRÜN KARTI — TEK bileşen, üç varyant (v2 denetimi 2026-09-03; kart sistemi
@@ -76,7 +76,10 @@ export function ProductCard({
   variant = "tile",
   features,
   cta,
+  ctaHref,
   badge,
+  compare = false,
+  onCompare,
   meta,
   trailing,
   onClick,
@@ -95,10 +98,28 @@ export function ProductCard({
   variant?: "tile" | "compact" | "row" | "wide";
   /** Öne çıkan özellikler — ilk 3 madde. Yoksa `excerpt`. */
   features?: string[];
-  /** Tek CTA etiketi (tile) — "Bilgi iste". Yalnız görsel; tıklama kartındır. */
+  /**
+   * Tek CTA etiketi (tile) — "Bilgi iste". GERÇEK bağlantıdır ve kartın
+   * yayılmış bağlantısından AYRI çalışır: kart ürün sayfasını, CTA aynı
+   * sayfanın `#bilgi-iste` çapasını açar.
+   */
   cta?: string;
-  /** Tile: kapağın sol üstündeki rozet. Row: durum rozeti (Taslak/Yayında). */
+  /** CTA'nın hedefi — verilmezse `<ürün sayfası>#bilgi-iste`. */
+  ctaHref?: string;
+  /**
+   * Tile: kapağın sol üstündeki rozet — VERİLİRSE "Yeni"nin yerine geçer
+   * (kapakta en fazla bir rozet). Row: durum rozeti (Taslak/Yayında).
+   */
   badge?: ReactNode;
+  /**
+   * Kapağın sağ üstünde "Karşılaştır" kutusu (yalnız `tile`). Durum şimdilik
+   * KARTIN İÇİNDE; karşılaştırma tablosu bağlanınca `onCompare` ile dışarı
+   * taşınır. Varsayılan KAPALI — işlevi henüz olmayan bir kontrolü her
+   * yüzeye basmamak için yalnız dizin/arama sonuçlarında açılır.
+   */
+  compare?: boolean;
+  /** "Karşılaştır" değişimi — ileride karşılaştırma tablosunun girişi. */
+  onCompare?: (on: boolean) => void;
   /** Row: ad altındaki meta satırı (kategori · fiyat modu · birim). */
   meta?: ReactNode;
   /** Row: sağ uç (son güncelleme vb.). */
@@ -274,6 +295,13 @@ export function ProductCard({
     );
   }
 
+  // KAPAK ROZETİ — EN FAZLA BİR TANE. Öncelik: çağıranın rozeti ("Alım
+  // kategorinizle eşleşiyor" — o bağlamda karardaki en belirleyici bilgi) >
+  // "Yeni". "Doğrulanmış" kapağa ÇIKMAZ: firma özelliğidir ve firma satırında
+  // ikon olarak zaten duruyor; ikisini birden basmak aynı olguyu iki kez
+  // yazmak olurdu (kaldırılan "Gold Üye" rozetiyle aynı gürültü).
+  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">Yeni</Badge> : null);
+
   return (
     <article
       className={cn(
@@ -283,51 +311,41 @@ export function ProductCard({
         className,
       )}
     >
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <CategoryImage
           src={product.images[0]}
           categoryIds={product.categoryId ? [product.categoryId] : []}
           alt={product.name}
           ratio="aspect-[4/3]"
-          className="border-b border-zinc-950/5"
+          // Hover'da hafif yakınlaşma. Sınıf KÖK sarmalayıcıya biner, yani
+          // gerçek fotoğraf da yedek desen de aynı şekilde davranır; kırpma
+          // yukarıdaki `overflow-hidden`dan gelir.
+          className="border-b border-zinc-950/5 transition-transform duration-300 ease-out group-hover:scale-[1.04]"
           priority={priority}
           fallback="neutral"
         />
-        {/* ROZET HİYERARŞİSİ: kapakta YALNIZ çağıranın rozeti (ör. "Alım
-            kategorinizle eşleşiyor"). Güven sinyali (Doğrulanmış) ve
-            tazelik (Yeni) gövdenin ilk satırında.
-
-            "Gold Üye" ÜRÜN KARTINDAN KALDIRILDI (2026-09-07, kullanıcı
-            bulgusu): paketli firma çok olduğu için neredeyse her kartta
-            çıkıyor ve ayırt ediciliğini yitiriyordu. Gold bir SATICI
-            sinyalidir — firma kartında ve ürün sayfasının satıcı panelinde
-            durur, orada "kimden alıyorum" sorusunun cevabının parçasıdır. */}
-        {badge ? (
-          <span className="pointer-events-none absolute top-2 left-2 z-10">{badge}</span>
+        {coverBadge ? (
+          <span className="pointer-events-none absolute top-2 left-2 z-10">{coverBadge}</span>
         ) : null}
+        {compare && !compact ? <CompareToggle name={product.name} onChange={onCompare} /> : null}
       </div>
 
       <div className={cn("flex flex-1 flex-col", compact ? "p-3" : "p-4")}>
-        {!compact && (firm?.verified || fresh) ? (
-          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-            {firm?.verified ? (
-              <Badge tone="verified" size="sm">
-                Doğrulanmış
-              </Badge>
-            ) : null}
-            {fresh ? (
-              <Badge tone="new" size="sm">
-                Yeni
-              </Badge>
-            ) : null}
-          </div>
-        ) : null}
         <div className="flex items-start justify-between gap-2">
-          <h3 className={cn("line-clamp-2 font-semibold tracking-tight text-zinc-950", compact ? "text-[13px]/5" : "text-[15px]/5")}>
-            {/* Yayılmış bağlantı — kartın tamamı bu hedefe gider. */}
+          <h3
+            className={cn(
+              "line-clamp-2 tracking-tight text-zinc-950",
+              compact ? "text-[13px]/5 font-semibold" : "text-[15px]/5 font-medium",
+            )}
+          >
+            {/* Gerçek bağlantı; `after:inset-0` ile tıklama alanı kartın
+                tamamına yayılır. Vurgu `group-hover` — eskiden `hover:` idi
+                ve yalnız başlığın ÜSTÜNDEYKEN yanıyordu: kartın gövdesinde
+                gezinen kullanıcı hiçbir tepki görmüyor, kart geç yanıt
+                veriyormuş gibi duruyordu. */}
             <Link
               href={target ?? "#"}
-              className="after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
+              className="after:absolute after:inset-0 after:content-[''] focus:outline-none group-hover:text-zinc-600"
             >
               {product.name}
             </Link>
@@ -340,6 +358,9 @@ export function ProductCard({
           )}
         </div>
 
+        {/* AÇIKLAMA YUVASI — ürünün KENDİ nitelik tablosundan gelen 3 madde
+            varsa onlar (aynı yerde, daha yoğun bilgi), yoksa açıklamanın ilk
+            2 satırı. Açıklamadan madde AYIKLANMAZ (uydurma veri olurdu). */}
         {bullets.length > 0 ? (
           <ul className="mt-1.5 space-y-0.5 text-xs/5 text-zinc-600">
             {bullets.map((f) => (
@@ -352,31 +373,62 @@ export function ProductCard({
             ))}
           </ul>
         ) : !compact && product.excerpt ? (
-          <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-500">{product.excerpt}</p>
+          <p className="mt-1.5 line-clamp-2 text-sm/5 text-zinc-500">{product.excerpt}</p>
         ) : null}
 
         {firm ? (
-          /* Tek satır: avatar · firma · ✓ · şehir. Taşarsa ad kısalır — kart
-             yüksekliği firma adının uzunluğuna göre oynamasın (B5). */
-          <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
+          /* FİRMA BLOĞU = firmaya ait sinyallerin TEK yeri: avatar · ad ·
+             Doğrulanmış · Gold · şehir.
+
+             İKİ SATIR (tile): hepsi tek satırdayken 226 px'lik sütunda
+             avatar + iki ikon + şehir yerin yarısını alıyor ve ad
+             "Başke…"ye iniyordu — tedarikçi kararı için okunması gereken
+             tek alan o. Ad artık üstte tek başına yarışıyor, şehir ikincil
+             satırda tam okunuyor. `compact` da aynı bloğu kullanır: benzer
+             ürün şeritlerindeki kartlar da ~200 px, aynı sıkışma orada da
+             vardı. */
+          <div className="mt-2 flex min-w-0 items-center gap-1.5">
             <Avatar name={firm.name} src={firm.logoUrl} size={24} />
-            <span className="truncate font-medium text-zinc-700">{firm.name}</span>
-            {compact && firm.verified ? (
-              <Badge tone="verified" size="sm" className="px-1">
-                <span className="sr-only">Doğrulanmış firma</span>
-              </Badge>
-            ) : null}
-            {firm.city ? (
-              <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
-                <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
-                {firm.city}
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-1">
+                <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
+                {firm.verified ? (
+                  <Badge tone="verified" size="sm" className="shrink-0 px-1">
+                    <span className="sr-only">Doğrulanmış firma</span>
+                  </Badge>
+                ) : null}
+                {/* "Gold Üye" METİN rozeti olarak KALDIRILMIŞTI (2026-09-07):
+                    paketli firma çok, her kartta çıkıp ayırt ediciliğini
+                    yitiriyordu. İkon olarak geri geldi — tarama sırasında
+                    gürültü yapmıyor, "kimden alıyorum" sorusuna bakan
+                    kullanıcı için okunur (etiketi ekran okuyucuda). */}
+                {firm.gold ? (
+                  <Badge tone="gold" size="sm" className="shrink-0 px-1">
+                    <span className="sr-only">Gold Üye</span>
+                  </Badge>
+                ) : null}
               </span>
-            ) : null}
+              {firm.city ? (
+                <span className="mt-0.5 flex items-center gap-0.5 text-[11px] text-zinc-500">
+                  <MapPinIcon aria-hidden className="size-3 shrink-0 text-zinc-400" />
+                  <span className="truncate">{firm.city}</span>
+                </span>
+              ) : null}
+            </span>
           </div>
         ) : null}
 
         <div className={cn("mt-auto", compact ? "pt-2" : "pt-3")}>
-          <p className={cn("tnum text-sm font-semibold", price.hasPrice ? "text-zinc-950" : "text-zinc-500")}>
+          {/* FİYAT kartın en ağır satırı: firma adından ve MOQ'dan büyük.
+              "Fiyat için teklif isteyin" AYNI yuvada, aynı ölçüde durur —
+              fiyatlı ve fiyatsız kartlar yan yana hizalı okunsun. */}
+          <p
+            className={cn(
+              "tnum font-semibold",
+              compact ? "text-sm" : "text-base",
+              price.hasPrice ? "text-zinc-950" : "text-zinc-500",
+            )}
+          >
             {price.headline}
           </p>
           {/* MOQ satırı MOQ yokken de yer kaplar: kartlar farklı yüksekliğe
@@ -387,14 +439,58 @@ export function ProductCard({
               ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
               : "\u00A0"}
           </p>
-          {cta && !compact ? (
-            /* BİRİNCİL EYLEM — tek renk, dolgulu, her ekranda aynı. */
-            <span className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-xs font-semibold text-white transition group-hover:bg-zinc-800">
+          {cta && !compact && target ? (
+            /* BİRİNCİL EYLEM — kartın yayılmış bağlantısının ÜSTÜNDE (`z-10`)
+               duran AYRI bir hedef: kart ürün sayfasını açar, bu düğme aynı
+               sayfayı bilgi isteme kutusunda açar. `stopPropagation` tıklamanın
+               karta sızmasını keser (bugün kartın kendi `onClick`i yok ama
+               eklendiğinde iki eylem birden tetiklenirdi). */
+            <Link
+              href={ctaHref ?? `${target}#bilgi-iste`}
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 mt-3 inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2"
+            >
               {cta}
-            </span>
+            </Link>
           ) : null}
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * "Karşılaştır" — şimdilik YALNIZ yerel durum (kullanıcı kararı: karşılaştırma
+ * tablosu sonra bağlanacak). `onChange` verilirse çağırana da bildirilir, o
+ * gün kartı yeniden açmaya gerek kalmasın diye.
+ *
+ * Kartın yayılmış bağlantısının üstünde (`z-10`) durur ve tıklaması
+ * `stopPropagation` ile kesilir — yoksa kutuyu işaretlemek ürün sayfasını
+ * açardı. `opacity-0` ile gizlenir ama DOM'da ve odak sırasında KALIR
+ * (`display:none` olsaydı klavyeyle erişilemezdi); odaklanınca ve işaretliyken
+ * görünür.
+ */
+function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boolean) => void }) {
+  const [on, setOn] = useState(false);
+  return (
+    <label
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        "absolute top-2 right-2 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-950/10 transition",
+        "opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-[:checked]:opacity-100",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => {
+          setOn(e.target.checked);
+          onChange?.(e.target.checked);
+        }}
+        className="size-3.5 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
+      />
+      Karşılaştır
+      <span className="sr-only">: {name}</span>
+    </label>
   );
 }

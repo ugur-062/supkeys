@@ -112,6 +112,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
                   company={p.company}
                   product={p}
                   cta="Bilgi iste"
+                  compare
                   priority={i < 3}
                 />
               ))}

@@ -198,6 +198,7 @@ function Inner({
                 href={panelProductPath(item.company.slug, item.slug)}
                 features={item.features}
                 cta="Bilgi iste"
+                compare
                 priority={i < 3}
                 badge={
                   item.matchesProfile ? (

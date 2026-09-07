@@ -469,7 +469,14 @@ export function ProductDetailBody({
               <SellerSummary company={company} companyHref={companyHref} sellerSite={sellerSite} compact />
             </div>
 
-            <div className="mt-5 border-t border-zinc-950/5 pt-5">{cta}</div>
+            {/* `#bilgi-iste` — ÜRÜN KARTININ CTA'sının hedefi. Kartın kendisi
+                ürün sayfasını açar, "Bilgi iste" düğmesi aynı sayfayı EYLEMİN
+                ÜSTÜNDE açar; ikisi ayrı eylem olsun diye kartta
+                `stopPropagation` var. Çapa olmadan CTA kartla aynı yere
+                giderdi ve "ayrı düğme" olduğu yalan olurdu. */}
+            <div id="bilgi-iste" className="mt-5 scroll-mt-24 border-t border-zinc-950/5 pt-5">
+              {cta}
+            </div>
           </div>
 
           {/* YAPIŞKAN ŞERİT — nöbetçi asıl eylemin hemen altında: eylem

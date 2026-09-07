@@ -36,6 +36,7 @@ export function CategoryImage({
   ratio = "aspect-[16/9]",
   priority = false,
   fallback = "category",
+  sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
 }: {
   /** `Category.imageUrl` — doluysa üretilmiş görselin yerine geçer. */
   src?: string | null;
@@ -51,6 +52,12 @@ export function CategoryImage({
    * (ÜRÜN — görsel zorunlu, yokluğu bir eksikliktir; tonlu kutu onu saklardı).
    */
   fallback?: "category" | "neutral";
+  /**
+   * `next/image` `sizes` — çağıranın ızgarasına göre. Varsayılan pazar
+   * ızgarasıdır; farklı bir düzende (ör. detay galerisi) doğru srcset için
+   * geçilmeli, yoksa tarayıcı gereğinden büyük dosya indirir.
+   */
+  sizes?: string;
 }) {
   // Yükleme hatası → üretilmiş görsele düş. `src` değişirse (aynı kartın
   // yeniden kullanımı) hata durumu sıfırlanmalı; anahtar olarak src kullanılır.
@@ -66,7 +73,7 @@ export function CategoryImage({
             src={src}
             alt={alt}
             fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes={sizes}
             className="object-cover"
             priority={priority}
             onError={() => setFailedSrc(src)}
