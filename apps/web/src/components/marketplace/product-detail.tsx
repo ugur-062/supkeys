@@ -229,13 +229,16 @@ export function ProductBreadcrumb({
   trail,
   current,
   home,
+  accent,
 }: {
   trail: { label: string; href: string }[];
   current: string;
   /** Baştaki ev ikonu — public "/", panelde satınalma anasayfası. */
   home?: { href: string; label?: string };
+  /** Bulunduğun sayfanın rengi — panelde `blue`. */
+  accent?: "default" | "blue";
 }) {
-  return <Breadcrumb items={[...trail, { label: current }]} home={home} />;
+  return <Breadcrumb items={[...trail, { label: current }]} home={home} accent={accent} />;
 }
 
 /**
@@ -262,6 +265,7 @@ export function ProductDetailBody({
   hrefFor,
   stickyCta,
   stickyTopClass,
+  accent = "default",
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
   product: PublicProduct & Partial<ProductPriceFields>;
@@ -285,6 +289,8 @@ export function ProductDetailBody({
    * altına oturması için). Public kabuk `lg:top-[100px]`, panel `lg:top-14`.
    */
   stickyTopClass?: string;
+  /** Sekme vurgusu — panel satınalmada `blue`, public monokrom. */
+  accent?: "default" | "blue";
   /**
    * Yapışkan alt şeridin eylemi (fiyatın yanında). Verilmezse şerit
    * çizilmez. Şerit YALNIZ asıl eylem ekrandan çıkınca görünür — aynı
@@ -476,7 +482,10 @@ export function ProductDetailBody({
       <Tabs
         className="mt-10"
         hashSync
-        panelClassName="pt-6"
+        accent={accent}
+        /* İçerik BEYAZ YÜZEYDE (2026-09-08, kullanıcı: "çok düz"): sekme
+           gövdesi zeminle aynı renkteydi, metin boşlukta duruyordu. */
+        panelClassName="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5"
         items={[
           {
             id: "ozellikler",

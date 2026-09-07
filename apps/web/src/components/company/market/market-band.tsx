@@ -93,7 +93,9 @@ export function MarketHeader({
 }) {
   return (
     <div className="pt-1">
-      <Breadcrumb items={breadcrumb} />
+      {/* Bulunduğun sayfa MAVİ (2026-09-08, kullanıcı kararı): pazar
+          bölgesi panelin satınalma tarafı, oradaki vurgu rengi mavi. */}
+      <Breadcrumb items={breadcrumb} accent="blue" />
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>

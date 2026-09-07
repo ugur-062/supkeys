@@ -21,11 +21,18 @@ export interface BreadcrumbItem {
 export function Breadcrumb({
   items,
   home,
+  accent = "default",
   className,
 }: {
   items: BreadcrumbItem[];
   /** Baştaki ev ikonu bağlantısı (public "/", panelde portal anasayfası). */
   home?: { href: string; label?: string };
+  /**
+   * BULUNDUĞUN SAYFA renkli yazılsın mı (2026-09-08, kullanıcı kararı:
+   * "seçili olduğu sayfa temanın mavisinde olsun"). Panelin satınalma
+   * bölgesi `blue`; herkese açık pazar yeri monokrom kalır.
+   */
+  accent?: "default" | "blue";
   className?: string;
 }) {
   const last = items.length - 1;
@@ -52,7 +59,13 @@ export function Breadcrumb({
             <Fragment key={`${it.label}-${i}`}>
               <li className={cn("min-w-0", mobileHidden && "hidden sm:block")}>
                 {isLast || !it.href ? (
-                  <span aria-current={isLast ? "page" : undefined} className="block max-w-[14rem] truncate text-zinc-900 sm:max-w-xs">
+                  <span
+                    aria-current={isLast ? "page" : undefined}
+                    className={cn(
+                      "block max-w-[14rem] truncate sm:max-w-xs",
+                      isLast && accent === "blue" ? "font-semibold text-blue-700" : "text-zinc-900",
+                    )}
+                  >
                     {it.label}
                   </span>
                 ) : (

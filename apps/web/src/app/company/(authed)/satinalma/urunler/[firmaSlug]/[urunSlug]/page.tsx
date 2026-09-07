@@ -72,6 +72,7 @@ export default function PanelProductPage() {
     <PageContainer>
       <ProductBreadcrumb
         home={{ href: "/company/satinalma", label: "Satınalma anasayfası" }}
+        accent="blue"
         trail={[
           { label: "Ürün Ara", href: "/company/satinalma/urunler" },
           ...(product.category
@@ -90,6 +91,7 @@ export default function PanelProductPage() {
         hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
         /* Panel kabuğunun sabit üst çubuğu h-14 (56 px). */
         stickyTopClass="lg:top-14"
+        accent="blue"
         stickyCta={
           <button
             type="button"

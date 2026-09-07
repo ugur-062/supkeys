@@ -80,6 +80,7 @@ describe("ProductBreadcrumb", () => {
           { label: "Marmara Gıda Ltd. Şti.", href: "/company/firma/1" },
         ]}
         current="Kornişon Turşu 720 ml Cam Kavanoz"
+        accent="blue"
       />,
     );
     expect(screen.getByRole("link", { name: "Satınalma anasayfası" })).toHaveAttribute(
@@ -87,9 +88,10 @@ describe("ProductBreadcrumb", () => {
       "/company/satinalma",
     );
     expect(screen.getByRole("link", { name: "Ürün Ara" })).toBeInTheDocument();
-    // Son adım bağlantı DEĞİL, mevcut sayfa.
+    // Son adım bağlantı DEĞİL, mevcut sayfa — panelde MAVİ (tema rengi).
     const current = screen.getByText("Kornişon Turşu 720 ml Cam Kavanoz");
     expect(current).toHaveAttribute("aria-current", "page");
+    expect(current.className).toContain("text-blue-700");
   });
 });
 

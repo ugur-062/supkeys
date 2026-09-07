@@ -23,12 +23,19 @@ export function Tabs({
   items,
   defaultIndex = 0,
   hashSync = false,
+  accent = "default",
   className,
   panelClassName,
 }: {
   items: TabItem[];
   defaultIndex?: number;
   hashSync?: boolean;
+  /**
+   * Seçili sekmenin rengi (2026-09-08, kullanıcı kararı): panelin satınalma
+   * bölgesinde MAVİ, herkese açık pazar yerinde monokrom. Renk çağırandan
+   * gelir — bileşen hangi portalda olduğunu bilmez.
+   */
+  accent?: "default" | "blue";
   className?: string;
   panelClassName?: string;
 }) {
@@ -52,14 +59,20 @@ export function Tabs({
 
   return (
     <TabGroup selectedIndex={Math.min(index, Math.max(0, visible.length - 1))} onChange={onChange} className={className}>
-      <TabList className="flex gap-6 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none]">
+      {/* Sekme çubuğu (2026-09-08): seçili sekme KALIN + renkli alt çizgi,
+          seçili olmayanlarda hover'da yumuşak zemin. Eskiden hepsi aynı
+          ağırlıkta gri metindi ve çubuk "düz" duruyordu. */}
+      <TabList className="flex gap-1 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none]">
         {visible.map((t) => (
           <Tab
             key={t.id}
             className={cn(
-              "-mb-px shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-zinc-500 outline-none transition",
-              "hover:text-zinc-900 data-[selected]:border-zinc-950 data-[selected]:text-zinc-950",
-              "data-[focus]:rounded-sm data-[focus]:outline data-[focus]:outline-2 data-[focus]:outline-offset-2 data-[focus]:outline-zinc-950",
+              "-mb-px shrink-0 rounded-t-lg border-b-2 border-transparent px-3 py-3 text-sm font-medium text-zinc-500 outline-none transition",
+              "hover:bg-zinc-50 data-[selected]:font-semibold",
+              accent === "blue"
+                ? "hover:text-blue-700 data-[selected]:border-blue-600 data-[selected]:text-blue-700 data-[focus]:outline-blue-600"
+                : "hover:text-zinc-900 data-[selected]:border-zinc-950 data-[selected]:text-zinc-950 data-[focus]:outline-zinc-950",
+              "data-[focus]:rounded-sm data-[focus]:outline data-[focus]:outline-2 data-[focus]:outline-offset-2",
             )}
           >
             {t.label}
