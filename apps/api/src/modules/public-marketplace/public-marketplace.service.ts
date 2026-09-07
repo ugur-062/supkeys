@@ -23,11 +23,13 @@ import type { PublicProductFacetQueryDto, PublicProductQueryDto } from "./dto/pu
 import {
   attributeFacets,
   contextualFacetCounts,
+  employeeValuesQuery,
   productCategoryWhere,
   productSearchClauses,
   productIndexOrderBy,
   productIndexWhere,
   subCategoryCounts,
+  toFacetRow,
 } from "../../common/company/product-index";
 import { relatedProducts } from "../../common/company/related-products";
 import {
@@ -386,7 +388,11 @@ export class PublicMarketplaceService {
     const page = Math.max(1, q.page ?? 1);
     // Where/orderBy TEK KAYNAK (`common/company/product-index.ts`) — panelin
     // "Ürün Ara"sı aynı fonksiyonu okur.
-    const where = productIndexWhere({ ...q, verified: q.verified === "1" });
+    const where = productIndexWhere(
+      { ...q, verified: q.verified === "1", priceUnpriced: q.priceUnpriced === "1" },
+      [],
+      { employeeValues: await employeeValuesQuery(this.prisma, q.employees) },
+    );
     const [total, rows] = await Promise.all([
       this.prisma.companyItem.count({ where }),
       this.prisma.companyItem.findMany({
@@ -621,6 +627,15 @@ export class PublicMarketplaceService {
     activities: { activity: string; count: number }[];
     verified: number;
     price: { has: number; request: number };
+    certifications: { cert: string; count: number }[];
+    employees: { key: number; count: number }[];
+    moq: Record<string, number>;
+    priceHistogram: {
+      min: number;
+      max: number;
+      quantiles: { p33: number; p66: number };
+      buckets: { from: number; to: number; count: number }[];
+    } | null;
     attributes: {
       key: string;
       nameTr: string;
@@ -639,7 +654,17 @@ export class PublicMarketplaceService {
         categoryId: true,
         priceMode: true,
         attributes: true,
-        company: { select: { city: true, activities: true, companyVerificationStatus: true } },
+        moq: true,
+        priceAmount: true,
+        company: {
+          select: {
+            city: true,
+            activities: true,
+            companyVerificationStatus: true,
+            certifications: true,
+            employeeCount: true,
+          },
+        },
       },
       take: FACET_SCAN_CAP + 1,
     });
@@ -647,9 +672,17 @@ export class PublicMarketplaceService {
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
     const prefix = q.category ? categoryPrefix(q.category) : null;
     const inCategory = prefix ? scanned.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : scanned;
-    const sel = { city: q.city, activity: q.activity, verified: q.verified === "1", price: q.price };
-    const ctx = contextualFacetCounts(inCategory, sel);
-    const catCounts = contextualFacetCounts(scanned, sel).categories;
+    const sel = {
+      city: q.city,
+      activity: q.activity,
+      verified: q.verified === "1",
+      price: q.price,
+      cert: q.cert,
+      employees: q.employees,
+    };
+    // `attributes` facet'i ham satırı ister (JSON alanı), sayaçlar eşlenmişi.
+    const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);
+    const catCounts = contextualFacetCounts(scanned.map(toFacetRow), sel).categories;
     const subCounts = subCategoryCounts(inCategory, q.category);
     const cats = await this.resolveCategories([
       ...new Set([...catCounts.map(([id]) => id), ...subCounts.map(([id]) => id)]),
@@ -670,6 +703,10 @@ export class PublicMarketplaceService {
       activities: ctx.activities,
       verified: ctx.verified,
       price: ctx.price,
+      certifications: ctx.certifications,
+      employees: ctx.employees,
+      moq: ctx.moq,
+      priceHistogram: ctx.priceHistogram,
       attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,
     };

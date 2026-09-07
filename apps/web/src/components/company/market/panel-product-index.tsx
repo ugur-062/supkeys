@@ -76,6 +76,7 @@ export function PanelProductIndex({
       total={total}
       drawer={<PanelProductFilters idPrefix="m" />}
       drawerHideAt="xl"
+      pushFilters
     >
       <Inner state={state} result={result} banner={banner} band={band} footer={footer} />
     </FilterShell>

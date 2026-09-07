@@ -5,8 +5,25 @@ import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
 import { readViewPreference, writeViewPreference } from "@/lib/public/view-preference";
 import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon, XMarkIcon } from "@heroicons/react/20/solid";
-import { Check, FilterChipBar, Group, SHOW, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
-import { companyActivityLabel } from "@rothern/shared";
+import {
+  Check,
+  FilterChipBar,
+  FilterSearch,
+  Group,
+  PriceHistogram,
+  SHOW,
+  ShowMore,
+  ShowMoreRadio,
+  type FilterChip,
+} from "./filter-primitives";
+import { COMPANY_ACTIVITIES, EMPLOYEE_BUCKETS, companyActivityLabel, employeeBucketLabel } from "@rothern/shared";
+
+/**
+ * "Min. sipariş" ön ayarları — API'deki `MOQ_BUCKETS` ile AYNI sayılar
+ * olmalı, yoksa "≤100 (12)" yazan kutucuk 9 ürün gösterir. Sayı üç yerde
+ * (API where, API sayaç, buradaki etiket) aynı olduğu sürece tutarlı.
+ */
+const MOQ_PRESETS = [10, 100, 1000] as const;
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -38,27 +55,57 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
       </Group>
 
       <Group
-        title="Faaliyet tipi"
+        title="Tedarikçi türü"
         count={state.activities.length}
         onClear={() => update({ activities: [] })}
         storageKey="faaliyet"
       >
+        {/* TÜM tipler listelenir, yalnız sonuçta geçenler değil (2026-09-07).
+            Eskiden `facets.activities` doğrudan basılıyordu: veride yalnız
+            2 tip olduğu için kullanıcı diğer 3'ün var olduğunu bilmiyordu.
+            Sayısı 0 olanı `Check` zaten soluklaştırıp devre dışı bırakıyor —
+            "yok" ile "hiç tanımlı değil" arasındaki fark böyle görünür. */}
         <ShowMore
-          items={facets.activities.map((a) => ({ key: a.activity, label: companyActivityLabel(a.activity), count: a.count }))}
+          items={COMPANY_ACTIVITIES.map((a) => ({
+            key: a.code,
+            label: a.nameTr,
+            count: facets.activities.find((f) => f.activity === a.code)?.count ?? 0,
+          }))}
           selected={state.activities}
           idPrefix={`${idPrefix}-act`}
           onToggle={(k, on) => update((s) => ({ ...s, activities: on ? [...s.activities, k] : s.activities.filter((x) => x !== k) }))}
         />
       </Group>
 
-      <Group title="Şehir" count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
+      <LocationGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
+
+      <CertificationGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
+
+      <Group
+        title="Çalışan sayısı"
+        count={state.employees.length}
+        onClear={() => update({ employees: [] })}
+        storageKey="calisan"
+        defaultOpen={false}
+      >
         <ShowMore
-          items={facets.cities.map((c) => ({ key: c.city, label: c.city, count: c.count }))}
-          selected={state.cities}
-          idPrefix={`${idPrefix}-city`}
-          onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
+          items={EMPLOYEE_BUCKETS.map((b) => ({
+            key: String(b.key),
+            label: b.label,
+            count: facets.employees?.find((e) => e.key === b.key)?.count ?? 0,
+          }))}
+          selected={state.employees.map(String)}
+          idPrefix={`${idPrefix}-emp`}
+          onToggle={(k, on) =>
+            update((s) => ({
+              ...s,
+              employees: on ? [...s.employees, Number(k)] : s.employees.filter((x) => x !== Number(k)),
+            }))
+          }
         />
       </Group>
+
+      <MoqGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
       <PriceGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
@@ -85,6 +132,141 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
 
 
 
+
+/**
+ * KONUM — il çoklu seçim, arama kutulu.
+ *
+ * "Yakınımda + yarıçap" AYRI bir iş (Faz 2): koordinat verisi yok, 81 ilin
+ * merkez koordinatı `@rothern/shared`a eklenince buraya iner.
+ */
+function LocationGroup({
+  facets,
+  state,
+  update,
+  idPrefix,
+}: {
+  facets: ProductFacets;
+  state: ProductFilterState;
+  update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
+  idPrefix: string;
+}) {
+  const [q, setQ] = useState("");
+  const fold = (v: string) => v.toLocaleLowerCase("tr");
+  const items = facets.cities
+    .filter((c) => !q || fold(c.city).includes(fold(q)) || state.cities.includes(c.city))
+    .map((c) => ({ key: c.city, label: c.city, count: c.count }));
+  return (
+    <Group title="Konum" count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
+      {facets.cities.length > SHOW ? (
+        <FilterSearch id={`${idPrefix}-city-q`} value={q} onChange={setQ} placeholder="İl ara" />
+      ) : null}
+      <ShowMore
+        items={items}
+        selected={state.cities}
+        idPrefix={`${idPrefix}-city`}
+        onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
+        emptyText="Eşleşen il yok"
+      />
+    </Group>
+  );
+}
+
+/**
+ * SERTİFİKALAR — firmaların kendi yazdığı serbest metin, facet'ten dinamik.
+ *
+ * Liste kürasyonlu DEĞİL: sabit bir "ISO 9001 / CE / FSC" listesi basmak,
+ * veride olmayan seçenekleri vaat eder ve veride OLAN başkalarını gizlerdi.
+ * Aynı sebeple normalize de edilmez — süzgeç ham dizeyle sorguluyor,
+ * sayılan ile eşleşen ayrışmasın.
+ */
+function CertificationGroup({
+  facets,
+  state,
+  update,
+  idPrefix,
+}: {
+  facets: ProductFacets;
+  state: ProductFilterState;
+  update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
+  idPrefix: string;
+}) {
+  const [q, setQ] = useState("");
+  const all = facets.certifications ?? [];
+  const fold = (v: string) => v.toLocaleLowerCase("tr");
+  const items = all
+    .filter((c) => !q || fold(c.cert).includes(fold(q)) || state.certs.includes(c.cert))
+    .map((c) => ({ key: c.cert, label: c.cert, count: c.count }));
+  // Hiç sertifika beyanı yoksa grup ÇİZİLMEZ — boş kutu basmayız.
+  if (all.length === 0) return null;
+  return (
+    <Group
+      title="Sertifikalar"
+      count={state.certs.length}
+      onClear={() => update({ certs: [] })}
+      storageKey="sertifika"
+      defaultOpen={false}
+    >
+      {all.length > SHOW ? (
+        <FilterSearch id={`${idPrefix}-cert-q`} value={q} onChange={setQ} placeholder="Sertifika ara" />
+      ) : null}
+      <ShowMore
+        items={items}
+        selected={state.certs}
+        idPrefix={`${idPrefix}-cert`}
+        onToggle={(k, on) => update((s) => ({ ...s, certs: on ? [...s.certs, k] : s.certs.filter((x) => x !== k) }))}
+        emptyText="Eşleşen sertifika yok"
+      />
+    </Group>
+  );
+}
+
+/**
+ * MİN. SİPARİŞ — ön ayarlı tavanlar (radio: kümülatif, çoklu seçim anlamsız).
+ * Serbest sayı kutusu Fiyat grubundan KALKTI: aynı ekseni iki yerde sormak
+ * "≤100 seçtim ama kutuda 250 yazıyor" çelişkisi üretiyordu.
+ */
+function MoqGroup({
+  facets,
+  state,
+  update,
+  idPrefix,
+}: {
+  facets: ProductFacets;
+  state: ProductFilterState;
+  update: (p: Partial<ProductFilterState>) => void;
+  idPrefix: string;
+}) {
+  return (
+    <Group
+      title="Min. sipariş"
+      count={state.moqMax != null ? 1 : 0}
+      onClear={() => update({ moqMax: undefined })}
+      storageKey="moq"
+      defaultOpen={false}
+    >
+      <Check
+        id={`${idPrefix}-moq-any`}
+        label="Farketmez"
+        checked={state.moqMax == null}
+        onChange={() => update({ moqMax: undefined })}
+        type="radio"
+        name={`${idPrefix}-moq`}
+      />
+      {MOQ_PRESETS.map((n) => (
+        <Check
+          key={n}
+          id={`${idPrefix}-moq-${n}`}
+          label={`≤ ${n.toLocaleString("tr-TR")}`}
+          count={facets.moq?.[String(n)]}
+          checked={state.moqMax === n}
+          onChange={() => update({ moqMax: n })}
+          type="radio"
+          name={`${idPrefix}-moq`}
+        />
+      ))}
+    </Group>
+  );
+}
 
 function CategoryGroup({
   facets,
@@ -138,6 +320,12 @@ function CategoryGroup({
 }
 
 
+/**
+ * FİYAT — histogram + hazır aralıklar + serbest min/max + "fiyatsızlar dahil".
+ *
+ * MOQ kutusu BURADAN ÇIKTI (2026-09-07): kendi grubu var, aynı ekseni iki
+ * yerde sormak çelişki üretiyordu.
+ */
 function PriceGroup({
   facets,
   state,
@@ -151,24 +339,62 @@ function PriceGroup({
 }) {
   const [min, setMin] = useState(state.priceMin?.toString() ?? "");
   const [max, setMax] = useState(state.priceMax?.toString() ?? "");
-  const [moq, setMoq] = useState(state.moqMax?.toString() ?? "");
-  useEffect(() => { setMin(state.priceMin?.toString() ?? ""); setMax(state.priceMax?.toString() ?? ""); setMoq(state.moqMax?.toString() ?? ""); }, [state.priceMin, state.priceMax, state.moqMax]);
+  useEffect(() => {
+    setMin(state.priceMin?.toString() ?? "");
+    setMax(state.priceMax?.toString() ?? "");
+  }, [state.priceMin, state.priceMax]);
   // 400 ms debounce — her tuşta sunucuya gitmesin.
   useEffect(() => {
     const t = setTimeout(() => {
       const n = (v: string) => (v.trim() === "" ? undefined : Math.max(0, Math.trunc(Number(v))) || undefined);
-      const pm = n(min), px = n(max), mq = n(moq);
-      if (pm !== state.priceMin || px !== state.priceMax || mq !== state.moqMax) update({ priceMin: pm, priceMax: px, moqMax: mq });
+      const pm = n(min);
+      const px = n(max);
+      if (pm !== state.priceMin || px !== state.priceMax) update({ priceMin: pm, priceMax: px });
     }, 400);
     return () => clearTimeout(t);
-  }, [min, max, moq]); // eslint-disable-line react-hooks/exhaustive-deps
-  const count = (state.price ? 1 : 0) + (state.priceMin != null || state.priceMax != null ? 1 : 0) + (state.moqMax != null ? 1 : 0);
+  }, [min, max]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hasRange = state.priceMin != null || state.priceMax != null;
+  const count = (state.price ? 1 : 0) + (hasRange ? 1 : 0);
+  const hist = facets.priceHistogram;
   return (
-    <Group title="Fiyat" count={count} onClear={() => update({ price: undefined, priceMin: undefined, priceMax: undefined, moqMax: undefined })} storageKey="fiyat">
-      <Check id={`${idPrefix}-price-any`} label="Hepsi" checked={!state.price} onChange={() => update({ price: undefined })} type="radio" name={`${idPrefix}-price`} />
-      <Check id={`${idPrefix}-price-has`} label="Fiyatı yazılı" count={facets.price.has} checked={state.price === "var"} onChange={() => update({ price: "var" })} type="radio" name={`${idPrefix}-price`} />
-      <Check id={`${idPrefix}-price-req`} label="Teklifle" count={facets.price.request} checked={state.price === "teklif"} onChange={() => update({ price: "teklif" })} type="radio" name={`${idPrefix}-price`} />
-      <div className="mt-2 grid grid-cols-2 gap-2 px-2">
+    <Group
+      title="Fiyat"
+      count={count}
+      onClear={() => update({ price: undefined, priceMin: undefined, priceMax: undefined, priceUnpriced: false })}
+      storageKey="fiyat"
+    >
+      {hist ? (
+        <PriceHistogram
+          data={hist}
+          from={state.priceMin}
+          to={state.priceMax}
+          onPick={(from, to) => update({ priceMin: from, priceMax: to })}
+        />
+      ) : null}
+
+      {/* HAZIR ARALIKLAR — histogramın gerçek uçlarına göre türetilir; sabit
+          "0-100 / 100-1.000" listesi envanterle ilgisiz kovalar basardı. */}
+      {hist ? (
+        <div className="mb-2 flex flex-wrap gap-1.5 px-2">
+          {presetRanges(hist).map((r) => {
+            const on = state.priceMin === r.from && state.priceMax === r.to;
+            return (
+              <button
+                key={`${r.from}-${r.to}`}
+                type="button"
+                onClick={() => update(on ? { priceMin: undefined, priceMax: undefined } : { priceMin: r.from, priceMax: r.to })}
+                className={`tnum rounded-full px-2.5 py-1 text-xs transition ${
+                  on ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                }`}
+              >
+                {r.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <div className="mb-2 grid grid-cols-2 gap-2 px-2">
         <label className="text-xs text-zinc-500">
           Min ₺
           <input inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} placeholder="0" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
@@ -177,13 +403,50 @@ function PriceGroup({
           Max ₺
           <input inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} placeholder="∞" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
-        <label className="col-span-2 text-xs text-zinc-500">
-          Min. sipariş en fazla (adet)
-          <input inputMode="numeric" value={moq} onChange={(e) => setMoq(e.target.value.replace(/\D/g, ""))} placeholder="örn. 100" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
-        </label>
       </div>
+
+      {/* Yalnız ARALIK seçiliyken anlamlı: aralık `priceAmount`a bakar,
+          "teklif isteyin" ürünlerinde o alan boş ve hepsi sessizce düşerdi. */}
+      {hasRange ? (
+        <Check
+          id={`${idPrefix}-price-unpriced`}
+          label="Fiyatı belirtilmemiş ürünler dahil"
+          count={facets.price.request}
+          checked={state.priceUnpriced}
+          onChange={(v) => update({ priceUnpriced: v })}
+        />
+      ) : null}
+
+      <Check id={`${idPrefix}-price-any`} label="Hepsi" checked={!state.price} onChange={() => update({ price: undefined })} type="radio" name={`${idPrefix}-price`} />
+      <Check id={`${idPrefix}-price-has`} label="Fiyatı yazılı" count={facets.price.has} checked={state.price === "var"} onChange={() => update({ price: "var" })} type="radio" name={`${idPrefix}-price`} />
+      <Check id={`${idPrefix}-price-req`} label="Teklifle" count={facets.price.request} checked={state.price === "teklif"} onChange={() => update({ price: "teklif" })} type="radio" name={`${idPrefix}-price`} />
     </Group>
   );
+}
+
+/**
+ * ÜÇ HAZIR ARALIK — sınırlar ÜÇTE BİRLİK dilimlerden (sunucudan gelen
+ * `quantiles`), doğrusal bölmeden DEĞİL.
+ *
+ * Canlıda fiyatlar 3 ₺ ile 465.000 ₺ arasında ve çarpık dağılıyor: doğrusal
+ * bölmede "≤ 120.000 ₺" envanterin neredeyse tamamını, diğer iki aralık
+ * hiçbir şeyi kapsıyordu. Üçte birlik sınırlarda her aralık kabaca eşit
+ * sayıda ürün taşır. Quantile gelmezse (eski kenar önbelleği) aralık
+ * BASILMAZ — yanlış aralık göstermektense hiç göstermemek.
+ */
+function presetRanges(hist: {
+  min: number;
+  max: number;
+  quantiles?: { p33: number; p66: number };
+}): { from: number; to: number; label: string }[] {
+  const q = hist.quantiles;
+  if (!q || !(q.p33 < q.p66 && q.p66 < hist.max)) return [];
+  const fmt = (n: number) => n.toLocaleString("tr-TR");
+  return [
+    { from: 0, to: q.p33, label: `≤ ${fmt(q.p33)} ₺` },
+    { from: q.p33, to: q.p66, label: `${fmt(q.p33)} – ${fmt(q.p66)} ₺` },
+    { from: q.p66, to: hist.max, label: `${fmt(q.p66)} ₺ +` },
+  ];
 }
 
 /** Aktif süzgeç çipleri — sticky şerit (grid'in üstünde). */
@@ -196,7 +459,9 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   if (state.verified) chips.push({ key: "v", label: "Doğrulanmış", onRemove: () => update({ verified: false }) });
   if (state.price) chips.push({ key: "p", label: state.price === "var" ? "Fiyatı yazılı" : "Teklifle", onRemove: () => update({ price: undefined }) });
   if (state.priceMin != null || state.priceMax != null) chips.push({ key: "pr", label: `${state.priceMin ?? 0} – ${state.priceMax ?? "∞"} ₺`, onRemove: () => update({ priceMin: undefined, priceMax: undefined }) });
-  if (state.moqMax != null) chips.push({ key: "moq", label: `Min. sipariş ≤ ${state.moqMax}`, onRemove: () => update({ moqMax: undefined }) });
+  if (state.moqMax != null) chips.push({ key: "moq", label: `Min. sipariş ≤ ${state.moqMax.toLocaleString("tr-TR")}`, onRemove: () => update({ moqMax: undefined }) });
+  for (const c of state.certs) chips.push({ key: `cert:${c}`, label: c, onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
+  for (const e of state.employees) chips.push({ key: `emp:${e}`, label: `${employeeBucketLabel(e)} çalışan`, onRemove: () => update((s) => ({ ...s, employees: s.employees.filter((x) => x !== e) })) });
   for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: a.slice(a.indexOf(":") + 1), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
   return <FilterChipBar chips={chips} activeCount={activeFilterCount(state)} onClearAll={clear} />;
 }

@@ -11,6 +11,10 @@ import { PublicMarketplaceService } from "../../src/modules/public-marketplace/p
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+// Çalışan kovası süzgeci `employeeCount` DISTINCT değerlerini 15 dk önbelleğe
+// alır; her test kendi firmalarını kurduğu için önbellek turlar arasında
+// bayat kalır ve süzgeç boş dönerdi.
+import { resetEmployeeValueCache } from "../../src/common/company/product-index";
 
 const service = () =>
   new PublicMarketplaceService(prisma as unknown as PrismaBypassService);
@@ -395,6 +399,7 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
 describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () => {
   beforeEach(async () => {
     await truncateAll();
+    resetEmployeeValueCache();
   });
 
   it("şehir ve faaliyet virgüllü çoklu (OR); fiyat aralığı ve MOQ tavanı", async () => {
@@ -408,6 +413,64 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     // MOQ tavanı: MOQ'suz ürün (C) de geçer.
     expect((await service().listProducts({ moqMax: 10 })).items.map((p) => p.name).sort()).toEqual(["A", "C"]);
     expect((await service().listProducts({ sort: "price_desc" })).items[0].name).toBe("B");
+  });
+
+  it("sertifika ve çalışan kovası: süzgeç + BAĞLAMA DUYARLI sayaç", async () => {
+    await seedProduct({ city: "İstanbul", certifications: ["ISO 9001", "CE"], employeeCount: "50-249" }, { name: "A" });
+    await seedProduct({ city: "İzmir", certifications: ["ISO 9001"], employeeCount: "10-49" }, { name: "B" });
+    await seedProduct({ city: "İzmir", certifications: [], employeeCount: "250+" }, { name: "C" });
+    resetEmployeeValueCache();
+
+    expect((await service().listProducts({ cert: "ISO 9001" })).items.map((p) => p.name).sort()).toEqual(["A", "B"]);
+    // Çoklu = OR.
+    expect((await service().listProducts({ cert: "CE,ISO 9001" })).items.map((p) => p.name).sort()).toEqual(["A", "B"]);
+    // Kova ALT SINIRIYLA seçilir; serbest metin sunucuda ayrıştırılır.
+    expect((await service().listProducts({ employees: "50" })).items.map((p) => p.name)).toEqual(["A"]);
+    expect((await service().listProducts({ employees: "10,250" })).items.map((p) => p.name).sort()).toEqual(["B", "C"]);
+
+    const f = await service().productFacets({ cert: "ISO 9001" });
+    // Sertifika sayacı KENDİ seçimini hariç tutar → CE hâlâ görünür.
+    expect(f.certifications.find((c) => c.cert === "CE")?.count).toBe(1);
+    // Şehir sayacı sertifika seçimiyle DARALIR → C (sertifikasız) düşer.
+    expect(f.cities.find((c) => c.city === "İzmir")?.count).toBe(1);
+    // Çalışan sayacı da sertifika seçimiyle daralır.
+    expect(f.employees.find((e) => e.key === 250)).toBeUndefined();
+  });
+
+  it("fiyat aralığı fiyatsızları düşürür; 'fiyatsızlar dahil' onları geri getirir", async () => {
+    await seedProduct({}, { name: "Ucuz", priceMode: "FIXED", priceAmount: "100" });
+    await seedProduct({}, { name: "Pahalı", priceMode: "FIXED", priceAmount: "9000" });
+    await seedProduct({}, { name: "Teklifle", priceMode: "ON_REQUEST" });
+    expect((await service().listProducts({ priceMax: 500 })).items.map((p) => p.name)).toEqual(["Ucuz"]);
+    expect(
+      (await service().listProducts({ priceMax: 500, priceUnpriced: "1" })).items.map((p) => p.name).sort(),
+    ).toEqual(["Teklifle", "Ucuz"]);
+  });
+
+  it("MOQ ön ayar sayaçları KÜMÜLATİF ve where ile aynı kuralı uygular", async () => {
+    await seedProduct({}, { name: "A", moq: "5" });
+    await seedProduct({}, { name: "B", moq: "50" });
+    await seedProduct({}, { name: "C" }); // MOQ yok → her kovaya girer
+    const f = await service().productFacets({});
+    expect(f.moq["10"]).toBe(2); // A + C
+    expect(f.moq["100"]).toBe(3); // A + B + C
+    // Sayaç ile liste AYNI sayıyı vermeli — ayrışırsa "≤10 (2)" tıklanıp 1 çıkardı.
+    expect((await service().listProducts({ moqMax: 10 })).total).toBe(f.moq["10"]);
+    expect((await service().listProducts({ moqMax: 100 })).total).toBe(f.moq["100"]);
+  });
+
+  it("fiyat histogramı: fiyatı yazılı 2'den az ürün varsa null", async () => {
+    await seedProduct({}, { name: "Tek", priceMode: "FIXED", priceAmount: "100" });
+    expect((await service().productFacets({})).priceHistogram).toBeNull();
+    for (const p of [200, 300, 400, 500, 600]) {
+      await seedProduct({}, { name: `P${p}`, priceMode: "FIXED", priceAmount: String(p) });
+    }
+    const h = (await service().productFacets({})).priceHistogram;
+    expect(h).not.toBeNull();
+    expect(h!.min).toBe(100);
+    expect(h!.max).toBe(600);
+    // Kovalardaki toplam = fiyatı yazılı ürün sayısı (hiçbiri düşmez).
+    expect(h!.buckets.reduce((a, b) => a + b.count, 0)).toBe(6);
   });
 
   it("facet sayıları diğer seçimlere göre; kendi boyutu hariç", async () => {

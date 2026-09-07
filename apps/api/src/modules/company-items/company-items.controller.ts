@@ -249,6 +249,9 @@ export class CompanyItemsController {
     @Query("priceMin") priceMin?: string,
     @Query("priceMax") priceMax?: string,
     @Query("moqMax") moqMax?: string,
+    @Query("priceUnpriced") priceUnpriced?: string,
+    @Query("cert") cert?: string,
+    @Query("employees") employees?: string,
     @Query("pageSize") pageSize?: string,
   ) {
     const n = Number(page);
@@ -267,6 +270,9 @@ export class CompanyItemsController {
       priceMin: num(priceMin),
       priceMax: num(priceMax),
       moqMax: num(moqMax),
+      priceUnpriced: priceUnpriced === "1",
+      cert: cert?.slice(0, 400) || undefined,
+      employees: employeeList(employees),
       sort: sort === "newest" || sort === "price" || sort === "price_desc" ? sort : undefined,
       attr: attr == null ? undefined : (Array.isArray(attr) ? attr : [attr]).slice(0, 6),
       page: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
@@ -285,6 +291,8 @@ export class CompanyItemsController {
     @Query("activity") activity?: string,
     @Query("verified") verified?: string,
     @Query("price") price?: string,
+    @Query("cert") cert?: string,
+    @Query("employees") employees?: string,
   ) {
     return this.service.discoverFacets(user, {
       category: category && /^\d{8}$/.test(category) ? category : undefined,
@@ -293,6 +301,10 @@ export class CompanyItemsController {
       activity: activity?.slice(0, 200) || undefined,
       verified: verified === "1",
       price: price === "has" || price === "request" ? price : undefined,
+      // Sayaçlar BAĞLAMA DUYARLI: seçili her boyut buraya da gelmeli, yoksa
+      // "sertifika seçiliyken şehir sayacı" tüm dizini sayar.
+      cert: cert?.slice(0, 400) || undefined,
+      employees: employeeList(employees),
     });
   }
 
@@ -456,4 +468,17 @@ export class CompanyItemsController {
   ) {
     return this.service.markUsed(user.companyId, dto.ids);
   }
+}
+
+/**
+ * `?employees=10,50` → aynı biçimde temizlenmiş dize.
+ *
+ * Panel ham `@Query` kullanıyor (DTO yok) — `forbidNonWhitelisted` burada
+ * devrede DEĞİL, bu yüzden temizlik elle. Yalnız sayı ve virgül geçer;
+ * geçersiz kova anahtarlarını `employeeKeysOf` zaten düşürür.
+ */
+function employeeList(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const clean = raw.slice(0, 40).split(",").map((x) => x.trim()).filter((x) => /^\d{1,3}$/.test(x));
+  return clean.length ? clean.join(",") : undefined;
 }

@@ -34,10 +34,12 @@ import {
   PRODUCT_PAGE_SIZE,
   attributeFacets,
   contextualFacetCounts,
+  employeeValuesQuery,
   productIndexOrderBy,
   productIndexWhere,
   productSearchClauses,
   subCategoryCounts,
+  toFacetRow,
   type ProductIndexParams,
 } from "../../common/company/product-index";
 import {
@@ -469,7 +471,9 @@ export class CompanyItemsService {
   ) {
     const page = Math.max(1, q.page ?? 1);
     const size = Math.min(Math.max(q.pageSize ?? PRODUCT_PAGE_SIZE, 1), 48);
-    const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }]);
+    const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }], {
+      employeeValues: await employeeValuesQuery(this.prisma, q.employees),
+    });
     const orderBy = productIndexOrderBy(q.sort);
     const skip = (page - 1) * size;
     // ALICIYA GÖRE UYGUNLUK (2026-09-05): sıralama seçilmemişse ("uygunluk")
@@ -554,7 +558,17 @@ export class CompanyItemsService {
         categoryId: true,
         priceMode: true,
         attributes: true,
-        company: { select: { city: true, activities: true, companyVerificationStatus: true } },
+        moq: true,
+        priceAmount: true,
+        company: {
+          select: {
+            city: true,
+            activities: true,
+            companyVerificationStatus: true,
+            certifications: true,
+            employeeCount: true,
+          },
+        },
       },
       take: PRODUCT_FACET_SCAN_CAP + 1,
     });
@@ -564,8 +578,8 @@ export class CompanyItemsService {
     const rows = truncated ? raw.slice(0, PRODUCT_FACET_SCAN_CAP) : raw;
     const prefix = q.category ? categoryPrefix(q.category) : null;
     const inCategory = prefix ? rows.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : rows;
-    const ctx = contextualFacetCounts(inCategory, q);
-    const catCounts = contextualFacetCounts(rows, q).categories;
+    const ctx = contextualFacetCounts(inCategory.map(toFacetRow), q);
+    const catCounts = contextualFacetCounts(rows.map(toFacetRow), q).categories;
     const subCounts = subCategoryCounts(inCategory, q.category);
     const ids = [...new Set([...catCounts.map(([id]) => id), ...subCounts.map(([id]) => id)])];
     const cats = ids.length
@@ -585,6 +599,10 @@ export class CompanyItemsService {
       activities: ctx.activities,
       verified: ctx.verified,
       price: ctx.price,
+      certifications: ctx.certifications,
+      employees: ctx.employees,
+      moq: ctx.moq,
+      priceHistogram: ctx.priceHistogram,
       attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,
     };

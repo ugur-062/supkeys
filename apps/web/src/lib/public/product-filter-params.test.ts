@@ -4,7 +4,7 @@ import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseP
 describe("ürün süzgeç URL şeması", () => {
   it("Türkçe sorguyu ayrıştırır: çoklu şehir/faaliyet, aralık, sıralama", () => {
     const f = parseProductFilters({ q: " pano ", kategori: "39000000", sehir: "İstanbul,İzmir", faaliyet: "MANUFACTURER,hacker", dogrulanmis: "1", fiyat: "var", fiyatMin: "100", fiyatMax: "abc", moqMax: "50", sirala: "fiyat-azalan", nitelik: ["malzeme:Çelik", "bozuk"], sayfa: "3" });
-    expect(f).toEqual({ q: "pano", category: "39000000", cities: ["İstanbul", "İzmir"], activities: ["MANUFACTURER"], verified: true, price: "var", priceMin: 100, priceMax: undefined, moqMax: 50, sort: "fiyat-azalan", attrs: ["malzeme:Çelik"], page: 3 });
+    expect(f).toMatchObject({ q: "pano", category: "39000000", cities: ["İstanbul", "İzmir"], activities: ["MANUFACTURER"], verified: true, price: "var", priceMin: 100, priceMax: undefined, moqMax: 50, sort: "fiyat-azalan", attrs: ["malzeme:Çelik"], page: 3 });
     expect(toProductListParams(f)).toMatchObject({ city: "İstanbul,İzmir", activity: "MANUFACTURER", verified: true, price: "has", sort: "price_desc", page: 3 });
   });
   it("yoldan gelen kategori sorgudakini ezer; eski `il` parametresi okunur", () => {
@@ -29,5 +29,28 @@ describe("ürün süzgeç URL şeması", () => {
 
   it("aktif süzgeç sayısı arama/sıralama/sayfayı saymaz", () => {
     expect(activeFilterCount(parseProductFilters({ q: "x", sirala: "yeni", sayfa: "2", sehir: "A,B", dogrulanmis: "1" }))).toBe(3);
+  });
+
+  it("2026-09-07 grupları: sertifika, çalışan kovası, fiyatsız dahil", () => {
+    const f = parseProductFilters({ sertifika: "ISO 9001,CE", calisan: "10,50,999", fiyatMin: "100", fiyatsizDahil: "1" });
+    expect(f.certs).toEqual(["ISO 9001", "CE"]);
+    // Bilinmeyen kova anahtarı DÜŞER (URL elle düzenlenmiş olabilir).
+    expect(f.employees).toEqual([10, 50]);
+    expect(f.priceUnpriced).toBe(true);
+    // Her biri ayrı bir aktif süzgeç: 2 sertifika + 2 kova + 1 fiyat aralığı.
+    expect(activeFilterCount(f)).toBe(5);
+    expect(toProductListParams(f)).toMatchObject({
+      cert: "ISO 9001,CE",
+      employees: "10,50",
+      priceUnpriced: true,
+    });
+    // Gidiş-dönüş kararlı.
+    expect(parseProductFilters(new URLSearchParams(buildProductFilterQuery(f)))).toEqual(f);
+  });
+
+  it("fiyatsızDahil aralık YOKKEN de taşınır ama tek başına süzgeç sayılmaz", () => {
+    const f = parseProductFilters({ fiyatsizDahil: "1" });
+    expect(f.priceUnpriced).toBe(true);
+    expect(activeFilterCount(f)).toBe(0);
   });
 });

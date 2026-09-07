@@ -1,5 +1,15 @@
-import { Prisma } from "@rothern/db";
-import { categoryAtLevel, categoryLevel, categoryPrefix, foldSearchText, isCompanyActivity, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { Prisma, type PrismaClient } from "@rothern/db";
+import {
+  categoryAtLevel,
+  categoryLevel,
+  categoryPrefix,
+  EMPLOYEE_BUCKET_KEYS,
+  employeeBucket,
+  foldSearchText,
+  isCompanyActivity,
+  stemPrefix,
+  tokenizeQuery,
+} from "@rothern/shared";
 import { resolveCategoryAttributes } from "./category-attributes";
 import { publicProductWhere } from "./public-profile-gate";
 
@@ -25,13 +35,101 @@ export interface ProductIndexParams {
   priceMax?: number;
   /** "Min. sipariş ≤ X" — MOQ'su bu değerden küçük/eşit ya da hiç olmayanlar. */
   moqMax?: number;
+  /**
+   * Fiyat aralığı seçiliyken FİYATI BELİRTİLMEMİŞ ürünler de kalsın
+   * (2026-09-07). Aralık `priceAmount`a bakar, `ON_REQUEST` ürünlerde o alan
+   * boştur ve aralık seçilir seçilmez hepsi düşerdi — envanterin yarısı
+   * "teklif isteyin" olduğu için kullanıcı aralığı daraltınca listenin
+   * çökmesini bir hata sanıyordu.
+   */
+  priceUnpriced?: boolean;
+  /** Tek değer ya da virgüllü liste — firma sertifikaları (ÇOKLU, OR). */
+  cert?: string;
+  /** Virgüllü çalışan kovası ALT SINIRLARI ("10,50") — bkz. `employee-bucket`. */
+  employees?: string;
   attr?: string[];
   sort?: "relevance" | "newest" | "price" | "price_desc";
 }
 
+/**
+ * "Min. sipariş" ön ayarları. Kova sınırı BURADA — `productIndexWhere`
+ * (`moqMax`) ile facet sayacı aynı sayıyı kullanmazsa kullanıcı "≤100 (12)"
+ * yazan bir kutucuğa tıklayıp 9 ürün görür.
+ */
+export const MOQ_BUCKETS = [10, 100, 1000] as const;
+
+/** Fiyat histogramı kova sayısı — ray genişliğinde okunur kalan en yüksek değer. */
+export const PRICE_HISTOGRAM_BUCKETS = 12;
+
 /** Virgüllü çoklu değer → dizi (boşlar düşer, tavan 10). */
 export function multi(v?: string): string[] {
   return (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
+}
+
+/** Virgüllü çalışan kovası alt sınırları → sayı dizisi (geçersizler düşer). */
+export function employeeKeysOf(raw?: string): number[] {
+  return multi(raw)
+    .map((x) => Number(x))
+    .filter((n) => Number.isFinite(n) && EMPLOYEE_BUCKET_KEYS.includes(n));
+}
+
+/**
+ * Seçili kovalara DÜŞEN ham `employeeCount` dizeleri.
+ *
+ * Serbest metin kolonunda kova SQL'de sorgulanamaz; çağıran distinct
+ * değerleri (küçük küme) verir, burada kovalanır ve `where` bir `in`
+ * listesine iner. Tek yer olması şart: sayaç bir kuralla, süzgeç başka bir
+ * kuralla çalışırsa "50-249 (7)" tıklanınca 4 ürün çıkardı.
+ */
+export function employeeValuesFor(distinct: (string | null)[], raw?: string): string[] {
+  const keys = new Set(employeeKeysOf(raw));
+  if (!keys.size) return [];
+  return distinct.filter((v): v is string => {
+    const b = employeeBucket(v);
+    return b != null && keys.has(b);
+  });
+}
+
+/**
+ * `employeeCount` DISTINCT değerleri — 15 dk bellek önbelleği.
+ *
+ * Serbest metin kolonunda kova SQL'de sorgulanamadığı için her istekte
+ * distinct çekmek gerekirdi; değer kümesi firma profili kaydedildikçe
+ * değişen küçük bir liste (bugün onlarca satır), bu yüzden süreç içinde
+ * tutuluyor. Bayatlık maliyeti: yeni bir yazım biçimi en geç 15 dk sonra
+ * süzgece girer — sayaç ile liste yine TUTARLI kalır (ikisi de aynı
+ * listeden türer).
+ */
+let employeeValueCache: { at: number; values: string[] } | null = null;
+export const EMPLOYEE_VALUE_TTL_MS = 15 * 60_000;
+
+export async function distinctEmployeeCounts(prisma: Pick<PrismaClient, "company">): Promise<string[]> {
+  if (employeeValueCache && Date.now() - employeeValueCache.at < EMPLOYEE_VALUE_TTL_MS) {
+    return employeeValueCache.values;
+  }
+  const rows = await prisma.company.findMany({
+    where: { employeeCount: { not: null } },
+    select: { employeeCount: true },
+    distinct: ["employeeCount"],
+    take: 500,
+  });
+  const values = rows.map((r) => r.employeeCount).filter((v): v is string => !!v);
+  employeeValueCache = { at: Date.now(), values };
+  return values;
+}
+
+/** Test kolaylığı — önbelleği düşürür. */
+export function resetEmployeeValueCache(): void {
+  employeeValueCache = null;
+}
+
+/** Seçim varsa distinct değerleri çekip kovalar; seçim yoksa sorgu ATILMAZ. */
+export async function employeeValuesQuery(
+  prisma: Parameters<typeof distinctEmployeeCounts>[0],
+  employees?: string,
+): Promise<string[] | undefined> {
+  if (!employeeKeysOf(employees).length) return undefined;
+  return employeeValuesFor(await distinctEmployeeCounts(prisma), employees);
 }
 
 export const PRODUCT_PAGE_SIZE = 24;
@@ -93,9 +191,12 @@ export function productCategoryWhere(code?: string): Prisma.CompanyItemWhereInpu
 export function productIndexWhere(
   q: ProductIndexParams,
   extra: Prisma.CompanyItemWhereInput[] = [],
+  opts: { employeeValues?: string[] } = {},
 ): Prisma.CompanyItemWhereInput {
   const cities = multi(q.city);
   const activities = multi(q.activity).filter(isCompanyActivity);
+  const certs = multi(q.cert);
+  const employeeKeys = employeeKeysOf(q.employees);
   const and: Prisma.CompanyItemWhereInput[] = [
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
@@ -109,10 +210,23 @@ export function productIndexWhere(
       : q.price === "request"
         ? [{ priceMode: "ON_REQUEST" as const }]
         : []),
+    ...(certs.length ? [{ company: { certifications: { hasSome: certs } } }] : []),
+    // ÇALIŞAN KOVASI: kolon serbest metin olduğu için SQL'de kova sorgulanamaz —
+    // çağıran, veritabanındaki distinct değerleri kovalayıp EŞLEŞEN DİZELERİ
+    // `employeeValues` ile geçer (bkz. `employeeValuesFor`). Liste boşsa
+    // seçim hiçbir şeyi eşlemiyordur; `in: []` doğru sonucu (0 kayıt) verir.
+    ...(employeeKeys.length ? [{ company: { employeeCount: { in: opts.employeeValues ?? [] } } }] : []),
     // Fiyat aralığı yalnız yazılı birim fiyatı olanlara uygulanır (sabit fiyat;
     // kademeli ürünlerin tabanı priceAmount'ta yok — kapsam dışı, bilinçli).
     ...(q.priceMin != null || q.priceMax != null
-      ? [{ priceAmount: { ...(q.priceMin != null ? { gte: q.priceMin } : {}), ...(q.priceMax != null ? { lte: q.priceMax } : {}) } }]
+      ? [
+          {
+            OR: [
+              { priceAmount: { ...(q.priceMin != null ? { gte: q.priceMin } : {}), ...(q.priceMax != null ? { lte: q.priceMax } : {}) } },
+              ...(q.priceUnpriced ? [{ priceMode: "ON_REQUEST" as const }] : []),
+            ],
+          },
+        ]
       : []),
     ...(q.moqMax != null ? [{ OR: [{ moq: null }, { moq: { lte: q.moqMax } }] }] : []),
     ...attributeClauses(q.attr),
@@ -148,7 +262,41 @@ export function productIndexOrderBy(
 export interface ProductFacetRow {
   categoryId: string | null;
   priceMode?: string;
-  company: { city: string | null; activities: string[]; companyVerificationStatus?: string };
+  /** Prisma `Decimal` → satır eşlemesinde `.toNumber()` (bkz. `toFacetRow`). */
+  moq?: number | null;
+  priceAmount?: number | null;
+  company: {
+    city: string | null;
+    activities: string[];
+    companyVerificationStatus?: string;
+    certifications?: string[];
+    employeeCount?: string | null;
+  };
+}
+
+/** Prisma satırı → `ProductFacetRow` (Decimal → number). İKİ çağıran da bunu
+ *  kullanır; ayrı ayrı eşlerlerse biri `.toNumber()`ı unutur ve o boyutun
+ *  sayacı sessizce boş döner. */
+export function toFacetRow(r: {
+  categoryId: string | null;
+  priceMode?: string;
+  moq?: Prisma.Decimal | null;
+  priceAmount?: Prisma.Decimal | null;
+  company: {
+    city: string | null;
+    activities: string[];
+    companyVerificationStatus?: string;
+    certifications?: string[];
+    employeeCount?: string | null;
+  };
+}): ProductFacetRow {
+  return {
+    categoryId: r.categoryId,
+    priceMode: r.priceMode,
+    moq: r.moq != null ? Number(r.moq) : null,
+    priceAmount: r.priceAmount != null ? Number(r.priceAmount) : null,
+    company: r.company,
+  };
 }
 
 /**
@@ -161,23 +309,38 @@ export interface ProductFacetRow {
 export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndexParams) {
   const cities = new Set(multi(sel.city));
   const acts = new Set(multi(sel.activity));
+  const certs = new Set(multi(sel.cert));
+  const empKeys = new Set(employeeKeysOf(sel.employees));
   const okCity = (r: ProductFacetRow) => cities.size === 0 || (!!r.company.city && cities.has(r.company.city));
   const okAct = (r: ProductFacetRow) => acts.size === 0 || r.company.activities.some((a) => acts.has(a));
   const okVer = (r: ProductFacetRow) => !sel.verified || r.company.companyVerificationStatus === "VERIFIED";
   const okPrice = (r: ProductFacetRow) =>
     !sel.price || (sel.price === "has" ? r.priceMode !== "ON_REQUEST" : r.priceMode === "ON_REQUEST");
+  const okCert = (r: ProductFacetRow) =>
+    certs.size === 0 || (r.company.certifications ?? []).some((c) => certs.has(c.trim()));
+  const okEmp = (r: ProductFacetRow) => {
+    if (!empKeys.size) return true;
+    const b = employeeBucket(r.company.employeeCount);
+    return b != null && empKeys.has(b);
+  };
   const count = (rs: ProductFacetRow[], key: (r: ProductFacetRow) => string[]) => {
     const m = new Map<string, number>();
     for (const r of rs) for (const k of new Set(key(r))) m.set(k, (m.get(k) ?? 0) + 1);
     return m;
   };
-  const forCity = rows.filter((r) => okAct(r) && okVer(r) && okPrice(r));
-  const forAct = rows.filter((r) => okCity(r) && okVer(r) && okPrice(r));
-  const forVer = rows.filter((r) => okCity(r) && okAct(r) && okPrice(r));
-  const forPrice = rows.filter((r) => okCity(r) && okAct(r) && okVer(r));
-  const forCat = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r));
+  // Her boyut KENDİ seçimi hariç, diğer TÜM seçimler uygulanmış küme üzerinde
+  // sayılır. Boyut ekledikçe bu listeler uzuyor; biri unutulursa o boyutun
+  // sayacı fazla gösterir ve tıklayınca liste beklenenden dar çıkar.
+  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r);
+  const forCity = rows.filter((r) => okAct(r) && okVer(r) && okPrice(r) && base(r));
+  const forAct = rows.filter((r) => okCity(r) && okVer(r) && okPrice(r) && base(r));
+  const forVer = rows.filter((r) => okCity(r) && okAct(r) && okPrice(r) && base(r));
+  const forPrice = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && base(r));
+  const forCert = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okEmp(r));
+  const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r));
+  const forAll = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && base(r));
   return {
-    categories: [...count(forCat, (r) => (r.categoryId && r.categoryId.length === 8 ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
+    categories: [...count(forAll, (r) => (r.categoryId && r.categoryId.length === 8 ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
     cities: [...count(forCity, (r) => (r.company.city?.trim() ? [r.company.city.trim()] : [])).entries()]
       .map(([city, count]) => ({ city, count }))
       .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
@@ -189,6 +352,80 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
       has: forPrice.filter((r) => r.priceMode !== "ON_REQUEST").length,
       request: forPrice.filter((r) => r.priceMode === "ON_REQUEST").length,
     },
+    /* SERTİFİKA serbest metin dizisi: kırpılmış TAM dize ile gruplanır.
+       "ISO 9001" ile "ISO9001" ayrı satır olur — kaynak veri öyle. Normalize
+       etmek (boşluk sökmek, büyük harfe çevirmek) sayıyı toparlar ama süzgeç
+       ham değerle sorguladığı için sayılan ile eşleşen ayrışırdı. */
+    certifications: [...count(forCert, (r) => (r.company.certifications ?? []).map((c) => c.trim()).filter(Boolean)).entries()]
+      .map(([cert, count]) => ({ cert, count }))
+      .sort((a, b) => b.count - a.count || a.cert.localeCompare(b.cert, "tr")),
+    employees: [...count(forEmp, (r) => {
+      const b = employeeBucket(r.company.employeeCount);
+      return b != null ? [String(b)] : [];
+    }).entries()]
+      .map(([key, count]) => ({ key: Number(key), count }))
+      .sort((a, b) => a.key - b.key),
+    /* MOQ ön ayarları KÜMÜLATİF ("≤100" ≤10'u da kapsar) ve `productIndexWhere`
+       ile aynı kuralı uygular: MOQ'su OLMAYAN ürün her kovaya girer (satıcı
+       alt sınır koymamış = her miktar olur). */
+    moq: Object.fromEntries(
+      MOQ_BUCKETS.map((b) => [b, forAll.filter((r) => r.moq == null || r.moq <= b).length]),
+    ) as Record<string, number>,
+    priceHistogram: priceHistogram(forAll),
+  };
+}
+
+/**
+ * FİYAT HİSTOGRAMI — süzgecin üstündeki çubuklar.
+ *
+ * KOVALAR LOGARİTMİK. B2B kataloğunda fiyat büyüklük mertebeleri boyunca
+ * yayılıyor (canlıda 3 ₺ – 465.000 ₺): doğrusal kovalarda ürünlerin
+ * neredeyse tamamı ilk kovaya düşüyor ve histogram tek çubuğa iniyordu —
+ * yani hiçbir şey anlatmıyordu. Log ölçekte her kova bir çarpan aralığıdır
+ * ve dağılım okunur.
+ *
+ * Uçlar p5-p95 (tek aykırı değer ölçeği bozmasın); dönen `min`/`max` GERÇEK
+ * uçlardır — min/max kutuları ve "≤ X" ön ayarları onları gösterir.
+ *
+ * `quantiles`: ön ayar aralıkları için üçte birlik sınırlar. Doğrusal
+ * bölmede ("min + (max-min)/3") çarpık dağılımda ilk aralık envanterin
+ * %95'ini kapsıyor, diğer ikisi boş kalıyordu.
+ *
+ * Fiyatı yazılı ürün 2'den azsa ya da hepsi aynı fiyattaysa `null` →
+ * çağıran histogramı hiç çizmez (boş kutu basmayız).
+ */
+export function priceHistogram(rows: ProductFacetRow[]): {
+  min: number;
+  max: number;
+  quantiles: { p33: number; p66: number };
+  buckets: { from: number; to: number; count: number }[];
+} | null {
+  const prices = rows.map((r) => r.priceAmount).filter((p): p is number => p != null && p > 0).sort((a, b) => a - b);
+  if (prices.length < 2) return null;
+  const at = (q: number) => prices[Math.min(prices.length - 1, Math.max(0, Math.round(q * (prices.length - 1))))]!;
+  const lo = Math.max(1, at(0.05));
+  const hi = at(0.95);
+  if (!(hi > lo)) return null;
+  // Log ölçek: kova sınırları lo·(hi/lo)^(i/n).
+  const ratio = Math.log(hi / lo) / PRICE_HISTOGRAM_BUCKETS;
+  const edge = (i: number) => lo * Math.exp(ratio * i);
+  const buckets = Array.from({ length: PRICE_HISTOGRAM_BUCKETS }, (_, i) => ({
+    from: Math.round(edge(i)),
+    to: Math.round(edge(i + 1)),
+    count: 0,
+  }));
+  for (const p of prices) {
+    const i = Math.min(
+      PRICE_HISTOGRAM_BUCKETS - 1,
+      Math.max(0, Math.floor(Math.log(p / lo) / ratio)),
+    );
+    buckets[i]!.count++;
+  }
+  return {
+    min: Math.round(prices[0]!),
+    max: Math.round(prices[prices.length - 1]!),
+    quantiles: { p33: Math.round(at(1 / 3)), p66: Math.round(at(2 / 3)) },
+    buckets,
   };
 }
 
@@ -264,7 +501,9 @@ export async function attributeFacets(
  * hep L1'e yuvarlar; bu, seçili kodun seviyesi + 1'e yuvarlar. Yaprak (L4)
  * seçiliyse alt dal yoktur → boş döner.
  */
-export function subCategoryCounts(rows: ProductFacetRow[], category?: string): [string, number][] {
+/** Yalnız `categoryId` okur — ham Prisma satırı da geçsin diye dar tip
+ *  (`ProductFacetRow` istemek çağıranı gereksizce `toFacetRow`a zorlardı). */
+export function subCategoryCounts(rows: { categoryId: string | null }[], category?: string): [string, number][] {
   if (!category || !/^\d{8}$/.test(category)) return [];
   const level = categoryLevel(category);
   if (level === 0 || level >= 4) return [];

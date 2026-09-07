@@ -22,8 +22,12 @@ export function useOpenState(storageKey: string, initial = true) {
   const [open, setOpen] = useState(initial);
   useEffect(() => {
     try {
+      // İKİ yön de okunur: eskiden yalnız "0" okunuyordu, dolayısıyla
+      // varsayılanı KAPALI olan bir grubun "açtım" tercihi kaybediliyordu
+      // (varsayılan açık olan tek gruplar için fark etmiyordu).
       const v = localStorage.getItem(`rothern.filters.${storageKey}`);
       if (v === "0") setOpen(false);
+      else if (v === "1") setOpen(true);
     } catch {
       /* depolama yok */
     }
@@ -44,15 +48,22 @@ export function Group({
   count,
   onClear,
   storageKey,
+  defaultOpen = true,
   children,
 }: {
   title: string;
   count: number;
   onClear: () => void;
   storageKey: string;
+  /**
+   * İLK açılışta açık mı. 9 grup bir ekrana sığmıyor: en çok kullanılan üçü
+   * (Kategori, Fiyat, Konum) açık, kalanı kapalı başlar. Kullanıcının kendi
+   * tercihi `localStorage`da ve BUNU EZER — bir kez açtığı grup açık kalır.
+   */
+  defaultOpen?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useOpenState(storageKey);
+  const [open, setOpen] = useOpenState(storageKey, defaultOpen);
   const id = useId();
   return (
     /* HER FACET AYRI YÜZEY (brif §4.3): tek uzun sütun yerine aralarında
@@ -242,6 +253,88 @@ export function FilterChipBar({
         Tümünü temizle
       </button>
       <span className="sr-only">{activeCount} süzgeç aktif</span>
+    </div>
+  );
+}
+
+/**
+ * GRUP İÇİ ARAMA — uzun seçenek listelerini daraltır (Kategori grubunda
+ * zaten vardı; Şehir ve Sertifika da 6'dan uzun olduğu için tek yapı taşına
+ * çıkarıldı). Filtreleme SAYFAYA gitmez, yalnız listeyi kısar.
+ */
+export function FilterSearch({
+  value,
+  onChange,
+  placeholder,
+  id,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  id: string;
+}) {
+  return (
+    <input
+      id={id}
+      type="search"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      aria-label={placeholder}
+      className="mb-1.5 h-8 w-full rounded-lg border border-zinc-200 px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+    />
+  );
+}
+
+/**
+ * FİYAT HİSTOGRAMI — dağılımı gösteren çubuklar, seçili aralık koyu.
+ *
+ * Neden çubuk: "0-1.000.000" yazan iki kutu, envanterin 200-5.000 arasında
+ * toplandığını söylemez; kullanıcı boş aralık seçip listeyi boşaltır.
+ * Çubuklar tıklanabilir — bir çubuk o kovanın aralığını yazar.
+ *
+ * Sunucu p5-p95 arasını kovalar (tek aykırı değer tüm çubukları ilk kovaya
+ * sıkıştırmasın); okunan `min`/`max` ise gerçek uçlardır.
+ */
+export function PriceHistogram({
+  data,
+  from,
+  to,
+  onPick,
+}: {
+  data: { min: number; max: number; buckets: { from: number; to: number; count: number }[] };
+  from?: number;
+  to?: number;
+  onPick: (from: number, to: number) => void;
+}) {
+  const peak = Math.max(1, ...data.buckets.map((b) => b.count));
+  const selected = (b: { from: number; to: number }) =>
+    (from == null || b.to > from) && (to == null || b.from < to);
+  const active = from != null || to != null;
+  return (
+    <div className="mb-2">
+      <div className="flex h-12 items-end gap-px" role="group" aria-label="Fiyat dağılımı">
+        {data.buckets.map((b) => (
+          <button
+            key={b.from}
+            type="button"
+            onClick={() => onPick(b.from, b.to)}
+            title={`${b.from.toLocaleString("tr-TR")} – ${b.to.toLocaleString("tr-TR")} ₺ · ${b.count} ürün`}
+            className={`flex-1 rounded-t-sm transition hover:bg-zinc-900 ${
+              !active || selected(b) ? "bg-zinc-400" : "bg-zinc-200"
+            }`}
+            style={{ height: `${Math.max(6, (b.count / peak) * 100)}%` }}
+          >
+            <span className="sr-only">
+              {b.from}-{b.to} ₺ aralığı, {b.count} ürün
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="tnum mt-1 flex justify-between text-[11px] text-zinc-500">
+        <span>{data.min.toLocaleString("tr-TR")} ₺</span>
+        <span>{data.max.toLocaleString("tr-TR")} ₺</span>
+      </p>
     </div>
   );
 }

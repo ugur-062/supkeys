@@ -49,7 +49,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
   const talepHref = signupHref("talep", state.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(state.q)}` : undefined);
 
   return (
-    <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} drawer={<ProductFilters facets={facets} idPrefix="m" />}>
+    <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
         title={title}
         lead={lead}

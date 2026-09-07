@@ -3,12 +3,13 @@
 import { MissingFields } from "@/components/ui/missing-fields";
 import { Thumb } from "@/components/ui/thumb";
 import { useCatalogItems } from "@/hooks/use-company-items";
-import { companyActivityLabel } from "@rothern/shared";
+import { EMPLOYEE_BUCKET_LABELS, companyActivityLabel } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
 import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
+import { Select } from "@/components/catalyst/select";
 import { Switch } from "@/components/catalyst/switch";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Textarea } from "@/components/catalyst/textarea";
@@ -256,12 +257,28 @@ export function ProfileEditor({
           />
         </MiniField>
         <MiniField label="Çalışan sayısı">
-          <Input
+          {/* KOVA SEÇİMİ (2026-09-07): eskiden serbest metindi ("50-100",
+              "yaklaşık 30") ve ürün dizinindeki "Çalışan sayısı" süzgeci onu
+              güvenilir kovalayamıyordu. Kolon `String` kaldı (migration yok);
+              yeni kayıtlar bu dört etiketten birini yazar, eskiler
+              `employeeBucket` ile ayrıştırılır.
+              ESKİ DEĞER KAYBOLMAZ: listede yoksa kendi seçeneği olarak
+              eklenir — kaydetmeden profil sessizce değişmesin. */}
+          <Select
             aria-label="Çalışan sayısı"
             value={draft.employeeCount}
-            placeholder="50-100"
             onChange={(e) => set({ employeeCount: e.target.value })}
-          />
+          >
+            <option value="">Seçilmedi</option>
+            {EMPLOYEE_BUCKET_LABELS.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+            {draft.employeeCount && !EMPLOYEE_BUCKET_LABELS.includes(draft.employeeCount) ? (
+              <option value={draft.employeeCount}>{draft.employeeCount} (eski kayıt)</option>
+            ) : null}
+          </Select>
         </MiniField>
         <MiniField label="Web sitesi">
           <Input

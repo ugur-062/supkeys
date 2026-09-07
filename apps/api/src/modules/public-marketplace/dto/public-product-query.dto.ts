@@ -66,6 +66,15 @@ export class PublicProductQueryDto {
   @Max(1_000_000_000)
   moqMax?: number;
 
+  /**
+   * Fiyat aralığı seçiliyken fiyatı belirtilmemiş ("teklif isteyin") ürünler
+   * de kalsın. Aralık `priceAmount`a bakar; bu kutucuk olmadan aralığı
+   * daraltan kullanıcı envanterin yarısını sessizce kaybediyordu.
+   */
+  @IsOptional()
+  @IsIn(["1"])
+  priceUnpriced?: string;
+
   /** Yalnız kimliği doğrulanmış firmaların ürünleri. */
   @IsOptional()
   @IsIn(["1"])
@@ -75,6 +84,28 @@ export class PublicProductQueryDto {
   @IsOptional()
   @IsIn(["has", "request"])
   price?: "has" | "request";
+
+  /**
+   * Firma sertifikası — tek ya da virgüllü çoklu ("ISO 9001,CE"), OR'lanır.
+   * Değerler firmaların kendi yazdığı serbest metin; facet'te hangi dizeler
+   * olduğu döner, istemci onları aynen geri gönderir.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  cert?: string;
+
+  /**
+   * Çalışan sayısı kovaları — kova ALT SINIRLARI, virgüllü ("10,50").
+   * Kolon serbest metin olduğu için kova sunucuda ayrıştırılır
+   * (`@rothern/shared` `employeeBucket`).
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, { message: "Çalışan kovası sayı listesi olmalı" })
+  employees?: string;
 
   /** Faaliyet tipi kodu — tek ya da virgüllü çoklu; tanınmayan kod yok sayılır. */
   @IsOptional()
@@ -153,4 +184,26 @@ export class PublicProductFacetQueryDto {
   @IsOptional()
   @IsIn(["has", "request"])
   price?: "has" | "request";
+
+  /**
+   * Firma sertifikası — tek ya da virgüllü çoklu ("ISO 9001,CE"), OR'lanır.
+   * Değerler firmaların kendi yazdığı serbest metin; facet'te hangi dizeler
+   * olduğu döner, istemci onları aynen geri gönderir.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  cert?: string;
+
+  /**
+   * Çalışan sayısı kovaları — kova ALT SINIRLARI, virgüllü ("10,50").
+   * Kolon serbest metin olduğu için kova sunucuda ayrıştırılır
+   * (`@rothern/shared` `employeeBucket`).
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, { message: "Çalışan kovası sayı listesi olmalı" })
+  employees?: string;
 }

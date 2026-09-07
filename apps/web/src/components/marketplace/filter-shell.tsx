@@ -52,6 +52,7 @@ export function FilterShellCore<S extends { page: number }>({
   activeCount,
   drawer,
   drawerHideAt = "lg",
+  pushFilters = false,
   children,
 }: {
   state: S;
@@ -72,6 +73,15 @@ export function FilterShellCore<S extends { page: number }>({
    * görünür — süzgeçler tamamen erişilemez olur.
    */
   drawerHideAt?: "lg" | "xl";
+  /**
+   * Süzgeç değişimi GEÇMİŞE yazılsın mı (2026-09-07, kullanıcı kararı).
+   *
+   * Varsayılan `false` (`replace`) — açık talep süzgecinin bugünkü davranışı;
+   * o listede tıklar hızlı ve ardışıktır, her biri geçmişe girseydi "geri"
+   * tuşu listeden çıkamaz hâle gelirdi. Ürün dizininde `true`: 9 grup var ve
+   * kullanıcı yanlış kutucuğu geri almak için geri tuşunu bekliyor.
+   */
+  pushFilters?: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -92,7 +102,7 @@ export function FilterShellCore<S extends { page: number }>({
     // korunur (eskiden `update({ page })` da 1'e düşüyordu — panel ürün
     // dizininde "Sonraki" çalışmıyordu).
     const explicitPage = typeof patch === "function" ? next.page !== state.page : "page" in patch;
-    navigate(explicitPage ? next : { ...next, page: 1 }, explicitPage ? "push" : "replace");
+    navigate(explicitPage ? next : { ...next, page: 1 }, explicitPage || pushFilters ? "push" : "replace");
   };
   const clear = () => navigate(clearState(state));
 
@@ -128,6 +138,7 @@ export function FilterShell({
   total,
   drawer,
   drawerHideAt,
+  pushFilters,
   children,
 }: {
   basePath: string;
@@ -137,6 +148,8 @@ export function FilterShell({
   drawer?: ReactNode;
   /** Bkz. `FilterShellCore` — panel pazarında `xl`. */
   drawerHideAt?: "lg" | "xl";
+  /** Bkz. `FilterShellCore` — ürün dizininde `true`. */
+  pushFilters?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -161,6 +174,7 @@ export function FilterShell({
       activeCount={activeFilterCount(state)}
       drawer={drawer}
       drawerHideAt={drawerHideAt}
+      pushFilters={pushFilters}
     >
       {children}
     </FilterShellCore>

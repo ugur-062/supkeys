@@ -97,14 +97,29 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(screen.getByText("Güç: 400 kVAr")).toBeInTheDocument();
   });
 
-  it("süzgeç REPLACE, sayfa PUSH: geri tuşu on kutucuk değil bir sayfa geri gider", async () => {
+  it("ürün dizininde süzgeç de PUSH: geri tuşu son kutucuğu geri alır", async () => {
+    // 2026-09-07 (kullanıcı kararı): 9 süzgeç grubu geldiğinde yanlış
+    // kutucuğu geri almanın yolu geri tuşu oldu. Açık talep süzgeci
+    // (`FilterShellCore` varsayılanı) hâlâ `replace` — orada tıklar hızlı ve
+    // ardışık, her biri geçmişe girseydi listeden çıkılamazdı.
     const user = userEvent.setup();
     render(<PanelProductIndex />);
     await user.click(within(screen.getByRole("complementary", { name: "Süzgeçler" })).getByLabelText(/^Doğrulanmış/));
-    expect(h.replace).toHaveBeenLastCalledWith("/company/satinalma/urunler?dogrulanmis=1", { scroll: false });
+    expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?dogrulanmis=1", { scroll: false });
 
     await user.click(screen.getByRole("button", { name: "Sayfa 2" }));
     expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?sayfa=2", { scroll: false });
+  });
+
+  it("tedarikçi türü TÜM tipleri listeler; veride olmayan soluk ve seçilemez", () => {
+    // Eskiden yalnız facet'te geçen tipler basılıyordu: veride 2 tip olduğu
+    // için kullanıcı diğerlerinin var olduğunu bilmiyordu (bulgu).
+    render(<PanelProductIndex />);
+    const aside = screen.getByRole("complementary", { name: "Süzgeçler" });
+    expect(within(aside).getByLabelText(/^Üretici/)).toBeInTheDocument();
+    const fason = within(aside).getByLabelText(/^Fason imalatçı/) as HTMLInputElement;
+    expect(fason).toBeInTheDocument();
+    expect(fason.disabled).toBe(true);
   });
 
   it("sayfa başına seçimi URL'ye `adet` olarak yazılır ve uca pageSize gider", async () => {
@@ -112,7 +127,10 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     render(<PanelProductIndex />);
     expect(h.lastParams).toMatchObject({ pageSize: 24 });
     await user.selectOptions(screen.getByLabelText("Sayfa başına"), "48");
-    expect(h.replace).toHaveBeenLastCalledWith("/company/satinalma/urunler?adet=48", { scroll: false });
+    // `pushFilters` bu sayfada URL'e yazılan HER durum değişimini kapsıyor
+    // (sıralama ve sayfa başına dahil): "geri tuşu son değişikliği geri alır"
+    // kuralı ancak böyle tutarlı olur.
+    expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?adet=48", { scroll: false });
   });
 
   it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {

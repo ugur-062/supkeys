@@ -534,6 +534,21 @@ export interface ProductFacets {
   /** v3: bağlama duyarlı sayaçlar. */
   verified: number;
   price: { has: number; request: number };
+  /* 2026-09-07 grupları. Hepsi OPSİYONEL okunur: kenar önbelleğindeki eski
+     yanıt bu alanları taşımıyor olabilir, alan eksikse sayfa çökmemeli
+     (aynı hata sınıfı 2026-09-04'te 500 vermişti). */
+  certifications?: { cert: string; count: number }[];
+  employees?: { key: number; count: number }[];
+  /** Kümülatif MOQ ön ayarı sayaçları — anahtar = tavan ("10" | "100" | "1000"). */
+  moq?: Record<string, number>;
+  /** Fiyatı yazılı ürün 2'den azsa `null` — histogram çizilmez. Kovalar LOG
+   *  ölçekli; `quantiles` ön ayar aralıklarının sınırı. */
+  priceHistogram?: {
+    min: number;
+    max: number;
+    quantiles?: { p33: number; p66: number };
+    buckets: { from: number; to: number; count: number }[];
+  } | null;
   /** YALNIZ kategori seçiliyken dolu — nitelikler kategoriye özgü. */
   attributes: ProductAttributeFacet[];
   truncated: boolean;
@@ -553,6 +568,12 @@ export interface ProductListParams {
   priceMin?: number;
   priceMax?: number;
   moqMax?: number;
+  /** Fiyat aralığı seçiliyken "teklif isteyin" ürünleri de tut. */
+  priceUnpriced?: boolean;
+  /** Firma sertifikaları — virgüllü çoklu, OR. */
+  cert?: string;
+  /** Çalışan kovası alt sınırları — virgüllü ("10,50"). */
+  employees?: string;
   page?: number;
   /** Sayfa başına kart (24 | 48 | 96) — `adet` parametresinin API karşılığı. */
   pageSize?: number;
@@ -571,6 +592,10 @@ const EMPTY_PRODUCT_FACETS: ProductFacets = {
   activities: [],
   verified: 0,
   price: { has: 0, request: 0 },
+  certifications: [],
+  employees: [],
+  moq: {},
+  priceHistogram: null,
   attributes: [],
   truncated: false,
 };
@@ -589,6 +614,9 @@ export function fetchProducts(
   if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
   if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
   if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
+  if (params.priceUnpriced) sp.set("priceUnpriced", "1");
+  if (params.cert) sp.set("cert", params.cert);
+  if (params.employees) sp.set("employees", params.employees);
   // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
   // ilk ayraçlı seçenekte sessizce bölerdi.
   for (const a of params.attr ?? []) sp.append("attr", a);
@@ -598,8 +626,21 @@ export function fetchProducts(
   return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300);
 }
 
+/**
+ * Facet ucuna giden seçim kümesi — BAĞLAMA DUYARLI sayım için.
+ *
+ * Fiyat aralığı ve MOQ bilerek DIŞARIDA (bugünkü davranış): bu uç kenar
+ * önbelleğinde ve sürekli değişen sayısal aralıklar önbellek anahtarını
+ * sonsuza açardı. Sonuç: aralık seçiliyken diğer sayaçlar bir tık geniş
+ * kalır — bilinen yaklaşıklık.
+ */
+export type ProductFacetParams = Pick<
+  ProductListParams,
+  "category" | "q" | "city" | "activity" | "verified" | "price" | "cert" | "employees"
+>;
+
 /** Facet sayaçları BAĞLAMA DUYARLI: diğer seçimler de gönderilir. */
-export function fetchProductFacets(params: Pick<ProductListParams, "category" | "q" | "city" | "activity" | "verified" | "price"> = {}): Promise<ProductFacets> {
+export function fetchProductFacets(params: ProductFacetParams = {}): Promise<ProductFacets> {
   const sp = new URLSearchParams();
   if (params.category) sp.set("category", params.category);
   if (params.q) sp.set("q", params.q);
@@ -607,6 +648,8 @@ export function fetchProductFacets(params: Pick<ProductListParams, "category" | 
   if (params.activity) sp.set("activity", params.activity);
   if (params.verified) sp.set("verified", "1");
   if (params.price) sp.set("price", params.price);
+  if (params.cert) sp.set("cert", params.cert);
+  if (params.employees) sp.set("employees", params.employees);
   const qs = sp.toString();
   return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300);
 }

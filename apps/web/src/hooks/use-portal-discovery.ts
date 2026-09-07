@@ -7,6 +7,7 @@ import type {
   ProductPriceFields,
   ProductListParams,
   ProductIndexPage,
+  ProductFacetParams,
   ProductFacets,
   RelatedProducts,
 } from "@/lib/public/marketplace-api";
@@ -155,6 +156,9 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number; p
       if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
       if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
       if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
+      if (params.priceUnpriced) sp.set("priceUnpriced", "1");
+      if (params.cert) sp.set("cert", params.cert);
+      if (params.employees) sp.set("employees", params.employees);
       for (const a of params.attr ?? []) sp.append("attr", a);
       if (params.page && params.page > 1) sp.set("page", String(params.page));
       if (params.pageSize) sp.set("pageSize", String(params.pageSize));
@@ -167,7 +171,7 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number; p
   });
 }
 
-export function useDiscoverProductFacets(params: Pick<ProductListParams, "category" | "q" | "city" | "activity" | "verified" | "price"> = {}) {
+export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
   return useQuery<ProductFacets>({
     queryKey: ["company-items", "discover-facets", params],
     queryFn: async () => {
@@ -178,6 +182,8 @@ export function useDiscoverProductFacets(params: Pick<ProductListParams, "catego
       if (params.activity) sp.set("activity", params.activity);
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);
+      if (params.cert) sp.set("cert", params.cert);
+      if (params.employees) sp.set("employees", params.employees);
       const qs = sp.toString();
       const { data } = await companyApi.get<ProductFacets>(`/company/items/discover/facets${qs ? `?${qs}` : ""}`);
       return data;

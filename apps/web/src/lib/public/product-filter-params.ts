@@ -1,4 +1,4 @@
-import { isCompanyActivity } from "@rothern/shared";
+import { isCompanyActivity, isEmployeeBucketKey } from "@rothern/shared";
 import type { ProductListParams } from "./marketplace-api";
 import {
   getAllParams as getAll,
@@ -15,7 +15,8 @@ import {
  * ve panel ürün dizini (istemci) AYNI ayrıştırıcıyı okur, AYNI kurucuyu yazar.
  *
  *   ?q=&kategori=42000000&sehir=İstanbul,İzmir&faaliyet=MANUFACTURER,DISTRIBUTOR
- *   &dogrulanmis=1&fiyat=var|teklif&fiyatMin=&fiyatMax=&moqMax=&sirala=yeni|fiyat|fiyat-azalan
+ *   &dogrulanmis=1&fiyat=var|teklif&fiyatMin=&fiyatMax=&fiyatsizDahil=1&moqMax=
+ *   &sertifika=ISO 9001,CE&calisan=10,50&sirala=yeni|fiyat|fiyat-azalan
  *   &nitelik=anahtar:değer (tekrarlanır)&adet=24|48|96&gorunum=liste&sayfa=2
  *
  * Kategori de sorguda: eskiden yalnız yolda (`/urunler/kategori/<kod>-<ad>`)
@@ -31,7 +32,13 @@ export interface ProductFilterState {
   price?: "var" | "teklif";
   priceMin?: number;
   priceMax?: number;
+  /** Aralık seçiliyken "teklif isteyin" ürünleri de tut. */
+  priceUnpriced: boolean;
   moqMax?: number;
+  /** Firma sertifikaları (serbest metin, facet'ten gelir). */
+  certs: string[];
+  /** Çalışan kovası ALT SINIRLARI (1 | 10 | 50 | 250). */
+  employees: number[];
   sort?: "yeni" | "fiyat" | "fiyat-azalan";
   attrs: string[];
   page: number;
@@ -66,7 +73,11 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     price: price === "var" || price === "teklif" ? price : undefined,
     priceMin: num(get(sp, "fiyatMin")),
     priceMax: num(get(sp, "fiyatMax")),
+    priceUnpriced: get(sp, "fiyatsizDahil") === "1",
     moqMax: num(get(sp, "moqMax")),
+    certs: list(get(sp, "sertifika")),
+    // Bilinmeyen kova anahtarı düşer — URL elle düzenlenmiş olabilir.
+    employees: list(get(sp, "calisan")).map(Number).filter(isEmployeeBucketKey),
     sort: sort === "yeni" || sort === "fiyat" || sort === "fiyat-azalan" ? sort : undefined,
     attrs: getAll(sp, "nitelik").filter((a) => a.includes(":")).slice(0, 6),
     page: page && page > 1 ? page : 1,
@@ -86,7 +97,10 @@ export function toProductListParams(f: ProductFilterState): ProductListParams & 
     price: f.price === "var" ? "has" : f.price === "teklif" ? "request" : undefined,
     priceMin: f.priceMin,
     priceMax: f.priceMax,
+    priceUnpriced: f.priceUnpriced || undefined,
     moqMax: f.moqMax,
+    cert: f.certs.length ? f.certs.join(",") : undefined,
+    employees: f.employees.length ? f.employees.join(",") : undefined,
     sort: f.sort === "yeni" ? "newest" : f.sort === "fiyat" ? "price" : f.sort === "fiyat-azalan" ? "price_desc" : undefined,
     attr: f.attrs.length ? f.attrs : undefined,
     page: f.page > 1 ? f.page : undefined,
@@ -105,7 +119,10 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.price) sp.set("fiyat", f.price);
   if (f.priceMin != null) sp.set("fiyatMin", String(f.priceMin));
   if (f.priceMax != null) sp.set("fiyatMax", String(f.priceMax));
+  if (f.priceUnpriced) sp.set("fiyatsizDahil", "1");
   if (f.moqMax != null) sp.set("moqMax", String(f.moqMax));
+  if (f.certs.length) sp.set("sertifika", f.certs.join(","));
+  if (f.employees.length) sp.set("calisan", f.employees.join(","));
   if (f.sort) sp.set("sirala", f.sort);
   for (const a of f.attrs) sp.append("nitelik", a);
   if (f.perPage) sp.set("adet", String(f.perPage));
@@ -119,11 +136,21 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
 export function activeFilterCount(f: ProductFilterState): number {
   return (
     (f.category ? 1 : 0) + f.cities.length + f.activities.length + (f.verified ? 1 : 0) + (f.price ? 1 : 0) +
-    (f.priceMin != null || f.priceMax != null ? 1 : 0) + (f.moqMax != null ? 1 : 0) + f.attrs.length
+    (f.priceMin != null || f.priceMax != null ? 1 : 0) + (f.moqMax != null ? 1 : 0) + f.attrs.length +
+    f.certs.length + f.employees.length
   );
 }
 
-export const EMPTY_FILTERS: ProductFilterState = { cities: [], activities: [], verified: false, attrs: [], page: 1 };
+export const EMPTY_FILTERS: ProductFilterState = {
+  cities: [],
+  activities: [],
+  verified: false,
+  attrs: [],
+  certs: [],
+  employees: [],
+  priceUnpriced: false,
+  page: 1,
+};
 
 /**
  * "Tümünü temizle" — süzgeçler gider, ARAMA ve GÖRÜNÜM tercihleri (sıralama,
