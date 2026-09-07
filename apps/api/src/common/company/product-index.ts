@@ -1,5 +1,6 @@
 import { Prisma } from "@rothern/db";
-import { categoryPrefix, foldSearchText, isCompanyActivity, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { categoryAtLevel, categoryLevel, categoryPrefix, foldSearchText, isCompanyActivity, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { resolveCategoryAttributes } from "./category-attributes";
 import { publicProductWhere } from "./public-profile-gate";
 
 /**
@@ -36,7 +37,10 @@ export function multi(v?: string): string[] {
 export const PRODUCT_PAGE_SIZE = 24;
 export const PRODUCT_FACET_SCAN_CAP = 5000;
 
-export function productSearchClauses(raw?: string): Prisma.CompanyItemWhereInput[] {
+export function productSearchClauses(
+  raw?: string,
+  opts: { includeCompanyName?: boolean } = {},
+): Prisma.CompanyItemWhereInput[] {
   const tokens = raw ? tokenizeQuery(raw) : [];
   // `searchText` = fold(ad + marka + mpn + anahtar kelimeler); tokenler
   // AND'lenir, sıra önemsiz (kategori aramasıyla aynı kural). Token
@@ -44,10 +48,14 @@ export function productSearchClauses(raw?: string): Prisma.CompanyItemWhereInput
   // (2026-09-05 düzeltmesi). Firma ADI da aranır: tek kutu "ürün ya da
   // firma" (Europages) — "Trakya Elektrik" yazan o firmanın ürünlerini bulur.
   // Türkçe ek toleransı (`stemPrefix`): "boruları" → "boru", "panosu" → "pano".
+  // `includeCompanyName: false` — firma dizininde ÜRÜN metnini aramak için:
+  // orada firma adı zaten ayrı bir dalda aranıyor, burada da aransa ada
+  // uyan firmanın TÜM ürünleri "aramaya uyan ürün" sayılırdı.
+  const withCompany = opts.includeCompanyName ?? true;
   return tokens.map((t) => ({
     OR: [
       { searchText: { contains: stemPrefix(foldSearchText(t)) } },
-      { company: { name: { contains: t, mode: "insensitive" as const } } },
+      ...(withCompany ? [{ company: { name: { contains: t, mode: "insensitive" as const } } }] : []),
     ],
   }));
 }
@@ -184,27 +192,92 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
   };
 }
 
-/** Sektör (L1) / şehir / faaliyet sayaçları — kategori adı çağıran çözer. */
-export function productFacetCounts(rows: ProductFacetRow[]) {
-  const catCount = new Map<string, number>();
-  const cityCount = new Map<string, number>();
-  const actCount = new Map<string, number>();
+/** Nitelik facet'i sayılabilir tipler — serbest metin/sayıda her ürün kendi
+ *  değerini üretir, sayım anlamsız olurdu. Prisma enum'ıyla BİREBİR: panel
+ *  kopyası "SELECT"/"MULTISELECT" yazıyordu ve hiç eşleşmediği için panelin
+ *  nitelik süzgeci sessizce HEP boştu (2026-09-07 denetimi). */
+export const FACETABLE_ATTRIBUTE_TYPES = new Set(["SINGLE_SELECT", "MULTI_SELECT"]);
+export const ATTR_FACET_VALUES = 12;
+
+export interface AttributeFacet {
+  key: string;
+  nameTr: string;
+  unit: string | null;
+  values: { value: string; count: number }[];
+}
+
+/**
+ * NİTELİK facet'leri — yalnız bir kategori seçiliyken. TEK KAYNAK: public
+ * `/urunler` ve panel ürün dizini AYNI fonksiyonu çağırır (iki kopya vardı,
+ * panelinki tip adını yanlış yazdığı için ölüydü).
+ *
+ * Tanımlar kategori ağacından MİRASLA gelir (panel ürün formunda sorulanla
+ * AYNI kaynak), sayımlar taranan ürünlerden. Değeri OLMAYAN nitelik listeye
+ * girmez — hiçbir şeyi daraltmayan süzgeç satırı gösterilmez.
+ */
+export async function attributeFacets(
+  prisma: Parameters<typeof resolveCategoryAttributes>[0],
+  category: string | undefined,
+  rows: { attributes: unknown }[],
+): Promise<AttributeFacet[]> {
+  if (!category || !/^\d{8}$/.test(category)) return [];
+  const defs = (await resolveCategoryAttributes(prisma, category)).filter((d) =>
+    FACETABLE_ATTRIBUTE_TYPES.has(d.type),
+  );
+  if (defs.length === 0) return [];
+
+  const counts = new Map<string, Map<string, number>>();
+  for (const d of defs) counts.set(d.key, new Map());
   for (const r of rows) {
-    const city = r.company.city?.trim();
-    if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
-    for (const a of r.company.activities) actCount.set(a, (actCount.get(a) ?? 0) + 1);
-    if (r.categoryId && r.categoryId.length === 8) {
-      const seg = `${r.categoryId.slice(0, 2)}000000`;
-      catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
+    const a = r.attributes;
+    if (!a || typeof a !== "object" || Array.isArray(a)) continue;
+    for (const d of defs) {
+      const raw = (a as Record<string, unknown>)[d.key];
+      // Tekli seçim dize, çoklu seçim dizi — ikisi de aynı sayaca düşer.
+      const values = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+      const bucket = counts.get(d.key)!;
+      for (const v of values) {
+        if (typeof v !== "string" || !v.trim()) continue;
+        bucket.set(v, (bucket.get(v) ?? 0) + 1);
+      }
     }
   }
-  return {
-    categories: [...catCount.entries()],
-    cities: [...cityCount.entries()]
-      .map(([city, count]) => ({ city, count }))
-      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
-    activities: [...actCount.entries()]
-      .map(([activity, count]) => ({ activity, count }))
-      .sort((a, b) => b.count - a.count),
-  };
+
+  return defs
+    .map((d) => ({
+      key: d.key,
+      nameTr: d.nameTr,
+      unit: d.unit,
+      values: [...counts.get(d.key)!.entries()]
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "tr"))
+        .slice(0, ATTR_FACET_VALUES),
+    }))
+    .filter((f) => f.values.length > 0);
+}
+
+/**
+ * ALT KIRILIM sayaçları — seçili kategorinin BİR ALT seviyesindeki dallar.
+ *
+ * Kategori sayfası ("Elektrik Sistemleri") altında hangi ailelerin ürünü
+ * olduğunu göstermek için. Sektör listesi (`contextualFacetCounts.categories`)
+ * hep L1'e yuvarlar; bu, seçili kodun seviyesi + 1'e yuvarlar. Yaprak (L4)
+ * seçiliyse alt dal yoktur → boş döner.
+ */
+export function subCategoryCounts(rows: ProductFacetRow[], category?: string): [string, number][] {
+  if (!category || !/^\d{8}$/.test(category)) return [];
+  const level = categoryLevel(category);
+  if (level === 0 || level >= 4) return [];
+  const child = (level + 1) as 2 | 3 | 4;
+  const prefix = categoryPrefix(category);
+  if (!prefix) return [];
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const id = r.categoryId;
+    if (!id || !id.startsWith(prefix)) continue;
+    const key = categoryAtLevel(id, child);
+    if (!key) continue;
+    m.set(key, (m.get(key) ?? 0) + 1);
+  }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }

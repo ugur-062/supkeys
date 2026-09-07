@@ -67,3 +67,16 @@ export function categoryPrefix(code: string): string | null {
 export function categorySegment(code: string): string | null {
   return isCategoryCode(code) ? `${code.slice(0, 2)}000000` : null;
 }
+
+/**
+ * Kodun BELİRLİ bir seviyedeki atası — `39122215` + level 2 → `39120000`.
+ *
+ * Facet kırılımı için: kategori sayfası segmenti seçtiğinde alt dalları (L2)
+ * saymak gerekir. `categorySegment` yalnız L1 verir; sayaçlar bir kırılım
+ * aşağı inemiyordu. Hedef seviye kodun kendi seviyesinden derinse null —
+ * yaprak bir kodu "L4'e yuvarlamak" bilgi üretmez, uydurur.
+ */
+export function categoryAtLevel(code: string, level: 1 | 2 | 3 | 4): string | null {
+  if (!isCategoryCode(code) || categoryLevel(code) < level) return null;
+  return code.slice(0, level * 2).padEnd(8, "0");
+}

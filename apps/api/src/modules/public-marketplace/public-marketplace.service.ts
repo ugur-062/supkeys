@@ -20,17 +20,19 @@ import {
 } from "./dto/public-listing.projection";
 import type { PublicListQueryDto } from "./dto/public-list-query.dto";
 import type { PublicProductFacetQueryDto, PublicProductQueryDto } from "./dto/public-product-query.dto";
-import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import {
+  attributeFacets,
   contextualFacetCounts,
   productCategoryWhere,
   productSearchClauses,
   productIndexOrderBy,
   productIndexWhere,
+  subCategoryCounts,
 } from "../../common/company/product-index";
 import { relatedProducts } from "../../common/company/related-products";
 import {
   PRODUCT_INDEX_SELECT,
+  attachProductFeatures,
   toProductIndexCard,
   type ProductIndexCard,
 } from "./dto/public-product-index.projection";
@@ -54,9 +56,7 @@ const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(B
  */
 const FACET_SCAN_CAP = 5000;
 /** Nitelik facet'inde bir anahtar için gösterilecek en fazla değer. */
-const ATTR_FACET_VALUES = 12;
 /** Sayılabilir nitelik tipleri — serbest metin ve sayı facet OLMAZ. */
-const FACETABLE_TYPES = new Set(["SINGLE_SELECT", "MULTI_SELECT"]);
 
 @Injectable()
 export class PublicMarketplaceService {
@@ -397,7 +397,8 @@ export class PublicMarketplaceService {
         take: PAGE_SIZE,
       }),
     ]);
-    return { items: rows.map(toProductIndexCard), total, page, pageSize: PAGE_SIZE };
+    const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
+    return { items, total, page, pageSize: PAGE_SIZE };
   }
 
   /**
@@ -615,6 +616,7 @@ export class PublicMarketplaceService {
    */
   async productFacets(q: PublicProductFacetQueryDto = {}): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
+    subCategories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
     activities: { activity: string; count: number }[];
     verified: number;
@@ -648,78 +650,29 @@ export class PublicMarketplaceService {
     const sel = { city: q.city, activity: q.activity, verified: q.verified === "1", price: q.price };
     const ctx = contextualFacetCounts(inCategory, sel);
     const catCounts = contextualFacetCounts(scanned, sel).categories;
-    const cats = await this.resolveCategories(catCounts.map(([id]) => id));
-    return {
-      categories: catCounts
+    const subCounts = subCategoryCounts(inCategory, q.category);
+    const cats = await this.resolveCategories([
+      ...new Set([...catCounts.map(([id]) => id), ...subCounts.map(([id]) => id)]),
+    ]);
+    const named = (pairs: [string, number][]) =>
+      pairs
         .map(([id, count]) => {
           const c = cats.get(id);
           return c ? { ...c, count } : null;
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
+    return {
+      categories: named(catCounts),
+      /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
+      subCategories: named(subCounts),
       cities: ctx.cities,
       activities: ctx.activities,
       verified: ctx.verified,
       price: ctx.price,
-      attributes: await this.attributeFacets(q.category, inCategory),
+      attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,
     };
-  }
-
-  /**
-   * NİTELİK facet'leri — yalnız bir kategori seçiliyken.
-   *
-   * Sebep: nitelikler kategoriye özgü. Kategori seçilmeden "IP sınıfı" süzgeci
-   * göstermek, listedeki ürünlerin çoğunda o alanın hiç tanımlı olmadığı bir
-   * kenar çubuğu üretirdi.
-   *
-   * Tanımlar kategori ağacından MİRASLA gelir (panelde sorulanla AYNI kaynak),
-   * sayımlar taranan ürünlerden. Yalnız kapalı listeler sayılır: serbest metin
-   * ve sayı alanında her ürün kendi değerini üretir, sayım anlamsızdır.
-   *
-   * Değeri OLMAYAN nitelik listeye girmez — süzgeç, o ekranda hiçbir şeyi
-   * daraltmayan bir satır göstermemeli.
-   */
-  private async attributeFacets(
-    category: string | undefined,
-    rows: { attributes: Prisma.JsonValue | null }[],
-  ): Promise<
-    { key: string; nameTr: string; unit: string | null; values: { value: string; count: number }[] }[]
-  > {
-    if (!category || !/^\d{8}$/.test(category)) return [];
-    const defs = (await resolveCategoryAttributes(this.prisma, category)).filter(
-      (d) => FACETABLE_TYPES.has(d.type),
-    );
-    if (defs.length === 0) return [];
-
-    const counts = new Map<string, Map<string, number>>();
-    for (const d of defs) counts.set(d.key, new Map());
-    for (const r of rows) {
-      const a = r.attributes;
-      if (!a || typeof a !== "object" || Array.isArray(a)) continue;
-      for (const d of defs) {
-        const raw = (a as Record<string, unknown>)[d.key];
-        // Tekli seçim dize, çoklu seçim dizi — ikisi de aynı sayaca düşer.
-        const values = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
-        const bucket = counts.get(d.key)!;
-        for (const v of values) {
-          if (typeof v !== "string" || !v.trim()) continue;
-          bucket.set(v, (bucket.get(v) ?? 0) + 1);
-        }
-      }
-    }
-
-    return defs
-      .map((d) => ({
-        key: d.key,
-        nameTr: d.nameTr,
-        unit: d.unit,
-        values: [...counts.get(d.key)!.entries()]
-          .map(([value, count]) => ({ value, count }))
-          .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "tr"))
-          .slice(0, ATTR_FACET_VALUES),
-      }))
-      .filter((f) => f.values.length > 0);
   }
 
   /* ---------------------------------------------------------------- */

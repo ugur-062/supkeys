@@ -15,7 +15,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
-import { buildDirectory, directoryFacets, type DirectoryParams } from "../../../common/company/company-directory";
+import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
 import { Prisma } from "@rothern/db";
 import {
@@ -940,26 +940,23 @@ export class CompanyConnectionsService {
     return m;
   }
 
-  /** Firma dizini araması — public profilli (PAKET) aktif firmalar. */
   /**
    * PANEL FİRMA DİZİNİ — herkese açık `/firmalar` ile AYNI kaynak
    * (`common/company/company-directory.ts`): aynı listelenme koşulu, aynı
-   * kart. Üyeye ek: Rothern ID + bağlantı durumu. Kendisi ve engelledikleri
-   * hariç. Görüntülemek ÜCRETSİZ (2026-09-04): eskiden STANDART boş alıyordu
-   * — anonim ziyaretçinin gördüğü dizini ücretsiz üye göremiyordu. Ücretli
-   * olan LİSTELENMEK (publicEnabled + PAKET), görmek değil.
+   * kart, aynı süzgeçler. Üyeye ek: Rothern ID, bağlantı durumu ve
+   * `connection` süzgeci. Kendisi ve engelledikleri hariç.
+   *
+   * Görüntülemek ÜCRETSİZ (2026-09-04): ücretli olan LİSTELENMEK
+   * (publicEnabled + PAKET sırası), görmek değil.
    */
   async searchCompanies(
     user: AuthenticatedCompanyUser,
     qRaw?: string,
     q: Omit<DirectoryParams, "q"> = {},
+    connection?: "connected" | "new",
   ) {
-    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
-    const res = await buildDirectory(
-      this.prisma,
-      { ...q, q: (qRaw ?? "").trim() || undefined },
-      { excludeIds: [user.companyId, ...blockedIds] },
-    );
+    const scope = await this.directoryScope(user.companyId, connection);
+    const res = await buildDirectory(this.prisma, { ...q, q: (qRaw ?? "").trim() || undefined }, scope);
     const statusMap = await this.connectionStatusMap(user.companyId, res.items.map((r) => r.id));
     return {
       ...res,
@@ -970,10 +967,44 @@ export class CompanyConnectionsService {
     };
   }
 
-  /** Dizin süzgeç sayaçları (panel) — public ile aynı küme. */
-  async searchFacets(user: AuthenticatedCompanyUser) {
-    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
-    return directoryFacets(this.prisma, { excludeIds: [user.companyId, ...blockedIds] });
+  /**
+   * Dizin süzgeç sayaçları (panel) — public ile aynı küme VE aynı bağlamsallık.
+   * Eskiden hiç parametre almıyordu: sayaçlar aramadan ve diğer seçimlerden
+   * bağımsız çıkıyor, "İstanbul (7)" tıklandığında liste boşalabiliyordu.
+   */
+  async searchFacets(
+    user: AuthenticatedCompanyUser,
+    q: DirectoryParams = {},
+    connection?: "connected" | "new",
+  ) {
+    const scope = await this.directoryScope(user.companyId, connection);
+    return directoryFacets(this.prisma, scope, q);
+  }
+
+  /**
+   * Dizin küme daraltması: her zaman kendisi + engelledikleri hariç; ayrıca
+   * `connected` → yalnız ACTIVE bağlantılı firmalar, `new` → onlar hariç.
+   * BEKLEYEN istek "bağlı" sayılmaz — istek gönderilmiş firma hâlâ keşif
+   * kümesindedir, aksi hâlde tek tıkla listeden kaybolurdu.
+   */
+  private async directoryScope(
+    companyId: string,
+    connection?: "connected" | "new",
+  ): Promise<DirectoryScope> {
+    const blockedIds = await this.blocks.blockedCompanyIds(companyId);
+    const excludeIds = [companyId, ...blockedIds];
+    if (!connection) return { excludeIds };
+    const connected = await this.prisma.companyConnection.findMany({
+      where: {
+        status: "ACTIVE",
+        OR: [{ inviterCompanyId: companyId }, { inviteeCompanyId: companyId }],
+      },
+      select: { inviterCompanyId: true, inviteeCompanyId: true },
+    });
+    const ids = connected.map((c) => (c.inviterCompanyId === companyId ? c.inviteeCompanyId : c.inviterCompanyId));
+    return connection === "connected"
+      ? { excludeIds, restrictIds: ids }
+      : { excludeIds: [...excludeIds, ...ids] };
   }
 
   /**

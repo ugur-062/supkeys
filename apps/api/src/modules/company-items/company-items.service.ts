@@ -28,14 +28,16 @@ import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
 } from "../public-profile/dto/public-product.projection";
-import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../public-marketplace/dto/public-product-index.projection";
+import { PRODUCT_INDEX_SELECT, attachProductFeatures, toProductIndexCard } from "../public-marketplace/dto/public-product-index.projection";
 import {
   PRODUCT_FACET_SCAN_CAP,
   PRODUCT_PAGE_SIZE,
+  attributeFacets,
   contextualFacetCounts,
   productIndexOrderBy,
   productIndexWhere,
   productSearchClauses,
+  subCategoryCounts,
   type ProductIndexParams,
 } from "../../common/company/product-index";
 import {
@@ -481,7 +483,8 @@ export class CompanyItemsService {
         this.prisma.companyItem.count({ where }),
         this.prisma.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
       ]);
-      return { items: rows.map(toProductIndexCard), total, page, pageSize: size };
+      const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
+      return { items, total, page, pageSize: size };
     }
     const matchClause: Prisma.CompanyItemWhereInput = {
       OR: prefixes.map((p) => ({ categoryId: { startsWith: p } })),
@@ -513,15 +516,12 @@ export class CompanyItemsService {
             take: need,
           })
         : [];
-    return {
-      items: [
-        ...head.map((r) => ({ ...toProductIndexCard(r), matchesProfile: true })),
-        ...tail.map((r) => ({ ...toProductIndexCard(r), matchesProfile: false })),
-      ],
-      total,
-      page,
-      pageSize: size,
-    };
+    const rows = [...head, ...tail];
+    const cards = [
+      ...head.map((r) => ({ ...toProductIndexCard(r), matchesProfile: true })),
+      ...tail.map((r) => ({ ...toProductIndexCard(r), matchesProfile: false })),
+    ];
+    return { items: await attachProductFeatures(this.prisma, rows, cards), total, page, pageSize: size };
   }
 
   /** Firmanın ALIM kategorileri (L1 ana + L2-4 alt) → kod ön ekleri. */
@@ -534,9 +534,17 @@ export class CompanyItemsService {
     return [...new Set(codes.map((k) => categoryPrefix(k)).filter((p): p is string => !!p))].slice(0, 60);
   }
 
-  /** Ürün Ara süzgeç sayaçları — public ile AYNI bağlama duyarlı sayım; kendi ürünler hariç. */
+  /**
+   * Ürün dizini süzgeç sayaçları — public `/urunler` ile AYNI bağlama duyarlı
+   * sayım (`contextualFacetCounts`), tek fark kendi ürünlerin hariç.
+   *
+   * Nitelik facet'i ve alt kırılım da tek kaynaktan (`product-index.ts`):
+   * buradaki kopya nitelik tipini "SELECT"/"MULTISELECT" diye yazıyordu,
+   * Prisma enum'ı ise SINGLE_SELECT/MULTI_SELECT — hiç eşleşmediği için
+   * panelin nitelik süzgeci sessizce HEP boş dönüyordu.
+   */
   async discoverFacets(user: AuthenticatedCompanyUser, q: ProductIndexParams = {}) {
-    const rows = await this.prisma.companyItem.findMany({
+    const raw = await this.prisma.companyItem.findMany({
       where: {
         ...publicProductWhere(),
         companyId: { not: user.companyId },
@@ -548,47 +556,37 @@ export class CompanyItemsService {
         attributes: true,
         company: { select: { city: true, activities: true, companyVerificationStatus: true } },
       },
-      take: PRODUCT_FACET_SCAN_CAP,
+      take: PRODUCT_FACET_SCAN_CAP + 1,
     });
+    // Tavan aşıldı mı GERÇEKTEN ölçülür: eskiden `truncated: false` sabitti,
+    // tam 5000'de sessizce eksik sayıyordu (public uç dürüst davranıyordu).
+    const truncated = raw.length > PRODUCT_FACET_SCAN_CAP;
+    const rows = truncated ? raw.slice(0, PRODUCT_FACET_SCAN_CAP) : raw;
     const prefix = q.category ? categoryPrefix(q.category) : null;
     const inCategory = prefix ? rows.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : rows;
     const ctx = contextualFacetCounts(inCategory, q);
     const catCounts = contextualFacetCounts(rows, q).categories;
-    const ids = catCounts.map(([id]) => id);
+    const subCounts = subCategoryCounts(inCategory, q.category);
+    const ids = [...new Set([...catCounts.map(([id]) => id), ...subCounts.map(([id]) => id)])];
     const cats = ids.length
       ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true, level: true } })
       : [];
     const byId = new Map(cats.map((c) => [c.id, c]));
-    // Nitelik facet'i kategori seçiliyken — public ile aynı tanım kaynağı.
-    let attributes: { key: string; nameTr: string; unit: string | null; values: { value: string; count: number }[] }[] = [];
-    if (q.category && /^\d{8}$/.test(q.category)) {
-      const defs = (await resolveCategoryAttributes(this.prisma, q.category)).filter((d) => d.type === "SELECT" || d.type === "MULTISELECT");
-      attributes = defs
-        .map((d) => {
-          const m = new Map<string, number>();
-          for (const r of inCategory) {
-            const a = r.attributes;
-            if (!a || typeof a !== "object" || Array.isArray(a)) continue;
-            const raw = (a as Record<string, unknown>)[d.key];
-            for (const v of Array.isArray(raw) ? raw : raw == null ? [] : [raw]) {
-              if (typeof v === "string" && v.trim()) m.set(v, (m.get(v) ?? 0) + 1);
-            }
-          }
-          return { key: d.key, nameTr: d.nameTr, unit: d.unit, values: [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count).slice(0, 12) };
-        })
-        .filter((f) => f.values.length > 0);
-    }
-    return {
-      categories: catCounts
+    const named = (pairs: [string, number][]) =>
+      pairs
         .map(([id, count]) => (byId.has(id) ? { id, name: byId.get(id)!.nameTr, level: byId.get(id)!.level, count } : null))
         .filter((c): c is NonNullable<typeof c> => !!c)
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
+    return {
+      categories: named(catCounts),
+      /** Seçili kategorinin bir alt seviyesi — kategori sayfasının çipleri. */
+      subCategories: named(subCounts),
       cities: ctx.cities,
       activities: ctx.activities,
       verified: ctx.verified,
       price: ctx.price,
-      attributes,
-      truncated: false,
+      attributes: await attributeFacets(this.prisma, q.category, inCategory),
+      truncated,
     };
   }
 

@@ -1,6 +1,7 @@
 import { Prisma } from "@rothern/db";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import type { TierName } from "@rothern/shared";
+import { labelAttributes, resolveCategoryAttributesBatch } from "../../../common/company/category-attributes";
 
 /**
  * FİRMALAR-ARASI ÜRÜN DİZİNİ — kart yansıtması (beyaz liste).
@@ -23,6 +24,7 @@ import type { TierName } from "@rothern/shared";
  */
 export const PRODUCT_INDEX_SELECT = {
   slug: true,
+  attributes: true,
   name: true,
   description: true,
   images: true,
@@ -69,6 +71,14 @@ export interface ProductIndexCard {
   moq: string | null;
   /** Kartta "Yeni" rozetinin kaynağı (≤7 gün) — tarihi istemci yorumlar. */
   publishedAt: string | null;
+  /**
+   * Kartın 3 maddelik "öne çıkan özellik" satırı — ürünün KENDİ nitelik
+   * tablosundan (kategori matrisinden miras alınan tanımlarla etiketlenmiş).
+   * Uydurulmaz: açıklamadan cümle ayıklanmaz, nitelik yoksa boş kalır ve
+   * kart özete düşer. `attachProductFeatures` doldurur; doldurulmadıysa
+   * alan hiç gelmez (eski kenar önbelleği kartı çökertmesin).
+   */
+  features?: string[];
   company: {
     name: string;
     slug: string;
@@ -112,4 +122,34 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
       gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt) === "GOLD",
     },
   };
+}
+
+/**
+ * Kart maddeleri — dizi üzerinde TOPLU (tek kategori-nitelik sorgusu).
+ *
+ * "Öne çıkan özellikler" için ayrı bir kolon YOK (şema bekleyen madde), bu
+ * yüzden kaynak ürünün kendi nitelik tablosudur: kategori matrisinden miras
+ * alınan tanımlar `attributes` JSON'ındaki değerleri etiketler, ilk üçü
+ * karta çıkar. Açıklamadan cümle ayıklamak uydurma veri olurdu (ürün
+ * sayfasında da bilinçli olarak yapılmıyor) — nitelik yoksa madde de yok.
+ */
+export async function attachProductFeatures<T extends ProductIndexCard>(
+  prisma: Parameters<typeof resolveCategoryAttributesBatch>[0],
+  rows: { categoryId: string | null; attributes: Prisma.JsonValue | null }[],
+  cards: T[],
+): Promise<T[]> {
+  const defsByCategory = await resolveCategoryAttributesBatch(
+    prisma,
+    rows.map((r) => r.categoryId),
+  );
+  if (defsByCategory.size === 0) return cards;
+  return cards.map((card, i) => {
+    const row = rows[i];
+    const defs = row?.categoryId ? defsByCategory.get(row.categoryId) : undefined;
+    if (!defs?.length) return card;
+    const features = labelAttributes(row.attributes, defs)
+      .slice(0, 3)
+      .map((a) => `${a.label}: ${a.value}${a.unit ? ` ${a.unit}` : ""}`);
+    return features.length ? { ...card, features } : card;
+  });
 }

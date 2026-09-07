@@ -327,8 +327,13 @@ const EMPTY_PRODUCTS: PublicProductPage = {
  * ilan kartına yanlışlıkla firma eklenmesi derleme hatası vermeli.
  */
 export interface ProductIndexCard extends PublicProductCard {
-  /** Panel Ürün Ara (uygunluk sırası): alıcının ALIM kategorisiyle örtüşüyor. */
+  /** Panel ürün dizini (uygunluk sırası): alıcının ALIM kategorisiyle örtüşüyor. */
   matchesProfile?: boolean;
+  /**
+   * Kartın 3 maddelik özellik satırı — ürünün nitelik tablosundan gelir
+   * (uydurulmaz). Eski kenar önbelleği taşımayabilir: OPSİYONEL.
+   */
+  features?: string[];
   /** "Yeni" rozeti (≤7 gün). Eski kenar önbelleği taşımayabilir. */
   publishedAt?: string | null;
   company: {
@@ -421,6 +426,8 @@ export interface PublicDirectoryCard {
   mainCategory: { id: string; name: string } | null;
   productCount: number;
   productPreview: { slug: string; name: string; image: string | null }[];
+  /** Aramaya UYAN ürünler (arama yoksa boş) — kartta vurgulu şerit. */
+  matchedProducts?: { slug: string; name: string; image: string | null }[];
   /* Kart alanları (PROMPT 5) — eski kenar önbelleği taşımayabilir: OPSİYONEL. */
   /** Efektif GOLD — "Gold Üye" rozeti (`gold=1` süzgecinin kartsal karşılığı). */
   gold?: boolean;
@@ -520,6 +527,8 @@ export interface ProductAttributeFacet {
 
 export interface ProductFacets {
   categories: { id: string; name: string; level: number; count: number }[];
+  /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
+  subCategories?: { id: string; name: string; level: number; count: number }[];
   cities: { city: string; count: number }[];
   activities: { activity: string; count: number }[];
   /** v3: bağlama duyarlı sayaçlar. */
@@ -545,6 +554,8 @@ export interface ProductListParams {
   priceMax?: number;
   moqMax?: number;
   page?: number;
+  /** Sayfa başına kart (24 | 48 | 96) — `adet` parametresinin API karşılığı. */
+  pageSize?: number;
 }
 
 const EMPTY_PRODUCT_INDEX: ProductIndexPage = {

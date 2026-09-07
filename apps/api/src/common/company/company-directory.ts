@@ -2,8 +2,9 @@ import type { PrismaClient } from "@rothern/db";
 import { isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
+import { productSearchClauses } from "./product-index";
 
-type Db = Pick<PrismaClient, "company" | "category">;
+type Db = Pick<PrismaClient, "company" | "category" | "companyItem">;
 
 export interface DirectoryParams {
   q?: string;
@@ -20,6 +21,18 @@ export interface DirectoryParams {
   /** relevance (paketli önce, sonra güncellik) | name | products | newest. */
   sort?: "relevance" | "name" | "products" | "newest";
   page?: number;
+}
+
+/**
+ * Küme daraltmaları. `restrictIds` YALNIZ bu firmalar (panel "Bağlısınız"
+ * süzgeci); `excludeIds` bunlar HARİÇ (kendisi, engelledikleri, "bağlı
+ * olmadıklarım"). Bağlantı durumu firma tablosunda değil `CompanyConnection`
+ * satırlarında yaşadığı için süzgeç KİMLİK KÜMESİ olarak geçer — dizin
+ * kaynağına bağlantı sorgusu sokmak public ile paneli ayrıştırırdı.
+ */
+export interface DirectoryScope {
+  excludeIds?: string[];
+  restrictIds?: string[];
 }
 
 /** Sayfa başına 20 firma kartı (PROMPT 4; eskiden 24). */
@@ -53,7 +66,7 @@ const isGold = (r: { tier: string; membershipEndAt: Date | null }) =>
 export async function directoryRows(
   prisma: Db,
   q: DirectoryParams,
-  opts: { excludeIds?: string[] } = {},
+  opts: DirectoryScope = {},
 ) {
   const tokens = q.q ? tokenizeQuery(q.q) : [];
   const cities = multi(q.city);
@@ -62,33 +75,60 @@ export async function directoryRows(
   const rows = await prisma.company.findMany({
     where: {
       ...PUBLIC_PROFILE_WHERE,
-      ...(opts.excludeIds?.length ? { id: { notIn: opts.excludeIds } } : {}),
+      ...(opts.restrictIds
+        ? { id: { in: opts.restrictIds, ...(opts.excludeIds?.length ? { notIn: opts.excludeIds } : {}) } }
+        : opts.excludeIds?.length
+          ? { id: { notIn: opts.excludeIds } }
+          : {}),
       ...(cities.length === 1 ? { city: cities[0] } : cities.length > 1 ? { city: { in: cities } } : {}),
       ...(activities.length ? { activities: { hasSome: activities } } : {}),
       ...(q.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
-      ...(categories.length
-        ? {
-            OR: [
-              { buyerCategoryIds: { hasSome: categories } },
-              { buyerSubCategoryIds: { hasSome: categories } },
-              { sellerCategoryIds: { hasSome: categories } },
-              { sellerSubCategoryIds: { hasSome: categories } },
-            ],
-          }
-        : {}),
-      ...(tokens.length
-        ? {
-            AND: tokens.map((t) => ({
-              OR: [
-                { name: { contains: t, mode: "insensitive" as const } },
-                { industry: { contains: t, mode: "insensitive" as const } },
-                { aboutText: { contains: t, mode: "insensitive" as const } },
-                { services: { has: t } },
-                { rothernId: { contains: t.toUpperCase() } },
-              ],
-            })),
-          }
-        : {}),
+      AND: [
+        ...(categories.length
+          ? [
+              {
+                OR: [
+                  { buyerCategoryIds: { hasSome: categories } },
+                  { buyerSubCategoryIds: { hasSome: categories } },
+                  { sellerCategoryIds: { hasSome: categories } },
+                  { sellerSubCategoryIds: { hasSome: categories } },
+                ],
+              },
+            ]
+          : []),
+        // ARAMA İKİ DALLI: firmanın KENDİ metni (ad/sektör/hakkında/hizmet/
+        // Rothern ID) ya da SATTIĞI ÜRÜN. Tek dallıyken "kompanzasyon"
+        // araması ürün sekmesinde 12, firma sekmesinde 0 sonuç veriyordu —
+        // oysa o 12 ürünün satıcıları tam olarak aranan firmalar. Ürün dalı
+        // firma adını aramaz (`includeCompanyName: false`): ada uyan firmanın
+        // tüm ürünleri "aramaya uyan" sayılırdı.
+        ...(tokens.length
+          ? [
+              {
+                OR: [
+                  {
+                    AND: tokens.map((t) => ({
+                      OR: [
+                        { name: { contains: t, mode: "insensitive" as const } },
+                        { industry: { contains: t, mode: "insensitive" as const } },
+                        { aboutText: { contains: t, mode: "insensitive" as const } },
+                        { services: { has: t } },
+                        { rothernId: { contains: t.toUpperCase() } },
+                      ],
+                    })),
+                  },
+                  {
+                    items: {
+                      some: {
+                        AND: [publicProductWhere(), ...productSearchClauses(q.q, { includeCompanyName: false })],
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     select: {
       id: true,
@@ -148,7 +188,7 @@ export async function directoryRows(
 export async function buildDirectory(
   prisma: Db,
   q: DirectoryParams,
-  opts: { excludeIds?: string[] } = {},
+  opts: DirectoryScope = {},
 ) {
   const pageSize = DIRECTORY_PAGE_SIZE;
   const page = Math.max(1, q.page ?? 1);
@@ -160,6 +200,27 @@ export async function buildDirectory(
     ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true } })
     : [];
   const nameById = new Map(cats.map((c) => [c.id, c.nameTr]));
+  // "ARAMANIZA UYAN ÜRÜNLER" — kartın küçük resim şeridi arama varken
+  // sorguya uyan ürünleri gösterir. Ayrı bir sorgu, çünkü Prisma aynı
+  // ilişkiyi iki farklı `where` ile İKİ KEZ seçemez; firma ELEMESİ buna
+  // bağlanmaz (firma adıyla eşleşen firma, ürünü uymasa da listede kalır —
+  // aksi hâlde arama sessizce ürün aramasına dönerdi).
+  const matchedByCompany = new Map<string, { slug: string; name: string; image: string | null }[]>();
+  const searchClauses = productSearchClauses(q.q, { includeCompanyName: false });
+  if (searchClauses.length > 0 && slice.length > 0) {
+    const hits = await prisma.companyItem.findMany({
+      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) }, AND: searchClauses },
+      select: { companyId: true, slug: true, name: true, images: true },
+      orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+      take: slice.length * 4,
+    });
+    for (const h of hits) {
+      const list = matchedByCompany.get(h.companyId) ?? [];
+      if (list.length >= 3) continue;
+      list.push({ slug: h.slug ?? "", name: h.name, image: h.images[0] ?? null });
+      matchedByCompany.set(h.companyId, list);
+    }
+  }
   return {
     items: slice.map((r) => {
       const main = [...r.sellerCategoryIds, ...r.buyerCategoryIds].find((id) => nameById.has(id));
@@ -184,6 +245,8 @@ export async function buildDirectory(
         mainCategory: main ? { id: main, name: nameById.get(main) as string } : null,
         productCount: r._count.items,
         productPreview: r.items.map((i) => ({ slug: i.slug ?? "", name: i.name, image: i.images[0] ?? null })),
+        /** Aramaya uyan ürünler (arama yoksa boş) — kartta vurgulu şerit. */
+        matchedProducts: matchedByCompany.get(r.id) ?? [],
       };
     }),
     total,
@@ -199,7 +262,7 @@ export async function buildDirectory(
  */
 export async function directoryFacets(
   prisma: Db,
-  opts: { excludeIds?: string[] } = {},
+  opts: DirectoryScope = {},
   params: DirectoryParams = {},
 ) {
   const rows = await directoryRows(prisma, { q: params.q }, opts);
