@@ -30,11 +30,24 @@ export function ProductShowcase({
   heading,
   lead,
   groups,
+  hrefFor,
+  cta,
+  accent,
   idPrefix = "urun-vitrini",
 }: {
   heading: string;
   lead?: string;
   groups: ShowcaseGroup[];
+  /**
+   * Kart hedefi — verilmezse herkese açık ürün adresi (`/firma/…/urun/…`).
+   * PANEL kendi rotasını geçer: pazar yerinin herkese açık sayfaları panelde
+   * oturumu okumaz, kullanıcı sol menüsünü kaybederdi.
+   */
+  hrefFor?: (p: ProductIndexCard) => string;
+  /** Kart içindeki birincil eylem (panelde "Bilgi iste"; public'te yok). */
+  cta?: string;
+  /** Eylem rengi — panel satınalma mavi, public monokrom. */
+  accent?: "default" | "blue";
   /**
    * Sekme/panel `id` ÖNEKİ — SABİT, `useId()` DEĞİL.
    *
@@ -199,8 +212,11 @@ export function ProductShowcase({
             <li key={`${p.company.slug}/${p.slug}`} className="w-64 shrink-0 snap-start sm:w-72">
               <ProductCard
                 product={p}
-                companySlug={p.company.slug}
+                {...(hrefFor ? { href: hrefFor(p) } : { companySlug: p.company.slug })}
                 company={p.company}
+                features={p.features}
+                cta={cta}
+                accent={accent}
                 priority={active === 0 && i < 4}
               />
             </li>

@@ -950,11 +950,33 @@ normalde taşmaz, dolayısıyla kaydırma çubuğu çizilmez). Facet başına
 iki farklı yetenekle yaşıyordu (orada süzgeçler yerel `useState`teydi:
 URL'ye yazılmıyor, sayfalama/şehir/kategori/sıralama yok).
 
-**Anasayfa sırası:** hero arama → kategoriler (artık NAVİGASYON, kaydırma
-değil) → "Size uygun ürünler" şeridi (`PanelFeaturedProducts`) →
-doğrulanmış tedarikçiler → talep aç şeridi → profil sağlığı → Raporlar. AI
-yorumu ürün dizinine `sessionStorage` köprüsüyle taşınır (`stashAiIntent`/
-`takeAiIntent`; taslak köprüsüyle aynı desen, süzgeçler zaten URL'de).
+**Anasayfa = www.rothern.com anasayfasının ALICI yüzü (2026-09-07, kullanıcı
+kararı: "oradaki ile birebir aynı olsun").** Sıra ve bileşenler herkese açık
+anasayfayla AYNI dosyalardan: panel hero araması → sayı şeridi (`StatsRow`) →
+nasıl çalışır (`HowItWorksFlow`) → sekmeli ürün kaydırıcısı
+(`ProductShowcase`: Öne çıkan | Yeni | Fiyatı yazılı) → kategori ızgarası
+(`CategoryGrid`, 1 büyük + N) → iki kart (`TwoCards variant="panel"`) →
+firmalar (`CompanyGrid`) → popüler kategoriler (`PopularChips`) → tanıtım
+paragrafı. Kopya çıkarılmadı; rota ve metin farkları PROP olarak geçer
+(`hrefFor`/`allHref`/`links`/`variant`) — public ile panel bir daha
+ayrışmasın. Sözleşme: `app/company/__tests__/satinalma-home.test.tsx`
+(bölümler + "hiçbir bağlantı public pazar yeri adresine gitmez"; tek istisna
+`/nasil-calisir`).
+
+ÜÇ ZORUNLU FARK: (a) veri panelin KENDİ uçlarından — public uçlar panelde
+kullanılmaz; (b) kayıt CTA'sı yok, `TwoCards` panel varyantı "talep aç" ve
+"ürün ekle" der; (c) sayı şeridi HAREKET değil ENVANTER ("pazardaki ürün ·
+vitrini yayında firma · ürün olan sektör") — hareket metrikleri
+`public/stats` ucundan geliyor ve panelde çağrılamaz, uydurma sayı basmak
+yerine ölçülebilen üç gerçek sayı yazılır. Hero PANELİN kendi bloğu kalır
+(kullanıcı kararı): public hero'nun Alıcı/Tedarikçi anahtarı sol menüdeki
+portal pilinin kopyası olurdu, "Kaydol" düğmesi anlamsız; "AI ile ara"
+(Silver+) yalnız panelde var. AI yorumu ürün dizinine `sessionStorage`
+köprüsüyle taşınır (`stashAiIntent`/`takeAiIntent`).
+
+Bu turda ÖLEN bloklar silindi (git'te duruyor): `PanelRecommendations`
+(iki tavsiye şeridi), `CategoryShowcaseRows` (3 satırlık vitrin),
+`PanelFeaturedProducts` (zaten bağlanmamıştı).
 
 **BAŞLIK ŞERİDİ ve "BUGÜN" bandı İKİ ANASAYFADAN DA KALKTI (2026-09-07,
 kullanıcı kararı).** Kalkan: panel adı + firma/tarih + kur çipleri
