@@ -19,6 +19,7 @@ import { categoryPath } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
+import { StickyCta } from "./sticky-cta";
 import { companyActivityLabel } from "@rothern/shared";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
@@ -152,7 +153,7 @@ export function ProductDetail({
           companyHref={`/firma/${companySlug}`}
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
-          mobileCta={
+          stickyCta={
             <Link
               href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
               className="inline-flex items-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white"
@@ -246,7 +247,7 @@ export function ProductDetailBody({
   sellerSite,
   related,
   hrefFor,
-  mobileCta,
+  stickyCta,
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
   product: PublicProduct & Partial<ProductPriceFields>;
@@ -266,10 +267,11 @@ export function ProductDetailBody({
   /** İlişkili ürün kartının hedefi — public `/firma/…`, panel `/company/…`. */
   hrefFor?: (c: ProductIndexCard) => string;
   /**
-   * Mobil alt şeridin eylemi (fiyatın yanında). Verilmezse şerit çizilmez —
-   * `cta` slotunu ikinci kez basmak aynı bağlantıyı iki sekme durağı yapardı.
+   * Yapışkan alt şeridin eylemi (fiyatın yanında). Verilmezse şerit
+   * çizilmez. Şerit YALNIZ asıl eylem ekrandan çıkınca görünür — aynı
+   * düğme iki kez ekranda durmaz (bkz. `StickyCta`).
    */
-  mobileCta?: React.ReactNode;
+  stickyCta?: React.ReactNode;
 }) {
   const price = productPrice({
     priceMode: product.priceMode,
@@ -304,6 +306,25 @@ export function ProductDetailBody({
             {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
             {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
           </div>
+
+          {/* KİMDEN, NE, NEREDEN (Europages başlık altı satırı): kategori
+              etiketi + faaliyet tipi + şehir. Üçü de VAR olan veriden;
+              "teslim alanı" kolonu yok, uydurulmaz. */}
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-500">
+            {product.category ? <span className="text-zinc-700">{product.category.name}</span> : null}
+            {company.activities.length > 0 ? (
+              <>
+                <span aria-hidden className="text-zinc-300">·</span>
+                <span>{company.activities.map((a) => companyActivityLabel(a)).join(", ")}</span>
+              </>
+            ) : null}
+            {company.city ? (
+              <>
+                <span aria-hidden className="text-zinc-300">·</span>
+                <span>{company.city}</span>
+              </>
+            ) : null}
+          </p>
 
           {/* Anahtar kelimeler başlığın ALTINDA (Europages): hem uzun kuyruk
               SEO hem "bu ürün ne" özeti. Eskiden sayfanın en altındaydı. */}
@@ -447,6 +468,22 @@ export function ProductDetailBody({
             <div className="mt-5 border-t border-zinc-950/5 pt-5">{cta}</div>
           </div>
 
+          {/* YAPIŞKAN ŞERİT — nöbetçi asıl eylemin hemen altında: eylem
+              ekrandayken şerit çizilmez. */}
+          {stickyCta ? (
+            <StickyCta
+              title={product.name}
+              price={{ headline: price.headline, hasPrice: price.hasPrice }}
+              meta={
+                product.moq
+                  ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
+                  : undefined
+              }
+            >
+              {stickyCta}
+            </StickyCta>
+          ) : null}
+
           {/* Güven şeridi — üç kural, tek satır. */}
           <ul className="mt-4 space-y-2 px-1 text-xs text-zinc-600">
             <li className="flex items-center gap-2">
@@ -465,25 +502,6 @@ export function ProductDetailBody({
         </aside>
       </div>
 
-      {/* MOBİL ALT ŞERİT — fiyat + tek eylem. Panel `lg` altında sayfanın
-          altına düştüğü için karar ekranı ekrandan çıkıyordu. */}
-      {mobileCta ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className={`tnum truncate text-sm font-semibold ${price.hasPrice ? "text-zinc-950" : "text-zinc-600"}`}>
-                {price.headline}
-              </p>
-              {product.moq ? (
-                <p className="tnum truncate text-xs text-zinc-500">
-                  Min. {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
-                </p>
-              ) : null}
-            </div>
-            <div className="shrink-0">{mobileCta}</div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

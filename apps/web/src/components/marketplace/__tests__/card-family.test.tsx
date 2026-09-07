@@ -33,25 +33,24 @@ describe("ProductCard", () => {
     expect(card?.contains(badge)).toBe(true);
   });
 
-  it("ROZET HİYERARŞİSİ: güven sinyali görünür etiket, ticari seviye sessiz kapak şeridi", () => {
-    // 2026-09-07: "Gold Üye" kapakta parlak bir rozetken "Doğrulanmış"tan
-    // daha çok dikkat çekiyordu. Doğrulanmış artık gövdenin ilk satırında
-    // OKUNUR bir etiket; Gold kapağın altında sessiz bir şerit.
+  it("ROZET HİYERARŞİSİ: ürün kartında güven sinyali var, PAKET rozeti YOK", () => {
+    // 2026-09-07 (kullanıcı bulgusu): "Gold Üye" paketli firma çok olduğu
+    // için neredeyse her kartta çıkıyor, ayırt ediciliğini yitiriyordu.
+    // Gold bir SATICI sinyali — firma kartında ve satıcı panelinde durur.
     const { container } = render(<ProductCard product={product} companySlug="d" company={company} />);
     expect(screen.getByText("Doğrulanmış")).toBeTruthy();
-    const gold = screen.getByText("Gold Üye");
-    expect(gold.className).toContain("text-amber-200");
-    // Güven etiketi kapağın DIŞINDA (gövdede), Gold kapağın içinde.
+    expect(screen.queryByText("Gold Üye")).toBeNull();
+    // Güven etiketi kapağın DIŞINDA (gövdede).
     const cover = container.querySelector("article > div:first-child");
-    expect(cover?.contains(gold)).toBe(true);
     expect(cover?.contains(screen.getByText("Doğrulanmış"))).toBe(false);
   });
 
-  it("çağıranın rozeti Gold rozetinin yerini alır (tek kapak rozeti)", () => {
-    render(
+  it("kapakta YALNIZ çağıranın rozeti durur", () => {
+    const { container } = render(
       <ProductCard product={product} companySlug="d" company={company} badge={<span>Eşleşiyor</span>} />,
     );
-    expect(screen.queryByText("Gold Üye")).toBeNull();
+    const cover = container.querySelector("article > div:first-child");
+    expect(cover?.contains(screen.getByText("Eşleşiyor"))).toBe(true);
   });
 
   it("yayın tarihi 7 günden yeniyse 'Yeni' rozeti basar, eskiyse basmaz", () => {

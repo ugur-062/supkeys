@@ -45,7 +45,7 @@ const company: PublicProductCompany = {
   country: "TR",
   logoUrl: null,
   industry: "Enerji ve elektrik",
-  activities: ["HIZMET_SAGLAYICI"],
+  activities: ["SERVICE_PROVIDER"],
   verified: true,
   gold: true,
   foundedYear: 2008,
@@ -166,10 +166,23 @@ describe("ProductDetailBody", () => {
     expect(screen.getByText("yeni-1")).toBeInTheDocument();
   });
 
-  it("mobil şerit YALNIZ eylem verildiğinde çizilir (ikinci sekme durağı olmasın)", () => {
+  it("yapışkan şerit YALNIZ eylem verildiğinde çizilir ve BAŞLANGIÇTA gizlidir", () => {
     const { container, rerender } = render(Body());
     expect(container.querySelector(".fixed.inset-x-0.bottom-0")).toBeNull();
-    rerender(Body({ mobileCta: <button type="button">Bilgi iste</button> }));
-    expect(container.querySelector(".fixed.inset-x-0.bottom-0")).toBeTruthy();
+    rerender(Body({ stickyCta: <button type="button">Bilgi iste</button> }));
+    const bar = container.querySelector(".fixed.inset-x-0.bottom-0");
+    expect(bar).toBeTruthy();
+    // Asıl eylem ekrandayken şerit KAPALI — aynı düğme iki kez durmaz
+    // (nöbetçi yukarı çıkınca IntersectionObserver açar).
+    expect(bar).toHaveAttribute("hidden");
+  });
+
+  it("başlık altında kategori · faaliyet · şehir satırı var", () => {
+    render(Body());
+    // Satır TEK yerde: kategori · faaliyet · şehir (faaliyet ve şehir satıcı
+    // özetinde de geçtiği için metin değil SATIR denetlenir).
+    const meta = screen.getByText("Panolar").closest("p");
+    expect(meta?.textContent).toContain("Hizmet sağlayıcı");
+    expect(meta?.textContent).toContain("Samsun");
   });
 });

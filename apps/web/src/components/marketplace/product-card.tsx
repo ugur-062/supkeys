@@ -52,7 +52,7 @@ export interface ProductCardCompany {
   city?: string | null;
   /** KYC doğrulaması tamam — "Doğrulanmış" rozeti. */
   verified?: boolean;
-  /** Efektif GOLD — kapakta "Gold Üye" rozeti. */
+  /** Efektif GOLD — ÜRÜN kartında gösterilmez (firma kartı ve satıcı paneli). */
   gold?: boolean;
   logoUrl?: string | null;
   /** Süzgeçte kullanılır; kartta GÖSTERİLMEZ (PROMPT 5). */
@@ -188,11 +188,6 @@ export function ProductCard({
                 Doğrulanmış
               </Badge>
             ) : null}
-            {firm?.gold ? (
-              <Badge tone="gold" size="sm">
-                Gold Üye
-              </Badge>
-            ) : null}
             {fresh ? (
               <Badge tone="new" size="sm">
                 Yeni
@@ -273,17 +268,17 @@ export function ProductCard({
           priority={priority}
           fallback="neutral"
         />
-        {/* ROZET HİYERARŞİSİ (2026-09-07): kapakta yalnız çağıranın rozeti
-            (ör. "Alım kategorinizle eşleşiyor") ya da SESSİZ Gold şeridi.
-            Güven sinyali (Doğrulanmış) ve tazelik (Yeni) gövdenin ilk
-            satırına taşındı — ticari seviye rozeti güven rozetinden daha
-            çok dikkat çekiyordu. */}
+        {/* ROZET HİYERARŞİSİ: kapakta YALNIZ çağıranın rozeti (ör. "Alım
+            kategorinizle eşleşiyor"). Güven sinyali (Doğrulanmış) ve
+            tazelik (Yeni) gövdenin ilk satırında.
+
+            "Gold Üye" ÜRÜN KARTINDAN KALDIRILDI (2026-09-07, kullanıcı
+            bulgusu): paketli firma çok olduğu için neredeyse her kartta
+            çıkıyor ve ayırt ediciliğini yitiriyordu. Gold bir SATICI
+            sinyalidir — firma kartında ve ürün sayfasının satıcı panelinde
+            durur, orada "kimden alıyorum" sorusunun cevabının parçasıdır. */}
         {badge ? (
           <span className="pointer-events-none absolute top-2 left-2 z-10">{badge}</span>
-        ) : firm?.gold ? (
-          <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-zinc-950/70 to-transparent px-2.5 py-1.5">
-            <span className="text-[11px] font-semibold tracking-wide text-amber-200">Gold Üye</span>
-          </span>
         ) : null}
       </div>
 

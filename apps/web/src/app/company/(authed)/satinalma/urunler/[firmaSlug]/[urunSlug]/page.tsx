@@ -86,7 +86,7 @@ export default function PanelProductPage() {
         companyHref={companyHref}
         related={related.data}
         hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
-        mobileCta={
+        stickyCta={
           <button
             type="button"
             onClick={() => setInquiryOpen(true)}
