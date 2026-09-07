@@ -141,9 +141,13 @@ export function PanelHeroSearch({
         {eyebrow ? (
           <p className={`text-sm/6 font-semibold ${tone.eyebrow}`}>{eyebrow}</p>
         ) : null}
-        <h2 className="mt-1 text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
+        {/* Sayfanın TEK h1'i (2026-09-07): panel anasayfalarının başlık
+            şeridi kalktı, hero başlığı sayfanın adı oldu — h2 kalsaydı iki
+            anasayfa da h1'siz gezinirdi (ekran okuyucu "sayfa başlığı"
+            atlar). Hero yalnız bu iki sayfada kullanılıyor. */}
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
           {title}
-        </h2>
+        </h1>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
 
         {ai ? (

@@ -1,10 +1,8 @@
 "use client";
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
-import { ActionStrip } from "@/components/dashboard/action-center";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CtaBand } from "@/components/dashboard/cta-band";
-import { TodayBand } from "@/components/dashboard/today-band";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { useSellerTenders } from "@/hooks/use-seller-tenders";
 import { SellerTendersView } from "@/components/company/seller-tenders-view";
@@ -13,40 +11,26 @@ import { intentToRequestQuery } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "next/navigation";
 import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
-import { KpiCard } from "@/components/dashboard/analytics-primitives";
-import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { PackagePlus } from "lucide-react";
-import { useMyBids } from "@/hooks/use-company-listings";
 import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/request-facets";
-import { useOrders } from "@/hooks/use-company-orders";
-import {
-  selectActiveOffers,
-  selectActiveOrders,
-  selectWonOffers,
-} from "@/lib/company/kpi-selectors";
 
-import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
-import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useSatisStats } from "@/hooks/use-company-dashboard";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 /**
- * Satış panosu (2026-09-05 revizyonu). Sıra yukarıdan aşağı:
- *   1. başlık (firma, tarih, kur çipi)
- *   2. arama kutusu — açık talepleri arar (`?q=`), yazarken öneri
- *   3. AÇIK TALEPLER — kenar süzgeçli TAM liste (ayrı sayfa yok)
- *   4. BUGÜN: bekleyen işler şeridi + 4 dönemsiz KPI
- *   5. ürün ekle şeridi (primary — satış menüsünde CTA yok)
- *   6. profil & katalog sağlığı — eşleşme kalitesinin girdileri
+ * Satış panosu. Sıra yukarıdan aşağı:
+ *   1. arama kutusu — açık talepleri arar (`?q=`), yazarken öneri
+ *   2. AÇIK TALEPLER — kenar süzgeçli TAM liste (ayrı sayfa yok)
+ *   3. ürün ekle şeridi (primary — satış menüsünde CTA yok)
+ *   4. profil & katalog sağlığı — eşleşme kalitesinin girdileri
  * Grafikler Raporlar'da; "Son Aktiviteler" (2026-08-03), "Başlangıç" listesi,
  * sektör çipleri/kartları ve alıcı bloğu kullanıcı isteğiyle kaldırıldı.
+ * BAŞLIK ŞERİDİ ve "BUGÜN" bandı (bekleyen işler + 4 KPI) 2026-09-07'de
+ * kullanıcı kararıyla kaldırıldı: ikisi de Şirketim › Genel Bakış'ta tam
+ * hâliyle yaşıyor, anasayfa açık taleplere ayrıldı.
  */
 export function SatisDashboardView() {
   const { company, user } = useCompanyAuth();
-  const stats = useSatisStats();
   const router = useRouter();
 
   // AI ile ara: "ne sattığınızı anlatın" → açık talep süzgeci (URL) + bant.
@@ -59,18 +43,6 @@ export function SatisDashboardView() {
     router.push(`/company/satis${intentToRequestQuery(r)}#acik-talepler`);
   };
 
-  // Hydration-safe tarih (sunucu/istemci farkı olmasın).
-  const [todayLabel, setTodayLabel] = useState("");
-  useEffect(() => {
-    setTodayLabel(format(new Date(), "d MMMM yyyy, EEEE", { locale: tr }));
-  }, []);
-
-  const s = stats.data;
-  const loading = stats.isLoading;
-  // Dönem seçici GRAFİKLERLE BİRLİKTE Raporlar'a gitti; panodaki 4 sayı
-  // dönemsizdir ("bugün ne durumdayım"). Analitikten yalnız delta/spark ve
-  // yanıtsız davet sayısı okunur — varsayılan dönemle.
-  const analytics = useSatisAnalytics({ period: "month" });
   // Öneri için sektör sayaçları: listenin KENDİSİNDEN (aynı görünürlük, ek
   // uç yok). Sektör çipleri ve fotoğraflı sektör kartları KALDIRILDI
   // (2026-09-05, kullanıcı: "gerek yok" — kategori süzgeci listenin
@@ -134,47 +106,11 @@ export function SatisDashboardView() {
     ];
   }, [q, tenders.data, sectorCounts]);
 
-  // KPI'lar liste sayfalarıyla AYNI seçiciden (kpi-selectors): sunucu sayımı
-  // ilan tipini süzmüyordu — satın alma tarafında verilen teklifler satış
-  // panosuna sayılıyor, sipariş kutusu listenin "Aktif" kümesinden farklı bir
-  // statü kümesi kullanıyordu (4 ↔ 2, 4 ↔ 3, 0 ↔ 1).
-  const bids = useMyBids();
-  const orders = useOrders();
-  const activeOffers = bids.data ? selectActiveOffers(bids.data).length : undefined;
-  const wonOffers = bids.data ? selectWonOffers(bids.data).length : undefined;
-  const activeOrders = orders.data
-    ? selectActiveOrders(orders.data, "seller").length
-    : undefined;
-  // Faz 7.3: yükleme artık iskeletle çözülür (aşağıda) — kartlara gelindiyse
-  // veri var; "—" yalnız "değer gerçekten yok" anlamında kalır.
-  const val = (n: number | undefined) => n ?? 0;
-
   return (
     <div className="space-y-10">
-      {/* Karşılama başlığı — satınalma paneliyle aynı biçim */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950">
-            Satış paneli
-          </h1>
-          <p className="text-[15px] text-zinc-500">
-            {company?.name ?? "Rothern"}
-            {todayLabel ? (
-              <>
-                <span className="mx-2 text-zinc-300">{" · "}</span>
-                <span>{todayLabel}</span>
-              </>
-            ) : null}
-          </p>
-        </div>
-        {/* Başlıkta CTA yok — sayfa başına tek primary (sol menü). Kur
-            çipi kalır. */}
-        <TcmbRatesChip />
-      </header>
-
-      {/* SIRA (2026-09-05, ikinci revizyon — kullanıcı kararı): arama (öneriyle)
-          → AÇIK TALEPLER (kenar süzgeçli tam liste) → BUGÜN → ürün ekle şeridi
-          → katalog/profil sağlığı. Sektör çipleri, fotoğraflı sektör kartları
+      {/* SIRA: arama (öneriyle) → AÇIK TALEPLER (kenar süzgeçli tam liste)
+          → ürün ekle şeridi → katalog/profil sağlığı. Sektör çipleri,
+          fotoğraflı sektör kartları
           ve "Talep açan alıcılar" bloğu KALDIRILDI: kategori ve alıcı artık
           listenin kenar süzgecinde sayaçlı — aynı bilgiyi ikinci kez basmak
           sayfayı kalabalıklaştırıyordu. */}
@@ -193,74 +129,6 @@ export function SatisDashboardView() {
       <SellerTendersView
         banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
       />
-
-      <TodayBand lead="Bekleyen işleriniz ve dönemsiz dört sayı.">
-        <ActionStrip portal="satis" />
-
-        {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
-        {stats.isError && !s ? (
-          <ErrorState title="Veri alınamadı" onRetry={() => void stats.refetch()} />
-        ) : null}
-
-        {/* GRAFİKLER RAPORLAR'DA (2026-09-03); panoda dönemsiz 4 sayı. */}
-        {loading && !s ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200/60" />
-            ))}
-          </div>
-        ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Vurgu kuralı (Faz 4.4): davet VARLIĞI değil, yanıt BEKLEYEN davet
-              vurgular — nedeni alt metinde. */}
-          {/* C9: değer ve hint AYNI kaynaktan (analytics.unansweredInvites) —
-              önceden değer satisStats'tan geliyordu ve iki tanım çelişebiliyordu
-              ("Aktif Davetler: 0" + "1 davet bekliyor"). */}
-          <KpiCard
-            label="Yanıt Bekleyen Davet"
-            value={val(analytics.data?.actions.unansweredInvites)}
-            href="/company/satis#acik-talepler"
-            accent="emerald"
-            attention={(analytics.data?.actions.unansweredInvites ?? 0) > 0}
-            hint={
-              (analytics.data?.actions.unansweredInvites ?? 0) > 0
-                ? `${analytics.data!.actions.unansweredInvites} davet teklifinizi bekliyor`
-                : undefined
-            }
-          />
-          <KpiCard
-            label="Aktif Tekliflerim"
-            value={val(activeOffers)}
-            href="/company/satis/tekliflerim"
-            accent="emerald"
-            hint="Karar bekleyen teklifleriniz"
-            deltaPct={analytics.data?.deltas.bidsSubmitted}
-            deltaPeriodLabel="Geçen aya göre"
-            spark={analytics.data?.kpiSeries.bidsSubmitted}
-          />
-          <KpiCard
-            label="Kazandığım İşler"
-            value={val(wonOffers)}
-            href="/company/satis/tekliflerim?status=WON"
-            accent="emerald"
-            hint="Kısmi kazanım dahil"
-            spark={analytics.data?.kpiSeries.won}
-          />
-          {/* Satışlarım "Aktif" kutusuyla AYNI küme (PENDING…DELIVERED) —
-              eski "Bekleyen Sipariş" yalnız onay öncesini sayıyor, liste 1
-              derken pano 0 gösteriyordu. */}
-          <KpiCard
-            label="Aktif Sipariş"
-            value={val(activeOrders)}
-            href="/company/satis/siparisler"
-            accent="emerald"
-            deltaPct={analytics.data?.deltas.orders}
-            deltaPeriodLabel="Geçen aya göre"
-            spark={analytics.data?.kpiSeries.orders}
-          />
-        </div>
-        )}
-      </TodayBand>
 
       <CtaBand
         icon={<PackagePlus aria-hidden className="size-5" strokeWidth={1.75} />}

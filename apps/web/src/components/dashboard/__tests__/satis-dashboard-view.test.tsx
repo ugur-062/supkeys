@@ -61,9 +61,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/use-ai-search-intent", () => ({
   useAiSearchIntent: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-vi.mock("@/components/tcmb-rates-widget", () => ({
-  TcmbRatesChip: () => <div data-testid="tcmb" />,
-}));
 // Aksiyon merkezi/şeridi kendi ucundan beslenir — ayrı test edilir; burada
 // varlığını gözlemleyen hafif mock.
 vi.mock("@/components/dashboard/action-center", () => ({
@@ -121,27 +118,20 @@ beforeEach(() => {
 });
 
 describe("SatisDashboardView", () => {
-  it("KPI değerleri + karşılama + tutar KPI satırı görünür", () => {
+  it("BAŞLIK ŞERİDİ ve 'BUGÜN' bandı anasayfada YOK (2026-09-07, kullanıcı kararı)", () => {
     h.stats = fullStats();
-    // C9: davet kartı artık analytics.unansweredInvites'tan beslenir.
-    h.analytics = {
-      actions: { unansweredInvites: 3 },
-      deltas: {},
-      kpiSeries: {},
-    };
+    h.analytics = { actions: { unansweredInvites: 3 }, deltas: {}, kpiSeries: {} };
     render(<SatisDashboardView />);
 
-    expect(screen.getByText("Satış paneli")).toBeInTheDocument();
-    expect(screen.getByText("Yanıt Bekleyen Davet")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    // Seçici (kpi-selectors): 2 aktif teklif (açık talep; AWARDED'daki
-    // sayılmaz), 2 kazanım (kısmi dahil),
-    // 1 aktif satış siparişi (DELIVERED canlı, COMPLETED değil, alıcı rolü hariç).
-    expect(screen.getByText("Aktif Tekliflerim").closest("a")).toHaveTextContent("2");
-    expect(screen.getByText("Kazandığım İşler").closest("a")).toHaveTextContent("2");
-    expect(screen.getByText("Aktif Sipariş").closest("a")).toHaveTextContent("1");
-    expect(screen.queryByText("Bekleyen Sipariş")).toBeNull();
-    expect(screen.getByTestId("tcmb")).toBeInTheDocument();
+    // Panel adı sol menüde, kur çipi + bekleyen işler + 4 KPI
+    // Şirketim › Genel Bakış'ta — anasayfa açık taleplere ayrıldı.
+    expect(screen.queryByText("Satış paneli")).toBeNull();
+    expect(screen.queryByTestId("tcmb")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Bugün" })).toBeNull();
+    expect(screen.queryByTestId("action-strip")).toBeNull();
+    for (const label of ["Yanıt Bekleyen Davet", "Aktif Tekliflerim", "Kazandığım İşler", "Aktif Sipariş"]) {
+      expect(screen.queryByText(label)).toBeNull();
+    }
   });
 
   it("GRAFİKLER ve dönemsel tutar kartları panoda YOK (satış raporları da kaldırıldı)", () => {
@@ -163,40 +153,25 @@ describe("SatisDashboardView", () => {
     expect(screen.queryByRole("region", { name: "Talep olan sektörler" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Talep açan alıcılar" })).toBeNull();
     expect(screen.queryByText(/Başlangıç/)).toBeNull();
-    // Liste anasayfada; "Bugün" bandı ve ürün ekle şeridi var.
+    // Liste anasayfada; "Bugün" bandı kalktı, ürün ekle şeridi duruyor.
     expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Bugün" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Bugün" })).toBeNull();
     expect(screen.getByRole("link", { name: /Ürün ekle/ })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
   });
 
-  it("özet sırası: arama → açık talepler listesi → şerit → KPI → sağlık; keşif kartı YOK", () => {
+  it("özet sırası: arama → açık talepler listesi → ürün ekle → sağlık; keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
     const at = (s: string) => html.indexOf(s);
     expect(at("portal-discovery")).toBe(-1);
-    expect(at("action-strip")).toBeGreaterThan(-1);
+    expect(at("action-strip")).toBe(-1);
     expect(at("Hangi talebe teklif")).toBeLessThan(at("seller-tenders"));
-    expect(at("seller-tenders")).toBeLessThan(at("action-strip"));
-    expect(at("action-strip")).toBeLessThan(at("Aktif Tekliflerim"));
-    expect(at("Aktif Tekliflerim")).toBeLessThan(at("seller-health"));
+    expect(at("seller-tenders")).toBeLessThan(at("Ürün ekle"));
+    expect(at("Ürün ekle")).toBeLessThan(at("seller-health"));
     // TEK arama kutusu (hero); ikinci "İlan aç" YOK.
     expect(screen.getAllByRole("searchbox")).toHaveLength(1);
     expect(screen.queryByText(/İlan aç/)).toBeNull();
-  });
-
-  it("delta rozeti KPI kartında çizilir (analitikten gelir)", () => {
-    // Tutar kartlarındaki 30-günlük delta Raporlar'a taşındı; panodaki
-    // kartların deltası analytics.deltas'tan gelmeye devam ediyor.
-    h.stats = fullStats();
-    h.analytics = {
-      actions: { unansweredInvites: 0 },
-      deltas: { bidsSubmitted: 100 },
-      kpiSeries: {},
-    };
-    render(<SatisDashboardView />);
-    // TrendBadge biçimi: ok ikonu + "%100" (TR yüzde önde).
-    expect(screen.getAllByText(/%100/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("davet uyarısı TEK yerden gelir: eski banner render edilmez (çift uyarı fix)", () => {
@@ -213,14 +188,5 @@ describe("SatisDashboardView", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
     expect(screen.queryByText("Son Aktiviteler")).not.toBeInTheDocument();
-  });
-
-  it("yüklenirken kartlar yerine iskelet çizilir (sahte '0'/'—' karışımı yok — Faz 7.3)", () => {
-    h.statsLoading = true;
-    render(<SatisDashboardView />);
-    // KPI kartları render edilmez; gerçek boyutlu iskelet var.
-    expect(screen.queryByText("Yanıt Bekleyen Davet")).not.toBeInTheDocument();
-    expect(screen.queryByText("—")).not.toBeInTheDocument();
-    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 });

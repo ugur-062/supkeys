@@ -13,6 +13,7 @@ import {
   type CompanyFilterState,
 } from "@/lib/public/company-filter-params";
 import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } from "@/lib/company/panel-market";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MarketBand, MarketTabs } from "./market-band";
 import { MarketSearch } from "./market-search";
@@ -87,7 +88,7 @@ function Inner({
             active="companies"
             productsHref={`${PANEL_MARKET.products}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
             companiesHref={`${PANEL_MARKET.companies}${buildCompanyFilterQuery(state)}`}
-            companyCount={total}
+            companyCount={data ? total : undefined}
           />
         }
       />
@@ -96,7 +97,7 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelCompanyFilters idPrefix="d" />}
-        toolbarStart={<ResultCount noun="firma" />}
+        toolbarStart={<ResultCount noun="firma" loading={result.isLoading} />}
         toolbarEnd={<CompanySortBar />}
         page={state.page}
         total={total}
@@ -134,37 +135,37 @@ function PanelCompanyCard({ company, query }: { company: DirectoryCompany; query
   const badge = STATUS_BADGE[company.connectionStatus];
   const matched = company.matchedProducts ?? [];
   return (
-    <div className="flex flex-col gap-0">
-      <CompanyCard
-        company={company}
-        href={panelCompanyPath(company.rothernId ?? company.slug)}
-        badge={
-          badge ? (
-            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${badge.className}`}>
-              {badge.label}
-            </span>
-          ) : undefined
-        }
-      />
-      {query && matched.length > 0 ? (
-        <div className="-mt-px rounded-b-xl border border-t-0 border-zinc-200 bg-zinc-50 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-            Aramanıza uyan
-          </p>
-          <ul className="mt-2 space-y-1">
-            {matched.slice(0, 3).map((p) => (
-              <li key={p.slug}>
-                <a
-                  href={panelProductPath(company.slug, p.slug)}
-                  className="line-clamp-1 text-sm text-zinc-700 underline-offset-2 hover:text-zinc-950 hover:underline"
-                >
-                  {p.name}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
+    <CompanyCard
+      company={company}
+      href={panelCompanyPath(company.rothernId ?? company.slug)}
+      badge={
+        badge ? (
+          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${badge.className}`}>
+            {badge.label}
+          </span>
+        ) : undefined
+      }
+      footer={
+        query && matched.length > 0 ? (
+          <>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+              Aramanıza uyan
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {matched.slice(0, 3).map((p) => (
+                <li key={p.slug}>
+                  <Link
+                    href={panelProductPath(company.slug, p.slug)}
+                    className="line-clamp-1 text-sm text-zinc-700 underline-offset-2 hover:text-zinc-950 hover:underline"
+                  >
+                    {p.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : undefined
+      }
+    />
   );
 }

@@ -97,6 +97,16 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
     expect(h.lastFacetParams).toMatchObject({ connection: "connected" });
   });
 
+  it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {
+    h.result = { data: undefined, isLoading: true };
+    render(<PanelCompanyIndex />);
+    expect(screen.getByText("Güncelleniyor…")).toBeInTheDocument();
+    expect(screen.queryByText(/bulunamadı/)).toBeNull();
+    // Sekme rozetinde de "0" basılmaz (sayı henüz bilinmiyor).
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).queryByText("0")).toBeNull();
+  });
+
   it("bağlantı durumu rozeti pazar listesinde de görünür", () => {
     render(<PanelCompanyIndex />);
     expect(screen.getByText("Bağlısınız")).toBeInTheDocument();

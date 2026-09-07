@@ -161,12 +161,23 @@ export function FilterResults({ children }: { children: ReactNode }) {
   );
 }
 
-/** "N ürün bulundu" — ekran okuyucuya canlı bildirilir. */
-export function ResultCount({ noun }: { noun: string }) {
+/**
+ * "N ürün bulundu" — ekran okuyucuya canlı bildirilir.
+ *
+ * `loading`: İLK yükleme (veri henüz hiç gelmedi). `isPending` yalnız
+ * süzgeç GEÇİŞİNİ kapsar, ilk isteği değil — o yüzden sayfa açılırken
+ * "0" görünüyor ve başlıkta "firma bulunamadı" yazıyordu; iskeletler hâlâ
+ * dönerken sayfa boş olduğunu ilan ediyordu.
+ */
+export function ResultCount({ noun, loading = false }: { noun: string; loading?: boolean }) {
   const { total, isPending } = useFilters();
   return (
     <p aria-live="polite" className="text-sm text-zinc-600">
-      {isPending ? "Güncelleniyor…" : total > 0 ? `${total.toLocaleString("tr-TR")} ${noun} bulundu` : `${noun} bulunamadı`}
+      {loading || isPending
+        ? "Güncelleniyor…"
+        : total > 0
+          ? `${total.toLocaleString("tr-TR")} ${noun} bulundu`
+          : `${noun} bulunamadı`}
     </p>
   );
 }

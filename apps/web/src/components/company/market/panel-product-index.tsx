@@ -136,7 +136,7 @@ function Inner({
               active="products"
               productsHref={`${PANEL_MARKET.products}${buildProductFilterQuery(state)}`}
               companiesHref={`${PANEL_MARKET.companies}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
-              productCount={total}
+              productCount={data ? total : undefined}
               companyCount={companies.data?.total}
             />
           }
@@ -148,7 +148,7 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelProductFilters idPrefix="d" />}
-        toolbarStart={<ResultCount noun="ürün" />}
+        toolbarStart={<ResultCount noun="ürün" loading={result.isLoading} />}
         toolbarEnd={<SortControl />}
         page={state.page}
         total={total}

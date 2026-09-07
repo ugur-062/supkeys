@@ -115,6 +115,16 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(h.replace).toHaveBeenLastCalledWith("/company/satinalma/urunler?adet=48", { scroll: false });
   });
 
+  it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {
+    h.result = { data: undefined, isLoading: true };
+    render(<PanelProductIndex />);
+    expect(screen.getByText("Güncelleniyor…")).toBeInTheDocument();
+    expect(screen.queryByText(/bulunamadı/)).toBeNull();
+    // Sekme rozetinde de "0" basılmaz (sayı henüz bilinmiyor).
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).queryByText("0")).toBeNull();
+  });
+
   it("boş sonuçta talep aç + filtre temizle; arama tek başınaysa 'Aramayı kaldır'", () => {
     h.search = "q=yok";
     h.result = { data: { items: [], total: 0, page: 1, pageSize: 24 }, isLoading: false };

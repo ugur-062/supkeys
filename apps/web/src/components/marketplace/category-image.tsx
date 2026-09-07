@@ -90,14 +90,26 @@ export function CategoryImage({
   }
 
   if (fallback === "neutral") {
+    // Görselsiz ÜRÜN: yokluk saklanmaz (görsel yayın kapısında zorunlu), ama
+    // çıplak gri dikdörtgen de "bozuk" duruyordu. Marka deseni — ince çapraz
+    // çizgiler + görsel-yok ikonu: eksik olduğu belli, kart yine de bitmiş
+    // görünür (brif §5.4).
     return (
       <div
         aria-hidden={alt === "" ? true : undefined}
         role={alt === "" ? undefined : "img"}
         aria-label={alt || undefined}
-        className={`relative flex items-center justify-center overflow-hidden bg-neutral-100 ${ratio} ${className}`}
+        className={`relative flex items-center justify-center overflow-hidden bg-zinc-50 ${ratio} ${className}`}
       >
-        <ImageOff aria-hidden strokeWidth={1.25} className="size-8 text-neutral-400" />
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-[0.5]"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(45deg, var(--color-ink-200) 0 1px, transparent 1px 10px)",
+          }}
+        />
+        <ImageOff aria-hidden strokeWidth={1.25} className="relative size-8 text-zinc-400" />
       </div>
     );
   }

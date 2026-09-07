@@ -22,12 +22,19 @@ export function CompanyCard({
   company: c,
   href,
   badge,
+  footer,
 }: {
   company: PublicDirectoryCard;
   /** Panel: `/company/firma/<id>`; public: `/firma/<slug>` (varsayılan). */
   href?: string;
   /** Panel: bağlantı durumu rozeti. */
   badge?: React.ReactNode;
+  /**
+   * Kartın EN ALTINDAKİ ek blok (panel: "Aramanıza uyan" ürün şeridi).
+   * Kartın DIŞINA eklenince araya dikiş giriyordu — kart `h-full` olduğu
+   * için ızgara satır yüksekliğine uzuyor, ek blok altında boşluk kalıyordu.
+   */
+  footer?: React.ReactNode;
 }) {
   const activities = c.activities.slice(0, 3);
   const more = c.activities.length - activities.length;
@@ -39,29 +46,35 @@ export function CompanyCard({
   ].filter(Boolean) as string[];
 
   return (
-    <article className="group relative flex h-full flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10 focus-within:ring-2 focus-within:ring-zinc-950 motion-reduce:transform-none">
+    /* Pazar bölgesi dili (2026-09-07): küçük yarıçap, hairline çerçeve,
+       gölge yalnız hover — ürün kartıyla aynı yüzey. */
+    <article className="group relative flex h-full flex-col rounded-lg bg-white p-5 ring-1 ring-zinc-200 transition hover:shadow-md hover:ring-zinc-300 focus-within:ring-2 focus-within:ring-zinc-950">
       <div className="flex items-start gap-3">
         <Avatar name={c.name} src={c.logoUrl} size={48} />
         <div className="min-w-0">
-          {/* Ad + rozetler AYNI satırda: ad taşarsa ad kısalır, rozet alt
-              satıra düşmez (B7). Bağlantı karta yayılır. */}
-          <h3 className="flex min-w-0 items-center gap-1.5 text-base font-semibold whitespace-nowrap text-zinc-950">
+          {/* Ad İKİ SATIRA kadar sarar, rozetler adın peşinden akar
+              (2026-09-07): tek satır + `truncate` üç sütunlu ızgarada
+              "Kayseri Mobily…" gibi okunamaz kısaltmalar üretiyordu. Rozetler
+              `inline-flex` olduğu için ad kısaysa yine aynı satırda kalır. */}
+          <h3 className="text-[15px] font-semibold text-zinc-950">
             <Link
               href={href ?? `/firma/${c.slug}`}
-              className="min-w-0 truncate after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
+              className="line-clamp-2 after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
             >
               {c.name}
             </Link>
-            {c.verified ? (
-              <Badge tone="verified" size="sm" className="px-1">
-                <span className="sr-only">Doğrulanmış firma</span>
-              </Badge>
-            ) : null}
-            {c.gold ? (
-              <Badge tone="gold" size="sm" className="px-1">
-                <span className="sr-only">Gold Üye</span>
-              </Badge>
-            ) : null}
+            <span className="mt-1 flex items-center gap-1.5">
+              {c.verified ? (
+                <Badge tone="verified" size="sm" className="px-1">
+                  <span className="sr-only">Doğrulanmış firma</span>
+                </Badge>
+              ) : null}
+              {c.gold ? (
+                <Badge tone="gold" size="sm" className="px-1">
+                  <span className="sr-only">Gold Üye</span>
+                </Badge>
+              ) : null}
+            </span>
           </h3>
           {badge ? <div className="mt-1">{badge}</div> : null}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
@@ -118,6 +131,7 @@ export function CompanyCard({
         {facts.length > 0 ? <p className="tnum truncate text-xs text-zinc-500">{facts.join(" · ")}</p> : null}
         <p className="mt-1 text-sm font-semibold text-zinc-900 group-hover:text-zinc-600">Profili gör →</p>
       </div>
+      {footer ? <div className="relative z-10 mt-4 border-t border-zinc-200 pt-3">{footer}</div> : null}
     </article>
   );
 }

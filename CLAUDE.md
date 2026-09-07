@@ -874,6 +874,142 @@ URL şemaları mevcut hâliyle sabit.
   `employeeCount` + `certifications` taşır (public `getPublicProduct` ve
   panel `discoverProduct` AYNI alanlar). Sözleşme: `product-detail.test.tsx`.
 
+### Panel PAZAR BÖLGESİ — satınalma (2026-09-07, "Pazar Katmanı Uyarlama Brifi")
+
+Kullanıcının canlı incelemesinden çıkan brif. Tek cümlesi: **her keşif
+durumunun bir adresi, her kategorinin bir sayfası, her kategorinin kendi
+filtreleri.** Sol menü panel kimliğidir ve DEĞİŞMEZ; pazar onun sağında
+kendi yoğunluğu ve tek eylem rengiyle çalışan İKİNCİ BÖLGEDİR.
+
+**2026-09-05 kararı TERSİNE ÇEVRİLDİ (kullanıcı).** O gün "Ürün Ara sayfası
+kalksın, liste anasayfada olsun" denmişti; canlıda görülünce anasayfa hem
+panel hem katalog olmaya çalışıyor, ikisi de okunmuyor ve kategori kartı
+URL'yi değiştirmediği için filtrelenmiş liste paylaşılamıyordu.
+`next.config.ts`teki `/company/satinalma/urunler` → anasayfa 308'i KALDIRILDI.
+
+| Rota | Ne |
+|------|-----|
+| `/company/satinalma` | pazar GİRİŞİ — ızgara YOK |
+| `/company/satinalma/urunler` | ürün dizini (kenar süzgeçli tam liste) |
+| `/company/satinalma/firmalar` | firma dizini — **YENİ** |
+| `/company/satinalma/kategori/<kod>-<ad>` | kategori sayfası — **YENİ** |
+| `/company/satinalma/urunler/<firma>/<ürün>` | ürün detayı (DEĞİŞMEDİ) |
+| `/company/satinalma/tedarikcilerim` | YALNIZ ilişki yönetimi |
+
+Adres tek kaynağı `lib/company/panel-market.ts` (`PANEL_MARKET`,
+`panelCategoryPath`, `panelProductPath`, `panelCompanyPath`). Kategori
+slug'ında **kod ÖNDE** — herkese açık kategori sayfasıyla aynı kural, aynı
+gerekçe (ad sonda olsaydı "…-39000000" ile biten bir ad yanlış kodu verirdi).
+
+**Sol menü DEĞİŞMEDİ.** Pazar sayfaları `secondaryNav`da: o liste sol menüyü
+değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı,
+`module-reachability` testi de oradan bakar). Pazara giriş noktaları
+anasayfadaki arama, kategori kartları ve banttaki Ürünler|Firmalar
+sekmeleridir. Menüye satır eklemek 2026-09-05 kararıyla ("Ürün Ara sol
+menüden kalksın") çelişirdi; tek satırla geri alınabilir.
+
+**URL sözleşmesi genişledi** (adlar KORUNDU — brifin `tip`/`fiyat_min`
+önerisi uygulanmadı: mevcut şema public+panel ortak tek kaynak, e2e'li ve
+AI aramanın yazdığı şema; yeniden adlandırmak gönderilmiş bağlantıları ve
+sitemap'i kırardı, kullanıcıya hiçbir şey kazandırmazdı):
+- ürün: `&adet=24|48|96` (`ProductFilterState.perPage`)
+- firma: `&baglanti=bagli|yeni` (panele özel; public hiç yazmaz)
+- SÜZGEÇ değişimi `replace`, **SAYFA değişimi `push`** — 2. sayfadan "geri"
+  1. sayfaya döner, süzgeç tıkları geçmişi kirletmez.
+- "Tümünü temizle" tek kaynak `clearProductFilters`: süzgeçler gider, ARAMA
+  ve GÖRÜNÜM tercihleri (sıralama, sayfa başına) kalır.
+
+**Görsel dil — iki bölge, ortak token** (brif §5.1). Panel bölgesi (KPI,
+Taleplerim, Siparişler, Ayarlar) yumuşak gölgeli ve ferah KALIR; pazar
+bölgesi katalog dili: küçük yarıçap, hairline çerçeve, gölge yalnız hover,
+yoğun ızgara. Marka çapası olarak üst çubuk DEĞİL, her pazar sayfasının
+başında koyu bant (`MarketBand`) — sol menü ve panel bölgesi hiç
+değişmesin diye (brif §5.2 seçenek b). Bant: kırıntı + başlık + arama +
+`MarketTabs` (Ürünler | Firmalar, **iki sayı**: "56 ürün · 20 firma").
+
+**TEK EYLEM RENGİ** (§5.3): dolgulu siyah YALNIZ birincil eylemde (Bilgi
+iste, Talep aç). Sıralama çipleri ve sayfalama nötr seçili duruma çevrildi —
+siyah dolgu "Bilgi iste"den çok dikkat çekiyordu. İkincil eylem aynı rengin
+çerçeveli hâli.
+
+**Kart (§4.1):** rozet hiyerarşisi ÇEVRİLDİ — `Doğrulanmış` gövdenin ilk
+satırında okunur etiket, `Gold Üye` kapakta sessiz şerit. 3 maddelik özellik
+satırı ürünün KENDİ nitelik tablosundan (`features`, API'de
+`attachProductFeatures`); açıklamadan cümle AYIKLANMAZ — nitelik yoksa madde
+de yok. MOQ satırı boşken de yer kaplar (ızgara zıplamasın). Görselsiz ürün
+marka desenli yer tutucu (çıplak gri kutu "bozuk" duruyordu). Izgara
+`auto-fill minmax(16rem,1fr)` — 1440 px'te üç sütun.
+
+**Süzgeç rayı:** her facet AYRI YÜZEY, gruplar arasında boşluk; `sticky`,
+`max-h` yalnız emniyet valfi (gruplar katlanır + ilk 6 seçenek → ray
+normalde taşmaz, dolayısıyla kaydırma çubuğu çizilmez). Facet başına
+"Temizle", sayaçlar ve kategori arama kutusu KORUNDU (brif §6).
+
+**Bağlantılar › Keşfet sadeleşti:** tam firma listesi kalktı, yerinde
+"Size uygun firmalar" önerisi + "Tüm firmaları ara →". Aynı dizin iki yerde
+iki farklı yetenekle yaşıyordu (orada süzgeçler yerel `useState`teydi:
+URL'ye yazılmıyor, sayfalama/şehir/kategori/sıralama yok).
+
+**Anasayfa sırası:** hero arama → kategoriler (artık NAVİGASYON, kaydırma
+değil) → "Size uygun ürünler" şeridi (`PanelFeaturedProducts`) →
+doğrulanmış tedarikçiler → talep aç şeridi → profil sağlığı → Raporlar. AI
+yorumu ürün dizinine `sessionStorage` köprüsüyle taşınır (`stashAiIntent`/
+`takeAiIntent`; taslak köprüsüyle aynı desen, süzgeçler zaten URL'de).
+
+**BAŞLIK ŞERİDİ ve "BUGÜN" bandı İKİ ANASAYFADAN DA KALKTI (2026-09-07,
+kullanıcı kararı).** Kalkan: panel adı + firma/tarih + kur çipleri
+(`TcmbRatesChip`) ve `TodayBand` (bekleyen işler şeridi + dönemsiz 4 KPI) —
+hem satınalma hem satış anasayfasında. Gerekçe: panel adı sol menüde zaten
+yazılı, kur çipi ve bekleyen işlerin TAM listesi Şirketim › Genel Bakış'ta
+yaşıyor; anasayfa satınalmada pazar girişi, satışta açık talep listesidir ve
+"bugün ne yapmalıyım" bloğu ilk ekranı arama kutusundan çalıyordu.
+`TodayBand`/`ActionStrip`/`KpiCard` bileşenleri SİLİNMEDİ — Genel Bakış
+onları kullanıyor. Yan etki: iki anasayfanın da tek `h1`'i artık
+`PanelHeroSearch` başlığı (bileşende `h2` → `h1`; yalnız o iki sayfada
+kullanılıyor), aksi hâlde sayfalar h1'siz kalırdı.
+
+**API (eklemeli, hepsi tek kaynağa taşındı):**
+- `attributeFacets` + `subCategoryCounts` `common/company/product-index.ts`e
+  taşındı; public'teki kopya silindi. Panel facet ucu nitelik tipini
+  `"SELECT"/"MULTISELECT"` diye yazıyordu (Prisma enum'ı
+  `SINGLE_SELECT`/`MULTI_SELECT`) — **panelin nitelik süzgeci sessizce HEP
+  boştu**. Aynı uçta `truncated: false` sabitti; artık CAP+1 taranıp gerçek
+  değer dönüyor.
+- Facet yanıtına `subCategories`: seçili kodun BİR ALT seviyesi (kategori
+  sayfasının çipleri). Yaprakta boş döner — "L4'ün altı" uydurulmaz.
+- `ProductIndexCard.features` (`attachProductFeatures` +
+  `resolveCategoryAttributesBatch` — 24 kart × N kategori yerine tek `IN`).
+- Panel dizini `gold` + `sort` + çoklu `category` + `connection` alır
+  (`PanelDirectoryQueryDto`; DTO'ya geçtiği için `forbidNonWhitelisted` de
+  devrede). `DirectoryScope.restrictIds` bağlantı süzgecinin kaynağı.
+- Panel dizin FACET'leri artık BAĞLAMSAL (listeyle aynı parametreler).
+  Eskiden hiç parametre almıyordu: arama "boru" iken "İstanbul (7)" tüm
+  dizini sayıyor, tıklayınca liste boşalabiliyordu.
+- **Dizin ARAMASI iki dallı:** firmanın kendi metni YA DA sattığı ürün.
+  Tek dallıyken "kompanzasyon" ürün sekmesinde 12, firma sekmesinde 0 sonuç
+  veriyordu. Kartta `matchedProducts` ("Aramanıza uyan"); firma ADIYLA
+  bulunan firma ürünü uymasa da listede kalır, şerit boş görünür.
+
+**BRİFTEN BİLİNÇLİ SAPMALAR:**
+- **Faz 6'nın `product_attributes` + `category_facets` tabloları
+  YAZILMADI.** Repoda zaten daha iyisi var: `CategoryAttribute` matrisi
+  kategori ağacında MİRASLA çalışıyor (158.018 kategoriye tek tek satır
+  yazmadan), değerler ürünün `attributes` JSON'ında. Brifin önerdiği düz
+  tablo mirası kaybederdi. Faz 6'nın kabul ölçütü (kategoriye göre farklı
+  süzgeçler) yukarıdaki tip düzeltmesiyle zaten sağlandı.
+- **Faz 7 (coğrafya/teslim bölgesi) YAPILMADI** — kolon gerektiriyor,
+  ŞEMA BEKLEYEN listesinde; migration onayı olmadan eklenmez.
+- **Faz 8'in "popüler aramalar" ve "hızlı yanıt veren" rozeti YOK** —
+  arama sorgusu logu ve yanıt süresi ölçümü tutulmuyor. Uydurma sayı
+  basmak yerine bölüm çizilmiyor ("N tedarikçi inceledi" ile aynı kural).
+  Keşif altlığı sektör + şehir bağlantılarını GERÇEK facet sayılarından
+  basar.
+- **Firma dizininde `adet` seçici yok** — dizin sayfa boyutu sunucuda sabit
+  (20). Ürün dizininde var.
+
+Sözleşmeler: `panel-market-parity.spec.ts` (API), `panel-market.test`,
+`panel-product-index.test`, `panel-company-index.test` (web).
+
 ### Anasayfa & ürün süzgeci v3 (2026-09-04)
 
 Kullanıcının A1–A7 / B1–B9 listesi; A (süzgeç) 1eb52c1a+c5731daf, B üç
