@@ -142,8 +142,10 @@ export function ProductDetail({
 
       <div className="mx-auto max-w-6xl px-6 pt-28 pb-32 lg:px-8 lg:pb-20">
         <ProductBreadcrumb
+          /* "Anasayfa" METNİ ev ikonuyla değişti (kaynak kalıp): aynı hedef
+             iki kez yazılmasın. */
+          home={{ href: "/", label: "Anasayfa" }}
           trail={[
-            { label: "Anasayfa", href: "/" },
             ...(product.category
               ? [{ label: product.category.name, href: categoryPath(product.category.id, product.category.name) }]
               : []),
@@ -225,11 +227,14 @@ export function ProductDetail({
 export function ProductBreadcrumb({
   trail,
   current,
+  home,
 }: {
   trail: { label: string; href: string }[];
   current: string;
+  /** Baştaki ev ikonu — public "/", panelde satınalma anasayfası. */
+  home?: { href: string; label?: string };
 }) {
-  return <Breadcrumb items={[...trail, { label: current }]} />;
+  return <Breadcrumb items={[...trail, { label: current }]} home={home} />;
 }
 
 /**

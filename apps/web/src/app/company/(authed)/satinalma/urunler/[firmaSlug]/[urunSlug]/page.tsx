@@ -71,6 +71,7 @@ export default function PanelProductPage() {
   return (
     <PageContainer>
       <ProductBreadcrumb
+        home={{ href: "/company/satinalma", label: "Satınalma anasayfası" }}
         trail={[
           { label: "Ürün Ara", href: "/company/satinalma/urunler" },
           ...(product.category
