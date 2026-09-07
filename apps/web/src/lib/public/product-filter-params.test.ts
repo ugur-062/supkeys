@@ -48,6 +48,25 @@ describe("ürün süzgeç URL şeması", () => {
     expect(parseProductFilters(new URLSearchParams(buildProductFilterQuery(f)))).toEqual(f);
   });
 
+  it("Yakınımda: merkez + yarıçap İKİSİ birlikte anlamlı", () => {
+    const f = parseProductFilters({ yakin: "İzmir", mesafe: "50" });
+    expect(f.near).toBe("İzmir");
+    expect(f.radius).toBe(50);
+    expect(activeFilterCount(f)).toBe(1);
+    expect(toProductListParams(f)).toMatchObject({ near: "İzmir", radius: 50 });
+    expect(parseProductFilters(new URLSearchParams(buildProductFilterQuery(f)))).toEqual(f);
+
+    // Yarım kısıt UYGULANMAZ: yalnız merkez ya da yalnız yarıçap → API'ye
+    // gitmez ve URL'e yazılmaz (aksi hâlde liste sessizce boşalırdı).
+    const onlyNear = parseProductFilters({ yakin: "İzmir" });
+    expect(activeFilterCount(onlyNear)).toBe(0);
+    expect(toProductListParams(onlyNear).near).toBeUndefined();
+    expect(buildProductFilterQuery(onlyNear)).toBe("");
+
+    // Listede olmayan yarıçap düşer (10 km bilinçli olarak yok).
+    expect(parseProductFilters({ yakin: "İzmir", mesafe: "10" }).radius).toBeUndefined();
+  });
+
   it("fiyatsızDahil aralık YOKKEN de taşınır ama tek başına süzgeç sayılmaz", () => {
     const f = parseProductFilters({ fiyatsizDahil: "1" });
     expect(f.priceUnpriced).toBe(true);

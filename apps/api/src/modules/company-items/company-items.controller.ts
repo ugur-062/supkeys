@@ -252,6 +252,8 @@ export class CompanyItemsController {
     @Query("priceUnpriced") priceUnpriced?: string,
     @Query("cert") cert?: string,
     @Query("employees") employees?: string,
+    @Query("near") near?: string,
+    @Query("radius") radius?: string,
     @Query("pageSize") pageSize?: string,
   ) {
     const n = Number(page);
@@ -273,6 +275,8 @@ export class CompanyItemsController {
       priceUnpriced: priceUnpriced === "1",
       cert: cert?.slice(0, 400) || undefined,
       employees: employeeList(employees),
+      near: near?.slice(0, 40) || undefined,
+      radius: num(radius),
       sort: sort === "newest" || sort === "price" || sort === "price_desc" ? sort : undefined,
       attr: attr == null ? undefined : (Array.isArray(attr) ? attr : [attr]).slice(0, 6),
       page: Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined,
@@ -293,7 +297,13 @@ export class CompanyItemsController {
     @Query("price") price?: string,
     @Query("cert") cert?: string,
     @Query("employees") employees?: string,
+    @Query("near") near?: string,
+    @Query("radius") radius?: string,
   ) {
+    const num = (v?: string) => {
+      const x = Number(v);
+      return v != null && v !== "" && Number.isFinite(x) ? Math.trunc(x) : undefined;
+    };
     return this.service.discoverFacets(user, {
       category: category && /^\d{8}$/.test(category) ? category : undefined,
       q: q?.slice(0, 120),
@@ -305,6 +315,8 @@ export class CompanyItemsController {
       // "sertifika seçiliyken şehir sayacı" tüm dizini sayar.
       cert: cert?.slice(0, 400) || undefined,
       employees: employeeList(employees),
+      near: near?.slice(0, 40) || undefined,
+      radius: num(radius),
     });
   }
 

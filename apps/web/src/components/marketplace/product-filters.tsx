@@ -16,7 +16,14 @@ import {
   ShowMoreRadio,
   type FilterChip,
 } from "./filter-primitives";
-import { COMPANY_ACTIVITIES, EMPLOYEE_BUCKETS, companyActivityLabel, employeeBucketLabel } from "@rothern/shared";
+import {
+  COMPANY_ACTIVITIES,
+  EMPLOYEE_BUCKETS,
+  RADIUS_OPTIONS,
+  companyActivityLabel,
+  employeeBucketLabel,
+  resolveProvince,
+} from "@rothern/shared";
 
 /**
  * "Min. sipariş" ön ayarları — API'deki `MOQ_BUCKETS` ile AYNI sayılar
@@ -134,10 +141,15 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
 
 
 /**
- * KONUM — il çoklu seçim, arama kutulu.
+ * KONUM — il çoklu seçim (arama kutulu) + "Yakınımda" yarıçapı.
  *
- * "Yakınımda + yarıçap" AYRI bir iş (Faz 2): koordinat verisi yok, 81 ilin
- * merkez koordinatı `@rothern/shared`a eklenince buraya iner.
+ * Yarıçap İL MERKEZLERİ arasından hesaplanır (`tr-provinces.ts`); firmanın
+ * kendi koordinatı yok. Grubun altındaki açıklama bunu AÇIKÇA yazar —
+ * kullanıcı "25 km" seçip komşu ili görünce sistemin bozuk olduğunu
+ * sanmasın. En küçük seçenek 25 km: 10 km il merkezli veride "yalnız o il"
+ * demekti.
+ *
+ * İl seçimi ile yarıçap birlikte seçilirse İKİSİ DE uygulanır (kesişim).
  */
 function LocationGroup({
   facets,
@@ -167,7 +179,88 @@ function LocationGroup({
         onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
         emptyText="Eşleşen il yok"
       />
+      <NearbyControls state={state} update={update} idPrefix={idPrefix} />
     </Group>
+  );
+}
+
+/** "Yakınımda": merkez (il ya da posta kodu) + yarıçap kaydırıcısı. */
+function NearbyControls({
+  state,
+  update,
+  idPrefix,
+}: {
+  state: ProductFilterState;
+  update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
+  idPrefix: string;
+}) {
+  const [near, setNear] = useState(state.near ?? "");
+  const province = resolveProvince(near);
+  /**
+   * Durumdan kutuya senkron — ama KULLANICI YAZARKEN DEĞİL.
+   *
+   * Düz `setNear(state.near ?? "")` bir hata üretiyordu: çözülmeyen bir harf
+   * yazıldığı anda süzgeç temizleniyor, bu efekt tetikleniyor ve kutuyu
+   * BOŞALTIYORDU — yani "İzmir"i silip yeniden yazmaya kalkan kullanıcının
+   * yazdığı kayboluyordu. Kutu yalnız dışarıdan gelen bir değişimde
+   * (geri tuşu, çipten kaldırma, paylaşılan bağlantı) güncellenir.
+   */
+  useEffect(() => {
+    const local = resolveProvince(near)?.name;
+    if (state.near === local) return; // zaten senkron
+    if (!state.near && !local) return; // kullanıcı yazıyor, henüz çözülmedi
+    setNear(state.near ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.near]);
+  const radius = state.radius ?? 100;
+  // Merkez ÇÖZÜLENE dek süzgeç yazılmaz: yarım bir kısıt listeyi boşaltırdı.
+  const apply = (nextRadius: number) => {
+    if (province) update({ near: province.name, radius: nextRadius });
+  };
+  return (
+    <div className="mt-3 border-t border-zinc-100 px-2 pt-3">
+      <p className="mb-1.5 text-xs font-semibold text-zinc-600">Yakınımda</p>
+      <input
+        id={`${idPrefix}-near`}
+        value={near}
+        onChange={(e) => {
+          setNear(e.target.value);
+          const p = resolveProvince(e.target.value);
+          if (p) update({ near: p.name, radius });
+          else if (state.near) update({ near: undefined, radius: undefined });
+        }}
+        placeholder="İl ya da posta kodu"
+        aria-label="Yakınımda — il ya da posta kodu"
+        className="h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+      />
+      {near && !province ? (
+        <p className="mt-1 text-[11px] text-amber-700">İl bulunamadı — il adı ya da 5 haneli posta kodu yazın.</p>
+      ) : null}
+      <label className="mt-2 block text-[11px] text-zinc-500" htmlFor={`${idPrefix}-radius`}>
+        Yarıçap: <span className="tnum font-medium text-zinc-700">{radius} km</span>
+      </label>
+      <input
+        id={`${idPrefix}-radius`}
+        type="range"
+        min={0}
+        max={RADIUS_OPTIONS.length - 1}
+        step={1}
+        value={Math.max(0, RADIUS_OPTIONS.indexOf(radius as (typeof RADIUS_OPTIONS)[number]))}
+        onChange={(e) => apply(RADIUS_OPTIONS[Number(e.target.value)]!)}
+        disabled={!province}
+        className="mt-1 w-full accent-zinc-950 disabled:opacity-40"
+      />
+      <p className="tnum flex justify-between text-[10px] text-zinc-400">
+        {RADIUS_OPTIONS.map((r) => (
+          <span key={r}>{r}</span>
+        ))}
+      </p>
+      {province ? (
+        <p className="mt-1 text-[11px] text-zinc-500">
+          {province.name} ve merkezleri {radius} km içindeki iller.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -461,6 +554,13 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   if (state.priceMin != null || state.priceMax != null) chips.push({ key: "pr", label: `${state.priceMin ?? 0} – ${state.priceMax ?? "∞"} ₺`, onRemove: () => update({ priceMin: undefined, priceMax: undefined }) });
   if (state.moqMax != null) chips.push({ key: "moq", label: `Min. sipariş ≤ ${state.moqMax.toLocaleString("tr-TR")}`, onRemove: () => update({ moqMax: undefined }) });
   for (const c of state.certs) chips.push({ key: `cert:${c}`, label: c, onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
+  if (state.near && state.radius) {
+    chips.push({
+      key: "near",
+      label: `${state.near} · ${state.radius} km`,
+      onRemove: () => update({ near: undefined, radius: undefined }),
+    });
+  }
   for (const e of state.employees) chips.push({ key: `emp:${e}`, label: `${employeeBucketLabel(e)} çalışan`, onRemove: () => update((s) => ({ ...s, employees: s.employees.filter((x) => x !== e) })) });
   for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: a.slice(a.indexOf(":") + 1), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
   return <FilterChipBar chips={chips} activeCount={activeFilterCount(state)} onClearAll={clear} />;

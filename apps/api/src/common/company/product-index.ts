@@ -7,6 +7,9 @@ import {
   employeeBucket,
   foldSearchText,
   isCompanyActivity,
+  isRadiusOption,
+  provincesWithin,
+  resolveProvince,
   stemPrefix,
   tokenizeQuery,
 } from "@rothern/shared";
@@ -47,6 +50,10 @@ export interface ProductIndexParams {
   cert?: string;
   /** Virgüllü çalışan kovası ALT SINIRLARI ("10,50") — bkz. `employee-bucket`. */
   employees?: string;
+  /** "Yakınımda" merkezi: il adı ya da posta kodu. `radius` ile birlikte. */
+  near?: string;
+  /** Yarıçap (km) — 25 | 50 | 100 | 250. */
+  radius?: number;
   attr?: string[];
   sort?: "relevance" | "newest" | "price" | "price_desc";
 }
@@ -132,6 +139,18 @@ export async function employeeValuesQuery(
   return employeeValuesFor(await distinctEmployeeCounts(prisma), employees);
 }
 
+/**
+ * "Yakınımda" → il adları. Merkez çözülemezse ya da yarıçap geçersizse BOŞ
+ * döner ve süzgeç HİÇ uygulanmaz — bilinmeyen bir şehir yüzünden listeyi
+ * boşaltmak yerine kısıtı yok saymak doğrusu (kullanıcı yazım hatası yapmış
+ * olabilir; çipte ne seçildiği zaten görünüyor).
+ */
+export function nearCities(q: Pick<ProductIndexParams, "near" | "radius">): string[] {
+  const origin = resolveProvince(q.near);
+  if (!origin || q.radius == null || !isRadiusOption(q.radius)) return [];
+  return provincesWithin(origin, q.radius);
+}
+
 export const PRODUCT_PAGE_SIZE = 24;
 export const PRODUCT_FACET_SCAN_CAP = 5000;
 
@@ -197,6 +216,7 @@ export function productIndexWhere(
   const activities = multi(q.activity).filter(isCompanyActivity);
   const certs = multi(q.cert);
   const employeeKeys = employeeKeysOf(q.employees);
+  const near = nearCities(q);
   const and: Prisma.CompanyItemWhereInput[] = [
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
@@ -210,6 +230,10 @@ export function productIndexWhere(
       : q.price === "request"
         ? [{ priceMode: "ON_REQUEST" as const }]
         : []),
+    // "Yakınımda": il MERKEZLERİ arası mesafeden türetilen il listesi. Şehir
+    // süzgeciyle birlikte seçilirse ikisi de uygulanır (kesişim) — iki ayrı
+    // koşul, çünkü tek `company` nesnesinde aynı anahtar iki kez olamaz.
+    ...(near.length ? [{ company: { city: { in: near } } }] : []),
     ...(certs.length ? [{ company: { certifications: { hasSome: certs } } }] : []),
     // ÇALIŞAN KOVASI: kolon serbest metin olduğu için SQL'de kova sorgulanamaz —
     // çağıran, veritabanındaki distinct değerleri kovalayıp EŞLEŞEN DİZELERİ

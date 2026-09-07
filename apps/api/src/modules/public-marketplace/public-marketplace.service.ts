@@ -679,6 +679,8 @@ export class PublicMarketplaceService {
       price: q.price,
       cert: q.cert,
       employees: q.employees,
+      near: q.near,
+      radius: q.radius,
     };
     // `attributes` facet'i ham satırı ister (JSON alanı), sayaçlar eşlenmişi.
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);

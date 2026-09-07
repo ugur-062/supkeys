@@ -1,4 +1,4 @@
-import { isCompanyActivity, isEmployeeBucketKey } from "@rothern/shared";
+import { isCompanyActivity, isEmployeeBucketKey, isRadiusOption } from "@rothern/shared";
 import type { ProductListParams } from "./marketplace-api";
 import {
   getAllParams as getAll,
@@ -39,6 +39,9 @@ export interface ProductFilterState {
   certs: string[];
   /** Çalışan kovası ALT SINIRLARI (1 | 10 | 50 | 250). */
   employees: number[];
+  /** "Yakınımda" merkezi (il adı ya da posta kodu) — `radius` ile ANLAMLI. */
+  near?: string;
+  radius?: number;
   sort?: "yeni" | "fiyat" | "fiyat-azalan";
   attrs: string[];
   page: number;
@@ -78,6 +81,10 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     certs: list(get(sp, "sertifika")),
     // Bilinmeyen kova anahtarı düşer — URL elle düzenlenmiş olabilir.
     employees: list(get(sp, "calisan")).map(Number).filter(isEmployeeBucketKey),
+    // İkisi birlikte anlamlı: yalnız biri varsa süzgeç uygulanmaz (ve URL'e
+    // de yazılmaz) — yarım bir kısıt listeyi sessizce boşaltırdı.
+    near: get(sp, "yakin")?.trim() || undefined,
+    radius: isRadiusOption(num(get(sp, "mesafe")) ?? 0) ? num(get(sp, "mesafe")) : undefined,
     sort: sort === "yeni" || sort === "fiyat" || sort === "fiyat-azalan" ? sort : undefined,
     attrs: getAll(sp, "nitelik").filter((a) => a.includes(":")).slice(0, 6),
     page: page && page > 1 ? page : 1,
@@ -101,6 +108,8 @@ export function toProductListParams(f: ProductFilterState): ProductListParams & 
     moqMax: f.moqMax,
     cert: f.certs.length ? f.certs.join(",") : undefined,
     employees: f.employees.length ? f.employees.join(",") : undefined,
+    near: f.near && f.radius ? f.near : undefined,
+    radius: f.near && f.radius ? f.radius : undefined,
     sort: f.sort === "yeni" ? "newest" : f.sort === "fiyat" ? "price" : f.sort === "fiyat-azalan" ? "price_desc" : undefined,
     attr: f.attrs.length ? f.attrs : undefined,
     page: f.page > 1 ? f.page : undefined,
@@ -123,6 +132,10 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.moqMax != null) sp.set("moqMax", String(f.moqMax));
   if (f.certs.length) sp.set("sertifika", f.certs.join(","));
   if (f.employees.length) sp.set("calisan", f.employees.join(","));
+  if (f.near && f.radius) {
+    sp.set("yakin", f.near);
+    sp.set("mesafe", String(f.radius));
+  }
   if (f.sort) sp.set("sirala", f.sort);
   for (const a of f.attrs) sp.append("nitelik", a);
   if (f.perPage) sp.set("adet", String(f.perPage));
@@ -137,7 +150,7 @@ export function activeFilterCount(f: ProductFilterState): number {
   return (
     (f.category ? 1 : 0) + f.cities.length + f.activities.length + (f.verified ? 1 : 0) + (f.price ? 1 : 0) +
     (f.priceMin != null || f.priceMax != null ? 1 : 0) + (f.moqMax != null ? 1 : 0) + f.attrs.length +
-    f.certs.length + f.employees.length
+    f.certs.length + f.employees.length + (f.near && f.radius ? 1 : 0)
   );
 }
 

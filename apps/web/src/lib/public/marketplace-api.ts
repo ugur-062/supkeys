@@ -574,6 +574,10 @@ export interface ProductListParams {
   cert?: string;
   /** Çalışan kovası alt sınırları — virgüllü ("10,50"). */
   employees?: string;
+  /** "Yakınımda" merkezi — il adı ya da posta kodu. */
+  near?: string;
+  /** Yarıçap (km): 25 | 50 | 100 | 250. */
+  radius?: number;
   page?: number;
   /** Sayfa başına kart (24 | 48 | 96) — `adet` parametresinin API karşılığı. */
   pageSize?: number;
@@ -617,6 +621,10 @@ export function fetchProducts(
   if (params.priceUnpriced) sp.set("priceUnpriced", "1");
   if (params.cert) sp.set("cert", params.cert);
   if (params.employees) sp.set("employees", params.employees);
+  if (params.near && params.radius) {
+    sp.set("near", params.near);
+    sp.set("radius", String(params.radius));
+  }
   // Tekrarlanan parametre (append) — değerler ayraç içerebilir, birleştirmek
   // ilk ayraçlı seçenekte sessizce bölerdi.
   for (const a of params.attr ?? []) sp.append("attr", a);
@@ -636,7 +644,7 @@ export function fetchProducts(
  */
 export type ProductFacetParams = Pick<
   ProductListParams,
-  "category" | "q" | "city" | "activity" | "verified" | "price" | "cert" | "employees"
+  "category" | "q" | "city" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius"
 >;
 
 /** Facet sayaçları BAĞLAMA DUYARLI: diğer seçimler de gönderilir. */
@@ -650,6 +658,10 @@ export function fetchProductFacets(params: ProductFacetParams = {}): Promise<Pro
   if (params.price) sp.set("price", params.price);
   if (params.cert) sp.set("cert", params.cert);
   if (params.employees) sp.set("employees", params.employees);
+  if (params.near && params.radius) {
+    sp.set("near", params.near);
+    sp.set("radius", String(params.radius));
+  }
   const qs = sp.toString();
   return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300);
 }

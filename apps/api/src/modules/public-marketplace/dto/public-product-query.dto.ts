@@ -107,6 +107,20 @@ export class PublicProductQueryDto {
   @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, { message: "Çalışan kovası sayı listesi olmalı" })
   employees?: string;
 
+  /** "Yakınımda" merkezi — il adı ya da posta kodu ("İzmir" | "35100"). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  near?: string;
+
+  /** Yarıçap (km). 10 YOK: koordinat il merkezinin, 10 km "aynı il" demekti. */
+  @IsOptional()
+  @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
+  @IsInt()
+  @IsIn([25, 50, 100, 250])
+  radius?: number;
+
   /** Faaliyet tipi kodu — tek ya da virgüllü çoklu; tanınmayan kod yok sayılır. */
   @IsOptional()
   @IsString()
@@ -206,4 +220,18 @@ export class PublicProductFacetQueryDto {
   @MaxLength(40)
   @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, { message: "Çalışan kovası sayı listesi olmalı" })
   employees?: string;
+
+  /** "Yakınımda" merkezi — il adı ya da posta kodu ("İzmir" | "35100"). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  near?: string;
+
+  /** Yarıçap (km). 10 YOK: koordinat il merkezinin, 10 km "aynı il" demekti. */
+  @IsOptional()
+  @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
+  @IsInt()
+  @IsIn([25, 50, 100, 250])
+  radius?: number;
 }

@@ -159,6 +159,10 @@ export function useDiscoverSearch(params: ProductListParams & { page?: number; p
       if (params.priceUnpriced) sp.set("priceUnpriced", "1");
       if (params.cert) sp.set("cert", params.cert);
       if (params.employees) sp.set("employees", params.employees);
+      if (params.near && params.radius) {
+        sp.set("near", params.near);
+        sp.set("radius", String(params.radius));
+      }
       for (const a of params.attr ?? []) sp.append("attr", a);
       if (params.page && params.page > 1) sp.set("page", String(params.page));
       if (params.pageSize) sp.set("pageSize", String(params.pageSize));
@@ -184,6 +188,10 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
       if (params.price) sp.set("price", params.price);
       if (params.cert) sp.set("cert", params.cert);
       if (params.employees) sp.set("employees", params.employees);
+      if (params.near && params.radius) {
+        sp.set("near", params.near);
+        sp.set("radius", String(params.radius));
+      }
       const qs = sp.toString();
       const { data } = await companyApi.get<ProductFacets>(`/company/items/discover/facets${qs ? `?${qs}` : ""}`);
       return data;
