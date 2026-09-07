@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ProductBreadcrumb, ProductDetailBody, RelatedRows } from "../product-detail";
@@ -109,17 +110,12 @@ describe("ProductDetailBody", () => {
     expect(screen.getByText("Minimum sipariş: 1 adet")).toBeTruthy();
   });
 
-  it("SEKME YOK: 'Bu ürün hakkında' doğrudan okunur, nitelik yoksa özellik bloğu çizilmez", () => {
-    // 2026-09-08 (kullanıcı referansı): açıklama ve nitelik tablosu sekme
-    // arkasından çıkarıldı — ürünün iki temel bilgisi tıklama istemeden
-    // görünür. Nitelik yoksa blok HİÇ basılmaz (açıklamadan ayrıştırılmaz).
-    render(Body());
-    expect(screen.queryByRole("tab")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Bu ürün hakkında" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Ürün özellikleri" })).toBeNull();
-  });
-
-  it("nitelik VARSA 'Ürün özellikleri' tablosu doğrudan basılır", () => {
+  it("SEKMELER: yalnız VERİSİ OLAN sekme çizilir (uydurma sekme yok)", async () => {
+    // 2026-09-08 (kullanıcı tasarımı): gövde sekmelere döndü — Ürün
+    // Özellikleri · Teknik Özellikler · Belgeler · Sertifikalar. Tasarımdaki
+    // "Tedarik ve Ödeme" ve "Yorumlar (32)" BASILMAZ: o alanlar şemada yok,
+    // boş sekme açmak ya da sayı uydurmak yanlış olurdu.
+    const u = userEvent.setup();
     render(
       Body({
         product: {
@@ -128,9 +124,21 @@ describe("ProductDetailBody", () => {
         } as PublicProduct,
       }),
     );
-    expect(screen.getByRole("heading", { name: "Ürün özellikleri" })).toBeTruthy();
-    expect(screen.getByText("Güç")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Ürün Özellikleri" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Teknik Özellikler" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: /Tedarik ve Ödeme/ })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /Yorumlar/ })).toBeNull();
+    // Belge yok → "Belgeler" sekmesi de yok.
+    expect(screen.queryByRole("tab", { name: "Belgeler" })).toBeNull();
+
+    await u.click(screen.getByRole("tab", { name: "Teknik Özellikler" }));
+    expect(await screen.findByText("Güç")).toBeTruthy();
     expect(screen.getByText("400 kVAr")).toBeTruthy();
+  });
+
+  it("nitelik YOKSA 'Teknik Özellikler' sekmesi çizilmez (açıklamadan ayrıştırılmaz)", () => {
+    render(Body());
+    expect(screen.queryByRole("tab", { name: "Teknik Özellikler" })).toBeNull();
   });
 
   it("ilişkili satır BAŞKA TEDARİKÇİLERİN ürünlerini basar (aynı firma değil)", () => {

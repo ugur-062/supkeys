@@ -9,7 +9,7 @@ import {
 import { PanelInquiryDialog } from "@/components/inquiries/panel-inquiry-dialog";
 import { RfqBanner } from "@/components/marketplace/rfq-banner";
 import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discovery";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
+import { ArrowTopRightOnSquareIcon, DocumentTextIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -113,24 +113,20 @@ export default function PanelProductPage() {
           ) : null
         }
         cta={
-          <>
-            {/* Kimlik SORULMAZ — kullanıcı zaten giriş yapmış. Misafir
-                "Teklif iste" formu (ad/e-posta/firma/telefon) burada yanlış
-                olurdu; ayrıca o uç `MARKETPLACE_LIVE` kapalıyken 404 döner. */}
-            <button
-              type="button"
-              onClick={() => setInquiryOpen(true)}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-            >
-              Bilgi / teklif iste
-            </button>
-            <Link
-              href={companyHref}
-              className="mt-2 block w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-center text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
-            >
-              Firma sayfası
-            </Link>
-          </>
+          /* TEK EYLEM (2026-09-08, kullanıcı kararı: "firma sayfası yazısını
+             kaldır, ürün görüntülenirken gerek yok"). Firmaya giden yol
+             kaybolmadı: kırıntıda ve satıcı kartındaki firma adında duruyor —
+             kartın altında ikinci bir düğme olarak değil.
+             Kimlik SORULMAZ: kullanıcı zaten giriş yapmış; misafir formu
+             burada yanlış olurdu (o uç `MARKETPLACE_LIVE` kapalıyken 404). */
+          <button
+            type="button"
+            onClick={() => setInquiryOpen(true)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            <DocumentTextIcon aria-hidden className="size-5" />
+            Bilgi / Teklif İste
+          </button>
         }
       />
 

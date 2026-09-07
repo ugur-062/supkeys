@@ -5,6 +5,7 @@ import { Badge as UiBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Heading } from "@/components/catalyst/heading";
+import { Tabs } from "@/components/ui/tabs";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { productPrice } from "@/lib/public/product-price";
 import type {
@@ -317,6 +318,16 @@ export function ProductDetailBody({
             images={product.images}
             alt={product.name}
             categoryIds={product.categoryId ? [product.categoryId] : []}
+            /* Rozet KAPAĞIN üstünde (kaynak kalıp): tarama sırasında göz
+               önce fotoğrafa gidiyor. Sağ sütundaki rozet satırından
+               çıkarıldı — aynı bilgiyi iki kez basmıyoruz. */
+            badge={
+              isNewProduct(product.publishedAt) ? (
+                <UiBadge tone="new" size="sm">
+                  Yeni Ürün
+                </UiBadge>
+              ) : undefined
+            }
           />
 
         </div>
@@ -339,12 +350,14 @@ export function ProductDetailBody({
             {product.name}
           </Heading>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {company.gold ? <UiBadge tone="gold" size="sm">Gold Üye</UiBadge> : null}
-            {isNewProduct(product.publishedAt) ? <UiBadge tone="new" size="sm">Yeni</UiBadge> : null}
-            {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
-            {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
-          </div>
+          {/* "Yeni" rozeti kapağa taşındı; burada ürünün KENDİ kimlik
+              etiketleri kalır. "Gold Üye" satıcı kartında (firmaya ait). */}
+          {product.brand || product.mpn ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
+              {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
+            </div>
+          ) : null}
 
           {/* SATICI KİMLİĞİ BAŞLIĞIN HEMEN ALTINDA (2026-09-07, referans
               sırası: kategori → ad → firma → eylem). Eskiden fiyat kartının
@@ -403,56 +416,6 @@ export function ProductDetailBody({
             </div>
           </div>
 
-          {/* BU ÜRÜN HAKKINDA + ÜRÜN ÖZELLİKLERİ — sağ sütunda, ayraçlarla
-              (2026-09-08, kullanıcı referansı). SEKMELER KALDIRILDI: açıklama
-              ve nitelik tablosu bir ürünün iki temel bilgisi; sekme arkasında
-              saklamak kullanıcıyı tıklamaya zorluyordu ve kaynak kalıpta da
-              ikisi doğrudan okunuyor. Nitelik yoksa "Ürün özellikleri" bloğu
-              HİÇ çizilmez — açıklamadan nitelik AYRIŞTIRILMAZ (uydurma veri). */}
-          {product.description || product.specification || (product.documents ?? []).length > 0 ? (
-            <section className="mt-6 border-t border-zinc-950/5 pt-6">
-              <h2 className="text-base font-semibold text-zinc-900">Bu ürün hakkında</h2>
-              {product.description ? (
-                <p className="mt-3 text-[15px]/7 whitespace-pre-line text-zinc-700">{product.description}</p>
-              ) : null}
-              {product.specification ? (
-                <div className="mt-5">
-                  <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
-                  <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
-                </div>
-              ) : null}
-              {product.documents && product.documents.length > 0 ? (
-                <div className="mt-5">
-                  <h3 className="text-sm font-semibold text-zinc-900">Belgeler</h3>
-                  <ul className="mt-3 space-y-2">
-                    {product.documents.map((d) => (
-                      <li key={d.url}>
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                        >
-                          <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                          {d.title}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {attrs.length > 0 ? (
-            <section className="mt-6 border-t border-zinc-950/5 pt-6">
-              <h2 className="text-base font-semibold text-zinc-900">Ürün özellikleri</h2>
-              <div className="mt-3">
-                <SpecTable rows={attrs} />
-              </div>
-            </section>
-          ) : null}
-
           {/* Anahtar kelimeler (uzun kuyruk SEO + "bu ürün ne" özeti) fiyat
               kartının ALTINDA: karar satırını (fiyat + eylem) yukarı almak
               için — eskiden başlıkla fiyat arasındaydı ve CTA'yı aşağı
@@ -501,6 +464,89 @@ export function ProductDetailBody({
           </ul>
         </aside>
       </div>
+
+      {/* SEKMELER — kullanıcı tasarımı (2026-09-08): Ürün Özellikleri ·
+          Teknik Özellikler · Belgeler · Sertifikalar. VERİSİ OLMAYAN sekme
+          çizilmez (`hidden`): tasarımdaki "Tedarik ve Ödeme" ve "Yorumlar"
+          sekmeleri BASILMADI — o alanlar şemada yok, boş sekme açmak ya da
+          sayı uydurmak yanlış olurdu.
+
+          İçerik neden burada, sağ sütunda değil: açıklama ve nitelik tablosu
+          uzun; 500 px'lik satıcı sütununa sıkıştırıldığında okunmuyordu. */}
+      <Tabs
+        className="mt-10"
+        hashSync
+        panelClassName="pt-6"
+        items={[
+          {
+            id: "ozellikler",
+            label: "Ürün Özellikleri",
+            hidden: !product.description,
+            content: (
+              <div className="max-w-3xl">
+                {product.description ? (
+                  <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            id: "teknik",
+            label: "Teknik Özellikler",
+            hidden: attrs.length === 0 && !product.specification,
+            content: (
+              <div className="max-w-3xl space-y-6">
+                {attrs.length > 0 ? <SpecTable rows={attrs} /> : null}
+                {product.specification ? (
+                  <section>
+                    <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
+                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
+                  </section>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            id: "belgeler",
+            label: "Belgeler",
+            hidden: (product.documents ?? []).length === 0,
+            content: (
+              <ul className="max-w-3xl space-y-2">
+                {(product.documents ?? []).map((d) => (
+                  <li key={d.url}>
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
+                    >
+                      <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
+                      {d.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ),
+          },
+          {
+            id: "sertifikalar",
+            label: "Sertifikalar",
+            hidden: (company.certifications ?? []).length === 0,
+            content: (
+              <ul className="flex max-w-3xl flex-wrap gap-2">
+                {(company.certifications ?? []).map((c) => (
+                  <li
+                    key={c}
+                    className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-700"
+                  >
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            ),
+          },
+        ]}
+      />
 
       {/* FİRMANIN DİĞER ÜRÜNLERİ — TAM GENİŞLİK KARUSEL (2026-09-08,
           kullanıcı referansı). Eskiden "Firma" sekmesinin içindeydi; kaynak
@@ -617,16 +663,25 @@ function SellerSummary({
           {/* Faaliyet rozeti İKONLU (2026-09-07, referans): "Servis
               sağlayıcı" bir anahtar sinyal ve metin rozetler arasında
               kayboluyordu. İkon süsleme — anlam etikette. */}
+          {/* ÇERÇEVELİ HAP (kaynak kalıp): dolgulu rozetler fiyat kartıyla
+              yarışıyordu; beyaz zemin + ince çerçeve satıcı niteliklerini
+              sessiz ama okunur kılıyor. */}
           {company.activities.slice(0, 3).map((a) => (
-            <UiBadge key={a} tone="neutral" size="sm" className="gap-1">
-              <ActivityIcon code={a} className="size-3.5 text-zinc-500" />
+            <span
+              key={a}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700"
+            >
+              <ActivityIcon code={a} className="size-4 text-zinc-400" />
               {companyActivityLabel(a)}
-            </UiBadge>
+            </span>
           ))}
           {certs.map((c) => (
-            <UiBadge key={c} tone="neutral" size="sm" className="bg-white ring-1 ring-inset ring-zinc-950/10">
+            <span
+              key={c}
+              className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700"
+            >
               {c}
-            </UiBadge>
+            </span>
           ))}
         </div>
       ) : null}
