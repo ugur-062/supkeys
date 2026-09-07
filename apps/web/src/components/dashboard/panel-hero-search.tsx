@@ -3,7 +3,7 @@
 import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
-import { MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
+import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
@@ -135,6 +135,9 @@ export function PanelHeroSearch({
       ? {
           glow: "var(--color-blue-200)",
           eyebrow: "text-blue-700",
+          /* Başlığın İKİNCİ yarısı portal renginde (2026-09-08, kullanıcı
+             tasarımı): "Ne" koyu, "arıyorsunuz?" mavi. */
+          accentText: "text-blue-600",
           /* "Ara" düğmesi de portal rengine geçti (2026-09-07, kullanıcı:
              "siyah ağırlıklı yapma"). Eskiden siyahtı ve mavi bir hero'nun
              ortasında tek kara blok olarak duruyordu. */
@@ -144,6 +147,7 @@ export function PanelHeroSearch({
       : {
           glow: "var(--color-emerald-200)",
           eyebrow: "text-emerald-700",
+          accentText: "text-emerald-700",
           // SATIŞ portalı SİYAH kalır: değişiklik yalnız satınalma için
           // istendi ve iki panelin dili ayrı kalmalı.
           btn: "bg-zinc-950 hover:bg-zinc-800 focus-visible:outline-zinc-950",
@@ -159,26 +163,48 @@ export function PanelHeroSearch({
       />
       <div className="mx-auto max-w-2xl text-center">
         {eyebrow ? (
-          <p className={`text-sm/6 font-semibold ${tone.eyebrow}`}>{eyebrow}</p>
+          /* Üst etiket: BÜYÜK HARF + geniş harf aralığı, iki yanında ince
+             çizgi (kullanıcı tasarımı). */
+          <p className={`flex items-center justify-center gap-3 text-[11px] font-semibold tracking-[0.2em] uppercase ${tone.eyebrow}`}>
+            <span aria-hidden className="h-px w-8 bg-current opacity-40" />
+            {eyebrow}
+            <span aria-hidden className="h-px w-8 bg-current opacity-40" />
+          </p>
         ) : null}
         {/* Sayfanın TEK h1'i (2026-09-07): panel anasayfalarının başlık
             şeridi kalktı, hero başlığı sayfanın adı oldu — h2 kalsaydı iki
             anasayfa da h1'siz gezinirdi (ekran okuyucu "sayfa başlığı"
             atlar). Hero yalnız bu iki sayfada kullanılıyor. */}
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
-          {title}
+        {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
+            `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
+          {(() => {
+            const i = title.indexOf(" ");
+            if (i < 0) return title;
+            return (
+              <>
+                {title.slice(0, i)}{" "}
+                <span className={tone.accentText}>{title.slice(i + 1)}</span>
+              </>
+            );
+          })()}
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
 
         {ai ? (
-          <div className="mt-6 flex items-center justify-center gap-1 text-xs">
-            <div role="group" aria-label="Arama modu" className="inline-flex rounded-full bg-zinc-100 p-0.5">
+          <div className="mt-7 flex items-center justify-center gap-2 text-sm">
+            {/* Mod anahtarı (kullanıcı tasarımı): seçili taraf BEYAZ hap +
+                gölge, ikonlu; seçili olmayan sessiz gri. */}
+            <div role="group" aria-label="Arama modu" className="inline-flex rounded-full bg-zinc-100/80 p-1">
               <button
                 type="button"
                 aria-pressed={!aiMode}
                 onClick={() => setAiMode(false)}
-                className={`rounded-full px-3 py-1 font-semibold transition ${!aiMode ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:text-zinc-950"}`}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold transition ${
+                  !aiMode ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
+                }`}
               >
+                <MagnifyingGlassIcon aria-hidden className="size-4" />
                 Ara
               </button>
               <button
@@ -187,9 +213,11 @@ export function PanelHeroSearch({
                 disabled={!ai.enabled}
                 title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
                 onClick={() => ai.enabled && setAiMode(true)}
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${aiMode ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:text-zinc-950"}`}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  aiMode ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
+                }`}
               >
-                <SparklesIcon aria-hidden className="size-3.5 text-blue-600" />
+                <SparklesIcon aria-hidden className="size-4" />
                 AI ile ara
               </button>
             </div>
@@ -214,57 +242,60 @@ export function PanelHeroSearch({
           }}
           className={ai ? "relative mt-4" : "relative mt-7"}
         >
-          <div className="flex items-stretch gap-2">
-            <div
-              className={`relative flex flex-1 items-center bg-white shadow-lg shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
-                aiActive
-                  ? "rounded-3xl ring-blue-200 focus-within:ring-blue-500"
-                  : "rounded-full ring-zinc-950/10 focus-within:ring-zinc-950"
-              }`}
-            >
-              {aiActive ? (
-                <SparklesIcon aria-hidden className="pointer-events-none absolute top-4 left-4 size-5 text-blue-600" />
-              ) : (
-                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-4 size-5 text-zinc-400" />
-              )}
-              {aiActive ? (
-                <textarea
-                  name="q"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  onKeyDown={onAiKey}
-                  rows={2}
-                  placeholder={aiPlaceholder}
-                  aria-label="AI ile ara"
-                  maxLength={500}
-                  className="min-h-14 w-full resize-none rounded-3xl bg-transparent py-3.5 pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-                />
-              ) : (
-                <input
-                  type="search"
-                  name="q"
-                  value={q}
-                  onChange={(e) => {
-                    setQ(e.target.value);
-                    onQueryChange?.(e.target.value);
-                    setOpen(true);
-                  }}
-                  onFocus={() => setOpen(true)}
-                  placeholder={placeholder}
-                  aria-label={title}
-                  autoComplete="off"
-                  className="h-14 w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-                />
-              )}
-            </div>
+          {/* ARAMA ÇUBUĞU (kullanıcı tasarımı): tek beyaz hap — solda
+              büyüteç, ortada alan, SAĞDA çubuğun İÇİNDE portal renginde
+              "Ara →" düğmesi. Eskiden düğme çubuğun dışında ayrı bir
+              blok olarak duruyordu; tasarımda tek parça okunuyor.
+              "Filtrele" düğmesi BASILMADI (kullanıcı: gerek yok) —
+              süzgeçler sonuç sayfasının kenar rayında yaşıyor. */}
+          <div
+            className={`relative flex bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
+              aiActive
+                ? "items-end rounded-3xl ring-blue-200 focus-within:ring-blue-500"
+                : "items-center rounded-full ring-zinc-950/10 focus-within:ring-blue-500"
+            }`}
+          >
+            {aiActive ? (
+              <SparklesIcon aria-hidden className="pointer-events-none absolute top-5 left-5 size-5 text-blue-600" />
+            ) : (
+              <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-5 size-5 text-zinc-400" />
+            )}
+            {aiActive ? (
+              <textarea
+                name="q"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={onAiKey}
+                rows={2}
+                placeholder={aiPlaceholder}
+                aria-label="AI ile ara"
+                maxLength={500}
+                className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+              />
+            ) : (
+              <input
+                type="search"
+                name="q"
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  onQueryChange?.(e.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                placeholder={placeholder}
+                aria-label={title}
+                autoComplete="off"
+                className="h-12 w-full flex-1 bg-transparent pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+              />
+            )}
             <button
               type="submit"
               disabled={aiActive && intent.isPending}
-              className={`h-14 shrink-0 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${
-                aiActive ? `self-end ${tone.btn}` : tone.btn
-              }`}
+              className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
             >
               {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
+              {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
             </button>
           </div>
           {aiActive ? (

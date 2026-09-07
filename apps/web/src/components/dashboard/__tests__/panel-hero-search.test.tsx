@@ -104,3 +104,25 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     expect(screen.getByRole("link", { name: "Silver ile açılır" })).toHaveAttribute("href", "/company/ayarlar");
   });
 });
+
+describe("PanelHeroSearch — görünüm sözleşmesi (2026-09-08 kullanıcı tasarımı)", () => {
+  it("başlık iki tonlu, 'Ara' düğmesi çubuğun içinde ve 'Filtrele' YOK", () => {
+    render(
+      <PanelHeroSearch
+        eyebrow="Tedarikçi ürün vitrini"
+        title="Ne arıyorsunuz?"
+        lead="Ürün, marka, parça numarası veya firma"
+        placeholder="Ürün, marka, parça numarası veya firma arayın"
+        action="/company/satinalma/urunler"
+        accent="blue"
+      />,
+    );
+    const h1 = screen.getByRole("heading", { level: 1, name: "Ne arıyorsunuz?" });
+    // İlk sözcük koyu, kalanı portal renginde — tek başlık, bölünmüş metin değil.
+    expect(h1.querySelector(".text-blue-600")?.textContent).toBe("arıyorsunuz?");
+    const submit = screen.getByRole("button", { name: /^Ara/ });
+    expect(submit).toHaveAttribute("type", "submit");
+    // Süzgeçler sonuç sayfasının kenar rayında — hero'da "Filtrele" yok.
+    expect(screen.queryByRole("button", { name: /Filtrele/ })).toBeNull();
+  });
+});
