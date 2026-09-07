@@ -2,15 +2,11 @@
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { PanelFeaturedProducts } from "@/components/company/market/panel-featured-products";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "next/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
-import { CategoryShowcasePanel } from "@/components/dashboard/category-showcase-panel";
-import { FeaturedCompaniesBlock } from "@/components/dashboard/featured-companies-block";
-import { CtaBand } from "@/components/dashboard/cta-band";
-import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
+import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
 import {
   useCategorySegments,
   useDiscoverProductFacets,
@@ -19,8 +15,6 @@ import {
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { buildShowcase } from "@/lib/public/category-showcase";
 import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } from "@/lib/company/panel-market";
-import { ArrowRight, ClipboardList } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 /**
@@ -32,9 +26,15 @@ import { useMemo, useState } from "react";
  * kategori kartı yalnız sayfayı kaydırdığı için filtrelenmiş liste
  * paylaşılamıyordu.
  *
- * Sıra: hero arama → kategoriler (artık NAVİGASYON: kendi sayfasına gider)
- * → size uygun ürünler şeridi → doğrulanmış tedarikçiler → talep aç şeridi
- * → profil sağlığı → Raporlar.
+ * SAYFA İKİ BLOK (2026-09-07, kullanıcı kararı — Europages ekran görüntüsü):
+ * hero arama + KATEGORİ VİTRİNİ. Başka hiçbir şey yok.
+ *
+ * Kaldırılanlar: "size uygun ürünler" şeridi, doğrulanmış tedarikçiler,
+ * "talep aç" şeridi, profil sağlığı kartı ve Raporlar bağlantısı. Hepsi
+ * kendi adreslerinde yaşamaya devam ediyor (ürünler ve firmalar pazar
+ * sekmelerinde, talep sihirbazı sol menüdeki birincil CTA'da, profil ve
+ * raporlar Şirketim altında); anasayfa artık tek bir soruyu soruyor:
+ * "ne arıyorsun, hangi daldan?". Geri getirmek her biri için tek satır.
  *
  * BAŞLIK ŞERİDİ ve "BUGÜN" bandı KALDIRILDI (2026-09-07, kullanıcı kararı):
  * panel adı sol menüde zaten yazılı, kur çipi ve bekleyen işler listesi
@@ -63,16 +63,20 @@ export default function SatinalmaDashboardPage() {
   // Kategori vitrini + çipler: ürün dizini facet'i (L1 sayaçları) + 58 segment.
   const facets = useDiscoverProductFacets();
   const segments = useCategorySegments();
+  // 3 satır × (1 promo + 10 kart) = 33 segment. `buildShowcase` sırası:
+  // ürünü OLAN dallar önce (sayıya göre), sonra küratörlü sıra — promo
+  // kartlara envanteri en dolu üç dal düşer.
   const showcase = useMemo(
     () =>
       buildShowcase({
         segments: (segments.data ?? []).map((s) => ({ id: s.id, name: s.nameTr })),
         counts: (facets.data?.categories ?? []).map((c) => ({ id: c.id, count: c.count })),
         productCovers: [],
-        limit: 8,
+        limit: 33,
       }),
     [segments.data, facets.data],
   );
+  const rows = useMemo(() => toShowcaseRows(showcase), [showcase]);
   // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
   // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
   const [term, setTerm] = useState("");
@@ -122,40 +126,12 @@ export default function SatinalmaDashboardPage() {
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
       />
 
-      <CategoryShowcasePanel
-        title="Kategoriye göre keşfet"
-        lead="En çok ürünü olan dallar önde; her kategorinin kendi sayfası ve kendi süzgeçleri var."
-        items={showcase}
-        hrefFor={(id) => panelCategoryPath(id, showcase.find((c) => c.id === id)?.name)}
+      <CategoryShowcaseRows
+        rows={rows}
+        hrefFor={(c) => panelCategoryPath(c.id, c.name)}
         countNoun="ürün"
-        allHref={PANEL_MARKET.products}
-        allLabel="Tüm ürünler"
+        ctaLabel="Şimdi tedarikçi bulun"
       />
-
-      <PanelFeaturedProducts />
-
-      <FeaturedCompaniesBlock />
-
-
-      <CtaBand
-        icon={<ClipboardList aria-hidden className="size-5" strokeWidth={1.75} />}
-        title="Aradığınızı bulamadınız mı?"
-        body="Satın alma talebi açın; kategorinizdeki tedarikçiler kapalı zarfta teklif versin, siz tek tabloda karşılaştırın."
-        cta={{ label: "Talep aç", href: "/company/satinalma/taleplerim/yeni" }}
-        tone="secondary"
-      />
-
-      {/* Eşleşme kalitesinin girdisi: profil tamlığı (yüzde Profilim'le aynı
-          fonksiyondan). Katalog kartı alıcıda yok. */}
-      <SellerHealthCards mode="profile" profileHref="/company/sirketim/profil" />
-
-      <Link
-        href="/company/sirketim/raporlar"
-        className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
-      >
-        Detaylı analiz ve grafikler Raporlar&apos;da
-        <ArrowRight aria-hidden className="size-4" />
-      </Link>
     </div>
   );
 }
