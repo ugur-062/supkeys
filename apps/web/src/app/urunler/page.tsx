@@ -1,4 +1,4 @@
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import {
   ProductIndex,
   type ProductSearchParams,
@@ -42,7 +42,7 @@ export default async function Page({
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   return (
-    <PublicLayout>
+    <PublicLayout className={MARKET_GROUND}>
         <ProductIndex
           title={MARKETPLACE_LABELS.products}
           lead="Firmaların vitrinlerine koyduğu ürünler. Kategori, şehir ve faaliyet tipine göre süzün; fiyat ve bilgi talebi için ücretsiz hesap açın."

@@ -3,7 +3,7 @@ import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
 import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
 import { GatedField } from "@/components/marketplace/gated-field";
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
@@ -142,7 +142,7 @@ export default async function PublicCompanyProfile({
   };
 
   return (
-    <PublicLayout className="bg-zinc-50">
+    <PublicLayout className={MARKET_GROUND}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}

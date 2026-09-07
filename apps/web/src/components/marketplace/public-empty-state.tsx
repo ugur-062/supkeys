@@ -20,8 +20,10 @@ export function PublicEmptyState({
   /** Ek eylem — ürün dizininde "Bu ürün için talep aç" (arama terimi ön-dolu). */
   extra?: { label: string; href: string };
 }) {
+  // BEYAZ yüzey: katalog sayfalarının zemini artık tonlu (`MARKET_GROUND`);
+  // eski `bg-zinc-50/60` orada zeminden ayrışmıyor ve kutu kayboluyordu.
   return (
-    <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/60 px-6 py-12 text-center">
+    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
       <p className="text-base font-semibold text-zinc-900">{noun} bulunamadı.</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
         {extra ? (

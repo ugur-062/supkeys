@@ -16,12 +16,27 @@ import type { ReactNode } from "react";
  * (hero kendi `pt-32`sini taşır, düz sayfalar `pt-28`). Kabuk oturum OKUMAZ — public rotalar
  * statik/ISR ve nonce'suz CSP ile çalışır (bkz. lib/public-routes.ts).
  */
+/**
+ * KATALOG ZEMİNİ — beyaz DEĞİL (2026-09-07, Europages spec §2.1).
+ *
+ * Kartlar da beyaz olduğu için beyaz zeminde zeminden ayrılmıyor ve liste
+ * "katalog" değil "blog" gibi okunuyordu. Tonlu zemin + beyaz kart, kartı
+ * kaldırır; spec'in "pazaryeri hissinin %40'ı" dediği tek değişiklik bu.
+ * Değer `--color-ink-100` (#F4F4F5) ile aynı — spec'in #F3F4F5'i.
+ *
+ * YALNIZ LİSTE/KATALOG sayfalarında kullanılır. Anasayfa ve düzyazı
+ * sayfaları (`/nasil-calisir`, `/hakkimizda`) BEYAZ kalır: oradaki ritim
+ * beyaz ↔ `bg-zinc-50` bölüm bantlarına dayanıyor, zemini tonlayınca o
+ * bantlar zeminden AÇIK kalıp ters dönerdi.
+ */
+export const MARKET_GROUND = "bg-zinc-100";
+
 export function PublicLayout({
   children,
   className = "bg-white",
 }: {
   children: ReactNode;
-  /** Gövde zemini — pazar yeri beyaz, firma profili `bg-zinc-50`. */
+  /** Gövde zemini. Katalog sayfaları `MARKET_GROUND`, gerisi beyaz. */
   className?: string;
 }) {
   return (

@@ -1,4 +1,4 @@
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import {
   ProductIndex,
   type ProductSearchParams,
@@ -89,7 +89,7 @@ export default async function Page({
 
   const sp = await searchParams;
   return (
-    <PublicLayout>
+    <PublicLayout className={MARKET_GROUND}>
         <ProductIndex
           title={cat.name}
           lead={`${cat.name} kategorisinde ${cat.count.toLocaleString("tr-TR")} ürün. Firmaların vitrinlerinden; teklif için doğrudan iletişime geçin.`}

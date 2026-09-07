@@ -1,4 +1,4 @@
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { Skeleton, SkeletonCard, SkeletonText } from "@/components/ui/skeleton";
 
 /**
@@ -8,7 +8,7 @@ import { Skeleton, SkeletonCard, SkeletonText } from "@/components/ui/skeleton";
  */
 export default function UrunlerLoading() {
   return (
-    <PublicLayout>
+    <PublicLayout className={MARKET_GROUND}>
       <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:px-8" aria-busy="true" aria-label="Ürünler yükleniyor">
         <Skeleton className="h-8 w-56" />
         <Skeleton className="mt-3 h-4 w-96 max-w-full" />

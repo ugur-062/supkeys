@@ -3,8 +3,10 @@ import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components
 import { FilterResults, MobileFilterButton, ResultCount } from "@/components/marketplace/filter-shell";
 import { CompanyFilterShell } from "@/components/marketplace/list-filter-shells";
 import { PublicEmptyState } from "@/components/marketplace/public-empty-state";
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { PublicListPage, ResultGrid } from "@/components/marketplace/public-list-page";
+import { PublicSearchTabs } from "@/components/marketplace/public-search-tabs";
+import { crossCounts } from "@/lib/public/cross-counts";
 import { Pagination } from "@/components/ui/pagination";
 import {
   activeCompanyFilterCount,
@@ -48,20 +50,30 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   if (!MARKETPLACE_LIVE) notFound();
   const state = parseCompanyFilters(await searchParams);
   const params = toDirectoryParams(state);
-  const [result, facets] = await Promise.all([
+  // Karşı yüzey sayaçları YALNIZ arama varken: aramasız gezinen kullanıcı
+  // için "Ürünler 57" gürültü, ayrıca her sayfa yükünde iki ek istek olurdu.
+  const [result, facets, otherCounts] = await Promise.all([
     fetchPublicDirectory(params),
     fetchPublicDirectoryFacets({
       q: params.q, city: params.city, category: params.category, activity: params.activity,
       verified: params.verified, hasProducts: params.hasProducts, gold: params.gold,
     }),
+    crossCounts(state.q, "companies"),
   ]);
   const base = MARKETPLACE_ROUTES.companies;
   const hasFilter = activeCompanyFilterCount(state) > 0 || !!state.q;
 
   return (
-    <PublicLayout>
+    <PublicLayout className={MARKET_GROUND}>
       <CompanyFilterShell total={result.total} drawer={<CompanyFilters facets={facets} idPrefix="m" />}>
         <PublicListPage
+          tabs={
+            <PublicSearchTabs
+              active="companies"
+              q={state.q}
+              counts={{ ...otherCounts, companies: result.total }}
+            />
+          }
           title={MARKETPLACE_LABELS.companies}
           lead="Rothern'deki alıcı ve tedarikçi firmalar. Faaliyet tipi, şehir ve kategoriye göre süzün; profil ve ürünleri inceleyin. İletişim için ücretsiz hesap."
           search={{

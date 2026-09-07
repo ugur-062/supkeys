@@ -1,10 +1,10 @@
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 
 /** /alim-talepleri yüklenirken iskelet (PROMPT 4) — kenar süzgeci + talep teaser kartı oranı. */
 export default function AlimTalepleriLoading() {
   return (
-    <PublicLayout>
+    <PublicLayout className={MARKET_GROUND}>
       <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:px-8" aria-busy="true" aria-label="Alım talepleri yükleniyor">
         <Skeleton className="h-8 w-52" />
         <Skeleton className="mt-3 h-4 w-96 max-w-full" />

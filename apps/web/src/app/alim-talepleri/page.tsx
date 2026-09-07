@@ -1,4 +1,4 @@
-import { PublicLayout } from "@/components/marketplace/public-layout";
+import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { ListingIndex } from "@/components/marketplace/listing-index";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_LABELS } from "@/lib/public/marketplace";
@@ -35,7 +35,7 @@ export default async function Page({
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   return (
-    <PublicLayout>
+    <PublicLayout className={MARKET_GROUND}>
         <ListingIndex
           type="ALIM"
           title={MARKETPLACE_LABELS.demands}

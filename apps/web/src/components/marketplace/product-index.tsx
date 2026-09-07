@@ -4,6 +4,8 @@ import { ProductCard } from "./product-card";
 import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
+import { PublicSearchTabs } from "./public-search-tabs";
+import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import {
@@ -41,9 +43,12 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
   const params = toProductListParams(state);
   const basePath = MARKETPLACE_ROUTES.products;
 
-  const [page, facets] = await Promise.all([
+  const [page, facets, otherCounts] = await Promise.all([
     fetchProducts(params),
     fetchProductFacets({ category: params.category, q: params.q, city: params.city, activity: params.activity, verified: params.verified, price: params.price }),
+    // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
+    // (yalnız arama varken istek atılır).
+    crossCounts(state.q, "products"),
   ]);
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
   const talepHref = signupHref("talep", state.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(state.q)}` : undefined);
@@ -51,6 +56,9 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
   return (
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
+          tabs={
+            <PublicSearchTabs active="products" q={state.q} counts={{ ...otherCounts, products: page.total }} />
+          }
         title={title}
         lead={lead}
         image={image}

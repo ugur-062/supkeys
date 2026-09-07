@@ -27,6 +27,7 @@ export function PublicListPage({
   summary,
   chipsNode,
   image,
+  tabs,
   children,
 }: {
   title: string;
@@ -53,6 +54,8 @@ export function PublicListPage({
    * mobilde GİZLENİR (çekmece var).
    */
   chipsNode?: ReactNode;
+  /** Arama sonucu sekmeleri — başlık bandının altında (`PublicSearchTabs`). */
+  tabs?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -72,6 +75,9 @@ export function PublicListPage({
               <div className="mt-7 max-w-3xl">
                 <SearchForm {...search} />
               </div>
+              {/* Sekmeler aramanın HEMEN ALTINDA: "aynı sorgu, öteki yüzey"
+                  ilişkisi görsel olarak da arama kutusuna bağlı olsun. */}
+              {tabs}
             </div>
             {image ? (
               <div className="relative hidden aspect-[3/2] overflow-hidden rounded-2xl ring-1 ring-zinc-950/5 lg:block">

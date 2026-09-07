@@ -4,6 +4,8 @@ import { ListingActiveChips, ListingFilters, ListingSortBar } from "./listing-fi
 import { ListingTeaserCard } from "./listing-teaser-card";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
+import { PublicSearchTabs } from "./public-search-tabs";
+import { crossCounts } from "@/lib/public/cross-counts";
 import { Pagination } from "@/components/ui/pagination";
 import {
   activeListingFilterCount,
@@ -35,15 +37,21 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
   const basePath = MARKETPLACE_ROUTES.demands;
   const noun = MARKETPLACE_LABELS.demandOne;
 
-  const [page, facets] = await Promise.all([
+  const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
     fetchFacets({ q: params.q, category: params.category, city: params.city, scope: params.scope, closesWithin: params.closesWithin }),
+    // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
+    // (yalnız arama varken istek atılır).
+    crossCounts(state.q, "listings"),
   ]);
   const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
 
   return (
     <ListingFilterShell total={page.total} drawer={<ListingFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
+          tabs={
+            <PublicSearchTabs active="listings" q={state.q} counts={{ ...otherCounts, listings: page.total }} />
+          }
         title={title}
         lead={lead}
         search={{
