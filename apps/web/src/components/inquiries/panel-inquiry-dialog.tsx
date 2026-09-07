@@ -123,7 +123,7 @@ export function PanelInquiryDialog({
               <div className="mt-6 flex flex-wrap gap-2">
                 <Link
                   href="/company/satinalma/bilgi-taleplerim"
-                  className="flex-1 rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-zinc-800"
+                  className="flex-1 rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
                   Taleplerimi gör
                 </Link>
@@ -195,7 +195,7 @@ export function PanelInquiryDialog({
               <button
                 type="submit"
                 disabled={send.isPending}
-                className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
                 {send.isPending ? "Gönderiliyor…" : "Talebi gönder"}
               </button>

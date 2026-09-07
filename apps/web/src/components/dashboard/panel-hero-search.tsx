@@ -132,8 +132,23 @@ export function PanelHeroSearch({
       : "Ne aradığınızı anlatın: ürün, adet, şehir, teslim süresi, bütçe…");
   const tone =
     accent === "blue"
-      ? { glow: "var(--color-blue-200)", eyebrow: "text-blue-700" }
-      : { glow: "var(--color-emerald-200)", eyebrow: "text-emerald-700" };
+      ? {
+          glow: "var(--color-blue-200)",
+          eyebrow: "text-blue-700",
+          /* "Ara" düğmesi de portal rengine geçti (2026-09-07, kullanıcı:
+             "siyah ağırlıklı yapma"). Eskiden siyahtı ve mavi bir hero'nun
+             ortasında tek kara blok olarak duruyordu. */
+          btn: "bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-600",
+          chip: "hover:bg-blue-600",
+        }
+      : {
+          glow: "var(--color-emerald-200)",
+          eyebrow: "text-emerald-700",
+          // SATIŞ portalı SİYAH kalır: değişiklik yalnız satınalma için
+          // istendi ve iki panelin dili ayrı kalmalı.
+          btn: "bg-zinc-950 hover:bg-zinc-800 focus-visible:outline-zinc-950",
+          chip: "hover:bg-zinc-950",
+        };
 
   return (
     <section aria-label={title} className="relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6">
@@ -246,7 +261,7 @@ export function PanelHeroSearch({
               type="submit"
               disabled={aiActive && intent.isPending}
               className={`h-14 shrink-0 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${
-                aiActive ? "self-end bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-600" : "bg-zinc-950 hover:bg-zinc-800 focus-visible:outline-zinc-950"
+                aiActive ? `self-end ${tone.btn}` : tone.btn
               }`}
             >
               {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
@@ -299,7 +314,7 @@ export function PanelHeroSearch({
               <Link
                 key={c.id}
                 href={c.href}
-                className="inline-flex max-w-[15rem] items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 transition hover:bg-zinc-950 hover:text-white"
+                className={`inline-flex max-w-[15rem] items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 transition hover:text-white ${tone.chip}`}
               >
                 <span className="truncate">{c.name}</span>
                 <span className="shrink-0 text-zinc-400 tabular-nums">{c.count}</span>

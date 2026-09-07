@@ -10,9 +10,7 @@ import {
   ViewToggle,
 } from "@/components/marketplace/product-filters";
 import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-discovery";
-import { useCompanySearch } from "@/hooks/use-company-directory";
 import {
-  buildProductFilterQuery,
   parseProductFilters,
   toProductListParams,
   type PerPage,
@@ -23,8 +21,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import type { ReactNode } from "react";
-import { MarketBand, MarketTabs } from "./market-band";
-import { MarketSearch } from "./market-search";
+import { MarketHeader } from "./market-band";
 import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketList, MarketListLayout } from "./market-list-layout";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
 
@@ -124,9 +121,6 @@ function Inner({
   const data = result.data;
   const total = data?.total ?? 0;
   const pageSize = data?.pageSize ?? state.perPage ?? DEFAULT_PER_PAGE;
-  // Firma sayısı YALNIZ sekme rozetleri için; arama yokken de anlamlı
-  // (dizinin toplamı). Aynı sorgu iki tarafta iki sayı gösterir.
-  const companies = useCompanySearch({ q: state.q });
   const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
   // Izgara ↔ liste: aynı kartlar, farklı yoğunluk (`gorunum` URL'de).
   const Wrap = state.view === "liste" ? MarketList : MarketGrid;
@@ -136,19 +130,20 @@ function Inner({
       {band ? (
         band({ total, facets: facets.data })
       ) : (
-        <MarketBand
+        <MarketHeader
           breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Ürünler" }]}
           title="Ürünler"
-          lead="Tedarikçi vitrinlerindeki ürünler. Alım kategorinize uyanlar önde gelir; süzün, karşılaştırın, bilgi isteyin."
-          search={<MarketSearch<ProductFilterState> placeholder="Ürün, marka ya da firma ara" />}
-          tabs={
-            <MarketTabs
-              active="products"
-              productsHref={`${PANEL_MARKET.products}${buildProductFilterQuery(state)}`}
-              companiesHref={`${PANEL_MARKET.companies}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
-              productCount={data ? total : undefined}
-              companyCount={companies.data?.total}
-            />
+          trailing={
+            /* Firma dizinine TEK giriş noktası burası: koyu bant kalkınca
+               "Ürünler | Firmalar" sekmeleri de kalktı ve /firmalar yalnız
+               Bağlantılar › Keşfet üzerinden erişilebilir kalıyordu. Sekme
+               değil sessiz bir bağlantı — arama terimi varsa taşınır. */
+            <Link
+              href={`${PANEL_MARKET.companies}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
+              className="text-sm font-semibold text-blue-700 transition hover:text-blue-800"
+            >
+              Firmalar &rarr;
+            </Link>
           }
         />
       )}
@@ -182,7 +177,7 @@ function Inner({
             action={
               <Link
                 href={talepHref}
-                className="rounded-lg bg-zinc-950 px-4 py-2 font-semibold text-white transition hover:bg-zinc-800"
+                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
               >
                 Talep aç — tedarikçiler teklif versin
               </Link>
@@ -199,6 +194,7 @@ function Inner({
                 href={panelProductPath(item.company.slug, item.slug)}
                 features={item.features}
                 cta="Bilgi iste"
+                accent="blue"
                 compare
                 priority={i < 3}
                 badge={

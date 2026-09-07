@@ -105,7 +105,7 @@ export function AiIntentBand({
             <button
               type="button"
               onClick={openDraft}
-              className="rounded-full bg-zinc-950 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+              className="rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
             >
               Bu tanımla talep aç
             </button>

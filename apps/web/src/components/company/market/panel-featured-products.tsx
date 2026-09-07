@@ -64,6 +64,7 @@ export function PanelFeaturedProducts() {
                 href={panelProductPath(p.company.slug, p.slug)}
                 features={p.features}
                 cta="Bilgi iste"
+                accent="blue"
               />
             </li>
           ))}

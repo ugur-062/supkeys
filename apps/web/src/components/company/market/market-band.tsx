@@ -37,7 +37,10 @@ export function MarketBand({
   aside?: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl bg-zinc-950 px-5 py-6 text-white sm:px-8 sm:py-8">
+    /* MAVİ (2026-09-07, kullanıcı: "siyah ağırlıklı yapma"): bant satınalma
+       portalının kendi vurgu rengine geçti. Panelde yeni bir ton değil —
+       hero arama, AI anahtarı ve kategori vitrini zaten bu mavi. */
+    <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-blue-900 px-5 py-6 text-white sm:px-8 sm:py-8">
       <Breadcrumb
         items={breadcrumb}
         // Kırıntı açık zemin için yazılmış (son öğe zinc-900); koyu bantta
@@ -55,6 +58,40 @@ export function MarketBand({
       </div>
       {tabs ? <div className="mt-6 border-t border-white/10 pt-4">{tabs}</div> : null}
     </section>
+  );
+}
+
+/**
+ * DÜZ PAZAR BAŞLIĞI — kırıntı + H1, koyu bant YOK.
+ *
+ * 2026-09-07 (kullanıcı kararı): ürün dizininde ve kategori sayfasında koyu
+ * bant kaldırıldı. Gerekçe: listeye gelen kullanıcı ne aradığını zaten
+ * biliyor; başlık + açıklama + arama + sekmeler birlikte ürün ızgarasını
+ * ekranın altına itiyordu. Kalan iki şey sayfanın kimliği: "neredeyim"
+ * (kırıntı) ve sayfanın adı (H1 — a11y'de zorunlu, sayfa başlıksız kalamaz).
+ *
+ * Arama kaybolmadı, YERİ değişti: anasayfadaki büyük kutu `?q=` ile bu
+ * listeye yazar; kenar süzgeçleri ve çipler aynen duruyor.
+ */
+export function MarketHeader({
+  breadcrumb,
+  title,
+  trailing,
+}: {
+  breadcrumb: { label: string; href?: string }[];
+  /** Metin ya da iskelet — kategori sayfası ad gelene dek yer tutucu basar. */
+  title: ReactNode;
+  /** Başlığın sağındaki ikincil bağlantı (ör. "Firmalar"). */
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className="pt-1">
+      <Breadcrumb items={breadcrumb} />
+      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>
+        {trailing}
+      </div>
+    </div>
   );
 }
 

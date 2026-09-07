@@ -193,6 +193,7 @@ export default function CompanyProfilePage() {
               product={pr}
               href={`/company/satinalma/urunler/${pr.company.slug}/${pr.slug}`}
               cta="Bilgi iste"
+              accent="blue"
             />
           ))}
         </div>

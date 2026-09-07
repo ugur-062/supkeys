@@ -6,7 +6,11 @@ import type { ReactNode } from "react";
  * ROZET — pazar yeri sözlüğü (PROMPT 2, 2026-09-06). Ton anlam taşır, renk
  * değil: verified = Doğrulanmış (yeşil, TEK yerde tanımlı — dağınık 7
  * satır-içi CheckBadgeIcon kopyasının yerine), gold = Gold Üye (amber),
- * new = Yeni (monokrom koyu), neutral, danger. Palet monokrom kalır;
+ * new = Yeni (beyaz cam — 2026-09-07: eskiden dolu SİYAH pastilti ve ürün
+ * FOTOĞRAFININ üstünde kara bir blok gibi duruyordu, kullanıcı bulgusu;
+ * beyaz zemin + koyu metin hem fotoğrafta hem beyaz kartta okunur ve
+ * "Doğrulanmış"tan daha sessiz kalır — tazelik bir güven sinyali değil),
+ * neutral, danger. Palet monokrom kalır;
  * `catalyst/badge` (renk adıyla) panel durum rozetleri için yaşamaya devam eder.
  */
 export type BadgeTone = "verified" | "gold" | "new" | "neutral" | "danger";
@@ -14,7 +18,7 @@ export type BadgeTone = "verified" | "gold" | "new" | "neutral" | "danger";
 const TONE: Record<BadgeTone, string> = {
   verified: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
   gold: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-500/30",
-  new: "bg-zinc-950 text-white",
+  new: "bg-white/95 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-950/10 backdrop-blur-sm",
   neutral: "bg-zinc-100 text-zinc-700",
   danger: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20",
 };

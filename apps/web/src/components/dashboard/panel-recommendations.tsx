@@ -101,6 +101,10 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
                 company={p.company}
                 href={panelProductPath(p.company.slug, p.slug)}
                 variant="compact"
+                accent="blue"
+                // "Yeni eklenen ürünler" şeridinde HEPSİ yeni; rozet her
+                // kartta çıkıp hiçbir şeyi ayırt etmezdi.
+                showNew={mode !== "fresh"}
               />
             </li>
           ))}

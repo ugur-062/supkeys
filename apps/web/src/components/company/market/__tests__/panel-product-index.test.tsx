@@ -72,19 +72,22 @@ beforeEach(() => {
 });
 
 describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
-  it("kendi adresinde yaşar: koyu bant + kırıntı + arama + iki sekmede iki sayı", () => {
+  it("kendi adresinde yaşar: DÜZ başlık (kırıntı + H1) — koyu bant, açıklama, arama ve sekmeler YOK", () => {
+    // 2026-09-07 (kullanıcı kararı): koyu bant kaldırıldı. Başlık +
+    // açıklama + arama + "Ürünler | Firmalar" sekmeleri birlikte ürün
+    // ızgarasını ekranın altına itiyordu; arama anasayfadaki büyük kutuda
+    // yaşıyor ve `?q=` ile bu listeye yazıyor.
     render(<PanelProductIndex />);
     expect(screen.getByRole("heading", { level: 1, name: "Ürünler" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Yol" })).toBeInTheDocument();
-    // Liste artık anasayfada değil; kendi arama kutusu ŞART.
-    expect(screen.getByRole("searchbox", { name: "Ara" })).toBeInTheDocument();
-    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
-    expect(within(tabs).getByRole("link", { name: /Ürünler/ })).toHaveAttribute("aria-current", "page");
-    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute(
+    expect(screen.queryByRole("searchbox", { name: "Ara" })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Sonuç türü" })).toBeNull();
+    // Firma dizinine giriş noktası KALIR: sekmeler kalkınca /firmalar
+    // yalnız Bağlantılar › Keşfet'ten erişilebilir kalırdı.
+    expect(screen.getByRole("link", { name: /^Firmalar/ })).toHaveAttribute(
       "href",
       "/company/satinalma/firmalar",
     );
-    expect(within(tabs).getByText("20")).toBeInTheDocument();
   });
 
   it("kenar süzgeci + sayaç + sıralama; uygunluk rozeti ve özellik maddesi yalnız verilende", () => {
@@ -138,9 +141,6 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     render(<PanelProductIndex />);
     expect(screen.getByText("Güncelleniyor…")).toBeInTheDocument();
     expect(screen.queryByText(/bulunamadı/)).toBeNull();
-    // Sekme rozetinde de "0" basılmaz (sayı henüz bilinmiyor).
-    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
-    expect(within(tabs).queryByText("0")).toBeNull();
   });
 
   it("boş sonuçta talep aç + filtre temizle; arama tek başınaysa 'Aramayı kaldır'", () => {

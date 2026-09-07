@@ -80,6 +80,8 @@ export function ProductCard({
   badge,
   compare = false,
   onCompare,
+  showNew = true,
+  accent = "default",
   meta,
   trailing,
   onClick,
@@ -126,6 +128,19 @@ export function ProductCard({
   trailing?: ReactNode;
   /** Row: bağlantı yerine düğme (panel içi düzenleme). */
   onClick?: () => void;
+  /**
+   * "Yeni" rozeti basılsın mı. Zaten TAMAMI yeni ürünlerden oluşan bir
+   * şeritte (ör. "Yeni eklenen ürünler") rozet her kartta çıkar ve hiçbir
+   * şeyi ayırt etmez — orada `false` geçilir.
+   */
+  showNew?: boolean;
+  /**
+   * Birincil eylemin rengi. `default` = siyah (HERKESE AÇIK pazar yeri —
+   * monokrom kuralı orada geçerli), `blue` = satınalma panelinin portal
+   * rengi (2026-09-07, kullanıcı: "siyah ağırlıklı yapma"). Renk çağırandan
+   * gelir; kart iki yüzeyde de aynı bileşen kalsın diye portal bilmez.
+   */
+  accent?: "default" | "blue";
   /** LCP: görünümdeki ilk kartların görseli öncelikli yüklensin. */
   priority?: boolean;
   className?: string;
@@ -178,8 +193,12 @@ export function ProductCard({
     unit: product.unit,
   });
   const compact = variant === "compact";
+  const ctaCls =
+    accent === "blue"
+      ? "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600"
+      : "bg-zinc-950 text-white hover:bg-zinc-800 group-hover:bg-zinc-800 focus-visible:ring-zinc-950";
   const bullets = compact ? [] : (features ?? []).filter(Boolean).slice(0, 3);
-  const fresh = isNew(product.publishedAt);
+  const fresh = showNew && isNew(product.publishedAt);
 
   if (variant === "wide") {
     return (
@@ -267,7 +286,7 @@ export function ProductCard({
               ) : null}
             </span>
             {cta ? (
-              <span className="inline-flex shrink-0 items-center justify-center rounded-lg bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white">
+              <span className={cn("inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold", ctaCls)}>
                 {cta}
               </span>
             ) : null}
@@ -286,7 +305,7 @@ export function ProductCard({
             {product.moq ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}` : "\u00A0"}
           </p>
           {cta ? (
-            <span className="mt-3 inline-flex items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-xs font-semibold text-white transition group-hover:bg-zinc-800">
+            <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
               {cta}
             </span>
           ) : null}
@@ -448,7 +467,10 @@ export function ProductCard({
             <Link
               href={ctaHref ?? `${target}#bilgi-iste`}
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 mt-3 inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2"
+              className={cn(
+                "relative z-10 mt-3 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                ctaCls,
+              )}
             >
               {cta}
             </Link>

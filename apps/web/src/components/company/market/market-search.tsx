@@ -64,7 +64,7 @@ export function MarketSearch<S extends { q?: string; page: number }>({
       ) : null}
       <button
         type="submit"
-        className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
       >
         {label}
       </button>
