@@ -28,7 +28,14 @@ export function MarketDiscoveryFooter({
       <h2 id="kesif-altligi" className="sr-only">
         Keşfetmeye devam edin
       </h2>
-      <div className="grid gap-8 sm:grid-cols-2">
+      {/* İKİ BLOK ALT ALTA, ÇİPLER YAN YANA (2026-09-08, kullanıcı kararı):
+          eskiden bloklar yan yana iki sütundaydı ve her sütun ekranın yarısı
+          kadar olduğu için uzun kategori adları ("Malzeme Elleçleme,
+          Koşullama ve Depolama Makineleri") tek satırı doldurup alt alta
+          diziliyordu — bölüm dikey bir listeye dönüşmüştü. Blok tam
+          genişlikte olunca aynı çipler yatay akıyor. Sıra: önce sektör,
+          sonra şehir. */}
+      <div className="space-y-8">
         {topCategories.length > 0 ? (
           <Block title="Sektöre göre">
             {topCategories.map((c) => (
@@ -64,7 +71,9 @@ function Item({ href, label, count }: { href: string; label: string; count: numb
         href={href}
         className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950"
       >
-        <span className="max-w-[14rem] truncate">{label}</span>
+        {/* Tam genişlikte akan şeritte daha uzun ada yer var; yine de
+            tavan kalır — tek bir uzun ad satırı tek başına yemesin. */}
+        <span className="max-w-[22rem] truncate">{label}</span>
         <span className="tnum text-xs text-zinc-500">{count}</span>
       </Link>
     </li>
