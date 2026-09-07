@@ -71,3 +71,56 @@ describe("CompanyProfileView — doğrulama rozeti", () => {
     expect(screen.queryByText("Doğrulanmış")).toBeNull();
   });
 });
+
+/**
+ * DÜZEN SÖZLEŞMESİ (2026-09-07, kullanıcı kararı — Europages firma sayfası):
+ * kimlik ÜSTTE ve KISA, ürünler TAM GENİŞLİKTE ve üstte; künye/sertifika/
+ * galeri ürünlerin ALTINDAKİ "hakkında" bölümüne iner.
+ */
+describe("CompanyProfileView — düzen", () => {
+  const rich: ProfileViewData = {
+    ...base,
+    aboutText: "Uzun tanıtım metni. ".repeat(20),
+    activities: ["SERVICE_PROVIDER"],
+    certifications: ["ISO 9001"],
+    services: ["Kurulum"],
+    rothernId: "RTH-1",
+  };
+
+  it("üst kart: ülke bayrağı + faaliyet tipi + kısa tanıtım ve 'Daha fazlasını oku' çapası", () => {
+    const { container } = render(
+      <CompanyProfileView profile={rich} main={<div data-testid="urunler">ürünler</div>} />,
+    );
+    expect(screen.getByRole("heading", { level: 1, name: /Test Firma/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Türkiye").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Hizmet sağlayıcı").length).toBeGreaterThan(0);
+    const more = screen.getByRole("link", { name: "Daha fazlasını oku" });
+    expect(more).toHaveAttribute("href", "#hakkinda");
+    // Kısa tanıtım İKİ SATIRLA sınırlı; tam metin aşağıdaki bölümde.
+    expect(container.querySelector(".line-clamp-2")).not.toBeNull();
+  });
+
+  it("ürünler 'hakkında' bölümünden ÖNCE ve ızgaranın DIŞINDA (tam genişlik)", () => {
+    const { container } = render(
+      <CompanyProfileView profile={rich} main={<div data-testid="urunler">ürünler</div>} />,
+    );
+    const products = screen.getByTestId("urunler");
+    const about = container.querySelector("#hakkinda");
+    expect(about).not.toBeNull();
+    // DOM sırası: ürünler önce.
+    expect(products.compareDocumentPosition(about as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Ürünler iki sütunlu ızgaranın içinde DEĞİL (sağdaki künye onu daraltmasın).
+    expect(about?.contains(products)).toBe(false);
+  });
+
+  it("sertifikalar ve hizmetler SAĞ sütunda değil", () => {
+    const { container } = render(<CompanyProfileView profile={rich} />);
+    const grid = container.querySelector("#hakkinda");
+    const right = grid?.children[1] as HTMLElement | undefined;
+    expect(right).toBeTruthy();
+    expect(right?.textContent ?? "").not.toContain("ISO 9001");
+    expect(right?.textContent ?? "").not.toContain("Kurulum");
+    // Sağ sütun künyeyi taşır.
+    expect(right?.textContent ?? "").toContain("Şirket Bilgileri");
+  });
+});

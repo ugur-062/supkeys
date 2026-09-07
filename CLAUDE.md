@@ -658,6 +658,35 @@ doğrulandı (meta head içinde). `htmlLimitedBots`i elle yazmayın: varsayılan
 listeyi EZER (Googlebot düşer). `/firma` 76: firmanın logo/kapağı ölü
 `pub-*.r2.dev` host'unda 30 sn askıda — veri sorunu, `migrate-public-images`.
 
+### Firma sayfası — kimlik ÜSTTE, ürünler TAM GENİŞLİKTE (2026-09-07)
+
+Kullanıcı kararı (Europages firma sayfası referansı): "şirket hakkında
+bilgiler üstte olsun ama çok uzun tutma, ürünler ilk bakışta görünsün; sağ
+kısmı doldurma, sağdan sola hepsi ürün olsun; sağda sertifika falan olmasın."
+
+`CompanyProfileView` (public `/firma/[slug]` + panel `/company/firma/[id]` +
+Profilim editörü — TEK bileşen) yeniden dizildi:
+
+| Sıra | Ne |
+|------|-----|
+| 1 | **Kısa kimlik kartı**: kapak şeridi (alçaltıldı), logo, ad + Doğrulanmış/Gold, **ülke bayrağı + ülke + şehir + sektör**, **ikonlu faaliyet tipi**, `actions` (CTA), **iki satırlık tanıtım + "Daha fazlasını oku"** |
+| 2 | `children` (panel: ilanlar) |
+| 3 | **`main` = ÜRÜNLER, tam genişlik** — ızgaranın dışında |
+| 4 | `#hakkinda` ızgarası: SOLDA tam Hakkında + hizmetler + sertifikalar + galeri + ticari bilgiler + değerlendirmeler, SAĞDA yalnız **Şirket Bilgileri** künyesi (Rothern ID · kuruluş · çalışan · sektör · konum · puan · kategoriler · web/sosyal) |
+
+"Daha fazlasını oku" `#hakkinda` çapasına gider — metin TEK yerde yaşar,
+üstte kesit + altta tam metin diye iki kopya basılmaz.
+
+Ürün ızgarası dört sütun (`lg:grid-cols-4`), başlık **"Tüm Ürünler ve
+Hizmetler (N)"**, yanında firma içi arama (düz GET formu). Public tarafta
+sayfalama `?urunSayfa=` (arama terimi korunur); PANEL ucu ilk 24 ürünü
+döndürdüğü için orada sayfalama yok — sahte "daha fazla" düğmesi yerine
+"24 / N ürün gösteriliyor" satırı yazılır.
+
+Sözleşme: `company-profile-view.test` (üst kartta bayrak/faaliyet/çapa;
+ürünler `#hakkinda`dan ÖNCE ve ızgaranın DIŞINDA; sertifika/hizmet sağ
+sütunda DEĞİL).
+
 ### Demo doluluk — pazar yeri (2026-09-04, kullanıcı kararı)
 
 `packages/db/prisma/scripts/seed-marketplace-demo.ts` (`pnpm --filter

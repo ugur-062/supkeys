@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
-import { StarIcon } from "@heroicons/react/20/solid";
-import { companyActivityLabel, type ReviewSummary } from "@rothern/shared";
+import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
+import { companyActivityLabel, countryFlag, countryName, type ReviewSummary } from "@rothern/shared";
 
 import { safeExternalUrl } from "@/lib/safe-url";
 import { CompanyLogo } from "@/components/company/company-logo";
 import { SafeCoverImage } from "@/components/company/safe-cover-image";
+import { ActivityIcon } from "@/components/marketplace/activity-icons";
 
 /**
  * Dış bağlantı — YALNIZ http/https render eder (`javascript:` vb. düşürülür).
@@ -112,17 +113,6 @@ function TradeRow({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </div>
-      <div className="mt-0.5 text-sm font-semibold text-zinc-900">{value}</div>
-    </div>
-  );
-}
-
 /**
  * YERİNDE DÜZENLEME slotları (2026-08-22, Profilim editörü): verilirse ilgili
  * bölge salt-okunur içerik yerine slot'u render eder ve boş olsa da GÖRÜNÜR
@@ -201,14 +191,23 @@ export function CompanyProfileView({
 
   return (
     <div className="space-y-6">
-      {/* Hero */}
+      {/* ÜST KİMLİK KARTI — KISA (2026-09-07, kullanıcı: "şirket hakkında
+          bilgiler üstte olsun ama çok uzun tutma, ürünler ilk bakışta
+          görünsün"). Kaynak kalıp: Europages firma sayfası — kapak şeridi,
+          logo, ad, ülke + konum, faaliyet tipi, tek CTA ve İKİ SATIRLIK
+          tanıtım.
+
+          Künye (kuruluş/çalışan/kategori/web/sosyal), hizmetler, sertifikalar,
+          galeri ve değerlendirmeler ÜRÜNLERİN ALTINDAKİ "hakkında" bölümüne
+          indi: üstte durduklarında ilk ekranı tümüyle yiyor ve ziyaretçi
+          firmanın NE SATTIĞINI görmeden kaydırmak zorunda kalıyordu. */}
       <section className="overflow-hidden card">
-        {/* C63: kapak yokken ~190px boş koyu blok "bozuk" görünüyordu —
-            kapaksız profilde şerit inceltilir (görsel varsa tam boy). */}
+        {/* Kapak: görsel varsa şerit, yoksa ince renk bandı. Yükseklik
+            bilinçli olarak kısaldı — üst blok ürünleri ekrandan itmesin. */}
         <div
           className={cn(
             "relative w-full bg-gradient-to-br from-zinc-900 to-zinc-700",
-            p.coverImageUrl ? "h-40 sm:h-56" : edit?.cover ? "h-28 sm:h-36" : "h-14 sm:h-16",
+            p.coverImageUrl ? "h-28 sm:h-36" : edit?.cover ? "h-24 sm:h-28" : "h-12",
           )}
         >
           {p.coverImageUrl ? (
@@ -220,23 +219,23 @@ export function CompanyProfileView({
           {edit?.cover ?? null}
         </div>
 
-        <div className="px-5 pb-6 sm:px-8">
-          <div className="relative z-10 -mt-14 flex flex-wrap items-end justify-between gap-4">
+        <div className="px-5 pb-5 sm:px-8">
+          <div className="relative z-10 -mt-10 flex flex-wrap items-end justify-between gap-4">
             <div className="flex items-end gap-4">
-              <div className="relative rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5">
+              <div className="relative rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5">
                 <CompanyLogo
                   src={p.logoUrl}
                   alt={`${p.name} logosu`}
-                  className="h-24 w-24 rounded-2xl object-cover sm:h-28 sm:w-28"
+                  className="h-20 w-20 rounded-xl object-cover sm:h-24 sm:w-24"
                   fallback={
-                    <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-950 text-4xl font-bold text-white sm:h-28 sm:w-28">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-950 text-3xl font-bold text-white sm:h-24 sm:w-24">
                       {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
                     </div>
                   }
                 />
                 {edit?.logo ?? null}
               </div>
-              <div className="mb-1.5 min-w-0">
+              <div className="mb-1 min-w-0">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
                   {p.name}
                   {p.verified ? (
@@ -267,118 +266,72 @@ export function CompanyProfileView({
                 {edit?.headline ? (
                   <div className="mt-1">{edit.headline}</div>
                 ) : (
-                <p className="mt-1 text-sm text-zinc-500">
-                  {[p.industry, location].filter(Boolean).join("  ·  ") ||
-                    "Rothern tedarik profili"}
-                  {p.rothernId ? (
-                    <span className="ml-2 font-mono text-xs slashed-zero text-zinc-400">
-                      {/* C25: metin-düzeyi boşluk — kopyada "TRDEM0-0001" gibi
-                          yapışmasın (ml-2 yalnız görsel). */}
-                      {" "}
-                      {p.rothernId}
-                    </span>
-                  ) : null}
-                </p>
+                  <>
+                    {/* Ülke BAYRAKLI (Europages): menşe ad okunmadan ayırt
+                        edilir. KKTC (XN) ISO 3166-1'de olmadığı için orada
+                        bayrak basılmaz — `countryFlag` null döner. */}
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                      {countryFlag(p.country) ? (
+                        <span aria-hidden className="text-base leading-none">
+                          {countryFlag(p.country)}
+                        </span>
+                      ) : null}
+                      {p.country ? <span className="font-medium text-zinc-800">{countryName(p.country)}</span> : null}
+                      {p.city ? (
+                        <span className="inline-flex items-center gap-1 text-zinc-500">
+                          <MapPinIcon aria-hidden className="size-4 text-zinc-400" />
+                          {p.city}
+                        </span>
+                      ) : null}
+                      {p.industry ? <span className="text-zinc-500">· {p.industry}</span> : null}
+                    </p>
+                    {p.activities?.length ? (
+                      <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-700">
+                        {p.activities.map((code) => (
+                          <span key={code} className="inline-flex items-center gap-1.5">
+                            <ActivityIcon code={code} className="size-4 text-zinc-400" />
+                            <span className="font-medium">{companyActivityLabel(code)}</span>
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
             </div>
             {actions ? (
-              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
                 {actions}
               </div>
             ) : null}
           </div>
 
-          {/* Stat şeridi — değerlendirme BURADA durur, başlık bloğunda değil:
-              başlık logoya alttan hizalı (items-end), oraya opsiyonel bir satır
-              eklemek firma adını yukarı kaydırıyordu (değerlendirmesi olan/olmayan
-              firmalar farklı hizalanıyordu). */}
-          {edit?.stats ? (
-            <div className="mt-5 border-t border-zinc-100 pt-4">{edit.stats}</div>
-          ) : p.foundedYear ||
-          p.employeeCount ||
-          p.website ||
-          p.linkedinUrl ||
-          p.instagramUrl ||
-          p.categories?.length ||
-          gate?.stats ||
-          p.ratingAvg != null ||
-          (p.rating && p.rating.count > 0) ? (
-            <div className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-zinc-100 pt-4">
-              {p.rating && p.rating.count > 0 ? (
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    Değerlendirme
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
-                    <StarIcon className="size-4 text-rating" aria-hidden />
-                    {p.rating.avg.toFixed(1)}
-                    <span className="font-normal text-zinc-400">
-                      ({p.rating.count})
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-              {p.ratingAvg != null && !(p.rating && p.rating.count > 0) ? (
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    Değerlendirme
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-zinc-900">
-                    <StarIcon className="size-4 text-rating" aria-hidden />
-                    {p.ratingAvg.toFixed(1)}
-                  </div>
-                </div>
-              ) : null}
-              {p.foundedYear ? (
-                <Stat label="Kuruluş" value={String(p.foundedYear)} />
-              ) : null}
-              {p.employeeCount ? (
-                <Stat label="Çalışan" value={p.employeeCount} />
-              ) : null}
-              {p.industry ? <Stat label="Sektör" value={p.industry} /> : null}
-              {p.activities?.length ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {p.activities.map((code) => (
-                    <span
-                      key={code}
-                      className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-900 ring-1 ring-blue-600/20 ring-inset"
-                    >
-                      {companyActivityLabel(code)}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {p.categories?.length ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {p.categories.map((c) => (
-                    <span
-                      key={c.id}
-                      className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"
-                    >
-                      {c.name}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {gate?.stats ? (
-                <div className="ml-auto">{gate.stats}</div>
-              ) : (
-              <div className="ml-auto flex items-center gap-4 text-sm">
-                <ExternalLink href={p.website} label="Web Sitesi" />
-                <ExternalLink href={p.linkedinUrl} label="LinkedIn" />
-                <ExternalLink href={p.instagramUrl} label="Instagram" />
-              </div>
-              )}
+          {/* İKİ SATIRLIK tanıtım + "Daha fazlasını oku". Metin TEK yerde
+              yaşar: bağlantı aşağıdaki tam "Hakkında" bölümüne çapa atar,
+              aynı paragrafı iki kez basmayız. */}
+          {p.aboutText ? (
+            <div className="mt-4 max-w-4xl">
+              <p className="line-clamp-2 text-[15px] leading-relaxed text-zinc-600">{p.aboutText}</p>
+              <a
+                href="#hakkinda"
+                className="mt-1 inline-block text-sm font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
+              >
+                Daha fazlasını oku
+              </a>
             </div>
           ) : null}
         </div>
       </section>
 
-      {/* İhaleler / ekstra — hero'nun hemen altında, üstte */}
+      {/* Panel: ilanlar / ekstra — kimliğin hemen altında. */}
       {children}
 
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+      {/* ÜRÜNLER — TAM GENİŞLİK (kullanıcı kararı): eskiden 1.6fr'lik sol
+          sütundaydı ve sağdaki künye/sertifika kartları ızgarayı daraltıyordu.
+          Firma sayfasının işi "bu firma ne satıyor" sorusunu göstermek. */}
+      {main}
+
+      <div id="hakkinda" className="grid scroll-mt-24 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-6">
           {edit?.classification ? (
             <section className="card p-6">
@@ -395,7 +348,7 @@ export function CompanyProfileView({
             </section>
           ) : p.aboutText ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Hakkında</h2>
+              <h2 className="text-base font-semibold text-zinc-900">{p.name} hakkında</h2>
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
                 {p.aboutText}
               </p>
@@ -403,7 +356,69 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
-          {main}
+          {/* Hizmetler ve sertifikalar SAĞDAN BURAYA taşındı (kullanıcı:
+              "sağ kısımda sertifikalar falan gibi kısımlar olmasın"). */}
+          {edit?.services ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>
+              <div className="mt-3">{edit.services}</div>
+            </section>
+          ) : services.length > 0 ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {services.map((s) => (
+                  <span
+                    key={s}
+                    className="rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {edit?.certifications ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Sertifikalar</h2>
+              <div className="mt-3">{edit.certifications}</div>
+            </section>
+          ) : certifications.length > 0 || certificateImages.length > 0 ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Sertifikalar</h2>
+              {certifications.length > 0 ? (
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {certifications.map((c) => (
+                    <li
+                      key={c}
+                      className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm text-zinc-700"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950 text-xs text-white">
+                        ✓
+                      </span>
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {certificateImages.length > 0 ? (
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {certificateImages.map((src, i) => (
+                    <a key={src} href={src} target="_blank" rel="noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`Sertifika ${i + 1}`}
+                        loading="lazy"
+                        className="aspect-square w-full rounded-lg object-cover ring-1 ring-zinc-950/5 transition hover:opacity-90"
+                      />
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           {/* Ticari sicil bilgileri — kamuya açık tüzel kişi verileri; güven
               göstergesi (IBAN/TCKN gibi hassas veriler burada ASLA yer almaz). */}
@@ -473,75 +488,6 @@ export function CompanyProfileView({
               </div>
             </section>
           ) : null}
-        </div>
-
-        <div className="space-y-6">
-          {edit?.aside}
-          {edit?.services ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>
-              <div className="mt-3">{edit.services}</div>
-            </section>
-          ) : services.length > 0 ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">
-                Hizmetler
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {services.map((s) => (
-                  <span
-                    key={s}
-                    className="rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {edit?.certifications ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Sertifikalar</h2>
-              <div className="mt-3">{edit.certifications}</div>
-            </section>
-          ) : certifications.length > 0 || certificateImages.length > 0 ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">
-                Sertifikalar
-              </h2>
-              {certifications.length > 0 ? (
-                <ul className="mt-3 space-y-2">
-                  {certifications.map((c) => (
-                    <li
-                      key={c}
-                      className="flex items-center gap-2 text-sm text-zinc-700"
-                    >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950 text-xs text-white">
-                        ✓
-                      </span>
-                      {c}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {certificateImages.length > 0 ? (
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {certificateImages.map((src, i) => (
-                    <a key={src} href={src} target="_blank" rel="noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt={`Sertifika ${i + 1}`}
-                        loading="lazy"
-                        className="aspect-square w-full rounded-lg object-cover ring-1 ring-zinc-950/5 transition hover:opacity-90"
-                      />
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
 
           {/* Değerlendirmeler — firma bazında gruplu özet (2026-08-22): genel
               puan = ortak ortalamalarının ortalaması; her ortak tek satır;
@@ -549,9 +495,102 @@ export function CompanyProfileView({
           {p.reviewSummary && p.reviewSummary.orders > 0 ? (
             <ReviewSummarySection s={p.reviewSummary} />
           ) : null}
+        </div>
+
+        <div className="space-y-6">
+          {edit?.aside}
+          {/* ŞİRKET BİLGİLERİ — kaynaktaki sağ kutunun karşılığı: künye ve
+              iletişim. Sertifika/hizmet/galeri buraya KONMAZ (kullanıcı
+              kararı); ürün ızgarası da bu sütunla hiç yarışmaz, çünkü
+              ürünler yukarıda tam genişlikte. */}
+          {edit?.stats ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Şirket Bilgileri</h2>
+              <div className="mt-3">{edit.stats}</div>
+            </section>
+          ) : p.rothernId ||
+            p.foundedYear ||
+            p.employeeCount ||
+            p.industry ||
+            location ||
+            p.categories?.length ||
+            p.website ||
+            p.linkedinUrl ||
+            p.instagramUrl ||
+            gate?.stats ||
+            p.ratingAvg != null ||
+            (p.rating && p.rating.count > 0) ? (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-zinc-900">Şirket Bilgileri</h2>
+              <dl className="mt-4 space-y-3">
+                {p.rothernId ? (
+                  <InfoRow label="Rothern ID" value={<span className="font-mono slashed-zero">{p.rothernId}</span>} />
+                ) : null}
+                {p.foundedYear ? <InfoRow label="Kuruluş" value={String(p.foundedYear)} /> : null}
+                {p.employeeCount ? <InfoRow label="Çalışan" value={p.employeeCount} /> : null}
+                {p.industry ? <InfoRow label="Sektör" value={p.industry} /> : null}
+                {location ? <InfoRow label="Konum" value={location} /> : null}
+                {p.rating && p.rating.count > 0 ? (
+                  <InfoRow
+                    label="Değerlendirme"
+                    value={
+                      <span className="inline-flex items-center gap-1">
+                        <StarIcon className="size-4 text-rating" aria-hidden />
+                        {p.rating.avg.toFixed(1)}
+                        <span className="font-normal text-zinc-400">({p.rating.count})</span>
+                      </span>
+                    }
+                  />
+                ) : p.ratingAvg != null ? (
+                  <InfoRow
+                    label="Değerlendirme"
+                    value={
+                      <span className="inline-flex items-center gap-1">
+                        <StarIcon className="size-4 text-rating" aria-hidden />
+                        {p.ratingAvg.toFixed(1)}
+                      </span>
+                    }
+                  />
+                ) : null}
+              </dl>
+
+              {p.categories?.length ? (
+                <div className="mt-4 flex flex-wrap gap-1.5 border-t border-zinc-100 pt-4">
+                  {p.categories.map((c) => (
+                    <span
+                      key={c.id}
+                      className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"
+                    >
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {gate?.stats ? (
+                <div className="mt-4 border-t border-zinc-100 pt-4">{gate.stats}</div>
+              ) : p.website || p.linkedinUrl || p.instagramUrl ? (
+                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-zinc-100 pt-4 text-sm">
+                  <ExternalLink href={p.website} label="Web Sitesi" />
+                  <ExternalLink href={p.linkedinUrl} label="LinkedIn" />
+                  <ExternalLink href={p.instagramUrl} label="Instagram" />
+                </div>
+              ) : null}
+            </section>
+          ) : null}
           {gate?.aside ?? null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Şirket Bilgileri satırı — etiket solda, değer sağda (kaynak kalıp). */
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <dt className="text-sm text-zinc-500">{label}</dt>
+      <dd className="text-right text-sm font-medium text-zinc-900">{value}</dd>
     </div>
   );
 }

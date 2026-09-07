@@ -181,12 +181,13 @@ export default function CompanyProfilePage() {
     products.length > 0 ? (
       <section id="urunler" className="scroll-mt-24">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-            Ürünler ve hizmetler
-            <span className="ml-2 text-base font-normal text-zinc-400">{productCount.toLocaleString("tr-TR")}</span>
+          {/* Başlık ve ızgara herkese açık profille AYNI (kaynak kalıp):
+              sayı parantezde, dört sütun, tam genişlik. */}
+          <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
+            Tüm Ürünler ve Hizmetler ({productCount.toLocaleString("tr-TR")})
           </h2>
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {products.map((pr) => (
             <ProductCard
               key={pr.slug}
@@ -197,6 +198,14 @@ export default function CompanyProfilePage() {
             />
           ))}
         </div>
+        {/* Panel ucu ilk 24 ürünü döner (sayfalama yok). Sayı büyükse bunu
+            AÇIKÇA yazıyoruz — "hepsi bu kadar" izlenimi vermek yanlış olurdu;
+            sahte bir "daha fazla" düğmesi de basmıyoruz (hedefi yok). */}
+        {productCount > products.length ? (
+          <p className="tnum mt-4 text-sm text-zinc-500">
+            {products.length.toLocaleString("tr-TR")} / {productCount.toLocaleString("tr-TR")} ürün gösteriliyor.
+          </p>
+        ) : null}
       </section>
     ) : null;
 

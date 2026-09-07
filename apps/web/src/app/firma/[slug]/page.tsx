@@ -105,15 +105,20 @@ export default async function PublicCompanyProfile({
   params: Promise<{ slug: string }>;
   /** `?urun=` — FİRMA İÇİ ürün araması (spec §7). Ayrı bir ada sahip:
    *  `q` üst çubuktaki genel aramanın parametresi, ikisi karışmamalı. */
-  searchParams?: Promise<{ urun?: string }>;
+  searchParams?: Promise<{ urun?: string; urunSayfa?: string }>;
 }) {
   const { slug } = await params;
   // Profil ve ürünler PARALEL: ürün bileşeni kendi çekiyordu, profil bitmeden
   // başlamıyordu → TTFB 1,5 sn (Lighthouse). Sonuç prop'la iner.
-  const productQuery = (await searchParams)?.urun?.trim() || undefined;
+  const sp = await searchParams;
+  const productQuery = sp?.urun?.trim() || undefined;
+  // Ürün sayfası AYRI ada sahip (`urunSayfa`): profil sayfasında başka bir
+  // sayfalama yok ama `sayfa` adı liste sayfalarının şemasında — aynı adı
+  // paylaşmak ileride kopyala-yapıştır bağlantıda yanlış listeyi sayfalar.
+  const productPage = Math.max(1, Number(sp?.urunSayfa ?? 1) || 1);
   const [p, products] = await Promise.all([
     fetchProfile(slug),
-    fetchCompanyProducts(slug, { q: productQuery }),
+    fetchCompanyProducts(slug, { q: productQuery, page: productPage }),
   ]);
   if (!p) notFound();
 

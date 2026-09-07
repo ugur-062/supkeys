@@ -1,5 +1,7 @@
 import { ProductCard } from "./product-card";
+import { Pagination } from "@/components/ui/pagination";
 import { fetchCompanyProducts, type PublicProductPage } from "@/lib/public/marketplace-api";
+import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
 /**
@@ -34,11 +36,10 @@ export async function CompanyProducts({
   return (
     <section id="urunler" className="scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-          Ürünler ve hizmetler
-          <span className="ml-2 text-base font-normal text-zinc-400">
-            {page.total.toLocaleString("tr-TR")}
-          </span>
+        {/* Başlık sayıyı PARANTEZDE taşır (kaynak kalıp): "kaç ürünü var"
+            kartları saymadan okunur. */}
+        <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
+          Tüm Ürünler ve Hizmetler ({page.total.toLocaleString("tr-TR")})
         </h2>
         {/* FİRMA İÇİ ARAMA (spec §7): derin kataloglu firmada ziyaretçi
             aradığını 40 kartın içinde gözle bulmak zorunda kalmasın. Düz
@@ -52,14 +53,15 @@ export async function CompanyProducts({
             type="search"
             name="urun"
             defaultValue={query ?? ""}
-            placeholder="Ürün ara"
-            className="h-9 w-44 rounded-full border border-zinc-300 bg-white px-3.5 text-sm text-zinc-900 outline-none focus:border-zinc-900 sm:w-56"
+            placeholder="Ürün arama"
+            className="h-11 w-52 rounded-full border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none focus:border-zinc-900 sm:w-72"
           />
           <button
             type="submit"
-            className="inline-flex h-9 items-center rounded-full bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            aria-label="Ürünlerde ara"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white transition hover:bg-zinc-800"
           >
-            Ara
+            <MagnifyingGlassIcon aria-hidden className="size-5" />
           </button>
         </form>
       </div>
@@ -78,11 +80,30 @@ export async function CompanyProducts({
           Bu firmanın ürünlerinde “{query}” bulunamadı.
         </p>
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {page.items.map((p) => (
-            <ProductCard key={p.slug} companySlug={companySlug} product={p} />
-          ))}
-        </div>
+        <>
+          {/* TAM GENİŞLİK, DÖRT SÜTUN (2026-09-07, kullanıcı kararı): ürünler
+              artık sağdaki künye sütunuyla yer paylaşmıyor. */}
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {page.items.map((p) => (
+              <ProductCard key={p.slug} companySlug={companySlug} product={p} cta="Bilgi iste" />
+            ))}
+          </div>
+          {/* Sayfalama `urunSayfa` ile (sayfanın kendi şeması) — arama terimi
+              korunur, yoksa ikinci sayfada süzgeç düşerdi. */}
+          <Pagination
+            className="mt-8"
+            page={page.page}
+            total={page.total}
+            pageSize={page.pageSize}
+            hrefBuilder={(n) => {
+              const sp = new URLSearchParams();
+              if (query) sp.set("urun", query);
+              if (n > 1) sp.set("urunSayfa", String(n));
+              const qs = sp.toString();
+              return `/firma/${companySlug}${qs ? `?${qs}` : ""}#urunler`;
+            }}
+          />
+        </>
       )}
     </section>
   );
