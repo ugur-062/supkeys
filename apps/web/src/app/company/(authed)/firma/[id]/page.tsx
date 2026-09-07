@@ -136,7 +136,9 @@ export default function CompanyProfilePage() {
           Size istek gönderdi — Yanıtla
         </Button>
       ) : connectionStatus === "none" && canManageConn ? (
-        <Button onClick={handleConnect} disabled={invite.isPending}>
+        /* MAVİ: bu sayfaya satınalma pazarından geliniyor ve orada birincil
+           eylem rengi mavi (kullanıcı kuralı: satınalmada siyah yok). */
+        <Button color="blue" onClick={handleConnect} disabled={invite.isPending}>
           Bağlantı İsteği Gönder
         </Button>
       ) : null}

@@ -220,9 +220,20 @@ export function CompanyProfileView({
         </div>
 
         <div className="px-5 pb-5 sm:px-8">
-          <div className="relative z-10 -mt-10 flex flex-wrap items-end justify-between gap-4">
-            <div className="flex items-end gap-4">
-              <div className="relative rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5">
+          {/* YALNIZ LOGO KAPAĞIN ÜSTÜNE TAŞAR (2026-09-08, kullanıcı bulgusu:
+              "yazı hep kapak fotoğrafının üstüne biniyor").
+
+              Eskiden negatif üst boşluk SATIRIN TAMAMINDAydı ve satır
+              `items-end` ile hizalanıyordu: ad + ülke/şehir + faaliyet
+              satırından oluşan metin bloğu logodan uzun olduğu anda YUKARI
+              doğru büyüyüp kapağın üstüne çıkıyordu. Uzun firma adı ya da
+              iki faaliyet tipi olan her firmada oluyordu.
+
+              Artık negatif boşluk YALNIZ logo kutusunda; metin bloğu kapağın
+              ALTINDA başlar ve kaç satır olursa olsun oraya taşamaz. */}
+          <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="relative -mt-12 shrink-0 rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5 sm:-mt-14">
                 <CompanyLogo
                   src={p.logoUrl}
                   alt={`${p.name} logosu`}
@@ -235,7 +246,7 @@ export function CompanyProfileView({
                 />
                 {edit?.logo ?? null}
               </div>
-              <div className="mb-1 min-w-0">
+              <div className="min-w-0 pt-3">
                 <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
                   {p.name}
                   {p.verified ? (
@@ -300,7 +311,7 @@ export function CompanyProfileView({
               </div>
             </div>
             {actions ? (
-              <div className="mb-1 flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 pt-3">
                 {actions}
               </div>
             ) : null}

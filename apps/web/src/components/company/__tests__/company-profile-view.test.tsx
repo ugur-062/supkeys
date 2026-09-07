@@ -100,6 +100,20 @@ describe("CompanyProfileView — düzen", () => {
     expect(container.querySelector(".line-clamp-2")).not.toBeNull();
   });
 
+  it("başlık kapağın ÜSTÜNE binmez — negatif boşluk YALNIZ logoda", () => {
+    // 2026-09-08 kullanıcı bulgusu: uzun ad / iki faaliyet tipi olan firmada
+    // metin bloğu yukarı büyüyüp kapak fotoğrafının üstüne çıkıyordu.
+    // Negatif üst boşluk satırın tamamındaydı; artık yalnız logo kutusunda.
+    const { container } = render(<CompanyProfileView profile={rich} />);
+    const h1 = screen.getByRole("heading", { level: 1, name: /Test Firma/ });
+    const textBlock = h1.parentElement as HTMLElement;
+    expect(textBlock.className).not.toMatch(/-mt-/);
+    const row = textBlock.parentElement?.parentElement as HTMLElement;
+    expect(row.className).not.toMatch(/-mt-/);
+    // Logo kutusu taşmayı TEK BAŞINA yapar.
+    expect(container.querySelector('[class*="-mt-12"]')).not.toBeNull();
+  });
+
   it("ürünler 'hakkında' bölümünden ÖNCE ve ızgaranın DIŞINDA (tam genişlik)", () => {
     const { container } = render(
       <CompanyProfileView profile={rich} main={<div data-testid="urunler">ürünler</div>} />,
