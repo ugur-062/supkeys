@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
+import { rememberSearch } from "@/lib/company/recent-searches";
 
 /**
  * PANEL ARAMA BLOĞU — Europages "Ne arıyorsunuz?" kalıbı (2026-09-05,
@@ -105,6 +106,10 @@ export function PanelHeroSearch({
     // Sonuç listesi AYNI sayfadaysa (satış: açık talepler anasayfada) seçili
     // süzgeçler korunur, yalnız arama ve sayfa değişir — başka sayfaya
     // giderken temiz `?q=`.
+    // Anasayfadaki tavsiye şeridinin girdisi (tarayıcı-yerel, bkz.
+    // `recent-searches.ts`). AI dalı yukarıda döndüğü için buraya yalnız
+    // DÜZ arama düşer — AI yorumu bir arama terimi değil.
+    if (term) rememberSearch(ai?.portal === "satis" ? "satis" : "satinalma", term);
     const keep = new URLSearchParams(action === pathname ? (sp?.toString() ?? "") : "");
     keep.delete("q");
     keep.delete("sayfa");

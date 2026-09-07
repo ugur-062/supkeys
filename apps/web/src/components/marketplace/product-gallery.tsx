@@ -30,13 +30,20 @@ export function ProductGallery({
   const current = list[active] ?? list[0];
 
   return (
-    <div>
+    /* GENİŞLİK SINIRI (2026-09-07, kullanıcı bulgusu: "ürün fotoğrafı çok
+       büyük"). Galeri sütunu `1fr` olduğu için kare görsel 1152 px'lik
+       kapsayıcıda ~670 px'e çıkıyordu — ürün fotoğrafı sayfayı ezip
+       satıcı paneliyle dengeyi bozuyordu. Europages'te aynı görsel ~34 rem
+       civarında duruyor; kare oran (PROMPT 7 kararı) korunuyor, yalnız
+       tavan konuyor. Sütun içinde SOLA yaslı kalır. */
+    <div className="w-full max-w-[34rem]">
       <CategoryImage
         src={current}
         categoryIds={categoryIds}
         alt={alt}
         ratio="aspect-square"
         className="rounded-2xl bg-zinc-100 ring-1 ring-zinc-950/5"
+        sizes="(max-width: 1024px) 100vw, 34rem"
         priority
         fallback="neutral"
       />

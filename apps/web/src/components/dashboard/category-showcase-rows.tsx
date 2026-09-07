@@ -13,10 +13,14 @@ import Link from "next/link";
  * kategori. Blok üç kez tekrarlanır → 3 promo + 30 kategori = "burada her
  * şey var" algısı.
  *
- * RENK UYARLANDI: kaynakta promo kart koyu YEŞİL gradyan ve düğme yeşil.
- * Rothern teması monokrom siyah kalır (kayıtlı karar) — promo kartı panelin
- * kendi koyu bant dili (`MarketBand` ile aynı zinc-950), düğme o zeminin
- * tersi olarak beyaz. Tek eylem rengi kuralı korunur.
+ * RENK: promo kart MAVİ (2026-09-07, kullanıcı kararı). Kaynakta koyu yeşil
+ * gradyan; burada satınalma portalının KENDİ vurgu rengi kullanılıyor —
+ * `PanelHeroSearch accent="blue"`, Genel Bakış'taki satınalma satırı ve
+ * pazar bağlantıları hep bu mavi. Yani yeni bir ton getirilmedi, panelin
+ * mevcut portal rengi vitrine de taşındı (satış portalı yeşil kalır).
+ *
+ * Bu KAMUYA AÇIK yüzeyin monokrom kuralını bozmaz: orası ziyaretçi yüzeyi
+ * ve siyah kalır; portal vurgu renkleri yalnız panelde yaşar.
  *
  * SAYI YALNIZ > 0 İSE: kaynakta her kartın altında "(164)" var; bizde
  * envanteri olmayan dalda parantez hiç basılmaz — "(0)" katalogun dolu
@@ -102,7 +106,7 @@ function PromoCard({
   return (
     <Link
       href={href}
-      className="group flex h-full min-h-64 flex-col overflow-hidden rounded-2xl bg-zinc-950 ring-1 ring-zinc-950/5 transition hover:shadow-md"
+      className="group flex h-full min-h-64 flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-blue-700 to-blue-900 ring-1 ring-blue-950/10 transition hover:shadow-md"
     >
       {c.imageSrc ? (
         <span className="relative block flex-1 overflow-hidden">
@@ -115,17 +119,17 @@ function PromoCard({
           />
         </span>
       ) : (
-        <span className="block flex-1 bg-zinc-800" />
+        <span className="block flex-1 bg-blue-800" />
       )}
       <span className="block p-6">
         {c.count > 0 ? (
-          <span className="tnum block text-sm text-zinc-300">
+          <span className="tnum block text-sm text-blue-100">
             {c.count.toLocaleString("tr-TR")} {countNoun}
           </span>
         ) : null}
         <span className="mt-0.5 block text-lg font-semibold text-white">{c.name}</span>
-        {/* Koyu zeminde tek eylem rengi TERSİNE döner: beyaz dolgu. */}
-        <span className="mt-3 inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-950 transition group-hover:bg-zinc-200">
+        {/* Koyu zeminde eylem TERSİNE döner: beyaz dolgu, mavi metin. */}
+        <span className="mt-3 inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-800 transition group-hover:bg-blue-50">
           {ctaLabel}
         </span>
       </span>

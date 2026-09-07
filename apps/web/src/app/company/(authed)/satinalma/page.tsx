@@ -7,6 +7,7 @@ import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "next/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
+import { PanelRecommendations } from "@/components/dashboard/panel-recommendations";
 import {
   useCategorySegments,
   useDiscoverProductFacets,
@@ -26,8 +27,9 @@ import { useMemo, useState } from "react";
  * kategori kartı yalnız sayfayı kaydırdığı için filtrelenmiş liste
  * paylaşılamıyordu.
  *
- * SAYFA İKİ BLOK (2026-09-07, kullanıcı kararı — Europages ekran görüntüsü):
- * hero arama + KATEGORİ VİTRİNİ. Başka hiçbir şey yok.
+ * SAYFA (2026-09-07, kullanıcı kararı — Europages ekran görüntüsü):
+ * hero arama → ÜRÜN TAVSİYESİ şeridi → KATEGORİ VİTRİNİ (3 satır) →
+ * ikinci tavsiye şeridi. Başka blok yok.
  *
  * Kaldırılanlar: "size uygun ürünler" şeridi, doğrulanmış tedarikçiler,
  * "talep aç" şeridi, profil sağlığı kartı ve Raporlar bağlantısı. Hepsi
@@ -126,12 +128,21 @@ export default function SatinalmaDashboardPage() {
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
       />
 
+      {/* Tavsiye şeridi arama kutusunun HEMEN ALTINDA: kullanıcı aramadan
+          önce de bir öneri görsün (son araması varsa ona göre, yoksa alım
+          kategorilerine göre). */}
+      <PanelRecommendations mode="match" />
+
       <CategoryShowcaseRows
         rows={rows}
         hrefFor={(c) => panelCategoryPath(c.id, c.name)}
         countNoun="ürün"
         ctaLabel="Şimdi tedarikçi bulun"
       />
+
+      {/* Vitrinin altında İKİNCİ şerit — üsttekiyle aynı listeyi basmasın
+          diye farklı kesit: yeni eklenenler. */}
+      <PanelRecommendations mode="fresh" />
     </div>
   );
 }
