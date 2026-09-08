@@ -1,8 +1,8 @@
 "use client";
 
 import { PanelProductIndex } from "@/components/company/market/panel-product-index";
-import { MarketHeader } from "@/components/company/market/market-band";
-import { PANEL_MARKET, parsePanelCategoryCode } from "@/lib/company/panel-market";
+import { MarketHeader, MarketTabs } from "@/components/company/market/market-band";
+import { PANEL_MARKET, panelCategoryPath, parsePanelCategoryCode } from "@/lib/company/panel-market";
 import { notFound, useParams } from "next/navigation";
 
 /**
@@ -49,6 +49,16 @@ function CategoryView({ code }: { code: string }) {
               ...(name ? [{ label: name }] : []),
             ]}
             count={loaded ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
+            /* KATEGORİ SEÇİLİYKEN "Tedarikçiler" (kaynak kalıp): aynı
+               kategorideki firmalara geçer — kategori adresle taşınır. */
+            tabs={
+              <MarketTabs
+                active="products"
+                productsHref={panelCategoryPath(code, name ?? "")}
+                companiesHref={`${PANEL_MARKET.companies}?kategori=${code}`}
+                productCount={loaded ? total : undefined}
+              />
+            }
             title={
               name ?? (
                 <span aria-hidden className="inline-block h-7 w-64 animate-pulse rounded bg-zinc-100 align-middle" />

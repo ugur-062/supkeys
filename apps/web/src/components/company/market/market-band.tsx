@@ -78,6 +78,7 @@ export function MarketHeader({
   title,
   count,
   trailing,
+  tabs,
 }: {
   breadcrumb: { label: string; href?: string }[];
   /** Metin ya da iskelet — kategori sayfası ad gelene dek yer tutucu basar. */
@@ -88,8 +89,10 @@ export function MarketHeader({
    * katalog izlenimi bırakıyordu.
    */
   count?: ReactNode;
-  /** Başlığın sağındaki ikincil bağlantı (ör. "Firmalar"). */
+  /** Başlığın sağındaki ikincil bağlantı. */
   trailing?: ReactNode;
+  /** Başlığın ALTINDA sonuç türü geçişi (Ürünler | Tedarikçiler). */
+  tabs?: ReactNode;
 }) {
   return (
     <div className="pt-1">
@@ -103,6 +106,7 @@ export function MarketHeader({
         </span>
         {trailing}
       </div>
+      {tabs ? <div className="mt-4">{tabs}</div> : null}
     </div>
   );
 }
@@ -132,22 +136,31 @@ export function MarketTabs({
       key={key}
       href={href}
       aria-current={active === key ? "page" : undefined}
-      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-        active === key ? "bg-white text-zinc-950" : "text-zinc-300 hover:bg-white/10 hover:text-white"
+      /* AÇIK ZEMİN (2026-09-08): sekmeler koyu bandın içinden çıkıp listenin
+         üstüne taşındı; seçili taraf portal renginde alt çizgi taşır
+         (kaynak kalıp), seçili olmayan sessiz gri. */
+      className={`-mb-px inline-flex items-center gap-2 border-b-2 px-1 py-2.5 text-sm transition ${
+        active === key
+          ? "border-blue-600 font-semibold text-blue-700"
+          : "border-transparent font-medium text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
       }`}
     >
       {label}
       {count != null ? (
-        <span className={`tnum text-xs font-medium ${active === key ? "text-zinc-500" : "text-zinc-400"}`}>
+        <span
+          className={`tnum rounded-full px-2 py-0.5 text-xs font-medium ${
+            active === key ? "bg-blue-50 text-blue-700" : "bg-zinc-100 text-zinc-600"
+          }`}
+        >
           {count.toLocaleString("tr-TR")}
         </span>
       ) : null}
     </Link>
   );
   return (
-    <nav aria-label="Sonuç türü" className="flex flex-wrap items-center gap-1">
-      {tab("products", productsHref, "Ürünler", productCount)}
-      {tab("companies", companiesHref, "Firmalar", companyCount)}
+    <nav aria-label="Sonuç türü" className="flex flex-wrap items-center gap-6 border-b border-zinc-200">
+      {tab("products", productsHref, "Ürünler ve hizmetler", productCount)}
+      {tab("companies", companiesHref, "Tedarikçiler", companyCount)}
     </nav>
   );
 }

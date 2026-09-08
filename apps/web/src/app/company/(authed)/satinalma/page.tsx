@@ -126,6 +126,13 @@ export default function SatinalmaDashboardPage() {
         lead="Ürün, marka, parça numarası veya firma — doğrulanmış tedarikçilerin vitrininden, fiyat ve minimum sipariş bilgisiyle."
         placeholder="Ürün, marka, parça numarası veya firma arayın"
         action={PANEL_MARKET.products}
+        /* Aynı kutu iki dizine gider (kullanıcı isteği, kaynak kalıp):
+           "Ürün" → ürün dizini, "Tedarikçi" → firma dizini. */
+        supplierScope={{
+          action: PANEL_MARKET.companies,
+          placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
+          label: "Tedarikçi",
+        }}
         accent="blue"
         suggestions={suggestions}
         onQueryChange={setTerm}

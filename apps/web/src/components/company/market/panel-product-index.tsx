@@ -10,7 +10,9 @@ import {
   ViewToggle,
 } from "@/components/marketplace/product-filters";
 import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-discovery";
+import { useCompanySearch } from "@/hooks/use-company-directory";
 import {
+  buildProductFilterQuery,
   parseProductFilters,
   toProductListParams,
   type PerPage,
@@ -21,9 +23,24 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import type { ReactNode } from "react";
-import { MarketHeader } from "./market-band";
+import { MarketHeader, MarketTabs } from "./market-band";
 import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketList, MarketListLayout } from "./market-list-layout";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
+
+/**
+ * Ürün süzgecinden FİRMA dizini adresi — arama ve kategori taşınır
+ * (`kategori` iki şemada da aynı ad; `company-filter-params` okuyor).
+ * Diğer süzgeçler (fiyat, MOQ, nitelik) firma dizininde karşılıksız,
+ * taşınmaz — taşısaydık orada sessizce düşer, kullanıcı "süzgecim kayboldu"
+ * derdi.
+ */
+function companiesHref(state: ProductFilterState): string {
+  const sp = new URLSearchParams();
+  if (state.q) sp.set("q", state.q);
+  if (state.category) sp.set("kategori", state.category);
+  const qs = sp.toString();
+  return `${PANEL_MARKET.companies}${qs ? `?${qs}` : ""}`;
+}
 
 /** Varsayılan sayfa boyutu — `adet` ile 24/48/96 arasında değişir. */
 const DEFAULT_PER_PAGE: PerPage = 24;
@@ -124,6 +141,10 @@ function Inner({
   });
   const data = result.data;
   const total = data?.total ?? 0;
+  /* SEKME ROZETİ: aynı arama/kategoriyle KAÇ TEDARİKÇİ var. Alıcı bazen
+     ürünü değil ÜRETİCİYİ arıyor; sayıyı tıklamadan görmeli. Sorgu ucuz ve
+     react-query önbelleğinde firma dizininkiyle paylaşılıyor. */
+  const companies = useCompanySearch({ q: state.q, category: state.category });
   const pageSize = data?.pageSize ?? state.perPage ?? DEFAULT_PER_PAGE;
   const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
   // Izgara ↔ liste: aynı kartlar, farklı yoğunluk (`gorunum` URL'de).
@@ -138,17 +159,14 @@ function Inner({
           breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Ürünler" }]}
           title="Ürünler"
           count={data ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
-          trailing={
-            /* Firma dizinine TEK giriş noktası burası: koyu bant kalkınca
-               "Ürünler | Firmalar" sekmeleri de kalktı ve /firmalar yalnız
-               Bağlantılar › Keşfet üzerinden erişilebilir kalıyordu. Sekme
-               değil sessiz bir bağlantı — arama terimi varsa taşınır. */
-            <Link
-              href={`${PANEL_MARKET.companies}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
-              className="text-sm font-semibold text-blue-700 transition hover:text-blue-800"
-            >
-              Firmalar &rarr;
-            </Link>
+          tabs={
+            <MarketTabs
+              active="products"
+              productsHref={`${PANEL_MARKET.products}${buildProductFilterQuery(state)}`}
+              companiesHref={companiesHref(state)}
+              productCount={data ? total : undefined}
+              companyCount={companies.data?.total}
+            />
           }
         />
       )}

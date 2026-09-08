@@ -1007,6 +1007,26 @@ pazar yeri MONOKROM kalır, satış portalı da siyah/emerald kalır — renk
 çağırandan gelir, bileşen portal bilmez. Sözleşme: satınalma anasayfası
 testinde "bg-zinc-950/bg-black YOK" taraması.
 
+**SONUÇ TÜRÜ SEKMESİ — Ürünler ve hizmetler | Tedarikçiler (2026-09-08,
+kullanıcı isteği, Europages kalıbı).** Ürün dizini, kategori sayfası ve firma
+dizini AYNI düz başlığı (`MarketHeader`) ve altında AYNI sekmeyi
+(`MarketTabs`, açık zemin + mavi alt çizgi) kullanır: aynı sorgunun iki yüzü,
+her biri kendi sayısıyla. Sekme ARAMAYI ve KATEGORİYİ karşı tarafa taşır
+(`kategori` iki URL şemasında da aynı ad); fiyat/MOQ/nitelik gibi firma
+tarafında KARŞILIĞI OLMAYAN süzgeçler taşınmaz — taşısaydık sessizce düşer,
+kullanıcı "süzgecim kayboldu" derdi. Kategori sayfasındaki "Tedarikçiler"
+sekmesi `firmalar?kategori=<kod>`a gider (kaynak kalıptaki davranış).
+
+Firma dizininin KOYU BANDI ve kendi arama kutusu kalktı — ürün diziniyle aynı
+düzen. Arama tek yerde: anasayfadaki hero kutusu, artık **"Ürün | Tedarikçi"
+kapsam anahtarıyla** (`PanelHeroSearch supplierScope`) iki dizine birden
+gidiyor. AI modunda anahtar ÇİZİLMEZ: AI yorumu ürün süzgeci üretiyor, firma
+dizininde karşılığı yok — açık bırakmak çalışmayan bir seçenek olurdu.
+
+Sözleşmeler: `panel-product-index.test` (sekme + taşınan parametreler),
+`panel-company-index.test` (düz başlık + sekme), `panel-hero-search.test`
+(kapsam anahtarı hedefi + AI modunda gizlenmesi).
+
 **BAŞLIK ŞERİDİ ve "BUGÜN" bandı İKİ ANASAYFADAN DA KALKTI (2026-09-07,
 kullanıcı kararı).** Kalkan: panel adı + firma/tarih + kur çipleri
 (`TcmbRatesChip`) ve `TodayBand` (bekleyen işler şeridi + dönemsiz 4 KPI) —

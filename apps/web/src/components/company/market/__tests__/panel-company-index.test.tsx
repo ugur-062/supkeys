@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(h.search),
   usePathname: () => "/company/satinalma/firmalar",
 }));
+// Ürün sayacı (sekme rozeti) — dizin sayfası ürün dizinine de soruyor.
+vi.mock("@/hooks/use-portal-discovery", () => ({
+  useDiscoverSearch: () => ({ data: { items: [], total: 56, page: 1, pageSize: 1 }, isLoading: false }),
+}));
 vi.mock("@/hooks/use-company-directory", () => ({
   useCompanySearch: (params: unknown) => {
     h.lastSearchParams = params;
@@ -75,12 +79,17 @@ beforeEach(() => {
 });
 
 describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
-  it("kendi adresi, kırıntı, arama ve Ürünler sekmesine geçiş", () => {
+  it("DÜZ başlık 'Tedarikçiler' + sonuç türü sekmesi (ürün tarafına geçiş)", () => {
+    // 2026-09-08: koyu bant kalktı, ürün dizini ve kategori sayfasıyla AYNI
+    // düz başlık; sekme aynı sorgunun iki yüzünü sayısıyla gösterir.
     render(<PanelCompanyIndex />);
-    expect(screen.getByRole("heading", { level: 1, name: "Firmalar" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Tedarikçiler" })).toBeInTheDocument();
     const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
-    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute("aria-current", "page");
-    expect(within(tabs).getByRole("link", { name: /Ürünler/ })).toHaveAttribute("href", "/company/satinalma/urunler");
+    expect(within(tabs).getByRole("link", { name: /Tedarikçiler/ })).toHaveAttribute("aria-current", "page");
+    expect(within(tabs).getByRole("link", { name: /Ürünler ve hizmetler/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/urunler",
+    );
   });
 
   it("BAĞLANTI süzgeci yalnız panelde; seçim URL'ye `baglanti` yazar ve uca `connection` gider", async () => {

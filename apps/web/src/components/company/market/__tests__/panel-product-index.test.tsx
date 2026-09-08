@@ -75,21 +75,29 @@ beforeEach(() => {
 });
 
 describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
-  it("kendi adresinde yaşar: DÜZ başlık (kırıntı + H1) — koyu bant, açıklama, arama ve sekmeler YOK", () => {
-    // 2026-09-07 (kullanıcı kararı): koyu bant kaldırıldı. Başlık +
-    // açıklama + arama + "Ürünler | Firmalar" sekmeleri birlikte ürün
-    // ızgarasını ekranın altına itiyordu; arama anasayfadaki büyük kutuda
-    // yaşıyor ve `?q=` ile bu listeye yazıyor.
+  it("DÜZ başlık + SONUÇ TÜRÜ SEKMESİ (Ürünler | Tedarikçiler); band ve arama kutusu YOK", () => {
+    // Koyu bant ve bandın arama kutusu 2026-09-07'de kalktı (arama hero'da).
+    // 2026-09-08: sonuç türü sekmesi geri geldi — kullanıcı isteği, kaynak
+    // kalıp: aynı sorgunun iki yüzü (ürün / tedarikçi) tek satırda sayısıyla.
     render(<PanelProductIndex />);
     expect(screen.getByRole("heading", { level: 1, name: "Ürünler" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Yol" })).toBeInTheDocument();
     expect(screen.queryByRole("searchbox", { name: "Ara" })).toBeNull();
-    expect(screen.queryByRole("navigation", { name: "Sonuç türü" })).toBeNull();
-    // Firma dizinine giriş noktası KALIR: sekmeler kalkınca /firmalar
-    // yalnız Bağlantılar › Keşfet'ten erişilebilir kalırdı.
-    expect(screen.getByRole("link", { name: /^Firmalar/ })).toHaveAttribute(
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).getByRole("link", { name: /Ürünler ve hizmetler/ })).toHaveAttribute("aria-current", "page");
+    expect(within(tabs).getByRole("link", { name: /Tedarikçiler/ })).toHaveAttribute(
       "href",
       "/company/satinalma/firmalar",
+    );
+  });
+
+  it("sekme ARAMAYI ve KATEGORİYİ karşı tarafa taşır (fiyat/MOQ gibi karşılığı olmayanları değil)", () => {
+    h.search = "q=pano&kategori=39000000&fiyatMax=500";
+    render(<PanelProductIndex />);
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).getByRole("link", { name: /Tedarikçiler/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/firmalar?q=pano&kategori=39000000",
     );
   });
 

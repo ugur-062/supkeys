@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { PanelHeroSearch } from "../panel-hero-search";
 
@@ -120,9 +121,60 @@ describe("PanelHeroSearch — görünüm sözleşmesi (2026-09-08 kullanıcı ta
     const h1 = screen.getByRole("heading", { level: 1, name: "Ne arıyorsunuz?" });
     // İlk sözcük koyu, kalanı portal renginde — tek başlık, bölünmüş metin değil.
     expect(h1.querySelector(".text-blue-600")?.textContent).toBe("arıyorsunuz?");
-    const submit = screen.getByRole("button", { name: /^Ara/ });
-    expect(submit).toHaveAttribute("type", "submit");
+    const submit = screen
+      .getAllByRole("button", { name: /^Ara/ })
+      .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
+    expect(submit).toBeTruthy();
     // Süzgeçler sonuç sayfasının kenar rayında — hero'da "Filtrele" yok.
     expect(screen.queryByRole("button", { name: /Filtrele/ })).toBeNull();
+  });
+});
+
+describe("PanelHeroSearch — kapsam anahtarı (Ürün / Tedarikçi)", () => {
+  it("Tedarikçi seçilince form FİRMA dizinine gider ve yer tutucu değişir", async () => {
+    const user = userEvent.setup();
+    render(
+      <PanelHeroSearch
+        title="Ne arıyorsunuz?"
+        lead="l"
+        placeholder="Ürün, marka, parça numarası veya firma arayın"
+        action="/company/satinalma/urunler"
+        accent="blue"
+        supplierScope={{
+          action: "/company/satinalma/firmalar",
+          placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
+          label: "Tedarikçi",
+        }}
+        ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Tedarikçi" }));
+    expect(screen.getByPlaceholderText("Firma adı, sektör ya da sattığı ürün arayın")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("searchbox"), "medikal");
+    // "Ara" iki yerde: mod anahtarı ve gönder düğmesi — submit olanı seç.
+    const submit = screen
+      .getAllByRole("button", { name: /^Ara/ })
+      .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
+    await user.click(submit);
+    expect(push).toHaveBeenLastCalledWith("/company/satinalma/firmalar?q=medikal");
+  });
+
+  it("AI modunda kapsam anahtarı ÇİZİLMEZ (AI yorumu ürün süzgeci üretir)", async () => {
+    const user = userEvent.setup();
+    render(
+      <PanelHeroSearch
+        title="Ne arıyorsunuz?"
+        lead="l"
+        placeholder="p"
+        action="/company/satinalma/urunler"
+        accent="blue"
+        supplierScope={{ action: "/company/satinalma/firmalar", placeholder: "f" }}
+        ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Tedarikçi" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "AI ile ara" }));
+    expect(screen.queryByRole("button", { name: "Tedarikçi" })).toBeNull();
   });
 });

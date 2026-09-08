@@ -4,6 +4,7 @@ import { FilterShellCore, ResultCount, useFilters } from "@/components/marketpla
 import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components/marketplace/company-filters";
 import { CompanyCard } from "@/components/marketplace/company-card";
 import { useCompanySearch, useCompanySearchFacets, type DirectoryCompany } from "@/hooks/use-company-directory";
+import { useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import {
   activeCompanyFilterCount,
   buildCompanyFilterQuery,
@@ -15,10 +16,24 @@ import {
 import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } from "@/lib/company/panel-market";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { MarketBand, MarketTabs } from "./market-band";
-import { MarketSearch } from "./market-search";
+import { MarketHeader, MarketTabs } from "./market-band";
 import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
+
+/**
+ * Firma süzgecinden ÜRÜN dizini adresi — arama ve (varsa) tek kategori
+ * taşınır. Kategori seçiliyse ürün tarafında KATEGORİ SAYFASI kanonik
+ * adrestir; ama ad elimizde olmadığından sorgu şemasıyla gidiyoruz
+ * (`?kategori=`), sayfa oraya kendi kanonik yoluna yönlendirmez — liste
+ * aynıdır, adres paylaşılabilir kalır.
+ */
+function productsHref(state: CompanyFilterState): string {
+  const sp = new URLSearchParams();
+  if (state.q) sp.set("q", state.q);
+  if (state.categories.length === 1) sp.set("kategori", state.categories[0] as string);
+  const qs = sp.toString();
+  return `${PANEL_MARKET.products}${qs ? `?${qs}` : ""}`;
+}
 
 /** Bağlantı durumu rozeti — pazar listesinde de görünür (panelin yapısal avantajı). */
 const STATUS_BADGE: Record<string, { label: string; className: string } | undefined> = {
@@ -77,19 +92,26 @@ function Inner({
   const data = result.data;
   const total = data?.total ?? 0;
   const pageSize = data?.pageSize ?? 20;
+  // Sekme rozeti: aynı arama/kategoriyle kaç ÜRÜN var (tek satır yeter).
+  const products = useDiscoverSearch({ q: state.q, category: state.categories[0], pageSize: 1 });
 
   return (
     <div className="space-y-8">
-      <MarketBand
-        breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Firmalar" }]}
-        title="Firmalar"
-        lead="Vitrini yayında olan tedarikçiler. Sektör, şehir ve faaliyet tipine göre süzün; bağlantı kurun ya da doğrudan teklif isteyin."
-        search={<MarketSearch<CompanyFilterState> placeholder="Firma adı, sektör ya da ürün ara" />}
+      {/* BAŞLIK + SONUÇ TÜRÜ SEKMESİ (2026-09-08, kullanıcı kararı — kaynak
+          kalıp): koyu bant kalktı, ürün dizini ve kategori sayfasıyla AYNI
+          düz başlık kullanılıyor. Arama kutusu burada YOK: sorgu hero'dan
+          (`?q=`) ya da ürün sekmesinden taşınıyor — iki yerde iki kutu
+          olmasın. */}
+      <MarketHeader
+        breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Tedarikçiler" }]}
+        title="Tedarikçiler"
+        count={data ? `${total.toLocaleString("tr-TR")} firma` : undefined}
         tabs={
           <MarketTabs
             active="companies"
-            productsHref={`${PANEL_MARKET.products}${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`}
+            productsHref={productsHref(state)}
             companiesHref={`${PANEL_MARKET.companies}${buildCompanyFilterQuery(state)}`}
+            productCount={products.data?.total}
             companyCount={data ? total : undefined}
           />
         }

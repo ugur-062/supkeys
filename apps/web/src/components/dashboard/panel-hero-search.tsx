@@ -65,6 +65,7 @@ export function PanelHeroSearch({
   suggestions = [],
   onQueryChange,
   ai,
+  supplierScope,
 }: {
   eyebrow?: string;
   title: string;
@@ -75,6 +76,16 @@ export function PanelHeroSearch({
   chips?: PanelHeroChip[];
   chipsLabel?: string;
   accent?: "blue" | "emerald";
+  /**
+   * İKİNCİ ARAMA KAPSAMI — "Ürün | Tedarikçi" anahtarı (2026-09-08,
+   * kullanıcı isteği, kaynak kalıp). Verilirse kutunun üstünde anahtar
+   * çizilir ve "Tedarikçi" seçiliyken form BU adrese gider; verilmezse
+   * anahtar yok (satış panosunun tek kapsamı var).
+   *
+   * AI modunda anahtar GİZLENİR: AI yorumu ürün süzgeci üretiyor, firma
+   * dizininde karşılığı yok — açık bırakmak çalışmayan bir seçenek olurdu.
+   */
+  supplierScope?: { action: string; placeholder: string; label?: string };
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
@@ -86,8 +97,12 @@ export function PanelHeroSearch({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
+  const [scope, setScope] = useState<"products" | "suppliers">("products");
   const intent = useAiSearchIntent();
   const aiActive = !!ai && aiMode;
+  const supplierMode = !!supplierScope && !aiActive && scope === "suppliers";
+  const targetAction = supplierMode ? (supplierScope as { action: string }).action : action;
+  const targetPlaceholder = supplierMode ? (supplierScope as { placeholder: string }).placeholder : placeholder;
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const term = q.trim();
@@ -110,12 +125,12 @@ export function PanelHeroSearch({
     // `recent-searches.ts`). AI dalı yukarıda döndüğü için buraya yalnız
     // DÜZ arama düşer — AI yorumu bir arama terimi değil.
     if (term) rememberSearch(ai?.portal === "satis" ? "satis" : "satinalma", term);
-    const keep = new URLSearchParams(action === pathname ? (sp?.toString() ?? "") : "");
+    const keep = new URLSearchParams(targetAction === pathname ? (sp?.toString() ?? "") : "");
     keep.delete("q");
     keep.delete("sayfa");
     const parts = [...keep.entries()].map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
-    router.push(parts.length ? `${action}?${parts.join("&")}` : action);
+    router.push(parts.length ? `${targetAction}?${parts.join("&")}` : targetAction);
   };
   const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
   // Textarea'da Enter gönderir, Shift+Enter satır ekler.
@@ -221,6 +236,33 @@ export function PanelHeroSearch({
                 AI ile ara
               </button>
             </div>
+            {/* KAPSAM ANAHTARI — "Ürün | Tedarikçi" (kaynak kalıp): aynı
+                kutu iki dizine gider. AI modunda çizilmez (AI yorumu ürün
+                süzgeci üretir). */}
+            {supplierScope && !aiActive ? (
+              <div role="group" aria-label="Arama kapsamı" className="inline-flex rounded-full bg-zinc-100/80 p-1">
+                <button
+                  type="button"
+                  aria-pressed={scope === "products"}
+                  onClick={() => setScope("products")}
+                  className={`rounded-full px-4 py-2 font-semibold transition ${
+                    scope === "products" ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  Ürün
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={scope === "suppliers"}
+                  onClick={() => setScope("suppliers")}
+                  className={`rounded-full px-4 py-2 font-semibold transition ${
+                    scope === "suppliers" ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  {supplierScope.label ?? "Tedarikçi"}
+                </button>
+              </div>
+            ) : null}
             {!ai.enabled ? (
               <Link href="/company/ayarlar" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
                 Silver ile açılır
@@ -233,7 +275,7 @@ export function PanelHeroSearch({
             görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür. */}
         <form
           data-hero-search
-          action={action}
+          action={targetAction}
           method="get"
           role="search"
           onSubmit={onSubmit}
@@ -283,7 +325,7 @@ export function PanelHeroSearch({
                   setOpen(true);
                 }}
                 onFocus={() => setOpen(true)}
-                placeholder={placeholder}
+                placeholder={targetPlaceholder}
                 aria-label={title}
                 autoComplete="off"
                 className="h-12 w-full flex-1 bg-transparent pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
