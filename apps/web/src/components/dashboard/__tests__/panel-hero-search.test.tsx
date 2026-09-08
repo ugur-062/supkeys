@@ -39,10 +39,17 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler");
   });
 
-  it("çipler en fazla 6 ve verilen hedefe gider; çip yoksa nav çizilmez", () => {
-    const chips = Array.from({ length: 8 }, (_, i) => ({ id: `${i}`, name: `Kat ${i}`, count: i + 1, href: `/x?kategori=${i}` }));
+  it("sektör kısayolları en fazla 9 ve verilen hedefe gider; kısayol yoksa nav çizilmez", () => {
+    // 2026-09-08 (kullanıcı tasarımı): çip şeridi ikonlu KARO ızgarasına
+    // döndü; kaynak tasarımdaki gibi 8 sektör + "Tüm Sektörler" sığar.
+    const chips = Array.from({ length: 12 }, (_, i) => ({
+      id: `${10 + i}000000`,
+      name: `Kat ${i}`,
+      count: i + 1,
+      href: `/x?kategori=${i}`,
+    }));
     const { rerender } = render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" chips={chips} chipsLabel="Popüler" />);
-    expect(screen.getByRole("navigation", { name: "Popüler" }).querySelectorAll("a")).toHaveLength(6);
+    expect(screen.getByRole("navigation", { name: "Popüler" }).querySelectorAll("a")).toHaveLength(9);
     expect(screen.getByRole("link", { name: /Kat 0/ })).toHaveAttribute("href", "/x?kategori=0");
     rerender(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" chips={[]} />);
     expect(screen.queryByRole("navigation")).toBeNull();

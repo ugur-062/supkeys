@@ -4,6 +4,8 @@ import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
+import { BuildingOffice2Icon, CubeIcon, GlobeAltIcon, UsersIcon } from "@heroicons/react/24/outline";
+import { categoryVisual } from "@/lib/public/category-visual";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
@@ -61,6 +63,7 @@ export function PanelHeroSearch({
   action,
   chips = [],
   chipsLabel = "Popüler",
+  stats = [],
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -75,6 +78,12 @@ export function PanelHeroSearch({
   action: string;
   chips?: PanelHeroChip[];
   chipsLabel?: string;
+  /**
+   * Hero'nun solundaki üç olgu (kaynak tasarım). SAYILAR GERÇEK olmalı —
+   * çağıran envanterden geçirir; 0 olan satır basılmaz, hiç veri yoksa kart
+   * çizilmez. "200+ ülke / milyonlarca ürün" gibi şişirilmiş rakam YOK.
+   */
+  stats?: { label: string; value: string; icon?: "globe" | "users" | "building" }[];
   accent?: "blue" | "emerald";
   /**
    * İKİNCİ ARAMA KAPSAMI — "Ürün | Tedarikçi" anahtarı (2026-09-08,
@@ -171,11 +180,48 @@ export function PanelHeroSearch({
 
   return (
     <section aria-label={title} className="relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6">
+      {/* ARKA PLAN — yumuşak renk yayılımı + ince nokta deseni. STOK
+          FOTOĞRAF YOK: kaynak tasarımdaki depo/harita görseli lisanslı bir
+          varlık gerektirir; desen CSS ile üretiliyor, repoya yeni bir dosya
+          ve lisans borcu girmiyor. */}
       <div
         aria-hidden
         className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[26rem] w-[56rem] -translate-x-1/2 rounded-full opacity-40"
         style={{ background: `radial-gradient(closest-side, ${tone.glow}, transparent)` }}
       />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-[0.18]"
+        style={{
+          backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+          color: "var(--color-blue-400)",
+          maskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
+          WebkitMaskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
+        }}
+      />
+      {/* ÜÇ OLGU — kaynak tasarımdaki sol kart. Sayılar GERÇEK (çağıran
+          envanterden geçirir); dar ekranda gizlenir, hero'nun okunmasını
+          bozmasın. */}
+      {stats.length > 0 ? (
+        <div className="pointer-events-none absolute top-8 left-0 hidden xl:block">
+          <ul className="space-y-4 rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur">
+            {stats.map((st) => {
+              const Icon = st.icon === "users" ? UsersIcon : st.icon === "building" ? BuildingOffice2Icon : GlobeAltIcon;
+              return (
+                <li key={st.label} className="flex items-center gap-3 text-left">
+                  <Icon aria-hidden className="size-5 shrink-0 text-blue-600" />
+                  <span>
+                    <span className="tnum block text-sm font-semibold text-zinc-950">{st.value}</span>
+                    <span className="block text-xs text-zinc-500">{st.label}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-2xl text-center">
         {eyebrow ? (
           /* Üst etiket: BÜYÜK HARF + geniş harf aralığı, iki yanında ince
@@ -208,34 +254,6 @@ export function PanelHeroSearch({
 
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
-            {/* Mod anahtarı (kullanıcı tasarımı): seçili taraf BEYAZ hap +
-                gölge, ikonlu; seçili olmayan sessiz gri. */}
-            <div role="group" aria-label="Arama modu" className="inline-flex rounded-full bg-zinc-100/80 p-1">
-              <button
-                type="button"
-                aria-pressed={!aiMode}
-                onClick={() => setAiMode(false)}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold transition ${
-                  !aiMode ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
-                }`}
-              >
-                <MagnifyingGlassIcon aria-hidden className="size-4" />
-                Ara
-              </button>
-              <button
-                type="button"
-                aria-pressed={aiMode}
-                disabled={!ai.enabled}
-                title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
-                onClick={() => ai.enabled && setAiMode(true)}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  aiMode ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
-                }`}
-              >
-                <SparklesIcon aria-hidden className="size-4" />
-                AI ile ara
-              </button>
-            </div>
             {/* KAPSAM ANAHTARI — "Ürün | Tedarikçi" (kaynak kalıp): aynı
                 kutu iki dizine gider. AI modunda çizilmez (AI yorumu ürün
                 süzgeci üretir). */}
@@ -245,20 +263,26 @@ export function PanelHeroSearch({
                   type="button"
                   aria-pressed={scope === "products"}
                   onClick={() => setScope("products")}
-                  className={`rounded-full px-4 py-2 font-semibold transition ${
-                    scope === "products" ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
+                  className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-semibold transition ${
+                    scope === "products"
+                      ? `${tone.btn} text-white shadow-sm`
+                      : "text-zinc-600 hover:text-zinc-900"
                   }`}
                 >
+                  <CubeIcon aria-hidden className="size-5" />
                   Ürün
                 </button>
                 <button
                   type="button"
                   aria-pressed={scope === "suppliers"}
                   onClick={() => setScope("suppliers")}
-                  className={`rounded-full px-4 py-2 font-semibold transition ${
-                    scope === "suppliers" ? `bg-white shadow-sm ${tone.accentText}` : "text-zinc-600 hover:text-zinc-900"
+                  className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-semibold transition ${
+                    scope === "suppliers"
+                      ? `${tone.btn} text-white shadow-sm`
+                      : "text-zinc-600 hover:text-zinc-900"
                   }`}
                 >
+                  <BuildingOffice2Icon aria-hidden className="size-5" />
                   {supplierScope.label ?? "Tedarikçi"}
                 </button>
               </div>
@@ -331,6 +355,34 @@ export function PanelHeroSearch({
                 className="h-12 w-full flex-1 bg-transparent pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             )}
+            {/* AI ÇUBUĞUN İÇİNDE (kaynak tasarım): mod anahtarı ayrı bir
+                satırdı; artık aramanın yanında ikincil bir eylem. Basınca
+                kutu metin alanına döner (aria-pressed), Silver altı üyede
+                devre dışı. */}
+            {ai && !aiActive ? (
+              <button
+                type="button"
+                aria-pressed={false}
+                disabled={!ai.enabled}
+                title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
+                onClick={() => ai.enabled && setAiMode(true)}
+                className="mr-1 hidden h-12 shrink-0 items-center gap-2 rounded-full border-l border-zinc-200 pr-4 pl-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex"
+              >
+                <SparklesIcon aria-hidden className="size-5" />
+                AI ile ara
+              </button>
+            ) : null}
+            {ai && aiActive ? (
+              <button
+                type="button"
+                aria-pressed
+                onClick={() => setAiMode(false)}
+                className="mr-1 hidden h-12 shrink-0 items-center gap-2 self-end rounded-full px-4 text-sm font-semibold text-zinc-600 transition hover:text-zinc-900 sm:inline-flex"
+              >
+                <MagnifyingGlassIcon aria-hidden className="size-5" />
+                Ara
+              </button>
+            ) : null}
             <button
               type="submit"
               disabled={aiActive && intent.isPending}
@@ -380,19 +432,28 @@ export function PanelHeroSearch({
           ) : null}
         </form>
 
+        {/* SEKTÖR KISAYOLLARI — ikonlu karolar (kaynak tasarım). İkon
+            segmentin kendi görsel eşlemesinden (`categoryVisual`), sayı
+            gerçek envanterden; sayısı 0 olan dal çağıran tarafından hiç
+            gönderilmez. */}
         {chips.length > 0 ? (
-          <nav aria-label={chipsLabel} className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-xs">
-            <span className="text-zinc-500">{chipsLabel}:</span>
-            {chips.slice(0, 6).map((c) => (
-              <Link
-                key={c.id}
-                href={c.href}
-                className={`inline-flex max-w-[15rem] items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 transition hover:text-white ${tone.chip}`}
-              >
-                <span className="truncate">{c.name}</span>
-                <span className="shrink-0 text-zinc-400 tabular-nums">{c.count}</span>
-              </Link>
-            ))}
+          <nav
+            aria-label={chipsLabel}
+            className="mx-auto mt-8 grid max-w-5xl grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9"
+          >
+            {chips.slice(0, 9).map((c) => {
+              const Icon = categoryVisual([c.id]).icon;
+              return (
+                <Link
+                  key={c.id}
+                  href={c.href}
+                  className="flex flex-col items-center gap-1.5 rounded-xl bg-white/90 px-2 py-3 text-center shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <Icon aria-hidden className="size-5 text-blue-600" />
+                  <span className="line-clamp-2 text-[11px]/4 font-medium text-zinc-700">{c.name}</span>
+                </Link>
+              );
+            })}
           </nav>
         ) : null}
       </div>

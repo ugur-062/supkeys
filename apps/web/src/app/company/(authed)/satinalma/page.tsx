@@ -12,6 +12,7 @@ import {
   useCategorySegments,
   useDiscoverProductFacets,
   useDiscoverProducts,
+  useDiscoverSearch,
 } from "@/hooks/use-portal-discovery";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { buildShowcase } from "@/lib/public/category-showcase";
@@ -64,6 +65,12 @@ export default function SatinalmaDashboardPage() {
 
   // Kategori vitrini + çipler: ürün dizini facet'i (L1 sayaçları) + 58 segment.
   const facets = useDiscoverProductFacets();
+  /* Hero'nun üç olgusu ve sektör kısayolları GERÇEK envanterden: ürün ve
+     firma toplamı tek satırlık sorgularla (react-query önbelleğinde dizin
+     sayfalarıyla paylaşılır), sektör sayısı ürünü OLAN L1 dalların sayısı.
+     Şişirilmiş "200+ ülke / milyonlarca ürün" yazılmaz. */
+  const productTotal = useDiscoverSearch({ pageSize: 1 });
+  const companyTotal = useCompanySearch({});
   const segments = useCategorySegments();
   // 3 satır × (1 promo + 10 kart) = 33 segment. `buildShowcase` sırası:
   // ürünü OLAN dallar önce (sayıya göre), sonra küratörlü sıra — promo
@@ -83,6 +90,35 @@ export default function SatinalmaDashboardPage() {
   // 6 blok × (1 promo + 10 kategori) = 66 yuva; artan segmentler son bloğun
   // ızgarasına eklenir (`toShowcaseRows`), hiçbiri düşmez.
   const rows = useMemo(() => toShowcaseRows(showcase, 6), [showcase]);
+
+  /* SEKTÖR KISAYOLLARI — en dolu 8 dal + "Tüm Sektörler". Sayısı 0 olan dal
+     gönderilmez: tıklayınca boş liste veren kısayol kısayol değildir. */
+  const sectorChips = useMemo(() => {
+    const top = [...(facets.data?.categories ?? [])]
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+      .map((c) => ({ id: c.id, name: c.name, count: c.count, href: panelCategoryPath(c.id, c.name) }));
+    return top.length > 0
+      ? [...top, { id: "tumu", name: "Tüm Sektörler", count: 0, href: PANEL_MARKET.products }]
+      : [];
+  }, [facets.data]);
+
+  const heroStats = [
+    productTotal.data?.total
+      ? { label: "Yayında ürün", value: productTotal.data.total.toLocaleString("tr-TR"), icon: "globe" as const }
+      : null,
+    companyTotal.data?.total
+      ? { label: "Tedarikçi firma", value: companyTotal.data.total.toLocaleString("tr-TR"), icon: "building" as const }
+      : null,
+    (facets.data?.categories ?? []).length
+      ? {
+          label: "Ürün olan sektör",
+          value: String((facets.data?.categories ?? []).filter((c) => c.count > 0).length),
+          icon: "users" as const,
+        }
+      : null,
+  ].filter(Boolean) as { label: string; value: string; icon: "globe" | "building" | "users" }[];
   // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
   // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
   const [term, setTerm] = useState("");
@@ -134,6 +170,9 @@ export default function SatinalmaDashboardPage() {
           label: "Tedarikçi",
         }}
         accent="blue"
+        chips={sectorChips}
+        chipsLabel="Sektörler"
+        stats={heroStats}
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
