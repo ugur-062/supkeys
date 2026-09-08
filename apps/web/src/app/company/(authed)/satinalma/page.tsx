@@ -96,19 +96,6 @@ export default function SatinalmaDashboardPage() {
   // ızgarasına eklenir (`toShowcaseRows`), hiçbiri düşmez.
   const rows = useMemo(() => toShowcaseRows(showcase, 6), [showcase]);
 
-  /* SEKTÖR KISAYOLLARI — en dolu 8 dal + "Tüm Sektörler". Sayısı 0 olan dal
-     gönderilmez: tıklayınca boş liste veren kısayol kısayol değildir. */
-  const sectorChips = useMemo(() => {
-    const top = [...(facets.data?.categories ?? [])]
-      .filter((c) => c.count > 0)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8)
-      .map((c) => ({ id: c.id, name: c.name, count: c.count, href: panelCategoryPath(c.id, c.name) }));
-    return top.length > 0
-      ? [...top, { id: "tumu", name: "Tüm Sektörler", count: 0, href: PANEL_MARKET.products }]
-      : [];
-  }, [facets.data]);
-
   const heroStats = [
     productTotal.data?.total
       ? { label: "Yayında ürün", value: productTotal.data.total.toLocaleString("tr-TR"), icon: "globe" as const }
@@ -179,8 +166,6 @@ export default function SatinalmaDashboardPage() {
         /* Çubuğun sağındaki tür seçici sonuç adresine `?faaliyet=` yazar. */
         activityFilter
         accent="blue"
-        chips={sectorChips}
-        chipsLabel="Sektörler"
         stats={heroStats}
         statsCta={{ label: "Doğru tedarikçiyle daha fazlasını mümkün kılın", href: PANEL_MARKET.companies }}
         /* Dekoratif arka plan katmanları (dünya haritası · depo · gemi ·
