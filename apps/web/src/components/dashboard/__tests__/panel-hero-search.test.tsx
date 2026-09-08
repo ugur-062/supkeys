@@ -202,7 +202,9 @@ describe("PanelHeroSearch — dekoratif arka plan", () => {
       const layer = img.closest("[aria-hidden]") as HTMLElement | null;
       expect(layer).not.toBeNull();
       expect(layer?.className).toContain("pointer-events-none");
-      expect(layer?.className).toMatch(/-z-10/);
+      // Katmanlar içeriğin ARKASINDA: negatif z-index. Harita peçenin de
+      // ÜSTÜNDE olduğu için `-z-[4]`; köşe görselleri `-z-10`.
+      expect(layer?.className).toMatch(/-z-(10|\[\d+\])/);
     }
     // Arama kutusu ve başlık yerinde (yapı değişmedi).
     expect(screen.getByRole("searchbox")).toBeInTheDocument();

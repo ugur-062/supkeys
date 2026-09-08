@@ -187,7 +187,19 @@ export function PanelHeroSearch({
         };
 
   return (
-    <section aria-label={title} className="relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6">
+    <section
+      aria-label={title}
+      /* BACKDROP modunda hero bir BANT: panel kenar boşluğunu negatif
+         marjla iptal eder (tam genişlik), kendi boşluğunu geri verir ve
+         gerçek bir yükseklik alır — köşe görselleri ancak böyle "sahne"
+         kurar. `overflow-hidden` yatay kaydırmayı keser. Sade modda
+         (satış) eski kompakt hero. */
+      className={
+        backdrop
+          ? "relative isolate -mx-4 overflow-hidden bg-gradient-to-b from-blue-50/70 via-white to-white px-4 pt-10 pb-14 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
+      }
+    >
       {/* ARKA PLAN — yumuşak renk yayılımı + ince nokta deseni. STOK
           FOTOĞRAF YOK: kaynak tasarımdaki depo/harita görseli lisanslı bir
           varlık gerektirir; desen CSS ile üretiliyor, repoya yeni bir dosya
@@ -213,67 +225,89 @@ export function PanelHeroSearch({
         <>
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto hidden max-w-5xl select-none opacity-[0.22] sm:block"
+            /* HARİTA PEÇENİN ÜSTÜNDE (`-z-[4]`), içeriğin altında: peçe onu
+               tamamen yutuyordu (canlı ekran görüntüsüyle görüldü). Nokta
+               deseni açık mavi ve seyrek olduğu için başlığın okunmasını
+               engellemiyor — kaynak tasarımda da başlık haritanın üstünde. */
+            className="pointer-events-none absolute inset-x-0 top-0 -z-[4] mx-auto hidden w-[min(84rem,100%)] select-none opacity-90 sm:block"
+            style={{
+              maskImage: "radial-gradient(70% 80% at 50% 40%, black 60%, transparent 100%)",
+              WebkitMaskImage: "radial-gradient(70% 80% at 50% 40%, black 60%, transparent 100%)",
+            }}
           >
             <Image
               src="/hero/world-map-routes.webp"
               alt=""
               width={1360}
               height={410}
-              sizes="(max-width: 1280px) 100vw, 1024px"
+              sizes="(max-width: 1280px) 100vw, 1152px"
               className="h-auto w-full"
               priority={false}
             />
           </span>
           <span
             aria-hidden
-            className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden w-40 select-none opacity-40 md:block lg:w-56 xl:w-64"
+            className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden w-56 select-none opacity-95 md:block lg:w-80 xl:w-[26rem]"
+            style={{
+              maskImage: "linear-gradient(to right, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to right, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
+              maskComposite: "intersect",
+              WebkitMaskComposite: "source-in",
+            }}
           >
             <Image
               src="/hero/warehouse-containers-forklift.webp"
               alt=""
               width={720}
               height={619}
-              sizes="16rem"
+              sizes="26rem"
               className="h-auto w-full"
             />
           </span>
           <span
             aria-hidden
-            className="pointer-events-none absolute right-0 bottom-0 -z-10 hidden w-36 select-none opacity-40 md:block lg:w-52 xl:w-60"
+            className="pointer-events-none absolute right-0 bottom-0 -z-10 hidden w-52 select-none opacity-95 md:block lg:w-72 xl:w-96"
+            style={{
+              maskImage: "linear-gradient(to left, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to left, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
+              maskComposite: "intersect",
+              WebkitMaskComposite: "source-in",
+            }}
           >
             <Image
               src="/hero/cargo-ship-port.webp"
               alt=""
               width={592}
               height={659}
-              sizes="15rem"
+              sizes="24rem"
               className="h-auto w-full"
             />
           </span>
           <span
             aria-hidden
-            className="pointer-events-none absolute top-4 right-6 -z-10 hidden w-20 select-none opacity-50 sm:block lg:w-28"
+            className="pointer-events-none absolute top-6 right-[6%] -z-10 hidden w-24 select-none opacity-90 sm:block lg:w-36"
           >
             <Image
               src="/hero/airplane.webp"
               alt=""
               width={295}
               height={215}
-              sizes="7rem"
+              sizes="9rem"
               className="h-auto w-full"
             />
           </span>
-          {/* BEYAZ PEÇE — görsellerin ÜSTÜNDE, içeriğin ALTINDA. Başlık,
-              arama kutusu ve sektör karolarının arkası temiz kalsın diye:
-              merkezde tam beyaz, kenarlara doğru saydam. Okunabilirlik
-              pazarlık konusu değil. */}
+          {/* BEYAZ PEÇE — görsellerin ÜSTÜNDE, içeriğin ALTINDA; YALNIZ
+              metin sütununun arkasında. Tam sayfa peçe hem haritayı hem
+              köşe görsellerini sisliyordu (canlı ekran görüntüsüyle
+              doğrulandı): şimdi dar bir alan, kenarlarda sahne görünür
+              kalıyor. Okunabilirlik yine pazarlık konusu değil — başlık ve
+              arama kutusu bu alanın içinde. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 -z-[5]"
+            className="pointer-events-none absolute inset-x-0 top-0 -z-[5] mx-auto h-[26rem] w-[min(56rem,92%)]"
             style={{
               background:
-                "radial-gradient(70% 62% at 50% 42%, rgb(255 255 255 / 0.92) 45%, rgb(255 255 255 / 0.55) 70%, transparent 100%)",
+                "radial-gradient(58% 60% at 50% 45%, rgb(255 255 255 / 0.86) 40%, rgb(255 255 255 / 0.45) 72%, transparent 100%)",
             }}
           />
         </>
@@ -296,7 +330,7 @@ export function PanelHeroSearch({
           envanterden geçirir); dar ekranda gizlenir, hero'nun okunmasını
           bozmasın. */}
       {stats.length > 0 ? (
-        <div className="pointer-events-none absolute top-8 left-0 hidden xl:block">
+        <div className="pointer-events-none absolute top-10 left-4 hidden xl:block 2xl:left-10">
           <ul className="space-y-4 rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur">
             {stats.map((st) => {
               const Icon = st.icon === "users" ? UsersIcon : st.icon === "building" ? BuildingOffice2Icon : GlobeAltIcon;
