@@ -4,29 +4,38 @@ import { expect, test } from "@playwright/test";
  * ÜST ÇUBUK — TEK KATMAN, SADE MENÜ (2026-09-09, kullanıcı kararı).
  *
  * Eski iki katmanlı çubuk (siyah şerit + Kategoriler mega menüsü + üst çubuk
- * araması + "Alım Talepleri") KALDIRILDI; onları doğrulayan senaryolar da
- * bu dosyadan düştü. Mega menü ve typeahead bileşenlerinin kendi birim
- * testleri duruyor — burada artık header'ın taşımadığını doğruluyoruz.
+ * araması) KALDIRILDI; onları doğrulayan senaryolar da bu dosyadan düştü.
+ * Mega menü ve typeahead bileşenlerinin kendi birim testleri duruyor —
+ * burada artık header'ın taşımadığını doğruluyoruz.
  *
- * Kabul ölçütleri: menü logonun yanında; kaldırılanlar HİÇ çizilmiyor;
- * header 390 px'te YATAY TAŞMIYOR ve çekmece aynı satırları taşıyor.
+ * Hedef sayfalar GERİ GELDİ (2026-09-09, kullanıcı: "eskiden daha fazla
+ * başlık vardı, şimdi 2 tane"): Ürünler · Firmalar · Alım Talepleri düz
+ * bağlantı olarak menüde. Bir tur "Alım Talepleri header'da ÇİZİLMEZ" diye
+ * kilitlenmişti — o kural kullanıcı kararıyla değişti, kaldırılanlar listesi
+ * yalnız mega menü + arama + siyah şerit.
+ *
+ * Kabul ölçütleri: beş menü satırı logonun yanında; kaldırılanlar HİÇ
+ * çizilmiyor; header 390 px'te YATAY TAŞMIYOR ve çekmece aynı satırları
+ * taşıyor.
  */
 test.describe("herkese açık üst çubuk", () => {
-  test("logonun yanında Nasıl Çalışır + Fiyatlar, sağda giriş/kayıt", async ({ page }) => {
+  test("logonun yanında beş menü satırı, sağda giriş/kayıt", async ({ page }) => {
     await page.goto("/urunler");
     const header = page.locator("header").first();
+    await expect(header.getByRole("link", { name: "Ürünler", exact: true })).toBeVisible();
+    await expect(header.getByRole("link", { name: "Firmalar", exact: true })).toBeVisible();
+    await expect(header.getByRole("link", { name: "Alım Talepleri" })).toBeVisible();
     await expect(header.getByRole("link", { name: "Nasıl Çalışır" })).toBeVisible();
     await expect(header.getByRole("link", { name: "Fiyatlar" })).toBeVisible();
     await expect(header.getByRole("link", { name: "Giriş Yap" })).toBeVisible();
     await expect(header.getByRole("link", { name: "Ücretsiz Kaydol" })).toBeVisible();
   });
 
-  test("kaldırılanlar çizilmez: siyah şerit, Kategoriler, arama, Alım Talepleri", async ({ page }) => {
+  test("kaldırılanlar çizilmez: siyah şerit, Kategoriler mega menüsü, arama", async ({ page }) => {
     await page.goto("/urunler");
     const header = page.locator("header").first();
     await expect(header.getByRole("button", { name: /Kategoriler/ })).toHaveCount(0);
     await expect(header.locator("form[role=search]")).toHaveCount(0);
-    await expect(header.getByRole("link", { name: "Alım Talepleri" })).toHaveCount(0);
     await expect(header.getByText("Tedarikçi misin?")).toHaveCount(0);
   });
 
@@ -40,6 +49,8 @@ test.describe("herkese açık üst çubuk", () => {
 
     await page.getByRole("button", { name: "Menüyü aç" }).click();
     const sheet = page.getByRole("dialog");
+    await expect(sheet.getByRole("link", { name: "Ürünler", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Alım Talepleri" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Nasıl Çalışır" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Fiyatlar" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Ücretsiz Kaydol" })).toBeVisible();

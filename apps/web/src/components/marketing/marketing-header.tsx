@@ -2,6 +2,7 @@
 
 import { RothernLogo } from "@/components/brand/logo";
 import { Sheet } from "@/components/ui/sheet";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useState } from "react";
@@ -12,9 +13,21 @@ import { useState } from "react";
  * Önceki hâli iki katmanlıydı (PROMPT 6): üstte siyah şerit (iki tarafın
  * giriş cümlesi + Nasıl çalışır / Fiyatlar / TR), altında logo · Kategoriler
  * mega menüsü · ortada typeahead · Alım Talepleri · Giriş · Kaydol.
- * Kullanıcı KALDIRTTI: siyah şerit tümüyle, mega menü, üst çubuk araması ve
- * "Alım Talepleri" bağlantısı. Şeridin taşıdığı sayfalar (Nasıl çalışır,
- * Fiyatlar) logonun YANINDA normal menü satırı oldu.
+ * Kullanıcı KALDIRTTI: siyah şerit tümüyle, mega menü ve üst çubuk araması.
+ * Şeridin taşıdığı sayfalar (Nasıl çalışır, Fiyatlar) logonun YANINDA normal
+ * menü satırı oldu.
+ *
+ * HEDEF SAYFALAR GERİ GELDİ (2026-09-09, kullanıcı: "eskiden daha fazla
+ * başlık vardı, şimdi 2 tane; çok solda ve garip duruyor"). Ürünler ·
+ * Firmalar · Alım Talepleri eskiden mega menünün ve şeridin içinde
+ * yaşıyordu; o katmanlar kalkınca sitenin ÜÇ ana yüzeyi üst çubuktan
+ * tümüyle düştü ve geriye logoya yapışmış iki bilgi bağlantısı kaldı.
+ * Şimdi düz menü satırı olarak duruyorlar — mega menü ve arama GERİ
+ * GELMEDİ, yalnız bağlantılar.
+ *
+ * SIRA: önce gidilecek yerler (pazar yeri), sonra açıklayıcı sayfalar.
+ * Adlar `MARKETPLACE_LABELS`ten — üst çubuk, liste sayfası ve footer aynı
+ * sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
  *
  * Sonuç: header 100 px'ten **64 px'e** indi. Sayfaların üst boşluğu
  * (`pt-28`) olduğu gibi duruyor — artık nefes payı daha geniş, kesişme yok;
@@ -29,6 +42,9 @@ const PRICING_HREF = "/nasil-calisir#fiyatlar";
 
 /** Logonun yanındaki menü — tek kaynak (masaüstü satırı + mobil çekmece). */
 const NAV = [
+  { name: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
+  { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
+  { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
   { name: "Nasıl Çalışır", href: "/nasil-calisir" },
   { name: "Fiyatlar", href: PRICING_HREF },
 ];
