@@ -40,12 +40,17 @@ export function HomeHero() {
       {/* Anahtar bandın ÜSTÜNDE, header'ın hemen altında: fotoğrafın üstüne
           bindirmek okunabilirliği riske atardı ve seçim bir kontroldür,
           süslemenin parçası değil. */}
-      {/* Üst boşluk = SABİT header'ın yüksekliği + nefes payı. Header iki
-          katmanlı: `md` altında yalnız ana satır (4 rem), üstünde ince koyu
-          şerit de var (toplam 6,25 rem). Bandın kendi `-mt-6/-mt-8`'i
-          fotoğrafı anahtarın altına çektiği için anahtar fotoğrafın üst
-          ucunda oturur — arada boşluk kalmaz. */}
-      <div className="flex justify-center px-4 pt-[5rem] pb-3 md:pt-[7.25rem]">
+      {/* Üst boşluk = SABİT header'ın yüksekliği (tek katman, 4 rem) + nefes
+          payı. Header 2026-09-09'da tek katmana indi; eski iki katmanlı
+          (6,25 rem) değer artık fazla boşluk bırakırdı.
+
+          `relative z-10` ŞART: bandın kendi `-mt-6/-mt-8`'i fotoğrafı
+          anahtarın ALTINA çeker, ama band DOM'da sonra geldiği için yığın
+          sırasında üstte kalıyor ve anahtarın üzerine biniyordu (kullanıcı
+          bulgusu — özellikle tedarikçi yüzünde anahtar yarıya kesiliyordu).
+          Alt boşluk da o negatif marjini karşılayacak kadar (`pb-8/pb-10`);
+          `pb-3` ile fotoğraf anahtarın üstüne taşıyordu. */}
+      <div className="relative z-10 flex justify-center px-4 pt-[4.75rem] pb-8 lg:pb-10">
         <AudienceSwitch />
       </div>
 
