@@ -2068,6 +2068,66 @@ public profil özelliği pazar yerinden eskidir, onu kapatmak var olan bir
 Açılış geri alınamaz bir dış etki olduğu için tetiği `git push` değil bilinçli
 bir env kararıdır.
 
+### ANASAYFA = PANEL ANASAYFALARININ ANONİM HÂLİ (2026-09-08, kullanıcı kararı)
+
+Kullanıcı: "satınalma ve satış anasayfalarını www.rothern.com anasayfasına
+taşı, seçime göre o ekranlar gelsin, giriş yapmamış haliyle, renkleriyle
+birlikte — ama panel sayfalarına dokunma."
+
+Ziyaretçi üstteki anahtarla (`AudienceSwitch`, panel portal pili görünümünde)
+tarafını seçer; sayfa o portalın panel anasayfasını, o portalın rengiyle
+gösterir:
+
+| Taraf | Renk | Sıra |
+|-------|------|------|
+| Alıcıyım | mavi | hero → öne çıkan ürünler → kategori vitrini (58 segment) → yeni eklenenler |
+| Tedarikçiyim | yeşil | hero → açık alım talepleri (6 teaser) → "ürününüz vitrinde mi?" |
+
+**PANEL DOSYALARINA DOKUNULMADI** (kullanıcı sınırı). `PanelHeroSearch` ve
+`CategoryShowcaseRows` değiştirilmeden kullanılıyor — ikisi de tümüyle
+prop'la sürülüyor. Yeni dosyalar: `marketplace/home-hero.tsx` (tek hero, iki
+prop kümesi), `home-buyer.tsx`, `home-supplier.tsx`, `product-strip.tsx`.
+
+**ANONİMDE KARŞILIĞI OLMAYANLAR — uydurulmaz, çizilmez:**
+
+| Panelde | Neden anonimde yok | Yerine |
+|---------|--------------------|--------|
+| **AI ile ara** | `assertAiAccess` Silver+ ∧ koltuk izni | anahtar hiç çizilmez |
+| **"Size uygun ürünler"** | firmanın ALIM kategorileri gerekiyor | "Öne çıkan ürünler" (ölçülebilir kesit) |
+| Son aramaya göre şerit | geçmiş `localStorage`ta, sayfa ISR — koşulu render'a taşımak hidrasyon uyuşmazlığı | yok |
+| **`SellerTendersView`** (kenar süzgeçli tam liste) | uygunluk/davet/teklif durumu + ücretsiz paket kilidi izleyeni bilmeyi ister | `ListingTeaserCard` ızgarası + `/alim-talepleri`'ne çıkış |
+| `SellerHealthCards`, KPI'lar | tümüyle üye verisi | yok |
+| "Talep aç" / "Ürün ekle" sihirbazı | oturum ister | `signupHref("talep"/"vitrin"/"teklif")` — onboarding sonrası aynı sihirbaza düşer |
+
+**MONOKROM KURALININ İSTİSNASI.** "Herkese açık pazar yeri MONOKROM kalır,
+portal renkleri yalnız panelde yaşar" kuralı **yalnız `/` için** delindi
+(kullanıcı: "renkleriyle birlikte taşı"). `/urunler`, `/firmalar`,
+`/alim-talepleri`, ürün ve firma sayfaları siyah kalır. Bilinen tutarsızlık:
+`ListingTeaserCard`ın "Teklif ver" düğmesi SİYAH — kart `/alim-talepleri` ile
+ORTAK, renklendirmek o sayfaya da dokunurdu.
+
+**Hidrasyon kuralı korundu:** sunucu HER ZAMAN alıcı yüzünü basar, tercih
+istemci efektinde okunur (2026-09-05 #418 dersi). İki yüzün GÖVDESİ de
+HTML'de durur (`AudienceOnly` `hidden` ile gizler → arama motoru ikisini de
+görür); yalnız HERO tek basılır, iki arka plan fotoğrafı birden inmesin diye.
+
+**Kalkan bloklar:** sayı şeridi, nasıl çalışır, sekmeli ürün kaydırıcısı, iki
+kart, firma ızgarası, güven bandı, popüler çipler, yüzen CTA. Bileşenler
+SİLİNMEDİ (`/nasil-calisir` ve liste sayfaları kullanıyor). JSON-LD ve SEO
+paragrafı KALDI.
+
+**Bilinçli tekrar:** `product-strip.tsx` panelin `PanelRecommendations`
+şeridiyle aynı anatomiyi taşıyor. Ortak bileşene çıkarmak panel dosyasına
+dokunmayı gerektirirdi; panel şeridi bir gün elden geçerse ikisi
+birleştirilmeli.
+
+**Kategori kartı tuzağı:** public kategori sayfası ürünü OLMAYAN kodda 404
+verir (boş kategori bilerek üretilmiyor). Vitrin 58 segmentin hepsini bastığı
+için `count === 0` olan dal `/urunler?kategori=<kod>` adresine gider — dürüst
+boş liste, kırık bağlantı değil.
+
+Sözleşme: `app/__tests__/home-faces.test.tsx`.
+
 ### Rotalar
 
 | Rota | Ne | Render |

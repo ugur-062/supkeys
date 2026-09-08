@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 /**
@@ -56,11 +57,39 @@ export function useAudience() {
   return useContext(Ctx);
 }
 
-const OPTIONS: { key: Audience; label: string; hint: string }[] = [
-  { key: "buyer", label: "Alıcıyım", hint: "Ürün ve tedarikçi arıyorum" },
-  { key: "supplier", label: "Tedarikçiyim", hint: "Talep arıyorum, teklif vereceğim" },
+const OPTIONS: {
+  key: Audience;
+  label: string;
+  hint: string;
+  Icon: typeof ShoppingCartIcon;
+  on: string;
+}[] = [
+  {
+    key: "buyer",
+    label: "Alıcıyım",
+    hint: "Ürün ve tedarikçi arıyorum",
+    Icon: ShoppingCartIcon,
+    on: "bg-white text-blue-700 shadow-sm",
+  },
+  {
+    key: "supplier",
+    label: "Tedarikçiyim",
+    hint: "Talep arıyorum, teklif vereceğim",
+    Icon: BuildingStorefrontIcon,
+    on: "bg-white text-emerald-700 shadow-sm",
+  },
 ];
 
+/**
+ * Anahtarın GÖRÜNÜMÜ panel portal piliyle aynı (2026-09-08, kullanıcı
+ * kararı): açık gri hazne, seçili taraf BEYAZ yuva + kendi portal rengi
+ * (alıcı mavi, tedarikçi yeşil) + ikon. Panelde soldaki Satınalma | Satış
+ * anahtarı da böyle; anasayfa o ekranları taşıdığı için aynı jest aynı
+ * görünmeli.
+ *
+ * ETİKET panel adları DEĞİL ("Satınalma"/"Satış" içeriden terimlerdir):
+ * ziyaretçi kendini alıcı ya da tedarikçi olarak tanır.
+ */
 export function AudienceSwitch({ className }: { className?: string }) {
   const { audience, setAudience } = useAudience();
   return (
@@ -68,7 +97,7 @@ export function AudienceSwitch({ className }: { className?: string }) {
       role="radiogroup"
       aria-label="Hangi taraftasınız?"
       className={cn(
-        "mx-auto inline-flex items-center gap-1 rounded-full bg-zinc-100 p-1 ring-1 ring-zinc-950/5",
+        "inline-flex items-center gap-1 rounded-full bg-zinc-100 p-1 ring-1 ring-zinc-950/5",
         className,
       )}
     >
@@ -83,10 +112,11 @@ export function AudienceSwitch({ className }: { className?: string }) {
             title={o.hint}
             onClick={() => setAudience(o.key)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-semibold transition",
-              on ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-600 hover:text-zinc-950",
+              "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+              on ? o.on : "text-zinc-600 hover:text-zinc-950",
             )}
           >
+            <o.Icon aria-hidden className="size-4" />
             {o.label}
           </button>
         );
