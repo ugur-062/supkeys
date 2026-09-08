@@ -2126,6 +2126,23 @@ verir (boş kategori bilerek üretilmiyor). Vitrin 58 segmentin hepsini bastığ
 için `count === 0` olan dal `/urunler?kategori=<kod>` adresine gider — dürüst
 boş liste, kırık bağlantı değil.
 
+**BUILD TUZAĞI — `useSearchParams` + statik sayfa (2026-09-08, canlıda
+yakalandı).** İlk push Vercel'de DÜŞTÜ: `PanelHeroSearch` `useSearchParams()`
+çağırıyor, `/` ise statik üretiliyor → "should be wrapped in a suspense
+boundary" ve prerender iptali. `next dev` bunu HİÇ göstermiyor; yalnız
+`next build` yakalıyor. **Herkese açık statik bir sayfaya panel bileşeni
+takarken yerelde üretim derlemesi al.**
+
+Çözüm `<Suspense>`, ama YEDEK BOŞ KUTU OLAMAZ: ölçüldü, boş yedekle üretilen
+HTML'de `<h1>` HİÇ yoktu (sınırın içindeki her şey istemciye ertelenir) —
+anasayfanın başlığının statik HTML'de olmaması gerçek bir SEO kaybı. Yedek
+artık bandın görünümünü ve başlığını taşıyan sessiz bir kabuk (`HeroShell`,
+`home-hero.tsx`); JS'siz doğrulandı: tek `<h1>`, aynı bant yüksekliği,
+hidrasyonda yalnız arama çubuğu beliriyor. **Kabuğun bant sınıfları ve maske
+stili `PanelHeroSearch` ile aynı olmak zorunda** — panel dosyası
+değiştirilemediği için tekrarlanıyor; hero'nun bandı elden geçerse burası da
+geçmeli.
+
 Sözleşme: `app/__tests__/home-faces.test.tsx`.
 
 ### Rotalar
