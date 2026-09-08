@@ -201,10 +201,14 @@ export function PanelHeroSearch({
           glow: "var(--color-emerald-200)",
           eyebrow: "text-emerald-700",
           accentText: "text-emerald-700",
-          // SATIŞ portalı SİYAH kalır: değişiklik yalnız satınalma için
-          // istendi ve iki panelin dili ayrı kalmalı.
-          btn: "bg-zinc-950 hover:bg-zinc-800 focus-visible:outline-zinc-950",
-          chip: "hover:bg-zinc-950",
+          // SATIŞ hero'sunda birincil eylem YEŞİL (2026-09-08, kullanıcı:
+          // "satıştaki ara tuşunu da yeşil yap siyah yerine"). Siyah, satışın
+          // kendi vurgu rengi yanında yabancı duruyordu. 600 değil 700:
+          // emerald-600 üzerinde beyaz 14 px yarı kalın metin 3,4:1 kalıyor
+          // (AA altı), 700 ile 5,1:1. Satış portalının GERİ KALANI siyah
+          // kalır — bu tur yalnız hero için istendi.
+          btn: "bg-emerald-700 hover:bg-emerald-800 focus-visible:outline-emerald-700",
+          chip: "hover:bg-emerald-700",
           soft: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
           softOn: "bg-emerald-100 text-emerald-800",
         };

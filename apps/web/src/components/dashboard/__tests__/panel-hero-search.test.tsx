@@ -135,6 +135,27 @@ describe("PanelHeroSearch — görünüm sözleşmesi (2026-09-08 kullanıcı ta
     // Süzgeçler sonuç sayfasının kenar rayında — hero'da "Filtrele" yok.
     expect(screen.queryByRole("button", { name: /Filtrele/ })).toBeNull();
   });
+
+  it("'Ara' düğmesi PORTALIN rengindedir, siyah DEĞİL", () => {
+    // 2026-09-08 (kullanıcı): satış hero'sunda da siyah yerine yeşil. İki
+    // portalın birincil eylemi kendi vurgu renginde; siyah dolgu buraya geri
+    // sızarsa bu test kırılır.
+    const submit = () =>
+      screen
+        .getAllByRole("button", { name: /^Ara/ })
+        .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
+
+    const { unmount } = render(
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" />,
+    );
+    expect(submit().className).toContain("bg-blue-600");
+    expect(submit().className).not.toMatch(/bg-(zinc-950|black)/);
+    unmount();
+
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="emerald" />);
+    expect(submit().className).toContain("bg-emerald-700");
+    expect(submit().className).not.toMatch(/bg-(zinc-950|black)/);
+  });
 });
 
 describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {

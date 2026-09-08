@@ -121,16 +121,25 @@ export function MessagesPopover({ portal }: { portal: MessagePortal }) {
 
   return (
     <Popover className="relative">
+      {/* İkon + ALTINDA etiket (2026-09-08, kullanıcı): çıplak ikon ne olduğunu
+          yalnız hover ipucuyla söylüyordu. Rozet ikonun kendi kutusuna
+          çapalanır — düğme etiketle genişlediği için düğmenin köşesine
+          çapalansaydı sayı ikonun yanından kopardı. */}
       <PopoverButton
         aria-label={`Mesajlar${unread > 0 ? ` (${unread} okunmamış)` : ""}`}
-        className="relative flex size-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
-        <MessageSquare className="size-5" aria-hidden />
-        {unread > 0 ? (
-          <span className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
-            {unread > 9 ? "9+" : unread}
-          </span>
-        ) : null}
+        <span className="relative">
+          <MessageSquare className="size-5" aria-hidden />
+          {unread > 0 ? (
+            <span className="absolute -top-1.5 -right-2 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
+        </span>
+        <span className="text-[10px] leading-none font-semibold" aria-hidden>
+          Mesajlar
+        </span>
       </PopoverButton>
 
       <PopoverPanel

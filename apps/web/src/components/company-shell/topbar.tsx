@@ -108,13 +108,17 @@ export function CompanyTopbar({
         aria-current={inCompanyArea ? "page" : undefined}
         // Bildirim/mesaj düğmesiyle BİREBİR: çerçeve ve dolgu yok, yalnız
         // ikon + etiket; hover'da aynı hafif zemin; aktifken koyu metin.
+        // Etiket ikonun ALTINDA (2026-09-08, kullanıcı): mesaj ve bildirim
+        // düğmeleriyle aynı dil — üçü de ikon + altında 10 px etiket.
         className={cn(
-          "hidden h-10 shrink-0 items-center gap-2 rounded-lg px-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:inline-flex",
+          "hidden h-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:inline-flex",
           inCompanyArea ? "text-zinc-900" : "text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900",
         )}
       >
         <BuildingOffice2Icon className="size-5" aria-hidden />
-        {COMPANY_AREA.label}
+        <span className="text-[10px] leading-none font-semibold" aria-hidden>
+          {COMPANY_AREA.label}
+        </span>
       </Link>
       ) : null}
       </div>
