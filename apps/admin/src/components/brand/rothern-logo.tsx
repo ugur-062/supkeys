@@ -22,10 +22,15 @@ const SIZES: Record<
   xl: { full: { w: 274, h: 80 }, icon: { w: 80, h: 80 } },
 };
 
-// Açık zemin (beyaz topbar/login) = "on-light" kilit — koyu plakalı "on-dark"
-// beyaz zeminde siyah kutu gibi görünüyordu. Koyu zemin gerekirse full-white.
+// Açık zemin (beyaz topbar / #FAFAFA login) = saydam koyu kilit; koyu plakalı
+// "on-dark" beyaz zeminde siyah kutu gibi görünüyordu. Koyu zemin: full-white.
 const SOURCES: Record<LogoVariant, string> = {
-  full: "/rothern-logo-on-light.png",
+  // Açık zeminlerin kilidi. `on-light` DEĞİL: o dosya baştan sona OPAKTI
+  // (774x226'nın tamamı alpha 255, beyaz) ve login sayfasının `#FAFAFA`
+  // zemininde logonun etrafında dikdörtgen bir iz bırakıyordu — web'de aynı
+  // kusur 2026-09-09'da bulundu, burası aynı dosyayı okuyan ikinci çağrı
+  // yeriydi. `-trans` aynı tuval, aynı mürekkep, saydam zemin.
+  full: "/rothern-logo-trans.png",
   icon: "/rothern-icon.svg",
   "full-white": "/rothern-logo-trans-white.png",
   "icon-white": "/rothern-icon-white.svg",

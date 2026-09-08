@@ -31,8 +31,14 @@ const SIZES: Record<
 // bu kullanılır — kullanıcının açık/koyu mod tercihinden BAĞIMSIZ.
 const SOURCES: Record<LogoVariant, string> = {
   full: "/rothern-logo-on-dark.png",
-  // Açık-mod kilidi — plakasız, beyaz header/menüde kare yapmaz.
-  "full-light": "/rothern-logo-on-light.png",
+  // Açık zeminlerin kilidi (header, footer, panel üst çubuğu).
+  //
+  // `rothern-logo-on-light.png` DEĞİL: adı "plakasız" diyordu ama dosya
+  // baştan sona OPAKTI (774x226 pikselin tamamı alpha 255, beyaz) — beyaz
+  // header'da ve `bg-zinc-50` footer'da logonun etrafında dikdörtgen bir iz
+  // bırakıyordu (kullanıcı bulgusu 2026-09-09). `-trans` aynı tuval, aynı
+  // #0A0A0A mürekkep, arka planı GERÇEKTEN saydam.
+  "full-light": "/rothern-logo-trans.png",
   icon: "/rothern-icon.svg",
   // Şeffaf beyaz wordmark — plaka yok, değişken koyu zeminlerde kare yapmaz.
   "full-white": "/rothern-logo-trans-white.png",

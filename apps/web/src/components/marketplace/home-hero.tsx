@@ -36,41 +36,48 @@ export function HomeHero() {
   const supplier = audience === "supplier";
 
   return (
-    <>
-      {/* Anahtar bandın ÜSTÜNDE, header'ın hemen altında: fotoğrafın üstüne
-          bindirmek okunabilirliği riske atardı ve seçim bir kontroldür,
-          süslemenin parçası değil. */}
-      {/* Üst boşluk = SABİT header'ın yüksekliği (tek katman, 4 rem) + nefes
-          payı. Header 2026-09-09'da tek katmana indi; eski iki katmanlı
-          (6,25 rem) değer artık fazla boşluk bırakırdı.
+    /* HERO KAPSAYICISI — fotoğraf header'ın ALT ÇİZGİSİNDEN başlar (2026-09-09,
+       kullanıcı kararı: "görsel ile header arasındaki boşluk olmasın").
 
-          `relative z-10` ŞART: bandın kendi `-mt-6/-mt-8`'i fotoğrafı
-          anahtarın ALTINA çeker, ama band DOM'da sonra geldiği için yığın
-          sırasında üstte kalıyor ve anahtarın üzerine biniyordu (kullanıcı
-          bulgusu — özellikle tedarikçi yüzünde anahtar yarıya kesiliyordu).
-          Alt boşluk da o negatif marjini karşılayacak kadar (`pb-8/pb-10`);
-          `pb-3` ile fotoğraf anahtarın üstüne taşıyordu. */}
-      <div className="relative z-10 flex justify-center px-4 pt-[4.75rem] pb-8 lg:pb-10">
-        <AudienceSwitch />
+       Üst boşluk = header yüksekliği (4 rem — `h-16` alt çizgiyi de İÇERİR,
+       kutu modeli border-box) + bandın KENDİ negatif marjinin telafisi
+       (`-mt-6`, `lg:-mt-8`). İkisi birbirini tam
+       götürür: fotoğrafın üst kenarı header'ın alt çizgisine oturur, arada
+       1 px beyaz şerit bile kalmaz. Band `-mt` değeri değişirse buradaki
+       toplam da değişmeli.
+
+       Fotoğraf header'ın ARKASINA girmez (kullanıcı onaylı): header beyaz ve
+       net kalsın, logo/menü okunabilirliği fotoğrafın o bölgesindeki açıklığa
+       bağlı olmasın. */
+    <div className="relative pt-[calc(4rem+1.5rem)] lg:pt-[calc(4rem+2rem)]">
+      {/* ANAHTAR FOTOĞRAFIN ÜSTÜNE OTURUR — akıştan çıkarıldı.
+
+          Akışta bir blok olduğu sürece dikey yer kaplıyordu ve header ile
+          fotoğraf arasında beyaz bir bant bırakıyordu (kullanıcı bulgusu).
+          `absolute` + `z-20`: hiç yer kaplamaz, bandın üstünde çizilir —
+          dünkü `relative z-10` düzeltmesinin yerini alır (band DOM'da sonra
+          geldiği için yığın sırasında yine üste çıkardı).
+
+          Konum header'ın hemen altı + küçük bir iç boşluk; fotoğrafın üst
+          kenarına oturur, hero başlığının (band dikeyde ortalı, min-h 30rem)
+          üstünde kalır.
+
+          ÜST ETİKET (`eyebrow`) BU SAYFADA YOK — anahtar onun yuvasında
+          oturuyor. İkisi de "başlığın üstündeki küçük ortalanmış öğe" ve
+          ölçüldü: anahtar 76-120 px, etiket 104-121 px; üst üste
+          biniyorlardı ve pil "KÜRESEL TEDARİK AĞINIZ" yazısını örtüyordu.
+          Etiket süs, anahtar kontrol — yuva kontrolün. */}
+      <div className="pointer-events-none absolute inset-x-0 top-[calc(4rem+0.5rem)] z-20 flex justify-center px-4">
+        {/* Hazne fotoğrafın üstünde duruyor: açık gökyüzünde `bg-zinc-100`
+            kayboluyordu — yarı saydam beyaz + blur + gölge ile ayrışır.
+            Seçili yuva yine beyaz + portal rengi (panel piliyle aynı jest). */}
+        <AudienceSwitch className="pointer-events-auto bg-white/70 shadow-md shadow-zinc-950/5 ring-zinc-950/10 backdrop-blur" />
       </div>
 
-      {/* SUSPENSE ŞART (2026-09-08, canlı derleme hatası): `PanelHeroSearch`
-          `useSearchParams()` çağırıyor ve bu sayfa STATİK üretiliyor
-          (`revalidate = 60`). Sınır olmadan Next prerender'ı iptal ediyor ve
-          BUILD DÜŞÜYOR — `next dev` bunu hiç göstermiyor, yalnız `next build`
-          yakalıyor.
-
-          Yedek BOŞ KUTU DEĞİL (ölçüldü: boş yedekle üretilen HTML'de `<h1>`
-          HİÇ yoktu — sınır içindeki her şey istemciye ertelenir). Anasayfanın
-          başlığının statik HTML'de olmaması gerçek bir SEO kaybıydı; bu
-          yüzden yedek, bandın görünümünü ve BAŞLIĞINI taşıyan sessiz bir
-          kabuk. Hidrasyonda yerine etkileşimli hero geçer; değişen tek şey
-          arama çubuğunun belirmesi. */}
       <Suspense fallback={<HeroShell />}>
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
-          eyebrow="Satın alma talepleri"
           title="Hangi talebe"
           titleAccent="teklif vereceksiniz?"
           splitTitle
@@ -89,7 +96,6 @@ export function HomeHero() {
       ) : (
         <PanelHeroSearch
           key="buyer"
-          eyebrow="Küresel tedarik ağınız"
           title="Hangi ürün için"
           titleAccent="tedarikçi arıyorsunuz?"
           splitTitle
@@ -111,7 +117,7 @@ export function HomeHero() {
         />
       )}
       </Suspense>
-    </>
+    </div>
   );
 }
 
@@ -130,8 +136,10 @@ const MASK =
   "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)";
 
 /**
- * Hidrasyondan önceki sessiz hero: arka plan, üst etiket, BAŞLIK ve alt
- * cümle. Arama çubuğu YOK — o etkileşimli parça sınırın içinde kalıyor.
+ * Hidrasyondan önceki sessiz hero: arka plan, BAŞLIK ve alt cümle. Arama
+ * çubuğu YOK — o etkileşimli parça sınırın içinde kalıyor. Üst etiket de
+ * YOK: hero'nun kendisi de basmıyor (yuva anahtarın), ikisi ayrışırsa
+ * hidrasyonda başlık zıplar.
  *
  * Sunucu her zaman ALICI yüzünü basar, dolayısıyla kabuk da alıcı metnini
  * taşır (tedarikçi yüzü ancak istemci tercihi okunduktan sonra çizilir).
@@ -158,12 +166,7 @@ function HeroShell() {
         />
       </div>
       <div className="mx-auto w-full max-w-4xl text-center">
-        <p className="flex items-center justify-center gap-3 text-[11px] font-semibold tracking-[0.2em] uppercase text-blue-700">
-          <span aria-hidden className="h-px w-8 bg-current opacity-40" />
-          Küresel tedarik ağınız
-          <span aria-hidden className="h-px w-8 bg-current opacity-40" />
-        </p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
+        <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
           Hangi <span className="text-blue-600">ürün için</span>
           <span className="block text-blue-600">tedarikçi arıyorsunuz?</span>
         </h1>

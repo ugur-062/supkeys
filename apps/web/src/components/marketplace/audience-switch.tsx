@@ -97,7 +97,11 @@ export function AudienceSwitch({ className }: { className?: string }) {
       role="radiogroup"
       aria-label="Hangi taraftasınız?"
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-zinc-100 p-1 ring-1 ring-zinc-950/5",
+        /* Yükseklik 40 px (`p-0.5` + `py-1.5`), 44 değil: anasayfada pil
+         fotoğrafın üstünde, header çizgisi ile hero başlığının ARASINDA
+         duruyor ve o aralık yalnız 60 px (band `min-h-[30rem]` içinde
+         dikeyde ortalı). 44 px'te başlığın üst kenarına 4 px kalıyordu. */
+      "inline-flex items-center gap-1 rounded-full bg-zinc-100 p-0.5 ring-1 ring-zinc-950/5",
         className,
       )}
     >
@@ -112,7 +116,7 @@ export function AudienceSwitch({ className }: { className?: string }) {
             title={o.hint}
             onClick={() => setAudience(o.key)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+              "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition",
               on ? o.on : "text-zinc-600 hover:text-zinc-950",
             )}
           >
