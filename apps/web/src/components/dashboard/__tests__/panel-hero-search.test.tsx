@@ -221,16 +221,17 @@ describe("PanelHeroSearch — dekoratif arka plan", () => {
       <PanelHeroSearch title="Ne arıyorsunuz?" lead="x" placeholder="p" action="/x" accent="blue" backdrop />,
     );
     const imgs = Array.from(container.querySelectorAll("img"));
-    expect(imgs.length).toBeGreaterThanOrEqual(4);
-    for (const img of imgs) {
-      expect(img.getAttribute("alt")).toBe("");
-      const layer = img.closest("[aria-hidden]") as HTMLElement | null;
-      expect(layer).not.toBeNull();
-      expect(layer?.className).toContain("pointer-events-none");
-      // Katmanlar içeriğin ARKASINDA: negatif z-index. Harita peçenin de
-      // ÜSTÜNDE olduğu için `-z-[4]`; köşe görselleri `-z-10`.
-      expect(layer?.className).toMatch(/-z-(10|\[\d+\])/);
-    }
+    // TEK SAHNE (2026-09-08): dört ayrı kesit yerine kaynak setteki hazır
+    // kompozisyon; alta doğru beyaza eriyor.
+    expect(imgs).toHaveLength(1);
+    const img = imgs[0] as HTMLImageElement;
+    expect(img.getAttribute("alt")).toBe("");
+    expect(img.getAttribute("src")).toContain("hero-scene");
+    const layer = img.closest("[aria-hidden]") as HTMLElement | null;
+    expect(layer?.className).toContain("pointer-events-none");
+    expect(layer?.className).toMatch(/-z-10/);
+    // Alt erime: maske olmadan fotoğraf beyaz zeminde kesilmiş gibi biter.
+    expect(img.style.maskImage || img.style.webkitMaskImage).toContain("linear-gradient");
     // Arama kutusu ve başlık yerinde (yapı değişmedi).
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();

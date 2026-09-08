@@ -217,7 +217,7 @@ export function PanelHeroSearch({
          (satış) eski kompakt hero. */
       className={
         backdrop
-          ? "relative isolate -mx-4 overflow-hidden bg-gradient-to-b from-blue-50/70 via-white to-white px-4 pt-10 pb-14 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+          ? "relative isolate -mx-4 overflow-hidden bg-gradient-to-b from-blue-50/50 via-transparent to-white px-4 pt-10 pb-10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
@@ -231,104 +231,52 @@ export function PanelHeroSearch({
         style={{ background: `radial-gradient(closest-side, ${tone.glow}, transparent)` }}
       />
       {backdrop ? (
-        /* DEKORATİF KATMANLAR — kullanıcı varlıkları (`public/hero/*.webp`,
-           PNG'den webp'e çevrildi: 4,1 MB → 288 KB).
+        /* TEK SAHNE (2026-09-08, kullanıcı: "fotoğrafı hiç güzel
+           yerleştirememişsin; altta beyaza gitsin, daha net olsun").
 
-           KURALLAR: hepsi `absolute` + `pointer-events-none` + `-z-10`
-           (içeriğin ARKASINDA) + `aria-hidden` (ekran okuyucuya hiçbir şey
-           söylemezler) + `select-none`. Ekran küçüldükçe küçülürler;
-           depo/gemi `md` altında, uçak `sm` altında HİÇ çizilmez — dar
-           ekranda başlık ve arama kutusunun arkasına girip okunabilirliği
-           düşürüyorlardı.
+           Dört ayrı kesit (depo/gemi/uçak/harita) köşelere yapıştırılmış
+           gibi duruyordu. Kaynak setteki `hero-background-clean` ZATEN tek
+           doğal kompozisyon — onu tam genişlikte tek katman olarak
+           kullanıyoruz; kaynağın üst/alt kenarındaki gürültü şeridi
+           kırpıldı (`hero-scene.webp`).
 
-           Opaklıklar bilinçli düşük: bu bir e-ticaret bannerı değil, arka
-           plan dokusu. Üstlerine beyaz peçe (aşağıda) geliyor. */
+           ALTA DOĞRU BEYAZA ERİR: maske alt %35'te saydama iner, bant zemini
+           beyaz olduğu için fotoğraf kesilmiş gibi bitmez. Üstte de ince bir
+           erime var — kabuk çubuğuyla arasında sert çizgi kalmasın.
+
+           `pointer-events-none` + `-z-10` + `aria-hidden`: dekoratif. */
         <>
-          <span
-            aria-hidden
-            /* HARİTA PEÇENİN ÜSTÜNDE (`-z-[4]`), içeriğin altında: peçe onu
-               tamamen yutuyordu (canlı ekran görüntüsüyle görüldü). Nokta
-               deseni açık mavi ve seyrek olduğu için başlığın okunmasını
-               engellemiyor — kaynak tasarımda da başlık haritanın üstünde. */
-            className="pointer-events-none absolute inset-x-0 top-0 -z-[4] mx-auto hidden w-[min(84rem,100%)] select-none opacity-90 sm:block"
-            style={{
-              maskImage: "radial-gradient(70% 80% at 50% 40%, black 60%, transparent 100%)",
-              WebkitMaskImage: "radial-gradient(70% 80% at 50% 40%, black 60%, transparent 100%)",
-            }}
-          >
-            <Image
-              src="/hero/world-map-routes.webp"
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 select-none">
+            {/* DÜZ `<img>` — `next/image` DEĞİL (2026-09-08, canlıda ölçüldü):
+                optimizasyon ucu bu dosya için `Content-Disposition:
+                attachment` ile dönüyor ve tarayıcı isteği `ERR_ABORTED` ile
+                düşürüyordu; görsel hiç boyanmıyordu. Dekoratif bir zemin
+                için optimizasyona ihtiyaç da yok: dosya zaten webp ve 360 KB,
+                tek boyutta kullanılıyor. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero/hero-scene.webp"
               alt=""
-              width={1360}
-              height={410}
-              sizes="(max-width: 1280px) 100vw, 1152px"
-              className="h-auto w-full"
-              priority={false}
+              loading="eager"
+              decoding="async"
+              draggable={false}
+              className="absolute inset-0 size-full object-cover object-bottom"
+              style={{
+                maskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 8%, black 70%, transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 8%, black 70%, transparent 100%)",
+              }}
             />
-          </span>
-          <span
-            aria-hidden
-            className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden w-56 select-none opacity-95 md:block lg:w-80 xl:w-[26rem]"
-            style={{
-              maskImage: "linear-gradient(to right, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to right, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          >
-            <Image
-              src="/hero/warehouse-containers-forklift.webp"
-              alt=""
-              width={720}
-              height={619}
-              sizes="26rem"
-              className="h-auto w-full"
-            />
-          </span>
-          <span
-            aria-hidden
-            className="pointer-events-none absolute right-0 bottom-0 -z-10 hidden w-52 select-none opacity-95 md:block lg:w-72 xl:w-96"
-            style={{
-              maskImage: "linear-gradient(to left, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to left, black 55%, transparent 100%), linear-gradient(to top, black 60%, transparent 100%)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          >
-            <Image
-              src="/hero/cargo-ship-port.webp"
-              alt=""
-              width={592}
-              height={659}
-              sizes="24rem"
-              className="h-auto w-full"
-            />
-          </span>
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-6 right-[6%] -z-10 hidden w-24 select-none opacity-90 sm:block lg:w-36"
-          >
-            <Image
-              src="/hero/airplane.webp"
-              alt=""
-              width={295}
-              height={215}
-              sizes="9rem"
-              className="h-auto w-full"
-            />
-          </span>
-          {/* BEYAZ PEÇE — görsellerin ÜSTÜNDE, içeriğin ALTINDA; YALNIZ
-              metin sütununun arkasında. Tam sayfa peçe hem haritayı hem
-              köşe görsellerini sisliyordu (canlı ekran görüntüsüyle
-              doğrulandı): şimdi dar bir alan, kenarlarda sahne görünür
-              kalıyor. Okunabilirlik yine pazarlık konusu değil — başlık ve
-              arama kutusu bu alanın içinde. */}
+          </div>
+          {/* Metin sütununun arkasında HAFİF beyaz peçe — sahne zaten açık,
+              peçe yalnız kontrastı garantiler. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 -z-[5] mx-auto h-[26rem] w-[min(56rem,92%)]"
+            className="pointer-events-none absolute inset-x-0 top-0 -z-[5] mx-auto h-[22rem] w-[min(60rem,94%)]"
             style={{
               background:
-                "radial-gradient(58% 60% at 50% 45%, rgb(255 255 255 / 0.86) 40%, rgb(255 255 255 / 0.45) 72%, transparent 100%)",
+                "radial-gradient(56% 58% at 50% 40%, rgb(255 255 255 / 0.62) 38%, rgb(255 255 255 / 0.28) 72%, transparent 100%)",
             }}
           />
         </>
