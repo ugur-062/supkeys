@@ -137,8 +137,10 @@ describe("PanelHeroSearch — görünüm sözleşmesi (2026-09-08 kullanıcı ta
   });
 });
 
-describe("PanelHeroSearch — kapsam anahtarı (Ürün / Tedarikçi)", () => {
+describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {
   it("Tedarikçi seçilince form FİRMA dizinine gider ve yer tutucu değişir", async () => {
+    // 2026-09-08 (kullanıcı tasarımı): kapsam artık ÇUBUĞUN İÇİNDE açılır
+    // seçici; iki pilli satır kalktı.
     const user = userEvent.setup();
     render(
       <PanelHeroSearch
@@ -155,11 +157,10 @@ describe("PanelHeroSearch — kapsam anahtarı (Ürün / Tedarikçi)", () => {
         ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Tedarikçi" }));
+    await user.selectOptions(screen.getByLabelText("Arama kapsamı"), "suppliers");
     expect(screen.getByPlaceholderText("Firma adı, sektör ya da sattığı ürün arayın")).toBeInTheDocument();
 
     await user.type(screen.getByRole("searchbox"), "medikal");
-    // "Ara" iki yerde: mod anahtarı ve gönder düğmesi — submit olanı seç.
     const submit = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
@@ -167,7 +168,29 @@ describe("PanelHeroSearch — kapsam anahtarı (Ürün / Tedarikçi)", () => {
     expect(push).toHaveBeenLastCalledWith("/company/satinalma/firmalar?q=medikal");
   });
 
-  it("AI modunda kapsam anahtarı ÇİZİLMEZ (AI yorumu ürün süzgeci üretir)", async () => {
+  it("TEDARİKÇİ TÜRÜ seçimi sonuç adresine `faaliyet` yazar", async () => {
+    const user = userEvent.setup();
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="l"
+        placeholder="p"
+        action="/company/satinalma/urunler"
+        accent="blue"
+        activityFilter
+        supplierScope={{ action: "/company/satinalma/firmalar", placeholder: "f" }}
+      />,
+    );
+    await user.selectOptions(screen.getByLabelText("Tedarikçi türü"), "MANUFACTURER");
+    await user.type(screen.getByRole("searchbox"), "pano");
+    const submit = screen
+      .getAllByRole("button", { name: /^Ara/ })
+      .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
+    await user.click(submit);
+    expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler?q=pano&faaliyet=MANUFACTURER");
+  });
+
+  it("AI modunda kapsam ve tür seçicileri ÇİZİLMEZ (AI yorumu ürün süzgeci üretir)", async () => {
     const user = userEvent.setup();
     render(
       <PanelHeroSearch
@@ -176,13 +199,15 @@ describe("PanelHeroSearch — kapsam anahtarı (Ürün / Tedarikçi)", () => {
         placeholder="p"
         action="/company/satinalma/urunler"
         accent="blue"
+        activityFilter
         supplierScope={{ action: "/company/satinalma/firmalar", placeholder: "f" }}
         ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
       />,
     );
-    expect(screen.getByRole("button", { name: "Tedarikçi" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "AI ile ara" }));
-    expect(screen.queryByRole("button", { name: "Tedarikçi" })).toBeNull();
+    expect(screen.getByLabelText("Arama kapsamı")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /AI ile ara/ }));
+    expect(screen.queryByLabelText("Arama kapsamı")).toBeNull();
+    expect(screen.queryByLabelText("Tedarikçi türü")).toBeNull();
   });
 });
 

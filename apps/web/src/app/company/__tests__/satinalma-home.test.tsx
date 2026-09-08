@@ -87,7 +87,11 @@ beforeEach(() => {
 describe("Satınalma anasayfası", () => {
   it("hero arama + ürün önerisi + kategori vitrini + yeni eklenenler", () => {
     renderPage();
-    expect(screen.getByRole("heading", { level: 1, name: "Ne arıyorsunuz?" })).toBeInTheDocument();
+    // Başlık iki satırlı (2026-09-08 kullanıcı tasarımı): "Daha güçlü iş
+    // bağlantıları" + portal renginde "daha büyük fırsatlar".
+    expect(
+      screen.getByRole("heading", { level: 1, name: /Daha güçlü iş bağlantıları/ }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Size uygun ürünler|Aramalarınıza göre/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();
     expect(screen.getAllByText("Şimdi tedarikçi bulun").length).toBeGreaterThan(0);

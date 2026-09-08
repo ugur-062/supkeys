@@ -70,7 +70,12 @@ export default function SatinalmaDashboardPage() {
      sayfalarıyla paylaşılır), sektör sayısı ürünü OLAN L1 dalların sayısı.
      Şişirilmiş "200+ ülke / milyonlarca ürün" yazılmaz. */
   const productTotal = useDiscoverSearch({ pageSize: 1 });
-  const companyTotal = useCompanySearch({});
+  /* `{}` DEĞİL `{ hasProducts: true }`: öneri hook'u `useCompanySearch({ q })`
+     ile aynı sorgu anahtarına düşüyordu (serileştirmede `undefined` alanlar
+     atlanır) ve o hook `enabled:false` olduğu için sorgu HİÇ koşmuyordu —
+     "Tedarikçi firma" sayısı bu yüzden boş geliyordu (canlı ekranda
+     görüldü). Ayrı anahtar + anlamlı süzgeç: vitrini dolu tedarikçiler. */
+  const companyTotal = useCompanySearch({ hasProducts: true });
   const segments = useCategorySegments();
   // 3 satır × (1 promo + 10 kart) = 33 segment. `buildShowcase` sırası:
   // ürünü OLAN dallar önce (sayıya göre), sonra küratörlü sıra — promo
@@ -109,16 +114,17 @@ export default function SatinalmaDashboardPage() {
       ? { label: "Yayında ürün", value: productTotal.data.total.toLocaleString("tr-TR"), icon: "globe" as const }
       : null,
     companyTotal.data?.total
-      ? { label: "Tedarikçi firma", value: companyTotal.data.total.toLocaleString("tr-TR"), icon: "building" as const }
+      ? { label: "Vitrini yayında tedarikçi", value: companyTotal.data.total.toLocaleString("tr-TR"), icon: "building" as const }
       : null,
     (facets.data?.categories ?? []).length
       ? {
           label: "Ürün olan sektör",
           value: String((facets.data?.categories ?? []).filter((c) => c.count > 0).length),
-          icon: "users" as const,
+          icon: "cube" as const,
         }
       : null,
-  ].filter(Boolean) as { label: string; value: string; icon: "globe" | "building" | "users" }[];
+
+  ].filter(Boolean) as { label: string; value: string; icon: "globe" | "building" | "users" | "cube" }[];
   // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
   // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
   const [term, setTerm] = useState("");
@@ -157,10 +163,11 @@ export default function SatinalmaDashboardPage() {
   return (
     <div className="space-y-10">
       <PanelHeroSearch
-        eyebrow="Tedarikçi ürün vitrini"
-        title="Ne arıyorsunuz?"
-        lead="Ürün, marka, parça numarası veya firma — doğrulanmış tedarikçilerin vitrininden, fiyat ve minimum sipariş bilgisiyle."
-        placeholder="Ürün, marka, parça numarası veya firma arayın"
+        eyebrow="Küresel tedarik ağınız"
+        title="Daha güçlü iş bağlantıları"
+        titleAccent="daha büyük fırsatlar"
+        lead="Doğrulanmış tedarikçilerle tanışın, ihtiyaçlarınızı paylaşın, işinizi büyütün."
+        placeholder="Ne arıyorsunuz?"
         action={PANEL_MARKET.products}
         /* Aynı kutu iki dizine gider (kullanıcı isteği, kaynak kalıp):
            "Ürün" → ürün dizini, "Tedarikçi" → firma dizini. */
@@ -169,10 +176,13 @@ export default function SatinalmaDashboardPage() {
           placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
           label: "Tedarikçi",
         }}
+        /* Çubuğun sağındaki tür seçici sonuç adresine `?faaliyet=` yazar. */
+        activityFilter
         accent="blue"
         chips={sectorChips}
         chipsLabel="Sektörler"
         stats={heroStats}
+        statsCta={{ label: "Doğru tedarikçiyle daha fazlasını mümkün kılın", href: PANEL_MARKET.companies }}
         /* Dekoratif arka plan katmanları (dünya haritası · depo · gemi ·
            uçak). Yalnız satınalma hero'sunda; satış portalı sade kalır. */
         backdrop

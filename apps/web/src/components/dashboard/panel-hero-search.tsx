@@ -6,6 +6,7 @@ import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { BuildingOffice2Icon, CubeIcon, GlobeAltIcon, UsersIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
+import { COMPANY_ACTIVITIES } from "@rothern/shared";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -59,21 +60,30 @@ export interface PanelHeroAi {
 export function PanelHeroSearch({
   eyebrow,
   title,
+  titleAccent,
   lead,
   placeholder,
   action,
   chips = [],
   chipsLabel = "Popüler",
   stats = [],
+  statsCta,
   backdrop = false,
   accent = "blue",
   suggestions = [],
   onQueryChange,
   ai,
   supplierScope,
+  activityFilter = false,
 }: {
   eyebrow?: string;
   title: string;
+  /**
+   * Başlığın PORTAL RENGİNDEKİ ikinci satırı (kullanıcı tasarımı):
+   * "Daha güçlü iş bağlantıları" + "daha büyük fırsatlar". Verilmezse eski
+   * davranış: ilk sözcük koyu, kalanı renkli.
+   */
+  titleAccent?: string;
   lead: string;
   placeholder: string;
   /** Sonuç sayfası — `?q=` okuyan liste. */
@@ -85,7 +95,9 @@ export function PanelHeroSearch({
    * çağıran envanterden geçirir; 0 olan satır basılmaz, hiç veri yoksa kart
    * çizilmez. "200+ ülke / milyonlarca ürün" gibi şişirilmiş rakam YOK.
    */
-  stats?: { label: string; value: string; icon?: "globe" | "users" | "building" }[];
+  stats?: { label: string; value: string; icon?: "globe" | "users" | "building" | "cube" }[];
+  /** Sayı bandının sağındaki çıkış bağlantısı (kaynak tasarım). */
+  statsCta?: { label: string; href: string };
   /**
    * DEKORATİF ARKA PLAN KATMANLARI (2026-09-08, kullanıcı varlıkları):
    * dünya haritası + depo + gemi + uçak. Yalnız görsel; içerik ve yapı
@@ -103,6 +115,12 @@ export function PanelHeroSearch({
    * dizininde karşılığı yok — açık bırakmak çalışmayan bir seçenek olurdu.
    */
   supplierScope?: { action: string; placeholder: string; label?: string };
+  /**
+   * Çubuğun sağındaki TEDARİKÇİ TÜRÜ seçici (kullanıcı tasarımı). Seçim
+   * sonuç adresine `?faaliyet=<kod>` olarak yazılır — facet ile aynı kodlar.
+   * Verilmezse seçici çizilmez (satış panosunun karşılığı yok).
+   */
+  activityFilter?: boolean;
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
@@ -115,6 +133,7 @@ export function PanelHeroSearch({
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
   const [scope, setScope] = useState<"products" | "suppliers">("products");
+  const [activity, setActivity] = useState("");
   const intent = useAiSearchIntent();
   const aiActive = !!ai && aiMode;
   const supplierMode = !!supplierScope && !aiActive && scope === "suppliers";
@@ -147,6 +166,8 @@ export function PanelHeroSearch({
     keep.delete("sayfa");
     const parts = [...keep.entries()].map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
+    // Tedarikçi türü seçiliyse sonuç adresine yazılır ("Tümü"de hiç yazılmaz).
+    if (activity) parts.push(`faaliyet=${encodeURIComponent(activity)}`);
     router.push(parts.length ? `${targetAction}?${parts.join("&")}` : targetAction);
   };
   const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
@@ -326,29 +347,7 @@ export function PanelHeroSearch({
         />
       )}
 
-      {/* ÜÇ OLGU — kaynak tasarımdaki sol kart. Sayılar GERÇEK (çağıran
-          envanterden geçirir); dar ekranda gizlenir, hero'nun okunmasını
-          bozmasın. */}
-      {stats.length > 0 ? (
-        <div className="pointer-events-none absolute top-10 left-4 hidden xl:block 2xl:left-10">
-          <ul className="space-y-4 rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur">
-            {stats.map((st) => {
-              const Icon = st.icon === "users" ? UsersIcon : st.icon === "building" ? BuildingOffice2Icon : GlobeAltIcon;
-              return (
-                <li key={st.label} className="flex items-center gap-3 text-left">
-                  <Icon aria-hidden className="size-5 shrink-0 text-blue-600" />
-                  <span>
-                    <span className="tnum block text-sm font-semibold text-zinc-950">{st.value}</span>
-                    <span className="block text-xs text-zinc-500">{st.label}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-
-      <div className="mx-auto max-w-2xl text-center">
+      <div className={backdrop ? "mx-auto max-w-4xl text-center" : "mx-auto max-w-2xl text-center"}>
         {eyebrow ? (
           /* Üst etiket: BÜYÜK HARF + geniş harf aralığı, iki yanında ince
              çizgi (kullanıcı tasarımı). */
@@ -365,54 +364,28 @@ export function PanelHeroSearch({
         {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
             `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          {(() => {
-            const i = title.indexOf(" ");
-            if (i < 0) return title;
-            return (
-              <>
-                {title.slice(0, i)}{" "}
-                <span className={tone.accentText}>{title.slice(i + 1)}</span>
-              </>
-            );
-          })()}
+          {titleAccent ? (
+            <>
+              {title}
+              <span className={`block ${tone.accentText}`}>{titleAccent}</span>
+            </>
+          ) : (
+            (() => {
+              const i = title.indexOf(" ");
+              if (i < 0) return title;
+              return (
+                <>
+                  {title.slice(0, i)}{" "}
+                  <span className={tone.accentText}>{title.slice(i + 1)}</span>
+                </>
+              );
+            })()
+          )}
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
 
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
-            {/* KAPSAM ANAHTARI — "Ürün | Tedarikçi" (kaynak kalıp): aynı
-                kutu iki dizine gider. AI modunda çizilmez (AI yorumu ürün
-                süzgeci üretir). */}
-            {supplierScope && !aiActive ? (
-              <div role="group" aria-label="Arama kapsamı" className="inline-flex rounded-full bg-zinc-100/80 p-1">
-                <button
-                  type="button"
-                  aria-pressed={scope === "products"}
-                  onClick={() => setScope("products")}
-                  className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-semibold transition ${
-                    scope === "products"
-                      ? `${tone.btn} text-white shadow-sm`
-                      : "text-zinc-600 hover:text-zinc-900"
-                  }`}
-                >
-                  <CubeIcon aria-hidden className="size-5" />
-                  Ürün
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={scope === "suppliers"}
-                  onClick={() => setScope("suppliers")}
-                  className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-semibold transition ${
-                    scope === "suppliers"
-                      ? `${tone.btn} text-white shadow-sm`
-                      : "text-zinc-600 hover:text-zinc-900"
-                  }`}
-                >
-                  <BuildingOffice2Icon aria-hidden className="size-5" />
-                  {supplierScope.label ?? "Tedarikçi"}
-                </button>
-              </div>
-            ) : null}
             {!ai.enabled ? (
               <Link href="/company/ayarlar" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
                 Silver ile açılır
@@ -434,89 +407,130 @@ export function PanelHeroSearch({
           }}
           className={ai ? "relative mt-4" : "relative mt-7"}
         >
-          {/* ARAMA ÇUBUĞU (kullanıcı tasarımı): tek beyaz hap — solda
-              büyüteç, ortada alan, SAĞDA çubuğun İÇİNDE portal renginde
-              "Ara →" düğmesi. Eskiden düğme çubuğun dışında ayrı bir
-              blok olarak duruyordu; tasarımda tek parça okunuyor.
-              "Filtrele" düğmesi BASILMADI (kullanıcı: gerek yok) —
-              süzgeçler sonuç sayfasının kenar rayında yaşıyor. */}
-          <div
-            className={`relative flex bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
-              aiActive
-                ? "items-end rounded-3xl ring-blue-200 focus-within:ring-blue-500"
-                : "items-center rounded-full ring-zinc-950/10 focus-within:ring-blue-500"
-            }`}
-          >
-            {aiActive ? (
-              <SparklesIcon aria-hidden className="pointer-events-none absolute top-5 left-5 size-5 text-blue-600" />
-            ) : (
-              <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-5 size-5 text-zinc-400" />
-            )}
-            {aiActive ? (
-              <textarea
-                name="q"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={onAiKey}
-                rows={2}
-                placeholder={aiPlaceholder}
-                aria-label="AI ile ara"
-                maxLength={500}
-                className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-              />
-            ) : (
-              <input
-                type="search"
-                name="q"
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  onQueryChange?.(e.target.value);
-                  setOpen(true);
-                }}
-                onFocus={() => setOpen(true)}
-                placeholder={targetPlaceholder}
-                aria-label={title}
-                autoComplete="off"
-                className="h-12 w-full flex-1 bg-transparent pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-              />
-            )}
-            {/* AI ÇUBUĞUN İÇİNDE (kaynak tasarım): mod anahtarı ayrı bir
-                satırdı; artık aramanın yanında ikincil bir eylem. Basınca
-                kutu metin alanına döner (aria-pressed), Silver altı üyede
-                devre dışı. */}
-            {ai && !aiActive ? (
+          {/* ARAMA ÇUBUĞU (kullanıcı tasarımı, 2026-09-08): tek beyaz hap —
+              SOLDA kapsam seçici (Ürün / Tedarikçi), ortada arama alanı,
+              SAĞDA tedarikçi türü seçici ve "Ara →". "AI ile ara" çubuğun
+              DIŞINDA, çerçeveli ikincil düğme.
+
+              Seçicilerin ikisi de GERÇEK iş yapar: kapsam formun hedefini
+              (ürün dizini ↔ firma dizini), tür seçici sonuç adresine
+              `?faaliyet=` yazar. Çalışmayan süs kontrol koymuyoruz. */}
+          <div className="flex flex-wrap items-stretch justify-center gap-3">
+            <div
+              className={`relative flex min-w-0 flex-1 bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
+                aiActive
+                  ? "items-end rounded-3xl ring-blue-200 focus-within:ring-blue-500"
+                  : "items-center rounded-full ring-zinc-950/10 focus-within:ring-blue-500"
+              }`}
+            >
+              {supplierScope && !aiActive ? (
+                <label className="flex shrink-0 items-center gap-2 rounded-full px-3 text-sm font-medium text-zinc-800">
+                  <CubeIcon aria-hidden className="size-5 text-zinc-500" />
+                  <span className="sr-only">Arama kapsamı</span>
+                  <select
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value as "products" | "suppliers")}
+                    className="cursor-pointer appearance-none bg-transparent pr-5 outline-none"
+                    style={{
+                      backgroundImage:
+                        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2371717a'><path d='M5.2 7.5 10 12.3l4.8-4.8'/></svg>\")",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right center",
+                      backgroundSize: "16px",
+                    }}
+                  >
+                    <option value="products">Ürün</option>
+                    <option value="suppliers">{supplierScope.label ?? "Tedarikçi"}</option>
+                  </select>
+                </label>
+              ) : null}
+              {supplierScope && !aiActive ? <span aria-hidden className="my-2 w-px bg-zinc-200" /> : null}
+              {aiActive ? (
+                <SparklesIcon aria-hidden className="pointer-events-none absolute top-5 left-5 size-5 text-blue-600" />
+              ) : null}
+              {aiActive ? (
+                <textarea
+                  name="q"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={onAiKey}
+                  rows={2}
+                  placeholder={aiPlaceholder}
+                  aria-label="AI ile ara"
+                  maxLength={500}
+                  className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                />
+              ) : (
+                <span className="relative flex min-w-[8rem] flex-1 items-center">
+                  <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-3 size-5 text-zinc-400" />
+                  <input
+                    type="search"
+                    name="q"
+                    value={q}
+                    onChange={(e) => {
+                      setQ(e.target.value);
+                      onQueryChange?.(e.target.value);
+                      setOpen(true);
+                    }}
+                    onFocus={() => setOpen(true)}
+                    placeholder={targetPlaceholder}
+                    aria-label={title}
+                    autoComplete="off"
+                    className="h-12 w-full bg-transparent pr-3 pl-10 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                  />
+                </span>
+              )}
+              {/* TEDARİKÇİ TÜRÜ — sonuç adresine `?faaliyet=` yazar (facet
+                  ile aynı kodlar). "Tümü" seçiliyken parametre hiç yazılmaz. */}
+              {activityFilter && !aiActive ? (
+                <>
+                  <span aria-hidden className="my-2 hidden w-px bg-zinc-200 lg:block" />
+                  <label className="hidden shrink-0 items-center gap-2 rounded-full px-3 text-sm font-medium text-zinc-800 lg:flex">
+                    <BuildingOffice2Icon aria-hidden className="size-5 text-zinc-500" />
+                    <span className="sr-only">Tedarikçi türü</span>
+                    <select
+                      value={activity}
+                      onChange={(e) => setActivity(e.target.value)}
+                      className="max-w-[10rem] cursor-pointer appearance-none truncate bg-transparent pr-5 outline-none"
+                    >
+                      <option value="">Tedarikçi</option>
+                      {COMPANY_ACTIVITIES.map((a) => (
+                        <option key={a.code} value={a.code}>
+                          {a.nameTr}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              ) : null}
+              <button
+                type="submit"
+                disabled={aiActive && intent.isPending}
+                className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
+              >
+                {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
+                {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
+              </button>
+            </div>
+
+            {/* AI — çubuğun DIŞINDA, çerçeveli (kaynak tasarım). */}
+            {ai ? (
               <button
                 type="button"
-                aria-pressed={false}
+                aria-pressed={aiActive}
                 disabled={!ai.enabled}
                 title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
-                onClick={() => ai.enabled && setAiMode(true)}
-                className="mr-1 hidden h-12 shrink-0 items-center gap-2 rounded-full border-l border-zinc-200 pr-4 pl-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex"
+                onClick={() => ai.enabled && setAiMode(!aiMode)}
+                className={`inline-flex h-16 shrink-0 items-center gap-2 rounded-full px-6 text-sm font-semibold shadow-sm ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  aiActive
+                    ? "bg-blue-50 text-blue-700 ring-blue-200"
+                    : "bg-white text-blue-700 ring-zinc-950/10 hover:bg-blue-50"
+                }`}
               >
                 <SparklesIcon aria-hidden className="size-5" />
-                AI ile ara
+                {aiActive ? "Aramaya dön" : "AI ile ara"}
               </button>
             ) : null}
-            {ai && aiActive ? (
-              <button
-                type="button"
-                aria-pressed
-                onClick={() => setAiMode(false)}
-                className="mr-1 hidden h-12 shrink-0 items-center gap-2 self-end rounded-full px-4 text-sm font-semibold text-zinc-600 transition hover:text-zinc-900 sm:inline-flex"
-              >
-                <MagnifyingGlassIcon aria-hidden className="size-5" />
-                Ara
-              </button>
-            ) : null}
-            <button
-              type="submit"
-              disabled={aiActive && intent.isPending}
-              className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
-            >
-              {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
-              {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
-            </button>
           </div>
           {aiActive ? (
             <p className="mt-2 text-xs text-zinc-500">
@@ -558,6 +572,11 @@ export function PanelHeroSearch({
           ) : null}
         </form>
 
+        {/* SAYI BANDI — hero'nun ALTINDA (kullanıcı tasarımı): dört olgu +
+            sağda çıkış bağlantısı. SAYILAR GERÇEK; çağıran envanterden
+            geçirir, 0 olan satır hiç basılmaz. Tasarımdaki "200+ ülke /
+            50.000+ tedarikçi / 10 milyon+ ürün" YAZILMAZ — o rakamlar
+            bizde yok, uydurulmuş sayı pazarın kendisini yalanlar. */}
         {/* SEKTÖR KISAYOLLARI — ikonlu karolar (kaynak tasarım). İkon
             segmentin kendi görsel eşlemesinden (`categoryVisual`), sayı
             gerçek envanterden; sayısı 0 olan dal çağıran tarafından hiç
@@ -583,6 +602,38 @@ export function PanelHeroSearch({
           </nav>
         ) : null}
       </div>
+
+      {stats.length > 0 ? (
+        <div className="mx-auto mt-8 max-w-6xl rounded-2xl bg-white/90 px-6 py-5 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+          <dl className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-3">
+            {stats.map((st) => {
+              const Icon = st.icon === "users" ? UsersIcon : st.icon === "building" ? BuildingOffice2Icon : st.icon === "cube" ? CubeIcon : GlobeAltIcon;
+              return (
+                <div key={st.label} className="flex items-center gap-3 text-left">
+                  <Icon aria-hidden className="size-7 shrink-0 text-blue-600" />
+                  <span>
+                    <dd className="tnum block text-lg font-semibold text-zinc-950">{st.value}</dd>
+                    <dt className="block text-xs text-zinc-500">{st.label}</dt>
+                  </span>
+                </div>
+              );
+            })}
+          </dl>
+          {statsCta ? (
+            <Link
+              href={statsCta.href}
+              className="inline-flex items-center gap-3 text-sm text-zinc-600 transition hover:text-zinc-900"
+            >
+              <span className="max-w-[14rem] text-right">{statsCta.label}</span>
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                <ArrowRightIcon aria-hidden className="size-4" />
+              </span>
+            </Link>
+          ) : null}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
