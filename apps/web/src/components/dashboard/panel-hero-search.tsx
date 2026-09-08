@@ -6,7 +6,6 @@ import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { BuildingOffice2Icon, CubeIcon, GlobeAltIcon, UsersIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
-import { COMPANY_ACTIVITIES } from "@rothern/shared";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -74,7 +73,6 @@ export function PanelHeroSearch({
   onQueryChange,
   ai,
   supplierScope,
-  activityFilter = false,
 }: {
   eyebrow?: string;
   title: string;
@@ -115,12 +113,6 @@ export function PanelHeroSearch({
    * dizininde karşılığı yok — açık bırakmak çalışmayan bir seçenek olurdu.
    */
   supplierScope?: { action: string; placeholder: string; label?: string };
-  /**
-   * Çubuğun sağındaki TEDARİKÇİ TÜRÜ seçici (kullanıcı tasarımı). Seçim
-   * sonuç adresine `?faaliyet=<kod>` olarak yazılır — facet ile aynı kodlar.
-   * Verilmezse seçici çizilmez (satış panosunun karşılığı yok).
-   */
-  activityFilter?: boolean;
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
@@ -133,7 +125,6 @@ export function PanelHeroSearch({
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
   const [scope, setScope] = useState<"products" | "suppliers">("products");
-  const [activity, setActivity] = useState("");
   const intent = useAiSearchIntent();
   const aiActive = !!ai && aiMode;
   const supplierMode = !!supplierScope && !aiActive && scope === "suppliers";
@@ -166,8 +157,6 @@ export function PanelHeroSearch({
     keep.delete("sayfa");
     const parts = [...keep.entries()].map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
-    // Tedarikçi türü seçiliyse sonuç adresine yazılır ("Tümü"de hiç yazılmaz).
-    if (activity) parts.push(`faaliyet=${encodeURIComponent(activity)}`);
     router.push(parts.length ? `${targetAction}?${parts.join("&")}` : targetAction);
   };
   const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
@@ -217,7 +206,10 @@ export function PanelHeroSearch({
          (satış) eski kompakt hero. */
       className={
         backdrop
-          ? "relative isolate w-[100cqw] max-w-none ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-blue-50/50 via-transparent to-white px-4 pt-10 pb-10 sm:px-6 lg:px-8 xl:px-10"
+          /* `-mt-6 lg:-mt-8`: kabuğun içerik sarmalayıcısı `py-6 lg:py-8`
+             taşıyor; bant onu da iptal eder ki fotoğraf üst çubuğun HEMEN
+             ALTINDA başlasın (kullanıcı: "arada boşluk olmasın"). */
+          ? "relative isolate -mt-6 w-[100cqw] max-w-none ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-transparent via-transparent to-white px-4 pt-10 pb-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
@@ -269,9 +261,14 @@ export function PanelHeroSearch({
                  iki uçta %12 saydama iner. */
               style={{
                 maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 12%, black 68%, transparent 100%), linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+                  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
                 WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 12%, black 68%, transparent 100%), linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+                  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
+                /* NETLİK (kullanıcı: "çok silik ve blurlu"): kaynak görsel
+                   yumuşak bir kompozisyon; hafif kontrast/doygunluk artışı
+                   onu keskinleştirir — filtre görselin KENDİSİNE uygulanır,
+                   metne dokunmaz. */
+                filter: "contrast(1.12) saturate(1.12) brightness(1.01)",
                 maskComposite: "intersect",
                 WebkitMaskComposite: "source-in",
               }}
@@ -284,7 +281,7 @@ export function PanelHeroSearch({
             className="pointer-events-none absolute inset-x-0 top-0 -z-[5] mx-auto h-[22rem] w-[min(60rem,94%)]"
             style={{
               background:
-                "radial-gradient(56% 58% at 50% 40%, rgb(255 255 255 / 0.62) 38%, rgb(255 255 255 / 0.28) 72%, transparent 100%)",
+                "radial-gradient(52% 54% at 50% 38%, rgb(255 255 255 / 0.5) 35%, rgb(255 255 255 / 0.22) 70%, transparent 100%)",
             }}
           />
         </>
@@ -363,130 +360,112 @@ export function PanelHeroSearch({
           }}
           className={ai ? "relative mt-4" : "relative mt-7"}
         >
-          {/* ARAMA ÇUBUĞU (kullanıcı tasarımı, 2026-09-08): tek beyaz hap —
-              SOLDA kapsam seçici (Ürün / Tedarikçi), ortada arama alanı,
-              SAĞDA tedarikçi türü seçici ve "Ara →". "AI ile ara" çubuğun
-              DIŞINDA, çerçeveli ikincil düğme.
-
-              Seçicilerin ikisi de GERÇEK iş yapar: kapsam formun hedefini
-              (ürün dizini ↔ firma dizini), tür seçici sonuç adresine
-              `?faaliyet=` yazar. Çalışmayan süs kontrol koymuyoruz. */}
-          <div className="flex flex-wrap items-stretch justify-center gap-3">
+          {/* KAPSAM PİLLERİ — çubuğun ÜSTÜNDE (kullanıcı tasarımı,
+              2026-09-08 ikinci tur): seçili taraf mavi dolgu, diğeri sessiz
+              beyaz. Açılır seçici yerine pil: iki seçenek var, tıklaması bir
+              adım kısa ve hangisinin seçili olduğu bakışta okunuyor. */}
+          {supplierScope && !aiActive ? (
             <div
-              className={`relative flex min-w-0 flex-1 bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
-                aiActive
-                  ? "items-end rounded-3xl ring-blue-200 focus-within:ring-blue-500"
-                  : "items-center rounded-full ring-zinc-950/10 focus-within:ring-blue-500"
-              }`}
+              role="group"
+              aria-label="Arama kapsamı"
+              className="mx-auto mb-3 inline-flex rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur"
             >
-              {supplierScope && !aiActive ? (
-                <label className="flex shrink-0 items-center gap-2 rounded-full px-3 text-sm font-medium text-zinc-800">
-                  <CubeIcon aria-hidden className="size-5 text-zinc-500" />
-                  <span className="sr-only">Arama kapsamı</span>
-                  <select
-                    value={scope}
-                    onChange={(e) => setScope(e.target.value as "products" | "suppliers")}
-                    className="cursor-pointer appearance-none bg-transparent pr-5 outline-none"
-                    style={{
-                      backgroundImage:
-                        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2371717a'><path d='M5.2 7.5 10 12.3l4.8-4.8'/></svg>\")",
-                      backgroundRepeat: "no-repeat",
-                      backgroundPosition: "right center",
-                      backgroundSize: "16px",
-                    }}
-                  >
-                    <option value="products">Ürün</option>
-                    <option value="suppliers">{supplierScope.label ?? "Tedarikçi"}</option>
-                  </select>
-                </label>
-              ) : null}
-              {supplierScope && !aiActive ? <span aria-hidden className="my-2 w-px bg-zinc-200" /> : null}
-              {aiActive ? (
-                <SparklesIcon aria-hidden className="pointer-events-none absolute top-5 left-5 size-5 text-blue-600" />
-              ) : null}
-              {aiActive ? (
-                <textarea
-                  name="q"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  onKeyDown={onAiKey}
-                  rows={2}
-                  placeholder={aiPlaceholder}
-                  aria-label="AI ile ara"
-                  maxLength={500}
-                  className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-                />
-              ) : (
-                <span className="relative flex min-w-[8rem] flex-1 items-center">
-                  <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-3 size-5 text-zinc-400" />
-                  <input
-                    type="search"
-                    name="q"
-                    value={q}
-                    onChange={(e) => {
-                      setQ(e.target.value);
-                      onQueryChange?.(e.target.value);
-                      setOpen(true);
-                    }}
-                    onFocus={() => setOpen(true)}
-                    placeholder={targetPlaceholder}
-                    aria-label={title}
-                    autoComplete="off"
-                    className="h-12 w-full bg-transparent pr-3 pl-10 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
-                  />
-                </span>
-              )}
-              {/* TEDARİKÇİ TÜRÜ — sonuç adresine `?faaliyet=` yazar (facet
-                  ile aynı kodlar). "Tümü" seçiliyken parametre hiç yazılmaz. */}
-              {activityFilter && !aiActive ? (
-                <>
-                  <span aria-hidden className="my-2 hidden w-px bg-zinc-200 lg:block" />
-                  <label className="hidden shrink-0 items-center gap-2 rounded-full px-3 text-sm font-medium text-zinc-800 lg:flex">
-                    <BuildingOffice2Icon aria-hidden className="size-5 text-zinc-500" />
-                    <span className="sr-only">Tedarikçi türü</span>
-                    <select
-                      value={activity}
-                      onChange={(e) => setActivity(e.target.value)}
-                      className="max-w-[10rem] cursor-pointer appearance-none truncate bg-transparent pr-5 outline-none"
-                    >
-                      <option value="">Tedarikçi</option>
-                      {COMPANY_ACTIVITIES.map((a) => (
-                        <option key={a.code} value={a.code}>
-                          {a.nameTr}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              ) : null}
-              <button
-                type="submit"
-                disabled={aiActive && intent.isPending}
-                className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
-              >
-                {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
-                {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
-              </button>
-            </div>
-
-            {/* AI — çubuğun DIŞINDA, çerçeveli (kaynak tasarım). */}
-            {ai ? (
               <button
                 type="button"
-                aria-pressed={aiActive}
-                disabled={!ai.enabled}
-                title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
-                onClick={() => ai.enabled && setAiMode(!aiMode)}
-                className={`inline-flex h-16 shrink-0 items-center gap-2 rounded-full px-6 text-sm font-semibold shadow-sm ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  aiActive
-                    ? "bg-blue-50 text-blue-700 ring-blue-200"
-                    : "bg-white text-blue-700 ring-zinc-950/10 hover:bg-blue-50"
+                aria-pressed={scope === "products"}
+                onClick={() => setScope("products")}
+                className={`inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition ${
+                  scope === "products" ? `${tone.btn} text-white shadow-sm` : "text-zinc-700 hover:text-zinc-950"
                 }`}
               >
-                <SparklesIcon aria-hidden className="size-5" />
-                {aiActive ? "Aramaya dön" : "AI ile ara"}
+                <CubeIcon aria-hidden className="size-5" />
+                Ürün
               </button>
+              <button
+                type="button"
+                aria-pressed={scope === "suppliers"}
+                onClick={() => setScope("suppliers")}
+                className={`inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition ${
+                  scope === "suppliers" ? `${tone.btn} text-white shadow-sm` : "text-zinc-700 hover:text-zinc-950"
+                }`}
+              >
+                <BuildingOffice2Icon aria-hidden className="size-5" />
+                {supplierScope.label ?? "Tedarikçi"}
+              </button>
+            </div>
+          ) : null}
+
+          {/* ARAMA ÇUBUĞU: tek beyaz hap — solda büyüteç, ortada alan, sağda
+              "AI ile ara" (açık mavi) ve "Ara →" (dolu mavi). İkisi de
+              ÇUBUĞUN İÇİNDE (kullanıcı tasarımı). */}
+          <div
+            className={`relative mx-auto flex bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
+              aiActive
+                ? "items-end rounded-3xl ring-blue-200 focus-within:ring-blue-500"
+                : "items-center rounded-full ring-zinc-950/10 focus-within:ring-blue-500"
+            }`}
+          >
+            {aiActive ? (
+              <SparklesIcon aria-hidden className="pointer-events-none absolute top-5 left-5 size-5 text-blue-600" />
             ) : null}
+            {aiActive ? (
+              <textarea
+                name="q"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={onAiKey}
+                rows={2}
+                placeholder={aiPlaceholder}
+                aria-label="AI ile ara"
+                maxLength={500}
+                className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+              />
+            ) : (
+              <span className="relative flex min-w-[8rem] flex-1 items-center">
+                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-4 size-5 text-zinc-400" />
+                <input
+                  type="search"
+                  name="q"
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    onQueryChange?.(e.target.value);
+                    setOpen(true);
+                  }}
+                  onFocus={() => setOpen(true)}
+                  placeholder={targetPlaceholder}
+                  aria-label={title}
+                  autoComplete="off"
+                  className="h-12 w-full bg-transparent pr-3 pl-12 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                />
+              </span>
+            )}
+            {ai ? (
+              <>
+                <span aria-hidden className="my-2 hidden w-px bg-zinc-200 sm:block" />
+                <button
+                  type="button"
+                  aria-pressed={aiActive}
+                  disabled={!ai.enabled}
+                  title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
+                  onClick={() => ai.enabled && setAiMode(!aiMode)}
+                  className={`mx-1 hidden h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
+                    aiActive ? "bg-blue-100 text-blue-800" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  }`}
+                >
+                  <SparklesIcon aria-hidden className="size-5" />
+                  {aiActive ? "Aramaya dön" : "AI ile ara"}
+                </button>
+              </>
+            ) : null}
+            <button
+              type="submit"
+              disabled={aiActive && intent.isPending}
+              className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
+            >
+              {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
+              {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
+            </button>
           </div>
           {aiActive ? (
             <p className="mt-2 text-xs text-zinc-500">

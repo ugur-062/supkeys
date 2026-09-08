@@ -157,7 +157,8 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {
         ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
       />,
     );
-    await user.selectOptions(screen.getByLabelText("Arama kapsamı"), "suppliers");
+    // 2026-09-08 (kullanıcı tasarımı): kapsam açılır seçici değil PİL.
+    await user.click(screen.getByRole("button", { name: "Tedarikçi" }));
     expect(screen.getByPlaceholderText("Firma adı, sektör ya da sattığı ürün arayın")).toBeInTheDocument();
 
     await user.type(screen.getByRole("searchbox"), "medikal");
@@ -168,29 +169,7 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {
     expect(push).toHaveBeenLastCalledWith("/company/satinalma/firmalar?q=medikal");
   });
 
-  it("TEDARİKÇİ TÜRÜ seçimi sonuç adresine `faaliyet` yazar", async () => {
-    const user = userEvent.setup();
-    render(
-      <PanelHeroSearch
-        title="T"
-        lead="l"
-        placeholder="p"
-        action="/company/satinalma/urunler"
-        accent="blue"
-        activityFilter
-        supplierScope={{ action: "/company/satinalma/firmalar", placeholder: "f" }}
-      />,
-    );
-    await user.selectOptions(screen.getByLabelText("Tedarikçi türü"), "MANUFACTURER");
-    await user.type(screen.getByRole("searchbox"), "pano");
-    const submit = screen
-      .getAllByRole("button", { name: /^Ara/ })
-      .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
-    await user.click(submit);
-    expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler?q=pano&faaliyet=MANUFACTURER");
-  });
-
-  it("AI modunda kapsam ve tür seçicileri ÇİZİLMEZ (AI yorumu ürün süzgeci üretir)", async () => {
+  it("AI modunda kapsam pilleri ÇİZİLMEZ (AI yorumu ürün süzgeci üretir)", async () => {
     const user = userEvent.setup();
     render(
       <PanelHeroSearch
@@ -199,15 +178,13 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {
         placeholder="p"
         action="/company/satinalma/urunler"
         accent="blue"
-        activityFilter
         supplierScope={{ action: "/company/satinalma/firmalar", placeholder: "f" }}
         ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
       />,
     );
-    expect(screen.getByLabelText("Arama kapsamı")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Arama kapsamı" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /AI ile ara/ }));
-    expect(screen.queryByLabelText("Arama kapsamı")).toBeNull();
-    expect(screen.queryByLabelText("Tedarikçi türü")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Arama kapsamı" })).toBeNull();
   });
 });
 

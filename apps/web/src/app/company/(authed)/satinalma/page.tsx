@@ -154,7 +154,7 @@ export default function SatinalmaDashboardPage() {
         title="Daha güçlü iş bağlantıları"
         titleAccent="daha büyük fırsatlar"
         lead="Doğrulanmış tedarikçilerle tanışın, ihtiyaçlarınızı paylaşın, işinizi büyütün."
-        placeholder="Ne arıyorsunuz?"
+        placeholder="Ürün, firma veya sektör arayın..."
         action={PANEL_MARKET.products}
         /* Aynı kutu iki dizine gider (kullanıcı isteği, kaynak kalıp):
            "Ürün" → ürün dizini, "Tedarikçi" → firma dizini. */
@@ -163,8 +163,6 @@ export default function SatinalmaDashboardPage() {
           placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
           label: "Tedarikçi",
         }}
-        /* Çubuğun sağındaki tür seçici sonuç adresine `?faaliyet=` yazar. */
-        activityFilter
         accent="blue"
         stats={heroStats}
         statsCta={{ label: "Doğru tedarikçiyle daha fazlasını mümkün kılın", href: PANEL_MARKET.companies }}
