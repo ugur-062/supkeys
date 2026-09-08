@@ -60,6 +60,7 @@ export function PanelHeroSearch({
   eyebrow,
   title,
   titleAccent,
+  splitTitle = false,
   lead,
   placeholder,
   action,
@@ -82,6 +83,12 @@ export function PanelHeroSearch({
    * davranış: ilk sözcük koyu, kalanı renkli.
    */
   titleAccent?: string;
+  /**
+   * `titleAccent` ile birlikte BİRİNCİ satırın da ilk sözcükten sonra
+   * renklenmesi ("Hangi **talebe**"). Satış tasarımı böyle; satınalmada ilk
+   * satır tümüyle koyu kalır — bu yüzden davranış çağırandan gelir.
+   */
+  splitTitle?: boolean;
   lead: string;
   placeholder: string;
   /** Sonuç sayfası — `?q=` okuyan liste. */
@@ -215,7 +222,12 @@ export function PanelHeroSearch({
           /* `-mt-6 lg:-mt-8`: kabuğun içerik sarmalayıcısı `py-6 lg:py-8`
              taşıyor; bant onu da iptal eder ki fotoğraf üst çubuğun HEMEN
              ALTINDA başlasın (kullanıcı: "arada boşluk olmasın"). */
-          ? "relative isolate -mt-6 w-[100cqw] max-w-none ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-transparent via-transparent to-white px-4 pt-10 pb-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
+          /* `min-h` + dikey ortalama (2026-09-08, kullanıcı: "iki portalın
+             arka plan fotoğrafı aynı uzunlukta olsun"): bant yüksekliği
+             İÇERİĞE bağlıydı — satınalmada kapsam pilleri ve "talep aç"
+             satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
+             Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
+          ? "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-transparent via-transparent to-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
@@ -306,7 +318,11 @@ export function PanelHeroSearch({
         />
       )}
 
-      <div className={backdrop ? "mx-auto max-w-4xl text-center" : "mx-auto max-w-2xl text-center"}>
+      {/* `w-full` ŞART (2026-09-08, ölçümle bulundu): bant dikey ortalama
+          için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
+          eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —
+          arama kutusu 896 px yerine 557 px'e inip yer tutucuyu kırpıyordu. */}
+      <div className={backdrop ? "mx-auto w-full max-w-4xl text-center" : "mx-auto max-w-2xl text-center"}>
         {eyebrow ? (
           /* Üst etiket: BÜYÜK HARF + geniş harf aralığı, iki yanında ince
              çizgi (kullanıcı tasarımı). */
@@ -325,18 +341,18 @@ export function PanelHeroSearch({
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
           {titleAccent ? (
             <>
-              {/* İlk sözcük koyu, kalanı renkli; ikinci satır tamamen renkli
-                  (kaynak tasarım: "Hangi talebe / teklif vereceksiniz?"). */}
-              {(() => {
-                const i = title.indexOf(" ");
-                if (i < 0) return title;
-                return (
-                  <>
-                    {title.slice(0, i)}{" "}
-                    <span className={tone.accentText}>{title.slice(i + 1)}</span>
-                  </>
-                );
-              })()}
+              {splitTitle
+                ? (() => {
+                    const i = title.indexOf(" ");
+                    if (i < 0) return title;
+                    return (
+                      <>
+                        {title.slice(0, i)}{" "}
+                        <span className={tone.accentText}>{title.slice(i + 1)}</span>
+                      </>
+                    );
+                  })()
+                : title}
               <span className={`block ${tone.accentText}`}>{titleAccent}</span>
             </>
           ) : (

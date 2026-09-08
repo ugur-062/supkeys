@@ -120,6 +120,7 @@ export function SatisDashboardView() {
         eyebrow="Satın alma talepleri"
         title="Hangi talebe"
         titleAccent="teklif vereceksiniz?"
+        splitTitle
         lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
         placeholder="Talep, talep numarası veya firma arayın"
         action="/company/satis"
