@@ -12,7 +12,6 @@ import {
   useCategorySegments,
   useDiscoverProductFacets,
   useDiscoverProducts,
-  useDiscoverSearch,
 } from "@/hooks/use-portal-discovery";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { buildShowcase } from "@/lib/public/category-showcase";
@@ -65,17 +64,6 @@ export default function SatinalmaDashboardPage() {
 
   // Kategori vitrini + çipler: ürün dizini facet'i (L1 sayaçları) + 58 segment.
   const facets = useDiscoverProductFacets();
-  /* Hero'nun üç olgusu ve sektör kısayolları GERÇEK envanterden: ürün ve
-     firma toplamı tek satırlık sorgularla (react-query önbelleğinde dizin
-     sayfalarıyla paylaşılır), sektör sayısı ürünü OLAN L1 dalların sayısı.
-     Şişirilmiş "200+ ülke / milyonlarca ürün" yazılmaz. */
-  const productTotal = useDiscoverSearch({ pageSize: 1 });
-  /* `{}` DEĞİL `{ hasProducts: true }`: öneri hook'u `useCompanySearch({ q })`
-     ile aynı sorgu anahtarına düşüyordu (serileştirmede `undefined` alanlar
-     atlanır) ve o hook `enabled:false` olduğu için sorgu HİÇ koşmuyordu —
-     "Tedarikçi firma" sayısı bu yüzden boş geliyordu (canlı ekranda
-     görüldü). Ayrı anahtar + anlamlı süzgeç: vitrini dolu tedarikçiler. */
-  const companyTotal = useCompanySearch({ hasProducts: true });
   const segments = useCategorySegments();
   // 3 satır × (1 promo + 10 kart) = 33 segment. `buildShowcase` sırası:
   // ürünü OLAN dallar önce (sayıya göre), sonra küratörlü sıra — promo
@@ -96,22 +84,6 @@ export default function SatinalmaDashboardPage() {
   // ızgarasına eklenir (`toShowcaseRows`), hiçbiri düşmez.
   const rows = useMemo(() => toShowcaseRows(showcase, 6), [showcase]);
 
-  const heroStats = [
-    productTotal.data?.total
-      ? { label: "Yayında ürün", value: productTotal.data.total.toLocaleString("tr-TR"), icon: "globe" as const }
-      : null,
-    companyTotal.data?.total
-      ? { label: "Vitrini yayında tedarikçi", value: companyTotal.data.total.toLocaleString("tr-TR"), icon: "building" as const }
-      : null,
-    (facets.data?.categories ?? []).length
-      ? {
-          label: "Ürün olan sektör",
-          value: String((facets.data?.categories ?? []).filter((c) => c.count > 0).length),
-          icon: "cube" as const,
-        }
-      : null,
-
-  ].filter(Boolean) as { label: string; value: string; icon: "globe" | "building" | "users" | "cube" }[];
   // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
   // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
   const [term, setTerm] = useState("");
@@ -164,8 +136,13 @@ export default function SatinalmaDashboardPage() {
           label: "Tedarikçi",
         }}
         accent="blue"
-        stats={heroStats}
-        statsCta={{ label: "Doğru tedarikçiyle daha fazlasını mümkün kılın", href: PANEL_MARKET.companies }}
+        /* Sayı bandı KALKTI (kullanıcı kararı): yerine tek satırlık çıkış —
+           "bulamadıysan talep aç". */
+        ctaNote={{
+          text: "Aradığınız ürünü bulamadınız mı?",
+          label: "Talep aç",
+          href: "/company/satinalma/taleplerim/yeni",
+        }}
         /* Dekoratif arka plan katmanları (dünya haritası · depo · gemi ·
            uçak). Yalnız satınalma hero'sunda; satış portalı sade kalır. */
         backdrop

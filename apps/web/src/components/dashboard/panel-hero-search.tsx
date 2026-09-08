@@ -4,7 +4,7 @@ import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
-import { BuildingOffice2Icon, CubeIcon, GlobeAltIcon, UsersIcon } from "@heroicons/react/24/outline";
+import { BuildingOffice2Icon, CubeIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
 import Link from "next/link";
@@ -65,8 +65,7 @@ export function PanelHeroSearch({
   action,
   chips = [],
   chipsLabel = "Popüler",
-  stats = [],
-  statsCta,
+  ctaNote,
   backdrop = false,
   accent = "blue",
   suggestions = [],
@@ -89,13 +88,11 @@ export function PanelHeroSearch({
   chips?: PanelHeroChip[];
   chipsLabel?: string;
   /**
-   * Hero'nun solundaki üç olgu (kaynak tasarım). SAYILAR GERÇEK olmalı —
-   * çağıran envanterden geçirir; 0 olan satır basılmaz, hiç veri yoksa kart
-   * çizilmez. "200+ ülke / milyonlarca ürün" gibi şişirilmiş rakam YOK.
+   * Arama çubuğunun ALTINDAKİ küçük çıkış (2026-09-08, kullanıcı kararı):
+   * "Aradığınız ürünü bulamadınız mı? → Talep aç". Sayı bandının yerine
+   * geçti: sayılar bilgi veriyordu ama bir sonraki adımı söylemiyordu.
    */
-  stats?: { label: string; value: string; icon?: "globe" | "users" | "building" | "cube" }[];
-  /** Sayı bandının sağındaki çıkış bağlantısı (kaynak tasarım). */
-  statsCta?: { label: string; href: string };
+  ctaNote?: { text: string; label: string; href: string };
   /**
    * DEKORATİF ARKA PLAN KATMANLARI (2026-09-08, kullanıcı varlıkları):
    * dünya haritası + depo + gemi + uçak. Yalnız görsel; içerik ve yapı
@@ -507,15 +504,25 @@ export function PanelHeroSearch({
           ) : null}
         </form>
 
-        {/* SAYI BANDI — hero'nun ALTINDA (kullanıcı tasarımı): dört olgu +
-            sağda çıkış bağlantısı. SAYILAR GERÇEK; çağıran envanterden
-            geçirir, 0 olan satır hiç basılmaz. Tasarımdaki "200+ ülke /
-            50.000+ tedarikçi / 10 milyon+ ürün" YAZILMAZ — o rakamlar
-            bizde yok, uydurulmuş sayı pazarın kendisini yalanlar. */}
         {/* SEKTÖR KISAYOLLARI — ikonlu karolar (kaynak tasarım). İkon
             segmentin kendi görsel eşlemesinden (`categoryVisual`), sayı
             gerçek envanterden; sayısı 0 olan dal çağıran tarafından hiç
             gönderilmez. */}
+        {/* KÜÇÜK ÇIKIŞ — "bulamadıysan talep aç". Sayfanın birincil CTA'sı
+            sol menüde; bu ikincil ve cümle içinde, hero'yu şişirmiyor. */}
+        {ctaNote ? (
+          <p className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm text-zinc-600">
+            {ctaNote.text}
+            <Link
+              href={ctaNote.href}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition ${tone.btn}`}
+            >
+              {ctaNote.label}
+              <ArrowRightIcon aria-hidden className="size-4" />
+            </Link>
+          </p>
+        ) : null}
+
         {chips.length > 0 ? (
           <nav
             aria-label={chipsLabel}
@@ -538,37 +545,6 @@ export function PanelHeroSearch({
         ) : null}
       </div>
 
-      {stats.length > 0 ? (
-        <div className="mx-auto mt-8 max-w-6xl rounded-2xl bg-white/90 px-6 py-5 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-6">
-          <dl className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-3">
-            {stats.map((st) => {
-              const Icon = st.icon === "users" ? UsersIcon : st.icon === "building" ? BuildingOffice2Icon : st.icon === "cube" ? CubeIcon : GlobeAltIcon;
-              return (
-                <div key={st.label} className="flex items-center gap-3 text-left">
-                  <Icon aria-hidden className="size-7 shrink-0 text-blue-600" />
-                  <span>
-                    <dd className="tnum block text-lg font-semibold text-zinc-950">{st.value}</dd>
-                    <dt className="block text-xs text-zinc-500">{st.label}</dt>
-                  </span>
-                </div>
-              );
-            })}
-          </dl>
-          {statsCta ? (
-            <Link
-              href={statsCta.href}
-              className="inline-flex items-center gap-3 text-sm text-zinc-600 transition hover:text-zinc-900"
-            >
-              <span className="max-w-[14rem] text-right">{statsCta.label}</span>
-              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                <ArrowRightIcon aria-hidden className="size-4" />
-              </span>
-            </Link>
-          ) : null}
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
