@@ -109,7 +109,11 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           Beyaz kart deseni korunur: sayfalar önceki görünümüyle aynı kalır. */}
       <main
         className={cn(
-          "flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
+          /* `@container/panel`: içerik alanı bir KAPSAYICI. Tek container
+             1320px ile sınırlı; hero bandı gibi tam genişlik isteyen bir
+             bölüm bu sınırı ancak kapsayıcı sorgusuyla aşabilir
+             (`100cqw`) — `100vw` sol menünün altına taşardı. */
+          "@container/panel flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
           pinned ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >

@@ -217,7 +217,7 @@ export function PanelHeroSearch({
          (satış) eski kompakt hero. */
       className={
         backdrop
-          ? "relative isolate -mx-4 overflow-hidden bg-gradient-to-b from-blue-50/50 via-transparent to-white px-4 pt-10 pb-10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+          ? "relative isolate w-[100cqw] max-w-none ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-blue-50/50 via-transparent to-white px-4 pt-10 pb-10 sm:px-6 lg:px-8 xl:px-10"
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
@@ -261,11 +261,19 @@ export function PanelHeroSearch({
               decoding="async"
               draggable={false}
               className="absolute inset-0 size-full object-cover object-bottom"
+              /* DÖRT KENARDAN ERİME (2026-09-08, kullanıcı: "çizgi çekilmiş
+                 gibi duruyor"). Tek yönlü maske yalnız altı yumuşatıyordu;
+                 sol/sağ/üst kenarlar bandın sınırında sert kesiliyordu.
+                 İki gradyan KESİŞTİRİLİYOR (`mask-composite: intersect`,
+                 WebKit'te `source-in`): dikeyde üst %10 ve alt %30, yatayda
+                 iki uçta %12 saydama iner. */
               style={{
                 maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 8%, black 70%, transparent 100%)",
+                  "linear-gradient(to bottom, transparent 0%, black 12%, black 68%, transparent 100%), linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
                 WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 8%, black 70%, transparent 100%)",
+                  "linear-gradient(to bottom, transparent 0%, black 12%, black 68%, transparent 100%), linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+                maskComposite: "intersect",
+                WebkitMaskComposite: "source-in",
               }}
             />
           </div>
