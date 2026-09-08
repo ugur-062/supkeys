@@ -77,8 +77,10 @@ export function MarketHeader({
   breadcrumb,
   title,
   count,
+  lead,
   trailing,
   tabs,
+  aside,
 }: {
   breadcrumb: { label: string; href?: string }[];
   /** Metin ya da iskelet — kategori sayfası ad gelene dek yer tutucu basar. */
@@ -89,22 +91,36 @@ export function MarketHeader({
    * katalog izlenimi bırakıyordu.
    */
   count?: ReactNode;
+  /** Başlık altındaki tek satır açıklama. */
+  lead?: ReactNode;
   /** Başlığın sağındaki ikincil bağlantı. */
   trailing?: ReactNode;
   /** Başlığın ALTINDA sonuç türü geçişi (Ürünler | Tedarikçiler). */
   tabs?: ReactNode;
+  /**
+   * SAĞ SÜTUN — kategori görseli (2026-09-08, kullanıcı tasarımı). `lg`
+   * altında çizilmez: dar ekranda başlıkla listenin arasına 200 px görsel
+   * koymak "ürünler nerede" sorusunu geciktirir.
+   */
+  aside?: ReactNode;
 }) {
   return (
     <div className="pt-1">
-      {/* Bulunduğun sayfa MAVİ (2026-09-08, kullanıcı kararı): pazar
+      {/* Bulunduğun sayfa MAVİ (2026-09-07, kullanıcı kararı): pazar
           bölgesi panelin satınalma tarafı, oradaki vurgu rengi mavi. */}
       <Breadcrumb items={breadcrumb} accent="blue" />
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>
-          {count ? <span className="tnum text-sm text-zinc-500">{count}</span> : null}
-        </span>
-        {trailing}
+      <div className={aside ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start" : undefined}>
+        <div className="min-w-0">
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">{title}</h1>
+              {count ? <span className="tnum text-sm text-zinc-500">{count}</span> : null}
+            </span>
+            {trailing}
+          </div>
+          {lead ? <p className="mt-1.5 max-w-2xl text-sm/6 text-zinc-500">{lead}</p> : null}
+        </div>
+        {aside ? <div className="hidden lg:block">{aside}</div> : null}
       </div>
       {tabs ? <div className="mt-4">{tabs}</div> : null}
     </div>

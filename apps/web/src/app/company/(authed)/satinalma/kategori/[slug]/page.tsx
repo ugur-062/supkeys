@@ -2,6 +2,8 @@
 
 import { PanelProductIndex } from "@/components/company/market/panel-product-index";
 import { MarketHeader, MarketTabs } from "@/components/company/market/market-band";
+import { categoryPhotoSrc, segmentPhotoSrc } from "@/lib/public/category-photos";
+import Image from "next/image";
 import { PANEL_MARKET, panelCategoryPath, parsePanelCategoryCode } from "@/lib/company/panel-market";
 import { notFound, useParams } from "next/navigation";
 
@@ -26,6 +28,7 @@ export default function PanelCategoryPage() {
 }
 
 function CategoryView({ code }: { code: string }) {
+  const photo = categoryPhotoSrc(code) ?? segmentPhotoSrc([code]);
   return (
     <PanelProductIndex
       fixedCategory={code}
@@ -49,6 +52,25 @@ function CategoryView({ code }: { code: string }) {
               ...(name ? [{ label: name }] : []),
             ]}
             count={loaded ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
+            /* Tek satır açıklama: kategoriye ÖZEL bir iddia değil, ne
+               yaptığını söyleyen sabit kalıp — kategori başına pazarlama
+               metni yazmak (ve uydurmak) yerine ad değişkeni. */
+            lead={
+              name
+                ? `${name} kategorisindeki tedarikçi ürünleri — süzün, karşılaştırın, doğrudan bilgi isteyin.`
+                : undefined
+            }
+            /* KATEGORİ GÖRSELİ (2026-09-08, kullanıcı tasarımı): 58 segmentin
+               hepsinde CC0 fotoğraf var (bkz. docs/category-photo-credits.md).
+               Yaprak dalda segmentin fotoğrafına düşer — o dal fotoğrafsız
+               kalmasın. */
+            aside={
+              photo ? (
+                <div className="relative aspect-[16/10] overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
+                  <Image src={photo} alt="" fill sizes="20rem" className="object-cover" priority={false} />
+                </div>
+              ) : undefined
+            }
             /* KATEGORİ SEÇİLİYKEN "Tedarikçiler" (kaynak kalıp): aynı
                kategorideki firmalara geçer — kategori adresle taşınır. */
             tabs={
