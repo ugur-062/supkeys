@@ -79,14 +79,15 @@ export function PanelHeroSearch({
   title: string;
   /**
    * Başlığın PORTAL RENGİNDEKİ ikinci satırı (kullanıcı tasarımı):
-   * "Daha güçlü iş bağlantıları" + "daha büyük fırsatlar". Verilmezse eski
-   * davranış: ilk sözcük koyu, kalanı renkli.
+   * "Hangi ürün için" + "tedarikçi arıyorsunuz?". Verilmezse eski davranış:
+   * ilk sözcük koyu, kalanı renkli.
    */
   titleAccent?: string;
   /**
    * `titleAccent` ile birlikte BİRİNCİ satırın da ilk sözcükten sonra
-   * renklenmesi ("Hangi **talebe**"). Satış tasarımı böyle; satınalmada ilk
-   * satır tümüyle koyu kalır — bu yüzden davranış çağırandan gelir.
+   * renklenmesi ("Hangi **ürün için**" / "Hangi **talebe**"). İki portal da
+   * böyle; prop yine de çağırandan gelir ki soru kipinde OLMAYAN bir başlık
+   * sessizce ikiye bölünmesin.
    */
   splitTitle?: boolean;
   lead: string;

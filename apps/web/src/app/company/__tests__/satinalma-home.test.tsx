@@ -87,11 +87,14 @@ beforeEach(() => {
 describe("Satınalma anasayfası", () => {
   it("hero arama + ürün önerisi + kategori vitrini + yeni eklenenler", () => {
     renderPage();
-    // Başlık iki satırlı (2026-09-08 kullanıcı tasarımı): "Daha güçlü iş
-    // bağlantıları" + portal renginde "daha büyük fırsatlar".
-    expect(
-      screen.getByRole("heading", { level: 1, name: /Daha güçlü iş bağlantıları/ }),
-    ).toBeInTheDocument();
+    // Başlık SORU kipinde ve iki satırlı (2026-09-08 kullanıcı kararı):
+    // "Hangi ürün için" + portal renginde "tedarikçi arıyorsunuz?" — satış
+    // panosundaki "Hangi talebe / teklif vereceksiniz?" ile simetrik.
+    // NOT: erişilebilir ad tek dizeye kaynıyor — ikinci satırı ayıran şey
+    // `block` sınıfı ve jsdom Tailwind'i uygulamadığı için araya boşluk
+    // girmiyor. Bu yüzden ad birinci satırdan, vurgu satırı metinden bakılır.
+    const h1 = screen.getByRole("heading", { level: 1, name: /Hangi ürün için/ });
+    expect(h1.textContent).toContain("tedarikçi arıyorsunuz?");
     expect(screen.getByRole("heading", { name: /Size uygun ürünler|Aramalarınıza göre/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();
     expect(screen.getAllByText("Şimdi tedarikçi bulun").length).toBeGreaterThan(0);

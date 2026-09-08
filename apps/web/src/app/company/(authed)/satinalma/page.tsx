@@ -123,8 +123,14 @@ export default function SatinalmaDashboardPage() {
     <div className="space-y-10">
       <PanelHeroSearch
         eyebrow="Küresel tedarik ağınız"
-        title="Daha güçlü iş bağlantıları"
-        titleAccent="daha büyük fırsatlar"
+        /* Soru kipi (2026-09-08, kullanıcı: "alım içinde de bu tarz bir soru
+           ifadesi bul"): satışın "Hangi talebe / teklif vereceksiniz?"
+           kalıbının alım tarafındaki karşılığı. Kutu hem ürün hem tedarikçi
+           arıyor (kapsam anahtarı) — soru ikisini de kapsayacak biçimde
+           kuruldu: aranan ÜRÜN, bulunacak olan TEDARİKÇİ. */
+        title="Hangi ürün için"
+        titleAccent="tedarikçi arıyorsunuz?"
+        splitTitle
         lead="Doğrulanmış tedarikçilerle tanışın, ihtiyaçlarınızı paylaşın, işinizi büyütün."
         placeholder="Ürün, firma veya sektör arayın..."
         action={PANEL_MARKET.products}
