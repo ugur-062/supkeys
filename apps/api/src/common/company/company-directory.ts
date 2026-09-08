@@ -3,6 +3,7 @@ import { isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCo
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 import { productSearchClauses } from "./product-index";
+import { FAST_REPLY_HOURS } from "./reply-time";
 
 type Db = Pick<PrismaClient, "company" | "category" | "companyItem">;
 
@@ -155,12 +156,8 @@ export async function directoryRows(
       membershipEndAt: true,
       updatedAt: true,
       createdAt: true,
-      items: {
-        where: publicProductWhere(),
-        select: { slug: true, name: true, images: true },
-        orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
-        take: 3,
-      },
+      /** "Hızlı yanıt veren" rozeti — gece cron'unun yazdığı ortanca. */
+      medianReplyHours: true,
       _count: { select: { items: { where: publicProductWhere() } } },
     },
     orderBy: [{ updatedAt: "desc" }],
@@ -205,6 +202,55 @@ export async function buildDirectory(
   // ilişkiyi iki farklı `where` ile İKİ KEZ seçemez; firma ELEMESİ buna
   // bağlanmaz (firma adıyla eşleşen firma, ürünü uymasa da listede kalır —
   // aksi hâlde arama sessizce ürün aramasına dönerdi).
+  /* ÜRÜN ÖNİZLEMESİ AYRI SORGU (2026-09-08): şerit artık fiyat ve MOQ da
+     taşıyor. Bu alanlar Prisma `Decimal` ve `directoryRows`un çıkarımına
+     girdiklerinde tip taşınabilirliği bozuluyordu (TS2742) — sayfalanmış 20
+     firma için ayrı, dar bir sorgu hem tipi temiz tutuyor hem facet yolunu
+     (aynı satırları sayar) gereksiz sütunlardan kurtarıyor. */
+  type PreviewItem = {
+    slug: string;
+    name: string;
+    image: string | null;
+    priceMode: string;
+    priceAmount: string | null;
+    priceCurrency: string;
+    moq: string | null;
+    unit: string;
+  };
+  const previewByCompany = new Map<string, PreviewItem[]>();
+  if (slice.length > 0) {
+    const previewRows = await prisma.companyItem.findMany({
+      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) } },
+      select: {
+        companyId: true,
+        slug: true,
+        name: true,
+        images: true,
+        priceMode: true,
+        priceAmount: true,
+        priceCurrency: true,
+        moq: true,
+        unit: true,
+      },
+      orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+      take: slice.length * 4,
+    });
+    for (const i of previewRows) {
+      const list = previewByCompany.get(i.companyId) ?? [];
+      if (list.length >= 4) continue;
+      list.push({
+        slug: i.slug ?? "",
+        name: i.name,
+        image: i.images[0] ?? null,
+        priceMode: i.priceMode as string,
+        priceAmount: i.priceAmount?.toString() ?? null,
+        priceCurrency: i.priceCurrency,
+        moq: i.moq?.toString() ?? null,
+        unit: i.unit,
+      });
+      previewByCompany.set(i.companyId, list);
+    }
+  }
   const matchedByCompany = new Map<string, { slug: string; name: string; image: string | null }[]>();
   const searchClauses = productSearchClauses(q.q, { includeCompanyName: false });
   if (searchClauses.length > 0 && slice.length > 0) {
@@ -219,6 +265,32 @@ export async function buildDirectory(
       if (list.length >= 3) continue;
       list.push({ slug: h.slug ?? "", name: h.name, image: h.images[0] ?? null });
       matchedByCompany.set(h.companyId, list);
+    }
+  }
+  /* ANA KATEGORİLER — firmanın YAYINDAKİ ürünlerinin gerçek kırılımı
+     (kaynak kalıp: "İthalat (257) · Gümrükleme (60)"). Beyan edilen
+     kategoriden farklıdır: beyan "hangi alandayım", bu "elimde ne var".
+     Sayfadaki firmalar için TEK `groupBy` + tek ad sorgusu. */
+  const topCategories = new Map<string, { id: string; name: string; count: number }[]>();
+  if (slice.length > 0) {
+    const grouped = await prisma.companyItem.groupBy({
+      by: ["companyId", "categoryId"],
+      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) } },
+      _count: { _all: true },
+    });
+    const codes = [...new Set(grouped.map((g) => g.categoryId).filter((c): c is string => isCategoryCode(c ?? "")))];
+    const catRows = codes.length
+      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, nameTr: true } })
+      : [];
+    const catName = new Map(catRows.map((c) => [c.id, c.nameTr]));
+    for (const g of grouped) {
+      if (!g.categoryId || !catName.has(g.categoryId)) continue;
+      const list = topCategories.get(g.companyId) ?? [];
+      list.push({ id: g.categoryId, name: catName.get(g.categoryId) as string, count: g._count._all });
+      topCategories.set(g.companyId, list);
+    }
+    for (const [k, v] of topCategories) {
+      topCategories.set(k, v.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")).slice(0, 3));
     }
   }
   return {
@@ -244,7 +316,11 @@ export async function buildDirectory(
         certifications: r.certifications.slice(0, 3),
         mainCategory: main ? { id: main, name: nameById.get(main) as string } : null,
         productCount: r._count.items,
-        productPreview: r.items.map((i) => ({ slug: i.slug ?? "", name: i.name, image: i.images[0] ?? null })),
+        /** Yayındaki ürünlerin kategori kırılımı (en çok 3) — kartın "Ana kategoriler" satırı. */
+        topCategories: topCategories.get(r.id) ?? [],
+        /** Ölçülmüş ortanca ilk yanıt süresi ≤ eşik → "Hızlı yanıt veren". Ölçüm yoksa `false`. */
+        fastReply: r.medianReplyHours != null && r.medianReplyHours <= FAST_REPLY_HOURS,
+        productPreview: previewByCompany.get(r.id) ?? [],
         /** Aramaya uyan ürünler (arama yoksa boş) — kartta vurgulu şerit. */
         matchedProducts: matchedByCompany.get(r.id) ?? [],
       };

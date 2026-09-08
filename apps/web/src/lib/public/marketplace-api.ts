@@ -425,7 +425,24 @@ export interface PublicDirectoryCard {
   verified: boolean;
   mainCategory: { id: string; name: string } | null;
   productCount: number;
-  productPreview: { slug: string; name: string; image: string | null }[];
+  /**
+   * Önizleme şeridi — 2026-09-08'den beri FİYAT ve MOQ da taşır. Eski kenar
+   * önbelleği yalnız `slug/name/image` taşıyabilir: fiyat alanları OPSİYONEL.
+   */
+  productPreview: {
+    slug: string;
+    name: string;
+    image: string | null;
+    priceMode?: string;
+    priceAmount?: string | null;
+    priceCurrency?: string;
+    moq?: string | null;
+    unit?: string;
+  }[];
+  /** Yayındaki ürünlerin kategori kırılımı (en çok 3) — kartın "Ana kategoriler" satırı. */
+  topCategories?: { id: string; name: string; count: number }[];
+  /** Ölçülmüş ortanca ilk yanıt ≤ 24 saat (gece cron'u). Ölçüm yoksa false/eksik. */
+  fastReply?: boolean;
   /** Aramaya UYAN ürünler (arama yoksa boş) — kartta vurgulu şerit. */
   matchedProducts?: { slug: string; name: string; image: string | null }[];
   /* Kart alanları (PROMPT 5) — eski kenar önbelleği taşımayabilir: OPSİYONEL. */

@@ -17,7 +17,7 @@ import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } f
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MarketHeader, MarketTabs } from "./market-band";
-import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
+import { MarketEmpty, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
 
 /**
@@ -133,11 +133,17 @@ function Inner({
         ) : !data || data.items.length === 0 ? (
           <MarketEmpty title="Bu kriterlerle firma yok." />
         ) : (
-          <MarketGrid variant="company">
+          /* YATAY LİSTE (2026-09-08, kullanıcı kararı: "kare kare değil,
+             yatay birer birer"): firma dizini bir DEĞERLENDİRME ekranı —
+             üç sütunlu ızgarada ana kategoriler, açıklama ve ürün şeridi
+             sıkışıyordu. Ürün dizini ızgara kalır (tarama ekranı). */
+          <ul className="space-y-4">
             {data.items.map((c) => (
-              <PanelCompanyCard key={c.slug} company={c} query={state.q} />
+              <li key={c.slug}>
+                <PanelCompanyCard company={c} query={state.q} />
+              </li>
             ))}
-          </MarketGrid>
+          </ul>
         )}
       </MarketListLayout>
 
@@ -160,8 +166,12 @@ function PanelCompanyCard({ company, query }: { company: DirectoryCompany; query
   const matched = company.matchedProducts ?? [];
   return (
     <CompanyCard
+      variant="wide"
       company={company}
       href={panelCompanyPath(company.rothernId ?? company.slug)}
+      /* Birincil eylem firmanın PANEL sayfası: bağlantı isteği ve mesaj
+         orada yaşıyor — kartta ayrı bir "iletişim" akışı yok. */
+      cta={{ label: "İletişime geçin", href: panelCompanyPath(company.rothernId ?? company.slug) }}
       badge={
         badge ? (
           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${badge.className}`}>

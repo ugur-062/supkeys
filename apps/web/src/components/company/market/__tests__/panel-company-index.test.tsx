@@ -56,7 +56,11 @@ const company = (i: number, over: Record<string, unknown> = {}) => ({
   verified: true,
   mainCategory: { id: "39000000", name: "Elektrik" },
   productCount: 3,
-  productPreview: [],
+  productPreview: [
+    { slug: "p1", name: "Kompanzasyon panosu", image: null, moq: "5", unit: "adet", priceAmount: "41000", priceCurrency: "TRY", priceMode: "FIXED" },
+  ],
+  topCategories: [{ id: "39121600", name: "Dağıtım panoları", count: 7 }],
+  fastReply: true,
   connectionStatus: "none",
   ...over,
 });
@@ -90,6 +94,18 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
       "href",
       "/company/satinalma/urunler",
     );
+  });
+
+  it("YATAY SATIR: portföy düğmesi, ana kategoriler, hızlı yanıt rozeti ve fiyatlı ürün şeridi", () => {
+    // 2026-09-08 (kullanıcı kararı + kaynak kalıp): dizin ızgara değil satır;
+    // satır firmayı DEĞERLENDİRMEYE yetecek kadar bilgi taşır.
+    render(<PanelCompanyIndex />);
+    expect(screen.getAllByRole("link", { name: /Portföyü görüntüle \(/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ana kategoriler").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Dağıtım panoları").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Hızlı yanıt veren").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/MOQ: 5 adet/).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "İletişime geçin" }).length).toBeGreaterThan(0);
   });
 
   it("BAĞLANTI süzgeci yalnız panelde; seçim URL'ye `baglanti` yazar ve uca `connection` gider", async () => {
