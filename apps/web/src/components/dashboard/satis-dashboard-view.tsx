@@ -115,12 +115,18 @@ export function SatisDashboardView() {
           listenin kenar süzgecinde sayaçlı — aynı bilgiyi ikinci kez basmak
           sayfayı kalabalıklaştırıyordu. */}
       <PanelHeroSearch
-        eyebrow="Açık satın alma talepleri"
-        title="Hangi talebe teklif vereceksiniz?"
+        /* Üst etiket "AÇIK" olmadan (kullanıcı kararı 2026-09-08): panelde
+           listelenen zaten açık talepler, sıfat gürültü. */
+        eyebrow="Satın alma talepleri"
+        title="Hangi talebe"
+        titleAccent="teklif vereceksiniz?"
         lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
-        placeholder="Ürün, kalem, talep numarası veya alıcı arayın"
+        placeholder="Talep, talep numarası veya firma arayın"
         action="/company/satis"
         accent="emerald"
+        /* Satış sahnesi (kullanıcı varlığı `satıs_foto.png` → webp). */
+        backdrop
+        backdropSrc="/hero/hero-scene-satis.webp"
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satis", enabled: aiEnabled, onResult: onAiResult }}

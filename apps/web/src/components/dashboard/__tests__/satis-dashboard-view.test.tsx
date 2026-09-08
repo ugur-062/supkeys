@@ -147,7 +147,11 @@ describe("SatisDashboardView", () => {
   it("arama kutusu ilk ekranda açık talepleri arar; sektör çipleri ve fotoğraflı sektör kartları YOK (2026-09-05)", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
-    expect(screen.getByRole("heading", { name: "Hangi talebe teklif vereceksiniz?" })).toBeInTheDocument();
+    // Başlık iki satır (2026-09-08): "Hangi talebe" + portal renginde
+    // "teklif vereceksiniz?"; erişilebilir ad ikisini birleştirir.
+    expect(
+      screen.getByRole("heading", { name: /Hangi talebe/ }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satis");
     expect(screen.queryByRole("navigation", { name: "Talep olan sektörler" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Talep olan sektörler" })).toBeNull();

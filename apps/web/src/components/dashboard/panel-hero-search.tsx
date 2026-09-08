@@ -67,6 +67,7 @@ export function PanelHeroSearch({
   chipsLabel = "Popüler",
   ctaNote,
   backdrop = false,
+  backdropSrc = "/hero/hero-scene.webp",
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -99,6 +100,8 @@ export function PanelHeroSearch({
    * değişmez. Verilmezse hero eski sade zemininde kalır (satış portalı).
    */
   backdrop?: boolean;
+  /** Arka plan sahnesi — verilmezse satınalma sahnesi. */
+  backdropSrc?: string;
   accent?: "blue" | "emerald";
   /**
    * İKİNCİ ARAMA KAPSAMI — "Ürün | Tedarikçi" anahtarı (2026-09-08,
@@ -182,6 +185,10 @@ export function PanelHeroSearch({
              ortasında tek kara blok olarak duruyordu. */
           btn: "bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-600",
           chip: "hover:bg-blue-600",
+          /* "AI ile ara" — birincil eylemin YUMUŞAK karşılığı; çubuğun
+             içinde "Ara"yla yarışmasın diye dolgusuz/soluk ton. */
+          soft: "bg-blue-50 text-blue-700 hover:bg-blue-100",
+          softOn: "bg-blue-100 text-blue-800",
         }
       : {
           glow: "var(--color-emerald-200)",
@@ -191,6 +198,8 @@ export function PanelHeroSearch({
           // istendi ve iki panelin dili ayrı kalmalı.
           btn: "bg-zinc-950 hover:bg-zinc-800 focus-visible:outline-zinc-950",
           chip: "hover:bg-zinc-950",
+          soft: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+          softOn: "bg-emerald-100 text-emerald-800",
         };
 
   return (
@@ -244,7 +253,7 @@ export function PanelHeroSearch({
                 tek boyutta kullanılıyor. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/hero/hero-scene.webp"
+              src={backdropSrc}
               alt=""
               loading="eager"
               decoding="async"
@@ -316,7 +325,18 @@ export function PanelHeroSearch({
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
           {titleAccent ? (
             <>
-              {title}
+              {/* İlk sözcük koyu, kalanı renkli; ikinci satır tamamen renkli
+                  (kaynak tasarım: "Hangi talebe / teklif vereceksiniz?"). */}
+              {(() => {
+                const i = title.indexOf(" ");
+                if (i < 0) return title;
+                return (
+                  <>
+                    {title.slice(0, i)}{" "}
+                    <span className={tone.accentText}>{title.slice(i + 1)}</span>
+                  </>
+                );
+              })()}
               <span className={`block ${tone.accentText}`}>{titleAccent}</span>
             </>
           ) : (
@@ -398,12 +418,12 @@ export function PanelHeroSearch({
           <div
             className={`relative mx-auto flex bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
               aiActive
-                ? "items-end rounded-3xl ring-blue-200 focus-within:ring-blue-500"
-                : "items-center rounded-full ring-zinc-950/10 focus-within:ring-blue-500"
+                ? `items-end rounded-3xl ${accent === "blue" ? "ring-blue-200 focus-within:ring-blue-500" : "ring-emerald-200 focus-within:ring-emerald-500"}`
+                : `items-center rounded-full ring-zinc-950/10 ${accent === "blue" ? "focus-within:ring-blue-500" : "focus-within:ring-emerald-500"}`
             }`}
           >
             {aiActive ? (
-              <SparklesIcon aria-hidden className="pointer-events-none absolute top-5 left-5 size-5 text-blue-600" />
+              <SparklesIcon aria-hidden className={`pointer-events-none absolute top-5 left-5 size-5 ${tone.accentText}`} />
             ) : null}
             {aiActive ? (
               <textarea
@@ -447,7 +467,7 @@ export function PanelHeroSearch({
                   title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
                   onClick={() => ai.enabled && setAiMode(!aiMode)}
                   className={`mx-1 hidden h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
-                    aiActive ? "bg-blue-100 text-blue-800" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    aiActive ? tone.softOn : tone.soft
                   }`}
                 >
                   <SparklesIcon aria-hidden className="size-5" />
