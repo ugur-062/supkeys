@@ -6,6 +6,7 @@ import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { BuildingOffice2Icon, CubeIcon, GlobeAltIcon, UsersIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
@@ -64,6 +65,7 @@ export function PanelHeroSearch({
   chips = [],
   chipsLabel = "Popüler",
   stats = [],
+  backdrop = false,
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -84,6 +86,12 @@ export function PanelHeroSearch({
    * çizilmez. "200+ ülke / milyonlarca ürün" gibi şişirilmiş rakam YOK.
    */
   stats?: { label: string; value: string; icon?: "globe" | "users" | "building" }[];
+  /**
+   * DEKORATİF ARKA PLAN KATMANLARI (2026-09-08, kullanıcı varlıkları):
+   * dünya haritası + depo + gemi + uçak. Yalnız görsel; içerik ve yapı
+   * değişmez. Verilmezse hero eski sade zemininde kalır (satış portalı).
+   */
+  backdrop?: boolean;
   accent?: "blue" | "emerald";
   /**
    * İKİNCİ ARAMA KAPSAMI — "Ürün | Tedarikçi" anahtarı (2026-09-08,
@@ -189,17 +197,101 @@ export function PanelHeroSearch({
         className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[26rem] w-[56rem] -translate-x-1/2 rounded-full opacity-40"
         style={{ background: `radial-gradient(closest-side, ${tone.glow}, transparent)` }}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-[0.18]"
-        style={{
-          backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-          color: "var(--color-blue-400)",
-          maskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
-          WebkitMaskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
-        }}
-      />
+      {backdrop ? (
+        /* DEKORATİF KATMANLAR — kullanıcı varlıkları (`public/hero/*.webp`,
+           PNG'den webp'e çevrildi: 4,1 MB → 288 KB).
+
+           KURALLAR: hepsi `absolute` + `pointer-events-none` + `-z-10`
+           (içeriğin ARKASINDA) + `aria-hidden` (ekran okuyucuya hiçbir şey
+           söylemezler) + `select-none`. Ekran küçüldükçe küçülürler;
+           depo/gemi `md` altında, uçak `sm` altında HİÇ çizilmez — dar
+           ekranda başlık ve arama kutusunun arkasına girip okunabilirliği
+           düşürüyorlardı.
+
+           Opaklıklar bilinçli düşük: bu bir e-ticaret bannerı değil, arka
+           plan dokusu. Üstlerine beyaz peçe (aşağıda) geliyor. */
+        <>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto hidden max-w-5xl select-none opacity-[0.22] sm:block"
+          >
+            <Image
+              src="/hero/world-map-routes.webp"
+              alt=""
+              width={1360}
+              height={410}
+              sizes="(max-width: 1280px) 100vw, 1024px"
+              className="h-auto w-full"
+              priority={false}
+            />
+          </span>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden w-40 select-none opacity-40 md:block lg:w-56 xl:w-64"
+          >
+            <Image
+              src="/hero/warehouse-containers-forklift.webp"
+              alt=""
+              width={720}
+              height={619}
+              sizes="16rem"
+              className="h-auto w-full"
+            />
+          </span>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-0 bottom-0 -z-10 hidden w-36 select-none opacity-40 md:block lg:w-52 xl:w-60"
+          >
+            <Image
+              src="/hero/cargo-ship-port.webp"
+              alt=""
+              width={592}
+              height={659}
+              sizes="15rem"
+              className="h-auto w-full"
+            />
+          </span>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-4 right-6 -z-10 hidden w-20 select-none opacity-50 sm:block lg:w-28"
+          >
+            <Image
+              src="/hero/airplane.webp"
+              alt=""
+              width={295}
+              height={215}
+              sizes="7rem"
+              className="h-auto w-full"
+            />
+          </span>
+          {/* BEYAZ PEÇE — görsellerin ÜSTÜNDE, içeriğin ALTINDA. Başlık,
+              arama kutusu ve sektör karolarının arkası temiz kalsın diye:
+              merkezde tam beyaz, kenarlara doğru saydam. Okunabilirlik
+              pazarlık konusu değil. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-[5]"
+            style={{
+              background:
+                "radial-gradient(70% 62% at 50% 42%, rgb(255 255 255 / 0.92) 45%, rgb(255 255 255 / 0.55) 70%, transparent 100%)",
+            }}
+          />
+        </>
+      ) : (
+        /* Görsel verilmediğinde (satış portalı) eski sade doku. */
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-[0.18]"
+          style={{
+            backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
+            backgroundSize: "18px 18px",
+            color: "var(--color-blue-400)",
+            maskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
+            WebkitMaskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
+          }}
+        />
+      )}
+
       {/* ÜÇ OLGU — kaynak tasarımdaki sol kart. Sayılar GERÇEK (çağıran
           envanterden geçirir); dar ekranda gizlenir, hero'nun okunmasını
           bozmasın. */}

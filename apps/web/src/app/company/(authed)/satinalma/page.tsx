@@ -173,6 +173,9 @@ export default function SatinalmaDashboardPage() {
         chips={sectorChips}
         chipsLabel="Sektörler"
         stats={heroStats}
+        /* Dekoratif arka plan katmanları (dünya haritası · depo · gemi ·
+           uçak). Yalnız satınalma hero'sunda; satış portalı sade kalır. */
+        backdrop
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}

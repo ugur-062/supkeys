@@ -185,3 +185,34 @@ describe("PanelHeroSearch — kapsam anahtarı (Ürün / Tedarikçi)", () => {
     expect(screen.queryByRole("button", { name: "Tedarikçi" })).toBeNull();
   });
 });
+
+describe("PanelHeroSearch — dekoratif arka plan", () => {
+  it("`backdrop` katmanları DEKORATİFTİR: ekran okuyucuya görünmez, tıklama almaz, içeriğin arkasında", () => {
+    // 2026-09-08 (kullanıcı varlıkları): dünya haritası · depo · gemi ·
+    // uçak. Sözleşme görselin KENDİSİ değil DAVRANIŞI: alt metin yok,
+    // `pointer-events-none`, negatif z-index. Okunabilirlik pazarlık
+    // konusu değil — üstlerinde beyaz peçe var.
+    const { container } = render(
+      <PanelHeroSearch title="Ne arıyorsunuz?" lead="x" placeholder="p" action="/x" accent="blue" backdrop />,
+    );
+    const imgs = Array.from(container.querySelectorAll("img"));
+    expect(imgs.length).toBeGreaterThanOrEqual(4);
+    for (const img of imgs) {
+      expect(img.getAttribute("alt")).toBe("");
+      const layer = img.closest("[aria-hidden]") as HTMLElement | null;
+      expect(layer).not.toBeNull();
+      expect(layer?.className).toContain("pointer-events-none");
+      expect(layer?.className).toMatch(/-z-10/);
+    }
+    // Arama kutusu ve başlık yerinde (yapı değişmedi).
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+  });
+
+  it("`backdrop` verilmezse görsel HİÇ yüklenmez (satış portalı sade kalır)", () => {
+    const { container } = render(
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="emerald" />,
+    );
+    expect(container.querySelectorAll("img")).toHaveLength(0);
+  });
+});
