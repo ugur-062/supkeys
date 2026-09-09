@@ -1,8 +1,7 @@
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
-import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
-import { SEO_TAGS } from "@/lib/seo/tags";
+import { fetchCompanyProducts, fetchCompanyProfile, type PublicProfile } from "@/lib/public/marketplace-api";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -17,56 +16,13 @@ import { notFound } from "next/navigation";
 
 export const revalidate = 300;
 
-/**
- * HERKESE AÇIK PROFİL v2 (2026-09-04): tamamen gezilebilir — Hakkında,
- * hizmet, sertifika, kuruluş, çalışan, ortalama puan. Rothern ID, iletişim,
- * puan dağılımı, sipariş sayıları, talep/ilan listesi ÜYEYE (API döndürmez).
- */
-interface PublicProfile {
-  name: string;
-  goldMember?: boolean;
-  verified?: boolean;
-  slug: string | null;
-  industry: string | null;
-  activities?: string[];
-  categories: { id: string; name: string }[];
-  city: string | null;
-  country: string | null;
-  logoUrl: string | null;
-  coverImageUrl: string | null;
-  photos: string[];
-  aboutText: string | null;
-  services: string[];
-  certifications: string[];
-  certificateImages: string[];
-  foundedYear: number | null;
-  employeeCount: string | null;
-  ratingAvg: number | null;
-  productCount: number;
-}
-
-async function fetchProfile(slug: string): Promise<PublicProfile | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(
-      `${base}/public/companies/${encodeURIComponent(slug)}`,
-      { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as PublicProfile;
-  } catch {
-    return null;
-  }
-}
-
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const p = await fetchProfile(slug);
+  const p = await fetchCompanyProfile(slug);
   if (!p) return { title: "Firma bulunamadı", robots: { index: false } };
   /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
      sayfanın JSON-LD'si aynı olgulardan türer. Eskiden başlık markayı elle
@@ -92,6 +48,8 @@ function seoInput(slug: string, p: PublicProfile, products?: { name: string; slu
     verified: p.verified,
     productCount: p.productCount,
     products,
+    website: p.website,
+    linkedinUrl: p.linkedinUrl,
   };
 }
 
@@ -114,7 +72,7 @@ export default async function PublicCompanyProfile({
   // paylaşmak ileride kopyala-yapıştır bağlantıda yanlış listeyi sayfalar.
   const productPage = Math.max(1, Number(sp?.urunSayfa ?? 1) || 1);
   const [p, products] = await Promise.all([
-    fetchProfile(slug),
+    fetchCompanyProfile(slug),
     fetchCompanyProducts(slug, { q: productQuery, page: productPage }),
   ]);
   if (!p) notFound();

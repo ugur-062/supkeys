@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   // Vercel kendi çıktısını yönetir; standalone yalnız Docker/Coolify için.
   output: process.env.VERCEL ? undefined : "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  // OG kartı fontları (SEO Parça 6): `readFile` ile okunur; izleyici bazen
+  // dinamik yolu kaçırır → sunucusuz pakete AÇIKÇA eklenir.
+  outputFileTracingIncludes: {
+    "/**/opengraph-image": ["./src/lib/seo/og/fonts/*.ttf"],
+    "/**/twitter-image": ["./src/lib/seo/og/fonts/*.ttf"],
+    "/opengraph-image": ["./src/lib/seo/og/fonts/*.ttf"],
+    "/twitter-image": ["./src/lib/seo/og/fonts/*.ttf"],
+  },
   // Monorepo workspace paketini DERLEMEYE göm (harici require etme). Aksi halde
   // standalone çıktı @rothern/shared'i kopyalamıyor, symlink ile repo köküne
   // çözüyor → Docker imajında (monorepo yok) runtime'da modül bulunamıyordu.

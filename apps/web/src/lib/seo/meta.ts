@@ -91,7 +91,9 @@ export function buildMetadata({
       ...(abs.length ? { images: abs } : {}),
     },
     twitter: {
-      card: abs.length ? "summary_large_image" : "summary",
+      // Her herkese açık sayfanın 1200×630 kartı var (kök `opengraph-image`
+      // + varlık bazlı `opengraph-image.tsx`, Parça 6) → büyük kart her yerde.
+      card: "summary_large_image",
       title,
       description: desc,
       ...(abs.length ? { images: abs } : {}),

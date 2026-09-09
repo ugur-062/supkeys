@@ -313,6 +313,52 @@ export interface PublicProductCompany {
   website?: string | null;
 }
 
+/**
+ * HERKESE AÇIK PROFİL v2 (2026-09-04): tamamen gezilebilir — Hakkında,
+ * hizmet, sertifika, kuruluş, çalışan, ortalama puan. Rothern ID, iletişim,
+ * puan dağılımı, sipariş sayıları, talep/ilan listesi ÜYEYE (API döndürmez).
+ */
+export interface PublicProfile {
+  name: string;
+  goldMember?: boolean;
+  verified?: boolean;
+  slug: string | null;
+  industry: string | null;
+  activities?: string[];
+  categories: { id: string; name: string }[];
+  city: string | null;
+  country: string | null;
+  logoUrl: string | null;
+  coverImageUrl: string | null;
+  photos: string[];
+  aboutText: string | null;
+  services: string[];
+  certifications: string[];
+  certificateImages: string[];
+  foundedYear: number | null;
+  employeeCount: string | null;
+  ratingAvg: number | null;
+  productCount: number;
+  /** Herkese açık (2026-09-09): JSON-LD `sameAs` + profil bağlantıları. */
+  website?: string | null;
+  linkedinUrl?: string | null;
+}
+
+/** Firma profili — sayfa VE OG görseli aynı çağrıyı (ve etiketi) kullanır. */
+export async function fetchCompanyProfile(slug: string): Promise<PublicProfile | null> {
+  const base = resolveApiBaseUrl();
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base}/public/companies/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as PublicProfile;
+  } catch {
+    return null;
+  }
+}
+
 export interface PublicProductPage {
   items: PublicProductCard[];
   total: number;
