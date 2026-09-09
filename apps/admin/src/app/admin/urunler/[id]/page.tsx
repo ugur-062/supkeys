@@ -20,7 +20,9 @@ const PRICE_MODE: Record<string, string> = { FIXED: "Sabit fiyat", TIERED: "Kade
 /**
  * ÜRÜN İNCELEME — ziyaretçinin göreceği her şey burada (görseller, açıklama,
  * nitelikler, fiyat/MOQ, belgeler) + firma bağlamı. Karar: Onayla → anında
- * vitrin; Reddet → gerekçe zorunlu (≥10 karakter), firmaya e-posta + bildirim.
+ * vitrin; Düzeltmeye gönder → gerekçe zorunlu (≥10 karakter), firmaya e-posta +
+ * bildirim; firma bu karara kadar ürünü DEĞİŞTİREMEZ (inceleme kilidi,
+ * 2026-09-10) — düzeltme isteği kilidi açar, firma düzenleyip yeniden gönderir.
  */
 function ProductReview({ id }: { id: string }) {
   const { data: p, isLoading, isError, refetch } = useAdminProductDetail(id);
@@ -66,7 +68,7 @@ function ProductReview({ id }: { id: string }) {
             {p.reviewedAt ? <span className="text-admin-text-muted text-xs">karar {safeFormat(p.reviewedAt, "d MMM yyyy HH:mm")}</span> : null}
           </div>
           {p.rejectReason ? (
-            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-600/20">Red gerekçesi: {p.rejectReason}</p>
+            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-600/20">Düzeltme gerekçesi: {p.rejectReason}</p>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -78,7 +80,7 @@ function ProductReview({ id }: { id: string }) {
           {pending ? (
             <>
               <Button variant="danger" disabled={act.isPending} onClick={() => setRejectOpen(true)}>
-                <X className="h-4 w-4" /> Reddet
+                <X className="h-4 w-4" /> Düzeltmeye gönder
               </Button>
               <Button
                 disabled={act.isPending}
@@ -161,23 +163,23 @@ function ProductReview({ id }: { id: string }) {
             </dl>
           </section>
           <p className="text-admin-text-muted text-xs/5">
-            Onay: ürün anında vitrine çıkar, arama motorlarına bildirilir. Red: gerekçe firmaya e-posta ve bildirimle gider; ürün düzenlenip yeniden gönderilebilir.
+            Onay: ürün anında vitrine çıkar, arama motorlarına bildirilir. Düzeltmeye gönder: gerekçe firmaya e-posta ve bildirimle gider; firma ancak bu karardan sonra ürünü düzenleyip yeniden gönderebilir (incelemedeyken kilitli). Yayındaki ürün düzeltme tamamlanana kadar vitrinden çekilir.
           </p>
         </aside>
       </div>
 
       <PromptDialog
         open={rejectOpen}
-        title="Ürünü reddet"
-        description="Gerekçe firmaya iletilir — neyin düzeltilmesi gerektiğini yazın (en az 10 karakter)."
+        title="Düzeltmeye gönder"
+        description="Gerekçe firmaya iletilir — neyin düzeltilmesi gerektiğini yazın (en az 10 karakter). Firma düzeltip yeniden onaya gönderir."
         label="Gerekçe"
         placeholder="Örn. görseller ürüne ait değil; açıklama fiyat/iletişim bilgisi içeriyor…"
-        confirmLabel="Reddet"
+        confirmLabel="Düzeltmeye gönder"
         required
         maxLength={500}
         onConfirm={(reason) => {
           setRejectOpen(false);
-          act.mutateAsync({ action: "reject", reason }).then(() => toast.success("Ürün reddedildi, firma bilgilendirildi")).catch(err);
+          act.mutateAsync({ action: "reject", reason }).then(() => toast.success("Düzeltmeye gönderildi, firma bilgilendirildi")).catch(err);
         }}
         onClose={() => setRejectOpen(false)}
       />

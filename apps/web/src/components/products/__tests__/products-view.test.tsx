@@ -11,7 +11,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ get: vi.fn() }));
+const h = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }));
 
 // Ürün ekleme düğmeleri "Ürün ve vitrin yönetimi" iznine kapılı (yetki tablosu).
 vi.mock("@/hooks/use-company-auth", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({ user: { roles: ["SATISCI"], permissions: ["sell:product:manage"] }, company: null }),
 }));
 vi.mock("@/lib/company-auth/api", () => ({
-  companyApi: { get: h.get, post: vi.fn(), patch: vi.fn() },
+  companyApi: { get: h.get, post: vi.fn(), patch: h.patch },
 }));
 vi.mock("@/lib/api", () => ({
   api: { get: h.get },
@@ -29,6 +29,9 @@ vi.mock("../import-dialog", () => ({
 }));
 vi.mock("../product-showcase-form", () => ({
   ProductShowcaseForm: () => <div data-testid="form" />,
+}));
+vi.mock("../product-preview", () => ({
+  ProductPreview: () => <div data-testid="preview" />,
 }));
 
 import { ProductsView } from "../products-view";
@@ -109,7 +112,22 @@ function wrap(ui: React.ReactElement) {
 
 beforeEach(() => {
   h.get.mockReset();
+  h.patch.mockReset();
   h.get.mockImplementation((url: string) => {
+    // Vitrin okuma (`GET :id/showcase`) — düzenleyici/önizleme açılışı.
+    const m = url.match(/\/company\/items\/(p\d)\/showcase$/);
+    if (m) {
+      const item = ITEMS.find((i) => i.id === m[1])!;
+      return Promise.resolve({
+        data: {
+          id: item.id, name: item.name, slug: null, isPublic: item.isPublic, publishedAt: item.publishedAt,
+          reviewStatus: item.reviewStatus, submittedAt: null, reviewedAt: null, rejectReason: item.rejectReason,
+          categoryId: item.categoryId, description: null, images: [], videoUrl: null, externalUrl: null, documents: null,
+          keywords: [], attributes: null, priceMode: item.priceMode, priceAmount: null, priceTiers: null, priceCurrency: "TRY",
+          moq: null, unit: item.unit, unitCode: "PCE", completion: { score: 0, missing: [] }, publishBlockers: [], attributeDefs: [],
+        },
+      });
+    }
     if (url.includes("/categories/by-ids")) {
       return Promise.resolve({
         data: [{ id: "39121600", code: "39121600", nameTr: "Dağıtım panoları", level: 3, breadcrumb: "" }],
@@ -141,25 +159,41 @@ describe("ProductsView", () => {
     expect(within(tabs).getByRole("tab", { name: /Tümü\s*4/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Yayında\s*1/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*1/ })).toBeInTheDocument();
-    expect(within(tabs).getByRole("tab", { name: /Reddedildi\s*1/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /Düzeltme istendi\s*1/ })).toBeInTheDocument();
 
     await user.click(within(tabs).getByRole("tab", { name: /Taslak\s*1/ }));
     expect(screen.queryByText("Dağıtım panosu")).toBeNull();
     expect(screen.getByText("Kablo kanalı")).toBeInTheDocument();
   });
 
-  it("moderasyon: onay bekleyen ve reddedilen rozetleri; red gerekçesi satırda", async () => {
+  it("moderasyon: onay bekleyen ve düzeltme istenen rozetleri; düzeltme gerekçesi satırda", async () => {
     const user = userEvent.setup();
     wrap(<ProductsView />);
     await screen.findByText("Sigorta kutusu");
     const list = screen.getByRole("list");
     expect(within(list).getByText("Onay bekliyor")).toBeInTheDocument();
-    expect(within(list).getByText("Reddedildi")).toBeInTheDocument();
-    expect(within(list).getByText(/Red: Görseller ürüne ait değil/)).toBeInTheDocument();
+    expect(within(list).getByText("Düzeltme istendi")).toBeInTheDocument();
+    expect(within(list).getByText(/Düzeltme: Görseller ürüne ait değil/)).toBeInTheDocument();
     const tabs = screen.getByRole("tablist");
-    await user.click(within(tabs).getByRole("tab", { name: /Reddedildi/ }));
+    await user.click(within(tabs).getByRole("tab", { name: /Düzeltme istendi/ }));
     expect(screen.getByText("Priz grubu")).toBeInTheDocument();
     expect(screen.queryByText("Sigorta kutusu")).toBeNull();
+  });
+
+  it("İNCELEME KİLİDİ: onay bekleyen ürün FORMLA değil ÖNİZLEMEYLE açılır; açılış GET ile (boş PATCH yok)", async () => {
+    const user = userEvent.setup();
+    wrap(<ProductsView />);
+    await user.click(await screen.findByText("Sigorta kutusu")); // PENDING
+    expect(await screen.findByTestId("preview")).toBeInTheDocument();
+    expect(screen.queryByTestId("form")).toBeNull();
+    expect(screen.getByText("Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir.")).toBeInTheDocument();
+    expect(h.get.mock.calls.some(([u]) => u === "/company/items/p3/showcase")).toBe(true);
+    expect(h.patch).not.toHaveBeenCalled(); // eski boş PATCH görsel/etiket/fiyatı siliyordu
+
+    await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
+    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
+    expect(await screen.findByTestId("form")).toBeInTheDocument();
+    expect(screen.queryByTestId("preview")).toBeNull();
   });
 
   it("başlıkta tek primary: 'Yeni ürün'; 'Toplu ekle' ikincil", async () => {

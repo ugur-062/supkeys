@@ -41,7 +41,7 @@ function UrunlerView() {
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "PENDING", label: "Onay bekleyen", count: stats.data?.pending },
-    { key: "REJECTED", label: "Reddedilen", count: stats.data?.rejected },
+    { key: "REJECTED", label: "Düzeltme istenen", count: stats.data?.rejected },
     { key: "APPROVED", label: "Yayında" },
     { key: "ALL", label: "Tümü" },
   ];

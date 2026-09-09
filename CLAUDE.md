@@ -598,9 +598,22 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   nitelik) değişince yeniden PENDING'e düşer ama **vitrinde kalır**; red
   vitrinden çeker. Vitrinden çekmek taslağa döndürür (yeniden onay ister).
   Admin: `/admin/urunler` kuyruğu (SUPER_ADMIN + SUPPORT karar verir, SALES
-  yalnız okur), onay → SEO bildirimi + firma e-posta/bildirim; red gerekçe
+  yalnız okur), onay → SEO bildirimi + firma e-posta/bildirim;
+  **"Düzeltmeye gönder"** (eski adı reddet; enum `REJECTED` KALDI) gerekçe
   zorunlu. Web durum sözlüğü `lib/company/product-status.ts`
-  (Taslak · Onay bekliyor · Yayında · Yayında·incelemede · Reddedildi).
+  (Taslak · Onay bekliyor · Yayında · Yayında·incelemede · Düzeltme istendi).
+- **İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı):** PENDING ürün admin
+  karar verene dek DEĞİŞTİRİLEMEZ — `CompanyItemsService.assertNotInReview`
+  kalem/vitrin güncelleme ve yeniden gönderimde **409 `PRODUCT_IN_REVIEW`**;
+  firma Ürünlerim'de formu değil salt-okunur önizlemeyi görür
+  (`components/products/product-preview.tsx`, gövde herkese açık sayfayla
+  AYNI `ProductDetailBody`). Tek çıkış admin kararı; firmanın kendi
+  kendine geri çekmesi bilinçli YOK. Yayındaki ürünü vitrinden çekmek ve
+  arşivlemek serbest (içerik değişikliği değil). Düzenleyici/önizleme
+  `GET company/items/:id/showcase` ile açılır — **eski boş PATCH açılışı
+  sunucuda görsel/etiket/fiyatı SİLİYORDU** (normalizer `?? []`), o yol kapandı.
+  Sözleşme: `product-catalog.spec` "İNCELEME KİLİDİ" + web
+  `products-view.test`/`product-preview.test`.
 - **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
   (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
   bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda

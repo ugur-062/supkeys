@@ -91,5 +91,6 @@ export const PRODUCT_REVIEW_STATUS: Record<
   DRAFT: { label: "Taslak", color: "zinc" },
   PENDING: { label: "Onay bekliyor", color: "amber" },
   APPROVED: { label: "Yayında", color: "green" },
-  REJECTED: { label: "Reddedildi", color: "red" },
+  // "Düzeltmeye gönder" kararı (2026-09-10): enum değeri REJECTED kaldı, sözcük değişti.
+  REJECTED: { label: "Düzeltme istendi", color: "red" },
 };

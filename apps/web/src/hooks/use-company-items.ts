@@ -238,6 +238,17 @@ export function useCategoryAttributes(categoryId: string | null | undefined) {
   });
 }
 
+/**
+ * Vitrin alanlarını OKUR (`GET :id/showcase`). Düzenleyici/önizleme açılışı
+ * eskiden boş bir PATCH atıyordu; sunucu boş yamayı "hepsini sil" diye
+ * yorumluyor (görsel/etiket/fiyat sıfırlanıyordu) ve inceleme kilidi
+ * (409 PRODUCT_IN_REVIEW) PATCH'i zaten reddeder — okuma yan etkisiz.
+ */
+export async function fetchProductShowcase(id: string): Promise<ProductShowcase> {
+  const { data } = await companyApi.get<ProductShowcase>(`/company/items/${id}/showcase`);
+  return data;
+}
+
 export function useUpdateShowcase() {
   const qc = useQueryClient();
   return useMutation({

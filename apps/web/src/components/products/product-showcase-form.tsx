@@ -42,6 +42,7 @@ import {
 } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/tenders/error";
 
 const MAX_KEYWORDS = 15;
 /** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
@@ -312,8 +313,9 @@ export function ProductShowcaseForm({
 
   const status = productStatusKey(product);
   const statusMeta = PRODUCT_STATUS[status];
-  const inQueue = product.reviewStatus === "PENDING";
-  const publishLocked = !!publishLimitReached && !product.isPublic && !inQueue;
+  // PENDING ürün bu forma HİÇ gelmez (inceleme kilidi → `ProductPreview`);
+  // API de 409 döner. Burada yalnız taslak / düzeltme istendi / yayında.
+  const publishLocked = !!publishLimitReached && !product.isPublic;
 
   const handleSave = async (thenSubmit: boolean) => {
     if (!patch.name) {
@@ -338,9 +340,7 @@ export function ProductShowcaseForm({
             ? "Ürün taslak olarak eklendi"
             : product.isPublic
               ? "Kaydedildi — içerik değişikliği yeniden incelenecek, ürün yayında kalıyor"
-              : inQueue
-                ? "Kaydedildi — inceleme güncel hâl üzerinden sürecek"
-                : "Taslak kaydedildi",
+              : "Taslak kaydedildi",
         );
         return;
       }
@@ -349,10 +349,11 @@ export function ProductShowcaseForm({
         return;
       }
       await publish.mutateAsync({ id: saved.id, publish: true });
-      toast.success("Onaya gönderildi — ekibimiz inceleyip vitrine alacak");
+      toast.success("Onaya gönderildi — inceleme bitene kadar ürün değiştirilemez, yalnız önizlenir");
       onClose();
-    } catch {
-      toast.error("Kaydedilemedi");
+    } catch (err) {
+      // 409 PRODUCT_IN_REVIEW dahil: sunucu mesajı kullanıcıya aynen.
+      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
     }
   };
 
@@ -364,9 +365,7 @@ export function ProductShowcaseForm({
       ? "Onaya gönder"
       : status === "rejected"
         ? "Düzelt ve yeniden gönder"
-        : inQueue
-          ? "Kaydet"
-          : "Kaydet";
+        : "Kaydet";
   const primaryAction = () => void handleSave(status === "draft" || status === "rejected");
 
   return (
@@ -640,7 +639,7 @@ export function ProductShowcaseForm({
           </p>
           {status === "rejected" && product.rejectReason ? (
             <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-600/20">
-              <span className="font-semibold">Red gerekçesi:</span> {product.rejectReason}
+              <span className="font-semibold">Düzeltme gerekçesi:</span> {product.rejectReason}
             </p>
           ) : null}
 

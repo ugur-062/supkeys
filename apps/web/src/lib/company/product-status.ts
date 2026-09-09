@@ -4,7 +4,8 @@ import type { ProductReviewStatus } from "@/hooks/use-company-items";
  * ÜRÜN DURUM SÖZLÜĞÜ — liste rozeti, form durum kartı ve sekme adları AYNI
  * sözcükleri kullanır (moderasyon 2026-09-09). Dört durum + bir ara hâl:
  * yayındaki ürünün içerik düzenlemesi PENDING'e düşer ama vitrinde kalır →
- * "Yayında · incelemede".
+ * "Yayında · incelemede". PENDING = İNCELEME KİLİDİ (2026-09-10): firma
+ * yalnız önizler; tek çıkış admin kararı (onay ya da "Düzeltme istendi").
  */
 export type ProductStatusKey = "draft" | "pending" | "published" | "published_pending" | "rejected";
 
@@ -27,7 +28,8 @@ export const PRODUCT_STATUS: Record<
   pending: {
     label: "Onay bekliyor",
     color: "amber",
-    description: "Ekibimiz inceliyor — genellikle 1 iş günü içinde. Onaylanınca vitrine çıkar ve size haber veririz.",
+    description:
+      "Ekibimiz inceliyor — genellikle 1 iş günü içinde. İnceleme bitene kadar ürün değiştirilemez, yalnız önizlenir; onaylanınca vitrine çıkar, düzeltme gerekirse gerekçesiyle size geri gelir.",
   },
   published: {
     label: "Yayında",
@@ -37,11 +39,11 @@ export const PRODUCT_STATUS: Record<
   published_pending: {
     label: "Yayında · incelemede",
     color: "blue",
-    description: "Son değişikliğiniz inceleniyor; ürün bu sırada eski hâliyle vitrinde kalıyor.",
+    description: "Son değişikliğiniz inceleniyor; ürün bu sırada vitrinde kalıyor. İnceleme bitene kadar yeni değişiklik yapılamaz.",
   },
   rejected: {
-    label: "Reddedildi",
+    label: "Düzeltme istendi",
     color: "red",
-    description: "Bu hâliyle yayına alınmadı. Gerekçeyi okuyup düzenleyin ve yeniden gönderin.",
+    description: "Ekibimiz düzeltme istedi. Gerekçedeki değişikliği yapıp yeniden onaya gönderin.",
   },
 };

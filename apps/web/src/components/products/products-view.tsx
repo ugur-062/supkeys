@@ -7,14 +7,17 @@ import { useSearchParams } from "next/navigation";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { ImportDialog } from "./import-dialog";
 import { ProductShowcaseForm } from "./product-showcase-form";
+import { ProductPreview } from "./product-preview";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import {
+  fetchProductShowcase,
   useCatalogItems,
-  useUpdateShowcase,
   type CatalogItem,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import { toast } from "sonner";
 import { Badge } from "@/components/catalyst/badge";
 import { EmptyState } from "@/components/list";
 import { ProductCard } from "@/components/marketplace/product-card";
@@ -78,7 +81,7 @@ const EMPTY_PRODUCT: ProductShowcase = {
 
 export function ProductsView() {
   const [q, setQ] = useState("");
-  // `?sekme=rejected` — red e-postasındaki CTA doğrudan reddedilenlere açar.
+  // `?sekme=rejected` — "düzeltme istendi" e-postasındaki CTA doğrudan o sekmeye açar.
   const searchParams = useSearchParams();
   const initialTab = searchParams?.get("sekme") as ProductTab | null;
   const [tab, setTab] = useState<ProductTab>(initialTab && TAB_KEYS.includes(initialTab) ? initialTab : "all");
@@ -95,7 +98,6 @@ export function ProductsView() {
     showcase: ProductShowcase;
   } | null>(null);
   const { data, isLoading } = useCatalogItems(q);
-  const save = useUpdateShowcase();
   const items = useMemo(() => data?.items ?? [], [data]);
   // Sekme süzgeci istemcide (liste zaten geldi); SAYAÇLAR sunucudan ve firma
   // geneli — arama daraltınca sekme sayısı değişmez, panoyla aynı sayı.
@@ -115,17 +117,20 @@ export function ProductsView() {
   );
 
   /**
-   * Vitrin alanları liste yanıtında YOK (kalem listesi dar tutuldu). Düzenlemeye
-   * geçerken boş bir `showcase` PATCH'i atıp güncel durumu alıyoruz — ayrı bir
-   * GET ucu açmak yerine mevcut ucu kullanmak, iki yerde aynı yansıtmayı
-   * sürdürme borcunu ortadan kaldırıyor.
+   * Vitrin alanları liste yanıtında YOK (kalem listesi dar tutuldu); açılışta
+   * `GET :id/showcase` okunur (aynı projeksiyon). Eskiden boş PATCH atılıyordu —
+   * sunucu boş yamayı "hepsini sil" diye yorumluyordu (görsel/etiket/fiyat her
+   * açılışta sıfırlanıyordu) ve inceleme kilidi PATCH'i zaten reddeder.
+   *
+   * İNCELEMEDEKİ (PENDING) ürün FORMLA AÇILMAZ — salt-okunur önizleme
+   * (`ProductPreview`); tek çıkış admin kararı.
    */
   const openEditor = async (item: CatalogItem) => {
     try {
-      const showcase = await save.mutateAsync({ id: item.id, patch: {} });
+      const showcase = await fetchProductShowcase(item.id);
       setEditing({ item, showcase });
-    } catch {
-      /* hata toast'ı mutation'da */
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Ürün açılamadı"));
     }
   };
 
@@ -186,6 +191,7 @@ export function ProductsView() {
   }
 
   if (editing) {
+    const inReview = editing.showcase.reviewStatus === "PENDING";
     return (
       <PageContainer>
         <button
@@ -198,15 +204,23 @@ export function ProductsView() {
         </button>
         <PageHeader
           title={editing.item.name}
-          description="Vitrin bilgilerini doldurun; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
+          description={
+            inReview
+              ? "Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir."
+              : "Vitrin bilgilerini doldurun; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
+          }
         />
         <div className="mt-8">
-          <ProductShowcaseForm
-            product={editing.showcase}
-            unit={editing.item.unit}
-            publishLimitReached={publishLimitReached}
-            onClose={() => setEditing(null)}
-          />
+          {inReview ? (
+            <ProductPreview product={editing.showcase} item={editing.item} onClose={() => setEditing(null)} />
+          ) : (
+            <ProductShowcaseForm
+              product={editing.showcase}
+              unit={editing.item.unit}
+              publishLimitReached={publishLimitReached}
+              onClose={() => setEditing(null)}
+            />
+          )}
         </div>
       </PageContainer>
     );
@@ -424,7 +438,7 @@ function ProductRows({
             }
             meta={`${catName(item.categoryId) ?? "Kategori seçilmedi"} · ${
               PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode
-            } · ${item.unit}${item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Red: ${item.rejectReason}` : ""}`}
+            } · ${item.unit}${item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}`}
             trailing={formatDate(item.updatedAt, "short")}
           />
         </li>

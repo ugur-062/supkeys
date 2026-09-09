@@ -57,12 +57,12 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     expect(screen.getAllByRole("link", { name: "İncele" })[0]).toHaveAttribute("href", "/admin/urunler/1");
     // Sekme sayaçları stats'tan
     expect(screen.getByRole("tab", { name: /Onay bekleyen/ })).toHaveTextContent("1");
-    expect(screen.getByRole("tab", { name: /Reddedilen/ })).toHaveTextContent("3");
+    expect(screen.getByRole("tab", { name: /Düzeltme istenen/ })).toHaveTextContent("3");
   });
 
   it("sekme değişince sorgu parametresi değişir; boş kuyruk metni", () => {
     render(<AdminUrunlerPage />);
-    fireEvent.click(screen.getByRole("tab", { name: /Reddedilen/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Düzeltme istenen/ }));
     expect((h.lastParams as { status: string }).status).toBe("REJECTED");
     h.products = { data: { items: [], total: 0, page: 1, pageSize: 25 }, isLoading: false, isError: false };
     render(<AdminUrunlerPage />);
