@@ -60,7 +60,6 @@ describe("companySeoReadiness", () => {
       employeeCount: "11-50",
       services: ["a", "b", "c"],
       certifications: [],
-      photos: [],
       categoryCount: 2,
       publishedProductCount: 0,
     });

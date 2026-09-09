@@ -63,7 +63,6 @@ export interface ProfileViewData {
   services?: string[];
   certifications?: string[];
   certificateImages?: string[];
-  photos?: string[];
   foundedYear?: number | null;
   employeeCount?: string | null;
   website?: string | null;
@@ -130,7 +129,6 @@ export interface ProfileEditSlots {
   /** Künye şeridi (kuruluş/çalışan/web/sosyal) yerine. */
   stats?: ReactNode;
   about?: ReactNode;
-  gallery?: ReactNode;
   services?: ReactNode;
   certifications?: ReactNode;
   /**
@@ -169,6 +167,7 @@ export function CompanyProfileView({
   main,
   edit,
   gate,
+  layout = "columns",
 }: {
   profile: ProfileViewData;
   actions?: ReactNode;
@@ -182,11 +181,17 @@ export function CompanyProfileView({
   main?: ReactNode;
   edit?: ProfileEditSlots;
   gate?: ProfileGateSlots;
+  /**
+   * "hakkında" ızgarası: `columns` (herkese açık/panel: sol geniş + sağ künye)
+   * ya da `stacked` (Profilim editörü, 2026-09-10: editör kendi sağ rayını
+   * — durum, arama görünürlüğü, ürünler — dışarıda çizer; içeride ikinci
+   * sütun açılsaydı 3 sütun sıkışırdı). İçerik ve sıra AYNI, yalnız akış.
+   */
+  layout?: "columns" | "stacked";
 }) {
   const services = p.services ?? [];
   const certifications = p.certifications ?? [];
   const certificateImages = p.certificateImages ?? [];
-  const photos = p.photos ?? [];
   const location = [p.city, p.country].filter(Boolean).join(", ");
 
   return (
@@ -342,7 +347,7 @@ export function CompanyProfileView({
           Firma sayfasının işi "bu firma ne satıyor" sorusunu göstermek. */}
       {main}
 
-      <div id="hakkinda" className="grid scroll-mt-24 gap-6 lg:grid-cols-[1.6fr_1fr]">
+      <div id="hakkinda" className={cn("grid scroll-mt-24 gap-6", layout === "columns" && "lg:grid-cols-[1.6fr_1fr]")}>
         <div className="space-y-6">
           {edit?.classification ? (
             <section className="card p-6">
@@ -475,30 +480,9 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
-          {edit?.gallery ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Galeri</h2>
-              <div className="mt-4">{edit.gallery}</div>
-            </section>
-          ) : photos.length > 0 ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Galeri</h2>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {photos.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={src}
-                    src={src}
-                    alt={`${p.name} görsel ${i + 1}`}
-                    loading="lazy"
-                    width={400}
-                    height={300}
-                    className="aspect-[4/3] w-full rounded-xl object-cover ring-1 ring-zinc-950/5 transition hover:opacity-90"
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
+          {/* GALERİ KALDIRILDI (2026-09-10, kullanıcı kararı: "fotoğraf
+              eklenmesin"). Gerçek fotoğraf yalnız ÜRÜNDE ve KATEGORİDE
+              (CLAUDE.md); `photos` kolonu duruyor, hiçbir yerde çizilmez. */}
 
           {/* Değerlendirmeler — firma bazında gruplu özet (2026-08-22): genel
               puan = ortak ortalamalarının ortalaması; her ortak tek satır;

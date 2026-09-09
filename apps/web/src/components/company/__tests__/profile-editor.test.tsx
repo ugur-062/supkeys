@@ -101,11 +101,19 @@ describe("ProfileEditor — yerinde düzenleme", () => {
 
   it("profil görünümü + düzenleme kontrolleri aynı ekranda; kaydet çubuğu yalnız değişiklik olunca", () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
-    // Görünüm: ad, hizmet chip'i, fotoğraf sayacı, hakkında metni textarea'da
+    // Görünüm: ad, hizmet chip'i, hakkında metni textarea'da; GALERİ YOK (2026-09-10)
     expect(screen.getByText("Demo Firma A.Ş.")).toBeInTheDocument();
     expect(screen.getByText("Kablo")).toBeInTheDocument();
-    expect(screen.getByText(/2\/12/)).toBeInTheDocument();
     expect((screen.getByLabelText("Hakkında") as HTMLTextAreaElement).value).toBe("Biz demo firmayız.");
+    expect(screen.queryByText("Galeri")).toBeNull();
+    expect(screen.queryByText("Fotoğraflar")).toBeNull();
+    // YENİ DÜZEN: sağ rayda profil durumu + arama görünürlüğü + Ürünlerim; profil solda
+    const rail = screen.getByRole("complementary");
+    expect(within(rail).getByRole("region", { name: "Profil durumu" })).toHaveTextContent(/%\d+ tamam/);
+    expect(within(rail).getByRole("region", { name: "Arama görünürlüğü" })).toBeInTheDocument();
+    expect(within(rail).getByRole("region", { name: "Ürünlerim" })).toBeInTheDocument();
+    expect(within(rail).getByRole("checkbox", { name: /Ziyaretlerim karşı tarafa görünsün/ })).toBeInTheDocument();
+    expect(within(rail).queryByLabelText("Hakkında")).toBeNull();
     // Kontroller
     // Logo/kapak üstünde TEK "Düzenle" menüsü (v2 7g) — değiştir/kaldır içeride.
     fireEvent.click(screen.getByLabelText("Logoyu düzenle"));
@@ -126,7 +134,6 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       aboutText: "Yeni tanıtım",
       publicEnabled: true,
       services: ["Kablo", "Pano"],
-      photos: ["https://cdn/p1.jpg", "https://cdn/p2.jpg"],
       foundedYear: 2015,
       // safeExternalUrl normalize eder (sondaki /) — eski formla aynı davranış.
       website: "https://demo.com/",
@@ -138,7 +145,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect((screen.getByLabelText("Hakkında") as HTMLTextAreaElement).value).toBe("Yeni tanıtım");
   });
 
-  it("hizmet chip'i ekle/kaldır ve fotoğraf kaldır taslağa yansır", () => {
+  it("hizmet chip'i ekle/kaldır taslağa yansır; kayıt gövdesi photos TAŞIMAZ", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     const input = screen.getByLabelText("Hizmet ekle");
     fireEvent.change(input, { target: { value: "Aydınlatma" } });
@@ -146,9 +153,10 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.getByText("Aydınlatma")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Kablo kaldır"));
     expect(screen.queryByText("Kablo")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Fotoğraflar 1 kaldır"));
-    expect(screen.getByText(/1\/12/)).toBeInTheDocument();
     expect(screen.getByText(/Kaydedilmemiş değişiklikler/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update.mock.calls[0]![0]).not.toHaveProperty("photos");
   });
 
   it("geçersiz bağlantıyla kaydetmez (javascript:)", async () => {

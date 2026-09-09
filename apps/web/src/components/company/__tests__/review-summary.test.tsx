@@ -17,7 +17,6 @@ const base: ProfileViewData = {
   services: [],
   certifications: [],
   certificateImages: [],
-  photos: [],
   foundedYear: null,
   employeeCount: null,
   website: null,

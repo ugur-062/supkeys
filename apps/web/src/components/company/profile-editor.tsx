@@ -56,7 +56,6 @@ interface Draft {
   foundedYear: string;
   services: string[];
   certifications: string[];
-  photos: string[];
   certificateImages: string[];
 }
 
@@ -75,7 +74,6 @@ function toDraft(p: CompanyProfile): Draft {
     foundedYear: p.foundedYear ? String(p.foundedYear) : "",
     services: p.services ?? [],
     certifications: p.certifications ?? [],
-    photos: p.photos ?? [],
     certificateImages: p.certificateImages ?? [],
   };
 }
@@ -86,7 +84,7 @@ const same = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
  * Profilim — YERİNDE düzenleme (2026-08-22). Önizleme/Düzenle sekmeleri
  * kaldırıldı: kullanıcı profili başkalarının gördüğü düzende görür ve her
  * bölgeyi üstünde düzenler (kapak/logo hover-yükle, metin/künye inline,
- * hizmet/sertifika chip'leri, galeri sürükle-sırala). Değişiklik taslakta
+ * hizmet/sertifika chip'leri; galeri KALDIRILDI 2026-09-10). Değişiklik taslakta
  * anında görünür; KAYDET tek PATCH (API değişmedi). Görseller yüklenmeden
  * tarayıcıda küçültülür (resizeImageFile). `canEdit=false` → salt görünüm.
  */
@@ -153,7 +151,6 @@ export function ProfileEditor({
         foundedYear: year ? Number(year) : undefined,
         services: draft.services,
         certifications: draft.certifications,
-        photos: draft.photos,
         certificateImages: draft.certificateImages,
       });
       // Başarıda taslak = kayıtlı (çubuk hemen kapanır; refetch gelince de aynı kalır).
@@ -179,7 +176,6 @@ export function ProfileEditor({
     services: draft.services,
     certifications: draft.certifications,
     certificateImages: draft.certificateImages,
-    photos: draft.photos,
     foundedYear: draft.foundedYear ? Number(draft.foundedYear) : null,
     employeeCount: draft.employeeCount || null,
     website: draft.website || null,
@@ -209,14 +205,16 @@ export function ProfileEditor({
   if (!canEdit) {
     return (
       <div className="space-y-4">
-        <EditorHeader
-          profile={profile}
-          publicEnabled={saved.publicEnabled}
-          onTogglePublic={undefined}
-          pct={completeness.pct}
-          findability={findability}
-        />
-        <CompanyProfileView profile={viewData} />
+        <EditorHeader profile={profile} publicEnabled={saved.publicEnabled} onTogglePublic={undefined} />
+        <div className={FRAME}>
+          <div className="min-w-0">
+            <CompanyProfileView profile={viewData} layout="stacked" />
+          </div>
+          <aside className={RAIL}>
+            <StatusCard pct={completeness.pct} missing={completeness.missing} findability={findability} />
+            <MyProductsCard />
+          </aside>
+        </div>
         <p className="text-xs text-zinc-400">Düzenleme için firma yönetimi yetkisi gerekir.</p>
       </div>
     );
@@ -228,7 +226,6 @@ export function ProfileEditor({
     // düzenletmek "iki yerden iki kayıt" hissi veriyordu (kullanıcı üç sayfa
     // arasında dolaşıyordu); Profilim gösterir, düzenlemeye yönlendirir.
     classification: <ClassificationSummary profile={profile} />,
-    aside: <MyProductsCard />,
     cover: (
       <CoverControls
         value={draft.coverImageUrl}
@@ -349,16 +346,7 @@ export function ProfileEditor({
         />
       </div>
     ),
-    gallery: (
-      <GalleryEditor
-        label="Fotoğraflar"
-        kind="gallery"
-        values={draft.photos}
-        onChange={(photos) => set({ photos })}
-        tile="wide"
-        hint="Tesis, ürün, ekip fotoğrafları — sürükleyerek sıralayın"
-      />
-    ),
+    // Galeri/Fotoğraflar slotu KALDIRILDI (2026-09-10, kullanıcı kararı).
   };
 
   return (
@@ -367,94 +355,104 @@ export function ProfileEditor({
         profile={profile}
         publicEnabled={draft.publicEnabled}
         onTogglePublic={(v) => set({ publicEnabled: v })}
-        pct={completeness.pct}
-        findability={findability}
       />
-      <MissingFields items={completeness.missing} />
 
-      {/* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8) — parçacık `companySeo` şablonundan. */}
-      <SearchVisibilityCard
-        readiness={companySeoReadiness({
-          aboutText: draft.aboutText,
-          logoUrl: draft.logoUrl || null,
-          coverImageUrl: draft.coverImageUrl || null,
-          industry: draft.industry || null,
-          city: profile.city,
-          website: draft.website || null,
-          linkedinUrl: draft.linkedinUrl || null,
-          foundedYear: draft.foundedYear || null,
-          employeeCount: draft.employeeCount || null,
-          services: draft.services,
-          certifications: draft.certifications,
-          photos: draft.photos,
-          categoryCount:
-            (profile.buyerCategoryIds?.length ?? 0) +
-            (profile.sellerCategoryIds?.length ?? 0) +
-            (profile.buyerSubCategoryIds?.length ?? 0) +
-            (profile.sellerSubCategoryIds?.length ?? 0),
-        })}
-        snippet={snippetFromMetadata(
-          companySeo({
-            slug: generateSlug(profile.name) || "firma",
-            name: profile.name,
-            industry: draft.industry || null,
-            city: profile.city,
-            country: profile.country,
-            aboutText: draft.aboutText || null,
-            logoUrl: draft.logoUrl || null,
-            coverImageUrl: draft.coverImageUrl || null,
-            foundedYear: draft.foundedYear ? Number(draft.foundedYear) : null,
-            employeeCount: draft.employeeCount || null,
-            categories: [],
-            certifications: draft.certifications,
-            productCount: 0,
-            website: draft.website || null,
-            linkedinUrl: draft.linkedinUrl || null,
-          }).metadata,
-        )}
-        enrich={{
-          available: tierAtLeast(profile.tier, "SILVER"),
-          unavailableReason: "AI ile güçlendirme Silver ve üzeri paketlerde.",
-          run: () =>
-            seoEnrich.mutateAsync({
-              kind: "company",
-              name: profile.name,
-              description: draft.aboutText,
-              facts: [
-                ...draft.services.map((s) => `Hizmet: ${s}`),
-                ...draft.certifications.map((c) => `Sertifika: ${c}`),
-                ...(draft.foundedYear ? [`Kuruluş: ${draft.foundedYear}`] : []),
-                ...(draft.employeeCount ? [`Çalışan: ${draft.employeeCount}`] : []),
-              ],
-              city: profile.city,
+      {/* YENİ DÜZEN (2026-09-10, kullanıcı kararı: "profil çok aşağıda
+          kalıyor, analiz çok yukarıda"): SOLDA profil (başkalarının gördüğü
+          hâli, tek sütun, yerinde düzenleme), SAĞDA yapışkan ray — profil
+          durumu, arama görünürlüğü, ürünler, gizlilik. Ürün formuyla aynı
+          kalıp. Dar ekranda ray profilin altına iner. */}
+      <div className={FRAME}>
+        <div className="min-w-0">
+          <CompanyProfileView profile={viewData} edit={slots} layout="stacked" />
+        </div>
+
+        <aside className={RAIL}>
+          <StatusCard pct={completeness.pct} missing={completeness.missing} findability={findability} />
+
+          {/* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8) — parçacık `companySeo` şablonundan. */}
+          <SearchVisibilityCard
+            readiness={companySeoReadiness({
+              aboutText: draft.aboutText,
+              logoUrl: draft.logoUrl || null,
+              coverImageUrl: draft.coverImageUrl || null,
               industry: draft.industry || null,
-            }),
-          apply: (r) => {
-            set({ aboutText: r.description });
-            toast.success("Taslak uygulandı — kontrol edip Kaydet'e basın");
-          },
-        }}
-      />
+              city: profile.city,
+              website: draft.website || null,
+              linkedinUrl: draft.linkedinUrl || null,
+              foundedYear: draft.foundedYear || null,
+              employeeCount: draft.employeeCount || null,
+              services: draft.services,
+              certifications: draft.certifications,
+              categoryCount:
+                (profile.buyerCategoryIds?.length ?? 0) +
+                (profile.sellerCategoryIds?.length ?? 0) +
+                (profile.buyerSubCategoryIds?.length ?? 0) +
+                (profile.sellerSubCategoryIds?.length ?? 0),
+            })}
+            snippet={snippetFromMetadata(
+              companySeo({
+                slug: generateSlug(profile.name) || "firma",
+                name: profile.name,
+                industry: draft.industry || null,
+                city: profile.city,
+                country: profile.country,
+                aboutText: draft.aboutText || null,
+                logoUrl: draft.logoUrl || null,
+                coverImageUrl: draft.coverImageUrl || null,
+                foundedYear: draft.foundedYear ? Number(draft.foundedYear) : null,
+                employeeCount: draft.employeeCount || null,
+                categories: [],
+                certifications: draft.certifications,
+                productCount: 0,
+                website: draft.website || null,
+                linkedinUrl: draft.linkedinUrl || null,
+              }).metadata,
+            )}
+            enrich={{
+              available: tierAtLeast(profile.tier, "SILVER"),
+              unavailableReason: "AI ile güçlendirme Silver ve üzeri paketlerde.",
+              run: () =>
+                seoEnrich.mutateAsync({
+                  kind: "company",
+                  name: profile.name,
+                  description: draft.aboutText,
+                  facts: [
+                    ...draft.services.map((s) => `Hizmet: ${s}`),
+                    ...draft.certifications.map((c) => `Sertifika: ${c}`),
+                    ...(draft.foundedYear ? [`Kuruluş: ${draft.foundedYear}`] : []),
+                    ...(draft.employeeCount ? [`Çalışan: ${draft.employeeCount}`] : []),
+                  ],
+                  city: profile.city,
+                  industry: draft.industry || null,
+                }),
+              apply: (r) => {
+                set({ aboutText: r.description });
+                toast.success("Taslak uygulandı — kontrol edip Kaydet'e basın");
+              },
+            }}
+          />
 
-      {/* Gizlilik: Ziyaret Edenler'de karşı tarafa görünürlük (2026-09-05).
-          Kapalıysa görüntülemelerim yine sayılır ama adım yazılmaz. */}
-      <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5">
-        <input
-          type="checkbox"
-          checked={draft.visitsVisible}
-          disabled={!canEdit}
-          onChange={(e) => set({ visitsVisible: e.target.checked })}
-          className="mt-0.5 size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
-        />
-        <span className="text-sm">
-          <span className="font-medium text-zinc-950">Ziyaretlerim karşı tarafa görünsün</span>
-          <span className="mt-0.5 block text-xs text-zinc-500">
-            İncelediğiniz firmalar, Ziyaret Edenler listesinde firmanızı adıyla görür. Kapatırsanız ziyaretiniz yalnız sayı olarak kalır.
-          </span>
-        </span>
-      </label>
+          <MyProductsCard />
 
-      <CompanyProfileView profile={viewData} edit={slots} />
+          {/* Gizlilik: Ziyaret Edenler'de karşı tarafa görünürlük (2026-09-05).
+              Kapalıysa görüntülemelerim yine sayılır ama adım yazılmaz. */}
+          <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5">
+            <input
+              type="checkbox"
+              checked={draft.visitsVisible}
+              onChange={(e) => set({ visitsVisible: e.target.checked })}
+              className="mt-0.5 size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
+            />
+            <span className="text-sm">
+              <span className="font-medium text-zinc-950">Ziyaretlerim karşı tarafa görünsün</span>
+              <span className="mt-0.5 block text-xs text-zinc-500">
+                İncelediğiniz firmalar, Ziyaret Edenler listesinde firmanızı adıyla görür. Kapatırsanız ziyaretiniz yalnız sayı olarak kalır.
+              </span>
+            </span>
+          </label>
+        </aside>
+      </div>
 
       {/* Yapışkan kaydet çubuğu — yalnız kirliyken. */}
       {dirty ? (
@@ -481,27 +479,20 @@ export function ProfileEditor({
 
 // ---------------------------------------------------------------- parçalar
 
+/** Sayfa düzeni — sol profil + sağ yapışkan ray (xl altında alt alta). */
+const FRAME = "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]";
+const RAIL = "space-y-4 xl:sticky xl:top-20 xl:self-start";
+
 function EditorHeader({
   profile,
   publicEnabled,
   onTogglePublic,
-  pct,
-  findability,
 }: {
   profile: CompanyProfile;
   publicEnabled: boolean;
   onTogglePublic?: (v: boolean) => void;
-  pct: number;
-  /** Alıcının sizi bulması için gerekenler — rehber, kapı değil. */
-  findability: { about: boolean; industry: boolean; category: boolean };
 }) {
-  const need: [string, boolean][] = [
-    ["Hakkında", findability.about],
-    ["Sektör", findability.industry],
-    ["En az 1 kategori", findability.category],
-  ];
   return (
-    <div className="space-y-2">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Profilim</h1>
@@ -520,15 +511,6 @@ function EditorHeader({
         >
           Firma bilgileri (unvan, adres, VKN)
         </Link>
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
-            pct === 100 ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-700",
-          )}
-          title="Profil tamamlanma"
-        >
-          %{pct} tamam
-        </span>
         {/* Önizleme MEVCUT herkese açık rotaya gider (yeni rota yok); o rota
             yalnız yayındaki profili sunar — yayında değilken bağlantı yerine
             neden olmadığı söylenir. */}
@@ -559,24 +541,60 @@ function EditorHeader({
         </label>
       </div>
     </div>
-    {/* Kapı DEĞİL rehber: backend'de içerik kapısı yok (yayın her pakete
-        açılır). Olmayan bir kapıyı "yayınlamak için" diye yazmak yalan olurdu;
-        bunlar alıcının sizi bulmasını sağlayan üç alan. */}
-    {need.some(([, ok]) => !ok) ? (
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-        <span className="font-medium text-zinc-600">Alıcıların sizi bulması için:</span>
-        {need.map(([label, ok]) => (
-          <span
-            key={label}
-            className={ok ? "text-emerald-700 line-through decoration-emerald-300" : ""}
-          >
-            {ok ? "✓ " : "○ "}
-            {label}
-          </span>
-        ))}
-      </p>
-    ) : null}
-    </div>
+  );
+}
+
+/**
+ * PROFİL DURUMU — sağ rayın ilk kartı: tamamlanma yüzdesi + çubuk, eksik
+ * alan çipleri, "alıcıların sizi bulması için" rehberi. Kapı DEĞİL rehber:
+ * backend'de içerik kapısı yok (yayın her pakete açık); olmayan bir kapıyı
+ * "yayınlamak için" diye yazmak yalan olurdu.
+ */
+function StatusCard({
+  pct,
+  missing,
+  findability,
+}: {
+  pct: number;
+  missing: string[];
+  findability: { about: boolean; industry: boolean; category: boolean };
+}) {
+  const need: [string, boolean][] = [
+    ["Hakkında", findability.about],
+    ["Sektör", findability.industry],
+    ["En az 1 kategori", findability.category],
+  ];
+  return (
+    <section aria-label="Profil durumu" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-semibold text-zinc-950">Profil durumu</h3>
+        <p className="text-sm text-zinc-600" title="Profil tamamlanma">
+          <span className={cn("text-lg font-semibold tabular-nums", pct === 100 ? "text-emerald-700" : "text-zinc-950")}>%{pct}</span> tamam
+        </p>
+      </div>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
+        <div
+          className={cn("h-full rounded-full transition-[width] duration-500", pct === 100 ? "bg-emerald-500" : "bg-zinc-900")}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {missing.length > 0 ? (
+        <MissingFields className="mt-3" items={missing} />
+      ) : (
+        <p className="mt-3 text-xs text-emerald-700">Tüm alanlar dolu</p>
+      )}
+      {need.some(([, ok]) => !ok) ? (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-zinc-950/5 pt-3 text-xs text-zinc-500">
+          <span className="font-medium text-zinc-600">Alıcıların sizi bulması için:</span>
+          {need.map(([label, ok]) => (
+            <span key={label} className={ok ? "text-emerald-700 line-through decoration-emerald-300" : ""}>
+              {ok ? "✓ " : "○ "}
+              {label}
+            </span>
+          ))}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -960,7 +978,7 @@ function completenessOf(d: Draft, p: CompanyProfile) {
 }
 
 /**
- * "Ürünlerim (N)" — Profilim sağ kolonu. Europages'te profil = hakkında +
+ * "Ürünlerim (N)" — Profilim sağ rayı. Europages'te profil = hakkında +
  * ürünler + iletişim; burada da yayındaki ilk 3 ürün + yönetim bağlantısı.
  * Veri panelin kendi katalog ucundan (herkese açık uç değil); N sunucunun
  * firma-geneli sayacı — Ürünlerim sekmesi ve pano kartıyla aynı sayı.

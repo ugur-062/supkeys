@@ -198,7 +198,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Süzgeç URL şemaları | `lib/public/{product,listing,company}-filter-params.ts`, `lib/company/request-filter-params.ts` |
 | Süzgeç kabuğu + yapı taşları | `components/marketplace/{filter-shell,filter-primitives}.tsx` |
 | KPI seçicileri (pano ↔ listeler) | `lib/company/kpi-selectors.ts` |
-| Profil tamamlanma | `@rothern/shared` `profileCompleteness` |
+| Profil tamamlanma | `@rothern/shared` `profileCompleteness` (10 madde; "Fotoğraflar" 2026-09-10'da kalktı) |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |
 | İzin aynası (web) | `lib/company/permissions.ts` |
 | Herkese açık adres şeması (ürün/firma/talep/kategori/şehir) | `@rothern/shared` `helpers/public-paths.ts` (web `lib/public/{marketplace,city}.ts` yeniden dışa aktarır) |
@@ -284,6 +284,17 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 (CC0/PDM, künye `docs/category-photo-credits.md`). Gerçek fotoğraf YALNIZ iki
 yerde: **ürün** (firma yükler) ve **kategori**. **Satın alma talebi fotoğraf
 TAŞIMAZ** — tonlu segment ikonunda kalır. Tek kaynak `category-photos.ts`.
+**Firma profili GALERİSİ KALDIRILDI (2026-09-10, kullanıcı kararı):** Profilim
+ve herkese açık profil fotoğraf bölümü çizmez, yükleme yolu yok; `Company.
+photos` kolonu duruyor (migration yok), web göndermez. Logo/kapak/sertifika
+görselleri kalır.
+
+**Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
+`CompanyProfileView layout="stacked"` — tek sütun, yerinde düzenleme), SAĞDA
+yapışkan ray (`Profil durumu` %tamam + eksikler + "alıcıların sizi bulması
+için" → `SearchVisibilityCard` → Ürünlerim → gizlilik). Ürün formuyla aynı
+kalıp; xl altında ray profilin altına iner. Herkese açık sayfa `columns`
+düzeninde, değişmedi.
 
 ---
 

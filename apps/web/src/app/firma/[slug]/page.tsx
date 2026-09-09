@@ -125,7 +125,6 @@ export default async function PublicCompanyProfile({
             logoUrl: p.logoUrl,
             coverImageUrl: p.coverImageUrl,
             aboutText: p.aboutText,
-            photos: p.photos ?? [],
             services: p.services ?? [],
             certifications: p.certifications ?? [],
             certificateImages: p.certificateImages ?? [],

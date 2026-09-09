@@ -20,7 +20,6 @@ export interface ProfileCompletenessInput {
   coverImageUrl?: string | null;
   aboutText?: string | null;
   services?: string[] | null;
-  photos?: string[] | null;
   foundedYear?: number | string | null;
   employeeCount?: string | null;
   website?: string | null;
@@ -45,7 +44,6 @@ export function profileCompleteness(p: ProfileCompletenessInput): ProfileComplet
     ["Kapak", filled(p.coverImageUrl)],
     ["Hakkında", filled(p.aboutText)],
     ["Hizmetler", (p.services?.length ?? 0) > 0],
-    ["Fotoğraflar", (p.photos?.length ?? 0) > 0],
     ["Kuruluş yılı", filled(p.foundedYear)],
     ["Çalışan sayısı", filled(p.employeeCount)],
     ["Web sitesi", filled(p.website)],

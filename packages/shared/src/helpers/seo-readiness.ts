@@ -171,7 +171,6 @@ export interface CompanySeoReadinessInput {
   employeeCount: string | null;
   services: string[];
   certifications: string[];
-  photos: string[];
   /** Ana + alt kategori toplamı (alıcı+satıcı). */
   categoryCount: number;
   publishedProductCount?: number;

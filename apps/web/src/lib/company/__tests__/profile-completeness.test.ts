@@ -9,7 +9,7 @@ describe("profileCompleteness", () => {
   it("boş profil %0 ve tüm alanlar eksik", () => {
     const r = profileCompleteness({});
     expect(r.pct).toBe(0);
-    expect(r.missing).toHaveLength(11);
+    expect(r.missing).toHaveLength(10);
     expect(r.missing[0]).toBe("Logo");
   });
 
@@ -19,7 +19,6 @@ describe("profileCompleteness", () => {
       coverImageUrl: "",
       aboutText: "  Hakkımızda  ",
       services: ["Montaj"],
-      photos: [],
       foundedYear: "1998",
       employeeCount: "",
       website: "",
@@ -33,7 +32,6 @@ describe("profileCompleteness", () => {
       coverImageUrl: null,
       aboutText: "Hakkımızda",
       services: ["Montaj"],
-      photos: null,
       foundedYear: 1998,
       employeeCount: null,
       website: null,
@@ -43,8 +41,8 @@ describe("profileCompleteness", () => {
       sellerCategoryIds: ["39000000"],
     });
     expect(fromDraft).toEqual(fromApi);
-    expect(fromDraft.pct).toBe(64); // 7 / 11
-    expect(fromDraft.missing).toEqual(["Kapak", "Fotoğraflar", "Çalışan sayısı", "Web sitesi"]);
+    expect(fromDraft.pct).toBe(70); // 7 / 10 (Fotoğraflar maddesi 2026-09-10'da kalktı — galeri yok)
+    expect(fromDraft.missing).toEqual(["Kapak", "Çalışan sayısı", "Web sitesi"]);
   });
 
   it("yalnız boşluktan oluşan metin dolu SAYILMAZ", () => {
