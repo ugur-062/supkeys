@@ -1,4 +1,5 @@
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
+import { SEO_TAGS } from "@/lib/seo/tags";
 import type { PublicListingType } from "./marketplace";
 
 /**
@@ -116,12 +117,18 @@ async function getJson<T>(
   path: string,
   fallback: T,
   revalidate = DEFAULT_REVALIDATE,
+  /**
+   * Önbellek etiketleri (SEO Parça 5): API yayın anında `revalidateTag` ile
+   * bu etiketi vurur; sayfa ISR süresini beklemeden yenilenir. Etiket adları
+   * API `SEO_TAGS` ile AYNI dize — `lib/seo/tags.ts`.
+   */
+  tags: string[] = [SEO_TAGS.facets],
 ): Promise<T> {
   const base = resolveApiBaseUrl();
   if (!base) return fallback;
   try {
     const res = await fetch(`${base}${path}`, {
-      next: { revalidate },
+      next: { revalidate, tags },
       headers: { accept: "application/json" },
     });
     if (!res.ok) {
@@ -191,7 +198,10 @@ export async function fetchListing(
   try {
     const res = await fetch(
       `${base}/public/listings/${encodeURIComponent(number)}`,
-      { next: { revalidate: 120 }, headers: { accept: "application/json" } },
+      {
+        next: { revalidate: 120, tags: [SEO_TAGS.listing(number), SEO_TAGS.listings] },
+        headers: { accept: "application/json" },
+      },
     );
     if (!res.ok) return null;
     return (await res.json()) as PublicListingDetail;
@@ -223,8 +233,8 @@ export function fetchFacets(
   return getJson(`/public/listings/facets${qs ? `?${qs}` : ""}`, EMPTY_FACETS, 300);
 }
 
-export function fetchListingSitemap(): Promise<PublicSitemapRow[]> {
-  return getJson<PublicSitemapRow[]>("/public/listings/sitemap", [], 900);
+export function fetchListingSitemap(page = 0): Promise<PublicSitemapRow[]> {
+  return getJson<PublicSitemapRow[]>(`/public/sitemap/listings?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -751,7 +761,15 @@ export async function fetchProduct(
   try {
     const res = await fetch(
       `${base}/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}`,
-      { next: { revalidate: 300 }, headers: { accept: "application/json" } },
+      {
+        // `company:<slug>` de var: firma adı/şehri/logosu değişince satıcı
+        // bloğu bayat kalmasın (API firma değişiminde bu etiketi vurur).
+        next: {
+          revalidate: 300,
+          tags: [SEO_TAGS.product(companySlug, productSlug), SEO_TAGS.company(companySlug), SEO_TAGS.products],
+        },
+        headers: { accept: "application/json" },
+      },
     );
     if (!res.ok) return null;
     return (await res.json()) as {
@@ -767,13 +785,42 @@ export async function fetchProduct(
 export interface ProductSitemapRow {
   companySlug: string;
   slug: string;
+  name: string;
   updatedAt: string;
+  /** İlk 3 görsel — image sitemap uzantısı. */
+  images: string[];
 }
 
-export function fetchProductSitemap(): Promise<ProductSitemapRow[]> {
-  return getJson<ProductSitemapRow[]>(
-    "/public/companies/products/sitemap",
-    [],
+export interface SitemapBucket {
+  count: number;
+  lastmod: string | null;
+}
+
+/** `/public/sitemap/summary` — parça sayıları + gerçek `lastmod`lar. */
+export interface SitemapSummary {
+  products: SitemapBucket;
+  companies: SitemapBucket;
+  listings: SitemapBucket;
+  categories: { id: string; name: string; count: number; lastmod: string }[];
+  productCities: { city: string; count: number; lastmod: string }[];
+  companyCities: { city: string; count: number; lastmod: string }[];
+}
+
+const EMPTY_BUCKET: SitemapBucket = { count: 0, lastmod: null };
+
+export function fetchSitemapSummary(): Promise<SitemapSummary> {
+  return getJson<SitemapSummary>(
+    "/public/sitemap/summary",
+    { products: EMPTY_BUCKET, companies: EMPTY_BUCKET, listings: EMPTY_BUCKET, categories: [], productCities: [], companyCities: [] },
     900,
+    [SEO_TAGS.sitemap],
   );
+}
+
+export function fetchCompanySitemap(page = 0): Promise<{ slug: string; updatedAt: string }[]> {
+  return getJson(`/public/sitemap/companies?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
+}
+
+export function fetchProductSitemap(page = 0): Promise<ProductSitemapRow[]> {
+  return getJson<ProductSitemapRow[]>(`/public/sitemap/products?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
 }

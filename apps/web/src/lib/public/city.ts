@@ -1,4 +1,9 @@
-import { TR_PROVINCES, slugifyText } from "@rothern/shared";
+import {
+  TR_PROVINCES,
+  citySlug as sharedCitySlug,
+  cityCompanyPath as sharedCityCompanyPath,
+  cityProductPath as sharedCityProductPath,
+} from "@rothern/shared";
 
 /**
  * ŞEHİR AÇILIŞ SAYFALARININ ADRES ŞEMASI (2026-09-09, Parça 3 — coğrafi SEO).
@@ -18,14 +23,12 @@ import { TR_PROVINCES, slugifyText } from "@rothern/shared";
  * üretilmez.
  */
 
-/**
- * Latinizasyon TEK KAYNAK: `@rothern/shared` `slugifyText` — ilan ve ürün
- * slug'ları da onu kullanıyor. Kendi eşlemesini yazan bir kopya, "Iğdır" gibi
- * bir ilde sessizce ayrışır ("igdir" ↔ "gdir") ve iki adres üretirdi.
+/*
+ * UYGULAMA `@rothern/shared` `helpers/public-paths.ts`te (SEO Parça 5): API
+ * yayın anında şehir sayfasının adresini de üretip motorlara bildiriyor;
+ * iki kopya olsaydı "Iğdır" gibi bir ilde sessizce ayrışırdı.
  */
-export function citySlug(name: string): string {
-  return slugifyText(name);
-}
+export const citySlug = sharedCitySlug;
 
 /** Slug → kanonik il adı. Tanınmayan slug `null` — sayfa 404 verir. */
 export function cityFromSlug(slug: string): string | null {
@@ -38,5 +41,5 @@ export function allCitySlugs(): { name: string; slug: string }[] {
   return TR_PROVINCES.map((p) => ({ name: p.name, slug: citySlug(p.name) }));
 }
 
-export const cityProductPath = (name: string) => `/urunler/sehir/${citySlug(name)}`;
-export const cityCompanyPath = (name: string) => `/firmalar/sehir/${citySlug(name)}`;
+export const cityProductPath = sharedCityProductPath;
+export const cityCompanyPath = sharedCityCompanyPath;

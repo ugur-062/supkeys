@@ -127,7 +127,7 @@ describe("yayın anahtarı kapsamı", () => {
   });
 
   it("robots ve sitemap de anahtarı okur", () => {
-    for (const f of ["robots.ts", "sitemap.ts"]) {
+    for (const f of ["robots.ts", "sitemap.xml/route.ts"]) {
       expect(readFileSync(path.join(APP, f), "utf-8")).toContain(
         "MARKETPLACE_LIVE",
       );

@@ -77,6 +77,8 @@ export default function robots(): MetadataRoute.Robots {
           "/hakkimizda",
           "/iletisim",
           "/sozlesmeler",
+          "/sitemaps", // sitemap parçaları (indeks /sitemap.xml)
+          "/indexnow", // IndexNow anahtar dosyası
         ],
         // `/company/` panelin tamamı (login/kayıt dahil) — dizinlenecek içerik
         // yok, tarama bütçesi yer. Süzgeçli varyantlar (`?kategori=`, `?il=`)

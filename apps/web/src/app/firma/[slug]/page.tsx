@@ -2,6 +2,7 @@ import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
 import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
+import { SEO_TAGS } from "@/lib/seo/tags";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -50,7 +51,7 @@ async function fetchProfile(slug: string): Promise<PublicProfile | null> {
   try {
     const res = await fetch(
       `${base}/public/companies/${encodeURIComponent(slug)}`,
-      { next: { revalidate: 300 } },
+      { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } },
     );
     if (!res.ok) return null;
     return (await res.json()) as PublicProfile;

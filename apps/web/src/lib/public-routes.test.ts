@@ -28,12 +28,21 @@ function collectSources(dir: string): string[] {
   return out;
 }
 
+/** Ağaçta HİÇ sayfa/layout yoksa yalnız route handler'dır (JSON/XML/metin). */
+function isRouteHandlerOnly(dir: string): boolean {
+  return !collectSources(dir).some((f) => /(^|\/)(page|layout)\.tsx?$/.test(f));
+}
+
 /** app/ altındaki üst seviye rota segmentleri (dosyalar ve _özel dizinler hariç). */
 function topLevelSegments(): string[] {
   return readdirSync(APP_DIR).filter((entry) => {
     const full = path.join(APP_DIR, entry);
     if (!statSync(full).isDirectory()) return false;
-    return !entry.startsWith("_"); // _components gibi rota olmayan dizinler
+    if (entry.startsWith("_")) return false; // _components gibi rota olmayan dizinler
+    // Yalnız route handler taşıyan segment (`/api/seo/revalidate`,
+    // `/sitemap.xml`): HTML üretmez, CSP nonce'u ve statik/dinamik render
+    // sorusu onu ilgilendirmez.
+    return !isRouteHandlerOnly(full);
   });
 }
 

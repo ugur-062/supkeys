@@ -1,4 +1,11 @@
-import { slugifyText } from "@rothern/shared";
+import {
+  PUBLIC_PATHS,
+  categoryPath as sharedCategoryPath,
+  listingPath as sharedListingPath,
+  listingSlug as sharedListingSlug,
+  parseCategoryCode as sharedParseCategoryCode,
+  parseListingNumber as sharedParseListingNumber,
+} from "@rothern/shared";
 
 /**
  * PAZAR YERİ SÖZLÜĞÜ — giriş YAPMAMIŞ ziyaretçinin gördüğü her ad buradan.
@@ -32,13 +39,13 @@ import { slugifyText } from "@rothern/shared";
  */
 export const MARKETPLACE_ROUTES = {
   /** ALIM ilanları listesi (satın alma talepleri). */
-  demands: "/alim-talepleri",
+  demands: PUBLIC_PATHS.demands,
   /** Firmalar-arası ÜRÜN dizini (vitrin). */
-  products: "/urunler",
+  products: PUBLIC_PATHS.products,
   /** Firma dizini — HERKESE AÇIK (görünürlük v2, 2026-09-04); sitemap'te. */
-  companies: "/firmalar",
+  companies: PUBLIC_PATHS.companies,
   /** Tekil ALIM talebi. */
-  demand: "/talep",
+  demand: PUBLIC_PATHS.demand,
 } as const;
 
 export const MARKETPLACE_LABELS = {
@@ -69,25 +76,14 @@ export type PublicListingType = "ALIM";
  * Başlık değişince slug değişir ama numara aynı kalır → sayfa aynı kaydı
  * bulmaya devam eder; kanonik URL'e 308 ile yönlendirilir (bkz. sayfa).
  */
-const NUMBER_RE = /^(rot-\d+)(?:-|$)/i;
-
-export function listingSlug(number: string, title: string): string {
-  const head = slugifyText(number);
-  const tail = slugifyText(title);
-  // Başlık tamamen alfanümerik-dışıysa (emoji vb.) yalnız numara kalır —
-  // geçerli bir URL üretmek başlığı korumaktan önemli.
-  return tail ? `${head}-${tail}` : head;
-}
-
-/** Slug parçasından ilan numarasını çıkarır (`ROT-000042`). Yoksa null. */
-export function parseListingNumber(slug: string): string | null {
-  const m = NUMBER_RE.exec(slug.trim());
-  return m ? m[1].toUpperCase() : null;
-}
-
-export function listingPath(number: string, title: string): string {
-  return `${MARKETPLACE_ROUTES.demand}/${listingSlug(number, title)}`;
-}
+/*
+ * UYGULAMA `@rothern/shared` `helpers/public-paths.ts`te (SEO Parça 5):
+ * API de yayın anında aynı adresi üretip motorlara bildiriyor. Buradaki
+ * adlar korunuyor ki 40+ çağıran dokunulmadan kalsın.
+ */
+export const listingSlug = sharedListingSlug;
+export const parseListingNumber = sharedParseListingNumber;
+export const listingPath = sharedListingPath;
 
 /* ------------------------------------------------------------------ */
 /* Durum — ziyaretçiye gösterilen                                      */
@@ -149,16 +145,6 @@ export function isIndexableState(state: PublicListingState): boolean {
  * olmayan bir düzenli ifadeye iner. Ad sonda olsaydı "…-39000000" ile biten
  * bir kategori adı sessizce yanlış kodu verirdi.
  */
-const CATEGORY_CODE_RE = /^(\d{8})(?:-|$)/;
-
-export function categoryPath(code: string, name?: string): string {
-  const tail = name ? slugifyText(name) : "";
-  const slug = tail ? `${code}-${tail}` : code;
-  return `${MARKETPLACE_ROUTES.products}/kategori/${slug}`;
-}
-
-/** Yol parçasından kategori kodunu çıkarır. Geçersizse null. */
-export function parseCategoryCode(slug: string): string | null {
-  const m = CATEGORY_CODE_RE.exec(slug.trim());
-  return m ? m[1] : null;
-}
+/* Uygulama `@rothern/shared` `public-paths.ts`te — bkz. listing bloğu. */
+export const categoryPath = sharedCategoryPath;
+export const parseCategoryCode = sharedParseCategoryCode;

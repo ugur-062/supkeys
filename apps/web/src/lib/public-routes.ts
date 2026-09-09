@@ -48,6 +48,11 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/hakkimizda",
   "/iletisim",
   "/sozlesmeler",
+  // HTML OLMAYAN herkese açık uçlar (SEO Parça 5): sitemap parçaları ve
+  // IndexNow anahtar dosyası. CSP/nonce anlamsız (XML/metin) ama liste
+  // "giriş gerektirmeyen rota" tanımının tek kaynağı — burada anılmalı.
+  "/sitemaps",
+  "/indexnow",
 ] as const;
 
 /** Public rotaların kök segmentleri — dosya sistemi değişmez testi kullanır. */
