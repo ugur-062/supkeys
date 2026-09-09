@@ -201,6 +201,12 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Profil tamamlanma | `@rothern/shared` `profileCompleteness` |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |
 | İzin aynası (web) | `lib/company/permissions.ts` |
+| Herkese açık adres şeması (ürün/firma/talep/kategori/şehir) | `@rothern/shared` `helpers/public-paths.ts` (web `lib/public/{marketplace,city}.ts` yeniden dışa aktarır) |
+| Sayfa metası + JSON-LD + tanım cümlesi | `lib/seo/meta.ts` `buildMetadata` · `lib/seo/entities.ts` `{product,company,listing}Seo` |
+| OG/Twitter kartı içeriği ve çizimi | `lib/seo/og/{content.ts,card.tsx}` |
+| Sitemap parçaları · XML | `lib/seo/sitemap-parts.ts` · `lib/seo/sitemap-xml.ts` (API `public-sitemap.service.ts`) |
+| Önbellek etiketleri (web ⇔ API) | `lib/seo/tags.ts` ⇔ `modules/seo-index/seo-index.service.ts` `SEO_TAGS` |
+| Arama görünürlüğü puanı (ürün/firma/talep) | `@rothern/shared` `helpers/seo-readiness.ts` |
 
 ---
 
@@ -416,6 +422,54 @@ talep `/talep/rot-…`, kategori `/urunler/kategori/<kod>-<ad>`.
 
 ---
 
+## SEO / GEO — "eklenen her şey otomatik yüksek görünürlük" (2026-09-09, Parça 1-9)
+
+Kullanıcı kararı: yeni firma/ürün/talep/sayfa **elle iş yapılmadan** yüksek
+SEO ve GEO (üretken motorlarda alıntılanma) alır. Zincir dört halkadır; biri
+eksikse "otomatik" değildir:
+
+1. **Şablon (Parça 1-2, 7):** herkese açık her `page.tsx` metasını
+   `buildMetadata` ya da varlık üreticilerinden (`productSeo`/`companySeo`/
+   `listingSeo`) alır — kanonik + OG + Twitter + robots + JSON-LD + sayfada
+   görünen tanım cümlesi AYNI olgulardan. **`page-meta-contract.test`** dosya
+   sisteminden zorunlu tutar; başlığa elle "Rothern" eklenemez (kök şablon
+   ekliyor — "… — Rothern · Rothern" canlıda görüldü).
+2. **Yayın anı bildirimi (Parça 5):** API `SeoIndexService` (global,
+   `@Optional()` SONDA) ürün publish/unpublish/güncelleme/arşiv, firma profili
+   değişimi/askı, ilan yayın/kapanış/iptal/kazandırma/embargo açılışında
+   5 sn'de toplayıp TEK istekle **IndexNow** (Bing/Yandex → Copilot, ChatGPT
+   araması) + web `POST /api/seo/revalidate` (ISR anında tazelenir) çağırır.
+   Google'a kanal doğru `lastmod`lu sitemap (push API'si yok). Fail-open;
+   `INDEXNOW_KEY` + `SEO_REVALIDATE_SECRET` (Render + Vercel AYNI değer)
+   yoksa kanal KAPALI ve yalnız YAVAŞ. Adresler `public-paths.ts`ten — web
+   kanoniğiyle aynı fonksiyon. Kapalı içerik IndexNow'a gitmez.
+3. **Sitemap + OG (Parça 5-6):** `/sitemap.xml` İNDEKS, parçalar
+   `/sitemaps/{pages,categories,cities,products[-N],companies[-N],listings[-N]}.xml`
+   (20k/parça; ürünlerde image uzantısı; kategori/şehir `lastmod` = daldaki
+   en yeni ürün — "şimdi" YAZILMAZ). Her herkese açık sayfa `opengraph-image`
+   + `twitter-image` (kök marka kartı + varlık kartları; Inter TTF dosyadan,
+   WebP → `/_next/image` JPEG). **Alım talebi kartı sahip adı almaz.**
+4. **Giriş anı kalite (Parça 8):** `seo-readiness.ts` puanı + eksik ipuçları +
+   **Google parçacığı önizlemesi** (aynı şablon fonksiyonu) ürün formu,
+   Profilim ve talep sihirbazı 4. adımda (`SearchVisibilityCard`). Yayın
+   kapısı DEĞİŞMEDİ (`productPublishBlockers`). "AI ile açıklamayı güçlendir"
+   (`POST company/ai/seo-enrich`, Silver+): model yalnız verilen olguları
+   cümleye çevirir, ölçü/standart/fiyat UYDURMAZ, taslak kullanıcı onayıyla
+   uygulanır (AI çerçevesi kuralı).
+
+- **Firma `sameAs`** (web sitesi + LinkedIn) herkese açık projeksiyonda
+  (kullanıcı kararı 2026-09-09); Instagram/Rothern ID üyede kalır.
+- **Canlı denetim:** `pnpm --filter @rothern/web seo:audit` (`SITE=…`) —
+  robots/sitemap/llms + her parçadan örnek sayfa: başlık, açıklama, kanonik,
+  OG 200, JSON-LD zorunlu alanlar, h1, noindex; sorun → exit 1.
+- Search Console/Bing doğrulama: `NEXT_PUBLIC_{GOOGLE,BING}_SITE_VERIFICATION`.
+- Tuzaklar: `fetch(new URL(…, import.meta.url))` Node'da çalışmaz (edge'e
+  özgü) → font `readFile` + `outputFileTracingIncludes`; route-handler-only
+  segmentler (`/api`, `/sitemaps`) public-routes render değişmezinden muaf;
+  web sitemap fetch'leri `SEO_TAGS.sitemap` etiketi taşımalı.
+
+---
+
 ## Panel — pazar bölgesi ve anasayfalar
 
 **İki bölge, ortak token:** panel bölgesi (KPI, Taleplerim, Siparişler, Ayarlar)
@@ -609,6 +663,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 ## Test & Kalite
 
 - API **152 suite / 1371 test** · web **57 / 354** · admin **15 / 79** — yeşil (2026-09-01).
+  2026-09-09 SEO turu: API birim 46 suite yeşil (integration bu makinede
+  Docker olmadığı için KOŞULAMADI — sonraki koşumda `public-profile.spec`
+  website/linkedinUrl beklentisi güncellendi); web tam suite yeşil.
 - **Test DB lokal izole Postgres** (`docker-compose.test.yml`, pg17); remote
   Supabase'e koşulmaz (`test/integration/env.ts` fail-fast).
 - **`40P01` TRUNCATE deadlock'un kök nedeni Prisma bağlantı havuzuydu** →

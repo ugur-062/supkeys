@@ -255,6 +255,10 @@ AYNI değer; boşsa kanal kapalı ve yalnız YAVAŞ (sitemap saatlik).
       (IndexNow bildirimleri orada "IndexNow" sekmesinde görünür).
 - [ ] Bir ürün yayımla → Render logunda `IndexNow: N adres bildirildi` ve
       `Web tazelendi` satırları; `/sitemaps/products.xml` yeni ürünü hemen listeler
+- [ ] Search Console + Bing Webmaster sahiplik: Vercel'e
+      `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` / `NEXT_PUBLIC_BING_SITE_VERIFICATION`
+      (HTML etiketi yöntemi) → redeploy → doğrula
+- [ ] Deploy sonrası `pnpm --filter @rothern/web seo:audit` sorunsuz (exit 0)
 
 ---
 
