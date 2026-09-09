@@ -1,7 +1,7 @@
 "use client";
 
 import { HubList } from "@/components/company/hub-list";
-import { FileStack, ListChecks, PackageSearch, Users } from "lucide-react";
+import { FileStack, ListChecks, PackageSearch, SlidersHorizontal, Users } from "lucide-react";
 
 export default function SatinalmaSablonlarPage() {
   return (
@@ -9,6 +9,15 @@ export default function SatinalmaSablonlarPage() {
       title="Şablonlar"
       description="Satın Alma Talebi açarken tekrar tekrar girdiğiniz verileri bir kez şablonlayın, hızla uygulayın."
       items={[
+        {
+          // Talep şartları (2026-09-09, hızlı talep): ticari profil — teslim,
+          // ödeme, para birimi, görünürlük, süre. Bir kez kurulur.
+          href: "/company/satinalma/sablonlar/talep-sartlari",
+          label: "Talep Şartları",
+          description:
+            "Teslim şekli, ödeme koşulu, para birimi, görünürlük ve süreyi bir kez belirleyin; her yeni satın alma talebi bunlarla başlasın.",
+          icon: SlidersHorizontal,
+        },
         {
           // Faz 2 — Kalem Kataloğu. Sol menü sadeleştirme kararına sadık
           // kalındı: yeni bir menü satırı AÇILMADI, mevcut Şablonlar hub'ının

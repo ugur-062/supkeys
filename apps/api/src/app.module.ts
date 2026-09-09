@@ -53,6 +53,7 @@ import { CompanyItemsModule } from "./modules/company-items/company-items.module
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
 import { CompanyProfileModule } from "./modules/company-profile/company-profile.module";
+import { CompanyRequestDefaultsModule } from "./modules/company-request-defaults/company-request-defaults.module";
 import { CompanyDirectoryModule } from "./modules/company-directory/company-directory.module";
 import { PublicInquiryModule } from "./modules/public-inquiry/public-inquiry.module";
 import { PublicMarketplaceModule } from "./modules/public-marketplace/public-marketplace.module";
@@ -183,6 +184,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyActivityModule,
     CompanyAffinityModule,
     CompanyProfileModule,
+    CompanyRequestDefaultsModule,
     CompanyConnectionsModule,
     CompanyBlocksModule,
     CompanyComplaintsModule,

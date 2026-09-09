@@ -643,6 +643,13 @@ model Company {
    */
   medianReplyHours      Float?
   medianReplyComputedAt DateTime?
+  /**
+   * TALEP ŞARTLARI — firmanın ticari profili (2026-09-09, hızlı talep).
+   * Teslim şekli, ödeme koşulu, para birimi, görünürlük, süre… bir kez kurulur;
+   * her yeni talep bunlarla başlar. Şema: shared `RequestDefaults` (zod ile
+   * API'de doğrulanır). NULL = kurulmadı → son yayımlanan talepten türetilir.
+   */
+  requestDefaults       Json?
 
   // Durum
   isActive      Boolean   @default(true)
