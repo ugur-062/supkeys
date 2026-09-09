@@ -7,7 +7,9 @@ import {
   fetchListingSitemap,
   fetchProductFacets,
   fetchProductSitemap,
+  fetchPublicDirectoryFacets,
 } from "@/lib/public/marketplace-api";
+import { allCitySlugs, cityCompanyPath, cityProductPath } from "@/lib/public/city";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { resolveSiteUrl } from "@/lib/site-url";
@@ -54,11 +56,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Yayın öncesi: sitemap BOŞ. Var olmayan (404 dönen) pazar yeri adreslerini
   // listelemek tarayıcıya yanlış bilgi vermek olurdu.
   if (!MARKETPLACE_LIVE) return [];
-  const [companies, listings, products, productFacets] = await Promise.all([
+  const [companies, listings, products, productFacets, directoryFacets] = await Promise.all([
     fetchCompanySlugs(),
     fetchListingSitemap(),
     fetchProductSitemap(),
     fetchProductFacets(),
+    fetchPublicDirectoryFacets({}),
   ]);
 
   const now = new Date();
@@ -150,9 +153,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
+  /* ŞEHİR AÇILIŞ SAYFALARI (2026-09-09, Parça 3) — YALNIZ VERİSİ OLAN İL.
+     81 ilin hepsini yazmak, çoğu boş 162 adres demekti; boş sayfa hem ince
+     içerik sinyali hem tarama bütçesi kaybıdır (kategori kuralının aynısı).
+     Sayılar facet'ten gelir, adresler `cityProductPath`/`cityCompanyPath`
+     ile üretilir — sayfanın kanonik etiketiyle AYNI fonksiyon. */
+  const knownCities = new Set(allCitySlugs().map((c) => c.name));
+  const cityProductRoutes: MetadataRoute.Sitemap = productFacets.cities
+    .filter((c) => c.count > 0 && knownCities.has(c.city))
+    .map((c) => ({
+      url: `${siteUrl}${cityProductPath(c.city)}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+    }));
+  const cityCompanyRoutes: MetadataRoute.Sitemap = directoryFacets.cities
+    .filter((c) => c.count > 0 && knownCities.has(c.city))
+    .map((c) => ({
+      url: `${siteUrl}${cityCompanyPath(c.city)}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+
   return [
     ...hubs,
     ...legal,
+    ...cityProductRoutes,
+    ...cityCompanyRoutes,
     ...categoryRoutes,
     ...listingRoutes,
     ...productRoutes,

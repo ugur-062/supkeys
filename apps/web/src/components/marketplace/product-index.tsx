@@ -8,6 +8,7 @@ import { PublicSearchTabs } from "./public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
+import { CityLinks } from "./city-links";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
 import { categoryPath } from "@/lib/public/marketplace";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/public/product-filter-params";
 import { signupHref } from "@/lib/public/visibility";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 /**
  * ÜRÜN DİZİNİ — süzgeç v3 (2026-09-04).
@@ -39,10 +41,19 @@ interface Props {
   category?: { id: string; name: string };
   /** Kategori sayfası: segment fotoğrafı (başlık yanında). */
   image?: string | null;
+  /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir (Parça 3). */
+  fixedCity?: string;
+  /** Listenin ÜSTÜNDE görünen giriş metni (GEO: alıntılanabilir tanım). */
+  intro?: ReactNode;
+  /** Listenin ALTINDA görünen bağlantı şeridi (iç bağlantı ağı). */
+  footer?: ReactNode;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category, image }: Props) {
-  const state = parseProductFilters(searchParams, category?.id);
+export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, intro, footer }: Props) {
+  const state = parseProductFilters(
+    fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
+    category?.id,
+  );
   const params = toProductListParams(state);
   const basePath = MARKETPLACE_ROUTES.products;
 
@@ -88,6 +99,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
   return (
     <>
     <JsonLd data={listLd} />
+    {intro}
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={
@@ -185,6 +197,11 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
         </Link>
       </PublicListPage>
     </FilterShell>
+    {/* Şehir şeridi VARSAYILAN (2026-09-09, Parça 3): şehir sayfalarına iç
+        bağlantı olmadan sitemap tek başına otorite aktarmaz. Şehir sayfası
+        kendi şeridini `footer` ile verir (orada facet, o şehre daralmış
+        olurdu ve şerit boş çıkardı). */}
+    {footer ?? <CityLinks cities={facets.cities} kind="products" activeCity={fixedCity} />}
     </>
   );
 }
