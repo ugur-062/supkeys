@@ -72,7 +72,15 @@ export function ProductStrip({
 
       <CardRail>
         {items.map((p) => (
-          <li key={`${p.company.slug}/${p.slug}`} className="w-40 shrink-0 snap-start sm:w-44">
+          <li
+            key={`${p.company.slug}/${p.slug}`}
+            /* 160/176 px DAR GELDİ (canlı bulgu 2026-09-09): kartın firma satırında
+               avatar + bayrak + iki rozet sabit yer kaplıyor, geriye ada ~70 px
+               kalıyordu ve "Başkent Medikal Ltd. Şti." canlıda "Başke…" diye
+               okunuyordu — "kimden alıyorum" kartın karar veren alanı. Genişlik
+               176/208/224'e çıktı; 1440 px'te bir kart az görünüyor, ad okunuyor. */
+            className="w-44 shrink-0 snap-start sm:w-52 lg:w-56"
+          >
             <ProductCard
               product={p}
               company={p.company}

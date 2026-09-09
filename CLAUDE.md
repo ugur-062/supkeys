@@ -453,8 +453,11 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
 - Panel anasayfası public anasayfanın KOPYASI DEĞİLDİR (denendi, kullanıcı geri
   aldırdı — `satinalma-home.test`). Başlık şeridi ve "BUGÜN" bandı kalktı;
   bekleyen işlerin tam listesi Şirketim › Genel Bakış'ta.
-- **Uydurma sinyal basılmaz:** "N tedarikçi inceledi", "hızlı yanıt veren",
-  "popüler aramalar", teslimat bölgesi — veri tutulmuyor, bölüm çizilmiyor.
+- **Uydurma sinyal basılmaz:** "N tedarikçi inceledi", "popüler aramalar",
+  teslimat bölgesi — veri tutulmuyor, bölüm çizilmiyor. ("Hızlı yanıt veren"
+  bu listeden ÇIKTI: 2026-09-07'de gerçek ölçü geldi — `common/company/
+  reply-time.ts` ortanca ilk yanıt süresi, gece cron'u `Company.
+  medianReplyHours`e yazar, eşik 24 saat; İş Analizi ile AYNI kaynak.)
 - Portal yönü içeriği belirler: satınalma şeridinde başkalarının **ürünleri**
   (`company/items/discover`), satışta başkalarının **alım talepleri**
   (`seller-tenders`). Sözleşme `portal-discovery.test.tsx`.

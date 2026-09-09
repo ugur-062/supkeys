@@ -29,7 +29,7 @@ const COLUMNS = [
   {
     heading: "Rothern",
     links: [
-      { label: "Nasıl çalışır", href: "/nasil-calisir" },
+      { label: "Nasıl Çalışır", href: "/nasil-calisir" },
       { label: "Fiyatlar", href: "/nasil-calisir#fiyatlar" },
       { label: "Hakkımızda", href: "/hakkimizda" },
       { label: "İletişim", href: "/iletisim" },

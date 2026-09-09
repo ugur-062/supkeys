@@ -5,7 +5,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 /**
  * ÜST ÇUBUK — TEK KATMAN, SADE MENÜ (2026-09-09, kullanıcı kararı).
@@ -37,6 +38,19 @@ import { useState } from "react";
  * Header `fixed` KALDI ve arama kutusu artık HİÇ çizilmediği için
  * `useHeroGone`a bağlı render dallanması da kalktı — sunucu ve istemci aynı
  * ağacı basar (2026-09-05 hydration #418 dersi).
+ *
+ * GÖRSEL RÖTUŞ (2026-09-09, kullanıcı: "modern header yap" — seçim: yeni öğe
+ * EKLEME, yalnız görsel):
+ *  · AKTİF SAYFA alt çizgiyle işaretli (`aria-current="page"`), hover'da aynı
+ *    çizgi soluk beliriyor — bağlantılar artık "nerede olduğunu" söylüyor.
+ *  · Kaydırınca çubuk 64 → 56 px'e iniyor, zemin matlaşıyor ve ince bir gölge
+ *    biniyor; sayfanın üstündeyken çizgi/gölge YOK (hero fotoğrafı çubuğun alt
+ *    çizgisine oturuyor, gölge orada kirli bir bant yapardı).
+ *
+ * İKİSİ DE İSTEMCİ EFEKTİNDEN OKUNUR, render dallanması DEĞİL. `usePathname`
+ * statik/ISR üretimde "/" DÖNMÜYOR (2026-09-05 #418): sunucu HER ZAMAN
+ * "aktif yok + kaydırılmamış" hâli basar, işaret hidrasyondan sonra düşer.
+ * Yükseklik yalnız kaydırınca değişir, dolayısıyla ilk boyada zıplama olmaz.
  */
 const PRICING_HREF = "/nasil-calisir#fiyatlar";
 
@@ -51,27 +65,65 @@ const NAV = [
 
 export function MarketingHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [here, setHere] = useState<string | null>(null);
+  const pathname = usePathname();
+
+  /* Aktif satır: `pathname` yalnız EFEKT BAĞIMLILIĞI — render dalı değil.
+     Rota değişince yeniden değerlendirilir, ilk boyada boş kalır. */
+  useEffect(() => {
+    setHere(window.location.pathname);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  /* Fiyatlar `/nasil-calisir#fiyatlar`e gidiyor; çapa aynı sayfa olduğu için
+     ikisi birden işaretlenmesin diye yalnız TAM eşleşme aktif sayılır. */
+  const isActive = (href: string) => here != null && here === href.split("#")[0] && !href.includes("#");
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="h-16 border-b border-zinc-950/10 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6 lg:gap-6 lg:px-8">
+      <div
+        className={`border-b transition-[height,background-color,border-color,box-shadow] duration-200 ${
+          scrolled
+            ? "h-14 border-zinc-950/10 bg-white/90 shadow-sm shadow-zinc-950/5 backdrop-blur-md"
+            : "h-16 border-zinc-950/10 bg-white/95 backdrop-blur"
+        }`}
+      >
+        <div
+          className={`mx-auto flex max-w-7xl items-center gap-2 px-4 transition-[height] duration-200 sm:px-6 lg:gap-7 lg:px-8 ${
+            scrolled ? "h-14" : "h-16"
+          }`}
+        >
           {/* Logonun alt metni "Rothern" — ayrıca sr-only metin KOYMA
               (ekran okuyucu adı iki kez okur). */}
           <Link href="/" className="-m-1.5 shrink-0 p-1.5">
             <RothernLogo variant="full-light" size="sm" priority />
           </Link>
 
-          <nav aria-label="Site menüsü" className="hidden items-center gap-6 lg:flex">
-            {NAV.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="text-sm font-medium whitespace-nowrap text-zinc-600 transition hover:text-zinc-950"
-              >
-                {item.name}
-              </Link>
-            ))}
+          <nav aria-label="Site menüsü" className="hidden items-center gap-7 lg:flex">
+            {NAV.map((item) => {
+              const on = isActive(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  aria-current={on ? "page" : undefined}
+                  className={`relative py-1 text-sm font-medium whitespace-nowrap transition after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:rounded-full after:transition ${
+                    on
+                      ? "text-zinc-950 after:bg-zinc-950"
+                      : "text-zinc-600 after:bg-transparent hover:text-zinc-950 hover:after:bg-zinc-950/20"
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="ml-auto hidden items-center gap-4 lg:flex">

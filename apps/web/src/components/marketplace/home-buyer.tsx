@@ -52,6 +52,12 @@ export function HomeBuyer({
         accent="blue"
       />
 
+      {/* ÇAPA: footer'daki "Kategoriler" bağlantısı `/#kategoriler`e gidiyor
+          ama sayfada o id HİÇ YOKTU — tıklayan kullanıcı anasayfanın başına
+          düşüyordu (canlı bulgu 2026-09-09). Sarmalayıcı `CategoryShowcaseRows`
+          panel bileşenine dokunmadan çapayı veriyor; `scroll-mt` sabit
+          header'ın altına gizlenmesin diye. */}
+      <div id="kategoriler" className="scroll-mt-24">
       <CategoryShowcaseRows
         rows={rows}
         /* Ürünü OLMAYAN segment kategori sayfasında 404 verir (o sayfa boş
@@ -63,6 +69,7 @@ export function HomeBuyer({
         countNoun="ürün"
         ctaLabel="Şimdi tedarikçi bulun"
       />
+      </div>
 
       <ProductStrip
         id="yeni-eklenen-urunler"
