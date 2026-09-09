@@ -238,6 +238,24 @@ görünür (görünür hata; sessiz sızıntının tersi).
 - [ ] **`NEXT_PUBLIC_SITE_URL` doğru mu** — kanonik URL, sitemap ve JSON-LD
       hepsi buradan okuyor. Yanlışsa Google başka bir alan adını kanonik sanar.
 
+### SEO yayın anı bildirimi (2026-09-09, Parça 5)
+
+Yeni ürün/firma/talep yayımlandığında API motorlara kendisi haber verir
+(`SeoIndexService`: IndexNow + web önbellek tazeleme). İki env, İKİ platformda
+AYNI değer; boşsa kanal kapalı ve yalnız YAVAŞ (sitemap saatlik).
+
+- [ ] `openssl rand -hex 16` → **`INDEXNOW_KEY`** hem Render hem Vercel
+- [ ] `openssl rand -hex 32` → **`SEO_REVALIDATE_SECRET`** hem Render hem Vercel
+- [ ] Vercel redeploy (env okunur) → `https://www.rothern.com/indexnow/<key>.txt`
+      anahtarı döndürmeli (404 dönerse Vercel env eksik)
+- [ ] `WEB_URL` (Render) = `NEXT_PUBLIC_SITE_URL` (Vercel) = `https://www.rothern.com`
+      — API adresleri `WEB_URL`den kurar; ayrışırsa IndexNow yanlış host bildirir
+- [ ] Google Search Console → Sitemaps → `https://www.rothern.com/sitemap.xml`
+      (indeks; parçalar `/sitemaps/*.xml`). Bing Webmaster Tools'a da aynı adres
+      (IndexNow bildirimleri orada "IndexNow" sekmesinde görünür).
+- [ ] Bir ürün yayımla → Render logunda `IndexNow: N adres bildirildi` ve
+      `Web tazelendi` satırları; `/sitemaps/products.xml` yeni ürünü hemen listeler
+
 ---
 
 ## Netleştirilecek (deploy öncesi karar)

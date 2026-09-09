@@ -49,6 +49,7 @@ import {
   resolvePublicImage,
 } from "../../common/company/public-image-upload";
 import { StorageService } from "../storage/storage.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
 import {
   productCompletion,
   productPublishBlockers,
@@ -195,6 +196,8 @@ export class CompanyItemsService {
     private readonly storage: StorageService,
     /** Ziyaret Edenler kaydı — SONDA ve isteğe bağlı (elle kurulan test rig'leri kırılmasın). */
     @Optional() private readonly views?: CompanyViewsService,
+    /** Yayın anı SEO bildirimi (IndexNow + web tazeleme) — SONDA ve isteğe bağlı. */
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   /** Arama + sayfalama. Sıralama: sık kullanılan ve yakında kullanılan üstte. */
@@ -312,6 +315,7 @@ export class CompanyItemsService {
       entityId: id,
       metadata: { name: row.name },
     });
+    if (row.isPublic) this.seo?.productChanged(id);
     return this.serialize(row);
   }
 
@@ -1008,6 +1012,9 @@ export class CompanyItemsService {
       entityId: id,
       metadata: { name: row.name, isPublic: row.isPublic },
     });
+    // Yayındaki ürünün sayfası değişti → motorlar ve web önbelleği. Taslakta
+    // herkese açık adres yok; bildirim gereksiz.
+    if (row.isPublic) this.seo?.productChanged(id);
     return this.serializeShowcase(row);
   }
 
@@ -1087,6 +1094,7 @@ export class CompanyItemsService {
       entityId: id,
       metadata: { name: updated.name, slug },
     });
+    this.seo?.productChanged(id);
     return this.serializeShowcase(updated);
   }
 
@@ -1107,6 +1115,7 @@ export class CompanyItemsService {
       entityId: id,
       metadata: { name: updated.name },
     });
+    this.seo?.productChanged(id);
     return this.serializeShowcase(updated);
   }
 

@@ -125,6 +125,11 @@ services:
         sync: false
       - key: GEMINI_VERTEX_LOCATION
         value: global
+      # SEO yayın anı bildirimi (Parça 5) — Vercel'deki değerlerle AYNI olmalı.
+      - key: INDEXNOW_KEY
+        sync: false
+      - key: SEO_REVALIDATE_SECRET
+        sync: false
       - key: AI_PROVIDER
         value: gemini
       - key: AI_MODEL_DEFAULT

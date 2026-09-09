@@ -60,6 +60,7 @@ import {
   bidValidUntilMs,
 } from "../../../common/company/listing-timing";
 import { AuditService } from "../../audit/audit.service";
+import { SeoIndexService } from "../../seo-index/seo-index.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -161,6 +162,11 @@ export class CompanyListingsService {
     // İlgi motoru — bildirim eşiği ve sıralama için. @Optional: yoksa akış
     // eski davranışa (herkese, en yeniden) düşer, bildirim hiç kesilmez.
     @Optional() private readonly affinity?: CompanyAffinityService,
+    // Yayın anı SEO bildirimi (IndexNow + web tazeleme) — SONDA ve isteğe
+    // bağlı; herkese açık sayfayı DEĞİŞTİREN geçişlerde çağrılır (yayın,
+    // kapanış, iptal, kazandırma, başlık/açıklama güncellemesi). Teklif
+    // hareketleri çağırmaz: sayfa teklif sayısı bile göstermiyor.
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
 
@@ -1612,6 +1618,9 @@ export class CompanyListingsService {
         );
       }
     }
+    // Yayındaki ilanın başlığı/açıklaması/kalemleri değişti → herkese açık
+    // sayfa ve slug (başlıktan türer) tazelenir. Taslakta adres yok.
+    if (updated.status !== "DRAFT") this.seo?.listingChanged(listingId);
     return this.serialize(updated);
   }
 
@@ -1753,6 +1762,7 @@ export class CompanyListingsService {
       ),
     );
     this.realtime?.pingListing(listingId);
+    this.seo?.listingChanged(listingId);
     return this.serialize(updated);
   }
 
@@ -1780,6 +1790,7 @@ export class CompanyListingsService {
       ),
     );
     this.realtime?.pingListing(payload.listingId);
+    this.seo?.listingChanged(payload.listingId);
   }
 
   /** (Geriye uyum) Eski yayın onayı reddedilirse ilan taslağa geri döner. */
@@ -4800,6 +4811,7 @@ export class CompanyListingsService {
         });
       }
       this.realtime?.pingListing(listingId, awardParties);
+      this.seo?.listingChanged(listingId);
       for (const o of orders) this.realtime?.pingOrder(o.id, awardParties);
     } catch (err) {
       this.logger.warn(
@@ -5557,6 +5569,7 @@ export class CompanyListingsService {
         ...new Set(groupArr.map((g) => g.bidderCompanyId)),
         ...losingBidderIds,
       ]);
+      this.seo?.listingChanged(listingId);
       for (const o of created) {
         this.realtime?.pingOrder(o.id, [listing.companyId]);
       }
@@ -6123,6 +6136,7 @@ export class CompanyListingsService {
       },
     });
     this.realtime?.pingListing(listingId);
+    this.seo?.listingChanged(listingId);
     return {
       ok: true,
       validityDays: newValidityDays,
@@ -6451,6 +6465,7 @@ export class CompanyListingsService {
         reason: reason?.trim() || null,
       },
     });
+    this.seo?.listingChanged(listingId);
     // Katılımcılara haber ver (UI "gerekçe iletilir" vaadi artık gerçek).
     void this.notifyListingParticipants(listingId, {
       subject: "Satın Alma Talebi iptal edildi",
@@ -6613,6 +6628,7 @@ export class CompanyListingsService {
       ),
     );
     this.realtime?.pingListing(listingId);
+    this.seo?.listingChanged(listingId);
     return { ok: true, status: "IN_AWARD" };
   }
 
@@ -6746,6 +6762,7 @@ export class CompanyListingsService {
       ),
     );
     this.realtime?.pingListing(listing.id);
+    this.seo?.listingChanged(listing.id); // validThrough değişti
     return { ok: true };
   }
 
@@ -6832,6 +6849,7 @@ export class CompanyListingsService {
         reason: reason?.trim() || null,
       },
     });
+    this.seo?.listingChanged(listingId);
     void this.notifyListingParticipants(listingId, {
       subject: "Satın Alma Talebi kazanan olmadan kapatıldı",
       heading: "Satın Alma Talebi sonuçlanmadan kapatıldı",

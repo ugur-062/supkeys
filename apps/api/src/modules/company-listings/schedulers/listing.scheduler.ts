@@ -11,6 +11,7 @@ import {
 } from "../../../common/cron/cron-registry.service";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { CompanyListingsService } from "../services/company-listings.service";
+import { SeoIndexService } from "../../seo-index/seo-index.service";
 
 @Injectable()
 export class ListingScheduler implements OnModuleInit {
@@ -21,6 +22,9 @@ export class ListingScheduler implements OnModuleInit {
     private readonly listings: CompanyListingsService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'leyebilir.
     @Optional() private readonly cronRegistry?: CronRegistryService,
+    // Kapanış/embargo açılışı herkese açık sayfayı değiştirir (teklife açık →
+    // kapandı; noindex). @Optional: elle kurulan rig'ler kırılmasın.
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   onModuleInit(): void {
@@ -82,6 +86,7 @@ export class ListingScheduler implements OnModuleInit {
       });
       if (claimed.count !== 1) continue; // başka worker aldı → atla
       closed++;
+      this.seo?.listingChanged(l.id);
       void this.listings.notifyListingClosed(l.id).catch((err) =>
         this.logger.error(
           `Kapanış bildirimi gönderilemedi (${l.id}): ${
@@ -252,6 +257,7 @@ export class ListingScheduler implements OnModuleInit {
           l.currentRound > 1 ? "newRound" : "invitation",
         );
         announced++;
+        this.seo?.listingChanged(l.id);
       } catch (err) {
         this.logger.error(
           `Açılış duyurusu gönderilemedi (${l.id}): ${

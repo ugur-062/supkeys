@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -25,6 +26,7 @@ import { isNotificationEnabled } from "../../common/notifications/notification-p
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { enforceProductLimit } from "../../common/company/product-limit";
 import { AuditService } from "../audit/audit.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
 import { EmailService } from "../email/email.service";
 import { EmailSuppressionService } from "../email/email-suppression.service";
 import { NotificationService } from "../notifications/notification.service";
@@ -49,6 +51,8 @@ export class AdminCompaniesService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly suppression: EmailSuppressionService,
+    /** Askı/açma herkese açık profili kaldırır/geri getirir. SONDA, isteğe bağlı. */
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   /**
@@ -1476,6 +1480,7 @@ export class AdminCompaniesService {
       where: { id },
       data: { isBlocked: true, blockedReason, blockedAt: new Date() },
     });
+    this.seo?.companyChanged(id);
     await this.audit.log({
       action: "admin.company.suspended",
       actorType: "admin",
@@ -1509,6 +1514,7 @@ export class AdminCompaniesService {
       where: { id },
       data: { isBlocked: false, blockedReason: null, blockedAt: null },
     });
+    this.seo?.companyChanged(id);
     await this.audit.log({
       action: "admin.company.unsuspended",
       actorType: "admin",

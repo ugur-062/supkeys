@@ -24,6 +24,7 @@ import { AdminSystemModule } from "./modules/admin-system/admin-system.module";
 import { CronRegistryModule } from "./common/cron/cron-registry.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { AuditModule } from "./modules/audit/audit.module";
+import { SeoIndexModule } from "./modules/seo-index/seo-index.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
 import { CompanyBidDocumentsModule } from "./modules/company-bid-documents/company-bid-documents.module";
@@ -166,6 +167,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CategoriesModule,
     PasswordResetModule,
     AuditModule,
+    SeoIndexModule,
     HealthModule,
     // Admin
     AdminAuthModule,

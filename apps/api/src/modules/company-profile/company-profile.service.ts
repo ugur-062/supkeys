@@ -7,8 +7,7 @@ import {
   ServiceUnavailableException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+  NotFoundException, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
   generateSlug,
@@ -23,6 +22,7 @@ import {
   MAX_IMAGE_BYTES,
 } from "../../common/helpers/upload-validation";
 import { AuditService } from "../audit/audit.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
 import { CategoryService } from "../categories/services/category.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
@@ -86,6 +86,8 @@ export class CompanyProfileService {
     private readonly storage: StorageService,
     private readonly categories: CategoryService,
     private readonly audit: AuditService,
+    /** Yayın anı SEO bildirimi — SONDA ve isteğe bağlı (test rig'leri kırılmasın). */
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   /**
@@ -375,6 +377,9 @@ export class CompanyProfileService {
         // IBAN/hesap-sahibi değişimi para-yolu delilidir → critical.
         critical: moneyPathChanged,
       });
+      // Profil herkese açıksa (ya da az önce açıldı/kapandıysa) firma
+      // sayfası + dizin + ürün sayfalarındaki satıcı bloğu tazelenir.
+      if (current?.publicEnabled || c.publicEnabled) this.seo?.companyChanged(companyId);
     }
     return c;
   }
