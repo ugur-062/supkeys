@@ -4,14 +4,14 @@ import {
   type ProductSearchParams,
 } from "@/components/marketplace/product-index";
 import {
-  MARKETPLACE_LABELS,
+  MARKETPLACE_ROUTES,
   categoryPath,
   parseCategoryCode,
 } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets } from "@/lib/public/marketplace-api";
 import { segmentPhotoSrc } from "@/lib/public/category-photos";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
@@ -52,16 +52,22 @@ export async function generateMetadata({
   const { slug } = await params;
   const code = parseCategoryCode(slug);
   const cat = code ? await resolveCategory(code) : null;
-  const name = cat?.name ?? "Ürünler";
-  const url = cat
-    ? `${resolveSiteUrl()}${categoryPath(cat.id, cat.name)}`
-    : `${resolveSiteUrl()}/urunler`;
-  return {
-    title: `${name} — tedarikçi firmaların ürünleri`,
-    description: `${name} kategorisindeki ürünler: teknik özellik, minimum sipariş ve fiyat bilgisiyle tedarikçi firmaların vitrininden.`,
-    alternates: { canonical: url },
-    openGraph: { title: `${name} — ${MARKETPLACE_LABELS.products}`, url, type: "website" },
-  };
+  // Bilinmeyen/boş kategori: sayfa 404 verir; meta yine şablondan ve noindex.
+  if (!cat) {
+    return buildMetadata({
+      title: "Kategori bulunamadı",
+      description: "Bu kategoride yayımlanmış ürün yok. Ürün dizininden diğer kategorilere göz atın.",
+      path: MARKETPLACE_ROUTES.products,
+      noindex: true,
+    });
+  }
+  const count = cat.count.toLocaleString("tr-TR");
+  return buildMetadata({
+    title: `${cat.name} — ${count} ürün, tedarikçi firmaların vitrininden`,
+    description: `${cat.name} kategorisinde ${count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle tedarikçi firmaların vitrininden. Firmayı seçin, doğrudan bilgi isteyin.`,
+    path: categoryPath(cat.id, cat.name),
+    images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,
+  });
 }
 
 export default async function Page({

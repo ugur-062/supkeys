@@ -5,6 +5,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/20/solid";
+import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,7 +22,12 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Talebinizi onaylayın",
+  ...buildMetadata({
+    title: "Talebinizi onaylayın",
+    description: "Misafir bilgi talebinizi e-postanızdaki bağlantıyla onaylayın; talep satıcıya iletilsin.",
+    path: "/talep-onayla",
+    noindex: true,
+  }),
   robots: { index: false, follow: false },
 };
 

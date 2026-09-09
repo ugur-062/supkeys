@@ -1,4 +1,4 @@
-import { resolveSiteUrl } from "@/lib/site-url";
+import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import MarketingPage from "./marketing-page";
 
@@ -10,12 +10,12 @@ import MarketingPage from "./marketing-page";
  */
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Nasıl çalışır — kapalı zarf teklif, sipariş ve paketler",
   description:
     "Rothern nasıl çalışır: satın alma talebi açma, kapalı zarf teklif toplama, pazarlık, kazandırma ve sipariş takibi. Paketler ve sık sorulan sorular.",
-  alternates: { canonical: `${resolveSiteUrl()}/nasil-calisir` },
-};
+  path: "/nasil-calisir",
+});
 
 export default function Page() {
   return <MarketingPage />;

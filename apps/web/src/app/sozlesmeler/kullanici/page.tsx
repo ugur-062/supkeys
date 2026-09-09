@@ -1,7 +1,15 @@
 import { LegalDoc } from "@/components/marketing/legal-doc";
+import { buildMetadata } from "@/lib/seo/meta";
 import { OPERATOR } from "@/lib/company-info";
 
-export const metadata = { title: "Kullanıcı Sözleşmesi — Rothern" };
+/* "— Rothern" YOK: kök şablon (`%s · Rothern`) markayı ekliyor; elle
+   eklenince "… — Rothern · Rothern" çıkıyordu (SEO Parça 7). */
+export const metadata = buildMetadata({
+  title: "Kullanıcı Sözleşmesi",
+  description:
+    "Rothern platformunun kullanım şartları: hesap, sorumluluklar, içerik kuralları, fesih ve uyuşmazlık çözümü.",
+  path: "/sozlesmeler/kullanici",
+});
 
 export default function Page() {
   return (

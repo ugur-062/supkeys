@@ -1,18 +1,18 @@
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { OPERATOR } from "@/lib/company-info";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { buildMetadata } from "@/lib/seo/meta";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph } from "@/lib/seo/jsonld";
 import Link from "next/link";
 
 /* Başlıkta "— Rothern" YOK: şablon (`%s · Rothern`) markayı zaten ekliyor —
    canlıda "İletişim ve Künye — Rothern · Rothern" çıkıyordu (2026-09-09). */
-export const metadata = {
+export const metadata = buildMetadata({
   title: "İletişim ve Künye",
   description:
     "Rothern'i işleten şirketin ticari unvanı, adresi, vergi bilgileri ve iletişim adresleri; destek ve KVKK başvuruları için e-posta.",
-  alternates: { canonical: `${resolveSiteUrl()}/iletisim` },
-};
+  path: "/iletisim",
+});
 
 const rows: Array<{ label: string; value: string }> = [
   { label: "Ticari Unvan", value: OPERATOR.legalName },

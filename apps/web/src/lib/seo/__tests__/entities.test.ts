@@ -114,6 +114,34 @@ describe("companySeo", () => {
   });
 });
 
+describe("companySeo — sameAs (dış kimlik)", () => {
+  const base = {
+    slug: "acme",
+    name: "Acme",
+    industry: null,
+    city: null,
+    country: null,
+    aboutText: null,
+    logoUrl: null,
+    coverImageUrl: null,
+    foundedYear: null,
+    employeeCount: null,
+    categories: [],
+    productCount: 0,
+  };
+  const org = (input: Parameters<typeof companySeo>[0]) =>
+    (companySeo(input).jsonLd as { "@graph": Record<string, unknown>[] })["@graph"][0];
+
+  it("web sitesi ve LinkedIn http(s) ise sameAs olur; geçersiz/boş yazılmaz", () => {
+    expect(org({ ...base, website: "https://acme.com.tr", linkedinUrl: "https://linkedin.com/company/acme" }).sameAs).toEqual([
+      "https://acme.com.tr",
+      "https://linkedin.com/company/acme",
+    ]);
+    expect(org({ ...base, website: "acme.com.tr", linkedinUrl: "" })).not.toHaveProperty("sameAs");
+    expect(org(base)).not.toHaveProperty("sameAs");
+  });
+});
+
 describe("listingSeo — sahip ANONİM kalır", () => {
   const listing = {
     number: "ROT-000159",

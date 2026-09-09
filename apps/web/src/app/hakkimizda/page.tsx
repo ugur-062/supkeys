@@ -1,6 +1,6 @@
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { OPERATOR } from "@/lib/company-info";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { buildMetadata } from "@/lib/seo/meta";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph } from "@/lib/seo/jsonld";
 import Link from "next/link";
@@ -9,12 +9,12 @@ import Link from "next/link";
    ekliyordu, canlıda "Hakkımızda — Rothern · Rothern" çıkıyordu (2026-09-09).
    Açıklama da sayfaya özel — eskiden kökün genel cümlesi mirasla geliyordu ve
    arama sonucunda bu sayfa anasayfayla aynı metni gösteriyordu. */
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Hakkımızda",
   description:
     "Rothern kimdir, nasıl bir platformdur ve kim işletir: alıcı ile tedarikçiyi tek hesapta birleştiren, kapalı zarf teklif usulüyle çalışan B2B tedarik platformu.",
-  alternates: { canonical: `${resolveSiteUrl()}/hakkimizda` },
-};
+  path: "/hakkimizda",
+});
 
 export default function Page() {
   return (

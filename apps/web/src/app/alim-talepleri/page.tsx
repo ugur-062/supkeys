@@ -1,8 +1,8 @@
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { ListingIndex } from "@/components/marketplace/listing-index";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
-import { MARKETPLACE_LABELS } from "@/lib/public/marketplace";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { buildMetadata } from "@/lib/seo/meta";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -14,17 +14,12 @@ import { notFound } from "next/navigation";
  */
 export const revalidate = 60;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: `${MARKETPLACE_LABELS.demands} — Türkiye ve yurtdışından açık alım ilanları`,
   description:
     "Firmaların yayımladığı açık alım taleplerini kategoriye ve şehre göre inceleyin. Teklif vermek için Rothern'e ücretsiz kaydolun.",
-  alternates: { canonical: `${resolveSiteUrl()}/alim-talepleri` },
-  openGraph: {
-    title: `${MARKETPLACE_LABELS.demands} — Rothern`,
-    url: `${resolveSiteUrl()}/alim-talepleri`,
-    type: "website",
-  },
-};
+  path: MARKETPLACE_ROUTES.demands,
+});
 
 export default async function Page({
   searchParams,

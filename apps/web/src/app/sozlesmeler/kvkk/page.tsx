@@ -1,7 +1,15 @@
 import { LegalDoc } from "@/components/marketing/legal-doc";
+import { buildMetadata } from "@/lib/seo/meta";
 import { OPERATOR } from "@/lib/company-info";
 
-export const metadata = { title: "KVKK Aydınlatma Metni — Rothern" };
+/* "— Rothern" YOK: kök şablon (`%s · Rothern`) markayı ekliyor; elle
+   eklenince "… — Rothern · Rothern" çıkıyordu (SEO Parça 7). */
+export const metadata = buildMetadata({
+  title: "KVKK Aydınlatma Metni",
+  description:
+    "6698 sayılı KVKK kapsamında veri sorumlusu, işleme amaçları, aktarım, saklama süreleri ve ilgili kişi hakları.",
+  path: "/sozlesmeler/kvkk",
+});
 
 export default function Page() {
   return (

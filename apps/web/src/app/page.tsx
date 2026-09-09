@@ -12,6 +12,7 @@ import {
   fetchProducts,
   fetchSegments,
 } from "@/lib/public/marketplace-api";
+import { buildMetadata } from "@/lib/seo/meta";
 import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { ComingSoon } from "@/components/marketplace/coming-soon";
@@ -52,16 +53,14 @@ export const revalidate = 60;
 const SITE = resolveSiteUrl();
 
 const LIVE_METADATA: Metadata = {
-  title: "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
-  description:
-    "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
-  alternates: { canonical: `${SITE}/` },
-  openGraph: {
-    title: "Rothern — B2B pazar yeri",
-    description: "Ürünler, doğrulanmış firmalar ve açık alım talepleri tek yerde.",
-    url: `${SITE}/`,
-    type: "website",
-  },
+  ...buildMetadata({
+    title: "B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
+    description:
+      "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
+    path: "/",
+  }),
+  // Anasayfada şablon ("%s · Rothern") yerine MARKA ÖNDE: "Rothern — …".
+  title: { absolute: "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri" },
 };
 
 export const metadata: Metadata = MARKETPLACE_LIVE

@@ -210,6 +210,18 @@ export interface CompanySeoInput {
   productCount: number;
   /** Vitrindeki ilk ürünler — katalog düğümü için (ad + yol). */
   products?: { name: string; slug: string }[];
+  /**
+   * Dış kimlik (Parça 7, kullanıcı kararı 2026-09-09): firmanın kendi web
+   * sitesi ve LinkedIn sayfası `sameAs` olur — motor Rothern profilini
+   * firmanın gerçek varlığına bağlar (Knowledge Graph / varlık tanıma).
+   * Yalnız http(s) adresler; boş/geçersiz olan yazılmaz.
+   */
+  website?: string | null;
+  linkedinUrl?: string | null;
+}
+
+function httpUrls(values: (string | null | undefined)[]): string[] {
+  return values.filter((v): v is string => !!v && /^https?:\/\//i.test(v.trim())).map((v) => v.trim());
 }
 
 export function companySeo(c: CompanySeoInput): {
@@ -260,6 +272,7 @@ export function companySeo(c: CompanySeoInput): {
     ...(c.employeeCount ? { numberOfEmployees: { "@type": "QuantitativeValue", name: c.employeeCount } } : {}),
     ...(c.categories.length ? { knowsAbout: c.categories.map((k) => k.name) } : {}),
     ...(c.certifications?.length ? { hasCredential: c.certifications } : {}),
+    ...(httpUrls([c.website, c.linkedinUrl]).length ? { sameAs: httpUrls([c.website, c.linkedinUrl]) } : {}),
     ...(c.city
       ? {
           address: {

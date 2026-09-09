@@ -3,9 +3,9 @@ import {
   ProductIndex,
   type ProductSearchParams,
 } from "@/components/marketplace/product-index";
-import { MARKETPLACE_LABELS } from "@/lib/public/marketplace";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -22,17 +22,12 @@ export const revalidate = 300;
  * Kanonik: süzgeçli varyantlar `/urunler`e işaret eder (ince içerik
  * yığını indekslenmesin). Kategori yol sayfaları kendi kanoniklerini taşır.
  */
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: `${MARKETPLACE_LABELS.products} — firmaların ürün vitrini`,
   description:
     "Türkiye'deki tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Ürünü bulun, firmasına doğrudan ulaşın.",
-  alternates: { canonical: `${resolveSiteUrl()}/urunler` },
-  openGraph: {
-    title: `${MARKETPLACE_LABELS.products} — Rothern`,
-    url: `${resolveSiteUrl()}/urunler`,
-    type: "website",
-  },
-};
+  path: MARKETPLACE_ROUTES.products,
+});
 
 export default async function Page({
   searchParams,

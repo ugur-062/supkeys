@@ -67,6 +67,11 @@ export class PublicProfileService {
         photos: true,
         foundedYear: true,
         employeeCount: true,
+        // SEO Parça 7 (kullanıcı kararı 2026-09-09): web sitesi ve LinkedIn
+        // herkese açık — JSON-LD `sameAs` firmayı dış kimliğine bağlar
+        // (varlık tanıma); rekabet istihbaratı değil, kimlik.
+        website: true,
+        linkedinUrl: true,
         buyerCategoryIds: true,
         sellerCategoryIds: true,
         publicEnabled: true,
@@ -112,6 +117,8 @@ export class PublicProfileService {
       certificateImages: c.certificateImages,
       foundedYear: c.foundedYear,
       employeeCount: c.employeeCount,
+      website: c.website,
+      linkedinUrl: c.linkedinUrl,
       categories,
       productCount,
       // Ortalama TEK SAYI; dağılım ve sipariş sayıları üyeye (ticari ilişki

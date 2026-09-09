@@ -57,7 +57,8 @@ describe("PublicProfile getBySlug — INV-TIER-1 (T7)", () => {
 /**
  * GÖRÜNÜRLÜK v2 (2026-09-04): profil TAMAMEN gezilebilir (kuruluş, çalışan,
  * Hakkında, hizmet, sertifika, ortalama puan). ÜYEYE kalan: Rothern ID,
- * iletişim/web, puan dağılımı, sipariş sayıları, değerlendirme metinleri.
+ * iletişim, Instagram, puan dağılımı, sipariş sayıları, değerlendirme metinleri
+ * (web sitesi + LinkedIn 2026-09-09'dan beri AÇIK — SEO `sameAs`).
  */
 describe("PublicProfile getBySlug — v2 anonim katman", () => {
   const PROSE =
@@ -80,7 +81,12 @@ describe("PublicProfile getBySlug — v2 anonim katman", () => {
     expect(res.certifications).toEqual(["ISO 9001"]);
     expect(res).toHaveProperty("ratingAvg");
     expect(res).toHaveProperty("productCount");
-    for (const k of ["rothernId", "website", "linkedinUrl", "instagramUrl", "rating", "reviewSummary"]) {
+    // Web sitesi + LinkedIn HERKESE AÇIK (SEO Parça 7, kullanıcı kararı
+    // 2026-09-09): JSON-LD `sameAs` için kimlik, istihbarat değil. Instagram
+    // ve Rothern ID üyeye kalır.
+    expect(res.website).toBe("https://ornek.com");
+    expect(res).toHaveProperty("linkedinUrl");
+    for (const k of ["rothernId", "instagramUrl", "rating", "reviewSummary"]) {
       expect(res).not.toHaveProperty(k);
     }
   });

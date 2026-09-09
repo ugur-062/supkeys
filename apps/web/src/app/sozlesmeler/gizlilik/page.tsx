@@ -1,7 +1,15 @@
 import { LegalDoc } from "@/components/marketing/legal-doc";
+import { buildMetadata } from "@/lib/seo/meta";
 import { OPERATOR } from "@/lib/company-info";
 
-export const metadata = { title: "Gizlilik Politikası — Rothern" };
+/* "— Rothern" YOK: kök şablon (`%s · Rothern`) markayı ekliyor; elle
+   eklenince "… — Rothern · Rothern" çıkıyordu (SEO Parça 7). */
+export const metadata = buildMetadata({
+  title: "Gizlilik Politikası",
+  description:
+    "Rothern'de hangi verilerin toplandığı, nasıl işlendiği ve korunduğu; çerezler ve üçüncü taraf hizmetler.",
+  path: "/sozlesmeler/gizlilik",
+});
 
 export default function Page() {
   return (
