@@ -50,17 +50,9 @@ const MAX_DOCUMENTS = 3;
 const INPUT =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
 
-/** Bölüm çipleri — tıkla-kaydır. Kimlikler bölüm başlıklarıyla eşleşir. */
-const SECTIONS = [
-  { id: "urun-temel", label: "Temel bilgiler" },
-  { id: "urun-gorsel", label: "Görseller" },
-  { id: "urun-ozellik", label: "Özellikler" },
-  { id: "urun-fiyat", label: "Fiyat ve sipariş" },
-  { id: "urun-ekler", label: "Ekler" },
-] as const;
-
 /**
- * ÜRÜN VİTRİN FORMU — tek sayfa, beş numaralı bölüm (2026-09-09 düzeni).
+ * ÜRÜN VİTRİN FORMU — tek sayfa, beş numaralı bölüm (2026-09-09 düzeni;
+ * üstteki bölüm çipleri kullanıcı isteğiyle KALDIRILDI — sayfa düz akar).
  *
  * Dört şey aynı anda yaşıyor ve ayrımları bilinçli:
  *  · DURUM — Taslak / Onay bekliyor / Yayında / Reddedildi (moderasyon:
@@ -132,7 +124,6 @@ export function ProductShowcaseForm({
     product.documents ?? [],
   );
   const docInput = useRef<HTMLInputElement>(null);
-  const [active, setActive] = useState<(typeof SECTIONS)[number]["id"]>("urun-temel");
 
   const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
   const save = useUpdateShowcase();
@@ -367,11 +358,6 @@ export function ProductShowcaseForm({
 
   const busy = save.isPending || publish.isPending || create.isPending;
 
-  const jump = (id: (typeof SECTIONS)[number]["id"]) => {
-    setActive(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   /* Birincil düğme metni duruma göre — kullanıcı ne olacağını okusun. */
   const primaryLabel =
     status === "draft"
@@ -386,25 +372,6 @@ export function ProductShowcaseForm({
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0">
-        {/* BÖLÜM ÇİPLERİ — yapışkan; uzun formda "neredeyim" ve tek tıkla atlama. */}
-        <nav
-          aria-label="Form bölümleri"
-          className="sticky top-16 z-10 -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-xl bg-white/90 p-1 ring-1 ring-zinc-950/5 backdrop-blur"
-        >
-          {SECTIONS.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => jump(s.id)}
-              aria-current={active === s.id ? "step" : undefined}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                active === s.id ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-              }`}
-            >
-              {i + 1}. {s.label}
-            </button>
-          ))}
-        </nav>
 
         <div className="space-y-10">
           {/* 1 ── TEMEL BİLGİLER */}

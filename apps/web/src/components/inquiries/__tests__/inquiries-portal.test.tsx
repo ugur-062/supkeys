@@ -127,6 +127,31 @@ describe("InquiriesView — portal yönü", () => {
   });
 });
 
+describe("InquiriesView — gelen kutusu düzeni (2026-09-09)", () => {
+  it("satıcı: liste satırı + seçili konuşma, süzgeç sayaçları, yanıt kutusu; arama süzer", async () => {
+    const user = userEvent.setup();
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByText("Stok var mı?")).toBeInTheDocument(); // balon
+    // Liste satırı "Kim: mesaj" biçiminde — balonla aynı dize değil.
+    expect(screen.getByText("Ayşe Demir: Stok var mı?")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Yanıt bekleyen/ })).toHaveTextContent("1");
+    expect(screen.getByRole("tab", { name: /Yanıtlanan/ })).toHaveTextContent("0");
+    expect(screen.getByPlaceholderText("Yanıtınızı yazın…")).toBeInTheDocument();
+    expect(screen.getByText("Kayıtlı kullanıcı")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Bilgi taleplerinde ara"), "olmayan ürün");
+    expect(screen.getByText("Bu süzgeçte talep yok.")).toBeInTheDocument();
+  });
+
+  it("alıcı: yanıt bekleniyor notu, ürün bağlantısı satıcı sayfasına, yanıt kutusu YOK", async () => {
+    wrap(<InquiriesView portal="satinalma" />);
+    expect(await screen.findByText("Fiyat bilgisi rica ederim.")).toBeInTheDocument();
+    expect(screen.getByText(/Satıcı henüz yanıtlamadı/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dağıtım Panosu" })).toHaveAttribute("href", "/company/satinalma/urunler/ikinci-firma/pano");
+    expect(screen.queryByPlaceholderText("Yanıtınızı yazın…")).toBeNull();
+  });
+});
+
 describe("PanelInquiryDialog", () => {
   const seed = {
     productName: "Dağıtım Panosu",
