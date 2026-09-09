@@ -3,6 +3,14 @@
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { NumberedSection } from "@/components/ui/numbered-section";
 import { AddressInline } from "./address-inline";
+import { RecentRequests } from "./recent-requests";
+import { StagedDocuments, type StagedListingDoc } from "@/components/tenders/wizard/staged-documents";
+import { uploadListingDocument } from "@/hooks/use-listing-documents";
+import { useConnections } from "@/hooks/use-company-connections";
+import { useCompanySearch } from "@/hooks/use-company-directory";
+import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
+import { tierAtLeast } from "@rothern/shared";
+import Link from "next/link";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
 import { ItemsTable } from "./items-table";
@@ -29,7 +37,7 @@ import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiSearchIntentResult, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
-import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
+import { CheckIcon, DocumentPlusIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
@@ -67,6 +75,12 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const [entryOpen, setEntryOpen] = useState(true);
   const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
   const [categoryHint, setCategoryHint] = useState<string | null>(null);
+  const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const connections = useConnections();
+  const seoEnrich = useAiSeoEnrich();
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
@@ -85,6 +99,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
     const draft = initialValues ? null : readSession<QuickDraft>(QUICK_DRAFT_KEY);
     const base = applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...initialValues }, d);
     reset(draft ? { ...base, ...draft, bidsCloseAt: base.bidsCloseAt } : base);
+    if (draft) setRestoredDraft(true);
     if (!d.deliveryAddressId && addresses.data?.length) {
       const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
       if (pick) setValue("deliveryAddressId", pick.id);
@@ -137,6 +152,8 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   );
   const { data: catRows = [] } = useCategoriesByIds(watched.categoryIds ?? []);
   const selectedAddress = (addresses.data ?? []).find((a) => a.id === watched.deliveryAddressId) ?? null;
+  // Hook'lar erken dönüşlerden (yayın sonrası / iskelet) ÖNCE — sıra değişmez.
+  const publicCount = useCompanySearch({ category: (watched.categoryIds ?? []).join(",") || undefined }, watched.visibility === "PUBLIC");
 
   /* --- Girişler: metin / AI / katalog / belge — hepsi aynı kalem dizisine yazar */
   const appendItems = (next: TenderFormData["items"], titleFallback?: string) => {
@@ -222,12 +239,17 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
     try {
       const ok = await form.trigger();
       if (!ok) {
-        const first = Object.entries(form.formState.errors)[0];
-        toast.error(first ? `Eksik: ${(first[1] as { message?: string })?.message ?? first[0]}` : "Eksik alanlar var");
+        const errs = form.formState.errors;
+        const first = Object.keys(errs)[0];
+        const section = ["items", "title", "categoryIds", "description"].includes(first) ? "talep-ne" : ["deliveryAddressId", "bidsCloseAt", "billingAddressId"].includes(first) ? "talep-nereye" : "talep-kime";
+        document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const msg = (errs[first as keyof typeof errs] as { message?: string } | undefined)?.message;
+        toast.error(msg ? `Eksik: ${msg}` : "Eksik alanlar var — ilgili bölüme kaydırıldı");
         return;
       }
       const values = getValues();
       const listing = await create.mutateAsync(mapToInput(values));
+      await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
       setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name) });
       window.scrollTo({ top: 0 });
@@ -245,6 +267,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
     }
     try {
       const listing = await create.mutateAsync({ ...mapToInput(values), asDraft: true });
+      await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
       toast.success("Taslak kaydedildi");
       router.push(`/company/ilan/${listing.id}`);
@@ -252,6 +275,45 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
       toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
     }
   };
+  /** Şartname/teknik resim: kayıt oluşunca sırayla yüklenir (sihirbazla aynı). */
+  const uploadStaged = async (listingId: string) => {
+    let failed = 0;
+    for (const d of stagedDocs) {
+      try {
+        await uploadListingDocument(listingId, d.file, d.kind);
+      } catch {
+        failed += 1;
+      }
+    }
+    if (failed > 0) toast.warning(`${failed} dosya yüklenemedi — talep sayfasından tekrar ekleyebilirsiniz`);
+  };
+
+  /** Teslim tarihi: tek tarih → tüm kalemlerin `requiredByDate`i. */
+  const applyDeliveryDate = (v: string) => {
+    setDeliveryDate(v);
+    const cur = getValues("items");
+    setValue("items", cur.map((i) => ({ ...i, requiredByDate: v })), { shouldDirty: true });
+  };
+
+  const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
+  const writeDescription = async () => {
+    const v = getValues();
+    try {
+      const r = await seoEnrich.mutateAsync({
+        kind: "listing",
+        name: v.title || titleFromItems(v.items),
+        description: v.description ?? null,
+        categoryName: catRows[0]?.nameTr ?? null,
+        facts: v.items.filter((i) => i.name.trim()).map((i) => `${i.name} — ${i.quantity} ${i.unit}${i.description ? `: ${i.description}` : ""}`),
+        city: selectedAddress?.city ?? null,
+      });
+      setValue("description", r.description, { shouldDirty: true });
+      toast.success("Açıklama taslağı yazıldı — kontrol edin");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "AI açıklama yazamadı"));
+    }
+  };
+
   const goDetailed = () => {
     writeSession(QUICK_TO_WIZARD_KEY, getValues());
     router.push("/company/satinalma/taleplerim/yeni/detayli?kaynak=hizli");
@@ -291,6 +353,17 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const closeLabel = watched.bidsCloseAt ? formatDate(watched.bidsCloseAt, "datetime") : null;
   const ready = hasItems && (watched.categoryIds?.length ?? 0) > 0 && (watched.title?.trim().length ?? 0) >= 3;
 
+  const audience =
+    visibility === "PUBLIC"
+      ? publicCount.data
+        ? `Pazar yerinde listelenir; ${catRows[0] ? `bu kategoride ${publicCount.data.total} firma` : `${publicCount.data.total} firma`} dizinde, kayıtlı her tedarikçi teklif verebilir.`
+        : null
+      : visibility === "CONNECTIONS"
+        ? `${connections.data?.length ?? 0} bağlantınız görecek${invited.length ? ` + ${invited.length} davet` : ""}.`
+        : invited.length
+          ? `Yalnız davet ettiğiniz ${invited.length} firma görecek.`
+          : "Henüz kimse davet edilmedi — en az bir firma seçin ya da görünürlüğü genişletin.";
+
   const summary = {
     what: hasItems ? `${namedItems.length} kalem${catRows[0] ? ` · ${catRows[0].nameTr}` : ""}` : null,
     where: selectedAddress ? `${selectedAddress.title}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}` : null,
@@ -324,7 +397,36 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             status={hasItems ? <Done>{namedItems.length} kalem</Done> : null}
           >
             <div className="space-y-6">
+              {restoredDraft && !initialValues ? (
+                <p className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900 ring-1 ring-blue-600/20">
+                  Kaldığınız taslak geri yüklendi.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearSession(QUICK_DRAFT_KEY);
+                      setRestoredDraft(false);
+                      reset(applyRequestDefaults({ ...DEFAULT_FORM_VALUES }, terms));
+                      setEntryOpen(true);
+                    }}
+                    className="font-semibold underline-offset-2 hover:underline"
+                  >
+                    Temizle, sıfırdan başla
+                  </button>
+                </p>
+              ) : null}
               <NeedInput onParse={applyParsed} onAi={applyAi} onCatalog={applyCatalog} onDocument={applyDocument} collapsed={!entryOpen && hasItems} onExpand={() => setEntryOpen(true)} />
+              {!hasItems ? (
+                <RecentRequests
+                  onSeed={(f) => {
+                    setValue("items", f.items, { shouldDirty: true, shouldValidate: true });
+                    setValue("title", f.title, { shouldDirty: true });
+                    setValue("description", f.description ?? "", { shouldDirty: true });
+                    setValue("categoryIds", f.categoryIds, { shouldDirty: true, shouldValidate: true });
+                    setValue("keywords", f.keywords);
+                    setEntryOpen(false);
+                  }}
+                />
+              ) : null}
 
               {hasItems || watched.title ? (
                 <>
@@ -381,6 +483,32 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                       placeholder="Kullanım amacı, teknik şart, teslim beklentisi — tedarikçi daha isabetli teklif verir."
                       className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                     />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void writeDescription()}
+                        disabled={!aiAvailable || seoEnrich.isPending}
+                        title={aiAvailable ? undefined : "AI ile açıklama Silver ve üzeri paketlerde"}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                      >
+                        <SparklesIcon aria-hidden className="size-3.5" />
+                        {seoEnrich.isPending ? "Yazılıyor…" : "AI ile açıklamayı yaz"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDocsOpen((o) => !o)}
+                        aria-expanded={docsOpen}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                      >
+                        <DocumentPlusIcon aria-hidden className="size-3.5" />
+                        {stagedDocs.length ? `${stagedDocs.length} dosya eklendi` : "Şartname / teknik resim ekle"}
+                      </button>
+                    </div>
+                    {docsOpen ? (
+                      <div className="mt-3 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
+                        <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />
+                      </div>
+                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -442,6 +570,21 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                 </p>
                 {form.formState.errors.bidsCloseAt ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.bidsCloseAt.message}</p> : null}
               </div>
+
+              <div>
+                <label htmlFor="talep-teslim" className="mb-1.5 block text-sm font-medium text-zinc-950">
+                  Teslim ne zaman lazım? <span className="text-xs font-normal text-zinc-500">isteğe bağlı</span>
+                </label>
+                <input
+                  id="talep-teslim"
+                  type="date"
+                  value={deliveryDate}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => applyDeliveryDate(e.target.value)}
+                  className="w-full max-w-xs rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                />
+                <p className="mt-1 text-xs text-zinc-500">Tedarikçi teklifinde bu tarihe göre teslim süresi verir; kalem bazında farklıysa detaylı sihirbazda ayarlanır.</p>
+              </div>
             </div>
           </NumberedSection>
 
@@ -473,6 +616,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                 </button>
               ))}
             </div>
+            {audience ? <p className="mt-3 text-xs text-zinc-600">{audience}</p> : null}
             {visibility === "PRIVATE" || visibility === "CONNECTIONS" ? (
               <div className="mt-4">
                 <p className="mb-2 text-sm font-medium text-zinc-950">{visibility === "PRIVATE" ? "Davet edilecek firmalar" : "Ayrıca davet et (isteğe bağlı)"}</p>
@@ -495,12 +639,18 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             {!verified ? (
               <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
                 <ExclamationTriangleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
-                Yayın için firma doğrulaması gerekir; şimdilik taslak kaydedebilirsiniz.
+                <span>
+                  Yayın için firma doğrulaması gerekir —{" "}
+                  <Link href="/company/ayarlar/dogrulama" className="font-semibold underline">
+                    belgeleri yükleyin
+                  </Link>
+                  . Şimdilik taslak kaydedebilirsiniz.
+                </span>
               </p>
             ) : null}
             {canManage ? (
               <div className="mt-4 space-y-2">
-                <button type="button" onClick={() => void publish()} disabled={create.isPending || !hasItems} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
+                <button type="button" onClick={() => void publish()} disabled={create.isPending || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
                   {create.isPending ? "Yayımlanıyor…" : "Talebi yayınla"}
                 </button>
                 {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">Yayın için başlık ve kategori gerekli.</p> : null}
@@ -545,7 +695,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || "Kalem ekleyin"}</p>
-            <button type="button" onClick={() => void publish()} disabled={create.isPending || !hasItems} aria-label="Talebi yayınla (mobil)" className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" onClick={() => void publish()} disabled={create.isPending || !hasItems || !verified} aria-label="Talebi yayınla (mobil)" className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               Yayınla
             </button>
           </div>

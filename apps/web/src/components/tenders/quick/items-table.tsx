@@ -3,7 +3,8 @@
 import { COMMON_UNIT_CODES, UNITS, getUnit } from "@rothern/shared";
 import { ChevronDownIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { useState } from "react";
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import { ItemNameInput } from "./item-name-input";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +36,28 @@ export function ItemsTable() {
               <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[auto_minmax(0,1fr)_7rem_9rem_auto]">
                 <span aria-hidden className="mt-2 w-5 text-center text-xs font-semibold text-zinc-400">{i + 1}</span>
                 <div className="col-span-1">
-                  <input {...register(`items.${i}.name`)} placeholder="Ürün / hizmet adı" aria-label={`Kalem ${i + 1} adı`} className={cn(CELL, "bg-white")} />
+                  <Controller
+                    control={control}
+                    name={`items.${i}.name`}
+                    render={({ field }) => (
+                      <ItemNameInput
+                        index={i}
+                        value={field.value}
+                        onChange={field.onChange}
+                        className={cn(CELL, "bg-white")}
+                        onPick={(o) => {
+                          field.onChange(o.name);
+                          if (o.unitCode) {
+                            setValue(`items.${i}.unitCode`, o.unitCode, { shouldDirty: true });
+                            setValue(`items.${i}.unit`, getUnit(o.unitCode)?.nameTr ?? o.unit, { shouldDirty: true });
+                          } else setValue(`items.${i}.unit`, o.unit, { shouldDirty: true });
+                          if (o.description) setValue(`items.${i}.description`, o.description, { shouldDirty: true });
+                          if (o.brand) setValue(`items.${i}.brand`, o.brand, { shouldDirty: true });
+                          if (o.code) setValue(`items.${i}.materialCode`, o.code, { shouldDirty: true });
+                        }}
+                      />
+                    )}
+                  />
                   {err?.name ? <p className="mt-1 text-xs text-red-700">{err.name.message}</p> : null}
                 </div>
                 <button type="button" onClick={() => remove(i)} disabled={fields.length === 1} aria-label={`Kalem ${i + 1} sil`} className="mt-1.5 rounded-md p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 disabled:opacity-30 sm:order-last">

@@ -33,6 +33,12 @@ vi.mock("@/hooks/use-company-listings", () => ({ useCreateListing: () => ({ muta
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
 vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));
+vi.mock("@/components/tenders/wizard/staged-documents", () => ({ StagedDocuments: () => <div data-testid="staged-docs" /> }));
+vi.mock("@/hooks/use-listing-documents", () => ({ uploadListingDocument: vi.fn() }));
+vi.mock("@/hooks/use-company-tenders", () => ({ useTenders: () => ({ data: [{ id: "t9", title: "Geçen ayki kablo alımı", status: "AWARDED" }] }) }));
+vi.mock("@/hooks/use-company-directory", () => ({ useCompanySearch: () => ({ data: { items: [], total: 12 } }) }));
+vi.mock("@/hooks/use-ai-seo-enrich", () => ({ useAiSeoEnrich: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
+vi.mock("@/hooks/use-company-items", () => ({ useCatalogItems: () => ({ data: { items: [] } }) }));
 vi.mock("@/components/tenders/ai-import/ai-import-dialog", () => ({ AiImportDialog: () => null }));
 vi.mock("@/hooks/use-categories", () => ({
   useCategoriesByIds: () => ({ data: [{ id: "39121600", nameTr: "Dağıtım panoları" }] }),
@@ -95,6 +101,11 @@ describe("QuickRequest", () => {
     // Kapsam: bağlantılarım seçili; özet dolu
     expect(screen.getByRole("button", { name: /^Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("2 kalem · Dağıtım panoları")).toBeInTheDocument();
+    // Kime: bağlantı sayısı gerçek veriden; herkese açıkta dizin sayısı
+    expect(screen.getByText(/0 bağlantınız görecek/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Herkese açık/ }));
+    expect(screen.getByText(/12 firma/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Bağlantılarım/ }));
 
     // AI'sız kategori önerisi: kalem adından arama → çip → tek tıkla seçim
     fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
@@ -123,6 +134,11 @@ describe("QuickRequest", () => {
     expect(body.asDraft).toBeUndefined();
     expect(await screen.findByText("Talebiniz yayında")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Talebi gör" })).toHaveAttribute("href", "/company/ilan/l1");
+  });
+
+  it("boş kartta 'son taleplerden başla' çipi görünür", async () => {
+    wrap(<QuickRequest />);
+    expect(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" })).toBeInTheDocument();
   });
 
   it("profil yoksa kurulum kartı; kaydedince profile yazılır", async () => {
