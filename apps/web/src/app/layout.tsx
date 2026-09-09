@@ -1,4 +1,5 @@
 import { QueryProvider } from "@/components/providers/query-provider";
+import { SITE_NAME, absoluteUrl } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { Toaster } from "sonner";
@@ -28,9 +29,31 @@ const geistMono = Geist_Mono({
 // (bkz. src/middleware.ts, public-routes.test.ts).
 
 export const metadata: Metadata = {
+  /* Göreli OG/Twitter görsellerini ve `alternates.canonical`ı mutlaklaştıran
+     taban. Olmadan Next uyarı basıp göreli adres yazıyor; sosyal ağlar ve AI
+     tarayıcıları göreli görseli çözemiyor. */
+  metadataBase: new URL(absoluteUrl("/")),
   title: {
     default: "Rothern",
-    template: "%s · Rothern",
+    template: `%s · ${SITE_NAME}`,
+  },
+  applicationName: SITE_NAME,
+  /* Arama motoruna ve AI tarayıcısına AÇIK yönerge: parçacığı kısaltma,
+     görseli küçük gösterme, videoyu kırpma. Varsayılan davranış Google'da
+     "kısa parçacık"tır; uzun parçacık hem tıklamayı hem üretken motorların
+     alıntıladığı metnin kalitesini yükseltir. Panel `noindex`i rota
+     bazında veriliyor (bkz. lib/public-routes.ts), buradaki genel izin onu
+     EZMEZ — sayfa kendi robots'unu yazdığında o kazanır. */
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
   },
   description:
     "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Kapalı zarf teklif topla, ilan aç, firma keşfet — al, sat, keşfet, tek panelden.",
@@ -48,9 +71,18 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Rothern",
     description: "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
+    /* OG görseli OPAK olmalı: sosyal platformlar saydam PNG'yi siyaha basar
+       (2026-09-09 logo düzeltmesinde `-trans`a çevrilmedi, bilinçli). */
     images: ["/rothern-logo-on-light.png"],
+    siteName: SITE_NAME,
     locale: "tr_TR",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rothern",
+    description: "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
+    images: ["/rothern-logo-on-light.png"],
   },
 };
 

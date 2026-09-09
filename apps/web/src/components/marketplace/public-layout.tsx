@@ -1,4 +1,6 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { JsonLd } from "@/components/seo/json-ld";
+import { siteGraph } from "@/lib/seo/jsonld";
 import { MarketplaceFooter } from "./marketplace-footer";
 import type { ReactNode } from "react";
 
@@ -41,6 +43,15 @@ export function PublicLayout({
 }) {
   return (
     <div className={`min-h-dvh ${className}`}>
+      {/* SİTE KİMLİĞİ HER PUBLIC SAYFADA (2026-09-09). Eskiden yalnız
+          anasayfa `WebSite` düğümü basıyordu; bir kullanıcı arama sonucundan
+          doğrudan ürün ya da firma sayfasına indiğinde yayıncı kimliği hiç
+          yoktu. Üretken motorlar (GEO) bir cevabı kaynağa bağlarken yayıncıyı
+          arar — kimliksiz sayfa alıntılanabilir ama ATFEDİLEMEZ. Sayfaya özel
+          düğümler (Product, Organization/firma, Demand, ItemList) buna EK
+          olarak kendi script'lerinde durur; `@id` üzerinden aynı grafiğe
+          bağlanırlar. */}
+      <JsonLd data={siteGraph()} />
       <MarketingHeader />
       <main>{children}</main>
       <MarketplaceFooter />

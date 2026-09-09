@@ -3,7 +3,6 @@ import { PublicLayout } from "@/components/marketplace/public-layout";
 import { HomeHero } from "@/components/marketplace/home-hero";
 import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
-import { serializeJsonLd } from "@/lib/json-ld";
 import { buildShowcase } from "@/lib/public/category-showcase";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import {
@@ -110,26 +109,9 @@ export default async function HomePage() {
     )
     .slice(0, 6);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Rothern",
-    url: `${SITE}/`,
-    inLanguage: "tr-TR",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${SITE}${MARKETPLACE_ROUTES.products}?q={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    },
-  };
 
   return (
     <PublicLayout>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-
       <AudienceProvider>
         <HomeHero />
 
