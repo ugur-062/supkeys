@@ -2,7 +2,7 @@ import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { ProductDetail } from "@/components/marketplace/product-detail";
 import { fetchProduct, fetchRelatedProducts } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { productSeo } from "@/lib/seo/entities";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -26,30 +26,16 @@ export async function generateMetadata({
   const data = await fetchProduct(slug, urunSlug);
   if (!data) return { title: "Ürün bulunamadı", robots: { index: false } };
 
-  const { product, company } = data;
-  const description =
-    product.description?.replace(/\s+/g, " ").trim().slice(0, 160) ??
-    `${company.name} firmasının ${product.name} ürünü.`;
-
-  return {
-    title: `${product.name} — ${company.name}`,
-    description,
-    // Pazar yeri açılmadan İNDEKSLENME kapalı: sayfa görünür (panelin
-    // "yayımlandı" sözü bir bağlantı vermeli) ama arama motoruna girmez.
-    // Sitemap de aynı anahtara bağlı — iki kapı tutarlı.
-    ...(MARKETPLACE_LIVE ? {} : { robots: { index: false, follow: true } }),
-    alternates: {
-      canonical: `${resolveSiteUrl()}/firma/${slug}/urun/${product.slug}`,
-    },
-    openGraph: {
-      title: product.name,
-      description,
-      // Göreli görsel (`/categories/...webp`) OG'de mutlak olmalı —
-      // metadataBase'e güvenmek yerine açıkça tamamlanır.
-      images: product.images.slice(0, 1).map((i) => (i.startsWith("/") ? `${resolveSiteUrl()}${i}` : i)),
-      type: "website",
-    },
-  };
+  /* Başlık, açıklama, kanonik ve OG TEK KAYNAKTAN (`lib/seo/entities.ts`) —
+     sayfanın JSON-LD'siyle aynı olgulardan türer. `indexable`: pazar yeri
+     anahtarı kapalıyken sayfa GÖRÜNÜR ama indekslenmez (sitemap de aynı
+     anahtara bağlı; iki kapı tutarlı). */
+  return productSeo({
+    companySlug: slug,
+    product: data.product,
+    company: data.company,
+    indexable: MARKETPLACE_LIVE,
+  }).metadata;
 }
 
 /**

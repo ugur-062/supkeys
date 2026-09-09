@@ -6,7 +6,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Heading } from "@/components/catalyst/heading";
 import { Tabs } from "@/components/ui/tabs";
-import { serializeJsonLd } from "@/lib/json-ld";
+import { JsonLd } from "@/components/seo/json-ld";
+import { productSeo } from "@/lib/seo/entities";
 import { productPrice } from "@/lib/public/product-price";
 import type {
   ProductIndexCard,
@@ -61,85 +62,24 @@ export function ProductDetail({
   const attrs = product.attributeList ?? [];
 
   const price = productPrice(product);
-  /**
-   * `offers` yalnız GERÇEK fiyat varken fiyat taşır (v2: fiyat herkese açık).
-   * "Teklif isteyin"de uydurma fiyat yazılmaz — yapısal veri sayfayı söyler.
-   */
-  const offer: Record<string, unknown> = {
-    "@type": "Offer",
-    url,
-    availability: "https://schema.org/InStock",
-    priceCurrency: product.priceCurrency,
-    ...(price.hasPrice && product.priceMode === "FIXED" && product.priceAmount
-      ? { price: product.priceAmount }
-      : {}),
-    ...(price.hasPrice && product.priceMode === "TIERED" && product.priceTiers
-      ? {
-          priceSpecification: product.priceTiers.map((t) => ({
-            "@type": "UnitPriceSpecification",
-            price: t.unitPrice,
-            priceCurrency: product.priceCurrency,
-            eligibleQuantity: { "@type": "QuantitativeValue", minValue: t.minQty, unitText: product.unit },
-          })),
-        }
-      : {}),
-    seller: {
-      "@type": "Organization",
-      name: company.name,
-      ...(company.slug ? { url: `${site}/firma/${company.slug}` } : {}),
-    },
-  };
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    url,
-    ...(product.description ? { description: product.description } : {}),
-    // Yapısal veride görsel MUTLAK adres olmalı; demo görselleri site
-    // köküne göreli (`/categories/...webp`) geldiği için burada tamamlanır.
-    ...(product.images.length > 0
-      ? { image: product.images.map((i) => (i.startsWith("/") ? `${site}${i}` : i)) }
-      : {}),
-    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
-    ...(product.mpn ? { mpn: product.mpn } : {}),
-    ...(attrs.length > 0
-      ? {
-          additionalProperty: attrs.map((a) => ({
-            "@type": "PropertyValue",
-            name: a.label,
-            value: a.unit ? `${a.value} ${a.unit}` : a.value,
-          })),
-        }
-      : {}),
-    offers: offer,
-  };
-
-  const breadcrumb = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Anasayfa", item: `${site}/` },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: company.name,
-        item: `${site}/firma/${companySlug}`,
-      },
-      { "@type": "ListItem", position: 3, name: product.name, item: url },
-    ],
-  };
+  /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
+     `lib/seo/entities.ts` `productSeo` hem `generateMetadata`yı hem buradaki
+     grafiği üretir. Ayrı ayrı yazıldıklarında başlıkta olan olgu (fiyat, MOQ,
+     şehir) yapılandırılmış veride bulunmuyordu; artık ikisi AYNI olgulardan
+     türüyor ve tek `@graph` script'i basılıyor. */
+  const seo = productSeo({
+    companySlug,
+    product,
+    company,
+    // Bu bileşen yalnız herkese açık sayfada kullanılıyor; `noindex` kararı
+    // sayfanın `generateMetadata`sında veriliyor, grafik ondan etkilenmez.
+    indexable: true,
+  });
 
   return (
     <PublicLayout>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumb) }}
-      />
+      <JsonLd data={seo.jsonLd} />
 
       <div className="mx-auto max-w-6xl px-6 pt-28 pb-32 lg:px-8 lg:pb-20">
         <ProductBreadcrumb

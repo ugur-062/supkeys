@@ -20,6 +20,8 @@ import { fetchPublicDirectory, fetchPublicDirectoryFacets } from "@/lib/public/m
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { JsonLd } from "@/components/seo/json-ld";
+import { graph, itemListNode } from "@/lib/seo/jsonld";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -63,8 +65,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   const base = MARKETPLACE_ROUTES.companies;
   const hasFilter = activeCompanyFilterCount(state) > 0 || !!state.q;
 
+  /* ITEMLIST — dizinin ne listelediğini söyler; firma adları herkese açık
+     (ilan sahibinin tersine, profil opt-in bir vitrindir). */
+  const listLd = graph([
+    itemListNode({
+      name: MARKETPLACE_LABELS.companies,
+      path: base,
+      totalItems: result.total,
+      startPosition: (result.page - 1) * result.pageSize + 1,
+      items: result.items
+        .filter((c) => !!c.slug)
+        .map((c) => ({ name: c.name, path: `/firma/${c.slug}` })),
+    }),
+  ]);
+
   return (
     <PublicLayout className={MARKET_GROUND}>
+      <JsonLd data={listLd} />
       <CompanyFilterShell total={result.total} drawer={<CompanyFilters facets={facets} idPrefix="m" />}>
         <PublicListPage
           tabs={

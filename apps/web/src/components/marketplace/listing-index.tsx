@@ -13,7 +13,9 @@ import {
   parseListingFilters,
   toListingListParams,
 } from "@/lib/public/listing-filter-params";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, type PublicListingType } from "@/lib/public/marketplace";
+import { JsonLd } from "@/components/seo/json-ld";
+import { graph, itemListNode } from "@/lib/seo/jsonld";
+import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, listingPath, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
@@ -46,7 +48,21 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
   ]);
   const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
 
+  /* ITEMLIST — liste sayfasının ne listelediğini söyler; başlıklar zaten
+     herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır. */
+  const listLd = graph([
+    itemListNode({
+      name: title,
+      path: basePath,
+      totalItems: page.total,
+      startPosition: (page.page - 1) * page.pageSize + 1,
+      items: page.items.map((l) => ({ name: l.title, path: listingPath(l.number, l.title) })),
+    }),
+  ]);
+
   return (
+    <>
+    <JsonLd data={listLd} />
     <ListingFilterShell total={page.total} drawer={<ListingFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={
@@ -104,5 +120,6 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
         />
       </PublicListPage>
     </ListingFilterShell>
+    </>
   );
 }

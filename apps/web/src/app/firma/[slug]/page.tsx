@@ -4,7 +4,8 @@ import { CompanyProducts } from "@/components/marketplace/company-products";
 import { fetchCompanyProducts } from "@/lib/public/marketplace-api";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
-import { serializeJsonLd } from "@/lib/json-ld";
+import { JsonLd } from "@/components/seo/json-ld";
+import { companySeo } from "@/lib/seo/entities";
 import { StickyCta } from "@/components/marketplace/sticky-cta";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import Link from "next/link";
@@ -65,36 +66,31 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const p = await fetchProfile(slug);
-  if (!p) return { title: "Firma bulunamadı — Rothern" };
+  if (!p) return { title: "Firma bulunamadı", robots: { index: false } };
+  /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
+     sayfanın JSON-LD'si aynı olgulardan türer. Eskiden başlık markayı elle
+     ekliyordu ("… — Rothern") ve kök şablon bir daha ekliyordu. */
+  return companySeo(seoInput(slug, p)).metadata;
+}
 
-  const title = `${p.name} — Rothern`;
-  const description = (
-    p.aboutText?.replace(/\s+/g, " ").slice(0, 160) ||
-    `${p.name}${p.industry ? ` · ${p.industry}` : ""}${
-      p.city ? ` · ${p.city}` : ""
-    } — Rothern üzerinde tedarik profili.`
-  ).trim();
-  const url = `${resolveSiteUrl()}/firma/${slug}`;
-  const image = p.coverImageUrl ?? p.logoUrl ?? undefined;
-
+/** Profil yükünden SEO girdisi — metadata ve JSON-LD aynı dönüşümü kullanır. */
+function seoInput(slug: string, p: PublicProfile, products?: { name: string; slug: string }[]) {
   return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      title,
-      description,
-      url,
-      type: "profile",
-      siteName: "Rothern",
-      images: image ? [{ url: image }] : undefined,
-    },
-    twitter: {
-      card: image ? "summary_large_image" : "summary",
-      title,
-      description,
-      images: image ? [image] : undefined,
-    },
+    slug,
+    name: p.name,
+    industry: p.industry,
+    city: p.city,
+    country: p.country,
+    aboutText: p.aboutText,
+    logoUrl: p.logoUrl,
+    coverImageUrl: p.coverImageUrl,
+    foundedYear: p.foundedYear,
+    employeeCount: p.employeeCount,
+    categories: p.categories,
+    certifications: p.certifications,
+    verified: p.verified,
+    productCount: p.productCount,
+    products,
   };
 }
 
@@ -126,46 +122,23 @@ export default async function PublicCompanyProfile({
   const url = `${site}/firma/${slug}`;
   const panelHref = PANEL_TARGET.company(slug);
 
-  // Yapısal veri sayfada GÖRÜNENİ söyler: dış bağlantılar üyeye, JSON-LD'de yok.
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: p.name,
-    url,
-    ...(p.logoUrl ? { logo: p.logoUrl } : {}),
-    ...(p.coverImageUrl ? { image: p.coverImageUrl } : {}),
-    ...(p.aboutText ? { description: p.aboutText.slice(0, 500) } : {}),
-    ...(p.foundedYear ? { foundingDate: String(p.foundedYear) } : {}),
-    ...(p.city
-      ? {
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: p.city,
-            addressCountry: p.country ?? "TR",
-          },
-        }
-      : {}),
-  };
-
-  const breadcrumbLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Rothern", item: site },
-      { "@type": "ListItem", position: 2, name: p.name, item: url },
-    ],
-  };
+  /* Yapısal veri sayfada GÖRÜNENİ söyler: iletişim, Rothern ID ve puan
+     dağılımı üyeye kapalı olduğu için JSON-LD'ye de girmez. Ortalama puan
+     bilerek yazılmıyor — şema oy SAYISI ister, o alan herkese açık değil
+     (gerekçe `lib/seo/entities.ts` içinde). Vitrindeki ilk ürünler
+     `hasOfferCatalog` olarak eklenir: "bu firma ne satıyor" sorusunun
+     makine-okunur cevabı. */
+  const seo = companySeo(
+    seoInput(
+      slug,
+      p,
+      products.items.map((it) => ({ name: it.name, slug: it.slug })),
+    ),
+  );
 
   return (
     <PublicLayout className={MARKET_GROUND}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbLd) }}
-      />
+      <JsonLd data={seo.jsonLd} />
 
       <div className="mx-auto max-w-5xl px-4 pb-16 pt-28 sm:px-6">
         {/* Kimlik ÖNCE (logo, ad, rozet, şehir, faaliyet, kategori), ürünler

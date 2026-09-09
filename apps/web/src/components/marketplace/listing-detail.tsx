@@ -4,7 +4,8 @@ import { CategoryImage } from "./category-image";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
-import { serializeJsonLd } from "@/lib/json-ld";
+import { JsonLd } from "@/components/seo/json-ld";
+import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
 import {
   MARKETPLACE_LABELS,
   MARKETPLACE_ROUTES,
@@ -58,63 +59,12 @@ export function ListingDetail({
   const indexBase = MARKETPLACE_ROUTES.demands;
   const indexLabel = MARKETPLACE_LABELS.demands;
 
-  /**
-   * JSON-LD — alım talebi `Demand` olarak işaretlenir; fiyat yazılmaz.
-   *
-   * `validThrough` = son teklif tarihi. Süresi geçmiş kayıtta sayfa zaten
-   * `noindex` alıyor; yine de yazıyoruz ki bir şekilde indekslenirse arama
-   * motoru süresinin dolduğunu VERİDEN görebilsin.
-   */
-  const offerOrDemand: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "Demand",
-    name: listing.title,
-    url: canonical,
-    identifier: listing.number,
-    ...(listing.description ? { description: listing.description } : {}),
-    ...(listing.closesAt ? { validThrough: listing.closesAt } : {}),
-    availability:
-      state === "open"
-        ? "https://schema.org/InStock"
-        : "https://schema.org/Discontinued",
-    seller: undefined,
-    seeks: {
-      "@type": "Product",
-      name: listing.title,
-    },
-    // İlan sahibi ANONİM: `Organization` düğümüne ad/URL YAZILMAZ. Yapısal
-    // veri sayfada görünmeyen bir şeyi söyleyemez — hem yanlış olur hem de
-    // gizlemeye çalıştığımız kimliği makine-okunur biçimde geri verirdi.
-    // Yalnız konum kalır (sayfada da görünüyor, lojistik için anlamlı).
-    ...(listing.company.city
-      ? {
-          areaServed: {
-            "@type": "Place",
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: listing.company.city,
-              addressCountry: listing.company.country ?? "TR",
-            },
-          },
-        }
-      : {}),
-  };
-  delete offerOrDemand.seller;
-
-  const breadcrumb = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Anasayfa", item: `${site}/` },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: indexLabel,
-        item: `${site}${indexBase}`,
-      },
-      { "@type": "ListItem", position: 3, name: listing.title, item: canonical },
-    ],
-  };
+  /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
+     `listingSeo` hem sayfanın metasını hem bu grafiği üretir. Sahibin adı
+     fonksiyona PARAMETRE OLARAK BİLE geçmez (`ListingSeoInput.buyer` yalnız
+     şehir/ülke taşır) — sayfada gizlediğimiz kimliği yapılandırılmış veride
+     vermek onu makine-okunur biçimde geri vermek olurdu. */
+  const seo = listingSeo(listingSeoInput(listing));
 
   const facts: { label: string; value: string }[] = [
     { label: "İlan numarası", value: listing.number },
@@ -157,14 +107,7 @@ export function ListingDetail({
 
   return (
     <PublicLayout>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(offerOrDemand) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumb) }}
-      />
+      <JsonLd data={seo.jsonLd} />
 
       <div className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
         <nav aria-label="Yol" className="text-sm text-zinc-500">

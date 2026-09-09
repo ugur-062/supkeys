@@ -8,6 +8,9 @@ import { PublicSearchTabs } from "./public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
+import { JsonLd } from "@/components/seo/json-ld";
+import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
+import { categoryPath } from "@/lib/public/marketplace";
 import {
   buildProductFilterQuery,
   parseProductFilters,
@@ -53,7 +56,38 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
   const talepHref = signupHref("talep", state.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(state.q)}` : undefined);
 
+  /* ITEMLIST (2026-09-09, Parça 2): liste sayfası onsuz motorlar için
+     "bir sürü bağlantı"dır — ne listelediğini söylemez. Sıra numarası
+     SAYFALAMAYI yansıtır (2. sayfa 13'ten devam eder), yoksa her sayfa
+     "1..12" der ve aynı sıralı liste tekrarlanmış görünür.
+     Kanonik yol kategori sayfasında kategoriye, dizinde köke işaret eder —
+     süzgeçli varyantlar kendi kanoniğini zaten `/urunler` olarak bildiriyor. */
+  const listPath = category ? categoryPath(category.id, category.name) : basePath;
+  const listLd = graph([
+    itemListNode({
+      name: title,
+      path: listPath,
+      totalItems: page.total,
+      startPosition: (page.page - 1) * page.pageSize + 1,
+      items: page.items.map((p) => ({
+        name: p.name,
+        path: `/firma/${p.company.slug}/urun/${p.slug}`,
+      })),
+    }),
+    ...(category
+      ? [
+          breadcrumbNode([
+            { name: "Anasayfa", path: "/" },
+            { name: "Ürünler", path: basePath },
+            { name: category.name, path: listPath },
+          ]),
+        ]
+      : []),
+  ]);
+
   return (
+    <>
+    <JsonLd data={listLd} />
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={
@@ -151,5 +185,6 @@ export async function ProductIndex({ title, lead, searchParams, category, image 
         </Link>
       </PublicListPage>
     </FilterShell>
+    </>
   );
 }

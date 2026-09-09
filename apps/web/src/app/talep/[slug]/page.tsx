@@ -1,8 +1,8 @@
 import { ListingDetail } from "@/components/marketplace/listing-detail";
 import { resolveListingPage } from "@/components/marketplace/listing-page";
-import { listingPath, parseListingNumber } from "@/lib/public/marketplace";
+import { parseListingNumber } from "@/lib/public/marketplace";
 import { fetchListing, fetchListings } from "@/lib/public/marketplace-api";
-import { resolveSiteUrl } from "@/lib/site-url";
+import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -19,25 +19,10 @@ export async function generateMetadata({
   const number = parseListingNumber(slug);
   const listing = number ? await fetchListing(number) : null;
   if (!listing) return { title: "İlan bulunamadı", robots: { index: false } };
-
-  const canonical = `${resolveSiteUrl()}${listingPath(listing.number, listing.title)}`;
-  const description =
-    listing.description?.replace(/\s+/g, " ").trim().slice(0, 160) ??
-    `${listing.number} numaralı alım talebi — ${listing.company.city ?? "Türkiye"}.`;
-
-  return {
-    title: `${listing.title} — alım talebi ${listing.number}`,
-    description,
-    alternates: { canonical },
-    // Kapanmış / sahibi dizinlemeyi kapatmış ilan: sayfa DURUR, indeks YOK.
-    robots: listing.indexable ? undefined : { index: false, follow: true },
-    openGraph: {
-      title: listing.title,
-      description,
-      url: canonical,
-      type: "website",
-    },
-  };
+  /* TEK KAYNAK (`lib/seo/entities.ts`): sayfanın JSON-LD'siyle aynı
+     olgulardan türer ve SAHİBİN ADINI parametre olarak bile almaz —
+     kapanmış/dizinlenmeyen ilan `noindex` alır, sayfa durur. */
+  return listingSeo(listingSeoInput(listing)).metadata;
 }
 
 export default async function Page({
