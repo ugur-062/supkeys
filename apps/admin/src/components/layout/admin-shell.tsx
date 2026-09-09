@@ -31,6 +31,7 @@ import {
   LayoutDashboard,
   Mail,
   Megaphone,
+  PackageCheck,
   Pin,
   PinOff,
   ScrollText,
@@ -85,6 +86,13 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/firmalar",
         icon: Building2,
         activeMatch: "/admin/firmalar",
+      },
+      {
+        // Ürün moderasyonu (2026-09-09): her ürün vitrine çıkmadan onaydan geçer.
+        label: "Ürünler",
+        href: "/admin/urunler",
+        icon: PackageCheck,
+        activeMatch: "/admin/urunler",
       },
       {
         label: "Şikayetler",

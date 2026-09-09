@@ -9,6 +9,7 @@ import {
   useAdminComplaints,
   type AdminCompanyStats,
 } from "@/hooks/use-admin-companies";
+import { useAdminProductStats } from "@/hooks/use-admin-products";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ import {
   Flag,
   type LucideIcon,
   Package,
+  PackageCheck,
   ShieldCheck,
   UserPlus,
 } from "lucide-react";
@@ -30,6 +32,10 @@ function DashboardContent() {
   const openComplaintsQ = useAdminComplaints("OPEN");
   const statsQ = useAdminCompanyStats();
   const s = statsQ.data;
+  const productStats = useAdminProductStats();
+  const productQueueAgeDays = productStats.data?.oldestPendingSince
+    ? Math.floor((Date.now() - new Date(productStats.data.oldestPendingSince).getTime()) / 86_400_000)
+    : null;
 
   const companies = companiesQ.data?.items ?? [];
   const openComplaints = openComplaintsQ.data?.items ?? [];
@@ -49,7 +55,7 @@ function DashboardContent() {
       />
 
       {/* Ana KPI'lar */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           icon={Building2}
           label="Toplam Firma"
@@ -79,6 +85,15 @@ function DashboardContent() {
               ? `en eski başvuru ${queueAgeDays} gündür kuyrukta`
               : undefined
           }
+        />
+        <KpiCard
+          icon={PackageCheck}
+          label="Onay Bekleyen Ürün"
+          value={productStats.data?.pending ?? 0}
+          href="/admin/urunler"
+          // SLA: 1+ gün bekleyen ürün varsa uyar — kuyruk günlük boşalmalı.
+          alert={(productStats.data?.pending ?? 0) > 0 && (productQueueAgeDays ?? 0) >= 1}
+          sub={productQueueAgeDays != null ? `en eski ürün ${productQueueAgeDays} gündür kuyrukta` : undefined}
         />
         <KpiCard
           icon={Flag}

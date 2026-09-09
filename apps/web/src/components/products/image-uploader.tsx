@@ -43,6 +43,17 @@ export function ImageUploader({
    * dosya adıyla listelenir; yeni seçimde temizlenir.
    */
   const [notices, setNotices] = useState<string[]>([]);
+  /** Sürükle-bırak: dosya bırakma vurgusu + görsel sıralama (HTML5 DnD). */
+  const [dragOver, setDragOver] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const move = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...images];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -102,16 +113,54 @@ export function ImageUploader({
           {images.length > 0 ? "İlk görsel kapak — " : ""}3–8 görsel önerilir
         </p>
       </div>
-      <p className="mt-1 text-xs text-zinc-400">
+      <p className="mt-1 text-xs text-zinc-500">
         JPG, PNG veya WebP · en az {MIN_EDGE}×{MIN_EDGE * 0.75} px · en fazla 5 MB
-        (büyükler otomatik küçültülür). Yayımlamak için en az 1 görsel gerekir.
+        (büyükler otomatik küçültülür). Onaya göndermek için en az 1 görsel gerekir;
+        sürükleyerek sıralayın, ilki kapak olur.
       </p>
 
-      <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
+      {/* BIRAKMA ALANI: dosyaları buraya sürükleyin — telefon/masaüstü fark etmez. */}
+      <div
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            setDragOver(true);
+          }
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files?.length) return;
+          e.preventDefault();
+          setDragOver(false);
+          void handleFiles(e.dataTransfer.files);
+        }}
+        data-dragover={dragOver || undefined}
+        className="mt-3 rounded-2xl border-2 border-dashed border-transparent p-1 transition data-[dragover]:border-zinc-900 data-[dragover]:bg-zinc-50"
+      >
+      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {images.map((src, i) => (
           <li
             key={src}
-            className="group relative aspect-square overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5"
+            draggable
+            onDragStart={(e) => {
+              setDragIndex(i);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => {
+              if (dragIndex != null) e.preventDefault();
+            }}
+            onDrop={(e) => {
+              if (dragIndex == null) return;
+              e.preventDefault();
+              e.stopPropagation();
+              move(dragIndex, i);
+              setDragIndex(null);
+            }}
+            onDragEnd={() => setDragIndex(null)}
+            title="Sürükleyerek sırala"
+            className={`group relative aspect-square cursor-grab overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5 active:cursor-grabbing ${
+              dragIndex === i ? "opacity-50" : ""
+            }`}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt="" className="size-full object-cover" />
@@ -153,16 +202,18 @@ export function ImageUploader({
               type="button"
               disabled={busy}
               onClick={() => inputRef.current?.click()}
-              className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-zinc-300 text-zinc-400 transition hover:border-zinc-400 hover:text-zinc-600 disabled:opacity-50"
+              className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-zinc-300 text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-700 disabled:opacity-50"
             >
               <PhotoIcon aria-hidden className="size-6" />
               <span className="text-xs font-medium">
                 {busy ? "Yükleniyor…" : "Görsel ekle"}
               </span>
+              <span className="text-[10px] text-zinc-400">ya da sürükleyip bırakın</span>
             </button>
           </li>
         ) : null}
       </ul>
+      </div>
       {notices.length > 0 ? (
         <ul className="mt-2 space-y-1 text-xs text-amber-800" role="status">
           {notices.map((n) => (

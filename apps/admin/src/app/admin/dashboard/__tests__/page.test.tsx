@@ -8,6 +8,9 @@ const h = vi.hoisted(() => ({
   stats: { data: undefined as unknown, isLoading: false },
 }));
 
+vi.mock("@/hooks/use-admin-products", () => ({
+  useAdminProductStats: () => ({ data: { pending: 2, rejected: 0, oldestPendingSince: null }, isLoading: false }),
+}));
 vi.mock("@/hooks/use-admin-companies", () => ({
   useAdminCompanies: () => h.companies,
   useAdminComplaints: () => h.complaints,
@@ -74,7 +77,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("İnceleme Bekleyen")).toBeInTheDocument();
     // Tier breakdown alt yazısı
-    expect(screen.getByText(/1 gold · 0 silver · 0 bronz · 3 standart/)).toBeInTheDocument();
+    expect(screen.getByText(/1 gold · 0 silver · 3 standart/)).toBeInTheDocument();
     // Kayıt hunisi (Faz 2) — 4 adım ve oran yüzdesi render olur.
     expect(screen.getByText("Kayıt Hunisi")).toBeInTheDocument();
     expect(screen.getByText("Kayıt tamamlandı")).toBeInTheDocument();

@@ -21,6 +21,9 @@ export interface CatalogItem {
   /** Vitrin özeti — liste satırındaki durum rozeti/küçük görsel/fiyat modu. */
   isPublic: boolean;
   publishedAt: string | null;
+  /** Moderasyon (2026-09-09): DRAFT | PENDING | APPROVED | REJECTED. */
+  reviewStatus: ProductReviewStatus;
+  rejectReason: string | null;
   thumbnailUrl: string | null;
   priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
   updatedAt: string;
@@ -30,6 +33,9 @@ export interface CatalogItem {
 export interface CatalogCounts {
   published: number;
   draft: number;
+  /** Onay bekleyen — yayında olup yeniden incelenenler DAHİL. */
+  pending: number;
+  rejected: number;
 }
 
 export interface CatalogListResult {
@@ -131,12 +137,19 @@ export interface PriceTier {
   unitPrice: number;
 }
 
+export type ProductReviewStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
+
 export interface ProductShowcase {
   id: string;
   name: string;
   slug: string | null;
   isPublic: boolean;
   publishedAt: string | null;
+  /** Moderasyon (2026-09-09): her ürün vitrine çıkmadan admin onayından geçer. */
+  reviewStatus: ProductReviewStatus;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  rejectReason: string | null;
   categoryId: string | null;
   description: string | null;
   images: string[];

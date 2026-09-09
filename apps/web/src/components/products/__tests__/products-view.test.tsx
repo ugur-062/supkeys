@@ -44,6 +44,8 @@ const ITEMS = [
     isActive: true,
     isPublic: true,
     publishedAt: "2026-09-01T00:00:00.000Z",
+    reviewStatus: "APPROVED",
+    rejectReason: null,
     thumbnailUrl: null,
     priceMode: "TIERED",
     updatedAt: "2026-09-02T10:00:00.000Z",
@@ -58,9 +60,43 @@ const ITEMS = [
     isActive: true,
     isPublic: false,
     publishedAt: null,
+    reviewStatus: "DRAFT",
+    rejectReason: null,
     thumbnailUrl: null,
     priceMode: "ON_REQUEST",
     updatedAt: "2026-09-03T10:00:00.000Z",
+  },
+  {
+    id: "p3",
+    code: null,
+    name: "Sigorta kutusu",
+    unit: "adet",
+    categoryId: null,
+    brand: null,
+    isActive: true,
+    isPublic: false,
+    publishedAt: null,
+    reviewStatus: "PENDING",
+    rejectReason: null,
+    thumbnailUrl: null,
+    priceMode: "FIXED",
+    updatedAt: "2026-09-04T10:00:00.000Z",
+  },
+  {
+    id: "p4",
+    code: null,
+    name: "Priz grubu",
+    unit: "adet",
+    categoryId: null,
+    brand: null,
+    isActive: true,
+    isPublic: false,
+    publishedAt: null,
+    reviewStatus: "REJECTED",
+    rejectReason: "Görseller ürüne ait değil",
+    thumbnailUrl: null,
+    priceMode: "FIXED",
+    updatedAt: "2026-09-05T10:00:00.000Z",
   },
 ];
 
@@ -80,7 +116,7 @@ beforeEach(() => {
       });
     }
     return Promise.resolve({
-      data: { items: ITEMS, total: 2, truncated: false, counts: { published: 1, draft: 1 } },
+      data: { items: ITEMS, total: 4, truncated: false, counts: { published: 1, draft: 1, pending: 1, rejected: 1 } },
     });
   });
 });
@@ -102,12 +138,28 @@ describe("ProductsView", () => {
     wrap(<ProductsView />);
     await screen.findByText("Dağıtım panosu");
     const tabs = screen.getByRole("tablist");
-    expect(within(tabs).getByRole("tab", { name: /Tümü\s*2/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /Tümü\s*4/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Yayında\s*1/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*1/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /Reddedildi\s*1/ })).toBeInTheDocument();
 
     await user.click(within(tabs).getByRole("tab", { name: /Taslak\s*1/ }));
     expect(screen.queryByText("Dağıtım panosu")).toBeNull();
     expect(screen.getByText("Kablo kanalı")).toBeInTheDocument();
+  });
+
+  it("moderasyon: onay bekleyen ve reddedilen rozetleri; red gerekçesi satırda", async () => {
+    const user = userEvent.setup();
+    wrap(<ProductsView />);
+    await screen.findByText("Sigorta kutusu");
+    const list = screen.getByRole("list");
+    expect(within(list).getByText("Onay bekliyor")).toBeInTheDocument();
+    expect(within(list).getByText("Reddedildi")).toBeInTheDocument();
+    expect(within(list).getByText(/Red: Görseller ürüne ait değil/)).toBeInTheDocument();
+    const tabs = screen.getByRole("tablist");
+    await user.click(within(tabs).getByRole("tab", { name: /Reddedildi/ }));
+    expect(screen.getByText("Priz grubu")).toBeInTheDocument();
+    expect(screen.queryByText("Sigorta kutusu")).toBeNull();
   });
 
   it("başlıkta tek primary: 'Yeni ürün'; 'Toplu ekle' ikincil", async () => {

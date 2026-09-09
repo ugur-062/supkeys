@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/list";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { formatDate } from "@/lib/format-date";
+import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
 import { ArrowLeftIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Package } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -31,7 +32,8 @@ const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
   ON_REQUEST: "Teklif isteyin",
 };
 
-type ProductTab = "all" | "published" | "draft";
+type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
+const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft"];
 
 /**
  * ÜRÜNLERİM — firmanın herkese açık vitrini.
@@ -50,6 +52,10 @@ const EMPTY_PRODUCT: ProductShowcase = {
   slug: null,
   isPublic: false,
   publishedAt: null,
+  reviewStatus: "DRAFT",
+  submittedAt: null,
+  reviewedAt: null,
+  rejectReason: null,
   categoryId: null,
   description: null,
   images: [],
@@ -72,7 +78,10 @@ const EMPTY_PRODUCT: ProductShowcase = {
 
 export function ProductsView() {
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState<ProductTab>("all");
+  // `?sekme=rejected` — red e-postasındaki CTA doğrudan reddedilenlere açar.
+  const searchParams = useSearchParams();
+  const initialTab = searchParams?.get("sekme") as ProductTab | null;
+  const [tab, setTab] = useState<ProductTab>(initialTab && TAB_KEYS.includes(initialTab) ? initialTab : "all");
   const [importOpen, setImportOpen] = useState(false);
   // Ürün ekleme/yayın = "Ürün ve vitrin yönetimi" işlem izni (API aynası).
   const canManage = useHasCompanyPermission("sell:product:manage");
@@ -80,7 +89,6 @@ export function ProductsView() {
    * Yeni ürün: AYNI tek-sayfa form, boş kayıtla. `?yeni=1` ile açılır —
    * kayıt niyeti "Vitrin aç" ve pano CTA'sı buraya düşer.
    */
-  const searchParams = useSearchParams();
   const [creating, setCreating] = useState(searchParams?.get("yeni") === "1");
   const [editing, setEditing] = useState<{
     item: CatalogItem;
@@ -96,7 +104,13 @@ export function ProductsView() {
     () =>
       tab === "all"
         ? items
-        : items.filter((i) => (tab === "published" ? i.isPublic : !i.isPublic)),
+        : items.filter((i) => {
+            const k = productStatusKey(i);
+            if (tab === "published") return k === "published" || k === "published_pending";
+            if (tab === "pending") return k === "pending" || k === "published_pending";
+            if (tab === "rejected") return k === "rejected";
+            return k === "draft";
+          }),
     [items, tab],
   );
 
@@ -119,7 +133,11 @@ export function ProductsView() {
   // aynası): sayaç "N/10", form "Kaydet ve yayınla"yı kilitler. null = limitsiz.
   const productLimit = data?.productLimit ?? null;
   const publishedCount = data?.counts.published ?? 0;
-  const publishLimitReached = productLimit != null && publishedCount >= productLimit;
+  // Tavan yayında + (yayında olmayan) onay bekleyen — API ile aynı sayım:
+  // kuyruktakiler de yer tutar; yayındayken yeniden incelenen iki kez sayılmaz.
+  const pendingPublished = items.filter((i) => i.isPublic && i.reviewStatus === "PENDING").length;
+  const occupied = publishedCount + Math.max(0, (data?.counts.pending ?? 0) - pendingPublished);
+  const publishLimitReached = productLimit != null && occupied >= productLimit;
   // Vitrin kapısı profil yayınına bağlı (`publicProductWhere`): profil yayında
   // değilse yayımlanan ürün dizinde ve firma sayfasında GÖRÜNMEZ. Kullanıcı 10
   // ürün yayımlayıp kimsenin görmediğini fark etmesin — açıkça söyle.
@@ -139,7 +157,7 @@ export function ProductsView() {
         </button>
         <PageHeader
           title="Yeni ürün"
-          description="Tek sayfa: adı, kategorisi, açıklaması, görselleri ve fiyatı. Kaydedince taslak olarak durur; yayımlamak ayrı bir adım."
+          description="Tek sayfa: adı, kategorisi, açıklaması, görselleri ve fiyatı. Kaydedince taslak olarak durur; onaya gönderdiğinizde ekibimiz inceler ve vitrine alır."
         />
         <div className="mt-8">
           <ProductShowcaseForm
@@ -180,7 +198,7 @@ export function ProductsView() {
         </button>
         <PageHeader
           title={editing.item.name}
-          description="Vitrin bilgilerini doldurun; tamamlanma skoru sağda canlı güncellenir."
+          description="Vitrin bilgilerini doldurun; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
         />
         <div className="mt-8">
           <ProductShowcaseForm
@@ -196,9 +214,13 @@ export function ProductsView() {
 
   const counts = data?.counts;
   const tabs: { key: ProductTab; label: string; count?: number }[] = [
-    { key: "all", label: "Tümü", count: counts ? counts.published + counts.draft : undefined },
-    { key: "published", label: "Yayında", count: counts?.published },
-    { key: "draft", label: "Taslak", count: counts?.draft },
+    // Tümü = yayında + taslak + reddedilen + (yayında olmayan) bekleyen. Yayında
+    // olup yeniden incelenenler `published` içinde sayılır, iki kez sayılmaz.
+    { key: "all", label: "Tümü", count: counts ? counts.published + counts.draft + counts.rejected + Math.max(0, counts.pending - pendingPublished) : undefined },
+    { key: "published", label: PRODUCT_STATUS.published.label, count: counts?.published },
+    { key: "pending", label: PRODUCT_STATUS.pending.label, count: counts?.pending },
+    { key: "rejected", label: PRODUCT_STATUS.rejected.label, count: counts?.rejected },
+    { key: "draft", label: PRODUCT_STATUS.draft.label, count: counts?.draft },
   ];
 
   return (
@@ -211,8 +233,8 @@ export function ProductsView() {
         // o cümle yalan olur — kullanıcı ürününü Google'da arar, bulamaz.
         description={
           MARKETPLACE_LIVE
-            ? "Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde ve arama motorlarında görünür."
-            : "Firmanızın herkese açık vitrini. Ürünleriniz firma profilinizde görünür; arama motorlarına açılma pazar yeri yayınıyla başlar."
+            ? "Firmanızın herkese açık vitrini. Onaya gönderdiğiniz ürünler ekibimizce incelenir; onaylananlar firma profilinizde ve arama motorlarında görünür."
+            : "Firmanızın herkese açık vitrini. Onaya gönderdiğiniz ürünler ekibimizce incelenir; onaylananlar firma profilinizde görünür, arama motorlarına açılma pazar yeri yayınıyla başlar."
         }
         action={
           !canManage ? undefined : <div className="flex flex-wrap gap-2">
@@ -291,7 +313,7 @@ export function ProductsView() {
             publishLimitReached ? "bg-amber-50 text-amber-900 ring-1 ring-amber-600/20" : "bg-zinc-50 text-zinc-600"
           }`}
         >
-          Ücretsiz pakette en fazla {productLimit} ürün yayında olabilir ({publishedCount}/{productLimit}
+          Ücretsiz pakette en fazla {productLimit} ürün yayında ya da onayda olabilir ({occupied}/{productLimit}
           {" "}kullanıldı). Taslak sınırsız.{" "}
           <a href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
             Silver ile sınırsız ürün, belge ve video
@@ -312,16 +334,24 @@ export function ProductsView() {
               ? "Eşleşen ürün yok."
               : tab === "published"
                 ? "Yayında ürün yok."
-                : tab === "draft"
-                  ? "Taslak ürün yok."
-                  : "Henüz ürün yok."
+                : tab === "pending"
+                  ? "Onay bekleyen ürün yok."
+                  : tab === "rejected"
+                    ? "Reddedilen ürün yok."
+                    : tab === "draft"
+                      ? "Taslak ürün yok."
+                      : "Henüz ürün yok."
           }
           description={
             q
               ? "Aramayı değiştirip tekrar deneyin."
               : tab === "published"
-                ? "Taslak ürünleri düzenleyip 'Kaydet ve yayınla' ile vitrine çıkarın."
-                : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
+                ? "Taslak ürünleri düzenleyip 'Onaya gönder' ile inceleme kuyruğuna alın; onaylananlar burada görünür."
+                : tab === "pending"
+                  ? "Onaya gönderdiğiniz ürünler inceleme boyunca burada durur."
+                  : tab === "rejected"
+                    ? "Reddedilen ürün gerekçesiyle burada listelenir; düzenleyip yeniden gönderebilirsiniz."
+                    : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
           }
           variant={q || tab !== "all" ? "no-results" : "no-data"}
           className="mt-4"
@@ -388,13 +418,13 @@ function ProductRows({
             }}
             onClick={() => onOpen(item)}
             badge={
-              <Badge color={item.isPublic ? "emerald" : "zinc"}>
-                {item.isPublic ? "Yayında" : "Taslak"}
+              <Badge color={PRODUCT_STATUS[productStatusKey(item)].color}>
+                {PRODUCT_STATUS[productStatusKey(item)].label}
               </Badge>
             }
             meta={`${catName(item.categoryId) ?? "Kategori seçilmedi"} · ${
               PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode
-            } · ${item.unit}`}
+            } · ${item.unit}${item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Red: ${item.rejectReason}` : ""}`}
             trailing={formatDate(item.updatedAt, "short")}
           />
         </li>

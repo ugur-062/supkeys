@@ -190,6 +190,18 @@ enum CompanyVerificationStatus {
   REJECTED // reddedildi (eksik/hatalı belge)
 }
 
+/**
+ * ÜRÜN MODERASYONU (2026-09-09, kullanıcı kararı): her ürün vitrine çıkmadan
+ * admin onayından geçer. `isPublic` YALNIZ APPROVED ile true olur; herkese
+ * açık sorgular (`publicProductWhere`) değişmeden doğru kalır.
+ */
+enum ProductReviewStatus {
+  DRAFT // taslak — firma henüz göndermedi
+  PENDING // onaya gönderildi (ilk yayın ya da yayındaki ürünün içerik düzenlemesi)
+  APPROVED // admin onayladı — vitrinde
+  REJECTED // admin reddetti (gerekçe `rejectReason`); firma düzenleyip yeniden gönderir
+}
+
 // Belge bazlı inceleme durumu — admin her belgeyi ayrı onaylar/reddeder.
 // Onaylanan belge kilitlenir; reddedilen belge firma tarafından yeniden
 // yüklenebilir (yeniden yüklenince PENDING'e döner).
@@ -1745,6 +1757,18 @@ model CompanyItem {
    */
   isPublic      Boolean   @default(false)
   publishedAt   DateTime?
+  // ── ÜRÜN MODERASYONU (2026-09-09) ────────────────────────────────────
+  /**
+   * Onay durumu. Yayındaki (APPROVED) ürünün içerik düzenlemesi onu YENİDEN
+   * PENDING yapar ama vitrinden DÜŞÜRMEZ (isPublic korunur); admin reddederse
+   * vitrinden çekilir. Sıra: reviewStatus + submittedAt (admin kuyruğu).
+   */
+  reviewStatus  ProductReviewStatus @default(DRAFT)
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  /** İnceleyen admin (platform_admins.id) — FK yok: admin silinse kayıt kalsın. */
+  reviewedByAdminId String?
+  rejectReason  String?
   /**
    * URL parçası — `/firma/<firma-slug>/urun/<slug>`. Firma İÇİNDE tekil.
    * Ürün URL'i firmanın altında yaşıyor ki firma otoritesinden beslensin.
@@ -1810,6 +1834,7 @@ model CompanyItem {
   @@index([companyId, categoryId])
   // Vitrin sorgusu: yayımlanmış ürünler, yeni önce.
   @@index([isPublic, publishedAt])
+  @@index([reviewStatus, submittedAt])
   views CompanyView[]
 
   @@map("company_items")

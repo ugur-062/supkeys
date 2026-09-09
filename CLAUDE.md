@@ -552,7 +552,23 @@ kısaltılır; bant neyin kaldırıldığını yazar. Silver altı: anahtar devr
 varlık AÇILMADI (ikiye bölmek aynı ürünü iki yerde güncelleme borcu üretirdi).
 Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
 
-- **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA.
+- **ÜRÜN MODERASYONU (2026-09-09, kullanıcı kararı): her ürün vitrine çıkmadan
+  admin onayından geçer.** `CompanyItem.reviewStatus` DRAFT→PENDING→APPROVED|
+  REJECTED (+ `submittedAt/reviewedAt/reviewedByAdminId/rejectReason`).
+  `isPublic` YALNIZ `AdminProductsService.approve` ile true olur → herkese
+  açık sorgular (`publicProductWhere`) değişmedi. Firma tarafı `publish` =
+  **onaya gönder** (yayın kapısı + paket tavanı: yayında + bekleyen ≤ limit).
+  Yayındaki ürünün İÇERİK alanı (ad/açıklama/kategori/görsel/anahtar kelime/
+  nitelik) değişince yeniden PENDING'e düşer ama **vitrinde kalır**; red
+  vitrinden çeker. Vitrinden çekmek taslağa döndürür (yeniden onay ister).
+  Admin: `/admin/urunler` kuyruğu (SUPER_ADMIN + SUPPORT karar verir, SALES
+  yalnız okur), onay → SEO bildirimi + firma e-posta/bildirim; red gerekçe
+  zorunlu. Web durum sözlüğü `lib/company/product-status.ts`
+  (Taslak · Onay bekliyor · Yayında · Yayında·incelemede · Reddedildi).
+- **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
+  (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
+  bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda
+  TEK durum kartı + arama görünürlüğü; kaydedilmemiş değişiklik uyarısı).
   `POST company/items/product` kaydı ve vitrin alanlarını TEK çağrıda yazar.
   Sıra: ad → kategori → açıklama → görseller → anahtar kelimeler → nitelikler →
   fiyat/MOQ. Ürün TASLAK doğar; yayımlamak ayrı ve bilinçli adım.
@@ -617,7 +633,8 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Bekleyen migration YOK (2026-09-02, 71 migration, "up to date").
+- Son migration `20260909160000_product_review_status` (ürün moderasyonu;
+  additive: enum + 5 kolon + backfill APPROVED for isPublic).
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**

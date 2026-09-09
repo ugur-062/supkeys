@@ -82,3 +82,14 @@ export function fmtMoney(v: number | string, currency: string): string {
   const sym = currency === "TRY" ? "₺" : ` ${currency}`;
   return `${n.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}${sym}`;
 }
+
+/** Ürün moderasyonu (2026-09-09) — admin kuyruğu ve detay rozeti. */
+export const PRODUCT_REVIEW_STATUS: Record<
+  string,
+  { label: string; color: "green" | "amber" | "red" | "zinc" | "blue" }
+> = {
+  DRAFT: { label: "Taslak", color: "zinc" },
+  PENDING: { label: "Onay bekliyor", color: "amber" },
+  APPROVED: { label: "Yayında", color: "green" },
+  REJECTED: { label: "Reddedildi", color: "red" },
+};

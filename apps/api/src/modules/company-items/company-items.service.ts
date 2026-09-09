@@ -5,7 +5,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { Prisma, type CompanyItemPriceMode, type Currency } from "@rothern/db";
+import { Prisma, type CompanyItemPriceMode, type Currency, type ProductReviewStatus } from "@rothern/db";
 import {
   foldSearchText,
   getUnit,
@@ -76,6 +76,11 @@ export interface ProductShowcase {
   slug: string | null;
   isPublic: boolean;
   publishedAt: string | null;
+  /** Moderasyon (2026-09-09): DRAFT | PENDING | APPROVED | REJECTED. */
+  reviewStatus: ProductReviewStatus;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  rejectReason: string | null;
   categoryId: string | null;
   description: string | null;
   images: string[];
@@ -125,6 +130,9 @@ export interface ShowcaseInput {
   priceCurrency?: string;
   moq?: number | null;
 }
+
+/** Yayındaki üründe değişince YENİDEN İNCELEME isteyen alanlar (moderasyon). */
+const CONTENT_FIELDS = ["name", "description", "categoryId", "images", "keywords", "attributes"] as const;
 
 /** İçe aktarma satırı — şablon sözleşmesinin servis karşılığı. */
 export interface ProductImportInput {
@@ -234,7 +242,7 @@ export class CompanyItemsService {
           }
         : {}),
     };
-    const [rows, total, published, draft] = await Promise.all([
+    const [rows, total, published, draft, pending, rejected] = await Promise.all([
       this.prisma.companyItem.findMany({
         where,
         orderBy: [
@@ -255,7 +263,13 @@ export class CompanyItemsService {
         where: { companyId, isActive: true, isPublic: true },
       }),
       this.prisma.companyItem.count({
-        where: { companyId, isActive: true, isPublic: false },
+        where: { companyId, isActive: true, isPublic: false, reviewStatus: { in: ["DRAFT"] } },
+      }),
+      this.prisma.companyItem.count({
+        where: { companyId, isActive: true, reviewStatus: "PENDING" },
+      }),
+      this.prisma.companyItem.count({
+        where: { companyId, isActive: true, isPublic: false, reviewStatus: "REJECTED" },
       }),
     ]);
     return {
@@ -263,7 +277,8 @@ export class CompanyItemsService {
       total,
       // Sessiz tavan yok: kullanıcı kesildiğini görür.
       truncated: skip + rows.length < total,
-      counts: { published, draft },
+      // `pending` yayında olup yeniden incelenenleri DE sayar (kuyrukta).
+      counts: { published, draft, pending, rejected },
       // Ücretsiz pakette yayında ürün tavanı (null = limitsiz) — Ürünlerim
       // "N/10 yayında" ve formdaki "Kaydet ve yayınla" kilidi buradan okur.
       productLimit: opts.tier ? (PRODUCT_LIMITS[opts.tier as TierName] ?? null) : null,
@@ -997,8 +1012,18 @@ export class CompanyItemsService {
             documents: (before.documents as unknown as { url: string; title: string }[] | null) ?? null,
           },
     );
+    // MODERASYON (2026-09-09): yayındaki ürünün İÇERİK alanları değişince
+    // yeniden inceleme kuyruğuna girer ama vitrinde KALIR (yazım hatası
+    // düzeltmek satıcıyı vitrinden düşürmesin); admin reddederse çekilir.
+    // Fiyat/MOQ/doküman/video/bağlantı içerik sayılmaz.
+    const contentChanged =
+      before.reviewStatus === "APPROVED" &&
+      CONTENT_FIELDS.some((k) => k in patch && JSON.stringify(patch[k]) !== JSON.stringify(before[k]));
     const row = await this.prisma.companyItem
-      .update({ where: { id }, data: patch })
+      .update({
+        where: { id },
+        data: contentChanged ? { ...patch, reviewStatus: "PENDING", submittedAt: new Date(), rejectReason: null } : patch,
+      })
       .catch((e: unknown) => {
         throw this.mapDuplicate(e, before.code);
       });
@@ -1057,44 +1082,59 @@ export class CompanyItemsService {
    * Vitrine çıkar. Kapı `productPublishBlockers` — TEK KAYNAK; skor kapı
    * DEĞİL (gerekçe o dosyada).
    */
+  /**
+   * ONAYA GÖNDER (2026-09-09, kullanıcı kararı: her ürün admin onayından
+   * geçer). Yayın kapısı + paket tavanı burada; `isPublic` YALNIZ admin
+   * `approve` ile true olur (`AdminProductsService`). Yayındaki (APPROVED)
+   * ürün için çağrı = içerik güncellemesi sonrası yeniden inceleme; ürün
+   * vitrinde KALIR.
+   */
   async publish(user: AuthenticatedCompanyUser, id: string) {
     const row = await this.requireOwn(user.companyId, id);
     const blockers = productPublishBlockers(this.toProductLike(row));
     if (blockers.length > 0) {
       throw new BadRequestException(
-        `Yayımlanamadı — ${blockers.join(", ")}`,
+        `Onaya gönderilemedi — ${blockers.join(", ")}`,
       );
     }
-    // Ücretsiz pakette YAYINDA ürün tavanı (`PRODUCT_LIMITS`, 2026-09-06).
-    // Zaten yayında olan ürünü yeniden yayımlamak (güncelleme) sayılmaz;
-    // taslak sınırsız — kapı yalnız vitrine ÇIKIŞ anında.
+    // Ücretsiz pakette YAYINDA + ONAY BEKLEYEN ürün tavanı (`PRODUCT_LIMITS`,
+    // 2026-09-06). Zaten yayında/bekleyen ürünü yeniden göndermek sayılmaz;
+    // taslak sınırsız — kapı yalnız kuyruğa GİRİŞ anında.
     const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
-    if (limit != null && !row.isPublic) {
-      const published = await this.prisma.companyItem.count({
-        where: { companyId: user.companyId, isActive: true, isPublic: true },
+    if (limit != null && !row.isPublic && row.reviewStatus !== "PENDING") {
+      const occupied = await this.prisma.companyItem.count({
+        where: {
+          companyId: user.companyId,
+          isActive: true,
+          OR: [{ isPublic: true }, { reviewStatus: "PENDING" }],
+        },
       });
-      if (published >= limit) {
+      if (occupied >= limit) {
         throw new ForbiddenException(
-          `Ücretsiz pakette en fazla ${limit} ürün yayında olabilir. Daha fazlası için Silver paketine geçin.`,
+          `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Daha fazlası için Silver paketine geçin.`,
         );
       }
     }
     const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug);
     const updated = await this.prisma.companyItem.update({
       where: { id },
-      data: { isPublic: true, publishedAt: row.publishedAt ?? new Date(), slug },
+      data: {
+        slug,
+        reviewStatus: "PENDING",
+        submittedAt: new Date(),
+        rejectReason: null,
+      },
     });
     void this.audit.log({
-      action: "company.product.published",
+      action: "company.product.submitted",
       actorType: "company",
       actorId: user.userId,
       actorEmail: user.email,
       tenantId: user.companyId,
       entityType: "company_item",
       entityId: id,
-      metadata: { name: updated.name, slug },
+      metadata: { name: updated.name, slug, wasPublic: row.isPublic },
     });
-    this.seo?.productChanged(id);
     return this.serializeShowcase(updated);
   }
 
@@ -1103,7 +1143,9 @@ export class CompanyItemsService {
     await this.requireOwn(user.companyId, id);
     const updated = await this.prisma.companyItem.update({
       where: { id },
-      data: { isPublic: false },
+      // Vitrinden çekilen ürün TASLAĞA döner: yeniden çıkmak yeniden onay
+      // ister (moderasyon kararı 2026-09-09). Bekleyen inceleme de düşer.
+      data: { isPublic: false, reviewStatus: "DRAFT", submittedAt: null },
     });
     void this.audit.log({
       action: "company.product.unpublished",
@@ -1248,6 +1290,10 @@ export class CompanyItemsService {
     id: string;
     isPublic: boolean;
     publishedAt: Date | null;
+    reviewStatus: ProductReviewStatus;
+    submittedAt: Date | null;
+    reviewedAt: Date | null;
+    rejectReason: string | null;
     slug: string | null;
     videoUrl: string | null;
     externalUrl: string | null;
@@ -1271,6 +1317,10 @@ export class CompanyItemsService {
       slug: r.slug,
       isPublic: r.isPublic,
       publishedAt: r.publishedAt?.toISOString() ?? null,
+      reviewStatus: r.reviewStatus,
+      submittedAt: r.submittedAt?.toISOString() ?? null,
+      reviewedAt: r.reviewedAt?.toISOString() ?? null,
+      rejectReason: r.rejectReason,
       categoryId: r.categoryId,
       description: r.description,
       images: r.images,
@@ -1388,6 +1438,8 @@ export class CompanyItemsService {
     // yanıtında; burada yalnız satırın gösterdiği kadarı.
     isPublic: boolean;
     publishedAt: Date | null;
+    reviewStatus: ProductReviewStatus;
+    rejectReason: string | null;
     images: string[];
     priceMode: string;
     updatedAt: Date;
@@ -1409,6 +1461,8 @@ export class CompanyItemsService {
       lastUsedAt: r.lastUsedAt,
       isPublic: r.isPublic,
       publishedAt: r.publishedAt,
+      reviewStatus: r.reviewStatus,
+      rejectReason: r.rejectReason,
       thumbnailUrl: r.images[0] ?? null,
       priceMode: r.priceMode,
       updatedAt: r.updatedAt,

@@ -10,6 +10,8 @@ import { AdminCompanyUsersController } from "./admin-company-users.controller";
 import { AdminCompanyUsersService } from "./admin-company-users.service";
 import { AdminInspectionController } from "./admin-inspection.controller";
 import { AdminInspectionService } from "./admin-inspection.service";
+import { AdminProductsController } from "./admin-products.controller";
+import { AdminProductsService } from "./admin-products.service";
 
 @Module({
   imports: [
@@ -24,11 +26,13 @@ import { AdminInspectionService } from "./admin-inspection.service";
     AdminCompaniesController,
     AdminCompanyUsersController,
     AdminInspectionController,
+    AdminProductsController,
   ],
   providers: [
     AdminCompaniesService,
     AdminCompanyUsersService,
     AdminInspectionService,
+    AdminProductsService,
   ],
 })
 export class AdminCompaniesModule {}
