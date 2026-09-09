@@ -15,6 +15,7 @@ import type { Currency, DeliveryTerm, LcSubType, PaymentCategory } from "@/lib/t
 import { cn } from "@/lib/utils";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
+import { createContext, useContext } from "react";
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
@@ -46,10 +47,13 @@ export function RequestDefaultsForm({
   onChange,
   compact = false,
   only,
+  bare = false,
 }: {
   value: RequestDefaults;
   onChange: (next: RequestDefaults) => void;
   compact?: boolean;
+  /** Bölüm başlıklarını gizle — çağıran kendi etiketini yazıyor (hızlı kart). */
+  bare?: boolean;
   /** Yalnız bu bölümler çizilir (hızlı kartta tek satır düzenleme). */
   only?: ("scope" | "delivery" | "payment" | "currency" | "visibility" | "close" | "bids" | "address" | "rules")[];
 }) {
@@ -73,6 +77,7 @@ export function RequestDefaultsForm({
   const gap = compact ? "space-y-5" : "space-y-8";
 
   return (
+    <BareContext.Provider value={bare}>
     <div className={gap}>
       {show("scope") ? (
         <Block title="Kapsam" hint="Teslim şekli ve ödeme seçenekleri kapsama göre süzülür.">
@@ -280,10 +285,13 @@ export function RequestDefaultsForm({
         </Block>
       ) : null}
     </div>
+    </BareContext.Provider>
   );
 }
 
 function Block({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  const bare = useContext(BareContext);
+  if (bare) return <div>{children}</div>;
   return (
     <div>
       <p className="text-sm font-semibold text-zinc-950">{title}</p>
@@ -292,6 +300,7 @@ function Block({ title, hint, children }: { title: string; hint?: string; childr
     </div>
   );
 }
+const BareContext = createContext(false);
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (

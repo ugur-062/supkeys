@@ -19,7 +19,9 @@ import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
 import { TermsPanel } from "./terms-panel";
-import { VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
+import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
+import { PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
+import type { PaymentCategory } from "@/lib/tenders/types";
 import type { PickedCatalogItem } from "@/components/tenders/wizard/catalog-picker-dialog";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useAddresses } from "@/hooks/use-company-addresses";
@@ -77,7 +79,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const [categoryHint, setCategoryHint] = useState<string | null>(null);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
-  const [deliveryDate, setDeliveryDate] = useState("");
   const connections = useConnections();
   const seoEnrich = useAiSeoEnrich();
 
@@ -292,13 +293,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
     if (failed > 0) toast.warning(`${failed} dosya yüklenemedi — talep sayfasından tekrar ekleyebilirsiniz`);
   };
 
-  /** Teslim tarihi: tek tarih → tüm kalemlerin `requiredByDate`i. */
-  const applyDeliveryDate = (v: string) => {
-    setDeliveryDate(v);
-    const cur = getValues("items");
-    setValue("items", cur.map((i) => ({ ...i, requiredByDate: v })), { shouldDirty: true });
-  };
-
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
   const writeDescription = async () => {
     const v = getValues();
@@ -367,6 +361,15 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
         : invited.length
           ? `Yalnız davet ettiğiniz ${invited.length} firma görecek.`
           : "Henüz kimse davet edilmedi — en az bir firma seçin ya da görünürlüğü genişletin.";
+
+  const paymentLabel =
+    formatPaymentPlan({
+      paymentCategory: terms.paymentCategory as PaymentCategory,
+      advancePercent: terms.advancePercent,
+      paymentDays: terms.paymentDays,
+      lcType: terms.lcType as "SIGHT" | "USANCE" | null,
+      lcConfirmed: false,
+    }) || PAYMENT_CATEGORY_LABELS[terms.paymentCategory as PaymentCategory];
 
   const summary = {
     what: hasItems ? `${namedItems.length} kalem${catRows[0] ? ` · ${catRows[0].nameTr}` : ""}` : null,
@@ -510,9 +513,9 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             id="talep-nereye"
             n={2}
             accent="blue"
-            title="Nereye, ne zamana?"
-            lead="Teslimat adresi ve teklif toplama süresi."
-            status={selectedAddress && closeLabel ? <Done>{selectedAddress.title} · {currentCloseDays} gün</Done> : null}
+            title="Nereye, ne zamana, nasıl ödeme?"
+            lead="Teslimat adresi, teklif toplama süresi ve ödeme şekli."
+            status={selectedAddress && closeLabel ? <Done>{selectedAddress.title} · {currentCloseDays} gün · {paymentLabel}</Done> : null}
           >
             <div className="space-y-6">
               <div>
@@ -561,19 +564,16 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                 {form.formState.errors.bidsCloseAt ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.bidsCloseAt.message}</p> : null}
               </div>
 
+              {/* ÖDEME ŞEKLİ — kullanıcı kararı 2026-09-09: teslim tarihi yerine.
+                  Şartlar paneliyle AYNI değer (`terms`), iki yerde de düzenlenebilir. */}
               <div>
-                <label htmlFor="talep-teslim" className="mb-1.5 block text-sm font-medium text-zinc-950">
-                  Teslim ne zaman lazım? <span className="text-xs font-normal text-zinc-500">isteğe bağlı</span>
-                </label>
-                <input
-                  id="talep-teslim"
-                  type="date"
-                  value={deliveryDate}
-                  min={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => applyDeliveryDate(e.target.value)}
-                  className="w-full max-w-xs rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
-                />
-                <p className="mt-1 text-xs text-zinc-500">Tedarikçi teklifinde bu tarihe göre teslim süresi verir; kalem bazında farklıysa detaylı sihirbazda ayarlanır.</p>
+                <p className="mb-2 text-sm font-medium text-zinc-950">
+                  Ödeme şekli <span className="text-red-600">*</span>
+                </p>
+                <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
+                  <RequestDefaultsForm value={terms} onChange={updateTerms} compact bare only={["payment"]} />
+                </div>
+                <p className="mt-1.5 text-xs text-zinc-500">Tedarikçi teklifini bu koşula göre verir; sağdaki Ticari şartlar panelinde de görünür. Kalıcı yapmak için orada “Şartları kaydet”.</p>
               </div>
             </div>
           </NumberedSection>
@@ -636,6 +636,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
               <Row k="Ne" v={summary.what} />
               <Row k="Nereye" v={summary.where} />
               <Row k="Ne zamana" v={summary.when} />
+              <Row k="Ödeme" v={paymentLabel} />
               <Row k="Kime" v={summary.who} />
               <Row k="Belge" v={stagedDocs.length ? `${stagedDocs.length} dosya` : null} />
             </dl>
