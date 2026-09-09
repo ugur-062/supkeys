@@ -5,7 +5,23 @@ import { useFilters } from "./filter-shell";
 import { SortBar } from "./sort-bar";
 import { activeCompanyFilterCount, type CompanyFilterState } from "@/lib/public/company-filter-params";
 import type { PublicDirectoryFacets } from "@/lib/public/marketplace-api";
+import { useCategoriesByIds } from "@/hooks/use-categories";
 import { companyActivityLabel } from "@rothern/shared";
+import { useMemo } from "react";
+
+/**
+ * Seçili kategori kodlarının ADI. Facet listesi yalnız FİRMASI OLAN
+ * kategorileri taşır; ürün sekmesinden 0 firmalı bir kodla geçince ad orada
+ * yoktur ve çip/süzgeç ham kodu ("42181500") basardı. Eksik kodlar herkese
+ * açık `categories/by-ids` ucundan çözülür (ziyaretçide de çalışır). Çözülene
+ * dek kod yerine "…" yazılır — kod kullanıcıya hiç gösterilmez.
+ */
+function useCategoryNames(selected: string[], facets: PublicDirectoryFacets): (id: string) => string {
+  const facetName = useMemo(() => new Map((facets.categories ?? []).map((c) => [c.id, c.name])), [facets.categories]);
+  const missing = useMemo(() => selected.filter((id) => !facetName.has(id)), [selected, facetName]);
+  const resolved = useCategoriesByIds(missing);
+  return (id) => facetName.get(id) ?? resolved.data?.find((c) => c.id === id)?.nameTr ?? "…";
+}
 
 /**
  * FİRMA DİZİNİ SÜZGEÇLERİ (PROMPT 4): Firma profili (Doğrulanmış, Ürünü olan,
@@ -25,6 +41,13 @@ export function CompanyFilters({
 }) {
   const { state, update } = useFilters<CompanyFilterState>();
   const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
+  const categoryName = useCategoryNames(state.categories, facets);
+  // Seçili ama listede olmayan (0 firmalı) kategori de adıyla ve tikli görünsün
+  // ki kullanıcı kenar süzgecinden kaldırabilsin (ürün süzgeciyle aynı kalıp).
+  const categoryItems = [
+    ...state.categories.filter((k) => !(facets.categories ?? []).some((c) => c.id === k)).map((k) => ({ key: k, label: categoryName(k), count: 0 })),
+    ...(facets.categories ?? []).map((c) => ({ key: c.id, label: c.name, count: c.count })),
+  ];
   return (
     <div className="space-y-3">
       {showConnection ? (
@@ -89,7 +112,7 @@ export function CompanyFilters({
         storageKey="dir-category"
       >
         <ShowMore
-          items={(facets.categories ?? []).map((c) => ({ key: c.id, label: c.name, count: c.count }))}
+          items={categoryItems}
           selected={state.categories}
           idPrefix={`${idPrefix}-cat`}
           onToggle={(k, on) => update((s) => ({ ...s, categories: on ? [...s.categories, k] : s.categories.filter((x) => x !== k) }))}
@@ -101,6 +124,7 @@ export function CompanyFilters({
 
 export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }) {
   const { state, update, clear } = useFilters<CompanyFilterState>();
+  const categoryName = useCategoryNames(state.categories, facets);
   const chips: FilterChip[] = [];
   if (state.verified) chips.push({ key: "v", label: "Doğrulanmış", onRemove: () => update({ verified: false }) });
   if (state.hasProducts) chips.push({ key: "p", label: "Ürünü olan", onRemove: () => update({ hasProducts: false }) });
@@ -113,7 +137,7 @@ export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }
     });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: companyActivityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
-  for (const k of state.categories) chips.push({ key: `k:${k}`, label: facets.categories?.find((c) => c.id === k)?.name ?? k, onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });
+  for (const k of state.categories) chips.push({ key: `k:${k}`, label: categoryName(k), onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });
   return <FilterChipBar chips={chips} activeCount={activeCompanyFilterCount(state)} onClearAll={clear} />;
 }
 

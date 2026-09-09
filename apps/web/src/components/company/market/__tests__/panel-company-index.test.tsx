@@ -21,6 +21,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/use-portal-discovery", () => ({
   useDiscoverSearch: () => ({ data: { items: [], total: 56, page: 1, pageSize: 1 }, isLoading: false }),
 }));
+// Kategori adı çözümleyici (facet dışı seçili kod) — bu rig QueryClient taşımaz.
+vi.mock("@/hooks/use-categories", () => ({ useCategoriesByIds: () => ({ data: [] }) }));
 vi.mock("@/hooks/use-company-directory", () => ({
   useCompanySearch: (params: unknown) => {
     h.lastSearchParams = params;
