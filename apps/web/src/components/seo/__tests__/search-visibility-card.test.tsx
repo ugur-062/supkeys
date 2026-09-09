@@ -19,6 +19,21 @@ describe("SearchVisibilityCard", () => {
     expect(screen.queryByText("AI ile açıklamayı güçlendir")).not.toBeInTheDocument();
   });
 
+  it("'+N madde daha' tıklanınca kalan eksikler yerinde açılır, 'Daha az göster' kapatır", () => {
+    render(<SearchVisibilityCard readiness={readiness} snippet={snippet} />);
+    const total = readiness.missing.length;
+    expect(total).toBeGreaterThan(4);
+    const more = screen.getByRole("button", { name: `+${total - 4} madde daha` });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(readiness.missing[4].label, { exact: false })).toBeNull();
+    fireEvent.click(more);
+    for (const m of readiness.missing) expect(screen.getByText(m.label, { exact: false })).toBeInTheDocument();
+    const less = screen.getByRole("button", { name: "Daha az göster" });
+    expect(less).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(less);
+    expect(screen.queryByText(readiness.missing[total - 1].label, { exact: false })).toBeNull();
+  });
+
   it("AI: taslak önizlenir, 'Uygula' çağıranın apply'ını çalıştırır; pasifken gerekçe", async () => {
     const result: AiSeoEnrichResult = {
       description: "Uzun taslak açıklama.",

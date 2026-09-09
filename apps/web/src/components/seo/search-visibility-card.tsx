@@ -52,6 +52,7 @@ export function SearchVisibilityCard({
   className?: string;
 }) {
   const [draft, setDraft] = useState<AiSeoEnrichResult | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bar = accent === "blue" ? "bg-blue-600" : "bg-zinc-900";
@@ -95,7 +96,7 @@ export function SearchVisibilityCard({
 
       {readiness.missing.length > 0 ? (
         <ul className="mt-4 space-y-2">
-          {readiness.missing.slice(0, 4).map((m) => (
+          {(showAll ? readiness.missing : readiness.missing.slice(0, 4)).map((m) => (
             <li key={m.key} className="text-sm">
               <p className="font-medium text-zinc-900">
                 {m.label} <span className="text-xs font-normal text-zinc-500">+{m.points}</span>
@@ -104,7 +105,18 @@ export function SearchVisibilityCard({
             </li>
           ))}
           {readiness.missing.length > 4 ? (
-            <li className="text-xs text-zinc-500">+{readiness.missing.length - 4} madde daha</li>
+            /* "+N madde daha" eskiden düz metindi — kullanıcı tıklayıp göremiyordu
+               (2026-09-10). Şimdi aç/kapa düğmesi; liste yerinde aşağı açılır. */
+            <li>
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                aria-expanded={showAll}
+                className="text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950"
+              >
+                {showAll ? "Daha az göster" : `+${readiness.missing.length - 4} madde daha`}
+              </button>
+            </li>
           ) : null}
         </ul>
       ) : (
