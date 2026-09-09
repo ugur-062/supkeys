@@ -96,8 +96,8 @@ describe("QuickRequest", () => {
     expect(screen.getByLabelText("Kalem 2 adı")).toHaveValue("vida M8");
     expect(screen.getByDisplayValue("Çelik boru, vida M8 alımı")).toBeInTheDocument();
     // Şartlar paneli profilden
-    expect(screen.getByText("Talep şartlarınızdan")).toBeInTheDocument();
-    expect(screen.getByText(/Vadeli/)).toBeInTheDocument();
+    expect(screen.getByText("Kaynak: talep şartlarınız")).toBeInTheDocument();
+    expect(screen.getAllByText(/Vadeli/).length).toBeGreaterThan(0);
     // Kapsam: bağlantılarım seçili; özet dolu
     expect(screen.getByRole("button", { name: /^Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("2 kalem · Dağıtım panoları")).toBeInTheDocument();

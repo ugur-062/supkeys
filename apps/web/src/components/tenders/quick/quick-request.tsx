@@ -37,7 +37,7 @@ import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiSearchIntentResult, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
-import { CheckIcon, DocumentPlusIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
+import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
@@ -76,7 +76,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
   const [categoryHint, setCategoryHint] = useState<string | null>(null);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
-  const [docsOpen, setDocsOpen] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
   const connections = useConnections();
@@ -241,6 +240,11 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
       if (!ok) {
         const errs = form.formState.errors;
         const first = Object.keys(errs)[0];
+        if (first === "deliveryTerm" || first === "paymentCategory" || first === "paymentDays") {
+          toast.error("Sağdaki Ticari şartlar panelinde teslim şekli / ödeme eksik — 'seç' ile tamamlayın");
+          document.getElementById("sartlar-baslik")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         const section = ["items", "title", "categoryIds", "description"].includes(first) ? "talep-ne" : ["deliveryAddressId", "bidsCloseAt", "billingAddressId"].includes(first) ? "talep-nereye" : "talep-kime";
         document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
         const msg = (errs[first as keyof typeof errs] as { message?: string } | undefined)?.message;
@@ -494,21 +498,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                         <SparklesIcon aria-hidden className="size-3.5" />
                         {seoEnrich.isPending ? "Yazılıyor…" : "AI ile açıklamayı yaz"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setDocsOpen((o) => !o)}
-                        aria-expanded={docsOpen}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
-                      >
-                        <DocumentPlusIcon aria-hidden className="size-3.5" />
-                        {stagedDocs.length ? `${stagedDocs.length} dosya eklendi` : "Şartname / teknik resim ekle"}
-                      </button>
                     </div>
-                    {docsOpen ? (
-                      <div className="mt-3 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
-                        <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />
-                      </div>
-                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -624,6 +614,18 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
               </div>
             ) : null}
           </NumberedSection>
+
+          {/* 4 ── BELGELER */}
+          <NumberedSection
+            id="talep-belgeler"
+            n={4}
+            accent="blue"
+            title="Belgeler"
+            lead="Şartname, teknik resim, sözleşme taslağı — tedarikçi teklif verirken görür. İsteğe bağlı."
+            status={stagedDocs.length ? <Done>{stagedDocs.length} dosya</Done> : <span>isteğe bağlı</span>}
+          >
+            <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />
+          </NumberedSection>
         </div>
 
         {/* SAĞ RAY */}
@@ -635,6 +637,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
               <Row k="Nereye" v={summary.where} />
               <Row k="Ne zamana" v={summary.when} />
               <Row k="Kime" v={summary.who} />
+              <Row k="Belge" v={stagedDocs.length ? `${stagedDocs.length} dosya` : null} />
             </dl>
             {!verified ? (
               <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
