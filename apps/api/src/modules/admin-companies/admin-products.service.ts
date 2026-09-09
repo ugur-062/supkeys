@@ -271,7 +271,12 @@ export class AdminProductsService {
     return { ok: true };
   }
 
-  /** REDDET — gerekçe zorunlu; yayındaysa vitrinden ÇEKİLİR. Firma düzenleyip yeniden gönderir. */
+  /**
+   * DÜZELTMEYE GÖNDER (eski adı "reddet"; enum değeri REJECTED KALIR) — gerekçe
+   * zorunlu; yayındaysa vitrinden ÇEKİLİR (sürüm tutulmuyor, eski hâl
+   * korunamaz). İnceleme kilidi (`assertNotInReview`) bu kararla açılır: firma
+   * düzenler ve yeniden gönderir.
+   */
   async reject(id: string, reason: string, adminId: string) {
     const r = await this.require(id);
     if (r.reviewStatus !== "PENDING") throw new BadRequestException("Yalnız onay bekleyen ürün reddedilebilir");
@@ -300,14 +305,14 @@ export class AdminProductsService {
     if (r.isPublic) this.seo?.productChanged(id);
     void this.companies.notifyCompany(
       r.company.id,
-      "Ürününüz onaylanmadı",
+      "Ürününüzde düzeltme istendi",
       [
         "Merhaba,",
-        `"${r.name}" ürününüz incelendi ve bu hâliyle yayına alınmadı.${r.isPublic ? " Ürün vitrinden çekildi." : ""} Gerekçe: ${clean}`,
-        "Ürünü düzenleyip yeniden onaya gönderebilirsiniz.",
+        `"${r.name}" ürününüz incelendi ve düzeltme için size geri gönderildi.${r.isPublic ? " Ürün düzeltme tamamlanana kadar vitrinden çekildi." : ""} Gerekçe: ${clean}`,
+        "Gerekçedeki değişikliği yapıp ürünü yeniden onaya gönderebilirsiniz.",
       ],
       "product_rejected",
-      { label: "Ürünü düzenle", path: "/company/satis/urunlerim?sekme=rejected" },
+      { label: "Düzelt ve yeniden gönder", path: "/company/satis/urunlerim?sekme=rejected" },
     );
     return { ok: true };
   }

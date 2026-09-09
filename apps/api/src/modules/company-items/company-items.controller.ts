@@ -394,6 +394,16 @@ export class CompanyItemsController {
     return this.service.resolveAttributes(categoryId);
   }
 
+  /** Vitrin alanlarını okur — önizleme (incelemedeki ürün) ve düzenleyici açılışı. */
+  @Get(":id/showcase")
+  @RequireCompanyPermission(["sell:view", "sell:product:manage"])
+  getShowcase(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.getShowcase(user, id);
+  }
+
   @Patch(":id/showcase")
   @RequireCompanyPermission("sell:product:manage")
   updateShowcase(

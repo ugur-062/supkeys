@@ -86,12 +86,13 @@ describe("AdminProductsService", () => {
     await a.svc.reject("i1", "  Görseller ürüne ait değil  ", "admin1");
     expect(a.prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({ reviewStatus: "REJECTED", isPublic: false, rejectReason: "Görseller ürüne ait değil" });
     expect(a.seo.productChanged).toHaveBeenCalled();
+    expect(a.companies.notifyCompany.mock.calls[0][1]).toBe("Ürününüzde düzeltme istendi");
     expect(a.companies.notifyCompany.mock.calls[0][2].join(" ")).toContain("vitrinden çekildi");
 
     const b = rig(BASE);
     await b.svc.reject("i1", "Açıklama yetersiz kalmış", "admin1");
     expect(b.seo.productChanged).not.toHaveBeenCalled();
-    expect(b.companies.notifyCompany.mock.calls[0][4]).toEqual({ label: "Ürünü düzenle", path: "/company/satis/urunlerim?sekme=rejected" });
+    expect(b.companies.notifyCompany.mock.calls[0][4]).toEqual({ label: "Düzelt ve yeniden gönder", path: "/company/satis/urunlerim?sekme=rejected" });
   });
 
   it("yalnız PENDING karar alır; yarışta (count=0) 400", async () => {

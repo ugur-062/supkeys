@@ -7,7 +7,7 @@
  *  · skor yönlendirir, yayın kapısı engeller — ikisi AYRI,
  *  · dürüst fiyat seçeneği (ON_REQUEST) puanla CEZALANDIRILMAZ.
  */
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { CompanyItemsService } from "../../src/modules/company-items/company-items.service";
 import {
   productCompletion,
@@ -185,9 +185,11 @@ describe("yayımlama akışı", () => {
       description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
     });
     const r = await service().publish(auth, item.id);
-    expect(r.isPublic).toBe(true);
+    // Moderasyon (2026-09-09): publish = ONAYA GÖNDER; vitrine yalnız admin çıkarır.
+    expect(r.isPublic).toBe(false);
+    expect(r.reviewStatus).toBe("PENDING");
+    expect(r.submittedAt).not.toBeNull();
     expect(r.slug).toBe("dagitim-panosu-400a");
-    expect(r.publishedAt).not.toBeNull();
   });
 
   it("ad değişse bile SLUG KORUNUR — yayımlanmış URL kırılmaz", async () => {
@@ -238,6 +240,65 @@ describe("yayımlama akışı", () => {
     const b = await makeCompanyWithUser(prisma);
     const item = await makeProduct(a.company.id, a.user.id);
     await expect(service().publish(b.auth, item.id)).rejects.toBeDefined();
+  });
+
+  /* İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı): onaya gönderilen ürün
+     admin karar verene dek değiştirilemez — firma yalnız önizler. */
+  it("İNCELEME KİLİDİ: PENDING üründe vitrin/kalem güncelleme ve yeniden gönderme 409; okuma serbest", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id, {
+      description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+    });
+    const sent = await service().publish(auth, item.id);
+    expect(sent.reviewStatus).toBe("PENDING");
+    expect(sent.isPublic).toBe(false); // yalnız admin onayı vitrine çıkarır
+
+    await expect(service().updateShowcase(auth, item.id, { description: "y".repeat(120) })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service().update(auth, item.id, { name: "Başka ad" })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service().publish(auth, item.id)).rejects.toBeInstanceOf(ConflictException);
+    // Boş yama da kilide takılır — "değişiklik yok" istisnası YOK.
+    await expect(service().updateShowcase(auth, item.id, {})).rejects.toBeInstanceOf(ConflictException);
+
+    const preview = await service().getShowcase(auth, item.id);
+    expect(preview.id).toBe(item.id);
+    expect(preview.reviewStatus).toBe("PENDING");
+    const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
+    expect(row.description).toBe("x".repeat(120));
+    expect(row.name).toBe("Dağıtım panosu 400A");
+  });
+
+  it("kilit admin kararıyla açılır: düzeltmeye gönderilen (REJECTED) ürün düzenlenir ve yeniden gönderilir", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id, {
+      description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+    });
+    await service().publish(auth, item.id);
+    // Admin kararı (AdminProductsService.reject ile aynı yazım)
+    await prisma.companyItem.update({
+      where: { id: item.id },
+      data: { reviewStatus: "REJECTED", isPublic: false, rejectReason: "Görseller ürüne ait değil", reviewedAt: new Date() },
+    });
+    // Vitrin yaması TAM gövdedir (görsel/etiket listesi yerine yazılır) — form her kaydetmede hepsini yollar.
+    const fixed = await service().updateShowcase(auth, item.id, { images: ["b.webp"], keywords: ["pano"], description: "x".repeat(120) });
+    expect(fixed.images).toEqual(["b.webp"]);
+    const again = await service().publish(auth, item.id);
+    expect(again.reviewStatus).toBe("PENDING");
+    expect(again.rejectReason).toBeNull();
+  });
+
+  it("yayındaki ürün yeniden incelemedeyken de kilitli; vitrinden çekmek SERBEST (içerik değişikliği değil)", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id, {
+      description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+      reviewStatus: "APPROVED", isPublic: true, publishedAt: new Date(), slug: "dagitim-panosu-400a",
+    });
+    const edited = await service().updateShowcase(auth, item.id, { description: "z".repeat(120) });
+    expect(edited.reviewStatus).toBe("PENDING");
+    expect(edited.isPublic).toBe(true);
+    await expect(service().updateShowcase(auth, item.id, { description: "w".repeat(120) })).rejects.toBeInstanceOf(ConflictException);
+    const off = await service().unpublish(auth, item.id);
+    expect(off.isPublic).toBe(false);
+    expect(off.reviewStatus).toBe("DRAFT");
   });
 });
 

@@ -6,7 +6,7 @@
  *  - Paketin karşılığı: dizin/ürün sıralamasında öncelik, sınırsız ürün
  *    (`PRODUCT_LIMITS`), belge/video (`PRODUCT_MEDIA_TIER`).
  */
-import { ForbiddenException } from "@nestjs/common";
+import { ConflictException, ForbiddenException } from "@nestjs/common";
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import { buildDirectory } from "../../src/common/company/company-directory";
 import { enforceProductLimit } from "../../src/common/company/product-limit";
@@ -76,15 +76,27 @@ describe("ücretsiz vitrin — ürün tavanı ve medya", () => {
     const extra = await draftProduct(std.company.id, std.user.id);
     await expect(svc.publish(std.auth, extra.id)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(svc.publish(std.auth, extra.id)).rejects.toThrow(/en fazla 10 ürün/);
-    // Taslak kalır, silinmez.
-    expect((await prisma.companyItem.findUniqueOrThrow({ where: { id: extra.id } })).isPublic).toBe(false);
-    // Zaten yayında olanı yeniden yayımlamak (güncelleme) tavana takılmaz.
-    const first = await prisma.companyItem.findFirstOrThrow({ where: { companyId: std.company.id, isPublic: true } });
-    await expect(svc.publish(std.auth, first.id)).resolves.toBeTruthy();
-    // Liste yanıtı tavanı taşır (web "N/10").
+    // Taslak kalır, silinmez. (Moderasyon: publish = onaya gönder → PENDING, isPublic false.)
+    const extraRow = await prisma.companyItem.findUniqueOrThrow({ where: { id: extra.id } });
+    expect(extraRow.isPublic).toBe(false);
+    expect(extraRow.reviewStatus).toBe("DRAFT");
+    // Kuyruktaki ürün yeniden gönderilemez — inceleme kilidi (409), tavan değil.
+    const queued = await prisma.companyItem.findFirstOrThrow({ where: { companyId: std.company.id, reviewStatus: "PENDING" } });
+    await expect(svc.publish(std.auth, queued.id)).rejects.toBeInstanceOf(ConflictException);
+    // Admin onayladıktan sonra yayındaki ürünü yeniden göndermek tavana takılmaz (zaten yer tutuyor).
+    await prisma.companyItem.update({ where: { id: queued.id }, data: { reviewStatus: "APPROVED", isPublic: true, publishedAt: new Date() } });
+    await expect(svc.publish(std.auth, queued.id)).resolves.toBeTruthy();
+    // Liste yanıtı tavanı taşır (web "N/10"). `pending` yayında olup yeniden
+    // incelenenleri DE sayar (1 ürün iki sayaçta) — web bunu düşerek "yer
+    // tutan" sayıyı bulur; burada aynı sayım DB'den: yayında ∪ onayda = tavan.
     const listed = await svc.list(std.company.id, { tier: std.auth.tier });
     expect(listed.productLimit).toBe(limit);
-    expect(listed.counts.published).toBe(limit);
+    expect(listed.counts.published).toBe(1);
+    expect(listed.counts.pending).toBe(limit);
+    const occupied = await prisma.companyItem.count({
+      where: { companyId: std.company.id, isActive: true, OR: [{ isPublic: true }, { reviewStatus: "PENDING" }] },
+    });
+    expect(occupied).toBe(limit);
 
     const silver = await makeCompanyWithUser(prisma, { tier: "SILVER" });
     for (let i = 0; i < limit + 1; i += 1) {
@@ -182,12 +194,15 @@ describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026
       slug: "arsivli-public",
       isActive: false,
     });
+    // Tavan yayında + ONAYDA (publish kapısıyla aynı sayım): 10 kuyruktaki + arşivden dönen public → 403.
     await expect(svc.setActive(std.auth, archived.id, true)).rejects.toBeInstanceOf(ForbiddenException);
-    const first = await prisma.companyItem.findFirstOrThrow({ where: { companyId: std.company.id, isActive: true, isPublic: true } });
-    await svc.unpublish(std.auth, first.id);
+    const first = await prisma.companyItem.findFirstOrThrow({ where: { companyId: std.company.id, isActive: true, reviewStatus: "PENDING" } });
+    await svc.unpublish(std.auth, first.id); // kuyruktan düşer → taslak
     await expect(svc.setActive(std.auth, archived.id, true)).resolves.toBeTruthy();
-    const published = await prisma.companyItem.count({ where: { companyId: std.company.id, isActive: true, isPublic: true } });
-    expect(published).toBe(10);
+    const occupied = await prisma.companyItem.count({
+      where: { companyId: std.company.id, isActive: true, OR: [{ isPublic: true }, { reviewStatus: "PENDING" }] },
+    });
+    expect(occupied).toBe(10);
   });
 
   it("enforceProductLimit: STANDART'a düşen firmada en iyi 10 ürün kalır, kalanı TASLAĞA çekilir (silinmez); paketli kademede dokunulmaz", async () => {

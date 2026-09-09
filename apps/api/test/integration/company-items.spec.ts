@@ -202,14 +202,14 @@ describe("vitrin sayaçları", () => {
     });
 
     const all = await svc.list(company.id);
-    expect(all.counts).toEqual({ published: 1, draft: 1 });
+    expect(all.counts).toEqual({ published: 1, draft: 1, pending: 0, rejected: 0 });
     // Satır vitrin özetini taşır (durum rozeti / küçük görsel için).
     expect(all.items.find((i) => i.id === a.id)?.isPublic).toBe(true);
     expect(all.items.find((i) => i.id === a.id)?.thumbnailUrl).toBeNull();
 
     const narrowed = await svc.list(company.id, { q: "Taslak" });
     expect(narrowed.items).toHaveLength(1);
-    expect(narrowed.counts).toEqual({ published: 1, draft: 1 });
+    expect(narrowed.counts).toEqual({ published: 1, draft: 1, pending: 0, rejected: 0 });
   });
 });
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -314,6 +315,7 @@ export class CompanyItemsService {
     input: Partial<CatalogItemInput>,
   ) {
     const before = await this.requireOwn(user.companyId, id);
+    this.assertNotInReview(before);
     const patch = this.normalize({ ...this.toInput(before), ...input });
     const row = await this.prisma.companyItem
       .update({ where: { id }, data: patch })
@@ -343,15 +345,22 @@ export class CompanyItemsService {
     // Ücretsiz paket tavanı ARŞİVDEN GERİ ALMADA da geçerli (denetim 2026-09-06
     // #2): arşivlenen ürün isPublic'i korur; tavan yalnız publish'te olsaydı
     // "10 yayımla → arşivle → 10 daha → geri al" 20 yayında ürün üretirdi.
-    if (isActive && before.isPublic) {
+    // Moderasyonla (2026-09-09) tavan "yayında + onay bekleyen" — `publish`
+    // kapısıyla AYNI sayım; yalnız isPublic sayılsaydı 10 kuyruktaki + arşivden
+    // dönen public ürün tavanı aşardı.
+    if (isActive && (before.isPublic || before.reviewStatus === "PENDING")) {
       const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
       if (limit != null) {
-        const published = await this.prisma.companyItem.count({
-          where: { companyId: user.companyId, isActive: true, isPublic: true },
+        const occupied = await this.prisma.companyItem.count({
+          where: {
+            companyId: user.companyId,
+            isActive: true,
+            OR: [{ isPublic: true }, { reviewStatus: "PENDING" }],
+          },
         });
-        if (published >= limit) {
+        if (occupied >= limit) {
           throw new ForbiddenException(
-            `Ücretsiz pakette en fazla ${limit} ürün yayında olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.`,
+            `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.`,
           );
         }
       }
@@ -847,6 +856,29 @@ export class CompanyItemsService {
     return new Set(rows.map((r) => r.id));
   }
 
+  /**
+   * İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı): onaya gönderilen ürün
+   * (PENDING) admin karar verene dek DEĞİŞTİRİLEMEZ — firma yalnız önizler.
+   * Tek çıkış: admin onaylar (APPROVED) ya da gerekçeyle düzeltmeye gönderir
+   * (REJECTED) → firma düzenler → yeniden gönderir. Firmanın kendi kendine
+   * geri çekmesi bilinçli YOK. Yayındaki ürünü vitrinden çekmek (`unpublish`)
+   * ve arşivlemek içerik değişikliği değildir, serbest.
+   */
+  private assertNotInReview(row: { reviewStatus: ProductReviewStatus }) {
+    if (row.reviewStatus === "PENDING") {
+      throw new ConflictException({
+        code: "PRODUCT_IN_REVIEW",
+        message: "Ürün incelemede — ekibimiz onaylayana ya da düzeltme isteyene kadar değiştirilemez.",
+      });
+    }
+  }
+
+  /** Vitrin alanlarını OKUR (önizleme / düzenleyici açılışı). `updateShowcase` ile AYNI projeksiyon. */
+  async getShowcase(user: AuthenticatedCompanyUser, id: string) {
+    const row = await this.requireOwn(user.companyId, id);
+    return this.serializeShowcase(row);
+  }
+
   private async requireOwn(
     companyId: string,
     id: string,
@@ -996,6 +1028,7 @@ export class CompanyItemsService {
     input: ShowcaseInput,
   ) {
     const before = await this.requireOwn(user.companyId, id);
+    this.assertNotInReview(before);
     // Belge (PDF) ve video PAKETLİ özellik (`PRODUCT_MEDIA_TIER`, 2026-09-06).
     // Ücretsiz firmada bu iki alan DOKUNULMADAN kalır: yeni eklenemez (yükleme
     // ucu da paket kapılı), paketi biten firmanın mevcut belgesi de kaydetme
@@ -1091,6 +1124,7 @@ export class CompanyItemsService {
    */
   async publish(user: AuthenticatedCompanyUser, id: string) {
     const row = await this.requireOwn(user.companyId, id);
+    this.assertNotInReview(row);
     const blockers = productPublishBlockers(this.toProductLike(row));
     if (blockers.length > 0) {
       throw new BadRequestException(
