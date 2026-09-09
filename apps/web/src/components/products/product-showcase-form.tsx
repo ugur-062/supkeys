@@ -3,6 +3,12 @@
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { AttributeFields } from "./attribute-fields";
 import { CompletionRing } from "./completion-ring";
+import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
+import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
+import { useCategoriesByIds } from "@/hooks/use-categories";
+import { useCompanyProfile } from "@/hooks/use-company-profile";
+import { productSeo } from "@/lib/seo/entities";
+import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField } from "./price-mode-field";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
@@ -27,8 +33,7 @@ import {
   productCompletion,
   productPublishBlockers,
   tierAtLeast,
-  type ProductLike,
-} from "@rothern/shared";
+  type ProductLike, productSeoReadiness, generateSlug, slugifyText } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -183,6 +188,65 @@ export function ProductShowcaseForm({
       blockers: productPublishBlockers(like),
     };
   }, [patch, images, keywords, priceMode, attributes, attributeDefs]);
+
+  /* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8): puan + Google parçacığı + AI taslağı.
+     Parçacık sayfanın GERÇEK şablonundan (`productSeo`) — ayrı metin yok. */
+  const { data: categoryRows = [] } = useCategoriesByIds(categoryId ? [categoryId] : []);
+  const categoryName = categoryRows[0]?.nameTr ?? null;
+  const seoEnrich = useAiSeoEnrich();
+  // Şehir/sektör oturum anlık görüntüsünde yok → profil sorgusu (önbellekli).
+  const profileQ = useCompanyProfile();
+  const seo = useMemo(() => {
+    const attributeEntries = Object.entries(attributes).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v));
+    const readiness = productSeoReadiness({
+      name: patch.name,
+      description: patch.description,
+      images,
+      keywords,
+      categoryId: patch.categoryId,
+      attributeCount: attributeEntries.length,
+      brand: null,
+      mpn: null,
+      moq: patch.moq,
+      priceMode,
+    });
+    const companySlug = company?.slug ?? (company ? generateSlug(company.name) || "firma" : "firma");
+    const snippet = snippetFromMetadata(
+      productSeo({
+        companySlug,
+        product: {
+          name: patch.name || "Ürün",
+          slug: product.slug ?? (slugifyText(patch.name) || "urun"),
+          description: patch.description,
+          images,
+          brand: null,
+          mpn: null,
+          unit: unitLabel,
+          moq: patch.moq != null ? String(patch.moq) : null,
+          priceMode,
+          priceAmount: patch.priceAmount != null ? String(patch.priceAmount) : null,
+          priceTiers: priceMode === "TIERED" ? priceTiers : null,
+          priceCurrency,
+          category: categoryId && categoryName ? { id: categoryId, name: categoryName } : null,
+          keywords,
+        },
+        company: {
+          name: company?.name ?? "Firma",
+          slug: companySlug,
+          city: profileQ.data?.city ?? null,
+          country: company?.country ?? null,
+          industry: profileQ.data?.industry ?? null,
+        },
+        indexable: true,
+      }).metadata,
+    );
+    const facts = attributeEntries.map(([k, v]) => {
+      const def = attributeDefs.find((d) => d.key === k);
+      return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.join(", ") : v}`;
+    });
+    return { readiness, snippet, facts };
+  }, [patch, images, keywords, attributes, attributeDefs, priceMode, priceTiers, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug]);
+  const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
 
   const addDocument = async (file: File | undefined) => {
     if (!file || documents.length >= MAX_DOCUMENTS) return;
@@ -510,6 +574,37 @@ export function ProductShowcaseForm({
 
       <aside className="lg:sticky lg:top-6 lg:self-start">
         <CompletionRing completion={live.completion} />
+
+        <SearchVisibilityCard
+          className="mt-4"
+          readiness={seo.readiness}
+          snippet={seo.snippet}
+          enrich={
+            canManage
+              ? {
+                  available: aiAvailable && patch.name.trim().length >= 2,
+                  unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+                  run: () =>
+                    seoEnrich.mutateAsync({
+                      kind: "product",
+                      name: patch.name,
+                      description: patch.description,
+                      categoryName,
+                      facts: seo.facts,
+                      keywords,
+                      city: profileQ.data?.city ?? null,
+                      industry: profileQ.data?.industry ?? null,
+                    }),
+                  apply: (r) => {
+                    setDescription(r.description);
+                    setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
+                    if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
+                    toast.success("Taslak uygulandı — kontrol edip kaydedin");
+                  },
+                }
+              : undefined
+          }
+        />
 
         {live.blockers.length > 0 ? (
           <div className="mt-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-600/20">

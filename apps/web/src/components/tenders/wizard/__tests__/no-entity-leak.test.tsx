@@ -21,6 +21,13 @@ import { ENTITY_LABELS } from "@/lib/company/terms";
 vi.mock("@/hooks/use-company-connections", () => ({
   useConnections: () => ({ data: [] }),
 }));
+/* SEO Parça 8: özet adımındaki "Arama görünürlüğü" kartı react-query hook'ları
+   kullanır; burada sağlayıcı yok → hook'lar boş veriyle taklit edilir. */
+vi.mock("@/hooks/use-categories", () => ({ useCategoriesByIds: () => ({ data: [] }) }));
+vi.mock("@/hooks/use-company-profile", () => ({ useCompanyProfile: () => ({ data: null }) }));
+vi.mock("@/hooks/use-company-auth", () => ({ useCompanyAuth: () => ({ company: null, user: null }) }));
+vi.mock("@/hooks/use-ai-seo-enrich", () => ({ useAiSeoEnrich: () => ({ mutateAsync: vi.fn() }) }));
+
 
 import { Step0TypeScope } from "../step-0-type-scope";
 import { Step4Review } from "../step-4-review";

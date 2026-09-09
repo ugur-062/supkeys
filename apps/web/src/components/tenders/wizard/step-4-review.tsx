@@ -19,6 +19,15 @@ import type {
 import { formatDateTime } from "@/lib/tenders/date";
 import { Pencil } from "lucide-react";
 import { useFormContext } from "react-hook-form";
+import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
+import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
+import { useCategoriesByIds } from "@/hooks/use-categories";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useCompanyProfile } from "@/hooks/use-company-profile";
+import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
+import { snippetFromMetadata } from "@/lib/seo/snippet";
+import { listingSeoReadiness, tierAtLeast } from "@rothern/shared";
+import { toast } from "sonner";
 
 interface Props {
   onEditStep: (step: 1 | 2 | 3) => void;
@@ -30,8 +39,41 @@ const fmtDate = formatDateTime;
 
 /** Adım 4 — Özet & Yayınla. Tüm form özeti, bölüm-bölüm düzenle linkli. */
 export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
-  const { watch } = useFormContext<TenderFormData>();
+  const { watch, setValue } = useFormContext<TenderFormData>();
   const d = watch();
+  /* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8): yalnız PUBLIC talepte anlamlı ama puan
+     her görünürlükte gösterilir — tedarikçi davetli de olsa açıklayıcı başlık
+     ve tam açıklama teklif kalitesini yükseltir. Parçacık `listingSeo`dan. */
+  const { company } = useCompanyAuth();
+  const profileQ = useCompanyProfile();
+  const { data: catRows = [] } = useCategoriesByIds(d.categoryIds ?? []);
+  const seoEnrich = useAiSeoEnrich();
+  const items = (d.items ?? []).map((it) => ({
+    name: it.name,
+    description: it.description ?? null,
+    quantity: typeof it.quantity === "number" ? it.quantity : null,
+    unit: it.unit ?? null,
+  }));
+  const readiness = listingSeoReadiness({ title: d.title ?? "", description: d.description ?? null, categoryIds: d.categoryIds ?? [], items });
+  const unitSet = new Set(items.map((i) => i.unit).filter(Boolean));
+  const totalQty = unitSet.size === 1 ? items.reduce((a, i) => a + (i.quantity ?? 0), 0) : null;
+  const snippet = snippetFromMetadata(
+    listingSeo(
+      listingSeoInput({
+        number: "ROT-000000",
+        title: d.title || "Alım talebi",
+        description: d.description ?? null,
+        closesAt: null,
+        status: "OPEN",
+        indexable: true,
+        itemSummary: { count: items.length, totalQuantity: totalQty ? String(totalQty) : null, unit: totalQty ? ([...unitSet][0] ?? null) : null },
+        categories: catRows.map((c) => ({ id: c.id, name: c.nameTr })),
+        isInternational: false,
+        coverImageUrl: null,
+        company: { city: profileQ.data?.city ?? null, country: company?.country ?? null },
+      }),
+    ).metadata,
+  );
   const L = entityLabels();
   const coverItem = (d.items ?? []).find((it) => (it.images?.length ?? 0) > 0);
   const connections = useConnections();
@@ -48,6 +90,29 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
 
   return (
     <div className="space-y-5">
+      <SearchVisibilityCard
+        accent="blue"
+        readiness={readiness}
+        snippet={snippet}
+        enrich={{
+          available: !!company && tierAtLeast(company.tier, "SILVER") && (d.title ?? "").trim().length >= 2,
+          unavailableReason:
+            company && tierAtLeast(company.tier, "SILVER") ? "Önce başlığı yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+          run: () =>
+            seoEnrich.mutateAsync({
+              kind: "listing",
+              name: d.title ?? "",
+              description: d.description ?? null,
+              categoryName: catRows[0]?.nameTr ?? null,
+              facts: items.map((i) => `${i.name}${i.quantity ? ` — ${i.quantity} ${i.unit ?? ""}` : ""}${i.description ? `: ${i.description}` : ""}`),
+              city: profileQ.data?.city ?? null,
+            }),
+          apply: (r) => {
+            setValue("description", r.description, { shouldDirty: true });
+            toast.success("Taslak uygulandı — özeti kontrol edin");
+          },
+        }}
+      />
       <Section title="Genel Bilgi" onEdit={() => onEditStep(2)}>
         <Row label={`${L.entityShort} Adı`} value={d.title || "—"} />
         {/* Kapak: katalogdan eklenen İLK ürünün görselinden türer; kullanıcı

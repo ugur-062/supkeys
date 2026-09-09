@@ -6,6 +6,11 @@ import { useCatalogItems } from "@/hooks/use-company-items";
 import { EMPLOYEE_BUCKET_LABELS, companyActivityLabel } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness } from "@/lib/company/profile-completeness";
+import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
+import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
+import { companySeo } from "@/lib/seo/entities";
+import { snippetFromMetadata } from "@/lib/seo/snippet";
+import { companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
 import Link from "next/link";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
@@ -191,6 +196,7 @@ export function ProfileEditor({
   };
 
   const completeness = completenessOf(draft, profile);
+  const seoEnrich = useAiSeoEnrich();
   // Alıcının sizi BULMASI için gerekenler — kapı değil, rehber (backend'de
   // içerik kapısı yok; yayın anahtarı her pakete açık — 2026-09-06).
   const findability = {
@@ -365,6 +371,70 @@ export function ProfileEditor({
         findability={findability}
       />
       <MissingFields items={completeness.missing} />
+
+      {/* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8) — parçacık `companySeo` şablonundan. */}
+      <SearchVisibilityCard
+        readiness={companySeoReadiness({
+          aboutText: draft.aboutText,
+          logoUrl: draft.logoUrl || null,
+          coverImageUrl: draft.coverImageUrl || null,
+          industry: draft.industry || null,
+          city: profile.city,
+          website: draft.website || null,
+          linkedinUrl: draft.linkedinUrl || null,
+          foundedYear: draft.foundedYear || null,
+          employeeCount: draft.employeeCount || null,
+          services: draft.services,
+          certifications: draft.certifications,
+          photos: draft.photos,
+          categoryCount:
+            (profile.buyerCategoryIds?.length ?? 0) +
+            (profile.sellerCategoryIds?.length ?? 0) +
+            (profile.buyerSubCategoryIds?.length ?? 0) +
+            (profile.sellerSubCategoryIds?.length ?? 0),
+        })}
+        snippet={snippetFromMetadata(
+          companySeo({
+            slug: generateSlug(profile.name) || "firma",
+            name: profile.name,
+            industry: draft.industry || null,
+            city: profile.city,
+            country: profile.country,
+            aboutText: draft.aboutText || null,
+            logoUrl: draft.logoUrl || null,
+            coverImageUrl: draft.coverImageUrl || null,
+            foundedYear: draft.foundedYear ? Number(draft.foundedYear) : null,
+            employeeCount: draft.employeeCount || null,
+            categories: [],
+            certifications: draft.certifications,
+            productCount: 0,
+            website: draft.website || null,
+            linkedinUrl: draft.linkedinUrl || null,
+          }).metadata,
+        )}
+        enrich={{
+          available: tierAtLeast(profile.tier, "SILVER"),
+          unavailableReason: "AI ile güçlendirme Silver ve üzeri paketlerde.",
+          run: () =>
+            seoEnrich.mutateAsync({
+              kind: "company",
+              name: profile.name,
+              description: draft.aboutText,
+              facts: [
+                ...draft.services.map((s) => `Hizmet: ${s}`),
+                ...draft.certifications.map((c) => `Sertifika: ${c}`),
+                ...(draft.foundedYear ? [`Kuruluş: ${draft.foundedYear}`] : []),
+                ...(draft.employeeCount ? [`Çalışan: ${draft.employeeCount}`] : []),
+              ],
+              city: profile.city,
+              industry: draft.industry || null,
+            }),
+          apply: (r) => {
+            set({ aboutText: r.description });
+            toast.success("Taslak uygulandı — kontrol edip Kaydet'e basın");
+          },
+        }}
+      />
 
       {/* Gizlilik: Ziyaret Edenler'de karşı tarafa görünürlük (2026-09-05).
           Kapalıysa görüntülemelerim yine sayılır ama adım yazılmaz. */}
