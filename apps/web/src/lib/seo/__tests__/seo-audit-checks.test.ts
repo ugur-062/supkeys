@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-// @ts-expect-error — düz ESM script (bağımlılıksız), tip bildirimi yok.
 import { checkPage, parseHead, sitemapLocs } from "../../../../scripts/seo-audit-checks.mjs";
 
 const GOOD = `<html><head>

@@ -89,10 +89,6 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
 vi.mock("@/components/company/seller-tenders-view", () => ({
   SellerTendersView: () => <div data-testid="seller-tenders" />,
 }));
-// Sağlık kartları profil + katalog uçlarından beslenir; ayrı test edilir.
-vi.mock("@/components/dashboard/seller-health-cards", () => ({
-  SellerHealthCards: () => <div data-testid="seller-health" />,
-}));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
 
@@ -163,7 +159,7 @@ describe("SatisDashboardView", () => {
     expect(screen.getByRole("link", { name: /Ürün ekle/ })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
   });
 
-  it("özet sırası: arama → açık talepler listesi → ürün ekle → sağlık; keşif kartı YOK", () => {
+  it("özet sırası: arama → açık talepler listesi → ürün ekle; sağlık kartları ve keşif kartı YOK", () => {
     h.stats = fullStats();
     const { container } = render(<SatisDashboardView />);
     const html = container.innerHTML;
@@ -172,7 +168,9 @@ describe("SatisDashboardView", () => {
     expect(at("action-strip")).toBe(-1);
     expect(at("Hangi talebe teklif")).toBeLessThan(at("seller-tenders"));
     expect(at("seller-tenders")).toBeLessThan(at("Ürün ekle"));
-    expect(at("Ürün ekle")).toBeLessThan(at("seller-health"));
+    // Profil/Ürünler sağlık kartları kaldırıldı (2026-09-09).
+    expect(screen.queryByText(/Profili tamamla/)).toBeNull();
+    expect(screen.queryByText(/yayında ·/)).toBeNull();
     // TEK arama kutusu (hero); ikinci "İlan aç" YOK.
     expect(screen.getAllByRole("searchbox")).toHaveLength(1);
     expect(screen.queryByText(/İlan aç/)).toBeNull();

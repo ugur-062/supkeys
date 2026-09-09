@@ -153,15 +153,15 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
 
   return (
     <Popover className="relative">
-      {/* Etiket, mesaj ve Şirketim düğmeleriyle AYNI dil (2026-09-08):
-          kullanıcı o ikisini istedi; zil ikisinin ARASINDA duruyor, çıplak
-          bırakılsaydı satırdaki tek etiketsiz düğme olurdu. */}
+      {/* Etiketsiz zil (kullanıcı kararı 2026-09-09): "Bildirimler" yazısı
+          kalktı; düğme kendini ARKA PLANIYLA belli eder — dolgulu daire,
+          ikon rengi komşularıyla aynı kalır. Erişilebilir ad aria-label'da. */}
       <PopoverButton
         aria-label={`Bildirimler${unread > 0 ? ` (${unread} okunmamış)` : ""}`}
-        className={`flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+        className={`flex size-10 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
           onDark
-            ? "text-zinc-400 hover:bg-white/10 hover:text-white"
-            : "text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
+            ? "bg-white/10 text-zinc-300 hover:bg-white/20 hover:text-white"
+            : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
         }`}
       >
         <span className="relative">
@@ -171,9 +171,6 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
-        </span>
-        <span className="text-[10px] leading-none font-semibold" aria-hidden>
-          Bildirimler
         </span>
       </PopoverButton>
 

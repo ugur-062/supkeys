@@ -62,7 +62,9 @@ const REQUIRED = {
 
 /**
  * Bir sayfanın kontrolleri → { ok, problems[] }.
- * `expect`: { indexable: boolean, type?: "product"|"company"|"listing"|"hub" }
+ * @param {string} url
+ * @param {string} html
+ * @param {{ indexable: boolean, type?: "product" | "company" | "listing" }} [expect]
  */
 export function checkPage(url, html, expect = { indexable: true }) {
   const h = parseHead(html);

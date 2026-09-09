@@ -19,8 +19,8 @@ const MIN_DEMANDS = 3;
  * kalem adları ve şartname TAŞIMAZ) + tam listeye çıkış. Kenar süzgeçli tam
  * liste zaten `/alim-talepleri`'nde yaşıyor, ikinci bir kopya açılmadı.
  *
- * `SellerHealthCards` (profil/katalog sağlığı) ve KPI'lar da yok: tümüyle
- * üye verisi.
+ * KPI'lar da yok: tümüyle üye verisi. (Profil/katalog sağlık kartları
+ * panelden de kaldırıldı, 2026-09-09.)
  *
  * Sıralama YAKINDA KAPANAN önce — aciliyet cezbeder; panelin ilgi
  * merdiveninin (davet › bağlantı › ürün eşleşmesi) anonim karşılığı yok.

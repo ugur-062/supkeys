@@ -10,7 +10,6 @@ import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
 import { intentToRequestQuery } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "next/navigation";
-import { SellerHealthCards } from "@/components/dashboard/seller-health-cards";
 import { PackagePlus } from "lucide-react";
 import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/request-facets";
 
@@ -145,9 +144,8 @@ export function SatisDashboardView() {
         tone="primary"
       />
 
-      {/* Eşleşme kalitesinin girdileri: profil tamlığı + ürün kategorileri.
-          Yüzde Profilim'le AYNI fonksiyondan; sayaçlar sunucudan. */}
-      <SellerHealthCards />
+      {/* Profil/Ürünler sağlık kartları KALDIRILDI (kullanıcı kararı 2026-09-09):
+          profil yüzdesi Profilim'de, ürün sayaçları Ürünlerim'de zaten var. */}
     </div>
   );
 }
