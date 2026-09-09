@@ -23,6 +23,7 @@ const PUBLIC_EXACT = [
   "/robots.txt",
   "/sitemap.xml",
   "/llms.txt",
+  "/llms-full.txt",
 ] as const;
 
 /**
@@ -43,6 +44,7 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/talep-onayla", // misafir talebi doğrulama (noindex, force-dynamic)
   "/firmalar", // firma dizini — HERKESE AÇIK (görünürlük v2, 2026-09-04)
   "/nasil-calisir", // eski pazarlama anasayfası (kök pazar yerine döndü)
+  "/sss", // sık sorulan sorular — FAQPage şeması (GEO)
   "/hakkimizda",
   "/iletisim",
   "/sozlesmeler",

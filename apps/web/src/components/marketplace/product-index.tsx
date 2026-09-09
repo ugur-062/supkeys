@@ -9,6 +9,7 @@ import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { CityLinks } from "./city-links";
+import { IndexIntro } from "./index-intro";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
 import { categoryPath } from "@/lib/public/marketplace";
@@ -99,7 +100,15 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   return (
     <>
     <JsonLd data={listLd} />
-    {intro}
+    {/* Giriş paragrafı: kategori ve şehir sayfalarında VERİDEN türetilir
+        (Parça 4). Ana dizinde çizilmez — orada özne yok, cümle "Rothern'de
+        57 ürün var" gibi boş bir tekrar olurdu. */}
+    {intro ??
+      (category ? (
+        <IndexIntro subject={category.name} total={page.total} facets={facets} kind="category" />
+      ) : fixedCity ? (
+        <IndexIntro subject={fixedCity} total={page.total} facets={facets} kind="city" />
+      ) : null)}
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={

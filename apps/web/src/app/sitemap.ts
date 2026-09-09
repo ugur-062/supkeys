@@ -89,6 +89,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
         changeFrequency: "monthly" as const,
       },
+      {
+        // SSS: üretken motorların en çok alıntıladığı sayfa tipi.
+        path: "/sss",
+        priority: 0.6,
+        changeFrequency: "monthly" as const,
+      },
     ] as const
   ).map((h) => ({
     url: `${siteUrl}${h.path}`,
