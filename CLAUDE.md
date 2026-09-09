@@ -700,6 +700,15 @@ servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
 
 > Sürüm/faz kademesi YOK — tek backlog, gruplar yalnızca konuya göre.
 
+**Site bitince — EN SON (kullanıcı kararı 2026-09-09)**
+- Google Search Console + Bing Webmaster: `https://www.rothern.com/sitemap.xml`
+  gönder; sahiplik `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` /
+  `NEXT_PUBLIC_BING_SITE_VERIFICATION` (HTML etiketi) → Vercel → redeploy.
+- `INDEXNOW_KEY` + `SEO_REVALIDATE_SECRET` Render ve Vercel'e (AYNI değer);
+  Render `WEB_URL` = `https://www.rothern.com`. Ardından
+  `pnpm --filter @rothern/web seo:audit`. Adımlar: `docs/launch-checklist.md`
+  § SEO yayın anı bildirimi.
+
 **Ürün**
 - STANDART → paketli upgrade akışı + ödeme (**PayTR**; iyzico reddetti, Stripe
   TR şirketi kabul etmiyor) + escrow

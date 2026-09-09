@@ -238,7 +238,10 @@ görünür (görünür hata; sessiz sızıntının tersi).
 - [ ] **`NEXT_PUBLIC_SITE_URL` doğru mu** — kanonik URL, sitemap ve JSON-LD
       hepsi buradan okuyor. Yanlışsa Google başka bir alan adını kanonik sanar.
 
-### SEO yayın anı bildirimi (2026-09-09, Parça 5)
+### SEO yayın anı bildirimi (2026-09-09, Parça 5) — SİTE BİTİNCE, EN SON
+
+> Kullanıcı kararı: bu bölümün tamamı site tamamlandıktan sonra yapılacak;
+> o güne kadar kanallar kapalı kalır (kırık değil, yavaş).
 
 Yeni ürün/firma/talep yayımlandığında API motorlara kendisi haber verir
 (`SeoIndexService`: IndexNow + web önbellek tazeleme). İki env, İKİ platformda
