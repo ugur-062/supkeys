@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * HIZLI TALEP — sözleşme: satır ayrıştırma kalemleri doldurur ve başlığı
- * türetir; şartlar profilden forma iner; yayın sihirbazla AYNI gövdeyi
- * (`mapToInput`) üretir; profil yoksa kurulum kartı çıkar.
+ * HIZLI TALEP — sözleşme: kalemler sihirbazın satır bileşeniyle (Step2Items)
+ * girilir; başlık boşsa yayında kalemlerden türetilir; şartlar profilden
+ * forma iner; yayın sihirbazla AYNI gövdeyi (`mapToInput`) üretir; profil
+ * yoksa kurulum kartı çıkar.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -84,17 +85,23 @@ beforeEach(() => {
 });
 
 describe("QuickRequest", () => {
-  it("'Ne lazım?' satırları kaleme çevirir, başlık türetir, şartlar profilden gelir; yayın sihirbaz gövdesini üretir", async () => {
+  it("kalemler sihirbaz satırlarıyla girilir, başlık yayında kalemlerden türetilir, şartlar profilden gelir; yayın sihirbaz gövdesini üretir", async () => {
     h.create.mockResolvedValue({ id: "l1", number: "ROT-000042" });
     wrap(<QuickRequest />);
-    const need = await screen.findByRole("textbox", { name: "Ne lazım?" });
-    fireEvent.change(need, { target: { value: "1200 m çelik boru\nvida M8 x 500 adet" } });
-    fireEvent.click(screen.getByRole("button", { name: "AI'sız ekle" }));
-
-    expect(await screen.findByLabelText("Kalem 1 adı")).toHaveValue("çelik boru");
-    expect(screen.getByLabelText("Kalem 1 miktarı")).toHaveValue(1200);
-    expect(screen.getByLabelText("Kalem 2 adı")).toHaveValue("vida M8");
-    expect(screen.getByDisplayValue("Çelik boru, vida M8 alımı")).toBeInTheDocument();
+    // Sihirbazla aynı satır: Kalem Adı · Miktar · Birim · Stok Kodu + üç düğme
+    const name1 = await screen.findByLabelText(/^Kalem Adı/);
+    expect(screen.getByRole("button", { name: /Katalogdan Ekle/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Excel ile İçe Aktar/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Belgeden Doldur/ })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Ne lazım?" })).toBeNull();
+    fireEvent.change(name1, { target: { value: "çelik boru" } });
+    fireEvent.change(screen.getByLabelText(/^Miktar/), { target: { value: "1200" } });
+    fireEvent.change(screen.getByLabelText(/^Birim/), { target: { value: "M" } });
+    fireEvent.click(screen.getByRole("button", { name: /Yeni Kalem Ekle/ }));
+    const names = screen.getAllByLabelText(/^Kalem Adı/);
+    expect(names).toHaveLength(2);
+    fireEvent.change(names[1], { target: { value: "vida M8" } });
+    fireEvent.change(screen.getAllByLabelText(/^Miktar/)[1], { target: { value: "500" } });
     // Şartlar paneli profilden
     expect(screen.getByText("Kaynak: talep şartlarınız")).toBeInTheDocument();
     expect(screen.getAllByText(/Vadeli/).length).toBeGreaterThan(0);
@@ -134,7 +141,7 @@ describe("QuickRequest", () => {
     expect(body.asDraft).toBeUndefined();
     expect(await screen.findByText("Talebiniz yayında")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Talebi gör" })).toHaveAttribute("href", "/company/ilan/l1");
-  });
+  }, 30_000); // sihirbaz satırları (birim seçici × 2) tam suite yükünde 15 sn'yi aşabiliyor
 
   it("boş kartta 'son taleplerden başla' çipi görünür", async () => {
     wrap(<QuickRequest />);

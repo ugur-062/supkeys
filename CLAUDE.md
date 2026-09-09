@@ -559,13 +559,18 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   Şablonlar › Talep Şartları; form `components/tenders/request-defaults-form`.
   Profil↔form köprüsü `lib/tenders/request-defaults.ts` (gidiş-dönüş testli).
 - **Hızlı talep (varsayılan giriş `taleplerim/yeni`):**
-  `components/tenders/quick/*` — "Ne lazım?" (AI `search-intent` Silver+;
-  yoksa `quick-parse.ts` satır ayrıştırıcı: baş/son "sayı+birim", ortadaki
-  sayılar ada ait), kalem tablosu, kategori (discovery), adres (+satır içi
-  ekleme), süre çipleri 3·7·14, kime (PUBLIC/CONNECTIONS/PRIVATE + kompakt
-  bağlantı seçici); sağda Şartlar paneli (satır satır "değiştir", "varsayılan
-  yap"), teklif kalitesi (`listingSeoReadiness`), yayın/taslak. Profil yoksa
-  3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
+  `components/tenders/quick/*` — **kalemler sihirbazla AYNI bileşen**
+  (`wizard/step-2-items` `Step2Items`: Kalem Adı · Miktar · Birim · Stok
+  Kodu, Detaylar, Katalogdan/Excel/Yeni Kalem; kullanıcı kararı 2026-09-10
+  "detaylı sihirbazdaki gibi olacak" — serbest metin "Ne lazım?" kutusu,
+  `search-intent` çağrısı ve katalog otomatik tamamlama KALDIRILDI;
+  `quick-parse.ts` yalnız `titleFromItems` için duruyor, başlık boşsa
+  yayında kalemlerden türetilir), üstte "Belgeden Doldur" (AI-1, sihirbaz
+  sayfasındaki kart), kategori (discovery), adres (+satır içi ekleme), süre
+  çipleri 3·7·14, ödeme şekli (2. bölümde, Şartlar paneliyle aynı değer),
+  kime (PUBLIC/CONNECTIONS/PRIVATE + kompakt bağlantı seçici); sağda Şartlar
+  paneli (satır satır "değiştir", "varsayılan yap"), teklif kalitesi
+  (`listingSeoReadiness`), yayın/taslak. Profil yoksa 3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
   ve **aynı gövde** (`lib/tenders/map-to-input.ts` — sihirbazdan buraya
   taşındı, TEK KAYNAK); yeni backend akışı YOK. Yayın sonrası panel:
   tedarikçi önerisi (AI) + talep bağlantısı. Taslak `sessionStorage`

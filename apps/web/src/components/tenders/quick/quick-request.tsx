@@ -13,8 +13,9 @@ import { tierAtLeast } from "@rothern/shared";
 import Link from "next/link";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
-import { ItemsTable } from "./items-table";
-import { NeedInput } from "./need-input";
+import { Step2Items } from "@/components/tenders/wizard/step-2-items";
+import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
+import { Button } from "@/components/ui/button";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
@@ -22,7 +23,6 @@ import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
 import { PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
 import type { PaymentCategory } from "@/lib/tenders/types";
-import type { PickedCatalogItem } from "@/components/tenders/wizard/catalog-picker-dialog";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -34,24 +34,28 @@ import { DEFAULT_FORM_VALUES, tenderFormSchema, type TenderFormData } from "@/li
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { QUICK_DRAFT_KEY, QUICK_TO_WIZARD_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
-import { parseNeed, titleFromItems } from "@/lib/tenders/quick-parse";
+import { titleFromItems } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiSearchIntentResult, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
+import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
 import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
+import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-const NEW_ITEM = DEFAULT_FORM_VALUES.items[0];
-
 /**
  * HIZLI TALEP — tek ekran, üç numaralı bölüm + sağda özet (2026-09-09 v2).
  *
- *  1 Ne lazım?           — üç girişli kutu (yaz / kataloğumdan / belgeden),
- *                          kalem kartları, kategori, açıklama
+ *  1 Ne lazım?           — kalem satırları SİHİRBAZLA AYNI bileşen
+ *                          (`Step2Items`: Kalem Adı · Miktar · Birim · Stok
+ *                          Kodu, Detaylar, Katalogdan/Excel/Yeni Kalem) +
+ *                          "Belgeden Doldur" (AI-1), başlık, kategori, açıklama.
+ *                          Serbest metin "Ne lazım?" kutusu ve satır
+ *                          ayrıştırıcı KALDIRILDI (kullanıcı kararı 2026-09-10:
+ *                          "detaylı sihirbazdaki gibi olacak").
  *  2 Nereye, ne zamana   — adres kartları (+satır içi ekleme), süre çipleri
  *                          + hesaplanmış kapanış tarihi
  *  3 Kime                — üç görünürlük kartı + kompakt bağlantı seçici
@@ -74,9 +78,8 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
-  const [entryOpen, setEntryOpen] = useState(true);
+  const [docOpen, setDocOpen] = useState(false);
   const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
-  const [categoryHint, setCategoryHint] = useState<string | null>(null);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const connections = useConnections();
@@ -104,8 +107,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
       const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
       if (pick) setValue("deliveryAddressId", pick.id);
     }
-    const seeded = initialValues?.items?.some((i) => i.name?.trim()) || draft?.items?.some((i) => i.name?.trim());
-    if (seeded) setEntryOpen(false);
   }, [defaultsQ.data, addresses.data, initialValues, reset, setValue]);
 
   const closeDays = terms?.closeDays ?? REQUEST_DEFAULTS_FALLBACK.closeDays;
@@ -155,59 +156,13 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   // Hook'lar erken dönüşlerden (yayın sonrası / iskelet) ÖNCE — sıra değişmez.
   const publicCount = useCompanySearch({ category: (watched.categoryIds ?? []).join(",") || undefined }, watched.visibility === "PUBLIC");
 
-  /* --- Girişler: metin / AI / katalog / belge — hepsi aynı kalem dizisine yazar */
+  /* --- Belgeden doldur (AI-1): kalem satırlarına ekler; başlık boşsa türetir.
+     Katalog ve Excel girişleri `Step2Items` içinde (sihirbazla aynı). */
   const appendItems = (next: TenderFormData["items"], titleFallback?: string) => {
     const cur = getValues();
     const merged = [...cur.items.filter((i) => i.name.trim()), ...next];
     setValue("items", merged.length ? merged : cur.items, { shouldDirty: true, shouldValidate: true });
     if (!cur.title.trim()) setValue("title", titleFallback || titleFromItems(merged), { shouldDirty: true });
-    setEntryOpen(false);
-  };
-  const applyParsed = (text: string) => {
-    const parsed = parseNeed(text);
-    if (!parsed.length) {
-      toast.error("Kalem çıkarılamadı — her satıra bir ürün yazın");
-      return;
-    }
-    appendItems(parsed.map((p) => ({ ...NEW_ITEM, name: p.name, quantity: p.quantity, unit: p.unit, unitCode: p.unitCode })));
-    toast.success(`${parsed.length} kalem eklendi — miktar ve birimi kontrol edin`);
-  };
-  const applyAi = (r: AiSearchIntentResult, text: string) => {
-    const cur = getValues();
-    if (r.draft) {
-      const mapped = mapAiDraftToForm(r.draft.draft, cur);
-      const aiItems = mapped.items.filter((i) => i.name.trim());
-      const fallback = aiItems.length ? [] : parseNeed(text).map((p) => ({ ...NEW_ITEM, name: p.name, quantity: p.quantity, unit: p.unit, unitCode: p.unitCode }));
-      appendItems([...aiItems, ...fallback], mapped.title || undefined);
-      if (!cur.description?.trim() && mapped.description) setValue("description", mapped.description, { shouldDirty: true });
-      if (!cur.categoryIds.length && mapped.categoryIds.length) setValue("categoryIds", mapped.categoryIds, { shouldDirty: true, shouldValidate: true });
-      if (mapped.keywords.length) setValue("keywords", mapped.keywords.slice(0, 10));
-    } else {
-      applyParsed(text);
-    }
-    if (!getValues("categoryIds").length && r.categoryHint) setCategoryHint(r.categoryHint);
-    if (r.city && !getValues("deliveryAddressId")) {
-      const match = addresses.data?.find((a) => (a.city ?? "").toLocaleLowerCase("tr") === r.city!.toLocaleLowerCase("tr"));
-      if (match) setValue("deliveryAddressId", match.id);
-    }
-    toast.success("Taslak hazır — kalemleri ve kategoriyi kontrol edin");
-  };
-  const applyCatalog = (picked: PickedCatalogItem[]) => {
-    if (!picked.length) return;
-    appendItems(
-      picked.map((p) => ({
-        ...NEW_ITEM,
-        name: p.name,
-        description: p.description ?? "",
-        quantity: p.quantity || 1,
-        unit: p.unit,
-        unitCode: p.unitCode,
-        materialCode: p.materialCode ?? "",
-        targetUnitPrice: p.targetPrice ?? undefined,
-        images: p.images?.length ? p.images : undefined,
-      })),
-    );
-    toast.success(`${picked.length} kalem katalogdan eklendi`);
   };
   const applyDocument = (r: AiTenderExtractResult) => {
     const mapped = mapAiDraftToForm(r.draft, getValues());
@@ -237,6 +192,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
     if (submitLock.current) return;
     submitLock.current = true;
     try {
+      ensureTitle();
       const ok = await form.trigger();
       if (!ok) {
         const errs = form.formState.errors;
@@ -264,7 +220,16 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
       submitLock.current = false;
     }
   };
+  /** Başlık boşsa kalemlerden türet — satırlar elle girildiğinde otomatik başlık yok. */
+  const ensureTitle = () => {
+    const v = getValues();
+    if (!v.title.trim()) {
+      const t = titleFromItems(v.items.filter((i) => i.name.trim()));
+      if (t) setValue("title", t, { shouldDirty: true });
+    }
+  };
   const saveDraft = async () => {
+    ensureTitle();
     const values = getValues();
     if (values.title.trim().length < 3) {
       toast.error("Taslak için en az bir başlık gerekli");
@@ -335,7 +300,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
         onNew={() => {
           setPublished(null);
           appliedRef.current = false;
-          setEntryOpen(true);
           reset({ ...DEFAULT_FORM_VALUES });
         }}
       />
@@ -400,7 +364,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             n={1}
             accent="blue"
             title="Ne lazım?"
-            lead="Yazın, kataloğunuzdan seçin ya da belge yükleyin — kalemler, miktar ve birim tabloya düşer."
+            lead="Kalemleri satır satır girin; kataloğunuzdan, Excel'den ya da belgeden ekleyin."
             status={hasItems ? <Done>{namedItems.length} kalem</Done> : null}
           >
             <div className="space-y-6">
@@ -413,7 +377,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                       clearSession(QUICK_DRAFT_KEY);
                       setRestoredDraft(false);
                       reset(applyRequestDefaults({ ...DEFAULT_FORM_VALUES }, terms));
-                      setEntryOpen(true);
                     }}
                     className="font-semibold underline-offset-2 hover:underline"
                   >
@@ -421,7 +384,28 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                   </button>
                 </p>
               ) : null}
-              <NeedInput onParse={applyParsed} onAi={applyAi} onCatalog={applyCatalog} onDocument={applyDocument} collapsed={!entryOpen && hasItems} onExpand={() => setEntryOpen(true)} />
+              {/* AI-1 — belgeden doldurma girişi (sihirbaz sayfasındaki kartın aynısı) */}
+              <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-zinc-900">Belgeden otomatik doldur</p>
+                  <p className="text-xs text-zinc-500">Şartname, teklif talebi veya fotoğraf yükleyin — AI kalemleri sizin için doldursun.</p>
+                </div>
+                <Button variant="primary" onClick={() => setDocOpen(true)}>
+                  <Sparkles className="h-4 w-4" />
+                  Belgeden Doldur
+                </Button>
+              </div>
+              <AiImportDialog
+                open={docOpen}
+                onClose={() => setDocOpen(false)}
+                onResult={(r) => {
+                  setDocOpen(false);
+                  applyDocument(r);
+                }}
+              />
               {!hasItems ? (
                 <RecentRequests
                   onSeed={(f) => {
@@ -430,16 +414,14 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                     setValue("description", f.description ?? "", { shouldDirty: true });
                     setValue("categoryIds", f.categoryIds, { shouldDirty: true, shouldValidate: true });
                     setValue("keywords", f.keywords);
-                    setEntryOpen(false);
                   }}
                 />
               ) : null}
 
-              {hasItems || watched.title ? (
-                <>
-                  <ItemsTable />
+              {/* Kalem satırları — sihirbazın Kalemler adımıyla BİREBİR aynı bileşen. */}
+              <Step2Items />
 
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                     <div>
                       <label htmlFor="talep-baslik" className="mb-1.5 block text-sm font-medium text-zinc-950">
                         Talep başlığı <span className="text-red-600">*</span>
@@ -450,7 +432,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                         placeholder="Örn. 3/4 inç dikişsiz çelik boru alımı — 1.200 m"
                         className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                       />
-                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">Kalemlerden türetildi; dilerseniz düzenleyin.</p>}
+                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">Boş bırakırsanız kalemlerden türetilir.</p>}
                     </div>
                     <div>
                       <p className="mb-1.5 text-sm font-medium text-zinc-950">
@@ -466,11 +448,11 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                       {form.formState.errors.categoryIds ? (
                         <p className="mt-1 text-xs text-red-700">{form.formState.errors.categoryIds.message as string}</p>
                       ) : (
-                        <p className="mt-1 text-xs text-zinc-500">{categoryHint ? `AI önerisi “${categoryHint}” katalogda bulunamadı — seçin.` : "Eşleştirme ve tedarikçi bildirimi kategoriden çalışır."}</p>
+                        <p className="mt-1 text-xs text-zinc-500">Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.</p>
                       )}
                       {(watched.categoryIds?.length ?? 0) < 3 ? (
                         <CategorySuggest
-                          seedText={`${namedItems[0]?.name ?? ""} ${categoryHint ?? ""}`}
+                          seedText={namedItems[0]?.name ?? ""}
                           selected={watched.categoryIds ?? []}
                           onPick={(id) => setValue("categoryIds", [...(getValues("categoryIds") ?? []), id].slice(0, 3), { shouldDirty: true, shouldValidate: true })}
                         />
@@ -503,8 +485,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                       </button>
                     </div>
                   </div>
-                </>
-              ) : null}
             </div>
           </NumberedSection>
 
