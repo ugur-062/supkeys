@@ -1,124 +1,95 @@
 "use client";
 
 import { COMMON_UNIT_CODES, UNITS, getUnit } from "@rothern/shared";
-import { XMarkIcon } from "@heroicons/react/20/solid";
-import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import { ChevronDownIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { useState } from "react";
+import { useFieldArray, useFormContext } from "react-hook-form";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
+import { cn } from "@/lib/utils";
 
-const CELL = "w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15";
+const CELL = "w-full rounded-lg border border-zinc-300 px-2.5 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15";
+const NEW_ITEM = { name: "", description: "", quantity: 1, unit: "adet", unitCode: "PCE", alternativeAllowed: true, materialCode: "", requiredByDate: "", targetUnitPrice: undefined, customQuestion: "", questions: [] } as TenderFormData["items"][number];
 
 /**
- * KALEM TABLOSU — ad · miktar · birim (2026-09-09, hızlı talep).
- * Sihirbazın kalem adımıyla AYNI form dizisi (`items`), aynı zod kuralları;
- * yalnız kolonlar azaltıldı. Açıklama/marka/hedef fiyat "Detaylı ayarlar"da.
+ * KALEM LİSTESİ — satır kartları (2026-09-09 v2).
+ * Masaüstünde ad · miktar · birim tek satır; mobilde ad tam genişlik,
+ * miktar+birim yan yana. "Detay" satırı açıklama/marka/hedef fiyat (isteğe
+ * bağlı). Sihirbazla AYNI form dizisi ve zod kuralları.
  */
 export function ItemsTable() {
-  const { control, register, formState } = useFormContext<TenderFormData>();
+  const { control, register, setValue, watch, formState } = useFormContext<TenderFormData>();
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const errors = formState.errors.items;
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const unitOptions = (current: string | null | undefined) => UNITS.filter((u) => (COMMON_UNIT_CODES as readonly string[]).includes(u.code) || u.code === current);
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-xl ring-1 ring-zinc-950/5">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-xs font-semibold text-zinc-600">
-            <tr>
-              <th className="px-3 py-2">Kalem</th>
-              <th className="w-28 px-3 py-2">Miktar</th>
-              <th className="w-36 px-3 py-2">Birim</th>
-              <th className="w-10 px-2 py-2" aria-label="Sil" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-950/5 bg-white">
-            {fields.map((f, i) => {
-              const err = errors?.[i];
-              return (
-                <tr key={f.id}>
-                  <td className="px-3 py-2 align-top">
-                    <input {...register(`items.${i}.name`)} placeholder="Ürün / hizmet adı" aria-label={`Kalem ${i + 1} adı`} className={CELL} />
-                    {err?.name ? <p className="mt-1 text-xs text-red-700">{err.name.message}</p> : null}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    <input type="number" step="0.001" min={0.001} {...register(`items.${i}.quantity`, { valueAsNumber: true })} aria-label={`Kalem ${i + 1} miktarı`} className={CELL} />
-                    {err?.quantity ? <p className="mt-1 text-xs text-red-700">{err.quantity.message}</p> : null}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    <Controller
-                      control={control}
-                      name={`items.${i}.unitCode`}
-                      render={({ field }) => (
-                        <UnitSelect
-                          value={field.value ?? null}
-                          fallbackLabel={f.unit}
-                          onChange={(code, label) => {
-                            field.onChange(code);
-                            // `unit` metni backend'e gider; kodla senkron.
-                            const ev = { target: { value: label } };
-                            void register(`items.${i}.unit`).onChange(ev as never);
-                          }}
-                          index={i}
-                        />
-                      )}
-                    />
-                    <input type="hidden" {...register(`items.${i}.unit`)} />
-                  </td>
-                  <td className="px-2 py-2 align-top">
-                    <button
-                      type="button"
-                      onClick={() => remove(i)}
-                      disabled={fields.length === 1}
-                      aria-label={`Kalem ${i + 1} sil`}
-                      className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-30"
-                    >
-                      <XMarkIcon aria-hidden className="size-4" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <ol className="space-y-2" aria-label="Kalemler">
+        {fields.map((f, i) => {
+          const err = errors?.[i];
+          const unitCode = watch(`items.${i}.unitCode`);
+          const detailOpen = !!open[f.id];
+          return (
+            <li key={f.id} className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[auto_minmax(0,1fr)_7rem_9rem_auto]">
+                <span aria-hidden className="mt-2 w-5 text-center text-xs font-semibold text-zinc-400">{i + 1}</span>
+                <div className="col-span-1">
+                  <input {...register(`items.${i}.name`)} placeholder="Ürün / hizmet adı" aria-label={`Kalem ${i + 1} adı`} className={cn(CELL, "bg-white")} />
+                  {err?.name ? <p className="mt-1 text-xs text-red-700">{err.name.message}</p> : null}
+                </div>
+                <button type="button" onClick={() => remove(i)} disabled={fields.length === 1} aria-label={`Kalem ${i + 1} sil`} className="mt-1.5 rounded-md p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 disabled:opacity-30 sm:order-last">
+                  <XMarkIcon aria-hidden className="size-4" />
+                </button>
+                <div className="col-start-2 sm:col-start-3">
+                  <input type="number" step="0.001" min={0.001} {...register(`items.${i}.quantity`, { valueAsNumber: true })} aria-label={`Kalem ${i + 1} miktarı`} className={cn(CELL, "bg-white")} />
+                  {err?.quantity ? <p className="mt-1 text-xs text-red-700">{err.quantity.message}</p> : null}
+                </div>
+                <div className="col-start-2 sm:col-start-4">
+                  <select
+                    value={unitCode ?? ""}
+                    aria-label={`Kalem ${i + 1} birimi`}
+                    onChange={(e) => {
+                      const code = e.target.value || null;
+                      setValue(`items.${i}.unitCode`, code, { shouldDirty: true });
+                      setValue(`items.${i}.unit`, code ? (getUnit(code)?.nameTr ?? "adet") : "adet", { shouldDirty: true });
+                    }}
+                    className={cn(CELL, "bg-white")}
+                  >
+                    {!unitCode ? <option value="">birim</option> : null}
+                    {unitOptions(unitCode).map((u) => (
+                      <option key={u.code} value={u.code}>
+                        {u.nameTr} ({u.symbol})
+                      </option>
+                    ))}
+                  </select>
+                  <input type="hidden" {...register(`items.${i}.unit`)} />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen((o) => ({ ...o, [f.id]: !detailOpen }))}
+                aria-expanded={detailOpen}
+                className="mt-2 ml-7 inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-900"
+              >
+                <ChevronDownIcon aria-hidden className={cn("size-3.5 transition", detailOpen && "rotate-180")} />
+                Detay {detailOpen ? "" : "(açıklama, marka, hedef fiyat)"}
+              </button>
+              {detailOpen ? (
+                <div className="mt-2 ml-7 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_9rem]">
+                  <input {...register(`items.${i}.description`)} placeholder="Teknik açıklama — malzeme, ölçü, standart" aria-label={`Kalem ${i + 1} açıklaması`} className={cn(CELL, "bg-white")} />
+                  <input {...register(`items.${i}.brand`)} placeholder="Marka (isteğe bağlı)" aria-label={`Kalem ${i + 1} markası`} className={cn(CELL, "bg-white")} />
+                  <input type="number" step="0.01" min={0} {...register(`items.${i}.targetUnitPrice`, { setValueAs: (v) => (v === "" || v == null ? undefined : Number(v)) })} placeholder="Hedef birim fiyat" aria-label={`Kalem ${i + 1} hedef fiyatı`} className={cn(CELL, "bg-white")} />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
       {typeof errors?.message === "string" ? <p className="mt-1 text-xs text-red-700">{errors.message}</p> : null}
-      <button
-        type="button"
-        onClick={() => append({ name: "", description: "", quantity: 1, unit: "adet", unitCode: "PCE", alternativeAllowed: true, materialCode: "", requiredByDate: "", targetUnitPrice: undefined, customQuestion: "", questions: [] })}
-        className="mt-3 rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-      >
+      <button type="button" onClick={() => append(NEW_ITEM)} className="mt-3 rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50">
         + Kalem ekle
       </button>
     </div>
-  );
-}
-
-function UnitSelect({
-  value,
-  fallbackLabel,
-  onChange,
-  index,
-}: {
-  value: string | null;
-  fallbackLabel: string;
-  onChange: (code: string | null, label: string) => void;
-  index: number;
-}) {
-  const options = UNITS.filter((u) => (COMMON_UNIT_CODES as readonly string[]).includes(u.code) || u.code === value);
-  return (
-    <select
-      value={value ?? ""}
-      aria-label={`Kalem ${index + 1} birimi`}
-      onChange={(e) => {
-        const code = e.target.value || null;
-        onChange(code, code ? (getUnit(code)?.nameTr ?? fallbackLabel) : fallbackLabel);
-      }}
-      className={CELL}
-    >
-      {!value ? <option value="">{fallbackLabel || "birim"}</option> : null}
-      {options.map((u) => (
-        <option key={u.code} value={u.code}>
-          {u.nameTr} ({u.symbol})
-        </option>
-      ))}
-    </select>
   );
 }

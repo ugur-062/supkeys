@@ -32,6 +32,12 @@ vi.mock("@/hooks/use-company-connections", () => ({ useConnections: () => ({ dat
 vi.mock("@/hooks/use-company-listings", () => ({ useCreateListing: () => ({ mutateAsync: h.create, isPending: false }) }));
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
+vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));
+vi.mock("@/components/tenders/ai-import/ai-import-dialog", () => ({ AiImportDialog: () => null }));
+vi.mock("@/hooks/use-categories", () => ({
+  useCategoriesByIds: () => ({ data: [{ id: "39121600", nameTr: "Dağıtım panoları" }] }),
+  useCategorySearchTree: () => ({ data: { segments: [{ id: "40000000", code: "40000000", nameTr: "Boru", level: 1, segmentLetter: null, families: [{ id: "40170000", code: "40170000", nameTr: "Borular", level: 2, classes: [{ id: "40171500", code: "40171500", nameTr: "Çelik borular", level: 3, isMatch: true, commodities: [] }] }] }] } }),
+}));
 vi.mock("@/components/categories/category-selector-button", () => ({
   CategorySelectorButton: ({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) => (
     <button type="button" onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
@@ -75,7 +81,7 @@ describe("QuickRequest", () => {
   it("'Ne lazım?' satırları kaleme çevirir, başlık türetir, şartlar profilden gelir; yayın sihirbaz gövdesini üretir", async () => {
     h.create.mockResolvedValue({ id: "l1", number: "ROT-000042" });
     wrap(<QuickRequest />);
-    const need = await screen.findByLabelText("Ne lazım?");
+    const need = await screen.findByRole("textbox", { name: "Ne lazım?" });
     fireEvent.change(need, { target: { value: "1200 m çelik boru\nvida M8 x 500 adet" } });
     fireEvent.click(screen.getByRole("button", { name: "AI'sız ekle" }));
 
@@ -86,11 +92,16 @@ describe("QuickRequest", () => {
     // Şartlar paneli profilden
     expect(screen.getByText("Talep şartlarınızdan")).toBeInTheDocument();
     expect(screen.getByText(/Vadeli/)).toBeInTheDocument();
-    // Kapsam: bağlantılarım seçili
-    expect(screen.getByRole("button", { name: /Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
+    // Kapsam: bağlantılarım seçili; özet dolu
+    expect(screen.getByRole("button", { name: /^Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("2 kalem · Dağıtım panoları")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Kategori seç" }));
-    fireEvent.click(screen.getByRole("button", { name: "Talebi yayınla" }));
+    // AI'sız kategori önerisi: kalem adından arama → çip → tek tıkla seçim
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    expect(screen.getByText("Kategori: 40171500")).toBeInTheDocument();
+    // Modal seçimi öneriyi ezmez, ekler (en fazla 3)
+    fireEvent.click(screen.getByRole("button", { name: /Kategori: 40171500/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
     await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
     const body = h.create.mock.calls[0][0];
     expect(body).toMatchObject({
