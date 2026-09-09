@@ -29,7 +29,7 @@ import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiSearchIntentResult, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
-import { CheckIcon, ExclamationTriangleIcon } from "@heroicons/react/20/solid";
+import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
@@ -455,10 +455,21 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             status={<Done>{summary.who}</Done>}
           >
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {(["PUBLIC", "CONNECTIONS", "PRIVATE"] as const).map((v) => (
-                <button key={v} type="button" onClick={() => setValue("visibility", v, { shouldDirty: true })} aria-pressed={visibility === v} className={cn("rounded-xl border p-3 text-left transition", visibility === v ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600" : "border-zinc-300 hover:bg-zinc-50")}>
-                  <p className="text-sm font-semibold text-zinc-950">{VISIBILITY_LABELS[v].label}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">{VISIBILITY_LABELS[v].hint}</p>
+              {(
+                [
+                  { v: "PUBLIC", Icon: GlobeAltIcon },
+                  { v: "CONNECTIONS", Icon: UserGroupIcon },
+                  { v: "PRIVATE", Icon: UserPlusIcon },
+                ] as const
+              ).map(({ v, Icon }) => (
+                <button key={v} type="button" onClick={() => setValue("visibility", v, { shouldDirty: true })} aria-pressed={visibility === v} className={cn("flex items-start gap-3 rounded-xl border p-3 text-left transition", visibility === v ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600" : "border-zinc-300 hover:bg-zinc-50")}>
+                  <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", visibility === v ? "bg-blue-600 text-white" : "bg-zinc-100 text-zinc-600")}>
+                    <Icon aria-hidden className="size-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-zinc-950">{VISIBILITY_LABELS[v].label}</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">{VISIBILITY_LABELS[v].hint}</span>
+                  </span>
                 </button>
               ))}
             </div>
