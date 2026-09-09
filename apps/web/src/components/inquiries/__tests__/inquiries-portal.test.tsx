@@ -14,6 +14,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), push: vi.fn() }));
 
+// Yanıt kutusu "Bilgi taleplerini yanıtlama" iznine kapılı (API aynası).
+vi.mock("@/hooks/use-company-auth", () => ({
+  useHasCompanyPermission: () => true,
+  useCompanyAuth: () => ({ user: null, company: null }),
+}));
 vi.mock("@/lib/company-auth/api", () => ({
   companyApi: { get: h.get, post: h.post },
 }));
