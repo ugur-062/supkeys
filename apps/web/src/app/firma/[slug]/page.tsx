@@ -9,8 +9,6 @@ import { companySeo } from "@/lib/seo/entities";
 import { StickyCta } from "@/components/marketplace/sticky-cta";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import Link from "next/link";
-import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
-import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -77,8 +75,6 @@ export default async function PublicCompanyProfile({
   ]);
   if (!p) notFound();
 
-  const site = resolveSiteUrl();
-  const url = `${site}/firma/${slug}`;
   const panelHref = PANEL_TARGET.company(slug);
 
   /* Yapısal veri sayfada GÖRÜNENİ söyler: iletişim, Rothern ID ve puan

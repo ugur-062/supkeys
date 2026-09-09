@@ -30,7 +30,7 @@ import { listingSeoReadiness, tierAtLeast } from "@rothern/shared";
 import { toast } from "sonner";
 
 interface Props {
-  onEditStep: (step: 1 | 2 | 3) => void;
+  onEditStep: (step: 0 | 1 | 2) => void;
   /** Create modu: yayın/taslakta yüklenecek staged döküman sayısı. */
   stagedDocsCount?: number;
 }
@@ -113,7 +113,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
           },
         }}
       />
-      <Section title="Genel Bilgi" onEdit={() => onEditStep(2)}>
+      <Section title="Genel Bilgi" onEdit={() => onEditStep(1)}>
         <Row label={`${L.entityShort} Adı`} value={d.title || "—"} />
         {/* Kapak: katalogdan eklenen İLK ürünün görselinden türer; kullanıcı
             burada görür. TODO(2b-ikinci aşama): "Kapağı değiştir" ile
@@ -185,7 +185,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         />
       ) : null}
 
-      <Section title={`Kalemler (${d.items?.length ?? 0})`} onEdit={() => onEditStep(1)}>
+      <Section title={`Kalemler (${d.items?.length ?? 0})`} onEdit={() => onEditStep(0)}>
         <div className="overflow-x-auto rounded-lg border border-zinc-950/10">
           <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-zinc-50 text-xs text-zinc-500">
@@ -216,7 +216,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         </div>
       </Section>
 
-      <Section title={`Davetli Firmalar (${invited.length})`} onEdit={() => onEditStep(3)}>
+      <Section title={`Davetli Firmalar (${invited.length})`} onEdit={() => onEditStep(2)}>
         {invited.length === 0 ? (
           <p className="text-sm text-zinc-500">
             {/* PUBLIC'te davetsizlik doğal durumdur — "davetli yok" uyarı gibi

@@ -4,7 +4,6 @@ import { HomeHero } from "@/components/marketplace/home-hero";
 import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
 import { buildShowcase } from "@/lib/public/category-showcase";
-import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import {
   fetchFeaturedProducts,
   fetchListings,
@@ -13,7 +12,6 @@ import {
   fetchSegments,
 } from "@/lib/public/marketplace-api";
 import { buildMetadata } from "@/lib/seo/meta";
-import { resolveSiteUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 import { ComingSoon } from "@/components/marketplace/coming-soon";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -50,7 +48,6 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
  */
 export const revalidate = 60;
 
-const SITE = resolveSiteUrl();
 
 const LIVE_METADATA: Metadata = {
   ...buildMetadata({

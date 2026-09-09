@@ -546,6 +546,37 @@ kısaltılır; bant neyin kaldırıldığını yazar. Silver altı: anahtar devr
 
 ---
 
+## Satın alma talebi açma — HIZLI TALEP + ticari profil (2026-09-09)
+
+**İlke: talep = niyet + ticari şartlar.** Niyet her seferinde yeni (ne ·
+nereye · ne zamana · kime), şartlar neredeyse hiç değişmez → ayrıldı.
+Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
+
+- **Talep şartları (ticari profil):** `Company.requestDefaults` JSONB, tip
+  `@rothern/shared` `RequestDefaults`; `GET/PUT company/request-defaults`
+  (kayıtlı → son yayımlanan talepten türetilmiş → none; zod + Prisma enum,
+  kapsam-ödeme tutarlılığı sihirbaz kurallarıyla aynı). Ayar sayfası
+  Şablonlar › Talep Şartları; form `components/tenders/request-defaults-form`.
+  Profil↔form köprüsü `lib/tenders/request-defaults.ts` (gidiş-dönüş testli).
+- **Hızlı talep (varsayılan giriş `taleplerim/yeni`):**
+  `components/tenders/quick/*` — "Ne lazım?" (AI `search-intent` Silver+;
+  yoksa `quick-parse.ts` satır ayrıştırıcı: baş/son "sayı+birim", ortadaki
+  sayılar ada ait), kalem tablosu, kategori (discovery), adres (+satır içi
+  ekleme), süre çipleri 3·7·14, kime (PUBLIC/CONNECTIONS/PRIVATE + kompakt
+  bağlantı seçici); sağda Şartlar paneli (satır satır "değiştir", "varsayılan
+  yap"), teklif kalitesi (`listingSeoReadiness`), yayın/taslak. Profil yoksa
+  3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
+  ve **aynı gövde** (`lib/tenders/map-to-input.ts` — sihirbazdan buraya
+  taşındı, TEK KAYNAK); yeni backend akışı YOK. Yayın sonrası panel:
+  tedarikçi önerisi (AI) + talep bağlantısı. Taslak `sessionStorage`
+  (`quick-draft.ts`); "Detaylı ayarlar" sihirbaza `QUICK_TO_WIZARD_KEY` ile taşır.
+- **Detaylı sihirbaz `taleplerim/yeni/detayli`** (kopya `?from=`, AI belge
+  `?ai=1`, şablon `?template=` buraya yönlenir): **4 adım** (Kapsam anahtarı
+  Kalemler adımının üstünde; `WIZARD_STEP_FIELDS` adım→alan eşlemesi),
+  isteğe bağlı bölümler `OptionalSection` (`<details>`, hata varsa açık):
+  kurallar, hüküm+dokümanlar, açılış tarihi; kapanışta 3·7·14 çipleri.
+  `Step4Review.onEditStep` indeksleri 0|1|2.
+
 ## Ürün Kataloğu (firma vitrini)
 
 `CompanyItem` hem ilana eklenen kalem hem herkese açık vitrin kaydıdır — ayrı
@@ -748,7 +779,8 @@ servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
 
 **AI katmanı** (AI-0…AI-4 BİTTİ — altyapı, belge→talep, asistan, aksiyon çerçevesi)
 - AI agent layer (event-bus, MCP, `/api/agents/v1/...`)
-- "Tercihlerimi Getir" preset, akıllı şartname motoru, manipülasyon tespiti
+- Akıllı şartname motoru, manipülasyon tespiti ("Tercihlerimi Getir" →
+  Talep Şartları ile KAPANDI 2026-09-09)
 
 **AI çerçevesinin değişmez kuralları:** model ASLA doğrudan yazamaz —
 `request_*` araçları yalnız doğrulanmış `pendingAction` üretir (tek kullanımlık,

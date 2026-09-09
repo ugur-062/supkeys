@@ -5,7 +5,7 @@ import { entityLabels } from "@/lib/company/terms";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { Check, FileText, Gavel, Globe, Info, MapPin, X } from "lucide-react";
+import { Check, Gavel, Globe, Info, MapPin, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 
@@ -74,9 +74,9 @@ function StepGroup({
 }) {
   return (
     <div>
-      <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
-      <p className="mt-1 text-sm text-zinc-500">{hint}</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">{children}</div>
+      <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
+      <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -85,6 +85,12 @@ function StepGroup({
  *  açılır — pazarlığa (açık eksiltme) geçişin tek yolu, tur kapanınca "Yeni Tur
  *  Oluştur" ile aktarmadır (taban fiyat + katılımcılar RFQ turundan gelir).
  *  Edit modunda aktarılmış eksiltme/artırma salt-okunur gösterilir. */
+/**
+ * KAPSAM ANAHTARI — 2026-09-09: ayrı adım değil, Kalemler adımının üstünde
+ * tek satır (yurtiçi / uluslararası). Teslim şekli ve ödeme seçenekleri buna
+ * göre süzülür. İhale daima RFQ (kapalı zarf) açılır; pazarlığa geçiş "Yeni
+ * Tur" ile (düzenlemede aktarılmış format salt-okunur notu).
+ */
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
@@ -92,81 +98,36 @@ export function Step0TypeScope() {
   const isAuction = watch("type") === "ENGLISH_AUCTION";
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-4">
       {isAuction ? (
-        /* Pazarlığa aktarılmış ihale (yalnız düzenlemede görülür) — format
-           bilgisi burada gösterilmeye devam eder; değiştirilemez. */
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-900">{L.entity} Türü</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Bu {L.entityLower} &apos;Pazarlığa Geç&apos; ile pazarlık (açık eksiltme)
-            aşamasına aktarılmış.
-          </p>
-          <div className="mt-5 card p-6">
-            <div className="flex items-start gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white">
-                <Gavel className="h-7 w-7" />
-              </span>
-              <div>
-                <p className="text-base font-semibold text-zinc-900">
-                  Pazarlık (Açık Eksiltme)
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
-                  Canlı açık eksiltme; tedarikçi sıralaması ve fiyat azaltma kuralları aktif.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-start gap-2 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-              <p>Format düzenlemeyle değiştirilemez.</p>
-            </div>
-          </div>
+        <div className="flex items-start gap-2 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+          <Gavel className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+          <p>Bu {L.entityLower} pazarlık (açık eksiltme) aşamasında; format düzenlemeyle değiştirilemez.</p>
         </div>
-      ) : (
-        /* Tür seçimi yok (ihale daima kapalı zarf açılır) — koca kart yerine
-           tek kompakt bilgi notu; "Yeni Tur" pazarlık keşfi burada kalır. */
-        <div className="flex items-start gap-3 rounded-xl border border-zinc-950/10 bg-white px-4 py-3 text-sm text-zinc-600">
-          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-          <p>
-            {L.yours} <strong>kapalı zarf</strong> usulüyle açılır —{" "}
-            {L.counterpartyPluralLower} birbirinin teklifini görmez.
-            Kapanıştan sonra dilerseniz “Yeni Tur” ile canlı pazarlığa
-            (açık eksiltme) taşıyabilirsiniz.
-          </p>
-        </div>
-      )}
-
+      ) : null}
       <Controller
         control={control}
         name="isInternational"
         render={({ field }) => (
-          <RadioGroup
-            value={field.value ? "intl" : "dom"}
-            onChange={(v) => field.onChange(v === "intl")}
-          >
-            <StepGroup
-              title="Kapsam"
-              hint="Teslim şekli seçenekleri kapsama göre uyarlanır."
-            >
+          <RadioGroup value={field.value ? "intl" : "dom"} onChange={(v) => field.onChange(v === "intl")}>
+            <StepGroup title="Kapsam" hint="Teslim şekli ve ödeme seçenekleri kapsama göre uyarlanır.">
               <TileOption value="dom" icon={MapPin} title="Yurtiçi" />
               <TileOption value="intl" icon={Globe} title="Uluslararası" />
             </StepGroup>
           </RadioGroup>
         )}
       />
-
+      <p className="text-xs text-zinc-500">
+        {L.yours} <strong>kapalı zarf</strong> usulüyle açılır — {L.counterpartyPluralLower} birbirinin teklifini görmez; kapanıştan sonra dilerseniz “Yeni Tur” ile pazarlığa taşıyabilirsiniz.
+      </p>
       {isInternational ? (
         /* Ülke hedefleme KALDIRILDI (ürün kararı 2026-07-27): uluslararası
-           ihale TÜM yabancı ülkelerdeki firmalara açıktır (backend'de boş
-           targetCountries zaten "tümü" demek; alan formda [] kalır). */
+           talep TÜM yabancı ülkelerdeki firmalara açıktır. */
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Uluslararası {L.yoursLower}{" "}
-            yurt dışındaki tüm {L.counterpartyPluralDat.toLocaleLowerCase("tr-TR")}{" "}
-            açık olur; <strong>kendi ülkenizdeki firmalara görünmez</strong>.
-            Yurtiçinden de teklif almak istiyorsanız ayrı bir yurtiçi {L.entityLower}
-            açabilirsiniz. (Doğrudan davet ettiğiniz firmalar her durumda görür.)
+            Uluslararası {L.yoursLower} yurt dışındaki tüm {L.counterpartyPluralDat.toLocaleLowerCase("tr-TR")} açık olur;{" "}
+            <strong>kendi ülkenizdeki firmalara görünmez</strong>. (Doğrudan davet ettiğiniz firmalar her durumda görür.)
           </p>
         </div>
       ) : null}

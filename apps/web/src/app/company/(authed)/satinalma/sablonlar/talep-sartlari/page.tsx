@@ -60,7 +60,7 @@ export default function TalepSartlariPage() {
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <p className="text-sm font-semibold text-zinc-950">Nerede kullanılır</p>
               <p className="mt-2 text-xs/5 text-zinc-600">
-                Hızlı talep kartında şartlar özet olarak görünür; tek satırı değiştirmek için kartta "değiştir" deyin. Sihirbaz (detaylı talep) da bu değerlerle başlar.
+                Hızlı talep kartında şartlar özet olarak görünür; tek satırı değiştirmek için kartta “değiştir” deyin. Sihirbaz (detaylı talep) da bu değerlerle başlar.
               </p>
               {canEdit ? (
                 <button

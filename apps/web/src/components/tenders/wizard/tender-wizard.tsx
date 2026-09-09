@@ -24,6 +24,7 @@ import {
   type TenderFormData,
 } from "@/lib/tenders/form-schema";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { mapToInput } from "@/lib/tenders/map-to-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Check, Send } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -47,14 +48,20 @@ import { Step3Suppliers } from "./step-3-suppliers";
 import { Step4Review } from "./step-4-review";
 
 const STEP_META = [
-  // B11: adımda tür seçimi yok — ad içerikle uyumlu.
-  { title: "Kapsam", desc: entityLabels().scopeDesc },
-  { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
-  { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
+  // 2026-09-09: "Kapsam" ayrı adım olmaktan çıktı — Kalemler adımının
+  // üstünde tek anahtar (yurtiçi/uluslararası). 5 → 4 adım.
+  { title: "Kalemler", desc: "Kapsam + ürün / hizmet kalemleri" },
+  { title: "Genel Bilgi", desc: "Kategori, teslimat, ödeme, süre" },
   { title: entityLabels().counterpartyPlural, desc: "Davet edilecekler" },
   { title: "Özet & Yayınla", desc: "Kontrol et ve yayınla" },
 ];
-const LAST_STEP = 4;
+const LAST_STEP = 3;
+/** Adım indeksi → "Devam Et"te doğrulanan alanlar (STEP_FIELDS 1..4 birleşimi). */
+const WIZARD_STEP_FIELDS: (keyof TenderFormData)[][] = [
+  [...STEP_FIELDS[1], ...STEP_FIELDS[2]], // kapsam + kalemler
+  STEP_FIELDS[3], // genel bilgi
+  STEP_FIELDS[4], // tedarikçiler
+];
 
 /** Üst adım göstergesi — numara + başlık + açıklama. Mobilde dikey, masaüstünde
  *  5 sütun. GERİYE her zaman gidilebilir; İLERİYE yalnız "Devam Et"le
@@ -74,7 +81,7 @@ function WizardSteps({
 }) {
   return (
     <nav aria-label="Adımlar">
-      <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 bg-white sm:grid-cols-5 sm:divide-x sm:divide-y-0">
+      <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">
         {meta.map((s, idx) => {
           const isDone = current > idx;
           const isActive = current === idx;
@@ -133,92 +140,6 @@ function WizardSteps({
       </ol>
     </nav>
   );
-}
-
-function toIso(v: string | undefined): string | undefined {
-  if (!v) return undefined;
-  const d = new Date(v);
-  return Number.isFinite(d.getTime()) ? d.toISOString() : undefined;
-}
-
-/** Form → backend (CreateListingInput) eşlemesi. */
-function mapToInput(d: TenderFormData): CreateListingInput {
-  return {
-    type: "ALIM",
-    // Format: RFQ / açık eksiltme.
-    format: d.type,
-    isInternational: d.isInternational,
-    targetCountries: d.isInternational ? d.targetCountries : [],
-    deliveryAddressId: d.deliveryAddressId || undefined,
-    // "Fatura adresim teslimatla aynı" tiki: fatura adresi teslimat adresinden
-    // kopyalanır; tik kaldırıldıysa kullanıcının seçtiği adres gider.
-    billingAddressId: d.billingSameAsDelivery
-      ? d.deliveryAddressId || undefined
-      : d.billingAddressId || undefined,
-    // W1: üç görünürlük değeri de geçerli (backend PUBLIC/CONNECTIONS/PRIVATE);
-    // eski PUBLIC-veya-PRIVATE collapse'i CONNECTIONS'ı düşürüyordu.
-    visibility: d.visibility,
-    title: d.title.trim(),
-    description: d.description?.trim() || undefined,
-    closesAt: toIso(d.bidsCloseAt),
-    bidsOpenAt: toIso(d.bidsOpenAt),
-    items: d.items.map((it) => ({
-      name: it.name.trim(),
-      description: it.description?.trim() || undefined,
-      quantity: it.quantity,
-      unit: it.unit.trim(),
-      // Faz 1: kullanıcının SEÇTİĞİ kanonik kod. Gönderilmezse servis metinden
-      // türetir, ama "listede yok" kaçışında niyet kaybolurdu.
-      unitCode: it.unitCode ?? undefined,
-      targetPrice: it.targetUnitPrice,
-      materialCode: it.materialCode?.trim() || undefined,
-      // Kapak boru hattı: katalog ürününün görseli kaleme, oradan ilana.
-      images: it.images?.length ? it.images : undefined,
-      requiredByDate: toIso(it.requiredByDate),
-      // Faz 3 — kalem detayları. Payload'a EKLENMEZSE form alanları sessizce
-      // düşerdi (kullanıcı doldurur, hiçbir yere yazılmaz).
-      brand: it.brand?.trim() || undefined,
-      mpn: it.mpn?.trim() || undefined,
-      alternativeAllowed: it.alternativeAllowed ?? undefined,
-      specification: it.specification?.trim() || undefined,
-      warrantyMonths: it.warrantyMonths ?? undefined,
-      hsCode: it.hsCode?.trim() || undefined,
-      questions: it.questions?.length
-        ? it.questions.map((q) => ({
-            text: q.text.trim(),
-            answerType: q.answerType,
-            required: q.required,
-          }))
-        : undefined,
-    })),
-    invitations: d.invitedSupplierIds?.length ? d.invitedSupplierIds : undefined,
-    categoryIds: d.categoryIds,
-    keywords: d.keywords,
-    // Dahili not wizard'dan kaldırıldı — yayın sonrası ⋮ "İç Notlar" ile girilir.
-    terms: d.termsAndConditions?.trim() || undefined,
-    requireAllItems: d.requireAllItems,
-    requireBidDocument: d.requireBidDocument,
-    showTargetToSuppliers: d.showTargetToSuppliers,
-    isSealedBid: d.isSealedBid,
-    primaryCurrency: d.primaryCurrency as CurrencyCode,
-    allowedCurrencies: d.allowedCurrencies as CurrencyCode[],
-    deliveryTerm: d.deliveryTerm,
-    // Ödeme planı — zamanlama gönderilmez, backend plandan türetir (Faz 2).
-    paymentCategory: d.paymentCategory,
-    advancePercent: d.advancePercent,
-    paymentDays: d.paymentDays,
-    lcType: d.lcType,
-    lcConfirmed: d.lcConfirmed,
-    paymentNote: d.paymentNote?.trim() || undefined,
-    requireGuaranteeLetter: d.requireGuaranteeLetter,
-    isLogistics: d.isLogistics,
-    logistics: d.isLogistics ? (d.logistics as Record<string, unknown>) : undefined,
-    bidVisibility: d.bidVisibility,
-    decimalPlaces: d.decimalPlaces,
-    autoExtendOnLateBid: d.autoExtendOnLateBid,
-    autoExtendThresholdMin: d.autoExtendThresholdMin,
-    autoExtendByMinutes: d.autoExtendByMinutes,
-  };
 }
 
 export function TenderWizard({
@@ -374,8 +295,7 @@ export function TenderWizard({
   };
 
   const goNext = async () => {
-    const stepNo = (step + 1) as 1 | 2 | 3 | 4;
-    const fields = STEP_FIELDS[stepNo];
+    const fields = WIZARD_STEP_FIELDS[step] ?? [];
     const ok = await form.trigger(fields);
     if (!ok) {
       toast.error("Lütfen zorunlu alanları doldurun");
@@ -413,13 +333,13 @@ export function TenderWizard({
   const jumpToFirstError = () => {
     const errored = Object.keys(form.formState.errors);
     if (errored.length === 0) return;
-    for (const stepNo of [1, 2, 3, 4] as const) {
-      const match = STEP_FIELDS[stepNo].find((f) =>
+    for (let idx = 0; idx < WIZARD_STEP_FIELDS.length; idx++) {
+      const match = WIZARD_STEP_FIELDS[idx].find((f) =>
         errored.some((e) => e === f || e.startsWith(`${f}.`)),
       );
       if (match) {
-        setStep(stepNo - 1);
-        setFurthest((f) => Math.max(f, stepNo - 1));
+        setStep(idx);
+        setFurthest((f) => Math.max(f, idx));
         // Odak, adım render edildikten sonra.
         setTimeout(() => form.setFocus(match), 0);
         return;
@@ -581,19 +501,23 @@ export function TenderWizard({
             karışmasın (2026-08-04); iç bilgi kutuları (bg-zinc-50) bu beyaz
             zeminde kontrast kazanır. */}
         <div className="card min-w-0 p-5 sm:p-6">
-          {step === 0 ? <Step0TypeScope /> : null}
-          {/* Sıra: önce Kalemler, sonra Genel Bilgi — kategori "AI ile bul"
-              butonu kalemleri girdi olarak kullandığından kalemler önde. */}
-          {step === 1 ? <Step2Items /> : null}
-          {step === 2 ? (
+          {/* Sıra: önce Kapsam anahtarı + Kalemler, sonra Genel Bilgi —
+              kategori "AI ile bul" butonu kalemleri girdi olarak kullanır. */}
+          {step === 0 ? (
+            <div className="space-y-8">
+              <Step0TypeScope />
+              <Step2Items />
+            </div>
+          ) : null}
+          {step === 1 ? (
             <Step1Info
               listingId={listingId}
               stagedDocs={stagedDocs}
               onStagedDocsChange={setStagedDocs}
             />
           ) : null}
-          {step === 3 ? <Step3Suppliers /> : null}
-          {step === 4 ? (
+          {step === 2 ? <Step3Suppliers /> : null}
+          {step === 3 ? (
             <Step4Review
               onEditStep={(s) => setStep(s)}
               stagedDocsCount={isEdit ? undefined : stagedDocs.length}

@@ -32,8 +32,10 @@ import {
   derivePaymentTiming,
   DOMESTIC_ONLY_PAYMENT_CATEGORIES,
   INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
+  REQUEST_CLOSE_DAY_OPTIONS,
 } from "@rothern/shared";
 import { cn } from "@/lib/utils";
+import { closesAtFromDays } from "@/lib/tenders/request-defaults";
 import {
   AlertCircle,
   Calendar,
@@ -295,6 +297,49 @@ function VisibilityOption({
       </div>
       <p className="text-xs text-zinc-500 ml-5">{desc}</p>
     </div>
+  );
+}
+
+/**
+ * İSTEĞE BAĞLI BÖLÜM — kapalı akordeon (2026-09-09, sihirbaz sadeleştirme).
+ * `<details>` tabanlı: içindeki alanlar DOM'da kalır (RHF kaydı bozulmaz);
+ * hata varsa `forceOpen` ile açık gelir. Zorunlu bölümler açık kalır.
+ */
+function OptionalSection({
+  icon: Icon,
+  title,
+  hint,
+  forceOpen,
+  compact,
+  children,
+}: {
+  icon: typeof Info;
+  title: string;
+  hint?: string;
+  forceOpen?: boolean;
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details
+      open={forceOpen || undefined}
+      className={cn("group rounded-xl border border-zinc-200 bg-white", compact ? "p-3" : "p-4")}
+    >
+      <summary className="flex cursor-pointer list-none items-start gap-3 [&::-webkit-details-marker]:hidden">
+        <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+          <Icon className="h-4 w-4 text-zinc-500" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-zinc-900">
+            {title} <span className="ml-1 text-xs font-normal text-zinc-500">isteğe bağlı</span>
+          </p>
+          {hint ? <p className="mt-0.5 text-xs text-zinc-500">{hint}</p> : null}
+        </div>
+        <span className="mt-1 text-xs font-medium text-zinc-500 group-open:hidden">Aç</span>
+        <span className="mt-1 hidden text-xs font-medium text-zinc-500 group-open:inline">Kapat</span>
+      </summary>
+      <div className="mt-4 space-y-4">{children}</div>
+    </details>
   );
 }
 
@@ -953,13 +998,14 @@ export function Step1Info({
         </section>
       ) : null}
 
-      {/* SECTION: İhale Kuralları */}
-      <section>
-        <SectionHeader
-          icon={Gavel}
-          title={L.rules}
-          description={`${RolPlGen} teklif verme şeklini belirleyin.`}
-        />
+      {/* SECTION: Kurallar — İSTEĞE BAĞLI, kapalı akordeon (2026-09-09):
+          varsayılanlar çoğu talep için yeterli; hata varsa kendiliğinden açılır. */}
+      <OptionalSection
+        icon={Gavel}
+        title={L.rules}
+        hint={`${RolPlGen} teklif verme şeklini belirleyin — varsayılanlar çoğu talep için yeterli.`}
+        forceOpen={!!(errors.isSealedBid || errors.requireAllItems || errors.requireBidDocument || errors.showTargetToSuppliers || errors.bidVisibility)}
+      >
         <div className="space-y-3">
           {isAuction ? (
             // Pazarlık kuralları: monotonluk + turda tek teklif. Minimum
@@ -1116,7 +1162,7 @@ export function Step1Info({
             </p>
           </FormCheckbox>
         </div>
-      </section>
+      </OptionalSection>
 
       {/* SECTION: Para Birimleri — V2-6 çoklu seçim, 8 birim */}
       <section>
@@ -1625,13 +1671,13 @@ export function Step1Info({
         </div>
       </section>
 
-      {/* SECTION: Hüküm/Notlar */}
-      <section>
-        <SectionHeader
-          icon={FileText}
-          title="Hüküm, Koşullar & Notlar"
-          description={`${RolDat} iletilecek ek bilgiler.`}
-        />
+      {/* SECTION: Hüküm/Notlar — isteğe bağlı, kapalı akordeon (2026-09-09) */}
+      <OptionalSection
+        icon={FileText}
+        title="Hüküm, koşullar & dokümanlar"
+        hint={`${RolDat} iletilecek ek bilgiler ve şartname dosyaları.`}
+        forceOpen={!!(errors.termsAndConditions || (stagedDocs?.length ?? 0) > 0)}
+      >
         <div className="space-y-4">
           <Field
             error={errors.termsAndConditions?.message}
@@ -1649,12 +1695,12 @@ export function Step1Info({
           {/* Dahili Notlar wizard'dan kaldırıldı (2026-08-02) — yayın
               sonrası ⋮ menüsündeki "İç Notlar" dialoğundan girilir. */}
         </div>
-      </section>
+        {/* dokümanlar aynı akordeonda (aşağıda) */}
 
       {/* SECTION: İhale Dökümanları (Hüküm/Notlar'ın hemen altında).
           Edit: doğrudan yüklenir (FilesTab). Create: staged — ilan
           kaydedilince (taslak/yayın) sırayla yüklenir. */}
-      <section>
+      <div>
         {listingId ? (
           <FilesTab listingId={listingId} isOwner canEdit />
         ) : (
@@ -1663,7 +1709,8 @@ export function Step1Info({
             onChange={(d) => onStagedDocsChange?.(d)}
           />
         )}
-      </section>
+      </div>
+      </OptionalSection>
 
       {/* SECTION: Zaman */}
       <section>
@@ -1675,9 +1722,55 @@ export function Step1Info({
         {/* Alt alta: kompakt tarih+saat grupları yan yana iki kolonda boşluklu
             ve dengesiz duruyordu. */}
         <div className="space-y-4">
+          {(
+            <Field
+              error={errors.bidsCloseAt?.message}
+              hint={`Saat seçmezseniz ${L.shortLower} gün sonunda (23:59) kapanır.`}
+            >
+              <Label htmlFor="bidsCloseAt-date" required>
+                Kapanış Tarihi
+              </Label>
+              {/* Hızlı seçim çipleri (2026-09-09): 3 · 7 · 14 gün — tarih
+                  seçiciyle uğraşmadan; seçici yine altında. */}
+              <div className="mb-2 flex flex-wrap gap-2">
+                {REQUEST_CLOSE_DAY_OPTIONS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setValue("bidsCloseAt", closesAtFromDays(d), { shouldDirty: true, shouldValidate: true })}
+                    className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    {d} gün
+                  </button>
+                ))}
+              </div>
+              <Controller
+                control={control}
+                name="bidsCloseAt"
+                render={({ field }) => (
+                  <DateTimeInput
+                    idPrefix="bidsCloseAt"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    defaultTime="23:59"
+                    min={minDateTime}
+                    hasError={!!errors.bidsCloseAt}
+                    dateAriaLabel="Kapanış tarihi"
+                    timeAriaLabel="Kapanış saati"
+                  />
+                )}
+              />
+            </Field>
+          )}
+          <OptionalSection
+            icon={Clock}
+            title="Açılışı ileri tarihe al"
+            hint={`Şimdiki zaman öntanımlıdır (yayınlanınca hemen açılır); ileri bir tarih seçerseniz ${L.shortLower} o ana kadar tekliflere kapalı kalır.`}
+            forceOpen={!!errors.bidsOpenAt}
+            compact
+          >
           <Field
             error={errors.bidsOpenAt?.message}
-            hint={`Şimdiki zaman öntanımlıdır (yayınlanınca hemen açılır); ileri bir tarih seçerseniz ${L.shortLower} o ana kadar tekliflere kapalı kalır.`}
           >
             <Label htmlFor="bidsOpenAt-date">Açılış Tarihi</Label>
             <Controller
@@ -1697,32 +1790,7 @@ export function Step1Info({
               )}
             />
           </Field>
-          {(
-            <Field
-              error={errors.bidsCloseAt?.message}
-              hint={`Saat seçmezseniz ${L.shortLower} gün sonunda (23:59) kapanır.`}
-            >
-              <Label htmlFor="bidsCloseAt-date" required>
-                Kapanış Tarihi
-              </Label>
-              <Controller
-                control={control}
-                name="bidsCloseAt"
-                render={({ field }) => (
-                  <DateTimeInput
-                    idPrefix="bidsCloseAt"
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    defaultTime="23:59"
-                    min={minDateTime}
-                    hasError={!!errors.bidsCloseAt}
-                    dateAriaLabel="Kapanış tarihi"
-                    timeAriaLabel="Kapanış saati"
-                  />
-                )}
-              />
-            </Field>
-          )}
+          </OptionalSection>
         </div>
         <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
           <Clock className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
