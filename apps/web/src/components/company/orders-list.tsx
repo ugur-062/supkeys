@@ -3,11 +3,6 @@
 import { formatDate } from "@/lib/format-date";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import {
-  selectActiveOrders,
-  selectAwaitingPayment,
-  selectTerminalIssues,
-} from "@/lib/company/kpi-selectors";
-import {
   ActiveFilterChips,
   EmptyState,
   FilterSelect,
@@ -464,23 +459,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       setter(v);
     };
 
-  // KPI şeridi (eski panel paritesi).
-  const kpis = useMemo(() => {
-    // B4 — MECE: Aktif + Tamamlanan + İptal/Sorunlu = Toplam (DELIVERED
-    // "teslim alındı ama kapanmadı" = hâlâ canlı sipariş → Aktif'te sayılır;
-    // önceden hiçbir kutuda değildi, toplam tutmuyordu).
-    // Kümeler kpi-selectors'tan — panodaki "Aktif Sipariş" ile birebir.
-    const active = selectActiveOrders(all, role).length;
-    const terminalIssues = selectTerminalIssues(all, role).length;
-    // Yaşam döngüsü ayrımı: "Ödeme Bekleyen" DELIVERED sayısı DEĞİL —
-    // türetilen ödeme durumundan (paymentSettled=false), status'tan bağımsız.
-    // Terminal/ihtilaf hariç. Diğer kutularla KESİŞİR — MECE setinin parçası
-    // değil, kart altında not var.
-    const awaitingPayment = selectAwaitingPayment(all, role).length;
-    const completed = counts["COMPLETED"] ?? 0;
-    return { active, awaitingPayment, completed, terminalIssues };
-  }, [all, counts]);
-
   const emptyHint = isSeller
     ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya açık talebe verdiğiniz teklif kazandığında burada görünür."
     : "Henüz alış siparişiniz yok. Bir satın alma talebinizi kazandırdığınızda veya satın aldığınızda burada görünür.";
@@ -496,66 +474,9 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         }
       />
 
-      {/* KPI şeridi — tıklayınca ilgili durum filtresi uygulanır. İlk 4 kutu
-          MECE (Toplam = Aktif + Tamamlanan + İptal/Sorunlu); Ödeme Bekleyen
-          kesişen bilgi metriği (kapsamı alt notta). */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
-        {(
-          [
-            {
-              label: "Toplam Sipariş",
-              value: String(all.length),
-              filter: "all",
-              hint: null,
-            },
-            { label: "Aktif", value: String(kpis.active), filter: null, hint: null },
-            {
-              label: "Tamamlanan",
-              value: String(kpis.completed),
-              filter: "COMPLETED",
-              hint: null,
-            },
-            {
-              label: "İptal / Sorunlu",
-              value: String(kpis.terminalIssues),
-              filter: null,
-              hint: null,
-            },
-            {
-              // Ödeme durumu türetilir; status filtresi değil (bilgi amaçlı sayım).
-              label: "Ödeme Bekleyen",
-              value: String(kpis.awaitingPayment),
-              filter: null,
-              hint: "durumdan bağımsız, ödemesi kapanmamış",
-            },
-          ] as const
-        ).map((k) => (
-          <button
-            key={k.label}
-            type="button"
-            disabled={!k.filter}
-            onClick={() => k.filter && reset(setStatus)(k.filter)}
-            className={cn(
-              "p-4 text-left",
-              k.filter && "cursor-pointer transition-colors hover:bg-zinc-50",
-              k.filter && status === k.filter ? "bg-zinc-100/80" : "bg-white",
-            )}
-          >
-            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {k.label}
-            </dt>
-            <dd className="mt-0.5 truncate text-lg font-bold tabular-nums text-zinc-900">
-              {k.value}
-            </dd>
-            {k.hint ? (
-              <dd className="mt-0.5 text-[11px] leading-tight text-slate-400">
-                {k.hint}
-              </dd>
-            ) : null}
-          </button>
-        ))}
-      </dl>
-
+      {/* KPI şeridi (Toplam/Aktif/Tamamlanan/İptal/Ödeme Bekleyen) KALDIRILDI —
+          kullanıcı kararı 2026-09-10, iki portalda da. Durum sayıları hâlâ
+          durum süzgeci çiplerinde (`counts`). */}
       {/* Arama + filtreler — kutusuz, pill-tarzı */}
       <div className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

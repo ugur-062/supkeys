@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { CompanyOrder } from "@/hooks/use-company-orders";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -188,7 +188,7 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     expect(screen.getByText("Kablo Tedariği")).toBeInTheDocument();
   });
 
-  it("KPI şeridi: Tamamlanan sayacı tıklanınca durum filtresi uygular", async () => {
+  it("KPI şeridi YOK (kullanıcı kararı 2026-09-10): Toplam/Aktif/Tamamlanan/İptal/Ödeme Bekleyen kutuları çizilmez", () => {
     h.orders = {
       data: [
         order({ status: "COMPLETED", listingTitle: "Biten A" }),
@@ -199,12 +199,10 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
       refetch: vi.fn(),
     };
     render(<OrdersList role="buyer" />);
-    // "Tamamlanan" KPI kutusu (buton) → tıkla → yalnız COMPLETED kalır.
-    const completedKpi = screen
-      .getByText("Tamamlanan")
-      .closest("button") as HTMLButtonElement;
-    await userEvent.click(within(completedKpi).getByText("Tamamlanan"));
+    expect(screen.queryByText("Toplam Sipariş")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ödeme Bekleyen")).not.toBeInTheDocument();
+    expect(screen.queryByText("İptal / Sorunlu")).not.toBeInTheDocument();
     expect(screen.getByText("Biten A")).toBeInTheDocument();
-    expect(screen.queryByText("Bekleyen B")).not.toBeInTheDocument();
+    expect(screen.getByText("Bekleyen B")).toBeInTheDocument();
   });
 });
