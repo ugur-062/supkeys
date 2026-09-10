@@ -2007,14 +2007,33 @@ export default function ListingDetailPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1" ref={setHeaderEl}>{header}</div>
             {biddingOpen && l.closesAt ? (
-              <div className="shrink-0 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-right">
-                <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-                  Kapanmasına
-                </p>
-                <CountdownFull deadline={l.closesAt} />
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  {formatDateTime(l.closesAt)}
-                </p>
+              <div className="flex shrink-0 flex-col items-end gap-3">
+                <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-right">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+                    Kapanmasına
+                  </p>
+                  <CountdownFull deadline={l.closesAt} />
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {formatDateTime(l.closesAt)}
+                  </p>
+                </div>
+                {/* BUG (2026-09-10, kullanıcı: "talebi görüyorum ama teklif
+                    veremiyorum"): CTA yalnız yapışkan çubuktaydı ve çubuk
+                    başlık görünürken `invisible` — kısa sayfada (birkaç kalem)
+                    kaydırma olmadığı için düğme HİÇ çıkmıyordu. Başlık kartı
+                    ilk ekranda CTA'yı taşır; yapışkan çubuk kaydırınca devralır. */}
+                {bidCta ? (
+                  bidCtaDisabled ? (
+                    <Button
+                      disabled
+                      title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
+                    >
+                      {bidCta.label}
+                    </Button>
+                  ) : (
+                    <Button href={bidCta.href}>{bidCta.label}</Button>
+                  )
+                ) : null}
               </div>
             ) : l.status === "IN_AWARD" ||
               l.status === "IN_AWARD_APPROVAL" ? (
