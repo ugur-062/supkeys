@@ -7,7 +7,12 @@
    ürün adları ve kategoriler HTML'de duruyor, indekslenir. */
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
 import { ProductStrip } from "./product-strip";
-import type { ProductIndexCard } from "@/lib/public/marketplace-api";
+import { CompanyCard } from "./company-card";
+import { useAudience } from "./audience-switch";
+import { signupHref } from "@/lib/public/visibility";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import type { ProductIndexCard, PublicDirectoryCard } from "@/lib/public/marketplace-api";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 
@@ -33,16 +38,69 @@ export function HomeBuyer({
   featured,
   newest,
   showcase,
+  companies = [],
+  companiesTotal = 0,
 }: {
   featured: ProductIndexCard[];
   newest: ProductIndexCard[];
   showcase: ShowcaseCategory[];
+  /** Firma dizininin ilk sayfası — hero pili "Firma"yken bu listelenir. */
+  companies?: PublicDirectoryCard[];
+  companiesTotal?: number;
 }) {
   // 6 blok × (1 promo + 10 kategori); artan segmentler son ızgaraya eklenir.
   const rows = toShowcaseRows(showcase, 6);
+  // Hero kapsam pili (2026-09-10, kullanıcı kararı — panelle aynı): "Firma"
+  // seçiliyken ürün bölümleri yerine FİRMA listesi. İki blok da HTML'de
+  // durur (sunucu "products" basar, arama motoru ikisini de görür); görünmeyen
+  // `hidden` — audience anahtarıyla aynı hidrasyon kuralı.
+  const { scope } = useAudience();
+  const firmaMode = scope === "suppliers";
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
+      <section
+        id="firmalar"
+        hidden={!firmaMode}
+        aria-labelledby="home-firmalar-title"
+        className="space-y-4"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="home-firmalar-title" className="text-xl font-semibold tracking-tight text-zinc-950">
+              Firmalar
+            </h2>
+            {companiesTotal > 0 ? (
+              <span className="tnum text-sm text-zinc-500">{companiesTotal.toLocaleString("tr-TR")} firma</span>
+            ) : null}
+          </span>
+          <Link
+            href={MARKETPLACE_ROUTES.companies}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-700 hover:text-zinc-950"
+          >
+            Tümünü gör
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </div>
+        {companies.length === 0 ? (
+          <p className="text-sm text-zinc-500">Henüz listelenen firma yok.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {companies.slice(0, 12).map((c) => (
+              <li key={c.slug}>
+                {/* Dizinle AYNI geniş kart ve aynı birincil eylem (kayda gider). */}
+                <CompanyCard
+                  company={c}
+                  variant="wide"
+                  cta={{ label: "Bilgi iste", href: signupHref("teklif", `/firma/${c.slug}`) }}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <div hidden={firmaMode} className="space-y-10">
       <ProductStrip
         id="one-cikan-urunler"
         title="Öne çıkan ürünler"
@@ -81,6 +139,7 @@ export function HomeBuyer({
         /* Şeritte HEPSİ yeni; rozet her kartta çıkıp hiçbir şeyi ayırt etmez. */
         showNew={false}
       />
+      </div>
     </div>
   );
 }

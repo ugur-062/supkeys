@@ -582,6 +582,13 @@ koltuk), "size uygun ürünler" (firmanın alım kategorileri gerekiyor →
 görselsiz, alt alta — 2026-09-10 kullanıcı kararı; teaser ızgarası
 anasayfadan kalktı, `ListingTeaserCard` dizin/detayda duruyor), KPI'lar.
 
+**Hero kapsam pili "Ürün | Firma" (2026-09-10, kullanıcı kararı; "Tedarikçi"
+sözcüğü pil/dizin/sekmede KALKTI):** panelde ve herkese açık anasayfada
+"Firma" seçiliyken hero'nun ALTI ürün/talep değil FİRMA listesidir
+(panel `HomeCompanyList`, public `HomeBuyer` `#firmalar` bloğu — iki blok
+HTML'de, görünmeyen `hidden`; kapsam `AudienceProvider` bağlamında,
+localStorage'a yazılmaz). Sunucu her zaman "products" basar.
+
 Kategori kartı tuzağı: public kategori sayfası ürünü OLMAYAN kodda 404 verir →
 vitrin `count === 0` olan dalı `/urunler?kategori=<kod>`e gönderir (dürüst boş
 liste, kırık bağlantı değil).

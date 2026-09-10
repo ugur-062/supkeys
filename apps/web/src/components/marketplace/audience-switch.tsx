@@ -21,16 +21,29 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
  * görür. Erişilemezse (özel pencere) sessizce varsayılana düşer.
  */
 export type Audience = "buyer" | "supplier";
+/** Alıcı yüzünde hero kapsam pili: Ürün | Firma (panelle aynı sözleşme). */
+export type HeroScope = "products" | "suppliers";
 
 const KEY = "rothern.audience";
 
-const Ctx = createContext<{ audience: Audience; setAudience: (a: Audience) => void }>({
+const Ctx = createContext<{
+  audience: Audience;
+  setAudience: (a: Audience) => void;
+  scope: HeroScope;
+  setScope: (s: HeroScope) => void;
+}>({
   audience: "buyer",
   setAudience: () => {},
+  scope: "products",
+  setScope: () => {},
 });
 
 export function AudienceProvider({ children }: { children: ReactNode }) {
   const [audience, set] = useState<Audience>("buyer");
+  // Kapsam pili (2026-09-10, kullanıcı kararı — panelle aynı): "Firma"
+  // seçiliyken alıcı gövdesi ürün değil FİRMA listesi basar. Sunucu her
+  // zaman "products" basar; localStorage'a YAZILMAZ (anlık seçim).
+  const [scope, setScope] = useState<HeroScope>("products");
 
   useEffect(() => {
     try {
@@ -50,7 +63,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  return <Ctx.Provider value={{ audience, setAudience }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ audience, setAudience, scope, setScope }}>{children}</Ctx.Provider>;
 }
 
 export function useAudience() {

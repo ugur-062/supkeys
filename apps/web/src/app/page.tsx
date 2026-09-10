@@ -10,6 +10,7 @@ import {
   fetchProductFacets,
   fetchProducts,
   fetchSegments,
+  fetchPublicDirectory,
 } from "@/lib/public/marketplace-api";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -72,12 +73,14 @@ export default async function HomePage() {
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
 
   // Paralel; biri düşerse diğerleri sayfayı taşır (veri katmanı hata yutar).
-  const [featured, newest, productFacets, segments, demands] = await Promise.all([
+  const [featured, newest, productFacets, segments, demands, directory] = await Promise.all([
     fetchFeaturedProducts(),
     fetchProducts({ sort: "newest", page: 1 }),
     fetchProductFacets(),
     fetchSegments(),
     fetchListings({ type: "ALIM", page: 1 }),
+    // Hero pili "Firma"yken listelenecek ilk sayfa (2026-09-10).
+    fetchPublicDirectory(),
   ]);
 
   const showcase = buildShowcase({
@@ -115,7 +118,13 @@ export default async function HomePage() {
             görünmeyen taraf `hidden` ile ölçüm ve etkileşim dışı kalır. Yalnız
             hero tek basılır — iki arka plan fotoğrafı birden inmesin diye. */}
         <AudienceOnly side="buyer">
-          <HomeBuyer featured={featured} newest={newestOnly} showcase={showcase} />
+          <HomeBuyer
+            featured={featured}
+            newest={newestOnly}
+            showcase={showcase}
+            companies={directory.items}
+            companiesTotal={directory.total}
+          />
         </AudienceOnly>
 
         <AudienceOnly side="supplier">

@@ -32,7 +32,7 @@ import { Suspense } from "react";
  * efektinde okunur).
  */
 export function HomeHero() {
-  const { audience } = useAudience();
+  const { audience, setScope } = useAudience();
   const supplier = audience === "supplier";
 
   return (
@@ -102,11 +102,14 @@ export function HomeHero() {
           lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
           placeholder="Ürün, firma veya sektör arayın..."
           action={MARKETPLACE_ROUTES.products}
+          /* "Tedarikçi" → "Firma" (2026-09-10, kullanıcı kararı; panelle
+             aynı). Pil ayrıca alıcı gövdesini firma listesine çevirir. */
           supplierScope={{
             action: MARKETPLACE_ROUTES.companies,
             placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
-            label: "Tedarikçi",
+            label: "Firma",
           }}
+          onScopeChange={setScope}
           accent="blue"
           backdrop
           ctaNote={{
