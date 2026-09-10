@@ -106,7 +106,9 @@ export function MarketingHeader() {
             <RothernLogo variant="full-light" size="sm" priority />
           </Link>
 
-          <nav aria-label="Site menüsü" className="hidden items-center gap-7 lg:flex">
+          {/* Logodan ayrık dursun: gap-7 tek başına menüyü logoya yapıştırıyor,
+              menü "çok soldan" başlıyordu (kullanıcı, 2026-09-10). */}
+          <nav aria-label="Site menüsü" className="hidden items-center gap-7 lg:ml-8 lg:flex">
             {NAV.map((item) => {
               const on = isActive(item.href);
               return (
