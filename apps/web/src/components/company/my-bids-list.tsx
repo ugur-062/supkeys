@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import {
   ActiveFilterChips,
+  FilterMultiSelect,
   EmptyState,
   FilterSelect,
   ListSkeleton,
@@ -60,8 +61,8 @@ const STATUS_STRIP: Record<string, string> = {
 // Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
 const STATUS_FALLBACK = { label: "Bilinmiyor", color: "zinc" as const };
 
+// Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
 const STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "Tüm Durumlar" },
   { value: "DRAFT", label: "Taslak" },
   { value: "SUBMITTED", label: "Değerlendirmede" },
   { value: "WON", label: "Kazandı" },
@@ -260,7 +261,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 /** Firmanın açık taleplere verdiği teklifler (satış paneli). */
 export function MyBidsList() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState<string[]>([]);
   const [sort, setSort] = useState("newest");
   const [range, setRange] = useState("all");
   const [page, setPage] = useState(1);
@@ -279,7 +280,7 @@ export function MyBidsList() {
     const now = Date.now();
     const rows = all.filter((b) => {
       if (!matchesSearch(b, search)) return false;
-      if (status !== "all" && b.status !== status) return false;
+      if (status.length > 0 && !status.includes(b.status)) return false;
       if (rangeMs !== null && now - new Date(b.createdAt).getTime() > rangeMs)
         return false;
       return true;
@@ -297,7 +298,7 @@ export function MyBidsList() {
     return out;
   }, [all, search, status, sort, range]);
 
-  const isFiltered = search !== "" || status !== "all" || range !== "all";
+  const isFiltered = search !== "" || status.length > 0 || range !== "all";
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = filtered.slice(
@@ -354,13 +355,13 @@ export function MyBidsList() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <FilterSelect
+          <FilterMultiSelect
             icon={ListFilter}
             value={status}
             onChange={resetToFirstPage(setStatus)}
             options={STATUS_FILTER_OPTIONS}
+            allLabel="Tüm Durumlar"
             ariaLabel="Duruma göre filtrele"
-            active={status !== "all"}
           />
           <FilterSelect
             icon={CalendarRange}
@@ -388,17 +389,11 @@ export function MyBidsList() {
                   },
                 ]
               : []),
-            ...(status !== "all"
-              ? [
-                  {
-                    key: "status",
-                    label:
-                      STATUS_FILTER_OPTIONS.find((f) => f.value === status)
-                        ?.label ?? status,
-                    onRemove: () => resetToFirstPage(setStatus)("all"),
-                  },
-                ]
-              : []),
+            ...status.map((s) => ({
+              key: `status:${s}`,
+              label: STATUS_FILTER_OPTIONS.find((f) => f.value === s)?.label ?? s,
+              onRemove: () => resetToFirstPage(setStatus)(status.filter((x) => x !== s)),
+            })),
             ...(range !== "all"
               ? [
                   {
@@ -413,7 +408,7 @@ export function MyBidsList() {
           ]}
           onClearAll={() => {
             setSearch("");
-            setStatus("all");
+            setStatus([]);
             setRange("all");
             setPage(1);
           }}
@@ -437,7 +432,7 @@ export function MyBidsList() {
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  setStatus("all");
+                  setStatus([]);
                   setRange("all");
                   setPage(1);
                 }}

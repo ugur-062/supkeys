@@ -5,6 +5,7 @@ import { MODULE_LABELS } from "@/lib/company/portals";
 import {
   ActiveFilterChips,
   EmptyState,
+  FilterMultiSelect,
   FilterSelect,
   PageHeader,
   Pagination,
@@ -161,8 +162,8 @@ const SORT_OPTIONS = [
   { value: "amount_asc", label: "Tutar (Düşük → Yüksek)" },
 ];
 
+// Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
 const STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: "all", label: "Tümü" },
   { value: "PENDING", label: "Onay Bekliyor" },
   { value: "ACCEPTED", label: "Onaylandı" },
   { value: "IN_DELIVERY", label: "Gönderildi / Hazır" },
@@ -383,11 +384,10 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
 
   const [search, setSearch] = useState("");
   // Faz 4.2 — KPI drill-down: ?status=DELIVERED gibi başlangıç filtresi.
+  // `?status=DELIVERED` ya da virgüllü (çoklu seçim).
   const urlStatus = useSearchParams().get("status");
-  const [status, setStatus] = useState(
-    urlStatus && STATUS_FILTERS.some((s) => s.value === urlStatus)
-      ? urlStatus
-      : "all",
+  const [status, setStatus] = useState<string[]>(() =>
+    (urlStatus ?? "").split(",").filter((v) => STATUS_FILTERS.some((s) => s.value === v)),
   );
   const [sort, setSort] = useState("newest");
   const [range, setRange] = useState<RangeKey>("all");
@@ -421,7 +421,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     const minDate = days ? Date.now() - days * 86_400_000 : null;
     const q = search.trim().toLocaleLowerCase("tr");
     const rows = all.filter((o) => {
-      if (status !== "all" && o.status !== status) return false;
+      if (status.length > 0 && !status.includes(o.status)) return false;
       if (counterparty && o.counterparty !== counterparty) return false;
       if (minDate && new Date(o.createdAt).getTime() < minDate) return false;
       if (q && !matchesSearch(o, q)) return false;
@@ -442,7 +442,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
 
   const isFiltered =
     search !== "" ||
-    status !== "all" ||
+    status.length > 0 ||
     range !== "all" ||
     counterparty !== "";
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -497,19 +497,16 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <FilterSelect
+          <FilterMultiSelect
             icon={ListFilter}
             value={status}
             onChange={reset(setStatus)}
             options={STATUS_FILTERS.map((s) => ({
               value: s.value,
-              label:
-                s.value === "all"
-                  ? `Tümü (${all.length})`
-                  : `${s.label}${counts[s.value] ? ` (${counts[s.value]})` : ""}`,
+              label: `${s.label}${counts[s.value] ? ` (${counts[s.value]})` : ""}`,
             }))}
+            allLabel={`Tümü (${all.length})`}
             ariaLabel="Durum filtresi"
-            active={status !== "all"}
           />
           <FilterSelect
             icon={CalendarRange}
@@ -550,17 +547,11 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   },
                 ]
               : []),
-            ...(status !== "all"
-              ? [
-                  {
-                    key: "status",
-                    label:
-                      STATUS_FILTERS.find((f) => f.value === status)?.label ??
-                      status,
-                    onRemove: () => reset(setStatus)("all"),
-                  },
-                ]
-              : []),
+            ...status.map((s) => ({
+              key: `status:${s}`,
+              label: STATUS_FILTERS.find((f) => f.value === s)?.label ?? s,
+              onRemove: () => reset(setStatus)(status.filter((x) => x !== s)),
+            })),
             ...(range !== "all"
               ? [
                   {
@@ -584,7 +575,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           ]}
           onClearAll={() => {
             setSearch("");
-            setStatus("all");
+            setStatus([]);
             setRange("all");
             setCounterparty("");
             setPage(1);
@@ -620,7 +611,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   type="button"
                   onClick={() => {
                     setSearch("");
-                    setStatus("all");
+                    setStatus([]);
                     setRange("all");
                     setCounterparty("");
                     setPage(1);

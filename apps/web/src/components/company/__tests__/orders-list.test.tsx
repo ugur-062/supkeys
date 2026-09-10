@@ -164,6 +164,19 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     );
     expect(screen.getByText("Bekleyen Sipariş")).toBeInTheDocument();
     expect(screen.queryByText("Biten Sipariş")).not.toBeInTheDocument();
+
+    // ÇOKLU SEÇİM (2026-09-10): ikinci durum eklenince ikisi de listede, düğme "2 seçili";
+    // çipten biri kaldırılınca tek duruma döner; "Tümü" seçimi temizler.
+    await userEvent.click(await screen.findByRole("option", { name: /Tamamlandı/i }));
+    expect(screen.getByText("Bekleyen Sipariş")).toBeInTheDocument();
+    expect(screen.getByText("Biten Sipariş")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Durum filtresi" })).toHaveTextContent("2 seçili");
+    await userEvent.click(screen.getByRole("button", { name: /Onay Bekliyor.*kaldır|kaldır.*Onay Bekliyor/i }));
+    expect(screen.queryByText("Bekleyen Sipariş")).not.toBeInTheDocument();
+    expect(screen.getByText("Biten Sipariş")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Durum filtresi" }));
+    await userEvent.click(await screen.findByRole("option", { name: /^Tümü/ }));
+    expect(screen.getByText("Bekleyen Sipariş")).toBeInTheDocument();
   });
 
   it("arama (debounced) → eşleşen ilan başlığına göre süzer", async () => {

@@ -2,6 +2,7 @@ export { ActiveFilterChips, type ActiveFilter } from "./active-filter-chips";
 export { EmptyState } from "./empty-state";
 export { FilterBar } from "./filter-bar";
 export { FilterSelect, type FilterSelectOption } from "./filter-select";
+export { FilterMultiSelect } from "./filter-multi-select";
 export { ListSkeleton } from "./list-skeleton";
 export { PageContainer } from "./page-container";
 export { PageHeader } from "./page-header";

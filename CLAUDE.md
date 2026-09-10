@@ -197,6 +197,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Panel pazar adresleri | `lib/company/panel-market.ts` |
 | Süzgeç URL şemaları | `lib/public/{product,listing,company}-filter-params.ts`, `lib/company/request-filter-params.ts` |
 | Süzgeç kabuğu + yapı taşları | `components/marketplace/{filter-shell,filter-primitives}.tsx` |
+| Panel liste süzgeçleri (durum ÇOKLU seçim) | `components/list/{filter-select,filter-multi-select}.tsx` — durum süzgeçleri `FilterMultiSelect` (dizi; `?status=A,B`), tek seçimli olanlar `FilterSelect` (2026-09-10 kullanıcı kararı) |
 | KPI seçicileri (pano ↔ listeler) | `lib/company/kpi-selectors.ts` |
 | Profil tamamlanma | `@rothern/shared` `profileCompleteness` (10 madde; "Fotoğraflar" 2026-09-10'da kalktı) |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |

@@ -3,6 +3,7 @@
 import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
 import { listingTerms } from "@/lib/company/terms";
 import {
+  FilterMultiSelect,
   FilterSelect,
   PageHeader,
   Pagination,
@@ -61,8 +62,8 @@ type TabKey =
   | "CANCELLED";
 // IN_AWARD = "Değerlendirmede" — kapanan talep doğrudan bu duruma geçer
 // (ayrı "Teklife Kapalı" ara durumu 2026-07-13'te kaldırıldı).
-const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
-  { value: "all", label: "Tüm Durumlar" },
+// Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
+const STATUS_OPTIONS: { value: Exclude<TabKey, "all">; label: string }[] = [
   { value: "DRAFT", label: LISTING_STATUS_LABELS.DRAFT },
   { value: "IN_APPROVAL", label: LISTING_STATUS_LABELS.IN_APPROVAL },
   { value: "OPEN", label: LISTING_STATUS_LABELS.OPEN },
@@ -84,11 +85,12 @@ export function IhalelerView() {
 
   // Faz 4.2 — KPI drill-down: ?status=OPEN gibi bir başlangıç filtresi kabul
   // edilir (yalnız ilk render; sonrası lokal state).
+  // `?status=OPEN` ya da virgüllü `?status=OPEN,IN_AWARD` (çoklu seçim).
   const urlStatus = useSearchParams().get("status");
-  const [tab, setTab] = useState<TabKey>(
-    urlStatus && STATUS_OPTIONS.some((o) => o.value === urlStatus)
-      ? (urlStatus as TabKey)
-      : "all",
+  const [statuses, setStatuses] = useState<string[]>(() =>
+    (urlStatus ?? "")
+      .split(",")
+      .filter((v) => STATUS_OPTIONS.some((o) => o.value === v)),
   );
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("createdAt:desc");
@@ -149,7 +151,7 @@ export function IhalelerView() {
     const minDate = days ? Date.now() - days * 86_400_000 : null;
     const q = search.trim().toLocaleLowerCase("tr");
     const rows = all.filter((t) => {
-      if (tab !== "all" && t.status !== tab) return false;
+      if (statuses.length > 0 && !statuses.includes(t.status)) return false;
       if (createdById && t.createdById !== createdById) return false;
       if (scope !== "all" && t.isInternational !== (scope === "intl"))
         return false;
@@ -188,7 +190,7 @@ export function IhalelerView() {
       return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return sorted;
-  }, [all, tab, createdById, scope, range, search, sort]);
+  }, [all, statuses, createdById, scope, range, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -198,7 +200,7 @@ export function IhalelerView() {
   );
   const isFiltered =
     Boolean(search) ||
-    tab !== "all" ||
+    statuses.length > 0 ||
     range !== DEFAULT_RANGE ||
     scope !== "all" ||
     Boolean(createdById);
@@ -267,21 +269,18 @@ export function IhalelerView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <FilterSelect
+          <FilterMultiSelect
             icon={Building2}
-            value={tab}
-            onChange={(v) => reset(setTab)(v as TabKey)}
+            value={statuses}
+            onChange={reset(setStatuses)}
             // C43: sayaç HER seçenekte — "(0)" yazmayan seçenek tıklanıp boş
             // sonuç veriyordu, sayı bilgisi tutarsızdı.
             options={STATUS_OPTIONS.map((o) => ({
               value: o.value,
-              label:
-                o.value === "all"
-                  ? `Tümü (${facetRows.length})`
-                  : `${o.label} (${stats[o.value] ?? 0})`,
+              label: `${o.label} (${stats[o.value] ?? 0})`,
             }))}
+            allLabel={`Tüm Durumlar (${facetRows.length})`}
             ariaLabel="Durum filtresi"
-            active={tab !== "all"}
           />
           <FilterSelect
             icon={Globe}
