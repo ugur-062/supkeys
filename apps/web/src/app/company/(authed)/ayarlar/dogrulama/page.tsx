@@ -15,6 +15,8 @@ import {
   type VerificationStatus,
 } from "@/hooks/use-company-docs";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { MissingFields } from "@/components/ui/missing-fields";
+import { isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { Check, FileText, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -93,7 +95,7 @@ export default function DogrulamaPage() {
       await submit.mutateAsync({
         mersisNo: mersisNo.trim(),
         tradeRegistryNo: tradeRegistryNo.trim(),
-        iban: iban.replace(/\s+/g, "").toUpperCase(),
+        iban: normalizeIban(iban),
         ibanHolder: ibanHolder.trim(),
       });
       toast.success("Belgeler doğrulamaya gönderildi");
@@ -103,15 +105,20 @@ export default function DogrulamaPage() {
   };
 
   const labels = data ? docLabels(data.country, data.required) : [];
-  const allUploaded = !!data && labels.every((d) => data.docs[d.key]);
-  // TR'de kimlik alanları da zorunlu; yabancıda opsiyonel.
-  const kycComplete =
-    !isTR ||
-    (mersisNo.trim().length >= 10 &&
-      tradeRegistryNo.trim().length > 0 &&
-      /^TR\d{24}$/.test(iban.replace(/\s+/g, "").toUpperCase()) &&
-      ibanHolder.trim().length > 0);
-  const canSubmit = allUploaded && kycComplete && !locked;
+  // EKSİKLER — kullanıcı "Gönder" neden kapalı görsün (2026-09-10). IBAN
+  // denetimi Banka Hesapları ile AYNI tek kaynak (mod-97), ayrı regex değil.
+  const missing: string[] = [
+    ...labels.filter((d) => data && !data.docs[d.key]).map((d) => d.label),
+    ...(isTR
+      ? [
+          ...(mersisNo.trim().length >= 10 ? [] : ["MERSİS No"]),
+          ...(tradeRegistryNo.trim() ? [] : ["Ticari Sicil No"]),
+          ...(isValidIbanTr(normalizeIban(iban)) ? [] : ["Geçerli IBAN"]),
+          ...(ibanHolder.trim() ? [] : ["IBAN hesap sahibi"]),
+        ]
+      : []),
+  ];
+  const canSubmit = !!data && missing.length === 0 && !locked;
 
   return (
     <SettingsShell
@@ -149,7 +156,7 @@ export default function DogrulamaPage() {
             </div>
           ) : data.status === "VERIFIED" ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              Firmanız doğrulandı. Premium özellikleri kullanabilirsiniz.
+              Firmanız doğrulandı. Silver ve Gold paketlerine geçiş için ilk adım tamam.
               {canManage ? (
                 <span className="mt-0.5 block text-xs text-emerald-700">
                   Onaylanan belgeler değiştirilemez; bir belge reddedilirse
@@ -263,7 +270,7 @@ export default function DogrulamaPage() {
                             <Check className="h-3.5 w-3.5" /> Yüklendi
                           </span>
                         ) : (
-                          <span className="text-xs text-zinc-400">Eksik</span>
+                          <span className="text-xs text-zinc-500">Eksik</span>
                         )}
                         {rev?.status === "PENDING" ? (
                           <span className="text-xs font-medium text-amber-600">
@@ -338,11 +345,16 @@ export default function DogrulamaPage() {
               kullanıcılar yükleyebilir.
             </Text>
           ) : !locked ? (
-            <div className="flex items-center justify-between gap-3">
-              <Text className="text-xs text-zinc-400">
-                Tüm belgeler ve kimlik bilgileri tamamlanınca gönderebilirsiniz.
-                Gönderdikten sonra inceleme bitene kadar değişiklik yapılamaz.
-              </Text>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 text-xs text-zinc-500">
+                {missing.length > 0 ? (
+                  <MissingFields label="Göndermek için eksik" items={missing} />
+                ) : (
+                  <Text className="text-xs text-zinc-500">
+                    Her şey tamam. Gönderdikten sonra inceleme bitene kadar değişiklik yapılamaz.
+                  </Text>
+                )}
+              </div>
               <Button
                 onClick={handleSubmit}
                 disabled={!canSubmit || submit.isPending}

@@ -130,6 +130,9 @@ const nextConfig: NextConfig = {
       { source: "/company/satis/profilim", destination: "/company/sirketim/profil", permanent: true },
       { source: "/company/satinalma/raporlar", destination: "/company/sirketim/raporlar", permanent: true },
       { source: "/company/satinalma/raporlar/:path*", destination: "/company/sirketim/raporlar/:path*", permanent: true },
+      // Onay akışları Onaylar sayfasının kendi görünümünde (2026-09-10); eski
+      // Ayarlar rotası istemci-yönlendirme stub'uydu, silindi.
+      { source: "/company/ayarlar/onay-akislari", destination: "/company/onaylar?tab=flows", permanent: true },
       // NOT: `/company/satinalma/urunler` 2026-09-05'te anasayfaya 308'lenmişti;
       // pazar katmanı brifiyle (2026-09-07) GERİ AÇILDI — ürün dizini yine kendi
       // sayfası. Yönlendirme KALDIRILDI, yoksa yeni rota kendi kendine 308 verirdi.

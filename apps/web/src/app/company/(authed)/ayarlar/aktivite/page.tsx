@@ -1,5 +1,6 @@
 "use client";
 
+import axios from "axios";
 import {
   Table,
   TableBody,
@@ -72,7 +73,8 @@ function fmtDate(iso: string): string {
 export default function AktivitePage() {
   const [page, setPage] = useState(1);
   const [module, setModule] = useState("");
-  const { data, isLoading, isError } = useActivityLog(page, module || undefined);
+  const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined);
+  const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
   const totalPages = data?.pagination.totalPages ?? 1;
 
   return (
@@ -99,9 +101,15 @@ export default function AktivitePage() {
           </div>
 
           {isError ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              Aktivite logu yüklenemedi — bu sayfayı yalnızca Kurucu ve
-              Yönetici, Silver ve üzeri pakette görüntüleyebilir.
+            <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {forbidden
+                ? "Aktivite logunu yalnız \u201cKullanıcı yönetimi\u201d ya da \u201cFirma yönetimi\u201d yetkisi taşıyanlar, Silver ve üzeri pakette görüntüleyebilir."
+                : "Aktivite logu yüklenemedi."}{" "}
+              {!forbidden ? (
+                <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
+                  Yeniden dene
+                </button>
+              ) : null}
             </p>
           ) : isLoading && !data ? (
             <p className="text-sm text-zinc-500">Yükleniyor…</p>

@@ -1,9 +1,8 @@
 "use client";
 
 import { RoleBadge } from "@/components/ui/role-badge";
-import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Text } from "@/components/catalyst/text";
@@ -16,7 +15,6 @@ import {
   useUpdateMe,
   useUpdateNotificationPrefs,
 } from "@/hooks/use-company-account";
-import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   Check,
@@ -30,6 +28,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { isValidPhone } from "@/lib/company/phone";
 
 const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
 
@@ -39,6 +38,8 @@ export function AccountInfoSection() {
   const updateMe = useUpdateMe();
   const [editing, setEditing] = useState(false);
   const [info, setInfo] = useState({ firstName: "", lastName: "", phone: "" });
+  // Alan hataları SATIR İÇİ (proje kuralı: <Field error>), toast değil.
+  const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; phone?: string }>({});
 
   useEffect(() => {
     if (user) {
@@ -51,15 +52,12 @@ export function AccountInfoSection() {
   }, [user]);
 
   const save = async () => {
-    if (!info.firstName.trim() || !info.lastName.trim()) {
-      toast.error("Ad ve soyad boş olamaz");
-      return;
-    }
-    const phone = info.phone.trim();
-    if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) {
-      toast.error("Geçerli bir telefon numarası giriniz");
-      return;
-    }
+    const next: typeof errors = {};
+    if (!info.firstName.trim()) next.firstName = "Ad boş olamaz";
+    if (!info.lastName.trim()) next.lastName = "Soyad boş olamaz";
+    if (!isValidPhone(info.phone)) next.phone = "Geçerli bir telefon numarası girin";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
     try {
       await updateMe.mutateAsync(info);
       toast.success("Bilgiler güncellendi");
@@ -145,19 +143,23 @@ export function AccountInfoSection() {
                 <Label>Ad</Label>
                 <Input
                   value={info.firstName}
+                  invalid={!!errors.firstName}
                   onChange={(e) =>
                     setInfo({ ...info, firstName: e.target.value })
                   }
                 />
+                {errors.firstName ? <ErrorMessage>{errors.firstName}</ErrorMessage> : null}
               </Field>
               <Field>
                 <Label>Soyad</Label>
                 <Input
                   value={info.lastName}
+                  invalid={!!errors.lastName}
                   onChange={(e) =>
                     setInfo({ ...info, lastName: e.target.value })
                   }
                 />
+                {errors.lastName ? <ErrorMessage>{errors.lastName}</ErrorMessage> : null}
               </Field>
               <Field>
                 <Label>Telefon</Label>
@@ -165,6 +167,7 @@ export function AccountInfoSection() {
                   value={info.phone}
                   onChange={(v) => setInfo({ ...info, phone: v })}
                 />
+                {errors.phone ? <ErrorMessage>{errors.phone}</ErrorMessage> : null}
               </Field>
               <Field>
                 <Label>E-posta</Label>
@@ -176,7 +179,7 @@ export function AccountInfoSection() {
                 Vazgeç
               </Button>
               <Button onClick={save} disabled={updateMe.isPending}>
-                Kaydet
+                {updateMe.isPending ? "Kaydediliyor…" : "Kaydet"}
               </Button>
             </div>
           </div>
@@ -197,7 +200,7 @@ function ReadRow({
 }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </dt>
       <dd className="mt-0.5 flex items-center gap-2 text-sm text-zinc-900">
@@ -238,20 +241,17 @@ export function PasswordSection() {
 
   const strength = pwStrength(pw.next);
   const allMet = PW_REQUIREMENTS.every((r) => r.test(pw.next));
+  // Alan hataları SATIR İÇİ (gereksinim listesi zaten görünür; toast tekrar etmez).
+  const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
 
   const save = async () => {
-    if (!allMet) {
-      toast.error("Yeni parola tüm gereksinimleri karşılamalı");
-      return;
-    }
-    if (pw.next !== pw.confirm) {
-      toast.error("Yeni parolalar eşleşmiyor");
-      return;
-    }
-    if (pw.current === pw.next) {
-      toast.error("Yeni parola eski parolayla aynı olamaz");
-      return;
-    }
+    const next: typeof errors = {};
+    if (!pw.current) next.current = "Mevcut parolanızı girin";
+    if (!allMet) next.next = "Yeni parola aşağıdaki gereksinimlerin tümünü karşılamalı";
+    else if (pw.current && pw.current === pw.next) next.next = "Yeni parola eski parolayla aynı olamaz";
+    if (pw.next !== pw.confirm) next.confirm = "Yeni parolalar eşleşmiyor";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
     try {
       await changePassword.mutateAsync({
         currentPassword: pw.current,
@@ -282,6 +282,7 @@ export function PasswordSection() {
                 autoComplete={fld.auto}
                 value={pw[fld.key]}
                 maxLength={72}
+                invalid={!!errors[fld.key]}
                 onChange={(e) => setPw({ ...pw, [fld.key]: e.target.value })}
                 className="pr-10"
               />
@@ -300,6 +301,7 @@ export function PasswordSection() {
               </button>
             </div>
 
+            {errors[fld.key] ? <ErrorMessage>{errors[fld.key]}</ErrorMessage> : null}
             {/* Yeni şifre altında güç ölçer + gereksinimler */}
             {fld.key === "next" && pw.next ? (
               <div className="mt-2 space-y-2">
@@ -328,7 +330,7 @@ export function PasswordSection() {
                         ) : (
                           <X className="h-3.5 w-3.5 text-zinc-300" />
                         )}
-                        <span className={ok ? "text-zinc-700" : "text-zinc-400"}>
+                        <span className={ok ? "text-zinc-700" : "text-zinc-500"}>
                           {req.label}
                         </span>
                       </li>
@@ -419,7 +421,7 @@ export function NotificationPrefsSection() {
               key={p.key}
               type="button"
               onClick={() => setPrefs({ ...prefs, [p.key]: !on })}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-50"
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-100"
             >
               <span className="text-sm text-zinc-900">{p.label}</span>
               <span
@@ -438,7 +440,7 @@ export function NotificationPrefsSection() {
         })}
       </div>
 
-      <div className="mt-5 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
+      <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
           Her zaman gönderilir
         </p>

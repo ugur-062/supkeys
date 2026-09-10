@@ -25,7 +25,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useHasCompanyPermission: () => true,
 }));
 vi.mock("@/components/company/approval-detail-panel", () => ({ ApprovalDetailPanel: ({ id }: { id: string }) => <div data-testid="detail">detay {id}</div> }));
-vi.mock("@/app/company/(authed)/ayarlar/_components/approval-flows-section", () => ({ ApprovalFlowsSection: () => <div data-testid="flows" /> }));
+vi.mock("@/app/company/(authed)/onaylar/_components/approval-flows-section", () => ({ ApprovalFlowsSection: () => <div data-testid="flows" /> }));
 vi.mock("@/hooks/use-debounced-value", () => ({ useDebouncedValue: (v: string) => v }));
 
 const PENDING = [

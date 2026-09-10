@@ -227,7 +227,7 @@ function FlowList({
       {/* Ne işe yarar? açıklaması */}
       <InfoNote>
         <p>
-          <strong>Onay akışı</strong>, bir ihalede kazanan belirlendiğinde
+          <strong>Onay akışı</strong>, bir satın alma talebinde kazanan belirlendiğinde
           (kazandırma) <strong>sipariş oluşmadan önce</strong> belirlediğiniz
           kişilerin sırayla onayından geçmesini sağlar.
         </p>
@@ -372,7 +372,7 @@ function FlowList({
                       </span>
                       {s.approverName}
                       {s.displayLabel ? (
-                        <span className="text-zinc-400">· {s.displayLabel}</span>
+                        <span className="text-zinc-500">· {s.displayLabel}</span>
                       ) : null}
                       {s.conditionMinAmount != null ? (
                         <span className="text-amber-600">
@@ -423,9 +423,8 @@ function FlowWizard({
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState(flow?.name ?? "");
-  const [listingType, setListingType] = useState<ApprovalListingType | "">(
-    flow?.listingType ?? "",
-  );
+  // Kayıt tipi seçicisi kalktı; mevcut değer olduğu gibi geri yazılır.
+  const listingType: ApprovalListingType | "" = flow?.listingType ?? "";
   const [initiatorRoles, setInitiatorRoles] = useState<CompanyRole[]>(
     flow?.initiatorRoles ?? [],
   );
@@ -533,7 +532,7 @@ function FlowWizard({
                     ? "bg-zinc-900 text-white"
                     : i < step
                       ? "text-zinc-700"
-                      : "text-zinc-400",
+                      : "text-zinc-500",
                 )}
               >
                 <span
@@ -568,26 +567,14 @@ function FlowWizard({
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Örn. Yüksek Tutarlı Kazandırma Onayı"
               />
-              <Text className="mt-1 text-xs text-zinc-400">
+              <Text className="mt-1 text-xs text-zinc-500">
                 Bu akışı listede tanıyacağınız kısa bir ad.
               </Text>
             </Field>
-            <Field>
-              <Label>Hangi ihalelerde geçerli?</Label>
-              <Select
-                value={listingType}
-                onChange={(e) =>
-                  setListingType(e.target.value as ApprovalListingType | "")
-                }
-              >
-                <option value="">Tüm satın alma talepleri</option>
-                <option value="ALIM">Yalnız satın alma taleplerini</option>
-              </Select>
-              <Text className="mt-1 text-xs text-zinc-400">
-                Onay yalnızca seçtiğiniz tipteki satın alma taleplerin kazandırmasında
-                devreye girer.
-              </Text>
-            </Field>
+            {/* "Hangi ihalelerde geçerli?" seçicisi KALDIRILDI (2026-09-10):
+                satış ilanı kalktı, iki seçenek de aynı şeyi (ALIM) söylüyordu.
+                Kayıt tipi eski akışlarda ne ise o korunur, yeni akış tüm
+                satın alma taleplerinde geçerli. */}
           </div>
           <InfoNote>
             <p className="flex items-center gap-2 font-semibold">
@@ -595,12 +582,12 @@ function FlowWizard({
               Bu akış ne zaman çalışır?
             </p>
             <p>
-              Bir ihalede kazanan seçildiğinde (kazandırma) devreye girer.
+              Bir satın alma talebinde kazanan seçildiğinde (kazandırma) devreye girer.
               Belirlediğiniz onaycılar zinciri tamamlamadan{" "}
               <strong>sipariş oluşmaz</strong>.
             </p>
             <p className="text-blue-800/90">
-              İlan yayınlama onayı yoktur — taslaklar her zaman doğrudan
+              Talep yayınlama onayı yoktur — taslaklar her zaman doğrudan
               yayınlanır.
             </p>
           </InfoNote>
@@ -612,7 +599,7 @@ function FlowWizard({
         <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
           <div className="mx-auto flex w-full max-w-lg flex-col items-center">
             {/* Başlatıcı kartı */}
-            <div className="w-full rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+            <div className="w-full rounded-2xl border border-zinc-200 bg-zinc-100/70 p-4">
               <div className="flex items-center gap-2">
                 <Users2 className="size-4 text-zinc-500" />
                 <span className="text-xs font-bold uppercase tracking-wide text-zinc-700">
@@ -646,7 +633,7 @@ function FlowWizard({
                   },
                 )}
               </div>
-              <p className="mt-2 text-xs text-zinc-400">
+              <p className="mt-2 text-xs text-zinc-500">
                 Hiçbiri seçilmezse <strong>herkesin</strong> kazandırması onaya
                 düşer.
               </p>
@@ -805,13 +792,13 @@ function FlowWizard({
         <div className="max-w-2xl space-y-4">
           <dl className="grid grid-cols-2 gap-x-8 gap-y-4 rounded-2xl border border-zinc-200 bg-white p-5 text-sm shadow-sm">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-zinc-400">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
                 Akış adı
               </dt>
               <dd className="mt-0.5 font-semibold text-zinc-900">{name}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-zinc-400">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
                 Kapsam
               </dt>
               <dd className="mt-0.5 text-zinc-900">
@@ -819,7 +806,7 @@ function FlowWizard({
               </dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-xs uppercase tracking-wide text-zinc-400">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
                 Başlatan roller
               </dt>
               <dd className="mt-0.5 text-zinc-900">
@@ -829,7 +816,7 @@ function FlowWizard({
               </dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-xs uppercase tracking-wide text-zinc-400">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
                 Onay zinciri ({steps.length} adım)
               </dt>
               <dd className="mt-1.5 space-y-1.5">
@@ -847,7 +834,7 @@ function FlowWizard({
                         ({s.displayLabel})
                       </span>
                     ) : null}
-                    <span className="text-xs text-zinc-400">
+                    <span className="text-xs text-zinc-500">
                       {s.threshold
                         ? `≥ ${fmtTl.format(Number(s.threshold))} ₺`
                         : "her tutar"}
@@ -857,7 +844,7 @@ function FlowWizard({
               </dd>
             </div>
           </dl>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-zinc-500">
             “Kaydet ve Aktifleştir” dediğinizde akış hemen çalışmaya başlar.
             Taslak kaydederseniz listede pasif durur, sonra aktifleştirirsiniz.
           </p>
@@ -1000,7 +987,7 @@ function StepEditorDialog({
               ))}
             </Select>
           )}
-          <Text className="mt-1 text-xs text-zinc-400">
+          <Text className="mt-1 text-xs text-zinc-500">
             Bu kişi, sırası geldiğinde kazandırmayı Onaylar sayfasından onaylar
             ya da reddeder. Yalnız <strong>Kurucu, Yönetici veya Onaylayıcı</strong>{" "}
             rolündeki aktif kullanıcılar listelenir; başka birini eklemek için{" "}
@@ -1041,7 +1028,7 @@ function StepEditorDialog({
               küçük olamaz.
             </p>
           ) : (
-            <Text className="mt-1 text-xs text-zinc-400">
+            <Text className="mt-1 text-xs text-zinc-500">
               Kazandırma tutarı bu eşiğin altındaysa bu onaycı atlanır.
             </Text>
           )}

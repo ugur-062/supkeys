@@ -2,31 +2,25 @@
 
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 
-import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
+import { userHasPermission } from "@/lib/company/permissions";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useActivePortal } from "@/hooks/use-active-portal";
-import { PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-
-/** Sol menüden kalkan Profilim'in yeni giriş noktası — href aktif portala göre çözülür. */
-const PROFILE_CARD_HREF = "__firma-profili__";
 
 interface SettingsCard {
   href: string;
   icon: LucideIcon;
   title: string;
   description: string;
-  /** Yalnızca Yönetici görür (operasyon/yönetim kartları). */
-  managerOnly?: boolean;
   /**
-   * Kartı belirli bir İZİNLE kapıla (kart-kapısı = uç-kapısı). `managerOnly`
-   * yönetim ETİKETİNE bakar; bazı kartların ucu ise operasyon rollerine de
-   * açıktır — denetim 2026-08-26 Parça 10 B5.
+   * Kartı belirli bir İZİNLE kapıla (kart-kapısı = uç-kapısı; sayfanın
+   * `layout.tsx` kapısıyla AYNI izin) — denetim 2026-08-26 Parça 10 B5.
+   * Eski `managerOnly` etiketi 2026-09-10'da kaldırıldı: hiçbir kart
+   * kullanmıyordu, ölü daldı.
    */
   permission?: string | readonly string[];
 }
@@ -77,10 +71,12 @@ const GROUPS: SettingsGroup[] = [
         // ayrım korunur (bkz. profile/settings split). İki kartın açıklaması
         // eskiden aynı sözcükleri taşıyordu ("vitrin"/"kategoriler"), kullanıcı
         // hangisine gideceğini bilemiyordu; bu kart yalnız Profilim'e köprü.
-        href: PROFILE_CARD_HREF,
+        // Profilim iki portalda da AYNI adres (`/company/sirketim/profil`) —
+        // eski portal-sentinel dolaylaması gereksizdi.
+        href: "/company/sirketim/profil",
         icon: Store,
         title: "Firma Profili",
-        description: "Profilim sayfasını aç — logo, tanıtım, galeri, hizmetler",
+        description: "Profilim sayfasını aç — logo, kapak, tanıtım, hizmetler",
       },
       {
         href: "/company/ayarlar/firma",
@@ -96,8 +92,8 @@ const GROUPS: SettingsGroup[] = [
         description: "Fatura ve teslimat adresleri",
         // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
         // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi
-        // ekleyebilmeli"). Kart `managerOnly` olduğu için operatör sihirbazda
-        // "Ayarlar → Adresler'den ekleyin" uyarısını alıyor ama kartı
+        // ekleyebilmeli"). Kart eskiden yalnız yöneticiye açıktı; operatör
+        // sihirbazda "Ayarlar → Adresler'den ekleyin" uyarısını alıyor ama kartı
         // göremiyordu; URL'yi elle yazınca sayfa tam yetkiyle açılıyordu.
         permission: "addresses:manage",
       },
@@ -124,7 +120,7 @@ const GROUPS: SettingsGroup[] = [
         permission: ["users:manage", "company:manage"],
       },
       {
-        // Faz AI-0 — AI kullanım ekranı (Silver+). managerOnly DEĞİL: SA/ST
+        // Faz AI-0 — AI kullanım ekranı (Silver+). Koltuklu herkes: SA/ST
         // kendi kullanımını görür; K+Y firma kırılımını görür.
         href: "/company/ayarlar/ai-kullanim",
         icon: Sparkles,
@@ -133,11 +129,11 @@ const GROUPS: SettingsGroup[] = [
         permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
       },
       {
-        // Onay akışları artık Onaylar sayfasından yönetiliyor — kısayol.
-        href: "/company/onaylar",
+        // Onay akışları Onaylar sayfasının kendi görünümünde (`?tab=flows`).
+        href: "/company/onaylar?tab=flows",
         icon: Workflow,
         title: "Onay Akışları",
-        description: "Kazanan onayı akışlarını Onaylar sayfasından tanımlayın",
+        description: "Kazandırma isteklerinin kimden, hangi sırayla onay alacağını tanımlayın",
         permission: "approvals:manage",
       },
       {
@@ -153,12 +149,6 @@ const GROUPS: SettingsGroup[] = [
 
 export default function AyarlarPage() {
   const { user, company } = useCompanyAuth();
-  const activePortal = useActivePortal();
-  const resolveHref = (href: string) =>
-    href === PROFILE_CARD_HREF
-      ? PORTAL_SECONDARY_HREFS[activePortal].profilim
-      : href;
-  const isManager = isManagementUser(user);
 
   // P2 (denetim §10.5): karta durum rozeti — YALNIZ store'da hazır veriden
   // (ekstra istek yok). Durum bilinmiyorsa rozet basmayız.
@@ -191,11 +181,7 @@ export default function AyarlarPage() {
 
       <div className="mt-8 space-y-8">
         {GROUPS.map((group) => {
-          const items = group.items.filter((i) =>
-            i.permission
-              ? userHasPermission(user, i.permission)
-              : !i.managerOnly || isManager,
-          );
+          const items = group.items.filter((i) => !i.permission || userHasPermission(user, i.permission));
           if (items.length === 0) return null;
           return (
             <section key={group.title}>
@@ -203,13 +189,13 @@ export default function AyarlarPage() {
                 <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                   {group.title}
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-400">{group.subtitle}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{group.subtitle}</p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {items.map((s) => (
                   <Link
                     key={s.href}
-                    href={resolveHref(s.href)}
+                    href={s.href}
                     className={cn(
                       "group flex items-center gap-4 card p-5",
                       "transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",

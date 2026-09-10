@@ -3,7 +3,6 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
-import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -126,14 +125,11 @@ export function TwoFactorSection() {
 
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <Subheading>İki Adımlı Doğrulama (2FA)</Subheading>
-          <Text className="mt-0.5 text-sm text-zinc-500">
-            Authenticator uygulaması (Google Authenticator, Authy…) veya
-            e-postanıza gelen kod ile ekstra güvenlik.
-          </Text>
-        </div>
+      {/* Başlık SettingsShell'de — burada yalnız durum (2026-09-10). */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Text className="text-sm text-zinc-600">
+          Authenticator uygulaması (Google Authenticator, Authy…) veya e-postanıza gelen kod ile ekstra güvenlik.
+        </Text>
         <Badge color={enabled ? "green" : "zinc"}>
           {enabled ? "Açık" : "Kapalı"}
         </Badge>
@@ -166,8 +162,10 @@ export function TwoFactorSection() {
             <Label>Doğrulama kodu</Label>
             <Input
               inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="6 haneli kod"
               className="max-w-[200px]"
             />
@@ -210,7 +208,7 @@ export function TwoFactorSection() {
             className="h-44 w-44 rounded-lg border border-zinc-200"
           />
           {secret ? (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-2">
               <p className="text-xs text-zinc-500">
                 QR okutamıyorsanız bu anahtarı uygulamaya elle girin:
               </p>
@@ -235,8 +233,10 @@ export function TwoFactorSection() {
             <Label>Doğrulama kodu</Label>
             <Input
               inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="6 haneli kod"
               className="max-w-[200px]"
             />
@@ -245,7 +245,16 @@ export function TwoFactorSection() {
             <Button onClick={confirmEnable} disabled={enable.isPending}>
               Doğrula & Aç
             </Button>
-            <Button plain onClick={() => setQr(null)}>
+            <Button
+              plain
+              onClick={() => {
+                // Kurulumdan vazgeçince kod ve sır da sıfırlanır — yeniden
+                // başlatınca eski kod dolu gelmesin.
+                setQr(null);
+                setSecret(null);
+                setCode("");
+              }}
+            >
               Vazgeç
             </Button>
           </div>
@@ -304,7 +313,7 @@ export function TwoFactorSection() {
                   className="max-w-[240px]"
                 />
               </Field>
-              <Text className="text-xs text-zinc-400">
+              <Text className="text-xs text-zinc-500">
                 Authenticator kullanıyorsanız uygulamadaki kodu; e-posta 2FA
                 kullanıyorsanız “E-postaya kod gönder” ile gelen kodu girin.
               </Text>

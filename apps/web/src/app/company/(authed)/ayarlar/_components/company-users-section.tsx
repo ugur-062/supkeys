@@ -64,6 +64,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { isValidPhone } from "@/lib/company/phone";
 import { InviteUserDialog } from "./invite-user-dialog";
 import { PermissionTable } from "@/components/company/permission-table";
 
@@ -76,7 +77,7 @@ export function CompanyUsersSection({
   canManage: boolean;
   meId: string | undefined;
 }) {
-  const { data: users, isLoading } = useCompanyUsers();
+  const { data: users, isLoading, isError, refetch } = useCompanyUsers();
   const { data: seats } = useSeats();
   const seatSelection = useSeatSelection();
   const setActive = useSetUserActive();
@@ -129,14 +130,14 @@ export function CompanyUsersSection({
       {seats && seats.limit != null ? (
         <div className="border-b border-zinc-950/5 px-5 py-2.5 text-xs text-zinc-600">
           Koltuk: <strong>{seats.used}/{seats.limit}</strong>
-          <span className="ml-1 text-zinc-400">
+          <span className="ml-1 text-zinc-500">
             (satınalma {seats.usedBuy} · satış {seats.usedSell}
             {seats.pendingSeatInvites > 0
               ? ` · bekleyen davet ${seats.pendingSeatInvites}`
               : ""}
             )
           </span>
-          <span className="ml-1 text-zinc-400">
+          <span className="ml-1 text-zinc-500">
             — satınalma ve satış işlem yetkisi ayrı koltuk sayar
           </span>
         </div>
@@ -163,6 +164,15 @@ export function CompanyUsersSection({
 
       {isLoading ? (
         <p className="px-5 py-6 text-sm text-zinc-500">Yükleniyor…</p>
+      ) : isError ? (
+        <p role="alert" className="px-5 py-6 text-sm text-rose-800">
+          Kullanıcılar yüklenemedi.{" "}
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
+            Yeniden dene
+          </button>
+        </p>
+      ) : (users ?? []).length === 0 ? (
+        <p className="px-5 py-6 text-sm text-zinc-500">Henüz kullanıcı yok — ekibinizi davet edin.</p>
       ) : (
         <div className="px-2 [--gutter:--spacing(5)]">
           <Table dense>
@@ -195,7 +205,7 @@ export function CompanyUsersSection({
                               </span>
                             ) : null}
                             {isMe ? (
-                              <span className="ml-1.5 text-xs uppercase text-zinc-400">
+                              <span className="ml-1.5 text-xs uppercase text-zinc-500">
                                 (Siz)
                               </span>
                             ) : null}
@@ -218,7 +228,7 @@ export function CompanyUsersSection({
                         ) : (u.permissions ?? []).length > 0 && !u.isOwner ? (
                           <Badge color="zinc">Görüntüleyici</Badge>
                         ) : u.isOwner ? null : (
-                          <span className="text-xs text-zinc-400">Yetki yok</span>
+                          <span className="text-xs text-zinc-500">Yetki yok</span>
                         )}
                         {u.custom ? (
                           <Badge color="amber" title="Hazır setten farklı, kişiye özel yetkiler">
@@ -365,7 +375,7 @@ export function CompanyUsersSection({
                 <label
                   key={keepKey(k)}
                   className={`flex cursor-pointer items-center gap-3 rounded-lg p-2.5 text-sm ring-1 ${
-                    on ? "bg-zinc-50 ring-2 ring-zinc-900" : "ring-zinc-950/10"
+                    on ? "bg-zinc-100 ring-2 ring-zinc-900" : "ring-zinc-950/10"
                   } ${full ? "opacity-50" : ""}`}
                 >
                   <Checkbox
@@ -494,6 +504,8 @@ function PendingInvitations() {
                 </Button>
                 <Button
                   plain
+                  aria-label="Daveti iptal et"
+                  title="Daveti iptal et"
                   onClick={() => handleCancel(inv.id)}
                   disabled={cancel.isPending}
                 >
@@ -578,6 +590,10 @@ function EditUserModal({
     }
     if (!user.isOwner && perms.length === 0) {
       toast.error("En az bir yetki seçin");
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      toast.error("Geçerli bir telefon numarası girin");
       return;
     }
     try {
@@ -728,7 +744,7 @@ function EditUserModal({
           Vazgeç
         </Button>
         <Button onClick={save} disabled={busy}>
-          Kaydet
+          {busy ? "Kaydediliyor…" : "Kaydet"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -10,7 +10,7 @@ import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { ApprovalFlowsSection } from "@/app/company/(authed)/ayarlar/_components/approval-flows-section";
+import { ApprovalFlowsSection } from "@/app/company/(authed)/onaylar/_components/approval-flows-section";
 import { ApprovalDetailPanel } from "@/components/company/approval-detail-panel";
 import {
   useAllApprovals,

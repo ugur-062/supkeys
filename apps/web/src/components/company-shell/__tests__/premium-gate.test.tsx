@@ -35,11 +35,11 @@ beforeEach(() => {
 });
 
 describe("PremiumGate", () => {
-  it("doğrulama eksikken 'Premium'a Geç' devre dışı + 'Aç' linkleri var", () => {
+  it("doğrulama eksikken 'Gold'a Geç' devre dışı + 'Aç' linkleri var", () => {
     setMe("UNVERIFIED", false, null);
     render(<PremiumGate />);
     expect(
-      screen.getByRole("button", { name: "Premium'a Geç" }),
+      screen.getByRole("button", { name: "Gold'a Geç" }),
     ).toBeDisabled();
     // 3 gereksinim: belgeler + 2FA + web sitesi.
     expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(3);
@@ -49,7 +49,7 @@ describe("PremiumGate", () => {
     setMe("VERIFIED", true, null);
     render(<PremiumGate />);
     expect(
-      screen.getByRole("button", { name: "Premium'a Geç" }),
+      screen.getByRole("button", { name: "Gold'a Geç" }),
     ).toBeDisabled();
     expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(1);
   });
@@ -66,7 +66,7 @@ describe("PremiumGate", () => {
     h.upgradeAsync.mockResolvedValue({ ok: true, tier: "GOLD" });
     render(<PremiumGate />);
 
-    const btn = screen.getByRole("button", { name: "Premium'a Geç" });
+    const btn = screen.getByRole("button", { name: "Gold'a Geç" });
     expect(btn).toBeEnabled();
     await user.click(btn);
 
@@ -74,11 +74,11 @@ describe("PremiumGate", () => {
     expect(h.toast.success).toHaveBeenCalled();
   });
 
-  it("selfUpgradeEnabled=false → 'Premium'a Geç' butonu YOK, manuel-onay notu var (Y2 flag)", () => {
+  it("selfUpgradeEnabled=false → 'Gold'a Geç' butonu YOK, manuel-onay notu var (Y2 flag)", () => {
     setMe("VERIFIED", true, "https://firma.test", false);
     render(<PremiumGate />);
     expect(
-      screen.queryByRole("button", { name: "Premium'a Geç" }),
+      screen.queryByRole("button", { name: "Gold'a Geç" }),
     ).toBeNull();
     expect(screen.getByText(/manuel onayla/i)).toBeInTheDocument();
   });
@@ -89,7 +89,7 @@ describe("PremiumGate", () => {
     h.upgradeAsync.mockRejectedValue(new Error("fail"));
     render(<PremiumGate />);
 
-    await user.click(screen.getByRole("button", { name: "Premium'a Geç" }));
+    await user.click(screen.getByRole("button", { name: "Gold'a Geç" }));
     expect(h.toast.error).toHaveBeenCalledTimes(1);
   });
 });

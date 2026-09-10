@@ -60,7 +60,7 @@ export function PremiumGate() {
       await upgrade.mutateAsync();
       toast.success("Gold'a geçildi — satınalma paneli açıldı");
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Premium'a geçilemedi"));
+      toast.error(extractErrorMessage(err, "Gold'a geçilemedi"));
     }
   };
 
@@ -108,7 +108,7 @@ export function PremiumGate() {
           <div className="mt-6 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
               <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-              Premium&apos;a geçmek için
+              Gold&apos;a geçmek için
             </p>
             <ul className="mt-3 space-y-3">
               <Requirement
@@ -126,8 +126,8 @@ export function PremiumGate() {
               <Requirement
                 done={hasWebsite}
                 title="Firma web sitesi adresini gir"
-                hint={hasWebsite ? "Girildi" : "Firma profilinde web sitesi ekleyin"}
-                href="/company/ayarlar/firma"
+                hint={hasWebsite ? "Girildi" : "Profilim sayfasındaki künyeye web sitesi ekleyin"}
+                href="/company/sirketim/profil"
               />
             </ul>
           </div>
@@ -139,7 +139,7 @@ export function PremiumGate() {
                 disabled={!ready || upgrade.isPending}
                 onClick={doUpgrade}
               >
-                {upgrade.isPending ? "Geçiliyor…" : "Premium'a Geç"}
+                {upgrade.isPending ? "Geçiliyor…" : "Gold'a Geç"}
               </Button>
               {!ready ? (
                 <p className="mt-2 text-center text-xs text-zinc-400">
@@ -149,7 +149,7 @@ export function PremiumGate() {
             </>
           ) : (
             <p className="mt-5 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-center text-sm text-zinc-600">
-              Premium şu an <span className="font-semibold">manuel onayla</span>{" "}
+              Gold paketi şu an <span className="font-semibold">manuel onayla</span>{" "}
               veriliyor. Gereksinimleri tamamlayın; ekibimiz hesabınızı kısa
               sürede yükseltir.
             </p>

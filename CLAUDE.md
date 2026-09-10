@@ -353,6 +353,18 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   (any-of) → bağlantı `connections:manage`, admin duyurusu yönetim+koltuk.
   E-posta alıcısı tek kaynak `pickCompanyRecipients`.
 - Web sayfa kapıları `components/company/permission-gate.tsx` (`PermissionGate`).
+- **Ayarlar denetimi (2026-09-10):** hub kartı kapısı = sayfa `layout.tsx`
+  kapısı (izin; `managerOnly` yok); Firma Profili kartı düz
+  `/company/sirketim/profil`; Onay Akışları kartı `/company/onaylar?tab=flows`
+  (eski `/company/ayarlar/onay-akislari` → `next.config` 308;
+  `ApprovalFlowsSection` artık `onaylar/_components/`). Bölüm içinde sayfa
+  başlığı TEKRAR EDİLMEZ (Banka, 2FA, Firma Bilgileri). Liste bölümleri
+  `isError` + "Yeniden dene" taşır; Aktivite/AI 403 ile genel hatayı ayırır.
+  Form hataları satır içi `<ErrorMessage>` (Hesap, Şifre, Davet). Tek
+  kaynaklar: telefon `lib/company/phone.ts` `isValidPhone`, IBAN
+  `isValidIbanTr`/`normalizeIban` (Doğrulama sayfası da). Doğrulama "Gönder"
+  eksik listesi (`MissingFields`). Sözleşme: `ayarlar/__tests__/page.test`,
+  `invite-user-dialog.test`.
 - **Onaylar sayfası (2026-09-10 sadeleşti):** iki görünüm — "Sıra sizde"
   (`approvals/pending`, karar kartı: Onayla/Reddet/Detay) ve "Tüm istekler"
   (`approvals/all` TEK liste; çipler Tümü/Bekleyen/Başlattıklarım/Sonuçlanan

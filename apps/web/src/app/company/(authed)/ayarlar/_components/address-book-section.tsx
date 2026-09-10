@@ -33,7 +33,7 @@ function typeLabel(t: CompanyAddressType) {
 }
 
 export function AddressBookSection({ canManage }: { canManage: boolean }) {
-  const { data: addresses, isLoading } = useAddresses();
+  const { data: addresses, isLoading, isError, refetch } = useAddresses();
   const del = useDeleteAddress();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyAddress | "new" | null>(null);
@@ -58,9 +58,9 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
     <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
-          <Subheading>Firma Tercihleri — Adres Defteri</Subheading>
+          <Subheading>Kayıtlı adresler</Subheading>
           <Text className="mt-0.5 text-sm text-zinc-500">
-            Fatura ve teslimat adreslerini kaydedin; ihalelerde kullanın.
+            Fatura ve teslimat adreslerini kaydedin; satın alma taleplerinde ve siparişlerde seçin.
           </Text>
         </div>
         {canManage ? (
@@ -70,6 +70,13 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
 
       {isLoading ? (
         <Text className="mt-3 text-sm text-zinc-500">Yükleniyor…</Text>
+      ) : isError ? (
+        <p role="alert" className="mt-3 text-sm text-rose-800">
+          Adresler yüklenemedi.{" "}
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
+            Yeniden dene
+          </button>
+        </p>
       ) : !addresses || addresses.length === 0 ? (
         <Text className="mt-3 text-sm text-zinc-500">
           Henüz kayıtlı adres yok.
@@ -132,7 +139,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                 {a.city ? `, ${a.city}` : ""}
               </div>
               {a.type === "FATURA" && (a.taxOffice || a.taxNumber) ? (
-                <div className="mt-0.5 text-xs text-zinc-400">
+                <div className="mt-0.5 text-xs text-zinc-500">
                   VD: {a.taxOffice ?? "—"} · VKN: {a.taxNumber ?? "—"}
                 </div>
               ) : null}
@@ -207,9 +214,11 @@ function AddressDialog({
             <Label>Adres tipi</Label>
             <Select
               value={f.type}
-              onChange={(e) =>
-                set({ type: e.target.value as CompanyAddressType })
-              }
+              onChange={(e) => {
+                const type = e.target.value as CompanyAddressType;
+                // Fatura dışına geçince vergi alanları gövdede kalmasın.
+                set(type === "FATURA" ? { type } : { type, taxOffice: "", taxNumber: "" });
+              }}
             >
               <option value="TESLIMAT">Teslimat</option>
               <option value="FATURA">Fatura</option>

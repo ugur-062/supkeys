@@ -11,7 +11,6 @@ import {
 } from "@/components/catalyst/dialog";
 import { Checkbox, CheckboxField } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
-import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import {
@@ -28,7 +27,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export function BankAccountsSection({ canManage }: { canManage: boolean }) {
-  const { data: accounts, isLoading } = useBankAccounts();
+  const { data: accounts, isLoading, isError, refetch } = useBankAccounts();
   const del = useDeleteBankAccount();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyBankAccount | "new" | null>(
@@ -53,13 +52,11 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
 
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <Subheading>Banka Hesapları</Subheading>
-          <Text className="mt-0.5 text-sm text-zinc-500">
-            Kayıtlı hesaplar sipariş onayında seçilir — IBAN elle girilmez.
-          </Text>
-        </div>
+      {/* Başlık/açıklama SettingsShell'de — burada tekrar edilmez (2026-09-10). */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Text className="text-sm text-zinc-600">
+          Kayıtlı hesaplar sipariş onayında seçilir — IBAN elle girilmez.
+        </Text>
         {canManage ? (
           <Button onClick={() => setEditing("new")}>Hesap Ekle</Button>
         ) : (
@@ -71,6 +68,13 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
 
       {isLoading ? (
         <Text className="mt-3 text-sm text-zinc-500">Yükleniyor…</Text>
+      ) : isError ? (
+        <p role="alert" className="mt-3 text-sm text-rose-800">
+          Banka hesapları yüklenemedi.{" "}
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
+            Yeniden dene
+          </button>
+        </p>
       ) : !accounts || accounts.length === 0 ? (
         <Text className="mt-3 text-sm text-zinc-500">
           Henüz kayıtlı banka hesabı yok.

@@ -15,31 +15,20 @@ import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
-import {
-  useCompanyAuth,
-  useHasCompanyPermission,
-} from "@/hooks/use-company-auth";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   useCompanyProfile,
   useUpdateCompanyProfile,
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { safeExternalUrl } from "@/lib/safe-url";
-import {
-  COMPANY_ACTIVITIES,
-  MAX_COMPANY_ACTIVITIES,
-  isValidIbanTr,
-  isValidMersis,
-  normalizeIban,
-} from "@rothern/shared";
+import { COMPANY_ACTIVITIES, MAX_COMPANY_ACTIVITIES } from "@rothern/shared";
 import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function CompanyProfileSection() {
-  const { user } = useCompanyAuth();
-  const { data: profile, isLoading } = useCompanyProfile();
+  const { data: profile, isLoading, isError, refetch } = useCompanyProfile();
   const update = useUpdateCompanyProfile();
   const canEdit = useHasCompanyPermission("company:manage");
 
@@ -119,6 +108,16 @@ export function CompanyProfileSection() {
     }
   };
 
+  if (isError) {
+    return (
+      <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/60 px-4 py-3 text-sm text-rose-800">
+        Firma bilgileri yüklenemedi.{" "}
+        <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
+          Yeniden dene
+        </button>
+      </div>
+    );
+  }
   if (isLoading || !profile) {
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
   }
@@ -133,8 +132,8 @@ export function CompanyProfileSection() {
           <DescriptionDetails className="font-mono">
             {profile.rothernId ?? "—"}
           </DescriptionDetails>
-          <DescriptionTerm>Yasal Unvan</DescriptionTerm>
-          <DescriptionDetails>{profile.legalName ?? "—"}</DescriptionDetails>
+          {/* Yasal unvan burada DEĞİL — aşağıdaki formda düzenlenir (aynı
+              ekranda iki kez basılıyordu, 2026-09-10). */}
           {/* "Firma Türü" faaliyet tipiyle (Üretici/Distribütör…) karışıyordu —
               bu alan HUKUKİ yapı. */}
           <DescriptionTerm>Hukuki Yapı</DescriptionTerm>
@@ -221,9 +220,10 @@ export function CompanyProfileSection() {
       {/* Düzenlenebilir firma bilgileri */}
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
         <div className="flex items-center justify-between">
-          <Subheading>Firma Bilgileri</Subheading>
+          {/* Sayfa başlığı zaten "Firma Bilgileri" — iç başlık içeriği adlandırır. */}
+          <Subheading>Unvan, adres ve faaliyet</Subheading>
           {!canEdit ? (
-            <Text className="text-xs text-zinc-400">
+            <Text className="text-xs text-zinc-500">
               Düzenleme için Yönetici rolü gerekir
             </Text>
           ) : null}
@@ -340,7 +340,8 @@ export function CompanyProfileSection() {
           <div id="kategoriler" className="grid scroll-mt-24 grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-sm font-medium text-zinc-950">
-                🔵 Ne alırım (alış kategorileri)
+                <span aria-hidden className="mr-1.5 inline-block size-2 rounded-full bg-blue-500 align-middle" />
+                Ne alırım (alış kategorileri)
               </span>
               {canEdit ? (
                 <div className="mt-2 space-y-3">
@@ -354,7 +355,7 @@ export function CompanyProfileSection() {
                     <span className="block text-xs font-medium text-zinc-500">
                       Alt kategoriler (isteğe bağlı)
                     </span>
-                    <p className="mt-0.5 mb-2 text-xs text-zinc-400">
+                    <p className="mt-0.5 mb-2 text-xs text-zinc-500">
                       Ana kategori geniştir; alt kırılım seçerseniz yalnız
                       gerçekten ilgilendiğiniz ilanlar karşınıza çıkar.
                     </p>
@@ -379,7 +380,8 @@ export function CompanyProfileSection() {
             </div>
             <div>
               <span className="block text-sm font-medium text-zinc-950">
-                🟢 Ne satarım (satış kategorileri)
+                <span aria-hidden className="mr-1.5 inline-block size-2 rounded-full bg-emerald-500 align-middle" />
+                Ne satarım (satış kategorileri)
               </span>
               {canEdit ? (
                 <div className="mt-2 space-y-3">
@@ -393,7 +395,7 @@ export function CompanyProfileSection() {
                     <span className="block text-xs font-medium text-zinc-500">
                       Alt kategoriler (isteğe bağlı)
                     </span>
-                    <p className="mt-0.5 mb-2 text-xs text-zinc-400">
+                    <p className="mt-0.5 mb-2 text-xs text-zinc-500">
                       Tedarik ettiğiniz ürünleri tek tek işaretleyin — talepler
                       önce bu kırılıma göre karşınıza çıkar.
                     </p>
@@ -431,7 +433,7 @@ export function CompanyProfileSection() {
       {/* Herkese açık profil → Profilim */}
       <Link
         href="/company/sirketim/profil"
-        className="flex items-center justify-between gap-4 rounded-xl border border-zinc-950/10 bg-white p-5 transition hover:bg-zinc-50"
+        className="flex items-center justify-between gap-4 rounded-xl border border-zinc-950/10 bg-white p-5 transition hover:bg-zinc-100"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100">
@@ -440,8 +442,8 @@ export function CompanyProfileSection() {
           <div>
             <Subheading>Herkese Açık Profil</Subheading>
             <Text className="text-sm text-zinc-500">
-              Logo, kapak, hakkında, hizmetler ve galeri — Profilim
-              sayfasından düzenlenir.
+              Logo, kapak, hakkında ve hizmetler — Profilim sayfasından
+              düzenlenir.
             </Text>
           </div>
         </div>

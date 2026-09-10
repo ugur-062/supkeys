@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/catalyst/dialog";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PermissionTable } from "@/components/company/permission-table";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -45,6 +45,9 @@ export function InviteUserDialog({
       : Math.max(0, seats.limit - seats.used - seats.pendingSeatInvites);
   const seatsFull = freeSeats === 0;
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  // Gerçek e-posta biçimi (eskiden yalnız "@" içeriyor mu diye bakılıyordu).
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
   const [perms, setPerms] = useState<string[]>([]);
   // Katalog gelince varsayılan hazır set: Satın Almacı.
   useEffect(() => {
@@ -52,7 +55,7 @@ export function InviteUserDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalog]);
 
-  const canSave = email.includes("@") && perms.length > 0;
+  const canSave = emailValid && perms.length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -81,9 +84,14 @@ export function InviteUserDialog({
             type="email"
             autoFocus
             value={email}
+            invalid={emailTouched && !!email && !emailValid}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
             placeholder="kisi@firma.com"
           />
+          {emailTouched && email && !emailValid ? (
+            <ErrorMessage>Geçerli bir e-posta adresi girin (ör. kisi@firma.com).</ErrorMessage>
+          ) : null}
         </Field>
         <div>
           <div className="flex items-baseline justify-between gap-2">
