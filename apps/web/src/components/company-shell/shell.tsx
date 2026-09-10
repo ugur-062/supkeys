@@ -19,7 +19,7 @@ import { AssistantLauncher } from "./assistant/assistant-launcher";
 import { CompanySidebarContent } from "./sidebar";
 import { CompanyTopbar } from "./topbar";
 
-/** Ray genişlikleri — içerik payı DAİMA dar raya göre; genişleme üstüne biner. */
+/** Ray genişlikleri — içerik payı raya EŞLİK eder (hover'da da itilir, 2026-09-10). */
 const RAIL = "4.5rem"; // 72px
 const RAIL_EXPANDED = "16rem"; // 256px
 
@@ -50,17 +50,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Masaüstü rayı — mouse gelince genişler (pin ile sabitlenebilir).
-          P0: hover genişlemesi OVERLAY'dir (gölgeyle üste biner) — içerik
-          yalnız "Menüyü sabitle" aktifken itilir; KPI başlıklarının kırılıp
-          kartların zıplaması biter. */}
+          Genişleme İTER, üstüne BİNMEZ (2026-09-10, kullanıcı kararı; eski
+          P0 overlay kararı geri alındı): içerik payı `expanded`i izler, aynı
+          sürede kayar, ikisi ekrana birlikte sığar. Zıplamayı azaltmak için
+          ray ve içerik aynı 200 ms geçişi paylaşır. */}
       <aside
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? RAIL_EXPANDED : RAIL }}
-        className={cn(
-          "fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block",
-          expanded && !pinned && "shadow-xl",
-        )}
+        className="fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
       >
         <CompanySidebarContent expanded={expanded} />
       </aside>
@@ -114,7 +112,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
              bölüm bu sınırı ancak kapsayıcı sorgusuyla aşabilir
              (`100cqw`) — `100vw` sol menünün altına taşardı. */
           "@container/panel flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
-          pinned ? "lg:pl-64" : "lg:pl-[4.5rem]",
+          expanded ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >
         {/* Görsel tazeleme: dev beyaz panel kalktı — içerik slate-50 zeminde,
