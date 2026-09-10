@@ -93,9 +93,16 @@ describe("ConnectionsView", () => {
     const user = userEvent.setup();
     h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "2026-09-10T00:00:00Z" }];
     render(<ConnectionsView />);
-    const sec = screen.getByRole("heading", { name: /Gelen istekler/ }).closest("section")!;
+    const sec = screen.getByRole("heading", { name: /Gelen istekler/ }).closest("details")!;
     const main = screen.getByRole("heading", { name: /Bağlantılarım/ }).closest("section")!;
     expect(sec.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Rothern ID kutusu gelen isteklerin ÜSTÜNDE (üçüncü tur).
+    const idBox = screen.getByText("AAAA-0001").closest("section")!;
+    expect(idBox.compareDocumentPosition(sec) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Kutu kapalı doğar, sayı görünür; açınca eylemler.
+    expect(sec).not.toHaveAttribute("open");
+    expect(within(sec).getByText("1")).toBeInTheDocument();
+    await user.click(within(sec).getByText("Gelen istekler"));
     await user.click(within(sec).getByRole("button", { name: "Kabul et" }));
     expect(h.respond).toHaveBeenCalledWith({ connectionId: "g1", action: "accept" });
   });
@@ -104,7 +111,7 @@ describe("ConnectionsView", () => {
     h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
     h.referrals = [{ id: "r1", email: "yeni@firma.com", createdAt: "" }];
     render(<ConnectionsView />);
-    const card = screen.getByRole("heading", { name: /Bekleyenler/ }).closest("section")!;
+    const card = screen.getByRole("heading", { name: /Bekleyenler/ }).closest("details")!;
     expect(within(card).getByText("2")).toBeInTheDocument();
     expect(within(card).getByText("yeni@firma.com")).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Geri çek" })).toBeInTheDocument();
@@ -116,6 +123,18 @@ describe("ConnectionsView", () => {
     const search = screen.getByLabelText("Bağlantılarımda ara");
     expect(title.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(title.closest("section")).toContainElement(search);
+  });
+
+  it("100+ bağlantı: 50'şer gösterir, 'Daha fazla göster' ile açılır", async () => {
+    const user = userEvent.setup();
+    h.connections = Array.from({ length: 120 }, (_, i) => ({
+      connectionId: `k${i}`, origin: "INVITE", company: co(i), decidedAt: null,
+    }));
+    render(<ConnectionsView />);
+    expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(50);
+    expect(screen.getByText("50 / 120 gösteriliyor")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Daha fazla göster" }));
+    expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(100);
   });
 
   it("arama bağlantıları süzer", async () => {

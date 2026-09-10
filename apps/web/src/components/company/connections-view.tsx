@@ -52,6 +52,7 @@ import {
   Ban,
   Building2,
   Check,
+  ChevronDown,
   Copy,
   Flag,
   MailPlus,
@@ -102,6 +103,10 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   const [inviteOpen, setInviteOpen] = useState(false);
   const [connQ, setConnQ] = useState("");
   const [copied, setCopied] = useState(false);
+  // Uzun vade: yüzlerce bağlantıda sayfa tek seferde uzamasın — 50'şer
+  // göster (veri zaten inmiş; kesim yalnız çizimde). Arama değişince sıfırlanır.
+  const PAGE = 50;
+  const [shown, setShown] = useState(PAGE);
 
   const rothernId = self.data?.rothernId ?? null;
   const incomingRows = incoming.data ?? [];
@@ -174,12 +179,38 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           firma bekleyenleri görmek için sayfanın dibine inmez. */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <aside className="space-y-4 xl:order-last xl:sticky xl:top-24 xl:self-start">
-          {/* Gelen istekler — karar bekleyen iş; boşken de kart durur ki ray
-              sıçramasın ve kullanıcı nereye bakacağını bilsin. */}
-          <section aria-labelledby="baglantilar-gelen" className="rounded-xl border border-zinc-950/10 bg-white">
-            <div className="border-b border-zinc-950/5 px-4 py-3">
-              <SectionTitle id="baglantilar-gelen" title="Gelen istekler" count={incomingRows.length} />
+          {/* Rothern ID — en üstte (kullanıcı kararı, üçüncü tur). */}
+          <section className="rounded-xl border border-zinc-950/10 bg-white px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Rothern ID&apos;niz</p>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="tabular-nums text-base font-semibold text-zinc-900">{rothernId ?? "—"}</span>
+              {rothernId ? (
+                <button
+                  type="button"
+                  onClick={copyId}
+                  aria-label="Rothern ID'yi kopyala"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="size-3.5 text-emerald-600" /> Kopyalandı
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" /> Kopyala
+                    </>
+                  )}
+                </button>
+              ) : null}
             </div>
+            <p className="mt-1 text-xs text-zinc-500">Başka firmalar sizi bu kimlikle bulup bağlantı ister.</p>
+          </section>
+
+          {/* KATLANIR KUTULAR (kullanıcı kararı, üçüncü tur): sayı kapalıyken
+              görünür, tıklayınca açılır; içerik taştığında kutu kendi içinde
+              kayar — 200 istek de gelse sayfa uzamaz. Gelen istek varsa sayı
+              amber: karar bekliyor. */}
+          <RailBox id="baglantilar-gelen" title="Gelen istekler" count={incomingRows.length} attention>
             {incoming.isLoading ? (
               <ListSkeleton rows={2} />
             ) : incomingRows.length === 0 ? (
@@ -207,13 +238,9 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
                 })}
               </ul>
             )}
-          </section>
+          </RailBox>
 
-          {/* Bekleyenler — gönderdiğim istekler + e-posta davetleri */}
-          <section aria-labelledby="baglantilar-bekleyen" className="rounded-xl border border-zinc-950/10 bg-white">
-            <div className="border-b border-zinc-950/5 px-4 py-3">
-              <SectionTitle id="baglantilar-bekleyen" title="Bekleyenler" count={pendingCount} />
-            </div>
+          <RailBox id="baglantilar-bekleyen" title="Bekleyenler" count={pendingCount}>
             {pendingCount === 0 ? (
               <p className="px-4 py-3 text-sm text-zinc-500">
                 Gönderdiğiniz istek ve davetler yanıtlanana dek burada durur.
@@ -279,34 +306,7 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
                 })}
               </ul>
             )}
-          </section>
-
-          {/* Rothern ID — başka firmalar sizi bununla bulur. */}
-          <section className="rounded-xl border border-zinc-950/10 bg-white px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Rothern ID&apos;niz</p>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="tabular-nums text-base font-semibold text-zinc-900">{rothernId ?? "—"}</span>
-              {rothernId ? (
-                <button
-                  type="button"
-                  onClick={copyId}
-                  aria-label="Rothern ID'yi kopyala"
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="size-3.5 text-emerald-600" /> Kopyalandı
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3.5" /> Kopyala
-                    </>
-                  )}
-                </button>
-              ) : null}
-            </div>
-            <p className="mt-1 text-xs text-zinc-500">Başka firmalar sizi bu kimlikle bulup bağlantı ister.</p>
-          </section>
+          </RailBox>
         </aside>
 
         {/* BAĞLANTILARIM — başlık, altında tam genişlik arama, liste */}
@@ -318,7 +318,10 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
               <Input
                 aria-label="Bağlantılarımda ara"
                 value={connQ}
-                onChange={(e) => setConnQ(e.target.value)}
+                onChange={(e) => {
+                  setConnQ(e.target.value);
+                  setShown(PAGE);
+                }}
                 placeholder="Firma adı, Rothern ID, sektör veya şehir"
               />
             </InputGroup>
@@ -340,23 +343,79 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           ) : filteredConnections.length === 0 ? (
             <EmptyBox title="Eşleşen bağlantı yok" desc={`"${connQ}" ile eşleşen bağlantınız bulunamadı.`} />
           ) : (
-            <ul className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
-              {filteredConnections.map((c) => (
-                <ConnectionRow
-                  key={c.connectionId}
-                  connectionId={c.connectionId}
-                  company={c.company}
-                  portal={portal}
-                  canManage={canManageConn}
-                />
-              ))}
-            </ul>
+            <>
+              <ul className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
+                {filteredConnections.slice(0, shown).map((c) => (
+                  <ConnectionRow
+                    key={c.connectionId}
+                    connectionId={c.connectionId}
+                    company={c.company}
+                    portal={portal}
+                    canManage={canManageConn}
+                  />
+                ))}
+              </ul>
+              {filteredConnections.length > shown ? (
+                <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+                  <span>
+                    {Math.min(shown, filteredConnections.length)} / {filteredConnections.length} gösteriliyor
+                  </span>
+                  <Button outline onClick={() => setShown((n) => n + PAGE)}>
+                    Daha fazla göster
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
       </div>
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </div>
+  );
+}
+
+/**
+ * Ray kutusu — <details>: başlık + sayı kapalıyken görünür; içerik
+ * `max-h` ile kendi içinde kayar. `attention`: sayı > 0 ise amber rozet
+ * (karar bekleyen iş).
+ */
+function RailBox({
+  id,
+  title,
+  count,
+  attention = false,
+  children,
+}: {
+  id: string;
+  title: string;
+  count: number;
+  attention?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group rounded-xl border border-zinc-950/10 bg-white">
+      <summary
+        aria-controls={`${id}-panel`}
+        className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"
+      >
+        <h2 id={id} className="flex items-center gap-2 text-base font-semibold text-zinc-950">
+          {title}
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+              attention && count > 0 ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600",
+            )}
+          >
+            {count}
+          </span>
+        </h2>
+        <ChevronDown aria-hidden className="size-4 shrink-0 text-zinc-500 transition group-open:rotate-180" />
+      </summary>
+      <div id={`${id}-panel`} className="max-h-96 overflow-y-auto border-t border-zinc-950/5">
+        {children}
+      </div>
+    </details>
   );
 }
 
