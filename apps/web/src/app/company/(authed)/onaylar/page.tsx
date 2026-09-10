@@ -6,7 +6,6 @@ import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
-import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
@@ -21,8 +20,7 @@ import {
   type ApprovalHistoryItem,
   type PendingApproval,
 } from "@/hooks/use-company-approvals";
-import { EmptyState as SharedEmptyState, ListSkeleton } from "@/components/list";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { EmptyState as SharedEmptyState, ListSkeleton, SearchInput } from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
@@ -34,7 +32,6 @@ import {
   Circle,
   ClipboardCheck,
   MinusCircle,
-  Search,
   Workflow,
   XCircle,
 } from "lucide-react";
@@ -356,10 +353,10 @@ export default function OnaylarPage() {
   const { data: pending, isLoading: pendingLoading, isError: pendingError, refetch: refetchPending } = usePendingApprovals();
 
   const [chip, setChip] = useState<Chip>("all");
+  // Arama debounce'u SearchInput'un içinde.
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const { data: all, isLoading: allLoading, isError: allError, refetch: refetchAll } = useAllApprovals({
-    search: debouncedSearch || undefined,
+    search: search.trim() || undefined,
   });
   const filtered = useMemo(() => {
     const rows = all ?? [];
@@ -555,16 +552,14 @@ export default function OnaylarPage() {
                 </button>
               ))}
             </div>
-            <div className="relative ml-auto min-w-0 flex-1 sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" aria-hidden />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Onay no / talep ara…"
-                aria-label="Onay no veya satın alma talebi ara"
-                className="w-full pl-8"
-              />
-            </div>
+            {/* Diğer listelerle AYNI arama kutusu (ikonlu, temizlenebilir, kendi
+                debounce'u) — elle ikon bindirilmiş Input hizasızdı. */}
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Onay no / talep ara…"
+              className="ml-auto w-full sm:w-72"
+            />
           </div>
           {allLoading ? (
             <div className="overflow-hidden card">
