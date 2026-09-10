@@ -20,14 +20,15 @@ const DOC_LABELS_TR: Record<DocKind, string> = {
   idFront: "Yetkili Kimlik (Ön)",
   idBack: "Yetkili Kimlik (Arka)",
 };
-// Yabancı belge etiketleri (aynı alanlar, farklı anlam).
+// Yabancı belge etiketleri (aynı alanlar, farklı anlam). Arayüz Türkçe;
+// resmî İngilizce ad parantezde — kullanıcı elindeki belgeyi tanısın.
 const DOC_LABELS_FOREIGN: Record<DocKind, string> = {
-  tradeRegistry: "Certificate of Incorporation",
-  taxPlate: "Tax / VAT Certificate",
-  idFront: "Authorized Signatory ID",
-  signatureCircular: "İmza Sirküleri",
-  activityCert: "Faaliyet Belgesi",
-  idBack: "Yetkili Kimlik (Arka)",
+  tradeRegistry: "Kuruluş / Sicil Belgesi (Certificate of Incorporation)",
+  taxPlate: "Vergi / KDV Kayıt Belgesi (Tax / VAT Certificate)",
+  idFront: "Yetkili Kimliği (Authorized Signatory ID)",
+  signatureCircular: "İmza Sirküleri (Signature Circular)",
+  activityCert: "Faaliyet Belgesi (Certificate of Activity)",
+  idBack: "Yetkili Kimliği — Arka (ID Back)",
 };
 
 /** Ülke + zorunlu kind listesine göre etiketli belge listesi. */

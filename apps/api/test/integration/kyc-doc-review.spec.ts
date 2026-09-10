@@ -184,7 +184,7 @@ describe("belge bazlı KYC inceleme", () => {
     await docs.submit(co.id, {
       mersisNo: "0000000000000000",
       tradeRegistryNo: "123456",
-      iban: "TR000000000000000000000000",
+      iban: "TR330006100519786457841326",
       ibanHolder: "Firma A.Ş.",
     });
     const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
@@ -227,7 +227,7 @@ describe("KYC belge — audit izi (INV-AUDIT-1)", () => {
     // Key/URL metadata'ya yazılmaz.
     expect(JSON.stringify(uploaded.metadata)).not.toContain("company-docs/");
 
-    const RAW_IBAN = "TR000000000000000000000000";
+    const RAW_IBAN = "TR330006100519786457841326";
     await docs.submit(
       co.id,
       {
@@ -245,7 +245,7 @@ describe("KYC belge — audit izi (INV-AUDIT-1)", () => {
     expect(meta.kycFields).toEqual(
       expect.arrayContaining(["mersisNo", "iban", "ibanHolder"]),
     );
-    expect(meta.ibanMasked).toBe("TR" + "*".repeat(20) + "0000");
+    expect(meta.ibanMasked).toBe("TR" + "*".repeat(20) + "1326");
     expect(JSON.stringify(meta)).not.toContain(RAW_IBAN);
   });
 });

@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -17,7 +17,8 @@ import { isKycLocked, VERIFICATION_STATUS } from "@/lib/company/verification-sta
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { MissingFields } from "@/components/ui/missing-fields";
 import { isValidIbanTr, normalizeIban } from "@rothern/shared";
-import { Check, FileText, Upload } from "lucide-react";
+import { Check, FileText, Lock, Upload } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SettingsShell } from "../_components/settings-shell";
@@ -98,11 +99,20 @@ export default function DogrulamaPage() {
   const labels = data ? docLabels(data.country, data.required) : [];
   // EKSİKLER — kullanıcı "Gönder" neden kapalı görsün (2026-09-10). IBAN
   // denetimi Banka Hesapları ile AYNI tek kaynak (mod-97), ayrı regex değil.
+  // Satır içi hatalar — backend submit() ile AYNI: MERSİS 16 hane, IBAN mod-97.
+  const mersisError =
+    isTR && mersisNo.trim() && !/^\d{16}$/.test(mersisNo.trim())
+      ? "MERSİS No 16 haneli olmalı"
+      : null;
+  const ibanError =
+    isTR && normalizeIban(iban) && !isValidIbanTr(normalizeIban(iban))
+      ? "Geçerli bir TR IBAN girin — kontrol hanesi tutmuyor"
+      : null;
   const missing: string[] = [
     ...labels.filter((d) => data && !data.docs[d.key]).map((d) => d.label),
     ...(isTR
       ? [
-          ...(mersisNo.trim().length >= 10 ? [] : ["MERSİS No"]),
+          ...(/^\d{16}$/.test(mersisNo.trim()) ? [] : ["MERSİS No (16 hane)"]),
           ...(tradeRegistryNo.trim() ? [] : ["Ticari Sicil No"]),
           ...(isValidIbanTr(normalizeIban(iban)) ? [] : ["Geçerli IBAN"]),
           ...(ibanHolder.trim() ? [] : ["IBAN hesap sahibi"]),
@@ -114,7 +124,7 @@ export default function DogrulamaPage() {
   return (
     <SettingsShell
       page={SETTINGS_PAGES.dogrulama}
-      description="Doğrulama, Silver ve Gold paketine geçişin ilk adımıdır: belgeleriniz incelendikten sonra paketiniz açılır ve profilinizde “Doğrulanmış” rozeti görünür. Doğrulanmamış firma profilinde “Doğrulanmamış” yazar."
+      description="Belgeleriniz ekibimizce elle incelenir. Doğrulanan firma herkese açık taleplere teklif verebilir, talep yayımlayabilir ve pakete geçebilir; profilinde “Doğrulanmış” rozeti görünür. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür."
     >
       {isLoading || !data ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
@@ -147,7 +157,7 @@ export default function DogrulamaPage() {
             </div>
           ) : data.status === "VERIFIED" ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              Firmanız doğrulandı. Silver ve Gold paketlerine geçiş için ilk adım tamam.
+              Firmanız doğrulandı. Herkese açık taleplere teklif, talep yayını ve paket geçişi açık.
               {canManage ? (
                 <span className="mt-0.5 block text-xs text-emerald-700">
                   Onaylanan belgeler değiştirilemez; bir belge reddedilirse
@@ -160,15 +170,25 @@ export default function DogrulamaPage() {
           {/* ── Kimlik bilgileri — TR'ye özgü alanlar (MERSİS) yabancıda gizli;
               yabancıda tüm alanlar opsiyonel (admin manuel KYB yapar). ── */}
           <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
-            <p className="text-sm font-semibold text-zinc-900">
-              Firma Kimlik Bilgileri{isTR ? "" : " (opsiyonel)"}
-            </p>
-            {!isTR ? (
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Yurtdışı firmalarda bu alanlar zorunlu değildir; doğrulama admin
-                tarafından yüklediğiniz belgelere göre yapılır.
-              </p>
-            ) : null}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">
+                  Doğrulama Bilgileri{isTR ? "" : " (opsiyonel)"}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {!isTR
+                    ? "Yurt dışı firmalarda bu alanlar zorunlu değildir; doğrulama yüklediğiniz belgelere göre elle yapılır."
+                    : locked
+                      ? data.status === "PENDING"
+                        ? "İnceleme sürerken bu bilgiler değiştirilemez."
+                        : "Bu bilgiler belgelerle doğrulandı; değişiklik için destek ile iletişime geçin."
+                      : "Belgelerdeki bilgilerle birebir aynı olmalı; gönderdikten sonra kilitlenir."}
+                </p>
+              </div>
+              {locked ? (
+                <Lock aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+              ) : null}
+            </div>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               {/* MERSİS yalnızca Türkiye'de vardır — yabancıda gösterilmez. */}
               {isTR ? (
@@ -176,11 +196,14 @@ export default function DogrulamaPage() {
                   <Label>MERSİS No *</Label>
                   <Input
                     value={mersisNo}
-                    onChange={(e) => setMersisNo(e.target.value)}
+                    invalid={Boolean(mersisError)}
+                    onChange={(e) => setMersisNo(e.target.value.replace(/\D/g, ""))}
                     placeholder="0000000000000000"
                     disabled={!canManage || locked}
-                    maxLength={20}
+                    maxLength={16}
+                    className="font-mono"
                   />
+                  {mersisError ? <ErrorMessage>{mersisError}</ErrorMessage> : null}
                 </Field>
               ) : null}
               <Field>
@@ -199,6 +222,7 @@ export default function DogrulamaPage() {
                 <Label>{isTR ? "IBAN *" : "IBAN / Hesap No"}</Label>
                 <Input
                   value={iban}
+                  invalid={Boolean(ibanError)}
                   onChange={(e) => setIban(e.target.value)}
                   placeholder={
                     isTR
@@ -207,7 +231,19 @@ export default function DogrulamaPage() {
                   }
                   disabled={!canManage || locked}
                   maxLength={40}
+                  className="font-mono"
                 />
+                {ibanError ? (
+                  <ErrorMessage>{ibanError}</ErrorMessage>
+                ) : (
+                  <Text className="mt-1 text-xs text-zinc-500">
+                    Doğrulama içindir. Sipariş tahsilat hesapları{" "}
+                    <Link href="/company/ayarlar/banka-hesaplari" className="font-semibold underline">
+                      Banka Hesapları
+                    </Link>
+                    nda.
+                  </Text>
+                )}
               </Field>
               <Field>
                 <Label>{isTR ? "IBAN Hesap Sahibi *" : "Hesap Sahibi"}</Label>

@@ -7,8 +7,12 @@ import {
 } from "@nestjs/common";
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
 import { randomUUID } from "node:crypto";
-import { maskIban ,
-  requiredDocsForCountry,} from "@rothern/shared";
+import {
+  isValidIbanTr,
+  maskIban,
+  normalizeIban,
+  requiredDocsForCountry,
+} from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -388,22 +392,25 @@ export class CompanyDocsService {
       throw new BadRequestException("Doğrulama zaten inceleniyor");
     }
     // KYC kimlik bilgileri — TR firmalar için zorunlu (yabancıda opsiyonel,
-    // admin manuel KYB yapar). IBAN basit format kontrolü.
+    // admin manuel KYB yapar). Kurallar profil PATCH'i ve Banka Hesapları ile
+    // AYNI tek kaynak (2026-09-10): MERSİS 16 hane, IBAN mod-97 — eskiden
+    // "≥10 hane" ve checksum'sız `TR\d{24}` ile gevşekti; kilitlenip
+    // doğrulama dosyasına giren IBAN'ın tek hanesi yanlış olabiliyordu.
     const isTR = (country ?? "TR").toUpperCase() === "TR";
     const mersisNo = kyc.mersisNo?.trim();
     const tradeRegistryNo = kyc.tradeRegistryNo?.trim();
-    const iban = kyc.iban?.replace(/\s+/g, "").toUpperCase();
+    const iban = kyc.iban ? normalizeIban(kyc.iban) : undefined;
     const ibanHolder = kyc.ibanHolder?.trim();
     if (isTR) {
-      if (!mersisNo || mersisNo.length < 10) {
-        throw new BadRequestException("MERSİS numarası gerekli (16 hane).");
+      if (!mersisNo || !/^\d{16}$/.test(mersisNo)) {
+        throw new BadRequestException("MERSİS numarası 16 haneli olmalı.");
       }
       if (!tradeRegistryNo) {
         throw new BadRequestException("Ticari sicil numarası gerekli.");
       }
-      if (!iban || !/^TR\d{24}$/.test(iban)) {
+      if (!iban || !isValidIbanTr(iban)) {
         throw new BadRequestException(
-          "Geçerli bir IBAN gerekli (TR + 24 rakam).",
+          "Geçerli bir TR IBAN gerekli — kontrol hanesi tutmuyor.",
         );
       }
       if (!ibanHolder) {
