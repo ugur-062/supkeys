@@ -200,6 +200,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Panel liste süzgeçleri (durum ÇOKLU seçim) | `components/list/{filter-select,filter-multi-select}.tsx` — durum süzgeçleri `FilterMultiSelect` (dizi; `?status=A,B`), tek seçimli olanlar `FilterSelect` (2026-09-10 kullanıcı kararı) |
 | KPI seçicileri (pano ↔ listeler) | `lib/company/kpi-selectors.ts` |
 | Profil tamamlanma | `@rothern/shared` `profileCompleteness` (10 madde; "Fotoğraflar" 2026-09-10'da kalktı) |
+| Ayarlar sayfaları başlık/açıklama/adres (hub kartı = sayfa kabuğu) | `lib/company/settings-pages.ts` `SETTINGS_PAGES` — `SettingsShell page={…}`; uzun açıklama `description` ile ezer |
 | Doğrulama durumu etiketi + KYC kilidi (web) | `lib/company/verification-status.ts` (`verificationMeta`, `isKycLocked`) — hub rozeti, Doğrulama ve Firma Bilgileri aynı sözlük; backend `LOCKED_KYC` = name·legalName·mersisNo·tradeRegistryNo·ibanHolder (+IBAN), PENDING/VERIFIED'da |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |
 | İzin aynası (web) | `lib/company/permissions.ts` |
@@ -374,6 +375,14 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   alanı gönderir; Kaydet kirli değilse pasif, Vazgeç, beforeunload. Sözleşme
   `company-profile-section.test`; API `company-profile.spec` "FİRMA ADI".
   Tuzak: test factory VERIFIED doğurur → "alakasız alan" olarak `name` KULLANMA.
+- **Ayarlar sayfa-sayfa turu (2026-09-10, 12 sayfa):** hub grup sırası Firma
+  → Kişisel; her formda hatalar SATIR İÇİ ve Kaydet kirli değilse pasif
+  (Firma Bilgileri, Kullanıcı düzenle, Adres, Banka, Hesap Bilgileri);
+  Kurucu olmayan yönetici kendi satırında yetki tablosunu düzenleyemez
+  (backend `assertNotSelf` aynası); Kurucu vurgusu AMBER (mor yok); IBAN
+  denetimi her yüzeyde mod-97 (web Banka Hesapları yabancı IBAN + API
+  `company-docs.submit` eskiden gevşekti); MERSİS 16 hane; yabancı belge
+  etiketleri Türkçe + İngilizce parantez; şifre/parola → her yerde "şifre".
 - **Onaylar sayfası (2026-09-10 sadeleşti):** iki görünüm — "Sıra sizde"
   (`approvals/pending`, karar kartı: Onayla/Reddet/Detay) ve "Tüm istekler"
   (`approvals/all` TEK liste; çipler Tümü/Bekleyen/Başlattıklarım/Sonuçlanan
