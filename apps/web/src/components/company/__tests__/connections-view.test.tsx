@@ -89,11 +89,8 @@ describe("ConnectionsView", () => {
     expect(screen.queryByText("Profili gör")).toBeNull();
   });
 
-  it("gelen istek varsa EN ÜSTTE, Kabul/Reddet; yoksa bölüm çizilmez", async () => {
+  it("ray (gelen istekler + bekleyenler) DOM'da listeden ÖNCE — dar ekranda üstte kalır; Kabul et çalışır", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<ConnectionsView />);
-    expect(screen.queryByRole("heading", { name: /Gelen istekler/ })).toBeNull();
-    unmount();
     h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "2026-09-10T00:00:00Z" }];
     render(<ConnectionsView />);
     const sec = screen.getByRole("heading", { name: /Gelen istekler/ }).closest("section")!;
@@ -103,14 +100,22 @@ describe("ConnectionsView", () => {
     expect(h.respond).toHaveBeenCalledWith({ connectionId: "g1", action: "accept" });
   });
 
-  it("Bekleyenler katlanır bölüm: giden istek + e-posta daveti sayısıyla", () => {
+  it("Bekleyenler kartı rayda: giden istek + e-posta daveti sayısıyla; boşken açıklama", () => {
     h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
     h.referrals = [{ id: "r1", email: "yeni@firma.com", createdAt: "" }];
     render(<ConnectionsView />);
-    const details = screen.getByText("Bekleyenler").closest("details")!;
-    expect(within(details).getByText("2")).toBeInTheDocument();
-    expect(within(details).getByText("yeni@firma.com")).toBeInTheDocument();
-    expect(within(details).getByRole("button", { name: "Geri çek" })).toBeInTheDocument();
+    const card = screen.getByRole("heading", { name: /Bekleyenler/ }).closest("section")!;
+    expect(within(card).getByText("2")).toBeInTheDocument();
+    expect(within(card).getByText("yeni@firma.com")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Geri çek" })).toBeInTheDocument();
+  });
+
+  it("arama kutusu Bağlantılarım başlığının ALTINDA, listeden önce", () => {
+    render(<ConnectionsView />);
+    const title = screen.getByRole("heading", { name: /Bağlantılarım/ });
+    const search = screen.getByLabelText("Bağlantılarımda ara");
+    expect(title.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.closest("section")).toContainElement(search);
   });
 
   it("arama bağlantıları süzer", async () => {
