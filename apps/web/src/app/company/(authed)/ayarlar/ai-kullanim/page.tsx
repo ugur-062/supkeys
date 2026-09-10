@@ -52,7 +52,7 @@ export default function AiKullanimPage() {
   return (
     <SettingsShell
       page={SETTINGS_PAGES.ai}
-      description="Firmanızın aylık AI kullanım bütçesi — yüzde bazında. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır; %80'de uyarı verilir."
+      description="Firmanızın aylık AI bütçesinin ne kadarı kullanıldı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır; uyarı eşiğine gelince haber verilir."
     >
       <PremiumOnly minTier="SILVER">
         {isError ? (

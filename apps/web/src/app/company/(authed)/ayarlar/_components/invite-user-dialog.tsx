@@ -74,7 +74,7 @@ export function InviteUserDialog({
     <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="2xl">
       <DialogTitle>Üye Davet Et</DialogTitle>
       <DialogDescription>
-        Davetli, e-postasındaki linkten adını ve parolasını kendisi belirleyerek
+        Davetli, e-postasındaki linkten adını ve şifresini kendisi belirleyerek
         ekibe katılır. Davet 7 gün geçerlidir.
       </DialogDescription>
       <DialogBody className="-mr-3 max-h-[70vh] space-y-4 overflow-y-auto pr-3">

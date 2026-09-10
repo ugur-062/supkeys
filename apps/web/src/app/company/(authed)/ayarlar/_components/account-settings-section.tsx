@@ -41,15 +41,26 @@ export function AccountInfoSection() {
   // Alan hataları SATIR İÇİ (proje kuralı: <Field error>), toast değil.
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; phone?: string }>({});
 
+  const fromUser = () => ({
+    firstName: user?.firstName ?? "",
+    lastName: user?.lastName ?? "",
+    phone: user?.phone ?? "",
+  });
   useEffect(() => {
-    if (user) {
-      setInfo({
-        firstName: user.firstName ?? "",
-        lastName: user.lastName ?? "",
-        phone: user.phone ?? "",
-      });
-    }
+    if (user) setInfo(fromUser());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+  const base = fromUser();
+  const dirty =
+    info.firstName.trim() !== base.firstName ||
+    info.lastName.trim() !== base.lastName ||
+    info.phone.trim() !== base.phone;
+  // Vazgeç: yarım kalan düzenleme bir sonraki "Düzenle"de geri gelmesin.
+  const cancel = () => {
+    setInfo(fromUser());
+    setErrors({});
+    setEditing(false);
+  };
 
   const save = async () => {
     const next: typeof errors = {};
@@ -172,13 +183,16 @@ export function AccountInfoSection() {
               <Field>
                 <Label>E-posta</Label>
                 <Input value={user?.email ?? ""} disabled />
+                <Text className="mt-1 text-xs text-zinc-500">
+                  Giriş kimliğinizdir; değiştirmek için destek ile iletişime geçin.
+                </Text>
               </Field>
             </div>
             <div className="flex justify-end gap-2">
-              <Button plain onClick={() => setEditing(false)}>
+              <Button plain onClick={cancel}>
                 Vazgeç
               </Button>
-              <Button onClick={save} disabled={updateMe.isPending}>
+              <Button onClick={save} disabled={updateMe.isPending || !dirty}>
                 {updateMe.isPending ? "Kaydediliyor…" : "Kaydet"}
               </Button>
             </div>
@@ -246,10 +260,10 @@ export function PasswordSection() {
 
   const save = async () => {
     const next: typeof errors = {};
-    if (!pw.current) next.current = "Mevcut parolanızı girin";
-    if (!allMet) next.next = "Yeni parola aşağıdaki gereksinimlerin tümünü karşılamalı";
-    else if (pw.current && pw.current === pw.next) next.next = "Yeni parola eski parolayla aynı olamaz";
-    if (pw.next !== pw.confirm) next.confirm = "Yeni parolalar eşleşmiyor";
+    if (!pw.current) next.current = "Mevcut şifrenizi girin";
+    if (!allMet) next.next = "Yeni şifre aşağıdaki gereksinimlerin tümünü karşılamalı";
+    else if (pw.current && pw.current === pw.next) next.next = "Yeni şifre eski şifreyle aynı olamaz";
+    if (pw.next !== pw.confirm) next.confirm = "Yeni şifreler eşleşmiyor";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     try {
@@ -257,10 +271,10 @@ export function PasswordSection() {
         currentPassword: pw.current,
         newPassword: pw.next,
       });
-      toast.success("Parola değiştirildi");
+      toast.success("Şifre değiştirildi");
       setPw({ current: "", next: "", confirm: "" });
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Parola değiştirilemedi"));
+      toast.error(extractErrorMessage(err, "Şifre değiştirilemedi"));
     }
   };
 
@@ -346,7 +360,7 @@ export function PasswordSection() {
       <div className="mt-5 flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-xs text-zinc-500">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          Parolanız şifrelenmiş olarak saklanır.
+          Şifreniz şifrelenmiş olarak saklanır; ekibimiz dahil kimse göremez.
         </p>
         <Button
           onClick={save}
@@ -420,6 +434,8 @@ export function NotificationPrefsSection() {
             <button
               key={p.key}
               type="button"
+              role="switch"
+              aria-checked={on}
               onClick={() => setPrefs({ ...prefs, [p.key]: !on })}
               className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-100"
             >

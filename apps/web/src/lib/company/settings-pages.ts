@@ -22,7 +22,7 @@ export const SETTINGS_PAGES = {
   sifre: {
     href: "/company/ayarlar/sifre",
     title: "Şifre İşlemleri",
-    description: "Parolanızı güvenli bir şekilde değiştirin",
+    description: "Şifrenizi güvenli bir şekilde değiştirin",
   },
   bildirimler: {
     href: "/company/ayarlar/bildirimler",

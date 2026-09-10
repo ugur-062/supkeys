@@ -129,7 +129,7 @@ export default function AktivitePage() {
                   {(data?.items ?? []).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-sm text-zinc-500">
-                        Kayıt yok
+                        {module ? "Bu modülde henüz kayıt yok" : "Henüz kayıt yok"}
                       </TableCell>
                     </TableRow>
                   ) : (

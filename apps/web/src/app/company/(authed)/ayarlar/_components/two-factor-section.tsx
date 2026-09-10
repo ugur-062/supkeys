@@ -171,7 +171,7 @@ export function TwoFactorSection() {
             />
           </Field>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={confirmEnableEmail} disabled={enableEmail.isPending}>
+            <Button onClick={confirmEnableEmail} disabled={enableEmail.isPending || code.length !== 6}>
               Doğrula & Aç
             </Button>
             <Button
@@ -242,7 +242,7 @@ export function TwoFactorSection() {
             />
           </Field>
           <div className="flex gap-2">
-            <Button onClick={confirmEnable} disabled={enable.isPending}>
+            <Button onClick={confirmEnable} disabled={enable.isPending || code.length !== 6}>
               Doğrula & Aç
             </Button>
             <Button
@@ -318,7 +318,7 @@ export function TwoFactorSection() {
                 kullanıyorsanız “E-postaya kod gönder” ile gelen kodu girin.
               </Text>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={confirmDisable} disabled={disable.isPending}>
+                <Button onClick={confirmDisable} disabled={disable.isPending || !code.trim()}>
                   Kapat
                 </Button>
                 <Button
