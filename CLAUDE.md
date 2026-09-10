@@ -200,6 +200,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Panel liste süzgeçleri (durum ÇOKLU seçim) | `components/list/{filter-select,filter-multi-select}.tsx` — durum süzgeçleri `FilterMultiSelect` (dizi; `?status=A,B`), tek seçimli olanlar `FilterSelect` (2026-09-10 kullanıcı kararı) |
 | KPI seçicileri (pano ↔ listeler) | `lib/company/kpi-selectors.ts` |
 | Profil tamamlanma | `@rothern/shared` `profileCompleteness` (10 madde; "Fotoğraflar" 2026-09-10'da kalktı) |
+| Doğrulama durumu etiketi + KYC kilidi (web) | `lib/company/verification-status.ts` (`verificationMeta`, `isKycLocked`) — hub rozeti, Doğrulama ve Firma Bilgileri aynı sözlük; backend `LOCKED_KYC` = name·legalName·mersisNo·tradeRegistryNo·ibanHolder (+IBAN), PENDING/VERIFIED'da |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |
 | İzin aynası (web) | `lib/company/permissions.ts` |
 | Herkese açık adres şeması (ürün/firma/talep/kategori/şehir) | `@rothern/shared` `helpers/public-paths.ts` (web `lib/public/{marketplace,city}.ts` yeniden dışa aktarır) |
@@ -365,6 +366,14 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   `isValidIbanTr`/`normalizeIban` (Doğrulama sayfası da). Doğrulama "Gönder"
   eksik listesi (`MissingFields`). Sözleşme: `ayarlar/__tests__/page.test`,
   `invite-user-dialog.test`.
+- **Firma Bilgileri (2026-09-10):** Kimlik kartı salt-okunur (firma kodu,
+  kayıt ülkesi, hukuki yapı, vergi kimliği — etiket ülke profilinden, Vergi
+  Dairesi/KEP yalnız TR — yetkili kimlik no MASKELİ `maskNationalId`; şahıs
+  firmasında vergi no=TCKN de maskeli). **Firma adı da KYC kilidinde**
+  (kullanıcı kararı: "Doğrulanmış" rozeti ada kefildir). Form yalnız DEĞİŞEN
+  alanı gönderir; Kaydet kirli değilse pasif, Vazgeç, beforeunload. Sözleşme
+  `company-profile-section.test`; API `company-profile.spec` "FİRMA ADI".
+  Tuzak: test factory VERIFIED doğurur → "alakasız alan" olarak `name` KULLANMA.
 - **Onaylar sayfası (2026-09-10 sadeleşti):** iki görünüm — "Sıra sizde"
   (`approvals/pending`, karar kartı: Onayla/Reddet/Detay) ve "Tüm istekler"
   (`approvals/all` TEK liste; çipler Tümü/Bekleyen/Başlattıklarım/Sonuçlanan
