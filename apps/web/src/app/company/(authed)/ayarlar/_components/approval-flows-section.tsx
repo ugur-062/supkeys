@@ -944,7 +944,9 @@ function StepEditorDialog({
   const [approverUserId, setApproverUserId] = useState(
     initial?.approverUserId ?? approvers[0]?.id ?? "",
   );
-  const [displayLabel, setDisplayLabel] = useState(initial?.displayLabel ?? "");
+  // "Görünen etiket" alanı KALDIRILDI (2026-09-10, kullanıcı: "gerek yok");
+  // eski kayıtlardaki etiket korunur (düzenlemede aynen geri yazılır).
+  const displayLabel = initial?.displayLabel ?? "";
   const [threshold, setThreshold] = useState(initial?.threshold ?? "");
 
   // #9 / INV-APPR-1: kişi kendini onaycı seçebilir (engellenmez) ama görev
@@ -1021,18 +1023,6 @@ function StepEditorDialog({
               </span>
             </div>
           ) : null}
-        </Field>
-        <Field>
-          <Label>Görünen etiket (opsiyonel)</Label>
-          <Input
-            value={displayLabel}
-            onChange={(e) => setDisplayLabel(e.target.value)}
-            placeholder='Örn. "Satınalma Müdürü"'
-            maxLength={80}
-          />
-          <Text className="mt-1 text-xs text-zinc-400">
-            Onay ekranında kişinin yanında görünür — pozisyonu belli eder.
-          </Text>
         </Field>
         <Field>
           <Label>Bütçe eşiği ₺ (opsiyonel)</Label>
