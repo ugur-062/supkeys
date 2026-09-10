@@ -155,6 +155,38 @@ describe("CompanyUsersSection", () => {
     expect(screen.queryByText("Çıkar")).not.toBeInTheDocument();
   });
 
+  it("düzenle: değişiklik yokken Kaydet pasif; kısa ad satır içi hata (toast değil)", async () => {
+    const u = userEvent.setup();
+    render(<CompanyUsersSection canManage meId="owner" />);
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    await u.click(menus[1]);
+    await u.click(await screen.findByText("Düzenle"));
+    const save = await screen.findByRole("button", { name: "Kaydet" });
+    expect(save).toBeDisabled();
+    const ad = screen.getByLabelText("Ad");
+    await u.clear(ad);
+    await u.type(ad, "A");
+    expect(save).toBeEnabled();
+    await u.click(save);
+    expect(await screen.findByText("Ad en az 2 karakter")).toBeInTheDocument();
+    expect(h.toast.error).not.toHaveBeenCalled();
+  });
+
+  it("Kurucu olmayan yönetici kendi satırında yetki tablosunu düzenleyemez (backend assertNotSelf aynası)", async () => {
+    h.users = [
+      user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["SAHIP"] }),
+      user({ id: "yon", email: "yon@firma.com", firstName: "Yön", roles: ["YONETICI"], permissions: ["users:manage"] }),
+    ];
+    const u = userEvent.setup();
+    render(<CompanyUsersSection canManage meId="yon" />);
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    await u.click(menus[1]);
+    await u.click(await screen.findByText("Düzenle"));
+    expect(await screen.findByText(/Kendi yetkilerinizi düzenleyemezsiniz/)).toBeInTheDocument();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes.every((b) => (b as HTMLInputElement).disabled || b.getAttribute("aria-disabled") === "true")).toBe(true);
+  });
+
   it("bekleyen davetler render edilir (canManage)", () => {
     h.invitations = [
       {

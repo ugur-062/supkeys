@@ -20,7 +20,7 @@ import {
   DropdownLabel,
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
@@ -309,6 +309,7 @@ export function CompanyUsersSection({
         <EditUserModal
           user={editing}
           viewerIsOwner={meIsOwner}
+          isSelf={editing.id === meId}
           onClose={() => setEditing(null)}
         />
       ) : null}
@@ -523,10 +524,13 @@ function PendingInvitations() {
 function EditUserModal({
   user,
   viewerIsOwner,
+  isSelf,
   onClose,
 }: {
   user: CompanyTeamUser;
   viewerIsOwner: boolean;
+  /** Kendi satırı: Kurucu dışında kimse kendi yetkisini düzenleyemez (backend assertNotSelf aynası). */
+  isSelf: boolean;
   onClose: () => void;
 }) {
   const update = useUpdateUser();
@@ -555,6 +559,20 @@ function EditUserModal({
   const permsChanged =
     perms.length !== initialPerms.length ||
     perms.some((k) => !initialPerms.includes(k));
+  // Kendi yetkisini düzenleyemez — Kurucu hariç (o yalnız işlem tiklerini).
+  const permsLocked = isSelf && !user.isOwner;
+  const [touched, setTouched] = useState(false);
+  const infoChanged =
+    firstName.trim() !== user.firstName ||
+    lastName.trim() !== user.lastName ||
+    phone.trim() !== (user.phone ?? "");
+  const dirty = infoChanged || permsChanged;
+  // Satır içi hatalar (Ayarlar denetimi 2026-09-10: toast değil, alanda).
+  const firstNameError = firstName.trim().length < 2 ? "Ad en az 2 karakter" : null;
+  const lastNameError = lastName.trim().length < 2 ? "Soyad en az 2 karakter" : null;
+  const phoneError = isValidPhone(phone) ? null : "Geçerli bir telefon numarası girin";
+  const permsError = !user.isOwner && perms.length === 0 ? "En az bir yetki seçin" : null;
+  const hasError = Boolean(firstNameError || lastNameError || phoneError || permsError);
 
   // Kuruculuk devri — panel açılır, eski Kurucu (siz) yeni rolünü seçer.
   const [transferOpen, setTransferOpen] = useState(false);
@@ -577,33 +595,23 @@ function EditUserModal({
       toast.success("Kuruculuk devredildi");
       onClose();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Kuruculuk devredilemedi",
-      );
+      toast.error(extractErrorMessage(err, "Kuruculuk devredilemedi"));
     }
   };
 
   const save = async () => {
-    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
-      toast.error("Ad ve soyad en az 2 karakter");
-      return;
-    }
-    if (!user.isOwner && perms.length === 0) {
-      toast.error("En az bir yetki seçin");
-      return;
-    }
-    if (!isValidPhone(phone)) {
-      toast.error("Geçerli bir telefon numarası girin");
-      return;
-    }
+    setTouched(true);
+    if (hasError || !dirty) return;
     try {
-      await update.mutateAsync({
-        id: user.id,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: phone.trim(),
-      });
-      if (permsChanged) {
+      if (infoChanged) {
+        await update.mutateAsync({
+          id: user.id,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+        });
+      }
+      if (permsChanged && !permsLocked) {
         await setPermissions.mutateAsync({ id: user.id, permissions: perms });
       }
       toast.success("Kullanıcı güncellendi");
@@ -628,16 +636,27 @@ function EditUserModal({
           <div className="mt-2 grid grid-cols-2 gap-3">
             <Field>
               <Label>Ad</Label>
-              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Input
+                value={firstName}
+                invalid={touched && Boolean(firstNameError)}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+              {touched && firstNameError ? <ErrorMessage>{firstNameError}</ErrorMessage> : null}
             </Field>
             <Field>
               <Label>Soyad</Label>
-              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <Input
+                value={lastName}
+                invalid={touched && Boolean(lastNameError)}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+              {touched && lastNameError ? <ErrorMessage>{lastNameError}</ErrorMessage> : null}
             </Field>
           </div>
           <Field className="mt-3">
             <Label>Telefon</Label>
             <PhoneInput value={phone} onChange={setPhone} />
+            {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
           </Field>
         </div>
 
@@ -646,7 +665,11 @@ function EditUserModal({
         <div>
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-sm font-semibold text-zinc-900">Yetkiler</p>
-            {seatsFull ? (
+            {permsLocked ? (
+              <p className="text-xs text-zinc-500">
+                Kendi yetkilerinizi düzenleyemezsiniz — Kurucu veya başka bir yönetici yapmalı.
+              </p>
+            ) : seatsFull ? (
               <p className="text-xs text-amber-700">
                 Kullanıcı hakkı dolu — yeni koltuk verilemez.
               </p>
@@ -657,8 +680,8 @@ function EditUserModal({
             )}
           </div>
           {user.isOwner ? (
-            <div className="mt-2 flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-3 text-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white">
+            <div className="mt-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
                 <Crown className="h-4 w-4" />
               </span>
               <span className="min-w-0">
@@ -681,19 +704,28 @@ function EditUserModal({
                 targetIsOwner={user.isOwner}
                 freeSeats={freeSeats}
                 hadGroups={hadGroups}
+                disabled={permsLocked}
               />
             ) : (
               <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>
             )}
+            {touched && permsError ? (
+              <p className="mt-1 text-xs text-red-600">{permsError}</p>
+            ) : null}
           </div>
           {/* Kuruculuk devri — yalnız mevcut Kurucu, başka bir kullanıcıya. */}
           {viewerIsOwner && !user.isOwner ? (
             transferOpen ? (
-              <div className="mt-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
-                <p className="text-xs font-semibold text-violet-900">
+              <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-semibold text-amber-900">
                   Kuruculuğu {user.firstName} {user.lastName} kişisine devret
                 </p>
-                <p className="text-xs text-violet-700">
+                <p className="text-xs text-amber-800">
+                  Bu işlem geri alınamaz: fatura, firma silme ve devir yetkisi
+                  yeni Kurucuya geçer; siz aşağıda seçtiğiniz rolle devam
+                  edersiniz.
+                </p>
+                <p className="text-xs text-amber-800">
                   Devirden sonra <strong>sizin</strong> rolünüz ne olsun?
                 </p>
                 <SelectMenu
@@ -708,33 +740,20 @@ function EditUserModal({
                   ]}
                 />
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={confirmTransfer}
-                    disabled={update.isPending}
-                    className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
-                  >
-                    <Crown className="h-3.5 w-3.5" />
+                  <Button color="amber" onClick={confirmTransfer} disabled={update.isPending}>
+                    <Crown data-slot="icon" />
                     {update.isPending ? "Devrediliyor…" : "Devret"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTransferOpen(false)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700"
-                  >
+                  </Button>
+                  <Button plain onClick={() => setTransferOpen(false)}>
                     Vazgeç
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setTransferOpen(true)}
-                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100"
-              >
-                <Crown className="h-3.5 w-3.5" />
+              <Button outline className="mt-3" onClick={() => setTransferOpen(true)}>
+                <Crown data-slot="icon" />
                 Kuruculuğu bu kullanıcıya devret
-              </button>
+              </Button>
             )
           ) : null}
         </div>
@@ -743,7 +762,7 @@ function EditUserModal({
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={save} disabled={busy}>
+        <Button onClick={save} disabled={busy || !dirty}>
           {busy ? "Kaydediliyor…" : "Kaydet"}
         </Button>
       </DialogActions>
