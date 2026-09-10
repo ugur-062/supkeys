@@ -580,17 +580,21 @@ function ConnectionTableRow({
             </>
           )}
         </div>
-        <ReasonDialog
-          open={complaintOpen}
-          onClose={() => setComplaintOpen(false)}
-          onSubmit={submitComplaint}
-          title="Şikayet Et"
-          description={`"${c.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
-          confirmLabel="Şikayeti Gönder"
-          minLength={3}
-          destructive
-          pending={complaint.isPending}
-        />
+        {/* Diyalog yalnız açıkken kurulur: 50 satırda 50 gizli diyalog
+            kurmak listeyi gereksiz ağırlaştırıyordu. */}
+        {complaintOpen ? (
+          <ReasonDialog
+            open
+            onClose={() => setComplaintOpen(false)}
+            onSubmit={submitComplaint}
+            title="Şikayet Et"
+            description={`"${c.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
+            confirmLabel="Şikayeti Gönder"
+            minLength={3}
+            destructive
+            pending={complaint.isPending}
+          />
+        ) : null}
       </TableCell>
     </TableRow>
   );

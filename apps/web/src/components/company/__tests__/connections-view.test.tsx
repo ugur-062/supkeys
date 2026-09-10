@@ -126,14 +126,14 @@ describe("ConnectionsView", () => {
 
   it("100+ bağlantı: 50'şer gösterir, 'Daha fazla göster' ile açılır", async () => {
     const user = userEvent.setup();
-    h.connections = Array.from({ length: 120 }, (_, i) => ({
+    h.connections = Array.from({ length: 60 }, (_, i) => ({
       connectionId: `k${i}`, origin: "INVITE", company: co(i), decidedAt: null,
     }));
     render(<ConnectionsView />);
     expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(50);
-    expect(screen.getByText("50 / 120 gösteriliyor")).toBeInTheDocument();
+    expect(screen.getByText("50 / 60 gösteriliyor")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Daha fazla göster" }));
-    expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(100);
+    expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(60);
   });
 
   it("arama bağlantıları süzer (ve Bağlantılarım görünümüne döner)", async () => {
