@@ -74,7 +74,7 @@ export function RoundHistoryDialog({
                           {b.bidderName}
                         </TableCell>
                         <TableCell
-                          className={`text-right font-mono tabular-nums ${
+                          className={`text-right tabular-nums ${
                             i === 0
                               ? "font-semibold text-emerald-700"
                               : "text-zinc-700"

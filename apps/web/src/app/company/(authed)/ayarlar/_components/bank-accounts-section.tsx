@@ -235,7 +235,7 @@ function BankAccountModal({
             onChange={(e) => setIban(e.target.value)}
             placeholder="TR00 0000 0000 0000 0000 0000 00"
             maxLength={40}
-            className="font-mono"
+            className="tabular-nums"
           />
           {ibanError ? <ErrorMessage>{ibanError}</ErrorMessage> : null}
         </Field>

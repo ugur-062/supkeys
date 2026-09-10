@@ -36,7 +36,7 @@ export function CategoryBadge({
     >
       <Tag className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} />
       {showSegmentLetter && segmentLetter ? (
-        <span className="font-mono opacity-60">{segmentLetter}.</span>
+        <span className="tabular-nums opacity-60">{segmentLetter}.</span>
       ) : null}
       <span className="truncate">{category.nameTr}</span>
     </span>

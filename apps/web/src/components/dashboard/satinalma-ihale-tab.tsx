@@ -324,7 +324,7 @@ export function SatinalmaIhaleTab({
                     className="group transition-colors hover:bg-slate-50/70"
                   >
                     <TableCell>
-                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-zinc-600">
+                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] tabular-nums text-zinc-600">
                         {r.tenderNumber}
                       </span>
                     </TableCell>

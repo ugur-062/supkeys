@@ -39,7 +39,7 @@ export function SavingsCriteriaDialog({
             return (
               <li key={key} className="flex items-baseline justify-between gap-3">
                 <span>{label}</span>
-                <span className="font-mono tabular-nums text-slate-900">
+                <span className=" tabular-nums text-slate-900">
                   {v == null ? "—" : v}
                 </span>
               </li>

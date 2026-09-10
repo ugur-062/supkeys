@@ -8,7 +8,7 @@ import { toast } from "sonner";
  * P2 (frontend denetimi §9) — TEK IBAN gösterimi. Varsayılan maskeli
  * (`TR17 •••• •••• 8381`), "Göster" ile 4'lü gruplu tam IBAN; yanında
  * Kopyala (toast'lı — panoya HAM değer gider, boşluksuz). Her iki hâl
- * font-mono. Zaman çizelgesi gibi log yüzeylerinde IBAN hiç yazılmaz —
+ * tabular-nums. Zaman çizelgesi gibi log yüzeylerinde IBAN hiç yazılmaz —
  * bu bileşen yalnız hesap gösterim yüzeyleri için.
  */
 function grouped(iban: string): string {
@@ -42,7 +42,7 @@ export function Iban({
   };
   return (
     <span className={`inline-flex items-center gap-2 ${className ?? ""}`}>
-      <span className="font-mono tabular-nums">
+      <span className=" tabular-nums">
         {shown ? grouped(value) : maskedForm(value)}
       </span>
       {masked ? (

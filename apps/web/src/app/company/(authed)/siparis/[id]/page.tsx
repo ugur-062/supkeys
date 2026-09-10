@@ -596,7 +596,7 @@ export default function OrderDetailPage() {
                     <p className="truncate text-sm font-medium text-zinc-900">
                       {o.listingTitle ?? "—"}
                     </p>
-                    <p className="mt-0.5 font-mono text-xs text-zinc-500">
+                    <p className="mt-0.5 tabular-nums text-xs text-zinc-500">
                       {o.listingNumber ?? "—"}
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
@@ -639,7 +639,7 @@ export default function OrderDetailPage() {
                   <dd className="font-medium text-zinc-900">
                     {o.counterparty}
                     {o.counterpartyProfile.rothernId ? (
-                      <span className="ml-2 font-mono text-xs text-zinc-400">
+                      <span className="ml-2 tabular-nums text-xs text-zinc-400">
                         {o.counterpartyProfile.rothernId}
                       </span>
                     ) : null}
@@ -749,10 +749,10 @@ export default function OrderDetailPage() {
                           it.deliveryTime,
                         )}
                       </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums text-zinc-600">
+                      <TableCell className="text-right tabular-nums text-zinc-600">
                         {formatMoney(it.unitPrice, o.currency)}
                       </TableCell>
-                      <TableCell className="text-right font-mono font-semibold tabular-nums text-zinc-900">
+                      <TableCell className="text-right font-semibold tabular-nums text-zinc-900">
                         {formatMoney(
                           Number(it.unitPrice) * Number(it.quantity),
                           o.currency,
@@ -831,7 +831,7 @@ export default function OrderDetailPage() {
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-32">
           <section className="card p-5">
             <h2 className="text-sm font-semibold text-zinc-900">Özet</h2>
-            <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-zinc-900">
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">
               {formatMoney(o.amount, o.currency)}
             </p>
             <dl className="mt-4 space-y-2.5 border-t border-zinc-950/5 pt-4">
@@ -843,13 +843,13 @@ export default function OrderDetailPage() {
                 {formatDate(o.createdAt)}
               </SummaryRow>
               <SummaryRow label="Onaylı ödeme">
-                <span className="font-mono tabular-nums">
+                <span className=" tabular-nums">
                   {formatMoney(confirmedPaid, o.currency)}
                 </span>
               </SummaryRow>
               <SummaryRow label="Kalan">
                 <span
-                  className={`font-mono tabular-nums ${
+                  className={` tabular-nums ${
                     remainingDue > 0 ? "text-amber-700" : "text-emerald-700"
                   }`}
                 >

@@ -318,7 +318,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                 className="flex items-center justify-between gap-3 px-5 py-3"
               >
                 <div className="min-w-0">
-                  <div className="font-mono text-sm font-semibold text-zinc-900">
+                  <div className="tabular-nums text-sm font-semibold text-zinc-900">
                     {fmt(p.amount)} {curSym}
                   </div>
                   <div className="text-xs text-zinc-500">
@@ -412,7 +412,7 @@ function Totals({
       <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className={`mt-0.5 font-mono text-sm font-semibold ${tone}`}>
+      <div className={`mt-0.5 tabular-nums text-sm font-semibold ${tone}`}>
         {fmt(value)} {curSym}
       </div>
     </div>

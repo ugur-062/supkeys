@@ -201,7 +201,7 @@ export default function DogrulamaPage() {
                     placeholder="0000000000000000"
                     disabled={!canManage || locked}
                     maxLength={16}
-                    className="font-mono"
+                    className="tabular-nums"
                   />
                   {mersisError ? <ErrorMessage>{mersisError}</ErrorMessage> : null}
                 </Field>
@@ -231,7 +231,7 @@ export default function DogrulamaPage() {
                   }
                   disabled={!canManage || locked}
                   maxLength={40}
-                  className="font-mono"
+                  className="tabular-nums"
                 />
                 {ibanError ? (
                   <ErrorMessage>{ibanError}</ErrorMessage>

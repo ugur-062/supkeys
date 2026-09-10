@@ -305,7 +305,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
           <p className="mt-0.5 truncate text-xs text-zinc-500">
             {src.hint}
             {o.listingNumber ? (
-              <span className="ml-1 font-mono text-zinc-400">
+              <span className="ml-1 tabular-nums text-zinc-400">
                 {" "}
                 ({o.listingNumber})
               </span>
@@ -351,7 +351,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
         {/* Sağ: tutar + tarih */}
         <div className="flex shrink-0 items-center justify-between gap-4 lg:w-40 lg:flex-col lg:items-end lg:justify-center lg:gap-1">
           {/* P1 (denetim §8.1): tek para formatı — kuruş görünür, sembol sonda. */}
-          <p className="whitespace-nowrap font-mono text-base font-bold tabular-nums text-success-700">
+          <p className="whitespace-nowrap text-base font-bold tabular-nums text-success-700">
             {formatMoney(o.amount, o.currency)}
           </p>
           <p className="whitespace-nowrap text-xs text-zinc-400">
@@ -658,7 +658,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   );
                   return (
                     <TableRow key={o.id}>
-                      <TableCell className="font-mono text-xs text-zinc-500 tabular-nums">
+                      <TableCell className=" text-xs text-zinc-500 tabular-nums">
                         {o.number ?? "—"}
                       </TableCell>
                       <TableCell className="max-w-64">
@@ -678,7 +678,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                       <TableCell>
                         <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
                       </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums text-zinc-900">
+                      <TableCell className="text-right tabular-nums text-zinc-900">
                         {formatMoney(o.amount, o.currency)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">

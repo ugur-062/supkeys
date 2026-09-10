@@ -704,7 +704,7 @@ export function TenderActionsMenu({
                       className="h-4 w-4 rounded border-zinc-300"
                     />
                     <span className="font-medium text-zinc-900">{c.name}</span>
-                    <span className="ml-auto font-mono text-xs text-zinc-400">
+                    <span className="ml-auto tabular-nums text-xs text-zinc-400">
                       {code}
                     </span>
                   </label>

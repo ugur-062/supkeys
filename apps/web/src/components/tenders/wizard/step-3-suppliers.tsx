@@ -591,10 +591,10 @@ export function Step3Suppliers() {
                             {c.taxNumber ? (
                               <>
                                 VKN:{" "}
-                                <span className="font-mono">{c.taxNumber}</span>
+                                <span className="tabular-nums">{c.taxNumber}</span>
                               </>
                             ) : (
-                              <span className="font-mono">{code}</span>
+                              <span className="tabular-nums">{code}</span>
                             )}
                             {c.city ? ` · ${c.city}` : ""}
                             {c.industry ? ` · ${c.industry}` : ""}
@@ -678,7 +678,7 @@ export function Step3Suppliers() {
                       className="flex items-center gap-2 text-sm text-amber-800"
                     >
                       <UserPlus2 className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-                      <span className="font-mono">{email}</span>
+                      <span className="tabular-nums">{email}</span>
                     </li>
                   ))}
                 </ul>

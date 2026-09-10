@@ -127,7 +127,7 @@ export function BrowseTenderRow({
       <span className="flex items-baseline gap-1">
         <span className="font-semibold tabular-nums text-slate-900">{t.itemCount}</span>
         <span className="text-[11px] text-slate-400">kalem</span>
-        <span className="ml-1 inline-flex rounded border border-slate-200 bg-white px-1 py-px font-mono text-[10px] font-semibold text-slate-500">
+        <span className="ml-1 inline-flex rounded border border-slate-200 bg-white px-1 py-px tabular-nums text-[10px] font-semibold text-slate-500">
           {t.currency}
         </span>
       </span>

@@ -386,7 +386,7 @@ export function SavingsReportView({
                       <span className="font-medium text-zinc-900">
                         {b.name}
                       </span>
-                      <span className="font-mono font-semibold tabular-nums">
+                      <span className=" font-semibold tabular-nums">
                         {tl(b.awarded)}
                       </span>
                     </li>

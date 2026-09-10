@@ -157,6 +157,10 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
   YALNIZ UI snapshot'ı (`user`/`company`) tutar, token DEĞİL. Kimlik `/me` ile.
   Mutating isteklerde CSRF double-submit (`rk_csrf` → `X-CSRF-Token`).
   **Kayan oturum:** `AuthCookieInterceptor` ömrün yarısı geçince taze token basar.
+- **MONO FONT YOK (2026-09-10, kullanıcı kararı):** talep/sipariş numarası, IBAN,
+  kod, Rothern ID dahil hiçbir yerde `font-mono` kullanma ("robotik" görünüm);
+  rakam hizası gerekiyorsa `tabular-nums`. Tema `--font-mono` Inter'e eşli
+  (web + admin) → `<code>`/`<kbd>` de Inter basar.
 - Küçük metinde `text-zinc-400` KULLANMA (beyazda 2,6:1) — en az zinc-500.
 - Gri zeminde `bg-zinc-50` yasak (brand-50 = sayfa zemini); tint min zinc-100.
 

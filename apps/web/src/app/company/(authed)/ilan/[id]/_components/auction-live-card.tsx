@@ -126,7 +126,7 @@ export function AuctionLiveCard({
         {closesMs !== null ? (
           <span
             className={cn(
-              "font-mono text-sm font-bold tabular-nums",
+              " text-sm font-bold tabular-nums",
               urgent ? "text-red-600" : "text-zinc-700",
             )}
           >

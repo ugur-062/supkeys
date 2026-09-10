@@ -167,7 +167,7 @@ export function IhaleItemsPanel({
                     {it.name}
                   </div>
                   {it.materialCode ? (
-                    <div className="font-mono text-[11px] text-slate-500">
+                    <div className="tabular-nums text-[11px] text-slate-500">
                       {it.materialCode}
                     </div>
                   ) : null}

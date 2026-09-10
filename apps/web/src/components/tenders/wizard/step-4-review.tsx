@@ -204,7 +204,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
                   <td className="px-3 py-2 text-right text-zinc-600">
                     {it.quantity} {it.unit}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-zinc-600">
+                  <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
                     {it.targetUnitPrice != null
                       ? `${sym}${it.targetUnitPrice.toLocaleString("tr-TR")}`
                       : "—"}

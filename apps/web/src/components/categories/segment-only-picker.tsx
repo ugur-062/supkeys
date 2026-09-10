@@ -90,7 +90,7 @@ export function SegmentOnlyPicker({
               >
                 <Tag className="h-3 w-3" />
                 {seg.segmentLetter ? (
-                  <span className="font-mono text-zinc-500">
+                  <span className="tabular-nums text-zinc-500">
                     {seg.segmentLetter}.
                   </span>
                 ) : null}
@@ -328,7 +328,7 @@ function SegmentOnlyModal({
                       <div className="flex flex-1 items-center gap-2">
                         {segment.segmentLetter ? (
                           <span
-                            className={`font-mono text-xs ${
+                            className={`tabular-nums text-xs ${
                               isSelected ? "text-zinc-600" : "text-slate-400"
                             }`}
                           >

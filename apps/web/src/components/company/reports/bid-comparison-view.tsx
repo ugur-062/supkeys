@@ -374,7 +374,7 @@ export function BidComparisonView({
                       <span className="font-medium text-zinc-700">
                         {ra.companyName}
                       </span>
-                      <span className="font-mono font-semibold tabular-nums">
+                      <span className=" font-semibold tabular-nums">
                         {money(ra.unitPrice, sym)}
                       </span>
                     </span>

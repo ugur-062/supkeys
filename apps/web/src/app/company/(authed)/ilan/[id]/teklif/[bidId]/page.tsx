@@ -279,12 +279,12 @@ export default function BidDetailPage() {
                         {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
                       </TableCell>
                       {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
-                      <TableCell className="text-right font-mono tabular-nums text-zinc-700">
+                      <TableCell className="text-right tabular-nums text-zinc-700">
                         {up
                           ? formatMoney(up, bi?.currency ?? bid.currency ?? "TRY")
                           : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums text-zinc-900">
+                      <TableCell className="text-right tabular-nums text-zinc-900">
                         {line != null
                           ? formatMoney(line, bi?.currency ?? bid.currency ?? "TRY")
                           : "—"}

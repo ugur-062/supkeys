@@ -165,14 +165,14 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           </span>
           <span
             className={cn(
-              "inline-flex items-center rounded-lg px-2.5 py-1 font-mono text-sm font-bold tabular-nums ring-1",
+              "inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ring-1",
               "bg-blue-50 text-blue-700 ring-blue-100",
             )}
           >
             {formatMoney(b.amount, b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
-            <span className="font-mono text-xs text-zinc-400 tabular-nums">
+            <span className=" text-xs text-zinc-400 tabular-nums">
               ≈ {formatMoney(b.amountTry, "TRY")}
             </span>
           ) : null}

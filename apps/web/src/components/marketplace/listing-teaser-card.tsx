@@ -112,7 +112,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         </dl>
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-          <span className="tnum font-mono text-xs font-medium text-zinc-500">{l.number}</span>
+          <span className="tnum text-xs font-medium text-zinc-500">{l.number}</span>
           <Button href={signupHref("teklif", href)} className="relative z-10">
             Teklif ver
           </Button>

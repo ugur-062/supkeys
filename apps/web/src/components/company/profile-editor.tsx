@@ -244,7 +244,7 @@ export function ProfileEditor({
         />
         <span>{[profile.city, profile.country].filter(Boolean).join(", ")}</span>
         {profile.rothernId ? (
-          <span className="font-mono text-xs text-zinc-400">{profile.rothernId}</span>
+          <span className="tabular-nums text-xs text-zinc-400">{profile.rothernId}</span>
         ) : null}
       </div>
     ),

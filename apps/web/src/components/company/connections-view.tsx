@@ -130,7 +130,7 @@ function CompanyCard({
                 yokken ve ID de yokken tire görünür. */}
             {meta || (rothernId ? "" : "—")}
             {rothernId ? (
-              <span className={cn("font-mono slashed-zero text-zinc-400", meta && "ml-2")}>
+              <span className={cn("tabular-nums slashed-zero text-zinc-400", meta && "ml-2")}>
                 {meta ? " " : ""}
                 {rothernId}
               </span>
@@ -259,7 +259,7 @@ function ConnectionRow({
             {name}
           </div>
           {rothernId ? (
-            <div className="truncate font-mono text-xs text-zinc-400">
+            <div className="truncate tabular-nums text-xs text-zinc-400">
               {rothernId}
             </div>
           ) : null}
@@ -466,7 +466,7 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
             Genel kimliğiniz — başka firmalar sizi bununla bulur.
           </Text>
           <div className="mt-3 inline-flex items-center gap-2">
-            <span className="rounded-lg bg-zinc-100 px-4 py-2 font-mono text-lg font-semibold tracking-wider text-zinc-900">
+            <span className="rounded-lg bg-zinc-100 px-4 py-2 tabular-nums text-lg font-semibold tracking-wider text-zinc-900">
               {rothernId}
             </span>
             <Button plain onClick={copyId} disabled={rothernId === "—"}>
@@ -1041,7 +1041,7 @@ function CompanyLinkRow({
           {name}
         </div>
         {rothernId ? (
-          <div className="font-mono text-xs slashed-zero text-zinc-500">{rothernId}</div>
+          <div className="tabular-nums text-xs slashed-zero text-zinc-500">{rothernId}</div>
         ) : null}
       </div>
     </>

@@ -170,7 +170,7 @@ function PanelTile({
             </span>
           ) : null}
           <div className="min-w-0 flex-1">
-            <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] tabular-nums leading-tight text-zinc-600">
+            <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
               {d.number ?? "—"}
             </span>
             <h3 className="mt-1 line-clamp-2 text-sm/5 font-semibold text-zinc-950">
@@ -234,7 +234,7 @@ function PanelRow({
           <div className="flex min-w-0 items-start gap-2">
             {d.leading}
             <Link href={d.href} onClick={stop} className={cn("min-w-0 rounded", ROW_FOCUS)}>
-              <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] tabular-nums leading-tight text-zinc-600">
+              <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
                 {d.number ?? "—"}
               </span>
               <span
@@ -411,7 +411,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
                 </span>
               ) : null}
             </p>
-            <span className="shrink-0 font-mono text-[11px] text-zinc-400">{listing.number}</span>
+            <span className="shrink-0 tabular-nums text-[11px] text-zinc-400">{listing.number}</span>
           </div>
 
           <dl className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">

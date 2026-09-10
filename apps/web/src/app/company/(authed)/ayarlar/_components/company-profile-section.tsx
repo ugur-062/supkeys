@@ -230,7 +230,7 @@ export function CompanyProfileSection() {
         </div>
         <DescriptionList className="mt-3">
           <DescriptionTerm>Firma Kodu</DescriptionTerm>
-          <DescriptionDetails className="font-mono">
+          <DescriptionDetails className="tabular-nums">
             {profile.rothernId ?? "—"}
           </DescriptionDetails>
           <DescriptionTerm>Kayıt Ülkesi</DescriptionTerm>
@@ -242,7 +242,7 @@ export function CompanyProfileSection() {
             {profile.companyType ? COMPANY_TYPE_LABEL[profile.companyType] : "—"}
           </DescriptionDetails>
           <DescriptionTerm>{taxLabel}</DescriptionTerm>
-          <DescriptionDetails className="font-mono">{taxValue}</DescriptionDetails>
+          <DescriptionDetails className="tabular-nums">{taxValue}</DescriptionDetails>
           {isTR ? (
             <>
               <DescriptionTerm>Vergi Dairesi</DescriptionTerm>
@@ -252,7 +252,7 @@ export function CompanyProfileSection() {
           <DescriptionTerm>
             {isTR ? "Yetkili T.C. Kimlik No" : "Yetkili Kimlik No"}
           </DescriptionTerm>
-          <DescriptionDetails className="font-mono">
+          <DescriptionDetails className="tabular-nums">
             {profile.authorizedTckn ? maskNationalId(profile.authorizedTckn) : "—"}
           </DescriptionDetails>
           <DescriptionTerm>Yetkili Unvanı</DescriptionTerm>

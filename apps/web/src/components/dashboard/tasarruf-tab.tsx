@@ -235,7 +235,7 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
                 <span className="flex-1 truncate text-sm text-zinc-900">
                   {r.title}
                 </span>
-                <span className="font-mono text-sm font-semibold text-success-700">
+                <span className="tabular-nums text-sm font-semibold text-success-700">
                   {formatTRY(r.amount)}
                 </span>
               </li>
@@ -367,7 +367,7 @@ function TimeSection({ savings }: { savings?: TimeSavingsData }) {
                     }}
                   />
                 </span>
-                <span className="w-20 shrink-0 text-right font-mono text-sm tabular-nums text-slate-900">
+                <span className="w-20 shrink-0 text-right text-sm tabular-nums text-slate-900">
                   {fmtH(r.minutes)}
                 </span>
               </li>
@@ -479,7 +479,7 @@ function BreakdownCard({
                 <span className="truncate text-slate-700" title={r.label}>
                   {r.label}
                 </span>
-                <span className="font-mono font-semibold text-zinc-900">
+                <span className="tabular-nums font-semibold text-zinc-900">
                   {r.amountLabel ? (
                     <span className="mr-1.5 text-slate-500">
                       {r.amountLabel}

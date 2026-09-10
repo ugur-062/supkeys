@@ -129,13 +129,13 @@ export function TedarikciTab({ data }: Props) {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono tabular-nums text-zinc-700">
+                    <TableCell className=" tabular-nums text-zinc-700">
                       {r.tendersBidOn}
                     </TableCell>
-                    <TableCell className="font-mono tabular-nums text-zinc-700">
+                    <TableCell className=" tabular-nums text-zinc-700">
                       {r.averageRank.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
-                    <TableCell className="font-mono tabular-nums text-zinc-700">
+                    <TableCell className=" tabular-nums text-zinc-700">
                       {r.totalBids}
                     </TableCell>
                   </TableRow>

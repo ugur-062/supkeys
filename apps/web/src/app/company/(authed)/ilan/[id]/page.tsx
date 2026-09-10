@@ -786,7 +786,7 @@ export default function ListingDetailPage() {
                   <TableCell>
                     <div className="font-medium text-zinc-900">{it.name}</div>
                     {it.materialCode ? (
-                      <div className="font-mono text-xs text-zinc-500">
+                      <div className="tabular-nums text-xs text-zinc-500">
                         {it.materialCode}
                       </div>
                     ) : null}
@@ -813,7 +813,7 @@ export default function ListingDetailPage() {
                       : "—"}
                   </TableCell>
                   {showMyPriceCol ? (
-                    <TableCell className="text-right font-mono font-medium tabular-nums text-zinc-900">
+                    <TableCell className="text-right font-medium tabular-nums text-zinc-900">
                       {(() => {
                         const bi = myPriceByItem.get(it.id);
                         return bi && Number(bi.unitPrice) > 0
@@ -849,7 +849,7 @@ export default function ListingDetailPage() {
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
             >
               {iv.companyName}{" "}
-              <span className="font-mono text-xs text-zinc-500">
+              <span className="tabular-nums text-xs text-zinc-500">
                 {iv.rothernId}
               </span>
             </span>
@@ -1133,7 +1133,7 @@ export default function ListingDetailPage() {
                           <TableCell
                             key={c.bidId}
                             className={cn(
-                              "whitespace-nowrap text-right font-mono tabular-nums",
+                              "whitespace-nowrap text-right tabular-nums",
                               tone,
                             )}
                           >
@@ -1184,7 +1184,7 @@ export default function ListingDetailPage() {
                       <TableCell
                         key={b.id}
                         className={cn(
-                          "sticky bottom-0 z-10 bg-zinc-50 whitespace-nowrap text-right font-mono tabular-nums shadow-table-bottom",
+                          "sticky bottom-0 z-10 bg-zinc-50 whitespace-nowrap text-right tabular-nums shadow-table-bottom",
                           isBest
                             ? "font-bold text-emerald-700"
                             : "font-semibold text-zinc-900",
@@ -1433,7 +1433,7 @@ export default function ListingDetailPage() {
                 ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <span className="font-mono text-sm font-semibold text-zinc-900">
+                <span className="tabular-nums text-sm font-semibold text-zinc-900">
                   {formatMoney(b.amount, b.currency ?? "TRY")}
                   {b.currency && b.currency !== "TRY" && b.amountTry ? (
                     <span className="ml-1 text-xs font-normal text-zinc-400">
@@ -1633,7 +1633,7 @@ export default function ListingDetailPage() {
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
       <p className="text-sm text-emerald-900">
         Sipariş{" "}
-        <span className="font-mono font-semibold tabular-nums">
+        <span className=" font-semibold tabular-nums">
           {l.myOrder.number ?? "—"}
         </span>
         <span className="mx-1.5 text-emerald-400">·</span>

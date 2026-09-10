@@ -71,6 +71,8 @@
   /* Fonts — Catalyst ile uyum: Inter + cv11 */
   --font-sans:    "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-sans--font-feature-settings: "cv11";
+  /* MONO YOK (2026-09-10, kullanıcı kararı): kod/numara "robotik" görünmesin — font-mono/<code>/<kbd> Inter. */
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display--font-feature-settings: "cv11";
 

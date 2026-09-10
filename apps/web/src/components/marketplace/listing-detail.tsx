@@ -146,7 +146,7 @@ export function ListingDetail({
           <div className="flex flex-wrap items-center gap-3">
             <Badge color={STATE_COLOR[state]}>{STATE_LABEL[state]}</Badge>
             <Badge color="zinc">{MARKETPLACE_LABELS.demandOne}</Badge>
-            <span className="font-mono text-xs text-zinc-500">
+            <span className="tabular-nums text-xs text-zinc-500">
               {listing.number}
             </span>
           </div>

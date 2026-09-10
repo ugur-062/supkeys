@@ -213,7 +213,7 @@ export function TwoFactorSection() {
                 QR okutamıyorsanız bu anahtarı uygulamaya elle girin:
               </p>
               <div className="mt-1 flex items-center gap-2">
-                <code className="font-mono text-sm tracking-wider text-zinc-900">
+                <code className="tabular-nums text-sm tracking-wider text-zinc-900">
                   {secret}
                 </code>
                 <button
@@ -275,7 +275,7 @@ export function TwoFactorSection() {
             {recoveryCodes.map((c) => (
               <code
                 key={c}
-                className="rounded bg-white px-2 py-1 text-center font-mono text-sm text-zinc-900"
+                className="rounded bg-white px-2 py-1 text-center tabular-nums text-sm text-zinc-900"
               >
                 {c}
               </code>

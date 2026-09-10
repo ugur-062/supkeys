@@ -207,7 +207,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <span className="font-mono text-3xl font-semibold tabular-nums text-zinc-900">
+                <span className=" text-3xl font-semibold tabular-nums text-zinc-900">
                   %{winPct}
                 </span>
               </div>

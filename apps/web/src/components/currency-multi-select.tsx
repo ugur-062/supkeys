@@ -178,7 +178,7 @@ export function CurrencyMultiSelect({
                   {isPrimary ? (
                     <Star className="h-3 w-3 fill-current text-amber-500" />
                   ) : null}
-                  <span className="font-mono">
+                  <span className="tabular-nums">
                     {CURRENCY_SYMBOL[c]} {c}
                   </span>
                   {!disabled && value.length > 1 ? (
@@ -281,11 +281,11 @@ export function CurrencyMultiSelect({
                         </div>
 
                         <div className="flex flex-1 items-center gap-2">
-                          <span className="w-7 text-center font-mono text-sm text-slate-500">
+                          <span className="w-7 text-center tabular-nums text-sm text-slate-500">
                             {CURRENCY_SYMBOL[c]}
                           </span>
                           <span
-                            className={`font-mono text-sm ${
+                            className={`tabular-nums text-sm ${
                               isSelected
                                 ? "font-semibold text-zinc-900"
                                 : "text-slate-700"
@@ -298,7 +298,7 @@ export function CurrencyMultiSelect({
                           </span>
                         </div>
 
-                        <span className="font-mono text-xs text-slate-500">
+                        <span className="tabular-nums text-xs text-slate-500">
                           {formatRate(c)}
                         </span>
                       </button>

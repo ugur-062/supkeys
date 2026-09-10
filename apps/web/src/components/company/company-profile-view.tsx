@@ -103,7 +103,7 @@ function TradeRow({
       </dt>
       <dd
         className={`mt-0.5 text-sm font-semibold text-zinc-900 ${
-          mono ? "font-mono tracking-wide" : ""
+          mono ? "tabular-nums tracking-wide" : ""
         }`}
       >
         {value}
@@ -519,7 +519,7 @@ export function CompanyProfileView({
               <h2 className="text-base font-semibold text-zinc-900">Şirket Bilgileri</h2>
               <dl className="mt-4 space-y-3">
                 {p.rothernId ? (
-                  <InfoRow label="Rothern ID" value={<span className="font-mono slashed-zero">{p.rothernId}</span>} />
+                  <InfoRow label="Rothern ID" value={<span className="tabular-nums slashed-zero">{p.rothernId}</span>} />
                 ) : null}
                 {p.foundedYear ? <InfoRow label="Kuruluş" value={String(p.foundedYear)} /> : null}
                 {p.employeeCount ? <InfoRow label="Çalışan" value={p.employeeCount} /> : null}
