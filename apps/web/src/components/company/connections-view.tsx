@@ -1,7 +1,9 @@
 "use client";
 
-import { companyActivityLabel, tierAtLeast } from "@rothern/shared";
+import { tierAtLeast } from "@rothern/shared";
+import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/catalyst/table";
 import {
   Dialog,
   DialogActions,
@@ -52,7 +54,6 @@ import {
   Ban,
   Building2,
   Check,
-  ChevronDown,
   Copy,
   Flag,
   MailPlus,
@@ -74,13 +75,12 @@ import { toast } from "sonner";
  *  - Keşfet sekmesi ve sekme çubuğu KALKTI (`?tab=` parametresi de).
  *  - Başlıkta iki eylem: "Firma bul" (o portalın dizini) ve "Davet et"
  *    (tek/toplu e-posta daveti tek diyalogda; Silver+ ∧ connections:manage).
- *  - İKİ SÜTUN (ikinci tur, kullanıcı: "arama kutusu garip yerde, bekleyenler
- *    en altta saçma"): SOLDA Bağlantılarım — başlık, ALTINDA tam genişlik
- *    arama, tek sütun satır listesi (kart içinde kart, "Profili gör" ve köken
- *    rozeti kalktı; satırda Mesaj + menü Kaldır/Engelle/Şikayet). SAĞDA
- *    yapışkan RAY: Gelen istekler · Bekleyenler (giden istek + e-posta
- *    daveti) · Rothern ID. Ray DOM'da önce gelir, dar ekranda listenin
- *    üstünde durur — 100 bağlantıda bekleyenler dibe inmez.
+ *  - TEK TABLO (dördüncü tur, kullanıcı kararı: "tablo gibi yap; arama
+ *    kutusunun altına Bağlantılarım · Gelen istekler · Bekleyenler"): üstte
+ *    arama, altında üç görünüm çipi (sayılı; gelen istek amber), altında
+ *    dense tablo — Firma · Sektör/Şehir · Durum · Eylem. Satır türüne göre
+ *    eylem: Mesaj+menü / Kabul-Reddet / Geri çek / İptal et. 50'şer çizim.
+ *    Ray denemesi (ikinci-üçüncü tur) kaldırıldı.
  * İzinsiz üye (connections:manage yok) her şeyi salt-okunur görür.
  */
 export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }) {
@@ -107,6 +107,7 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   // göster (veri zaten inmiş; kesim yalnız çizimde). Arama değişince sıfırlanır.
   const PAGE = 50;
   const [shown, setShown] = useState(PAGE);
+  const [view, setView] = useState<View>("mine");
 
   const rothernId = self.data?.rothernId ?? null;
   const incomingRows = incoming.data ?? [];
@@ -148,6 +149,29 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
     }
   };
 
+  // Görünüm çipi (dördüncü tur, kullanıcı kararı: "tablo gibi, arama
+  // kutusunun altına Bağlantılarım · Gelen istekler · Bekleyenler").
+  const rows: TableRowData[] = useMemo(() => {
+    if (view === "incoming") {
+      return incomingRows.map((inv) => ({ kind: "incoming" as const, id: inv.connectionId, company: inv.company }));
+    }
+    if (view === "pending") {
+      return [
+        ...outgoingRows.map((inv) => ({ kind: "outgoing" as const, id: inv.connectionId, company: inv.company })),
+        ...referralRows.map((r) => ({ kind: "referral" as const, id: r.id, email: r.email })),
+      ];
+    }
+    return filteredConnections.map((c) => ({ kind: "mine" as const, id: c.connectionId, company: c.company }));
+  }, [view, incomingRows, outgoingRows, referralRows, filteredConnections]);
+  const loading =
+    view === "incoming" ? incoming.isLoading : view === "pending" ? outgoing.isLoading : connections.isLoading;
+
+  const VIEWS: { key: View; label: string; count: number; attention?: boolean }[] = [
+    { key: "mine", label: "Bağlantılarım", count: connCount },
+    { key: "incoming", label: "Gelen istekler", count: incomingRows.length, attention: true },
+    { key: "pending", label: "Bekleyenler", count: pendingCount },
+  ];
+
   return (
     <div className="space-y-6">
       {/* BAŞLIK + EYLEMLER */}
@@ -158,6 +182,29 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
             Birlikte çalıştığınız firmalar. Bağlantılı firmalar özel taleplerinizi görür, size
             mesaj atar ve doğrulama şartı olmadan teklif verir.
           </Text>
+          {/* Rothern ID — tek sessiz satır; başka firmalar sizi bununla bulur. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+            <span>Rothern ID:</span>
+            <span className="tabular-nums font-semibold text-zinc-900">{rothernId ?? "—"}</span>
+            {rothernId ? (
+              <button
+                type="button"
+                onClick={copyId}
+                aria-label="Rothern ID'yi kopyala"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+              >
+                {copied ? (
+                  <>
+                    <Check className="size-3.5 text-emerald-600" /> Kopyalandı
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5" /> Kopyala
+                  </>
+                )}
+              </button>
+            ) : null}
+          </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button outline href={marketCompaniesPath(portal)}>
@@ -173,164 +220,66 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
         </div>
       </div>
 
-      {/* İKİ SÜTUN (2026-09-10, ikinci tur): solda liste, sağda yapışkan
-          ray — gelen istekler, bekleyenler, Rothern ID. Ray DOM'da ÖNCE
-          gelir ve dar ekranda listenin ÜSTÜNDE durur: 100 bağlantısı olan
-          firma bekleyenleri görmek için sayfanın dibine inmez. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <aside className="space-y-4 xl:order-last xl:sticky xl:top-24 xl:self-start">
-          {/* Rothern ID — en üstte (kullanıcı kararı, üçüncü tur). */}
-          <section className="rounded-xl border border-zinc-950/10 bg-white px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Rothern ID&apos;niz</p>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="tabular-nums text-base font-semibold text-zinc-900">{rothernId ?? "—"}</span>
-              {rothernId ? (
-                <button
-                  type="button"
-                  onClick={copyId}
-                  aria-label="Rothern ID'yi kopyala"
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="size-3.5 text-emerald-600" /> Kopyalandı
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3.5" /> Kopyala
-                    </>
-                  )}
-                </button>
-              ) : null}
-            </div>
-            <p className="mt-1 text-xs text-zinc-500">Başka firmalar sizi bu kimlikle bulup bağlantı ister.</p>
-          </section>
-
-          {/* KATLANIR KUTULAR (kullanıcı kararı, üçüncü tur): sayı kapalıyken
-              görünür, tıklayınca açılır; içerik taştığında kutu kendi içinde
-              kayar — 200 istek de gelse sayfa uzamaz. Gelen istek varsa sayı
-              amber: karar bekliyor. */}
-          <RailBox id="baglantilar-gelen" title="Gelen istekler" count={incomingRows.length} attention>
-            {incoming.isLoading ? (
-              <ListSkeleton rows={2} />
-            ) : incomingRows.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-zinc-500">Bekleyen istek yok.</p>
-            ) : (
-              <ul className="divide-y divide-zinc-950/5">
-                {incomingRows.map((inv) => {
-                  const busy =
-                    respond.isPending && respond.variables?.connectionId === inv.connectionId;
-                  return (
-                    <li key={inv.connectionId} className="space-y-2 px-4 py-3">
-                      <CompanyLine company={inv.company} compact />
-                      {canManageConn ? (
-                        <div className="flex gap-2 pl-12">
-                          <Button onClick={() => handleRespond(inv.connectionId, "accept")} disabled={busy}>
-                            Kabul et
-                          </Button>
-                          <Button plain onClick={() => handleRespond(inv.connectionId, "reject")} disabled={busy}>
-                            Reddet
-                          </Button>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </RailBox>
-
-          <RailBox id="baglantilar-bekleyen" title="Bekleyenler" count={pendingCount}>
-            {pendingCount === 0 ? (
-              <p className="px-4 py-3 text-sm text-zinc-500">
-                Gönderdiğiniz istek ve davetler yanıtlanana dek burada durur.
-              </p>
-            ) : (
-              <ul className="divide-y divide-zinc-950/5">
-                {outgoingRows.map((inv) => {
-                  const busy =
-                    disconnectOutgoing.isPending && disconnectOutgoing.variables === inv.connectionId;
-                  return (
-                    <li key={inv.connectionId} className="flex items-center justify-between gap-2 px-4 py-3">
-                      <CompanyLine company={inv.company} compact hint="İstek gönderildi" />
-                      {canManageConn ? (
-                        <Button
-                          plain
-                          disabled={busy}
-                          onClick={async () => {
-                            try {
-                              await disconnectOutgoing.mutateAsync(inv.connectionId);
-                              toast.success("İstek geri çekildi");
-                            } catch (err) {
-                              toast.error(extractErrorMessage(err, "Geri çekilemedi"));
-                            }
-                          }}
-                        >
-                          Geri çek
-                        </Button>
-                      ) : null}
-                    </li>
-                  );
-                })}
-                {referralRows.map((r) => {
-                  const busy = cancelReferral.isPending && cancelReferral.variables === r.id;
-                  return (
-                    <li key={r.id} className="flex items-center justify-between gap-2 px-4 py-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
-                          <MailPlus className="size-4" />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-zinc-900">{r.email}</div>
-                          <div className="truncate text-xs text-zinc-500">E-posta daveti</div>
-                        </div>
-                      </div>
-                      {canManageConn ? (
-                        <Button
-                          plain
-                          disabled={busy}
-                          onClick={async () => {
-                            try {
-                              await cancelReferral.mutateAsync(r.id);
-                              toast.success("Davet iptal edildi");
-                            } catch (err) {
-                              toast.error(extractErrorMessage(err, "İptal edilemedi"));
-                            }
-                          }}
-                        >
-                          İptal et
-                        </Button>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </RailBox>
-        </aside>
-
-        {/* BAĞLANTILARIM — başlık, altında tam genişlik arama, liste */}
-        <section aria-labelledby="baglantilar-liste" className="min-w-0 space-y-3">
-          <SectionTitle id="baglantilar-liste" title="Bağlantılarım" count={connCount} />
-          {connCount > 0 ? (
-            <InputGroup>
-              <MagnifyingGlassIcon />
-              <Input
-                aria-label="Bağlantılarımda ara"
-                value={connQ}
-                onChange={(e) => {
-                  setConnQ(e.target.value);
+      {/* ARAMA + GÖRÜNÜM ÇİPLERİ + TABLO — tek liste, panelin diğer
+          listeleriyle aynı kalıp (durum süzgeci çipleri). */}
+      <section aria-labelledby="baglantilar-liste" className="space-y-3">
+        <h2 id="baglantilar-liste" className="sr-only">Bağlantı listesi</h2>
+        <InputGroup>
+          <MagnifyingGlassIcon />
+          <Input
+            aria-label="Bağlantılarımda ara"
+            value={connQ}
+            onChange={(e) => {
+              setConnQ(e.target.value);
+              setShown(PAGE);
+              if (view !== "mine") setView("mine");
+            }}
+            placeholder="Firma adı, Rothern ID, sektör veya şehir"
+          />
+        </InputGroup>
+        <div role="group" aria-label="Görünüm" className="flex flex-wrap gap-2">
+          {VIEWS.map((v) => {
+            const on = view === v.key;
+            return (
+              <button
+                key={v.key}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setView(v.key);
                   setShown(PAGE);
                 }}
-                placeholder="Firma adı, Rothern ID, sektör veya şehir"
-              />
-            </InputGroup>
-          ) : null}
-          {connections.isLoading ? (
-            <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
-              <ListSkeleton rows={4} />
-            </div>
-          ) : connCount === 0 ? (
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                  on
+                    ? "border-zinc-950 bg-zinc-950 text-white"
+                    : "border-zinc-950/10 bg-white text-zinc-700 hover:border-zinc-950/30",
+                )}
+              >
+                {v.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                    on
+                      ? "bg-white/15 text-white"
+                      : v.attention && v.count > 0
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-zinc-100 text-zinc-600",
+                  )}
+                >
+                  {v.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {loading ? (
+          <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
+            <ListSkeleton rows={4} />
+          </div>
+        ) : rows.length === 0 ? (
+          view === "mine" && connCount === 0 ? (
             <EmptyBox
               title="Henüz bağlantınız yok"
               desc="Anasayfadan firma bulup bağlantı isteği gönderin ya da e-posta ile davet edin."
@@ -340,95 +289,64 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
                 </Button>
               }
             />
-          ) : filteredConnections.length === 0 ? (
+          ) : view === "mine" ? (
             <EmptyBox title="Eşleşen bağlantı yok" desc={`"${connQ}" ile eşleşen bağlantınız bulunamadı.`} />
+          ) : view === "incoming" ? (
+            <EmptyBox title="Bekleyen istek yok" desc="Size gönderilen bağlantı istekleri burada görünür." />
           ) : (
-            <>
-              <ul className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
-                {filteredConnections.slice(0, shown).map((c) => (
-                  <ConnectionRow
-                    key={c.connectionId}
-                    connectionId={c.connectionId}
-                    company={c.company}
-                    portal={portal}
-                    canManage={canManageConn}
-                  />
-                ))}
-              </ul>
-              {filteredConnections.length > shown ? (
-                <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-                  <span>
-                    {Math.min(shown, filteredConnections.length)} / {filteredConnections.length} gösteriliyor
-                  </span>
-                  <Button outline onClick={() => setShown((n) => n + PAGE)}>
-                    Daha fazla göster
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </section>
-      </div>
+            <EmptyBox title="Bekleyen isteğiniz yok" desc="Gönderdiğiniz istek ve davetler yanıtlanana dek burada durur." />
+          )
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white px-2 [--gutter:--spacing(4)]">
+              <Table dense>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Firma</TableHeader>
+                    <TableHeader className="hidden md:table-cell">Sektör · Şehir</TableHeader>
+                    <TableHeader className="hidden sm:table-cell">Durum</TableHeader>
+                    <TableHeader className="text-right" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows.slice(0, shown).map((r) => (
+                    <ConnectionTableRow
+                      key={`${r.kind}-${r.id}`}
+                      row={r}
+                      portal={portal}
+                      canManage={canManageConn}
+                      onRespond={handleRespond}
+                      respondBusy={respond.isPending && respond.variables?.connectionId === r.id}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {rows.length > shown ? (
+              <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+                <span>
+                  {Math.min(shown, rows.length)} / {rows.length} gösteriliyor
+                </span>
+                <Button outline onClick={() => setShown((n) => n + PAGE)}>
+                  Daha fazla göster
+                </Button>
+              </div>
+            ) : null}
+          </>
+        )}
+      </section>
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </div>
   );
 }
 
-/**
- * Ray kutusu — <details>: başlık + sayı kapalıyken görünür; içerik
- * `max-h` ile kendi içinde kayar. `attention`: sayı > 0 ise amber rozet
- * (karar bekleyen iş).
- */
-function RailBox({
-  id,
-  title,
-  count,
-  attention = false,
-  children,
-}: {
-  id: string;
-  title: string;
-  count: number;
-  attention?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <details className="group rounded-xl border border-zinc-950/10 bg-white">
-      <summary
-        aria-controls={`${id}-panel`}
-        className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"
-      >
-        <h2 id={id} className="flex items-center gap-2 text-base font-semibold text-zinc-950">
-          {title}
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-              attention && count > 0 ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600",
-            )}
-          >
-            {count}
-          </span>
-        </h2>
-        <ChevronDown aria-hidden className="size-4 shrink-0 text-zinc-500 transition group-open:rotate-180" />
-      </summary>
-      <div id={`${id}-panel`} className="max-h-96 overflow-y-auto border-t border-zinc-950/5">
-        {children}
-      </div>
-    </details>
-  );
-}
-
-function SectionTitle({ id, title, count }: { id: string; title: string; count?: number }) {
-  return (
-    <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold text-zinc-950">
-      {title}
-      {typeof count === "number" ? (
-        <span className="text-sm font-normal tabular-nums text-zinc-500">{count}</span>
-      ) : null}
-    </h2>
-  );
-}
+type View = "mine" | "incoming" | "pending";
+type TableRowData =
+  | { kind: "mine"; id: string; company: ConnectionCompany }
+  | { kind: "incoming"; id: string; company: ConnectionCompany }
+  | { kind: "outgoing"; id: string; company: ConnectionCompany }
+  | { kind: "referral"; id: string; email: string };
 
 /** Logo/baş harf + ad + Doğrulanmış + alt satır (sektör · şehir · ID). */
 function CompanyLine({
@@ -476,25 +394,72 @@ function CompanyLine({
   );
 }
 
-/** Bağlantılarım satırı — firma + faaliyet çipleri + ürün küçük resimleri + Mesaj + menü. */
-function ConnectionRow({
-  connectionId,
-  company: c,
+/**
+ * Tablo satırı — dört tür: bağlı (Mesaj + menü), gelen istek (Kabul/Reddet),
+ * gönderilen istek (Geri çek), e-posta daveti (İptal et).
+ */
+function ConnectionTableRow({
+  row,
   portal,
   canManage,
+  onRespond,
+  respondBusy,
 }: {
-  connectionId: string;
-  company: ConnectionCompany;
+  row: TableRowData;
   portal: PortalKey;
   canManage: boolean;
+  onRespond: (connectionId: string, action: "accept" | "reject") => Promise<void>;
+  respondBusy: boolean;
 }) {
   const disconnect = useDisconnect();
   const block = useBlockCompany();
   const complaint = useFileComplaint();
+  const cancelReferral = useCancelReferralInvite();
   const confirmDialog = useConfirm();
   const [complaintOpen, setComplaintOpen] = useState(false);
-  const acts = (c.activities ?? []).slice(0, 2);
-  const preview = c.productPreview && c.productPreview.total > 0 ? c.productPreview : null;
+
+  if (row.kind === "referral") {
+    return (
+      <TableRow>
+        <TableCell>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
+              <MailPlus className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-zinc-900">{row.email}</div>
+              <div className="truncate text-xs text-zinc-500">Kaydolunca otomatik bağlanır</div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="hidden text-sm text-zinc-500 md:table-cell">—</TableCell>
+        <TableCell className="hidden sm:table-cell">
+          <Badge color="zinc">E-posta daveti</Badge>
+        </TableCell>
+        <TableCell className="text-right">
+          {canManage ? (
+            <Button
+              plain
+              disabled={cancelReferral.isPending && cancelReferral.variables === row.id}
+              onClick={async () => {
+                try {
+                  await cancelReferral.mutateAsync(row.id);
+                  toast.success("Davet iptal edildi");
+                } catch (err) {
+                  toast.error(extractErrorMessage(err, "İptal edilemedi"));
+                }
+              }}
+            >
+              İptal et
+            </Button>
+          ) : null}
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  const c = row.company;
+  const meta = [c.industry, c.city].filter(Boolean).join(" · ");
 
   const handleDisconnect = async () => {
     const ok = await confirmDialog({
@@ -505,7 +470,7 @@ function ConnectionRow({
     });
     if (!ok) return;
     try {
-      await disconnect.mutateAsync(connectionId);
+      await disconnect.mutateAsync(row.id);
       toast.success("Bağlantı kaldırıldı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Bağlantı kaldırılamadı"));
@@ -541,66 +506,93 @@ function ConnectionRow({
   };
 
   return (
-    <li className="flex flex-wrap items-center gap-3 border-b border-zinc-950/5 px-4 py-3 last:border-b-0 hover:bg-zinc-100/60">
-      <div className="min-w-0 flex-1">
-        <CompanyLine company={c} />
-        {acts.length > 0 || preview ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2 pl-[3.25rem]">
-            {acts.map((a) => (
-              <span key={a} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-                {companyActivityLabel(a)}
-              </span>
-            ))}
-            {preview ? (
-              <span className="inline-flex items-center gap-1.5">
-                {preview.thumbnails.slice(0, 3).map((src) => (
-                  <Thumb key={src} src={src} size="sm" />
-                ))}
-                <span className="text-xs text-zinc-500">{preview.total} ürün</span>
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button plain href={`/company/mesajlar?with=${c.id}&portal=${portal}`}>
-          <MessageSquare data-slot="icon" />
-          Mesaj
-        </Button>
-        {canManage ? (
-          <Dropdown>
-            <DropdownButton plain aria-label="Daha fazla">
-              <MoreVertical className="size-5" />
-            </DropdownButton>
-            <DropdownMenu anchor="bottom end">
-              <DropdownItem onClick={handleDisconnect} disabled={disconnect.isPending}>
-                <Unlink data-slot="icon" />
-                Bağlantıyı kaldır
-              </DropdownItem>
-              <DropdownItem onClick={handleBlock} disabled={block.isPending}>
-                <Ban data-slot="icon" />
-                Engelle
-              </DropdownItem>
-              <DropdownItem onClick={() => setComplaintOpen(true)} disabled={complaint.isPending}>
-                <Flag data-slot="icon" />
-                Şikayet et
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
-        ) : null}
-      </div>
-      <ReasonDialog
-        open={complaintOpen}
-        onClose={() => setComplaintOpen(false)}
-        onSubmit={submitComplaint}
-        title="Şikayet Et"
-        description={`"${c.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
-        confirmLabel="Şikayeti Gönder"
-        minLength={3}
-        destructive
-        pending={complaint.isPending}
-      />
-    </li>
+    <TableRow>
+      <TableCell>
+        <CompanyLine company={c} compact />
+      </TableCell>
+      <TableCell className="hidden text-sm text-zinc-600 md:table-cell">{meta || "—"}</TableCell>
+      <TableCell className="hidden sm:table-cell">
+        {row.kind === "mine" ? (
+          <Badge color="lime">Bağlı</Badge>
+        ) : row.kind === "incoming" ? (
+          <Badge color="amber">İstek geldi</Badge>
+        ) : (
+          <Badge color="zinc">İstek gönderildi</Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          {row.kind === "incoming" ? (
+            canManage ? (
+              <>
+                <Button onClick={() => onRespond(row.id, "accept")} disabled={respondBusy}>
+                  Kabul et
+                </Button>
+                <Button plain onClick={() => onRespond(row.id, "reject")} disabled={respondBusy}>
+                  Reddet
+                </Button>
+              </>
+            ) : null
+          ) : row.kind === "outgoing" ? (
+            canManage ? (
+              <Button
+                plain
+                disabled={disconnect.isPending && disconnect.variables === row.id}
+                onClick={async () => {
+                  try {
+                    await disconnect.mutateAsync(row.id);
+                    toast.success("İstek geri çekildi");
+                  } catch (err) {
+                    toast.error(extractErrorMessage(err, "Geri çekilemedi"));
+                  }
+                }}
+              >
+                Geri çek
+              </Button>
+            ) : null
+          ) : (
+            <>
+              <Button plain href={`/company/mesajlar?with=${c.id}&portal=${portal}`}>
+                <MessageSquare data-slot="icon" />
+                Mesaj
+              </Button>
+              {canManage ? (
+                <Dropdown>
+                  <DropdownButton plain aria-label="Daha fazla">
+                    <MoreVertical className="size-5" />
+                  </DropdownButton>
+                  <DropdownMenu anchor="bottom end">
+                    <DropdownItem onClick={handleDisconnect} disabled={disconnect.isPending}>
+                      <Unlink data-slot="icon" />
+                      Bağlantıyı kaldır
+                    </DropdownItem>
+                    <DropdownItem onClick={handleBlock} disabled={block.isPending}>
+                      <Ban data-slot="icon" />
+                      Engelle
+                    </DropdownItem>
+                    <DropdownItem onClick={() => setComplaintOpen(true)} disabled={complaint.isPending}>
+                      <Flag data-slot="icon" />
+                      Şikayet et
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              ) : null}
+            </>
+          )}
+        </div>
+        <ReasonDialog
+          open={complaintOpen}
+          onClose={() => setComplaintOpen(false)}
+          onSubmit={submitComplaint}
+          title="Şikayet Et"
+          description={`"${c.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
+          confirmLabel="Şikayeti Gönder"
+          minLength={3}
+          destructive
+          pending={complaint.isPending}
+        />
+      </TableCell>
+    </TableRow>
   );
 }
 

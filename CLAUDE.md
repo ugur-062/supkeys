@@ -535,7 +535,7 @@ sayfasının başındaki bant, üst çubuk DEĞİL.
 | `/company/satinalma` | pazar GİRİŞİ (hero arama → öneri şeridi → kategori vitrini → yeni eklenenler) |
 | `/company/satinalma/urunler` · `/firmalar` · `/kategori/<kod>-<ad>` | dizinler + kategori sayfası |
 | `/company/satinalma/urunler/<firma>/<ürün>` | ürün detayı |
-| `/company/satinalma/tedarikcilerim` · `/company/satis/musterilerim` | YALNIZ ilişki yönetimi (`ConnectionsView portal=…`, 2026-09-10 yeniden tasarım: Keşfet/sekme YOK; başlıkta "Firma bul" → portalın dizini + "Davet et" tek diyalog (tek/toplu); gelen istekler en üstte yalnız varsa; Bağlantılarım tek liste (50'şer, "Daha fazla göster") + Mesaj + menü; SAĞ RAY: Rothern ID → Gelen istekler → Bekleyenler `<details>` kutuları, sayı kapalıyken görünür, içerik `max-h` kaydırmalı — **uzun vade kuralı: liste büyüyünce sayfa uzamaz**) |
+| `/company/satinalma/tedarikcilerim` · `/company/satis/musterilerim` | YALNIZ ilişki yönetimi (`ConnectionsView portal=…`, 2026-09-10 dördüncü tur = TABLO): Keşfet/sekme/ray YOK; başlıkta "Firma bul" → portalın dizini + "Davet et" tek diyalog (tek/toplu) + Rothern ID satırı; arama ÜSTTE, altında görünüm çipleri (Bağlantılarım · Gelen istekler · Bekleyenler, sayılı, gelen amber), altında dense tablo (Firma · Sektör/Şehir · Durum · Eylem); 50'şer çizim — **uzun vade kuralı: liste büyüyünce sayfa uzamaz** |
 | `/company/satis` | açık talepler TAM listesi (kenar süzgeçli, `SellerTendersView embedded`); hero anahtarı "Talep \| Firma" |
 | `/company/satis/firmalar` | satış firma dizini (`PanelCompanyIndex portal="satis"`; sekme/ürün şeridi yok, nötr renk) — Bağlantılar › Keşfet "Tüm firmaları ara" PORTALINA göre gider (2026-09-10) |
 | `/company/sirketim/*` | Genel Bakış · Profil · Ziyaret Edenler · Raporlar |

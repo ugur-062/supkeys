@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
- * Bağlantılar yeniden tasarımı (2026-09-10): Keşfet ve sekme YOK; başlıkta
- * "Firma bul" (portalın dizini) + "Davet et" (Silver+ ∧ izin); gelen istekler
- * en üstte yalnız varsa; Bağlantılarım tek liste + arama; Bekleyenler katlanır;
- * izinsiz üye salt-okunur.
+ * Bağlantılar yeniden tasarımı (2026-09-10, dördüncü tur — TABLO): Keşfet,
+ * sekme ve ray YOK; başlıkta "Firma bul" + "Davet et"; arama üstte, altında
+ * görünüm çipleri (Bağlantılarım · Gelen istekler · Bekleyenler, sayılı),
+ * altında dense tablo; 50'şer çizim; izinsiz üye salt-okunur.
  */
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -75,54 +75,53 @@ beforeEach(() => {
 });
 
 describe("ConnectionsView", () => {
-  it("Keşfet ve sekme YOK; Firma bul portalın dizinine; Davet et var; Rothern ID sessiz satır", () => {
+  it("Keşfet/sekme/ray YOK; Firma bul portalın dizinine; Davet et; Rothern ID başlıkta; tablo + Mesaj", () => {
     render(<ConnectionsView portal="satis" />);
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByText("Keşfet")).toBeNull();
+    expect(document.querySelector("aside")).toBeNull();
     expect(screen.getByRole("link", { name: /Firma bul/ })).toHaveAttribute("href", "/company/satis/firmalar");
     expect(screen.getByRole("button", { name: /Davet et/ })).toBeInTheDocument();
     expect(screen.getByText("AAAA-0001")).toBeInTheDocument();
-    // Liste satırları + Mesaj bağlantısı portalı taşır; köken rozeti yok.
+    expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByText("Firma 1")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Mesaj/ })[0]).toHaveAttribute("href", "/company/mesajlar?with=c1&portal=satis");
     expect(screen.queryByText("Referans")).toBeNull();
     expect(screen.queryByText("Profili gör")).toBeNull();
   });
 
-  it("ray (gelen istekler + bekleyenler) DOM'da listeden ÖNCE — dar ekranda üstte kalır; Kabul et çalışır", async () => {
-    const user = userEvent.setup();
-    h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "2026-09-10T00:00:00Z" }];
-    render(<ConnectionsView />);
-    const sec = screen.getByRole("heading", { name: /Gelen istekler/ }).closest("details")!;
-    const main = screen.getByRole("heading", { name: /Bağlantılarım/ }).closest("section")!;
-    expect(sec.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Rothern ID kutusu gelen isteklerin ÜSTÜNDE (üçüncü tur).
-    const idBox = screen.getByText("AAAA-0001").closest("section")!;
-    expect(idBox.compareDocumentPosition(sec) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Kutu kapalı doğar, sayı görünür; açınca eylemler.
-    expect(sec).not.toHaveAttribute("open");
-    expect(within(sec).getByText("1")).toBeInTheDocument();
-    await user.click(within(sec).getByText("Gelen istekler"));
-    await user.click(within(sec).getByRole("button", { name: "Kabul et" }));
-    expect(h.respond).toHaveBeenCalledWith({ connectionId: "g1", action: "accept" });
-  });
-
-  it("Bekleyenler kartı rayda: giden istek + e-posta daveti sayısıyla; boşken açıklama", () => {
+  it("arama kutusu ÜSTTE, altında görünüm çipleri sayılı (gelen istek amber), altında tablo", () => {
+    h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "" }];
     h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
     h.referrals = [{ id: "r1", email: "yeni@firma.com", createdAt: "" }];
     render(<ConnectionsView />);
-    const card = screen.getByRole("heading", { name: /Bekleyenler/ }).closest("details")!;
-    expect(within(card).getByText("2")).toBeInTheDocument();
-    expect(within(card).getByText("yeni@firma.com")).toBeInTheDocument();
-    expect(within(card).getByRole("button", { name: "Geri çek" })).toBeInTheDocument();
+    const search = screen.getByLabelText("Bağlantılarımda ara");
+    const chips = screen.getByRole("group", { name: "Görünüm" });
+    const table = screen.getByRole("table");
+    expect(search.compareDocumentPosition(chips) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chips.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(chips).getByRole("button", { name: /Bağlantılarım/ })).toHaveTextContent("2");
+    expect(within(chips).getByRole("button", { name: /Gelen istekler/ })).toHaveTextContent("1");
+    expect(within(chips).getByRole("button", { name: /Bekleyenler/ })).toHaveTextContent("2");
+    expect(within(chips).getByRole("button", { name: /Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("arama kutusu Bağlantılarım başlığının ALTINDA, listeden önce", () => {
+  it("Gelen istekler çipi: satırda Kabul et / Reddet; Bekleyenler: Geri çek + İptal et", async () => {
+    const user = userEvent.setup();
+    h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "" }];
+    h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
+    h.referrals = [{ id: "r1", email: "yeni@firma.com", createdAt: "" }];
     render(<ConnectionsView />);
-    const title = screen.getByRole("heading", { name: /Bağlantılarım/ });
-    const search = screen.getByLabelText("Bağlantılarımda ara");
-    expect(title.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(title.closest("section")).toContainElement(search);
+    await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+    expect(screen.getByText("Firma 9")).toBeInTheDocument();
+    expect(screen.queryByText("Firma 1")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Kabul et" }));
+    expect(h.respond).toHaveBeenCalledWith({ connectionId: "g1", action: "accept" });
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    expect(screen.getByText("Firma 5")).toBeInTheDocument();
+    expect(screen.getByText("yeni@firma.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Geri çek" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "İptal et" })).toBeInTheDocument();
   });
 
   it("100+ bağlantı: 50'şer gösterir, 'Daha fazla göster' ile açılır", async () => {
@@ -137,12 +136,14 @@ describe("ConnectionsView", () => {
     expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(100);
   });
 
-  it("arama bağlantıları süzer", async () => {
+  it("arama bağlantıları süzer (ve Bağlantılarım görünümüne döner)", async () => {
     const user = userEvent.setup();
     render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
     await user.type(screen.getByLabelText("Bağlantılarımda ara"), "Firma 2");
     expect(screen.queryByText("Firma 1")).toBeNull();
     expect(screen.getByText("Firma 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("STANDART ya da izinsiz: Davet et yok, satır menüsü yok, liste görünür", () => {
