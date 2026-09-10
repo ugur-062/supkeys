@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useState } from "react";
 import { SettingsShell } from "../_components/settings-shell";
+import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 import {
   AUDIT_ACTION_LABELS,
   labelOr,
@@ -79,7 +80,7 @@ export default function AktivitePage() {
 
   return (
     <SettingsShell
-      title="Aktivite Logu"
+      page={SETTINGS_PAGES.aktivite}
       description="Firmanızdaki eylem kayıtları — kim satın alma talebi açtı, kim rol değiştirdi, kim banka hesabı güncelledi. Değerler değil eylemler kaydedilir; hassas alanlar maskeli referansla görünür."
     >
       <PremiumOnly minTier="SILVER">

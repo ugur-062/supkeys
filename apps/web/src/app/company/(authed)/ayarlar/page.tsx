@@ -7,21 +7,17 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { verificationMeta } from "@/lib/company/verification-status";
+import { SETTINGS_PAGES, type SettingsPageMeta } from "@/lib/company/settings-pages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
-interface SettingsCard {
-  href: string;
+interface SettingsCard extends SettingsPageMeta {
   icon: LucideIcon;
-  title: string;
-  description: string;
   /**
    * Kartı belirli bir İZİNLE kapıla (kart-kapısı = uç-kapısı; sayfanın
    * `layout.tsx` kapısıyla AYNI izin) — denetim 2026-08-26 Parça 10 B5.
-   * Eski `managerOnly` etiketi 2026-09-10'da kaldırıldı: hiçbir kart
-   * kullanmıyordu, ölü daldı.
    */
   permission?: string | readonly string[];
 }
@@ -32,118 +28,42 @@ interface SettingsGroup {
   items: SettingsCard[];
 }
 
+// Başlık/açıklama TEK KAYNAK `SETTINGS_PAGES` — sayfanın kendi kabuğu da aynı
+// kaydı okur (hub 2026-09-10 denetimi: kart metinleri sayfalardan ayrışmıştı).
+// Firma Ayarları ÜSTTE: firma hesabında günlük iş firma kartlarında.
 const GROUPS: SettingsGroup[] = [
-  {
-    title: "Kişisel Ayarlar",
-    subtitle: "Hesabınız ve bildirim tercihleriniz",
-    items: [
-      {
-        href: "/company/ayarlar/hesap-bilgileri",
-        icon: IdCard,
-        title: "Hesap Bilgileri",
-        description: "Ad, soyad, telefon ve iletişim bilgileri",
-      },
-      {
-        href: "/company/ayarlar/sifre",
-        icon: Lock,
-        title: "Şifre İşlemleri",
-        description: "Parolanızı güvenli bir şekilde değiştirin",
-      },
-      {
-        href: "/company/ayarlar/bildirimler",
-        icon: Bell,
-        title: "Bildirim Tercihleri",
-        description: "E-posta bildirimlerinizi yönetin",
-      },
-      {
-        href: "/company/ayarlar/2fa",
-        icon: Shield,
-        title: "İki Adımlı Doğrulama",
-        description: "Authenticator ile ek giriş güvenliği",
-      },
-    ],
-  },
   {
     title: "Firma Ayarları",
     subtitle: "Firmanızı, ekip üyelerini ve süreçleri yönetin",
     items: [
+      { ...SETTINGS_PAGES.profil, icon: Store },
+      { ...SETTINGS_PAGES.firma, icon: Building2, permission: "company:manage" },
+      // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
+      // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi
+      // ekleyebilmeli"); kart da aynı izinle açılır.
+      { ...SETTINGS_PAGES.adresler, icon: MapPin, permission: "addresses:manage" },
+      { ...SETTINGS_PAGES.banka, icon: Landmark, permission: "billing:manage" },
+      { ...SETTINGS_PAGES.kullanicilar, icon: UserPlus2, permission: "users:manage" },
+      // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
+      { ...SETTINGS_PAGES.aktivite, icon: Activity, permission: ["users:manage", "company:manage"] },
+      // Faz AI-0 — koltuklu herkes kendi kullanımını, K+Y firma kırılımını görür.
       {
-        // Firma Bilgileri = ticari kayıt, Firma Profili = Profilim sayfası —
-        // ayrım korunur (bkz. profile/settings split). İki kartın açıklaması
-        // eskiden aynı sözcükleri taşıyordu ("vitrin"/"kategoriler"), kullanıcı
-        // hangisine gideceğini bilemiyordu; bu kart yalnız Profilim'e köprü.
-        // Profilim iki portalda da AYNI adres (`/company/sirketim/profil`) —
-        // eski portal-sentinel dolaylaması gereksizdi.
-        href: "/company/sirketim/profil",
-        icon: Store,
-        title: "Firma Profili",
-        description: "Profilim sayfasını aç — logo, kapak, tanıtım, hizmetler",
-      },
-      {
-        href: "/company/ayarlar/firma",
-        icon: Building2,
-        title: "Firma Bilgileri",
-        description: "Unvan, adres, KEP ve faaliyet kategorileri",
-        permission: "company:manage",
-      },
-      {
-        href: "/company/ayarlar/adresler",
-        icon: MapPin,
-        title: "Adres Yönetimi",
-        description: "Fatura ve teslimat adresleri",
-        // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
-        // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi
-        // ekleyebilmeli"). Kart eskiden yalnız yöneticiye açıktı; operatör
-        // sihirbazda "Ayarlar → Adresler'den ekleyin" uyarısını alıyor ama kartı
-        // göremiyordu; URL'yi elle yazınca sayfa tam yetkiyle açılıyordu.
-        permission: "addresses:manage",
-      },
-      {
-        href: "/company/ayarlar/banka-hesaplari",
-        icon: Landmark,
-        title: "Banka Hesapları",
-        description: "Sipariş onayında seçilen ödeme hesapları",
-        permission: "billing:manage",
-      },
-      {
-        href: "/company/ayarlar/kullanicilar",
-        icon: UserPlus2,
-        title: "Kullanıcı Yönetimi",
-        description: "Ekip üyeleri, roller ve izinler",
-        permission: "users:manage",
-      },
-      {
-        // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
-        href: "/company/ayarlar/aktivite",
-        icon: Activity,
-        title: "Aktivite Logu",
-        description: "Firmanızda kim ne yaptı — eylem kayıtları",
-        permission: ["users:manage", "company:manage"],
-      },
-      {
-        // Faz AI-0 — AI kullanım ekranı (Silver+). Koltuklu herkes: SA/ST
-        // kendi kullanımını görür; K+Y firma kırılımını görür.
-        href: "/company/ayarlar/ai-kullanim",
+        ...SETTINGS_PAGES.ai,
         icon: Sparkles,
-        title: "AI Kullanımı",
-        description: "Aylık AI bütçe kullanımınız — yüzde bazında",
         permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
       },
-      {
-        // Onay akışları Onaylar sayfasının kendi görünümünde (`?tab=flows`).
-        href: "/company/onaylar?tab=flows",
-        icon: Workflow,
-        title: "Onay Akışları",
-        description: "Kazandırma isteklerinin kimden, hangi sırayla onay alacağını tanımlayın",
-        permission: "approvals:manage",
-      },
-      {
-        href: "/company/ayarlar/dogrulama",
-        icon: BadgeCheck,
-        title: "Doğrulama Belgeleri",
-        description: "Vergi levhası, sicil, imza sirküleri — Silver/Gold paketine geçişin ilk adımı",
-        permission: "company:manage",
-      },
+      { ...SETTINGS_PAGES.onayAkislari, icon: Workflow, permission: "approvals:manage" },
+      { ...SETTINGS_PAGES.dogrulama, icon: BadgeCheck, permission: "company:manage" },
+    ],
+  },
+  {
+    title: "Kişisel Ayarlar",
+    subtitle: "Hesabınız ve bildirim tercihleriniz",
+    items: [
+      { ...SETTINGS_PAGES.hesap, icon: IdCard },
+      { ...SETTINGS_PAGES.sifre, icon: Lock },
+      { ...SETTINGS_PAGES.bildirimler, icon: Bell },
+      { ...SETTINGS_PAGES.twoFactor, icon: Shield },
     ],
   },
 ];
@@ -192,7 +112,7 @@ export default function AyarlarPage() {
                     href={s.href}
                     className={cn(
                       "group flex items-center gap-4 card p-5",
-                      "transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
+                      "transition-all duration-200 hover:-translate-y-[1px] hover:border-zinc-300 hover:shadow-card-hover",
                     )}
                   >
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-zinc-900 group-hover:text-white">

@@ -6,15 +6,13 @@ import {
 } from "@/hooks/use-company-auth";
 import { CompanyUsersSection } from "../_components/company-users-section";
 import { SettingsShell } from "../_components/settings-shell";
+import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 export default function Page() {
   const { user } = useCompanyAuth();
   const canEdit = useHasCompanyPermission("users:manage");
   return (
-    <SettingsShell
-      title="Kullanıcı Yönetimi"
-      description="Ekip üyeleri, roller ve kişi-bazlı izinler."
-    >
+    <SettingsShell page={SETTINGS_PAGES.kullanicilar}>
       <CompanyUsersSection canManage={canEdit} meId={user?.id} />
     </SettingsShell>
   );

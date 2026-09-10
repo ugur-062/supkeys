@@ -21,6 +21,7 @@ import { Check, FileText, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SettingsShell } from "../_components/settings-shell";
+import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 export default function DogrulamaPage() {
   // Backend upload/submit uçları company:manage ister — diğer roller
@@ -112,7 +113,7 @@ export default function DogrulamaPage() {
 
   return (
     <SettingsShell
-      title="Doğrulama Belgeleri"
+      page={SETTINGS_PAGES.dogrulama}
       description="Doğrulama, Silver ve Gold paketine geçişin ilk adımıdır: belgeleriniz incelendikten sonra paketiniz açılır ve profilinizde “Doğrulanmış” rozeti görünür. Doğrulanmamış firma profilinde “Doğrulanmamış” yazar."
     >
       {isLoading || !data ? (

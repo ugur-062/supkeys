@@ -2,13 +2,11 @@
 
 import { NotificationPrefsSection } from "../_components/account-settings-section";
 import { SettingsShell } from "../_components/settings-shell";
+import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 export default function Page() {
   return (
-    <SettingsShell
-      title="Bildirim Tercihleri"
-      description="E-posta bildirimlerinizi yönetin."
-    >
+    <SettingsShell page={SETTINGS_PAGES.bildirimler}>
       <NotificationPrefsSection />
     </SettingsShell>
   );

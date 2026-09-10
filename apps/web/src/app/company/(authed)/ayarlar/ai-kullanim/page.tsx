@@ -14,6 +14,7 @@ import { PremiumOnly } from "@/components/company-shell/premium-only";
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import { cn } from "@/lib/utils";
 import { SettingsShell } from "../_components/settings-shell";
+import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 
 
@@ -50,7 +51,7 @@ export default function AiKullanimPage() {
 
   return (
     <SettingsShell
-      title="AI Kullanımı"
+      page={SETTINGS_PAGES.ai}
       description="Firmanızın aylık AI kullanım bütçesi — yüzde bazında. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır; %80'de uyarı verilir."
     >
       <PremiumOnly minTier="SILVER">

@@ -379,7 +379,7 @@ export function CompanyProfileSection() {
             href="/company/ayarlar/adresler"
             className="font-semibold text-zinc-700 underline hover:text-zinc-900"
           >
-            Adres Defteri
+            Adres Yönetimi
           </Link>
           nde tutulur.
         </Text>

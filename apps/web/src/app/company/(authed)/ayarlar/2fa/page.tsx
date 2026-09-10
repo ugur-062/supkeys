@@ -1,14 +1,12 @@
 "use client";
 
 import { SettingsShell } from "../_components/settings-shell";
+import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 import { TwoFactorSection } from "../_components/two-factor-section";
 
 export default function Page() {
   return (
-    <SettingsShell
-      title="İki Adımlı Doğrulama"
-      description="Authenticator uygulamasıyla ek giriş güvenliği."
-    >
+    <SettingsShell page={SETTINGS_PAGES.twoFactor}>
       <TwoFactorSection />
     </SettingsShell>
   );
