@@ -106,9 +106,11 @@ export function MarketingHeader() {
             <RothernLogo variant="full-light" size="sm" priority />
           </Link>
 
-          {/* Logodan ayrık dursun: gap-7 tek başına menüyü logoya yapıştırıyor,
-              menü "çok soldan" başlıyordu (kullanıcı, 2026-09-10). */}
-          <nav aria-label="Site menüsü" className="hidden items-center gap-7 lg:ml-8 lg:flex">
+          {/* Menü logo ile sağdaki düğmeler arasında ORTALANIR (mx-auto): sola
+              yaslı hâli "çok soldan başlıyor" diye iki kez geri geldi
+              (kullanıcı, 2026-09-10). Sağ grup ml-auto taşımaz, boşluğu nav
+              iki yana eşit paylaştırır. */}
+          <nav aria-label="Site menüsü" className="hidden items-center gap-8 lg:mx-auto lg:flex">
             {NAV.map((item) => {
               const on = isActive(item.href);
               return (
@@ -128,7 +130,7 @@ export function MarketingHeader() {
             })}
           </nav>
 
-          <div className="ml-auto hidden items-center gap-4 lg:flex">
+          <div className="hidden items-center gap-4 lg:flex">
             <Link
               href="/company/login"
               className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
