@@ -300,11 +300,13 @@ export function CompanySidebarContent({
             />
           ))}
 
-        {/* Onaylar — panel nav'ından ayraçla ayrılır (yönetsel). */}
-        {canAct && !minimal ? (
+        {/* Onaylar — panel nav'ından ayraçla ayrılır (yönetsel). ŞİRKETİM
+            alanında ÇİZİLMEZ (2026-09-10, kullanıcı kararı): orası firma
+            menüsü; Onaylar portal menüsünde ve minimal kabukta kalır. */}
+        {canAct && !minimal && !inCompanyArea ? (
           <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
         ) : null}
-        {canAct ? (
+        {canAct && (!inCompanyArea || minimal) ? (
           <RailItem
             href="/company/onaylar"
             icon={ShieldCheckIcon}

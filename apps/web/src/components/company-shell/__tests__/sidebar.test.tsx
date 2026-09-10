@@ -47,6 +47,21 @@ beforeEach(() => {
   h.auth.company = { tier: "GOLD" };
 });
 
+describe("CompanySidebarContent — Şirketim alanı", () => {
+  it("Şirketim menüsünde Onaylar ÇİZİLMEZ (2026-09-10); portal menüsünde durur", () => {
+    h.canAct = true;
+    h.auth.user = { roles: ["SAHIP", "SATIN_ALMACI"], permissions: ["buy:view", "buy:listing:manage", "approval:act"] } as never;
+    h.pathname = "/company/sirketim";
+    const { unmount } = render(<CompanySidebarContent expanded />);
+    expect(screen.queryByText("Onaylar")).not.toBeInTheDocument();
+    expect(screen.getByText("Genel Bakış")).toBeInTheDocument();
+    unmount();
+    h.pathname = "/company/satinalma";
+    render(<CompanySidebarContent expanded />);
+    expect(screen.getByText("Onaylar")).toBeInTheDocument();
+  });
+});
+
 describe("CompanySidebarContent — minimal kabuk modu", () => {
   it("ONAYLAYICI-only: panel nav'ı YOK; Onaylar + Ayarlar VAR", () => {
     h.auth.user = { roles: ["ONAYLAYICI"] };
