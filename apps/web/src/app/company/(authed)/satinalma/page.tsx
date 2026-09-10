@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
 import { PanelRecommendations } from "@/components/dashboard/panel-recommendations";
+import { HomeCompanyList } from "@/components/dashboard/home-company-list";
 import {
   useCategorySegments,
   useDiscoverProductFacets,
@@ -47,6 +48,8 @@ import { useMemo, useState } from "react";
  * KULLANILMAZ.
  */
 export default function SatinalmaDashboardPage() {
+  // Hero kapsam pili — "Firma" seçiliyken alttaki bölüm firma listesi.
+  const [scope, setScope] = useState<"products" | "suppliers">("products");
   const { company, user } = useCompanyAuth();
   const router = useRouter();
 
@@ -135,12 +138,15 @@ export default function SatinalmaDashboardPage() {
         placeholder="Ürün, firma veya sektör arayın..."
         action={PANEL_MARKET.products}
         /* Aynı kutu iki dizine gider (kullanıcı isteği, kaynak kalıp):
-           "Ürün" → ürün dizini, "Tedarikçi" → firma dizini. */
+           "Ürün" → ürün dizini, "Firma" → firma dizini ("Tedarikçi" →
+           "Firma", 2026-09-10 kullanıcı kararı). Pil ayrıca alttaki bölümü
+           çevirir (`scope`). */
         supplierScope={{
           action: PANEL_MARKET.companies,
           placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
-          label: "Tedarikçi",
+          label: "Firma",
         }}
+        onScopeChange={setScope}
         accent="blue"
         /* Sayı bandı KALKTI (kullanıcı kararı): yerine tek satırlık çıkış —
            "bulamadıysan talep aç". */
@@ -157,21 +163,29 @@ export default function SatinalmaDashboardPage() {
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
       />
 
-      {/* Tavsiye şeridi arama kutusunun HEMEN ALTINDA: kullanıcı aramadan
-          önce de bir öneri görsün (son araması varsa ona göre, yoksa alım
-          kategorilerine göre). */}
-      <PanelRecommendations mode="match" />
+      {scope === "suppliers" ? (
+        /* "Firma" pili seçili: ürün bölümleri yerine FİRMA listesi
+           (2026-09-10, kullanıcı kararı). */
+        <HomeCompanyList portal="satinalma" />
+      ) : (
+        <>
+          {/* Tavsiye şeridi arama kutusunun HEMEN ALTINDA: kullanıcı aramadan
+              önce de bir öneri görsün (son araması varsa ona göre, yoksa alım
+              kategorilerine göre). */}
+          <PanelRecommendations mode="match" />
 
-      <CategoryShowcaseRows
-        rows={rows}
-        hrefFor={(c) => panelCategoryPath(c.id, c.name)}
-        countNoun="ürün"
-        ctaLabel="Şimdi tedarikçi bulun"
-      />
+          <CategoryShowcaseRows
+            rows={rows}
+            hrefFor={(c) => panelCategoryPath(c.id, c.name)}
+            countNoun="ürün"
+            ctaLabel="Şimdi tedarikçi bulun"
+          />
 
-      {/* Vitrinin altında İKİNCİ şerit — üsttekiyle aynı listeyi basmasın
-          diye farklı kesit: yeni eklenenler. */}
-      <PanelRecommendations mode="fresh" />
+          {/* Vitrinin altında İKİNCİ şerit — üsttekiyle aynı listeyi basmasın
+              diye farklı kesit: yeni eklenenler. */}
+          <PanelRecommendations mode="fresh" />
+        </>
+      )}
     </div>
   );
 }

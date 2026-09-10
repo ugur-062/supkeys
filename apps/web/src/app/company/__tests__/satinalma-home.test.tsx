@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,7 +52,20 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
   }),
 }));
 vi.mock("@/hooks/use-company-directory", () => ({
-  useCompanySearch: () => ({ data: { items: [], total: 20, page: 1, pageSize: 20 } }),
+  useCompanySearch: () => ({
+    data: {
+      items: [
+        {
+          name: "Firma A", slug: "firma-a", rothernId: "AAAA-0001", city: "Bursa", country: "TR",
+          industry: null, activities: [], logoUrl: null, verified: true, mainCategory: null,
+          productCount: 0, productPreview: [], topCategories: [], fastReply: false,
+          connectionStatus: "none", matchedProducts: [],
+        },
+      ],
+      total: 20, page: 1, pageSize: 20,
+    },
+    isLoading: false,
+  }),
 }));
 
 import SatinalmaDashboardPage from "../(authed)/satinalma/page";
@@ -98,6 +112,19 @@ describe("Satınalma anasayfası", () => {
     expect(screen.getByRole("heading", { name: /Size uygun ürünler|Aramalarınıza göre/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();
     expect(screen.getAllByText("Şimdi tedarikçi bulun").length).toBeGreaterThan(0);
+  });
+
+  it("'Firma' pili seçilince alttaki ürün bölümleri yerine FİRMA listesi çizilir", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Firma" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Firmalar" })).toBeInTheDocument();
+    expect(screen.getByText("Firma A")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Tümünü gör/ })).toHaveAttribute("href", "/company/satinalma/firmalar");
+    expect(screen.queryByRole("heading", { name: "Yeni eklenen ürünler" })).not.toBeInTheDocument();
+    // Geri "Ürün": vitrin döner.
+    await user.click(screen.getByRole("button", { name: "Ürün" }));
+    expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();
   });
 
   it("SİYAH dolgu YOK — satınalmada birincil renk mavi (kullanıcı kuralı)", () => {

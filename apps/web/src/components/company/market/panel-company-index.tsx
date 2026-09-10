@@ -118,17 +118,18 @@ function Inner({
           düz başlık kullanılıyor. Arama kutusu burada YOK: sorgu hero'dan
           (`?q=`) ya da ürün sekmesinden taşınıyor — iki yerde iki kutu
           olmasın. */}
-      {/* Satışta dizin "Tedarikçiler" DEĞİL: satan firma alıcı arar ama
-          dizin herkesi listeler → nötr "Firmalar"; sekme yok (ürün dizini
-          satışta yaşamıyor); ekmek kırıntısı portal rengini almaz. */}
+      {/* İki portalda da "Firmalar" (2026-09-10, kullanıcı kararı —
+          satınalmadaki "Tedarikçiler" de kalktı): dizin herkesi listeler.
+          Satışta sekme yok (ürün dizini satışta yaşamıyor); ekmek kırıntısı
+          portal rengini almaz. */}
       <MarketHeader
         accent={isSatis ? "default" : "blue"}
         breadcrumb={
           isSatis
             ? [{ label: "Satış", href: SELLER_MARKET.home }, { label: "Firmalar" }]
-            : [{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Tedarikçiler" }]
+            : [{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Firmalar" }]
         }
-        title={isSatis ? "Firmalar" : "Tedarikçiler"}
+        title="Firmalar"
         lead={isSatis ? "Alıcı olabilecek firmaları bulun; bağlantı isteği ve mesaj firma sayfasında." : undefined}
         count={data ? `${total.toLocaleString("tr-TR")} firma` : undefined}
         tabs={
@@ -190,7 +191,7 @@ function Inner({
  * Dizin kartı + üyeye özel iki ek: bağlantı durumu rozeti ve arama varsa
  * "Aramanıza uyan" ürün şeridi (sunucu `matchedProducts` ile döner).
  */
-function PanelCompanyCard({
+export function PanelCompanyCard({
   company,
   query,
   portal,

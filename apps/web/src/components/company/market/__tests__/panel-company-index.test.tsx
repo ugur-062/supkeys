@@ -85,13 +85,13 @@ beforeEach(() => {
 });
 
 describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
-  it("DÜZ başlık 'Tedarikçiler' + sonuç türü sekmesi (ürün tarafına geçiş)", () => {
+  it("DÜZ başlık 'Firmalar' + sonuç türü sekmesi (ürün tarafına geçiş)", () => {
     // 2026-09-08: koyu bant kalktı, ürün dizini ve kategori sayfasıyla AYNI
     // düz başlık; sekme aynı sorgunun iki yüzünü sayısıyla gösterir.
     render(<PanelCompanyIndex />);
-    expect(screen.getByRole("heading", { level: 1, name: "Tedarikçiler" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Firmalar" })).toBeInTheDocument();
     const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
-    expect(within(tabs).getByRole("link", { name: /Tedarikçiler/ })).toHaveAttribute("aria-current", "page");
+    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute("aria-current", "page");
     expect(within(tabs).getByRole("link", { name: /Ürünler ve hizmetler/ })).toHaveAttribute(
       "href",
       "/company/satinalma/urunler",
@@ -106,7 +106,6 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
     };
     render(<PanelCompanyIndex portal="satis" />);
     expect(screen.getByRole("heading", { level: 1, name: "Firmalar" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 1, name: "Tedarikçiler" })).not.toBeInTheDocument();
     expect(screen.queryByText("Ürünler ve hizmetler")).not.toBeInTheDocument();
     expect(screen.queryByText("Aramanıza uyan")).not.toBeInTheDocument();
     // Şehir keşif bağlantısı satış dizinine gider, satınalmaya değil.

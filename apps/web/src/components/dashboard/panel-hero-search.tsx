@@ -74,6 +74,7 @@ export function PanelHeroSearch({
   onQueryChange,
   ai,
   supplierScope,
+  onScopeChange,
 }: {
   eyebrow?: string;
   title: string;
@@ -128,6 +129,12 @@ export function PanelHeroSearch({
     primaryLabel?: string;
     primaryIcon?: "cube" | "clipboard";
   };
+  /**
+   * Kapsam pili değişince çağıran haberdar olur (2026-09-10, kullanıcı
+   * kararı): "Firma" seçiliyken hero'nun ALTINDAKİ bölüm ürün/talep değil
+   * FİRMA listesi olmalı — pil yalnız formun adresini değil sayfayı çevirir.
+   */
+  onScopeChange?: (scope: "products" | "suppliers") => void;
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
@@ -139,7 +146,11 @@ export function PanelHeroSearch({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
-  const [scope, setScope] = useState<"products" | "suppliers">("products");
+  const [scope, setScopeState] = useState<"products" | "suppliers">("products");
+  const setScope = (next: "products" | "suppliers") => {
+    setScopeState(next);
+    onScopeChange?.(next);
+  };
   const intent = useAiSearchIntent();
   const aiActive = !!ai && aiMode;
   const supplierMode = !!supplierScope && !aiActive && scope === "suppliers";
@@ -439,7 +450,7 @@ export function PanelHeroSearch({
                 }`}
               >
                 <BuildingOffice2Icon aria-hidden className="size-5" />
-                {supplierScope.label ?? "Tedarikçi"}
+                {supplierScope.label ?? "Firma"}
               </button>
             </div>
           ) : null}

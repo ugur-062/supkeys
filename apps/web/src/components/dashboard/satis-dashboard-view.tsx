@@ -15,6 +15,7 @@ import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/requ
 
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { SELLER_MARKET } from "@/lib/company/panel-market";
+import { HomeCompanyList } from "@/components/dashboard/home-company-list";
 import { useMemo, useState } from "react";
 
 /**
@@ -63,6 +64,8 @@ export function SatisDashboardView() {
   // Yazarken öneri: açık talepler (başlık/no/alıcı) + sektörler — liste zaten
   // çekili (`seller-tenders`), ayrı uç yok.
   const [term, setTerm] = useState("");
+  // Hero kapsam pili — "Firma" seçiliyken açık talepler yerine firma listesi.
+  const [scope, setScope] = useState<"products" | "suppliers">("products");
   const q = term.trim();
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
     if (q.length < 2) return [];
@@ -134,6 +137,7 @@ export function SatisDashboardView() {
           primaryLabel: "Talep",
           primaryIcon: "clipboard",
         }}
+        onScopeChange={setScope}
         accent="emerald"
         /* Satış sahnesi (kullanıcı varlığı `satıs_foto.png` → webp). */
         backdrop
@@ -143,9 +147,15 @@ export function SatisDashboardView() {
         ai={{ portal: "satis", enabled: aiEnabled, onResult: onAiResult }}
       />
 
-      <SellerTendersView
-        banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
-      />
+      {scope === "suppliers" ? (
+        /* "Firma" pili seçili: açık talepler yerine FİRMA listesi
+           (2026-09-10, kullanıcı kararı). */
+        <HomeCompanyList portal="satis" />
+      ) : (
+        <SellerTendersView
+          banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
+        />
+      )}
 
       <CtaBand
         icon={<PackagePlus aria-hidden className="size-5" strokeWidth={1.75} />}

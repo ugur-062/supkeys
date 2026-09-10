@@ -75,7 +75,7 @@ beforeEach(() => {
 });
 
 describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
-  it("DÜZ başlık + SONUÇ TÜRÜ SEKMESİ (Ürünler | Tedarikçiler); band ve arama kutusu YOK", () => {
+  it("DÜZ başlık + SONUÇ TÜRÜ SEKMESİ (Ürünler | Firmalar); band ve arama kutusu YOK", () => {
     // Koyu bant ve bandın arama kutusu 2026-09-07'de kalktı (arama hero'da).
     // 2026-09-08: sonuç türü sekmesi geri geldi — kullanıcı isteği, kaynak
     // kalıp: aynı sorgunun iki yüzü (ürün / tedarikçi) tek satırda sayısıyla.
@@ -85,7 +85,7 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(screen.queryByRole("searchbox", { name: "Ara" })).toBeNull();
     const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
     expect(within(tabs).getByRole("link", { name: /Ürünler ve hizmetler/ })).toHaveAttribute("aria-current", "page");
-    expect(within(tabs).getByRole("link", { name: /Tedarikçiler/ })).toHaveAttribute(
+    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute(
       "href",
       "/company/satinalma/firmalar",
     );
@@ -95,7 +95,7 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     h.search = "q=pano&kategori=39000000&fiyatMax=500";
     render(<PanelProductIndex />);
     const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
-    expect(within(tabs).getByRole("link", { name: /Tedarikçiler/ })).toHaveAttribute(
+    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute(
       "href",
       "/company/satinalma/firmalar?q=pano&kategori=39000000",
     );

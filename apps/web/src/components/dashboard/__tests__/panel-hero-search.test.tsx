@@ -158,8 +158,9 @@ describe("PanelHeroSearch — görünüm sözleşmesi (2026-09-08 kullanıcı ta
   });
 });
 
-describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {
-  it("Tedarikçi seçilince form FİRMA dizinine gider ve yer tutucu değişir", async () => {
+describe("PanelHeroSearch — kapsam seçici (Ürün / Firma)", () => {
+  it("Firma seçilince form FİRMA dizinine gider, yer tutucu değişir ve çağıran haberdar olur", async () => {
+    const onScopeChange = vi.fn();
     // 2026-09-08 (kullanıcı tasarımı): kapsam artık ÇUBUĞUN İÇİNDE açılır
     // seçici; iki pilli satır kalktı.
     const user = userEvent.setup();
@@ -173,13 +174,15 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Tedarikçi)", () => {
         supplierScope={{
           action: "/company/satinalma/firmalar",
           placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
-          label: "Tedarikçi",
+          label: "Firma",
         }}
+        onScopeChange={onScopeChange}
         ai={{ portal: "satinalma", enabled: true, onResult: () => {} }}
       />,
     );
     // 2026-09-08 (kullanıcı tasarımı): kapsam açılır seçici değil PİL.
-    await user.click(screen.getByRole("button", { name: "Tedarikçi" }));
+    await user.click(screen.getByRole("button", { name: "Firma" }));
+    expect(onScopeChange).toHaveBeenLastCalledWith("suppliers");
     expect(screen.getByPlaceholderText("Firma adı, sektör ya da sattığı ürün arayın")).toBeInTheDocument();
 
     await user.type(screen.getByRole("searchbox"), "medikal");

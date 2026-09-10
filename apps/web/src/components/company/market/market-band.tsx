@@ -179,7 +179,9 @@ export function MarketTabs({
   return (
     <nav aria-label="Sonuç türü" className="flex flex-wrap items-center gap-6 border-b border-zinc-200">
       {tab("products", productsHref, "Ürünler ve hizmetler", productCount)}
-      {tab("companies", companiesHref, "Tedarikçiler", companyCount)}
+      {/* "Tedarikçiler" → "Firmalar" (2026-09-10, kullanıcı kararı): iki
+          portalda aynı sözcük, dizin herkesi listeler. */}
+      {tab("companies", companiesHref, "Firmalar", companyCount)}
     </nav>
   );
 }
