@@ -217,6 +217,33 @@ describe("company-profile — KYC kimlik kilidi", () => {
     },
   );
 
+  it.each(["PENDING", "VERIFIED"] as const)(
+    "%s firmada FİRMA ADI değiştirilemez (vitrindeki 'Doğrulanmış' rozeti ada kefildir)",
+    async (status) => {
+      const svc = makeService();
+      const owner = await makeCompanyWithUser(prisma, {
+        country: "TR",
+        companyVerificationStatus: status,
+      });
+      await expect(
+        svc.update(owner.company.id, { name: "Bambaşka Marka" } as never),
+      ).rejects.toThrow(/firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez/);
+    },
+  );
+
+  it("REJECTED/UNVERIFIED firmada firma adı SERBEST", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    await svc.update(owner.company.id, { name: "Yeni Marka" } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.name).toBe("Yeni Marka");
+  });
+
   it("kilitli alan AYNI değerle gönderilirse istek geçer (form her kayıtta gönderiyor)", async () => {
     const svc = makeService();
     const owner = await makeCompanyWithUser(prisma, {
@@ -226,8 +253,9 @@ describe("company-profile — KYC kimlik kilidi", () => {
     const before = await prisma.company.findUniqueOrThrow({
       where: { id: owner.company.id },
     });
-    // Ünvan değişmiyor, şehir değişiyor → kilit tetiklenmemeli.
+    // Ad/ünvan değişmiyor, şehir değişiyor → kilit tetiklenmemeli.
     await svc.update(owner.company.id, {
+      name: before.name,
       legalName: before.legalName ?? undefined,
       city: "Ankara",
     } as never);
@@ -326,15 +354,16 @@ describe("company-profile — görsel URL host doğrulama (Fix1)", () => {
       data: { logoUrl: legacy },
     });
     // Aynı değeri tekrar gönder + alakasız alan → doğrulama ATLANIR (400 YOK).
+    // (Factory VERIFIED doğurur; firma adı KYC kilidinde → şehir kullanılır.)
     await svc.update(owner.company.id, {
       logoUrl: legacy,
-      name: "Yeni Ad",
+      city: "Yeni Şehir",
     } as never);
     expect(storage.assertOwnPublicImageUrl).not.toHaveBeenCalled();
     const c = await prisma.company.findUniqueOrThrow({
       where: { id: owner.company.id },
     });
-    expect(c.name).toBe("Yeni Ad");
+    expect(c.city).toBe("Yeni Şehir");
   });
 
   it("photos[]: yalnız YENİ eleman doğrulanır (eski korunur)", async () => {

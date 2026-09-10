@@ -134,6 +134,18 @@ export function maskIban(value: string): string {
   return v.slice(0, 2) + "*".repeat(v.length - 6) + v.slice(-4);
 }
 
+/**
+ * Kimlik numarası maskesi (TCKN / şahıs firmasında VKN=TCKN) — GÖRÜNTÜLEME
+ * içindir: ilk 3 + son 2 hane açık, arası yıldız. Kayıt sırasında beyan
+ * edilen numara ayar ekranlarında tam basılmaz (KVKK veri-minimizasyonu);
+ * tanımaya yeter, kopyalamaya yetmez. Kısa değerde tamamı yıldızlanır.
+ */
+export function maskNationalId(value: string): string {
+  const v = value.replace(/\s+/g, "");
+  if (v.length < 7) return "*".repeat(v.length);
+  return v.slice(0, 3) + "*".repeat(v.length - 5) + v.slice(-2);
+}
+
 /** KEP / e-posta — basit e-posta format kontrolü. */
 export function isValidEmailLike(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());

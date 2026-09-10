@@ -6,6 +6,7 @@ import { userHasPermission } from "@/lib/company/permissions";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
+import { verificationMeta } from "@/lib/company/verification-status";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
@@ -158,16 +159,9 @@ export default function AyarlarPage() {
         ? { label: "Açık", tone: "done" }
         : { label: "Kapalı", tone: "neutral" };
     if (href === "/company/ayarlar/dogrulama" && company) {
-      switch (company.companyVerificationStatus) {
-        case "VERIFIED":
-          return { label: "Doğrulandı", tone: "done" };
-        case "PENDING":
-          return { label: "İncelemede", tone: "pending" };
-        case "REJECTED":
-          return { label: "Reddedildi", tone: "failed" };
-        default:
-          return { label: "Belge bekleniyor", tone: "neutral" };
-      }
+      // Tek kaynak: lib/company/verification-status (Doğrulama + Firma Bilgileri aynı sözlük).
+      const m = verificationMeta(company.companyVerificationStatus);
+      return { label: m.label, tone: m.tone };
     }
     return null;
   };

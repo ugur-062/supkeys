@@ -265,16 +265,27 @@ export class CompanyProfileService {
     // bunları zaten kilitliyordu ama kilit YALNIZ arayüzdeydi; bu uç nokta
     // üzerinden (Ayarlar formu ya da doğrudan istek) baypas ediliyordu.
     //
+    // FİRMA ADI da kilitte (2026-09-10, kullanıcı kararı): vitrinde
+    // "Doğrulanmış" rozetiyle görünen ad serbest kalsaydı doğrulanmış hesap
+    // başka bir markanın adını alabilirdi — rozet ada kefil olur.
+    //
     // "Gönderildi mi" DEĞİL "değişiyor mu" bakılır: Ayarlar formu yasal ünvanı
     // her kayıtta payload'a koyuyor, varlığa bakan bir kilit doğrulanmış
     // firmanın şehrini bile güncellemesini engellerdi. Gerçek ünvan değişikliği
     // (sicil tadili) belgelerle birlikte yeniden doğrulama ister.
-    const LOCKED_KYC = ["legalName", "mersisNo", "tradeRegistryNo", "ibanHolder"] as const;
+    const LOCKED_KYC = [
+      "name",
+      "legalName",
+      "mersisNo",
+      "tradeRegistryNo",
+      "ibanHolder",
+    ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
     const kycBefore = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: {
         companyVerificationStatus: true,
+        name: true,
         legalName: true,
         mersisNo: true,
         tradeRegistryNo: true,
@@ -298,8 +309,8 @@ export class CompanyProfileService {
       if (changed || ibanChanged) {
         throw new BadRequestException(
           kycBefore.companyVerificationStatus === "PENDING"
-            ? "Doğrulama inceleniyor; ünvan, kimlik ve IBAN bilgileri değiştirilemez"
-            : "Firmanız doğrulandı; ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
+            ? "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez"
+            : "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
         );
       }
     }

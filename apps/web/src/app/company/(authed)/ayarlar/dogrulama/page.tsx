@@ -12,8 +12,8 @@ import {
   useSubmitDocs,
   useUploadDoc,
   type DocKind,
-  type VerificationStatus,
 } from "@/hooks/use-company-docs";
+import { isKycLocked, VERIFICATION_STATUS } from "@/lib/company/verification-status";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { MissingFields } from "@/components/ui/missing-fields";
 import { isValidIbanTr, normalizeIban } from "@rothern/shared";
@@ -21,16 +21,6 @@ import { Check, FileText, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SettingsShell } from "../_components/settings-shell";
-
-const STATUS_META: Record<
-  VerificationStatus,
-  { label: string; color: React.ComponentProps<typeof Badge>["color"] }
-> = {
-  UNVERIFIED: { label: "Doğrulanmamış", color: "zinc" },
-  PENDING: { label: "Onay bekliyor", color: "amber" },
-  VERIFIED: { label: "Doğrulandı", color: "green" },
-  REJECTED: { label: "Reddedildi", color: "red" },
-};
 
 export default function DogrulamaPage() {
   // Backend upload/submit uçları company:manage ister — diğer roller
@@ -57,7 +47,7 @@ export default function DogrulamaPage() {
 
   // Gönderildikten sonra (PENDING) veya onaylandıktan sonra (VERIFIED) kilitli;
   // yalnız REJECTED/UNVERIFIED'de (kimlik alanları) düzenlenebilir.
-  const locked = data?.status === "PENDING" || data?.status === "VERIFIED";
+  const locked = isKycLocked(data?.status);
   const isTR = (data?.country ?? "TR").toUpperCase() === "TR";
   // Belge bazlı kilit (backend commit() ile birebir): ONAYLANAN BELGE KALICI —
   // hiçbir durumda değiştirilemez; yeniden yükleme yalnız o belge reddedildiyse
@@ -131,8 +121,8 @@ export default function DogrulamaPage() {
         <div className="space-y-5">
           <div className="flex items-center gap-2">
             <Text className="text-sm text-zinc-500">Durum:</Text>
-            <Badge color={STATUS_META[data.status].color}>
-              {STATUS_META[data.status].label}
+            <Badge color={VERIFICATION_STATUS[data.status].color}>
+              {VERIFICATION_STATUS[data.status].label}
             </Badge>
           </div>
 
