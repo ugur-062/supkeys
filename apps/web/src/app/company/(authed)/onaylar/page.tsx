@@ -7,75 +7,77 @@ import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
-import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
-import {
-  useCompanyAuth,
-  useHasCompanyPermission,
-} from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { ApprovalFlowsSection } from "@/app/company/(authed)/ayarlar/_components/approval-flows-section";
 import { ApprovalDetailPanel } from "@/components/company/approval-detail-panel";
 import {
   useAllApprovals,
-  useApprovalHistory,
   useCancelApproval,
   useDecideApproval,
   usePendingApprovals,
   type ApprovalHistoryItem,
   type PendingApproval,
 } from "@/hooks/use-company-approvals";
-import {
-  EmptyState as SharedEmptyState,
-  ListSkeleton,
-} from "@/components/list";
+import { EmptyState as SharedEmptyState, ListSkeleton } from "@/components/list";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Circle,
   ClipboardCheck,
-  Info,
   MinusCircle,
   Search,
   Workflow,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+/**
+ * ONAYLAR — SADE DÜZEN (2026-09-10, kullanıcı: "çok karışık, fazla bölüm var").
+ *
+ * Eskiden 4 sekme (Sıra Sizde · Geçmiş & Taleplerim · Tüm Süreçler · Onay
+ * Akışları) ve kartta 5-6 rozet + hep açık adım çizelgesi vardı. Şimdi:
+ *  · İKİ görünüm: "Sıra sizde" (karar bekleyenler) ve "Tüm istekler"
+ *    (Geçmiş + Tüm Süreçler BİRLEŞTİ — aynı kart iki listede çıkıyordu;
+ *    `all` ucu sayfa kapısıyla aynı yetkiyi ister, `history` artık çağrılmaz).
+ *    "Tüm istekler"de çipler istemcide süzer (Bekleyen / Başlattıklarım /
+ *    Sonuçlanan), arama sunucuda.
+ *  · Onay akışları sekme DEĞİL — başlıktaki tek düğmeyle kendi görünümüne
+ *    açılır (`?tab=flows`, içerik `ApprovalFlowsSection` aynen).
+ *  · Kart: tek satır başlık + tek satır bilgi + (varsa) başlatan notu;
+ *    adım çizelgesi katlanır (varsayılan kapalı). Kaldırılan: "Alış/Satış"
+ *    rozeti (satış ilanı kalktı, hep "Alış" yazıyordu), çift talep numarası,
+ *    "Talebim" rozeti (çip var), ayrı durum/tür seçicileri.
+ */
+
 const TYPE_LABEL: Record<PendingApproval["type"], string> = {
-  LISTING_PUBLISH: "İlan Yayını",
+  LISTING_PUBLISH: "İlan yayını",
   LISTING_AWARD: "Kazandırma",
 };
 
-const REQ_STATUS: Record<
-  ApprovalHistoryItem["status"],
-  { label: string; color: "amber" | "green" | "rose" | "zinc" }
-> = {
+const REQ_STATUS: Record<ApprovalHistoryItem["status"], { label: string; color: "amber" | "green" | "rose" | "zinc" }> = {
   PENDING: { label: "Bekliyor", color: "amber" },
   APPROVED: { label: "Onaylandı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "rose" },
-  CANCELLED: { label: "İptal Edildi", color: "zinc" },
+  CANCELLED: { label: "İptal edildi", color: "zinc" },
 };
 
-function ListingTypeBadge({ type }: { type: string }) {
-  const isAlim = type === "ALIM";
-  return (
-    <Badge color={isAlim ? "blue" : "emerald"}>
-      {isAlim ? "Alış" : "Satış"}
-    </Badge>
-  );
-}
+const money = (amount: number, currency: string) => `${amount.toLocaleString("tr-TR")} ${currencySymbol(currency)}`;
 
 /** Adım zaman çizelgesi — kim, hangi sırada, ne karar verdi. */
 function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
   return (
-    <ol className="mt-3 space-y-1.5 border-t border-zinc-100 pt-3">
+    <ol className="mt-2 space-y-1.5">
       {steps.map((s) => {
         const icon =
           s.status === "APPROVED" ? (
@@ -85,43 +87,31 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
           ) : s.status === "SKIPPED" ? (
             <MinusCircle className="h-4 w-4 text-zinc-300" />
           ) : (
-            <Circle
-              className={cn(
-                "h-4 w-4",
-                s.status === "PENDING" ? "text-amber-500" : "text-zinc-300",
-              )}
-            />
+            <Circle className={cn("h-4 w-4", s.status === "PENDING" ? "text-amber-500" : "text-zinc-300")} />
           );
+        const verb =
+          s.status === "APPROVED"
+            ? "onayladı"
+            : s.status === "REJECTED"
+              ? "reddetti"
+              : s.status === "SKIPPED"
+                ? "atlandı (bütçe eşiği)"
+                : s.status === "PENDING"
+                  ? "karar bekleniyor"
+                  : "sırada";
         return (
           <li key={s.order} className="flex items-start gap-2 text-xs">
             <span className="mt-0.5 shrink-0">{icon}</span>
             <span className="min-w-0">
               <span className="font-medium text-zinc-800">
                 {s.order}. {s.approverName}
-                {s.displayLabel ? (
-                  <span className="font-normal text-zinc-500">
-                    {" "}
-                    ({s.displayLabel})
-                  </span>
-                ) : null}
+                {s.displayLabel ? <span className="font-normal text-zinc-500"> ({s.displayLabel})</span> : null}
               </span>
               <span className="ml-1.5 text-zinc-500">
-                {s.status === "APPROVED"
-                  ? "onayladı"
-                  : s.status === "REJECTED"
-                    ? "reddetti"
-                    : s.status === "SKIPPED"
-                      ? "atlandı (bütçe eşiği)"
-                      : s.status === "PENDING"
-                        ? "karar bekleniyor"
-                        : "sırada"}
-                {s.decidedAt
-                  ? ` · ${formatDate(s.decidedAt, "datetime")}`
-                  : ""}
+                {verb}
+                {s.decidedAt ? ` · ${formatDate(s.decidedAt, "datetime")}` : ""}
               </span>
-              {s.note ? (
-                <span className="block text-zinc-500">Not: {s.note}</span>
-              ) : null}
+              {s.note ? <span className="block text-zinc-500">Not: {s.note}</span> : null}
             </span>
           </li>
         );
@@ -133,11 +123,7 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
 function Empty({ text }: { text: string }) {
   return (
     <div className="card">
-      <SharedEmptyState
-        icon={ClipboardCheck}
-        title={text}
-        variant="no-results"
-      />
+      <SharedEmptyState icon={ClipboardCheck} title={text} variant="no-results" />
     </div>
   );
 }
@@ -145,17 +131,10 @@ function Empty({ text }: { text: string }) {
 /** Sorgu hatası — yanıltıcı "boş" durumu yerine gerçek hata + yeniden dene. */
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div
-      role="alert"
-      className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center"
-    >
+    <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center">
       <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" aria-hidden />
-      <p className="mt-3 text-sm font-medium text-rose-900">
-        Kayıtlar yüklenemedi
-      </p>
-      <p className="mt-1 text-sm text-rose-700/80">
-        Bağlantı sorunu olabilir. Lütfen yeniden deneyin.
-      </p>
+      <p className="mt-3 text-sm font-medium text-rose-900">Kayıtlar yüklenemedi</p>
+      <p className="mt-1 text-sm text-rose-700/80">Bağlantı sorunu olabilir. Lütfen yeniden deneyin.</p>
       <Button className="mt-4" outline onClick={onRetry}>
         Yeniden Dene
       </Button>
@@ -163,7 +142,127 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** Geçmiş / Tüm Süreçler ortak istek kartı. */
+/** Başlık satırı — talep adı (izinliye bağlantı) + sağda durum. */
+function CardTitle({
+  listing,
+  canOpenListing,
+  right,
+}: {
+  listing: { id: string; title: string };
+  canOpenListing: boolean;
+  right: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      {canOpenListing ? (
+        <Link
+          href={`/company/ilan/${listing.id}`}
+          className="min-w-0 truncate text-[15px] font-semibold text-zinc-950 hover:text-blue-600 hover:underline"
+        >
+          {listing.title}
+        </Link>
+      ) : (
+        <p className="min-w-0 truncate text-[15px] font-semibold text-zinc-950">{listing.title}</p>
+      )}
+      <div className="shrink-0">{right}</div>
+    </div>
+  );
+}
+
+/** Tek bilgi satırı: no · tür · tutar · başlatan · tarih. Tür yalnız eski "İlan yayını" ise yazılır. */
+function Meta({ parts }: { parts: (string | null | undefined)[] }) {
+  return (
+    <p className="mt-1 text-xs text-zinc-500">
+      {parts.filter(Boolean).map((p, i) => (
+        <span key={i}>
+          {i > 0 ? <span className="mx-1.5 text-zinc-300">·</span> : null}
+          {p}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function InitiatorNote({ note }: { note: string | null }) {
+  if (!note) return null;
+  return (
+    <p className="mt-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-600">
+      <span className="font-semibold text-zinc-500">Başlatan notu:</span> {note}
+    </p>
+  );
+}
+
+/** SIRA SİZDE kartı — karar verilecek istek. */
+function DecideCard({
+  p,
+  canOpenListing,
+  busy,
+  detailOpen,
+  onToggleDetail,
+  onApprove,
+  onReject,
+}: {
+  p: PendingApproval;
+  canOpenListing: boolean;
+  busy: boolean;
+  detailOpen: boolean;
+  onToggleDetail: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+      <CardTitle
+        listing={p.listing}
+        canOpenListing={canOpenListing}
+        right={
+          <Badge color="amber">
+            Adım {p.currentStepOrder}/{p.totalSteps}
+          </Badge>
+        }
+      />
+      <Meta
+        parts={[
+          p.requestNo,
+          p.type === "LISTING_PUBLISH" ? TYPE_LABEL[p.type] : null,
+          money(p.amount, p.currency),
+          `${p.createdBy} başlattı`,
+          formatDate(p.createdAt, "datetime"),
+        ]}
+      />
+      <InitiatorNote note={p.initiatorNote} />
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-950/5 pt-3">
+        <button
+          type="button"
+          aria-expanded={detailOpen}
+          aria-controls={`onay-detay-${p.id}`}
+          onClick={onToggleDetail}
+          className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950"
+        >
+          <ChevronDown aria-hidden className={cn("size-4 transition", detailOpen && "rotate-180")} />
+          {detailOpen ? "Detayı gizle" : "Detay — kazanan, rekabet, kalemler"}
+        </button>
+        <div className="flex items-center gap-2">
+          <Button plain onClick={onReject} disabled={busy}>
+            <XCircle className="h-4 w-4 text-red-500" aria-hidden />
+            Reddet
+          </Button>
+          <Button onClick={onApprove} disabled={busy}>
+            <CheckCircle2 className="h-4 w-4" aria-hidden />
+            {busy ? "Onaylanıyor…" : "Onayla"}
+          </Button>
+        </div>
+      </div>
+      {detailOpen ? (
+        <div id={`onay-detay-${p.id}`} className="mt-4 border-t border-zinc-950/5 pt-4">
+          <ApprovalDetailPanel id={p.id} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** TÜM İSTEKLER kartı — durum, sıradaki onaycı, katlanır adımlar, bekleyense iptal. */
 function RequestCard({
   h,
   canCancel,
@@ -174,89 +273,72 @@ function RequestCard({
   h: ApprovalHistoryItem;
   canCancel: boolean;
   onCancel: (h: ApprovalHistoryItem) => void;
-  /** Yalnız BU kart iptal edilirken true — tüm listeyi kilitlemez. */
   cancelPending: boolean;
-  /** Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana. */
   canOpenListing: boolean;
 }) {
   const st = REQ_STATUS[h.status];
   return (
     <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {h.requestNo ? (
-              <span className="font-mono text-xs font-semibold text-zinc-500">
-                {h.requestNo}
-              </span>
-            ) : null}
-            <Badge color={h.type === "LISTING_AWARD" ? "purple" : "amber"}>
-              {TYPE_LABEL[h.type]}
-            </Badge>
-            <ListingTypeBadge type={h.listing.type} />
-            <Badge color={st.color}>{st.label}</Badge>
-            {h.mine ? <Badge color="zinc">Talebim</Badge> : null}
-          </div>
-          {canOpenListing ? (
-            <Link
-              href={`/company/ilan/${h.listing.id}`}
-              className="mt-1 block truncate font-medium text-zinc-950 hover:text-blue-600 hover:underline"
-            >
-              {h.listing.title}
-            </Link>
-          ) : (
-            <p className="mt-1 truncate font-medium text-zinc-950">{h.listing.title}</p>
-          )}
-          <div className="mt-1 text-xs text-zinc-500">
-            {h.createdBy}
-            <span className="mx-1.5 text-zinc-300">·</span>
-            {h.amount.toLocaleString("tr-TR")} {h.currency}
-            <span className="mx-1.5 text-zinc-300">·</span>
-            {h.status === "PENDING" ? (
-              <>
-                Adım {h.currentStepOrder}/{h.totalSteps}
-                {h.currentApprover ? ` — şu an: ${h.currentApprover}` : ""}
-                <span className="mx-1.5 text-zinc-300">·</span>
-              </>
-            ) : null}
-            {formatDate(h.createdAt, "datetime")}
-            {h.decidedAt
-              ? ` → ${formatDate(h.decidedAt, "datetime")}`
-              : ""}
-          </div>
-          {h.initiatorNote ? (
-            <p className="mt-1.5 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-600">
-              <span className="font-semibold text-zinc-500">
-                Başlatan notu:
-              </span>{" "}
-              {h.initiatorNote}
-            </p>
-          ) : null}
-        </div>
+      <CardTitle
+        listing={h.listing}
+        canOpenListing={canOpenListing}
+        right={
+          <Badge color={st.color}>
+            {st.label}
+            {h.status === "PENDING" ? ` · ${h.currentStepOrder}/${h.totalSteps}` : ""}
+          </Badge>
+        }
+      />
+      <Meta
+        parts={[
+          h.requestNo,
+          h.type === "LISTING_PUBLISH" ? TYPE_LABEL[h.type] : null,
+          money(h.amount, h.currency),
+          h.mine ? "Siz başlattınız" : `${h.createdBy} başlattı`,
+          h.decidedAt ? `${formatDate(h.createdAt, "short")} → ${formatDate(h.decidedAt, "datetime")}` : formatDate(h.createdAt, "datetime"),
+        ]}
+      />
+      {h.status === "PENDING" && h.currentApprover ? (
+        <p className="mt-1 text-xs text-amber-700">Sırada: {h.currentApprover}</p>
+      ) : null}
+      <InitiatorNote note={h.initiatorNote} />
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-950/5 pt-3">
+        <details className="group min-w-0 flex-1">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950">
+            <ChevronDown aria-hidden className="size-4 transition group-open:rotate-180" />
+            Adımlar ({h.decidedSteps}/{h.totalSteps})
+          </summary>
+          <StepsTimeline steps={h.steps} />
+        </details>
         {canCancel && h.status === "PENDING" ? (
           <Button plain onClick={() => onCancel(h)} disabled={cancelPending}>
-            {cancelPending ? "İptal ediliyor…" : "İptal Et"}
+            {cancelPending ? "İptal ediliyor…" : "İptal et"}
           </Button>
         ) : null}
       </div>
-      <StepsTimeline steps={h.steps} />
     </div>
   );
 }
 
-type OnaylarTab = "pending" | "history" | "all" | "flows";
+type View = "pending" | "all" | "flows";
+type Chip = "all" | "pending" | "mine" | "done";
+const CHIPS: { key: Chip; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "pending", label: "Bekleyen" },
+  { key: "mine", label: "Başlattıklarım" },
+  { key: "done", label: "Sonuçlanan" },
+];
 
 export default function OnaylarPage() {
-  // C60: sekme URL'de (?tab=) — yenileme/paylaşımda korunur.
+  // Görünüm URL'de (?tab=) — yenileme/paylaşımda korunur. Eski "history"
+  // bağlantıları "all"a düşer (birleşti).
   const searchParams = useSearchParams();
   const urlTab = searchParams.get("tab");
-  const [tab, setTabState] = useState<OnaylarTab>(
-    urlTab === "history" || urlTab === "all" || urlTab === "flows"
-      ? urlTab
-      : "pending",
+  const [view, setViewState] = useState<View>(
+    urlTab === "flows" ? "flows" : urlTab === "all" || urlTab === "history" ? "all" : "pending",
   );
-  const setTab = (k: OnaylarTab) => {
-    setTabState(k);
+  const setView = (k: View) => {
+    setViewState(k);
     const u = new URL(window.location.href);
     if (k === "pending") u.searchParams.delete("tab");
     else u.searchParams.set("tab", k);
@@ -264,52 +346,34 @@ export default function OnaylarPage() {
   };
   const { user } = useCompanyAuth();
   // Onay isteğini iptal: başlatan VEYA "Onay akışı tanımlama" yetkisi (API aynası).
-  const isManager =
-    !!user && (user.isOwner || userHasPermission(user, "approvals:manage"));
+  const isManager = !!user && (user.isOwner || userHasPermission(user, "approvals:manage"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
-  // Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana; onaylayıcı
+  // Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana; onaycı
   // kararını kart içindeki onay detayından verir (yetki tablosu Faz 2).
   const canOpenListing = userHasPermission(user, "buy:view");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
-  // Boolean "intent" + consume: bölüm remount olduğunda (sekmeye tekrar
-  // girildiğinde) sihirbaz KENDİLİĞİNDEN açılmasın diye tüketilince sıfırlanır.
-  const [openNewFlow, setOpenNewFlow] = useState(false);
 
-  const {
-    data: pending,
-    isLoading: pendingLoading,
-    isError: pendingError,
-    refetch: refetchPending,
-  } = usePendingApprovals();
-  const {
-    data: history,
-    isLoading: historyLoading,
-    isError: historyError,
-    refetch: refetchHistory,
-  } = useApprovalHistory();
+  const { data: pending, isLoading: pendingLoading, isError: pendingError, refetch: refetchPending } = usePendingApprovals();
 
-  // Tüm Süreçler filtreleri — arama debounce'lı (her tuşta refetch etmesin).
-  const [fltStatus, setFltStatus] = useState("");
-  const [fltType, setFltType] = useState("");
-  const [fltSearch, setFltSearch] = useState("");
-  const debouncedSearch = useDebouncedValue(fltSearch.trim(), 300);
-  const {
-    data: all,
-    isLoading: allLoading,
-    isError: allError,
-    refetch: refetchAll,
-  } = useAllApprovals({
-    status: fltStatus || undefined,
-    type: fltType || undefined,
+  const [chip, setChip] = useState<Chip>("all");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const { data: all, isLoading: allLoading, isError: allError, refetch: refetchAll } = useAllApprovals({
     search: debouncedSearch || undefined,
   });
+  const filtered = useMemo(() => {
+    const rows = all ?? [];
+    if (chip === "pending") return rows.filter((h) => h.status === "PENDING");
+    if (chip === "mine") return rows.filter((h) => h.mine);
+    if (chip === "done") return rows.filter((h) => h.status !== "PENDING");
+    return rows;
+  }, [all, chip]);
 
   const decide = useDecideApproval();
   const cancel = useCancelApproval();
   const confirm = useConfirm();
   const [rejecting, setRejecting] = useState<PendingApproval | null>(null);
-  // Hangi kart işlem görüyor — buton kilidi/spinner yalnız o karta uygulanır
-  // (paylaşılan isPending tüm listeyi kilitlemesin).
+  // Hangi kart işlem görüyor — kilit yalnız o karta (paylaşılan isPending tüm listeyi kilitlemesin).
   const [actingId, setActingId] = useState<string | null>(null);
 
   const approve = async (p: PendingApproval) => {
@@ -317,9 +381,7 @@ export default function OnaylarPage() {
       !(await confirm({
         title: "İsteği onayla",
         description: `"${p.listing.title}" için ${TYPE_LABEL[p.type].toLocaleLowerCase("tr")} isteği onaylansın mı? ${
-          p.currentStepOrder === p.totalSteps
-            ? "Bu son adım — işlem hemen uygulanır."
-            : "Sonraki onaycıya geçilir."
+          p.currentStepOrder === p.totalSteps ? "Bu son adım — işlem hemen uygulanır." : "Sonraki onaycıya geçilir."
         }`,
         confirmLabel: "Onayla",
       }))
@@ -340,11 +402,7 @@ export default function OnaylarPage() {
     if (!rejecting) return;
     setActingId(rejecting.id);
     try {
-      await decide.mutateAsync({
-        id: rejecting.id,
-        action: "reject",
-        note: reason.trim() || undefined,
-      });
+      await decide.mutateAsync({ id: rejecting.id, action: "reject", note: reason.trim() || undefined });
       toast.success("Reddedildi");
       setRejecting(null);
     } catch (err) {
@@ -359,7 +417,7 @@ export default function OnaylarPage() {
       !(await confirm({
         title: "Onay isteğini iptal et",
         description: `"${h.listing.title}" için onay isteği iptal edilsin mi? İlan eski durumuna döner.`,
-        confirmLabel: "İptal Et",
+        confirmLabel: "İptal et",
         destructive: true,
       }))
     )
@@ -375,15 +433,31 @@ export default function OnaylarPage() {
     }
   };
 
-  // C40: sayaç biçimi ROZET — parantezli metin diğer sekmeli yüzeylerle
-  // (Bağlantılar, ilan detayları) tutarsızdı.
-  const tabs: { key: OnaylarTab; label: string; count?: number }[] = [
-    { key: "pending", label: "Sıra Sizde", count: pending?.length ?? 0 },
-    { key: "history", label: "Geçmiş & Taleplerim" },
-    { key: "all", label: "Tüm Süreçler" },
-    ...(canManageFlows
-      ? [{ key: "flows" as const, label: "Onay Akışları" }]
-      : []),
+  if (view === "flows" && canManageFlows) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <button
+            type="button"
+            onClick={() => setView("pending")}
+            className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            Onaylara dön
+          </button>
+          <Heading>Onay akışları</Heading>
+          <Text className="mt-1 text-sm text-zinc-500">
+            Kazandırma isteklerinin kimden, hangi sırayla ve hangi tutar eşiğinde onay alacağını tanımlayın.
+          </Text>
+        </div>
+        <ApprovalFlowsSection canManage={canManageFlows} />
+      </div>
+    );
+  }
+
+  const tabs: { key: "pending" | "all"; label: string; count?: number }[] = [
+    { key: "pending", label: "Sıra sizde", count: pending?.length ?? 0 },
+    { key: "all", label: "Tüm istekler" },
   ];
 
   return (
@@ -392,40 +466,40 @@ export default function OnaylarPage() {
         <div>
           <Heading>Onaylar</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Kazanan onayı akışları — sırası sizde olanlar, talepleriniz ve
-            firmadaki tüm süreçler. Akışları buradan tanımlarsınız.
+            Kazandırma isteklerini onaylayın ya da reddedin; firmadaki tüm istekleri tek listede izleyin.
           </Text>
         </div>
-        {/* C39: "Yeni Onay Akışı" yalnız Onay Akışları sekmesinde (kendi
-            CTA'sı) — ilgisiz sekmelerde kalabalık yapıyordu. */}
+        {canManageFlows ? (
+          <Button outline onClick={() => setView("flows")}>
+            <Workflow data-slot="icon" aria-hidden />
+            Onay akışlarını düzenle
+          </Button>
+        ) : null}
       </div>
 
-      {/* Sekmeler */}
-      <div
-        role="tablist"
-        aria-label="Onay görünümleri"
-        className="flex gap-1 overflow-x-auto border-b border-zinc-950/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
+      <div role="tablist" aria-label="Onay görünümleri" className="flex gap-1 border-b border-zinc-950/10">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
             role="tab"
             id={`onaylar-tab-${t.key}`}
-            aria-selected={tab === t.key}
+            aria-selected={view === t.key}
             aria-controls={`onaylar-panel-${t.key}`}
-            onClick={() => setTab(t.key)}
+            onClick={() => setView(t.key)}
             className={cn(
               "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              tab === t.key
-                ? "border-zinc-900 text-zinc-900"
-                : "border-transparent text-zinc-500 hover:text-zinc-800",
+              view === t.key ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:text-zinc-800",
             )}
           >
-            {t.key === "flows" ? <Workflow className="size-4" aria-hidden /> : null}
             {t.label}
             {t.count != null ? (
-              <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                  t.count > 0 ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-500",
+                )}
+              >
                 {t.count}
               </span>
             ) : null}
@@ -433,212 +507,28 @@ export default function OnaylarPage() {
         ))}
       </div>
 
-      {tab === "pending" ? (
-        <div
-          role="tabpanel"
-          id="onaylar-panel-pending"
-          aria-labelledby="onaylar-tab-pending"
-        >
-        {pendingLoading ? (
-          <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
-        ) : pendingError ? (
-          <ErrorState onRetry={() => refetchPending()} />
-        ) : !pending || pending.length === 0 ? (
-          <Empty text="Bekleyen onay yok — size yönlendirilen istekler burada görünür." />
-        ) : (
-          <div className="space-y-3">
-            {pending.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-xl border border-zinc-950/10 bg-white p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {p.requestNo ? (
-                        <span className="font-mono text-xs font-semibold text-zinc-500">
-                          {p.requestNo}
-                        </span>
-                      ) : null}
-                      <Badge
-                        color={p.type === "LISTING_AWARD" ? "purple" : "amber"}
-                      >
-                        {TYPE_LABEL[p.type]}
-                      </Badge>
-                      <ListingTypeBadge type={p.listing.type} />
-                      <span className="tabular-nums text-xs text-zinc-400">
-                        {p.listing.number ?? "—"}
-                      </span>
-                    </div>
-                    {canOpenListing ? (
-                      <Link
-                        href={`/company/ilan/${p.listing.id}`}
-                        className="mt-1 block truncate font-medium text-zinc-950 hover:text-blue-600 hover:underline"
-                      >
-                        {p.listing.title}
-                      </Link>
-                    ) : (
-                      <p className="mt-1 truncate font-medium text-zinc-950">
-                        {p.listing.title}
-                      </p>
-                    )}
-                    <div className="mt-1 text-xs text-zinc-500">
-                      {p.createdBy} başlattı
-                      <span className="mx-1.5 text-zinc-300">·</span>
-                      Tutar:{" "}
-                      <strong>
-                        {p.amount.toLocaleString("tr-TR")} {p.currency}
-                      </strong>
-                      <span className="mx-1.5 text-zinc-300">·</span>
-                      Adım {p.currentStepOrder}/{p.totalSteps}
-                      <span className="mx-1.5 text-zinc-300">·</span>
-                      {formatDate(p.createdAt, "datetime")}
-                    </div>
-                    {p.initiatorNote ? (
-                      <p className="mt-1.5 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-600">
-                        <span className="font-semibold text-zinc-500">
-                          Başlatan notu:
-                        </span>{" "}
-                        {p.initiatorNote}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Button
-                      plain
-                      aria-expanded={openDetailId === p.id}
-                      aria-controls={`onay-detay-${p.id}`}
-                      onClick={() =>
-                        setOpenDetailId((cur) => (cur === p.id ? null : p.id))
-                      }
-                    >
-                      <Info className="h-4 w-4" aria-hidden />
-                      {openDetailId === p.id ? "Detayı gizle" : "Detay"}
-                    </Button>
-                    <Button
-                      plain
-                      onClick={() => setRejecting(p)}
-                      disabled={decide.isPending && actingId === p.id}
-                    >
-                      <XCircle className="h-4 w-4 text-red-500" aria-hidden />
-                      Reddet
-                    </Button>
-                    <Button
-                      onClick={() => approve(p)}
-                      disabled={decide.isPending && actingId === p.id}
-                    >
-                      <CheckCircle2 className="h-4 w-4" aria-hidden />
-                      {decide.isPending && actingId === p.id
-                        ? "Onaylanıyor…"
-                        : "Onayla"}
-                    </Button>
-                  </div>
-                </div>
-                {openDetailId === p.id ? (
-                  <div
-                    id={`onay-detay-${p.id}`}
-                    className="mt-4 border-t border-zinc-950/5 pt-4"
-                  >
-                    <ApprovalDetailPanel id={p.id} />
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-        </div>
-      ) : null}
-
-      {tab === "history" ? (
-        <div
-          role="tabpanel"
-          id="onaylar-panel-history"
-          aria-labelledby="onaylar-tab-history"
-        >
-        {historyLoading ? (
-          <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
-        ) : historyError ? (
-          <ErrorState onRetry={() => refetchHistory()} />
-        ) : !history || history.length === 0 ? (
-          <Empty text="Henüz geçmiş yok — başlattığınız ve karara bağlanan istekler burada görünür." />
-        ) : (
-          <div className="space-y-3">
-            {history.map((h) => (
-              <RequestCard
-                key={h.id}
-                h={h}
-                canCancel={h.mine || isManager}
-                onCancel={cancelRequest}
-                cancelPending={cancel.isPending && actingId === h.id}
-                canOpenListing={canOpenListing}
-              />
-            ))}
-          </div>
-        )}
-        </div>
-      ) : null}
-
-      {tab === "all" ? (
-        <div
-          role="tabpanel"
-          id="onaylar-panel-all"
-          aria-labelledby="onaylar-tab-all"
-          className="space-y-4"
-        >
-          {/* Filtreler — eski sistem paritesi: durum / tür / arama */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1 sm:max-w-xs">
-              <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
-                aria-hidden
-              />
-              <Input
-                value={fltSearch}
-                onChange={(e) => setFltSearch(e.target.value)}
-                placeholder="Onay no / satın alma talebi ara…"
-                aria-label="Onay no veya satın alma talebi ara"
-                className="w-full pl-8"
-              />
+      {view === "pending" ? (
+        <div role="tabpanel" id="onaylar-panel-pending" aria-labelledby="onaylar-tab-pending">
+          {pendingLoading ? (
+            <div className="overflow-hidden card">
+              <ListSkeleton rows={4} />
             </div>
-            <Select
-              value={fltStatus}
-              onChange={(e) => setFltStatus(e.target.value)}
-              aria-label="Duruma göre filtrele"
-              className="max-w-40"
-            >
-              <option value="">Tüm durumlar</option>
-              <option value="PENDING">Bekliyor</option>
-              <option value="APPROVED">Onaylandı</option>
-              <option value="REJECTED">Reddedildi</option>
-              <option value="CANCELLED">İptal Edildi</option>
-            </Select>
-            <Select
-              value={fltType}
-              onChange={(e) => setFltType(e.target.value)}
-              aria-label="Türe göre filtrele"
-              className="max-w-40"
-            >
-              <option value="">Tüm türler</option>
-              <option value="LISTING_AWARD">Kazandırma</option>
-              <option value="LISTING_PUBLISH">İlan Yayını (eski)</option>
-            </Select>
-          </div>
-          {allLoading ? (
-            <div className="overflow-hidden card"><ListSkeleton rows={4} /></div>
-          ) : allError ? (
-            <ErrorState onRetry={() => refetchAll()} />
-          ) : !all || all.length === 0 ? (
-            <Empty text="Kayıt bulunamadı — firmadaki tüm onay süreçleri burada listelenir." />
+          ) : pendingError ? (
+            <ErrorState onRetry={() => refetchPending()} />
+          ) : !pending || pending.length === 0 ? (
+            <Empty text="Sırada bekleyen onay yok — size yönlendirilen istekler burada görünür." />
           ) : (
             <div className="space-y-3">
-              {all.map((h) => (
-                <RequestCard
-                  key={h.id}
-                  h={h}
-                  canCancel={h.mine || isManager}
-                  onCancel={cancelRequest}
-                  cancelPending={cancel.isPending && actingId === h.id}
-                canOpenListing={canOpenListing}
+              {pending.map((p) => (
+                <DecideCard
+                  key={p.id}
+                  p={p}
+                  canOpenListing={canOpenListing}
+                  busy={decide.isPending && actingId === p.id}
+                  detailOpen={openDetailId === p.id}
+                  onToggleDetail={() => setOpenDetailId((cur) => (cur === p.id ? null : p.id))}
+                  onApprove={() => void approve(p)}
+                  onReject={() => setRejecting(p)}
                 />
               ))}
             </div>
@@ -646,17 +536,68 @@ export default function OnaylarPage() {
         </div>
       ) : null}
 
-      {tab === "flows" && canManageFlows ? (
-        <div
-          role="tabpanel"
-          id="onaylar-panel-flows"
-          aria-labelledby="onaylar-tab-flows"
-        >
-          <ApprovalFlowsSection
-            canManage={canManageFlows}
-            openNew={openNewFlow}
-            onConsumeOpenNew={() => setOpenNewFlow(false)}
-          />
+      {view === "all" ? (
+        <div role="tabpanel" id="onaylar-panel-all" aria-labelledby="onaylar-tab-all" className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="İstek süzgeci">
+              {CHIPS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  aria-pressed={chip === c.key}
+                  onClick={() => setChip(c.key)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-sm font-medium transition",
+                    chip === c.key ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative ml-auto min-w-0 flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" aria-hidden />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Onay no / talep ara…"
+                aria-label="Onay no veya satın alma talebi ara"
+                className="w-full pl-8"
+              />
+            </div>
+          </div>
+          {allLoading ? (
+            <div className="overflow-hidden card">
+              <ListSkeleton rows={4} />
+            </div>
+          ) : allError ? (
+            <ErrorState onRetry={() => refetchAll()} />
+          ) : filtered.length === 0 ? (
+            <Empty
+              text={
+                chip === "pending"
+                  ? "Bekleyen istek yok."
+                  : chip === "mine"
+                    ? "Başlattığınız istek yok."
+                    : chip === "done"
+                      ? "Sonuçlanan istek yok."
+                      : "Kayıt bulunamadı — firmadaki tüm onay istekleri burada listelenir."
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((h) => (
+                <RequestCard
+                  key={h.id}
+                  h={h}
+                  canCancel={h.mine || isManager}
+                  onCancel={cancelRequest}
+                  cancelPending={cancel.isPending && actingId === h.id}
+                  canOpenListing={canOpenListing}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
 

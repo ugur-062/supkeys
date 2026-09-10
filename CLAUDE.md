@@ -352,6 +352,13 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   (any-of) → bağlantı `connections:manage`, admin duyurusu yönetim+koltuk.
   E-posta alıcısı tek kaynak `pickCompanyRecipients`.
 - Web sayfa kapıları `components/company/permission-gate.tsx` (`PermissionGate`).
+- **Onaylar sayfası (2026-09-10 sadeleşti):** iki görünüm — "Sıra sizde"
+  (`approvals/pending`, karar kartı: Onayla/Reddet/Detay) ve "Tüm istekler"
+  (`approvals/all` TEK liste; çipler Tümü/Bekleyen/Başlattıklarım/Sonuçlanan
+  istemcide, arama sunucuda; `history` ucu web'den ÇAĞRILMAZ, `?tab=history`
+  "all"a düşer). Onay akışları sekme değil, başlıktaki düğme → `?tab=flows`
+  (`ApprovalFlowsSection` aynen). Kartta Alış/Satış rozeti YOK (satış ilanı
+  kalktı), adımlar `<details>` ile katlı. Sözleşme `onaylar/__tests__/page.test`.
 - Yetki tablosu ekranı: `components/company/permission-table.tsx` (hazır set
   çipleri + 4 grup tik tablosu); yazma `PUT company/users/:id/permissions`.
 
