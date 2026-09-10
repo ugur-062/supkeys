@@ -780,7 +780,10 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **152 suite / 1371 test** · web **57 / 354** · admin **15 / 79** — yeşil (2026-09-01).
+- API **178 spec / 1882 test** · web **120 / 682** · admin **15 / 79** — yeşil (2026-09-10).
+  **Tam API suite bu makinede tek koşumda bellek nöbetçisine takılır** →
+  10 dosyalık `--runInBand` parçalarla FOREGROUND koş (~9 dk); `pkill -f jest`
+  kendi komut satırını da öldürür.
   2026-09-09 SEO turu: API birim 46 suite yeşil (integration bu makinede
   Docker olmadığı için KOŞULAMADI — sonraki koşumda `public-profile.spec`
   website/linkedinUrl beklentisi güncellendi); web tam suite yeşil.
