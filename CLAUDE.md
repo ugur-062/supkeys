@@ -535,7 +535,7 @@ sayfasının başındaki bant, üst çubuk DEĞİL.
 | `/company/satinalma` | pazar GİRİŞİ (hero arama → öneri şeridi → kategori vitrini → yeni eklenenler) |
 | `/company/satinalma/urunler` · `/firmalar` · `/kategori/<kod>-<ad>` | dizinler + kategori sayfası |
 | `/company/satinalma/urunler/<firma>/<ürün>` | ürün detayı |
-| `/company/satinalma/tedarikcilerim` | YALNIZ ilişki yönetimi |
+| `/company/satinalma/tedarikcilerim` · `/company/satis/musterilerim` | YALNIZ ilişki yönetimi (`ConnectionsView portal=…`, 2026-09-10 yeniden tasarım: Keşfet/sekme YOK; başlıkta "Firma bul" → portalın dizini + "Davet et" tek diyalog (tek/toplu); gelen istekler en üstte yalnız varsa; Bağlantılarım tek liste + Mesaj + menü; Bekleyenler `<details>`) |
 | `/company/satis` | açık talepler TAM listesi (kenar süzgeçli, `SellerTendersView embedded`); hero anahtarı "Talep \| Firma" |
 | `/company/satis/firmalar` | satış firma dizini (`PanelCompanyIndex portal="satis"`; sekme/ürün şeridi yok, nötr renk) — Bağlantılar › Keşfet "Tüm firmaları ara" PORTALINA göre gider (2026-09-10) |
 | `/company/sirketim/*` | Genel Bakış · Profil · Ziyaret Edenler · Raporlar |
