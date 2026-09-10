@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/catalyst/dialog";
 import { Checkbox, CheckboxField } from "@/components/catalyst/checkbox";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/hooks/use-company-bank-accounts";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { isValidIbanTr, normalizeIban } from "@rothern/shared";
+import { ibanChecksumOk, isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,7 +37,7 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
   const handleDelete = async (a: CompanyBankAccount) => {
     const ok = await confirm({
       title: "Banka hesabı silinsin mi?",
-      description: `"${a.title}" hesabı kalıcı olarak silinecek.`,
+      description: `"${a.title}" hesabı kalıcı olarak silinecek. Mevcut siparişler IBAN'ın kendi kopyasını taşır, etkilenmez.`,
       confirmLabel: "Sil",
       destructive: true,
     });
@@ -155,14 +155,20 @@ function BankAccountModal({
   const [isDefault, setIsDefault] = useState(account?.isDefault ?? false);
 
   // IBAN doğrulaması — backend company-bank-accounts.service ile BİREBİR:
-  // TR strict mod-97 (isValidIbanTr), yabancı gevşek format. Eski `/^TR\d{24}$/`
-  // checksum'sızdı (biçimi doğru ama geçersiz IBAN'ları kaçırıyordu).
+  // TR katı (isValidIbanTr), yabancı IBAN da mod-97 (`ibanChecksumOk`, Dalga
+  // B P3). Web eskiden yabancıda yalnız biçime bakıyordu; tek hane hatalı
+  // DE/NL IBAN'ı geçirip sunucudan 400 alıyordu.
   const ibanClean = normalizeIban(iban);
   const ibanInvalid =
     ibanClean.length > 0 &&
     (ibanClean.startsWith("TR")
       ? !isValidIbanTr(ibanClean)
-      : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean));
+      : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean) || !ibanChecksumOk(ibanClean));
+  const ibanError = ibanInvalid
+    ? ibanClean.startsWith("TR")
+      ? "Geçerli bir TR IBAN girin (TR + 24 rakam, kontrol hanesi tutmalı)."
+      : "Geçerli bir IBAN girin — kontrol hanesi tutmuyor."
+    : null;
 
   const submit = async () => {
     try {
@@ -207,6 +213,9 @@ function BankAccountModal({
               placeholder="Firma unvanı"
               maxLength={140}
             />
+            <Text className="mt-1 text-xs text-zinc-500">
+              Vergi levhasındaki unvanla aynı olmalı; alıcı ödemeyi bu ada yapar.
+            </Text>
           </Field>
           <Field>
             <Label>Banka Adı</Label>
@@ -222,15 +231,13 @@ function BankAccountModal({
           <Label>IBAN *</Label>
           <Input
             value={iban}
+            invalid={Boolean(ibanError)}
             onChange={(e) => setIban(e.target.value)}
-            placeholder="TR.."
+            placeholder="TR00 0000 0000 0000 0000 0000 00"
             maxLength={40}
+            className="font-mono"
           />
-          {ibanInvalid ? (
-            <Text className="mt-1 text-xs text-red-600">
-              Geçerli bir IBAN girin (TR IBAN: TR + 24 rakam).
-            </Text>
-          ) : null}
+          {ibanError ? <ErrorMessage>{ibanError}</ErrorMessage> : null}
         </Field>
         <CheckboxField>
           <Checkbox checked={isDefault} onChange={setIsDefault} />
