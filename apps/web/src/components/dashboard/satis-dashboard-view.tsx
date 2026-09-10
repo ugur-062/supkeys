@@ -16,7 +16,8 @@ import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/requ
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { SELLER_MARKET } from "@/lib/company/panel-market";
 import { HomeCompanyList } from "@/components/dashboard/home-company-list";
-import { useMemo, useState } from "react";
+import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * Satış panosu. Sıra yukarıdan aşağı:
@@ -65,7 +66,15 @@ export function SatisDashboardView() {
   // çekili (`seller-tenders`), ayrı uç yok.
   const [term, setTerm] = useState("");
   // Hero kapsam pili — "Firma" seçiliyken açık talepler yerine firma listesi.
-  const [scope, setScope] = useState<"products" | "suppliers">("products");
+  const [scope, setScopeState] = useState<"products" | "suppliers">("products");
+  useEffect(() => {
+    const saved = readHeroScope("satis");
+    if (saved) setScopeState(saved);
+  }, []);
+  const setScope = (s: "products" | "suppliers") => {
+    setScopeState(s);
+    writeHeroScope("satis", s);
+  };
   const q = term.trim();
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
     if (q.length < 2) return [];
@@ -137,6 +146,7 @@ export function SatisDashboardView() {
           primaryLabel: "Talep",
           primaryIcon: "clipboard",
         }}
+        scope={scope}
         onScopeChange={setScope}
         accent="emerald"
         /* Satış sahnesi (kullanıcı varlığı `satıs_foto.png` → webp). */

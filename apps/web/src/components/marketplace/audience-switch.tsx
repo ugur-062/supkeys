@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 
 /**
  * ALICIYIM / TEDARİKÇİYİM — anasayfanın yüzünü seçen anahtar (kullanıcı
@@ -43,7 +44,15 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   // Kapsam pili (2026-09-10, kullanıcı kararı — panelle aynı): "Firma"
   // seçiliyken alıcı gövdesi ürün değil FİRMA listesi basar. Sunucu her
   // zaman "products" basar; localStorage'a YAZILMAZ (anlık seçim).
-  const [scope, setScope] = useState<HeroScope>("products");
+  const [scope, setScopeState] = useState<HeroScope>("products");
+  useEffect(() => {
+    const saved = readHeroScope("public");
+    if (saved) setScopeState(saved);
+  }, []);
+  const setScope = (s: HeroScope) => {
+    setScopeState(s);
+    writeHeroScope("public", s);
+  };
 
   useEffect(() => {
     try {

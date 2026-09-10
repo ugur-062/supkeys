@@ -75,6 +75,7 @@ export function PanelHeroSearch({
   ai,
   supplierScope,
   onScopeChange,
+  scope: scopeProp,
 }: {
   eyebrow?: string;
   title: string;
@@ -135,6 +136,8 @@ export function PanelHeroSearch({
    * FİRMA listesi olmalı — pil yalnız formun adresini değil sayfayı çevirir.
    */
   onScopeChange?: (scope: "products" | "suppliers") => void;
+  /** Kontrollü kapsam — çağıran oturum belleğinden geri yükler (geri tuşu). */
+  scope?: "products" | "suppliers";
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
@@ -146,7 +149,8 @@ export function PanelHeroSearch({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
-  const [scope, setScopeState] = useState<"products" | "suppliers">("products");
+  const [scopeState, setScopeState] = useState<"products" | "suppliers">("products");
+  const scope = scopeProp ?? scopeState;
   const setScope = (next: "products" | "suppliers") => {
     setScopeState(next);
     onScopeChange?.(next);

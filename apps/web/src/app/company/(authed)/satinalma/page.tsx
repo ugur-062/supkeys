@@ -9,6 +9,7 @@ import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
 import { PanelRecommendations } from "@/components/dashboard/panel-recommendations";
 import { HomeCompanyList } from "@/components/dashboard/home-company-list";
+import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 import {
   useCategorySegments,
   useDiscoverProductFacets,
@@ -17,7 +18,7 @@ import {
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { buildShowcase } from "@/lib/public/category-showcase";
 import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } from "@/lib/company/panel-market";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * SATINALMA ANASAYFASI — pazar GİRİŞİ (2026-09-07, pazar katmanı brifi).
@@ -49,7 +50,16 @@ import { useMemo, useState } from "react";
  */
 export default function SatinalmaDashboardPage() {
   // Hero kapsam pili — "Firma" seçiliyken alttaki bölüm firma listesi.
-  const [scope, setScope] = useState<"products" | "suppliers">("products");
+  // Oturum belleğinden geri yüklenir (firma sayfasından GERİ dönüş).
+  const [scope, setScopeState] = useState<"products" | "suppliers">("products");
+  useEffect(() => {
+    const saved = readHeroScope("satinalma");
+    if (saved) setScopeState(saved);
+  }, []);
+  const setScope = (s: "products" | "suppliers") => {
+    setScopeState(s);
+    writeHeroScope("satinalma", s);
+  };
   const { company, user } = useCompanyAuth();
   const router = useRouter();
 
@@ -146,6 +156,7 @@ export default function SatinalmaDashboardPage() {
           placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
           label: "Firma",
         }}
+        scope={scope}
         onScopeChange={setScope}
         accent="blue"
         /* Sayı bandı KALKTI (kullanıcı kararı): yerine tek satırlık çıkış —

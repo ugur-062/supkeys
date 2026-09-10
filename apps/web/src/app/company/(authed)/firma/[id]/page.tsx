@@ -1,6 +1,8 @@
 "use client";
 
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { usePortalStore } from "@/lib/company/portal-store";
+import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -30,7 +32,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeft, Ban, Flag, Lock, MoreVertical, Unlink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function CompanyProfilePage() {
@@ -125,6 +127,7 @@ export default function CompanyProfilePage() {
     }
   };
 
+  const lastPortal = usePortalStore((st) => st.lastPortal);
   const actions = (
     <>
       {connectionStatus === "active" ? (
@@ -132,7 +135,7 @@ export default function CompanyProfilePage() {
       ) : connectionStatus === "pending" ? (
         <Badge color="amber">İstek gönderildi</Badge>
       ) : connectionStatus === "incoming" ? (
-        <Button href="/company/satinalma/tedarikcilerim" outline>
+        <Button href={connectionsPathFor(lastPortal)} outline>
           Size istek gönderdi — Yanıtla
         </Button>
       ) : connectionStatus === "none" && canManageConn ? (
@@ -310,12 +313,42 @@ export default function CompanyProfilePage() {
   );
 }
 
+/** Bulunulan portalın Bağlantılar sayfası (satış koltuklu kullanıcı satınalmaya düşmesin). */
+function connectionsPathFor(portal: "satinalma" | "satis" | null): string {
+  return portal === "satis" ? "/company/satis/musterilerim" : "/company/satinalma/tedarikcilerim";
+}
+
+/**
+ * GERİ (2026-09-10, kullanıcı): sayfaya anasayfadaki firma listesinden,
+ * dizinden ya da Bağlantılar'dan gelinebilir — eskiden hep Bağlantılar'a
+ * dönüyordu. Uygulama içinden gelindiyse tarayıcı geçmişine döner (geldiği
+ * yer neyse oraya); doğrudan açıldıysa (yeni sekme, e-posta) portalın
+ * Bağlantılar sayfasına düşer.
+ */
 function BackLink() {
+  const router = useRouter();
+  const lastPortal = usePortalStore((st) => st.lastPortal);
+  const fallback = connectionsPathFor(lastPortal);
+  const [canGoBack, setCanGoBack] = useState(false);
+  useEffect(() => {
+    try {
+      const sameOrigin = document.referrer ? new URL(document.referrer).origin === window.location.origin : false;
+      setCanGoBack(window.history.length > 1 && sameOrigin);
+    } catch {
+      setCanGoBack(false);
+    }
+  }, []);
+  const cls = "inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700";
+  if (canGoBack) {
+    return (
+      <button type="button" onClick={() => router.back()} className={cls}>
+        <ArrowLeft className="h-4 w-4" />
+        Geri
+      </button>
+    );
+  }
   return (
-    <Link
-      href="/company/satinalma/tedarikcilerim"
-      className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
-    >
+    <Link href={fallback} className={cls}>
       <ArrowLeft className="h-4 w-4" />
       Bağlantılar
     </Link>

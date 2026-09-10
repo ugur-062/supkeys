@@ -32,7 +32,7 @@ import { Suspense } from "react";
  * efektinde okunur).
  */
 export function HomeHero() {
-  const { audience, setScope } = useAudience();
+  const { audience, scope, setScope } = useAudience();
   const supplier = audience === "supplier";
 
   return (
@@ -109,6 +109,7 @@ export function HomeHero() {
             placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
             label: "Firma",
           }}
+          scope={scope}
           onScopeChange={setScope}
           accent="blue"
           backdrop
