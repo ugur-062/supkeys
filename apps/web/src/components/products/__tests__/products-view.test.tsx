@@ -196,6 +196,27 @@ describe("ProductsView", () => {
     expect(screen.queryByTestId("preview")).toBeNull();
   });
 
+  it("sekmeler MECE: yayındayken yeniden incelenen ürün YALNIZ Yayında'da sayılır ve listelenir; boş sekme rozet basmaz", async () => {
+    const user = userEvent.setup();
+    h.get.mockImplementation((url: string) => {
+      if (url.includes("/categories/by-ids")) return Promise.resolve({ data: [] });
+      // 1 ürün: yayında + yeniden incelemede → sunucu published 1, pending 1 sayar.
+      const item = { ...ITEMS[0], reviewStatus: "PENDING" };
+      return Promise.resolve({ data: { items: [item], total: 1, truncated: false, counts: { published: 1, draft: 0, pending: 1, rejected: 0 } } });
+    });
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    const tabs = screen.getByRole("tablist");
+    expect(within(tabs).getByRole("tab", { name: /Tümü\s*1$/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /Yayında\s*1$/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /^Onay bekliyor$/ })).toBeInTheDocument(); // 0 → rozet yok
+    expect(within(tabs).getByRole("tab", { name: /^Taslak$/ })).toBeInTheDocument();
+    expect(within(screen.getByRole("list")).getByText("Yayında · incelemede")).toBeInTheDocument();
+    await user.click(within(tabs).getByRole("tab", { name: /^Onay bekliyor$/ }));
+    expect(screen.queryByText("Dağıtım panosu")).toBeNull();
+    expect(screen.getByText("Onay bekleyen ürün yok.")).toBeInTheDocument();
+  });
+
   it("başlıkta tek primary: 'Yeni ürün'; 'Toplu ekle' ikincil", async () => {
     wrap(<ProductsView />);
     await screen.findByText("Dağıtım panosu");

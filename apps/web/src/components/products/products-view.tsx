@@ -26,6 +26,7 @@ import { formatDate } from "@/lib/format-date";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
 import { ArrowLeftIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Package } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
 /** Fiyat modu → kısa etiket (form seçenekleriyle aynı sözcükler). */
@@ -108,8 +109,12 @@ export function ProductsView() {
         ? items
         : items.filter((i) => {
             const k = productStatusKey(i);
+            // MECE (2026-09-10, kullanıcı: "Tümü 1 · Yayında 1 · Onay bekliyor 1"
+            // tutmuyordu): yayındayken yeniden incelenen ürün YALNIZ Yayında'da
+            // (rozeti "Yayında · incelemede"); Onay bekliyor = henüz vitrine
+            // çıkmamış olanlar. Sekme sayaçları toplamı = Tümü.
             if (tab === "published") return k === "published" || k === "published_pending";
-            if (tab === "pending") return k === "pending" || k === "published_pending";
+            if (tab === "pending") return k === "pending";
             if (tab === "rejected") return k === "rejected";
             return k === "draft";
           }),
@@ -227,12 +232,14 @@ export function ProductsView() {
   }
 
   const counts = data?.counts;
+  // Sunucunun `pending`i yayında olup yeniden incelenenleri DE sayar (kuyruk
+  // ölçüsü); sekmede o ürünler Yayında'da olduğundan düşülür → sekmeler MECE,
+  // Tümü = toplam.
+  const pendingOnly = counts ? Math.max(0, counts.pending - pendingPublished) : undefined;
   const tabs: { key: ProductTab; label: string; count?: number }[] = [
-    // Tümü = yayında + taslak + reddedilen + (yayında olmayan) bekleyen. Yayında
-    // olup yeniden incelenenler `published` içinde sayılır, iki kez sayılmaz.
-    { key: "all", label: "Tümü", count: counts ? counts.published + counts.draft + counts.rejected + Math.max(0, counts.pending - pendingPublished) : undefined },
+    { key: "all", label: "Tümü", count: counts && pendingOnly != null ? counts.published + counts.draft + counts.rejected + pendingOnly : undefined },
     { key: "published", label: PRODUCT_STATUS.published.label, count: counts?.published },
-    { key: "pending", label: PRODUCT_STATUS.pending.label, count: counts?.pending },
+    { key: "pending", label: PRODUCT_STATUS.pending.label, count: pendingOnly },
     { key: "rejected", label: PRODUCT_STATUS.rejected.label, count: counts?.rejected },
     { key: "draft", label: PRODUCT_STATUS.draft.label, count: counts?.draft },
   ];
@@ -285,29 +292,42 @@ export function ProductsView() {
         />
       </div>
 
-      {/* Sekmeler: Tümü / Yayında / Taslak — sayaç firma geneli. */}
-      <div className="mt-4 inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-              tab === t.key
-                ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5"
-                : "text-zinc-500 hover:text-zinc-900"
-            }`}
-          >
-            {t.label}
-            {t.count != null ? (
-              <span className="ml-1.5 text-xs font-medium tabular-nums text-zinc-400">
-                {t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      {/* Sekmeler — sayaç firma geneli, birbirini dışlar (toplam = Tümü).
+          Sayaç ROZET olarak (2026-09-10): eskiden etiketin dibine yapışık
+          soluk rakamdı ("Tümü1"), okunmuyordu. Boş sekme sönük, sayısı "0"
+          değil boş. Mobilde yatay kaydırılır. */}
+      <div className="mt-4 -mx-1 overflow-x-auto px-1">
+        <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist">
+          {tabs.map((t) => {
+            const active = tab === t.key;
+            const empty = t.count === 0;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition",
+                  active ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5" : empty ? "text-zinc-400 hover:text-zinc-700" : "text-zinc-600 hover:text-zinc-950",
+                )}
+              >
+                {t.label}
+                {t.count != null && (!empty || t.key === "all") ? (
+                  <span
+                    className={cn(
+                      "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
+                      active ? "bg-zinc-950 text-white" : "bg-white text-zinc-600 ring-1 ring-zinc-950/10",
+                    )}
+                  >
+                    {t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {profileHidden ? (
@@ -351,7 +371,7 @@ export function ProductsView() {
                 : tab === "pending"
                   ? "Onay bekleyen ürün yok."
                   : tab === "rejected"
-                    ? "Reddedilen ürün yok."
+                    ? "Düzeltme istenen ürün yok."
                     : tab === "draft"
                       ? "Taslak ürün yok."
                       : "Henüz ürün yok."
@@ -362,9 +382,9 @@ export function ProductsView() {
               : tab === "published"
                 ? "Taslak ürünleri düzenleyip 'Onaya gönder' ile inceleme kuyruğuna alın; onaylananlar burada görünür."
                 : tab === "pending"
-                  ? "Onaya gönderdiğiniz ürünler inceleme boyunca burada durur."
+                  ? "Onaya gönderdiğiniz ürünler inceleme boyunca burada durur; yayındayken yeniden incelenenler Yayında sekmesinde kalır."
                   : tab === "rejected"
-                    ? "Reddedilen ürün gerekçesiyle burada listelenir; düzenleyip yeniden gönderebilirsiniz."
+                    ? "Düzeltme istenen ürün gerekçesiyle burada listelenir; düzenleyip yeniden gönderebilirsiniz."
                     : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
           }
           variant={q || tab !== "all" ? "no-results" : "no-data"}
