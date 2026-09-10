@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -14,12 +13,8 @@ import {
 } from "recharts";
 import { InfoTooltip } from "./info-tooltip";
 import type { Period } from "./period-toggle";
-import { SavingsCriteriaDialog } from "./savings-criteria-dialog";
 import { DASH } from "@/lib/dashboard/strings";
-import type {
-  SatinalmaAnalytics,
-  TimeSavingsData,
-} from "@/hooks/use-company-dashboard";
+import type { SatinalmaAnalytics } from "@/hooks/use-company-dashboard";
 import {
   ChartCard,
   DashboardEmptyState,
@@ -66,8 +61,6 @@ interface Props {
   data: TasarrufTabData;
   /** Global dönem — sayfa başındaki TEK seçici (kart içi seçiciler kalktı). */
   period: Period;
-  /** Zaman alt bölümü + kriter modalı verisi (time-savings endpoint'i). */
-  savings?: TimeSavingsData;
   /** Trend + tutarlı kategori kırılımı (analytics ucu). */
   analytics?: SatinalmaAnalytics;
 }
@@ -85,11 +78,9 @@ const TOOLTIP_CATEGORY =
 const TOOLTIP_CURRENCY =
   "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY karşılığı baz alınır).";
 
-export function TasarrufTab({ data, period, savings, analytics }: Props) {
+export function TasarrufTab({ data, period, analytics }: Props) {
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
-  const [section, setSection] = useState<"cost" | "time">("cost");
-  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   const metrics = costPeriod === "month" ? data.month : data.year;
   const topRows =
@@ -101,50 +92,13 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Maliyet / Zaman alt bölümleri + kriter modalı (dönem seçici sayfa başında TEK). */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
-          {(
-            [
-              ["cost", DASH.savingsTabCost],
-              ["time", DASH.savingsTabTime],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSection(key)}
-              className={
-                section === key
-                  ? "rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm"
-                  : "rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-800"
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setCriteriaOpen(true)}
-          className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-900"
-        >
-          Hesaplama Kriterlerini İncele
-        </button>
-      </div>
-      <SavingsCriteriaDialog
-        open={criteriaOpen}
-        onClose={() => setCriteriaOpen(false)}
-        params={savings?.params}
-      />
+      {/* Zaman tasarrufu alt bölümü ve kriter penceresi KALDIRILDI (2026-09-10,
+          kullanıcı kararı: "Şirketim'deki zaman tasarrufu kısımları gereksiz").
+          Sekme yalnız MALİYET tasarrufunu gösterir. */}
       {period === "quarter" ? (
         <p className="text-xs text-zinc-400">{DASH.quarterCostNote}</p>
       ) : null}
 
-      {section === "time" ? (
-        <TimeSection savings={savings} />
-      ) : (
-      <>
       {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}
       <div className="grid grid-cols-1 gap-4">
         <ChartCard
@@ -317,100 +271,9 @@ export function TasarrufTab({ data, period, savings, analytics }: Props) {
           color="indigo"
         />
       </div>
-      </>
-      )}
     </div>
   );
 }
-
-/** Zaman alt bölümü — adım bazlı NET dakika kırılımı + ölçülen medyanlar. */
-function TimeSection({ savings }: { savings?: TimeSavingsData }) {
-  if (!savings) {
-    return (
-      <div className="h-40 animate-pulse rounded-xl bg-zinc-200/60" aria-hidden />
-    );
-  }
-  const rows = savings.breakdown.filter((r) => r.minutes > 0);
-  const total = savings.savedMinutes;
-  const fmtH = (min: number) =>
-    min >= 90
-      ? `~${(min / 60).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} sa`
-      : `~${Math.round(min)} dk`;
-  const m = savings.measured;
-  const fmtMeasured = (h: number | null) =>
-    h == null ? "—" : h >= 48 ? `${(h / 24).toFixed(1)} gün` : `${h.toFixed(1)} sa`;
-  return (
-    <div className="space-y-6">
-      <section className="card p-6">
-        <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-950">
-          {DASH.timeBreakdownTitle}
-        </h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          {DASH.timeBreakdownHint}
-        </p>
-        {rows.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">
-            Bu dönemde hesaba katılacak tamamlanmış iş yok.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {rows.map((r) => (
-              <li key={r.key} className="flex items-center gap-3">
-                <span className="w-44 shrink-0 text-sm text-slate-600">
-                  {r.label}
-                </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
-                  <span
-                    className="block h-full rounded-full bg-zinc-900"
-                    style={{
-                      width: `${Math.min(100, (r.minutes / Math.max(1, savings.estimatedMailMinutes)) * 100)}%`,
-                    }}
-                  />
-                </span>
-                <span className="w-20 shrink-0 text-right text-sm tabular-nums text-slate-900">
-                  {fmtH(r.minutes)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {total > 0 ? (
-          <p className="mt-4 border-t border-zinc-100 pt-3 text-sm text-slate-600">
-            Net kazanım:{" "}
-            <strong className="text-slate-950">{fmtH(total)}</strong>{" "}
-            (sistemde geçen {fmtH(savings.systemMinutes)} düşülmüş)
-          </p>
-        ) : null}
-      </section>
-
-      <section className="card p-6">
-        <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-950">
-          {DASH.timeMeasuredTitle}
-        </h2>
-        <dl className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {(
-            [
-              [DASH.timeMeasuredInvite, m.inviteToFirstBidHours],
-              [DASH.timeMeasuredAward, m.closeToAwardHours],
-              [DASH.timeMeasuredOrder, m.awardToOrderHours],
-            ] as const
-          ).map(([label, v]) => (
-            <div key={label}>
-              <dt className="text-xs text-slate-500">{label}</dt>
-              <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-950">
-                {fmtMeasured(v)}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Subcomponents
-// ─────────────────────────────────────────────────────────────
 
 function Metric({
   label,

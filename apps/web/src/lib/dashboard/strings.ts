@@ -6,16 +6,8 @@
 import { numberPossessive } from "@/lib/turkish";
 
 export const DASH = {
-  heroSavedTitle: (hours: string) => `~${hours} saat kazandınız`,
-  heroWorkDays: (d: string) => `≈ ${d} iş günü`,
-  heroPeriod: { month: "bu ay", quarter: "bu çeyrek", year: "bu yıl" } as const,
-  heroValue: (v: string) => `${v} değerinde`,
-  heroEstimatedNote: "Tahmini değerdir — muhafazakâr hesaplanır.",
-  heroHow: "Nasıl hesaplanıyor?",
-  heroEmptyTitle: "Zaman tasarrufu burada birikecek",
-  heroEmptyBody:
-    "İlk satın alma talebinizi açıp teklif topladığınızda, mail'le yürütmeye kıyasla kazandığınız süreyi burada göreceksiniz.",
-  heroEmptyCta: "Satın Alma Talebi Aç",
+  // Zaman tasarrufu şeridi/bölümü/kriter penceresi metinleri KALDIRILDI
+  // (2026-09-10, kullanıcı kararı: Şirketim'de gerek yok). API ucu duruyor.
   heroWinTitle: (pct: string) => `%${pct} kazanma oranı`,
   heroWinSupport: (won: number, total: number) =>
     `karara bağlanan ${total} teklifin ${won}${numberPossessive(won)} kazandı`,
@@ -23,22 +15,6 @@ export const DASH = {
   heroWinEmptyBody:
     "Açık satın alma taleplerine teklif verip sonuç aldıkça kazanma oranınız ve trendiniz burada birikecek.",
   heroWinEmptyCta: "Açık Taleplere Göz At",
-  periodLabels: { month: "Bu Ay", quarter: "Bu Çeyrek", year: "Bu Yıl" },
-  savingsTabCost: "Maliyet",
-  savingsTabTime: "Zaman",
-  timeBreakdownTitle: "Zaman kırılımı — adım bazında",
-  timeBreakdownHint:
-    "“Mail ile yapılsaydı” tahmini süre; sistemde geçen süre düşülmüş NET dakikalar. En az değerlerdir.",
-  timeMeasuredTitle: "Ölçülen gerçek süreler (medyan)",
-  timeMeasuredInvite: "Davet → ilk teklif",
-  timeMeasuredAward: "Kapanış → karar",
-  timeMeasuredOrder: "Karar → sipariş",
-  criteriaTitle: "Nasıl hesaplanıyor?",
-  criteriaIntro:
-    "Zaman tasarrufu = “mail ile yürütülseydi” tahmini süresi − sistemde fiilen geçen süre. Yalnız gerçekleşen işler sayılır (gönderilmiş teklif, verilmiş karar, oluşmuş sipariş) ve sonuç aşağı yuvarlanır — bu yüzden “~” ve “en az” diliyle sunulur.",
-  criteriaParamsTitle: "Birim süre parametreleri (dk)",
-  criteriaParamNote:
-    "Parametreler platform yönetiminden düzenlenebilir; firma bazında özelleştirilebilir. Hatırlatma parametresi, hatırlatma kaydı tutulmadığı için hesaba katılmaz.",
   quarterCostNote:
     "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
   actionTitle: "Bekleyen İşler",
@@ -128,15 +104,4 @@ export const ACTION_ROWS: Record<
       href: "/company/mesajlar",
     },
   },
-};
-
-export const PARAM_LABELS: Record<string, string> = {
-  rfqMailPrepMin: "RFQ maili hazırlama (× davet)",
-  followupMin: "Takip/hatırlatma (hesaba katılmaz)",
-  bidToExcelMin: "Teklifi Excel'e işleme (× teklif)",
-  bidItemFactor: "Kalem katsayısı",
-  comparisonTableMin: "Karşılaştırma tablosu (× satın alma talebi)",
-  revisionRoundMin: "Revizyon/pazarlık turu (× tur)",
-  approvalLoopMin: "Onay mail döngüsü (× onay)",
-  poPrepMin: "Sipariş (PO) hazırlama (× sipariş)",
 };

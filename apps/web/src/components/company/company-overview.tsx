@@ -3,7 +3,6 @@
 import { CompanyActionCenter } from "@/components/company/company-action-center";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { PeriodControls } from "@/components/dashboard/period-controls";
-import { TimeSavingsStrip } from "@/components/dashboard/time-savings-strip";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatCompactMoney } from "@/components/ui/money";
@@ -14,7 +13,6 @@ import {
   useSatinalmaTasarruf,
   useSatinalmaTedarikci,
   useSatisAnalytics,
-  useTimeSavings,
 } from "@/hooks/use-company-dashboard";
 import { useMyBids } from "@/hooks/use-company-listings";
 import { useOrders } from "@/hooks/use-company-orders";
@@ -42,7 +40,7 @@ import { useEffect, useState } from "react";
  *   3. SAYILAR — tek dönem seçici; Satınalma satırı (mavi) + Satış satırı (yeşil)
  *   4. GRAFİKLER — eski beş sekme (Satın Alma Talebi · Tasarruf · Tedarikçi ·
  *      Gelir · Müşteri), tembel recharts, aynı dönem seçicisine bağlı
- *   5. ZAMAN TASARRUFU şeridi
+ *   5. (Zaman tasarrufu şeridi kaldırıldı — 2026-09-10)
  * Profil, vitrin, ekip, doğrulama, paket burada YOK — hepsinin kendi sayfası
  * var. Portal anasayfaları pazar yeri; tam iş listesi ve grafikler yalnız
  * burada (Raporlar hub'ından özet grafikler kaldırıldı — tekrar yok).
@@ -94,7 +92,6 @@ export function CompanyOverview() {
   const ihale = useSatinalmaDashboard(hasSa);
   const tasarruf = useSatinalmaTasarruf(hasSa);
   const tedarikci = useSatinalmaTedarikci(hasSa);
-  const savings = useTimeSavings(periodQuery, hasSa);
   const saAnalytics = useSatinalmaAnalytics(periodQuery, hasSa);
   const stAnalytics = useSatisAnalytics(periodQuery, hasSt);
   const bids = useMyBids(hasSt);
@@ -248,7 +245,7 @@ export function CompanyOverview() {
                   {t.value === "satın alma talebi" ? (
                     ihale.data ? <SatinalmaIhaleTab data={ihale.data} analytics={saAnalytics.data} showKpis={false} /> : ihale.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void ihale.refetch()} /> : <TabLoading />
                   ) : t.value === "tasarruf" ? (
-                    tasarruf.data ? <TasarrufTab data={tasarruf.data} period={period === "custom" ? "year" : period} savings={savings.data} analytics={saAnalytics.data} /> : tasarruf.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void tasarruf.refetch()} /> : <TabLoading />
+                    tasarruf.data ? <TasarrufTab data={tasarruf.data} period={period === "custom" ? "year" : period} analytics={saAnalytics.data} /> : tasarruf.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void tasarruf.refetch()} /> : <TabLoading />
                   ) : t.value === "tedarikci" ? (
                     tedarikci.data ? <TedarikciTab data={tedarikci.data} /> : tedarikci.isError ? <ErrorState title="Veri alınamadı" onRetry={() => void tedarikci.refetch()} /> : <TabLoading />
                   ) : t.value === "gelir" ? (
@@ -263,8 +260,7 @@ export function CompanyOverview() {
         </section>
       ) : null}
 
-      {/* 5 · Zaman tasarrufu */}
-      {hasSa ? <TimeSavingsStrip /> : null}
+      {/* 5 · Zaman tasarrufu şeridi KALDIRILDI (2026-09-10, kullanıcı kararı). */}
     </div>
   );
 }
