@@ -123,7 +123,7 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     expect(screen.queryByText("Satıcı Siparişi")).not.toBeInTheDocument();
   });
 
-  it("alıcı ALIM siparişi → 'Kendi Satın Alma Talebim' + 'Satıcı:' etiketi", () => {
+  it("alıcı siparişi kartı: kaynak rozeti/uzun cümle YOK (2026-09-10); 'Satıcı' + karşı taraf + talep no tek satırda", () => {
     h.orders = {
       data: [
         order({
@@ -137,10 +137,12 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
       refetch: vi.fn(),
     };
     render(<OrdersList role="buyer" />);
-    expect(screen.getByText("Kendi Satın Alma Talebim")).toBeInTheDocument();
-    // "Tedarikçi X" hem satır etiketinde hem karşı-taraf filtre <option>'unda
-    // geçer; satır etiketini tam metinle eşleştirip tekilliği koru.
-    expect(screen.getByText("Satıcı: Tedarikçi X")).toBeInTheDocument();
+    expect(screen.queryByText("Kendi Satın Alma Talebim")).not.toBeInTheDocument();
+    expect(screen.queryByText(/bu onun siparişi/)).not.toBeInTheDocument();
+    // "Tedarikçi X" hem satırda hem karşı-taraf filtre <option>'unda geçer;
+    // satırdaki etiket sözcüğü ("Satıcı") ve adı ayrı düğümlerde.
+    const row = screen.getByRole("link", { name: /Tedarikçi X/ });
+    expect(row).toHaveTextContent(/Satıcı\s*Tedarikçi X/);
   });
 
   it("durum filtresi PENDING → yalnız onay bekleyen satır kalır", async () => {

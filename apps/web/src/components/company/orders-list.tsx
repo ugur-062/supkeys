@@ -206,158 +206,112 @@ function sym(currency: string | undefined): string {
 }
 
 /**
- * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır:
- *  - Alıcı: "Kendi Satın Alma Talebim"
- *  - Satıcı: "Kazanılan Açık Talep"
- * Talep silinmişse (listingType null) nötr "Talep silinmiş" gösterilir —
- * etiketi hiç olmayan sipariş kalmaz.
+ * Sipariş kartı — yeniden tasarım (2026-09-10, kullanıcı: "çok iyi durmuyor").
+ *
+ * Eski kart dört çipi (no · kaynak · durum · ödeme) tek satıra diziyor, altına
+ * başlık, altına kaynağın UZUN açıklamasını ("Açtığınız satın alma talebini
+ * kazandırdınız — bu onun siparişi") tekrar basıyordu. Satış ilanı kalktığı
+ * için kaynak TEK: alıcıda kendi talebi, satıcıda kazanılan talep — rozet ve
+ * cümle bilgi taşımıyordu, kaldırıldı; talep numarası tek satırda karşı
+ * tarafın yanında.
+ *
+ * Düzen: SOL kimlik (no · tarih / başlık / karşı taraf · talep), SAĞ karar
+ * bilgisi (durum rozeti / tutar / ödeme satırı), ALTTA aşama izleyici tam
+ * genişlik. İptal/red durumunda izleyici yerine tek satır not.
  */
-function sourceMeta(
-  role: "buyer" | "seller",
-  type: "ALIM" | null,
-): { label: string; hint: string; cls: string } {
-  if (!type) {
-    return {
-      label: "Talep silinmiş",
-      hint: "Bu siparişin bağlı olduğu talep kaydı artık yok.",
-      cls: "border-zinc-200 bg-zinc-50 text-zinc-500",
-    };
-  }
-  if (role === "buyer") {
-    return {
-      label: "Kendi Satın Alma Talebim",
-      hint: "Açtığınız satın alma talebini kazandırdınız — bu onun siparişi.",
-      cls: "border-blue-200 bg-blue-50 text-blue-700",
-    };
-  }
-  return {
-    label: "Kazanılan Açık Talep",
-    hint: "Bir alıcının açık talebine verdiğiniz teklif kazandı.",
-    cls: "border-blue-200 bg-blue-50 text-blue-700",
-  };
-}
-
-/** Tek satırlık sipariş kutusu (İhalelerim listesiyle aynı desen). */
 function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
   const { active, lastDone, isTerminated } = getStageState(o.status);
-  const src = sourceMeta(role, o.listingType);
   // Teslim şekli: satıcı taşımıyorsa (EXW/fabrika teslim…) orta adım "Teslime Hazır".
   const sellerShips = sellerShipsGoods(o.deliveryTerm);
+  const meta = orderStatusMeta(o.status, sellerShips);
+  const overdueDays =
+    o.paymentSettled === false && o.paymentDueDate
+      ? Math.floor((Date.now() - new Date(o.paymentDueDate).getTime()) / 86_400_000)
+      : null;
+  const showPayment =
+    o.paymentSettled === false && !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status);
 
   return (
     <Link
       href={`/company/siparis/${o.id}`}
-      className="group block rounded-2xl border border-zinc-200 bg-white p-4 transition-all hover:border-brand-300 hover:shadow-md sm:p-5"
+      className="group block rounded-xl border border-zinc-950/10 bg-white transition hover:border-zinc-950/25 hover:shadow-sm"
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        {/* Sol: kimlik + kaynak */}
+      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+        {/* SOL — kimlik */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="tabular-nums text-xs tracking-wide text-zinc-500">
-              {o.number ?? "—"}
-            </span>
-            <span
-              title={src.hint}
-              className={cn(
-                "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold",
-                src.cls,
-              )}
-            >
-              {src.label}
-            </span>
-            <StatusBadge tone={orderStatusMeta(o.status, sellerShips).tone}>
-              {orderStatusMeta(o.status, sellerShips).label}
-            </StatusBadge>
-            {/* Yaşam döngüsü ayrımı: ödeme durumu operasyonel durumdan ayrı.
-                P0: VADESİ GEÇMİŞ ödeme normal "Ödeme bekliyor" ile piksel
-                piksel aynı görünüyordu — gecikme danger rozetle ayrışır. */}
-            {o.paymentSettled === false &&
-            !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status) ? (
-              (() => {
-                const overdueDays = o.paymentDueDate
-                  ? Math.floor(
-                      (Date.now() - new Date(o.paymentDueDate).getTime()) /
-                        86_400_000,
-                    )
-                  : null;
-                if (overdueDays != null && overdueDays > 0) {
-                  return (
-                    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
-                      Ödeme gecikti · {overdueDays} gün
-                    </span>
-                  );
-                }
-                return (
-                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                    Ödeme bekliyor
-                    {o.paymentDueDate
-                      ? ` · Vade ${formatDate(o.paymentDueDate)}`
-                      : ""}
-                  </span>
-                );
-              })()
-            ) : null}
-          </div>
-          <p className="mt-1 truncate font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">
-            {o.listingTitle ?? "—"}
+          <p className="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+            <span className="tabular-nums font-medium text-zinc-700">{o.number ?? "—"}</span>
+            <span aria-hidden>·</span>
+            <span>{formatDate(o.createdAt, "short")}</span>
           </p>
-          {/* Kaynak açıklaması — rozetin uzun hali; kafa karışıklığını bitirir. */}
-          <p className="mt-0.5 truncate text-xs text-zinc-500">
-            {src.hint}
-            {o.listingNumber ? (
-              <span className="ml-1 tabular-nums text-zinc-400">
-                {" "}
-                ({o.listingNumber})
+          <p className="mt-1 truncate text-base font-semibold leading-snug text-zinc-950 group-hover:underline">
+            {o.listingTitle ?? "Sipariş"}
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-zinc-600">
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Building2 className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
+              <span className="truncate">
+                <span className="text-zinc-500">{role === "buyer" ? "Satıcı" : "Alıcı"}</span>{" "}
+                <span className="font-medium text-zinc-900">{o.counterparty}</span>
               </span>
+            </span>
+            {o.listingNumber ? (
+              <>
+                <span aria-hidden className="text-zinc-300">|</span>
+                <span className="text-zinc-500">
+                  Talep <span className="tabular-nums text-zinc-700">{o.listingNumber}</span>
+                </span>
+              </>
+            ) : !o.listingType ? (
+              <>
+                <span aria-hidden className="text-zinc-300">|</span>
+                <span className="text-zinc-500" title="Bu siparişin bağlı olduğu talep kaydı artık yok.">
+                  Talep silinmiş
+                </span>
+              </>
             ) : null}
           </p>
-          <p className="mt-1 flex items-center gap-2 text-sm text-zinc-600">
-            <Building2
-              className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400"
-              aria-hidden="true"
-            />
-            <span className="truncate font-medium">
-              {role === "buyer" ? "Satıcı: " : "Alıcı: "}
-              {o.counterparty}
-            </span>
-          </p>
         </div>
 
-        {/* Orta: aşama göstergesi */}
-        <div className="w-full shrink-0 lg:w-80">
-          {!isTerminated ? (
-            <StageStepper
-              active={active}
-              lastDone={lastDone}
-              stages={stagesFor(sellerShips)}
-            />
-          ) : (
-            <div
-              className={cn(
-                "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium",
-                o.status === "REJECTED"
-                  ? "border-orange-200 bg-orange-50 text-orange-700"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-600",
-              )}
-            >
-              <CircleSlash className="size-4 shrink-0" aria-hidden />
-              {o.status === "REJECTED"
-                ? "Sipariş reddedildi"
-                : "Sipariş iptal edildi"}
-            </div>
-          )}
-        </div>
-
-        {/* Sağ: tutar + tarih */}
-        <div className="flex shrink-0 items-center justify-between gap-4 lg:w-40 lg:flex-col lg:items-end lg:justify-center lg:gap-1">
+        {/* SAĞ — durum · tutar · ödeme */}
+        <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:w-52 sm:flex-col sm:items-end sm:gap-1">
+          <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
           {/* P1 (denetim §8.1): tek para formatı — kuruş görünür, sembol sonda. */}
-          <p className="whitespace-nowrap text-base font-bold tabular-nums text-success-700">
+          <p className="whitespace-nowrap text-lg font-semibold tabular-nums text-zinc-950">
             {formatMoney(o.amount, o.currency)}
           </p>
-          <p className="whitespace-nowrap text-xs text-zinc-400">
-            {formatDate(o.createdAt, "short")}
-          </p>
+          {showPayment ? (
+            overdueDays != null && overdueDays > 0 ? (
+              /* P0: VADESİ GEÇMİŞ ödeme normal bekleyenle aynı görünmesin. */
+              <p className="whitespace-nowrap text-xs font-semibold text-red-700">
+                Ödeme gecikti · {overdueDays} gün
+              </p>
+            ) : (
+              <p className="whitespace-nowrap text-xs text-amber-700">
+                Ödeme bekliyor{o.paymentDueDate ? ` · vade ${formatDate(o.paymentDueDate)}` : ""}
+              </p>
+            )
+          ) : o.paymentSettled === true ? (
+            <p className="whitespace-nowrap text-xs text-emerald-700">Ödeme tamam</p>
+          ) : null}
         </div>
+      </div>
+
+      {/* ALT — aşama izleyici / son durum notu */}
+      <div className="border-t border-zinc-950/5 px-4 py-3 sm:px-5">
+        {!isTerminated ? (
+          <StageStepper active={active} lastDone={lastDone} stages={stagesFor(sellerShips)} />
+        ) : (
+          <p
+            className={cn(
+              "flex items-center gap-2 text-xs font-medium",
+              o.status === "REJECTED" ? "text-orange-700" : "text-zinc-600",
+            )}
+          >
+            <CircleSlash className="size-4 shrink-0" aria-hidden />
+            {o.status === "REJECTED" ? "Sipariş reddedildi" : "Sipariş iptal edildi"}
+          </p>
+        )}
       </div>
     </Link>
   );
