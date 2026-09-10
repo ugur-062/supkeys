@@ -40,6 +40,7 @@ import {
   CalendarRange,
   Check,
   CircleSlash,
+  ClipboardList,
   ListFilter,
   Package,
   Users,
@@ -219,30 +220,31 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
           <p className="mt-1 truncate text-base font-semibold leading-snug text-zinc-950 group-hover:underline">
             {o.listingTitle ?? "Sipariş"}
           </p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-zinc-600">
-            <span className="inline-flex min-w-0 items-center gap-1.5">
+          {/* Referans çipleri (2026-09-10, kullanıcı: "Talep ROT-… çok düz"):
+              karşı taraf ve bağlı talep, ikonlu iki çip — numara koyu, etiket
+              soluk. Kart zaten bağlantı; çip içinde ikinci link yok. */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-zinc-950/10 bg-white px-2 py-1 text-xs">
               <Building2 className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
-              <span className="truncate">
-                <span className="text-zinc-500">{role === "buyer" ? "Satıcı" : "Alıcı"}</span>{" "}
-                <span className="font-medium text-zinc-900">{o.counterparty}</span>
-              </span>
+              <span className="text-zinc-500">{role === "buyer" ? "Satıcı" : "Alıcı"}</span>
+              <span className="truncate font-medium text-zinc-900">{o.counterparty}</span>
             </span>
             {o.listingNumber ? (
-              <>
-                <span aria-hidden className="text-zinc-300">|</span>
-                <span className="text-zinc-500">
-                  Talep <span className="tabular-nums text-zinc-700">{o.listingNumber}</span>
-                </span>
-              </>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs">
+                <ClipboardList className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
+                <span className="text-zinc-500">Talep</span>
+                <span className="tabular-nums font-semibold text-zinc-900">{o.listingNumber}</span>
+              </span>
             ) : !o.listingType ? (
-              <>
-                <span aria-hidden className="text-zinc-300">|</span>
-                <span className="text-zinc-500" title="Bu siparişin bağlı olduğu talep kaydı artık yok.">
-                  Talep silinmiş
-                </span>
-              </>
+              <span
+                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-500"
+                title="Bu siparişin bağlı olduğu talep kaydı artık yok."
+              >
+                <ClipboardList className="size-3.5 shrink-0" aria-hidden />
+                Talep silinmiş
+              </span>
             ) : null}
-          </p>
+          </div>
         </div>
 
         {/* SAĞ — durum · tutar · ödeme */}
