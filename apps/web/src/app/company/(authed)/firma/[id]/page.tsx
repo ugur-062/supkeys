@@ -46,6 +46,7 @@ export default function CompanyProfilePage() {
   const confirmDialog = useConfirm();
   const [blockOpen, setBlockOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
+  const lastPortal = usePortalStore((st) => st.lastPortal);
   // Bağlantı/engelleme/şikayet = "Bağlantılar" yetkisi (API aynası; Bağlantılar sayfasıyla aynı kural).
   const canManageConn = useHasCompanyPermission("connections:manage");
 
@@ -127,7 +128,6 @@ export default function CompanyProfilePage() {
     }
   };
 
-  const lastPortal = usePortalStore((st) => st.lastPortal);
   const actions = (
     <>
       {connectionStatus === "active" ? (

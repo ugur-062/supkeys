@@ -127,6 +127,14 @@ describe("Satınalma anasayfası", () => {
     expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();
   });
 
+  it("oturum belleğinde 'Firma' kapsamı varsa (firma sayfasından GERİ dönüş) liste Firma'da açılır", async () => {
+    window.sessionStorage.setItem("rothern.hero-scope:satinalma", "suppliers");
+    renderPage();
+    expect(await screen.findByRole("heading", { level: 2, name: "Firmalar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Firma" })).toHaveAttribute("aria-pressed", "true");
+    window.sessionStorage.clear();
+  });
+
   it("SİYAH dolgu YOK — satınalmada birincil renk mavi (kullanıcı kuralı)", () => {
     const { container } = renderPage();
     const black = Array.from(container.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
