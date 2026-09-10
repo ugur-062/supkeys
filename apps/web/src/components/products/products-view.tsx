@@ -36,6 +36,15 @@ const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
   ON_REQUEST: "Teklif isteyin",
 };
 
+/** Durum kutusundaki renk noktası — rozet renkleriyle aynı sözlük. */
+const DOT: Record<"zinc" | "amber" | "emerald" | "red" | "blue", string> = {
+  zinc: "bg-zinc-400",
+  amber: "bg-amber-500",
+  emerald: "bg-emerald-500",
+  red: "bg-red-500",
+  blue: "bg-blue-500",
+};
+
 type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
 const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft"];
 
@@ -292,42 +301,37 @@ export function ProductsView() {
         />
       </div>
 
-      {/* Sekmeler — sayaç firma geneli, birbirini dışlar (toplam = Tümü).
-          Sayaç ROZET olarak (2026-09-10): eskiden etiketin dibine yapışık
-          soluk rakamdı ("Tümü1"), okunmuyordu. Boş sekme sönük, sayısı "0"
-          değil boş. Mobilde yatay kaydırılır. */}
-      <div className="mt-4 -mx-1 overflow-x-auto px-1">
-        <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist">
-          {tabs.map((t) => {
-            const active = tab === t.key;
-            const empty = t.count === 0;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTab(t.key)}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition",
-                  active ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5" : empty ? "text-zinc-400 hover:text-zinc-700" : "text-zinc-600 hover:text-zinc-950",
-                )}
-              >
+      {/* DURUM KUTULARI (2026-09-10, kullanıcı: "aşağı doğru box olsa daha
+          iyi, ayrı ayrı gözüküyor"): yatay sekme şeridi yerine 5 kutu —
+          etiket + büyük sayı, seçili olan koyu çerçeveli; tıklayınca listeyi
+          süzer. Sayaç firma geneli ve birbirini dışlar (toplam = Tümü).
+          Mobilde 2, tablette 3, masaüstünde 5 sütun. */}
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="tablist" aria-label="Ürün durumu">
+        {tabs.map((t) => {
+          const active = tab === t.key;
+          const color = t.key === "all" ? null : PRODUCT_STATUS[t.key].color;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "flex flex-col items-start gap-1 rounded-xl bg-white px-4 py-3 text-left transition",
+                active ? "ring-2 ring-zinc-950" : "ring-1 ring-zinc-950/10 hover:ring-zinc-950/30",
+              )}
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
+                {color ? <span aria-hidden className={cn("size-2 rounded-full", DOT[color])} /> : null}
                 {t.label}
-                {t.count != null && (!empty || t.key === "all") ? (
-                  <span
-                    className={cn(
-                      "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
-                      active ? "bg-zinc-950 text-white" : "bg-white text-zinc-600 ring-1 ring-zinc-950/10",
-                    )}
-                  >
-                    {t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+              </span>
+              <span className={cn("text-xl font-semibold tabular-nums leading-none", t.count === 0 ? "text-zinc-300" : "text-zinc-950")}>
+                {t.count == null ? "—" : t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {profileHidden ? (
