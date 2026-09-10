@@ -28,6 +28,25 @@ export const PANEL_MARKET = {
   connections: "/company/satinalma/tedarikcilerim",
 } as const;
 
+/**
+ * SATIŞ PORTALININ pazar adresleri (2026-09-10, kullanıcı isteği): firma
+ * dizini satışta da var — satış paneli "kime satabilirim"i de arar. Ürün
+ * dizini/kategori sayfası satışta YOK (onlar alıcının işi).
+ */
+export const SELLER_MARKET = {
+  home: "/company/satis",
+  companies: "/company/satis/firmalar",
+} as const;
+
+/**
+ * Portala göre firma dizini adresi. Bağlantılar › Keşfet "Tüm firmaları ara"
+ * eskiden her iki portaldan da satınalma dizinine gidiyordu; satınalmaya
+ * erişimi olmayan (yalnız satış koltuklu) kullanıcı PortalGuard'a takılıyordu.
+ */
+export function marketCompaniesPath(portal: "satinalma" | "satis"): string {
+  return portal === "satis" ? SELLER_MARKET.companies : PANEL_MARKET.companies;
+}
+
 /** Panel içi ürün detayı — firma ve ürün slug'ı altında (adres değişmedi). */
 export function panelProductPath(companySlug: string, productSlug: string): string {
   return `${PANEL_MARKET.products}/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}`;

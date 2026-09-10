@@ -3,5 +3,5 @@
 import { ConnectionsView } from "@/components/company/connections-view";
 
 export default function MusterilerimPage() {
-  return <ConnectionsView />;
+  return <ConnectionsView portal="satis" />;
 }

@@ -32,14 +32,16 @@ describe("ikincil rotalar — menü dışı ama etiketli", () => {
     expect(routeLabel("/company/sirketim/profil")).toBe("Profil");
   });
 
-  it("PORTAL_SECONDARY_HREFS Şirketim rotalarına işaret eder; satışta ikincil rota yok", () => {
+  it("PORTAL_SECONDARY_HREFS Şirketim rotalarına işaret eder; satışta tek ikincil rota firma dizini", () => {
     const ca = new Set(COMPANY_AREA.nav.map((i) => i.href));
     expect(ca.has(PORTAL_SECONDARY_HREFS.satinalma.profilim)).toBe(true);
     expect(ca.has(PORTAL_SECONDARY_HREFS.satinalma.raporlar)).toBe(true);
     expect(ca.has(PORTAL_SECONDARY_HREFS.satis.profilim)).toBe(true);
     const sa = new Set(allPortalRoutes(PORTALS.satinalma).map((i) => i.href));
     expect(sa.has(PORTAL_SECONDARY_HREFS.satinalma.sablonlar)).toBe(true);
-    expect(PORTALS.satis.secondaryNav).toEqual([]);
+    // Satış firma dizini (2026-09-10): sol menüde değil, rota kaydında —
+    // anasayfa arama anahtarı ("Firma") ve Bağlantılar › Keşfet oraya götürür.
+    expect(PORTALS.satis.secondaryNav.map((i) => i.href)).toEqual(["/company/satis/firmalar"]);
     // Şirketim menüsü: Genel Bakış › Profil › Ziyaret Edenler › Raporlar.
     expect(COMPANY_AREA.nav.map((i) => i.label)).toEqual(["Genel Bakış", "Profil", "Ziyaret Edenler", "Raporlar"]);
   });

@@ -47,7 +47,8 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import { PANEL_MARKET } from "@/lib/company/panel-market";
+import { marketCompaniesPath } from "@/lib/company/panel-market";
+import type { PortalKey } from "@/lib/company/portals";
 import { ArrowRight, Ban, Building2, Check, ChevronRight, Compass, Copy, Flag, Inbox, Mail, MoreVertical, Unlink, Users } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -308,7 +309,12 @@ function ConnectionRow({
   );
 }
 
-export function ConnectionsView() {
+/**
+ * `portal`: "Tüm firmaları ara" o portalın firma dizinine gider (2026-09-10).
+ * Eskiden iki portaldan da satınalma dizinine gidiyordu; yalnız satış
+ * koltuklu kullanıcı PortalGuard'a takılıyordu.
+ */
+export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }) {
   const self = useConnectionSelf();
   const connections = useConnections();
   const incoming = useIncomingInvites();
@@ -624,7 +630,7 @@ export function ConnectionsView() {
           )}
 
           <Link
-            href={PANEL_MARKET.companies}
+            href={marketCompaniesPath(portal)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
           >
             Tüm firmaları ara

@@ -14,6 +14,7 @@ import { PackagePlus } from "lucide-react";
 import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/request-facets";
 
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { SELLER_MARKET } from "@/lib/company/panel-market";
 import { useMemo, useState } from "react";
 
 /**
@@ -123,6 +124,16 @@ export function SatisDashboardView() {
         lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
         placeholder="Talep, talep numarası veya firma arayın"
         action="/company/satis"
+        /* Aynı kutu iki dizine gider (2026-09-10, kullanıcı isteği —
+           satınalmadaki Ürün|Tedarikçi anahtarının satış karşılığı):
+           "Talep" → açık talepler listesi, "Firma" → satış firma dizini. */
+        supplierScope={{
+          action: SELLER_MARKET.companies,
+          placeholder: "Firma adı, şehir ya da aldığı kategori arayın",
+          label: "Firma",
+          primaryLabel: "Talep",
+          primaryIcon: "clipboard",
+        }}
         accent="emerald"
         /* Satış sahnesi (kullanıcı varlığı `satıs_foto.png` → webp). */
         backdrop

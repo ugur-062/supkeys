@@ -81,8 +81,11 @@ export function MarketHeader({
   trailing,
   tabs,
   aside,
+  accent = "blue",
 }: {
   breadcrumb: { label: string; href?: string }[];
+  /** Ekmek kırıntısı vurgusu — satınalma MAVİ, satış portalı nötr. */
+  accent?: "default" | "blue";
   /** Metin ya da iskelet — kategori sayfası ad gelene dek yer tutucu basar. */
   title: ReactNode;
   /**
@@ -108,7 +111,7 @@ export function MarketHeader({
     <div className="pt-1">
       {/* Bulunduğun sayfa MAVİ (2026-09-07, kullanıcı kararı): pazar
           bölgesi panelin satınalma tarafı, oradaki vurgu rengi mavi. */}
-      <Breadcrumb items={breadcrumb} accent="blue" />
+      <Breadcrumb items={breadcrumb} accent={accent} />
       <div className={aside ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start" : undefined}>
         <div className="min-w-0">
           <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">

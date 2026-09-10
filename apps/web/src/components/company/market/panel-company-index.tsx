@@ -13,7 +13,15 @@ import {
   toPanelDirectoryParams,
   type CompanyFilterState,
 } from "@/lib/public/company-filter-params";
-import { PANEL_MARKET, panelCategoryPath, panelCompanyPath, panelProductPath } from "@/lib/company/panel-market";
+import {
+  PANEL_MARKET,
+  SELLER_MARKET,
+  marketCompaniesPath,
+  panelCategoryPath,
+  panelCompanyPath,
+  panelProductPath,
+} from "@/lib/company/panel-market";
+import type { PortalKey } from "@/lib/company/portals";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MarketHeader, MarketTabs } from "./market-band";
@@ -51,24 +59,27 @@ const STATUS_BADGE: Record<string, { label: string; className: string } | undefi
  * şehir/kategori/sıralama yok. Aynı dizin iki yerde iki farklı yetenekle
  * yaşıyordu. Liste artık burada; Bağlantılar YALNIZ ilişki yönetimi.
  */
-export function PanelCompanyIndex() {
+export function PanelCompanyIndex({ portal = "satinalma" }: { portal?: PortalKey }) {
   const sp = useSearchParams();
   const state = parseCompanyFilters(sp ?? new URLSearchParams());
   const params = toPanelDirectoryParams(state);
   const result = useCompanySearch(params);
   const total = result.data?.total ?? 0;
+  const base = marketCompaniesPath(portal);
   return (
     <FilterShellCore
       state={state}
-      toUrl={(next) => `${PANEL_MARKET.companies}${buildCompanyFilterQuery(next)}`}
+      toUrl={(next) => `${base}${buildCompanyFilterQuery(next)}`}
       clearState={clearCompanyFilters}
       total={total}
       activeCount={activeCompanyFilterCount(state)}
       drawer={<PanelCompanyFilters idPrefix="m" />}
       drawerHideAt="xl"
-      accent="blue"
+      /* Renk çağırandan gelir: satınalma MAVİ, satış portalı SİYAH/emerald
+         (monokrom süzgeç). Bileşen portal bilmez, yalnız rengi alır. */
+      accent={portal === "satis" ? "default" : "blue"}
     >
-      <Inner state={state} result={result} />
+      <Inner state={state} result={result} portal={portal} />
     </FilterShellCore>
   );
 }
@@ -83,17 +94,22 @@ function PanelCompanyFilters({ idPrefix }: { idPrefix: string }) {
 function Inner({
   state,
   result,
+  portal,
 }: {
   state: CompanyFilterState;
   result: ReturnType<typeof useCompanySearch>;
+  portal: PortalKey;
 }) {
   const { update } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
   const data = result.data;
   const total = data?.total ?? 0;
   const pageSize = data?.pageSize ?? 20;
+  const isSatis = portal === "satis";
+  const base = marketCompaniesPath(portal);
   // Sekme rozeti: aynı arama/kategoriyle kaç ÜRÜN var (tek satır yeter).
-  const products = useDiscoverSearch({ q: state.q, category: state.categories[0], pageSize: 1 });
+  // Satışta ürün dizini yok → sekme çizilmez, sayı sorulmaz.
+  const products = useDiscoverSearch({ q: state.q, category: state.categories[0], pageSize: 1 }, { enabled: !isSatis });
 
   return (
     <div className="space-y-8">
@@ -102,18 +118,29 @@ function Inner({
           düz başlık kullanılıyor. Arama kutusu burada YOK: sorgu hero'dan
           (`?q=`) ya da ürün sekmesinden taşınıyor — iki yerde iki kutu
           olmasın. */}
+      {/* Satışta dizin "Tedarikçiler" DEĞİL: satan firma alıcı arar ama
+          dizin herkesi listeler → nötr "Firmalar"; sekme yok (ürün dizini
+          satışta yaşamıyor); ekmek kırıntısı portal rengini almaz. */}
       <MarketHeader
-        breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Tedarikçiler" }]}
-        title="Tedarikçiler"
+        accent={isSatis ? "default" : "blue"}
+        breadcrumb={
+          isSatis
+            ? [{ label: "Satış", href: SELLER_MARKET.home }, { label: "Firmalar" }]
+            : [{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Tedarikçiler" }]
+        }
+        title={isSatis ? "Firmalar" : "Tedarikçiler"}
+        lead={isSatis ? "Alıcı olabilecek firmaları bulun; bağlantı isteği ve mesaj firma sayfasında." : undefined}
         count={data ? `${total.toLocaleString("tr-TR")} firma` : undefined}
         tabs={
-          <MarketTabs
-            active="companies"
-            productsHref={productsHref(state)}
-            companiesHref={`${PANEL_MARKET.companies}${buildCompanyFilterQuery(state)}`}
-            productCount={products.data?.total}
-            companyCount={data ? total : undefined}
-          />
+          isSatis ? undefined : (
+            <MarketTabs
+              active="companies"
+              productsHref={productsHref(state)}
+              companiesHref={`${base}${buildCompanyFilterQuery(state)}`}
+              productCount={products.data?.total}
+              companyCount={data ? total : undefined}
+            />
+          )
         }
       />
 
@@ -140,7 +167,7 @@ function Inner({
           <ul className="space-y-4">
             {data.items.map((c) => (
               <li key={c.slug}>
-                <PanelCompanyCard company={c} query={state.q} />
+                <PanelCompanyCard company={c} query={state.q} portal={portal} />
               </li>
             ))}
           </ul>
@@ -150,8 +177,10 @@ function Inner({
       <MarketDiscoveryFooter
         cities={facets.data?.cities ?? []}
         categories={facets.data?.categories ?? []}
-        cityHref={(city) => `${PANEL_MARKET.companies}?sehir=${encodeURIComponent(city)}`}
-        categoryHref={(c) => panelCategoryPath(c.id, c.name)}
+        cityHref={(city) => `${base}?sehir=${encodeURIComponent(city)}`}
+        /* Kategori: satınalmada kategori SAYFASI kanonik; satışta o sayfa
+           yok → aynı dizin kategori süzgeciyle. */
+        categoryHref={(c) => (isSatis ? `${base}?kategori=${c.id}` : panelCategoryPath(c.id, c.name))}
       />
     </div>
   );
@@ -161,9 +190,19 @@ function Inner({
  * Dizin kartı + üyeye özel iki ek: bağlantı durumu rozeti ve arama varsa
  * "Aramanıza uyan" ürün şeridi (sunucu `matchedProducts` ile döner).
  */
-function PanelCompanyCard({ company, query }: { company: DirectoryCompany; query?: string }) {
+function PanelCompanyCard({
+  company,
+  query,
+  portal,
+}: {
+  company: DirectoryCompany;
+  query?: string;
+  portal: PortalKey;
+}) {
   const badge = STATUS_BADGE[company.connectionStatus];
-  const matched = company.matchedProducts ?? [];
+  // "Aramanıza uyan" ürün şeridi ürün detayına (satınalma pazarı) bağlanır;
+  // satışta o rota yok ve satıcı ürün DEĞİL alıcı arıyor → şerit çizilmez.
+  const matched = portal === "satis" ? [] : (company.matchedProducts ?? []);
   return (
     <CompanyCard
       variant="wide"

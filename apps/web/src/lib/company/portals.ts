@@ -229,9 +229,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satis/musterilerim",
       },
     ],
-    // Satışta ikincil sayfa yok: Raporlar ve Şablonlar satış ilanı
-    // sihirbazına aitti, o özellikle birlikte kaldırıldı (2026-09-04).
-    secondaryNav: [],
+    // Raporlar ve Şablonlar satış ilanı sihirbazına aitti, o özellikle
+    // birlikte kaldırıldı (2026-09-04). Firma dizini (2026-09-10): satış da
+    // "kime satabilirim"i arar — anasayfa arama anahtarı ve Bağlantılar ›
+    // Keşfet oraya götürür; sol menüde DEĞİL (satınalmadaki kuralla aynı).
+    secondaryNav: [
+      { icon: BuildingOffice2Icon, label: "Firmalar", href: "/company/satis/firmalar" },
+    ],
   },
 };
 

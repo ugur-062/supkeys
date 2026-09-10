@@ -4,7 +4,7 @@ import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
-import { BuildingOffice2Icon, CubeIcon } from "@heroicons/react/24/outline";
+import { BuildingOffice2Icon, ClipboardDocumentListIcon, CubeIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
 import Link from "next/link";
@@ -120,7 +120,14 @@ export function PanelHeroSearch({
    * AI modunda anahtar GİZLENİR: AI yorumu ürün süzgeci üretiyor, firma
    * dizininde karşılığı yok — açık bırakmak çalışmayan bir seçenek olurdu.
    */
-  supplierScope?: { action: string; placeholder: string; label?: string };
+  supplierScope?: {
+    action: string;
+    placeholder: string;
+    label?: string;
+    /** Birincil kapsamın etiketi/ikonu — satınalmada "Ürün", satışta "Talep". */
+    primaryLabel?: string;
+    primaryIcon?: "cube" | "clipboard";
+  };
   /** Yazarken öneriler — çağıran hesaplar (≥2 karakter). */
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
@@ -416,8 +423,12 @@ export function PanelHeroSearch({
                   scope === "products" ? `${tone.btn} text-white shadow-sm` : "text-zinc-700 hover:text-zinc-950"
                 }`}
               >
-                <CubeIcon aria-hidden className="size-5" />
-                Ürün
+                {supplierScope.primaryIcon === "clipboard" ? (
+                  <ClipboardDocumentListIcon aria-hidden className="size-5" />
+                ) : (
+                  <CubeIcon aria-hidden className="size-5" />
+                )}
+                {supplierScope.primaryLabel ?? "Ürün"}
               </button>
               <button
                 type="button"

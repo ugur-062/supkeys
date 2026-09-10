@@ -141,9 +141,13 @@ export function usePublicProduct(companySlug: string, productSlug: string) {
  * ÜRÜN ARA — herkese açık `/urunler` ile AYNI süzgeç/sıralama (API tek
  * kaynak `product-index.ts`), sayfalı; kendi ürünler hariç.
  */
-export function useDiscoverSearch(params: ProductListParams & { page?: number; pageSize?: number }) {
+export function useDiscoverSearch(
+  params: ProductListParams & { page?: number; pageSize?: number },
+  opts: { enabled?: boolean } = {},
+) {
   return useQuery<ProductIndexPage>({
     queryKey: ["company-items", "discover-search", params],
+    enabled: opts.enabled ?? true,
     queryFn: async () => {
       const sp = new URLSearchParams();
       if (params.q) sp.set("q", params.q);

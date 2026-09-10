@@ -98,6 +98,23 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
     );
   });
 
+  it("SATIŞ portalı: başlık 'Firmalar', sekme yok, adresler /company/satis/firmalar, ürün şeridi çizilmez", () => {
+    h.search = "q=kablo";
+    h.result = {
+      data: { items: [company(1, { matchedProducts: [{ name: "Kablo 3x2.5", slug: "kablo", price: null }] })], total: 1, page: 1, pageSize: 20 },
+      isLoading: false,
+    };
+    render(<PanelCompanyIndex portal="satis" />);
+    expect(screen.getByRole("heading", { level: 1, name: "Firmalar" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Tedarikçiler" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ürünler ve hizmetler")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aramanıza uyan")).not.toBeInTheDocument();
+    // Şehir keşif bağlantısı satış dizinine gider, satınalmaya değil.
+    const bursa = screen.getAllByRole("link", { name: /Bursa/ }).find((a) => (a as HTMLAnchorElement).href.includes("sehir="));
+    expect(bursa).toHaveAttribute("href", expect.stringContaining("/company/satis/firmalar?sehir=Bursa"));
+    expect(document.querySelector('a[href^="/company/satinalma/"]')).toBeNull();
+  });
+
   it("YATAY SATIR: portföy düğmesi, ana kategoriler, hızlı yanıt rozeti ve fiyatlı ürün şeridi", () => {
     // 2026-09-08 (kullanıcı kararı + kaynak kalıp): dizin ızgara değil satır;
     // satır firmayı DEĞERLENDİRMEYE yetecek kadar bilgi taşır.
