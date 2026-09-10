@@ -139,6 +139,13 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
     expect(within(list).getAllByText(/kalem adları ve şartname üyelere/).length).toBe(3);
+    // SATIR düzeni (2026-09-10): görsel/ikon YOK, her talep tek satır, sütunlar panelle aynı.
+    const rows = list.querySelector("ul")!;
+    expect(within(rows).queryAllByRole("img")).toHaveLength(0);
+    expect(rows.querySelector("svg")).toBeNull();
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
+    expect(within(list).getAllByRole("link", { name: "Teklif ver" })).toHaveLength(3);
   });
 
   it("TEDARİKÇİ gövdesi: üye verisi (KPI, sağlık kartları, uygunluk) YOK", () => {

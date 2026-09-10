@@ -546,7 +546,10 @@ sayfalar siyah kalır.
 
 **Anonimde karşılığı olmayan uydurulmaz, çizilmez:** AI ile ara (Silver+ ∧
 koltuk), "size uygun ürünler" (firmanın alım kategorileri gerekiyor →
-"Öne çıkan ürünler"), `SellerTendersView` (→ teaser ızgarası), KPI'lar.
+"Öne çıkan ürünler"), `SellerTendersView` (→ **satır listesi**
+`ListingTeaserRow`: panelin `BrowseTenderRow`uyla aynı `ListingCard row`,
+görselsiz, alt alta — 2026-09-10 kullanıcı kararı; teaser ızgarası
+anasayfadan kalktı, `ListingTeaserCard` dizin/detayda duruyor), KPI'lar.
 
 Kategori kartı tuzağı: public kategori sayfası ürünü OLMAYAN kodda 404 verir →
 vitrin `count === 0` olan dalı `/urunler?kategori=<kod>`e gönderir (dürüst boş

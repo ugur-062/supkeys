@@ -1,4 +1,4 @@
-import { ListingTeaserCard } from "./listing-teaser-card";
+import { ListingTeaserRow } from "./listing-teaser-row";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
@@ -15,9 +15,11 @@ const MIN_DEMANDS = 3;
  * uygunluk (davetli / bağlantılı / ürününüzle eşleşti), teklif durumu ve
  * ücretsiz pakette kilit kartı. Hiçbiri anonimde HESAPLANAMAZ — üçü de
  * izleyen firmayı bilmeyi gerektiriyor. Bu yüzden burada listenin herkese
- * açık karşılığı var: teaser kartları (`ListingTeaserCard` — alıcı adı,
- * kalem adları ve şartname TAŞIMAZ) + tam listeye çıkış. Kenar süzgeçli tam
- * liste zaten `/alim-talepleri`'nde yaşıyor, ikinci bir kopya açılmadı.
+ * açık karşılığı var: SATIR listesi (`ListingTeaserRow` — panelin
+ * `BrowseTenderRow`uyla aynı kart, alt alta, görselsiz; alıcı adı, kalem
+ * adları ve şartname TAŞIMAZ; 2026-09-10 kullanıcı kararı, teaser ızgarası
+ * kalktı) + tam listeye çıkış. Kenar süzgeçli tam liste zaten
+ * `/alim-talepleri`'nde yaşıyor, ikinci bir kopya açılmadı.
  *
  * KPI'lar da yok: tümüyle üye verisi. (Profil/katalog sağlık kartları
  * panelden de kaldırıldı, 2026-09-09.)
@@ -57,10 +59,10 @@ export function HomeSupplier({
         </div>
 
         {demands.length >= MIN_DEMANDS ? (
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="flex flex-col gap-2">
             {demands.map((l) => (
               <li key={l.number}>
-                <ListingTeaserCard listing={l} />
+                <ListingTeaserRow listing={l} />
               </li>
             ))}
           </ul>
