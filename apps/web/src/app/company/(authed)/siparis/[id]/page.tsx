@@ -25,12 +25,11 @@ import {
   useReceiveOrder,
   useRejectOrder,
   useShipOrder,
-  type CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { formatDate } from "@/lib/format-date";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
-import { orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
+import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import { routeLabel } from "@/lib/company/terms";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
@@ -56,15 +55,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// Adımlar TEK kaynaktan (order-status.orderSteps) — liste kartıyla aynı yazım.
+// Adımlar ve konum TEK kaynaktan (order-status) — liste kartıyla aynı.
 const stepsFor = orderSteps;
-const STEPS = stepsFor(true);
-
-// Legacy CREATED siparişler ACCEPTED hizasında gösterilir.
-function stepIndexFor(status: CompanyOrderStatus): number {
-  if (status === "CREATED") return 1;
-  return STEPS.findIndex((s) => s.key === status);
-}
 
 /** Özet kartındaki tek satır — sol etiket, sağ değer. */
 function SummaryRow({
@@ -139,7 +131,7 @@ export default function OrderDetailPage() {
   // Teslim şekli: satıcı taşır mı (gönder) yoksa alıcı toplar mı (teslime hazır)?
   const sellerShips = sellerShipsGoods(o.deliveryTerm);
   const steps = stepsFor(sellerShips);
-  const stepIndex = stepIndexFor(o.status);
+  const stage = orderStageIndex(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
   const statusMeta = orderStatusMeta(o.status, sellerShips);
   const ordersHref = isSeller
@@ -528,8 +520,8 @@ export default function OrderDetailPage() {
             ) : (
               <div className="flex items-start gap-2">
                 {steps.map((s, i) => {
-                  const done = i < stepIndex || o.status === "COMPLETED";
-                  const current = o.status !== "COMPLETED" && i === stepIndex;
+                  const done = i < stage.done;
+                  const current = i === stage.current;
                   return (
                     <div key={s.key} className="flex flex-1 items-start gap-2">
                       <div
@@ -568,7 +560,7 @@ export default function OrderDetailPage() {
                       {i < steps.length - 1 ? (
                         <div
                           className={`mt-3.5 h-0.5 flex-1 rounded-full ${
-                            i < stepIndex || o.status === "COMPLETED"
+                            i < stage.done - 1 || stage.done >= steps.length
                               ? "bg-emerald-400"
                               : "bg-zinc-200"
                           }`}

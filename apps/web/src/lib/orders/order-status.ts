@@ -22,22 +22,60 @@ export const ORDER_STATUS: Record<
   DISPUTED: { label: "İhtilaflı", tone: "pending" },
 };
 
+export type OrderStepKey = "APPROVAL" | "SHIP" | "DELIVERY" | "COMPLETE";
+
 /**
- * 5 aşamalı süreç izleyicisi adımları — liste kartı ve detay tracker'ı
- * AYNI diziden okur ("Teslim alındı / Teslim Alındı" gibi yazım kaymaları
- * biter). Orta adım teslim şekline duyarlı.
+ * Süreç izleyicisi — 4 KİLOMETRE TAŞI (2026-09-10, kullanıcı kararı).
+ *
+ * Eskiden 5 adım DURUM adı taşıyordu ("Onay Bekliyor" → "Onaylandı" →
+ * "Gönderildi" → "Teslim Alındı" → "Tamamlandı"): "Onay Bekliyor" ile
+ * "Onaylandı" aynı olayın iki hâliydi ve izleyici, yanındaki durum rozetini
+ * tekrar ediyordu. İzleyici artık OLAYLARI listeler; hangi olayın sürdüğünü
+ * `orderStageIndex` söyler, durumun adı rozette kalır.
+ * Liste kartı ve detay izleyicisi AYNI diziden okur. Orta adım teslim şekline
+ * duyarlı: satıcı taşımıyorsa (EXW…) "Hazırlık".
  */
 export function orderSteps(sellerShips: boolean): {
-  key: CompanyOrderStatus;
+  key: OrderStepKey;
   label: string;
 }[] {
   return [
-    { key: "PENDING", label: "Onay Bekliyor" },
-    { key: "ACCEPTED", label: "Onaylandı" },
-    { key: "IN_DELIVERY", label: sellerShips ? "Gönderildi" : "Teslime Hazır" },
-    { key: "DELIVERED", label: "Teslim Alındı" },
-    { key: "COMPLETED", label: "Tamamlandı" },
+    { key: "APPROVAL", label: "Onay" },
+    { key: "SHIP", label: sellerShips ? "Gönderim" : "Hazırlık" },
+    { key: "DELIVERY", label: "Teslim" },
+    { key: "COMPLETE", label: "Tamamlandı" },
   ];
+}
+
+/**
+ * Durum → izleyici konumu. `done` = biten adım sayısı, `current` = süren
+ * adımın indeksi (hepsi bittiyse ve iptal/redde -1). Legacy CREATED,
+ * ACCEPTED hizasında.
+ */
+export function orderStageIndex(status: CompanyOrderStatus): {
+  done: number;
+  current: number;
+  terminated: boolean;
+} {
+  switch (status) {
+    case "PENDING":
+      return { done: 0, current: 0, terminated: false };
+    case "ACCEPTED":
+    case "CREATED":
+      return { done: 1, current: 1, terminated: false };
+    case "IN_DELIVERY":
+      return { done: 2, current: 2, terminated: false };
+    case "DELIVERED":
+      return { done: 3, current: 3, terminated: false };
+    case "COMPLETED":
+      return { done: 4, current: -1, terminated: false };
+    case "REJECTED":
+    case "CANCELLED":
+    case "DISPUTED":
+      return { done: 0, current: -1, terminated: true };
+    default:
+      return { done: 0, current: 0, terminated: false };
+  }
 }
 
 /** IN_DELIVERY etiketi teslim şekline duyarlı: satıcı taşımıyorsa alıcı toplar. */

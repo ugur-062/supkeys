@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { sellerShipsGoods } from "@rothern/shared";
 import { formatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
+import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import {
   ArrowUpDown,
   Building2,
@@ -50,53 +50,32 @@ import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 12;
 
-// 5 aşamalı akış — TEK kaynaktan (order-status.orderSteps).
+// 4 kilometre taşı — TEK kaynaktan (order-status.orderSteps / orderStageIndex).
 const stagesFor = (sellerShips: boolean) =>
   orderSteps(sellerShips).map((s) => s.label);
-const STAGES = stagesFor(true);
-
-function getStageState(status: CompanyOrderStatus): {
-  active: number;
-  lastDone: number;
-  isTerminated: boolean;
-} {
-  if (status === "REJECTED" || status === "CANCELLED")
-    return { active: -1, lastDone: -1, isTerminated: true };
-  if (status === "PENDING") return { active: 0, lastDone: -1, isTerminated: false };
-  if (status === "ACCEPTED" || status === "CREATED")
-    return { active: 1, lastDone: 0, isTerminated: false };
-  if (status === "IN_DELIVERY")
-    return { active: 2, lastDone: 1, isTerminated: false };
-  if (status === "DELIVERED")
-    return { active: 3, lastDone: 2, isTerminated: false };
-  if (status === "COMPLETED")
-    return { active: 4, lastDone: 4, isTerminated: false };
-  return { active: 0, lastDone: -1, isTerminated: false };
-}
 
 /**
- * Aşama göstergesi — ikonlu nokta stepper + TAM okunur tek satır etiket.
- * (Önceki tasarımda 5 minik yazı yan yana kırpılıyordu — "Teslim Alı…".)
- * Biten adımlar yeşil tikli, aktif adım mavi halkalı; adların tamamı yalnızca
- * aktif adım için yazılır, diğerleri hover'da (title) görünür.
+ * Aşama göstergesi — ikonlu nokta stepper + tek satır özet. Biten adımlar
+ * yeşil tikli, süren adım mavi halkalı; adlar kısa (Onay · Gönderim · Teslim
+ * · Tamamlandı) olduğundan hepsi yazılır, durumun kendisi rozette.
  */
 function StageStepper({
-  active,
-  lastDone,
-  stages = STAGES,
+  done: doneCount,
+  current,
+  stages,
 }: {
-  active: number;
-  lastDone: number;
-  stages?: string[];
+  done: number;
+  current: number;
+  stages: string[];
 }) {
   const STAGES = stages;
-  const isDone = active === STAGES.length - 1 && lastDone === active;
+  const isDone = doneCount >= STAGES.length;
   return (
     <div>
       <div className="flex items-center">
         {STAGES.map((label, i) => {
-          const done = i <= lastDone || (isDone && i <= active);
-          const current = !isDone && i === active;
+          const done = i < doneCount;
+          const isCurrent = !isDone && i === current;
           return (
             <div
               key={label}
@@ -117,7 +96,7 @@ function StageStepper({
                   "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition",
                   done
                     ? "border-success-500 bg-success-500 text-white"
-                    : current
+                    : isCurrent
                       ? "border-brand-500 bg-zinc-100 text-brand-700 ring-4 ring-brand-500/15"
                       : "border-zinc-200 bg-white text-zinc-300",
                 )}
@@ -132,23 +111,16 @@ function StageStepper({
           );
         })}
       </div>
-      {/* Tek satır, tam metin — kırpılma yok */}
+      {/* Tek satır özet: süren adım · ilerleme · sıradaki */}
       <p className="mt-1.5 flex items-baseline gap-2 text-xs">
-        <span
-          className={cn(
-            "font-semibold",
-            isDone ? "text-success-700" : "text-brand-700",
-          )}
-        >
-          {STAGES[isDone ? STAGES.length - 1 : active]}
+        <span className={cn("font-semibold", isDone ? "text-success-700" : "text-brand-700")}>
+          {isDone ? "Tamamlandı" : `${STAGES[current]} sürüyor`}
         </span>
-        <span className="text-zinc-400">
-          · {isDone ? STAGES.length : active + 1}/{STAGES.length}
+        <span className="text-zinc-500">
+          · {Math.min(doneCount, STAGES.length)}/{STAGES.length}
         </span>
-        {!isDone && active + 1 < STAGES.length ? (
-          <span className="hidden truncate text-zinc-400 sm:inline">
-            → {STAGES[active + 1]}
-          </span>
+        {!isDone && current + 1 < STAGES.length ? (
+          <span className="hidden truncate text-zinc-500 sm:inline">→ {STAGES[current + 1]}</span>
         ) : null}
       </p>
     </div>
@@ -220,8 +192,8 @@ function sym(currency: string | undefined): string {
  * genişlik. İptal/red durumunda izleyici yerine tek satır not.
  */
 function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
-  const { active, lastDone, isTerminated } = getStageState(o.status);
-  // Teslim şekli: satıcı taşımıyorsa (EXW/fabrika teslim…) orta adım "Teslime Hazır".
+  const { done, current, terminated: isTerminated } = orderStageIndex(o.status);
+  // Teslim şekli: satıcı taşımıyorsa (EXW/fabrika teslim…) orta adım "Hazırlık".
   const sellerShips = sellerShipsGoods(o.deliveryTerm);
   const meta = orderStatusMeta(o.status, sellerShips);
   const overdueDays =
@@ -300,7 +272,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
       {/* ALT — aşama izleyici / son durum notu */}
       <div className="border-t border-zinc-950/5 px-4 py-3 sm:px-5">
         {!isTerminated ? (
-          <StageStepper active={active} lastDone={lastDone} stages={stagesFor(sellerShips)} />
+          <StageStepper done={done} current={current} stages={stagesFor(sellerShips)} />
         ) : (
           <p
             className={cn(
