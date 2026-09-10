@@ -8,12 +8,14 @@ import {
   DialogBody,
   DialogTitle,
 } from "@/components/catalyst/dialog";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
+import { Textarea } from "@/components/catalyst/textarea";
+import { isValidPhone } from "@/lib/company/phone";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   useAddresses,
@@ -27,6 +29,8 @@ import { COUNTRIES } from "@rothern/shared";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
+const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
 
 function typeLabel(t: CompanyAddressType) {
   return t === "FATURA" ? "Fatura" : t === "ILETISIM" ? "İletişim" : "Teslimat";
@@ -79,11 +83,19 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
         </p>
       ) : !addresses || addresses.length === 0 ? (
         <Text className="mt-3 text-sm text-zinc-500">
-          Henüz kayıtlı adres yok.
+          Henüz kayıtlı adres yok. Fatura adresi siparişte, teslimat adresi
+          satın alma talebinde seçilir.
         </Text>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {addresses.map((a) => (
+          {/* Sıra: tip (Fatura → Teslimat → İletişim), tip içinde varsayılan önce. */}
+          {[...addresses]
+            .sort(
+              (a, b) =>
+                TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) ||
+                Number(b.isDefault) - Number(a.isDefault),
+            )
+            .map((a) => (
             <div
               key={a.id}
               className="rounded-lg border border-zinc-200 p-4"
@@ -125,7 +137,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                     a.type === "FATURA"
                       ? "blue"
                       : a.type === "ILETISIM"
-                        ? "purple"
+                        ? "zinc"
                         : "emerald"
                   }
                 >
@@ -144,7 +156,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                 </div>
               ) : null}
             </div>
-          ))}
+            ))}
         </div>
       )}
 
@@ -181,17 +193,18 @@ function AddressDialog({
     isDefault: address?.isDefault ?? false,
   });
   const set = (patch: Partial<typeof f>) => setF((p) => ({ ...p, ...patch }));
+  const [touched, setTouched] = useState(false);
+
+  // Satır içi hatalar — backend DTO ile aynı zorunluluk (title/addressLine
+  // MinLength 1); telefon tek kaynak `isValidPhone`.
+  const titleError = f.title.trim() ? null : "Başlık zorunlu";
+  const addressError = f.addressLine.trim() ? null : "Açık adres zorunlu";
+  const phoneError = isValidPhone(f.phone) ? null : "Geçerli bir telefon numarası giriniz";
+  const hasError = Boolean(titleError || addressError || phoneError);
 
   const submit = async () => {
-    if (!f.title.trim() || !f.addressLine.trim()) {
-      toast.error("Başlık ve açık adres zorunlu");
-      return;
-    }
-    const phone = f.phone.trim();
-    if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) {
-      toast.error("Geçerli bir telefon numarası giriniz");
-      return;
-    }
+    setTouched(true);
+    if (hasError) return;
     // Fatura adresinde vergi dairesi/no ve TR VKN/TCKN formatı ESKİDEN zorunluydu
     // ama backend (company-address.dto) bu alanları @IsOptional tutar ve format
     // doğrulamaz — frontend backend'den katı olmamalı (backend otoritedir). Bloklama
@@ -229,9 +242,11 @@ function AddressDialog({
             <Label>Başlık</Label>
             <Input
               value={f.title}
+              invalid={touched && Boolean(titleError)}
               onChange={(e) => set({ title: e.target.value })}
               placeholder="Merkez, Depo…"
             />
+            {touched && titleError ? <ErrorMessage>{titleError}</ErrorMessage> : null}
           </Field>
           <Field>
             <Label>İlgili kişi</Label>
@@ -243,6 +258,7 @@ function AddressDialog({
           <Field>
             <Label>Telefon</Label>
             <PhoneInput value={f.phone} onChange={(v) => set({ phone: v })} />
+            {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
           </Field>
           <Field>
             <Label>Ülke</Label>
@@ -274,10 +290,13 @@ function AddressDialog({
         </div>
         <Field>
           <Label>Açık adres</Label>
-          <Input
+          <Textarea
+            rows={2}
             value={f.addressLine}
+            invalid={touched && Boolean(addressError)}
             onChange={(e) => set({ addressLine: e.target.value })}
           />
+          {touched && addressError ? <ErrorMessage>{addressError}</ErrorMessage> : null}
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field>
@@ -321,7 +340,7 @@ function AddressDialog({
           Vazgeç
         </Button>
         <Button onClick={submit} disabled={save.isPending}>
-          {address ? "Kaydet" : "Ekle"}
+          {save.isPending ? "Kaydediliyor…" : address ? "Kaydet" : "Ekle"}
         </Button>
       </DialogActions>
     </Dialog>

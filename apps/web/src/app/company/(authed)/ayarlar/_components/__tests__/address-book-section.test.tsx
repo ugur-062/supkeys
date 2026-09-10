@@ -55,7 +55,7 @@ beforeEach(() => {
 describe("AddressBookSection", () => {
   it("boş durumda 'Henüz kayıtlı adres yok' gösterir", () => {
     render(<AddressBookSection canManage />);
-    expect(screen.getByText("Henüz kayıtlı adres yok.")).toBeInTheDocument();
+    expect(screen.getByText(/Henüz kayıtlı adres yok/)).toBeInTheDocument();
   });
 
   it("adres listesi: başlık, tip rozeti, açık adres", () => {
@@ -84,13 +84,15 @@ describe("AddressBookSection", () => {
     expect(await screen.findByText("Yeni Adres")).toBeInTheDocument();
   });
 
-  it("yeni adres: başlık/açık adres boşken doğrulama hatası, save çağrılmaz", async () => {
+  it("yeni adres: başlık/açık adres boşken SATIR İÇİ hata (toast değil), save çağrılmaz", async () => {
     const user = userEvent.setup();
     render(<AddressBookSection canManage />);
     await user.click(screen.getByRole("button", { name: "Adres Ekle" }));
     await screen.findByText("Yeni Adres");
     await user.click(screen.getByRole("button", { name: "Ekle" }));
-    expect(h.toast.error).toHaveBeenCalledWith("Başlık ve açık adres zorunlu");
+    expect(await screen.findByText("Başlık zorunlu")).toBeInTheDocument();
+    expect(screen.getByText("Açık adres zorunlu")).toBeInTheDocument();
+    expect(h.toast.error).not.toHaveBeenCalled();
     expect(h.save).not.toHaveBeenCalled();
   });
 
