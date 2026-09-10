@@ -194,7 +194,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Ölçü birimi · faaliyet tipi · kayıt ülkesi | `@rothern/shared` `constants/{units,company-activities}.ts`, `data/country-profiles.ts` |
 | Görünürlük katmanı (public) | `lib/public/visibility.ts` (`VISIBILITY`, `canSee`, `loginHref`) |
 | Pazar yeri sözcükleri/rotaları · yayın anahtarı | `lib/public/{marketplace,marketplace-live}.ts` |
-| Panel pazar adresleri | `lib/company/panel-market.ts` |
+| Panel pazar adresleri (satınalma `PANEL_MARKET`, satış `SELLER_MARKET`, portal seçici `marketCompaniesPath`) | `lib/company/panel-market.ts` |
 | Süzgeç URL şemaları | `lib/public/{product,listing,company}-filter-params.ts`, `lib/company/request-filter-params.ts` |
 | Süzgeç kabuğu + yapı taşları | `components/marketplace/{filter-shell,filter-primitives}.tsx` |
 | Panel liste süzgeçleri (durum ÇOKLU seçim) | `components/list/{filter-select,filter-multi-select}.tsx` — durum süzgeçleri `FilterMultiSelect` (dizi; `?status=A,B`), tek seçimli olanlar `FilterSelect` (2026-09-10 kullanıcı kararı) |
@@ -532,7 +532,8 @@ sayfasının başındaki bant, üst çubuk DEĞİL.
 | `/company/satinalma/urunler` · `/firmalar` · `/kategori/<kod>-<ad>` | dizinler + kategori sayfası |
 | `/company/satinalma/urunler/<firma>/<ürün>` | ürün detayı |
 | `/company/satinalma/tedarikcilerim` | YALNIZ ilişki yönetimi |
-| `/company/satis` | açık talepler TAM listesi (kenar süzgeçli, `SellerTendersView embedded`) |
+| `/company/satis` | açık talepler TAM listesi (kenar süzgeçli, `SellerTendersView embedded`); hero anahtarı "Talep \| Firma" |
+| `/company/satis/firmalar` | satış firma dizini (`PanelCompanyIndex portal="satis"`; sekme/ürün şeridi yok, nötr renk) — Bağlantılar › Keşfet "Tüm firmaları ara" PORTALINA göre gider (2026-09-10) |
 | `/company/sirketim/*` | Genel Bakış · Profil · Ziyaret Edenler · Raporlar |
 
 Adres tek kaynağı `lib/company/panel-market.ts`.
