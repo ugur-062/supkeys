@@ -53,3 +53,7 @@ apps/web/playwright-report/
 # packages/db geçici debug scriptleri (chk.mjs, rel.mjs vb.)
 packages/db/*.mjs
 CLAUDE.md.local
+
+# Staging sırları (Cowork üretir) — asla commit edilmez
+.env.staging
+*.staging.env
