@@ -21,4 +21,5 @@ export E2E_SUPABASE_URL="${STAGING_SUPABASE_URL:-}"
 export E2E_SUPABASE_SERVICE_KEY="${STAGING_SUPABASE_SERVICE_ROLE_KEY:-}"
 export E2E_EMAIL="${E2E_EMAIL:-uguray156+qa-alici-kurucu@gmail.com}"
 export E2E_PASSWORD="${E2E_PASSWORD:-${STAGING_QA_PASSWORD:-Staging1234!}}"
-exec npx playwright test --reporter=line "$@"
+# Yerelde yalnız Chromium: WebKit projeleri CI'da koşar (sistem bağımlılıkları).
+exec npx playwright test --project="${PLAYWRIGHT_PROJECT:-chromium}" --reporter=line "$@"

@@ -316,7 +316,7 @@ function NearbyControls({
           accent === "blue" ? "accent-blue-600" : "accent-zinc-950"
         }`}
       />
-      <p className="tnum flex justify-between text-[10px] text-zinc-400">
+      <p className="tnum flex justify-between text-[10px] text-zinc-500">
         {RADIUS_OPTIONS.map((r) => (
           <span key={r}>{r}</span>
         ))}

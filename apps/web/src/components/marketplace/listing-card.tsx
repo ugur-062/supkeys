@@ -221,7 +221,12 @@ function PanelRow({
 
   return (
     <div
-      role="row"
+      /**
+       * `role="row"` KALDIRILDI (2026-09-12 a11y taraması): satırın etrafında
+       * tablo/ızgara bağlamı ve hücre çocuğu yok → `aria-required-children`
+       * KRİTİK ihlali. Kart görsel bir satır; erişilebilir yol zaten içindeki
+       * gerçek başlık bağlantısı.
+       */
       onClick={go}
       className={cn(
         "group/row cursor-pointer rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",

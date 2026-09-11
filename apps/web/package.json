@@ -42,6 +42,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.60.0",
     "@prisma/client": "6.19.3",
     "@tailwindcss/postcss": "^4.0.0",

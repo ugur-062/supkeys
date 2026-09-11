@@ -210,7 +210,7 @@ export function CompanySidebarContent({
                     "flex h-8 items-center justify-center gap-2 rounded-md px-1 text-xs font-semibold whitespace-nowrap transition",
                     on
                       ? ACCENT[def.accent].switch
-                      : "text-zinc-500 hover:text-zinc-800",
+                      : "text-zinc-600 hover:text-zinc-900",
                   )}
                 >
                   <Icon className="size-4 shrink-0" aria-hidden />

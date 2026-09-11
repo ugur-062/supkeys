@@ -91,14 +91,12 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
           {who ? (
             <div className="flex items-center gap-1">
               <dt className="sr-only">Alıcı</dt>
-              <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-              <dd>{who}</dd>
+              <dd className="flex items-center gap-1"><MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />{who}</dd>
             </div>
           ) : null}
           <div className="flex items-center gap-1">
             <dt className="sr-only">Kapsam</dt>
-            <GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />
-            <dd>{l.isInternational ? "Uluslararası" : "Yurtiçi"}</dd>
+            <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{l.isInternational ? "Uluslararası" : "Yurtiçi"}</dd>
           </div>
           <div className="flex items-center gap-1">
             {/* Kapalı zarf bir KURAL — ipucu neyin gizli kaldığını söyler. */}

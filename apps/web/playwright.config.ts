@@ -38,5 +38,25 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    /**
+     * TARAYICI MATRİSİ (2026-09-12) — yalnız Chromium test etmek, Safari'ye
+     * özgü kırılmaları (çerez/ITP davranışı, tarih-saat alanları, Intl)
+     * göremiyordu. WebKit YERELDE koşmaz: 216 sistem paketi ister (sudo) →
+     * bu projeler CI'da (.github/workflows/e2e-staging.yml) koşar.
+     *
+     * Kapsam bilinçli DAR: giriş (çerez), herkese açık başlık (SEO yüzeyi) ve
+     * mobil ekranlar. Tüm paketi iki motorda koşmak süreyi ikiye katlardı,
+     * karşılığı yok.
+     */
+    {
+      name: "webkit-kritik",
+      use: { ...devices["Desktop Safari"] },
+      testMatch: /(staging-role-logins|public-header|staging-mobile)\.spec\.ts/,
+    },
+    {
+      name: "mobil-safari",
+      use: { ...devices["iPhone 14"] },
+      testMatch: /(public-header|staging-mobile)\.spec\.ts/,
+    },
   ],
 });
