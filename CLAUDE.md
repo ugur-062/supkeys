@@ -820,9 +820,18 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 ## Test & Kalite
 
 - API **178 spec / 1882 test** · web **120 / 682** · admin **15 / 79** — yeşil (2026-09-10).
-- **Staging e2e (2026-09-11):** `pnpm --filter @rothern/web e2e:staging` — 28 test
+- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 48 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
-  rol kapıları, firma doğrulama + Destek rolü, mobil 400 px). QA hesapları
+  rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
+  **ekran matrisi**, **çok tedarikçili teklif**).
+  **Rol denetimi beklentisi ELLE YAZILMAZ:** `e2e/role-endpoints.ts` API
+  kaynağındaki `@RequireCompanyPermission`/`@RequireTier`'ı okur
+  (`CompanyPaidTierGuard` @RequireTier'sız = SILVER; `ALL_SEAT_PERMISSIONS` gibi
+  sabitler shared'den çözülür; yorumlar temizlenir yoksa "KULLANILMIYOR" yazan
+  açıklama guard sanılır). Çıktılar `docs/qa-role-matrix.md` (11 rol × 62 uç)
+  ve `docs/qa-role-screens.md` (8 rol × 23 sayfa). Panel kapıları İSTEMCİDE
+  çizilir → sınıflandırma tek ölçümle değil, sonuç kesinleşene kadar YOKLAYARAK
+  yapılır. QA hesapları
   `seed-staging-roles`; sırlar `.env.staging` + `render.staging.env`
   (gitignore'lu). Sonuç matrisi `docs/qa-launch-matrix.md`, bulgular
   `docs/qa-punchlist.md`. Kurulum adımları API'den, kullanıcıya görünen adımlar

@@ -55,8 +55,7 @@ const USERS = [
 
 const rows: Array<{ user: string; states: Record<string, State> }> = [];
 
-async function classify(page: Page): Promise<State> {
-  await page.waitForLoadState("networkidle").catch(() => {});
+async function classifyOnce(page: Page): Promise<State> {
   const body = await page.locator("body").innerText().catch(() => "");
   if (/Satınalma paneli \(Gold\)|Raporlar ve şablonlar \(Gold\)/.test(body)) return "paket";
   if (/paneline erişim yetkiniz yok/.test(body)) return "portal";
@@ -64,6 +63,20 @@ async function classify(page: Page): Promise<State> {
   // Kurucuya açık") → metne değil, kapının role="status" kabuğuna bak.
   if ((await page.locator('div[role="status"] h2').count()) > 0) return "yetki";
   if ((await page.getByRole("heading", { level: 1 }).count()) > 0) return "ok";
+  return "hata";
+}
+
+/**
+ * Kapılar İSTEMCİDE çizilir (oturum yüklenene kadar "Yükleniyor…"). Tek
+ * ölçüm yarışa giriyordu → sonuç kesinleşene kadar kısa aralıklarla bak.
+ */
+async function classify(page: Page): Promise<State> {
+  await page.waitForLoadState("networkidle").catch(() => {});
+  for (let i = 0; i < 10; i++) {
+    const s = await classifyOnce(page);
+    if (s !== "hata") return s;
+    await page.waitForTimeout(1000);
+  }
   return "hata";
 }
 

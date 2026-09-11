@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (48 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -65,7 +65,11 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tüm�
 | 🤖 Görüntüleyici: işlem düğmeleri yok, listeler salt-okunur | ✅ | staging-roles.spec |
 | 🤖 Satın Almacı: Ayarlar'da firma kartları yok | ✅ | staging-roles.spec |
 | 🤖 Ücretsiz (STANDART): PUBLIC talep kilidi, davet gönderemez | ✅ | staging-roles.spec; 10 ürün tavanı API sözleşmesi |
-| Doğrulanmamış: PUBLIC talebe teklif kapısı; "Doğrulanmamış firma" etiketi | | |
+| 🤖 Doğrulanmamış/STANDART: PUBLIC talep detayı 403 `TIER_REQUIRED`, listeye hiç girmez | ✅ | staging-role-bidding.spec |
+| 🤖 **İzin matrisi**: 11 rol × 62 `company*` GET ucu — açık kapı ve yanlış kilit yok | ✅ | staging-role-matrix.spec → `docs/qa-role-matrix.md` (beklenti API kaynağından türetilir) |
+| 🤖 **Ekran matrisi**: 8 rol × 23 panel sayfası — ok/yetki/portal/paket | ✅ | staging-role-screens.spec → `docs/qa-role-screens.md` — ❌ #6 Onaylar kapısı |
+| 🤖 **Çok tedarikçili teklif**: iki AYRI firma tarayıcıdan teklif verir; kapalı zarf ekranda ve API'de; alıcı ikisini de görür | ✅ | staging-role-bidding.spec |
+| 🤖 Görüntüleyici teklif veremez (düğme yok + POST 403); onaylayıcı talebi göremez | ✅ | staging-role-bidding.spec |
 | 🤖 Yönetici kendi yetkisini düzenleyemez | ✅ | staging-roles.spec |
 
 ## Parça 6 — Admin paneli

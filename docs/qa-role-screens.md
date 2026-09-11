@@ -4,28 +4,28 @@
 
 ✅ sayfa açıldı · 🔒 yetki uyarısı (PermissionGate) · ⛔ portal kapısı · 💳 paket kapısı (Gold).
 
-| Sayfa | ücretsiz · kurucu |
-|---|---|
-| `/company/satinalma` | 💳 paket |
-| `/company/satinalma/taleplerim` | 💳 paket |
-| `/company/satinalma/taleplerim/yeni` | 💳 paket |
-| `/company/satinalma/siparisler` | 💳 paket |
-| `/company/satinalma/tedarikcilerim` | 💳 paket |
-| `/company/satinalma/bilgi-taleplerim` | 💳 paket |
-| `/company/satinalma/urunler` | 💳 paket |
-| `/company/satis` | ✅ |
-| `/company/satis/urunlerim` | ✅ |
-| `/company/satis/bilgi-talepleri` | ✅ |
-| `/company/satis/musterilerim` | ✅ |
-| `/company/satis/tekliflerim` | ✅ |
-| `/company/onaylar` | ✅ |
-| `/company/mesajlar` | ✅ |
-| `/company/ayarlar` | ✅ |
-| `/company/ayarlar/firma` | ✅ |
-| `/company/ayarlar/kullanicilar` | ✅ |
-| `/company/ayarlar/adresler` | ✅ |
-| `/company/ayarlar/banka-hesaplari` | ✅ |
-| `/company/ayarlar/dogrulama` | ✅ |
-| `/company/ayarlar/aktivite` | 💳 paket |
-| `/company/sirketim` | ✅ |
-| `/company/sirketim/ziyaretciler` | ✅ |
+| Sayfa | alıcı · kurucu | alıcı · yönetici | alıcı · satın almacı | alıcı · satışçı | alıcı · onaylayıcı | alıcı · görüntüleyici | tedarikçi · satışçı | ücretsiz · kurucu |
+|---|---|---|---|---|---|---|---|---|
+| `/company/satinalma` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/taleplerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/taleplerim/yeni` | ✅ | 🔒 yetki | ✅ | ⛔ portal | ⛔ portal | 🔒 yetki | ⛔ portal | 💳 paket |
+| `/company/satinalma/siparisler` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/tedarikcilerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/bilgi-taleplerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/urunler` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satis` | ✅ | ✅ | ⛔ portal | ✅ | ⛔ portal | ✅ | ✅ | ✅ |
+| `/company/satis/urunlerim` | ✅ | ✅ | ⛔ portal | ✅ | ⛔ portal | ✅ | ✅ | ✅ |
+| `/company/satis/bilgi-talepleri` | ✅ | ✅ | ⛔ portal | ✅ | ⛔ portal | ✅ | ✅ | ✅ |
+| `/company/satis/musterilerim` | ✅ | ✅ | ⛔ portal | ✅ | ⛔ portal | ✅ | ✅ | ✅ |
+| `/company/satis/tekliflerim` | ✅ | ✅ | ⛔ portal | ✅ | ⛔ portal | ✅ | ✅ | ✅ |
+| `/company/onaylar` | ✅ | ✅ | 🔒 yetki | 🔒 yetki | ✅ | 🔒 yetki | 🔒 yetki | ✅ |
+| `/company/mesajlar` | ✅ | ✅ | ✅ | ✅ | 🔒 yetki | ✅ | ✅ | ✅ |
+| `/company/ayarlar` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `/company/ayarlar/firma` | ✅ | ✅ | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | ✅ |
+| `/company/ayarlar/kullanicilar` | ✅ | ✅ | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | ✅ |
+| `/company/ayarlar/adresler` | ✅ | ✅ | ✅ | ✅ | 🔒 yetki | 🔒 yetki | ✅ | ✅ |
+| `/company/ayarlar/banka-hesaplari` | ✅ | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | ✅ |
+| `/company/ayarlar/dogrulama` | ✅ | ✅ | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | ✅ |
+| `/company/ayarlar/aktivite` | ✅ | ✅ | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 🔒 yetki | 💳 paket |
+| `/company/sirketim` | ✅ | ✅ | ✅ | ✅ | 🔒 yetki | ✅ | ✅ | ✅ |
+| `/company/sirketim/ziyaretciler` | ✅ | ✅ | 🔒 yetki | ✅ | 🔒 yetki | 🔒 yetki | ✅ | ✅ |
