@@ -14,6 +14,7 @@ export const metadata = buildMetadata({
 export default function Page() {
   return (
     <LegalDoc
+      path="/sozlesmeler/kullanici"
       title="Kullanıcı Sözleşmesi"
       updatedAt="26 Temmuz 2026"
       sections={[

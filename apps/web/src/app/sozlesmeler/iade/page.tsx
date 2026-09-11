@@ -14,6 +14,7 @@ export const metadata = buildMetadata({
 export default function Page() {
   return (
     <LegalDoc
+      path="/sozlesmeler/iade"
       title="Teslimat, İptal ve İade Koşulları"
       updatedAt="26 Temmuz 2026"
       sections={[

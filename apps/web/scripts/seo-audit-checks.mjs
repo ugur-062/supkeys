@@ -10,10 +10,16 @@ const attr = (tag, name) => {
 };
 
 export function parseHead(html) {
-  const head = (html.match(/<head[\s\S]*?<\/head>/i) ?? [html])[0];
-  const title = (head.match(/<title[^>]*>([\s\S]*?)<\/title>/i) ?? [])[1]?.trim() ?? null;
-  const metas = [...head.matchAll(/<meta\s+[^>]*>/gi)].map((m) => m[0]);
-  const links = [...head.matchAll(/<link\s+[^>]*>/gi)].map((m) => m[0]);
+  // Next 15 dinamik sayfalarda metadata AKIŞLA gelir: <title>/<meta> ilk
+  // <head> parçasında değil, gövdede sonradan basılır (tarayıcı hoist eder;
+  // bot UA'larına Next akışsız verir). Denetim UA'sı bot sayılmadığı için
+  // head-only ayrıştırma "title yok" diye yanlış alarm veriyordu (2026-09-11)
+  // → önce head, bulunamazsa tüm belge.
+  const headOnly = (html.match(/<head[\s\S]*?<\/head>/i) ?? [""])[0];
+  const scope = (re) => (headOnly.match(re) ? headOnly : html);
+  const title = (scope(/<title[^>]*>/i).match(/<title[^>]*>([\s\S]*?)<\/title>/i) ?? [])[1]?.trim() ?? null;
+  const metas = [...html.matchAll(/<meta\s+[^>]*>/gi)].map((m) => m[0]);
+  const links = [...html.matchAll(/<link\s+[^>]*>/gi)].map((m) => m[0]);
   const meta = (key, by = "name") =>
     metas.map((t) => (attr(t, by)?.toLowerCase() === key ? attr(t, "content") : null)).find((v) => v != null) ?? null;
   const canonical = links.map((t) => (attr(t, "rel")?.toLowerCase() === "canonical" ? attr(t, "href") : null)).find((v) => v) ?? null;

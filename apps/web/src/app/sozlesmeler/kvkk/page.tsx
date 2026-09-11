@@ -14,6 +14,7 @@ export const metadata = buildMetadata({
 export default function Page() {
   return (
     <LegalDoc
+      path="/sozlesmeler/kvkk"
       title="Kişisel Verilerin Korunması Hakkında Aydınlatma Metni"
       updatedAt="26 Temmuz 2026"
       sections={[

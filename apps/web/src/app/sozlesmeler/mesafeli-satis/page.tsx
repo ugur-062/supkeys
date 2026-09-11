@@ -14,6 +14,7 @@ export const metadata = buildMetadata({
 export default function Page() {
   return (
     <LegalDoc
+      path="/sozlesmeler/mesafeli-satis"
       title="Mesafeli Satış Sözleşmesi ve Ön Bilgilendirme"
       updatedAt="26 Temmuz 2026"
       sections={[

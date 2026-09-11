@@ -11,6 +11,7 @@ import {
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets } from "@/lib/public/marketplace-api";
 import { segmentPhotoSrc } from "@/lib/public/category-photos";
+import { clampTitle } from "@/lib/seo/entities";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -63,7 +64,9 @@ export async function generateMetadata({
   }
   const count = cat.count.toLocaleString("tr-TR");
   return buildMetadata({
-    title: `${cat.name} — ${count} ürün, tedarikçi firmaların vitrininden`,
+    // 75 karakter tavanı (canlı denetim 2026-09-11: uzun kategori adı 86'ya
+    // taşıyordu) — kuyruk düşer, ad kelime sınırında kısalır.
+    title: clampTitle(cat.name, `${count} ürün`),
     description: `${cat.name} kategorisinde ${count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle tedarikçi firmaların vitrininden. Firmayı seçin, doğrudan bilgi isteyin.`,
     path: categoryPath(cat.id, cat.name),
     images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,

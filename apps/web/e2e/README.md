@@ -46,6 +46,20 @@ pnpm e2e          # headless
 pnpm e2e:headed   # browser görünür modda
 ```
 
+## Staging'e karşı (2026-09-11)
+
+```bash
+pnpm --filter @rothern/web e2e:staging                 # 14 test, ~4 dk
+pnpm --filter @rothern/web e2e:staging e2e/panel-market.spec.ts
+```
+
+`scripts/e2e-staging.sh` kökteki `.env.staging`'den Vercel bypass anahtarını
+(`STAGING_VERCEL_BYPASS_WEB`) alır; giriş QA alıcı kurucu hesabıyla
+(`seed-staging-roles`). Staging vitrini boşsa önce `seed-marketplace-demo`
+(süzgeç kutuları sayısı 0 olan seçenekleri pasifler → testler kırılır).
+Panel spec'leri `E2E_EMAIL`/`E2E_PASSWORD` ile hesabı, metin yerine adres
+(`a[href=…]`) ile düğmeyi bulur — ürün sözlüğü değişince kırılmasın.
+
 ## Test fixture'ları
 
 Yeni spec'ler için dev hesapları (birleşik Company sistemi):
@@ -59,3 +73,11 @@ CI'da çalıştırmak için:
 1. Workflow'da `pnpm exec playwright install --with-deps chromium`
 2. API + web background'da başlat
 3. `pnpm --filter @rothern/web e2e`
+
+### Admin adımları (staging)
+
+`staging-sales-chain.spec` ve `staging-admin.spec` admin paneline girer. Parola
+gitignore'lu `render.staging.env` içindeki `INITIAL_ADMIN_PASSWORD`'dan, admin
+Vercel bypass anahtarı `.env.staging` `STAGING_VERCEL_BYPASS_ADMIN`'dan okunur
+(`scripts/e2e-staging.sh`). Destek rolü testi `uguray156+qa-admin-destek@gmail.com`
+personelini yoksa açar, varsa geçici parolasını sıfırlar.
