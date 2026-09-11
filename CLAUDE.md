@@ -184,6 +184,12 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
   (web + admin) → `<code>`/`<kbd>` de Inter basar.
 - Küçük metinde `text-zinc-400` KULLANMA (beyazda 2,6:1) — en az zinc-500.
 - Gri zeminde `bg-zinc-50` yasak (brand-50 = sayfa zemini); tint min zinc-100.
+- **Zemin zinc-100 ise metin en az `text-zinc-600`** — zinc-500 orada 4,39:1
+  kalır (dizin sayfalarının zemini zinc-100). Beyaz üstünde zinc-500 yeterli.
+- **Erişilebilirlik kapısı:** `e2e/staging-a11y.spec.ts` 12 sayfada axe koşar,
+  **critical + serious** ihlalde kırmızı. Tuzaklar: `role="row"` tablo bağlamı
+  olmadan KRİTİK ihlaldir; `<dl>` altında yalnız `dt`/`dd`/`div` olabilir
+  (ikon ya da ipucu sarmalayıcısı `<dd>` İÇİNE alınmalı).
 
 ## Tek Kaynaklar — dokunmadan önce buraya bak
 

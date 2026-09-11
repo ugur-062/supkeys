@@ -99,13 +99,19 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
             <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{l.isInternational ? "Uluslararası" : "Yurtiçi"}</dd>
           </div>
           <div className="flex items-center gap-1">
-            {/* Kapalı zarf bir KURAL — ipucu neyin gizli kaldığını söyler. */}
-            <Tooltip label="Teklifler kapalı zarf: teklifçiler birbirinin fiyatını görmez.">
-              <span className="flex items-center gap-1">
-                <LockClosedIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>Kapalı zarf</dd>
-              </span>
-            </Tooltip>
+            {/* Kapalı zarf bir KURAL — ipucu neyin gizli kaldığını söyler.
+                İpucu sarmalayıcısı <dd>'nin İÇİNDE: dışarıda olunca <dl>'nin
+                doğrudan çocuğu <span> oluyordu (a11y: definition-list + dlitem,
+                2026-09-12 taraması). */}
+            <dt className="sr-only">Teklif gizliliği</dt>
+            <dd>
+              <Tooltip label="Teklifler kapalı zarf: teklifçiler birbirinin fiyatını görmez.">
+                <span className="flex items-center gap-1">
+                  <LockClosedIcon aria-hidden className="size-3.5 text-zinc-300" />
+                  Kapalı zarf
+                </span>
+              </Tooltip>
+            </dd>
           </div>
         </dl>
 

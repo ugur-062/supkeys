@@ -202,7 +202,7 @@ function AppPreview() {
                     className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                       i === active
                         ? "bg-zinc-900 text-white"
-                        : "bg-zinc-100 text-zinc-500"
+                        : "bg-zinc-100 text-zinc-600"
                     }`}
                   >
                     {r.a}
@@ -359,7 +359,7 @@ function BidsPreview() {
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-zinc-900">Gelen Teklifler</div>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
           Kapalı zarf
         </span>
       </div>
