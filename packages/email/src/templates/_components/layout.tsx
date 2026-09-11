@@ -10,7 +10,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
-import { LOGO_CID } from "../../assets/logo";
+import { LOGO_CID, LOGO_HEIGHT, LOGO_WIDTH } from "../../assets/logo";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
@@ -60,24 +60,23 @@ const footerStyle = {
 // Logo gömülü (inline CID) ek olarak gönderilir → uzak görsel engelleyen
 // istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
 const LOGO_SRC = `cid:${LOGO_CID}`;
+// Görüntü boyutu: 3× kaynaktan ölçekli (retina keskin), en-boy oranı korunur.
+const LOGO_DISPLAY_WIDTH = 190;
+const LOGO_DISPLAY_HEIGHT = Math.round((LOGO_HEIGHT / LOGO_WIDTH) * LOGO_DISPLAY_WIDTH);
 
 export function Layout({ preview, children }: LayoutProps) {
   return (
     <Html lang="tr">
       <Head>
-        {/* Dark mode destekli. Sorun: istemciler dark-mode'da arka planı
-            koyulaştırır ama GÖRSELLERİ ters çevirmez → siyah+şeffaf logo koyu
-            zeminde kaybolur. Çözüm: dark-mode'da logoyu CSS filter ile BEYAZA
-            çevir (Rothern yazısı+ikon tek görsel, ikisi de beyazlaşır). Hem
-            prefers-color-scheme hem Gmail (data-ogsc) hedeflenir. */}
+        {/* Dark mode: istemciler arka planı koyulaştırır ama GÖRSELLERİ ters
+            çevirmez → şeffaf zeminli siyah logo koyu zeminde kayboluyordu
+            (2026-09-11, Gmail iOS). CSS `filter` / prefers-color-scheme
+            çözümü Gmail uygulamaları ve Outlook'ta çalışmadı. Kalıcı çözüm:
+            beyaz yuvarlatılmış zemin PNG'nin İÇİNE gömülü
+            (packages/email/scripts/build-logo.py) — her istemcide, her temada
+            okunur. */}
         <meta name="color-scheme" content="light dark" />
         <meta name="supported-color-schemes" content="light dark" />
-        <style>{`
-          @media (prefers-color-scheme: dark) {
-            .rothern-logo { filter: invert(1) brightness(2) !important; }
-          }
-          [data-ogsc] .rothern-logo { filter: invert(1) brightness(2) !important; }
-        `}</style>
       </Head>
       <Preview>{preview}</Preview>
       <Body style={main}>
@@ -86,9 +85,8 @@ export function Layout({ preview, children }: LayoutProps) {
             <Img
               src={LOGO_SRC}
               alt="Rothern"
-              width="170"
-              height="50"
-              className="rothern-logo"
+              width={LOGO_DISPLAY_WIDTH}
+              height={LOGO_DISPLAY_HEIGHT}
               style={logoStyle}
             />
           </Section>
