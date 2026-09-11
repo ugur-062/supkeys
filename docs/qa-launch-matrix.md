@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (57 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (73 test, 2026-09-12 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -28,6 +28,7 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (57 test, 2026-09-11 tüm�
 | Akış | Durum | Not |
 |---|---|---|
 | 🤖 Giriş → panel; portal anahtarı Satınalma/Satış | ✅ | company-tenders.spec staging (QA kurucu) |
+| 🤖 **12 QA hesabının TAMAMI giriş formundan girer**; üst çubukta doğru kişi/firma, oturum yenilemeye dayanır | ✅ | staging-role-logins.spec |
 | 🤖 Ayarlar › Firma Bilgileri: kimlik salt-okunur, ad/unvan kilitli | ✅ | staging-roles.spec |
 | Ayarlar › Kullanıcı Yönetimi: davet, yetki tablosu, koltuk sayacı | | |
 | Ayarlar › Adres, Banka, 2FA, Bildirimler | | |

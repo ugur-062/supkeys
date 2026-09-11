@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { uiLogin } from "./staging-helpers";
 
 /**
  * İhaleler e2e smoke — gerçek tarayıcı, çalışan stack gerektirir
@@ -10,13 +11,10 @@ const EMAIL = process.env.E2E_EMAIL ?? "firma@demo.com";
 const PASSWORD = process.env.E2E_PASSWORD ?? "Demo1234!";
 
 async function login(page: import("@playwright/test").Page) {
-  await page.goto("/company/login");
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.getByRole("button", { name: "Giriş Yap" }).click();
-  // Giriş sonrası /company'ye yönlenir (login sayfasından çıkar).
-  await page.waitForURL(/\/company(?!\/login)/, { timeout: 20_000 });
+  // Ortak yardımcı: giriş ucu IP başına 10/dk sınırlı, 429'da bekleyip yineler.
+  await uiLogin(page, EMAIL);
 }
+
 
 test("giriş yapıp Taleplerim listesini görür", async ({ page }) => {
   await login(page);
