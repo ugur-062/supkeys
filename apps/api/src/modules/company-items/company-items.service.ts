@@ -1135,29 +1135,43 @@ export class CompanyItemsService {
     // 2026-09-06). Zaten yayında/bekleyen ürünü yeniden göndermek sayılmaz;
     // taslak sınırsız — kapı yalnız kuyruğa GİRİŞ anında.
     const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
-    if (limit != null && !row.isPublic && row.reviewStatus !== "PENDING") {
-      const occupied = await this.prisma.companyItem.count({
-        where: {
-          companyId: user.companyId,
-          isActive: true,
-          OR: [{ isPublic: true }, { reviewStatus: "PENDING" }],
+    const countsAgainstLimit =
+      limit != null && !row.isPublic && row.reviewStatus !== "PENDING";
+    const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug);
+    /**
+     * TAVAN SAYIMI VE YAZMA AYNI İŞLEMDE (2026-09-12).
+     *
+     * Eskiden `count()` ve `update()` ayrıydı: aynı anda gelen iki "onaya
+     * gönder" isteği de 9 sayıp ikisi de geçiyordu (TOCTOU) → ücretsiz pakette
+     * 11 ürün kuyruğa girebiliyordu. Firma bazlı **işlem düzeyi** advisory
+     * lock ile sıraya alınır; işlem bitince otomatik bırakılır (PgBouncer
+     * işlem havuzuyla uyumlu — oturum düzeyi kilit orada güvenli değildi).
+     */
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (countsAgainstLimit) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.companyId}))`;
+        const occupied = await tx.companyItem.count({
+          where: {
+            companyId: user.companyId,
+            isActive: true,
+            OR: [{ isPublic: true }, { reviewStatus: "PENDING" }],
+          },
+        });
+        if (occupied >= limit) {
+          throw new ForbiddenException(
+            `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Daha fazlası için Silver paketine geçin.`,
+          );
+        }
+      }
+      return tx.companyItem.update({
+        where: { id },
+        data: {
+          slug,
+          reviewStatus: "PENDING",
+          submittedAt: new Date(),
+          rejectReason: null,
         },
       });
-      if (occupied >= limit) {
-        throw new ForbiddenException(
-          `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Daha fazlası için Silver paketine geçin.`,
-        );
-      }
-    }
-    const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug);
-    const updated = await this.prisma.companyItem.update({
-      where: { id },
-      data: {
-        slug,
-        reviewStatus: "PENDING",
-        submittedAt: new Date(),
-        rejectReason: null,
-      },
     });
     void this.audit.log({
       action: "company.product.submitted",
