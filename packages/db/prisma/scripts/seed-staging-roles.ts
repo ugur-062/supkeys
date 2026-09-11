@@ -126,6 +126,21 @@ const COMPANIES: CompanySpec[] = [
     ],
   },
   {
+    // İKİNCİ tedarikçi: kapalı zarf ve çok-teklifli akış tek firmayla
+    // doğrulanamaz (rakip teklifi görmemeli kuralı iki AYRI firma ister).
+    key: "tedarikci2",
+    name: "QA Tedarikçi 2 A.Ş.",
+    tier: "SILVER",
+    verified: true,
+    taxNumber: "9100000003",
+    city: "Kocaeli",
+    industry: "Metal İşleme",
+    users: [
+      { slug: "tedarikci2-kurucu", firstName: "Kurucu", lastName: "Tedarikçi2", roles: ["SAHIP", "SATIN_ALMACI", "SATISCI"], owner: true },
+      { slug: "tedarikci2-satisci", firstName: "Satış", lastName: "Tedarikçi2", roles: ["SATISCI"] },
+    ],
+  },
+  {
     key: "ucretsiz",
     name: "QA Ücretsiz Firma",
     tier: "STANDART",

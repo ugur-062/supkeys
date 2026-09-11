@@ -16,7 +16,12 @@ export function ApprovalsGate({ children }: { children: React.ReactNode }) {
   const allowed = userHasPermission(user, ["approval:act", "approvals:manage"]);
   if (!allowed) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
+      // `PermissionGate` ile AYNI kabuk: aynı görünen iki kapı ekran
+      // okuyucuya da aynı duyurulmalı (2026-09-11 rol turu bulgusu).
+      <div
+        className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center"
+        role="status"
+      >
         <ClipboardCheck className="h-8 w-8 text-zinc-300" aria-hidden />
         <h2 className="text-base font-semibold text-zinc-900">
           Onaylar yetki gerektirir

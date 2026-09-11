@@ -10,6 +10,10 @@ export const API = process.env.E2E_API_URL ?? "https://api.staging.rothern.com/a
 export const WEB = process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com";
 export const PASSWORD = process.env.E2E_PASSWORD ?? "Staging1234!";
 export const QA = {
+  aliciSatisci: "uguray156+qa-alici-satisci@gmail.com",
+  tedarikciGoruntuleyici: "uguray156+qa-tedarikci-goruntuleyici@gmail.com",
+  tedarikci2Kurucu: "uguray156+qa-tedarikci2-kurucu@gmail.com",
+  tedarikci2Satisci: "uguray156+qa-tedarikci2-satisci@gmail.com",
   aliciKurucu: "uguray156+qa-alici-kurucu@gmail.com",
   aliciYonetici: "uguray156+qa-alici-yonetici@gmail.com",
   aliciSatinalmaci: "uguray156+qa-alici-satinalmaci@gmail.com",
@@ -50,8 +54,15 @@ export async function apiPatch(s: { ctx: APIRequestContext; csrf: string }, path
 
 export async function apiGet(s: { ctx: APIRequestContext }, path: string) {
   const res = await s.ctx.get(path.replace(/^\//, ""));
+  // Bazı uçlar dosya döner (şablon indirme) — JSON.parse patlamasın.
   const text = await res.text();
-  return { status: res.status(), body: text ? JSON.parse(text) : null };
+  let body: unknown = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text.slice(0, 120) };
+  }
+  return { status: res.status(), body: body as any };
 }
 
 /** Tarayıcı girişi (giriş formu) — oturum /me ile doğrulanır, gerekirse bir kez yinelenir. */
