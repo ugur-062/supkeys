@@ -15,6 +15,7 @@
     "seed-marketplace-demo": "tsx prisma/scripts/seed-marketplace-demo.ts",
     "cleanup-marketplace-demo": "tsx prisma/scripts/cleanup-marketplace-demo.ts",
     "create-test-company": "tsx prisma/scripts/create-test-company.ts",
+    "seed-staging-roles": "tsx prisma/scripts/seed-staging-roles.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "seed-category-attributes": "tsx prisma/scripts/seed-category-attributes.ts",
     "import-ariba-csv": "tsx prisma/scripts/import-ariba-csv.ts",

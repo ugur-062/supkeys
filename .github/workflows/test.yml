@@ -6,12 +6,12 @@ on:
   # fix connection_limit=1 kodda (ortamdan bağımsız aktif). Doc-only değişiklik CI
   # yakmaz (paths-ignore, billing — private repo).
   push:
-    branches: [main]
+    branches: [main, production]
     paths-ignore:
       - '**.md'
       - 'docs/**'
   pull_request:
-    branches: [main]
+    branches: [main, production]
     paths-ignore:
       - '**.md'
       - 'docs/**'
