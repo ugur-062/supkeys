@@ -8,8 +8,9 @@ import { expect, test } from "@playwright/test";
  * tarayıcı geri tuşu süzgeçler arasında doğru gezer, kategori ve firma
  * dizinlerinin kendi adresi var, aynı sorgu iki sekmede iki sayı gösterir.
  */
-const EMAIL = "firma@demo.com";
-const PASSWORD = "Demo1234!";
+// Ortamdan (staging QA hesabı) ya da yerel demo hesabı.
+const EMAIL = process.env.E2E_EMAIL ?? "firma@demo.com";
+const PASSWORD = process.env.E2E_PASSWORD ?? "Demo1234!";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/company/login");
@@ -83,10 +84,16 @@ test("Ürünler | Firmalar sekmeleri aynı sorguyu iki sayıyla taşır", async 
   expect(await count(page)).toBeGreaterThan(0);
 });
 
-test("Bağlantılar › Keşfet tam liste TAŞIMAZ, dizine yönlendirir", async ({ page }) => {
+test("Bağlantılar: Keşfet YOK; 'Firma bul' portalın dizinine gider; süzgeç rayı burada değil", async ({ page }) => {
   await login(page);
-  await page.goto("/company/satinalma/tedarikcilerim?tab=discover");
-  await expect(page.getByRole("link", { name: /Tüm firmaları ara/ })).toBeVisible({ timeout: 30_000 });
+  await page.goto("/company/satinalma/tedarikcilerim");
+  // 2026-09-10 yeniden tasarım: sekme/Keşfet kalktı, başlıkta "Firma bul".
+  await expect(page.getByRole("link", { name: /Firma bul/ }).first()).toHaveAttribute(
+    "href",
+    "/company/satinalma/firmalar",
+    { timeout: 30_000 },
+  );
+  await expect(page.getByRole("tablist")).toHaveCount(0);
   // Dizin süzgeç rayı ve sonuç sayacı BURADA olmamalı (tek yerde yaşıyor).
   await expect(page.locator('aside[aria-label="Süzgeçler"]')).toHaveCount(0);
 });

@@ -6,6 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -26,7 +27,7 @@ Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
 
 | Akış | Durum | Not |
 |---|---|---|
-| Giriş → panel; portal anahtarı Satınalma/Satış | | |
+| 🤖 Giriş → panel; portal anahtarı Satınalma/Satış | ✅ | company-tenders.spec staging (QA kurucu) |
 | Ayarlar › Firma Bilgileri: kimlik salt-okunur, ad/unvan kilitli | | |
 | Ayarlar › Kullanıcı Yönetimi: davet, yetki tablosu, koltuk sayacı | | |
 | Ayarlar › Adres, Banka, 2FA, Bildirimler | | |
@@ -54,7 +55,7 @@ Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
 | Admin: /admin/urunler kuyruğu → onayla → vitrinde | | |
 | Yayındaki ürünü düzenle → yeniden PENDING, vitrinde kalır | | |
 | Bilgi talebi (ziyaretçi ve üye) → satıcı yanıtlar | | |
-| Satış anasayfası "Talep \| Firma" pili, firma dizini | | |
+| Satış anasayfası "Talep \| Firma" pili, firma dizini | | panel-market.spec satınalma dizinini/sekmeleri/Bağlantılar'ı staging'de geçti (5/5); satış tarafı elle |
 
 ## Parça 5 — Kısıtlı roller ve paketler
 

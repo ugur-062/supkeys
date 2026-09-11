@@ -3,10 +3,11 @@ import { expect, test } from "@playwright/test";
 /**
  * İhaleler e2e smoke — gerçek tarayıcı, çalışan stack gerektirir
  * (`pnpm dev` + api:4000). Dev hesabı: firma@demo.com / Demo1234!.
- * Giriş → İhalelerim listesi render olur.
+ * Giriş → Taleplerim listesi render olur.
  */
-const EMAIL = "firma@demo.com";
-const PASSWORD = "Demo1234!";
+// Ortamdan (staging QA hesabı) ya da yerel demo hesabı.
+const EMAIL = process.env.E2E_EMAIL ?? "firma@demo.com";
+const PASSWORD = process.env.E2E_PASSWORD ?? "Demo1234!";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/company/login");
@@ -17,22 +18,20 @@ async function login(page: import("@playwright/test").Page) {
   await page.waitForURL(/\/company(?!\/login)/, { timeout: 20_000 });
 }
 
-test("giriş yapıp İhalelerim listesini görür", async ({ page }) => {
+test("giriş yapıp Taleplerim listesini görür", async ({ page }) => {
   await login(page);
   await page.goto("/company/satinalma/taleplerim");
-  await expect(
-    page.getByRole("link", { name: /Yeni İhale Aç/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByPlaceholder("İhale adı veya numarası ara…"),
-  ).toBeVisible();
+  // Etiket ürün sözlüğünden gelir ("ihale" sözcüğü 2026-09-01'de kalktı) —
+  // düğme adres ile bulunur, metne bağlanmaz.
+  await expect(page.locator('a[href="/company/satinalma/taleplerim/yeni"]').first()).toBeVisible();
+  await expect(page.getByPlaceholder(/ara/i).first()).toBeVisible();
 });
 
-test("Yeni İhale Aç sihirbazını açar", async ({ page }) => {
+test("Yeni talep sayfasını açar", async ({ page }) => {
   await login(page);
   await page.goto("/company/satinalma/taleplerim");
-  await page.getByRole("link", { name: /Yeni İhale Aç/ }).click();
-  await page.waitForURL(/\/ihalelerim\/yeni/, { timeout: 20_000 });
-  // Sihirbazın ilk adımı (tür/kapsam) yüklendi.
-  await expect(page.locator("body")).toContainText(/İhale|Alım|Tür/i);
+  await page.locator('a[href="/company/satinalma/taleplerim/yeni"]').first().click();
+  await page.waitForURL(/\/taleplerim\/yeni/, { timeout: 20_000 });
+  // Hızlı talep ekranı (kalemler + adres + kime) yüklendi.
+  await expect(page.locator("body")).toContainText(/Kalem|Talep/i);
 });

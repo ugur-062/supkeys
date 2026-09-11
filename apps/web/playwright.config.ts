@@ -17,6 +17,18 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+    // Staging Vercel Deployment Protection arkasında: bypass anahtarı
+    // (Project → Deployment Protection → Protection Bypass for Automation)
+    // `PLAYWRIGHT_VERCEL_BYPASS` ile gelir; ikinci başlık çerezi de yazdırır
+    // ki istemci yönlendirmeleri korumaya takılmasın.
+    ...(process.env.PLAYWRIGHT_VERCEL_BYPASS
+      ? {
+          extraHTTPHeaders: {
+            "x-vercel-protection-bypass": process.env.PLAYWRIGHT_VERCEL_BYPASS,
+            "x-vercel-set-bypass-cookie": "true",
+          },
+        }
+      : {}),
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     actionTimeout: 10_000,

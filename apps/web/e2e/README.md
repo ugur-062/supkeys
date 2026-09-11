@@ -46,6 +46,20 @@ pnpm e2e          # headless
 pnpm e2e:headed   # browser görünür modda
 ```
 
+## Staging'e karşı (2026-09-11)
+
+```bash
+pnpm --filter @rothern/web e2e:staging                 # 14 test, ~4 dk
+pnpm --filter @rothern/web e2e:staging e2e/panel-market.spec.ts
+```
+
+`scripts/e2e-staging.sh` kökteki `.env.staging`'den Vercel bypass anahtarını
+(`STAGING_VERCEL_BYPASS_WEB`) alır; giriş QA alıcı kurucu hesabıyla
+(`seed-staging-roles`). Staging vitrini boşsa önce `seed-marketplace-demo`
+(süzgeç kutuları sayısı 0 olan seçenekleri pasifler → testler kırılır).
+Panel spec'leri `E2E_EMAIL`/`E2E_PASSWORD` ile hesabı, metin yerine adres
+(`a[href=…]`) ile düğmeyi bulur — ürün sözlüğü değişince kırılmasın.
+
 ## Test fixture'ları
 
 Yeni spec'ler için dev hesapları (birleşik Company sistemi):
