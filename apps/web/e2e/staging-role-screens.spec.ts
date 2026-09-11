@@ -115,6 +115,18 @@ for (const u of USERS) {
               : "paket";
       if (state !== expected) problems.push(`${r.path}: beklenen "${expected}", gelen "${state}"`);
     }
+    // Sol menüde YETKİSİ OLMAYAN sayfaya bağlantı kalmamalı: tıklayınca
+    // "yetki gerektirir" diyen bir menü satırı ölü bağlantıdır.
+    await gotoRetry(page, "/company/ayarlar");
+    await page.waitForLoadState("networkidle").catch(() => {});
+    const menu = await page.locator('nav a[href^="/company"]').evaluateAll((els) =>
+      [...new Set(els.map((e) => (e as HTMLAnchorElement).getAttribute("href") ?? "").map((h) => h.split("?")[0]!))],
+    );
+    for (const href of menu) {
+      const state = states[href];
+      if (state && state !== "ok") problems.push(`menüde yetkisiz bağlantı: ${href} → "${state}"`);
+    }
+
     rows.push({ user: u.slug, states });
     expect.soft(problems, `${u.slug}\n${problems.join("\n")}`).toEqual([]);
   });
