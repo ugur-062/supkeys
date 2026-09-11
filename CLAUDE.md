@@ -39,8 +39,16 @@ packages/email    @rothern/email   React Email + Resend
 ## Test Hesapları (Dev)
 
 Parolalar **gitignore'lı `CLAUDE.md.local`'da** — buraya GERİ YAZILMAZ.
-Gerekçe: dev ve prod **AYNI** veritabanını kullanıyor, "dev" hesapları CANLI
-hesaplardır.
+
+**2026-09-11'den itibaren YEREL GELİŞTİRME = STAGING** (Supabase
+`rothern-staging`, ref `tmqwyypvxxkwrxequksu`). Root `.env` staging'i gösterir;
+canlı değerler gitignore'lu `.env.prod.local`'da ve YALNIZ onaylı migration
+için kullanılır. Ortam tablosu ve sürüm akışı: `docs/release-process.md`.
+Staging rol hesapları: `pnpm --filter @rothern/db seed-staging-roles`
+(`uguray156+qa-<slug>@gmail.com`; alıcı GOLD 6 rol · tedarikçi SILVER 3 rol ·
+ücretsiz STANDART). Staging adresleri: `staging.rothern.com`,
+`admin.staging.rothern.com`, `api.staging.rothern.com`, `cdn.staging.rothern.com`.
+Git: `main` → staging (otomatik), `production` → canlı (PR ile).
 
 | Tip | URL | E-posta |
 |-----|-----|---------|
@@ -753,7 +761,8 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**
 - **API'ye parametre ekleyen değişiklikte API ÖNCE push** (`forbidNonWhitelisted`
   → eski API yeni parametreye 400 döner).
-- NOT: web-dev ve prod API **AYNI Supabase DB'yi** kullanıyor.
+- NOT: yerel dev artık STAGING DB'ye bağlı (2026-09-11); canlı migration için
+  `.env.prod.local` değerleriyle `ALLOW_REMOTE_MIGRATION=1 migrate:deploy`.
 - **ŞEMA BEKLEYEN (migration onayı yok):** ürün öne çıkan özellikler / paket içi
   adet / teslim süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet
   tipi; ilan görüntülenme sayacı.
@@ -782,13 +791,18 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
+- **`NEXT_PUBLIC_API_URL` HER ZAMAN `/api` sonekli** (`https://api.rothern.com/api`,
+  staging `https://api.staging.rothern.com/api`): API `setGlobalPrefix("api")`, web/
+  admin sonek EKLEMEZ. 2026-09-11'de soneksiz değer canlı girişi ~14 saat kırdı
+  ("Cannot POST /company-auth/login"). Doğrulama: canlı JS chunk'larında adresi ara.
+  Vercel CLI yerelde yetkili (`--scope rothern`, `supkeys-web`/`supkeys-admin`).
 - **`@rothern/email` değişince** `pnpm --filter @rothern/email build` şart.
 - **Görseller `cdn.rothern.com`'dan servis edilir**, `pub-*.r2.dev` DEĞİL
   (o bucket'ın Public Development URL ayarı kapalı — coğrafi engel değil).
   Taşıma scripti `scripts/migrate-public-images.ts` (2026-09-05'te koşuldu,
   DB'de artık `r2.dev` adresi yok).
 - Demo doluluk: `pnpm --filter @rothern/db seed-marketplace-demo` (idempotent
-  ama SİLMEZ; kaldırma `cleanup-marketplace-demo`). dev=prod DB → canlıda da görünür.
+  ama SİLMEZ; kaldırma `cleanup-marketplace-demo`). Yerel dev = staging DB.
 
 ## Test & Kalite
 
