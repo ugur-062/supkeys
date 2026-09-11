@@ -165,6 +165,19 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
   YALNIZ UI snapshot'ı (`user`/`company`) tutar, token DEĞİL. Kimlik `/me` ile.
   Mutating isteklerde CSRF double-submit (`rk_csrf` → `X-CSRF-Token`).
   **Kayan oturum:** `AuthCookieInterceptor` ömrün yarısı geçince taze token basar.
+- **KOYU MOD (2026-09-11, kullanıcı kararı):** ürün arayüzü her zaman AÇIK —
+  `dark` variant'ı class tabanlı (`.dark` hiç eklenmez) ve `:root` `color-scheme:
+  light` (web + admin) → OS koyu temasında native kontrol/scrollbar da açık kalır.
+  Doğrulandı: 14 sayfa `colorScheme: "dark"` emülasyonuyla tarandı, koyu kutu/
+  kontrol yok. **E-POSTA AYRI DÜNYA:** Gmail/Apple Mail zemini ve metni ters
+  çevirir ama GÖRSELİ ÇEVİRMEZ; `prefers-color-scheme`/CSS `filter` çoğu
+  istemcide çalışmaz. Bu yüzden e-posta logosu KENDİ beyaz yuvarlak kart
+  zeminini taşır (`packages/email/scripts/build-email-logo.mjs` → `src/assets/
+  logo.ts`). Logoyu değiştirirken scripti yeniden koş; şeffaf zeminli siyah logo
+  koyu modda KAYBOLUR (2026-09-11'de canlıda görüldü).
+- **"parola" DEĞİL "şifre" (2026-09-10 kararının kalanı 2026-09-11'de kapandı):**
+  giriş, kayıt, davet ve şifre sıfırlama ekranları dahil kullanıcı metinlerinin
+  hepsi "şifre"; kod içi değişken adları (`password`) değişmez.
 - **MONO FONT YOK (2026-09-10, kullanıcı kararı):** talep/sipariş numarası, IBAN,
   kod, Rothern ID dahil hiçbir yerde `font-mono` kullanma ("robotik" görünüm);
   rakam hizası gerekiyorsa `tabular-nums`. Tema `--font-mono` Inter'e eşli

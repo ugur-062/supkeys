@@ -237,7 +237,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
             onChange={(e) => set("passwordConfirm")(e.target.value)}
           />
           {form.passwordConfirm && !confirmOk ? (
-            <p className="mt-1 text-xs text-red-600">Parolalar eşleşmiyor</p>
+            <p className="mt-1 text-xs text-red-600">Şifreler eşleşmiyor</p>
           ) : null}
         </Field>
 

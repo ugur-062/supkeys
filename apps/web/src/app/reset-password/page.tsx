@@ -10,15 +10,15 @@ import { ResetPasswordForm } from "./reset-password-form";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Parola Sıfırla — Rothern",
+  title: "Şifre Sıfırla — Rothern",
 };
 
-/** Parola sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */
+/** Şifre sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */
 export default function ResetPasswordPage() {
   return (
     <AuthShell
-      title="Parolanı sıfırla"
-      subtitle="E-postana gönderilen bağlantıyla yeni parolanı oluştur."
+      title="Şifreni sıfırla"
+      subtitle="E-postana gönderilen bağlantıyla yeni şifreni oluştur."
       footer={
         <>
           Hatırladın mı?{" "}

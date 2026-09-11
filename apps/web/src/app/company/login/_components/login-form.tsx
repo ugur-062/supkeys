@@ -23,7 +23,7 @@ import { z } from "zod";
 
 const schema = z.object({
   email: z.string().email("Geçerli bir e-posta giriniz"),
-  password: z.string().min(1, "Parola gerekli"),
+  password: z.string().min(1, "Şifre gerekli"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -200,7 +200,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       </Field>
 
       <Field>
-        <Label>Parola</Label>
+        <Label>Şifre</Label>
         <Input type="password" autoComplete="current-password" invalid={!!errors.password} {...register("password")} />
         {errors.password ? (
           <ErrorMessage className="mt-1">{errors.password.message}</ErrorMessage>
