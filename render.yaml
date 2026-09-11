@@ -9,9 +9,17 @@ services:
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    plan: free
+    # Starter (2026-09-11, kullanıcı kararı): free plan 15 dk boşta uyur, ilk
+    # istek 30-60 sn — canlıda kabul edilemez. Staging (api-staging, elle
+    # açıldı, blueprint dışı) free kalır.
+    plan: starter
     region: frankfurt # Supabase eu-central-1 + TR'ye en yakın
     healthCheckPath: /api/health
+    # CANLI = `production` dalı (2026-09-11): main her push'ta staging'e gider;
+    # canlı yalnız main → production PR birleşince kurulur (branch protection
+    # CI zorunlu). Eskiden branch verilmediği için main her push'ta canlıya
+    # gidiyordu — test edilmemiş kod doğrudan canlıya iniyordu.
+    branch: production
     autoDeploy: true
     envVars:
       # ── Sabitler ──
