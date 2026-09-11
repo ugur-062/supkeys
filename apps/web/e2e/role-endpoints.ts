@@ -8,7 +8,7 @@ import { seatPermissionsOf } from "@rothern/shared";
  * (`@RequireCompanyPermission`, dizi = any-of) ve paket kademesi
  * (`@RequireTier`, sınıf ya da metot düzeyinde) çıkarılır.
  */
-export type Endpoint = { path: string; permissions: string[]; tier: string | null; source: string };
+export type Endpoint = { path: string; method: "GET" | "POST"; permissions: string[]; tier: string | null; source: string };
 
 const API_MODULES = path.resolve(__dirname, "../../api/src/modules");
 
@@ -58,7 +58,7 @@ const tierFrom = (source: string): string | null => {
   return null;
 };
 
-export function companyGetEndpoints(): Endpoint[] {
+export function companyEndpoints(): Endpoint[] {
   const out: Endpoint[] = [];
   for (const file of walk(API_MODULES)) {
     const src = readFileSync(file, "utf8");
@@ -77,9 +77,10 @@ export function companyGetEndpoints(): Endpoint[] {
 
     const lines = src.split("\n");
     for (let i = 0; i < lines.length; i++) {
-      const g = lines[i]!.match(/^\s*@Get\(\s*(?:"([^"]*)")?\s*\)/);
+      const g = lines[i]!.match(/^\s*@(Get|Post)\(\s*(?:"([^"]*)")?\s*\)/);
       if (!g) continue;
-      const sub = g[1] ?? "";
+      const method = g[1] === "Post" ? ("POST" as const) : ("GET" as const);
+      const sub = g[2] ?? "";
       // Dekoratör bloğu: @Get satırından metot imzasına kadar.
       let block = "";
       for (let j = i; j < Math.min(i + 14, lines.length); j++) {
@@ -92,6 +93,7 @@ export function companyGetEndpoints(): Endpoint[] {
       if (full.includes(":")) continue; // parametreli uç — atla
       out.push({
         path: full,
+        method,
         permissions: perms.length > 0 ? perms : classPerms,
         tier: tier ?? classTier ?? SERVICE_TIER_GATES[full] ?? null,
         source: path.relative(API_MODULES, file),
@@ -109,6 +111,8 @@ export function companyGetEndpoints(): Endpoint[] {
 export const SERVICE_TIER_GATES: Record<string, string> = {
   "company/views/insights": "SILVER",
 };
+
+export const companyGetEndpoints = (): Endpoint[] => companyEndpoints().filter((e) => e.method === "GET");
 
 const TIER_ORDER = ["STANDART", "SILVER", "GOLD"];
 export const tierOk = (have: string, need: string | null) =>

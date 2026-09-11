@@ -820,10 +820,18 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 ## Test & Kalite
 
 - API **178 spec / 1882 test** · web **120 / 682** · admin **15 / 79** — yeşil (2026-09-10).
-- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 48 test
+- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 57 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
   rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
-  **ekran matrisi**, **çok tedarikçili teklif**).
+  **ekran matrisi**, **çok tedarikçili teklif**, **pazarlık turu**, **yazma
+  yetkisi matrisi**, **firmalar arası yalıtım**, **onay akışı dar bağlamı**).
+  **Yazma matrisi BOŞ GÖVDE ile sınar** (guard doğrulamadan önce çalışır →
+  yetkisiz 403, yetkili 400); boş gövdeyle gerçekten iş yapan uçlar bilinçli
+  DIŞARIDA (`docs/submit`, `items/product`, `users/seat-selection`, rapor
+  indirme, AI). Hız sınırı GLOBAL guard olduğu için izin kapısından ÖNCE çalışır
+  → sondada 429 görülürse bir kez beklenip yinelenir.
+  **Onay akışı testi akışı PASSIVE'e çekmeden bitmemeli** — aktif
+  `LISTING_AWARD` akışı kalırsa sipariş zinciri ve teklif turları da onaya düşer.
   **Rol denetimi beklentisi ELLE YAZILMAZ:** `e2e/role-endpoints.ts` API
   kaynağındaki `@RequireCompanyPermission`/`@RequireTier`'ı okur
   (`CompanyPaidTierGuard` @RequireTier'sız = SILVER; `ALL_SEAT_PERMISSIONS` gibi

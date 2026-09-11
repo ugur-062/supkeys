@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (48 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (57 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -40,6 +40,11 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (48 test, 2026-09-11 tüm�
 |---|---|---|
 | Hızlı talep: kalemler, adres, süre, kime (PUBLIC) → yayınla | | |
 | Detaylı sihirbaz 4 adım; taslak; kopya | | |
+| 🤖 **Pazarlık (açık eksiltme)**: RFQ → "Pazarlığa Geç" (tarayıcı) → monotonluk, taslağa çekilememe, kimlik gizliliği | ✅ | staging-negotiation.spec |
+| 🤖 **Onay akışı**: kazandırma onaya düşer, onaylayıcı dar bağlamı görür, onaydan sonra sipariş | ✅ | staging-approval-flow.spec |
+| 🤖 **Yazma yetkisi matrisi**: 9 rol × 33 POST ucu (boş gövde, kayıt oluşmaz) | ✅ | staging-role-writes.spec |
+| 🤖 **Firmalar arası yalıtım**: taslak talep, ürün vitrini, sipariş, adres, kullanıcı — id ile açılamaz | ✅ | staging-tenant-isolation.spec |
+| 🤖 **Kendi yetki satırı**: yönetici kendi iznini düzenleyemez; başka firmanın kullanıcısına yazamaz | ✅ | staging-tenant-isolation.spec |
 | 🤖 Tedarikçi (satışçı) açık talebi görür, **Teklif Ver** ilk ekranda | ✅ | staging-order-chain.spec |
 | 🤖 Teklif formu: kalem fiyatı, teslim süresi, geçerlilik → gönder | ✅ | staging-order-chain.spec (onay penceresi dahil) — ❌ #4 pencere metni düzeltildi |
 | 🤖 Alıcı teklifleri görür; tedarikçiler birbirini GÖRMEZ | ✅ | kazandırma UI + API sözleşmeleri (closed-envelope spec) |
