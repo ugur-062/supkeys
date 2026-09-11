@@ -65,19 +65,15 @@ export function Layout({ preview, children }: LayoutProps) {
   return (
     <Html lang="tr">
       <Head>
-        {/* Dark mode destekli. Sorun: istemciler dark-mode'da arka planı
-            koyulaştırır ama GÖRSELLERİ ters çevirmez → siyah+şeffaf logo koyu
-            zeminde kaybolur. Çözüm: dark-mode'da logoyu CSS filter ile BEYAZA
-            çevir (Rothern yazısı+ikon tek görsel, ikisi de beyazlaşır). Hem
-            prefers-color-scheme hem Gmail (data-ogsc) hedeflenir. */}
+        {/* Koyu mod: istemciler (Gmail iOS/Android, Apple Mail, Outlook)
+            arka planı koyulaştırır ama GÖRSELLERİ değiştirmez ve çoğu
+            `prefers-color-scheme`/`filter` CSS'ini desteklemez (Gmail hiçbirini).
+            Tek sağlam yol: logo görselinin KENDİ zemini olsun — beyaz, köşeleri
+            yuvarlak bir kart içinde siyah logo (bkz. assets/logo.ts, üretim
+            scripts/build-email-logo.mjs). Açık zeminde kart görünmez, koyu
+            zeminde beyaz kart olarak durur; logo her koşulda okunur. */}
         <meta name="color-scheme" content="light dark" />
         <meta name="supported-color-schemes" content="light dark" />
-        <style>{`
-          @media (prefers-color-scheme: dark) {
-            .rothern-logo { filter: invert(1) brightness(2) !important; }
-          }
-          [data-ogsc] .rothern-logo { filter: invert(1) brightness(2) !important; }
-        `}</style>
       </Head>
       <Preview>{preview}</Preview>
       <Body style={main}>

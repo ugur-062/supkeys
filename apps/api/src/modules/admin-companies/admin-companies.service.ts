@@ -895,7 +895,7 @@ export class AdminCompaniesService {
         "Firma doğrulamanız onaylandı",
         [
           "Merhaba,",
-          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Artık premium doğrulama gerektiren adımlara devam edebilirsiniz.",
+          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür; doğrulama gerektiren adımlara (talep yayınlama, herkese açık taleplere teklif) devam edebilirsiniz.",
         ],
         "company_verification",
         { label: "Hesabım", path: "/company/ayarlar/dogrulama" },
@@ -1045,7 +1045,7 @@ export class AdminCompaniesService {
         "Firma doğrulamanız onaylandı",
         [
           "Merhaba,",
-          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Artık premium doğrulama gerektiren adımlara devam edebilirsiniz.",
+          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür; doğrulama gerektiren adımlara (talep yayınlama, herkese açık taleplere teklif) devam edebilirsiniz.",
         ],
         "company_verification",
         { label: "Hesabım", path: "/company/ayarlar/dogrulama" },
