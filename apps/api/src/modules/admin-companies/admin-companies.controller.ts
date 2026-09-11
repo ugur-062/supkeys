@@ -88,11 +88,15 @@ class SuspendDto {
   reason?: string;
 }
 
+/**
+ * Firma doğrulama reddi — gerekçe ZORUNLU (firmaya e-posta/bildirimle gider;
+ * admin arayüzü de ≥3 karakter ister). UI kilidi ≠ API kilidi: 2026-09-11
+ * staging QA'da gövdesiz istek 201 dönüyordu.
+ */
 class RejectDto {
-  @IsOptional()
   @IsString()
-  @MaxLength(500)
-  reason?: string;
+  @Length(3, 500, { message: "Red gerekçesi en az 3 karakter olmalı" })
+  reason!: string;
 }
 
 /**

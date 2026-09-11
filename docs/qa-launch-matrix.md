@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -32,7 +32,7 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tüm�
 | Ayarlar › Kullanıcı Yönetimi: davet, yetki tablosu, koltuk sayacı | | |
 | Ayarlar › Adres, Banka, 2FA, Bildirimler | | |
 | Şirketim › Profil: logo/kapak yükleme, kaydet, herkese açık görünüm | | R2 |
-| Doğrulama Belgeleri: belge yükleme (admin tarafında görünür) | | |
+| 🤖 Doğrulama Belgeleri: 6 belge yükleme + başvuru (admin Başvurular kuyruğunda görünür) | ✅ | staging-admin.spec (ücretsiz QA firması üzerinden; API yükleme, admin tarayıcı) |
 
 ## Parça 3 — Satın alma zinciri (alıcı ↔ tedarikçi)
 
@@ -45,17 +45,17 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tüm�
 | 🤖 Alıcı teklifleri görür; tedarikçiler birbirini GÖRMEZ | ✅ | kazandırma UI + API sözleşmeleri (closed-envelope spec) |
 | 🤖 Kazandırma → sipariş oluşur | ✅ | staging-order-chain.spec (onay akışı tanımlı değilken doğrudan); onay akışlı varyant elle |
 | 🤖 Sipariş: satıcı onaylar → gönderir → alıcı teslim alır (otomatik tamamlanır) → ödeme bildir/onayla | ✅ | staging-order-chain.spec |
-| E-postalar: davet, teklif, kazandırma, sipariş adımları (Gmail) | | |
+| 🤖 E-postalar: teklif, kazandırma, sipariş adımları | ✅ | EmailLog: zincir boyunca 32 bildirim SENT, 0 FAILED (Parça 7) — Gmail'de içerik kontrolü elle |
 
 ## Parça 4 — Satış zinciri
 
 | Akış | Durum | Not |
 |---|---|---|
-| Ürünlerim: ürün ekle (5 bölüm), görsel, anahtar kelime → onaya gönder | | |
-| Admin: /admin/urunler kuyruğu → onayla → vitrinde | | |
-| Yayındaki ürünü düzenle → yeniden PENDING, vitrinde kalır | | |
-| Bilgi talebi (ziyaretçi ve üye) → satıcı yanıtlar | | |
-| Satış anasayfası "Talep \| Firma" pili, firma dizini | | panel-market.spec satınalma dizinini/sekmeleri/Bağlantılar'ı staging'de geçti (5/5); satış tarafı elle |
+| 🤖 Ürünlerim: ürün ekle, görsel (R2 presigned PUT + resolve), anahtar kelime → onaya gönder; Onay bekliyor; inceleme kilidi 409 | ✅ | staging-sales-chain.spec (kayıt API, liste tarayıcı); 5 bölümlü form elle |
+| 🤖 Admin: /admin/urunler kuyruğu → "Onayla ve yayınla" → herkese açık ürün sayfası 200 | ✅ | staging-sales-chain.spec (admin tarayıcı + ziyaretçi sayfası) |
+| 🤖 Yayındaki ürünü düzenle → yeniden PENDING, vitrinde kalır | ✅ | staging-sales-chain.spec (API + herkese açık sayfa 200) |
+| 🤖 Bilgi talebi (üye) → satıcı yanıtlar; Silver satıcı alıcı kimliğini görür | ✅ | staging-sales-chain.spec (iki tarayıcı); ziyaretçi (misafir) yolu elle |
+| 🤖 Satış anasayfası "Talep \| Firma" pili, firma dizini | ✅ | staging-sales-chain.spec: pil aynı sayfada firma listesi açar, satınalma dizinine gitmez; panel-market.spec satınalma 5/5 |
 
 ## Parça 5 — Kısıtlı roller ve paketler
 
@@ -72,17 +72,30 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tüm�
 
 | Akış | Durum |
 |---|---|
-| Giriş + 2FA | |
-| Firmalar: doğrulama onay/red (belge bazlı) | |
-| Ürün moderasyonu (Süper/Destek karar, Satış salt-okunur) | |
-| Kategori kürasyonu (sonuçsuz aramalar) | |
-| Destek rolü firma detayına giremez | |
+| 🤖 Giriş (staging'de 2FA kapalı — canlı hesapta 2FA elle açılacak) | ✅ staging-admin.spec |
+| 🤖 Firmalar: Başvurular kuyruğu → Belgeler "Hepsini Onayla" + "Kararı Kaydet" → "Firma doğrulandı"; red gerekçeli → Reddedildi | ✅ staging-admin.spec — ❌ #5 gerekçesiz red API'de kabul ediliyordu |
+| 🤖 Ürün moderasyonu (Süper karar; Destek kuyruğu görür) | ✅ staging-sales-chain + staging-admin.spec; Satış (SALES) salt-okunur elle |
+| 🤖 Kategori kürasyonu sayfası açılır | ✅ staging-admin.spec (sonuçsuz arama verisi elle) |
+| 🤖 Destek rolü firma detayına giremez (API 403 + tarayıcıda "yetkiniz yok"), personel listesi 403 | ✅ staging-admin.spec (`uguray156+qa-admin-destek@gmail.com`, geçici parola her koşumda sıfırlanır) |
 
 ## Parça 7 — Bildirimler ve e-posta
 
 Her akışta hangi e-posta kime gitti; Gmail'de `+qa-` etiketleriyle süzülür.
 Transactional kapatılamaz; tercihlerden kapatılanlar gitmez.
 
+| Akış | Durum | Not |
+|---|---|---|
+| 🤖 Satın alma zinciri (teklif, kazandırma, sipariş adımları, ödeme) | ✅ | EmailLog 2026-09-11: 32 `notification` SENT (18 alıcı kurucu, 14 tedarikçi kurucu), 0 FAILED |
+| 🤖 Satış zinciri (ürün onayı, bilgi talebi, yanıt) + doğrulama kararı | ✅ | EmailLog 4 saat: 61 SENT, 0 FAILED (tedarikçi kurucu 21, alıcı kurucu 20, satışçı/görüntüleyici 2'şer) |
+| Gmail'de içerik/CTA kontrolü (bağlantılar staging'e gidiyor mu) | | elle |
+| Tercihten kapatılan bildirim gitmiyor | | elle |
+
 ## Parça 8 — Mobil
 
 Parça 1 ve 3'ün ana ekranları 400 px genişlikte: menü, süzgeç çekmecesi, tablo taşması yok.
+
+| Akış | Durum | Not |
+|---|---|---|
+| 🤖 Ziyaretçi: anasayfa (menü düğmesi), /urunler süzgeç çekmecesi, /firmalar, /alim-talepleri, talep detayı — yatay taşma yok | ✅ | staging-mobile.spec (400 px) |
+| 🤖 Üye: panel anasayfa, Taleplerim, Siparişler, Bağlantılar, Ayarlar — menü açılır, yatay taşma yok | ✅ | staging-mobile.spec |
+| Teklif formu ve sipariş sayfası 400 px | | elle |

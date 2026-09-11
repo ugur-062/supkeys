@@ -6,3 +6,4 @@
 | 2 | 1 · e2e | public-products-filters "Şehir" grubunu arıyordu; grup 2026-09-07'de "Konum" oldu | test güncellendi |
 | 3 | 1 · seo:audit aracı | Next 15 akışlı metadata head dışında geliyor → "title yok" yanlış alarmı | betik tüm belgeyi tarar |
 | 4 | 3 · Teklif formu | Gönderim onay penceresi "yalnızca geri çekilebilir" diyordu; ürün kuralı: gönderilmiş teklif geri çekilemez, eleme sonrası yeni versiyon | düzeltildi (main) |
+| 5 | 6 · Admin firma reddi | `POST admin/companies/:id/reject` gövdesiz 201 dönüyordu (arayüz ≥3 karakter gerekçe istiyor; gerekçe firmaya e-postayla gider) | API DTO: gerekçe zorunlu 3–500 (main), staging deploy sonrası e2e doğrular |

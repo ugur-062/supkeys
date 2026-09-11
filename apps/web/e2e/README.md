@@ -73,3 +73,11 @@ CI'da çalıştırmak için:
 1. Workflow'da `pnpm exec playwright install --with-deps chromium`
 2. API + web background'da başlat
 3. `pnpm --filter @rothern/web e2e`
+
+### Admin adımları (staging)
+
+`staging-sales-chain.spec` ve `staging-admin.spec` admin paneline girer. Parola
+gitignore'lu `render.staging.env` içindeki `INITIAL_ADMIN_PASSWORD`'dan, admin
+Vercel bypass anahtarı `.env.staging` `STAGING_VERCEL_BYPASS_ADMIN`'dan okunur
+(`scripts/e2e-staging.sh`). Destek rolü testi `uguray156+qa-admin-destek@gmail.com`
+personelini yoksa açar, varsa geçici parolasını sıfırlar.

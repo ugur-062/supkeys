@@ -807,6 +807,14 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 ## Test & Kalite
 
 - API **178 spec / 1882 test** · web **120 / 682** · admin **15 / 79** — yeşil (2026-09-10).
+- **Staging e2e (2026-09-11):** `pnpm --filter @rothern/web e2e:staging` — 28 test
+  (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
+  rol kapıları, firma doğrulama + Destek rolü, mobil 400 px). QA hesapları
+  `seed-staging-roles`; sırlar `.env.staging` + `render.staging.env`
+  (gitignore'lu). Sonuç matrisi `docs/qa-launch-matrix.md`, bulgular
+  `docs/qa-punchlist.md`. Kurulum adımları API'den, kullanıcıya görünen adımlar
+  tarayıcıdan; her aktör AYRI `browser.newContext()` (aynı bağlamda kullanıcı
+  değiştirmek oturum anlık görüntüsüyle yarışıp girişe düşürür).
   **Tam API suite bu makinede tek koşumda bellek nöbetçisine takılır** →
   10 dosyalık `--runInBand` parçalarla FOREGROUND koş (~9 dk); `pkill -f jest`
   kendi komut satırını da öldürür.
