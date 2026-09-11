@@ -14,6 +14,11 @@ export PLAYWRIGHT_VERCEL_BYPASS_ADMIN="${STAGING_VERCEL_BYPASS_ADMIN:-}"
 if [ -z "${E2E_ADMIN_PASSWORD:-}" ] && [ -f "$ROOT/render.staging.env" ]; then
   export E2E_ADMIN_PASSWORD="$(grep -E "^INITIAL_ADMIN_PASSWORD=" "$ROOT/render.staging.env" | head -1 | cut -d= -f2-)"
 fi
+# Kayıt turu doğrulama kodunu ve temizliği VERİTABANINDAN yapar (posta
+# kutusuna bağımlı test kırılgan olur) — staging bağlantısı testlere geçer.
+export E2E_DATABASE_URL="${STAGING_DATABASE_URL:-}"
+export E2E_SUPABASE_URL="${STAGING_SUPABASE_URL:-}"
+export E2E_SUPABASE_SERVICE_KEY="${STAGING_SUPABASE_SERVICE_ROLE_KEY:-}"
 export E2E_EMAIL="${E2E_EMAIL:-uguray156+qa-alici-kurucu@gmail.com}"
 export E2E_PASSWORD="${E2E_PASSWORD:-${STAGING_QA_PASSWORD:-Staging1234!}}"
 exec npx playwright test --reporter=line "$@"

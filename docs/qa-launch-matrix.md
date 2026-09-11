@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (73 test, 2026-09-12 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (74 test, 2026-09-12 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -20,7 +20,7 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (73 test, 2026-09-12 tüm�
 | Ürün sayfası: fiyat/MOQ, "Bilgi iste" → kayda yönlenir | | |
 | Firma profili: sameAs, ürün şeridi, "Bağlantı iste" → kayda | | |
 | 🤖 robots/sitemap/llms.txt; OG görselleri 200 | ❌ #1 | seo:audit: /nasil-calisir + sözleşmeler og:image yok, sözleşme JSON-LD yok, kategori/ürün başlığı >75, kısa firma açıklaması → düzeltmeler main'de, canlıya çıkınca yeniden koşulacak |
-| Kayıt formu: doğrulama kodu e-postası gelir (Gmail) | | |
+| 🤖 Kayıt formu → doğrulama kodu → 3 adımlı onboarding → panel | ✅ | staging-signup.spec (kod veritabanından çözülür, firma/kullanıcı/Supabase hesabı test sonunda silinir) |
 | Şifremi unuttum akışı | | |
 
 ## Parça 2 — Kurucu (alıcı firma, Gold, doğrulanmış)
