@@ -28,7 +28,7 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tüm�
 | Akış | Durum | Not |
 |---|---|---|
 | 🤖 Giriş → panel; portal anahtarı Satınalma/Satış | ✅ | company-tenders.spec staging (QA kurucu) |
-| Ayarlar › Firma Bilgileri: kimlik salt-okunur, ad/unvan kilitli | | |
+| 🤖 Ayarlar › Firma Bilgileri: kimlik salt-okunur, ad/unvan kilitli | ✅ | staging-roles.spec |
 | Ayarlar › Kullanıcı Yönetimi: davet, yetki tablosu, koltuk sayacı | | |
 | Ayarlar › Adres, Banka, 2FA, Bildirimler | | |
 | Şirketim › Profil: logo/kapak yükleme, kaydet, herkese açık görünüm | | R2 |
@@ -40,11 +40,11 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tüm�
 |---|---|---|
 | Hızlı talep: kalemler, adres, süre, kime (PUBLIC) → yayınla | | |
 | Detaylı sihirbaz 4 adım; taslak; kopya | | |
-| Tedarikçi (satışçı) açık talebi görür, **Teklif Ver** ilk ekranda | | dünkü hata |
-| Teklif formu: kalem fiyatı, teslim süresi, geçerlilik → gönder | | |
-| Alıcı teklifleri görür; tedarikçiler birbirini GÖRMEZ | | kapalı zarf |
-| Kazandırma → onay akışı (Onaylayıcı) → sipariş oluşur | | |
-| Sipariş: satıcı onaylar → gönderir → alıcı teslim alır → ödeme bildir/onayla → tamamla | | |
+| 🤖 Tedarikçi (satışçı) açık talebi görür, **Teklif Ver** ilk ekranda | ✅ | staging-order-chain.spec |
+| 🤖 Teklif formu: kalem fiyatı, teslim süresi, geçerlilik → gönder | ✅ | staging-order-chain.spec (onay penceresi dahil) — ❌ #4 pencere metni düzeltildi |
+| 🤖 Alıcı teklifleri görür; tedarikçiler birbirini GÖRMEZ | ✅ | kazandırma UI + API sözleşmeleri (closed-envelope spec) |
+| 🤖 Kazandırma → sipariş oluşur | ✅ | staging-order-chain.spec (onay akışı tanımlı değilken doğrudan); onay akışlı varyant elle |
+| 🤖 Sipariş: satıcı onaylar → gönderir → alıcı teslim alır (otomatik tamamlanır) → ödeme bildir/onayla | ✅ | staging-order-chain.spec |
 | E-postalar: davet, teklif, kazandırma, sipariş adımları (Gmail) | | |
 
 ## Parça 4 — Satış zinciri
@@ -61,12 +61,12 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (14 test, 2026-09-11 tüm�
 
 | Rol / paket | Görmemeli | Durum |
 |---|---|---|
-| Onaylayıcı: pano/talep/sipariş 403, yalnız Onaylar + Ayarlar | | |
-| Görüntüleyici: işlem düğmeleri yok, listeler salt-okunur | | |
-| Satın Almacı: Ayarlar'da firma kartları yok | | |
-| Ücretsiz (STANDART): PUBLIC talep kilidi, davet gönderemez, 10 ürün tavanı | | |
+| 🤖 Onaylayıcı: pano/talep/sipariş 403, yalnız Onaylar + Ayarlar | ✅ | staging-roles.spec |
+| 🤖 Görüntüleyici: işlem düğmeleri yok, listeler salt-okunur | ✅ | staging-roles.spec |
+| 🤖 Satın Almacı: Ayarlar'da firma kartları yok | ✅ | staging-roles.spec |
+| 🤖 Ücretsiz (STANDART): PUBLIC talep kilidi, davet gönderemez | ✅ | staging-roles.spec; 10 ürün tavanı API sözleşmesi |
 | Doğrulanmamış: PUBLIC talebe teklif kapısı; "Doğrulanmamış firma" etiketi | | |
-| Yönetici kendi yetkisini düzenleyemez | | |
+| 🤖 Yönetici kendi yetkisini düzenleyemez | ✅ | staging-roles.spec |
 
 ## Parça 6 — Admin paneli
 

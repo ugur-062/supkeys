@@ -1738,8 +1738,8 @@ export default function TeklifVerPage() {
             </div>
           ) : (
             <Text className="mt-3 text-sm text-zinc-500">
-              Gönderilen teklif düzenlenemez; yalnızca geri çekilebilir veya
-              (elenirse) yeni versiyonla güncellenir.
+              Gönderilen teklif düzenlenemez ve geri çekilemez; alıcı elerse
+              yeni versiyonla yeniden teklif verebilirsiniz.
             </Text>
           )}
         </DialogBody>
