@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
+import { CronLockService } from "./cron-lock.service";
 import { reportToSentry } from "../../instrument";
 
 export interface CronRunRecord {
@@ -22,6 +23,14 @@ export interface CronRunRecord {
 @Injectable()
 export class CronRegistryService {
   readonly bootAt = new Date();
+
+  /**
+   * Çift tetikleme kilidi — `trackCronRun` buradan okur, böylece 15
+   * scheduler'ın hiçbiri değişmez. `@Optional`: testlerde rig'ler
+   * CronRegistryService'i elle kurar, kilit olmadan da çalışmalı.
+   */
+  constructor(@Optional() readonly lock?: CronLockService) {}
+
   private readonly jobs = new Map<string, CronRunRecord>();
 
   /** Scheduler modül init'inde tanıtır — hiç koşmasa da listede görünsün. */
@@ -64,9 +73,17 @@ export async function trackCronRun(
   registry: CronRegistryService | undefined,
   key: string,
   fn: () => Promise<void>,
+  /**
+   * Çok örnekli koşumda çift tetiklemeyi engelleyen kilit (2026-09-12).
+   * Verilmezse davranış eskisiyle AYNI (kilitsiz) — tek örnekli kurulumda da,
+   * birim testlerinde de bir şey değişmez.
+   */
+  lock?: { runExclusive(name: string, fn: () => Promise<void>): Promise<boolean> },
 ): Promise<void> {
   try {
-    await fn();
+    const guard = lock ?? registry?.lock;
+    if (guard) await guard.runExclusive(key, fn);
+    else await fn();
     registry?.recordRun(key);
   } catch (err) {
     registry?.recordRun(key, err);

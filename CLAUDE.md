@@ -883,6 +883,21 @@ pnpm --filter @rothern/api test:db:down
   state machine. Coverage hedefi kritik dosyalarda %80 (auth, ödeme,
   multi-tenant scope, state machine).
 
+### Zamanlanmış işler (cron) — çift tetikleme kilidi
+
+15 `@Cron` işi var ve hepsi tek ortak sarmalayıcıdan geçer
+(`trackCronRun`). 2026-09-12'de **advisory lock** eklendi: ikinci bir API
+örneği açıldığı gün her iş iki kez koşacaktı (çift hatırlatma, çift özet,
+çift temizlik). Kilit `CronLockService`'te, `trackCronRun` onu
+`CronRegistryService.lock` üzerinden okur → **scheduler'ların hiçbiri
+değişmedi**.
+
+İki tuzak koda yazılı: (1) advisory lock OTURUMA bağlıdır, `DATABASE_URL`
+PgBouncer'dan geçtiği için kilit ayrı ve tek bağlantılı `DIRECT_URL`
+istemcisinden alınır; (2) **fail-open** — kilit altyapısı bozulursa iş
+ATLANMAZ, koşar (aksi hâlde tek yapılandırma hatası tüm cron'ları sessizce
+durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
+
 ## Güvenlik Durumu
 
 ✅ Auth/IDOR/RBAC E2E · httpOnly cookie + CSRF · CSP nonce tabanlı
