@@ -1,6 +1,7 @@
 "use client";
 
 import { ErrorState } from "@/components/ui/error-state";
+import { reportClientError } from "@/lib/client-error";
 import { useEffect } from "react";
 
 /**
@@ -16,6 +17,7 @@ export default function AuthedError({
 }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, { kind: "boundary", digest: error.digest });
   }, [error]);
 
   return (

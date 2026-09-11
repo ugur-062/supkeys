@@ -819,7 +819,14 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **178 spec / 1882 test** · web **120 / 682** · admin **15 / 79** — yeşil (2026-09-10).
+- API **176 dosya** (parçalı koşum, 2026-09-12 yeşil) · web **124 / 704** ·
+  admin **17 / 84** — yeşil (2026-09-12).
+- **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
+  Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
+  (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`
+  ile kritik ve yüksek SIFIRA indi. Kalan 6 ORTA uyarı ana sürüm göçü ister ve
+  bilinçli ertelendi: `@nestjs/core` 10→11, `file-type` 16→21 (ESM-only),
+  `uuid` 8→11, `@opentelemetry/core` 1→2.
 - **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 73 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
   rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
@@ -878,7 +885,17 @@ pnpm --filter @rothern/api test:db:down
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth 429/5xx → 503.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, frontend Sentry.
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain.
+
+**Ön yüz hata izleme (2026-09-12):** tarayıcıda Sentry SDK'sı YOK ve
+OLMAYACAK — paylaşılan pakete 83 kB ekliyordu (103→186 kB), organik arama
+stratejisine doğrudan zarar. Yerine hafif işaretçi: `lib/client-error.ts`
+(`window.error` + `unhandledrejection` + hata sınırları) olayı birkaç alanla
+`/api/client-error` rotasına yollar, Sentry'e SUNUCUDA yazılır. Çerez
+gönderilmez, adresteki jetonlar `lib/sentry-scrub.ts` ile ayıklanır (şifre
+sıfırlama `?token=`, davet `/davet/<token>`), sayfa başına 5 ve IP başına
+30/dk tavanı var. DSN yoksa sunucu günlüğüne düşer. Kaynak haritası yalnız
+`SENTRY_AUTH_TOKEN` varken yüklenir (`withSentryConfig`).
 ⚠️ `SENTRY_DSN` boşsa error tracking ve alarmlar tümüyle pasif (tek fail-open
 servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
 ⚠️ RLS 23 tabloda kurulu ama **prod'da KAPALI** — aktivasyon EN SON.

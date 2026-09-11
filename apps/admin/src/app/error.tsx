@@ -1,6 +1,7 @@
 "use client";
 
 import { ErrorState } from "@/components/ui/error-state";
+import { reportClientError } from "@/lib/client-error";
 import { useEffect } from "react";
 
 /** Admin segment hata sınırı. */
@@ -13,6 +14,7 @@ export default function AdminError({
 }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, { kind: "boundary", digest: error.digest });
   }, [error]);
 
   return (

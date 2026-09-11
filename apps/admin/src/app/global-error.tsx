@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@/lib/client-error";
 import { useEffect } from "react";
 import "./globals.css";
 
@@ -13,6 +14,9 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error(error);
+    // Kök sınır: buraya düşen hata kullanıcıya beyaz ekran gösterir; hata
+    // izlemeye GİTMEZSE kimse görmez (2026-09-12 boşluğu).
+    reportClientError(error, { kind: "boundary", digest: error.digest });
   }, [error]);
 
   return (

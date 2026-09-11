@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@/lib/client-error";
 import { ErrorState } from "@/components/ui/error-state";
 import { useEffect } from "react";
 
@@ -15,8 +16,10 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Prod'da Sentry client SDK (kuruluysa) burada yakalar; en azından logla.
     console.error(error);
+    // 2026-09-12: "Sentry kuruluysa yakalar" varsayımı YANLIŞTI — ön yüzde SDK
+    // HİÇ kurulu değildi. Artık açıkça bildiriyoruz (DSN yoksa no-op).
+    reportClientError(error, { kind: "boundary", digest: error.digest });
   }, [error]);
 
   return (
