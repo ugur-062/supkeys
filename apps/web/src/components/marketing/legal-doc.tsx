@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/json-ld";
+import { breadcrumbNode, graph } from "@/lib/seo/jsonld";
+import { absoluteUrl } from "@/lib/seo/meta";
 
 export interface LegalSection {
   heading?: string;
@@ -15,13 +18,28 @@ export function LegalDoc({
   title,
   updatedAt,
   sections,
+  path,
 }: {
   title: string;
   updatedAt: string;
   sections: LegalSection[];
+  /** Sayfa yolu — JSON-LD (WebPage + ekmek kırıntısı) için; SEO denetimi her
+   *  herkese açık sayfada JSON-LD ister (2026-09-11). */
+  path?: string;
 }) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
+      {path ? (
+        <JsonLd
+          data={graph([
+            { "@type": "WebPage", "@id": absoluteUrl(path), url: absoluteUrl(path), name: title, inLanguage: "tr-TR" },
+            breadcrumbNode([
+              { name: "Anasayfa", path: "/" },
+              { name: title, path },
+            ]),
+          ])}
+        />
+      ) : null}
       <Link
         href="/company/kayit"
         className="text-sm text-zinc-500 hover:text-zinc-900"

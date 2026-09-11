@@ -75,7 +75,13 @@ export function buildMetadata({
 }: PageMetaInput): Metadata {
   const url = absoluteUrl(path);
   const desc = clampDescription(description);
-  const abs = (images ?? []).map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
+  // Varsayılan kart (2026-09-11 canlı denetim): Next'te kök `opengraph-image`
+  // yalnız `/` için basılır, alt segmentlere MİRAS GEÇMEZ — /nasil-calisir ve
+  // sözleşme sayfaları og:image'sız çıkıyordu. Görsel verilmeyen her sayfa kök
+  // marka kartını alır; varlık sayfaları kendi kartını geçer.
+  const abs = (images && images.length ? images : ["/opengraph-image"]).map((i) =>
+    i.startsWith("http") ? i : absoluteUrl(i),
+  );
   return {
     title,
     description: desc,
@@ -88,7 +94,7 @@ export function buildMetadata({
       siteName: SITE_NAME,
       locale: "tr_TR",
       type,
-      ...(abs.length ? { images: abs } : {}),
+      images: abs,
     },
     twitter: {
       // Her herkese açık sayfanın 1200×630 kartı var (kök `opengraph-image`
@@ -96,7 +102,7 @@ export function buildMetadata({
       card: "summary_large_image",
       title,
       description: desc,
-      ...(abs.length ? { images: abs } : {}),
+      images: abs,
     },
   };
 }

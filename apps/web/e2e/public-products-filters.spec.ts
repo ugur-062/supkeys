@@ -19,13 +19,12 @@ test.describe("ürün dizini süzgeçleri", () => {
     const before = await resultCountText(page);
     expect(before).toMatch(/ürün/);
 
-    // Başlık seçimden sonra "Şehir (1)" olur — tam eşleşme değil, önek.
-    const cityGroup = page.locator('aside[aria-label="Süzgeçler"] fieldset', { has: page.locator("legend", { hasText: /^Şehir/ }) }).first();
-    // Grup kapalıysa aç.
-    const summary = cityGroup.locator("summary").first();
-    if ((await summary.count()) > 0 && !(await cityGroup.locator("input[type=checkbox]").first().isVisible())) {
-      await summary.click();
-    }
+    // Başlık seçimden sonra "Konum (1)" olur (grup adı 2026-09-07'de Şehir → Konum) — tam eşleşme değil, önek.
+    const cityGroup = page.locator('aside[aria-label="Süzgeçler"] fieldset', { has: page.locator("legend", { hasText: /^Konum/ }) }).first();
+    // Grup kapalıysa aç — 2026-09-07'den beri <details>/<summary> değil,
+    // legend içindeki <button aria-expanded> (Şehir varsayılan daraltılmış).
+    const toggle = cityGroup.locator('button[aria-expanded="false"]').first();
+    if ((await toggle.count()) > 0) await toggle.click();
     const firstCity = cityGroup.locator("input[type=checkbox]:not([disabled])").first();
     await expect(firstCity).toBeVisible();
     const cityLabel = (await cityGroup.locator("label").first().textContent())?.trim() ?? "";

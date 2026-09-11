@@ -14,6 +14,7 @@ export const metadata = buildMetadata({
 export default function Page() {
   return (
     <LegalDoc
+      path="/sozlesmeler/aracilik"
       title="Platform Aracılık ve Kullanım Sözleşmesi"
       updatedAt="2 Eylül 2026"
       sections={[

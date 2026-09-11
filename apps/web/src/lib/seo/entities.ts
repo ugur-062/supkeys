@@ -95,7 +95,9 @@ export function productSeo(input: ProductSeoInput): {
     joinParts([lead, priceSentence(pr), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
   );
 
-  const title = joinParts([pr.name, co.name], " — ");
+  // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
+  // önce firma adı düşer, yine uzunsa ürün adı kelime sınırında kısaltılır.
+  const title = clampTitle(pr.name, co.name);
 
   const offer = compact({
     "@type": "Offer",
@@ -243,16 +245,17 @@ export function companySeo(c: CompanySeoInput): {
   );
 
   const lead = c.aboutText ? clampDescription(c.aboutText, 100) : null;
+  // Hakkında metni ve sektör/şehir boşken açıklama 30 karaktere düşüyordu
+  // (canlı denetim 2026-09-11) — parçacık için en az ~50: genel cümle eklenir.
+  const parts = [
+    lead,
+    joinParts([c.industry, c.city], ", "),
+    c.productCount > 0 ? `${c.productCount} ürün` : null,
+    "Rothern firma profili",
+  ];
+  const base = joinParts(parts, " · ");
   const description = clampDescription(
-    joinParts(
-      [
-        lead,
-        joinParts([c.industry, c.city], ", "),
-        c.productCount > 0 ? `${c.productCount} ürün` : null,
-        "Rothern firma profili",
-      ],
-      " · ",
-    ),
+    base.length >= 50 ? base : `${base} · Ürünlerini inceleyin, bilgi isteyin, bağlantı kurun.`,
   );
 
   const image = c.coverImageUrl ?? c.logoUrl;
@@ -475,4 +478,14 @@ export function listingSeo(l: ListingSeoInput): {
     ]),
     summary,
   };
+}
+
+/** "<ürün> — <firma>" en çok 75 karakter; sığmazsa firma düşer, sonra ürün adı kısalır. */
+export function clampTitle(name: string, brand?: string | null, max = 75): string {
+  const full = joinParts([name, brand], " — ");
+  if (full.length <= max) return full;
+  if (name.length <= max) return name;
+  const cut = name.slice(0, max - 1);
+  const atWord = cut.lastIndexOf(" ");
+  return `${(atWord > max * 0.6 ? cut.slice(0, atWord) : cut).trim()}…`;
 }

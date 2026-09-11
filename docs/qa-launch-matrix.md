@@ -11,14 +11,14 @@ Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
 
 | Akış | Durum | Not |
 |---|---|---|
-| 🤖 Anasayfa açılır; Alıcıyım/Tedarikçiyim anahtarı; Ürün \| Firma pili | | |
-| 🤖 Üst menü: Ürünler, Firmalar, Alım Talepleri, Nasıl Çalışır, Fiyatlar | | |
-| 🤖 /urunler süzgeçler URL'ye yazılır; sayfalama; kategori sayfası | | |
-| 🤖 /firmalar süzgeç + şehir sayfası | | |
-| 🤖 /alim-talepleri liste + talep detayı (sahip adı YOK, teklif sayısı YOK) | | kapalı zarf |
+| 🤖 Anasayfa açılır; Alıcıyım/Tedarikçiyim anahtarı; Ürün \| Firma pili | ✅ | canlı, 2026-09-11 (home-faces birim + curl) |
+| 🤖 Üst menü: Ürünler, Firmalar, Alım Talepleri, Nasıl Çalışır, Fiyatlar | ✅ | public-header.spec canlıda 3/3 (390 px dahil) |
+| 🤖 /urunler süzgeçler URL'ye yazılır; sayfalama; kategori sayfası | ✅ | public-products-filters.spec 2/2 (grup adı Şehir→Konum, test güncellendi) |
+| 🤖 /firmalar süzgeç + şehir sayfası | ✅ | public-lists-filters.spec |
+| 🤖 /alim-talepleri liste + talep detayı (sahip adı YOK, teklif sayısı YOK) | ✅ | public-lists-filters.spec + public-marketplace.spec (API) |
 | Ürün sayfası: fiyat/MOQ, "Bilgi iste" → kayda yönlenir | | |
 | Firma profili: sameAs, ürün şeridi, "Bağlantı iste" → kayda | | |
-| 🤖 robots/sitemap/llms.txt; OG görselleri 200 | | seo:audit |
+| 🤖 robots/sitemap/llms.txt; OG görselleri 200 | ❌ #1 | seo:audit: /nasil-calisir + sözleşmeler og:image yok, sözleşme JSON-LD yok, kategori/ürün başlığı >75, kısa firma açıklaması → düzeltmeler main'de, canlıya çıkınca yeniden koşulacak |
 | Kayıt formu: doğrulama kodu e-postası gelir (Gmail) | | |
 | Şifremi unuttum akışı | | |
 
