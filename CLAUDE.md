@@ -791,6 +791,11 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
+- **`NEXT_PUBLIC_API_URL` HER ZAMAN `/api` sonekli** (`https://api.rothern.com/api`,
+  staging `https://api.staging.rothern.com/api`): API `setGlobalPrefix("api")`, web/
+  admin sonek EKLEMEZ. 2026-09-11'de soneksiz değer canlı girişi ~14 saat kırdı
+  ("Cannot POST /company-auth/login"). Doğrulama: canlı JS chunk'larında adresi ara.
+  Vercel CLI yerelde yetkili (`--scope rothern`, `supkeys-web`/`supkeys-admin`).
 - **`@rothern/email` değişince** `pnpm --filter @rothern/email build` şart.
 - **Görseller `cdn.rothern.com`'dan servis edilir**, `pub-*.r2.dev` DEĞİL
   (o bucket'ın Public Development URL ayarı kapalı — coğrafi engel değil).
