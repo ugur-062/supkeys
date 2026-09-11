@@ -37,7 +37,7 @@ const ACTION_LABELS: Record<string, string> = {
   "tenant.user_email_verified": "Alıcı e-posta doğrulandı",
   "tenant.user_2fa_reset": "Alıcı 2FA sıfırlandı",
   "tenant.user_email_changed": "Alıcı e-posta değişti",
-  "tenant.user_password_reset": "Alıcı parola sıfırlama",
+  "tenant.user_password_reset": "Alıcı şifre sıfırlama",
   "demo.invite_sent": "Demo davet gönderildi",
   "demo.invite_revoked": "Demo davet iptal",
 };

@@ -38,7 +38,7 @@ function unverifiedError() {
 
 async function login(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("E-posta"), "ada@firma.com");
-  await user.type(screen.getByLabelText("Parola"), "parola123");
+  await user.type(screen.getByLabelText("Şifre"), "parola123");
   await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
 }
 

@@ -72,7 +72,7 @@ describe("CompanySignupClient — form aşaması", () => {
     render(<CompanySignupClient />);
     await user.type(screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
     await user.type(screen.getByLabelText("Şifre (tekrar)"), "Baska1!parola");
-    expect(screen.getByText("Parolalar eşleşmiyor")).toBeInTheDocument();
+    expect(screen.getByText("Şifreler eşleşmiyor")).toBeInTheDocument();
   });
 
   it("tüm alanlar geçerli + onaylar → buton aktif; submit trimli veri gönderir", async () => {

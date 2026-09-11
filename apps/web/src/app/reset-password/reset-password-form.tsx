@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 // Politika backend ConfirmPasswordResetDto ile BİREBİR aynı — kullanıcı
-// frontend'in kabul ettiği parolayı backend'de reddedilmiş görmesin.
+// frontend'in kabul ettiği şifreyi backend'de reddedilmiş görmesin.
 const schema = z
   .object({
     newPassword: z
@@ -28,7 +28,7 @@ const schema = z
     confirmPassword: z.string(),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
-    message: "Parolalar eşleşmiyor",
+    message: "Şifreler eşleşmiyor",
     path: ["confirmPassword"],
   });
 
@@ -82,10 +82,10 @@ export function ResetPasswordForm() {
           <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
           <div>
             <p className="font-semibold text-emerald-900">
-              Parolanız değiştirildi
+              Şifreniz değiştirildi
             </p>
             <p className="mt-1 text-sm text-emerald-800">
-              Güvenlik için tüm oturumlarınız kapatıldı — yeni parolanızla
+              Güvenlik için tüm oturumlarınız kapatıldı — yeni şifrenizle
               giriş yapabilirsiniz.
             </p>
             <Button
@@ -108,7 +108,7 @@ export function ResetPasswordForm() {
         token,
         newPassword: values.newPassword,
       });
-      toast.success("Parola değiştirildi");
+      toast.success("Şifre değiştirildi");
       setSubmitted(true);
     } catch (err) {
       setError(
@@ -131,7 +131,7 @@ export function ResetPasswordForm() {
       ) : null}
 
       <Field>
-        <Label>Yeni Parola</Label>
+        <Label>Yeni Şifre</Label>
         <div className="relative">
           <Input
             type={show ? "text" : "password"}
@@ -145,7 +145,7 @@ export function ResetPasswordForm() {
           <button
             type="button"
             tabIndex={-1}
-            aria-label={show ? "Parolayı gizle" : "Parolayı göster"}
+            aria-label={show ? "Şifreyi gizle" : "Şifreyi göster"}
             onClick={() => setShow((s) => !s)}
             className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700"
           >
@@ -164,7 +164,7 @@ export function ResetPasswordForm() {
       </Field>
 
       <Field>
-        <Label>Parolayı Tekrar</Label>
+        <Label>Şifreyi Tekrar</Label>
         <Input
           type={show ? "text" : "password"}
           autoComplete="new-password"
@@ -179,7 +179,7 @@ export function ResetPasswordForm() {
       </Field>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Değiştiriliyor…" : "Parolayı Değiştir"}
+        {pending ? "Değiştiriliyor…" : "Şifreyi Değiştir"}
       </Button>
     </form>
   );

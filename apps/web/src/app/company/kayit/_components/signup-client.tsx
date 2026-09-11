@@ -366,7 +366,7 @@ export function CompanySignupClient() {
             onChange={(e) => set("passwordConfirm")(e.target.value)}
           />
           {form.passwordConfirm && !confirmOk ? (
-            <ErrorMessage className="mt-1">Parolalar eşleşmiyor</ErrorMessage>
+            <ErrorMessage className="mt-1">Şifreler eşleşmiyor</ErrorMessage>
           ) : null}
         </Field>
 

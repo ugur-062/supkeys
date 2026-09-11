@@ -41,10 +41,10 @@ describe("ResetPasswordForm", () => {
   it("politika backend ile hizalı: büyük harfsiz parola frontend'de reddedilir (istek atılmaz)", async () => {
     const user = userEvent.setup();
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Parola"), "kucukharf1");
-    await user.type(screen.getByLabelText("Parolayı Tekrar"), "kucukharf1");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "kucukharf1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "kucukharf1");
     await user.click(
-      screen.getByRole("button", { name: "Parolayı Değiştir" }),
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
     );
     expect(
       screen.getByText("En az bir büyük harf içermeli"),
@@ -55,12 +55,12 @@ describe("ResetPasswordForm", () => {
   it("eşleşmeyen parolalar reddedilir", async () => {
     const user = userEvent.setup();
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Parola"), "GucluParola1");
-    await user.type(screen.getByLabelText("Parolayı Tekrar"), "Farkli1234");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Farkli1234");
     await user.click(
-      screen.getByRole("button", { name: "Parolayı Değiştir" }),
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
     );
-    expect(screen.getByText("Parolalar eşleşmiyor")).toBeInTheDocument();
+    expect(screen.getByText("Şifreler eşleşmiyor")).toBeInTheDocument();
     expect(h.post).not.toHaveBeenCalled();
   });
 
@@ -68,10 +68,10 @@ describe("ResetPasswordForm", () => {
     const user = userEvent.setup();
     h.post.mockResolvedValue({ data: { success: true } });
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Parola"), "GucluParola1");
-    await user.type(screen.getByLabelText("Parolayı Tekrar"), "GucluParola1");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "GucluParola1");
     await user.click(
-      screen.getByRole("button", { name: "Parolayı Değiştir" }),
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
     );
 
     expect(h.post).toHaveBeenCalledWith("/auth/password-reset/confirm", {
@@ -79,7 +79,7 @@ describe("ResetPasswordForm", () => {
       newPassword: "GucluParola1",
     });
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Parolanız değiştirildi",
+      "Şifreniz değiştirildi",
     );
     await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
     expect(h.push).toHaveBeenCalledWith("/company/login");
@@ -92,13 +92,13 @@ describe("ResetPasswordForm", () => {
       response: { data: { message: "Bağlantının süresi dolmuş" } },
     });
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Parola"), "GucluParola1");
-    await user.type(screen.getByLabelText("Parolayı Tekrar"), "GucluParola1");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "GucluParola1");
     await user.click(
-      screen.getByRole("button", { name: "Parolayı Değiştir" }),
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
     );
     expect(screen.getByRole("alert")).toHaveTextContent(/süresi dolmuş/i);
     // Form ekranda kalır — kullanıcı yeni bağlantı isteyebilir.
-    expect(screen.getByLabelText("Yeni Parola")).toBeInTheDocument();
+    expect(screen.getByLabelText("Yeni Şifre")).toBeInTheDocument();
   });
 });

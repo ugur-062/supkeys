@@ -51,7 +51,7 @@ export function CompanyForgotPasswordClient() {
           role="status"
           className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800"
         >
-          Eğer bu e-posta kayıtlıysa, parola sıfırlama bağlantısı gönderildi.
+          Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.
           Gelen kutunu (ve spam klasörünü) kontrol et. Bağlantı 1 saat geçerli.
         </div>
       ) : (
