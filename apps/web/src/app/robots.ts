@@ -47,8 +47,33 @@ const AI_AGENTS = [
 /** Hiçbir ajanın girmemesi gereken yollar — tek kaynak. */
 const DISALLOW = ["/company/", "/admin/", "/api/", "/auth/", "/dev/"];
 
+/**
+ * CANLI OLMAYAN ORTAM (staging/preview) HİÇ TARANMAMALI.
+ *
+ * Staging bugün Vercel Deployment Protection arkasında, yani tarayıcı zaten
+ * içeri giremiyor. Ama robots.txt "Allow: /" diyordu: koruma bir gün
+ * kapatılırsa staging aynı içerikle indekslenir ve CANLIYLA yinelenen içerik
+ * yarışına girer (kendi alan adımızı kendimiz zayıflatırız). Kapı adresten
+ * anlaşılır — kanonik site adresi değilse tarama tamamen kapalı.
+ */
+function isCanonicalSite(siteUrl: string): boolean {
+  try {
+    return new URL(siteUrl).host === new URL(CANONICAL_SITE_URL).host;
+  } catch {
+    return false;
+  }
+}
+
+const CANONICAL_SITE_URL = "https://www.rothern.com";
+
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = resolveSiteUrl();
+  if (!isCanonicalSite(siteUrl)) {
+    return {
+      rules: [{ userAgent: "*", disallow: "/" }],
+      host: siteUrl,
+    };
+  }
   // Yayın öncesi: hiçbir şey taranmasın. "Yakında" sayfasının indekslenmesi
   // alan adı için değersiz, hatta zararlı (içeriksiz sayfa sinyali).
   if (!MARKETPLACE_LIVE) {
