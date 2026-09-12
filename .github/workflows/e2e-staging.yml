@@ -52,6 +52,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # `@rothern/shared` main alanı ./dist/index.js'i gösterir ve üç staging
+      # spec'i oradan import ediyor. Yerelde dist `pnpm dev`/`pnpm build`
+      # sayesinde hazır; temiz runner'da YOK -> "Cannot find module".
+      - name: Workspace paketini derle (@rothern/shared)
+        run: pnpm --filter @rothern/shared build
+
       - name: Prisma istemcisi (e2e veritabanı yardımcıları için)
         run: pnpm exec prisma generate
         working-directory: packages/db
