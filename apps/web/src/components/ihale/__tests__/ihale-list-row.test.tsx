@@ -73,7 +73,7 @@ describe("IhaleListRow", () => {
   it("tüm kart detaya götürür; favori ve Kalemler düğmeleri sayfayı DEĞİŞTİRMEZ", async () => {
     const user = userEvent.setup();
     const onFav = vi.fn();
-    render(
+    const { container } = render(
       <IhaleListRow t={ROW} favorite={false} onToggleFavorite={onFav} />,
     );
 
@@ -85,7 +85,11 @@ describe("IhaleListRow", () => {
     expect(screen.getByTestId("items-panel")).toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("row"));
+    // Kart artık ARIA "row" DEĞİL (a11y 2026-09-12: tablo bağlamı yoktu,
+    // aria-required-children kritik ihlali veriyordu) → başlığın kapsayıcısına tıkla.
+    // Kart artık ARIA "row" DEĞİL (a11y 2026-09-12) ve başlık GERÇEK bağlantı →
+    // tıklama davranışı kartın KÖKÜNDE.
+    await user.click(container.firstElementChild as HTMLElement);
     expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/company/ilan/l55"));
   });
 });

@@ -316,7 +316,7 @@ function NearbyControls({
           accent === "blue" ? "accent-blue-600" : "accent-zinc-950"
         }`}
       />
-      <p className="tnum flex justify-between text-[10px] text-zinc-400">
+      <p className="tnum flex justify-between text-[10px] text-zinc-500">
         {RADIUS_OPTIONS.map((r) => (
           <span key={r}>{r}</span>
         ))}
@@ -686,7 +686,7 @@ export function ViewToggle() {
             title={`${o.l} görünümü`}
             onClick={() => pick(o.k)}
             className={`inline-flex size-8 items-center justify-center rounded-lg transition ${
-              active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-500 hover:bg-zinc-100"
+              active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-600 hover:bg-zinc-100"
             }`}
           >
             <Icon aria-hidden className="size-4" />
@@ -734,7 +734,9 @@ export function SortControl() {
   return (
     <>
       <div className="hidden items-center gap-2 text-xs sm:flex">
-        <span className="text-zinc-500">Sırala:</span>
+        {/* Dizin sayfalarının zemini zinc-100 → zinc-500 metin 4,39:1 kalıyor
+            (a11y taraması 2026-09-12). Gri zeminde en az zinc-600. */}
+        <span className="text-zinc-600">Sırala:</span>
         <span className="flex items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5 ring-1 ring-zinc-200">
         {opts.map((o) => {
           const active = o.k === state.sort || (o.l.startsWith("Fiyat") && isPrice);

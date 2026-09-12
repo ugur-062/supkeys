@@ -386,3 +386,12 @@
 @utility tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* Bildirim (sonner) zengin renkleri — kütüphane varsayılanı hata tonunda
+   #e60000/#fff0f0 = 4,34:1 veriyor (a11y taraması 2026-09-12). Metin tonu
+   koyulaştırıldı; zemin ve kenarlık aynı kalıyor, görsel dil bozulmuyor. */
+[data-sonner-toaster] {
+  --error-text: #b91c1c; /* red-700 → #fff0f0 üzerinde 6,0:1 */
+  --success-text: #15803d; /* green-700 */
+  --warning-text: #a16207; /* yellow-700 */
+}

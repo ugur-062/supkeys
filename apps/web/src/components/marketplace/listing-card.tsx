@@ -221,8 +221,16 @@ function PanelRow({
 
   return (
     <div
-      role="row"
+      /**
+       * `role="row"` KALDIRILDI (2026-09-12 a11y taraması): satırın etrafında
+       * tablo/ızgara bağlamı ve hücre çocuğu yok → `aria-required-children`
+       * KRİTİK ihlali. Kart görsel bir satır; erişilebilir yol zaten içindeki
+       * gerçek başlık bağlantısı.
+       */
       onClick={go}
+      /* Testlerin ve otomasyonun kart kökünü bulması için kararlı kanca
+         (eskiden `role="row"` bu işi görüyordu ama geçersiz ARIA'ydı). */
+      data-liste-satiri="1"
       className={cn(
         "group/row cursor-pointer rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
         d.strip ?? "border-l-slate-300",
@@ -261,7 +269,7 @@ function PanelRow({
               {d.status.label}
             </span>
             {d.timeNote ? (
-              <span className="whitespace-nowrap text-[10px] text-slate-400">{d.timeNote}</span>
+              <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span>
             ) : null}
           </div>
         </div>
@@ -280,7 +288,8 @@ function PanelRow({
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
             {d.facts.map((f) => (
               <div key={f.label} className="min-w-0">
-                <dt className="block text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-400">
+                {/* 10px etiket: beyazda slate-400 = 2,56:1 (a11y 2026-09-12) → slate-600. */}
+                <dt className="block text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-600">
                   {f.label}
                 </dt>
                 <dd className="mt-0.5 min-w-0 text-[13px] leading-tight text-slate-800">
@@ -411,7 +420,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
                 </span>
               ) : null}
             </p>
-            <span className="shrink-0 tabular-nums text-[11px] text-zinc-400">{listing.number}</span>
+            <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">{listing.number}</span>
           </div>
 
           <dl className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">

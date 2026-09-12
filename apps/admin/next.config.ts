@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 // V2-7+ güvenlik (OWASP A05) — tamamlayıcı header'lar (web ile aynı).
@@ -24,4 +25,21 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Sentry sarmalayıcı (2026-09-12) — YALNIZ `SENTRY_AUTH_TOKEN` varken devreye
+ * girer. Tek işi kaynak haritası yüklemek: yoksa yığın izleri küçültülmüş
+ * halde okunmaz olur. Jeton yoksa derleme AYNEN eskisi gibi kalır, yani CI ve
+ * mevcut Vercel derlemeleri etkilenmez. Hata yakalama sarmalayıcıdan BAĞIMSIZ
+ * çalışır (`instrumentation-client.ts`).
+ */
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: true,
+      widenClientFileUpload: true,
+      disableLogger: true,
+      // Kaynak haritaları YÜKLENİR ama sunucuya SERVİS EDİLMEZ (gizli kalır).
+      sourcemaps: { deleteSourcemapsAfterUpload: true },
+    })
+  : nextConfig;

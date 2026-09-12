@@ -184,6 +184,12 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
   (web + admin) → `<code>`/`<kbd>` de Inter basar.
 - Küçük metinde `text-zinc-400` KULLANMA (beyazda 2,6:1) — en az zinc-500.
 - Gri zeminde `bg-zinc-50` yasak (brand-50 = sayfa zemini); tint min zinc-100.
+- **Zemin zinc-100 ise metin en az `text-zinc-600`** — zinc-500 orada 4,39:1
+  kalır (dizin sayfalarının zemini zinc-100). Beyaz üstünde zinc-500 yeterli.
+- **Erişilebilirlik kapısı:** `e2e/staging-a11y.spec.ts` 12 sayfada axe koşar,
+  **critical + serious** ihlalde kırmızı. Tuzaklar: `role="row"` tablo bağlamı
+  olmadan KRİTİK ihlaldir; `<dl>` altında yalnız `dt`/`dd`/`div` olabilir
+  (ikon ya da ipucu sarmalayıcısı `<dd>` İÇİNE alınmalı).
 
 ## Tek Kaynaklar — dokunmadan önce buraya bak
 
@@ -819,10 +825,44 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **178 spec / 1882 test** · web **120 / 682** · admin **15 / 79** — yeşil (2026-09-10).
-- **Staging e2e (2026-09-11):** `pnpm --filter @rothern/web e2e:staging` — 28 test
+- API **176 dosya** (parçalı koşum, 2026-09-12 yeşil) · web **124 / 704** ·
+  admin **17 / 84** — yeşil (2026-09-12).
+- **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
+  Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
+  (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`
+  ile kritik ve yüksek SIFIRA indi. Kalan 6 ORTA uyarı ana sürüm göçü ister ve
+  bilinçli ertelendi: `@nestjs/core` 10→11, `file-type` 16→21 (ESM-only),
+  `uuid` 8→11, `@opentelemetry/core` 1→2.
+- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 87 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
-  rol kapıları, firma doğrulama + Destek rolü, mobil 400 px). QA hesapları
+  rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
+  **ekran matrisi**, **çok tedarikçili teklif**, **pazarlık turu**, **yazma
+  yetkisi matrisi**, **firmalar arası yalıtım**, **onay akışı dar bağlamı**).
+  **Yazma matrisi BOŞ GÖVDE ile sınar** (guard doğrulamadan önce çalışır →
+  yetkisiz 403, yetkili 400); boş gövdeyle gerçekten iş yapan uçlar bilinçli
+  DIŞARIDA (`docs/submit`, `items/product`, `users/seat-selection`, rapor
+  indirme, AI). Hız sınırı GLOBAL guard olduğu için izin kapısından ÖNCE çalışır
+  → sondada 429 görülürse bir kez beklenip yinelenir.
+  **Onay akışı testi akışı PASSIVE'e çekmeden bitmemeli** — aktif
+  `LISTING_AWARD` akışı kalırsa sipariş zinciri ve teklif turları da onaya düşer.
+  **Kayıt turu** (`staging-signup.spec`) doğrulama kodunu POSTA KUTUSUNDAN
+  değil veritabanından alır: kod `sha256` (tuzsuz) saklanıyor, 10^6 uzay
+  anında geri çevriliyor. Test sonunda firma + kullanıcı + Supabase hesabı
+  silinir (`e2e/db-helpers.ts`). Staging bağlantısı PgBouncer üzerinden
+  geldiği için Prisma'ya `pgbouncer=true` verilmeli, yoksa "prepared
+  statement does not exist".
+  **Giriş ucu IP başına 10/dk** (`@Throttle({ auth: … })`): paket büyüdükçe
+  tek tek girişler 429 alıp ÜRÜN HATASI gibi görünüyordu → `apiSession`
+  e-posta bazında ÖNBELLEKLİ, `uiLogin` 429'da 20 sn bekleyip yineler; eski
+  spec'lerin kendi `login()` yardımcıları da bu yola bağlandı.
+  **Rol denetimi beklentisi ELLE YAZILMAZ:** `e2e/role-endpoints.ts` API
+  kaynağındaki `@RequireCompanyPermission`/`@RequireTier`'ı okur
+  (`CompanyPaidTierGuard` @RequireTier'sız = SILVER; `ALL_SEAT_PERMISSIONS` gibi
+  sabitler shared'den çözülür; yorumlar temizlenir yoksa "KULLANILMIYOR" yazan
+  açıklama guard sanılır). Çıktılar `docs/qa-role-matrix.md` (11 rol × 62 uç)
+  ve `docs/qa-role-screens.md` (8 rol × 23 sayfa). Panel kapıları İSTEMCİDE
+  çizilir → sınıflandırma tek ölçümle değil, sonuç kesinleşene kadar YOKLAYARAK
+  yapılır. QA hesapları
   `seed-staging-roles`; sırlar `.env.staging` + `render.staging.env`
   (gitignore'lu). Sonuç matrisi `docs/qa-launch-matrix.md`, bulgular
   `docs/qa-punchlist.md`. Kurulum adımları API'den, kullanıcıya görünen adımlar
@@ -849,6 +889,41 @@ pnpm --filter @rothern/api test:db:down
   state machine. Coverage hedefi kritik dosyalarda %80 (auth, ödeme,
   multi-tenant scope, state machine).
 
+### Zamanlanmış işler (cron) — çift tetikleme kilidi
+
+15 `@Cron` işi var ve hepsi tek ortak sarmalayıcıdan geçer
+(`trackCronRun`). 2026-09-12'de **advisory lock** eklendi: ikinci bir API
+örneği açıldığı gün her iş iki kez koşacaktı (çift hatırlatma, çift özet,
+çift temizlik). Kilit `CronLockService`'te, `trackCronRun` onu
+`CronRegistryService.lock` üzerinden okur → **scheduler'ların hiçbiri
+değişmedi**.
+
+İki tuzak koda yazılı: (1) advisory lock OTURUMA bağlıdır, `DATABASE_URL`
+PgBouncer'dan geçtiği için kilit ayrı ve tek bağlantılı `DIRECT_URL`
+istemcisinden alınır; (2) **fail-open** — kilit altyapısı bozulursa iş
+ATLANMAZ, koşar (aksi hâlde tek yapılandırma hatası tüm cron'ları sessizce
+durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
+
+### CSRF duruşu (üretim) — KAPANDI, guard açık (2026-09-12 doğrulandı)
+
+Bu bölüm önceden "üretimde `SameSite=none`, double-submit baypas, `lax`
+önerisi kullanıcı kararı bekliyor" diyordu. ARTIK GEÇERSİZ: Render
+`rothern-api` ortamında `COOKIE_SAMESITE=lax` ve `COOKIE_DOMAIN=.rothern.com`
+tanımlı, yani double-submit guard üretimde AÇIK.
+
+`www`/`admin`/`api` aynı kayıtlı alan adı altında olduğu için `lax` çerezleri
+göndermeye devam eder. `staging-csrf.spec.ts:53` ("oturum var ama CSRF başlığı
+yok → mutasyon reddedilir") bu duruşu her gecelik koşumda CANLI sınar.
+
+İki katmanlı derinlik hâlâ yerinde: (1) API **yalnız JSON** gövde okur —
+urlencoded/text parser bilerek kaldırıldı, ön-uçuş gerektirmeyen "basit" form
+POST'u gövdesiz kalır; (2) JSON içerik tipi ön-uçuşu zorunlu kılar, CORS beyaz
+listesi yabancı kökeni reddeder.
+
+`COOKIE_SAMESITE` ve `COOKIE_DOMAIN` bir ÇİFTTİR — `lax` iken domain boşsa
+çerezler host-only yazılır, `www` `rk_csrf`'i okuyamaz, tüm mutasyonlar 403
+olur. `prod-config-sanity.ts` bunu boot'ta fail-closed yakalar (`main.ts:89`).
+
 ## Güvenlik Durumu
 
 ✅ Auth/IDOR/RBAC E2E · httpOnly cookie + CSRF · CSP nonce tabanlı
@@ -857,7 +932,18 @@ pnpm --filter @rothern/api test:db:down
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth 429/5xx → 503.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, frontend Sentry.
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain, **Vercel'de
+`SENTRY_DSN` yok** (web+admin) → ön yüz hata izleme no-op; API tarafı dolu.
+
+**Ön yüz hata izleme (2026-09-12):** tarayıcıda Sentry SDK'sı YOK ve
+OLMAYACAK — paylaşılan pakete 83 kB ekliyordu (103→186 kB), organik arama
+stratejisine doğrudan zarar. Yerine hafif işaretçi: `lib/client-error.ts`
+(`window.error` + `unhandledrejection` + hata sınırları) olayı birkaç alanla
+`/api/client-error` rotasına yollar, Sentry'e SUNUCUDA yazılır. Çerez
+gönderilmez, adresteki jetonlar `lib/sentry-scrub.ts` ile ayıklanır (şifre
+sıfırlama `?token=`, davet `/davet/<token>`), sayfa başına 5 ve IP başına
+30/dk tavanı var. DSN yoksa sunucu günlüğüne düşer. Kaynak haritası yalnız
+`SENTRY_AUTH_TOKEN` varken yüklenir (`withSentryConfig`).
 ⚠️ `SENTRY_DSN` boşsa error tracking ve alarmlar tümüyle pasif (tek fail-open
 servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
 ⚠️ RLS 23 tabloda kurulu ama **prod'da KAPALI** — aktivasyon EN SON.

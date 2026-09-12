@@ -10,6 +10,10 @@ export const API = process.env.E2E_API_URL ?? "https://api.staging.rothern.com/a
 export const WEB = process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com";
 export const PASSWORD = process.env.E2E_PASSWORD ?? "Staging1234!";
 export const QA = {
+  aliciSatisci: "uguray156+qa-alici-satisci@gmail.com",
+  tedarikciGoruntuleyici: "uguray156+qa-tedarikci-goruntuleyici@gmail.com",
+  tedarikci2Kurucu: "uguray156+qa-tedarikci2-kurucu@gmail.com",
+  tedarikci2Satisci: "uguray156+qa-tedarikci2-satisci@gmail.com",
   aliciKurucu: "uguray156+qa-alici-kurucu@gmail.com",
   aliciYonetici: "uguray156+qa-alici-yonetici@gmail.com",
   aliciSatinalmaci: "uguray156+qa-alici-satinalmaci@gmail.com",
@@ -20,26 +24,53 @@ export const QA = {
   ucretsizKurucu: "uguray156+qa-ucretsiz-kurucu@gmail.com",
 } as const;
 
-/** API oturumu: çerezli bağlam + CSRF başlığı (double-submit). */
+/**
+ * API oturumu: çerezli bağlam + CSRF başlığı (double-submit).
+ *
+ * ÖNBELLEKLİ: giriş ucu IP başına dakikada 10 istekle sınırlı
+ * (`@Throttle({ auth: … })`). Tam paket 70+ testte aynı hesapla defalarca
+ * giriş yapınca 429 yağıyordu ve testler ÜRÜN HATASI gibi kırılıyordu.
+ * Aynı e-posta için tek oturum yeniden kullanılır; 429 gelirse beklenip
+ * yinelenir.
+ */
+const sessionCache = new Map<string, { ctx: APIRequestContext; csrf: string }>();
+
 export async function apiSession(email: string): Promise<{ ctx: APIRequestContext; csrf: string }> {
+  const cached = sessionCache.get(email);
+  if (cached) return cached;
   // baseURL'in "/api" parçası korunsun diye yollar baş eğik çizgisiz gider
   // (URL çözümlemesi "/x" ile taban yolu sıfırlar).
   const ctx = await request.newContext({
     baseURL: API.replace(/\/?$/, "/"),
     extraHTTPHeaders: { Origin: WEB, "Content-Type": "application/json" },
   });
-  const res = await ctx.post("company-auth/login", { data: { email, password: PASSWORD } });
-  expect(res.status(), `login ${email}`).toBe(200);
+  let res = await ctx.post("company-auth/login", { data: { email, password: PASSWORD } });
+  // 429: bizim hız sınırımız. 503: Supabase Auth kotası (API bunu "giriş servisi
+  // geçici olarak kullanılamıyor" diye çeviriyor). İkisi de GEÇİCİ — uzun
+  // paketlerde ürün hatası gibi görünüyordu.
+  for (let i = 0; i < 4 && (res.status() === 429 || res.status() === 503); i++) {
+    await new Promise((r) => setTimeout(r, 20_000));
+    res = await ctx.post("company-auth/login", { data: { email, password: PASSWORD } });
+  }
+  expect(res.status(), `login ${email}: ${(await res.text()).slice(0, 160)}`).toBe(200);
   const cookies = (await ctx.storageState()).cookies;
   const csrf = cookies.find((c) => c.name === "rk_csrf")?.value ?? "";
   expect(csrf, "rk_csrf çerezi").not.toBe("");
-  return { ctx, csrf };
+  const session = { ctx, csrf };
+  sessionCache.set(email, session);
+  return session;
 }
 
 export async function apiPost(s: { ctx: APIRequestContext; csrf: string }, path: string, data: unknown = {}) {
   const res = await s.ctx.post(path.replace(/^\//, ""), { data, headers: { "X-CSRF-Token": s.csrf } });
   const text = await res.text();
-  return { status: res.status(), body: text ? JSON.parse(text) : null };
+  let body: unknown = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text.slice(0, 120) };
+  }
+  return { status: res.status(), body: body as any };
 }
 
 export async function apiPatch(s: { ctx: APIRequestContext; csrf: string }, path: string, data: unknown = {}) {
@@ -50,23 +81,38 @@ export async function apiPatch(s: { ctx: APIRequestContext; csrf: string }, path
 
 export async function apiGet(s: { ctx: APIRequestContext }, path: string) {
   const res = await s.ctx.get(path.replace(/^\//, ""));
+  // Bazı uçlar dosya döner (şablon indirme) — JSON.parse patlamasın.
   const text = await res.text();
-  return { status: res.status(), body: text ? JSON.parse(text) : null };
+  let body: unknown = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text.slice(0, 120) };
+  }
+  return { status: res.status(), body: body as any };
 }
 
 /** Tarayıcı girişi (giriş formu) — oturum /me ile doğrulanır, gerekirse bir kez yinelenir. */
 export async function uiLogin(page: Page, email: string) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     await gotoRetry(page, "/company/login");
     await page.waitForURL(/\/company\/login/, { timeout: 30_000 });
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(PASSWORD);
     await page.getByRole("button", { name: "Giriş Yap" }).click();
-    await page.waitForURL(/\/company(?!\/login)/, { timeout: 30_000 });
+    try {
+      await page.waitForURL(/\/company(?!\/login)/, { timeout: 30_000 });
+    } catch {
+      // Giriş ucu IP başına 10/dk — 429'da sayfa yerinde kalır. Ürün hatası
+      // değil; bekleyip yeniden dene (son denemede hata fırlatılır).
+      if (attempt === 2) throw new Error(`uiLogin: giriş ekranı geçilemedi (${email})`);
+      await page.waitForTimeout(20_000);
+      continue;
+    }
     await page.waitForLoadState("networkidle").catch(() => {});
     const me = await page.request.get(`${API.replace(/\/?$/, "/")}company-auth/me`);
     if (me.ok()) return;
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
   }
   throw new Error(`uiLogin: oturum doğrulanamadı (${email})`);
 }

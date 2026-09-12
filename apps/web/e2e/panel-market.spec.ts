@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { uiLogin } from "./staging-helpers";
 
 /**
  * PANEL PAZAR BÖLGESİ e2e (2026-09-07) — çalışan stack ister
@@ -13,12 +14,10 @@ const EMAIL = process.env.E2E_EMAIL ?? "firma@demo.com";
 const PASSWORD = process.env.E2E_PASSWORD ?? "Demo1234!";
 
 async function login(page: import("@playwright/test").Page) {
-  await page.goto("/company/login");
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.getByRole("button", { name: "Giriş Yap" }).click();
-  await page.waitForURL(/\/company(?!\/login)/, { timeout: 30_000 });
+  // Ortak yardımcı: giriş ucu IP başına 10/dk sınırlı, 429'da bekleyip yineler.
+  await uiLogin(page, EMAIL);
 }
+
 
 async function count(page: import("@playwright/test").Page) {
   const live = page.locator('p[aria-live="polite"]').first();

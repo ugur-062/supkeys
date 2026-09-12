@@ -90,7 +90,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
 
 /** Satır sırası — her satırın kimlik kolonundaki başlık span'ının title'ı. */
 function rowTitles(): (string | null)[] {
-  return Array.from(document.querySelectorAll('[role="row"]')).map((r) =>
+  return Array.from(document.querySelectorAll('[data-liste-satiri="1"]')).map((r) =>
     r.querySelector("span[title]")?.getAttribute("title") ?? null,
   );
 }
@@ -332,11 +332,11 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
   it("sayfalama URL'de: 25 satırda ilk 20; ?sayfa=2 kalan 5", () => {
     h.rows = Array.from({ length: 25 }, () => row());
     const { unmount } = render(<SellerTendersView />);
-    expect(document.querySelectorAll('[role="row"]')).toHaveLength(20);
+    expect(document.querySelectorAll('[data-liste-satiri="1"]')).toHaveLength(20);
     unmount();
     h.search = "sayfa=2";
     render(<SellerTendersView />);
-    expect(document.querySelectorAll('[role="row"]')).toHaveLength(5);
+    expect(document.querySelectorAll('[data-liste-satiri="1"]')).toHaveLength(5);
   });
 
   it("boş durum (süzgeçli → Filtreleri temizle URL'yi sıfırlar) + hata durumu", async () => {

@@ -123,7 +123,10 @@ export function IhaleListView({
   }
 
   return (
-    <div role="table" aria-label="Satın Alma Talebi listesi" className="space-y-2">
+    /* `role="table"` KALDIRILDI (a11y 2026-09-12): sütun başlığı ve hücre yok,
+       satırlar da kart; ARIA tablosu çocuk olarak `row` şart koşuyor ve KRİTİK
+       ihlal veriyordu. `<section>` + ad = erişilebilir bölge, zorunlu çocuk yok. */
+    <section aria-label="Satın Alma Talebi listesi" className="space-y-2">
       {/* "Tümünü seç" şeridi KALDIRILDI (kullanıcı isteği, 2026-08-03):
           toplu sunucu işlemi yok — seçim yalnız yer kaplıyordu. */}
       {items.map((t) => (
@@ -134,6 +137,6 @@ export function IhaleListView({
           onToggleFavorite={toggleFavorite}
         />
       ))}
-    </div>
+    </section>
   );
 }

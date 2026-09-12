@@ -231,13 +231,13 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             </span>
             {o.listingNumber ? (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs">
-                <ClipboardList className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
-                <span className="text-zinc-500">Talep</span>
+                <ClipboardList className="size-3.5 shrink-0 text-zinc-600" aria-hidden />
+                <span className="text-zinc-600">Talep</span>
                 <span className="tabular-nums font-semibold text-zinc-900">{o.listingNumber}</span>
               </span>
             ) : !o.listingType ? (
               <span
-                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-500"
+                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600"
                 title="Bu siparişin bağlı olduğu talep kaydı artık yok."
               >
                 <ClipboardList className="size-3.5 shrink-0" aria-hidden />

@@ -1,3 +1,4 @@
+import { ErrorReporter } from "@/components/error-reporter";
 import { AuthHydrationBoundary } from "@/components/providers/auth-hydration";
 import { QueryProvider } from "@/components/providers/query-provider";
 import type { Metadata } from "next";
@@ -39,6 +40,8 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body className="antialiased">
+        {/* Tarayıcı hatalarını sunucuya bildirir (SDK yok, ~1 kB). */}
+        <ErrorReporter />
         <QueryProvider>
           <AuthHydrationBoundary>{children}</AuthHydrationBoundary>
           <Toaster

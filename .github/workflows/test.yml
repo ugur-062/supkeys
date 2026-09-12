@@ -100,6 +100,14 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Bağımlılık güvenlik kapısı (2026-09-12): tarama yokken üretim
+      # bağımlılıklarında 2 kritik + 20 yüksek uyarı birikmişti ve kimse
+      # görmüyordu. Kapı YÜKSEK ve üstünde kırmızı; kalan ORTA uyarılar ana
+      # sürüm göçü ister (@nestjs/core 10→11, file-type 16→21 ESM, uuid 8→11,
+      # @opentelemetry/core 1→2) ve ayrı iş olarak planlandı.
+      - name: Bağımlılık denetimi (üretim, yüksek ve üstü)
+        run: pnpm audit --prod --audit-level high
+
       # migrate diff BOŞ bir gölge DB ister — service container'da yalnız
       # rothern_test var, onu kullanamayız (dolu).
       - name: Gölge veritabanı oluştur

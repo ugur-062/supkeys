@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (87 test, 2026-09-12 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -20,7 +20,7 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tüm�
 | Ürün sayfası: fiyat/MOQ, "Bilgi iste" → kayda yönlenir | | |
 | Firma profili: sameAs, ürün şeridi, "Bağlantı iste" → kayda | | |
 | 🤖 robots/sitemap/llms.txt; OG görselleri 200 | ❌ #1 | seo:audit: /nasil-calisir + sözleşmeler og:image yok, sözleşme JSON-LD yok, kategori/ürün başlığı >75, kısa firma açıklaması → düzeltmeler main'de, canlıya çıkınca yeniden koşulacak |
-| Kayıt formu: doğrulama kodu e-postası gelir (Gmail) | | |
+| 🤖 Kayıt formu → doğrulama kodu → 3 adımlı onboarding → panel | ✅ | staging-signup.spec (kod veritabanından çözülür, firma/kullanıcı/Supabase hesabı test sonunda silinir) |
 | Şifremi unuttum akışı | | |
 
 ## Parça 2 — Kurucu (alıcı firma, Gold, doğrulanmış)
@@ -28,6 +28,7 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tüm�
 | Akış | Durum | Not |
 |---|---|---|
 | 🤖 Giriş → panel; portal anahtarı Satınalma/Satış | ✅ | company-tenders.spec staging (QA kurucu) |
+| 🤖 **12 QA hesabının TAMAMI giriş formundan girer**; üst çubukta doğru kişi/firma, oturum yenilemeye dayanır | ✅ | staging-role-logins.spec |
 | 🤖 Ayarlar › Firma Bilgileri: kimlik salt-okunur, ad/unvan kilitli | ✅ | staging-roles.spec |
 | Ayarlar › Kullanıcı Yönetimi: davet, yetki tablosu, koltuk sayacı | | |
 | Ayarlar › Adres, Banka, 2FA, Bildirimler | | |
@@ -40,6 +41,11 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tüm�
 |---|---|---|
 | Hızlı talep: kalemler, adres, süre, kime (PUBLIC) → yayınla | | |
 | Detaylı sihirbaz 4 adım; taslak; kopya | | |
+| 🤖 **Pazarlık (açık eksiltme)**: RFQ → "Pazarlığa Geç" (tarayıcı) → monotonluk, taslağa çekilememe, kimlik gizliliği | ✅ | staging-negotiation.spec |
+| 🤖 **Onay akışı**: kazandırma onaya düşer, onaylayıcı dar bağlamı görür, onaydan sonra sipariş | ✅ | staging-approval-flow.spec |
+| 🤖 **Yazma yetkisi matrisi**: 9 rol × 33 POST ucu (boş gövde, kayıt oluşmaz) | ✅ | staging-role-writes.spec |
+| 🤖 **Firmalar arası yalıtım**: taslak talep, ürün vitrini, sipariş, adres, kullanıcı — id ile açılamaz | ✅ | staging-tenant-isolation.spec |
+| 🤖 **Kendi yetki satırı**: yönetici kendi iznini düzenleyemez; başka firmanın kullanıcısına yazamaz | ✅ | staging-tenant-isolation.spec |
 | 🤖 Tedarikçi (satışçı) açık talebi görür, **Teklif Ver** ilk ekranda | ✅ | staging-order-chain.spec |
 | 🤖 Teklif formu: kalem fiyatı, teslim süresi, geçerlilik → gönder | ✅ | staging-order-chain.spec (onay penceresi dahil) — ❌ #4 pencere metni düzeltildi |
 | 🤖 Alıcı teklifleri görür; tedarikçiler birbirini GÖRMEZ | ✅ | kazandırma UI + API sözleşmeleri (closed-envelope spec) |
@@ -65,7 +71,11 @@ Staging e2e: `pnpm --filter @rothern/web e2e:staging` (28 test, 2026-09-11 tüm�
 | 🤖 Görüntüleyici: işlem düğmeleri yok, listeler salt-okunur | ✅ | staging-roles.spec |
 | 🤖 Satın Almacı: Ayarlar'da firma kartları yok | ✅ | staging-roles.spec |
 | 🤖 Ücretsiz (STANDART): PUBLIC talep kilidi, davet gönderemez | ✅ | staging-roles.spec; 10 ürün tavanı API sözleşmesi |
-| Doğrulanmamış: PUBLIC talebe teklif kapısı; "Doğrulanmamış firma" etiketi | | |
+| 🤖 Doğrulanmamış/STANDART: PUBLIC talep detayı 403 `TIER_REQUIRED`, listeye hiç girmez | ✅ | staging-role-bidding.spec |
+| 🤖 **İzin matrisi**: 11 rol × 62 `company*` GET ucu — açık kapı ve yanlış kilit yok | ✅ | staging-role-matrix.spec → `docs/qa-role-matrix.md` (beklenti API kaynağından türetilir) |
+| 🤖 **Ekran matrisi**: 8 rol × 23 panel sayfası — ok/yetki/portal/paket | ✅ | staging-role-screens.spec → `docs/qa-role-screens.md` — ❌ #6 Onaylar kapısı |
+| 🤖 **Çok tedarikçili teklif**: iki AYRI firma tarayıcıdan teklif verir; kapalı zarf ekranda ve API'de; alıcı ikisini de görür | ✅ | staging-role-bidding.spec |
+| 🤖 Görüntüleyici teklif veremez (düğme yok + POST 403); onaylayıcı talebi göremez | ✅ | staging-role-bidding.spec |
 | 🤖 Yönetici kendi yetkisini düzenleyemez | ✅ | staging-roles.spec |
 
 ## Parça 6 — Admin paneli
@@ -87,8 +97,20 @@ Transactional kapatılamaz; tercihlerden kapatılanlar gitmez.
 |---|---|---|
 | 🤖 Satın alma zinciri (teklif, kazandırma, sipariş adımları, ödeme) | ✅ | EmailLog 2026-09-11: 32 `notification` SENT (18 alıcı kurucu, 14 tedarikçi kurucu), 0 FAILED |
 | 🤖 Satış zinciri (ürün onayı, bilgi talebi, yanıt) + doğrulama kararı | ✅ | EmailLog 4 saat: 61 SENT, 0 FAILED (tedarikçi kurucu 21, alıcı kurucu 20, satışçı/görüntüleyici 2'şer) |
-| Gmail'de içerik/CTA kontrolü (bağlantılar staging'e gidiyor mu) | | elle |
+| 🤖 İçerik/CTA kontrolü: bağlantı konağı ORTAMA uygun mu, boş alan/yer tutucu var mı, hassas e-posta gizlenmiş mi | ✅ | staging-email-content.spec (son 6 saatteki 60 kayıt) |
 | Tercihten kapatılan bildirim gitmiyor | | elle |
+
+## Parça 9 — Kalite kapıları (2026-09-12)
+
+| Akış | Durum | Not |
+|---|---|---|
+| 🤖 Erişilebilirlik: 12 sayfada axe, critical+serious kapısı | ✅ | staging-a11y.spec — kritik ARIA rolleri ve kontrast düzeltildi |
+| 🤖 CSRF katmanları: JSON-only gövde + CORS ön-uçuş | ✅ | staging-csrf.spec |
+| 🤖 E-posta içeriği: bağlantı konağı, boş alan, yer tutucu, gizlenmiş hassas kayıt | ✅ | staging-email-content.spec |
+| 🤖 Performans kanaryası: 8 yüzeyde p50/p95 bütçesi | ✅ | staging-perf.spec (anasayfa p95 ~1,0 sn) |
+| 🤖 Eşzamanlılık: çift kazandırma, çift kabul, ürün tavanı yarışı | ✅ | staging-concurrency.spec — ❌ #8 TOCTOU düzeltildi |
+| 🤖 Para yolu: çok para birimi, kalem bazlı kazandırma, ödeme aritmetiği | ✅ | staging-money.spec |
+| Safari / mobil Safari | ⏳ | gecelik CI iş akışında (yerelde 216 sistem paketi ister) |
 
 ## Parça 8 — Mobil
 

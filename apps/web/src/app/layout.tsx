@@ -1,3 +1,4 @@
+import { ErrorReporter } from "@/components/error-reporter";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { SITE_NAME, absoluteUrl } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -107,6 +108,8 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`${inter.variable} ${geistMono.variable}`}>
       <body className="antialiased">
+        {/* Tarayıcı hatalarını sunucuya bildirir (SDK yok, ~1 kB). */}
+        <ErrorReporter />
         <QueryProvider>
           {children}
           {/* P0: sağ-alt — header'ı/aksiyonları örtmesin (canlı mesaj

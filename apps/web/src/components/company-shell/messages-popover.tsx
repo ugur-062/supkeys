@@ -132,7 +132,7 @@ export function MessagesPopover({ portal }: { portal: MessagePortal }) {
         <span className="relative">
           <MessageSquare className="size-5" aria-hidden />
           {unread > 0 ? (
-            <span className="absolute -top-1.5 -right-2 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+            <span className="absolute -top-1.5 -right-2 flex min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
