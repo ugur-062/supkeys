@@ -833,7 +833,7 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   ile kritik ve yüksek SIFIRA indi. Kalan 6 ORTA uyarı ana sürüm göçü ister ve
   bilinçli ertelendi: `@nestjs/core` 10→11, `file-type` 16→21 (ESM-only),
   `uuid` 8→11, `@opentelemetry/core` 1→2.
-- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 74 test
+- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 83 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
   rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
   **ekran matrisi**, **çok tedarikçili teklif**, **pazarlık turu**, **yazma
@@ -903,6 +903,21 @@ PgBouncer'dan geçtiği için kilit ayrı ve tek bağlantılı `DIRECT_URL`
 istemcisinden alınır; (2) **fail-open** — kilit altyapısı bozulursa iş
 ATLANMAZ, koşar (aksi hâlde tek yapılandırma hatası tüm cron'ları sessizce
 durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
+
+### CSRF duruşu (üretim) — bilinçli ve KANITLI
+
+Üretimde çerez `SameSite=none` (kod varsayılanı) ve o modda double-submit
+guard KOMPLE baypas (projenin kendi `csrf-guard.spec`'i bunu "açık" diye
+belgeliyor). Ayakta kalan savunma İKİ katman: (1) API **yalnız JSON** gövde
+okur — urlencoded/text parser bilerek kaldırıldı, yani ön-uçuş gerektirmeyen
+"basit" form POST'u gövdesiz kalır; (2) JSON içerik tipi ön-uçuş zorunlu
+kılar, CORS beyaz listesi yabancı kökeni reddeder. `staging-csrf.spec.ts` bu
+iki katmanı CANLI ortamda sınar.
+
+**Öneri (kullanıcı kararı bekliyor):** üretimde `COOKIE_SAMESITE=lax`.
+`www`/`admin`/`api` aynı kayıtlı alan adı altında olduğu için lax çerez
+gönderilmeye devam eder ve double-submit guard GERİ AÇILIR; staging zaten
+lax koşuyor ve tüm paket orada yeşil.
 
 ## Güvenlik Durumu
 
