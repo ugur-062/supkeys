@@ -99,10 +99,65 @@ async function supabaseSil(authIds: string[]): Promise<number> {
   console.log("🗑️  SİLİNECEK:", JSON.stringify(once, null, 1));
   console.log("🛡️  KORUNACAK:", JSON.stringify(await korunan(), null, 1));
 
+  if (process.env.LISTELE === "1") {
+    /**
+     * SİLMEDEN ÖNCE GÖZLE GÖR. Sayı yeterli değil: aralarında GERÇEK bir
+     * müşteri varsa silmek geri alınamaz. Ad + e-posta + kayıt tarihi +
+     * son giriş, "bu test verisi mi" sorusunu insanın yanıtlaması içindir.
+     */
+    const firmalar = await prisma.company.findMany({
+      select: { name: true, createdAt: true, publicEnabled: true, tier: true, _count: { select: { users: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+    console.log("\n--- FİRMALAR ---");
+    for (const f of firmalar) {
+      console.log(
+        ` ${f.createdAt.toISOString().slice(0, 10)}  ${f.name.padEnd(34).slice(0, 34)} ${f.tier.padEnd(8)} ${f.publicEnabled ? "vitrinde" : "kapalı  "} kullanıcı:${f._count.users}`,
+      );
+    }
+    const kullanicilar = await prisma.companyUser.findMany({
+      select: { email: true, createdAt: true, lastLoginAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    console.log("\n--- KULLANICILAR ---");
+    for (const u of kullanicilar) {
+      console.log(
+        ` ${u.createdAt.toISOString().slice(0, 10)}  ${u.email.padEnd(40).slice(0, 40)} ${u.lastLoginAt ? "son giriş " + u.lastLoginAt.toISOString().slice(0, 10) : "hiç girmemiş"}`,
+      );
+    }
+  }
+
   if (!SIL) {
     console.log("\nKURU ÇALIŞMA — hiçbir şey silinmedi. Silmek için: ONAY=EVET-SIL");
     await prisma.$disconnect();
     return;
+  }
+
+  /**
+   * SİLMEDEN ÖNCE YEDEK. Supabase Pro'ya geçilmediği için PITR yok; geri
+   * dönüşü olmayan bir silmeyi yedeksiz yapmak kabul edilemez. JSON anlık
+   * kopyası tam bir veritabanı yedeği değildir ama "ne vardı" sorusunu
+   * yanıtlar ve gerekirse elle geri yazılabilir.
+   */
+  const yedekDizin = process.env.YEDEK_DIZIN;
+  if (yedekDizin) {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    mkdirSync(yedekDizin, { recursive: true });
+    const anlik = {
+      alindi: new Date().toISOString(),
+      firmalar: await prisma.company.findMany(),
+      kullanicilar: await prisma.companyUser.findMany(),
+      talepler: await prisma.listing.findMany(),
+      teklifler: await prisma.listingBid.findMany(),
+      siparisler: await prisma.companyOrder.findMany(),
+      urunler: await prisma.companyItem.findMany(),
+      adresler: await prisma.companyAddress.findMany(),
+    };
+    const dosya = `${yedekDizin}/canli-yedek-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    writeFileSync(dosya, JSON.stringify(anlik, null, 1));
+    console.log(`💾 yedek yazıldı: ${dosya}`);
+  } else {
+    console.log("⚠️  YEDEK_DIZIN verilmedi — yedeksiz siliniyor.");
   }
 
   const authIds = (

@@ -5,6 +5,7 @@ import {
 } from "@/components/marketplace/product-index";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
+import { dizinBos } from "@/lib/seo/empty-index-guard";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -22,12 +23,21 @@ export const revalidate = 300;
  * Kanonik: süzgeçli varyantlar `/urunler`e işaret eder (ince içerik
  * yığını indekslenmesin). Kategori yol sayfaları kendi kanoniklerini taşır.
  */
-export const metadata: Metadata = buildMetadata({
+/**
+ * Meta İSTEK ANINDA üretilir: dizin BOŞSA `noindex` basılır (ince içerik /
+ * yumuşak 404 koruması, `lib/seo/empty-index-guard.ts`). İlk kayıt girince
+ * kural kendiliğinden kalkar.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const bos = await dizinBos("urunler");
+  return buildMetadata({
   title: `${MARKETPLACE_LABELS.products} — firmaların ürün vitrini`,
   description:
     "Türkiye'deki tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Ürünü bulun, firmasına doğrudan ulaşın.",
   path: MARKETPLACE_ROUTES.products,
-});
+    noindex: bos,
+  });
+}
 
 export default async function Page({
   searchParams,

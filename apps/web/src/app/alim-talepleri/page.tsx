@@ -2,6 +2,7 @@ import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-lay
 import { ListingIndex } from "@/components/marketplace/listing-index";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { dizinBos } from "@/lib/seo/empty-index-guard";
 import { buildMetadata } from "@/lib/seo/meta";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
@@ -14,12 +15,21 @@ import { notFound } from "next/navigation";
  */
 export const revalidate = 60;
 
-export const metadata: Metadata = buildMetadata({
+/**
+ * Meta İSTEK ANINDA üretilir: dizin BOŞSA `noindex` basılır (ince içerik /
+ * yumuşak 404 koruması, `lib/seo/empty-index-guard.ts`). İlk kayıt girince
+ * kural kendiliğinden kalkar.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const bos = await dizinBos("talepler");
+  return buildMetadata({
   title: `${MARKETPLACE_LABELS.demands} — Türkiye ve yurtdışından açık alım ilanları`,
   description:
     "Firmaların yayımladığı açık alım taleplerini kategoriye ve şehre göre inceleyin. Teklif vermek için Rothern'e ücretsiz kaydolun.",
   path: MARKETPLACE_ROUTES.demands,
-});
+    noindex: bos,
+  });
+}
 
 export default async function Page({
   searchParams,
