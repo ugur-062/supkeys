@@ -162,7 +162,7 @@ function AppPreview() {
                 <div
                   key={n}
                   className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                    i === 0 ? "bg-white/10 text-white" : "text-zinc-500"
+                    i === 0 ? "bg-white/10 text-white" : "text-zinc-400"
                   }`}
                 >
                   {n}

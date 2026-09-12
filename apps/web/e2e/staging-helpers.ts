@@ -45,7 +45,10 @@ export async function apiSession(email: string): Promise<{ ctx: APIRequestContex
     extraHTTPHeaders: { Origin: WEB, "Content-Type": "application/json" },
   });
   let res = await ctx.post("company-auth/login", { data: { email, password: PASSWORD } });
-  for (let i = 0; i < 4 && res.status() === 429; i++) {
+  // 429: bizim hız sınırımız. 503: Supabase Auth kotası (API bunu "giriş servisi
+  // geçici olarak kullanılamıyor" diye çeviriyor). İkisi de GEÇİCİ — uzun
+  // paketlerde ürün hatası gibi görünüyordu.
+  for (let i = 0; i < 4 && (res.status() === 429 || res.status() === 503); i++) {
     await new Promise((r) => setTimeout(r, 20_000));
     res = await ctx.post("company-auth/login", { data: { email, password: PASSWORD } });
   }

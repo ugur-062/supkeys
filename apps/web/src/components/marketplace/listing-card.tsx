@@ -269,7 +269,7 @@ function PanelRow({
               {d.status.label}
             </span>
             {d.timeNote ? (
-              <span className="whitespace-nowrap text-[10px] text-slate-400">{d.timeNote}</span>
+              <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span>
             ) : null}
           </div>
         </div>

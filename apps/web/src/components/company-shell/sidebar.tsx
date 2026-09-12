@@ -337,7 +337,7 @@ export function CompanySidebarContent({
             type="button"
             onClick={togglePinned}
             title={pinned ? "Menüyü serbest bırak" : "Menüyü sabitle"}
-            className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-950/5 hover:text-zinc-700"
+            className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-950/5 hover:text-zinc-700"
           >
             <span className="ml-0.5 shrink-0">
               {pinned ? (
