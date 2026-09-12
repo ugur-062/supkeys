@@ -57,7 +57,7 @@ const pricingTiers = [
     accent: {
       top: "border-t-zinc-200",
       pill: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-      check: "text-zinc-400",
+      check: "text-zinc-500",
     },
   },
   {
@@ -162,7 +162,7 @@ function AppPreview() {
                 <div
                   key={n}
                   className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                    i === 0 ? "bg-white/10 text-white" : "text-zinc-400"
+                    i === 0 ? "bg-white/10 text-white" : "text-zinc-500"
                   }`}
                 >
                   {n}
@@ -323,7 +323,7 @@ function ListingWizardPreview() {
             <div className="rounded-lg border-2 border-zinc-900 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-900">
               Yurtiçi
             </div>
-            <div className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
+            <div className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-500">
               Uluslararası
             </div>
           </div>
@@ -335,7 +335,7 @@ function ListingWizardPreview() {
               <span className="size-2 rounded-full bg-blue-500" />
               Alış
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-500">
               <span className="size-2 rounded-full bg-emerald-500" />
               Satış
             </div>
@@ -373,7 +373,7 @@ function BidsPreview() {
           >
             <div className="flex items-center gap-2">
               {b.best ? (
-                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-xs font-semibold text-white">
                   EN İYİ
                 </span>
               ) : null}
@@ -382,7 +382,7 @@ function BidsPreview() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-zinc-900">{b.a}</span>
               {b.best ? (
-                <span className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white">
+                <span className="rounded-md bg-emerald-700 px-2 py-1 text-xs font-medium text-white">
                   Al
                 </span>
               ) : null}
@@ -390,7 +390,7 @@ function BidsPreview() {
           </div>
         ))}
       </div>
-      <p className="mt-3 text-xs text-zinc-400">
+      <p className="mt-3 text-xs text-zinc-500">
         Tedarikçiler birbirinin teklifini görmez.
       </p>
     </div>
@@ -408,7 +408,7 @@ function ShowcasePreview() {
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
+          <div className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
             Ürün vitrini
           </div>
           <div className="text-sm font-semibold text-zinc-900">
@@ -448,7 +448,7 @@ function ShowcasePreview() {
               <span className="font-medium">{q.n}</span> · {q.t}
             </span>
             {q.fresh ? (
-              <span className="ml-2 shrink-0 rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-medium text-white">
+              <span className="ml-2 shrink-0 rounded bg-emerald-700 px-1.5 py-0.5 text-xs font-medium text-white">
                 Yanıtla
               </span>
             ) : null}
@@ -481,10 +481,10 @@ function OrderTimelinePreview() {
             <span
               className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
                 s.state === "done"
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : s.state === "active"
                     ? "bg-zinc-900 text-white"
-                    : "bg-zinc-100 text-zinc-400"
+                    : "bg-zinc-100 text-zinc-500"
               }`}
             >
               {s.state === "done" ? "✓" : i + 1}
@@ -492,7 +492,7 @@ function OrderTimelinePreview() {
             <span
               className={`text-sm ${
                 s.state === "todo"
-                  ? "text-zinc-400"
+                  ? "text-zinc-500"
                   : "font-medium text-zinc-900"
               }`}
             >
@@ -522,7 +522,7 @@ function DiscoverPreview() {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="text-sm font-semibold text-zinc-900">Keşfet</div>
-      <div className="mt-0.5 text-xs text-zinc-400">
+      <div className="mt-0.5 text-xs text-zinc-500">
         Kategori eşleşmeli firmalar
       </div>
       <div className="mt-4 space-y-2">
@@ -535,7 +535,7 @@ function DiscoverPreview() {
               <div className="truncate text-xs font-semibold text-zinc-800">
                 {f.n}
               </div>
-              <div className="text-xs text-zinc-400">{f.s}</div>
+              <div className="text-xs text-zinc-500">{f.s}</div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
@@ -697,7 +697,7 @@ function SignupPreview() {
                 className={`rounded-md border px-2 py-0.5 text-xs ${
                   r.on
                     ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-zinc-200 text-zinc-400"
+                    : "border-zinc-200 text-zinc-500"
                 }`}
               >
                 {r.n}
@@ -800,7 +800,7 @@ export default function HomePage() {
                 key={s.l}
                 className="flex flex-col gap-y-3 border-l border-white/15 pl-6"
               >
-                <div className="text-sm/6 text-zinc-400">{s.l}</div>
+                <div className="text-sm/6 text-zinc-500">{s.l}</div>
                 <div className="order-first text-3xl font-bold tracking-tight text-white tabular-nums sm:text-4xl">
                   {"text" in s ? (
                     s.text
@@ -1057,7 +1057,7 @@ export default function HomePage() {
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
               <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="text-xs text-zinc-400">Firma A</span>
+                  <span className="text-xs text-zinc-500">Firma A</span>
                   <span className="text-xs text-zinc-300">••• ₺</span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-200">
@@ -1069,7 +1069,7 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="text-xs text-zinc-400">Firma C</span>
+                  <span className="text-xs text-zinc-500">Firma C</span>
                   <span className="text-xs text-zinc-300">••• ₺</span>
                 </div>
               </div>
@@ -1150,7 +1150,7 @@ export default function HomePage() {
                   <span className="text-xs font-medium text-zinc-700">
                     Satın Almacı
                   </span>
-                  <span className="ml-auto text-xs text-zinc-400">
+                  <span className="ml-auto text-xs text-zinc-500">
                     Talep açtı
                   </span>
                 </div>
@@ -1161,7 +1161,7 @@ export default function HomePage() {
                   <span className="text-xs font-medium text-zinc-700">
                     Onaylayıcı
                   </span>
-                  <span className="ml-auto text-xs text-zinc-400">
+                  <span className="ml-auto text-xs text-zinc-500">
                     Onayladı
                   </span>
                 </div>
@@ -1225,7 +1225,7 @@ export default function HomePage() {
                   </>
                 )}
               </p>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-500">
                 {tier.price === null ? "sonsuza dek" : "yıllık ödemede"}
               </p>
               <p className="mt-4 text-sm/6 text-zinc-600">{tier.tagline}</p>
@@ -1256,7 +1256,7 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-400">
+        <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-500">
           Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık
           dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde
           aylık tutar farklıdır.
@@ -1290,7 +1290,7 @@ export default function HomePage() {
                       <span className="text-base font-semibold transition group-hover:text-zinc-600">
                         {faq.q}
                       </span>
-                      <span className="ml-6 flex h-7 items-center text-zinc-400 transition group-hover:text-zinc-950">
+                      <span className="ml-6 flex h-7 items-center text-zinc-500 transition group-hover:text-zinc-950">
                         <PlusSmallIcon
                           aria-hidden="true"
                           className="size-6 group-data-open:hidden"
