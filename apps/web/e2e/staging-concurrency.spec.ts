@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow } from "./staging-helpers";
+import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow } from "./staging-helpers";
 
 /**
  * EŞZAMANLILIK (2026-09-12) — çift tıklama ve yarış durumları.
@@ -76,12 +76,37 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
   const free = await apiSession(QA.ucretsizKurucu);
   const LIMIT = 10;
 
-  // Mevcut kuyruğu boşalt: yayında/onayda olanları taslağa çek.
-  const mine = (await apiGet(free, "/company/items?limit=100")).body as { items?: Array<{ id: string; isPublic: boolean; reviewStatus: string }> } | Array<{ id: string; isPublic: boolean; reviewStatus: string }>;
-  const rows = Array.isArray(mine) ? mine : (mine.items ?? []);
-  for (const r of rows.filter((x) => x.isPublic || x.reviewStatus === "PENDING")) {
-    await apiPost(free, `/company/items/${r.id}/unpublish`);
-  }
+  /**
+   * Kuyruğu boşalt — İKİ engel var, ikisi de ürünün kendi kuralı:
+   *  1. `unpublish` yalnız YAYINDAKİ ürünü taslağa çeker; onay BEKLEYEN
+   *     (PENDING, isPublic=false) ürüne işlemez.
+   *  2. PENDING ürün "inceleme kilidi" altında: arşivlenemez de. Tek çıkış
+   *     ADMİN KARARI (ürün moderasyonu kuralı).
+   * Bu yüzden temizlik admin oturumuyla yapılır: bekleyenler düzeltmeye
+   * gönderilir (tavandan düşer), sonra hepsi arşivlenir. Aksi hâlde her koşum
+   * 11 ürün biriktirir ve bir sonraki tur ilk yayında tavana toslar.
+   */
+  const admin = await adminApiSession();
+  const listele = async () => {
+    const body = (await apiGet(free, "/company/items?limit=200")).body as
+      | { items?: Array<{ id: string; name: string; isPublic: boolean; reviewStatus: string }> }
+      | Array<{ id: string; name: string; isPublic: boolean; reviewStatus: string }>;
+    return Array.isArray(body) ? body : (body.items ?? []);
+  };
+  const temizle = async () => {
+    for (const r of await listele()) {
+      if (r.reviewStatus === "PENDING") {
+        await apiPost(admin, `/admin/products/${r.id}/reject`, {
+          reason: "QA otomasyon temizliği — tavan yarışı testinin bıraktığı kayıt.",
+        });
+      }
+    }
+    for (const r of await listele()) {
+      if (r.isPublic) await apiPost(free, `/company/items/${r.id}/unpublish`);
+      if (r.name.startsWith("QA Tavan ")) await apiPatch(free, `/company/items/${r.id}/active`, { isActive: false });
+    }
+  };
+  await temizle();
 
   // Tavana kadar doldur (tavanın 1 eksiği), sonra AYNI ANDA iki gönderim yap.
   const made: string[] = [];
@@ -113,4 +138,7 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
   const afterRows = Array.isArray(after) ? after : (after.items ?? []);
   const occupied = afterRows.filter((x) => x.isPublic || x.reviewStatus === "PENDING").length;
   expect(occupied, "yayında + onayda toplam tavanı aşmamalı").toBeLessThanOrEqual(LIMIT);
+
+  // Bu turun ürünlerini temizle: bir sonraki koşum temiz başlasın.
+  await temizle();
 });
