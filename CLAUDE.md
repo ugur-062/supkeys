@@ -833,7 +833,7 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   ile kritik ve yüksek SIFIRA indi. Kalan 6 ORTA uyarı ana sürüm göçü ister ve
   bilinçli ertelendi: `@nestjs/core` 10→11, `file-type` 16→21 (ESM-only),
   `uuid` 8→11, `@opentelemetry/core` 1→2.
-- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 83 test
+- **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 87 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
   rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
   **ekran matrisi**, **çok tedarikçili teklif**, **pazarlık turu**, **yazma
