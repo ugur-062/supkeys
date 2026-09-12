@@ -908,8 +908,10 @@ durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
 
 `production` dalında "PR şart + Test kontrolü" kuralı var ama depo sahibi admin
 olduğu için `git push origin production` kuralı BYPASS ederek geçiyor (uzak
-"Bypassed rule violations" uyarısı basıyor). Acil olmayan her sürüm GitHub
-arayüzünden PR ile birleştirilmeli. **Birleştirmeden sonra hemen
+"Bypassed rule violations" uyarısı basıyor). **2026-09-12'den beri `gh` kurulu
+ve yetkili** (`repo`, `workflow` kapsamları) → doğru yol:
+`gh pr create --base production --head main` + `gh pr merge --merge`. Doğrudan
+push yalnız acil durumda. **Birleştirmeden sonra hemen
 `git checkout main`** — 2026-09-12'de `production`da kalınıp oraya commit
 atıldı, `checkout -B` ile dal sıfırlanınca commit düştü (reflog'dan kurtarıldı).
 
