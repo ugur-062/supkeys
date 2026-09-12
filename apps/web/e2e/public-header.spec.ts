@@ -19,24 +19,43 @@ import { expect, test } from "@playwright/test";
  * taşıyor.
  */
 test.describe("herkese açık üst çubuk", () => {
-  test("logonun yanında beş menü satırı, sağda giriş/kayıt", async ({ page }) => {
-    await page.goto("/urunler");
-    const header = page.locator("header").first();
-    await expect(header.getByRole("link", { name: "Ürünler", exact: true })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Firmalar", exact: true })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Alım Talepleri" })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Nasıl Çalışır" })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Fiyatlar" })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Giriş Yap" })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Ücretsiz Kaydol" })).toBeVisible();
-  });
+  /**
+   * MASAÜSTÜ YERLEŞİMİ — viewport AÇIKÇA sabitlenir (2026-09-12).
+   *
+   * Bu iki senaryo logonun yanındaki menü satırını doğruluyor, ama o satır
+   * `marketing-header.tsx`'te `hidden … lg:flex` — yani 1024 px ALTINDA hiç
+   * çizilmiyor (hamburger `lg:hidden` devralıyor). Projeden gelen viewport'a
+   * güvenildiği için `mobil-safari` (devices["iPhone 14"] = 390 px) bu
+   * dosyayı kapsadığında ilk senaryo KESİN kırmızıydı: Safari hatası değil,
+   * masaüstü iddiasının mobil viewport'ta koşması. Chromium (Desktop Chrome)
+   * ve webkit-kritik (Desktop Safari) zaten 1280 px olduğu için gizlenmişti.
+   *
+   * Kapsam DARALMADI: 390 px çekmece senaryosu aşağıda kendi viewport'unu
+   * kendisi kuruyor, yani mobil yüzey iPhone/WebKit bağlamında koşmaya
+   * devam ediyor.
+   */
+  test.describe("masaüstü yerleşimi", () => {
+    test.use({ viewport: { width: 1280, height: 720 } });
 
-  test("kaldırılanlar çizilmez: siyah şerit, Kategoriler mega menüsü, arama", async ({ page }) => {
-    await page.goto("/urunler");
-    const header = page.locator("header").first();
-    await expect(header.getByRole("button", { name: /Kategoriler/ })).toHaveCount(0);
-    await expect(header.locator("form[role=search]")).toHaveCount(0);
-    await expect(header.getByText("Tedarikçi misin?")).toHaveCount(0);
+    test("logonun yanında beş menü satırı, sağda giriş/kayıt", async ({ page }) => {
+      await page.goto("/urunler");
+      const header = page.locator("header").first();
+      await expect(header.getByRole("link", { name: "Ürünler", exact: true })).toBeVisible();
+      await expect(header.getByRole("link", { name: "Firmalar", exact: true })).toBeVisible();
+      await expect(header.getByRole("link", { name: "Alım Talepleri" })).toBeVisible();
+      await expect(header.getByRole("link", { name: "Nasıl Çalışır" })).toBeVisible();
+      await expect(header.getByRole("link", { name: "Fiyatlar" })).toBeVisible();
+      await expect(header.getByRole("link", { name: "Giriş Yap" })).toBeVisible();
+      await expect(header.getByRole("link", { name: "Ücretsiz Kaydol" })).toBeVisible();
+    });
+
+    test("kaldırılanlar çizilmez: siyah şerit, Kategoriler mega menüsü, arama", async ({ page }) => {
+      await page.goto("/urunler");
+      const header = page.locator("header").first();
+      await expect(header.getByRole("button", { name: /Kategoriler/ })).toHaveCount(0);
+      await expect(header.locator("form[role=search]")).toHaveCount(0);
+      await expect(header.getByText("Tedarikçi misin?")).toHaveCount(0);
+    });
   });
 
   test("390 px: yatay taşma yok, menü çekmecesi aynı satırları taşır", async ({ page }) => {
