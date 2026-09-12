@@ -1058,7 +1058,10 @@ export default function HomePage() {
               <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
                   <span className="text-xs text-zinc-500">Firma A</span>
-                  <span className="text-xs text-zinc-300" aria-hidden>••• ₺</span>
+                  {/* Noktalar GÖRÜNÜR metin: axe `aria-hidden` olsa da kontrast arar ve
+                      haklı — gören kullanıcı da okuyor. zinc-500 hâlâ "maskeli"
+                      duruyor ama 4,83:1. */}
+                  <span className="text-xs text-zinc-500" aria-hidden>••• ₺</span>
                   <span className="sr-only">Fiyat gizli (kapalı zarf)</span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-200">
@@ -1071,7 +1074,10 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
                   <span className="text-xs text-zinc-500">Firma C</span>
-                  <span className="text-xs text-zinc-300" aria-hidden>••• ₺</span>
+                  {/* Noktalar GÖRÜNÜR metin: axe `aria-hidden` olsa da kontrast arar ve
+                      haklı — gören kullanıcı da okuyor. zinc-500 hâlâ "maskeli"
+                      duruyor ama 4,83:1. */}
+                  <span className="text-xs text-zinc-500" aria-hidden>••• ₺</span>
                   <span className="sr-only">Fiyat gizli (kapalı zarf)</span>
                 </div>
               </div>
