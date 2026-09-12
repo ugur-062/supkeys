@@ -13,3 +13,4 @@
 | 9 | Erişilebilirlik | `role="row"`/`role="table"` tablo bağlamı olmadan kullanılıyordu (kritik ARIA ihlali); `<dl>` altında ikon/ipucu; 10+ yerde kontrast eşiğin altında | düzeltildi — axe kapısı eklendi |
 | 10 | Bağımlılıklar | Üretim bağımlılıklarında 2 kritik + 20 yüksek uyarı birikmişti, tarama hiç koşmuyordu | düzeltildi — sürümler yükseltildi, CI kapısı eklendi |
 | 11 | 1 · SEO | Başlık tavanı kök şablonun ' · Rothern' sonekini saymıyordu; bir ürün başlığı canlıda 83 karakter çıktı | düzeltildi, canlı denetim temiz |
+| 12 | Güvenlik | Üretimde çerez `SameSite=none` olduğu için CSRF double-submit guard komple baypas oluyordu (projenin kendi testi bunu 'açık' diye belgeliyordu) | kapandı — `COOKIE_SAMESITE=lax` canlıda doğrulandı (logout Set-Cookie: SameSite=Lax) |

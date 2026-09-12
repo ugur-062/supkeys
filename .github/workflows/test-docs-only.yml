@@ -1,0 +1,26 @@
+# ZORUNLU KONTROL + YOL SÜZGECİ KİLİTLENMESİ (2026-09-13)
+#
+# `test.yml` `paths-ignore: ['**.md', 'docs/**']` taşıyor — belge değişikliğinde
+# koşmuyor, doğru. Ama `production` dalında "Test (api + typecheck)" kontrolü
+# ZORUNLU: iş hiç koşmayınca kontrol HİÇ raporlanmıyor ve yalnız belge içeren
+# PR sonsuza kadar BLOCKED kalıyor (PR #6 böyle takıldı).
+#
+# GitHub'ın belgelediği çözüm: aynı ADI taşıyan, TERS yol süzgeciyle tetiklenen
+# ve anında başarılı biten ikinci bir iş. Kod değişen PR'larda gerçek iş de
+# koşar ve ikisi birden yeşil olmadan birleşme açılmaz.
+name: Test
+
+on:
+  pull_request:
+    branches: [main, production]
+    paths:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  test:
+    name: Test (api + typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Yalnız belge değişikliği
+        run: echo "Bu PR yalnız belge dosyalarına dokunuyor — ağır testler bilinçli atlandı."
