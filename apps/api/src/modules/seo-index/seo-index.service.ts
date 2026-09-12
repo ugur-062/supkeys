@@ -52,6 +52,17 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 
 const FLUSH_DELAY_MS = 5_000;
 const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
+
+/** Dış arama motorlarına YALNIZ bu konak bildirilir. */
+const CANONICAL_WEB_HOST = "www.rothern.com";
+
+function isCanonicalWebHost(base: string): boolean {
+  try {
+    return new URL(base).host === CANONICAL_WEB_HOST;
+  } catch {
+    return false;
+  }
+}
 /** IndexNow tek istekte 10.000 URL kabul eder. */
 const INDEXNOW_BATCH = 10_000;
 
@@ -302,6 +313,21 @@ export class SeoIndexService {
     const base = resolveWebUrl(this.config);
     // Localhost'u dış motora bildirmek anlamsız (dev): sessizce atla.
     if (/localhost|127\.0\.0\.1/i.test(base)) return;
+    /**
+     * YALNIZ CANLI ALAN ADI BİLDİRİR (2026-09-13).
+     *
+     * Staging'in Render ortamında da `INDEXNOW_KEY` tanımlıydı: demo ortamı
+     * Bing/Yandex'e "staging.rothern.com/... adresini tara" diyordu. Bu hem
+     * canlıyla yinelenen içerik üretir hem de yayınlanmamış veriyi dış motora
+     * duyurur. Kapı ENV DİSİPLİNİNE bırakılmaz — adresten anlaşılır.
+     */
+    if (!isCanonicalWebHost(base)) {
+      this.warnOnce(
+        "INDEXNOW_HOST",
+        `IndexNow atlandı — ${new URL(base).host} canlı alan adı değil (yalnız ${CANONICAL_WEB_HOST} bildirir)`,
+      );
+      return;
+    }
     const host = new URL(base).host;
     const urlList = paths.map((p) => `${base}${p}`);
     for (let i = 0; i < urlList.length; i += INDEXNOW_BATCH) {

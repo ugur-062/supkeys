@@ -29,7 +29,8 @@
     "backfill-user-permissions": "tsx prisma/scripts/backfill-user-permissions.ts",
     "backfill-rothern-ids": "tsx prisma/scripts/backfill-rothern-ids.ts",
     "format": "prisma format",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "wipe-companies": "tsx prisma/scripts/wipe-companies.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
