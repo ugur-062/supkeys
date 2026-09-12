@@ -1,3 +1,4 @@
+import { SITE_NAME } from "./meta";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
 import { productPrice } from "@/lib/public/product-price";
 import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
@@ -481,7 +482,19 @@ export function listingSeo(l: ListingSeoInput): {
 }
 
 /** "<ürün> — <firma>" en çok 75 karakter; sığmazsa firma düşer, sonra ürün adı kısalır. */
-export function clampTitle(name: string, brand?: string | null, max = 75): string {
+/**
+ * Kök düzen başlığa `%s · Rothern` şablonunu UYGULUYOR (layout.tsx). Tavan
+ * hesabı bu soneki saymazsa üretilen başlık 75'i aşar ve canlı denetim
+ * kırmızıya döner (2026-09-12: 83 karakterlik ürün başlığı). Sonek burada
+ * düşülür — çağıranların hatırlamasına bırakılmaz.
+ */
+const TITLE_SUFFIX = ` · ${SITE_NAME}`;
+
+export function clampTitle(
+  name: string,
+  brand?: string | null,
+  max = 75 - TITLE_SUFFIX.length,
+): string {
   const full = joinParts([name, brand], " — ");
   if (full.length <= max) return full;
   if (name.length <= max) return name;
