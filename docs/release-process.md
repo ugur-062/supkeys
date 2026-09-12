@@ -58,3 +58,31 @@ Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.pro
 Değişken listesi `render.yaml` ile aynı; staging'e özel değerler gitignore'lu
 `render.staging.env` dosyasında (repo kökü, yalnız yerel). Sırlar yenilenince
 Render'da elle güncellenir.
+
+
+## Gecelik e2e için GitHub sırları (2026-09-12)
+
+`.github/workflows/e2e-staging.yml` her gece 04:00'te staging'e karşı koşar ve
+gecelik koşumda Safari motorunu da ekler. Depo → Settings → Secrets and
+variables → Actions altına şunlar girilmeli (hepsi `.env.staging` ve
+`render.staging.env` içinde zaten var):
+
+| Sır | Kaynak |
+|---|---|
+| `STAGING_VERCEL_BYPASS_WEB` | `.env.staging` |
+| `STAGING_VERCEL_BYPASS_ADMIN` | `.env.staging` |
+| `STAGING_QA_PASSWORD` | QA hesap parolası (`seed-staging-roles`) |
+| `STAGING_ADMIN_PASSWORD` | `render.staging.env` `INITIAL_ADMIN_PASSWORD` |
+| `STAGING_DATABASE_URL` | `.env.staging` (kayıt turu kodu okur, temizlik yapar) |
+| `STAGING_SUPABASE_URL` | `.env.staging` |
+| `STAGING_SUPABASE_SERVICE_ROLE_KEY` | `.env.staging` |
+
+Sır yoksa iş **kırmızı biter** (sessizce yeşil görünmesin diye ilk adım kontrol
+eder). Elle tetiklemek için: Actions → E2E (staging) → Run workflow.
+
+## Üretim ortam değişkeni önerisi
+
+`COOKIE_SAMESITE=lax` — üretimde tanımlı değil, kod varsayılanı `none` ve o
+modda CSRF double-submit guard baypas oluyor. `www`/`admin`/`api` aynı kayıtlı
+alan adı altında olduğu için `lax` çerezleri göndermeye devam eder ve guard
+geri açılır. Staging zaten `lax` koşuyor, tüm e2e paketi orada yeşil.
