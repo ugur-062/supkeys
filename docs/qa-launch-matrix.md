@@ -6,7 +6,7 @@ Ortam: **staging** (`staging.rothern.com`, `admin.staging.rothern.com`). Hesapla
 
 Hücre değerleri: `✅` geçti · `❌ #n` bulgu (docs/qa-punchlist.md) · `—` rol için geçerli değil · boş = henüz bakılmadı.
 Otomatik (Playwright/curl) koşan satırlar `🤖` ile işaretli; kalanı elle.
-Staging e2e: `pnpm --filter @rothern/web e2e:staging` (83 test, 2026-09-12 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
+Staging e2e: `pnpm --filter @rothern/web e2e:staging` (87 test, 2026-09-12 tümü yeşil; demo veri `seed-marketplace-demo` ile; admin adımları `render.staging.env` `INITIAL_ADMIN_PASSWORD` + `STAGING_VERCEL_BYPASS_ADMIN` ister).
 
 ## Parça 1 — Ziyaretçi yüzü (giriş yok)
 
@@ -99,6 +99,18 @@ Transactional kapatılamaz; tercihlerden kapatılanlar gitmez.
 | 🤖 Satış zinciri (ürün onayı, bilgi talebi, yanıt) + doğrulama kararı | ✅ | EmailLog 4 saat: 61 SENT, 0 FAILED (tedarikçi kurucu 21, alıcı kurucu 20, satışçı/görüntüleyici 2'şer) |
 | 🤖 İçerik/CTA kontrolü: bağlantı konağı ORTAMA uygun mu, boş alan/yer tutucu var mı, hassas e-posta gizlenmiş mi | ✅ | staging-email-content.spec (son 6 saatteki 60 kayıt) |
 | Tercihten kapatılan bildirim gitmiyor | | elle |
+
+## Parça 9 — Kalite kapıları (2026-09-12)
+
+| Akış | Durum | Not |
+|---|---|---|
+| 🤖 Erişilebilirlik: 12 sayfada axe, critical+serious kapısı | ✅ | staging-a11y.spec — kritik ARIA rolleri ve kontrast düzeltildi |
+| 🤖 CSRF katmanları: JSON-only gövde + CORS ön-uçuş | ✅ | staging-csrf.spec |
+| 🤖 E-posta içeriği: bağlantı konağı, boş alan, yer tutucu, gizlenmiş hassas kayıt | ✅ | staging-email-content.spec |
+| 🤖 Performans kanaryası: 8 yüzeyde p50/p95 bütçesi | ✅ | staging-perf.spec (anasayfa p95 ~1,0 sn) |
+| 🤖 Eşzamanlılık: çift kazandırma, çift kabul, ürün tavanı yarışı | ✅ | staging-concurrency.spec — ❌ #8 TOCTOU düzeltildi |
+| 🤖 Para yolu: çok para birimi, kalem bazlı kazandırma, ödeme aritmetiği | ✅ | staging-money.spec |
+| Safari / mobil Safari | ⏳ | gecelik CI iş akışında (yerelde 216 sistem paketi ister) |
 
 ## Parça 8 — Mobil
 
