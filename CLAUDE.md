@@ -904,20 +904,25 @@ istemcisinden alınır; (2) **fail-open** — kilit altyapısı bozulursa iş
 ATLANMAZ, koşar (aksi hâlde tek yapılandırma hatası tüm cron'ları sessizce
 durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
 
-### CSRF duruşu (üretim) — bilinçli ve KANITLI
+### CSRF duruşu (üretim) — KAPANDI, guard açık (2026-09-12 doğrulandı)
 
-Üretimde çerez `SameSite=none` (kod varsayılanı) ve o modda double-submit
-guard KOMPLE baypas (projenin kendi `csrf-guard.spec`'i bunu "açık" diye
-belgeliyor). Ayakta kalan savunma İKİ katman: (1) API **yalnız JSON** gövde
-okur — urlencoded/text parser bilerek kaldırıldı, yani ön-uçuş gerektirmeyen
-"basit" form POST'u gövdesiz kalır; (2) JSON içerik tipi ön-uçuş zorunlu
-kılar, CORS beyaz listesi yabancı kökeni reddeder. `staging-csrf.spec.ts` bu
-iki katmanı CANLI ortamda sınar.
+Bu bölüm önceden "üretimde `SameSite=none`, double-submit baypas, `lax`
+önerisi kullanıcı kararı bekliyor" diyordu. ARTIK GEÇERSİZ: Render
+`rothern-api` ortamında `COOKIE_SAMESITE=lax` ve `COOKIE_DOMAIN=.rothern.com`
+tanımlı, yani double-submit guard üretimde AÇIK.
 
-**Öneri (kullanıcı kararı bekliyor):** üretimde `COOKIE_SAMESITE=lax`.
-`www`/`admin`/`api` aynı kayıtlı alan adı altında olduğu için lax çerez
-gönderilmeye devam eder ve double-submit guard GERİ AÇILIR; staging zaten
-lax koşuyor ve tüm paket orada yeşil.
+`www`/`admin`/`api` aynı kayıtlı alan adı altında olduğu için `lax` çerezleri
+göndermeye devam eder. `staging-csrf.spec.ts:53` ("oturum var ama CSRF başlığı
+yok → mutasyon reddedilir") bu duruşu her gecelik koşumda CANLI sınar.
+
+İki katmanlı derinlik hâlâ yerinde: (1) API **yalnız JSON** gövde okur —
+urlencoded/text parser bilerek kaldırıldı, ön-uçuş gerektirmeyen "basit" form
+POST'u gövdesiz kalır; (2) JSON içerik tipi ön-uçuşu zorunlu kılar, CORS beyaz
+listesi yabancı kökeni reddeder.
+
+`COOKIE_SAMESITE` ve `COOKIE_DOMAIN` bir ÇİFTTİR — `lax` iken domain boşsa
+çerezler host-only yazılır, `www` `rk_csrf`'i okuyamaz, tüm mutasyonlar 403
+olur. `prod-config-sanity.ts` bunu boot'ta fail-closed yakalar (`main.ts:89`).
 
 ## Güvenlik Durumu
 
@@ -927,7 +932,8 @@ lax koşuyor ve tüm paket orada yeşil.
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth 429/5xx → 503.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain.
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain, **Vercel'de
+`SENTRY_DSN` yok** (web+admin) → ön yüz hata izleme no-op; API tarafı dolu.
 
 **Ön yüz hata izleme (2026-09-12):** tarayıcıda Sentry SDK'sı YOK ve
 OLMAYACAK — paylaşılan pakete 83 kB ekliyordu (103→186 kB), organik arama

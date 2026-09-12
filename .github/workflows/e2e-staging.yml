@@ -29,13 +29,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Sırlar tanımlı değilse iş SESSİZCE yeşil görünmesin diye önce kontrol edilir.
+    #
+    # 2026-09-12: burada YALNIZ bir sır kontrol ediliyordu. `gh secret set` boş
+    # değeri itirazsız kabul ettiği için beş sır "tanımlı ama BOŞ" kaydolmuştu;
+    # `gh secret list` hepsini dolu gösterdi, iki koşum boşa gitti. Artık YEDİSİ
+    # de kontrol edilir ve `-z` sayesinde BOŞLUK da yokluk kadar hatadır. Eksik
+    # olanların HEPSİ tek seferde raporlanır (tek tek keşfetmek tur kaybettirir).
     steps:
       - name: Sır kontrolü
         env:
-          BYPASS: ${{ secrets.STAGING_VERCEL_BYPASS_WEB }}
+          STAGING_VERCEL_BYPASS_WEB: ${{ secrets.STAGING_VERCEL_BYPASS_WEB }}
+          STAGING_VERCEL_BYPASS_ADMIN: ${{ secrets.STAGING_VERCEL_BYPASS_ADMIN }}
+          STAGING_QA_PASSWORD: ${{ secrets.STAGING_QA_PASSWORD }}
+          STAGING_ADMIN_PASSWORD: ${{ secrets.STAGING_ADMIN_PASSWORD }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          if [ -z "$BYPASS" ]; then
-            echo "::error::STAGING_VERCEL_BYPASS_WEB tanımlı değil — depo ayarlarından ekleyin (docs/release-process.md)."
+          eksik=""
+          for ad in STAGING_VERCEL_BYPASS_WEB STAGING_VERCEL_BYPASS_ADMIN \
+                    STAGING_QA_PASSWORD STAGING_ADMIN_PASSWORD \
+                    STAGING_DATABASE_URL STAGING_SUPABASE_URL \
+                    STAGING_SUPABASE_SERVICE_ROLE_KEY; do
+            if [ -z "${!ad}" ]; then
+              echo "::error::$ad tanımlı değil ya da BOŞ — depo ayarlarından ekleyin (docs/release-process.md)."
+              eksik="$eksik $ad"
+            fi
+          done
+          if [ -n "$eksik" ]; then
+            echo "Eksik/boş sırlar:$eksik"
             exit 1
           fi
 
