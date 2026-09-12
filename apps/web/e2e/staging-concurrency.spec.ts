@@ -93,6 +93,13 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
       | Array<{ id: string; name: string; isPublic: boolean; reviewStatus: string }>;
     return Array.isArray(body) ? body : (body.items ?? []);
   };
+  /**
+   * TEMİZLİK E-POSTA ÜRETİR: "düzeltmeye gönder" kararı firmaya bildirim
+   * yollar. İlk sürümde her koşum 10 ürünü reddediyordu ve staging'in Resend
+   * günlük kotası doldu (2026-09-13 CI koşumu). Artık: bekleyen KAÇ TANE varsa
+   * o kadar karar verilir (yarış sonrası normalde 1), gerisi sessizce
+   * arşivlenir ve ürünler koşumlar arasında YENİDEN KULLANILIR.
+   */
   const temizle = async () => {
     for (const r of await listele()) {
       if (r.reviewStatus === "PENDING") {
@@ -103,14 +110,15 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
     }
     for (const r of await listele()) {
       if (r.isPublic) await apiPost(free, `/company/items/${r.id}/unpublish`);
-      if (r.name.startsWith("QA Tavan ")) await apiPatch(free, `/company/items/${r.id}/active`, { isActive: false });
     }
   };
   await temizle();
 
-  // Tavana kadar doldur (tavanın 1 eksiği), sonra AYNI ANDA iki gönderim yap.
-  const made: string[] = [];
-  for (let i = 0; i < LIMIT + 1; i++) {
+  // Tavana kadar doldur — ürünler koşumlar arasında YENİDEN KULLANILIR
+  // (her turda 11 yeni ürün yaratmak katalogu şişiriyor ve tavanı kilitliyordu).
+  const mevcut = (await listele()).filter((x) => x.name.startsWith("QA Tavan "));
+  const made: string[] = mevcut.slice(0, LIMIT + 1).map((x) => x.id);
+  for (let i = made.length; i < LIMIT + 1; i++) {
     const p = await apiPost(free, "/company/items/product", {
       name: `QA Tavan ${stamp}-${i}`,
       categoryId: CATEGORY,
@@ -122,6 +130,8 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
     expect(p.status, JSON.stringify(p.body)).toBeLessThan(300);
     made.push(p.body.id);
   }
+  // Arşivlenmiş olanları geri aç (önceki tur arşivlemiş olabilir).
+  for (const id of made) await apiPatch(free, `/company/items/${id}/active`, { isActive: true });
   for (let i = 0; i < LIMIT - 1; i++) {
     const r = await apiPost(free, `/company/items/${made[i]!}/publish`);
     expect(r.status, `${i}. yayın: ${JSON.stringify(r.body)}`).toBeLessThan(300);

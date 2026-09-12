@@ -851,6 +851,13 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   silinir (`e2e/db-helpers.ts`). Staging bağlantısı PgBouncer üzerinden
   geldiği için Prisma'ya `pgbouncer=true` verilmeli, yoksa "prepared
   statement does not exist".
+  **E-POSTA KOTASI:** staging ücretsiz Resend kademesinde günde 100 e-posta
+  gönderiyor. Testler bildirim üreten akışları çalıştırdığı için yoğun günlerde
+  kota doluyor (2026-09-13: ürün tavanı testinin temizliği her koşumda 10
+  "düzeltme istendi" bildirimi üretiyordu → test ürünleri artık YENİDEN
+  KULLANILIYOR, koşum başına ~1 bildirim). `staging-email-content.spec`
+  kota hatasını ortam sınırı sayar ve ayrı raporlar; diğer teslimat hataları
+  kırmızı kalır.
   **Giriş ucu IP başına 10/dk** (`@Throttle({ auth: … })`): paket büyüdükçe
   tek tek girişler 429 alıp ÜRÜN HATASI gibi görünüyordu → `apiSession`
   e-posta bazında ÖNBELLEKLİ, `uiLogin` 429'da 20 sn bekleyip yineler; eski
@@ -908,8 +915,10 @@ durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
 
 `production` dalında "PR şart + Test kontrolü" kuralı var ama depo sahibi admin
 olduğu için `git push origin production` kuralı BYPASS ederek geçiyor (uzak
-"Bypassed rule violations" uyarısı basıyor). Acil olmayan her sürüm GitHub
-arayüzünden PR ile birleştirilmeli. **Birleştirmeden sonra hemen
+"Bypassed rule violations" uyarısı basıyor). **2026-09-12'den beri `gh` kurulu
+ve yetkili** (`repo`, `workflow` kapsamları) → doğru yol:
+`gh pr create --base production --head main` + `gh pr merge --merge`. Doğrudan
+push yalnız acil durumda. **Birleştirmeden sonra hemen
 `git checkout main`** — 2026-09-12'de `production`da kalınıp oraya commit
 atıldı, `checkout -B` ile dal sıfırlanınca commit düştü (reflog'dan kurtarıldı).
 
