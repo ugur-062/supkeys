@@ -1058,7 +1058,8 @@ export default function HomePage() {
               <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
                   <span className="text-xs text-zinc-500">Firma A</span>
-                  <span className="text-xs text-zinc-300">••• ₺</span>
+                  <span className="text-xs text-zinc-300" aria-hidden>••• ₺</span>
+                  <span className="sr-only">Fiyat gizli (kapalı zarf)</span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-200">
                   <span className="text-xs font-medium text-emerald-800">
@@ -1070,7 +1071,8 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
                   <span className="text-xs text-zinc-500">Firma C</span>
-                  <span className="text-xs text-zinc-300">••• ₺</span>
+                  <span className="text-xs text-zinc-300" aria-hidden>••• ₺</span>
+                  <span className="sr-only">Fiyat gizli (kapalı zarf)</span>
                 </div>
               </div>
               <span className="mt-5 inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">

@@ -220,7 +220,7 @@ export function IhaleListRow({
             {t.format === "ENGLISH_AUCTION" ? (
               <InfoChip tone="violet">Pazarlık</InfoChip>
             ) : (
-              <span className="text-[11px] leading-tight text-slate-400">Teklif Toplama</span>
+              <span className="text-[11px] leading-tight text-slate-600">Teklif Toplama</span>
             )}
           </span>
         ),
@@ -255,7 +255,7 @@ export function IhaleListRow({
                 {t.categories[0]!.name}
               </span>
               {t.categories.length + t.extraCategoryCount > 1 ? (
-                <span className="block text-[11px] leading-tight text-slate-400">
+                <span className="block text-[11px] leading-tight text-slate-600">
                   +{t.categories.length + t.extraCategoryCount - 1} kategori
                 </span>
               ) : null}
@@ -304,7 +304,7 @@ export function IhaleListRow({
               ] as const
             ).map(([k, v]) => (
               <div key={k}>
-                <dt className="text-[11px] text-slate-400">{k}</dt>
+                <dt className="text-[11px] text-slate-600">{k}</dt>
                 <dd className="text-[13px] leading-tight text-slate-700">{v}</dd>
               </div>
             ))}

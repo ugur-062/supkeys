@@ -16,7 +16,7 @@ export function SortBar<S extends { sort?: string; page: number }>({
   return (
     <>
       <div className="hidden items-center gap-1 text-xs sm:flex">
-        <span className="text-zinc-500">Sırala:</span>
+        <span className="text-zinc-600">Sırala:</span>
         {options.map((o) => {
           const active = (o.value ?? "") === (state.sort ?? "");
           return (
