@@ -904,6 +904,15 @@ istemcisinden alınır; (2) **fail-open** — kilit altyapısı bozulursa iş
 ATLANMAZ, koşar (aksi hâlde tek yapılandırma hatası tüm cron'ları sessizce
 durdururdu). Sözleşme: `test/unit/cron-lock.spec.ts`.
 
+### Sürüm akışı — dal koruması BYPASS EDİLEBİLİYOR
+
+`production` dalında "PR şart + Test kontrolü" kuralı var ama depo sahibi admin
+olduğu için `git push origin production` kuralı BYPASS ederek geçiyor (uzak
+"Bypassed rule violations" uyarısı basıyor). Acil olmayan her sürüm GitHub
+arayüzünden PR ile birleştirilmeli. **Birleştirmeden sonra hemen
+`git checkout main`** — 2026-09-12'de `production`da kalınıp oraya commit
+atıldı, `checkout -B` ile dal sıfırlanınca commit düştü (reflog'dan kurtarıldı).
+
 ### CSRF duruşu (üretim) — KAPANDI, guard açık (2026-09-12 doğrulandı)
 
 Bu bölüm önceden "üretimde `SameSite=none`, double-submit baypas, `lax`
