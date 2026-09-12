@@ -10,10 +10,17 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false, // testler aynı kullanıcı session'ını paylaşıyor
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  /**
+   * CI'da eşikler GEVŞEK (2026-09-13). Gecelik koşum GitHub runner'ından
+   * KAMU İNTERNETİ üzerinden staging'e konuşuyor: aynı paket yerelde yeşilken
+   * CI'da üç test zaman aşımından düştü (mobil çekmece animasyonu, süzgeç
+   * URL'sinin güncellenmesi, bir giriş). Ürün hatası değil, mesafe.
+   * Tek yeniden deneme de yalnız CI'da: yerelde kırılganlığı GÖRMEK istiyoruz.
+   */
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  timeout: process.env.CI ? 120_000 : 60_000,
+  expect: { timeout: process.env.CI ? 25_000 : 10_000 },
   reporter: [["list"]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
@@ -31,7 +38,8 @@ export default defineConfig({
       : {}),
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    actionTimeout: 10_000,
+    actionTimeout: process.env.CI ? 25_000 : 10_000,
+    navigationTimeout: process.env.CI ? 45_000 : 30_000,
   },
   projects: [
     {
