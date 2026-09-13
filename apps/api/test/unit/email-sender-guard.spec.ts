@@ -14,7 +14,7 @@ describe("Canlı gönderen adresi kapısı", () => {
 
   it("kanonik alan adı geçer", () => {
     expect(prod("bildirim@rothern.com")).toBeNull();
-    expect(prod("destek@rothern.com")).toBeNull();
+    expect(prod("support@rothern.com")).toBeNull();
   });
 
   it("alt alan adı da geçer (sağlayıcı gönderim alt alanı)", () => {

@@ -1,4 +1,5 @@
 import { RothernLogo } from "@/components/brand/logo";
+import { OPERATOR } from "@/lib/company-info";
 
 /**
  * Yayın öncesi kök sayfa. Eskiden `app/page.tsx` içinde gömülüydü; pazar yeri
@@ -26,10 +27,10 @@ export function ComingSoon() {
         <p className="mt-8 text-sm/6 text-zinc-500">
           Sorularınız için{" "}
           <a
-            href="mailto:destek@rothern.com"
+            href={`mailto:${OPERATOR.supportEmail}`}
             className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"
           >
-            destek@rothern.com
+            {OPERATOR.supportEmail}
           </a>
         </p>
       </main>

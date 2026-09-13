@@ -99,7 +99,7 @@ export default function Page() {
           heading: "12. Uygulanacak Hukuk ve Yetki",
           paragraphs: [
             `İşbu Sözleşme Türkiye Cumhuriyeti hukukuna tabidir. Sözleşme'den doğan uyuşmazlıklarda Platform kayıtları (veritabanı, log ve denetim kayıtları dâhil) HMK m. 193 anlamında delil teşkil eder; uyuşmazlıkların çözümünde ${OPERATOR.jurisdiction} yetkilidir.`,
-            "Sorular ve bildirimler için: destek@rothern.com",
+            `Sorular ve bildirimler için: ${OPERATOR.supportEmail}`,
           ],
         },
       ]}
