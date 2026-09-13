@@ -121,8 +121,20 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
   // Birincil düğme taslakta "Onaya gönder" — yayın kapısı (kategori, ≥100
   // karakter açıklama, görsel, anahtar kelime) burada sınanmıyor, o staging'in
   // işi. Buradaki soru "canlıda CSRF korumalı yazma çalışıyor mu".
+  /**
+   * YANITI BEKLE, metne bakma. İlk denemede `toContainText(/Taslak/i)`
+   * kullanmıştım ve ANINDA geçti — "Kaydedince taslak olur…" durum kartında
+   * ZATEN yazıyor. Doğrulama boşa geçince test POST bitmeden ilerledi,
+   * Playwright sayfayı kapattı ve istek İPTAL oldu (ağ izinde durum -1).
+   * Sonra "ürün veritabanında yok" diye CANLIYI suçladı.
+   */
+  const kayitYaniti = page.waitForResponse(
+    (r) => r.url().includes("/company/items/product") && r.request().method() === "POST",
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Taslak olarak kaydet" }).click();
-  await expect(page.locator("body")).toContainText(/kaydedildi|Taslak/i, { timeout: 45_000 });
+  const yanit = await kayitYaniti;
+  expect(yanit.status(), `ürün kaydı (CSRF korumalı yazma): ${await yanit.text().catch(() => "")}`).toBeLessThan(300);
 
   const urun = await db().companyItem.findFirst({
     where: { name: urunAdi },
@@ -145,8 +157,14 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
   // Yetki tablosu yüklenmeden "Davet Gönder" pasif kalıyor.
   const gonder = diyalog.getByRole("button", { name: "Davet Gönder" });
   await expect(gonder).toBeEnabled({ timeout: 30_000 });
+  // Ürün adımındaki aynı yarışa düşmemek için YANIT beklenir, metin değil.
+  const davetYaniti = page.waitForResponse(
+    (r) => r.url().includes("/company/users") && r.request().method() === "POST",
+    { timeout: 45_000 },
+  );
   await gonder.click();
-  await expect(page.locator("body")).toContainText(/Davet e-postası gönderildi/i, { timeout: 45_000 });
+  const dy = await davetYaniti;
+  expect(dy.status(), `davet gönderimi: ${await dy.text().catch(() => "")}`).toBeLessThan(300);
 
   // Davet e-postası CANLI gönderen adresinden çıktı mı?
   const davetPostasi = await db().emailLog.findFirst({
