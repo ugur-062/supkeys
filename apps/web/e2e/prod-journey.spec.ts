@@ -100,7 +100,21 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
   await yeniUrun.click();
 
   const urunAdi = `Canlı Tur Ürünü ${damga}`;
-  const adAlani = page.getByLabel(/Ürün adı/);
+  /**
+   * `getByLabel` BURADA ÇALIŞMAZ — "düzeltmeye" kalkma.
+   *
+   * `components/ui/label.tsx` düz bir `<label>` basıyor, `htmlFor` YOK; yanındaki
+   * ham `<input>`un da `id`si yok. Yani etiket girdiye programatik olarak BAĞLI
+   * DEĞİL. Bu bir ERİŞİLEBİLİRLİK KUSURU (ekran okuyucu alan adını söylemez,
+   * etikete tıklamak alanı odaklamaz) ve ürün ekleme + talep sihirbazı dahil
+   * sekiz dosyada 72 etiketi etkiliyor. Ayrı iş olarak raporlandı.
+   *
+   * `staging-a11y.spec` bunu göremedi: form bir tıklamanın ARKASINDA, tarama
+   * yalnız doğrudan açılan sayfaları geziyor.
+   *
+   * Kusur giderilince burası `getByLabel(/Ürün adı/)`ya dönmeli.
+   */
+  const adAlani = page.getByPlaceholder("Dağıtım panosu 400A IP54");
   await expect(adAlani).toBeVisible({ timeout: 30_000 });
   await adAlani.fill(urunAdi);
 
