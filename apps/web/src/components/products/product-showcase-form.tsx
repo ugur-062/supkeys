@@ -376,8 +376,9 @@ export function ProductShowcaseForm({
           {/* 1 ── TEMEL BİLGİLER */}
           <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
             <Field hint="Ürün tipi + temel özellik + ölçü/model. En fazla 128 karakter önerilir.">
-              <Label required>Ürün adı</Label>
+              <Label htmlFor="urun-adi" required>Ürün adı</Label>
               <input
+                id="urun-adi"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={200}
@@ -390,7 +391,10 @@ export function ProductShowcaseForm({
             </Field>
 
             <Field hint="Nitelik alanları seçtiğiniz kategoriden gelir — üst kategoride tanımlı nitelikler otomatik devralınır.">
-              <Label required>Kategori</Label>
+              {/* Kontrol bir modal düğmesi ve kendi adını taşıyor ("Ürün kategorisini
+                 seçin") — burası ALAN ETİKETİ değil BAŞLIK. Boş <label> bırakmak
+                 erişilebilirlik ihlali olurdu. */}
+              <Label as="p" required>Kategori</Label>
               <CategorySelectorButton
                 value={categoryId ? [categoryId] : []}
                 onChange={(ids) => setCategoryId(ids[0] ?? "")}
@@ -401,8 +405,9 @@ export function ProductShowcaseForm({
             </Field>
 
             <Field hint={`Onaya göndermek için en az ${MIN_DESCRIPTION} karakter. Ne olduğunu, nerede kullanıldığını, malzeme/standart ve teslim biçimini tam cümlelerle yazın.`}>
-              <Label required>Açıklama</Label>
+              <Label htmlFor="urun-aciklama" required>Açıklama</Label>
               <textarea
+                id="urun-aciklama"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={5000}
@@ -424,7 +429,7 @@ export function ProductShowcaseForm({
           {/* 3 ── ÖZELLİKLER */}
           <Section id="urun-ozellik" n={3} title="Anahtar kelimeler ve özellikler" lead="Alıcının yazacağı sözcükler ve kategoriye özel teknik nitelikler.">
             <div>
-              <Label>Anahtar kelimeler</Label>
+              <Label htmlFor="urun-anahtar-kelime">Anahtar kelimeler</Label>
               <p className="mt-1 text-xs text-zinc-500">
                 En fazla {MAX_KEYWORDS}. Virgülle birden çok girebilirsiniz; ürün sayfasında görünür ve aramada kullanılır.
               </p>
@@ -448,6 +453,7 @@ export function ProductShowcaseForm({
               {keywords.length < MAX_KEYWORDS ? (
                 <div className="mt-3 flex gap-2">
                   <input
+                    id="urun-anahtar-kelime"
                     value={keywordDraft}
                     onChange={(e) => setKeywordDraft(e.target.value)}
                     onKeyDown={(e) => {
@@ -527,8 +533,8 @@ export function ProductShowcaseForm({
             {/* BİRİM ve MİKTAR yan yana: MOQ birimsiz okunmaz ("500 ne?"). */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <Field hint="Fiyat ve minimum sipariş bu birimle okunur.">
-                <Label>Satış birimi</Label>
-                <select value={unitCode} onChange={(e) => setUnitCode(e.target.value)} aria-label="Satış birimi" className={INPUT}>
+                <Label htmlFor="urun-birim">Satış birimi</Label>
+                <select id="urun-birim" value={unitCode} onChange={(e) => setUnitCode(e.target.value)} className={INPUT}>
                   {UNITS.filter(
                     (u) => (COMMON_UNIT_CODES as readonly string[]).includes(u.code) || u.code === unitCode,
                   ).map((u) => (
@@ -539,9 +545,10 @@ export function ProductShowcaseForm({
                 </select>
               </Field>
               <Field>
-                <Label>Minimum sipariş miktarı</Label>
+                <Label htmlFor="urun-moq">Minimum sipariş miktarı</Label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="urun-moq"
                     type="number"
                     min={0}
                     step="0.001"
@@ -560,7 +567,9 @@ export function ProductShowcaseForm({
             {mediaAllowed ? (
               <>
                 <div>
-                  <Label>Dokümanlar</Label>
+                  {/* Dosya girişi aşağıda KENDİ <label>'ının içinde sarılı (implicit
+                     bağlama) — burası bölüm başlığı. */}
+                  <Label as="p">Dokümanlar</Label>
                   <p className="mt-1 text-xs text-zinc-500">
                     PDF katalog veya teknik föy — en fazla {MAX_DOCUMENTS}, her biri 10 MB.
                   </p>
@@ -608,8 +617,8 @@ export function ProductShowcaseForm({
                 </div>
 
                 <Field hint="YouTube veya Vimeo bağlantısı — ürün sayfasında gömülü oynatılır.">
-                  <Label>Video bağlantısı</Label>
-                  <input type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={INPUT} />
+                  <Label htmlFor="urun-video">Video bağlantısı</Label>
+                  <input id="urun-video" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={INPUT} />
                 </Field>
               </>
             ) : (
@@ -619,8 +628,8 @@ export function ProductShowcaseForm({
             )}
 
             <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
-              <Label>Ürün sayfası bağlantısı</Label>
-              <input type="url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" className={INPUT} />
+              <Label htmlFor="urun-dis-baglanti">Ürün sayfası bağlantısı</Label>
+              <input id="urun-dis-baglanti" type="url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" className={INPUT} />
             </Field>
           </Section>
         </div>
