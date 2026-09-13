@@ -91,28 +91,48 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
   expect(csrf!.domain, "çerez ANA alan adında (alt alanlar paylaşır)").toMatch(/^\.?rothern\.com$/);
 
   // ── 3. Ürün ekleme (CSRF korumalı yazma, canlı) ─────────────────────
-  await gotoRetry(page, "/company/satis/urunlerim/yeni");
+  // Ürün formunun AYRI ROTASI YOK: `/company/satis/urunlerim` sayfasında
+  // "Yeni ürün" düğmesi görünümü değiştiriyor (ürün ekleme tek sayfadır,
+  // ilan açma gibi sihirbaz değil — 2026-09-03 kullanıcı kararı).
+  await gotoRetry(page, "/company/satis/urunlerim");
+  const yeniUrun = page.getByRole("button", { name: "Yeni ürün" });
+  await expect(yeniUrun).toBeVisible({ timeout: 30_000 });
+  await yeniUrun.click();
+
   const urunAdi = `Canlı Tur Ürünü ${damga}`;
-  await page.getByLabel(/Ürün(?:.*)Adı/).first().fill(urunAdi);
-  const kaydet = page.getByRole("button", { name: /Kaydet|Taslak/ }).first();
-  await expect(kaydet).toBeVisible({ timeout: 30_000 });
-  await kaydet.click();
+  const adAlani = page.getByLabel(/Ürün adı/);
+  await expect(adAlani).toBeVisible({ timeout: 30_000 });
+  await adAlani.fill(urunAdi);
+
+  // Birincil düğme taslakta "Onaya gönder" — yayın kapısı (kategori, ≥100
+  // karakter açıklama, görsel, anahtar kelime) burada sınanmıyor, o staging'in
+  // işi. Buradaki soru "canlıda CSRF korumalı yazma çalışıyor mu".
+  await page.getByRole("button", { name: "Taslak olarak kaydet" }).click();
   await expect(page.locator("body")).toContainText(/kaydedildi|Taslak/i, { timeout: 45_000 });
 
-  const urun = await db().companyItem.findFirst({ where: { name: urunAdi }, select: { id: true, reviewStatus: true, isPublic: true } });
+  const urun = await db().companyItem.findFirst({
+    where: { name: urunAdi },
+    select: { id: true, reviewStatus: true, isPublic: true },
+  });
   expect(urun, "ürün canlı veritabanına yazıldı").toBeTruthy();
   expect(urun!.isPublic, "yeni ürün vitrine ÇIKMAZ (admin onayı şart)").toBe(false);
+  expect(urun!.reviewStatus, "taslak olarak doğar").toBe("DRAFT");
 
   // ── 4. Kullanıcı daveti ─────────────────────────────────────────────
   await gotoRetry(page, "/company/ayarlar/kullanicilar");
-  const davetAc = page.getByRole("button", { name: /Kullanıcı Davet|Davet Et/ }).first();
+  const davetAc = page.getByRole("button", { name: "Üye Davet Et" });
   await expect(davetAc).toBeVisible({ timeout: 30_000 });
   await davetAc.click();
-  const eposta = page.getByRole("dialog").locator('input[type="email"]').first();
+
+  const diyalog = page.getByRole("dialog");
+  const eposta = diyalog.locator('input[type="email"]').first();
   await expect(eposta).toBeVisible({ timeout: 15_000 });
   await eposta.fill(DAVETLI);
-  await page.getByRole("dialog").getByRole("button", { name: /Davet|Gönder/ }).first().click();
-  await expect(page.locator("body")).toContainText(new RegExp(DAVETLI.replace(/[+.]/g, "\\$&"), "i"), { timeout: 45_000 });
+  // Yetki tablosu yüklenmeden "Davet Gönder" pasif kalıyor.
+  const gonder = diyalog.getByRole("button", { name: "Davet Gönder" });
+  await expect(gonder).toBeEnabled({ timeout: 30_000 });
+  await gonder.click();
+  await expect(page.locator("body")).toContainText(/Davet e-postası gönderildi/i, { timeout: 45_000 });
 
   // Davet e-postası CANLI gönderen adresinden çıktı mı?
   const davetPostasi = await db().emailLog.findFirst({
