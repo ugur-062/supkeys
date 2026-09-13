@@ -140,8 +140,11 @@ export function closingUrgency(
 ): { text: string; className: string } | null {
   const days = daysUntil(closesAt);
   if (listingStatus !== "OPEN" || days === null) return null;
+  /* amber-600 (#e17100) beyaz zeminde 3,20:1 — AA sınırı 4,5. axe bunu
+     `/alim-talepleri` taramasında yakaladı; amber-700 5,03:1 ile geçiyor.
+     rose-600 (4,53) ve zinc-500 (4,83) zaten sınırın üstünde. */
   const className =
-    days <= 1 ? "text-rose-600" : days <= 3 ? "text-amber-600" : "text-zinc-500";
+    days <= 1 ? "text-rose-600" : days <= 3 ? "text-amber-700" : "text-zinc-500";
   const text =
     days > 0 ? `${days} gün kaldı` : days === 0 ? "Bugün biter" : "Süre doldu";
   return { text, className };

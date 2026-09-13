@@ -1,7 +1,7 @@
 import { ListingFilterShell } from "./list-filter-shells";
 import { FilterResults, MobileFilterButton, ResultCount } from "./filter-shell";
 import { ListingActiveChips, ListingFilters, ListingSortBar } from "./listing-filters";
-import { ListingTeaserCard } from "./listing-teaser-card";
+import { ListingTeaserRow } from "./listing-teaser-row";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { PublicSearchTabs } from "./public-search-tabs";
@@ -97,6 +97,11 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
         }
       >
         <FilterResults>
+          {/* SATIR listesi, ızgara DEĞİL (2026-09-13, kullanıcı kararı): alım
+              talebi görsel taşımaz, kategori fotoğrafı basmak "bu ürünün
+              fotoğrafı" yanılgısı üretiyordu. Anasayfayla ve satış panelindeki
+              Açık Talepler'le AYNI satır (`ListingTeaserRow` →
+              `ListingCard variant="row"`, kind "talep" → asla görsel). */}
           {page.items.length === 0 ? (
             <PublicEmptyState
               noun={hasFilter ? "Bu kriterlerle açık talep" : "Açık talep"}
@@ -104,9 +109,9 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
               extra={{ label: "Talep aç", href: signupHref("talep") }}
             />
           ) : (
-            <ResultGrid count={page.items.length} heading="Talep sonuçları">
+            <ResultGrid count={page.items.length} heading="Talep sonuçları" layout="list">
               {page.items.map((l) => (
-                <ListingTeaserCard key={l.number} listing={l} />
+                <ListingTeaserRow key={l.number} listing={l} />
               ))}
             </ResultGrid>
           )}

@@ -59,12 +59,19 @@ export function organizationNode(): JsonLdNode {
     logo: absoluteUrl("/rothern-logo-on-light.png"),
     email: OPERATOR.supportEmail,
     vatID: OPERATOR.taxNo.replace(/\s/g, ""),
+    /* MERSİS = Türkiye'nin resmî ticaret sicili kimliği. Üretken motorlar
+       yayıncıyı gerçek bir tüzel kişiye bağlarken bunu arar. */
+    identifier: {
+      "@type": "PropertyValue",
+      name: "MERSİS",
+      value: OPERATOR.mersisNo,
+    },
     address: {
       "@type": "PostalAddress",
-      streetAddress: "Dudullu OSB Mah. 1. Cad. No: 28/3",
-      addressLocality: "Ümraniye",
-      addressRegion: "İstanbul",
-      addressCountry: "TR",
+      streetAddress: OPERATOR.addressParts.street,
+      addressLocality: OPERATOR.addressParts.district,
+      addressRegion: OPERATOR.addressParts.city,
+      addressCountry: OPERATOR.addressParts.country,
     },
     areaServed: { "@type": "Country", name: "Türkiye" },
     contactPoint: [

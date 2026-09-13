@@ -67,14 +67,14 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
           <span className="flex flex-col items-start">
             <span className="flex items-baseline gap-1">
               <span className="font-semibold tabular-nums text-slate-900">{l.itemSummary.count}</span>
-              <span className="text-[11px] text-slate-400">kalem</span>
+              <span className="text-[11px] text-slate-500">kalem</span>
               {l.itemSummary.totalQuantity && l.itemSummary.unit ? (
                 <span className="ml-1 tabular-nums text-slate-600">
                   {Number(l.itemSummary.totalQuantity).toLocaleString("tr-TR")} {l.itemSummary.unit}
                 </span>
               ) : null}
             </span>
-            <span className="text-[11px] leading-tight text-slate-400">kalem adları ve şartname üyelere</span>
+            <span className="text-[11px] leading-tight text-slate-500">kalem adları ve şartname üyelere</span>
           </span>
         ),
       },
@@ -90,7 +90,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
             >
               {l.isInternational ? "Uluslararası" : "Yurtiçi"}
             </span>
-            <span className="text-[11px] leading-tight text-slate-400">Kapalı zarf</span>
+            <span className="text-[11px] leading-tight text-slate-500">Kapalı zarf</span>
           </span>
         ),
       },
@@ -101,14 +101,20 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
             <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>
               {formatDate(l.closesAt, "short") || "—"}
             </span>
+            {/* Kalan süre ALT SATIRDA (2026-09-13, kullanıcı kararı): rozet
+                `inline-flex` olduğu için tarihin yanına yapışıyor ve
+                "15 Eyl 20262 gün kaldı" diye okunuyordu. Satış panelindeki
+                `BrowseTenderRow` ile aynı çözüm: BLOK sarmalayıcı. */}
             {urgency ? (
-              <span
-                className={cn(
-                  "mt-1 inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
-                  days <= 1 ? "bg-rose-50 text-rose-700 ring-rose-200" : days <= 3 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200",
-                )}
-              >
-                {urgency.text}
+              <span className="mt-1 block">
+                <span
+                  className={cn(
+                    "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
+                    days <= 1 ? "bg-rose-50 text-rose-700 ring-rose-200" : days <= 3 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200",
+                  )}
+                >
+                  {urgency.text}
+                </span>
               </span>
             ) : null}
           </span>
@@ -120,11 +126,11 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
           <span title={l.categories.map((c) => c.name).join(", ")}>
             <span className="block truncate font-medium text-slate-700">{primary.name}</span>
             {l.categories.length > 1 ? (
-              <span className="block text-[11px] leading-tight text-slate-400">+{l.categories.length - 1} kategori</span>
+              <span className="block text-[11px] leading-tight text-slate-500">+{l.categories.length - 1} kategori</span>
             ) : null}
           </span>
         ) : (
-          <span className="text-slate-300">—</span>
+          <span className="text-slate-500">—</span>
         ),
       },
     ],

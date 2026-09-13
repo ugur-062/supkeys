@@ -18,6 +18,7 @@ const rows: Array<{ label: string; value: string }> = [
   { label: "Ticari Unvan", value: OPERATOR.legalName },
   { label: "Marka", value: OPERATOR.brand },
   { label: "Adres", value: OPERATOR.address },
+  { label: "MERSİS Numarası", value: OPERATOR.mersisNo },
   { label: "Vergi Dairesi", value: OPERATOR.taxOffice },
   { label: "Vergi Numarası", value: OPERATOR.taxNo },
   { label: "E-posta (destek)", value: OPERATOR.supportEmail },
