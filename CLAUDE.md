@@ -980,6 +980,12 @@ servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
   Render `WEB_URL` = `https://www.rothern.com`. Ardından
   `pnpm --filter @rothern/web seo:audit`. Adımlar: `docs/launch-checklist.md`
   § SEO yayın anı bildirimi.
+- **KÜNYEYE TELEFON NUMARASI** (2026-09-13, numara kullanıcıda): Mesafeli
+  Sözleşmeler Yönetmeliği satıcı için telefon ZORUNLU tutuyor, künyede yok.
+  Numara gelince `lib/company-info.ts` `OPERATOR`a `phone` alanı eklenir ve
+  ÜÇ yere basılır: `/iletisim` künye satırı, mesafeli satış "1. Satıcı
+  Bilgileri" bloğu, JSON-LD `organizationNode` → `contactPoint[0].telephone`.
+  MERSİS eklerken izlenen yolun aynısı.
 
 **Ürün**
 - STANDART → paketli upgrade akışı + ödeme (**PayTR**; iyzico reddetti, Stripe
