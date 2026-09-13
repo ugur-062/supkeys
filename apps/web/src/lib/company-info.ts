@@ -31,7 +31,18 @@ export const OPERATOR = {
    * taşır (`0` + vergi no + sıra), ikisi ayrışırsa biri yanlış girilmiştir.
    */
   mersisNo: "0735236468100001",
-  supportEmail: "destek@rothern.com",
+  /**
+   * Destek adresi İNGİLİZCE (2026-09-13, kullanıcı kararı): `support@`
+   * uluslararası konvansiyon, yabancı firma kaydı da kabul ettiğimiz için
+   * (sekiz ülke) Türkçe `destek@` yalnız bir kitleye hitap ediyordu.
+   */
+  supportEmail: "support@rothern.com",
+  /**
+   * KVKK adresi TÜRKÇE KALIR — bu bir dil tercihi değil, HUKUKİ KANAL adı.
+   * 6698 sayılı kanun kapsamındaki başvuruyu yapan kişi ve denetimde Kurul,
+   * tam olarak bu sözcüğü arar. `privacy@` istenirse Workspace'te takma ad
+   * olarak eklenip aynı kutuya yönlendirilir; künyedeki adres bu kalmalı.
+   */
   kvkkEmail: "kvkk@rothern.com",
   website: "www.rothern.com",
   /**

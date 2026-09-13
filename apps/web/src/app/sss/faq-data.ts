@@ -12,6 +12,8 @@
  * kullanıcı kararı bekliyor, değişince burada bayat kalırdı; fiyat sayfasına
  * bağlanıyoruz.
  */
+import { OPERATOR } from "@/lib/company-info";
+
 export interface Faq {
   q: string;
   a: string;
@@ -86,7 +88,7 @@ export const FAQ_GROUPS: { heading: string; items: Faq[] }[] = [
       },
       {
         q: "Kişisel verilerim ne oluyor?",
-        a: "Rothern, KVKK kapsamında veri sorumlusudur. Aydınlatma metni ve gizlilik politikası site altındaki sözleşmeler bölümündedir; başvurularınızı kvkk@rothern.com adresine iletebilirsiniz. Firma profilinde herkese açık olan alanları siz seçersiniz; iletişim bilgileri ziyaretçilere değil yalnız kayıtlı üyelere gösterilir.",
+        a: `Rothern, KVKK kapsamında veri sorumlusudur. Aydınlatma metni ve gizlilik politikası site altındaki sözleşmeler bölümündedir; başvurularınızı ${OPERATOR.kvkkEmail} adresine iletebilirsiniz. Firma profilinde herkese açık olan alanları siz seçersiniz; iletişim bilgileri ziyaretçilere değil yalnız kayıtlı üyelere gösterilir.`,
       },
     ],
   },

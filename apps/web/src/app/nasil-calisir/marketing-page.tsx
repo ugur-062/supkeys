@@ -1,6 +1,7 @@
 "use client";
 
 import { RothernLogo } from "@/components/brand/logo";
+import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { TrustBand } from "@/components/marketplace/trust-band";
 import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
@@ -1281,7 +1282,7 @@ export default function HomePage() {
             <p className="mt-6 text-base/7 text-zinc-600">
               Aradığınız yanıtı bulamadınız mı?{" "}
               <a
-                href="mailto:destek@rothern.com"
+                href={`mailto:${OPERATOR.supportEmail}`}
                 className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"
               >
                 bize e-posta gönder

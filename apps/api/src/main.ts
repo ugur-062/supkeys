@@ -19,6 +19,7 @@ import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
+import { assertProdEmailSender } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
 import { translateValidatorMessage } from "./common/error-messages";
@@ -87,6 +88,13 @@ async function bootstrap() {
   // frontend rk_csrf'i okuyamaz → mutasyonlar 403. Sessiz runtime 403 yerine
   // boot'ta yakala (bkz. common/config/prod-config-sanity.ts).
   assertProdConfigSanity(config);
+
+  // Gönderen adresi (fail-closed): canlı posta YALNIZ rothern.com alan adından
+  // çıkabilir. 2026-09-13'te canlı `onboarding@resend.dev` kullanıyordu —
+  // müşteriye giden her e-posta sağlayıcının TEST alan adından gidiyordu ve
+  // hata sessizdi (gönderim başarılı, günlük temiz, testler yeşil). Artık
+  // yanlış adresle boot edilmez (bkz. common/config/email-sender.ts).
+  assertProdEmailSender(config);
 
   // Faz AI-0 — AI anahtar sağlığı: placeholder/bozuk anahtar prod'da BOOT
   // ETMEZ (bozuk anahtarla "AI açık" sanılıp runtime'da her çağrının 502

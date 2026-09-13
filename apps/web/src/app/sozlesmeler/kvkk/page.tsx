@@ -100,7 +100,7 @@ export default function Page() {
         {
           heading: "9. Başvuru",
           paragraphs: [
-            "Haklarınıza ilişkin taleplerinizi, Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ'e uygun olarak kvkk@rothern.com adresine iletebilirsiniz. Başvurularınız en geç 30 gün içinde ücretsiz olarak sonuçlandırılır; işlemin ayrıca bir maliyet gerektirmesi hâlinde Kişisel Verileri Koruma Kurulu tarafından belirlenen tarifedeki ücret alınabilir.",
+            `Haklarınıza ilişkin taleplerinizi, Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ'e uygun olarak ${OPERATOR.kvkkEmail} adresine iletebilirsiniz. Başvurularınız en geç 30 gün içinde ücretsiz olarak sonuçlandırılır; işlemin ayrıca bir maliyet gerektirmesi hâlinde Kişisel Verileri Koruma Kurulu tarafından belirlenen tarifedeki ücret alınabilir.`,
             "Platform, işbu Aydınlatma Metni'ni mevzuat ve hizmet kapsamındaki değişikliklere bağlı olarak güncelleyebilir; güncel metin her zaman bu sayfada yayımlanır.",
           ],
         },
