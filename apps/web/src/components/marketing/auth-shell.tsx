@@ -2,42 +2,19 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-function Mini({
-  className,
-  dot,
-  text,
-  float = "rt-float",
-}: {
-  className: string;
-  dot?: string;
-  text: string;
-  float?: string;
-}) {
-  return (
-    <div
-      className={`absolute hidden max-w-[12rem] items-center gap-2 rounded-xl border border-zinc-950/5 bg-white px-3.5 py-2.5 shadow-lg ring-1 ring-zinc-950/5 lg:flex ${float} ${className}`}
-    >
-      {dot ? <span className={`size-2 shrink-0 rounded-full ${dot}`} /> : null}
-      <span className="truncate text-sm font-medium text-zinc-800">{text}</span>
-    </div>
-  );
-}
-
-const cards = [
-  { c: "top-[13%] left-[3%]", f: "rt-float", dot: "bg-blue-500", t: "Çelik alımı · 3 teklif" },
-  { c: "top-[43%] left-[6%]", f: "rt-float-slow", t: "🌍 Yurtiçi + sınır ötesi" },
-  { c: "bottom-[13%] left-[4%]", f: "rt-float-slow", dot: "bg-emerald-500", t: "Bakır satışı · hemen-al" },
-  { c: "top-[15%] right-[3%]", f: "rt-float-slow", dot: "bg-emerald-500", t: "Sipariş kargolandı" },
-  { c: "top-[45%] right-[6%]", f: "rt-float", dot: "bg-blue-500", t: "Kapalı zarf · gizli teklif" },
-  { c: "right-[4%] bottom-[15%]", f: "rt-float", t: "Yeni bağlantı · kabul" },
-];
-
-const pulses = [
-  "top-[26%] left-[24%] bg-emerald-500",
-  "top-[70%] left-[30%] bg-blue-500",
-  "top-[20%] right-[26%] bg-blue-500",
-  "top-[66%] right-[22%] bg-emerald-500",
-];
+/**
+ * UÇUŞAN MİNİ KARTLAR VE NABIZ NOKTALARI KALDIRILDI (2026-09-13, kullanıcı
+ * kararı). Altı kart sahte etkinlik basıyordu ("Çelik alımı · 3 teklif",
+ * "Sipariş kargolandı") ve ikisi SİSTEMDE OLMAYAN özelliklere atıf yapıyordu
+ * ("Bakır satışı · hemen-al" — satış ilanı ve Hemen Al 2026-09-04'te
+ * kaldırıldı). "Uydurma sinyal basılmaz" kuralının doğrudan ihlaliydi.
+ *
+ * Nabız noktaları da gitti: tek işlevi kartların yanında "canlı hareket"
+ * hissi vermekti, kartlar olmadan anlamsız leke kalıyordu.
+ *
+ * KALAN atmosfer bir şey İDDİA ETMEYEN saf görsel: ızgara deseni ve renk
+ * bulanıklıkları. Yeniden kart eklenecekse metin GERÇEK bir olguya dayanmalı.
+ */
 
 export function AuthShell({
   title,
@@ -83,20 +60,6 @@ export function AuthShell({
         aria-hidden="true"
         className="rt-float-slow absolute bottom-0 left-1/3 -z-10 size-[28rem] rounded-full bg-violet-400/10 blur-[100px]"
       />
-
-      {/* nabız noktaları */}
-      {pulses.map((p) => (
-        <span
-          key={p}
-          aria-hidden="true"
-          className={`absolute hidden size-1.5 animate-pulse rounded-full lg:block ${p}`}
-        />
-      ))}
-
-      {/* uçuşan mini kartlar */}
-      {cards.map((m) => (
-        <Mini key={m.c} className={m.c} float={m.f} dot={m.dot} text={m.t} />
-      ))}
 
       {/* ortadaki kart */}
       <div className="relative w-full max-w-md">

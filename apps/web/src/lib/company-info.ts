@@ -37,12 +37,17 @@ export const OPERATOR = {
   /**
    * Yetki maddeleri bunu kullanır (sözleşmelerde "… yetkilidir").
    *
-   * AÇIK SORU: künyedeki adres Bakırköy (Avrupa yakası) ama vergi dairesi
-   * Sarıgazi (Anadolu yakası) — vergi dairesi KAYITLI MERKEZE göre atandığı
-   * için merkez büyük olasılıkla hâlâ Anadolu yakasında ve Bakırköy adresi
-   * şube/yazışma adresi. Tahminle değiştirmek sözleşme şartını bozar, o
-   * yüzden mevcut değer korundu. Merkez gerçekten Bakırköy'e taşındıysa
-   * burası "Bakırköy Mahkemeleri ve İcra Daireleri" olmalı.
+   * ⚠️ TAŞINMA SÜRÜYOR (2026-09-13, sahibin beyanı): yukarıdaki adres
+   * teknopark adresi ve fiilen oraya taşınıldı, ancak TİCARET SİCİLİ /
+   * MERSİS işlemleri HENÜZ TAMAMLANMADI. Vergi dairesinin Sarıgazi
+   * (Anadolu yakası) kalması bunun kanıtı — vergi dairesi kayıtlı merkeze
+   * göre atanır.
+   *
+   * Bu yüzden yetki maddesi kayıtlı merkeze göre Anadolu'da BIRAKILDI.
+   * Tescil tamamlanınca ÜÇÜ BİRLİKTE gözden geçirilmeli:
+   * `taxOffice` (Bakırköy tarafına geçer), bu alan
+   * ("Bakırköy Mahkemeleri ve İcra Daireleri") ve varsa şube/merkez ayrımı.
+   * Yalnız birini değiştirmek künyeyi kendi içinde çelişkili bırakır.
    */
   jurisdiction: "İstanbul Anadolu Mahkemeleri ve İcra Daireleri",
 } as const;
