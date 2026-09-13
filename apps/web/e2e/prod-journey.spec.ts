@@ -157,14 +157,30 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
   // Yetki tablosu yüklenmeden "Davet Gönder" pasif kalıyor.
   const gonder = diyalog.getByRole("button", { name: "Davet Gönder" });
   await expect(gonder).toBeEnabled({ timeout: 30_000 });
-  // Ürün adımındaki aynı yarışa düşmemek için YANIT beklenir, metin değil.
-  const davetYaniti = page.waitForResponse(
-    (r) => r.url().includes("/company/users") && r.request().method() === "POST",
-    { timeout: 45_000 },
-  );
+  const davetUcu = (r: import("@playwright/test").Response) =>
+    r.url().includes("/company/users") && r.request().method() === "POST";
+
+  /**
+   * 4a — KOLTUK SINIRI ÜCRETSİZ PAKETTE GERÇEKTEN KAPATIYOR.
+   *
+   * Ücretsiz pakette 2 koltuk var ve kurucu ikisini de dolduruyor (satın alma
+   * + satış). Diyalog VARSAYILAN olarak "Satın Almacı" hazır setini işaretli
+   * getiriyor ve o set koltuk tüketiyor → ücretsiz firmanın İLK daveti 400
+   * alır. Bu DOĞRU davranış, canlıda ölçüldü; testte de böyle iddia edilir.
+   * Geçerse (yani sınır kalkarsa) burası kırmızı olmalı.
+   */
+  const koltukYaniti = page.waitForResponse(davetUcu, { timeout: 45_000 });
+  await gonder.click();
+  const ky = await koltukYaniti;
+  expect(ky.status(), "ücretsiz pakette işlem yetkili davet koltuk sınırına takılır").toBe(400);
+  expect(await ky.text()).toMatch(/Koltuk dolu/);
+
+  /* 4b — "Görüntüleyici" koltuk TÜKETMEZ → aynı davet geçmeli. */
+  await diyalog.getByRole("button", { name: "Görüntüleyici" }).click();
+  const davetYaniti = page.waitForResponse(davetUcu, { timeout: 45_000 });
   await gonder.click();
   const dy = await davetYaniti;
-  expect(dy.status(), `davet gönderimi: ${await dy.text().catch(() => "")}`).toBeLessThan(300);
+  expect(dy.status(), `görüntüleyici daveti: ${await dy.text().catch(() => "")}`).toBeLessThan(300);
 
   // Davet e-postası CANLI gönderen adresinden çıktı mı?
   const davetPostasi = await db().emailLog.findFirst({
