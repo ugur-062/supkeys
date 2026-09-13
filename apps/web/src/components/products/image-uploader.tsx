@@ -105,7 +105,7 @@ export function ImageUploader({
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-zinc-900">
           Görseller
-          <span className="ml-1 font-normal text-zinc-400">
+          <span className="ml-1 font-normal text-zinc-500">
             ({images.length}/{MAX_IMAGES})
           </span>
         </p>
@@ -208,7 +208,7 @@ export function ImageUploader({
               <span className="text-xs font-medium">
                 {busy ? "Yükleniyor…" : "Görsel ekle"}
               </span>
-              <span className="text-[10px] text-zinc-400">ya da sürükleyip bırakın</span>
+              <span className="text-[10px] text-zinc-500">ya da sürükleyip bırakın</span>
             </button>
           </li>
         ) : null}

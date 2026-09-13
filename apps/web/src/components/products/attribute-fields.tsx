@@ -55,10 +55,10 @@ export function AttributeFields({
             >
               {d.nameTr}
               {d.unit ? (
-                <span className="ml-1 font-normal text-zinc-400">({d.unit})</span>
+                <span className="ml-1 font-normal text-zinc-500">({d.unit})</span>
               ) : null}
               {d.isRequired ? (
-                <span className="ml-1 text-zinc-400" title="Tamamlanma skorunu etkiler">
+                <span className="ml-1 text-zinc-500" title="Tamamlanma skorunu etkiler">
                   *
                 </span>
               ) : null}
