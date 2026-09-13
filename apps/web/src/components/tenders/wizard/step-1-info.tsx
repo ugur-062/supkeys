@@ -144,10 +144,14 @@ function FormRadioGroup({
   name,
   className,
   children,
+  /* Grubun görünür başlığının id'si. Radyo grubunun ADI olmadan ekran
+     okuyucu yalnız tek tek seçenekleri okur, neyin sorulduğunu söylemez. */
+  ariaLabelledBy,
 }: {
   name: FieldPath<TenderFormData>;
   className?: string;
   children: React.ReactNode;
+  ariaLabelledBy?: string;
 }) {
   const { control } = useFormContext<TenderFormData>();
   return (
@@ -159,6 +163,7 @@ function FormRadioGroup({
           value={(field.value ?? "") as string}
           onChange={field.onChange}
           className={className}
+          aria-labelledby={ariaLabelledBy}
         >
           {children}
         </RadioGroup>
@@ -403,8 +408,9 @@ function LogisticsSection() {
       <div className="space-y-4">
         {/* Taşıma modu */}
         <Field error={lerr?.transportMode?.message}>
-          <Label required>Taşıma Modu</Label>
+          <Label as="p" id="tasima-modu-baslik" required>Taşıma Modu</Label>
           <FormRadioGroup
+            ariaLabelledBy="tasima-modu-baslik"
             name="logistics.transportMode"
             className="grid grid-cols-2 md:grid-cols-5 gap-2"
           >
@@ -575,8 +581,8 @@ function LogisticsSection() {
 
         {/* Özel durumlar */}
         <Field>
-          <Label>Özel Durumlar</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Label as="p" id="ozel-durumlar-baslik">Özel Durumlar</Label>
+          <div role="group" aria-labelledby="ozel-durumlar-baslik" className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {(
               [
                 ["hazardous", "Tehlikeli Madde (ADR)"],
@@ -838,8 +844,9 @@ export function Step1Info({
           <Field
             hint={`Davetli: yalnız seçtikleriniz. Bağlantılarıma Açık: bağlı ${rolPl} davet beklemeden görür. Herkese Açık: ek olarak premium ${rolPl} de teklif verir.`}
           >
-            <Label>{L.entityShort} Görünürlüğü</Label>
+            <Label as="p" id="gorunurluk-baslik">{L.entityShort} Görünürlüğü</Label>
             <FormRadioGroup
+              ariaLabelledBy="gorunurluk-baslik"
               name="visibility"
               className="grid grid-cols-1 md:grid-cols-3 gap-3"
             >
@@ -894,7 +901,8 @@ export function Step1Info({
             verilirse aynı mesaj iki kez görünüyordu). */}
         <Field>
           <div className="flex flex-wrap items-center gap-2">
-            <Label required>Kategoriler</Label>
+            {/* Kontroller kendi adlarını taşıyor (seçici düğmesi, çoklu seçim) — burası BAŞLIK. */}
+              <Label as="p" required>Kategoriler</Label>
             {!aiHidden ? (
               <Button
                 type="button"
@@ -1184,7 +1192,7 @@ export function Step1Info({
                   (errors.primaryCurrency?.message as string | undefined)
                 }
               >
-                <Label required>Para Birimleri</Label>
+                <Label as="p" required>Para Birimleri</Label>
                 <CurrencyMultiSelect
                   value={allowedCurrencies as Currency[]}
                   onChange={(next) => {
@@ -1243,7 +1251,7 @@ export function Step1Info({
                   (errors.primaryCurrency?.message as string | undefined)
                 }
               >
-                <Label required>Para Birimleri</Label>
+                <Label as="p" required>Para Birimleri</Label>
                 <CurrencyMultiSelect
                   value={allowedCurrencies as Currency[]}
                   onChange={(next) => {
@@ -1543,8 +1551,8 @@ export function Step1Info({
           {paymentCategory === "LETTER_OF_CREDIT" ? (
             <div className="space-y-3">
               <Field error={errors.lcType?.message}>
-                <Label required>Akreditif Tipi</Label>
-                <FormRadioGroup name="lcType" className="grid grid-cols-2 gap-3">
+                <Label as="p" id="lc-tipi-baslik" required>Akreditif Tipi</Label>
+                <FormRadioGroup ariaLabelledBy="lc-tipi-baslik" name="lcType" className="grid grid-cols-2 gap-3">
                   <div className="flex items-start gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
                     <Radio value="SIGHT" aria-label="Sight" className="mt-0.5" />
                     <span className="min-w-0">
