@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "seo:audit": "node scripts/seo-audit.mjs",
+    "health:prod": "node scripts/prod-health.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
