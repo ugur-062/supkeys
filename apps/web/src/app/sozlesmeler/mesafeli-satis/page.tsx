@@ -24,6 +24,7 @@ export default function Page() {
             `Ticari unvan: ${OPERATOR.legalName} ("Satıcı")`,
             `Marka / hizmet: ${OPERATOR.brand} — ${OPERATOR.website}`,
             `Adres: ${OPERATOR.address}`,
+            `MERSİS no: ${OPERATOR.mersisNo}`,
             `Vergi dairesi / no: ${OPERATOR.taxOffice} / ${OPERATOR.taxNo}`,
             `E-posta: ${OPERATOR.supportEmail}`,
           ],
