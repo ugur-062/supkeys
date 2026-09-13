@@ -1,0 +1,64 @@
+# CANLI SAĞLIK DENETİMİ — sürüm sonrası + günlük.
+#
+# NEDEN AYRI İŞ AKIŞI: `test.yml` kodu sınar, bu iş akışı ÇALIŞAN SİSTEMİ sınar.
+# İkisi farklı soruları yanıtlıyor. Testler yeşilken canlının bozuk olması
+# mümkün ve 2026-09-13'te tam olarak bu yaşandı: paket yeşildi ama IndexNow
+# kanalı hiçbir adresi bildiremiyordu, gönderen alan adı yanlıştı ve silinmiş
+# sayfalar önbellekten servis ediliyordu. Üçü de yalnız canlıyı YOKLAYARAK
+# görülebilirdi.
+#
+# NE ZAMAN KOŞAR
+#  · `production` dalına her birleşmede — sürümün gerçekten indiğini ve
+#    yapılandırmanın bozulmadığını doğrular. Dağıtımın tamamlanması için
+#    başta bir bekleme var: Render + Vercel ~3-5 dk sürüyor.
+#  · Her gün — yapılandırma sürüklenmesi (env değişikliği, süresi dolan DNS
+#    kaydı, uykuya dalan servis) sessizce birikmesin.
+#  · Elle.
+#
+# GİZLİ ANAHTAR: `INDEXNOW_KEY` deposu sırrı olarak tanımlıysa anahtar
+# dosyasının KÖKTE olduğu da doğrulanır (alt dizindeyken kanal çalışmıyordu).
+# Tanımlı değilse o kontrol atlanır, iş akışı yine koşar.
+name: Sağlık (canlı)
+
+on:
+  push:
+    branches: [production]
+  schedule:
+    - cron: "0 6 * * *" # her gün 09:00 TR
+  workflow_dispatch:
+
+# Aynı anda tek koşum: birbiri ardına gelen iki sürümde ilk koşum artık
+# geçerli olmayan sürümü yoklardı.
+concurrency:
+  group: health-prod
+  cancel-in-progress: true
+
+jobs:
+  saglik:
+    name: Canlı sağlık denetimi
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Betiğin bağımlılığı YOK (Node 22 fetch) — kurulum yapılmıyor.
+      # `company-info.ts` yalnız OKUNUYOR, derlenmiyor.
+
+      - name: Dağıtımın inmesini bekle
+        if: github.event_name == 'push'
+        run: sleep 240
+
+      - name: Denetimi koş
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+        run: node apps/web/scripts/prod-health.mjs
+
+      - name: SEO denetimini koş
+        env:
+          SITE: https://www.rothern.com
+        run: node apps/web/scripts/seo-audit.mjs
