@@ -14,6 +14,9 @@ import type { ReactNode } from "react";
  *
  * KALAN atmosfer bir şey İDDİA ETMEYEN saf görsel: ızgara deseni ve renk
  * bulanıklıkları. Yeniden kart eklenecekse metin GERÇEK bir olguya dayanmalı.
+ *
+ * LOGO KALIR (kullanıcıya ayrıca soruldu, 2026-09-13): formun üstündeki
+ * Rothern logosu marka çapasıdır, temizliğin kapsamı dışında.
  */
 
 export function AuthShell({

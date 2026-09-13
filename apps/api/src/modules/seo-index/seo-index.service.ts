@@ -339,9 +339,14 @@ export class SeoIndexService {
           body: JSON.stringify({
             host,
             key,
-            // Anahtar dosyası web'de `/indexnow/<key>.txt` (route handler) —
+            // KÖK konum ŞART: IndexNow anahtar dosyasının bulunduğu DİZİN,
+            // bildirilebilecek adreslerin kapsamını sınırlar. `/indexnow/`
+            // altını gösterirken canlı 422 döndürüyordu ("URLs are not
+            // related to your site"); kökten gösterince tüm site kapsama
+            // girer. Web tarafı aynı dosyayı `next.config.ts` rewrite'ıyla
+            // hem kökten hem `/indexnow/<key>.txt`ten servis eder.
             // kök dizine statik dosya koymak yerine env'den doğrulanır.
-            keyLocation: `${base}/indexnow/${key}.txt`,
+            keyLocation: `${base}/${key}.txt`,
             urlList: batch,
           }),
           signal: AbortSignal.timeout(10_000),

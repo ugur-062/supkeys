@@ -91,6 +91,35 @@ const nextConfig: NextConfig = {
    * parametreleri Next tarafından otomatik aktarılır — yani
    * `/…/ihalelerim/abc?tab=2` → `/…/taleplerim/abc?tab=2`.
    */
+  /**
+   * INDEXNOW ANAHTAR DOSYASI KÖKTEN DE SERVİS EDİLİR — ZORUNLU.
+   *
+   * IndexNow'da anahtar dosyasının KONUMU, bildirebileceğin adreslerin
+   * KAPSAMINI belirler: dosya `/indexnow/<key>.txt` altındaysa yalnız
+   * `/indexnow/…` adresleri bildirilebilir. 2026-09-13'te canlıda ölçüldü:
+   *   anasayfa           → HTTP 422 "URLs are not related to your site"
+   *   /indexnow/… altı   → HTTP 202 kabul
+   * Yani kanal kuruluydu ama TEK BİR gerçek ürün/firma/talep adresini bile
+   * bildiremiyordu ve bunu sessizce yapıyordu.
+   *
+   * `afterFiles`: dosya sistemi rotaları ÖNCE çözülür → `/robots.txt`,
+   * `/llms.txt`, `/llms-full.txt` kendi rotalarında kalır, buraya düşmez.
+   * Desen en az 8 karakter ister (IndexNow anahtar tabanı), o yüzden kısa
+   * adlı .txt rotalarıyla çakışmaz.
+   */
+  async rewrites() {
+    return {
+      beforeFiles: [],
+      afterFiles: [
+        {
+          source: "/:anahtar([A-Za-z0-9-]{8,128}).txt",
+          destination: "/indexnow/:anahtar.txt",
+        },
+      ],
+      fallback: [],
+    };
+  },
+
   async redirects() {
     return [
       // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →

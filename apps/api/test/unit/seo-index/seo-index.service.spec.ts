@@ -80,7 +80,21 @@ describe("SeoIndexService", () => {
     const inBody = JSON.parse(indexNowCall[1].body);
     expect(inBody.host).toBe("www.rothern.com");
     expect(inBody.key).toBe("abc123");
-    expect(inBody.keyLocation).toBe("https://www.rothern.com/indexnow/abc123.txt");
+    /**
+     * KÖK KONUM — pazarlık konusu değil. IndexNow'da anahtar dosyasının
+     * bulunduğu DİZİN, bildirilebilecek adreslerin KAPSAMINI sınırlar.
+     * `/indexnow/abc123.txt` gösterildiğinde canlı **422** dönüyordu
+     * ("URLs are not related to your site verified through the keylocation
+     * parameter") ve kanal tek bir ürün/firma/talep adresini bile
+     * bildiremiyordu — fail-open olduğu için SESSİZCE. 2026-09-13'te
+     * ölçüldü ve düzeltildi; web tarafı aynı dosyayı `next.config.ts`
+     * rewrite'ıyla kökten de servis eder.
+     */
+    expect(inBody.keyLocation).toBe("https://www.rothern.com/abc123.txt");
+    /* Kapsam kuralı: keyLocation'ın dizini, bildirilen HER adresin ön eki
+       olmalı. Kök olduğu için bu her zaman sağlanır. */
+    const kapsam = inBody.keyLocation.slice(0, inBody.keyLocation.lastIndexOf("/") + 1);
+    for (const u of inBody.urlList) expect(u.startsWith(kapsam)).toBe(true);
     expect(inBody.urlList).toEqual([
       "https://www.rothern.com/firma/acme-metal/urun/celik-boru",
       "https://www.rothern.com/firma/acme-metal",
