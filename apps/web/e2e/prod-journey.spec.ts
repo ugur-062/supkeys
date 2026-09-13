@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { gotoRetry } from "./staging-helpers";
+import { PASSWORD, gotoRetry, uiLogin } from "./staging-helpers";
 import { cleanupCompanyByOwnerEmail, closeDb, db } from "./db-helpers";
 import { dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
 
@@ -24,7 +24,10 @@ import { dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
 const damga = Date.now().toString(36).toUpperCase();
 const KURUCU = `uguray156+canli-${damga.toLowerCase()}@gmail.com`;
 const DAVETLI = `uguray156+canli-${damga.toLowerCase()}-2@gmail.com`;
-const SIFRE = process.env.E2E_PASSWORD ?? "Canli1234!";
+/* Şifre TEK KAYNAK: `uiLogin` de aynı değeri kullanır. Ayrı varsayılan
+   tutulsaydı betiksiz koşumda kayıt bir şifreyle açılır, giriş başkasıyla
+   denenirdi — sessiz ve teşhisi zor bir kırık. */
+const SIFRE = PASSWORD;
 const FIRMA = `Canlı Tur ${damga} Ltd. Şti.`;
 
 test.describe.configure({ mode: "serial" });
@@ -59,18 +62,26 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
   // ── 2. Çıkış → giriş (ÇEREZ ALANI + CSRF canlıda farklı) ────────────
   // Oturum kurulumu staging'den ayrı bir alan adında çalışıyor; formdan
   // yeniden girmek bunu doğrudan sınar.
-  await gotoRetry(page, "/company/ayarlar");
-  const cikis = page.getByRole("button", { name: /Çıkış/ }).first();
-  if ((await cikis.count()) > 0) {
-    await cikis.click();
-  } else {
-    await page.context().clearCookies();
-  }
-  await gotoRetry(page, "/company/login");
-  await page.locator('input[type="email"]').fill(KURUCU);
-  await page.locator('input[type="password"]').fill(SIFRE);
-  await page.getByRole("button", { name: "Giriş Yap" }).click();
-  await page.waitForURL(/\/company(?!\/login)/, { timeout: 60_000 });
+  //
+  // TUZAK (2026-09-13, ilk koşumda yakalandı): yalnız ÇEREZ silmek yetmiyor.
+  // Zustand persist kimlik anlık görüntüsünü (`user`/`company`) localStorage'da
+  // tutuyor — çerez gidince başlık HÂLÂ oturum açıkmış gibi görünüyor, uygulama
+  // arka planda girişe yönleniyor ve elle doldurulan form bu yönlendirmeyle
+  // YARIŞIYOR. İlk koşumda giriş POST'u iptal oldu (ağ izinde durum -1), test
+  // de "CSRF çerezi yok" diye CANLIYI suçladı. İkisi birlikte temizlenmeli.
+  await page.evaluate(() => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {
+      /* özel pencere */
+    }
+  });
+  await page.context().clearCookies();
+
+  // Elle form doldurmak yerine sertleştirilmiş yardımcı: oturumu `/me` ile
+  // DOĞRULAR ve hız sınırında yineler — tam da yukarıdaki yarışa karşı yazılmıştı.
+  await uiLogin(page, KURUCU);
 
   // Çerez gerçekten ANA alan adına yazıldı mı — `.rothern.com` olmazsa
   // `www` `rk_csrf`i okuyamaz ve tüm mutasyonlar 403 olur.
