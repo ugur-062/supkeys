@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyProfile } from "@/hooks/use-company-profile";
 
 const h = vi.hoisted(() => ({
+  post: vi.fn(),
   update: vi.fn(),
   upload: vi.fn(),
   updatePending: false,
@@ -15,7 +16,7 @@ vi.mock("@/hooks/use-company-profile", () => ({
   useUpdateCompanyProfile: () => ({ mutateAsync: h.update, isPending: h.updatePending }),
   useUploadProfileImage: () => ({ mutateAsync: h.upload, isPending: false }),
 }));
-vi.mock("@/lib/company-auth/api", () => ({ companyApi: { post: vi.fn(), get: h.get } }));
+vi.mock("@/lib/company-auth/api", () => ({ companyApi: { post: h.post, get: h.get } }));
 // Kategori seçiciler + Ürünlerim kartı sorgu atar (segmentler, kataloğum).
 vi.mock("@/lib/api", () => ({ api: { get: h.get } }));
 
@@ -202,5 +203,71 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByLabelText("Hakkında")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Logoyu değiştir")).not.toBeInTheDocument();
     expect(screen.getByText(/yetkisi gerekir/)).toBeInTheDocument();
+  });
+
+  /**
+   * "WEB SİTEMDEN AI İLE DOLDUR" — kullanıcı kararı 2026-09-14.
+   *
+   * Eskiden düğme site boşken PASİFTİ ve ipucu "önce künyeye web sitesi girin"
+   * diyordu; künye ise sayfanın en altındaydı. Kullanıcı düğmeyi görüyor, neden
+   * çalışmadığını anlamıyordu. Artık düğme her zaman basılabilir: site varsa
+   * ANINDA başlar, yoksa yerinde sorar.
+   */
+  describe("AI ile profil doldurma", () => {
+    const AI_YANIT = {
+      data: {
+        aboutText: "Örnek firma paslanmaz boru üretir.",
+        services: ["Kaynak"],
+        foundedYear: 1998,
+        linkedinUrl: null,
+        instagramUrl: null,
+        logoCandidateUrl: null,
+      },
+    };
+
+    it("site KAYITLIYSA tıklandığı an başlar ve adresi GÖVDEDE yollar", async () => {
+      h.post.mockResolvedValue(AI_YANIT);
+      render(<ProfileEditor profile={{ ...PROFILE, website: "ornekfirma.com" }} canEdit />);
+      fireEvent.click(screen.getByRole("button", { name: /AI ile doldur/ }));
+
+      await waitFor(() => expect(h.post).toHaveBeenCalled());
+      // Gövde ŞART: kullanıcının az önce yazdığı adres henüz kaydedilmemiş
+      // olabilir, sunucu DB'deki boş değeri okurdu.
+      expect(h.post.mock.calls[0][1]).toEqual({ website: "ornekfirma.com" });
+      // Site sorma kutusu HİÇ açılmaz.
+      expect(screen.queryByLabelText("Web sitenizin adresi")).toBeNull();
+    });
+
+    it("site YOKSA önce sorar, adres girilince başlar", async () => {
+      h.post.mockResolvedValue(AI_YANIT);
+      render(<ProfileEditor profile={{ ...PROFILE, website: null }} canEdit />);
+      fireEvent.click(screen.getByRole("button", { name: /AI ile doldur/ }));
+
+      // Düğme pasif DEĞİL — sorar.
+      const alan = await screen.findByLabelText("Web sitenizin adresi");
+      expect(h.post).not.toHaveBeenCalled();
+
+      fireEvent.change(alan, { target: { value: "yenifirma.com" } });
+      fireEvent.click(screen.getByRole("button", { name: "Devam" }));
+
+      await waitFor(() => expect(h.post).toHaveBeenCalled());
+      expect(h.post.mock.calls[0][1]).toEqual({ website: "yenifirma.com" });
+    });
+
+    it("sorma kutusundan girilen adres KÜNYEYE de işlenir", async () => {
+      h.post.mockResolvedValue(AI_YANIT);
+      render(<ProfileEditor profile={{ ...PROFILE, website: null }} canEdit />);
+      fireEvent.click(screen.getByRole("button", { name: /AI ile doldur/ }));
+      fireEvent.change(await screen.findByLabelText("Web sitenizin adresi"), {
+        target: { value: "yenifirma.com" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Devam" }));
+
+      await waitFor(() =>
+        expect((screen.getByLabelText("Web sitesi") as HTMLInputElement).value).toBe(
+          "yenifirma.com",
+        ),
+      );
+    });
   });
 });
