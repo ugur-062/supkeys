@@ -48,6 +48,32 @@ test("canlı admin: giriş, çerez alanı, onay kuyruğu", async ({ browser }) =
   const me = await page.request.get(`${API.replace(/\/?$/, "/")}admin/auth/me`);
   expect(me.status(), "admin /me").toBe(200);
 
+  // ── 3b. OTURUM ÖMRÜ: çerez ile JETON aynı fikirde mi? ──────────────
+  /**
+   * "Oturumu açık bırak" ÇEREZİ uzatıyor ama JETONU uzatmıyor olabilir.
+   * Çerez 30 gün yaşarken jeton 1 saatte ölürse kullanıcı ertesi gün
+   * döndüğünde çerez duruyor, içi geçersiz — ve girişe atılıyor. Kullanıcı
+   * "her seferinde yeniden giriyorum" diyor; ölçüm bunu yanıtlamalı.
+   *
+   * Burada İDDİA YOK, RAPOR var: canlı değeri görmeden eşik koymak yanlış
+   * olur. Çıktı koşum günlüğüne düşer.
+   */
+  const jeton = cerezler.find((c) => c.name === "rk_admin")!;
+  const govde = jeton.value.split(".")[1] ?? "";
+  const cozulmus = JSON.parse(
+    Buffer.from(govde.padEnd(govde.length + ((4 - (govde.length % 4)) % 4), "="), "base64url").toString(),
+  ) as { iat?: number; exp?: number; persistent?: boolean };
+  const jetonSaat = cozulmus.exp && cozulmus.iat ? (cozulmus.exp - cozulmus.iat) / 3600 : 0;
+  const cerezSaat = jeton.expires > 0 ? (jeton.expires - Date.now() / 1000) / 3600 : 0;
+  console.log(
+    `   ⓘ oturum ömrü — jeton ${jetonSaat.toFixed(1)} sa · çerez ${cerezSaat.toFixed(1)} sa · persistent=${cozulmus.persistent}`,
+  );
+  console.log(
+    jetonSaat > 0 && cerezSaat > jetonSaat * 1.5
+      ? `   ⚠️ ÇEREZ JETONDAN ${(cerezSaat / jetonSaat).toFixed(0)}× UZUN — kullanıcı jeton ölünce girişe atılır`
+      : "   ✓ çerez ve jeton ömrü uyumlu",
+  );
+
   // ── 4. Ürün onay kuyruğu açılıyor mu ───────────────────────────────
   // Müşterinin ürünü bu ekrandan vitrine çıkıyor; ekran açılmıyorsa zincir kopuk.
   await gotoRetry(page, "/admin/urunler");
