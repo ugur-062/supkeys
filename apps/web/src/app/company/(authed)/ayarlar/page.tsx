@@ -10,7 +10,7 @@ import { verificationMeta } from "@/lib/company/verification-status";
 import { SETTINGS_PAGES, type SettingsPageMeta } from "@/lib/company/settings-pages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
-import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 interface SettingsCard extends SettingsPageMeta {
@@ -52,7 +52,6 @@ const GROUPS: SettingsGroup[] = [
         icon: Sparkles,
         permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
       },
-      { ...SETTINGS_PAGES.onayAkislari, icon: Workflow, permission: "approvals:manage" },
       { ...SETTINGS_PAGES.dogrulama, icon: BadgeCheck, permission: "company:manage" },
     ],
   },

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
  * AYARLAR HUB — sözleşme: kart kapısı = sayfa kapısı (izin), durum rozetleri
- * store verisinden, Onay Akışları kartı akış görünümüne (?tab=flows) gider,
- * Firma Profili kartı Profilim'e; "galeri" sözcüğü yok (2026-09-10).
+ * store verisinden, Firma Profili kartı Profilim'e; "galeri" sözcüğü yok
+ * (2026-09-10). Onay Akışları kartı KALDIRILDI (2026-09-14, kullanıcı kararı):
+ * özellik Onaylar sayfasının kendi görünümünde, tek giriş oradaki düğme.
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -30,11 +31,12 @@ describe("AyarlarPage", () => {
     expect(screen.getByRole("link", { name: /İki Adımlı Doğrulama/ })).toHaveTextContent("Kapalı");
   });
 
-  it("yetkili kullanıcı: firma kartları izinle açılır; Onay Akışları akış görünümüne, doğrulama rozeti duruma göre", () => {
+  it("yetkili kullanıcı: firma kartları izinle açılır; doğrulama rozeti duruma göre", () => {
     h.user = { ...h.user, permissions: ["company:manage", "approvals:manage", "users:manage"], twoFactorEnabled: true };
     h.company = { companyVerificationStatus: "VERIFIED" };
     render(<AyarlarPage />);
-    expect(screen.getByRole("link", { name: /Onay Akışları/ })).toHaveAttribute("href", "/company/onaylar?tab=flows");
+    // Onay Akışları kartı artık YOK — yetkisi olsa bile çizilmez.
+    expect(screen.queryByText("Onay Akışları")).toBeNull();
     expect(screen.getByRole("link", { name: /Doğrulama Belgeleri/ })).toHaveTextContent("Doğrulandı");
     expect(screen.getByRole("link", { name: /İki Adımlı Doğrulama/ })).toHaveTextContent("Açık");
     expect(screen.getByText("Kullanıcı Yönetimi")).toBeInTheDocument();

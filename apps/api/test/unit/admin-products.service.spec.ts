@@ -117,4 +117,79 @@ describe("AdminProductsService", () => {
     const s = await svc.stats();
     expect(s.pending).toBe(1);
   });
+
+  /**
+   * TOPLU ONAY (2026-09-14) — otomatik onay DEĞİL: karar yine admin'in, 50
+   * ürün için 50 tıklama 1'e iniyor (ücretsiz pakette ürün tavanı 50 oldu).
+   */
+  describe("approveMany", () => {
+    /** Her id için AYRI satır döndüren rig — tek satırlık `rig` yetmez. */
+    function coklu(rows: Record<string, unknown>[]) {
+      const byId = new Map(rows.map((r) => [r.id as string, r]));
+      const r = rig(rows[0]!);
+      r.prisma.companyItem.findUnique = jest.fn(
+        ({ where }: { where: { id: string } }) =>
+          Promise.resolve(byId.get(where.id) ?? null),
+      ) as never;
+      return r;
+    }
+
+    it("çok ürünü onaylar; bildirim ÜRÜN başına değil FİRMA başına gider", async () => {
+      const r = coklu([
+        { ...BASE, id: "a", name: "Dirsek", slug: "dirsek" },
+        { ...BASE, id: "b", name: "Flanş", slug: "flans" },
+        { ...BASE, id: "c", name: "Vana", slug: "vana" },
+      ]);
+      const out = await r.svc.approveMany(["a", "b", "c"], "adm1");
+
+      expect(out.approved).toBe(3);
+      expect(out.skipped).toEqual([]);
+      // Audit ve SEO ÜRÜN başına — ikisi de kayıt/indeks işi.
+      expect(r.audit.log).toHaveBeenCalledTimes(3);
+      expect(r.seo.productChanged).toHaveBeenCalledTimes(3);
+      // 50 ürün onaylayıp firmaya 50 e-posta atmak spam olurdu.
+      expect(r.companies.notifyCompany).toHaveBeenCalledTimes(1);
+      expect(r.companies.notifyCompany.mock.calls[0][1]).toBe("3 ürününüz yayına alındı");
+    });
+
+    it("iki firmanın ürünü → firma başına AYRI bildirim", async () => {
+      const r = coklu([
+        { ...BASE, id: "a" },
+        { ...BASE, id: "b", company: { ...BASE.company, id: "c2", name: "Beta" } },
+      ]);
+      await r.svc.approveMany(["a", "b"], "adm1");
+      expect(r.companies.notifyCompany).toHaveBeenCalledTimes(2);
+      expect(
+        r.companies.notifyCompany.mock.calls.map((c: unknown[]) => c[0]).sort(),
+      ).toEqual(["c1", "c2"]);
+    });
+
+    it("bayat satır YIĞINI DÜŞÜRMEZ — atlanır ve gerekçesiyle döner", async () => {
+      const r = coklu([
+        { ...BASE, id: "a" },
+        { ...BASE, id: "b", reviewStatus: "APPROVED" },
+        { ...BASE, id: "c", slug: null },
+      ]);
+      const out = await r.svc.approveMany(["a", "b", "c"], "adm1");
+
+      expect(out.approved).toBe(1);
+      expect(out.skipped.map((x) => x.id).sort()).toEqual(["b", "c"]);
+      expect(out.skipped.find((x) => x.id === "b")?.reason).toMatch(/Onay bekleyen/);
+      expect(out.skipped.find((x) => x.id === "c")?.reason).toMatch(/slug/);
+    });
+
+    it("boş liste ve tavan aşımı reddedilir", async () => {
+      const r = rig(BASE);
+      await expect(r.svc.approveMany([], "adm1")).rejects.toThrow(BadRequestException);
+      const cok = Array.from({ length: 101 }, (_, i) => `x${i}`);
+      await expect(r.svc.approveMany(cok, "adm1")).rejects.toThrow(/en fazla 100/);
+    });
+
+    it("yinelenen id tavanı ve sayımı şişirmez", async () => {
+      const r = coklu([{ ...BASE, id: "a" }]);
+      const out = await r.svc.approveMany(["a", "a", "a"], "adm1");
+      expect(out.approved).toBe(1);
+      expect(r.companies.notifyCompany).toHaveBeenCalledTimes(1);
+    });
+  });
 });

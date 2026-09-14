@@ -58,6 +58,8 @@ export interface AdminProductDetail extends AdminProductRow {
 export interface AdminProductListParams {
   status?: ProductReviewStatus | "ALL";
   q?: string;
+  /** Tek firmanın kuyruğu — 50 ürünü sayfa sayfa avlamak yerine tek görünüm. */
+  companyId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -107,6 +109,29 @@ export function useProductReview(id: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-product-detail", id] });
+      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      qc.invalidateQueries({ queryKey: ["admin-product-stats"] });
+    },
+  });
+}
+
+/**
+ * TOPLU ONAY — otomatik onay DEĞİL: kararı yine admin verir, 50 ürün için
+ * 50 tıklama 1 tıklamaya iner (ücretsiz pakette ürün tavanı 2026-09-14'te
+ * 50'ye çıktı). Backend durum değiştirmiş satırları ATLAR ve gerekçesiyle
+ * döner — yığın tek bir bayat kayıt yüzünden düşmez.
+ */
+export function useBulkApproveProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { data } = await api.post<{
+        approved: number;
+        skipped: { id: string; reason: string }[];
+      }>("/admin/products/bulk-approve", { ids });
+      return data;
+    },
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["admin-product-stats"] });
     },

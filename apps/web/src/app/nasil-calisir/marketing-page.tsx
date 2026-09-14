@@ -5,7 +5,7 @@ import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { TrustBand } from "@/components/marketplace/trust-band";
 import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
-import { registrationCountries } from "@rothern/shared";
+import { PRODUCT_LIMITS, registrationCountries } from "@rothern/shared";
 import {
   Disclosure,
   DisclosureButton,
@@ -48,7 +48,7 @@ const pricingTiers = [
     price: null,
     tagline: "Vitrinini aç, çevren içinde al-sat.",
     features: [
-      "Herkese açık firma profili ve 10 ürünlük vitrin — firma dizininde yer",
+      `Herkese açık firma profili ve ${PRODUCT_LIMITS.STANDART} ürünlük vitrin — firma dizininde yer`,
       "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme",
       "Gelen bağlantı davetlerini kabul etme, mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
@@ -113,7 +113,7 @@ const faqs = [
   },
   {
     q: "Standart üyelikle ne yapabilirim?",
-    a: "Profilinizi yayınlar, 10 ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri görmek ve teklif vermek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve “Doğrulanmış” rozeti Silver ile; kendi satın alma talebinizi açmak Gold ile gelir.",
+    a: `Profilinizi yayınlar, ${PRODUCT_LIMITS.STANDART} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri görmek ve teklif vermek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve “Doğrulanmış” rozeti Silver ile; kendi satın alma talebinizi açmak Gold ile gelir.`,
   },
   {
     q: "Platform paraya aracılık ediyor mu?",

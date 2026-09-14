@@ -202,7 +202,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: CubeIcon,
         label: MODULE_LABELS.satis.urunler,
         href: "/company/satis/urunlerim",
-        // Vitrin HER pakete açık (2026-09-06); ücretsizde 10 ürün tavanı,
+        // Vitrin HER pakete açık (2026-09-06); ücretsizde PRODUCT_LIMITS tavanı,
         // belge/video Silver — kapı sayfa içinde ve API'de, menüde değil.
       },
       // Profilim ŞİRKETİM alanına taşındı (2026-09-05) — bkz. COMPANY_AREA.

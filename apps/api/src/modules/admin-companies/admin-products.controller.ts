@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { Type } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
 import { CurrentAdmin, type AuthenticatedAdmin } from "../../common/decorators/current-admin.decorator";
 import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
@@ -11,12 +11,23 @@ import { AdminProductsService } from "./admin-products.service";
 class ListProductsDto {
   @IsOptional() @IsIn(["ALL", "PENDING", "APPROVED", "REJECTED"]) status?: "ALL" | "PENDING" | "APPROVED" | "REJECTED";
   @IsOptional() @IsString() @MaxLength(120) q?: string;
+  @IsOptional() @IsString() @MaxLength(40) companyId?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;
 }
 
 class RejectDto {
   @IsString() @MinLength(10) @MaxLength(500) reason!: string;
+}
+
+/** Toplu onay — tavan servisle AYNI (`BULK_APPROVE_MAX`); DTO ilk savunma. */
+class BulkApproveDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  ids!: string[];
 }
 
 /**
@@ -52,6 +63,17 @@ export class AdminProductsController {
   @RequireAdminRole("SUPER_ADMIN", "SUPPORT")
   approve(@Param("id") id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.service.approve(id, admin.id);
+  }
+
+  /**
+   * TOPLU ONAY — otomatik onay DEĞİL: kararı yine admin verir, 50 tıklama
+   * 1 tıklamaya iner. (Tek segment olduğu için iki segmentli `:id/approve`
+   * ile çakışmaz; `GET stats`'taki sıra tuzağı burada yok.)
+   */
+  @Post("bulk-approve")
+  @RequireAdminRole("SUPER_ADMIN", "SUPPORT")
+  bulkApprove(@Body() dto: BulkApproveDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.service.approveMany(dto.ids, admin.id);
   }
 
   @Post(":id/reject")

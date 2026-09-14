@@ -8,6 +8,13 @@ import { SeoIndexService } from "../seo-index/seo-index.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 /**
+ * Toplu onayda tek istekte işlenecek en fazla ürün. Kuyruk sayfa boyutunun
+ * tavanıyla (100) aynı — "sayfadaki hepsini seç" her zaman tek istekte gider,
+ * ama sınırsız id listesi bir isteği dakikalarca sürdüremez.
+ */
+const BULK_APPROVE_MAX = 100;
+
+/**
  * ÜRÜN MODERASYONU — admin kuyruğu (2026-09-09, kullanıcı kararı: her ürün
  * vitrine çıkmadan onaydan geçer).
  *
@@ -118,6 +125,8 @@ export interface AdminProductDetail extends AdminProductRow {
 export interface AdminProductListQuery {
   status?: ProductReviewStatus | "ALL";
   q?: string;
+  /** Tek firmanın kuyruğu — toplu onayın çalışma görünümü. */
+  companyId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -139,6 +148,10 @@ export class AdminProductsService {
     const where: Prisma.CompanyItemWhereInput = {
       isActive: true,
       ...(status ? { reviewStatus: status } : { reviewStatus: { not: "DRAFT" } }),
+      // FİRMA SÜZGECİ (2026-09-14): ücretsiz pakette ürün tavanı 50'ye çıktı.
+      // Bir firmanın 50 ürününü sayfa sayfa avlamak yerine tek görünümde
+      // toplayıp toptan karar vermek için — toplu onayın ön koşulu.
+      ...(q.companyId ? { companyId: q.companyId } : {}),
       ...(term
         ? {
             OR: [
@@ -269,6 +282,108 @@ export class AdminProductsService {
       { label: "Ürünü gör", path },
     );
     return { ok: true };
+  }
+
+  /**
+   * TOPLU ONAY — otomatik onay DEĞİL (2026-09-14, kullanıcı kararı: "otomatik
+   * ürün onayına gerek yok"). Kararı yine admin veriyor; değişen tek şey 50
+   * ürün için 50 tıklamanın 1 tıklamaya inmesi.
+   *
+   * TEK TEK BAŞARISIZ OLUR, TOPLU DEVAM EDER: bir ürün bu arada durum
+   * değiştirdiyse (firma geri çekti, başka admin karar verdi) tüm yığını
+   * düşürmek yanlış olurdu — o satır ATLANIR ve gerekçesiyle geri döner.
+   *
+   * BİLDİRİM ÜRÜN BAŞINA DEĞİL FİRMA BAŞINA: tek tek onayda ürün başına
+   * e-posta gider, ama 50 ürünü onaylayıp firmaya 50 e-posta yollamak spam
+   * olurdu (ve staging'de günlük Resend kotasını tek koşumda bitirirdi).
+   * Audit ve SEO bildirimi ürün BAŞINA kalır — ikisi de kayıt/indeks işi.
+   */
+  async approveMany(ids: string[], adminId: string) {
+    const tekil = Array.from(new Set(ids.filter(Boolean)));
+    if (tekil.length === 0) throw new BadRequestException("Ürün seçilmedi");
+    if (tekil.length > BULK_APPROVE_MAX) {
+      throw new BadRequestException(
+        `Tek seferde en fazla ${BULK_APPROVE_MAX} ürün onaylanabilir`,
+      );
+    }
+    const onaylanan: { id: string; companyId: string; name: string }[] = [];
+    const atlanan: { id: string; reason: string }[] = [];
+    const now = new Date();
+
+    for (const id of tekil) {
+      const r = await this.prisma.companyItem.findUnique({
+        where: { id },
+        select: PRODUCT_SELECT,
+      });
+      if (!r) {
+        atlanan.push({ id, reason: "Ürün bulunamadı" });
+        continue;
+      }
+      if (r.reviewStatus !== "PENDING") {
+        atlanan.push({ id, reason: "Onay bekleyen durumda değil" });
+        continue;
+      }
+      if (!r.slug) {
+        atlanan.push({ id, reason: "URL parçası (slug) yok" });
+        continue;
+      }
+      const done = await this.prisma.companyItem.updateMany({
+        where: { id, reviewStatus: "PENDING" },
+        data: {
+          reviewStatus: "APPROVED",
+          isPublic: true,
+          publishedAt: r.publishedAt ?? now,
+          reviewedAt: now,
+          reviewedByAdminId: adminId,
+          rejectReason: null,
+        },
+      });
+      if (done.count !== 1) {
+        atlanan.push({ id, reason: "Durum az önce değişti" });
+        continue;
+      }
+      await this.audit.log({
+        action: "admin.product.approved",
+        actorType: "admin",
+        actorId: adminId,
+        tenantId: r.company.id,
+        entityType: "company_item",
+        entityId: id,
+        critical: true,
+        metadata: { name: r.name, wasPublic: r.isPublic, bulk: true },
+      });
+      this.seo?.productChanged(id);
+      onaylanan.push({ id, companyId: r.company.id, name: r.name });
+    }
+
+    // Firma başına TEK özet bildirim.
+    const byCompany = new Map<string, string[]>();
+    for (const o of onaylanan) {
+      const liste = byCompany.get(o.companyId) ?? [];
+      liste.push(o.name);
+      byCompany.set(o.companyId, liste);
+    }
+    for (const [companyId, adlar] of byCompany) {
+      void this.companies.notifyCompany(
+        companyId,
+        adlar.length === 1
+          ? "Ürününüz yayına alındı"
+          : `${adlar.length} ürününüz yayına alındı`,
+        [
+          "Merhaba,",
+          adlar.length === 1
+            ? `"${adlar[0]}" ürününüz incelendi ve vitrinde yayına alındı.`
+            : `${adlar.length} ürününüz incelendi ve vitrinde yayına alındı: ${adlar
+                .slice(0, 5)
+                .map((a) => `"${a}"`)
+                .join(", ")}${adlar.length > 5 ? ` ve ${adlar.length - 5} tane daha` : ""}.`,
+          "Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+        ],
+        "product_approved",
+        { label: "Ürünlerimi gör", path: "/company/satis/urunlerim" },
+      );
+    }
+    return { approved: onaylanan.length, skipped: atlanan };
   }
 
   /**
