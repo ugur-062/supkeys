@@ -2,8 +2,11 @@
 
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
-  MAX_COMPANY_SUB_CATEGORIES,
+  MAX_COMPANY_SUB_PICKS,
   categorySegment,
+  deepestCategoryPicks,
+  expandCompanyCategorySelection,
+  removeCategoryBranch,
 } from "@rothern/shared";
 import { Layers, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -76,10 +79,18 @@ const ACCENT: Record<
  * boş kalır — bilinçli: "bu alanda her şeyi yaparım" beyanı.
  *
  * EKLE/ÇIKAR KURALI (belirsizlik bırakmamak için):
- *  · alt kategori eklenince segmenti KENDİLİĞİNDEN belirir
- *  · alt kategori silinince segment KALIR (daha geniş beyan, zarar vermez)
+ *  · seçim eklenince ata zinciri (L2/L3/L4) ve segmenti KENDİLİĞİNDEN belirir
+ *  · seçim silinince zinciri de gider; o segmentte başka seçim kalmadıysa
+ *    SEGMENT DE düşer — aksi hâlde firma tek yaprağı sildikten sonra sessizce
+ *    segmentin TAMAMINDAN bildirim almaya başlardı (çözmeye çalıştığımız
+ *    arızanın ta kendisi)
  *  · segment silinince ALTINDAKİLER DE gider (zincirleme) — "artık bu alanda
  *    değilim" demenin tek ve net yolu
+ *
+ * BİLİNÇLİ TAVİZ: "Sektör geneli" ile eklenmiş bir segmentin altına sonradan
+ * yaprak seçilir ve o yaprak silinirse, segment de düşer (kaydı provenance
+ * tutmuyoruz). Tek tık ile geri eklenebilir; ters tercih ise sessiz genişleme
+ * üretirdi.
  */
 export function CompanyCategoryPicker({
   value,
@@ -96,7 +107,17 @@ export function CompanyCategoryPicker({
   const [uyari, setUyari] = useState<string | null>(null);
 
   const { data: segments } = useRoots();
-  const { data: subCats } = useCategoriesByIds(value.subIds);
+  /**
+   * Depoda ata zinciri de duruyor (L2+L3+L4). Ekranda yalnız KULLANICININ
+   * seçtikleri çizilir — türetilmiş üst seviyeler ayrı çip olsaydı tek seçim
+   * üç çipe dönüşür ve 50'lik tavan anlamsızlaşırdı. Zincir, çipin
+   * breadcrumb'ında zaten okunuyor.
+   */
+  const secilenler = useMemo(
+    () => deepestCategoryPicks(value.subIds),
+    [value.subIds],
+  );
+  const { data: subCats } = useCategoriesByIds(secilenler);
   const renk = ACCENT[accent];
 
   const segmentAdi = useMemo(() => {
@@ -104,39 +125,60 @@ export function CompanyCategoryPicker({
     return (id: string) => m.get(id) ?? id;
   }, [segments]);
 
-  /** Segment → altındaki seçili yapraklar. Gösterim bu gruplamayla yapılır. */
+  /** Segment → kullanıcının o segmentte seçtikleri (yol bilgisiyle). */
   const gruplar = useMemo(() => {
-    const adById = new Map((subCats ?? []).map((c) => [c.id, c.nameTr]));
-    const map = new Map<string, { id: string; ad: string }[]>();
+    const byId = new Map((subCats ?? []).map((c) => [c.id, c]));
+    const map = new Map<string, { id: string; ad: string; yol: string }[]>();
     for (const id of value.mainIds) map.set(id, []);
-    for (const id of value.subIds) {
+    for (const id of secilenler) {
       const seg = categorySegment(id);
       if (!seg) continue;
       if (!map.has(seg)) map.set(seg, []);
-      map.get(seg)!.push({ id, ad: adById.get(id) ?? "…" });
+      const c = byId.get(id);
+      map.get(seg)!.push({
+        id,
+        ad: c?.nameTr ?? "…",
+        // Breadcrumb: zincirin tamamı burada okunuyor, ayrı çipe gerek yok.
+        yol: c?.breadcrumb ?? "",
+      });
     }
     return [...map.entries()];
-  }, [value.mainIds, value.subIds, subCats]);
+  }, [value.mainIds, secilenler, subCats]);
 
   const bos = value.mainIds.length === 0 && value.subIds.length === 0;
 
-  /** Alt kategori seçimi onaylandı — segmentleri türet, tavanı denetle. */
+  /**
+   * Seçim onaylandı. Kullanıcı L4'e kadar inebilir; ata zinciri (L2+L3+L4)
+   * beyana DAHİL edilir, segment ayrı eksene yazılır.
+   *
+   * Zincir neden şart: eşleştirme ata zincirini TALEBİN kodundan yukarı
+   * çıkarıyor, firmanın beyanından aşağı inmiyor. Yaprak tek başına
+   * saklansaydı, alıcı bir üst seviyede (L3) talep açtığında dar eksen tutmaz
+   * ve firma geniş eksene düşerdi — yani daralttığını sanırken segmentin
+   * tamamından bildirim alırdı.
+   */
   const altOnayla = (ids: string[]) => {
-    const turetilen = new Set(value.mainIds);
-    for (const id of ids) {
-      const seg = categorySegment(id);
-      if (seg) turetilen.add(seg);
+    if (ids.length > MAX_COMPANY_SUB_PICKS) {
+      setUyari(`En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz.`);
+      return;
     }
-    if (turetilen.size > MAX_COMPANY_MAIN_CATEGORIES) {
+    const { mainIds, subIds } = expandCompanyCategorySelection(
+      ids,
+      // "Sektör geneli" ile eklenmiş, altında seçim olmayan segmentler korunur.
+      value.mainIds.filter(
+        (m) => !value.subIds.some((s) => categorySegment(s) === m),
+      ),
+    );
+    if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
       // Sessizce kırpmak yerine söylüyoruz: hangi seçimin düştüğünü kullanıcı
       // göremezse beyanı eksik kalır ve bunu asla fark etmez.
       setUyari(
-        `Seçimleriniz ${turetilen.size} ayrı sektöre yayılıyor; en fazla ${MAX_COMPANY_MAIN_CATEGORIES} sektör beyan edilebilir. Daha dar bir liste seçin.`,
+        `Seçimleriniz ${mainIds.length} ayrı sektöre yayılıyor; en fazla ${MAX_COMPANY_MAIN_CATEGORIES} sektör beyan edilebilir. Daha dar bir liste seçin.`,
       );
       return;
     }
     setUyari(null);
-    onChange({ mainIds: [...turetilen], subIds: ids });
+    onChange({ mainIds, subIds });
   };
 
   /**
@@ -157,15 +199,25 @@ export function CompanyCategoryPicker({
     });
   };
 
+  /**
+   * Bir seçimi kaldır. Ata zinciri de saklandığı için yalnız kodun kendisini
+   * silmek YETMEZ — L3/L2 kayıtları kalsaydı firma sildiğini sandığı daldan
+   * bildirim almaya devam ederdi. Kardeş seçimlerin ihtiyaç duyduğu atalar
+   * yeniden kurulur.
+   */
   const altSil = (id: string) => {
-    onChange({ ...value, subIds: value.subIds.filter((x) => x !== id) });
+    const kalan = secilenler.filter((x) => x !== id);
+    const korunanMain = value.mainIds.filter(
+      (m) => !value.subIds.some((s) => categorySegment(s) === m),
+    );
+    onChange(expandCompanyCategorySelection(kalan, korunanMain));
   };
 
-  /** Segment silinince altındaki yapraklar da gider — zincirleme. */
+  /** Segment silinince altındaki her şey gider — zincirleme. */
   const segmentSil = (seg: string) => {
     onChange({
       mainIds: value.mainIds.filter((x) => x !== seg),
-      subIds: value.subIds.filter((id) => categorySegment(id) !== seg),
+      subIds: removeCategoryBranch(value.subIds, seg),
     });
   };
 
@@ -242,6 +294,10 @@ export function CompanyCategoryPicker({
                   {yapraklar.map((y) => (
                     <span
                       key={y.id}
+                      /* Yol tooltip'te: kullanıcı yaprağı seçti, hangi sınıfın
+                         altında olduğunu (ve dolayısıyla neyle eşleşeceğini)
+                         görebilmeli. */
+                      title={y.yol || y.ad}
                       className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700"
                     >
                       <span className="max-w-[220px] truncate">{y.ad}</span>
@@ -303,10 +359,10 @@ export function CompanyCategoryPicker({
         <CategorySelectorModal
           isOpen={subOpen}
           onClose={() => setSubOpen(false)}
-          value={value.subIds}
+          value={secilenler}
           onConfirm={altOnayla}
           mode="multi"
-          maxSelection={MAX_COMPANY_SUB_CATEGORIES}
+          maxSelection={MAX_COMPANY_SUB_PICKS}
           title={modalTitle}
           description="Tam olarak ne alıp sattığınızı arayıp seçin. Sektörünüz bu seçimden otomatik çıkar."
           catalog="full"

@@ -2,6 +2,8 @@ import { BadRequestException } from "@nestjs/common";
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
+  MAX_COMPANY_SUB_PICKS,
+  deepestCategoryPicks,
 } from "@rothern/shared";
 import type { PrismaService } from "../prisma/prisma.service";
 
@@ -30,9 +32,16 @@ export async function validateCategorySelection(
     );
   }
 
+  // İKİ TAVAN AYRI: depolanan küme ata zincirini de taşır (seçim başına en
+  // fazla L2+L3+L4), kullanıcıya gösterilen sayı ise SEÇİM sayısıdır. Tek sayı
+  // kullanılsaydı 50 yaprak seçen kullanıcı genişlemeyle tavanı aşıp anlamsız
+  // bir hata alırdı.
   if (subIds.length > MAX_COMPANY_SUB_CATEGORIES) {
+    throw new BadRequestException("Alt kategori beyanı fazla geniş");
+  }
+  if (deepestCategoryPicks(subIds).length > MAX_COMPANY_SUB_PICKS) {
     throw new BadRequestException(
-      `En fazla ${MAX_COMPANY_SUB_CATEGORIES} alt kategori seçebilirsiniz`,
+      `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
     );
   }
 

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@rothern/db";
-import { isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
+import { categorySegment, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 import { productSearchClauses } from "./product-index";
@@ -151,6 +151,12 @@ export async function directoryRows(
       website: true,
       buyerCategoryIds: true,
       sellerCategoryIds: true,
+      // Süzgeç (`:91-96`) DÖRT diziye birden bakıyordu ama sayaç yalnız iki
+      // ana diziyi okuyordu → yalnız alt kategorisiyle eşleşen firma listeye
+      // giriyor, SAYIYA girmiyordu. Sayaç ile liste ayrışması bu kod tabanında
+      // yasak (CLAUDE.md: "12 ilan yazıp 5 ilan çıkardı").
+      buyerSubCategoryIds: true,
+      sellerSubCategoryIds: true,
       companyVerificationStatus: true,
       tier: true,
       membershipEndAt: true,
@@ -346,7 +352,20 @@ export async function directoryFacets(
   const cities = multi(params.city);
   const activities = multi(params.activity).filter(isCompanyActivity);
   const categories = multi(params.category).filter(isCategoryCode);
-  const cats = (r: Row) => [...r.sellerCategoryIds, ...r.buyerCategoryIds];
+  // SÜZGEÇ eşleşmesi: DB tarafıyla birebir — dört dizi de ham hâliyle.
+  const cats = (r: Row) => [
+    ...r.sellerCategoryIds,
+    ...r.buyerCategoryIds,
+    ...r.sellerSubCategoryIds,
+    ...r.buyerSubCategoryIds,
+  ];
+  // FACET sayımı: alt kodlar SEGMENTİNE yuvarlanır. Ham hâlde sayılsaydı
+  // 158 bin kodluk katalogdan yüzlerce satırlık bir süzgeç listesi çıkardı;
+  // facet bir gezinme aracı, kod sayımı değil.
+  const facetCats = (r: Row) =>
+    cats(r)
+      .map((c) => categorySegment(c) ?? c)
+      .filter(isCategoryCode);
   const inCity = (r: Row) => cities.length === 0 || (!!r.city && cities.includes(r.city.trim()));
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));
   const inCat = (r: Row) => categories.length === 0 || cats(r).some((c) => categories.includes(c));
@@ -372,7 +391,7 @@ export async function directoryFacets(
   }
   const catCount = new Map<string, number>();
   for (const r of rows.filter(others("category"))) {
-    for (const c of new Set(cats(r).filter(isCategoryCode))) catCount.set(c, (catCount.get(c) ?? 0) + 1);
+    for (const c of new Set(facetCats(r))) catCount.set(c, (catCount.get(c) ?? 0) + 1);
   }
   const catIds = [...catCount.keys()];
   const catNames = catIds.length

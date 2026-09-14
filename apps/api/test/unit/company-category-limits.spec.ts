@@ -3,6 +3,7 @@ import { validate } from "class-validator";
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
+  MAX_COMPANY_SUB_PICKS,
 } from "@rothern/shared";
 import { CompleteOnboardingDto } from "../../src/modules/company-auth/dto/onboarding.dto";
 import { UpdateCompanyProfileDto } from "../../src/modules/company-profile/dto/update-company-profile.dto";
@@ -42,8 +43,17 @@ function sahtePrisma(): PrismaService {
 /** N tane sahte segment kodu (XX000000 biçimi zorunlu değil, doğrulama sahte). */
 const segmentler = (n: number) =>
   Array.from({ length: n }, (_, i) => `${String(10 + i)}000000`);
+/**
+ * n adet AYRI yaprak. Aynı sınıfın altında toplanmasınlar diye sınıf hanesi
+ * de değişiyor — `deepestCategoryPicks` ata olanları eleyeceği için aksi hâlde
+ * seçim sayısı beklenenden az çıkardı.
+ */
 const yapraklar = (n: number) =>
-  Array.from({ length: n }, (_, i) => `3912${String(1000 + i)}`);
+  Array.from({ length: n }, (_, i) => {
+    const sinif = String(10 + Math.floor(i / 90)).padStart(2, "0");
+    const yaprak = String((i % 90) + 10);
+    return `39${sinif}${yaprak}01`;
+  });
 
 async function hatalar(cls: new () => object, payload: object, alan: string) {
   const errs = await validate(plainToInstance(cls, payload));
@@ -77,14 +87,27 @@ describe("Firma kategori tavanı — tek kaynak", () => {
       ).rejects.toThrow();
     });
 
-    it("alt kategori tavanını da uygular", async () => {
+    it("SEÇİM tavanını uygular — depolama tavanından ayrı", async () => {
       await expect(
         validateCategorySelection(
           sahtePrisma(),
           segmentler(1),
-          yapraklar(MAX_COMPANY_SUB_CATEGORIES + 1),
+          yapraklar(MAX_COMPANY_SUB_PICKS + 1),
         ),
-      ).rejects.toThrow(new RegExp(String(MAX_COMPANY_SUB_CATEGORIES)));
+      ).rejects.toThrow(new RegExp(String(MAX_COMPANY_SUB_PICKS)));
+    });
+
+    it("tavan kadar seçim GEÇER — ata zinciri seçim sayılmaz", async () => {
+      // Her yaprak L2+L3+L4 olarak saklanır; 50 seçim ~150 kayıt eder ve
+      // DEPOLAMA tavanının (200) altında kalır. Tek sayı kullanılsaydı bu
+      // koşum anlamsız bir hatayla düşerdi.
+      const secim = yapraklar(MAX_COMPANY_SUB_PICKS);
+      const depo = [
+        ...new Set(secim.flatMap((c) => [c, `${c.slice(0, 6)}00`, `${c.slice(0, 4)}0000`])),
+      ];
+      expect(depo.length).toBeLessThanOrEqual(MAX_COMPANY_SUB_CATEGORIES);
+      const r = await validateCategorySelection(sahtePrisma(), segmentler(1), depo);
+      expect(r.subIds.length).toBe(depo.length);
     });
 
     it("yinelenen kod tavanı boşa harcamaz (tekilleştirme ÖNCE)", async () => {
@@ -148,7 +171,7 @@ describe("Firma kategori tavanı — tek kaynak", () => {
       }
     });
 
-    it("alt kategori tavanı iki DTO'da da aynı", async () => {
+    it("alt kategori DEPOLAMA tavanı iki DTO'da da aynı", async () => {
       expect(
         await hatalar(
           CompleteOnboardingDto,
