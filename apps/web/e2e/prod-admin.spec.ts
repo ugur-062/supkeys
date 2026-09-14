@@ -68,11 +68,20 @@ test("canlı admin: giriş, çerez alanı, onay kuyruğu", async ({ browser }) =
   console.log(
     `   ⓘ oturum ömrü — jeton ${jetonSaat.toFixed(1)} sa · çerez ${cerezSaat.toFixed(1)} sa · persistent=${cozulmus.persistent}`,
   );
+  /**
+   * Çerez ve jeton AYNI anda ölmeli. Ayrışırlarsa iki hâl de kötüdür:
+   *  · çerez uzun → tarayıcı ölü çerez taşır, her istek 401, kullanıcı
+   *    "oturumum açık kalacaktı" der (2026-09-14'te yaşanan hata)
+   *  · jeton uzun → çerez düşünce oturum erken biter
+   * %10 pay: sunucu-istemci saat farkı ve ağ gecikmesi.
+   */
+  const sapma = jetonSaat > 0 ? Math.abs(cerezSaat - jetonSaat) / jetonSaat : 1;
   console.log(
-    jetonSaat > 0 && cerezSaat > jetonSaat * 1.5
-      ? `   ⚠️ ÇEREZ JETONDAN ${(cerezSaat / jetonSaat).toFixed(0)}× UZUN — kullanıcı jeton ölünce girişe atılır`
+    sapma > 0.1
+      ? `   ⚠️ ÇEREZ VE JETON AYRIŞIK — çerez ${cerezSaat.toFixed(0)} sa, jeton ${jetonSaat.toFixed(0)} sa`
       : "   ✓ çerez ve jeton ömrü uyumlu",
   );
+  expect(sapma, "çerez ömrü jetonun ömrüne eşit olmalı").toBeLessThan(0.1);
 
   // ── 4. Ürün onay kuyruğu açılıyor mu ───────────────────────────────
   // Müşterinin ürünü bu ekrandan vitrine çıkıyor; ekran açılmıyorsa zincir kopuk.
