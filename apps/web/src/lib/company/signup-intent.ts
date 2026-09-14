@@ -14,7 +14,19 @@ export const SIGNUP_INTENTS = {
   talep: {
     label: "Alım talebi açmak",
     hint: "Satın alma talebi yayımla, kapalı zarf teklif topla.",
-    href: "/company/satinalma/taleplerim/yeni",
+    /**
+     * YÖNLENDİRME YOK (2026-09-14, kullanıcı kararı).
+     *
+     * Yeni firma STANDART doğuyor; satınalma paneli GOLD istiyor
+     * (`BUYING_TIER`). Burası `/company/satinalma/taleplerim/yeni`ye
+     * yönlendiriyordu: kullanıcı kaydoluyor, e-postasını doğruluyor,
+     * onboarding'i bitiriyor ve İLK GÖRDÜĞÜ EKRAN paket duvarı oluyordu —
+     * hem de ödeme akışı henüz YOKKEN, yani çıkışsız bir duvar.
+     *
+     * Paket satın alma devreye girince buraya `/company/satinalma/taleplerim/yeni`
+     * geri konabilir; o zaman duvarın ardında gerçek bir yol olur.
+     */
+    href: null,
   },
   vitrin: {
     label: "Vitrin açmak",

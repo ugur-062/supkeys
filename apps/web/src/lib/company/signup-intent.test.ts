@@ -29,4 +29,18 @@ describe("kayıt niyeti", () => {
     rememberSignupIntent("ikisi");
     expect(consumeSignupIntent()).toBeNull();
   });
+
+  /**
+   * "talep" niyeti KAPILI sayfaya göndermemeli (2026-09-14).
+   *
+   * Yeni firma STANDART doğuyor, satınalma paneli GOLD istiyor. Bu niyet
+   * `/company/satinalma/taleplerim/yeni`ye yönlendirdiği sürece kullanıcı
+   * kaydın hemen ardından ÖDEME AKIŞI OLMAYAN bir paket duvarına çarpıyordu.
+   * Paket satışı devreye girince geri konabilir — o zaman bu test de
+   * bilinçli olarak güncellenir.
+   */
+  it("'talep' niyeti yönlendirmez — satınalma paneli ücretsiz pakete kapalı", () => {
+    rememberSignupIntent("talep");
+    expect(consumeSignupIntent()).toBeNull();
+  });
 });
