@@ -8,6 +8,7 @@ import {
 } from "@/lib/company/signup-intent";
 
 import { AuthShell } from "@/components/marketing/auth-shell";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
@@ -327,7 +328,7 @@ export function CompanySignupClient() {
 
         <Field>
           <Label>Şifre</Label>
-          <Input type="password" autoComplete="new-password" maxLength={72} value={form.password} onChange={(e) => set("password")(e.target.value)} />
+          <PasswordInput autoComplete="new-password" maxLength={72} value={form.password} onChange={(e) => set("password")(e.target.value)} />
         </Field>
         {form.password ? (
           <div className="space-y-1.5" role="status" aria-live="polite">
@@ -358,8 +359,7 @@ export function CompanySignupClient() {
 
         <Field>
           <Label>Şifre (tekrar)</Label>
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             invalid={!!(form.passwordConfirm && !confirmOk)}
             value={form.passwordConfirm}

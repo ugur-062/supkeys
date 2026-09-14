@@ -1,12 +1,13 @@
 "use client";
 
 import { Button } from "@/components/catalyst/button";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { companyApi } from "@/lib/company-auth/api";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Check, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -38,7 +39,6 @@ export function ResetPasswordForm() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") ?? "";
-  const [show, setShow] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,30 +132,13 @@ export function ResetPasswordForm() {
 
       <Field>
         <Label>Yeni Şifre</Label>
-        <div className="relative">
-          <Input
-            type={show ? "text" : "password"}
-            autoComplete="new-password"
-            invalid={!!errors.newPassword}
-            placeholder="En az 8 karakter — büyük/küçük harf + rakam"
-            className="pr-10"
-            maxLength={72}
-            {...register("newPassword")}
-          />
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label={show ? "Şifreyi gizle" : "Şifreyi göster"}
-            onClick={() => setShow((s) => !s)}
-            className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700"
-          >
-            {show ? (
-              <EyeOff className="h-4 w-4" aria-hidden />
-            ) : (
-              <Eye className="h-4 w-4" aria-hidden />
-            )}
-          </button>
-        </div>
+        <PasswordInput
+          autoComplete="new-password"
+          invalid={!!errors.newPassword}
+          placeholder="En az 8 karakter — büyük/küçük harf + rakam"
+          maxLength={72}
+          {...register("newPassword")}
+        />
         {errors.newPassword ? (
           <p className="mt-1 text-xs text-red-600">
             {errors.newPassword.message}
@@ -165,8 +148,7 @@ export function ResetPasswordForm() {
 
       <Field>
         <Label>Şifreyi Tekrar</Label>
-        <Input
-          type={show ? "text" : "password"}
+        <PasswordInput
           autoComplete="new-password"
           invalid={!!errors.confirmPassword}
           {...register("confirmPassword")}
