@@ -96,6 +96,57 @@ describe("completeOnboarding", () => {
    * STANDART'ın 2 koltuğunun ikisini de doldurur ve firma ilk çalışanını
    * davet edemezdi. Satınalma koltuğu GOLD'a geçişte açılır.
    */
+  /**
+   * PROFİL OTOMATİK YAYINA ALINIR (2026-09-15, kullanıcı kararı). Öncesinde
+   * `publicEnabled` varsayılanı false'tu ve firmaların çoğu hiç açmıyordu →
+   * canlıda `companies.xml` 0 URL, yani SEO motoru kurulu ama yakıtsızdı.
+   * Slug BURADA kuruluyor çünkü firma adı ancak burada gerçek oluyor (signup
+   * geçici ad üretir).
+   */
+  it("kayıt tamamlanınca profil YAYINA alınır ve slug kurulur", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto(cat.id) as never,
+    );
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.publicEnabled).toBe(true);
+    expect(c.slug).toBeTruthy();
+    // Slug firma ADINDAN türer — signup'ın geçici adından değil.
+    expect(c.slug).toMatch(/ornek|test|firma/i);
+  });
+
+  it("aynı adla ikinci firma ÇAKIŞMAZ — slug tekilleştirilir", async () => {
+    const { service } = makeAuthService();
+    const cat = await makeCategory();
+    const slugs: (string | null)[] = [];
+    // AYNI unvan, FARKLI vergi kimliği — vergi no unique, slug çakışması
+    // sınanacak tek şey olsun. İkincisi yabancı (KZ): TR VKN checksum'ı
+    // gerektirmeden ikinci geçerli kimlik üretmenin en temiz yolu.
+    const varyant = [
+      { country: "TR", taxNumber: TCKN, authorizedTckn: TCKN },
+      { country: "KZ", taxNumber: "123456789012", authorizedTckn: undefined, taxOffice: undefined, district: undefined },
+    ];
+    for (const v of varyant) {
+      const o = await makeCompanyWithUser(prisma, { country: v.country });
+      await service.completeOnboarding(
+        o.user.id,
+        o.company.id,
+        dto(cat.id, v) as never,
+      );
+      const c = await prisma.company.findUniqueOrThrow({ where: { id: o.company.id } });
+      slugs.push(c.slug);
+    }
+    expect(slugs[0]).toBeTruthy();
+    expect(slugs[1]).toBeTruthy();
+    expect(slugs[0]).not.toBe(slugs[1]);
+  });
+
   it("kurucu kayıtta YALNIZ satış koltuğu alır — satınalma koltuğu ücretsiz pakette yakılmaz", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -307,30 +358,46 @@ describe("completeOnboarding", () => {
 });
 
 describe("upgradeToPremium (Faz 3 kapısı)", () => {
+  /**
+   * TEK ŞART: DOĞRULAMA (2026-09-15, kullanıcı kararı). 2FA ve web sitesi
+   * şartları kaldırıldı.
+   *
+   * ⚠️ BU TESTİN ESKİ HÂLİ YANLIŞ SEBEPLE YEŞİLDİ: factory firmayı VERIFIED
+   * doğuruyor, dolayısıyla doğrulama kapısı hiç tetiklenmiyordu; yeşil kalan
+   * şey 2FA hatasıydı ve mesajı ("iki adımlı doğrulamayı") `/doğrula/i`
+   * desenine uyuyordu. 2FA kalkınca ortaya çıktı. Durum artık AÇIKÇA kuruluyor.
+   */
   it("doğrulanmamış firma reddedilir", async () => {
     const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
     });
     await expect(
       service.upgradeToPremium(owner.user.id, owner.company.id),
-    ).rejects.toThrow(/belge|doğrula/i);
+    ).rejects.toThrow(/belgeler/i);
   });
 
-  it("VERIFIED ama 2FA yoksa reddedilir", async () => {
+  it("VERIFIED yeterli — 2FA YOKKEN de yükseltir", async () => {
     const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDART",
+      companyVerificationStatus: "VERIFIED",
     });
+    // 2FA kapalı ve web sitesi YOK — ikisi de artık şart değil.
     await prisma.company.update({
       where: { id: owner.company.id },
-      data: { companyVerificationStatus: "VERIFIED" },
+      data: { website: null },
     });
     await expect(
       service.upgradeToPremium(owner.user.id, owner.company.id),
-    ).rejects.toThrow(/2FA|iki adım/i);
+    ).resolves.toMatchObject({ ok: true, tier: "GOLD" });
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.tier).toBe("GOLD");
   });
 
   it("GÜVENLİK: sahip olmayan kullanıcı paket yükseltemez", async () => {
@@ -385,26 +452,4 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
     expect(c.tier).toBe("GOLD");
   });
 
-  it("VERIFIED + 2FA ama web sitesi yoksa reddedilir", async () => {
-    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
-    const owner = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
-    await prisma.company.update({
-      where: { id: owner.company.id },
-      data: { companyVerificationStatus: "VERIFIED", website: null },
-    });
-    await prisma.companyUser.update({
-      where: { id: owner.user.id },
-      data: { twoFactorEnabled: true },
-    });
-    await expect(
-      service.upgradeToPremium(owner.user.id, owner.company.id),
-    ).rejects.toThrow(/web sitesi/i);
-    const c = await prisma.company.findUniqueOrThrow({
-      where: { id: owner.company.id },
-    });
-    expect(c.tier).toBe("STANDART");
-  });
 });

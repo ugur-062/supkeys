@@ -107,7 +107,7 @@ describe("InquiriesView — ücretsiz satıcı anonim görünüm (2026-09-06)", 
     expect(screen.getByText(/İzmir/)).toBeInTheDocument();
     expect(screen.queryByText("Ayşe Demir")).toBeNull();
     expect(screen.queryByPlaceholderText("Yanıtınızı yazın…")).toBeNull();
-    expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/nasil-calisir#fiyatlar");
+    expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/company/premium");
   });
 });
 

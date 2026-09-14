@@ -17,6 +17,7 @@ import {
   maskIban,
   normalizeIban,
 } from "@rothern/shared";
+import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
@@ -450,20 +451,8 @@ export class CompanyProfileService {
     return c;
   }
 
-  private async ensureUniqueSlug(
-    name: string,
-    selfId: string,
-  ): Promise<string> {
-    const base = generateSlug(name).slice(0, 60) || "firma";
-    let candidate = base;
-    for (let i = 2; i < 50; i++) {
-      const clash = await this.prisma.company.findFirst({
-        where: { slug: candidate, id: { not: selfId } },
-        select: { id: true },
-      });
-      if (!clash) return candidate;
-      candidate = `${base}-${i}`;
-    }
-    return `${base}-${Date.now().toString(36)}`;
+  /** Tek kaynak `common/company/company-slug.ts` — kayıt akışı da onu okur. */
+  private ensureUniqueSlug(name: string, selfId: string): Promise<string> {
+    return ensureUniqueCompanySlug(this.prisma, name, selfId);
   }
 }

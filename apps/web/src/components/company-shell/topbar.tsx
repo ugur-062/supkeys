@@ -3,6 +3,7 @@
 import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { RothernLogo } from "@/components/brand/logo";
+import { PortalSwitch } from "./portal-switch";
 import { Avatar } from "@/components/catalyst/avatar";
 import {
   Dropdown,
@@ -16,6 +17,8 @@ import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
   COMPANY_AREA,
   COMPANY_AREA_BASE,
+  PORTAL_ORDER,
+  accessiblePortals,
   canUseMessaging,
   isCompanyAreaPath,
   type PortalKey,
@@ -62,6 +65,15 @@ export function CompanyTopbar({
   const showCompanyArea =
     isManagementUser(user) ||
     userHasPermission(user, ["buy:view", "sell:view"]);
+  /**
+   * Portal tuşunun verisi — HESAP SOL MENÜDEKİYLE BİREBİR (`sidebar.tsx`):
+   * `visiblePortals` görüntüleme izni, `available` paket kapısı. İki yerde
+   * ayrı hesaplasaydım biri kilidi gösterir diğeri göstermezdi.
+   */
+  const available = accessiblePortals(user, company?.tier);
+  const visiblePortals = PORTAL_ORDER.filter((p) =>
+    userHasPermission(user, p === "satinalma" ? "buy:view" : "sell:view"),
+  );
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
@@ -95,8 +107,20 @@ export function CompanyTopbar({
       </Link>
 
 
-      {/* Sağa yaslı: Şirketim düğmesi (eski arama kutusunun yerinde) */}
+      {/* Sağa yaslı küme: [Portal ⇄] [Şirketim] — ikisi de mesaj/bildirim
+          düğmeleriyle AYNI dili konuşur (h-12, ikon + 10 px etiket). */}
       <div className="ml-auto mr-1 flex min-w-0 items-center">
+      {/* PORTAL DEĞİŞTİR — tek tuş, üstünde iki ikon ve değişim oku
+          (2026-09-15, kullanıcı kararı). Sol menüdeki segmentli pilin YERİNE:
+          aynı işe iki giriş bırakmak Ayarlar'daki Onay Akışları kartının
+          tekrarı olurdu. Şirketim'in SOLUNDA: "hangi paneldeyim" sorusu
+          "firmam" sorusundan önce gelir. Dar ekranda GİZLENMEZ — orada sol
+          menü çekmece olduğu için geçişin tek görünür yolu bu. */}
+      <PortalSwitch
+        active={activePortal}
+        visiblePortals={visiblePortals}
+        available={available}
+      />
       {/* ŞİRKETİM — sağ kümenin önünde, mesaj/bildirim düğmeleriyle AYNI dil
           (2026-09-05, kullanıcı: "tuş olduğu belli değil, Gold orada saçma"):
           h-10 · rounded-lg · zinc ikon + etiket · çerçevesiz/dolgusuz; rozet ve

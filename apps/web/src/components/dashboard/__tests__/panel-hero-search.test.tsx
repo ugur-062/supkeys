@@ -109,7 +109,9 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
   it("Silver altı: AI anahtarı devre dışı, 'Silver ile açılır' bağlantısı", () => {
     render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" ai={{ portal: "satis", enabled: false, onResult: vi.fn() }} />);
     expect(screen.getByRole("button", { name: /AI ile ara/ })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Silver ile açılır" })).toHaveAttribute("href", "/company/ayarlar");
+    // PANELDEN ÇIKMAZ (2026-09-15): premium çağrıları panel içindeki paket
+    // sayfasına gider; Ayarlar hub'ı da pazarlama sayfası da doğru yer değil.
+    expect(screen.getByRole("link", { name: "Silver ile açılır" })).toHaveAttribute("href", "/company/premium");
   });
 });
 

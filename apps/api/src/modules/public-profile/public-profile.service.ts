@@ -8,6 +8,7 @@ import {
 import {
   hasPublicProfile,
   PUBLIC_PROFILE_WHERE,
+  isProfileIndexable,
   publicProductWhere,
 } from "../../common/company/public-profile-gate";
 import {
@@ -131,6 +132,17 @@ export class PublicProfileService {
         "GOLD",
       // KYC tamam — "Doğrulanmış" rozeti. Yalnız admin `setVerification`.
       verified: c.companyVerificationStatus === "VERIFIED",
+      /**
+       * VİTRİN ≠ İNDEKS: sayfa herkese açık ama arama motoruna girsin mi?
+       * Sitemap ile AYNI fonksiyondan (`isProfileIndexable`) — ayrışsalardı
+       * sitemap'te olup `noindex` taşıyan (ya da tersi) sayfalar üretirdik.
+       */
+      indexable: isProfileIndexable({
+        aboutText: c.aboutText,
+        logoUrl: c.logoUrl,
+        website: c.website,
+        publicProductCount: productCount,
+      }),
     };
   }
 
@@ -388,14 +400,38 @@ export class PublicProfileService {
     return c;
   }
 
-  /** Sitemap için yayınlanmış public profillerin slug + son güncelleme. */
+  /**
+   * Sitemap için INDEKSLENEBİLİR public profiller — vitrinde olan HEPSİ değil.
+   *
+   * `publicEnabled` varsayılanı kayıt akışında açıldığı için (2026-09-15)
+   * vitrin ile indeks AYRIŞTI: içi boş profil sayfası VİTRİNDE kalır ama
+   * sitemap'e girmez. Eşik tek kaynak `isProfileIndexable` — sayfanın kendi
+   * `robots` etiketi de AYNI fonksiyonu okur, yoksa sitemap'te olup `noindex`
+   * taşıyan (ya da tersi) sayfalar üretirdik.
+   */
   async listPublicSlugs() {
-    return this.prisma.company.findMany({
-      // Kapı `hasPublicProfile` ile AYNI (paket şartı yok, 2026-09-06).
+    const rows = await this.prisma.company.findMany({
       where: PUBLIC_PROFILE_WHERE,
-      select: { slug: true, updatedAt: true },
+      select: {
+        slug: true,
+        updatedAt: true,
+        aboutText: true,
+        logoUrl: true,
+        website: true,
+        _count: { select: { items: { where: { isPublic: true, isActive: true } } } },
+      },
       take: 5000,
       orderBy: { updatedAt: "desc" },
     });
+    return rows
+      .filter((c) =>
+        isProfileIndexable({
+          aboutText: c.aboutText,
+          logoUrl: c.logoUrl,
+          website: c.website,
+          publicProductCount: c._count.items,
+        }),
+      )
+      .map((c) => ({ slug: c.slug, updatedAt: c.updatedAt }));
   }
 }

@@ -35,23 +35,29 @@ beforeEach(() => {
 });
 
 describe("PremiumGate", () => {
-  it("doğrulama eksikken 'Gold'a Geç' devre dışı + 'Aç' linkleri var", () => {
+  /**
+   * TEK ŞART: DOĞRULAMA (2026-09-15, kullanıcı kararı). 2FA ve web sitesi
+   * adımları kaldırıldı — backend kapısı da tek şarta indi. Ekran ile sunucu
+   * AYNI kuralı uygulamalı: ayrışsalardı ekran "hazır" der, sunucu reddederdi.
+   */
+  it("doğrulanmamışta BİRİNCİL eylem doğrulama; 'Gold'a Geç' devre dışı", () => {
     setMe("UNVERIFIED", false, null);
     render(<PremiumGate />);
+    expect(screen.getByRole("button", { name: "Gold'a Geç" })).toBeDisabled();
+    // Doğrulama paketin ÖN ŞARTI gibi değil, kendi başına kazanım gibi sunulur.
+    expect(screen.getByText(/Önce ücretsiz doğrulama/)).toBeInTheDocument();
+    expect(screen.getByText(/ücretsizdir ve paket gerektirmez/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Gold'a Geç" }),
-    ).toBeDisabled();
-    // 3 gereksinim: belgeler + 2FA + web sitesi.
-    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(3);
+      screen.getByRole("link", { name: "Doğrulamaya git" }),
+    ).toHaveAttribute("href", "/company/ayarlar/dogrulama");
   });
 
-  it("belgeler+2FA tamam ama web sitesi yoksa buton devre dışı", () => {
-    setMe("VERIFIED", true, null);
+  it("2FA ve web sitesi ADIM DEĞİL — ikisi de eksikken buton AKTİF", () => {
+    setMe("VERIFIED", false, null);
     render(<PremiumGate />);
-    expect(
-      screen.getByRole("button", { name: "Gold'a Geç" }),
-    ).toBeDisabled();
-    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Gold'a Geç" })).toBeEnabled();
+    expect(screen.queryByText(/2 adımlı doğrulama/)).toBeNull();
+    expect(screen.queryByText(/web sitesi adresini gir/i)).toBeNull();
   });
 
   it("belgeler PENDING → inceleme ipucu gösterir", () => {

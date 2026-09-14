@@ -167,9 +167,10 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(screen.queryByText("Ürünlerim")).not.toBeInTheDocument();
     expect(screen.queryByText("Taleplerim")).not.toBeInTheDocument();
     expect(screen.queryByText("Satın Alma Talebi Aç")).not.toBeInTheDocument();
-    // Portal geçişi duruyor (panele dönüş).
-    expect(screen.getByRole("link", { name: "Satınalma paneline geç" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Satış paneline geç" })).toBeInTheDocument();
+    // PORTAL GEÇİŞİ ARTIK SOL MENÜDE DEĞİL (2026-09-15): tek tuş olarak üst
+    // çubuğa taşındı; sözleşmesi `portal-switch.test.tsx`. Burada YOKLUĞU
+    // doğrulanıyor — iki giriş bırakmak aynı işi iki yerde yaşatırdı.
+    expect(screen.queryByRole("link", { name: /paneline geç/ })).toBeNull();
     expect(screen.getByText("Ayarlar")).toBeInTheDocument();
   });
 });

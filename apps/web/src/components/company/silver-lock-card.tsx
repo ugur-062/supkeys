@@ -4,8 +4,19 @@ import { Lock } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/** Paket kartlarının adresi — her Silver kilidi buraya çıkar (tek kaynak). */
-export const PRICING_HREF = "/nasil-calisir#fiyatlar";
+/**
+ * PAKET SAYFASININ ADRESİ — PANEL İÇİNDE KALIR (tek kaynak).
+ *
+ * 2026-09-15'e kadar `/nasil-calisir#fiyatlar`tı: panelde çalışan kullanıcı
+ * "Paketleri Gör"e basınca HERKESE AÇIK PAZARLAMA SAYFASINA düşüyordu — üst
+ * çubuğu, sol menüsü, firma bağlamı gidiyor; kullanıcı sistemden çıkmış gibi
+ * hissediyordu (kullanıcı bildirdi). Artık panel içindeki `/company/premium`:
+ * önce doğrulama durumu, sonra paket seçimi, aynı kabuğun içinde.
+ *
+ * Pazarlama başlığındaki (`marketing-header.tsx`) fiyat bağlantısı AYRI ve
+ * public kalır — orada doğru olan odur.
+ */
+export const PRICING_HREF = "/company/premium";
 
 /**
  * SILVER KİLİT KARTI (2026-09-06, "premium çekmek için"): ücretsiz üyenin

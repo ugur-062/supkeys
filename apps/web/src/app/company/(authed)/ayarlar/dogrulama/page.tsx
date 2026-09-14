@@ -142,7 +142,7 @@ export default function DogrulamaPage() {
   return (
     <SettingsShell
       page={SETTINGS_PAGES.dogrulama}
-      description="Belgeleriniz ekibimizce elle incelenir. Doğrulanan firma herkese açık taleplere teklif verebilir, talep yayımlayabilir ve pakete geçebilir; profilinde “Doğrulanmış” rozeti görünür. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür."
+      description="Doğrulama ÜCRETSİZ ve paket gerektirmez. Doğrulanan firmanın profilinde “Doğrulanmış” rozeti görünür, herkese açık taleplere teklif verebilir ve dilediği pakete geçebilir. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür. Belgeleriniz ekibimizce elle incelenir."
     >
       {isLoading || !data ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>

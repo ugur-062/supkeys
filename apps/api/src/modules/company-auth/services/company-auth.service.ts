@@ -21,6 +21,7 @@ import {
   isValidTckn,
 
   isRegistrationOpen,} from "@rothern/shared";
+import { ensureUniqueCompanySlug } from "../../../common/company/company-slug";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { ensureOwnerBuySeat } from "../../../common/company/owner-buy-seat";
@@ -497,6 +498,22 @@ export class CompanyAuthService {
           taxNumber: dto.taxNumber.trim(),
           taxOffice: dto.taxOffice?.trim() || null,
           website: normalizeWebsite(dto.website),
+          /**
+           * PROFİL OTOMATİK YAYINA ALINIR (2026-09-15, kullanıcı kararı:
+           * "profiller otomatik yayına alınsın").
+           *
+           * Eskiden `publicEnabled` varsayılanı `false`ti ve firmaların çoğu
+           * hiç açmıyordu → canlıda `companies.xml` 0 URL, yani SEO motoru
+           * kurulu ama yakıtsızdı. Kapı BURADA açılıyor, kayıtta değil: firma
+           * adı ancak burada gerçek oluyor (signup geçici ad üretiyor) ve slug
+           * ona göre kuruluyor.
+           *
+           * İNDEKS AYRI KAPIDA (`isProfileIndexable`): içi boş profil vitrinde
+           * durur ama sitemap'e ve arama motoruna girmez. Firma isterse
+           * Profilim'den kapatabilir.
+           */
+          publicEnabled: true,
+          slug: await ensureUniqueCompanySlug(tx, dto.legalName.trim(), companyId),
           city: dto.city.trim(),
           district: dto.district?.trim() || null,
           stateRegion: dto.stateRegion?.trim() || null,
@@ -848,23 +865,18 @@ export class CompanyAuthService {
         "Premium şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
       );
     }
-    const [company, user] = await Promise.all([
-      this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          tier: true,
-          membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
-          companyVerificationStatus: true,
-          ownerUserId: true,
-          website: true,
-        },
-      }),
-      this.prisma.companyUser.findUnique({
-        where: { id: userId },
-        select: { twoFactorEnabled: true },
-      }),
-    ]);
-    if (!company || !user) throw new UnauthorizedException();
+    // Kullanıcı satırı ARTIK OKUNMUYOR — 2FA şartı kalktı (aşağıdaki not).
+    // Ölü sorgu bırakmak, "hâlâ denetleniyor" izlenimi verirdi.
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        tier: true,
+        membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
+        companyVerificationStatus: true,
+        ownerUserId: true,
+      },
+    });
+    if (!company) throw new UnauthorizedException();
     // GÜVENLİK: faturalandırma/paket işlemi yalnız firma sahibinde (billing:manage
     // OWNER_ONLY). Sahip olmayan doğrulanmış kullanıcı tier'ı yükseltemez.
     if (company.ownerUserId !== userId) {
@@ -880,18 +892,21 @@ export class CompanyAuthService {
         "Önce şirket belgelerinizi doğrulatmalısınız",
       );
     }
-    if (!user.twoFactorEnabled) {
-      throw new BadRequestException(
-        "Önce iki adımlı doğrulamayı (2FA) etkinleştirmelisiniz",
-      );
-    }
-    // Premium için firma web sitesi zorunlu (link-benzeri: en az bir nokta).
-    const website = company.website?.trim();
-    if (!website || !website.includes(".")) {
-      throw new BadRequestException(
-        "Premium için geçerli bir firma web sitesi adresi girmelisiniz (Profilim → Düzenle)",
-      );
-    }
+    // 2FA ve WEB SİTESİ ŞARTLARI KALDIRILDI (2026-09-15, kullanıcı kararı).
+    //
+    // 2FA — bugünkü hâli koruma SAĞLAMIYORDU: kapı yalnız yükseltme ANINDA
+    // bakıyordu, kullanıcı ertesi gün `disableTwoFactor` ile kapatabiliyordu ve
+    // hiçbir şey olmuyordu. Yani onay kutusuydu, kontrol değil. Gerçekten
+    // isteniyorsa doğru yeri KAZANDIRMA ve FATURA işlemleridir (sürekli
+    // denetlenir) — ödeme turunda oraya konmalı, yükseltme ekranına değil.
+    //
+    // WEB SİTESİ — onboarding'de "teşvik et, zorlama" kararı verildi
+    // (2026-09-15); burada zorunlu bırakmak iki ekranın aynı şeyi farklı
+    // söylemesi olurdu. Sitesi olmayan firma da paket alabilir.
+    //
+    // TEK ŞART DOĞRULAMA: platformun kefil olduğu yer orası. Ve doğrulama
+    // ÜCRETSİZ — paket satmadan da teşvik ediliyor (profilde "Doğrulanmış"
+    // rozeti `companyVerificationStatus`tan gelir, pakete bağlı DEĞİL).
     // TODO(ödeme): premium ücretlendirme burada devreye girecek. Şimdilik
     // doğrulama tamamlandıysa ücretsiz PAKET'e geçilir (açık seam).
     // Dalga B-3: `membershipEndAt` TEMİZLENMELİ. Eskiden yalnız `tier` yazılıyordu;

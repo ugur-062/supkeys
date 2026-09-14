@@ -16,18 +16,16 @@ beforeEach(async () => {
   await truncateAll();
 });
 
+/**
+ * TEK ÖNKOŞUL: DOĞRULAMA (2026-09-15, kullanıcı kararı). 2FA ve web sitesi
+ * şartları kaldırıldı — yardımcı bilerek yalnız doğrulama kuruyor, böylece
+ * kapıya sessizce ikinci bir şart eklenirse bu dosya kırmızıya döner.
+ */
 async function eligibleCompany() {
   const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
   await prisma.company.update({
     where: { id: co.company.id },
-    data: {
-      companyVerificationStatus: "VERIFIED",
-      website: "https://firma.test",
-    },
-  });
-  await prisma.companyUser.update({
-    where: { id: co.user.id },
-    data: { twoFactorEnabled: true },
+    data: { companyVerificationStatus: "VERIFIED" },
   });
   return co;
 }
@@ -56,19 +54,27 @@ describe("Y2 — upgradeToPremium feature flag", () => {
     expect(after.tier).toBe("GOLD");
   });
 
-  it("flag AÇIK ama 2FA yoksa reddedilir (önkoşul zinciri korunur)", async () => {
+  it("flag AÇIK ama DOĞRULAMA yoksa reddedilir (tek önkoşul korunur)", async () => {
     const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    await prisma.company.update({
-      where: { id: co.company.id },
-      data: {
-        companyVerificationStatus: "VERIFIED",
-        website: "https://firma.test",
-      },
+    // ⚠️ factory VERIFIED doğuruyor → sınanan koşul AÇIKÇA kurulmalı.
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
     });
-    // twoFactorEnabled default false → 2FA önkoşulu düşer.
     await expect(
       service.upgradeToPremium(co.user.id, co.company.id),
-    ).rejects.toThrow(/2FA|iki adımlı/i);
+    ).rejects.toThrow(/belgeler/i);
+  });
+
+  it("2FA ve web sitesi ARTIK ŞART DEĞİL — ikisi de yokken yükseltir", async () => {
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
+    const co = await eligibleCompany();
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { website: null },
+    });
+    // twoFactorEnabled default false.
+    const res = await service.upgradeToPremium(co.user.id, co.company.id);
+    expect(res).toMatchObject({ ok: true, tier: "GOLD" });
   });
 });

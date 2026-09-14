@@ -56,6 +56,7 @@ export function OnboardingClient() {
     companyType: "LIMITED",
     taxNumber: "",
     taxOffice: "",
+    website: "",
     city: "",
     district: "",
     stateRegion: "",
@@ -159,6 +160,7 @@ export function OnboardingClient() {
         country: f.country,
         taxNumber: f.taxNumber.trim(),
         taxOffice: f.taxOffice.trim() || undefined,
+        website: f.website.trim() || undefined,
         city: f.city.trim(),
         district: f.district.trim() || undefined,
         stateRegion: f.stateRegion.trim() || undefined,
@@ -313,6 +315,25 @@ export function OnboardingClient() {
                 <Input value={f.taxOffice} onChange={(e) => set("taxOffice")(e.target.value)} />
               </Field>
             ) : null}
+            {/* WEB SİTESİ — ZORUNLU DEĞİL, TEŞVİKLİ (2026-09-15, kullanıcı
+                kararı). Zorunlu tutmak, sitesi olmayan ama 20 ürün yükleyecek
+                imalatçıyı kapıda elerdi — bizim için o firma sitesi olup hiç
+                ürün eklemeyenden daha değerli. Bedel kapıda değil sonuçta:
+                giren firmanın profilini AI dolduruyor, girmeyen elle yazana
+                kadar arama eşiğini geçemiyor. */}
+            <Field>
+              <Label>Web siteniz</Label>
+              <Input
+                value={f.website}
+                placeholder="ornekfirma.com"
+                onChange={(e) => set("website")(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                İsteğe bağlı — girerseniz <strong>profilinizi sitenizden AI ile
+                dolduruyoruz</strong>, siz yalnız kontrol edip kaydediyorsunuz.
+                Sonradan Profilim&apos;den de ekleyebilirsiniz.
+              </p>
+            </Field>
             {isTR ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field>

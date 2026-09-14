@@ -39,14 +39,20 @@ export function PremiumGate() {
   const me = useCompanyMe();
   const upgrade = useUpgradePremium();
 
+  /**
+   * TEK ŞART: DOĞRULAMA (2026-09-15, kullanıcı kararı). 2FA ve web sitesi
+   * adımları KALDIRILDI — backend kapısı da tek şarta indi, ikisi birlikte
+   * değişmeliydi: ekran "hazır" deyip sunucu reddederdi.
+   *
+   * 2FA neden çıktı: kapı yalnız yükseltme ANINDA bakıyordu, kullanıcı ertesi
+   * gün kapatabiliyordu → onay kutusuydu, kontrol değil. Gerçek yeri
+   * kazandırma ve fatura işlemleri (ödeme turunda).
+   */
   const docsVerified = me.data?.company.companyVerificationStatus === "VERIFIED";
-  const twoFa = me.data?.user.twoFactorEnabled === true;
-  // Premium için firma web sitesi zorunlu (link-benzeri).
-  const hasWebsite = !!me.data?.company.website?.trim().includes(".");
   // Y2: self-servis yükseltme ödeme entegrasyonuna kadar kapalı (backend flag,
   // tek kaynak). Kapalıyken buton gizlenir; premium manuel admin grant ile.
   const selfUpgradeEnabled = me.data?.selfUpgradeEnabled === true;
-  const ready = docsVerified && twoFa && hasWebsite;
+  const ready = docsVerified;
 
   const docsHint =
     me.data?.company.companyVerificationStatus === "PENDING"
@@ -104,33 +110,35 @@ export function PremiumGate() {
             ))}
           </ul>
 
-          {/* Geçiş gereksinimleri */}
-          <div className="mt-6 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-              Gold&apos;a geçmek için
-            </p>
-            <ul className="mt-3 space-y-3">
-              <Requirement
-                done={!!docsVerified}
-                title="Şirket belgelerini doğrula"
-                hint={docsVerified ? "Doğrulandı" : docsHint}
-                href="/company/ayarlar/dogrulama"
-              />
-              <Requirement
-                done={!!twoFa}
-                title="2 adımlı doğrulamayı (2FA) etkinleştir"
-                hint={twoFa ? "Aktif" : "E-posta/uygulama tabanlı 2FA'yı açın"}
-                href="/company/ayarlar/2fa"
-              />
-              <Requirement
-                done={hasWebsite}
-                title="Firma web sitesi adresini gir"
-                hint={hasWebsite ? "Girildi" : "Profilim sayfasındaki künyeye web sitesi ekleyin"}
-                href="/company/sirketim/profil"
-              />
-            </ul>
-          </div>
+          {/* ÖNCE DOĞRULAMA — doğrulanmamış firmada BİRİNCİL eylem budur,
+              paket değil (2026-09-15, kullanıcı kararı). Doğrulama ÜCRETSİZ ve
+              kendi başına değerli (profilde "Doğrulanmış" rozeti), o yüzden
+              "paketin ön şartı" gibi değil kendi başına bir kazanım gibi
+              sunuluyor. Doğrulanmışta bu blok sade bir onay satırına iner. */}
+          {docsVerified ? (
+            <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                <Check className="h-4 w-4" aria-hidden="true" />
+                Firmanız doğrulandı — paket seçebilirsiniz
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                Önce ücretsiz doğrulama
+              </p>
+              <p className="mt-2 text-sm text-zinc-700">
+                Doğrulama <strong>ücretsizdir ve paket gerektirmez</strong>:
+                profilinizde “Doğrulanmış” rozeti görünür, herkese açık taleplere
+                teklif verebilirsiniz. Pakete geçiş de bundan sonra tek adım.
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">{docsHint}</p>
+              <Button href="/company/ayarlar/dogrulama" className="mt-3 w-full">
+                Doğrulamaya git
+              </Button>
+            </div>
+          )}
 
           {selfUpgradeEnabled ? (
             <>
@@ -142,8 +150,8 @@ export function PremiumGate() {
                 {upgrade.isPending ? "Geçiliyor…" : "Gold'a Geç"}
               </Button>
               {!ready ? (
-                <p className="mt-2 text-center text-xs text-zinc-400">
-                  Yukarıdaki adımlar tamamlanınca aktifleşir.
+                <p className="mt-2 text-center text-xs text-zinc-500">
+                  Doğrulama tamamlanınca aktifleşir.
                 </p>
               ) : null}
             </>
@@ -157,47 +165,5 @@ export function PremiumGate() {
         </div>
       </div>
     </div>
-  );
-}
-
-function Requirement({
-  done,
-  title,
-  hint,
-  href,
-}: {
-  done: boolean;
-  title: string;
-  hint: string;
-  href: string;
-}) {
-  return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-zinc-100 px-4 py-3">
-      <div className="flex items-center gap-3">
-        <span
-          className={`flex h-6 w-6 items-center justify-center rounded-full ${
-            done ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-400"
-          }`}
-        >
-          {done ? (
-            <Check className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Lock className="h-3 w-3" aria-hidden="true" />
-          )}
-        </span>
-        <div>
-          <p className="text-sm font-medium text-zinc-900">{title}</p>
-          <p className="text-xs text-zinc-500">{hint}</p>
-        </div>
-      </div>
-      {!done ? (
-        <Link
-          href={href}
-          className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-700 hover:border-zinc-300"
-        >
-          Aç
-        </Link>
-      ) : null}
-    </li>
   );
 }
