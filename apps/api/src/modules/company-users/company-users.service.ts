@@ -1465,14 +1465,15 @@ export class CompanyUsersService {
       companyId,
       db,
     );
-    // ÜCRETSİZ PAKETTE SATINALMA YETKİSİ VERİLEMEZ (2026-09-14, kullanıcı
-    // kararı). Talep açma/kazandırma zaten `BUYING_TIER` (GOLD) kapısının
-    // arkasında; yetkiyi vermek kullanıcıya çalışmayan bir düğme gösteriyor ve
-    // ücretsiz paketin iki koltuğundan birini boşuna yakıyordu. Kapı koltuk
-    // sayımından ÖNCE: "koltuk dolu" demek yanıltıcı olurdu, sorun sayı değil.
+    // SATINALMA YETKİSİ YALNIZ GOLD'DA VERİLEBİLİR (2026-09-14, kullanıcı
+    // kararı). SILVER DE YETMEZ — o satış paketidir; talep açma/kazandırma
+    // zaten `BUYING_TIER` (GOLD) kapısının arkasında. Yetkiyi yine de vermek
+    // kullanıcıya çalışmayan bir düğme gösteriyor ve koltuk yakıyordu.
+    // Kapı koltuk sayımından ÖNCE: "koltuk dolu" demek yanıltıcı olurdu,
+    // sorun sayı değil paket.
     if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
       throw new BadRequestException(
-        "Satınalma yetkisi Gold pakette verilebilir — talep açma ve kazandırma ücretsiz pakette kapalı.",
+        "Satınalma yetkisi yalnız Gold pakette verilebilir — talep açma ve kazandırma diğer paketlerde kapalı.",
       );
     }
     if (limit == null) return; // limitsiz kademe (bugün yok)
