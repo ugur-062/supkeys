@@ -91,6 +91,13 @@ describe("DogrulamaPage", () => {
     render(<DogrulamaPage />);
     expect(screen.queryByLabelText("MERSİS No *")).not.toBeInTheDocument();
     expect(screen.getAllByText(/Kuruluş \/ Sicil Belgesi/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/Doğrulama Bilgileri \(opsiyonel\)/)).toBeInTheDocument();
+    // 2026-09-14: "yurt dışında opsiyonel" KALKTI — zorunluluk evrensel,
+    // değişen yalnız biçim. MERSİS Türkiye'ye özgü olduğu için ÇİZİLMEZ
+    // (opsiyonel değil, o ülkede karşılığı yok); sicil ve banka alanları
+    // yıldızlı ve "Gönder" onlarsız açılmaz.
+    expect(screen.getByText("Doğrulama Bilgileri")).toBeInTheDocument();
+    expect(screen.queryByText(/opsiyonel/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Sicil / Kayıt No *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hesap Sahibi *")).toBeInTheDocument();
   });
 });

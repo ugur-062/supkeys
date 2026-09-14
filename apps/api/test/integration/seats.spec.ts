@@ -104,13 +104,19 @@ describe("Faz 5 — koltuk sayımı (kişi, grup)", () => {
 });
 
 describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
-  it("dolu: koltuk daveti + rol ataması + ikinci grup + reaktivasyon reddedilir; ONAYLAYICI serbest", async () => {
+  /**
+   * 2026-09-14: bu senaryolar eskiden SATIN_ALMACI ile kuruluyordu. Artık
+   * ücretsiz pakette satınalma yetkisi HİÇ verilemiyor (ayrı kural, aşağıdaki
+   * describe'ta), dolayısıyla koltuk SAYISI kuralını sınamak için satış
+   * koltuğu kullanılıyor — iki kural birbirine karışmasın.
+   */
+  it("dolu: koltuk daveti + rol ataması + reaktivasyon reddedilir; ONAYLAYICI serbest", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
-      roles: ["SAHIP", "SATIN_ALMACI"] as never,
+      roles: ["SAHIP", "SATISCI"] as never,
     }); // 1/2
-    const second = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]); // 2/2 dolu
+    const second = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]); // 2/2 dolu
     const approver = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
 
     await expect(
@@ -122,29 +128,54 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
     // Koltuksuz kişiye işlem grubu → red.
     await expect(
       svc.updateRoles(co.auth, approver.id, {
-        roles: ["ONAYLAYICI", "SATIN_ALMACI"],
-      } as never),
-    ).rejects.toThrow(/Koltuk dolu/);
-    // Faz 5: koltuklu kişiye İKİNCİ grup da yeni koltuk ister → red.
-    await expect(
-      svc.updateRoles(co.auth, second.id, {
-        roles: ["SATIN_ALMACI", "SATISCI"],
+        roles: ["ONAYLAYICI", "SATISCI"],
       } as never),
     ).rejects.toThrow(/Koltuk dolu/);
     // Aynı grupta kalan değişiklik serbest (koltuk sayısı değişmez).
     await expect(
-      svc.setPermissions(co.auth, second.id, ["buy:listing:manage", "buy:award"]),
+      svc.setPermissions(co.auth, second.id, ["sell:bid:submit", "sell:product:manage"]),
     ).resolves.toBeDefined();
 
     // Reaktivasyon: koltuklu kişi pasifleşir → koltuk boşalır → onaylayıcıya
-    // SA atanır → pasifin geri dönüşü reddedilir (limit yine dolu).
+    // ST atanır → pasifin geri dönüşü reddedilir (limit yine dolu).
     await svc.setActive(co.auth, second.id, false);
     await svc.updateRoles(co.auth, approver.id, {
-      roles: ["ONAYLAYICI", "SATIN_ALMACI"],
+      roles: ["ONAYLAYICI", "SATISCI"],
     } as never);
     await expect(svc.setActive(co.auth, second.id, true)).rejects.toThrow(
       /Koltuk dolu/,
     );
+  });
+
+  it("GOLD: koltuklu kişiye İKİNCİ grup da yeni koltuk ister", async () => {
+    const { svc } = makeUsersService();
+    // GOLD 6 koltuk: sahip (ST) 1 + iki kişi çift grup 4 = 5; bir kişiye ikinci
+    // grup vermek 6'ya çıkarır, ondan sonrası dolu.
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "GOLD",
+      roles: ["SAHIP", "SATISCI"] as never,
+    });
+    const a = await makeUser(prisma, co.company.id, [
+      CompanyRole.SATIN_ALMACI,
+      CompanyRole.SATISCI,
+    ]);
+    const b = await makeUser(prisma, co.company.id, [
+      CompanyRole.SATIN_ALMACI,
+      CompanyRole.SATISCI,
+    ]);
+    expect((await svc.seatUsage(co.company.id)).used).toBe(5);
+    void a;
+    void b;
+    // Sahibe ikinci grup → 6/6.
+    await expect(
+      svc.updateRoles(co.auth, co.user.id, {
+        roles: ["SAHIP", "SATISCI", "SATIN_ALMACI"],
+      } as never),
+    ).resolves.toBeDefined();
+    expect((await svc.seatUsage(co.company.id)).used).toBe(6);
+    await expect(
+      svc.invite(co.auth, { email: "yedinci@x.com", roles: ["SATISCI"] } as never),
+    ).rejects.toThrow(/Koltuk dolu/);
   });
 
   it("bekleyen koltuk davetleri grup bazında sayılır (davet-yağmuru kapalı)", async () => {
@@ -159,11 +190,12 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
     await expect(
       svc.invite(co.auth, { email: "ucuncu@x.com", roles: ["SATISCI"] } as never),
     ).rejects.toThrow(/bekleyen davet/);
-    // İki gruplu davet 2 koltuk ister.
+    // İki gruplu davet 2 koltuk ister. GOLD: satınalma yetkisi ücretsiz
+    // pakette verilemiyor (ayrı kural), o yüzden bu senaryo paketli firmada.
     const wide = await makeCompanyWithUser(prisma, {
-      tier: "STANDART",
+      tier: "GOLD",
       roles: ["SAHIP"] as never,
-    }); // 0/2
+    }); // 0/6
     await expect(
       svc.invite(wide.auth, {
         email: "iki@x.com",
@@ -343,5 +375,75 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
     const res = await svc.applySeatSelection(co.auth, [co.user.id]);
     expect(res).toEqual({ ok: true, droppedCount: 1 });
     expect((await svc.seatUsage(co.company.id)).used).toBe(2);
+  });
+});
+
+/**
+ * ÜCRETSİZ PAKETTE SATINALMA YETKİSİ VERİLEMEZ (2026-09-14, kullanıcı kararı).
+ *
+ * Talep açma ve kazandırma zaten `BUYING_TIER` (GOLD) kapısının arkasındaydı;
+ * yetkiyi yine de vermek kullanıcıya çalışmayan bir düğme gösteriyor ve
+ * ücretsiz paketin iki koltuğundan birini boşuna yakıyordu. Kapı koltuk
+ * SAYIMINDAN ÖNCE çalışır — "koltuk dolu" demek yanıltıcı olurdu, sorun sayı
+ * değil paket.
+ */
+describe("Satınalma yetkisi paket kapısı", () => {
+  it("STANDART: davet, rol ataması ve izin yazımı REDDEDİLİR", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP"] as never,
+    });
+    const kisi = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
+
+    await expect(
+      svc.invite(co.auth, { email: "alici@x.com", roles: ["SATIN_ALMACI"] } as never),
+    ).rejects.toThrow(/Gold pakette/);
+    await expect(
+      svc.updateRoles(co.auth, kisi.id, {
+        roles: ["ONAYLAYICI", "SATIN_ALMACI"],
+      } as never),
+    ).rejects.toThrow(/Gold pakette/);
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, ["buy:listing:manage"]),
+    ).rejects.toThrow(/Gold pakette/);
+  });
+
+  it("STANDART: SATIŞ yetkisi serbest — kapı yalnız satınalmaya", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP"] as never,
+    });
+    await expect(
+      svc.invite(co.auth, { email: "satici@x.com", roles: ["SATISCI"] } as never),
+    ).resolves.toBeDefined();
+  });
+
+  it("SILVER de YETMEZ — kapı PAID değil BUYING kademesinde", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "SILVER",
+      roles: ["SAHIP"] as never,
+    });
+    // Silver satış paketidir; talep açma/kazandırma yalnız Gold'da.
+    await expect(
+      svc.invite(co.auth, { email: "alici3@x.com", roles: ["SATIN_ALMACI"] } as never),
+    ).rejects.toThrow(/Gold pakette/);
+    // Satış yetkisi Silver'da elbette serbest.
+    await expect(
+      svc.invite(co.auth, { email: "satici3@x.com", roles: ["SATISCI"] } as never),
+    ).resolves.toBeDefined();
+  });
+
+  it("GOLD: satınalma yetkisi verilebilir", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "GOLD",
+      roles: ["SAHIP"] as never,
+    });
+    await expect(
+      svc.invite(co.auth, { email: "alici2@x.com", roles: ["SATIN_ALMACI"] } as never),
+    ).resolves.toBeDefined();
   });
 });

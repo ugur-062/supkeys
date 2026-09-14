@@ -168,16 +168,7 @@ export class CompleteOnboardingDto {
   @IsIn(COMPANY_ACTIVITY_CODES as unknown as string[], { each: true })
   activities?: string[];
 
-  // ── Adım 3: Beyan + koltuk seçimi (Faz 5) ──
-  /** Bu hesapla talep de açacak mı (satınalma koltuğu)? Varsayılan evet. */
-  @IsOptional()
-  @IsBoolean()
-  buyerSeat?: boolean;
-
-  /** Teklif verip ürün satacak mı (satış koltuğu)? Varsayılan evet. */
-  @IsOptional()
-  @IsBoolean()
-  sellerSeat?: boolean;
+  // ── Adım 3: Beyan ──
 
   @IsBoolean()
   @Equals(true, { message: "Beyanı onaylamalısınız" })

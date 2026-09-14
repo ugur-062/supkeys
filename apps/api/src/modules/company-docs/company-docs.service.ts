@@ -12,6 +12,8 @@ import {
   maskIban,
   normalizeIban,
   requiredDocsForCountry,
+  getCountryProfile,
+  ibanChecksumOk,
 } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -391,31 +393,52 @@ export class CompanyDocsService {
     if (status === "PENDING") {
       throw new BadRequestException("Doğrulama zaten inceleniyor");
     }
-    // KYC kimlik bilgileri — TR firmalar için zorunlu (yabancıda opsiyonel,
-    // admin manuel KYB yapar). Kurallar profil PATCH'i ve Banka Hesapları ile
-    // AYNI tek kaynak (2026-09-10): MERSİS 16 hane, IBAN mod-97 — eskiden
-    // "≥10 hane" ve checksum'sız `TR\d{24}` ile gevşekti; kilitlenip
-    // doğrulama dosyasına giren IBAN'ın tek hanesi yanlış olabiliyordu.
+    // KYC KİMLİK BİLGİLERİ — ZORUNLULUK EVRENSEL, BİÇİM ÜLKEYE GÖRE
+    // (2026-09-14, kullanıcı: "bu evrensel bir sistem, yurtdışı yurtiçi
+    // firması diye bir şey yok; zorunlu kılınması gerekiyorsa zorunlu olsun").
+    //
+    // ÖNCESİ: tek bir `if (isTR)` vardı — yabancı firmada sicil no, banka
+    // bilgisi ve hesap sahibi HİÇ istenmiyordu. Bu "yurt içi / yurt dışı"
+    // ayrımıydı ve yanlıştı: her ülke firmaya bir kayıt numarası verir ve
+    // sicil BELGESİNİ zaten sekiz ülkenin hepsinde istiyoruz
+    // (`country-profiles.ts` `requiredDocs`). Belgeyi isteyip numarasını
+    // istememek tutarsızdı.
+    //
+    // ÜLKEYE GÖRE DEĞİŞEN yalnız BİÇİM:
+    //  · MERSİS — Türkiye'ye ÖZGÜ bir sicil numarası; başka ülkede karşılığı
+    //    YOKTUR. "Yabancıda opsiyonel" değil, "o ülkede mevcut değil".
+    //  · Banka — IBAN kullanan ülkede mod-97 doğrulanır, kullanmayanda
+    //    (RU/UZ/CN) serbest biçimli hesap numarası kabul edilir. İkisinde de
+    //    ZORUNLU: sipariş ve ödeme akışı hesap bilgisi olmadan yürümüyor.
+    const profile = getCountryProfile(country ?? "TR");
     const isTR = (country ?? "TR").toUpperCase() === "TR";
+    const usesIban = profile?.usesIban ?? true;
     const mersisNo = kyc.mersisNo?.trim();
     const tradeRegistryNo = kyc.tradeRegistryNo?.trim();
     const iban = kyc.iban ? normalizeIban(kyc.iban) : undefined;
     const ibanHolder = kyc.ibanHolder?.trim();
-    if (isTR) {
-      if (!mersisNo || !/^\d{16}$/.test(mersisNo)) {
-        throw new BadRequestException("MERSİS numarası 16 haneli olmalı.");
-      }
-      if (!tradeRegistryNo) {
-        throw new BadRequestException("Ticari sicil numarası gerekli.");
-      }
-      if (!iban || !isValidIbanTr(iban)) {
+
+    if (isTR && (!mersisNo || !/^\d{16}$/.test(mersisNo))) {
+      throw new BadRequestException("MERSİS numarası 16 haneli olmalı.");
+    }
+    if (!tradeRegistryNo) {
+      throw new BadRequestException("Sicil / kayıt numarası gerekli.");
+    }
+    if (!iban) {
+      throw new BadRequestException(
+        usesIban ? "IBAN gerekli." : "Banka hesap numarası gerekli.",
+      );
+    }
+    if (usesIban) {
+      const gecerli = isTR ? isValidIbanTr(iban) : ibanChecksumOk(iban);
+      if (!gecerli) {
         throw new BadRequestException(
-          "Geçerli bir TR IBAN gerekli — kontrol hanesi tutmuyor.",
+          "Geçerli bir IBAN gerekli — kontrol hanesi tutmuyor.",
         );
       }
-      if (!ibanHolder) {
-        throw new BadRequestException("IBAN hesap sahibi gerekli.");
-      }
+    }
+    if (!ibanHolder) {
+      throw new BadRequestException("Hesap sahibi gerekli.");
     }
     // Onaylı belgeler APPROVED kalır (admin yeniden incelemez); onaylı olmayan
     // (PENDING/REJECTED) belgeler PENDING'e çekilir + gerekçeleri temizlenir.

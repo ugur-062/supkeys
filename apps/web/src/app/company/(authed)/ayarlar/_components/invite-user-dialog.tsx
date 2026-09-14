@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/catalyst/button";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import {
   Dialog,
   DialogActions,
@@ -43,6 +44,10 @@ export function InviteUserDialog({
     seats?.limit == null
       ? null
       : Math.max(0, seats.limit - seats.used - seats.pendingSeatInvites);
+  // Satınalma yetkisi yalnız GOLD'da verilebilir — talep açma/kazandırma
+  // ücretsiz pakette kapalı. Backend `assertSeatAvailable` aynı kuralı
+  // uyguluyor; buradaki yalnız aynası (kullanıcı kilidin sebebini görsün).
+  const canGrantBuy = tierAtLeast(seats?.tier ?? "STANDART", BUYING_TIER);
   const seatsFull = freeSeats === 0;
   const [email, setEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
@@ -110,6 +115,7 @@ export function InviteUserDialog({
                 onChange={setPerms}
                 viewerIsOwner={!!viewer?.isOwner}
                 freeSeats={freeSeats}
+                canGrantBuy={canGrantBuy}
               />
             ) : (
               <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>

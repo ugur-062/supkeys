@@ -63,6 +63,16 @@ export interface CountryProfile {
    * gireceğini bilsin ("Vergi No" demek Çinli kullanıcıya yardımcı olmaz).
    */
   taxIdLabel: string;
+  /**
+   * Ülke IBAN sistemini kullanıyor mu.
+   *
+   * NEDEN ALAN (2026-09-14, kullanıcı: "bu evrensel bir sistem, yurtdışı
+   * yurtiçi firması diye bir şey yok"): doğrulama ekranı banka bilgisini
+   * "yurt dışında opsiyonel" sayıyordu. Doğrusu opsiyonel yapmak değil,
+   * ÜLKEYE GÖRE doğru biçimi istemek — RU/UZ/CN IBAN kullanmaz, hesap
+   * numarası verir; kalan beş ülke IBAN'dır ve mod-97 ile doğrulanır.
+   */
+  usesIban: boolean;
 }
 
 export type TaxIdRule =
@@ -95,6 +105,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "TR_VKN",
     viesSupported: false,
     taxIdLabel: "Vergi Kimlik No (VKN) / TC Kimlik No",
+    usesIban: true,
   },
   {
     // KKTC'nin ISO 3166-1 kodu YOKTUR. ISO'nun kullanıcıya ayrılmış X-aralığı
@@ -110,6 +121,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "GENERIC",
     viesSupported: false,
     taxIdLabel: "Vergi No (KKTC)",
+    usesIban: true,
   },
   {
     code: "RU",
@@ -119,6 +131,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "RU_INN",
     viesSupported: false,
     taxIdLabel: "ИНН (INN) / ОГРН (OGRN)",
+    usesIban: false,
   },
   {
     code: "AZ",
@@ -128,6 +141,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "AZ_TIN",
     viesSupported: false,
     taxIdLabel: "VÖEN (Vergi Ödəyicisinin Eyniləşdirmə Nömrəsi)",
+    usesIban: true,
   },
   {
     code: "KZ",
@@ -137,6 +151,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "KZ_BIN",
     viesSupported: false,
     taxIdLabel: "БИН (BIN) — 12 hane",
+    usesIban: true,
   },
   {
     code: "UZ",
@@ -146,6 +161,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "UZ_INN",
     viesSupported: false,
     taxIdLabel: "СТИР / ИНН — 9 hane",
+    usesIban: false,
   },
   {
     code: "CN",
@@ -157,6 +173,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "CN_USCC",
     viesSupported: false,
     taxIdLabel: "统一社会信用代码 (USCC) — 18 karakter",
+    usesIban: false,
   },
   {
     code: "AE",
@@ -168,6 +185,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     taxIdRule: "AE_TRN",
     viesSupported: false,
     taxIdLabel: "TRN (Tax Registration Number) — 15 hane",
+    usesIban: true,
   },
 ] as const;
 

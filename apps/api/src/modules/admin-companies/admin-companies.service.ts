@@ -25,6 +25,7 @@ import {
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { enforceProductLimit } from "../../common/company/product-limit";
+import { ensureOwnerBuySeat } from "../../common/company/owner-buy-seat";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { EmailService } from "../email/email.service";
@@ -1234,6 +1235,17 @@ export class AdminCompaniesService {
         },
       });
     });
+    // Kademe GOLD'a çıktıysa kurucunun SATINALMA koltuğunu aç. Kayıtta
+    // verilmiyor (STANDART'ta işe yaramıyor, ücretsiz paketin 2 koltuğundan
+    // birini boşuna yakıyordu); tam da kullanılabilir olduğu anda açılıyor.
+    // Transaction DIŞINDA ve fail-safe: paket yazımı bu yüzden geri alınmasın.
+    await ensureOwnerBuySeat(this.prisma, id).catch((err) =>
+      this.logger.warn(
+        `Kurucu satınalma koltuğu açılamadı (${id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
     await this.audit.log({
       action: "admin.company.tier_set",
       actorType: "admin",

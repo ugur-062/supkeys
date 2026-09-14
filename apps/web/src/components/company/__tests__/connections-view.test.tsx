@@ -124,6 +124,9 @@ describe("ConnectionsView", () => {
     expect(screen.getByRole("button", { name: "İptal et" })).toBeInTheDocument();
   });
 
+  // 60 satır çizip etkileşim yapıyor; paralel koşumda 15 sn tavanını aşıp
+  // ÜRÜN HATASI gibi görünüyordu (tek başına hep geçiyor). Sınanan şey
+  // sayfalama davranışı, hız değil.
   it("100+ bağlantı: 50'şer gösterir, 'Daha fazla göster' ile açılır", async () => {
     const user = userEvent.setup();
     h.connections = Array.from({ length: 60 }, (_, i) => ({
@@ -134,7 +137,7 @@ describe("ConnectionsView", () => {
     expect(screen.getByText("50 / 60 gösteriliyor")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Daha fazla göster" }));
     expect(screen.getAllByRole("link", { name: /Mesaj/ })).toHaveLength(60);
-  });
+  }, 30_000);
 
   it("arama bağlantıları süzer (ve Bağlantılarım görünümüne döner)", async () => {
     const user = userEvent.setup();

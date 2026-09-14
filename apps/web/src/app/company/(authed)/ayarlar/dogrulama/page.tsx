@@ -16,7 +16,12 @@ import {
 import { isKycLocked, VERIFICATION_STATUS } from "@/lib/company/verification-status";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { MissingFields } from "@/components/ui/missing-fields";
-import { isValidIbanTr, normalizeIban } from "@rothern/shared";
+import {
+  getCountryProfile,
+  ibanChecksumOk,
+  isValidIbanTr,
+  normalizeIban,
+} from "@rothern/shared";
 import { Check, FileText, Lock, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -51,6 +56,14 @@ export default function DogrulamaPage() {
   // yalnız REJECTED/UNVERIFIED'de (kimlik alanları) düzenlenebilir.
   const locked = isKycLocked(data?.status);
   const isTR = (data?.country ?? "TR").toUpperCase() === "TR";
+  // ÜLKEYE GÖRE BİÇİM, HERKESE ZORUNLU (2026-09-14, kullanıcı kararı).
+  // Ekran eskiden "yurt dışı firmalarda bu alanlar zorunlu değildir" diyordu —
+  // yurt içi/yurt dışı ayrımı yanlıştı: her ülke firmaya kayıt numarası verir
+  // ve sicil BELGESİNİ zaten sekizinde de istiyoruz. Değişen yalnız biçim:
+  // MERSİS Türkiye'ye özgü (başka ülkede YOK, "opsiyonel" değil), banka bilgisi
+  // IBAN kullanan ülkede mod-97 doğrulanır, kullanmayanda hesap numarasıdır.
+  const usesIban = getCountryProfile(data?.country ?? "TR")?.usesIban ?? true;
+  const bankaEtiketi = usesIban ? "IBAN" : "Banka Hesap No";
   // Belge bazlı kilit (backend commit() ile birebir): ONAYLANAN BELGE KALICI —
   // hiçbir durumda değiştirilemez; yeniden yükleme yalnız o belge reddedildiyse
   // (veya hiç yüklenmediyse) mümkün. İnceleme sürerken (PENDING) hepsi kilitli.
@@ -104,20 +117,25 @@ export default function DogrulamaPage() {
     isTR && mersisNo.trim() && !/^\d{16}$/.test(mersisNo.trim())
       ? "MERSİS No 16 haneli olmalı"
       : null;
+  const ibanGecerli = (v: string) => {
+    const n = normalizeIban(v);
+    if (!n) return false;
+    if (!usesIban) return true; // serbest biçim (RU/UZ/CN hesap numarası)
+    return isTR ? isValidIbanTr(n) : ibanChecksumOk(n);
+  };
   const ibanError =
-    isTR && normalizeIban(iban) && !isValidIbanTr(normalizeIban(iban))
-      ? "Geçerli bir TR IBAN girin — kontrol hanesi tutmuyor"
+    usesIban && normalizeIban(iban) && !ibanGecerli(iban)
+      ? "Geçerli bir IBAN girin — kontrol hanesi tutmuyor"
       : null;
   const missing: string[] = [
     ...labels.filter((d) => data && !data.docs[d.key]).map((d) => d.label),
-    ...(isTR
-      ? [
-          ...(/^\d{16}$/.test(mersisNo.trim()) ? [] : ["MERSİS No (16 hane)"]),
-          ...(tradeRegistryNo.trim() ? [] : ["Ticari Sicil No"]),
-          ...(isValidIbanTr(normalizeIban(iban)) ? [] : ["Geçerli IBAN"]),
-          ...(ibanHolder.trim() ? [] : ["IBAN hesap sahibi"]),
-        ]
+    // MERSİS yalnız TR — başka ülkede karşılığı yok.
+    ...(isTR && !/^\d{16}$/.test(mersisNo.trim())
+      ? ["MERSİS No (16 hane)"]
       : []),
+    ...(tradeRegistryNo.trim() ? [] : [isTR ? "Ticari Sicil No" : "Sicil / Kayıt No"]),
+    ...(ibanGecerli(iban) ? [] : [usesIban ? "Geçerli IBAN" : "Banka hesap no"]),
+    ...(ibanHolder.trim() ? [] : ["Hesap sahibi"]),
   ];
   const canSubmit = !!data && missing.length === 0 && !locked;
 
@@ -167,22 +185,22 @@ export default function DogrulamaPage() {
             </div>
           ) : null}
 
-          {/* ── Kimlik bilgileri — TR'ye özgü alanlar (MERSİS) yabancıda gizli;
-              yabancıda tüm alanlar opsiyonel (admin manuel KYB yapar). ── */}
+          {/* ── Kimlik bilgileri — HEPSİ ZORUNLU, biçim ülkeye göre.
+              MERSİS yalnız TR'de ÇİZİLİR (başka ülkede karşılığı yok);
+              banka alanı IBAN ülkelerinde mod-97 doğrulanır, diğerlerinde
+              (RU/UZ/CN) serbest biçimli hesap numarasıdır. ── */}
           <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-zinc-900">
-                  Doğrulama Bilgileri{isTR ? "" : " (opsiyonel)"}
+                  Doğrulama Bilgileri
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">
-                  {!isTR
-                    ? "Yurt dışı firmalarda bu alanlar zorunlu değildir; doğrulama yüklediğiniz belgelere göre elle yapılır."
-                    : locked
-                      ? data.status === "PENDING"
-                        ? "İnceleme sürerken bu bilgiler değiştirilemez."
-                        : "Bu bilgiler belgelerle doğrulandı; değişiklik için destek ile iletişime geçin."
-                      : "Belgelerdeki bilgilerle birebir aynı olmalı; gönderdikten sonra kilitlenir."}
+                  {locked
+                    ? data.status === "PENDING"
+                      ? "İnceleme sürerken bu bilgiler değiştirilemez."
+                      : "Bu bilgiler belgelerle doğrulandı; değişiklik için destek ile iletişime geçin."
+                    : "Belgelerdeki bilgilerle birebir aynı olmalı; gönderdikten sonra kilitlenir."}
                 </p>
               </div>
               {locked ? (
@@ -208,7 +226,7 @@ export default function DogrulamaPage() {
               ) : null}
               <Field>
                 <Label>
-                  {isTR ? "Ticari Sicil No *" : "Sicil / Kayıt No"}
+                  {isTR ? "Ticari Sicil No *" : "Sicil / Kayıt No *"}
                 </Label>
                 <Input
                   value={tradeRegistryNo}
@@ -219,7 +237,7 @@ export default function DogrulamaPage() {
                 />
               </Field>
               <Field>
-                <Label>{isTR ? "IBAN *" : "IBAN / Hesap No"}</Label>
+                <Label>{bankaEtiketi} *</Label>
                 <Input
                   value={iban}
                   invalid={Boolean(ibanError)}
@@ -246,7 +264,7 @@ export default function DogrulamaPage() {
                 )}
               </Field>
               <Field>
-                <Label>{isTR ? "IBAN Hesap Sahibi *" : "Hesap Sahibi"}</Label>
+                <Label>Hesap Sahibi *</Label>
                 <Input
                   value={ibanHolder}
                   onChange={(e) => setIbanHolder(e.target.value)}

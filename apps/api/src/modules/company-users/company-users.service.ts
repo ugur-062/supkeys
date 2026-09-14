@@ -33,7 +33,7 @@ import {
   permissionsForRoles,
   rolesFromPermissions,
 } from "../company-auth/permissions/company-permissions.constants";
-import { LEGACY_PERMISSION_MAP } from "@rothern/shared";
+import { BUYING_TIER, LEGACY_PERMISSION_MAP, tierAtLeast } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
@@ -167,7 +167,7 @@ export class CompanyUsersService {
     // Faz K/5: koltuk daveti kapıdan geçer (grup başına 1) — bekleyen koltuk
     // davetleri de sayılır.
     await this.assertSeatAvailable(this.prisma, actor.companyId, {
-      need: seatGroupsOf({ permissions }).size,
+      groups: seatGroupsOf({ permissions }),
       includePending: true,
       context: "invite",
     });
@@ -335,7 +335,7 @@ export class CompanyUsersService {
       [],
     );
     await this.assertSeatAvailable(this.prisma, actor.companyId, {
-      need: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }).size,
+      groups: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }),
       includePending: true,
       context: "invite",
     });
@@ -398,7 +398,7 @@ export class CompanyUsersService {
         // telafisi dışarıdaki catch'te.
         await tx.$queryRaw`SELECT id FROM companies WHERE id = ${inv.companyId} FOR UPDATE`;
         await this.assertSeatAvailable(tx, inv.companyId, {
-          need: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }).size,
+          groups: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }),
           context: "accept",
         });
         // Yarış: davet hâlâ PENDING mi? (çift kabul / bu arada iptal)
@@ -593,7 +593,7 @@ export class CompanyUsersService {
       // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
       // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
       await this.assertSeatAvailable(tx, actor.companyId, {
-        need: this.newSeatCount(
+        groups: this.newSeatGroups(
           seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
           seatGroupsOf({ permissions: permissionsForRoles(roles) }),
         ),
@@ -716,7 +716,7 @@ export class CompanyUsersService {
       await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
         // Faz K: updateRoles ile aynı koltuk kapısı.
         await this.assertSeatAvailable(tx, actor.companyId, {
-          need: this.newSeatCount(
+          groups: this.newSeatGroups(
             seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
             seatGroupsOf({ permissions: permissionsForRoles(roles) }),
           ),
@@ -856,14 +856,14 @@ export class CompanyUsersService {
       company?.ownerUserId ?? null,
     );
     const nextRoles = rolesFromPermissions(next, targetIsOwner) as CompanyRole[];
-    const needSeats = this.newSeatCount(
+    const needSeats = this.newSeatGroups(
       seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
       seatGroupsOf({ permissions: next }),
     );
 
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
       await this.assertSeatAvailable(tx, actor.companyId, {
-        need: needSeats,
+        groups: needSeats,
         context: "assign",
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
@@ -938,7 +938,7 @@ export class CompanyUsersService {
       // tüketir — kilitli tx'te kapı (aşkın firmada reaktivasyon da kilitli).
       await this.lockedAdminTx(actor.companyId, async (tx) => {
         await this.assertSeatAvailable(tx, actor.companyId, {
-          need: seatGroupsOf({ permissions: target.permissions, roles: target.roles }).size,
+          groups: seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
           context: "assign",
         });
         await tx.companyUser.update({
@@ -1023,7 +1023,7 @@ export class CompanyUsersService {
       ...added,
     ]);
     const nextRoles = rolesFromPermissions(next, false) as CompanyRole[];
-    const needSeats = this.newSeatCount(
+    const needSeats = this.newSeatGroups(
       seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
       seatGroupsOf({ permissions: next }),
     );
@@ -1031,7 +1031,7 @@ export class CompanyUsersService {
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
       // Faz K/5: yeni koltuk grubu eklenirken kapı (tx + FOR UPDATE).
       await this.assertSeatAvailable(tx, actor.companyId, {
-        need: needSeats,
+        groups: needSeats,
         context: "assign",
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
@@ -1374,13 +1374,14 @@ export class CompanyUsersService {
   // ============================================================
 
   /** Yeni koltuk sayısı: `after` gruplarından `before`da olmayanlar. */
-  private newSeatCount(
+  /** `after`ta olup `before`ta olmayan koltuk grupları — yeni işgal edilenler. */
+  private newSeatGroups(
     before: ReadonlySet<SeatGroup>,
     after: ReadonlySet<SeatGroup>,
-  ): number {
-    let n = 0;
-    for (const g of after) if (!before.has(g)) n++;
-    return n;
+  ): Set<SeatGroup> {
+    const out = new Set<SeatGroup>();
+    for (const g of after) if (!before.has(g)) out.add(g);
+    return out;
   }
 
   /**
@@ -1421,6 +1422,8 @@ export class CompanyUsersService {
     );
     return {
       limit,
+      /** Efektif kademe — koltuk kapısı buy grubunu buna göre reddeder. */
+      tier: effectiveTier(company.tier, company.membershipEndAt),
       used: active.total,
       usedBuy: active.buy,
       usedSell: active.sell,
@@ -1442,17 +1445,36 @@ export class CompanyUsersService {
     db: Prisma.TransactionClient,
     companyId: string,
     opts: {
-      need?: number;
+      /**
+       * YENİ işgal edilecek koltuk GRUPLARI — sayı değil.
+       *
+       * Eskiden `need: number` alıyordu. Sayıya indirgemek, "hangi grup"
+       * bilgisini kapıya girmeden kaybediyordu; ücretsiz pakette satınalma
+       * yetkisini engelleyebilmek için grubun kendisi gerekiyor. Sekiz çağrı
+       * yeri var — ayrı bir yardımcı yazsaydım biri bağlanmadan kalırdı
+       * (bu kod tabanında en sık tekrarlanan hata). Tip artık zorunlu kılıyor.
+       */
+      groups: ReadonlySet<SeatGroup>;
       includePending?: boolean;
       context: "invite" | "accept" | "assign";
     },
   ) {
-    const need = opts.need ?? 1;
+    const need = opts.groups.size;
     if (need <= 0) return;
-    const { limit, used, pendingSeatInvites } = await this.seatUsage(
+    const { limit, used, pendingSeatInvites, tier } = await this.seatUsage(
       companyId,
       db,
     );
+    // ÜCRETSİZ PAKETTE SATINALMA YETKİSİ VERİLEMEZ (2026-09-14, kullanıcı
+    // kararı). Talep açma/kazandırma zaten `BUYING_TIER` (GOLD) kapısının
+    // arkasında; yetkiyi vermek kullanıcıya çalışmayan bir düğme gösteriyor ve
+    // ücretsiz paketin iki koltuğundan birini boşuna yakıyordu. Kapı koltuk
+    // sayımından ÖNCE: "koltuk dolu" demek yanıltıcı olurdu, sorun sayı değil.
+    if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
+      throw new BadRequestException(
+        "Satınalma yetkisi Gold pakette verilebilir — talep açma ve kazandırma ücretsiz pakette kapalı.",
+      );
+    }
     if (limit == null) return; // limitsiz kademe (bugün yok)
     const occupied = used + (opts.includePending ? pendingSeatInvites : 0);
     if (occupied + need > limit) {

@@ -23,6 +23,7 @@ import {
   isRegistrationOpen,} from "@rothern/shared";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
+import { ensureOwnerBuySeat } from "../../../common/company/owner-buy-seat";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import {
   PrismaService,
@@ -127,19 +128,19 @@ export class CompanyAuthService {
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone.trim(),
-            // Faz R: Kurucu ETİKETİ işlem yetkisi vermez → kuran kişiye op-roller
-            // default eklenir (istemezse Ayarlar → Kullanıcılar'dan bırakır).
-            // SAHIP-only başlasaydı ilk teklif/ihaleye kadar salt-okunur kalırdı.
-            roles: [
-              CompanyRole.SAHIP,
-              CompanyRole.SATIN_ALMACI,
-              CompanyRole.SATISCI,
-            ],
-            // Yetki tablosu: açık izin listesi (kurucu örtük yönetim + iki
-            // koltuk seti; Faz 5'te kayıtta sorulacak).
+            // Faz R: Kurucu ETİKETİ işlem yetkisi vermez → kuran kişiye op-rol
+            // default eklenir; SAHIP-only başlasaydı ilk teklife kadar
+            // salt-okunur kalırdı.
+            //
+            // YALNIZ SATIŞ KOLTUĞU (2026-09-14): firma STANDART doğar ve
+            // satınalma koltuğu o pakette İŞE YARAMAZ (talep açmak GOLD ister).
+            // İkisi birden verilseydi kurucu tek başına ücretsiz paketin 2
+            // koltuğunu doldurur, ilk çalışan davetinde "koltuk dolu" duvarına
+            // çarpardı. Satınalma koltuğu GOLD'a geçişte açılır
+            // (`ensureOwnerBuySeat`) — kullanılabilir olduğu anda.
+            roles: [CompanyRole.SAHIP, CompanyRole.SATISCI],
             permissions: permissionsForRoles([
               CompanyRole.SAHIP,
-              CompanyRole.SATIN_ALMACI,
               CompanyRole.SATISCI,
             ]),
             companyId: company.id,
@@ -466,11 +467,23 @@ export class CompanyAuthService {
     // talep de açacak mısınız, teklif de verecek misiniz?" İki kutu, iki
     // koltuk; ikisi de kapalıysa Kurucu yalnız yönetir (SAHIP etiketi işlem
     // yetkisi vermez; onboarding roller/izinleri yeniden yazar).
-    const roles: CompanyRole[] = [
-      CompanyRole.SAHIP,
-      ...(dto.buyerSeat !== false ? [CompanyRole.SATIN_ALMACI] : []),
-      ...(dto.sellerSeat !== false ? [CompanyRole.SATISCI] : []),
-    ];
+    // KURUCU KOLTUĞU — SATIŞ, satınalma DEĞİL (2026-09-14, kullanıcı kararı).
+    //
+    // Eskiden kayıt ekranı "Bu hesapla ne yapacaksınız?" diye soruyor ve iki
+    // kutu da işaretli geliyordu. Üç yerden çürüktü:
+    //  1. Satınalma koltuğu ücretsiz pakette İŞE YARAMAZ — talep açmak GOLD
+    //     ister (`BUYING_TIER`). Ekran bunu kendisi itiraf ediyordu
+    //     ("koltuk seçimi paket alınca geçerli olur").
+    //  2. İkisi de işaretliyken kurucu tek başına STANDART'ın 2 koltuğunun
+    //     İKİSİNİ de dolduruyordu → ilk çalışan davetinde "koltuk dolu", ve
+    //     ekranda bunu söyleyen tek kelime yoktu.
+    //  3. Yanlış an: kurucu tanım gereği tam yetkili; "kim hangi koltuğu alır"
+    //     kararı ikinci kişi davet edilirken doğuyor ve kapı zaten orada
+    //     (`assertSeatAvailable`).
+    //
+    // Satınalma koltuğu GOLD'a geçişte otomatik açılır (`ensureOwnerBuySeat`) —
+    // yani kullanılabilir olduğu anda, bir koltuk önceden yakmadan.
+    const roles: CompanyRole[] = [CompanyRole.SAHIP, CompanyRole.SATISCI];
     const deliverySame = dto.deliverySameAsBilling !== false;
 
     await runTenantTx(this.prisma, async (tx) => {
@@ -892,6 +905,9 @@ export class CompanyAuthService {
       where: { id: companyId },
       data: { tier: "GOLD", membershipEndAt: null },
     });
+    // Satınalma koltuğu BURADA açılır: kayıtta verilmiyor çünkü STANDART'ta
+    // kullanılamıyor ve ücretsiz paketin koltuğunu boşuna yakıyordu.
+    await ensureOwnerBuySeat(this.prisma, companyId);
     return { ok: true as const, tier: "GOLD" };
   }
 
