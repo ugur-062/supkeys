@@ -107,6 +107,23 @@ export class AuthCookieInterceptor implements NestInterceptor {
   }
 
   /** Login token'ını `persistent` claim'iyle yeniden imzalar (TTL tazelenir). */
+  /**
+   * "Oturumu açık bırak" işaretliyken JETON da uzun ömürlü imzalanır.
+   *
+   * BUG (2026-09-14, kullanıcı bildirdi, canlıda ölçüldü): çerez 30 gün
+   * yazılırken jeton `JWT_EXPIRES_IN` varsayılanıyla **1 saat** yaşıyordu —
+   * 720 kat fark. Kullanıcı işareti koyuyor, çerez tarayıcıda duruyor ama
+   * ertesi gün döndüğünde içi geçersiz oluyor ve girişe atılıyor. Kayan
+   * oturum yalnız AKTİF kullanıcıyı kurtarıyordu; kapatıp dönen kişiyi değil.
+   *
+   * Süre `JWT_PERSISTENT_EXPIRES_IN` ile ayarlanır. Varsayılan 7 gün: oturum
+   * ömrünü uzatmak çalınan çerezin işe yarama penceresini de uzatır, o yüzden
+   * çerezle (30 gün) EŞİTLENMEDİ — bilinçli olarak daha kısa.
+   */
+  private kaliciOmur(): string {
+    return this.config.get<string>("JWT_PERSISTENT_EXPIRES_IN", "7d");
+  }
+
   private withPersistentClaim(
     token: string,
     persistent: boolean,
@@ -116,7 +133,10 @@ export class AuthCookieInterceptor implements NestInterceptor {
         token,
       );
       const { iat: _i, exp: _e, nbf: _n, ...claims } = decoded;
-      return this.jwt.sign({ ...claims, persistent });
+      return this.jwt.sign(
+        { ...claims, persistent },
+        persistent ? { expiresIn: this.kaliciOmur() } : {},
+      );
     } catch {
       return null;
     }
@@ -140,7 +160,10 @@ export class AuthCookieInterceptor implements NestInterceptor {
     if (decoded?.type !== realm) return;
     if (!shouldSlide(decoded.iat, decoded.exp)) return;
     const { iat: _i, exp: _e, nbf: _n, ...claims } = decoded;
-    const fresh = this.jwt.sign(claims);
+    // Kayan oturum da kalıcı ömrü KORUR. Korumasaydı ilk tazelemede jeton
+    // 1 saate düşer ve hata sessizce geri gelirdi.
+    const kalici = decoded.persistent !== false;
+    const fresh = this.jwt.sign(claims, kalici ? { expiresIn: this.kaliciOmur() } : {});
     // Eski token'larda (claim'siz) varsayılan kalıcı — mevcut davranış.
     slideAuthCookies(
       req,
@@ -148,7 +171,7 @@ export class AuthCookieInterceptor implements NestInterceptor {
       realm,
       fresh,
       this.config,
-      decoded.persistent !== false,
+      kalici,
     );
   }
 }
