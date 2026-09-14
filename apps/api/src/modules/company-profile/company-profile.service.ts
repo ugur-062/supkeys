@@ -252,11 +252,51 @@ export class CompanyProfileService {
     }
     if (dto.buyerCategoryIds !== undefined) {
       await this.categories.validateIds(dto.buyerCategoryIds, { exactLevel: 1 });
-      data.buyerCategoryIds = dto.buyerCategoryIds;
+      data.buyerCategoryIds = [...new Set(dto.buyerCategoryIds)];
     }
     if (dto.sellerCategoryIds !== undefined) {
       await this.categories.validateIds(dto.sellerCategoryIds, { exactLevel: 1 });
-      data.sellerCategoryIds = dto.sellerCategoryIds;
+      data.sellerCategoryIds = [...new Set(dto.sellerCategoryIds)];
+    }
+
+    // SIFIR KATEGORİ KAPISI — iki eksen BİRDEN boşalamaz.
+    //
+    // Kategori beyanı sistemdeki en yüklü sinyal: yeni PUBLIC alım talebi
+    // yayınlandığında kimin haber alacağını `sellerCategoryIds`/
+    // `sellerSubCategoryIds` belirliyor (`company-listings.service.ts`
+    // `notifyCategoryMatchedCompanies`). Kategorisi olmayan firma dizinde
+    // görünmeye devam eder ama HİÇBİR talep bildirimi almaz — ve bugüne kadar
+    // bunun sebebini hiçbir ekranda göremiyordu. DTO'da `ArrayMinSize` yoktu,
+    // yani boş dizi göndermek firmanın eşleşme sinyalini sessizce sıfırlıyordu.
+    //
+    // Kapı EKSEN BAZINDA değil TOPLAMDA: yalnız satan firma alış kategorisi
+    // bırakmayabilir, yalnız alan firma satış kategorisi bırakmayabilir.
+    // Zorunlu olan, ikisinden en az birinin dolu kalması.
+    //
+    // Yalnız kategori alanına DOKUNAN istek denetlenir. Varlığa bakan bir kapı,
+    // bugün sıfır kategoriyle duran eski bir firmanın şehrini bile
+    // güncellemesini engellerdi (KYC kilidinde öğrenilen ders).
+    if (
+      dto.buyerCategoryIds !== undefined ||
+      dto.sellerCategoryIds !== undefined
+    ) {
+      const mevcut = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { buyerCategoryIds: true, sellerCategoryIds: true },
+      });
+      const alis =
+        (data.buyerCategoryIds as string[] | undefined) ??
+        mevcut?.buyerCategoryIds ??
+        [];
+      const satis =
+        (data.sellerCategoryIds as string[] | undefined) ??
+        mevcut?.sellerCategoryIds ??
+        [];
+      if (alis.length === 0 && satis.length === 0) {
+        throw new BadRequestException(
+          "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+        );
+      }
     }
 
     // KYC KİMLİK KİLİDİ (2026-07-28): YASAL ÜNVAN / MERSİS / ticaret sicil /

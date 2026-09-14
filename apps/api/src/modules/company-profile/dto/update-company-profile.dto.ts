@@ -1,4 +1,9 @@
-import { COMPANY_ACTIVITY_CODES, MAX_COMPANY_ACTIVITIES } from "@rothern/shared";
+import {
+  COMPANY_ACTIVITY_CODES,
+  MAX_COMPANY_ACTIVITIES,
+  MAX_COMPANY_MAIN_CATEGORIES,
+  MAX_COMPANY_SUB_CATEGORIES,
+} from "@rothern/shared";
 import {
   ArrayMaxSize,
   IsArray,
@@ -167,17 +172,29 @@ export class UpdateCompanyProfileDto {
   @MaxLength(600, { each: true })
   certificateImages?: string[];
 
-  // Ne ALIRIM (UNSPSC kategori id'leri).
+  /**
+   * Ne ALIRIM (ANA kategori = segment, level 1).
+   *
+   * Tavan tek kaynak shared'de ve onboarding DTO'suyla AYNI. 2026-09-14'e
+   * kadar burası 50'ydi, onboarding 3'tü, ayarlar ekranı 10 gösteriyordu —
+   * üç ayrı sayı. Kayıtta 3'e sıkışan firma bu uçtan 50 segment yazıp
+   * bildirim havuzunu şişirebiliyordu.
+   *
+   * Alt sınır DTO'da YOK ama servis "iki eksenin ikisi birden boşalamaz"
+   * kuralını uygular: kategori alanlarına dokunan bir istek firmayı sıfır
+   * kategoriyle bırakamaz, çünkü o firma sessizce hiç bildirim almaz hâle
+   * gelir ve sebebini hiçbir yerde görmez.
+   */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(MAX_COMPANY_MAIN_CATEGORIES)
   @IsString({ each: true })
   buyerCategoryIds?: string[];
 
-  // Ne SATARIM.
+  /** Ne SATARIM (ANA kategori = segment, level 1). */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(MAX_COMPANY_MAIN_CATEGORIES)
   @IsString({ each: true })
   sellerCategoryIds?: string[];
 
@@ -192,18 +209,20 @@ export class UpdateCompanyProfileDto {
    * kolonları şemada duruyordu) — eksik olan yalnız bu alanları KABUL eden bir
    * uçtu; profil DTO'su hiç taşımıyordu.
    *
-   * Tavan 50: ana kategoriyle aynı. Sınırsız seçim, segment seçmekle aynı
-   * kapıya çıkar ve eşleştirmenin anlamını yok eder.
+   * Tavan ana kategoriden YÜKSEK ve bu doğru: alt kategori daraltır,
+   * genişletmez — 50 yaprak seçen firma 5 segment seçenden daha dar bir
+   * havuza girer. Sınırsız seçim ise segment seçmekle aynı kapıya çıkar ve
+   * eşleştirmenin anlamını yok eder.
    */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(MAX_COMPANY_SUB_CATEGORIES)
   @IsString({ each: true })
   buyerSubCategoryIds?: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(MAX_COMPANY_SUB_CATEGORIES)
   @IsString({ each: true })
   sellerSubCategoryIds?: string[];
 }

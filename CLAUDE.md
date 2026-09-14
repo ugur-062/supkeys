@@ -286,10 +286,49 @@ yetkide DEĞİL.
 Sözleşme: `category-catalog.spec.ts`.
 
 **Seçim seviyeleri:** talep/ilan min L3 (discovery) · firma ANA kategori exact
-L1 (tam) · firma ALT kategori L2-4 tavan 50 (tam) · AI önerisi 2 aşamalı → L3.
+L1 (tam) · firma ALT kategori L2-4 (tam) · AI önerisi 2 aşamalı → L3.
 Ana ve alt AYRI eksen; eşleştirme (`deriveCategoryMatchCandidates`) koddan tüm
-üst seviyeleri türetir. İkinci eksen: `Company.activities` (tavan 3) —
-kategori NE'yi, faaliyet tipi NASIL'ı söyler.
+üst seviyeleri türetir.
+
+**Tavanlar TEK KAYNAK (2026-09-14):** `@rothern/shared` `category-catalog.ts`
+`MAX_COMPANY_MAIN_CATEGORIES = 5` · `MAX_COMPANY_SUB_CATEGORIES = 50`.
+Öncesinde ana kategori tavanı ÜÇ AYRI değerdi — kayıt DTO'su 3, ayarlar ekranı
+10 (`maxSelection` prop'u hiç geçilmemiş, varsayılan), ayarlar DTO'su 50 →
+`validateCategorySelection`'ın "1-3" kuralı ayarlar yolunda HİÇ çalışmıyordu.
+Sözleşme: `test/unit/company-category-limits.spec.ts` (sayıyı değil İLİŞKİYİ
+kilitler). Ayrıca ayarlar ucunda **iki eksen birden boşalamaz** — kategori
+alanına dokunan istek firmayı sıfır kategoriyle bırakamaz (sıfır kategorili
+firma hiç bildirim almaz ve sebebini hiçbir ekranda göremezdi).
+
+**ARAYÜZ TEK SORU SORAR (2026-09-14, kullanıcı: "frontendi hoş değil"):** ekran
+aynı ağaçtan iki kez seçim istiyordu (L1 modalı + L3-4 modalı + çip duvarı =
+üç etkileşim deseni). Artık kullanıcı yalnız somut ürün/hizmeti seçer, **segment
+KODDAN türetilir** (`CompanyCategoryPicker`, `categorySegment`). Kural: alt
+eklenince segment kendiliğinden belirir · alt silinince segment KALIR · segment
+silinince altındakiler de gider. Bütün sektörde çalışan firma için "Sektör
+geneli ekle" kaçış yolu var (yaprağı olmayan segment = "her şeyi yaparım").
+Kayıt ve Ayarlar AYNI bileşeni kullanır (`CompanyActivityPicker` de öyle).
+Sözleşme: `components/categories/__tests__/company-category-picker.test.tsx`.
+
+**Kayıt TEK soru sorar, dört alana yazar** (`company-auth.service.ts`
+completeOnboarding: `mainIds` → buyer+seller, `subIds` → her iki sub). Bilinçli:
+yeni kullanıcı alışı satıştan ayıracak durumda değil. Ayrıştırma Ayarlar ›
+Kategoriler'de ("Ne alırım" / "Ne satarım") ve kayıt ekranının ipucu metni
+bunu SÖYLER.
+
+**İKİNCİ EKSEN — faaliyet tipi:** `Company.activities` (tavan 3, tek kaynak
+`company-activities.ts`) kategori NE'yi, faaliyet tipi NASIL'ı söyler.
+2026-09-14'e kadar YALNIZ süzgeç/facet'ti — `company-listings.service.ts`,
+`company-affinity.service.ts` ve `supplier-discovery.service.ts` içinde
+`activities` SIFIR kez geçiyordu, çünkü alıcının tercihini söyleyeceği alan
+yoktu. Eklendi: **`Listing.preferredActivities`** (migration
+`20260914120000`, tavan `MAX_COMPANY_ACTIVITIES`, boş = fark etmez).
+**ELEME DEĞİL SIRALAMA** — uyan firmalar duyuruda (`notifyCategoryMatchedCompanies`,
+kararlı sıra: ilgi düzeni korunur) ve Açık Talepler merdiveninde (`activityMatch`,
+kategoriden sonra ilgi skorundan önce) ÖNE alınır; uymayan ELENMEZ. Sert süzgeç
+tipini eksik beyan etmiş firmayı görünmez yapar ve o firma bedelini asla
+göremezdi. Herkese açık talep sayfasında "Aranan tedarikçi tipi" olarak görünür
+(talebin NİTELİĞİ, sahibinin kimliği değil).
 
 **Nitelik matrisi MİRASLI:** `CategoryAttribute` üst düğümde tanımlanır, alt
 düğümler devralır (aynı `groupKey` daha spesifik düğümde varsa O kazanır) —
@@ -773,8 +812,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260909160000_product_review_status` (ürün moderasyonu;
-  additive: enum + 5 kolon + backfill APPROVED for isPublic).
+- Son migration `20260914120000_listing_preferred_activities` (aranan tedarikçi
+  tipi; tümüyle additive: `CompanyActivity[]` kolonu + boş dizi varsayılanı,
+  backfill/index/tip değişimi YOK). Staging'e 2026-09-14'te uygulandı.
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**

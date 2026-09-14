@@ -28,6 +28,10 @@ export interface SellerTenderRow {
   myBidStatus: string | null;
   myBidVersion: number | null;
   categoryMatch: boolean;
+  /** Alıcının aradığı tedarikçi tipi bende var mı — sıralama basamağı. */
+  activityMatch?: boolean;
+  /** Talebin aradığı tedarikçi tipi (boş = fark etmez). */
+  preferredActivities?: string[];
   /**
    * İlgi motoru: bu ilan neden karşınıza çıktı ("Bu alanda daha önce teklif
    * verdiniz" gibi). Backend ham sinyalden türetir; null olabilir.

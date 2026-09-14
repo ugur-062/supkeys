@@ -77,7 +77,7 @@ export function SegmentOnlyPicker({
               </p>
             </div>
           </div>
-          <ChevronRight className="h-4 w-4 text-slate-400" />
+          <ChevronRight className="h-4 w-4 text-zinc-500" />
         </button>
       ) : (
         <div className="space-y-2">
@@ -152,7 +152,7 @@ interface ModalProps {
   description: string;
 }
 
-function SegmentOnlyModal({
+export function SegmentOnlyModal({
   isOpen,
   onClose,
   value,
@@ -329,7 +329,7 @@ function SegmentOnlyModal({
                         {segment.segmentLetter ? (
                           <span
                             className={`tabular-nums text-xs ${
-                              isSelected ? "text-zinc-600" : "text-slate-400"
+                              isSelected ? "text-zinc-600" : "text-zinc-500"
                             }`}
                           >
                             {segment.segmentLetter}.

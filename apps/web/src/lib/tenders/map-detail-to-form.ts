@@ -54,6 +54,7 @@ export function mapDetailToForm(
   return {
     ...DEFAULT_FORM_VALUES,
     categoryIds: l.categoryIds ?? [],
+    preferredActivities: l.preferredActivities ?? [],
     title: forCopy ? copyTitle(l.title) : l.title,
     description: l.description ?? "",
     keywords: l.keywords ?? [],

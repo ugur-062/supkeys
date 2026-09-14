@@ -5,8 +5,8 @@ import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
-import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
+import { CompanyActivityPicker } from "@/components/categories/company-activity-picker";
+import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
 import { useRoots } from "@/hooks/use-categories";
 import {
   useCompanyMe,
@@ -17,13 +17,11 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   COUNTRIES,
+  MAX_COMPANY_MAIN_CATEGORIES,
   TURKEY_LOCATIONS,
   isValidTaxIdForCountry,
   isValidTckn,
-
   registrationCountries,
-  COMPANY_ACTIVITIES,
-  MAX_COMPANY_ACTIVITIES,
 } from "@rothern/shared";
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -87,6 +85,13 @@ export function OnboardingClient() {
   const taxNumberValid = isValidTaxIdForCountry(f.taxNumber, f.country, isSole);
   const tcknValid = isTR ? isValidTckn(f.authorizedTckn) : true;
   const set = (k: keyof typeof f) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
+  /**
+   * Ana ve alt kategori TEK yazmada güncellenir: seçici ikisini birlikte
+   * üretiyor (segment, seçilen yapraklardan türetiliyor) ve iki ayrı `set`
+   * çağrısı ara bir turda tutarsız çift bırakırdı.
+   */
+  const setKategoriler = (v: { mainIds: string[]; subIds: string[] }) =>
+    setF((s) => ({ ...s, mainCategoryIds: v.mainIds, subCategoryIds: v.subIds }));
 
   useEffect(() => {
     if (isHydrated && !authUser && typeof window !== "undefined") {
@@ -118,10 +123,13 @@ export function OnboardingClient() {
     (f.deliverySameAsBilling ||
       (f.deliveryCity.trim().length >= 2 &&
         f.deliveryAddressLine.trim().length >= 5));
+  // Tavan shared'den: DTO (`onboarding.dto.ts`) ve servis
+  // (`category-selection.helper.ts`) AYNI sabiti okuyor. Elle yazılan "3"
+  // burada duruyordu ve ayarlar ekranıyla sessizce ayrışmıştı.
   const step2Valid =
     tcknValid &&
     f.mainCategoryIds.length >= 1 &&
-    f.mainCategoryIds.length <= 3;
+    f.mainCategoryIds.length <= MAX_COMPANY_MAIN_CATEGORIES;
 
   const isEuVat = !isTR && EU_VAT.has(f.country);
   const checkVies = async () => {
@@ -429,22 +437,24 @@ export function OnboardingClient() {
                 yetkiye sahipsiniz.
               </div>
             </div>
-            <div>
+            <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4">
               {/* Grup etiketi — tek input'a bağlı değil, bu yüzden Headless
                   <Label> (Field gerektirir) yerine düz element. */}
-              <p
-                id="sector-label"
-                className="text-base/6 text-zinc-950 select-none sm:text-sm/6"
-              >
-                Faaliyet Sektörü{" "}
-                <span className="text-zinc-400">* (1-3 seçin)</span>
-              </p>
-              <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-                Firmanızın faaliyet gösterdiği ana sektörleri arayıp seçin — size
-                uygun alış/satış ilanları bununla eşleştirilir.
-              </p>
+              <div>
+                <p
+                  id="sector-label"
+                  className="text-base/6 font-medium text-zinc-950 select-none sm:text-sm/6"
+                >
+                  Ne alıp satıyorsunuz? <span className="text-zinc-500">*</span>
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Somut ürün ve hizmetlerinizi seçin — sektörünüz seçiminizden
+                  otomatik belirlenir. Açık talepler size bu beyana göre
+                  iletilir; boş bırakırsanız hiçbir talep bildirimi almazsınız.
+                </p>
+              </div>
               {roots.isError ? (
-                <p className="mt-2 text-xs text-red-600">
+                <p className="text-xs text-rose-600">
                   Sektörler yüklenemedi.{" "}
                   <button
                     type="button"
@@ -455,92 +465,22 @@ export function OnboardingClient() {
                   </button>
                 </p>
               ) : (
-                // 58 UNSPSC segmenti düz chip duvarı yerine aranabilir modal
-                // seçici (arama + checkbox listesi + kaldırılabilir seçili çipler).
-                <div className="space-y-4">
-                  <SegmentOnlyPicker
-                    value={f.mainCategoryIds}
-                    onChange={set("mainCategoryIds")}
-                    maxSelection={3}
-                    placeholder="Sektör seçmek için tıklayın"
-                    title="Faaliyet Sektörünüz"
-                    description="Firmanızın faaliyet gösterdiği ana sektörleri seçin (en fazla 3). Bu seçim, size uygun alış/satış ilanlarını eşleştirmek için kullanılır."
-                  />
-
-                  {/* Alt kategori — ana sektör geniştir ("İmalat Makineleri"
-                      88 başlık taşır). Burada seçilmezse firma o sektördeki
-                      HER ilanın bildirimini alır ve bir süre sonra hepsini
-                      görmezden gelir. */}
-                  <div>
-                    <span className="block text-sm font-medium text-zinc-950">
-                      Ürün / hizmetleriniz{" "}
-                      <span className="font-normal text-zinc-400">
-                        (isteğe bağlı, sonra da eklenebilir)
-                      </span>
-                    </span>
-                    <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-                      Tam olarak ne alıp sattığınızı işaretleyin — ilanlar önce
-                      bu seçime göre karşınıza çıkar.
-                    </p>
-                    <CategorySelectorButton
-                      value={f.subCategoryIds}
-                      onChange={set("subCategoryIds")}
-                      maxSelection={50}
-                      modalTitle="Ürün ve Hizmetleriniz"
-                      modalDescription="Alıp sattığınız ürün/hizmetleri arayıp seçin."
-                      placeholder="Ürün / hizmet ekle"
-                    />
-                  </div>
-
-                  {/* Faaliyet tipi — kategori "ne", bu "nasıl". */}
-                  <div>
-                    <span className="block text-sm font-medium text-zinc-950">
-                      Faaliyet tipiniz{" "}
-                      <span className="font-normal text-zinc-400">
-                        (isteğe bağlı)
-                      </span>
-                    </span>
-                    <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-                      En fazla {MAX_COMPANY_ACTIVITIES} seçim. Alıcılar
-                      üreticiyle bayiyi ayırt edebilsin diye sorulur.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {COMPANY_ACTIVITIES.map((a) => {
-                        const selected = f.activities.includes(a.code);
-                        const full =
-                          !selected &&
-                          f.activities.length >= MAX_COMPANY_ACTIVITIES;
-                        return (
-                          <button
-                            key={a.code}
-                            type="button"
-                            disabled={full}
-                            aria-pressed={selected}
-                            title={a.hintTr}
-                            onClick={() =>
-                              set("activities")(
-                                selected
-                                  ? f.activities.filter((c) => c !== a.code)
-                                  : [...f.activities, a.code],
-                              )
-                            }
-                            className={
-                              selected
-                                ? "rounded-lg border border-blue-600 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900"
-                                : "rounded-lg border border-zinc-950/10 bg-white px-3 py-2 text-left text-sm text-zinc-700 hover:border-zinc-950/20 disabled:opacity-40"
-                            }
-                          >
-                            <span className="block">{a.nameTr}</span>
-                            <span className="block text-xs font-normal text-zinc-500">
-                              {a.hintTr}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                <CompanyCategoryPicker
+                  value={{
+                    mainIds: f.mainCategoryIds,
+                    subIds: f.subCategoryIds,
+                  }}
+                  onChange={setKategoriler}
+                  label="Ürün ve hizmetleriniz"
+                  hint="Alıp sattığınız her şeyi tek listede işaretleyin — kayıt sırasında alış/satış ayrımı sorulmaz, ikisi de aynı beyandan doğar ve Ayarlar'dan ayrıştırılabilir."
+                  modalTitle="Ürün ve hizmetleriniz"
+                />
               )}
+
+              <CompanyActivityPicker
+                value={f.activities}
+                onChange={set("activities")}
+              />
             </div>
           </div>
         ) : null}

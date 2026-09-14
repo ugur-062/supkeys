@@ -67,6 +67,8 @@ export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> 
   allowedCurrencies: string[];
   targetCountries: string[];
   categoryIds: string[];
+  /** Aranan tedarikçi tipi — boş = fark etmez. */
+  preferredActivities: string[];
   keywords: string[];
   requireAllItems: boolean;
   requireBidDocument: boolean;

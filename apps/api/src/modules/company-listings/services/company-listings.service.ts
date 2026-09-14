@@ -395,6 +395,7 @@ export class CompanyListingsService {
         type: true,
         visibility: true,
         categoryIds: true,
+        preferredActivities: true,
         number: true,
         title: true,
         isInternational: true,
@@ -468,7 +469,7 @@ export class CompanyListingsService {
         },
         OR: catOr,
       },
-      select: { id: true, tier: true, membershipEndAt: true },
+      select: { id: true, tier: true, membershipEndAt: true, activities: true },
       // Flood-guard (bilinçli). `orderBy` OLMADAN kesme, 300'ü aşan segmentte
       // "kim haber alır"ı tarama sırasına bırakıyordu; en YENİ firmalar hiç
       // haber alamayabiliyordu. Deterministik sıra + sessiz kesmeyi loglama.
@@ -495,11 +496,38 @@ export class CompanyListingsService {
       isBuyDemand ? "sell" : "buy",
     );
 
+    // ARANAN TEDARİKÇİ TİPİ — İKİNCİ EKSEN (2026-09-14).
+    //
+    // `Company.activities` bugüne kadar YALNIZ süzgeç/facet'ti; eşleştirmenin
+    // hiçbir yerinde okunmuyordu çünkü alıcının "bana üretici lazım" diyeceği
+    // bir alan yoktu. Artık var (`Listing.preferredActivities`).
+    //
+    // ELEME DEĞİL SIRALAMA — ve sıra KARARLI: ilgi skorunun ürettiği düzen
+    // korunur, yalnız tercihe uyan firmalar öne alınır. Eleme yapsaydık tipini
+    // eksik beyan etmiş firma duyuruyu HİÇ almaz ve bunu asla göremezdi.
+    const tercih = listing.preferredActivities ?? [];
+    const sirali =
+      tercih.length === 0
+        ? ranked
+        : (() => {
+            const aktByCompany = new Map(
+              candidates.map((c) => [c.id, c.activities ?? []]),
+            );
+            const uyan = (id: string) =>
+              (aktByCompany.get(id) ?? []).some((a) =>
+                (tercih as string[]).includes(a as string),
+              );
+            const on = ranked.filter((c) => uyan(c.id));
+            return on.length === 0
+              ? ranked
+              : [...on, ...ranked.filter((c) => !uyan(c.id))];
+          })();
+
     // Teklifçi portalı (ALIM→satış, SATIS→satınalma) — e-posta fallback'i de
     // bu portalın rolüne göre süzülür.
     const matchPortal = this.bidderPortal(listing.type);
     const recipients = await this.companyRecipients(
-      ranked.map((c) => c.id),
+      sirali.map((c) => c.id),
       matchPortal,
     );
     // Açık talepler satış ANASAYFASINDA (2026-09-05); satın-al sayfası yok.
@@ -545,7 +573,7 @@ export class CompanyListingsService {
       footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
     };
     let sent = 0;
-    for (const c of ranked) {
+    for (const c of sirali) {
       const to = recipients.get(c.id);
       if (!to) continue;
       this.notify(to, isFree.get(c.id) ? lockedText : openText, {
@@ -558,8 +586,8 @@ export class CompanyListingsService {
     // portalındaki (ALIM→satış, SATIS→satınalma) aktif kullanıcılarına. Portal
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
-    const paidIds = ranked.map((c) => c.id).filter((id) => !isFree.get(id));
-    const freeIds = ranked.map((c) => c.id).filter((id) => isFree.get(id));
+    const paidIds = sirali.map((c) => c.id).filter((id) => !isFree.get(id));
+    const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id));
     if (paidIds.length > 0) {
       await this.notifications.pushToCompanies(paidIds, {
         type: "listing_category_match",
@@ -588,7 +616,7 @@ export class CompanyListingsService {
         isBuyDemand ? "satıcı" : "alıcı"
       })`,
     );
-    return ranked;
+    return sirali;
   }
 
   /**
@@ -1214,6 +1242,10 @@ export class CompanyListingsService {
           status: dto.asDraft ? "DRAFT" : "OPEN",
           publishedAt: dto.asDraft ? null : new Date(),
           categoryIds: dto.categoryIds ?? [],
+          // Yinelenen tercih tavanı boşa harcamasın (gövde elle de gelebilir).
+          preferredActivities: [
+            ...new Set(dto.preferredActivities ?? []),
+          ] as never,
           keywords: dto.keywords ?? [],
           terms: dto.terms?.trim() || null,
           internalNotes: dto.internalNotes?.trim() || null,
@@ -1478,6 +1510,10 @@ export class CompanyListingsService {
           description: dto.description?.trim() || null,
           closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
           categoryIds: dto.categoryIds ?? [],
+          // Yinelenen tercih tavanı boşa harcamasın (gövde elle de gelebilir).
+          preferredActivities: [
+            ...new Set(dto.preferredActivities ?? []),
+          ] as never,
           keywords: dto.keywords ?? [],
           terms: dto.terms?.trim() || null,
           internalNotes: dto.internalNotes?.trim() || null,
@@ -2159,6 +2195,8 @@ export class CompanyListingsService {
           sellerSubCategoryIds: true,
           buyerCategoryIds: true,
           buyerSubCategoryIds: true,
+          // Talebin aradığı tedarikçi tipiyle karşılaştırılır (sıralama sinyali).
+          activities: true,
         },
       }),
       // ÜRÜN EŞLEŞMESİ (2026-09-05): satıcının katalog ürünleri (taslak dahil
@@ -2194,6 +2232,9 @@ export class CompanyListingsService {
       format: true,
       primaryCurrency: true,
       categoryIds: true,
+      // Aranan tedarikçi tipi — sıralama merdiveninin basamağı (satır ALANI
+      // olarak dışarı da çıkar: satıcı neden öne geldiğini görebilmeli).
+      preferredActivities: true,
       isInternational: true,
       closesAt: true,
       createdAt: true,
@@ -2300,6 +2341,15 @@ export class CompanyListingsService {
         subCandidates.some((c) => mySubs.has(c))
       );
     };
+    // ARANAN TEDARİKÇİ TİPİ — alıcı "üretici arıyorum" dediyse ve ben
+    // üreticiysem bu talep bana daha yakın. Tercih belirtilmemiş talep bu
+    // sinyalden ETKİLENMEZ (false) — yokluk, uymama demek değil; sıralamada
+    // nötr kalır çünkü merdivenin bu basamağında herkes eşit olur.
+    const myActivities = new Set<string>(myCompany?.activities ?? []);
+    const matchesMyActivity = (wanted: string[]): boolean =>
+      wanted.length > 0 &&
+      myActivities.size > 0 &&
+      wanted.some((a) => myActivities.has(a));
 
     const rows = all.map((l) => {
       const connected = connectedIds.includes(l.companyId);
@@ -2345,6 +2395,7 @@ export class CompanyListingsService {
         myBidStatus: bid?.status ?? null,
         myBidVersion: bid?.version ?? null,
         categoryMatch: matchesMyCategories(l.categoryIds),
+        activityMatch: matchesMyActivity(l.preferredActivities ?? []),
         // Katalog ürünüyle eşleşme (kategori ata zinciri ya da ad/anahtar
         // kelime ↔ başlık/kalem adı) — "ilgili ürünlerine göre".
         productMatch: pm.matched,
@@ -2416,6 +2467,7 @@ export class CompanyListingsService {
         Number(b.connected) - Number(a.connected) ||
         Number(b.productMatch) - Number(a.productMatch) ||
         Number(b.categoryMatch) - Number(a.categoryMatch) ||
+        Number(b.activityMatch) - Number(a.activityMatch) ||
         (affinityByListing.get(b.id)?.score ?? 0) -
           (affinityByListing.get(a.id)?.score ?? 0) ||
         0,

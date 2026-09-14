@@ -1,6 +1,7 @@
 "use client";
 
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { PreferredActivitiesField } from "@/components/tenders/preferred-activities-field";
 import { NumberedSection } from "@/components/ui/numbered-section";
 import { AddressInline } from "./address-inline";
 import { RecentRequests } from "./recent-requests";
@@ -450,6 +451,16 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                       ) : (
                         <p className="mt-1 text-xs text-zinc-500">Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.</p>
                       )}
+                      {/* İkinci eksen: kategori "ne", bu "kimden". */}
+                      <div className="mt-3">
+                        <span className="block text-xs font-medium text-zinc-700">Aranan tedarikçi tipi (isteğe bağlı)</span>
+                        <div className="mt-1.5">
+                          <PreferredActivitiesField
+                            value={watched.preferredActivities ?? []}
+                            onChange={(codes) => form.setValue("preferredActivities", codes, { shouldDirty: true })}
+                          />
+                        </div>
+                      </div>
                       {(watched.categoryIds?.length ?? 0) < 3 ? (
                         <CategorySuggest
                           seedText={namedItems[0]?.name ?? ""}

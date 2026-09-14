@@ -170,6 +170,19 @@ export function ListingDetail({
               ))}
             </ul>
           ) : null}
+          {/* ARANAN TEDARİKÇİ TİPİ — talebin niteliği, sahibinin kimliği
+              DEĞİL. "Üretici aranıyor" yazan talebe bayi boşuna hazırlık
+              yapmasın diye burada, kategorinin hemen yanında. */}
+          {(listing.preferredActivities?.length ?? 0) > 0 ? (
+            <p className="mt-3 text-sm text-zinc-600">
+              <span className="font-medium text-zinc-900">
+                Aranan tedarikçi tipi:
+              </span>{" "}
+              {listing.preferredActivities
+                .map(companyActivityLabel)
+                .join(" · ")}
+            </p>
+          ) : null}
         </header>
 
         <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_18rem]">

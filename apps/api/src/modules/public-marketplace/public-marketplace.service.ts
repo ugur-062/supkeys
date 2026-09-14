@@ -118,6 +118,7 @@ export class PublicMarketplaceService {
       isInternational: row.isInternational,
       targetCountries: row.targetCountries,
       categoryIds: row.categoryIds,
+      preferredActivities: row.preferredActivities,
       keywords: row.keywords,
       requireAllItems: row.requireAllItems,
       requireBidDocument: row.requireBidDocument,

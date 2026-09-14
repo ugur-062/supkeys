@@ -492,6 +492,17 @@ export class CompanyAuthService {
           addressLine: dto.addressLine.trim(),
           authorizedTckn: dto.authorizedTckn?.trim() || null,
           authorizedTitle: ROLE_LABELS[CompanyRole.SAHIP],
+          // AYNI LİSTE DÖRT ALANA — bilinçli, kopyala-yapıştır değil.
+          //
+          // Kayıt ekranı TEK soru sorar ("ne alıp satıyorsunuz"). Yeni kullanıcı
+          // henüz alış ile satış beyanını ayıracak durumda değil; iki ayrı liste
+          // istemek kayıt akışını uzatır ve çoğu firma ikisine de aynı şeyi
+          // yazar. Bu yüzden beyan her iki eksene de düşer: firma ilk günden
+          // hem talep bildirimi alır (seller*) hem "size uygun ürünler"
+          // sıralamasından yararlanır (buyer*).
+          //
+          // Ayrıştırma Ayarlar › Kategoriler'de yapılır ve kayıt ekranının ipucu
+          // metni bunu SÖYLER — iki ekranın birbirine yalan söylememesi için.
           buyerCategoryIds: mainIds,
           sellerCategoryIds: mainIds,
           buyerSubCategoryIds: subIds,

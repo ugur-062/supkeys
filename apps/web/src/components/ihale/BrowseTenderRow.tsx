@@ -8,6 +8,7 @@ import {
   daysUntil,
   deriveSellerTenderState,
 } from "@/lib/tenders/seller-state";
+import { companyActivityLabel } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import { Building2, FileText, Lock } from "lucide-react";
 import Link from "next/link";
@@ -209,6 +210,15 @@ export function BrowseTenderRow({
           </span>
         ) : null}
         {t.categoryMatch ? <InfoChip tone="blue">Profilinizle eşleşti</InfoChip> : null}
+        {/* Sıralamada öne geldiyse SEBEBİ görünmeli; tercih uymuyorsa da talep
+            listede kalır (eleme yok) — o yüzden rozet yalnız UYAN'a basılır. */}
+        {t.activityMatch ? (
+          <span
+            title={(t.preferredActivities ?? []).map(companyActivityLabel).join(" · ")}
+          >
+            <InfoChip tone="slate">Aranan tedarikçi tipi</InfoChip>
+          </span>
+        ) : null}
       </>
     ),
     facts: compact ? [firma, kapanis] : [firma, kalem, kapsam, kapanis, kategori],

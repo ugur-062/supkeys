@@ -17,8 +17,8 @@ import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
-import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
+import { CompanyActivityPicker } from "@/components/categories/company-activity-picker";
+import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
 import {
   useCompanyProfile,
   useUpdateCompanyProfile,
@@ -27,8 +27,6 @@ import {
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
-  COMPANY_ACTIVITIES,
-  MAX_COMPANY_ACTIVITIES,
   countryName,
   getCountryProfile,
   isTurkey,
@@ -415,126 +413,65 @@ export function CompanyProfileSection() {
         </div>
       </section>
 
-      {/* 4 · FAALİYET TİPİ — kategori "ne", bu "nasıl". */}
-      <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-        <Subheading>Faaliyet tipi</Subheading>
-        <Text className="mt-1 text-sm text-zinc-500">
-          Alıcı için çoğu zaman kategoriden daha belirleyici: seri üretim işi
-          üreticiye, stoktan acil ihtiyaç bayiye, çizimle parça fasona gider.
-          En fazla {MAX_COMPANY_ACTIVITIES} seçim.
-        </Text>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {COMPANY_ACTIVITIES.map((a) => {
-            const selected = form.activities.includes(a.code);
-            const full = !selected && form.activities.length >= MAX_COMPANY_ACTIVITIES;
-            return (
-              <button
-                key={a.code}
-                type="button"
-                disabled={full}
-                aria-pressed={selected}
-                title={a.hintTr}
-                onClick={() =>
-                  set({
-                    activities: selected
-                      ? form.activities.filter((c) => c !== a.code)
-                      : [...form.activities, a.code],
-                  })
-                }
-                className={
-                  selected
-                    ? "rounded-lg border border-blue-600 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900"
-                    : "rounded-lg border border-zinc-950/10 bg-white px-3 py-2 text-left text-sm text-zinc-700 hover:border-zinc-950/20 disabled:opacity-40"
-                }
-              >
-                <span className="block">{a.nameTr}</span>
-                <span className="block text-xs font-normal text-zinc-500">{a.hintTr}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
-      {/* 5 · KATEGORİLER — pano ve liste boş durumlarındaki "kategorileri
-          düzenle" bağlantısı buraya iner (#kategoriler). */}
+      {/* 4 · KATEGORİLER — pano ve liste boş durumlarındaki "kategorileri
+          düzenle" bağlantısı buraya iner (#kategoriler).
+
+          İKİ EKSEN AYRI: kayıt sırasında tek soru sorulur ve aynı liste dört
+          alana birden yazılır (`company-auth.service.ts` completeOnboarding);
+          alış ile satışı gerçekten ayırmanın yeri burasıdır. */}
       <section
         id="kategoriler"
         className="scroll-mt-24 rounded-xl border border-zinc-950/10 bg-white p-5"
       >
         <Subheading>Kategoriler</Subheading>
         <Text className="mt-1 text-sm text-zinc-500">
-          Talep eşleşmesi, öneriler ve bildirimler bu seçime göre yapılır.
+          Talep eşleşmesi, öneriler ve bildirimler bu seçime göre yapılır. Somut
+          ürün/hizmetlerinizi seçin — sektörünüz seçiminizden otomatik belirlenir.
         </Text>
         <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <span className="block text-sm font-medium text-zinc-950">
-              <span
-                aria-hidden
-                className="mr-1.5 inline-block size-2 rounded-full bg-blue-500 align-middle"
-              />
-              Ne alırım (alış kategorileri)
-            </span>
-            <div className="mt-2 space-y-3">
-              <SegmentOnlyPicker
-                value={form.buyerCategoryIds}
-                onChange={(ids) => set({ buyerCategoryIds: ids })}
-                title="Alış Faaliyet Alanları"
-                description="Satın aldığınız ana kategorileri seçin — satın alma talebi eşleşmesi ve öneriler bu seçime göre yapılır."
-              />
-              <div>
-                <span className="block text-xs font-medium text-zinc-500">
-                  Alt kategoriler (isteğe bağlı)
-                </span>
-                <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-                  Ana kategori geniştir; alt kırılım seçerseniz yalnız gerçekten
-                  ilgilendiğiniz talepler karşınıza çıkar.
-                </p>
-                <CategorySelectorButton
-                  value={form.buyerSubCategoryIds}
-                  onChange={(ids) => set({ buyerSubCategoryIds: ids })}
-                  maxSelection={50}
-                  modalTitle="Alış Alt Kategorileri"
-                  modalDescription="Satın aldığınız ürün/hizmetleri arayıp seçin."
-                  placeholder="Alt kategori ekle"
-                />
-              </div>
-            </div>
-          </div>
-          <div>
-            <span className="block text-sm font-medium text-zinc-950">
-              <span
-                aria-hidden
-                className="mr-1.5 inline-block size-2 rounded-full bg-emerald-500 align-middle"
-              />
-              Ne satarım (satış kategorileri)
-            </span>
-            <div className="mt-2 space-y-3">
-              <SegmentOnlyPicker
-                value={form.sellerCategoryIds}
-                onChange={(ids) => set({ sellerCategoryIds: ids })}
-                title="Satış Faaliyet Alanları"
-                description="Tedarik edebileceğiniz ana kategorileri seçin — açık talep önerileri ve alıcı eşleşmesi bu seçime göre yapılır."
-              />
-              <div>
-                <span className="block text-xs font-medium text-zinc-500">
-                  Alt kategoriler (isteğe bağlı)
-                </span>
-                <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-                  Tedarik ettiğiniz ürünleri tek tek işaretleyin — talepler önce
-                  bu kırılıma göre karşınıza çıkar.
-                </p>
-                <CategorySelectorButton
-                  value={form.sellerSubCategoryIds}
-                  onChange={(ids) => set({ sellerSubCategoryIds: ids })}
-                  maxSelection={50}
-                  modalTitle="Satış Alt Kategorileri"
-                  modalDescription="Tedarik ettiğiniz ürün/hizmetleri arayıp seçin."
-                  placeholder="Alt kategori ekle"
-                />
-              </div>
-            </div>
-          </div>
+          <CompanyCategoryPicker
+            value={{
+              mainIds: form.buyerCategoryIds,
+              subIds: form.buyerSubCategoryIds,
+            }}
+            onChange={(v) =>
+              set({ buyerCategoryIds: v.mainIds, buyerSubCategoryIds: v.subIds })
+            }
+            label="Ne alırım"
+            hint="Satın aldıklarınız. Tedarikçi önerileri ve ürün keşfindeki “size uygun” sıralaması bu seçimden çıkar."
+            modalTitle="Alış kategorileriniz"
+            accent="blue"
+          />
+          <CompanyCategoryPicker
+            value={{
+              mainIds: form.sellerCategoryIds,
+              subIds: form.sellerSubCategoryIds,
+            }}
+            onChange={(v) =>
+              set({ sellerCategoryIds: v.mainIds, sellerSubCategoryIds: v.subIds })
+            }
+            label="Ne satarım"
+            hint="Tedarik edebildikleriniz. Yeni bir alım talebi yayınlandığında size bildirim gidip gitmeyeceğini BU seçim belirler."
+            modalTitle="Satış kategorileriniz"
+            accent="emerald"
+          />
         </div>
+      </section>
+
+      {/* 5 · FAALİYET TİPİ — kategori "ne", bu "nasıl". Kategorilerin ALTINDA:
+          önce ne yaptığını söylersin, sonra nasıl yaptığını. Kayıt ekranındaki
+          sıra da bu. */}
+      <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
+        <Subheading>Faaliyet tipi</Subheading>
+        <Text className="mt-1 mb-3 text-sm text-zinc-500">
+          Alıcı için çoğu zaman kategoriden daha belirleyici: seri üretim işi
+          üreticiye, stoktan acil ihtiyaç bayiye, çizimle parça fasona gider.
+        </Text>
+        <CompanyActivityPicker
+          value={form.activities}
+          onChange={(codes) => set({ activities: codes })}
+        />
       </section>
 
       {/* KAYDET — yalnız değişiklik varsa aktif; Vazgeç forma geri döner. */}

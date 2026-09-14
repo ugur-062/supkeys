@@ -1588,6 +1588,23 @@ model Listing {
   // İhale (ALIM) zenginleştirme — eski alıcı paneli kuralları.
   categoryIds        String[]   @default([]) // UNGM UNSPSC TR kategori kodları
   keywords           String[]   @default([]) // 0-10 arama/eşleştirme etiketi
+
+  /// ARANAN TEDARİKÇİ TİPİ (2026-09-14) — kategorinin İKİNCİ ekseni.
+  ///
+  /// `Company.activities` 2026-09-06'dan beri duruyordu ama YALNIZ süzgeç ve
+  /// facet olarak çalışıyordu: eşleştirme, bildirim, öneri ve ilgi motorlarının
+  /// hiçbiri okumuyordu. Sebebi bu alanın yokluğuydu — alıcının "bana üretici
+  /// lazım, bayi değil" diyebileceği bir yer yoktu, dolayısıyla eşleştirmenin
+  /// karşılaştıracağı bir şey de yoktu.
+  ///
+  /// ELEME DEĞİL SIRALAMA: tercih edilen tipteki firmalar duyuruda ve satış
+  /// listesinde ÖNE alınır, diğerleri ELENMEZ. Sert süzgeç, tipini eksik ya da
+  /// yanlış beyan etmiş firmayı tamamen görünmez yapardı — ve beyanı yapan
+  /// firma bunun bedelini asla göremezdi.
+  ///
+  /// Boş dizi = tercih yok (varsayılan). Tavan `MAX_COMPANY_ACTIVITIES` (3):
+  /// beşinin hepsini isteyen alıcı hiçbir şey söylememiş olur.
+  preferredActivities CompanyActivity[] @default([])
   terms              String? // şartlar ve koşullar
   internalNotes      String? // yalnızca açan firma görür
   requireAllItems    Boolean    @default(false) // tüm kalemlere teklif zorunlu mu

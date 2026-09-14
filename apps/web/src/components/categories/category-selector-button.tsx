@@ -92,7 +92,7 @@ export function CategorySelectorButton({
                 </p>
               </div>
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-400" />
+            <ChevronRight className="h-4 w-4 text-zinc-500" />
           </button>
         ) : (
           <div className="space-y-2">
