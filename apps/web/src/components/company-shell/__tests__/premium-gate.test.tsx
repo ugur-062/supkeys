@@ -40,14 +40,16 @@ describe("PremiumGate", () => {
    * adımları kaldırıldı — backend kapısı da tek şarta indi. Ekran ile sunucu
    * AYNI kuralı uygulamalı: ayrışsalardı ekran "hazır" der, sunucu reddederdi.
    */
-  it("doğrulama eksikken 'Gold'a Geç' devre dışı — TEK gereksinim gösterilir", () => {
+  it("doğrulanmamışta BİRİNCİL eylem doğrulama; 'Gold'a Geç' devre dışı", () => {
     setMe("UNVERIFIED", false, null);
     render(<PremiumGate />);
+    expect(screen.getByRole("button", { name: "Gold'a Geç" })).toBeDisabled();
+    // Doğrulama paketin ÖN ŞARTI gibi değil, kendi başına kazanım gibi sunulur.
+    expect(screen.getByText(/Önce ücretsiz doğrulama/)).toBeInTheDocument();
+    expect(screen.getByText(/ücretsizdir ve paket gerektirmez/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Gold'a Geç" }),
-    ).toBeDisabled();
-    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(1);
-    expect(screen.getByText(/Şirket belgelerini doğrula/)).toBeInTheDocument();
+      screen.getByRole("link", { name: "Doğrulamaya git" }),
+    ).toHaveAttribute("href", "/company/ayarlar/dogrulama");
   });
 
   it("2FA ve web sitesi ADIM DEĞİL — ikisi de eksikken buton AKTİF", () => {

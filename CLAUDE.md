@@ -704,6 +704,26 @@ sayfasının başındaki bant, üst çubuk DEĞİL.
 
 Adres tek kaynağı `lib/company/panel-market.ts`.
 
+- **PORTAL GEÇİŞİ ÜST ÇUBUKTA, TEK TUŞ (2026-09-15, kullanıcı kararı):**
+  `portal-switch.tsx` — üstünde iki portalın ikonu ve aralarında değişim oku,
+  altında aktif portalın adı; tıklayınca iki paneli AÇIKLAYAN popover açılır.
+  Sol menüdeki segmentli pil KALDIRILDI (aynı işe iki giriş bırakmak Ayarlar'daki
+  Onay Akışları kartının tekrarı olurdu). Yeri: Şirketim'in SOLU — "hangi
+  paneldeyim" sorusu "firmam"dan önce gelir. Dar ekranda GİZLENMEZ: orada sol
+  menü çekmece olduğu için geçişin tek görünür yolu bu.
+  **Renk:** tuşta ikonlar zinc; portal rengi yalnız açılan panelin aktif
+  satırında (üst çubuk beyaz ve nötr — "tek eylem rengi" delinmez).
+  `visiblePortals`/`available` hesabı sol menüyle BİREBİR; ayrışsalardı biri
+  kilidi gösterir diğeri göstermezdi. Sözleşme: `portal-switch.test.tsx`.
+
+- **PREMIUM ÇAĞRILARI PANELDEN ÇIKARMAZ (2026-09-15, kullanıcı bildirdi):**
+  `PRICING_HREF` artık `/company/premium` — eskiden `/nasil-calisir#fiyatlar`
+  idi ve panelde çalışan kullanıcı "Paketleri Gör"e basınca herkese açık
+  pazarlama sayfasına düşüyordu (üst çubuk, sol menü, firma bağlamı gidiyor →
+  "sistemden çıkmış" hissi). Panel içi paket sayfası ÖNCE DOĞRULAMA gösterir
+  (birincil eylem "Doğrulamaya git"), doğrulanmışta paket seçimi. Pazarlama
+  başlığındaki fiyat bağlantısı AYRI ve public kalır.
+
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).
 - **SONUÇ TÜRÜ SEKMESİ** (Ürünler ve hizmetler | Tedarikçiler) üç sayfada AYNI;

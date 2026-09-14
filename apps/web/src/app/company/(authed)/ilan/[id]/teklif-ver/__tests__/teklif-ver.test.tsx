@@ -124,7 +124,7 @@ describe("TeklifVerPage — kapılar", () => {
       render(<TeklifVerPage />);
       expect(screen.getByText(/Bu herkese açık talebe teklif Silver paketiyle açılır/)).toBeInTheDocument();
       expect(screen.queryByText(/bulunamadı/)).toBeNull();
-      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/nasil-calisir#fiyatlar");
+      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/company/premium");
     } finally {
       h.error = null;
     }

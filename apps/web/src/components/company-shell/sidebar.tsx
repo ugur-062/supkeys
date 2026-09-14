@@ -178,57 +178,11 @@ export function CompanySidebarContent({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Satınalma/Satış geçişi — Anasayfa'nın ÜSTÜNDE (kullanıcı isteği).
-          Eski topbar'daki segmentli (yan yana) görünüm; rayda daralınca dikey
-          ikon pill'ine döner. Kilitli panel PortalGuard'a gider. */}
-      {visiblePortals.length > 1 ? (
-        <div className="mt-3 border-b border-zinc-950/5 px-2 pb-2">
-          <div
-            className={cn(
-              "grid gap-1 rounded-lg bg-zinc-100 p-1",
-              expanded ? "grid-cols-2" : "grid-cols-1",
-            )}
-          >
-            {PORTAL_ORDER.filter((p) => visiblePortals.includes(p)).map((p) => {
-              const def = PORTALS[p];
-              const allowedP = available.includes(p);
-              const on = p === active && !inCompanyArea;
-              const Icon =
-                p === "satinalma" ? ShoppingCartIcon : BuildingStorefrontIcon;
-              return (
-                <Link
-                  key={p}
-                  href={def.basePath}
-                  prefetch={false}
-                  aria-label={`${def.label} paneline geç`}
-                  title={expanded ? undefined : def.label}
-                  onClick={() => {
-                    if (allowedP) setLastPortal(p);
-                    onNavigate?.();
-                  }}
-                  className={cn(
-                    "flex h-8 items-center justify-center gap-2 rounded-md px-1 text-xs font-semibold whitespace-nowrap transition",
-                    on
-                      ? ACCENT[def.accent].switch
-                      : "text-zinc-600 hover:text-zinc-900",
-                  )}
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden />
-                  {expanded ? (
-                    <span className="truncate">{def.label}</span>
-                  ) : null}
-                  {expanded && !allowedP ? (
-                    <LockClosedIcon
-                      className="size-3.5 shrink-0 text-zinc-400"
-                      aria-hidden
-                    />
-                  ) : null}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+      {/* PORTAL GEÇİŞİ BURADA DEĞİL (2026-09-15, kullanıcı kararı): tek tuş
+          olarak ÜST ÇUBUĞA taşındı (`portal-switch.tsx`) — üstünde iki ikon ve
+          değişim oku, tıklayınca iki paneli açıklayan panel açılır. Burada da
+          bırakmak aynı işe iki giriş olurdu (Ayarlar'daki Onay Akışları
+          kartının tekrarı) ve "Anasayfa"nın üstünde yer yiyordu. */}
 
       {/* Madde 19: "Satın Alma Talebi Aç" — yalnız satınalma portalında belirgin
           CTA (izin + portal erişimi şart). Satış portalında ana CTA yok: satış

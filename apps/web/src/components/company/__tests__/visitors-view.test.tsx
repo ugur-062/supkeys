@@ -47,7 +47,9 @@ describe("VisitorsView", () => {
     render(<VisitorsView />);
     expect(screen.getByText("Kimliği bilinen firma").closest(".rounded-2xl")).toHaveTextContent("2");
     expect(screen.getByText(/2 firma profilinizi inceledi/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/ayarlar");
+    // PANELDEN ÇIKMAZ (2026-09-15): premium çağrıları panel içindeki paket
+    // sayfasına gider; Ayarlar hub'ı da pazarlama sayfası da doğru yer değil.
+    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
     expect(screen.queryByText("Ziyaretçi A")).toBeNull();
   });
 

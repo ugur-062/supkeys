@@ -158,7 +158,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
       render(<SellerTendersView />);
       expect(screen.getByText("Silver ile açılacak 12 açık talep")).toBeInTheDocument();
       expect(screen.getByText("4 kategorinizde · 3 bu hafta yeni · toplam 40 kalem")).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/nasil-calisir#fiyatlar");
+      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/company/premium");
       expect(screen.getByText(/herkese açık taleplerin tamamı Silver paketiyle açılır/)).toBeInTheDocument();
     } finally {
       h.locked = { locked: false };

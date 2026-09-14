@@ -146,7 +146,7 @@ function LockedList({ count }: { count: number }) {
             {count > 0 ? `${count} firma profilinizi inceledi` : "Kimlikli ziyaretçi listesi Silver ve üzeri paketlerde"}
           </p>
           <p className="mt-1 text-sm text-amber-800">Firma adı, şehir, faaliyet tipi ve hangi ürünlere baktıkları paketle açılır.</p>
-          <Link href="/company/ayarlar" className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
+          <Link href="/company/premium" className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
             Paketleri gör
           </Link>
         </div>

@@ -400,7 +400,7 @@ export function PanelHeroSearch({
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
             {!ai.enabled ? (
-              <Link href="/company/ayarlar" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
+              <Link href="/company/premium" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
                 Silver ile açılır
               </Link>
             ) : null}
