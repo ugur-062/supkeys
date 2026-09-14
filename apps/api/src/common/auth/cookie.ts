@@ -31,15 +31,42 @@ export const CSRF_COOKIE: Record<Realm, string> = {
 };
 export const CSRF_HEADER = "x-csrf-token";
 
-/** Cookie ömrü — JWT 1sa'de expire olur (asıl kapı); cookie daha uzun yaşar. */
-const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
+/**
+ * Çerez ömrü JETONDAN türetilir — sabit değildir.
+ *
+ * BUG (2026-09-14): çerez sabit 30 gün, jeton 1 saat yazılıyordu. Kullanıcı
+ * "oturumu açık bırak" işaretliyor, ertesi gün dönüyor, çerez duruyor ama içi
+ * geçersiz → girişe atılıyor. Jeton 7 güne çıkarıldıktan sonra bile çerez 4 kat
+ * uzun kalıyordu: 23 gün boyunca tarayıcı ÖLÜ bir çerez taşıyor, her istek 401
+ * alıyordu.
+ *
+ * Artık çerez, taşıdığı jetonun `exp` claim'iyle AYNI anda ölür. İki ömür
+ * yapısal olarak ayrışamaz — ayrı sabitler tutulsaydı biri değişince diğeri
+ * sessizce geride kalırdı (bu hatanın kök nedeni tam olarak buydu).
+ */
+const YEDEK_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Jetonun `exp` claim'inden kalan ömür (ms). Okunamazsa güvenli yedek. */
+function jetondanMaxAge(token: string | undefined): number {
+  if (!token) return YEDEK_MAX_AGE_MS;
+  try {
+    const seg = token.split(".")[1];
+    if (!seg) return YEDEK_MAX_AGE_MS;
+    const { exp } = JSON.parse(Buffer.from(seg, "base64url").toString("utf8")) as { exp?: number };
+    if (typeof exp !== "number") return YEDEK_MAX_AGE_MS;
+    const kalan = exp * 1000 - Date.now();
+    return kalan > 0 ? kalan : YEDEK_MAX_AGE_MS;
+  } catch {
+    return YEDEK_MAX_AGE_MS;
+  }
+}
 
 function isProd(config: ConfigService): boolean {
   return config.get<string>("NODE_ENV") === "production";
 }
 
 /** Ortak cookie opsiyonları — prod'da Secure + cross-subdomain Domain. */
-function baseOptions(config: ConfigService, persistent: boolean) {
+function baseOptions(config: ConfigService, persistent: boolean, token?: string) {
   const prod = isProd(config);
   // COOKIE_DOMAIN yalnız SAME-SITE prod'da set edilir (Railway: app/api ortak
   // .rothern.com → Domain ile paylaşılır). Cross-domain kurulumda (Vercel +
@@ -62,9 +89,9 @@ function baseOptions(config: ConfigService, persistent: boolean) {
     path: "/",
     sameSite,
     secure: prod || sameSite === "none",
-    // "Beni hatırla": kalıcı → maxAge (30 gün). Değilse maxAge YOK → SESSION
-    // cookie'si (tarayıcı kapanınca silinir). JWT 1sa'de expire eder (asıl kapı).
-    ...(persistent ? { maxAge: MAX_AGE_MS } : {}),
+    // "Beni hatırla": kalıcı → maxAge JETONUN ömrü kadar. Değilse maxAge YOK →
+    // SESSION cookie'si (tarayıcı kapanınca silinir).
+    ...(persistent ? { maxAge: jetondanMaxAge(token) } : {}),
   };
 }
 
@@ -79,7 +106,7 @@ export function setAuthCookies(
   config: ConfigService,
   persistent = true,
 ): void {
-  const base = baseOptions(config, persistent);
+  const base = baseOptions(config, persistent, token);
   res.cookie(AUTH_COOKIE[realm], token, { ...base, httpOnly: true });
   res.cookie(CSRF_COOKIE[realm], randomBytes(32).toString("hex"), {
     ...base,
@@ -117,7 +144,7 @@ export function slideAuthCookies(
   config: ConfigService,
   persistent: boolean,
 ): void {
-  const base = baseOptions(config, persistent);
+  const base = baseOptions(config, persistent, token);
   res.cookie(AUTH_COOKIE[realm], token, { ...base, httpOnly: true });
   const existingCsrf = parseCookies(req.headers.cookie)[CSRF_COOKIE[realm]];
   res.cookie(
