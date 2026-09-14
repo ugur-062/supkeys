@@ -2,6 +2,7 @@
  * Faz 2 — Firma Doğrulama sihirbazı (completeOnboarding). Kurumsal kimlik +
  * TR vergi/TCKN doğrulama + kategori + adres + rol + onboardingCompletedAt.
  */
+import { ensureOwnerBuySeat } from "../../src/common/company/owner-buy-seat";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
@@ -74,10 +75,11 @@ describe("completeOnboarding", () => {
       where: { id: owner.user.id },
     });
     // Faz R: SAHIP etikettir (op-izin vermez) — onboarding Kurucu'ya default
-    // op-rolleri de yazar (salt-okunur başlamasın; istemezse Ayarlar'dan bırakır).
+    // op-rol yazar (salt-okunur başlamasın). 2026-09-14'ten beri YALNIZ satış:
+    // satınalma koltuğu ücretsiz pakette kullanılamıyor ve iki koltuktan birini
+    // boşuna yakıyordu; GOLD'a geçişte açılıyor.
     expect(u.roles).toEqual([
       CompanyRole.SAHIP,
-      CompanyRole.SATIN_ALMACI,
       CompanyRole.SATISCI,
     ]);
 
@@ -87,21 +89,74 @@ describe("completeOnboarding", () => {
     expect(addrs.map((a) => a.type).sort()).toEqual(["FATURA", "TESLIMAT"]);
   });
 
-  it("Faz 5: kurucu kayıtta koltuk seçer — sellerSeat=false → yalnız SAHIP+SATIN_ALMACI, izin listesi ona göre", async () => {
+  /**
+   * KOLTUK SORUSU KALDIRILDI (2026-09-14, kullanıcı kararı). Kurucu SATIŞ
+   * koltuğuyla doğar; satınalma koltuğu ücretsiz pakette kullanılamadığı için
+   * (talep açmak GOLD ister) verilmez — verilseydi kurucu tek başına
+   * STANDART'ın 2 koltuğunun ikisini de doldurur ve firma ilk çalışanını
+   * davet edemezdi. Satınalma koltuğu GOLD'a geçişte açılır.
+   */
+  it("kurucu kayıtta YALNIZ satış koltuğu alır — satınalma koltuğu ücretsiz pakette yakılmaz", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const cat = await makeCategory();
     await service.completeOnboarding(
       owner.user.id,
       owner.company.id,
-      { ...dto(cat.id), sellerSeat: false } as never,
+      dto(cat.id) as never,
     );
     const u = await prisma.companyUser.findUniqueOrThrow({
       where: { id: owner.user.id },
     });
-    expect(u.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATIN_ALMACI]);
+    expect(u.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATISCI]);
+    expect(u.permissions).toContain("sell:bid:submit");
+    expect(u.permissions).not.toContain("buy:listing:manage");
+  });
+
+  it("GOLD'a geçişte kurucunun satınalma koltuğu AÇILIR", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto(cat.id) as never,
+    );
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { tier: "GOLD", membershipEndAt: null },
+    });
+    await ensureOwnerBuySeat(prisma, owner.company.id);
+
+    const u = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    expect(u.roles).toContain(CompanyRole.SATIN_ALMACI);
     expect(u.permissions).toContain("buy:listing:manage");
-    expect(u.permissions).not.toContain("sell:bid:submit");
+    // Satış koltuğu KAYBOLMAZ — ekleme, değiştirme değil.
+    expect(u.permissions).toContain("sell:bid:submit");
+  });
+
+  it("STANDART kalırsa satınalma koltuğu AÇILMAZ — fail-safe", async () => {
+    const { service } = makeAuthService();
+    // TUZAK: factory varsayılanı GOLD doğuruyor — sınanan koşul açıkça
+    // kurulmazsa test sessizce yanlış şeyi doğrular (VERIFIED tuzağının kardeşi).
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+    });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto(cat.id) as never,
+    );
+    await ensureOwnerBuySeat(prisma, owner.company.id);
+
+    const u = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    expect(u.roles).not.toContain(CompanyRole.SATIN_ALMACI);
   });
 
   it("geçersiz TCKN → reddedilir", async () => {

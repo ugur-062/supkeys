@@ -136,6 +136,18 @@ AB ve Afrika bilinçli KAPALI (VIES yazılı ve hazır; AB açmak profil eklemek
 **Doğrulama ülkeden bağımsız ve istisnasız MANUELDİR** — `VERIFIED` yalnız
 admin `setVerification` ile yazılır, otomatik onay yolu hiç yok.
 
+**KİMLİK ALANLARI HERKESE ZORUNLU, BİÇİM ÜLKEYE GÖRE (2026-09-14, kullanıcı:
+"bu evrensel bir sistem, yurtdışı yurtiçi firması diye bir şey yok").**
+`company-docs.service.ts` `submit()` tek bir `if (isTR)` taşıyordu: yabancı
+firmadan sicil no, banka bilgisi ve hesap sahibi HİÇ istenmiyordu ve ekran
+"Yurt dışı firmalarda bu alanlar zorunlu değildir" yazıyordu. Sicil BELGESİNİ
+sekiz ülkenin hepsinde isteyip numarasını istememek tutarsızdı. Artık:
+sicil/kayıt no + banka + hesap sahibi **her ülkede zorunlu**; MERSİS yalnız
+TR'de ÇİZİLİR (başka ülkede karşılığı YOK — "opsiyonel" değil); banka alanı
+`CountryProfile.usesIban` ile ayrışır — IBAN ülkelerinde mod-97 (`ibanChecksumOk`,
+TR'de `isValidIbanTr`), RU/UZ/CN'de serbest biçimli hesap numarası ama yine
+zorunlu. Sözleşme: `foreign-verification.spec.ts`.
+
 Kapı YALNIZ YENİ KAYDA uygulanır: `COUNTRIES` (98) kısaltılmadı; mevcut
 firmaların ülkesi gösterilebilmeli, adres defterinde her ülke seçilebilmeli.
 
@@ -492,7 +504,24 @@ Satınalmada bir işlem izni 1, satışta 1; aynı kişide ikisi 2. Görüntüle
 onay/yönetim tüketmez. `seatGroupsOf` + `countSeats` (shared); kapı
 `assertSeatAvailable` (davet/kabul/atama/reaktivasyon aynı kapı, bekleyen
 davetler grup bazında rezerve). Düşüşte `POST company/users/seat-selection`.
-Onboarding son adımında iki kutu (satın alma / satış koltuğu).
+
+**SATINALMA YETKİSİ YALNIZ GOLD'DA VERİLEBİLİR (2026-09-14, kullanıcı kararı).**
+`assertSeatAvailable` artık `need: number` değil `groups: Set<"buy"|"sell">`
+alıyor — sayıya indirgemek "hangi grup" bilgisini kapıya girmeden kaybediyordu
+ve sekiz çağrı yerinden biri bağlanmadan kalırdı. Buy grubu isteniyorsa ve
+efektif kademe < `BUYING_TIER` (GOLD; **SILVER de yetmez**, o satış paketi) →
+koltuk sayımından ÖNCE reddedilir ("koltuk dolu" demek yanıltıcı olurdu).
+Yetki tablosu aynasını `canGrantBuy` ile çizer.
+
+**Kayıtta koltuk sorusu KALDIRILDI.** Eskiden signup kurucuya hem SATIN_ALMACI
+hem SATISCI veriyordu ve onboarding son adımı "Bu hesapla ne yapacaksınız?"
+diye soruyordu — ikisi de işaretli. Üç kusur: satınalma koltuğu ücretsiz
+pakette işe yaramıyor · kurucu tek başına STANDART'ın 2 koltuğunu dolduruyor
+(ilk çalışan davetinde "koltuk dolu") · karar ikinci kişi davet edilirken
+doğuyor, kayıtta değil. Artık kurucu **yalnız SATIŞ** koltuğuyla doğar;
+satınalma koltuğu GOLD'a geçişte `ensureOwnerBuySeat` ile açılır (self-upgrade
+ve admin `setTier` yollarının İKİSİNDEN de çağrılır, fail-safe).
+Sözleşme: `seats.spec.ts` "Satınalma yetkisi paket kapısı" + `onboarding.spec.ts`.
 
 ---
 

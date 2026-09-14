@@ -68,7 +68,56 @@ describe("ülke-farkında belge seti", () => {
     });
     const res = await svc.get(co.id);
     expect(res.required.sort()).toEqual(["idFront", "taxPlate", "tradeRegistry"]);
-    await svc.submit(co.id);
+    // BELGE SETİ ülkeye göre (3 vs 6) ama KİMLİK ALANLARI herkese zorunlu
+    // (2026-09-14): sicil numarası + banka bilgisi + hesap sahibi. Eskiden
+    // yabancıda hiç istenmiyordu — "yurt içi / yurt dışı" ayrımıydı ve
+    // sicil BELGESİNİ isteyip numarasını istememek tutarsızdı.
+    // DE IBAN ülkesi → mod-97 doğrulanır.
+    await svc.submit(co.id, {
+      tradeRegistryNo: "HRB 12345",
+      iban: "DE89370400440532013000",
+      ibanHolder: "Muster GmbH",
+    });
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.companyVerificationStatus).toBe("PENDING");
+  });
+
+  it("yabancı firma: sicil no ve banka bilgisi ZORUNLU — belge tam olsa da", async () => {
+    const svc = docsService();
+    const co = await makeCompany(prisma, {
+      companyVerificationStatus: "UNVERIFIED",
+      country: "DE",
+      docTradeRegistryUrl: "k1",
+      docTaxPlateUrl: "k2",
+      docIdFrontUrl: "k3",
+    });
+    await expect(svc.submit(co.id)).rejects.toThrow(/Sicil \/ kayıt/);
+    await expect(
+      svc.submit(co.id, { tradeRegistryNo: "HRB 1" }),
+    ).rejects.toThrow(/IBAN gerekli/);
+    // IBAN kullanan ülkede kontrol hanesi doğrulanır.
+    await expect(
+      svc.submit(co.id, { tradeRegistryNo: "HRB 1", iban: "DE00370400440532013000", ibanHolder: "X" }),
+    ).rejects.toThrow(/kontrol hanesi/);
+  });
+
+  it("IBAN kullanmayan ülkede (CN) hesap numarası serbest biçim ama ZORUNLU", async () => {
+    const svc = docsService();
+    const co = await makeCompany(prisma, {
+      companyVerificationStatus: "UNVERIFIED",
+      country: "CN",
+      // CN'de vergi belgesi istenmez (营业执照 onu kapsar) — sicil + kimlik.
+      docTradeRegistryUrl: "k1",
+      docIdFrontUrl: "k2",
+    });
+    await expect(
+      svc.submit(co.id, { tradeRegistryNo: "91110000", ibanHolder: "示例" }),
+    ).rejects.toThrow(/Banka hesap numarası/);
+    await svc.submit(co.id, {
+      tradeRegistryNo: "91110000",
+      iban: "6222021234567890123",
+      ibanHolder: "示例有限公司",
+    });
     const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
     expect(c.companyVerificationStatus).toBe("PENDING");
   });

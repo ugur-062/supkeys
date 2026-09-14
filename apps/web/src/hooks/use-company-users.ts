@@ -252,6 +252,12 @@ export function useRemoveUser() {
 /** Faz K — koltuk kullanımı (limit null = STANDART limitsiz). */
 export interface SeatUsage {
   limit: number | null;
+  /**
+   * Efektif paket. Satınalma yetkisi yalnız GOLD'da verilebilir (talep açma ve
+   * kazandırma ücretsiz pakette kapalı) — yetki tablosu bunu okuyup satınalma
+   * grubunu kilitler; backend `assertSeatAvailable` aynı kuralı uygular.
+   */
+  tier: "STANDART" | "SILVER" | "GOLD";
   /** Toplam koltuk = satınalma + satış (aynı kişide ikisi 2). */
   used: number;
   usedBuy: number;

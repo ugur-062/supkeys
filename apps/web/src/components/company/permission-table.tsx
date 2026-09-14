@@ -59,6 +59,7 @@ export function PermissionTable({
   targetIsOwner = false,
   freeSeats = null,
   hadGroups = { buy: false, sell: false },
+  canGrantBuy = true,
   disabled = false,
 }: {
   catalog: PermissionCatalog;
@@ -71,6 +72,12 @@ export function PermissionTable({
   freeSeats?: number | null;
   /** Kişinin ZATEN tuttuğu gruplar (onlara koltuk kilidi uygulanmaz). */
   hadGroups?: { buy: boolean; sell: boolean };
+  /**
+   * Firma satınalma yetkisi verebilecek pakette mi (GOLD). Ücretsiz pakette
+   * talep açma/kazandırma kapalı olduğu için yetki de VERİLEMEZ — backend
+   * `assertSeatAvailable` aynı kuralı uyguluyor, bu yalnız aynası.
+   */
+  canGrantBuy?: boolean;
   disabled?: boolean;
 }) {
   const has = (k: string) => value.includes(k);
@@ -178,8 +185,10 @@ export function PermissionTable({
               <legend className="px-1 text-xs font-bold uppercase tracking-wide text-zinc-600">
                 {g.label}
                 {isSeatGroup ? (
-                  <span className="ml-1.5 font-medium normal-case text-zinc-400">
-                    · işlem tiki koltuk sayar
+                  <span className="ml-1.5 font-medium normal-case text-zinc-500">
+                    {g.key === "buy" && !canGrantBuy
+                      ? "· Gold pakette açılır"
+                      : "· işlem tiki koltuk sayar"}
                   </span>
                 ) : null}
               </legend>
@@ -193,22 +202,33 @@ export function PermissionTable({
                     (c.group === "buy" || c.group === "sell") &&
                     seatLockedFor(c.group) &&
                     !has(c.key);
+                  // Paket kapısı koltuk kapısından AYRI: sorun "yer yok" değil,
+                  // yetkinin o pakette karşılığı olmaması.
+                  const tierBlock =
+                    c.group === "buy" && !canGrantBuy && !has(c.key);
                   const viewImplied =
                     !c.seat &&
                     VIEW_OF[c.group] === c.key &&
                     g.items.some((x) => x.seat && has(x.key));
                   const locked =
-                    disabled || implicitOwner || ownerOnly || seatBlock || viewImplied;
+                    disabled ||
+                    implicitOwner ||
+                    ownerOnly ||
+                    seatBlock ||
+                    tierBlock ||
+                    viewImplied;
                   const checked = implicitOwner || has(c.key);
                   const reason = implicitOwner
                     ? "Kurucuda örtük"
                     : ownerOnly
                       ? "Yalnız Kurucu verir"
-                      : seatBlock
-                        ? "Koltuk dolu"
-                        : viewImplied
-                          ? "İşlem tiki ile birlikte gelir"
-                          : null;
+                      : tierBlock
+                        ? "Gold pakette"
+                        : seatBlock
+                          ? "Koltuk dolu"
+                          : viewImplied
+                            ? "İşlem tiki ile birlikte gelir"
+                            : null;
                   return (
                     <li key={c.key}>
                       <label

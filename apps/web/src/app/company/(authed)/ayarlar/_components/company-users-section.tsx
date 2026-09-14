@@ -1,6 +1,7 @@
 "use client";
 
 import { ROLE_LABELS } from "@/lib/company/labels";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -555,6 +556,10 @@ function EditUserModal({
     buy: user.roles.includes("SATIN_ALMACI"),
     sell: user.roles.includes("SATISCI"),
   };
+  // Satınalma yetkisi yalnız GOLD'da verilebilir — talep açma/kazandırma
+  // ücretsiz pakette kapalı. Backend `assertSeatAvailable` aynı kuralı
+  // uyguluyor; buradaki yalnız aynası (kullanıcı kilidin sebebini görsün).
+  const canGrantBuy = tierAtLeast(seats?.tier ?? "STANDART", BUYING_TIER);
   const seatsFull = freeSeats === 0;
   const permsChanged =
     perms.length !== initialPerms.length ||
@@ -703,6 +708,7 @@ function EditUserModal({
                 viewerIsOwner={viewerIsOwner}
                 targetIsOwner={user.isOwner}
                 freeSeats={freeSeats}
+                canGrantBuy={canGrantBuy}
                 hadGroups={hadGroups}
                 disabled={permsLocked}
               />
