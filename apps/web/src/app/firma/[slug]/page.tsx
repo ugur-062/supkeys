@@ -25,7 +25,13 @@ export async function generateMetadata({
   /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
      sayfanın JSON-LD'si aynı olgulardan türer. Eskiden başlık markayı elle
      ekliyordu ("… — Rothern") ve kök şablon bir daha ekliyordu. */
-  return companySeo(seoInput(slug, p)).metadata;
+  const meta = companySeo(seoInput(slug, p)).metadata;
+  // VİTRİN ≠ İNDEKS: profil herkese açık (bağlantıyla gelen görür) ama kalite
+  // eşiğini geçmiyorsa arama motoruna girmez. Eşik sunucuda, sitemap ile AYNI
+  // fonksiyon — burada yalnız sonucu okuyoruz.
+  return p.indexable === false
+    ? { ...meta, robots: { index: false, follow: true } }
+    : meta;
 }
 
 /** Profil yükünden SEO girdisi — metadata ve JSON-LD aynı dönüşümü kullanır. */

@@ -39,14 +39,20 @@ export function PremiumGate() {
   const me = useCompanyMe();
   const upgrade = useUpgradePremium();
 
+  /**
+   * TEK ŞART: DOĞRULAMA (2026-09-15, kullanıcı kararı). 2FA ve web sitesi
+   * adımları KALDIRILDI — backend kapısı da tek şarta indi, ikisi birlikte
+   * değişmeliydi: ekran "hazır" deyip sunucu reddederdi.
+   *
+   * 2FA neden çıktı: kapı yalnız yükseltme ANINDA bakıyordu, kullanıcı ertesi
+   * gün kapatabiliyordu → onay kutusuydu, kontrol değil. Gerçek yeri
+   * kazandırma ve fatura işlemleri (ödeme turunda).
+   */
   const docsVerified = me.data?.company.companyVerificationStatus === "VERIFIED";
-  const twoFa = me.data?.user.twoFactorEnabled === true;
-  // Premium için firma web sitesi zorunlu (link-benzeri).
-  const hasWebsite = !!me.data?.company.website?.trim().includes(".");
   // Y2: self-servis yükseltme ödeme entegrasyonuna kadar kapalı (backend flag,
   // tek kaynak). Kapalıyken buton gizlenir; premium manuel admin grant ile.
   const selfUpgradeEnabled = me.data?.selfUpgradeEnabled === true;
-  const ready = docsVerified && twoFa && hasWebsite;
+  const ready = docsVerified;
 
   const docsHint =
     me.data?.company.companyVerificationStatus === "PENDING"
@@ -108,7 +114,7 @@ export function PremiumGate() {
           <div className="mt-6 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
               <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-              Gold&apos;a geçmek için
+              Gold&apos;a geçmek için tek şart
             </p>
             <ul className="mt-3 space-y-3">
               <Requirement
@@ -116,18 +122,6 @@ export function PremiumGate() {
                 title="Şirket belgelerini doğrula"
                 hint={docsVerified ? "Doğrulandı" : docsHint}
                 href="/company/ayarlar/dogrulama"
-              />
-              <Requirement
-                done={!!twoFa}
-                title="2 adımlı doğrulamayı (2FA) etkinleştir"
-                hint={twoFa ? "Aktif" : "E-posta/uygulama tabanlı 2FA'yı açın"}
-                href="/company/ayarlar/2fa"
-              />
-              <Requirement
-                done={hasWebsite}
-                title="Firma web sitesi adresini gir"
-                hint={hasWebsite ? "Girildi" : "Profilim sayfasındaki künyeye web sitesi ekleyin"}
-                href="/company/sirketim/profil"
               />
             </ul>
           </div>
@@ -143,7 +137,7 @@ export function PremiumGate() {
               </Button>
               {!ready ? (
                 <p className="mt-2 text-center text-xs text-zinc-400">
-                  Yukarıdaki adımlar tamamlanınca aktifleşir.
+                  Doğrulama tamamlanınca aktifleşir.
                 </p>
               ) : null}
             </>

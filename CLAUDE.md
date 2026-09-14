@@ -159,7 +159,7 @@ firmaların ülkesi gösterilebilmeli, adres defterinde her ülke seçilebilmeli
 | **Davetli/bağlantılı** talebe teklif | ❌ (alıcı firmayı tanıyor) |
 | PUBLIC talebe tanımadan teklif | ✅ (+ SILVER) |
 | Talep yayınlama · kazandırma | ✅ (+ GOLD) |
-| Paket satın alma | ✅ (+2FA +web sitesi) |
+| Paket satın alma | ✅ **TEK ŞART** (2FA ve web sitesi 2026-09-15'te kalktı) |
 | Sipariş kabulü | ❌ bugün (platform parayı taşımıyor; **escrow gelirse buraya taşınmalı**) |
 
 Belgesiz teklif veren firma alıcıya **"Doğrulanmamış firma"** ibaresiyle görünür.
@@ -420,7 +420,48 @@ Tek kaynak `@rothern/shared` `helpers/tier.ts` (`TIER_ORDER` STANDART<SILVER<GOL
 | GOLD (iki panel) | Silver + satınalma paneli (talep açma, kazandırma, onay akışı, raporlar, şablonlar, talep AI'ı) + "Gold Üye" | 6 |
 
 Kapı: `CompanyPaidTierGuard` + `@RequireTier("GOLD")` (varsayılan SILVER).
+
+**PAKETE GEÇİŞİN TEK ŞARTI DOĞRULAMA (2026-09-15, kullanıcı kararı).** Önce üç
+şart vardı (VERIFIED + 2FA + web sitesi); ikisi kaldırıldı — ekran (`premium-gate.tsx`)
+ve backend (`upgradeToPremium`) AYNI turda, ayrışsalardı ekran "hazır" der
+sunucu reddederdi. **2FA neden çıktı:** kapı yalnız yükseltme ANINDA bakıyordu,
+kullanıcı ertesi gün `disableTwoFactor` ile kapatabiliyordu → onay kutusuydu,
+kontrol değil. Gerçekten isteniyorsa yeri KAZANDIRMA ve FATURA işlemleridir
+(sürekli denetlenir) — ödeme turunda oraya konmalı.
+
+**DOĞRULAMA ÜCRETSİZ VE PAKET SATMADAN TEŞVİK EDİLİR:** "Doğrulanmış" rozeti
+`companyVerificationStatus`tan gelir, pakete BAĞLI DEĞİL. Üç yüzey paket değil
+ROZET satar: Profilim sağ rayındaki "Ücretsiz doğrulanın" kartı, Ayarlar
+hub'ındaki kart açıklaması, Doğrulama sayfasının giriş metni.
+
+⚠️ TEST TUZAĞI (2026-09-15'te yakalandı): `upgradeToPremium` testlerinden biri
+YANLIŞ SEBEPLE yeşildi — factory firmayı VERIFIED doğurduğu için doğrulama
+kapısı hiç tetiklenmiyordu; yeşil kalan şey 2FA hatasıydı ve mesajı
+("iki adımlı **doğrula**mayı") `/doğrula/i` desenine uyuyordu. Kademe/durum
+sınayan test koşulu AÇIKÇA kurmalı.
 Fiyatlar (Silver 160 / Gold 230) kullanıcı kararı BEKLİYOR.
+
+**PROFİL OTOMATİK YAYINDA + AYRI İNDEKS KAPISI (2026-09-15, kullanıcı kararı
+"profiller otomatik yayına alınsın").** Kayıt tamamlanınca `publicEnabled=true`
+ve slug kurulur (`company-auth.service.ts` completeOnboarding — signup'ta DEĞİL,
+firma adı ancak orada gerçek oluyor). Slug tek kaynak
+`common/company/company-slug.ts` (Profilim'in "ilk kez yayınla" yolu da onu
+okur; iki kopya P2002 üretirdi).
+
+**VİTRİN ≠ İNDEKS profil tarafında da:** `isProfileIndexable` (tek kaynak
+`public-profile-gate.ts`) = anlamlı tanıtım metni (`looksLikeProse`) ∧ (logo ∨
+web sitesi ∨ yayında ürün). Sitemap (`listPublicSlugs`) ve sayfanın `robots`
+etiketi AYNI fonksiyonu okur — ayrışsalardı sitemap'te olup `noindex` taşıyan
+sayfalar üretirdik. Gerekçe ölçüldü: staging'de 26 firmanın SIFIRININ logosu
+vardı; eşiksiz açmak toplu ince içerik indeksletir ve kazanmaya çalıştığımız
+alan otoritesini aşındırır. Sayfa vitrinde KALIR, yalnız aramaya girmez.
+Sözleşme: `profile-indexable.spec.ts` + `onboarding.spec.ts`.
+
+**Web sitesi onboarding'de SORULUR ama ZORUNLU DEĞİL** (doğrulamada zorunlu —
+bkz. Kayıt Ülkeleri). Zorunlu tutmak, sitesi olmayan ama ürün yükleyecek
+imalatçıyı kapıda elerdi; o firma bizim için sitesi olup ürün eklemeyenden daha
+değerli. Bedel kapıda değil sonuçta: giren firmanın profilini AI doldurur,
+girmeyen elle yazana kadar indeks eşiğini geçemez.
 
 **Ücretsiz vitrin ilkesi: görünmek ücretsiz, öne çıkmak paketli.**
 `hasPublicProfile`/`publicProductWhere` PAKET ŞARTI TAŞIMAZ; paketin karşılığı

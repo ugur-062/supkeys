@@ -78,6 +78,10 @@ export const SETTINGS_PAGES = {
   dogrulama: {
     href: "/company/ayarlar/dogrulama",
     title: "Doğrulama Belgeleri",
-    description: "Vergi levhası, sicil, imza sirküleri — Silver/Gold paketine geçişin ilk adımı",
+    // ÜCRETSİZ ODAKLI (2026-09-15, kullanıcı kararı): eskiden "Silver/Gold
+    // paketine geçişin ilk adımı" diyordu — yani paket satıyordu. Oysa
+    // doğrulama ücretsiz ve rozet pakete bağlı DEĞİL
+    // (`companyVerificationStatus`). Teşvik paketten değil rozetten gelmeli.
+    description: "Ücretsiz — profilinizde “Doğrulanmış” rozeti, herkese açık taleplere teklif hakkı",
   },
 } as const satisfies Record<string, SettingsPageMeta>;

@@ -322,6 +322,12 @@ export interface PublicProductCompany {
  */
 export interface PublicProfile {
   name: string;
+  /**
+   * Arama motoruna girsin mi — VİTRİNDEN AYRI kapı. Sayfa herkese açık ama
+   * içi boşsa indekslenmez (ince içerik alan otoritesini aşındırır). Sunucu
+   * tarafındaki sitemap süzgeciyle AYNI fonksiyondan üretilir.
+   */
+  indexable?: boolean;
   goldMember?: boolean;
   verified?: boolean;
   slug: string | null;
