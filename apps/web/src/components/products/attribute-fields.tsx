@@ -41,15 +41,24 @@ export function AttributeFields({
     <div className="space-y-5">
       {defs.map((d) => {
         const v = values[d.key];
+        /* Nitelik alanı DÖRT farklı kontrol basıyor. Çoklu seçim bir ÇİP
+           GRUBU — tek kontrol yok, dolayısıyla `<label>` bağlanamaz ve boş
+           bırakılamaz: başlık olarak basılıp gruba `aria-labelledby` ile
+           bağlanır. Diğer üçü tek kontrol, doğrudan `htmlFor`. */
+        const kontrolId = `nitelik-${d.key}`;
+        const grup = d.type === "MULTI_SELECT";
         return (
           <Field key={d.key}>
-            <Label>
+            <Label
+              as={grup ? "p" : "label"}
+              {...(grup ? { id: `${kontrolId}-baslik` } : { htmlFor: kontrolId })}
+            >
               {d.nameTr}
               {d.unit ? (
-                <span className="ml-1 font-normal text-zinc-400">({d.unit})</span>
+                <span className="ml-1 font-normal text-zinc-500">({d.unit})</span>
               ) : null}
               {d.isRequired ? (
-                <span className="ml-1 text-zinc-400" title="Tamamlanma skorunu etkiler">
+                <span className="ml-1 text-zinc-500" title="Tamamlanma skorunu etkiler">
                   *
                 </span>
               ) : null}
@@ -57,6 +66,7 @@ export function AttributeFields({
 
             {d.type === "SINGLE_SELECT" ? (
               <select
+                id={kontrolId}
                 value={typeof v === "string" ? v : ""}
                 onChange={(e) => set(d.key, e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
@@ -71,7 +81,7 @@ export function AttributeFields({
             ) : null}
 
             {d.type === "MULTI_SELECT" ? (
-              <div className="flex flex-wrap gap-2">
+              <div role="group" aria-labelledby={`${kontrolId}-baslik`} className="flex flex-wrap gap-2">
                 {d.options.map((o) => {
                   const arr = Array.isArray(v) ? v : [];
                   const on = arr.includes(o);
@@ -98,6 +108,7 @@ export function AttributeFields({
 
             {d.type === "NUMBER" ? (
               <input
+                id={kontrolId}
                 type="number"
                 inputMode="decimal"
                 value={typeof v === "string" ? v : ""}
@@ -108,6 +119,7 @@ export function AttributeFields({
 
             {d.type === "TEXT" ? (
               <input
+                id={kontrolId}
                 type="text"
                 maxLength={200}
                 value={typeof v === "string" ? v : ""}

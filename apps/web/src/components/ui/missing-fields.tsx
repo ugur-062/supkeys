@@ -37,7 +37,7 @@ export function MissingFields({
           {item}
         </span>
       ))}
-      {rest > 0 ? <span className="text-zinc-400">+{rest}</span> : null}
+      {rest > 0 ? <span className="text-zinc-500">+{rest}</span> : null}
     </p>
   );
 }

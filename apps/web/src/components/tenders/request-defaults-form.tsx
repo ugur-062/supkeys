@@ -106,8 +106,8 @@ export function RequestDefaultsForm({
 
       {show("delivery") ? (
         <Field>
-          <Label>Teslim şekli</Label>
-          <select value={value.deliveryTerm ?? ""} onChange={(e) => set({ deliveryTerm: e.target.value || null })} className={INPUT}>
+          <Label htmlFor="tsart-teslim">Teslim şekli</Label>
+          <select id="tsart-teslim" value={value.deliveryTerm ?? ""} onChange={(e) => set({ deliveryTerm: e.target.value || null })} className={INPUT}>
             <option value="">— Seçin —</option>
             {deliveryTermsFor(value.isInternational, Object.keys(DELIVERY_TERM_LABELS)).map((t) => (
               <option key={t} value={t}>
@@ -142,14 +142,14 @@ export function RequestDefaultsForm({
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {value.paymentCategory === "ADVANCE" && !value.isInternational ? (
               <Field hint="100 = tam peşin; altı kısmi peşin (kalan teslimde).">
-                <Label>Peşin yüzdesi</Label>
-                <input type="number" min={1} max={100} value={value.advancePercent ?? 100} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />
+                <Label htmlFor="tsart-pesin">Peşin yüzdesi</Label>
+                <input id="tsart-pesin" type="number" min={1} max={100} value={value.advancePercent ?? 100} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />
               </Field>
             ) : null}
             {value.paymentCategory === "LETTER_OF_CREDIT" ? (
               <Field>
-                <Label>Akreditif tipi</Label>
-                <select value={value.lcType ?? "SIGHT"} onChange={(e) => set({ lcType: e.target.value })} className={INPUT}>
+                <Label htmlFor="tsart-lc">Akreditif tipi</Label>
+                <select id="tsart-lc" value={value.lcType ?? "SIGHT"} onChange={(e) => set({ lcType: e.target.value })} className={INPUT}>
                   {(["SIGHT", "USANCE"] as LcSubType[]).map((t) => (
                     <option key={t} value={t}>{LC_TYPE_LABELS[t]}</option>
                   ))}
@@ -158,8 +158,8 @@ export function RequestDefaultsForm({
             ) : null}
             {needsDays ? (
               <Field>
-                <Label required>Vade (gün)</Label>
-                <input type="number" min={1} max={365} value={value.paymentDays ?? ""} onChange={(e) => set({ paymentDays: Number(e.target.value) || null })} className={INPUT} />
+                <Label htmlFor="tsart-vade" required>Vade (gün)</Label>
+                <input id="tsart-vade" type="number" min={1} max={365} value={value.paymentDays ?? ""} onChange={(e) => set({ paymentDays: Number(e.target.value) || null })} className={INPUT} />
               </Field>
             ) : null}
           </div>
@@ -170,7 +170,7 @@ export function RequestDefaultsForm({
         <Block title="Para birimi" hint="Ana birim teklif karşılaştırmasının tabanıdır; diğerleri izinli.">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field>
-              <Label>Ana para birimi</Label>
+              <Label htmlFor="tsart-para">Ana para birimi</Label>
               <select
                 value={value.primaryCurrency}
                 onChange={(e) => {
@@ -185,8 +185,9 @@ export function RequestDefaultsForm({
               </select>
             </Field>
             <div>
-              <Label>Kabul edilen birimler</Label>
-              <div className="flex flex-wrap gap-1.5">
+              {/* Çip grubu — tek kontrol yok, başlık olarak basılıp gruba bağlanır. */}
+              <Label as="p" id="tsart-birimler-baslik">Kabul edilen birimler</Label>
+              <div role="group" aria-labelledby="tsart-birimler-baslik" className="flex flex-wrap gap-1.5">
                 {CURRENCIES.map((c) => {
                   const on = value.allowedCurrencies.includes(c);
                   const locked = c === value.primaryCurrency;
@@ -249,8 +250,8 @@ export function RequestDefaultsForm({
           <div className="space-y-3">
             <Toggle label="Kapalı zarf" checked={value.isSealedBid} onChange={(v) => set({ isSealedBid: v })} />
             <Field>
-              <Label>Tedarikçi ne görür</Label>
-              <select value={value.bidVisibility} onChange={(e) => set({ bidVisibility: e.target.value })} className={INPUT}>
+              <Label htmlFor="tsart-gorunur">Tedarikçi ne görür</Label>
+              <select id="tsart-gorunur" value={value.bidVisibility} onChange={(e) => set({ bidVisibility: e.target.value })} className={INPUT}>
                 {Object.entries(BID_VISIBILITY_LABELS).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}

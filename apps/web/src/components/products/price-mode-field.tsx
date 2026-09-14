@@ -86,9 +86,10 @@ export function PriceModeField({
 
       {mode === "FIXED" ? (
         <Field>
-          <Label>Birim fiyat</Label>
+          <Label htmlFor="fiyat-birim">Birim fiyat</Label>
           <div className="flex gap-2">
             <input
+              id="fiyat-birim"
               type="number"
               inputMode="decimal"
               min={0}
@@ -109,7 +110,8 @@ export function PriceModeField({
       {mode === "TIERED" ? (
         <div>
           <div className="flex items-center justify-between">
-            <Label>Kademeler</Label>
+            {/* Bir satır listesinin başlığı — tek kontrol yok, `<label>` bağlanamaz. */}
+            <Label as="p">Kademeler</Label>
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
           </div>
           <p className="mt-1 text-xs text-zinc-500">
@@ -119,6 +121,7 @@ export function PriceModeField({
             {tiers.map((t, i) => (
               <li key={i} className="flex items-center gap-2">
                 <input
+                  aria-label={`${i + 1}. kademe: başlangıç miktarı`}
                   type="number"
                   min={1}
                   value={t.minQty}
@@ -131,6 +134,7 @@ export function PriceModeField({
                 />
                 <span className="text-sm text-zinc-500">{unit} ve üzeri</span>
                 <input
+                  aria-label={`${i + 1}. kademe: birim fiyat`}
                   type="number"
                   min={0}
                   step="0.01"

@@ -51,3 +51,38 @@ test("panel sayfaları erişilebilirlik", async ({ page }) => {
     await scan(page, path);
   }
 });
+
+/**
+ * TIKLAMA ARKASINDAKİ FORMLAR (2026-09-13).
+ *
+ * NEDEN EKLENDİ: yukarıdaki iki tarama yalnız DOĞRUDAN AÇILAN sayfaları
+ * geziyordu. Ürünün en önemli iki formu — ürün ekleme ve talep sihirbazı —
+ * bir düğmenin arkasında olduğu için hiç taranmamıştı. Canlı yolculuk testi
+ * bunu tesadüfen ortaya çıkardı: `getByLabel("Ürün adı")` hiçbir şey
+ * bulamıyordu, çünkü 26 etiket girdisine BAĞLI DEĞİLDİ (axe `label` kuralı,
+ * KRİTİK). Kapsam dışı kalan yüzey, denetlenmemiş yüzeydir.
+ *
+ * Bu testler formu AÇAR ve öyle tarar.
+ */
+test("tıklama arkasındaki formlar erişilebilirlik", async ({ page }) => {
+  test.setTimeout(300_000);
+  await uiLogin(page, QA.tedarikciKurucu);
+
+  // ── Ürün ekleme — ayrı rotası yok, "Yeni ürün" görünümü değiştirir ──
+  await gotoRetry(page, "/company/satis/urunlerim");
+  const yeniUrun = page.getByRole("button", { name: "Yeni ürün" });
+  await expect(yeniUrun).toBeVisible({ timeout: 30_000 });
+  await yeniUrun.click();
+  await expect(page.getByPlaceholder("Dağıtım panosu 400A IP54")).toBeVisible({ timeout: 30_000 });
+  await scan(page, "ürün ekleme formu");
+});
+
+test("talep sihirbazı erişilebilirlik", async ({ page }) => {
+  test.setTimeout(300_000);
+  await uiLogin(page, QA.aliciKurucu);
+
+  // Detaylı sihirbaz: dört adımın İLK adımı en yoğun form (40 etiket).
+  await gotoRetry(page, "/company/satinalma/taleplerim/yeni/detayli");
+  await expect(page.getByRole("button", { name: /İleri|Devam/ }).first()).toBeVisible({ timeout: 45_000 });
+  await scan(page, "talep sihirbazı adım 1");
+});

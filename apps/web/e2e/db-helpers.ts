@@ -71,3 +71,47 @@ export async function cleanupSignup(email: string): Promise<void> {
     }).catch(() => undefined);
   }
 }
+
+/**
+ * FİRMAYI VE TÜM KULLANICILARINI SİLER — canlı yolculuk testi için (2026-09-13).
+ *
+ * `cleanupSignup` TEK kullanıcıyı bilir; davet akışını sınayan test ikinci bir
+ * kullanıcı yaratıyor ve o geride kalırdı. Burada firma kurucunun e-postasından
+ * bulunur, firmanın BÜTÜN kullanıcıları toplanır, Supabase hesapları tek tek
+ * silinir, en sona firma bırakılır.
+ *
+ * CANLI ORTAMDA KOŞAR: sessiz başarısızlık kabul edilemez — silinemeyen kayıt
+ * varsa fırlatır ki koşum kırmızı olsun ve artık veri fark edilsin.
+ */
+export async function cleanupCompanyByOwnerEmail(email: string): Promise<void> {
+  const owner = await db().companyUser.findUnique({
+    where: { email },
+    select: { companyId: true },
+  });
+  if (!owner?.companyId) return;
+
+  const users = await db().companyUser.findMany({
+    where: { companyId: owner.companyId },
+    select: { id: true, authId: true, email: true },
+  });
+
+  const url = process.env.E2E_SUPABASE_URL;
+  const key = process.env.E2E_SUPABASE_SERVICE_KEY;
+  for (const u of users) {
+    if (!u.authId || !url || !key) continue;
+    await fetch(`${url.replace(/\/$/, "")}/auth/v1/admin/users/${u.authId}`, {
+      method: "DELETE",
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    }).catch(() => undefined);
+  }
+
+  // Firma silinince kullanıcılar cascade ile gider; kalırsa tek tek temizle.
+  await db().company.delete({ where: { id: owner.companyId } });
+  const kalan = await db().companyUser.count({ where: { companyId: owner.companyId } });
+  if (kalan > 0) {
+    await db().companyUser.deleteMany({ where: { companyId: owner.companyId } });
+  }
+
+  const dogrula = await db().company.findUnique({ where: { id: owner.companyId } });
+  if (dogrula) throw new Error(`temizlik başarısız: firma ${owner.companyId} silinemedi`);
+}
