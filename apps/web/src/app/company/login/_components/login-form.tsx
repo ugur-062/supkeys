@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/catalyst/button";
+import { PasswordInput } from "@/components/ui/password-input";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import {
@@ -201,7 +202,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
 
       <Field>
         <Label>Şifre</Label>
-        <Input type="password" autoComplete="current-password" invalid={!!errors.password} {...register("password")} />
+        <PasswordInput autoComplete="current-password" invalid={!!errors.password} {...register("password")} />
         {errors.password ? (
           <ErrorMessage className="mt-1">{errors.password.message}</ErrorMessage>
         ) : null}

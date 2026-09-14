@@ -35,6 +35,12 @@ export E2E_SUPABASE_URL="$(oku SUPABASE_URL)"
 export E2E_SUPABASE_SERVICE_KEY="$(oku SUPABASE_SERVICE_ROLE_KEY)"
 export E2E_PASSWORD="${E2E_PASSWORD:-Canli1234!}"
 
+# Admin realm (ayrı alan adı + ayrı çerezler). Sır .env.prod.local'den okunur,
+# komut satırına YAZILMAZ — kabuk geçmişine ve ekran kaydına düşmesin.
+export PLAYWRIGHT_ADMIN_URL="${PLAYWRIGHT_ADMIN_URL:-https://admin.rothern.com}"
+export E2E_ADMIN_EMAIL="$(oku INITIAL_ADMIN_EMAIL)"
+export E2E_ADMIN_PASSWORD="$(oku INITIAL_ADMIN_PASSWORD)"
+
 [ -n "$E2E_DATABASE_URL" ] || { echo ".env.prod.local: DATABASE_URL yok" >&2; exit 1; }
 
 # Hedefi EKRANA YAZ: yanlış ortamda koşmayı zorlaştırır (wipe aracıyla aynı emniyet).

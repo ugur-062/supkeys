@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -193,8 +194,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
         <Field>
           <Label>Şifre</Label>
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             maxLength={72}
             value={form.password}
@@ -230,8 +230,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
         <Field>
           <Label>Şifre (tekrar)</Label>
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={form.passwordConfirm}
             onChange={(e) => set("passwordConfirm")(e.target.value)}
