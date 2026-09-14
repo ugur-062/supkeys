@@ -64,9 +64,10 @@ describe("ücretsiz vitrin — ürün tavanı ve medya", () => {
     await truncateAll();
   });
 
-  it("STANDART: yayında ürün tavanı 10 — 11. yayın 403, taslak sınırsız; SILVER limitsiz", async () => {
+  it("STANDART: yayında ürün tavanı PRODUCT_LIMITS'ten — tavan+1 403, taslak sınırsız; SILVER limitsiz", async () => {
     const limit = PRODUCT_LIMITS.STANDART as number;
-    expect(limit).toBe(10);
+    // Sayı DEĞİL ilişki kilitlenir: tavan değişince test değişmeden yeşil kalır.
+    expect(limit).toBeGreaterThan(0);
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const svc = items();
     for (let i = 0; i < limit; i += 1) {
@@ -75,7 +76,9 @@ describe("ücretsiz vitrin — ürün tavanı ve medya", () => {
     }
     const extra = await draftProduct(std.company.id, std.user.id);
     await expect(svc.publish(std.auth, extra.id)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(svc.publish(std.auth, extra.id)).rejects.toThrow(/en fazla 10 ürün/);
+    await expect(svc.publish(std.auth, extra.id)).rejects.toThrow(
+      new RegExp(`en fazla ${PRODUCT_LIMITS.STANDART} ürün`),
+    );
     // Taslak kalır, silinmez. (Moderasyon: publish = onaya gönder → PENDING, isPublic false.)
     const extraRow = await prisma.companyItem.findUniqueOrThrow({ where: { id: extra.id } });
     expect(extraRow.isPublic).toBe(false);
@@ -86,7 +89,7 @@ describe("ücretsiz vitrin — ürün tavanı ve medya", () => {
     // Admin onayladıktan sonra yayındaki ürünü yeniden göndermek tavana takılmaz (zaten yer tutuyor).
     await prisma.companyItem.update({ where: { id: queued.id }, data: { reviewStatus: "APPROVED", isPublic: true, publishedAt: new Date() } });
     await expect(svc.publish(std.auth, queued.id)).resolves.toBeTruthy();
-    // Liste yanıtı tavanı taşır (web "N/10"). `pending` yayında olup yeniden
+    // Liste yanıtı tavanı taşır (web "N/tavan"). `pending` yayında olup yeniden
     // incelenenleri DE sayar (1 ürün iki sayaçta) — web bunu düşerek "yer
     // tutan" sayıyı bulur; burada aynı sayım DB'den: yayında ∪ onayda = tavan.
     const listed = await svc.list(std.company.id, { tier: std.auth.tier });
@@ -181,10 +184,10 @@ describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026
     await truncateAll();
   });
 
-  it("arşivden GERİ ALMA tavanı denetler: 10 yayında + arşivli public ürün → 403; biri vitrinden çekilince geri alınır", async () => {
+  it("arşivden GERİ ALMA tavanı denetler: tavan kadar yayında + arşivli public ürün → 403; biri vitrinden çekilince geri alınır", async () => {
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const svc = items();
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < PRODUCT_LIMITS.STANDART!; i += 1) {
       const d = await draftProduct(std.company.id, std.user.id);
       await svc.publish(std.auth, d.id);
     }
@@ -194,7 +197,7 @@ describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026
       slug: "arsivli-public",
       isActive: false,
     });
-    // Tavan yayında + ONAYDA (publish kapısıyla aynı sayım): 10 kuyruktaki + arşivden dönen public → 403.
+    // Tavan yayında + ONAYDA (publish kapısıyla aynı sayım): kuyruktakiler + arşivden dönen public → 403.
     await expect(svc.setActive(std.auth, archived.id, true)).rejects.toBeInstanceOf(ForbiddenException);
     const first = await prisma.companyItem.findFirstOrThrow({ where: { companyId: std.company.id, isActive: true, reviewStatus: "PENDING" } });
     await svc.unpublish(std.auth, first.id); // kuyruktan düşer → taslak
@@ -202,13 +205,14 @@ describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026
     const occupied = await prisma.companyItem.count({
       where: { companyId: std.company.id, isActive: true, OR: [{ isPublic: true }, { reviewStatus: "PENDING" }] },
     });
-    expect(occupied).toBe(10);
+    expect(occupied).toBe(PRODUCT_LIMITS.STANDART);
   });
 
-  it("enforceProductLimit: STANDART'a düşen firmada en iyi 10 ürün kalır, kalanı TASLAĞA çekilir (silinmez); paketli kademede dokunulmaz", async () => {
+  it("enforceProductLimit: STANDART'a düşen firmada tavan kadar ürün kalır, kalanı TASLAĞA çekilir (silinmez); paketli kademede dokunulmaz", async () => {
     const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
     const ids: string[] = [];
-    for (let i = 0; i < 12; i += 1) {
+    const tavan = PRODUCT_LIMITS.STANDART!;
+    for (let i = 0; i < tavan + 2; i += 1) {
       const d = await draftProduct(co.company.id, co.user.id, {
         isPublic: true,
         publishedAt: new Date(Date.now() - i * 1000),
@@ -219,11 +223,11 @@ describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026
     }
     expect(await enforceProductLimit(prisma, co.company.id, "SILVER")).toMatchObject({ unpublished: 0 });
     const r = await enforceProductLimit(prisma, co.company.id, "STANDART");
-    expect(r).toMatchObject({ unpublished: 2, kept: 10, limit: 10 });
+    expect(r).toMatchObject({ unpublished: 2, kept: tavan, limit: tavan });
     const stillPublic = await prisma.companyItem.findMany({ where: { companyId: co.company.id, isPublic: true }, select: { id: true } });
-    expect(stillPublic.map((x) => x.id).sort()).toEqual(ids.slice(0, 10).sort());
+    expect(stillPublic.map((x) => x.id).sort()).toEqual(ids.slice(0, tavan).sort());
     // Düşenler silinmedi, slug korunur.
-    const dropped = await prisma.companyItem.findMany({ where: { id: { in: ids.slice(10) } }, select: { isPublic: true, slug: true, isActive: true } });
+    const dropped = await prisma.companyItem.findMany({ where: { id: { in: ids.slice(tavan) } }, select: { isPublic: true, slug: true, isActive: true } });
     expect(dropped).toHaveLength(2);
     expect(dropped.every((d) => !d.isPublic && d.isActive && d.slug)).toBe(true);
   });

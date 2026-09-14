@@ -415,7 +415,7 @@ Tek kaynak `@rothern/shared` `helpers/tier.ts` (`TIER_ORDER` STANDART<SILVER<GOL
 
 | Paket | Ne | Koltuk |
 |-------|----|--------|
-| STANDART (ücretsiz) | profil + 10 ürünlük vitrin + dizinde yer (paketlilerden SONRA); davetli/bağlantılı talebe teklif, mesaj, sipariş; **PUBLIC talepleri GÖRMEZ**, bağlantı daveti gönderemez, gelen bilgi talebi ANONİM | 2 |
+| STANDART (ücretsiz) | profil + 50 ürünlük vitrin + dizinde yer (paketlilerden SONRA); davetli/bağlantılı talebe teklif, mesaj, sipariş; **PUBLIC talepleri GÖRMEZ**, bağlantı daveti gönderemez, gelen bilgi talebi ANONİM | 2 |
 | SILVER (satış paneli) | dizinde öncelik + "Doğrulanmış", sınırsız ürün + belge/video, PUBLIC talep görme/teklif, bağlantı daveti, bilgi talebi kimliği+yanıt, Ziyaret Edenler, İş Analizi, satış AI'ı | 4 |
 | GOLD (iki panel) | Silver + satınalma paneli (talep açma, kazandırma, onay akışı, raporlar, şablonlar, talep AI'ı) + "Gold Üye" | 6 |
 
@@ -463,9 +463,11 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
 - Web sayfa kapıları `components/company/permission-gate.tsx` (`PermissionGate`).
 - **Ayarlar denetimi (2026-09-10):** hub kartı kapısı = sayfa `layout.tsx`
   kapısı (izin; `managerOnly` yok); Firma Profili kartı düz
-  `/company/sirketim/profil`; Onay Akışları kartı `/company/onaylar?tab=flows`
-  (eski `/company/ayarlar/onay-akislari` → `next.config` 308;
-  `ApprovalFlowsSection` artık `onaylar/_components/`). Bölüm içinde sayfa
+  `/company/sirketim/profil`. **Onay Akışları kartı AYARLAR'DAN KALDIRILDI
+  (2026-09-14, kullanıcı kararı "bir daha orada olmasına gerek yok")** — aynı
+  özelliğe iki giriş vardı, ikisi de aynı yere gidiyordu; tek giriş Onaylar
+  sayfasının başlığındaki düğme (eski `/company/ayarlar/onay-akislari` →
+  `next.config` 308 DURUYOR; `ApprovalFlowsSection` `onaylar/_components/`). Bölüm içinde sayfa
   başlığı TEKRAR EDİLMEZ (Banka, 2FA, Firma Bilgileri). Liste bölümleri
   `isError` + "Yeniden dene" taşır; Aktivite/AI 403 ile genel hatayı ayırır.
   Form hataları satır içi `<ErrorMessage>` (Hesap, Şifre, Davet). Tek
@@ -783,7 +785,17 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   Admin: `/admin/urunler` kuyruğu (SUPER_ADMIN + SUPPORT karar verir, SALES
   yalnız okur), onay → SEO bildirimi + firma e-posta/bildirim;
   **"Düzeltmeye gönder"** (eski adı reddet; enum `REJECTED` KALDI) gerekçe
-  zorunlu. Web durum sözlüğü `lib/company/product-status.ts`
+  zorunlu.
+- **TOPLU ONAY + FİRMA SÜZGECİ (2026-09-14):** ücretsiz ürün tavanı 10→50
+  çıkınca tek onaylayıcılı kuyruk darboğaz olurdu. **Otomatik onay YOK**
+  (kullanıcı kararı: "otomatik ürün onayına gerek yok") — kararı yine admin
+  verir, 50 tıklama 1'e iner. `POST admin/products/bulk-approve` (tavan 100,
+  `BULK_APPROVE_MAX`), kuyrukta satır seçimi + "Seçilenleri onayla", firma
+  adına tıklayınca `companyId` süzgeci. **Bayat satır yığını DÜŞÜRMEZ** —
+  atlanır ve gerekçesiyle döner. **Bildirim ürün başına değil FİRMA başına**
+  (50 ürün = 50 e-posta spam olurdu ve staging Resend kotasını bitirirdi);
+  audit ve SEO ürün başına KALIR. Sözleşme: `admin-products.service.spec.ts`
+  "approveMany". Web durum sözlüğü `lib/company/product-status.ts`
   (Taslak · Onay bekliyor · Yayında · Yayında·incelemede · Düzeltme istendi).
 - **İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı):** PENDING ürün admin
   karar verene dek DEĞİŞTİRİLEMEZ — `CompanyItemsService.assertNotInReview`

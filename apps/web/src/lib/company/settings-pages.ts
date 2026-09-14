@@ -71,12 +71,10 @@ export const SETTINGS_PAGES = {
     title: "AI Kullanımı",
     description: "Aylık AI bütçenizin ne kadarı kullanıldı",
   },
-  onayAkislari: {
-    // Onay akışları Onaylar sayfasının kendi görünümünde (`?tab=flows`).
-    href: "/company/onaylar?tab=flows",
-    title: "Onay Akışları",
-    description: "Kazandırma isteklerinin kimden, hangi sırayla onay alacağını tanımlayın",
-  },
+  // ONAY AKIŞLARI BURADA YOK (2026-09-14, kullanıcı kararı: "bir daha orada
+  // olmasına gerek yok"). 2026-09-10'da sayfa Onaylar'a taşınmış ama Ayarlar'da
+  // bir KART bırakılmıştı — aynı özelliğe iki giriş, ikisi de aynı yere gidiyor.
+  // Tek giriş: Onaylar sayfasının başlığındaki "Onay akışları" düğmesi.
   dogrulama: {
     href: "/company/ayarlar/dogrulama",
     title: "Doğrulama Belgeleri",

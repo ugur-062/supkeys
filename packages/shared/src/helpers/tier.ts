@@ -64,12 +64,18 @@ export const SEAT_LIMITS: Record<TierName, number | null> = {
 
 /**
  * Kademe başına YAYINDA (vitrinde) ürün tavanı — `null` = limitsiz.
- * Standart 10 (kullanıcı kararı 2026-09-06): tavan olmazsa küçük tedarikçi
+ * Standart 50 (2026-09-14; önce 10'du): tavan olmazsa küçük tedarikçi
  * için ücretsiz paket yeterli olur ve Silver'ın vitrin faydası kalmaz.
  * Taslak sayılmaz; tavan yalnız `publish` anında kapıdır.
  */
 export const PRODUCT_LIMITS: Record<TierName, number | null> = {
-  STANDART: 10,
+  // 10 → 50 (2026-09-14, kullanıcı kararı). Gerekçe: ürün ve profil PLATFORMA
+  // fayda sağlıyor — vitrin envanteri ve indekslenen sayfa sayısı organik
+  // büyümenin ta kendisi. Ücretsiz firmanın karşılığı görünürlük DEĞİL
+  // öncelik: dizin sıralaması, belge/video ve sınırsızlık paketli kalır.
+  // Moderasyon OTOMATİKLEŞMEDİ — her ürün elle onaydan geçmeye devam eder;
+  // kuyruğun yükünü toplu onay + firma süzgeci karşılar.
+  STANDART: 50,
   SILVER: null,
   GOLD: null,
 };

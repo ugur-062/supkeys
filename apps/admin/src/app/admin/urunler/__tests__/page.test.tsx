@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
+  bulkApprove: vi.fn(async () => ({ approved: 0, skipped: [] as { id: string; reason: string }[] })),
   products: { data: undefined as unknown, isLoading: false, isError: false },
   lastParams: undefined as unknown,
 }));
@@ -17,6 +18,7 @@ vi.mock("@/hooks/use-admin-products", () => ({
     return h.products;
   },
   useAdminProductStats: () => ({ data: { pending: 1, rejected: 3, oldestPendingSince: null } }),
+  useBulkApproveProducts: () => ({ mutateAsync: h.bulkApprove, isPending: false, isError: false }),
 }));
 
 import AdminUrunlerPage from "../page";
