@@ -16,6 +16,8 @@ import { CompanyRole } from "@rothern/db";
 import {
   COMPANY_ACTIVITY_CODES,
   MAX_COMPANY_ACTIVITIES,
+  MAX_COMPANY_MAIN_CATEGORIES,
+  MAX_COMPANY_SUB_CATEGORIES,
 } from "@rothern/shared";
 
 export enum CompanyTypeDto {
@@ -131,16 +133,25 @@ export class CompleteOnboardingDto {
 
   // Kurucu her zaman Kurucu (tam yetki) olur — ayrı rol seçimi yok.
 
-  // Faaliyet sektörü: 1-3 ana kategori (+ opsiyonel alt).
+  /**
+   * Faaliyet sektörü: ana kategori (segment, L1) + alt kategori (L2-4).
+   * Tavanlar tek kaynak shared'de — ayarlar DTO'su AYNI sabitleri kullanır;
+   * eskiden üç ayrı sayı vardı ve kayıt ile ayarlar sessizce ayrışıyordu.
+   *
+   * Arayüzde tek soru sorulur ("ne alıp satıyorsunuz"): kullanıcı somut
+   * ürün/hizmeti seçer, ana kategori koddan TÜRETİLİR. Bu alan yine de
+   * zorunlu — eşleştirmenin (`deriveCategoryMatchCandidates`) segment ekseni
+   * bu dizidir ve boş bırakan firmaya hiçbir talep bildirimi gitmez.
+   */
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(3)
+  @ArrayMaxSize(MAX_COMPANY_MAIN_CATEGORIES)
   @IsString({ each: true })
   mainCategoryIds!: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(MAX_COMPANY_SUB_CATEGORIES)
   @IsString({ each: true })
   @MaxLength(40, { each: true })
   subCategoryIds?: string[];

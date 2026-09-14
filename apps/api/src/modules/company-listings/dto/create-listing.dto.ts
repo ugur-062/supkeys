@@ -19,7 +19,11 @@ import {
   ValidateNested,
 } from "class-validator";
 import { MAX_MONEY } from "../../../common/constants/money";
-import { UNITS } from "@rothern/shared";
+import {
+  COMPANY_ACTIVITY_CODES,
+  MAX_COMPANY_ACTIVITIES,
+  UNITS,
+} from "@rothern/shared";
 import { Trim } from "../../../common/decorators/trim.decorator";
 
 /** DTO `@IsIn` için kod listesi — TEK KAYNAK UNITS. */
@@ -382,6 +386,16 @@ export class CreateListingDto {
   @IsString({ each: true })
   @ArrayMaxSize(3)
   categoryIds?: string[];
+
+  /**
+   * ARANAN TEDARİKÇİ TİPİ — kategorinin ikinci ekseni ("ne" değil "kimden").
+   * Boş = tercih yok. ELEME DEĞİL sıralama sinyali; gerekçe şemada.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_COMPANY_ACTIVITIES)
+  @IsIn(COMPANY_ACTIVITY_CODES as unknown as string[], { each: true })
+  preferredActivities?: string[];
 
   @IsOptional()
   @IsArray()

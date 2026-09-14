@@ -65,6 +65,9 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     })),
     invitations: d.invitedSupplierIds?.length ? d.invitedSupplierIds : undefined,
     categoryIds: d.categoryIds,
+    // Boş dizi de gönderilir: düzenlemede tercihi KALDIRMAK mümkün olmalı
+    // (alan hiç gönderilmezse servis eski değeri korurdu).
+    preferredActivities: d.preferredActivities ?? [],
     keywords: d.keywords,
     // Dahili not wizard'dan kaldırıldı — yayın sonrası ⋮ "İç Notlar" ile girilir.
     terms: d.termsAndConditions?.trim() || undefined,

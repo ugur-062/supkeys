@@ -1,10 +1,14 @@
 import { BadRequestException } from "@nestjs/common";
+import {
+  MAX_COMPANY_MAIN_CATEGORIES,
+  MAX_COMPANY_SUB_CATEGORIES,
+} from "@rothern/shared";
 import type { PrismaService } from "../prisma/prisma.service";
 
 /**
  * Birleşik kategori seçimi doğrulaması (alıcı + tedarikçi ortak).
- * - main: 1-3 ANA kategori (segment, level 1)
- * - sub: 0-sınırsız ALT kategori (level 2-4 — family/class/commodity)
+ * - main: 1-N ANA kategori (segment, level 1) — tavan tek kaynak shared'de
+ * - sub: 0-N ALT kategori (level 2-4 — family/class/commodity)
  * Hepsi mevcut + aktif olmalı. mainNames, ana kategori sırasıyla döner.
  *
  * `inDiscovery` SÜZGECİ YOK — bilinçli. Firmanın "hangi alandayım" beyanı TAM
@@ -20,8 +24,16 @@ export async function validateCategorySelection(
   const mainIds = Array.from(new Set((mainRaw ?? []).filter(Boolean)));
   const subIds = Array.from(new Set((subRaw ?? []).filter(Boolean)));
 
-  if (mainIds.length < 1 || mainIds.length > 3) {
-    throw new BadRequestException("1-3 arası ana kategori seçmelisiniz");
+  if (mainIds.length < 1 || mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
+    throw new BadRequestException(
+      `1-${MAX_COMPANY_MAIN_CATEGORIES} arası ana kategori seçmelisiniz`,
+    );
+  }
+
+  if (subIds.length > MAX_COMPANY_SUB_CATEGORIES) {
+    throw new BadRequestException(
+      `En fazla ${MAX_COMPANY_SUB_CATEGORIES} alt kategori seçebilirsiniz`,
+    );
   }
 
   const mains = await prisma.category.findMany({

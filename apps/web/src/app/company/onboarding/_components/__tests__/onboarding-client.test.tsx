@@ -116,15 +116,15 @@ describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
     await user.click(screen.getByRole("button", { name: "Devam" }));
   }
 
-  // Sektör seçimi artık aranabilir modal (SegmentOnlyPicker): trigger aç →
-  // option seç → Onayla.
+  // 2026-09-14: ekran TEK soru soruyor — kullanıcı somut ürün/hizmeti seçer,
+  // segment koddan TÜRETİLİR. Bir segmentin tamamında çalışan firma için
+  // "Sektör geneli ekle" kaçış yolu duruyor ve bu testler onu kullanıyor
+  // (birim testte katalog ağacı mock'lu, yaprak seçimi yolu e2e'de).
   async function pickSector(
     user: ReturnType<typeof userEvent.setup>,
     name: RegExp,
   ) {
-    await user.click(
-      screen.getByRole("button", { name: /Sektör seçmek için tıklayın/ }),
-    );
+    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
     await user.click(screen.getByRole("option", { name }));
     await user.click(screen.getByRole("button", { name: /Onayla/ }));
   }
@@ -132,9 +132,7 @@ describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
   it("sektör modalı: aç → option aria-selected toggle → onayla, seçim yansır", async () => {
     const user = userEvent.setup();
     await goStep2(user);
-    await user.click(
-      screen.getByRole("button", { name: /Sektör seçmek için tıklayın/ }),
-    );
+    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
     const opt = screen.getByRole("option", { name: /Yazılım & IT/ });
     expect(opt).toHaveAttribute("aria-selected", "false");
     await user.click(opt);
@@ -183,10 +181,8 @@ describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
     await fillStep1TR(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
     await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    // Sektör: aranabilir modal (aç → seç → onayla).
-    await user.click(
-      screen.getByRole("button", { name: /Sektör seçmek için tıklayın/ }),
-    );
+    // Sektör: "Sektör geneli ekle" → seç → onayla.
+    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
     await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
     await user.click(screen.getByRole("button", { name: /Onayla/ }));
     await user.click(screen.getByRole("button", { name: "Devam" }));

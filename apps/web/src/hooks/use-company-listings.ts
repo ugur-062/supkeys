@@ -121,6 +121,8 @@ export interface CreateListingInput {
   items?: ListingItemInput[];
   invitations?: string[]; // davet edilen rothernId'ler
   categoryIds?: string[]; // UNGM UNSPSC TR kategori kodları
+  /** Aranan tedarikçi tipi — boş = fark etmez. Eleme değil sıralama sinyali. */
+  preferredActivities?: string[];
   keywords?: string[];
   terms?: string;
   internalNotes?: string;
@@ -338,6 +340,7 @@ export interface ListingDetail {
   pendingApprovalId?: string | null;
   // ihale zenginleştirme
   categoryIds?: string[];
+  preferredActivities?: string[];
   keywords?: string[];
   terms?: string | null;
   requireAllItems?: boolean;

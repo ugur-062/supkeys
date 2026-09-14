@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   DOMESTIC_ONLY_PAYMENT_CATEGORIES,
   INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
+  MAX_COMPANY_ACTIVITIES,
   MAX_MONEY,
   MAX_QUANTITY,
   MIN_QUANTITY,
@@ -168,6 +169,14 @@ const baseTenderSchema = z.object({
     .array(z.string().min(1))
     .min(1, "En az 1 kategori seçmelisiniz")
     .max(3, "En fazla 3 kategori seçebilirsiniz"),
+  /**
+   * ARANAN TEDARİKÇİ TİPİ — isteğe bağlı. Boş dizi "fark etmez" demektir ve
+   * sıralamayı hiç etkilemez; dolu olduğunda uyan firmalar duyuruda ve açık
+   * talepler listesinde öne alınır (eleme YOK — backend gerekçesi şemada).
+   */
+  preferredActivities: z
+    .array(z.string().min(1))
+    .max(MAX_COMPANY_ACTIVITIES, `En fazla ${MAX_COMPANY_ACTIVITIES} tip seçebilirsiniz`),
   title: z
     .string()
     .min(3, "Satın Alma Talebi adı en az 3 karakter olmalı")
@@ -395,6 +404,7 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
   // kurallar, teslimat, ödeme, zamanlama; lojistik kategori seçiminden türer.
   3: [
     "categoryIds",
+    "preferredActivities",
     "title",
     "description",
     "keywords",
@@ -441,6 +451,7 @@ export function nowLocalDateTimeValue(): string {
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {
   categoryIds: [],
+  preferredActivities: [],
   title: "",
   description: "",
   keywords: [],

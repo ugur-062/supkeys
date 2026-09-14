@@ -71,6 +71,10 @@ export const PUBLIC_LISTING_SELECT = {
   isInternational: true,
   targetCountries: true,
   categoryIds: true,
+  // ARANAN TEDARİKÇİ TİPİ — talebin NİTELİĞİ, sahibinin kimliği değil.
+  // Ziyaretçi teklif verip vermeyeceğine karar verirken işine yarar
+  // ("üretici aranıyor" yazan talebe bayi boşuna hazırlık yapmasın).
+  preferredActivities: true,
   keywords: true,
   requireAllItems: true,
   requireBidDocument: true,
@@ -168,6 +172,7 @@ export interface PublicListing {
   isInternational: boolean;
   targetCountries: string[];
   categoryIds: string[];
+  preferredActivities: string[];
   keywords: string[];
   requireAllItems: boolean;
   requireBidDocument: boolean;

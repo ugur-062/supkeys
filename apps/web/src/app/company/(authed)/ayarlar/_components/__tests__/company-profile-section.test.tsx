@@ -23,11 +23,13 @@ vi.mock("@/hooks/use-company-profile", () => ({
   useCompanyProfile: () => ({ data: h.profile, isLoading: false, isError: false, refetch: vi.fn() }),
   useUpdateCompanyProfile: () => ({ mutateAsync: h.update, isPending: false }),
 }));
-vi.mock("@/components/categories/segment-only-picker", () => ({
-  SegmentOnlyPicker: () => <div data-testid="segment-picker" />,
-}));
-vi.mock("@/components/categories/category-selector-button", () => ({
-  CategorySelectorButton: () => <div data-testid="sub-picker" />,
+// Kategori seçicisi katalog uçlarına gider (useRoots / useCategoriesByIds) —
+// bu dosya KİMLİK/KİLİT/kirli-alan sözleşmesini sınıyor, katalog ağacını değil.
+// Kendi sözleşmesi `company-category-picker.test.tsx` içinde.
+vi.mock("@/components/categories/company-category-picker", () => ({
+  CompanyCategoryPicker: ({ label }: { label: string }) => (
+    <div data-testid="kategori-secici">{label}</div>
+  ),
 }));
 
 import { CompanyProfileSection } from "../company-profile-section";

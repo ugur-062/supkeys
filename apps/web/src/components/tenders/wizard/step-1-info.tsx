@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/catalyst/checkbox";
 import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Select } from "@/components/catalyst/select";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { PreferredActivitiesField } from "@/components/tenders/preferred-activities-field";
 import { FilesTab } from "@/components/tenders/files-tab";
 import {
   StagedDocuments,
@@ -947,6 +948,19 @@ export function Step1Info({
               placeholder={`${L.entityShort} kategorilerini seçin`}
               modalTitle={`${L.entityShort} Kategorileri Seç`}
               error={errors.categoryIds?.message as string | undefined}
+            />
+          </div>
+        </Field>
+
+        {/* İKİNCİ EKSEN — kategori "ne", bu "kimden". İsteğe bağlı. */}
+        <Field>
+          <Label>Aranan tedarikçi tipi (isteğe bağlı)</Label>
+          <div className="mt-2">
+            <PreferredActivitiesField
+              value={watch("preferredActivities") ?? []}
+              onChange={(codes) =>
+                setValue("preferredActivities", codes, { shouldDirty: true })
+              }
             />
           </div>
         </Field>
