@@ -1,4 +1,5 @@
 export * from "./helpers/category-code";
+export * from "./helpers/company-category-selection";
 export * from "./helpers/profile-completeness";
 export * from "./helpers/public-text-quality";
 export * from "./helpers/slug";

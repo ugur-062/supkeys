@@ -96,10 +96,15 @@ describe("CompanyCategoryPicker — segment türetme", () => {
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ }));
     await user.click(screen.getByRole("button", { name: "alt-onayla" }));
 
-    expect(h.sonDeger).toEqual({
-      mainIds: ["39000000"],
-      subIds: ["39121600", "39131700"],
-    });
+    // Ata zinciri DAHİL saklanır: alıcı L3'te talep açtığında dar eksen tutsun.
+    expect(h.sonDeger?.mainIds).toEqual(["39000000"]);
+    // İki AYRI aile (3912…, 3913…) → her birinin L2'si de saklanır.
+    expect(h.sonDeger?.subIds.sort()).toEqual([
+      "39120000",
+      "39121600",
+      "39130000",
+      "39131700",
+    ]);
   });
 
   it("iki ayrı segmentten seçim iki segment üretir", async () => {
@@ -152,14 +157,32 @@ describe("CompanyCategoryPicker — segment türetme", () => {
     });
   });
 
-  it("alt kategori silinince segment KALIR — daha geniş beyan, zarar vermez", async () => {
+  it("son seçim silinince SEGMENT DE düşer — sessiz genişleme olmasın", async () => {
     const user = userEvent.setup();
-    render(<Harness mainIds={["39000000"]} subIds={["39121600"]} />);
+    render(<Harness mainIds={["39000000"]} subIds={["39120000", "39121600"]} />);
     await user.click(
       screen.getByRole("button", { name: /Yaprak 39121600 seçimini kaldır/ }),
     );
 
-    expect(h.sonDeger).toEqual({ mainIds: ["39000000"], subIds: [] });
+    // Segment kalsaydı firma tek yaprağı sildikten sonra TÜM elektrik
+    // taleplerinin bildirimini almaya başlardı — düzeltmeye çalıştığımız arıza.
+    expect(h.sonDeger).toEqual({ mainIds: [], subIds: [] });
+  });
+
+  it("kardeş seçim varken silme, segmenti ve ortak ataları KORUR", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness
+        mainIds={["39000000"]}
+        subIds={["39120000", "39121600", "39131700"]}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Yaprak 39121600 seçimini kaldır/ }),
+    );
+
+    expect(h.sonDeger?.mainIds).toEqual(["39000000"]);
+    expect(h.sonDeger?.subIds.sort()).toEqual(["39130000", "39131700"]);
   });
 
   it("sektör geneli modalından segment kaldırılırsa öksüz yaprak bırakılmaz", async () => {

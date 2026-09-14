@@ -290,8 +290,11 @@ L1 (tam) · firma ALT kategori L2-4 (tam) · AI önerisi 2 aşamalı → L3.
 Ana ve alt AYRI eksen; eşleştirme (`deriveCategoryMatchCandidates`) koddan tüm
 üst seviyeleri türetir.
 
-**Tavanlar TEK KAYNAK (2026-09-14):** `@rothern/shared` `category-catalog.ts`
-`MAX_COMPANY_MAIN_CATEGORIES = 5` · `MAX_COMPANY_SUB_CATEGORIES = 50`.
+**Tavanlar TEK KAYNAK (2026-09-14):** `@rothern/shared`
+`MAX_COMPANY_MAIN_CATEGORIES = 5` · **seçim** tavanı `MAX_COMPANY_SUB_PICKS = 50`
+· **depolama** tavanı `MAX_COMPANY_SUB_CATEGORIES = 200` (ata zinciri dahil).
+İki sayı AYRI: tek sayı olsaydı 50 yaprak seçen kullanıcı zincir genişlemesiyle
+tavanı aşıp anlamsız hata alırdı.
 Öncesinde ana kategori tavanı ÜÇ AYRI değerdi — kayıt DTO'su 3, ayarlar ekranı
 10 (`maxSelection` prop'u hiç geçilmemiş, varsayılan), ayarlar DTO'su 50 →
 `validateCategorySelection`'ın "1-3" kuralı ayarlar yolunda HİÇ çalışmıyordu.
@@ -302,13 +305,34 @@ firma hiç bildirim almaz ve sebebini hiçbir ekranda göremezdi).
 
 **ARAYÜZ TEK SORU SORAR (2026-09-14, kullanıcı: "frontendi hoş değil"):** ekran
 aynı ağaçtan iki kez seçim istiyordu (L1 modalı + L3-4 modalı + çip duvarı =
-üç etkileşim deseni). Artık kullanıcı yalnız somut ürün/hizmeti seçer, **segment
-KODDAN türetilir** (`CompanyCategoryPicker`, `categorySegment`). Kural: alt
-eklenince segment kendiliğinden belirir · alt silinince segment KALIR · segment
-silinince altındakiler de gider. Bütün sektörde çalışan firma için "Sektör
-geneli ekle" kaçış yolu var (yaprağı olmayan segment = "her şeyi yaparım").
+üç etkileşim deseni). Artık TEK seçim var; kullanıcı **L2-L4 arası hangi
+derinlikte düşünüyorsa orada** seçer (`CompanyCategoryPicker`).
+
+**SEÇİM ↔ DEPOLAMA AYRI — tek kaynak `helpers/company-category-selection.ts`:**
+seçilen kodun ATA ZİNCİRİ de beyana yazılır (L2+L3+L4 → `*SubCategoryIds`,
+L1 → `*CategoryIds`). Gerekçe ölçüldü: eşleştirme ata zincirini **talebin**
+kodundan YUKARI çıkarıyor (`deriveCategoryMatchCandidates` → `categoryAncestors`),
+firmanın beyanından AŞAĞI inmiyor; talepler ise en az L3. Zincir yazılmasaydı
+`39121614` beyan eden firma, alıcı `39121600` talebi açtığında dar eksende
+eşleşmez ve geniş eksene (segmentin TAMAMI) düşerdi — daralttığını sanırken
+genişlerdi. Gösterim `deepestCategoryPicks` ile yalnız kullanıcının seçtiklerini
+çizer (türetilmiş üstler ayrı çip olmaz; zincir breadcrumb'da okunur).
+
+Kural: seçim eklenince zincir + segment belirir · seçim silinince zinciri gider
+ve o segmentte başka seçim kalmadıysa **segment de düşer** (aksi hâlde tek
+yaprağı silen firma sessizce segmentin tamamından bildirim almaya başlardı) ·
+segment silinince altındakiler de gider. Bütün sektörde çalışan firma için
+"Sektör geneli ekle" kaçış yolu (yaprağı olmayan segment = "her şeyi yaparım").
+**Kayıtta kategori ZORUNLU** — üç katman: arayüz `step2Valid`, DTO
+`@ArrayMinSize(1)`, servis `validateCategorySelection`.
 Kayıt ve Ayarlar AYNI bileşeni kullanır (`CompanyActivityPicker` de öyle).
-Sözleşme: `components/categories/__tests__/company-category-picker.test.tsx`.
+Sözleşmeler: `company-category-picker.test.tsx` · `company-category-selection.spec.ts`.
+
+**Dizin facet'i (2026-09-14 düzeltildi):** süzgeç DÖRT diziye bakıyordu ama
+sayaç yalnız iki ana diziyi okuyordu → alt kategorisiyle eşleşen firma listeye
+girip SAYIYA girmiyordu. Sayaç artık dört diziyi okuyor ve alt kodları
+**segmentine yuvarlıyor** (ham sayılsaydı facet 158 bin kodluk bir liste
+üretirdi; facet gezinme aracıdır, kod sayımı değil).
 
 **Kayıt TEK soru sorar, dört alana yazar** (`company-auth.service.ts`
 completeOnboarding: `mainIds` → buyer+seller, `subIds` → her iki sub). Bilinçli:

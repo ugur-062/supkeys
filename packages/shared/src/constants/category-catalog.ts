@@ -63,8 +63,15 @@ export function categoryCatalogWhere(
 export const MAX_COMPANY_MAIN_CATEGORIES = 5;
 
 /**
- * Alt kategori tavanı. Ana kategoriden yüksek olması DOĞRU: alt kategori
- * daraltır, genişletmez — 50 yaprak seçen firma 5 segment seçenden daha DAR
- * bir havuza girer. Sınırsız bırakmak ise segment seçmekle aynı kapıya çıkardı.
+ * Alt kategori DEPOLAMA tavanı — kullanıcının seçim tavanı DEĞİL.
+ *
+ * Kullanıcı en fazla `MAX_COMPANY_SUB_PICKS` (50) ürün/hizmet seçer; her seçim
+ * ata zinciriyle birlikte saklandığı için depoda seçim başına en fazla üç kayıt
+ * (L2+L3+L4) oluşur. Zincir gerekli: eşleştirme ata zincirini TALEBİN kodundan
+ * yukarı çıkarıyor, firmanın beyanından aşağı inmiyor — yaprak tek başına
+ * saklanırsa alıcı L3'te talep açtığında dar eksen tutmaz.
+ *
+ * 200 = 50 seçim × 3 seviye + pay. Ana kategoriden yüksek olması DOĞRU: alt
+ * kategori daraltır, genişletmez.
  */
-export const MAX_COMPANY_SUB_CATEGORIES = 50;
+export const MAX_COMPANY_SUB_CATEGORIES = 200;

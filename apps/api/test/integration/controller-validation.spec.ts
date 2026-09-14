@@ -14,6 +14,7 @@ import {
   RejectPaymentReasonDto,
 } from "../../src/modules/company-orders/dto/order-payment.dto";
 import { CreateApprovalFlowDto } from "../../src/modules/company-approvals/dto/approval.dto";
+import { MAX_COMPANY_SUB_CATEGORIES } from "@rothern/shared";
 import { CompleteOnboardingDto } from "../../src/modules/company-auth/dto/onboarding.dto";
 import {
   InviteCompanyUserDto,
@@ -269,17 +270,31 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
       declarationAccepted: true,
     };
 
-    it("onboarding subCategoryIds ≤ 50 (51 eleman red, 50 kabul)", async () => {
+    /**
+     * DoS tavanı DTO'da DEPOLAMA sayısını sınırlar, kullanıcının seçim
+     * sayısını değil (2026-09-14). Beyan ata zinciriyle saklandığı için tek
+     * seçim depoda üç kayda kadar çıkar; kullanıcıya gösterilen 50'lik tavan
+     * servis kapısında (`validateCategorySelection` → `deepestCategoryPicks`)
+     * uygulanır. İki sayıyı tek yerde tutmak, 50 yaprak seçen kullanıcıya
+     * anlamsız bir hata döndürürdü.
+     */
+    it(`onboarding subCategoryIds ≤ ${MAX_COMPANY_SUB_CATEGORIES} (DoS tavanı)`, async () => {
       await expect(
         validate(CompleteOnboardingDto, {
           ...validOnboarding,
-          subCategoryIds: Array.from({ length: 50 }, (_, i) => `s${i}`),
+          subCategoryIds: Array.from(
+            { length: MAX_COMPANY_SUB_CATEGORIES },
+            (_, i) => `s${i}`,
+          ),
         }),
       ).resolves.toBeDefined();
       await expect(
         validate(CompleteOnboardingDto, {
           ...validOnboarding,
-          subCategoryIds: Array.from({ length: 51 }, (_, i) => `s${i}`),
+          subCategoryIds: Array.from(
+            { length: MAX_COMPANY_SUB_CATEGORIES + 1 },
+            (_, i) => `s${i}`,
+          ),
         }),
       ).rejects.toBeDefined();
     });

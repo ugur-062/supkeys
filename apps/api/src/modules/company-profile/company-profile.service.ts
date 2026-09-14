@@ -10,6 +10,8 @@ import {
   NotFoundException, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  MAX_COMPANY_SUB_PICKS,
+  deepestCategoryPicks,
   generateSlug,
   isValidIbanTr,
   maskIban,
@@ -238,16 +240,29 @@ export class CompanyProfileService {
     // ALT kategoriler: level 2-4 (family/class/commodity). Ana kategori
     // exactLevel:1 kalır — ikisi AYRI eksen, alt kategori ananın yerine
     // geçmez (eşleştirme her ikisine de `hasSome` ile bakar).
+    // SEÇİM tavanı depolama tavanından AYRI: depoda ata zinciri de duruyor
+    // (L2+L3+L4), kullanıcıya gösterilen sayı ise seçim sayısı. Kayıt yolundaki
+    // `validateCategorySelection` ile AYNI kural — ayrışırlarsa ayarlardan
+    // gönderilen beyan kayıttakinden geniş olabilirdi.
+    const seciminiDenetle = (ids: string[]) => {
+      if (deepestCategoryPicks(ids).length > MAX_COMPANY_SUB_PICKS) {
+        throw new BadRequestException(
+          `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
+        );
+      }
+    };
     if (dto.buyerSubCategoryIds !== undefined) {
       await this.categories.validateIds(dto.buyerSubCategoryIds, {
         minLevel: 2,
       });
+      seciminiDenetle(dto.buyerSubCategoryIds);
       data.buyerSubCategoryIds = [...new Set(dto.buyerSubCategoryIds)];
     }
     if (dto.sellerSubCategoryIds !== undefined) {
       await this.categories.validateIds(dto.sellerSubCategoryIds, {
         minLevel: 2,
       });
+      seciminiDenetle(dto.sellerSubCategoryIds);
       data.sellerSubCategoryIds = [...new Set(dto.sellerSubCategoryIds)];
     }
     if (dto.buyerCategoryIds !== undefined) {
