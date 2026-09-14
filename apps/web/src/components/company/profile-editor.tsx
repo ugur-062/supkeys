@@ -732,8 +732,26 @@ function AboutEditor({
 }) {
   const [enriching, setEnriching] = useState(false);
   const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
-  const enrich = async () => {
+  /**
+   * SİTE SORMA KUTUSU — düğme artık kendi kendine yeter (2026-09-14, kullanıcı:
+   * "web sitesi girme yeri en aşağıda, o tuşu yukarı alalım; tıklandığında
+   * girilmediyse sorsun").
+   *
+   * Eskiden düğme site boşken PASİFTİ ve ipucu "önce künyeye girin" diyordu —
+   * künye ise sayfanın en altındaydı. Kullanıcı düğmeyi görüyor, neden
+   * çalışmadığını anlamıyor, alanı aramaya gidiyordu. Artık düğme her zaman
+   * basılabilir: site varsa ANINDA başlar, yoksa buradan ister.
+   */
+  const [siteSoruluyor, setSiteSoruluyor] = useState(false);
+  const [siteTaslak, setSiteTaslak] = useState("");
+  const enrich = async (siteOverride?: string) => {
     if (enriching) return;
+    const site = (siteOverride ?? website).trim();
+    if (!site) {
+      setSiteSoruluyor(true);
+      return;
+    }
+    setSiteSoruluyor(false);
     setEnriching(true);
     try {
       const { data } = await companyApi.post<{
@@ -743,7 +761,13 @@ function AboutEditor({
         linkedinUrl: string | null;
         instagramUrl: string | null;
         logoCandidateUrl: string | null;
-      }>("/company/ai/profile-enrich", {}, { timeout: 90_000 });
+      }>(
+        "/company/ai/profile-enrich",
+        // Adres GÖVDEDE gidiyor: kullanıcı buraya yeni yazdıysa henüz
+        // kaydedilmemiş olur ve sunucu DB'deki (boş) değeri okurdu.
+        { website: site },
+        { timeout: 90_000 },
+      );
       onEnriched({
         aboutText: data.aboutText,
         ...(data.services.length > 0 ? { services: data.services } : {}),
@@ -751,6 +775,8 @@ function AboutEditor({
         ...(data.linkedinUrl ? { linkedinUrl: data.linkedinUrl } : {}),
         ...(data.instagramUrl ? { instagramUrl: data.instagramUrl } : {}),
       });
+      // Buradan girilen adres künyeye de işlenir — iki yerde ayrı kalmasın.
+      if (siteOverride?.trim()) onEnriched({ website: siteOverride.trim() });
       setLogoCandidate(data.logoCandidateUrl);
       toast.success("Taslak hazır — kontrol edip Kaydet'e basın");
     } catch (err) {
@@ -761,6 +787,50 @@ function AboutEditor({
   };
   return (
     <div className="space-y-2">
+      {/* AI BANDI METİN KUTUSUNUN ÜSTÜNDE: boş bir kutuya bakarken ilk görülmesi
+          gereken şey "elle yazın" değil "siteden doldurayım mı". */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+        <p className="text-xs text-zinc-600">
+          Web sitenizi okuyup <strong>taslak</strong> hazırlayalım — kontrol edip
+          kaydedersiniz.
+        </p>
+        <Button outline onClick={() => void enrich()} disabled={enriching}>
+          {enriching ? <Loader2 data-slot="icon" className="animate-spin" /> : <Sparkles data-slot="icon" />}
+          {enriching ? "Siteniz okunuyor…" : "Web sitemden AI ile doldur"}
+        </Button>
+      </div>
+      {siteSoruluyor ? (
+        <div className="space-y-2 rounded-xl border border-zinc-300 bg-white px-3 py-3">
+          <label htmlFor="ai-site" className="block text-xs font-medium text-zinc-700">
+            Web sitenizin adresi
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              id="ai-site"
+              autoFocus
+              value={siteTaslak}
+              placeholder="ornekfirma.com"
+              onChange={(e) => setSiteTaslak(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void enrich(siteTaslak);
+                }
+              }}
+            />
+            <Button onClick={() => void enrich(siteTaslak)} disabled={!siteTaslak.trim()}>
+              Devam
+            </Button>
+            <Button plain onClick={() => setSiteSoruluyor(false)}>
+              Vazgeç
+            </Button>
+          </div>
+          <p className="text-xs text-zinc-500">
+            Adres künyenize de kaydedilir; siteniz yoksa bu adımı atlayıp
+            aşağıdan elle yazabilirsiniz.
+          </p>
+        </div>
+      ) : null}
       <Textarea
         aria-label="Hakkında"
         rows={5}
@@ -769,16 +839,7 @@ function AboutEditor({
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-zinc-400">{value.length} karakter</span>
-        <Button
-          outline
-          onClick={() => void enrich()}
-          disabled={enriching || !website.trim()}
-          title={website.trim() ? undefined : "Önce künyeye web sitesi adresini girin"}
-        >
-          {enriching ? <Loader2 data-slot="icon" className="animate-spin" /> : <Sparkles data-slot="icon" />}
-          {enriching ? "Siteniz okunuyor…" : "Web sitemden AI ile doldur"}
-        </Button>
+        <span className="text-xs text-zinc-500">{value.length} karakter</span>
       </div>
       {logoCandidate && !hasLogo ? (
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">

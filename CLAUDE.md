@@ -1117,6 +1117,21 @@ servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
 - Akıllı şartname motoru, manipülasyon tespiti ("Tercihlerimi Getir" →
   Talep Şartları ile KAPANDI 2026-09-09)
 
+**PROFİL AI'ı ÜCRETSİZDE DE AÇIK — FİRMA BAŞINA BİR KEZ (2026-09-14, kullanıcı
+kararı).** `profile-enrich` tek AI özelliği olarak `minTier: "STANDART"` geçer;
+merkezi kapı (`assertAiAccess`) varsayılanı SILVER ve öyle KALIR. Adet kapısı
+ömürlük: `AiUsage` içinde `feature="profile_enrich"` sayılır (aylık bütçe değil
+— bu tekrarlayan bir özellik değil, bir kerelik kurulum adımı). STANDART'a
+0,5 USD aylık havuz açıldı; diğer AI özelliklerine ULAŞMAZ çünkü hepsi merkezi
+SILVER kapısının arkasında. Gerekçe: dolu profil = indekslenen sayfa = organik
+büyüme; tek çağrılık maliyet bilinen en ucuz müşteri edinme. Sözleşme:
+`profile-enrich-tier.spec.ts` (para harcayan kapı).
+
+**Profilde "AI ile doldur" düğmesi kendi kendine yeter:** metin kutusunun
+ÜSTÜNDE durur ve site girilmemişse YERİNDE sorar (eskiden pasifti ve ipucu
+"künyeye girin" diyordu — künye sayfanın en altındaydı). Adres istek GÖVDESİNDE
+gider; boş gövde yollanınca sunucu DB'deki kaydedilmemiş/boş değeri okuyordu.
+
 **AI çerçevesinin değişmez kuralları:** model ASLA doğrudan yazamaz —
 `request_*` araçları yalnız doğrulanmış `pendingAction` üretir (tek kullanımlık,
 10 dk TTL); yürütme YALNIZ kullanıcının confirm ucuyla (CSRF'li) → prompt-

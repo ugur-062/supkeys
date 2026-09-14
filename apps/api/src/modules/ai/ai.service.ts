@@ -7,7 +7,7 @@ import {
   Optional,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { ALL_SEAT_PERMISSIONS, tierAtLeast } from "@rothern/shared";
+import { ALL_SEAT_PERMISSIONS, tierAtLeast, type TierName } from "@rothern/shared";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -38,6 +38,8 @@ export interface AiCallOptions {
   system?: string;
   /** Erişim: özelliğin istediği izinler (any-of). Boş → herhangi bir işlem izni. */
   anyOf?: readonly string[];
+  /** Bu özelliğin ALT paket sınırı — varsayılan SILVER (bkz. assertAiAccess). */
+  minTier?: TierName;
   /** AI-1: fotoğraf/taranmış belge → vision model varyantı. */
   vision?: boolean;
   /**
@@ -102,9 +104,18 @@ export class AiService {
    * Kurucu/Yönetici, Onaylayıcı ve salt görüntüleyici → 403. Ürün çıkarımı
    * `sell:product:manage`, profil zenginleştirme `company:manage` geçirir.
    */
+  /**
+   * `minTier` — VARSAYILAN "SILVER" ve öyle KALMALI; AI özellikleri paketli
+   * özelliktir. Tek istisna profil zenginleştirme: ücretsiz firmanın profilini
+   * doldurmak PLATFORMUN işine yarıyor (indekslenebilir sayfa = organik
+   * büyüme), o yüzden orada "STANDART" geçiliyor ve çağrı sayısı firma başına
+   * ayrıca sınırlanıyor. Yeni bir özelliğe bu parametreyi vermeden önce
+   * "bedelini kim ödüyor, karşılığında ne kazanıyoruz" sorusunu yanıtla.
+   */
   assertAiAccess(
     user: AuthenticatedCompanyUser,
     anyOf: readonly string[] = ALL_SEAT_PERMISSIONS,
+    minTier: TierName = "SILVER",
   ): void {
     if (!this.config.enabled || !this.provider) {
       // Fail-closed ama SESSİZ DEĞİL: anahtar yoksa özellik kapalı, net 503.
@@ -112,7 +123,7 @@ export class AiService {
         "AI özelliği şu anda kullanılamıyor (yapılandırılmamış).",
       );
     }
-    if (!tierAtLeast(user.tier, "SILVER")) {
+    if (!tierAtLeast(user.tier, minTier)) {
       throw new ForbiddenException(
         "AI özellikleri Silver veya üzeri paket gerektirir.",
       );
@@ -132,7 +143,7 @@ export class AiService {
     user: AuthenticatedCompanyUser,
     options: AiCallOptions,
   ): Promise<AiCallResult> {
-    this.assertAiAccess(user, options.anyOf);
+    this.assertAiAccess(user, options.anyOf, options.minTier);
     const provider = this.provider!;
     const { models, upgrade } = this.config;
 

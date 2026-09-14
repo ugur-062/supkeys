@@ -179,7 +179,13 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
     vertex,
     models,
     pricing: DEFAULT_PRICING,
-    monthlyBudgetUsd: { SILVER: 6, GOLD: 25 },
+    // STANDART'a küçük havuz (2026-09-14, kullanıcı kararı): ücretsiz firma
+    // profilini AI ile BİR KEZ doldurabilsin. Diğer AI özelliklerine bu havuz
+    // ULAŞMAZ — merkezi kapı (`assertAiAccess`) varsayılan SILVER ve yalnız
+    // profil zenginleştirme `minTier: "STANDART"` geçiyor; ayrıca orada firma
+    // başına tek çağrı sayacı var. Tek sayfalık profil çekimi bu havuzun
+    // altında kalır; aşarsa bütçe kapısı zaten reddeder.
+    monthlyBudgetUsd: { STANDART: 0.5, SILVER: 6, GOLD: 25 },
     caps: {
       userShare: 0.5,
       dailyShare: 0.25,

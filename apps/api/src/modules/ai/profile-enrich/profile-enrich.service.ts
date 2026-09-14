@@ -61,6 +61,11 @@ const DRAFT_SCHEMA = {
   required: ["aboutText", "services"],
 } as const;
 
+/** `AiUsage.feature` anahtarı — ömürlük sayaç bu değeri sayar. */
+const PROFILE_ENRICH_FEATURE = "profile_enrich";
+/** Ücretsiz pakette ÖMÜR BOYU çağrı hakkı (bir kerelik kurulum adımı). */
+const FREE_TIER_ENRICH_LIMIT = 1;
+
 @Injectable()
 export class ProfileEnrichService {
   private readonly logger = new Logger(ProfileEnrichService.name);
@@ -77,10 +82,21 @@ export class ProfileEnrichService {
     user: AuthenticatedCompanyUser,
     input: { website?: string },
   ): Promise<ProfileDraft> {
-    if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException(
-        "Profili AI ile oluşturmak için bir paket (Silver+) gerekir.",
-      );
+    // ÜCRETSİZ PAKETTE DE AÇIK — FİRMA BAŞINA BİR KEZ (2026-09-14, kullanıcı
+    // kararı). Gerekçe: dolu bir profil PLATFORMUN işine yarıyor — indekslenen
+    // sayfa organik büyümenin kendisi, ve tek çağrılık maliyet bilinen en ucuz
+    // müşteri edinme. Tekrarlayan bir özellik değil, bir kerelik kurulum adımı;
+    // o yüzden aylık bütçeye değil ÖMÜRLÜK sayaca bağlı.
+    const ucretsiz = !tierAtLeast(user.tier, "SILVER");
+    if (ucretsiz) {
+      const kullanim = await this.prisma.aiUsage.count({
+        where: { companyId: user.companyId, feature: PROFILE_ENRICH_FEATURE },
+      });
+      if (kullanim >= FREE_TIER_ENRICH_LIMIT) {
+        throw new ForbiddenException(
+          "Ücretsiz pakette profil AI ile bir kez doldurulabilir — tekrar oluşturmak için Silver veya üzeri paket gerekir.",
+        );
+      }
     }
     if (!this.config.enabled || !this.provider) {
       throw new ServiceUnavailableException(
@@ -157,8 +173,10 @@ export class ProfileEnrichService {
     const PROFILE_ENRICH_ACCESS = ["company:manage"] as const;
     const result = await this.ai
       .callAi(user, {
-        feature: "profile_enrich",
+        feature: PROFILE_ENRICH_FEATURE,
         anyOf: PROFILE_ENRICH_ACCESS,
+        // Ücretsiz pakete açık; adet kapısı yukarıda (firma başına bir kez).
+        minTier: "STANDART",
         system,
         prompt: ask,
         ...(usingSearch
@@ -180,8 +198,10 @@ export class ProfileEnrichService {
       // İkinci çağrı da bütçeden geçer: grounding+responseSchema BİRLEŞMEDİĞİ
       // için iki aşama zorunlu, ama ikisi de gerçek token harcıyor.
       const parsed = await this.ai.callAi(user, {
-        feature: "profile_enrich",
+        feature: PROFILE_ENRICH_FEATURE,
         anyOf: PROFILE_ENRICH_ACCESS,
+        // Ücretsiz pakete açık; adet kapısı yukarıda (firma başına bir kez).
+        minTier: "STANDART",
         system:
           "Verilen metni şemaya uygun JSON'a dönüştür; metinde olmayanı null bırak, EKLEME.",
         prompt: `<metin>\n${result.text.slice(0, 10_000)}\n</metin>`,
