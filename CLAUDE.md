@@ -737,7 +737,8 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   doğrulanmamış (PENDING dahil) → `/company/ayarlar/dogrulama` + toast ·
   doğrulanmış → `/company/premium/satin-al?paket=silver|gold`. Satın alma
   ekranı adresle açılabildiği için aynı kapıları KENDİ uygular; paket işlemi
-  yalnız kurucuda. **Ödeme altyapısı yok:** ödeme düğmesi çizilmez, tek eylem
+  yalnız kurucuda. **Ödeme altyapısı yok:** ödeme düğmesi çizilmez ve "kartla
+  ödeme yakında" türü yazı/düğme de EKLENMEZ (kullanıcı kararı); tek eylem
   destek ekibine hazır konulu e-posta; PayTR gelince yalnız özet kartının
   eylemi değişir. (`PREMIUM_SELF_UPGRADE_ENABLED` açıksa Gold'da eski uç
   çağrılır — o uç yalnız GOLD'a yükseltir.) Ad/fiyat/özellik TEK KAYNAK

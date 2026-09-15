@@ -26,8 +26,8 @@ const PACKAGES_HREF = "/company/premium";
  * Ekran ödeme sağlayıcısı (PayTR) gelince yalnız SAĞ KARTIN düğmesi değişecek
  * şekilde kuruldu: paket, dönem, fatura unvanı ve tutar bugünden gerçek.
  *
- * Bugün ödeme düğmesi YOK ("Kartla ödeme yakında" bilgi satırı) ve tek gerçek
- * eylem — birincil renkte — destek ekibine hazır konulu e-posta: paket bugün admin tarafından açılıyor.
+ * Bugün ödeme düğmesi YOK ve "ödeme yakında" türü bir yazı da YOK (kullanıcı
+ * kararı); tek eylem — birincil renkte — destek ekibine hazır konulu e-posta: paket bugün admin tarafından açılıyor.
  * İstisna: backend `PREMIUM_SELF_UPGRADE_ENABLED` açıksa (yalnız GOLD'a
  * yükselten eski self-servis uç) Gold'da düğme o ucu çağırır.
  *
@@ -183,9 +183,6 @@ function Checkout({
                 <span className="font-semibold text-zinc-950">{formatUsd(monthly)}</span>/ay
               </p>
             </div>
-            <p className="mt-3 text-xs text-zinc-500">
-              6 aylık dönem de sunulacak. Aylık tutarı ödeme adımıyla birlikte açıklanacak.
-            </p>
           </section>
 
           <section aria-labelledby="co-fatura" className="rounded-2xl bg-white p-6 ring-1 ring-zinc-950/10">
@@ -242,21 +239,12 @@ function Checkout({
               {upgrade.isPending ? "İşleniyor…" : "Satın al"}
             </Button>
           ) : (
-            <>
-              {/* Ödeme altyapısı gelene dek TEK gerçek eylem talep: birincil
-                  renk ona. Pasif bir "öde" düğmesi ana eylem gibi durup
-                  hiçbir şey yapmıyordu (ekran görüntüsünde görüldü). */}
-              <p className="mt-6 flex items-start gap-2.5 rounded-xl bg-zinc-100 px-3.5 py-3 text-xs text-zinc-700">
-                <CreditCardIcon aria-hidden className="mt-px size-4 shrink-0 text-zinc-500" />
-                <span>
-                  <span className="font-semibold text-zinc-950">Kartla ödeme yakında.</span>{" "}
-                  Şimdilik talebinizi iletin, paketinizi ekibimiz açsın.
-                </span>
-              </p>
-              <Button href={mailto} color="blue" className="mt-4 w-full">
-                Satın alma talebi gönder
-              </Button>
-            </>
+            // Ödeme altyapısı gelene dek TEK eylem talep. "Ödeme yakında"
+            // gibi bir yazı ya da pasif düğme ÇİZİLMEZ (2026-09-15, kullanıcı
+            // kararı).
+            <Button href={mailto} color="blue" className="mt-6 w-full">
+              Satın alma talebi gönder
+            </Button>
           )}
 
         </aside>

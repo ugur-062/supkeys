@@ -4,7 +4,7 @@
  *
  * Adresle doğrudan açılabildiği için kapılar kart tıklamasına güvenmez:
  * doğrulanmamış → doğrulama, geçersiz paket → Paketler. Ödeme altyapısı
- * gelene dek ödeme düğmesi pasif ve tek eylem destek ekibine talep.
+ * gelene dek ödeme düğmesi yok, tek eylem destek ekibine talep.
  */
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -76,7 +76,8 @@ describe("CheckoutView", () => {
   it("ödeme altyapısı yokken ödeme düğmesi YOK, tek eylem talep e-postası", () => {
     setMe();
     render(<CheckoutView />);
-    expect(screen.getByText("Kartla ödeme yakında.")).toBeInTheDocument();
+    // "Ödeme yakında" türü yazı/düğme çizilmez (kullanıcı kararı).
+    expect(screen.queryByText(/yakında/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /Satın al|ödeme/i })).toBeNull();
     const talep = screen.getByRole("link", { name: "Satın alma talebi gönder" });
     expect(talep.getAttribute("href")).toMatch(/^mailto:support@rothern\.com\?subject=Gold/);
@@ -97,7 +98,7 @@ describe("CheckoutView", () => {
     h.paket = "silver";
     render(<CheckoutView />);
     expect(screen.queryByRole("button", { name: /Satın al/ })).toBeNull();
-    expect(screen.getByText("Kartla ödeme yakında.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Satın alma talebi gönder" })).toBeInTheDocument();
   });
 
   it("paket zaten firmadaysa satın alma çizilmez", () => {
