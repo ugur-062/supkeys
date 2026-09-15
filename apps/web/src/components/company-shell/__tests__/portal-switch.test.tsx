@@ -11,6 +11,8 @@
  *  · kilitli portal listede KALIR ve tıklanır — `PortalGuard` paket ekranını
  *    açar; gizlemek kullanıcıya neyi kaçırdığını söylemezdi
  *  · tuş nerede olduğunu da söyler (aktif portalın adı etiket olarak)
+ *  · tuş diğer üst çubuk düğmelerinden AYRIŞIR: aktif portalın renginde
+ *    çerçeveli çip (kullanıcı: "diğer tuşlardan farklı dursun")
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -40,6 +42,24 @@ describe("PortalSwitch", () => {
     });
     expect(btn).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("tuş AKTİF portalın renginde çerçeveli çiptir (gri ikon düğmesi değil)", () => {
+    const { rerender } = render(
+      <PortalSwitch active="satinalma" visiblePortals={IKISI} available={IKISI} />,
+    );
+    const btn = screen.getByRole("button", { name: /Panel değiştir/ });
+    expect(btn.className).toMatch(/\bborder\b/);
+    expect(btn.className).toMatch(/bg-blue-50/);
+    expect(btn).toHaveTextContent("Satınalma");
+
+    rerender(
+      <PortalSwitch active="satis" visiblePortals={IKISI} available={IKISI} />,
+    );
+    const satis = screen.getByRole("button", { name: /Panel değiştir/ });
+    expect(satis.className).toMatch(/bg-emerald-50/);
+    expect(satis.className).not.toMatch(/blue/);
+    expect(satis).toHaveTextContent("Satış");
   });
 
   it("tıklayınca iki panel AÇIKLAMASIYLA listelenir", () => {

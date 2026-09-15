@@ -18,6 +18,21 @@ const ICON: Record<PortalKey, typeof ShoppingCartIcon> = {
   satis: BuildingStorefrontIcon,
 };
 
+/**
+ * Tuşun tonu AKTİF portaldan. Sınıflar tam yazılı (Tailwind dinamik sınıf
+ * adını derleyemez). Kontrast: blue-700 / emerald-800 açık zeminde ≥ 4,5:1.
+ */
+const TON: Record<PortalKey, string> = {
+  satinalma:
+    "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 focus-visible:ring-blue-500",
+  satis:
+    "border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 focus-visible:ring-emerald-500",
+};
+const TON_ACIK: Record<PortalKey, string> = {
+  satinalma: "border-blue-300 bg-blue-100",
+  satis: "border-emerald-300 bg-emerald-100",
+};
+
 /** Panelde ne yapıldığını TEK cümleyle anlatır — panel açıklaması burada. */
 const NE_YAPAR: Record<PortalKey, string> = {
   satinalma: "Talep açar, teklif toplar, kazandırırsınız.",
@@ -33,13 +48,19 @@ const NE_YAPAR: Record<PortalKey, string> = {
  * etiket) ve DEĞİŞTİREBİLİRSİN (ok). Tıklayınca iki portalı açıklayan panel
  * açılır.
  *
- * ÜST ÇUBUK DİLİ KORUNUR: mesaj, bildirim ve Şirketim düğmeleriyle birebir —
- * h-12, ikon + altında 10 px etiket, çerçevesiz, hover'da hafif zemin.
+ * DİĞER DÜĞMELERDEN AYRIŞIR (2026-09-15, kullanıcı: "Şirketim yanındaki tuşu
+ * daha belirgin yap, diğer tuşlardan farklı dursun"). İlk hâli mesaj, bildirim
+ * ve Şirketim ile birebir aynı dildeydi (gri ikon + altında 10 px etiket) ve
+ * dört eş düğmenin arasında bildirim gibi okunuyordu. Artık yatay, çerçeveli,
+ * yuvarlak bir ÇİP: aktif portalın ikonu + adı + değişim oku.
  *
- * RENK: tuşta ikonlar ZINC kalır. Portallerin kendi renkleri var (satınalma
- * mavi, satış siyah/emerald) ama üst çubuk beyaz ve oradaki dört düğme nötr;
- * renkli ikon "tek eylem rengi" kuralını delerdi. Renk yalnız AÇILAN PANELDE,
- * aktif satırda görünür.
+ * RENK: çip AKTİF PORTALIN renginde (satınalma mavi, satış emerald) açık tonlu.
+ * "Tek eylem rengi" kuralına bilinçli istisna — renk bir eylemi değil hangi
+ * paneldesiniz bilgisini taşır; sağdaki düğmeler nötr kalır. Dolgu yok, yalnız
+ * açık zemin: sayfanın birincil eylem düğmesiyle yarışmasın.
+ *
+ * Dar ekranda (sm altı) portal adı düşer, ikon + ok kalır — üst çubuk 400 px'e
+ * sığsın; tuş yine çerçeveli ve renkli olduğu için belirginliğini korur.
  *
  * KİLİTLİ PORTAL: bugünkü davranış aynen — satır yine tıklanır, `PortalGuard`
  * paket ekranını açar (kilidi gizlemek kullanıcıya neyi kaçırdığını söylemezdi).
@@ -83,6 +104,7 @@ export function PortalSwitch({
 
   const sirali = PORTAL_ORDER.filter((p) => visiblePortals.includes(p));
   const aktifDef = PORTALS[active];
+  const AktifIcon = ICON[active];
 
   return (
     <div ref={kutu} className="relative shrink-0">
@@ -93,33 +115,16 @@ export function PortalSwitch({
         aria-label={`Panel değiştir — şu an ${aktifDef.label}`}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-          open
-            ? "bg-zinc-950/5 text-zinc-900"
-            : "text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900",
+          "mr-1 inline-flex h-9 items-center gap-1.5 rounded-full border px-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:pr-3 sm:pl-2.5",
+          TON[active],
+          open && TON_ACIK[active],
         )}
       >
-        <span className="flex items-center gap-0.5" aria-hidden>
-          {sirali.map((p, i) => {
-            const Icon = ICON[p];
-            return (
-              <span key={p} className="flex items-center gap-0.5">
-                {i > 0 ? (
-                  <ArrowsRightLeftIcon className="size-3 text-zinc-400" />
-                ) : null}
-                <Icon
-                  className={cn(
-                    "size-5",
-                    p === active ? "text-zinc-900" : "text-zinc-400",
-                  )}
-                />
-              </span>
-            );
-          })}
-        </span>
-        <span className="text-[10px] leading-none font-semibold" aria-hidden>
+        <AktifIcon className="size-5 shrink-0" aria-hidden />
+        <span className="hidden whitespace-nowrap sm:inline" aria-hidden>
           {aktifDef.label}
         </span>
+        <ArrowsRightLeftIcon className="size-4 shrink-0 opacity-70" aria-hidden />
       </button>
 
       {open ? (
