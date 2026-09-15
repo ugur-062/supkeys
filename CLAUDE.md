@@ -59,7 +59,7 @@ e2e testleri `seed-staging-roles`a dayanır, bu betiğe DEĞİL.
 betikler sessizce kök `.env`e (STAGING) düşüyor (2026-09-15'te "canlı" diye
 koşulan kuru çalışma staging'i listeledi). Betiğe `ENV_FILE=../../.env.prod.local`
 ver; `wipe-companies.ts` silme kipinde ayrıca `HEDEF=<supabase-proje-ref>` ister. Staging adresleri: `staging.supkeys.com`,
-`admin.staging.supkeys.com`, `api.staging.supkeys.com`, `cdn.staging.rothern.com`.
+`admin.staging.supkeys.com`, `api.staging.supkeys.com`, `cdn.staging.supkeys.com`.
 Git: `main` → staging (otomatik), `production` → canlı (PR ile).
 
 | Tip | URL | E-posta |
@@ -190,8 +190,11 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
   Mutating isteklerde CSRF double-submit (`rk_csrf` → `X-CSRF-Token`).
   **STAGING AYRI KAYITLI ALAN ADINDA (2026-09-15, kullanıcı kararı "tamamen
   ayrılsın"):** `staging.supkeys.com` · `admin.staging.supkeys.com` ·
-  `api.staging.supkeys.com` (CDN `cdn.staging.rothern.com`ta KALDI — oturum
-  yok). Gerekçe: canlı çerezleri `.rothern.com` alanında; staging
+  `api.staging.supkeys.com` · `cdn.staging.supkeys.com` (2026-09-16: CDN de
+  taşındı — canlı çerezleri artık staging'in HİÇBİR konağına gitmiyor; kayıtlı
+  adresler `rewrite-image-host` betiğiyle güncellendi). Staging e-postaları
+  ayrı gönderen alan adından çıkar (`staging@supkeys.com`) — rothern.com'un
+  gönderen itibarı staging trafiğinden etkilenmesin. Gerekçe: canlı çerezleri `.rothern.com` alanında; staging
   `staging.rothern.com`dayken tarayıcı canlı `rk_csrf`i staging'e de
   gönderiyor, web ilk API son kopyayı okuyup kayıtta "CSRF doğrulaması
   başarısız" veriyordu. Önce `rks_` ön ekiyle yamandı, alan adı taşınınca yama
