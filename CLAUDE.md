@@ -46,7 +46,19 @@ canlı değerler gitignore'lu `.env.prod.local`'da ve YALNIZ onaylı migration
 için kullanılır. Ortam tablosu ve sürüm akışı: `docs/release-process.md`.
 Staging rol hesapları: `pnpm --filter @rothern/db seed-staging-roles`
 (`uguray156+qa-<slug>@gmail.com`; alıcı GOLD 6 rol · tedarikçi SILVER 3 rol ·
-ücretsiz STANDART). Staging adresleri: `staging.rothern.com`,
+ücretsiz STANDART).
+**Staging DEMO hesapları (2026-09-15, elle gezinti için):**
+`STAGING_DEMO_PASSWORD='…' pnpm --filter @rothern/db seed-staging-demo`
+(`uguray156+demo-<paket>-<rol>@gmail.com`; Gold 5 rol · Silver 3 · Ücretsiz 2;
+profil dolu, ürünler ONAYLI ve vitrinde; ücretsiz firma bilerek doğrulanmamış).
+Şifre repoda YOK. Roller paket kurallarına uyar (satınalmacı yalnız Gold).
+e2e testleri `seed-staging-roles`a dayanır, bu betiğe DEĞİL.
+
+⚠️ **Canlı `.env.prod.local`'ı kabukta `source` ETME:** DATABASE_URL tırnaksız
+`&` taşıyor, kabuk satırı arka plan komutu sanıyor, değişken kurulmuyor ve
+betikler sessizce kök `.env`e (STAGING) düşüyor (2026-09-15'te "canlı" diye
+koşulan kuru çalışma staging'i listeledi). Betiğe `ENV_FILE=../../.env.prod.local`
+ver; `wipe-companies.ts` silme kipinde ayrıca `HEDEF=<supabase-proje-ref>` ister. Staging adresleri: `staging.rothern.com`,
 `admin.staging.rothern.com`, `api.staging.rothern.com`, `cdn.staging.rothern.com`.
 Git: `main` → staging (otomatik), `production` → canlı (PR ile).
 
