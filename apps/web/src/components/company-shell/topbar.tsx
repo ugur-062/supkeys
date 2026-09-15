@@ -109,7 +109,8 @@ export function CompanyTopbar({
 
       {/* Sağa yaslı küme: [Portal ⇄] [Şirketim]. Şirketim mesaj/bildirim
           düğmeleriyle AYNI dili konuşur (h-12, ikon + 10 px etiket); portal
-          tuşu bilinçli olarak AYRIŞIR — aktif portal renginde çerçeveli çip. */}
+          tuşu aynı düzende ama renkli ikon + aç/kapa işareti + ayırıcıyla
+          AYIRT EDİLİR (çerçeveli çip "çok farklı" bulundu). */}
       <div className="ml-auto mr-1 flex min-w-0 items-center">
       {/* PORTAL DEĞİŞTİR — tek tuş, üstünde iki ikon ve değişim oku
           (2026-09-15, kullanıcı kararı). Sol menüdeki segmentli pilin YERİNE:
