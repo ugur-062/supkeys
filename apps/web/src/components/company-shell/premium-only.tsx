@@ -23,6 +23,7 @@ export function PremiumOnly({
   minTier?: "SILVER" | "GOLD";
 }) {
   const { company } = useCompanyAuth();
-  if (company && !tierAtLeast(company.tier, minTier)) return <PremiumGate />;
+  if (company && !tierAtLeast(company.tier, minTier))
+    return <PremiumGate requiredTier={minTier} />;
   return <>{children}</>;
 }

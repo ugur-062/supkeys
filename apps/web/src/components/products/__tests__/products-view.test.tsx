@@ -24,9 +24,6 @@ vi.mock("@/lib/company-auth/api", () => ({
 vi.mock("@/lib/api", () => ({
   api: { get: h.get },
 }));
-vi.mock("../import-dialog", () => ({
-  ImportDialog: () => null,
-}));
 vi.mock("../product-showcase-form", () => ({
   ProductShowcaseForm: () => <div data-testid="form" />,
 }));
@@ -217,12 +214,11 @@ describe("ProductsView", () => {
     expect(screen.getByText("Onay bekleyen ürün yok.")).toBeInTheDocument();
   });
 
-  it("başlıkta tek primary: 'Yeni ürün'; 'Toplu ekle' ikincil", async () => {
+  it("başlıkta TEK eylem 'Yeni ürün'; toplu ekleme KALDIRILDI (2026-09-15)", async () => {
     wrap(<ProductsView />);
     await screen.findByText("Dağıtım panosu");
-    const primary = screen.getByRole("button", { name: "Yeni ürün" });
-    const secondary = screen.getByRole("button", { name: "Toplu ekle" });
-    expect(primary.className).toContain("bg-zinc-950");
-    expect(secondary.className).not.toContain("bg-zinc-950");
+    expect(screen.getByRole("button", { name: "Yeni ürün" }).className).toContain("bg-zinc-950");
+    // Excel şablonu görselsiz ürün üretiyordu, katalog çıkarımı çalışmıyordu.
+    expect(screen.queryByRole("button", { name: /Toplu ekle/ })).toBeNull();
   });
 });

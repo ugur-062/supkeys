@@ -57,7 +57,6 @@ bu tablo **çalışan staging'in gerçek yanıtıdır**. ✅ erişti · 🔒 403
 | `company/items/discover` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
 | `company/items/discover/facets` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
 | `company/items/discover/search` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
-| `company/items/import/template` | sell:product:manage | — | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ |
 | `company/listing-item-import/template` | buy:listing:manage | — | 500 | 🔒 | 500 | 🔒 | 🔒 | 🔒 | 500 | 🔒 | 🔒 | 500 | 500 |
 | `company/listing-templates` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
 | `company/listings` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |

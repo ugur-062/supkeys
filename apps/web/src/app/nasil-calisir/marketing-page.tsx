@@ -6,6 +6,8 @@ import { PublicLayout } from "@/components/marketplace/public-layout";
 import { TrustBand } from "@/components/marketplace/trust-band";
 import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
 import { PRODUCT_LIMITS, registrationCountries } from "@rothern/shared";
+import { PRICING_NOTE, PRICING_PLANS } from "@/lib/pricing/plans";
+import type { CompanyTier } from "@/lib/company-auth/types";
 import {
   Disclosure,
   DisclosureButton,
@@ -33,74 +35,39 @@ const stats = [
 ];
 
 /**
- * Paket kartları — yetenekler tier.ts tek-kaynağıyla hizalı (üç paket,
- * 2026-09-06): STANDART = davetli/bağlantılı taleplere teklif (2 koltuk);
- * SILVER = tedarikçi paketi (satış paneli): dizin + profil + PUBLIC teklif +
- * davet + vitrin + satış AI'ı (4 koltuk); GOLD = iki panel: + satınalma
- * paneli (talep açma, kazandırma, onay akışı, rapor/şablon, talep AI'ı) +
- * rozet (6 koltuk). Fiyatlar YILLIK ödemede aylık gösterim; ayrıca 6 aylık
- * dönem seçeneği var (aylık faturalama yok). accent: pakete hafif renk
- * kimliği — kart gövdesi monokrom kalır.
+ * Paket kartları — ad/fiyat/özellikler TEK KAYNAKTAN (`lib/pricing/plans.ts`,
+ * panel içi paket sayfası da oradan okur). accent: pakete hafif renk kimliği,
+ * yalnız bu sayfanın sunumu — kart gövdesi monokrom kalır.
  */
-const pricingTiers = [
-  {
-    name: "Standart",
-    price: null,
-    tagline: "Vitrinini aç, çevren içinde al-sat.",
-    features: [
-      `Herkese açık firma profili ve ${PRODUCT_LIMITS.STANDART} ürünlük vitrin — firma dizininde yer`,
-      "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme",
-      "Gelen bağlantı davetlerini kabul etme, mesajlaşma",
-      "Sipariş, teslim & ödeme adımı takibi",
-      "2 koltuk",
-    ],
-    cta: "Ücretsiz Başla",
-    accent: {
-      top: "border-t-zinc-200",
-      pill: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-      check: "text-zinc-500",
-    },
+const PLAN_ACCENT: Record<
+  CompanyTier,
+  { top: string; pill: string; check: string }
+> = {
+  STANDART: {
+    top: "border-t-zinc-200",
+    pill: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+    check: "text-zinc-500",
   },
-  {
-    name: "Silver",
-    price: 160,
-    tagline: "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
-    features: [
-      "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
-      "Sınırsız ürün, ürün belgesi (PDF) ve video",
-      "Herkese açık satın alma taleplerine sınırsız teklif",
-      "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
-      "Ziyaret Edenler ve İş Analizi",
-      "Yapay zekâ: belgeden fiyatlama, katalogdan ürün çıkarma, AI ile talep arama",
-      "4 satış koltuğu",
-    ],
-    cta: "Silver'a Başla",
-    accent: {
-      top: "border-t-slate-400",
-      pill: "bg-slate-100 text-slate-700 ring-slate-300",
-      check: "text-slate-500",
-    },
+  SILVER: {
+    top: "border-t-slate-400",
+    pill: "bg-slate-100 text-slate-700 ring-slate-300",
+    check: "text-slate-500",
   },
-  {
-    name: "Gold",
-    price: 230,
-    tagline: "İki panel birden: alış & satışı tek hesapta yönet.",
-    features: [
-      "Silver'ın tamamı",
-      "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
-      "Kazandırma, onay akışları, raporlar & şablonlar",
-      "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
-      "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
-      "6 koltuk (satınalma ve satış)",
-    ],
-    cta: "Gold'a Başla",
-    accent: {
-      top: "border-t-yellow-500/80",
-      pill: "bg-yellow-50 text-yellow-800 ring-yellow-300",
-      check: "text-yellow-600",
-    },
+  GOLD: {
+    top: "border-t-yellow-500/80",
+    pill: "bg-yellow-50 text-yellow-800 ring-yellow-300",
+    check: "text-yellow-600",
   },
-];
+};
+
+const pricingTiers = PRICING_PLANS.map((p) => ({
+  name: p.name,
+  price: p.monthlyUsd,
+  tagline: p.tagline,
+  features: p.features,
+  cta: p.cta,
+  accent: PLAN_ACCENT[p.tier],
+}));
 
 const faqs = [
   {
@@ -1266,9 +1233,7 @@ export default function HomePage() {
           ))}
         </div>
         <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-500">
-          Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık
-          dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde
-          aylık tutar farklıdır.
+          {PRICING_NOTE}
         </p>
       </section>
 

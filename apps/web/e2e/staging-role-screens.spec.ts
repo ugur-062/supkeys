@@ -57,7 +57,9 @@ const rows: Array<{ user: string; states: Record<string, State> }> = [];
 
 async function classifyOnce(page: Page): Promise<State> {
   const body = await page.locator("body").innerText().catch(() => "");
-  if (/Satınalma paneli \(Gold\)|Raporlar ve şablonlar \(Gold\)/.test(body)) return "paket";
+  // Paket kapısı 2026-09-15'ten beri yalnız paket kartlarını çizer; başlık
+  // cümlesi hangi paketin gerektiğini söyler (`PackagesView requiredTier`).
+  if (/Bu sayfa (Silver|Gold) paketiyle açılır/.test(body)) return "paket";
   if (/paneline erişim yetkiniz yok/.test(body)) return "portal";
   // PermissionGate başlığı sayfaya göre değişebiliyor ("Banka Hesapları yalnız
   // Kurucuya açık") → metne değil, kapının role="status" kabuğuna bak.

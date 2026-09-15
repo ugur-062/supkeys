@@ -49,7 +49,7 @@ export function PortalGuard({
   if (!user) {
     return <div className="p-8 text-sm text-zinc-400">Yükleniyor…</div>;
   }
-  if (premiumLocked) return <PremiumGate />;
+  if (premiumLocked) return <PremiumGate requiredTier="GOLD" />;
   if (!allowed) {
     return (
       <PortalAccessDenied portal={portal} fallback={available[0] ?? null} />

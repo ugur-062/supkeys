@@ -23,7 +23,6 @@ export * from "./types/ai-seo-enrich";
 export * from "./types/request-defaults";
 export * from "./types/ai-assistant";
 export * from "./constants/item-import";
-export * from "./constants/product-import";
 export * from "./constants/bid-import";
 export * from "./constants/units";
 export * from "./constants/company-activities";

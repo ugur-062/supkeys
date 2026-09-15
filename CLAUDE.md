@@ -232,7 +232,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Web derin bağlantıları (CTA) | `common/company/app-routes.ts` |
 | Public görsel yükleme · metin kalitesi | `common/company/{public-image-upload,public-text-quality}.ts` |
 | Yüklenen tablo dosyası okuma | `common/files/spreadsheet-reader.ts` |
-| İçe aktarma sütun/limit | `@rothern/shared` `item-import.ts` / `bid-import.ts` / `product-import.ts` |
+| İçe aktarma sütun/limit (talep kalemi · teklif) | `@rothern/shared` `item-import.ts` / `bid-import.ts` |
 | IBAN (TR + yabancı mod-97) | `@rothern/shared` `ibanChecksumOk` / `isValidIbanTr` |
 | Ölçü birimi · faaliyet tipi · kayıt ülkesi | `@rothern/shared` `constants/{units,company-activities}.ts`, `data/country-profiles.ts` |
 | Görünürlük katmanı (public) | `lib/public/visibility.ts` (`VISIBILITY`, `canSee`, `loginHref`) |
@@ -245,6 +245,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Profil tamamlanma | `@rothern/shared` `profileCompleteness` (10 madde; "Fotoğraflar" 2026-09-10'da kalktı) |
 | Ayarlar sayfaları başlık/açıklama/adres (hub kartı = sayfa kabuğu) | `lib/company/settings-pages.ts` `SETTINGS_PAGES` — `SettingsShell page={…}`; uzun açıklama `description` ile ezer |
 | Doğrulama durumu etiketi + KYC kilidi (web) | `lib/company/verification-status.ts` (`verificationMeta`, `isKycLocked`) — hub rozeti, Doğrulama ve Firma Bilgileri aynı sözlük; backend `LOCKED_KYC` = name·legalName·mersisNo·tradeRegistryNo·ibanHolder (+IBAN), PENDING/VERIFIED'da |
+| Paket adı · fiyat · özellik listesi (pazarlama + panel Paketler + satın alma) | `apps/web` `lib/pricing/plans.ts` (`PRICING_PLANS`) |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |
 | İzin aynası (web) | `lib/company/permissions.ts` |
 | Herkese açık adres şeması (ürün/firma/talep/kategori/şehir) | `@rothern/shared` `helpers/public-paths.ts` (web `lib/public/{marketplace,city}.ts` yeniden dışa aktarır) |
@@ -724,9 +725,25 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   `PRICING_HREF` artık `/company/premium` — eskiden `/nasil-calisir#fiyatlar`
   idi ve panelde çalışan kullanıcı "Paketleri Gör"e basınca herkese açık
   pazarlama sayfasına düşüyordu (üst çubuk, sol menü, firma bağlamı gidiyor →
-  "sistemden çıkmış" hissi). Panel içi paket sayfası ÖNCE DOĞRULAMA gösterir
-  (birincil eylem "Doğrulamaya git"), doğrulanmışta paket seçimi. Pazarlama
-  başlığındaki fiyat bağlantısı AYRI ve public kalır.
+  "sistemden çıkmış" hissi). Pazarlama başlığındaki fiyat bağlantısı AYRI ve
+  public kalır.
+
+- **PAKETLER EKRANI YALNIZ PAKET KARTLARI (2026-09-15, kullanıcı kararı "sadece
+  paketlerde gözüksün, şık; önce doğrulamaya yönlendirsin, doğrulanmışsa direkt
+  satın alma ekranı gelsin").** `/company/premium` ve kilitli sayfalardaki
+  `PremiumGate` AYNI `PackagesView`i çizer (eski "neler açılır" listesi,
+  doğrulama kutusu, "Gold manuel onayla" notu KALKTI; kilitli sayfada başlık
+  "Bu sayfa X paketiyle açılır." der). Karar SATIN AL tıklamasında:
+  doğrulanmamış (PENDING dahil) → `/company/ayarlar/dogrulama` + toast ·
+  doğrulanmış → `/company/premium/satin-al?paket=silver|gold`. Satın alma
+  ekranı adresle açılabildiği için aynı kapıları KENDİ uygular; paket işlemi
+  yalnız kurucuda. **Ödeme altyapısı yok:** ödeme düğmesi çizilmez ve "kartla
+  ödeme yakında" türü yazı/düğme de EKLENMEZ (kullanıcı kararı); tek eylem
+  destek ekibine hazır konulu e-posta; PayTR gelince yalnız özet kartının
+  eylemi değişir. (`PREMIUM_SELF_UPGRADE_ENABLED` açıksa Gold'da eski uç
+  çağrılır — o uç yalnız GOLD'a yükseltir.) Ad/fiyat/özellik TEK KAYNAK
+  `lib/pricing/plans.ts` (pazarlama sayfası da oradan okur). Sözleşme:
+  `components/company/packages/__tests__/{packages,checkout}-view.test.tsx`.
 
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).
@@ -887,16 +904,17 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
 - **Skor ≠ yayın kapısı:** skor (0-100) yönlendirir; `productPublishBlockers`
   engeller (ad, kategori, ≥100 karakter açıklama, ≥1 görsel, ≥1 anahtar kelime).
   Fiyat ve nitelik kapıda YOK.
-- **Toplu ekleme: İKİ kaynak, TEK yazma yolu.** Excel/CSV şablonu (AI'sız, her
-  paket) ve katalog PDF/foto (`ai/product-extract`, Silver+) AYNI
-  `ProductImportResult` üretir ve AYNI `import/commit` ucundan geçer.
-  Model yalnız SATIRLARI üretir; **kategori KODU yazamaz** (`categoryHint` →
-  backend katalogda arar; bulunamazsa boş + uyarı). Kod VARLIĞI doğrulanır
-  (biçim yetmez), yoksa yazma yolunda null'lanır.
+- **⛔ TOPLU ÜRÜN EKLEME KALDIRILDI (2026-09-15, kullanıcı kararı).** Excel/CSV
+  şablonu (`company/items/import/{template,parse,commit}`) ve katalog PDF/foto
+  AI çıkarımı (`ai/product-extract`) web, API ve `@rothern/shared`
+  `product-import.ts` dahil TAMAMEN söküldü. Gerekçe: Excel görselsiz ürün
+  üretiyordu (yayın kapısı ≥1 görsel ister → toplu taslak yığını), 200-300
+  sayfalık katalogdan çıkarım pratikte çalışmıyordu. Ürün TEK TEK, görseliyle
+  "Yeni ürün" formundan eklenir. GERİ GETİRME. (Talep kalemi içe aktarma
+  `item-import.ts` ve teklif şablonu `bid-import.ts` AYRI özellikler, duruyor.)
 - **⛔ WEB SİTESİNDEN ÜRÜN ÇEKME — bilinçli olarak YAPILMAYACAK** (kullanıcı
   kararı): sahiplik doğrulanamaz (rakip URL'i → biz yayıncı oluruz), uydurulan
-  fiyat/MOQ ticari beyandır, canlı site prompt-injection yüzeyidir. YERİNE
-  kullanıcının YÜKLEDİĞİ katalog. (`common/website-import.ts` bundan
+  fiyat/MOQ ticari beyandır, canlı site prompt-injection yüzeyidir. (`common/website-import.ts` bundan
   ETKİLENMEZ — o, firmanın KENDİ sitesinden profil zenginleştirmesidir.)
 
 ### Bilgi talepleri — İKİ PORTAL, İKİ YÖN
