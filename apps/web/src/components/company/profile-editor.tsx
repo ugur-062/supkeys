@@ -1,6 +1,7 @@
 "use client";
 
 import { MissingFields } from "@/components/ui/missing-fields";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
 import { useCatalogItems } from "@/hooks/use-company-items";
 import { EMPLOYEE_BUCKET_LABELS, companyActivityLabel } from "@rothern/shared";
@@ -162,6 +163,22 @@ export function ProfileEditor({
   };
   const discard = () => setDraft(saved);
 
+  /**
+   * LOGO/KAPAK ANINDA KAYDEDİLİR (2026-09-15, kullanıcı: "profil fotoğrafı
+   * ekledim ama durmadı" · "kaydet en altta oluyor, görmedim bile").
+   *
+   * Eskiden yüklenen görsel yalnız TASLAĞA yazılıyordu; kalıcı olması için
+   * sayfanın en altındaki çubuktan "Kaydet"e basmak gerekiyordu. Görsel seçmek
+   * zaten bilinçli bir eylem ve kırpma penceresinin kendi "Kaydet"i var →
+   * orada basılınca yalnız o alan sunucuya yazılır. Taslaktaki DİĞER
+   * kaydedilmemiş değişikliklere dokunulmaz.
+   */
+  const persistImage = async (field: "logoUrl" | "coverImageUrl", url: string) => {
+    await update.mutateAsync(field === "logoUrl" ? { logoUrl: url } : { coverImageUrl: url });
+    setSaved((cur) => ({ ...cur, [field]: url }));
+    setDraft((cur) => ({ ...cur, [field]: url }));
+  };
+
   const viewData: ProfileViewData = {
     name: profile.name,
     rothernId: profile.rothernId,
@@ -254,10 +271,10 @@ export function ProfileEditor({
     cover: (
       <CoverControls
         value={draft.coverImageUrl}
-        onChange={(coverImageUrl) => set({ coverImageUrl })}
+        onSave={(url) => persistImage("coverImageUrl", url)}
       />
     ),
-    logo: <LogoControls value={draft.logoUrl} onChange={(logoUrl) => set({ logoUrl })} />,
+    logo: <LogoControls value={draft.logoUrl} onSave={(url) => persistImage("logoUrl", url)} />,
     headline: (
       <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
         <Input
@@ -662,8 +679,79 @@ function useImagePicker(kind: "logo" | "cover" | "gallery", onUrl: (url: string)
   return { upload, inputRef, pick, handle };
 }
 
-function CoverControls({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { upload, inputRef, pick, handle } = useImagePicker("cover", onChange);
+/**
+ * Logo/kapak seçici: dosya seç → KIRP VE ODAKLA penceresi → penceredeki
+ * "Kaydet" yükler ve profile hemen yazar (`onSave`). Kaldırma da anında kaydedilir.
+ */
+function useCroppedImage(kind: "logo" | "cover", onSave: (url: string) => Promise<void>) {
+  const upload = useUploadProfileImage();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<File | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const label = kind === "logo" ? "Logo" : "Kapak görseli";
+  const pick = () => inputRef.current?.click();
+  const onFiles = (files: FileList | null) => {
+    const f = files?.[0];
+    if (inputRef.current) inputRef.current.value = "";
+    if (!f) return;
+    if (!IMG_MIME.includes(f.type)) {
+      toast.error("JPEG, PNG veya WebP yükleyin");
+      return;
+    }
+    setPending(f);
+  };
+  const confirm = async (cropped: File) => {
+    const lim = PROFILE_IMAGE_LIMITS[kind];
+    if (cropped.size > lim.maxBytes) {
+      toast.error(`Dosya çok büyük (maks. ${Math.round(lim.maxBytes / 1024 / 1024)}MB)`);
+      throw new Error("too-large");
+    }
+    try {
+      const url = await upload.mutateAsync({ file: cropped, kind });
+      await onSave(url);
+      setPending(null);
+      toast.success(`${label} kaydedildi`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, `${label} kaydedilemedi`));
+      throw err;
+    }
+  };
+  const remove = async () => {
+    setRemoving(true);
+    try {
+      await onSave("");
+      toast.success(`${label} kaldırıldı`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, `${label} kaldırılamadı`));
+    } finally {
+      setRemoving(false);
+    }
+  };
+  const dialog = (
+    <ImageCropDialog
+      file={pending}
+      aspect={kind === "logo" ? 1 : COVER_ASPECT}
+      shape={kind === "logo" ? "rounded" : "rect"}
+      title={kind === "logo" ? "Logoyu ayarla" : "Kapak görselini ayarla"}
+      hint={
+        kind === "cover"
+          ? "Kapak ekran genişliğine göre kenarlardan biraz kırpılabilir; önemli kısmı ortada tutun."
+          : undefined
+      }
+      maxEdge={PROFILE_IMAGE_LIMITS[kind].maxEdge}
+      onCancel={() => setPending(null)}
+      onConfirm={confirm}
+    />
+  );
+  const busy = upload.isPending || removing;
+  return { inputRef, pick, onFiles, remove, busy, dialog };
+}
+
+/** Kapak kırpma oranı — profilde şerit olarak çizilir (telefonda ~3:1, masaüstünde daha geniş). */
+const COVER_ASPECT = 4;
+
+function CoverControls({ value, onSave }: { value: string; onSave: (url: string) => Promise<void> }) {
+  const { inputRef, pick, onFiles, remove, busy, dialog } = useCroppedImage("cover", onSave);
   return (
     <>
       <input
@@ -672,18 +760,19 @@ function CoverControls({ value, onChange }: { value: string; onChange: (v: strin
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         aria-label="Kapak görseli seç"
-        onChange={(e) => void handle(e.target.files)}
+        onChange={(e) => onFiles(e.target.files)}
       />
+      {dialog}
       {value ? (
         // Tek "Düzenle" menüsü (v2 7g): kapakta iki, logoda iki ayrı overlay
         // düğme üst üste biniyordu.
         <div className="absolute bottom-3 right-3">
           <OverlayMenu
             label="Kapağı düzenle"
-            busy={upload.isPending}
+            busy={busy}
             items={[
               { label: "Kapağı değiştir", onClick: pick },
-              { label: "Kapağı kaldır", onClick: () => onChange(""), danger: true },
+              { label: "Kapağı kaldır", onClick: () => void remove(), danger: true },
             ]}
           />
         </div>
@@ -691,19 +780,19 @@ function CoverControls({ value, onChange }: { value: string; onChange: (v: strin
         <button
           type="button"
           onClick={pick}
-          disabled={upload.isPending}
+          disabled={busy}
           className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-medium text-white/90 hover:bg-white/10"
         >
-          {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-          Kapak görseli ekle <span className="text-white/60">· 16:9, maks. 5MB</span>
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+          Kapak görseli ekle <span className="text-white/60">· geniş görsel, maks. 5MB</span>
         </button>
       )}
     </>
   );
 }
 
-function LogoControls({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { upload, inputRef, pick, handle } = useImagePicker("logo", onChange);
+function LogoControls({ value, onSave }: { value: string; onSave: (url: string) => Promise<void> }) {
+  const { inputRef, pick, onFiles, remove, busy, dialog } = useCroppedImage("logo", onSave);
   return (
     <>
       <input
@@ -712,17 +801,18 @@ function LogoControls({ value, onChange }: { value: string; onChange: (v: string
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         aria-label="Logo seç"
-        onChange={(e) => void handle(e.target.files)}
+        onChange={(e) => onFiles(e.target.files)}
       />
+      {dialog}
       {value ? (
         <div className="absolute -bottom-1 -right-1">
           <OverlayMenu
             label="Logoyu düzenle"
-            busy={upload.isPending}
+            busy={busy}
             compact
             items={[
               { label: "Logoyu değiştir", onClick: pick },
-              { label: "Logoyu kaldır", onClick: () => onChange(""), danger: true },
+              { label: "Logoyu kaldır", onClick: () => void remove(), danger: true },
             ]}
           />
         </div>
@@ -730,12 +820,12 @@ function LogoControls({ value, onChange }: { value: string; onChange: (v: string
         <button
           type="button"
           onClick={pick}
-          disabled={upload.isPending}
+          disabled={busy}
           title="Logo yükle"
           aria-label="Logo yükle"
           className="absolute -bottom-1 -right-1 inline-flex size-8 items-center justify-center rounded-full bg-zinc-900 text-white shadow ring-2 ring-white hover:bg-zinc-700"
         >
-          {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
         </button>
       )}
     </>

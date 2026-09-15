@@ -2,6 +2,7 @@
 
 import {
   BuildingStorefrontIcon,
+  ArrowsRightLeftIcon,
   CheckIcon,
   ChevronUpDownIcon,
   LockClosedIcon,
@@ -94,7 +95,6 @@ export function PortalSwitch({
 
   const sirali = PORTAL_ORDER.filter((p) => visiblePortals.includes(p));
   const aktifDef = PORTALS[active];
-  const AktifIcon = ICON[active];
 
   return (
     <div ref={kutu} className="relative flex shrink-0 items-center">
@@ -109,10 +109,27 @@ export function PortalSwitch({
           open && "bg-zinc-950/5",
         )}
       >
-        <AktifIcon
-          className={cn("size-5 shrink-0", IKON_RENGI[active])}
-          aria-hidden
-        />
+        {/* İKİ PANEL DE GÖRÜNÜR (2026-09-15, üçüncü tur, kullanıcı: "değişim
+            tuşu olduğu çok belli değil; satıştayken satınalma logosu da
+            gözüksün ama hangisinde olduğum belli olsun"). Aktif panel kendi
+            renginde ve tam opak, diğeri gri ve soluk; arada değişim oku.
+            Yer, düzen ve açılan liste AYNI (mimari değişmedi). */}
+        <span className="flex items-center gap-1" aria-hidden>
+          {sirali.map((p, i) => {
+            const Icon = ICON[p];
+            const aktif = p === active;
+            return (
+              <span key={p} className="flex items-center gap-1">
+                {i > 0 ? <ArrowsRightLeftIcon className="size-3.5 text-zinc-500" /> : null}
+                <Icon
+                  data-portal-icon={p}
+                  data-active={aktif ? "true" : "false"}
+                  className={cn("size-5 shrink-0", aktif ? IKON_RENGI[p] : "text-zinc-400")}
+                />
+              </span>
+            );
+          })}
+        </span>
         <span
           className="flex items-center gap-0.5 text-[10px] leading-none font-semibold whitespace-nowrap"
           aria-hidden

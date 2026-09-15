@@ -44,24 +44,24 @@ describe("PortalSwitch", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("tuş diğer düğmelerle aynı ailede, ikonu AKTİF portalın renginde", () => {
-    const { rerender } = render(
+  it("tuşta İKİ panelin ikonu görünür; aktif olan kendi renginde, diğeri gri", () => {
+    const { rerender, container } = render(
       <PortalSwitch active="satinalma" visiblePortals={IKISI} available={IKISI} />,
     );
     const btn = screen.getByRole("button", { name: /Panel değiştir/ });
-    // Çerçeveli çip değil: "çok farklı" bulundu.
+    // Çerçeveli çip değil (ikinci turda "çok farklı" bulundu).
     expect(btn.className).not.toMatch(/\bborder\b/);
-    expect(btn.className).toMatch(/\bh-12\b/);
     expect(btn).toHaveTextContent("Satınalma");
-    expect(btn.querySelector("svg.text-blue-600")).not.toBeNull();
+    const ikon = (p: string) => container.querySelector(`svg[data-portal-icon="${p}"]`)!;
+    expect(ikon("satinalma").getAttribute("class")).toMatch(/text-blue-600/);
+    expect(ikon("satis").getAttribute("class")).toMatch(/text-zinc-400/);
 
-    rerender(
-      <PortalSwitch active="satis" visiblePortals={IKISI} available={IKISI} />,
-    );
-    const satis = screen.getByRole("button", { name: /Panel değiştir/ });
-    expect(satis).toHaveTextContent("Satış");
-    expect(satis.querySelector("svg.text-emerald-600")).not.toBeNull();
-    expect(satis.querySelector("svg.text-blue-600")).toBeNull();
+    rerender(<PortalSwitch active="satis" visiblePortals={IKISI} available={IKISI} />);
+    // Satıştayken satınalma ikonu da GÖRÜNÜR ama soluk.
+    expect(ikon("satinalma")).not.toBeNull();
+    expect(ikon("satinalma").getAttribute("class")).toMatch(/text-zinc-400/);
+    expect(ikon("satis").getAttribute("class")).toMatch(/text-emerald-600/);
+    expect(screen.getByRole("button", { name: /Panel değiştir/ })).toHaveTextContent("Satış");
   });
 
   it("tıklayınca iki panel AÇIKLAMASIYLA listelenir", () => {

@@ -25,6 +25,18 @@ function render(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return rtlRender(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
+// Kırpma penceresi jsdom'da görsel çözemez → sade taklit: açık mı, başlığı ne,
+// "Kaydet" hangi dosyayla onConfirm çağırıyor.
+vi.mock("@/components/ui/image-crop-dialog", () => ({
+  ImageCropDialog: (p: { file: File | null; title: string; onConfirm: (f: File) => Promise<void> }) =>
+    p.file ? (
+      <div role="dialog" aria-label={p.title}>
+        <button type="button" onClick={() => void p.onConfirm(new File(["x"], "kirpik.webp", { type: "image/webp" }))}>
+          Kırpmayı kaydet
+        </button>
+      </div>
+    ) : null,
+}));
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
@@ -166,6 +178,33 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     await new Promise((r) => setTimeout(r, 0));
     expect(h.update).not.toHaveBeenCalled();
+  });
+
+  it("LOGO: dosya seçilince önce kırpma penceresi açılır; penceredeki Kaydet yükler ve YALNIZ logoyu hemen kaydeder", async () => {
+    h.upload.mockResolvedValue("https://cdn/yeni-logo.webp");
+    render(<ProfileEditor profile={{ ...PROFILE, logoUrl: null }} canEdit />);
+    const input = screen.getByLabelText("Logo seç") as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "logo.png", { type: "image/png" })] } });
+
+    const dialog = await screen.findByRole("dialog", { name: "Logoyu ayarla" });
+    // Kırpmadan önce hiçbir şey yüklenmez ya da kaydedilmez.
+    expect(h.upload).not.toHaveBeenCalled();
+    expect(h.update).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Kırpmayı kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledWith({ logoUrl: "https://cdn/yeni-logo.webp" }));
+    expect(h.upload).toHaveBeenCalledWith(expect.objectContaining({ kind: "logo" }));
+    // Sayfanın altındaki kaydet çubuğuna gerek kalmaz: pencere kapanır, taslak kirli değil.
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Logoyu ayarla" })).toBeNull());
+    expect(screen.queryByRole("button", { name: /Değişiklikleri kaydet|^Kaydet$/ })).toBeNull();
+  });
+
+  it("KAPAK: seçim kırpma penceresini kapak başlığıyla açar", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const input = screen.getByLabelText("Kapak görseli seç") as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "kapak.jpg", { type: "image/jpeg" })] } });
+    expect(await screen.findByRole("dialog", { name: "Kapak görselini ayarla" })).toBeInTheDocument();
+    expect(h.upload).not.toHaveBeenCalled();
   });
 
   it("firma türü / faaliyet kategorileri SALT OKUNUR; düzenleme Firma Bilgileri'ne gider", () => {
