@@ -7,7 +7,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 set -a; . "$ROOT/.env.staging"; set +a
-export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-https://staging.rothern.com}"
+export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-https://staging.supkeys.com}"
 export PLAYWRIGHT_VERCEL_BYPASS="${STAGING_VERCEL_BYPASS_WEB:?.env.staging: STAGING_VERCEL_BYPASS_WEB yok}"
 export PLAYWRIGHT_VERCEL_BYPASS_ADMIN="${STAGING_VERCEL_BYPASS_ADMIN:-}"
 # Admin parolası Render ortam dosyasından (gitignore'lu) — yoksa admin adımları atlanır.

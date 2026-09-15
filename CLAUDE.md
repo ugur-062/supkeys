@@ -58,8 +58,8 @@ e2e testleri `seed-staging-roles`a dayanır, bu betiğe DEĞİL.
 `&` taşıyor, kabuk satırı arka plan komutu sanıyor, değişken kurulmuyor ve
 betikler sessizce kök `.env`e (STAGING) düşüyor (2026-09-15'te "canlı" diye
 koşulan kuru çalışma staging'i listeledi). Betiğe `ENV_FILE=../../.env.prod.local`
-ver; `wipe-companies.ts` silme kipinde ayrıca `HEDEF=<supabase-proje-ref>` ister. Staging adresleri: `staging.rothern.com`,
-`admin.staging.rothern.com`, `api.staging.rothern.com`, `cdn.staging.rothern.com`.
+ver; `wipe-companies.ts` silme kipinde ayrıca `HEDEF=<supabase-proje-ref>` ister. Staging adresleri: `staging.supkeys.com`,
+`admin.staging.supkeys.com`, `api.staging.supkeys.com`, `cdn.staging.rothern.com`.
 Git: `main` → staging (otomatik), `production` → canlı (PR ile).
 
 | Tip | URL | E-posta |
@@ -188,14 +188,14 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 - **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ). Zustand persist
   YALNIZ UI snapshot'ı (`user`/`company`) tutar, token DEĞİL. Kimlik `/me` ile.
   Mutating isteklerde CSRF double-submit (`rk_csrf` → `X-CSRF-Token`).
-  **Çerez adları ORTAMA GÖRE (2026-09-15):** canlı/yerel `rk_*`, staging `rks_*`
-  — tek kaynak `@rothern/shared` `cookie-names.ts` (admin kuralın kopyasını
-  taşır, iki taraf aynı tabloyla sınanır). Ön ek yeni env'den OKUNMAZ: API
-  `COOKIE_DOMAIN`dan, web/admin `location.hostname`den türetir. Gerekçe: canlının
-  `.rothern.com` çerezleri staging'e de gidiyor; aynı adlarla staging kaydında
-  web ilk, API son `rk_csrf`i okuyup "CSRF doğrulaması başarısız" veriyordu.
-  Canlı çerezleri staging'e GÖNDERİLMEYE devam eder (okunmaz); tam yalıtım ayrı
-  kayıtlı alan adı ister.
+  **STAGING AYRI KAYITLI ALAN ADINDA (2026-09-15, kullanıcı kararı "tamamen
+  ayrılsın"):** `staging.supkeys.com` · `admin.staging.supkeys.com` ·
+  `api.staging.supkeys.com` (CDN `cdn.staging.rothern.com`ta KALDI — oturum
+  yok). Gerekçe: canlı çerezleri `.rothern.com` alanında; staging
+  `staging.rothern.com`dayken tarayıcı canlı `rk_csrf`i staging'e de
+  gönderiyor, web ilk API son kopyayı okuyup kayıtta "CSRF doğrulaması
+  başarısız" veriyordu. Önce `rks_` ön ekiyle yamandı, alan adı taşınınca yama
+  SÖKÜLDÜ. **Staging'i yeniden `rothern.com` altına ALMA.**
   **Kayan oturum:** `AuthCookieInterceptor` ömrün yarısı geçince taze token basar.
 - **KOYU MOD (2026-09-11, kullanıcı kararı):** ürün arayüzü her zaman AÇIK —
   `dark` variant'ı class tabanlı (`.dark` hiç eklenmez) ve `:root` `color-scheme:
@@ -1019,7 +1019,7 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
 - **`NEXT_PUBLIC_API_URL` HER ZAMAN `/api` sonekli** (`https://api.rothern.com/api`,
-  staging `https://api.staging.rothern.com/api`): API `setGlobalPrefix("api")`, web/
+  staging `https://api.staging.supkeys.com/api`): API `setGlobalPrefix("api")`, web/
   admin sonek EKLEMEZ. 2026-09-11'de soneksiz değer canlı girişi ~14 saat kırdı
   ("Cannot POST /company-auth/login"). Doğrulama: canlı JS chunk'larında adresi ara.
   Vercel CLI yerelde yetkili (`--scope rothern`, `supkeys-web`/`supkeys-admin`).

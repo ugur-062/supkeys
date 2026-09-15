@@ -5,13 +5,12 @@
 | Katman | Staging | Production |
 |---|---|---|
 | Git dalı | `main` | `production` |
-| API | Render `api-staging` (Free) → `api.staging.rothern.com` | Render `api` (Starter) → `api.rothern.com` |
-| Web / Admin | Vercel Preview (`main`) → `staging.rothern.com`, `admin.staging.rothern.com` | Vercel Production (`production`) → `www.rothern.com`, `admin.rothern.com` |
+| API | Render `api-staging` (Free) → `api.staging.supkeys.com` | Render `api` (Starter) → `api.rothern.com` |
+| Web / Admin | Vercel Preview (`main`) → `staging.supkeys.com`, `admin.staging.supkeys.com` | Vercel Production (`production`) → `www.rothern.com`, `admin.rothern.com` |
 | Veritabanı + Auth | Supabase `rothern-staging` (Free) | Supabase canlı (Pro) |
 | Dosya | R2 `rothern-staging` → `cdn.staging.rothern.com` | R2 canlı → `cdn.rothern.com` |
 | E-posta | Resend, `staging@rothern.com` | Resend, canlı gönderen |
-| Çerez alanı | `.staging.rothern.com` | `.rothern.com` |
-| Çerez adları | `rks_company`, `rks_csrf`, `rks_admin`, `rks_admin_csrf` | `rk_company`, `rk_csrf`, `rk_admin`, `rk_admin_csrf` |
+| Çerez alanı | `.staging.supkeys.com` (ayrı kayıtlı alan adı — canlı çerezleri gelmez) | `.rothern.com` |
 
 Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.prod.local`'da
 (gitignore'lu) yalnız onaylı migration için kullanılır.

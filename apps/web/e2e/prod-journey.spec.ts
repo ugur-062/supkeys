@@ -9,7 +9,7 @@ import { dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
  * YALNIZ `scripts/e2e-prod.sh` ile ve ELLE koşulur; CI'a bağlanmaz.
  *
  * NEDEN AYRI SPEC: staging paketi yeşil olsa bile canlı FARKLI yapılandırma —
- * ayrı veritabanı, ayrı çerez alanı (`.rothern.com` vs `.staging.rothern.com`),
+ * ayrı veritabanı, ayrı çerez alanı (`.rothern.com` vs `.staging.supkeys.com` — ayrı kayıtlı alan adı),
  * ayrı gönderen adresi, ayrı Supabase projesi. Bu spec yapılandırmayı sınar,
  * iş mantığını değil; iş mantığı zaten staging paketinde.
  *
