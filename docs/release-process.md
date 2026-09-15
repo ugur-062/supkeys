@@ -11,6 +11,7 @@
 | Dosya | R2 `rothern-staging` → `cdn.staging.rothern.com` | R2 canlı → `cdn.rothern.com` |
 | E-posta | Resend, `staging@rothern.com` | Resend, canlı gönderen |
 | Çerez alanı | `.staging.rothern.com` | `.rothern.com` |
+| Çerez adları | `rks_company`, `rks_csrf`, `rks_admin`, `rks_admin_csrf` | `rk_company`, `rk_csrf`, `rk_admin`, `rk_admin_csrf` |
 
 Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.prod.local`'da
 (gitignore'lu) yalnız onaylı migration için kullanılır.

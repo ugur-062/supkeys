@@ -17,16 +17,30 @@
  * sonra teklif/talep, en son firma.
  *
  *   npx tsx prisma/scripts/wipe-companies.ts              # kuru çalışma
- *   ONAY=EVET-SIL npx tsx prisma/scripts/wipe-companies.ts
+ *   ONAY=EVET-SIL HEDEF=<ref> npx tsx prisma/scripts/wipe-companies.ts
+ *   ENV_FILE=../../.env.prod.local npx tsx prisma/scripts/wipe-companies.ts   # canlı, kuru
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
+/**
+ * ORTAM DOSYASI — `ENV_FILE` verilirse O dosya okunur ve değerleri EZER.
+ *
+ * 2026-09-15 tuzağı: canlı dosyası kabukta `set -a; . .env.prod.local` ile
+ * yüklenmişti. DATABASE_URL tırnaksız `&` taşıdığı için kabuk o satırı arka
+ * plan komutu sandı, değişken hiç kurulmadı ve betik sessizce kök `.env`e
+ * (STAGING) düştü — "canlı" diye koşulan kuru çalışma staging'i listeledi.
+ * Dosyayı kabuğa değil betiğe okutmak bu sınıfı kapatır.
+ */
+const envFile = process.env.ENV_FILE
+  ? resolve(process.cwd(), process.env.ENV_FILE)
+  : resolve(__dirname, "../../.env");
+const override = !!process.env.ENV_FILE;
+for (const line of readFileSync(envFile, "utf8").split("\n")) {
   const i = line.indexOf("=");
   if (i > 0 && !line.trimStart().startsWith("#")) {
     const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
+    if (override || !process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
   }
 }
 
@@ -47,7 +61,25 @@ const SIL = process.env.ONAY === "EVET-SIL";
 
 function hedef(): string {
   const m = rawUrl.match(/postgres(?:ql)?:\/\/([^:]+):/);
-  return m ? `${m[1]}@…` : "bilinmiyor";
+  const ref = (process.env.SUPABASE_URL ?? "").match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? "?";
+  return `${m ? `${m[1]}@…` : "bilinmiyor"} · Supabase projesi ${ref} · dosya ${envFile}`;
+}
+
+/**
+ * HEDEF KİLİDİ: silme kipinde `HEDEF` değişkeni Supabase proje referansıyla
+ * BİREBİR eşleşmeli. Yanlış dosya/ortam yüklenmişse silme başlamaz.
+ */
+function hedefKilidi(): void {
+  const ref = (process.env.SUPABASE_URL ?? "").match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
+  if (!ref || process.env.HEDEF !== ref) {
+    console.error(`❌ HEDEF=${process.env.HEDEF ?? "(yok)"} ile yüklenen proje ${ref ?? "?"} eşleşmiyor — silme başlamadı.`);
+    process.exit(1);
+  }
+  const dbRef = rawUrl.match(/postgres\.([a-z0-9]+)[:@]/)?.[1];
+  if (dbRef && dbRef !== ref) {
+    console.error(`❌ Veritabanı (${dbRef}) ile Supabase projesi (${ref}) farklı — silme başlamadı.`);
+    process.exit(1);
+  }
 }
 
 async function sayim() {
@@ -128,10 +160,12 @@ async function supabaseSil(authIds: string[]): Promise<number> {
   }
 
   if (!SIL) {
-    console.log("\nKURU ÇALIŞMA — hiçbir şey silinmedi. Silmek için: ONAY=EVET-SIL");
+    console.log("\nKURU ÇALIŞMA — hiçbir şey silinmedi. Silmek için: ONAY=EVET-SIL HEDEF=<supabase-proje-ref>");
     await prisma.$disconnect();
     return;
   }
+
+  hedefKilidi();
 
   /**
    * SİLMEDEN ÖNCE YEDEK. Supabase Pro'ya geçilmediği için PITR yok; geri
