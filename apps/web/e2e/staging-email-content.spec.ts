@@ -50,7 +50,7 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   });
   expect(rows.length, "son 6 saatte e-posta üretilmiş olmalı").toBeGreaterThan(0);
 
-  const host = new URL(WEB).host; // staging.rothern.com
+  const host = new URL(WEB).host; // staging.supkeys.com
   const sorunlar: string[] = [];
   const kotaDolu: string[] = [];
 

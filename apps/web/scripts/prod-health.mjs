@@ -2,7 +2,7 @@
 /**
  * CANLI SAĞLIK DENETİMİ — sürüm sonrası tek komut:
  *   pnpm --filter @rothern/web health:prod
- *   SITE=https://staging.rothern.com API=https://api.staging.rothern.com/api node scripts/prod-health.mjs
+ *   SITE=https://staging.supkeys.com API=https://api.staging.supkeys.com/api node scripts/prod-health.mjs
  *
  * NEDEN VAR: 2026-09-13'te canlıya müşteri alma hazırlığı yapılırken bu
  * kontrollerin hepsi ELLE koşuldu ve üçü gerçek sorun buldu (IndexNow anahtar

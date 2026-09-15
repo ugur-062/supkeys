@@ -91,9 +91,9 @@ jobs:
       - name: Testler
         working-directory: apps/web
         env:
-          PLAYWRIGHT_BASE_URL: https://staging.rothern.com
-          PLAYWRIGHT_ADMIN_URL: https://admin.staging.rothern.com
-          E2E_API_URL: https://api.staging.rothern.com/api
+          PLAYWRIGHT_BASE_URL: https://staging.supkeys.com
+          PLAYWRIGHT_ADMIN_URL: https://admin.staging.supkeys.com
+          E2E_API_URL: https://api.staging.supkeys.com/api
           PLAYWRIGHT_VERCEL_BYPASS: ${{ secrets.STAGING_VERCEL_BYPASS_WEB }}
           PLAYWRIGHT_VERCEL_BYPASS_ADMIN: ${{ secrets.STAGING_VERCEL_BYPASS_ADMIN }}
           E2E_EMAIL: uguray156+qa-alici-kurucu@gmail.com
@@ -111,8 +111,8 @@ jobs:
         if: github.event_name == 'schedule'
         working-directory: apps/web
         env:
-          PLAYWRIGHT_BASE_URL: https://staging.rothern.com
-          E2E_API_URL: https://api.staging.rothern.com/api
+          PLAYWRIGHT_BASE_URL: https://staging.supkeys.com
+          E2E_API_URL: https://api.staging.supkeys.com/api
           PLAYWRIGHT_VERCEL_BYPASS: ${{ secrets.STAGING_VERCEL_BYPASS_WEB }}
           E2E_EMAIL: uguray156+qa-alici-kurucu@gmail.com
           E2E_PASSWORD: ${{ secrets.STAGING_QA_PASSWORD }}

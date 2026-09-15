@@ -317,7 +317,7 @@ export class SeoIndexService {
      * YALNIZ CANLI ALAN ADI BİLDİRİR (2026-09-13).
      *
      * Staging'in Render ortamında da `INDEXNOW_KEY` tanımlıydı: demo ortamı
-     * Bing/Yandex'e "staging.rothern.com/... adresini tara" diyordu. Bu hem
+     * Bing/Yandex'e "staging.rothern.com/... adresini tara" diyordu (staging 2026-09-15'te staging.supkeys.com'a taşındı; kapı alan adından bağımsız). Bu hem
      * canlıyla yinelenen içerik üretir hem de yayınlanmamış veriyi dış motora
      * duyurur. Kapı ENV DİSİPLİNİNE bırakılmaz — adresten anlaşılır.
      */

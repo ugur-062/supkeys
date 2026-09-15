@@ -36,9 +36,9 @@ test("herkese açık sayfalar ve API listeleri bütçe içinde", async () => {
   const s = await apiSession(QA.aliciKurucu);
 
   const hedefler: Array<{ ad: string; bütçe: number; çalıştır: () => Promise<number> }> = [
-    { ad: "anasayfa", bütçe: 3_000, çalıştır: async () => (await raw.get(`${process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com"}/`)).status() },
-    { ad: "ürün dizini", bütçe: 4_000, çalıştır: async () => (await raw.get(`${process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com"}/urunler`)).status() },
-    { ad: "firma dizini", bütçe: 4_000, çalıştır: async () => (await raw.get(`${process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com"}/firmalar`)).status() },
+    { ad: "anasayfa", bütçe: 3_000, çalıştır: async () => (await raw.get(`${process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.supkeys.com"}/`)).status() },
+    { ad: "ürün dizini", bütçe: 4_000, çalıştır: async () => (await raw.get(`${process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.supkeys.com"}/urunler`)).status() },
+    { ad: "firma dizini", bütçe: 4_000, çalıştır: async () => (await raw.get(`${process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.supkeys.com"}/firmalar`)).status() },
     { ad: "API sağlık", bütçe: 3_000, çalıştır: async () => (await raw.get(`${API}/health`)).status() },
     { ad: "taleplerim", bütçe: 3_000, çalıştır: async () => (await s.ctx.get("company/listings/tenders")).status() },
     { ad: "siparişler", bütçe: 3_000, çalıştır: async () => (await s.ctx.get("company/orders")).status() },

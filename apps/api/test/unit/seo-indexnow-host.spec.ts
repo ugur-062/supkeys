@@ -18,6 +18,7 @@ describe("IndexNow konak kapısı", () => {
 
   it("staging ve önizleme adresleri GEÇMEZ", () => {
     expect(isCanonical("https://staging.rothern.com")).toBe(false);
+    expect(isCanonical("https://staging.supkeys.com")).toBe(false);
     expect(isCanonical("https://supkeys-web-abc123.vercel.app")).toBe(false);
     expect(isCanonical("http://localhost:3000")).toBe(false);
   });

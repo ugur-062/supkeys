@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { ConfigService } from "@nestjs/config";
 import type { Request, Response } from "express";
-import { cookieNamePrefix, cookieNames } from "@rothern/shared";
 
 /**
  * httpOnly cookie tabanlı oturum yardımcıları — token localStorage yerine
@@ -14,21 +13,10 @@ import { cookieNamePrefix, cookieNames } from "@rothern/shared";
 
 export type Realm = "company" | "admin";
 
-/**
- * Çerez adları ORTAMA GÖRE ön ekli (`@rothern/shared` `cookieNamePrefix`):
- * canlı/yerel `rk_`, staging `rks_`. Ön ek `COOKIE_DOMAIN`dan türetilir —
- * canlının `.rothern.com` çerezleri staging'e de gönderildiği için aynı adlar
- * staging'de CSRF çakışması üretiyordu (2026-09-15).
- *
- * `process.env` modül yüklenirken okunur: Render ortam değişkenleri süreç
- * başlamadan kurulur; yerelde `COOKIE_DOMAIN` boş → `rk_`.
- */
-export const COOKIE_NAMES = cookieNames(cookieNamePrefix(process.env.COOKIE_DOMAIN));
-
 /** httpOnly oturum cookie adı — realm başına ayrı (aynı tarayıcıda ikisi de). */
 export const AUTH_COOKIE: Record<Realm, string> = {
-  company: COOKIE_NAMES.companyAuth,
-  admin: COOKIE_NAMES.adminAuth,
+  company: "rk_company",
+  admin: "rk_admin",
 };
 
 /**
@@ -38,10 +26,19 @@ export const AUTH_COOKIE: Record<Realm, string> = {
  * oturumunun CSRF token'ını siliyor, tüm mutasyonları 403'e düşürüyordu.
  */
 export const CSRF_COOKIE: Record<Realm, string> = {
-  company: COOKIE_NAMES.companyCsrf,
-  admin: COOKIE_NAMES.adminCsrf,
+  company: "rk_csrf",
+  admin: "rk_admin_csrf",
 };
 export const CSRF_HEADER = "x-csrf-token";
+
+/*
+ * ADLAR ORTAMDAN BAĞIMSIZ SABİT (2026-09-15). Staging bir gün `rks_` ön ekiyle
+ * ayrılmıştı: canlının `.rothern.com` çerezleri `staging.rothern.com`a da
+ * gidiyor, aynı adlar CSRF çakışması üretiyordu. Staging ayrı kayıtlı alan
+ * adına (`staging.supkeys.com`) taşınınca çakışma yapısal olarak bitti ve ön ek
+ * kuralı söküldü. Staging'i yeniden `rothern.com` altına almak bu hatayı geri
+ * getirir.
+ */
 
 /**
  * Çerez ömrü JETONDAN türetilir — sabit değildir.

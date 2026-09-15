@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 describe("robots — ortam kapısı", () => {
   it("staging adresi: her şey yasak", async () => {
     vi.resetModules();
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://staging.rothern.com");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://staging.supkeys.com");
     vi.stubEnv("NEXT_PUBLIC_MARKETPLACE_LIVE", "true");
     const { default: robots } = await import("../robots");
     const r = robots();

@@ -1,20 +1,16 @@
 import { expect, request, type APIRequestContext, type Page } from "@playwright/test";
-import { cookieNamePrefix, cookieNames } from "@rothern/shared";
 
 /**
  * Staging QA yardımcıları (2026-09-11). Hesaplar `seed-staging-roles`
  * (uguray156+qa-<slug>@gmail.com / Staging1234!). API tabanı `E2E_API_URL`
- * (`https://api.staging.rothern.com/api`); kurulum adımları (adres, ilan,
+ * (`https://api.staging.supkeys.com/api`); kurulum adımları (adres, ilan,
  * banka hesabı) API'den, kullanıcıya görünen adımlar tarayıcıdan.
  */
-export const API = process.env.E2E_API_URL ?? "https://api.staging.rothern.com/api";
-export const WEB = process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com";
+export const API = process.env.E2E_API_URL ?? "https://api.staging.supkeys.com/api";
+export const WEB = process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.supkeys.com";
 export const PASSWORD = process.env.E2E_PASSWORD ?? "Staging1234!";
-/**
- * Çerez adları ortama göre ön ekli (staging `rks_`, canlı `rk_`) — web ile
- * aynı kural (`@rothern/shared` `cookie-names.ts`), hedef sitenin alan adından.
- */
-export const COOKIE = cookieNames(cookieNamePrefix(new URL(WEB).hostname));
+/** Çerez adları (staging ayrı kayıtlı alan adında olduğu için canlıyla aynı adlar çakışmaz). */
+export const COOKIE = { companyCsrf: "rk_csrf", adminCsrf: "rk_admin_csrf" } as const;
 export const QA = {
   aliciSatisci: "uguray156+qa-alici-satisci@gmail.com",
   tedarikciGoruntuleyici: "uguray156+qa-tedarikci-goruntuleyici@gmail.com",
@@ -147,7 +143,7 @@ export async function gotoRetry(page: Page, url: string) {
 export const daysFromNow = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
 
 // ── Admin realm (Parça 4/6) ─────────────────────────────────────────────
-export const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? "https://admin.staging.rothern.com";
+export const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? "https://admin.staging.supkeys.com";
 export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "uguray156@gmail.com";
 export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 
