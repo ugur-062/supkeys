@@ -711,13 +711,12 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   Onay Akışları kartının tekrarı olurdu). Yeri: Şirketim'in SOLU — "hangi
   paneldeyim" sorusu "firmam"dan önce gelir. Dar ekranda GİZLENMEZ: orada sol
   menü çekmece olduğu için geçişin tek görünür yolu bu.
-  **Görünüm (aynı gün revize, kullanıcı: "diğer tuşlardan farklı dursun"):**
-  ilk hâli mesaj/bildirim/Şirketim ile aynı gri ikon+etiket dilindeydi ve
-  bildirim gibi okunuyordu. Artık **aktif portal renginde çerçeveli yuvarlak
-  çip** (satınalma mavi, satış emerald; açık zemin, dolgu yok) — ikon + ad +
-  değişim oku, sm altında ad düşer. "Tek eylem rengi" kuralına BİLİNÇLİ
-  istisna: renk eylem değil "hangi paneldesiniz" bilgisi. Diğer üst çubuk
-  düğmeleri nötr kalır.
+  **Görünüm (aynı gün iki revizyon, kullanıcı geri bildirimi):** gri
+  ikon+etiket "kendini belli etmiyor", renkli çerçeveli çip "çok farklı"
+  bulundu. Orta yol: düzen diğer düğmelerle AYNI (h-12, ikon + altında 10 px
+  etiket, çerçevesiz); ayrışma yalnız **ikon aktif portal renginde** (mavi/
+  emerald) + koyu etiket + aç/kapa işareti + sağında ince dikey ayırıcı.
+  Çip/dolgu/çerçeveye GERİ DÖNME.
   `visiblePortals`/`available` hesabı sol menüyle BİREBİR; ayrışsalardı biri
   kilidi gösterir diğeri göstermezdi. Sözleşme: `portal-switch.test.tsx`.
 

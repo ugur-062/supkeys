@@ -11,8 +11,8 @@
  *  · kilitli portal listede KALIR ve tıklanır — `PortalGuard` paket ekranını
  *    açar; gizlemek kullanıcıya neyi kaçırdığını söylemezdi
  *  · tuş nerede olduğunu da söyler (aktif portalın adı etiket olarak)
- *  · tuş diğer üst çubuk düğmelerinden AYRIŞIR: aktif portalın renginde
- *    çerçeveli çip (kullanıcı: "diğer tuşlardan farklı dursun")
+ *  · tuş diğer üst çubuk düğmeleriyle AYNI AİLEDEN (çerçevesiz, ikon + etiket)
+ *    ama ikonu aktif portal renginde — çip "çok farklı" bulundu
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -44,22 +44,24 @@ describe("PortalSwitch", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("tuş AKTİF portalın renginde çerçeveli çiptir (gri ikon düğmesi değil)", () => {
+  it("tuş diğer düğmelerle aynı ailede, ikonu AKTİF portalın renginde", () => {
     const { rerender } = render(
       <PortalSwitch active="satinalma" visiblePortals={IKISI} available={IKISI} />,
     );
     const btn = screen.getByRole("button", { name: /Panel değiştir/ });
-    expect(btn.className).toMatch(/\bborder\b/);
-    expect(btn.className).toMatch(/bg-blue-50/);
+    // Çerçeveli çip değil: "çok farklı" bulundu.
+    expect(btn.className).not.toMatch(/\bborder\b/);
+    expect(btn.className).toMatch(/\bh-12\b/);
     expect(btn).toHaveTextContent("Satınalma");
+    expect(btn.querySelector("svg.text-blue-600")).not.toBeNull();
 
     rerender(
       <PortalSwitch active="satis" visiblePortals={IKISI} available={IKISI} />,
     );
     const satis = screen.getByRole("button", { name: /Panel değiştir/ });
-    expect(satis.className).toMatch(/bg-emerald-50/);
-    expect(satis.className).not.toMatch(/blue/);
     expect(satis).toHaveTextContent("Satış");
+    expect(satis.querySelector("svg.text-emerald-600")).not.toBeNull();
+    expect(satis.querySelector("svg.text-blue-600")).toBeNull();
   });
 
   it("tıklayınca iki panel AÇIKLAMASIYLA listelenir", () => {

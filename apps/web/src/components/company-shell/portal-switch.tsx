@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  ArrowsRightLeftIcon,
   BuildingStorefrontIcon,
   CheckIcon,
+  ChevronUpDownIcon,
   LockClosedIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
@@ -18,19 +18,10 @@ const ICON: Record<PortalKey, typeof ShoppingCartIcon> = {
   satis: BuildingStorefrontIcon,
 };
 
-/**
- * Tuşun tonu AKTİF portaldan. Sınıflar tam yazılı (Tailwind dinamik sınıf
- * adını derleyemez). Kontrast: blue-700 / emerald-800 açık zeminde ≥ 4,5:1.
- */
-const TON: Record<PortalKey, string> = {
-  satinalma:
-    "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 focus-visible:ring-blue-500",
-  satis:
-    "border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 focus-visible:ring-emerald-500",
-};
-const TON_ACIK: Record<PortalKey, string> = {
-  satinalma: "border-blue-300 bg-blue-100",
-  satis: "border-emerald-300 bg-emerald-100",
+/** Aktif portal ikonunun rengi. Sınıflar tam yazılı (Tailwind dinamik adı derleyemez). */
+const IKON_RENGI: Record<PortalKey, string> = {
+  satinalma: "text-blue-600",
+  satis: "text-emerald-600",
 };
 
 /** Panelde ne yapıldığını TEK cümleyle anlatır — panel açıklaması burada. */
@@ -48,19 +39,18 @@ const NE_YAPAR: Record<PortalKey, string> = {
  * etiket) ve DEĞİŞTİREBİLİRSİN (ok). Tıklayınca iki portalı açıklayan panel
  * açılır.
  *
- * DİĞER DÜĞMELERDEN AYRIŞIR (2026-09-15, kullanıcı: "Şirketim yanındaki tuşu
- * daha belirgin yap, diğer tuşlardan farklı dursun"). İlk hâli mesaj, bildirim
- * ve Şirketim ile birebir aynı dildeydi (gri ikon + altında 10 px etiket) ve
- * dört eş düğmenin arasında bildirim gibi okunuyordu. Artık yatay, çerçeveli,
- * yuvarlak bir ÇİP: aktif portalın ikonu + adı + değişim oku.
- *
- * RENK: çip AKTİF PORTALIN renginde (satınalma mavi, satış emerald) açık tonlu.
- * "Tek eylem rengi" kuralına bilinçli istisna — renk bir eylemi değil hangi
- * paneldesiniz bilgisini taşır; sağdaki düğmeler nötr kalır. Dolgu yok, yalnız
- * açık zemin: sayfanın birincil eylem düğmesiyle yarışmasın.
- *
- * Dar ekranda (sm altı) portal adı düşer, ikon + ok kalır — üst çubuk 400 px'e
- * sığsın; tuş yine çerçeveli ve renkli olduğu için belirginliğini korur.
+ * AYNI AİLE, AYIRT EDİLİR (2026-09-15, iki tur kullanıcı geri bildirimi):
+ *  1. İlk hâl mesaj/bildirim/Şirketim ile BİREBİR aynıydı (gri ikon + 10 px
+ *     etiket) → "kendini belli etmiyor".
+ *  2. Renkli, çerçeveli yuvarlak çip denendi → "diğer tuşlardan çok farklı".
+ *  Orta yol (bu hâl): düzen diğer düğmelerle AYNI (h-12, ikon + altında 10 px
+ *  etiket, çerçevesiz, hover'da hafif zemin). Ayrışma üç küçük işaretle:
+ *  · ikon AKTİF portalın renginde (satınalma mavi, satış emerald)
+ *  · etiket koyu (diğerleri zinc-500) + yanında aç/kapa işareti (seçici olduğu
+ *    okunur)
+ *  · sağında ince dikey ayırıcı — portal düğmesini "firma/mesaj/bildirim"
+ *    kümesinden ayırır
+ *  Renk yalnız bir ikon büyüklüğünde; "tek eylem rengi" kuralını zorlamaz.
  *
  * KİLİTLİ PORTAL: bugünkü davranış aynen — satır yine tıklanır, `PortalGuard`
  * paket ekranını açar (kilidi gizlemek kullanıcıya neyi kaçırdığını söylemezdi).
@@ -107,7 +97,7 @@ export function PortalSwitch({
   const AktifIcon = ICON[active];
 
   return (
-    <div ref={kutu} className="relative shrink-0">
+    <div ref={kutu} className="relative flex shrink-0 items-center">
       <button
         type="button"
         aria-haspopup="dialog"
@@ -115,23 +105,28 @@ export function PortalSwitch({
         aria-label={`Panel değiştir — şu an ${aktifDef.label}`}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "mr-1 inline-flex h-9 items-center gap-1.5 rounded-full border px-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:pr-3 sm:pl-2.5",
-          TON[active],
-          open && TON_ACIK[active],
+          "inline-flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 text-zinc-900 transition hover:bg-zinc-950/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+          open && "bg-zinc-950/5",
         )}
       >
-        <AktifIcon className="size-5 shrink-0" aria-hidden />
-        <span className="hidden whitespace-nowrap sm:inline" aria-hidden>
+        <AktifIcon
+          className={cn("size-5 shrink-0", IKON_RENGI[active])}
+          aria-hidden
+        />
+        <span
+          className="flex items-center gap-0.5 text-[10px] leading-none font-semibold whitespace-nowrap"
+          aria-hidden
+        >
           {aktifDef.label}
+          <ChevronUpDownIcon className="size-3 text-zinc-500" />
         </span>
-        <ArrowsRightLeftIcon className="size-4 shrink-0 opacity-70" aria-hidden />
       </button>
 
       {open ? (
         <div
           role="dialog"
           aria-label="Panel değiştir"
-          className="absolute right-0 z-50 mt-1 w-72 overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg"
+          className="absolute top-full right-0 z-50 mt-1 w-72 overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg"
         >
           <p className="border-b border-zinc-950/5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Panel değiştir
@@ -199,6 +194,8 @@ export function PortalSwitch({
           </ul>
         </div>
       ) : null}
+      {/* Portal düğmesini firma/mesaj/bildirim kümesinden ayıran ince çizgi. */}
+      <span aria-hidden className="mx-1.5 h-8 w-px bg-zinc-950/10" />
     </div>
   );
 }
