@@ -188,6 +188,14 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 - **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ). Zustand persist
   YALNIZ UI snapshot'ı (`user`/`company`) tutar, token DEĞİL. Kimlik `/me` ile.
   Mutating isteklerde CSRF double-submit (`rk_csrf` → `X-CSRF-Token`).
+  **Çerez adları ORTAMA GÖRE (2026-09-15):** canlı/yerel `rk_*`, staging `rks_*`
+  — tek kaynak `@rothern/shared` `cookie-names.ts` (admin kuralın kopyasını
+  taşır, iki taraf aynı tabloyla sınanır). Ön ek yeni env'den OKUNMAZ: API
+  `COOKIE_DOMAIN`dan, web/admin `location.hostname`den türetir. Gerekçe: canlının
+  `.rothern.com` çerezleri staging'e de gidiyor; aynı adlarla staging kaydında
+  web ilk, API son `rk_csrf`i okuyup "CSRF doğrulaması başarısız" veriyordu.
+  Canlı çerezleri staging'e GÖNDERİLMEYE devam eder (okunmaz); tam yalıtım ayrı
+  kayıtlı alan adı ister.
   **Kayan oturum:** `AuthCookieInterceptor` ömrün yarısı geçince taze token basar.
 - **KOYU MOD (2026-09-11, kullanıcı kararı):** ürün arayüzü her zaman AÇIK —
   `dark` variant'ı class tabanlı (`.dark` hiç eklenmez) ve `:root` `color-scheme:

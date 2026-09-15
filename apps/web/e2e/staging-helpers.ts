@@ -1,4 +1,5 @@
 import { expect, request, type APIRequestContext, type Page } from "@playwright/test";
+import { cookieNamePrefix, cookieNames } from "@rothern/shared";
 
 /**
  * Staging QA yardımcıları (2026-09-11). Hesaplar `seed-staging-roles`
@@ -9,6 +10,11 @@ import { expect, request, type APIRequestContext, type Page } from "@playwright/
 export const API = process.env.E2E_API_URL ?? "https://api.staging.rothern.com/api";
 export const WEB = process.env.PLAYWRIGHT_BASE_URL ?? "https://staging.rothern.com";
 export const PASSWORD = process.env.E2E_PASSWORD ?? "Staging1234!";
+/**
+ * Çerez adları ortama göre ön ekli (staging `rks_`, canlı `rk_`) — web ile
+ * aynı kural (`@rothern/shared` `cookie-names.ts`), hedef sitenin alan adından.
+ */
+export const COOKIE = cookieNames(cookieNamePrefix(new URL(WEB).hostname));
 export const QA = {
   aliciSatisci: "uguray156+qa-alici-satisci@gmail.com",
   tedarikciGoruntuleyici: "uguray156+qa-tedarikci-goruntuleyici@gmail.com",
@@ -54,8 +60,8 @@ export async function apiSession(email: string): Promise<{ ctx: APIRequestContex
   }
   expect(res.status(), `login ${email}: ${(await res.text()).slice(0, 160)}`).toBe(200);
   const cookies = (await ctx.storageState()).cookies;
-  const csrf = cookies.find((c) => c.name === "rk_csrf")?.value ?? "";
-  expect(csrf, "rk_csrf çerezi").not.toBe("");
+  const csrf = cookies.find((c) => c.name === COOKIE.companyCsrf)?.value ?? "";
+  expect(csrf, `${COOKIE.companyCsrf} çerezi`).not.toBe("");
   const session = { ctx, csrf };
   sessionCache.set(email, session);
   return session;
@@ -145,7 +151,7 @@ export const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? "https://admin.staging.
 export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "uguray156@gmail.com";
 export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 
-/** Admin API oturumu: `rk_admin` + `rk_admin_csrf` (aynı `X-CSRF-Token` başlığı). */
+/** Admin API oturumu: admin oturum + admin CSRF çerezi (aynı `X-CSRF-Token` başlığı). */
 export async function adminApiSession(): Promise<{ ctx: APIRequestContext; csrf: string }> {
   expect(ADMIN_PASSWORD, "E2E_ADMIN_PASSWORD (render.staging.env INITIAL_ADMIN_PASSWORD)").not.toBe("");
   const ctx = await request.newContext({
@@ -155,8 +161,8 @@ export async function adminApiSession(): Promise<{ ctx: APIRequestContext; csrf:
   const res = await ctx.post("admin/auth/login", { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
   expect(res.status(), `admin login: ${await res.text()}`).toBe(200);
   const cookies = (await ctx.storageState()).cookies;
-  const csrf = cookies.find((c) => c.name === "rk_admin_csrf")?.value ?? "";
-  expect(csrf, "rk_admin_csrf çerezi").not.toBe("");
+  const csrf = cookies.find((c) => c.name === COOKIE.adminCsrf)?.value ?? "";
+  expect(csrf, `${COOKIE.adminCsrf} çerezi`).not.toBe("");
   return { ctx, csrf };
 }
 
