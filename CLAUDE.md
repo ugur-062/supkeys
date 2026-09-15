@@ -232,7 +232,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Web derin bağlantıları (CTA) | `common/company/app-routes.ts` |
 | Public görsel yükleme · metin kalitesi | `common/company/{public-image-upload,public-text-quality}.ts` |
 | Yüklenen tablo dosyası okuma | `common/files/spreadsheet-reader.ts` |
-| İçe aktarma sütun/limit | `@rothern/shared` `item-import.ts` / `bid-import.ts` / `product-import.ts` |
+| İçe aktarma sütun/limit (talep kalemi · teklif) | `@rothern/shared` `item-import.ts` / `bid-import.ts` |
 | IBAN (TR + yabancı mod-97) | `@rothern/shared` `ibanChecksumOk` / `isValidIbanTr` |
 | Ölçü birimi · faaliyet tipi · kayıt ülkesi | `@rothern/shared` `constants/{units,company-activities}.ts`, `data/country-profiles.ts` |
 | Görünürlük katmanı (public) | `lib/public/visibility.ts` (`VISIBILITY`, `canSee`, `loginHref`) |
@@ -903,16 +903,17 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
 - **Skor ≠ yayın kapısı:** skor (0-100) yönlendirir; `productPublishBlockers`
   engeller (ad, kategori, ≥100 karakter açıklama, ≥1 görsel, ≥1 anahtar kelime).
   Fiyat ve nitelik kapıda YOK.
-- **Toplu ekleme: İKİ kaynak, TEK yazma yolu.** Excel/CSV şablonu (AI'sız, her
-  paket) ve katalog PDF/foto (`ai/product-extract`, Silver+) AYNI
-  `ProductImportResult` üretir ve AYNI `import/commit` ucundan geçer.
-  Model yalnız SATIRLARI üretir; **kategori KODU yazamaz** (`categoryHint` →
-  backend katalogda arar; bulunamazsa boş + uyarı). Kod VARLIĞI doğrulanır
-  (biçim yetmez), yoksa yazma yolunda null'lanır.
+- **⛔ TOPLU ÜRÜN EKLEME KALDIRILDI (2026-09-15, kullanıcı kararı).** Excel/CSV
+  şablonu (`company/items/import/{template,parse,commit}`) ve katalog PDF/foto
+  AI çıkarımı (`ai/product-extract`) web, API ve `@rothern/shared`
+  `product-import.ts` dahil TAMAMEN söküldü. Gerekçe: Excel görselsiz ürün
+  üretiyordu (yayın kapısı ≥1 görsel ister → toplu taslak yığını), 200-300
+  sayfalık katalogdan çıkarım pratikte çalışmıyordu. Ürün TEK TEK, görseliyle
+  "Yeni ürün" formundan eklenir. GERİ GETİRME. (Talep kalemi içe aktarma
+  `item-import.ts` ve teklif şablonu `bid-import.ts` AYRI özellikler, duruyor.)
 - **⛔ WEB SİTESİNDEN ÜRÜN ÇEKME — bilinçli olarak YAPILMAYACAK** (kullanıcı
   kararı): sahiplik doğrulanamaz (rakip URL'i → biz yayıncı oluruz), uydurulan
-  fiyat/MOQ ticari beyandır, canlı site prompt-injection yüzeyidir. YERİNE
-  kullanıcının YÜKLEDİĞİ katalog. (`common/website-import.ts` bundan
+  fiyat/MOQ ticari beyandır, canlı site prompt-injection yüzeyidir. (`common/website-import.ts` bundan
   ETKİLENMEZ — o, firmanın KENDİ sitesinden profil zenginleştirmesidir.)
 
 ### Bilgi talepleri — İKİ PORTAL, İKİ YÖN

@@ -5,7 +5,6 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { ImportDialog } from "./import-dialog";
 import { ProductShowcaseForm } from "./product-showcase-form";
 import { ProductPreview } from "./product-preview";
 import { PageContainer } from "@/components/list/page-container";
@@ -95,7 +94,6 @@ export function ProductsView() {
   const searchParams = useSearchParams();
   const initialTab = searchParams?.get("sekme") as ProductTab | null;
   const [tab, setTab] = useState<ProductTab>(initialTab && TAB_KEYS.includes(initialTab) ? initialTab : "all");
-  const [importOpen, setImportOpen] = useState(false);
   // Ürün ekleme/yayın = "Ürün ve vitrin yönetimi" işlem izni (API aynası).
   const canManage = useHasCompanyPermission("sell:product:manage");
   /**
@@ -267,14 +265,10 @@ export function ProductsView() {
             : "Firmanızın herkese açık vitrini. Onaya gönderdiğiniz ürünler ekibimizce incelenir; onaylananlar firma profilinizde görünür, arama motorlarına açılma pazar yeri yayınıyla başlar."
         }
         action={
-          !canManage ? undefined : <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
-            >
-              Toplu ekle
-            </button>
+          // TOPLU EKLEME KALDIRILDI (2026-09-15, kullanıcı kararı): Excel
+          // şablonu görselsiz ürün üretiyordu, 200-300 sayfalık katalogdan AI
+          // çıkarımı pratikte çalışmıyordu. Ürün TEK TEK, görseliyle eklenir.
+          !canManage ? undefined : (
             <button
               type="button"
               onClick={() => setCreating(true)}
@@ -282,10 +276,9 @@ export function ProductsView() {
             >
               Yeni ürün
             </button>
-          </div>
+          )
         }
       />
-      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
 
       <div className="relative mt-6 max-w-md">
@@ -363,8 +356,7 @@ export function ProductsView() {
       {isLoading ? (
         <p className="mt-8 text-sm text-zinc-500">Yükleniyor…</p>
       ) : visible.length === 0 ? (
-        /* Ortak EmptyState (1d): ikon + başlık + tek satır + TEK eylem.
-           "Toplu ekle" başlıkta zaten var; burada ikinci kez sunulmaz. */
+        /* Ortak EmptyState (1d): ikon + başlık + tek satır + TEK eylem. */
         <EmptyState
           icon={Package}
           title={

@@ -2,10 +2,10 @@ import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import type { PrismaService } from "../../common/prisma/prisma.service";
 
 /**
- * MODEL İFADESİ → GERÇEK KATEGORİ KODU — TEK KAYNAK (ürün çıkarımı + AI
- * arama). Model "dağıtım panosu" gibi Türkçe bir ürün tipi yazar; kod
+ * MODEL İFADESİ → GERÇEK KATEGORİ KODU — TEK KAYNAK (AI arama; katalogdan
+ * ürün çıkarımı 2026-09-15'te kaldırıldı). Model "dağıtım panosu" gibi Türkçe bir ürün tipi yazar; kod
  * BURADA katalogda aranarak bulunur (model kod yazamaz — geçerli görünen
- * ama yanlış dala düşen kod riski, bkz. product-extract).
+ * ama yanlış dala düşen kod riski).
  *
  * Eşleştirme (2026-09-05 revizyonu — canlı bulgu: "kompanzasyon panosu"
  * anahtar kelimesi yüzünden bir MONTAJ HİZMETİ kategorisine düşüyordu):

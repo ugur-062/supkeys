@@ -135,22 +135,6 @@ export interface ShowcaseInput {
 /** Yayındaki üründe değişince YENİDEN İNCELEME isteyen alanlar (moderasyon). */
 const CONTENT_FIELDS = ["name", "description", "categoryId", "images", "keywords", "attributes"] as const;
 
-/** İçe aktarma satırı — şablon sözleşmesinin servis karşılığı. */
-export interface ProductImportInput {
-  name: string;
-  code?: string | null;
-  description?: string | null;
-  categoryId?: string | null;
-  unit: string;
-  brand?: string | null;
-  mpn?: string | null;
-  keywords?: string[];
-  priceMode?: "FIXED" | "TIERED" | "ON_REQUEST";
-  price?: number | null;
-  currency?: string | null;
-  moq?: number | null;
-}
-
 export interface CatalogItemInput {
   code?: string | null;
   name: string;
@@ -843,19 +827,6 @@ export class CompanyItemsService {
 
   // ── yardımcılar ─────────────────────────────────────────────────────────
 
-  /** Verilen kodlardan katalogda GERÇEKTEN olanlar (tek sorgu). */
-  private async knownCategoryIds(
-    raw: (string | null | undefined)[],
-  ): Promise<Set<string>> {
-    const codes = [...new Set(raw.filter((c): c is string => !!c))];
-    if (codes.length === 0) return new Set();
-    const rows = await this.prisma.category.findMany({
-      where: { id: { in: codes }, isActive: true },
-      select: { id: true },
-    });
-    return new Set(rows.map((r) => r.id));
-  }
-
   /**
    * İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı): onaya gönderilen ürün
    * (PENDING) admin karar verene dek DEĞİŞTİRİLEMEZ — firma yalnız önizler.
@@ -889,90 +860,6 @@ export class CompanyItemsService {
     });
     if (!row) throw new NotFoundException("Katalog kalemi bulunamadı");
     return row;
-  }
-
-  /**
-   * İçe aktarma önizlemesini KATALOĞA YAZAR (Faz 4).
-   *
-   * Stok kodu verilmişse UPSERT: aynı kod ikinci kez yüklenince kopya
-   * oluşmaz, mevcut ürün güncellenir. Kodsuz satırlar her zaman YENİ kayıt —
-   * ada göre eşleştirmek "Çelik Boru" gibi tekrar eden adlarda yanlış ürünü
-   * ezerdi.
-   *
-   * Ürünler TASLAK doğar (`isPublic` varsayılan false): 500 satır tek tıkla
-   * vitrine düşmez, görsel eklenip yayımlanması bilinçli bir adım kalır.
-   */
-  async importRows(
-    user: AuthenticatedCompanyUser,
-    rows: ProductImportInput[],
-  ) {
-    await this.assertCapacity(user.companyId, rows.length);
-    // Önizlemeyi atlayıp doğrudan commit'e istek atan bir istemci katalogda
-    // olmayan bir kod yollayabilir — yazma yolunda da süzülür (önizleme
-    // uyarısı UX, bu satır garanti).
-    const known = await this.knownCategoryIds(rows.map((r) => r.categoryId));
-    let created = 0;
-    let updated = 0;
-    for (const r of rows) {
-      const base = this.normalize({
-        code: r.code,
-        name: r.name,
-        description: r.description,
-        unit: r.unit,
-        categoryId: r.categoryId && known.has(r.categoryId) ? r.categoryId : null,
-        brand: r.brand,
-        mpn: r.mpn,
-      });
-      const showcase = {
-        keywords: r.keywords ?? [],
-        priceMode: (r.priceMode ?? "ON_REQUEST") as CompanyItemPriceMode,
-        priceAmount:
-          r.priceMode === "FIXED" && r.price != null
-            ? new Prisma.Decimal(r.price)
-            : null,
-        ...(r.currency ? { priceCurrency: r.currency as Currency } : {}),
-        moq: r.moq == null ? null : new Prisma.Decimal(r.moq),
-        searchText: foldSearchText(
-          [r.name, r.brand, r.mpn, ...(r.keywords ?? [])].filter(Boolean).join(" "),
-        ),
-      };
-
-      const existing = base.code
-        ? await this.prisma.companyItem.findFirst({
-            where: { companyId: user.companyId, code: base.code },
-            select: { id: true },
-          })
-        : null;
-
-      if (existing) {
-        await this.prisma.companyItem.update({
-          where: { id: existing.id },
-          data: { ...base, ...showcase },
-        });
-        updated += 1;
-      } else {
-        await this.prisma.companyItem.create({
-          data: {
-            ...base,
-            ...showcase,
-            companyId: user.companyId,
-            createdById: user.userId,
-          },
-        });
-        created += 1;
-      }
-    }
-    void this.audit.log({
-      action: "company.product.imported",
-      actorType: "company",
-      actorId: user.userId,
-      actorEmail: user.email,
-      tenantId: user.companyId,
-      entityType: "company_item",
-      entityId: user.companyId,
-      metadata: { created, updated },
-    });
-    return { created, updated };
   }
 
   /* ================================================================== */

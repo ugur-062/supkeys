@@ -59,7 +59,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       "Herkese açık satın alma taleplerine sınırsız teklif",
       "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
       "Ziyaret Edenler ve İş Analizi",
-      "Yapay zekâ: belgeden fiyatlama, katalogdan ürün çıkarma, AI ile talep arama",
+      "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",
       "4 satış koltuğu",
     ],
     cta: "Silver'a Başla",
