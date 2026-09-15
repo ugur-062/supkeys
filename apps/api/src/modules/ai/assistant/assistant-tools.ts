@@ -209,7 +209,11 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
             description: "Davet edilecek bağlantılı firmaların Rothern kodları (en az 1)",
           },
         },
-        required: ["type", "rothernIds"],
+        // "type" 2026-09-04'te satış ilanı kalkınca özelliklerden silinmiş ama
+        // burada kalmıştı. Vertex tanımda olmayan zorunlu alanı GEÇERSİZ ARGÜMAN
+        // sayıyor → asistan HER mesajda 400 veriyordu (araç çağrılmasa bile,
+        // çünkü tanımlar her istekte gider). Sözleşme: assistant-tool-schema.spec.
+        required: ["rothernIds"],
       },
     });
   }

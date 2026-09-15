@@ -75,6 +75,7 @@ export function ProductShowcaseForm({
   onClose,
   mode = "edit",
   onCreated,
+  onSaved,
   publishLimitReached,
 }: {
   product: ProductShowcase;
@@ -90,6 +91,14 @@ export function ProductShowcaseForm({
    */
   mode?: "edit" | "new";
   onCreated?: (created: ProductShowcase) => void;
+  /**
+   * Düzenlemede kaydın SUNUCU hâli. Yayındaki üründe içerik değişince sunucu
+   * ürünü incelemeye alır (PENDING) → sayfa bu kaydı alıp HEMEN önizlemeye
+   * geçer (2026-09-15, kullanıcı: "direkt önizlemeye almıyor, yenileyince
+   * geçiyor"). Eskiden form açılıştaki eski durumla kalıyordu; bir sonraki
+   * kaydetme de 409 PRODUCT_IN_REVIEW alıyordu.
+   */
+  onSaved?: (saved: ProductShowcase) => void;
   /**
    * Ücretsiz paket YAYINDA+ONAYDA ürün tavanına dayandı (`PRODUCT_LIMITS`,
    * API aynası): "Onaya gönder" kilitlenir, taslak kaydetme serbest kalır.
@@ -334,6 +343,7 @@ export function ProductShowcaseForm({
         : await save.mutateAsync({ id: product.id, patch });
       initial.current = JSON.stringify(patch);
       if (isNew) onCreated?.(saved);
+      else if (!thenSubmit) onSaved?.(saved);
       if (!thenSubmit) {
         toast.success(
           isNew

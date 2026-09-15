@@ -737,7 +737,10 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   bulundu. Orta yol: düzen diğer düğmelerle AYNI (h-12, ikon + altında 10 px
   etiket, çerçevesiz); ayrışma yalnız **ikon aktif portal renginde** (mavi/
   emerald) + koyu etiket + aç/kapa işareti + sağında ince dikey ayırıcı.
-  Çip/dolgu/çerçeveye GERİ DÖNME.
+  Çip/dolgu/çerçeveye GERİ DÖNME. **Üçüncü tur (aynı gün, kullanıcı: "satıştayken satınalma logosu da
+  gözüksün, hangisinde olduğum belli olsun"):** tuşta İKİ portalın ikonu arada
+  değişim okuyla; aktif ikon portal renginde, diğeri `zinc-400`; altında aktif
+  portal adı + aç/kapa işareti. Yer, açılan liste ve ayırıcı aynı.
   `visiblePortals`/`available` hesabı sol menüyle BİREBİR; ayrışsalardı biri
   kilidi gösterir diğeri göstermezdi. Sözleşme: `portal-switch.test.tsx`.
 

@@ -25,7 +25,18 @@ vi.mock("@/lib/api", () => ({
   api: { get: h.get },
 }));
 vi.mock("../product-showcase-form", () => ({
-  ProductShowcaseForm: () => <div data-testid="form" />,
+  // Kaydetmeyi taklit eden düğme: sayfanın `onSaved` ile gelen SUNUCU kaydını
+  // ekrana işleyip işlemediği sınanır.
+  ProductShowcaseForm: (props: { product: { id: string }; onSaved?: (saved: unknown) => void }) => (
+    <div data-testid="form">
+      <button
+        type="button"
+        onClick={() => props.onSaved?.({ ...props.product, reviewStatus: "PENDING", isPublic: true })}
+      >
+        sahte-kaydet
+      </button>
+    </div>
+  ),
 }));
 vi.mock("../product-preview", () => ({
   ProductPreview: () => <div data-testid="preview" />,
@@ -191,6 +202,18 @@ describe("ProductsView", () => {
     await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
     expect(await screen.findByTestId("form")).toBeInTheDocument();
     expect(screen.queryByTestId("preview")).toBeNull();
+  });
+
+  it("yayındaki ürün kaydedilince sunucu incelemeye aldıysa ekran HEMEN önizlemeye geçer (yenileme gerekmez)", async () => {
+    const user = userEvent.setup();
+    wrap(<ProductsView />);
+    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
+    expect(await screen.findByTestId("form")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "sahte-kaydet" }));
+    expect(await screen.findByTestId("preview")).toBeInTheDocument();
+    expect(screen.queryByTestId("form")).toBeNull();
+    expect(screen.getByText("Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir.")).toBeInTheDocument();
   });
 
   it("durum kutuları MECE: yayındayken yeniden incelenen ürün YALNIZ Yayında'da sayılır ve listelenir; boş kutu 0 gösterir", async () => {

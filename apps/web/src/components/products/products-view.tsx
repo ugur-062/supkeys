@@ -231,6 +231,13 @@ export function ProductsView() {
               unit={editing.item.unit}
               publishLimitReached={publishLimitReached}
               onClose={() => setEditing(null)}
+              // Kaydın sunucu hâli ekrana işlenir: incelemeye düştüyse
+              // yukarıdaki `inReview` dalı hemen önizlemeyi çizer.
+              onSaved={(saved) =>
+                setEditing((cur) =>
+                  cur ? { item: { ...cur.item, name: saved.name }, showcase: saved } : cur,
+                )
+              }
             />
           )}
         </div>
