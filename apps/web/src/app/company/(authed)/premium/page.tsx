@@ -1,11 +1,12 @@
 "use client";
 
-import { PremiumGate } from "@/components/company-shell/premium-gate";
+import { PackagesView } from "@/components/company/packages/packages-view";
 
 /**
- * Premium başvuru sayfası — maskeli PUBLIC ihale CTA'ları buraya yönlendirir.
- * Gereksinimler (belge doğrulama + 2FA) tamamlanınca "Premium'a Geç" aktifleşir.
+ * Paketler — panel içi (`PRICING_HREF`). Kilit kartları ve "Paketleri Gör"
+ * çağrıları buraya gelir. Satın al → doğrulanmamışsa doğrulama, doğrulanmışsa
+ * `/company/premium/satin-al`.
  */
 export default function PremiumPage() {
-  return <PremiumGate />;
+  return <PackagesView />;
 }

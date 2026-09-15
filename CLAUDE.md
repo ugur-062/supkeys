@@ -245,6 +245,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Profil tamamlanma | `@rothern/shared` `profileCompleteness` (10 madde; "Fotoğraflar" 2026-09-10'da kalktı) |
 | Ayarlar sayfaları başlık/açıklama/adres (hub kartı = sayfa kabuğu) | `lib/company/settings-pages.ts` `SETTINGS_PAGES` — `SettingsShell page={…}`; uzun açıklama `description` ile ezer |
 | Doğrulama durumu etiketi + KYC kilidi (web) | `lib/company/verification-status.ts` (`verificationMeta`, `isKycLocked`) — hub rozeti, Doğrulama ve Firma Bilgileri aynı sözlük; backend `LOCKED_KYC` = name·legalName·mersisNo·tradeRegistryNo·ibanHolder (+IBAN), PENDING/VERIFIED'da |
+| Paket adı · fiyat · özellik listesi (pazarlama + panel Paketler + satın alma) | `apps/web` `lib/pricing/plans.ts` (`PRICING_PLANS`) |
 | Para birimi sembolü · tarih · para gösterimi (web) | `lib/tenders/labels.ts` · `lib/format-date.ts` · `components/ui/money.tsx` |
 | İzin aynası (web) | `lib/company/permissions.ts` |
 | Herkese açık adres şeması (ürün/firma/talep/kategori/şehir) | `@rothern/shared` `helpers/public-paths.ts` (web `lib/public/{marketplace,city}.ts` yeniden dışa aktarır) |
@@ -724,9 +725,24 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   `PRICING_HREF` artık `/company/premium` — eskiden `/nasil-calisir#fiyatlar`
   idi ve panelde çalışan kullanıcı "Paketleri Gör"e basınca herkese açık
   pazarlama sayfasına düşüyordu (üst çubuk, sol menü, firma bağlamı gidiyor →
-  "sistemden çıkmış" hissi). Panel içi paket sayfası ÖNCE DOĞRULAMA gösterir
-  (birincil eylem "Doğrulamaya git"), doğrulanmışta paket seçimi. Pazarlama
-  başlığındaki fiyat bağlantısı AYRI ve public kalır.
+  "sistemden çıkmış" hissi). Pazarlama başlığındaki fiyat bağlantısı AYRI ve
+  public kalır.
+
+- **PAKETLER EKRANI YALNIZ PAKET KARTLARI (2026-09-15, kullanıcı kararı "sadece
+  paketlerde gözüksün, şık; önce doğrulamaya yönlendirsin, doğrulanmışsa direkt
+  satın alma ekranı gelsin").** `/company/premium` ve kilitli sayfalardaki
+  `PremiumGate` AYNI `PackagesView`i çizer (eski "neler açılır" listesi,
+  doğrulama kutusu, "Gold manuel onayla" notu KALKTI; kilitli sayfada başlık
+  "Bu sayfa X paketiyle açılır." der). Karar SATIN AL tıklamasında:
+  doğrulanmamış (PENDING dahil) → `/company/ayarlar/dogrulama` + toast ·
+  doğrulanmış → `/company/premium/satin-al?paket=silver|gold`. Satın alma
+  ekranı adresle açılabildiği için aynı kapıları KENDİ uygular; paket işlemi
+  yalnız kurucuda. **Ödeme altyapısı yok:** ödeme düğmesi çizilmez, tek eylem
+  destek ekibine hazır konulu e-posta; PayTR gelince yalnız özet kartının
+  eylemi değişir. (`PREMIUM_SELF_UPGRADE_ENABLED` açıksa Gold'da eski uç
+  çağrılır — o uç yalnız GOLD'a yükseltir.) Ad/fiyat/özellik TEK KAYNAK
+  `lib/pricing/plans.ts` (pazarlama sayfası da oradan okur). Sözleşme:
+  `components/company/packages/__tests__/{packages,checkout}-view.test.tsx`.
 
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).

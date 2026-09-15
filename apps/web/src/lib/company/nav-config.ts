@@ -5,7 +5,8 @@ const EXTRA: Record<string, string> = {
   "/company/profil": "Profil",
   "/company/bildirimler": "Bildirimler",
   "/company/onaylar": "Onaylar",
-  "/company/premium": "Premium",
+  "/company/premium": "Paketler",
+  "/company/premium/satin-al": "Paket satın al",
 };
 
 /** Navbar breadcrumb etiketi — portal nav tanımlarından + birkaç sabit yoldan. */
