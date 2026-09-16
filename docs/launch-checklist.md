@@ -1,5 +1,8 @@
 # Rothern — Launch Checklist
 
+> **Yayın öncesi sertleştirme paketi ayrı dosyada:** `docs/pre-launch-hardening.md`
+> (RLS aktivasyonu · bağlantı sertleştirme · PITR ve geri yükleme tatbikatı · gözetim).
+
 Prod deploy öncesi tamamlanması gereken ödeme/plan, env ve doğrulama adımları.
 Servis fail davranışları [dış servis envanteri](#dış-servis-fail-davranışı-özet)
 tablosunda özetlendi — **hangi eksik sessizce geçer, hangisi app'i boot ettirmez**
