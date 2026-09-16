@@ -9,6 +9,13 @@
 
 ## Faz 1 — Satır seviyesi güvenlik (RLS) canlıda AÇIK
 
+> **DURUM 2026-09-16: STAGING'DE AÇIK VE DOĞRULANDI.** `rothern_app` rolü
+> kuruldu (NOBYPASSRLS), Render staging `DATABASE_URL` o rolle bağlanıyor
+> (`pg_stat_activity`de 5 bağlantı), `RLS_ENABLED=true`. Kanıt: üç demo firma
+> kendi ürünlerini TAM sayıyla görüyor (5/4/3) — bağlam yazılmasaydı ürün
+> politikası hiç satır döndürmezdi; Gold hesabı Silver'ın ürününü açmaya
+> çalışınca 404. Canlı adımı BEKLİYOR (staging bir gün gözlendikten sonra).
+
 **Neden:** bugün kiracı ayrımı yalnız servis katmanında. Bir sorguda `tenantId`
 süzgeci unutulursa başka firmanın verisi döner. RLS bunu veritabanı seviyesinde
 yakalar (INV-MT-5 backstop).
