@@ -36,7 +36,12 @@ export default process.env.SENTRY_AUTH_TOKEN
   ? withSentryConfig(nextConfig, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
-      silent: true,
+      // SESSİZ DEĞİL (2026-09-16): `silent: true` yükleme HATASINI da yutuyordu.
+      // pnpm 10 `@sentry/cli`nin kurulum betiğini atladığı için yükleyici binary
+      // hiç inmemiş olabilir ve derleme yine YEŞİL görünür — kaynak haritası
+      // yüklenmediğinde yığın izi okunmaz, bunu ancak ilk gerçek hatada fark
+      // ederdik. Artık yükleme çıktısı derleme günlüğünde görünür.
+      silent: false,
       widenClientFileUpload: true,
       disableLogger: true,
       // Kaynak haritaları YÜKLENİR ama sunucuya SERVİS EDİLMEZ (gizli kalır).
