@@ -1187,10 +1187,17 @@ iki projede AÇIK; canlı Auth Site URL `https://www.rothern.com` (eskiden
 localhost'tu); compute iki projede MICRO (ücretsiz yükseltme); canlı projenin
 Supabase adı `rothern-prod` (eskiden yanıltıcı biçimde `dev-supkeys`).
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, **Resend webhook
-(teslim/bounce olayları) hiçbir ortamda kurulu değil** → e-posta "gönderildi"den
-sonrası görünmüyor; staging alan adında (`supkeys.com`) DMARC kaydı yok
-(2026-09-16'da ilk gönderimler Gmail'de SPAM'e düştü).
+**E-POSTA TESLİM İZLEME (2026-09-16):** Resend webhook'u CANLIDA zaten kuruluydu
+(`/api/webhooks/resend`, imza sırrı dolu, 200 dönüyor), STAGING'e yeni eklendi —
+staging `RESEND_WEBHOOK_SECRET` girilene kadar guard imzasız isteği REDDEDER.
+Canlı kancanın `skipped: email_log_not_found` yanıtı BEKLENEN: 2026-09-15'te
+canlı `email_logs` tablosu boşaltıldı, eski mesajların olayı eşleşecek kayıt
+bulamıyor. Gönderen: canlı `notification@rothern.com`, staging
+`staging@supkeys.com`. DNS: iki bölgede de DMARC (`p=none`) ve geniş CAA seti
+(Cloudflare yönetimli; issue + issuewild) var.
+
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain, Sentry kaynak
+haritaları (Vercel'de `SENTRY_AUTH_TOKEN` yok → yığın izleri sıkıştırılmış).
 (2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
 admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
