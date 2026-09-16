@@ -1030,6 +1030,10 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
   günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
   yükseltirse üçünü BİRLİKTE taşı.
+- **VERCEL PRO (2026-09-16):** takım `rothern` Pro'ya geçti (Hobby ticari
+  kullanıma kapalıydı ve SLA yoktu). Açılan ayar: **sapma koruması 12 saat** —
+  kullanıcı eski sekmeyle dolaşırken yeni sürüm yayınlanınca eski varlıklar
+  12 saat daha servis edilir (aksi hâlde "chunk yüklenemedi" hatası).
 - **VERCEL FONKSİYON BÖLGESİ `fra1` (2026-09-16):** web ve admin sunucu
   fonksiyonları `iad1`de (Washington) koşuyordu; API (Render Frankfurt) ve
   veritabanı (Supabase eu-central-1) Avrupa'da → her SSR isteği okyanusu
