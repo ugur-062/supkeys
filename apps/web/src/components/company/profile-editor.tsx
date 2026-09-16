@@ -535,7 +535,9 @@ function EditorHeader({
             neden olmadığı söylenir. */}
         {profile.publicEnabled && profile.slug ? (
           <a
-            href={`/firma/${profile.slug}`}
+            /* ?onizleme=1 → sayfa veriyi önbelleksiz çeker; az önce
+               yüklenen kapak/logo beklemeden görünür. */
+            href={`/firma/${profile.slug}?onizleme=1`}
             target="_blank"
             rel="noreferrer"
             className="text-sm font-medium text-zinc-600 underline hover:text-zinc-900"

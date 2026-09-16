@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Kapak görseli — İSTEMCİ bileşeni. `CompanyProfileView` herkese açık sayfada
@@ -26,6 +26,17 @@ export function SafeCoverImage({
   logoSrc?: string | null;
 }) {
   const [state, setState] = useState<"loading" | "ok" | "broken">("loading");
+  const ref = useRef<HTMLImageElement>(null);
+  // HİDRASYON YARIŞI (2026-09-17, kullanıcı: "kapak fotoğrafı gözükmüyor"):
+  // görsel sunucu HTML'iyle gelir ve tarayıcı onu React bağlanmadan ÖNCE
+  // yükleyebilir (önbellek/hızlı CDN) → `onLoad` hiç ateşlenmez, görsel
+  // `opacity-0`da kalır (staging'de ölçüldü: naturalWidth 1102, opacity 0).
+  // Bağlandıktan sonra tamamlanmış görseli elle "ok"a çek.
+  useEffect(() => {
+    const img = ref.current;
+    if (!img || !img.complete) return;
+    setState(img.naturalWidth > 0 ? "ok" : "broken");
+  }, [src]);
   if (state === "broken") {
     return logoSrc ? (
       <div className="flex h-full w-full items-center justify-center">
@@ -38,6 +49,7 @@ export function SafeCoverImage({
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={ref}
         src={src}
         alt={alt}
         className={`h-full w-full object-cover transition-opacity ${state === "ok" ? "opacity-100" : "opacity-0"}`}

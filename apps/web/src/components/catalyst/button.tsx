@@ -1,6 +1,9 @@
+'use client'
+
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import React, { forwardRef } from 'react'
+import { useButtonAccent } from '@/components/ui/button-accent'
 import { Link } from './link'
 
 const styles = {
@@ -173,10 +176,13 @@ export const Button = forwardRef(function Button(
   { color, outline, plain, className, children, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
+  // Renk verilmemiş dolgulu düğme portal bağlamından okur (firma kabuğu
+  // satınalmada mavi, satışta emerald sağlar; dışarıda `dark/zinc`).
+  const accent = useButtonAccent()
   const classes = clsx(
     className,
     styles.base,
-    outline ? styles.outline : plain ? styles.plain : clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
+    outline ? styles.outline : plain ? styles.plain : clsx(styles.solid, styles.colors[color ?? accent])
   )
 
   return typeof props.href === 'string' ? (

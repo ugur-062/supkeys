@@ -125,12 +125,14 @@ async function getJson<T>(
    * API `SEO_TAGS` ile AYNI dize — `lib/seo/tags.ts`.
    */
   tags: string[] = [SEO_TAGS.facets],
+  /** Sahibin önizlemesi: veri önbelleğini atla (bkz. `fetchCompanyProfile`). */
+  fresh = false,
 ): Promise<T> {
   const base = resolveApiBaseUrl();
   if (!base) return fallback;
   try {
     const res = await fetch(`${base}${path}`, {
-      next: { revalidate, tags },
+      ...(fresh ? { cache: "no-store" as const } : { next: { revalidate, tags } }),
       headers: { accept: "application/json" },
     });
     if (!res.ok) {
@@ -353,13 +355,24 @@ export interface PublicProfile {
 }
 
 /** Firma profili — sayfa VE OG görseli aynı çağrıyı (ve etiketi) kullanır. */
-export async function fetchCompanyProfile(slug: string): Promise<PublicProfile | null> {
+export async function fetchCompanyProfile(
+  slug: string,
+  opts: { fresh?: boolean } = {},
+): Promise<PublicProfile | null> {
   const base = resolveApiBaseUrl();
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/public/companies/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] },
-    });
+    const res = await fetch(
+      `${base}/public/companies/${encodeURIComponent(slug)}`,
+      // SAHİBİN ÖNİZLEMESİ ÖNBELLEĞİ ATLAR (2026-09-17, kullanıcı: "kapak
+      // fotoğrafı ekleyince önizlemede gözükmüyor"): sayfa ISR'ı 5 dk +
+      // etiketle tazeleme; tazeleme kanalı (API → /api/seo/revalidate) sır
+      // tanımlı değilse hiç çalışmaz ve sahibi az önce yüklediği kapağı
+      // göremez. `?onizleme=1` ile gelen istek veriyi doğrudan API'den çeker.
+      opts.fresh
+        ? { cache: "no-store" }
+        : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } },
+    );
     if (!res.ok) return null;
     return (await res.json()) as PublicProfile;
   } catch {
@@ -763,7 +776,7 @@ export function fetchProductFacets(params: ProductFacetParams = {}): Promise<Pro
 
 export function fetchCompanyProducts(
   companySlug: string,
-  params: { q?: string; categoryId?: string; page?: number } = {},
+  params: { q?: string; categoryId?: string; page?: number; fresh?: boolean } = {},
 ): Promise<PublicProductPage> {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
@@ -774,6 +787,8 @@ export function fetchCompanyProducts(
     `/public/companies/${encodeURIComponent(companySlug)}/products${qs ? `?${qs}` : ""}`,
     EMPTY_PRODUCTS,
     300,
+    undefined,
+    params.fresh,
   );
 }
 
