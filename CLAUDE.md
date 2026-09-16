@@ -1024,6 +1024,17 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
+- **Node HER YERDE 22 (2026-09-16 hizalandı):** Vercel iki projeyi de 24.x ile
+  derliyordu; API Docker imajı, CI iş akışları ve yerel geliştirme 22'deydi.
+  Vercel proje ayarı 22.x'e çekildi ve canlı web + admin o sürümle YENİDEN
+  DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
+  günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
+  yükseltirse üçünü BİRLİKTE taşı.
+- **`NEXT_PUBLIC_CDN_URL` Vercel'de TANIMLI (2026-09-16):** production
+  `cdn.rothern.com`, preview `cdn.staging.supkeys.com`. `next/image`
+  `remotePatterns`ı bu değerden türetiyor; tanımsızken CDN'den gelen görseller
+  `next/image` yolunda 400 alırdı (bugün o yolu yalnız yerel kategori
+  görselleri kullanıyor, bu yüzden görünür bir hata yoktu).
 - **`NEXT_PUBLIC_API_URL` HER ZAMAN `/api` sonekli** (`https://api.rothern.com/api`,
   staging `https://api.staging.supkeys.com/api`): API `setGlobalPrefix("api")`, web/
   admin sonek EKLEMEZ. 2026-09-11'de soneksiz değer canlı girişi ~14 saat kırdı
@@ -1164,8 +1175,31 @@ olur. `prod-config-sanity.ts` bunu boot'ta fail-closed yakalar (`main.ts:89`).
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth 429/5xx → 503.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, **Vercel'de
-`SENTRY_DSN` yok** (web+admin) → ön yüz hata izleme no-op; API tarafı dolu.
+**SUPABASE VERİ API'Sİ KAPALI (2026-09-16, ölçülerek bulundu).** Staging'de
+anonim anahtarla (tarayıcıya giden AÇIK değer) `password_reset_tokens`,
+`email_verification_codes`, `platform_admins`, `company_users` dahil TÜM public
+tablolar PostgREST üzerinden okunabiliyordu. Uygulama o API'yi hiç kullanmıyor
+(Supabase istemcisi yalnız API'de, yalnız Auth için) → `public` şeması "exposed
+schemas"tan çıkarıldı; canlıda Data API zaten tümüyle kapalıydı. Doğrulandı:
+anonim istek artık `PGRST205` ile 404. **Supabase'de Data API'yi AÇMA** — açılırsa
+RLS'siz 25 tablo (staging) yeniden dışarı açılır. Ayrıca: sızmış parola koruması
+iki projede AÇIK; canlı Auth Site URL `https://www.rothern.com` (eskiden
+localhost'tu); compute iki projede MICRO (ücretsiz yükseltme); canlı projenin
+Supabase adı `rothern-prod` (eskiden yanıltıcı biçimde `dev-supkeys`).
+
+**E-POSTA TESLİM İZLEME (2026-09-16):** Resend webhook'u CANLIDA zaten kuruluydu
+(`/api/webhooks/resend`, imza sırrı dolu, 200 dönüyor), STAGING'e yeni eklendi —
+staging `RESEND_WEBHOOK_SECRET` girilene kadar guard imzasız isteği REDDEDER.
+Canlı kancanın `skipped: email_log_not_found` yanıtı BEKLENEN: 2026-09-15'te
+canlı `email_logs` tablosu boşaltıldı, eski mesajların olayı eşleşecek kayıt
+bulamıyor. Gönderen: canlı `notification@rothern.com`, staging
+`staging@supkeys.com`. DNS: iki bölgede de DMARC (`p=none`) ve geniş CAA seti
+(Cloudflare yönetimli; issue + issuewild) var.
+
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain, Sentry kaynak
+haritaları (Vercel'de `SENTRY_AUTH_TOKEN` yok → yığın izleri sıkıştırılmış).
+(2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
+admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
 **Ön yüz hata izleme (2026-09-12):** tarayıcıda Sentry SDK'sı YOK ve
 OLMAYACAK — paylaşılan pakete 83 kB ekliyordu (103→186 kB), organik arama
