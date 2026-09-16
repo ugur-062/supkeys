@@ -437,7 +437,12 @@ yana, 11 px); Teklifim metriği ortada.
 `/firma/<slug>?onizleme=1` açar; sayfa o parametreyle profil + ürünleri
 `cache: "no-store"` çeker (ISR 5 dk + etiket tazeleme; tazeleme kanalı Render
 `SEO_REVALIDATE_SECRET` girilmemişse HİÇ çalışmaz → sahibi az önce yüklediğini
-göremezdi). Şablon aynı, yalnız veri tazedir. Not: staging web Vercel
+göremezdi). Şablon aynı, yalnız veri tazedir. **Asıl kök neden ikinciydi:**
+`SafeCoverImage` görseli `opacity-0` başlatıp `onLoad`da açıyordu; sunucu
+HTML'iyle gelen görsel React bağlanmadan yüklenince olay hiç ateşlenmiyor,
+kapak yüklü ama görünmez kalıyordu (staging'de naturalWidth 1102 / opacity 0
+ölçüldü) → mount sonrası `img.complete` denetimi. Kural: SSR'lı `<img onLoad>`
+ile durum kurma, hidrasyon sonrası `complete`i de oku. Not: staging web Vercel
 Authentication arkasında (Pro'yla geldi) — curl 302 `vercel.com/sso-api`
 döner, e2e `x-vercel-protection-bypass` ile geçer.
 **Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
