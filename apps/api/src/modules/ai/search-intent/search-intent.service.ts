@@ -9,7 +9,7 @@ import {
   type AiSearchRelaxed,
   type AiTenderExtractResult,
 } from "@rothern/shared";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../../common/prisma/prisma.service";
 import { productIndexWhere } from "../../../common/company/product-index";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
@@ -36,6 +36,8 @@ export class SearchIntentService {
     private readonly prisma: PrismaService,
     /** Satış: açık talep sayımı için (gevşetme). Test rig'inde olmayabilir. */
     @Optional() private readonly listings?: CompanyListingsService,
+    /** RLS: ürün sayımı ÇAPRAZ firma okur (gevşetme "0 sonuç" kontrolü) → bypass. */
+    @Optional() private readonly bypass?: PrismaBypassService,
   ) {}
 
   async interpret(
@@ -143,7 +145,7 @@ export class SearchIntentService {
   /** Ürün dizini: sayım gerçek süzgeç motorundan (`productIndexWhere`) — liste ile aynı kural. */
   private async relaxProducts(user: AuthenticatedCompanyUser, f: Filters) {
     const count = (x: Filters) =>
-      this.prisma.companyItem.count({
+      (this.bypass ?? this.prisma).companyItem.count({
         where: productIndexWhere(
           {
             q: x.query ?? undefined,

@@ -56,7 +56,7 @@ import {
   productPublishBlockers,
   type ProductLike,
 } from "../../common/company/product-completion";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyViewsService } from "../company-views/company-views.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -191,7 +191,21 @@ export class CompanyItemsService {
     @Optional() private readonly views?: CompanyViewsService,
     /** Yayın anı SEO bildirimi (IndexNow + web tazeleme) — SONDA ve isteğe bağlı. */
     @Optional() private readonly seo?: SeoIndexService,
+    /**
+     * RLS: ÇAPRAZ FİRMA OKUMALARI (2026-09-16). Keşif metotları başka firmaların
+     * ürünlerini okur; `company_items` politikası yalnız bağlamdaki firmanın
+     * satırına izin verdiği için staging'de RLS açılınca keşif BOŞ döndü. Herkese
+     * açık pazar yeri servisiyle aynı yol: bypass client (RLS'siz, sahip rol).
+     * Görünürlük kapısı yine `publicProductWhere` (tek kaynak). SONDA ve isteğe
+     * bağlı: elle kurulan test rig'leri kırılmasın; yoksa ana client'a düşer.
+     */
+    @Optional() private readonly bypass?: PrismaBypassService,
   ) {}
+
+  /** Çapraz firma okumaları için client — RLS altında bypass, rig'de ana client. */
+  private get crossTenant(): PrismaService {
+    return (this.bypass as unknown as PrismaService | undefined) ?? this.prisma;
+  }
 
   /** Arama + sayfalama. Sıralama: sık kullanılan ve yakında kullanılan üstte. */
   async list(
@@ -496,8 +510,8 @@ export class CompanyItemsService {
     const prefixes = q.sort ? [] : await this.buyerCategoryPrefixes(user.companyId);
     if (prefixes.length === 0) {
       const [total, rows] = await Promise.all([
-        this.prisma.companyItem.count({ where }),
-        this.prisma.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
+        this.crossTenant.companyItem.count({ where }),
+        this.crossTenant.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
       ]);
       const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
       return { items, total, page, pageSize: size };
@@ -508,12 +522,12 @@ export class CompanyItemsService {
     const matchWhere: Prisma.CompanyItemWhereInput = { AND: [where, matchClause] };
     const restWhere: Prisma.CompanyItemWhereInput = { AND: [where, { NOT: matchClause }] };
     const [total, matched] = await Promise.all([
-      this.prisma.companyItem.count({ where }),
-      this.prisma.companyItem.count({ where: matchWhere }),
+      this.crossTenant.companyItem.count({ where }),
+      this.crossTenant.companyItem.count({ where: matchWhere }),
     ]);
     const head =
       skip < matched
-        ? await this.prisma.companyItem.findMany({
+        ? await this.crossTenant.companyItem.findMany({
             where: matchWhere,
             select: PRODUCT_INDEX_SELECT,
             orderBy,
@@ -524,7 +538,7 @@ export class CompanyItemsService {
     const need = size - head.length;
     const tail =
       need > 0
-        ? await this.prisma.companyItem.findMany({
+        ? await this.crossTenant.companyItem.findMany({
             where: restWhere,
             select: PRODUCT_INDEX_SELECT,
             orderBy,
@@ -560,7 +574,7 @@ export class CompanyItemsService {
    * panelin nitelik süzgeci sessizce HEP boş dönüyordu.
    */
   async discoverFacets(user: AuthenticatedCompanyUser, q: ProductIndexParams = {}) {
-    const raw = await this.prisma.companyItem.findMany({
+    const raw = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
         companyId: { not: user.companyId },
@@ -682,7 +696,7 @@ export class CompanyItemsService {
     if (!company || !hasPublicProfile(company)) {
       throw new NotFoundException("Ürün bulunamadı");
     }
-    const row = await this.prisma.companyItem.findFirst({
+    const row = await this.crossTenant.companyItem.findFirst({
       where: {
         ...publicProductWhere(),
         companyId: company.id,
@@ -764,7 +778,7 @@ export class CompanyItemsService {
   ): Promise<DiscoverProductRow[]> {
     const take = Math.min(Math.max(opts.limit ?? 12, 1), 48);
     const tokens = opts.q ? tokenizeQuery(opts.q) : [];
-    const rows = await this.prisma.companyItem.findMany({
+    const rows = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
         companyId: { not: user.companyId },

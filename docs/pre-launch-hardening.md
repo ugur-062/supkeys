@@ -14,7 +14,15 @@
 > (`pg_stat_activity`de 5 bağlantı), `RLS_ENABLED=true`. Kanıt: üç demo firma
 > kendi ürünlerini TAM sayıyla görüyor (5/4/3) — bağlam yazılmasaydı ürün
 > politikası hiç satır döndürmezdi; Gold hesabı Silver'ın ürününü açmaya
-> çalışınca 404. Canlı adımı BEKLİYOR (staging bir gün gözlendikten sonra).
+> çalışınca 404. **AMA (aynı gün, kullanıcı fark etti): panel ürün keşfi BOŞ
+> döndü** — `company_items` politikası çapraz okumayı gizliyor. Staging GERİ
+> ALINDI (RLS_ENABLED=false + DATABASE_URL sahip role; yalnız bayrağı kapatmak
+> YETMEZ — kısıtlı rol + bağlam yokluğu her şeyi gizler, bunu da yaşadık).
+> Düzeltme kodda: çapraz okumalar bypass client'a bağlandı (bkz. rls-plan.md).
+> **Yeniden açma adımları:** düzeltme staging'e inince `DATABASE_URL` yeniden
+> `rothern_app`, `RLS_ENABLED=true`; ardından staging e2e suite'i (87 test)
+> RLS AÇIKKEN koşulur — kıstas budur, tek tek elle kontrol değil. Canlı adımı
+> ancak o koşum yeşilse.
 
 **Neden:** bugün kiracı ayrımı yalnız servis katmanında. Bir sorguda `tenantId`
 süzgeci unutulursa başka firmanın verisi döner. RLS bunu veritabanı seviyesinde

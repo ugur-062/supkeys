@@ -1253,7 +1253,12 @@ sıfırlama `?token=`, davet `/davet/<token>`), sayfa başına 5 ve IP başına
 `SENTRY_AUTH_TOKEN` varken yüklenir (`withSentryConfig`).
 ⚠️ `SENTRY_DSN` boşsa error tracking ve alarmlar tümüyle pasif (tek fail-open
 servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
-⚠️ RLS 23 tabloda kurulu; **STAGING'DE AÇIK (2026-09-16)** — uygulama
+⚠️ RLS: 2026-09-16 staging aktivasyonu ürün keşfini BOŞ döndürdü (`company_items`
+politikası çapraz okumayı gizliyor) → staging geri alındı, çapraz okumalar bypass
+client'a bağlandı (`rls-cross-tenant-reads.spec`); yeniden açma + staging e2e
+RLS-açık koşumu bekliyor. **Kural: çapraz-firma okuyan yeni kod bypass client
+kullanır; bayrağı kapatırken DATABASE_URL de sahip role dönmeli.**
+Önceki durum notu: ⚠️ RLS 23 tabloda kurulu; **STAGING'DE AÇILDI (2026-09-16)** — uygulama
 `rothern_app` (NOBYPASSRLS) rolüyle bağlanır, `RLS_ENABLED=true`, firma bağlamı
 her istekte `SET LOCAL app.current_company_id` ile yazılır. **CANLIDA HÂLÂ
 KAPALI**; adımlar ve doğrulama `docs/pre-launch-hardening.md` Faz 1'de. Geri

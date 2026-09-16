@@ -1,7 +1,7 @@
-import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger, Optional } from "@nestjs/common";
 import { tierAtLeast } from "@rothern/shared";
 import { createHash } from "node:crypto";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
   medianFirstReplyHours,
@@ -61,7 +61,16 @@ export interface VisitorItem {
 @Injectable()
 export class CompanyViewsService {
   private readonly logger = new Logger(CompanyViewsService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    /**
+     * RLS: herkese açık beacon (`recordPublicView`) firma bağlamı OLMADAN başka
+     * firmanın ürününü arar → kısıtlı rolde politika satırı gizler, görüntülenme
+     * hiç kaydedilmezdi. Bypass client ile okunur (görünürlük şartı sorguda:
+     * isPublic). SONDA ve isteğe bağlı — rig'de ana client'a düşer.
+     */
+    @Optional() private readonly bypass?: PrismaBypassService,
+  ) {}
 
   /** Panel: üye başkasının profilini/ürününü açtı. Fire-and-forget çağrılır. */
   async recordPanelView(
@@ -112,7 +121,7 @@ export class CompanyViewsService {
     let productId: string | null = null;
     if (input.type === "product") {
       if (!input.productSlug) return { recorded: false };
-      const p = await this.prisma.companyItem.findFirst({
+      const p = await (this.bypass ?? this.prisma).companyItem.findFirst({
         where: { companyId: company.id, slug: input.productSlug, isPublic: true },
         select: { id: true },
       });
