@@ -18,6 +18,7 @@ import { useState } from "react";
 import { AssistantLauncher } from "./assistant/assistant-launcher";
 import { CompanySidebarContent } from "./sidebar";
 import { CompanyTopbar } from "./topbar";
+import { ButtonAccentProvider, accentForPortal } from "@/components/ui/button-accent";
 
 /** Ray genişlikleri — içerik payı raya EŞLİK eder (hover'da da itilir, 2026-09-10). */
 const RAIL = "4.5rem"; // 72px
@@ -43,6 +44,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const expanded = pinned || hovered;
 
   return (
+    /* Birincil düğme rengi aktif portaldan (satınalma mavi, satış emerald);
+       portal-nötr sayfalar (Şirketim, Ayarlar, talep detayı) son portalı izler. */
+    <ButtonAccentProvider accent={accentForPortal(activePortal)}>
     <div className="min-h-svh bg-slate-50 text-slate-950">
       <CompanyTopbar
         activePortal={activePortal}
@@ -129,5 +133,6 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       {/* Faz AI-2 — asistan (Silver+ ∧ SA/ST'de görünür; kapı içeride) */}
       <AssistantLauncher />
     </div>
+    </ButtonAccentProvider>
   );
 }

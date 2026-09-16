@@ -229,7 +229,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     );
     expect(screen.getByRole("link", { name: "Herkese açık görünümü önizle" })).toHaveAttribute(
       "href",
-      "/firma/demo-firma",
+      "/firma/demo-firma?onizleme=1",
     );
     // Rehber (kapı değil): kategori seçilmemiş → eksik olarak listelenir.
     expect(screen.getByText(/Alıcıların sizi bulması için/)).toBeInTheDocument();

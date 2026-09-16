@@ -432,6 +432,14 @@ alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
 "Teklif ver" EN SAĞDA ve `text-sm` (eskiden "Kalemler ⌄" ve eylem sağda yan
 yana, 11 px); Teklifim metriği ortada.
+**Sahibin önizlemesi ÖNBELLEKSİZ (2026-09-17, kullanıcı: "kapak ekleyince
+önizlemede gözükmüyor"):** Profilim'deki "Herkese açık görünümü önizle"
+`/firma/<slug>?onizleme=1` açar; sayfa o parametreyle profil + ürünleri
+`cache: "no-store"` çeker (ISR 5 dk + etiket tazeleme; tazeleme kanalı Render
+`SEO_REVALIDATE_SECRET` girilmemişse HİÇ çalışmaz → sahibi az önce yüklediğini
+göremezdi). Şablon aynı, yalnız veri tazedir. Not: staging web Vercel
+Authentication arkasında (Pro'yla geldi) — curl 302 `vercel.com/sso-api`
+döner, e2e `x-vercel-protection-bypass` ile geçer.
 **Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
 `CompanyProfileView layout="stacked"` — tek sütun, yerinde düzenleme), SAĞDA
 yapışkan ray (`Profil durumu` %tamam + eksikler + "alıcıların sizi bulması
@@ -795,6 +803,15 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   `lib/pricing/plans.ts` (pazarlama sayfası da oradan okur). Sözleşme:
   `components/company/packages/__tests__/{packages,checkout}-view.test.tsx`.
 
+- **BİRİNCİL DÜĞME RENGİ PORTALDAN (2026-09-17, kullanıcı kararı: "sistemde
+  tuşlar siyah, istemiyorum — satınalmada mavi, satışta yeşil"):** firma
+  kabuğu `ButtonAccentProvider` (`components/ui/button-accent.tsx`) ile aktif
+  portalın rengini sağlar (satınalma `blue`, satış `emerald`; portal-nötr
+  sayfalar son portalı izler); Catalyst `Button` `color` verilmemişse bağlamı
+  okur → `ui/button` primary ve doğrudan Catalyst çağrılarının HEPSİ boyanır.
+  Kabuk dışı (herkese açık pazar yeri, giriş/kayıt, admin) `dark/zinc` kalır —
+  public monokrom kararı değişmedi. "Tek eylem rengi" kuralı korunur: dolgu
+  yalnız birincil eylemde, rengi portal seçer. Sözleşme: `button-accent.test`.
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).
 - **SONUÇ TÜRÜ SEKMESİ** (Ürünler ve hizmetler | Tedarikçiler) üç sayfada AYNI;
@@ -898,6 +915,20 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   isteğe bağlı bölümler `OptionalSection` (`<details>`, hata varsa açık):
   kurallar, hüküm+dokümanlar, açılış tarihi; kapanışta 3·7·14 çipleri.
   `Step4Review.onEditStep` indeksleri 0|1|2.
+
+**TALEP DETAYI DÜZENİ (2026-09-17, kullanıcı kararı):** `/company/ilan/[id]`
+iki görünümde de sekme sayısı İKİ — `Kalemler` (kalemler + Genel Bilgi
+kartları + sahipte davetliler TEK akış) ve `Dosyalar (N)` (dosya varsa sayı
+parantezde; sayaç `useListingDocuments`, FilesTab ile aynı sorgu). Teklif
+sekme DEĞİL: teklifçide "Teklifim" kutusu (`MyBidStatusPanel` + notlar)
+sekmelerin ÜSTÜNDE, sahipte "Gelen Teklifler" iş tezgâhı üstte `card` içinde.
+`?tab=` yalnız 0/1. **"AI ile tedarikçi bul" görünür düğme** (başlık kartı,
+`Sparkles`): koşul sahip ∧ `buy:listing:manage` ∧ DRAFT/OPEN; Gold değilse
+pasif + ipucu. Eskiden yalnız ⋮ menüsünde ve menü yalnız ilanı OLUŞTURANA
+çiziliyordu (`canManage`) → başkasının açtığı talepte hiç yoktu. API
+`company/ai/supplier-discovery` (+`/external`) `@RequireTier("GOLD")`;
+`published-panel` kapısı SILVER→GOLD hizalandı. Staging'de doğrulandı
+(2026-09-17): platform önerisi 1,4 sn, web araması (Gemini) ~35 sn, ikisi 201.
 
 ## Ürün Kataloğu (firma vitrini)
 

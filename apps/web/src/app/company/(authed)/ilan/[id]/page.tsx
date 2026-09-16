@@ -11,6 +11,7 @@ import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
+import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import {
   Table,
@@ -37,7 +38,9 @@ import {
   useBidDocuments,
 } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useListingDocuments } from "@/hooks/use-listing-documents";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
 import { usePortalStore } from "@/lib/company/portal-store";
@@ -66,6 +69,7 @@ import {
   MapPin,
   Paperclip,
   Users,
+  Sparkles,
   Wallet, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
@@ -180,10 +184,11 @@ export default function ListingDetailPage() {
   const id = params.id;
   const searchParams = useSearchParams();
   // §8.5: aktif sekme ?tab= ile taşınır — yenileme/paylaşımda korunur.
-  // C14: aralık dışı ?tab= ilk sekmeye düşer (her iki görünümde de 4 sekme;
-  // clamp yoksa headless son sekmeyi açıyordu).
+  // C14: aralık dışı ?tab= ilk sekmeye düşer (clamp yoksa headless son
+  // sekmeyi açıyordu). 2026-09-17'den beri iki görünümde de İKİ sekme:
+  // 0 Kalemler (+ genel bilgi) · 1 Dosyalar.
   const rawTab = Number(searchParams.get("tab") ?? "0") || 0;
-  const initialTab = rawTab >= 0 && rawTab <= 3 ? rawTab : 0;
+  const initialTab = rawTab === 1 ? 1 : 0;
   const rememberTab = (i: number) => {
     const u = new URL(window.location.href);
     if (i === 0) u.searchParams.delete("tab");
@@ -224,6 +229,13 @@ export default function ListingDetailPage() {
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
+  // Dosyalar sekmesinin sayacı — FilesTab aynı sorguyu paylaşır (tek fetch).
+  const listingDocs = useListingDocuments(id, !!l);
+  const { company } = useCompanyAuth();
+  // "AI ile tedarikçi bul" (2026-09-17, kullanıcı: "bu tuş çok önemli, geri
+  // getir") — ⋮ menüsünün içine gömülüydü ve menü yalnız ilanı OLUŞTURAN
+  // kişiye çiziliyordu; başkasının açtığı talepte düğme hiç görünmüyordu.
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
   // F7: kazandır/ele buton kapısı — backend assertListingManageRole birebir
   // (buy/sell:listing:manage + oluşturan/SAHİP). Hook'lar erken-return öncesi.
   const user = useCompanyAuthStore((s) => s.user);
@@ -1626,6 +1638,30 @@ export default function ListingDetailPage() {
     color: "zinc" as const,
   };
 
+  // Dosyalar sekmesi: dosya varsa sayısı parantezde (2026-09-17, kullanıcı).
+  const docCount = listingDocs.data?.length ?? 0;
+  const filesTabLabel = docCount > 0 ? `Dosyalar (${docCount})` : "Dosyalar";
+  const filesTab = (
+    <Tab className={TRIGGER_CLASSES}>
+      <Paperclip className="h-4 w-4" aria-hidden="true" />
+      {filesTabLabel}
+    </Tab>
+  );
+  const itemsTab = (
+    <Tab className={TRIGGER_CLASSES}>
+      <Layers className="h-4 w-4" aria-hidden="true" />
+      Kalemler
+      <TabBadge count={l.items?.length ?? 0} />
+    </Tab>
+  );
+  // AI tedarikçi keşfi: API `company/ai/supplier-discovery` = buy:listing:manage
+  // + GOLD; taslak/yayındaki talepte anlamlı (kapanmışa davet gitmez).
+  const canDiscover =
+    !!l.isOwner &&
+    hasManagePermission &&
+    (l.status === "DRAFT" || l.status === "OPEN");
+  const discoverTierOk = !!company && tierAtLeast(company.tier, BUYING_TIER);
+
   // P2 (denetim §10.4): OrderStatusStrip — kazandırma sonrası ihale detayı,
   // doğan siparişin durumuna bağlanır ("Tamamlandı / Kazandın / Teslime hazır"
   // üç kopuk ekranı birleşir). myOrder = çağıranın taraf olduğu sipariş.
@@ -1781,6 +1817,21 @@ export default function ListingDetailPage() {
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
               canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}
+          {canDiscover ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-zinc-950/5 pt-4">
+              <Button
+                onClick={() => setDiscoveryOpen(true)}
+                disabled={!discoverTierOk}
+                title={discoverTierOk ? undefined : "AI ile tedarikçi bulma Gold pakette"}
+              >
+                <Sparkles data-slot="icon" />
+                AI ile tedarikçi bul
+              </Button>
+              <Text className="text-xs text-zinc-500">
+                Kategoriye uyan firmaları platformdan ve webden bulur, seçtiklerinize davet gönderir.
+              </Text>
+            </div>
+          ) : null}
           {canManage ? (
           <div className="mt-4 border-t border-zinc-950/5 pt-4">
             <TenderActionsMenu
@@ -1877,6 +1928,12 @@ export default function ListingDetailPage() {
           </dl>
         </section>
 
+        {/* DÜZEN (2026-09-17, kullanıcı kararı): teklifler sekme değil, sayfanın
+            üstünde AYRI KUTU; altında sekmeler yalnız "Kalemler" (kalemler +
+            genel bilgi + davetliler tek akış) ve "Dosyalar (N)". Eski dört
+            sekme (Teklifler · Genel Bilgi · Kalemler · Dosyalar) kalktı. */}
+        <div className="card p-5">{ownerBidsSection}</div>
+
         <TabGroup
           defaultIndex={initialTab}
           onChange={rememberTab}
@@ -1886,33 +1943,16 @@ export default function ListingDetailPage() {
             className="flex flex-wrap border-b border-zinc-950/10"
             aria-label="Satın Alma Talebi detay sekmeleri"
           >
-            <Tab className={TRIGGER_CLASSES}>
-              <Gavel className="h-4 w-4" />
-              Teklifler
-              <TabBadge count={l.bids?.length ?? 0} />
-            </Tab>
-            <Tab className={TRIGGER_CLASSES}>
-              <Info className="h-4 w-4" />
-              Genel Bilgi
-            </Tab>
-            <Tab className={TRIGGER_CLASSES}>
-              <Layers className="h-4 w-4" />
-              Kalemler
-              <TabBadge count={l.items?.length ?? 0} />
-            </Tab>
-            <Tab className={TRIGGER_CLASSES}>
-              <Paperclip className="h-4 w-4" />
-              Dosyalar
-            </Tab>
+            {itemsTab}
+            {filesTab}
           </TabList>
 
           <TabPanels>
-            <TabPanel className="outline-none">{ownerBidsSection}</TabPanel>
-            <TabPanel className="space-y-5 outline-none">
+            <TabPanel className="space-y-6 outline-none">
+              {itemsSection}
               <GeneralInfoTab l={l} />
               {invitationsSection}
             </TabPanel>
-            <TabPanel className="outline-none">{itemsSection}</TabPanel>
             <TabPanel className="outline-none">
               <FilesTab
                 listingId={l.id}
@@ -1922,6 +1962,13 @@ export default function ListingDetailPage() {
             </TabPanel>
           </TabPanels>
         </TabGroup>
+
+        <SupplierDiscoveryModal
+          isOpen={discoveryOpen}
+          onClose={() => setDiscoveryOpen(false)}
+          categoryIds={[]}
+          listingId={l.id}
+        />
 
         <ReasonDialog
           open={!!eliminateTarget}
@@ -2079,43 +2126,31 @@ export default function ListingDetailPage() {
           </dl>
         </section>
 
+        {/* DÜZEN (2026-09-17, kullanıcı kararı): "Teklifim" sekmesi yok —
+            teklif durumu sayfanın üstünde AYRI KUTU (MyBidStatusPanel kendi
+            dikdörtgenini çizer); altında sekmeler yalnız "Kalemler" (kalemler +
+            genel bilgi tek akış) ve "Dosyalar (N)". Teklif CTA'sı yapışkan
+            çubukta / başlık kartında, burada tekrar edilmez. */}
+        <section className="space-y-3" aria-label="Teklifim">
+          <Subheading>Teklifim</Subheading>
+          <MyBidStatusPanel l={l} />
+          {sellerBidSection}
+        </section>
+
         <TabGroup defaultIndex={initialTab} onChange={rememberTab}>
           <TabList
             className="flex flex-wrap gap-1 border-b border-zinc-950/10"
             aria-label="Satın Alma Talebi bölümleri"
           >
-            <Tab className={TRIGGER_CLASSES}>
-              <Gavel className="h-4 w-4" aria-hidden="true" />
-              Teklifim
-            </Tab>
-            <Tab className={TRIGGER_CLASSES}>
-              <Layers className="h-4 w-4" aria-hidden="true" />
-              Kalemler
-              <TabBadge count={l.items?.length ?? 0} />
-            </Tab>
-            <Tab className={TRIGGER_CLASSES}>
-              <Info className="h-4 w-4" aria-hidden="true" />
-              Genel Bilgi
-            </Tab>
-            <Tab className={TRIGGER_CLASSES}>
-              <Paperclip className="h-4 w-4" aria-hidden="true" />
-              Dosyalar
-            </Tab>
+            {itemsTab}
+            {filesTab}
           </TabList>
 
           <TabPanels className="pt-5">
-            <TabPanel className="space-y-5 outline-none">
-              {/* Teklif CTA'sı sticky ActionBar'a taşındı (denetim §5) —
-                  sekme içinde tekrar edilmez. */}
-              <MyBidStatusPanel l={l} />
-              {sellerBidSection}
-            </TabPanel>
-            <TabPanel className="outline-none">
+            <TabPanel className="space-y-6 outline-none">
               {/* Maskede de kalemler görünür (teaser: isim/miktar/birim);
                   fiyat/detay itemsSection içinde gizlenir + upsell notu. */}
               {itemsSection}
-            </TabPanel>
-            <TabPanel className="outline-none">
               <GeneralInfoTab l={l} />
             </TabPanel>
             <TabPanel className="outline-none">
