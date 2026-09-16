@@ -1024,6 +1024,16 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
+- **Node sürümü AYRIŞIK (2026-09-16 ölçüldü):** Vercel iki projede de **24.x**
+  ile derliyor, CI iş akışları **22** kullanıyor, kök `package.json` `>=20`
+  diyor. Bugün üçü de yeşil; yine de bir gün "yerelde/CI'da geçti, Vercel'de
+  patladı" yaşanırsa ilk bakılacak yer burası. Hizalamak isteyen Vercel proje
+  ayarındaki Node sürümünü 22'ye çeker.
+- **`NEXT_PUBLIC_CDN_URL` Vercel'de TANIMLI (2026-09-16):** production
+  `cdn.rothern.com`, preview `cdn.staging.supkeys.com`. `next/image`
+  `remotePatterns`ı bu değerden türetiyor; tanımsızken CDN'den gelen görseller
+  `next/image` yolunda 400 alırdı (bugün o yolu yalnız yerel kategori
+  görselleri kullanıyor, bu yüzden görünür bir hata yoktu).
 - **`NEXT_PUBLIC_API_URL` HER ZAMAN `/api` sonekli** (`https://api.rothern.com/api`,
   staging `https://api.staging.supkeys.com/api`): API `setGlobalPrefix("api")`, web/
   admin sonek EKLEMEZ. 2026-09-11'de soneksiz değer canlı girişi ~14 saat kırdı
@@ -1164,8 +1174,9 @@ olur. `prod-config-sanity.ts` bunu boot'ta fail-closed yakalar (`main.ts:89`).
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth 429/5xx → 503.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, **Vercel'de
-`SENTRY_DSN` yok** (web+admin) → ön yüz hata izleme no-op; API tarafı dolu.
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain.
+(2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
+admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
 **Ön yüz hata izleme (2026-09-12):** tarayıcıda Sentry SDK'sı YOK ve
 OLMAYACAK — paylaşılan pakete 83 kB ekliyordu (103→186 kB), organik arama
