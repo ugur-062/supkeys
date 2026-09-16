@@ -422,6 +422,16 @@ ve herkese açık profil fotoğraf bölümü çizmez, yükleme yolu yok; `Compan
 photos` kolonu duruyor (migration yok), web göndermez. Logo/kapak/sertifika
 görselleri kalır.
 
+**Firma profili SERTİFİKA bölümü KALDIRILDI (2026-09-17, kullanıcı kararı):**
+Profilim ve herkese açık profil "Sertifikalar" bölümünü çizmez, düzenleme slotu
+yok; `Company.certifications`/`certificateImages` kolonları duruyor (migration
+yok), kayıt gövdesi göndermez. Pazar yeri kartlarındaki sertifika çipleri
+DOKUNULMADI (ayrı yüzey).
+**Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
+alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
+(`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
+"Teklif ver" EN SAĞDA ve `text-sm` (eskiden "Kalemler ⌄" ve eylem sağda yan
+yana, 11 px); Teklifim metriği ortada.
 **Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
 `CompanyProfileView layout="stacked"` — tek sütun, yerinde düzenleme), SAĞDA
 yapışkan ray (`Profil durumu` %tamam + eksikler + "alıcıların sizi bulması
