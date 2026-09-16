@@ -1209,7 +1209,11 @@ aranabilir. Doğrulandı: staging ve canlı, web ve admin.
 Dört değişken de web ve admin projelerinde HEM production HEM preview'da tanımlı
 (2026-09-16 doğrulandı).
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain.
+⏳ Bekleyen: Sentry uyarı kuralı (olay toplanıyor ama kimseye haber gitmiyor),
+log drain. **Gecelik e2e ve canlı sağlık denetimi artık kırmızıya düşünce depoda
+KONU AÇIYOR** (aynı başlıkta açık konu varsa yorum ekler — her gece yeni konu
+gürültü olurdu). `audit_logs` doldurma DOĞRULANDI (staging 3.539 kayıt; giriş,
+ürün güncelleme, adres oluşturma izleri yazılıyor).
 (2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
 admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
