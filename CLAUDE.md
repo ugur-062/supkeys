@@ -1175,7 +1175,22 @@ olur. `prod-config-sanity.ts` bunu boot'ta fail-closed yakalar (`main.ts:89`).
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth 429/5xx → 503.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain.
+**SUPABASE VERİ API'Sİ KAPALI (2026-09-16, ölçülerek bulundu).** Staging'de
+anonim anahtarla (tarayıcıya giden AÇIK değer) `password_reset_tokens`,
+`email_verification_codes`, `platform_admins`, `company_users` dahil TÜM public
+tablolar PostgREST üzerinden okunabiliyordu. Uygulama o API'yi hiç kullanmıyor
+(Supabase istemcisi yalnız API'de, yalnız Auth için) → `public` şeması "exposed
+schemas"tan çıkarıldı; canlıda Data API zaten tümüyle kapalıydı. Doğrulandı:
+anonim istek artık `PGRST205` ile 404. **Supabase'de Data API'yi AÇMA** — açılırsa
+RLS'siz 25 tablo (staging) yeniden dışarı açılır. Ayrıca: sızmış parola koruması
+iki projede AÇIK; canlı Auth Site URL `https://www.rothern.com` (eskiden
+localhost'tu); compute iki projede MICRO (ücretsiz yükseltme); canlı projenin
+Supabase adı `rothern-prod` (eskiden yanıltıcı biçimde `dev-supkeys`).
+
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain, **Resend webhook
+(teslim/bounce olayları) hiçbir ortamda kurulu değil** → e-posta "gönderildi"den
+sonrası görünmüyor; staging alan adında (`supkeys.com`) DMARC kaydı yok
+(2026-09-16'da ilk gönderimler Gmail'de SPAM'e düştü).
 (2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
 admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
