@@ -34,6 +34,11 @@
 > `DATABASE_URL_BYPASS` → sahip rol/6543, `RLS_ENABLED=true`, (3) duman:
 > keşif + dizin + pazar yeri + giriş; geri dönüş `RLS_ENABLED=false` +
 > `DATABASE_URL` sahip role.
+>
+> **✅ CANLIDA AÇILDI (2026-09-17 00:xx).** İlk dağıtım düştü: pooler sunucusu
+> canlıda `aws-1-eu-central-1`, staging'de `aws-0-…`; örnek adres kopyalanmıştı.
+> Düzeltilince Live; sağlık `database: up`, herkese açık uçlar 200, giriş 401
+> (sorgu çalışıyor). Faz 1 KAPANDI.
 
 **Neden:** bugün kiracı ayrımı yalnız servis katmanında. Bir sorguda `tenantId`
 süzgeci unutulursa başka firmanın verisi döner. RLS bunu veritabanı seviyesinde
