@@ -28,6 +28,8 @@ fi
 
 oku() { grep -h "^$1=" "$ROOT/.env.prod.local" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'; }
 
+# Canlı spec'leri playwright.config testIgnore ile varsayılan koşumdan dışlanır; bu bayrak açar.
+export E2E_PROD=1
 export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-https://www.rothern.com}"
 export E2E_API_URL="${E2E_API_URL:-https://api.rothern.com/api}"
 export E2E_DATABASE_URL="$(oku DATABASE_URL)"

@@ -14,7 +14,26 @@
 > (`pg_stat_activity`de 5 bağlantı), `RLS_ENABLED=true`. Kanıt: üç demo firma
 > kendi ürünlerini TAM sayıyla görüyor (5/4/3) — bağlam yazılmasaydı ürün
 > politikası hiç satır döndürmezdi; Gold hesabı Silver'ın ürününü açmaya
-> çalışınca 404. Canlı adımı BEKLİYOR (staging bir gün gözlendikten sonra).
+> çalışınca 404. **AMA (aynı gün, kullanıcı fark etti): panel ürün keşfi BOŞ
+> döndü** — `company_items` politikası çapraz okumayı gizliyor. Staging GERİ
+> ALINDI (RLS_ENABLED=false + DATABASE_URL sahip role; yalnız bayrağı kapatmak
+> YETMEZ — kısıtlı rol + bağlam yokluğu her şeyi gizler, bunu da yaşadık).
+> Düzeltme kodda: çapraz okumalar bypass client'a bağlandı (bkz. rls-plan.md).
+> **Yeniden açma adımları:** düzeltme staging'e inince `DATABASE_URL` yeniden
+> `rothern_app`, `RLS_ENABLED=true`; ardından staging e2e suite'i (87 test)
+> RLS AÇIKKEN koşulur — kıstas budur, tek tek elle kontrol değil. Canlı adımı
+> ancak o koşum yeşilse.
+>
+> **SONUÇ (2026-09-16 gece): STAGING E2E RLS AÇIKKEN YEŞİL.** Tam koşum 91
+> test: 85 geçti, 6 düştü; altısının ikisi canlı spec'leri (artık paket dışı),
+> üçü bayat test (kategori seçici metni, ürün tavanı sabiti, liste sayfalama),
+> biri GERÇEK RLS bulgusu (firma dizini ürün sayısı → bypass'a alındı).
+> Düzeltmeler sonrası dört dosya tek tek yeniden koşuldu, hepsi geçti.
+> **Canlı adımları:** (1) `rothern_app` rolü SQL Editor'den (parola AYRI
+> üretilir), (2) Render `rothern-api`: `DATABASE_URL` → rothern_app,
+> `DATABASE_URL_BYPASS` → sahip rol/6543, `RLS_ENABLED=true`, (3) duman:
+> keşif + dizin + pazar yeri + giriş; geri dönüş `RLS_ENABLED=false` +
+> `DATABASE_URL` sahip role.
 
 **Neden:** bugün kiracı ayrımı yalnız servis katmanında. Bir sorguda `tenantId`
 süzgeci unutulursa başka firmanın verisi döner. RLS bunu veritabanı seviyesinde
@@ -32,8 +51,13 @@ rol RLS'i bypass eder, yani bugün açsak bile hiçbir şey değişmez.
 2. **Bağlantı dizesi değişir:** Render `rothern-api` → `DATABASE_URL` kullanıcı
    adı `postgres` yerine `rothern_app`. `DIRECT_URL` (migration) SAHİP kalır —
    migration'lar RLS'e takılmamalı.
-3. **`RLS_ENABLED=true`** Render'da set edilir.
-4. Sıra: **önce staging**, bir tam gün gözlem, sonra canlı.
+3. **`DATABASE_URL_BYPASS`** Render'da SAHİP rolle (postgres, pooler 6543,
+   `pgbouncer=true`) set edilir. ⚠️ 2026-09-16'da ATLANDI: bypass client bu
+   değişken yoksa ana `DATABASE_URL`e düşer → ana URL kısıtlı role geçince
+   bypass da kısıtlı oldu, keşif ve herkese açık pazar yeri BOŞ döndü. Bu
+   değişken olmadan RLS açılmaz.
+4. **`RLS_ENABLED=true`** Render'da set edilir.
+5. Sıra: **önce staging**, staging e2e suite RLS AÇIKKEN yeşil, sonra canlı.
 
 **Doğrulama**
 - `rls-isolation.spec` kısıtlı rolle yeşil (CI).

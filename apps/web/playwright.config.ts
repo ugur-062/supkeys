@@ -8,6 +8,14 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  /**
+   * CANLI SPEC'LERİ (prod-*.spec.ts) VARSAYILAN KOŞUMDA YOK (2026-09-16).
+   * `e2e:staging` ve gecelik CI "chromium" projesini süzgeçsiz koşuyordu → canlıya
+   * yazan prod-journey ve prod-admin de staging paketinin içinde koştu (RLS
+   * doğrulama turunda fark edildi). Canlı koşum yalnız `scripts/e2e-prod.sh`
+   * ile ve spec adı AÇIKÇA verilerek yapılır; o betik E2E_PROD=1 ihraç eder.
+   */
+  testIgnore: process.env.E2E_PROD === "1" ? [] : [/prod-.*\.spec\.ts$/],
   fullyParallel: false, // testler aynı kullanıcı session'ını paylaşıyor
   forbidOnly: !!process.env.CI,
   /**

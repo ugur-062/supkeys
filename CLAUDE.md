@@ -1030,6 +1030,17 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
   günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
   yükseltirse üçünü BİRLİKTE taşı.
+- **SENTRY PROJE EŞLEŞMESİ (2026-09-16):** her uygulama KENDİ projesine yazar —
+  web `rothern-web`, admin `rothern-admin`, API (canlı + staging) `rothern-api`.
+  Öncesinde canlı web/admin/API'nin HEPSİ `node-nestjs` projesine yazıyordu:
+  kaynak haritaları `rothern-web`/`rothern-admin`e yüklenirken olaylar başka
+  projeye düşüyordu → yığın izi okunmazdı ve uyarı kuralları yanlış projedeydi.
+  `node-nestjs` artık ESKİ kayıt deposu; yeni olay almamalı.
+- **PNPM KURULUM İZİNLERİ TEK YERDE (`pnpm-workspace.yaml` `allowBuilds`):**
+  `package.json` `pnpm.onlyBuiltDependencies` yazmak o listeyi EZER; 2026-09-16'da
+  Prisma izni düştü ve temiz Vercel derlemesi "has no exported member
+  PrismaClient" ile kırıldı (yerelde node_modules'te eski istemci durduğu için
+  görünmedi). Yeni bir paketin kurulum betiği gerekiyorsa `allowBuilds`e ekle.
 - **VERCEL PRO (2026-09-16):** takım `rothern` Pro'ya geçti (Hobby ticari
   kullanıma kapalıydı ve SLA yoktu). Açılan ayar: **sapma koruması 12 saat** —
   kullanıcı eski sekmeyle dolaşırken yeni sürüm yayınlanınca eski varlıklar
@@ -1242,7 +1253,13 @@ sıfırlama `?token=`, davet `/davet/<token>`), sayfa başına 5 ve IP başına
 `SENTRY_AUTH_TOKEN` varken yüklenir (`withSentryConfig`).
 ⚠️ `SENTRY_DSN` boşsa error tracking ve alarmlar tümüyle pasif (tek fail-open
 servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
-⚠️ RLS 23 tabloda kurulu; **STAGING'DE AÇIK (2026-09-16)** — uygulama
+⚠️ RLS: 2026-09-16 staging aktivasyonu ürün keşfini BOŞ döndürdü (`company_items`
+politikası çapraz okumayı gizliyor) → staging geri alındı, çapraz okumalar bypass
+client'a bağlandı (`rls-cross-tenant-reads.spec`); staging'de YENİDEN AÇILDI ve
+e2e paketi RLS açıkken yeşil (2026-09-16 gece). **CANLI aktivasyon bekliyor** —
+adımlar `docs/pre-launch-hardening.md` Faz 1. **Kural: çapraz-firma okuyan yeni kod bypass client
+kullanır; bayrağı kapatırken DATABASE_URL de sahip role dönmeli.**
+Önceki durum notu: ⚠️ RLS 23 tabloda kurulu; **STAGING'DE AÇILDI (2026-09-16)** — uygulama
 `rothern_app` (NOBYPASSRLS) rolüyle bağlanır, `RLS_ENABLED=true`, firma bağlamı
 her istekte `SET LOCAL app.current_company_id` ile yazılır. **CANLIDA HÂLÂ
 KAPALI**; adımlar ve doğrulama `docs/pre-launch-hardening.md` Faz 1'de. Geri

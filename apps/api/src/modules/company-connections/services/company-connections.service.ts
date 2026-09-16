@@ -956,7 +956,10 @@ export class CompanyConnectionsService {
     connection?: "connected" | "new",
   ) {
     const scope = await this.directoryScope(user.companyId, connection);
-    const res = await buildDirectory(this.prisma, { ...q, q: (qRaw ?? "").trim() || undefined }, scope);
+    // RLS: dizin BAŞKA firmaların ürün sayısını sayar (`_count.items`) —
+    // kısıtlı client'ta o sayılar 0 gelir ve kart "Portföyü görüntüle"yi çizmez
+    // (2026-09-16 staging e2e'de yakalandı). Çapraz okuma → bypass client.
+    const res = await buildDirectory(this.bypass, { ...q, q: (qRaw ?? "").trim() || undefined }, scope);
     const statusMap = await this.connectionStatusMap(user.companyId, res.items.map((r) => r.id));
     return {
       ...res,
@@ -978,7 +981,7 @@ export class CompanyConnectionsService {
     connection?: "connected" | "new",
   ) {
     const scope = await this.directoryScope(user.companyId, connection);
-    return directoryFacets(this.prisma, scope, q);
+    return directoryFacets(this.bypass, scope, q);
   }
 
   /**

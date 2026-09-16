@@ -36,6 +36,23 @@ toplamı = 27 kesin.) Kalan tek iş = PROD AKTİVASYON.
   birincil değil. Full 4-yollu policy connection-EXISTS ile hot-feed perf riski + büyük
   cross-tenant audit yüzeyi + all-or-nothing (kısmi policy CONNECTIONS'ı gizler→discovery
   kırar). listings 2b'den beri RLS-enabled+permissive `USING(true)` → değişiklik yok.
+- **company_items (2026-09-16, staging aktivasyonunda bulundu):** 2026-09-01'de
+  kataloğa KISITLI policy yazılmıştı (doğrudan companyId deseni) ama ürünler hot
+  path'te CROSS-TENANT okunur (panel keşfi discoverSearch/Facets/Product/Products,
+  herkese açık beacon, AI arama gevşetme sayımı). Staging'de RLS açılınca keşif
+  BOŞ döndü. Karar: policy KISITLI KALIR (yazma + kendi-okuma korunur); çapraz
+  okuyan metotlar herkese açık pazar yeriyle AYNI yoldan **bypass client**
+  kullanır (`CompanyItemsService.crossTenant`, `CompanyViewsService`,
+  `SearchIntentService`; hepsi `@Optional()` SONDA → rig'ler kırılmaz). Görünürlük
+  kapısı yine `publicProductWhere`. Sözleşme: `test/unit/rls-cross-tenant-reads.spec`.
+  Aynı gün ikinci bulgu (staging e2e, satış anasayfası "Firma" pili): panel
+  firma dizini `buildDirectory(this.prisma…)` ile BAŞKA firmaların ürün sayısını
+  (`_count.items`) kısıtlı client'tan okuyordu → sayı 0, kart "Portföyü
+  görüntüle"yi çizmiyordu. `company-connections.service` dizin ve facet
+  çağrıları bypass'a alındı. Ders: ilişki sayımları (`_count`) da RLS'e tabidir —
+  ana kayıt permissive olsa bile ÇOCUK tablo kısıtlıysa sayı 0 gelir.
+  Kural: **yeni bir çapraz-firma okuma yolu eklerken bypass client kullan** —
+  aksi hâlde RLS açık ortamda sessizce boş döner.
 - **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
   bilinçli permissive KALIR (servis-scope birincil gate).
 
