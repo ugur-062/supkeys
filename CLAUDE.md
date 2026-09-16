@@ -540,6 +540,20 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   `isValidIbanTr`/`normalizeIban` (Doğrulama sayfası da). Doğrulama "Gönder"
   eksik listesi (`MissingFields`). Sözleşme: `ayarlar/__tests__/page.test`,
   `invite-user-dialog.test`.
+- **ŞİRKETİM › GENEL BAKIŞ ve RAPORLAR TARAFA GÖRE (2026-09-17, kullanıcı
+  kararı: "biri diğeri hakkında bilgi edinememeli").** API zaten ayrıktı
+  (`dashboard/satinalma*` buy:view, `dashboard/satis*` sell:view,
+  `action-center?portal=` hasReadContext, raporlar buy:reports:view, İş
+  Analizi/Ziyaret Edenler insights:view — staging'de rol matrisiyle ÖLÇÜLDÜ).
+  Web açıkları kapandı: (a) `/sirketim/raporlar` kökü Gold + buy:reports:view
+  ile BÜTÜN alt sayfaları kilitliyordu → İş Analizi (SATIŞ raporu, Silver +
+  insights:view) satışçıya kapalıydı; kapılar artık rapor türünün KENDİ
+  düzeninde (`PurchasingReportGate` ×3, is-analizi PermissionGate+SILVER),
+  kök düzen kapısız; (b) hub yetkisiz kartı hiç çizmez
+  (`raporlar/__tests__/page.test`); (c) menü "Raporlar" satırı any-of
+  [buy:reports:view, insights:view] + SILVER; (d) Genel Bakış'taki Ziyaret
+  Edenler/İş Analizi bağlantıları insights:view'e bağlı, sorgu izinsiz atılmaz.
+  KPI/sekme/aksiyon merkezi zaten `accessiblePortals` ile portala göre.
 - **Firma Bilgileri (2026-09-10):** Kimlik kartı salt-okunur (firma kodu,
   kayıt ülkesi, hukuki yapı, vergi kimliği — etiket ülke profilinden, Vergi
   Dairesi/KEP yalnız TR — yetkili kimlik no MASKELİ `maskNationalId`; şahıs

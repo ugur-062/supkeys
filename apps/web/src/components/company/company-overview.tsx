@@ -20,6 +20,7 @@ import { useVisitors } from "@/hooks/use-company-views";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import { selectActiveOffers, selectActiveOrders, selectWonOffers } from "@/lib/company/kpi-selectors";
 import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
+import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
 import { tierAtLeast } from "@rothern/shared";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
@@ -96,7 +97,11 @@ export function CompanyOverview() {
   const stAnalytics = useSatisAnalytics(periodQuery, hasSt);
   const bids = useMyBids(hasSt);
   const orders = useOrders(hasSt);
-  const visitors = useVisitors(30);
+  // Ziyaret Edenler / İş Analizi = "insights:view" (API `company/views/*` aynası).
+  // İzni olmayana bağlantı ÇİZİLMEZ ve sorgu atılmaz (2026-09-17: satınalma
+  // kullanıcısı satış tarafının analiz sayfasına giriş görmemeli).
+  const canInsights = userHasPermission(user, "insights:view");
+  const visitors = useVisitors(30, 1, canInsights);
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -126,6 +131,7 @@ export function CompanyOverview() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TcmbRatesChip />
+          {canInsights ? (
           <Link
             href={`${COMPANY_AREA_BASE}/ziyaretciler`}
             className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50"
@@ -134,7 +140,8 @@ export function CompanyOverview() {
             Ziyaret Edenler
             {visitors.data ? <span className="rounded-full bg-zinc-100 px-1.5 tabular-nums text-zinc-700">{visitors.data.total}</span> : null}
           </Link>
-          {tierAtLeast(tier, "SILVER") ? (
+          ) : null}
+          {canInsights && tierAtLeast(tier, "SILVER") ? (
             <Link
               href={`${COMPANY_AREA_BASE}/raporlar/is-analizi`}
               className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50"

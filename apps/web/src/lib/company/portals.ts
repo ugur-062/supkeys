@@ -97,7 +97,10 @@ export const COMPANY_AREA: CompanyAreaDef = {
     // Sayılar herkese açık, kimlikli liste Silver+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
     { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
-    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "GOLD", permission: "buy:reports:view" },
+    // Raporlar iki tarafın da girişi (2026-09-17): satınalma raporları
+    // (Gold + buy:reports:view) VE İş Analizi (Silver + insights:view). Satır
+    // ikisinden biri varsa çizilir; hub içeride yalnız yetkili kartı gösterir.
+    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: ["buy:reports:view", "insights:view"] },
   ],
   secondaryNav: [],
 };
