@@ -1030,6 +1030,17 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
   günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
   yükseltirse üçünü BİRLİKTE taşı.
+- **SENTRY PROJE EŞLEŞMESİ (2026-09-16):** her uygulama KENDİ projesine yazar —
+  web `rothern-web`, admin `rothern-admin`, API (canlı + staging) `rothern-api`.
+  Öncesinde canlı web/admin/API'nin HEPSİ `node-nestjs` projesine yazıyordu:
+  kaynak haritaları `rothern-web`/`rothern-admin`e yüklenirken olaylar başka
+  projeye düşüyordu → yığın izi okunmazdı ve uyarı kuralları yanlış projedeydi.
+  `node-nestjs` artık ESKİ kayıt deposu; yeni olay almamalı.
+- **PNPM KURULUM İZİNLERİ TEK YERDE (`pnpm-workspace.yaml` `allowBuilds`):**
+  `package.json` `pnpm.onlyBuiltDependencies` yazmak o listeyi EZER; 2026-09-16'da
+  Prisma izni düştü ve temiz Vercel derlemesi "has no exported member
+  PrismaClient" ile kırıldı (yerelde node_modules'te eski istemci durduğu için
+  görünmedi). Yeni bir paketin kurulum betiği gerekiyorsa `allowBuilds`e ekle.
 - **VERCEL PRO (2026-09-16):** takım `rothern` Pro'ya geçti (Hobby ticari
   kullanıma kapalıydı ve SLA yoktu). Açılan ayar: **sapma koruması 12 saat** —
   kullanıcı eski sekmeyle dolaşırken yeni sürüm yayınlanınca eski varlıklar
