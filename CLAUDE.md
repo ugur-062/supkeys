@@ -1206,8 +1206,10 @@ binary hiç inmiyor; kök `package.json` `pnpm.onlyBuiltDependencies`e eklendi.
 kapatıldı, artık günlükte "Uploaded files to Sentry" + `Release: <commit>` satırı
 aranabilir. Doğrulandı: staging ve canlı, web ve admin.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, admin projesinin
-PREVIEW ortamında `SENTRY_AUTH_TOKEN` (yalnız production'da tanımlı).
+Dört değişken de web ve admin projelerinde HEM production HEM preview'da tanımlı
+(2026-09-16 doğrulandı).
+
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain.
 (2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
 admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
