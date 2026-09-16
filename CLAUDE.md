@@ -1196,8 +1196,24 @@ bulamıyor. Gönderen: canlı `notification@rothern.com`, staging
 `staging@supkeys.com`. DNS: iki bölgede de DMARC (`p=none`) ve geniş CAA seti
 (Cloudflare yönetimli; issue + issuewild) var.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, Sentry kaynak
-haritaları (Vercel'de `SENTRY_AUTH_TOKEN` yok → yığın izleri sıkıştırılmış).
+**SENTRY KAYNAK HARİTALARI YÜKLENİYOR (2026-09-16).** Vercel'de `SENTRY_AUTH_TOKEN`
+(gizli, kullanıcı girdi) + `SENTRY_ORG=rothern` + `SENTRY_PROJECT=rothern-web|
+rothern-admin` + **`SENTRY_URL=https://de.sentry.io`** (kuruluş EU bölgesinde —
+bu değişken olmadan yükleyici yanlış bölgeye gider). İKİ TUZAK birlikte
+yaşandı: (a) pnpm 10 `@sentry/cli`nin kurulum betiğini ATLIYOR → yükleyici
+binary hiç inmiyor; kök `package.json` `pnpm.onlyBuiltDependencies`e eklendi.
+(b) eklenti `silent: true` idi → yükleme hiç olmasa da derleme YEŞİL görünüyordu;
+kapatıldı, artık günlükte "Uploaded files to Sentry" + `Release: <commit>` satırı
+aranabilir. Doğrulandı: staging ve canlı, web ve admin.
+
+Dört değişken de web ve admin projelerinde HEM production HEM preview'da tanımlı
+(2026-09-16 doğrulandı).
+
+⏳ Bekleyen: Sentry uyarı kuralı (olay toplanıyor ama kimseye haber gitmiyor),
+log drain. **Gecelik e2e ve canlı sağlık denetimi artık kırmızıya düşünce depoda
+KONU AÇIYOR** (aynı başlıkta açık konu varsa yorum ekler — her gece yeni konu
+gürültü olurdu). `audit_logs` doldurma DOĞRULANDI (staging 3.539 kayıt; giriş,
+ürün güncelleme, adres oluşturma izleri yazılıyor).
 (2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
 admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
@@ -1212,7 +1228,11 @@ sıfırlama `?token=`, davet `/davet/<token>`), sayfa başına 5 ve IP başına
 `SENTRY_AUTH_TOKEN` varken yüklenir (`withSentryConfig`).
 ⚠️ `SENTRY_DSN` boşsa error tracking ve alarmlar tümüyle pasif (tek fail-open
 servis); Supabase/R2/Resend env'leri eksikse app boot ETMEZ (fail-closed).
-⚠️ RLS 23 tabloda kurulu ama **prod'da KAPALI** — aktivasyon EN SON.
+⚠️ RLS 23 tabloda kurulu; **STAGING'DE AÇIK (2026-09-16)** — uygulama
+`rothern_app` (NOBYPASSRLS) rolüyle bağlanır, `RLS_ENABLED=true`, firma bağlamı
+her istekte `SET LOCAL app.current_company_id` ile yazılır. **CANLIDA HÂLÂ
+KAPALI**; adımlar ve doğrulama `docs/pre-launch-hardening.md` Faz 1'de. Geri
+dönüş tek değişken: `RLS_ENABLED=false`.
 
 ---
 

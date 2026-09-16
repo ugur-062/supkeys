@@ -20,6 +20,10 @@
 # Tanımlı değilse o kontrol atlanır, iş akışı yine koşar.
 name: Sağlık (canlı)
 
+permissions:
+  contents: read
+  issues: write
+
 on:
   push:
     branches: [production]
@@ -62,3 +66,24 @@ jobs:
         env:
           SITE: https://www.rothern.com
         run: node apps/web/scripts/seo-audit.mjs
+
+      # KIRMIZIYA DÜŞÜNCE HABER GİT (2026-09-16): koşum kırılınca sonuç yalnız
+      # Actions sekmesinde kalıyordu, kimse görmüyordu. Artık depoda konu
+      # açılır; aynı başlıkta AÇIK konu varsa yenisi açılmaz, koşum bağlantısı
+      # yorum olarak eklenir (her gece yeni konu = gürültü).
+      - name: Kırmızıysa konu aç
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASLIK: "Canlı sağlık denetimi kırmızı"
+          KOSUM: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mevcut=$(gh issue list --state open --search "$BASLIK in:title" --json number,title \
+            --jq "map(select(.title == \"$BASLIK\")) | .[0].number // empty")
+          if [ -n "$mevcut" ]; then
+            gh issue comment "$mevcut" --body "Yine kırmızı: $KOSUM"
+          else
+            gh issue create --title "$BASLIK" --body "Canlı sağlık ve SEO denetimi başarısız. Canlı site ya da API'de sorun olabilir.
+
+          Koşum: $KOSUM"
+          fi

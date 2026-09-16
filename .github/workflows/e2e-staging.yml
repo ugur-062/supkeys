@@ -22,6 +22,10 @@ on:
 concurrency:
   group: e2e-staging
   cancel-in-progress: false
+permissions:
+  contents: read
+  issues: write
+
 
 jobs:
   e2e:
@@ -125,3 +129,24 @@ jobs:
           name: playwright-raporu
           path: apps/web/playwright-report
           retention-days: 7
+
+      # KIRMIZIYA DÜŞÜNCE HABER GİT (2026-09-16): koşum kırılınca sonuç yalnız
+      # Actions sekmesinde kalıyordu, kimse görmüyordu. Artık depoda konu
+      # açılır; aynı başlıkta AÇIK konu varsa yenisi açılmaz, koşum bağlantısı
+      # yorum olarak eklenir (her gece yeni konu = gürültü).
+      - name: Kırmızıysa konu aç
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASLIK: "Gecelik staging e2e kırmızı"
+          KOSUM: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mevcut=$(gh issue list --state open --search "$BASLIK in:title" --json number,title \
+            --jq "map(select(.title == \"$BASLIK\")) | .[0].number // empty")
+          if [ -n "$mevcut" ]; then
+            gh issue comment "$mevcut" --body "Yine kırmızı: $KOSUM"
+          else
+            gh issue create --title "$BASLIK" --body "Gecelik staging uçtan uca koşumu başarısız. Playwright raporu koşumun artefaktlarında.
+
+          Koşum: $KOSUM"
+          fi
