@@ -7,10 +7,16 @@
 | Git dalı | `main` | `production` |
 | API | Render `api-staging` (Free) → `api.staging.supkeys.com` | Render `api` (Starter) → `api.rothern.com` |
 | Web / Admin | Vercel Preview (`main`) → `staging.supkeys.com`, `admin.staging.supkeys.com` | Vercel Production (`production`) → `www.rothern.com`, `admin.rothern.com` |
-| Veritabanı + Auth | Supabase `rothern-staging` (Free) | Supabase canlı (Pro) |
+| Veritabanı + Auth | Supabase `rothern-staging` (Pro, aynı kuruluş) | Supabase canlı (Pro) |
 | Dosya | R2 `rothern-staging` → `cdn.staging.supkeys.com` | R2 canlı → `cdn.rothern.com` |
 | E-posta | Resend, `staging@supkeys.com` (ayrı gönderen alan adı) | Resend, canlı gönderen |
 | Çerez alanı | `.staging.supkeys.com` (ayrı kayıtlı alan adı — canlı çerezleri gelmez) | `.rothern.com` |
+
+> **STAGING DA PRO'DA KALIR (2026-09-16, kullanıcı kararı "bir daha taşıttırma").**
+> Supabase planı KURULUŞ başınadır; canlı Pro'ya geçince aynı kuruluştaki
+> staging de Pro oldu. İkinci projenin ek işlem ücreti küçük bulundu; ücretsiz
+> ayrı kuruluşa taşıma ÖNERİLMEYECEK. Yan fayda: staging kullanılmadığında
+> duraklatılmıyor (gece e2e koşumu kesilmez).
 
 Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.prod.local`'da
 (gitignore'lu) yalnız onaylı migration için kullanılır.
