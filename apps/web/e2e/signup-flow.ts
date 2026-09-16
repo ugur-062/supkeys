@@ -109,7 +109,12 @@ export async function onboarding(page: Page, firmaUnvani: string): Promise<void>
   const kategoriAra = page.getByPlaceholder(/Kategori ara/);
   await expect(kategoriAra).toBeVisible({ timeout: 15_000 });
   await kategoriAra.fill("Makine");
-  await page.getByRole("dialog").locator("button").filter({ hasText: /Makine|makine/ }).first().click();
+  // Sonuçlar ağaç olarak açılır; SEÇİM yaprak satırının onay kutusuyla yapılır
+  // (metne tıklamak seçmez, "Onayla" pasif kalır — 2026-09-16 ekran görüntüsü).
+  const ilkKutu = page.getByRole("dialog").getByRole("checkbox").first();
+  await expect(ilkKutu).toBeVisible({ timeout: 15_000 });
+  await ilkKutu.click();
+  await expect(page.getByRole("button", { name: /^Onayla/ })).toBeEnabled({ timeout: 10_000 });
   await page.getByRole("button", { name: /^Onayla/ }).click();
   await page.getByRole("button", { name: "Devam" }).click();
 
