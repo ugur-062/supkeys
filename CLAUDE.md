@@ -1030,6 +1030,16 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
   günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
   yükseltirse üçünü BİRLİKTE taşı.
+- **VERCEL PRO (2026-09-16):** takım `rothern` Pro'ya geçti (Hobby ticari
+  kullanıma kapalıydı ve SLA yoktu). Açılan ayar: **sapma koruması 12 saat** —
+  kullanıcı eski sekmeyle dolaşırken yeni sürüm yayınlanınca eski varlıklar
+  12 saat daha servis edilir (aksi hâlde "chunk yüklenemedi" hatası).
+- **VERCEL FONKSİYON BÖLGESİ `fra1` (2026-09-16):** web ve admin sunucu
+  fonksiyonları `iad1`de (Washington) koşuyordu; API (Render Frankfurt) ve
+  veritabanı (Supabase eu-central-1) Avrupa'da → her SSR isteği okyanusu
+  geçiyordu. Bölge `apps/*/vercel.json` `regions` ile KODA bağlandı (proje
+  ayarından değil: ayar panelde sessizce değişebilir, dosya incelenebilir).
+  Doğrulama: yanıt `x-vercel-id` başlığı `fra1::fra1::…`.
 - **`NEXT_PUBLIC_CDN_URL` Vercel'de TANIMLI (2026-09-16):** production
   `cdn.rothern.com`, preview `cdn.staging.supkeys.com`. `next/image`
   `remotePatterns`ı bu değerden türetiyor; tanımsızken CDN'den gelen görseller
@@ -1209,8 +1219,12 @@ aranabilir. Doğrulandı: staging ve canlı, web ve admin.
 Dört değişken de web ve admin projelerinde HEM production HEM preview'da tanımlı
 (2026-09-16 doğrulandı).
 
-⏳ Bekleyen: Sentry uyarı kuralı (olay toplanıyor ama kimseye haber gitmiyor),
-log drain. **Gecelik e2e ve canlı sağlık denetimi artık kırmızıya düşünce depoda
+**SENTRY UYARI KURALLARI KURULDU (2026-09-16):** üç projede "yeni hata" →
+takım e-postası; web ve api'de ayrıca "bir saatte 50+ olay" kuralı (tekrar
+aralığı 30 dk). NOT: her projede Sentry'nin hazır "high priority issues" kuralı
+da duruyor → yeni ve öncelikli bir hatada İKİ e-posta gelebilir.
+
+⏳ Bekleyen: log drain. **Gecelik e2e ve canlı sağlık denetimi artık kırmızıya düşünce depoda
 KONU AÇIYOR** (aynı başlıkta açık konu varsa yorum ekler — her gece yeni konu
 gürültü olurdu). `audit_logs` doldurma DOĞRULANDI (staging 3.539 kayıt; giriş,
 ürün güncelleme, adres oluşturma izleri yazılıyor).
