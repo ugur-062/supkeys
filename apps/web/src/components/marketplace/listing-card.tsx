@@ -301,24 +301,11 @@ function PanelRow({
         ) : null}
 
         {d.metric || d.action || (d.expandable && !dense) ? (
+          /* ALT SATIR DÜZENİ (2026-09-17, kullanıcı kararı): "Kalemler" EN SOLDA,
+             "Teklif ver" EN SAĞDA ve daha büyük. Eskiden ikisi sağda yan yanaydı
+             ve eylem 11 px'ti — gözden kaçıyordu. Teklifim metriği ortada kalır. */
           <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
-            <span className="truncate">
-              {d.metric ? (
-                <>
-                  {d.metric.label}: <span className="font-semibold text-slate-800">{d.metric.value}</span>
-                </>
-              ) : null}
-            </span>
-            <span className="flex shrink-0 items-center gap-3">
-              {d.action ? (
-                <Link
-                  href={d.action.href}
-                  onClick={stop}
-                  className={cn("font-semibold text-emerald-700 hover:underline", ROW_FOCUS)}
-                >
-                  {d.action.label}
-                </Link>
-              ) : null}
+            <span className="flex min-w-0 items-center gap-4">
               {d.expandable && !dense ? (
                 <button
                   type="button"
@@ -329,7 +316,7 @@ function PanelRow({
                   aria-expanded={expanded}
                   aria-controls={d.expandable.id}
                   className={cn(
-                    "inline-flex items-center gap-0.5 rounded font-medium text-slate-500 hover:text-slate-900",
+                    "inline-flex shrink-0 items-center gap-0.5 rounded font-medium text-slate-500 hover:text-slate-900",
                     ROW_FOCUS,
                   )}
                 >
@@ -340,7 +327,24 @@ function PanelRow({
                   />
                 </button>
               ) : null}
+              {d.metric ? (
+                <span className="truncate">
+                  {d.metric.label}: <span className="font-semibold text-slate-800">{d.metric.value}</span>
+                </span>
+              ) : null}
             </span>
+            {d.action ? (
+              <Link
+                href={d.action.href}
+                onClick={stop}
+                className={cn(
+                  "shrink-0 text-sm font-semibold text-emerald-700 hover:underline",
+                  ROW_FOCUS,
+                )}
+              >
+                {d.action.label}
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </div>

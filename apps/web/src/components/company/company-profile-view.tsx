@@ -130,7 +130,6 @@ export interface ProfileEditSlots {
   stats?: ReactNode;
   about?: ReactNode;
   services?: ReactNode;
-  certifications?: ReactNode;
   /**
    * Firma türü + faaliyet kategorileri düzenleyicisi (Profilim, 2026-09-03).
    * Herkese açık görünümde karşılığı hero'daki faaliyet rozetleri; kategori
@@ -190,8 +189,6 @@ export function CompanyProfileView({
   layout?: "columns" | "stacked";
 }) {
   const services = p.services ?? [];
-  const certifications = p.certifications ?? [];
-  const certificateImages = p.certificateImages ?? [];
   const location = [p.city, p.country].filter(Boolean).join(", ");
 
   return (
@@ -395,46 +392,9 @@ export function CompanyProfileView({
             </section>
           ) : null}
 
-          {edit?.certifications ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Sertifikalar</h2>
-              <div className="mt-3">{edit.certifications}</div>
-            </section>
-          ) : certifications.length > 0 || certificateImages.length > 0 ? (
-            <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Sertifikalar</h2>
-              {certifications.length > 0 ? (
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {certifications.map((c) => (
-                    <li
-                      key={c}
-                      className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm text-zinc-700"
-                    >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950 text-xs text-white">
-                        ✓
-                      </span>
-                      {c}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {certificateImages.length > 0 ? (
-                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                  {certificateImages.map((src, i) => (
-                    <a key={src} href={src} target="_blank" rel="noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt={`Sertifika ${i + 1}`}
-                        loading="lazy"
-                        className="aspect-square w-full rounded-lg object-cover ring-1 ring-zinc-950/5 transition hover:opacity-90"
-                      />
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
+          {/* SERTİFİKALAR BÖLÜMÜ KALDIRILDI (2026-09-17, kullanıcı kararı). Veri
+              kolonları (`certifications`, `certificateImages`) duruyor; profil
+              ne gösterir ne düzenletir. */}
 
           {/* Ticari sicil bilgileri — kamuya açık tüzel kişi verileri; güven
               göstergesi (IBAN/TCKN gibi hassas veriler burada ASLA yer almaz). */}

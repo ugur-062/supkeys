@@ -151,8 +151,6 @@ export function ProfileEditor({
         employeeCount: draft.employeeCount,
         foundedYear: year ? Number(year) : undefined,
         services: draft.services,
-        certifications: draft.certifications,
-        certificateImages: draft.certificateImages,
       });
       // Başarıda taslak = kayıtlı (çubuk hemen kapanır; refetch gelince de aynı kalır).
       setSaved(draft);
@@ -191,8 +189,6 @@ export function ProfileEditor({
     coverImageUrl: draft.coverImageUrl || null,
     aboutText: draft.aboutText || null,
     services: draft.services,
-    certifications: draft.certifications,
-    certificateImages: draft.certificateImages,
     foundedYear: draft.foundedYear ? Number(draft.foundedYear) : null,
     employeeCount: draft.employeeCount || null,
     website: draft.website || null,
@@ -368,25 +364,6 @@ export function ProfileEditor({
         empty="Henüz hizmet eklenmedi — ne yaptığınızı yazın."
         onChange={(services) => set({ services })}
       />
-    ),
-    certifications: (
-      <div className="space-y-4">
-        <ChipEditor
-          ariaLabel="Sertifika"
-          values={draft.certifications}
-          placeholder="Sertifika ekle (ör. ISO 9001), Enter'a bas"
-          empty="Henüz sertifika eklenmedi."
-          onChange={(certifications) => set({ certifications })}
-          variant="list"
-        />
-        <GalleryEditor
-          label="Sertifika görselleri"
-          kind="gallery"
-          values={draft.certificateImages}
-          onChange={(certificateImages) => set({ certificateImages })}
-          tile="square"
-        />
-      </div>
     ),
     // Galeri/Fotoğraflar slotu KALDIRILDI (2026-09-10, kullanıcı kararı).
   };
