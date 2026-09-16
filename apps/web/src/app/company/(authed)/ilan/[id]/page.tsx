@@ -2132,7 +2132,10 @@ export default function ListingDetailPage() {
             genel bilgi tek akış) ve "Dosyalar (N)". Teklif CTA'sı yapışkan
             çubukta / başlık kartında, burada tekrar edilmez. */}
         <section className="space-y-3" aria-label="Teklifim">
-          <Subheading>Teklifim</Subheading>
+          {/* Başlık yalnız teklif VARKEN — teklifsizken altında kutu olmayan
+              yalnız bir başlık kalıyordu (staging'de görüldü); uyarı/kapalı
+              zarf notları başlıksız da anlaşılır. */}
+          {l.myBid ? <Subheading>Teklifim</Subheading> : null}
           <MyBidStatusPanel l={l} />
           {sellerBidSection}
         </section>

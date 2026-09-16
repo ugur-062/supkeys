@@ -3,6 +3,7 @@
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
+import { useButtonAccent } from "@/components/ui/button-accent";
 import { tierAtLeast } from "@rothern/shared";
 import {
   Dialog,
@@ -37,6 +38,7 @@ const GREET_HIDE_MS = 6_000;
  * güvenlik backend'de — bu UX katmanı). Panel açık değilken içerik mount edilmez.
  */
 export function AssistantLauncher() {
+  const accent = useButtonAccent();
   const { user, company } = useCompanyAuth();
   const [open, setOpen] = useState(false);
   // §4.4: genişletme seçeneği — dar sohbet / geniş okuma.
@@ -121,7 +123,14 @@ export function AssistantLauncher() {
         onClick={openPanel}
         className={cn(
           "group fixed z-40 flex items-center justify-center rounded-full",
-          "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-white/20",
+          // Portal rengi (2026-09-17): siyah yuvarlak düğme istenmiyor —
+          // satınalmada mavi, satışta emerald (ButtonAccent ile aynı kaynak).
+          accent === "blue"
+            ? "bg-gradient-to-br from-blue-500 to-blue-700"
+            : accent === "emerald"
+              ? "bg-gradient-to-br from-emerald-500 to-emerald-700"
+              : "bg-gradient-to-br from-brand-500 to-brand-700",
+          "text-white shadow-lg ring-1 ring-white/20",
           "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl",
           // Faz 8.2: scroll'da küçülüp köşeye yaklaşır — tablo son kolonunu
           // daha az kapatır (içerikte pb-24 nefes payı zaten var). B3: küçük
@@ -138,7 +147,13 @@ export function AssistantLauncher() {
       >
         {/* Nefes alan halka — buton kapalıyken sürekli, dikkat çekmeden */}
         {!open ? (
-          <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 animate-ping rounded-full bg-brand-500/40 [animation-duration:2.5s]" />
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 -z-10 animate-ping rounded-full [animation-duration:2.5s]",
+              accent === "blue" ? "bg-blue-500/40" : accent === "emerald" ? "bg-emerald-500/40" : "bg-brand-500/40",
+            )}
+          />
         ) : null}
         <Sparkles
           className={cn(
