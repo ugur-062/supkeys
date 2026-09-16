@@ -81,7 +81,7 @@ describe("IhaleListRow", () => {
     expect(onFav).toHaveBeenCalledWith("l55");
     expect(h.push).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Kalemler" }));
+    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
     expect(screen.getByTestId("items-panel")).toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
 

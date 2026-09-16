@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * TALEP SATIRI ALT ÇİZGİSİ (2026-09-17, kullanıcı kararı): "Kalemler" EN
- * SOLDA, "Teklif ver" EN SAĞDA ve daha büyük (text-sm). DOM sırası = görsel
- * sıra (flex, justify-between); Teklifim metriği ortada.
+ * TALEP SATIRI ALT ÇİZGİSİ (2026-09-17, kullanıcı kararı): kalem oku EN SOLDA
+ * (yazısız — yalnız aşağı ok, erişilebilir adı "Kalemleri göster"), "Teklif
+ * ver" EN SAĞDA ve daha büyük (text-sm). DOM sırası = görsel sıra (flex,
+ * justify-between); Teklifim metriği ortada.
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -29,9 +30,12 @@ const data: ListingCardData = {
 };
 
 describe("ListingCard row — alt satır düzeni", () => {
-  it("Kalemler solda, Teklifim ortada, Teklif ver en sağda ve büyük", () => {
+  it("kalem oku solda, Teklifim ortada, Teklif ver en sağda ve büyük", () => {
     render(<ListingCard variant="row" data={data} />);
-    const kalemler = screen.getByRole("button", { name: "Kalemler" });
+    const kalemler = screen.getByRole("button", { name: "Kalemleri göster" });
+    // Yazı yok, yalnız ok: düğmenin görünür metni boş.
+    expect(kalemler.textContent).toBe("");
+    expect(kalemler.querySelector("svg")?.getAttribute("class")).toMatch(/\bsize-5\b/);
     const teklif = screen.getByRole("link", { name: "Teklif ver" });
     const metrik = screen.getByText(/Teklifim:/);
     // DOM sırası: Kalemler → Teklifim → Teklif ver
@@ -42,9 +46,9 @@ describe("ListingCard row — alt satır düzeni", () => {
     expect(teklif.className).toMatch(/font-semibold/);
   });
 
-  it("eylem yoksa Kalemler yine solda kalır", () => {
+  it("eylem yoksa kalem oku yine durur", () => {
     render(<ListingCard variant="row" data={{ ...data, action: null, metric: null }} />);
-    expect(screen.getByRole("button", { name: "Kalemler" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kalemleri göster" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Teklif ver" })).toBeNull();
   });
 });

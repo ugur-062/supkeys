@@ -428,8 +428,10 @@ yok; `Company.certifications`/`certificateImages` kolonları duruyor (migration
 yok), kayıt gövdesi göndermez. Pazar yeri kartlarındaki sertifika çipleri
 DOKUNULMADI (ayrı yüzey).
 **Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
-alt satırında "Kalemler" düğmesi EN SOLDA, "Teklif ver" EN SAĞDA ve `text-sm`
-(eskiden ikisi sağda yan yana, 11 px); Teklifim metriği ortada.
+alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
+(`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
+"Teklif ver" EN SAĞDA ve `text-sm` (eskiden "Kalemler ⌄" ve eylem sağda yan
+yana, 11 px); Teklifim metriği ortada.
 **Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
 `CompanyProfileView layout="stacked"` — tek sütun, yerinde düzenleme), SAĞDA
 yapışkan ray (`Profil durumu` %tamam + eksikler + "alıcıların sizi bulması

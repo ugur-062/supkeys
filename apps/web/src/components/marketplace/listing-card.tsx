@@ -301,7 +301,7 @@ function PanelRow({
         ) : null}
 
         {d.metric || d.action || (d.expandable && !dense) ? (
-          /* ALT SATIR DÜZENİ (2026-09-17, kullanıcı kararı): "Kalemler" EN SOLDA,
+          /* ALT SATIR DÜZENİ (2026-09-17, kullanıcı kararı): kalem oku EN SOLDA,
              "Teklif ver" EN SAĞDA ve daha büyük. Eskiden ikisi sağda yan yanaydı
              ve eylem 11 px'ti — gözden kaçıyordu. Teklifim metriği ortada kalır. */
           <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
@@ -315,15 +315,20 @@ function PanelRow({
                   }}
                   aria-expanded={expanded}
                   aria-controls={d.expandable.id}
+                  aria-label={expanded ? "Kalemleri gizle" : "Kalemleri göster"}
+                  title={expanded ? "Kalemleri gizle" : "Kalemleri göster"}
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-0.5 rounded font-medium text-slate-500 hover:text-slate-900",
+                    /* Yalnız ok (2026-09-17, kullanıcı kararı): "Kalemler" yazısı
+                       yok; ok bir tık büyük ve belirgin (size-5, koyu gri,
+                       hover'da açık zemin), abartısız. */
+                    "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                     ROW_FOCUS,
                   )}
                 >
-                  Kalemler
                   <ChevronDownIcon
                     aria-hidden
-                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                    strokeWidth={2.25}
+                    className={cn("size-5 transition-transform", expanded && "rotate-180")}
                   />
                 </button>
               ) : null}
