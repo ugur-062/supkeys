@@ -1196,8 +1196,18 @@ bulamıyor. Gönderen: canlı `notification@rothern.com`, staging
 `staging@supkeys.com`. DNS: iki bölgede de DMARC (`p=none`) ve geniş CAA seti
 (Cloudflare yönetimli; issue + issuewild) var.
 
-⏳ Bekleyen: alert webhook, audit_logs populate, log drain, Sentry kaynak
-haritaları (Vercel'de `SENTRY_AUTH_TOKEN` yok → yığın izleri sıkıştırılmış).
+**SENTRY KAYNAK HARİTALARI YÜKLENİYOR (2026-09-16).** Vercel'de `SENTRY_AUTH_TOKEN`
+(gizli, kullanıcı girdi) + `SENTRY_ORG=rothern` + `SENTRY_PROJECT=rothern-web|
+rothern-admin` + **`SENTRY_URL=https://de.sentry.io`** (kuruluş EU bölgesinde —
+bu değişken olmadan yükleyici yanlış bölgeye gider). İKİ TUZAK birlikte
+yaşandı: (a) pnpm 10 `@sentry/cli`nin kurulum betiğini ATLIYOR → yükleyici
+binary hiç inmiyor; kök `package.json` `pnpm.onlyBuiltDependencies`e eklendi.
+(b) eklenti `silent: true` idi → yükleme hiç olmasa da derleme YEŞİL görünüyordu;
+kapatıldı, artık günlükte "Uploaded files to Sentry" + `Release: <commit>` satırı
+aranabilir. Doğrulandı: staging ve canlı, web ve admin.
+
+⏳ Bekleyen: alert webhook, audit_logs populate, log drain, admin projesinin
+PREVIEW ortamında `SENTRY_AUTH_TOKEN` (yalnız production'da tanımlı).
 (2026-09-16 doğrulandı: Vercel'de `SENTRY_DSN` + `SENTRY_ENVIRONMENT` web ve
 admin için HEM production HEM preview'da TANIMLI — eski "yok" notu geçersiz.)
 
