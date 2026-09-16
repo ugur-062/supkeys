@@ -40,8 +40,13 @@ rol RLS'i bypass eder, yani bugün açsak bile hiçbir şey değişmez.
 2. **Bağlantı dizesi değişir:** Render `rothern-api` → `DATABASE_URL` kullanıcı
    adı `postgres` yerine `rothern_app`. `DIRECT_URL` (migration) SAHİP kalır —
    migration'lar RLS'e takılmamalı.
-3. **`RLS_ENABLED=true`** Render'da set edilir.
-4. Sıra: **önce staging**, bir tam gün gözlem, sonra canlı.
+3. **`DATABASE_URL_BYPASS`** Render'da SAHİP rolle (postgres, pooler 6543,
+   `pgbouncer=true`) set edilir. ⚠️ 2026-09-16'da ATLANDI: bypass client bu
+   değişken yoksa ana `DATABASE_URL`e düşer → ana URL kısıtlı role geçince
+   bypass da kısıtlı oldu, keşif ve herkese açık pazar yeri BOŞ döndü. Bu
+   değişken olmadan RLS açılmaz.
+4. **`RLS_ENABLED=true`** Render'da set edilir.
+5. Sıra: **önce staging**, staging e2e suite RLS AÇIKKEN yeşil, sonra canlı.
 
 **Doğrulama**
 - `rls-isolation.spec` kısıtlı rolle yeşil (CI).
