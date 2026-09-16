@@ -90,11 +90,23 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
    * 11 ürün biriktirir ve bir sonraki tur ilk yayında tavana toslar.
    */
   const admin = await adminApiSession();
-  const listele = async () => {
-    const body = (await apiGet(free, "/company/items?limit=200")).body as
-      | { items?: Array<{ id: string; name: string; isPublic: boolean; reviewStatus: string }> }
-      | Array<{ id: string; name: string; isPublic: boolean; reviewStatus: string }>;
-    return Array.isArray(body) ? body : (body.items ?? []);
+  /**
+   * SAYFALI OKUMA (2026-09-16): liste ucu `take`/`skip` alır ve sayfa başına
+   * 50 ile sınırlı; eski `limit=200` yok sayılıyordu → temizlik 50'den sonraki
+   * bekleyen ürünü göremiyor, tavan yarıştan ÖNCE doluyor ve iki istek de 403
+   * alıyordu (RLS turunda yakalandı; korumayla ilgisi yok).
+   */
+  type Kalem = { id: string; name: string; isPublic: boolean; reviewStatus: string };
+  const listele = async (): Promise<Kalem[]> => {
+    const hepsi: Kalem[] = [];
+    for (let skip = 0; ; skip += 50) {
+      const body = (await apiGet(free, `/company/items?take=50&skip=${skip}`)).body as
+        | { items?: Kalem[] }
+        | Kalem[];
+      const sayfa = Array.isArray(body) ? body : (body.items ?? []);
+      hepsi.push(...sayfa);
+      if (sayfa.length < 50) return hepsi;
+    }
   };
   /**
    * TEMİZLİK E-POSTA ÜRETİR: "düzeltmeye gönder" kararı firmaya bildirim

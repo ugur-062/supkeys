@@ -23,6 +23,17 @@
 > `rothern_app`, `RLS_ENABLED=true`; ardından staging e2e suite'i (87 test)
 > RLS AÇIKKEN koşulur — kıstas budur, tek tek elle kontrol değil. Canlı adımı
 > ancak o koşum yeşilse.
+>
+> **SONUÇ (2026-09-16 gece): STAGING E2E RLS AÇIKKEN YEŞİL.** Tam koşum 91
+> test: 85 geçti, 6 düştü; altısının ikisi canlı spec'leri (artık paket dışı),
+> üçü bayat test (kategori seçici metni, ürün tavanı sabiti, liste sayfalama),
+> biri GERÇEK RLS bulgusu (firma dizini ürün sayısı → bypass'a alındı).
+> Düzeltmeler sonrası dört dosya tek tek yeniden koşuldu, hepsi geçti.
+> **Canlı adımları:** (1) `rothern_app` rolü SQL Editor'den (parola AYRI
+> üretilir), (2) Render `rothern-api`: `DATABASE_URL` → rothern_app,
+> `DATABASE_URL_BYPASS` → sahip rol/6543, `RLS_ENABLED=true`, (3) duman:
+> keşif + dizin + pazar yeri + giriş; geri dönüş `RLS_ENABLED=false` +
+> `DATABASE_URL` sahip role.
 
 **Neden:** bugün kiracı ayrımı yalnız servis katmanında. Bir sorguda `tenantId`
 süzgeci unutulursa başka firmanın verisi döner. RLS bunu veritabanı seviyesinde
