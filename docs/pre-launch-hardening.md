@@ -58,6 +58,11 @@ tek adım: `RLS_ENABLED=false` (uzantı passthrough'a döner) ve gerekirse
 
 **Doğrulama:** staging API sağlık ucu `database: up`, bir giriş + bir mutasyon.
 
+> **DURUM 2026-09-16: STAGING'DE AÇIK VE DOĞRULANDI** (sağlık `database: up`,
+> giriş 200, yetkili mutasyon 400 = guard geçti). **CANLIDA KESİNTİ YARATIR:**
+> Supabase ayarı veritabanını YENİDEN BAŞLATIYOR (birkaç dakika). Canlıda
+> müşteri trafiği yokken yapılmalı.
+
 ## Faz 3 — Yedek ve kurtarma
 
 **Adımlar**
@@ -67,8 +72,15 @@ tek adım: `RLS_ENABLED=false` (uzantı passthrough'a döner) ve gerekirse
 3. **Geri yükleme tatbikatı:** günlük yedek YENİ bir projeye geri yüklenir,
    firma/kullanıcı sayısı karşılaştırılır, proje aynı gün silinir. Canlının
    ÜSTÜNE asla geri yükleme yapılmaz.
-4. **R2 nesne sürümleme** `rothern-public` kovasında açılır — Supabase yedeği
-   dosyaları KAPSAMAZ.
+4. **Yüklenen dosyaların yedeği.** ⚠️ 2026-09-16: **R2'de nesne sürümleme
+   ÖZELLİĞİ YOK** (panelde General/Custom Domains/CORS/Lifecycle/Bucket Lock…
+   var, versioning yok) — plandaki bu madde OLDUĞU GİBİ UYGULANAMAZ. Üç seçenek:
+   (a) ikinci bir kovaya düzenli sunucu-taraflı kopya (S3 SDK ile script; en
+   esnek, silme/üzerine yazmaya karşı korur), (b) Bucket Lock ile saklama
+   kuralı (silmeyi ENGELLER — ürün vitrinden çekilince görsel silinemez hâle
+   gelebilir, önce silme yollarını gözden geçirmek gerekir), (c) kabul et:
+   görseller firma tarafından yeniden yüklenebilir ve DB'deki adres kayıtları
+   yedekte. Öneri: (a).
 
 **Doğrulama:** tatbikat projesinde `SELECT count(*)` değerleri canlıyla aynı;
 R2'de bir nesnenin önceki sürümü listelenebiliyor.
