@@ -1,15 +1,13 @@
-import { ReportsRoleGate } from "@/components/company/reports-role-gate";
-import { PremiumOnly } from "@/components/company-shell/premium-only";
-
-/** Raporlar: Gold paket (satınalma paneli) (menüdeki kilit ile aynı) + "Satınalma raporları" tiki. */
-export default function SatinalmaRaporlarLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <PremiumOnly minTier="GOLD">
-      <ReportsRoleGate portal="satinalma">{children}</ReportsRoleGate>
-    </PremiumOnly>
-  );
+/**
+ * Raporlar kökü ARTIK KAPI TAŞIMAZ (2026-09-17, kullanıcı kararı: "genel bakış
+ * ve raporlar satınalma/satışa göre değişmeli, biri diğerini görmemeli").
+ *
+ * Eskiden bu düzen Gold + "Satınalma raporları" kapısını BÜTÜN alt sayfalara
+ * uyguluyordu — oysa İş Analizi SATIŞ tarafının raporu (Silver+, "Ziyaret
+ * edenler ve iş analizi" izni). Satış kullanıcısı kendi raporuna giremiyor,
+ * satınalma raporu yetkisi olan ise satış raporunu görüyordu. Kapılar artık
+ * her rapor türünün KENDİ düzeninde; hub yalnız yetkili olduğun kartları çizer.
+ */
+export default function RaporlarLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

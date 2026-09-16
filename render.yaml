@@ -50,6 +50,10 @@ services:
         sync: false
       - key: DIRECT_URL # session pooler (5432) — prisma migrate için
         sync: false
+      - key: DATABASE_URL_BYPASS # sahip rol, transaction pooler (6543) — RLS bypass client
+        sync: false
+      - key: RLS_ENABLED # "true" → ana client kısıtlı rolle RLS altında (2026-09-17 canlıda açık)
+        value: "true"
       # ── Kimlik / JWT ──
       - key: JWT_SECRET # güçlü rastgele sır (min 32 karakter)
         sync: false
