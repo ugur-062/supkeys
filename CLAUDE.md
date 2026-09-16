@@ -1024,11 +1024,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
-- **Node sürümü AYRIŞIK (2026-09-16 ölçüldü):** Vercel iki projede de **24.x**
-  ile derliyor, CI iş akışları **22** kullanıyor, kök `package.json` `>=20`
-  diyor. Bugün üçü de yeşil; yine de bir gün "yerelde/CI'da geçti, Vercel'de
-  patladı" yaşanırsa ilk bakılacak yer burası. Hizalamak isteyen Vercel proje
-  ayarındaki Node sürümünü 22'ye çeker.
+- **Node HER YERDE 22 (2026-09-16 hizalandı):** Vercel iki projeyi de 24.x ile
+  derliyordu; API Docker imajı, CI iş akışları ve yerel geliştirme 22'deydi.
+  Vercel proje ayarı 22.x'e çekildi ve canlı web + admin o sürümle YENİDEN
+  DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
+  günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
+  yükseltirse üçünü BİRLİKTE taşı.
 - **`NEXT_PUBLIC_CDN_URL` Vercel'de TANIMLI (2026-09-16):** production
   `cdn.rothern.com`, preview `cdn.staging.supkeys.com`. `next/image`
   `remotePatterns`ı bu değerden türetiyor; tanımsızken CDN'den gelen görseller
