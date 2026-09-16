@@ -104,3 +104,34 @@ R2'de bir nesnenin önceki sürümü listelenebiliyor.
 | İlk gerçek müşteriden ÖNCE | Faz 3.1-3.2 (Small + PITR) · Faz 3.4 R2 sürümleme |
 | İlk haftada | Faz 3.3 tatbikat · Faz 4.2-4.4 |
 | Şüpheliyse atla | Faz 2.2 IP kısıtlaması |
+
+## Faz 5 — 2026-09-16 panel denetiminde çıkan AÇIKLAR
+
+> Hepsi panelden yapılır (kod değişikliği yok). Sıra: yayını doğrudan etkileyen
+> üçü önce.
+
+1. **Canlı API Render FREE planda.** `render.yaml` `plan: starter` diyor,
+   dashboard Free gösteriyor: boşta uyur → ilk istek 30-60 sn, bellek/CPU
+   grafiği yok, 512 MB sınır. Müşteri gelmeden Starter'a çıkılmalı.
+   ⚠️ Ödeme yöntemi panelden kaldırılmış; yeni kart **1 Ekim 2026**'dan önce
+   eklenemiyor → yükseltme o tarihe bağlı, yayın planı bunu hesaba katmalı.
+2. **Vercel HOBBY planda.** Ticari kullanım Hobby şartlarına aykırı ve SLA yok;
+   fonksiyon çağrısı 201K/1M (%20) — bir kampanya günü tavanı görebilir.
+   Yayın öncesi Pro'ya geçilmeli.
+3. **Canlı `JWT_EXPIRES_IN=1h`** (staging 7d). Çerez ömrü jetondan türediği
+   için "beni hatırla" işaretleyen kullanıcı 1 saat işlem yapmazsa girişe
+   düşer. Tasarım 7 gün; canlıda `7d` yapılmalı.
+4. **Sentry canlı API kapsamı şüpheli.** `rothern-api` projesinde `production`
+   ortamı hiç yok; canlı API hataları büyük olasılıkla `node-nestjs` projesine
+   düşüyor → dün kurulan uyarı kuralları canlı API'yi KAPSAMIYOR olabilir.
+   Yapılacak: Render canlıda `SENTRY_ENVIRONMENT=production` set et, hangi
+   projeye düştüğünü bir test hatasıyla doğrula, gerekiyorsa aynı iki kuralı o
+   projede de kur (ya da DSN'i `rothern-api` projesine çevir).
+5. **Sentry gizlilik:** "Scrub IP Addresses" kurumda ve üç projede KAPALI;
+   kurum düzeyinde "Data Scrubber" da kapalı (projelerde açık). KVKK açısından
+   IP maskeleme açılmalı.
+6. **Staging e-posta sınırı 2/saat** (canlı 30/saat). Kayıt ve parola sıfırlama
+   testleri bu sınıra takılır; staging'de 30/saat yapılmalı.
+7. **Supabase oturum ayarları:** JWT 1 saat, refresh dönüşü açık, inactivity
+   timeout yok. Bizim oturumumuz kendi JWT'mizle yürüdüğü için kritik değil;
+   yine de canlıda "tek oturum" ve timeout politikası bilinçli seçilmeli.
