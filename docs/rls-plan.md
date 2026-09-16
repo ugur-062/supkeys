@@ -45,6 +45,12 @@ toplamı = 27 kesin.) Kalan tek iş = PROD AKTİVASYON.
   kullanır (`CompanyItemsService.crossTenant`, `CompanyViewsService`,
   `SearchIntentService`; hepsi `@Optional()` SONDA → rig'ler kırılmaz). Görünürlük
   kapısı yine `publicProductWhere`. Sözleşme: `test/unit/rls-cross-tenant-reads.spec`.
+  Aynı gün ikinci bulgu (staging e2e, satış anasayfası "Firma" pili): panel
+  firma dizini `buildDirectory(this.prisma…)` ile BAŞKA firmaların ürün sayısını
+  (`_count.items`) kısıtlı client'tan okuyordu → sayı 0, kart "Portföyü
+  görüntüle"yi çizmiyordu. `company-connections.service` dizin ve facet
+  çağrıları bypass'a alındı. Ders: ilişki sayımları (`_count`) da RLS'e tabidir —
+  ana kayıt permissive olsa bile ÇOCUK tablo kısıtlıysa sayı 0 gelir.
   Kural: **yeni bir çapraz-firma okuma yolu eklerken bypass client kullan** —
   aksi hâlde RLS açık ortamda sessizce boş döner.
 - **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —

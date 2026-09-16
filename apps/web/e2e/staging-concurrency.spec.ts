@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { PRODUCT_LIMITS } from "@rothern/shared";
 import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow } from "./staging-helpers";
 
 /**
@@ -74,7 +75,9 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
   test.setTimeout(420_000);
   const stamp = Date.now().toString(36).toUpperCase();
   const free = await apiSession(QA.ucretsizKurucu);
-  const LIMIT = 10;
+  // Tavan TEK KAYNAKTAN: 10 sabitti, ücretsiz tavan 2026-09-14'te 50 oldu ve
+  // test "11 ürün yayında" diye kırmızıya düştü (RLS turunda fark edildi).
+  const LIMIT = PRODUCT_LIMITS.STANDART ?? 50;
 
   /**
    * Kuyruğu boşalt — İKİ engel var, ikisi de ürünün kendi kuralı:

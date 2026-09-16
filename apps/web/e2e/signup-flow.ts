@@ -101,9 +101,14 @@ export async function onboarding(page: Page, firmaUnvani: string): Promise<void>
   await expect(page.getByText("Kişisel Bilgiler")).toBeVisible({ timeout: 30_000 });
   const tckn = page.getByLabel(/T\.C\. Kimlik No|Yetkili Kimlik No/);
   if ((await tckn.count()) > 0) await tckn.first().fill(gecerliTckn());
-  await page.getByText("Sektör seçmek için tıklayın").click();
-  await expect(page.getByPlaceholder("Kategori ara...")).toBeVisible({ timeout: 15_000 });
-  await page.getByPlaceholder("Kategori ara...").fill("Makine");
+  // KATEGORİ SEÇİCİ TEK SORU SORAR (2026-09-14): eski "Sektör seçmek için
+  // tıklayın" (L1 modalı) kalktı; boş durumda "Ürün / hizmet seçin" düğmesi
+  // CategorySelectorModal'ı açar. Bu yardımcı 2026-09-16 RLS turunda eski
+  // metinle kırıldı (staging-signup + prod-journey aynı yardımcıyı kullanır).
+  await page.getByRole("button", { name: /Ürün \/ hizmet (seçin|ekle)/ }).first().click();
+  const kategoriAra = page.getByPlaceholder(/Kategori ara/);
+  await expect(kategoriAra).toBeVisible({ timeout: 15_000 });
+  await kategoriAra.fill("Makine");
   await page.getByRole("dialog").locator("button").filter({ hasText: /Makine|makine/ }).first().click();
   await page.getByRole("button", { name: /^Onayla/ }).click();
   await page.getByRole("button", { name: "Devam" }).click();
