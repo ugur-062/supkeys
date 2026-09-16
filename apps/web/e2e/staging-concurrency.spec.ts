@@ -124,7 +124,7 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
       categoryId: CATEGORY,
       description: "Ücretsiz paket ürün tavanı yarışını sınayan QA kaydı; en az yüz karakter olsun diye açıklama uzatıldı.",
       keywords: ["qa", "tavan"],
-      images: ["https://cdn.staging.rothern.com/qa/placeholder.png"],
+      images: ["https://cdn.staging.supkeys.com/qa/placeholder.png"],
       unit: "adet",
     });
     expect(p.status, JSON.stringify(p.body)).toBeLessThan(300);

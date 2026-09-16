@@ -17,6 +17,7 @@
     "create-test-company": "tsx prisma/scripts/create-test-company.ts",
     "seed-staging-roles": "tsx prisma/scripts/seed-staging-roles.ts",
     "seed-staging-demo": "tsx prisma/scripts/seed-staging-demo.ts",
+    "rewrite-image-host": "tsx prisma/scripts/rewrite-image-host.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "seed-category-attributes": "tsx prisma/scripts/seed-category-attributes.ts",
     "import-ariba-csv": "tsx prisma/scripts/import-ariba-csv.ts",

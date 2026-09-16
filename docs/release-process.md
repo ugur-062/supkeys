@@ -8,8 +8,8 @@
 | API | Render `api-staging` (Free) → `api.staging.supkeys.com` | Render `api` (Starter) → `api.rothern.com` |
 | Web / Admin | Vercel Preview (`main`) → `staging.supkeys.com`, `admin.staging.supkeys.com` | Vercel Production (`production`) → `www.rothern.com`, `admin.rothern.com` |
 | Veritabanı + Auth | Supabase `rothern-staging` (Free) | Supabase canlı (Pro) |
-| Dosya | R2 `rothern-staging` → `cdn.staging.rothern.com` | R2 canlı → `cdn.rothern.com` |
-| E-posta | Resend, `staging@rothern.com` | Resend, canlı gönderen |
+| Dosya | R2 `rothern-staging` → `cdn.staging.supkeys.com` | R2 canlı → `cdn.rothern.com` |
+| E-posta | Resend, `staging@supkeys.com` (ayrı gönderen alan adı) | Resend, canlı gönderen |
 | Çerez alanı | `.staging.supkeys.com` (ayrı kayıtlı alan adı — canlı çerezleri gelmez) | `.rothern.com` |
 
 Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.prod.local`'da
