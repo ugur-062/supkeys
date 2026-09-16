@@ -1030,6 +1030,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   DERLENİP doğrulandı (ayar değiştirip ilk deploy'u şansa bırakmak, hatayı
   günler sonra ve acil bir anda çıkarırdı). Bir platform Node'u zorla
   yükseltirse üçünü BİRLİKTE taşı.
+- **VERCEL FONKSİYON BÖLGESİ `fra1` (2026-09-16):** web ve admin sunucu
+  fonksiyonları `iad1`de (Washington) koşuyordu; API (Render Frankfurt) ve
+  veritabanı (Supabase eu-central-1) Avrupa'da → her SSR isteği okyanusu
+  geçiyordu. Bölge `apps/*/vercel.json` `regions` ile KODA bağlandı (proje
+  ayarından değil: ayar panelde sessizce değişebilir, dosya incelenebilir).
+  Doğrulama: yanıt `x-vercel-id` başlığı `fra1::fra1::…`.
 - **`NEXT_PUBLIC_CDN_URL` Vercel'de TANIMLI (2026-09-16):** production
   `cdn.rothern.com`, preview `cdn.staging.supkeys.com`. `next/image`
   `remotePatterns`ı bu değerden türetiyor; tanımsızken CDN'den gelen görseller
