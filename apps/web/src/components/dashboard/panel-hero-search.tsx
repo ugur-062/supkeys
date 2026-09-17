@@ -64,8 +64,11 @@ export type HeroObject = {
 };
 
 const OBJECT_POS: Record<HeroObject["at"], string> = {
-  bl: "left-2 -bottom-3 w-48",
-  br: "right-2 -bottom-3 w-48",
+  /* Koli sağ altta, referanstaki gibi büyük; arama kutusunun sağ ucunun
+     arkasından hafifçe görünür (kutu üstte). Sağ alt kart bu köşeye KONMAZ —
+     koliyi tamamen örtüyordu (staging'de görüldü). */
+  bl: "left-1 -bottom-6 w-56",
+  br: "right-1 -bottom-6 w-56",
 };
 
 export type HeroWidget = {
@@ -89,7 +92,7 @@ const WIDGET_POS: Record<HeroWidget["at"], string> = {
      (2xl'de ölçüldü). Üst kartlar başlık hizasında, geniş kalabilir. */
   tl: "left-2 top-8 w-60 -rotate-6",
   tr: "right-2 top-6 w-60 rotate-3",
-  bl: "left-1 bottom-8 w-52 rotate-2",
+  bl: "left-1 bottom-6 w-48 rotate-2",
   br: "right-1 bottom-8 w-52 -rotate-3",
 };
 
