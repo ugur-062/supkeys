@@ -19,6 +19,13 @@ import { downloadAiInputs } from "./download-ai-inputs";
 import { sanitizeAiDraft, type SanitizedDraft } from "./ai-draft-sanitizer";
 import { CategorySuggestService } from "./category-suggest.service";
 import {
+  TITLE_RESPONSE_SCHEMA,
+  TITLE_SYSTEM_PROMPT,
+  buildTitlePrompt,
+  sanitizeSuggestedTitle,
+  type TitleSuggestItem,
+} from "./title-suggest";
+import {
   EXTRACT_RESPONSE_SCHEMA,
   EXTRACT_SYSTEM_PROMPT,
   REFINE_SYSTEM_PROMPT,
@@ -235,6 +242,36 @@ export class TenderExtractService {
       downgraded: result.downgraded,
       warned: result.warned,
     };
+  }
+
+  /**
+   * Kalemlerden talep BAŞLIĞI (2026-09-17). Tek, ucuz model çağrısı; hata ya
+   * da boş çıktıda `{ title: null }` — form akışı bozulmaz (kalemlerden
+   * türetme yedeği istemcide).
+   */
+  async suggestTitle(
+    user: AuthenticatedCompanyUser,
+    items: TitleSuggestItem[],
+  ): Promise<{ title: string | null }> {
+    this.ai.assertAiAccess(user);
+    const named = items
+      .map((i) => ({ ...i, name: (i.name ?? "").trim().slice(0, 300) }))
+      .filter((i) => i.name.length >= 2);
+    if (named.length === 0) throw new BadRequestException("En az bir kalem adı gerekir");
+    try {
+      const result = await this.ai.callAi(user, {
+        feature: "tender_extract",
+        prompt: buildTitlePrompt(named),
+        system: TITLE_SYSTEM_PROMPT,
+        responseSchema: TITLE_RESPONSE_SCHEMA as unknown as object,
+        metadata: { route: "title-suggest" },
+      });
+      const parsed = this.tryParse(result.text);
+      return { title: sanitizeSuggestedTitle(parsed?.title) };
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      return { title: null };
+    }
   }
 
   private tryParse(text: string): Record<string, unknown> | null {

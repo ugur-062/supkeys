@@ -44,7 +44,7 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
       </div>
       <input value={line} onChange={(e) => setLine(e.target.value)} placeholder="Açık adres" aria-label="Açık adres" className={INPUT} />
       <div className="flex gap-2">
-        <button type="button" onClick={() => void submit()} disabled={save.isPending} className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+        <button type="button" onClick={() => void submit()} disabled={save.isPending} className="rounded-full bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
           Adresi kaydet
         </button>
         <button type="button" onClick={onCancel} className="rounded-full px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900">

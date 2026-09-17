@@ -138,7 +138,7 @@ export function TermsPanel({
           {source === "saved" ? "Kaynak: talep şartlarınız" : source === "last_listing" ? "Kaynak: son talebiniz" : "Kaynak: platform varsayılanı"}
         </span>
         {canSave ? (
-          <button type="button" onClick={onSaveDefaults} disabled={saving || !!missing} className="rounded-full bg-zinc-950 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+          <button type="button" onClick={onSaveDefaults} disabled={saving || !!missing} className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
             {saving ? "Kaydediliyor…" : source === "saved" ? "Varsayılan yap" : "Şartları kaydet"}
           </button>
         ) : null}

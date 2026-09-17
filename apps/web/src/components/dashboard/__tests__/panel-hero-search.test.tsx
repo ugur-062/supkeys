@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { Sparkles } from "lucide-react";
 import { PanelHeroSearch } from "../panel-hero-search";
 
 const push = vi.fn();
@@ -214,33 +215,42 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Firma)", () => {
   });
 });
 
-describe("PanelHeroSearch — dekoratif arka plan", () => {
-  it("`backdrop` katmanları DEKORATİFTİR: ekran okuyucuya görünmez, tıklama almaz, içeriğin arkasında", () => {
-    // 2026-09-08 (kullanıcı varlıkları): dünya haritası · depo · gemi ·
-    // uçak. Sözleşme görselin KENDİSİ değil DAVRANIŞI: alt metin yok,
-    // `pointer-events-none`, negatif z-index. Okunabilirlik pazarlık
-    // konusu değil — üstlerinde beyaz peçe var.
+describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)", () => {
+  it("`backdrop` ile de görsel yüklenmez; bant düz beyaz, tam genişlik düzeni korunur", () => {
+    // Kullanıcı kararı: "arama kısmının arkasındaki fotoğrafı tamamen
+    // kaldır, beyaz olsun" — sahne, renk yayılımı ve nokta deseni kalktı.
     const { container } = render(
       <PanelHeroSearch title="Ne arıyorsunuz?" lead="x" placeholder="p" action="/x" accent="blue" backdrop />,
     );
-    const imgs = Array.from(container.querySelectorAll("img"));
-    // TEK SAHNE (2026-09-08): dört ayrı kesit yerine kaynak setteki hazır
-    // kompozisyon; alta doğru beyaza eriyor.
-    expect(imgs).toHaveLength(1);
-    const img = imgs[0] as HTMLImageElement;
-    expect(img.getAttribute("alt")).toBe("");
-    expect(img.getAttribute("src")).toContain("hero-scene");
-    const layer = img.closest("[aria-hidden]") as HTMLElement | null;
-    expect(layer?.className).toContain("pointer-events-none");
-    expect(layer?.className).toMatch(/-z-10/);
-    // Alt erime: maske olmadan fotoğraf beyaz zeminde kesilmiş gibi biter.
-    expect(img.style.maskImage || img.style.webkitMaskImage).toContain("linear-gradient");
+    expect(container.querySelectorAll("img")).toHaveLength(0);
+    const band = container.querySelector("section") as HTMLElement;
+    expect(band.className).toContain("bg-white");
+    expect(band.className).not.toMatch(/from-transparent|gradient/);
+    expect(band.className).toContain("min-h-[30rem]");
     // Arama kutusu ve başlık yerinde (yapı değişmedi).
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
   });
 
-  it("`backdrop` verilmezse görsel HİÇ yüklenmez (satış portalı sade kalır)", () => {
+  it("`widgets`: köşe kartları dekoratif (aria-hidden, tıklanmaz) ve yalnız backdrop bandında", () => {
+    // 2026-09-17, kullanıcı: referans görseldeki "arkadaki küçük kutu tarzı
+    // görseller" — sayı/istatistik taşımaz, ekran okuyucuya görünmez.
+    const widgets = [{ icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri", at: "tl" as const }];
+    const { container, unmount } = render(
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" backdrop widgets={widgets} />,
+    );
+    const card = container.querySelector('[aria-hidden="true"].pointer-events-none');
+    expect(card).not.toBeNull();
+    expect(card?.textContent).toContain("AI ile tedarikçi bul");
+    expect(screen.queryByText("AI ile tedarikçi bul")).not.toBeNull();
+    unmount();
+    const { container: c2 } = render(
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" widgets={widgets} />,
+    );
+    expect(c2.textContent).not.toContain("AI ile tedarikçi bul");
+  });
+
+  it("`backdrop` verilmezse de görsel yok (kompakt hero)", () => {
     const { container } = render(
       <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="emerald" />,
     );

@@ -78,15 +78,13 @@ export function HomeHero() {
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
-          title="Hangi talebe"
-          titleAccent="teklif vereceksiniz?"
-          splitTitle
+          title="Hangi talebe teklif vereceksiniz?"
+          plainTitle
           lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
           placeholder="Talep, sektör veya ürün arayın"
           action={MARKETPLACE_ROUTES.demands}
           accent="emerald"
           backdrop
-          backdropSrc="/hero/hero-scene-satis.webp"
           ctaNote={{
             text: "Teklif vermek ve alıcıyı görmek için",
             label: "Ücretsiz kaydolun",
@@ -96,9 +94,8 @@ export function HomeHero() {
       ) : (
         <PanelHeroSearch
           key="buyer"
-          title="Hangi ürün için"
-          titleAccent="tedarikçi arıyorsunuz?"
-          splitTitle
+          title="Hangi ürünü arıyorsunuz?"
+          plainTitle
           lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
           placeholder="Ürün, firma veya sektör arayın..."
           action={MARKETPLACE_ROUTES.products}
@@ -132,15 +129,12 @@ export function HomeHero() {
    hero'nun bandı elden geçerse burası da elden geçmeli. */
 const BAND =
   "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-transparent via-transparent to-white " +
+  "ml-[calc(50%-50cqw)] overflow-hidden bg-white " +
   "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
 
-const MASK =
-  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), " +
-  "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)";
-
 /**
- * Hidrasyondan önceki sessiz hero: arka plan, BAŞLIK ve alt cümle. Arama
+ * Hidrasyondan önceki sessiz hero: beyaz bant, BAŞLIK ve alt cümle (fotoğraf
+ * 2026-09-17'de kalktı). Arama
  * çubuğu YOK — o etkileşimli parça sınırın içinde kalıyor. Üst etiket de
  * YOK: hero'nun kendisi de basmıyor (yuva anahtarın), ikisi ayrışırsa
  * hidrasyonda başlık zıplar.
@@ -150,29 +144,10 @@ const MASK =
  */
 function HeroShell() {
   return (
-    <section aria-label="Hangi ürün için tedarikçi arıyorsunuz?" className={BAND}>
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/hero/hero-scene.webp"
-          alt=""
-          loading="eager"
-          decoding="async"
-          draggable={false}
-          className="absolute inset-0 size-full object-cover object-bottom"
-          style={{
-            maskImage: MASK,
-            WebkitMaskImage: MASK,
-            filter: "contrast(1.12) saturate(1.12) brightness(1.01)",
-            maskComposite: "intersect",
-            WebkitMaskComposite: "source-in",
-          }}
-        />
-      </div>
+    <section aria-label="Hangi ürünü arıyorsunuz?" className={BAND}>
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Hangi <span className="text-blue-600">ürün için</span>
-          <span className="block text-blue-600">tedarikçi arıyorsunuz?</span>
+          Hangi ürünü arıyorsunuz?
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">
           Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin.

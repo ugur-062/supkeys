@@ -210,6 +210,9 @@ export function Step3Suppliers() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const wizCategoryIds = useWatch({ control, name: "categoryIds" }) ?? [];
+  // Kalem adları web aramasına bağlam (2026-09-17): "kalemleri analiz ederek".
+  const wizItems = useWatch({ control, name: "items" }) ?? [];
+  const wizItemNames = wizItems.map((i) => (i?.name ?? "").trim()).filter(Boolean);
   const [saveOpen, setSaveOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -322,7 +325,7 @@ export function Step3Suppliers() {
                 (kullanıcı isteği 2026-08-04): Davetliler adımının AI girişi
                 belirgin olsun. */}
             <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -703,6 +706,7 @@ export function Step3Suppliers() {
               isOpen={discoveryOpen}
               onClose={() => setDiscoveryOpen(false)}
               categoryIds={wizCategoryIds}
+              itemNames={wizItemNames}
             />
             <InviteByEmailModal
               open={inviteOpen}

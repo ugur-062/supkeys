@@ -102,7 +102,7 @@ export function InsightsView() {
           </section>
 
           <section aria-labelledby="teklifler" className="space-y-3">
-            <SectionHead id="teklifler" title="Teklifler" lead="Dönemde verdiğiniz teklifler ve kazanma oranı." href="/company/satis/tekliflerim" cta="Satış Tekliflerim" />
+            <SectionHead id="teklifler" title="Teklifler" lead="Dönemde verdiğiniz teklifler ve kazanma oranı." href="/company/satis/tekliflerim" cta="Tekliflerim" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard label="Verilen teklif" value={d.bids.submitted} accent="slate" href="/company/satis/tekliflerim" />
               <KpiCard label="Kazanılan" value={d.bids.won} accent="slate" href="/company/satis/tekliflerim?status=WON" hint={d.bids.submitted > 0 ? `%${Math.round((d.bids.won / d.bids.submitted) * 100)} kazanma oranı` : undefined} />

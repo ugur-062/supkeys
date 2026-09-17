@@ -146,6 +146,9 @@ export function useUpdateCompanyProfile() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-profile"] });
       qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+      // Panel içi önizleme (/company/firma/<RothernID>) aynı firmayı dizin
+      // ucundan okur ve 5 dk bayat kalabilir → kayıtta o kopya da düşer.
+      qc.invalidateQueries({ queryKey: ["company-directory", "profile"] });
     },
   });
 }

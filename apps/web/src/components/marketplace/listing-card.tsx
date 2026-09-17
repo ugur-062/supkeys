@@ -12,6 +12,7 @@ import {
 } from "@/lib/public/marketplace";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { cn } from "@/lib/utils";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import {
   BuildingOffice2Icon,
   ChevronDownIcon,
@@ -213,6 +214,7 @@ function PanelRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
+  const accent = useButtonAccent();
   // TÜM SATIR tıklanır; başlık gerçek bağlantı (orta tık/klavye). Satır
   // üstündeki diğer etkileşimler yayılımı keser — favoriye tıklamak sayfayı
   // değiştirmesin.
@@ -342,8 +344,12 @@ function PanelRow({
               <Link
                 href={d.action.href}
                 onClick={stop}
+                /* DÜĞME GİBİ (2026-09-17, kullanıcı kararı): dolgulu, portal
+                   renginde (satışta emerald; kabuk dışında mavi). Satır
+                   tıklaması yayılmaz (`stop`). */
                 className={cn(
-                  "shrink-0 text-sm font-semibold text-emerald-700 hover:underline",
+                  "inline-flex shrink-0 items-center rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm transition",
+                  accentFillClass(accent),
                   ROW_FOCUS,
                 )}
               >

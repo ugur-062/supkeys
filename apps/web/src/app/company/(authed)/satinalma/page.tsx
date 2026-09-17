@@ -1,6 +1,8 @@
 "use client";
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
+import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
+import { BadgeCheck, Building2, Lock, ShieldCheck, Sparkles } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
@@ -48,6 +50,13 @@ import { useEffect, useMemo, useState } from "react";
  * Sayfada TEK primary CTA (sol menü). Herkese açık uçlar panelde
  * KULLANILMAZ.
  */
+/* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
+const BUYER_WIDGETS: HeroWidget[] = [
+  { icon: ShieldCheck, icons: [ShieldCheck, Building2, BadgeCheck], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
+  { icon: Lock, title: "Kapalı zarf teklifler", hint: "Tedarikçiler birbirini görmez", at: "tr" },
+  { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "br" },
+];
+
 export default function SatinalmaDashboardPage() {
   // Hero kapsam pili — "Firma" seçiliyken alttaki bölüm firma listesi.
   // Oturum belleğinden geri yüklenir (firma sayfasından GERİ dönüş).
@@ -141,9 +150,10 @@ export default function SatinalmaDashboardPage() {
            kalıbının alım tarafındaki karşılığı. Kutu hem ürün hem tedarikçi
            arıyor (kapsam anahtarı) — soru ikisini de kapsayacak biçimde
            kuruldu: aranan ÜRÜN, bulunacak olan TEDARİKÇİ. */
-        title="Hangi ürün için"
-        titleAccent="tedarikçi arıyorsunuz?"
-        splitTitle
+        /* 2026-09-17, kullanıcı kararı: "Hangi ürünü arıyorsunuz?" — tek
+           renk (siyah), vurgu yok. */
+        title="Hangi ürünü arıyorsunuz?"
+        plainTitle
         lead="Doğrulanmış tedarikçilerle tanışın, ihtiyaçlarınızı paylaşın, işinizi büyütün."
         placeholder="Ürün, firma veya sektör arayın..."
         action={PANEL_MARKET.products}
@@ -166,9 +176,8 @@ export default function SatinalmaDashboardPage() {
           label: "Talep aç",
           href: "/company/satinalma/taleplerim/yeni",
         }}
-        /* Dekoratif arka plan katmanları (dünya haritası · depo · gemi ·
-           uçak). Yalnız satınalma hero'sunda; satış portalı sade kalır. */
         backdrop
+        widgets={BUYER_WIDGETS}
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}

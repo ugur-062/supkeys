@@ -1183,6 +1183,11 @@ export class CompanyConnectionsService {
           status: true,
           createdAt: true,
           closesAt: true,
+          // 2026-09-17: profil satırı `ListingCard row` — kategori tonu,
+          // kapsam ve kalem sayısı (kimlik/fiyat taşımaz).
+          categoryIds: true,
+          isInternational: true,
+          _count: { select: { items: true } },
         },
         orderBy: { createdAt: "desc" },
         take: 100,
@@ -1257,7 +1262,7 @@ export class CompanyConnectionsService {
       connectionStatus,
       connectionId,
       connected,
-      listings,
+      listings: listings.map(({ _count, ...l }) => ({ ...l, itemCount: _count.items })),
       products: products.map(toProductIndexCard),
       productCount,
     };

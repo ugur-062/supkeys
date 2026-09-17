@@ -12,6 +12,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";
+import { cn } from "@/lib/utils";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 
 /**
  * PANEL ARAMA BLOĞU — Europages "Ne arıyorsunuz?" kalıbı (2026-09-05,
@@ -56,11 +58,36 @@ export interface PanelHeroAi {
   placeholder?: string;
 }
 
+export type HeroWidget = {
+  icon: LucideIcon;
+  /** Üst üste binen küçük ikon çipleri (referanstaki avatar yığını; fotoğraf yok). */
+  icons?: LucideIcon[];
+  title: string;
+  hint: string;
+  /** Köşe: tl · tr · bl · br. */
+  at: "tl" | "tr" | "bl" | "br";
+};
+
+const WIDGET_POS: Record<HeroWidget["at"], string> = {
+  /* Kenara yakın ve DAR (w-44): 2xl'de içerik 1280 px, arama kutusu 896 px →
+     her yanda 192 px pay; kart 176 px o paya sığar, arama kutusuyla ÇAKIŞMAZ
+     (staging'de ölçüldü: geniş kart satış bandında arama kutusunun sağ
+     ucuna biniyordu). Daha dar ekranda hiç çizilmez. */
+  /* Alt kartlar DAR ve kenarda (w-48, 4 px): satış bandında arama kutusu
+     daha aşağıda; geniş kart kutunun ucuna girip ikonu örtüyordu
+     (2xl'de ölçüldü). Üst kartlar başlık hizasında, geniş kalabilir. */
+  tl: "left-2 top-10 w-56 -rotate-6",
+  tr: "right-2 top-8 w-56 rotate-3",
+  bl: "left-1 bottom-8 w-48 rotate-2",
+  br: "right-1 bottom-10 w-48 -rotate-3",
+};
+
 export function PanelHeroSearch({
   eyebrow,
   title,
   titleAccent,
   splitTitle = false,
+  plainTitle = false,
   lead,
   placeholder,
   action,
@@ -68,7 +95,7 @@ export function PanelHeroSearch({
   chipsLabel = "Popüler",
   ctaNote,
   backdrop = false,
-  backdropSrc = "/hero/hero-scene.webp",
+  widgets,
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -92,6 +119,8 @@ export function PanelHeroSearch({
    * sessizce ikiye bölünmesin.
    */
   splitTitle?: boolean;
+  /** Başlık TEK RENK (zinc-950), vurgu sözcüğü yok (2026-09-17, kullanıcı kararı). */
+  plainTitle?: boolean;
   lead: string;
   placeholder: string;
   /** Sonuç sayfası — `?q=` okuyan liste. */
@@ -110,8 +139,14 @@ export function PanelHeroSearch({
    * değişmez. Verilmezse hero eski sade zemininde kalır (satış portalı).
    */
   backdrop?: boolean;
+  /**
+   * DEKORATİF WİDGET KARTLARI (2026-09-17, kullanıcı: referans görseldeki
+   * "arkadaki küçük kutu tarzı görseller"). Bandın köşelerinde, içeriğin
+   * arkasında, `aria-hidden` + `pointer-events-none`; yalnız `2xl` ve üstü.
+   * İçerik UYDURMA SİNYAL taşımaz (sayı/istatistik yok) — ürün vaatleri.
+   */
+  widgets?: HeroWidget[];
   /** Arka plan sahnesi — verilmezse satınalma sahnesi. */
-  backdropSrc?: string;
   accent?: "blue" | "emerald";
   /**
    * İKİNCİ ARAMA KAPSAMI — "Ürün | Tedarikçi" anahtarı (2026-09-08,
@@ -254,97 +289,58 @@ export function PanelHeroSearch({
              İÇERİĞE bağlıydı — satınalmada kapsam pilleri ve "talep aç"
              satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
              Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
-          ? "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-transparent via-transparent to-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
+          ? cn(
+              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
+              /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
+                 kutusunun satırına inmez (2xl'de ölçüldü). */
+              widgets?.length ? "min-h-[30rem] 2xl:min-h-[34rem]" : "min-h-[30rem]",
+            )
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
-      {/* ARKA PLAN — yumuşak renk yayılımı + ince nokta deseni. STOK
-          FOTOĞRAF YOK: kaynak tasarımdaki depo/harita görseli lisanslı bir
-          varlık gerektirir; desen CSS ile üretiliyor, repoya yeni bir dosya
-          ve lisans borcu girmiyor. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[26rem] w-[56rem] -translate-x-1/2 rounded-full opacity-40"
-        style={{ background: `radial-gradient(closest-side, ${tone.glow}, transparent)` }}
-      />
-      {backdrop ? (
-        /* TEK SAHNE (2026-09-08, kullanıcı: "fotoğrafı hiç güzel
-           yerleştirememişsin; altta beyaza gitsin, daha net olsun").
-
-           Dört ayrı kesit (depo/gemi/uçak/harita) köşelere yapıştırılmış
-           gibi duruyordu. Kaynak setteki `hero-background-clean` ZATEN tek
-           doğal kompozisyon — onu tam genişlikte tek katman olarak
-           kullanıyoruz; kaynağın üst/alt kenarındaki gürültü şeridi
-           kırpıldı (`hero-scene.webp`).
-
-           ALTA DOĞRU BEYAZA ERİR: maske alt %35'te saydama iner, bant zemini
-           beyaz olduğu için fotoğraf kesilmiş gibi bitmez. Üstte de ince bir
-           erime var — kabuk çubuğuyla arasında sert çizgi kalmasın.
-
-           `pointer-events-none` + `-z-10` + `aria-hidden`: dekoratif. */
-        <>
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 select-none">
-            {/* DÜZ `<img>` — `next/image` DEĞİL (2026-09-08, canlıda ölçüldü):
-                optimizasyon ucu bu dosya için `Content-Disposition:
-                attachment` ile dönüyor ve tarayıcı isteği `ERR_ABORTED` ile
-                düşürüyordu; görsel hiç boyanmıyordu. Dekoratif bir zemin
-                için optimizasyona ihtiyaç da yok: dosya zaten webp ve 360 KB,
-                tek boyutta kullanılıyor. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={backdropSrc}
-              alt=""
-              loading="eager"
-              decoding="async"
-              draggable={false}
-              className="absolute inset-0 size-full object-cover object-bottom"
-              /* DÖRT KENARDAN ERİME (2026-09-08, kullanıcı: "çizgi çekilmiş
-                 gibi duruyor"). Tek yönlü maske yalnız altı yumuşatıyordu;
-                 sol/sağ/üst kenarlar bandın sınırında sert kesiliyordu.
-                 İki gradyan KESİŞTİRİLİYOR (`mask-composite: intersect`,
-                 WebKit'te `source-in`): dikeyde üst %10 ve alt %30, yatayda
-                 iki uçta %12 saydama iner. */
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-                /* NETLİK (kullanıcı: "çok silik ve blurlu"): kaynak görsel
-                   yumuşak bir kompozisyon; hafif kontrast/doygunluk artışı
-                   onu keskinleştirir — filtre görselin KENDİSİNE uygulanır,
-                   metne dokunmaz. */
-                filter: "contrast(1.12) saturate(1.12) brightness(1.01)",
-                maskComposite: "intersect",
-                WebkitMaskComposite: "source-in",
-              }}
-            />
-          </div>
-          {/* Metin sütununun arkasında HAFİF beyaz peçe — sahne zaten açık,
-              peçe yalnız kontrastı garantiler. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 -z-[5] mx-auto h-[22rem] w-[min(60rem,94%)]"
-            style={{
-              background:
-                "radial-gradient(52% 54% at 50% 38%, rgb(255 255 255 / 0.5) 35%, rgb(255 255 255 / 0.22) 70%, transparent 100%)",
-            }}
-          />
-        </>
-      ) : (
-        /* Görsel verilmediğinde (satış portalı) eski sade doku. */
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-[0.18]"
-          style={{
-            backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
-            backgroundSize: "18px 18px",
-            color: "var(--color-blue-400)",
-            maskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
-            WebkitMaskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
-          }}
-        />
-      )}
-
+      {/* ARKA PLAN YOK (2026-09-17, kullanıcı kararı: "arama kısmının
+          arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
+          renk yayılımı ve nokta deseni kalktı; bant düz beyaz. `backdrop`
+          yalnız bandın tam genişlik/sabit yükseklik DÜZENİNİ seçer. */}
+      {backdrop && widgets?.length
+        ? widgets.map((w) => (
+            <div
+              key={w.title}
+              aria-hidden
+              className={cn(
+                /* Referans kart (2026-09-17): dikey düzen — üstte ikon ya da
+                   çip yığını, altında kalın başlık, en altta gri ipucu + ok;
+                   hafif eğik, yumuşak geniş gölge. */
+                "pointer-events-none absolute -z-10 hidden select-none flex-col rounded-3xl bg-white p-5 shadow-2xl shadow-zinc-950/15 ring-1 ring-zinc-950/5 2xl:flex",
+                WIDGET_POS[w.at],
+              )}
+            >
+              {w.icons?.length ? (
+                <span className="flex -space-x-2">
+                  {w.icons.slice(0, 3).map((Ic, i) => (
+                    <span
+                      key={i}
+                      className="flex size-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 ring-2 ring-white"
+                    >
+                      <Ic className="size-4" />
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-800">
+                  <w.icon className="size-6" />
+                </span>
+              )}
+              <span className="mt-3 flex items-end justify-between gap-2">
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+                  <span className="mt-1 block text-xs leading-snug text-zinc-500">{w.hint}</span>
+                </span>
+                <ChevronRight className="mb-0.5 size-4 shrink-0 text-zinc-500" />
+              </span>
+            </div>
+          ))
+        : null}
       {/* `w-full` ŞART (2026-09-08, ölçümle bulundu): bant dikey ortalama
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —
@@ -366,7 +362,9 @@ export function PanelHeroSearch({
         {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
             `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          {titleAccent ? (
+          {plainTitle ? (
+            title
+          ) : titleAccent ? (
             <>
               {splitTitle
                 ? (() => {

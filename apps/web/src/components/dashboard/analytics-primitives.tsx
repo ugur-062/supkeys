@@ -8,6 +8,7 @@ import {
   Minus,
 } from "lucide-react";
 import Link from "next/link";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import dynamic from "next/dynamic";
 
 const KpiSparkline = dynamic(
@@ -223,6 +224,7 @@ export function DashboardEmptyState({
   ctaHref?: string;
   className?: string;
 }) {
+  const accent = useButtonAccent();
   return (
     <div
       className={cn(
@@ -235,7 +237,10 @@ export function DashboardEmptyState({
       {ctaLabel && ctaHref ? (
         <Link
           href={ctaHref}
-          className="mt-1 inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+          className={cn(
+            "mt-1 inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition",
+            accentFillClass(accent),
+          )}
         >
           {ctaLabel}
         </Link>

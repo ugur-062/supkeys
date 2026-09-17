@@ -41,3 +41,12 @@ export function ButtonAccentProvider({
 export function useButtonAccent(): ButtonAccent {
   return useContext(ButtonAccentContext);
 }
+
+/** Elle çizilen dolgulu bağlantı/düğme için portal rengi sınıfları. */
+export function accentFillClass(accent: ButtonAccent): string {
+  return accent === "emerald"
+    ? "bg-emerald-600 hover:bg-emerald-700"
+    : accent === "blue"
+      ? "bg-blue-600 hover:bg-blue-700"
+      : "bg-zinc-900 hover:bg-zinc-800";
+}

@@ -58,3 +58,32 @@ export function useAiTenderRefine() {
     },
   });
 }
+
+
+/**
+ * AI ile BAŞLIK + KATEGORİ (2026-09-17, kullanıcı kararı): hızlı talep
+ * formunda tek düğme; iki uç paralel çağrılır (`tender-extract/title-suggest`
+ * + `tender-extract/category-suggest`). Biri düşerse öbürü yine uygulanır.
+ */
+export function useAiRequestDraftSuggest() {
+  return useMutation({
+    mutationFn: async (items: { name: string; quantity?: number; unit?: string; description?: string }[]) => {
+      const named = items.filter((i) => (i.name ?? "").trim().length >= 2);
+      const [title, cat] = await Promise.allSettled([
+        companyApi.post<{ title: string | null }>("/company/ai/tender-extract/title-suggest", {
+          items: named.map((i) => ({ name: i.name.trim(), quantity: i.quantity, unit: i.unit })),
+        }),
+        companyApi.post<{ categoryIds: string[]; keywords?: string[] }>(
+          "/company/ai/tender-extract/category-suggest",
+          { items: named.map((i) => ({ name: i.name.trim(), description: i.description })) },
+        ),
+      ]);
+      return {
+        title: title.status === "fulfilled" ? (title.value.data?.title ?? null) : null,
+        categoryIds: cat.status === "fulfilled" ? (cat.value.data?.categoryIds ?? []) : [],
+        keywords: cat.status === "fulfilled" ? (cat.value.data?.keywords ?? []) : [],
+        failed: title.status === "rejected" && cat.status === "rejected",
+      };
+    },
+  });
+}

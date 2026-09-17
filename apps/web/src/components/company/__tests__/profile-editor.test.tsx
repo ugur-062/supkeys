@@ -227,9 +227,11 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       "href",
       "/company/satis/urunlerim",
     );
-    expect(screen.getByRole("link", { name: "Herkese açık görünümü önizle" })).toHaveAttribute(
+    // Önizleme PANEL İÇİNDE (2026-09-17): üyenin gördüğü profil sayfası,
+    // aynı sekme — herkese açık rota oturum kapanmış hissi veriyordu.
+    expect(screen.getByRole("link", { name: "Profilimi önizle" })).toHaveAttribute(
       "href",
-      "/firma/demo-firma?onizleme=1",
+      "/company/firma/DEM0-0001",
     );
     // Rehber (kapı değil): kategori seçilmemiş → eksik olarak listelenir.
     expect(screen.getByText(/Alıcıların sizi bulması için/)).toBeInTheDocument();

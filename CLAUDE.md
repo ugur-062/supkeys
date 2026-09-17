@@ -432,9 +432,16 @@ alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
 "Teklif ver" EN SAĞDA ve `text-sm` (eskiden "Kalemler ⌄" ve eylem sağda yan
 yana, 11 px); Teklifim metriği ortada.
-**Sahibin önizlemesi ÖNBELLEKSİZ (2026-09-17, kullanıcı: "kapak ekleyince
-önizlemede gözükmüyor"):** Profilim'deki "Herkese açık görünümü önizle"
-`/firma/<slug>?onizleme=1` açar; sayfa o parametreyle profil + ürünleri
+**ÖNİZLEME PANEL İÇİNDE (2026-09-17, aynı gün ikinci karar, kullanıcı:
+"önizleme yapınca sistemden çıkıp anasayfaya dönüyor"):** Profilim'deki
+"Profilimi önizle" artık `/company/firma/<RothernID>` (üyenin gördüğü sayfa,
+aynı `CompanyProfileView`, panel kabuğu içinde, AYNI sekme). Herkese açık
+`/firma/<slug>` yeni sekmede pazarlama üst çubuğuyla (Giriş Yap / Kaydol)
+açılıyor ve oturum kapanmış hissi veriyordu. Profil kaydı
+`["company-directory","profile"]` sorgusunu da düşürür (dizin kopyası 5 dk
+bayat kalırdı). `?onizleme=1` yolu DURUYOR (herkese açık sayfayı taze
+görmek isteyen için), Profilim ona bağlanmaz.
+**Herkese açık sayfa önbelleksiz görünüm:** `/firma/<slug>?onizleme=1` sayfa o parametreyle profil + ürünleri
 `cache: "no-store"` çeker (ISR 5 dk + etiket tazeleme; tazeleme kanalı Render
 `SEO_REVALIDATE_SECRET` girilmemişse HİÇ çalışmaz → sahibi az önce yüklediğini
 göremezdi). Şablon aynı, yalnız veri tazedir. **Asıl kök neden ikinciydi:**
@@ -823,6 +830,12 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   `color="dark/zinc"` ile. Admin uygulaması ayrı, dokunulmadı. "Tek eylem
   rengi" kuralı korunur: dolgu yalnız birincil eylemde. Sözleşme:
   `button-accent.test`.
+- **ASİSTAN YAN ÇEKMECE, MODAL DEĞİL (2026-09-17, kullanıcı: "asistan açıkken
+  sol taraf kullanılabilir olmalı"):** `assistant-launcher.tsx` Headless
+  `Dialog`/`DialogBackdrop` yerine sabit `<aside>`; perde ve odak kilidi yok,
+  Escape ile kapanır. İçindeki kullanıcı balonu, onay/gönder düğmeleri ve
+  yazıyor noktaları `ButtonAccent`tan boyanır (satınalma mavi, satış emerald;
+  eski `bg-brand-*` = siyah). Yuvarlak açma düğmesi de aynı renk.
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).
 - **SONUÇ TÜRÜ SEKMESİ** (Ürünler ve hizmetler | Tedarikçiler) üç sayfada AYNI;
@@ -852,6 +865,14 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   (`seller-tenders`). Sözleşme `portal-discovery.test.tsx`.
 - Sektör sayaçları ile liste TEK KAYNAK (`sellerVisibleWhere`) — ayrışsalardı
   "12 ilan" yazıp 5 ilan çıkardı. `limit` SIRALAMADAN SONRA kırpar.
+
+**HERO ARKA PLANI DÜZ BEYAZ (2026-09-17, kullanıcı kararı: "arama kısmının
+arkasındaki fotoğrafı tamamen kaldır, beyaz olsun; anasayfadakini de"):**
+`PanelHeroSearch` fotoğraf sahnesi (`/hero/hero-scene*.webp` SİLİNDİ), renk
+yayılımı ve nokta deseni çizmez; `backdrop` yalnız tam genişlik + `min-h-[30rem]`
+bant düzenini seçer, bant `bg-white`. Herkese açık anasayfanın hidrasyon
+öncesi kabuğu (`home-hero.tsx` `HeroShell`/`BAND`) aynı sınıfları taşır.
+Sözleşme: `panel-hero-search.test` "arka plan".
 
 ### Herkese açık anasayfa = panel anasayfalarının anonim hâli
 Ziyaretçi `AudienceSwitch` ile tarafını seçer; sayfa o portalın panel
@@ -920,6 +941,21 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   taşındı, TEK KAYNAK); yeni backend akışı YOK. Yayın sonrası panel:
   tedarikçi önerisi (AI) + talep bağlantısı. Taslak `sessionStorage`
   (`quick-draft.ts`); "Detaylı ayarlar" sihirbaza `QUICK_TO_WIZARD_KEY` ile taşır.
+- **HIZLI TALEP 1. BÖLÜM DÜZENİ (2026-09-17, kullanıcı kararı):** kalemler →
+  **Talep başlığı** → altında **"AI ile başlık ve kategori bul"** düğmesi →
+  **Kategori** (tek sütun; eski iki sütunlu başlık|kategori ızgarası kalktı).
+  Düğme iki ucu PARALEL çağırır: `tender-extract/title-suggest` (YENİ —
+  kalemlerden 4-10 sözcüklük Türkçe başlık, `title-suggest.ts`
+  `sanitizeSuggestedTitle`; uydurma ölçü/sayı yok, hata → `{title:null}`) +
+  `tender-extract/category-suggest` (mevcut, ≤3 L3). Başlık ve kategori ÜZERİNE
+  yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa. Hook
+  `useAiRequestDraftSuggest`. Sözleşme: `test/unit/ai-title-suggest.spec.ts`.
+- **AI TEDARİKÇİ KEŞFİ 3. BÖLÜMDE (2026-09-17):** "Kimler görsün?" bölümünün
+  başında "AI ile daha fazla tedarikçiye eriş" kartı; modal kategori + KALEM
+  ADLARIYLA açılır (web araması kalemleri bağlam alır). Sihirbaz 3. adımı da
+  kalem adlarını geçer. Modal web sekmesi: **e-postası olmayan firma
+  listelenmez**, "Davet E-postası Gönder" liste kaydırılsa da görünen SABİT
+  alt şeritte.
 - **Detaylı sihirbaz `taleplerim/yeni/detayli`** (kopya `?from=`, AI belge
   `?ai=1`, şablon `?template=` buraya yönlenir): **4 adım** (Kapsam anahtarı
   Kalemler adımının üstünde; `WIZARD_STEP_FIELDS` adım→alan eşlemesi),

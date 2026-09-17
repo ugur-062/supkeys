@@ -7,8 +7,6 @@ import { useButtonAccent } from "@/components/ui/button-accent";
 import { tierAtLeast } from "@rothern/shared";
 import {
   Dialog,
-  DialogBackdrop,
-  DialogPanel,
 } from "@headlessui/react";
 import { Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -74,6 +72,16 @@ export function AssistantLauncher() {
       clearTimeout(hide);
     };
   }, [eligible]);
+
+  // Escape ile kapat — modal olmadığı için Headless'ın kapatma davranışı yok.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   if (!eligible) return null;
 
@@ -164,30 +172,29 @@ export function AssistantLauncher() {
         />
       </button>
 
-      <Dialog open={open} onClose={setOpen} className="relative z-50">
-        <DialogBackdrop
-          transition
-          className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[2px] transition data-closed:opacity-0"
-        />
-        <div className="fixed inset-y-0 right-0 flex max-w-full">
-          <DialogPanel
-            transition
-            className={cn(
-              "flex w-screen transform flex-col bg-white shadow-xl transition duration-200 ease-out data-closed:translate-x-full",
-              wide ? "max-w-2xl" : "max-w-md",
-            )}
-          >
-            {/* Başlık paneldedir (markalı kimlik + aksiyonlar tek satırda) */}
-            <div className="min-h-0 flex-1">
-              <AssistantPanel
-                onClose={() => setOpen(false)}
-                wide={wide}
-                onToggleWide={() => setWide((w) => !w)}
-              />
-            </div>
-          </DialogPanel>
-        </div>
-      </Dialog>
+      {/* YAN ÇEKMECE, MODAL DEĞİL (2026-09-17, kullanıcı: "asistan açıkken sol
+          taraf kullanılabilir olmalı, tamamen blurlu oluyor"): arka plan
+          perdesi ve odak kilidi yok; panel sağda durur, sayfa tıklanabilir.
+          Kapatma: X düğmesi ya da Escape. */}
+      {open ? (
+        <aside
+          role="complementary"
+          aria-label="Rothern Asistanı"
+          className={cn(
+            "fixed inset-y-0 right-0 z-50 flex w-screen flex-col border-l border-zinc-950/10 bg-white shadow-2xl",
+            wide ? "max-w-2xl" : "max-w-md",
+          )}
+        >
+          {/* Başlık paneldedir (markalı kimlik + aksiyonlar tek satırda) */}
+          <div className="min-h-0 flex-1">
+            <AssistantPanel
+              onClose={() => setOpen(false)}
+              wide={wide}
+              onToggleWide={() => setWide((w) => !w)}
+            />
+          </div>
+        </aside>
+      ) : null}
     </>
   );
 }

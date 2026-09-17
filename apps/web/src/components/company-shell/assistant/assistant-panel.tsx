@@ -12,6 +12,7 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
+import { useButtonAccent, type ButtonAccent } from "@/components/ui/button-accent";
 import type {
   AiChatMessageDto,
   AiPendingAction,
@@ -67,6 +68,7 @@ const THINKING_PHRASES = [
 
 /** Yanıt beklerken üç zıplayan nokta + dönüşümlü durum metni. */
 function ThinkingBubble() {
+  const t = tone(useButtonAccent());
   const [phrase, setPhrase] = useState(0);
   useEffect(() => {
     const t = setInterval(
@@ -77,7 +79,7 @@ function ThinkingBubble() {
   }, []);
   return (
     <div className="rt-fade-in flex items-end gap-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-zinc-950/10">
+      <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-1 ring-zinc-950/10", t.solid)}>
         <Sparkles className="h-3.5 w-3.5" />
       </div>
       <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-surface-subtle px-4 py-2.5 ring-1 ring-zinc-950/5">
@@ -85,7 +87,7 @@ function ThinkingBubble() {
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="rt-dot h-1.5 w-1.5 rounded-full bg-brand-500"
+              className={cn("rt-dot h-1.5 w-1.5 rounded-full", t.dot)}
               style={{ animationDelay: `${i * 150}ms` }}
             />
           ))}
@@ -108,6 +110,7 @@ function TypewriterMarkdown({
   text: string;
   onProgress?: () => void;
 }) {
+  const t = tone(useButtonAccent());
   const [len, setLen] = useState(0);
   useEffect(() => {
     if (len >= text.length) return;
@@ -123,7 +126,7 @@ function TypewriterMarkdown({
     <span>
       <AssistantMarkdown text={text.slice(0, len)} />
       {!done ? (
-        <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse rounded-full bg-brand-600 align-middle" />
+        <span className={cn("ml-0.5 inline-block h-3.5 w-0.5 animate-pulse rounded-full align-middle", t.solid)} />
       ) : null}
     </span>
   );
@@ -158,6 +161,18 @@ function initials(first?: string, last?: string): string {
 }
 
 /** Faz AI-2/3 — asistan sohbet gövdesi (modern balonlar + belge + taslak kartı). */
+/* PORTAL RENGİ (2026-09-17, kullanıcı: "asistanın içi full siyah; açıldığı
+   panele göre mavi ya da yeşil olmalı"): kullanıcı balonu, onay/gönder
+   düğmeleri ve yazıyor noktaları `ButtonAccent` bağlamından boyanır. */
+function tone(a: ButtonAccent) {
+  const g = a === "emerald";
+  return {
+    dot: g ? "bg-emerald-500" : "bg-blue-500",
+    solid: g ? "bg-emerald-600" : "bg-blue-600",
+    fill: g ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
+  };
+}
+
 export function AssistantPanel({
   onClose,
   wide,
@@ -170,6 +185,7 @@ export function AssistantPanel({
 }) {
   const { user } = useCompanyAuth();
   const router = useRouter();
+  const t = tone(useButtonAccent());
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<LocalMsg[]>([]);
   const [input, setInput] = useState("");
@@ -363,7 +379,7 @@ export function AssistantPanel({
       <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm", t.solid)}>
               <Sparkles className="h-4 w-4" />
             </div>
             {/* Çevrimiçi durum noktası */}
@@ -527,7 +543,7 @@ export function AssistantPanel({
                 aria-hidden
                 className="rt-breathe absolute -inset-5 rounded-full bg-gradient-to-br from-zinc-300/50 via-zinc-100/40 to-transparent blur-xl"
               />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-zinc-950/10">
+              <div className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg ring-1 ring-zinc-950/10", t.solid)}>
                 <Sparkles className="h-6 w-6" />
               </div>
             </div>
@@ -577,7 +593,7 @@ export function AssistantPanel({
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-1 ring-zinc-950/10",
                     m.role === "USER"
                       ? "bg-zinc-100 text-zinc-600"
-                      : "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm",
+                      : cn("text-white shadow-sm", t.solid),
                   )}
                 >
                   {m.role === "USER" ? (
@@ -590,7 +606,7 @@ export function AssistantPanel({
                   className={cn(
                     "max-w-[80%] break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                     m.role === "USER"
-                      ? "whitespace-pre-wrap rounded-br-sm bg-brand-600 text-white shadow-sm"
+                      ? cn("whitespace-pre-wrap rounded-br-sm text-white shadow-sm", t.solid)
                       : "rounded-bl-sm bg-surface-subtle text-zinc-900 shadow-sm ring-1 ring-zinc-950/5",
                   )}
                 >
@@ -643,7 +659,7 @@ export function AssistantPanel({
               {m.draft ? (
                 <div className="rt-fade-in ml-9 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-sm">
                   <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                    <span className={cn("flex h-6 w-6 items-center justify-center rounded-md text-white", t.solid)}>
                       <FileText className="h-3.5 w-3.5" />
                     </span>
                     Satın Alma Talebi Taslağı
@@ -699,7 +715,7 @@ export function AssistantPanel({
                   <button
                     type="button"
                     onClick={() => openTenderForm(m.draft!)}
-                    className="group mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                    className={cn("group mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors", t.fill)}
                   >
                     Satın Alma Talebi formunu aç
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -724,7 +740,7 @@ export function AssistantPanel({
                         "flex h-6 w-6 items-center justify-center rounded-md text-white",
                         m.pending.severity === "critical"
                           ? "bg-warning-500"
-                          : "bg-gradient-to-br from-brand-500 to-brand-700",
+                          : t.solid,
                       )}
                     >
                       {m.pending.severity === "critical" ? (
@@ -759,7 +775,7 @@ export function AssistantPanel({
                           "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60",
                           m.pending.severity === "critical"
                             ? "bg-warning-500 hover:bg-warning-600"
-                            : "bg-brand-600 hover:bg-brand-700",
+                            : t.fill,
                         )}
                       >
                         {action.isPending ? "Yürütülüyor…" : "Onayla"}
@@ -862,7 +878,7 @@ export function AssistantPanel({
                 onClick={() => void submit()}
                 disabled={send.isPending || (!input.trim() && files.length === 0)}
                 aria-label="Gönder"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm transition-all duration-200 hover:bg-brand-700 enabled:hover:shadow-md disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none"
+                className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition-all duration-200 enabled:hover:shadow-md disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none", t.fill)}
               >
                 <Send className="h-4 w-4" />
               </button>

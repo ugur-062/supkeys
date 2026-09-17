@@ -4,6 +4,7 @@ import { DASH_CARD } from "@/components/dashboard/analytics-primitives";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 
 /**
  * Firma verisi boşken grafiklerin yerine gösterilen kontrol listesi —
@@ -15,6 +16,7 @@ export function OnboardingChecklist({
 }: {
   steps: { key: string; label: string; done: boolean; href: string }[];
 }) {
+  const accent = useButtonAccent();
   const doneCount = steps.filter((st) => st.done).length;
   const pct = Math.round((doneCount / Math.max(1, steps.length)) * 100);
   const next = steps.find((st) => !st.done);
@@ -62,7 +64,10 @@ export function OnboardingChecklist({
       {next ? (
         <Link
           href={next.href}
-          className="mt-3 inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+          className={cn(
+            "mt-3 inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition",
+            accentFillClass(accent),
+          )}
         >
           Sıradaki adım: {next.label}
         </Link>

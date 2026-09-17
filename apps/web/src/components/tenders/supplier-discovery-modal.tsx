@@ -121,12 +121,21 @@ export function SupplierDiscoveryModal({
         itemNames: effItemNames.slice(0, 15),
         region: region.trim() || undefined,
       });
-      setExternalResults(res);
+      // E-POSTASI OLMAYAN FİRMA LİSTELENMEZ (2026-09-17, kullanıcı kararı):
+      // davet gönderilemeyecek satır yalnız gürültüdür.
+      const withEmail = res.filter((c) => !!(c.email ?? "").trim());
+      setExternalResults(withEmail);
       setSelectedExt(new Set());
       setEmailDrafts(
-        Object.fromEntries(res.map((c, i) => [i, c.email ?? ""])),
+        Object.fromEntries(withEmail.map((c, i) => [i, c.email ?? ""])),
       );
-      if (res.length === 0) toast.info("Web aramasında uygun firma bulunamadı");
+      if (withEmail.length === 0) {
+        toast.info(
+          res.length === 0
+            ? "Web aramasında uygun firma bulunamadı"
+            : "Bulunan firmaların yayınlanmış e-postası yok — davet gönderilemez",
+        );
+      }
     } catch (err) {
       toast.error(extractErrorMessage(err, "Web araması başarısız — tekrar deneyin"));
     }
@@ -210,7 +219,7 @@ export function SupplierDiscoveryModal({
           {/* Header */}
           <div className="flex items-start justify-between gap-4 border-b border-zinc-950/5 px-6 py-5">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
@@ -256,6 +265,7 @@ export function SupplierDiscoveryModal({
 
           {/* Body — Dış arama sekmesi */}
           {tab === "external" ? (
+            <>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -363,8 +373,18 @@ export function SupplierDiscoveryModal({
                 </ul>
               ) : null}
 
-              {externalResults.length > 0 ? (
-                <div className="mt-4">
+            </div>
+            {/* GÖNDER DÜĞMESİ SABİT ALT ŞERİTTE (2026-09-17, kullanıcı: "sırf
+                görmek için en aşağı inilmemeli"): liste kaydırılır, düğme
+                kutunun altında hep görünür. */}
+            {externalResults.length > 0 ? (
+              <div className="shrink-0 border-t border-zinc-200 bg-white px-6 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-zinc-500">
+                    {listingId
+                      ? "Günlük dış davet limiti firma başına 20; aynı adrese bir kez gönderilir, her e-postada vazgeçme bağlantısı vardır."
+                      : "Talep henüz yayınlanmadığı için bağlantı/kayıt daveti gönderilir; talebe özel davet yayın sonrası talep sayfasından."}
+                  </p>
                   <Button
                     onClick={listingId ? sendExternalInvites : sendGenericInvites}
                     disabled={
@@ -380,27 +400,15 @@ export function SupplierDiscoveryModal({
                     )}
                     Davet E-postası Gönder ({selectedExt.size})
                   </Button>
-                  {!listingId ? (
-                    <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                      Satın Alma Talebi henüz yayınlanmadığı için <strong>bağlantı/kayıt
-                      daveti</strong> gönderilir — firma kabul edince Davetliler
-                      adımında listenize düşer. Satın Alma Talebine özel davet, yayın
-                      sonrası satın alma talebi sayfasındaki bu ekrandan gönderilir.
-                    </p>
-                  ) : null}
-                  <p className="mt-2 text-xs text-zinc-400">
-                    Günlük dış davet limiti firma başına 20&apos;dir; aynı adrese
-                    yalnız bir kez gönderilir ve her e-postada tek tık
-                    vazgeçme bağlantısı bulunur.
-                  </p>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
+            </>
           ) : (
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {effCategoryIds.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
-                Önce Genel Bilgi adımında satın alma talebi kategorisini seçin — öneriler
+                Önce satın alma talebinin kategorisini seçin — öneriler
                 kategoriye göre bulunur.
               </p>
             ) : discovery.isPending ? (

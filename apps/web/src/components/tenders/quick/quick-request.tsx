@@ -10,7 +10,8 @@ import { uploadListingDocument } from "@/hooks/use-listing-documents";
 import { useConnections } from "@/hooks/use-company-connections";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
-import { tierAtLeast } from "@rothern/shared";
+import { useAiRequestDraftSuggest } from "@/hooks/use-ai-tender-import";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import Link from "next/link";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
+import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
 import { PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
@@ -80,6 +82,12 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const [setupDone, setSetupDone] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
+  // "AI ile daha fazla tedarikçiye eriş" — 3. bölümde (Kimler görsün?),
+  // 2026-09-17 kullanıcı kararı; kalem adları + kategori bağlamıyla arar.
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  // AI ile başlık + kategori (2026-09-17): kalemlerden; başlık ve kategori
+  // ÜZERİNE yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa.
+  const draftSuggest = useAiRequestDraftSuggest();
   const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
@@ -260,6 +268,34 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   };
 
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
+  const suggestTitleAndCategory = async () => {
+    if (draftSuggest.isPending || namedItems.length === 0) return;
+    try {
+      const r = await draftSuggest.mutateAsync(
+        namedItems.map((i) => ({
+          name: i.name,
+          quantity: typeof i.quantity === "number" ? i.quantity : Number(i.quantity) || undefined,
+          unit: i.unit || undefined,
+          description: i.description || undefined,
+        })),
+      );
+      if (r.failed) {
+        toast.error("AI önerisi alınamadı — tekrar deneyin");
+        return;
+      }
+      if (r.title) setValue("title", r.title, { shouldDirty: true, shouldValidate: true });
+      if (r.categoryIds.length > 0) setValue("categoryIds", r.categoryIds.slice(0, 3), { shouldDirty: true, shouldValidate: true });
+      if (r.keywords.length > 0 && (getValues("keywords") ?? []).length === 0) {
+        setValue("keywords", r.keywords.map((k) => k.trim().slice(0, 50)).filter(Boolean).slice(0, 10));
+      }
+      if (!r.title && r.categoryIds.length === 0) toast.info("AI uygun bir öneri bulamadı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "AI önerisi alınamadı"));
+    }
+  };
+  // Tedarikçi keşfi API kapısı GOLD (`company/ai/supplier-discovery`).
+  const discoveryAvailable = !!company && tierAtLeast(company.tier, BUYING_TIER);
+  const discoveryItemNames = (watched.items ?? []).map((i) => (i?.name ?? "").trim()).filter(Boolean);
   const writeDescription = async () => {
     const v = getValues();
     try {
@@ -387,7 +423,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
               ) : null}
               {/* AI-1 — belgeden doldurma girişi (sihirbaz sayfasındaki kartın aynısı) */}
               <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -422,7 +458,10 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
               {/* Kalem satırları — sihirbazın Kalemler adımıyla BİREBİR aynı bileşen. */}
               <Step2Items />
 
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* BAŞLIK → AI → KATEGORİ tek sütun (2026-09-17, kullanıcı kararı:
+                  "kategori seçimi talep başlığının altında olmalı; AI ile
+                  kategori bul geri gelsin; AI başlığı da oluştursun"). */}
+              <div className="space-y-5">
                     <div>
                       <label htmlFor="talep-baslik" className="mb-1.5 block text-sm font-medium text-zinc-950">
                         Talep başlığı <span className="text-red-600">*</span>
@@ -434,6 +473,24 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                         className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                       />
                       {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">Boş bırakırsanız kalemlerden türetilir.</p>}
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => void suggestTitleAndCategory()}
+                          disabled={!aiAvailable || draftSuggest.isPending || namedItems.length === 0}
+                          title={
+                            !aiAvailable
+                              ? "AI önerisi Silver ve üzeri paketlerde"
+                              : namedItems.length === 0
+                                ? "Önce en az bir kalem adı girin"
+                                : undefined
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+                        >
+                          <SparklesIcon aria-hidden className="size-3.5" />
+                          {draftSuggest.isPending ? "AI kalemleri analiz ediyor…" : "AI ile başlık ve kategori bul"}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <p className="mb-1.5 text-sm font-medium text-zinc-950">
@@ -451,6 +508,13 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                       ) : (
                         <p className="mt-1 text-xs text-zinc-500">Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.</p>
                       )}
+                      {(watched.categoryIds?.length ?? 0) < 3 ? (
+                        <CategorySuggest
+                          seedText={namedItems[0]?.name ?? ""}
+                          selected={watched.categoryIds ?? []}
+                          onPick={(id) => setValue("categoryIds", [...(getValues("categoryIds") ?? []), id].slice(0, 3), { shouldDirty: true, shouldValidate: true })}
+                        />
+                      ) : null}
                       {/* İkinci eksen: kategori "ne", bu "kimden". */}
                       <div className="mt-3">
                         <span className="block text-xs font-medium text-zinc-700">Aranan tedarikçi tipi (isteğe bağlı)</span>
@@ -461,13 +525,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                           />
                         </div>
                       </div>
-                      {(watched.categoryIds?.length ?? 0) < 3 ? (
-                        <CategorySuggest
-                          seedText={namedItems[0]?.name ?? ""}
-                          selected={watched.categoryIds ?? []}
-                          onPick={(id) => setValue("categoryIds", [...(getValues("categoryIds") ?? []), id].slice(0, 3), { shouldDirty: true, shouldValidate: true })}
-                        />
-                      ) : null}
                     </div>
                   </div>
 
@@ -578,6 +635,30 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             lead="Kapalı zarf her durumda geçerli — tedarikçiler birbirinin teklifini görmez."
             status={<Done>{summary.who}</Done>}
           >
+            {/* AI KEŞİF (2026-09-17, kullanıcı kararı: "daha fazla tedarikçiye
+                eriş tuşu 3. kısımda olmalı, kalemleri analiz ederek tedarikçi
+                bulmalı"): kategori + kalem adları modala gider; platform
+                önerisi kategoriden, web araması kalemlerden bağlam alır. */}
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+                <Sparkles className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-zinc-900">AI ile daha fazla tedarikçiye eriş</p>
+                <p className="text-xs text-zinc-500">
+                  Kalemlerinizi ve kategoriyi analiz eder; platformdaki uygun firmaları ve web&apos;deki adayları bulur, tek tıkla davet edersiniz.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => setDiscoveryOpen(true)}
+                disabled={!discoveryAvailable}
+                title={discoveryAvailable ? undefined : "AI ile tedarikçi bulma Gold pakette"}
+                iconLeft={<Sparkles />}
+              >
+                Keşfet
+              </Button>
+            </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {(
                 [
@@ -604,6 +685,12 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                 <Controller control={form.control} name="invitedSupplierIds" render={({ field }) => <SupplierPicker value={field.value ?? []} onChange={field.onChange} />} />
               </div>
             ) : null}
+            <SupplierDiscoveryModal
+              isOpen={discoveryOpen}
+              onClose={() => setDiscoveryOpen(false)}
+              categoryIds={watched.categoryIds ?? []}
+              itemNames={discoveryItemNames}
+            />
           </NumberedSection>
 
           {/* 4 ── BELGELER */}

@@ -22,7 +22,7 @@ export function PublishedPanel({ listingId, title, categoryIds, itemNames, onNew
       <h2 className="mt-3 text-xl font-semibold text-zinc-950">Talebiniz yayında</h2>
       <p className="mt-1 text-sm text-zinc-600">“{title}” — davetliler ve görünürlük kuralına uyan tedarikçiler bilgilendirildi.</p>
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Link href={`/company/ilan/${listingId}`} className="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+        <Link href={`/company/ilan/${listingId}`} className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
           Talebi gör
         </Link>
         <button
