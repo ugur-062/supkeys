@@ -830,6 +830,12 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   `color="dark/zinc"` ile. Admin uygulaması ayrı, dokunulmadı. "Tek eylem
   rengi" kuralı korunur: dolgu yalnız birincil eylemde. Sözleşme:
   `button-accent.test`.
+- **ASİSTAN YAN ÇEKMECE, MODAL DEĞİL (2026-09-17, kullanıcı: "asistan açıkken
+  sol taraf kullanılabilir olmalı"):** `assistant-launcher.tsx` Headless
+  `Dialog`/`DialogBackdrop` yerine sabit `<aside>`; perde ve odak kilidi yok,
+  Escape ile kapanır. İçindeki kullanıcı balonu, onay/gönder düğmeleri ve
+  yazıyor noktaları `ButtonAccent`tan boyanır (satınalma mavi, satış emerald;
+  eski `bg-brand-*` = siyah). Yuvarlak açma düğmesi de aynı renk.
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).
 - **SONUÇ TÜRÜ SEKMESİ** (Ürünler ve hizmetler | Tedarikçiler) üç sayfada AYNI;
