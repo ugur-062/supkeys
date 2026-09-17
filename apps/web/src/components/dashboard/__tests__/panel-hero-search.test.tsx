@@ -239,9 +239,9 @@ describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)"
     const { container, unmount } = render(
       <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" backdrop widgets={widgets} />,
     );
-    const card = container.querySelector('[aria-hidden="true"].pointer-events-none');
-    expect(card).not.toBeNull();
-    expect(card?.textContent).toContain("AI ile tedarikçi bul");
+    const decorative = Array.from(container.querySelectorAll('[aria-hidden="true"].pointer-events-none'));
+    const card = decorative.find((el) => el.textContent?.includes("AI ile tedarikçi bul"));
+    expect(card).toBeDefined();
     expect(screen.queryByText("AI ile tedarikçi bul")).not.toBeNull();
     unmount();
     const { container: c2 } = render(
