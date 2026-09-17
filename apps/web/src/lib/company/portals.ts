@@ -128,9 +128,10 @@ export const MODULE_LABELS = {
     // "mesaj" DEĞİL: mesajlaşma firma↔firma, bu kanalda gönderenin hesabı
     // olmayabilir. Aynı sözcüğü kullanmak iki farklı akışı karıştırırdı.
     bilgiTalepleri: "Bilgi Talepleri",
-    // C32: iki portalda aynı H1 ("Tekliflerim") ayırt edilemiyordu — satış
-    // tarafı portal-önekli (Satış İlanlarım/Satışlarım deseniyle aynı).
-    teklifler: "Satış Tekliflerim",
+    // 2026-09-17, kullanıcı kararı: "sadece Tekliflerim olsun" — portal öneki
+    // kalktı (satınalma tarafında bu adla sayfa yok; üst çubuk zaten portalı
+    // söylüyor).
+    teklifler: "Tekliflerim",
     siparisler: "Satışlarım",
   },
 } as const;

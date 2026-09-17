@@ -67,7 +67,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.auth.user = { roles: ["ONAYLAYICI"] };
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
-    expect(screen.queryByText("Satış Tekliflerim")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tekliflerim")).not.toBeInTheDocument();
     expect(screen.queryByText("Tekliflerim")).not.toBeInTheDocument();
     expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
     expect(screen.getByText("Onaylar")).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.canAct = false;
     render(<CompanySidebarContent expanded showPin={false} />);
     expect(screen.queryByText("Onaylar")).not.toBeInTheDocument();
-    expect(screen.queryByText("Satış Tekliflerim")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tekliflerim")).not.toBeInTheDocument();
     expect(screen.getByText("Ayarlar")).toBeInTheDocument();
   });
 
@@ -96,7 +96,7 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     h.auth.user = { roles: ["ONAYLAYICI", "SATISCI"] };
     h.canAct = true;
     render(<CompanySidebarContent expanded showPin={false} />);
-    expect(screen.getByText("Satış Tekliflerim")).toBeInTheDocument();
+    expect(screen.getByText("Tekliflerim")).toBeInTheDocument();
     expect(screen.getByText("Onaylar")).toBeInTheDocument();
   });
 });
@@ -136,7 +136,7 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     expect(screen.queryByText("Profilim")).not.toBeInTheDocument();
   });
 
-  it("satış: Ürünlerim→Profilim→Satış Tekliflerim→Satışlarım→Bağlantılar; Açık Talepler/Satış İlanlarım/Raporlar/Şablonlar menüde YOK", () => {
+  it("satış: Ürünlerim→Profilim→Tekliflerim→Satışlarım→Bağlantılar; Açık Talepler/Satış İlanlarım/Raporlar/Şablonlar menüde YOK", () => {
     h.auth.user = { roles: ["SATISCI"] };
     h.canAct = false;
     render(<CompanySidebarContent expanded showPin={false} />);
@@ -150,8 +150,8 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     // Profilim ŞİRKETİM alanında (2026-09-05) — satış menüsünde yok.
     expect(idx("Ürünlerim")).toBeGreaterThan(idx("Anasayfa"));
     expect(idx("Profilim")).toBe(-1);
-    expect(idx("Satış Tekliflerim")).toBeGreaterThan(idx("Ürünlerim"));
-    expect(idx("Satışlarım")).toBeGreaterThan(idx("Satış Tekliflerim"));
+    expect(idx("Tekliflerim")).toBeGreaterThan(idx("Ürünlerim"));
+    expect(idx("Satışlarım")).toBeGreaterThan(idx("Tekliflerim"));
     expect(idx("Bağlantılar")).toBeGreaterThan(idx("Satışlarım"));
     expect(screen.queryByText("Raporlar")).not.toBeInTheDocument();
     expect(screen.queryByText("Şablonlar")).not.toBeInTheDocument();

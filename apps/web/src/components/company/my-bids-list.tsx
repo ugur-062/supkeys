@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 10;
@@ -260,6 +261,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
 /** Firmanın açık taleplere verdiği teklifler (satış paneli). */
 export function MyBidsList() {
+  const accent = useButtonAccent();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string[]>([]);
   const [sort, setSort] = useState("newest");
@@ -443,7 +445,10 @@ export function MyBidsList() {
             ) : (
               <Link
                 href="/company/satis#acik-talepler"
-                className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                className={cn(
+                  "inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition",
+                  accentFillClass(accent),
+                )}
               >
                 Açık Taleplere Göz At
               </Link>

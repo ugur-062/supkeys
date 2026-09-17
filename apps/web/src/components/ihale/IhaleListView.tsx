@@ -6,6 +6,7 @@ import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { ClipboardList, Plus } from "lucide-react";
 import Link from "next/link";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useEffect, useState } from "react";
 import { IHALE_VIEW_FOCUS, IhaleListRow } from "./IhaleListRow";
 
@@ -30,6 +31,7 @@ export function IhaleListView({
   onRetry: () => void;
   emptyCtaLabel?: string;
 }) {
+  const accent = useButtonAccent();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const canCreate = useHasCompanyPermission("buy:listing:manage");
 
@@ -109,7 +111,8 @@ export function IhaleListView({
             <Link
               href={createHref}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700",
+                "inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition",
+                accentFillClass(accent),
                 IHALE_VIEW_FOCUS,
               )}
             >

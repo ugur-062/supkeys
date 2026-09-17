@@ -46,6 +46,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -306,6 +307,7 @@ function CardSkeleton() {
 }
 
 export function OrdersList({ role }: { role: "buyer" | "seller" }) {
+  const accent = useButtonAccent();
   const { data, isLoading, isError, refetch } = useOrders();
   const isSeller = role === "seller";
   const partyPlural = isSeller ? "Alıcılar" : "Tedarikçiler";
@@ -555,7 +557,10 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                       ? "/company/satis#acik-talepler"
                       : "/company/satinalma/taleplerim"
                   }
-                  className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  className={cn(
+                    "inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition",
+                    accentFillClass(accent),
+                  )}
                 >
                   {isSeller ? "Açık Taleplere Göz At" : "Taleplerime Git"}
                 </Link>
